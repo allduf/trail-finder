@@ -729,6 +729,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, label.toggle:fo
 .periods button { font: inherit; font-weight: 600; border: 0; background: transparent; color: var(--fg); padding: 6px 4px; border-radius: 7px; cursor: pointer; }
 .periods button[aria-pressed="true"] { background: var(--panel); color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 .toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+.tsearch { position: relative; }
+.tsearch svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.tsearch input { width: 100%; box-sizing: border-box; font: inherit; padding: 9px 10px 9px 34px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+.hits { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 700; margin: 0; padding: 4px 0; list-style: none; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.2); max-height: min(52vh, 420px); overflow-y: auto; }
+.hits .hit { display: grid; grid-template-columns: 4px 1fr; gap: 10px; padding: 8px 12px 8px 10px; cursor: pointer; }
+.hits .hit[aria-selected="true"], .hits .hit:hover { background: var(--chip); }
+.hits .hit .bar { border-radius: 2px; background: var(--line); }
+.hits .hit.mtb .bar { background: var(--mtb); } .hits .hit.looks .bar { background: var(--looks); }
+.hits .hn { font-weight: 600; overflow-wrap: anywhere; }
+.hits .hm { font-size: .82rem; color: var(--muted); }
+.hits .hnote { padding: 8px 12px; font-size: .82rem; color: var(--muted); }
+.hits .hnote .linkish { padding: 0; text-decoration: underline; font-size: inherit; }
+.newtag { font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--accent-fg); vertical-align: 1px; }
 label.toggle { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--chip); cursor: pointer; font-weight: 500; user-select: none; }
 label.toggle input { position: absolute; opacity: 0; pointer-events: none; }
 label.toggle .sw { width: 18px; height: 4px; border-radius: 2px; background: currentColor; }
@@ -846,6 +859,11 @@ label.toggle.off .sw { background: var(--muted); }
         <h1>Trail <span>Finder</span></h1>
         <button class="linkish" id="aboutBtn" type="button">How it works</button>
       </div>
+      <div class="tsearch" id="tsearch">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+        <input id="trailQ" type="search" placeholder="Search a trail by name" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="trailHits" aria-autocomplete="list" aria-label="Search a trail by name">
+        <ul class="hits" id="trailHits" role="listbox" hidden></ul>
+      </div>
       <div>
         <label class="label" for="zone">Area</label>
         <select id="zone" class="zone"></select>
@@ -881,6 +899,8 @@ label.toggle.off .sw { background: var(--muted); }
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
     <h2 id="aboutTitle">How Trail Finder works</h2>
     <p>All data comes live from OpenStreetMap. By default it covers the Sea to Sky corridor and the Sunshine Coast, split into the zones in the Area menu. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
+    <h3>Trail name search</h3>
+    <p>The search box looks through every named path, track, bike path and trail route in the whole region, old or new, plus the new trails already found. Typos and close spellings still match. The first time you use it, it downloads the list of names area by area (closest area first) and saves it in this browser for a week. Pick a result to zoom to the trail and see everything known about it.</p>
     <h3>What counts as new</h3>
     <p>A way is new when its first version is dated inside the period. Overpass gives every way edited in the last 2 years. For ways with more than one version, the app asks the OpenStreetMap API for version 1 and uses its date. A trail that was only edited (retagged, extended) does not count.</p>
     <p>One catch: when a mapper splits an old trail into two pieces, the new piece gets a new id and shows up as new. Check the history link in the popup when something looks off.</p>
@@ -997,6 +1017,7 @@ label.toggle.off .sw { background: var(--muted); }
   $("basemap").addEventListener("change", (e) => setBasemap(e.target.value, true));
 
   const trailLayer = L.layerGroup().addTo(map);
+  const foundLayer = L.layerGroup().addTo(map);  // a trail picked in the name search
   let locMarker = null;
 
   map.on("moveend", () => {
@@ -1104,7 +1125,7 @@ label.toggle.off .sw { background: var(--muted); }
         lastErr = e.name === "AbortError" ? Object.assign(new Error("OpenStreetMap took too long to answer."), { http: true, busy: true }) : e;
         log(`  ${new URL(url).host}: no answer (${lastErr.message})`);
       }
-      if (signalToken !== state.token) return null;
+      if (signalToken != null && signalToken !== state.token) return null;
     }
     throw lastErr;
   }
@@ -1494,6 +1515,8 @@ out body;`;
       const shown = k === "website" ? `<a href="${esc(/^https?:/.test(v) ? v : "https://" + v)}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(fmt ? fmt(v) : v);
       return `<dt>${label}</dt><dd>${shown}</dd>`;
     }).join("");
+    const type = t.osmType || "way";
+    const segs = t.segments && t.segments.length > 1 ? t.segments.length : 0;
     const routes = (t.routes || []).map((r) => `<li><a href="https://www.openstreetmap.org/relation/${r.id}" target="_blank" rel="noopener">${esc(r.name)}</a></li>`).join("");
     const g = grade(t.tags);
     d.innerHTML = `
@@ -1501,28 +1524,29 @@ out body;`;
       <div class="d-head ${t.cat}">
         <span class="bar"></span>
         <div><h2>${esc(trailName(t))}</h2>
-        <div class="chips"><span class="chip ${t.cat}">${CAT_LABEL[t.cat]}</span>${g ? `<span class="grade">${esc(g)}</span>` : ""}${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
+        <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${g ? `<span class="grade">${esc(g)}</span>` : ""}${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
       </div>
       <dl class="facts">
-        <dt>Length</dt><dd>${fmtLen(t.km)} <span class="muted">(${t.geom.length} map points)</span></dd>
-        <dt>First mapped</dt><dd>${fmtDate(t.created)} · ${ago(t.created)}<br>by ${userLink(t.creator)} ${csLink(t.firstChangeset)}</dd>
-        <dt>Last edited</dt><dd>${t.version > 1 ? `${fmtDate(t.lastEdit)} · version ${t.version}<br>by ${userLink(t.lastUser)} ${csLink(t.lastChangeset)}` : "Never edited since (version 1)"}</dd>
+        <dt>Length</dt><dd>${fmtLen(t.km)} <span class="muted">(${segs ? `${segs} map segments` : `${t.geom.length} map points`})</span></dd>
+        <dt>First mapped</dt><dd>${t.created ? `${fmtDate(t.created)} · ${ago(t.created)}<br>by ${userLink(t.creator)} ${csLink(t.firstChangeset)}` : "Unknown"}${segs && type === "way" ? `<br><span class="muted">earliest of its segments</span>` : ""}</dd>
+        <dt>Last edited</dt><dd>${segs && type === "way" ? `<span class="muted">longest segment:</span> ` : ""}${t.version > 1 ? `${fmtDate(t.lastEdit)} · version ${t.version}<br>by ${userLink(t.lastUser)} ${csLink(t.lastChangeset)}` : "Never edited since (version 1)"}</dd>
         <dt>Starts at</dt><dd class="mono">${start[0].toFixed(5)}, ${start[1].toFixed(5)}</dd>
         <dt>Ends at</dt><dd class="mono">${end[0].toFixed(5)}, ${end[1].toFixed(5)}</dd>
         ${facts}
       </dl>
       ${routes ? `<h3>Part of MTB route</h3><ul class="plain">${routes}</ul>` : ""}
-      <h3>Why it's listed</h3><ul class="plain">${t.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>
+      <h3>${t.searched ? "How the app sees it" : "Why it's listed"}</h3><ul class="plain">${t.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>
       ${real ? `<h3>Links</h3><div class="links">
-        <a href="https://www.openstreetmap.org/way/${t.id}" target="_blank" rel="noopener">Open on OpenStreetMap</a>
-        <a href="https://www.openstreetmap.org/way/${t.id}/history" target="_blank" rel="noopener">Full history</a>
-        <a href="https://www.openstreetmap.org/edit?way=${t.id}" target="_blank" rel="noopener">Edit or fix it</a>
+        <a href="https://www.openstreetmap.org/${type}/${t.id}" target="_blank" rel="noopener">Open on OpenStreetMap</a>
+        <a href="https://www.openstreetmap.org/${type}/${t.id}/history" target="_blank" rel="noopener">Full history</a>
+        <a href="https://www.openstreetmap.org/edit?${type}=${t.id}" target="_blank" rel="noopener">Edit or fix it</a>
         ${t.tags.name ? `<a href="https://www.trailforks.com/search/?search=${encodeURIComponent(t.tags.name)}" target="_blank" rel="noopener">Search on Trailforks</a>` : ""}
         <a href="https://www.google.com/maps/dir/?api=1&destination=${start[0]},${start[1]}" target="_blank" rel="noopener">Directions to the start</a>
       </div>` : `<p class="muted">Example trail, not real data.</p>`}
       <h3>Edit history</h3><div id="history" class="muted">${real ? "Loading…" : "Not available for example trails."}</div>
       <h3>All tags</h3><table class="tagtable"><tbody>${Object.entries(t.tags).map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table>
-      <p class="muted">OpenStreetMap way ${real ? t.id : "(example)"}</p>`;
+      ${segs && type === "way" ? `<h3>Segments</h3><p class="muted">The tags, history and links above are for the longest segment. All segments: ${t.segIds.map((id) => `<a href="https://www.openstreetmap.org/way/${id}" target="_blank" rel="noopener">${id}</a>`).join(", ")}</p>` : ""}
+      <p class="muted">OpenStreetMap ${type} ${real ? t.id : "(example)"}</p>`;
     $("panel").classList.add("detail-open");
     $("detail").hidden = false;
     $("detail").scrollTop = 0;
@@ -1532,6 +1556,7 @@ out body;`;
 
   function closeDetail() {
     state.selected = null;
+    foundLayer.clearLayers();
     $("panel").classList.remove("detail-open");
     $("detail").hidden = true;
     render();
@@ -1541,10 +1566,10 @@ out body;`;
     const box = () => (state.selected === t.id ? $("history") : null);
     try {
       if (!t.history) {
-        const res = await fetch(`${OSM_API}/way/${t.id}/history`);
+        const res = await fetch(`${OSM_API}/${t.osmType || "way"}/${t.id}/history`);
         if (!res.ok) throw new Error("HTTP " + res.status);
         const xml = new DOMParser().parseFromString(await res.text(), "application/xml");
-        t.history = [...xml.querySelectorAll("way")].map((w) => ({ v: +w.getAttribute("version"), ts: new Date(w.getAttribute("timestamp")), user: w.getAttribute("user") || "", cs: +w.getAttribute("changeset"), tags: w.querySelectorAll("tag").length }));
+        t.history = [...xml.querySelectorAll(t.osmType || "way")].map((w) => ({ v: +w.getAttribute("version"), ts: new Date(w.getAttribute("timestamp")), user: w.getAttribute("user") || "", cs: +w.getAttribute("changeset"), tags: w.querySelectorAll("tag").length }));
         const ids = [...new Set(t.history.map((h) => h.cs))].slice(-50);
         const cr = await fetch(`${OSM_API}/changesets?changesets=${ids.join(",")}`).catch(() => null);
         if (cr && cr.ok) {
@@ -1624,6 +1649,312 @@ out body;`;
   $("about").addEventListener("click", (e) => { if (e.target.id === "about") $("about").hidden = true; });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!$("about").hidden) $("about").hidden = true; else if (state.selected) closeDetail(); } });
   $("sheetToggle").addEventListener("click", () => { $("panel").classList.toggle("expanded"); setTimeout(() => map.invalidateSize(), 50); });
+
+  // ---------- trail name search ----------
+  // Every named path, track and trail route in the region (any age), downloaded zone by zone the
+  // first time the box is used, saved in this browser for a week, and matched with typo tolerance.
+  const NAME_FRESH_MS = 7 * 864e5;
+  const names = { zones: new Map(), started: false, loading: false, done: 0, failed: [], groups: [], dirty: true, trailCount: -1 };
+  const STOP = new Set(["trail", "trails", "the", "path", "of", "and"]);
+  function norm(s) {
+    return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+      .replace(/&/g, " and ").replace(/['’`]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  }
+  // Edit distance that counts a swap of two letters ("fwol" / "flow") as one typo.
+  function editDist(a, b) {
+    const m = a.length, n = b.length;
+    if (!m) return n; if (!n) return m;
+    let prev2 = null, prev = Array.from({ length: n + 1 }, (_, j) => j);
+    for (let i = 1; i <= m; i++) {
+      const cur = [i];
+      for (let j = 1; j <= n; j++) {
+        let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
+        cur[j] = v;
+      }
+      prev2 = prev; prev = cur;
+    }
+    return prev[n];
+  }
+  const typosAllowed = (len) => len < 3 ? 0 : len <= 5 ? 1 : len <= 9 ? 2 : 3;
+  function wordScore(q, w) {
+    if (w === q) return 1;
+    if (q.length >= 2 && w.startsWith(q)) return 0.95;          // still typing the word
+    let d = editDist(q, w);
+    if (q.length >= 3 && w.length > q.length) {                  // typo in a half-typed word
+      d = Math.min(d, editDist(q, w.slice(0, q.length)), editDist(q, w.slice(0, q.length + 1)));
+    }
+    return d <= typosAllowed(q.length) ? 0.88 - 0.1 * d : 0;
+  }
+  function matchScore(q, qWords, text) {
+    if (!text) return 0;
+    if (text === q) return 1;
+    if (text.startsWith(q)) return 0.97;
+    const at = text.indexOf(q);
+    if (at > 0) return text[at - 1] === " " ? 0.94 : 0.8;
+    const words = text.split(" ");
+    let total = 0, weight = 0;
+    for (const qw of qWords) {
+      const wt = STOP.has(qw) ? 0.25 : 1;
+      let best = 0; for (const w of words) best = Math.max(best, wordScore(qw, w));
+      total += best * wt; weight += wt;
+    }
+    // Also compare without spaces, for "rockgarden" vs "Rock Garden".
+    const a = q.replace(/ /g, ""), b = text.replace(/ /g, "");
+    const whole = a.length >= 4 && editDist(a, b) <= typosAllowed(a.length) ? 0.85 : 0;
+    return Math.max(weight ? 0.92 * total / weight : 0, whole);
+  }
+
+  function namesQuery(b) {
+    const bb = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((n) => n.toFixed(5)).join(",");
+    return `[out:json][timeout:60];
+(
+  way["highway"~"^(path|track|bridleway|cycleway|footway)$"]["name"](${bb});
+  way["highway"~"^(path|track|bridleway|cycleway|footway)$"]["mtb:name"](${bb});
+  relation["route"~"^(mtb|bicycle|hiking|foot)$"]["name"](${bb});
+);
+out tags center qt;`;
+  }
+  async function fetchNameBox(b, depth, label, mirror) {
+    try {
+      const json = await overpass(namesQuery(b), null, mirror);
+      if (!json) throw new Error("no answer");
+      return json.elements;
+    } catch (e) {
+      if (depth >= 2 || (!e.http && !state.connected)) throw e;
+      log(`  names ${label}: ${e.message} Retrying as 4 smaller squares.`);
+      await sleep(e.busy ? 5000 : 1000);
+      const out = [];
+      for (const q of quarters(b)) out.push(...(await fetchNameBox(q, depth + 1, label + "·", mirror)));
+      return out;
+    }
+  }
+  const toItems = (elements) => elements.filter((e) => e.tags && e.center && (e.tags.name || e.tags["mtb:name"]))
+    .map((e) => ({ t: e.type === "relation" ? "r" : "w", id: e.id, c: [+e.center.lat.toFixed(5), +e.center.lon.toFixed(5)], tags: e.tags }));
+
+  async function loadNames(retry) {
+    if (state.example || names.loading || (names.started && !retry)) return;
+    names.started = true; names.loading = true; names.failed = [];
+    const c = map.getCenter();
+    const order = ZONES.slice().sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter()));
+    const todo = [];
+    for (const z of order) {
+      const s = names.zones.has(z.id) ? null : await saved.get("names:" + z.id);
+      if (s) { names.zones.set(z.id, s.items); names.dirty = true; }
+      if (!names.zones.has(z.id) || (s && Date.now() - s.fetchedAt > NAME_FRESH_MS)) todo.push(z);
+    }
+    names.done = ZONES.length - todo.length;
+    refreshHits();
+    log(`Trail names: ${names.done} areas saved in this browser, loading ${todo.length}.`);
+    async function worker(mirror) {
+      while (todo.length) {
+        const z = todo.shift();
+        try {
+          const items = toItems(await fetchNameBox(z.bounds, 0, z.name, mirror));
+          names.zones.set(z.id, items); names.dirty = true;
+          saved.put("names:" + z.id, { fetchedAt: Date.now(), items });
+          log(`  names ${z.name}: ${items.length}`);
+        } catch (e) { names.failed.push(z); log(`  names ${z.name}: failed (${e.message})`); }
+        names.done++;
+        refreshHits();
+      }
+    }
+    await Promise.all([worker(1), worker(0)]);
+    names.loading = false;
+    refreshHits();
+  }
+
+  const ROUTE_KIND = { mtb: "MTB route", bicycle: "Bike route", hiking: "Hiking route", foot: "Walking route" };
+  const WAY_KIND = { path: "Trail", track: "Track or forest road", bridleway: "Trail", cycleway: "Bike path", footway: "Footpath" };
+  const hasMtb = (tags) => Object.keys(tags).some((k) => /^mtb(:|$)/.test(k));
+  const zoneOf = (ll) => { const z = ZONES.find((z) => z.bounds.contains(ll)); return z ? z.name.split(" (")[0] : ""; };
+
+  // Segments of one trail share a name: group same-name pieces lying within 3 km of each other.
+  function buildGroups() {
+    const items = new Map();
+    for (const list of names.zones.values()) list.forEach((i) => items.set(i.t + i.id, i));
+    state.trails.forEach((t) => {
+      if (!t.tags.name && !t.tags["mtb:name"]) return;
+      const c = t.bounds.getCenter();
+      if (!items.has("w" + t.id)) items.set("w" + t.id, { t: "w", id: t.id, c: [c.lat, c.lng], tags: t.tags });
+    });
+    const byKey = new Map(), groups = [];
+    for (const i of items.values()) {
+      const name = i.tags.name || i.tags["mtb:name"];
+      const key = i.t + ":" + norm(name);
+      const ll = L.latLng(i.c);
+      const same = byKey.get(key) || [];
+      let g = i.t === "w" && same.find((g) => g.items.some((o) => ll.distanceTo(o.c) < 3000));
+      if (!g) {
+        const alt = ["mtb:name", "alt_name", "old_name", "official_name", "short_name", "loc_name"]
+          .flatMap((k) => (i.tags[k] || "").split(";")).map(norm).filter(Boolean);
+        g = { name, texts: [norm(name), ...alt], items: [], type: i.t, tags: i.tags };
+        same.push(g); byKey.set(key, same); groups.push(g);
+      }
+      g.items.push(i);
+      if (hasMtb(i.tags)) g.tags = i.tags;
+    }
+    groups.forEach((g) => {
+      const lat = g.items.reduce((s, i) => s + i.c[0], 0) / g.items.length, lon = g.items.reduce((s, i) => s + i.c[1], 0) / g.items.length;
+      g.center = L.latLng(lat, lon);
+      g.zone = zoneOf(g.center);
+      g.isNew = g.type === "w" && g.items.some((i) => state.trails.some((t) => t.id === i.id));
+      g.mtb = g.type === "r" ? g.tags.route === "mtb" : hasMtb(g.tags);
+      g.kind = g.type === "r" ? ROUTE_KIND[g.tags.route] || "Route" : g.mtb ? "MTB trail" : WAY_KIND[g.tags.highway] || "Path";
+    });
+    names.groups = groups; names.dirty = false; names.trailCount = state.trails.length;
+  }
+
+  function findNames(raw) {
+    const q = norm(raw);
+    if (!q) return [];
+    if (names.dirty || names.trailCount !== state.trails.length) buildGroups();
+    const qWords = q.split(" ");
+    const here = map.getCenter();
+    return names.groups.map((g) => {
+      let s = 0; for (const t of g.texts) s = Math.max(s, matchScore(q, qWords, t));
+      return { g, s: s + (g.mtb ? 0.02 : 0), d: here.distanceTo(g.center) };
+    }).filter((h) => h.s >= 0.6)
+      .sort((a, b) => b.s - a.s || a.d - b.d).slice(0, 10);
+  }
+
+  let hits = [], hitSel = -1;
+  const fmtDist = (m) => m < 1000 ? "nearby" : m < 10000 ? (m / 1000).toFixed(1) + " km away" : Math.round(m / 1000) + " km away";
+  function refreshHits() {
+    const box = $("trailHits"), input = $("trailQ");
+    const raw = input.value.trim();
+    const open = !!raw && document.activeElement === input;
+    box.hidden = !open; input.setAttribute("aria-expanded", String(open));
+    if (!open) return;
+    hits = findNames(raw);
+    if (hitSel >= hits.length) hitSel = hits.length - 1;
+    const rows = hits.map((h, n) => {
+      const g = h.g, gr = grade(g.tags);
+      const meta = [g.kind, g.zone, g.items.length > 1 ? g.items.length + " segments" : "", fmtDist(h.d)].filter(Boolean).join(" · ");
+      return `<li class="hit ${g.mtb ? "mtb" : ""}" role="option" id="hit${n}" data-n="${n}" aria-selected="${n === hitSel}"><span class="bar"></span>
+        <div><div class="hn">${esc(g.name)} ${gr ? `<span class="grade">${esc(gr)}</span>` : ""} ${g.isNew ? `<span class="newtag">New</span>` : ""}</div><div class="hm">${esc(meta)}</div></div></li>`;
+    }).join("");
+    let note = "";
+    if (state.example) note = "This preview only has the made-up example trails.";
+    else if (names.loading) note = `Loading trail names: ${names.done} of ${ZONES.length} areas…`;
+    else if (names.failed.length) note = `Names for ${names.failed.map((z) => z.name.split(" (")[0]).join(", ")} didn't load. <button class="linkish" type="button" data-retry>Try again</button>`;
+    if (!hits.length && !names.loading) note = `No trail named “${esc(raw)}” found. Check the spelling or type part of the name.` + (note ? "<br>" + note : "");
+    box.innerHTML = rows + (note ? `<li class="hnote">${note}</li>` : "");
+    input.setAttribute("aria-activedescendant", hitSel >= 0 ? "hit" + hitSel : "");
+  }
+
+  let hitTimer = 0;
+  $("trailQ").addEventListener("input", () => { hitSel = -1; clearTimeout(hitTimer); hitTimer = setTimeout(refreshHits, 120); loadNames(); });
+  $("trailQ").addEventListener("focus", () => { loadNames(); refreshHits(); });
+  $("trailQ").addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== $("trailQ")) { $("trailHits").hidden = true; $("trailQ").setAttribute("aria-expanded", "false"); } }, 150));
+  $("trailQ").addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!hits.length) return;
+      hitSel = e.key === "ArrowDown" ? (hitSel + 1) % hits.length : (hitSel <= 0 ? hits.length - 1 : hitSel - 1);
+      refreshHits();
+      const el = $("hit" + hitSel); if (el) el.scrollIntoView({ block: "nearest" });
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      clearTimeout(hitTimer); refreshHits();
+      const h = hits[Math.max(hitSel, 0)]; if (h) showFound(h.g);
+    } else if (e.key === "Escape") {
+      e.stopPropagation();
+      if (!$("trailHits").hidden) { $("trailHits").hidden = true; } else { $("trailQ").value = ""; }
+    }
+  });
+  $("trailHits").addEventListener("mousedown", (e) => e.preventDefault()); // keep focus in the box
+  $("trailHits").addEventListener("click", (e) => {
+    if (e.target.closest("[data-retry]")) { loadNames(true); return; }
+    const li = e.target.closest(".hit"); if (li) showFound(hits[+li.dataset.n].g);
+  });
+
+  // ---- show a picked trail: draw every segment, zoom to it, open the detail panel ----
+  let foundToken = 0;
+  async function getJson(url) { const r = await fetch(url); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }
+  async function showFound(g) {
+    $("trailQ").value = g.name;
+    $("trailHits").hidden = true; $("trailQ").blur();
+    // Already in the new-trail list and on the map: just select it there.
+    if (g.items.length === 1 && g.type === "w") {
+      const t = visibleTrails().find((t) => t.id === g.items[0].id && state.show[t.cat]);
+      if (t) { foundLayer.clearLayers(); select(t.id, true); return; }
+    }
+    const token = ++foundToken;
+    foundLayer.clearLayers();
+    setStatus(`Loading ${g.name}…`);
+    try {
+      let main, segs = [], segIds = [];
+      const wayLine = (w, nodes) => w.nodes.map((id) => nodes.get(id)).filter(Boolean).map((n) => [n.lat, n.lon]);
+      if (g.type === "r") {
+        const els = (await getJson(`${OSM_API}/relation/${g.items[0].id}/full.json`)).elements;
+        const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e]));
+        main = els.find((e) => e.type === "relation" && e.id === g.items[0].id);
+        els.filter((e) => e.type === "way").forEach((w) => { const l = wayLine(w, nodes); if (l.length > 1) segs.push(l); });
+      } else {
+        const ways = [];
+        const ids = g.items.slice(0, 40).map((i) => i.id);
+        await Promise.all(ids.map(async (id) => {
+          try {
+            const els = (await getJson(`${OSM_API}/way/${id}/full.json`)).elements;
+            const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e]));
+            const w = els.find((e) => e.type === "way");
+            const line = wayLine(w, nodes);
+            if (line.length > 1) ways.push({ w, line, km: lengthKm(line) });
+          } catch {}
+        }));
+        if (!ways.length) throw new Error("the trail's shape didn't load");
+        ways.sort((a, b) => b.km - a.km);
+        main = ways[0].w; segs = ways.map((x) => x.line); segIds = ways.map((x) => x.w.id);
+      }
+      if (token !== foundToken) return;
+      if (!segs.length) throw new Error("the trail's shape didn't load");
+      const tags = main.tags || {};
+      const type = g.type === "r" ? "relation" : "way";
+      const c = classify(tags, tags.route === "mtb" ? [tags.name] : []);
+      const geom = segs.reduce((a, b) => (lengthKm(b) > lengthKm(a) ? b : a));
+      const bounds = segs.reduce((b, s) => b.extend(L.latLngBounds(s)), L.latLngBounds(segs[0]));
+      const t = {
+        id: main.id, osmType: type, tags, routes: [], searched: true, geom, segments: segs, segIds, bounds,
+        km: segs.reduce((s, l) => s + lengthKm(l), 0), zone: zoneOf(bounds.getCenter()),
+        version: main.version, lastEdit: new Date(main.timestamp), lastUser: main.user || "", lastChangeset: main.changeset,
+        cat: c ? c.cat : "other", catLabel: c ? null : g.kind,
+        why: c ? c.why : [`No bike tags and not trail-like enough for the MTB colours (highway=${tags.highway || "none"}, ${tags.route ? "route=" + tags.route : "no route"}).`],
+      };
+      if (c && c.cat === "other") t.catLabel = g.kind;
+      // First-mapped date: version 1 of the oldest segment (or of the route).
+      const v1 = segIds.length ? await fetchV1(segIds).catch(() => new Map()) : new Map();
+      if (type === "relation") {
+        try {
+          const r = await fetch(`${OSM_API}/relation/${main.id}/1`);
+          const x = r.ok && new DOMParser().parseFromString(await r.text(), "application/xml").querySelector("relation");
+          if (x) v1.set(main.id, { timestamp: x.getAttribute("timestamp"), user: x.getAttribute("user") || "", changeset: +x.getAttribute("changeset") });
+        } catch {}
+      }
+      const first = [...v1.values()].sort((a, b) => a.timestamp.localeCompare(b.timestamp))[0];
+      if (first) { t.created = new Date(first.timestamp); t.creator = first.user; t.firstChangeset = first.changeset; }
+      else if (main.version === 1) { t.created = t.lastEdit; t.creator = t.lastUser; t.firstChangeset = t.lastChangeset; }
+      if (token !== foundToken) return;
+      drawFound(t);
+      state.selected = t.id;
+      render();
+      openDetail(t);
+      setTimeout(() => { map.invalidateSize(); map.fitBounds(bounds, { maxZoom: 16, padding: [40, 40] }); }, 60);
+    } catch (e) {
+      if (token === foundToken) setStatus(`Couldn't load ${g.name} (${e.message}). Try again in a moment.`, true);
+    }
+  }
+  function drawFound(t) {
+    foundLayer.clearLayers();
+    const color = { mtb: css("--mtb"), looks: css("--looks"), other: css("--accent") }[t.cat];
+    t.segments.forEach((s) => {
+      foundLayer.addLayer(L.polyline(s, { color: "#ffffff", weight: 12, opacity: 0.9, lineCap: "round", interactive: false }));
+      foundLayer.addLayer(L.polyline(s, { color, weight: 6, opacity: 1, lineCap: "round" })
+        .bindTooltip(esc(trailName(t)), { sticky: true, direction: "top", offset: [0, -8] })
+        .on("click", (e) => { L.DomEvent.stopPropagation(e); openDetail(t); }));
+    });
+    foundLayer.addLayer(L.circleMarker(t.geom[0], { radius: 7, color: "#fff", weight: 3, fillColor: color, fillOpacity: 1 }).bindTooltip("Start of the longest segment"));
+  }
 
   // ---------- example data (used only when OpenStreetMap can't be reached) ----------
   function loadExample() {
