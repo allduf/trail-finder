@@ -811,6 +811,9 @@ label.toggle.off .sw { background: var(--muted); }
 .etable th { text-align: left; font-weight: 600; color: var(--muted); font-size: .78rem; padding: 3px 6px; border-bottom: 1px solid var(--line); }
 .etable td { padding: 3px 6px; border-bottom: 1px solid var(--line); }
 .etable td:not(:first-child), .etable th:not(:first-child) { text-align: right; }
+.pick-note { font-family: var(--font-body); font-weight: 600; }
+.pick-ring { animation: pick 0.9s ease-in-out infinite alternate; }
+@keyframes pick { from { opacity: .35; } to { opacity: 1; } }
 .tagtable { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 12px; }
 .tagtable th, .tagtable td { text-align: left; vertical-align: top; padding: 4px 6px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
 .tagtable th { color: var(--muted); font-weight: 400; width: 40%; }
@@ -925,6 +928,8 @@ label.toggle.off .sw { background: var(--muted); }
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
     <h2 id="aboutTitle">How Trail Finder works</h2>
     <p>All data comes live from OpenStreetMap. By default it covers the Sea to Sky corridor and the Sunshine Coast, split into the zones in the Area menu. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
+    <h3>Click any trail</h3>
+    <p>Click or tap any path or track on the map, even one that isn't in the results, to see everything about it: length, climb and descent, difficulty, who mapped it and when, and its tags. Zoom in a little first so the click lands on the right trail.</p>
     <h3>Trail name search</h3>
     <p>The search box looks through every named path, track, bike path and trail route in the whole region, old or new, plus the new trails already found. Typos and close spellings still match. The first time you use it, it downloads the list of names area by area (closest area first) and saves it in this browser for a week. Pick a result to zoom to the trail and see everything known about it.</p>
     <h3>What counts as new</h3>
@@ -1740,6 +1745,7 @@ out body;`;
     $("panel").classList.remove("detail-open");
     $("detail").hidden = true;
     render();
+    setTimeout(() => map.invalidateSize(), 50);  // on phones the map grows back when the panel shrinks
   }
 
   async function loadHistory(t) {
@@ -1773,11 +1779,10 @@ out body;`;
     render();
     if (!t) return;
     openDetail(t);
-    if (fly) map.fitBounds(t.bounds || L.latLngBounds(t.geom), { maxZoom: 16, padding: [40, 40] });
+    if (fly) setTimeout(() => { map.invalidateSize(); map.fitBounds(t.bounds || L.latLngBounds(t.geom), { maxZoom: 16, padding: [40, 40] }); }, 60);
   }
   $("list").addEventListener("click", (e) => { const li = e.target.closest(".trail"); if (li) select(+li.dataset.id, true); });
   $("list").addEventListener("keydown", (e) => { if (e.key === "Enter") { const li = e.target.closest(".trail"); if (li) select(+li.dataset.id, true); } });
-  map.on("click", () => { if (state.selected) closeDetail(); });
 
   // ---------- controls ----------
   document.querySelectorAll(".periods button").forEach((b) => {
@@ -1981,7 +1986,7 @@ out tags center qt;`;
       g.zone = zoneOf(g.center);
       g.isNew = g.type === "w" && g.items.some((i) => state.trails.some((t) => t.id === i.id));
       g.mtb = g.type === "r" ? g.tags.route === "mtb" : hasMtb(g.tags);
-      g.kind = g.type === "r" ? ROUTE_KIND[g.tags.route] || "Route" : g.mtb ? "MTB trail" : WAY_KIND[g.tags.highway] || "Path";
+      g.kind = kindOf(g.tags, g.type === "r");
     });
     names.groups = groups; names.dirty = false; names.trailCount = state.trails.length;
   }
@@ -2053,9 +2058,10 @@ out tags center qt;`;
   // ---- show a picked trail: draw every segment, zoom to it, open the detail panel ----
   let foundToken = 0;
   async function getJson(url) { const r = await fetch(url); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }
-  async function showFound(g) {
-    $("trailQ").value = g.name;
-    $("trailHits").hidden = true; $("trailQ").blur();
+  const wayLine = (w, nodes) => w.nodes.map((id) => nodes.get(id)).filter(Boolean).map((n) => [n.lat, n.lon]);
+  const kindOf = (tags, isRel) => isRel ? ROUTE_KIND[tags.route] || "Route" : hasMtb(tags) ? "MTB trail" : WAY_KIND[tags.highway] || "Path";
+  async function showFound(g, fromClick) {
+    if (!fromClick) { $("trailQ").value = g.name; $("trailHits").hidden = true; $("trailQ").blur(); }
     // Already in the new-trail list and on the map: just select it there.
     if (g.items.length === 1 && g.type === "w") {
       const t = visibleTrails().find((t) => t.id === g.items[0].id && state.show[t.cat]);
@@ -2066,7 +2072,6 @@ out tags center qt;`;
     setStatus(`Loading ${g.name}…`);
     try {
       let main, segs = [], segIds = [];
-      const wayLine = (w, nodes) => w.nodes.map((id) => nodes.get(id)).filter(Boolean).map((n) => [n.lat, n.lon]);
       if (g.type === "r") {
         const els = (await getJson(`${OSM_API}/relation/${g.items[0].id}/full.json`)).elements;
         const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e]));
@@ -2090,19 +2095,27 @@ out tags center qt;`;
       }
       if (token !== foundToken) return;
       if (!segs.length) throw new Error("the trail's shape didn't load");
+      await presentTrail({ main, segs, segIds, type: g.type === "r" ? "relation" : "way", kind: g.kind, token, view: "fit" });
+    } catch (e) {
+      if (token === foundToken) setStatus(`Couldn't load ${g.name} (${e.message}). Try again in a moment.`, true);
+    }
+  }
+
+  // Build the full trail record (category, first-mapped date), draw it and open its panel.
+  // view: "fit" zooms to the whole trail; a LatLng only makes sure that spot stays visible.
+  async function presentTrail({ main, segs, segIds, type, kind, routes = [], token, view }) {
       const tags = main.tags || {};
-      const type = g.type === "r" ? "relation" : "way";
-      const c = classify(tags, tags.route === "mtb" ? [tags.name] : []);
+      const c = classify(tags, routes.map((r) => r.name).concat(tags.route === "mtb" ? [tags.name] : []));
       const geom = segs.reduce((a, b) => (lengthKm(b) > lengthKm(a) ? b : a));
       const bounds = segs.reduce((b, s) => b.extend(L.latLngBounds(s)), L.latLngBounds(segs[0]));
       const t = {
-        id: main.id, osmType: type, tags, routes: [], searched: true, geom, segments: segs, segIds, bounds,
+        id: main.id, osmType: type, tags, routes, searched: true, geom, segments: segs, segIds, bounds,
         km: segs.reduce((s, l) => s + lengthKm(l), 0), zone: zoneOf(bounds.getCenter()),
         version: main.version, lastEdit: new Date(main.timestamp), lastUser: main.user || "", lastChangeset: main.changeset,
-        cat: c ? c.cat : "other", catLabel: c ? null : g.kind, unoff: unofficial(tags),
+        cat: c ? c.cat : "other", catLabel: c ? null : kind, unoff: unofficial(tags),
         why: c ? c.why : [`No bike tags and not trail-like enough for the MTB colours (highway=${tags.highway || "none"}, ${tags.route ? "route=" + tags.route : "no route"}).`],
       };
-      if (c && c.cat === "other") t.catLabel = g.kind;
+      if (c && c.cat === "other") t.catLabel = kind;
       // First-mapped date: version 1 of the oldest segment (or of the route).
       const v1 = segIds.length ? await fetchV1(segIds).catch(() => new Map()) : new Map();
       if (type === "relation") {
@@ -2120,10 +2133,11 @@ out tags center qt;`;
       state.selected = t.id;
       render();
       openDetail(t);
-      setTimeout(() => { map.invalidateSize(); map.fitBounds(bounds, { maxZoom: 16, padding: [40, 40] }); }, 60);
-    } catch (e) {
-      if (token === foundToken) setStatus(`Couldn't load ${g.name} (${e.message}). Try again in a moment.`, true);
-    }
+      setTimeout(() => {
+        map.invalidateSize();
+        if (view === "fit") map.fitBounds(bounds, { maxZoom: 16, padding: [40, 40] });
+        else if (view && !map.getBounds().pad(-0.1).contains(view)) map.panTo(view);
+      }, 60);
   }
   function drawFound(t) {
     foundLayer.clearLayers();
@@ -2134,7 +2148,64 @@ out tags center qt;`;
         .bindTooltip(esc(trailName(t)), { sticky: true, direction: "top", offset: [0, -8] })
         .on("click", (e) => { L.DomEvent.stopPropagation(e); openDetail(t); }));
     });
-    foundLayer.addLayer(L.circleMarker(t.geom[0], { radius: 7, color: "#fff", weight: 3, fillColor: color, fillOpacity: 1 }).bindTooltip("Start of the longest segment"));
+    foundLayer.addLayer(L.circleMarker(t.geom[0], { radius: 7, color: "#fff", weight: 3, fillColor: color, fillOpacity: 1 }).bindTooltip(t.segments.length > 1 ? "Start of the longest segment" : "Start"));
+  }
+
+  // ---- click anywhere near a trail on the map (loaded or not): show it like a search result ----
+  const PICK_PX = L.Browser.touch ? 22 : 14;              // how close to the line a click must land
+  const PICK_MIN_ZOOM = 13;
+  const TRAIL_HW = /^(path|track|bridleway|cycleway|footway|steps)$/;
+  const pickLayer = L.layerGroup().addTo(map);
+  let clickTimer = 0;
+  map.on("click", (e) => {
+    clearTimeout(clickTimer);
+    clickTimer = setTimeout(() => pickTrailAt(e.latlng), 260); // a double-click zooms instead
+  });
+  map.on("dblclick", () => clearTimeout(clickTimer));
+  function pickNote(ll, text) {
+    pickLayer.clearLayers();
+    pickLayer.addLayer(L.tooltip({ permanent: true, direction: "top", offset: [0, -6], className: "pick-note" }).setLatLng(ll).setContent(text));
+    setTimeout(() => pickLayer.clearLayers(), 2200);
+  }
+  async function pickTrailAt(ll) {
+    if (state.selected) closeDetail();
+    if (state.example) return;
+    if (map.getZoom() < PICK_MIN_ZOOM) { pickNote(ll, "Zoom in to click a trail"); return; }
+    const token = ++foundToken;
+    pickLayer.clearLayers();
+    pickLayer.addLayer(L.circleMarker(ll, { radius: 10, color: css("--fg"), weight: 2, dashArray: "3 3", fill: false, interactive: false, className: "pick-ring" }));
+    // Ask the OpenStreetMap API for everything in a small box around the click (whole ways, with their routes).
+    const cos = Math.cos(ll.lat * Math.PI / 180);
+    const mPerPx = 40075016.686 * cos / (256 * 2 ** map.getZoom());
+    const half = Math.min(400, PICK_PX * mPerPx + 60);  // a bit wider than the click, for ways with no point right here
+    const dLat = half / 111320, dLon = half / (111320 * cos);
+    const bbox = [ll.lng - dLon, ll.lat - dLat, ll.lng + dLon, ll.lat + dLat].map((n) => n.toFixed(6)).join(",");
+    let els;
+    try { els = (await getJson(`${OSM_API}/map.json?bbox=${bbox}`)).elements; }
+    catch (e) { if (token === foundToken) pickNote(ll, `Couldn't check this spot (${e.message})`); return; }
+    if (token !== foundToken) return;
+    const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e]));
+    const p = map.latLngToLayerPoint(ll);
+    let best = null;
+    els.filter((e) => e.type === "way" && e.tags && (TRAIL_HW.test(e.tags.highway || "") || hasMtb(e.tags))).forEach((w) => {
+      const line = wayLine(w, nodes);
+      if (line.length < 2) return;
+      const pts = line.map((q) => map.latLngToLayerPoint(q));
+      let d = Infinity;
+      for (let i = 1; i < pts.length; i++) d = Math.min(d, L.LineUtil.pointToSegmentDistance(p, pts[i - 1], pts[i]));
+      if (d <= PICK_PX && (!best || d < best.d)) best = { w, line, d };
+    });
+    if (!best) { pickNote(ll, "No trail right here"); return; }
+    pickLayer.clearLayers();
+    const w = best.w;
+    // Part of a named trail made of several pieces? Show the whole trail, as the name search does.
+    if (names.zones.size && (names.dirty || names.trailCount !== state.trails.length)) buildGroups();
+    const g = names.groups.find((g) => g.type === "w" && g.items.length > 1 && g.items.some((i) => i.id === w.id));
+    if (g) { showFound(g, true); return; }
+    const routes = els.filter((r) => r.type === "relation" && r.tags && r.tags.route === "mtb" && (r.members || []).some((m) => m.type === "way" && m.ref === w.id))
+      .map((r) => ({ id: r.id, name: r.tags.name || r.tags.ref || "unnamed" }));
+    try { await presentTrail({ main: w, segs: [best.line], segIds: [w.id], type: "way", kind: kindOf(w.tags), routes, token, view: ll }); }
+    catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${e.message}).`, true); }
   }
 
   // ---------- example data (used only when OpenStreetMap can't be reached) ----------
