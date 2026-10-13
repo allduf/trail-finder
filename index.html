@@ -736,6 +736,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, label.toggle:fo
 .pane { display: flex; flex-direction: column; gap: 12px; }
 .hint { margin: 0; font-size: .85rem; color: var(--muted); }
 .hint strong { color: var(--fg); }
+.label-note { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .tap-hint { font-size: .8rem; }
 .tsearch-row { display: flex; gap: 8px; position: relative; }   /* suggestions span the box and the button */
 .tsearch-row .tsearch { flex: 1; min-width: 0; position: static; }
@@ -912,6 +913,10 @@ label.toggle.off .sw { background: var(--muted); }
       </div>
       <section class="pane" id="paneName" role="tabpanel" aria-labelledby="tabName" hidden>
         <p class="hint">Type the name of any trail, old or new. Typos are OK. Pick it from the list to see it on the map with all its details.</p>
+        <div>
+          <label class="label" for="nameZone">Where is it? <span class="label-note">(faster if you know)</span></label>
+          <select id="nameZone" class="zone"></select>
+        </div>
         <div class="tsearch-row">
           <div class="tsearch" id="tsearch">
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
@@ -964,7 +969,7 @@ label.toggle.off .sw { background: var(--muted); }
     <h3>Click any trail</h3>
     <p>Click or tap any path or track on the map, even one that isn't in the results, to see everything about it: length, climb and descent, difficulty, who mapped it and when, and its tags. Zoom in a little first so the click lands on the right trail.</p>
     <h3>Trail name search</h3>
-    <p>The search box looks through every named path, track, bike path and trail route in the whole region, old or new, plus the new trails already found. Typos and close spellings still match. The first time you use it, it downloads the list of names area by area (closest area first) and saves it in this browser for a week. Pick a result to zoom to the trail and see everything known about it.</p>
+    <p>The search box looks through every named path, track, bike path and trail route in the whole region, old or new, plus the new trails already found. If you know roughly where the trail is, pick that area in “Where is it?” so only that area's names are loaded and searched. Typos and close spellings still match. The first time you use it, it downloads the list of names area by area (closest area first) and saves it in this browser for a week. Pick a result to zoom to the trail and see everything known about it.</p>
     <h3>What counts as new</h3>
     <p>A way is new when its first version is dated inside the period. Overpass gives every way edited in the last 2 years. For ways with more than one version, the app asks the OpenStreetMap API for version 1 and uses its date. A trail that was only edited (retagged, extended) does not count.</p>
     <p>One catch: when a mapper splits an old trail into two pieces, the new piece gets a new id and shows up as new. Check the history link in the popup when something looks off.</p>
@@ -1873,7 +1878,11 @@ out body;`;
   // Every named path, track and trail route in the region (any age), downloaded zone by zone the
   // first time the box is used, saved in this browser for a week, and matched with typo tolerance.
   const NAME_FRESH_MS = 7 * 864e5;
-  const names = { zones: new Map(), started: false, loading: false, done: 0, failed: [], groups: [], dirty: true, trailCount: -1 };
+  const names = { zones: new Map(), fresh: new Set(), inflight: new Set(), failed: new Set(), groups: [], dirty: true, trailCount: -1 };
+  // The name search can be limited to one zone ("Where is it?"): only that zone's names are loaded and searched.
+  const nameZone = () => zoneById($("nameZone").value);
+  const wantedZones = () => (nameZone() ? [nameZone()] : ZONES.slice());
+  const shortZone = (z) => z.name.split(" (")[0];
   const STOP = new Set(["trail", "trails", "the", "path", "of", "and"]);
   function norm(s) {
     return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
@@ -1952,34 +1961,36 @@ out tags center qt;`;
     .map((e) => ({ t: e.type === "relation" ? "r" : "w", id: e.id, c: [+e.center.lat.toFixed(5), +e.center.lon.toFixed(5)], tags: e.tags }));
 
   async function loadNames(retry) {
-    if (state.example || names.loading || (names.started && !retry)) return;
-    names.started = true; names.loading = true; names.failed = [];
+    if (state.example) return;
+    if (retry) names.failed.clear();
     const c = map.getCenter();
-    const order = ZONES.slice().sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter()));
+    const want = wantedZones().sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter()));
     const todo = [];
-    for (const z of order) {
+    for (const z of want) {
+      if (names.fresh.has(z.id) || names.inflight.has(z.id) || names.failed.has(z.id)) continue;
+      names.inflight.add(z.id);
       const s = names.zones.has(z.id) ? null : await saved.get("names:" + z.id);
       if (s) { names.zones.set(z.id, s.items); names.dirty = true; }
-      if (!names.zones.has(z.id) || (s && Date.now() - s.fetchedAt > NAME_FRESH_MS)) todo.push(z);
+      if (s && Date.now() - s.fetchedAt <= NAME_FRESH_MS) { names.fresh.add(z.id); names.inflight.delete(z.id); }
+      else todo.push(z);  // never loaded, or saved more than a week ago (the old list is used meanwhile)
     }
-    names.done = ZONES.length - todo.length;
     refreshHits();
-    log(`Trail names: ${names.done} areas saved in this browser, loading ${todo.length}.`);
+    if (!todo.length) return;
+    log(`Trail names: loading ${todo.map(shortZone).join(", ")}.`);
     async function worker(mirror) {
       while (todo.length) {
         const z = todo.shift();
         try {
           const items = toItems(await fetchNameBox(z.bounds, 0, z.name, mirror));
-          names.zones.set(z.id, items); names.dirty = true;
+          names.zones.set(z.id, items); names.dirty = true; names.fresh.add(z.id);
           saved.put("names:" + z.id, { fetchedAt: Date.now(), items });
           log(`  names ${z.name}: ${items.length}`);
-        } catch (e) { names.failed.push(z); log(`  names ${z.name}: failed (${e.message})`); }
-        names.done++;
+        } catch (e) { names.failed.add(z.id); log(`  names ${z.name}: failed (${e.message})`); }
+        names.inflight.delete(z.id);
         refreshHits();
       }
     }
     await Promise.all([worker(1), worker(0)]);
-    names.loading = false;
     refreshHits();
   }
 
@@ -2030,7 +2041,8 @@ out tags center qt;`;
     if (names.dirty || names.trailCount !== state.trails.length) buildGroups();
     const qWords = q.split(" ");
     const here = map.getCenter();
-    return names.groups.map((g) => {
+    const zb = nameZone() ? nameZone().bounds.pad(0.02) : null;
+    return names.groups.filter((g) => !zb || zb.contains(g.center)).map((g) => {
       let s = 0; for (const t of g.texts) s = Math.max(s, matchScore(q, qWords, t));
       return { g, s: s + (g.mtb ? 0.02 : 0), d: here.distanceTo(g.center) };
     }).filter((h) => h.s >= 0.6)
@@ -2054,17 +2066,21 @@ out tags center qt;`;
         <div><div class="hn">${esc(g.name)} ${gr ? `<span class="grade">${esc(gr)}</span>` : ""} ${g.isNew ? `<span class="newtag">New</span>` : ""} ${unofficial(g.tags).length ? `<span class="unoff-tag">Unofficial?</span>` : ""}</div><div class="hm">${esc(meta)}</div></div></li>`;
     }).join("");
     let note = "";
+    const want = wantedZones(), zsel = nameZone();
+    const loading = want.some((z) => names.inflight.has(z.id));
+    const failed = want.filter((z) => names.failed.has(z.id));
     if (state.example) note = "This preview only has the made-up example trails.";
-    else if (names.loading) note = `Loading trail names: ${names.done} of ${ZONES.length} areas…`;
-    else if (names.failed.length) note = `Names for ${names.failed.map((z) => z.name.split(" (")[0]).join(", ")} didn't load. <button class="linkish" type="button" data-retry>Try again</button>`;
-    if (!hits.length && !names.loading) note = `No trail named “${esc(raw)}” found. Check the spelling or type part of the name.` + (note ? "<br>" + note : "");
+    else if (loading) note = zsel ? `Loading trail names in ${esc(shortZone(zsel))}…` : `Loading trail names: ${want.filter((z) => names.fresh.has(z.id)).length} of ${want.length} areas…`;
+    else if (failed.length) note = `Names for ${esc(failed.map(shortZone).join(", "))} didn't load. <button class="linkish" type="button" data-retry>Try again</button>`;
+    if (!hits.length && !loading) note = `No trail named “${esc(raw)}” found${zsel ? ` in ${esc(shortZone(zsel))}` : ""}. Check the spelling${zsel ? ", or choose All areas" : " or type part of the name"}.` + (note ? "<br>" + note : "");
     box.innerHTML = rows + (note ? `<li class="hnote">${note}</li>` : "");
     input.setAttribute("aria-activedescendant", hitSel >= 0 ? "hit" + hitSel : "");
   }
 
   let hitTimer = 0;
   $("trailQ").addEventListener("input", () => { hitSel = -1; clearTimeout(hitTimer); hitTimer = setTimeout(refreshHits, 120); loadNames(); });
-  $("trailQ").addEventListener("focus", () => { loadNames(); refreshHits(); });
+  // Names load once something is typed, so a "Where is it?" area picked first limits the download.
+  $("trailQ").addEventListener("focus", () => { if ($("trailQ").value.trim()) loadNames(); refreshHits(); });
   $("trailQ").addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== $("trailQ")) { $("trailHits").hidden = true; $("trailQ").setAttribute("aria-expanded", "false"); } }, 150));
   $("trailQ").addEventListener("keydown", (e) => {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -2298,6 +2314,16 @@ out tags center qt;`;
     ZONES.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("") +
     `<option value="custom" hidden>Custom area (from the map)</option>`;
   zoneSel.value = zoneById(state.zone) ? state.zone : "all";
+  const nameZoneSel = $("nameZone");
+  nameZoneSel.innerHTML = `<option value="all">All areas</option>` + ZONES.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("");
+  nameZoneSel.value = zoneById(store.get("nameZone", "all")) ? store.get("nameZone", "all") : "all";
+  nameZoneSel.addEventListener("change", () => {
+    store.set("nameZone", nameZoneSel.value);
+    hitSel = -1;
+    $("trailQ").focus();
+    if ($("trailQ").value.trim()) loadNames();
+    refreshHits();
+  });
   zoneSel.addEventListener("change", () => {
     if (zoneSel.value === "custom") return;
     state.zone = zoneSel.value; store.set("zone", state.zone);
