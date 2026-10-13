@@ -1136,7 +1136,7 @@ label.toggle.off .sw { background: var(--muted); }
       xml.querySelectorAll("way").forEach((w) => out.set(+w.getAttribute("id"), { timestamp: w.getAttribute("timestamp"), user: w.getAttribute("user") || "", changeset: +w.getAttribute("changeset") }));
     }
     const queue = chunks.slice();
-    async function worker() { while (queue.length) { await get(queue.shift()); done++; onProgress && onProgress(done, chunks.length); } }
+    async function worker() { while (queue.length) { await get(queue.shift()); done++; onProgress && onProgress(out, done, chunks.length); } }
     await Promise.all([worker(), worker(), worker()]);
     return out;
   }
@@ -1194,7 +1194,20 @@ out body;`;
     }
   }
 
-  async function processElements(elements, token, known) {
+  function finalize(candidates) {
+    const cutoff = monthsAgo(MAX_MONTHS);
+    const trails = candidates.filter((c) => c.created && c.created >= cutoff);
+    trails.forEach((t) => {
+      if (t.bounds) return;
+      t.km = lengthKm(t.geom); t.bounds = L.latLngBounds(t.geom);
+      const z = ZONES.find((z) => z.bounds.intersects(t.bounds)); t.zone = z ? z.name : "";
+    });
+    return trails;
+  }
+
+  // onPartial(trails) is called as soon as never-edited trails are known, then again after
+  // each batch of first-mapped dates, so trails appear while the rest are still checked.
+  async function processElements(elements, token, known, onPartial) {
     const routesByWay = new Map();
     elements.filter((e) => e.type === "relation").forEach((r) => {
       const name = r.tags && (r.tags.name || r.tags.ref) || "unnamed";
@@ -1211,18 +1224,16 @@ out body;`;
         created: w.version === 1 ? new Date(w.timestamp) : null, creator: w.version === 1 ? w.user : null, firstChangeset: w.version === 1 ? w.changeset : null });
     });
     if (known) candidates.forEach((c) => { const k = known.get(c.id); if (!c.created && k) { c.created = k.created; c.creator = k.creator; c.firstChangeset = k.firstChangeset; } });
+    const apply = (v1) => candidates.forEach((c) => { const r = v1.get(c.id); if (!c.created && r) { c.created = new Date(r.timestamp); c.creator = r.user; c.firstChangeset = r.changeset; } });
     const needV1 = candidates.filter((c) => !c.created).map((c) => c.id);
+    onPartial && onPartial(finalize(candidates), needV1.length > 0);
     let v1 = new Map();
     if (needV1.length) {
-      try { v1 = await fetchV1(needV1); } catch (e) { log(`  first-version check failed: ${e.message}`); }
-      candidates.forEach((c) => { const r = v1.get(c.id); if (!c.created && r) { c.created = new Date(r.timestamp); c.creator = r.user; c.firstChangeset = r.changeset; } });
+      try { v1 = await fetchV1(needV1, (out) => { if (token !== state.token) return; apply(out); onPartial && onPartial(finalize(candidates), true); }); }
+      catch (e) { log(`  first-version check failed: ${e.message}`); }
+      apply(v1);
     }
-    const cutoff = monthsAgo(MAX_MONTHS);
-    const trails = candidates.filter((c) => c.created && c.created >= cutoff);
-    trails.forEach((t) => {
-      t.km = lengthKm(t.geom); t.bounds = L.latLngBounds(t.geom);
-      const z = ZONES.find((z) => z.bounds.intersects(t.bounds)); t.zone = z ? z.name : "";
-    });
+    const trails = finalize(candidates);
     const seenWays = elements.filter((e) => e.type === "way").map((e) => e.id);
     return { trails, seenWays, ways: seenWays.length, candidates: candidates.length, v1Asked: needV1.length, v1Found: v1.size };
   }
@@ -1289,7 +1300,9 @@ out body;`;
     const todo = tiles.filter((t) => { const c = tileCache.get(t.key); return !c || Date.now() - c.fetchedAt > FRESH_MS; });
     const savedCount = tiles.filter((t) => tileCache.has(t.key)).length;
     log(`${savedCount} squares already saved, ${todo.length} to check with OpenStreetMap.`);
-    state.loading = todo.length ? { done: 0, total: todo.length, t0: Date.now(), updating: todo.every((t) => tileCache.has(t.key)) } : null;
+    const centre = map.getCenter();
+    todo.sort((a, b) => a.bounds.getCenter().distanceTo(centre) - b.bounds.getCenter().distanceTo(centre));
+    state.loading = todo.length ? { done: 0, checking: 0, total: todo.length, t0: Date.now(), updating: todo.every((t) => tileCache.has(t.key)) } : null;
     render();
     const tick = setInterval(() => { if (token === state.token && state.loading) renderStatus(); }, 1000);
 
@@ -1297,6 +1310,17 @@ out body;`;
     const failed = [];
     let networkFails = 0;
     const queue = todo.slice();
+    const checking = [];          // date checks still running, one per square
+    let renderTimer = null;
+    const scheduleRender = () => { if (!renderTimer) renderTimer = setTimeout(() => { renderTimer = null; if (token === state.token) { mergeTiles(tiles); render(); } }, 250); };
+    function mergeWithSaved(cached, trails, seenWays) {
+      if (!cached) return trails;
+      // Keep saved trails, replace the ones edited since, drop ones no longer trail-like.
+      const changed = new Set(seenWays);
+      const byId = new Map(cached.trails.filter((x) => !changed.has(x.id)).map((x) => [x.id, x]));
+      trails.forEach((x) => byId.set(x.id, x));
+      return [...byId.values()];
+    }
     async function worker(mirror) {
       while (queue.length && token === state.token) {
         const t = queue.shift();
@@ -1305,36 +1329,41 @@ out body;`;
         const cached = tileCache.get(t.key);
         const startedAt = Date.now();
         const since = cached ? new Date(cached.fetchedAt - 5 * 60000).toISOString().slice(0, 19) + "Z" : monthsAgo(MAX_MONTHS).toISOString().slice(0, 19) + "Z";
-        try {
-          const data = await fetchBox(t.bounds, since, token, 0, label, mirror);
-          if (token !== state.token) return;
-          const known = new Map(cached ? cached.trails.map((x) => [x.id, x]) : []);
-          const r = await processElements(data.elements, token, known);
-          if (token !== state.token) return;
-          let trails = r.trails;
-          if (cached) {
-            // Keep saved trails, replace the ones edited since, drop ones no longer trail-like.
-            const changed = new Set(r.seenWays);
-            const byId = new Map(cached.trails.filter((x) => !changed.has(x.id)).map((x) => [x.id, x]));
-            r.trails.forEach((x) => byId.set(x.id, x));
-            trails = [...byId.values()];
-          }
-          tileCache.set(t.key, { fetchedAt: startedAt, trails });
-          saved.put(t.key, { fetchedAt: startedAt, trails: trails.map(packTrail) });
-          log(`${label}: ${cached ? "update, " : ""}${r.ways} edited ways, ${r.candidates} trail-like, ${r.v1Asked} first-version checks, ${trails.length} trails. ${Math.round((Date.now() - t0) / 1000)} s`);
-        } catch (e) {
+        let data;
+        try { data = await fetchBox(t.bounds, since, token, 0, label, mirror); }
+        catch (e) {
           if (token !== state.token) return;
           if (!e.http) networkFails++;
           failed.push(e.message);
           log(`${label}: failed. ${e.message}`);
+          state.loading.done++;
+          renderStatus();
+          continue;
         }
+        if (token !== state.token) return;
+        const seenWays = data.elements.filter((e) => e.type === "way").map((e) => e.id);
+        const known = new Map(cached ? cached.trails.map((x) => [x.id, x]) : []);
+        state.loading.checking++;
+        checking.push(processElements(data.elements, token, known, (trails) => {
+          if (token !== state.token) return;
+          // Partial results: shown now, not marked fresh until every date is checked.
+          tileCache.set(t.key, { fetchedAt: cached ? cached.fetchedAt : 0, trails: mergeWithSaved(cached, trails, seenWays) });
+          scheduleRender();
+        }).then((r) => {
+          if (token !== state.token) return;
+          const trails = mergeWithSaved(cached, r.trails, r.seenWays);
+          tileCache.set(t.key, { fetchedAt: startedAt, trails });
+          saved.put(t.key, { fetchedAt: startedAt, trails: trails.map(packTrail) });
+          log(`${label}: ${cached ? "update, " : ""}${r.ways} edited ways, ${r.candidates} trail-like, ${r.v1Asked} first-version checks, ${trails.length} trails. ${Math.round((Date.now() - t0) / 1000)} s`);
+        }).finally(() => { if (token === state.token) { state.loading.checking--; scheduleRender(); } }));
         state.loading.done++;
-        mergeTiles(tiles);
-        render();
+        scheduleRender();
       }
     }
     // One worker per OpenStreetMap server, so both share the load.
-    if (todo.length) await Promise.all(OVERPASS.map((_, i) => worker(i)));
+    if (todo.length) { await Promise.all(OVERPASS.map((_, i) => worker(i))); await Promise.all(checking); }
+    clearTimeout(renderTimer);
+    if (token === state.token) mergeTiles(tiles);
     clearInterval(tick);
     if (token !== state.token) return;
     state.loading = null;
@@ -1427,7 +1456,8 @@ out body;`;
       setStatus(n ? `Showing ${n} saved trail${n === 1 ? "" : "s"} from the last ${label}. Click Find new trails to check for newer ones.` : `Click Find new trails to search ${where}.`);
     } else if (state.loading) {
       const l = state.loading;
-      setStatus(`${l.updating ? "Showing saved trails, checking for new ones…" : "Loading trails…"} ${l.done} of ${l.total} map squares (${Math.round((Date.now() - l.t0) / 1000)} s). ${n} trail${n === 1 ? "" : "s"} from the last ${label} so far.`);
+      const stage = l.done < l.total ? `${l.done} of ${l.total} map squares` : "checking dates of edited paths";
+      setStatus(`${l.updating ? "Showing saved trails, checking for new ones…" : "Loading trails…"} ${stage} (${Math.round((Date.now() - l.t0) / 1000)} s). ${n} trail${n === 1 ? "" : "s"} from the last ${label} so far, newest first.`);
     } else if (state.error && !state.trails.length) {
       setStatus(`Search failed. ${state.error.replace(/\.?$/, ".")} If it keeps happening, open “Search details” and send a screenshot.`, true, state.retry && { label: "Try again", fn: state.retry });
     } else if (state.searchedBounds.length) {
