@@ -793,6 +793,24 @@ label.toggle.off .sw { background: var(--muted); }
 .links { display: flex; flex-wrap: wrap; gap: 8px; }
 .links a { padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; font-size: .9rem; }
 .history { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 8px; font-size: .9rem; }
+.estats { display: grid; grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.estats div { display: flex; flex-direction: column; min-width: 0; }
+.estats span { font-size: .75rem; color: var(--muted); }
+.estats strong { font-variant-numeric: tabular-nums; font-size: .92rem; white-space: nowrap; }
+.echart { position: relative; touch-action: pan-y; }
+.echart svg { display: block; overflow: visible; }
+.echart .eg { stroke: var(--line); stroke-width: 1; }
+.echart .et { fill: var(--muted); font-size: 11px; font-family: var(--font-body); font-variant-numeric: tabular-nums; }
+.echart .ea { fill: var(--accent); opacity: .16; }
+.echart .el { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.echart .ex { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.echart .ed { fill: var(--accent); stroke: var(--panel); stroke-width: 2; }
+.etip { position: absolute; top: -6px; transform: translateY(-100%); padding: 3px 8px; border-radius: 6px; background: var(--fg); color: var(--panel); font-size: .8rem; white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; }
+.enote { font-size: .82rem; margin: 6px 0 8px; }
+.etable { width: 100%; border-collapse: collapse; font-size: .85rem; font-variant-numeric: tabular-nums; }
+.etable th { text-align: left; font-weight: 600; color: var(--muted); font-size: .78rem; padding: 3px 6px; border-bottom: 1px solid var(--line); }
+.etable td { padding: 3px 6px; border-bottom: 1px solid var(--line); }
+.etable td:not(:first-child), .etable th:not(:first-child) { text-align: right; }
 .tagtable { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 12px; }
 .tagtable th, .tagtable td { text-align: left; vertical-align: top; padding: 4px 6px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
 .tagtable th { color: var(--muted); font-weight: 400; width: 40%; }
@@ -1521,6 +1539,129 @@ out body;`;
     }
   }
 
+  // ---------- elevation profile (Open-Meteo, free, no key: up to 100 points per request) ----------
+  const ELEV_API = "https://api.open-meteo.com/v1/elevation";
+  const elevLayer = L.layerGroup().addTo(map);   // marker that follows the chart under the pointer
+  const ELEV_STEP_M = 3;                          // ignore ups and downs smaller than this (map noise)
+  function samplePoints(geom, maxN) {
+    const cum = [0];
+    for (let i = 1; i < geom.length; i++) cum.push(cum[i - 1] + L.latLng(geom[i - 1]).distanceTo(L.latLng(geom[i])));
+    const total = cum[cum.length - 1];
+    const n = Math.max(2, Math.min(maxN, Math.round(total / 15) + 1));
+    const out = [];
+    for (let k = 0, j = 1; k < n; k++) {
+      const d = total * k / (n - 1);
+      while (j < geom.length - 1 && cum[j] < d) j++;
+      const seg = cum[j] - cum[j - 1], f = seg ? Math.min(1, Math.max(0, (d - cum[j - 1]) / seg)) : 0;
+      out.push({ d, lat: geom[j - 1][0] + (geom[j][0] - geom[j - 1][0]) * f, lon: geom[j - 1][1] + (geom[j][1] - geom[j - 1][1]) * f });
+    }
+    return out;
+  }
+  function elevStats(pts) {
+    let gain = 0, loss = 0, ref = pts[0].e;
+    pts.forEach((p) => {
+      if (p.e - ref >= ELEV_STEP_M) { gain += p.e - ref; ref = p.e; }
+      else if (ref - p.e >= ELEV_STEP_M) { loss += ref - p.e; ref = p.e; }
+    });
+    // Steepest stretch of at least 100 m in each direction.
+    let up = 0, down = 0;
+    for (let i = 0, j = 0; i < pts.length; i++) {
+      while (j < pts.length - 1 && pts[j].d - pts[i].d < 100) j++;
+      const run = pts[j].d - pts[i].d;
+      if (run < 100) break;
+      const g = (pts[j].e - pts[i].e) / run * 100;
+      up = Math.max(up, g); down = Math.min(down, g);
+    }
+    const es = pts.map((p) => p.e);
+    return { gain, loss, min: Math.min(...es), max: Math.max(...es), up, down, total: pts[pts.length - 1].d };
+  }
+  async function loadElevation(t) {
+    const box = () => (state.selected === t.id ? $("elev") : null);
+    try {
+      if (!t.elev && t.id < 0) {   // made-up example trail: made-up hill
+        const pts = samplePoints(t.geom, 60);
+        pts.forEach((p, i) => { p.e = 640 + 90 * Math.sin(i / 12) + 25 * Math.sin(i / 3); });
+        t.elev = { pts, stats: elevStats(pts) };
+      }
+      if (!t.elev) {
+        const pts = samplePoints(t.geom, 100);
+        const url = `${ELEV_API}?latitude=${pts.map((p) => p.lat.toFixed(5)).join(",")}&longitude=${pts.map((p) => p.lon.toFixed(5)).join(",")}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(res.status === 429 ? "too many requests today, try later" : "HTTP " + res.status);
+        const json = await res.json();
+        if (!json.elevation || json.elevation.length !== pts.length) throw new Error("unexpected answer");
+        pts.forEach((p, i) => { p.e = json.elevation[i]; });
+        t.elev = { pts, stats: elevStats(pts) };
+      }
+      const el = box(); if (el) renderElevation(el, t);
+    } catch (e) {
+      const el = box(); if (el) el.textContent = `Couldn't load the elevation (${e.message}).`;
+    }
+  }
+  const niceStep = (span, n) => { const raw = span / n, p = 10 ** Math.floor(Math.log10(raw)); return [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= raw); };
+  const fmtKm = (m, step) => (step < 1000 ? (m / 1000).toFixed(step < 100 ? 2 : 1) : (m / 1000).toFixed(0)) + " km";
+  function renderElevation(el, t) {
+    const { pts, stats: s } = t.elev;
+    const segs = t.segments && t.segments.length > 1;
+    const W = Math.max(260, el.clientWidth || 320), H = 150, ml = 40, mr = 8, mt = 8, mb = 22;
+    const pad = Math.max(5, (s.max - s.min) * 0.1);
+    const yStep = niceStep(s.max - s.min + 2 * pad, 3);
+    const y0 = Math.floor((s.min - pad) / yStep) * yStep, y1 = Math.ceil((s.max + pad) / yStep) * yStep;
+    const xStep = niceStep(s.total, 4);
+    const X = (d) => ml + (W - ml - mr) * d / s.total, Y = (e) => mt + (H - mt - mb) * (1 - (e - y0) / (y1 - y0));
+    const line = pts.map((p, i) => `${i ? "L" : "M"}${X(p.d).toFixed(1)},${Y(p.e).toFixed(1)}`).join("");
+    const area = `${line}L${X(s.total).toFixed(1)},${H - mb}L${ml},${H - mb}Z`;
+    let grid = "";
+    for (let v = y0; v <= y1 + 1e-6; v += yStep) grid += `<line x1="${ml}" x2="${W - mr}" y1="${Y(v)}" y2="${Y(v)}" class="eg"/><text x="${ml - 6}" y="${Y(v) + 4}" text-anchor="end" class="et">${Math.round(v)}</text>`;
+    for (let d = 0; d <= s.total + 1e-6; d += xStep) grid += `<text x="${X(d)}" y="${H - 6}" text-anchor="${d === 0 ? "start" : "middle"}" class="et">${d === 0 ? "0" : fmtKm(d, xStep)}</text>`;
+    // Table: one row every "nice" distance, plus the end.
+    const rStep = niceStep(s.total, 8);
+    const rows = [];
+    for (let d = 0; d < s.total - rStep * 0.3; d += rStep) rows.push(pts.reduce((a, b) => (Math.abs(b.d - d) < Math.abs(a.d - d) ? b : a)));
+    rows.push(pts[pts.length - 1]);
+    const tbl = rows.map((p, i) => {
+      const prev = rows[i - 1], g = prev && p.d > prev.d ? (p.e - prev.e) / (p.d - prev.d) * 100 : null;
+      return `<tr><td>${i === rows.length - 1 ? "End · " : ""}${fmtKm(p.d, rStep)}</td><td>${Math.round(p.e)} m</td><td>${g == null ? "Start" : (g > 0 ? "+" : "") + g.toFixed(0) + " %"}</td></tr>`;
+    }).join("");
+    el.classList.remove("muted");
+    el.innerHTML = `
+      <div class="estats">
+        <div><span>Length</span><strong>${fmtLen(t.km)}</strong></div>
+        <div><span>Climb</span><strong>↑ ${Math.round(s.gain)} m</strong></div>
+        <div><span>Descent</span><strong>↓ ${Math.round(s.loss)} m</strong></div>
+        <div><span>Low to high</span><strong>${Math.round(s.min)}–${Math.round(s.max)} m</strong></div>
+      </div>
+      <div class="echart">
+        <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="Elevation profile: from ${Math.round(pts[0].e)} m to ${Math.round(pts[pts.length - 1].e)} m over ${fmtLen(s.total / 1000)}">
+          ${grid}<path d="${area}" class="ea"/><path d="${line}" class="el"/>
+          <line class="ex" y1="${mt}" y2="${H - mb}" visibility="hidden"/><circle class="ed" r="4" visibility="hidden"/>
+          <rect x="${ml}" y="0" width="${W - ml - mr}" height="${H}" fill="transparent" class="ehit"/>
+        </svg>
+        <div class="etip" hidden></div>
+      </div>
+      <p class="muted enote">From the start to the end, in the direction it was mapped${segs ? ", along the longest segment" : ""}. Riding the other way swaps climb and descent.${s.up >= 1 || s.down <= -1 ? ` Steepest 100 m: ${s.up >= 1 ? `+${s.up.toFixed(0)} % up` : ""}${s.up >= 1 && s.down <= -1 ? ", " : ""}${s.down <= -1 ? `${s.down.toFixed(0)} % down` : ""}.` : ""} Heights from a 90 m terrain model, so small bumps are smoothed out.</p>
+      <table class="etable"><thead><tr><th>Distance</th><th>Elevation</th><th>Grade</th></tr></thead><tbody>${tbl}</tbody></table>`;
+    // Hover or touch the chart: show the point on the chart and on the map.
+    const svg = el.querySelector("svg"), tip = el.querySelector(".etip"), cx = el.querySelector(".ex"), dot = el.querySelector(".ed");
+    const hide = () => { cx.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); tip.hidden = true; elevLayer.clearLayers(); };
+    svg.addEventListener("pointermove", (e) => {
+      const r = svg.getBoundingClientRect();
+      const d = ((e.clientX - r.left) * W / r.width - ml) / (W - ml - mr) * s.total;
+      const i = Math.max(0, Math.min(pts.length - 1, Math.round(d / s.total * (pts.length - 1))));
+      const p = pts[i], q = pts[Math.min(pts.length - 1, i + 3)], o = pts[Math.max(0, i - 3)];
+      const g = q.d > o.d ? (q.e - o.e) / (q.d - o.d) * 100 : 0;
+      cx.setAttribute("x1", X(p.d)); cx.setAttribute("x2", X(p.d)); cx.setAttribute("visibility", "visible");
+      dot.setAttribute("cx", X(p.d)); dot.setAttribute("cy", Y(p.e)); dot.setAttribute("visibility", "visible");
+      tip.hidden = false;
+      tip.innerHTML = `<strong>${Math.round(p.e)} m</strong> · ${fmtKm(p.d, 100)} · ${(g > 0 ? "+" : "") + g.toFixed(0)} %`;
+      const px = X(p.d) * r.width / W;
+      tip.style.left = Math.min(Math.max(px - tip.offsetWidth / 2, 0), r.width - tip.offsetWidth) + "px";
+      elevLayer.clearLayers();
+      elevLayer.addLayer(L.circleMarker([p.lat, p.lon], { radius: 7, color: "#fff", weight: 3, fillColor: css("--fg"), fillOpacity: 1, interactive: false }));
+    });
+    svg.addEventListener("pointerleave", hide);
+  }
+
   // ---------- trail detail panel ----------
   const MTB_SCALE = { 0: "S0, easy: no obstacles, firm surface", 1: "S1, small obstacles like roots and loose rock", 2: "S2, bigger roots and rocks, low steps, tight turns", 3: "S3, big rocks, steps, slippery sections, hairpins", 4: "S4, very steep, big steps and drops, trials skills", 5: "S5, extreme: blocked, very steep, hardly rideable", 6: "S6, not rideable" };
   const IMBA = { 0: "White circle, easiest", 1: "Green circle, easy", 2: "Blue square, intermediate", 3: "Black diamond, difficult", 4: "Double black diamond, extremely difficult" };
@@ -1570,6 +1711,7 @@ out body;`;
         <dt>Ends at</dt><dd class="mono">${end[0].toFixed(5)}, ${end[1].toFixed(5)}</dd>
         ${facts}
       </dl>
+      <h3>Elevation</h3><div id="elev" class="muted">${real || t.elev ? "Loading elevation…" : ""}</div>
       ${routes ? `<h3>Part of MTB route</h3><ul class="plain">${routes}</ul>` : ""}
       <h3>${t.searched ? "How the app sees it" : "Why it's listed"}</h3><ul class="plain">${t.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>
       ${real ? `<h3>Links</h3><div class="links">
@@ -1588,11 +1730,13 @@ out body;`;
     $("detail").scrollTop = 0;
     $("detailBack").addEventListener("click", closeDetail);
     if (real) loadHistory(t);
+    loadElevation(t);
   }
 
   function closeDetail() {
     state.selected = null;
     foundLayer.clearLayers();
+    elevLayer.clearLayers();
     $("panel").classList.remove("detail-open");
     $("detail").hidden = true;
     render();
