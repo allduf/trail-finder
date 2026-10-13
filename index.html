@@ -729,6 +729,22 @@ button:focus-visible, input:focus-visible, select:focus-visible, label.toggle:fo
 .periods button { font: inherit; font-weight: 600; border: 0; background: transparent; color: var(--fg); padding: 6px 4px; border-radius: 7px; cursor: pointer; }
 .periods button[aria-pressed="true"] { background: var(--panel); color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 .toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--chip); padding: 4px; border-radius: 10px; }
+.modes button { display: flex; align-items: center; justify-content: center; gap: 7px; font: inherit; font-weight: 600; font-size: .92rem; line-height: 1.15; border: 0; background: transparent; color: var(--muted); padding: 9px 8px; border-radius: 7px; cursor: pointer; text-align: left; }
+.modes button svg { flex: none; }
+.modes button[aria-selected="true"] { background: var(--panel); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.14); }
+.pane { display: flex; flex-direction: column; gap: 12px; }
+.hint { margin: 0; font-size: .85rem; color: var(--muted); }
+.hint strong { color: var(--fg); }
+.tap-hint { font-size: .8rem; }
+.tsearch-row { display: flex; gap: 8px; position: relative; }   /* suggestions span the box and the button */
+.tsearch-row .tsearch { flex: 1; min-width: 0; position: static; }
+.modes button span { text-wrap: balance; }
+.place { margin-top: 8px; }
+.pin-in { position: relative; flex: 1; min-width: 0; display: flex; }
+.pin-in svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.pin-in input { padding-left: 30px !important; font-size: .92rem !important; }
+.panel.mode-name .debug, .panel.mode-name .list { display: none; }
 .tsearch { position: relative; }
 .tsearch svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 .tsearch input { width: 100%; box-sizing: border-box; font: inherit; padding: 9px 10px 9px 34px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
@@ -852,6 +868,9 @@ label.toggle.off .sw { background: var(--muted); }
   .mapwrap { grid-row: 1; grid-column: 1; }
   .panel { grid-row: 2; grid-column: 1; border-right: 0; border-top: 1px solid var(--line); max-height: 55vh; border-radius: 14px 14px 0 0; box-shadow: 0 -4px 16px rgba(0,0,0,.12); padding-bottom: env(safe-area-inset-bottom, 0px); }
   .panel.expanded, .panel.detail-open { max-height: 70vh; }
+  /* the whole sheet scrolls, so the controls never push the results out of reach */
+  .panel { overflow-y: auto; overscroll-behavior: contain; }
+  .panel:not(.detail-open) .list { flex: none; overflow: visible; }
   .panel.detail-open .panel-head > :not(.sheet-toggle) { display: none; }
   .panel-head { padding: 8px 16px 10px; gap: 8px; }
   .sheet-toggle { display: block; width: 44px; height: 5px; border-radius: 3px; background: var(--line); border: 0; margin: 0 auto; padding: 0; cursor: pointer; }
@@ -887,35 +906,49 @@ label.toggle.off .sw { background: var(--muted); }
         <h1>Trail <span>Finder</span></h1>
         <button class="linkish" id="aboutBtn" type="button">How it works</button>
       </div>
-      <div class="tsearch" id="tsearch">
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-        <input id="trailQ" type="search" placeholder="Search a trail by name" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="trailHits" aria-autocomplete="list" aria-label="Search a trail by name">
-        <ul class="hits" id="trailHits" role="listbox" hidden></ul>
+      <div class="modes" role="tablist" aria-label="What do you want to find?">
+        <button type="button" role="tab" id="tabName" aria-controls="paneName" aria-selected="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Find a trail by name</span></button>
+        <button type="button" role="tab" id="tabNew" aria-controls="paneNew" aria-selected="true"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span>New trails in an area</span></button>
       </div>
-      <div>
-        <label class="label" for="zone">Area</label>
-        <select id="zone" class="zone"></select>
-      </div>
-      <button class="btn primary find" id="findBtn" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span id="findLabel">Find new trails</span></button>
-      <form class="search" id="placeForm">
-        <input id="place" type="search" placeholder="Or search any other place" autocomplete="off" aria-label="Search a place">
-        <button class="btn" type="submit">Go</button>
-      </form>
-      <div>
-        <div class="label" id="periodLabel">Created in the last</div>
-        <div class="periods" role="group" aria-labelledby="periodLabel">
-          <button type="button" data-p="1" aria-pressed="false">Month</button>
-          <button type="button" data-p="6" aria-pressed="true">6 months</button>
-          <button type="button" data-p="12" aria-pressed="false">Year</button>
-          <button type="button" data-p="24" aria-pressed="false">2 years</button>
+      <section class="pane" id="paneName" role="tabpanel" aria-labelledby="tabName" hidden>
+        <p class="hint">Type the name of any trail, old or new. Typos are OK. Pick it from the list to see it on the map with all its details.</p>
+        <div class="tsearch-row">
+          <div class="tsearch" id="tsearch">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+            <input id="trailQ" type="search" placeholder="Trail name" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="trailHits" aria-autocomplete="list" aria-label="Search a trail by name">
+            <ul class="hits" id="trailHits" role="listbox" hidden></ul>
+          </div>
+          <button class="btn primary" id="trailGo" type="button">Search</button>
         </div>
-      </div>
-      <div class="toggles">
-        <label class="toggle t-mtb"><input type="checkbox" id="showMtb" checked><span class="sw"></span>MTB tagged <span class="n" id="nMtb">0</span></label>
-        <label class="toggle t-looks"><input type="checkbox" id="showLooks" checked><span class="sw"></span>Looks like MTB <span class="n" id="nLooks">0</span></label>
-        <label class="toggle t-other off"><input type="checkbox" id="showOther"><span class="sw"></span>Other paths <span class="n" id="nOther">0</span></label>
-        <label class="toggle t-unoff off" title="Show only trails tagged as informal, closed or no bikes"><input type="checkbox" id="onlyUnoff"><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
-      </div>
+      </section>
+      <section class="pane" id="paneNew" role="tabpanel" aria-labelledby="tabNew">
+        <p class="hint">Choose an area and how recent, then press <strong>Find new trails</strong>.</p>
+        <div>
+          <label class="label" for="zone">Area</label>
+          <select id="zone" class="zone"></select>
+          <form class="search place" id="placeForm">
+            <div class="pin-in"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 21.5s6.5-5.8 6.5-11.2a6.5 6.5 0 1 0-13 0c0 5.4 6.5 11.2 6.5 11.2z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="10.3" r="2.4" fill="currentColor"/></svg><input id="place" type="search" placeholder="Or go to a town or place" autocomplete="off" aria-label="Go to a town or place"></div>
+            <button class="btn" type="submit">Go</button>
+          </form>
+        </div>
+        <div>
+          <div class="label" id="periodLabel">Created in the last</div>
+          <div class="periods" role="group" aria-labelledby="periodLabel">
+            <button type="button" data-p="1" aria-pressed="false">Month</button>
+            <button type="button" data-p="6" aria-pressed="true">6 months</button>
+            <button type="button" data-p="12" aria-pressed="false">Year</button>
+            <button type="button" data-p="24" aria-pressed="false">2 years</button>
+          </div>
+        </div>
+        <button class="btn primary find" id="findBtn" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span id="findLabel">Find new trails</span></button>
+        <div class="toggles">
+          <label class="toggle t-mtb"><input type="checkbox" id="showMtb" checked><span class="sw"></span>MTB tagged <span class="n" id="nMtb">0</span></label>
+          <label class="toggle t-looks"><input type="checkbox" id="showLooks" checked><span class="sw"></span>Looks like MTB <span class="n" id="nLooks">0</span></label>
+          <label class="toggle t-other off"><input type="checkbox" id="showOther"><span class="sw"></span>Other paths <span class="n" id="nOther">0</span></label>
+          <label class="toggle t-unoff off" title="Show only trails tagged as informal, closed or no bikes"><input type="checkbox" id="onlyUnoff"><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
+        </div>
+      </section>
+      <p class="hint tap-hint">Tip: tap any trail on the map to see all its details.</p>
     </div>
     <div class="status" id="status" role="status">Move the map to an area and search.</div>
     <details class="debug" id="debug"><summary>Search details</summary><pre id="debugLog">No search yet.</pre></details>
@@ -1700,7 +1733,7 @@ out body;`;
     const routes = (t.routes || []).map((r) => `<li><a href="https://www.openstreetmap.org/relation/${r.id}" target="_blank" rel="noopener">${esc(r.name)}</a></li>`).join("");
     const g = grade(t.tags);
     d.innerHTML = `
-      <button class="linkish back" id="detailBack" type="button">← All trails</button>
+      <button class="linkish back" id="detailBack" type="button">← Back</button>
       <div class="d-head ${t.cat}">
         <span class="bar"></span>
         <div><h2>${esc(trailName(t))}</h2>
@@ -2050,6 +2083,30 @@ out tags center qt;`;
     }
   });
   $("trailHits").addEventListener("mousedown", (e) => e.preventDefault()); // keep focus in the box
+  $("trailGo").addEventListener("click", () => {
+    const input = $("trailQ");
+    input.focus();
+    if (!input.value.trim()) return;
+    clearTimeout(hitTimer); refreshHits();
+    if (hits.length) showFound(hits[Math.max(hitSel, 0)].g);
+  });
+
+  // ---------- two modes: find a trail by name / new trails in an area ----------
+  function setMode(m, focus) {
+    store.set("mode", m);
+    $("tabName").setAttribute("aria-selected", String(m === "name"));
+    $("tabNew").setAttribute("aria-selected", String(m === "new"));
+    $("paneName").hidden = m !== "name";
+    $("paneNew").hidden = m !== "new";
+    $("panel").classList.toggle("mode-name", m === "name");
+    if (focus) (m === "name" ? $("trailQ") : $("findBtn")).focus();
+  }
+  $("tabName").addEventListener("click", () => setMode("name", true));
+  $("tabNew").addEventListener("click", () => setMode("new"));
+  document.querySelector(".modes").addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); const m = $("paneName").hidden ? "name" : "new"; setMode(m); $(m === "name" ? "tabName" : "tabNew").focus(); }
+  });
+  setMode(store.get("mode", "new") === "name" ? "name" : "new");
   $("trailHits").addEventListener("click", (e) => {
     if (e.target.closest("[data-retry]")) { loadNames(true); return; }
     const li = e.target.closest(".hit"); if (li) showFound(hits[+li.dataset.n].g);
