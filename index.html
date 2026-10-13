@@ -716,6 +716,8 @@ h1 { font-family: var(--font-display); font-size: 1.75rem; letter-spacing: .02em
 h1 span { color: var(--mtb); }
 .linkish { background: none; border: 0; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; padding: 4px; }
 .search { display: flex; gap: 8px; }
+button.find { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px 12px; font-size: 1rem; }
+button.find:disabled { opacity: .7; cursor: progress; }
 select.zone { width: 100%; font: inherit; font-weight: 600; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); margin-top: 4px; }
 .trail .zone-tag { font-family: var(--font-display); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; font-size: .75rem; }
 .search input { flex: 1; min-width: 0; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
@@ -848,6 +850,7 @@ label.toggle.off .sw { background: var(--muted); }
         <label class="label" for="zone">Area</label>
         <select id="zone" class="zone"></select>
       </div>
+      <button class="btn primary find" id="findBtn" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span id="findLabel">Find new trails</span></button>
       <form class="search" id="placeForm">
         <input id="place" type="search" placeholder="Or search any other place" autocomplete="off" aria-label="Search a place">
         <button class="btn" type="submit">Go</button>
@@ -1261,7 +1264,8 @@ out body;`;
   }
 
   // boxes: array of L.LatLngBounds to cover.
-  async function search(boxes) {
+  // offline: only show what this browser already saved, without asking OpenStreetMap.
+  async function search(boxes, offline) {
     const token = ++state.token;
     state.example = false;
     $("searchArea").hidden = true;
@@ -1280,6 +1284,8 @@ out body;`;
     }
     if (token !== state.token) return;
     mergeTiles(tiles);
+    state.offline = !!offline;
+    if (offline) { state.loading = null; render(); return; }
     const todo = tiles.filter((t) => { const c = tileCache.get(t.key); return !c || Date.now() - c.fetchedAt > FRESH_MS; });
     const savedCount = tiles.filter((t) => tileCache.has(t.key)).length;
     log(`${savedCount} squares already saved, ${todo.length} to check with OpenStreetMap.`);
@@ -1346,11 +1352,19 @@ out body;`;
     render();
   }
 
-  function searchZones() {
+  function searchZones(offline) {
     state.custom = false;
     const z = zoneById(state.zone);
-    search(z ? [z.bounds] : ZONES.map((z) => z.bounds));
+    search(z ? [z.bounds] : ZONES.map((z) => z.bounds), offline);
   }
+
+  function findNewTrails() {
+    if (state.custom) {
+      if (map.getZoom() < MIN_ZOOM) { setStatus("Zoom in a bit more (to a town or trail area), then click Find new trails.", true); return; }
+      search([map.getBounds().pad(0.05)]);
+    } else searchZones(false);
+  }
+  $("findBtn").addEventListener("click", findNewTrails);
 
   // ---------- render ----------
   function visibleTrails() {
@@ -1406,7 +1420,12 @@ out body;`;
     if (state.example) return;
     const label = { 1: "month", 6: "6 months", 12: "year", 24: "2 years" }[state.months];
     const n = state.shownCount || 0;
-    if (state.loading) {
+    $("findBtn").disabled = !!state.loading;
+    $("findLabel").textContent = state.loading ? "Searching…" : "Find new trails";
+    const where = state.custom ? "this part of the map" : (zoneById(state.zone) ? zoneById(state.zone).name : "Sea to Sky and the Sunshine Coast");
+    if (state.offline) {
+      setStatus(n ? `Showing ${n} saved trail${n === 1 ? "" : "s"} from the last ${label}. Click Find new trails to check for newer ones.` : `Click Find new trails to search ${where}.`);
+    } else if (state.loading) {
       const l = state.loading;
       setStatus(`${l.updating ? "Showing saved trails, checking for new ones…" : "Loading trails…"} ${l.done} of ${l.total} map squares (${Math.round((Date.now() - l.t0) / 1000)} s). ${n} trail${n === 1 ? "" : "s"} from the last ${label} so far.`);
     } else if (state.error && !state.trails.length) {
@@ -1553,7 +1572,7 @@ out body;`;
       map.fitBounds([[bb[0], bb[2]], [bb[1], bb[3]]], { maxZoom: 14 });
       if (map.getZoom() < MIN_ZOOM) map.setZoom(MIN_ZOOM);
       state.custom = true; $("zone").value = "custom";
-      search([map.getBounds().pad(0.05)]);
+      search([map.getBounds().pad(0.05)], true);
     } catch { setStatus("Place search can't reach OpenStreetMap from here. Pan and zoom the map instead.", true); }
   });
 
@@ -1566,7 +1585,7 @@ out body;`;
       locMarker = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: css("--accent"), fillOpacity: 1 }).addTo(map);
       map.setView(ll, 13);
       state.custom = true; $("zone").value = "custom";
-      search([map.getBounds().pad(0.05)]);
+      search([map.getBounds().pad(0.05)], true);
     }, () => setStatus("Location wasn't shared. Search a place or move the map instead.", true), { timeout: 15000 });
   });
 
@@ -1612,11 +1631,13 @@ out body;`;
     if (zoneSel.value === "custom") return;
     state.zone = zoneSel.value; store.set("zone", state.zone);
     map.fitBounds(zoneBounds(state.zone));
-    searchZones();
+    searchZones(true);
   });
 
   render();
-  searchZones();
+  // Inside the Claude preview OpenStreetMap is blocked, so show example trails there.
+  if (location.protocol !== "file:" && /claude/.test(location.hostname)) loadExample();
+  else searchZones(true);
 })();
 </script>
 
