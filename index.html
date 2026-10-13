@@ -1,0 +1,1619 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Trail Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* required styles */
+
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container,
+.leaflet-pane > svg,
+.leaflet-pane > canvas,
+.leaflet-zoom-box,
+.leaflet-image-layer,
+.leaflet-layer {
+	position: absolute;
+	left: 0;
+	top: 0;
+	}
+.leaflet-container {
+	overflow: hidden;
+	}
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+	-webkit-user-select: none;
+	   -moz-user-select: none;
+	        user-select: none;
+	  -webkit-user-drag: none;
+	}
+/* Prevents IE11 from highlighting tiles in blue */
+.leaflet-tile::selection {
+	background: transparent;
+}
+/* Safari renders non-retina tile on retina better with this, but Chrome is worse */
+.leaflet-safari .leaflet-tile {
+	image-rendering: -webkit-optimize-contrast;
+	}
+/* hack that prevents hw layers "stretching" when loading new tiles */
+.leaflet-safari .leaflet-tile-container {
+	width: 1600px;
+	height: 1600px;
+	-webkit-transform-origin: 0 0;
+	}
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+	display: block;
+	}
+/* .leaflet-container svg: reset svg max-width decleration shipped in Joomla! (joomla.org) 3.x */
+/* .leaflet-container img: map is broken in FF if you have max-width: 100% on tiles */
+.leaflet-container .leaflet-overlay-pane svg {
+	max-width: none !important;
+	max-height: none !important;
+	}
+.leaflet-container .leaflet-marker-pane img,
+.leaflet-container .leaflet-shadow-pane img,
+.leaflet-container .leaflet-tile-pane img,
+.leaflet-container img.leaflet-image-layer,
+.leaflet-container .leaflet-tile {
+	max-width: none !important;
+	max-height: none !important;
+	width: auto;
+	padding: 0;
+	}
+
+.leaflet-container img.leaflet-tile {
+	/* See: https://bugs.chromium.org/p/chromium/issues/detail?id=600120 */
+	mix-blend-mode: plus-lighter;
+}
+
+.leaflet-container.leaflet-touch-zoom {
+	-ms-touch-action: pan-x pan-y;
+	touch-action: pan-x pan-y;
+	}
+.leaflet-container.leaflet-touch-drag {
+	-ms-touch-action: pinch-zoom;
+	/* Fallback for FF which doesn't support pinch-zoom */
+	touch-action: none;
+	touch-action: pinch-zoom;
+}
+.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom {
+	-ms-touch-action: none;
+	touch-action: none;
+}
+.leaflet-container {
+	-webkit-tap-highlight-color: transparent;
+}
+.leaflet-container a {
+	-webkit-tap-highlight-color: rgba(51, 181, 229, 0.4);
+}
+.leaflet-tile {
+	filter: inherit;
+	visibility: hidden;
+	}
+.leaflet-tile-loaded {
+	visibility: inherit;
+	}
+.leaflet-zoom-box {
+	width: 0;
+	height: 0;
+	-moz-box-sizing: border-box;
+	     box-sizing: border-box;
+	z-index: 800;
+	}
+/* workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=888319 */
+.leaflet-overlay-pane svg {
+	-moz-user-select: none;
+	}
+
+.leaflet-pane         { z-index: 400; }
+
+.leaflet-tile-pane    { z-index: 200; }
+.leaflet-overlay-pane { z-index: 400; }
+.leaflet-shadow-pane  { z-index: 500; }
+.leaflet-marker-pane  { z-index: 600; }
+.leaflet-tooltip-pane   { z-index: 650; }
+.leaflet-popup-pane   { z-index: 700; }
+
+.leaflet-map-pane canvas { z-index: 100; }
+.leaflet-map-pane svg    { z-index: 200; }
+
+.leaflet-vml-shape {
+	width: 1px;
+	height: 1px;
+	}
+.lvml {
+	behavior: url(#default#VML);
+	display: inline-block;
+	position: absolute;
+	}
+
+
+/* control positioning */
+
+.leaflet-control {
+	position: relative;
+	z-index: 800;
+	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+	pointer-events: auto;
+	}
+.leaflet-top,
+.leaflet-bottom {
+	position: absolute;
+	z-index: 1000;
+	pointer-events: none;
+	}
+.leaflet-top {
+	top: 0;
+	}
+.leaflet-right {
+	right: 0;
+	}
+.leaflet-bottom {
+	bottom: 0;
+	}
+.leaflet-left {
+	left: 0;
+	}
+.leaflet-control {
+	float: left;
+	clear: both;
+	}
+.leaflet-right .leaflet-control {
+	float: right;
+	}
+.leaflet-top .leaflet-control {
+	margin-top: 10px;
+	}
+.leaflet-bottom .leaflet-control {
+	margin-bottom: 10px;
+	}
+.leaflet-left .leaflet-control {
+	margin-left: 10px;
+	}
+.leaflet-right .leaflet-control {
+	margin-right: 10px;
+	}
+
+
+/* zoom and fade animations */
+
+.leaflet-fade-anim .leaflet-popup {
+	opacity: 0;
+	-webkit-transition: opacity 0.2s linear;
+	   -moz-transition: opacity 0.2s linear;
+	        transition: opacity 0.2s linear;
+	}
+.leaflet-fade-anim .leaflet-map-pane .leaflet-popup {
+	opacity: 1;
+	}
+.leaflet-zoom-animated {
+	-webkit-transform-origin: 0 0;
+	    -ms-transform-origin: 0 0;
+	        transform-origin: 0 0;
+	}
+svg.leaflet-zoom-animated {
+	will-change: transform;
+}
+
+.leaflet-zoom-anim .leaflet-zoom-animated {
+	-webkit-transition: -webkit-transform 0.25s cubic-bezier(0,0,0.25,1);
+	   -moz-transition:    -moz-transform 0.25s cubic-bezier(0,0,0.25,1);
+	        transition:         transform 0.25s cubic-bezier(0,0,0.25,1);
+	}
+.leaflet-zoom-anim .leaflet-tile,
+.leaflet-pan-anim .leaflet-tile {
+	-webkit-transition: none;
+	   -moz-transition: none;
+	        transition: none;
+	}
+
+.leaflet-zoom-anim .leaflet-zoom-hide {
+	visibility: hidden;
+	}
+
+
+/* cursors */
+
+.leaflet-interactive {
+	cursor: pointer;
+	}
+.leaflet-grab {
+	cursor: -webkit-grab;
+	cursor:    -moz-grab;
+	cursor:         grab;
+	}
+.leaflet-crosshair,
+.leaflet-crosshair .leaflet-interactive {
+	cursor: crosshair;
+	}
+.leaflet-popup-pane,
+.leaflet-control {
+	cursor: auto;
+	}
+.leaflet-dragging .leaflet-grab,
+.leaflet-dragging .leaflet-grab .leaflet-interactive,
+.leaflet-dragging .leaflet-marker-draggable {
+	cursor: move;
+	cursor: -webkit-grabbing;
+	cursor:    -moz-grabbing;
+	cursor:         grabbing;
+	}
+
+/* marker & overlays interactivity */
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-image-layer,
+.leaflet-pane > svg path,
+.leaflet-tile-container {
+	pointer-events: none;
+	}
+
+.leaflet-marker-icon.leaflet-interactive,
+.leaflet-image-layer.leaflet-interactive,
+.leaflet-pane > svg path.leaflet-interactive,
+svg.leaflet-image-layer.leaflet-interactive path {
+	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+	pointer-events: auto;
+	}
+
+/* visual tweaks */
+
+.leaflet-container {
+	background: #ddd;
+	outline-offset: 1px;
+	}
+.leaflet-container a {
+	color: #0078A8;
+	}
+.leaflet-zoom-box {
+	border: 2px dotted #38f;
+	background: rgba(255,255,255,0.5);
+	}
+
+
+/* general typography */
+.leaflet-container {
+	font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	font-size: 0.75rem;
+	line-height: 1.5;
+	}
+
+
+/* general toolbar styles */
+
+.leaflet-bar {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+	border-radius: 4px;
+	}
+.leaflet-bar a {
+	background-color: #fff;
+	border-bottom: 1px solid #ccc;
+	width: 26px;
+	height: 26px;
+	line-height: 26px;
+	display: block;
+	text-align: center;
+	text-decoration: none;
+	color: black;
+	}
+.leaflet-bar a,
+.leaflet-control-layers-toggle {
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	display: block;
+	}
+.leaflet-bar a:hover,
+.leaflet-bar a:focus {
+	background-color: #f4f4f4;
+	}
+.leaflet-bar a:first-child {
+	border-top-left-radius: 4px;
+	border-top-right-radius: 4px;
+	}
+.leaflet-bar a:last-child {
+	border-bottom-left-radius: 4px;
+	border-bottom-right-radius: 4px;
+	border-bottom: none;
+	}
+.leaflet-bar a.leaflet-disabled {
+	cursor: default;
+	background-color: #f4f4f4;
+	color: #bbb;
+	}
+
+.leaflet-touch .leaflet-bar a {
+	width: 30px;
+	height: 30px;
+	line-height: 30px;
+	}
+.leaflet-touch .leaflet-bar a:first-child {
+	border-top-left-radius: 2px;
+	border-top-right-radius: 2px;
+	}
+.leaflet-touch .leaflet-bar a:last-child {
+	border-bottom-left-radius: 2px;
+	border-bottom-right-radius: 2px;
+	}
+
+/* zoom control */
+
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+	font: bold 18px 'Lucida Console', Monaco, monospace;
+	text-indent: 1px;
+	}
+
+.leaflet-touch .leaflet-control-zoom-in, .leaflet-touch .leaflet-control-zoom-out  {
+	font-size: 22px;
+	}
+
+
+/* layers control */
+
+.leaflet-control-layers {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+	background: #fff;
+	border-radius: 5px;
+	}
+.leaflet-control-layers-toggle {
+	background-image: none;
+	width: 36px;
+	height: 36px;
+	}
+.leaflet-retina .leaflet-control-layers-toggle {
+	background-image: none;
+	background-size: 26px 26px;
+	}
+.leaflet-touch .leaflet-control-layers-toggle {
+	width: 44px;
+	height: 44px;
+	}
+.leaflet-control-layers .leaflet-control-layers-list,
+.leaflet-control-layers-expanded .leaflet-control-layers-toggle {
+	display: none;
+	}
+.leaflet-control-layers-expanded .leaflet-control-layers-list {
+	display: block;
+	position: relative;
+	}
+.leaflet-control-layers-expanded {
+	padding: 6px 10px 6px 6px;
+	color: #333;
+	background: #fff;
+	}
+.leaflet-control-layers-scrollbar {
+	overflow-y: scroll;
+	overflow-x: hidden;
+	padding-right: 5px;
+	}
+.leaflet-control-layers-selector {
+	margin-top: 2px;
+	position: relative;
+	top: 1px;
+	}
+.leaflet-control-layers label {
+	display: block;
+	font-size: 13px;
+	font-size: 1.08333em;
+	}
+.leaflet-control-layers-separator {
+	height: 0;
+	border-top: 1px solid #ddd;
+	margin: 5px -10px 5px -6px;
+	}
+
+/* Default icon URLs */
+.leaflet-default-icon-path { /* used only in path-guessing heuristic, see L.Icon.Default */
+	background-image: none;
+	}
+
+
+/* attribution and scale controls */
+
+.leaflet-container .leaflet-control-attribution {
+	background: #fff;
+	background: rgba(255, 255, 255, 0.8);
+	margin: 0;
+	}
+.leaflet-control-attribution,
+.leaflet-control-scale-line {
+	padding: 0 5px;
+	color: #333;
+	line-height: 1.4;
+	}
+.leaflet-control-attribution a {
+	text-decoration: none;
+	}
+.leaflet-control-attribution a:hover,
+.leaflet-control-attribution a:focus {
+	text-decoration: underline;
+	}
+.leaflet-attribution-flag {
+	display: inline !important;
+	vertical-align: baseline !important;
+	width: 1em;
+	height: 0.6669em;
+	}
+.leaflet-left .leaflet-control-scale {
+	margin-left: 5px;
+	}
+.leaflet-bottom .leaflet-control-scale {
+	margin-bottom: 5px;
+	}
+.leaflet-control-scale-line {
+	border: 2px solid #777;
+	border-top: none;
+	line-height: 1.1;
+	padding: 2px 5px 1px;
+	white-space: nowrap;
+	-moz-box-sizing: border-box;
+	     box-sizing: border-box;
+	background: rgba(255, 255, 255, 0.8);
+	text-shadow: 1px 1px #fff;
+	}
+.leaflet-control-scale-line:not(:first-child) {
+	border-top: 2px solid #777;
+	border-bottom: none;
+	margin-top: -2px;
+	}
+.leaflet-control-scale-line:not(:first-child):not(:last-child) {
+	border-bottom: 2px solid #777;
+	}
+
+.leaflet-touch .leaflet-control-attribution,
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+	box-shadow: none;
+	}
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+	border: 2px solid rgba(0,0,0,0.2);
+	background-clip: padding-box;
+	}
+
+
+/* popup */
+
+.leaflet-popup {
+	position: absolute;
+	text-align: center;
+	margin-bottom: 20px;
+	}
+.leaflet-popup-content-wrapper {
+	padding: 1px;
+	text-align: left;
+	border-radius: 12px;
+	}
+.leaflet-popup-content {
+	margin: 13px 24px 13px 20px;
+	line-height: 1.3;
+	font-size: 13px;
+	font-size: 1.08333em;
+	min-height: 1px;
+	}
+.leaflet-popup-content p {
+	margin: 17px 0;
+	margin: 1.3em 0;
+	}
+.leaflet-popup-tip-container {
+	width: 40px;
+	height: 20px;
+	position: absolute;
+	left: 50%;
+	margin-top: -1px;
+	margin-left: -20px;
+	overflow: hidden;
+	pointer-events: none;
+	}
+.leaflet-popup-tip {
+	width: 17px;
+	height: 17px;
+	padding: 1px;
+
+	margin: -10px auto 0;
+	pointer-events: auto;
+
+	-webkit-transform: rotate(45deg);
+	   -moz-transform: rotate(45deg);
+	    -ms-transform: rotate(45deg);
+	        transform: rotate(45deg);
+	}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+	background: white;
+	color: #333;
+	box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+	}
+.leaflet-container a.leaflet-popup-close-button {
+	position: absolute;
+	top: 0;
+	right: 0;
+	border: none;
+	text-align: center;
+	width: 24px;
+	height: 24px;
+	font: 16px/24px Tahoma, Verdana, sans-serif;
+	color: #757575;
+	text-decoration: none;
+	background: transparent;
+	}
+.leaflet-container a.leaflet-popup-close-button:hover,
+.leaflet-container a.leaflet-popup-close-button:focus {
+	color: #585858;
+	}
+.leaflet-popup-scrolled {
+	overflow: auto;
+	}
+
+.leaflet-oldie .leaflet-popup-content-wrapper {
+	-ms-zoom: 1;
+	}
+.leaflet-oldie .leaflet-popup-tip {
+	width: 24px;
+	margin: 0 auto;
+
+	-ms-filter: "progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678)";
+	filter: progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678);
+	}
+
+.leaflet-oldie .leaflet-control-zoom,
+.leaflet-oldie .leaflet-control-layers,
+.leaflet-oldie .leaflet-popup-content-wrapper,
+.leaflet-oldie .leaflet-popup-tip {
+	border: 1px solid #999;
+	}
+
+
+/* div icon */
+
+.leaflet-div-icon {
+	background: #fff;
+	border: 1px solid #666;
+	}
+
+
+/* Tooltip */
+/* Base styles for the element that has a tooltip */
+.leaflet-tooltip {
+	position: absolute;
+	padding: 6px;
+	background-color: #fff;
+	border: 1px solid #fff;
+	border-radius: 3px;
+	color: #222;
+	white-space: nowrap;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+	pointer-events: none;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+	}
+.leaflet-tooltip.leaflet-interactive {
+	cursor: pointer;
+	pointer-events: auto;
+	}
+.leaflet-tooltip-top:before,
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before {
+	position: absolute;
+	pointer-events: none;
+	border: 6px solid transparent;
+	background: transparent;
+	content: "";
+	}
+
+/* Directions */
+
+.leaflet-tooltip-bottom {
+	margin-top: 6px;
+}
+.leaflet-tooltip-top {
+	margin-top: -6px;
+}
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-top:before {
+	left: 50%;
+	margin-left: -6px;
+	}
+.leaflet-tooltip-top:before {
+	bottom: 0;
+	margin-bottom: -12px;
+	border-top-color: #fff;
+	}
+.leaflet-tooltip-bottom:before {
+	top: 0;
+	margin-top: -12px;
+	margin-left: -6px;
+	border-bottom-color: #fff;
+	}
+.leaflet-tooltip-left {
+	margin-left: -6px;
+}
+.leaflet-tooltip-right {
+	margin-left: 6px;
+}
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before {
+	top: 50%;
+	margin-top: -6px;
+	}
+.leaflet-tooltip-left:before {
+	right: 0;
+	margin-right: -12px;
+	border-left-color: #fff;
+	}
+.leaflet-tooltip-right:before {
+	left: 0;
+	margin-left: -12px;
+	border-right-color: #fff;
+	}
+
+/* Printing */
+
+@media print {
+	/* Prevent printers from removing background-images of controls. */
+	.leaflet-control {
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+		}
+	}
+
+</style>
+<style>
+/* Layout: full-height app. Desktop = control panel left + map right. Phone = map on top, trail list as a bottom sheet. */
+:root {
+  --bg: #f3f5f2;
+  --panel: #ffffff;
+  --fg: #1d2420;
+  --muted: #5c6862;
+  --line: #d9dfda;
+  --chip: #e8ece8;
+  --accent: #1f6f4a;          /* forest green: controls, focus */
+  --accent-fg: #ffffff;
+  --mtb: #d1245f;             /* tagged MTB trails */
+  --looks: #d98a00;           /* looks like MTB */
+  --other: #6b7f99;           /* other new paths */
+  --warn-bg: #fff4d6;
+  --warn-fg: #6b4a00;
+  --map-ground: #e4e9e3;
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --chip: #252d28;
+    --accent: #5cc98f; --accent-fg: #0d1a12; --mtb: #ff5c93; --looks: #ffb627; --other: #93a6c2;
+    --warn-bg: #3a2f12; --warn-fg: #ffd98a; --map-ground: #1f2622; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --chip: #252d28;
+  --accent: #5cc98f; --accent-fg: #0d1a12; --mtb: #ff5c93; --looks: #ffb627; --other: #93a6c2;
+  --warn-bg: #3a2f12; --warn-fg: #ffd98a; --map-ground: #1f2622; color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
+.app { height: 100%; display: grid; grid-template-columns: minmax(320px, 380px) 1fr; }
+.panel { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.panel-head { padding: 16px 16px 12px; display: flex; flex-direction: column; gap: 12px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+h1 { font-family: var(--font-display); font-size: 1.75rem; letter-spacing: .02em; text-transform: uppercase; margin: 0; line-height: 1; }
+h1 span { color: var(--mtb); }
+.linkish { background: none; border: 0; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; padding: 4px; }
+.search { display: flex; gap: 8px; }
+select.zone { width: 100%; font: inherit; font-weight: 600; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); margin-top: 4px; }
+.trail .zone-tag { font-family: var(--font-display); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; font-size: .75rem; }
+.search input { flex: 1; min-width: 0; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+button.btn { font: inherit; font-weight: 600; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; white-space: nowrap; }
+button.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible, label.toggle:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.label { font-family: var(--font-display); font-weight: 600; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.periods { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--chip); padding: 4px; border-radius: 10px; }
+.periods button { font: inherit; font-weight: 600; border: 0; background: transparent; color: var(--fg); padding: 6px 4px; border-radius: 7px; cursor: pointer; }
+.periods button[aria-pressed="true"] { background: var(--panel); color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+label.toggle { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--chip); cursor: pointer; font-weight: 500; user-select: none; }
+label.toggle input { position: absolute; opacity: 0; pointer-events: none; }
+label.toggle .sw { width: 18px; height: 4px; border-radius: 2px; background: currentColor; }
+label.toggle .n { font-variant-numeric: tabular-nums; color: var(--muted); }
+label.toggle.off { opacity: .45; }
+label.toggle.off .sw { background: var(--muted); }
+label.toggle.t-mtb .sw { background: var(--mtb); } label.toggle.t-looks .sw { background: var(--looks); } label.toggle.t-other .sw { background: var(--other); }
+label.toggle.off .sw { background: var(--muted); }
+.status { padding: 10px 16px; font-size: .9rem; color: var(--muted); border-bottom: 1px solid var(--line); }
+.status.warn { background: var(--warn-bg); color: var(--warn-fg); }
+.debug { padding: 6px 16px; border-bottom: 1px solid var(--line); font-size: .85rem; color: var(--muted); }
+.debug summary { cursor: pointer; font-weight: 600; }
+.debug pre { font-family: var(--font-mono); font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow-y: auto; margin: 6px 0 0; color: var(--fg); }
+.list { flex: 1; overflow-y: auto; min-height: 0; }
+.list ol { list-style: none; margin: 0; padding: 0; }
+.trail { display: grid; grid-template-columns: 4px 1fr auto; gap: 10px; padding: 10px 16px 10px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.trail:hover, .trail.sel { background: var(--chip); }
+.trail .bar { border-radius: 2px; }
+.trail.mtb .bar { background: var(--mtb); } .trail.looks .bar { background: var(--looks); } .trail.other .bar { background: var(--other); }
+.trail .name { font-weight: 600; overflow-wrap: anywhere; }
+.trail .meta { font-size: .85rem; color: var(--muted); }
+.trail .right { text-align: right; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.grade { display: inline-block; font-family: var(--font-display); font-weight: 700; font-size: .8rem; padding: 0 6px; border-radius: 4px; background: var(--fg); color: var(--panel); letter-spacing: .04em; }
+.panel.detail-open .status, .panel.detail-open .debug, .panel.detail-open .list { display: none; }
+.detail { flex: 1; overflow-y: auto; min-height: 0; padding: 12px 16px 24px; }
+.detail .back { padding: 4px 0; margin-bottom: 8px; }
+.d-head { display: grid; grid-template-columns: 5px 1fr; gap: 12px; }
+.d-head .bar { border-radius: 3px; }
+.d-head.mtb .bar { background: var(--mtb); } .d-head.looks .bar { background: var(--looks); } .d-head.other .bar { background: var(--other); }
+.detail h2 { font-family: var(--font-display); font-size: 1.6rem; line-height: 1.1; text-transform: uppercase; letter-spacing: .02em; margin: 0 0 6px; overflow-wrap: anywhere; text-wrap: balance; }
+.detail h3 { font-family: var(--font-display); font-weight: 600; font-size: .85rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 18px 0 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { font-size: .8rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--chip); }
+.chip.mtb { background: var(--mtb); color: #fff; } .chip.looks { background: var(--looks); color: #1d1500; } .chip.other { background: var(--other); color: #fff; }
+.facts { display: grid; grid-template-columns: minmax(96px, 38%) 1fr; gap: 6px 12px; margin: 14px 0 0; }
+.facts dt { color: var(--muted); font-size: .85rem; }
+.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-mono); font-size: .85rem; }
+.detail a { color: var(--accent); font-weight: 600; }
+.plain { margin: 0; padding-left: 18px; }
+.links { display: flex; flex-wrap: wrap; gap: 8px; }
+.links a { padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; font-size: .9rem; }
+.history { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 8px; font-size: .9rem; }
+.tagtable { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 12px; }
+.tagtable th, .tagtable td { text-align: left; vertical-align: top; padding: 4px 6px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.tagtable th { color: var(--muted); font-weight: 400; width: 40%; }
+.status .linkish { padding: 0; text-decoration: underline; }
+.empty { padding: 24px 16px; color: var(--muted); }
+.mapwrap { position: relative; min-width: 0; min-height: 0; grid-column: 2; grid-row: 1; }
+.panel { grid-column: 1; grid-row: 1; }
+#map { position: absolute; inset: 0; background: var(--map-ground); background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 48px 48px; }
+.map-actions { position: absolute; z-index: 500; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
+.map-tools { position: absolute; z-index: 500; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.map-tools select, .map-tools button { font: inherit; font-size: .85rem; font-weight: 600; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+.map-note { max-width: 240px; font-size: .8rem; padding: 6px 8px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-fg); box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+.map-actions .btn { box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.sheet-toggle { display: none; }
+/* Popup */
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--panel); color: var(--fg); }
+.leaflet-popup-content { margin: 12px 14px; font-family: var(--font-body); font-size: 14px; min-width: 220px; }
+.pop h3 { font-family: var(--font-display); font-size: 1.2rem; margin: 0 0 4px; text-transform: uppercase; letter-spacing: .02em; }
+.pop .why { margin: 6px 0; padding-left: 18px; }
+.pop .tags { font-family: var(--font-mono); font-size: 12px; max-height: 140px; overflow: auto; background: var(--chip); border-radius: 6px; padding: 6px 8px; margin: 6px 0; }
+.pop .tags div { overflow-wrap: anywhere; }
+.pop a { color: var(--accent); font-weight: 600; }
+.leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+.leaflet-control-attribution { background: color-mix(in srgb, var(--panel) 80%, transparent) !important; color: var(--muted); }
+.leaflet-control-attribution a { color: var(--accent); }
+.leaflet-bar a { background: var(--panel); color: var(--fg); border-color: var(--line); }
+/* About dialog */
+.about { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.45); display: grid; place-items: center; padding: 16px; }
+.about .card { background: var(--panel); color: var(--fg); max-width: 640px; width: 100%; max-height: 90%; overflow-y: auto; border-radius: 12px; padding: 20px 22px; }
+.about h2 { font-family: var(--font-display); text-transform: uppercase; margin: 0 0 8px; font-size: 1.5rem; }
+.about h3 { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .04em; font-size: 1.05rem; margin: 16px 0 4px; }
+.about p, .about li { max-width: 65ch; }
+.about code { font-family: var(--font-mono); font-size: .85em; background: var(--chip); padding: 1px 4px; border-radius: 4px; }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  .mapwrap { grid-row: 1; grid-column: 1; }
+  .panel { grid-row: 2; grid-column: 1; border-right: 0; border-top: 1px solid var(--line); max-height: 55vh; border-radius: 14px 14px 0 0; box-shadow: 0 -4px 16px rgba(0,0,0,.12); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .panel.expanded, .panel.detail-open { max-height: 70vh; }
+  .panel.detail-open .panel-head > :not(.sheet-toggle) { display: none; }
+  .panel-head { padding: 8px 16px 10px; gap: 8px; }
+  .sheet-toggle { display: block; width: 44px; height: 5px; border-radius: 3px; background: var(--line); border: 0; margin: 0 auto; padding: 0; cursor: pointer; }
+  h1 { font-size: 1.35rem; }
+  #periodLabel, label[for="zone"] { display: none; }
+  .map-actions { top: auto; bottom: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="app">
+  <div class="mapwrap">
+    <div id="map" role="application" aria-label="Map of trails"></div>
+    <div class="map-actions"><button class="btn primary" id="searchArea" hidden>Search this area</button></div>
+    <div class="map-tools">
+      <select id="basemap" aria-label="Map style">
+        <option value="osm">OpenStreetMap</option>
+        <option value="osmde">OpenStreetMap (DE copy)</option>
+        <option value="osmfr">OpenStreetMap (FR copy)</option>
+        <option value="topo">Topo</option>
+        <option value="voyager">Light streets</option>
+      </select>
+      <div class="map-note" id="mapNote" hidden></div>
+      <button id="locate" type="button">◎ My location</button>
+    </div>
+  </div>
+  <aside class="panel" id="panel">
+    <div class="panel-head">
+      <button class="sheet-toggle" id="sheetToggle" aria-label="Expand trail list"></button>
+      <div class="brand">
+        <h1>Trail <span>Finder</span></h1>
+        <button class="linkish" id="aboutBtn" type="button">How it works</button>
+      </div>
+      <div>
+        <label class="label" for="zone">Area</label>
+        <select id="zone" class="zone"></select>
+      </div>
+      <form class="search" id="placeForm">
+        <input id="place" type="search" placeholder="Or search any other place" autocomplete="off" aria-label="Search a place">
+        <button class="btn" type="submit">Go</button>
+      </form>
+      <div>
+        <div class="label" id="periodLabel">Created in the last</div>
+        <div class="periods" role="group" aria-labelledby="periodLabel">
+          <button type="button" data-p="1" aria-pressed="false">Month</button>
+          <button type="button" data-p="6" aria-pressed="true">6 months</button>
+          <button type="button" data-p="12" aria-pressed="false">Year</button>
+          <button type="button" data-p="24" aria-pressed="false">2 years</button>
+        </div>
+      </div>
+      <div class="toggles">
+        <label class="toggle t-mtb"><input type="checkbox" id="showMtb" checked><span class="sw"></span>MTB tagged <span class="n" id="nMtb">0</span></label>
+        <label class="toggle t-looks"><input type="checkbox" id="showLooks" checked><span class="sw"></span>Looks like MTB <span class="n" id="nLooks">0</span></label>
+        <label class="toggle t-other off"><input type="checkbox" id="showOther"><span class="sw"></span>Other paths <span class="n" id="nOther">0</span></label>
+      </div>
+    </div>
+    <div class="status" id="status" role="status">Move the map to an area and search.</div>
+    <details class="debug" id="debug"><summary>Search details</summary><pre id="debugLog">No search yet.</pre></details>
+    <div class="list" id="list"></div>
+    <div class="detail" id="detail" hidden></div>
+  </aside>
+</div>
+
+<div class="about" id="about" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+    <h2 id="aboutTitle">How Trail Finder works</h2>
+    <p>All data comes live from OpenStreetMap. By default it covers the Sea to Sky corridor and the Sunshine Coast, split into the zones in the Area menu. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
+    <h3>What counts as new</h3>
+    <p>A way is new when its first version is dated inside the period. Overpass gives every way edited in the last 2 years. For ways with more than one version, the app asks the OpenStreetMap API for version 1 and uses its date. A trail that was only edited (retagged, extended) does not count.</p>
+    <p>One catch: when a mapper splits an old trail into two pieces, the new piece gets a new id and shows up as new. Check the history link in the popup when something looks off.</p>
+    <h3>MTB tagged</h3>
+    <p>Any tag starting with <code>mtb</code> (<code>mtb:scale</code>, <code>mtb:scale:imba</code>, <code>mtb:type</code>, <code>mtb=yes</code>, …) or membership in a <code>route=mtb</code> relation. <code>mtb=no</code> is excluded.</p>
+    <h3>Looks like MTB</h3>
+    <p>A <code>path</code>, <code>bridleway</code> or rough <code>track</code> (grade 3 to 5) with no MTB tags that scores 2 points or more:</p>
+    <ul>
+      <li>+2 bikes allowed: <code>bicycle=yes</code>, <code>designated</code> or <code>permissive</code></li>
+      <li>+1 natural surface: dirt, earth, ground, mud, rock, roots, woodchips</li>
+      <li>+1 rough: <code>smoothness</code> bad or worse</li>
+      <li>+1 narrow: <code>width</code> under 1.5 m</li>
+      <li>+1 <code>trail_visibility</code> or <code>incline</code> is mapped</li>
+      <li>+1 the name sounds like a bike trail (flow, berm, jump, enduro, downhill, singletrack, piste, sentier…)</li>
+      <li>+1 a <code>track</code> graded <code>grade4</code> or <code>grade5</code></li>
+    </ul>
+    <p>Skipped: paved surfaces, <code>bicycle=no</code> or <code>dismount</code>, private access, and alpine hiking routes (<code>sac_scale</code> alpine).</p>
+    <h3>Other paths</h3>
+    <p>New <code>highway=path</code> ways that don't reach 2 points. Many fresh trails are mapped with no extra tags, so this layer is worth a look.</p>
+    <p><button class="btn primary" id="aboutClose" type="button">Got it</button></p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+(() => {
+  const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
+  const OSM_API = "https://api.openstreetmap.org/api/0.6";
+  const MAX_MONTHS = 24;
+  // Sea to Sky + Sunshine Coast, as boxes around the riding areas (south, west, north, east).
+  const ZONES = [
+    { id: "van", name: "Vancouver & North Shore", box: [49.18, -123.30, 49.45, -122.75] },
+    { id: "sqm", name: "Howe Sound & Squamish", box: [49.45, -123.32, 49.96, -122.95] },
+    { id: "wh", name: "Whistler", box: [49.96, -123.20, 50.25, -122.85] },
+    { id: "pem", name: "Pemberton", box: [50.25, -123.05, 50.42, -122.62] },
+    { id: "lil", name: "Lillooet & Duffey", box: [50.42, -122.45, 50.80, -121.80] },
+    { id: "sun", name: "Sunshine Coast (Gibsons to Egmont)", box: [49.38, -124.12, 49.80, -123.45] },
+    { id: "pr", name: "Powell River & Lund", box: [49.75, -124.78, 50.06, -124.25] },
+  ];
+  ZONES.forEach((z) => { z.bounds = L.latLngBounds([z.box[0], z.box[1]], [z.box[2], z.box[3]]); });
+  const ALL_BOUNDS = ZONES.reduce((b, z) => b.extend(z.bounds), L.latLngBounds(ZONES[0].bounds.getSouthWest(), ZONES[0].bounds.getNorthEast()));
+  const MIN_ZOOM = 11;
+
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem("tf:" + k, JSON.stringify(v)); } catch {} },
+  };
+
+  const state = {
+    months: store.get("months", 6),
+    show: { mtb: true, looks: true, other: false },
+    trails: [],          // all candidates from last search (2-year window), with .created
+    searchedBounds: [],
+    error: "",
+    log: [],  // areas covered by the last search
+    zone: store.get("zone", "all"),
+    custom: false,       // true after "Search this area" / place search
+    selected: null,
+    token: 0,
+    example: false,
+  };
+
+  // ---------- map ----------
+  const map = L.map("map", { zoomControl: true, preferCanvas: false });
+  const zoneById = (id) => ZONES.find((z) => z.id === id);
+  function zoneBounds(id) { const z = zoneById(id); return z ? z.bounds : ALL_BOUNDS; }
+  map.fitBounds(zoneBounds(state.zone));
+  const OSM_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  const BASEMAPS = {
+    osm: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: OSM_ATTR }],
+    osmde: ["https://tile.openstreetmap.de/{z}/{x}/{y}.png", { maxZoom: 18, attribution: OSM_ATTR + ' | tiles <a href="https://www.openstreetmap.de">openstreetmap.de</a>' }],
+    osmfr: ["https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 19, attribution: OSM_ATTR + ' | tiles <a href="https://www.openstreetmap.fr">OSM France</a>' }],
+    topo: ["https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 17, attribution: OSM_ATTR + ', SRTM | &copy; <a href="https://opentopomap.org">OpenTopoMap</a>' }],
+    voyager: ["https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 20, attribution: OSM_ATTR + ' &copy; <a href="https://carto.com/attributions">CARTO</a>' }],
+  };
+  // The official OSM tile server refuses pages opened as a local file (no Referer header) and
+  // serves an "Access blocked" image instead. On a file, try look-alike copies in this order.
+  const FROM_FILE = location.protocol === "file:";
+  const FALLBACK = ["osmde", "osmfr", "voyager"];
+  const tileOk = {};
+  async function tileWorks(key) {
+    if (key === "osm" && FROM_FILE) return false;
+    if (key in tileOk) return tileOk[key];
+    const url = BASEMAPS[key][0].replace("{s}", "a").replace("{z}", "10").replace("{x}", "161").replace("{y}", "348").replace("{r}", "");
+    try { const res = await fetch(url, { mode: "cors", cache: "no-store" }); tileOk[key] = res.ok; }
+    catch { tileOk[key] = key === "voyager"; } // no answer we can read: only trust the CARTO server
+    return tileOk[key];
+  }
+  let baseLayer = null, basemapReq = 0;
+  async function setBasemap(key, remember) {
+    if (!BASEMAPS[key]) key = "osm";
+    const req = ++basemapReq;
+    let use = key;
+    if (!(await tileWorks(key))) {
+      use = "voyager";
+      for (const k of FALLBACK) if (k !== key && await tileWorks(k)) { use = k; break; }
+    }
+    if (req !== basemapReq) return;
+    if (baseLayer) map.removeLayer(baseLayer);
+    baseLayer = L.tileLayer(BASEMAPS[use][0], BASEMAPS[use][1]).addTo(map);
+    $("basemap").value = use;
+    if (remember) store.set("basemap3", key);
+    const note = $("mapNote");
+    note.hidden = use === key;
+    if (use !== key) note.textContent = key === "osm" && FROM_FILE
+      ? "The official OpenStreetMap map only loads on a website, not in a file opened from your computer. Showing the closest copy that works."
+      : "That map style didn't load here, so a similar one is shown.";
+  }
+  setBasemap(store.get("basemap3", "osm"));
+  $("basemap").addEventListener("change", (e) => setBasemap(e.target.value, true));
+
+  const trailLayer = L.layerGroup().addTo(map);
+  let locMarker = null;
+
+  map.on("moveend", () => {
+    const view = map.getBounds();
+    const covered = state.searchedBounds.some((b) => b.contains(view)) || (!state.custom && state.searchedBounds.length && ALL_BOUNDS.contains(view) && map.getZoom() < MIN_ZOOM);
+    $("searchArea").hidden = !state.example && (covered || map.getZoom() < MIN_ZOOM);
+  });
+  $("searchArea").addEventListener("click", () => {
+    if (map.getZoom() < MIN_ZOOM) { setStatus("Zoom in a bit more (to a town or trail area) before searching.", true); return; }
+    state.custom = true; $("zone").value = "custom";
+    search([map.getBounds().pad(0.05)]);
+  });
+
+  // ---------- helpers ----------
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  function monthsAgo(n) { const d = new Date(); d.setMonth(d.getMonth() - n); return d; }
+  function lengthKm(geom) {
+    let m = 0;
+    for (let i = 1; i < geom.length; i++) m += L.latLng(geom[i - 1]).distanceTo(L.latLng(geom[i]));
+    return m / 1000;
+  }
+  function fmtLen(km) { return km < 1 ? Math.round(km * 1000) + " m" : km.toFixed(1) + " km"; }
+  function fmtDate(d) { return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }); }
+  function ago(d) {
+    const days = Math.floor((Date.now() - d) / 864e5);
+    if (days < 1) return "today";
+    if (days < 60) return days + (days === 1 ? " day ago" : " days ago");
+    const mo = Math.round(days / 30.4);
+    return mo < 24 ? mo + " months ago" : Math.round(days / 365) + " years ago";
+  }
+  function log(line) { state.log.push(line); const pre = $("debugLog"); if (pre) pre.textContent = state.log.join("\n"); }
+  function setStatus(msg, warn, action) {
+    const s = $("status"); s.textContent = msg; s.classList.toggle("warn", !!warn);
+    if (action) { const b = document.createElement("button"); b.className = "linkish"; b.type = "button"; b.textContent = action.label; b.addEventListener("click", action.fn); s.append(" ", b); }
+  }
+
+  // ---------- classification ----------
+  const PAVED = /^(asphalt|paved|concrete|concrete:plates|concrete:lanes|paving_stones|sett|cobblestone|metal|chipseal)$/;
+  const NATURAL = /^(dirt|earth|ground|mud|rock|roots|woodchips|soil)$/;
+  const ROUGH = /^(bad|very_bad|horrible|very_horrible|impassable)$/;
+  const BIKEY_NAME = /\b(flow|berm|jump|jumps|enduro|downhill|dh|xc|singletrack|single ?trail|freeride|pump ?track|bike|vtt|piste|sentier|trail)\b/i;
+
+  function classify(tags, routes) {
+    const hw = tags.highway;
+    if (tags.mtb === "no" || /^(no|dismount|private)$/.test(tags.bicycle || "")) return null;
+    if (/^(private|no)$/.test(tags.access || "") && !/^(yes|designated|permissive)$/.test(tags.bicycle || "")) return null;
+
+    const mtbTags = Object.keys(tags).filter((k) => /^mtb(:|$)/.test(k));
+    if (mtbTags.length || routes.length) {
+      const why = mtbTags.map((k) => `${k}=${tags[k]}`);
+      routes.forEach((r) => why.push(`part of MTB route “${r}”`));
+      return { cat: "mtb", why };
+    }
+    if (!/^(path|track|bridleway)$/.test(hw)) return null;
+    if (hw === "track" && /^(grade1|grade2)$/.test(tags.tracktype || "")) return null;
+    if (PAVED.test(tags.surface || "")) return null;
+    if (/alpine/.test(tags.sac_scale || "")) return null;
+
+    let score = 0; const why = [];
+    if (/^(yes|designated|permissive)$/.test(tags.bicycle || "")) { score += 2; why.push(`bikes allowed (bicycle=${tags.bicycle})`); }
+    if (NATURAL.test(tags.surface || "")) { score += 1; why.push(`natural surface (${tags.surface})`); }
+    if (ROUGH.test(tags.smoothness || "")) { score += 1; why.push(`rough (smoothness=${tags.smoothness})`); }
+    const w = parseFloat(tags.width);
+    if (!isNaN(w) && w < 1.5) { score += 1; why.push(`narrow (${tags.width} m)`); }
+    if (tags.trail_visibility || tags.incline) { score += 1; why.push(tags.trail_visibility ? `trail_visibility=${tags.trail_visibility}` : `incline=${tags.incline}`); }
+    if (tags.name && BIKEY_NAME.test(tags.name)) { score += 1; why.push("name sounds like a bike trail"); }
+    if (hw === "track" && /^(grade4|grade5)$/.test(tags.tracktype || "")) { score += 1; why.push(`rough track (${tags.tracktype})`); }
+
+    if (score >= 2) return { cat: "looks", why: why.concat(`score ${score}`) };
+    if (hw === "path") return { cat: "other", why: why.length ? why.concat(`score ${score}`) : ["no bike-related tags yet"] };
+    return null;
+  }
+
+  function grade(tags) {
+    if (tags["mtb:scale"]) return "S" + tags["mtb:scale"];
+    if (tags["mtb:scale:imba"]) return ["White", "Green", "Blue", "Black", "Dbl black"][+tags["mtb:scale:imba"]] || "IMBA " + tags["mtb:scale:imba"];
+    return "";
+  }
+
+  // ---------- data ----------
+  async function overpass(query, signalToken, first = 0) {
+    let lastErr;
+    const urls = OVERPASS.slice(first).concat(OVERPASS.slice(0, first));
+    for (const url of urls) {
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 75000);
+        const res = await fetch(url, { method: "POST", signal: ctrl.signal, body: "data=" + encodeURIComponent(query), headers: { "Content-Type": "application/x-www-form-urlencoded" } }).finally(() => clearTimeout(timer));
+        const host = new URL(url).host;
+        if (res.ok) {
+          const json = await res.json();
+          log(`  ${host}: HTTP 200, ${json.elements.length} elements${json.remark ? ", remark: " + json.remark : ""}`);
+          if (json.remark && /error/i.test(json.remark)) { lastErr = new Error("OpenStreetMap stopped early: " + json.remark); lastErr.http = true; continue; }
+          state.connected = true;
+          return json;
+        }
+        const text = (await res.text().catch(() => "")).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+        const detail = (text.match(/Error: (.{0,200})/) || [])[1] || "";
+        log(`  ${host}: HTTP ${res.status}${detail ? " " + detail : ""}`);
+        lastErr = new Error(res.status === 429 ? "OpenStreetMap is busy (too many requests). Try again in a minute." : res.status === 504 ? "OpenStreetMap timed out. Try a smaller area." : `OpenStreetMap answered ${res.status}${detail ? ": " + detail : "."}`);
+        lastErr.http = true;
+        lastErr.busy = res.status === 429 || res.status === 504;
+      } catch (e) {
+        lastErr = e.name === "AbortError" ? Object.assign(new Error("OpenStreetMap took too long to answer."), { http: true, busy: true }) : e;
+        log(`  ${new URL(url).host}: no answer (${lastErr.message})`);
+      }
+      if (signalToken !== state.token) return null;
+    }
+    throw lastErr;
+  }
+
+  // Version-1 lookups: returns Map(id -> {timestamp, user}) using the multi-fetch API.
+  let v1Failed = 0;
+  async function fetchV1(ids, onProgress) {
+    const out = new Map();
+    v1Failed = 0;
+    const chunks = [];
+    for (let i = 0; i < ids.length; i += 120) chunks.push(ids.slice(i, i + 120));
+    let done = 0;
+    async function get(chunk) {
+      const res = await fetch(`${OSM_API}/ways?ways=${chunk.map((id) => id + "v1").join(",")}`);
+      if (!res.ok) {
+        if (chunk.length === 1) {
+          const one = await fetch(`${OSM_API}/way/${chunk[0]}/1`).catch(() => null);
+          if (one && one.ok) {
+            const w = new DOMParser().parseFromString(await one.text(), "application/xml").querySelector("way");
+            if (w) out.set(+w.getAttribute("id"), { timestamp: w.getAttribute("timestamp"), user: w.getAttribute("user") || "", changeset: +w.getAttribute("changeset") });
+          } else v1Failed++;
+          return;
+        }
+        const mid = Math.ceil(chunk.length / 2);
+        await get(chunk.slice(0, mid)); await get(chunk.slice(mid));
+        return;
+      }
+      const xml = new DOMParser().parseFromString(await res.text(), "application/xml");
+      xml.querySelectorAll("way").forEach((w) => out.set(+w.getAttribute("id"), { timestamp: w.getAttribute("timestamp"), user: w.getAttribute("user") || "", changeset: +w.getAttribute("changeset") }));
+    }
+    const queue = chunks.slice();
+    async function worker() { while (queue.length) { await get(queue.shift()); done++; onProgress && onProgress(done, chunks.length); } }
+    await Promise.all([worker(), worker(), worker()]);
+    return out;
+  }
+
+  function overpassQuery(b, since) {
+    const bb = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((n) => n.toFixed(5)).join(",");
+    const n = `(newer:"${since}")(${bb})`;
+    // Plain tag filters only: regular expressions on tag names make Overpass check every tag and are very slow.
+    return `[out:json][timeout:60];
+(
+  way["highway"="path"]${n};
+  way["highway"="bridleway"]${n};
+  way["highway"="track"]["tracktype"~"^grade[345]$"]${n};
+  way["highway"="track"]["bicycle"]${n};
+  way["highway"="track"]["mtb:scale"]${n};
+  way["highway"="track"]["mtb:scale:imba"]${n};
+  way["highway"~"^(footway|cycleway|track)$"]["mtb"]${n};
+  way["highway"~"^(footway|cycleway)$"]["mtb:scale"]${n};
+  way["highway"~"^(footway|cycleway)$"]["mtb:scale:imba"]${n};
+  way["highway"~"^(footway|cycleway)$"]["mtb:type"]${n};
+)->.w;
+.w out meta geom;
+rel(bw.w)["route"="mtb"];
+out body;`;
+  }
+
+  // ---- map tiles: big searches are cut into small grid squares, fetched two at a time and cached ----
+  const TILE_LAT = 0.2, TILE_LON = 0.3;
+  const tileCache = new Map(); // key -> { fetchedAt, trails } (trails already checked for first-mapped date)
+  const tileKey = (s, w) => `${s.toFixed(2)},${w.toFixed(2)}`;
+  function gridTiles(b) {
+    const out = [];
+    for (let s = Math.floor(b.getSouth() / TILE_LAT) * TILE_LAT; s < b.getNorth(); s += TILE_LAT)
+      for (let w = Math.floor(b.getWest() / TILE_LON) * TILE_LON; w < b.getEast(); w += TILE_LON)
+        out.push({ key: tileKey(s, w), bounds: L.latLngBounds([s, w], [s + TILE_LAT, w + TILE_LON]) });
+    return out;
+  }
+  function quarters(b) {
+    const c = b.getCenter(), sw = b.getSouthWest(), ne = b.getNorthEast();
+    return [L.latLngBounds(sw, c), L.latLngBounds([sw.lat, c.lng], [c.lat, ne.lng]), L.latLngBounds([c.lat, sw.lng], [ne.lat, c.lng]), L.latLngBounds(c, ne)];
+  }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Fetch one square; if OpenStreetMap times out or drops the connection, retry it as 4 smaller squares.
+  async function fetchBox(b, since, token, depth, label, mirror = 0) {
+    try { return (await overpass(overpassQuery(b, since), token, mirror)) || { elements: [] }; }
+    catch (e) {
+      if (token !== state.token) throw e;
+      if (depth >= 2 || (!e.http && !state.connected)) throw e;
+      log(`  ${label}: ${e.message} Retrying as 4 smaller squares.`);
+      await sleep(e.busy ? 5000 : 1000);
+      const parts = [];
+      for (const q of quarters(b)) parts.push(...(await fetchBox(q, since, token, depth + 1, label + "·", mirror)).elements);
+      return { elements: parts };
+    }
+  }
+
+  async function processElements(elements, token, known) {
+    const routesByWay = new Map();
+    elements.filter((e) => e.type === "relation").forEach((r) => {
+      const name = r.tags && (r.tags.name || r.tags.ref) || "unnamed";
+      (r.members || []).forEach((m) => { if (m.type === "way") { if (!routesByWay.has(m.ref)) routesByWay.set(m.ref, []); routesByWay.get(m.ref).push({ id: r.id, name }); } });
+    });
+    const candidates = [];
+    elements.filter((e) => e.type === "way" && e.geometry).forEach((w) => {
+      const tags = w.tags || {};
+      const routes = routesByWay.get(w.id) || [];
+      const c = classify(tags, routes.map((r) => r.name));
+      if (!c) return;
+      candidates.push({ id: w.id, tags, ...c, routes, version: w.version, lastEdit: new Date(w.timestamp), lastUser: w.user || "", lastChangeset: w.changeset,
+        geom: w.geometry.map((p) => [p.lat, p.lon]),
+        created: w.version === 1 ? new Date(w.timestamp) : null, creator: w.version === 1 ? w.user : null, firstChangeset: w.version === 1 ? w.changeset : null });
+    });
+    if (known) candidates.forEach((c) => { const k = known.get(c.id); if (!c.created && k) { c.created = k.created; c.creator = k.creator; c.firstChangeset = k.firstChangeset; } });
+    const needV1 = candidates.filter((c) => !c.created).map((c) => c.id);
+    let v1 = new Map();
+    if (needV1.length) {
+      try { v1 = await fetchV1(needV1); } catch (e) { log(`  first-version check failed: ${e.message}`); }
+      candidates.forEach((c) => { const r = v1.get(c.id); if (!c.created && r) { c.created = new Date(r.timestamp); c.creator = r.user; c.firstChangeset = r.changeset; } });
+    }
+    const cutoff = monthsAgo(MAX_MONTHS);
+    const trails = candidates.filter((c) => c.created && c.created >= cutoff);
+    trails.forEach((t) => {
+      t.km = lengthKm(t.geom); t.bounds = L.latLngBounds(t.geom);
+      const z = ZONES.find((z) => z.bounds.intersects(t.bounds)); t.zone = z ? z.name : "";
+    });
+    const seenWays = elements.filter((e) => e.type === "way").map((e) => e.id);
+    return { trails, seenWays, ways: seenWays.length, candidates: candidates.length, v1Asked: needV1.length, v1Found: v1.size };
+  }
+
+  // ---- saved results (IndexedDB in this browser): repeat searches only ask for what changed ----
+  const FRESH_MS = 10 * 60 * 1000;           // a square checked in the last 10 minutes is used as is
+  const FULL_REFRESH_MS = 7 * 864e5;         // after a week, reload the square from scratch
+  const saved = {
+    db: null,
+    open() {
+      if (this.db) return this.db;
+      this.db = new Promise((res) => {
+        try {
+          const r = indexedDB.open("trail-finder", 1);
+          r.onupgradeneeded = () => r.result.createObjectStore("squares");
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => res(null);
+        } catch { res(null); }
+      });
+      return this.db;
+    },
+    async get(key) {
+      const db = await this.open(); if (!db) return null;
+      return new Promise((res) => { try { const q = db.transaction("squares").objectStore("squares").get(key); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); } catch { res(null); } });
+    },
+    async put(key, val) {
+      const db = await this.open(); if (!db) return;
+      try { db.transaction("squares", "readwrite").objectStore("squares").put(val, key); } catch {}
+    },
+  };
+  const TRAIL_FIELDS = ["id", "tags", "cat", "why", "routes", "version", "lastEdit", "lastUser", "lastChangeset", "geom", "created", "creator", "firstChangeset", "km", "zone"];
+  function packTrail(t) { const o = {}; TRAIL_FIELDS.forEach((k) => { o[k] = t[k] instanceof Date ? t[k].toISOString() : t[k]; }); return o; }
+  function unpackTrail(o) { const t = { ...o, created: new Date(o.created), lastEdit: new Date(o.lastEdit) }; t.bounds = L.latLngBounds(t.geom); return t; }
+
+  function mergeTiles(tiles) {
+    const byId = new Map();
+    tiles.forEach((t) => ((tileCache.get(t.key) || {}).trails || []).forEach((tr) => byId.set(tr.id, tr)));
+    state.trails = [...byId.values()].sort((a, b) => b.created - a.created);
+  }
+
+  // boxes: array of L.LatLngBounds to cover.
+  async function search(boxes) {
+    const token = ++state.token;
+    state.example = false;
+    $("searchArea").hidden = true;
+    state.error = "";
+    state.retry = null;
+    const seenKeys = new Set();
+    const tiles = boxes.flatMap(gridTiles).filter((t) => !seenKeys.has(t.key) && seenKeys.add(t.key));
+    state.searchedBounds = boxes;
+    state.log = [`Search started ${new Date().toLocaleString()}: ${tiles.length} map squares.`];
+
+    // 1. Show anything already loaded or saved right away.
+    for (const t of tiles) {
+      if (tileCache.has(t.key)) continue;
+      const rec = await saved.get(t.key);
+      if (rec && Date.now() - rec.fetchedAt < FULL_REFRESH_MS) tileCache.set(t.key, { fetchedAt: rec.fetchedAt, trails: rec.trails.map(unpackTrail) });
+    }
+    if (token !== state.token) return;
+    mergeTiles(tiles);
+    const todo = tiles.filter((t) => { const c = tileCache.get(t.key); return !c || Date.now() - c.fetchedAt > FRESH_MS; });
+    const savedCount = tiles.filter((t) => tileCache.has(t.key)).length;
+    log(`${savedCount} squares already saved, ${todo.length} to check with OpenStreetMap.`);
+    state.loading = todo.length ? { done: 0, total: todo.length, t0: Date.now(), updating: todo.every((t) => tileCache.has(t.key)) } : null;
+    render();
+    const tick = setInterval(() => { if (token === state.token && state.loading) renderStatus(); }, 1000);
+
+    // 2. Ask OpenStreetMap: whole square if new, or only what changed since last time if saved.
+    const failed = [];
+    let networkFails = 0;
+    const queue = todo.slice();
+    async function worker(mirror) {
+      while (queue.length && token === state.token) {
+        const t = queue.shift();
+        const label = `Square ${t.key}`;
+        const t0 = Date.now();
+        const cached = tileCache.get(t.key);
+        const startedAt = Date.now();
+        const since = cached ? new Date(cached.fetchedAt - 5 * 60000).toISOString().slice(0, 19) + "Z" : monthsAgo(MAX_MONTHS).toISOString().slice(0, 19) + "Z";
+        try {
+          const data = await fetchBox(t.bounds, since, token, 0, label, mirror);
+          if (token !== state.token) return;
+          const known = new Map(cached ? cached.trails.map((x) => [x.id, x]) : []);
+          const r = await processElements(data.elements, token, known);
+          if (token !== state.token) return;
+          let trails = r.trails;
+          if (cached) {
+            // Keep saved trails, replace the ones edited since, drop ones no longer trail-like.
+            const changed = new Set(r.seenWays);
+            const byId = new Map(cached.trails.filter((x) => !changed.has(x.id)).map((x) => [x.id, x]));
+            r.trails.forEach((x) => byId.set(x.id, x));
+            trails = [...byId.values()];
+          }
+          tileCache.set(t.key, { fetchedAt: startedAt, trails });
+          saved.put(t.key, { fetchedAt: startedAt, trails: trails.map(packTrail) });
+          log(`${label}: ${cached ? "update, " : ""}${r.ways} edited ways, ${r.candidates} trail-like, ${r.v1Asked} first-version checks, ${trails.length} trails. ${Math.round((Date.now() - t0) / 1000)} s`);
+        } catch (e) {
+          if (token !== state.token) return;
+          if (!e.http) networkFails++;
+          failed.push(e.message);
+          log(`${label}: failed. ${e.message}`);
+        }
+        state.loading.done++;
+        mergeTiles(tiles);
+        render();
+      }
+    }
+    // One worker per OpenStreetMap server, so both share the load.
+    if (todo.length) await Promise.all(OVERPASS.map((_, i) => worker(i)));
+    clearInterval(tick);
+    if (token !== state.token) return;
+    state.loading = null;
+    // Inside the Claude preview every request is blocked outright: show example trails instead.
+    if (todo.length && networkFails === todo.length && !savedCount && location.protocol !== "file:") { loadExample(); return; }
+    if (failed.length) {
+      const missing = tiles.filter((t) => !tileCache.has(t.key)).length;
+      state.error = missing === tiles.length
+        ? (networkFails === failed.length ? "Couldn't connect to OpenStreetMap. Check your internet connection." : failed[0])
+        : missing ? `${missing} of ${tiles.length} map squares didn't load (OpenStreetMap was busy). Showing the rest.`
+        : `Couldn't check ${failed.length} saved squares for brand-new trails (OpenStreetMap was busy). Showing saved results.`;
+      state.retry = () => search(boxes);
+    }
+    log(`Done: ${state.trails.length} trails first mapped in the last 2 years.`);
+    render();
+  }
+
+  function searchZones() {
+    state.custom = false;
+    const z = zoneById(state.zone);
+    search(z ? [z.bounds] : ZONES.map((z) => z.bounds));
+  }
+
+  // ---------- render ----------
+  function visibleTrails() {
+    const cutoff = monthsAgo(state.months);
+    const zb = !state.custom && !state.example && zoneById(state.zone) ? zoneById(state.zone).bounds : null;
+    return state.trails.filter((t) => t.created >= cutoff && (!zb || zb.intersects(t.bounds)));
+  }
+
+  function trailName(t) { return t.tags.name || t.tags["mtb:name"] || "Unnamed " + t.tags.highway; }
+  const CAT_LABEL = { mtb: "MTB tagged", looks: "Looks like MTB", other: "Other new path" };
+
+  function render() {
+    const vis = visibleTrails();
+    const counts = { mtb: 0, looks: 0, other: 0 };
+    vis.forEach((t) => counts[t.cat]++);
+    $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nOther").textContent = counts.other;
+    const shown = vis.filter((t) => state.show[t.cat]);
+    state.shownCount = shown.length;
+
+    trailLayer.clearLayers();
+    const color = { mtb: css("--mtb"), looks: css("--looks"), other: css("--other") };
+    shown.slice().reverse().forEach((t) => {
+      const sel = state.selected === t.id;
+      const line = L.polyline(t.geom, {
+        color: color[t.cat], weight: sel ? 8 : t.cat === "other" ? 3 : 5, opacity: state.selected && !sel ? 0.55 : 0.95,
+        dashArray: t.cat === "looks" && !sel ? "8 6" : null, lineCap: "round", interactive: false,
+      });
+      // A wide invisible line on top makes thin trails easy to click or tap.
+      const hit = L.polyline(t.geom, { weight: 18, opacity: 0, interactive: true })
+        .bindTooltip(esc(trailName(t)), { sticky: true, direction: "top", offset: [0, -8] });
+      hit.on("click", (e) => { L.DomEvent.stopPropagation(e); select(t.id, false); });
+      t._line = line;
+      trailLayer.addLayer(line); trailLayer.addLayer(hit);
+    });
+    const selT = shown.find((t) => t.id === state.selected);
+    if (selT) selT._line.bringToFront();
+
+    renderStatus();
+
+    const list = $("list");
+    if (!shown.length) { list.innerHTML = state.trails.length || state.searchedBounds.length ? "" : `<div class="empty">Results appear here after a search.</div>`; return; }
+    list.innerHTML = "<ol>" + shown.map((t) => {
+      const g = grade(t.tags);
+      return `<li class="trail ${t.cat}${state.selected === t.id ? " sel" : ""}" data-id="${t.id}" tabindex="0">
+        <span class="bar"></span>
+        <div><div class="name">${esc(trailName(t))} ${g ? `<span class="grade">${esc(g)}</span>` : ""}</div>
+        <div class="meta">${state.zone === "all" && !state.custom && t.zone ? `<span class="zone-tag">${esc(t.zone.split(" (")[0])}</span> · ` : ""}${esc(t.why[0])}</div></div>
+        <div class="right">${fmtLen(t.km)}<br>${ago(t.created)}</div></li>`;
+    }).join("") + "</ol>";
+  }
+
+  function renderStatus() {
+    if (state.example) return;
+    const label = { 1: "month", 6: "6 months", 12: "year", 24: "2 years" }[state.months];
+    const n = state.shownCount || 0;
+    if (state.loading) {
+      const l = state.loading;
+      setStatus(`${l.updating ? "Showing saved trails, checking for new ones…" : "Loading trails…"} ${l.done} of ${l.total} map squares (${Math.round((Date.now() - l.t0) / 1000)} s). ${n} trail${n === 1 ? "" : "s"} from the last ${label} so far.`);
+    } else if (state.error && !state.trails.length) {
+      setStatus(`Search failed. ${state.error.replace(/\.?$/, ".")} If it keeps happening, open “Search details” and send a screenshot.`, true, state.retry && { label: "Try again", fn: state.retry });
+    } else if (state.searchedBounds.length) {
+      setStatus((n ? `${n} trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : `No new trails here in the last ${label}. Try a longer period, turn on “Other paths”, or move the map.`) + (state.error ? " " + state.error : ""),
+        !!state.error, state.error && state.retry && { label: "Load missing squares", fn: state.retry });
+    }
+  }
+
+  // ---------- trail detail panel ----------
+  const MTB_SCALE = { 0: "S0, easy: no obstacles, firm surface", 1: "S1, small obstacles like roots and loose rock", 2: "S2, bigger roots and rocks, low steps, tight turns", 3: "S3, big rocks, steps, slippery sections, hairpins", 4: "S4, very steep, big steps and drops, trials skills", 5: "S5, extreme: blocked, very steep, hardly rideable", 6: "S6, not rideable" };
+  const IMBA = { 0: "White circle, easiest", 1: "Green circle, easy", 2: "Blue square, intermediate", 3: "Black diamond, difficult", 4: "Double black diamond, extremely difficult" };
+  const UPHILL = { 0: "0, easy climb", 1: "1, moderate climb", 2: "2, steep climb", 3: "3, very steep climb", 4: "4, extremely steep", 5: "5, push or carry" };
+  const SAC = { hiking: "T1 hiking", mountain_hiking: "T2 mountain hiking", demanding_mountain_hiking: "T3 demanding mountain hiking", alpine_hiking: "T4 alpine hiking", demanding_alpine_hiking: "T5 demanding alpine hiking", difficult_alpine_hiking: "T6 difficult alpine hiking" };
+  const FRIENDLY = [
+    ["mtb:scale", "MTB difficulty (singletrail scale)", (v) => MTB_SCALE[parseInt(v, 10)] ? MTB_SCALE[parseInt(v, 10)] + (/[+-]/.test(v) ? ` (${v})` : "") : v],
+    ["mtb:scale:imba", "MTB difficulty (IMBA)", (v) => IMBA[v] || v],
+    ["mtb:scale:uphill", "Climbing difficulty", (v) => UPHILL[v] || v],
+    ["mtb:type", "MTB trail type"], ["mtb:name", "MTB name"],
+    ["highway", "Way type"], ["surface", "Surface"], ["smoothness", "Smoothness"], ["width", "Width", (v) => v + (/^[\d.]+$/.test(v) ? " m" : "")],
+    ["incline", "Incline"], ["trail_visibility", "Trail visibility"], ["sac_scale", "Hiking difficulty", (v) => SAC[v] || v],
+    ["oneway:bicycle", "One-way for bikes"], ["oneway", "One-way"], ["bicycle", "Bikes"], ["foot", "Walkers"], ["horse", "Horses"], ["motor_vehicle", "Motor vehicles"], ["access", "Access"],
+    ["informal", "Informal (unofficial) trail"], ["operator", "Managed by"], ["ref", "Reference"], ["seasonal", "Seasonal"], ["lit", "Lit"],
+    ["description", "Description"], ["note", "Mapper's note"], ["website", "Website", (v) => v],
+  ];
+  const userLink = (u) => u ? `<a href="https://www.openstreetmap.org/user/${encodeURIComponent(u)}" target="_blank" rel="noopener">${esc(u)}</a>` : "unknown";
+  const csLink = (c) => c ? `<a href="https://www.openstreetmap.org/changeset/${c}" target="_blank" rel="noopener">#${c}</a>` : "";
+
+  function openDetail(t) {
+    const d = $("detail");
+    const real = t.id > 0;
+    const start = t.geom[0], end = t.geom[t.geom.length - 1];
+    const facts = FRIENDLY.filter(([k]) => t.tags[k] != null).map(([k, label, fmt]) => {
+      const v = t.tags[k];
+      const shown = k === "website" ? `<a href="${esc(/^https?:/.test(v) ? v : "https://" + v)}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(fmt ? fmt(v) : v);
+      return `<dt>${label}</dt><dd>${shown}</dd>`;
+    }).join("");
+    const routes = (t.routes || []).map((r) => `<li><a href="https://www.openstreetmap.org/relation/${r.id}" target="_blank" rel="noopener">${esc(r.name)}</a></li>`).join("");
+    const g = grade(t.tags);
+    d.innerHTML = `
+      <button class="linkish back" id="detailBack" type="button">← All trails</button>
+      <div class="d-head ${t.cat}">
+        <span class="bar"></span>
+        <div><h2>${esc(trailName(t))}</h2>
+        <div class="chips"><span class="chip ${t.cat}">${CAT_LABEL[t.cat]}</span>${g ? `<span class="grade">${esc(g)}</span>` : ""}${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
+      </div>
+      <dl class="facts">
+        <dt>Length</dt><dd>${fmtLen(t.km)} <span class="muted">(${t.geom.length} map points)</span></dd>
+        <dt>First mapped</dt><dd>${fmtDate(t.created)} · ${ago(t.created)}<br>by ${userLink(t.creator)} ${csLink(t.firstChangeset)}</dd>
+        <dt>Last edited</dt><dd>${t.version > 1 ? `${fmtDate(t.lastEdit)} · version ${t.version}<br>by ${userLink(t.lastUser)} ${csLink(t.lastChangeset)}` : "Never edited since (version 1)"}</dd>
+        <dt>Starts at</dt><dd class="mono">${start[0].toFixed(5)}, ${start[1].toFixed(5)}</dd>
+        <dt>Ends at</dt><dd class="mono">${end[0].toFixed(5)}, ${end[1].toFixed(5)}</dd>
+        ${facts}
+      </dl>
+      ${routes ? `<h3>Part of MTB route</h3><ul class="plain">${routes}</ul>` : ""}
+      <h3>Why it's listed</h3><ul class="plain">${t.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>
+      ${real ? `<h3>Links</h3><div class="links">
+        <a href="https://www.openstreetmap.org/way/${t.id}" target="_blank" rel="noopener">Open on OpenStreetMap</a>
+        <a href="https://www.openstreetmap.org/way/${t.id}/history" target="_blank" rel="noopener">Full history</a>
+        <a href="https://www.openstreetmap.org/edit?way=${t.id}" target="_blank" rel="noopener">Edit or fix it</a>
+        ${t.tags.name ? `<a href="https://www.trailforks.com/search/?search=${encodeURIComponent(t.tags.name)}" target="_blank" rel="noopener">Search on Trailforks</a>` : ""}
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${start[0]},${start[1]}" target="_blank" rel="noopener">Directions to the start</a>
+      </div>` : `<p class="muted">Example trail, not real data.</p>`}
+      <h3>Edit history</h3><div id="history" class="muted">${real ? "Loading…" : "Not available for example trails."}</div>
+      <h3>All tags</h3><table class="tagtable"><tbody>${Object.entries(t.tags).map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table>
+      <p class="muted">OpenStreetMap way ${real ? t.id : "(example)"}</p>`;
+    $("panel").classList.add("detail-open");
+    $("detail").hidden = false;
+    $("detail").scrollTop = 0;
+    $("detailBack").addEventListener("click", closeDetail);
+    if (real) loadHistory(t);
+  }
+
+  function closeDetail() {
+    state.selected = null;
+    $("panel").classList.remove("detail-open");
+    $("detail").hidden = true;
+    render();
+  }
+
+  async function loadHistory(t) {
+    const box = () => (state.selected === t.id ? $("history") : null);
+    try {
+      if (!t.history) {
+        const res = await fetch(`${OSM_API}/way/${t.id}/history`);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const xml = new DOMParser().parseFromString(await res.text(), "application/xml");
+        t.history = [...xml.querySelectorAll("way")].map((w) => ({ v: +w.getAttribute("version"), ts: new Date(w.getAttribute("timestamp")), user: w.getAttribute("user") || "", cs: +w.getAttribute("changeset"), tags: w.querySelectorAll("tag").length }));
+        const ids = [...new Set(t.history.map((h) => h.cs))].slice(-50);
+        const cr = await fetch(`${OSM_API}/changesets?changesets=${ids.join(",")}`).catch(() => null);
+        if (cr && cr.ok) {
+          const cx = new DOMParser().parseFromString(await cr.text(), "application/xml");
+          const comments = new Map();
+          cx.querySelectorAll("changeset").forEach((c) => { const tag = c.querySelector('tag[k="comment"]'); if (tag) comments.set(+c.getAttribute("id"), tag.getAttribute("v")); });
+          t.history.forEach((h) => { h.comment = comments.get(h.cs) || ""; });
+        }
+      }
+      const el = box(); if (!el) return;
+      el.classList.remove("muted");
+      el.innerHTML = `<ol class="history">${t.history.slice().reverse().map((h) => `<li><strong>v${h.v}</strong> · ${fmtDate(h.ts)} · ${userLink(h.user)} ${csLink(h.cs)}${h.comment ? `<div class="muted">“${esc(h.comment)}”</div>` : ""}</li>`).join("")}</ol>`;
+    } catch (e) {
+      const el = box(); if (el) el.textContent = `Couldn't load the history (${e.message}). Use the “Full history” link instead.`;
+    }
+  }
+
+  function select(id, fly) {
+    state.selected = id;
+    const t = state.trails.find((x) => x.id === id);
+    render();
+    if (!t) return;
+    openDetail(t);
+    if (fly) map.fitBounds(t.bounds || L.latLngBounds(t.geom), { maxZoom: 16, padding: [40, 40] });
+  }
+  $("list").addEventListener("click", (e) => { const li = e.target.closest(".trail"); if (li) select(+li.dataset.id, true); });
+  $("list").addEventListener("keydown", (e) => { if (e.key === "Enter") { const li = e.target.closest(".trail"); if (li) select(+li.dataset.id, true); } });
+  map.on("click", () => { if (state.selected) closeDetail(); });
+
+  // ---------- controls ----------
+  document.querySelectorAll(".periods button").forEach((b) => {
+    b.setAttribute("aria-pressed", String(+b.dataset.p === state.months));
+    b.addEventListener("click", () => {
+      state.months = +b.dataset.p; store.set("months", state.months);
+      document.querySelectorAll(".periods button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      render();
+    });
+  });
+  [["showMtb", "mtb"], ["showLooks", "looks"], ["showOther", "other"]].forEach(([id, k]) => {
+    const el = $(id);
+    el.checked = state.show[k];
+    el.closest("label").classList.toggle("off", !el.checked);
+    el.addEventListener("change", () => { state.show[k] = el.checked; el.closest("label").classList.toggle("off", !el.checked); render(); });
+  });
+
+  $("placeForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const q = $("place").value.trim(); if (!q) return;
+    setStatus("Finding " + q + "…");
+    try {
+      const res = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + encodeURIComponent(q));
+      const hits = await res.json();
+      if (!hits.length) { setStatus(`Couldn't find “${q}”. Try a town name.`, true); return; }
+      const bb = hits[0].boundingbox.map(Number);
+      map.fitBounds([[bb[0], bb[2]], [bb[1], bb[3]]], { maxZoom: 14 });
+      if (map.getZoom() < MIN_ZOOM) map.setZoom(MIN_ZOOM);
+      state.custom = true; $("zone").value = "custom";
+      search([map.getBounds().pad(0.05)]);
+    } catch { setStatus("Place search can't reach OpenStreetMap from here. Pan and zoom the map instead.", true); }
+  });
+
+  $("locate").addEventListener("click", () => {
+    if (!navigator.geolocation) { setStatus("This browser can't share your location.", true); return; }
+    setStatus("Finding your location…");
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const ll = [pos.coords.latitude, pos.coords.longitude];
+      if (locMarker) map.removeLayer(locMarker);
+      locMarker = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: css("--accent"), fillOpacity: 1 }).addTo(map);
+      map.setView(ll, 13);
+      state.custom = true; $("zone").value = "custom";
+      search([map.getBounds().pad(0.05)]);
+    }, () => setStatus("Location wasn't shared. Search a place or move the map instead.", true), { timeout: 15000 });
+  });
+
+  $("aboutBtn").addEventListener("click", () => { $("about").hidden = false; $("aboutClose").focus(); });
+  $("aboutClose").addEventListener("click", () => { $("about").hidden = true; });
+  $("about").addEventListener("click", (e) => { if (e.target.id === "about") $("about").hidden = true; });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!$("about").hidden) $("about").hidden = true; else if (state.selected) closeDetail(); } });
+  $("sheetToggle").addEventListener("click", () => { $("panel").classList.toggle("expanded"); setTimeout(() => map.invalidateSize(), 50); });
+
+  // ---------- example data (used only when OpenStreetMap can't be reached) ----------
+  function loadExample() {
+    state.example = true;
+    const c = L.latLng(49.735, -123.13);
+    map.setView(c, 13);
+    const mk = (id, cat, tags, pts, daysAgo, version) => {
+      const created = new Date(Date.now() - daysAgo * 864e5);
+      const geom = pts.map(([dy, dx]) => [c.lat + dy * 0.004, c.lng + dx * 0.006]);
+      return { id, cat, tags, geom, created, creator: "example_mapper", version: version || 1, lastEdit: created,
+        why: classify(tags, cat === "mtb" && id === -3 ? ["Example Ridge Loop"] : []).why, km: lengthKm(geom) };
+    };
+    state.trails = [
+      mk(-1, "mtb", { highway: "path", name: "Copper Flow", "mtb:scale": "1", "mtb:scale:imba": "2", bicycle: "designated", surface: "dirt" }, [[0, -2], [.4, -1.4], [.2, -.8], [.7, -.2], [.5, .3]], 12),
+      mk(-2, "mtb", { highway: "path", name: "Rock Garden", "mtb:scale": "3", surface: "rock" }, [[-.5, .4], [-.2, .9], [-.6, 1.4], [-.3, 2]], 48),
+      mk(-3, "mtb", { highway: "path", bicycle: "yes", surface: "ground" }, [[1, -1], [1.4, -.4], [1.2, .5], [1.6, 1]], 150),
+      mk(-4, "looks", { highway: "path", bicycle: "yes", surface: "earth", width: "0.8" }, [[-1, -2], [-1.3, -1.2], [-1, -.6], [-1.4, 0]], 25),
+      mk(-5, "looks", { highway: "path", name: "Berm Line", surface: "dirt" }, [[.9, 1.6], [.5, 2.1], [.8, 2.6]], 200),
+      mk(-6, "looks", { highway: "track", tracktype: "grade5", surface: "ground", smoothness: "bad" }, [[-1.6, .8], [-1.2, 1.5], [-1.5, 2.3]], 420),
+      mk(-7, "other", { highway: "path" }, [[.1, 2.2], [-.2, 2.8]], 70),
+      mk(-8, "other", { highway: "path", surface: "gravel" }, [[-.8, -2.6], [-.3, -2.2]], 300),
+    ].sort((a, b) => b.created - a.created);
+    state.searchedBounds = [];
+    render();
+    $("searchArea").hidden = false;
+    setStatus("Can't reach OpenStreetMap from this preview, so these are made-up example trails. Open the app file in your own browser to see real trails.", true);
+  }
+
+  const zoneSel = $("zone");
+  zoneSel.innerHTML = `<option value="all">All of Sea to Sky + Sunshine Coast</option>` +
+    ZONES.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("") +
+    `<option value="custom" hidden>Custom area (from the map)</option>`;
+  zoneSel.value = zoneById(state.zone) ? state.zone : "all";
+  zoneSel.addEventListener("change", () => {
+    if (zoneSel.value === "custom") return;
+    state.zone = zoneSel.value; store.set("zone", state.zone);
+    map.fitBounds(zoneBounds(state.zone));
+    searchZones();
+  });
+
+  render();
+  searchZones();
+})();
+</script>
+
+</body>
+</html>
