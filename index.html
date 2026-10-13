@@ -745,7 +745,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, label.toggle:fo
 .pin-in { position: relative; flex: 1; min-width: 0; display: flex; }
 .pin-in svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 .pin-in input { padding-left: 30px !important; font-size: .92rem !important; }
-.panel.mode-name .debug, .panel.mode-name .list { display: none; }
+.panel.mode-name .debug, .panel.mode-name .list, body.mode-name #searchArea { display: none !important; }
 .tsearch { position: relative; }
 .tsearch svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 .tsearch input { width: 100%; box-sizing: border-box; font: inherit; padding: 9px 10px 9px 34px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
@@ -916,6 +916,11 @@ label.toggle.off .sw { background: var(--muted); }
         <div>
           <label class="label" for="nameZone">Where is it? <span class="label-note">(faster if you know)</span></label>
           <select id="nameZone" class="zone"></select>
+          <form class="search place" id="nameNearForm">
+            <div class="pin-in"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 21.5s6.5-5.8 6.5-11.2a6.5 6.5 0 1 0-13 0c0 5.4 6.5 11.2 6.5 11.2z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="10.3" r="2.4" fill="currentColor"/></svg><input id="nameNear" type="search" placeholder="Or go to a town or place" autocomplete="off" aria-label="Search trails near a town or place"></div>
+            <button class="btn" type="submit">Go</button>
+          </form>
+          <p class="hint" id="nameNearMsg" role="status" hidden></p>
         </div>
         <div class="tsearch-row">
           <div class="tsearch" id="tsearch">
@@ -969,7 +974,7 @@ label.toggle.off .sw { background: var(--muted); }
     <h3>Click any trail</h3>
     <p>Click or tap any path or track on the map, even one that isn't in the results, to see everything about it: length, climb and descent, difficulty, who mapped it and when, and its tags. Zoom in a little first so the click lands on the right trail.</p>
     <h3>Trail name search</h3>
-    <p>The search box looks through every named path, track, bike path and trail route in the whole region, old or new, plus the new trails already found. If you know roughly where the trail is, pick that area in “Where is it?” so only that area's names are loaded and searched. Typos and close spellings still match. The first time you use it, it downloads the list of names area by area (closest area first) and saves it in this browser for a week. Pick a result to zoom to the trail and see everything known about it.</p>
+    <p>The search box looks through every named path, track, bike path and trail route in the whole region, old or new, plus the new trails already found. If you know roughly where the trail is, pick that area in “Where is it?”, or type a town or place, so only the trail names around there are loaded and searched. A typed place works outside Sea to Sky too. Typos and close spellings still match. The first time you use it, it downloads the list of names area by area (closest area first) and saves it in this browser for a week. Pick a result to zoom to the trail and see everything known about it.</p>
     <h3>What counts as new</h3>
     <p>A way is new when its first version is dated inside the period. Overpass gives every way edited in the last 2 years. For ways with more than one version, the app asks the OpenStreetMap API for version 1 and uses its date. A trail that was only edited (retagged, extended) does not count.</p>
     <p>One catch: when a mapper splits an old trail into two pieces, the new piece gets a new id and shows up as new. Check the history link in the popup when something looks off.</p>
@@ -1880,7 +1885,11 @@ out body;`;
   const NAME_FRESH_MS = 7 * 864e5;
   const names = { zones: new Map(), fresh: new Set(), inflight: new Set(), failed: new Set(), groups: [], dirty: true, trailCount: -1 };
   // The name search can be limited to one zone ("Where is it?"): only that zone's names are loaded and searched.
-  const nameZone = () => zoneById($("nameZone").value);
+  // A typed town or place ("Or go to a town or place") becomes its own search box, about 20 km across or more.
+  let nearPlace = store.get("nameNear", null);   // { label, box: [south, west, north, east] }
+  const placeArea = () => nearPlace && { id: "near:" + nearPlace.box.map((n) => n.toFixed(2)).join(","), name: "Near " + nearPlace.label,
+    bounds: L.latLngBounds([nearPlace.box[0], nearPlace.box[1]], [nearPlace.box[2], nearPlace.box[3]]) };
+  const nameZone = () => ($("nameZone").value === "near" ? placeArea() : zoneById($("nameZone").value));
   const wantedZones = () => (nameZone() ? [nameZone()] : ZONES.slice());
   const shortZone = (z) => z.name.split(" (")[0];
   const STOP = new Set(["trail", "trails", "the", "path", "of", "and"]);
@@ -2115,6 +2124,7 @@ out tags center qt;`;
     $("paneName").hidden = m !== "name";
     $("paneNew").hidden = m !== "new";
     $("panel").classList.toggle("mode-name", m === "name");
+    document.body.classList.toggle("mode-name", m === "name");   // hides the new-trail "Search this area" button
     if (focus) (m === "name" ? $("trailQ") : $("findBtn")).focus();
   }
   $("tabName").addEventListener("click", () => setMode("name", true));
@@ -2315,8 +2325,39 @@ out tags center qt;`;
     `<option value="custom" hidden>Custom area (from the map)</option>`;
   zoneSel.value = zoneById(state.zone) ? state.zone : "all";
   const nameZoneSel = $("nameZone");
-  nameZoneSel.innerHTML = `<option value="all">All areas</option>` + ZONES.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("");
-  nameZoneSel.value = zoneById(store.get("nameZone", "all")) ? store.get("nameZone", "all") : "all";
+  function fillNameZones() {
+    nameZoneSel.innerHTML = `<option value="all">All areas</option>` + ZONES.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("") +
+      (nearPlace ? `<option value="near">Near ${esc(nearPlace.label)}</option>` : "");
+  }
+  fillNameZones();
+  const savedNameZone = store.get("nameZone", "all");
+  nameZoneSel.value = zoneById(savedNameZone) || (savedNameZone === "near" && nearPlace) ? savedNameZone : "all";
+  $("nameNearForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const q = $("nameNear").value.trim(); if (!q) return;
+    const msg = $("nameNearMsg");
+    msg.hidden = false; msg.textContent = `Finding ${q}…`;
+    try {
+      // Prefer matches around Sea to Sky, but allow anywhere.
+      const res = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&viewbox=-125.0,51.0,-121.5,49.0&q=" + encodeURIComponent(q));
+      const found = (await res.json())[0];
+      if (!found) { msg.textContent = `Couldn't find “${q}”. Try a town name.`; return; }
+      const bb = found.boundingbox.map(Number);              // south, north, west, east
+      const c = [(bb[0] + bb[1]) / 2, (bb[2] + bb[3]) / 2];
+      const halfLat = Math.min(0.3, Math.max(0.09, (bb[1] - bb[0]) / 2)), halfLon = Math.min(0.45, Math.max(0.13, (bb[3] - bb[2]) / 2));
+      nearPlace = { label: found.name || found.display_name.split(",")[0], box: [c[0] - halfLat, c[1] - halfLon, c[0] + halfLat, c[1] + halfLon] };
+      store.set("nameNear", nearPlace);
+      fillNameZones();
+      nameZoneSel.value = "near"; store.set("nameZone", "near");
+      msg.hidden = true;
+      $("nameNear").value = "";
+      map.fitBounds(placeArea().bounds);
+      hitSel = -1;
+      $("trailQ").focus();
+      if ($("trailQ").value.trim()) loadNames();
+      refreshHits();
+    } catch { msg.textContent = "Couldn't reach the place search. Pick an area from the list instead."; }
+  });
   nameZoneSel.addEventListener("change", () => {
     store.set("nameZone", nameZoneSel.value);
     hitSel = -1;
