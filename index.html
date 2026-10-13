@@ -825,10 +825,12 @@ label.toggle.off .sw { background: var(--muted); }
     <div class="map-actions"><button class="btn primary" id="searchArea" hidden>Search this area</button></div>
     <div class="map-tools">
       <select id="basemap" aria-label="Map style">
-        <option value="osm">OpenStreetMap</option>
-        <option value="osmde">OpenStreetMap (DE copy)</option>
-        <option value="osmfr">OpenStreetMap (FR copy)</option>
-        <option value="topo">Topo</option>
+        <option value="osm">Standard</option>
+        <option value="cyclosm">CyclOSM</option>
+        <option value="hot">Humanitarian</option>
+        <option value="topo">OpenTopoMap</option>
+        <option value="osmde">Standard (German copy)</option>
+        <option value="osmfr">Standard (French copy)</option>
         <option value="voyager">Light streets</option>
       </select>
       <div class="map-note" id="mapNote" hidden></div>
@@ -949,6 +951,8 @@ label.toggle.off .sw { background: var(--muted); }
     osm: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: OSM_ATTR }],
     osmde: ["https://tile.openstreetmap.de/{z}/{x}/{y}.png", { maxZoom: 18, attribution: OSM_ATTR + ' | tiles <a href="https://www.openstreetmap.de">openstreetmap.de</a>' }],
     osmfr: ["https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 19, attribution: OSM_ATTR + ' | tiles <a href="https://www.openstreetmap.fr">OSM France</a>' }],
+    cyclosm: ["https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 20, attribution: OSM_ATTR + ' | <a href="https://www.cyclosm.org">CyclOSM</a> hosted by <a href="https://openstreetmap.fr">OSM France</a>' }],
+    hot: ["https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 19, attribution: OSM_ATTR + ' | Humanitarian style by <a href="https://www.hotosm.org">HOT</a>, hosted by <a href="https://openstreetmap.fr">OSM France</a>' }],
     topo: ["https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 17, attribution: OSM_ATTR + ', SRTM | &copy; <a href="https://opentopomap.org">OpenTopoMap</a>' }],
     voyager: ["https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 20, attribution: OSM_ATTR + ' &copy; <a href="https://carto.com/attributions">CARTO</a>' }],
   };
@@ -961,6 +965,7 @@ label.toggle.off .sw { background: var(--muted); }
     if (key === "osm" && FROM_FILE) return false;
     if (key in tileOk) return tileOk[key];
     const url = BASEMAPS[key][0].replace("{s}", "a").replace("{z}", "10").replace("{x}", "161").replace("{y}", "348").replace("{r}", "");
+    if (!FROM_FILE) return (tileOk[key] = true); // on a website every style loads normally
     try { const res = await fetch(url, { mode: "cors", cache: "no-store" }); tileOk[key] = res.ok; }
     catch { tileOk[key] = key === "voyager"; } // no answer we can read: only trust the CARTO server
     return tileOk[key];
@@ -978,14 +983,14 @@ label.toggle.off .sw { background: var(--muted); }
     if (baseLayer) map.removeLayer(baseLayer);
     baseLayer = L.tileLayer(BASEMAPS[use][0], BASEMAPS[use][1]).addTo(map);
     $("basemap").value = use;
-    if (remember) store.set("basemap3", key);
+    if (remember) store.set("basemap4", key);
     const note = $("mapNote");
     note.hidden = use === key;
     if (use !== key) note.textContent = key === "osm" && FROM_FILE
       ? "The official OpenStreetMap map only loads on a website, not in a file opened from your computer. Showing the closest copy that works."
       : "That map style didn't load here, so a similar one is shown.";
   }
-  setBasemap(store.get("basemap3", "osm"));
+  setBasemap(store.get("basemap4", "osm"));
   $("basemap").addEventListener("change", (e) => setBasemap(e.target.value, true));
 
   const trailLayer = L.layerGroup().addTo(map);
@@ -1370,8 +1375,8 @@ out body;`;
     shown.slice().reverse().forEach((t) => {
       const sel = state.selected === t.id;
       const line = L.polyline(t.geom, {
-        color: color[t.cat], weight: sel ? 8 : t.cat === "other" ? 3 : 5, opacity: state.selected && !sel ? 0.55 : 0.95,
-        dashArray: t.cat === "looks" && !sel ? "8 6" : null, lineCap: "round", interactive: false,
+        color: color[t.cat], weight: sel ? 9 : t.cat === "other" ? 5 : 7, opacity: sel ? 0.8 : state.selected ? 0.3 : 0.45,
+        dashArray: t.cat === "looks" && !sel ? "10 6" : null, lineCap: "round", interactive: false,
       });
       // A wide invisible line on top makes thin trails easy to click or tap.
       const hit = L.polyline(t.geom, { weight: 18, opacity: 0, interactive: true })
