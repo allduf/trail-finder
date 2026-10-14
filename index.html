@@ -770,9 +770,12 @@ label.toggle .n { font-variant-numeric: tabular-nums; color: var(--muted); }
 label.toggle.off { background: transparent; color: var(--muted); border: 1.5px dashed var(--line); }
 label.toggle.off .sw { background: var(--muted); }
 label.toggle.t-unoff .sw { background: repeating-linear-gradient(90deg, var(--fg) 0 3px, transparent 3px 6px); }
+label.toggle.t-moto .sw, label.toggle.t-hike .sw { background: var(--other); }
+.use-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; background: var(--chip); color: var(--muted); border: 1px solid var(--line); vertical-align: 1px; }
 label.toggle.t-unoff.off .sw { background: repeating-linear-gradient(90deg, var(--muted) 0 3px, transparent 3px 6px); }
 .unoff-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; border: 1px dashed currentColor; color: var(--fg); vertical-align: 1px; }
 .unoff-box { margin: 14px 0 0; padding: 10px 12px; border: 1px dashed var(--fg); border-radius: 8px; background: var(--chip); }
+.use-box { border: 1px solid var(--line); }
 .unoff-box strong { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .04em; }
 .unoff-box ul { margin: 6px 0; padding-left: 18px; }
 .unoff-box p { margin: 6px 0 0; font-size: .85rem; }
@@ -986,6 +989,8 @@ label.toggle.off .sw { background: var(--muted); }
           <label class="toggle t-other off"><input type="checkbox" id="showOther"><span class="ck"></span><span class="sw"></span>Other paths <span class="n" id="nOther">0</span></label>
           <label class="toggle t-ghost" title="Lines that several GPS traces follow at bike speed, where OpenStreetMap has no trail yet. Unverified."><input type="checkbox" id="showGhost" checked><span class="ck"></span><span class="sw"></span>Possible unmapped <span class="n" id="nGhost">0</span></label>
           <label class="toggle t-unoff off" title="Of the trails ticked, show only the ones tagged as informal, closed or no bikes"><input type="checkbox" id="onlyUnoff"><span class="ck"></span><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
+          <label class="toggle t-moto off" title="Dirt-bike, ATV and 4x4 trails, hidden unless ticked"><input type="checkbox" id="showMoto"><span class="ck"></span><span class="sw"></span>Moto trails <span class="n" id="nMoto">0</span></label>
+          <label class="toggle t-hike off" title="Trails where bikes aren't allowed, hidden unless ticked"><input type="checkbox" id="showHike"><span class="ck"></span><span class="sw"></span>Hiking only <span class="n" id="nHike">0</span></label>
         </div>
       </section>
       <p class="hint tap-hint">Tip: tap any trail on the map to see all its details.</p>
@@ -1025,6 +1030,8 @@ label.toggle.off .sw { background: var(--muted); }
       <li>+1 a <code>track</code> graded <code>grade4</code> or <code>grade5</code></li>
     </ul>
     <p>Skipped: paved surfaces, <code>bicycle=dismount</code>, and alpine hiking routes (<code>sac_scale</code> alpine).</p>
+<h3>Moto and hiking-only trails</h3>
+    <p>To keep the list about mountain biking, trails that look like dirt-bike, ATV or 4x4 trails, and trails where bikes aren't allowed, are hidden unless you tick “Moto trails” or “Hiking only”. Moto means tags like <code>dirtbike:scale</code>, <code>motorcycle=designated</code>, <code>atv=yes</code>, <code>4wd_only=yes</code>, an ATV route, or a name like “ATV trail”. Hiking only means <code>bicycle=no</code>, <code>mtb=no</code>, stairs, hard hiking terrain (<code>sac_scale</code> T4 and up), or a signed hiking route with no bike access. A trail with any MTB tag, in an MTB route, or with <code>bicycle=designated</code> is never hidden, even if motorbikes are allowed on it too.</p>
     <h3>Unofficial (possibly unsanctioned) trails</h3>
     <p>Marked with a dark dotted line and an “Unofficial?” tag. A trail is flagged when mappers tagged it <code>informal=yes</code>, closed it (<code>access=no</code> or <code>private</code>), banned bikes (<code>bicycle=no</code>, <code>mtb=no</code>), or wrote “unsanctioned”, “closed”, “illegal” or similar in its note or description. Turn on “Unofficial only” to see just those. This is a hint from the map data, not the legal status: many unsanctioned trails aren't tagged at all, and some tags are out of date.</p>
     <h3>Possible unmapped trails (unverified)</h3>
@@ -1063,7 +1070,7 @@ label.toggle.off .sw { background: var(--muted); }
 
   const state = {
     months: store.get("months", 6),
-    show: { mtb: true, looks: true, other: false, ghost: true },
+    show: { mtb: true, looks: true, other: false, ghost: true, moto: false, hike: false },
     ghosts: [],          // possible unmapped trails from the weekly GPS-trace file
     onlyUnoff: false,     // "Unofficial only": of the ticked types, flagged trails only
     trails: [],          // all candidates from last search (2-year window), with .created
@@ -1205,9 +1212,50 @@ label.toggle.off .sw { background: var(--muted); }
   }
   const isUnoff = (t) => !!(t.unoff && t.unoff.length);
 
-  function classify(tags, routes) {
+  // Moto and hiking-only trails: hidden unless their toggle is on. Never applied to trails with MTB tags.
+  // Moto (dirt bike, ATV, 4x4) and hiking-only trails, from what mappers tagged. Returns { use, why } or null.
+  // Anything with MTB tags, in an MTB route, or with bicycle=designated is never moto or hiking-only.
+  const MOTO_OK = /^(yes|designated|permissive|permit)$/;
+  const MOTO_NAME = /\b(atvs?|quads?|motocross|mx|dirt ?bikes?|motorbikes?|motorcycles?|orv|ohv|4x4|4wd|jeep)\b/i;
+  const NOT_MOTO_NAME = /\b(no|non|not)[- ]?(motori[sz]ed|atvs?|quads?|motorbikes?|motorcycles?|dirt ?bikes?|vehicles?)\b/i;
+  const HARD_HIKE = /^(demanding_mountain_hiking|alpine_hiking|demanding_alpine_hiking|difficult_alpine_hiking)$/;
+  function trailUse(tags, routeTypes) {
+    const hw = tags.highway || "";
+    const hasMtb = Object.keys(tags).some((k) => /^mtb(:|$)/.test(k) && !(k === "mtb" && tags.mtb === "no"));
+    if (hasMtb || routeTypes.includes("mtb") || tags.bicycle === "designated") return null;
+
+    const moto = [];
+    if (tags["dirtbike:scale"]) moto.push(`dirt-bike difficulty dirtbike:scale=${tags["dirtbike:scale"]}`);
+    if (tags.motorcycle === "designated") moto.push("signed for motorbikes (motorcycle=designated)");
+    else if (hw === "path" && MOTO_OK.test(tags.motorcycle || "")) moto.push(`motorbikes allowed on a path (motorcycle=${tags.motorcycle})`);
+    if (MOTO_OK.test(tags.atv || "")) moto.push(`ATVs allowed (atv=${tags.atv})`);
+    ["ohv", "orv"].forEach((k) => { if (MOTO_OK.test(tags[k] || "")) moto.push(`off-road vehicles allowed (${k}=${tags[k]})`); });
+    if (hw === "path" && MOTO_OK.test(tags.motor_vehicle || "")) moto.push(`motor vehicles allowed on a path (motor_vehicle=${tags.motor_vehicle})`);
+    if (tags["4wd_only"] === "yes") moto.push("4x4 only (4wd_only=yes)");
+    if (/\b(motocross|quadcross|motor)\b/.test(tags.sport || "")) moto.push(`motor sport (sport=${tags.sport})`);
+    if (routeTypes.includes("atv")) moto.push("part of an ATV route");
+    if (routeTypes.includes("motorcycle") && /^(path|track)$/.test(hw)) moto.push("part of a motorbike route");
+    if (tags.name && MOTO_NAME.test(tags.name) && !NOT_MOTO_NAME.test(tags.name)) moto.push("name sounds like a moto trail");
+    if (moto.length) return { use: "moto", why: moto };
+
+    const hike = [];
+    if (/^(no|dismount)$/.test(tags.bicycle || "")) hike.push(`bikes not allowed (bicycle=${tags.bicycle})`);
+    if (tags.mtb === "no") hike.push("not for mountain bikes (mtb=no)");
+    if (hike.length) return { use: "hike", why: hike };
+    const bikesOk = /^(yes|permissive)$/.test(tags.bicycle || "");
+    if (!bikesOk && HARD_HIKE.test(tags.sac_scale || "")) hike.push(`hard hiking terrain (sac_scale=${tags.sac_scale})`);
+    if (!bikesOk && hw === "steps") hike.push("stairs (highway=steps)");
+    if (!bikesOk && tags.foot === "designated" && (routeTypes.includes("hiking") || routeTypes.includes("foot")) && !routeTypes.includes("bicycle"))
+      hike.push("signed for walkers and part of a hiking route");
+    return hike.length ? { use: "hike", why: hike } : null;
+  }
+  const USE_LABEL = { moto: "Moto", hike: "Hiking only" };
+  function useOf(tags, routeTypes) { const u = trailUse(tags, routeTypes || []); return { use: u ? u.use : null, useWhy: u ? u.why : [] }; }
+
+  // routes: names of the MTB routes the way is in; routeTypes: route types of every route it's in.
+  function classify(tags, routes, routeTypes = []) {
     const r = classifyTrail(tags, routes);
-    if (r) r.unoff = unofficial(tags);
+    if (r) { r.unoff = unofficial(tags); Object.assign(r, useOf(tags, routes.length ? routeTypes.concat("mtb") : routeTypes)); }
     return r;
   }
   function classifyTrail(tags, routes) {
@@ -1366,7 +1414,7 @@ label.toggle.off .sw { background: var(--muted); }
   way["highway"~"^(footway|cycleway)$"]["mtb:type"]${n};
 )->.w;
 .w out meta geom;
-rel(bw.w)["route"="mtb"];
+rel(bw.w)["route"~"^(mtb|bicycle|hiking|foot|horse|motorcycle|atv)$"];
 out body;`;
   }
 
@@ -1418,16 +1466,17 @@ out body;`;
   async function processElements(elements, token, known, onPartial) {
     const routesByWay = new Map();
     elements.filter((e) => e.type === "relation").forEach((r) => {
-      const name = r.tags && (r.tags.name || r.tags.ref) || "unnamed";
-      (r.members || []).forEach((m) => { if (m.type === "way") { if (!routesByWay.has(m.ref)) routesByWay.set(m.ref, []); routesByWay.get(m.ref).push({ id: r.id, name }); } });
+      const name = r.tags && (r.tags.name || r.tags.ref) || "unnamed", type = r.tags && r.tags.route || "mtb";
+      (r.members || []).forEach((m) => { if (m.type === "way") { if (!routesByWay.has(m.ref)) routesByWay.set(m.ref, []); routesByWay.get(m.ref).push({ id: r.id, name, type }); } });
     });
     const candidates = [];
     elements.filter((e) => e.type === "way" && e.geometry).forEach((w) => {
       const tags = w.tags || {};
-      const routes = routesByWay.get(w.id) || [];
-      const c = classify(tags, routes.map((r) => r.name));
+      const all = routesByWay.get(w.id) || [], routes = all.filter((r) => r.type === "mtb").map(({ id, name }) => ({ id, name }));
+      const routeTypes = [...new Set(all.map((r) => r.type))];
+      const c = classify(tags, routes.map((r) => r.name), routeTypes);
       if (!c) return;
-      candidates.push({ id: w.id, tags, ...c, routes, version: w.version, lastEdit: new Date(w.timestamp), lastUser: w.user || "", lastChangeset: w.changeset,
+      candidates.push({ id: w.id, tags, ...c, routes, routeTypes, version: w.version, lastEdit: new Date(w.timestamp), lastUser: w.user || "", lastChangeset: w.changeset,
         geom: w.geometry.map((p) => [p.lat, p.lon]),
         created: w.version === 1 ? new Date(w.timestamp) : null, creator: w.version === 1 ? w.user : null, firstChangeset: w.version === 1 ? w.changeset : null });
     });
@@ -1472,9 +1521,13 @@ out body;`;
       try { db.transaction("squares", "readwrite").objectStore("squares").put(val, key); } catch {}
     },
   };
-  const TRAIL_FIELDS = ["id", "tags", "cat", "why", "unoff", "routes", "version", "lastEdit", "lastUser", "lastChangeset", "geom", "created", "creator", "firstChangeset", "km", "zone"];
+  const TRAIL_FIELDS = ["id", "tags", "cat", "why", "unoff", "routes", "routeTypes", "version", "lastEdit", "lastUser", "lastChangeset", "geom", "created", "creator", "firstChangeset", "km", "zone"];
   function packTrail(t) { const o = {}; TRAIL_FIELDS.forEach((k) => { o[k] = t[k] instanceof Date ? t[k].toISOString() : t[k]; }); return o; }
-  function unpackTrail(o) { const t = { ...o, created: new Date(o.created), lastEdit: new Date(o.lastEdit) }; t.bounds = L.latLngBounds(t.geom); return t; }
+  function unpackTrail(o) {
+    const t = { ...o, created: new Date(o.created), lastEdit: new Date(o.lastEdit) };
+    t.bounds = L.latLngBounds(t.geom);
+    return Object.assign(t, useOf(t.tags, (t.routeTypes || []).concat(t.routes && t.routes.length ? ["mtb"] : [])));
+  }
 
   // ---- nightly files: GitHub collects the region's trails and names every night (scripts/build-data.mjs) ----
   const NIGHTLY_FRESH_MS = 36 * 3600e3;      // a nightly square younger than this is used without asking Overpass
@@ -1688,7 +1741,10 @@ out body;`;
 
   function render() {
     syncClear();
-    const vis = visibleTrails();
+    const base = visibleTrails();
+    const vis = base.filter((t) => !t.use || state.show[t.use]);   // moto and hiking-only only when ticked
+    const adds = (u) => base.filter((t) => t.use === u && state.show[t.cat] && (!state.onlyUnoff || isUnoff(t))).length;
+    $("nMoto").textContent = adds("moto"); $("nHike").textContent = adds("hike");
     const counts = { mtb: 0, looks: 0, other: 0, ghost: 0 };
     vis.filter((t) => !state.onlyUnoff || isUnoff(t)).forEach((t) => counts[t.cat]++);
     $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nOther").textContent = counts.other; $("nGhost").textContent = counts.ghost;
@@ -1701,7 +1757,7 @@ out body;`;
     shown.slice().reverse().forEach((t) => {
       const sel = state.selected === t.id;
       const line = L.polyline(t.geom, {
-        color: color[t.cat], weight: sel ? 9 : t.cat === "other" ? 5 : 7, opacity: sel ? 0.8 : state.selected ? 0.3 : 0.45,
+        color: t.use ? css("--other") : color[t.cat], weight: sel ? 9 : t.cat === "other" ? 5 : 7, opacity: sel ? 0.8 : state.selected ? 0.3 : 0.45,
         dashArray: t.cat === "ghost" ? "1 10" : t.cat === "looks" && !sel ? "10 6" : null, lineCap: "round", interactive: false,
       });
       // A wide invisible line on top makes thin trails easy to click or tap.
@@ -1725,8 +1781,8 @@ out body;`;
       const g = grade(t.tags);
       return `<li class="trail ${t.cat}${state.selected === t.id ? " sel" : ""}" data-id="${t.id}" tabindex="0">
         <span class="bar"></span>
-        <div><div class="name">${esc(trailName(t))} ${g ? `<span class="grade">${esc(g)}</span>` : ""} ${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""}</div>
-        <div class="meta">${state.zone === "all" && !state.custom && t.zone ? `<span class="zone-tag">${esc(t.zone.split(" (")[0])}</span> · ` : ""}${esc(t.why[0])}</div></div>
+        <div><div class="name">${esc(trailName(t))} ${g ? `<span class="grade">${esc(g)}</span>` : ""} ${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""} ${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}</div>
+        <div class="meta">${state.zone === "all" && !state.custom && t.zone ? `<span class="zone-tag">${esc(t.zone.split(" (")[0])}</span> · ` : ""}${esc(t.use ? t.useWhy[0] : t.why[0])}</div></div>
         <div class="right">${fmtLen(t.km)}<br>${ago(t.created)}</div></li>`;
     }).join("") + "</ol>";
   }
@@ -2015,8 +2071,10 @@ out body;`;
       <div class="d-head ${t.cat}">
         <span class="bar"></span>
         <div><h2>${esc(trailName(t))}</h2>
-        <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${g ? `<span class="grade">${esc(g)}</span>` : ""}${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""}${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
+        <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${g ? `<span class="grade">${esc(g)}</span>` : ""}${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""}${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
       </div>
+      ${t.use ? `<div class="unoff-box use-box"><strong>${t.use === "moto" ? "Looks like a moto trail" : "Looks like a hiking-only trail"}</strong><ul>${t.useWhy.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
+        <p class="muted">${t.use === "moto" ? "Dirt-bike, ATV and 4x4 trails" : "Hiking-only trails"} are hidden from the list unless “${t.use === "moto" ? "Moto trails" : "Hiking only"}” is ticked. This is a guess from the map tags.</p></div>` : ""}
       ${isUnoff(t) ? `<div class="unoff-box"><strong>Possibly unsanctioned</strong><ul>${t.unoff.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">This only shows what OpenStreetMap mappers tagged. It's a hint, not the trail's legal status. Check with the land manager or Trailforks before riding.</p></div>` : ""}
       <dl class="facts">
@@ -2151,7 +2209,7 @@ out body;`;
     });
   });
   $("onlyUnoff").addEventListener("change", (e) => { state.onlyUnoff = e.target.checked; e.target.closest("label").classList.toggle("off", !state.onlyUnoff); render(); });
-  [["showMtb", "mtb"], ["showLooks", "looks"], ["showOther", "other"], ["showGhost", "ghost"]].forEach(([id, k]) => {
+  [["showMtb", "mtb"], ["showLooks", "looks"], ["showOther", "other"], ["showGhost", "ghost"], ["showMoto", "moto"], ["showHike", "hike"]].forEach(([id, k]) => {
     const el = $(id);
     el.checked = state.show[k];
     el.closest("label").classList.toggle("off", !el.checked);
@@ -2357,6 +2415,7 @@ out tags center qt;`;
       g.zone = zoneOf(g.center);
       g.isNew = g.type === "w" && g.items.some((i) => state.trails.some((t) => t.id === i.id));
       g.mtb = g.type === "r" ? g.tags.route === "mtb" : hasMtb(g.tags);
+      g.use = g.type === "r" ? null : useOf(g.tags, []).use;   // a route's own kind (Hiking route...) already says it
       g.kind = kindOf(g.tags, g.type === "r");
     });
     names.groups = groups; names.dirty = false; names.trailCount = state.trails.length;
@@ -2390,7 +2449,7 @@ out tags center qt;`;
       const g = h.g, gr = grade(g.tags);
       const meta = [g.kind, g.zone, g.items.length > 1 ? g.items.length + " segments" : "", fmtDist(h.d)].filter(Boolean).join(" · ");
       return `<li class="hit ${g.mtb ? "mtb" : ""}" role="option" id="hit${n}" data-n="${n}" aria-selected="${n === hitSel}"><span class="bar"></span>
-        <div><div class="hn">${esc(g.name)} ${gr ? `<span class="grade">${esc(gr)}</span>` : ""} ${g.isNew ? `<span class="newtag">New</span>` : ""} ${unofficial(g.tags).length ? `<span class="unoff-tag">Unofficial?</span>` : ""}</div><div class="hm">${esc(meta)}</div></div></li>`;
+        <div><div class="hn">${esc(g.name)} ${gr ? `<span class="grade">${esc(gr)}</span>` : ""} ${g.isNew ? `<span class="newtag">New</span>` : ""} ${unofficial(g.tags).length ? `<span class="unoff-tag">Unofficial?</span>` : ""} ${g.use ? `<span class="use-tag">${USE_LABEL[g.use]}</span>` : ""}</div><div class="hm">${esc(meta)}</div></div></li>`;
     }).join("");
     let note = "";
     const want = wantedZones(), zsel = nameZone();
@@ -2504,16 +2563,17 @@ out tags center qt;`;
 
   // Build the full trail record (category, first-mapped date), draw it and open its panel.
   // view: "fit" zooms to the whole trail; a LatLng only makes sure that spot stays visible.
-  async function presentTrail({ main, segs, segIds, type, kind, routes = [], token, view }) {
+  async function presentTrail({ main, segs, segIds, type, kind, routes = [], routeTypes = [], token, view }) {
       const tags = main.tags || {};
-      const c = classify(tags, routes.map((r) => r.name).concat(tags.route === "mtb" ? [tags.name] : []));
+      const types = routeTypes.concat(tags.route ? [tags.route] : []);
+      const c = classify(tags, routes.map((r) => r.name).concat(tags.route === "mtb" ? [tags.name] : []), types);
       const geom = segs.reduce((a, b) => (lengthKm(b) > lengthKm(a) ? b : a));
       const bounds = segs.reduce((b, s) => b.extend(L.latLngBounds(s)), L.latLngBounds(segs[0]));
       const t = {
         id: main.id, osmType: type, tags, routes, searched: true, geom, segments: segs, segIds, bounds,
         km: segs.reduce((s, l) => s + lengthKm(l), 0), zone: zoneOf(bounds.getCenter()),
         version: main.version, lastEdit: new Date(main.timestamp), lastUser: main.user || "", lastChangeset: main.changeset,
-        cat: c ? c.cat : "other", catLabel: c ? null : kind, unoff: unofficial(tags),
+        cat: c ? c.cat : "other", catLabel: c ? null : kind, unoff: unofficial(tags), ...useOf(tags, routes.length ? types.concat("mtb") : types),
         why: c ? c.why : [`No bike tags and not trail-like enough for the MTB colours (highway=${tags.highway || "none"}, ${tags.route ? "route=" + tags.route : "no route"}).`],
       };
       if (c && c.cat === "other") t.catLabel = kind;
@@ -2603,9 +2663,10 @@ out tags center qt;`;
     if (names.zones.size && (names.dirty || names.trailCount !== state.trails.length)) buildGroups();
     const g = names.groups.find((g) => g.type === "w" && g.items.length > 1 && g.items.some((i) => i.id === w.id));
     if (g) { showFound(g, true); return; }
+    const routeTypes = [...new Set(els.filter((r) => r.type === "relation" && r.tags && r.tags.route && (r.members || []).some((m) => m.type === "way" && m.ref === w.id)).map((r) => r.tags.route))];
     const routes = els.filter((r) => r.type === "relation" && r.tags && r.tags.route === "mtb" && (r.members || []).some((m) => m.type === "way" && m.ref === w.id))
       .map((r) => ({ id: r.id, name: r.tags.name || r.tags.ref || "unnamed" }));
-    try { await presentTrail({ main: w, segs: [best.line], segIds: [w.id], type: "way", kind: kindOf(w.tags), routes, token, view: ll }); }
+    try { await presentTrail({ main: w, segs: [best.line], segIds: [w.id], type: "way", kind: kindOf(w.tags), routes, routeTypes, token, view: ll }); }
     catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${e.message}).`, true); }
   }
 
@@ -2618,7 +2679,7 @@ out tags center qt;`;
       const created = new Date(Date.now() - daysAgo * 864e5);
       const geom = pts.map(([dy, dx]) => [c.lat + dy * 0.004, c.lng + dx * 0.006]);
       return { id, cat, tags, geom, created, creator: "example_mapper", version: version || 1, lastEdit: created,
-        ...(({ why, unoff }) => ({ why, unoff }))(classify(tags, cat === "mtb" && id === -3 ? ["Example Ridge Loop"] : [])), km: lengthKm(geom) };
+        ...(({ why, unoff, use, useWhy }) => ({ why, unoff, use, useWhy }))(classify(tags, cat === "mtb" && id === -3 ? ["Example Ridge Loop"] : [])), km: lengthKm(geom) };
     };
     state.trails = [
       mk(-1, "mtb", { highway: "path", name: "Copper Flow", "mtb:scale": "1", "mtb:scale:imba": "2", bicycle: "designated", surface: "dirt" }, [[0, -2], [.4, -1.4], [.2, -.8], [.7, -.2], [.5, .3]], 12),
@@ -2630,6 +2691,8 @@ out tags center qt;`;
       mk(-7, "other", { highway: "path" }, [[.1, 2.2], [-.2, 2.8]], 70),
       mk(-8, "other", { highway: "path", surface: "gravel" }, [[-.8, -2.6], [-.3, -2.2]], 300),
       mk(-9, "looks", { highway: "path", name: "Hidden Line", informal: "yes", surface: "dirt", width: "0.6" }, [[1.8, -2], [2.1, -1.3], [1.9, -.6]], 95),
+      mk(-10, "looks", { highway: "track", name: "Moto Climb", motorcycle: "designated", surface: "dirt" }, [[-2, -1], [-2.3, -.2], [-2.1, .6]], 40),
+      mk(-11, "other", { highway: "path", name: "Lookout Steps", bicycle: "no", foot: "designated", surface: "dirt" }, [[2.2, .2], [2.5, .9]], 60),
     ].sort((a, b) => b.created - a.created);
     state.searchedBounds = [];
     render();
