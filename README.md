@@ -29,8 +29,9 @@ from two open sources: the BC government's Forest Tenure road sections (DataBC l
 `WHSE_FOREST_TENURE.FTEN_ROAD_SECTION_LINES_SVW`, Open Government Licence - British Columbia), with each Forest Service
 Road or road permit's tenure status (active or retired), and OpenStreetMap dirt roads (`highway=track`, unpaved roads,
 roads named FSR, disused or abandoned roads) with their access, gate and deactivation tags. The site draws them in
-bold lines with a white edge from zoom 11: purple for open, brown for rough or 4x4 only, grey dashes for deactivated or
-retired, red dashes for closed or gated. Tapping one shows each source's status. There is no open feed of live FSR closures; the
+bold lines with a white edge from zoom 11, coloured by condition like a backroad map: green good, yellow degraded,
+red heavily degraded (very rough, 4x4 only, or retired tenure), black dashes impassable (deactivated, washed out,
+abandoned), grey dashes unknown, pink dashes closed to public vehicles. Tapping one shows each source's status. There is no open feed of live FSR closures; the
 district road safety notices on gov.bc.ca are linked instead.
 
 The same job also saves, per zone, gates, barriers, fords, footbridges and hydro plants on or near those roads
