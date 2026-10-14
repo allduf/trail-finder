@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-account-reload="settings">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -714,10 +714,10 @@ body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--fo
 .app { height: 100%; display: grid; grid-template-columns: minmax(320px, 380px) 1fr; }
 .panel { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .panel-head { padding: 16px 16px 12px; display: flex; flex-direction: column; gap: 12px; border-bottom: 1px solid var(--line); }
-.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.brand { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 8px; }
 h1 { font-family: var(--font-display); font-size: 1.75rem; letter-spacing: .02em; text-transform: uppercase; margin: 0; line-height: 1; }
 h1 span { color: var(--mtb); }
-.brand-links { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.brand-links { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; white-space: nowrap; }
 .brand h1 { white-space: nowrap; }
 a.linkish { text-decoration: none; }
 .rec-link { display: inline-flex; align-items: center; gap: 5px; }
@@ -784,7 +784,7 @@ label.toggle.t-unoff .sw { background: repeating-linear-gradient(90deg, var(--fg
 .use-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; background: var(--chip); color: var(--muted); border: 1px solid var(--line); vertical-align: 1px; }
 label.toggle.t-unoff.off .sw { background: repeating-linear-gradient(90deg, var(--muted) 0 3px, transparent 3px 6px); }
 .diff { display: inline-block; font-family: var(--font-display); font-weight: 700; font-size: .78rem; padding: 0 6px; border-radius: 4px; color: #fff; letter-spacing: .03em; white-space: nowrap; vertical-align: 1px; }
-.diff.d-green { background: #2f9e44; } .diff.d-blue { background: #1c6fe0; } .diff.d-black, .diff.d-dbl { background: #1b1b1b; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); } .diff.d-pro { background: #e8590c; }
+.diff.d-green { background: #2f9e44; } .diff.d-blue { background: #1c6fe0; } .diff.d-black { background: #1b1b1b; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); } .diff.d-dbl { background: #d6202a; } .diff.d-pro { background: #e8590c; }
 .off-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; border: 1px solid currentColor; color: var(--fg); vertical-align: 1px; }
 label.toggle.t-off .sw { background: var(--fg); }
 /* Map key (trail colours) */
@@ -832,6 +832,16 @@ label.toggle.off .sw { background: var(--muted); }
 .panel { overflow-y: auto; overscroll-behavior: contain; }
 .panel .list, .panel .detail { flex: none; overflow: visible; min-height: auto; }
 .detail .back { padding: 4px 0; margin-bottom: 8px; }
+.d-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+.d-top .back { margin-bottom: 0; }
+.want-btn { font: inherit; font-weight: 600; font-size: .9rem; border: 1.5px solid var(--accent); color: var(--accent); background: transparent; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.want-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg, #fff); }
+.wantlist h3 { margin: 4px 0 6px; font-size: 1rem; }
+.wantlist ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.wantlist li { display: flex; align-items: center; gap: 6px; }
+.wantlist li .open { flex: 1; text-align: left; font: inherit; background: var(--chip); border: 0; border-radius: 8px; padding: 7px 10px; color: var(--fg); cursor: pointer; }
+.wantlist li .open small { color: var(--muted); margin-left: 6px; }
+.wantlist li .rm { font: inherit; background: none; border: 0; color: var(--muted); cursor: pointer; padding: 6px; }
 .d-head { display: grid; grid-template-columns: 5px 1fr; gap: 12px; }
 .d-head .bar { border-radius: 3px; }
 .d-head.mtb .bar { background: var(--mtb); } .d-head.looks .bar { background: var(--looks); } .d-head.other .bar { background: var(--other); }
@@ -853,6 +863,8 @@ label.toggle.off .sw { background: var(--muted); }
 .more[open] summary::after { transform: rotate(180deg); }
 .more summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .more .facts { margin: 0 0 12px; }
+.more + .more { margin-top: 0; border-top: 0; }
+.more > #history, .more > .tagtable { margin-bottom: 12px; }
 .muted { color: var(--muted); }
 .mono { font-family: var(--font-mono); font-size: .85rem; }
 .detail a { color: var(--accent); font-weight: 600; }
@@ -1000,6 +1012,7 @@ label.toggle.off .sw { background: var(--muted); }
       <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
       <button id="locate" type="button" aria-pressed="false">◎ My location</button>
       <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
+      <button id="btn3d" type="button" aria-pressed="false">⛰ 3D</button>
     </div>
   </div>
   <aside class="panel" id="panel">
@@ -1007,7 +1020,7 @@ label.toggle.off .sw { background: var(--muted); }
       <button class="sheet-toggle" id="sheetToggle" aria-label="Expand trail list"></button>
       <div class="brand">
         <h1>Trail <span>Finder</span></h1>
-        <span class="brand-links"><a class="linkish rec-link" href="ride.html"><span class="rec-dot" aria-hidden="true"></span>Record ride</a><button class="linkish" id="aboutBtn" type="button">How it works</button></span>
+        <span class="brand-links"><a class="linkish rec-link" href="ride.html"><span class="rec-dot" aria-hidden="true"></span>Record ride</a><button class="linkish" id="aboutBtn" type="button">How it works</button><span data-account-slot></span></span>
       </div>
       <div class="modes" role="tablist" aria-label="What do you want to find?">
         <button type="button" role="tab" id="tabName" aria-controls="paneName" aria-selected="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Find a trail by name</span></button>
@@ -1032,6 +1045,7 @@ label.toggle.off .sw { background: var(--muted); }
           </div>
           <button class="btn primary" id="trailGo" type="button">Search</button>
         </div>
+        <div class="wantlist" id="wantList" hidden></div>
       </section>
       <section class="pane" id="paneNew" role="tabpanel" aria-labelledby="tabNew">
         <p class="hint">Choose an area, or tap <strong>Near me</strong>, and how recent, then press <strong>Find new trails</strong>.</p>
@@ -1113,9 +1127,9 @@ label.toggle.off .sw { background: var(--muted); }
     <p>MTB trail networks: many bike trails have no bike tags at all. A plain path with no bike tags that runs within 400 m of two or more other MTB-tagged trails (with different names) also counts as Looks like MTB, unless it's graded for hiking (<code>sac_scale</code>), signed for walkers (<code>foot=designated</code>), a ski, golf or lit park path, gravel or boardwalk, open to motor vehicles, or its note says it's for hiking, climbing or motorbikes. This is checked again every time trails or trail lists load, so it keeps up as mappers add trails.</p>
     <p>Skipped: tracks (most are forest roads or ATV, moto and 4x4 tracks), paths 2 m wide or more, paths open to motorbikes, ATVs or other motor vehicles, paved surfaces, <code>bicycle=dismount</code>, and alpine hiking routes (<code>sac_scale</code> alpine).</p>
 <h3>Difficulty colours</h3>
-    <p>Trails are coloured like Trailforks: green, blue, black, double black (black with white dashes) and pro line (orange). The colour comes from <code>mtb:scale:imba</code> (0-1 green, 2 blue, 3 black, 4 double black, 5 pro line), or else from <code>mtb:scale</code>, which mappers here use the same way (S0-S1 green, S2 blue, S3 black, S4 double black, S5-S6 pro line). Grey means nobody rated it on the map yet. The “Trail colours” key on the map switches back to colours by trail type.</p>
+    <p>Trails are coloured like Trailforks: green, blue, black, double black (red) and pro line (orange). The colour comes from <code>mtb:scale:imba</code> (0-1 green, 2 blue, 3 black, 4 double black, 5 pro line), or else from <code>mtb:scale</code>, which mappers here use the same way (S0-S1 green, S2 blue, S3 black, S4 double black, S5-S6 pro line). Grey means nobody rated it on the map yet. The “Trail colours” key on the map switches back to colours by trail type.</p>
     <h3>All trails</h3>
-    <p>“All trails” (on by default) draws every MTB trail in view, old and new: every way with an MTB tag, bike park trails and the trails of MTB routes. Official trails (see below) are bold, trails whose status isn't known are thin, and unofficial trails are left out, as before (tick “Unofficial only” to see them). A list of them is collected from OpenStreetMap every day. The trails in the list (new trails, or prime loam) are drawn thicker on top, with a white edge.</p>
+    <p>“All trails” (on by default) draws every MTB trail in view, old and new: every way with an MTB tag, bike park trails and the trails of MTB routes. Official trails (see below) are bold and always shown, even with no option ticked; trails whose status isn't known are thin, and unofficial trails are left out, as before (tick “Unofficial only” to see them). A list of them is collected from OpenStreetMap every day. The trails in the list (new trails, or prime loam) are drawn thicker on top, with a white edge.</p>
     <h3>Official trails</h3>
     <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
 <h3>Moto and hiking-only trails</h3>
@@ -1141,8 +1155,9 @@ label.toggle.off .sw { background: var(--muted); }
     { id: "van", name: "Vancouver & North Shore", box: [49.18, -123.30, 49.45, -122.75] },
     { id: "sqm", name: "Howe Sound & Squamish", box: [49.45, -123.32, 49.96, -122.95] },
     { id: "wh", name: "Whistler", box: [49.96, -123.20, 50.25, -122.85] },
-    { id: "pem", name: "Pemberton", box: [50.25, -123.05, 50.42, -122.62] },
+    { id: "pem", name: "Pemberton & Pemberton Meadows", box: [50.25, -123.35, 50.62, -122.62] },
     { id: "lil", name: "Lillooet & Duffey", box: [50.42, -122.45, 50.80, -121.80] },
+    { id: "chil", name: "Gold Bridge & South Chilcotin", box: [50.62, -123.20, 51.20, -122.30] },
     { id: "sun", name: "Sunshine Coast (Gibsons to Egmont)", box: [49.38, -124.12, 49.80, -123.45] },
     { id: "pr", name: "Powell River & Lund", box: [49.75, -124.78, 50.06, -124.25] },
   ];
@@ -1153,7 +1168,9 @@ label.toggle.off .sw { background: var(--muted); }
   const $ = (id) => document.getElementById(id);
   const store = {
     get(k, d) { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-    set(k, v) { try { localStorage.setItem("tf:" + k, JSON.stringify(v)); } catch {} },
+    set(k, v) {   // "tf:setting" tells account.js (optional sign-in) to save settings to the rider's account
+      try { const s = JSON.stringify(v); if (localStorage.getItem("tf:" + k) === s) return; localStorage.setItem("tf:" + k, s); window.dispatchEvent(new Event("tf:setting")); } catch {}
+    },
   };
 
   const state = {
@@ -1179,6 +1196,7 @@ label.toggle.off .sw { background: var(--muted); }
 
   // ---------- map ----------
   const map = L.map("map", { zoomControl: true, preferCanvas: false });
+  window.tfLeaflet = map;   // for the 3D view (map3d.js)
   const zoneById = (id) => ZONES.find((z) => z.id === id);
   function zoneBounds(id) { const z = zoneById(id); return z ? z.bounds : ALL_BOUNDS; }
   map.fitBounds(zoneBounds(state.zone));
@@ -1446,7 +1464,7 @@ label.toggle.off .sw { background: var(--muted); }
   // singletrail scale that way too (S0-S1 green, S2 blue, S3 black, S4 double black; checked on the region's data).
   const DIFF = {
     green: { label: "Green", sym: "●", color: "#2f9e44" }, blue: { label: "Blue", sym: "■", color: "#1c6fe0" },
-    black: { label: "Black", sym: "◆", color: "#1b1b1b" }, dbl: { label: "Double black", sym: "◆◆", color: "#1b1b1b" },
+    black: { label: "Black", sym: "◆", color: "#1b1b1b" }, dbl: { label: "Double black", sym: "◆◆", color: "#d6202a" },
     pro: { label: "Pro line", sym: "▲", color: "#e8590c" },
   };
   const UNRATED = "#8a8f98";
@@ -1463,7 +1481,7 @@ label.toggle.off .sw { background: var(--muted); }
   function barStyle(t) {
     if (state.colorBy !== "diff" || t.ghost) return "";
     const d = difficulty(t.tags);
-    return d === "dbl" ? ` style="background: repeating-linear-gradient(#1b1b1b 0 7px, #fff 7px 9px)"` : ` style="background: ${diffColor(d)}"`;
+    return ` style="background: ${diffColor(d)}"`;
   }
 
   // ---------- data ----------
@@ -2082,7 +2100,6 @@ out body;`;
       hit.on("click", (e) => { L.DomEvent.stopPropagation(e); select(t.id, false); });
       t._line = line;
       trailLayer.addLayer(line);
-      if (d === "dbl") trailLayer.addLayer(L.polyline(shape, { color: "#fff", weight: 1.5, opacity: sel || !state.selected ? 0.95 : 0.4, dashArray: "5 7", interactive: false }));
       // Unofficial trails get a dark dotted line along them.
       if (isUnoff(t)) trailLayer.addLayer(L.polyline(shape, { color: css("--fg"), weight: 2.5, opacity: sel || !state.selected ? 0.9 : 0.35, dashArray: "1 7", lineCap: "round", interactive: false }));
       trailLayer.addLayer(hit);
@@ -2508,7 +2525,7 @@ out body;`;
     const segs = t.segments && t.segments.length > 1 ? t.segments.length : 0;
     const routes = (t.routes || []).map((r) => `<li><a href="https://www.openstreetmap.org/relation/${r.id}" target="_blank" rel="noopener">${esc(r.name)}</a></li>`).join("");
     d.innerHTML = `
-      <button class="linkish back" id="detailBack" type="button">← Back</button>
+      <div class="d-top"><button class="linkish back" id="detailBack" type="button">← Back</button>${real ? `<button class="want-btn" id="wantBtn" type="button" aria-pressed="false"></button>` : ""}</div>
       <div class="d-head ${t.cat}">
         <span class="bar"${barStyle(t)}></span>
         <div><h2>${esc(trailName(t))}</h2>
@@ -2541,8 +2558,8 @@ out body;`;
         <a href="https://www.openstreetmap.org/edit?${type}=${t.id}" target="_blank" rel="noopener">Edit or fix it</a>
         ${t.tags.name ? `<a href="https://www.trailforks.com/search/?search=${encodeURIComponent(t.tags.name)}" target="_blank" rel="noopener">Search on Trailforks</a>` : ""}
       </div>` : `<p class="muted">Example trail, not real data.</p>`}
-      <h3>Edit history</h3><div id="history" class="muted">${real ? "Loading…" : "Not available for example trails."}</div>
-      <h3>All tags</h3><table class="tagtable"><tbody>${Object.entries(t.tags).map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table>
+      <details class="more"><summary>Edit history</summary><div id="history" class="muted">${real ? "Loading…" : "Not available for example trails."}</div></details>
+      <details class="more"><summary>All tags (${Object.keys(t.tags).length})</summary><table class="tagtable"><tbody>${Object.entries(t.tags).map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table></details>
       ${segs && type === "way" ? `<h3>Segments</h3><p class="muted">The tags, history and links above are for its main segment. All segments: ${t.segIds.map((id) => `<a href="https://www.openstreetmap.org/way/${id}" target="_blank" rel="noopener">${id}</a>`).join(", ")}</p>` : ""}
       <p class="muted">OpenStreetMap ${type} ${real ? t.id : "(example)"}</p>`;
     $("panel").classList.add("detail-open");
@@ -2550,6 +2567,7 @@ out body;`;
     $("detail").scrollIntoView({ block: "start" });
     syncClear();
     $("detailBack").addEventListener("click", closeDetail);
+    if (real) wireWant(t);
     if (real) loadHistory(t);
     loadElevation(t);
     loadWeather(t);
@@ -2600,6 +2618,38 @@ out body;`;
     loadElevation(t);
     loadWeather(t);
     leaveFullMap(t);
+  }
+
+  // ---- "Want to ride" list: trails saved from their detail panel, kept in tf:want (saved to the
+  // rider's account by account.js when signed in). Shown in the name tab; tapping one loads it again.
+  const wantList = () => store.get("want", []);
+  const wantIds = (t) => t.osmType === "relation" || !(t.segIds && t.segIds.length) ? [t.id] : t.segIds;
+  const wantKey = (t) => (t.osmType || "way")[0] + wantIds(t).slice().sort((a, b) => a - b).join(",");
+  function wireWant(t) {
+    const b = $("wantBtn"), key = wantKey(t);
+    const paint = () => { const on = wantList().some((w) => w.key === key); b.setAttribute("aria-pressed", String(on)); b.textContent = on ? "★ On my list" : "☆ Want to ride"; };
+    b.addEventListener("click", () => {
+      const list = wantList(), i = list.findIndex((w) => w.key === key);
+      if (i >= 0) list.splice(i, 1);
+      else list.unshift({ key, type: (t.osmType || "way") === "relation" ? "r" : "w", ids: wantIds(t), name: trailName(t), kind: t.catLabel || CAT_LABEL[t.cat] || "", zone: t.zone || "", at: Date.now() });
+      store.set("want", list); paint(); renderWant();
+    });
+    paint();
+  }
+  function renderWant() {
+    const box = $("wantList"), list = wantList();
+    box.hidden = !list.length;
+    if (!list.length) { box.innerHTML = ""; return; }
+    box.innerHTML = `<h3>★ Want to ride (${list.length})</h3><ol></ol>`;
+    const ol = box.querySelector("ol");
+    list.forEach((w) => {
+      const li = document.createElement("li");
+      li.innerHTML = `<button class="open" type="button"></button><button class="rm" type="button" aria-label="Remove from list" title="Remove from list">✕</button>`;
+      li.querySelector(".open").innerHTML = `${esc(w.name)}${w.zone ? `<small>${esc(w.zone)}</small>` : ""}`;
+      li.querySelector(".open").addEventListener("click", () => showFound({ type: w.type, items: w.ids.map((id) => ({ id })), name: w.name, kind: w.kind }));
+      li.querySelector(".rm").addEventListener("click", () => { store.set("want", wantList().filter((x) => x.key !== w.key)); renderWant(); });
+      ol.appendChild(li);
+    });
   }
 
   function closeDetail() {
@@ -2812,11 +2862,11 @@ out body;`;
     const seen = new Set(), byDiff = state.colorBy === "diff";
     loaded.forEach((list) => list.forEach((w) => {
       const unoff = w.c.unoff.length > 0, off = !!w.c.official;
-      if (seen.has(w.id) || (unoff && !state.onlyUnoff) || !wanted(w.c.cat, unoff, off)) return;
+      // Official trails always show (alex: even with no option ticked), unless "Unofficial only" is on.
+      if (seen.has(w.id) || (unoff && !state.onlyUnoff) || !(off && !state.onlyUnoff || wanted(w.c.cat, unoff, off))) return;
       seen.add(w.id);
       const d = difficulty(w.tags);
       allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks"), weight: off ? 4.5 : 2.5, opacity: off ? 1 : 0.75, interactive: false }));
-      if (byDiff && d === "dbl") allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: "#fff", weight: off ? 1.5 : 1, opacity: 0.9, dashArray: "4 6", interactive: false }));
     }));
   }
   function syncAllBtn() {
@@ -2970,7 +3020,7 @@ out body;`;
     const sw = (style, label) => `<li><i style="${style}"></i>${label}</li>`;
     const dots = "background: repeating-linear-gradient(90deg, var(--fg) 0 3px, transparent 3px 7px)";
     $("keyList").innerHTML = byDiff
-      ? Object.entries(DIFF).map(([k, v]) => sw(k === "dbl" ? "background: repeating-linear-gradient(90deg, #1b1b1b 0 8px, #fff 8px 11px); box-shadow: 0 0 0 1px #1b1b1b" : `background: ${v.color}`, `${v.sym} ${v.label}`)).join("")
+      ? Object.entries(DIFF).map(([k, v]) => sw(`background: ${v.color}`, `${v.sym} ${v.label}`)).join("")
         + sw(`background: ${UNRATED}`, "Not rated") + sw(dots, "Unofficial?")
       : sw("background: var(--mtb)", "MTB tagged") + sw("background: repeating-linear-gradient(90deg, var(--looks) 0 8px, transparent 8px 12px)", "Looks like MTB")
         + sw("background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 8px)", "Possible unmapped") + sw(dots, "Unofficial?");
@@ -3290,6 +3340,7 @@ out tags center qt;`;
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); const m = $("paneName").hidden ? "name" : "new"; setMode(m); $(m === "name" ? "tabName" : "tabNew").focus(); }
   });
   setMode(store.get("mode", "new") === "name" ? "name" : "new");
+  renderWant();
   $("trailHits").addEventListener("click", (e) => {
     if (e.target.closest("[data-retry]")) { loadNames(true); return; }
     const li = e.target.closest(".hit"); if (li) showFound(hits[+li.dataset.n].g);
@@ -3392,7 +3443,6 @@ out tags center qt;`;
       foundLayer.addLayer(L.polyline(s, { color, weight: 6, opacity: 1, lineCap: "round" })
         .bindTooltip(esc(trailName(t)), { sticky: true, direction: "top", offset: [0, -8] })
         .on("click", (e) => { L.DomEvent.stopPropagation(e); openDetail(t); }));
-      if (dd === "dbl") foundLayer.addLayer(L.polyline(s, { color: "#fff", weight: 1.5, opacity: 0.95, dashArray: "5 7", interactive: false }));
     });
     foundLayer.addLayer(L.circleMarker(t.geom[0], { radius: 7, color: "#fff", weight: 3, fillColor: color, fillOpacity: 1 }).bindTooltip(t.chainAll ? "Start" : "Start of its longest connected stretch"));
   }
@@ -3550,5 +3600,7 @@ out tags center qt;`;
 })();
 </script>
 
+<script src="map3d.js"></script>
+<script src="account.js"></script>
 </body>
 </html>
