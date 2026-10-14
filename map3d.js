@@ -204,6 +204,9 @@
         version: 8,
         glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
         sources: {
+          // Sentinel-2 cloudless (EOX, free): a newer yearly mosaic of the whole region, but 10 m pixels, so blurrier.
+          s2: { type: "raster", tileSize: 256, maxzoom: 15, tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2023_3857/default/g/{z}/{y}/{x}.jpg"],
+            attribution: "<a href=\"https://s2maps.eu\">Sentinel-2 cloudless 2023</a> by EOX (Copernicus Sentinel data 2023)" },
           sat: { type: "raster", tileSize: 256, maxzoom: 19, tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
           // Sharp place, peak and lake names from OpenFreeMap (free, no key), instead of blurry label pictures.
@@ -215,6 +218,7 @@
           hits: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
         },
         layers: [
+          { id: "s2", type: "raster", source: "s2", layout: { visibility: "none" } },
           { id: "sat", type: "raster", source: "sat", paint: { "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
           { id: "osm-roads", type: "line", source: "names", "source-layer": "transportation", minzoom: 9,
@@ -251,6 +255,20 @@
     });
     window.trailMap3d = gl;   // handy for debugging in the browser console
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
+    // Photos: sharp aerial photos (Esri, a few years old in places) or the newer but blurrier Sentinel-2 mosaic.
+    const photoBtn = document.createElement("button");
+    photoBtn.type = "button";
+    photoBtn.style.cssText = "width:auto;padding:0 8px;font:600 12px var(--font-body, system-ui)";
+    const setPhotos = (recent) => {
+      gl.setLayoutProperty("s2", "visibility", recent ? "visible" : "none");
+      gl.setLayoutProperty("sat", "visibility", recent ? "none" : "visible");
+      photoBtn.textContent = recent ? "Photos: newer (2023, 10 m)" : "Photos: sharp (Esri)";
+      photoBtn.title = recent ? "Switch to the sharp aerial photos" : "Switch to a newer but blurrier satellite mosaic";
+      store.set("3dPhotos", recent ? "recent" : "sharp");
+    };
+    photoBtn.addEventListener("click", () => setPhotos(gl.getLayoutProperty("s2", "visibility") !== "visible"));
+    gl.addControl({ onAdd() { const d = document.createElement("div"); d.className = "maplibregl-ctrl maplibregl-ctrl-group"; d.append(photoBtn); return d; }, onRemove() {} }, "bottom-right");
+    gl.once("styledata", () => setPhotos(store.get("3dPhotos", "sharp") === "recent"));
     // "load" waits for every first tile, and imagery that fails to load can hold it back, so the
     // trails go on as soon as the style itself is ready.
     gl.on("styledata", () => { if (!drawn && gl.getSource("lines")) scheduleSync(); });
