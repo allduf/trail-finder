@@ -830,6 +830,16 @@ label.toggle.off .sw { background: var(--muted); }
 .panel { overflow-y: auto; overscroll-behavior: contain; }
 .panel .list, .panel .detail { flex: none; overflow: visible; min-height: auto; }
 .detail .back { padding: 4px 0; margin-bottom: 8px; }
+.d-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+.d-top .back { margin-bottom: 0; }
+.want-btn { font: inherit; font-weight: 600; font-size: .9rem; border: 1.5px solid var(--accent); color: var(--accent); background: transparent; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.want-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg, #fff); }
+.wantlist h3 { margin: 4px 0 6px; font-size: 1rem; }
+.wantlist ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.wantlist li { display: flex; align-items: center; gap: 6px; }
+.wantlist li .open { flex: 1; text-align: left; font: inherit; background: var(--chip); border: 0; border-radius: 8px; padding: 7px 10px; color: var(--fg); cursor: pointer; }
+.wantlist li .open small { color: var(--muted); margin-left: 6px; }
+.wantlist li .rm { font: inherit; background: none; border: 0; color: var(--muted); cursor: pointer; padding: 6px; }
 .d-head { display: grid; grid-template-columns: 5px 1fr; gap: 12px; }
 .d-head .bar { border-radius: 3px; }
 .d-head.mtb .bar { background: var(--mtb); } .d-head.looks .bar { background: var(--looks); } .d-head.other .bar { background: var(--other); }
@@ -1026,6 +1036,7 @@ label.toggle.off .sw { background: var(--muted); }
           </div>
           <button class="btn primary" id="trailGo" type="button">Search</button>
         </div>
+        <div class="wantlist" id="wantList" hidden></div>
       </section>
       <section class="pane" id="paneNew" role="tabpanel" aria-labelledby="tabNew">
         <p class="hint">Choose an area, or tap <strong>Near me</strong>, and how recent, then press <strong>Find new trails</strong>.</p>
@@ -2501,7 +2512,7 @@ out body;`;
     const segs = t.segments && t.segments.length > 1 ? t.segments.length : 0;
     const routes = (t.routes || []).map((r) => `<li><a href="https://www.openstreetmap.org/relation/${r.id}" target="_blank" rel="noopener">${esc(r.name)}</a></li>`).join("");
     d.innerHTML = `
-      <button class="linkish back" id="detailBack" type="button">← Back</button>
+      <div class="d-top"><button class="linkish back" id="detailBack" type="button">← Back</button>${real ? `<button class="want-btn" id="wantBtn" type="button" aria-pressed="false"></button>` : ""}</div>
       <div class="d-head ${t.cat}">
         <span class="bar"${barStyle(t)}></span>
         <div><h2>${esc(trailName(t))}</h2>
@@ -2543,6 +2554,7 @@ out body;`;
     $("detail").scrollIntoView({ block: "start" });
     syncClear();
     $("detailBack").addEventListener("click", closeDetail);
+    if (real) wireWant(t);
     if (real) loadHistory(t);
     loadElevation(t);
     loadWeather(t);
@@ -2593,6 +2605,38 @@ out body;`;
     loadElevation(t);
     loadWeather(t);
     leaveFullMap(t);
+  }
+
+  // ---- "Want to ride" list: trails saved from their detail panel, kept in tf:want (saved to the
+  // rider's account by account.js when signed in). Shown in the name tab; tapping one loads it again.
+  const wantList = () => store.get("want", []);
+  const wantIds = (t) => t.osmType === "relation" || !(t.segIds && t.segIds.length) ? [t.id] : t.segIds;
+  const wantKey = (t) => (t.osmType || "way")[0] + wantIds(t).slice().sort((a, b) => a - b).join(",");
+  function wireWant(t) {
+    const b = $("wantBtn"), key = wantKey(t);
+    const paint = () => { const on = wantList().some((w) => w.key === key); b.setAttribute("aria-pressed", String(on)); b.textContent = on ? "★ On my list" : "☆ Want to ride"; };
+    b.addEventListener("click", () => {
+      const list = wantList(), i = list.findIndex((w) => w.key === key);
+      if (i >= 0) list.splice(i, 1);
+      else list.unshift({ key, type: (t.osmType || "way") === "relation" ? "r" : "w", ids: wantIds(t), name: trailName(t), kind: t.catLabel || CAT_LABEL[t.cat] || "", zone: t.zone || "", at: Date.now() });
+      store.set("want", list); paint(); renderWant();
+    });
+    paint();
+  }
+  function renderWant() {
+    const box = $("wantList"), list = wantList();
+    box.hidden = !list.length;
+    if (!list.length) { box.innerHTML = ""; return; }
+    box.innerHTML = `<h3>★ Want to ride (${list.length})</h3><ol></ol>`;
+    const ol = box.querySelector("ol");
+    list.forEach((w) => {
+      const li = document.createElement("li");
+      li.innerHTML = `<button class="open" type="button"></button><button class="rm" type="button" aria-label="Remove from list" title="Remove from list">✕</button>`;
+      li.querySelector(".open").innerHTML = `${esc(w.name)}${w.zone ? `<small>${esc(w.zone)}</small>` : ""}`;
+      li.querySelector(".open").addEventListener("click", () => showFound({ type: w.type, items: w.ids.map((id) => ({ id })), name: w.name, kind: w.kind }));
+      li.querySelector(".rm").addEventListener("click", () => { store.set("want", wantList().filter((x) => x.key !== w.key)); renderWant(); });
+      ol.appendChild(li);
+    });
   }
 
   function closeDetail() {
@@ -3163,6 +3207,7 @@ out tags center qt;`;
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); const m = $("paneName").hidden ? "name" : "new"; setMode(m); $(m === "name" ? "tabName" : "tabNew").focus(); }
   });
   setMode(store.get("mode", "new") === "name" ? "name" : "new");
+  renderWant();
   $("trailHits").addEventListener("click", (e) => {
     if (e.target.closest("[data-retry]")) { loadNames(true); return; }
     const li = e.target.closest(".hit"); if (li) showFound(hits[+li.dataset.n].g);
