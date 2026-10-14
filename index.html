@@ -1449,9 +1449,18 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     if (r) { r.unoff = unofficial(tags); r.official = officialWhy(tags); Object.assign(r, useOf(tags, routes.length ? routeTypes.concat("mtb") : routeTypes)); }
     return r;
   }
+  // Forest and logging roads are never MTB trails, even with a bike rating or in an MTB route (alex): they're on the Forest roads layer.
+  const ROAD_NAME = /\b(forest service road|f\.?s\.?r\.?|service road|logging road|main ?line|road|rd)\b/i;
+  function isRoad(tags) {
+    const hw = tags.highway || "", name = tags.name || "";
+    if (/^(unclassified|service|residential|tertiary|secondary|primary|trunk|road)$/.test(hw)) return true;
+    if (hw === "track") return name ? ROAD_NAME.test(name) : /^grade[12]$/.test(tags.tracktype || "") || parseFloat(tags.width) >= 4;   // a named track is a road only if its name says so
+    return /\b(forest service road|f\.?s\.?r\.?)\b/i.test(name);
+  }
   function classifyTrail(tags, routes) {
     const hw = tags.highway;
     if (tags.bicycle === "dismount") return null;
+    if (isRoad(tags)) return null;
 
     const mtbTags = Object.keys(tags).filter((k) => /^mtb(:|$)/.test(k) && !(k === "mtb" && tags.mtb === "no"));
     if (mtbTags.length || routes.length) {
@@ -3491,8 +3500,8 @@ out tags center qt;`;
         id: main.id, osmType: type, tags, routes, searched: true, geom, chainAll, segments: segs, segIds, bounds,
         km: segs.reduce((s, l) => s + lengthKm(l), 0), zone: zoneOf(bounds.getCenter()),
         version: main.version, lastEdit: new Date(main.timestamp), lastUser: main.user || "", lastChangeset: main.changeset,
-        cat: c ? c.cat : "other", catLabel: c ? null : kind, unoff: unofficial(tags), official: officialWhy(tags), ...useOf(tags, routes.length ? types.concat("mtb") : types),
-        why: c ? c.why : [`No bike tags and not trail-like enough for the MTB colours (highway=${tags.highway || "none"}, ${tags.route ? "route=" + tags.route : "no route"}).`],
+        cat: c ? c.cat : "other", catLabel: c ? null : isRoad(tags) ? "Forest road" : kind, unoff: unofficial(tags), official: officialWhy(tags), ...useOf(tags, routes.length ? types.concat("mtb") : types),
+        why: c ? c.why : isRoad(tags) ? ["A forest or logging road, not a trail, so it's left out of the MTB trails. Turn on “Forest roads” to see roads on the map."] : [`No bike tags and not trail-like enough for the MTB colours (highway=${tags.highway || "none"}, ${tags.route ? "route=" + tags.route : "no route"}).`],
       };
       if (c && c.cat === "other") t.catLabel = kind;
       t.net = !!(c && c.net);
