@@ -3665,7 +3665,7 @@ out body;`;
   }
   function accessInfo(x) {
     const t = x.t || {};
-    if (x.k === "rec") return [t.type, t.loc].filter(Boolean);
+    if (x.k === "rec") return [t.closed && `Closure: ${t.closed}`, t.type, t.loc, t.dir && `Driving directions: ${t.dir}`].filter(Boolean);
     const fee = t.fee === "no" ? "Free" : t.fee === "yes" ? `Paid${t.charge ? ` (${t.charge})` : ""}` : "";
     return [fee, t.capacity && `${t.capacity} spots`, t.surface && `surface: ${t.surface}`, t.access && t.access !== "yes" && `access: ${t.access}`, t.operator, t.opening_hours && `open ${t.opening_hours}`, t.seasonal === "yes" && "seasonal", t.description || t.note].filter(Boolean);
   }
