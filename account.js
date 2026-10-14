@@ -10,7 +10,7 @@
   const LIB = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.3/dist/umd/supabase.js";
 
   // Settings saved to the account: the tf:* localStorage keys the pages remember.
-  const SETTINGS = ["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "nearKm", "track", "nameNear", "mode", "nameZone", "map3d", "want"];
+  const SETTINGS = ["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "nearKm", "track", "nameNear", "mode", "nameZone", "map3d", "want", "folders"];
   const STAMP = "tf:settingsAt";   // when this device last changed a setting (ms)
 
   const api = window.tfAccount = { enabled: !!(SUPABASE_URL && SUPABASE_ANON_KEY), client: null, user: null, ready: null };
@@ -38,6 +38,9 @@ dialog.acct .acct-msg { min-height: 1.2em; font-size: .88rem; margin: 0 0 10px; 
 dialog.acct .acct-msg.err { color: #c0392b; }
 dialog.acct .acct-alt { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 12px; font-size: .88rem; }
 dialog.acct .acct-alt button { background: none; border: 0; padding: 2px 0; color: var(--accent); font-weight: 600; }
+dialog.acct .acct-menu { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+dialog.acct .acct-menu button { text-align: left; padding: 12px 14px; font-size: 1rem; }
+dialog.acct .acct-menu small { display: block; font-weight: 400; color: var(--muted); font-size: .82rem; margin-top: 2px; }
 dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: 3px; }`;
   document.head.appendChild(css);
 
@@ -56,13 +59,27 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
   <div class="acct-alt"><button type="button" id="acctNew">New here? Create an account</button><button type="button" id="acctLink">Forgot password? Email me a link</button></div>
 </form>
 <div id="acctOut" hidden>
-  <h2>Your account</h2>
-  <p>Signed in as <strong id="acctWho"></strong>. Your settings and rides are saved to your account.</p>
-  <p class="acct-msg" id="acctSync" role="status"></p>
-  <label for="acctNewPass">Set a new password (optional)</label>
-  <input type="password" id="acctNewPass" autocomplete="new-password" minlength="6" placeholder="At least 6 characters">
-  <div class="acct-row" style="margin-bottom:12px"><button type="button" id="acctSetPass">Save password</button></div>
-  <div class="acct-row"><button type="button" id="acctSignOut">Sign out</button><button type="button" class="go" data-close>Done</button></div>
+  <div id="acctMenu">
+    <h2>Your account</h2>
+    <p>Signed in as <strong id="acctWho"></strong>. Your settings, rides and trail folders are saved to your account.</p>
+    <p class="acct-msg" id="acctSync" role="status"></p>
+    <div class="acct-menu">
+      <button type="button" id="acctGoFolders"><span aria-hidden="true">📁</span> My trail folders<small>Trails you want to ride, in folders you make</small></button>
+      <button type="button" id="acctGoSettings"><span aria-hidden="true">⚙️</span> Settings<small>Email, password, sign out</small></button>
+    </div>
+    <div class="acct-row"><button type="button" class="go" data-close>Done</button></div>
+  </div>
+  <div id="acctSettings" hidden>
+    <h2>Settings</h2>
+    <p class="acct-msg" id="acctSetMsg" role="status"></p>
+    <label for="acctNewEmail">Email</label>
+    <input type="email" id="acctNewEmail" autocomplete="email">
+    <div class="acct-row" style="margin-bottom:12px"><button type="button" id="acctSetEmail">Change email</button></div>
+    <label for="acctNewPass">New password</label>
+    <input type="password" id="acctNewPass" autocomplete="new-password" minlength="6" placeholder="At least 6 characters">
+    <div class="acct-row" style="margin-bottom:12px"><button type="button" id="acctSetPass">Save password</button></div>
+    <div class="acct-row"><button type="button" id="acctBack">← Back</button><button type="button" id="acctSignOut">Sign out</button></div>
+  </div>
 </div>`;
   document.body.appendChild(box);
   const q = (id) => box.querySelector("#" + id);
@@ -85,10 +102,23 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
   paintButtons();
   function openBox() {
     q("acctIn").hidden = !!api.user; q("acctOut").hidden = !api.user;
-    if (api.user) q("acctWho").textContent = api.user.email || "";
+    if (api.user) { q("acctWho").textContent = api.user.email || ""; showSettings(false); }
     else { q("acctMsg").textContent = ""; q("acctMsg").className = "acct-msg"; }
     if (!box.open) box.showModal();
   }
+  function showSettings(on) {
+    q("acctMenu").hidden = on; q("acctSettings").hidden = !on;
+    if (on) { q("acctNewEmail").value = api.user.email || ""; q("acctSetMsg").textContent = ""; }
+  }
+  q("acctGoSettings").addEventListener("click", () => showSettings(true));
+  q("acctBack").addEventListener("click", () => showSettings(false));
+  // The map page shows the folders (index.html listens for "tf:open-folders"); other pages go there.
+  q("acctGoFolders").addEventListener("click", () => {
+    box.close();
+    const ev = new CustomEvent("tf:open-folders", { detail: { handled: false } });
+    window.dispatchEvent(ev);
+    if (!ev.detail.handled) location.href = "./#folders";
+  });
   api.setSyncNote = (text) => { q("acctSync").textContent = text || ""; };
 
   // ---------- Supabase ----------
@@ -152,12 +182,19 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     if (error) say(error.message, true);
     else say(`Check ${c.email} and tap the link. Once you're in, you can set a new password under Account.`);
   });
+  const setMsg = (text) => { q("acctSetMsg").textContent = text; };
   q("acctSetPass").addEventListener("click", async () => {
     const pw = q("acctNewPass").value;
-    if (pw.length < 6) { api.setSyncNote("Passwords need at least 6 characters."); return; }
+    if (pw.length < 6) { setMsg("Passwords need at least 6 characters."); return; }
     const { error } = await api.client.auth.updateUser({ password: pw });
     q("acctNewPass").value = "";
-    api.setSyncNote(error ? "Couldn't save the password: " + error.message : "Password saved. Next time, sign in with your email and password.");
+    setMsg(error ? "Couldn't save the password: " + error.message : "Password saved. Next time, sign in with your email and password.");
+  });
+  q("acctSetEmail").addEventListener("click", async () => {
+    const email = q("acctNewEmail").value.trim();
+    if (!q("acctNewEmail").reportValidity() || !email || email === api.user.email) return;
+    const { error } = await api.client.auth.updateUser({ email }, { emailRedirectTo: redirect() });
+    setMsg(error ? "Couldn't change the email: " + error.message : `Check ${email} (and your old address) and tap the confirm links. The change happens after that.`);
   });
   q("acctSignOut").addEventListener("click", async () => {
     window.dispatchEvent(new CustomEvent("tf:signing-out", { detail: api.user }));

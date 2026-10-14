@@ -845,6 +845,16 @@ label.toggle.off .sw { background: var(--muted); }
 .want-btn { font: inherit; font-weight: 600; font-size: .9rem; border: 1.5px solid var(--accent); color: var(--accent); background: transparent; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
 .want-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg, #fff); }
 .wantlist h3 { margin: 4px 0 6px; font-size: 1rem; }
+.wl-head { display: flex; justify-content: space-between; align-items: center; }
+.wantlist .folder { border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; margin-bottom: 6px; }
+.wantlist .folder summary { cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.wantlist .folder summary small { color: var(--muted); font-weight: 400; flex: 1; }
+.wantlist .folder ol { margin-top: 6px; }
+.save-pick { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
+.save-pick p { margin: 0; }
+.save-pick label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.save-pick .newf { display: flex; gap: 6px; }
+.save-pick .newf input { flex: 1; min-width: 0; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
 .wantlist ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .wantlist li { display: flex; align-items: center; gap: 6px; }
 .wantlist li .open { flex: 1; text-align: left; font: inherit; background: var(--chip); border: 0; border-radius: 8px; padding: 7px 10px; color: var(--fg); cursor: pointer; }
@@ -2538,6 +2548,7 @@ out body;`;
     const routes = (t.routes || []).map((r) => `<li><a href="https://www.openstreetmap.org/relation/${r.id}" target="_blank" rel="noopener">${esc(r.name)}</a></li>`).join("");
     d.innerHTML = `
       <div class="d-top"><button class="linkish back" id="detailBack" type="button">← Back</button>${real ? `<button class="want-btn" id="wantBtn" type="button" aria-pressed="false"></button>` : ""}</div>
+      ${real ? `<div class="save-pick" id="savePick" hidden></div>` : ""}
       <div class="d-head ${t.cat}">
         <span class="bar"${barStyle(t)}></span>
         <div><h2>${esc(trailName(t))}</h2>
@@ -2632,37 +2643,88 @@ out body;`;
     leaveFullMap(t);
   }
 
-  // ---- "Want to ride" list: trails saved from their detail panel, kept in tf:want (saved to the
-  // rider's account by account.js when signed in). Shown in the name tab; tapping one loads it again.
-  const wantList = () => store.get("want", []);
+  // ---- Trail folders: riders make folders ("Want to ride" to start) and save trails into them from the
+  // detail panel. Kept in tf:folders (saved to the rider's account by account.js when signed in) and
+  // shown in the name tab; tapping a trail loads it again. Old single list tf:want becomes the first folder.
+  function getFolders() {
+    let f = store.get("folders", null);
+    // Not saved until the rider changes something, so a new device doesn't overwrite the account's folders.
+    if (!Array.isArray(f)) f = [{ id: "want", name: "Want to ride", trails: store.get("want", []) }];
+    return f;
+  }
+  const putFolders = (f) => { store.set("folders", f); renderFolders(); };
   const wantIds = (t) => t.osmType === "relation" || !(t.segIds && t.segIds.length) ? [t.id] : t.segIds;
   const wantKey = (t) => (t.osmType || "way")[0] + wantIds(t).slice().sort((a, b) => a - b).join(",");
+  function newFolder(name) {
+    name = (name || "").trim();
+    if (!name) return null;
+    const f = getFolders(), id = "f" + Date.now();
+    f.push({ id, name: name.slice(0, 60), trails: [] });
+    putFolders(f);
+    return id;
+  }
   function wireWant(t) {
-    const b = $("wantBtn"), key = wantKey(t);
-    const paint = () => { const on = wantList().some((w) => w.key === key); b.setAttribute("aria-pressed", String(on)); b.textContent = on ? "★ On my list" : "☆ Want to ride"; };
-    b.addEventListener("click", () => {
-      const list = wantList(), i = list.findIndex((w) => w.key === key);
-      if (i >= 0) list.splice(i, 1);
-      else list.unshift({ key, type: (t.osmType || "way") === "relation" ? "r" : "w", ids: wantIds(t), name: trailName(t), kind: t.catLabel || CAT_LABEL[t.cat] || "", zone: t.zone || "", at: Date.now() });
-      store.set("want", list); paint(); renderWant();
-    });
+    const b = $("wantBtn"), pick = $("savePick"), key = wantKey(t);
+    const entry = () => ({ key, type: (t.osmType || "way") === "relation" ? "r" : "w", ids: wantIds(t), name: trailName(t), kind: t.catLabel || CAT_LABEL[t.cat] || "", zone: t.zone || "", at: Date.now() });
+    const paint = () => {
+      const f = getFolders(), inAny = f.some((x) => x.trails.some((w) => w.key === key));
+      b.setAttribute("aria-pressed", String(inAny)); b.textContent = inAny ? "★ Saved" : "☆ Save";
+      pick.innerHTML = `<p class="muted">Save to a folder:</p>${f.map((x) => `<label><input type="checkbox" data-id="${esc(x.id)}"${x.trails.some((w) => w.key === key) ? " checked" : ""}> ${esc(x.name)}</label>`).join("")}
+        <form class="newf"><input type="text" placeholder="New folder name" maxlength="60" aria-label="New folder name"><button class="btn" type="submit">+ Add</button></form>`;
+      pick.querySelectorAll("input[type=checkbox]").forEach((c) => c.addEventListener("change", () => {
+        const f = getFolders(), x = f.find((x) => x.id === c.dataset.id);
+        x.trails = x.trails.filter((w) => w.key !== key);
+        if (c.checked) x.trails.unshift(entry());
+        putFolders(f); paint();
+      }));
+      pick.querySelector("form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const id = newFolder(e.target.querySelector("input").value);
+        if (!id) return;
+        const f = getFolders(); f.find((x) => x.id === id).trails.unshift(entry()); putFolders(f); paint();
+      });
+    };
+    b.addEventListener("click", () => { pick.hidden = !pick.hidden; });
     paint();
   }
-  function renderWant() {
-    const box = $("wantList"), list = wantList();
-    box.hidden = !list.length;
-    if (!list.length) { box.innerHTML = ""; return; }
-    box.innerHTML = `<h3>★ Want to ride (${list.length})</h3><ol></ol>`;
-    const ol = box.querySelector("ol");
-    list.forEach((w) => {
-      const li = document.createElement("li");
-      li.innerHTML = `<button class="open" type="button"></button><button class="rm" type="button" aria-label="Remove from list" title="Remove from list">✕</button>`;
-      li.querySelector(".open").innerHTML = `${esc(w.name)}${w.zone ? `<small>${esc(w.zone)}</small>` : ""}`;
-      li.querySelector(".open").addEventListener("click", () => showFound({ type: w.type, items: w.ids.map((id) => ({ id })), name: w.name, kind: w.kind }));
-      li.querySelector(".rm").addEventListener("click", () => { store.set("want", wantList().filter((x) => x.key !== w.key)); renderWant(); });
-      ol.appendChild(li);
+  function renderFolders() {
+    const box = $("wantList"), f = getFolders();
+    box.hidden = false;
+    box.innerHTML = `<div class="wl-head"><h3>📁 My trail folders</h3><button class="linkish" type="button" id="newFolderBtn">+ New folder</button></div>`;
+    $("newFolderBtn").addEventListener("click", () => { const n = prompt("Name of the new folder"); if (n) newFolder(n); });
+    f.forEach((x) => {
+      const d = document.createElement("details");
+      d.className = "folder"; d.dataset.id = x.id;
+      d.innerHTML = `<summary><span class="fname"></span> <small>(${x.trails.length})</small><button class="rm" type="button" aria-label="Delete folder" title="Delete folder">🗑</button></summary><ol></ol>`;
+      d.querySelector(".fname").textContent = x.name;
+      d.querySelector("summary .rm").addEventListener("click", (e) => {
+        e.preventDefault();
+        if (!confirm(`Delete the folder “${x.name}”${x.trails.length ? ` and the ${x.trails.length} trail${x.trails.length > 1 ? "s" : ""} in it` : ""}?`)) return;
+        putFolders(getFolders().filter((y) => y.id !== x.id));
+      });
+      const ol = d.querySelector("ol");
+      if (!x.trails.length) ol.innerHTML = `<li class="muted">Empty. Open a trail and tap ☆ Save to add it here.</li>`;
+      x.trails.forEach((w) => {
+        const li = document.createElement("li");
+        li.innerHTML = `<button class="open" type="button"></button><button class="rm" type="button" aria-label="Remove from folder" title="Remove from folder">✕</button>`;
+        li.querySelector(".open").innerHTML = `${esc(w.name)}${w.zone ? `<small>${esc(w.zone)}</small>` : ""}`;
+        li.querySelector(".open").addEventListener("click", () => showFound({ type: w.type, items: w.ids.map((id) => ({ id })), name: w.name, kind: w.kind }));
+        li.querySelector(".rm").addEventListener("click", () => { const f = getFolders(); const y = f.find((y) => y.id === x.id); y.trails = y.trails.filter((z) => z.key !== w.key); putFolders(f); });
+        ol.appendChild(li);
+      });
+      if (openFolders.has(x.id)) d.open = true;
+      d.addEventListener("toggle", () => { d.open ? openFolders.add(x.id) : openFolders.delete(x.id); });
+      box.appendChild(d);
     });
   }
+  const openFolders = new Set();
+  function showFolders() {
+    setMode("name");
+    getFolders().forEach((x) => openFolders.add(x.id));
+    renderFolders();
+    $("wantList").scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+  window.addEventListener("tf:open-folders", (e) => { e.detail.handled = true; showFolders(); });
 
   function closeDetail() {
     state.selected = null;
@@ -3358,7 +3420,8 @@ out tags center qt;`;
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); const m = $("paneName").hidden ? "name" : "new"; setMode(m); $(m === "name" ? "tabName" : "tabNew").focus(); }
   });
   setMode(store.get("mode", "new") === "name" ? "name" : "new");
-  renderWant();
+  renderFolders();
+  if (location.hash === "#folders") { history.replaceState(null, "", location.pathname + location.search); showFolders(); }
   $("trailHits").addEventListener("click", (e) => {
     if (e.target.closest("[data-retry]")) { loadNames(true); return; }
     const li = e.target.closest(".hit"); if (li) showFound(hits[+li.dataset.n].g);
