@@ -1958,7 +1958,7 @@ out body;`;
     return Math.round(Math.max(0, Math.min(100, (v - 0.08) / (0.42 - 0.08) * 100)));
   }
   const lmiLevel = (v) => LMI_LEVELS.find((l) => v < l[0]);
-  const LMI_RIDE = [["#d9a35a", "OK, loose"], ["#5aa86a", "Good"], ["#3f8f8c", "Best", "best"], ["#3b6fb0", "Slippery"], ["#33468f", "Very slippery"]];
+  const LMI_RIDE = [["#d9a35a", "OK, loose"], ["#5aa86a", "Good"], ["#3f8f8c", "Prime", "best"], ["#3b6fb0", "Slippery"], ["#33468f", "Very slippery"]];
   const lmiKey = (lvl) => `<ul class="lmi-key" aria-label="What the numbers mean">${LMI_LEVELS.map((l, k) =>
     `<li class="${l === lvl ? "on" : ""}"><span class="dot" style="background:${LMI_RIDE[k][0]}"></span><span>${k * 20}–${Math.min(100, l[0] - 1)}</span><span>${esc(l[1])}</span><span class="ride ${LMI_RIDE[k][2] || ""}">${LMI_RIDE[k][1]}</span></li>`).join("")}</ul>`;
 
@@ -2189,7 +2189,6 @@ out body;`;
       </dl></details>
       <h3>Weather and Loam moisture index</h3><div id="wx" class="muted">Loading weather…</div>
       ${routes ? `<h3>Part of MTB route</h3><ul class="plain">${routes}</ul>` : ""}
-      <h3>${t.searched ? "How the app sees it" : "Why it's listed"}</h3><ul class="plain">${t.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>
       ${real ? `<h3>Links</h3><div class="links">
         <a href="https://www.openstreetmap.org/${type}/${t.id}" target="_blank" rel="noopener">Open on OpenStreetMap</a>
         <a href="https://www.openstreetmap.org/${type}/${t.id}/history" target="_blank" rel="noopener">Full history</a>
