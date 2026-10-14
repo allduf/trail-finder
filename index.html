@@ -770,7 +770,6 @@ label.toggle .n { font-variant-numeric: tabular-nums; color: var(--muted); }
 label.toggle.off { background: transparent; color: var(--muted); border: 1.5px dashed var(--line); }
 label.toggle.off .sw { background: var(--muted); }
 label.toggle.t-unoff .sw { background: repeating-linear-gradient(90deg, var(--fg) 0 3px, transparent 3px 6px); }
-label.toggle.t-moto .sw, label.toggle.t-hike .sw { background: var(--other); }
 label.toggle.t-loam .sw { background: #5aa86a; height: 10px; width: 10px; border-radius: 50%; }
 .trail .loam { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; white-space: nowrap; }
 .trail .loam i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
@@ -782,7 +781,7 @@ label.toggle.t-unoff.off .sw { background: repeating-linear-gradient(90deg, var(
 .unoff-box strong { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .04em; }
 .unoff-box ul { margin: 6px 0; padding-left: 18px; }
 .unoff-box p { margin: 6px 0 0; font-size: .85rem; }
-label.toggle.t-mtb .sw { background: var(--mtb); } label.toggle.t-looks .sw { background: var(--looks); } label.toggle.t-other .sw { background: var(--other); }
+label.toggle.t-mtb .sw { background: var(--mtb); } label.toggle.t-looks .sw { background: var(--looks); }
 label.toggle.t-ghost .sw { background: repeating-linear-gradient(90deg, var(--ghost) 0 4px, transparent 4px 7px); }
 label.toggle.off .sw { background: var(--muted); }
 .status { padding: 10px 16px; font-size: .9rem; color: var(--muted); border-bottom: 1px solid var(--line); }
@@ -1007,11 +1006,8 @@ label.toggle.off .sw { background: var(--muted); }
         <div class="toggles" role="group" aria-label="Show these trails">
           <label class="toggle t-mtb"><input type="checkbox" id="showMtb" checked><span class="ck"></span><span class="sw"></span>MTB tagged <span class="n" id="nMtb">0</span></label>
           <label class="toggle t-looks"><input type="checkbox" id="showLooks" checked><span class="ck"></span><span class="sw"></span>Looks like MTB <span class="n" id="nLooks">0</span></label>
-          <label class="toggle t-other off"><input type="checkbox" id="showOther"><span class="ck"></span><span class="sw"></span>Other paths <span class="n" id="nOther">0</span></label>
           <label class="toggle t-ghost" title="Lines that several GPS traces follow at bike speed, where OpenStreetMap has no trail yet. Unverified."><input type="checkbox" id="showGhost" checked><span class="ck"></span><span class="sw"></span>Possible unmapped <span class="n" id="nGhost">0</span></label>
           <label class="toggle t-unoff off" title="Of the trails ticked, show only the ones tagged as informal, closed or no bikes"><input type="checkbox" id="onlyUnoff"><span class="ck"></span><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
-          <label class="toggle t-moto off" title="Dirt-bike, ATV and 4x4 trails, hidden unless ticked"><input type="checkbox" id="showMoto"><span class="ck"></span><span class="sw"></span>Moto trails <span class="n" id="nMoto">0</span></label>
-          <label class="toggle t-hike off" title="Trails where bikes aren't allowed, hidden unless ticked"><input type="checkbox" id="showHike"><span class="ck"></span><span class="sw"></span>Hiking only <span class="n" id="nHike">0</span></label>
           <label class="toggle t-loam off" title="Only trails whose Loam moisture index is 40 to 59 right now (damp, prime loam)"><input type="checkbox" id="primeLoam"><span class="ck"></span><span class="sw"></span>Prime loam now <span class="n" id="nLoam">–</span></label>
         </div>
       </section>
@@ -1057,13 +1053,11 @@ label.toggle.off .sw { background: var(--muted); }
     </ul>
     <p>Skipped: paved surfaces, <code>bicycle=dismount</code>, and alpine hiking routes (<code>sac_scale</code> alpine).</p>
 <h3>Moto and hiking-only trails</h3>
-    <p>To keep the list about mountain biking, trails that look like dirt-bike, ATV or 4x4 trails, and trails where bikes aren't allowed, are hidden unless you tick “Moto trails” or “Hiking only”. Moto means tags like <code>dirtbike:scale</code>, <code>motorcycle=designated</code>, <code>atv=yes</code>, <code>4wd_only=yes</code>, an ATV route, or a name like “ATV trail”. Hiking only means <code>bicycle=no</code>, <code>mtb=no</code>, stairs, hard hiking terrain (<code>sac_scale</code> T4 and up), or a signed hiking route with no bike access. A trail with any MTB tag, in an MTB route, or with <code>bicycle=designated</code> is never hidden, even if motorbikes are allowed on it too.</p>
+    <p>To keep the list about mountain biking, trails that look like dirt-bike, ATV or 4x4 trails, and trails where bikes aren't allowed, are left out of the list. Moto means tags like <code>dirtbike:scale</code>, <code>motorcycle=designated</code>, <code>atv=yes</code>, <code>4wd_only=yes</code>, an ATV route, or a name like “ATV trail”. Hiking only means <code>bicycle=no</code>, <code>mtb=no</code>, stairs, hard hiking terrain (<code>sac_scale</code> T4 and up), or a signed hiking route with no bike access. A trail with any MTB tag, in an MTB route, or with <code>bicycle=designated</code> is never hidden, even if motorbikes are allowed on it too.</p>
     <h3>Unofficial (possibly unsanctioned) trails</h3>
     <p>Marked with a dark dotted line and an “Unofficial?” tag. A trail is flagged when mappers tagged it <code>informal=yes</code>, closed it (<code>access=no</code> or <code>private</code>), banned bikes (<code>bicycle=no</code>, <code>mtb=no</code>), or wrote “unsanctioned”, “closed”, “illegal” or similar in its note or description. Turn on “Unofficial only” to see just those. This is a hint from the map data, not the legal status: many unsanctioned trails aren't tagged at all, and some tags are out of date.</p>
     <h3>Possible unmapped trails (unverified)</h3>
     <p>Purple dotted lines are guesses, not mapped trails. Once a week the site looks at the public GPS traces people upload to OpenStreetMap. Where 2 or more different traces run together for 100 m or more, more than 20 m from any mapped road, path, lift or ski run, it's listed. Only lines most traces ride at bike speed (faster than walking, slower than a car) are shown. The date is the first GPS trace on it. Each one links to the Strava and Trailforks heatmaps so you can compare, and to OpenStreetMap so you can map it if it's real. It may be private land, closed, or a GPS glitch: check before riding.</p>
-    <h3>Other paths</h3>
-    <p>New <code>highway=path</code> ways that don't reach 2 points. Many fresh trails are mapped with no extra tags, so this layer is worth a look.</p>
     <p><button class="btn primary" id="aboutClose" type="button">Got it</button></p>
   </div>
 </div>
@@ -1096,7 +1090,7 @@ label.toggle.off .sw { background: var(--muted); }
 
   const state = {
     months: store.get("months", 6),
-    show: { mtb: true, looks: true, other: false, ghost: true, moto: false, hike: false },
+    show: { mtb: true, looks: true, other: false, ghost: true },   // "other" paths have no chip and stay hidden
     ghosts: [],          // possible unmapped trails from the weekly GPS-trace file
     onlyUnoff: false,     // "Unofficial only": of the ticked types, flagged trails only
     primeLoam: false,     // "Prime loam now": of the trails shown, Loam moisture index 40-59 right now
@@ -1801,12 +1795,10 @@ out body;`;
   function render() {
     syncClear();
     const base = visibleTrails();
-    const vis = base.filter((t) => !t.use || state.show[t.use]);   // moto and hiking-only only when ticked
-    const adds = (u) => base.filter((t) => t.use === u && state.show[t.cat] && (!state.onlyUnoff || isUnoff(t))).length;
-    $("nMoto").textContent = adds("moto"); $("nHike").textContent = adds("hike");
+    const vis = base.filter((t) => !t.use);   // moto and hiking-only trails are left out
     const counts = { mtb: 0, looks: 0, other: 0, ghost: 0 };
     vis.filter((t) => !state.onlyUnoff || isUnoff(t)).forEach((t) => counts[t.cat]++);
-    $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nOther").textContent = counts.other; $("nGhost").textContent = counts.ghost;
+    $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nGhost").textContent = counts.ghost;
     $("nUnoff").textContent = vis.filter((t) => state.show[t.cat] && isUnoff(t)).length;
     const typed = vis.filter((t) => state.show[t.cat] && (!state.onlyUnoff || isUnoff(t)));
     const isPrime = (t) => { const v = loamOf(t); return v != null && v >= 40 && v < 60; };
@@ -1869,7 +1861,7 @@ out body;`;
     } else if (state.error && !state.trails.length) {
       setStatus(`Search failed. ${state.error.replace(/\.?$/, ".")} If it keeps happening, open “Search details” and send a screenshot.`, true, state.retry && { label: "Try again", fn: state.retry });
     } else if (state.searchedBounds.length) {
-      setStatus((n ? `${n} trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : (state.loamPending ? `Checking the Loam index of these trails…` : state.primeLoam ? `None of these trails are in prime loam right now (index 40 to 59). Untick “Prime loam now” to see them all.` : state.onlyUnoff ? `No unofficial trails among the ones ticked in the last ${label}. Tick more types, or turn off “Unofficial only”.` : `No new trails here in the last ${label}. Try a longer period, tick “Other paths”, or move the map.`)) + (state.error ? " " + state.error : ""),
+      setStatus((n ? `${n} trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : (state.loamPending ? `Checking the Loam index of these trails…` : state.primeLoam ? `None of these trails are in prime loam right now (index 40 to 59). Untick “Prime loam now” to see them all.` : state.onlyUnoff ? `No unofficial trails among the ones ticked in the last ${label}. Tick more types, or turn off “Unofficial only”.` : `No new trails here in the last ${label}. Try a longer period or move the map.`)) + (state.error ? " " + state.error : ""),
         !!state.error, state.error && state.retry && { label: "Load missing squares", fn: state.retry });
     }
   }
@@ -2172,7 +2164,7 @@ out body;`;
         <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${g ? `<span class="grade">${esc(g)}</span>` : ""}${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""}${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
       </div>
       ${t.use ? `<div class="unoff-box use-box"><strong>${t.use === "moto" ? "Looks like a moto trail" : "Looks like a hiking-only trail"}</strong><ul>${t.useWhy.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
-        <p class="muted">${t.use === "moto" ? "Dirt-bike, ATV and 4x4 trails" : "Hiking-only trails"} are hidden from the list unless “${t.use === "moto" ? "Moto trails" : "Hiking only"}” is ticked. This is a guess from the map tags.</p></div>` : ""}
+        <p class="muted">${t.use === "moto" ? "Dirt-bike, ATV and 4x4 trails" : "Hiking-only trails"} are left out of the new-trails list. This is a guess from the map tags.</p></div>` : ""}
       ${isUnoff(t) ? `<div class="unoff-box"><strong>Possibly unsanctioned</strong><ul>${t.unoff.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">This only shows what OpenStreetMap mappers tagged. It's a hint, not the trail's legal status. Check with the land manager or Trailforks before riding.</p></div>` : ""}
       <dl class="facts">
@@ -2312,7 +2304,7 @@ out body;`;
   });
   $("primeLoam").addEventListener("change", (e) => { state.primeLoam = e.target.checked; e.target.closest("label").classList.toggle("off", !state.primeLoam); render(); });
   $("onlyUnoff").addEventListener("change", (e) => { state.onlyUnoff = e.target.checked; e.target.closest("label").classList.toggle("off", !state.onlyUnoff); render(); });
-  [["showMtb", "mtb"], ["showLooks", "looks"], ["showOther", "other"], ["showGhost", "ghost"], ["showMoto", "moto"], ["showHike", "hike"]].forEach(([id, k]) => {
+  [["showMtb", "mtb"], ["showLooks", "looks"], ["showGhost", "ghost"]].forEach(([id, k]) => {
     const el = $(id);
     el.checked = state.show[k];
     el.closest("label").classList.toggle("off", !el.checked);
