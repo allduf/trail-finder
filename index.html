@@ -808,6 +808,14 @@ label.toggle.t-off .sw { background: var(--fg); }
 label.toggle.t-mtb .sw { background: var(--mtb); } label.toggle.t-looks .sw { background: var(--looks); }
 label.toggle.t-ghost .sw { background: repeating-linear-gradient(90deg, var(--ghost) 0 4px, transparent 4px 7px); }
 label.toggle.off .sw { background: var(--muted); }
+.boxres { border-bottom: 1px solid var(--line); }
+.box-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 10px 16px; }
+.box-head .linkish { white-space: nowrap; }
+.box-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; width: 100%; text-align: left; font: inherit; color: var(--fg); background: none; border: 0; border-top: 1px solid var(--line); padding: 8px 16px; cursor: pointer; }
+.box-row:hover, .box-row:focus-visible { background: var(--line); }
+.box-row .box-name { font-weight: 600; }
+.box-row .box-len { margin-left: auto; color: var(--muted); font-size: .85rem; }
+.leaflet-container.drawing { cursor: crosshair; touch-action: none; }
 .status { padding: 10px 16px; font-size: .9rem; color: var(--muted); border-bottom: 1px solid var(--line); }
 .status.warn { background: var(--warn-bg); color: var(--warn-fg); }
 .debug { padding: 6px 16px; border-bottom: 1px solid var(--line); font-size: .85rem; color: var(--muted); }
@@ -1001,6 +1009,7 @@ label.toggle.off .sw { background: var(--muted); }
       </select>
       <div class="map-note" id="mapNote" hidden></div>
       <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
+      <button id="boxBtn" type="button" aria-pressed="false" title="Drag a square on the map to list every MTB trail inside it, old or new">▭ Draw a square</button>
       <button id="locate" type="button" aria-pressed="false">◎ My location</button>
       <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
       <button id="btn3d" type="button" aria-pressed="false">⛰ 3D</button>
@@ -1074,6 +1083,7 @@ label.toggle.off .sw { background: var(--muted); }
       </section>
       <p class="hint tap-hint">Tip: tap any trail on the map to see all its details.</p>
     </div>
+    <div class="boxres" id="boxRes" hidden></div>
     <div class="status" id="status" role="status">Move the map to an area and search.</div>
     <details class="debug" id="debug"><summary>Search details</summary><pre id="debugLog">No search yet.</pre></details>
     <div class="list" id="list"></div>
@@ -1121,6 +1131,8 @@ label.toggle.off .sw { background: var(--muted); }
     <p>Trails are coloured like Trailforks: green, blue, black, double black (red) and pro line (orange). The colour comes from <code>mtb:scale:imba</code> (0-1 green, 2 blue, 3 black, 4 double black, 5 pro line), or else from <code>mtb:scale</code>, which mappers here use the same way (S0-S1 green, S2 blue, S3 black, S4 double black, S5-S6 pro line). Grey means nobody rated it on the map yet. The “Trail colours” key on the map switches back to colours by trail type.</p>
     <h3>All trails</h3>
     <p>“All trails” (on by default) draws every MTB trail in view, old and new: every way with an MTB tag, bike park trails and the trails of MTB routes. Official trails (see below) are bold and always shown, even with no option ticked; trails whose status isn't known are thin, and unofficial trails are left out, as before (tick “Unofficial only” to see them). A list of them is collected from OpenStreetMap every day. The trails in the list (new trails, or prime loam) are drawn thicker on top, with a white edge.</p>
+    <h3>Draw a square</h3>
+    <p>Tap “▭ Draw a square”, then drag over the map: every MTB trail inside the square shows up on the map and in a list, old or new, from the same daily list as “All trails” (unofficial ones included, with dots). Tap a name to see the trail's details. “Clear square” removes it.</p>
     <h3>Official trails</h3>
     <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
 <h3>Moto and hiking-only trails</h3>
@@ -2823,12 +2835,16 @@ out body;`;
   const allLayer = L.layerGroup().addTo(map);
   const allData = new Map();                       // zone id -> list of { id, tags, geom, c }, null while loading
   let allKey = "";
+  const allLoads = new Map();                      // zone id -> promise of its list
   function loadAllTrails() {
     if (!state.allTrails || state.example) return;
     const view = map.getBounds();
-    ZONES.filter((z) => z.bounds.intersects(view) && !allData.has(z.id)).forEach((z) => {
+    ZONES.filter((z) => z.bounds.intersects(view)).forEach(loadZoneTrails);
+  }
+  function loadZoneTrails(z) {
+    if (!allLoads.has(z.id)) {
       allData.set(z.id, null);
-      nightly(`mtb-${z.id}.json`).then((f) => {
+      allLoads.set(z.id, nightly(`mtb-${z.id}.json`).then((f) => {
         const inRoute = new Map();
         Object.values((f && f.routes) || {}).forEach((r) => r.ways.forEach((w) => { if (!inRoute.has(w)) inRoute.set(w, []); inRoute.get(w).push(r.name); }));
         allData.set(z.id, f && f.v === 1 ? Object.entries(f.ways).map(([id, w]) => {
@@ -2837,8 +2853,10 @@ out body;`;
           return { id: +id, tags: w.tags, geom, c: classify(w.tags, inRoute.get(+id) || []) };
         }).filter((w) => w.c && !w.c.use && w.geom.length > 1) : []);
         drawAllTrails();
-      });
-    });
+        return allData.get(z.id);
+      }));
+    }
+    return allLoads.get(z.id);
   }
   function drawAllTrails() {
     const loaded = [...allData.values()].filter(Boolean);
@@ -3322,6 +3340,7 @@ out tags center qt;`;
   const pickLayer = L.layerGroup().addTo(map);
   let clickTimer = 0;
   map.on("click", (e) => {
+    if (boxDraw.on || boxDraw.done) return;          // drawing a square, not picking a trail
     clearTimeout(clickTimer);
     clickTimer = setTimeout(() => pickTrailAt(e.latlng), 260); // a double-click zooms instead
   });
@@ -3371,6 +3390,95 @@ out tags center qt;`;
       .map((r) => ({ id: r.id, name: r.tags.name || r.tags.ref || "unnamed" }));
     try { await presentTrail({ main: w, segs: [best.line], segIds: [w.id], type: "way", kind: kindOf(w.tags), routes, routeTypes, token, view: ll }); }
     catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${e.message}).`, true); }
+  }
+
+  // ---- draw a square: list every MTB trail inside it, old or new (from the daily all-trails lists) ----
+  const boxRenderer = L.canvas({ padding: 0.3 });
+  const boxLayer = L.layerGroup().addTo(map);
+  const boxDraw = { on: false, start: null, rect: null, done: false };
+  let boxToken = 0, boxGroups = [];
+  function setBoxMode(on) {
+    boxDraw.on = on;
+    $("boxBtn").setAttribute("aria-pressed", on);
+    $("boxBtn").textContent = on ? "✕ Cancel square" : "▭ Draw a square";
+    map.getContainer().classList.toggle("drawing", on);
+    if (on) { map.dragging.disable(); pickNote(map.getCenter(), "Drag a square over the trails"); }
+    else map.dragging.enable();
+  }
+  $("boxBtn").addEventListener("click", () => setBoxMode(!boxDraw.on));
+  const mapEl = map.getContainer();
+  mapEl.addEventListener("pointerdown", (e) => {
+    if (!boxDraw.on || e.button > 0 || e.target.closest(".leaflet-control")) return;
+    e.preventDefault(); e.stopPropagation();
+    mapEl.setPointerCapture(e.pointerId);
+    pickLayer.clearLayers();
+    boxDraw.start = map.mouseEventToLatLng(e);
+    boxDraw.rect = L.rectangle([boxDraw.start, boxDraw.start], { color: css("--accent"), weight: 2, dashArray: "6 6", fillOpacity: 0.06, interactive: false }).addTo(boxLayer);
+  }, true);
+  mapEl.addEventListener("pointermove", (e) => {
+    if (boxDraw.start) boxDraw.rect.setBounds(L.latLngBounds(boxDraw.start, map.mouseEventToLatLng(e)));
+  }, true);
+  mapEl.addEventListener("pointerup", (e) => {
+    if (!boxDraw.start) return;
+    const b = L.latLngBounds(boxDraw.start, map.mouseEventToLatLng(e));
+    boxDraw.start = null;
+    boxDraw.done = true; setTimeout(() => { boxDraw.done = false; }, 400);   // swallow the click that follows
+    setBoxMode(false);
+    const px = map.latLngToContainerPoint(b.getNorthWest()).distanceTo(map.latLngToContainerPoint(b.getSouthEast()));
+    if (px < 20) { boxLayer.removeLayer(boxDraw.rect); return; }               // a tap, not a square
+    showBox(b);
+  }, true);
+  function clearBox() {
+    boxToken++;
+    boxLayer.clearLayers();
+    boxGroups = [];
+    $("boxRes").hidden = true;
+    $("boxRes").innerHTML = "";
+  }
+  async function showBox(b) {
+    clearBox();
+    const token = boxToken;
+    boxLayer.addLayer(L.rectangle(b, { color: css("--accent"), weight: 2, dashArray: "6 6", fillOpacity: 0.04, interactive: false }));
+    if (isFull()) setFullMap(false);
+    $("boxRes").hidden = false;
+    $("boxRes").innerHTML = `<div class="box-head"><b>Looking for MTB trails in your square…</b></div>`;
+    const zs = ZONES.filter((z) => z.bounds.intersects(b));
+    const lists = await Promise.all(zs.map(loadZoneTrails));
+    if (token !== boxToken) return;
+    const seen = new Set(), byName = new Map();
+    let unnamed = 0;
+    lists.forEach((list) => (list || []).forEach((w) => {
+      if (seen.has(w.id) || !w.geom.some((p) => b.contains(p))) return;
+      seen.add(w.id);
+      const byDiff = state.colorBy === "diff", d = difficulty(w.tags), unoff = w.c.unoff.length > 0;
+      const color = byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks");
+      const name = (w.tags.name || w.tags["mtb:name"] || "").trim();
+      boxLayer.addLayer(L.polyline(w.geom, { renderer: boxRenderer, color: "#fff", weight: 8, opacity: 0.9, interactive: false }));
+      const line = L.polyline(w.geom, { renderer: boxRenderer, color, weight: 4.5, opacity: 1 });
+      if (unoff) boxLayer.addLayer(L.polyline(w.geom, { renderer: boxRenderer, color: css("--fg"), weight: 2.5, dashArray: "1 7", interactive: false }));
+      boxLayer.addLayer(line);
+      if (!name) { unnamed++; line.on("click", (e) => { L.DomEvent.stopPropagation(e); pickTrailAt(e.latlng); }); return; }
+      const key = name.toLowerCase();
+      if (!byName.has(key)) byName.set(key, { name, ways: [], km: 0 });
+      const g = byName.get(key);
+      g.ways.push(w); g.km += lengthKm(w.geom);
+      line.bindTooltip(esc(name), { sticky: true, direction: "top", offset: [0, -8] }).on("click", (e) => { L.DomEvent.stopPropagation(e); openBoxGroup(g); });
+    }));
+    boxGroups = [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+    const rows = boxGroups.map((g, i) => {
+      const main = g.ways.reduce((a, w) => (lengthKm(w.geom) > lengthKm(a.geom) ? w : a));
+      const off = g.ways.find((w) => w.c.official), unoff = g.ways.every((w) => w.c.unoff.length);
+      return `<button class="box-row" type="button" data-i="${i}"><span class="box-name">${esc(g.name)}</span>${diffBadge(main.tags)}${unoff ? `<span class="unoff-tag">Unofficial?</span>` : ""}${off ? officialTag(off.c.official) : ""}<span class="box-len">${fmtLen(g.km)}</span></button>`;
+    }).join("");
+    const none = !boxGroups.length && !unnamed;
+    $("boxRes").innerHTML = `<div class="box-head"><div><b>${none ? "No MTB trails in your square" : `${boxGroups.length} MTB trail${boxGroups.length === 1 ? "" : "s"} in your square`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed bit${unnamed === 1 ? "" : "s"} (on the map)</span>` : ""}</div><button class="linkish" id="boxClear" type="button">Clear square</button></div>${rows}`;
+    $("boxClear").addEventListener("click", clearBox);
+    $("boxRes").querySelectorAll(".box-row").forEach((r) => r.addEventListener("click", () => openBoxGroup(boxGroups[+r.dataset.i])));
+    $("boxRes").scrollIntoView({ block: "nearest" });
+  }
+  function openBoxGroup(g) {
+    const main = g.ways.reduce((a, w) => (lengthKm(w.geom) > lengthKm(a.geom) ? w : a));
+    showFound({ type: "w", name: g.name, kind: kindOf(main.tags), tags: main.tags, items: g.ways.map((w) => ({ id: w.id })) }, true);
   }
 
   // ---------- example data (used only when OpenStreetMap can't be reached) ----------
