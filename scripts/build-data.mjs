@@ -51,10 +51,19 @@ function monthsAgo(n) { const d = new Date(); d.setMonth(d.getMonth() - n); retu
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
 
+// GitHub stops the job after timeout-minutes (see the workflow). Stop asking Overpass well before that, so what
+// was collected still gets saved: squares and name lists not reached tonight keep their last good data,
+// and go first tomorrow night.
+const started = Date.now();
+const TRAILS_MINUTES = +process.env.TRAILS_MINUTES || 80, NAMES_MINUTES = +process.env.NAMES_MINUTES || 100;
+let deadline = started + TRAILS_MINUTES * 60e3;
+const outOfTime = () => Date.now() >= deadline;
+
 // ---------- Overpass, politely: one query at a time, long waits when a server is busy ----------
 async function overpass(query) {
   let lastErr;
   for (let attempt = 0; attempt < 6; attempt++) {
+    if (outOfTime()) throw lastErr || new Error("out of time for tonight");
     const url = OVERPASS[attempt % OVERPASS.length];
     const host = new URL(url).host;
     try {
@@ -72,6 +81,7 @@ async function overpass(query) {
       lastErr = e;
     }
     const wait = Math.min(30000 * 2 ** Math.floor(attempt / OVERPASS.length), 240000) * (process.env.FAST_RETRY ? 0.001 : 1);
+    if (Date.now() + wait >= deadline) break;   // no time left tonight to wait for a busy server
     log(`    ${lastErr.message}; trying again in ${Math.round(wait / 1000)} s`);
     await sleep(wait);
   }
@@ -128,10 +138,14 @@ for (const f of before.values()) for (const [id, w] of Object.entries((f && f.wa
 const tiles = new Map();   // key -> { at, ways: Map(id -> way), rels: [] }
 const allTiles = new Map();
 ZONES.forEach((z) => gridTiles(z.box).forEach((t) => allTiles.set(t.key, t)));
-log(`Trails: ${allTiles.size} map squares, ways first mapped since ${since.slice(0, 10)}.`);
-let failedTiles = 0, n = 0;
-for (const t of allTiles.values()) {
+// Squares whose data is oldest (or missing) go first, so a slow night still moves every square forward over a few nights.
+const lastAt = (files, key) => { for (const f of files) if (f && f.tiles && f.tiles[key]) return Date.parse(f.tiles[key].at) || 0; return 0; };
+const order = [...allTiles.values()].sort((a, b) => lastAt(before.values(), a.key) - lastAt(before.values(), b.key));
+log(`Trails: ${allTiles.size} map squares, ways first mapped since ${since.slice(0, 10)}, for up to ${TRAILS_MINUTES} minutes.`);
+let failedTiles = 0, skippedTiles = 0, n = 0;
+for (const t of order) {
   n++;
+  if (outOfTime()) { skippedTiles++; continue; }
   try {
     const els = await fetchBox(t.box, (b) => overpassQuery(b, since));
     const ways = els.filter((e) => e.type === "way" && e.geometry);
@@ -152,6 +166,7 @@ for (const t of allTiles.values()) {
     log(`  ${n}/${allTiles.size} ${t.key}: failed (${e.message}), keeping last good data`);
   }
 }
+if (skippedTiles) log(`  Out of time: ${skippedTiles} squares left for tomorrow night, keeping their last good data.`);
 
 let written = 0;
 for (const z of ZONES) {
@@ -176,9 +191,14 @@ for (const z of ZONES) {
 }
 
 // Trail names, one Overpass query per zone (split if too heavy). Same item format as toItems() in index.html.
+// Names get their own time, so a slow trails part doesn't stop the name search from updating. Oldest lists first.
+deadline = Math.max(Date.now() + 15 * 60e3, started + NAMES_MINUTES * 60e3);
+const namesAt = (z) => (readJson(`names-${z.id}.json`) || {}).builtAt;
+const zoneOrder = [...ZONES].sort((a, b) => (Date.parse(namesAt(a)) || 0) - (Date.parse(namesAt(b)) || 0));
 log(`Names: ${ZONES.length} zones.`);
-let failedNames = 0;
-for (const z of ZONES) {
+let failedNames = 0, skippedNames = 0;
+for (const z of zoneOrder) {
+  if (outOfTime()) { skippedNames++; log(`  ${z.name}: out of time, keeping last good data`); continue; }
   try {
     const els = await fetchBox(z.box, (b) => namesQuery(b));
     const items = els.filter((e) => e.tags && e.center && (e.tags.name || e.tags["mtb:name"]))
@@ -191,6 +211,7 @@ for (const z of ZONES) {
   }
 }
 
-log(`Done: ${allTiles.size - failedTiles} of ${allTiles.size} squares and ${ZONES.length - failedNames} of ${ZONES.length} name lists updated.`);
+const minutes = Math.round((Date.now() - started) / 60e3);
+log(`Done in ${minutes} min: ${allTiles.size - failedTiles - skippedTiles} of ${allTiles.size} squares and ${ZONES.length - failedNames - skippedNames} of ${ZONES.length} name lists updated.`);
 // Fail the job only when nothing at all could be updated, so a bad night shows up in GitHub.
-if (failedTiles === allTiles.size && failedNames === ZONES.length) process.exit(1);
+if (failedTiles + skippedTiles === allTiles.size && failedNames + skippedNames === ZONES.length) process.exit(1);
