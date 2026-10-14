@@ -820,6 +820,13 @@ label.toggle.off .sw { background: var(--muted); }
 .facts { display: grid; grid-template-columns: minmax(96px, 38%) 1fr; gap: 6px 12px; margin: 14px 0 0; }
 .facts dt { color: var(--muted); font-size: .85rem; }
 .facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.more { margin: 18px 0 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.more summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; padding: 10px 0; font-family: var(--font-display); font-weight: 600; font-size: .85rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.more summary::-webkit-details-marker { display: none; }
+.more summary::after { content: "▾"; font-size: 1rem; transition: transform .15s; }
+.more[open] summary::after { transform: rotate(180deg); }
+.more summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.more .facts { margin: 0 0 12px; }
 .muted { color: var(--muted); }
 .mono { font-family: var(--font-mono); font-size: .85rem; }
 .detail a { color: var(--accent); font-weight: 600; }
@@ -1951,7 +1958,7 @@ out body;`;
     return Math.round(Math.max(0, Math.min(100, (v - 0.08) / (0.42 - 0.08) * 100)));
   }
   const lmiLevel = (v) => LMI_LEVELS.find((l) => v < l[0]);
-  const LMI_RIDE = [["#d9a35a", "OK, loose"], ["#5aa86a", "Good"], ["#3f8f8c", "Best", "best"], ["#3b6fb0", "Not great"], ["#33468f", "Very slippery"]];
+  const LMI_RIDE = [["#d9a35a", "OK, loose"], ["#5aa86a", "Good"], ["#3f8f8c", "Best", "best"], ["#3b6fb0", "Slippery"], ["#33468f", "Very slippery"]];
   const lmiKey = (lvl) => `<ul class="lmi-key" aria-label="What the numbers mean">${LMI_LEVELS.map((l, k) =>
     `<li class="${l === lvl ? "on" : ""}"><span class="dot" style="background:${LMI_RIDE[k][0]}"></span><span>${k * 20}–${Math.min(100, l[0] - 1)}</span><span>${esc(l[1])}</span><span class="ride ${LMI_RIDE[k][2] || ""}">${LMI_RIDE[k][1]}</span></li>`).join("")}</ul>`;
 
@@ -2138,6 +2145,8 @@ out body;`;
     ["informal", "Informal (unofficial) trail"], ["operator", "Managed by"], ["ref", "Reference"], ["seasonal", "Seasonal"], ["lit", "Lit"],
     ["description", "Description"], ["note", "Mapper's note"], ["website", "Website", (v) => v],
   ];
+  // Shown at the top of a trail's details; the rest of FRIENDLY goes under "More details".
+  const TOP_FACTS = new Set(["mtb:scale", "mtb:scale:imba", "mtb:type", "mtb:name", "description"]);
   const userLink = (u) => u ? `<a href="https://www.openstreetmap.org/user/${encodeURIComponent(u)}" target="_blank" rel="noopener">${esc(u)}</a>` : "unknown";
   const csLink = (c) => c ? `<a href="https://www.openstreetmap.org/changeset/${c}" target="_blank" rel="noopener">#${c}</a>` : "";
 
@@ -2146,7 +2155,7 @@ out body;`;
     const d = $("detail");
     const real = t.id > 0;
     const start = t.geom[0], end = t.geom[t.geom.length - 1];
-    const facts = FRIENDLY.filter(([k]) => t.tags[k] != null).map(([k, label, fmt]) => {
+    const factRows = (top) => FRIENDLY.filter(([k]) => t.tags[k] != null && TOP_FACTS.has(k) === top).map(([k, label, fmt]) => {
       const v = t.tags[k];
       const shown = k === "website" ? `<a href="${esc(/^https?:/.test(v) ? v : "https://" + v)}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(fmt ? fmt(v) : v);
       return `<dt>${label}</dt><dd>${shown}</dd>`;
@@ -2170,11 +2179,14 @@ out body;`;
         <dt>Length</dt><dd>${fmtLen(t.km)} <span class="muted">(${segs ? `${segs} map segments` : `${t.geom.length} map points`})</span></dd>
         <dt>First mapped</dt><dd>${t.created ? `${fmtDate(t.created)} · ${ago(t.created)}<br>by ${userLink(t.creator)} ${csLink(t.firstChangeset)}` : "Unknown"}${segs && type === "way" ? `<br><span class="muted">earliest of its segments</span>` : ""}</dd>
         <dt>Last edited</dt><dd>${segs && type === "way" ? `<span class="muted">longest segment:</span> ` : ""}${t.version > 1 ? `${fmtDate(t.lastEdit)} · version ${t.version}<br>by ${userLink(t.lastUser)} ${csLink(t.lastChangeset)}` : "Never edited since (version 1)"}</dd>
-        <dt>Starts at</dt><dd class="mono">${start[0].toFixed(5)}, ${start[1].toFixed(5)}</dd>
-        <dt>Ends at</dt><dd class="mono">${end[0].toFixed(5)}, ${end[1].toFixed(5)}</dd>
-        ${facts}
+        ${factRows(true)}
       </dl>
       <h3>Elevation</h3><div id="elev" class="muted">${real || t.elev ? "Loading elevation…" : ""}</div>
+      <details class="more"><summary>More details</summary><dl class="facts">
+        <dt>Starts at</dt><dd class="mono">${start[0].toFixed(5)}, ${start[1].toFixed(5)}</dd>
+        <dt>Ends at</dt><dd class="mono">${end[0].toFixed(5)}, ${end[1].toFixed(5)}</dd>
+        ${factRows(false)}
+      </dl></details>
       <h3>Weather and Loam moisture index</h3><div id="wx" class="muted">Loading weather…</div>
       ${routes ? `<h3>Part of MTB route</h3><ul class="plain">${routes}</ul>` : ""}
       <h3>${t.searched ? "How the app sees it" : "Why it's listed"}</h3><ul class="plain">${t.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>
@@ -2218,8 +2230,6 @@ out body;`;
         <dt>Who uses it</dt><dd>${t.bikeTraces} at bike speed${t.walkTraces ? `, ${t.walkTraces} at walking speed` : ""}${t.speed ? `<br><span class="muted">typical bike speed ${t.speed} km/h</span>` : ""}</dd>
         <dt>First trace</dt><dd>${fmtDate(t.created)} · ${ago(t.created)}</dd>
         <dt>Latest trace</dt><dd>${fmtDate(t.lastSeen)} · ${ago(t.lastSeen)}</dd>
-        <dt>Starts at</dt><dd class="mono">${start[0].toFixed(5)}, ${start[1].toFixed(5)}</dd>
-        <dt>Ends at</dt><dd class="mono">${end[0].toFixed(5)}, ${end[1].toFixed(5)}</dd>
       </dl>
       <h3>Compare with other heatmaps</h3><div class="links">
         <a href="https://www.strava.com/maps/global-heatmap?sport=MountainBikeRide&style=dark&terrain=true&labels=true&poi=false&cPhotos=false&gColor=hot&gOpacity=100#16/${at}" target="_blank" rel="noopener">Strava heatmap (MTB)</a>
@@ -2228,6 +2238,10 @@ out body;`;
       </div>
       ${traceLinks ? `<p class="muted">The traces: ${traceLinks}</p>` : ""}
       <h3>Elevation</h3><div id="elev" class="muted">Loading elevation…</div>
+      <details class="more"><summary>More details</summary><dl class="facts">
+        <dt>Starts at</dt><dd class="mono">${start[0].toFixed(5)}, ${start[1].toFixed(5)}</dd>
+        <dt>Ends at</dt><dd class="mono">${end[0].toFixed(5)}, ${end[1].toFixed(5)}</dd>
+      </dl></details>
       <h3>Weather and Loam moisture index</h3><div id="wx" class="muted">Loading weather…</div>
       <h3>If it's real</h3><div class="links">
         <a href="https://www.openstreetmap.org/edit#map=18/${at}" target="_blank" rel="noopener">Map it on OpenStreetMap</a>
