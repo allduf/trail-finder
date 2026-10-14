@@ -239,6 +239,13 @@ async function fetchOsm(box, depth = 0) {
 // Douglas-Peucker on a local flat projection, keeping points more than tol metres off the line.
 function simplify(pts, tol = 8) {
   if (pts.length < 3) return pts;
+  // A closed ring starts and ends on the same point, which leaves nothing to measure against: split it at its farthest point.
+  const [f, l] = [pts[0], pts[pts.length - 1]];
+  if (f.lat === l.lat && f.lon === l.lon) {
+    let m = 1, dm = -1;
+    pts.forEach((p, i) => { const d = (p.lat - f.lat) ** 2 + ((p.lon - f.lon) * Math.cos((f.lat * Math.PI) / 180)) ** 2; if (d > dm) { dm = d; m = i; } });
+    if (m > 0 && m < pts.length - 1) return [...simplify(pts.slice(0, m + 1), tol), ...simplify(pts.slice(m), tol).slice(1)];
+  }
   const k = Math.cos((pts[0].lat * Math.PI) / 180) * 111320, xy = pts.map((p) => [p.lon * k, p.lat * 110540]);
   const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1;
   const stack = [[0, pts.length - 1]];
@@ -293,7 +300,8 @@ if (!ONLY || ONLY === "fires") {
     const evacRaw = await areaList("WHSE_HUMAN_CULTURAL_ECONOMIC.EMRG_ORDER_AND_ALERT_AREAS_SP", 25);
     const restr = (restrRaw || []).map(({ p, g }) => ({ n: text(p, /NAME/)[0] || "", d: text(p, /DESC|COMMENT|TYPE/).join(" · ").slice(0, 300),
       from: ymd(p.ACCESS_STATUS_EFFECTIVE_DATE || p.EFFECTIVE_DATE || p.ORDER_EFFECTIVE_DATE), url: text(p, /URL|LINK/)[0] || "", g }));
-    const evac = (evacRaw || []).map(({ p, g }) => {
+    // The evacuation layer covers every hazard (floods, landslides...): keep the fire ones.
+    const evac = (evacRaw || []).filter(({ p }) => !p.EVENT_TYPE || /fire/i.test(p.EVENT_TYPE)).map(({ p, g }) => {
       const st = text(p, /STATUS|ORDER_ALERT|TYPE/).join(" ");
       return { kind: /order/i.test(st) ? "order" : /alert/i.test(st) ? "alert" : "other", st, n: text(p, /EVENT_NAME|NAME/)[0] || "",
         who: text(p, /AGENCY|ISSUING/)[0] || "", d: ymd(p.DATE_MODIFIED || p.DATE_ISSUED || p.ISSUED_DATE), g };
