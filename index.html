@@ -1084,7 +1084,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
       <button class="sheet-toggle" id="sheetToggle" aria-label="Expand trail list"></button>
       <div class="brand">
         <h1>Trail <span>Finder</span></h1>
-        <span class="brand-links"><a class="linkish rec-link" href="ride.html"><span class="rec-dot" aria-hidden="true"></span>Record ride</a><button class="linkish" id="aboutBtn" type="button">How it works</button><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hike" disabled>🥾 Hiking (soon)</option></select></span>
+        <span class="brand-links"><a class="linkish rec-link" href="ride.html"><span class="rec-dot" aria-hidden="true"></span>Record ride</a><button class="linkish" id="aboutBtn" type="button">How it works</button><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hike" disabled>🥾 Hiking (soon)</option></select></span>
       </div>
       <div class="modes" role="tablist" aria-label="What do you want to find?">
         <button type="button" role="tab" id="tabName" aria-controls="paneName" aria-selected="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Find a trail by name</span></button>
@@ -2944,6 +2944,7 @@ out body;`;
     if (fly) setTimeout(() => { map.invalidateSize(); map.fitBounds(t.bounds || L.latLngBounds(t.geom), { maxZoom: 16, padding: [40, 40] }); }, 60);
   }
   // For reports.js map badges: open a trail's details if it's loaded.
+  window.tfClassify = classify;   // for new-trail notifications (notify.js)
   window.tfSelectTrail = (id) => { if (!(state.merged && state.merged.get(id)) && !state.trails.some((x) => x.id === id)) return false; select(id, true); return true; };
   const openRow = (li) => { if (li.dataset.pk) showFound(state.primeShown[+li.dataset.pk].g, true); else select(+li.dataset.id, true); };
   $("list").addEventListener("click", (e) => { const li = e.target.closest(".trail"); if (li) openRow(li); });
@@ -4103,6 +4104,7 @@ out tags center qt;`;
   async function getJson(url) { const r = await fetch(url); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }
   const wayLine = (w, nodes) => w.nodes.map((id) => nodes.get(id)).filter(Boolean).map((n) => [n.lat, n.lon]);
   const kindOf = (tags, isRel) => isRel ? ROUTE_KIND[tags.route] || "Route" : hasMtb(tags) ? "MTB trail" : WAY_KIND[tags.highway] || "Path";
+  window.tfShowFound = (g) => showFound(g, true);   // notify.js opens a new trail by its way ids
   async function showFound(g, fromClick) {
     if (!fromClick) { $("trailQ").value = g.name; $("trailHits").hidden = true; $("trailQ").blur(); }
     // Already in the new-trail list and on the map: just select it there.
@@ -4488,6 +4490,7 @@ out tags center qt;`;
 <script src="rides.js"></script>
 <script src="account.js"></script>
 <script src="reports.js"></script>
+<script src="notify.js"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

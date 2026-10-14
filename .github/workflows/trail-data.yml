@@ -2,6 +2,7 @@ name: Nightly trail data
 
 # Every night, collect the region's new trails and trail names from OpenStreetMap into data/,
 # so the website loads them from GitHub instead of every visitor asking Overpass.
+# Trails that appeared since last night go into data/new-trails.json, the app's 🔔 notifications.
 on:
   schedule:
     - cron: "23 10 * * *"   # 10:23 UTC, around 3 am in Vancouver
@@ -26,6 +27,8 @@ jobs:
           node-version: 20
       - name: Collect trails and names
         run: node scripts/build-data.mjs
+      - name: Add tonight's new trails to the notifications feed
+        run: node scripts/build-new-trails.mjs
       - name: Commit the new data
         run: |
           git add data
