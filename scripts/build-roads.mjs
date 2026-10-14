@@ -9,7 +9,10 @@
 //    disused/abandoned roads), with the tags that say whether they are gated, private, deactivated or rough.
 // Shapes are simplified to about 8 m and rounded to 5 decimals. A source that fails keeps its last good data.
 //
-// Run: node scripts/build-roads.mjs   (Node 18 or newer, no packages needed; ONLY=ften or ONLY=osm runs one source)
+// Also writes data/fires.json (BC Wildfire Service current fires and perimeters), and per zone cut blocks (Forest
+// Tenure cut block polygons) and Motor Vehicle Prohibition Regulation closure areas.
+//
+// Run: node scripts/build-roads.mjs   (Node 18 or newer, no packages needed; ONLY=ften, ONLY=osm or ONLY=fires runs one part)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 
@@ -43,10 +46,10 @@ function albersBox([s, w, n, e]) {
   return [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))].map((v) => v.toFixed(1));
 }
 const PAGE = 5000;
-async function wfs(box) {
+async function wfs(box, layer = FTEN_LAYER, where = "") {
   const params = new URLSearchParams({
-    service: "WFS", version: "2.0.0", request: "GetFeature", typeName: `pub:${FTEN_LAYER}`, outputFormat: "application/json",
-    srsName: "EPSG:4326", count: String(PAGE), CQL_FILTER: `BBOX(GEOMETRY, ${albersBox(box).join(", ")}, 'EPSG:3005')`,
+    service: "WFS", version: "2.0.0", request: "GetFeature", typeName: `pub:${layer}`, outputFormat: "application/json",
+    srsName: "EPSG:4326", count: String(PAGE), CQL_FILTER: `BBOX(GEOMETRY, ${albersBox(box).join(", ")}, 'EPSG:3005')${where ? ` AND (${where})` : ""}`,
   });
   let lastErr;
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -55,20 +58,78 @@ async function wfs(box) {
       const text = await res.text();
       if (!res.ok || !text.startsWith("{")) throw new Error(`HTTP ${res.status}: ${text.slice(0, 300).replace(/\s+/g, " ")}`);
       return JSON.parse(text);
-    } catch (e) { lastErr = e; log(`    ${e.message}; trying again`); await sleep(10000 * (attempt + 1)); }
+    } catch (e) {
+      lastErr = e; log(`    ${e.message}; trying again`);
+      if (/HTTP 400/.test(e.message)) break;   // a bad filter won't get better
+      await sleep(10000 * (attempt + 1));
+    }
   }
   throw lastErr;
 }
 const quarters = ([s, w, n, e]) => { const cs = (s + n) / 2, cw = (w + e) / 2; return [[s, w, cs, cw], [s, cw, cs, e], [cs, w, n, cw], [cs, cw, n, e]]; };
 // A box with more sections than one page is fetched as 4 smaller boxes, so no paging (and no sort order) is needed.
-async function fetchFten(box, depth = 0, seen = new Map()) {
-  const fc = await wfs(box);
+async function fetchFten(box, layer, where, depth = 0, seen = new Map()) {
+  const fc = await wfs(box, layer, where);
   const feats = fc.features || [];
   if ((fc.numberMatched > feats.length || feats.length >= PAGE) && depth < 5) {
-    log(`    ${fc.numberMatched || feats.length}+ sections, splitting in 4`);
-    for (const q of quarters(box)) await fetchFten(q, depth + 1, seen);
+    log(`    ${fc.numberMatched || feats.length}+ features, splitting in 4`);
+    for (const q of quarters(box)) await fetchFten(q, layer, where, depth + 1, seen);
   } else feats.forEach((f) => seen.set(f.id || JSON.stringify(f.properties), f));
   return seen;
+}
+// Tries each filter in turn (field names in these layers aren't documented everywhere), logging the fields seen.
+async function fetchLayer(box, layer, filters) {
+  let lastErr;
+  for (const where of filters) {
+    try {
+      const feats = [...(await fetchFten(box, layer, where)).values()];
+      if (feats[0]) log(`    ${layer.split(".")[1]} fields: ${Object.keys(feats[0].properties || {}).join(", ")}`);
+      return feats;
+    } catch (e) { lastErr = e; log(`    ${layer.split(".")[1]}: filter "${where}" failed`); }
+  }
+  throw lastErr;
+}
+// Polygons as rings of [lat, lon, ...], simplified to tol metres; tiny rings dropped.
+function polyRings(geom, tol) {
+  const polys = geom.type === "MultiPolygon" ? geom.coordinates : geom.type === "Polygon" ? [geom.coordinates] : [];
+  return polys.flatMap((poly) => poly.map((ring) => {
+    let pts = ring.map(([x, y]) => ({ lat: y, lon: x }));
+    if (pts.length && Math.abs(pts[0].lat) > 90) pts = ring.map(([x, y]) => ({ lat: x, lon: y }));
+    pts = simplify(pts, tol);
+    return pts.length >= 4 ? pts.flatMap((q) => [round(q.lat), round(q.lon)]) : null;
+  }).filter(Boolean));
+}
+const ymd = (v) => (v ? String(v).slice(0, 10) : "");
+
+// Cut blocks: pending, active (recently logged) and retired, from the Forest Tenure cut block layer. Retired blocks
+// only from the last 15 years, as older ones have grown back.
+const CUT_LAYER = "WHSE_FOREST_TENURE.FTEN_CUT_BLOCK_POLY_SVW";
+const OLD = `${new Date().getFullYear() - 15}-01-01`;
+async function cutBlocks(box) {
+  const feats = await fetchLayer(box, CUT_LAYER, [
+    `LIFE_CYCLE_STATUS_CODE IN ('PENDING','ACTIVE') OR DISTURBANCE_END_DATE > '${OLD}'`,
+    `LIFE_CYCLE_STATUS_CODE IN ('PENDING','ACTIVE') OR DISTURBANCE_START_DATE > '${OLD}'`,
+    `LIFE_CYCLE_STATUS_CODE IN ('PENDING','ACTIVE')`,
+    "",
+  ]);
+  return feats.filter((f) => f.geometry).map((f) => {
+    const p = f.properties || {};
+    const s = String(p.LIFE_CYCLE_STATUS_CODE || "").toUpperCase();
+    const g = polyRings(f.geometry, 12);
+    return g.length ? { s, b: p.BLOCK_STATUS_CODE || "", f: [p.FOREST_FILE_ID, p.CUTTING_PERMIT_ID, p.CUT_BLOCK_ID].filter(Boolean).join(" "),
+      p: p.CLIENT_NAME || "", d0: ymd(p.DISTURBANCE_START_DATE), d1: ymd(p.DISTURBANCE_END_DATE), g } : null;
+  }).filter(Boolean);
+}
+// Motor Vehicle Prohibition Regulation areas (Wildlife Act motor vehicle closures).
+const MV_LAYER = "WHSE_WILDLIFE_MANAGEMENT.WAA_MVPR_AREAS_SP";
+async function motorClosures(box) {
+  const feats = await fetchLayer(box, MV_LAYER, [""]);
+  return feats.filter((f) => f.geometry).map((f) => {
+    const p = f.properties || {};
+    const txt = (re) => Object.entries(p).filter(([k, v]) => re.test(k) && v && typeof v === "string").map(([, v]) => v.trim().slice(0, 200));
+    const g = polyRings(f.geometry, 20);
+    return g.length ? { n: txt(/NAME/)[0] || "", d: p.EFFECTIVE_DESCRIPTION || txt(/DESC/)[0] || "", x: txt(/VEHICLE|EXEMPT|PERIOD|DATE|SCHEDULE/).join(" · ").slice(0, 300), g } : null;
+  }).filter(Boolean);
 }
 // Each section as { n: name, t: type, s: status, p: permit holder, f: file id, d: retired date, g: [lat, lon, ...] }.
 // MultiLineStrings become one entry per part. Coordinates come back as lon, lat; flipped if they look the other way.
@@ -108,8 +169,15 @@ function osmQuery([s, w, n, e]) {
   way["highway"~"^(unclassified|service|track|road)$"]["name"~"(FSR|Forest Service|Forest Road|Mainline)",i](${bb});
   way["disused:highway"](${bb});
   way["abandoned:highway"](${bb});
-);
-out tags geom qt;`;
+)->.r;
+.r out tags geom qt;
+node(w.r)->.rn;
+(node.rn["barrier"]; node.rn["ford"="yes"];);
+out body qt;
+way(bn.rn)["highway"~"^(footway|path|cycleway|bridleway)$"]["bridge"]["bridge"!="no"];
+out tags center qt;
+nwr["power"="plant"]["plant:source"="hydro"](${bb});
+out tags center qt;`;
 }
 const KEEP = /^(name|ref|highway|disused:highway|abandoned:highway|tracktype|surface|smoothness|access|motor_vehicle|motorcar|vehicle|4wd_only|seasonal|operator|note|description|fixme|bridge|ford|width|source)$/;
 async function overpass(query) {
@@ -167,9 +235,51 @@ if (!existsSync(DATA)) mkdirSync(DATA);
 
 const started = Date.now(), builtAt = new Date().toISOString().slice(0, 19) + "Z";
 let updated = 0, failed = 0;
+
+// Wildfires (BC Wildfire Service, current season): fire points and perimeters for the whole region, in data/fires.json.
+// Fires that are out are left out. Run on its own every few hours with ONLY=fires.
+if (!ONLY || ONLY === "fires") {
+  const all = ZONES.reduce((b, z) => [Math.min(b[0], z.box[0]), Math.min(b[1], z.box[1]), Math.max(b[2], z.box[2]), Math.max(b[3], z.box[3])], [90, 180, -90, -180]);
+  const box = [all[0] - 0.3, all[1] - 0.4, all[2] + 0.3, all[3] + 0.4];
+  const notOut = (p) => !/^out$/i.test(String(p.FIRE_STATUS || "").trim());
+  try {
+    const pts = await fetchLayer(box, "WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_PNTS_SP", [""]);
+    const polys = await fetchLayer(box, "WHSE_LAND_AND_NATURAL_RESOURCE.PROT_CURRENT_FIRE_POLYS_SP", [""]);
+    const fires = pts.filter((f) => f.geometry && f.geometry.type === "Point" && notOut(f.properties || {})).map((f) => {
+      const p = f.properties, [x, y] = f.geometry.coordinates, flip = Math.abs(y) > 90;
+      return { n: p.FIRE_NUMBER || "", name: p.GEOGRAPHIC_DESCRIPTION || p.INCIDENT_NAME || "", st: p.FIRE_STATUS || "", ha: p.CURRENT_SIZE || null,
+        cause: p.FIRE_CAUSE || "", d: ymd(p.IGNITION_DATE), lat: round(flip ? x : y), lon: round(flip ? y : x) };
+    });
+    const perims = polys.filter((f) => f.geometry && notOut(f.properties || {})).map((f) => {
+      const p = f.properties, g = polyRings(f.geometry, 30);
+      return g.length ? { n: p.FIRE_NUMBER || "", st: p.FIRE_STATUS || "", ha: p.FIRE_SIZE_HECTARES || p.CURRENT_SIZE || null, g } : null;
+    }).filter(Boolean);
+    // Areas closed because of fire: BC Wildfire Service area restriction orders, and evacuation orders and alerts
+    // (Emergency Management BC). Each is optional: a missing layer only leaves its list empty.
+    const text = (p, re) => Object.entries(p).filter(([k, v]) => re.test(k) && v && typeof v === "string").map(([, v]) => v.trim().slice(0, 300));
+    const areaList = async (layer, tol) => {
+      try { return (await fetchLayer(box, layer, [""])).filter((f) => f.geometry).map((f) => ({ p: f.properties || {}, g: polyRings(f.geometry, tol) })).filter((a) => a.g.length); }
+      catch (e) { log(`    ${layer}: ${e.message.slice(0, 120)}`); return null; }
+    };
+    const restrRaw = await areaList("WHSE_LAND_AND_NATURAL_RESOURCE.PROT_RESTRICTED_AREAS_SP", 25);
+    const evacRaw = await areaList("WHSE_HUMAN_CULTURAL_ECONOMIC.EMRG_ORDER_AND_ALERT_AREAS_SP", 25);
+    const restr = (restrRaw || []).map(({ p, g }) => ({ n: text(p, /NAME/)[0] || "", d: text(p, /DESC|COMMENT|TYPE/).join(" · ").slice(0, 300),
+      from: ymd(p.ACCESS_STATUS_EFFECTIVE_DATE || p.EFFECTIVE_DATE || p.ORDER_EFFECTIVE_DATE), url: text(p, /URL|LINK/)[0] || "", g }));
+    const evac = (evacRaw || []).map(({ p, g }) => {
+      const st = text(p, /STATUS|ORDER_ALERT|TYPE/).join(" ");
+      return { kind: /order/i.test(st) ? "order" : /alert/i.test(st) ? "alert" : "other", st, n: text(p, /EVENT_NAME|NAME/)[0] || "",
+        who: text(p, /AGENCY|ISSUING/)[0] || "", d: ymd(p.DATE_MODIFIED || p.DATE_ISSUED || p.ISSUED_DATE), g };
+    }).filter((a) => a.kind !== "other" || a.st);
+    writeFileSync(new URL("fires.json", DATA), JSON.stringify({ v: 1, builtAt, fires, perims, restr, evac }));
+    log(`Wildfires: ${fires.length} burning or held, ${perims.length} perimeters (of ${pts.length} fires this season in the area), ` +
+      `${restrRaw ? restr.length : "?"} area restrictions, ${evacRaw ? evac.length : "?"} evacuation orders or alerts`);
+  } catch (e) { failed++; log(`Wildfires failed (${e.message})`); }
+  if (ONLY === "fires") { if (failed) process.exit(1); process.exit(0); }
+}
+
 for (const z of ZONES) {
   const old = readJson(`roads-${z.id}.json`) || {};
-  const file = { v: 1, builtAt, ften: old.ften || [], osm: old.osm || {}, ftenAt: old.ftenAt || null, osmAt: old.osmAt || null };
+  const file = { v: 1, builtAt, ften: old.ften || [], osm: old.osm || {}, feat: old.feat || [], cut: old.cut || [], mv: old.mv || [], ftenAt: old.ftenAt || null, osmAt: old.osmAt || null };
   let changed = false;
   if (ONLY !== "osm") {
     try {
@@ -178,6 +288,15 @@ for (const z of ZONES) {
       const by = {}; file.ften.forEach((r) => { const k = `${r.t || "?"} ${r.s}`; by[k] = (by[k] || 0) + 1; });
       log(`${z.name}: ${file.ften.length} government road sections (${Object.entries(by).map(([k, v]) => `${v} ${k}`).join(", ")})`);
     } catch (e) { failed++; log(`${z.name}: government roads failed (${e.message}), keeping last good data`); }
+    try {
+      file.cut = await cutBlocks(z.box); changed = true;
+      const by = {}; file.cut.forEach((c) => { by[c.s || "?"] = (by[c.s || "?"] || 0) + 1; });
+      log(`${z.name}: ${file.cut.length} cut blocks (${Object.entries(by).map(([k, v]) => `${v} ${k}`).join(", ")})`);
+    } catch (e) { failed++; log(`${z.name}: cut blocks failed (${e.message}), keeping last good data`); }
+    try {
+      file.mv = await motorClosures(z.box); changed = true;
+      log(`${z.name}: ${file.mv.length} motor vehicle closure areas${file.mv[0] ? ` (e.g. ${file.mv[0].n}: ${file.mv[0].d})` : ""}`);
+    } catch (e) { failed++; log(`${z.name}: motor vehicle closures failed (${e.message}), keeping last good data`); }
   }
   if (ONLY !== "ften") {
     try {
@@ -187,8 +306,17 @@ for (const z of ZONES) {
         const tags = Object.fromEntries(Object.entries(el.tags || {}).filter(([k]) => KEEP.test(k)));
         file.osm[el.id] = { tags, g: simplify(el.geometry).flatMap((p) => [round(p.lat), round(p.lon)]) };
       });
+      // Points along the roads: gates and barriers, fords, footbridges joining a road, hydro power plants.
+      file.feat = [];
+      els.forEach((el) => {
+        const t = el.tags || {}, c = el.type === "node" ? el : el.center;
+        if (!c || el.geometry) return;
+        const keep = Object.fromEntries(Object.entries(t).filter(([k]) => /^(name|barrier|access|motor_vehicle|locked|ford|bridge|highway|operator|note|description|opening_hours|seasonal|power|plant:output:electricity)$/.test(k)));
+        file.feat.push({ id: `${el.type[0]}${el.id}`, lat: round(c.lat), lon: round(c.lon), tags: keep });
+      });
       file.osmAt = builtAt; changed = true;
-      log(`${z.name}: ${Object.keys(file.osm).length} OpenStreetMap dirt roads`);
+      const kinds = {}; file.feat.forEach((f) => { const k = f.tags.barrier || (f.tags.ford ? "ford" : f.tags.power ? "hydro" : "footbridge"); kinds[k] = (kinds[k] || 0) + 1; });
+      log(`${z.name}: ${Object.keys(file.osm).length} OpenStreetMap dirt roads, points: ${JSON.stringify(kinds)}`);
     } catch (e) { failed++; log(`${z.name}: OpenStreetMap roads failed (${e.message}), keeping last good data`); }
   }
   if (changed) { writeFileSync(new URL(`roads-${z.id}.json`, DATA), JSON.stringify(file)); updated++; }

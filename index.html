@@ -687,6 +687,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   --looks: #d98a00;           /* looks like MTB */
   --other: #6b7f99;           /* other new paths */
   --ghost: #7a4fd6;           /* possible unmapped trails (from GPS traces) */
+  --road-plain: #9c8f80;      /* forest roads with the Forest roads button off: plain, no status */
   --road: #7b2cbf;            /* open forest and dirt roads: bold purple, solid (unmapped trails are purple dots) */
   --prime: #2f8f88;           /* trails in prime loam right now */
   --warn-bg: #fff4d6;
@@ -956,11 +957,15 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .map-tools #locate.on { background: #2b7de9; border-color: #2b7de9; color: #fff; }
 .map-tools #allBtn.on { background: var(--fg); border-color: var(--fg); color: var(--panel); }
 .map-tools #roadsBtn.on { background: var(--road); border-color: var(--road); color: #fff; }
+.map-tools #firesBtn.on { background: #e85d04; border-color: #e85d04; color: #fff; }
 .road-pop { font-family: var(--font-body); font-size: .85rem; line-height: 1.35; }
 .road-pop h4 { margin: 0 0 4px; font-size: .95rem; }
 .road-pop p { margin: 4px 0 !important; }
 .road-pop .st { font-weight: 700; }
 .road-pop .src { color: #5c6862; font-size: .78rem; }
+.rf-pin span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: 13px; line-height: 1; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.45); box-sizing: border-box; }
+.legend .lg-ico { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; font-size: 11px; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.2); }
+.legend .lg-area { width: 18px; height: 12px; border-radius: 2px; flex: none; }
 .map-tools #locate.on.lost { background: var(--panel); color: #2b7de9; }
 .map-tools select, .map-tools button { font: inherit; font-size: .85rem; font-weight: 600; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
 .map-note { max-width: 240px; font-size: .8rem; padding: 6px 8px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-fg); box-shadow: 0 1px 4px rgba(0,0,0,.15); }
@@ -1032,6 +1037,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
       <div class="map-note" id="mapNote" hidden></div>
       <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
       <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
+      <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire">🔥 Wildfires</button>
       <button id="locate" type="button" aria-pressed="false">◎ My location</button>
       <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
       <button id="btn3d" type="button" aria-pressed="false">⛰ 3D</button>
@@ -1167,6 +1173,9 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     <p>Purple dotted lines are guesses, not mapped trails. Once a week the site looks at the public GPS traces people upload to OpenStreetMap. Where 2 or more different traces run together for 100 m or more, more than 20 m from any mapped road, path, lift or ski run, it's listed. Only lines most traces ride at bike speed (faster than walking, slower than a car) are shown. The date is the first GPS trace on it. Each one links to the Strava and Trailforks heatmaps so you can compare, and to OpenStreetMap so you can map it if it's real. It may be private land, closed, or a GPS glitch: check before riding.</p>
     <h3>Forest roads</h3>
     <p>Forest Service Roads and other dirt roads have a white edge and a colour for their status (turn them off with “Forest roads”). Once a week the site collects them from two open sources: the BC government's Forest Tenure roads (DataBC, Open Government Licence - British Columbia), which list every Forest Service Road and road permit with its tenure status, and OpenStreetMap dirt roads with their gate, access and deactivation tags. Bold purple means open, with no closure known. Brown means mapped as very rough or 4x4 only. Grey dashes mean deactivated or retired (a retired tenure is no longer maintained and is often deactivated, but the road may still be there). Red dashes mean closed to public vehicles: gated, private or industrial use only. Tap a road to see why. This is mapped data, not a live closure list: check the <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p>
+    <p>With “Forest roads” on, the map also shows, once you zoom in: gates (open, locked or not known), barriers, bridges and bridges out, foot bridges, fords and hydro plants, from OpenStreetMap; and cut blocks (pending, active or recently logged, and retired in the last 15 years) and areas closed to motor vehicles, from the BC government. Tap any of them for details. With the button off, the roads stay on the map as plain grey-brown lines.</p>
+    <h3>Wildfires</h3>
+    <p>The “Wildfires” button shows the BC Wildfire Service's current fires (fires that are out are left off) and their perimeters, areas closed because of fire (area restriction orders), and evacuation orders and alerts. It's refreshed every 3 hours, so always check the <a href="https://wildfiresituation.nrs.gov.bc.ca/map" target="_blank" rel="noopener">BC Wildfire map</a> and <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a> before heading out.</p>
     <p><button class="btn primary" id="aboutClose" type="button">Got it</button></p>
   </div>
 </div>
@@ -1208,6 +1217,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     onlyOff: false,       // "Official only": trails with signs of being official, of the ticked types (same rule)
     colorBy: store.get("colorBy", "diff"),     // trail colours on the map: "diff" (difficulty, like Trailforks) or "type"
     allTrails: store.get("allTrails", true),  // "All trails": every MTB trail in view, any age, under the new ones
+    fires: store.get("fires", true),          // "Wildfires": BC Wildfire Service fires, perimeters, area restrictions and evacuations
     roads: store.get("roads", true),          // "Forest roads": dirt and Forest Service roads, coloured by their status
     prime: store.get("prime", false),   // "Prime loam now" (time row): every named trail in the area with Loam index 40-59 now
     trails: [],          // all candidates from last search (2-year window), with .created
@@ -3054,7 +3064,7 @@ out body;`;
   let roadKey = "";
   const roadGeom = (g) => { const geom = []; for (let i = 0; i < g.length; i += 2) geom.push([g[i], g[i + 1]]); return geom; };
   function loadRoads() {
-    if (!state.roads || state.example || map.getZoom() < ROAD_MIN_ZOOM) return;
+    if (state.example || map.getZoom() < ROAD_MIN_ZOOM) return;   // loaded with the button off too, for the plain lines
     const view = map.getBounds();
     ZONES.filter((z) => z.bounds.intersects(view) && !roadData.has(z.id)).forEach((z) => {
       roadData.set(z.id, null);
@@ -3070,26 +3080,183 @@ out body;`;
             if (geom.length > 1) list.push({ src: "ften", name: r.n, r, st, why, geom, bounds: L.latLngBounds(geom) });
           });
         }
-        roadData.set(z.id, { at: f && f.builtAt, list });
+        roadData.set(z.id, { at: f && f.builtAt, list, ...(f && f.v === 1 ? zoneExtras(f, list) : { feats: [], areas: [] }) });
         drawRoads();
       });
     });
   }
   function drawRoads() {
-    const on = state.roads && map.getZoom() >= ROAD_MIN_ZOOM;
+    const zoomed = map.getZoom() >= ROAD_MIN_ZOOM, on = state.roads && zoomed;
     const loaded = [...roadData.values()].filter(Boolean);
-    const key = [on, loaded.length].join("/");
+    const key = [state.roads, zoomed, loaded.length].join("/");
+    drawRoadExtras();
     if (key === roadKey) return;
     roadKey = key;
     roadLayer.clearLayers();
-    if (!on) return;
+    if (!zoomed) return;
     const seen = new Set(), all = [];
     loaded.forEach((z) => z.list.forEach((r) => { const k = r.src + (r.id || r.r.f + r.geom[0]); if (!seen.has(k)) { seen.add(k); all.push(r); } }));
     const line = (r, o) => roadLayer.addLayer(L.polyline(r.geom, { renderer: roadRenderer, interactive: false, lineCap: "butt", ...o }));
+    // Button off: every forest road still shows, as a plain thin line with no status (alex), never as a trail.
+    if (!on) { all.forEach((r) => line(r, { color: css("--road-plain"), weight: 2.5, opacity: 0.8 })); return; }
     // A white edge under every road so it stands out from the base map, then the roads by status, the
     // most limiting last: where the two sources overlap, a gate or washout wins over "open".
     all.forEach((r) => line(r, { color: "#fff", weight: 8, opacity: 0.9 }));
     Object.keys(ROAD_STYLE).forEach((st) => all.filter((r) => r.st === st).forEach((r) => line(r, roadStyle(st))));
+  }
+  // ---------- Forest roads extras (gates, bridges, fords, hydro, cut blocks, closures) and the Wildfires button ----------
+  // Points come from OpenStreetMap (nodes on the dirt roads, footbridges joining them, hydro plants), shown from
+  // zoom 13. Areas come from the BC government: Forest Tenure cut blocks, Motor Vehicle Prohibition Regulation
+  // closures. Wildfires have their own button: BC Wildfire Service fires, perimeters and area restrictions, and
+  // evacuation orders and alerts (data/fires.json, refreshed every 3 hours).
+  const FEAT = {
+    gate_open: { icon: "🚧", bg: "#2e9e5b", label: "Open gate" },
+    gate_locked: { icon: "🔒", bg: "#d62828", label: "Locked gate" },
+    gate_maybe: { icon: "🚧", bg: "#8a8f98", label: "Gate (open or locked not known)" },
+    impasse: { icon: "⛔", bg: "#fff", label: "Barrier, no vehicles past here" },
+    bridge_in: { icon: "🌉", bg: "#f2b705", label: "Bridge" },
+    bridge_out: { icon: "🌉", bg: "#d62828", label: "Bridge out" },
+    footbridge: { icon: "🚶", bg: "#f2b705", label: "Foot bridge only" },
+    ford: { icon: "💧", bg: "#7cc4f2", label: "Ford (drive through water)" },
+    hydro: { icon: "⚡", bg: "#2b7de9", label: "Hydropower station" },
+  };
+  const AREA_STYLE = {
+    PENDING: { label: "Pending logging", color: "#9b5de5", fillOpacity: 0.28 },
+    ACTIVE: { label: "Active or recently logged", color: "#8b4513", fillOpacity: 0.32 },
+    RETIRED: { label: "Retired logging area", color: "#2d8a57", fillOpacity: 0.25 },
+    mv: { label: "Closed to motor vehicles", color: "#d62828", fillOpacity: 0.12, dashArray: "6 4" },
+  };
+  // Wildfires, their own button: fires, perimeters, areas closed because of fire, evacuation orders and alerts.
+  const FIRE_STYLE = {
+    fire: { icon: "🔥", bg: "#fff", label: "Active wildfire" },
+    perim: { label: "Fire perimeter", color: "#ff6d00", fillOpacity: 0.2 },
+    restr: { label: "Area closed because of fire", color: "#b5179e", fillOpacity: 0.14, dashArray: "8 5" },
+    order: { label: "Evacuation order (leave now)", color: "#c1121f", fillOpacity: 0.22 },
+    alert: { label: "Evacuation alert (be ready)", color: "#f4a261", fillOpacity: 0.18, dashArray: "4 4" },
+  };
+  const FEAT_MIN_ZOOM = 13;
+  const GATE = /^(gate|lift_gate|swing_gate|sliding_gate|chain|wicket_gate)$/, BLOCK = /^(block|jersey_barrier|log|debris|ditch|bollard|boulder|yes|fence|stile|kissing_gate)$/;
+  function featKind(t) {
+    if (t.power) return "hydro";
+    if (t.highway && t.bridge) return "footbridge";
+    if (GATE.test(t.barrier || "")) {
+      if (t.locked === "yes" || t.barrier === "chain" || /^(no|private)$/.test(t.access || t.motor_vehicle || "")) return "gate_locked";
+      if (t.locked === "no" || /^(yes|permissive|destination)$/.test(t.access || t.motor_vehicle || "")) return "gate_open";
+      return "gate_maybe";
+    }
+    if (BLOCK.test(t.barrier || "")) return "impasse";
+    if (t.ford === "yes") return "ford";
+    return null;
+  }
+  const extraLayer = L.layerGroup().addTo(map);
+  map.createPane("roadAreas").style.zIndex = 370;
+  const areaRenderer = L.canvas({ pane: "roadAreas", padding: 0.3 });
+  const areaLayer = L.layerGroup().addTo(map);
+  let fires = null, areaKey = "";
+  const rings = (gs) => gs.map(roadGeom);
+  map.createPane("fireAreas").style.zIndex = 375;
+  const fireRenderer = L.canvas({ pane: "fireAreas", padding: 0.3 });
+  const fireLayer = L.layerGroup().addTo(map);
+  const withRings = (list) => (list || []).map((a) => ({ ...a, rings: rings(a.g) }));
+  function loadFires() {
+    if (fires || !state.fires || state.example) return;
+    fires = { fires: [], perims: [], restr: [], evac: [] };
+    nightly("fires.json").then((f) => {
+      if (f && f.v === 1) fires = { at: f.builtAt, fires: f.fires || [], perims: withRings(f.perims), restr: withRings(f.restr), evac: withRings(f.evac) };
+      drawFires();
+    });
+  }
+  function drawFires() {
+    fireLayer.clearLayers();
+    if (!state.fires || !fires) return;
+    const poly = (rs, st) => fireLayer.addLayer(L.polygon(rs, { renderer: fireRenderer, interactive: false, weight: 2, fillColor: st.color, ...st }));
+    fires.restr.forEach((a) => poly(a.rings, FIRE_STYLE.restr));
+    fires.evac.filter((a) => a.kind === "alert").forEach((a) => poly(a.rings, FIRE_STYLE.alert));
+    fires.evac.filter((a) => a.kind !== "alert").forEach((a) => poly(a.rings, FIRE_STYLE.order));
+    fires.perims.forEach((p) => poly(p.rings, { ...FIRE_STYLE.perim, weight: 2.5 }));
+    const k = FIRE_STYLE.fire;
+    fires.fires.forEach((x) => fireLayer.addLayer(L.marker([x.lat, x.lon], { icon: L.divIcon({ className: "rf-pin", html: `<span style="background:${k.bg}">${k.icon}</span>`, iconSize: [22, 22] }), keyboard: false, title: k.label })
+      .bindPopup(`<div class="road-pop"><h4>${esc(k.label)}</h4><p><span class="st">${esc(x.st || "Burning")}</span>${x.name ? " · " + esc(x.name) : ""}</p>
+      <p class="src">BC Wildfire Service fire ${esc(x.n)}${x.ha ? ` · ${esc(x.ha)} ha` : ""}${x.d ? ` · started ${esc(x.d)}` : ""}${x.cause ? ` · ${esc(x.cause)}` : ""}.
+      Check the <a href="https://wildfiresituation.nrs.gov.bc.ca/map" target="_blank" rel="noopener">BC Wildfire map</a> and <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a> for the latest.</p></div>`, { maxWidth: 280 })));
+  }
+  function syncFiresBtn() {
+    const b = $("firesBtn");
+    b.setAttribute("aria-pressed", String(state.fires));
+    b.classList.toggle("on", state.fires);
+    b.title = state.fires ? "Hide the wildfires" : "Show active wildfires and areas closed because of fire";
+  }
+  $("firesBtn").addEventListener("click", () => {
+    state.fires = !state.fires; store.set("fires", state.fires);
+    syncFiresBtn(); loadFires(); drawFires(); renderKey();
+    if (state.fires && fires && fires.at && !fires.fires.length && !fires.perims.length && !fires.restr.length && !fires.evac.length) setStatus("No active wildfires or fire closures in the area right now.");
+  });
+  // Points and areas of one zone file, ready to draw.
+  function zoneExtras(f, list) {
+    const feats = (f.feat || []).map((x) => ({ ...x, kind: featKind(x.tags) })).filter((x) => x.kind);
+    list.filter((r) => r.src === "osm" && r.tags.bridge && r.tags.bridge !== "no").forEach((r) => {
+      const mid = r.geom[Math.floor(r.geom.length / 2)], out = r.st === "deact" || /bridge (is )?(out|gone|removed)/i.test([r.tags.note, r.tags.description].join(" "));
+      feats.push({ id: "w" + r.id, lat: mid[0], lon: mid[1], tags: r.tags, kind: out ? "bridge_out" : "bridge_in" });
+    });
+    const areas = (f.cut || []).map((c) => ({ type: "cut", key: AREA_STYLE[c.s] ? c.s : "ACTIVE", c, rings: rings(c.g) }))
+      .concat((f.mv || []).map((m) => ({ type: "mv", key: "mv", m, rings: rings(m.g) })));
+    areas.forEach((a) => { a.bounds = L.latLngBounds(a.rings.flat()); });
+    return { feats, areas };
+  }
+  function drawRoadExtras() {
+    const on = state.roads && map.getZoom() >= ROAD_MIN_ZOOM;
+    const loaded = [...roadData.values()].filter(Boolean);
+    const key = [on, loaded.length].join("/");
+    if (key !== areaKey) {
+      areaKey = key;
+      areaLayer.clearLayers();
+      if (on) {
+        const poly = (rs, st) => areaLayer.addLayer(L.polygon(rs, { renderer: areaRenderer, interactive: false, weight: 1.5, fillColor: st.color, ...st }));
+        ["RETIRED", "ACTIVE", "PENDING", "mv"].forEach((k) => loaded.forEach((z) => z.areas.filter((a) => a.key === k).forEach((a) => poly(a.rings, AREA_STYLE[k]))));
+      }
+    }
+    // Points: only the ones in view, from zoom 13, so a whole zone of markers never piles up.
+    extraLayer.clearLayers();
+    if (!on) return;
+    const view = map.getBounds().pad(0.2), seen = new Set();
+    const pin = (x, kind, html) => {
+      const ll = L.latLng(x.lat, x.lon);
+      if (!view.contains(ll)) return;
+      const k = FEAT[kind];
+      extraLayer.addLayer(L.marker(ll, { icon: L.divIcon({ className: "rf-pin", html: `<span style="background:${k.bg}">${k.icon}</span>`, iconSize: [22, 22] }), keyboard: false, title: k.label })
+        .bindPopup(`<div class="road-pop"><h4>${esc(k.label)}</h4>${html}</div>`, { maxWidth: 280 }));
+    };
+    if (map.getZoom() < FEAT_MIN_ZOOM) return;
+    loaded.forEach((z) => z.feats.forEach((x) => {
+      if (seen.has(x.id)) return;
+      seen.add(x.id);
+      const t = x.tags, info = [t.name, t.operator, t.access && "access=" + t.access, t.locked && "locked=" + t.locked, t.note || t.description].filter(Boolean);
+      const url = `https://www.openstreetmap.org/${{ n: "node", w: "way", r: "relation" }[x.id[0]]}/${x.id.slice(1)}`;
+      pin(x, x.kind, `${info.length ? `<p>${info.map(esc).join("<br>")}</p>` : ""}<p class="src">OpenStreetMap · <a href="${url}" target="_blank" rel="noopener">see or fix it</a></p>`);
+    }));
+  }
+  // Cut blocks, closures and fire perimeters under a click (for the popup when no road or trail is there).
+  function inRings(ll, rs) {
+    let inside = false;
+    rs.forEach((r) => { for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+      if ((r[i][0] > ll.lat) !== (r[j][0] > ll.lat) && ll.lng < ((r[j][1] - r[i][1]) * (ll.lat - r[i][0])) / (r[j][0] - r[i][0]) + r[i][1]) inside = !inside;
+    } });
+    return inside;
+  }
+  function areasAt(ll) {
+    const out = [];
+    if (state.fires && fires) {
+      fires.evac.forEach((a) => { if (inRings(ll, a.rings)) out.push(`<p><span class="st">${esc(FIRE_STYLE[a.kind === "alert" ? "alert" : "order"].label)}</span>${a.n ? " · " + esc(a.n) : ""}<br><span class="src">${esc([a.who, a.d && "updated " + a.d].filter(Boolean).join(" · "))} · <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a></span></p>`); });
+      fires.restr.forEach((a) => { if (inRings(ll, a.rings)) out.push(`<p><span class="st">Area closed because of fire</span>${a.n ? " · " + esc(a.n) : ""}<br><span class="src">BC Wildfire Service area restriction${a.from ? " since " + esc(a.from) : ""}${a.d ? " · " + esc(a.d) : ""}${a.url ? ` · <a href="${esc(a.url)}" target="_blank" rel="noopener">order</a>` : ""}</span></p>`); });
+      fires.perims.forEach((p) => { if (inRings(ll, p.rings)) out.push(`<p><span class="st">Fire perimeter</span> · ${esc(p.st || "")}<br><span class="src">BC Wildfire Service fire ${esc(p.n)}${p.ha ? ` · ${esc(p.ha)} ha` : ""}</span></p>`); });
+    }
+    if (!state.roads || map.getZoom() < ROAD_MIN_ZOOM) return out;
+    roadData.forEach((z) => z && z.areas.forEach((a) => {
+      if (!a.bounds.contains(ll) || !inRings(ll, a.rings)) return;
+      if (a.type === "mv") out.push(`<p><span class="st">Closed to motor vehicles</span>${a.m.d ? " · " + esc(a.m.d) : ""}<br><span class="src">${esc(a.m.n || "Motor Vehicle Prohibition Regulation area")}${a.m.x ? " · " + esc(a.m.x) : ""}</span></p>`);
+      else out.push(`<p><span class="st">${esc(AREA_STYLE[a.key].label)}</span>${a.c.d0 || a.c.d1 ? ` · logging ${esc([a.c.d0, a.c.d1].filter(Boolean).join(" to "))}` : ""}<br><span class="src">BC Forest Tenure cut block ${esc(a.c.f)}${a.c.p ? ", " + esc(a.c.p) : ""}</span></p>`);
+    }));
+    return out;
   }
   // The roads under a click, closest first per source (for the status popup).
   function roadsAt(ll) {
@@ -3109,15 +3276,22 @@ out body;`;
   // Shows the status popup when a road is under the click and no trail is (a track counts as a road).
   function showRoadAt(ll, way) {
     if (way && way.tags && (way.tags.highway !== "track" || hasMtb(way.tags))) return false;
-    const hits = roadsAt(ll);
-    if (!hits.length) return false;
+    const hits = roadsAt(ll), areas = areasAt(ll);
+    if (!hits.length && !areas.length) {
+      return false;
+    }
+    if (!hits.length) {
+      L.popup({ maxWidth: 280 }).setLatLng(ll).setContent(`<div class="road-pop">${areas.join("")}</div>`).openOn(map);
+      pickLayer.clearLayers();
+      return true;
+    }
     // OpenStreetMap names come first: government labels are often permit codes like "R00591 G".
     const named = hits.filter((r) => r.name).sort((a, b) => (a.src === "osm" ? 0 : 1) - (b.src === "osm" ? 0 : 1));
     const name = named.length ? named[0].name : "Unnamed dirt road";
     const parts = hits.map((r) => r.src === "ften"
       ? `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">BC Forest Tenure roads: ${esc(r.r.t || "road section")}${r.r.p ? ", " + esc(r.r.p) : ""}${r.r.f ? ", file " + esc(r.r.f) : ""}</span></p>`
       : `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">OpenStreetMap: ${esc(["highway=" + (r.tags.highway || r.tags["disused:highway"] || r.tags["abandoned:highway"] || "?"), r.tags.tracktype, r.tags.surface].filter(Boolean).join(", "))} · <a href="https://www.openstreetmap.org/way/${r.id}" target="_blank" rel="noopener">way ${r.id}</a></span></p>`);
-    L.popup({ className: "road-pop-wrap", maxWidth: 280 }).setLatLng(ll).setContent(`<div class="road-pop"><h4>${esc(name)}</h4>${parts.join("")}
+    L.popup({ className: "road-pop-wrap", maxWidth: 280 }).setLatLng(ll).setContent(`<div class="road-pop"><h4>${esc(name)}</h4>${parts.join("")}${areas.join("")}
       <p class="src">From mapped data, not a live closure list: check the
       <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p></div>`).openOn(map);
     pickLayer.clearLayers();
@@ -3127,16 +3301,19 @@ out body;`;
     const b = $("roadsBtn");
     b.setAttribute("aria-pressed", String(state.roads));
     b.classList.toggle("on", state.roads);
-    b.title = state.roads ? "Hide the forest and dirt roads" : "Show forest service roads and dirt roads, coloured by their status";
+    b.title = state.roads ? "Hide the road status and details (roads stay on the map as plain lines)" : "Colour the forest and dirt roads by status, with gates, bridges, cut blocks and closures";
   }
   $("roadsBtn").addEventListener("click", () => {
     state.roads = !state.roads; store.set("roads", state.roads);
     syncRoadsBtn(); loadRoads(); drawRoads(); renderKey();
     if (state.roads && map.getZoom() < ROAD_MIN_ZOOM) setStatus("Zoom in to see the forest roads.");
+    drawRoadExtras();
   });
   map.on("moveend", () => { loadRoads(); drawRoads(); });
   syncRoadsBtn();
   loadRoads();
+  syncFiresBtn();
+  loadFires();
 
   // The map key: what the colours mean, and a switch between difficulty and trail-type colours.
   const keyCtl = L.control({ position: "topleft" });
@@ -3153,6 +3330,7 @@ out body;`;
     return el;
   };
   keyCtl.addTo(map);
+  const areaSw = (a) => `<li><span class="lg-area" style="background:${a.color}${Math.round(a.fillOpacity * 255 + 40).toString(16)}; border: 1.5px ${a.dashArray ? "dashed" : "solid"} ${a.color}"></span>${a.label}</li>`;
   function renderKey() {
     const byDiff = state.colorBy === "diff";
     document.querySelectorAll(".legend .lg-mode button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === state.colorBy)));
@@ -3167,7 +3345,12 @@ out body;`;
       + [["open", "Open"], ["rough", "Rough / 4x4"], ["deact", "Deactivated / retired"], ["closed", "Closed / gated"]].map(([st, label]) => {
         const c = roadStyle(st).color;
         return sw(ROAD_STYLE[st].dashArray ? `background: repeating-linear-gradient(90deg, ${c} 0 7px, #fff 7px 11px)` : `background: ${c}`, label);
-      }).join("");
+      }).join("")
+      + `<li class="lg-sub">Road features (zoom in)</li>` + Object.values(FEAT).map((k) => `<li><span class="lg-ico" style="background:${k.bg}">${k.icon}</span>${k.label}</li>`).join("")
+      + `<li class="lg-sub">Areas</li>` + Object.values(AREA_STYLE).map(areaSw).join("");
+    else $("keyList").innerHTML += `<li class="lg-sub">Forest roads</li>` + sw("background: var(--road-plain)", "Forest road (turn on Forest roads for status)");
+    if (state.fires) $("keyList").innerHTML += `<li class="lg-sub">Wildfires</li><li><span class="lg-ico" style="background:#fff">🔥</span>${FIRE_STYLE.fire.label}</li>`
+      + ["perim", "restr", "order", "alert"].map((k) => areaSw(FIRE_STYLE[k])).join("");
     $("keyNote").textContent = byDiff
       ? state.allTrails ? "All trails: bold = official, thin = not known, dotted = unofficial. White edge: trails in the list." : "Dashed: looks like MTB (no bike tags)."
       : state.allTrails ? "All trails: bold = official, thin = not known. Thick: trails in the list." : "";
