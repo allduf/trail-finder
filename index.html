@@ -851,6 +851,8 @@ label.toggle.off .sw { background: var(--muted); }
 .more[open] summary::after { transform: rotate(180deg); }
 .more summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .more .facts { margin: 0 0 12px; }
+.more + .more { margin-top: 0; border-top: 0; }
+.more > #history, .more > .tagtable { margin-bottom: 12px; }
 .muted { color: var(--muted); }
 .mono { font-family: var(--font-mono); font-size: .85rem; }
 .detail a { color: var(--accent); font-weight: 600; }
@@ -2530,8 +2532,8 @@ out body;`;
         <a href="https://www.openstreetmap.org/edit?${type}=${t.id}" target="_blank" rel="noopener">Edit or fix it</a>
         ${t.tags.name ? `<a href="https://www.trailforks.com/search/?search=${encodeURIComponent(t.tags.name)}" target="_blank" rel="noopener">Search on Trailforks</a>` : ""}
       </div>` : `<p class="muted">Example trail, not real data.</p>`}
-      <h3>Edit history</h3><div id="history" class="muted">${real ? "Loading…" : "Not available for example trails."}</div>
-      <h3>All tags</h3><table class="tagtable"><tbody>${Object.entries(t.tags).map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table>
+      <details class="more"><summary>Edit history</summary><div id="history" class="muted">${real ? "Loading…" : "Not available for example trails."}</div></details>
+      <details class="more"><summary>All tags (${Object.keys(t.tags).length})</summary><table class="tagtable"><tbody>${Object.entries(t.tags).map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table></details>
       ${segs && type === "way" ? `<h3>Segments</h3><p class="muted">The tags, history and links above are for its main segment. All segments: ${t.segIds.map((id) => `<a href="https://www.openstreetmap.org/way/${id}" target="_blank" rel="noopener">${id}</a>`).join(", ")}</p>` : ""}
       <p class="muted">OpenStreetMap ${type} ${real ? t.id : "(example)"}</p>`;
     $("panel").classList.add("detail-open");
