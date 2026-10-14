@@ -374,6 +374,7 @@ async function buildAvalanche() {
     if (!rings.length && !p._point) continue;
     out.push({ id: aid, name: areaName(p.area?.name) || shortTitle(text(p.report?.title)), rings, forecast: normalizeForecast(p) });
   }
+  for (let i = out.length - 1; i >= 0; i--) if (!out[i].rings.length && !out[i].forecast?.days.length) out.splice(i, 1);   // nothing to draw
   const withForecast = out.filter((a) => a.forecast && a.forecast.days.length);
   log(`  ${out.length} areas in the region, ${withForecast.length} with a forecast:`);
   out.forEach((a) => log(`    ${a.name || a.id}: ${a.rings.length} outline(s); ${a.forecast ? `${a.forecast.days.length} days ${JSON.stringify(a.forecast.days)}, ${a.forecast.problems.length} problems ${JSON.stringify(a.forecast.problems.map((p) => [p.type, p.aspects.join(""), p.elevations.join("")]))}` : "no forecast"}`));
