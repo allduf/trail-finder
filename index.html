@@ -958,6 +958,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .map-tools #allBtn.on { background: var(--fg); border-color: var(--fg); color: var(--panel); }
 .map-tools #roadsBtn.on { background: var(--road); border-color: var(--road); color: #fff; }
 .map-tools #firesBtn.on { background: #e85d04; border-color: #e85d04; color: #fff; }
+.map-tools #areasBtn.on { background: #8b4513; border-color: #8b4513; color: #fff; }
 .road-pop { font-family: var(--font-body); font-size: .85rem; line-height: 1.35; }
 .road-pop h4 { margin: 0 0 4px; font-size: .95rem; }
 .road-pop p { margin: 4px 0 !important; }
@@ -1041,6 +1042,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
       <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
       <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
       <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire">🔥 Wildfires</button>
+      <button id="areasBtn" type="button" aria-pressed="false" title="Show logging areas (cut blocks) and areas closed to motor vehicles">▦ Logging areas</button>
       <button id="locate" type="button" aria-pressed="false">◎ My location</button>
       <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
       <button id="btn3d" type="button" aria-pressed="false">⛰ 3D</button>
@@ -1176,7 +1178,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     <p>Purple dotted lines are guesses, not mapped trails. Once a week the site looks at the public GPS traces people upload to OpenStreetMap. Where 2 or more different traces run together for 100 m or more, more than 20 m from any mapped road, path, lift or ski run, it's listed. Only lines most traces ride at bike speed (faster than walking, slower than a car) are shown. The date is the first GPS trace on it. Each one links to the Strava and Trailforks heatmaps so you can compare, and to OpenStreetMap so you can map it if it's real. It may be private land, closed, or a GPS glitch: check before riding.</p>
     <h3>Forest roads</h3>
     <p>Forest Service Roads and other dirt roads have a white edge and a colour for their status (turn them off with “Forest roads”). Once a week the site collects them from two open sources: the BC government's Forest Tenure roads (DataBC, Open Government Licence - British Columbia), which list every Forest Service Road and road permit with its tenure status, and OpenStreetMap dirt roads with their gate, access and deactivation tags. The colour is the road's condition, like on a backroad map. Green is good condition (an active Forest Service tenure, or mapped as smooth or solid). Yellow is degraded (mapped as bad or partly soft). Red is heavily degraded: very rough, 4x4 only, or a retired tenure that's no longer maintained and often deactivated. Black dashes are impassable: deactivated, washed out or abandoned. Grey dashes mean the condition isn't known. Pink dashes mean closed to public vehicles: gated, private or industrial use only. Tap a road to see why. This is mapped data, not a live closure list: check the <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p>
-    <p>With “Forest roads” on, the map also shows, once you zoom in: gates (open, locked or not known), barriers, bridges and bridges out, foot bridges, fords and hydro plants, from OpenStreetMap; and cut blocks (pending, active or recently logged, and retired in the last 15 years) and areas closed to motor vehicles, from the BC government. Tap any of them for details. With the button off, the roads stay on the map as plain grey-brown lines.</p>
+    <p>With “Forest roads” on, the map also shows, once you zoom in: gates (open, locked or not known), barriers, bridges and bridges out, foot bridges, fords and hydro plants, from OpenStreetMap. Tap any of them for details. The “Logging areas” button shows cut blocks (pending, active or recently logged, and retired in the last 15 years) and areas closed to motor vehicles, from the BC government, on their own. With the button off, the roads stay on the map as plain grey-brown lines.</p>
     <h3>Wildfires</h3>
     <p>The “Wildfires” button shows the BC Wildfire Service's current fires (fires that are out are left off) and their perimeters, areas closed because of fire (area restriction orders), and evacuation orders and alerts. It's refreshed every 3 hours, so always check the <a href="https://wildfiresituation.nrs.gov.bc.ca/map" target="_blank" rel="noopener">BC Wildfire map</a> and <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a> before heading out.</p>
     <p><button class="btn primary" id="aboutClose" type="button">Got it</button></p>
@@ -1221,6 +1223,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     colorBy: store.get("colorBy", "diff"),     // trail colours on the map: "diff" (difficulty, like Trailforks) or "type"
     allTrails: store.get("allTrails", true),  // "All trails": every MTB trail in view, any age, under the new ones
     fires: store.get("fires", true),          // "Wildfires": BC Wildfire Service fires, perimeters, area restrictions and evacuations
+    areas: store.get("areas", true),          // "Logging areas": cut blocks and motor vehicle closures, their own button (alex)
     roads: store.get("roads", true),          // "Forest roads": dirt and Forest Service roads, coloured by their status
     prime: store.get("prime", false),   // "Prime loam now" (time row): every named trail in the area with Loam index 40-59 now
     trails: [],          // all candidates from last search (2-year window), with .created
@@ -3251,13 +3254,13 @@ out body;`;
     return { feats, areas };
   }
   function drawRoadExtras() {
-    const on = state.roads && map.getZoom() >= ROAD_MIN_ZOOM;
+    const on = state.roads && map.getZoom() >= ROAD_MIN_ZOOM, areasOn = state.areas && map.getZoom() >= ROAD_MIN_ZOOM;
     const loaded = [...roadData.values()].filter(Boolean);
-    const key = [on, loaded.length].join("/");
+    const key = [areasOn, loaded.length].join("/");
     if (key !== areaKey) {
       areaKey = key;
       areaLayer.clearLayers();
-      if (on) {
+      if (areasOn) {
         const poly = (rs, st) => areaLayer.addLayer(L.polygon(rs, { renderer: areaRenderer, interactive: false, weight: 2.5, fillColor: st.color, ...st }));
         ["RETIRED", "ACTIVE", "PENDING", "mv"].forEach((k) => loaded.forEach((z) => z.areas.filter((a) => a.key === k).forEach((a) => poly(a.rings, AREA_STYLE[k]))));
       }
@@ -3297,7 +3300,7 @@ out body;`;
       fires.restr.forEach((a) => { if (inRings(ll, a.rings)) out.push(`<p><span class="st">Area closed because of fire</span>${a.n ? " · " + esc(a.n) : ""}<br><span class="src">BC Wildfire Service area restriction${a.from ? " since " + esc(a.from) : ""}${a.d ? " · " + esc(a.d) : ""}${a.url ? ` · <a href="${esc(a.url)}" target="_blank" rel="noopener">order</a>` : ""}</span></p>`); });
       fires.perims.forEach((p) => { if (inRings(ll, p.rings)) out.push(`<p><span class="st">Fire perimeter</span> · ${esc(p.st || "")}<br><span class="src">BC Wildfire Service fire ${esc(p.n)}${p.ha ? ` · ${esc(p.ha)} ha` : ""}</span></p>`); });
     }
-    if (!state.roads || map.getZoom() < ROAD_MIN_ZOOM) return out;
+    if (!state.areas || map.getZoom() < ROAD_MIN_ZOOM) return out;
     roadData.forEach((z) => z && z.areas.forEach((a) => {
       if (!a.bounds.contains(ll) || !inRings(ll, a.rings)) return;
       if (a.type === "mv") out.push(`<p><span class="st">Closed to motor vehicles</span>${a.m.d ? " · " + esc(a.m.d) : ""}<br><span class="src">${esc(a.m.n || "Motor Vehicle Prohibition Regulation area")}${a.m.x ? " · " + esc(a.m.x) : ""}</span></p>`);
@@ -3348,7 +3351,7 @@ out body;`;
     const b = $("roadsBtn");
     b.setAttribute("aria-pressed", String(state.roads));
     b.classList.toggle("on", state.roads);
-    b.title = state.roads ? "Hide the road status and details (roads stay on the map as plain lines)" : "Colour the forest and dirt roads by status, with gates, bridges, cut blocks and closures";
+    b.title = state.roads ? "Hide the road status and details (roads stay on the map as plain lines)" : "Colour the forest and dirt roads by condition, with gates, bridges and fords";
   }
   $("roadsBtn").addEventListener("click", () => {
     state.roads = !state.roads; store.set("roads", state.roads);
@@ -3358,6 +3361,19 @@ out body;`;
   });
   map.on("moveend", () => { loadRoads(); drawRoads(); });
   syncRoadsBtn();
+  // "Logging areas" button: cut blocks and motor vehicle closures, on or off by themselves (they come with the road files).
+  function syncAreasBtn() {
+    const b = $("areasBtn");
+    b.setAttribute("aria-pressed", String(state.areas));
+    b.classList.toggle("on", state.areas);
+    b.title = state.areas ? "Hide the logging areas and motor vehicle closures" : "Show logging areas (cut blocks) and areas closed to motor vehicles";
+  }
+  $("areasBtn").addEventListener("click", () => {
+    state.areas = !state.areas; store.set("areas", state.areas);
+    syncAreasBtn(); loadRoads(); drawRoadExtras(); renderKey();
+    if (state.areas && map.getZoom() < ROAD_MIN_ZOOM) setStatus("Zoom in to see the logging areas.");
+  });
+  syncAreasBtn();
   loadRoads();
   syncFiresBtn();
   loadFires();
@@ -3393,9 +3409,9 @@ out body;`;
         const c = roadStyle(st).color;
         return sw(ROAD_STYLE[st].dashArray ? `background: repeating-linear-gradient(90deg, ${c} 0 6px, #fff 6px 10px)` : `background: ${c}`, ROAD_STATUS[st].label);
       }).join("")
-      + `<li class="lg-sub">Road features (zoom in)</li>` + Object.values(FEAT).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join("")
-      + `<li class="lg-sub">Areas</li>` + Object.values(AREA_STYLE).map(areaSw).join("");
+      + `<li class="lg-sub">Road features (zoom in)</li>` + Object.values(FEAT).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join("");
     else $("keyList").innerHTML += `<li class="lg-sub">Forest roads</li>` + sw("background: var(--road-plain)", "Forest road (turn on Forest roads for status)");
+    if (state.areas) $("keyList").innerHTML += `<li class="lg-sub">Logging areas</li>` + Object.values(AREA_STYLE).map(areaSw).join("");
     if (state.fires) $("keyList").innerHTML += `<li class="lg-sub">Wildfires</li><li>${pinHtml(FIRE_STYLE.fire, "lg-ico")}${FIRE_STYLE.fire.label}</li>`
       + ["perim", "restr", "order", "alert"].map((k) => areaSw(FIRE_STYLE[k])).join("");
     $("keyNote").textContent = byDiff

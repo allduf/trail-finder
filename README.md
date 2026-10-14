@@ -36,7 +36,8 @@ district road safety notices on gov.bc.ca are linked instead.
 
 The same job also saves, per zone, gates, barriers, fords, footbridges and hydro plants on or near those roads
 (OpenStreetMap), cut blocks (DataBC `WHSE_FOREST_TENURE.FTEN_CUT_BLOCK_POLY_SVW`: pending, active, and retired in the
-last 15 years) and motor vehicle closure areas (DataBC `WHSE_WILDLIFE_MANAGEMENT.WAA_MVPR_AREAS_SP`). Every 3 hours,
+last 15 years) and motor vehicle closure areas (DataBC `WHSE_WILDLIFE_MANAGEMENT.WAA_MVPR_AREAS_SP`); the areas have
+their own "Logging areas" button on the site. Every 3 hours,
 `.github/workflows/wildfires.yml` saves the BC Wildfire Service's current fires and perimeters (fires that are out are
 left out), fire area restrictions (`PROT_RESTRICTED_AREAS_SP`) and evacuation orders and alerts
 (`EMRG_ORDER_AND_ALERT_AREAS_SP`) to `data/fires.json`, shown with the site's "Wildfires" button.
