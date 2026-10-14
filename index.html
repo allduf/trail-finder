@@ -1457,11 +1457,10 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
   // routes: names of the MTB routes the way is in; routeTypes: route types of every route it's in.
   function classify(tags, routes, routeTypes = []) {
     const r = classifyTrail(tags, routes);
-    if (r) { r.unoff = unofficial(tags); r.official = officialWhy(tags); r.road = isRoad(tags); Object.assign(r, useOf(tags, routes.length ? routeTypes.concat("mtb") : routeTypes)); }
+    if (r) { r.unoff = unofficial(tags); r.official = officialWhy(tags); Object.assign(r, useOf(tags, routes.length ? routeTypes.concat("mtb") : routeTypes)); }
     return r;
   }
-  // Forest and logging roads with MTB tags are hidden from the trails while "Forest roads" is on (they're drawn on that
-  // layer instead), and shown with the trails as before while it's off (alex).
+  // Forest and logging roads are never MTB trails, even with a bike rating or in an MTB route (alex): they're on the Forest roads layer.
   const ROAD_NAME = /\b(forest service road|f\.?s\.?r\.?|service road|logging road|main ?line|road|rd)\b/i;
   function isRoad(tags) {
     const hw = tags.highway || "", name = tags.name || "";
@@ -1472,6 +1471,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
   function classifyTrail(tags, routes) {
     const hw = tags.highway;
     if (tags.bicycle === "dismount") return null;
+    if (isRoad(tags)) return null;
 
     const mtbTags = Object.keys(tags).filter((k) => /^mtb(:|$)/.test(k) && !(k === "mtb" && tags.mtb === "no"));
     if (mtbTags.length || routes.length) {
@@ -1762,7 +1762,7 @@ out body;`;
     const t = { ...o, created: new Date(o.created), lastEdit: new Date(o.lastEdit) };
     t.bounds = L.latLngBounds(t.geom);
     const c = classify(t.tags, (t.routes || []).map((r) => r.name), t.routeTypes || []);   // saved by an older version of the app
-    if (c) Object.assign(t, { cat: c.cat, why: c.why, unoff: c.unoff, net: c.net, official: c.official, road: c.road });
+    if (c) Object.assign(t, { cat: c.cat, why: c.why, unoff: c.unoff, net: c.net, official: c.official });
     return Object.assign(t, useOf(t.tags, (t.routeTypes || []).concat(t.routes && t.routes.length ? ["mtb"] : [])));
   }
 
@@ -1837,7 +1837,7 @@ out body;`;
     // 1. Show anything already loaded or saved right away.
     for (const t of tiles) {
       if (tileCache.has(t.key)) continue;
-      const rec = await saved.get("v3:" + t.key);
+      const rec = await saved.get("v2:" + t.key);
       if (rec && Date.now() - rec.fetchedAt < FULL_REFRESH_MS) tileCache.set(t.key, { fetchedAt: rec.fetchedAt, trails: rec.trails.map(unpackTrail) });
     }
     if (token !== state.token) return;
@@ -1928,7 +1928,7 @@ out body;`;
           if (token !== state.token) return;
           const trails = mergeWithSaved(cached, r.trails, r.seenWays);
           tileCache.set(t.key, { fetchedAt: startedAt, trails });
-          saved.put("v3:" + t.key, { fetchedAt: startedAt, trails: trails.map(packTrail) });
+          saved.put("v2:" + t.key, { fetchedAt: startedAt, trails: trails.map(packTrail) });
           log(`${label}: ${cached ? "update, " : ""}${r.ways} edited ways, ${r.candidates} trail-like, ${r.v1Asked} first-version checks, ${trails.length} trails. ${Math.round((Date.now() - t0) / 1000)} s`);
         }).finally(() => { if (token === state.token) { state.loading.checking--; scheduleRender(); } }));
         state.loading.done++;
@@ -1986,7 +1986,7 @@ out body;`;
     if (state.waiting) return [];
     const cutoff = monthsAgo(state.months);
     const zb = !state.custom && !state.example && zoneById(state.zone) ? zoneById(state.zone).bounds : null;
-    return state.trails.filter((t) => t.created >= cutoff && !(state.roads && t.road) && (!zb || zb.intersects(t.bounds)) && (!near || nearDist(t) <= near.km * 1000));
+    return state.trails.filter((t) => t.created >= cutoff && (!zb || zb.intersects(t.bounds)) && (!near || nearDist(t) <= near.km * 1000));
   }
 
   // Join a trail's pieces end to end into one line, starting from the longest (for the elevation
@@ -2192,7 +2192,7 @@ out body;`;
     if (!primeKeep.has(g)) {
       let c = g.type === "r" ? (g.tags.route === "mtb" ? { cat: "mtb", unoff: [] } : null) : classify(g.tags, []);
       if (c && c.cat === "other" && c.net && !c.use && netNear(g.items.map((i) => i.c), g.name).length >= 2) c = { ...c, cat: "looks" };
-      primeKeep.set(g, c && (c.cat === "mtb" || c.cat === "looks") && !c.use ? { g, center: g.center, cat: c.cat, unoff: c.unoff || [], road: !!c.road, official: c.official !== undefined ? c.official : officialWhy(g.tags) } : null);
+      primeKeep.set(g, c && (c.cat === "mtb" || c.cat === "looks") && !c.use ? { g, center: g.center, cat: c.cat, unoff: c.unoff || [], official: c.official !== undefined ? c.official : officialWhy(g.tags) } : null);
     }
     return primeKeep.get(g);
   }
@@ -2219,7 +2219,7 @@ out body;`;
     if (names.dirty || names.trailCount !== state.trails.length) buildGroups();
     const inside = (ll) => (near ? near.ll.distanceTo(ll) <= near.km * 1000 : state.searchedBounds.some((b) => b.contains(ll)));
     const pool = state.waiting ? [] : names.groups.filter((g) => inside(g.center)).map(primeEntry).filter(Boolean);
-    const typed = pool.filter((e) => !(state.roads && e.road) && wanted(e.cat, e.unoff.length, e.official));
+    const typed = pool.filter((e) => wanted(e.cat, e.unoff.length, e.official));
     if (typed.length) loadLoam(typed);
     const isPrime = (e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60; };
     const prime = pool.filter(isPrime);
@@ -2229,7 +2229,7 @@ out body;`;
     $("nUnoff").textContent = prime.filter((e) => e.unoff.length && unoffTypes().includes(e.cat)).length;
     $("nOff").textContent = prime.filter((e) => e.official && unoffTypes().includes(e.cat)).length;
     const dist = (e) => near.ll.distanceTo(e.center);
-    const shown = prime.filter((e) => !(state.roads && e.road) && wanted(e.cat, e.unoff.length, e.official)).sort(near ? (a, b) => dist(a) - dist(b) : (a, b) => a.g.name.localeCompare(b.g.name));
+    const shown = prime.filter((e) => wanted(e.cat, e.unoff.length, e.official)).sort(near ? (a, b) => dist(a) - dist(b) : (a, b) => a.g.name.localeCompare(b.g.name));
     state.primeShown = shown; state.shownCount = shown.length; state.primeTotal = typed.length;
     state.shownIds = new Set();
     state.loamPending = typed.some((e) => loamOf(e) === undefined);
@@ -2997,7 +2997,7 @@ out body;`;
   }
   function drawAllTrails() {
     const loaded = [...allData.values()].filter(Boolean);
-    const key = [state.allTrails, state.roads, state.colorBy, state.onlyUnoff, state.onlyOff, TYPE_KEYS.map((k) => state.show[k]), loaded.length].join("/");
+    const key = [state.allTrails, state.colorBy, state.onlyUnoff, state.onlyOff, TYPE_KEYS.map((k) => state.show[k]), loaded.length].join("/");
     if (key === allKey) return;
     allKey = key;
     allLayer.clearLayers();
@@ -3007,7 +3007,7 @@ out body;`;
       const unoff = w.c.unoff.length > 0, off = !!w.c.official;
       // Official trails always show (alex: even with no option ticked), unless "Unofficial only" is on.
       // Unofficial ones show too, with a dotted overlay, same as in the square.
-      if (seen.has(w.id) || (state.roads && w.c.road) || !(off && !state.onlyUnoff || wanted(w.c.cat, unoff, off))) return;
+      if (seen.has(w.id) || !(off && !state.onlyUnoff || wanted(w.c.cat, unoff, off))) return;
       seen.add(w.id);
       const d = difficulty(w.tags);
       allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks"), weight: off ? 4.5 : 2.5, opacity: off ? 1 : 0.75, interactive: false }));
@@ -3302,7 +3302,7 @@ out body;`;
   }
   $("roadsBtn").addEventListener("click", () => {
     state.roads = !state.roads; store.set("roads", state.roads);
-    syncRoadsBtn(); loadRoads(); drawRoads(); renderKey(); drawAllTrails(); render();
+    syncRoadsBtn(); loadRoads(); drawRoads(); renderKey();
     if (state.roads && map.getZoom() < ROAD_MIN_ZOOM) setStatus("Zoom in to see the forest roads.");
   });
   map.on("moveend", () => { loadRoads(); drawRoads(); });
