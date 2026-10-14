@@ -1807,8 +1807,11 @@ out body;`;
 
   // boxes: array of L.LatLngBounds to cover.
   // offline: only show what this browser already saved, without asking OpenStreetMap.
-  async function search(boxes, offline) {
+  // auto: the quiet load when the page opens or the area changes. Its trails stay off the map
+  // until a button is pressed (alex: no dots before pressing search).
+  async function search(boxes, offline, auto) {
     const token = ++state.token;
+    state.waiting = !!auto;
     state.example = false;
     gate.strikes = 0;
     $("searchArea").hidden = true;
@@ -1942,10 +1945,10 @@ out body;`;
     render();
   }
 
-  function searchZones(offline) {
+  function searchZones(offline, auto) {
     state.custom = false;
     const z = zoneById(state.zone);
-    search(z ? [z.bounds] : ZONES.map((z) => z.bounds), offline);
+    search(z ? [z.bounds] : ZONES.map((z) => z.bounds), offline, auto);
   }
 
   function findNewTrails() {
@@ -1959,6 +1962,7 @@ out body;`;
 
   // ---------- render ----------
   function visibleTrails() {
+    if (state.waiting) return [];
     const cutoff = monthsAgo(state.months);
     const zb = !state.custom && !state.example && zoneById(state.zone) ? zoneById(state.zone).bounds : null;
     return state.trails.filter((t) => t.created >= cutoff && (!zb || zb.intersects(t.bounds)) && (!near || nearDist(t) <= near.km * 1000));
@@ -2174,7 +2178,7 @@ out body;`;
   function renderPrime() {
     if (names.dirty || names.trailCount !== state.trails.length) buildGroups();
     const inside = (ll) => (near ? near.ll.distanceTo(ll) <= near.km * 1000 : state.searchedBounds.some((b) => b.contains(ll)));
-    const pool = names.groups.filter((g) => inside(g.center)).map(primeEntry).filter(Boolean);
+    const pool = state.waiting ? [] : names.groups.filter((g) => inside(g.center)).map(primeEntry).filter(Boolean);
     const typed = pool.filter((e) => wanted(e.cat, e.unoff.length, e.official));
     if (typed.length) loadLoam(typed);
     const isPrime = (e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60; };
@@ -2209,6 +2213,12 @@ out body;`;
 
   function renderStatus() {
     if (state.example) return;
+    if (state.waiting) {
+      const btn = state.prime ? "Find prime loam trails" : "Find new trails";
+      $("findBtn").disabled = false; $("findLabel").textContent = btn;
+      setStatus(`Press ${btn} to see trails in ${zoneById(state.zone) ? zoneById(state.zone).name : "Sea to Sky and the Sunshine Coast"}.`);
+      return;
+    }
     const label = { 1: "month", 6: "6 months", 12: "year", 24: "2 years" }[state.months];
     const n = state.shownCount || 0;
     const noType = !state.onlyUnoff && !state.onlyOff && !TYPE_KEYS.some((k) => state.show[k]);
@@ -3790,13 +3800,13 @@ out tags center qt;`;
     clearNear();
     state.zone = zoneSel.value; store.set("zone", state.zone);
     map.fitBounds(zoneBounds(state.zone));
-    searchZones(true);
+    searchZones(true, true);
   });
 
   render();
   // Inside the Claude preview OpenStreetMap is blocked, so show example trails there.
   if (location.protocol !== "file:" && /claude/.test(location.hostname)) loadExample();
-  else searchZones(true);
+  else searchZones(true, true);
 })();
 </script>
 
