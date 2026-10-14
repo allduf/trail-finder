@@ -3111,7 +3111,9 @@ out body;`;
     if (way && way.tags && (way.tags.highway !== "track" || hasMtb(way.tags))) return false;
     const hits = roadsAt(ll);
     if (!hits.length) return false;
-    const name = (hits.find((r) => r.name) || {}).name || "Unnamed dirt road";
+    // OpenStreetMap names come first: government labels are often permit codes like "R00591 G".
+    const named = hits.filter((r) => r.name).sort((a, b) => (a.src === "osm" ? 0 : 1) - (b.src === "osm" ? 0 : 1));
+    const name = named.length ? named[0].name : "Unnamed dirt road";
     const parts = hits.map((r) => r.src === "ften"
       ? `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">BC Forest Tenure roads: ${esc(r.r.t || "road section")}${r.r.p ? ", " + esc(r.r.p) : ""}${r.r.f ? ", file " + esc(r.r.f) : ""}</span></p>`
       : `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">OpenStreetMap: ${esc(["highway=" + (r.tags.highway || r.tags["disused:highway"] || r.tags["abandoned:highway"] || "?"), r.tags.tracktype, r.tags.surface].filter(Boolean).join(", "))} · <a href="https://www.openstreetmap.org/way/${r.id}" target="_blank" rel="noopener">way ${r.id}</a></span></p>`);
