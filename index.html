@@ -2717,6 +2717,7 @@ out body;`;
         ${factRows(false)}
       </dl></details>
       <h3>Weather and Loam moisture index</h3><div id="wx" class="muted">Loading weather…</div>
+      ${real && window.tfReports ? `<h3>Trail conditions from riders</h3><div id="reports" class="muted">Loading reports…</div>` : ""}
       ${routes ? `<h3>Part of MTB route</h3><ul class="plain">${routes}</ul>` : ""}
       ${real ? `<h3>Links</h3><div class="links">
         <a href="https://www.openstreetmap.org/${type}/${t.id}" target="_blank" rel="noopener">Open on OpenStreetMap</a>
@@ -2737,6 +2738,7 @@ out body;`;
     if (real) loadHistory(t);
     loadElevation(t);
     loadWeather(t);
+    if (real && window.tfReports) window.tfReports.show(t);   // reports.js
     leaveFullMap(t);
   }
 
@@ -2912,6 +2914,8 @@ out body;`;
     openDetail(t);
     if (fly) setTimeout(() => { map.invalidateSize(); map.fitBounds(t.bounds || L.latLngBounds(t.geom), { maxZoom: 16, padding: [40, 40] }); }, 60);
   }
+  // For reports.js map badges: open a trail's details if it's loaded.
+  window.tfSelectTrail = (id) => { if (!(state.merged && state.merged.get(id)) && !state.trails.some((x) => x.id === id)) return false; select(id, true); return true; };
   const openRow = (li) => { if (li.dataset.pk) showFound(state.primeShown[+li.dataset.pk].g, true); else select(+li.dataset.id, true); };
   $("list").addEventListener("click", (e) => { const li = e.target.closest(".trail"); if (li) openRow(li); });
   $("list").addEventListener("keydown", (e) => { if (e.key === "Enter") { const li = e.target.closest(".trail"); if (li) openRow(li); } });
@@ -4185,6 +4189,7 @@ out tags center qt;`;
 <script src="map3d.js"></script>
 <script src="winter.js"></script>
 <script src="account.js"></script>
+<script src="reports.js"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
