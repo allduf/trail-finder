@@ -2759,14 +2759,7 @@ out body;`;
       ${isUnoff(t) ? `<div class="unoff-box"><strong>Possibly unsanctioned</strong><ul>${t.unoff.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">This only shows what OpenStreetMap mappers tagged. It's a hint, not the trail's legal status. Check with the land manager or Trailforks before riding.</p></div>` : ""}
       <div class="go"><a class="go-btn" id="goBtn" target="_blank" rel="noopener" aria-disabled="true">Go to trail</a><p class="muted" id="goNote">Finding the top of the trail…</p></div>
-      <dl class="facts">
-        <dt>Length</dt><dd>${fmtLen(t.km)}</dd>
-        <dt>First mapped</dt><dd>${t.created ? `${fmtDate(t.created)} · ${ago(t.created)}` : "Unknown"}</dd>
-        ${factRows(true)}
-        <dt>Official?</dt><dd>${t.official ? `Yes: ${esc(t.official)}.` : isUnoff(t) ? "Possibly not (see above)." : `<span class="muted">Not known</span>`}</dd>
-      </dl>
       <h3>Weather and Loam moisture index</h3><div id="wx" class="muted">Loading weather…</div>
-      <h3>Getting there</h3><div id="access" class="muted">Looking for trailheads, parking and roads…</div>
       <h3>Elevation</h3><div id="elev" class="muted">${real || t.elev ? "Loading elevation…" : ""}</div>
       ${real && window.tfReports ? `<h3>Trail conditions from riders</h3><div id="reports" class="muted">Loading reports…</div>` : ""}
       ${routes ? `<h3>Part of MTB route</h3><ul class="plain">${routes}</ul>` : ""}
@@ -2790,6 +2783,14 @@ out body;`;
       <details class="more"><summary>All tags (${Object.keys(t.tags).length})</summary><table class="tagtable"><tbody>${Object.entries(t.tags).map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table></details>
       ${segs && type === "way" ? `<p class="muted">The tags, history and links are for its main segment. All segments: ${t.segIds.map((id) => `<a href="https://www.openstreetmap.org/way/${id}" target="_blank" rel="noopener">${id}</a>`).join(", ")}</p>` : ""}
       <p class="muted">OpenStreetMap ${type} ${real ? t.id : "(example)"}</p></details>
+      <!-- Getting there, the trail facts and Shuttle access sit at the bottom of the details (alex). -->
+      <h3>Getting there</h3><div id="access" class="muted">Looking for trailheads, parking and roads…</div>
+      <dl class="facts">
+        <dt>Length</dt><dd>${fmtLen(t.km)}</dd>
+        <dt>First mapped</dt><dd>${t.created ? `${fmtDate(t.created)} · ${ago(t.created)}` : "Unknown"}</dd>
+        ${factRows(true)}
+        <dt>Official?</dt><dd>${t.official ? `Yes: ${esc(t.official)}.` : isUnoff(t) ? "Possibly not (see above)." : `<span class="muted">Not known</span>`}</dd>
+      </dl>
       <div id="shuttle"></div>`;
     $("panel").classList.add("detail-open");
     $("detail").hidden = false;
