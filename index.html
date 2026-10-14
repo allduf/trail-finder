@@ -906,6 +906,14 @@ label.toggle.off .sw { background: var(--muted); }
 .map-note { max-width: 240px; font-size: .8rem; padding: 6px 8px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-fg); box-shadow: 0 1px 4px rgba(0,0,0,.15); }
 .map-actions .btn { box-shadow: 0 2px 8px rgba(0,0,0,.2); }
 .sheet-toggle { display: none; }
+/* Full map: the panel hides, the map fills the screen, and a big button brings the search back. */
+.map-full-exit, .map-status { display: none; }
+.app.fullmap { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.app.fullmap .panel { display: none; }
+.app.fullmap .mapwrap { grid-column: 1; grid-row: 1; }
+.app.fullmap .map-actions { top: auto; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); flex-wrap: wrap; justify-content: center; width: max-content; max-width: min(440px, calc(100vw - 24px)); }
+.app.fullmap .map-full-exit { display: inline-flex; align-items: center; gap: 6px; font-size: 1.05rem; padding: 12px 18px; border-radius: 999px; background: var(--panel); }
+.app.fullmap .map-status:not(:empty) { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; flex-basis: 100%; text-align: center; font-size: .85rem; padding: 6px 10px; border-radius: 8px; background: color-mix(in srgb, var(--panel) 92%, transparent); color: var(--fg); box-shadow: 0 1px 4px rgba(0,0,0,.15); }
 /* Popup */
 .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--panel); color: var(--fg); }
 .leaflet-popup-content { margin: 12px 14px; font-family: var(--font-body); font-size: 14px; min-width: 220px; }
@@ -946,7 +954,11 @@ label.toggle.off .sw { background: var(--muted); }
 <div class="app">
   <div class="mapwrap">
     <div id="map" role="application" aria-label="Map of trails"></div>
-    <div class="map-actions"><button class="btn primary" id="searchArea" hidden>Search this area</button></div>
+    <div class="map-actions">
+      <div class="map-status" id="mapStatus" aria-live="polite"></div>
+      <button class="btn primary" id="searchArea" hidden>Search this area</button>
+      <button class="btn map-full-exit" id="fullExit" type="button">☰ Back to search</button>
+    </div>
     <div class="map-tools">
       <select id="basemap" aria-label="Map style">
         <option value="osm">Standard</option>
@@ -959,6 +971,7 @@ label.toggle.off .sw { background: var(--muted); }
       </select>
       <div class="map-note" id="mapNote" hidden></div>
       <button id="locate" type="button" aria-pressed="false">◎ My location</button>
+      <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
     </div>
   </div>
   <aside class="panel" id="panel">
@@ -1064,7 +1077,11 @@ label.toggle.off .sw { background: var(--muted); }
       <li>+1 narrow: <code>width</code> under 1.5 m</li>
       <li>+1 <code>trail_visibility</code> or <code>incline</code> is mapped</li>
       <li>+1 the name sounds like a bike trail (flow, berm, jump, enduro, downhill, singletrack…)</li>
+      <li>+2 bike park trail: <code>bicycle=customers</code></li>
+      <li>+2 the mapper's <code>description</code> or <code>note</code> calls it a bike trail (mountain bike, MTB, downhill…)</li>
+      <li>+1 linked to Trailforks (<code>source</code> or <code>website</code> mentions Trailforks)</li>
     </ul>
+    <p>MTB trail networks: many bike trails have no bike tags at all. A plain path with no bike tags that runs within 400 m of two or more other MTB-tagged trails (with different names) also counts as Looks like MTB, unless it's graded for hiking (<code>sac_scale</code>), signed for walkers (<code>foot=designated</code>), a ski, golf or lit park path, gravel or boardwalk, open to motor vehicles, or its note says it's for hiking, climbing or motorbikes. This is checked again every time trails or trail lists load, so it keeps up as mappers add trails.</p>
     <p>Skipped: tracks (most are forest roads or ATV, moto and 4x4 tracks), paths 2 m wide or more, paths open to motorbikes, ATVs or other motor vehicles, paved surfaces, <code>bicycle=dismount</code>, and alpine hiking routes (<code>sac_scale</code> alpine).</p>
 <h3>Moto and hiking-only trails</h3>
     <p>To keep the list about mountain biking, trails that look like dirt-bike, ATV or 4x4 trails, and trails where bikes aren't allowed, are left out of the list. Moto means tags like <code>dirtbike:scale</code>, <code>motorcycle=designated</code>, <code>atv=yes</code>, <code>4wd_only=yes</code>, an ATV route, or a name like “ATV trail”. Hiking only means <code>bicycle=no</code>, <code>mtb=no</code>, stairs, hard hiking terrain (<code>sac_scale</code> T4 and up), or a signed hiking route with no bike access. A trail with any MTB tag, in an MTB route, or with <code>bicycle=designated</code> is never hidden, even if motorbikes are allowed on it too.</p>
@@ -1261,6 +1278,16 @@ label.toggle.off .sw { background: var(--muted); }
   const NATURAL = /^(dirt|earth|ground|mud|rock|roots|woodchips|soil)$/;
   const ROUGH = /^(bad|very_bad|horrible|very_horrible|impassable)$/;
   const BIKEY_NAME = /\b(flow|berm|berms|jump|jumps|enduro|downhill|dh|xc|singletrack|single ?trail|freeride|pump ?track|bike|vtt)\b/i;
+  const BIKE_NOTE = /\b(mountain ?bik\w*|mtb|bike (trail|park|line|jumps?))\b/i;
+  const NO_BIKE_NOTE = /\b(no|not|non|closed to)\b[\w -]{0,14}\b(bik|mtb|cycl)/i;
+  const NOT_BIKE_NAME = /\b(pedestrian|boardwalk|interpretive|nature walk|stairs?|steps|suspension bridge)\b/i;
+  const NOT_BIKE_NOTE = /\b(hik(e|ing)|walk(ing)?|climbing|motorcycles?|dirt ?bikes?|atvs?|quads?|logging road)\b/i;
+  const SMOOTH = /^(gravel|fine_gravel|compacted|pebblestone|wood|unpaved)$/;
+  // A plain path that could be an untagged bike trail when it runs among MTB trails (see MTB trail networks):
+  // not graded for hiking, signed for walkers, a ski, golf or park path, smooth gravel, or noted as something else.
+  const netOk = (tags) => !tags.sac_scale && !tags["piste:type"] && !tags.golf && tags.foot !== "designated" && tags.lit !== "yes"
+    && !tags.wikipedia && !tags.wikidata && !tags["abandoned:highway"] && !SMOOTH.test(tags.surface || "") && !PAVED.test(tags.surface || "")
+    && !NOT_BIKE_NAME.test(tags.name || "") && ![tags.description, tags.note].some((v) => v && NOT_BIKE_NOTE.test(v));
 
   // Signs that a trail may be unsanctioned (unofficial, closed or not for bikes). Only what mappers tagged.
   const CLOSED_NOTE = /\b(unsanctioned|unauthori[sz]ed|illegal|not sanctioned|unofficial|closed|decommissioned|no bikes)\b/i;
@@ -1345,6 +1372,7 @@ label.toggle.off .sw { background: var(--muted); }
 
     let score = 0; const why = [];
     if (tags.bicycle === "designated") { score += 2; why.push("signed for bikes (bicycle=designated)"); }
+    else if (tags.bicycle === "customers") { score += 2; why.push("bike park trail (bicycle=customers)"); }
     else if (/^(yes|permissive)$/.test(tags.bicycle || "")) { score += 1; why.push(`bikes allowed (bicycle=${tags.bicycle})`); }
     if (NATURAL.test(tags.surface || "")) { score += 1; why.push(`natural surface (${tags.surface})`); }
     if (ROUGH.test(tags.smoothness || "")) { score += 1; why.push(`rough (smoothness=${tags.smoothness})`); }
@@ -1352,11 +1380,14 @@ label.toggle.off .sw { background: var(--muted); }
     if (!isNaN(w) && w < 1.5) { score += 1; why.push(`narrow (${w} m)`); }
     if (tags.trail_visibility || tags.incline) { score += 1; why.push(tags.trail_visibility ? `trail_visibility=${tags.trail_visibility}` : `incline=${tags.incline}`); }
     if (tags.name && BIKEY_NAME.test(tags.name)) { score += 1; why.push("name sounds like a bike trail"); }
+    const note = [tags.description, tags.note].find((v) => v && BIKE_NOTE.test(v) && !NO_BIKE_NOTE.test(v));
+    if (note) { score += 2; why.push(`the mapper's note calls it a bike trail (“${note.length > 70 ? note.slice(0, 67) + "…" : note}”)`); }
+    if (/trailforks/i.test([tags.source, tags.website, tags["website:trailforks"], tags.url].join(" "))) { score += 1; why.push("linked to Trailforks (an MTB trail map)"); }
     // Wide enough for a dirt bike or quad, or motor vehicles allowed: not counted as looking like MTB.
-    const motor = tags.bicycle === "designated" ? null : !isNaN(w) && w >= 2 ? `wide (${w} m)` : ["motorcycle", "motor_vehicle", "atv", "ohv", "orv"].filter((k) => MOTO_OK.test(tags[k] || "")).map((k) => `${k}=${tags[k]}`)[0];
+    const motor = /^(designated|customers)$/.test(tags.bicycle || "") ? null : !isNaN(w) && w >= 2 ? `wide (${w} m)` : ["motorcycle", "motor_vehicle", "atv", "ohv", "orv"].filter((k) => MOTO_OK.test(tags[k] || "")).map((k) => `${k}=${tags[k]}`)[0];
 
     if (score >= 2 && !motor) return { cat: "looks", why: why.concat(`score ${score}`) };
-    if (hw === "path") return { cat: "other", why: motor ? [`open to motor vehicles or wide (${motor})`] : why.length ? why.concat(`score ${score}`) : ["no bike-related tags yet"] };
+    if (hw === "path") return { cat: "other", net: !motor && netOk(tags), why: motor ? [`open to motor vehicles or wide (${motor})`] : why.length ? why.concat(`score ${score}`) : ["no bike-related tags yet"] };
     return null;
   }
 
@@ -1598,6 +1629,8 @@ out body;`;
   function unpackTrail(o) {
     const t = { ...o, created: new Date(o.created), lastEdit: new Date(o.lastEdit) };
     t.bounds = L.latLngBounds(t.geom);
+    const c = classify(t.tags, (t.routes || []).map((r) => r.name), t.routeTypes || []);   // saved by an older version of the app
+    if (c) Object.assign(t, { cat: c.cat, why: c.why, unoff: c.unoff, net: c.net });
     return Object.assign(t, useOf(t.tags, (t.routeTypes || []).concat(t.routes && t.routes.length ? ["mtb"] : [])));
   }
 
@@ -1837,7 +1870,7 @@ out body;`;
   const CAT_RANK = { mtb: 0, looks: 1, other: 2 };
   const mergeCache = new Map();
   function combine(items) {
-    const key = items.map((t) => t.id + "v" + t.version).sort().join(",");
+    const key = items.map((t) => t.id + "v" + t.version + t.cat).sort().join(",");
     if (mergeCache.has(key)) return mergeCache.get(key);
     const rank = (t) => CAT_RANK[t.cat] ?? 3, best = Math.min(...items.map(rank));
     const byLen = items.slice().sort((a, b) => b.km - a.km);
@@ -1878,13 +1911,72 @@ out body;`;
     return out.sort((a, b) => b.created - a.created);
   }
 
+  // ---------- MTB trail networks ----------
+  // Many bike trails have no bike tags in OpenStreetMap. A plain path (no bike tags, not open to
+  // motors, not graded for hiking) that runs among two or more differently named MTB-tagged trails,
+  // within NET_M, is shown as "Looks like MTB". Checked again whenever more trails or trail-name
+  // lists come in, so it keeps up with the map.
+  const NET_M = 400;
+  const net = { key: "", rev: 0, grid: new Map() };
+  const isMtbTagged = (tags) => Object.keys(tags).some((k) => /^mtb(:|$)/.test(k) && !(k === "mtb" && tags.mtb === "no"));
+  function netGrid() {                             // MTB-tagged trails in cells of about 550 x 500 m
+    const key = names.rev + "/" + state.trails.length;
+    if (net.key === key) return net.grid;
+    net.key = key; net.rev++; net.grid = new Map();
+    const add = (lat, lon, name) => {
+      const k = Math.floor(lat / 0.005) + ":" + Math.floor(lon / 0.007);
+      if (!net.grid.has(k)) net.grid.set(k, []);
+      net.grid.get(k).push({ ll: L.latLng(lat, lon), n: norm(name), name });
+    };
+    const anchor = (tags) => tags.highway !== "track" && isMtbTagged(tags) && (tags.name || tags["mtb:name"]);
+    for (const list of names.zones.values()) list.forEach((i) => { if (i.t === "w" && anchor(i.tags)) add(i.c[0], i.c[1], i.tags.name || i.tags["mtb:name"]); });
+    state.trails.forEach((t) => { if (!t.ghost && anchor(t.tags)) { const c = t.bounds.getCenter(); add(c.lat, c.lng, t.tags.name || t.tags["mtb:name"]); } });
+    return net.grid;
+  }
+  // Names of the MTB-tagged trails within NET_M of these points, leaving out the trail's own name.
+  function netNear(pts, own) {
+    const grid = netGrid(), found = new Map(), self = norm(own || "");
+    const step = Math.max(1, Math.floor(pts.length / 12)), idx = [];
+    for (let i = 0; i < pts.length; i += step) idx.push(i);
+    idx.push(pts.length - 1);
+    for (const i of idx) {
+      const p = L.latLng(pts[i]), r = Math.floor(p.lat / 0.005), c = Math.floor(p.lng / 0.007);
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++)
+        (grid.get(r + dr + ":" + (c + dc)) || []).forEach((a) => { if (a.n && a.n !== self && !found.has(a.n) && p.distanceTo(a.ll) <= NET_M) found.set(a.n, a.name); });
+      if (found.size >= 3) break;
+    }
+    return [...found.values()];
+  }
+  const netWhy = (near) => `in an MTB trail network (near ${near.slice(0, 2).map((n) => `“${n}”`).join(" and ")})`;
+  function netCheck(t) {
+    netGrid();
+    if (t.netRev === net.rev) return t;
+    t.netRev = net.rev;
+    if (t.inNet) { t.cat = "other"; t.why = t.inNet.why; t.inNet = null; }   // checked again from scratch
+    if (t.cat !== "other" || !t.net || t.use) return t;
+    const near = netNear(t.segments ? t.segments.flat() : t.geom, t.tags.name || t.tags["mtb:name"]);
+    if (near.length >= 2) { t.inNet = { why: t.why, near }; t.cat = "looks"; t.why = [netWhy(near)].concat(t.why.filter((w) => !/^(no bike-related|score )/.test(w))); }
+    return t;
+  }
+  // The trail-name lists hold the region's MTB-tagged trails, old and new. The new-trails list loads
+  // them from the nightly files (or this browser), never from OpenStreetMap's busy server.
+  const netTried = new Set();
+  function ensureNetNames() {
+    if (state.example) return;
+    const zs = primeZones().filter((z) => !names.zones.has(z.id) && !netTried.has(z.id));
+    if (!zs.length) return;
+    zs.forEach((z) => netTried.add(z.id));
+    loadNames(false, zs, null, true).then(() => { if (!state.prime) render(); });
+  }
+
   function trailName(t) { if (t.ghost) return "Possible unmapped trail"; return t.tags.name || t.tags["mtb:name"] || "Unnamed " + t.tags.highway; }
   const CAT_LABEL = { mtb: "MTB tagged", looks: "Looks like MTB", other: "Other new path", ghost: "Possible unmapped trail" };
 
   function render() {
     syncClear();
     if (state.prime) { renderPrime(); return; }
-    const base = visibleTrails();
+    ensureNetNames();
+    const base = visibleTrails().map(netCheck);
     const vis = mergeSegments(base.filter((t) => !t.use))   // moto and hiking-only trails are left out
       .filter((t) => t.km * 1000 >= MIN_TRAIL_M);
     state.merged = new Map(vis.map((t) => [t.id, t]));
@@ -1944,7 +2036,8 @@ out body;`;
   const primeKeep = new WeakMap();
   function primeEntry(g) {                         // a bike trail from the name lists, or null
     if (!primeKeep.has(g)) {
-      const c = g.type === "r" ? (g.tags.route === "mtb" ? { cat: "mtb", unoff: [] } : null) : classify(g.tags, []);
+      let c = g.type === "r" ? (g.tags.route === "mtb" ? { cat: "mtb", unoff: [] } : null) : classify(g.tags, []);
+      if (c && c.cat === "other" && c.net && !c.use && netNear(g.items.map((i) => i.c), g.name).length >= 2) c = { ...c, cat: "looks" };
       primeKeep.set(g, c && (c.cat === "mtb" || c.cat === "looks") && !c.use ? { g, center: g.center, cat: c.cat, unoff: c.unoff || [] } : null);
     }
     return primeKeep.get(g);
@@ -2347,6 +2440,7 @@ out body;`;
         <p class="muted">This only shows what OpenStreetMap mappers tagged. It's a hint, not the trail's legal status. Check with the land manager or Trailforks before riding.</p></div>` : ""}
       <div class="go"><a class="go-btn" id="goBtn" target="_blank" rel="noopener" aria-disabled="true">Go to trail</a><p class="muted" id="goNote">Finding the top of the trail…</p></div>
       <dl class="facts">
+        ${t.cat === "looks" ? `<dt>Why it looks like MTB</dt><dd>${t.why.filter((w) => !/^score /.test(w)).map(esc).join("<br>")}${t.inNet ? `<br><span class="muted">It has no bike tags yet. If it's a bike trail, adding <code>mtb:scale</code> on OpenStreetMap makes it “MTB tagged”.</span>` : ""}</dd>` : ""}
         <dt>Length</dt><dd>${fmtLen(t.km)} <span class="muted">(${segs ? `${segs} map segments` : `${t.geom.length} map points`})</span></dd>
         <dt>First mapped</dt><dd>${t.created ? `${fmtDate(t.created)} · ${ago(t.created)}<br>by ${userLink(t.creator)} ${csLink(t.firstChangeset)}` : "Unknown"}${segs && type === "way" ? `<br><span class="muted">earliest of its segments</span>` : ""}</dd>
         <dt>Last edited</dt><dd>${segs && type === "way" ? `<span class="muted">main segment:</span> ` : ""}${t.version > 1 ? `${fmtDate(t.lastEdit)} · version ${t.version}<br>by ${userLink(t.lastUser)} ${csLink(t.lastChangeset)}` : "Never edited since (version 1)"}</dd>
@@ -2378,6 +2472,7 @@ out body;`;
     if (real) loadHistory(t);
     loadElevation(t);
     loadWeather(t);
+    leaveFullMap(t);
   }
 
   // A possible unmapped trail: what the GPS traces say, and where to compare and check it.
@@ -2423,6 +2518,7 @@ out body;`;
     $("detailBack").addEventListener("click", closeDetail);
     loadElevation(t);
     loadWeather(t);
+    leaveFullMap(t);
   }
 
   function closeDetail() {
@@ -2590,11 +2686,55 @@ out body;`;
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!$("about").hidden) $("about").hidden = true; else if (state.selected) closeDetail(); } });
   $("sheetToggle").addEventListener("click", () => { $("panel").classList.toggle("expanded"); setTimeout(() => map.invalidateSize(), 50); });
 
+  // ---------- Full map: the panel hides and the map fills the screen ----------
+  // Where the browser allows it (computers, Android) the page also goes full screen, hiding the
+  // browser bars; iPhones keep their bars but still get the whole page. "Back to search", the
+  // button again, Escape, or opening a trail's details bring the panel back.
+  const fullMap = { browser: false };
+  const isFull = () => document.querySelector(".app").classList.contains("fullmap");
+  function setFullMap(on) {
+    if (isFull() === on) return;
+    const before = $("map").getBoundingClientRect();
+    document.querySelector(".app").classList.toggle("fullmap", on);
+    const b = $("fullBtn");
+    b.setAttribute("aria-pressed", String(on));
+    b.textContent = on ? "⤡ Exit full map" : "⤢ Full map";
+    b.title = on ? "Bring back the search panel" : "Hide the search panel so the map fills the screen";
+    const after = $("map").getBoundingClientRect();
+    map.invalidateSize({ pan: false });
+    map.panBy([after.left - before.left, after.top - before.top], { animate: false });   // trails stay where they were on screen
+    syncMapStatus();
+    const el = document.documentElement;
+    if (on && document.fullscreenEnabled && el.requestFullscreen && !document.fullscreenElement) {
+      el.requestFullscreen({ navigationUI: "hide" }).then(() => { fullMap.browser = true; }, () => {});
+    } else if (!on && fullMap.browser) {
+      fullMap.browser = false;
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    }
+    if (on) $("fullExit").focus({ preventScroll: true });
+  }
+  function leaveFullMap(t) {                       // a trail was opened from the full map: show its details
+    if (!isFull()) return;
+    setFullMap(false);
+    const b = t.bounds || L.latLngBounds(t.geom);
+    if (!map.getBounds().intersects(b)) map.fitBounds(b, { maxZoom: 16, padding: [40, 40] });
+  }
+  // The search status, shown on the map while the panel is hidden.
+  function syncMapStatus() { $("mapStatus").textContent = isFull() ? $("status").textContent.trim() : ""; }
+  new MutationObserver(syncMapStatus).observe($("status"), { childList: true, characterData: true, subtree: true });
+  $("fullBtn").addEventListener("click", () => setFullMap(!isFull()));
+  $("fullExit").addEventListener("click", () => setFullMap(false));
+  document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement && fullMap.browser) { fullMap.browser = false; setFullMap(false); }   // Esc or the phone's back gesture
+    setTimeout(() => map.invalidateSize(), 100);
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && isFull() && $("about").hidden && !e.target.closest("input, select, textarea")) setFullMap(false); });
+
   // ---------- trail name search ----------
   // Every named path, track and trail route in the region (any age), downloaded zone by zone the
   // first time the box is used, saved in this browser for a week, and matched with typo tolerance.
   const NAME_FRESH_MS = 7 * 864e5;
-  const names = { zones: new Map(), fresh: new Set(), inflight: new Set(), failed: new Set(), groups: [], dirty: true, trailCount: -1 };
+  const names = { zones: new Map(), fresh: new Set(), inflight: new Set(), failed: new Set(), groups: [], dirty: true, trailCount: -1, rev: 0 };
   // The name search can be limited to one zone ("Where is it?"): only that zone's names are loaded and searched.
   // A typed town or place ("Or go to a town or place") becomes its own search box, about 20 km across or more.
   let nearPlace = store.get("nameNear", null);   // { label, box: [south, west, north, east] }
@@ -2680,7 +2820,7 @@ out tags center qt;`;
   const toItems = (elements) => elements.filter((e) => e.tags && e.center && (e.tags.name || e.tags["mtb:name"]))
     .map((e) => ({ t: e.type === "relation" ? "r" : "w", id: e.id, c: [+e.center.lat.toFixed(5), +e.center.lon.toFixed(5)], tags: e.tags }));
 
-  async function loadNames(retry, zones, onLocal) {
+  async function loadNames(retry, zones, onLocal, localOnly) {
     if (state.example) return;
     if (retry) { names.failed.clear(); gate.strikes = 0; }
     const c = map.getCenter();
@@ -2693,12 +2833,13 @@ out tags center qt;`;
       let s = names.zones.has(z.id) ? null : await saved.get("names:" + z.id);
       const nf = zoneById(z.id) && await nightly(`names-${z.id}.json`);
       if (nf && nf.v === 1 && (!s || Date.parse(nf.builtAt) > s.fetchedAt)) s = { fetchedAt: Date.parse(nf.builtAt), items: nf.items };
-      if (s) { names.zones.set(z.id, s.items); names.dirty = true; }
+      if (s) { names.zones.set(z.id, s.items); names.dirty = true; names.rev++; }
       if (s && Date.now() - s.fetchedAt <= NAME_FRESH_MS) { names.fresh.add(z.id); names.inflight.delete(z.id); }
       else todo.push(z);  // never loaded, or saved more than a week ago (the old list is used meanwhile)
     }
     if (onLocal) onLocal();   // the saved and nightly lists are in; the rest come from OpenStreetMap
     changed();
+    if (localOnly) todo.splice(0).forEach((z) => names.inflight.delete(z.id));
     if (!todo.length) return;
     log(`Trail names: loading ${todo.map(shortZone).join(", ")}.`);
     async function worker(mirror) {
@@ -2706,7 +2847,7 @@ out tags center qt;`;
         const z = todo.shift();
         try {
           const items = toItems(await fetchNameBox(z.bounds, 0, z.name, mirror));
-          names.zones.set(z.id, items); names.dirty = true; names.fresh.add(z.id);
+          names.zones.set(z.id, items); names.dirty = true; names.rev++; names.fresh.add(z.id);
           saved.put("names:" + z.id, { fetchedAt: Date.now(), items });
           log(`  names ${z.name}: ${items.length}`);
         } catch (e) { names.failed.add(z.id); log(`  names ${z.name}: failed (${e.message})`); }
@@ -2919,6 +3060,8 @@ out tags center qt;`;
         why: c ? c.why : [`No bike tags and not trail-like enough for the MTB colours (highway=${tags.highway || "none"}, ${tags.route ? "route=" + tags.route : "no route"}).`],
       };
       if (c && c.cat === "other") t.catLabel = kind;
+      t.net = !!(c && c.net);
+      if (netCheck(t).inNet) t.catLabel = null;
       // First-mapped date: version 1 of the oldest segment (or of the route).
       const v1 = segIds.length ? await fetchV1(segIds).catch(() => new Map()) : new Map();
       if (type === "relation") {
