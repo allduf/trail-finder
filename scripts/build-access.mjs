@@ -136,7 +136,7 @@ async function geomCol() {
 async function recSites(box) {
   const col = await geomCol();
   let lastErr;
-  for (const where of ["LIFE_CYCLE_STATUS_CODE = 'ACTIVE'", ""]) {
+  for (const where of [""]) {
     const params = new URLSearchParams({
       service: "WFS", version: "2.0.0", request: "GetFeature", typeName: `pub:${REC_LAYER}`, outputFormat: "application/json",
       srsName: "EPSG:4326", count: "5000", CQL_FILTER: `BBOX(${col}, ${albersBox(box).join(", ")}, 'EPSG:3005')${where ? ` AND (${where})` : ""}`,
@@ -158,7 +158,6 @@ async function recSites(box) {
   }
   throw lastErr;
 }
-const REC_TYPE = { SIT: "Recreation site", RTR: "Recreation trail", IF: "Interpretive forest" };
 function recPoints(feats, grid) {
   const out = [];
   for (const f of feats) {
@@ -166,11 +165,13 @@ function recPoints(feats, grid) {
     const xy = g && (g.type === "Point" ? g.coordinates : g.type === "MultiPoint" ? g.coordinates[0] : null);
     if (!xy) continue;
     const [lat, lon] = Math.abs(xy[1]) > 90 ? [xy[0], xy[1]] : [xy[1], xy[0]];
-    const code = String(p.PROJECT_TYPE || p.PROJECT_TYPE_DESCRIPTION || ""), type = REC_TYPE[code] || code;
+    // The layer has no type field: a name with "Trail" in it is a recreation trail, its point usually the trailhead.
+    const name = String(p.PROJECT_NAME || "").trim(), type = /\btrails?\b/i.test(name) ? "Recreation trail" : "Recreation site";
     const trail = /trail/i.test(type);
     if (!trail && !nearTrail(grid, lat, lon)) continue;
     out.push({ id: String(p.FOREST_FILE_ID || f.id), k: "rec", lat: round(lat), lon: round(lon),
-      t: { name: String(p.PROJECT_NAME || p.SITE_NAME || "").trim(), type, loc: String(p.SITE_LOCATION || "").trim().slice(0, 200) } });
+      t: { name, type, loc: String(p.SITE_LOCATION || "").trim().slice(0, 200),
+        dir: String(p.DRIVING_DIRECTIONS || "").trim().slice(0, 400), closed: String(p.CLOSURE_DESCRIPTION || "").trim().slice(0, 200) } });
   }
   return out;
 }
