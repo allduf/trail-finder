@@ -686,6 +686,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   --mtb: #d1245f;             /* tagged MTB trails */
   --looks: #d98a00;           /* looks like MTB */
   --other: #6b7f99;           /* other new paths */
+  --ghost: #7a4fd6;           /* possible unmapped trails (from GPS traces) */
   --warn-bg: #fff4d6;
   --warn-fg: #6b4a00;
   --map-ground: #e4e9e3;
@@ -696,13 +697,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --chip: #252d28;
-    --accent: #5cc98f; --accent-fg: #0d1a12; --mtb: #ff5c93; --looks: #ffb627; --other: #93a6c2;
+    --accent: #5cc98f; --accent-fg: #0d1a12; --mtb: #ff5c93; --looks: #ffb627; --other: #93a6c2; --ghost: #b18cff;
     --warn-bg: #3a2f12; --warn-fg: #ffd98a; --map-ground: #1f2622; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --chip: #252d28;
-  --accent: #5cc98f; --accent-fg: #0d1a12; --mtb: #ff5c93; --looks: #ffb627; --other: #93a6c2;
+  --accent: #5cc98f; --accent-fg: #0d1a12; --mtb: #ff5c93; --looks: #ffb627; --other: #93a6c2; --ghost: #b18cff;
   --warn-bg: #3a2f12; --warn-fg: #ffd98a; --map-ground: #1f2622; color-scheme: dark;
 }
 html, body { height: 100%; }
@@ -776,6 +777,7 @@ label.toggle.t-unoff.off .sw { background: repeating-linear-gradient(90deg, var(
 .unoff-box ul { margin: 6px 0; padding-left: 18px; }
 .unoff-box p { margin: 6px 0 0; font-size: .85rem; }
 label.toggle.t-mtb .sw { background: var(--mtb); } label.toggle.t-looks .sw { background: var(--looks); } label.toggle.t-other .sw { background: var(--other); }
+label.toggle.t-ghost .sw { background: repeating-linear-gradient(90deg, var(--ghost) 0 4px, transparent 4px 7px); }
 label.toggle.off .sw { background: var(--muted); }
 .status { padding: 10px 16px; font-size: .9rem; color: var(--muted); border-bottom: 1px solid var(--line); }
 .status.warn { background: var(--warn-bg); color: var(--warn-fg); }
@@ -788,6 +790,7 @@ label.toggle.off .sw { background: var(--muted); }
 .trail:hover, .trail.sel { background: var(--chip); }
 .trail .bar { border-radius: 2px; }
 .trail.mtb .bar { background: var(--mtb); } .trail.looks .bar { background: var(--looks); } .trail.other .bar { background: var(--other); }
+.trail.ghost .bar, .d-head.ghost .bar { background: repeating-linear-gradient(180deg, var(--ghost) 0 5px, transparent 5px 8px); }
 .trail .name { font-weight: 600; overflow-wrap: anywhere; }
 .trail .meta { font-size: .85rem; color: var(--muted); }
 .trail .right { text-align: right; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -803,6 +806,9 @@ label.toggle.off .sw { background: var(--muted); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .chip { font-size: .8rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--chip); }
 .chip.mtb { background: var(--mtb); color: #fff; } .chip.looks { background: var(--looks); color: #1d1500; } .chip.other { background: var(--other); color: #fff; }
+.chip.ghost { background: transparent; border: 1.5px dashed var(--ghost); color: var(--fg); }
+.ghost-box { margin: 14px 0 0; padding: 10px 12px; border: 1.5px dashed var(--ghost); border-radius: 8px; background: var(--chip); }
+.ghost-box p { margin: 4px 0 0; font-size: .9rem; }
 .facts { display: grid; grid-template-columns: minmax(96px, 38%) 1fr; gap: 6px 12px; margin: 14px 0 0; }
 .facts dt { color: var(--muted); font-size: .85rem; }
 .facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
@@ -978,6 +984,7 @@ label.toggle.off .sw { background: var(--muted); }
           <label class="toggle t-mtb"><input type="checkbox" id="showMtb" checked><span class="ck"></span><span class="sw"></span>MTB tagged <span class="n" id="nMtb">0</span></label>
           <label class="toggle t-looks"><input type="checkbox" id="showLooks" checked><span class="ck"></span><span class="sw"></span>Looks like MTB <span class="n" id="nLooks">0</span></label>
           <label class="toggle t-other off"><input type="checkbox" id="showOther"><span class="ck"></span><span class="sw"></span>Other paths <span class="n" id="nOther">0</span></label>
+          <label class="toggle t-ghost" title="Lines that several GPS traces follow at bike speed, where OpenStreetMap has no trail yet. Unverified."><input type="checkbox" id="showGhost" checked><span class="ck"></span><span class="sw"></span>Possible unmapped <span class="n" id="nGhost">0</span></label>
           <label class="toggle t-unoff off" title="Of the trails ticked, show only the ones tagged as informal, closed or no bikes"><input type="checkbox" id="onlyUnoff"><span class="ck"></span><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
         </div>
       </section>
@@ -1020,6 +1027,8 @@ label.toggle.off .sw { background: var(--muted); }
     <p>Skipped: paved surfaces, <code>bicycle=dismount</code>, and alpine hiking routes (<code>sac_scale</code> alpine).</p>
     <h3>Unofficial (possibly unsanctioned) trails</h3>
     <p>Marked with a dark dotted line and an “Unofficial?” tag. A trail is flagged when mappers tagged it <code>informal=yes</code>, closed it (<code>access=no</code> or <code>private</code>), banned bikes (<code>bicycle=no</code>, <code>mtb=no</code>), or wrote “unsanctioned”, “closed”, “illegal” or similar in its note or description. Turn on “Unofficial only” to see just those. This is a hint from the map data, not the legal status: many unsanctioned trails aren't tagged at all, and some tags are out of date.</p>
+    <h3>Possible unmapped trails (unverified)</h3>
+    <p>Purple dotted lines are guesses, not mapped trails. Once a week the site looks at the public GPS traces people upload to OpenStreetMap. Where 2 or more different traces run together for 100 m or more, more than 20 m from any mapped road, path, lift or ski run, it's listed. Only lines most traces ride at bike speed (faster than walking, slower than a car) are shown. The date is the first GPS trace on it. Each one links to the Strava and Trailforks heatmaps so you can compare, and to OpenStreetMap so you can map it if it's real. It may be private land, closed, or a GPS glitch: check before riding.</p>
     <h3>Other paths</h3>
     <p>New <code>highway=path</code> ways that don't reach 2 points. Many fresh trails are mapped with no extra tags, so this layer is worth a look.</p>
     <p><button class="btn primary" id="aboutClose" type="button">Got it</button></p>
@@ -1054,7 +1063,8 @@ label.toggle.off .sw { background: var(--muted); }
 
   const state = {
     months: store.get("months", 6),
-    show: { mtb: true, looks: true, other: false },
+    show: { mtb: true, looks: true, other: false, ghost: true },
+    ghosts: [],          // possible unmapped trails from the weekly GPS-trace file
     onlyUnoff: false,     // "Unofficial only": of the ticked types, flagged trails only
     trails: [],          // all candidates from last search (2-year window), with .created
     searchedBounds: [],
@@ -1491,7 +1501,29 @@ out body;`;
   function mergeTiles(tiles) {
     const byId = new Map();
     tiles.forEach((t) => ((tileCache.get(t.key) || {}).trails || []).forEach((tr) => byId.set(tr.id, tr)));
+    state.ghosts.forEach((g) => byId.set(g.id, g));
     state.trails = [...byId.values()].sort((a, b) => b.created - a.created);
+  }
+
+  // ---- possible unmapped trails: GitHub looks for them in OpenStreetMap's public GPS traces every week (scripts/find-unmapped.mjs) ----
+  async function loadGhosts(zones, boxes) {
+    const files = await Promise.all(zones.map((z) => nightly(`unmapped-${z.id}.json`)));
+    const byId = new Map();
+    files.forEach((f) => (f && f.v === 1 ? f.items : []).forEach((x) => {
+      if (x.k !== "bike" || byId.has(x.id)) return;   // walking-speed lines are kept in the file but not shown
+      const geom = [];
+      for (let i = 0; i < x.g.length; i += 2) geom.push([x.g[i], x.g[i + 1]]);
+      const bounds = L.latLngBounds(geom);
+      if (!boxes.some((b) => b.intersects(bounds))) return;
+      byId.set(x.id, {
+        id: x.id, ghost: true, cat: "ghost", tags: {}, unoff: [], geom, bounds, km: x.m / 1000, zone: zoneOf(bounds.getCenter()),
+        created: new Date(x.f), lastSeen: new Date(x.l), traces: x.n, riders: x.u, bikeTraces: x.bike, walkTraces: x.walk, speed: x.s, traceUrls: x.tr || [],
+        lo: x.lo, hi: x.hi,
+        why: [`${x.n} GPS traces, ${x.bike} at bike speed`],
+      });
+    }));
+    state.ghosts = [...byId.values()];
+    if (files.some(Boolean)) log(`${state.ghosts.length} possible unmapped trails from the weekly GPS-trace file.`);
   }
 
   // boxes: array of L.LatLngBounds to cover.
@@ -1523,8 +1555,12 @@ out body;`;
     const nightlyAt = new Map();
     const zonesHere = useNightly ? ZONES.filter((z) => boxes.some((b) => b.intersects(z.bounds))) : [];
     if (zonesHere.length) setStatus("Loading trails…");
-    const files = (await Promise.all(zonesHere.map((z) => nightly(`trails-${z.id}.json`)))).filter((f) => f && f.v === 1);
+    const [files] = await Promise.all([
+      Promise.all(zonesHere.map((z) => nightly(`trails-${z.id}.json`))).then((fs) => fs.filter((f) => f && f.v === 1)),
+      loadGhosts(zonesHere, boxes),
+    ]);
     if (token !== state.token) return;
+    if (state.ghosts.length) mergeTiles(tiles);
     let fromNightly = 0;
     for (const t of tiles) {
       const f = files.find((f) => f.tiles[t.key]);
@@ -1647,26 +1683,26 @@ out body;`;
     return state.trails.filter((t) => t.created >= cutoff && (!zb || zb.intersects(t.bounds)));
   }
 
-  function trailName(t) { return t.tags.name || t.tags["mtb:name"] || "Unnamed " + t.tags.highway; }
-  const CAT_LABEL = { mtb: "MTB tagged", looks: "Looks like MTB", other: "Other new path" };
+  function trailName(t) { if (t.ghost) return "Possible unmapped trail"; return t.tags.name || t.tags["mtb:name"] || "Unnamed " + t.tags.highway; }
+  const CAT_LABEL = { mtb: "MTB tagged", looks: "Looks like MTB", other: "Other new path", ghost: "Possible unmapped trail" };
 
   function render() {
     syncClear();
     const vis = visibleTrails();
-    const counts = { mtb: 0, looks: 0, other: 0 };
+    const counts = { mtb: 0, looks: 0, other: 0, ghost: 0 };
     vis.filter((t) => !state.onlyUnoff || isUnoff(t)).forEach((t) => counts[t.cat]++);
-    $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nOther").textContent = counts.other;
+    $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nOther").textContent = counts.other; $("nGhost").textContent = counts.ghost;
     $("nUnoff").textContent = vis.filter((t) => state.show[t.cat] && isUnoff(t)).length;
     const shown = vis.filter((t) => state.show[t.cat] && (!state.onlyUnoff || isUnoff(t)));
     state.shownCount = shown.length;
 
     trailLayer.clearLayers();
-    const color = { mtb: css("--mtb"), looks: css("--looks"), other: css("--other") };
+    const color = { mtb: css("--mtb"), looks: css("--looks"), other: css("--other"), ghost: css("--ghost") };
     shown.slice().reverse().forEach((t) => {
       const sel = state.selected === t.id;
       const line = L.polyline(t.geom, {
         color: color[t.cat], weight: sel ? 9 : t.cat === "other" ? 5 : 7, opacity: sel ? 0.8 : state.selected ? 0.3 : 0.45,
-        dashArray: t.cat === "looks" && !sel ? "10 6" : null, lineCap: "round", interactive: false,
+        dashArray: t.cat === "ghost" ? "1 10" : t.cat === "looks" && !sel ? "10 6" : null, lineCap: "round", interactive: false,
       });
       // A wide invisible line on top makes thin trails easy to click or tap.
       const hit = L.polyline(t.geom, { weight: 18, opacity: 0, interactive: true })
@@ -1961,6 +1997,7 @@ out body;`;
   const csLink = (c) => c ? `<a href="https://www.openstreetmap.org/changeset/${c}" target="_blank" rel="noopener">#${c}</a>` : "";
 
   function openDetail(t) {
+    if (t.ghost) { openGhostDetail(t); return; }
     const d = $("detail");
     const real = t.id > 0;
     const start = t.geom[0], end = t.geom[t.geom.length - 1];
@@ -2011,6 +2048,49 @@ out body;`;
     syncClear();
     $("detailBack").addEventListener("click", closeDetail);
     if (real) loadHistory(t);
+    loadElevation(t);
+    loadWeather(t);
+  }
+
+  // A possible unmapped trail: what the GPS traces say, and where to compare and check it.
+  function openGhostDetail(t) {
+    const start = t.geom[0], end = t.geom[t.geom.length - 1], mid = t.geom[Math.floor(t.geom.length / 2)];
+    const at = `${mid[0].toFixed(5)}/${mid[1].toFixed(5)}`;
+    const traceLinks = t.traceUrls.map((u) => `<a href="https://www.openstreetmap.org${esc(u)}" target="_blank" rel="noopener">${esc(decodeURIComponent(u.split("/")[2]))}</a>`).join(", ");
+    $("detail").innerHTML = `
+      <button class="linkish back" id="detailBack" type="button">← Back</button>
+      <div class="d-head ghost"><span class="bar"></span>
+        <div><h2>Possible unmapped trail</h2>
+        <div class="chips"><span class="chip ghost">Unverified</span>${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
+      </div>
+      <div class="ghost-box"><strong>Not on the map yet</strong>
+        <p>${t.traces} GPS traces uploaded to OpenStreetMap follow this line, and nothing is mapped within 20 m of it. It may be a real trail nobody has mapped, but it could also be private land, a closed trail, a cut line or a GPS glitch. Compare with the heatmaps below before riding it.</p></div>
+      <dl class="facts">
+        <dt>Length</dt><dd>${fmtLen(t.km)} <span class="muted">(along one trace)</span></dd>
+        <dt>GPS traces</dt><dd>${t.traces} traces by ${t.riders} ${t.riders === 1 ? "person" : "different people"}</dd>
+        <dt>Who uses it</dt><dd>${t.bikeTraces} at bike speed${t.walkTraces ? `, ${t.walkTraces} at walking speed` : ""}${t.speed ? `<br><span class="muted">typical bike speed ${t.speed} km/h</span>` : ""}</dd>
+        <dt>First trace</dt><dd>${fmtDate(t.created)} · ${ago(t.created)}</dd>
+        <dt>Latest trace</dt><dd>${fmtDate(t.lastSeen)} · ${ago(t.lastSeen)}</dd>
+        <dt>Starts at</dt><dd class="mono">${start[0].toFixed(5)}, ${start[1].toFixed(5)}</dd>
+        <dt>Ends at</dt><dd class="mono">${end[0].toFixed(5)}, ${end[1].toFixed(5)}</dd>
+      </dl>
+      <h3>Compare with other heatmaps</h3><div class="links">
+        <a href="https://www.strava.com/maps/global-heatmap?sport=MountainBikeRide&style=dark&terrain=true&labels=true&poi=false&cPhotos=false&gColor=hot&gOpacity=100#16/${at}" target="_blank" rel="noopener">Strava heatmap (MTB)</a>
+        <a href="https://www.trailforks.com/map/?ping=${mid[0].toFixed(5)},${mid[1].toFixed(5)}" target="_blank" rel="noopener">Trailforks map</a>
+        <a href="https://www.openstreetmap.org/#map=17/${at}&layers=G" target="_blank" rel="noopener">OpenStreetMap GPS traces</a>
+      </div>
+      ${traceLinks ? `<p class="muted">The traces: ${traceLinks}</p>` : ""}
+      <h3>Elevation</h3><div id="elev" class="muted">Loading elevation…</div>
+      <h3>Weather and Loam moisture index</h3><div id="wx" class="muted">Loading weather…</div>
+      <h3>If it's real</h3><div class="links">
+        <a href="https://www.openstreetmap.org/edit#map=18/${at}" target="_blank" rel="noopener">Map it on OpenStreetMap</a>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${start[0]},${start[1]}" target="_blank" rel="noopener">Directions to the start</a>
+      </div>
+      <p class="muted">Once it's mapped on OpenStreetMap, it shows up as a normal new trail. Mapping tip: the OpenStreetMap editor can show the Strava heatmap as a background to trace from by hand.</p>`;
+    $("panel").classList.add("detail-open");
+    $("detail").hidden = false;
+    $("detail").scrollTop = 0;
+    $("detailBack").addEventListener("click", closeDetail);
     loadElevation(t);
     loadWeather(t);
   }
@@ -2071,7 +2151,7 @@ out body;`;
     });
   });
   $("onlyUnoff").addEventListener("change", (e) => { state.onlyUnoff = e.target.checked; e.target.closest("label").classList.toggle("off", !state.onlyUnoff); render(); });
-  [["showMtb", "mtb"], ["showLooks", "looks"], ["showOther", "other"]].forEach(([id, k]) => {
+  [["showMtb", "mtb"], ["showLooks", "looks"], ["showOther", "other"], ["showGhost", "ghost"]].forEach(([id, k]) => {
     const el = $(id);
     el.checked = state.show[k];
     el.closest("label").classList.toggle("off", !el.checked);
