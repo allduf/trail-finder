@@ -254,8 +254,25 @@ if (!ONLY || ONLY === "fires") {
       const p = f.properties, g = polyRings(f.geometry, 30);
       return g.length ? { n: p.FIRE_NUMBER || "", st: p.FIRE_STATUS || "", ha: p.FIRE_SIZE_HECTARES || p.CURRENT_SIZE || null, g } : null;
     }).filter(Boolean);
-    writeFileSync(new URL("fires.json", DATA), JSON.stringify({ v: 1, builtAt, fires, perims }));
-    log(`Wildfires: ${fires.length} burning or held, ${perims.length} perimeters (of ${pts.length} fires this season in the area)`);
+    // Areas closed because of fire: BC Wildfire Service area restriction orders, and evacuation orders and alerts
+    // (Emergency Management BC). Each is optional: a missing layer only leaves its list empty.
+    const text = (p, re) => Object.entries(p).filter(([k, v]) => re.test(k) && v && typeof v === "string").map(([, v]) => v.trim().slice(0, 300));
+    const areaList = async (layer, tol) => {
+      try { return (await fetchLayer(box, layer, [""])).filter((f) => f.geometry).map((f) => ({ p: f.properties || {}, g: polyRings(f.geometry, tol) })).filter((a) => a.g.length); }
+      catch (e) { log(`    ${layer}: ${e.message.slice(0, 120)}`); return null; }
+    };
+    const restrRaw = await areaList("WHSE_LAND_AND_NATURAL_RESOURCE.PROT_RESTRICTED_AREAS_SP", 25);
+    const evacRaw = await areaList("WHSE_HUMAN_CULTURAL_ECONOMIC.EMRG_ORDER_AND_ALERT_AREAS_SP", 25);
+    const restr = (restrRaw || []).map(({ p, g }) => ({ n: text(p, /NAME/)[0] || "", d: text(p, /DESC|COMMENT|TYPE/).join(" · ").slice(0, 300),
+      from: ymd(p.ACCESS_STATUS_EFFECTIVE_DATE || p.EFFECTIVE_DATE || p.ORDER_EFFECTIVE_DATE), url: text(p, /URL|LINK/)[0] || "", g }));
+    const evac = (evacRaw || []).map(({ p, g }) => {
+      const st = text(p, /STATUS|ORDER_ALERT|TYPE/).join(" ");
+      return { kind: /order/i.test(st) ? "order" : /alert/i.test(st) ? "alert" : "other", st, n: text(p, /EVENT_NAME|NAME/)[0] || "",
+        who: text(p, /AGENCY|ISSUING/)[0] || "", d: ymd(p.DATE_MODIFIED || p.DATE_ISSUED || p.ISSUED_DATE), g };
+    }).filter((a) => a.kind !== "other" || a.st);
+    writeFileSync(new URL("fires.json", DATA), JSON.stringify({ v: 1, builtAt, fires, perims, restr, evac }));
+    log(`Wildfires: ${fires.length} burning or held, ${perims.length} perimeters (of ${pts.length} fires this season in the area), ` +
+      `${restrRaw ? restr.length : "?"} area restrictions, ${evacRaw ? evac.length : "?"} evacuation orders or alerts`);
   } catch (e) { failed++; log(`Wildfires failed (${e.message})`); }
   if (ONLY === "fires") { if (failed) process.exit(1); process.exit(0); }
 }
