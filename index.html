@@ -977,6 +977,7 @@ label.toggle.off .sw { background: var(--muted); }
     <p>The search box looks through every named path, track, bike path and trail route in the whole region, old or new, plus the new trails already found. If you know roughly where the trail is, pick that area in “Where is it?”, or type a town or place, so only the trail names around there are loaded and searched. A typed place works outside Sea to Sky too. Typos and close spellings still match. The first time you use it, it downloads the list of names area by area (closest area first) and saves it in this browser for a week. Pick a result to zoom to the trail and see everything known about it.</p>
     <h3>What counts as new</h3>
     <p>A way is new when its first version is dated inside the period. Overpass gives every way edited in the last 2 years. For ways with more than one version, the app asks the OpenStreetMap API for version 1 and uses its date. A trail that was only edited (retagged, extended) does not count.</p>
+    <p>OpenStreetMap's trail search server (Overpass) is free and shared by everyone. When it says it's overloaded, the app waits and asks again later instead of piling on more requests, and the status line says so. Results are saved in this browser, so repeat searches only ask for what changed.</p>
     <p>One catch: when a mapper splits an old trail into two pieces, the new piece gets a new id and shows up as new. Check the history link in the popup when something looks off.</p>
     <h3>MTB tagged</h3>
     <p>Any tag starting with <code>mtb</code> (<code>mtb:scale</code>, <code>mtb:scale:imba</code>, <code>mtb:type</code>, <code>mtb=yes</code>, …) or membership in a <code>route=mtb</code> relation. <code>mtb=no</code> is excluded.</p>
@@ -1195,35 +1196,73 @@ label.toggle.off .sw { background: var(--muted); }
   }
 
   // ---------- data ----------
+  // Overpass is a free server shared by everyone, so the app is gentle with it: one request at a
+  // time per server for this whole tab, and when a server says it's overloaded (HTTP 429 or 504)
+  // the app leaves it alone for a while (15 s, then 30, 60, up to 2 min) instead of asking again
+  // right away or splitting the work into more requests.
+  const REST_MS = window.__tfRestMs || 15000;
+  const servers = OVERPASS.map((url) => ({ url, host: new URL(url).host, active: false, restUntil: 0, pause: 0 }));
+  const gate = { strikes: 0, lastStrike: 0 };   // busy answers in a row from any server
+  const GIVE_UP_STRIKES = 6;
+  const busyFor = () => { const t = Math.min(...servers.map((s) => s.restUntil)) - Date.now(); return t > 900 ? Math.ceil(t / 1000) : 0; };
+  function rest(s) { s.pause = Math.min(Math.max(REST_MS, s.pause * 2), 8 * REST_MS); s.restUntil = Date.now() + s.pause; gate.strikes++; gate.lastStrike = Date.now(); }
+  async function takeServer(first, signalToken) {
+    for (;;) {
+      if (signalToken != null && signalToken !== state.token) return null;
+      const s = servers.slice(first).concat(servers.slice(0, first)).find((s) => !s.active && Date.now() >= s.restUntil);
+      if (s) { s.active = true; return s; }
+      await sleep(250);
+    }
+  }
+  const tooBusy = () => Object.assign(new Error("OpenStreetMap's trail server is overloaded right now. Try again in a few minutes."), { http: true, busy: true });
+
   async function overpass(query, signalToken, first = 0) {
-    let lastErr;
-    const urls = OVERPASS.slice(first).concat(OVERPASS.slice(0, first));
-    for (const url of urls) {
+    let lastErr, offline = 0;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      if (gate.strikes >= GIVE_UP_STRIKES && Date.now() - gate.lastStrike < 8 * REST_MS) throw lastErr || tooBusy();
+      const s = await takeServer(first, signalToken);
+      if (!s) return null;
+      let gotAnswer = false;
       try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 75000);
-        const res = await fetch(url, { method: "POST", signal: ctrl.signal, body: "data=" + encodeURIComponent(query), headers: { "Content-Type": "application/x-www-form-urlencoded" } }).finally(() => clearTimeout(timer));
-        const host = new URL(url).host;
+        let res, json;
+        try {
+          res = await fetch(s.url, { method: "POST", signal: ctrl.signal, body: "data=" + encodeURIComponent(query), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+          gotAnswer = true;
+          if (res.ok) json = await res.json();
+        } finally { clearTimeout(timer); }
         if (res.ok) {
-          const json = await res.json();
-          log(`  ${host}: HTTP 200, ${json.elements.length} elements${json.remark ? ", remark: " + json.remark : ""}`);
-          if (json.remark && /error/i.test(json.remark)) { lastErr = new Error("OpenStreetMap stopped early: " + json.remark); lastErr.http = true; continue; }
+          log(`  ${s.host}: HTTP 200, ${json.elements.length} elements${json.remark ? ", remark: " + json.remark : ""}`);
           state.connected = true;
+          s.pause = 0; gate.strikes = 0;
+          // The server ran out of time or memory on this query: the square is too big, so split it.
+          if (json.remark && /error/i.test(json.remark)) throw Object.assign(new Error("OpenStreetMap stopped early: " + json.remark), { http: true, heavy: true });
           return json;
         }
         const text = (await res.text().catch(() => "")).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
         const detail = (text.match(/Error: (.{0,200})/) || [])[1] || "";
-        log(`  ${host}: HTTP ${res.status}${detail ? " " + detail : ""}`);
-        lastErr = new Error(res.status === 429 ? "OpenStreetMap is busy (too many requests). Try again in a minute." : res.status === 504 ? "OpenStreetMap timed out. Try a smaller area." : `OpenStreetMap answered ${res.status}${detail ? ": " + detail : "."}`);
-        lastErr.http = true;
-        lastErr.busy = res.status === 429 || res.status === 504;
+        log(`  ${s.host}: HTTP ${res.status}${detail ? " " + detail : ""}`);
+        if (res.status !== 429 && res.status !== 504) throw Object.assign(new Error(`OpenStreetMap answered ${res.status}${detail ? ": " + detail : "."}`), { http: true });
+        rest(s);
+        log(`  ${s.host} is busy: leaving it alone for ${Math.round(s.pause / 1000)} s.`);
+        lastErr = res.status === 429 ? Object.assign(new Error("OpenStreetMap is getting too many requests right now. Try again in a few minutes."), { http: true, busy: true }) : tooBusy();
       } catch (e) {
-        lastErr = e.name === "AbortError" ? Object.assign(new Error("OpenStreetMap took too long to answer."), { http: true, busy: true }) : e;
-        log(`  ${new URL(url).host}: no answer (${lastErr.message})`);
-      }
-      if (signalToken != null && signalToken !== state.token) return null;
+        if (e.http) throw e;
+        if (e.name === "AbortError" || gotAnswer) {
+          // No full answer in 75 s, or the connection dropped mid-download: most likely a square too big to send.
+          rest(s);
+          log(`  ${s.host}: ${e.name === "AbortError" ? "no answer in 75 s" : "answer cut off"}.`);
+          throw Object.assign(new Error("OpenStreetMap took too long to answer."), { http: true, heavy: true });
+        }
+        log(`  ${s.host}: no answer (${e.message})`);
+        lastErr = e;
+        if (!state.connected) { if (++offline >= servers.length) break; continue; }  // offline or blocked: don't keep trying
+        rest(s);  // an overloaded server sometimes just drops the request
+        lastErr = Object.assign(new Error("Lost the connection to OpenStreetMap. It may be overloaded; try again in a few minutes."), { busy: true });
+      } finally { s.active = false; }
     }
-    throw lastErr;
+    throw lastErr || tooBusy();
   }
 
   // Version-1 lookups: returns Map(id -> {timestamp, user}) using the multi-fetch API.
@@ -1302,9 +1341,10 @@ out body;`;
     try { return (await overpass(overpassQuery(b, since), token, mirror)) || { elements: [] }; }
     catch (e) {
       if (token !== state.token) throw e;
-      if (depth >= 2 || (!e.http && !state.connected)) throw e;
+      // Split only when the square was too much for the server. A busy server gets fewer requests, not more.
+      if (depth >= 2 || !e.heavy) throw e;
       log(`  ${label}: ${e.message} Retrying as 4 smaller squares.`);
-      await sleep(e.busy ? 5000 : 1000);
+      await sleep(1000);
       const parts = [];
       for (const q of quarters(b)) parts.push(...(await fetchBox(q, since, token, depth + 1, label + "·", mirror)).elements);
       return { elements: parts };
@@ -1356,7 +1396,7 @@ out body;`;
   }
 
   // ---- saved results (IndexedDB in this browser): repeat searches only ask for what changed ----
-  const FRESH_MS = 10 * 60 * 1000;           // a square checked in the last 10 minutes is used as is
+  const FRESH_MS = 60 * 60 * 1000;           // a square checked in the last hour is used as is
   const FULL_REFRESH_MS = 7 * 864e5;         // after a week, reload the square from scratch
   const saved = {
     db: null,
@@ -1396,6 +1436,7 @@ out body;`;
   async function search(boxes, offline) {
     const token = ++state.token;
     state.example = false;
+    gate.strikes = 0;
     $("searchArea").hidden = true;
     state.error = "";
     state.retry = null;
@@ -1578,7 +1619,8 @@ out body;`;
     } else if (state.loading) {
       const l = state.loading;
       const stage = l.done < l.total ? `${l.done} of ${l.total} map squares` : "checking dates of edited paths";
-      setStatus(`${l.updating ? "Showing saved trails, checking for new ones…" : "Loading trails…"} ${stage} (${Math.round((Date.now() - l.t0) / 1000)} s). ${n} trail${n === 1 ? "" : "s"} from the last ${label} so far, newest first.`);
+      const wait = busyFor();
+      setStatus(`${l.updating ? "Showing saved trails, checking for new ones…" : "Loading trails…"} ${stage} (${Math.round((Date.now() - l.t0) / 1000)} s). ${n} trail${n === 1 ? "" : "s"} from the last ${label} so far, newest first.${wait ? ` OpenStreetMap is busy, waiting ${wait} s before asking again.` : ""}`);
     } else if (state.error && !state.trails.length) {
       setStatus(`Search failed. ${state.error.replace(/\.?$/, ".")} If it keeps happening, open “Search details” and send a screenshot.`, true, state.retry && { label: "Try again", fn: state.retry });
     } else if (state.searchedBounds.length) {
@@ -1958,9 +2000,9 @@ out tags center qt;`;
       if (!json) throw new Error("no answer");
       return json.elements;
     } catch (e) {
-      if (depth >= 2 || (!e.http && !state.connected)) throw e;
+      if (depth >= 2 || !e.heavy) throw e;
       log(`  names ${label}: ${e.message} Retrying as 4 smaller squares.`);
-      await sleep(e.busy ? 5000 : 1000);
+      await sleep(1000);
       const out = [];
       for (const q of quarters(b)) out.push(...(await fetchNameBox(q, depth + 1, label + "·", mirror)));
       return out;
@@ -1971,7 +2013,7 @@ out tags center qt;`;
 
   async function loadNames(retry) {
     if (state.example) return;
-    if (retry) names.failed.clear();
+    if (retry) { names.failed.clear(); gate.strikes = 0; }
     const c = map.getCenter();
     const want = wantedZones().sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter()));
     const todo = [];
@@ -1999,7 +2041,9 @@ out tags center qt;`;
         refreshHits();
       }
     }
+    const tick = setInterval(() => { if (busyFor()) refreshHits(); }, 1000);  // show "busy" while waiting on the server
     await Promise.all([worker(1), worker(0)]);
+    clearInterval(tick);
     refreshHits();
   }
 
@@ -2079,7 +2123,7 @@ out tags center qt;`;
     const loading = want.some((z) => names.inflight.has(z.id));
     const failed = want.filter((z) => names.failed.has(z.id));
     if (state.example) note = "This preview only has the made-up example trails.";
-    else if (loading) note = zsel ? `Loading trail names in ${esc(shortZone(zsel))}…` : `Loading trail names: ${want.filter((z) => names.fresh.has(z.id)).length} of ${want.length} areas…`;
+    else if (loading) note = (zsel ? `Loading trail names in ${esc(shortZone(zsel))}…` : `Loading trail names: ${want.filter((z) => names.fresh.has(z.id)).length} of ${want.length} areas…`) + (busyFor() ? " OpenStreetMap is busy, so this can take a minute." : "");
     else if (failed.length) note = `Names for ${esc(failed.map(shortZone).join(", "))} didn't load. <button class="linkish" type="button" data-retry>Try again</button>`;
     if (!hits.length && !loading) note = `No trail named “${esc(raw)}” found${zsel ? ` in ${esc(shortZone(zsel))}` : ""}. Check the spelling${zsel ? ", or choose All areas" : " or type part of the name"}.` + (note ? "<br>" + note : "");
     box.innerHTML = rows + (note ? `<li class="hnote">${note}</li>` : "");
