@@ -687,7 +687,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   --looks: #d98a00;           /* looks like MTB */
   --other: #6b7f99;           /* other new paths */
   --ghost: #7a4fd6;           /* possible unmapped trails (from GPS traces) */
-  --road: #c3a6f2;            /* forest and dirt roads: light purple, solid (unmapped trails are dark purple dots) */
+  --road: #7b2cbf;            /* open forest and dirt roads: bold purple, solid (unmapped trails are purple dots) */
   --prime: #2f8f88;           /* trails in prime loam right now */
   --warn-bg: #fff4d6;
   --warn-fg: #6b4a00;
@@ -699,13 +699,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --chip: #252d28;
-    --accent: #5cc98f; --accent-fg: #0d1a12; --mtb: #ff5c93; --looks: #ffb627; --other: #93a6c2; --ghost: #b18cff; --road: #a98ad8; --prime: #4fd1c5;
+    --accent: #5cc98f; --accent-fg: #0d1a12; --mtb: #ff5c93; --looks: #ffb627; --other: #93a6c2; --ghost: #b18cff; --road: #b67cf0; --prime: #4fd1c5;
     --warn-bg: #3a2f12; --warn-fg: #ffd98a; --map-ground: #1f2622; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --chip: #252d28;
-  --accent: #5cc98f; --accent-fg: #0d1a12; --mtb: #ff5c93; --looks: #ffb627; --other: #93a6c2; --ghost: #b18cff; --road: #a98ad8; --prime: #4fd1c5;
+  --accent: #5cc98f; --accent-fg: #0d1a12; --mtb: #ff5c93; --looks: #ffb627; --other: #93a6c2; --ghost: #b18cff; --road: #b67cf0; --prime: #4fd1c5;
   --warn-bg: #3a2f12; --warn-fg: #ffd98a; --map-ground: #1f2622; color-scheme: dark;
 }
 html, body { height: 100%; }
@@ -941,7 +941,7 @@ label.toggle.off .sw { background: var(--muted); }
 .map-tools { position: absolute; z-index: 500; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
 .map-tools #locate.on { background: #2b7de9; border-color: #2b7de9; color: #fff; }
 .map-tools #allBtn.on { background: var(--fg); border-color: var(--fg); color: var(--panel); }
-.map-tools #roadsBtn.on { background: var(--road); border-color: var(--road); color: #1d1530; }
+.map-tools #roadsBtn.on { background: var(--road); border-color: var(--road); color: #fff; }
 .road-pop { font-family: var(--font-body); font-size: .85rem; line-height: 1.35; }
 .road-pop h4 { margin: 0 0 4px; font-size: .95rem; }
 .road-pop p { margin: 4px 0 !important; }
@@ -1151,7 +1151,7 @@ label.toggle.off .sw { background: var(--muted); }
     <h3>Possible unmapped trails (unverified)</h3>
     <p>Purple dotted lines are guesses, not mapped trails. Once a week the site looks at the public GPS traces people upload to OpenStreetMap. Where 2 or more different traces run together for 100 m or more, more than 20 m from any mapped road, path, lift or ski run, it's listed. Only lines most traces ride at bike speed (faster than walking, slower than a car) are shown. The date is the first GPS trace on it. Each one links to the Strava and Trailforks heatmaps so you can compare, and to OpenStreetMap so you can map it if it's real. It may be private land, closed, or a GPS glitch: check before riding.</p>
     <h3>Forest roads</h3>
-    <p>Solid light purple lines are Forest Service Roads and other dirt roads (turn them off with “Forest roads”). Once a week the site collects them from two open sources: the BC government's Forest Tenure roads (DataBC, Open Government Licence - British Columbia), which list every Forest Service Road and road permit with its tenure status, and OpenStreetMap dirt roads with their gate, access and deactivation tags. White gaps mean deactivated or retired (a retired tenure is no longer maintained and is often deactivated, but the road may still be there). Red dots mean closed to public vehicles: gated, private or industrial use only. A thinner line is mapped as very rough or 4x4 only. Tap a road to see why. This is mapped data, not a live closure list: check the <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p>
+    <p>Forest Service Roads and other dirt roads have a white edge and a colour for their status (turn them off with “Forest roads”). Once a week the site collects them from two open sources: the BC government's Forest Tenure roads (DataBC, Open Government Licence - British Columbia), which list every Forest Service Road and road permit with its tenure status, and OpenStreetMap dirt roads with their gate, access and deactivation tags. Bold purple means open, with no closure known. Brown means mapped as very rough or 4x4 only. Grey dashes mean deactivated or retired (a retired tenure is no longer maintained and is often deactivated, but the road may still be there). Red dashes mean closed to public vehicles: gated, private or industrial use only. Tap a road to see why. This is mapped data, not a live closure list: check the <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p>
     <p><button class="btn primary" id="aboutClose" type="button">Got it</button></p>
   </div>
 </div>
@@ -1193,7 +1193,7 @@ label.toggle.off .sw { background: var(--muted); }
     onlyOff: false,       // "Official only": trails with signs of being official, of the ticked types (same rule)
     colorBy: store.get("colorBy", "diff"),     // trail colours on the map: "diff" (difficulty, like Trailforks) or "type"
     allTrails: store.get("allTrails", true),  // "All trails": every MTB trail in view, any age, under the new ones
-    roads: store.get("roads", true),          // "Forest roads": dirt and Forest Service roads in light purple, with their status
+    roads: store.get("roads", true),          // "Forest roads": dirt and Forest Service roads, coloured by their status
     prime: store.get("prime", false),   // "Prime loam now" (time row): every named trail in the area with Loam index 40-59 now
     trails: [],          // all candidates from last search (2-year window), with .created
     searchedBounds: [],
@@ -2901,7 +2901,7 @@ out body;`;
   syncAllBtn();
   loadAllTrails();
 
-  // ---------- Forest roads: dirt and Forest Service roads in light purple, with their status ----------
+  // ---------- Forest roads: dirt and Forest Service roads, coloured by their status ----------
   // From the weekly data/roads-<zone>.json files (scripts/build-roads.mjs): BC government Forest Tenure road
   // sections (Forest Service Roads and road permits, with their tenure status) and OpenStreetMap dirt roads
   // (with gates, access and deactivation tags). Drawn under the trails from zoom 11; tapping one shows its status.
@@ -2926,6 +2926,9 @@ out body;`;
     if (r.s === "ACTIVE") return ["open", "active tenure: the road is held and maintained"];
     return ["open", `tenure status ${r.s || "unknown"}`];
   }
+  // Open: bold purple. Rough or 4x4: dirt brown. Deactivated or retired: grey dashes. Closed or gated: red dashes.
+  const ROAD_STYLE = { open: { color: "--road" }, rough: { color: "#a0581c" }, deact: { color: "#6b7280", dashArray: "10 7" }, closed: { color: "#d62828", dashArray: "10 7" } };
+  const roadStyle = (st) => ({ weight: 5, opacity: 1, ...ROAD_STYLE[st], color: ROAD_STYLE[st].color.startsWith("--") ? css(ROAD_STYLE[st].color) : ROAD_STYLE[st].color });
   map.createPane("roads").style.zIndex = 380;
   const roadRenderer = L.canvas({ pane: "roads", padding: 0.3 });
   const roadLayer = L.layerGroup().addTo(map);
@@ -2962,15 +2965,13 @@ out body;`;
     roadKey = key;
     roadLayer.clearLayers();
     if (!on) return;
-    const color = css("--road"), seen = new Set(), all = [];
+    const seen = new Set(), all = [];
     loaded.forEach((z) => z.list.forEach((r) => { const k = r.src + (r.id || r.r.f + r.geom[0]); if (!seen.has(k)) { seen.add(k); all.push(r); } }));
     const line = (r, o) => roadLayer.addLayer(L.polyline(r.geom, { renderer: roadRenderer, interactive: false, lineCap: "butt", ...o }));
-    // OpenStreetMap first and the government lines over them, then the status marks on top of both,
-    // so a gate or washout mapped in OpenStreetMap still shows where the two sources overlap.
-    const order = all.filter((r) => r.src === "osm").concat(all.filter((r) => r.src === "ften"));
-    order.forEach((r) => line(r, { color, weight: r.st === "rough" ? 3 : 4, opacity: 0.9 }));
-    order.filter((r) => r.st === "deact").forEach((r) => line(r, { color: "#fff", weight: 4.5, opacity: 0.85, dashArray: "4 8" }));
-    order.filter((r) => r.st === "closed").forEach((r) => line(r, { color: "#b3261e", weight: 5, opacity: 0.95, dashArray: "0.1 11", lineCap: "round" }));
+    // A white edge under every road so it stands out from the base map, then the roads by status, the
+    // most limiting last: where the two sources overlap, a gate or washout wins over "open".
+    all.forEach((r) => line(r, { color: "#fff", weight: 8, opacity: 0.9 }));
+    Object.keys(ROAD_STYLE).forEach((st) => all.filter((r) => r.st === st).forEach((r) => line(r, roadStyle(st))));
   }
   // The roads under a click, closest first per source (for the status popup).
   function roadsAt(ll) {
@@ -3006,7 +3007,7 @@ out body;`;
     const b = $("roadsBtn");
     b.setAttribute("aria-pressed", String(state.roads));
     b.classList.toggle("on", state.roads);
-    b.title = state.roads ? "Hide the forest and dirt roads" : "Show forest service roads and dirt roads in light purple, with their status";
+    b.title = state.roads ? "Hide the forest and dirt roads" : "Show forest service roads and dirt roads, coloured by their status";
   }
   $("roadsBtn").addEventListener("click", () => {
     state.roads = !state.roads; store.set("roads", state.roads);
@@ -3043,9 +3044,10 @@ out body;`;
       : sw("background: var(--mtb)", "MTB tagged") + sw("background: repeating-linear-gradient(90deg, var(--looks) 0 8px, transparent 8px 12px)", "Looks like MTB")
         + sw("background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 8px)", "Possible unmapped") + sw(dots, "Unofficial?");
     if (state.roads) $("keyList").innerHTML += `<li class="lg-sub">Forest roads</li>`
-      + sw("background: var(--road)", "Open") + sw("background: var(--road); height: 3px", "Rough / 4x4")
-      + sw("background: repeating-linear-gradient(90deg, var(--road) 0 6px, #fff 6px 10px)", "Deactivated / retired")
-      + sw("background: radial-gradient(circle, #b3261e 0 2.4px, var(--road) 2.6px) 0 50% / 9px 5px", "Closed / gated");
+      + [["open", "Open"], ["rough", "Rough / 4x4"], ["deact", "Deactivated / retired"], ["closed", "Closed / gated"]].map(([st, label]) => {
+        const c = roadStyle(st).color;
+        return sw(ROAD_STYLE[st].dashArray ? `background: repeating-linear-gradient(90deg, ${c} 0 7px, #fff 7px 11px)` : `background: ${c}`, label);
+      }).join("");
     $("keyNote").textContent = byDiff
       ? state.allTrails ? "All trails: bold = official, thin = not known. Unofficial ones show only in the list. White edge: trails in the list." : "Dashed: looks like MTB (no bike tags)."
       : state.allTrails ? "All trails: bold = official, thin = not known. Thick: trails in the list." : "";
