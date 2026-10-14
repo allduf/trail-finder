@@ -1807,7 +1807,8 @@ out body;`;
     $("nLoam").textContent = loamKnown ? typed.filter(isPrime).length : "–";
     const shown = state.primeLoam ? typed.filter(isPrime) : typed;
     state.shownCount = shown.length;
-    if (!state.loading && typed.length) loadLoam(typed);
+    state.loamPending = state.primeLoam && typed.some((t) => loamOf(t) === undefined);
+    if (typed.length) loadLoam(typed);
 
     trailLayer.clearLayers();
     const color = { mtb: css("--mtb"), looks: css("--looks"), other: css("--other"), ghost: css("--ghost") };
@@ -1857,11 +1858,11 @@ out body;`;
       const l = state.loading;
       const stage = l.done < l.total ? `${l.done} of ${l.total} map squares` : "checking dates of edited paths";
       const wait = busyFor();
-      setStatus(`${l.updating ? "Showing saved trails, checking for new ones…" : "Loading trails…"} ${stage} (${Math.round((Date.now() - l.t0) / 1000)} s). ${n} trail${n === 1 ? "" : "s"} from the last ${label} so far, newest first.${wait ? ` OpenStreetMap is busy, waiting ${wait} s before asking again.` : ""}`);
+      setStatus(`${l.updating ? "Showing saved trails, checking for new ones…" : "Loading trails…"} ${stage} (${Math.round((Date.now() - l.t0) / 1000)} s). ${n} trail${n === 1 ? "" : "s"} from the last ${label} so far${state.primeLoam ? " in prime loam" : ""}, newest first.${wait ? ` OpenStreetMap is busy, waiting ${wait} s before asking again.` : ""}`);
     } else if (state.error && !state.trails.length) {
       setStatus(`Search failed. ${state.error.replace(/\.?$/, ".")} If it keeps happening, open “Search details” and send a screenshot.`, true, state.retry && { label: "Try again", fn: state.retry });
     } else if (state.searchedBounds.length) {
-      setStatus((n ? `${n} trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : (state.primeLoam ? `None of these trails are in prime loam right now (index 20 to 39). Untick “Prime loam now” to see them all.` : state.onlyUnoff ? `No unofficial trails among the ones ticked in the last ${label}. Tick more types, or turn off “Unofficial only”.` : `No new trails here in the last ${label}. Try a longer period, tick “Other paths”, or move the map.`)) + (state.error ? " " + state.error : ""),
+      setStatus((n ? `${n} trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : (state.loamPending ? `Checking the Loam index of these trails…` : state.primeLoam ? `None of these trails are in prime loam right now (index 20 to 39). Untick “Prime loam now” to see them all.` : state.onlyUnoff ? `No unofficial trails among the ones ticked in the last ${label}. Tick more types, or turn off “Unofficial only”.` : `No new trails here in the last ${label}. Try a longer period, tick “Other paths”, or move the map.`)) + (state.error ? " " + state.error : ""),
         !!state.error, state.error && state.retry && { label: "Load missing squares", fn: state.retry });
     }
   }
