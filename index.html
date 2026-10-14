@@ -771,6 +771,9 @@ label.toggle.off { background: transparent; color: var(--muted); border: 1.5px d
 label.toggle.off .sw { background: var(--muted); }
 label.toggle.t-unoff .sw { background: repeating-linear-gradient(90deg, var(--fg) 0 3px, transparent 3px 6px); }
 label.toggle.t-moto .sw, label.toggle.t-hike .sw { background: var(--other); }
+label.toggle.t-loam .sw { background: #5aa86a; height: 10px; width: 10px; border-radius: 50%; }
+.trail .loam { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; white-space: nowrap; }
+.trail .loam i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .use-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; background: var(--chip); color: var(--muted); border: 1px solid var(--line); vertical-align: 1px; }
 label.toggle.t-unoff.off .sw { background: repeating-linear-gradient(90deg, var(--muted) 0 3px, transparent 3px 6px); }
 .unoff-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; border: 1px dashed currentColor; color: var(--fg); vertical-align: 1px; }
@@ -800,6 +803,8 @@ label.toggle.off .sw { background: var(--muted); }
 .grade { display: inline-block; font-family: var(--font-display); font-weight: 700; font-size: .8rem; padding: 0 6px; border-radius: 4px; background: var(--fg); color: var(--panel); letter-spacing: .04em; }
 .panel.detail-open .status, .panel.detail-open .debug, .panel.detail-open .list { display: none; }
 .detail { flex: 1; overflow-y: auto; min-height: 0; padding: 12px 16px 24px; }
+.panel { overflow-y: auto; overscroll-behavior: contain; }
+.panel .list, .panel .detail { flex: none; overflow: visible; min-height: auto; }
 .detail .back { padding: 4px 0; margin-bottom: 8px; }
 .d-head { display: grid; grid-template-columns: 5px 1fr; gap: 12px; }
 .d-head .bar { border-radius: 3px; }
@@ -1000,6 +1005,7 @@ label.toggle.off .sw { background: var(--muted); }
           <label class="toggle t-unoff off" title="Of the trails ticked, show only the ones tagged as informal, closed or no bikes"><input type="checkbox" id="onlyUnoff"><span class="ck"></span><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
           <label class="toggle t-moto off" title="Dirt-bike, ATV and 4x4 trails, hidden unless ticked"><input type="checkbox" id="showMoto"><span class="ck"></span><span class="sw"></span>Moto trails <span class="n" id="nMoto">0</span></label>
           <label class="toggle t-hike off" title="Trails where bikes aren't allowed, hidden unless ticked"><input type="checkbox" id="showHike"><span class="ck"></span><span class="sw"></span>Hiking only <span class="n" id="nHike">0</span></label>
+          <label class="toggle t-loam off" title="Only trails whose Loam moisture index is 20 to 39 right now (tacky, prime loam)"><input type="checkbox" id="primeLoam"><span class="ck"></span><span class="sw"></span>Prime loam now <span class="n" id="nLoam">–</span></label>
         </div>
       </section>
       <p class="hint tap-hint">Tip: tap any trail on the map to see all its details.</p>
@@ -1015,6 +1021,8 @@ label.toggle.off .sw { background: var(--muted); }
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
     <h2 id="aboutTitle">How Trail Finder works</h2>
     <p>All data comes from OpenStreetMap. For Sea to Sky and the Sunshine Coast, GitHub collects the new trails and trail names every night, so searches there load in a second or two without waiting on OpenStreetMap. A trail added today shows up after the next nightly update. Anywhere else, the app asks OpenStreetMap live. By default it covers the Sea to Sky corridor and the Sunshine Coast, split into the zones in the Area menu. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
+    <h3>Loam in the list</h3>
+    <p>Each new trail shows its Loam moisture index right now, from the same Open-Meteo soil model as the trail details (trails within about 5 km share one reading). Tick “Prime loam now” to keep only trails between 20 and 39: tacky hero dirt.</p>
     <h3>Near me</h3>
     <p>Tap “Near me” and pick 5, 10, 25 or 50 km. The app asks your browser for your location (it stays on your device), searches that circle and lists only the new trails within that distance, with how far each one is.</p>
     <h3>Click any trail</h3>
@@ -1084,6 +1092,7 @@ label.toggle.off .sw { background: var(--muted); }
     show: { mtb: true, looks: true, other: false, ghost: true, moto: false, hike: false },
     ghosts: [],          // possible unmapped trails from the weekly GPS-trace file
     onlyUnoff: false,     // "Unofficial only": of the ticked types, flagged trails only
+    primeLoam: false,     // "Prime loam now": of the trails shown, Loam moisture index 20-39 right now
     trails: [],          // all candidates from last search (2-year window), with .created
     searchedBounds: [],
     error: "",
@@ -1792,8 +1801,13 @@ out body;`;
     vis.filter((t) => !state.onlyUnoff || isUnoff(t)).forEach((t) => counts[t.cat]++);
     $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nOther").textContent = counts.other; $("nGhost").textContent = counts.ghost;
     $("nUnoff").textContent = vis.filter((t) => state.show[t.cat] && isUnoff(t)).length;
-    const shown = vis.filter((t) => state.show[t.cat] && (!state.onlyUnoff || isUnoff(t)));
+    const typed = vis.filter((t) => state.show[t.cat] && (!state.onlyUnoff || isUnoff(t)));
+    const isPrime = (t) => { const v = loamOf(t); return v != null && v >= 20 && v < 40; };
+    const loamKnown = typed.some((t) => loamOf(t) !== undefined);
+    $("nLoam").textContent = loamKnown ? typed.filter(isPrime).length : "–";
+    const shown = state.primeLoam ? typed.filter(isPrime) : typed;
     state.shownCount = shown.length;
+    if (!state.loading && typed.length) loadLoam(typed);
 
     trailLayer.clearLayers();
     const color = { mtb: css("--mtb"), looks: css("--looks"), other: css("--other"), ghost: css("--ghost") };
@@ -1826,7 +1840,7 @@ out body;`;
         <span class="bar"></span>
         <div><div class="name">${esc(trailName(t))} ${g ? `<span class="grade">${esc(g)}</span>` : ""} ${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""} ${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}</div>
         <div class="meta">${near ? `<span class="zone-tag">${fmtAway(nearDist(t))}</span> · ` : ""}${state.zone === "all" && !state.custom && t.zone ? `<span class="zone-tag">${esc(t.zone.split(" (")[0])}</span> · ` : ""}${esc(t.use ? t.useWhy[0] : t.why[0])}</div></div>
-        <div class="right">${fmtLen(t.km)}<br>${ago(t.created)}</div></li>`;
+        <div class="right">${fmtLen(t.km)}<br>${ago(t.created)}${loamBadge(t)}</div></li>`;
     }).join("") + "</ol>";
   }
 
@@ -1847,7 +1861,7 @@ out body;`;
     } else if (state.error && !state.trails.length) {
       setStatus(`Search failed. ${state.error.replace(/\.?$/, ".")} If it keeps happening, open “Search details” and send a screenshot.`, true, state.retry && { label: "Try again", fn: state.retry });
     } else if (state.searchedBounds.length) {
-      setStatus((n ? `${n} trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : (state.onlyUnoff ? `No unofficial trails among the ones ticked in the last ${label}. Tick more types, or turn off “Unofficial only”.` : `No new trails here in the last ${label}. Try a longer period, tick “Other paths”, or move the map.`)) + (state.error ? " " + state.error : ""),
+      setStatus((n ? `${n} trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : (state.primeLoam ? `None of these trails are in prime loam right now (index 20 to 39). Untick “Prime loam now” to see them all.` : state.onlyUnoff ? `No unofficial trails among the ones ticked in the last ${label}. Tick more types, or turn off “Unofficial only”.` : `No new trails here in the last ${label}. Try a longer period, tick “Other paths”, or move the map.`)) + (state.error ? " " + state.error : ""),
         !!state.error, state.error && state.retry && { label: "Load missing squares", fn: state.retry });
     }
   }
@@ -1939,6 +1953,47 @@ out body;`;
   const LMI_RIDE = [["#d9a35a", "OK, loose"], ["#5aa86a", "Best", "best"], ["#3f8f8c", "Good"], ["#3b6fb0", "Not great"], ["#33468f", "Stay off"]];
   const lmiKey = (lvl) => `<ul class="lmi-key" aria-label="What the numbers mean">${LMI_LEVELS.map((l, k) =>
     `<li class="${l === lvl ? "on" : ""}"><span class="dot" style="background:${LMI_RIDE[k][0]}"></span><span>${k * 20}–${Math.min(100, l[0] - 1)}</span><span>${esc(l[1])}</span><span class="ride ${LMI_RIDE[k][2] || ""}">${LMI_RIDE[k][1]}</span></li>`).join("")}</ul>`;
+
+  // ---- Loam moisture index for the whole new-trails list ----
+  const loamCells = new Map();                   // "lat,lon" (rounded to 0.05°) -> { at, lmi }
+  const cellOf = (t) => { const m = L.latLng(t.geom[Math.floor(t.geom.length / 2)]); return `${(Math.round(m.lat * 20) / 20).toFixed(2)},${(Math.round(m.lng * 20) / 20).toFixed(2)}`; };
+  function loamOf(t) {
+    if (t.id < 0 && !t.ghost) return [28, 45, 33, 62, 22, 70, 35, 52, 30, 25, 40][-t.id % 11];   // made-up example trails
+    const c = loamCells.get(cellOf(t));
+    return c ? c.lmi : undefined;                 // undefined: not loaded yet; null: no soil data there
+  }
+  let loamBusy = false;
+  async function loadLoam(trails) {
+    if (loamBusy || state.example) return;
+    const need = [...new Set(trails.filter((t) => t.id > 0 || t.ghost).map(cellOf))].filter((k) => { const c = loamCells.get(k); return !c || Date.now() - c.at > WX_FRESH_MS; });
+    if (!need.length) return;
+    loamBusy = true;
+    for (let i = 0; i < need.length; i += 50) {
+      const chunk = need.slice(i, i + 50), ll = chunk.map((k) => k.split(","));
+      try {
+        const res = await fetch(`${WX_API}?latitude=${ll.map((x) => x[0]).join(",")}&longitude=${ll.map((x) => x[1]).join(",")}&timezone=auto&past_days=1&forecast_days=1` +
+          "&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm");
+        if (!res.ok) throw new Error(res.status === 429 ? "too many requests today" : "HTTP " + res.status);
+        const json = await res.json();
+        (Array.isArray(json) ? json : [json]).forEach((w, k) => {
+          let j = w.hourly.time.findIndex((x) => x > w.current.time) - 1;
+          if (j < 0) j = w.hourly.time.length - 1;
+          loamCells.set(chunk[k], { at: Date.now(), lmi: lmiAt(w.hourly, j) });
+        });
+      } catch (e) {
+        log(`Loam moisture index for the list: ${e.message}.`);
+        chunk.forEach((k) => loamCells.set(k, { at: Date.now() - WX_FRESH_MS + 5 * 60000, lmi: null }));   // try again in 5 minutes
+      }
+    }
+    loamBusy = false;
+    render();
+  }
+  function loamBadge(t) {
+    const v = loamOf(t);
+    if (v == null) return "";
+    const k = LMI_LEVELS.indexOf(lmiLevel(v));
+    return `<br><span class="loam" title="Loam moisture index now: ${esc(LMI_LEVELS[k][1])} (${LMI_RIDE[k][1]})"><i style="background:${LMI_RIDE[k][0]}"></i>Loam ${v}</span>`;
+  }
   const fmtMm = (v) => (!v || v < 0.05 ? "0" : v < 10 ? v.toFixed(1) : Math.round(v)) + " mm";
   async function loadWeather(t) {
     const box = () => (state.selected === t.id ? $("wx") : null);
@@ -2145,7 +2200,7 @@ out body;`;
       <p class="muted">OpenStreetMap ${type} ${real ? t.id : "(example)"}</p>`;
     $("panel").classList.add("detail-open");
     $("detail").hidden = false;
-    $("detail").scrollTop = 0;
+    $("detail").scrollIntoView({ block: "start" });
     syncClear();
     $("detailBack").addEventListener("click", closeDetail);
     if (real) loadHistory(t);
@@ -2190,7 +2245,7 @@ out body;`;
       <p class="muted">Once it's mapped on OpenStreetMap, it shows up as a normal new trail. Mapping tip: the OpenStreetMap editor can show the Strava heatmap as a background to trace from by hand.</p>`;
     $("panel").classList.add("detail-open");
     $("detail").hidden = false;
-    $("detail").scrollTop = 0;
+    $("detail").scrollIntoView({ block: "start" });
     $("detailBack").addEventListener("click", closeDetail);
     loadElevation(t);
     loadWeather(t);
@@ -2251,6 +2306,7 @@ out body;`;
       render();
     });
   });
+  $("primeLoam").addEventListener("change", (e) => { state.primeLoam = e.target.checked; e.target.closest("label").classList.toggle("off", !state.primeLoam); render(); });
   $("onlyUnoff").addEventListener("change", (e) => { state.onlyUnoff = e.target.checked; e.target.closest("label").classList.toggle("off", !state.onlyUnoff); render(); });
   [["showMtb", "mtb"], ["showLooks", "looks"], ["showOther", "other"], ["showGhost", "ghost"], ["showMoto", "moto"], ["showHike", "hike"]].forEach(([id, k]) => {
     const el = $(id);
