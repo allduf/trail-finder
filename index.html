@@ -970,7 +970,7 @@ label.toggle.off .sw { background: var(--muted); }
 <div class="about" id="about" hidden>
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
     <h2 id="aboutTitle">How Trail Finder works</h2>
-    <p>All data comes live from OpenStreetMap. By default it covers the Sea to Sky corridor and the Sunshine Coast, split into the zones in the Area menu. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
+    <p>All data comes from OpenStreetMap. For Sea to Sky and the Sunshine Coast, GitHub collects the new trails and trail names every night, so searches there load in a second or two without waiting on OpenStreetMap. A trail added today shows up after the next nightly update. Anywhere else, the app asks OpenStreetMap live. By default it covers the Sea to Sky corridor and the Sunshine Coast, split into the zones in the Area menu. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
     <h3>Click any trail</h3>
     <p>Click or tap any path or track on the map, even one that isn't in the results, to see everything about it: length, climb and descent, difficulty, who mapped it and when, and its tags. Zoom in a little first so the click lands on the right trail.</p>
     <h3>Trail name search</h3>
@@ -1425,6 +1425,28 @@ out body;`;
   function packTrail(t) { const o = {}; TRAIL_FIELDS.forEach((k) => { o[k] = t[k] instanceof Date ? t[k].toISOString() : t[k]; }); return o; }
   function unpackTrail(o) { const t = { ...o, created: new Date(o.created), lastEdit: new Date(o.lastEdit) }; t.bounds = L.latLngBounds(t.geom); return t; }
 
+  // ---- nightly files: GitHub collects the region's trails and names every night (scripts/build-data.mjs) ----
+  const NIGHTLY_FRESH_MS = 36 * 3600e3;      // a nightly square younger than this is used without asking Overpass
+  const useNightly = /^https?:$/.test(location.protocol) && !/claude/.test(location.hostname);
+  const nightlyFiles = new Map();            // file name -> Promise(json or null), fetched once per visit
+  function nightly(name) {
+    if (!useNightly) return Promise.resolve(null);
+    if (!nightlyFiles.has(name)) nightlyFiles.set(name, fetch("data/" + name, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null));
+    return nightlyFiles.get(name);
+  }
+  // One square of a nightly file, as the elements Overpass would have sent, plus the first-version dates.
+  function nightlySquare(f, key) {
+    const ids = f.tiles[key].ways.filter((id) => f.ways[id]), inSquare = new Set(ids);
+    const elements = ids.map((id) => {
+      const w = f.ways[id], geometry = [];
+      for (let i = 0; i < w.g.length; i += 2) geometry.push({ lat: w.g[i], lon: w.g[i + 1] });
+      return { type: "way", id, version: w.v, timestamp: w.t, user: w.u, changeset: w.c, tags: w.tags, geometry };
+    });
+    Object.entries(f.rels || {}).forEach(([id, r]) => { if (r.ways.some((w) => inSquare.has(w))) elements.push({ type: "relation", id: +id, tags: r.tags, members: r.ways.map((ref) => ({ type: "way", ref })) }); });
+    const known = new Map(ids.filter((id) => f.ways[id].ft).map((id) => [id, { created: new Date(f.ways[id].ft), creator: f.ways[id].fu, firstChangeset: f.ways[id].fc }]));
+    return { elements, known };
+  }
+
   function mergeTiles(tiles) {
     const byId = new Map();
     tiles.forEach((t) => ((tileCache.get(t.key) || {}).trails || []).forEach((tr) => byId.set(tr.id, tr)));
@@ -1455,7 +1477,31 @@ out body;`;
     mergeTiles(tiles);
     state.offline = !!offline;
     if (offline) { state.loading = null; render(); return; }
-    const todo = tiles.filter((t) => { const c = tileCache.get(t.key); return !c || Date.now() - c.fetchedAt > FRESH_MS; });
+
+    // 1b. Inside the region, last night's file has every square: use it where it's newer than what's saved here.
+    const nightlyAt = new Map();
+    const zonesHere = useNightly ? ZONES.filter((z) => boxes.some((b) => b.intersects(z.bounds))) : [];
+    if (zonesHere.length) setStatus("Loading trails…");
+    const files = (await Promise.all(zonesHere.map((z) => nightly(`trails-${z.id}.json`)))).filter((f) => f && f.v === 1);
+    if (token !== state.token) return;
+    let fromNightly = 0;
+    for (const t of tiles) {
+      const f = files.find((f) => f.tiles[t.key]);
+      if (!f) continue;
+      const at = Date.parse(f.tiles[t.key].at), c = tileCache.get(t.key);
+      nightlyAt.set(t.key, at);
+      if (c && c.fetchedAt >= at) continue;
+      const sq = nightlySquare(f, t.key);
+      const r = await processElements(sq.elements, token, sq.known, null);
+      if (token !== state.token) return;
+      tileCache.set(t.key, { fetchedAt: at, trails: r.trails });
+      fromNightly++;
+    }
+    if (files.length) log(`${fromNightly} squares from the nightly file (built ${new Date(Math.max(...files.map((f) => Date.parse(f.builtAt)))).toLocaleString()}).`);
+    if (fromNightly) mergeTiles(tiles);
+    const fresh = (t) => { const c = tileCache.get(t.key), n = nightlyAt.get(t.key);
+      return c && (Date.now() - c.fetchedAt <= FRESH_MS || (n && Date.now() - n <= NIGHTLY_FRESH_MS)); };
+    const todo = tiles.filter((t) => !fresh(t));
     const savedCount = tiles.filter((t) => tileCache.has(t.key)).length;
     log(`${savedCount} squares already saved, ${todo.length} to check with OpenStreetMap.`);
     const centre = map.getCenter();
@@ -2020,7 +2066,9 @@ out tags center qt;`;
     for (const z of want) {
       if (names.fresh.has(z.id) || names.inflight.has(z.id) || names.failed.has(z.id)) continue;
       names.inflight.add(z.id);
-      const s = names.zones.has(z.id) ? null : await saved.get("names:" + z.id);
+      let s = names.zones.has(z.id) ? null : await saved.get("names:" + z.id);
+      const nf = zoneById(z.id) && await nightly(`names-${z.id}.json`);
+      if (nf && nf.v === 1 && (!s || Date.parse(nf.builtAt) > s.fetchedAt)) s = { fetchedAt: Date.parse(nf.builtAt), items: nf.items };
       if (s) { names.zones.set(z.id, s.items); names.dirty = true; }
       if (s && Date.now() - s.fetchedAt <= NAME_FRESH_MS) { names.fresh.add(z.id); names.inflight.delete(z.id); }
       else todo.push(z);  // never loaded, or saved more than a week ago (the old list is used meanwhile)

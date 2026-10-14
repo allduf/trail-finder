@@ -1,0 +1,41 @@
+name: Nightly trail data
+
+# Every night, collect the region's new trails and trail names from OpenStreetMap into data/,
+# so the website loads them from GitHub instead of every visitor asking Overpass.
+on:
+  schedule:
+    - cron: "23 10 * * *"   # 10:23 UTC, around 3 am in Vancouver
+  workflow_dispatch:         # "Run workflow" button on the Actions tab
+
+permissions:
+  contents: write   # commit the data files
+  pages: write      # ask GitHub Pages to publish them
+
+concurrency:
+  group: trail-data
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Collect trails and names
+        run: node scripts/build-data.mjs
+      - name: Commit the new data
+        run: |
+          git add data
+          if git diff --cached --quiet; then echo "No changes."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Nightly trail data"
+          git pull -q --rebase origin "${GITHUB_REF_NAME}"
+          git push -q origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Publish the website
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent || echo "Pages will publish on its own."
