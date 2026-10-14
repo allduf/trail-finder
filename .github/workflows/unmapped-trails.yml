@@ -1,0 +1,42 @@
+name: Weekly possible unmapped trails
+
+# Once a week, look through OpenStreetMap's public GPS traces for lines people ride that aren't mapped yet,
+# and save them in data/unmapped-<zone>.json for the site's "Possible unmapped" layer.
+# Squares are done in rotation (a few thousand trace pages per run), so the whole region refreshes over a few weeks.
+on:
+  schedule:
+    - cron: "41 11 * * 0"   # Sundays, 11:41 UTC (early morning in Vancouver)
+  workflow_dispatch:         # "Run workflow" button on the Actions tab
+
+permissions:
+  contents: write   # commit the data files
+  pages: write      # ask GitHub Pages to publish them
+
+concurrency:
+  group: trail-data   # never at the same time as the nightly trail data, both commit to data/
+  cancel-in-progress: false
+
+jobs:
+  find:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Look for possible unmapped trails
+        run: node scripts/find-unmapped.mjs
+      - name: Commit the new data
+        run: |
+          git add data
+          if git diff --cached --quiet; then echo "No changes."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Weekly possible unmapped trails"
+          git pull -q --rebase origin "${GITHUB_REF_NAME}"
+          git push -q origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Publish the website
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent || echo "Pages will publish on its own."
