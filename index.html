@@ -963,8 +963,11 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .road-pop p { margin: 4px 0 !important; }
 .road-pop .st { font-weight: 700; }
 .road-pop .src { color: #5c6862; font-size: .78rem; }
-.rf-pin span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: 13px; line-height: 1; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.45); box-sizing: border-box; }
-.legend .lg-ico { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; font-size: 11px; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.2); }
+.rf-pin span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; border: 2.5px solid #fff; box-shadow: 0 0 0 1.5px rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.5); box-sizing: border-box; }
+.rf-pin span svg { width: 19px; height: 19px; }
+.rf-pin span.round, .legend .lg-ico.round { border-radius: 50%; }
+.legend .lg-ico { width: 20px; height: 20px; border-radius: 5px; display: grid; place-items: center; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+.legend .lg-ico svg { width: 14px; height: 14px; }
 .legend .lg-area { width: 18px; height: 12px; border-radius: 2px; flex: none; }
 .map-tools #locate.on.lost { background: var(--panel); color: #2b7de9; }
 .map-tools select, .map-tools button { font: inherit; font-size: .85rem; font-weight: 600; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
@@ -1172,7 +1175,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     <h3>Possible unmapped trails (unverified)</h3>
     <p>Purple dotted lines are guesses, not mapped trails. Once a week the site looks at the public GPS traces people upload to OpenStreetMap. Where 2 or more different traces run together for 100 m or more, more than 20 m from any mapped road, path, lift or ski run, it's listed. Only lines most traces ride at bike speed (faster than walking, slower than a car) are shown. The date is the first GPS trace on it. Each one links to the Strava and Trailforks heatmaps so you can compare, and to OpenStreetMap so you can map it if it's real. It may be private land, closed, or a GPS glitch: check before riding.</p>
     <h3>Forest roads</h3>
-    <p>Forest Service Roads and other dirt roads have a white edge and a colour for their status (turn them off with “Forest roads”). Once a week the site collects them from two open sources: the BC government's Forest Tenure roads (DataBC, Open Government Licence - British Columbia), which list every Forest Service Road and road permit with its tenure status, and OpenStreetMap dirt roads with their gate, access and deactivation tags. Bold purple means open, with no closure known. Brown means mapped as very rough or 4x4 only. Grey dashes mean deactivated or retired (a retired tenure is no longer maintained and is often deactivated, but the road may still be there). Red dashes mean closed to public vehicles: gated, private or industrial use only. Tap a road to see why. This is mapped data, not a live closure list: check the <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p>
+    <p>Forest Service Roads and other dirt roads have a white edge and a colour for their status (turn them off with “Forest roads”). Once a week the site collects them from two open sources: the BC government's Forest Tenure roads (DataBC, Open Government Licence - British Columbia), which list every Forest Service Road and road permit with its tenure status, and OpenStreetMap dirt roads with their gate, access and deactivation tags. The colour is the road's condition, like on a backroad map. Green is good condition (an active Forest Service tenure, or mapped as smooth or solid). Yellow is degraded (mapped as bad or partly soft). Red is heavily degraded: very rough, 4x4 only, or a retired tenure that's no longer maintained and often deactivated. Black dashes are impassable: deactivated, washed out or abandoned. Grey dashes mean the condition isn't known. Pink dashes mean closed to public vehicles: gated, private or industrial use only. Tap a road to see why. This is mapped data, not a live closure list: check the <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p>
     <p>With “Forest roads” on, the map also shows, once you zoom in: gates (open, locked or not known), barriers, bridges and bridges out, foot bridges, fords and hydro plants, from OpenStreetMap; and cut blocks (pending, active or recently logged, and retired in the last 15 years) and areas closed to motor vehicles, from the BC government. Tap any of them for details. With the button off, the roads stay on the map as plain grey-brown lines.</p>
     <h3>Wildfires</h3>
     <p>The “Wildfires” button shows the BC Wildfire Service's current fires (fires that are out are left off) and their perimeters, areas closed because of fire (area restriction orders), and evacuation orders and alerts. It's refreshed every 3 hours, so always check the <a href="https://wildfiresituation.nrs.gov.bc.ca/map" target="_blank" rel="noopener">BC Wildfire map</a> and <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a> before heading out.</p>
@@ -3053,28 +3056,37 @@ out body;`;
   // sections (Forest Service Roads and road permits, with their tenure status) and OpenStreetMap dirt roads
   // (with gates, access and deactivation tags). Drawn under the trails from zoom 11; tapping one shows its status.
   const ROAD_MIN_ZOOM = 11;
+  // Road condition, like a backroad map (alex): good, degraded, heavily degraded, impassable, unknown; plus closed to vehicles.
   const ROAD_STATUS = {
-    open: { label: "Open" }, rough: { label: "Rough or 4x4 only" }, deact: { label: "Deactivated or retired" }, closed: { label: "Closed or gated" },
+    unknown: { label: "Unknown" }, good: { label: "Good condition" }, degraded: { label: "Degraded" }, heavy: { label: "Heavily degraded" },
+    closed: { label: "Closed to vehicles" }, impass: { label: "Impassable" },
   };
   const NO_ENTRY = /^(no|private|forestry|agricultural|delivery)$/;
   // What the OpenStreetMap tags say about a road, as [status key, reason].
   function osmRoadStatus(t) {
     const text = [t.note, t.description, t.fixme].filter(Boolean).join(" ");
-    if (t["disused:highway"] || t["abandoned:highway"]) return ["deact", `mapped as ${t["disused:highway"] ? "disused" : "abandoned"}`];
-    if (/deactivat|decommission|washed? ?out|bridge (is )?out|impassable|no longer drivable/i.test(text)) return ["deact", `note: "${text.slice(0, 120)}"`];
-    if (/^(impassable|very_horrible)$/.test(t.smoothness || "")) return ["deact", `smoothness=${t.smoothness}`];
+    const sm = t.smoothness || "", tt = t.tracktype || "";
+    if (t["disused:highway"] || t["abandoned:highway"]) return ["impass", `mapped as ${t["disused:highway"] ? "disused" : "abandoned"}`];
+    if (/deactivat|decommission|washed? ?out|bridge (is )?out|impassable|no longer drivable/i.test(text)) return ["impass", `note: "${text.slice(0, 120)}"`];
+    if (/^(impassable|very_horrible)$/.test(sm)) return ["impass", `smoothness=${sm}`];
     const no = ["access", "vehicle", "motor_vehicle", "motorcar"].find((k) => NO_ENTRY.test(t[k] || ""));
     if (no) return ["closed", `${no}=${t[no]}`];
-    if (t["4wd_only"] === "yes" || /^(very_bad|horrible)$/.test(t.smoothness || "")) return ["rough", t["4wd_only"] === "yes" ? "4wd_only=yes" : `smoothness=${t.smoothness}`];
-    return ["open", "no access limits mapped"];
+    if (/^(very_bad|horrible)$/.test(sm) || t["4wd_only"] === "yes" || tt === "grade5") return ["heavy", sm && sm !== "bad" ? `smoothness=${sm}` : t["4wd_only"] === "yes" ? "4wd_only=yes" : "tracktype=grade5 (soft ground)"];
+    if (sm === "bad" || /^grade[34]$/.test(tt)) return ["degraded", sm === "bad" ? "smoothness=bad" : `tracktype=${tt} (part soft ground)`];
+    if (/^(excellent|good|intermediate)$/.test(sm) || /^grade[12]$/.test(tt) || /^(asphalt|paved|concrete|compacted|fine_gravel)$/.test(t.surface || ""))
+      return ["good", sm ? `smoothness=${sm}` : tt ? `tracktype=${tt} (solid)` : `surface=${t.surface}`];
+    return ["unknown", "no condition mapped"];
   }
   function ftenRoadStatus(r) {
-    if (r.s === "RETIRED") return ["deact", `tenure retired${r.d ? " " + r.d : ""}: no longer maintained, often deactivated`];
-    if (r.s === "ACTIVE") return ["open", "active tenure: the road is held and maintained"];
-    return ["open", `tenure status ${r.s || "unknown"}`];
+    if (r.s === "RETIRED") return ["heavy", `tenure retired${r.d ? " " + r.d : ""}: no longer maintained, often deactivated`];
+    if (r.s === "ACTIVE") return ["good", "active tenure: the road is held and maintained"];
+    return ["unknown", `tenure status ${r.s || "unknown"}`];
   }
-  // Open: bold purple. Rough or 4x4: dirt brown. Deactivated or retired: grey dashes. Closed or gated: red dashes.
-  const ROAD_STYLE = { open: { color: "--road" }, rough: { color: "#a0581c" }, deact: { color: "#6b7280", dashArray: "10 7" }, closed: { color: "#d62828", dashArray: "10 7" } };
+  // Drawn in this order, so where the two sources overlap the worst condition shows on top.
+  const ROAD_STYLE = {
+    unknown: { color: "#8a8f98", dashArray: "9 6" }, good: { color: "#2e9e5b" }, degraded: { color: "#f2b705" }, heavy: { color: "#d62828" },
+    closed: { color: "#b5179e", dashArray: "12 6" }, impass: { color: "#111", dashArray: "4 5" },
+  };
   const roadStyle = (st) => ({ weight: 5, opacity: 1, ...ROAD_STYLE[st], color: ROAD_STYLE[st].color.startsWith("--") ? css(ROAD_STYLE[st].color) : ROAD_STYLE[st].color });
   map.createPane("roads").style.zIndex = 380;
   const roadRenderer = L.canvas({ pane: "roads", padding: 0.3 });
@@ -3119,7 +3131,7 @@ out body;`;
     // Button off: every forest road still shows, as a plain thin line with no status (alex), never as a trail.
     if (!on) { all.forEach((r) => line(r, { color: css("--road-plain"), weight: 2.5, opacity: 0.8 })); return; }
     // A white edge under every road so it stands out from the base map, then the roads by status, the
-    // most limiting last: where the two sources overlap, a gate or washout wins over "open".
+    // worst last: where the two sources overlap, a washout or gate wins over "good".
     all.forEach((r) => line(r, { color: "#fff", weight: 8, opacity: 0.9 }));
     Object.keys(ROAD_STYLE).forEach((st) => all.filter((r) => r.st === st).forEach((r) => line(r, roadStyle(st))));
   }
@@ -3128,26 +3140,42 @@ out body;`;
   // zoom 13. Areas come from the BC government: Forest Tenure cut blocks, Motor Vehicle Prohibition Regulation
   // closures. Wildfires have their own button: BC Wildfire Service fires, perimeters and area restrictions, and
   // evacuation orders and alerts (data/fires.json, refreshed every 3 hours).
+  // Map pins: big bold shapes, white on a strong colour with a dark ring, so they stand out on any base map (alex).
+  const svg = (d, fill) => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="${fill ? "currentColor" : "none"}" stroke="currentColor" stroke-width="${fill ? 0 : 2.6}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  const ICON = {
+    gateOpen: svg(`<path d="M4 4v16M20 4v16M4 12 15 5"/>`),
+    gateShut: svg(`<path d="M4 4v16M20 4v16M4 9h16M4 15h16"/>`),
+    lock: svg(`<rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>`),
+    bar: svg(`<path d="M5 12h14" stroke-width="4.5"/>`),
+    bridge: svg(`<path d="M2 17h20M4 17v-3a8 8 0 0 1 16 0v3M8 17v-5M16 17v-5"/>`),
+    bridgeOut: svg(`<path d="M2 17h7M15 17h7M4 17v-3a8 8 0 0 1 4.5-7.2M20 17v-3a8 8 0 0 0-4.5-7.2M9.5 8.5l5 5M14.5 8.5l-5 5"/>`),
+    walker: svg(`<circle cx="12" cy="4.5" r="2.2" fill="currentColor" stroke="none"/><path d="M12 8v6M12 14l-3.5 6M12 14l3.5 6M7.5 11h9"/>`),
+    waves: svg(`<path d="M3 9c3-3 6 3 9 0s6 3 9 0M3 15c3-3 6 3 9 0s6 3 9 0"/>`),
+    bolt: svg(`<path d="M13.5 2 5 14h6l-1.5 8L19 10h-6z"/>`, true),
+    flame: svg(`<path d="M12 2c1 4 6.5 6 6.5 12.5a6.5 6.5 0 0 1-13 0c0-3.2 2-5.4 3.2-6.4 0 2.2 1 3.4 2.3 3.4C11 8.5 10 6 12 2z"/>`, true),
+  };
+  const pinHtml = (k, cls = "") => `<span class="${cls}${k.round ? " round" : ""}" style="background:${k.bg};color:${k.fg || "#fff"}">${k.svg}</span>`;
+  const pinIcon = (k) => L.divIcon({ className: "rf-pin", html: pinHtml(k), iconSize: [30, 30] });
   const FEAT = {
-    gate_open: { icon: "🚧", bg: "#2e9e5b", label: "Open gate" },
-    gate_locked: { icon: "🔒", bg: "#d62828", label: "Locked gate" },
-    gate_maybe: { icon: "🚧", bg: "#8a8f98", label: "Gate (open or locked not known)" },
-    impasse: { icon: "⛔", bg: "#fff", label: "Barrier, no vehicles past here" },
-    bridge_in: { icon: "🌉", bg: "#f2b705", label: "Bridge" },
-    bridge_out: { icon: "🌉", bg: "#d62828", label: "Bridge out" },
-    footbridge: { icon: "🚶", bg: "#f2b705", label: "Foot bridge only" },
-    ford: { icon: "💧", bg: "#7cc4f2", label: "Ford (drive through water)" },
-    hydro: { icon: "⚡", bg: "#2b7de9", label: "Hydropower station" },
+    gate_open: { svg: ICON.gateOpen, bg: "#1f8a4c", label: "Open gate" },
+    gate_locked: { svg: ICON.lock, bg: "#c1121f", label: "Locked gate" },
+    gate_maybe: { svg: ICON.gateShut, bg: "#4b5563", label: "Gate (open or locked not known)" },
+    impasse: { svg: ICON.bar, bg: "#c1121f", round: true, label: "Barrier, no vehicles past here" },
+    bridge_in: { svg: ICON.bridge, bg: "#f2b705", fg: "#1a1a1a", label: "Bridge" },
+    bridge_out: { svg: ICON.bridgeOut, bg: "#c1121f", label: "Bridge out" },
+    footbridge: { svg: ICON.walker, bg: "#f2b705", fg: "#1a1a1a", label: "Foot bridge only" },
+    ford: { svg: ICON.waves, bg: "#0284c7", label: "Ford (drive through water)" },
+    hydro: { svg: ICON.bolt, bg: "#1e3a8a", fg: "#ffd60a", label: "Hydropower station" },
   };
   const AREA_STYLE = {
-    PENDING: { label: "Pending logging", color: "#9b5de5", fillOpacity: 0.28 },
-    ACTIVE: { label: "Active or recently logged", color: "#8b4513", fillOpacity: 0.32 },
-    RETIRED: { label: "Retired logging area", color: "#2d8a57", fillOpacity: 0.25 },
-    mv: { label: "Closed to motor vehicles", color: "#d62828", fillOpacity: 0.12, dashArray: "6 4" },
+    PENDING: { label: "Pending logging", color: "#7b2cbf", fillOpacity: 0.3 },
+    ACTIVE: { label: "Active or recently logged", color: "#8b4513", fillOpacity: 0.38 },
+    RETIRED: { label: "Retired logging area", color: "#2d8a57", fillOpacity: 0.28 },
+    mv: { label: "Closed to motor vehicles", color: "#c1121f", fillOpacity: 0.16, dashArray: "8 5" },
   };
   // Wildfires, their own button: fires, perimeters, areas closed because of fire, evacuation orders and alerts.
   const FIRE_STYLE = {
-    fire: { icon: "🔥", bg: "#fff", label: "Active wildfire" },
+    fire: { svg: ICON.flame, bg: "#e85d04", fg: "#fff", round: true, label: "Active wildfire" },
     perim: { label: "Fire perimeter", color: "#ff6d00", fillOpacity: 0.2 },
     restr: { label: "Area closed because of fire", color: "#b5179e", fillOpacity: 0.14, dashArray: "8 5" },
     order: { label: "Evacuation order (leave now)", color: "#c1121f", fillOpacity: 0.22 },
@@ -3194,7 +3222,7 @@ out body;`;
     fires.evac.filter((a) => a.kind !== "alert").forEach((a) => poly(a.rings, FIRE_STYLE.order));
     fires.perims.forEach((p) => poly(p.rings, { ...FIRE_STYLE.perim, weight: 2.5 }));
     const k = FIRE_STYLE.fire;
-    fires.fires.forEach((x) => fireLayer.addLayer(L.marker([x.lat, x.lon], { icon: L.divIcon({ className: "rf-pin", html: `<span style="background:${k.bg}">${k.icon}</span>`, iconSize: [22, 22] }), keyboard: false, title: k.label })
+    fires.fires.forEach((x) => fireLayer.addLayer(L.marker([x.lat, x.lon], { icon: pinIcon(k), keyboard: false, title: k.label })
       .bindPopup(`<div class="road-pop"><h4>${esc(k.label)}</h4><p><span class="st">${esc(x.st || "Burning")}</span>${x.name ? " · " + esc(x.name) : ""}</p>
       <p class="src">BC Wildfire Service fire ${esc(x.n)}${x.ha ? ` · ${esc(x.ha)} ha` : ""}${x.d ? ` · started ${esc(x.d)}` : ""}${x.cause ? ` · ${esc(x.cause)}` : ""}.
       Check the <a href="https://wildfiresituation.nrs.gov.bc.ca/map" target="_blank" rel="noopener">BC Wildfire map</a> and <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a> for the latest.</p></div>`, { maxWidth: 280 })));
@@ -3214,7 +3242,7 @@ out body;`;
   function zoneExtras(f, list) {
     const feats = (f.feat || []).map((x) => ({ ...x, kind: featKind(x.tags) })).filter((x) => x.kind);
     list.filter((r) => r.src === "osm" && r.tags.bridge && r.tags.bridge !== "no").forEach((r) => {
-      const mid = r.geom[Math.floor(r.geom.length / 2)], out = r.st === "deact" || /bridge (is )?(out|gone|removed)/i.test([r.tags.note, r.tags.description].join(" "));
+      const mid = r.geom[Math.floor(r.geom.length / 2)], out = r.st === "impass" || /bridge (is )?(out|gone|removed)/i.test([r.tags.note, r.tags.description].join(" "));
       feats.push({ id: "w" + r.id, lat: mid[0], lon: mid[1], tags: r.tags, kind: out ? "bridge_out" : "bridge_in" });
     });
     const areas = (f.cut || []).map((c) => ({ type: "cut", key: AREA_STYLE[c.s] ? c.s : "ACTIVE", c, rings: rings(c.g) }))
@@ -3230,7 +3258,7 @@ out body;`;
       areaKey = key;
       areaLayer.clearLayers();
       if (on) {
-        const poly = (rs, st) => areaLayer.addLayer(L.polygon(rs, { renderer: areaRenderer, interactive: false, weight: 1.5, fillColor: st.color, ...st }));
+        const poly = (rs, st) => areaLayer.addLayer(L.polygon(rs, { renderer: areaRenderer, interactive: false, weight: 2.5, fillColor: st.color, ...st }));
         ["RETIRED", "ACTIVE", "PENDING", "mv"].forEach((k) => loaded.forEach((z) => z.areas.filter((a) => a.key === k).forEach((a) => poly(a.rings, AREA_STYLE[k]))));
       }
     }
@@ -3242,7 +3270,7 @@ out body;`;
       const ll = L.latLng(x.lat, x.lon);
       if (!view.contains(ll)) return;
       const k = FEAT[kind];
-      extraLayer.addLayer(L.marker(ll, { icon: L.divIcon({ className: "rf-pin", html: `<span style="background:${k.bg}">${k.icon}</span>`, iconSize: [22, 22] }), keyboard: false, title: k.label })
+      extraLayer.addLayer(L.marker(ll, { icon: pinIcon(k), keyboard: false, title: k.label })
         .bindPopup(`<div class="road-pop"><h4>${esc(k.label)}</h4>${html}</div>`, { maxWidth: 280 }));
     };
     if (map.getZoom() < FEAT_MIN_ZOOM) return;
@@ -3361,14 +3389,14 @@ out body;`;
       : sw("background: var(--mtb)", "MTB tagged") + sw("background: repeating-linear-gradient(90deg, var(--looks) 0 8px, transparent 8px 12px)", "Looks like MTB")
         + sw("background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 8px)", "Possible unmapped") + sw(dots, "Unofficial?");
     if (state.roads) $("keyList").innerHTML += `<li class="lg-sub">Forest roads</li>`
-      + [["open", "Open"], ["rough", "Rough / 4x4"], ["deact", "Deactivated / retired"], ["closed", "Closed / gated"]].map(([st, label]) => {
+      + ["good", "degraded", "heavy", "impass", "unknown", "closed"].map((st) => {
         const c = roadStyle(st).color;
-        return sw(ROAD_STYLE[st].dashArray ? `background: repeating-linear-gradient(90deg, ${c} 0 7px, #fff 7px 11px)` : `background: ${c}`, label);
+        return sw(ROAD_STYLE[st].dashArray ? `background: repeating-linear-gradient(90deg, ${c} 0 6px, #fff 6px 10px)` : `background: ${c}`, ROAD_STATUS[st].label);
       }).join("")
-      + `<li class="lg-sub">Road features (zoom in)</li>` + Object.values(FEAT).map((k) => `<li><span class="lg-ico" style="background:${k.bg}">${k.icon}</span>${k.label}</li>`).join("")
+      + `<li class="lg-sub">Road features (zoom in)</li>` + Object.values(FEAT).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join("")
       + `<li class="lg-sub">Areas</li>` + Object.values(AREA_STYLE).map(areaSw).join("");
     else $("keyList").innerHTML += `<li class="lg-sub">Forest roads</li>` + sw("background: var(--road-plain)", "Forest road (turn on Forest roads for status)");
-    if (state.fires) $("keyList").innerHTML += `<li class="lg-sub">Wildfires</li><li><span class="lg-ico" style="background:#fff">🔥</span>${FIRE_STYLE.fire.label}</li>`
+    if (state.fires) $("keyList").innerHTML += `<li class="lg-sub">Wildfires</li><li>${pinHtml(FIRE_STYLE.fire, "lg-ico")}${FIRE_STYLE.fire.label}</li>`
       + ["perim", "restr", "order", "alert"].map((k) => areaSw(FIRE_STYLE[k])).join("");
     $("keyNote").textContent = byDiff
       ? state.allTrails ? "All trails: bold = official, thin = not known, dotted = unofficial. White edge: trails in the list." : "Dashed: looks like MTB (no bike tags)."
