@@ -1055,7 +1055,10 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
       <button class="btn map-full-exit" id="fullExit" type="button">☰ Back to search</button>
     </div>
     <div class="map-tools">
-      <select id="basemap" aria-label="Map style">
+      <button id="layersBtn" class="layers-btn" type="button" aria-expanded="false" aria-controls="layersMenu"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 3 2.5 8 12 13l9.5-5z M2.5 12 12 17l9.5-5 M2.5 16 12 21l9.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Layers</span><span class="layers-n" id="layersN"></span></button>
+      <div class="layers-menu" id="layersMenu" role="group" aria-label="Map layers" hidden>
+        <div class="lm-style"><div class="lm-head">Map style</div>
+        <select id="basemap" aria-label="Map style">
         <option value="osm">Standard</option>
         <option value="cyclosm">CyclOSM</option>
         <option value="hot">Humanitarian</option>
@@ -1066,34 +1069,50 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
         <option value="sat">Satellite</option>
         <option value="sathybrid">Satellite + names</option>
         <option value="vector">Sharp outdoor (vector)</option>
-      </select>
-      <div class="map-note" id="mapNote" hidden></div>
-      <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
-      <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
-      <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire">🔥 Wildfires</button>
-      <button id="areasBtn" type="button" aria-pressed="false" title="Show logging areas (cut blocks) and areas closed to motor vehicles">▦ Logging areas</button>
-      <button id="avyBtn" type="button" aria-pressed="false" hidden>⚠ Avalanche risk</button>
+        </select></div>
+        <div class="lm-head">Show on the map</div>
+        <div class="lm-list lm-overlays">
+        <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
+        <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
+        <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire">🔥 Wildfires</button>
+        <button id="areasBtn" type="button" aria-pressed="false" title="Show logging areas (cut blocks) and areas closed to motor vehicles">▦ Logging areas</button>
+        <button id="avyBtn" type="button" aria-pressed="false" hidden>⚠ Avalanche risk</button>
+        </div>
+        <div class="lm-head">Tools</div>
+        <div class="lm-list">
+        <button id="btn3d" type="button" aria-pressed="false">⛰ 3D</button>
+        <button id="offlineBtn" type="button" aria-pressed="false" title="Save an area's map, trails and forest roads on this device for riding with no signal">⤓ Offline maps</button>
+        </div>
+      </div>
       <button id="locate" type="button" aria-pressed="false">◎ My location</button>
       <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
-      <button id="btn3d" type="button" aria-pressed="false">⛰ 3D</button>
-      <button id="offlineBtn" type="button" aria-pressed="false" title="Save an area's map, trails and forest roads on this device for riding with no signal">⤓ Offline maps</button>
+      <div class="map-note" id="mapNote" hidden></div>
     </div>
+    <div class="first-tip" id="firstTip" role="note" hidden><strong>New here?</strong> <span class="tip-wide">Pick an area and tap <b>Find new trails</b>.</span><span class="tip-phone">Tap <b>New trails</b> below to see what's new.</span> Tap any trail on the map for its details, weather and loam. <button type="button" class="linkish" id="firstTipOk">Got it</button></div>
   </div>
   <aside class="panel" id="panel">
     <div class="panel-head">
       <button class="sheet-toggle" id="sheetToggle" aria-label="Expand trail list"></button>
       <div class="brand">
         <h1>Trail <span>Finder</span></h1>
-        <span class="brand-links"><a class="linkish rec-link" href="ride.html"><span class="rec-dot" aria-hidden="true"></span>Record ride</a><button class="linkish" id="aboutBtn" type="button">How it works</button><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hike" disabled>🥾 Hiking (soon)</option></select></span>
+        <span class="brand-links"><a class="linkish rec-link" href="ride.html"><span class="rec-dot" aria-hidden="true"></span>Record ride</a><button class="linkish" id="aboutBtn" type="button">How it works</button><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hike" disabled>🥾 Hiking (soon)</option></select></span>
       </div>
       <div class="modes" role="tablist" aria-label="What do you want to find?">
         <button type="button" role="tab" id="tabName" aria-controls="paneName" aria-selected="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Find a trail by name</span></button>
         <button type="button" role="tab" id="tabNew" aria-controls="paneNew" aria-selected="true"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span>New trails in an area</span></button>
       </div>
       <section class="pane" id="paneName" role="tabpanel" aria-labelledby="tabName" hidden>
-        <p class="hint">Type the name of any trail, old or new. Typos are OK. Pick it from the list to see it on the map with all its details.</p>
+        <p class="hint">Any trail, old or new. Typos are OK.</p>
+        <div class="tsearch-row">
+          <div class="tsearch" id="tsearch">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+            <input id="trailQ" type="search" placeholder="Trail name" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="trailHits" aria-autocomplete="list" aria-label="Search a trail by name">
+            <ul class="hits" id="trailHits" role="listbox" hidden></ul>
+          </div>
+          <button class="btn primary" id="trailGo" type="button">Search</button>
+        </div>
         <div>
-          <label class="label" for="nameZone">Where is it? <span class="label-note">(faster if you know)</span></label>
+          <label class="label" for="nameZone">Where is it? <span class="label-note">(optional, makes it faster)</span></label>
           <select id="nameZone" class="zone"></select>
           <form class="search place" id="nameNearForm">
             <div class="pin-in"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 21.5s6.5-5.8 6.5-11.2a6.5 6.5 0 1 0-13 0c0 5.4 6.5 11.2 6.5 11.2z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="10.3" r="2.4" fill="currentColor"/></svg><input id="nameNear" type="search" placeholder="Town, place or GPS point" autocomplete="off" aria-label="Search trails near a town, place or GPS point (like 49.70, -123.15)"></div>
@@ -1105,18 +1124,10 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
           <span class="label" id="diffPickLabel">Or show every trail of one level</span>
           <div class="diff-chips"><button type="button" class="diff-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button></div>
         </div>
-        <div class="tsearch-row">
-          <div class="tsearch" id="tsearch">
-            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-            <input id="trailQ" type="search" placeholder="Trail name" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="trailHits" aria-autocomplete="list" aria-label="Search a trail by name">
-            <ul class="hits" id="trailHits" role="listbox" hidden></ul>
-          </div>
-          <button class="btn primary" id="trailGo" type="button">Search</button>
-        </div>
         <div class="wantlist" id="wantList" hidden></div>
       </section>
       <section class="pane" id="paneNew" role="tabpanel" aria-labelledby="tabNew">
-        <p class="hint">Choose an area, or tap <strong>Near me</strong>, and how recent, then press <strong>Find new trails</strong>.</p>
+        <p class="hint">Pick where and how new, then tap <strong>Find new trails</strong>.</p>
         <div>
           <label class="label" for="zone">Area</label>
           <select id="zone" class="zone"></select>
@@ -1131,18 +1142,18 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
           </div>
         </div>
         <div>
-          <div class="label" id="periodLabel">Created in the last, or prime now</div>
+          <div class="label" id="periodLabel">How new</div>
           <div class="periods" role="group" aria-labelledby="periodLabel">
             <button type="button" data-p="1" aria-pressed="false">Month</button>
             <button type="button" data-p="6" aria-pressed="true">6 months</button>
             <button type="button" data-p="12" aria-pressed="false">Year</button>
             <button type="button" data-p="24" aria-pressed="false">2 years</button>
-            <button type="button" data-p="prime" class="prime-btn" aria-pressed="false" title="Every named trail in the area, old or new, whose Loam moisture index is 40 to 59 right now (damp, prime loam)"><span class="dot" aria-hidden="true"></span>Prime loam now</button>
+            <button type="button" data-p="prime" class="prime-btn" aria-pressed="false" title="Trails in the area, old or new, with damp prime loam right now (Loam index 40 to 59)"><span class="dot" aria-hidden="true"></span>Prime loam now</button>
           </div>
         </div>
         <button class="btn primary find" id="findBtn" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span id="findLabel">Find new trails</span></button>
         <button class="btn reset-btn" id="resetBtn" type="button" hidden>✕ Clear results</button>
-        <div class="toggles" role="group" aria-label="Show these trails">
+        <div class="toggles" id="toggles" role="group" aria-label="Show these trails" hidden>
           <label class="toggle t-mtb"><input type="checkbox" id="showMtb" checked><span class="ck"></span><span class="sw"></span>MTB tagged <span class="n" id="nMtb">0</span></label>
           <label class="toggle t-looks"><input type="checkbox" id="showLooks" checked><span class="ck"></span><span class="sw"></span>Looks like MTB <span class="n" id="nLooks">0</span></label>
           <label class="toggle t-ghost" title="Lines that several GPS traces follow at bike speed, where OpenStreetMap has no trail yet. Unverified."><input type="checkbox" id="showGhost" checked><span class="ck"></span><span class="sw"></span>Possible unmapped <span class="n" id="nGhost">0</span></label>
@@ -1151,11 +1162,10 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
         </div>
       </section>
       <button class="btn box-btn" id="boxBtn" type="button" aria-pressed="false" title="Drag a square on the map to list every MTB trail inside it, old or new">▭ Draw a square to find trails</button>
-      <p class="hint tap-hint">Tip: tap any trail on the map to see all its details.</p>
     </div>
     <div class="boxres" id="boxRes" hidden></div>
-    <div class="status" id="status" role="status">Move the map to an area and search.</div>
-    <details class="debug" id="debug"><summary>Search details</summary><pre id="debugLog">No search yet.</pre></details>
+    <div class="status" id="status" role="status">Pick an area and tap Find new trails.</div>
+    <details class="debug" id="debug" hidden><summary>Search details</summary><pre id="debugLog">No search yet.</pre></details>
     <div class="list" id="list"></div>
     <div class="detail" id="detail" hidden></div>
   </aside>
@@ -1177,6 +1187,15 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 <div class="about" id="about" hidden>
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
     <h2 id="aboutTitle">How Trail Finder works</h2>
+    <ul class="about-quick">
+      <li><strong>New trails:</strong> pick an area (or tap Near me) and how new, then tap Find new trails. A trail is new when it was first added to OpenStreetMap in that time.</li>
+      <li><strong>Prime loam now:</strong> trails whose dirt is damp right now (Loam index 40 to 59), the best riding.</li>
+      <li><strong>Tap any trail</strong> on the map for its difficulty, weather, loam, how to get there and rider reports.</li>
+      <li><strong>Layers</strong> (top right of the map) turns on forest roads, wildfires, logging areas, your rides, the map style, 3D and offline maps.</li>
+      <li><strong>Colours</strong> are like Trailforks: green, blue, black, double black (red) and pro line (orange). Grey isn't rated yet. Dotted lines may be unofficial.</li>
+      <li>Trails come from OpenStreetMap mappers, so details can be missing or out of date. Check local rules and closures before riding.</li>
+    </ul>
+    <details class="about-more"><summary>All the details</summary>
     <p>All data comes from OpenStreetMap. For Sea to Sky and the Sunshine Coast, GitHub collects the new trails and trail names every night, so searches there load in a second or two without waiting on OpenStreetMap. A trail added today shows up after the next nightly update. Anywhere else, the app asks OpenStreetMap live. By default it covers the Sea to Sky corridor and the Sunshine Coast, split into the zones in the Area menu. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
     <h3>Loam in the list</h3>
     <p>Each new trail shows its Loam moisture index right now, from the same Open-Meteo soil model as the trail details (trails within about 5 km share one reading). Pick “Prime loam now” in the time row to see every named trail in the area, old or new, whose index is 40 to 59 right now (damp hero dirt). They show as teal dots on the map: tap one to load the whole trail.</p>
@@ -1232,6 +1251,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     <h3>Skiing</h3>
     <p>Pick “⛷ Skiing” in the sport menu at the top. The map then shows backcountry ski routes and huts instead of the bike trails, with a list of what's in view. Every night the site collects them from OpenStreetMap (ski touring, nordic, snowshoe and snowmobile routes, ski route relations, and alpine and wilderness huts; resort runs are there too but off by default) and from BC Recreation Sites and Trails (trails whose name or description says ski, nordic or snowshoe). Tap a route or hut for its details.</p>
     <p>“⚠ Avalanche risk” shades the mountains by Avalanche Canada's forecast, on the flat map and on the 3D map. Only slopes steeper than about 25° are coloured, since that's where avalanches start. Each slope gets the danger rating (Low green, Moderate yellow, Considerable orange, High red, Extreme black) of its elevation band, worked out from its height: below treeline under about 1500 m, alpine above about 1900 m on the coast (1700 m and 2200 m inland). Stripes and a stronger colour mark slopes whose direction (aspect) and elevation are named in the day's avalanche problems. The site checks the forecast every 2 hours. It's an estimate from the forecast and the shape of the terrain, not a terrain rating: always read the full forecast on avalanche.ca and travel with training and rescue gear.</p>
+    </details>
     <p><button class="btn primary" id="aboutClose" type="button">Got it</button></p>
   </div>
 </div>
@@ -2225,6 +2245,15 @@ out body;`;
   function trailName(t) { if (t.ghost) return "Possible unmapped trail"; return t.tags.name || t.tags["mtb:name"] || "Unnamed " + t.tags.highway; }
   const CAT_LABEL = { mtb: "MTB tagged", looks: "Looks like MTB", other: "Other new path", ghost: "Possible unmapped trail" };
 
+  // One short reason for the list, in plain words (the trail details keep the map tags).
+  function plainWhy(t) {
+    if (t.use) return (t.useWhy[0] || "").replace(/\s*\([^)]*=[^)]*\)/g, "");
+    const w = t.why || [];
+    if (t.cat === "mtb") { const r = w.find((x) => /^part of MTB route/.test(x)); return r ? r.replace(/^part/, "Part") : "Tagged as a bike trail"; }
+    const first = w.find((x) => !/^score /.test(x)) || "";
+    if (/^(trail_visibility|incline)=/.test(first)) return "trail details mapped";
+    return first.replace(/\s*\([a-z_:]+=[^)]*\)/g, "");
+  }
   function render() {
     syncClear();
     if (state.prime) { renderPrime(); return; }
@@ -2280,7 +2309,7 @@ out body;`;
       return `<li class="trail ${t.cat}${state.selected === t.id ? " sel" : ""}" data-id="${t.id}" tabindex="0">
         <span class="bar"${barStyle(t)}></span>
         <div><div class="name">${esc(trailName(t))} ${t.ghost ? "" : diffBadge(t.tags)} ${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""}${officialTag(t.official)} ${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}</div>
-        <div class="meta">${near ? `<span class="zone-tag">${fmtAway(nearDist(t))}</span> · ` : ""}${state.zone === "all" && !state.custom && t.zone ? `<span class="zone-tag">${esc(t.zone.split(" (")[0])}</span> · ` : ""}${esc(t.use ? t.useWhy[0] : t.why[0])}</div></div>
+        <div class="meta">${near ? `<span class="zone-tag">${fmtAway(nearDist(t))}</span> · ` : ""}${state.zone === "all" && !state.custom && t.zone ? `<span class="zone-tag">${esc(t.zone.split(" (")[0])}</span> · ` : ""}${esc(plainWhy(t))}</div></div>
         <div class="right">${fmtLen(t.km)}<br>${ago(t.created)}${loamBadge(t)}</div></li>`;
     }).join("") + "</ol>";
   }
@@ -2359,6 +2388,8 @@ out body;`;
 
   function renderStatus() {
     $("resetBtn").hidden = !!state.waiting || !state.searchedBounds.length;
+    $("toggles").hidden = !!state.waiting || (!state.prime && !state.searchedBounds.length && !state.trails.length);
+    $("debug").hidden = !state.error;
     if (state.example) return;
     if (state.waiting) {
       const btn = state.prime ? "Find prime loam trails" : "Find new trails";
@@ -2387,9 +2418,9 @@ out body;`;
         : slow.length ? `Still loading the trail list for ${slow.map(shortZone).join(", ")} from OpenStreetMap${wait ? ` (busy, asking again in ${wait} s)` : ""}…` : "";
       const retry = { label: "Try again", fn: () => loadPrime(true) };
       if (failed.length && !n && !busy) { setStatus(`Couldn't load the trail list for ${failed.map(shortZone).join(", ")}.`, true, retry); return; }
-      if (failed.length && n && !busy) { setStatus(`${n} trail${n === 1 ? "" : "s"} in ${where} ${n === 1 ? "is" : "are"} in prime loam right now (Loam index 40 to 59). Couldn't load the trail list for ${failed.map(shortZone).join(", ")}.`, true, retry); return; }
+      if (failed.length && n && !busy) { setStatus(`${n} trail${n === 1 ? "" : "s"} in ${where} ${n === 1 ? "is" : "are"} in prime loam right now. Couldn't load the trail list for ${failed.map(shortZone).join(", ")}.`, true, retry); return; }
       const what = only + "trail";
-      setStatus(n ? `${n} ${what}${n === 1 ? "" : "s"} in ${where} ${n === 1 ? "is" : "are"} in prime loam right now (Loam index 40 to 59). Tap one to see it.${busy ? " " + busy : ""}`
+      setStatus(n ? `${n} ${what}${n === 1 ? "" : "s"} in ${where} ${n === 1 ? "is" : "are"} in prime loam right now.${busy ? " " + busy : ""}`
         : busy || (noType ? "Tick a trail type above to see the trails." : only ? `No ${only}trails in ${where} are in prime loam right now. Turn off ${onlyOff} to see the others.`
           : `No trails in ${where} are in prime loam right now (Loam index 40 to 59).${loamNow()} Pick Month, Year… to see new trails instead.`));
       return;
@@ -2401,13 +2432,13 @@ out body;`;
       setStatus(n ? `Showing ${n} saved trail${n === 1 ? "" : "s"} from the last ${label}. Click Find new trails to check for newer ones.` : `Click Find new trails to search ${where}.`);
     } else if (state.loading) {
       const l = state.loading;
-      const stage = l.done < l.total ? `${l.done} of ${l.total} map squares` : "checking dates of edited paths";
+      const stage = l.done < l.total ? `${Math.round(100 * l.done / Math.max(1, l.total))}%` : "almost done";
       const wait = busyFor();
-      setStatus(`${l.updating ? "Showing saved trails, checking for new ones…" : "Loading trails…"} ${stage} (${Math.round((Date.now() - l.t0) / 1000)} s). ${n} trail${n === 1 ? "" : "s"} from the last ${label} so far, newest first.${wait ? ` OpenStreetMap is busy, waiting ${wait} s before asking again.` : ""}`);
+      setStatus(`${l.updating ? "Checking for new trails…" : "Searching…"} ${stage}. ${n} found so far.${wait ? ` OpenStreetMap is busy, trying again in ${wait} s.` : ""}`);
     } else if (state.error && !state.trails.length) {
-      setStatus(`Search failed. ${state.error.replace(/\.?$/, ".")} If it keeps happening, open “Search details” and send a screenshot.`, true, state.retry && { label: "Try again", fn: state.retry });
+      setStatus(`Search failed. ${state.error.replace(/\.?$/, ".")} If it keeps happening, open “Search details” below and send a screenshot.`, true, state.retry && { label: "Try again", fn: state.retry });
     } else if (state.searchedBounds.length) {
-      setStatus((noType && !n ? "Tick a trail type above to see the trails." : n ? `${n} ${only}trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : (only ? `No ${only}trails here in the last ${label}. Turn off ${onlyOff} to see the others.` : `No new trails here in the last ${label}. Try a longer period or move the map.`)) + (state.error ? " " + state.error : ""),
+      setStatus((noType && !n ? "Tick a trail type above to see the trails." : n ? `${n} new ${only}trail${n === 1 ? "" : "s"} from the last ${label}, newest first.` : (only ? `No ${only}trails here in the last ${label}. Turn off ${onlyOff} to see the others.` : `No new trails here in the last ${label}. Try a longer time or another area.`)) + (state.error ? " " + state.error : ""),
         !!state.error, state.error && state.retry && { label: "Load missing squares", fn: state.retry });
     }
   }
@@ -2728,34 +2759,37 @@ out body;`;
       ${isUnoff(t) ? `<div class="unoff-box"><strong>Possibly unsanctioned</strong><ul>${t.unoff.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">This only shows what OpenStreetMap mappers tagged. It's a hint, not the trail's legal status. Check with the land manager or Trailforks before riding.</p></div>` : ""}
       <div class="go"><a class="go-btn" id="goBtn" target="_blank" rel="noopener" aria-disabled="true">Go to trail</a><p class="muted" id="goNote">Finding the top of the trail…</p></div>
-      <h3>Getting there</h3><div id="access" class="muted">Looking for trailheads, parking and roads…</div>
       <dl class="facts">
-        ${t.cat === "looks" ? `<dt>Why it looks like MTB</dt><dd>${t.why.filter((w) => !/^score /.test(w)).map(esc).join("<br>")}${t.inNet ? `<br><span class="muted">It has no bike tags yet. If it's a bike trail, adding <code>mtb:scale</code> on OpenStreetMap makes it “MTB tagged”.</span>` : ""}</dd>` : ""}
-        <dt>Official?</dt><dd>${t.official ? `Yes: ${esc(t.official)}.` : isUnoff(t) ? "Possibly not (see above)." : `<span class="muted">Not known: the map doesn't say who runs it.</span>`}</dd>
-        <dt>Length</dt><dd>${fmtLen(t.km)} <span class="muted">(${segs ? `${segs} map segments` : `${t.geom.length} map points`})</span></dd>
-        <dt>First mapped</dt><dd>${t.created ? `${fmtDate(t.created)} · ${ago(t.created)}<br>by ${userLink(t.creator)} ${csLink(t.firstChangeset)}` : "Unknown"}${segs && type === "way" ? `<br><span class="muted">earliest of its segments</span>` : ""}</dd>
-        <dt>Last edited</dt><dd>${segs && type === "way" ? `<span class="muted">main segment:</span> ` : ""}${t.version > 1 ? `${fmtDate(t.lastEdit)} · version ${t.version}<br>by ${userLink(t.lastUser)} ${csLink(t.lastChangeset)}` : "Never edited since (version 1)"}</dd>
+        <dt>Length</dt><dd>${fmtLen(t.km)}</dd>
+        <dt>First mapped</dt><dd>${t.created ? `${fmtDate(t.created)} · ${ago(t.created)}` : "Unknown"}</dd>
         ${factRows(true)}
+        <dt>Official?</dt><dd>${t.official ? `Yes: ${esc(t.official)}.` : isUnoff(t) ? "Possibly not (see above)." : `<span class="muted">Not known</span>`}</dd>
       </dl>
-      <h3>Elevation</h3><div id="elev" class="muted">${real || t.elev ? "Loading elevation…" : ""}</div>
-      <details class="more"><summary>More details</summary><dl class="facts">
-        <dt>Starts at</dt><dd class="mono">${start[0].toFixed(5)}, ${start[1].toFixed(5)}</dd>
-        <dt>Ends at</dt><dd class="mono">${end[0].toFixed(5)}, ${end[1].toFixed(5)}</dd>
-        ${factRows(false)}
-      </dl></details>
       <h3>Weather and Loam moisture index</h3><div id="wx" class="muted">Loading weather…</div>
+      <h3>Getting there</h3><div id="access" class="muted">Looking for trailheads, parking and roads…</div>
+      <h3>Elevation</h3><div id="elev" class="muted">${real || t.elev ? "Loading elevation…" : ""}</div>
       ${real && window.tfReports ? `<h3>Trail conditions from riders</h3><div id="reports" class="muted">Loading reports…</div>` : ""}
       ${routes ? `<h3>Part of MTB route</h3><ul class="plain">${routes}</ul>` : ""}
       ${real ? `<h3>Links</h3><div class="links">
-        <a href="https://www.openstreetmap.org/${type}/${t.id}" target="_blank" rel="noopener">Open on OpenStreetMap</a>
-        <a href="https://www.openstreetmap.org/${type}/${t.id}/history" target="_blank" rel="noopener">Full history</a>
-        <a href="https://www.openstreetmap.org/edit?${type}=${t.id}" target="_blank" rel="noopener">Edit or fix it</a>
         ${t.tags.name ? `<a href="https://www.trailforks.com/search/?search=${encodeURIComponent(t.tags.name)}" target="_blank" rel="noopener">Search on Trailforks</a>` : ""}
+        <a href="https://www.openstreetmap.org/${type}/${t.id}" target="_blank" rel="noopener">Open on OpenStreetMap</a>
+        <a href="https://www.openstreetmap.org/edit?${type}=${t.id}" target="_blank" rel="noopener">Edit or fix it</a>
       </div>` : `<p class="muted">Example trail, not real data.</p>`}
+      <details class="more"><summary>More info</summary><dl class="facts">
+        ${t.cat === "looks" ? `<dt>Why it looks like MTB</dt><dd>${t.why.filter((w) => !/^score /.test(w)).map(esc).join("<br>")}${t.inNet ? `<br><span class="muted">It has no bike tags yet. If it's a bike trail, adding <code>mtb:scale</code> on OpenStreetMap makes it “MTB tagged”.</span>` : ""}</dd>` : ""}
+        ${t.cat === "mtb" && t.why && t.why.length ? `<dt>Why it's MTB tagged</dt><dd>${t.why.map(esc).join("<br>")}</dd>` : ""}
+        <dt>Map points</dt><dd>${segs ? `${segs} map segments` : `${t.geom.length} map points`}</dd>
+        <dt>Mapped by</dt><dd>${t.created ? `${userLink(t.creator)} ${csLink(t.firstChangeset)}` : "Unknown"}${segs && type === "way" ? `<br><span class="muted">earliest of its segments</span>` : ""}</dd>
+        <dt>Last edited</dt><dd>${segs && type === "way" ? `<span class="muted">main segment:</span> ` : ""}${t.version > 1 ? `${fmtDate(t.lastEdit)} · version ${t.version}<br>by ${userLink(t.lastUser)} ${csLink(t.lastChangeset)}` : "Never edited since (version 1)"}</dd>
+        <dt>Starts at</dt><dd class="mono">${start[0].toFixed(5)}, ${start[1].toFixed(5)}</dd>
+        <dt>Ends at</dt><dd class="mono">${end[0].toFixed(5)}, ${end[1].toFixed(5)}</dd>
+        ${factRows(false)}
+      </dl>
+      ${real ? `<p><a href="https://www.openstreetmap.org/${type}/${t.id}/history" target="_blank" rel="noopener">Full history on OpenStreetMap</a></p>` : ""}
       <details class="more"><summary>Edit history</summary><div id="history" class="muted">${real ? "Loading…" : "Not available for example trails."}</div></details>
       <details class="more"><summary>All tags (${Object.keys(t.tags).length})</summary><table class="tagtable"><tbody>${Object.entries(t.tags).map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table></details>
-      ${segs && type === "way" ? `<h3>Segments</h3><p class="muted">The tags, history and links above are for its main segment. All segments: ${t.segIds.map((id) => `<a href="https://www.openstreetmap.org/way/${id}" target="_blank" rel="noopener">${id}</a>`).join(", ")}</p>` : ""}
-      <p class="muted">OpenStreetMap ${type} ${real ? t.id : "(example)"}</p>
+      ${segs && type === "way" ? `<p class="muted">The tags, history and links are for its main segment. All segments: ${t.segIds.map((id) => `<a href="https://www.openstreetmap.org/way/${id}" target="_blank" rel="noopener">${id}</a>`).join(", ")}</p>` : ""}
+      <p class="muted">OpenStreetMap ${type} ${real ? t.id : "(example)"}</p></details>
       <div id="shuttle"></div>`;
     $("panel").classList.add("detail-open");
     $("detail").hidden = false;
@@ -2944,6 +2978,7 @@ out body;`;
     if (fly) setTimeout(() => { map.invalidateSize(); map.fitBounds(t.bounds || L.latLngBounds(t.geom), { maxZoom: 16, padding: [40, 40] }); }, 60);
   }
   // For reports.js map badges: open a trail's details if it's loaded.
+  window.tfClassify = classify;   // for new-trail notifications (notify.js)
   window.tfSelectTrail = (id) => { if (!(state.merged && state.merged.get(id)) && !state.trails.some((x) => x.id === id)) return false; select(id, true); return true; };
   const openRow = (li) => { if (li.dataset.pk) showFound(state.primeShown[+li.dataset.pk].g, true); else select(+li.dataset.id, true); };
   $("list").addEventListener("click", (e) => { const li = e.target.closest(".trail"); if (li) openRow(li); });
@@ -3661,7 +3696,7 @@ out body;`;
   function roadLine(hit, none) {
     if (!hit) return `<span class="muted">${none}</span>`;
     const { r, d } = hit, what = r.name || (r.src === "ften" ? r.r.t || "Forest Service road" : "an unnamed dirt road");
-    return `${roadSwatch(r.st)}${d > 40 ? `${fmtM(d)} from ` : "On "}<strong>${esc(what)}</strong>: ${esc(ROAD_STATUS[r.st].label.toLowerCase())} <span class="muted">(${esc(r.why)})</span>`;
+    return `${roadSwatch(r.st)}${d > 40 ? `${fmtM(d)} from ` : "On "}<strong>${esc(what)}</strong>: ${esc(ROAD_STATUS[r.st].label.toLowerCase())}${r.why && !/=/.test(r.why) ? ` <span class="muted">(${esc(r.why)})</span>` : ""}`;
   }
   function accessInfo(x) {
     const t = x.t || {};
@@ -3736,7 +3771,8 @@ out body;`;
   const keyCtl = L.control({ position: "topleft" });
   keyCtl.onAdd = () => {
     const el = L.DomUtil.create("details", "legend");
-    el.open = !matchMedia("(max-width: 760px)").matches;
+    el.open = store.get("keyOpen", !matchMedia("(max-width: 760px)").matches);
+    el.addEventListener("toggle", () => store.set("keyOpen", el.open));
     el.innerHTML = `<summary>Trail colours</summary><div class="lg-mode" role="group" aria-label="Colour the trails by">
       <button type="button" data-c="diff">Difficulty</button><button type="button" data-c="type">Type</button></div><ul id="keyList"></ul><p class="lg-note" id="keyNote"></p>`;
     L.DomEvent.disableClickPropagation(el); L.DomEvent.disableScrollPropagation(el);
@@ -3748,32 +3784,64 @@ out body;`;
   };
   keyCtl.addTo(map);
   const areaSw = (a) => `<li><span class="lg-area" style="background:${a.color}${Math.round(a.fillOpacity * 255 + 40).toString(16)}; border: 1.5px ${a.dashArray ? "dashed" : "solid"} ${a.color}"></span>${a.label}</li>`;
+  const keyOpen = new Set();   // which of the legend's map-layer sections the rider opened (closed by default to keep the key short)
   function renderKey() {
     const byDiff = state.colorBy === "diff";
     document.querySelectorAll(".legend .lg-mode button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === state.colorBy)));
     const sw = (style, label) => `<li><i style="${style}"></i>${label}</li>`;
     const dots = "background: repeating-linear-gradient(90deg, var(--fg) 0 3px, transparent 3px 7px)";
-    $("keyList").innerHTML = byDiff
+    const section = (title, items) => `<li class="lg-more"><details data-k="${title}"${keyOpen.has(title) ? " open" : ""}><summary>${title}</summary><ul>${items}</ul></details></li>`;
+    let html = byDiff
       ? Object.entries(DIFF).map(([k, v]) => sw(`background: ${v.color}`, `${v.sym} ${v.label}`)).join("")
         + sw(`background: ${UNRATED}`, "Not rated") + sw(dots, "Unofficial?")
       : sw("background: var(--mtb)", "MTB tagged") + sw("background: repeating-linear-gradient(90deg, var(--looks) 0 8px, transparent 8px 12px)", "Looks like MTB")
         + sw("background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 8px)", "Possible unmapped") + sw(dots, "Unofficial?");
-    if (state.roads) $("keyList").innerHTML += `<li class="lg-sub">Forest roads</li>`
-      + ["good", "degraded", "heavy", "impass", "unknown", "closed"].map((st) => {
+    if (state.roads) html += section("Forest roads", ["good", "degraded", "heavy", "impass", "unknown", "closed"].map((st) => {
         const c = roadStyle(st).color;
         return sw(ROAD_STYLE[st].dashArray ? `background: repeating-linear-gradient(90deg, ${c} 0 6px, #fff 6px 10px)` : `background: ${c}`, ROAD_STATUS[st].label);
-      }).join("")
-      + `<li class="lg-sub">Road features (zoom in)</li>` + Object.values(FEAT).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join("");
-    else $("keyList").innerHTML += `<li class="lg-sub">Forest roads</li>` + sw("background: var(--road-plain)", "Forest road (turn on Forest roads for status)");
-    if (state.areas) $("keyList").innerHTML += `<li class="lg-sub">Logging areas</li>` + Object.values(AREA_STYLE).map(areaSw).join("");
-    if (state.fires) $("keyList").innerHTML += `<li class="lg-sub">Wildfires</li><li>${pinHtml(FIRE_STYLE.fire, "lg-ico")}${FIRE_STYLE.fire.label}</li>`
-      + ["perim", "restr", "order", "alert"].map((k) => areaSw(FIRE_STYLE[k])).join("");
-    $("keyList").innerHTML += `<li class="lg-sub">Getting there (zoom in)</li>` + Object.values(ACCESS).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join("");
+      }).join(""))
+      + section("Road features (zoom in)", Object.values(FEAT).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join(""));
+    else html += section("Forest roads", sw("background: var(--road-plain)", "Forest road (turn on Forest roads in Layers for status)"));
+    if (state.areas) html += section("Logging areas", Object.values(AREA_STYLE).map(areaSw).join(""));
+    if (state.fires) html += section("Wildfires", `<li>${pinHtml(FIRE_STYLE.fire, "lg-ico")}${FIRE_STYLE.fire.label}</li>` + ["perim", "restr", "order", "alert"].map((k) => areaSw(FIRE_STYLE[k])).join(""));
+    html += section("Trailheads and parking (zoom in)", Object.values(ACCESS).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join(""));
+    $("keyList").innerHTML = html;
+    $("keyList").querySelectorAll(".lg-more details").forEach((d) => d.addEventListener("toggle", () => { if (d.open) keyOpen.add(d.dataset.k); else keyOpen.delete(d.dataset.k); }));
     $("keyNote").textContent = byDiff
       ? state.allTrails ? "All trails: bold = official, thin = not known, dotted = unofficial. White edge: trails in the list." : "Dashed: looks like MTB (no bike tags)."
       : state.allTrails ? "All trails: bold = official, thin = not known. Thick: trails in the list." : "";
   }
   renderKey();
+
+  // ---------- Layers: the map style, overlays and map tools live in one drop-down ----------
+  const layersMenu = $("layersMenu"), layersBtn = $("layersBtn");
+  function setLayersOpen(open) {
+    layersMenu.hidden = !open;
+    layersBtn.setAttribute("aria-expanded", String(open));
+    layersBtn.classList.toggle("open", open);
+    layersBtn.parentElement.classList.toggle("menu-open", open);
+  }
+  layersBtn.addEventListener("click", () => setLayersOpen(layersMenu.hidden));
+  document.addEventListener("click", (e) => { if (!layersMenu.hidden && !layersMenu.contains(e.target) && !layersBtn.contains(e.target)) setLayersOpen(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !layersMenu.hidden) { setLayersOpen(false); layersBtn.focus(); } });
+  ["btn3d", "offlineBtn"].forEach((id) => $(id).addEventListener("click", () => setLayersOpen(false)));   // tools open their own view
+  function countLayers() {   // "Layers · 3" says how many overlays are on without opening the menu
+    const on = [...layersMenu.querySelector(".lm-overlays").children].filter((b) => b.getAttribute("aria-pressed") === "true" && !b.hidden && getComputedStyle(b).display !== "none").length;
+    $("layersN").textContent = on ? String(on) : "";
+  }
+  new MutationObserver(countLayers).observe(layersMenu, { subtree: true, childList: true, attributes: true, attributeFilter: ["aria-pressed", "hidden", "class"] });
+  new MutationObserver(countLayers).observe(document.body, { attributes: true, attributeFilter: ["class"] });   // ski mode hides some layers
+  countLayers();
+
+  // ---------- First visit: one short tip, until it's dismissed or the rider gets going ----------
+  if (!store.get("tipSeen", false)) {
+    $("firstTip").hidden = false;
+    const done = () => { $("firstTip").hidden = true; store.set("tipSeen", true); };
+    $("firstTipOk").addEventListener("click", done);
+    $("findBtn").addEventListener("click", done);
+    $("list").addEventListener("click", done);
+    document.querySelector('[data-nav="new"]').addEventListener("click", done);
+  }
 
   // ---------- Full map: the panel hides and the map fills the screen ----------
   // Where the browser allows it (computers, Android) the page also goes full screen, hiding the
@@ -4103,6 +4171,7 @@ out tags center qt;`;
   async function getJson(url) { const r = await fetch(url); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }
   const wayLine = (w, nodes) => w.nodes.map((id) => nodes.get(id)).filter(Boolean).map((n) => [n.lat, n.lon]);
   const kindOf = (tags, isRel) => isRel ? ROUTE_KIND[tags.route] || "Route" : hasMtb(tags) ? "MTB trail" : WAY_KIND[tags.highway] || "Path";
+  window.tfShowFound = (g) => showFound(g, true);   // notify.js opens a new trail by its way ids
   async function showFound(g, fromClick) {
     if (!fromClick) { $("trailQ").value = g.name; $("trailHits").hidden = true; $("trailQ").blur(); }
     // Already in the new-trail list and on the map: just select it there.
@@ -4488,6 +4557,7 @@ out tags center qt;`;
 <script src="rides.js"></script>
 <script src="account.js"></script>
 <script src="reports.js"></script>
+<script src="notify.js"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
