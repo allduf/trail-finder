@@ -834,6 +834,10 @@ label.toggle.off .sw { background: var(--muted); }
 .detail a { color: var(--accent); font-weight: 600; }
 .plain { margin: 0; padding-left: 18px; }
 .links { display: flex; flex-wrap: wrap; gap: 8px; }
+.go { margin: 14px 0 0; }
+.detail a.go-btn { display: block; text-align: center; font-weight: 600; padding: 10px 12px; border-radius: 8px; background: var(--accent); color: var(--accent-fg); text-decoration: none; }
+.detail a.go-btn[aria-disabled="true"] { opacity: .6; pointer-events: none; }
+.go p { margin: 6px 0 0; font-size: .85rem; }
 .links a { padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; font-size: .9rem; }
 .history { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 8px; font-size: .9rem; }
 .estats { display: grid; grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); gap: 8px; margin-bottom: 14px; }
@@ -2064,6 +2068,20 @@ out body;`;
     } catch (e) {
       const el = box(); if (el) el.textContent = `Couldn't load the elevation (${e.message}).`;
     }
+    if (box()) setGoLink(t);
+  }
+  // "Go to trail": Google Maps directions to the top of the trail (the higher of its two ends). With no
+  // starting point given, Google Maps starts from where you are, and on a phone it opens ready to navigate.
+  function setGoLink(t) {
+    const a = $("goBtn"), note = $("goNote");
+    if (!a) return;
+    const p = t.elev && t.elev.pts, first = p && p[0], last = p && p[p.length - 1];
+    const known = first && last && first.e != null && last.e != null;
+    const top = !known ? t.geom[0] : last.e > first.e ? t.geom[t.geom.length - 1] : t.geom[0];
+    a.href = `https://www.google.com/maps/dir/?api=1&destination=${top[0].toFixed(5)},${top[1].toFixed(5)}`;
+    a.removeAttribute("aria-disabled");
+    note.textContent = known ? `Route from where you are to the top of the trail (${Math.round(Math.max(first.e, last.e))} m), in Google Maps.`
+      : "Couldn't check which end is higher, so the route goes to where the trail starts on the map.";
   }
   // ---------- weather and Loam moisture index (Open-Meteo forecast, free, no key) ----------
   const WX_API = "https://api.open-meteo.com/v1/forecast";
@@ -2307,6 +2325,7 @@ out body;`;
         <p class="muted">${t.use === "moto" ? "Dirt-bike, ATV and 4x4 trails" : "Hiking-only trails"} are left out of the new-trails list. This is a guess from the map tags.</p></div>` : ""}
       ${isUnoff(t) ? `<div class="unoff-box"><strong>Possibly unsanctioned</strong><ul>${t.unoff.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">This only shows what OpenStreetMap mappers tagged. It's a hint, not the trail's legal status. Check with the land manager or Trailforks before riding.</p></div>` : ""}
+      <div class="go"><a class="go-btn" id="goBtn" target="_blank" rel="noopener" aria-disabled="true">Go to trail</a><p class="muted" id="goNote">Finding the top of the trail…</p></div>
       <dl class="facts">
         <dt>Length</dt><dd>${fmtLen(t.km)} <span class="muted">(${segs ? `${segs} map segments` : `${t.geom.length} map points`})</span></dd>
         <dt>First mapped</dt><dd>${t.created ? `${fmtDate(t.created)} · ${ago(t.created)}<br>by ${userLink(t.creator)} ${csLink(t.firstChangeset)}` : "Unknown"}${segs && type === "way" ? `<br><span class="muted">earliest of its segments</span>` : ""}</dd>
@@ -2326,7 +2345,6 @@ out body;`;
         <a href="https://www.openstreetmap.org/${type}/${t.id}/history" target="_blank" rel="noopener">Full history</a>
         <a href="https://www.openstreetmap.org/edit?${type}=${t.id}" target="_blank" rel="noopener">Edit or fix it</a>
         ${t.tags.name ? `<a href="https://www.trailforks.com/search/?search=${encodeURIComponent(t.tags.name)}" target="_blank" rel="noopener">Search on Trailforks</a>` : ""}
-        <a href="https://www.google.com/maps/dir/?api=1&destination=${start[0]},${start[1]}" target="_blank" rel="noopener">Directions to the start</a>
       </div>` : `<p class="muted">Example trail, not real data.</p>`}
       <h3>Edit history</h3><div id="history" class="muted">${real ? "Loading…" : "Not available for example trails."}</div>
       <h3>All tags</h3><table class="tagtable"><tbody>${Object.entries(t.tags).map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table>
@@ -2355,6 +2373,7 @@ out body;`;
       </div>
       <div class="ghost-box"><strong>Not on the map yet</strong>
         <p>${t.traces} GPS traces uploaded to OpenStreetMap follow this line, and nothing is mapped within 20 m of it. It may be a real trail nobody has mapped, but it could also be private land, a closed trail, a cut line or a GPS glitch. Compare with the heatmaps below before riding it.</p></div>
+      <div class="go"><a class="go-btn" id="goBtn" target="_blank" rel="noopener" aria-disabled="true">Go to trail</a><p class="muted" id="goNote">Finding the top of the trail…</p></div>
       <dl class="facts">
         <dt>Length</dt><dd>${fmtLen(t.km)} <span class="muted">(along one trace)</span></dd>
         <dt>GPS traces</dt><dd>${t.traces} traces by ${t.riders} ${t.riders === 1 ? "person" : "different people"}</dd>
@@ -2376,7 +2395,6 @@ out body;`;
       <h3>Weather and Loam moisture index</h3><div id="wx" class="muted">Loading weather…</div>
       <h3>If it's real</h3><div class="links">
         <a href="https://www.openstreetmap.org/edit#map=18/${at}" target="_blank" rel="noopener">Map it on OpenStreetMap</a>
-        <a href="https://www.google.com/maps/dir/?api=1&destination=${start[0]},${start[1]}" target="_blank" rel="noopener">Directions to the start</a>
       </div>
       <p class="muted">Once it's mapped on OpenStreetMap, it shows up as a normal new trail. Mapping tip: the OpenStreetMap editor can show the Strava heatmap as a background to trace from by hand.</p>`;
     $("panel").classList.add("detail-open");
