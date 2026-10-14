@@ -1050,17 +1050,17 @@ label.toggle.off .sw { background: var(--muted); }
     <h3>MTB tagged</h3>
     <p>Any tag starting with <code>mtb</code> (<code>mtb:scale</code>, <code>mtb:scale:imba</code>, <code>mtb:type</code>, <code>mtb=yes</code>, …) or membership in a <code>route=mtb</code> relation. <code>mtb=no</code> is excluded.</p>
     <h3>Looks like MTB</h3>
-    <p>A <code>path</code>, <code>bridleway</code> or rough <code>track</code> (grade 3 to 5) with no MTB tags that scores 2 points or more:</p>
+    <p>A <code>path</code> or <code>bridleway</code> with no MTB tags that scores 2 points or more:</p>
     <ul>
-      <li>+2 bikes allowed: <code>bicycle=yes</code>, <code>designated</code> or <code>permissive</code></li>
+      <li>+2 signed for bikes: <code>bicycle=designated</code></li>
+      <li>+1 bikes allowed: <code>bicycle=yes</code> or <code>permissive</code></li>
       <li>+1 natural surface: dirt, earth, ground, mud, rock, roots, woodchips</li>
       <li>+1 rough: <code>smoothness</code> bad or worse</li>
       <li>+1 narrow: <code>width</code> under 1.5 m</li>
       <li>+1 <code>trail_visibility</code> or <code>incline</code> is mapped</li>
-      <li>+1 the name sounds like a bike trail (flow, berm, jump, enduro, downhill, singletrack, piste, sentier…)</li>
-      <li>+1 a <code>track</code> graded <code>grade4</code> or <code>grade5</code></li>
+      <li>+1 the name sounds like a bike trail (flow, berm, jump, enduro, downhill, singletrack…)</li>
     </ul>
-    <p>Skipped: paved surfaces, <code>bicycle=dismount</code>, and alpine hiking routes (<code>sac_scale</code> alpine).</p>
+    <p>Skipped: tracks (most are forest roads or ATV, moto and 4x4 tracks), paths 2 m wide or more, paths open to motorbikes, ATVs or other motor vehicles, paved surfaces, <code>bicycle=dismount</code>, and alpine hiking routes (<code>sac_scale</code> alpine).</p>
 <h3>Moto and hiking-only trails</h3>
     <p>To keep the list about mountain biking, trails that look like dirt-bike, ATV or 4x4 trails, and trails where bikes aren't allowed, are left out of the list. Moto means tags like <code>dirtbike:scale</code>, <code>motorcycle=designated</code>, <code>atv=yes</code>, <code>4wd_only=yes</code>, an ATV route, or a name like “ATV trail”. Hiking only means <code>bicycle=no</code>, <code>mtb=no</code>, stairs, hard hiking terrain (<code>sac_scale</code> T4 and up), or a signed hiking route with no bike access. A trail with any MTB tag, in an MTB route, or with <code>bicycle=designated</code> is never hidden, even if motorbikes are allowed on it too.</p>
     <h3>Unofficial (possibly unsanctioned) trails</h3>
@@ -1255,7 +1255,7 @@ label.toggle.off .sw { background: var(--muted); }
   const PAVED = /^(asphalt|paved|concrete|concrete:plates|concrete:lanes|paving_stones|sett|cobblestone|metal|chipseal)$/;
   const NATURAL = /^(dirt|earth|ground|mud|rock|roots|woodchips|soil)$/;
   const ROUGH = /^(bad|very_bad|horrible|very_horrible|impassable)$/;
-  const BIKEY_NAME = /\b(flow|berm|jump|jumps|enduro|downhill|dh|xc|singletrack|single ?trail|freeride|pump ?track|bike|vtt|piste|sentier|trail)\b/i;
+  const BIKEY_NAME = /\b(flow|berm|berms|jump|jumps|enduro|downhill|dh|xc|singletrack|single ?trail|freeride|pump ?track|bike|vtt)\b/i;
 
   // Signs that a trail may be unsanctioned (unofficial, closed or not for bikes). Only what mappers tagged.
   const CLOSED_NOTE = /\b(unsanctioned|unauthori[sz]ed|illegal|not sanctioned|unofficial|closed|decommissioned|no bikes)\b/i;
@@ -1333,23 +1333,25 @@ label.toggle.off .sw { background: var(--muted); }
       routes.forEach((r) => why.push(`part of MTB route “${r}”`));
       return { cat: "mtb", why };
     }
-    if (!/^(path|track|bridleway)$/.test(hw)) return null;
-    if (hw === "track" && /^(grade1|grade2)$/.test(tags.tracktype || "")) return null;
+    // Tracks are vehicle-wide (forest roads, ATV, moto and 4x4 tracks), so only paths and bridleways can look like MTB.
+    if (!/^(path|bridleway)$/.test(hw)) return null;
     if (PAVED.test(tags.surface || "")) return null;
     if (/alpine/.test(tags.sac_scale || "")) return null;
 
     let score = 0; const why = [];
-    if (/^(yes|designated|permissive)$/.test(tags.bicycle || "")) { score += 2; why.push(`bikes allowed (bicycle=${tags.bicycle})`); }
+    if (tags.bicycle === "designated") { score += 2; why.push("signed for bikes (bicycle=designated)"); }
+    else if (/^(yes|permissive)$/.test(tags.bicycle || "")) { score += 1; why.push(`bikes allowed (bicycle=${tags.bicycle})`); }
     if (NATURAL.test(tags.surface || "")) { score += 1; why.push(`natural surface (${tags.surface})`); }
     if (ROUGH.test(tags.smoothness || "")) { score += 1; why.push(`rough (smoothness=${tags.smoothness})`); }
-    const w = parseFloat(tags.width);
-    if (!isNaN(w) && w < 1.5) { score += 1; why.push(`narrow (${tags.width} m)`); }
+    const w = parseFloat(tags.width || tags.est_width);
+    if (!isNaN(w) && w < 1.5) { score += 1; why.push(`narrow (${w} m)`); }
     if (tags.trail_visibility || tags.incline) { score += 1; why.push(tags.trail_visibility ? `trail_visibility=${tags.trail_visibility}` : `incline=${tags.incline}`); }
     if (tags.name && BIKEY_NAME.test(tags.name)) { score += 1; why.push("name sounds like a bike trail"); }
-    if (hw === "track" && /^(grade4|grade5)$/.test(tags.tracktype || "")) { score += 1; why.push(`rough track (${tags.tracktype})`); }
+    // Wide enough for a dirt bike or quad, or motor vehicles allowed: not counted as looking like MTB.
+    const motor = tags.bicycle === "designated" ? null : !isNaN(w) && w >= 2 ? `wide (${w} m)` : ["motorcycle", "motor_vehicle", "atv", "ohv", "orv"].filter((k) => MOTO_OK.test(tags[k] || "")).map((k) => `${k}=${tags[k]}`)[0];
 
-    if (score >= 2) return { cat: "looks", why: why.concat(`score ${score}`) };
-    if (hw === "path") return { cat: "other", why: why.length ? why.concat(`score ${score}`) : ["no bike-related tags yet"] };
+    if (score >= 2 && !motor) return { cat: "looks", why: why.concat(`score ${score}`) };
+    if (hw === "path") return { cat: "other", why: motor ? [`open to motor vehicles or wide (${motor})`] : why.length ? why.concat(`score ${score}`) : ["no bike-related tags yet"] };
     return null;
   }
 
