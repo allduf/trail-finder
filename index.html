@@ -860,6 +860,10 @@ label.toggle.off .sw { background: var(--muted); }
 .wx-note { font-size: .85rem; margin: 6px 0; }
 .wx-days td:first-child { white-space: nowrap; }
 .wx-days td:nth-child(2), .wx-days th:nth-child(2) { text-align: left; }
+.near-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.near-row .btn { display: inline-flex; align-items: center; gap: 6px; }
+.near-row label { color: var(--muted); font-size: .9rem; white-space: nowrap; }
+.near-row select.zone { width: auto; flex: 1; margin-top: 0; }
 .pick-note { font-family: var(--font-body); font-weight: 600; }
 .pick-ring { animation: pick 0.9s ease-in-out infinite alternate; }
 @keyframes pick { from { opacity: .35; } to { opacity: 1; } }
@@ -964,7 +968,7 @@ label.toggle.off .sw { background: var(--muted); }
         </div>
       </section>
       <section class="pane" id="paneNew" role="tabpanel" aria-labelledby="tabNew">
-        <p class="hint">Choose an area and how recent, then press <strong>Find new trails</strong>.</p>
+        <p class="hint">Choose an area, or tap <strong>Near me</strong>, and how recent, then press <strong>Find new trails</strong>.</p>
         <div>
           <label class="label" for="zone">Area</label>
           <select id="zone" class="zone"></select>
@@ -972,6 +976,11 @@ label.toggle.off .sw { background: var(--muted); }
             <div class="pin-in"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 21.5s6.5-5.8 6.5-11.2a6.5 6.5 0 1 0-13 0c0 5.4 6.5 11.2 6.5 11.2z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="10.3" r="2.4" fill="currentColor"/></svg><input id="place" type="search" placeholder="Or go to a town or place" autocomplete="off" aria-label="Go to a town or place"></div>
             <button class="btn" type="submit">Go</button>
           </form>
+          <div class="near-row">
+            <button class="btn" id="nearBtn" type="button"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="2.6" fill="currentColor"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>Near me</button>
+            <label for="nearKm">within</label>
+            <select id="nearKm" class="zone"><option value="5">5 km</option><option value="10">10 km</option><option value="25">25 km</option><option value="50">50 km</option></select>
+          </div>
         </div>
         <div>
           <div class="label" id="periodLabel">Created in the last</div>
@@ -1006,6 +1015,8 @@ label.toggle.off .sw { background: var(--muted); }
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
     <h2 id="aboutTitle">How Trail Finder works</h2>
     <p>All data comes from OpenStreetMap. For Sea to Sky and the Sunshine Coast, GitHub collects the new trails and trail names every night, so searches there load in a second or two without waiting on OpenStreetMap. A trail added today shows up after the next nightly update. Anywhere else, the app asks OpenStreetMap live. By default it covers the Sea to Sky corridor and the Sunshine Coast, split into the zones in the Area menu. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
+    <h3>Near me</h3>
+    <p>Tap “Near me” and pick 5, 10, 25 or 50 km. The app asks your browser for your location (it stays on your device), searches that circle and lists only the new trails within that distance, with how far each one is.</p>
     <h3>Click any trail</h3>
     <p>Click or tap any path or track on the map, even one that isn't in the results, to see everything about it: length, climb and descent, difficulty, who mapped it and when, and its tags. Zoom in a little first so the click lands on the right trail.</p>
     <h3>Weather and Loam moisture index</h3>
@@ -1156,6 +1167,36 @@ label.toggle.off .sw { background: var(--muted); }
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !e.target.closest("input, select, textarea") && !clearCtl.getContainer().hidden) clearSelection(); });
   let locMarker = null;
 
+  // ---------- Near me: new trails within a chosen distance of where you are ----------
+  let near = null;                                   // { ll: L.LatLng, km }
+  const nearLayer = L.layerGroup().addTo(map);
+  const nearBox = () => near.ll.toBounds(near.km * 2000);
+  function nearDist(t) {                             // metres from you to the closest point of the trail
+    if (t._nearFor !== near) { t._nearFor = near; t._nearD = t.geom.reduce((m, p) => Math.min(m, near.ll.distanceTo(p)), Infinity); }
+    return t._nearD;
+  }
+  const fmtAway = (m) => (m < 1000 ? "under 1 km" : (m / 1000).toFixed(m < 10000 ? 1 : 0) + " km") + " away";
+  function clearNear() { near = null; nearLayer.clearLayers(); }
+  function startNear(ll) {
+    near = { ll: L.latLng(ll), km: +$("nearKm").value };
+    nearLayer.clearLayers();
+    L.circle(near.ll, { radius: near.km * 1000, color: css("--accent"), weight: 2, fill: false, dashArray: "6 6", interactive: false }).addTo(nearLayer);
+    L.circleMarker(near.ll, { radius: 8, color: "#fff", weight: 3, fillColor: css("--accent"), fillOpacity: 1, interactive: false }).addTo(nearLayer);
+    state.custom = true;
+    const opt = $("zone").querySelector('option[value="near"]'); opt.textContent = `Near me (within ${near.km} km)`; $("zone").value = "near";
+    map.fitBounds(nearBox());
+    search([nearBox()]);
+  }
+  $("nearKm").value = String(store.get("nearKm", 10));
+  $("nearBtn").addEventListener("click", () => {
+    if (!navigator.geolocation) { setStatus("This browser can't share your location. Pick an area instead.", true); return; }
+    setStatus("Finding your location…");
+    navigator.geolocation.getCurrentPosition((pos) => startNear([pos.coords.latitude, pos.coords.longitude]),
+      (err) => setStatus(err.code === 1 ? "Location wasn't shared. Allow location for this site in your browser settings, or pick an area instead." : "Couldn't get your location. Try again, or pick an area instead.", true),
+      { timeout: 15000, maximumAge: 300000 });
+  });
+  $("nearKm").addEventListener("change", () => { store.set("nearKm", +$("nearKm").value); if (near) startNear(near.ll); });
+
   map.on("moveend", () => {
     const view = map.getBounds();
     const covered = state.searchedBounds.some((b) => b.contains(view)) || (!state.custom && state.searchedBounds.length && ALL_BOUNDS.contains(view) && map.getZoom() < MIN_ZOOM);
@@ -1163,6 +1204,7 @@ label.toggle.off .sw { background: var(--muted); }
   });
   $("searchArea").addEventListener("click", () => {
     if (map.getZoom() < MIN_ZOOM) { setStatus("Zoom in a bit more (to a town or trail area) before searching.", true); return; }
+    clearNear();
     state.custom = true; $("zone").value = "custom";
     search([map.getBounds().pad(0.05)]);
   });
@@ -1722,6 +1764,7 @@ out body;`;
   }
 
   function findNewTrails() {
+    if (near) { search([nearBox()]); return; }
     if (state.custom) {
       if (map.getZoom() < MIN_ZOOM) { setStatus("Zoom in a bit more (to a town or trail area), then click Find new trails.", true); return; }
       search([map.getBounds().pad(0.05)]);
@@ -1733,7 +1776,7 @@ out body;`;
   function visibleTrails() {
     const cutoff = monthsAgo(state.months);
     const zb = !state.custom && !state.example && zoneById(state.zone) ? zoneById(state.zone).bounds : null;
-    return state.trails.filter((t) => t.created >= cutoff && (!zb || zb.intersects(t.bounds)));
+    return state.trails.filter((t) => t.created >= cutoff && (!zb || zb.intersects(t.bounds)) && (!near || nearDist(t) <= near.km * 1000));
   }
 
   function trailName(t) { if (t.ghost) return "Possible unmapped trail"; return t.tags.name || t.tags["mtb:name"] || "Unnamed " + t.tags.highway; }
@@ -1782,7 +1825,7 @@ out body;`;
       return `<li class="trail ${t.cat}${state.selected === t.id ? " sel" : ""}" data-id="${t.id}" tabindex="0">
         <span class="bar"></span>
         <div><div class="name">${esc(trailName(t))} ${g ? `<span class="grade">${esc(g)}</span>` : ""} ${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""} ${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}</div>
-        <div class="meta">${state.zone === "all" && !state.custom && t.zone ? `<span class="zone-tag">${esc(t.zone.split(" (")[0])}</span> · ` : ""}${esc(t.use ? t.useWhy[0] : t.why[0])}</div></div>
+        <div class="meta">${near ? `<span class="zone-tag">${fmtAway(nearDist(t))}</span> · ` : ""}${state.zone === "all" && !state.custom && t.zone ? `<span class="zone-tag">${esc(t.zone.split(" (")[0])}</span> · ` : ""}${esc(t.use ? t.useWhy[0] : t.why[0])}</div></div>
         <div class="right">${fmtLen(t.km)}<br>${ago(t.created)}</div></li>`;
     }).join("") + "</ol>";
   }
@@ -1793,7 +1836,7 @@ out body;`;
     const n = state.shownCount || 0;
     $("findBtn").disabled = !!state.loading;
     $("findLabel").textContent = state.loading ? "Searching…" : "Find new trails";
-    const where = state.custom ? "this part of the map" : (zoneById(state.zone) ? zoneById(state.zone).name : "Sea to Sky and the Sunshine Coast");
+    const where = near ? `${near.km} km around you` : state.custom ? "this part of the map" : (zoneById(state.zone) ? zoneById(state.zone).name : "Sea to Sky and the Sunshine Coast");
     if (state.offline) {
       setStatus(n ? `Showing ${n} saved trail${n === 1 ? "" : "s"} from the last ${label}. Click Find new trails to check for newer ones.` : `Click Find new trails to search ${where}.`);
     } else if (state.loading) {
@@ -2227,6 +2270,7 @@ out body;`;
       const bb = hits[0].boundingbox.map(Number);
       map.fitBounds([[bb[0], bb[2]], [bb[1], bb[3]]], { maxZoom: 14 });
       if (map.getZoom() < MIN_ZOOM) map.setZoom(MIN_ZOOM);
+      clearNear();
       state.custom = true; $("zone").value = "custom";
       search([map.getBounds().pad(0.05)], true);
     } catch { setStatus("Place search can't reach OpenStreetMap from here. Pan and zoom the map instead.", true); }
@@ -2240,6 +2284,7 @@ out body;`;
       if (locMarker) map.removeLayer(locMarker);
       locMarker = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: css("--accent"), fillOpacity: 1 }).addTo(map);
       map.setView(ll, 13);
+      clearNear();
       state.custom = true; $("zone").value = "custom";
       search([map.getBounds().pad(0.05)], true);
     }, () => setStatus("Location wasn't shared. Search a place or move the map instead.", true), { timeout: 15000 });
@@ -2673,6 +2718,7 @@ out tags center qt;`;
   // ---------- example data (used only when OpenStreetMap can't be reached) ----------
   function loadExample() {
     state.example = true;
+    if (near) { clearNear(); state.custom = true; $("zone").value = "custom"; }
     const c = L.latLng(49.735, -123.13);
     map.setView(c, 13);
     const mk = (id, cat, tags, pts, daysAgo, version) => {
@@ -2703,7 +2749,7 @@ out tags center qt;`;
   const zoneSel = $("zone");
   zoneSel.innerHTML = `<option value="all">All of Sea to Sky + Sunshine Coast</option>` +
     ZONES.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("") +
-    `<option value="custom" hidden>Custom area (from the map)</option>`;
+    `<option value="custom" hidden>Custom area (from the map)</option><option value="near" hidden>Near me</option>`;
   zoneSel.value = zoneById(state.zone) ? state.zone : "all";
   const nameZoneSel = $("nameZone");
   function fillNameZones() {
@@ -2749,7 +2795,8 @@ out tags center qt;`;
     refreshHits();
   });
   zoneSel.addEventListener("change", () => {
-    if (zoneSel.value === "custom") return;
+    if (zoneSel.value === "custom" || zoneSel.value === "near") return;
+    clearNear();
     state.zone = zoneSel.value; store.set("zone", state.zone);
     map.fitBounds(zoneBounds(state.zone));
     searchZones(true);
