@@ -41,3 +41,12 @@ their own "Logging areas" button on the site. Every 3 hours,
 `.github/workflows/wildfires.yml` saves the BC Wildfire Service's current fires and perimeters (fires that are out are
 left out), fire area restrictions (`PROT_RESTRICTED_AREAS_SP`) and evacuation orders and alerts
 (`EMRG_ORDER_AND_ALERT_AREAS_SP`) to `data/fires.json`, shown with the site's "Wildfires" button.
+
+## Install on a phone
+The site installs as a home screen app (no App Store). iPhone: open the site in Safari, tap Share, then Add to Home
+Screen. Android: open it in Chrome, tap the ⋮ menu, then Install app (or Add to Home screen). It opens full screen
+with the Trail Finder icon. `manifest.webmanifest` and `icons/` hold the name and icons; `sw.js` keeps a copy of the
+pages, scripts and the last `data/*.json` it loaded so the app still opens with no signal. Pages and data are always
+fetched from the network first, so new deploys and each nightly data build show up whenever there is a connection.
+Map tiles, weather and OpenStreetMap lookups still need a connection. When changing the list of files in `sw.js`,
+bump its `VERSION` so phones drop the old copy.
