@@ -1943,7 +1943,7 @@ out body;`;
     [40, "Tacky, prime loam", "Hero dirt: grippy and fun."],
     [60, "Damp", "Good grip on dirt, roots and rocks get slick."],
     [80, "Wet and muddy", "Slippery, and riding leaves ruts."],
-    [101, "Saturated", "Very muddy. Many trail groups ask you to stay off so it doesn't get damaged."]];
+    [101, "Saturated", "Very muddy and very slippery. Still rideable: go easy and avoid skidding, which leaves ruts."]];
   function lmiAt(h, i) {
     const a = h.soil_moisture_0_to_1cm[i], b = h.soil_moisture_1_to_3cm[i], c = h.soil_moisture_3_to_9cm[i];
     if (a == null || b == null || c == null) return null;
@@ -1951,7 +1951,7 @@ out body;`;
     return Math.round(Math.max(0, Math.min(100, (v - 0.08) / (0.42 - 0.08) * 100)));
   }
   const lmiLevel = (v) => LMI_LEVELS.find((l) => v < l[0]);
-  const LMI_RIDE = [["#d9a35a", "OK, loose"], ["#5aa86a", "Best", "best"], ["#3f8f8c", "Good"], ["#3b6fb0", "Not great"], ["#33468f", "Stay off"]];
+  const LMI_RIDE = [["#d9a35a", "OK, loose"], ["#5aa86a", "Best", "best"], ["#3f8f8c", "Good"], ["#3b6fb0", "Not great"], ["#33468f", "Very slippery"]];
   const lmiKey = (lvl) => `<ul class="lmi-key" aria-label="What the numbers mean">${LMI_LEVELS.map((l, k) =>
     `<li class="${l === lvl ? "on" : ""}"><span class="dot" style="background:${LMI_RIDE[k][0]}"></span><span>${k * 20}–${Math.min(100, l[0] - 1)}</span><span>${esc(l[1])}</span><span class="ride ${LMI_RIDE[k][2] || ""}">${LMI_RIDE[k][1]}</span></li>`).join("")}</ul>`;
 
