@@ -1,0 +1,31 @@
+name: Mapper watch
+
+# Every hour, check OpenStreetMap for new edits by the mappers below and post them as a comment
+# on a GitHub issue that mentions alex, so GitHub emails them. See scripts/watch-mapper.mjs.
+on:
+  schedule:
+    - cron: "41 * * * *"   # every hour
+  workflow_dispatch:         # "Run workflow" button on the Actions tab
+
+permissions:
+  issues: write   # open the issue and add comments
+
+concurrency:
+  group: mapper-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Look for new edits
+        env:
+          WATCH: "13073415"   # OpenStreetMap user numbers, comma separated. 13073415 = eerib
+          OWNER: allduf       # who gets mentioned (and emailed)
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/watch-mapper.mjs
