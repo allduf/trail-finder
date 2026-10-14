@@ -42,6 +42,15 @@ their own "Logging areas" button on the site. Every 3 hours,
 left out), fire area restrictions (`PROT_RESTRICTED_AREAS_SP`) and evacuation orders and alerts
 (`EMRG_ORDER_AND_ALERT_AREAS_SP`) to `data/fires.json`, shown with the site's "Wildfires" button.
 
+## Getting there (trailheads, parking and shuttle roads)
+Every night, `.github/workflows/access-data.yml` runs `scripts/build-access.mjs`, which writes `data/access-<zone>.json`:
+OpenStreetMap trailheads (`highway=trailhead`) and public parking (`amenity=parking`, not private, customers only or a
+garage) within 1.5 km of an MTB trail, and BC Recreation Sites and Trails points (DataBC
+`WHSE_FOREST_TENURE.FTEN_REC_SITE_POINTS_SVW`, Open Government Licence - British Columbia). The map pins them from
+zoom 13. Each trail's details have a "Getting there" section with the nearest trailhead and parking, the forest road
+that reaches each one and its condition (from the Forest roads data), a Directions link (Google Maps), and the forest
+road nearest the top and bottom of the trail, for a shuttle drop or pickup.
+
 ## Skiing (winter mode)
 The sport menu in the header switches the site between MTB and Skiing (`winter.js`). In Skiing the map shows backcountry
 ski routes and huts, and the "Avalanche risk" button shades slopes over about 25° by Avalanche Canada's danger rating for

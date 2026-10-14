@@ -1,0 +1,50 @@
+name: Trailheads and parking data
+
+# Every night, collect trailheads, public parking and BC recreation sites near the MTB trails into
+# data/access-<zone>.json, for "Getting there" in the trail details and the parking pins on the map.
+# On a pull request that changes the script it only does a test run, without saving anything.
+on:
+  schedule:
+    - cron: "31 9 * * *"   # 09:31 UTC, after the all-trails run that it reads
+  workflow_dispatch:        # "Run workflow" button on the Actions tab
+  pull_request:
+    paths:
+      - scripts/build-access.mjs
+      - .github/workflows/access-data.yml
+
+permissions:
+  contents: write   # commit the data files
+  pages: write      # ask GitHub Pages to publish them
+
+concurrency:
+  group: access-data-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Collect trailheads and parking
+        run: node scripts/build-access.mjs
+      - name: File sizes
+        run: ls -l data/access-*.json
+      - name: Commit the new data
+        if: github.event_name != 'pull_request'
+        run: |
+          git add data
+          if git diff --cached --quiet; then echo "No changes."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Trailheads and parking data"
+          git pull -q --rebase origin "${GITHUB_REF_NAME}"
+          git push -q origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Publish the website
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent || echo "Pages will publish on its own."

@@ -980,6 +980,13 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .road-pop .src { color: #5c6862; font-size: .78rem; }
 .rf-pin span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; border: 2.5px solid #fff; box-shadow: 0 0 0 1.5px rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.5); box-sizing: border-box; }
 .rf-pin span svg { width: 19px; height: 19px; }
+.acc-list li, .acc-ends li { margin: 0 0 8px; }
+.acc-row { display: flex; gap: 8px; align-items: flex-start; }
+.acc-row .lg-ico { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; flex: none; margin-top: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+.acc-row .lg-ico svg { width: 15px; height: 15px; }
+.acc-row .lg-ico.round { border-radius: 50%; }
+.acc-sw { display: inline-block; width: 18px; height: 5px; border-radius: 2px; vertical-align: middle; margin-right: 6px; box-shadow: 0 0 0 1px rgba(0,0,0,.25); }
+.acc-sub { font-weight: 600; margin: 10px 0 4px; }
 .rf-pin span.round, .legend .lg-ico.round { border-radius: 50%; }
 .legend .lg-ico { width: 20px; height: 20px; border-radius: 5px; display: grid; place-items: center; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
 .legend .lg-ico svg { width: 14px; height: 14px; }
@@ -2447,7 +2454,7 @@ out body;`;
     } catch (e) {
       const el = box(); if (el) el.textContent = `Couldn't load the elevation (${e.message}).`;
     }
-    if (box()) setGoLink(t);
+    if (box()) { setGoLink(t); renderAccess(t); }
   }
   // "Go to trail": Google Maps directions to the top of the trail (the higher of its two ends). With no
   // starting point given, Google Maps starts from where you are, and on a phone it opens ready to navigate.
@@ -2705,6 +2712,7 @@ out body;`;
       ${isUnoff(t) ? `<div class="unoff-box"><strong>Possibly unsanctioned</strong><ul>${t.unoff.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">This only shows what OpenStreetMap mappers tagged. It's a hint, not the trail's legal status. Check with the land manager or Trailforks before riding.</p></div>` : ""}
       <div class="go"><a class="go-btn" id="goBtn" target="_blank" rel="noopener" aria-disabled="true">Go to trail</a><p class="muted" id="goNote">Finding the top of the trail…</p></div>
+      <h3>Getting there</h3><div id="access" class="muted">Looking for trailheads, parking and roads…</div>
       <dl class="facts">
         ${t.cat === "looks" ? `<dt>Why it looks like MTB</dt><dd>${t.why.filter((w) => !/^score /.test(w)).map(esc).join("<br>")}${t.inNet ? `<br><span class="muted">It has no bike tags yet. If it's a bike trail, adding <code>mtb:scale</code> on OpenStreetMap makes it “MTB tagged”.</span>` : ""}</dd>` : ""}
         <dt>Official?</dt><dd>${t.official ? `Yes: ${esc(t.official)}.` : isUnoff(t) ? "Possibly not (see above)." : `<span class="muted">Not known: the map doesn't say who runs it.</span>`}</dd>
@@ -2740,6 +2748,7 @@ out body;`;
     if (real) wireWant(t);
     if (real) loadHistory(t);
     loadElevation(t);
+    renderAccess(t);
     loadWeather(t);
     if (real && window.tfReports) window.tfReports.show(t);   // reports.js
     leaveFullMap(t);
@@ -3163,9 +3172,14 @@ out body;`;
   function loadRoads() {
     if (state.example || map.getZoom() < ROAD_MIN_ZOOM) return;   // loaded with the button off too, for the plain lines
     const view = map.getBounds();
-    ZONES.filter((z) => z.bounds.intersects(view) && !roadData.has(z.id)).forEach((z) => {
+    ZONES.filter((z) => z.bounds.intersects(view)).forEach(roadZone);
+  }
+  // One zone's roads, loaded once (also for "Getting there", which may need a zone the map hasn't shown yet).
+  const roadLoads = new Map();
+  function roadZone(z) {
+    if (!roadLoads.has(z.id)) {
       roadData.set(z.id, null);
-      nightly(`roads-${z.id}.json`).then((f) => {
+      roadLoads.set(z.id, nightly(`roads-${z.id}.json`).then((f) => {
         const list = [];
         if (f && f.v === 1) {
           Object.entries(f.osm || {}).forEach(([id, w]) => {
@@ -3179,8 +3193,10 @@ out body;`;
         }
         roadData.set(z.id, { at: f && f.builtAt, list, ...(f && f.v === 1 ? zoneExtras(f, list) : { feats: [], areas: [] }) });
         drawRoads();
-      });
-    });
+        return roadData.get(z.id);
+      }));
+    }
+    return roadLoads.get(z.id);
   }
   function drawRoads() {
     const zoomed = map.getZoom() >= ROAD_MIN_ZOOM, on = state.roads && zoomed;
@@ -3441,6 +3457,116 @@ out body;`;
   syncFiresBtn();
   loadFires();
 
+  // ---------- Getting there: trailheads, parking and the road that reaches them ----------
+  // From the nightly data/access-<zone>.json files (scripts/build-access.mjs): OpenStreetMap trailheads and public
+  // parking near MTB trails, and BC Recreation Sites and Trails. Pinned on the map from zoom 13. Each trail's details
+  // name the nearest trailhead and parking, the forest road that reaches them with its condition (from the forest
+  // roads files), and the road nearest the top and bottom of the trail, for a shuttle drop or pickup.
+  const ACCESS = {
+    th: { svg: svg(`<path d="M6 21V3M6 4h11l-2.5 4L17 12H6"/>`), bg: "#7c3aed", label: "Trailhead" },
+    p: { svg: svg(`<path d="M8 20V4h5a4.5 4.5 0 0 1 0 9H8" stroke-width="3"/>`), bg: "#1d4ed8", label: "Parking" },
+    rec: { svg: svg(`<path d="M2 20 9.5 6l4.5 8 2.5-4L22 20z"/>`, true), bg: "#15803d", label: "BC recreation site or trail" },
+  };
+  const ACCESS_NEAR_M = 5000, ROAD_NEAR_M = 300, END_ROAD_M = 400;
+  const accessLoads = new Map();   // zone id -> Promise([{ id, k, lat, lon, t, z }])
+  function accessZone(z) {
+    if (!accessLoads.has(z.id)) accessLoads.set(z.id, nightly(`access-${z.id}.json`).then((f) => (f && f.v === 1 ? [...(f.osm || []), ...(f.rec || [])].map((x) => ({ ...x, z: z.id })) : [])));
+    return accessLoads.get(z.id);
+  }
+  // Metres from point ll to the segment a-b, on a local flat projection.
+  function segM(ll, a, b) {
+    const k = Math.cos((ll[0] * Math.PI) / 180) * 111320;
+    const ax = (a[1] - ll[1]) * k, ay = (a[0] - ll[0]) * 110540, dx = (b[1] - a[1]) * k, dy = (b[0] - a[0]) * 110540, l2 = dx * dx + dy * dy;
+    const s = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
+    return Math.hypot(ax + s * dx, ay + s * dy);
+  }
+  const lineM = (ll, geom) => { let d = Infinity; for (let i = 1; i < geom.length; i++) d = Math.min(d, segM(ll, geom[i - 1], geom[i])); return geom.length === 1 ? segM(ll, geom[0], geom[0]) : d; };
+  // The nearest forest or dirt road to a point, within max metres, from loaded zone road lists.
+  function nearestRoad(ll, zones, max) {
+    const box = L.latLng(ll).toBounds(max * 2);
+    let best = null;
+    zones.forEach((z) => z && z.list.forEach((r) => {
+      if (!r.bounds.intersects(box)) return;
+      const d = lineM(ll, r.geom);
+      if (d <= max && (!best || d < best.d - 15 || (d < best.d + 15 && !best.r.name && r.name))) best = { r, d };   // a named road wins a near tie
+    }));
+    return best;
+  }
+  const roadSwatch = (st) => { const c = roadStyle(st).color; return `<i class="acc-sw" style="background:${ROAD_STYLE[st].dashArray ? `repeating-linear-gradient(90deg, ${c} 0 5px, #fff 5px 8px)` : c}"></i>`; };
+  const fmtM = (m) => (m < 1000 ? `${Math.round(m / 10) * 10 || 10} m` : `${(m / 1000).toFixed(1)} km`);
+  function roadLine(hit, none) {
+    if (!hit) return `<span class="muted">${none}</span>`;
+    const { r, d } = hit, what = r.name || (r.src === "ften" ? r.r.t || "Forest Service road" : "an unnamed dirt road");
+    return `${roadSwatch(r.st)}${d > 40 ? `${fmtM(d)} from ` : "On "}<strong>${esc(what)}</strong>: ${esc(ROAD_STATUS[r.st].label.toLowerCase())} <span class="muted">(${esc(r.why)})</span>`;
+  }
+  function accessInfo(x) {
+    const t = x.t || {};
+    if (x.k === "rec") return [t.type, t.loc].filter(Boolean);
+    const fee = t.fee === "no" ? "Free" : t.fee === "yes" ? `Paid${t.charge ? ` (${t.charge})` : ""}` : "";
+    return [fee, t.capacity && `${t.capacity} spots`, t.surface && `surface: ${t.surface}`, t.access && t.access !== "yes" && `access: ${t.access}`, t.operator, t.opening_hours && `open ${t.opening_hours}`, t.seasonal === "yes" && "seasonal", t.description || t.note].filter(Boolean);
+  }
+  const accessName = (x) => (x.t && x.t.name) || `Unnamed ${ACCESS[x.k].label.toLowerCase()}`;
+  function accessLinks(x) {
+    const dir = `https://www.google.com/maps/dir/?api=1&destination=${x.lat.toFixed(5)},${x.lon.toFixed(5)}`;
+    const src = x.k === "rec" ? `<a href="https://www.sitesandtrailsbc.ca/search/search-result.aspx?site=${encodeURIComponent(x.id)}&type=${/trail/i.test(x.t.type || "") ? "Trail" : "Site"}" target="_blank" rel="noopener">BC Rec Sites page</a>`
+      : `<a href="https://www.openstreetmap.org/${{ n: "node", w: "way", r: "relation" }[x.id[0]]}/${x.id.slice(1)}" target="_blank" rel="noopener">OpenStreetMap</a>`;
+    return `<a href="${dir}" target="_blank" rel="noopener">Directions</a> · ${src}`;
+  }
+  // "Getting there" in the trail details.
+  async function renderAccess(t) {
+    const box = () => (state.selected === t.id ? $("access") : null);
+    if (!box() || !t.geom || !t.geom.length) return;
+    const b = L.latLngBounds(t.geom), area = L.latLngBounds([b.getSouth() - 0.05, b.getWest() - 0.07], [b.getNorth() + 0.05, b.getEast() + 0.07]);
+    const zs = ZONES.filter((z) => z.bounds.intersects(area));
+    const [pts, roads] = await Promise.all([Promise.all(zs.map(accessZone)).then((l) => l.flat()), Promise.all(zs.map(roadZone))]);
+    const el = box();
+    if (!el) return;
+    const near = (keep) => pts.filter((x) => keep(x) && area.contains([x.lat, x.lon])).map((x) => ({ x, d: lineM([x.lat, x.lon], t.geom) }))
+      .filter((o) => o.d <= ACCESS_NEAR_M).sort((a, c) => a.d - c.d)[0];
+    const th = near((x) => x.k === "th" || (x.k === "rec" && /trail/i.test(x.t.type || ""))) || near((x) => x.k === "rec");
+    const park = near((x) => x.k === "p");
+    const row = (o, kind) => {
+      const x = o.x, info = accessInfo(x);
+      return `<li class="acc-row">${pinHtml(ACCESS[x.k], "lg-ico")}<div><strong>${esc(kind)}: ${esc(accessName(x))}</strong> <span class="muted">${fmtM(o.d)} from the trail</span>
+        ${info.length ? `<br><span class="muted">${info.map(esc).join(" · ")}</span>` : ""}
+        <br>${roadLine(nearestRoad([x.lat, x.lon], roads, ROAD_NEAR_M), "No forest road within 300 m, so likely reached by a paved road.")}
+        <br>${accessLinks(x)}</div></li>`;
+    };
+    // The trail's top and bottom (from the elevation, once it's in), and the road nearest each, for shuttles.
+    const p = t.elev && t.elev.pts, f0 = p && p[0], f1 = p && p[p.length - 1], known = f0 && f1 && f0.e != null && f1.e != null;
+    const ends = known ? (f1.e > f0.e ? [["Top", t.geom[t.geom.length - 1]], ["Bottom", t.geom[0]]] : [["Top", t.geom[0]], ["Bottom", t.geom[t.geom.length - 1]]])
+      : [["Start", t.geom[0]], ["End", t.geom[t.geom.length - 1]]];
+    const endRow = ([label, ll]) => `<li>${esc(label)}: ${roadLine(nearestRoad(ll, roads, END_ROAD_M), `no forest road within ${END_ROAD_M} m, so pedal or hike ${label === "Top" ? "up" : "out"}.`)}</li>`;
+    el.classList.remove("muted");
+    el.innerHTML = `${th || park ? `<ul class="plain acc-list">${th ? row(th, "Trailhead") : ""}${park ? row(park, "Parking") : ""}</ul>`
+        : `<p class="muted">No mapped trailhead or parking within ${ACCESS_NEAR_M / 1000} km.</p>`}
+      <p class="acc-sub">Shuttle access (forest roads near the ends)</p><ul class="plain acc-ends">${ends.map(endRow).join("")}</ul>
+      <p class="muted">From OpenStreetMap, BC Recreation Sites and Trails, and the forest roads data. Road conditions are mapped, not live: check the <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p>`;
+  }
+  // Pins on the map, from zoom 13, only the ones in view. Pins are kept while in view, so an open popup that pans the map stays open.
+  const accessLayer = L.layerGroup().addTo(map), accessPins = new Map();   // id -> marker
+  function drawAccess() {
+    if (state.example || map.getZoom() < FEAT_MIN_ZOOM) { accessLayer.clearLayers(); accessPins.clear(); return; }
+    const view = map.getBounds().pad(0.2);
+    accessPins.forEach((m, id) => { if (!view.contains(m.getLatLng()) && !m.isPopupOpen()) { accessLayer.removeLayer(m); accessPins.delete(id); } });
+    ZONES.filter((z) => z.bounds.intersects(view)).forEach((z) => accessZone(z).then((pts) => {
+      if (map.getZoom() < FEAT_MIN_ZOOM) return;
+      const now = map.getBounds().pad(0.2);
+      pts.forEach((x) => {
+        const ll = L.latLng(x.lat, x.lon), k = ACCESS[x.k];
+        if (!now.contains(ll) || accessPins.has(x.id)) return;
+        accessPins.set(x.id, L.marker(ll, { icon: pinIcon(k), keyboard: false, title: `${k.label}: ${accessName(x)}` }).bindPopup(() => {
+          const info = accessInfo(x), road = nearestRoad([x.lat, x.lon], [roadData.get(x.z)], ROAD_NEAR_M);
+          return `<div class="road-pop"><h4>${esc(accessName(x))}</h4><p><span class="st">${esc(k.label)}</span>${info.length ? `<br>${info.map(esc).join(" · ")}` : ""}</p>
+            ${roadData.get(x.z) ? `<p>${roadLine(road, "No forest road within 300 m.")}</p>` : ""}<p class="src">${accessLinks(x)}</p></div>`;
+        }, { maxWidth: 280 }));
+        accessLayer.addLayer(accessPins.get(x.id));
+      });
+    }));
+  }
+  map.on("moveend", drawAccess);
+  drawAccess();
+
   // The map key: what the colours mean, and a switch between difficulty and trail-type colours.
   const keyCtl = L.control({ position: "topleft" });
   keyCtl.onAdd = () => {
@@ -3477,6 +3603,7 @@ out body;`;
     if (state.areas) $("keyList").innerHTML += `<li class="lg-sub">Logging areas</li>` + Object.values(AREA_STYLE).map(areaSw).join("");
     if (state.fires) $("keyList").innerHTML += `<li class="lg-sub">Wildfires</li><li>${pinHtml(FIRE_STYLE.fire, "lg-ico")}${FIRE_STYLE.fire.label}</li>`
       + ["perim", "restr", "order", "alert"].map((k) => areaSw(FIRE_STYLE[k])).join("");
+    $("keyList").innerHTML += `<li class="lg-sub">Getting there (zoom in)</li>` + Object.values(ACCESS).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join("");
     $("keyNote").textContent = byDiff
       ? state.allTrails ? "All trails: bold = official, thin = not known, dotted = unofficial. White edge: trails in the list." : "Dashed: looks like MTB (no bike tags)."
       : state.allTrails ? "All trails: bold = official, thin = not known. Thick: trails in the list." : "";
@@ -4182,6 +4309,7 @@ out tags center qt;`;
   });
 
   window.tfMtbLayers = [trailLayer, foundLayer, nearLayer, allLayer, boxLayer, pickLayer];   // hidden in Skiing (winter.js)
+  window.tfTrails = () => ({ shown: state.merged ? [...state.merged.values()] : [], all: [...allData.values()].filter(Boolean), selected: state.selected });   // for My rides (rides.js)
   render();
   // Inside the Claude preview OpenStreetMap is blocked, so show example trails there.
   if (location.protocol !== "file:" && /claude/.test(location.hostname)) loadExample();
@@ -4192,6 +4320,7 @@ out tags center qt;`;
 <script src="map3d.js"></script>
 <script src="winter.js"></script>
 <script src="offline.js"></script>
+<script src="rides.js"></script>
 <script src="account.js"></script>
 <script src="reports.js"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
