@@ -200,3 +200,50 @@ label.toggle.off { background: transparent; border: 1px dashed var(--line); box-
   .list ol { padding: 6px 6px 14px; }
 }
 @media (prefers-reduced-motion: reduce) { button.btn:active, .map-tools button:active { transform: none; } }
+
+/* Phone app shell: the map fills the screen and the panel is a bottom sheet you drag
+   between a peek, half and full height (index.html sets --sheet-h and --sheet-vis). */
+@media (max-width: 760px) {
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  body { position: fixed; inset: 0; }
+  .app { --sheet-h: 190px; --sheet-vis: 190px; display: block; position: fixed; inset: 0; height: auto; }
+  .app.fullmap { --sheet-vis: 0px; }
+  .mapwrap { position: absolute; inset: 0; }
+  .panel {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 1100;
+    height: var(--sheet-h); max-height: none !important; box-sizing: border-box;
+    overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+    transition: height .28s cubic-bezier(.2, .8, .2, 1);
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+  .panel.dragging { transition: none; }
+  .panel.sheet-peek { overflow: hidden; }
+  /* bigger grab handle that stays at the top of the sheet */
+  .sheet-toggle, .panel.detail-open .sheet-toggle {
+    display: block; position: sticky; top: 0; left: auto; transform: none; z-index: 3;
+    width: 100%; height: 22px; margin: 0 0 -22px; padding: 0; border: 0; background: none; cursor: grab; touch-action: none;
+  }
+  .sheet-toggle::before { content: ""; display: block; width: 42px; height: 5px; margin: 8px auto 0; border-radius: 3px; background: rgba(255, 255, 255, .5); }
+  .panel.detail-open .sheet-toggle { margin: 0; }
+  .panel.detail-open .sheet-toggle::before, .panel.sheet-scrolled .sheet-toggle::before { background: var(--line); }
+  .panel.sheet-scrolled .sheet-toggle { background: var(--panel); }
+  /* compact header: title and sport on one row, links on the next */
+  .brand { padding: 22px 16px 12px; gap: 8px; align-items: center; justify-content: flex-start; touch-action: none; }
+  .about { z-index: 1200; }
+  .brand h1 { font-size: 1.25rem; flex: 1 1 auto; }
+  .brand-links { display: contents; }
+  .brand .sport-pick { order: 1; margin: 0; min-height: 36px; font-size: .85rem; }
+  .brand::after { content: ""; order: 2; flex-basis: 100%; height: 0; }
+  .brand [data-account-slot] { order: 3; }
+  .brand .linkish, .brand .acct-btn.acct-btn { order: 3; font-size: .82rem; padding: 7px 12px; min-height: 34px; box-sizing: border-box; display: inline-flex; align-items: center; }
+  .modes button { min-height: 48px; }
+  /* map controls clear the notch and sit above the sheet */
+  .map-tools { top: calc(env(safe-area-inset-top, 0px) + 10px); }
+  .map-tools select, .map-tools button { min-height: 40px; }
+  .leaflet-top.leaflet-left { top: calc(env(safe-area-inset-top, 0px) + 56px); }
+  .leaflet-bottom { bottom: var(--sheet-vis); transition: bottom .28s cubic-bezier(.2, .8, .2, 1); }
+  .map-actions { top: auto; bottom: calc(var(--sheet-vis) + 12px); transition: bottom .28s cubic-bezier(.2, .8, .2, 1); }
+  .app.fullmap .map-actions { bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+  .leaflet-control-zoom { display: none; }
+  .tsearch .hits { max-height: 40vh; }
+}

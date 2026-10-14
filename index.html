@@ -3041,7 +3041,116 @@ out body;`;
   $("aboutClose").addEventListener("click", () => { $("about").hidden = true; });
   $("about").addEventListener("click", (e) => { if (e.target.id === "about") $("about").hidden = true; });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!$("about").hidden) $("about").hidden = true; else if (state.selected) closeDetail(); } });
-  $("sheetToggle").addEventListener("click", () => { $("panel").classList.toggle("expanded"); setTimeout(() => map.invalidateSize(), 50); });
+  // ---------- Phone bottom sheet ----------
+  // On phones the map fills the screen and the panel is a sheet over it. Drag the handle or the
+  // header (or the list, when it's scrolled to the top) between peek, half and full height.
+  const phoneMQ = matchMedia("(max-width: 760px)");
+  const sheet = { h: 0, snap: "peek" };
+  const appEl = document.querySelector(".app"), panelEl = $("panel");
+  const safeTop = () => parseFloat(getComputedStyle(document.querySelector(".map-tools")).top) || 10;
+  function snapHeights() {
+    const brand = panelEl.querySelector(".brand");
+    const peek = Math.round(Math.max(150, brand.offsetTop + brand.offsetHeight + 72) + (parseFloat(getComputedStyle(panelEl).paddingBottom) - 16 || 0));
+    const full = Math.round(window.innerHeight - safeTop() - 52);     // the map chip row stays visible
+    const half = Math.round(Math.min(full, Math.max(peek + 120, window.innerHeight * 0.5)));
+    return { peek: Math.min(peek, half), half, full };
+  }
+  function setSheetH(h, snap) {
+    sheet.h = h;
+    if (snap) sheet.snap = snap;
+    const s = snapHeights();
+    appEl.style.setProperty("--sheet-h", h + "px");
+    appEl.style.setProperty("--sheet-vis", Math.min(h, s.half) + "px");
+    panelEl.classList.toggle("sheet-peek", sheet.snap === "peek" && !panelEl.classList.contains("dragging"));
+    $("sheetToggle").setAttribute("aria-label", sheet.snap === "full" ? "Shrink the panel" : "Expand the panel");
+  }
+  function snapTo(name) {
+    if (!phoneMQ.matches) return;
+    if (name === "peek") panelEl.scrollTop = 0;
+    setSheetH(snapHeights()[name], name);
+  }
+  function growTo(name) {                            // only ever grows the sheet
+    const order = ["peek", "half", "full"];
+    if (order.indexOf(sheet.snap) < order.indexOf(name)) snapTo(name);
+  }
+  // The map ignores the strips under the sheet and the chip row when it frames trails.
+  ["fitBounds", "flyToBounds"].forEach((m) => {
+    const f = map[m];
+    map[m] = function (b, o = {}) {
+      if (!phoneMQ.matches || appEl.classList.contains("fullmap")) return f.call(this, b, o);
+      const p = L.point(o.padding || [0, 0]);
+      const bottom = parseFloat(appEl.style.getPropertyValue("--sheet-vis")) || 0;
+      return f.call(this, b, { ...o, padding: null, paddingTopLeft: [p.x, p.y + safeTop() + 46], paddingBottomRight: [p.x, p.y + bottom] });
+    };
+  });
+  // dragging
+  let drag = null;
+  panelEl.addEventListener("touchstart", (e) => {
+    if (!phoneMQ.matches || e.touches.length !== 1) { drag = null; return; }
+    drag = { y0: e.touches[0].clientY, h0: sheet.h, t0: e.timeStamp, mode: null, grab: !!e.target.closest(".sheet-toggle, .brand"), last: [] };
+  }, { passive: true });
+  panelEl.addEventListener("touchmove", (e) => {
+    if (!drag) return;
+    const y = e.touches[0].clientY, dy = y - drag.y0;
+    if (!drag.mode) {
+      if (Math.abs(dy) < 2) return;
+      const full = sheet.snap === "full" && sheet.h >= snapHeights().full - 2;
+      drag.mode = drag.grab || (dy < 0 && !full) || (dy > 0 && panelEl.scrollTop <= 0) ? "drag" : "scroll";
+      if (drag.mode === "drag") { panelEl.classList.add("dragging"); panelEl.classList.remove("sheet-peek"); }
+    }
+    if (drag.mode !== "drag") return;
+    e.preventDefault();
+    const s = snapHeights();
+    setSheetH(Math.round(Math.max(s.peek * 0.7, Math.min(s.full, drag.h0 - dy))));
+    drag.last.push([e.timeStamp, y]); if (drag.last.length > 5) drag.last.shift();
+  }, { passive: false });
+  const endDrag = () => {
+    if (!drag || drag.mode !== "drag") { drag = null; return; }
+    panelEl.classList.remove("dragging");
+    const s = snapHeights(), l = drag.last, v = l.length > 1 ? (l[l.length - 1][1] - l[0][1]) / Math.max(1, l[l.length - 1][0] - l[0][0]) : 0;  // px per ms, + = down
+    const order = ["peek", "half", "full"];
+    let name;
+    if (Math.abs(v) > 0.4) {                         // a flick goes one step in its direction
+      const from = order.reduce((a, n) => (Math.abs(s[n] - drag.h0) < Math.abs(s[a] - drag.h0) ? n : a), "peek");
+      name = order[Math.max(0, Math.min(2, order.indexOf(from) + (v > 0 ? -1 : 1)))];
+    } else name = order.reduce((a, n) => (Math.abs(s[n] - sheet.h) < Math.abs(s[a] - sheet.h) ? n : a), "peek");
+    drag = null;
+    snapTo(name);
+  };
+  panelEl.addEventListener("touchend", endDrag);
+  panelEl.addEventListener("touchcancel", endDrag);
+  // tapping the handle steps up, and from full back down to peek
+  $("sheetToggle").addEventListener("click", () => {
+    if (!phoneMQ.matches) { panelEl.classList.toggle("expanded"); return; }
+    snapTo(sheet.snap === "peek" ? "half" : sheet.snap === "half" ? "full" : "peek");
+  });
+  panelEl.addEventListener("scroll", () => panelEl.classList.toggle("sheet-scrolled", panelEl.scrollTop > 40), { passive: true });
+  // the sheet opens up when you use it
+  panelEl.querySelectorAll(".modes button").forEach((b) => b.addEventListener("click", () => growTo("half")));
+  panelEl.addEventListener("focusin", (e) => { if (e.target.matches("input[type=search], input[type=text], input:not([type])")) snapTo("full"); });
+  panelEl.addEventListener("click", (e) => { if (sheet.snap === "peek" && !e.target.closest(".sheet-toggle")) growTo("half"); });
+  // after Find, show the results instead of the search form
+  // (the results line moves as the search fills in, so it follows it until you touch the sheet)
+  let showResultsUntil = 0;
+  const showResults = () => { if (Date.now() < showResultsUntil) panelEl.scrollTo({ top: $("status").offsetTop - 30 }); };
+  $("findBtn").addEventListener("click", () => {
+    if (!phoneMQ.matches) return;
+    growTo("half");
+    showResultsUntil = Date.now() + 20000;
+    setTimeout(showResults, 300);
+  });
+  new MutationObserver(() => requestAnimationFrame(showResults)).observe($("status"), { childList: true, characterData: true, subtree: true });
+  panelEl.addEventListener("touchstart", () => { showResultsUntil = 0; }, { passive: true });
+  new MutationObserver(() => {
+    if (panelEl.classList.contains("detail-open")) growTo("half");
+  }).observe(panelEl, { attributes: true, attributeFilter: ["class"] });
+  new MutationObserver(() => { if (!$("boxRes").hidden) growTo("half"); }).observe($("boxRes"), { attributes: true, attributeFilter: ["hidden"] });
+  const resnap = () => { if (phoneMQ.matches) snapTo(sheet.snap); else { appEl.style.removeProperty("--sheet-h"); appEl.style.removeProperty("--sheet-vis"); } };
+  window.addEventListener("resize", resnap);
+  phoneMQ.addEventListener("change", resnap);
+  if (document.fonts) document.fonts.ready.then(resnap);
+  resnap();
+
 
   // ---------- All trails: every MTB trail in view, old and new, coloured like Trailforks ----------
   // From the daily data/mtb-<zone>.json files (scripts/build-mtb.mjs): ways with MTB tags, bike park
