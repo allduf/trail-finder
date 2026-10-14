@@ -4,7 +4,7 @@
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched.
 const VERSION = "tf-1";
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css", "account.js", "map3d.js", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css", "account.js", "map3d.js", "winter.js", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",

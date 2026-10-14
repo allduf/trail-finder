@@ -254,6 +254,7 @@
       },
     });
     window.trailMap3d = gl;   // handy for debugging in the browser console
+    window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
     // Photos: sharp aerial photos (Esri, a few years old in places) or the newer but blurrier Sentinel-2 mosaic.
     const photoBtn = document.createElement("button");

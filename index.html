@@ -1062,6 +1062,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
       <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
       <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire">🔥 Wildfires</button>
       <button id="areasBtn" type="button" aria-pressed="false" title="Show logging areas (cut blocks) and areas closed to motor vehicles">▦ Logging areas</button>
+      <button id="avyBtn" type="button" aria-pressed="false" hidden>⚠ Avalanche risk</button>
       <button id="locate" type="button" aria-pressed="false">◎ My location</button>
       <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
       <button id="btn3d" type="button" aria-pressed="false">⛰ 3D</button>
@@ -1072,7 +1073,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
       <button class="sheet-toggle" id="sheetToggle" aria-label="Expand trail list"></button>
       <div class="brand">
         <h1>Trail <span>Finder</span></h1>
-        <span class="brand-links"><a class="linkish rec-link" href="ride.html"><span class="rec-dot" aria-hidden="true"></span>Record ride</a><button class="linkish" id="aboutBtn" type="button">How it works</button><span data-account-slot></span></span>
+        <span class="brand-links"><a class="linkish rec-link" href="ride.html"><span class="rec-dot" aria-hidden="true"></span>Record ride</a><button class="linkish" id="aboutBtn" type="button">How it works</button><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hike" disabled>🥾 Hiking (soon)</option></select></span>
       </div>
       <div class="modes" role="tablist" aria-label="What do you want to find?">
         <button type="button" role="tab" id="tabName" aria-controls="paneName" aria-selected="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Find a trail by name</span></button>
@@ -1204,6 +1205,9 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     <p>With “Forest roads” on, the map also shows, once you zoom in: gates (open, locked or not known), barriers, bridges and bridges out, foot bridges, fords and hydro plants, from OpenStreetMap. Tap any of them for details. The “Logging areas” button shows cut blocks (pending, active or recently logged, and retired in the last 15 years) and areas closed to motor vehicles, from the BC government, on their own. With the button off, the roads stay on the map as plain grey-brown lines.</p>
     <h3>Wildfires</h3>
     <p>The “Wildfires” button shows the BC Wildfire Service's current fires (fires that are out are left off) and their perimeters, areas closed because of fire (area restriction orders), and evacuation orders and alerts. It's refreshed every 3 hours, so always check the <a href="https://wildfiresituation.nrs.gov.bc.ca/map" target="_blank" rel="noopener">BC Wildfire map</a> and <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a> before heading out.</p>
+    <h3>Skiing</h3>
+    <p>Pick “⛷ Skiing” in the sport menu at the top. The map then shows backcountry ski routes and huts instead of the bike trails, with a list of what's in view. Every night the site collects them from OpenStreetMap (ski touring, nordic, snowshoe and snowmobile routes, ski route relations, and alpine and wilderness huts; resort runs are there too but off by default) and from BC Recreation Sites and Trails (trails whose name or description says ski, nordic or snowshoe). Tap a route or hut for its details.</p>
+    <p>“⚠ Avalanche risk” shades the mountains by Avalanche Canada's forecast, on the flat map and on the 3D map. Only slopes steeper than about 25° are coloured, since that's where avalanches start. Each slope gets the danger rating (Low green, Moderate yellow, Considerable orange, High red, Extreme black) of its elevation band, worked out from its height: below treeline under about 1500 m, alpine above about 1900 m on the coast (1700 m and 2200 m inland). Stripes and a stronger colour mark slopes whose direction (aspect) and elevation are named in the day's avalanche problems. The site checks the forecast every 2 hours. It's an estimate from the forecast and the shape of the terrain, not a terrain rating: always read the full forecast on avalanche.ca and travel with training and rescue gear.</p>
     <p><button class="btn primary" id="aboutClose" type="button">Got it</button></p>
   </div>
 </div>
@@ -3904,6 +3908,7 @@ out tags center qt;`;
   let clickTimer = 0;
   map.on("click", (e) => {
     if (boxDraw.on || boxDraw.done) return;          // drawing a square, not picking a trail
+    if (document.body.classList.contains("sport-ski")) return;   // Skiing (winter.js) has its own routes
     clearTimeout(clickTimer);
     clickTimer = setTimeout(() => pickTrailAt(e.latlng), 260); // a double-click zooms instead
   });
@@ -4169,6 +4174,7 @@ out tags center qt;`;
     searchZones(true, true);
   });
 
+  window.tfMtbLayers = [trailLayer, foundLayer, nearLayer, allLayer, boxLayer, pickLayer];   // hidden in Skiing (winter.js)
   render();
   // Inside the Claude preview OpenStreetMap is blocked, so show example trails there.
   if (location.protocol !== "file:" && /claude/.test(location.hostname)) loadExample();
@@ -4177,6 +4183,7 @@ out tags center qt;`;
 </script>
 
 <script src="map3d.js"></script>
+<script src="winter.js"></script>
 <script src="account.js"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
