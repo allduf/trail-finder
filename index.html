@@ -819,6 +819,7 @@ label.toggle.off .sw { background: var(--muted); }
 .box-row .box-name { font-weight: 600; }
 .box-row .box-len { margin-left: auto; color: var(--muted); font-size: .85rem; }
 button.btn.box-btn { width: 100%; margin: 2px 0 8px; }
+button.btn.reset-btn { width: 100%; margin: 6px 0 0; }
 button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 .leaflet-container.drawing { cursor: crosshair; touch-action: none; }
 .status { padding: 10px 16px; font-size: .9rem; color: var(--muted); border-bottom: 1px solid var(--line); }
@@ -1094,6 +1095,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
           </div>
         </div>
         <button class="btn primary find" id="findBtn" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span id="findLabel">Find new trails</span></button>
+        <button class="btn reset-btn" id="resetBtn" type="button" hidden>✕ Clear results</button>
         <div class="toggles" role="group" aria-label="Show these trails">
           <label class="toggle t-mtb"><input type="checkbox" id="showMtb" checked><span class="ck"></span><span class="sw"></span>MTB tagged <span class="n" id="nMtb">0</span></label>
           <label class="toggle t-looks"><input type="checkbox" id="showLooks" checked><span class="ck"></span><span class="sw"></span>Looks like MTB <span class="n" id="nLooks">0</span></label>
@@ -1959,6 +1961,16 @@ out body;`;
     } else searchZones(false);
   }
   $("findBtn").addEventListener("click", findNewTrails);
+  // Clear results: back to the plain map (coloured trail lines only), as before any search.
+  $("resetBtn").addEventListener("click", () => {
+    state.token++; state.loading = null; state.waiting = true;
+    if (!$("detail").hidden) closeDetail();
+    state.selected = null; foundLayer.clearLayers();
+    clearBox(); clearNear();
+    if (state.custom) { state.custom = false; $("zone").value = state.zone; }
+    $("list").scrollTop = 0;
+    render(); syncClear();
+  });
 
   // ---------- render ----------
   function visibleTrails() {
@@ -2175,6 +2187,25 @@ out body;`;
     }
     return primeKeep.get(g);
   }
+  // Where a trail's dot goes: the point of its line closest to the middle of the trail, so the dot sits on it.
+  const dotKeep = new WeakMap();
+  function dotOn(g) {
+    if (dotKeep.has(g)) return dotKeep.get(g);
+    const ids = new Set(g.items.filter((i) => i.t === "w").map((i) => i.id)), lines = [];
+    for (const list of allData.values()) (list || []).forEach((w) => { if (ids.has(w.id)) lines.push(w.geom); });
+    state.trails.forEach((t) => { if (ids.has(t.id)) lines.push(...(t.segments || [t.geom])); });
+    if (!lines.length) return g.center;
+    const k = Math.cos(g.center.lat * Math.PI / 180);
+    let best = null, bd = Infinity;
+    lines.forEach((line) => line.forEach((p) => {
+      const ll = Array.isArray(p) ? p : [p.lat, p.lng];
+      const d = (ll[0] - g.center.lat) ** 2 + ((ll[1] - g.center.lng) * k) ** 2;
+      if (d < bd) { bd = d; best = ll; }
+    }));
+    const at = L.latLng(best);
+    dotKeep.set(g, at);
+    return at;
+  }
   function renderPrime() {
     if (names.dirty || names.trailCount !== state.trails.length) buildGroups();
     const inside = (ll) => (near ? near.ll.distanceTo(ll) <= near.km * 1000 : state.searchedBounds.some((b) => b.contains(ll)));
@@ -2196,7 +2227,7 @@ out body;`;
 
     trailLayer.clearLayers();
     drawAllTrails();
-    shown.forEach((e) => trailLayer.addLayer(L.circleMarker(e.center, { radius: 7, color: "#fff", weight: 2, fillColor: state.colorBy === "diff" ? diffColor(difficulty(e.g.tags)) : css("--prime"), fillOpacity: 0.95 })
+    shown.forEach((e) => trailLayer.addLayer(L.circleMarker(dotOn(e.g), { radius: 7, color: "#fff", weight: 2, fillColor: state.colorBy === "diff" ? diffColor(difficulty(e.g.tags)) : css("--prime"), fillOpacity: 0.95 })
       .bindTooltip(esc(e.g.name), { direction: "top", offset: [0, -6] })
       .on("click", (ev) => { L.DomEvent.stopPropagation(ev); showFound(e.g, true); })));
     renderStatus();
@@ -2212,6 +2243,7 @@ out body;`;
   }
 
   function renderStatus() {
+    $("resetBtn").hidden = !!state.waiting || !state.searchedBounds.length;
     if (state.example) return;
     if (state.waiting) {
       const btn = state.prime ? "Find prime loam trails" : "Find new trails";
