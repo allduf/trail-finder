@@ -840,6 +840,14 @@ label.toggle.off .sw { background: var(--muted); }
 .lmi-scale i { position: absolute; top: -4px; width: 4px; height: 16px; margin-left: -2px; border-radius: 2px; background: var(--fg); box-shadow: 0 0 0 2px var(--panel); }
 .lmi-ends { position: relative; height: 1.2em; font-size: .72rem; color: var(--muted); margin-bottom: 8px; }
 .lmi-ends span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.clear-ctl[hidden] { display: none; }
+.clear-ctl a { display: grid; place-items: center; }
+.lmi-key { list-style: none; margin: 0 0 8px; padding: 0; font-size: .82rem; }
+.lmi-key li { display: grid; grid-template-columns: 12px 4.2em 1fr auto; gap: 8px; align-items: center; padding: 3px 6px; border-radius: 6px; color: var(--muted); }
+.lmi-key li.on { background: var(--chip); color: var(--fg); font-weight: 600; }
+.lmi-key .dot { width: 10px; height: 10px; border-radius: 50%; }
+.lmi-key .ride { font-weight: 600; }
+.lmi-key .ride.best { color: var(--accent); }
 .wx-note { font-size: .85rem; margin: 6px 0; }
 .wx-days td:first-child { white-space: nowrap; }
 .wx-days td:nth-child(2), .wx-days th:nth-child(2) { text-align: left; }
@@ -1113,6 +1121,22 @@ label.toggle.off .sw { background: var(--muted); }
 
   const trailLayer = L.layerGroup().addTo(map);
   const foundLayer = L.layerGroup().addTo(map);  // a trail picked in the name search
+  // Map button (under the zoom buttons) that clears whatever trail is selected. Shown only when one is.
+  const clearCtl = new (L.Control.extend({ options: { position: "topleft" }, onAdd() {
+    const d = L.DomUtil.create("div", "leaflet-bar clear-ctl");
+    d.innerHTML = `<a href="#" role="button" title="Clear selection (Esc)" aria-label="Clear selection"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></a>`;
+    L.DomEvent.disableClickPropagation(d);
+    d.firstChild.addEventListener("click", (e) => { e.preventDefault(); clearSelection(); });
+    d.hidden = true;
+    return d;
+  } }))().addTo(map);
+  const syncClear = () => { clearCtl.getContainer().hidden = !(state.selected != null || !$("detail").hidden || foundLayer.getLayers().length); };
+  function clearSelection() {
+    if (!$("detail").hidden) closeDetail();
+    else { state.selected = null; foundLayer.clearLayers(); render(); }
+    syncClear();
+  }
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !e.target.closest("input, select, textarea") && !clearCtl.getContainer().hidden) clearSelection(); });
   let locMarker = null;
 
   map.on("moveend", () => {
@@ -1627,6 +1651,7 @@ out body;`;
   const CAT_LABEL = { mtb: "MTB tagged", looks: "Looks like MTB", other: "Other new path" };
 
   function render() {
+    syncClear();
     const vis = visibleTrails();
     const counts = { mtb: 0, looks: 0, other: 0 };
     vis.filter((t) => !state.onlyUnoff || isUnoff(t)).forEach((t) => counts[t.cat]++);
@@ -1776,6 +1801,9 @@ out body;`;
     return Math.round(Math.max(0, Math.min(100, (v - 0.08) / (0.42 - 0.08) * 100)));
   }
   const lmiLevel = (v) => LMI_LEVELS.find((l) => v < l[0]);
+  const LMI_RIDE = [["#d9a35a", "OK, loose"], ["#5aa86a", "Best", "best"], ["#3f8f8c", "Good"], ["#3b6fb0", "Not great"], ["#33468f", "Stay off"]];
+  const lmiKey = (lvl) => `<ul class="lmi-key" aria-label="What the numbers mean">${LMI_LEVELS.map((l, k) =>
+    `<li class="${l === lvl ? "on" : ""}"><span class="dot" style="background:${LMI_RIDE[k][0]}"></span><span>${k * 20}–${Math.min(100, l[0] - 1)}</span><span>${esc(l[1])}</span><span class="ride ${LMI_RIDE[k][2] || ""}">${LMI_RIDE[k][1]}</span></li>`).join("")}</ul>`;
   const fmtMm = (v) => (!v || v < 0.05 ? "0" : v < 10 ? v.toFixed(1) : Math.round(v)) + " mm";
   async function loadWeather(t) {
     const box = () => (state.selected === t.id ? $("wx") : null);
@@ -1826,7 +1854,8 @@ out body;`;
         <div><span>Now</span><strong>${icon} ${Math.round(c.temperature_2m)}°C</strong><em>${esc(sky)}${Math.round(c.apparent_temperature) !== Math.round(c.temperature_2m) ? ` · feels ${Math.round(c.apparent_temperature)}°` : ""}</em></div>
       </div>
       ${lmi == null ? "" : `<div class="lmi-scale" role="img" aria-label="Loam moisture index ${lmi} out of 100"><i style="left:${lmi}%"></i></div>
-      <div class="lmi-ends">${["Dry", "Tacky", "Damp", "Wet", "Saturated"].map((x, k) => `<span style="left:${10 + 20 * k}%">${x}</span>`).join("")}</div>`}
+      <div class="lmi-ends">${["Dry", "Tacky", "Damp", "Wet", "Saturated"].map((x, k) => `<span style="left:${10 + 20 * k}%">${x}</span>`).join("")}</div>
+      ${lmiKey(lvl)}`}
       <p class="wx-note">${lvl ? esc(lvl[2]) + " " : ""}${trend}</p>
       <p class="wx-note">${mm(rainPast).replace(/^no$/, "No")} rain in the last 48 hours, ${mm(rainNext)} rain expected in the next 24. Wind ${Math.round(c.wind_speed_10m)} km/h${c.wind_gusts_10m > c.wind_speed_10m + 10 ? `, gusts ${Math.round(c.wind_gusts_10m)}` : ""}.</p>
       <table class="etable wx-days"><thead><tr><th>Day</th><th>Sky</th><th>High / low</th><th>Rain</th></tr></thead><tbody>${days}</tbody></table>
@@ -1979,6 +2008,7 @@ out body;`;
     $("panel").classList.add("detail-open");
     $("detail").hidden = false;
     $("detail").scrollTop = 0;
+    syncClear();
     $("detailBack").addEventListener("click", closeDetail);
     if (real) loadHistory(t);
     loadElevation(t);
@@ -2568,6 +2598,8 @@ out tags center qt;`;
   });
   nameZoneSel.addEventListener("change", () => {
     store.set("nameZone", nameZoneSel.value);
+    const z = nameZone();
+    map.fitBounds(z ? z.bounds : ALL_BOUNDS);
     hitSel = -1;
     $("trailQ").focus();
     if ($("trailQ").value.trim()) loadNames();
