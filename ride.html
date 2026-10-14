@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6f4a">
+<title>Record Ride · Trail Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+/* Same look as the trail finder page (index.html). Phone first: map on top, numbers and the big button under it. */
+:root {
+  --bg: #f3f5f2; --panel: #ffffff; --fg: #1d2420; --muted: #5c6862; --line: #d9dfda; --chip: #e8ece8;
+  --accent: #1f6f4a; --accent-fg: #ffffff; --rec: #d92b2b; --rec-fg: #ffffff; --track: #d1245f;
+  --warn-bg: #fff4d6; --warn-fg: #6b4a00; --map-ground: #e4e9e3;
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --chip: #252d28;
+    --accent: #5cc98f; --accent-fg: #0d1a12; --rec: #ff5252; --rec-fg: #1a0505; --track: #ff5c93;
+    --warn-bg: #3a2f12; --warn-fg: #ffd98a; --map-ground: #1f2622; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --chip: #252d28;
+  --accent: #5cc98f; --accent-fg: #0d1a12; --rec: #ff5252; --rec-fg: #1a0505; --track: #ff5c93;
+  --warn-bg: #3a2f12; --warn-fg: #ffd98a; --map-ground: #1f2622; color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45; display: flex; flex-direction: column; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top)); background: var(--panel); border-bottom: 1px solid var(--line); }
+h1 { font-family: var(--font-display); font-size: 1.5rem; letter-spacing: .02em; text-transform: uppercase; margin: 0; line-height: 1; }
+h1 span { color: var(--rec); }
+a.back { color: var(--accent); font-weight: 600; text-decoration: none; padding: 4px 0; }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--chip); padding: 4px; margin: 10px max(16px, calc((100% - 788px) / 2)) 0; border-radius: 10px; }
+.tabs button { display: flex; align-items: center; justify-content: center; gap: 7px; font: inherit; font-weight: 600; border: 0; background: transparent; color: var(--muted); padding: 9px 8px; border-radius: 7px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--panel); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.14); }
+.tabs .live { width: 9px; height: 9px; border-radius: 50%; background: var(--rec); animation: blink 1.2s infinite; }
+@keyframes blink { 50% { opacity: .25; } }
+main { flex: 1; min-height: 0; width: 100%; max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; }
+.view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 16px; padding-bottom: max(16px, env(safe-area-inset-bottom)); overflow-y: auto; }
+.map { min-height: 220px; border-radius: 12px; border: 1px solid var(--line); background: var(--map-ground); }
+#recMap { flex: 1; }
+#rideMap { height: 42vh; flex: none; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }
+.stats div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; min-width: 0; }
+.stats dt { font-family: var(--font-display); font-weight: 600; font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.stats dd { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; line-height: 1.1; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stats dd small { font-size: .9rem; font-weight: 600; color: var(--muted); margin-left: 2px; }
+.stats .big { grid-column: span 3; display: flex; align-items: baseline; justify-content: space-between; }
+.stats .big dd { font-size: 2.6rem; }
+.gps { margin: 0; font-size: .85rem; color: var(--muted); text-align: center; min-height: 1.3em; }
+.gps.warn { color: var(--warn-fg); background: var(--warn-bg); border-radius: 8px; padding: 6px 10px; }
+.rec-row { display: flex; justify-content: center; }
+button.rec { width: 108px; height: 108px; border-radius: 50%; border: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: var(--accent); color: var(--accent-fg); box-shadow: 0 4px 14px rgba(0,0,0,.25); -webkit-tap-highlight-color: transparent; }
+button.rec.on { background: var(--rec); color: var(--rec-fg); animation: ring 1.6s infinite; }
+@keyframes ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--rec) 55%, transparent); } 100% { box-shadow: 0 0 0 18px transparent; } }
+button.rec:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.hint { margin: 0; font-size: .85rem; color: var(--muted); }
+.banner { background: var(--warn-bg); color: var(--warn-fg); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.banner .row { display: flex; gap: 8px; flex-wrap: wrap; }
+button.btn, a.btn { font: inherit; font-weight: 600; padding: 9px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+button.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button.btn.danger { color: var(--rec); border-color: color-mix(in srgb, var(--rec) 45%, var(--line)); background: transparent; }
+button.btn:disabled { opacity: .6; cursor: progress; }
+h2 { font-family: var(--font-display); font-size: 1.5rem; text-transform: uppercase; letter-spacing: .02em; margin: 0; line-height: 1.1; overflow-wrap: anywhere; }
+.label { font-family: var(--font-display); font-weight: 600; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+.field input[type=text], .field textarea { width: 100%; font: inherit; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); }
+.field textarea { min-height: 96px; resize: vertical; }
+.photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.photos .ph { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--chip); border: 1px solid var(--line); }
+.photos img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+.photos .x { position: absolute; top: 4px; right: 4px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
+.photos label.add { aspect-ratio: 1; border-radius: 8px; border: 1.5px dashed var(--muted); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--muted); font-weight: 600; font-size: .85rem; cursor: pointer; text-align: center; }
+.photos label.add input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions .grow { flex: 1; justify-content: center; }
+.folder { display: flex; align-items: center; gap: 8px; }
+.folder svg { color: var(--accent); flex: none; }
+ol.rides { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ride { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; width: 100%; text-align: left; font: inherit; color: inherit; }
+.ride:hover { background: var(--chip); }
+.ride .th { width: 64px; height: 64px; border-radius: 8px; overflow: hidden; background: var(--chip); display: grid; place-items: center; }
+.ride .th img { width: 100%; height: 100%; object-fit: cover; }
+.ride .th svg path { fill: none; stroke: var(--track); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.ride .rt { font-weight: 600; overflow-wrap: anywhere; }
+.ride .rm { font-size: .85rem; color: var(--muted); }
+.empty { text-align: center; color: var(--muted); padding: 32px 16px; }
+.desc { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.when { margin: 0; color: var(--muted); font-size: .9rem; }
+.lightbox { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,.88); display: flex; align-items: center; justify-content: center; padding: 16px; cursor: zoom-out; }
+.lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.rec-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--rec); border: 3px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.3); }
+@media (min-width: 761px) {
+  #viewRecord { display: grid; grid-template-columns: 1fr 360px; grid-template-rows: auto auto 1fr auto auto; gap: 12px 16px; }
+  #viewRecord[hidden] { display: none; }
+  #viewRecord > * { grid-column: 2; }
+  #viewRecord > #recMap { grid-column: 1; grid-row: 1 / -1; min-height: 60vh; }
+  #viewRecord > .rec-row { align-self: end; }
+  #liveStats div:not(.big) dd { font-size: 1.35rem; }
+}
+@media (max-width: 760px) {
+  .stats dd { font-size: 1.35rem; }
+  .stats .big dd { font-size: 2.2rem; }
+  #recMap { min-height: 30vh; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="back" href="./">← Trail Finder</a>
+  <h1>Record <span>ride</span></h1>
+</header>
+<nav class="tabs" role="tablist" aria-label="Ride pages">
+  <button type="button" role="tab" id="tabRecord" aria-selected="true"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="4.5" fill="currentColor"/></svg>Record ride<span class="live" id="liveDot" hidden></span></button>
+  <button type="button" role="tab" id="tabRides" aria-selected="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 6.5a2 2 0 0 1 2-2h4.2l2 2.2H19a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>My rides <span id="rideCount"></span></button>
+</nav>
+<main>
+  <!-- Record: live map, numbers, Start / Stop -->
+  <section class="view" id="viewRecord">
+    <div class="banner" id="resumeBox" hidden>
+      <span id="resumeText"></span>
+      <div class="row"><button class="btn primary" id="resumeGo" type="button">Keep recording</button><button class="btn" id="resumeStop" type="button">Stop and save</button></div>
+    </div>
+    <div class="map" id="recMap" role="application" aria-label="Map of your ride"></div>
+    <dl class="stats" id="liveStats">
+      <div class="big"><dt>Time</dt><dd id="sTime">0:00:00</dd></div>
+      <div><dt>Distance</dt><dd id="sDist">0.00<small>km</small></dd></div>
+      <div><dt>Climb</dt><dd id="sClimb">0<small>m</small></dd></div>
+      <div><dt>Speed</dt><dd id="sSpeed">0.0<small>km/h</small></dd></div>
+      <div><dt>Avg speed</dt><dd id="sAvg">0.0<small>km/h</small></dd></div>
+      <div><dt>Max speed</dt><dd id="sMax">0.0<small>km/h</small></dd></div>
+      <div><dt>Moving</dt><dd id="sMoving">0:00</dd></div>
+    </dl>
+    <p class="gps" id="gpsMsg" role="status">Press Start when you're ready to ride.</p>
+    <div class="rec-row">
+      <button class="rec" id="recBtn" type="button" aria-label="Start recording"><svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true" id="recIcon"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg><span id="recLabel">Start</span></button>
+    </div>
+    <p class="hint">Keep this page open while you ride. Your phone's screen stays on while recording if the browser allows it. If the page is closed, the ride so far is kept and you can carry on.</p>
+  </section>
+
+  <!-- Save (after Stop) and Edit (from a saved ride): title, description, photos -->
+  <section class="view" id="viewSave" hidden>
+    <h2 id="saveHead">Save your ride</h2>
+    <dl class="stats" id="saveStats"></dl>
+    <div class="field"><label class="label" for="fTitle">Title</label><input type="text" id="fTitle" maxlength="120" autocomplete="off"></div>
+    <div class="field"><label class="label" for="fDesc">Description</label><textarea id="fDesc" maxlength="5000" placeholder="How was it? Trails ridden, conditions, who you rode with…"></textarea></div>
+    <div class="field">
+      <span class="label">Photos</span>
+      <div class="photos" id="fPhotos"></div>
+    </div>
+    <div class="actions">
+      <button class="btn primary grow" id="saveBtn" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 6.5a2 2 0 0 1 2-2h4.2l2 2.2H19a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg><span id="saveLabel">Save to My rides</span></button>
+    </div>
+    <div class="actions">
+      <button class="btn" id="resumeBtn" type="button">Keep recording</button>
+      <button class="btn" id="cancelEdit" type="button" hidden>Cancel</button>
+      <button class="btn danger" id="discardBtn" type="button">Discard ride</button>
+    </div>
+  </section>
+
+  <!-- My rides: the folder -->
+  <section class="view" id="viewRides" hidden>
+    <div class="folder"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M3 6.5a2 2 0 0 1 2-2h4.2l2 2.2H19a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg><h2>My rides</h2></div>
+    <p class="hint" id="totals"></p>
+    <ol class="rides" id="rideList"></ol>
+    <p class="hint">Rides are saved in this browser on this device only. Use <strong>Download GPX</strong> on a ride to keep a copy or upload it to Strava or Trailforks.</p>
+  </section>
+
+  <!-- One saved ride -->
+  <section class="view" id="viewRide" hidden>
+    <div><button class="btn" id="backToRides" type="button">← My rides</button></div>
+    <h2 id="rTitle"></h2>
+    <p class="when" id="rWhen"></p>
+    <div class="map" id="rideMap" role="application" aria-label="Map of this ride"></div>
+    <dl class="stats" id="rStats"></dl>
+    <p class="desc" id="rDesc"></p>
+    <div class="photos" id="rPhotos"></div>
+    <div class="actions">
+      <button class="btn" id="editBtn" type="button">Edit title, description, photos</button>
+      <button class="btn" id="gpxBtn" type="button">Download GPX</button>
+      <button class="btn danger" id="deleteBtn" type="button">Delete ride</button>
+    </div>
+  </section>
+</main>
+<div class="lightbox" id="lightbox" hidden><img id="lightImg" alt=""></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const MAX_ACC_M = 30;        // ignore GPS fixes less accurate than this
+  const MIN_STEP_M = 5;        // keep a point only after moving this far (stops GPS jitter adding distance)
+  const MAX_SPEED_MS = 33;     // 120 km/h: a jump faster than this is a GPS glitch
+  const CLIMB_STEP_M = 4;      // count climbing only in steps of 4 m (GPS height is noisy)
+  const MOVING_MS = 0.6;       // slower than ~2 km/h counts as stopped
+  const ELEV_API = "https://api.open-meteo.com/v1/elevation";
+  const OSM_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  // The official OSM tiles refuse pages opened as a local file, so use the German copy there.
+  const TILES = location.protocol === "file:" ? "https://tile.openstreetmap.de/{z}/{x}/{y}.png" : "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+  // ---------- storage: IndexedDB "trail-finder-rides" (separate from the trail cache) ----------
+  // rides: one record per saved ride, with its GPS points. photos: one record per photo (rideId index).
+  // current: the ride being recorded, saved every few seconds so a closed page doesn't lose it.
+  const dbP = new Promise((resolve, reject) => {
+    const r = indexedDB.open("trail-finder-rides", 1);
+    r.onupgradeneeded = () => {
+      const db = r.result;
+      db.createObjectStore("rides", { keyPath: "id" });
+      db.createObjectStore("photos", { keyPath: "id" }).createIndex("rideId", "rideId");
+      db.createObjectStore("current", { keyPath: "id" });
+    };
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+  function done(r) { return new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+  async function os(name, mode = "readonly") { return (await dbP).transaction(name, mode).objectStore(name); }
+  const dbGet = async (s, k) => done((await os(s)).get(k));
+  const dbAll = async (s) => done((await os(s)).getAll());
+  const dbPut = async (s, v) => done((await os(s, "readwrite")).put(v));
+  const dbDel = async (s, k) => done((await os(s, "readwrite")).delete(k));
+  const photosOf = async (rideId) => done((await os("photos")).index("rideId").getAll(rideId));
+
+  // ---------- numbers ----------
+  // A point is [lat, lon, altitude or null, time ms, accuracy m].
+  function metres(a, b) {
+    const R = 6371008.8, rad = Math.PI / 180;
+    const dLat = (b[0] - a[0]) * rad, dLon = (b[1] - a[1]) * rad;
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * rad) * Math.cos(b[0] * rad) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+  function climbOf(alts) {
+    let climb = 0, ref = null;
+    alts.forEach((a) => {
+      if (a == null) return;
+      if (ref == null) ref = a;
+      else if (a - ref >= CLIMB_STEP_M) { climb += a - ref; ref = a; }
+      else if (ref - a >= CLIMB_STEP_M) ref = a;
+    });
+    return climb;
+  }
+  function statsOf(pts, start, end) {
+    let dist = 0, moving = 0, max = 0;
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) {
+      const d = metres(pts[i - 1], pts[i]), dt = (pts[i][3] - pts[i - 1][3]) / 1000;
+      dist += d; cum.push(dist);
+      if (dt > 0 && dt <= 60 && d / dt >= MOVING_MS) moving += dt;
+    }
+    // Max speed over stretches of at least 5 s, so one jumpy fix can't set it.
+    for (let i = 1, j = 0; i < pts.length; i++) {
+      while (j < i - 1 && pts[i][3] - pts[j + 1][3] >= 5000) j++;
+      const dt = (pts[i][3] - pts[j][3]) / 1000;
+      if (dt >= 5 && dt <= 30) max = Math.max(max, (cum[i] - cum[j]) / dt);
+    }
+    const withAlt = pts.filter((p) => p[2] != null).length;
+    const climb = pts.length > 1 && withAlt >= pts.length / 2 ? climbOf(pts.map((p) => p[2])) : null;
+    return { dist, moving, elapsed: Math.max(0, (end - start) / 1000), max: Math.min(max, MAX_SPEED_MS), climb };
+  }
+  const kmh = (ms) => (ms * 3.6).toFixed(1);
+  const pad = (n) => String(n).padStart(2, "0");
+  function hms(s, withSec = true) {
+    s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60;
+    return withSec ? `${h}:${pad(m)}:${pad(s % 60)}` : `${h}:${pad(m)}`;
+  }
+  const km = (m) => (m / 1000).toFixed(m < 100000 ? 2 : 1);
+  const fmtDay = (t) => new Date(t).toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" });
+  const fmtTime = (t) => new Date(t).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+  function statsHtml(st, extra) {
+    const avg = st.moving > 0 ? st.dist / st.moving : 0;
+    const cells = [
+      ["Distance", km(st.dist), "km"], ["Time", hms(st.elapsed), ""], ["Moving", hms(st.moving), ""],
+      ["Climb", st.climb == null ? "–" : Math.round(st.climb), st.climb == null ? "" : "m"],
+      ["Avg speed", kmh(avg), "km/h"], ["Max speed", kmh(st.max), "km/h"],
+    ];
+    return cells.map(([k, v, u]) => `<div><dt>${k}</dt><dd>${v}${u ? `<small>${u}</small>` : ""}</dd></div>`).join("") + (extra || "");
+  }
+  function defaultTitle(t) {
+    const h = new Date(t).getHours();
+    const part = h < 5 ? "Night" : h < 12 ? "Morning" : h < 17 ? "Afternoon" : h < 21 ? "Evening" : "Night";
+    return `${part} ride`;
+  }
+
+  // ---------- maps ----------
+  function makeMap(id) {
+    const m = L.map(id, { zoomControl: true }).setView([49.95, -123.1], 9);   // Sea to Sky until we know where you are
+    L.tileLayer(TILES, { maxZoom: 19, attribution: OSM_ATTR }).addTo(m);
+    return m;
+  }
+  const recMap = makeMap("recMap");
+  const recLine = L.polyline([], { color: getComputedStyle(document.documentElement).getPropertyValue("--track").trim() || "#d1245f", weight: 5 }).addTo(recMap);
+  const youIcon = L.divIcon({ className: "", html: '<div class="rec-dot"></div>', iconSize: [14, 14], iconAnchor: [7, 7] });
+  let youMarker = null, followYou = true;
+  recMap.on("dragstart", () => { followYou = false; });
+  let rideMap = null, rideLayer = null;
+
+  // ---------- recording ----------
+  let rec = null;          // { id: "current", start, points, resumedAt? }
+  let watchId = null, wakeLock = null, ticker = null, lastFix = null, lastSave = 0;
+
+  function showGps(text, warn) { const el = $("gpsMsg"); el.textContent = text; el.classList.toggle("warn", !!warn); }
+  function onFix(pos) {
+    const c = pos.coords, t = pos.timestamp || Date.now();
+    lastFix = { c, t };
+    const ll = [c.latitude, c.longitude];
+    if (!youMarker) { youMarker = L.marker(ll, { icon: youIcon, interactive: false }).addTo(recMap); recMap.setView(ll, 16); }
+    else youMarker.setLatLng(ll);
+    if (followYou) recMap.panTo(ll, { animate: false });
+    if (c.accuracy > MAX_ACC_M) { showGps(`Weak GPS signal (±${Math.round(c.accuracy)} m). Waiting for a better fix…`, true); return; }
+    showGps(rec ? `Recording · GPS ±${Math.round(c.accuracy)} m` : `GPS ready (±${Math.round(c.accuracy)} m)`);
+    if (!rec) return;
+    const p = [+c.latitude.toFixed(6), +c.longitude.toFixed(6), c.altitude == null ? null : +c.altitude.toFixed(1), t, Math.round(c.accuracy)];
+    const last = rec.points[rec.points.length - 1];
+    if (last) {
+      const d = metres(last, p), dt = (t - last[3]) / 1000;
+      if (d < MIN_STEP_M) return;
+      if (dt > 0 && dt < 10 && d / dt > MAX_SPEED_MS) return;
+    }
+    rec.points.push(p);
+    recLine.addLatLng([p[0], p[1]]);
+    saveCurrent(false);
+    renderLive();
+  }
+  function onGpsError(err) {
+    if (err.code === 1) {
+      showGps("Location is blocked for this site. Allow location in your browser settings, then press Start again.", true);
+      if (rec && !rec.points.length) { stopWatch(); rec = null; dbDel("current", "current"); setRecButton(false); renderLive(); }
+    } else showGps("Looking for GPS… Being outside with a view of the sky helps.", true);
+  }
+  function startWatch() {
+    if (watchId != null) return;
+    watchId = navigator.geolocation.watchPosition(onFix, onGpsError, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
+  }
+  function stopWatch() { if (watchId != null) navigator.geolocation.clearWatch(watchId); watchId = null; }
+  async function keepAwake() {
+    try { if (rec && "wakeLock" in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } } catch {}
+  }
+  function letSleep() { try { wakeLock && wakeLock.release(); } catch {} wakeLock = null; }
+  async function saveCurrent(force) {
+    if (!rec || (!force && Date.now() - lastSave < 5000)) return;
+    lastSave = Date.now();
+    try { await dbPut("current", rec); } catch {}
+  }
+  function setRecButton(on) {
+    $("recBtn").classList.toggle("on", on);
+    $("recLabel").textContent = on ? "Stop" : "Start";
+    $("recBtn").setAttribute("aria-label", on ? "Stop recording" : "Start recording");
+    $("recIcon").innerHTML = on ? '<rect x="5.5" y="5.5" width="13" height="13" rx="2" fill="currentColor"/>' : '<path d="M7 4.5v15l13-7.5z" fill="currentColor"/>';
+    $("liveDot").hidden = !on;
+  }
+  function renderLive() {
+    const pts = rec ? rec.points : [];
+    const end = !rec ? 0 : watchId != null ? Date.now() : rec.end || (pts.length ? pts[pts.length - 1][3] : rec.start);
+    const st = statsOf(pts, rec ? rec.start : 0, end);
+    let cur = 0;
+    if (lastFix && Date.now() - lastFix.t < 10000) {
+      if (lastFix.c.speed != null && lastFix.c.speed >= 0) cur = lastFix.c.speed;
+      else if (pts.length > 1) {
+        const a = pts[Math.max(0, pts.length - 4)], b = pts[pts.length - 1], dt = (b[3] - a[3]) / 1000;
+        if (dt > 0) cur = metres(a, b) / dt;
+      }
+    }
+    if (!rec) cur = 0;
+    $("sTime").textContent = hms(st.elapsed);
+    $("sDist").innerHTML = `${km(st.dist)}<small>km</small>`;
+    $("sClimb").innerHTML = st.climb == null ? (pts.length > 1 ? "–" : "0<small>m</small>") : `${Math.round(st.climb)}<small>m</small>`;
+    $("sSpeed").innerHTML = `${kmh(cur)}<small>km/h</small>`;
+    $("sAvg").innerHTML = `${kmh(st.moving > 0 ? st.dist / st.moving : 0)}<small>km/h</small>`;
+    $("sMax").innerHTML = `${kmh(st.max)}<small>km/h</small>`;
+    $("sMoving").textContent = hms(st.moving);
+  }
+  function beginRecording(existing) {
+    if (!navigator.geolocation) { showGps("This browser can't share your location, so it can't record a ride.", true); return; }
+    rec = existing || { id: "current", start: Date.now(), points: [] };
+    $("resumeBox").hidden = true;
+    recLine.setLatLngs(rec.points.map((p) => [p[0], p[1]]));
+    if (rec.points.length) recMap.fitBounds(recLine.getBounds(), { padding: [20, 20], maxZoom: 16 });
+    followYou = true;
+    setRecButton(true);
+    showGps("Starting GPS…");
+    startWatch();
+    keepAwake();
+    clearInterval(ticker); ticker = setInterval(renderLive, 1000);
+    saveCurrent(true);
+    renderLive();
+  }
+  function stopRecording() {
+    stopWatch(); letSleep(); clearInterval(ticker); ticker = null;
+    setRecButton(false);
+    rec.end = Date.now();
+    saveCurrent(true);
+    openSave(null);
+  }
+  $("recBtn").addEventListener("click", () => { if (watchId != null && rec) stopRecording(); else beginRecording(rec); });
+  $("resumeGo").addEventListener("click", () => { delete rec.end; beginRecording(rec); });
+  $("resumeStop").addEventListener("click", () => { $("resumeBox").hidden = true; rec.end = rec.end || (rec.points.length ? rec.points[rec.points.length - 1][3] : Date.now()); openSave(null); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") saveCurrent(true);
+    else if (watchId != null) keepAwake();
+  });
+  window.addEventListener("pagehide", () => saveCurrent(true));
+
+  // ---------- save / edit form ----------
+  let editing = null;      // the saved ride being edited, or null for a new one
+  let formPhotos = [];     // { id?, blob, url, keep } shown in the form
+  const urls = [];         // object URLs to free when the view changes
+  function objUrl(blob) { const u = URL.createObjectURL(blob); urls.push(u); return u; }
+  function freeUrls() { while (urls.length) URL.revokeObjectURL(urls.pop()); }
+
+  async function openSave(ride) {
+    editing = ride;
+    freeUrls();
+    formPhotos = [];
+    const st = ride ? ride.stats : statsOf(rec.points, rec.start, rec.end || Date.now());
+    $("saveHead").textContent = ride ? "Edit ride" : "Save your ride";
+    $("saveStats").innerHTML = statsHtml(st);
+    $("fTitle").value = ride ? ride.title : (rec.title || `${defaultTitle(rec.start)}`);
+    $("fDesc").value = ride ? ride.description : (rec.description || "");
+    $("resumeBtn").hidden = !!ride; $("discardBtn").hidden = !!ride; $("cancelEdit").hidden = !ride;
+    $("saveLabel").textContent = ride ? "Save changes" : "Save to My rides";
+    if (ride) (await photosOf(ride.id)).sort((a, b) => a.order - b.order).forEach((p) => formPhotos.push({ id: p.id, blob: p.thumb || p.blob, full: p.blob, keep: true }));
+    renderFormPhotos();
+    show("save");
+  }
+  function renderFormPhotos() {
+    const box = $("fPhotos");
+    box.innerHTML = "";
+    formPhotos.forEach((p, i) => {
+      if (!p.keep) return;
+      const d = document.createElement("div"); d.className = "ph";
+      d.innerHTML = `<img alt="Ride photo ${i + 1}"><button class="x" type="button" aria-label="Remove photo">✕</button>`;
+      d.querySelector("img").src = p.url || (p.url = objUrl(p.blob));
+      d.querySelector("img").addEventListener("click", () => openLight(p.full || p.blob));
+      d.querySelector(".x").addEventListener("click", () => { p.keep = false; renderFormPhotos(); });
+      box.appendChild(d);
+    });
+    const add = document.createElement("label"); add.className = "add";
+    add.innerHTML = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4 8.5a2 2 0 0 1 2-2h2l1.5-2h5L16 6.5h2a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Add photos<input type="file" accept="image/*" multiple>';
+    add.querySelector("input").addEventListener("change", (e) => {
+      [...e.target.files].forEach((f) => formPhotos.push({ blob: f, keep: true, isNew: true }));
+      renderFormPhotos();
+    });
+    box.appendChild(add);
+  }
+  // Shrink a photo so a season of rides fits in the browser's storage. Keeps the original if it can't be read (HEIC on some browsers).
+  async function shrink(blob, max, quality) {
+    const u = URL.createObjectURL(blob);
+    try {
+      const img = new Image(); img.src = u; await img.decode();
+      const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      return await new Promise((res) => c.toBlob((b) => res(b || blob), "image/jpeg", quality));
+    } catch { return null; } finally { URL.revokeObjectURL(u); }
+  }
+  async function mapClimb(pts) {      // when the phone gave no GPS height: heights from Open-Meteo's terrain model
+    const n = Math.min(100, pts.length), sample = [];
+    for (let k = 0; k < n; k++) sample.push(pts[Math.round(k * (pts.length - 1) / Math.max(1, n - 1))]);
+    const url = `${ELEV_API}?latitude=${sample.map((p) => p[0].toFixed(5)).join(",")}&longitude=${sample.map((p) => p[1].toFixed(5)).join(",")}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const json = await res.json();
+    return climbOf(json.elevation || []);
+  }
+  $("saveBtn").addEventListener("click", async () => {
+    const btn = $("saveBtn"); btn.disabled = true; $("saveLabel").textContent = "Saving…";
+    try {
+      let ride;
+      if (editing) ride = { ...editing };
+      else {
+        const end = rec.end || Date.now();
+        ride = { id: "ride-" + rec.start, start: rec.start, end, points: rec.points, stats: statsOf(rec.points, rec.start, end), saved: Date.now() };
+        if (ride.stats.climb == null && rec.points.length > 1) { try { ride.stats.climb = await mapClimb(rec.points); ride.stats.climbFrom = "map"; } catch {} }
+      }
+      ride.title = $("fTitle").value.trim() || defaultTitle(ride.start);
+      ride.description = $("fDesc").value.trim();
+      // photos: drop removed ones, add new ones (shrunk), keep the order shown
+      let order = 0, cover = null;
+      for (const p of formPhotos) {
+        if (!p.keep) { if (p.id) await dbDel("photos", p.id); continue; }
+        if (p.isNew) {
+          const full = (await shrink(p.blob, 1600, 0.85)) || p.blob;
+          const thumb = await shrink(p.blob, 360, 0.8);
+          p.id = ride.id + "-p" + Date.now() + "-" + order;
+          await dbPut("photos", { id: p.id, rideId: ride.id, blob: full, thumb, order, added: Date.now() });
+          p.blob = thumb || full; p.isNew = false;
+        } else {
+          const old = await dbGet("photos", p.id);
+          if (old && old.order !== order) await dbPut("photos", { ...old, order });
+        }
+        if (!cover) cover = p.blob;
+        order++;
+      }
+      ride.cover = cover;
+      ride.photoCount = order;
+      await dbPut("rides", ride);
+      if (!editing) { await dbDel("current", "current"); rec = null; recLine.setLatLngs([]); renderLive(); showGps("Ride saved. Press Start for the next one."); }
+      try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
+      await countRides();
+      if (location.hash === "#ride/" + ride.id) openRide(ride.id); else location.hash = "#ride/" + ride.id;
+    } catch (e) {
+      alert("Couldn't save the ride: " + (e && e.message ? e.message : e) + ". Your ride is still kept on this page.");
+    } finally { btn.disabled = false; $("saveLabel").textContent = editing ? "Save changes" : "Save to My rides"; }
+  });
+  $("resumeBtn").addEventListener("click", () => { delete rec.end; show("record"); beginRecording(rec); });
+  $("cancelEdit").addEventListener("click", () => openRide(editing.id));
+  $("discardBtn").addEventListener("click", async () => {
+    if (!confirm("Discard this ride? It won't be saved.")) return;
+    await dbDel("current", "current");
+    rec = null; recLine.setLatLngs([]); renderLive(); showGps("Ride discarded. Press Start when you're ready.");
+    show("record");
+  });
+
+  // ---------- My rides ----------
+  function trackSvg(pts) {
+    if (pts.length < 2) return "";
+    const lats = pts.map((p) => p[0]), lons = pts.map((p) => p[1]);
+    const k = Math.cos(lats[0] * Math.PI / 180);
+    const x0 = Math.min(...lons) * k, x1 = Math.max(...lons) * k, y0 = Math.min(...lats), y1 = Math.max(...lats);
+    const span = Math.max(x1 - x0, y1 - y0) || 1e-6, S = 52 / span, ox = (64 - (x1 - x0) * S) / 2, oy = (64 - (y1 - y0) * S) / 2;
+    const step = Math.max(1, Math.floor(pts.length / 200));
+    const d = pts.filter((_, i) => i % step === 0 || i === pts.length - 1)
+      .map((p, i) => `${i ? "L" : "M"}${(ox + (p[1] * k - x0) * S).toFixed(1)} ${(oy + (y1 - p[0]) * S).toFixed(1)}`).join("");
+    return `<svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true"><path d="${d}"/></svg>`;
+  }
+  async function countRides() {
+    const n = (await dbAll("rides")).length;
+    $("rideCount").textContent = n ? `(${n})` : "";
+  }
+  async function renderRides() {
+    freeUrls();
+    const rides = (await dbAll("rides")).sort((a, b) => b.start - a.start);
+    const list = $("rideList");
+    list.innerHTML = "";
+    if (!rides.length) {
+      list.innerHTML = '<li class="empty">No rides yet. Go to <strong>Record ride</strong> and press Start.</li>';
+      $("totals").textContent = "";
+      return;
+    }
+    const tot = rides.reduce((a, r) => ({ d: a.d + r.stats.dist, c: a.c + (r.stats.climb || 0), t: a.t + r.stats.moving }), { d: 0, c: 0, t: 0 });
+    $("totals").textContent = `${rides.length} ride${rides.length > 1 ? "s" : ""} · ${km(tot.d)} km · ${Math.round(tot.c)} m climbed · ${hms(tot.t, false)} riding`;
+    rides.forEach((r) => {
+      const li = document.createElement("li");
+      li.innerHTML = `<button class="ride" type="button"><span class="th">${r.cover ? '<img alt="">' : trackSvg(r.points)}</span><span><span class="rt">${esc(r.title)}</span><br><span class="rm">${fmtDay(r.start)} · ${km(r.stats.dist)} km · ${hms(r.stats.moving, false)}${r.stats.climb != null ? ` · ${Math.round(r.stats.climb)} m up` : ""}${r.photoCount ? ` · ${r.photoCount} photo${r.photoCount > 1 ? "s" : ""}` : ""}</span></span></button>`;
+      if (r.cover) li.querySelector("img").src = objUrl(r.cover);
+      li.querySelector("button").addEventListener("click", () => { location.hash = "#ride/" + r.id; });
+      list.appendChild(li);
+    });
+  }
+  let shown = null;
+  async function openRide(id) {
+    const r = await dbGet("rides", id);
+    if (!r) { location.hash = "#rides"; return; }
+    shown = r;
+    freeUrls();
+    $("rTitle").textContent = r.title;
+    $("rWhen").textContent = `${fmtDay(r.start)} · ${fmtTime(r.start)} to ${fmtTime(r.end)}`;
+    $("rStats").innerHTML = statsHtml(r.stats);
+    $("rDesc").textContent = r.description || "";
+    $("rDesc").hidden = !r.description;
+    const box = $("rPhotos"); box.innerHTML = "";
+    (await photosOf(r.id)).sort((a, b) => a.order - b.order).forEach((p, i) => {
+      const d = document.createElement("div"); d.className = "ph";
+      d.innerHTML = `<img alt="Ride photo ${i + 1}">`;
+      d.querySelector("img").src = objUrl(p.thumb || p.blob);
+      d.querySelector("img").addEventListener("click", () => openLight(p.blob));
+      box.appendChild(d);
+    });
+    show("ride");
+    if (!rideMap) { rideMap = makeMap("rideMap"); rideLayer = L.layerGroup().addTo(rideMap); }
+    rideMap.invalidateSize();
+    rideLayer.clearLayers();
+    const ll = r.points.map((p) => [p[0], p[1]]);
+    if (ll.length) {
+      const line = L.polyline(ll, { color: getComputedStyle(document.documentElement).getPropertyValue("--track").trim(), weight: 5 }).addTo(rideLayer);
+      L.circleMarker(ll[0], { radius: 7, color: "#fff", weight: 2, fillColor: "#1f9d55", fillOpacity: 1 }).bindTooltip("Start").addTo(rideLayer);
+      L.circleMarker(ll[ll.length - 1], { radius: 7, color: "#fff", weight: 2, fillColor: "#d92b2b", fillOpacity: 1 }).bindTooltip("Finish").addTo(rideLayer);
+      rideMap.fitBounds(line.getBounds(), { padding: [20, 20], maxZoom: 17 });
+    }
+  }
+  $("backToRides").addEventListener("click", () => { location.hash = "#rides"; });
+  $("editBtn").addEventListener("click", () => openSave(shown));
+  $("deleteBtn").addEventListener("click", async () => {
+    if (!confirm(`Delete “${shown.title}”? This can't be undone.`)) return;
+    for (const p of await photosOf(shown.id)) await dbDel("photos", p.id);
+    await dbDel("rides", shown.id);
+    await countRides();
+    location.hash = "#rides";
+  });
+  $("gpxBtn").addEventListener("click", () => {
+    const r = shown, iso = (t) => new Date(t).toISOString();
+    const xmlEsc = (s) => esc(s).replace(/&#39;/g, "&apos;");
+    const pts = r.points.map((p) => `<trkpt lat="${p[0]}" lon="${p[1]}">${p[2] != null ? `<ele>${p[2]}</ele>` : ""}<time>${iso(p[3])}</time></trkpt>`).join("\n");
+    const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1">
+<metadata><name>${xmlEsc(r.title)}</name><time>${iso(r.start)}</time></metadata>
+<trk><name>${xmlEsc(r.title)}</name>${r.description ? `<desc>${xmlEsc(r.description)}</desc>` : ""}<type>mountain_biking</type><trkseg>
+${pts}
+</trkseg></trk>
+</gpx>`;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([gpx], { type: "application/gpx+xml" }));
+    a.download = (r.title.replace(/[^\w\- ]+/g, "").trim() || "ride") + ".gpx";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  });
+
+  // ---------- photo viewer ----------
+  let lightUrl = null;
+  function openLight(blob) { lightUrl = URL.createObjectURL(blob); $("lightImg").src = lightUrl; $("lightbox").hidden = false; }
+  function closeLight() { $("lightbox").hidden = true; if (lightUrl) URL.revokeObjectURL(lightUrl); lightUrl = null; }
+  $("lightbox").addEventListener("click", closeLight);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("lightbox").hidden) closeLight(); });
+
+  // ---------- views and tabs (#rides, #ride/<id>; anything else is Record) ----------
+  function show(v) {
+    ["record", "save", "rides", "ride"].forEach((k) => { $("view" + k[0].toUpperCase() + k.slice(1)).hidden = k !== v; });
+    $("tabRecord").setAttribute("aria-selected", String(v === "record" || v === "save"));
+    $("tabRides").setAttribute("aria-selected", String(v === "rides" || v === "ride"));
+    if (v === "record") setTimeout(() => recMap.invalidateSize(), 0);
+  }
+  function route() {
+    const h = location.hash;
+    if (h.startsWith("#ride/")) openRide(decodeURIComponent(h.slice(6)));
+    else if (h === "#rides") { show("rides"); renderRides(); }
+    else if (rec && rec.end && watchId == null && $("resumeBox").hidden) openSave(null);
+    else show("record");
+  }
+  $("tabRecord").addEventListener("click", () => { if (location.hash === "#record") route(); else location.hash = "#record"; });
+  $("tabRides").addEventListener("click", () => { if (location.hash === "#rides") route(); else location.hash = "#rides"; });
+  window.addEventListener("hashchange", route);
+
+  // ---------- start up: offer to carry on a ride the page was recording when it closed ----------
+  (async () => {
+    try {
+      const cur = await dbGet("current", "current");
+      if (cur) {
+        rec = cur;
+        recLine.setLatLngs(rec.points.map((p) => [p[0], p[1]]));
+        if (rec.points.length) recMap.fitBounds(recLine.getBounds(), { padding: [20, 20], maxZoom: 16 });
+        const st = statsOf(rec.points, rec.start, rec.end || (rec.points.length ? rec.points[rec.points.length - 1][3] : rec.start));
+        $("resumeText").textContent = rec.end
+          ? `You stopped a ride (${fmtTime(rec.start)}, ${km(st.dist)} km) but didn't save it yet.`
+          : `You were recording a ride (started ${fmtTime(rec.start)}, ${km(st.dist)} km so far) when the page closed.`;
+        $("resumeBox").hidden = false;
+        $("resumeGo").textContent = "Keep recording";
+        renderLive();
+      }
+    } catch (e) { showGps("This browser won't let the page save rides (private window?). Rides can't be kept.", true); }
+    countRides();
+    route();
+  })();
+})();
+</script>
+</body>
+</html>
