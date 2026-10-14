@@ -15,3 +15,10 @@ Lines ridden at bike speed show on the site as purple dotted "Possible unmapped 
 
 Only OpenStreetMap's GPS traces are used: Strava's and Trailforks' heatmaps don't allow copying or deriving data from
 them. Each find links to those heatmaps so a person can compare by eye.
+
+## Record ride
+`ride.html` (linked as "Record ride" at the top of the site) records a ride with the phone's GPS: time, moving time,
+distance, climb and speed. Press Start, the button turns red, press Stop, then give it a title, description and photos
+and save it to "My rides". Rides are kept in this browser's IndexedDB (`trail-finder-rides`), on that device only;
+each ride can be downloaded as GPX. Recording stops if the browser closes the page, but the ride so far is kept and
+can be carried on.
