@@ -1011,7 +1011,7 @@ label.toggle.off .sw { background: var(--muted); }
           <label class="toggle t-mtb"><input type="checkbox" id="showMtb" checked><span class="ck"></span><span class="sw"></span>MTB tagged <span class="n" id="nMtb">0</span></label>
           <label class="toggle t-looks"><input type="checkbox" id="showLooks" checked><span class="ck"></span><span class="sw"></span>Looks like MTB <span class="n" id="nLooks">0</span></label>
           <label class="toggle t-ghost" title="Lines that several GPS traces follow at bike speed, where OpenStreetMap has no trail yet. Unverified."><input type="checkbox" id="showGhost" checked><span class="ck"></span><span class="sw"></span>Possible unmapped <span class="n" id="nGhost">0</span></label>
-          <label class="toggle t-unoff off" title="Of the trails ticked, show only the ones tagged as informal, closed or no bikes"><input type="checkbox" id="onlyUnoff"><span class="ck"></span><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
+          <label class="toggle t-unoff off" title="Show only trails tagged as informal, closed or no bikes: of the types ticked, or of every type when none is ticked"><input type="checkbox" id="onlyUnoff"><span class="ck"></span><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
         </div>
       </section>
       <p class="hint tap-hint">Tip: tap any trail on the map to see all its details.</p>
@@ -1095,7 +1095,7 @@ label.toggle.off .sw { background: var(--muted); }
     months: store.get("months", 6),
     show: { mtb: true, looks: true, other: false, ghost: true },   // "other" paths have no chip and stay hidden
     ghosts: [],          // possible unmapped trails from the weekly GPS-trace file
-    onlyUnoff: false,     // "Unofficial only": of the ticked types, flagged trails only
+    onlyUnoff: false,     // "Unofficial only": flagged trails of the ticked types (of every type when none is ticked)
     prime: store.get("prime", false),   // "Prime loam now" (time row): every named trail in the area with Loam index 40-59 now
     trails: [],          // all candidates from last search (2-year window), with .created
     searchedBounds: [],
@@ -1266,6 +1266,11 @@ label.toggle.off .sw { background: var(--muted); }
     return out;
   }
   const isUnoff = (t) => !!(t.unoff && t.unoff.length);
+  // The type chips' counts are totals. "Unofficial only" counts and shows the flagged trails of the
+  // ticked types, or of every type when none is ticked.
+  const TYPE_KEYS = ["mtb", "looks", "ghost"];
+  const unoffTypes = () => { const on = TYPE_KEYS.filter((k) => state.show[k]); return on.length ? on : TYPE_KEYS; };
+  const wanted = (cat, unoff) => (state.onlyUnoff ? unoff && unoffTypes().includes(cat) : state.show[cat]);
 
   // Moto and hiking-only trails: hidden unless their toggle is on. Never applied to trails with MTB tags.
   // Moto (dirt bike, ATV, 4x4) and hiking-only trails, from what mappers tagged. Returns { use, why } or null.
@@ -1872,10 +1877,10 @@ out body;`;
       .filter((t) => t.km * 1000 >= MIN_TRAIL_M);
     state.merged = new Map(vis.map((t) => [t.id, t]));
     const counts = { mtb: 0, looks: 0, other: 0, ghost: 0 };
-    vis.filter((t) => !state.onlyUnoff || isUnoff(t)).forEach((t) => counts[t.cat]++);
+    vis.forEach((t) => counts[t.cat]++);
     $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nGhost").textContent = counts.ghost;
-    $("nUnoff").textContent = vis.filter((t) => state.show[t.cat] && isUnoff(t)).length;
-    const shown = vis.filter((t) => state.show[t.cat] && (!state.onlyUnoff || isUnoff(t)));
+    $("nUnoff").textContent = vis.filter((t) => isUnoff(t) && unoffTypes().includes(t.cat)).length;
+    const shown = vis.filter((t) => wanted(t.cat, isUnoff(t)));
     state.shownCount = shown.length;
     state.shownIds = new Set(shown.map((t) => t.id));
     if (shown.length) loadLoam(shown);
@@ -1935,15 +1940,15 @@ out body;`;
   function renderPrime() {
     if (names.dirty || names.trailCount !== state.trails.length) buildGroups();
     const inside = (ll) => (near ? near.ll.distanceTo(ll) <= near.km * 1000 : state.searchedBounds.some((b) => b.contains(ll)));
-    const pool = names.groups.filter((g) => inside(g.center)).map(primeEntry).filter((e) => e && (!state.onlyUnoff || e.unoff.length));
-    const typed = pool.filter((e) => state.show[e.cat]);
+    const pool = names.groups.filter((g) => inside(g.center)).map(primeEntry).filter(Boolean);
+    const typed = pool.filter((e) => wanted(e.cat, e.unoff.length));
     if (typed.length) loadLoam(typed);
     const isPrime = (e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60; };
     const prime = pool.filter(isPrime);
     $("nMtb").textContent = prime.filter((e) => e.cat === "mtb").length; $("nLooks").textContent = prime.filter((e) => e.cat === "looks").length; $("nGhost").textContent = "–";
-    $("nUnoff").textContent = prime.filter((e) => state.show[e.cat] && e.unoff.length).length;
+    $("nUnoff").textContent = prime.filter((e) => e.unoff.length && unoffTypes().includes(e.cat)).length;
     const dist = (e) => near.ll.distanceTo(e.center);
-    const shown = prime.filter((e) => state.show[e.cat]).sort(near ? (a, b) => dist(a) - dist(b) : (a, b) => a.g.name.localeCompare(b.g.name));
+    const shown = prime.filter((e) => wanted(e.cat, e.unoff.length)).sort(near ? (a, b) => dist(a) - dist(b) : (a, b) => a.g.name.localeCompare(b.g.name));
     state.primeShown = shown; state.shownCount = shown.length; state.primeTotal = typed.length;
     state.shownIds = new Set();
     state.loamPending = typed.some((e) => loamOf(e) === undefined);
@@ -1969,6 +1974,7 @@ out body;`;
     if (state.example) return;
     const label = { 1: "month", 6: "6 months", 12: "year", 24: "2 years" }[state.months];
     const n = state.shownCount || 0;
+    const noType = !state.onlyUnoff && !TYPE_KEYS.some((k) => state.show[k]);
     if (state.prime) {
       $("findBtn").disabled = !!state.primeLoading;
       $("findLabel").textContent = state.primeLoading ? "Loading…" : "Find prime loam trails";
@@ -1976,8 +1982,10 @@ out body;`;
       const where = near ? `${near.km} km around you` : state.custom ? "this part of the map" : (zoneById(state.zone) ? shortZone(zoneById(state.zone)) : "Sea to Sky and the Sunshine Coast");
       const busy = state.primeLoading ? "Loading the trails here…" : state.loamPending ? `Checking the Loam index of ${state.primeTotal} trails…` : "";
       if (failed.length && !n && !busy) { setStatus(`Couldn't load the trail list for ${failed.map(shortZone).join(", ")}.`, true, { label: "Try again", fn: () => loadPrime(true) }); return; }
-      setStatus(n ? `${n} trail${n === 1 ? "" : "s"} in ${where} ${n === 1 ? "is" : "are"} in prime loam right now (Loam index 40 to 59). Tap one to see it.${busy ? " " + busy : ""}`
-        : busy || `No trails in ${where} are in prime loam right now (Loam index 40 to 59). Pick Month, Year… to see new trails instead.`);
+      const what = state.onlyUnoff ? "unofficial trail" : "trail";
+      setStatus(n ? `${n} ${what}${n === 1 ? "" : "s"} in ${where} ${n === 1 ? "is" : "are"} in prime loam right now (Loam index 40 to 59). Tap one to see it.${busy ? " " + busy : ""}`
+        : busy || (noType ? "Tick a trail type above to see the trails." : state.onlyUnoff ? `No unofficial trails in ${where} are in prime loam right now. Turn off “Unofficial only” to see the others.`
+          : `No trails in ${where} are in prime loam right now (Loam index 40 to 59). Pick Month, Year… to see new trails instead.`));
       return;
     }
     $("findBtn").disabled = !!state.loading;
@@ -1993,7 +2001,7 @@ out body;`;
     } else if (state.error && !state.trails.length) {
       setStatus(`Search failed. ${state.error.replace(/\.?$/, ".")} If it keeps happening, open “Search details” and send a screenshot.`, true, state.retry && { label: "Try again", fn: state.retry });
     } else if (state.searchedBounds.length) {
-      setStatus((n ? `${n} trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : (state.onlyUnoff ? `No unofficial trails among the ones ticked in the last ${label}. Tick more types, or turn off “Unofficial only”.` : `No new trails here in the last ${label}. Try a longer period or move the map.`)) + (state.error ? " " + state.error : ""),
+      setStatus((noType && !n ? "Tick a trail type above to see the trails." : n ? `${n} ${state.onlyUnoff ? "unofficial " : ""}trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : (state.onlyUnoff ? `No unofficial trails here in the last ${label}. Turn off “Unofficial only” to see the others.` : `No new trails here in the last ${label}. Try a longer period or move the map.`)) + (state.error ? " " + state.error : ""),
         !!state.error, state.error && state.retry && { label: "Load missing squares", fn: state.retry });
     }
   }
