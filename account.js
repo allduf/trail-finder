@@ -22,7 +22,7 @@
   // ---------- button and sign-in box ----------
   const css = document.createElement("style");
   css.textContent = `
-.acct-btn { display: inline-flex; align-items: center; gap: 5px; }
+.acct-btn.acct-btn { display: inline-flex; align-items: center; gap: 5px; border: 1.5px solid var(--accent); border-radius: 999px; padding: 3px 11px; margin-left: 4px; }
 .acct-btn .acct-dot { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: var(--accent-fg, #fff); font-size: .72rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; text-transform: uppercase; }
 dialog.acct { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--fg); padding: 18px; width: min(380px, calc(100vw - 32px)); box-shadow: 0 10px 40px rgba(0,0,0,.3); font: inherit; }
 dialog.acct::backdrop { background: rgba(0,0,0,.4); }
@@ -34,7 +34,10 @@ dialog.acct button { font: inherit; font-weight: 600; padding: 9px 14px; border-
 dialog.acct button.go { background: var(--accent); color: var(--accent-fg, #fff); border-color: transparent; }
 dialog.acct button:disabled { opacity: .6; cursor: default; }
 dialog.acct .acct-msg { min-height: 1.2em; font-size: .88rem; margin: 0 0 10px; color: var(--fg); }
-dialog.acct .acct-msg.err { color: #c0392b; }`;
+dialog.acct .acct-msg.err { color: #c0392b; }
+dialog.acct .acct-alt { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 12px; font-size: .88rem; }
+dialog.acct .acct-alt button { background: none; border: 0; padding: 2px 0; color: var(--accent); font-weight: 600; }
+dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: 3px; }`;
   document.head.appendChild(css);
 
   const box = document.createElement("dialog");
@@ -43,14 +46,21 @@ dialog.acct .acct-msg.err { color: #c0392b; }`;
 <form method="dialog" id="acctIn">
   <h2>Sign in</h2>
   <p>Optional. Signing in saves your settings and rides to your account so they're on every device. Everything else works the same without it.</p>
+  <label for="acctEmail">Email</label>
   <input type="email" id="acctEmail" placeholder="you@example.com" autocomplete="email" required>
+  <label for="acctPass">Password</label>
+  <input type="password" id="acctPass" autocomplete="current-password" minlength="6">
   <p class="acct-msg" id="acctMsg" role="status"></p>
-  <div class="acct-row"><button type="button" data-close>Not now</button><button type="submit" class="go" id="acctSend">Email me a sign-in link</button></div>
+  <div class="acct-row"><button type="button" data-close>Not now</button><button type="submit" class="go" id="acctSend">Sign in</button></div>
+  <div class="acct-alt"><button type="button" id="acctNew">New here? Create an account</button><button type="button" id="acctLink">Forgot password? Email me a link</button></div>
 </form>
 <div id="acctOut" hidden>
   <h2>Your account</h2>
   <p>Signed in as <strong id="acctWho"></strong>. Your settings and rides are saved to your account.</p>
   <p class="acct-msg" id="acctSync" role="status"></p>
+  <label for="acctNewPass">Set a new password (optional)</label>
+  <input type="password" id="acctNewPass" autocomplete="new-password" minlength="6" placeholder="At least 6 characters">
+  <div class="acct-row" style="margin-bottom:12px"><button type="button" id="acctSetPass">Save password</button></div>
   <div class="acct-row"><button type="button" id="acctSignOut">Sign out</button><button type="button" class="go" data-close>Done</button></div>
 </div>`;
   document.body.appendChild(box);
@@ -107,15 +117,46 @@ dialog.acct .acct-msg.err { color: #c0392b; }`;
     window.dispatchEvent(new CustomEvent("tf:account", { detail: user }));
   }
 
+  function say(text, err) { const m = q("acctMsg"); m.textContent = text; m.className = "acct-msg" + (err ? " err" : ""); }
+  function creds() {
+    const email = q("acctEmail").value.trim(), password = q("acctPass").value;
+    if (!api.client) { say("Sign-in isn't available right now. Try again later.", true); return null; }
+    if (!q("acctEmail").reportValidity()) return null;
+    return { email, password };
+  }
+  const redirect = () => location.origin + location.pathname;
   q("acctIn").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const email = q("acctEmail").value.trim(), msg = q("acctMsg");
-    if (!api.client) { msg.textContent = "Sign-in isn't available right now. Try again later."; msg.className = "acct-msg err"; return; }
-    q("acctSend").disabled = true; msg.className = "acct-msg"; msg.textContent = "Sending…";
-    const { error } = await api.client.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+    const c = creds(); if (!c) return;
+    if (!c.password) { say("Enter your password, or use \u201cEmail me a link\u201d.", true); return; }
+    q("acctSend").disabled = true; say("Signing in…");
+    const { error } = await api.client.auth.signInWithPassword(c);
     q("acctSend").disabled = false;
-    if (error) { msg.textContent = error.message; msg.className = "acct-msg err"; }
-    else msg.textContent = `Check ${email} and tap the link. You'll come back here signed in.`;
+    if (error) say(/invalid/i.test(error.message) ? "Wrong email or password. New here? Create an account below." : error.message, true);
+    else box.close();
+  });
+  q("acctNew").addEventListener("click", async () => {
+    const c = creds(); if (!c) return;
+    if (c.password.length < 6) { say("Pick a password of at least 6 characters, then tap Create an account.", true); q("acctPass").focus(); return; }
+    say("Creating your account…");
+    const { data, error } = await api.client.auth.signUp({ ...c, options: { emailRedirectTo: redirect() } });
+    if (error) say(error.message, true);
+    else if (data.session) box.close();
+    else say(`Almost done: check ${c.email} and tap the link once to confirm. After that, sign in with your password.`);
+  });
+  q("acctLink").addEventListener("click", async () => {
+    const c = creds(); if (!c) return;
+    say("Sending…");
+    const { error } = await api.client.auth.signInWithOtp({ email: c.email, options: { emailRedirectTo: redirect() } });
+    if (error) say(error.message, true);
+    else say(`Check ${c.email} and tap the link. Once you're in, you can set a new password under Account.`);
+  });
+  q("acctSetPass").addEventListener("click", async () => {
+    const pw = q("acctNewPass").value;
+    if (pw.length < 6) { api.setSyncNote("Passwords need at least 6 characters."); return; }
+    const { error } = await api.client.auth.updateUser({ password: pw });
+    q("acctNewPass").value = "";
+    api.setSyncNote(error ? "Couldn't save the password: " + error.message : "Password saved. Next time, sign in with your email and password.");
   });
   q("acctSignOut").addEventListener("click", async () => {
     window.dispatchEvent(new CustomEvent("tf:signing-out", { detail: api.user }));
