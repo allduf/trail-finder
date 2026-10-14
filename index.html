@@ -1066,6 +1066,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
       <button id="locate" type="button" aria-pressed="false">◎ My location</button>
       <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
       <button id="btn3d" type="button" aria-pressed="false">⛰ 3D</button>
+      <button id="offlineBtn" type="button" aria-pressed="false" title="Save an area's map, trails and forest roads on this device for riding with no signal">⤓ Offline maps</button>
     </div>
   </div>
   <aside class="panel" id="panel">
@@ -1267,6 +1268,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
   // ---------- map ----------
   const map = L.map("map", { zoomControl: true, preferCanvas: false });
   window.tfLeaflet = map;   // for the 3D view (map3d.js)
+  window.tfZones = ZONES;   // for Offline maps (offline.js)
   const zoneById = (id) => ZONES.find((z) => z.id === id);
   function zoneBounds(id) { const z = zoneById(id); return z ? z.bounds : ALL_BOUNDS; }
   map.fitBounds(zoneBounds(state.zone));
@@ -1345,6 +1347,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
   }
   setBasemap(store.get("basemap4", "osm"));
   $("basemap").addEventListener("change", (e) => setBasemap(e.target.value, true));
+  window.tfSetBasemap = setBasemap;   // offline.js opens the saved vector map when there's no signal
 
   const trailLayer = L.layerGroup().addTo(map);
   const foundLayer = L.layerGroup().addTo(map);  // a trail picked in the name search
@@ -4184,6 +4187,7 @@ out tags center qt;`;
 
 <script src="map3d.js"></script>
 <script src="winter.js"></script>
+<script src="offline.js"></script>
 <script src="account.js"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
