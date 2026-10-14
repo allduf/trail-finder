@@ -991,6 +991,7 @@ label.toggle.off .sw { background: var(--muted); }
       <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
       <button id="locate" type="button" aria-pressed="false">◎ My location</button>
       <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
+      <button id="btn3d" type="button" aria-pressed="false">⛰ 3D</button>
     </div>
   </div>
   <aside class="panel" id="panel">
@@ -998,7 +999,7 @@ label.toggle.off .sw { background: var(--muted); }
       <button class="sheet-toggle" id="sheetToggle" aria-label="Expand trail list"></button>
       <div class="brand">
         <h1>Trail <span>Finder</span></h1>
-        <span class="brand-links"><a class="linkish rec-link" href="ride.html"><span class="rec-dot" aria-hidden="true"></span>Record ride</a><a class="linkish" href="map3d.html" title="See the trails on satellite photos over real mountains">3D map</a><button class="linkish" id="aboutBtn" type="button">How it works</button></span>
+        <span class="brand-links"><a class="linkish rec-link" href="ride.html"><span class="rec-dot" aria-hidden="true"></span>Record ride</a><button class="linkish" id="aboutBtn" type="button">How it works</button></span>
       </div>
       <div class="modes" role="tablist" aria-label="What do you want to find?">
         <button type="button" role="tab" id="tabName" aria-controls="paneName" aria-selected="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Find a trail by name</span></button>
@@ -1167,6 +1168,7 @@ label.toggle.off .sw { background: var(--muted); }
 
   // ---------- map ----------
   const map = L.map("map", { zoomControl: true, preferCanvas: false });
+  window.tfLeaflet = map;   // for the 3D view (map3d.js)
   const zoneById = (id) => ZONES.find((z) => z.id === id);
   function zoneBounds(id) { const z = zoneById(id); return z ? z.bounds : ALL_BOUNDS; }
   map.fitBounds(zoneBounds(state.zone));
@@ -3414,5 +3416,6 @@ out tags center qt;`;
 })();
 </script>
 
+<script src="map3d.js"></script>
 </body>
 </html>
