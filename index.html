@@ -723,7 +723,7 @@ select.zone { width: 100%; font: inherit; font-weight: 600; padding: 8px 10px; b
 .search input { flex: 1; min-width: 0; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
 button.btn { font: inherit; font-weight: 600; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; white-space: nowrap; }
 button.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-button:focus-visible, input:focus-visible, select:focus-visible, label.toggle:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, input:focus-visible, select:focus-visible, label.toggle:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 .label { font-family: var(--font-display); font-weight: 600; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .periods { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--chip); padding: 4px; border-radius: 10px; }
 .periods button { font: inherit; font-weight: 600; border: 0; background: transparent; color: var(--fg); padding: 6px 4px; border-radius: 7px; cursor: pointer; }
@@ -759,11 +759,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, label.toggle:fo
 .hits .hnote { padding: 8px 12px; font-size: .82rem; color: var(--muted); }
 .hits .hnote .linkish { padding: 0; text-decoration: underline; font-size: inherit; }
 .newtag { font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--accent-fg); vertical-align: 1px; }
-label.toggle { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--chip); cursor: pointer; font-weight: 500; user-select: none; }
+label.toggle { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px 3px 6px; font-size: .9rem; border-radius: 999px; background: var(--chip); border: 1.5px solid var(--fg); cursor: pointer; font-weight: 500; user-select: none; }
+label.toggle .ck { width: 14px; height: 14px; flex: none; border-radius: 4px; border: 1.5px solid currentColor; display: inline-grid; place-items: center; }
+label.toggle:not(.off) .ck { background: var(--fg); border-color: var(--fg); }
+label.toggle:not(.off) .ck::after { content: ""; width: 8px; height: 4px; margin-top: -2px; border: solid var(--panel); border-width: 0 0 2px 2px; box-sizing: border-box; transform: rotate(-45deg); }
 label.toggle input { position: absolute; opacity: 0; pointer-events: none; }
 label.toggle .sw { width: 18px; height: 4px; border-radius: 2px; background: currentColor; }
 label.toggle .n { font-variant-numeric: tabular-nums; color: var(--muted); }
-label.toggle.off { opacity: .45; }
+label.toggle.off { background: transparent; color: var(--muted); border: 1.5px dashed var(--line); }
 label.toggle.off .sw { background: var(--muted); }
 label.toggle.t-unoff .sw { background: repeating-linear-gradient(90deg, var(--fg) 0 3px, transparent 3px 6px); }
 label.toggle.t-unoff.off .sw { background: repeating-linear-gradient(90deg, var(--muted) 0 3px, transparent 3px 6px); }
@@ -963,11 +966,11 @@ label.toggle.off .sw { background: var(--muted); }
           </div>
         </div>
         <button class="btn primary find" id="findBtn" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span id="findLabel">Find new trails</span></button>
-        <div class="toggles">
-          <label class="toggle t-mtb"><input type="checkbox" id="showMtb" checked><span class="sw"></span>MTB tagged <span class="n" id="nMtb">0</span></label>
-          <label class="toggle t-looks"><input type="checkbox" id="showLooks" checked><span class="sw"></span>Looks like MTB <span class="n" id="nLooks">0</span></label>
-          <label class="toggle t-other off"><input type="checkbox" id="showOther"><span class="sw"></span>Other paths <span class="n" id="nOther">0</span></label>
-          <label class="toggle t-unoff off" title="Show only trails tagged as informal, closed or no bikes"><input type="checkbox" id="onlyUnoff"><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
+        <div class="toggles" role="group" aria-label="Show these trails">
+          <label class="toggle t-mtb"><input type="checkbox" id="showMtb" checked><span class="ck"></span><span class="sw"></span>MTB tagged <span class="n" id="nMtb">0</span></label>
+          <label class="toggle t-looks"><input type="checkbox" id="showLooks" checked><span class="ck"></span><span class="sw"></span>Looks like MTB <span class="n" id="nLooks">0</span></label>
+          <label class="toggle t-other off"><input type="checkbox" id="showOther"><span class="ck"></span><span class="sw"></span>Other paths <span class="n" id="nOther">0</span></label>
+          <label class="toggle t-unoff off" title="Of the trails ticked, show only the ones tagged as informal, closed or no bikes"><input type="checkbox" id="onlyUnoff"><span class="ck"></span><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
         </div>
       </section>
       <p class="hint tap-hint">Tip: tap any trail on the map to see all its details.</p>
@@ -1044,7 +1047,7 @@ label.toggle.off .sw { background: var(--muted); }
   const state = {
     months: store.get("months", 6),
     show: { mtb: true, looks: true, other: false },
-    onlyUnoff: false,     // "Unofficial only": every category, flagged trails only
+    onlyUnoff: false,     // "Unofficial only": of the ticked types, flagged trails only
     trails: [],          // all candidates from last search (2-year window), with .created
     searchedBounds: [],
     error: "",
@@ -1626,10 +1629,10 @@ out body;`;
   function render() {
     const vis = visibleTrails();
     const counts = { mtb: 0, looks: 0, other: 0 };
-    vis.forEach((t) => counts[t.cat]++);
+    vis.filter((t) => !state.onlyUnoff || isUnoff(t)).forEach((t) => counts[t.cat]++);
     $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nOther").textContent = counts.other;
-    $("nUnoff").textContent = vis.filter(isUnoff).length;
-    const shown = state.onlyUnoff ? vis.filter(isUnoff) : vis.filter((t) => state.show[t.cat]);
+    $("nUnoff").textContent = vis.filter((t) => state.show[t.cat] && isUnoff(t)).length;
+    const shown = vis.filter((t) => state.show[t.cat] && (!state.onlyUnoff || isUnoff(t)));
     state.shownCount = shown.length;
 
     trailLayer.clearLayers();
@@ -1684,7 +1687,7 @@ out body;`;
     } else if (state.error && !state.trails.length) {
       setStatus(`Search failed. ${state.error.replace(/\.?$/, ".")} If it keeps happening, open “Search details” and send a screenshot.`, true, state.retry && { label: "Try again", fn: state.retry });
     } else if (state.searchedBounds.length) {
-      setStatus((n ? `${n} trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : `No new trails here in the last ${label}. Try a longer period, turn on “Other paths”, or move the map.`) + (state.error ? " " + state.error : ""),
+      setStatus((n ? `${n} trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : (state.onlyUnoff ? `No unofficial trails among the ones ticked in the last ${label}. Tick more types, or turn off “Unofficial only”.` : `No new trails here in the last ${label}. Try a longer period, tick “Other paths”, or move the map.`)) + (state.error ? " " + state.error : ""),
         !!state.error, state.error && state.retry && { label: "Load missing squares", fn: state.retry });
     }
   }
