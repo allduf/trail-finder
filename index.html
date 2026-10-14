@@ -818,6 +818,11 @@ label.toggle.off .sw { background: var(--muted); }
 .box-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; width: 100%; text-align: left; font: inherit; color: var(--fg); background: none; border: 0; border-top: 1px solid var(--line); padding: 8px 16px; cursor: pointer; }
 .box-row:hover, .box-row:focus-visible { background: var(--line); }
 .box-row .box-name { font-weight: 600; }
+.diff-pick { margin: 10px 0 6px; }
+.diff-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.diff-chip { border: 2px solid transparent; background: none; padding: 1px; border-radius: 7px; cursor: pointer; }
+.diff-chip .diff { font-size: .85rem; padding: 4px 9px; }
+.diff-chip[aria-pressed="true"] { border-color: var(--fg); }
 .box-row .box-len { margin-left: auto; color: var(--muted); font-size: .85rem; }
 button.btn.box-btn { width: 100%; margin: 2px 0 8px; }
 button.btn.reset-btn { width: 100%; margin: 6px 0 0; }
@@ -1069,6 +1074,10 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
             <button class="btn" type="submit">Go</button>
           </form>
           <p class="hint" id="nameNearMsg" role="status" hidden></p>
+        </div>
+        <div class="diff-pick" role="group" aria-labelledby="diffPickLabel">
+          <span class="label" id="diffPickLabel">Or show every trail of one level</span>
+          <div class="diff-chips"><button type="button" class="diff-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button></div>
         </div>
         <div class="tsearch-row">
           <div class="tsearch" id="tsearch">
@@ -3946,23 +3955,28 @@ out tags center qt;`;
     boxGroups = [];
     $("boxRes").hidden = true;
     $("boxRes").innerHTML = "";
+    document.querySelectorAll(".diff-chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
   }
-  async function showBox(b) {
+  // b: the square, or with diff (a DIFF key) the area to list every trail of that level in (named where).
+  async function showBox(b, diff, where) {
     clearBox();
     const token = boxToken;
-    boxLayer.addLayer(L.rectangle(b, { color: css("--accent"), weight: 2, dashArray: "6 6", fillOpacity: 0.04, interactive: false }));
+    if (diff) document.querySelectorAll(".diff-chip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.d === diff)));
+    else boxLayer.addLayer(L.rectangle(b, { color: css("--accent"), weight: 2, dashArray: "6 6", fillOpacity: 0.04, interactive: false }));
     if (isFull()) setFullMap(false);
+    const what = diff ? `${DIFF[diff].label} trails` : "MTB trails", inWhere = diff ? `in ${where}` : "in your square";
     $("boxRes").hidden = false;
-    $("boxRes").innerHTML = `<div class="box-head"><b>Looking for MTB trails in your square…</b></div>`;
+    $("boxRes").innerHTML = `<div class="box-head"><b>Looking for ${what} ${inWhere}…</b></div>`;
     const zs = ZONES.filter((z) => z.bounds.intersects(b));
     const lists = await Promise.all(zs.map(loadZoneTrails));
     if (token !== boxToken) return;
     const missing = zs.filter((z, i) => !lists[i]).map((z) => shortZone(z));
-    const seen = new Set(), byName = new Map();
+    const seen = new Set(), byName = new Map(), found = L.latLngBounds([]);
     let unnamed = 0;
     lists.forEach((list) => (list || []).forEach((w) => {
-      if (seen.has(w.id) || !w.geom.some((p) => b.contains(p))) return;
+      if (seen.has(w.id) || (diff && difficulty(w.tags) !== diff) || !w.geom.some((p) => b.contains(p))) return;
       seen.add(w.id);
+      found.extend(w.geom);
       const byDiff = state.colorBy === "diff", d = difficulty(w.tags), unoff = w.c.unoff.length > 0;
       const color = byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks");
       const name = (w.tags.name || w.tags["mtb:name"] || "").trim();
@@ -3984,13 +3998,27 @@ out tags center qt;`;
       return `<button class="box-row" type="button" data-i="${i}"><span class="box-name">${esc(g.name)}</span>${diffBadge(main.tags)}${unoff ? `<span class="unoff-tag">Unofficial?</span>` : ""}${off ? officialTag(off.c.official) : ""}<span class="box-len">${fmtLen(g.km)}</span></button>`;
     }).join("");
     const none = !boxGroups.length && !unnamed;
+    if (diff && found.isValid()) map.fitBounds(found, { padding: [20, 20], maxZoom: 15 });
     const why = missing.length ? `<p class="hint box-why">Couldn't load the trail list for ${esc(missing.join(" and "))}. Reload the page and try again.</p>`
+      : none && diff ? `<p class="hint box-why">No trails ${esc(inWhere)} are rated ${DIFF[diff].label} in OpenStreetMap. Only trails with a difficulty rating show up here.</p>`
       : none ? `<p class="hint box-why">OpenStreetMap has no trails tagged for mountain biking here: the lines on the map are hiking trails or forest roads, or nothing is mapped yet. Try a bigger square, or tap a line to see what it is.</p>` : "";
-    $("boxRes").innerHTML = `<div class="box-head"><div><b>${none ? "No MTB trails in your square" : `${boxGroups.length} MTB trail${boxGroups.length === 1 ? "" : "s"} in your square`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed bit${unnamed === 1 ? "" : "s"} (on the map)</span>` : ""}</div><button class="linkish" id="boxClear" type="button">Clear square</button></div>${why}${rows}`;
+    $("boxRes").innerHTML = `<div class="box-head"><div><b>${none ? `No ${what} ${esc(inWhere)}` : `${boxGroups.length} ${diff ? DIFF[diff].label + " trail" : "MTB trail"}${boxGroups.length === 1 ? "" : "s"} ${esc(inWhere)}`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed bit${unnamed === 1 ? "" : "s"} (on the map)</span>` : ""}</div><button class="linkish" id="boxClear" type="button">${diff ? "Clear" : "Clear square"}</button></div>${why}${rows}`;
     $("boxClear").addEventListener("click", clearBox);
     $("boxRes").querySelectorAll(".box-row").forEach((r) => r.addEventListener("click", () => openBoxGroup(boxGroups[+r.dataset.i])));
     $("boxRes").scrollIntoView({ block: "nearest" });
   }
+  // Difficulty chips in Find a trail: every trail of that level in the chosen area. Tap again to clear.
+  let diffPick = null;
+  function showDiff() {
+    const z = nameZone();
+    showBox(z ? z.bounds : ALL_BOUNDS, diffPick, z ? z.name : "all areas");
+  }
+  document.querySelectorAll(".diff-chip").forEach((c) => c.addEventListener("click", () => {
+    if (diffPick === c.dataset.d && c.getAttribute("aria-pressed") === "true") { diffPick = null; clearBox(); return; }
+    diffPick = c.dataset.d;
+    showDiff();
+  }));
+  $("nameZone").addEventListener("change", () => { if (diffPick && document.querySelector('.diff-chip[aria-pressed="true"]')) showDiff(); });
   function openBoxGroup(g) {
     const main = g.ways.reduce((a, w) => (lengthKm(w.geom) > lengthKm(a.geom) ? w : a));
     showFound({ type: "w", name: g.name, kind: kindOf(main.tags), tags: main.tags, items: g.ways.map((w) => ({ id: w.id })) }, true);
