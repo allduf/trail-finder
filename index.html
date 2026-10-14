@@ -771,8 +771,8 @@ label.toggle .n { font-variant-numeric: tabular-nums; color: var(--muted); }
 label.toggle.off { background: transparent; color: var(--muted); border: 1.5px dashed var(--line); }
 label.toggle.off .sw { background: var(--muted); }
 label.toggle.t-unoff .sw { background: repeating-linear-gradient(90deg, var(--fg) 0 3px, transparent 3px 6px); }
-label.toggle.t-loam .sw { background: var(--prime); height: 10px; width: 10px; border-radius: 50%; }
-label.toggle.overridden { opacity: .45; cursor: default; }
+.periods .prime-btn { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.periods .prime-btn .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--prime); }
 .trail .loam { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; white-space: nowrap; }
 .trail .loam i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .use-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; background: var(--chip); color: var(--muted); border: 1px solid var(--line); vertical-align: 1px; }
@@ -997,12 +997,13 @@ label.toggle.off .sw { background: var(--muted); }
           </div>
         </div>
         <div>
-          <div class="label" id="periodLabel">Created in the last</div>
+          <div class="label" id="periodLabel">Created in the last, or prime now</div>
           <div class="periods" role="group" aria-labelledby="periodLabel">
             <button type="button" data-p="1" aria-pressed="false">Month</button>
             <button type="button" data-p="6" aria-pressed="true">6 months</button>
             <button type="button" data-p="12" aria-pressed="false">Year</button>
             <button type="button" data-p="24" aria-pressed="false">2 years</button>
+            <button type="button" data-p="prime" class="prime-btn" aria-pressed="false" title="Every named trail in the area, old or new, whose Loam moisture index is 40 to 59 right now (damp, prime loam)"><span class="dot" aria-hidden="true"></span>Prime loam now</button>
           </div>
         </div>
         <button class="btn primary find" id="findBtn" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span id="findLabel">Find new trails</span></button>
@@ -1011,7 +1012,6 @@ label.toggle.off .sw { background: var(--muted); }
           <label class="toggle t-looks"><input type="checkbox" id="showLooks" checked><span class="ck"></span><span class="sw"></span>Looks like MTB <span class="n" id="nLooks">0</span></label>
           <label class="toggle t-ghost" title="Lines that several GPS traces follow at bike speed, where OpenStreetMap has no trail yet. Unverified."><input type="checkbox" id="showGhost" checked><span class="ck"></span><span class="sw"></span>Possible unmapped <span class="n" id="nGhost">0</span></label>
           <label class="toggle t-unoff off" title="Of the trails ticked, show only the ones tagged as informal, closed or no bikes"><input type="checkbox" id="onlyUnoff"><span class="ck"></span><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
-          <label class="toggle t-loam off" title="Every new trail in the area whose Loam moisture index is 40 to 59 right now (damp, prime loam), whatever its type"><input type="checkbox" id="primeLoam"><span class="ck"></span><span class="sw"></span>Prime loam now <span class="n" id="nLoam">–</span></label>
         </div>
       </section>
       <p class="hint tap-hint">Tip: tap any trail on the map to see all its details.</p>
@@ -1028,7 +1028,7 @@ label.toggle.off .sw { background: var(--muted); }
     <h2 id="aboutTitle">How Trail Finder works</h2>
     <p>All data comes from OpenStreetMap. For Sea to Sky and the Sunshine Coast, GitHub collects the new trails and trail names every night, so searches there load in a second or two without waiting on OpenStreetMap. A trail added today shows up after the next nightly update. Anywhere else, the app asks OpenStreetMap live. By default it covers the Sea to Sky corridor and the Sunshine Coast, split into the zones in the Area menu. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
     <h3>Loam in the list</h3>
-    <p>Each new trail shows its Loam moisture index right now, from the same Open-Meteo soil model as the trail details (trails within about 5 km share one reading). Tick “Prime loam now” to see every new trail in the area that is between 40 and 59 right now (damp hero dirt), whatever its type. They're drawn in teal on the map.</p>
+    <p>Each new trail shows its Loam moisture index right now, from the same Open-Meteo soil model as the trail details (trails within about 5 km share one reading). Pick “Prime loam now” in the time row to see every named trail in the area, old or new, whose index is 40 to 59 right now (damp hero dirt). They show as teal dots on the map: tap one to load the whole trail.</p>
     <h3>Near me</h3>
     <p>Tap “Near me” and pick 5, 10, 25 or 50 km. The app asks your browser for your location (it stays on your device), searches that circle and lists only the new trails within that distance, with how far each one is.</p>
     <h3>Click any trail</h3>
@@ -1096,7 +1096,7 @@ label.toggle.off .sw { background: var(--muted); }
     show: { mtb: true, looks: true, other: false, ghost: true },   // "other" paths have no chip and stay hidden
     ghosts: [],          // possible unmapped trails from the weekly GPS-trace file
     onlyUnoff: false,     // "Unofficial only": of the ticked types, flagged trails only
-    primeLoam: false,     // "Prime loam now": of the trails shown, Loam moisture index 40-59 right now
+    prime: store.get("prime", false),   // "Prime loam now" (time row): every named trail in the area with Loam index 40-59 now
     trails: [],          // all candidates from last search (2-year window), with .created
     searchedBounds: [],
     error: "",
@@ -1646,6 +1646,7 @@ out body;`;
     const seenKeys = new Set();
     const tiles = boxes.flatMap(gridTiles).filter((t) => !seenKeys.has(t.key) && seenKeys.add(t.key));
     state.searchedBounds = boxes;
+    if (state.prime) loadPrime(!offline);
     state.log = [`Search started ${new Date().toLocaleString()}: ${tiles.length} map squares.`];
 
     // 1. Show anything already loaded or saved right away.
@@ -1864,6 +1865,7 @@ out body;`;
 
   function render() {
     syncClear();
+    if (state.prime) { renderPrime(); return; }
     const base = visibleTrails();
     const vis = mergeSegments(base.filter((t) => !t.use));   // moto and hiking-only trails are left out
     state.merged = new Map(vis.map((t) => [t.id, t]));
@@ -1871,16 +1873,10 @@ out body;`;
     vis.filter((t) => !state.onlyUnoff || isUnoff(t)).forEach((t) => counts[t.cat]++);
     $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nGhost").textContent = counts.ghost;
     $("nUnoff").textContent = vis.filter((t) => state.show[t.cat] && isUnoff(t)).length;
-    const pool = vis.filter((t) => t.cat !== "other" && (!state.onlyUnoff || isUnoff(t)));   // every type with a chip
-    const typed = pool.filter((t) => state.show[t.cat]);
-    const isPrime = (t) => { const v = loamOf(t); return v != null && v >= 40 && v < 60; };
-    const loamKnown = pool.some((t) => loamOf(t) !== undefined);
-    $("nLoam").textContent = loamKnown ? pool.filter(isPrime).length : "–";
-    const shown = state.primeLoam ? pool.filter(isPrime) : typed;   // "Prime loam now" ignores the type chips
+    const shown = vis.filter((t) => state.show[t.cat] && (!state.onlyUnoff || isUnoff(t)));
     state.shownCount = shown.length;
     state.shownIds = new Set(shown.map((t) => t.id));
-    state.loamPending = state.primeLoam && pool.some((t) => loamOf(t) === undefined);
-    if (pool.length) loadLoam(pool);
+    if (shown.length) loadLoam(shown);
 
     trailLayer.clearLayers();
     const color = { mtb: css("--mtb"), looks: css("--looks"), other: css("--other"), ghost: css("--ghost") };
@@ -1888,7 +1884,7 @@ out body;`;
       const sel = state.selected === t.id;
       const shape = t.segments || t.geom;
       const line = L.polyline(shape, {
-        color: state.primeLoam ? css("--prime") : t.use ? css("--other") : color[t.cat], weight: sel ? 9 : t.cat === "other" ? 5 : 7, opacity: sel ? 0.8 : state.selected ? 0.3 : state.primeLoam ? 0.8 : 0.45,
+        color: t.use ? css("--other") : color[t.cat], weight: sel ? 9 : t.cat === "other" ? 5 : 7, opacity: sel ? 0.8 : state.selected ? 0.3 : 0.45,
         dashArray: t.cat === "ghost" ? "1 10" : t.cat === "looks" && !sel ? "10 6" : null, lineCap: "round", interactive: false,
       });
       // A wide invisible line on top makes thin trails easy to click or tap.
@@ -1910,7 +1906,7 @@ out body;`;
     if (!shown.length) { list.innerHTML = state.trails.length || state.searchedBounds.length ? "" : `<div class="empty">Results appear here after a search.</div>`; return; }
     list.innerHTML = "<ol>" + shown.map((t) => {
       const g = grade(t.tags);
-      return `<li class="trail ${t.cat}${state.primeLoam ? " prime" : ""}${state.selected === t.id ? " sel" : ""}" data-id="${t.id}" tabindex="0">
+      return `<li class="trail ${t.cat}${state.selected === t.id ? " sel" : ""}" data-id="${t.id}" tabindex="0">
         <span class="bar"></span>
         <div><div class="name">${esc(trailName(t))} ${g ? `<span class="grade">${esc(g)}</span>` : ""} ${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""} ${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}</div>
         <div class="meta">${near ? `<span class="zone-tag">${fmtAway(nearDist(t))}</span> · ` : ""}${state.zone === "all" && !state.custom && t.zone ? `<span class="zone-tag">${esc(t.zone.split(" (")[0])}</span> · ` : ""}${esc(t.use ? t.useWhy[0] : t.why[0])}</div></div>
@@ -1918,10 +1914,70 @@ out body;`;
     }).join("") + "</ol>";
   }
 
+  // ---------- Prime loam now: every named trail in the area, old or new, with Loam index 40-59 now ----------
+  // Uses the trail-name lists (one point per trail); tapping one loads its full shape like the name search.
+  const primeZones = () => ZONES.filter((z) => state.searchedBounds.some((b) => z.bounds.intersects(b)));
+  async function loadPrime(retry) {
+    state.primeLoading = true; render();
+    try { await loadNames(retry, primeZones()); } finally { state.primeLoading = false; }
+    render();
+  }
+  const primeKeep = new WeakMap();
+  function primeEntry(g) {                         // a bike trail from the name lists, or null
+    if (!primeKeep.has(g)) {
+      const c = g.type === "r" ? (g.tags.route === "mtb" ? { cat: "mtb", unoff: [] } : null) : classify(g.tags, []);
+      primeKeep.set(g, c && (c.cat === "mtb" || c.cat === "looks") && !c.use ? { g, center: g.center, cat: c.cat, unoff: c.unoff || [] } : null);
+    }
+    return primeKeep.get(g);
+  }
+  function renderPrime() {
+    if (names.dirty || names.trailCount !== state.trails.length) buildGroups();
+    const inside = (ll) => (near ? near.ll.distanceTo(ll) <= near.km * 1000 : state.searchedBounds.some((b) => b.contains(ll)));
+    const pool = names.groups.filter((g) => inside(g.center)).map(primeEntry).filter((e) => e && (!state.onlyUnoff || e.unoff.length));
+    const typed = pool.filter((e) => state.show[e.cat]);
+    if (typed.length) loadLoam(typed);
+    const isPrime = (e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60; };
+    const prime = pool.filter(isPrime);
+    $("nMtb").textContent = prime.filter((e) => e.cat === "mtb").length; $("nLooks").textContent = prime.filter((e) => e.cat === "looks").length; $("nGhost").textContent = "–";
+    $("nUnoff").textContent = prime.filter((e) => state.show[e.cat] && e.unoff.length).length;
+    const dist = (e) => near.ll.distanceTo(e.center);
+    const shown = prime.filter((e) => state.show[e.cat]).sort(near ? (a, b) => dist(a) - dist(b) : (a, b) => a.g.name.localeCompare(b.g.name));
+    state.primeShown = shown; state.shownCount = shown.length; state.primeTotal = typed.length;
+    state.shownIds = new Set();
+    state.loamPending = typed.some((e) => loamOf(e) === undefined);
+
+    trailLayer.clearLayers();
+    shown.forEach((e) => trailLayer.addLayer(L.circleMarker(e.center, { radius: 7, color: "#fff", weight: 2, fillColor: css("--prime"), fillOpacity: 0.95 })
+      .bindTooltip(esc(e.g.name), { direction: "top", offset: [0, -6] })
+      .on("click", (ev) => { L.DomEvent.stopPropagation(ev); showFound(e.g, true); })));
+    renderStatus();
+
+    const list = $("list");
+    list.innerHTML = shown.length ? "<ol>" + shown.map((e, i) => {
+      const g = grade(e.g.tags);
+      return `<li class="trail prime ${e.cat}" data-pk="${i}" tabindex="0">
+        <span class="bar"></span>
+        <div><div class="name">${esc(e.g.name)} ${g ? `<span class="grade">${esc(g)}</span>` : ""} ${e.unoff.length ? `<span class="unoff-tag">Unofficial?</span>` : ""}</div>
+        <div class="meta">${near ? `<span class="zone-tag">${fmtAway(dist(e))}</span> · ` : ""}${esc([e.g.kind, e.g.zone].filter(Boolean).join(" · "))}</div></div>
+        <div class="right">${loamBadge(e).replace(/^<br>/, "")}</div></li>`;
+    }).join("") + "</ol>" : "";
+  }
+
   function renderStatus() {
     if (state.example) return;
     const label = { 1: "month", 6: "6 months", 12: "year", 24: "2 years" }[state.months];
     const n = state.shownCount || 0;
+    if (state.prime) {
+      $("findBtn").disabled = !!state.primeLoading;
+      $("findLabel").textContent = state.primeLoading ? "Loading…" : "Find prime loam trails";
+      const failed = primeZones().filter((z) => names.failed.has(z.id));
+      const where = near ? `${near.km} km around you` : state.custom ? "this part of the map" : (zoneById(state.zone) ? shortZone(zoneById(state.zone)) : "Sea to Sky and the Sunshine Coast");
+      const busy = state.primeLoading ? "Loading the trails here…" : state.loamPending ? `Checking the Loam index of ${state.primeTotal} trails…` : "";
+      if (failed.length && !n && !busy) { setStatus(`Couldn't load the trail list for ${failed.map(shortZone).join(", ")}.`, true, { label: "Try again", fn: () => loadPrime(true) }); return; }
+      setStatus(n ? `${n} trail${n === 1 ? "" : "s"} in ${where} ${n === 1 ? "is" : "are"} in prime loam right now (Loam index 40 to 59). Tap one to see it.${busy ? " " + busy : ""}`
+        : busy || `No trails in ${where} are in prime loam right now (Loam index 40 to 59). Pick Month, Year… to see new trails instead.`);
+      return;
+    }
     $("findBtn").disabled = !!state.loading;
     $("findLabel").textContent = state.loading ? "Searching…" : "Find new trails";
     const where = near ? `${near.km} km around you` : state.custom ? "this part of the map" : (zoneById(state.zone) ? zoneById(state.zone).name : "Sea to Sky and the Sunshine Coast");
@@ -1931,11 +1987,11 @@ out body;`;
       const l = state.loading;
       const stage = l.done < l.total ? `${l.done} of ${l.total} map squares` : "checking dates of edited paths";
       const wait = busyFor();
-      setStatus(`${l.updating ? "Showing saved trails, checking for new ones…" : "Loading trails…"} ${stage} (${Math.round((Date.now() - l.t0) / 1000)} s). ${n} trail${n === 1 ? "" : "s"} from the last ${label} so far${state.primeLoam ? " in prime loam" : ""}, newest first.${wait ? ` OpenStreetMap is busy, waiting ${wait} s before asking again.` : ""}`);
+      setStatus(`${l.updating ? "Showing saved trails, checking for new ones…" : "Loading trails…"} ${stage} (${Math.round((Date.now() - l.t0) / 1000)} s). ${n} trail${n === 1 ? "" : "s"} from the last ${label} so far, newest first.${wait ? ` OpenStreetMap is busy, waiting ${wait} s before asking again.` : ""}`);
     } else if (state.error && !state.trails.length) {
       setStatus(`Search failed. ${state.error.replace(/\.?$/, ".")} If it keeps happening, open “Search details” and send a screenshot.`, true, state.retry && { label: "Try again", fn: state.retry });
     } else if (state.searchedBounds.length) {
-      setStatus((n ? `${n} trail${n === 1 ? "" : "s"} first mapped in the last ${label}${state.primeLoam ? ` ${n === 1 ? "is" : "are"} in prime loam right now (Loam index 40 to 59)` : ""}, newest first. Click a trail for details.` : (state.loamPending ? `Checking the Loam index of these trails…` : state.primeLoam ? `None of these trails are in prime loam right now (index 40 to 59). Untick “Prime loam now” to see them all.` : state.onlyUnoff ? `No unofficial trails among the ones ticked in the last ${label}. Tick more types, or turn off “Unofficial only”.` : `No new trails here in the last ${label}. Try a longer period or move the map.`)) + (state.error ? " " + state.error : ""),
+      setStatus((n ? `${n} trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : (state.onlyUnoff ? `No unofficial trails among the ones ticked in the last ${label}. Tick more types, or turn off “Unofficial only”.` : `No new trails here in the last ${label}. Try a longer period or move the map.`)) + (state.error ? " " + state.error : ""),
         !!state.error, state.error && state.retry && { label: "Load missing squares", fn: state.retry });
     }
   }
@@ -2030,7 +2086,7 @@ out body;`;
 
   // ---- Loam moisture index for the whole new-trails list ----
   const loamCells = new Map();                   // "lat,lon" (rounded to 0.05°) -> { at, lmi }
-  const cellOf = (t) => { const m = L.latLng(t.geom[Math.floor(t.geom.length / 2)]); return `${(Math.round(m.lat * 20) / 20).toFixed(2)},${(Math.round(m.lng * 20) / 20).toFixed(2)}`; };
+  const cellOf = (t) => { const m = t.center || L.latLng(t.geom[Math.floor(t.geom.length / 2)]); return `${(Math.round(m.lat * 20) / 20).toFixed(2)},${(Math.round(m.lng * 20) / 20).toFixed(2)}`; };
   function loamOf(t) {
     if (t.id < 0 && !t.ghost) return [28, 45, 33, 62, 22, 70, 35, 52, 30, 25, 40][-t.id % 11];   // made-up example trails
     const c = loamCells.get(cellOf(t));
@@ -2039,7 +2095,7 @@ out body;`;
   let loamBusy = false;
   async function loadLoam(trails) {
     if (loamBusy || state.example) return;
-    const need = [...new Set(trails.filter((t) => t.id > 0 || t.ghost).map(cellOf))].filter((k) => { const c = loamCells.get(k); return !c || Date.now() - c.at > WX_FRESH_MS; });
+    const need = [...new Set(trails.filter((t) => t.center || t.id > 0 || t.ghost).map(cellOf))].filter((k) => { const c = loamCells.get(k); return !c || Date.now() - c.at > WX_FRESH_MS; });
     if (!need.length) return;
     loamBusy = true;
     for (let i = 0; i < need.length; i += 50) {
@@ -2364,21 +2420,22 @@ out body;`;
     openDetail(t);
     if (fly) setTimeout(() => { map.invalidateSize(); map.fitBounds(t.bounds || L.latLngBounds(t.geom), { maxZoom: 16, padding: [40, 40] }); }, 60);
   }
-  $("list").addEventListener("click", (e) => { const li = e.target.closest(".trail"); if (li) select(+li.dataset.id, true); });
-  $("list").addEventListener("keydown", (e) => { if (e.key === "Enter") { const li = e.target.closest(".trail"); if (li) select(+li.dataset.id, true); } });
+  const openRow = (li) => { if (li.dataset.pk) showFound(state.primeShown[+li.dataset.pk].g, true); else select(+li.dataset.id, true); };
+  $("list").addEventListener("click", (e) => { const li = e.target.closest(".trail"); if (li) openRow(li); });
+  $("list").addEventListener("keydown", (e) => { if (e.key === "Enter") { const li = e.target.closest(".trail"); if (li) openRow(li); } });
 
   // ---------- controls ----------
   document.querySelectorAll(".periods button").forEach((b) => {
-    b.setAttribute("aria-pressed", String(+b.dataset.p === state.months));
+    const isPrimeBtn = b.dataset.p === "prime";
+    b.setAttribute("aria-pressed", String(isPrimeBtn ? state.prime : !state.prime && +b.dataset.p === state.months));
     b.addEventListener("click", () => {
-      state.months = +b.dataset.p; store.set("months", state.months);
+      state.prime = isPrimeBtn; store.set("prime", state.prime);
+      if (!isPrimeBtn) { state.months = +b.dataset.p; store.set("months", state.months); }
       document.querySelectorAll(".periods button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      if (state.prime) loadPrime(false);
       render();
     });
   });
-  // While "Prime loam now" is on it shows every type, so the type chips are greyed out.
-  const syncTypeChips = () => ["showMtb", "showLooks", "showGhost"].forEach((id) => { $(id).disabled = state.primeLoam; $(id).closest("label").classList.toggle("overridden", state.primeLoam); });
-  $("primeLoam").addEventListener("change", (e) => { state.primeLoam = e.target.checked; e.target.closest("label").classList.toggle("off", !state.primeLoam); syncTypeChips(); render(); });
   $("onlyUnoff").addEventListener("change", (e) => { state.onlyUnoff = e.target.checked; e.target.closest("label").classList.toggle("off", !state.onlyUnoff); render(); });
   [["showMtb", "mtb"], ["showLooks", "looks"], ["showGhost", "ghost"]].forEach(([id, k]) => {
     const el = $(id);
@@ -2514,11 +2571,12 @@ out tags center qt;`;
   const toItems = (elements) => elements.filter((e) => e.tags && e.center && (e.tags.name || e.tags["mtb:name"]))
     .map((e) => ({ t: e.type === "relation" ? "r" : "w", id: e.id, c: [+e.center.lat.toFixed(5), +e.center.lon.toFixed(5)], tags: e.tags }));
 
-  async function loadNames(retry) {
+  async function loadNames(retry, zones) {
     if (state.example) return;
     if (retry) { names.failed.clear(); gate.strikes = 0; }
     const c = map.getCenter();
-    const want = wantedZones().sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter()));
+    const changed = () => { refreshHits(); if (state.prime) render(); };
+    const want = (zones || wantedZones()).slice().sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter()));
     const todo = [];
     for (const z of want) {
       if (names.fresh.has(z.id) || names.inflight.has(z.id) || names.failed.has(z.id)) continue;
@@ -2530,7 +2588,7 @@ out tags center qt;`;
       if (s && Date.now() - s.fetchedAt <= NAME_FRESH_MS) { names.fresh.add(z.id); names.inflight.delete(z.id); }
       else todo.push(z);  // never loaded, or saved more than a week ago (the old list is used meanwhile)
     }
-    refreshHits();
+    changed();
     if (!todo.length) return;
     log(`Trail names: loading ${todo.map(shortZone).join(", ")}.`);
     async function worker(mirror) {
@@ -2543,7 +2601,7 @@ out tags center qt;`;
           log(`  names ${z.name}: ${items.length}`);
         } catch (e) { names.failed.add(z.id); log(`  names ${z.name}: failed (${e.message})`); }
         names.inflight.delete(z.id);
-        refreshHits();
+        changed();
       }
     }
     const tick = setInterval(() => { if (busyFor()) refreshHits(); }, 1000);  // show "busy" while waiting on the server
