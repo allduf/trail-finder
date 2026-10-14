@@ -1102,7 +1102,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
           <label class="toggle t-off off" title="Show only trails the map says are official: run by a park, town, trail club or bike park, listed by Recreation Sites and Trails BC, or mapped as informal=no. Of the types ticked, or of every type when none is ticked"><input type="checkbox" id="onlyOff"><span class="ck"></span><span class="sw"></span>Official only <span class="n" id="nOff">0</span></label>
         </div>
       </section>
-      <button class="btn box-btn" id="boxBtn" type="button" aria-pressed="false" title="Drag a square on the map to list every MTB trail inside it, old or new">▭ Draw a square on the map</button>
+      <button class="btn box-btn" id="boxBtn" type="button" aria-pressed="false" title="Drag a square on the map to list every MTB trail inside it, old or new">▭ Draw a square to find trails</button>
       <p class="hint tap-hint">Tip: tap any trail on the map to see all its details.</p>
     </div>
     <div class="boxres" id="boxRes" hidden></div>
@@ -1154,7 +1154,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     <h3>All trails</h3>
     <p>“All trails” (on by default) draws every MTB trail in view, old and new: every way with an MTB tag, bike park trails and the trails of MTB routes. Official trails (see below) are bold and always shown, even with no option ticked; trails whose status isn't known are thin, and unofficial trails are left out, as before (tick “Unofficial only” to see them). A list of them is collected from OpenStreetMap every day. The trails in the list (new trails, or prime loam) are drawn thicker on top, with a white edge.</p>
     <h3>Draw a square</h3>
-    <p>Tap “▭ Draw a square on the map” (under the search), then drag over the map: every MTB trail inside the square shows up on the map and in a list, old or new, from the same daily list as “All trails” (unofficial ones included, with dots). Tap a name to see the trail's details. “Clear square” removes it.</p>
+    <p>Tap “▭ Draw a square to find trails” (under the search), then drag over the map: every MTB trail inside the square shows up on the map and in a list, old or new, from the same daily list as “All trails” (unofficial ones included, with dots). Tap a name to see the trail's details. “Clear square” removes it.</p>
     <h3>Official trails</h3>
     <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
 <h3>Moto and hiking-only trails</h3>
@@ -3610,7 +3610,7 @@ out tags center qt;`;
   function setBoxMode(on) {
     boxDraw.on = on;
     $("boxBtn").setAttribute("aria-pressed", on);
-    $("boxBtn").textContent = on ? "✕ Cancel: drag on the map to draw" : "▭ Draw a square on the map";
+    $("boxBtn").textContent = on ? "✕ Cancel (drag on the map)" : "▭ Draw a square to find trails";
     map.getContainer().classList.toggle("drawing", on);
     if (on) { map.dragging.disable(); pickNote(map.getCenter(), "Drag a square over the trails"); }
     else map.dragging.enable();
