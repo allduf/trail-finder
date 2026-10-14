@@ -3013,7 +3013,8 @@ out body;`;
 
   $("placeForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const q = $("place").value.trim(); if (!q) return;
+    const q = $("place").value.trim();
+    if (!q) { goToZone(zoneSel.value === "custom" || zoneSel.value === "near" ? state.zone : zoneSel.value); return; }   // empty box: go to the Area picked above
     const gps = parseGps(q);
     if (gps) { startNear(gps, gpsLabel(gps)); return; }       // a GPS point: trails within the chosen distance of it
     setStatus("Finding " + q + "…");
@@ -4534,12 +4535,16 @@ out tags center qt;`;
     if ($("trailQ").value.trim()) loadNames();
     refreshHits();
   });
-  zoneSel.addEventListener("change", () => {
-    if (zoneSel.value === "custom" || zoneSel.value === "near") return;
+  function goToZone(id) {
     clearNear();
-    state.zone = zoneSel.value; store.set("zone", state.zone);
+    zoneSel.value = id;
+    state.zone = id; store.set("zone", state.zone);
     map.fitBounds(zoneBounds(state.zone));
     searchZones(true, true);
+  }
+  zoneSel.addEventListener("change", () => {
+    if (zoneSel.value === "custom" || zoneSel.value === "near") return;
+    goToZone(zoneSel.value);
   });
 
   window.tfMtbLayers = [trailLayer, foundLayer, nearLayer, allLayer, boxLayer, pickLayer];   // hidden in Skiing (winter.js)
