@@ -1044,6 +1044,9 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
         <option value="osmde">Standard (German copy)</option>
         <option value="osmfr">Standard (French copy)</option>
         <option value="voyager">Light streets</option>
+        <option value="sat">Satellite</option>
+        <option value="sathybrid">Satellite + names</option>
+        <option value="vector">Sharp outdoor (vector)</option>
       </select>
       <div class="map-note" id="mapNote" hidden></div>
       <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
@@ -1263,7 +1266,33 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     hot: ["https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 19, attribution: OSM_ATTR + ' | Humanitarian style by <a href="https://www.hotosm.org">HOT</a>, hosted by <a href="https://openstreetmap.fr">OSM France</a>' }],
     topo: ["https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 17, attribution: OSM_ATTR + ', SRTM | &copy; <a href="https://opentopomap.org">OpenTopoMap</a>' }],
     voyager: ["https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 20, attribution: OSM_ATTR + ' &copy; <a href="https://carto.com/attributions">CARTO</a>' }],
+    // Free, no key. Esri photos are ~30-60 cm per pixel down to zoom 19 here; deeper zooms enlarge them.
+    sat: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 19, maxZoom: 21, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics' }],
+    sathybrid: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 19, maxZoom: 21, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics' }],
+    // OpenMapTiles vector map hosted free by OpenFreeMap: drawn by the browser, so it's sharp at any zoom and on retina screens.
+    vector: ["https://tiles.openfreemap.org/styles/liberty", { maxZoom: 22, attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> <a href="https://www.openmaptiles.org/">&copy; OpenMapTiles</a> ' + OSM_ATTR }],
   };
+  const SAT_NAMES = "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}";
+  // The vector map needs MapLibre GL (same copy as the 3D view) and its Leaflet bridge, loaded on first use.
+  const GL = "https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl";
+  let glLoading = null;
+  function loadScript(src) { return new Promise((ok, fail) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = fail; document.head.append(s); }); }
+  function loadVectorLib() {
+    if (!glLoading) {
+      if (!window.maplibregl) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = GL + ".css"; document.head.append(l); }
+      glLoading = (window.maplibregl ? Promise.resolve() : loadScript(GL + ".js"))
+        .then(() => L.maplibreGL || loadScript("https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js"))
+        .catch((e) => { glLoading = null; throw e; });
+    }
+    return glLoading;
+  }
+  async function makeBase(key) {
+    const [url, opt] = BASEMAPS[key];
+    if (key === "vector") { await loadVectorLib(); return L.maplibreGL({ style: url, attributionControl: { customAttribution: opt.attribution } }); }
+    const layer = L.tileLayer(url, opt);
+    if (key !== "sathybrid") return layer;
+    return L.layerGroup([layer, L.tileLayer(SAT_NAMES, { maxNativeZoom: 19, maxZoom: 21 })]);
+  }
   // The official OSM tile server refuses pages opened as a local file (no Referer header) and
   // serves an "Access blocked" image instead. On a file, try look-alike copies in this order.
   const FROM_FILE = location.protocol === "file:";
@@ -1271,6 +1300,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
   const tileOk = {};
   async function tileWorks(key) {
     if (key === "osm" && FROM_FILE) return false;
+    if (key === "vector") { try { await loadVectorLib(); return true; } catch { return false; } }
     if (key in tileOk) return tileOk[key];
     const url = BASEMAPS[key][0].replace("{s}", "a").replace("{z}", "10").replace("{x}", "161").replace("{y}", "348").replace("{r}", "");
     if (!FROM_FILE) return (tileOk[key] = true); // on a website every style loads normally
@@ -1288,8 +1318,10 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
       for (const k of FALLBACK) if (k !== key && await tileWorks(k)) { use = k; break; }
     }
     if (req !== basemapReq) return;
+    const next = await makeBase(use);
+    if (req !== basemapReq) return;
     if (baseLayer) map.removeLayer(baseLayer);
-    baseLayer = L.tileLayer(BASEMAPS[use][0], BASEMAPS[use][1]).addTo(map);
+    baseLayer = next.addTo(map);
     $("basemap").value = use;
     if (remember) store.set("basemap4", key);
     const note = $("mapNote");
