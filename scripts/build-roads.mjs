@@ -46,17 +46,38 @@ function albersBox([s, w, n, e]) {
   return [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))].map((v) => v.toFixed(1));
 }
 const PAGE = 5000;
+// DataBC layers don't all call their shape column GEOMETRY (some use SHAPE), so ask each layer once.
+const geomCols = new Map();
+async function geomCol(layer) {
+  if (geomCols.has(layer)) return geomCols.get(layer);
+  let col = "GEOMETRY";
+  try {
+    const params = new URLSearchParams({ service: "WFS", version: "2.0.0", request: "DescribeFeatureType", typeName: `pub:${layer}`, outputFormat: "application/json" });
+    const res = await fetch(`${WFS}?${params}`, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(60000) });
+    const text = await res.text();
+    if (!res.ok || !text.startsWith("{")) throw new Error(`HTTP ${res.status}: ${wfsError(text)}`);
+    const props = (JSON.parse(text).featureTypes || [])[0]?.properties || [];
+    const g = props.find((p) => /^gml:/.test(p.type || ""));
+    if (g) col = g.name;
+    log(`    ${layer}: shape column ${col}; fields ${props.map((p) => p.name).join(", ")}`);
+  } catch (e) { log(`    ${layer}: could not describe the layer (${e.message})`); }
+  geomCols.set(layer, col);
+  return col;
+}
+// The useful part of a WFS error page is its ExceptionText.
+const wfsError = (text) => ((text.match(/<ows:ExceptionText>([\s\S]*?)<\/ows:ExceptionText>/) || [])[1] || text).slice(0, 400).replace(/\s+/g, " ");
 async function wfs(box, layer = FTEN_LAYER, where = "") {
+  const col = await geomCol(layer);
   const params = new URLSearchParams({
     service: "WFS", version: "2.0.0", request: "GetFeature", typeName: `pub:${layer}`, outputFormat: "application/json",
-    srsName: "EPSG:4326", count: String(PAGE), CQL_FILTER: `BBOX(GEOMETRY, ${albersBox(box).join(", ")}, 'EPSG:3005')${where ? ` AND (${where})` : ""}`,
+    srsName: "EPSG:4326", count: String(PAGE), CQL_FILTER: `BBOX(${col}, ${albersBox(box).join(", ")}, 'EPSG:3005')${where ? ` AND (${where})` : ""}`,
   });
   let lastErr;
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
       const res = await fetch(`${WFS}?${params}`, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(180000) });
       const text = await res.text();
-      if (!res.ok || !text.startsWith("{")) throw new Error(`HTTP ${res.status}: ${text.slice(0, 300).replace(/\s+/g, " ")}`);
+      if (!res.ok || !text.startsWith("{")) throw new Error(`HTTP ${res.status}: ${wfsError(text)}`);
       return JSON.parse(text);
     } catch (e) {
       lastErr = e; log(`    ${e.message}; trying again`);
@@ -218,6 +239,13 @@ async function fetchOsm(box, depth = 0) {
 // Douglas-Peucker on a local flat projection, keeping points more than tol metres off the line.
 function simplify(pts, tol = 8) {
   if (pts.length < 3) return pts;
+  // A closed ring starts and ends on the same point, which leaves nothing to measure against: split it at its farthest point.
+  const [f, l] = [pts[0], pts[pts.length - 1]];
+  if (f.lat === l.lat && f.lon === l.lon) {
+    let m = 1, dm = -1;
+    pts.forEach((p, i) => { const d = (p.lat - f.lat) ** 2 + ((p.lon - f.lon) * Math.cos((f.lat * Math.PI) / 180)) ** 2; if (d > dm) { dm = d; m = i; } });
+    if (m > 0 && m < pts.length - 1) return [...simplify(pts.slice(0, m + 1), tol), ...simplify(pts.slice(m), tol).slice(1)];
+  }
   const k = Math.cos((pts[0].lat * Math.PI) / 180) * 111320, xy = pts.map((p) => [p.lon * k, p.lat * 110540]);
   const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1;
   const stack = [[0, pts.length - 1]];
@@ -258,14 +286,22 @@ if (!ONLY || ONLY === "fires") {
     // (Emergency Management BC). Each is optional: a missing layer only leaves its list empty.
     const text = (p, re) => Object.entries(p).filter(([k, v]) => re.test(k) && v && typeof v === "string").map(([, v]) => v.trim().slice(0, 300));
     const areaList = async (layer, tol) => {
-      try { return (await fetchLayer(box, layer, [""])).filter((f) => f.geometry).map((f) => ({ p: f.properties || {}, g: polyRings(f.geometry, tol) })).filter((a) => a.g.length); }
+      try {
+        const feats = await fetchLayer(box, layer, [""]);
+        const list = feats.filter((f) => f.geometry).map((f) => ({ p: f.properties || {}, g: polyRings(f.geometry, tol) })).filter((a) => a.g.length);
+        const types = [...new Set(feats.map((f) => (f.geometry ? f.geometry.type : "none")))].join("/");
+        log(`    ${layer.split(".")[1]}: ${feats.length} found (${types || "-"}), ${list.length} with a usable shape` +
+          (feats[0] ? `; first: ${JSON.stringify(feats[0].properties).slice(0, 300)}` : ""));
+        return list;
+      }
       catch (e) { log(`    ${layer}: ${e.message.slice(0, 120)}`); return null; }
     };
     const restrRaw = await areaList("WHSE_LAND_AND_NATURAL_RESOURCE.PROT_RESTRICTED_AREAS_SP", 25);
     const evacRaw = await areaList("WHSE_HUMAN_CULTURAL_ECONOMIC.EMRG_ORDER_AND_ALERT_AREAS_SP", 25);
     const restr = (restrRaw || []).map(({ p, g }) => ({ n: text(p, /NAME/)[0] || "", d: text(p, /DESC|COMMENT|TYPE/).join(" · ").slice(0, 300),
       from: ymd(p.ACCESS_STATUS_EFFECTIVE_DATE || p.EFFECTIVE_DATE || p.ORDER_EFFECTIVE_DATE), url: text(p, /URL|LINK/)[0] || "", g }));
-    const evac = (evacRaw || []).map(({ p, g }) => {
+    // The evacuation layer covers every hazard (floods, landslides...): keep the fire ones.
+    const evac = (evacRaw || []).filter(({ p }) => !p.EVENT_TYPE || /fire/i.test(p.EVENT_TYPE)).map(({ p, g }) => {
       const st = text(p, /STATUS|ORDER_ALERT|TYPE/).join(" ");
       return { kind: /order/i.test(st) ? "order" : /alert/i.test(st) ? "alert" : "other", st, n: text(p, /EVENT_NAME|NAME/)[0] || "",
         who: text(p, /AGENCY|ISSUING/)[0] || "", d: ymd(p.DATE_MODIFIED || p.DATE_ISSUED || p.ISSUED_DATE), g };
