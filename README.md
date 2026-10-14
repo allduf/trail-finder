@@ -50,3 +50,12 @@ heights from AWS Terrain Tiles). `.github/workflows/winter-data.yml` runs `scrip
 saves the forecasts for the region to `data/avalanche.json` (public Avalanche Canada API, no key), and every night it
 saves the ski routes and huts to `data/ski.json` from OpenStreetMap and BC Recreation Sites and Trails
 (`WHSE_FOREST_TENURE.FTEN_RECREATION_LINES_SVW`, Open Government Licence - British Columbia).
+
+## Install on a phone
+The site installs as a home screen app (no App Store). iPhone: open the site in Safari, tap Share, then Add to Home
+Screen. Android: open it in Chrome, tap the ⋮ menu, then Install app (or Add to Home screen). It opens full screen
+with the Trail Finder icon. `manifest.webmanifest` and `icons/` hold the name and icons; `sw.js` keeps a copy of the
+pages, scripts and the last `data/*.json` it loaded so the app still opens with no signal. Pages and data are always
+fetched from the network first, so new deploys and each nightly data build show up whenever there is a connection.
+Map tiles, weather and OpenStreetMap lookups still need a connection. When changing the list of files in `sw.js`,
+bump its `VERSION` so phones drop the old copy.
