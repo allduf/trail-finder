@@ -5,7 +5,7 @@
 (() => {
   // From the Supabase project (Project Settings → API). The anon key is meant to be public; the
   // database only lets each rider read and write their own rows (see supabase/setup.sql).
-  const SUPABASE_URL = "";
+  const SUPABASE_URL = "https://fohdmserpbkurcvcrbbb.supabase.co";
   const SUPABASE_ANON_KEY = "";
   const LIB = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.3/dist/umd/supabase.js";
 
