@@ -1816,6 +1816,7 @@ out body;`;
   // One list entry per trail: OpenStreetMap often splits a trail into many pieces (at junctions,
   // bridges...). Pieces with the same name whose ends lie within 1 km of each other become one trail.
   const MERGE_GAP_M = 1000;
+  const MIN_TRAIL_M = 60;                          // shorter trails (after joining same-name pieces) are left out
   const CAT_RANK = { mtb: 0, looks: 1, other: 2 };
   const mergeCache = new Map();
   function combine(items) {
@@ -1867,7 +1868,8 @@ out body;`;
     syncClear();
     if (state.prime) { renderPrime(); return; }
     const base = visibleTrails();
-    const vis = mergeSegments(base.filter((t) => !t.use));   // moto and hiking-only trails are left out
+    const vis = mergeSegments(base.filter((t) => !t.use))   // moto and hiking-only trails are left out
+      .filter((t) => t.km * 1000 >= MIN_TRAIL_M);
     state.merged = new Map(vis.map((t) => [t.id, t]));
     const counts = { mtb: 0, looks: 0, other: 0, ghost: 0 };
     vis.filter((t) => !state.onlyUnoff || isUnoff(t)).forEach((t) => counts[t.cat]++);
