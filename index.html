@@ -1185,7 +1185,7 @@ label.toggle.off .sw { background: var(--muted); }
   const nearLayer = L.layerGroup().addTo(map);
   const nearBox = () => near.ll.toBounds(near.km * 2000);
   function nearDist(t) {                             // metres from you to the closest point of the trail
-    if (t._nearFor !== near) { t._nearFor = near; t._nearD = t.geom.reduce((m, p) => Math.min(m, near.ll.distanceTo(p)), Infinity); }
+    if (t._nearFor !== near) { t._nearFor = near; t._nearD = (t.segments ? t.segments.flat() : t.geom).reduce((m, p) => Math.min(m, near.ll.distanceTo(p)), Infinity); }
     return t._nearD;
   }
   const fmtAway = (m) => (m < 1000 ? "under 1 km" : (m / 1000).toFixed(m < 10000 ? 1 : 0) + " km") + " away";
@@ -1792,13 +1792,81 @@ out body;`;
     return state.trails.filter((t) => t.created >= cutoff && (!zb || zb.intersects(t.bounds)) && (!near || nearDist(t) <= near.km * 1000));
   }
 
+  // Join a trail's pieces end to end into one line, starting from the longest (for the elevation
+  // profile and the start/end points). all: false when some pieces don't connect to it.
+  function chainSegments(segs) {
+    const close = (a, b) => L.latLng(a).distanceTo(L.latLng(b)) < 5;
+    const left = segs.map((g) => ({ g, km: lengthKm(g) })).sort((a, b) => b.km - a.km).map((x) => x.g);
+    let line = left.shift().slice(), grew = true;
+    while (grew && left.length) {
+      grew = false;
+      for (let i = 0; i < left.length; i++) {
+        const g = left[i], a = g[0], b = g[g.length - 1], head = line[0], tail = line[line.length - 1];
+        if (close(tail, a)) line = line.concat(g.slice(1));
+        else if (close(tail, b)) line = line.concat(g.slice(0, -1).reverse());
+        else if (close(head, b)) line = g.slice(0, -1).concat(line);
+        else if (close(head, a)) line = g.slice(1).reverse().concat(line);
+        else continue;
+        left.splice(i, 1); grew = true; break;
+      }
+    }
+    return { line, all: !left.length };
+  }
+  // One list entry per trail: OpenStreetMap often splits a trail into many pieces (at junctions,
+  // bridges...). Pieces with the same name whose ends lie within 1 km of each other become one trail.
+  const MERGE_GAP_M = 1000;
+  const CAT_RANK = { mtb: 0, looks: 1, other: 2 };
+  const mergeCache = new Map();
+  function combine(items) {
+    const key = items.map((t) => t.id + "v" + t.version).sort().join(",");
+    if (mergeCache.has(key)) return mergeCache.get(key);
+    const rank = (t) => CAT_RANK[t.cat] ?? 3, best = Math.min(...items.map(rank));
+    const byLen = items.slice().sort((a, b) => b.km - a.km);
+    const main = byLen.find((t) => rank(t) === best);            // its tags, links and history are shown
+    const first = items.reduce((a, b) => (b.created < a.created ? b : a));
+    const segs = [main, ...byLen.filter((t) => t !== main)];
+    const { line, all } = chainSegments(segs.map((t) => t.geom));
+    const routes = new Map(); items.forEach((t) => (t.routes || []).forEach((r) => routes.set(r.id, r)));
+    const m = { ...main, geom: line, chainAll: all, segments: segs.map((t) => t.geom), segIds: segs.map((t) => t.id),
+      km: items.reduce((n, t) => n + t.km, 0), bounds: items.reduce((b, t) => b.extend(t.bounds), L.latLngBounds(main.geom)),
+      created: first.created, creator: first.creator, firstChangeset: first.firstChangeset,
+      unoff: [...new Set(items.flatMap((t) => t.unoff || []))], routes: [...routes.values()],
+      elev: undefined, wx: undefined, history: undefined, _line: undefined, _nearFor: undefined };
+    mergeCache.set(key, m);
+    return m;
+  }
+  function mergeSegments(trails) {
+    const out = [], byName = new Map();
+    trails.forEach((t) => {
+      const name = !t.ghost && (t.tags.name || t.tags["mtb:name"]);
+      if (!name) { out.push(t); return; }
+      const k = norm(name);
+      if (!byName.has(k)) byName.set(k, []);
+      byName.get(k).push(t);
+    });
+    for (const list of byName.values()) {
+      const groups = [];
+      list.forEach((t) => {
+        const ends = [t.geom[0], t.geom[t.geom.length - 1]].map((p) => L.latLng(p));
+        const touch = groups.filter((g) => g.ends.some((e) => ends.some((f) => e.distanceTo(f) <= MERGE_GAP_M)));
+        const g = touch[0] || { items: [], ends: [] };
+        if (!touch.length) groups.push(g);
+        touch.slice(1).forEach((o) => { g.items.push(...o.items); g.ends.push(...o.ends); groups.splice(groups.indexOf(o), 1); });
+        g.items.push(t); g.ends.push(...ends);
+      });
+      groups.forEach((g) => out.push(g.items.length === 1 ? g.items[0] : combine(g.items)));
+    }
+    return out.sort((a, b) => b.created - a.created);
+  }
+
   function trailName(t) { if (t.ghost) return "Possible unmapped trail"; return t.tags.name || t.tags["mtb:name"] || "Unnamed " + t.tags.highway; }
   const CAT_LABEL = { mtb: "MTB tagged", looks: "Looks like MTB", other: "Other new path", ghost: "Possible unmapped trail" };
 
   function render() {
     syncClear();
     const base = visibleTrails();
-    const vis = base.filter((t) => !t.use);   // moto and hiking-only trails are left out
+    const vis = mergeSegments(base.filter((t) => !t.use));   // moto and hiking-only trails are left out
+    state.merged = new Map(vis.map((t) => [t.id, t]));
     const counts = { mtb: 0, looks: 0, other: 0, ghost: 0 };
     vis.filter((t) => !state.onlyUnoff || isUnoff(t)).forEach((t) => counts[t.cat]++);
     $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nGhost").textContent = counts.ghost;
@@ -1818,18 +1886,19 @@ out body;`;
     const color = { mtb: css("--mtb"), looks: css("--looks"), other: css("--other"), ghost: css("--ghost") };
     shown.slice().reverse().forEach((t) => {
       const sel = state.selected === t.id;
-      const line = L.polyline(t.geom, {
+      const shape = t.segments || t.geom;
+      const line = L.polyline(shape, {
         color: state.primeLoam ? css("--prime") : t.use ? css("--other") : color[t.cat], weight: sel ? 9 : t.cat === "other" ? 5 : 7, opacity: sel ? 0.8 : state.selected ? 0.3 : state.primeLoam ? 0.8 : 0.45,
         dashArray: t.cat === "ghost" ? "1 10" : t.cat === "looks" && !sel ? "10 6" : null, lineCap: "round", interactive: false,
       });
       // A wide invisible line on top makes thin trails easy to click or tap.
-      const hit = L.polyline(t.geom, { weight: 18, opacity: 0, interactive: true })
+      const hit = L.polyline(shape, { weight: 18, opacity: 0, interactive: true })
         .bindTooltip(esc(trailName(t)), { sticky: true, direction: "top", offset: [0, -8] });
       hit.on("click", (e) => { L.DomEvent.stopPropagation(e); select(t.id, false); });
       t._line = line;
       trailLayer.addLayer(line);
       // Unofficial trails get a dark dotted line along them.
-      if (isUnoff(t)) trailLayer.addLayer(L.polyline(t.geom, { color: css("--fg"), weight: 2.5, opacity: sel || !state.selected ? 0.9 : 0.35, dashArray: "1 7", lineCap: "round", interactive: false }));
+      if (isUnoff(t)) trailLayer.addLayer(L.polyline(shape, { color: css("--fg"), weight: 2.5, opacity: sel || !state.selected ? 0.9 : 0.35, dashArray: "1 7", lineCap: "round", interactive: false }));
       trailLayer.addLayer(hit);
     });
     const selT = shown.find((t) => t.id === state.selected);
@@ -2091,7 +2160,7 @@ out body;`;
     el.classList.remove("muted");
     el.innerHTML = `
       <div class="estats">
-        <div><span>Length</span><strong>${fmtLen(t.km)}</strong></div>
+        <div><span>Length</span><strong>${fmtLen(t.chainAll === false ? s.total / 1000 : t.km)}</strong></div>
         <div><span>Climb</span><strong>↑ ${Math.round(s.gain)} m</strong></div>
         <div><span>Descent</span><strong>↓ ${Math.round(s.loss)} m</strong></div>
         <div><span>Low to high</span><strong>${Math.round(s.min)}–${Math.round(s.max)} m</strong></div>
@@ -2104,7 +2173,7 @@ out body;`;
         </svg>
         <div class="etip" hidden></div>
       </div>
-      <p class="muted enote">From the start to the end, in the direction it was mapped${segs ? ", along the longest segment" : ""}. Riding the other way swaps climb and descent.${s.up >= 1 || s.down <= -1 ? ` Steepest 100 m: ${s.up >= 1 ? `+${s.up.toFixed(0)} % up` : ""}${s.up >= 1 && s.down <= -1 ? ", " : ""}${s.down <= -1 ? `${s.down.toFixed(0)} % down` : ""}.` : ""} Heights from a 90 m terrain model, so small bumps are smoothed out.</p>`;
+      <p class="muted enote">From the start to the end, in the direction it was mapped${segs && !t.chainAll ? ", along its longest connected stretch" : ""}. Riding the other way swaps climb and descent.${s.up >= 1 || s.down <= -1 ? ` Steepest 100 m: ${s.up >= 1 ? `+${s.up.toFixed(0)} % up` : ""}${s.up >= 1 && s.down <= -1 ? ", " : ""}${s.down <= -1 ? `${s.down.toFixed(0)} % down` : ""}.` : ""} Heights from a 90 m terrain model, so small bumps are smoothed out.</p>`;
     // Hover or touch the chart: show the point on the chart and on the map.
     const svg = el.querySelector("svg"), tip = el.querySelector(".etip"), cx = el.querySelector(".ex"), dot = el.querySelector(".ed");
     const hide = () => { cx.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); tip.hidden = true; elevLayer.clearLayers(); };
@@ -2175,7 +2244,7 @@ out body;`;
       <dl class="facts">
         <dt>Length</dt><dd>${fmtLen(t.km)} <span class="muted">(${segs ? `${segs} map segments` : `${t.geom.length} map points`})</span></dd>
         <dt>First mapped</dt><dd>${t.created ? `${fmtDate(t.created)} · ${ago(t.created)}<br>by ${userLink(t.creator)} ${csLink(t.firstChangeset)}` : "Unknown"}${segs && type === "way" ? `<br><span class="muted">earliest of its segments</span>` : ""}</dd>
-        <dt>Last edited</dt><dd>${segs && type === "way" ? `<span class="muted">longest segment:</span> ` : ""}${t.version > 1 ? `${fmtDate(t.lastEdit)} · version ${t.version}<br>by ${userLink(t.lastUser)} ${csLink(t.lastChangeset)}` : "Never edited since (version 1)"}</dd>
+        <dt>Last edited</dt><dd>${segs && type === "way" ? `<span class="muted">main segment:</span> ` : ""}${t.version > 1 ? `${fmtDate(t.lastEdit)} · version ${t.version}<br>by ${userLink(t.lastUser)} ${csLink(t.lastChangeset)}` : "Never edited since (version 1)"}</dd>
         ${factRows(true)}
       </dl>
       <h3>Elevation</h3><div id="elev" class="muted">${real || t.elev ? "Loading elevation…" : ""}</div>
@@ -2195,7 +2264,7 @@ out body;`;
       </div>` : `<p class="muted">Example trail, not real data.</p>`}
       <h3>Edit history</h3><div id="history" class="muted">${real ? "Loading…" : "Not available for example trails."}</div>
       <h3>All tags</h3><table class="tagtable"><tbody>${Object.entries(t.tags).map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table>
-      ${segs && type === "way" ? `<h3>Segments</h3><p class="muted">The tags, history and links above are for the longest segment. All segments: ${t.segIds.map((id) => `<a href="https://www.openstreetmap.org/way/${id}" target="_blank" rel="noopener">${id}</a>`).join(", ")}</p>` : ""}
+      ${segs && type === "way" ? `<h3>Segments</h3><p class="muted">The tags, history and links above are for its main segment. All segments: ${t.segIds.map((id) => `<a href="https://www.openstreetmap.org/way/${id}" target="_blank" rel="noopener">${id}</a>`).join(", ")}</p>` : ""}
       <p class="muted">OpenStreetMap ${type} ${real ? t.id : "(example)"}</p>`;
     $("panel").classList.add("detail-open");
     $("detail").hidden = false;
@@ -2289,7 +2358,7 @@ out body;`;
 
   function select(id, fly) {
     state.selected = id;
-    const t = state.trails.find((x) => x.id === id);
+    const t = (state.merged && state.merged.get(id)) || state.trails.find((x) => x.id === id);
     render();
     if (!t) return;
     openDetail(t);
@@ -2627,8 +2696,9 @@ out tags center qt;`;
   async function showFound(g, fromClick) {
     if (!fromClick) { $("trailQ").value = g.name; $("trailHits").hidden = true; $("trailQ").blur(); }
     // Already in the new-trail list and on the map: just select it there.
-    if (g.items.length === 1 && g.type === "w") {
-      const t = state.shownIds && state.shownIds.has(g.items[0].id) && visibleTrails().find((t) => t.id === g.items[0].id);
+    if (g.type === "w" && state.merged) {
+      const ids = new Set(g.items.map((i) => i.id));
+      const t = [...state.merged.values()].find((t) => state.shownIds.has(t.id) && (t.segIds || [t.id]).length === ids.size && (t.segIds || [t.id]).every((id) => ids.has(id)));
       if (t) { foundLayer.clearLayers(); select(t.id, true); return; }
     }
     const token = ++foundToken;
@@ -2671,10 +2741,10 @@ out tags center qt;`;
       const tags = main.tags || {};
       const types = routeTypes.concat(tags.route ? [tags.route] : []);
       const c = classify(tags, routes.map((r) => r.name).concat(tags.route === "mtb" ? [tags.name] : []), types);
-      const geom = segs.reduce((a, b) => (lengthKm(b) > lengthKm(a) ? b : a));
+      const { line: geom, all: chainAll } = chainSegments(segs);
       const bounds = segs.reduce((b, s) => b.extend(L.latLngBounds(s)), L.latLngBounds(segs[0]));
       const t = {
-        id: main.id, osmType: type, tags, routes, searched: true, geom, segments: segs, segIds, bounds,
+        id: main.id, osmType: type, tags, routes, searched: true, geom, chainAll, segments: segs, segIds, bounds,
         km: segs.reduce((s, l) => s + lengthKm(l), 0), zone: zoneOf(bounds.getCenter()),
         version: main.version, lastEdit: new Date(main.timestamp), lastUser: main.user || "", lastChangeset: main.changeset,
         cat: c ? c.cat : "other", catLabel: c ? null : kind, unoff: unofficial(tags), ...useOf(tags, routes.length ? types.concat("mtb") : types),
@@ -2713,7 +2783,7 @@ out tags center qt;`;
         .bindTooltip(esc(trailName(t)), { sticky: true, direction: "top", offset: [0, -8] })
         .on("click", (e) => { L.DomEvent.stopPropagation(e); openDetail(t); }));
     });
-    foundLayer.addLayer(L.circleMarker(t.geom[0], { radius: 7, color: "#fff", weight: 3, fillColor: color, fillOpacity: 1 }).bindTooltip(t.segments.length > 1 ? "Start of the longest segment" : "Start"));
+    foundLayer.addLayer(L.circleMarker(t.geom[0], { radius: 7, color: "#fff", weight: 3, fillColor: color, fillOpacity: 1 }).bindTooltip(t.chainAll ? "Start" : "Start of its longest connected stretch"));
   }
 
   // ---- click anywhere near a trail on the map (loaded or not): show it like a search result ----
