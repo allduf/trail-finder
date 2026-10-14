@@ -813,10 +813,13 @@ label.toggle.off .sw { background: var(--muted); }
 .boxres { border-bottom: 1px solid var(--line); }
 .box-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 10px 16px; }
 .box-head .linkish { white-space: nowrap; }
+.box-why { padding: 0 16px 10px; }
 .box-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; width: 100%; text-align: left; font: inherit; color: var(--fg); background: none; border: 0; border-top: 1px solid var(--line); padding: 8px 16px; cursor: pointer; }
 .box-row:hover, .box-row:focus-visible { background: var(--line); }
 .box-row .box-name { font-weight: 600; }
 .box-row .box-len { margin-left: auto; color: var(--muted); font-size: .85rem; }
+button.btn.box-btn { width: 100%; margin: 2px 0 8px; }
+button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 .leaflet-container.drawing { cursor: crosshair; touch-action: none; }
 .status { padding: 10px 16px; font-size: .9rem; color: var(--muted); border-bottom: 1px solid var(--line); }
 .status.warn { background: var(--warn-bg); color: var(--warn-fg); }
@@ -1018,7 +1021,6 @@ label.toggle.off .sw { background: var(--muted); }
       <div class="map-note" id="mapNote" hidden></div>
       <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
       <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
-      <button id="boxBtn" type="button" aria-pressed="false" title="Drag a square on the map to list every MTB trail inside it, old or new">▭ Draw a square</button>
       <button id="locate" type="button" aria-pressed="false">◎ My location</button>
       <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
       <button id="btn3d" type="button" aria-pressed="false">⛰ 3D</button>
@@ -1090,6 +1092,7 @@ label.toggle.off .sw { background: var(--muted); }
           <label class="toggle t-off off" title="Show only trails the map says are official: run by a park, town, trail club or bike park, listed by Recreation Sites and Trails BC, or mapped as informal=no. Of the types ticked, or of every type when none is ticked"><input type="checkbox" id="onlyOff"><span class="ck"></span><span class="sw"></span>Official only <span class="n" id="nOff">0</span></label>
         </div>
       </section>
+      <button class="btn box-btn" id="boxBtn" type="button" aria-pressed="false" title="Drag a square on the map to list every MTB trail inside it, old or new">▭ Draw a square on the map</button>
       <p class="hint tap-hint">Tip: tap any trail on the map to see all its details.</p>
     </div>
     <div class="boxres" id="boxRes" hidden></div>
@@ -1141,7 +1144,7 @@ label.toggle.off .sw { background: var(--muted); }
     <h3>All trails</h3>
     <p>“All trails” (on by default) draws every MTB trail in view, old and new: every way with an MTB tag, bike park trails and the trails of MTB routes. Official trails (see below) are bold and always shown, even with no option ticked; trails whose status isn't known are thin, and unofficial trails are left out, as before (tick “Unofficial only” to see them). A list of them is collected from OpenStreetMap every day. The trails in the list (new trails, or prime loam) are drawn thicker on top, with a white edge.</p>
     <h3>Draw a square</h3>
-    <p>Tap “▭ Draw a square”, then drag over the map: every MTB trail inside the square shows up on the map and in a list, old or new, from the same daily list as “All trails” (unofficial ones included, with dots). Tap a name to see the trail's details. “Clear square” removes it.</p>
+    <p>Tap “▭ Draw a square on the map” (under the search), then drag over the map: every MTB trail inside the square shows up on the map and in a list, old or new, from the same daily list as “All trails” (unofficial ones included, with dots). Tap a name to see the trail's details. “Clear square” removes it.</p>
     <h3>Official trails</h3>
     <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
 <h3>Moto and hiking-only trails</h3>
@@ -2865,7 +2868,7 @@ out body;`;
           return { id: +id, tags: w.tags, geom, c: classify(w.tags, inRoute.get(+id) || []) };
         }).filter((w) => w.c && !w.c.use && w.geom.length > 1) : []);
         drawAllTrails();
-        return allData.get(z.id);
+        return f && f.v === 1 ? allData.get(z.id) : null;        // null: the list couldn't be loaded
       }));
     }
     return allLoads.get(z.id);
@@ -3533,7 +3536,7 @@ out tags center qt;`;
   function setBoxMode(on) {
     boxDraw.on = on;
     $("boxBtn").setAttribute("aria-pressed", on);
-    $("boxBtn").textContent = on ? "✕ Cancel square" : "▭ Draw a square";
+    $("boxBtn").textContent = on ? "✕ Cancel: drag on the map to draw" : "▭ Draw a square on the map";
     map.getContainer().classList.toggle("drawing", on);
     if (on) { map.dragging.disable(); pickNote(map.getCenter(), "Drag a square over the trails"); }
     else map.dragging.enable();
@@ -3578,6 +3581,7 @@ out tags center qt;`;
     const zs = ZONES.filter((z) => z.bounds.intersects(b));
     const lists = await Promise.all(zs.map(loadZoneTrails));
     if (token !== boxToken) return;
+    const missing = zs.filter((z, i) => !lists[i]).map((z) => shortZone(z));
     const seen = new Set(), byName = new Map();
     let unnamed = 0;
     lists.forEach((list) => (list || []).forEach((w) => {
@@ -3604,7 +3608,9 @@ out tags center qt;`;
       return `<button class="box-row" type="button" data-i="${i}"><span class="box-name">${esc(g.name)}</span>${diffBadge(main.tags)}${unoff ? `<span class="unoff-tag">Unofficial?</span>` : ""}${off ? officialTag(off.c.official) : ""}<span class="box-len">${fmtLen(g.km)}</span></button>`;
     }).join("");
     const none = !boxGroups.length && !unnamed;
-    $("boxRes").innerHTML = `<div class="box-head"><div><b>${none ? "No MTB trails in your square" : `${boxGroups.length} MTB trail${boxGroups.length === 1 ? "" : "s"} in your square`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed bit${unnamed === 1 ? "" : "s"} (on the map)</span>` : ""}</div><button class="linkish" id="boxClear" type="button">Clear square</button></div>${rows}`;
+    const why = missing.length ? `<p class="hint box-why">Couldn't load the trail list for ${esc(missing.join(" and "))}. Reload the page and try again.</p>`
+      : none ? `<p class="hint box-why">OpenStreetMap has no trails tagged for mountain biking here: the lines on the map are hiking trails or forest roads, or nothing is mapped yet. Try a bigger square, or tap a line to see what it is.</p>` : "";
+    $("boxRes").innerHTML = `<div class="box-head"><div><b>${none ? "No MTB trails in your square" : `${boxGroups.length} MTB trail${boxGroups.length === 1 ? "" : "s"} in your square`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed bit${unnamed === 1 ? "" : "s"} (on the map)</span>` : ""}</div><button class="linkish" id="boxClear" type="button">Clear square</button></div>${why}${rows}`;
     $("boxClear").addEventListener("click", clearBox);
     $("boxRes").querySelectorAll(".box-row").forEach((r) => r.addEventListener("click", () => openBoxGroup(boxGroups[+r.dataset.i])));
     $("boxRes").scrollIntoView({ block: "nearest" });
