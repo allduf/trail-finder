@@ -279,7 +279,14 @@ if (!ONLY || ONLY === "fires") {
     // (Emergency Management BC). Each is optional: a missing layer only leaves its list empty.
     const text = (p, re) => Object.entries(p).filter(([k, v]) => re.test(k) && v && typeof v === "string").map(([, v]) => v.trim().slice(0, 300));
     const areaList = async (layer, tol) => {
-      try { return (await fetchLayer(box, layer, [""])).filter((f) => f.geometry).map((f) => ({ p: f.properties || {}, g: polyRings(f.geometry, tol) })).filter((a) => a.g.length); }
+      try {
+        const feats = await fetchLayer(box, layer, [""]);
+        const list = feats.filter((f) => f.geometry).map((f) => ({ p: f.properties || {}, g: polyRings(f.geometry, tol) })).filter((a) => a.g.length);
+        const types = [...new Set(feats.map((f) => (f.geometry ? f.geometry.type : "none")))].join("/");
+        log(`    ${layer.split(".")[1]}: ${feats.length} found (${types || "-"}), ${list.length} with a usable shape` +
+          (feats[0] ? `; first: ${JSON.stringify(feats[0].properties).slice(0, 300)}` : ""));
+        return list;
+      }
       catch (e) { log(`    ${layer}: ${e.message.slice(0, 120)}`); return null; }
     };
     const restrRaw = await areaList("WHSE_LAND_AND_NATURAL_RESOURCE.PROT_RESTRICTED_AREAS_SP", 25);
