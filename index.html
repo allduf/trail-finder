@@ -1155,6 +1155,19 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     <div class="list" id="list"></div>
     <div class="detail" id="detail" hidden></div>
   </aside>
+  <nav class="tabbar" id="tabbar" aria-label="Sections">
+    <button type="button" data-nav="map"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z M9 4v13.5 M15 6.5V20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Map</span></button>
+    <button type="button" data-nav="new" class="mtb-only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span>New trails</span></button>
+    <button type="button" data-nav="name" class="mtb-only"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Search</span></button>
+    <button type="button" data-nav="ski" class="ski-only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20 21 8 M6 21l2-6 M12 4a2 2 0 1 0 0 .1 M9 12l4-3 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Routes</span></button>
+    <a href="ride.html" data-nav="ride"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#ff4d5e"/></svg><span>Record</span></a>
+    <button type="button" data-nav="more" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg><span>More</span></button>
+  </nav>
+  <div class="tab-menu" id="tabMenu" role="menu" hidden>
+    <button type="button" role="menuitem" data-act="about">How it works</button>
+    <button type="button" role="menuitem" data-act="account">Sign in</button>
+    <button type="button" role="menuitem" data-act="full">⤢ Full map</button>
+  </div>
 </div>
 
 <div class="about" id="about" hidden>
@@ -3054,7 +3067,154 @@ out body;`;
   $("aboutClose").addEventListener("click", () => { $("about").hidden = true; });
   $("about").addEventListener("click", (e) => { if (e.target.id === "about") $("about").hidden = true; });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!$("about").hidden) $("about").hidden = true; else if (state.selected) closeDetail(); } });
-  $("sheetToggle").addEventListener("click", () => { $("panel").classList.toggle("expanded"); setTimeout(() => map.invalidateSize(), 50); });
+  // ---------- Phone bottom sheet ----------
+  // On phones the map fills the screen and the panel is a sheet over it. Drag the handle or the
+  // header (or the list, when it's scrolled to the top) between peek, half and full height.
+  const phoneMQ = matchMedia("(max-width: 760px)");
+  const sheet = { h: 0, snap: "peek" };
+  const appEl = document.querySelector(".app"), panelEl = $("panel");
+  const safeTop = () => parseFloat(getComputedStyle(document.querySelector(".map-tools")).top) || 10;
+  const navH = () => $("tabbar").offsetHeight;
+  function snapHeights() {
+    const brand = panelEl.querySelector(".brand");
+    const peek = brand.offsetHeight ? Math.round(brand.offsetTop + brand.offsetHeight) : 130;   // just the title bar (or the trail name)
+    const full = Math.round(window.innerHeight - navH() - safeTop() - 52);     // the map chip row stays visible
+    const half = Math.round(Math.min(full, Math.max(peek + 120, (window.innerHeight - navH()) * 0.5)));
+    return { peek: Math.min(peek, half), half, full };
+  }
+  function setSheetH(h, snap) {
+    sheet.h = h;
+    if (snap) sheet.snap = snap;
+    const s = snapHeights();
+    appEl.style.setProperty("--sheet-h", h + "px");
+    appEl.style.setProperty("--sheet-vis", Math.min(h, s.half) + navH() + "px");
+    panelEl.classList.toggle("sheet-peek", sheet.snap === "peek" && !panelEl.classList.contains("dragging"));
+    $("sheetToggle").setAttribute("aria-label", sheet.snap === "full" ? "Shrink the panel" : "Expand the panel");
+    syncTabbar();
+  }
+  function snapTo(name) {
+    if (!phoneMQ.matches) return;
+    if (name === "peek") panelEl.scrollTop = 0;
+    setSheetH(snapHeights()[name], name);
+  }
+  function growTo(name) {                            // only ever grows the sheet
+    const order = ["peek", "half", "full"];
+    if (order.indexOf(sheet.snap) < order.indexOf(name)) snapTo(name);
+  }
+  // The map ignores the strips under the sheet and the chip row when it frames trails.
+  ["fitBounds", "flyToBounds"].forEach((m) => {
+    const f = map[m];
+    map[m] = function (b, o = {}) {
+      if (!phoneMQ.matches || appEl.classList.contains("fullmap")) return f.call(this, b, o);
+      const p = L.point(o.padding || [0, 0]);
+      const bottom = parseFloat(appEl.style.getPropertyValue("--sheet-vis")) || 0;
+      return f.call(this, b, { ...o, padding: null, paddingTopLeft: [p.x, p.y + safeTop() + 46], paddingBottomRight: [p.x, p.y + bottom] });
+    };
+  });
+  // dragging
+  let drag = null;
+  panelEl.addEventListener("touchstart", (e) => {
+    if (!phoneMQ.matches || e.touches.length !== 1) { drag = null; return; }
+    drag = { y0: e.touches[0].clientY, h0: sheet.h, t0: e.timeStamp, mode: null, grab: !!e.target.closest(".sheet-toggle, .brand"), last: [] };
+  }, { passive: true });
+  panelEl.addEventListener("touchmove", (e) => {
+    if (!drag) return;
+    const y = e.touches[0].clientY, dy = y - drag.y0;
+    if (!drag.mode) {
+      if (Math.abs(dy) < 2) return;
+      const full = sheet.snap === "full" && sheet.h >= snapHeights().full - 2;
+      drag.mode = drag.grab || (dy < 0 && !full) || (dy > 0 && panelEl.scrollTop <= 0) ? "drag" : "scroll";
+      if (drag.mode === "drag") { panelEl.classList.add("dragging"); panelEl.classList.remove("sheet-peek"); }
+    }
+    if (drag.mode !== "drag") return;
+    e.preventDefault();
+    const s = snapHeights();
+    setSheetH(Math.round(Math.max(s.peek * 0.7, Math.min(s.full, drag.h0 - dy))));
+    drag.last.push([e.timeStamp, y]); if (drag.last.length > 5) drag.last.shift();
+  }, { passive: false });
+  const endDrag = () => {
+    if (!drag || drag.mode !== "drag") { drag = null; return; }
+    panelEl.classList.remove("dragging");
+    const s = snapHeights(), l = drag.last, v = l.length > 1 ? (l[l.length - 1][1] - l[0][1]) / Math.max(1, l[l.length - 1][0] - l[0][0]) : 0;  // px per ms, + = down
+    const order = ["peek", "half", "full"];
+    let name;
+    if (Math.abs(v) > 0.4) {                         // a flick goes one step in its direction
+      const from = order.reduce((a, n) => (Math.abs(s[n] - drag.h0) < Math.abs(s[a] - drag.h0) ? n : a), "peek");
+      name = order[Math.max(0, Math.min(2, order.indexOf(from) + (v > 0 ? -1 : 1)))];
+    } else name = order.reduce((a, n) => (Math.abs(s[n] - sheet.h) < Math.abs(s[a] - sheet.h) ? n : a), "peek");
+    drag = null;
+    snapTo(name);
+  };
+  panelEl.addEventListener("touchend", endDrag);
+  panelEl.addEventListener("touchcancel", endDrag);
+  // tapping the handle steps up, and from full back down to peek
+  $("sheetToggle").addEventListener("click", () => {
+    if (!phoneMQ.matches) { panelEl.classList.toggle("expanded"); return; }
+    snapTo(sheet.snap === "peek" ? "half" : sheet.snap === "half" ? "full" : "peek");
+  });
+  panelEl.addEventListener("scroll", () => panelEl.classList.toggle("sheet-scrolled", panelEl.scrollTop > 40), { passive: true });
+  // the sheet opens up when you use it
+  panelEl.querySelectorAll(".modes button").forEach((b) => b.addEventListener("click", () => growTo("half")));
+  panelEl.addEventListener("focusin", (e) => { if (e.target.matches("input[type=search], input[type=text], input:not([type])")) snapTo("full"); });
+  panelEl.addEventListener("click", (e) => { if (sheet.snap === "peek" && !e.target.closest(".sheet-toggle")) growTo("half"); });
+  // after Find, show the results instead of the search form
+  // (the results line moves as the search fills in, so it follows it until you touch the sheet)
+  let showResultsUntil = 0;
+  const showResults = () => { if (Date.now() < showResultsUntil) panelEl.scrollTo({ top: $("status").offsetTop - 30 }); };
+  $("findBtn").addEventListener("click", () => {
+    if (!phoneMQ.matches) return;
+    growTo("half");
+    showResultsUntil = Date.now() + 20000;
+    setTimeout(showResults, 300);
+  });
+  new MutationObserver(() => requestAnimationFrame(showResults)).observe($("status"), { childList: true, characterData: true, subtree: true });
+  [panelEl, $("tabbar")].forEach((el) => el.addEventListener("pointerdown", () => { showResultsUntil = 0; }, { passive: true }));
+  new MutationObserver(() => {
+    if (panelEl.classList.contains("detail-open")) growTo("half");
+  }).observe(panelEl, { attributes: true, attributeFilter: ["class"] });
+  new MutationObserver(() => { if (!$("boxRes").hidden) growTo("half"); }).observe($("boxRes"), { attributes: true, attributeFilter: ["hidden"] });
+  // App tab bar (phones): Map lowers the sheet, New trails and Search open those panes, More has the rest.
+  function syncTabbar() {
+    const cur = sheet.snap === "peek" ? "map" : document.body.classList.contains("sport-ski") ? "ski" : $("tabName").getAttribute("aria-selected") === "true" ? "name" : "new";
+    $("tabbar").querySelectorAll("[data-nav]").forEach((b) => b.setAttribute("aria-current", String(b.dataset.nav === cur)));
+  }
+  const tabMenu = $("tabMenu"), moreBtn = $("tabbar").querySelector('[data-nav="more"]');
+  const showMenu = (on) => { tabMenu.hidden = !on; moreBtn.setAttribute("aria-expanded", String(on)); };
+  $("tabbar").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-nav]"); if (!b) return;
+    const nav = b.dataset.nav;
+    if (nav !== "more") showMenu(false);
+    if (nav === "map") { if (panelEl.classList.contains("detail-open")) closeDetail(); snapTo("peek"); }
+    else if (nav === "new" || nav === "name") {
+      const tab = $(nav === "new" ? "tabNew" : "tabName");
+      if (panelEl.classList.contains("detail-open")) closeDetail();
+      if (tab.getAttribute("aria-selected") !== "true") tab.click();
+      panelEl.scrollTop = 0;
+      growTo("half"); syncTabbar();
+    } else if (nav === "ski") { panelEl.scrollTop = 0; growTo("half"); }
+    else if (nav === "more") {
+      const acct = document.querySelector(".brand [data-account-slot] button");
+      tabMenu.querySelector('[data-act="account"]').hidden = !acct;
+      if (acct) tabMenu.querySelector('[data-act="account"]').textContent = /Account$/.test(acct.textContent.trim()) ? "Account" : "Sign in";
+      showMenu(tabMenu.hidden);
+    }
+  });
+  tabMenu.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    showMenu(false);
+    if (b.dataset.act === "about") $("aboutBtn").click();
+    else if (b.dataset.act === "account") document.querySelector(".brand [data-account-slot] button")?.click();
+    else if (b.dataset.act === "full") $("fullBtn").click();
+  });
+  document.addEventListener("click", (e) => { if (!tabMenu.hidden && !e.target.closest("#tabMenu, [data-nav=more]")) showMenu(false); });
+  ["tabNew", "tabName"].forEach((id) => $(id).addEventListener("click", () => setTimeout(syncTabbar)));
+  $("sport").addEventListener("change", () => setTimeout(syncTabbar));
+  const resnap = () => { if (phoneMQ.matches) snapTo(sheet.snap); else { appEl.style.removeProperty("--sheet-h"); appEl.style.removeProperty("--sheet-vis"); } };
+  window.addEventListener("resize", resnap);
+  phoneMQ.addEventListener("change", resnap);
+  if (document.fonts) document.fonts.ready.then(resnap);
+  resnap();
+
 
   // ---------- All trails: every MTB trail in view, old and new, coloured like Trailforks ----------
   // From the daily data/mtb-<zone>.json files (scripts/build-mtb.mjs): ways with MTB tags, bike park
