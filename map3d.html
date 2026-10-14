@@ -54,7 +54,7 @@ select { font: inherit; padding: 5px 6px; border-radius: 6px; border: 1px solid 
 .linkish { font: inherit; background: none; border: 0; color: var(--accent); font-weight: 600; cursor: pointer; padding: 0; }
 .key { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; align-items: center; font-size: .85rem; }
 .sw { width: 26px; height: 5px; border-radius: 3px; }
-.sw.dbl { background: repeating-linear-gradient(90deg, #1b1b1b 0 6px, #fff 6px 9px); }
+.sw.dbl { background: #d6202a; }
 .sw.new { height: 7px; box-shadow: 0 0 0 2px #fff; background: #1c6fe0; }
 .status { font-size: .85rem; color: var(--muted); }
 .status.warn { color: var(--warn-fg); background: var(--warn-bg); border-radius: 6px; padding: 4px 6px; }
@@ -192,7 +192,7 @@ select { font: inherit; padding: 5px 6px; border-radius: 6px; border: 1px solid 
   // Difficulty as Trailforks colours it, same as index.html.
   const DIFF = {
     green: { label: "Green", color: "#2f9e44" }, blue: { label: "Blue", color: "#1c6fe0" },
-    black: { label: "Black", color: "#1b1b1b" }, dbl: { label: "Double black", color: "#1b1b1b" },
+    black: { label: "Black", color: "#1b1b1b" }, dbl: { label: "Double black", color: "#d6202a" },
     pro: { label: "Pro line", color: "#e8590c" },
   };
   const UNRATED = "#8a8f98";
@@ -324,14 +324,10 @@ select { font: inherit; padding: 5px 6px; border-radius: 6px; border: 1px solid 
       { id: "places", type: "raster", source: "places" },
       { id: "all-line", type: "line", source: "all", layout: { "line-cap": "round", "line-join": "round" },
         paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 15, 2.5, 18, 4], "line-opacity": 0.9 } },
-      { id: "all-dbl", type: "line", source: "all", filter: ["==", ["get", "diff"], "dbl"],
-        paint: { "line-color": "#fff", "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.5, 15, 1, 18, 1.5], "line-dasharray": [2, 3] } },
       { id: "new-edge", type: "line", source: "new", layout: { "line-cap": "round", "line-join": "round" },
         paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 11, 3, 15, 6, 18, 8.5] } },
       { id: "new-line", type: "line", source: "new", layout: { "line-cap": "round", "line-join": "round" },
         paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 11, 1.6, 15, 3.5, 18, 5.5] } },
-      { id: "new-dbl", type: "line", source: "new", filter: ["==", ["get", "diff"], "dbl"],
-        paint: { "line-color": "#fff", "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.6, 15, 1.2, 18, 2], "line-dasharray": [2, 3] } },
       { id: "names", type: "symbol", source: "all", minzoom: 13.5, filter: ["!=", ["get", "name"], ""],
         layout: { "symbol-placement": "line", "text-field": ["get", "name"], "text-font": ["Open Sans Semibold"], "text-size": 12, "text-max-angle": 30 },
         paint: { "text-color": "#fff", "text-halo-color": "rgba(0,0,0,.75)", "text-halo-width": 1.4 } },
@@ -358,8 +354,8 @@ select { font: inherit; padding: 5px 6px; border-radius: 6px; border: 1px solid 
 
   function applyVisibility() {
     const vis = (on) => (on ? "visible" : "none");
-    ["new-edge", "new-line", "new-dbl"].forEach((l) => map.setLayoutProperty(l, "visibility", vis(state.showNew)));
-    ["all-line", "all-dbl"].forEach((l) => map.setLayoutProperty(l, "visibility", vis(state.showAll)));
+    ["new-edge", "new-line"].forEach((l) => map.setLayoutProperty(l, "visibility", vis(state.showNew)));
+    ["all-line"].forEach((l) => map.setLayoutProperty(l, "visibility", vis(state.showAll)));
     map.setLayoutProperty("names", "visibility", vis(state.showNames && state.showAll));
     map.setLayoutProperty("new-names", "visibility", vis(state.showNames && state.showNew));
     ["places", "roads"].forEach((l) => map.setLayoutProperty(l, "visibility", vis(state.showPlaces)));
