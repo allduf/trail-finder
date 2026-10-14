@@ -1005,7 +1005,7 @@ label.toggle.off .sw { background: var(--muted); }
           <label class="toggle t-unoff off" title="Of the trails ticked, show only the ones tagged as informal, closed or no bikes"><input type="checkbox" id="onlyUnoff"><span class="ck"></span><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
           <label class="toggle t-moto off" title="Dirt-bike, ATV and 4x4 trails, hidden unless ticked"><input type="checkbox" id="showMoto"><span class="ck"></span><span class="sw"></span>Moto trails <span class="n" id="nMoto">0</span></label>
           <label class="toggle t-hike off" title="Trails where bikes aren't allowed, hidden unless ticked"><input type="checkbox" id="showHike"><span class="ck"></span><span class="sw"></span>Hiking only <span class="n" id="nHike">0</span></label>
-          <label class="toggle t-loam off" title="Only trails whose Loam moisture index is 20 to 39 right now (tacky, prime loam)"><input type="checkbox" id="primeLoam"><span class="ck"></span><span class="sw"></span>Prime loam now <span class="n" id="nLoam">–</span></label>
+          <label class="toggle t-loam off" title="Only trails whose Loam moisture index is 40 to 59 right now (damp, prime loam)"><input type="checkbox" id="primeLoam"><span class="ck"></span><span class="sw"></span>Prime loam now <span class="n" id="nLoam">–</span></label>
         </div>
       </section>
       <p class="hint tap-hint">Tip: tap any trail on the map to see all its details.</p>
@@ -1022,13 +1022,13 @@ label.toggle.off .sw { background: var(--muted); }
     <h2 id="aboutTitle">How Trail Finder works</h2>
     <p>All data comes from OpenStreetMap. For Sea to Sky and the Sunshine Coast, GitHub collects the new trails and trail names every night, so searches there load in a second or two without waiting on OpenStreetMap. A trail added today shows up after the next nightly update. Anywhere else, the app asks OpenStreetMap live. By default it covers the Sea to Sky corridor and the Sunshine Coast, split into the zones in the Area menu. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
     <h3>Loam in the list</h3>
-    <p>Each new trail shows its Loam moisture index right now, from the same Open-Meteo soil model as the trail details (trails within about 5 km share one reading). Tick “Prime loam now” to keep only trails between 20 and 39: tacky hero dirt.</p>
+    <p>Each new trail shows its Loam moisture index right now, from the same Open-Meteo soil model as the trail details (trails within about 5 km share one reading). Tick “Prime loam now” to keep only trails between 40 and 59: damp hero dirt.</p>
     <h3>Near me</h3>
     <p>Tap “Near me” and pick 5, 10, 25 or 50 km. The app asks your browser for your location (it stays on your device), searches that circle and lists only the new trails within that distance, with how far each one is.</p>
     <h3>Click any trail</h3>
     <p>Click or tap any path or track on the map, even one that isn't in the results, to see everything about it: length, climb and descent, difficulty, who mapped it and when, and its tags. Zoom in a little first so the click lands on the right trail.</p>
     <h3>Weather and Loam moisture index</h3>
-    <p>Each trail's details show the weather now, a 4-day forecast, recent rain and the <strong>Loam moisture index</strong>: how wet the top 9 cm of soil is, from 0 (bone dry) to 100 (saturated). Under 20 is dry and dusty, 20 to 40 is tacky prime loam, 40 to 60 is damp, 60 to 80 is wet and muddy, and over 80 is saturated. It comes from Open-Meteo's free weather models for the area around the trail, so it's an estimate, not a reading on the trail itself.</p>
+    <p>Each trail's details show the weather now, a 4-day forecast, recent rain and the <strong>Loam moisture index</strong>: how wet the top 9 cm of soil is, from 0 (bone dry) to 100 (saturated). Under 20 is dry and dusty, 20 to 40 is tacky, 40 to 60 is damp prime loam, 60 to 80 is wet and muddy, and over 80 is saturated. It comes from Open-Meteo's free weather models for the area around the trail, so it's an estimate, not a reading on the trail itself.</p>
     <h3>Trail name search</h3>
     <p>The search box looks through every named path, track, bike path and trail route in the whole region, old or new, plus the new trails already found. If you know roughly where the trail is, pick that area in “Where is it?”, or type a town or place, so only the trail names around there are loaded and searched. A typed place works outside Sea to Sky too. Typos and close spellings still match. The first time you use it, it downloads the list of names area by area (closest area first) and saves it in this browser for a week. Pick a result to zoom to the trail and see everything known about it.</p>
     <h3>What counts as new</h3>
@@ -1092,7 +1092,7 @@ label.toggle.off .sw { background: var(--muted); }
     show: { mtb: true, looks: true, other: false, ghost: true, moto: false, hike: false },
     ghosts: [],          // possible unmapped trails from the weekly GPS-trace file
     onlyUnoff: false,     // "Unofficial only": of the ticked types, flagged trails only
-    primeLoam: false,     // "Prime loam now": of the trails shown, Loam moisture index 20-39 right now
+    primeLoam: false,     // "Prime loam now": of the trails shown, Loam moisture index 40-59 right now
     trails: [],          // all candidates from last search (2-year window), with .created
     searchedBounds: [],
     error: "",
@@ -1802,7 +1802,7 @@ out body;`;
     $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nOther").textContent = counts.other; $("nGhost").textContent = counts.ghost;
     $("nUnoff").textContent = vis.filter((t) => state.show[t.cat] && isUnoff(t)).length;
     const typed = vis.filter((t) => state.show[t.cat] && (!state.onlyUnoff || isUnoff(t)));
-    const isPrime = (t) => { const v = loamOf(t); return v != null && v >= 20 && v < 40; };
+    const isPrime = (t) => { const v = loamOf(t); return v != null && v >= 40 && v < 60; };
     const loamKnown = typed.some((t) => loamOf(t) !== undefined);
     $("nLoam").textContent = loamKnown ? typed.filter(isPrime).length : "–";
     const shown = state.primeLoam ? typed.filter(isPrime) : typed;
@@ -1862,7 +1862,7 @@ out body;`;
     } else if (state.error && !state.trails.length) {
       setStatus(`Search failed. ${state.error.replace(/\.?$/, ".")} If it keeps happening, open “Search details” and send a screenshot.`, true, state.retry && { label: "Try again", fn: state.retry });
     } else if (state.searchedBounds.length) {
-      setStatus((n ? `${n} trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : (state.loamPending ? `Checking the Loam index of these trails…` : state.primeLoam ? `None of these trails are in prime loam right now (index 20 to 39). Untick “Prime loam now” to see them all.` : state.onlyUnoff ? `No unofficial trails among the ones ticked in the last ${label}. Tick more types, or turn off “Unofficial only”.` : `No new trails here in the last ${label}. Try a longer period, tick “Other paths”, or move the map.`)) + (state.error ? " " + state.error : ""),
+      setStatus((n ? `${n} trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : (state.loamPending ? `Checking the Loam index of these trails…` : state.primeLoam ? `None of these trails are in prime loam right now (index 40 to 59). Untick “Prime loam now” to see them all.` : state.onlyUnoff ? `No unofficial trails among the ones ticked in the last ${label}. Tick more types, or turn off “Unofficial only”.` : `No new trails here in the last ${label}. Try a longer period, tick “Other paths”, or move the map.`)) + (state.error ? " " + state.error : ""),
         !!state.error, state.error && state.retry && { label: "Load missing squares", fn: state.retry });
     }
   }
@@ -1940,8 +1940,8 @@ out body;`;
   // the surface, put on a 0 (bone dry) to 100 (saturated) scale. 0.08 is about as dry as forest soil
   // gets here; 0.42 is about saturated.
   const LMI_LEVELS = [[20, "Dry and dusty", "Loose and fast, more braking bumps and dust."],
-    [40, "Tacky, prime loam", "Hero dirt: grippy and fun."],
-    [60, "Damp", "Good grip on dirt, roots and rocks get slick."],
+    [40, "Tacky", "Grippy and fast, can be a bit loose on top."],
+    [60, "Damp, prime loam", "Hero dirt: the best grip on loam. Roots and rocks get slick."],
     [80, "Wet and muddy", "Slippery, and riding leaves ruts."],
     [101, "Saturated", "Very muddy and very slippery. Still rideable: go easy and avoid skidding, which leaves ruts."]];
   function lmiAt(h, i) {
@@ -1951,7 +1951,7 @@ out body;`;
     return Math.round(Math.max(0, Math.min(100, (v - 0.08) / (0.42 - 0.08) * 100)));
   }
   const lmiLevel = (v) => LMI_LEVELS.find((l) => v < l[0]);
-  const LMI_RIDE = [["#d9a35a", "OK, loose"], ["#5aa86a", "Best", "best"], ["#3f8f8c", "Good"], ["#3b6fb0", "Not great"], ["#33468f", "Very slippery"]];
+  const LMI_RIDE = [["#d9a35a", "OK, loose"], ["#5aa86a", "Good"], ["#3f8f8c", "Best", "best"], ["#3b6fb0", "Not great"], ["#33468f", "Very slippery"]];
   const lmiKey = (lvl) => `<ul class="lmi-key" aria-label="What the numbers mean">${LMI_LEVELS.map((l, k) =>
     `<li class="${l === lvl ? "on" : ""}"><span class="dot" style="background:${LMI_RIDE[k][0]}"></span><span>${k * 20}–${Math.min(100, l[0] - 1)}</span><span>${esc(l[1])}</span><span class="ride ${LMI_RIDE[k][2] || ""}">${LMI_RIDE[k][1]}</span></li>`).join("")}</ul>`;
 
@@ -2084,15 +2084,6 @@ out body;`;
     let grid = "";
     for (let v = y0; v <= y1 + 1e-6; v += yStep) grid += `<line x1="${ml}" x2="${W - mr}" y1="${Y(v)}" y2="${Y(v)}" class="eg"/><text x="${ml - 6}" y="${Y(v) + 4}" text-anchor="end" class="et">${Math.round(v)}</text>`;
     for (let d = 0; d <= s.total + 1e-6; d += xStep) grid += `<text x="${X(d)}" y="${H - 6}" text-anchor="${d === 0 ? "start" : "middle"}" class="et">${d === 0 ? "0" : fmtKm(d, xStep)}</text>`;
-    // Table: one row every "nice" distance, plus the end.
-    const rStep = niceStep(s.total, 8);
-    const rows = [];
-    for (let d = 0; d < s.total - rStep * 0.3; d += rStep) rows.push(pts.reduce((a, b) => (Math.abs(b.d - d) < Math.abs(a.d - d) ? b : a)));
-    rows.push(pts[pts.length - 1]);
-    const tbl = rows.map((p, i) => {
-      const prev = rows[i - 1], g = prev && p.d > prev.d ? (p.e - prev.e) / (p.d - prev.d) * 100 : null;
-      return `<tr><td>${i === rows.length - 1 ? "End · " : ""}${fmtKm(p.d, rStep)}</td><td>${Math.round(p.e)} m</td><td>${g == null ? "Start" : (g > 0 ? "+" : "") + g.toFixed(0) + " %"}</td></tr>`;
-    }).join("");
     el.classList.remove("muted");
     el.innerHTML = `
       <div class="estats">
@@ -2109,8 +2100,7 @@ out body;`;
         </svg>
         <div class="etip" hidden></div>
       </div>
-      <p class="muted enote">From the start to the end, in the direction it was mapped${segs ? ", along the longest segment" : ""}. Riding the other way swaps climb and descent.${s.up >= 1 || s.down <= -1 ? ` Steepest 100 m: ${s.up >= 1 ? `+${s.up.toFixed(0)} % up` : ""}${s.up >= 1 && s.down <= -1 ? ", " : ""}${s.down <= -1 ? `${s.down.toFixed(0)} % down` : ""}.` : ""} Heights from a 90 m terrain model, so small bumps are smoothed out.</p>
-      <table class="etable"><thead><tr><th>Distance</th><th>Elevation</th><th>Grade</th></tr></thead><tbody>${tbl}</tbody></table>`;
+      <p class="muted enote">From the start to the end, in the direction it was mapped${segs ? ", along the longest segment" : ""}. Riding the other way swaps climb and descent.${s.up >= 1 || s.down <= -1 ? ` Steepest 100 m: ${s.up >= 1 ? `+${s.up.toFixed(0)} % up` : ""}${s.up >= 1 && s.down <= -1 ? ", " : ""}${s.down <= -1 ? `${s.down.toFixed(0)} % down` : ""}.` : ""} Heights from a 90 m terrain model, so small bumps are smoothed out.</p>`;
     // Hover or touch the chart: show the point on the chart and on the map.
     const svg = el.querySelector("svg"), tip = el.querySelector(".etip"), cx = el.querySelector(".ex"), dot = el.querySelector(".ed");
     const hide = () => { cx.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); tip.hidden = true; elevLayer.clearLayers(); };
