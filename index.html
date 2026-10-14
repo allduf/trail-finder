@@ -1938,7 +1938,7 @@ out body;`;
   const primeZones = () => ZONES.filter((z) => state.searchedBounds.some((b) => z.bounds.intersects(b)));
   async function loadPrime(retry) {
     state.primeLoading = true; render();
-    try { await loadNames(retry, primeZones()); } finally { state.primeLoading = false; }
+    try { await loadNames(retry, primeZones(), () => { state.primeLoading = false; }); } finally { state.primeLoading = false; }
     render();
   }
   const primeKeep = new WeakMap();
@@ -1957,6 +1957,8 @@ out body;`;
     if (typed.length) loadLoam(typed);
     const isPrime = (e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60; };
     const prime = pool.filter(isPrime);
+    const vals = typed.map(loamOf).filter((v) => v != null);
+    state.primeRange = vals.length ? [Math.min(...vals), Math.max(...vals)] : null;
     $("nMtb").textContent = prime.filter((e) => e.cat === "mtb").length; $("nLooks").textContent = prime.filter((e) => e.cat === "looks").length; $("nGhost").textContent = "–";
     $("nUnoff").textContent = prime.filter((e) => e.unoff.length && unoffTypes().includes(e.cat)).length;
     const dist = (e) => near.ll.distanceTo(e.center);
@@ -1992,12 +1994,22 @@ out body;`;
       $("findLabel").textContent = state.primeLoading ? "Loading…" : "Find prime loam trails";
       const failed = primeZones().filter((z) => names.failed.has(z.id));
       const where = near ? `${near.km} km around you` : state.custom ? "this part of the map" : (zoneById(state.zone) ? shortZone(zoneById(state.zone)) : "Sea to Sky and the Sunshine Coast");
-      const busy = state.primeLoading ? "Loading the trails here…" : state.loamPending ? `Checking the Loam index of ${state.primeTotal} trails…` : "";
-      if (failed.length && !n && !busy) { setStatus(`Couldn't load the trail list for ${failed.map(shortZone).join(", ")}.`, true, { label: "Try again", fn: () => loadPrime(true) }); return; }
+      const slow = primeZones().filter((z) => names.inflight.has(z.id));
+      const loamNow = () => {
+        if (!state.primeRange) return "";
+        const [lo, hi] = state.primeRange, words = [...new Set([lmiLevel(lo)[1], lmiLevel(hi)[1]])].join(" to ").toLowerCase();
+        return ` Right now it's ${lo === hi ? lo : `${lo} to ${hi}`} here (${words}).`;
+      };
+      const wait = busyFor();
+      const busy = state.primeLoading ? "Loading the trails here…" : state.loamPending ? `Checking the Loam index of ${state.primeTotal} trails…`
+        : slow.length ? `Still loading the trail list for ${slow.map(shortZone).join(", ")} from OpenStreetMap${wait ? ` (busy, asking again in ${wait} s)` : ""}…` : "";
+      const retry = { label: "Try again", fn: () => loadPrime(true) };
+      if (failed.length && !n && !busy) { setStatus(`Couldn't load the trail list for ${failed.map(shortZone).join(", ")}.`, true, retry); return; }
+      if (failed.length && n && !busy) { setStatus(`${n} trail${n === 1 ? "" : "s"} in ${where} ${n === 1 ? "is" : "are"} in prime loam right now (Loam index 40 to 59). Couldn't load the trail list for ${failed.map(shortZone).join(", ")}.`, true, retry); return; }
       const what = state.onlyUnoff ? "unofficial trail" : "trail";
       setStatus(n ? `${n} ${what}${n === 1 ? "" : "s"} in ${where} ${n === 1 ? "is" : "are"} in prime loam right now (Loam index 40 to 59). Tap one to see it.${busy ? " " + busy : ""}`
         : busy || (noType ? "Tick a trail type above to see the trails." : state.onlyUnoff ? `No unofficial trails in ${where} are in prime loam right now. Turn off “Unofficial only” to see the others.`
-          : `No trails in ${where} are in prime loam right now (Loam index 40 to 59). Pick Month, Year… to see new trails instead.`));
+          : `No trails in ${where} are in prime loam right now (Loam index 40 to 59).${loamNow()} Pick Month, Year… to see new trails instead.`));
       return;
     }
     $("findBtn").disabled = !!state.loading;
@@ -2668,7 +2680,7 @@ out tags center qt;`;
   const toItems = (elements) => elements.filter((e) => e.tags && e.center && (e.tags.name || e.tags["mtb:name"]))
     .map((e) => ({ t: e.type === "relation" ? "r" : "w", id: e.id, c: [+e.center.lat.toFixed(5), +e.center.lon.toFixed(5)], tags: e.tags }));
 
-  async function loadNames(retry, zones) {
+  async function loadNames(retry, zones, onLocal) {
     if (state.example) return;
     if (retry) { names.failed.clear(); gate.strikes = 0; }
     const c = map.getCenter();
@@ -2685,6 +2697,7 @@ out tags center qt;`;
       if (s && Date.now() - s.fetchedAt <= NAME_FRESH_MS) { names.fresh.add(z.id); names.inflight.delete(z.id); }
       else todo.push(z);  // never loaded, or saved more than a week ago (the old list is used meanwhile)
     }
+    if (onLocal) onLocal();   // the saved and nightly lists are in; the rest come from OpenStreetMap
     changed();
     if (!todo.length) return;
     log(`Trail names: loading ${todo.map(shortZone).join(", ")}.`);
@@ -2701,7 +2714,7 @@ out tags center qt;`;
         changed();
       }
     }
-    const tick = setInterval(() => { if (busyFor()) refreshHits(); }, 1000);  // show "busy" while waiting on the server
+    const tick = setInterval(() => { if (busyFor()) { refreshHits(); if (state.prime) renderStatus(); } }, 1000);  // show "busy" while waiting on the server
     await Promise.all([worker(1), worker(0)]);
     clearInterval(tick);
     refreshHits();
