@@ -96,10 +96,12 @@ if (!existsSync(DATA)) mkdirSync(DATA);
 
 const builtAt = new Date().toISOString().slice(0, 19) + "Z";
 const lastBuilt = (z) => Date.parse((readJson(`mtb-${z.id}.json`) || {}).builtAt) || 0;
+// A list made for a different box (or before boxes were saved) is out of date, however fresh.
+const sameBox = (z) => String((readJson(`mtb-${z.id}.json`) || {}).box) === String(z.box);
 const order = [...ZONES].sort((a, b) => lastBuilt(a) - lastBuilt(b));   // oldest lists first
 let updated = 0, failed = 0;
 for (const z of order) {
-  if (Date.now() - lastBuilt(z) < FRESH_HOURS * 3600e3) { log(`${z.name}: fresh, skipped`); continue; }
+  if (sameBox(z) && Date.now() - lastBuilt(z) < FRESH_HOURS * 3600e3) { log(`${z.name}: fresh, skipped`); continue; }
   if (outOfTime()) { log(`${z.name}: out of time, keeping last good data`); continue; }
   try {
     const els = await fetchBox(z.box);
@@ -111,7 +113,7 @@ for (const z of order) {
       const ids = (r.members || []).filter((m) => m.type === "way" && ways[m.ref]).map((m) => m.ref);
       if (ids.length) routes[r.id] = { name: (r.tags && (r.tags.name || r.tags.ref)) || "unnamed", ways: ids };
     });
-    writeFileSync(new URL(`mtb-${z.id}.json`, DATA), JSON.stringify({ v: 1, builtAt, ways, routes }));
+    writeFileSync(new URL(`mtb-${z.id}.json`, DATA), JSON.stringify({ v: 1, builtAt, box: z.box, ways, routes }));
     updated++;
     log(`${z.name}: ${Object.keys(ways).length} trails, ${Object.keys(routes).length} MTB routes`);
   } catch (e) {
