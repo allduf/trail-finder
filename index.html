@@ -1060,7 +1060,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
           <label class="label" for="nameZone">Where is it? <span class="label-note">(faster if you know)</span></label>
           <select id="nameZone" class="zone"></select>
           <form class="search place" id="nameNearForm">
-            <div class="pin-in"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 21.5s6.5-5.8 6.5-11.2a6.5 6.5 0 1 0-13 0c0 5.4 6.5 11.2 6.5 11.2z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="10.3" r="2.4" fill="currentColor"/></svg><input id="nameNear" type="search" placeholder="Or go to a town or place" autocomplete="off" aria-label="Search trails near a town or place"></div>
+            <div class="pin-in"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 21.5s6.5-5.8 6.5-11.2a6.5 6.5 0 1 0-13 0c0 5.4 6.5 11.2 6.5 11.2z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="10.3" r="2.4" fill="currentColor"/></svg><input id="nameNear" type="search" placeholder="Town, place or GPS point" autocomplete="off" aria-label="Search trails near a town, place or GPS point (like 49.70, -123.15)"></div>
             <button class="btn" type="submit">Go</button>
           </form>
           <p class="hint" id="nameNearMsg" role="status" hidden></p>
@@ -1081,7 +1081,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
           <label class="label" for="zone">Area</label>
           <select id="zone" class="zone"></select>
           <form class="search place" id="placeForm">
-            <div class="pin-in"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 21.5s6.5-5.8 6.5-11.2a6.5 6.5 0 1 0-13 0c0 5.4 6.5 11.2 6.5 11.2z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="10.3" r="2.4" fill="currentColor"/></svg><input id="place" type="search" placeholder="Or go to a town or place" autocomplete="off" aria-label="Go to a town or place"></div>
+            <div class="pin-in"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 21.5s6.5-5.8 6.5-11.2a6.5 6.5 0 1 0-13 0c0 5.4 6.5 11.2 6.5 11.2z" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="10.3" r="2.4" fill="currentColor"/></svg><input id="place" type="search" placeholder="Town, place or GPS point" autocomplete="off" aria-label="Go to a town, place or GPS point (like 49.70, -123.15)"></div>
             <button class="btn" type="submit">Go</button>
           </form>
           <div class="near-row">
@@ -1313,16 +1313,33 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
   }
   const fmtAway = (m) => (m < 1000 ? "under 1 km" : (m / 1000).toFixed(m < 10000 ? 1 : 0) + " km") + " away";
   function clearNear() { near = null; nearLayer.clearLayers(); }
-  function startNear(ll) {
-    near = { ll: L.latLng(ll), km: +$("nearKm").value };
+  function startNear(ll, label) {
+    near = { ll: L.latLng(ll), km: +$("nearKm").value, label: label || (near && near.ll.equals(L.latLng(ll)) && near.label) || "" };
     nearLayer.clearLayers();
     L.circle(near.ll, { radius: near.km * 1000, color: css("--accent"), weight: 2, fill: false, dashArray: "6 6", interactive: false }).addTo(nearLayer);
     L.circleMarker(near.ll, { radius: 8, color: "#fff", weight: 3, fillColor: css("--accent"), fillOpacity: 1, interactive: false }).addTo(nearLayer);
     state.custom = true;
-    const opt = $("zone").querySelector('option[value="near"]'); opt.textContent = `Near me (within ${near.km} km)`; $("zone").value = "near";
+    const opt = $("zone").querySelector('option[value="near"]'); opt.textContent = `Near ${near.label || "me"} (within ${near.km} km)`; $("zone").value = "near";
     map.fitBounds(nearBox());
     search([nearBox()]);
   }
+  // A GPS point typed in a place box: "49.7, -123.15", "49.7N 123.15W", "49°42'10\"N 123°09'00\"W".
+  // Both numbers positive with no N/S/E/W is read as west, since every area here is in western Canada.
+  function parseGps(q) {
+    const s = String(q).trim().toUpperCase().replace(/[′’]/g, "'").replace(/[″”]/g, '"').replace(/''/g, '"');
+    const part = String.raw`([NSEW])?\s*([-+]?\d+(?:\.\d+)?)\s*(?:°|º|D)?\s*(?:(\d+(?:\.\d+)?)\s*'\s*)?(?:(\d+(?:\.\d+)?)\s*"\s*)?([NSEW])?`;
+    const m = s.match(new RegExp(`^${part}(?:\\s*[,;]\\s*|\\s+|(?<=[NSEW'"°º]))${part}$`));
+    if (!m) return null;
+    const one = (h1, d, mi, se, h2) => {
+      const hemi = h1 || h2 || "", v = Math.abs(+d) + (+mi || 0) / 60 + (+se || 0) / 3600;
+      return { v: (/^-/.test(d) || hemi === "S" || hemi === "W" ? -v : v), hemi };
+    };
+    let a = one(m[1], m[2], m[3], m[4], m[5]), b = one(m[6], m[7], m[8], m[9], m[10]);
+    if (/[EW]/.test(a.hemi) || /[NS]/.test(b.hemi)) [a, b] = [b, a];
+    if (!a.hemi && !b.hemi && a.v > 0 && b.v > 0 && a.v > 40 && a.v < 70 && b.v > 100 && b.v < 160) b.v = -b.v;
+    return Math.abs(a.v) <= 90 && Math.abs(b.v) <= 180 ? [a.v, b.v] : null;
+  }
+  const gpsLabel = (ll) => `${ll[0].toFixed(4)}, ${ll[1].toFixed(4)}`;
   $("nearKm").value = String(store.get("nearKm", 10));
   $("nearBtn").addEventListener("click", () => {
     if (!navigator.geolocation) { setStatus("This browser can't share your location. Pick an area instead.", true); return; }
@@ -2270,7 +2287,7 @@ out body;`;
       $("findBtn").disabled = !!state.primeLoading;
       $("findLabel").textContent = state.primeLoading ? "Loading…" : "Find prime loam trails";
       const failed = primeZones().filter((z) => names.failed.has(z.id));
-      const where = near ? `${near.km} km around you` : state.custom ? "this part of the map" : (zoneById(state.zone) ? shortZone(zoneById(state.zone)) : "Sea to Sky and the Sunshine Coast");
+      const where = near ? `${near.km} km around ${near.label || "you"}` : state.custom ? "this part of the map" : (zoneById(state.zone) ? shortZone(zoneById(state.zone)) : "Sea to Sky and the Sunshine Coast");
       const slow = primeZones().filter((z) => names.inflight.has(z.id));
       const loamNow = () => {
         if (!state.primeRange) return "";
@@ -2291,7 +2308,7 @@ out body;`;
     }
     $("findBtn").disabled = !!state.loading;
     $("findLabel").textContent = state.loading ? "Searching…" : "Find new trails";
-    const where = near ? `${near.km} km around you` : state.custom ? "this part of the map" : (zoneById(state.zone) ? zoneById(state.zone).name : "Sea to Sky and the Sunshine Coast");
+    const where = near ? `${near.km} km around ${near.label || "you"}` : state.custom ? "this part of the map" : (zoneById(state.zone) ? zoneById(state.zone).name : "Sea to Sky and the Sunshine Coast");
     if (state.offline) {
       setStatus(n ? `Showing ${n} saved trail${n === 1 ? "" : "s"} from the last ${label}. Click Find new trails to check for newer ones.` : `Click Find new trails to search ${where}.`);
     } else if (state.loading) {
@@ -2867,6 +2884,8 @@ out body;`;
   $("placeForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const q = $("place").value.trim(); if (!q) return;
+    const gps = parseGps(q);
+    if (gps) { startNear(gps, gpsLabel(gps)); return; }       // a GPS point: trails within the chosen distance of it
     setStatus("Finding " + q + "…");
     try {
       const res = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + encodeURIComponent(q));
@@ -3982,7 +4001,22 @@ out tags center qt;`;
     const q = $("nameNear").value.trim(); if (!q) return;
     const msg = $("nameNearMsg");
     msg.hidden = false; msg.textContent = `Finding ${q}…`;
+    const gps = parseGps(q);
     try {
+      if (gps) {
+        nearPlace = { label: gpsLabel(gps), box: [gps[0] - 0.09, gps[1] - 0.13, gps[0] + 0.09, gps[1] + 0.13] };
+        store.set("nameNear", nearPlace);
+        fillNameZones();
+        nameZoneSel.value = "near"; store.set("nameZone", "near");
+        msg.hidden = true;
+        $("nameNear").value = "";
+        map.fitBounds(placeArea().bounds);
+        hitSel = -1;
+        $("trailQ").focus();
+        if ($("trailQ").value.trim()) loadNames();
+        refreshHits();
+        return;
+      }
       // Prefer matches around Sea to Sky, but allow anywhere.
       const res = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&viewbox=-125.0,51.0,-121.5,49.0&q=" + encodeURIComponent(q));
       const found = (await res.json())[0];
