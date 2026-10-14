@@ -117,6 +117,7 @@ ol.rides { list-style: none; margin: 0; padding: 0; display: flex; flex-directio
 <header class="top">
   <a class="back" href="./">← Trail Finder</a>
   <h1>Record <span>ride</span></h1>
+  <span data-account-slot></span>
 </header>
 <nav class="tabs" role="tablist" aria-label="Ride pages">
   <button type="button" role="tab" id="tabRecord" aria-selected="true"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="4.5" fill="currentColor"/></svg>Record ride<span class="live" id="liveDot" hidden></span></button>
@@ -192,6 +193,7 @@ ol.rides { list-style: none; margin: 0; padding: 0; display: flex; flex-directio
 </main>
 <div class="lightbox" id="lightbox" hidden><img id="lightImg" alt=""></div>
 
+<script src="account.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
 (() => {
@@ -476,7 +478,7 @@ ol.rides { list-style: none; margin: 0; padding: 0; display: flex; flex-directio
     const btn = $("saveBtn"); btn.disabled = true; $("saveLabel").textContent = "Saving…";
     try {
       let ride;
-      if (editing) ride = { ...editing };
+      if (editing) ride = { ...editing, edited: Date.now() };
       else {
         const end = rec.end || Date.now();
         ride = { id: "ride-" + rec.start, start: rec.start, end, points: rec.points, stats: statsOf(rec.points, rec.start, end), saved: Date.now() };
@@ -504,6 +506,7 @@ ol.rides { list-style: none; margin: 0; padding: 0; display: flex; flex-directio
       ride.cover = cover;
       ride.photoCount = order;
       await dbPut("rides", ride);
+      uploadSoon(ride.id);
       if (!editing) { await dbDel("current", "current"); rec = null; recLine.setLatLngs([]); renderLive(); showGps("Ride saved. Press Start for the next one."); }
       try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
       await countRides();
@@ -592,8 +595,10 @@ ol.rides { list-style: none; margin: 0; padding: 0; display: flex; flex-directio
   $("editBtn").addEventListener("click", () => openSave(shown));
   $("deleteBtn").addEventListener("click", async () => {
     if (!confirm(`Delete “${shown.title}”? This can't be undone.`)) return;
-    for (const p of await photosOf(shown.id)) await dbDel("photos", p.id);
+    const photos = await photosOf(shown.id);
+    for (const p of photos) await dbDel("photos", p.id);
     await dbDel("rides", shown.id);
+    if (shown.owner && acct.user && shown.owner === acct.user.id) deleteRemote(shown.id, photos).catch((e) => console.warn("Couldn't delete the ride from your account:", e));
     await countRides();
     location.hash = "#rides";
   });
@@ -639,6 +644,120 @@ ${pts}
   $("tabRecord").addEventListener("click", () => { if (location.hash === "#record") route(); else location.hash = "#record"; });
   $("tabRides").addEventListener("click", () => { if (location.hash === "#rides") route(); else location.hash = "#rides"; });
   window.addEventListener("hashchange", route);
+
+  // ---------- account (optional sign-in, see account.js) ----------
+  // IndexedDB stays the copy this page shows. Signed in, every saved ride is also kept in the rider's
+  // Supabase account (table "rides", photos in the "ride-photos" bucket), so it shows up on their other
+  // devices. ride.owner is the account id once a ride is uploaded. Rides saved before signing in are
+  // moved into the account at the next sync. Signed out, rides that belong to an account leave this device
+  // (they stay in the account); rides that never had an account stay here as before.
+  const acct = window.tfAccount || { enabled: false };
+  const BUCKET = "ride-photos";
+  const photoPath = (uid, rideId, id, thumb) => `${uid}/${rideId}/${id}${thumb ? "-t" : ""}.jpg`;
+  const rideAt = (r) => r.edited || r.saved || r.start;
+  async function uploadRide(ride) {
+    const c = acct.client, uid = acct.user.id;
+    const photos = (await photosOf(ride.id)).sort((a, b) => a.order - b.order);
+    const { data: old, error: e1 } = await c.from("rides").select("data").eq("user_id", uid).eq("id", ride.id).maybeSingle();
+    if (e1) throw e1;
+    const had = new Set(((old && old.data.photos) || []).map((p) => p.id));
+    for (const p of photos) {
+      if (had.has(p.id)) continue;
+      for (const [blob, thumb] of [[p.blob, false], [p.thumb, true]]) {
+        if (!blob) continue;
+        const { error } = await c.storage.from(BUCKET).upload(photoPath(uid, ride.id, p.id, thumb), blob, { upsert: true, contentType: blob.type || "image/jpeg" });
+        if (error) throw error;
+      }
+    }
+    const keep = new Set(photos.map((p) => p.id));
+    const gone = [...had].filter((id) => !keep.has(id));
+    if (gone.length) await c.storage.from(BUCKET).remove(gone.flatMap((id) => [photoPath(uid, ride.id, id, false), photoPath(uid, ride.id, id, true)]));
+    const { cover, owner, ...data } = ride;
+    data.photos = photos.map((p) => ({ id: p.id, order: p.order, thumb: !!p.thumb, added: p.added }));
+    const { error } = await c.from("rides").upsert({ user_id: uid, id: ride.id, data, updated_at: new Date(rideAt(ride)).toISOString() });
+    if (error) throw error;
+    await dbPut("rides", { ...ride, owner: uid });
+  }
+  async function downloadRide(id) {
+    const c = acct.client, uid = acct.user.id;
+    const { data: row, error } = await c.from("rides").select("data").eq("user_id", uid).eq("id", id).single();
+    if (error) throw error;
+    const { photos = [], ...ride } = row.data;
+    const have = new Map((await photosOf(id)).map((p) => [p.id, p]));
+    let cover = null;
+    for (const m of photos.sort((a, b) => a.order - b.order)) {
+      let p = have.get(m.id);
+      if (!p) {
+        const get = async (thumb) => { const r = await c.storage.from(BUCKET).download(photoPath(uid, id, m.id, thumb)); if (r.error) throw r.error; return r.data; };
+        p = { id: m.id, rideId: id, blob: await get(false), thumb: m.thumb ? await get(true) : null, added: m.added };
+      }
+      p.order = m.order;
+      await dbPut("photos", p);
+      have.delete(m.id);
+      if (!cover) cover = p.thumb || p.blob;
+    }
+    for (const p of have.values()) await dbDel("photos", p.id);
+    await dbPut("rides", { ...ride, cover, photoCount: photos.length, owner: uid });
+  }
+  async function deleteRemote(id, photos) {
+    const c = acct.client, uid = acct.user.id;
+    const { error } = await c.from("rides").delete().eq("user_id", uid).eq("id", id);
+    if (error) throw error;
+    if (photos.length) await c.storage.from(BUCKET).remove(photos.flatMap((p) => [photoPath(uid, id, p.id, false), photoPath(uid, id, p.id, true)]));
+  }
+  async function dropLocal(r) {
+    for (const p of await photosOf(r.id)) await dbDel("photos", p.id);
+    await dbDel("rides", r.id);
+  }
+  let syncing = null;
+  function uploadSoon(id) {
+    if (!acct.user) return;
+    (syncing || Promise.resolve()).then(async () => {
+      const r = await dbGet("rides", id);
+      if (r) await uploadRide(r);
+    }).catch((e) => console.warn("Ride saved on this device; it will go to your account next time:", e));
+  }
+  function syncRides() {
+    if (!syncing) syncing = doSync().finally(() => { syncing = null; });
+    return syncing;
+  }
+  async function doSync() {
+    if (!acct.client) return;
+    const uid = acct.user ? acct.user.id : null;
+    const local = await dbAll("rides");
+    let changed = false;
+    // Rides of an account that isn't signed in here (signed out, or someone else) leave this device.
+    for (const r of local) if (r.owner && r.owner !== uid) { await dropLocal(r); changed = true; }
+    if (uid) {
+      acct.setSyncNote("Syncing your rides…");
+      try {
+        const { data: rows, error } = await acct.client.from("rides").select("id, updated_at").eq("user_id", uid);
+        if (error) throw error;
+        const remote = new Map(rows.map((r) => [r.id, Date.parse(r.updated_at)]));
+        let up = 0;
+        for (const r of local) {
+          if (r.owner && r.owner !== uid) continue;
+          const at = remote.get(r.id);
+          remote.delete(r.id);
+          if (at == null) {
+            if (r.owner) { await dropLocal(r); changed = true; }       // deleted on another device
+            else { await uploadRide(r); up++; }                         // saved here before signing in
+          } else if (at > rideAt(r)) { await downloadRide(r.id); changed = true; }
+          else if (at < rideAt(r) || !r.owner) await uploadRide(r);
+        }
+        for (const id of remote.keys()) { await downloadRide(id); changed = true; }
+        acct.setSyncNote(up ? `Moved ${up} ride${up > 1 ? "s" : ""} from this device into your account.` : "Your rides are up to date.");
+      } catch (e) {
+        acct.setSyncNote("Couldn't reach your account just now. Rides are still saved on this device.");
+        console.warn("Ride sync failed:", e);
+      }
+    }
+    if (changed) { await countRides(); route(); }
+  }
+  if (acct.enabled) {
+    acct.ready.then(syncRides);
+    window.addEventListener("tf:account", syncRides);
+  }
 
   // ---------- start up: offer to carry on a ride the page was recording when it closed ----------
   (async () => {

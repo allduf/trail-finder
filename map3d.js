@@ -9,7 +9,9 @@
   const LIB = "https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl";
   const store = {
     get(k, d) { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-    set(k, v) { try { localStorage.setItem("tf:" + k, JSON.stringify(v)); } catch {} },
+    set(k, v) {   // "tf:setting" tells account.js (optional sign-in) to save settings to the rider's account
+      try { const s = JSON.stringify(v); if (localStorage.getItem("tf:" + k) === s) return; localStorage.setItem("tf:" + k, s); window.dispatchEvent(new Event("tf:setting")); } catch {}
+    },
   };
 
   let on = false, gl = null, box = null, libLoading = null;
