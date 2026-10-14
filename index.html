@@ -2955,10 +2955,12 @@ out body;`;
     loaded.forEach((list) => list.forEach((w) => {
       const unoff = w.c.unoff.length > 0, off = !!w.c.official;
       // Official trails always show (alex: even with no option ticked), unless "Unofficial only" is on.
-      if (seen.has(w.id) || (unoff && !state.onlyUnoff) || !(off && !state.onlyUnoff || wanted(w.c.cat, unoff, off))) return;
+      // Unofficial ones show too, with a dotted overlay, same as in the square.
+      if (seen.has(w.id) || !(off && !state.onlyUnoff || wanted(w.c.cat, unoff, off))) return;
       seen.add(w.id);
       const d = difficulty(w.tags);
       allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks"), weight: off ? 4.5 : 2.5, opacity: off ? 1 : 0.75, interactive: false }));
+      if (unoff) allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: css("--fg"), weight: 2, dashArray: "1 7", interactive: false }));
     }));
   }
   function syncAllBtn() {
@@ -3123,7 +3125,7 @@ out body;`;
         return sw(ROAD_STYLE[st].dashArray ? `background: repeating-linear-gradient(90deg, ${c} 0 7px, #fff 7px 11px)` : `background: ${c}`, label);
       }).join("");
     $("keyNote").textContent = byDiff
-      ? state.allTrails ? "All trails: bold = official, thin = not known. Unofficial ones show only in the list. White edge: trails in the list." : "Dashed: looks like MTB (no bike tags)."
+      ? state.allTrails ? "All trails: bold = official, thin = not known, dotted = unofficial. White edge: trails in the list." : "Dashed: looks like MTB (no bike tags)."
       : state.allTrails ? "All trails: bold = official, thin = not known. Thick: trails in the list." : "";
   }
   renderKey();
