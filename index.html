@@ -3262,6 +3262,15 @@ out tags center qt;`;
   const toItems = (elements) => elements.filter((e) => e.tags && e.center && (e.tags.name || e.tags["mtb:name"]))
     .map((e) => ({ t: e.type === "relation" ? "r" : "w", id: e.id, c: [+e.center.lat.toFixed(5), +e.center.lon.toFixed(5)], tags: e.tags }));
 
+  // Named MTB trails from the daily all-trails list that the zone's name list doesn't have (newer, or missed), as name items.
+  function withMtbNames(zid, items) {
+    const list = allData.get(zid);
+    if (!list || !list.length) return items;
+    const have = new Set(items.filter((i) => i.t === "w").map((i) => i.id));
+    const extra = list.filter((w) => !have.has(w.id) && (w.tags.name || w.tags["mtb:name"]))
+      .map((w) => ({ t: "w", id: w.id, c: w.geom[w.geom.length >> 1], tags: w.tags }));
+    return extra.length ? items.concat(extra) : items;
+  }
   async function loadNames(retry, zones, onLocal, localOnly) {
     if (state.example) return;
     if (retry) { names.failed.clear(); gate.strikes = 0; }
@@ -3269,13 +3278,14 @@ out tags center qt;`;
     const changed = () => { refreshHits(); if (state.prime) render(); };
     const want = (zones || wantedZones()).slice().sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter()));
     const todo = [];
+    await Promise.all(want.filter((z) => zoneById(z.id)).map((z) => loadZoneTrails(z)));   // every MTB trail, so the search finds ones the name list missed
     for (const z of want) {
       if (names.fresh.has(z.id) || names.inflight.has(z.id) || names.failed.has(z.id)) continue;
       names.inflight.add(z.id);
       let s = names.zones.has(z.id) ? null : await saved.get("names:" + z.id);
       const nf = zoneById(z.id) && await nightly(`names-${z.id}.json`);
       if (nf && nf.v === 1 && (!s || Date.parse(nf.builtAt) > s.fetchedAt)) s = { fetchedAt: Date.parse(nf.builtAt), items: nf.items };
-      if (s) { names.zones.set(z.id, s.items); names.dirty = true; names.rev++; }
+      if (s) { names.zones.set(z.id, withMtbNames(z.id, s.items)); names.dirty = true; names.rev++; }
       if (s && Date.now() - s.fetchedAt <= NAME_FRESH_MS) { names.fresh.add(z.id); names.inflight.delete(z.id); }
       else todo.push(z);  // never loaded, or saved more than a week ago (the old list is used meanwhile)
     }
@@ -3289,7 +3299,7 @@ out tags center qt;`;
         const z = todo.shift();
         try {
           const items = toItems(await fetchNameBox(z.bounds, 0, z.name, mirror));
-          names.zones.set(z.id, items); names.dirty = true; names.rev++; names.fresh.add(z.id);
+          names.zones.set(z.id, withMtbNames(z.id, items)); names.dirty = true; names.rev++; names.fresh.add(z.id);
           saved.put("names:" + z.id, { fetchedAt: Date.now(), items });
           log(`  names ${z.name}: ${items.length}`);
         } catch (e) { names.failed.add(z.id); log(`  names ${z.name}: failed (${e.message})`); }
