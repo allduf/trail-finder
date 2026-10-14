@@ -24,7 +24,8 @@
   css.textContent = `
 .acct-btn.acct-btn { display: inline-flex; align-items: center; gap: 5px; border: 1.5px solid var(--accent); border-radius: 999px; padding: 3px 11px; margin-left: 4px; }
 .acct-btn .acct-dot { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: var(--accent-fg, #fff); font-size: .72rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; text-transform: uppercase; }
-dialog.acct { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--fg); padding: 18px; width: min(380px, calc(100vw - 32px)); box-shadow: 0 10px 40px rgba(0,0,0,.3); font: inherit; }
+dialog.acct, dialog.acct * { box-sizing: border-box; }
+dialog.acct { overflow-x: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--fg); padding: 18px; width: min(380px, calc(100vw - 32px)); box-shadow: 0 10px 40px rgba(0,0,0,.3); font: inherit; }
 dialog.acct::backdrop { background: rgba(0,0,0,.4); }
 dialog.acct h2 { margin: 0 0 6px; font-family: var(--font-display); font-size: 1.35rem; text-transform: uppercase; letter-spacing: .02em; }
 dialog.acct p { margin: 0 0 12px; color: var(--muted); font-size: .92rem; }
