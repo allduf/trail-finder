@@ -1,0 +1,54 @@
+name: Winter data
+
+# For the site's "Winter" mode:
+#  - every 2 hours, Avalanche Canada's current avalanche forecasts for the region -> data/avalanche.json
+#  - every night, backcountry ski routes and huts (OpenStreetMap + BC Recreation Sites and Trails) -> data/ski.json
+# On a pull request that changes the script it only does a test run, without saving anything.
+on:
+  schedule:
+    - cron: "23 */2 * * *"   # avalanche forecasts
+    - cron: "41 10 * * *"    # ski routes, 10:41 UTC (early morning in BC)
+  workflow_dispatch:          # "Run workflow" button on the Actions tab: both
+  pull_request:
+    paths:
+      - scripts/build-winter.mjs
+      - .github/workflows/winter-data.yml
+
+permissions:
+  contents: write   # commit the data files
+  pages: write      # ask GitHub Pages to publish them
+
+concurrency:
+  group: winter-data-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Collect winter data
+        env:
+          ONLY: ${{ github.event.schedule == '23 */2 * * *' && 'avy' || (github.event.schedule == '41 10 * * *' && 'ski' || '') }}
+        run: node scripts/build-winter.mjs
+      - name: File sizes
+        run: ls -l data/ski.json data/avalanche.json || true
+      - name: Commit the new data
+        if: github.event_name != 'pull_request'
+        run: |
+          git add -A data
+          if git diff --cached --quiet; then echo "No changes."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Winter data"
+          git pull -q --rebase origin "${GITHUB_REF_NAME}"
+          git push -q origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Publish the website
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent || echo "Pages will publish on its own."
