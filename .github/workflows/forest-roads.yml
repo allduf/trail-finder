@@ -1,0 +1,50 @@
+name: Forest roads data
+
+# Every Monday, collect the region's dirt and Forest Service roads with their status (BC government Forest Tenure
+# roads + OpenStreetMap) into data/roads-<zone>.json, for the "Forest roads" layer on the website.
+# On a pull request that changes the script it only does a test run, without saving anything.
+on:
+  schedule:
+    - cron: "17 9 * * 1"   # Mondays 09:17 UTC
+  workflow_dispatch:        # "Run workflow" button on the Actions tab
+  pull_request:
+    paths:
+      - scripts/build-roads.mjs
+      - .github/workflows/forest-roads.yml
+
+permissions:
+  contents: write   # commit the data files
+  pages: write      # ask GitHub Pages to publish them
+
+concurrency:
+  group: forest-roads-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Collect forest roads
+        run: node scripts/build-roads.mjs
+      - name: File sizes
+        run: ls -l data/roads-*.json
+      - name: Commit the new data
+        if: github.event_name != 'pull_request'
+        run: |
+          git add data
+          if git diff --cached --quiet; then echo "No changes."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Forest roads data"
+          git pull -q --rebase origin "${GITHUB_REF_NAME}"
+          git push -q origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Publish the website
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent || echo "Pages will publish on its own."

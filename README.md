@@ -22,3 +22,13 @@ distance, climb and speed. Press Start, the button turns red, press Stop, then g
 and save it to "My rides". Rides are kept in this browser's IndexedDB (`trail-finder-rides`), on that device only;
 each ride can be downloaded as GPX. Recording stops if the browser closes the page, but the ride so far is kept and
 can be carried on.
+
+## Forest roads
+Every Monday, `.github/workflows/forest-roads.yml` runs `scripts/build-roads.mjs`, which writes `data/roads-<zone>.json`
+from two open sources: the BC government's Forest Tenure road sections (DataBC layer
+`WHSE_FOREST_TENURE.FTEN_ROAD_SECTION_LINES_SVW`, Open Government Licence - British Columbia), with each Forest Service
+Road or road permit's tenure status (active or retired), and OpenStreetMap dirt roads (`highway=track`, unpaved roads,
+roads named FSR, disused or abandoned roads) with their access, gate and deactivation tags. The site draws them in
+light purple from zoom 11: solid for open, white gaps for deactivated or retired, red dots for closed or gated, thinner
+for rough or 4x4 only. Tapping one shows each source's status. There is no open feed of live FSR closures; the
+district road safety notices on gov.bc.ca are linked instead.
