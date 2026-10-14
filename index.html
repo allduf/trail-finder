@@ -782,6 +782,23 @@ label.toggle.t-unoff .sw { background: repeating-linear-gradient(90deg, var(--fg
 .trail .loam i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .use-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; background: var(--chip); color: var(--muted); border: 1px solid var(--line); vertical-align: 1px; }
 label.toggle.t-unoff.off .sw { background: repeating-linear-gradient(90deg, var(--muted) 0 3px, transparent 3px 6px); }
+.diff { display: inline-block; font-family: var(--font-display); font-weight: 700; font-size: .78rem; padding: 0 6px; border-radius: 4px; color: #fff; letter-spacing: .03em; white-space: nowrap; vertical-align: 1px; }
+.diff.d-green { background: #2f9e44; } .diff.d-blue { background: #1c6fe0; } .diff.d-black, .diff.d-dbl { background: #1b1b1b; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); } .diff.d-pro { background: #e8590c; }
+.off-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; border: 1px solid currentColor; color: var(--fg); vertical-align: 1px; }
+label.toggle.t-off .sw { background: var(--fg); }
+/* Map key (trail colours) */
+.legend { background: var(--panel); color: var(--fg); border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.25); font-family: var(--font-body); font-size: .8rem; padding: 6px 9px; max-width: 200px; }
+.legend summary { cursor: pointer; font-weight: 700; list-style: none; white-space: nowrap; }
+.legend summary::-webkit-details-marker { display: none; }
+.legend summary::after { content: " ▾"; color: var(--muted); }
+.legend:not([open]) summary::after { content: " ▸"; }
+.legend .lg-mode { display: flex; gap: 4px; margin: 6px 0 4px; }
+.legend .lg-mode button { font: inherit; font-size: .75rem; font-weight: 600; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
+.legend .lg-mode button[aria-pressed="true"] { background: var(--fg); color: var(--panel); border-color: var(--fg); }
+.legend ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.legend li { display: flex; align-items: center; gap: 7px; }
+.legend i { width: 24px; height: 5px; border-radius: 3px; flex: none; }
+.legend .lg-note { margin: 5px 0 0; color: var(--muted); font-size: .74rem; line-height: 1.3; }
 .unoff-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; border: 1px dashed currentColor; color: var(--fg); vertical-align: 1px; }
 .unoff-box { margin: 14px 0 0; padding: 10px 12px; border: 1px dashed var(--fg); border-radius: 8px; background: var(--chip); }
 .use-box { border: 1px solid var(--line); }
@@ -901,6 +918,7 @@ label.toggle.off .sw { background: var(--muted); }
 .map-actions { position: absolute; z-index: 500; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
 .map-tools { position: absolute; z-index: 500; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
 .map-tools #locate.on { background: #2b7de9; border-color: #2b7de9; color: #fff; }
+.map-tools #allBtn.on { background: var(--fg); border-color: var(--fg); color: var(--panel); }
 .map-tools #locate.on.lost { background: var(--panel); color: #2b7de9; }
 .map-tools select, .map-tools button { font: inherit; font-size: .85rem; font-weight: 600; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
 .map-note { max-width: 240px; font-size: .8rem; padding: 6px 8px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-fg); box-shadow: 0 1px 4px rgba(0,0,0,.15); }
@@ -970,6 +988,7 @@ label.toggle.off .sw { background: var(--muted); }
         <option value="voyager">Light streets</option>
       </select>
       <div class="map-note" id="mapNote" hidden></div>
+      <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
       <button id="locate" type="button" aria-pressed="false">◎ My location</button>
       <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
     </div>
@@ -1036,6 +1055,7 @@ label.toggle.off .sw { background: var(--muted); }
           <label class="toggle t-looks"><input type="checkbox" id="showLooks" checked><span class="ck"></span><span class="sw"></span>Looks like MTB <span class="n" id="nLooks">0</span></label>
           <label class="toggle t-ghost" title="Lines that several GPS traces follow at bike speed, where OpenStreetMap has no trail yet. Unverified."><input type="checkbox" id="showGhost" checked><span class="ck"></span><span class="sw"></span>Possible unmapped <span class="n" id="nGhost">0</span></label>
           <label class="toggle t-unoff off" title="Show only trails tagged as informal, closed or no bikes: of the types ticked, or of every type when none is ticked"><input type="checkbox" id="onlyUnoff"><span class="ck"></span><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
+          <label class="toggle t-off off" title="Show only trails the map says are official: run by a park, town, trail club or bike park, listed by Recreation Sites and Trails BC, or mapped as informal=no. Of the types ticked, or of every type when none is ticked"><input type="checkbox" id="onlyOff"><span class="ck"></span><span class="sw"></span>Official only <span class="n" id="nOff">0</span></label>
         </div>
       </section>
       <p class="hint tap-hint">Tip: tap any trail on the map to see all its details.</p>
@@ -1083,6 +1103,12 @@ label.toggle.off .sw { background: var(--muted); }
     </ul>
     <p>MTB trail networks: many bike trails have no bike tags at all. A plain path with no bike tags that runs within 400 m of two or more other MTB-tagged trails (with different names) also counts as Looks like MTB, unless it's graded for hiking (<code>sac_scale</code>), signed for walkers (<code>foot=designated</code>), a ski, golf or lit park path, gravel or boardwalk, open to motor vehicles, or its note says it's for hiking, climbing or motorbikes. This is checked again every time trails or trail lists load, so it keeps up as mappers add trails.</p>
     <p>Skipped: tracks (most are forest roads or ATV, moto and 4x4 tracks), paths 2 m wide or more, paths open to motorbikes, ATVs or other motor vehicles, paved surfaces, <code>bicycle=dismount</code>, and alpine hiking routes (<code>sac_scale</code> alpine).</p>
+<h3>Difficulty colours</h3>
+    <p>Trails are coloured like Trailforks: green, blue, black, double black (black with white dashes) and pro line (orange). The colour comes from <code>mtb:scale:imba</code> (0-1 green, 2 blue, 3 black, 4 double black, 5 pro line), or else from <code>mtb:scale</code>, which mappers here use the same way (S0-S1 green, S2 blue, S3 black, S4 double black, S5-S6 pro line). Grey means nobody rated it on the map yet. The “Trail colours” key on the map switches back to colours by trail type.</p>
+    <h3>All trails</h3>
+    <p>“All trails” draws every MTB trail in view, old and new, as thin lines: every way with an MTB tag, bike park trails and the trails of MTB routes. A list of them is collected from OpenStreetMap every day. The trails in the list (new trails, or prime loam) are drawn thicker on top.</p>
+    <h3>Official trails</h3>
+    <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
 <h3>Moto and hiking-only trails</h3>
     <p>To keep the list about mountain biking, trails that look like dirt-bike, ATV or 4x4 trails, and trails where bikes aren't allowed, are left out of the list. Moto means tags like <code>dirtbike:scale</code>, <code>motorcycle=designated</code>, <code>atv=yes</code>, <code>4wd_only=yes</code>, an ATV route, or a name like “ATV trail”. Hiking only means <code>bicycle=no</code>, <code>mtb=no</code>, stairs, hard hiking terrain (<code>sac_scale</code> T4 and up), or a signed hiking route with no bike access. A trail with any MTB tag, in an MTB route, or with <code>bicycle=designated</code> is never hidden, even if motorbikes are allowed on it too.</p>
     <h3>Unofficial (possibly unsanctioned) trails</h3>
@@ -1124,6 +1150,9 @@ label.toggle.off .sw { background: var(--muted); }
     show: { mtb: true, looks: true, other: false, ghost: true },   // "other" paths have no chip and stay hidden
     ghosts: [],          // possible unmapped trails from the weekly GPS-trace file
     onlyUnoff: false,     // "Unofficial only": flagged trails of the ticked types (of every type when none is ticked)
+    onlyOff: false,       // "Official only": trails with signs of being official, of the ticked types (same rule)
+    colorBy: store.get("colorBy", "diff"),     // trail colours on the map: "diff" (difficulty, like Trailforks) or "type"
+    allTrails: store.get("allTrails", true),  // "All trails": every MTB trail in view, any age, under the new ones
     prime: store.get("prime", false),   // "Prime loam now" (time row): every named trail in the area with Loam index 40-59 now
     trails: [],          // all candidates from last search (2-year window), with .created
     searchedBounds: [],
@@ -1303,11 +1332,21 @@ label.toggle.off .sw { background: var(--muted); }
     return out;
   }
   const isUnoff = (t) => !!(t.unoff && t.unoff.length);
+  // Signs that a trail is official (sanctioned), from what mappers tagged. Returns the reason, or null.
+  function officialWhy(tags) {
+    if (unofficial(tags).length) return null;
+    if (tags["ref:FFID"] || /recreation line/i.test(tags.source || "")) return "listed by Recreation Sites and Trails BC";
+    if (tags.bicycle === "customers") return tags.operator ? `bike park trail run by ${tags.operator}` : "bike park trail";
+    if (tags.operator) return `run by ${tags.operator}`;
+    if (tags.informal === "no") return "mapped as an official trail (informal=no)";
+    if (tags.bicycle === "designated") return "signed for bikes (bicycle=designated)";
+    return null;
+  }
   // The type chips' counts are totals. "Unofficial only" counts and shows the flagged trails of the
   // ticked types, or of every type when none is ticked.
   const TYPE_KEYS = ["mtb", "looks", "ghost"];
   const unoffTypes = () => { const on = TYPE_KEYS.filter((k) => state.show[k]); return on.length ? on : TYPE_KEYS; };
-  const wanted = (cat, unoff) => (state.onlyUnoff ? unoff && unoffTypes().includes(cat) : state.show[cat]);
+  const wanted = (cat, unoff, off) => (state.onlyUnoff ? !!unoff && unoffTypes().includes(cat) : state.onlyOff ? !!off && unoffTypes().includes(cat) : state.show[cat]);
 
   // Moto and hiking-only trails: hidden unless their toggle is on. Never applied to trails with MTB tags.
   // Moto (dirt bike, ATV, 4x4) and hiking-only trails, from what mappers tagged. Returns { use, why } or null.
@@ -1352,7 +1391,7 @@ label.toggle.off .sw { background: var(--muted); }
   // routes: names of the MTB routes the way is in; routeTypes: route types of every route it's in.
   function classify(tags, routes, routeTypes = []) {
     const r = classifyTrail(tags, routes);
-    if (r) { r.unoff = unofficial(tags); Object.assign(r, useOf(tags, routes.length ? routeTypes.concat("mtb") : routeTypes)); }
+    if (r) { r.unoff = unofficial(tags); r.official = officialWhy(tags); Object.assign(r, useOf(tags, routes.length ? routeTypes.concat("mtb") : routeTypes)); }
     return r;
   }
   function classifyTrail(tags, routes) {
@@ -1391,10 +1430,28 @@ label.toggle.off .sw { background: var(--muted); }
     return null;
   }
 
-  function grade(tags) {
-    if (tags["mtb:scale"]) return "S" + tags["mtb:scale"];
-    if (tags["mtb:scale:imba"]) return ["White", "Green", "Blue", "Black", "Dbl black"][+tags["mtb:scale:imba"]] || "IMBA " + tags["mtb:scale:imba"];
-    return "";
+  // Difficulty as Trailforks colours it: from mtb:scale:imba, or else mtb:scale. Mappers here use the
+  // singletrail scale that way too (S0-S1 green, S2 blue, S3 black, S4 double black; checked on the region's data).
+  const DIFF = {
+    green: { label: "Green", sym: "●", color: "#2f9e44" }, blue: { label: "Blue", sym: "■", color: "#1c6fe0" },
+    black: { label: "Black", sym: "◆", color: "#1b1b1b" }, dbl: { label: "Double black", sym: "◆◆", color: "#1b1b1b" },
+    pro: { label: "Pro line", sym: "▲", color: "#e8590c" },
+  };
+  const UNRATED = "#8a8f98";
+  function difficulty(tags) {
+    const imba = parseFloat(tags["mtb:scale:imba"]), sts = parseInt(tags["mtb:scale"], 10);
+    if (!isNaN(imba)) return imba < 2 ? "green" : imba < 3 ? "blue" : imba < 4 ? "black" : imba < 5 ? "dbl" : "pro";
+    if (!isNaN(sts)) return sts <= 1 ? "green" : sts === 2 ? "blue" : sts === 3 ? "black" : sts === 4 ? "dbl" : "pro";
+    return null;
+  }
+  const diffColor = (d) => (d ? DIFF[d].color : UNRATED);
+  const diffBadge = (tags) => { const d = difficulty(tags); return d ? `<span class="diff d-${d}">${DIFF[d].sym} ${DIFF[d].label}</span>` : ""; };
+  const officialTag = (why) => (why ? `<span class="off-tag" title="${esc(why)}">Official</span>` : "");
+  // The colour bar of a list row or trail header: difficulty colours, or the type colours (from the stylesheet).
+  function barStyle(t) {
+    if (state.colorBy !== "diff" || t.ghost) return "";
+    const d = difficulty(t.tags);
+    return d === "dbl" ? ` style="background: repeating-linear-gradient(#1b1b1b 0 7px, #fff 7px 9px)"` : ` style="background: ${diffColor(d)}"`;
   }
 
   // ---------- data ----------
@@ -1630,7 +1687,7 @@ out body;`;
     const t = { ...o, created: new Date(o.created), lastEdit: new Date(o.lastEdit) };
     t.bounds = L.latLngBounds(t.geom);
     const c = classify(t.tags, (t.routes || []).map((r) => r.name), t.routeTypes || []);   // saved by an older version of the app
-    if (c) Object.assign(t, { cat: c.cat, why: c.why, unoff: c.unoff, net: c.net });
+    if (c) Object.assign(t, { cat: c.cat, why: c.why, unoff: c.unoff, net: c.net, official: c.official });
     return Object.assign(t, useOf(t.tags, (t.routeTypes || []).concat(t.routes && t.routes.length ? ["mtb"] : [])));
   }
 
@@ -1883,6 +1940,7 @@ out body;`;
       km: items.reduce((n, t) => n + t.km, 0), bounds: items.reduce((b, t) => b.extend(t.bounds), L.latLngBounds(main.geom)),
       created: first.created, creator: first.creator, firstChangeset: first.firstChangeset,
       unoff: [...new Set(items.flatMap((t) => t.unoff || []))], routes: [...routes.values()],
+      official: items.some((t) => t.unoff && t.unoff.length) ? null : items.map((t) => t.official).find(Boolean) || null,
       elev: undefined, wx: undefined, history: undefined, _line: undefined, _nearFor: undefined };
     mergeCache.set(key, m);
     return m;
@@ -1984,18 +2042,26 @@ out body;`;
     vis.forEach((t) => counts[t.cat]++);
     $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nGhost").textContent = counts.ghost;
     $("nUnoff").textContent = vis.filter((t) => isUnoff(t) && unoffTypes().includes(t.cat)).length;
-    const shown = vis.filter((t) => wanted(t.cat, isUnoff(t)));
+    $("nOff").textContent = vis.filter((t) => t.official && unoffTypes().includes(t.cat)).length;
+    const shown = vis.filter((t) => wanted(t.cat, isUnoff(t), t.official));
+    drawAllTrails();
     state.shownCount = shown.length;
     state.shownIds = new Set(shown.map((t) => t.id));
     if (shown.length) loadLoam(shown);
 
     trailLayer.clearLayers();
     const color = { mtb: css("--mtb"), looks: css("--looks"), other: css("--other"), ghost: css("--ghost") };
+    const byDiff = state.colorBy === "diff";
     shown.slice().reverse().forEach((t) => {
       const sel = state.selected === t.id;
       const shape = t.segments || t.geom;
+      const d = byDiff && t.cat !== "ghost" ? difficulty(t.tags) : null;
+      // By difficulty, new trails get a white edge so they stand out from the thin "All trails" lines.
+      if (byDiff && t.cat !== "ghost") trailLayer.addLayer(t._edge = L.polyline(shape, { color: "#fff", weight: sel ? 12 : 9, opacity: sel || !state.selected ? 0.9 : 0.4, lineCap: "round", interactive: false }));
       const line = L.polyline(shape, {
-        color: t.use ? css("--other") : color[t.cat], weight: sel ? 9 : t.cat === "other" ? 5 : 7, opacity: sel ? 0.8 : state.selected ? 0.3 : 0.45,
+        color: t.cat === "ghost" ? color.ghost : byDiff ? diffColor(d) : t.use ? css("--other") : color[t.cat],
+        weight: byDiff && t.cat !== "ghost" ? (sel ? 8 : 5) : sel ? 9 : t.cat === "other" ? 5 : 7,
+        opacity: byDiff && t.cat !== "ghost" ? (sel ? 1 : state.selected ? 0.35 : 0.95) : sel ? 0.8 : state.selected ? 0.3 : 0.45,
         dashArray: t.cat === "ghost" ? "1 10" : t.cat === "looks" && !sel ? "10 6" : null, lineCap: "round", interactive: false,
       });
       // A wide invisible line on top makes thin trails easy to click or tap.
@@ -2004,22 +2070,22 @@ out body;`;
       hit.on("click", (e) => { L.DomEvent.stopPropagation(e); select(t.id, false); });
       t._line = line;
       trailLayer.addLayer(line);
+      if (d === "dbl") trailLayer.addLayer(L.polyline(shape, { color: "#fff", weight: 1.5, opacity: sel || !state.selected ? 0.95 : 0.4, dashArray: "5 7", interactive: false }));
       // Unofficial trails get a dark dotted line along them.
       if (isUnoff(t)) trailLayer.addLayer(L.polyline(shape, { color: css("--fg"), weight: 2.5, opacity: sel || !state.selected ? 0.9 : 0.35, dashArray: "1 7", lineCap: "round", interactive: false }));
       trailLayer.addLayer(hit);
     });
     const selT = shown.find((t) => t.id === state.selected);
-    if (selT) selT._line.bringToFront();
+    if (selT) { if (selT._edge && byDiff) selT._edge.bringToFront(); selT._line.bringToFront(); }
 
     renderStatus();
 
     const list = $("list");
     if (!shown.length) { list.innerHTML = state.trails.length || state.searchedBounds.length ? "" : `<div class="empty">Results appear here after a search.</div>`; return; }
     list.innerHTML = "<ol>" + shown.map((t) => {
-      const g = grade(t.tags);
       return `<li class="trail ${t.cat}${state.selected === t.id ? " sel" : ""}" data-id="${t.id}" tabindex="0">
-        <span class="bar"></span>
-        <div><div class="name">${esc(trailName(t))} ${g ? `<span class="grade">${esc(g)}</span>` : ""} ${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""} ${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}</div>
+        <span class="bar"${barStyle(t)}></span>
+        <div><div class="name">${esc(trailName(t))} ${t.ghost ? "" : diffBadge(t.tags)} ${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""}${officialTag(t.official)} ${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}</div>
         <div class="meta">${near ? `<span class="zone-tag">${fmtAway(nearDist(t))}</span> · ` : ""}${state.zone === "all" && !state.custom && t.zone ? `<span class="zone-tag">${esc(t.zone.split(" (")[0])}</span> · ` : ""}${esc(t.use ? t.useWhy[0] : t.why[0])}</div></div>
         <div class="right">${fmtLen(t.km)}<br>${ago(t.created)}${loamBadge(t)}</div></li>`;
     }).join("") + "</ol>";
@@ -2038,7 +2104,7 @@ out body;`;
     if (!primeKeep.has(g)) {
       let c = g.type === "r" ? (g.tags.route === "mtb" ? { cat: "mtb", unoff: [] } : null) : classify(g.tags, []);
       if (c && c.cat === "other" && c.net && !c.use && netNear(g.items.map((i) => i.c), g.name).length >= 2) c = { ...c, cat: "looks" };
-      primeKeep.set(g, c && (c.cat === "mtb" || c.cat === "looks") && !c.use ? { g, center: g.center, cat: c.cat, unoff: c.unoff || [] } : null);
+      primeKeep.set(g, c && (c.cat === "mtb" || c.cat === "looks") && !c.use ? { g, center: g.center, cat: c.cat, unoff: c.unoff || [], official: c.official !== undefined ? c.official : officialWhy(g.tags) } : null);
     }
     return primeKeep.get(g);
   }
@@ -2046,7 +2112,7 @@ out body;`;
     if (names.dirty || names.trailCount !== state.trails.length) buildGroups();
     const inside = (ll) => (near ? near.ll.distanceTo(ll) <= near.km * 1000 : state.searchedBounds.some((b) => b.contains(ll)));
     const pool = names.groups.filter((g) => inside(g.center)).map(primeEntry).filter(Boolean);
-    const typed = pool.filter((e) => wanted(e.cat, e.unoff.length));
+    const typed = pool.filter((e) => wanted(e.cat, e.unoff.length, e.official));
     if (typed.length) loadLoam(typed);
     const isPrime = (e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60; };
     const prime = pool.filter(isPrime);
@@ -2054,24 +2120,25 @@ out body;`;
     state.primeRange = vals.length ? [Math.min(...vals), Math.max(...vals)] : null;
     $("nMtb").textContent = prime.filter((e) => e.cat === "mtb").length; $("nLooks").textContent = prime.filter((e) => e.cat === "looks").length; $("nGhost").textContent = "–";
     $("nUnoff").textContent = prime.filter((e) => e.unoff.length && unoffTypes().includes(e.cat)).length;
+    $("nOff").textContent = prime.filter((e) => e.official && unoffTypes().includes(e.cat)).length;
     const dist = (e) => near.ll.distanceTo(e.center);
-    const shown = prime.filter((e) => wanted(e.cat, e.unoff.length)).sort(near ? (a, b) => dist(a) - dist(b) : (a, b) => a.g.name.localeCompare(b.g.name));
+    const shown = prime.filter((e) => wanted(e.cat, e.unoff.length, e.official)).sort(near ? (a, b) => dist(a) - dist(b) : (a, b) => a.g.name.localeCompare(b.g.name));
     state.primeShown = shown; state.shownCount = shown.length; state.primeTotal = typed.length;
     state.shownIds = new Set();
     state.loamPending = typed.some((e) => loamOf(e) === undefined);
 
     trailLayer.clearLayers();
-    shown.forEach((e) => trailLayer.addLayer(L.circleMarker(e.center, { radius: 7, color: "#fff", weight: 2, fillColor: css("--prime"), fillOpacity: 0.95 })
+    drawAllTrails();
+    shown.forEach((e) => trailLayer.addLayer(L.circleMarker(e.center, { radius: 7, color: "#fff", weight: 2, fillColor: state.colorBy === "diff" ? diffColor(difficulty(e.g.tags)) : css("--prime"), fillOpacity: 0.95 })
       .bindTooltip(esc(e.g.name), { direction: "top", offset: [0, -6] })
       .on("click", (ev) => { L.DomEvent.stopPropagation(ev); showFound(e.g, true); })));
     renderStatus();
 
     const list = $("list");
     list.innerHTML = shown.length ? "<ol>" + shown.map((e, i) => {
-      const g = grade(e.g.tags);
       return `<li class="trail prime ${e.cat}" data-pk="${i}" tabindex="0">
-        <span class="bar"></span>
-        <div><div class="name">${esc(e.g.name)} ${g ? `<span class="grade">${esc(g)}</span>` : ""} ${e.unoff.length ? `<span class="unoff-tag">Unofficial?</span>` : ""}</div>
+        <span class="bar"${barStyle({ tags: e.g.tags })}></span>
+        <div><div class="name">${esc(e.g.name)} ${diffBadge(e.g.tags)} ${e.unoff.length ? `<span class="unoff-tag">Unofficial?</span>` : ""}${officialTag(e.official)}</div>
         <div class="meta">${near ? `<span class="zone-tag">${fmtAway(dist(e))}</span> · ` : ""}${esc([e.g.kind, e.g.zone].filter(Boolean).join(" · "))}</div></div>
         <div class="right">${loamBadge(e).replace(/^<br>/, "")}</div></li>`;
     }).join("") + "</ol>" : "";
@@ -2081,7 +2148,9 @@ out body;`;
     if (state.example) return;
     const label = { 1: "month", 6: "6 months", 12: "year", 24: "2 years" }[state.months];
     const n = state.shownCount || 0;
-    const noType = !state.onlyUnoff && !TYPE_KEYS.some((k) => state.show[k]);
+    const noType = !state.onlyUnoff && !state.onlyOff && !TYPE_KEYS.some((k) => state.show[k]);
+    const only = state.onlyUnoff ? "unofficial " : state.onlyOff ? "official " : "";
+    const onlyOff = state.onlyUnoff ? "“Unofficial only”" : "“Official only”";
     if (state.prime) {
       $("findBtn").disabled = !!state.primeLoading;
       $("findLabel").textContent = state.primeLoading ? "Loading…" : "Find prime loam trails";
@@ -2099,9 +2168,9 @@ out body;`;
       const retry = { label: "Try again", fn: () => loadPrime(true) };
       if (failed.length && !n && !busy) { setStatus(`Couldn't load the trail list for ${failed.map(shortZone).join(", ")}.`, true, retry); return; }
       if (failed.length && n && !busy) { setStatus(`${n} trail${n === 1 ? "" : "s"} in ${where} ${n === 1 ? "is" : "are"} in prime loam right now (Loam index 40 to 59). Couldn't load the trail list for ${failed.map(shortZone).join(", ")}.`, true, retry); return; }
-      const what = state.onlyUnoff ? "unofficial trail" : "trail";
+      const what = only + "trail";
       setStatus(n ? `${n} ${what}${n === 1 ? "" : "s"} in ${where} ${n === 1 ? "is" : "are"} in prime loam right now (Loam index 40 to 59). Tap one to see it.${busy ? " " + busy : ""}`
-        : busy || (noType ? "Tick a trail type above to see the trails." : state.onlyUnoff ? `No unofficial trails in ${where} are in prime loam right now. Turn off “Unofficial only” to see the others.`
+        : busy || (noType ? "Tick a trail type above to see the trails." : only ? `No ${only}trails in ${where} are in prime loam right now. Turn off ${onlyOff} to see the others.`
           : `No trails in ${where} are in prime loam right now (Loam index 40 to 59).${loamNow()} Pick Month, Year… to see new trails instead.`));
       return;
     }
@@ -2118,7 +2187,7 @@ out body;`;
     } else if (state.error && !state.trails.length) {
       setStatus(`Search failed. ${state.error.replace(/\.?$/, ".")} If it keeps happening, open “Search details” and send a screenshot.`, true, state.retry && { label: "Try again", fn: state.retry });
     } else if (state.searchedBounds.length) {
-      setStatus((noType && !n ? "Tick a trail type above to see the trails." : n ? `${n} ${state.onlyUnoff ? "unofficial " : ""}trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : (state.onlyUnoff ? `No unofficial trails here in the last ${label}. Turn off “Unofficial only” to see the others.` : `No new trails here in the last ${label}. Try a longer period or move the map.`)) + (state.error ? " " + state.error : ""),
+      setStatus((noType && !n ? "Tick a trail type above to see the trails." : n ? `${n} ${only}trail${n === 1 ? "" : "s"} first mapped in the last ${label}, newest first. Click a trail for details.` : (only ? `No ${only}trails here in the last ${label}. Turn off ${onlyOff} to see the others.` : `No new trails here in the last ${label}. Try a longer period or move the map.`)) + (state.error ? " " + state.error : ""),
         !!state.error, state.error && state.retry && { label: "Load missing squares", fn: state.retry });
     }
   }
@@ -2426,13 +2495,12 @@ out body;`;
     const type = t.osmType || "way";
     const segs = t.segments && t.segments.length > 1 ? t.segments.length : 0;
     const routes = (t.routes || []).map((r) => `<li><a href="https://www.openstreetmap.org/relation/${r.id}" target="_blank" rel="noopener">${esc(r.name)}</a></li>`).join("");
-    const g = grade(t.tags);
     d.innerHTML = `
       <button class="linkish back" id="detailBack" type="button">← Back</button>
       <div class="d-head ${t.cat}">
-        <span class="bar"></span>
+        <span class="bar"${barStyle(t)}></span>
         <div><h2>${esc(trailName(t))}</h2>
-        <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${g ? `<span class="grade">${esc(g)}</span>` : ""}${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""}${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
+        <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${diffBadge(t.tags)}${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""}${officialTag(t.official)}${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
       </div>
       ${t.use ? `<div class="unoff-box use-box"><strong>${t.use === "moto" ? "Looks like a moto trail" : "Looks like a hiking-only trail"}</strong><ul>${t.useWhy.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">${t.use === "moto" ? "Dirt-bike, ATV and 4x4 trails" : "Hiking-only trails"} are left out of the new-trails list. This is a guess from the map tags.</p></div>` : ""}
@@ -2441,6 +2509,7 @@ out body;`;
       <div class="go"><a class="go-btn" id="goBtn" target="_blank" rel="noopener" aria-disabled="true">Go to trail</a><p class="muted" id="goNote">Finding the top of the trail…</p></div>
       <dl class="facts">
         ${t.cat === "looks" ? `<dt>Why it looks like MTB</dt><dd>${t.why.filter((w) => !/^score /.test(w)).map(esc).join("<br>")}${t.inNet ? `<br><span class="muted">It has no bike tags yet. If it's a bike trail, adding <code>mtb:scale</code> on OpenStreetMap makes it “MTB tagged”.</span>` : ""}</dd>` : ""}
+        <dt>Official?</dt><dd>${t.official ? `Yes: ${esc(t.official)}.` : isUnoff(t) ? "Possibly not (see above)." : `<span class="muted">Not known: the map doesn't say who runs it.</span>`}</dd>
         <dt>Length</dt><dd>${fmtLen(t.km)} <span class="muted">(${segs ? `${segs} map segments` : `${t.geom.length} map points`})</span></dd>
         <dt>First mapped</dt><dd>${t.created ? `${fmtDate(t.created)} · ${ago(t.created)}<br>by ${userLink(t.creator)} ${csLink(t.firstChangeset)}` : "Unknown"}${segs && type === "way" ? `<br><span class="muted">earliest of its segments</span>` : ""}</dd>
         <dt>Last edited</dt><dd>${segs && type === "way" ? `<span class="muted">main segment:</span> ` : ""}${t.version > 1 ? `${fmtDate(t.lastEdit)} · version ${t.version}<br>by ${userLink(t.lastUser)} ${csLink(t.lastChangeset)}` : "Never edited since (version 1)"}</dd>
@@ -2580,7 +2649,14 @@ out body;`;
       render();
     });
   });
-  $("onlyUnoff").addEventListener("change", (e) => { state.onlyUnoff = e.target.checked; e.target.closest("label").classList.toggle("off", !state.onlyUnoff); render(); });
+  // "Unofficial only" and "Official only" can't both be on.
+  function setOnly(which, on) {
+    state.onlyUnoff = which === "unoff" && on; state.onlyOff = which === "off" && on;
+    [["onlyUnoff", state.onlyUnoff], ["onlyOff", state.onlyOff]].forEach(([id, v]) => { $(id).checked = v; $(id).closest("label").classList.toggle("off", !v); });
+    render();
+  }
+  $("onlyUnoff").addEventListener("change", (e) => setOnly("unoff", e.target.checked));
+  $("onlyOff").addEventListener("change", (e) => setOnly("off", e.target.checked));
   [["showMtb", "mtb"], ["showLooks", "looks"], ["showGhost", "ghost"]].forEach(([id, k]) => {
     const el = $(id);
     el.checked = state.show[k];
@@ -2685,6 +2761,93 @@ out body;`;
   $("about").addEventListener("click", (e) => { if (e.target.id === "about") $("about").hidden = true; });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!$("about").hidden) $("about").hidden = true; else if (state.selected) closeDetail(); } });
   $("sheetToggle").addEventListener("click", () => { $("panel").classList.toggle("expanded"); setTimeout(() => map.invalidateSize(), 50); });
+
+  // ---------- All trails: every MTB trail in view, old and new, coloured like Trailforks ----------
+  // From the daily data/mtb-<zone>.json files (scripts/build-mtb.mjs): ways with MTB tags, bike park
+  // trails and MTB route ways. Drawn thin, under the new trails; the type and "only" filters apply.
+  // Tapping one opens it like any trail on the map (the map click looks it up).
+  map.createPane("allTrails").style.zIndex = 390;
+  const allRenderer = L.canvas({ pane: "allTrails", padding: 0.3 });
+  const allLayer = L.layerGroup().addTo(map);
+  const allData = new Map();                       // zone id -> list of { id, tags, geom, c }, null while loading
+  let allKey = "";
+  function loadAllTrails() {
+    if (!state.allTrails || state.example) return;
+    const view = map.getBounds();
+    ZONES.filter((z) => z.bounds.intersects(view) && !allData.has(z.id)).forEach((z) => {
+      allData.set(z.id, null);
+      nightly(`mtb-${z.id}.json`).then((f) => {
+        const inRoute = new Map();
+        Object.values((f && f.routes) || {}).forEach((r) => r.ways.forEach((w) => { if (!inRoute.has(w)) inRoute.set(w, []); inRoute.get(w).push(r.name); }));
+        allData.set(z.id, f && f.v === 1 ? Object.entries(f.ways).map(([id, w]) => {
+          const geom = [];
+          for (let i = 0; i < w.g.length; i += 2) geom.push([w.g[i], w.g[i + 1]]);
+          return { id: +id, tags: w.tags, geom, c: classify(w.tags, inRoute.get(+id) || []) };
+        }).filter((w) => w.c && !w.c.use && w.geom.length > 1) : []);
+        drawAllTrails();
+      });
+    });
+  }
+  function drawAllTrails() {
+    const loaded = [...allData.values()].filter(Boolean);
+    const key = [state.allTrails, state.colorBy, state.onlyUnoff, state.onlyOff, TYPE_KEYS.map((k) => state.show[k]), loaded.length].join("/");
+    if (key === allKey) return;
+    allKey = key;
+    allLayer.clearLayers();
+    if (!state.allTrails) return;
+    const seen = new Set(), byDiff = state.colorBy === "diff";
+    loaded.forEach((list) => list.forEach((w) => {
+      if (seen.has(w.id) || !wanted(w.c.cat, w.c.unoff.length, w.c.official)) return;
+      seen.add(w.id);
+      const d = difficulty(w.tags);
+      allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks"), weight: 3, opacity: 0.9, interactive: false }));
+      if (byDiff && d === "dbl") allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: "#fff", weight: 1, opacity: 0.9, dashArray: "4 6", interactive: false }));
+    }));
+  }
+  function syncAllBtn() {
+    const b = $("allBtn");
+    b.setAttribute("aria-pressed", String(state.allTrails));
+    b.classList.toggle("on", state.allTrails);
+    b.title = state.allTrails ? "Hide the other MTB trails, show only the ones in the list" : "Show every MTB trail on the map, old and new, coloured by difficulty";
+  }
+  $("allBtn").addEventListener("click", () => {
+    state.allTrails = !state.allTrails; store.set("allTrails", state.allTrails);
+    syncAllBtn(); loadAllTrails(); drawAllTrails(); renderKey();
+  });
+  map.on("moveend", loadAllTrails);
+  syncAllBtn();
+  loadAllTrails();
+
+  // The map key: what the colours mean, and a switch between difficulty and trail-type colours.
+  const keyCtl = L.control({ position: "topleft" });
+  keyCtl.onAdd = () => {
+    const el = L.DomUtil.create("details", "legend");
+    el.open = !matchMedia("(max-width: 760px)").matches;
+    el.innerHTML = `<summary>Trail colours</summary><div class="lg-mode" role="group" aria-label="Colour the trails by">
+      <button type="button" data-c="diff">Difficulty</button><button type="button" data-c="type">Type</button></div><ul id="keyList"></ul><p class="lg-note" id="keyNote"></p>`;
+    L.DomEvent.disableClickPropagation(el); L.DomEvent.disableScrollPropagation(el);
+    el.querySelectorAll(".lg-mode button").forEach((b) => b.addEventListener("click", () => {
+      state.colorBy = b.dataset.c; store.set("colorBy", state.colorBy);
+      renderKey(); render();
+    }));
+    return el;
+  };
+  keyCtl.addTo(map);
+  function renderKey() {
+    const byDiff = state.colorBy === "diff";
+    document.querySelectorAll(".legend .lg-mode button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === state.colorBy)));
+    const sw = (style, label) => `<li><i style="${style}"></i>${label}</li>`;
+    const dots = "background: repeating-linear-gradient(90deg, var(--fg) 0 3px, transparent 3px 7px)";
+    $("keyList").innerHTML = byDiff
+      ? Object.entries(DIFF).map(([k, v]) => sw(k === "dbl" ? "background: repeating-linear-gradient(90deg, #1b1b1b 0 8px, #fff 8px 11px); box-shadow: 0 0 0 1px #1b1b1b" : `background: ${v.color}`, `${v.sym} ${v.label}`)).join("")
+        + sw(`background: ${UNRATED}`, "Not rated") + sw(dots, "Unofficial?")
+      : sw("background: var(--mtb)", "MTB tagged") + sw("background: repeating-linear-gradient(90deg, var(--looks) 0 8px, transparent 8px 12px)", "Looks like MTB")
+        + sw("background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 8px)", "Possible unmapped") + sw(dots, "Unofficial?");
+    $("keyNote").textContent = byDiff
+      ? state.allTrails ? "Thick with a white edge: trails in the list. Thin: all other MTB trails." : "Dashed: looks like MTB (no bike tags)."
+      : state.allTrails ? "Thick: trails in the list. Thin: all other MTB trails." : "";
+  }
+  renderKey();
 
   // ---------- Full map: the panel hides and the map fills the screen ----------
   // Where the browser allows it (computers, Android) the page also goes full screen, hiding the
@@ -2928,10 +3091,10 @@ out tags center qt;`;
     hits = findNames(raw);
     if (hitSel >= hits.length) hitSel = hits.length - 1;
     const rows = hits.map((h, n) => {
-      const g = h.g, gr = grade(g.tags);
+      const g = h.g;
       const meta = [g.kind, g.zone, g.items.length > 1 ? g.items.length + " segments" : "", fmtDist(h.d)].filter(Boolean).join(" · ");
       return `<li class="hit ${g.mtb ? "mtb" : ""}" role="option" id="hit${n}" data-n="${n}" aria-selected="${n === hitSel}"><span class="bar"></span>
-        <div><div class="hn">${esc(g.name)} ${gr ? `<span class="grade">${esc(gr)}</span>` : ""} ${g.isNew ? `<span class="newtag">New</span>` : ""} ${unofficial(g.tags).length ? `<span class="unoff-tag">Unofficial?</span>` : ""} ${g.use ? `<span class="use-tag">${USE_LABEL[g.use]}</span>` : ""}</div><div class="hm">${esc(meta)}</div></div></li>`;
+        <div><div class="hn">${esc(g.name)} ${diffBadge(g.tags)} ${g.isNew ? `<span class="newtag">New</span>` : ""} ${unofficial(g.tags).length ? `<span class="unoff-tag">Unofficial?</span>` : ""} ${g.use ? `<span class="use-tag">${USE_LABEL[g.use]}</span>` : ""}</div><div class="hm">${esc(meta)}</div></div></li>`;
     }).join("");
     let note = "";
     const want = wantedZones(), zsel = nameZone();
@@ -3056,7 +3219,7 @@ out tags center qt;`;
         id: main.id, osmType: type, tags, routes, searched: true, geom, chainAll, segments: segs, segIds, bounds,
         km: segs.reduce((s, l) => s + lengthKm(l), 0), zone: zoneOf(bounds.getCenter()),
         version: main.version, lastEdit: new Date(main.timestamp), lastUser: main.user || "", lastChangeset: main.changeset,
-        cat: c ? c.cat : "other", catLabel: c ? null : kind, unoff: unofficial(tags), ...useOf(tags, routes.length ? types.concat("mtb") : types),
+        cat: c ? c.cat : "other", catLabel: c ? null : kind, unoff: unofficial(tags), official: officialWhy(tags), ...useOf(tags, routes.length ? types.concat("mtb") : types),
         why: c ? c.why : [`No bike tags and not trail-like enough for the MTB colours (highway=${tags.highway || "none"}, ${tags.route ? "route=" + tags.route : "no route"}).`],
       };
       if (c && c.cat === "other") t.catLabel = kind;
@@ -3087,12 +3250,14 @@ out tags center qt;`;
   }
   function drawFound(t) {
     foundLayer.clearLayers();
-    const color = { mtb: css("--mtb"), looks: css("--looks"), other: css("--accent") }[t.cat];
+    const dd = state.colorBy === "diff" ? difficulty(t.tags) : null;
+    const color = state.colorBy === "diff" ? diffColor(dd) : { mtb: css("--mtb"), looks: css("--looks"), other: css("--accent") }[t.cat];
     t.segments.forEach((s) => {
       foundLayer.addLayer(L.polyline(s, { color: "#ffffff", weight: 12, opacity: 0.9, lineCap: "round", interactive: false }));
       foundLayer.addLayer(L.polyline(s, { color, weight: 6, opacity: 1, lineCap: "round" })
         .bindTooltip(esc(trailName(t)), { sticky: true, direction: "top", offset: [0, -8] })
         .on("click", (e) => { L.DomEvent.stopPropagation(e); openDetail(t); }));
+      if (dd === "dbl") foundLayer.addLayer(L.polyline(s, { color: "#fff", weight: 1.5, opacity: 0.95, dashArray: "5 7", interactive: false }));
     });
     foundLayer.addLayer(L.circleMarker(t.geom[0], { radius: 7, color: "#fff", weight: 3, fillColor: color, fillOpacity: 1 }).bindTooltip(t.chainAll ? "Start" : "Start of its longest connected stretch"));
   }
@@ -3165,7 +3330,7 @@ out tags center qt;`;
       const created = new Date(Date.now() - daysAgo * 864e5);
       const geom = pts.map(([dy, dx]) => [c.lat + dy * 0.004, c.lng + dx * 0.006]);
       return { id, cat, tags, geom, created, creator: "example_mapper", version: version || 1, lastEdit: created,
-        ...(({ why, unoff, use, useWhy }) => ({ why, unoff, use, useWhy }))(classify(tags, cat === "mtb" && id === -3 ? ["Example Ridge Loop"] : [])), km: lengthKm(geom) };
+        ...(({ why, unoff, official, use, useWhy }) => ({ why, unoff, official, use, useWhy }))(classify(tags, cat === "mtb" && id === -3 ? ["Example Ridge Loop"] : [])), km: lengthKm(geom) };
     };
     state.trails = [
       mk(-1, "mtb", { highway: "path", name: "Copper Flow", "mtb:scale": "1", "mtb:scale:imba": "2", bicycle: "designated", surface: "dirt" }, [[0, -2], [.4, -1.4], [.2, -.8], [.7, -.2], [.5, .3]], 12),

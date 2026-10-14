@@ -1,0 +1,41 @@
+name: All trails data
+
+# Every day, collect every MTB trail in the region (any age, with its shape) from OpenStreetMap into
+# data/mtb-<zone>.json, so the website can draw them all coloured by difficulty.
+on:
+  schedule:
+    - cron: "41 8 * * *"   # 08:41 UTC, before the nightly trail data run
+  workflow_dispatch:        # "Run workflow" button on the Actions tab
+
+permissions:
+  contents: write   # commit the data files
+  pages: write      # ask GitHub Pages to publish them
+
+concurrency:
+  group: all-trails
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40   # build-mtb.mjs stops asking Overpass after 25 minutes
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Collect all MTB trails
+        run: node scripts/build-mtb.mjs
+      - name: Commit the new data
+        run: |
+          git add data
+          if git diff --cached --quiet; then echo "No changes."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "All trails data"
+          git pull -q --rebase origin "${GITHUB_REF_NAME}"
+          git push -q origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Publish the website
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent || echo "Pages will publish on its own."
