@@ -286,6 +286,8 @@ const BAND = (s) => { s = val(s).toLowerCase(); return /alp/.test(s) ? "alp" : /
 const ASPECTS = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
 const ASPECT = (s) => { s = val(s).toLowerCase().replace(/[^a-z]/g, ""); const short = { north: "n", northeast: "ne", east: "e", southeast: "se", south: "s", southwest: "sw", west: "w", northwest: "nw" }[s] || s; return ASPECTS.includes(short) ? short : ""; };
 
+// Out of season Avalanche Canada publishes one bulletin for the whole province, titled with every area's name.
+const shortTitle = (t) => (t.split("-").length > 8 ? "Avalanche Canada early season bulletin (all of BC)" : t);
 function normalizeForecast(p) {
   const r = p.report || p;
   const days = (r.dangerRatings || []).map((d) => {
@@ -303,7 +305,7 @@ function normalizeForecast(p) {
   });
   const summaries = Object.fromEntries((r.summaries || []).map((s) => [val(s.type).toLowerCase(), text(s.content).slice(0, 1500)]));
   return {
-    id: p.id || r.id || "", title: text(r.title) || text(p.area?.name), url: p.url || (p.slug ? `https://avalanche.ca/forecasts/${p.slug}` : "https://avalanche.ca/map"),
+    id: p.id || r.id || "", title: shortTitle(text(r.title) || text(p.area?.name)), url: p.url || (p.slug ? `https://avalanche.ca/forecasts/${p.slug}` : "https://avalanche.ca/map"),
     owner: text(p.owner) || "Avalanche Canada", issued: val(r.dateIssued), validUntil: val(r.validUntil), forecaster: text(r.forecaster),
     highlights: text(r.highlights).slice(0, 1500), confidence: text(r.confidence?.rating), summaries,
     advice: (r.terrainAndTravelAdvice || []).map(text).filter(Boolean).slice(0, 8),
@@ -334,12 +336,12 @@ async function buildAvalanche() {
     const lat = ((z.box[0] + z.box[2]) / 2).toFixed(3), lon = ((z.box[1] + z.box[3]) / 2).toFixed(3);
     try {
       const p = await getJson(`${AVCAN}/forecasts/en/products/point?lat=${lat}&long=${lon}`);
-      if (p && (p.report || p.id)) { products.push(Object.assign(p, { _point: true })); log(`  ${z.name}: ${text(p.report?.title) || p.area?.id} (${val(p.type)})`); }
+      if (p && (p.report || p.id)) { products.push(Object.assign(p, { _point: true })); log(`  ${z.name}: ${text(p.report?.title).slice(0, 80) || p.area?.id} (${val(p.type)})`); }
       else log(`  ${z.name}: nothing (${JSON.stringify(p).slice(0, 200)})`);
     } catch (e) { log(`  ${z.name}: point forecast failed (${e.message})`); }
   }
   const sample = products.find((p) => p._point && p.report) || products[0];
-  if (sample) log(`  sample (${text(sample.report?.title)}): dangerRatings[0] ${JSON.stringify(sample.report?.dangerRatings?.[0]).slice(0, 900)}; problems[0] ${JSON.stringify(sample.report?.problems?.[0] || null).slice(0, 900)}; message ${JSON.stringify(sample.report?.message || "").slice(0, 300)}`);
+  if (sample) log(`  sample (${text(sample.report?.title).slice(0, 80)}): dangerRatings[0] ${JSON.stringify(sample.report?.dangerRatings?.[0] || null).slice(0, 900)}; problems[0] ${JSON.stringify(sample.report?.problems?.[0] || null).slice(0, 900)}; message ${JSON.stringify(sample.report?.message || "").slice(0, 300)}`);
 
   let areas = [];
   try {
@@ -361,7 +363,7 @@ async function buildAvalanche() {
   const out = [];
   for (const a of areas) {
     const hit = byArea.get(a.id);
-    out.push({ id: a.id, name: areaName(a.name) || areaName(hit?.p.area?.name) || text(hit?.p.report?.title), rings: a.rings, forecast: hit ? normalizeForecast(hit.p) : null });
+    out.push({ id: a.id, name: areaName(a.name) || areaName(hit?.p.area?.name) || shortTitle(text(hit?.p.report?.title)), rings: a.rings, forecast: hit ? normalizeForecast(hit.p) : null });
     if (hit) byArea.delete(a.id);
   }
   // Forecasts whose outline we didn't get: use their bounding box, if they are in the region.
@@ -370,7 +372,7 @@ async function buildAvalanche() {
     const rings = Array.isArray(bb) && bb.length === 4 ? [boxRing(bb)] : [];
     if (rings.length && !touches(rings)) continue;
     if (!rings.length && !p._point) continue;
-    out.push({ id: aid, name: areaName(p.area?.name) || text(p.report?.title), rings, forecast: normalizeForecast(p) });
+    out.push({ id: aid, name: areaName(p.area?.name) || shortTitle(text(p.report?.title)), rings, forecast: normalizeForecast(p) });
   }
   const withForecast = out.filter((a) => a.forecast && a.forecast.days.length);
   log(`  ${out.length} areas in the region, ${withForecast.length} with a forecast:`);

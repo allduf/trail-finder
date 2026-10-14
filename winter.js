@@ -328,6 +328,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       <p class="sk-hint">${f.issued ? "Issued " + esc(new Date(f.issued).toLocaleString()) : ""}${f.owner ? " by " + esc(f.owner) : ""}. For the area in the middle of the map.</p>
       <div class="av-days" role="group" aria-label="Day">${f.days.map((x, i) => `<button type="button" data-d="${i}" aria-pressed="${x === d}">${esc(x.label || x.date)}</button>`).join("")}</div>
       <div class="av-rate">${BANDS.map(([b, n]) => `<span>${n}</span>${chip(d[b])}`).join("")}</div>
+      ${!example && f.days.every((x) => !x.alp && !x.tln && !x.btl) ? `<p>No danger ratings yet (early season), so no slopes are shaded. <button type="button" class="linkish" id="avEx">Show an example forecast</button></p>` : ""}
       ${f.highlights ? `<p><strong>${esc(f.highlights)}</strong></p>` : ""}
       ${(f.problems || []).map((p) => `<div class="av-prob">${rose(p)}<div><b>${esc(p.type)}</b><p>${esc(p.aspects.map((s) => s.toUpperCase()).join(" "))} · ${esc(p.elevations.map((b) => BANDS.find((x) => x[0] === b)[1]).join(", "))}</p><p>${p.likelihood ? "Likelihood: " + esc(p.likelihood) : ""}${p.size ? " · Size " + esc(p.size) : ""}</p>${p.comment ? `<details><summary>More</summary><p>${esc(p.comment)}</p></details>` : ""}</div></div>`).join("")}
       ${Object.values(f.summaries || {}).filter(Boolean).length ? `<details><summary>Forecaster's notes</summary>${Object.values(f.summaries).filter(Boolean).map((s) => `<p>${esc(s)}</p>`).join("")}</details>` : ""}
@@ -337,6 +338,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       <p><a href="${esc(f.url || "https://avalanche.ca/map")}" target="_blank" rel="noopener">Full forecast on avalanche.ca</a>${example ? ` · <button type="button" class="linkish" id="avExOff">Hide the example</button>` : ""}</p>`;
     card.querySelectorAll(".av-days button").forEach((b) => b.addEventListener("click", () => { day = +b.dataset.d; refreshAvy(); }));
     const off = $("avExOff"); if (off) off.addEventListener("click", () => { example = false; refreshAvy(); });
+    bindEx();
   }
   function bindEx() { const b = $("avEx"); if (b) b.addEventListener("click", () => { example = true; refreshAvy(); }); }
 
