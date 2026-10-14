@@ -310,6 +310,8 @@ function normalizeForecast(p) {
     days, problems,
   };
 }
+// The API sometimes gives an area's id as its name.
+const areaName = (v) => { const s = text(v); return /^[0-9a-f]{24,}$/i.test(s) ? "" : s; };
 // Area outlines: GeoJSON (Multi)Polygons -> rings of [lat, lon, ...] simplified to ~150 m.
 function areaRings(geom) {
   const polys = geom?.type === "MultiPolygon" ? geom.coordinates : geom?.type === "Polygon" ? [geom.coordinates] : [];
@@ -332,10 +334,12 @@ async function buildAvalanche() {
     const lat = ((z.box[0] + z.box[2]) / 2).toFixed(3), lon = ((z.box[1] + z.box[3]) / 2).toFixed(3);
     try {
       const p = await getJson(`${AVCAN}/forecasts/en/products/point?lat=${lat}&long=${lon}`);
-      if (p && (p.report || p.id)) { products.push(Object.assign(p, { _point: true })); log(`  ${z.name}: ${text(p.area?.name) || text(p.report?.title)} (${val(p.type)})`); }
+      if (p && (p.report || p.id)) { products.push(Object.assign(p, { _point: true })); log(`  ${z.name}: ${text(p.report?.title) || p.area?.id} (${val(p.type)})`); }
+      else log(`  ${z.name}: nothing (${JSON.stringify(p).slice(0, 200)})`);
     } catch (e) { log(`  ${z.name}: point forecast failed (${e.message})`); }
   }
-  if (products[0]) log(`  sample: ${JSON.stringify(products.find((p) => p.report?.dangerRatings) || products[0]).slice(0, 2500)}`);
+  const sample = products.find((p) => p._point && p.report) || products[0];
+  if (sample) log(`  sample (${text(sample.report?.title)}): dangerRatings[0] ${JSON.stringify(sample.report?.dangerRatings?.[0]).slice(0, 900)}; problems[0] ${JSON.stringify(sample.report?.problems?.[0] || null).slice(0, 900)}; message ${JSON.stringify(sample.report?.message || "").slice(0, 300)}`);
 
   let areas = [];
   try {
@@ -357,7 +361,7 @@ async function buildAvalanche() {
   const out = [];
   for (const a of areas) {
     const hit = byArea.get(a.id);
-    out.push({ id: a.id, name: a.name || text(hit?.p.area?.name), rings: a.rings, forecast: hit ? normalizeForecast(hit.p) : null });
+    out.push({ id: a.id, name: areaName(a.name) || areaName(hit?.p.area?.name) || text(hit?.p.report?.title), rings: a.rings, forecast: hit ? normalizeForecast(hit.p) : null });
     if (hit) byArea.delete(a.id);
   }
   // Forecasts whose outline we didn't get: use their bounding box, if they are in the region.
@@ -366,10 +370,11 @@ async function buildAvalanche() {
     const rings = Array.isArray(bb) && bb.length === 4 ? [boxRing(bb)] : [];
     if (rings.length && !touches(rings)) continue;
     if (!rings.length && !p._point) continue;
-    out.push({ id: aid, name: text(p.area?.name), rings, forecast: normalizeForecast(p) });
+    out.push({ id: aid, name: areaName(p.area?.name) || text(p.report?.title), rings, forecast: normalizeForecast(p) });
   }
   const withForecast = out.filter((a) => a.forecast && a.forecast.days.length);
-  log(`  ${out.length} areas in the region, ${withForecast.length} with a forecast: ${out.map((a) => `${a.name}${a.forecast ? " ✓" : ""}`).join("; ")}`);
+  log(`  ${out.length} areas in the region, ${withForecast.length} with a forecast:`);
+  out.forEach((a) => log(`    ${a.name || a.id}: ${a.rings.length} outline(s); ${a.forecast ? `${a.forecast.days.length} days ${JSON.stringify(a.forecast.days)}, ${a.forecast.problems.length} problems ${JSON.stringify(a.forecast.problems.map((p) => [p.type, p.aspects.join(""), p.elevations.join("")]))}` : "no forecast"}`));
   return { areas: out, products: products.length };
 }
 

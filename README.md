@@ -41,3 +41,12 @@ their own "Logging areas" button on the site. Every 3 hours,
 `.github/workflows/wildfires.yml` saves the BC Wildfire Service's current fires and perimeters (fires that are out are
 left out), fire area restrictions (`PROT_RESTRICTED_AREAS_SP`) and evacuation orders and alerts
 (`EMRG_ORDER_AND_ALERT_AREAS_SP`) to `data/fires.json`, shown with the site's "Wildfires" button.
+
+## Skiing (winter mode)
+The sport menu in the header switches the site between MTB and Skiing (`winter.js`). In Skiing the map shows backcountry
+ski routes and huts, and the "Avalanche risk" button shades slopes over about 25° by Avalanche Canada's danger rating for
+their elevation band, with stripes on the aspects and elevations named in the avalanche problems (2D and 3D map; terrain
+heights from AWS Terrain Tiles). `.github/workflows/winter-data.yml` runs `scripts/build-winter.mjs`: every 2 hours it
+saves the forecasts for the region to `data/avalanche.json` (public Avalanche Canada API, no key), and every night it
+saves the ski routes and huts to `data/ski.json` from OpenStreetMap and BC Recreation Sites and Trails
+(`WHSE_FOREST_TENURE.FTEN_RECREATION_LINES_SVW`, Open Government Licence - British Columbia).
