@@ -32,3 +32,9 @@ roads named FSR, disused or abandoned roads) with their access, gate and deactiv
 bold lines with a white edge from zoom 11: purple for open, brown for rough or 4x4 only, grey dashes for deactivated or
 retired, red dashes for closed or gated. Tapping one shows each source's status. There is no open feed of live FSR closures; the
 district road safety notices on gov.bc.ca are linked instead.
+
+The same job also saves, per zone, gates, barriers, fords, footbridges and hydro plants on or near those roads
+(OpenStreetMap), cut blocks (DataBC `WHSE_FOREST_TENURE.FTEN_CUT_BLOCK_POLY_SVW`: pending, active, and retired in the
+last 15 years) and motor vehicle closure areas (DataBC `WHSE_WILDLIFE_MANAGEMENT.WAA_MVPR_AREAS_SP`). Every 3 hours,
+`.github/workflows/wildfires.yml` saves the BC Wildfire Service's current fires and perimeters (fires that are out are
+left out) to `data/fires.json`.
