@@ -687,6 +687,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   --looks: #d98a00;           /* looks like MTB */
   --other: #6b7f99;           /* other new paths */
   --ghost: #7a4fd6;           /* possible unmapped trails (from GPS traces) */
+  --road-plain: #9c8f80;      /* forest roads with the Forest roads button off: plain, no status */
   --road: #7b2cbf;            /* open forest and dirt roads: bold purple, solid (unmapped trails are purple dots) */
   --prime: #2f8f88;           /* trails in prime loam right now */
   --warn-bg: #fff4d6;
@@ -1172,7 +1173,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     <p>Purple dotted lines are guesses, not mapped trails. Once a week the site looks at the public GPS traces people upload to OpenStreetMap. Where 2 or more different traces run together for 100 m or more, more than 20 m from any mapped road, path, lift or ski run, it's listed. Only lines most traces ride at bike speed (faster than walking, slower than a car) are shown. The date is the first GPS trace on it. Each one links to the Strava and Trailforks heatmaps so you can compare, and to OpenStreetMap so you can map it if it's real. It may be private land, closed, or a GPS glitch: check before riding.</p>
     <h3>Forest roads</h3>
     <p>Forest Service Roads and other dirt roads have a white edge and a colour for their status (turn them off with “Forest roads”). Once a week the site collects them from two open sources: the BC government's Forest Tenure roads (DataBC, Open Government Licence - British Columbia), which list every Forest Service Road and road permit with its tenure status, and OpenStreetMap dirt roads with their gate, access and deactivation tags. Bold purple means open, with no closure known. Brown means mapped as very rough or 4x4 only. Grey dashes mean deactivated or retired (a retired tenure is no longer maintained and is often deactivated, but the road may still be there). Red dashes mean closed to public vehicles: gated, private or industrial use only. Tap a road to see why. This is mapped data, not a live closure list: check the <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p>
-    <p>With “Forest roads” on, the map also shows, once you zoom in: gates (open, locked or not known), barriers, bridges and bridges out, foot bridges, fords and hydro plants, from OpenStreetMap; and cut blocks (pending, active or recently logged, and retired in the last 15 years) and areas closed to motor vehicles, from the BC government. Tap any of them for details.</p>
+    <p>With “Forest roads” on, the map also shows, once you zoom in: gates (open, locked or not known), barriers, bridges and bridges out, foot bridges, fords and hydro plants, from OpenStreetMap; and cut blocks (pending, active or recently logged, and retired in the last 15 years) and areas closed to motor vehicles, from the BC government. Tap any of them for details. With the button off, the roads stay on the map as plain grey-brown lines.</p>
     <h3>Wildfires</h3>
     <p>The “Wildfires” button shows the BC Wildfire Service's current fires (fires that are out are left off) and their perimeters, areas closed because of fire (area restriction orders), and evacuation orders and alerts. It's refreshed every 3 hours, so always check the <a href="https://wildfiresituation.nrs.gov.bc.ca/map" target="_blank" rel="noopener">BC Wildfire map</a> and <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a> before heading out.</p>
     <p><button class="btn primary" id="aboutClose" type="button">Got it</button></p>
@@ -3063,7 +3064,7 @@ out body;`;
   let roadKey = "";
   const roadGeom = (g) => { const geom = []; for (let i = 0; i < g.length; i += 2) geom.push([g[i], g[i + 1]]); return geom; };
   function loadRoads() {
-    if (!state.roads || state.example || map.getZoom() < ROAD_MIN_ZOOM) return;
+    if (state.example || map.getZoom() < ROAD_MIN_ZOOM) return;   // loaded with the button off too, for the plain lines
     const view = map.getBounds();
     ZONES.filter((z) => z.bounds.intersects(view) && !roadData.has(z.id)).forEach((z) => {
       roadData.set(z.id, null);
@@ -3085,17 +3086,19 @@ out body;`;
     });
   }
   function drawRoads() {
-    const on = state.roads && map.getZoom() >= ROAD_MIN_ZOOM;
+    const zoomed = map.getZoom() >= ROAD_MIN_ZOOM, on = state.roads && zoomed;
     const loaded = [...roadData.values()].filter(Boolean);
-    const key = [on, loaded.length].join("/");
+    const key = [state.roads, zoomed, loaded.length].join("/");
     drawRoadExtras();
     if (key === roadKey) return;
     roadKey = key;
     roadLayer.clearLayers();
-    if (!on) return;
+    if (!zoomed) return;
     const seen = new Set(), all = [];
     loaded.forEach((z) => z.list.forEach((r) => { const k = r.src + (r.id || r.r.f + r.geom[0]); if (!seen.has(k)) { seen.add(k); all.push(r); } }));
     const line = (r, o) => roadLayer.addLayer(L.polyline(r.geom, { renderer: roadRenderer, interactive: false, lineCap: "butt", ...o }));
+    // Button off: every forest road still shows, as a plain thin line with no status (alex), never as a trail.
+    if (!on) { all.forEach((r) => line(r, { color: css("--road-plain"), weight: 2.5, opacity: 0.8 })); return; }
     // A white edge under every road so it stands out from the base map, then the roads by status, the
     // most limiting last: where the two sources overlap, a gate or washout wins over "open".
     all.forEach((r) => line(r, { color: "#fff", weight: 8, opacity: 0.9 }));
@@ -3298,12 +3301,13 @@ out body;`;
     const b = $("roadsBtn");
     b.setAttribute("aria-pressed", String(state.roads));
     b.classList.toggle("on", state.roads);
-    b.title = state.roads ? "Hide the forest and dirt roads" : "Show forest service roads and dirt roads, coloured by their status";
+    b.title = state.roads ? "Hide the road status and details (roads stay on the map as plain lines)" : "Colour the forest and dirt roads by status, with gates, bridges, cut blocks and closures";
   }
   $("roadsBtn").addEventListener("click", () => {
     state.roads = !state.roads; store.set("roads", state.roads);
     syncRoadsBtn(); loadRoads(); drawRoads(); renderKey();
     if (state.roads && map.getZoom() < ROAD_MIN_ZOOM) setStatus("Zoom in to see the forest roads.");
+    drawRoadExtras();
   });
   map.on("moveend", () => { loadRoads(); drawRoads(); });
   syncRoadsBtn();
@@ -3344,6 +3348,7 @@ out body;`;
       }).join("")
       + `<li class="lg-sub">Road features (zoom in)</li>` + Object.values(FEAT).map((k) => `<li><span class="lg-ico" style="background:${k.bg}">${k.icon}</span>${k.label}</li>`).join("")
       + `<li class="lg-sub">Areas</li>` + Object.values(AREA_STYLE).map(areaSw).join("");
+    else $("keyList").innerHTML += `<li class="lg-sub">Forest roads</li>` + sw("background: var(--road-plain)", "Forest road (turn on Forest roads for status)");
     if (state.fires) $("keyList").innerHTML += `<li class="lg-sub">Wildfires</li><li><span class="lg-ico" style="background:#fff">🔥</span>${FIRE_STYLE.fire.label}</li>`
       + ["perim", "restr", "order", "alert"].map((k) => areaSw(FIRE_STYLE[k])).join("");
     $("keyNote").textContent = byDiff
