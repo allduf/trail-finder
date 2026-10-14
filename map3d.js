@@ -216,6 +216,16 @@
         },
         layers: [
           { id: "sat", type: "raster", source: "sat", paint: { "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
+          // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
+          { id: "osm-roads", type: "line", source: "names", "source-layer": "transportation", minzoom: 9,
+            filter: ["in", ["get", "class"], ["literal", ["motorway", "trunk", "primary", "secondary", "tertiary", "minor", "service", "track"]]],
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: { "line-color": ["match", ["get", "class"], "track", "#c9a77a", "#f2efe6"], "line-opacity": 0.8,
+              "line-width": ["interpolate", ["linear"], ["zoom"], 10, ["match", ["get", "class"], ["motorway", "trunk", "primary"], 2, 0.6], 15, ["match", ["get", "class"], ["motorway", "trunk", "primary"], 5, "track", 1.6, 2.2]] } },
+          { id: "osm-paths", type: "line", source: "names", "source-layer": "transportation", minzoom: 11.5,
+            filter: ["==", ["get", "class"], "path"],
+            paint: { "line-color": "#fff6e0", "line-opacity": 0.75, "line-dasharray": [2, 1.5],
+              "line-width": ["interpolate", ["linear"], ["zoom"], 12, 0.6, 16, 1.6] } },
           { id: "lines", type: "line", source: "lines", filter: ["==", ["get", "d"], ""],
             layout: { "line-cap": "round", "line-join": "round", "line-sort-key": ["get", "k"] },
             paint: { "line-color": ["get", "c"], "line-width": ["get", "w"], "line-opacity": ["get", "o"] } },
