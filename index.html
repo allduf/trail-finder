@@ -1106,7 +1106,7 @@ label.toggle.off .sw { background: var(--muted); }
 <h3>Difficulty colours</h3>
     <p>Trails are coloured like Trailforks: green, blue, black, double black (black with white dashes) and pro line (orange). The colour comes from <code>mtb:scale:imba</code> (0-1 green, 2 blue, 3 black, 4 double black, 5 pro line), or else from <code>mtb:scale</code>, which mappers here use the same way (S0-S1 green, S2 blue, S3 black, S4 double black, S5-S6 pro line). Grey means nobody rated it on the map yet. The “Trail colours” key on the map switches back to colours by trail type.</p>
     <h3>All trails</h3>
-    <p>“All trails” draws every MTB trail in view, old and new, as thin lines: every way with an MTB tag, bike park trails and the trails of MTB routes. A list of them is collected from OpenStreetMap every day. The trails in the list (new trails, or prime loam) are drawn thicker on top.</p>
+    <p>“All trails” (on by default) draws every MTB trail in view, old and new: every way with an MTB tag, bike park trails and the trails of MTB routes. Official trails (see below) are bold, trails whose status isn't known are thin, and unofficial trails are left out, as before (tick “Unofficial only” to see them). A list of them is collected from OpenStreetMap every day. The trails in the list (new trails, or prime loam) are drawn thicker on top, with a white edge.</p>
     <h3>Official trails</h3>
     <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
 <h3>Moto and hiking-only trails</h3>
@@ -2764,7 +2764,9 @@ out body;`;
 
   // ---------- All trails: every MTB trail in view, old and new, coloured like Trailforks ----------
   // From the daily data/mtb-<zone>.json files (scripts/build-mtb.mjs): ways with MTB tags, bike park
-  // trails and MTB route ways. Drawn thin, under the new trails; the type and "only" filters apply.
+  // trails and MTB route ways, under the new trails. Official trails are bold, trails whose status
+  // isn't known are thin, and unofficial ones are left as before (only with "Unofficial only").
+  // The type and "only" filters apply.
   // Tapping one opens it like any trail on the map (the map click looks it up).
   map.createPane("allTrails").style.zIndex = 390;
   const allRenderer = L.canvas({ pane: "allTrails", padding: 0.3 });
@@ -2797,11 +2799,12 @@ out body;`;
     if (!state.allTrails) return;
     const seen = new Set(), byDiff = state.colorBy === "diff";
     loaded.forEach((list) => list.forEach((w) => {
-      if (seen.has(w.id) || !wanted(w.c.cat, w.c.unoff.length, w.c.official)) return;
+      const unoff = w.c.unoff.length > 0, off = !!w.c.official;
+      if (seen.has(w.id) || (unoff && !state.onlyUnoff) || !wanted(w.c.cat, unoff, off)) return;
       seen.add(w.id);
       const d = difficulty(w.tags);
-      allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks"), weight: 3, opacity: 0.9, interactive: false }));
-      if (byDiff && d === "dbl") allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: "#fff", weight: 1, opacity: 0.9, dashArray: "4 6", interactive: false }));
+      allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks"), weight: off ? 4.5 : 2.5, opacity: off ? 1 : 0.75, interactive: false }));
+      if (byDiff && d === "dbl") allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: "#fff", weight: off ? 1.5 : 1, opacity: 0.9, dashArray: "4 6", interactive: false }));
     }));
   }
   function syncAllBtn() {
@@ -2844,8 +2847,8 @@ out body;`;
       : sw("background: var(--mtb)", "MTB tagged") + sw("background: repeating-linear-gradient(90deg, var(--looks) 0 8px, transparent 8px 12px)", "Looks like MTB")
         + sw("background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 8px)", "Possible unmapped") + sw(dots, "Unofficial?");
     $("keyNote").textContent = byDiff
-      ? state.allTrails ? "Thick with a white edge: trails in the list. Thin: all other MTB trails." : "Dashed: looks like MTB (no bike tags)."
-      : state.allTrails ? "Thick: trails in the list. Thin: all other MTB trails." : "";
+      ? state.allTrails ? "All trails: bold = official, thin = not known. Unofficial ones show only in the list. White edge: trails in the list." : "Dashed: looks like MTB (no bike tags)."
+      : state.allTrails ? "All trails: bold = official, thin = not known. Thick: trails in the list." : "";
   }
   renderKey();
 
