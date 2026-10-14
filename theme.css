@@ -206,15 +206,15 @@ label.toggle.off { background: transparent; border: 1px dashed var(--line); box-
 @media (max-width: 760px) {
   html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   body { position: fixed; inset: 0; }
-  .app { --sheet-h: 190px; --sheet-vis: 190px; display: block; position: fixed; inset: 0; height: auto; }
+  .app { --nav-h: calc(58px + env(safe-area-inset-bottom, 0px)); --sheet-h: 190px; --sheet-vis: 190px; display: block; position: fixed; inset: 0; height: auto; }
   .app.fullmap { --sheet-vis: 0px; }
   .mapwrap { position: absolute; inset: 0; }
   .panel {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 1100;
+    position: fixed; left: 0; right: 0; bottom: var(--nav-h); z-index: 1100;
     height: var(--sheet-h); max-height: none !important; box-sizing: border-box;
     overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
     transition: height .28s cubic-bezier(.2, .8, .2, 1);
-    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 16px; box-shadow: 0 -10px 30px rgba(20, 33, 26, .18), 0 1px 0 var(--line);
   }
   .panel.dragging { transition: none; }
   .panel.sheet-peek { overflow: hidden; }
@@ -227,8 +227,10 @@ label.toggle.off { background: transparent; border: 1px dashed var(--line); box-
   .panel.detail-open .sheet-toggle { margin: 0; }
   .panel.detail-open .sheet-toggle::before, .panel.sheet-scrolled .sheet-toggle::before { background: var(--line); }
   .panel.sheet-scrolled .sheet-toggle { background: var(--panel); }
-  /* compact header: title and sport on one row, links on the next */
-  .brand { padding: 22px 16px 12px; gap: 8px; align-items: center; justify-content: flex-start; touch-action: none; }
+  /* compact header: title and sport on one row; the links live in the tab bar */
+  .brand-links > .linkish, .brand [data-account-slot] { display: none !important; }
+  .modes { display: none; }
+  .brand { padding: 20px 16px 12px; gap: 8px; align-items: center; justify-content: flex-start; touch-action: none; }
   .about { z-index: 1200; }
   .brand h1 { font-size: 1.25rem; flex: 1 1 auto; }
   .brand-links { display: contents; }
@@ -244,6 +246,32 @@ label.toggle.off { background: transparent; border: 1px dashed var(--line); box-
   .leaflet-bottom { bottom: var(--sheet-vis); transition: bottom .28s cubic-bezier(.2, .8, .2, 1); }
   .map-actions { top: auto; bottom: calc(var(--sheet-vis) + 12px); transition: bottom .28s cubic-bezier(.2, .8, .2, 1); }
   .app.fullmap .map-actions { bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+  .app.fullmap .leaflet-bottom { bottom: 0; }
   .leaflet-control-zoom { display: none; }
   .tsearch .hits { max-height: 40vh; }
+  /* app tab bar */
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 1150; height: var(--nav-h); box-sizing: border-box;
+    display: flex; padding: 0 4px env(safe-area-inset-bottom, 0px);
+    background: var(--panel); border-top: 1px solid var(--line);
+  }
+  .tabbar > * {
+    flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    font: inherit; font-size: .7rem; font-weight: 600; color: var(--muted); text-decoration: none;
+    background: none; border: 0; padding: 6px 0 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .tabbar svg { width: 24px; height: 24px; padding: 3px 14px; border-radius: 999px; transition: background .15s; }
+  .tabbar > [aria-current="true"] { color: var(--fg); }
+  .tabbar > [aria-current="true"] svg { background: color-mix(in srgb, var(--cta) 70%, transparent); color: var(--cta-fg, #10230f); }
+  body.sport-ski .tabbar .mtb-only, body:not(.sport-ski) .tabbar .ski-only { display: none; }
+  .app.fullmap .tabbar { display: none; }
+  .tab-menu {
+    position: fixed; right: 10px; bottom: calc(var(--nav-h) + 10px); z-index: 1160; min-width: 190px;
+    display: flex; flex-direction: column; padding: 6px; border-radius: 16px; background: var(--panel);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .28); border: 1px solid var(--line);
+  }
+  .tab-menu[hidden] { display: none; }
+  .tab-menu button { font: inherit; font-weight: 600; text-align: left; padding: 12px 14px; min-height: 46px; border: 0; border-radius: 10px; background: none; color: var(--fg); cursor: pointer; }
+  .tab-menu button:active { background: var(--chip); }
 }
+@media (min-width: 761px) { .tabbar, .tab-menu { display: none !important; } }

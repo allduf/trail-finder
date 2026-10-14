@@ -1148,6 +1148,19 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     <div class="list" id="list"></div>
     <div class="detail" id="detail" hidden></div>
   </aside>
+  <nav class="tabbar" id="tabbar" aria-label="Sections">
+    <button type="button" data-nav="map"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z M9 4v13.5 M15 6.5V20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Map</span></button>
+    <button type="button" data-nav="new" class="mtb-only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span>New trails</span></button>
+    <button type="button" data-nav="name" class="mtb-only"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Search</span></button>
+    <button type="button" data-nav="ski" class="ski-only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20 21 8 M6 21l2-6 M12 4a2 2 0 1 0 0 .1 M9 12l4-3 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Routes</span></button>
+    <a href="ride.html" data-nav="ride"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#ff4d5e"/></svg><span>Record</span></a>
+    <button type="button" data-nav="more" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg><span>More</span></button>
+  </nav>
+  <div class="tab-menu" id="tabMenu" role="menu" hidden>
+    <button type="button" role="menuitem" data-act="about">How it works</button>
+    <button type="button" role="menuitem" data-act="account">Sign in</button>
+    <button type="button" role="menuitem" data-act="full">⤢ Full map</button>
+  </div>
 </div>
 
 <div class="about" id="about" hidden>
@@ -3048,11 +3061,12 @@ out body;`;
   const sheet = { h: 0, snap: "peek" };
   const appEl = document.querySelector(".app"), panelEl = $("panel");
   const safeTop = () => parseFloat(getComputedStyle(document.querySelector(".map-tools")).top) || 10;
+  const navH = () => $("tabbar").offsetHeight;
   function snapHeights() {
     const brand = panelEl.querySelector(".brand");
-    const peek = Math.round(Math.max(150, brand.offsetTop + brand.offsetHeight + 72) + (parseFloat(getComputedStyle(panelEl).paddingBottom) - 16 || 0));
-    const full = Math.round(window.innerHeight - safeTop() - 52);     // the map chip row stays visible
-    const half = Math.round(Math.min(full, Math.max(peek + 120, window.innerHeight * 0.5)));
+    const peek = brand.offsetHeight ? Math.round(brand.offsetTop + brand.offsetHeight) : 130;   // just the title bar (or the trail name)
+    const full = Math.round(window.innerHeight - navH() - safeTop() - 52);     // the map chip row stays visible
+    const half = Math.round(Math.min(full, Math.max(peek + 120, (window.innerHeight - navH()) * 0.5)));
     return { peek: Math.min(peek, half), half, full };
   }
   function setSheetH(h, snap) {
@@ -3060,9 +3074,10 @@ out body;`;
     if (snap) sheet.snap = snap;
     const s = snapHeights();
     appEl.style.setProperty("--sheet-h", h + "px");
-    appEl.style.setProperty("--sheet-vis", Math.min(h, s.half) + "px");
+    appEl.style.setProperty("--sheet-vis", Math.min(h, s.half) + navH() + "px");
     panelEl.classList.toggle("sheet-peek", sheet.snap === "peek" && !panelEl.classList.contains("dragging"));
     $("sheetToggle").setAttribute("aria-label", sheet.snap === "full" ? "Shrink the panel" : "Expand the panel");
+    syncTabbar();
   }
   function snapTo(name) {
     if (!phoneMQ.matches) return;
@@ -3140,11 +3155,47 @@ out body;`;
     setTimeout(showResults, 300);
   });
   new MutationObserver(() => requestAnimationFrame(showResults)).observe($("status"), { childList: true, characterData: true, subtree: true });
-  panelEl.addEventListener("touchstart", () => { showResultsUntil = 0; }, { passive: true });
+  [panelEl, $("tabbar")].forEach((el) => el.addEventListener("pointerdown", () => { showResultsUntil = 0; }, { passive: true }));
   new MutationObserver(() => {
     if (panelEl.classList.contains("detail-open")) growTo("half");
   }).observe(panelEl, { attributes: true, attributeFilter: ["class"] });
   new MutationObserver(() => { if (!$("boxRes").hidden) growTo("half"); }).observe($("boxRes"), { attributes: true, attributeFilter: ["hidden"] });
+  // App tab bar (phones): Map lowers the sheet, New trails and Search open those panes, More has the rest.
+  function syncTabbar() {
+    const cur = sheet.snap === "peek" ? "map" : document.body.classList.contains("sport-ski") ? "ski" : $("tabName").getAttribute("aria-selected") === "true" ? "name" : "new";
+    $("tabbar").querySelectorAll("[data-nav]").forEach((b) => b.setAttribute("aria-current", String(b.dataset.nav === cur)));
+  }
+  const tabMenu = $("tabMenu"), moreBtn = $("tabbar").querySelector('[data-nav="more"]');
+  const showMenu = (on) => { tabMenu.hidden = !on; moreBtn.setAttribute("aria-expanded", String(on)); };
+  $("tabbar").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-nav]"); if (!b) return;
+    const nav = b.dataset.nav;
+    if (nav !== "more") showMenu(false);
+    if (nav === "map") { if (panelEl.classList.contains("detail-open")) closeDetail(); snapTo("peek"); }
+    else if (nav === "new" || nav === "name") {
+      const tab = $(nav === "new" ? "tabNew" : "tabName");
+      if (panelEl.classList.contains("detail-open")) closeDetail();
+      if (tab.getAttribute("aria-selected") !== "true") tab.click();
+      panelEl.scrollTop = 0;
+      growTo("half"); syncTabbar();
+    } else if (nav === "ski") { panelEl.scrollTop = 0; growTo("half"); }
+    else if (nav === "more") {
+      const acct = document.querySelector(".brand [data-account-slot] button");
+      tabMenu.querySelector('[data-act="account"]').hidden = !acct;
+      if (acct) tabMenu.querySelector('[data-act="account"]').textContent = /Account$/.test(acct.textContent.trim()) ? "Account" : "Sign in";
+      showMenu(tabMenu.hidden);
+    }
+  });
+  tabMenu.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    showMenu(false);
+    if (b.dataset.act === "about") $("aboutBtn").click();
+    else if (b.dataset.act === "account") document.querySelector(".brand [data-account-slot] button")?.click();
+    else if (b.dataset.act === "full") $("fullBtn").click();
+  });
+  document.addEventListener("click", (e) => { if (!tabMenu.hidden && !e.target.closest("#tabMenu, [data-nav=more]")) showMenu(false); });
+  ["tabNew", "tabName"].forEach((id) => $(id).addEventListener("click", () => setTimeout(syncTabbar)));
+  $("sport").addEventListener("change", () => setTimeout(syncTabbar));
   const resnap = () => { if (phoneMQ.matches) snapTo(sheet.snap); else { appEl.style.removeProperty("--sheet-h"); appEl.style.removeProperty("--sheet-vis"); } };
   window.addEventListener("resize", resnap);
   phoneMQ.addEventListener("change", resnap);
