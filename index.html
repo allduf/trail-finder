@@ -986,7 +986,6 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .acc-row .lg-ico svg { width: 15px; height: 15px; }
 .acc-row .lg-ico.round { border-radius: 50%; }
 .acc-sw { display: inline-block; width: 18px; height: 5px; border-radius: 2px; vertical-align: middle; margin-right: 6px; box-shadow: 0 0 0 1px rgba(0,0,0,.25); }
-.acc-sub { font-weight: 600; margin: 10px 0 4px; }
 .rf-pin span.round, .legend .lg-ico.round { border-radius: 50%; }
 .legend .lg-ico { width: 20px; height: 20px; border-radius: 5px; display: grid; place-items: center; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
 .legend .lg-ico svg { width: 14px; height: 14px; }
@@ -2752,7 +2751,8 @@ out body;`;
       <details class="more"><summary>Edit history</summary><div id="history" class="muted">${real ? "Loading…" : "Not available for example trails."}</div></details>
       <details class="more"><summary>All tags (${Object.keys(t.tags).length})</summary><table class="tagtable"><tbody>${Object.entries(t.tags).map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table></details>
       ${segs && type === "way" ? `<h3>Segments</h3><p class="muted">The tags, history and links above are for its main segment. All segments: ${t.segIds.map((id) => `<a href="https://www.openstreetmap.org/way/${id}" target="_blank" rel="noopener">${id}</a>`).join(", ")}</p>` : ""}
-      <p class="muted">OpenStreetMap ${type} ${real ? t.id : "(example)"}</p>`;
+      <p class="muted">OpenStreetMap ${type} ${real ? t.id : "(example)"}</p>
+      <div id="shuttle"></div>`;
     $("panel").classList.add("detail-open");
     $("detail").hidden = false;
     $("detail").scrollIntoView({ block: "start" });
@@ -3699,9 +3699,10 @@ out body;`;
     const endRow = ([label, ll]) => `<li>${esc(label)}: ${roadLine(nearestRoad(ll, roads, END_ROAD_M), `no forest road within ${END_ROAD_M} m, so pedal or hike ${label === "Top" ? "up" : "out"}.`)}</li>`;
     el.classList.remove("muted");
     el.innerHTML = `${th || park ? `<ul class="plain acc-list">${th ? row(th, "Trailhead") : ""}${park ? row(park, "Parking") : ""}</ul>`
-        : `<p class="muted">No mapped trailhead or parking within ${ACCESS_NEAR_M / 1000} km.</p>`}
-      <p class="acc-sub">Shuttle access (forest roads near the ends)</p><ul class="plain acc-ends">${ends.map(endRow).join("")}</ul>
-      <p class="muted">From OpenStreetMap, BC Recreation Sites and Trails, and the forest roads data. Road conditions are mapped, not live: check the <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p>`;
+        : `<p class="muted">No mapped trailhead or parking within ${ACCESS_NEAR_M / 1000} km.</p>`}`;
+    // Shuttle access sits at the bottom of the trail details (alex).
+    const sh = $("shuttle");
+    if (sh) sh.innerHTML = `<h3>Shuttle access</h3><p class="muted">Forest roads near the ends of the trail.</p><ul class="plain acc-ends">${ends.map(endRow).join("")}</ul>`;
   }
   // Pins on the map, from zoom 13, only the ones in view. Pins are kept while in view, so an open popup that pans the map stays open.
   const accessLayer = L.layerGroup().addTo(map), accessPins = new Map();   // id -> marker
