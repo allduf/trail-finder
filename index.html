@@ -1128,7 +1128,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
           <p class="hint" id="nameNearMsg" role="status" hidden></p>
         </div>
         <div class="diff-pick" role="group" aria-labelledby="diffPickLabel">
-          <span class="label" id="diffPickLabel">Or show every trail of one level, or every unofficial one</span>
+          <span class="label" id="diffPickLabel">Or show every trail of these levels (tap several), or only unofficial ones</span>
           <div class="diff-chips"><button type="button" class="diff-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip" data-d="unoff" aria-pressed="false" title="Trails in the area that aren&#39;t part of the official bike network: plain paths with no bike tags (the dotted lines on the base map) and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button></div>
         </div>
         <div class="wantlist" id="wantList" hidden></div>
@@ -1159,7 +1159,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
           </div>
         </div>
         <div class="diff-pick" role="group" aria-labelledby="newPickLabel">
-          <span class="label" id="newPickLabel">Only one level, or only unofficial</span>
+          <span class="label" id="newPickLabel">Only these levels (tap several), or only unofficial</span>
           <div class="diff-chips"><button type="button" class="diff-chip lvl-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip lvl-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip lvl-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip lvl-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip lvl-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip lvl-chip" data-d="unoff" aria-pressed="false" title="New trails that aren&#39;t part of the official bike network: plain paths with no bike tags, and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button></div>
         </div>
         <button class="btn primary find" id="findBtn" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span id="findLabel">Find new trails</span></button>
@@ -1336,7 +1336,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     months: store.get("months", 6),
     show: { mtb: true, looks: true, other: false, ghost: true },   // "other" paths have no chip and stay hidden
     ghosts: [],          // possible unmapped trails from the weekly GPS-trace file
-    newPick: null,        // level chip in New trails: a DIFF key, "unoff" or null
+    newPick: [],          // level chips in New trails: DIFF keys and/or "unoff"
     onlyUnoff: false,     // "Unofficial only": flagged trails of the ticked types (of every type when none is ticked)
     onlyOff: false,       // "Official only": trails with signs of being official, of the ticked types (same rule)
     colorBy: store.get("colorBy", "diff"),     // trail colours on the map: "diff" (difficulty, like Trailforks) or "type"
@@ -1636,7 +1636,11 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
   const TYPE_KEYS = ["mtb", "looks", "ghost"];
   const unoffTypes = () => { const on = TYPE_KEYS.filter((k) => state.show[k]); return on.length ? on : TYPE_KEYS; };
   // Level chips in New trails: only that level (of the ticked types), or "unoff": flagged trails and plain paths, not official.
-  const picked = (cat, unoff, off, tags) => (state.newPick === "unoff" ? !off && (!!unoff || cat === "other") : wanted(cat, unoff, off) && (!state.newPick || difficulty(tags) === state.newPick));
+  // Chips combine: levels add up, Unofficial narrows to unofficial trails (of those levels, if any).
+  function picked(cat, unoff, off, tags) {
+    const p = state.newPick, u = p.includes("unoff"), lv = p.filter((k) => k !== "unoff");
+    return (u ? !off && (!!unoff || cat === "other") : wanted(cat, unoff, off)) && (!lv.length || lv.includes(difficulty(tags)));
+  }
   const wanted = (cat, unoff, off) => (state.onlyUnoff ? !!unoff && unoffTypes().includes(cat) : state.onlyOff ? !!off && unoffTypes().includes(cat) : state.show[cat]);
 
   // Moto and hiking-only trails: hidden unless their toggle is on. Never applied to trails with MTB tags.
@@ -2198,8 +2202,9 @@ out body;`;
   }
   $("findBtn").addEventListener("click", findNewTrails);
   document.querySelectorAll(".lvl-chip").forEach((c) => c.addEventListener("click", () => {
-    state.newPick = state.newPick === c.dataset.d ? null : c.dataset.d;
-    document.querySelectorAll(".lvl-chip").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.d === state.newPick)));
+    const k = c.dataset.d;
+    state.newPick = state.newPick.includes(k) ? state.newPick.filter((x) => x !== k) : state.newPick.concat(k);
+    document.querySelectorAll(".lvl-chip").forEach((x) => x.setAttribute("aria-pressed", String(state.newPick.includes(x.dataset.d))));
     if (!state.trails.length && !state.prime && !state.searchedBounds.length) findNewTrails(); else render();
   }));
   // Clear results: back to the plain map (coloured trail lines only), as before any search.
@@ -4596,14 +4601,17 @@ out tags center qt;`;
     }).filter((w) => !w.c.official && !netNames.has((w.tags.name || "").trim().toLowerCase()) && !w.tags["piste:type"] && !w.tags.footway && w.tags.lit !== "yes" && !PAVED.test(w.tags.surface || "")
       && !(hasMtb(w.tags) && !w.c.unoff.length) && lengthKm(w.geom) >= 0.06);
   }
-  // b: the square, or with diff (a DIFF key, or "unoff" for every unofficial MTB trail) the area to list them in (named where).
+  // b: the square, or with diff (the picked chips: DIFF keys and/or "unoff") the area to list them in (named where).
+  // Several levels add up (Blue or Black); Unofficial narrows (unofficial trails of those levels).
   async function showBox(b, diff, where) {
     clearBox();
     const token = boxToken;
-    if (diff) document.querySelectorAll(".diff-chip:not(.lvl-chip)").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.d === diff)));
+    if (diff) document.querySelectorAll(".diff-chip:not(.lvl-chip)").forEach((c) => c.setAttribute("aria-pressed", String(diff.includes(c.dataset.d))));
     else boxLayer.addLayer(L.rectangle(b, { color: css("--accent"), weight: 2, dashArray: "6 6", fillOpacity: 0.04, interactive: false }));
     if (isFull()) setFullMap(false);
-    const unoffPick = diff === "unoff", one = unoffPick ? "unofficial trail" : diff ? DIFF[diff].label + " trail" : "MTB trail";
+    const unoffPick = !!diff && diff.includes("unoff"), levels = (diff || []).filter((k) => k !== "unoff");
+    const lvlText = levels.map((k) => DIFF[k].label).join(" or ");
+    const one = (lvlText ? lvlText + " " : "") + (unoffPick ? "unofficial trail" : lvlText ? "trail" : "MTB trail");
     const what = one + "s", inWhere = diff ? `in ${where}` : "in your square";
     $("boxRes").hidden = false;
     $("boxRes").innerHTML = `<div class="box-head"><b>Looking for ${what} ${inWhere}…</b></div>`;
@@ -4612,7 +4620,7 @@ out tags center qt;`;
     if (token !== boxToken) return;
     // Unofficial: also the plain paths around the bike network (no bike tags, not official), live from OpenStreetMap.
     let pathNote = "";
-    if (unoffPick) {
+    if (unoffPick && !levels.length) {     // plain paths have no difficulty rating
       const pb = plainBounds(b);
       if (!pb) pathNote = "Pick one area (or zoom the map in) to also see the plain paths that aren't part of the bike network.";
       else {
@@ -4625,7 +4633,7 @@ out tags center qt;`;
     const seen = new Set(), byName = new Map(), found = L.latLngBounds([]);
     let unnamed = 0;
     lists.forEach((list) => (list || []).forEach((w) => {
-      if (seen.has(w.id) || (unoffPick ? w.c.cat !== "path" && !w.c.unoff.length : diff && difficulty(w.tags) !== diff) || !w.geom.some((p) => b.contains(p))) return;
+      if (seen.has(w.id) || (unoffPick && w.c.cat !== "path" && !w.c.unoff.length) || (levels.length && !levels.includes(difficulty(w.tags))) || !w.geom.some((p) => b.contains(p))) return;
       seen.add(w.id);
       found.extend(w.geom);
       const byDiff = state.colorBy === "diff", d = difficulty(w.tags), unoff = w.c.unoff.length > 0;
@@ -4652,9 +4660,10 @@ out tags center qt;`;
     if (diff && found.isValid()) map.fitBounds(found, { padding: [20, 20], maxZoom: 15 });
     const why = missing.length ? `<p class="hint box-why">Couldn't load the trail list for ${esc(missing.join(" and "))}. Reload the page and try again.</p>`
       : unoffPick && pathNote ? `<p class="hint box-why">${esc(pathNote)}</p>`
+      : none && unoffPick && levels.length ? `<p class="hint box-why">No trails ${esc(inWhere)} rated ${esc(lvlText)} are flagged as unofficial. Plain paths have no difficulty rating, so tap Unofficial alone to see them.</p>`
       : none && unoffPick ? `<p class="hint box-why">No plain paths or flagged trails ${esc(inWhere)}: every trail here is part of the bike network or marked official.</p>`
-      : none && diff ? `<p class="hint box-why">No trails ${esc(inWhere)} are rated ${DIFF[diff].label} in OpenStreetMap. Only trails with a difficulty rating show up here.</p>`
-      : unoffPick && !none ? `<p class="hint box-why">Grey dotted: plain paths with no bike tags, outside the bike network. MTB trails mappers flagged as unofficial come first. The tagged bike network and official trails (club, park, ski or Recreation Sites and Trails BC) are left out.</p>`
+      : none && diff ? `<p class="hint box-why">No trails ${esc(inWhere)} are rated ${esc(lvlText)} in OpenStreetMap. Only trails with a difficulty rating show up here.</p>`
+      : unoffPick && !none && !levels.length ? `<p class="hint box-why">Grey dotted: plain paths with no bike tags, outside the bike network. MTB trails mappers flagged as unofficial come first. The tagged bike network and official trails (club, park, ski or Recreation Sites and Trails BC) are left out.</p>`
       : none ? `<p class="hint box-why">OpenStreetMap has no trails tagged for mountain biking here: the lines on the map are hiking trails or forest roads, or nothing is mapped yet. Try a bigger square, or tap a line to see what it is.</p>` : "";
     $("boxRes").innerHTML = `<div class="box-head"><div><b>${none ? `No ${what} ${esc(inWhere)}` : `${boxGroups.length} ${one}${boxGroups.length === 1 ? "" : "s"} ${esc(inWhere)}`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed bit${unnamed === 1 ? "" : "s"} (on the map)</span>` : ""}</div><button class="linkish" id="boxClear" type="button">${diff ? "Clear" : "Clear square"}</button></div>${why}${rows}`;
     $("boxClear").addEventListener("click", clearBox);
@@ -4662,18 +4671,21 @@ out tags center qt;`;
     $("boxRes").scrollIntoView({ block: "nearest" });
   }
   // Difficulty chips in Find a trail: every trail of that level in the chosen area. Tap again to clear.
-  let diffPick = null;
-  function showDiff() {
+  // Chips can be combined: tap to add or remove one; with none left, the list clears.
+  const nameChips = [...document.querySelectorAll(".diff-chip:not(.lvl-chip)")];
+  const diffPick = () => nameChips.filter((c) => c.getAttribute("aria-pressed") === "true").map((c) => c.dataset.d);
+  function showDiff(picks = diffPick()) {
+    if (!picks.length) { clearBox(); return; }
     const z = nameZone();
     const r = regionHere();
-    showBox(z ? z.bounds : r.bounds, diffPick, z ? z.name : r.short);
+    showBox(z ? z.bounds : r.bounds, picks, z ? z.name : r.short);
   }
-  document.querySelectorAll(".diff-chip:not(.lvl-chip)").forEach((c) => c.addEventListener("click", () => {
-    if (diffPick === c.dataset.d && c.getAttribute("aria-pressed") === "true") { diffPick = null; clearBox(); return; }
-    diffPick = c.dataset.d;
-    showDiff();
+  nameChips.forEach((c) => c.addEventListener("click", () => {
+    const picks = diffPick().filter((k) => k !== c.dataset.d);
+    if (c.getAttribute("aria-pressed") !== "true") picks.push(c.dataset.d);
+    showDiff(picks);
   }));
-  $("nameZone").addEventListener("change", () => { if (diffPick && document.querySelector('.diff-chip:not(.lvl-chip)[aria-pressed="true"]')) showDiff(); });
+  $("nameZone").addEventListener("change", () => { if (diffPick().length) showDiff(); });
   function openBoxGroup(g) {
     const main = g.ways.reduce((a, w) => (lengthKm(w.geom) > lengthKm(a.geom) ? w : a));
     showFound({ type: "w", name: g.name, kind: kindOf(main.tags), tags: main.tags, items: g.ways.map((w) => ({ id: w.id })) }, true);
