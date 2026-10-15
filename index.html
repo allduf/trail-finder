@@ -920,6 +920,23 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .detail a.go-btn[aria-disabled="true"] { opacity: .6; pointer-events: none; }
 .go p { margin: 6px 0 0; font-size: .85rem; }
 .links a { padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; font-size: .9rem; }
+.ab-desc p { margin: 0 0 4px; }
+.ab-src { font-size: .8rem; color: var(--muted); margin: 0 0 10px; }
+.ab-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin: 4px 0 6px; }
+.ab-ph { padding: 0; border: 0; border-radius: 8px; overflow: hidden; aspect-ratio: 4 / 3; background: var(--chip); cursor: zoom-in; }
+.ab-ph[hidden] { display: none; }
+.ab-all { display: block; margin: 0 0 6px; font-weight: 600; }
+.ab-ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-box { position: fixed; inset: 0; z-index: 1200; background: rgba(0,0,0,.85); display: grid; place-items: center; padding: 16px; }
+.photo-box[hidden] { display: none; }
+.photo-box figure { margin: 0; max-width: min(1100px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 8px; color: #fff; }
+.photo-box img { max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 8px; align-self: center; }
+.photo-box figcaption { font-size: .85rem; line-height: 1.4; }
+.photo-box figcaption span { color: #ccc; }
+.photo-box a { color: #fff; font-weight: 600; }
+.pb-nav { display: flex; align-items: center; gap: 10px; }
+.pb-nav button { font: inherit; font-weight: 600; padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,.4); background: transparent; color: #fff; cursor: pointer; }
+.pb-nav .pb-close { margin-left: auto; }
 .history { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 8px; font-size: .9rem; }
 .estats { display: grid; grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); gap: 8px; margin-bottom: 14px; }
 .estats div { display: flex; flex-direction: column; min-width: 0; }
@@ -2869,6 +2886,204 @@ out body;`;
     svg.addEventListener("pointerleave", hide);
   }
 
+  // ---------- About this trail: a short description and photos ----------
+  // Only open sources whose licences allow showing them here, each credited: the trail's own OpenStreetMap tags
+  // (description, image, wikimedia_commons, wikipedia, panoramax, mapillary), Recreation Sites and Trails BC,
+  // the Wikipedia summary, and photos taken on or near the trail on Wikimedia Commons and Panoramax.
+  // Trailforks isn't used: its terms don't allow it (see "Search on Trailforks" under Links).
+  const PHOTO_NEAR = 150;                      // metres: a photo counts when it was taken this close to the trail
+  const COMMONS_API = "https://commons.wikimedia.org/w/api.php";
+  const PANORAMAX = "https://api.panoramax.xyz/api";
+  const PHOTOS_FIRST = 9;                      // photos shown before "Show all"
+  const ABOUT_CHARS = 240;                     // a description longer than this is cut, with "More" to read it all
+  const plainText = (html) => (new DOMParser().parseFromString(String(html || ""), "text/html").body.textContent || "").replace(/\s+/g, " ").trim();
+  function shortText(s) {
+    if (s.length <= ABOUT_CHARS) return null;
+    const cut = s.slice(0, ABOUT_CHARS), dot = cut.lastIndexOf(". ");
+    return dot > ABOUT_CHARS * 0.5 ? cut.slice(0, dot + 1) : cut.slice(0, cut.lastIndexOf(" ")) + "…";
+  }
+  // Metres from [lat, lon] p to the trail's line (flat-earth maths: fine at trail scale).
+  function metresToTrail(t, p) {
+    const lines = t.segments && t.segments.length ? t.segments : [t.geom];
+    const k = Math.cos(p[0] * Math.PI / 180) * 111320, M = 110540;
+    let best = Infinity;
+    const xy = (q) => [(q[1] - p[1]) * k, (q[0] - p[0]) * M];
+    for (const g of lines) {
+      if (g.length === 1) { best = Math.min(best, Math.hypot(...xy(g[0]))); continue; }
+      for (let i = 1; i < g.length; i++) {
+        const [bx, by] = xy(g[i - 1]), [ax, ay] = xy(g[i]);
+        const dx = ax - bx, dy = ay - by, len = dx * dx + dy * dy;
+        const u = len ? Math.max(0, Math.min(1, -(bx * dx + by * dy) / len)) : 0;
+        best = Math.min(best, Math.hypot(bx + u * dx, by + u * dy));
+      }
+    }
+    return best;
+  }
+  function trailBox(t, padM) {
+    const pts = t.segments && t.segments.length ? t.segments.flat() : t.geom;
+    let s = 90, w = 180, n = -90, e = -180;
+    pts.forEach(([la, lo]) => { s = Math.min(s, la); n = Math.max(n, la); w = Math.min(w, lo); e = Math.max(e, lo); });
+    const dLat = padM / 110540, dLon = padM / (Math.cos((s + n) / 2 * Math.PI / 180) * 111320);
+    return { s: s - dLat, w: w - dLon, n: n + dLat, e: e + dLon };
+  }
+  async function aboutJson(url, ms = 15000) {
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms);
+    try { const r = await fetch(url, { signal: ctl.signal }); if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); }
+    finally { clearTimeout(timer); }
+  }
+
+  // Wikimedia Commons: files from one query (geosearch, category or titles), as photos with author and licence.
+  async function commonsPhotos(params) {
+    const q = new URLSearchParams({ action: "query", format: "json", origin: "*", prop: "imageinfo|coordinates", iiprop: "url|mime|extmetadata",
+      iiurlwidth: "330", iiextmetadatafilter: "LicenseShortName|Artist|ObjectName|ImageDescription|DateTimeOriginal", ...params });
+    const j = await aboutJson(`${COMMONS_API}?${q}`);
+    return Object.values((j.query && j.query.pages) || {}).map((p) => {
+      const ii = p.imageinfo && p.imageinfo[0];
+      if (!ii || !/^image\/(jpeg|png|webp)$/.test(ii.mime || "")) return null;   // no maps, diagrams or videos
+      const m = ii.extmetadata || {}, v = (k) => plainText(m[k] && m[k].value);
+      const c = p.coordinates && p.coordinates[0];
+      return { src: "Wikimedia Commons", thumb: ii.thumburl || ii.url, full: ii.url, big: (ii.thumburl || "").replace(/\/330px-/, "/1280px-") || ii.url, page: ii.descriptionurl,
+        title: v("ObjectName") || p.title.replace(/^File:/, "").replace(/\.\w+$/, ""), about: v("ImageDescription").slice(0, 200),
+        author: v("Artist").slice(0, 80), licence: v("LicenseShortName"), date: v("DateTimeOriginal").slice(0, 10), at: c ? [c.lat, c.lon] : null };
+    }).filter(Boolean);
+  }
+  async function commonsNear(t) {
+    const b = trailBox(t, PHOTO_NEAR);
+    const tall = (b.n - b.s) * 110540, wide = (b.e - b.w) * Math.cos(b.s * Math.PI / 180) * 111320;
+    let found = [];
+    if (tall < 8000 && wide < 8000) {
+      found = await commonsPhotos({ generator: "geosearch", ggsbbox: `${b.n}|${b.w}|${b.s}|${b.e}`, ggsnamespace: "6", ggslimit: "50" });
+    } else {                                   // a long trail: look around up to 8 points along it
+      const pts = t.segments && t.segments.length ? t.segments.flat() : t.geom;
+      const step = Math.max(1, Math.floor(pts.length / 8)), picks = pts.filter((_, i) => i % step === 0).slice(0, 8);
+      const radius = String(Math.min(10000, Math.max(300, Math.round(Math.max(tall, wide) / 8))));
+      (await Promise.all(picks.map((p) => commonsPhotos({ generator: "geosearch", ggscoord: `${p[0]}|${p[1]}`, ggsradius: radius, ggsnamespace: "6", ggslimit: "50" }).catch(() => [])))).forEach((l) => { found = found.concat(l); });
+    }
+    return found.map((p) => ({ ...p, dist: p.at ? metresToTrail(t, p.at) : Infinity })).filter((p) => p.dist <= PHOTO_NEAR).sort((a, b) => a.dist - b.dist);
+  }
+  // Panoramax: open (CC BY-SA mostly) street-level photos; people do walk and ride trails with cameras.
+  async function panoramaxNear(t) {
+    const b = trailBox(t, 40);
+    const j = await aboutJson(`${PANORAMAX}/search?bbox=${b.w},${b.s},${b.e},${b.n}&limit=100`);
+    const near = (j.features || []).map((f) => {
+      const c = f.geometry && f.geometry.coordinates, a = f.assets || {}, pr = f.properties || {};
+      if (!c || !(a.thumb || a.sd)) return null;
+      const who = (f.providers || []).map((x) => x.name).filter(Boolean)[0] || pr["geovisio:producer"] || "";
+      return { src: "Panoramax", thumb: (a.thumb || a.sd).href, big: (a.sd || a.thumb).href, full: (a.hd || a.sd || a.thumb).href,
+        page: `https://api.panoramax.xyz/#focus=pic&pic=${encodeURIComponent(f.id)}`, title: "Street-level photo", about: "",
+        author: String(who).slice(0, 80), licence: pr.license || (pr["geovisio:license"]) || "CC BY-SA 4.0", date: String(pr.datetime || "").slice(0, 10),
+        at: [c[1], c[0]], dist: metresToTrail(t, [c[1], c[0]]) };
+    }).filter((p) => p && p.dist <= 30);
+    // Pictures in a sequence are a few metres apart: keep an even spread of up to 12.
+    const step = Math.max(1, Math.ceil(near.length / 12));
+    return near.filter((_, i) => i % step === 0);
+  }
+  // Photos the trail's own map tags point at.
+  async function taggedPhotos(t) {
+    const tags = t.tags, out = [], files = new Set();
+    const vals = (k) => Object.keys(tags).filter((x) => x === k || x.startsWith(k + ":") && /^\d+$/.test(x.slice(k.length + 1)))
+      .flatMap((x) => String(tags[x]).split(";").map((v) => v.trim()).filter(Boolean));
+    let cat = null;
+    vals("wikimedia_commons").forEach((v) => { if (/^File:/i.test(v)) files.add(v); else if (/^Category:/i.test(v)) cat = cat || v; });
+    vals("image").forEach((v) => {
+      const m = v.match(/(?:commons\.wikimedia\.org\/wiki\/|^)(File:[^?#]+)/i) || v.match(/upload\.wikimedia\.org\/wikipedia\/commons\/(?:thumb\/)?\w\/\w\w\/([^/?#]+)/);
+      if (m) files.add(decodeURIComponent(m[1].startsWith("File:") ? m[1] : "File:" + m[1]).replace(/_/g, " "));
+      else if (/^https:\/\/\S+\.(jpe?g|png|webp)(\?.*)?$/i.test(v)) out.push({ src: "OpenStreetMap", thumb: v, big: v, full: v, page: v, title: "Photo linked on the map", about: "", author: "", licence: "", date: "", tagged: true });
+    });
+    const jobs = [];
+    if (files.size) jobs.push(commonsPhotos({ titles: [...files].slice(0, 50).join("|") }));
+    if (cat) jobs.push(commonsPhotos({ generator: "categorymembers", gcmtitle: cat, gcmtype: "file", gcmlimit: "50" }));
+    (await Promise.all(jobs.map((j) => j.catch(() => [])))).forEach((l) => out.push(...l.map((p) => ({ ...p, tagged: true }))));
+    vals("panoramax").forEach((id) => out.push({ src: "Panoramax", thumb: `${PANORAMAX}/pictures/${encodeURIComponent(id)}/thumb.jpg`, big: `${PANORAMAX}/pictures/${encodeURIComponent(id)}/sd.jpg`, full: `${PANORAMAX}/pictures/${encodeURIComponent(id)}/hd.jpg`,
+      page: `https://api.panoramax.xyz/#focus=pic&pic=${encodeURIComponent(id)}`, title: "Street-level photo linked on the map", about: "", author: "", licence: "CC BY-SA 4.0", date: "", tagged: true }));
+    return out;
+  }
+  async function wikipediaAbout(t) {
+    const m = String(t.tags.wikipedia || "").match(/^([a-z-]{2,12}):(.+)$/);
+    if (!m) return null;
+    const j = await aboutJson(`https://${m[1]}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(m[2].replace(/ /g, "_"))}`);
+    return j && j.extract ? { text: j.extract, src: "Wikipedia", url: j.content_urls && j.content_urls.desktop && j.content_urls.desktop.page, licence: "CC BY-SA 4.0" } : null;
+  }
+
+  async function loadAbout(t) {
+    const box = () => (state.selected === t.id ? $("trailAbout") : null);
+    if (!t.about) {
+      const tf = tfInfo({ ...allTfOf(t.id), ...t.tags });
+      const texts = [];
+      const osm = t.tags["description:en"] || t.tags.description;
+      if (osm) texts.push({ text: osm, src: "OpenStreetMap mappers", url: `https://www.openstreetmap.org/${t.osmType || "way"}/${t.id}` });
+      if (tf.rec && tf.rec.about) texts.push({ text: tf.rec.about, src: "Recreation Sites and Trails BC", url: tf.rec.id ? `https://www.sitesandtrailsbc.ca/search/search-result.aspx?site=${encodeURIComponent(tf.rec.id)}&type=Trail` : null });
+      const [wiki, tagged, commons, pano] = await Promise.all([
+        wikipediaAbout(t).catch(() => null), taggedPhotos(t).catch(() => []), commonsNear(t).catch(() => null), panoramaxNear(t).catch(() => null)]);
+      if (wiki) texts.push(wiki);
+      const seen = new Set(), photos = [];
+      [...tagged, ...(commons || []), ...(pano || [])].forEach((p) => { if (!seen.has(p.full)) { seen.add(p.full); photos.push(p); } });
+      t.about = { texts, photos, failed: commons == null && pano == null };
+    }
+    const el = box(); if (!el) return;
+    renderAbout(el, t);
+  }
+  function renderAbout(el, t) {
+    const { texts, photos, failed } = t.about;
+    const mid = t.geom[Math.floor(t.geom.length / 2)];
+    const credit = (p) => [p.author && `© ${p.author}`, p.licence, p.src].filter(Boolean).join(" · ");
+    const desc = texts.map((d) => {
+      const short = shortText(d.text);
+      const from = d.url ? `<a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.src)}</a>` : esc(d.src);
+      return `<div class="ab-desc"><p>${esc(short || d.text)}${short ? ` <button class="linkish ab-more" type="button">More</button>` : ""}</p>
+        ${short ? `<p class="ab-full" hidden>${esc(d.text)}</p>` : ""}<p class="ab-src">From ${from}${d.licence ? `, ${esc(d.licence)}` : ""}</p></div>`;
+    }).join("");
+    const grid = photos.length ? `<div class="ab-photos">${photos.map((p, i) => `<button type="button" class="ab-ph" data-i="${i}"${i >= PHOTOS_FIRST ? " hidden" : ""} title="${esc(p.title + (credit(p) ? " · " + credit(p) : ""))}">
+        <img src="${esc(p.thumb)}" alt="${esc(p.title)}" loading="lazy" referrerpolicy="no-referrer"></button>`).join("")}</div>
+      ${photos.length > PHOTOS_FIRST ? `<button class="linkish ab-all" type="button">Show all ${photos.length} photos</button>` : ""}
+      <p class="ab-src">${photos.length} photo${photos.length === 1 ? "" : "s"} ${photos.every((p) => p.tagged) ? "linked to this trail on the map" : `taken on or within ${PHOTO_NEAR} m of the trail`}, from ${[...new Set(photos.map((p) => p.src))].join(" and ")}. Tap one for its author and licence.</p>` : "";
+    el.classList.remove("muted");
+    el.innerHTML = `${desc}${grid}
+      ${!texts.length && !photos.length ? `<p class="muted">${failed ? "Couldn't reach the photo sources right now." : "No description or photos found in open sources yet."}</p>` : ""}
+      <p class="ab-src"><a href="https://www.mapillary.com/app/?lat=${mid[0].toFixed(5)}&lng=${mid[1].toFixed(5)}&z=17" target="_blank" rel="noopener">Street-level photos on Mapillary</a>
+        · <a href="https://commons.wikimedia.org/wiki/Special:UploadWizard" target="_blank" rel="noopener">Share your photo on Wikimedia Commons</a></p>`;
+    el.querySelectorAll(".ab-more").forEach((b) => b.addEventListener("click", () => {
+      const d = b.closest(".ab-desc"); d.querySelector(".ab-full").hidden = false; b.closest("p").hidden = true;
+    }));
+    const all = el.querySelector(".ab-all");
+    if (all) all.addEventListener("click", () => { el.querySelectorAll(".ab-ph[hidden]").forEach((b) => { b.hidden = false; }); all.remove(); });
+    el.querySelectorAll(".ab-ph").forEach((b) => b.addEventListener("click", () => openPhoto(photos, +b.dataset.i)));
+    el.querySelectorAll(".ab-ph img").forEach((img) => img.addEventListener("error", () => img.closest(".ab-ph").remove()));
+  }
+  // A photo, big, with its title, author, licence and a link to its page.
+  function openPhoto(photos, i) {
+    let box = $("photoBox");
+    if (!box) {
+      box = document.createElement("div"); box.id = "photoBox"; box.className = "photo-box"; box.hidden = true;
+      box.setAttribute("role", "dialog"); box.setAttribute("aria-modal", "true"); box.setAttribute("aria-label", "Trail photo");
+      document.body.appendChild(box);
+      box.addEventListener("click", (e) => { if (e.target === box) box.hidden = true; });
+      document.addEventListener("keydown", (e) => {
+        if (box.hidden) return;
+        if (e.key === "Escape") box.hidden = true;
+        else if (e.key === "ArrowRight") box.querySelector(".pb-next")?.click();
+        else if (e.key === "ArrowLeft") box.querySelector(".pb-prev")?.click();
+      });
+    }
+    const p = photos[i], n = photos.length;
+    box.innerHTML = `<figure>
+      <img src="${esc(p.big || p.thumb)}" alt="${esc(p.title)}" referrerpolicy="no-referrer">
+      <figcaption><strong>${esc(p.title)}</strong>${p.about && p.about !== p.title ? `<br>${esc(p.about)}` : ""}
+        <br><span>${[p.author && `© ${esc(p.author)}`, p.licence && esc(p.licence), p.date && esc(p.date), p.dist != null && isFinite(p.dist) ? `${Math.round(p.dist)} m from the trail` : ""].filter(Boolean).join(" · ")}</span>
+        <br><a href="${esc(p.page)}" target="_blank" rel="noopener">Open on ${esc(p.src)}</a></figcaption>
+      <div class="pb-nav">${n > 1 ? `<button type="button" class="pb-prev" aria-label="Previous photo">‹</button><span>${i + 1} / ${n}</span><button type="button" class="pb-next" aria-label="Next photo">›</button>` : "<span></span>"}<button type="button" class="pb-close">Close</button></div>
+    </figure>`;
+    const img = box.querySelector("img");
+    img.addEventListener("error", () => { if (p.full && img.src !== p.full) img.src = p.full; }, { once: true });
+    box.querySelector(".pb-close").addEventListener("click", () => { box.hidden = true; });
+    if (n > 1) {
+      box.querySelector(".pb-prev").addEventListener("click", () => openPhoto(photos, (i + n - 1) % n));
+      box.querySelector(".pb-next").addEventListener("click", () => openPhoto(photos, (i + 1) % n));
+    }
+    box.hidden = false;
+    box.querySelector(".pb-close").focus();
+  }
+
   // ---------- trail detail panel ----------
   const MTB_SCALE = { 0: "S0, easy: no obstacles, firm surface", 1: "S1, small obstacles like roots and loose rock", 2: "S2, bigger roots and rocks, low steps, tight turns", 3: "S3, big rocks, steps, slippery sections, hairpins", 4: "S4, very steep, big steps and drops, trials skills", 5: "S5, extreme: blocked, very steep, hardly rideable", 6: "S6, not rideable" };
   const IMBA = { 0: "White circle, easiest", 1: "Green circle, easy", 2: "Blue square, intermediate", 3: "Black diamond, difficult", 4: "Double black diamond, extremely difficult" };
@@ -2895,7 +3110,7 @@ out body;`;
     const d = $("detail");
     const real = t.id > 0;
     const start = t.geom[0], end = t.geom[t.geom.length - 1];
-    const factRows = (top) => FRIENDLY.filter(([k]) => t.tags[k] != null && TOP_FACTS.has(k) === top).map(([k, label, fmt]) => {
+    const factRows = (top) => FRIENDLY.filter(([k]) => t.tags[k] != null && TOP_FACTS.has(k) === top && !(real && k === "description")).map(([k, label, fmt]) => {
       const v = t.tags[k];
       const shown = k === "website" ? `<a href="${esc(/^https?:/.test(v) ? v : "https://" + v)}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(fmt ? fmt(v) : v);
       return `<dt>${label}</dt><dd>${shown}</dd>`;
@@ -2922,6 +3137,7 @@ out body;`;
       <h3>Weather and Loam moisture index</h3><div id="wx" class="muted">Loading weather…</div>
       <h3>Elevation</h3><div id="elev" class="muted">${real || t.elev ? "Loading elevation…" : ""}</div>
       ${real && window.tfReports ? `<h3>Trail conditions from riders</h3><div id="reports" class="muted">Loading reports…</div>` : ""}
+      ${real ? `<h3>About this trail</h3><div id="trailAbout" class="muted">Looking for a description and photos…</div>` : ""}
       ${routes ? `<h3>Part of MTB route</h3><ul class="plain">${routes}</ul>` : ""}
       ${real ? `<h3>Links</h3><div class="links">
         ${t.tags.name || t.tfName ? `<a href="https://www.trailforks.com/search/?search=${encodeURIComponent(t.tags.name || t.tfName)}" target="_blank" rel="noopener">Search on Trailforks</a>` : ""}
@@ -2962,6 +3178,7 @@ out body;`;
     renderAccess(t);
     loadWeather(t);
     if (real && window.tfReports) window.tfReports.show(t);   // reports.js
+    if (real) loadAbout(t);
     leaveFullMap(t);
   }
 
