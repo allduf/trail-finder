@@ -872,6 +872,22 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .d-top .back { margin-bottom: 0; }
 .want-btn { font: inherit; font-weight: 600; font-size: .9rem; border: 1.5px solid var(--accent); color: var(--accent); background: transparent; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
 .want-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg, #fff); }
+.d-saves { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.ride-btn { border-color: #e0a800; color: #9a6b00; }
+.ride-btn[aria-pressed="true"] { background: #ffc61a; border-color: #e0a800; color: #2b1d00; }
+.ride-note { margin-bottom: 10px; }
+.ride-note label { display: block; font-size: .85rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+.ride-note textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--fg); resize: vertical; }
+.wantlist li .open .wl-note { display: block; margin: 2px 0 0; font-size: .85rem; color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; }
+.wantlist li .open .loam { display: inline-flex; align-items: center; gap: 4px; font-size: .8rem; font-weight: 600; margin-left: 6px; white-space: nowrap; }
+.wantlist li .open .loam i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.wantlist .wl-map { font: inherit; font-size: .88rem; font-weight: 600; margin: 6px 0 2px; padding: 6px 10px; border-radius: 8px; border: 1.5px solid #e0a800; background: transparent; color: var(--fg); cursor: pointer; }
+.map-tools #rideMapBtn.on { background: #ffc61a; border-color: #e0a800; color: #2b1d00; }
+body.sport-ski #rideMapBtn { display: none !important; }
+.toride-pin { background: none; border: 0; }
+.toride-pin span { display: inline-flex; align-items: center; gap: 3px; transform: translate(-50%, -50%); white-space: nowrap; font: 700 12px/1 system-ui, sans-serif; padding: 4px 7px 4px 5px; border-radius: 999px; border: 2px solid #2b1d00; box-shadow: 0 1px 4px rgba(0,0,0,.35); color: #fff; }
+.toride-pin span b { color: #ffc61a; font-size: 14px; text-shadow: 0 0 2px #2b1d00; }
+.toride-pin.unknown span { background: #6b6b6b; }
 .wantlist h3 { margin: 4px 0 6px; font-size: 1rem; }
 .wl-head { display: flex; justify-content: space-between; align-items: center; }
 .wantlist .folder { border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; margin-bottom: 6px; }
@@ -3122,8 +3138,8 @@ out body;`;
     const tf = tfInfo({ ...(real ? allTfOf(t.id) : {}), ...t.tags });
     if (tf.tfName) t.tfName = tf.tfName;
     d.innerHTML = `
-      <div class="d-top"><button class="linkish back" id="detailBack" type="button">← Back</button>${real ? `<button class="want-btn" id="wantBtn" type="button" aria-pressed="false"></button>` : ""}</div>
-      ${real ? `<div class="save-pick" id="savePick" hidden></div>` : ""}
+      <div class="d-top"><button class="linkish back" id="detailBack" type="button">← Back</button>${real ? `<span class="d-saves"><button class="want-btn ride-btn" id="rideBtn" type="button" aria-pressed="false"></button><button class="want-btn" id="wantBtn" type="button" aria-pressed="false"></button></span>` : ""}</div>
+      ${real ? `<div class="save-pick" id="savePick" hidden></div><div class="ride-note" id="rideNote" hidden><label for="rideNoteIn">Your note</label><textarea id="rideNoteIn" rows="2" maxlength="500" placeholder="Why you want to ride it, who told you about it, where to park…"></textarea></div>` : ""}
       <div class="d-head ${t.cat}">
         <span class="bar"${barStyle(t)}></span>
         <div><h2>${esc(trailName(t))}</h2>
@@ -3238,7 +3254,7 @@ out body;`;
     if (!Array.isArray(f)) f = [{ id: "want", name: "Want to ride", trails: store.get("want", []) }];
     return f;
   }
-  const putFolders = (f) => { store.set("folders", f); renderFolders(); };
+  const putFolders = (f) => { store.set("folders", f); renderFolders(); toRide.draw(); };
   const wantIds = (t) => t.osmType === "relation" || !(t.segIds && t.segIds.length) ? [t.id] : t.segIds;
   const wantKey = (t) => (t.osmType || "way")[0] + wantIds(t).slice().sort((a, b) => a - b).join(",");
   function newFolder(name) {
@@ -3251,10 +3267,32 @@ out body;`;
   }
   function wireWant(t) {
     const b = $("wantBtn"), pick = $("savePick"), key = wantKey(t);
-    const entry = () => ({ key, type: (t.osmType || "way") === "relation" ? "r" : "w", ids: wantIds(t), name: trailName(t), kind: t.catLabel || CAT_LABEL[t.cat] || "", zone: t.zone || "", at: Date.now() });
+    const entry = () => ({ key, type: (t.osmType || "way") === "relation" ? "r" : "w", ids: wantIds(t), name: trailName(t), kind: t.catLabel || CAT_LABEL[t.cat] || "", zone: t.zone || "", at: Date.now(),
+      ...rideShape(t.segments && t.segments.length ? t.segments : [t.geom]), ...(noteOf(key) ? { note: noteOf(key) } : {}) });
+    const rb = $("rideBtn"), noteBox = $("rideNote"), noteIn = $("rideNoteIn");
+    rb.addEventListener("click", () => {
+      const f = getFolders();
+      let x = f.find((x) => x.id === TO_RIDE);
+      if (!x) f.unshift(x = { id: TO_RIDE, name: "Want to ride", trails: [] });
+      const was = x.trails.some((w) => w.key === key);
+      if (was && noteOf(key)) droppedNotes.set(key, noteOf(key));
+      x.trails = x.trails.filter((w) => w.key !== key);
+      if (!was) x.trails.unshift(entry());
+      putFolders(f); paint();
+      if (!was) { noteIn.focus(); toRide.refresh(); }
+    });
+    let noteTimer = null;
+    noteIn.addEventListener("input", () => { clearTimeout(noteTimer); noteTimer = setTimeout(() => setNote(key, noteIn.value), 600); });
+    noteIn.addEventListener("change", () => { clearTimeout(noteTimer); setNote(key, noteIn.value); });
     const paint = () => {
       const f = getFolders(), inAny = f.some((x) => x.trails.some((w) => w.key === key));
-      b.setAttribute("aria-pressed", String(inAny)); b.textContent = inAny ? "★ Saved" : "☆ Save";
+      const toRideOn = f.some((x) => x.id === TO_RIDE && x.trails.some((w) => w.key === key));
+      b.setAttribute("aria-pressed", String(inAny)); b.textContent = inAny ? "📁 Saved" : "📁 Save";
+      b.title = "Save to a trail folder";
+      rb.setAttribute("aria-pressed", String(toRideOn)); rb.textContent = toRideOn ? "★ To ride" : "☆ To ride";
+      rb.title = toRideOn ? "On your to-ride list. Tap to take it off." : "Add to your to-ride list, shown on the map with today's loam";
+      noteBox.hidden = !inAny;
+      if (document.activeElement !== noteIn) noteIn.value = noteOf(key);
       pick.innerHTML = `<p class="muted">Save to a folder:</p>${f.map((x) => `<label><input type="checkbox" data-id="${esc(x.id)}"${x.trails.some((w) => w.key === key) ? " checked" : ""}> ${esc(x.name)}</label>`).join("")}
         <form class="newf"><input type="text" placeholder="New folder name" maxlength="60" aria-label="New folder name"><button class="btn" type="submit">+ Add</button></form>`;
       pick.querySelectorAll("input[type=checkbox]").forEach((c) => c.addEventListener("change", () => {
@@ -3289,11 +3327,18 @@ out body;`;
         putFolders(getFolders().filter((y) => y.id !== x.id));
       });
       const ol = d.querySelector("ol");
-      if (!x.trails.length) ol.innerHTML = `<li class="muted">Empty. Open a trail and tap ☆ Save to add it here.</li>`;
+      if (!x.trails.length) ol.innerHTML = `<li class="muted">Empty. Open a trail and tap ${x.id === TO_RIDE ? "☆ To ride" : "📁 Save"} to add it here.</li>`;
+      if (x.id === TO_RIDE && x.trails.length) {
+        const mb = document.createElement("button");
+        mb.type = "button"; mb.className = "wl-map";
+        mb.textContent = "★ Show them on the map with today's loam";
+        mb.addEventListener("click", () => toRide.show(true));
+        ol.before(mb);
+      }
       x.trails.forEach((w) => {
         const li = document.createElement("li");
         li.innerHTML = `<button class="open" type="button"></button><button class="rm" type="button" aria-label="Remove from folder" title="Remove from folder">✕</button>`;
-        li.querySelector(".open").innerHTML = `${esc(w.name)}${w.zone ? `<small>${esc(w.zone)}</small>` : ""}`;
+        li.querySelector(".open").innerHTML = `${esc(w.name)}${w.zone ? `<small>${esc(w.zone)}</small>` : ""}${x.id === TO_RIDE ? toRide.loamPill(w) : ""}${w.note ? `<span class="wl-note">${esc(w.note)}</span>` : ""}`;
         li.querySelector(".open").addEventListener("click", () => showFound({ type: w.type, items: w.ids.map((id) => ({ id })), name: w.name, kind: w.kind }));
         li.querySelector(".rm").addEventListener("click", () => { const f = getFolders(); const y = f.find((y) => y.id === x.id); y.trails = y.trails.filter((z) => z.key !== w.key); putFolders(f); });
         ol.appendChild(li);
@@ -3311,6 +3356,138 @@ out body;`;
     panelScrollTo($("wantList"), "start", true);
   }
   window.addEventListener("tf:open-folders", (e) => { e.detail.handled = true; showFolders(); });
+
+  // ---- To-ride list: the "Want to ride" folder. ☆ To ride in a trail's details adds it in one tap, with a note
+  // kept on the saved trail (in every folder it's in). "★ To ride" on the map shows them all, each with a pin
+  // coloured by today's Loam moisture index. Saved in tf:folders, so it follows a signed-in rider to any device.
+  const TO_RIDE = "want";
+  // A centre and a light copy of the shape (at most ~80 points), so the map can draw saved trails without loading them.
+  function rideShape(segs) {
+    segs = (segs || []).filter((l) => l && l.length > 1);
+    if (!segs.length) return {};
+    const n = segs.reduce((a, l) => a + l.length, 0), step = Math.max(1, Math.ceil(n / 80));
+    const r5 = (v) => Math.round(v * 1e5) / 1e5, pt = (p) => { const q = Array.isArray(p) ? p : [p.lat, p.lng]; return [r5(q[0]), r5(q[1])]; };
+    const g = segs.map((l) => l.filter((_, i) => i % step === 0 || i === l.length - 1).map(pt));
+    const b = L.latLngBounds(g.flat()), c = b.getCenter();
+    return { c: [r5(c.lat), r5(c.lng)], g };
+  }
+  const droppedNotes = new Map();   // a trail taken off by mistake gets its note back when it's put back
+  function noteOf(key) {
+    for (const x of getFolders()) { const w = x.trails.find((w) => w.key === key && w.note); if (w) return w.note; }
+    return droppedNotes.get(key) || "";
+  }
+  function setNote(key, text) {
+    text = (text || "").trim().slice(0, 500);
+    if (text === noteOf(key)) return;
+    const f = getFolders();
+    f.forEach((x) => x.trails.forEach((w) => { if (w.key === key) { if (text) w.note = text; else delete w.note; } }));
+    putFolders(f);
+  }
+
+  const toRide = (() => {
+    map.createPane("toRide").style.zIndex = 455;
+    const layer = L.layerGroup();
+    const btn = document.createElement("button");
+    btn.id = "rideMapBtn"; btn.type = "button";
+    $("allBtn").parentNode.insertBefore(btn, $("allBtn"));
+    let on = store.get("toride", false);
+    // Shapes for trails saved before shapes were kept: loaded once from OpenStreetMap and cached on this device only
+    // (written without "tf:setting", so it never counts as a change to the rider's synced folders).
+    const CACHE = "tf:rideShapes";
+    let cache = {};
+    try { cache = JSON.parse(localStorage.getItem(CACHE) || "{}") || {}; } catch {}
+    const shapeOf = (w) => (w.g && w.c ? w : cache[w.key]);
+    const trails = () => { const x = getFolders().find((x) => x.id === TO_RIDE); return x ? x.trails : []; };
+    const fake = (s) => ({ id: 1, center: L.latLng(s.c[0], s.c[1]) });   // what loamOf() and loadLoam() need
+    const loamFor = (w) => { const s = shapeOf(w); return s ? loamOf(fake(s)) : undefined; };
+    function loamPill(w) {
+      const v = loamFor(w);
+      if (v == null) return "";
+      const k = LMI_LEVELS.indexOf(lmiLevel(v));
+      return `<span class="loam" title="Loam moisture index now: ${esc(LMI_LEVELS[k][1])} (${LMI_RIDE[k][1]})"><i style="background:${LMI_RIDE[k][0]}"></i>Loam ${v} · ${LMI_RIDE[k][1]}</span>`;
+    }
+    function paintBtn() {
+      const n = trails().length;
+      btn.classList.toggle("on", on);
+      btn.setAttribute("aria-pressed", String(on));
+      btn.textContent = n ? `★ To ride · ${n}` : "★ To ride";
+      btn.title = n ? (on ? "Hide your to-ride trails" : "Show your to-ride trails with today's loam") : "Your to-ride list is empty: open a trail and tap ☆ To ride";
+    }
+    function draw() {
+      layer.clearLayers();
+      paintBtn();
+      if (!on) return;
+      trails().forEach((w) => {
+        const s = shapeOf(w);
+        if (!s) return;
+        const v = loamFor(w), k = v == null ? -1 : LMI_LEVELS.indexOf(lmiLevel(v));
+        const color = k < 0 ? "#6b6b6b" : LMI_RIDE[k][0];
+        const open = () => showFound({ type: w.type, items: w.ids.map((id) => ({ id })), name: w.name, kind: w.kind });
+        s.g.forEach((l) => {
+          layer.addLayer(L.polyline(l, { pane: "toRide", color: "#ffc61a", weight: 11, opacity: 0.75, lineCap: "round", interactive: false }));
+          layer.addLayer(L.polyline(l, { pane: "toRide", color, weight: 4, opacity: 1, lineCap: "round" }).on("click", open));
+        });
+        const label = v == null ? "" : ` ${v}`;
+        const tip = `${w.name}${v == null ? "" : ` · Loam ${v}, ${LMI_LEVELS[k][1].toLowerCase()} (${LMI_RIDE[k][1].toLowerCase()})`}${w.note ? `\n${w.note}` : ""}`;
+        L.marker(s.c, { pane: "toRide", title: tip, keyboard: true,
+          icon: L.divIcon({ className: "toride-pin" + (k < 0 ? " unknown" : ""), iconSize: [0, 0], html: `<span style="${k < 0 ? "" : `background:${color}`}"><b>★</b>${esc(label)}</span>` }) })
+          .on("click", open).addTo(layer);
+      });
+    }
+    let tries = 0, busy = false;
+    async function refresh() {
+      paintBtn();
+      if (!on || busy || document.body.classList.contains("sport-ski")) { draw(); return; }
+      busy = true;
+      const list = trails();
+      // Old saves with no shape: load them from OpenStreetMap, a few at a time.
+      const missing = list.filter((w) => !shapeOf(w)).slice(0, 30);
+      for (let i = 0; i < missing.length; i += 4) {
+        await Promise.all(missing.slice(i, i + 4).map(async (w) => {
+          try {
+            const segs = [];
+            for (const id of w.ids.slice(0, 20)) {
+              const els = (await getJson(`${OSM_API}/${w.type === "r" ? "relation" : "way"}/${id}/full.json`)).elements;
+              const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e]));
+              els.filter((e) => e.type === "way").forEach((x) => { const l = wayLine(x, nodes); if (l.length > 1) segs.push(l); });
+            }
+            const sh = rideShape(segs);
+            if (sh.c) cache[w.key] = sh;
+          } catch {}
+        }));
+      }
+      if (missing.length) { try { localStorage.setItem(CACHE, JSON.stringify(cache)); } catch {} }
+      draw();
+      const shapes = list.map(shapeOf).filter(Boolean);
+      if (shapes.length) await loadLoam(shapes.map(fake)).catch(() => {});
+      busy = false;
+      draw();
+      if (!$("wantList").hidden) renderFolders();
+      // loadLoam skips a call while the list's own loam is loading: try again shortly.
+      if (shapes.some((s) => loamOf(fake(s)) === undefined) && tries++ < 5) setTimeout(refresh, 4000); else tries = 0;
+    }
+    function show(fit) {
+      if (!on) { on = true; store.set("toride", true); layer.addTo(map); }
+      refresh().then(() => {
+        const shapes = trails().map(shapeOf).filter(Boolean);
+        if (!fit || !shapes.length) return;
+        const b = L.latLngBounds(shapes.flatMap((s) => s.g.flat()));
+        // Phones: lower the sheet so the map shows (after the tap, which would grow it again), then frame the trails.
+        setTimeout(() => { snapTo("peek"); focusTrail(b, true); }, 0);
+      });
+      paintBtn();
+    }
+    btn.addEventListener("click", () => {
+      if (!trails().length) { showFolders(); return; }
+      if (on) { on = false; store.set("toride", false); map.removeLayer(layer); draw(); }
+      else show(true);
+    });
+    if (on) layer.addTo(map);
+    // Loam goes stale: refresh it when the rider comes back to the page.
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && on) refresh(); });
+    return { refresh, show, loamPill, draw };
+  })();
+  setTimeout(() => toRide.refresh(), 0);
 
   // With a trail's details open, every other trail line fades so the picked one stands out (3D reads the same class).
   function setTrailFocus(on) {
