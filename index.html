@@ -1323,6 +1323,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="official.js"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1733,6 +1734,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     if (/^(no|private)$/.test(tags.access || "") && !/^(yes|designated|permissive)$/.test(tags.bicycle || "")) out.push(`Access is closed to the public (access=${tags.access}).`);
     if (/^(no|private)$/.test(tags.bicycle || "")) out.push(`Bikes are not allowed (bicycle=${tags.bicycle}).`);
     if (tags.mtb === "no") out.push("Marked as not for mountain bikes (mtb=no).");
+    if (tags["tf:offno"]) out.push(tags["tf:offno"]);   // an official trail for other uses (official.js)
     [["note", "The mapper's note"], ["description", "The description"], ["fixme", "A fixme note"]].forEach(([k, label]) => {
       if (tags[k] && CLOSED_NOTE.test(tags[k])) out.push(`${label} says: “${tags[k]}”`);
     });
@@ -1811,7 +1813,16 @@ body.sport-ski #rideMapBtn { display: none !important; }
   function classify(tags, routes, routeTypes = []) {
     const r = classifyTrail(tags, routes);
     if (r) { r.unoff = unofficial(tags); r.official = officialWhy(tags); Object.assign(r, useOf(tags, routes.length ? routeTypes.concat("mtb") : routeTypes)); }
+    // An official trail whose source doesn't say if bikes are allowed: official only when mappers tagged it for MTB.
+    if (r && !r.official && tags["tf:off2"] && r.cat === "mtb" && !r.unoff.length) r.official = tags["tf:off2"];
     return r;
+  }
+  // Official trails from government open data (official.js): the trail's shape is matched to their lines, and the
+  // answer added as tf:official (bikes allowed), tf:off2 (official, bike use not given) or tf:offno (not for bikes).
+  function withOfficial(tags, geom) {
+    const m = window.tfOfficial && geom && geom.length > 1 ? window.tfOfficial.match(geom) : null;
+    if (!m || m.s === 1 && tags["tf:official"]) return tags;
+    return { ...tags, [m.s === 1 ? "tf:official" : m.s === 2 ? "tf:off2" : "tf:offno"]: m.why };
   }
   // Forest and logging roads are never MTB trails, even with a bike rating or in an MTB route (alex): they're on the Forest roads layer.
   const ROAD_NAME = /\b(forest service road|f\.?s\.?r\.?|service road|logging road|main ?line|road|rd)\b/i;
@@ -2067,10 +2078,11 @@ out body;`;
       const tags = w.tags || {};
       const all = routesByWay.get(w.id) || [], routes = all.filter((r) => r.type === "mtb").map(({ id, name }) => ({ id, name }));
       const routeTypes = [...new Set(all.map((r) => r.type))];
-      const c = classify(tags, routes.map((r) => r.name), routeTypes);
+      const geom = w.geometry.map((p) => [p.lat, p.lon]);
+      const c = classify(withOfficial(tags, geom), routes.map((r) => r.name), routeTypes);
       if (!c) return;
       candidates.push({ id: w.id, tags, ...c, routes, routeTypes, version: w.version, lastEdit: new Date(w.timestamp), lastUser: w.user || "", lastChangeset: w.changeset,
-        geom: w.geometry.map((p) => [p.lat, p.lon]),
+        geom,
         created: w.version === 1 ? new Date(w.timestamp) : null, creator: w.version === 1 ? w.user : null, firstChangeset: w.version === 1 ? w.changeset : null });
     });
     if (known) candidates.forEach((c) => { const k = known.get(c.id); if (!c.created && k) { c.created = k.created; c.creator = k.creator; c.firstChangeset = k.firstChangeset; } });
@@ -2119,7 +2131,7 @@ out body;`;
   function unpackTrail(o) {
     const t = { ...o, created: new Date(o.created), lastEdit: new Date(o.lastEdit) };
     t.bounds = L.latLngBounds(t.geom);
-    const c = classify(t.tags, (t.routes || []).map((r) => r.name), t.routeTypes || []);   // saved by an older version of the app
+    const c = classify(withOfficial(t.tags, t.geom), (t.routes || []).map((r) => r.name), t.routeTypes || []);   // saved by an older version of the app
     if (c) Object.assign(t, { cat: c.cat, why: c.why, unoff: c.unoff, net: c.net, official: c.official });
     return Object.assign(t, useOf(t.tags, (t.routeTypes || []).concat(t.routes && t.routes.length ? ["mtb"] : [])));
   }
@@ -3867,7 +3879,7 @@ out body;`;
           for (let i = 0; i < w.g.length; i += 2) geom.push([w.g[i], w.g[i + 1]]);
           // A path with no name on the map, named after its Recreation Sites and Trails BC trail (tf:name), for the lists and search.
           const tags = w.tags["tf:name"] && !w.tags.name ? { ...w.tags, name: w.tags["tf:name"] } : w.tags;
-          return { id: +id, tags, geom, c: classify(tags, inRoute.get(+id) || []) };
+          return { id: +id, tags, geom, r: inRoute.get(+id) || [], c: classify(withOfficial(tags, geom), inRoute.get(+id) || []) };
         }).filter((w) => w.c && !w.c.use && w.geom.length > 1) : []);
         queueAllDraw();
         return f && f.v === 1 ? allData.get(z.id) : null;        // null: the list couldn't be loaded
@@ -3938,6 +3950,20 @@ out body;`;
   });
   map.on("moveend", loadAllTrails);
   syncAllBtn();
+  // Official trails (official.js): load the squares in view; when new ones arrive, check the trails already loaded again.
+  if (window.tfOfficial) {
+    const offLoad = () => window.tfOfficial.load(map.getBounds());
+    map.on("moveend", offLoad); offLoad();
+    window.tfOfficial.onChange(() => {
+      for (const list of allData.values()) (list || []).forEach((w) => { w.c = classify(withOfficial(w.tags, w.geom), w.r || []) || w.c; });
+      allKey = ""; queueAllDraw();
+      (state.trails || []).forEach((t) => {
+        const c = classify(withOfficial(t.tags, t.geom), (t.routes || []).map((r) => r.name), t.routeTypes || []);
+        if (c) Object.assign(t, { unoff: c.unoff, official: c.official });
+      });
+      if (state.trails && state.trails.length) render();
+    });
+  }
   loadAllTrails();
 
   // ---------- Forest roads: dirt and Forest Service roads, coloured by their status ----------
@@ -5001,8 +5027,9 @@ out tags center qt;`;
       const tags = main.tags || {};
       const types = routeTypes.concat(tags.route ? [tags.route] : []);
       const ctags = { ...allTfOf(main.id), ...tags };   // a named path the all-trails job added in a riding area
-      const c = classify(ctags, routes.map((r) => r.name).concat(tags.route === "mtb" ? [tags.name] : []), types);
       const { line: geom, all: chainAll } = chainSegments(segs);
+      if (window.tfOfficial) await window.tfOfficial.load(L.latLngBounds(geom));   // official trails around it (official.js)
+      const c = classify(withOfficial(ctags, geom), routes.map((r) => r.name).concat(tags.route === "mtb" ? [tags.name] : []), types);
       const bounds = segs.reduce((b, s) => b.extend(L.latLngBounds(s)), L.latLngBounds(segs[0]));
       const t = {
         id: main.id, osmType: type, tags, routes, searched: true, geom, chainAll, segments: segs, segIds, bounds,
