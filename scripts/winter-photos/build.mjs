@@ -1,6 +1,6 @@
 // Builds the 3D map's Winter photos once (they're last winter's, so they don't change):
 //   node scripts/winter-photos/build.mjs <out-dir>     then   python3 scripts/winter-photos/tiles.py <out-dir>
-// Renders 2048 px blocks (one zoom-11 tile each, = 8 x 8 zoom-13 tiles) of the region in headless
+// Renders 2048 px blocks (one zoom-11 tile each, = 8 x 8 zoom-14 tiles, about 10 m a pixel like the photos) of the region in headless
 // Chromium with render.js, straight from the Sentinel-2 files on AWS. Needs Playwright and geotiff.js
 // (npm i geotiff@2.1.3); set GEOTIFF to its dist-browser/geotiff.js.
 import { chromium } from "playwright";
