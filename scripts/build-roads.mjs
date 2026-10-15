@@ -356,7 +356,7 @@ async function canadaFires() {
     if (!reported.length) return [];
     const fc = await getJson(wfsUrl(CWFIS, "public:m3_polygons_current"), "CWFIS fire areas");
     const perims = (fc.features || []).filter((f) => f.geometry).map((f) => {
-      const p = f.properties || {}, g = polyRings(f.geometry, 60);
+      const p = f.properties || {}, g = polyRings(f.geometry, 150);
       if (!g.length) return null;
       const b = ringsBox(g), mid = ringsMid(g);
       const pad = 10 / 111, padLon = pad / Math.cos((mid.lat * Math.PI) / 180);
