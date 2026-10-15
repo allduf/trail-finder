@@ -281,8 +281,8 @@
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
-    // Summer / Winter: two clear choices. Summer = snow-free photos (tap Summer again for the newer
-    // 2023 mosaic), Winter = the sharp photos with NASA's latest real snow cover painted on.
+    // Summer / Winter / Live: Summer = snow-free photos (tap Summer again for the newer 2023 mosaic),
+    // Winter = full mid-winter snow, Live = NASA's latest real snow cover, both painted on the sharp photos.
     const mk = (label) => { const el = document.createElement("button"); el.type = "button"; el.textContent = label;
       el.style.cssText = "width:auto;padding:0 10px;font:600 12px var(--font-body, system-ui)"; return el; };
     const sumBtn = mk("Summer"), winBtn = mk("Winter"), liveBtn = mk("Live");
