@@ -100,14 +100,16 @@ async function ingest(prov, waysFile, relsFile) {
     if (!s) continue;
     const f = JSON.parse(s), p = f.properties || {};
     if (p["@type"] !== "way" || !f.geometry || f.geometry.type !== "LineString") continue;
-    const id = p["@id"], tags = {};
+    const id = +p["@id"], tags = {};
     for (const k in p) if (k[0] !== "@") tags[k] = p[k];
     const routes = relOfWay.get(id) || [];
     const trail = isTrail(tags), named = isNamed(tags), mtb = trail && (isMtb(tags) || routes.some((r) => r.tags.route === "mtb" && !longRide(r)));
-    if (p["@version"] === 1) v1.push([id, Date.parse(p["@timestamp"]) / 1000]);
+    // osmium writes the timestamp as seconds since 1970 or as text, depending on its version.
+    const ts = typeof p["@timestamp"] === "number" ? new Date(p["@timestamp"] * 1000).toISOString() : String(p["@timestamp"]), ver = +p["@version"];
+    if (ver === 1) v1.push([id, Date.parse(ts) / 1000]);
     if (!trail && !named) continue;
     const g = simplify(f.geometry.coordinates.map(([lon, lat]) => [round(lat), round(lon)]));
-    lines.push(JSON.stringify([id, p["@version"], p["@timestamp"].slice(0, 19) + "Z", (trail ? 1 : 0) | (named ? 2 : 0) | (mtb ? 4 : 0), tags, g]));
+    lines.push(JSON.stringify([id, ver, ts.slice(0, 19) + "Z", (trail ? 1 : 0) | (named ? 2 : 0) | (mtb ? 4 : 0), tags, g]));
     kept.add(id); n++;
     if (lines.length >= 20000) { appendFileSync(new URL(`${prov}.ways`, PART), lines.join("\n") + "\n"); lines.length = 0; }
   }
