@@ -1,0 +1,13 @@
+name: probe-official (temporary)
+on:
+  push:
+    branches: [claude/project-thread-0othea]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: node scripts/probe-official.mjs
