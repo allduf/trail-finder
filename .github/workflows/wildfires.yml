@@ -1,7 +1,8 @@
 name: Wildfires data
 
 # Every 3 hours, collect current BC Wildfire Service fires and fire perimeters near the region into data/fires.json,
-# shown with the "Forest roads" layer on the website.
+# and the rest of Canada's (CWFIS national fires and satellite fire areas, Alberta Wildfire fires, fire control orders
+# and evacuations) into data/fires-ca.json, shown with the "Wildfires" button on the website.
 on:
   schedule:
     - cron: "37 */3 * * *"
@@ -28,7 +29,7 @@ jobs:
         run: ONLY=fires node scripts/build-roads.mjs
       - name: Commit the new data
         run: |
-          git add data/fires.json
+          git add data/fires.json data/fires-ca.json
           if git diff --cached --quiet; then echo "No changes."; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
