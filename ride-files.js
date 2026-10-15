@@ -97,8 +97,8 @@
           const alt = v[78] != null && v[78] !== 0xffffffff ? v[78] / 5 - 500 : v[2] != null && v[2] !== 0xffff ? v[2] / 5 - 500 : null;
           points.push([lat * SEMI, lon * SEMI, alt, ts != null ? FIT_EPOCH + ts * 1000 : null, null]);
         }
-      } else if (def.global === 18 && v[5] != null && !sport) {   // session: sport 2 is cycling
-        sport = v[5] === 2 ? "cycling" : "";
+      } else if (def.global === 18 && v[5] != null && !sport) {   // session: sport 2 cycling, 12 cross-country skiing, 13 alpine skiing, 14 snowboarding, 35 snowshoeing
+        sport = { 2: "cycling", 12: "cross_country_skiing", 13: "alpine_skiing", 14: "snowboarding", 35: "snowshoeing" }[v[5]] || "";
       }
       return at + def.size;
     }

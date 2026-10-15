@@ -3,8 +3,10 @@
 // view, and an "Avalanche risk" button that shades the mountain faces by Avalanche Canada's forecast, on the flat
 // map and on the 3D map: each slope steep enough to slide (about 25° and more) gets the danger colour of its
 // elevation band, and stripes where its aspect and elevation are named in the day's avalanche problems.
-// Data: data/ski.json and data/avalanche.json, made by .github/workflows/winter-data.yml. Terrain heights: AWS
-// Terrain Tiles (Mapzen, open, no key).
+// Also a "Ski heatmap" of winter OpenStreetMap GPS traces, and "Your ski tours" from the rider's own rides.
+// Data: data/ski.json and data/avalanche.json, made by .github/workflows/winter-data.yml; data/ski-heat.json, made
+// by .github/workflows/ski-heat.yml; your tours from this browser's IndexedDB "trail-finder-rides" (ride.html).
+// Terrain heights: AWS Terrain Tiles (Mapzen, open, no key).
 (() => {
   "use strict";
   const map = window.tfLeaflet, sel = document.getElementById("sport"), avyBtn = document.getElementById("avyBtn");
@@ -27,6 +29,8 @@
     other: { label: "Other winter routes", color: "#8e9aab", weight: 2 },
   };
   const HUT = { label: "Huts and cabins", color: "#7a2e10" };
+  const HEAT = { label: "Ski heatmap", ramp: ["#2b59c3", "#00b4d8", "#ffd23f", "#ff6a1a"] };   // 1, 2, 3-5, 6+ traces
+  const MINE = { label: "Your ski tours", color: "#e0218a" };
   // Avalanche Canada's danger scale colours.
   const DANGER = [
     { label: "No rating", color: "#9aa3ad" }, { label: "1 Low", color: "#52ba4a" }, { label: "2 Moderate", color: "#fff300" },
@@ -94,7 +98,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
   pane.id = "skiPane";
   pane.setAttribute("aria-label", "Skiing");
   pane.innerHTML = `
-    <p class="sk-hint">Backcountry ski routes and huts from OpenStreetMap and BC Recreation Sites and Trails. Tap a route for its details. <strong>Avalanche risk</strong> (on the map) shades the slopes by today's avalanche forecast.</p>
+    <p class="sk-hint">Backcountry ski routes and huts from OpenStreetMap, BC Recreation Sites and Trails and camptocamp.org, a heatmap of winter GPS traces, and your own ski tours (<a href="ride.html#rides">import them in My rides</a>). Tap a route for its details. <strong>Avalanche risk</strong> (on the map) shades the slopes by today's avalanche forecast.</p>
     <div class="av-card sk-card" id="avCard" hidden></div>
     <div class="sk-chips" id="skChips" role="group" aria-label="Show these routes"></div>
     <div class="sk-card" id="skDetail" hidden></div>
@@ -111,7 +115,8 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
   const skiLayer = L.layerGroup();
   const hutLayer = L.layerGroup();
   let ski = null, skiLoading = null, skiErr = "";
-  let shown = new Set(store.get("skiTypes", ["tour", "access", "nordic", "snowshoe", "sled", "other", "hut"]));
+  let shown = new Set(store.get("skiTypes", ["tour", "access", "nordic", "snowshoe", "sled", "other", "hut", "heat", "mine"]));
+  if (!store.get("skiHeatChips", false)) { shown.add("heat"); shown.add("mine"); store.set("skiHeatChips", true); store.set("skiTypes", [...shown]); }
   let selected = null;   // route or hut object
   const lineOf = (flat) => { const out = []; for (let i = 0; i < flat.length; i += 2) out.push([flat[i], flat[i + 1]]); return out; };
   const km = (r) => {
@@ -158,21 +163,26 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
     const c = {};
     (ski?.routes || []).forEach((r) => { c[r.type] = (c[r.type] || 0) + 1; });
     c.hut = (ski?.huts || []).length;
+    c.heat = heat ? heat.traces : 0;
+    c.mine = mine.length;
     return c;
   }
   function renderChips() {
     const c = counts();
-    const keys = [...Object.keys(TYPES).filter((k) => c[k]), "hut"];
+    const keys = [...Object.keys(TYPES).filter((k) => c[k]), "hut", "heat", ...(mine.length ? ["mine"] : [])];
     $("skChips").innerHTML = keys.map((k) => {
-      const t = TYPES[k] || HUT, sw = k === "hut" ? `<span class="sk-dot" style="background:${HUT.color}"></span>`
+      const t = TYPES[k] || { hut: HUT, heat: HEAT, mine: MINE }[k];
+      const sw = k === "hut" ? `<span class="sk-dot" style="background:${HUT.color}"></span>`
+        : k === "heat" ? `<span class="sk-sw" style="background:linear-gradient(90deg, ${HEAT.ramp.join(", ")})"></span>`
         : `<span class="sk-sw" style="background:${t.dashArray ? `repeating-linear-gradient(90deg, ${t.color} 0 5px, transparent 5px 8px)` : t.color}"></span>`;
-      return `<button type="button" class="sk-chip" data-k="${k}" aria-pressed="${shown.has(k)}">${sw}${t.label} <span class="n">${c[k] || 0}</span></button>`;
+      const n = k === "heat" ? (heat ? `${c.heat} traces` : heatErr ? "not yet" : "…") : c[k] || 0;
+      return `<button type="button" class="sk-chip" data-k="${k}" aria-pressed="${shown.has(k)}"${k === "heat" ? ' title="Public OpenStreetMap GPS traces from December to April, roads and lifts left out"' : ""}>${sw}${t.label} <span class="n">${n}</span></button>`;
     }).join("");
     $("skChips").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
       const k = b.dataset.k;
       shown.has(k) ? shown.delete(k) : shown.add(k);
       store.set("skiTypes", [...shown]);
-      renderChips(); drawSki(); renderList();
+      renderChips(); drawSki(); renderList(); refreshHeat(); drawMine();
     }));
   }
   const typeOrder = Object.keys(TYPES);
@@ -216,6 +226,8 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
     const osmType = { w: "way", r: "relation", n: "node" }[r.id[0]];
     const src = r.src === "bc"
       ? `BC Recreation Sites and Trails (<a href="https://www.sitesandtrailsbc.ca/" target="_blank" rel="noopener">sitesandtrailsbc.ca</a>)`
+      : r.src === "c2c"
+      ? `<a href="https://www.camptocamp.org/routes/${esc(r.id.slice(3))}" target="_blank" rel="noopener">camptocamp.org</a> (CC BY-SA)`
       : `<a href="https://www.openstreetmap.org/${osmType}/${r.id.slice(1)}" target="_blank" rel="noopener">OpenStreetMap</a>`;
     const tags = Object.entries(r.tags || {}).filter(([k]) => !/^(name|piste:name)$/.test(k));
     const area = (avy || example) && areaAt(isHut ? r.lat : r.lines[0][0][0], isHut ? r.lon : r.lines[0][0][1]);
@@ -473,6 +485,154 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
     refreshAvy();
   });
 
+  // ---------- ski heatmap (data/ski-heat.json) ----------
+  // Per map square: cells of CELL_LAT x CELL_LON degrees as [row, col, traces, ...] from the square's south-west corner.
+  let heat = null, heatLoading = null, heatErr = "", heatVer = 0;
+  function loadHeat() {
+    if (heat || heatLoading) return heatLoading;
+    heatLoading = fetch("data/ski-heat.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((d) => {
+        const squares = Object.values(d.tiles || {}).filter((t) => t && t.box && t.c && t.c.length);
+        heat = { cell: d.cell || [0.0003, 0.00045], builtAt: d.builtAt, squares: squares.map((t) => ({ box: t.box, c: Int32Array.from(t.c) })),
+          traces: Object.values(d.tiles || {}).reduce((a, t) => a + ((t && t.n) || 0), 0) };
+        heatVer++; renderChips(); refreshHeat();
+      })
+      .catch((e) => { heatErr = e.message; renderChips(); })
+      .finally(() => { heatLoading = null; });
+    return heatLoading;
+  }
+  const HEAT_RGB = HEAT.ramp.map(rgb);
+  const mercY = (lat) => { const r = (lat * Math.PI) / 180; return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2; };
+  function paintHeat(z, x, y) {
+    const out = new ImageData(256, 256);
+    if (!heat) return out;
+    const n = 2 ** z * 256, top = tileLat(y, z), bottom = tileLat(y + 1, z), left = tileLon(x, z), right = tileLon(x + 1, z);
+    const [cl, co] = heat.cell, buf = new Uint16Array(65536);
+    const cw = Math.max(1, (co / 360) * n);
+    let any = false;
+    for (const sq of heat.squares) {
+      const [s, w, nn, e] = sq.box;
+      if (s > top || nn < bottom || w > right || e < left) continue;
+      const c = sq.c;
+      for (let i = 0; i < c.length; i += 3) {
+        const lat0 = s + c[i] * cl, lon0 = w + c[i + 1] * co;
+        if (lat0 > top || lat0 + cl < bottom || lon0 > right || lon0 + co < left) continue;
+        const px0 = ((lon0 + 180) / 360) * n - x * 256, py1 = mercY(lat0) * n - y * 256, py0 = mercY(lat0 + cl) * n - y * 256;
+        const xa = Math.max(0, Math.floor(px0)), xb = Math.min(256, Math.max(xa + 1, Math.ceil(px0 + cw)));
+        const ya = Math.max(0, Math.floor(py0)), yb = Math.min(256, Math.max(ya + 1, Math.ceil(py1)));
+        const v = c[i + 2];
+        for (let yy = ya; yy < yb; yy++) for (let xx = xa; xx < xb; xx++) { const j = yy * 256 + xx; if (buf[j] < v) buf[j] = v; }
+        any = true;
+      }
+    }
+    if (!any) return out;
+    const o = out.data;
+    for (let j = 0; j < 65536; j++) {
+      const v = buf[j];
+      if (!v) continue;
+      const k = v === 1 ? 0 : v === 2 ? 1 : v <= 5 ? 2 : 3;
+      o[j * 4] = HEAT_RGB[k][0]; o[j * 4 + 1] = HEAT_RGB[k][1]; o[j * 4 + 2] = HEAT_RGB[k][2]; o[j * 4 + 3] = k ? 235 : 190;
+    }
+    return out;
+  }
+  map.createPane("skiheat").style.zIndex = 370;
+  const HeatGrid = L.GridLayer.extend({
+    createTile(c) {
+      const cv = document.createElement("canvas");
+      cv.width = cv.height = 256;
+      cv.getContext("2d").putImageData(paintHeat(c.z, c.x, c.y), 0, 0);
+      return cv;
+    },
+  });
+  const heatGrid = new HeatGrid({ pane: "skiheat", minZoom: 7, maxNativeZoom: 16, maxZoom: 20, opacity: 0.85, attribution: 'Ski heatmap: <a href="https://www.openstreetmap.org/traces">OpenStreetMap public GPS traces</a> © OpenStreetMap contributors' });
+  let heatProtocol = false;
+  function syncHeat3d() {
+    const gl = window.trailMap3d;
+    if (!gl || !window.maplibregl) return;
+    if (!heatProtocol) {
+      heatProtocol = true;
+      maplibregl.addProtocol("tfheat", async (params) => {
+        const [z, x, y] = params.url.replace("tfheat://", "").split("?")[0].split("/").map(Number);
+        const cv = new OffscreenCanvas(256, 256);
+        cv.getContext("2d").putImageData(paintHeat(z, x, y), 0, 0);
+        return { data: await (await cv.convertToBlob({ type: "image/png" })).arrayBuffer() };
+      });
+    }
+    const want = sport === "ski" && shown.has("heat") && !!heat;
+    const apply = () => {
+      if (!gl.getStyle()) return;
+      const has = !!gl.getLayer("skiheat");
+      if (!want) { if (has) gl.removeLayer("skiheat"); if (gl.getSource("skiheat")) gl.removeSource("skiheat"); return; }
+      const tiles = [`tfheat://{z}/{x}/{y}?v=${heatVer}`];
+      if (gl.getSource("skiheat")) gl.getSource("skiheat").setTiles(tiles);
+      else gl.addSource("skiheat", { type: "raster", tiles, tileSize: 256, minzoom: 7, maxzoom: 16, attribution: "Ski heatmap: OpenStreetMap public GPS traces" });
+      if (!has) gl.addLayer({ id: "skiheat", type: "raster", source: "skiheat", paint: { "raster-fade-duration": 0, "raster-opacity": 0.85 } }, gl.getLayer("osm-roads") ? "osm-roads" : undefined);
+    };
+    if (gl.isStyleLoaded()) apply(); else gl.once("styledata", apply);
+  }
+  window.addEventListener("tf:map3d", syncHeat3d);
+  function refreshHeat() {
+    const want = sport === "ski" && shown.has("heat");
+    if (want && !heat && !heatErr) loadHeat();
+    if (want && heat) { if (!map.hasLayer(heatGrid)) heatGrid.addTo(map); else heatGrid.redraw(); }
+    else if (map.hasLayer(heatGrid)) map.removeLayer(heatGrid);
+    syncHeat3d();
+  }
+
+  // ---------- your ski tours (rides saved in Record ride, ride.html) ----------
+  const mineLayer = L.layerGroup();
+  let mine = [];
+  function loadRides() {
+    return new Promise((resolve) => {
+      let r;
+      try { r = indexedDB.open("trail-finder-rides", 1); } catch { resolve([]); return; }
+      r.onupgradeneeded = () => {   // same stores as ride.html
+        const db = r.result;
+        db.createObjectStore("rides", { keyPath: "id" });
+        db.createObjectStore("photos", { keyPath: "id" }).createIndex("rideId", "rideId");
+        db.createObjectStore("current", { keyPath: "id" });
+      };
+      r.onerror = () => resolve([]);
+      r.onsuccess = () => {
+        const db = r.result;
+        try {
+          const q = db.transaction("rides").objectStore("rides").getAll();
+          q.onsuccess = () => { db.close(); resolve(q.result || []); };
+          q.onerror = () => { db.close(); resolve([]); };
+        } catch { db.close(); resolve([]); }
+      };
+    });
+  }
+  // A ski tour: the file says so, the name says so, or it was in winter and went high (bike parks and alpine trails are under snow).
+  const SKI_SPORT = /ski|snow|board/i, SKI_NAME = /\b(ski\w*|skin\w*|splitboard\w*|snowshoe\w*|backcountry|pow(der)?)\b/i;
+  function isSkiTour(r) {
+    if (!r || !Array.isArray(r.points) || r.points.length < 2) return false;
+    if (SKI_SPORT.test(r.sport || "") || SKI_NAME.test(r.title || "")) return true;
+    const m = new Date(r.start).getMonth();
+    if (!(m >= 10 || m <= 4)) return false;
+    return r.points.some((p) => p[2] != null && p[2] >= 1300);
+  }
+  function loadMine() {
+    return loadRides().then((all) => {
+      mine = all.filter(isSkiTour).sort((a, b) => b.start - a.start);
+      renderChips(); drawMine();
+    });
+  }
+  function drawMine() {
+    mineLayer.clearLayers();
+    if (!shown.has("mine")) return;
+    for (const r of mine) {
+      const line = r.points.map((p) => [p[0], p[1]]);
+      const when = new Date(r.start).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+      mineLayer.addLayer(L.polyline(line, { renderer: skiRenderer, color: "#fff", weight: 5, opacity: 0.7, interactive: false }));
+      const l = L.polyline(line, { renderer: skiRenderer, color: MINE.color, weight: 2.5, opacity: 1 });
+      l.bindTooltip(`${esc(r.title || "Ski tour")} · ${esc(when)}`, { sticky: true });
+      l.on("click", (e) => { L.DomEvent.stopPropagation(e); location.href = "ride.html#ride/" + encodeURIComponent(r.id); });
+      mineLayer.addLayer(l);
+    }
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && sport === "ski") loadMine(); });
+
   // ---------- switching sport ----------
   function setSport(s) {
     sport = SPORTS.includes(s) ? s : "mtb";
@@ -482,13 +642,13 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
     const mtb = window.tfMtbLayers || [];
     if (sport === "ski") {
       mtb.forEach((l) => map.removeLayer(l));
-      skiLayer.addTo(map); hutLayer.addTo(map);
-      loadSki(); renderList();
+      skiLayer.addTo(map); hutLayer.addTo(map); mineLayer.addTo(map);
+      loadSki(); loadMine(); renderList();
     } else {
       mtb.forEach((l) => { if (!map.hasLayer(l)) l.addTo(map); });
-      map.removeLayer(skiLayer); map.removeLayer(hutLayer);
+      map.removeLayer(skiLayer); map.removeLayer(hutLayer); map.removeLayer(mineLayer);
     }
-    refreshAvy();
+    refreshAvy(); refreshHeat();
   }
   sel.addEventListener("change", () => setSport(sel.value));
   setSport(sport);

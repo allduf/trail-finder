@@ -666,7 +666,7 @@ ${pts}
         const ride = {
           id: "ride-" + start, start, end, points: pts, stats: statsOf(pts, start, end), saved: Date.now(),
           title: (name && !/^\d+$/.test(name) ? name : defaultTitle(start)).slice(0, 120), description: "",
-          cover: null, photoCount: 0, imported: { file: file.name, at: Date.now() },
+          cover: null, photoCount: 0, imported: { file: file.name, at: Date.now() }, sport: String(got.sport || "").slice(0, 40),
         };
         if (ride.stats.climb == null) { try { ride.stats.climb = await mapClimb(pts); ride.stats.climbFrom = "map"; } catch {} }
         await dbPut("rides", ride);
