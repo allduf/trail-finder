@@ -10,10 +10,12 @@
 //   2 = official trail, bike use not given  -> "Official" badge only on trails already tagged for MTB
 //   3 = official trail, listed for other uses but not bikes -> warning in the trail details (note = the uses)
 // Sources (all open licences, attribution in index.json):
-//   on  Ontario Trail Network (OGL-Ontario): PERMITTED_USES with "Cycling" -> 1, hiking/walking without cycling -> 3
+//   on  Ontario Trail Network (OGL-Ontario): PERMITTED_USES with "Cycling" -> 1, hiking/walking without cycling -> 2 with the
+//       uses as note (not 3: the lists miss cycling on some multi-use trails, like the Courtice Millennium Trail)
 //   qc  Sépaq summer trails (CC BY 4.0): Usager "Vélo de montagne", "Vélo", "Piste cyclable" -> 1, "Pédestre" -> 3
 //       (bikes are allowed only on designated trails in Sépaq parks)
-//   bc  Recreation Sites and Trails BC (OGL-BC): active trail lines; "Mountain Biking" among the activities -> 1, else 2
+//   bc  Recreation Sites and Trails BC (OGL-BC): active trail lines; "Mountain Biking" among the activities, or a bike
+//       trail by its name ("... Mtn. Bike Trails") -> 1, else 2
 //   ab  Alberta designated and provincial trails (OGL-Alberta) -> 2 (no uses in the data)
 //   pc  Parks Canada trails (OGL-Canada): Official_Officiel = 1 -> 2, or 1 when the comment says Bike
 //   ott City of Ottawa mountain bike trails (OGL-Ottawa) -> 1
@@ -110,10 +112,10 @@ const jobs = {
     for (const { a, paths } of fs) {
       if (a.ON_ROAD_FLG === "Yes") continue;   // the trail runs on a road there
       const uses = a.PERMITTED_USES || "";
-      const status = /cycling/i.test(uses) ? 1 : /hiking|walking/i.test(uses) ? 3 : 0;   // portage, ski-only, ATV...: left out
+      const status = /cycling/i.test(uses) ? 1 : /hiking|walking/i.test(uses) ? 2 : 0;   // portage, ski-only, ATV...: left out
       if (!status) continue;
-      const note = status === 3 ? uses.replace(/Hiking or Walking/i, "hiking").toLowerCase() : a.TRAIL_ASSOCIATION || "";
-      paths.forEach((p) => add(status, "on", a.TRAIL_NAME, status === 1 ? a.TRAIL_ASSOCIATION : note, lonlat(p)));
+      const note = status === 2 ? uses.replace(/Hiking or Walking/i, "hiking").toLowerCase() : a.TRAIL_ASSOCIATION || "";
+      paths.forEach((p) => add(status, "on", a.TRAIL_NAME, note, lonlat(p)));
     }
   },
   async qc() {
@@ -146,7 +148,7 @@ const jobs = {
         const p = f.properties, g = f.geometry;
         if (p.LIFE_CYCLE_STATUS_CODE !== "ACTIVE" || p.RETIREMENT_DATE || !g) continue;
         const a = acts.get(p.FOREST_FILE_ID) || [];
-        const status = a.some((x) => /mountain biking/i.test(x)) ? 1 : 2;
+        const status = a.some((x) => /mountain biking/i.test(x)) || /\b(bike|mtb|mountain biking)\b/i.test(p.PROJECT_NAME || "") ? 1 : 2;
         const parts = g.type === "MultiLineString" ? g.coordinates : g.type === "LineString" ? [g.coordinates] : [];
         const name = (p.PROJECT_NAME || "").replace(/\b\w+/g, (w) => w[0] + w.slice(1).toLowerCase());   // names come in capitals
         parts.forEach((c) => add(status, "bc", name, p.FOREST_FILE_ID, lonlat(c)));

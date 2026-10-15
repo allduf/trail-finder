@@ -1822,6 +1822,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
   function withOfficial(tags, geom) {
     const m = window.tfOfficial && geom && geom.length > 1 ? window.tfOfficial.match(geom) : null;
     if (!m || m.s === 1 && tags["tf:official"]) return tags;
+    if (m.s === 3 && /^(yes|designated|permissive)$/.test(tags.bicycle || "")) return tags;   // mappers saw bikes allowed: no warning
     return { ...tags, [m.s === 1 ? "tf:official" : m.s === 2 ? "tf:off2" : "tf:offno"]: m.why };
   }
   // Forest and logging roads are never MTB trails, even with a bike rating or in an MTB route (alex): they're on the Forest roads layer.

@@ -106,11 +106,12 @@
   }
 
   function why(l) {
-    const src = NAMES[l.src] || l.src, name = l.name ? ` “${l.name}”` : "";
-    const extra = !l.note || l.src === "bc" || l.src === "ab" ? "" : l.src === "qc" ? ` in the ${l.note}` : `, run by ${l.note}`;
-    if (l.s === 1) return `listed by ${src}${name ? " as" + name : ""}${extra}, with bikes allowed`;
-    if (l.s === 2) return `listed by ${src} as an official trail${name}${extra}; it doesn't say whether bikes are allowed`;
-    return `${src} lists this trail${name} for ${l.note || "other uses"}, not for bikes.`;
+    const src = NAMES[l.src] || l.src, name = l.name ? `“${l.name}”` : "";
+    // Recreation Sites and Trails BC names the whole trail or trail system; the others name the trail.
+    const as = !name ? "" : l.src === "bc" ? ` as part of ${name}` : ` as ${name}`;
+    if (l.s === 1) return `listed by ${src}${as}${!l.note || l.src === "bc" ? "" : l.src === "qc" ? ` in the ${l.note}` : `, run by ${l.note}`}, with bikes allowed`;
+    if (l.s === 2) return `official trail${!name ? "" : l.src === "bc" ? " in " + name : " " + name}, listed by ${src}${l.src === "on" && l.note ? ` for ${l.note} (bikes aren't on its list)` : l.src === "ab" ? "" : "; it doesn't say whether bikes are allowed"}`;
+    return `${src} lists this trail${name ? " (" + name + ")" : ""} for ${l.note || "other uses"}, not for bikes.`;
   }
   const NAMES = { on: "Ontario Trails", qc: "Sépaq", bc: "Recreation Sites and Trails BC", ab: "Alberta designated trails", pc: "Parks Canada", ott: "the City of Ottawa" };
 
