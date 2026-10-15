@@ -3850,7 +3850,19 @@ out body;`;
   keyCtl.addTo(map);
   const areaSw = (a) => `<li><span class="lg-area" style="background:${a.color}${Math.round(a.fillOpacity * 255 + 40).toString(16)}; border: 1.5px ${a.dashArray ? "dashed" : "solid"} ${a.color}"></span>${a.label}</li>`;
   const keyOpen = new Set();   // which of the legend's map-layer sections the rider opened (closed by default to keep the key short)
+  // The first time the rider turns a layer on, its key pops open so they see what the colours mean (alex).
+  const keyWas = {}, keySeen = new Set(store.get("keySeen", []));
+  function popFirstKey() {
+    let popped = false;
+    [["Forest roads", state.roads], ["Logging areas", state.areas], ["Wildfires", state.fires]].forEach(([k, on]) => {
+      if (on && keyWas[k] === false && !keySeen.has(k)) { keySeen.add(k); keyOpen.add(k); popped = k; }
+      keyWas[k] = !!on;
+    });
+    if (popped) store.set("keySeen", [...keySeen]);
+    return popped;
+  }
   function renderKey() {
+    const popped = popFirstKey();
     const byDiff = state.colorBy === "diff";
     document.querySelectorAll(".legend .lg-mode button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === state.colorBy)));
     const sw = (style, label) => `<li><i style="${style}"></i>${label}</li>`;
@@ -3871,6 +3883,12 @@ out body;`;
     if (state.fires) html += section("Wildfires", `<li>${pinHtml(FIRE_STYLE.fire, "lg-ico")}${FIRE_STYLE.fire.label}</li>` + ["perim", "restr", "order", "alert"].map((k) => areaSw(FIRE_STYLE[k])).join(""));
     html += section("Trailheads and parking (zoom in)", Object.values(ACCESS).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join(""));
     $("keyList").innerHTML = html;
+    if (popped) {
+      const lg = document.querySelector("details.legend");
+      if (lg) lg.open = true;
+      const sec = $("keyList").querySelector(`details[data-k="${popped}"]`);
+      if (sec) sec.scrollIntoView({ block: "nearest" });
+    }
     $("keyList").querySelectorAll(".lg-more details").forEach((d) => d.addEventListener("toggle", () => { if (d.open) keyOpen.add(d.dataset.k); else keyOpen.delete(d.dataset.k); }));
     $("keyNote").textContent = byDiff
       ? state.allTrails ? "All trails: bold = official, thin = not known, dotted = unofficial. White edge: trails in the list." : "Dashed: looks like MTB (no bike tags)."

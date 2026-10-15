@@ -202,6 +202,7 @@ body.sport-ski #ridesBtn { display: none !important; }
   const anchor = $("roadsBtn") || $("allBtn");
   if (anchor) anchor.parentNode.insertBefore(btn, anchor); else return;
   function syncBtn() {
+    btn.hidden = !rides.length;   // no saved rides yet: nothing to show, so no button (alex)
     btn.classList.toggle("on", on && rides.length > 0);
     btn.setAttribute("aria-pressed", String(on && rides.length > 0));
     const ridden = [...byId.values()].filter((m) => m.state === "ridden").length;
@@ -221,7 +222,11 @@ body.sport-ski #ridesBtn { display: none !important; }
   async function refresh() {
     rides = (await loadRides()).filter((r) => r.points && r.points.length > 1);
     buildGrid();
+    // The first time this browser has a saved ride, turn My rides on and bring the ride into view.
+    const first = rides.length && !store.get("ridesSeen", false);
+    if (first) { store.set("ridesSeen", true); on = true; store.set("rides", true); }
     draw();
+    if (first && box) map.fitBounds(L.latLngBounds([box[0], box[1]], [box[2], box[3]]), { padding: [30, 30], maxZoom: 14 });
   }
   // Rides saved or imported in ride.html (another tab, or coming back to this page) show up when this page is seen again.
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh(); });
