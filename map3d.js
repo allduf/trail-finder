@@ -258,9 +258,9 @@
     // Full sharpness only once the camera stops: while moving, a lighter setting keeps it smooth.
     const lod = (levels, ratio) => ["sat", "s2"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(levels, ratio, id); } catch {} });
     let still = 0;
-    gl.once("load", () => lod(2, 6));
+    gl.once("load", () => lod(1, 30));
     gl.on("movestart", () => { clearTimeout(still); lod(3, 4); });
-    gl.on("moveend", () => { clearTimeout(still); still = setTimeout(() => lod(2, 6), 600); });   // 1 = the same photo detail all the way to the horizon
+    gl.on("moveend", () => { clearTimeout(still); still = setTimeout(() => lod(1, 30), 600); });   // 1 = the same photo detail all the way to the horizon
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
