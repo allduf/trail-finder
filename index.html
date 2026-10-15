@@ -1085,7 +1085,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
         <button id="offlineBtn" type="button" aria-pressed="false" title="Save an area's map, trails and forest roads on this device for riding with no signal">⤓ Offline maps</button>
         </div>
       </div>
-      <button id="locate" type="button" aria-pressed="false">◎ My location</button>
+      <button id="locate" type="button">◎ My location</button>
       <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
       <div class="map-note" id="mapNote" hidden></div>
     </div>
@@ -3026,32 +3026,27 @@ out body;`;
   });
 
   // ---------- Live location: a blue dot that moves with you, once you allow it ----------
-  // "My location" turns it on and the map follows you; dragging the map stops following
-  // (tap again to come back); tapping while it follows turns it off. It starts by itself when
-  // the app opens, unless you turned it off or the browser blocks location.
-  const you = { watch: null, ll: null, follow: false, dot: null, ring: null, onFirst: null };
+  // "My location" is a plain button (alex): each tap centres the map on you once, it never follows you
+  // around. The dot shows by itself when the app opens, unless the browser blocks location.
+  const you = { watch: null, ll: null, dot: null, ring: null, onFirst: null };
   const youLayer = L.layerGroup().addTo(map);
   function syncLocate() {
-    const b = $("locate"), on = you.watch != null;
-    b.classList.toggle("on", on); b.classList.toggle("lost", on && !you.follow);
-    b.setAttribute("aria-pressed", String(on));
-    b.textContent = !on ? "◎ My location" : !you.ll ? "◎ Finding you…" : you.follow ? "◉ Following you" : "◎ Back to me";
-    b.title = !on ? "Show where you are and follow you on the map" : you.follow ? "Tap to stop showing your location" : "Center the map on you again";
+    const b = $("locate");
+    b.textContent = you.onFirst && you.onFirst.asked && !you.ll ? "◎ Finding you…" : "◎ My location";
+    b.title = "Centre the map on where you are";
   }
   function showYou(pos) {
     const ll = L.latLng(pos.coords.latitude, pos.coords.longitude), acc = Math.min(pos.coords.accuracy || 0, 5000);
-    const firstFix = !you.ll;
     you.ll = ll;
     if (!you.dot) {
       you.ring = L.circle(ll, { radius: acc, color: "#2b7de9", weight: 1, opacity: 0.5, fillColor: "#2b7de9", fillOpacity: 0.12, interactive: false }).addTo(youLayer);
       you.dot = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: "#2b7de9", fillOpacity: 1 }).bindTooltip("You are here", { direction: "top", offset: [0, -8] }).addTo(youLayer);
     } else { you.ring.setLatLng(ll).setRadius(acc); you.dot.setLatLng(ll); }
-    if (firstFix && you.onFirst) { const f = you.onFirst; you.onFirst = null; f(ll); }
-    else if (you.follow) map.panTo(ll);
+    if (you.onFirst) { const f = you.onFirst; you.onFirst = null; f(ll); }
     syncLocate();
   }
   function startTracking(onFirst) {
-    you.follow = true; you.onFirst = onFirst;
+    you.onFirst = onFirst;
     if (you.watch == null) {
       you.watch = navigator.geolocation.watchPosition(showYou, (err) => {
         if (err.code !== 1) return;                  // no fix yet: keep trying
@@ -3059,43 +3054,34 @@ out body;`;
         stopTracking();
         if (asked) setStatus("Location wasn't shared. Allow location for this site in your browser settings, or search a place instead.", true);
       }, { enableHighAccuracy: true, maximumAge: 10000 });
-    } else if (you.ll) { you.onFirst = null; onFirst(you.ll); }
+    } else if (you.ll && onFirst) { you.onFirst = null; onFirst(you.ll); }
     syncLocate();
   }
   function stopTracking() {
     if (you.watch != null) navigator.geolocation.clearWatch(you.watch);
-    Object.assign(you, { watch: null, ll: null, follow: false, dot: null, ring: null, onFirst: null });
+    Object.assign(you, { watch: null, ll: null, dot: null, ring: null, onFirst: null });
     youLayer.clearLayers();
     syncLocate();
   }
-  // Moving the map yourself, or the app moving it (opening a trail, changing area), stops following you.
-  const stopFollow = () => { if (you.follow) { you.follow = false; syncLocate(); } };
-  map.on("dragstart", stopFollow);
-  ["fitBounds", "flyToBounds"].forEach((m) => { const f = map[m]; map[m] = function (...a) { stopFollow(); return f.apply(this, a); }; });
+  let locatedOnce = false;
   $("locate").addEventListener("click", () => {
     if (!navigator.geolocation) { setStatus("This browser can't share your location.", true); return; }
-    if (you.watch != null && you.follow && you.ll) { stopTracking(); store.set("track", false); return; }
     store.set("track", true);
-    const first = you.watch == null;
     const center = (ll) => {
       map.setView(ll, Math.max(map.getZoom(), 13));
-      if (first) {                                 // first tap also finds the trails around you, as before
+      if (!locatedOnce) {                          // the first tap also finds the trails around you, as before
+        locatedOnce = true;
         clearNear();
         state.custom = true; $("zone").value = "custom";
         search([map.getBounds().pad(0.05)], true);
       }
-      you.follow = true; syncLocate();
     };
     center.asked = true;
     startTracking(center);
   });
-  // When the app opens: show where you are if location is allowed (the browser asks the first time).
+  // When the app opens: show the dot if location is allowed (the browser asks the first time). The map stays put.
   if (navigator.geolocation && store.get("track", true)) {
-    const auto = () => startTracking((ll) => {
-      you.follow = ALL_BOUNDS.contains(ll) && !state.selected;   // far from the trail areas, or a trail is open: just show the dot
-      if (you.follow) map.setView(ll, Math.max(map.getZoom(), 13));
-      syncLocate();
-    });
+    const auto = () => startTracking(null);
     if (navigator.permissions && navigator.permissions.query) navigator.permissions.query({ name: "geolocation" }).then((q) => { if (q.state !== "denied") auto(); }, auto);
     else auto();
   }
@@ -4337,7 +4323,7 @@ out tags center qt;`;
       setTimeout(() => {
         map.invalidateSize();
         if (view === "fit") map.fitBounds(bounds, { maxZoom: 16, padding: [40, 40] });
-        else if (view && !map.getBounds().pad(-0.1).contains(view)) { stopFollow(); map.panTo(view); }
+        else if (view && !map.getBounds().pad(-0.1).contains(view)) map.panTo(view);
       }, 60);
   }
   function drawFound(t) {
