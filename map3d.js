@@ -60,6 +60,9 @@
     const lines = [], dots = [], hitLines = [];
     hits = [];
     let k = 0;
+    // A trail's details are open: the other trail lines fade, as in 2D.
+    const focus = map.getContainer().classList.contains("trail-focus");
+    const faded = (o) => focus && o.renderer && /^(allTrails|boxTrails)$/.test(o.renderer.options.pane);
     map.eachLayer((l) => {
       if (!(l instanceof L.Path)) return;
       const o = l.options, order = k++;
@@ -86,7 +89,7 @@
         hitLines.push({ type: "Feature", geometry, properties: { i: hits.length - 1, w: Math.max(o.weight || 3, 14) } });
       }
       if (!o.stroke || !(o.opacity > 0)) return;
-      lines.push({ type: "Feature", geometry, properties: { c: o.color, w: o.weight * LINE_SCALE, o: o.opacity, k: order, d: o.dashArray ? dashKey(o.dashArray, o.weight) : "" } });
+      lines.push({ type: "Feature", geometry, properties: { c: o.color, w: o.weight * LINE_SCALE, o: faded(o) ? o.opacity * 0.25 : o.opacity, k: order, d: o.dashArray ? dashKey(o.dashArray, o.weight) : "" } });
     });
     return { lines, dots, hitLines };
   }
@@ -112,7 +115,7 @@
     gl.getSource("hits").setData({ type: "FeatureCollection", features: s.hitLines });
     drawn = true;
   }
-  map.on("layeradd layerremove", scheduleSync);
+  map.on("layeradd layerremove trailfocus", scheduleSync);
   // Selecting a trail restyles lines without adding or removing any.
   const setStyle = L.Path.prototype.setStyle;
   L.Path.prototype.setStyle = function (style) { const r = setStyle.call(this, style); scheduleSync(); return r; };
