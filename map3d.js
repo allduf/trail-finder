@@ -253,9 +253,10 @@
         sky: { "sky-color": "#5d9be0", "horizon-color": "#d8e6f2", "fog-color": "#c9d9e8", "sky-horizon-blend": 0.5, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.85, "atmosphere-blend": 0.9 },
       },
     });
-    // Sharper far away: keep the photos at fewer zoom levels toward the horizon and allow more tiles
+    // Sharper far away: keep the photos at one zoom level all the way to the horizon and allow more tiles
     // when tilted (MapLibre's default lets the far half get blurry fast). Costs more photo downloads.
-    gl.once("styledata", () => ["sat", "s2"].forEach((id) => { try { gl.setSourceTileLodParams(2, 8, id); } catch {} }));
+    const sharpFar = () => ["sat", "s2"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(1, 30, id); } catch {} });
+    gl.on("styledata", sharpFar); gl.on("load", sharpFar);   // 1 = the same photo detail all the way to the horizon
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
