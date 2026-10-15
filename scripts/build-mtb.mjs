@@ -8,6 +8,7 @@
 // data/riding-areas.json label, e.g. Three Blind Mice, Fox Mountain), the area's named paths are added too,
 // marked with the made-up tag tf:area=<area name> so the site can say why it shows them. An area with its own radius r
 // (metres, e.g. South Chilcotin) is backcountry where every named path within r counts, however many have bike tags.
+// An area with an official reason marks its named paths tf:official=<reason> (not ones named like roads).
 // A zone whose riding areas change is rebuilt on the next run.
 // Lists refreshed in the last FRESH_HOURS are skipped; a zone that fails keeps its last good file.
 //
@@ -112,7 +113,7 @@ if (!existsSync(DATA)) mkdirSync(DATA);
 const builtAt = new Date().toISOString().slice(0, 19) + "Z";
 const lastBuilt = (z) => Date.parse((readJson(`mtb-${z.id}.json`) || {}).builtAt) || 0;
 const areasOf = (z) => AREAS.filter((a) => a.zone === z.id);
-const areasKey = (z) => JSON.stringify(areasOf(z).map((a) => [a.name, a.c, radius(a)]));
+const areasKey = (z) => JSON.stringify(areasOf(z).map((a) => [a.name, a.c, radius(a), a.official || ""]));
 // A list made for a different box (or before boxes were saved), older rules or other riding areas is out of date, however fresh.
 // Files from before areas were saved count as up to date unless the zone has a backcountry area (radius r).
 const sameAreas = (z, f) => (f.areas === undefined ? !areasOf(z).some((a) => a.r) : f.areas === areasKey(z));
@@ -143,6 +144,7 @@ for (const z of order) {
         const a = sparse.find((a) => metres([mid.lat, mid.lon], a.c) <= radius(a));
         if (!a || !tags.name || /^(no|private)$/.test(tags.access || "")) continue;
         tags["tf:area"] = a.name; fromAreas++;
+        if (a.official && !/\b(road|rd)\b/i.test(tags.name)) tags["tf:official"] = a.official;
       }
       ways[w.id] = { tags, g: simplify(w.geometry).flatMap((p) => [round(p.lat), round(p.lon)]) };
     }
