@@ -2646,7 +2646,9 @@ out body;`;
     if (state.waiting) {
       const btn = state.prime ? "Find prime loam trails" : "Find new trails";
       $("findBtn").disabled = false; $("findLabel").textContent = btn;
-      setStatus(`Press ${btn} to see trails in ${zoneById(state.zone) ? zoneById(state.zone).name : areaById(state.zone).short}.`);
+      // The chosen area's name only while the map is on it (elsewhere in Canada, "this area").
+      const area = areaById(state.zone), here = area.bounds.contains(map.getCenter());
+      setStatus(`Press ${btn} to see trails in ${!here ? "this area" : zoneById(state.zone) ? zoneById(state.zone).name : area.short}.`);
       return;
     }
     const label = { 1: "month", 6: "6 months", 12: "year", 24: "2 years" }[state.months];
@@ -3850,11 +3852,15 @@ out body;`;
   const allData = new Map();                       // zone id -> list of { id, tags, geom, c }, null while loading
   let allKey = "";
   const allLoads = new Map();                      // zone id -> promise of its list
+  // With All trails off, zooming in still shows every trail that isn't flagged unofficial (alex: "I want to see all the
+  // official trails when I zoom in"; outside BC few trails carry the operator tags that make them "official" here).
+  const OFFICIAL_ZOOM = 12;
+  const officialOnly = () => !state.allTrails && map.getZoom() >= OFFICIAL_ZOOM;
   function loadAllTrails() {
-    if (!state.allTrails) return;
+    if (!state.allTrails && !officialOnly()) return;
     const view = map.getBounds();
     ZONES.filter((z) => z.bounds.intersects(view)).forEach(loadZoneTrails);
-    caIndexLoad().then(() => { if (state.allTrails) caZonesIn([map.getBounds()]).forEach(loadZoneTrails); });
+    caIndexLoad().then(() => { if (state.allTrails || officialOnly()) caZonesIn([map.getBounds()]).forEach(loadZoneTrails); });
   }
   function loadZoneTrails(z) {
     if (!allLoads.has(z.id)) {
@@ -3910,17 +3916,17 @@ out body;`;
   }
   function drawAllTrails() {
     const loaded = [...allData.values()].filter(Boolean);
-    const key = [state.allTrails, state.colorBy, state.onlyUnoff, state.onlyOff, TYPE_KEYS.map((k) => state.show[k]), loaded.length].join("/");
+    const key = [state.allTrails, officialOnly(), state.colorBy, state.onlyUnoff, state.onlyOff, TYPE_KEYS.map((k) => state.show[k]), loaded.length].join("/");
     if (key === allKey) return;
     allKey = key;
     allLayer.clearLayers();
-    if (!state.allTrails) return;
+    if (!state.allTrails && !officialOnly()) return;
     const seen = new Set(), byDiff = state.colorBy === "diff";
     loaded.forEach((list) => list.forEach((w) => {
       const unoff = w.c.unoff.length > 0, off = !!w.c.official;
       // Official trails always show (alex: even with no option ticked), unless "Unofficial only" is on.
       // Unofficial ones show too, with a dotted overlay, same as in the square.
-      if (seen.has(w.id) || !(off && !state.onlyUnoff || wanted(w.c.cat, unoff, off))) return;
+      if (seen.has(w.id) || !(state.allTrails ? off && !state.onlyUnoff || wanted(w.c.cat, unoff, off) : !unoff && !state.onlyUnoff)) return;
       seen.add(w.id);
       const d = difficulty(w.tags);
       allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks"), weight: off ? 4.5 : unoff ? 3.5 : 2.5, opacity: off ? 1 : 0.75, dashArray: unoff ? UNOFF_DASH : null, lineCap: "round", interactive: false }));
@@ -3936,7 +3942,7 @@ out body;`;
     state.allTrails = !state.allTrails; store.set("allTrails", state.allTrails);
     syncAllBtn(); loadAllTrails(); drawAllTrails(); renderKey();
   });
-  map.on("moveend", loadAllTrails);
+  map.on("moveend", () => { loadAllTrails(); queueAllDraw(); if (state.waiting) renderStatus(); });
   syncAllBtn();
   loadAllTrails();
 
