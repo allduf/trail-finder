@@ -7,57 +7,43 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
       - run: |
-          set -x
-          O="-H Origin:https://allduf.github.io"
-          curl -sS -D - -o cfg.json $O https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json | head -20
-          python3 - <<'PY'
-          import json
-          j=json.load(open('cfg.json'))
-          ks=sorted(j, key=lambda k:int(k))
-          print(len(ks))
-          for k in ks[:2]+ks[-3:]: print(k, json.dumps(j[k]))
-          PY
-          # Squamish (Half Nelson-ish) 49.73,-123.12; Pemberton 50.32,-122.80; Kamloops Harper 50.69,-120.14
-          for P in "49.73 -123.12" "50.32 -122.80" "50.69 -120.14"; do
-            set -- $P
-            python3 -c "
-          import math;lat,lon=$1,$2
-          for z in (15,17,19):
-            n=2**z;x=int((lon+180)/360*n);y=int((1-math.log(math.tan(math.radians(lat))+1/math.cos(math.radians(lat)))/math.pi)/2*n);print(z,x,y)" > t.txt
-            cat t.txt
-            NEW=$(python3 -c "import json;j=json.load(open('cfg.json'));print(max(j,key=int))")
-            while read z x y; do
-              echo "== tilemap $z/$y/$x"
-              curl -sS $O -D - "https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tilemap/$NEW/$z/$y/$x" | tr -d '\r' | grep -i "access-control\|^{\|content-type"
-            done < t.txt
-            read z x y < <(tail -1 t.txt)
-            echo "== tile"
-            curl -sS $O -D - -o /dev/null "https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/$NEW/$z/$y/$x" | tr -d '\r' | grep -i "HTTP\|access-control\|content-type\|content-length"
-            # releases with local changes: walk all releases
-            python3 - "$z" "$x" "$y" "$1" "$2" <<'PY'
-          import json,sys,urllib.request
-          z,x,y,lat,lon=sys.argv[1:]
-          j=json.load(open('cfg.json'))
-          seen={}
-          for k in sorted(j,key=int,reverse=True):
-            try:
-              r=json.load(urllib.request.urlopen(f"https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tilemap/{k}/{z}/{y}/{x}",timeout=20))
-            except Exception as e: print(k,'err',e); continue
-            s=r.get('select',[None])[0]
-            if s not in seen: seen[s]=k; print('release',k,j[k]['itemTitle'],'-> select',s, r)
-          print('distinct', len(seen))
-          # metadata for each distinct
-          for s in list(seen)[:8]:
-            if s is None: continue
-            m=j[str(s)]['metadataLayerUrl']
-            u=m+f"/{20-int(z) if False else 0}/query?f=json&where=1%3D1&outFields=SRC_DATE2,NICE_DESC,SRC_RES,SRC_DESC&returnGeometry=false&geometryType=esriGeometryPoint&spatialRel=esriSpatialRelIntersects&inSR=4326&geometry={lon},{lat}"
-            print(s, m)
-            try:
-              txt=urllib.request.urlopen(u,timeout=20).read().decode()[:400]; print(txt)
-            except Exception as e: print('meta err',e)
-          PY
-          done
-          echo "== metadata layers"
-          M=$(python3 -c "import json;j=json.load(open('cfg.json'));print(j[max(j,key=int)]['metadataLayerUrl'])")
-          curl -sS $O -D - "$M?f=json" | tr -d '\r' | grep -i "access-control" ; curl -sS "$M?f=json" | head -c 1500
+          cat > p.mjs <<'JS'
+          const H = { "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130 Safari/537.36", Origin: "https://allduf.github.io", Referer: "https://allduf.github.io/" };
+          const get = async (u) => { const r = await fetch(u, { headers: H }); if (!r.ok) throw new Error(r.status + " " + u); return r; };
+          const cfg = await (await get("https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json")).json();
+          const rel = Object.entries(cfg).map(([k, v]) => ({ num: +k, url: v.itemURL, meta: v.metadataLayerUrl, published: v.itemTitle.match(/\d{4}-\d\d-\d\d/)[0] }));
+          const byNum = Object.fromEntries(rel.map((r) => [r.num, r]));
+          const list = rel.sort((a, b) => b.published.localeCompare(a.published) || b.num - a.num);
+          const tile = (lat, lon, z) => { const n = 2 ** z; return { z, x: Math.floor((lon + 180) / 360 * n), y: Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n) }; };
+          for (const [name, lat, lon] of [["Squamish Diamond Head", 49.745, -123.115], ["Pemberton Mosquito", 50.325, -122.81], ["Kamloops Harper", 50.69, -120.14], ["Revelstoke", 51.0, -118.17], ["Duffey", 50.40, -122.40]]) {
+            for (const z of [14, 16, 17]) {
+              const t = tile(lat, lon, z), out = []; let i = 0, calls = 0, why = "";
+              while (i < list.length && out.length < 30) {
+                const r = list[i]; calls++;
+                let j; try { j = await (await get(`https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tilemap/${r.num}/${t.z}/${t.y}/${t.x}`)).json(); } catch (e) { why = e.message; break; }
+                if (!j.data || j.data[0] !== 1) { why = `data0 at ${r.published} ${JSON.stringify(j)}`; break; }
+                const pick = byNum[j.select?.[0] ?? r.num] || r;
+                if (!out.includes(pick)) out.push(pick);
+                i = Math.max(i, list.indexOf(pick)) + 1;
+              }
+              const dates = await Promise.all(out.map(async (r) => {
+                const layer = Math.max(0, Math.min(11, 23 - Math.max(12, z)));
+                const q = new URLSearchParams({ f: "json", where: "1=1", outFields: "SRC_DATE2,NICE_DESC,SRC_RES", returnGeometry: "false", geometryType: "esriGeometryPoint", spatialRel: "esriSpatialRelIntersects", inSR: "4326", geometry: `${lon},${lat}` });
+                try { const j = await (await get(`${r.meta}/${layer}/query?${q}`)).json(); const a = j.features?.[0]?.attributes; return a ? `${new Date(a.SRC_DATE2).toISOString().slice(0, 10)} ${a.NICE_DESC} ${a.SRC_RES}m` : "nofeat " + JSON.stringify(j).slice(0, 120); } catch (e) { return "err " + e.message; }
+              }));
+              console.log(`\n${name} z${z} calls=${calls} stop=${why.slice(0, 160)}`);
+              out.forEach((r, k) => console.log(`  ${r.published} #${r.num} -> photo ${dates[k]}`));
+            }
+          }
+          // tile fetch check
+          const r = list[0]; const t = tile(49.745, -123.115, 17);
+          const tr = await fetch(r.url.replace("{level}", t.z).replace("{row}", t.y).replace("{col}", t.x), { headers: H, redirect: "manual" });
+          console.log("tile", tr.status, tr.headers.get("content-type"), tr.headers.get("location"), tr.headers.get("access-control-allow-origin"));
+          const t19 = tile(49.745, -123.115, 21);
+          const tr2 = await fetch(r.url.replace("{level}", t19.z).replace("{row}", t19.y).replace("{col}", t19.x), { headers: H, redirect: "manual" });
+          console.log("tile z21", tr2.status, tr2.headers.get("content-type"), tr2.headers.get("location"));
+          JS
+          node p.mjs
