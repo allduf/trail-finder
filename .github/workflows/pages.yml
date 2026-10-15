@@ -1,0 +1,46 @@
+name: Publish website
+
+# Publishes the website: main as it stands, plus the Canada-wide trail data from the canada-data branch under ca/.
+# Runs after every push to main and after every data job (their commits to main don't start workflows by themselves).
+# Needs Settings > Pages > Build and deployment > Source = "GitHub Actions".
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: ["Canada trail data", "Nightly trail data", "All trails data", "Trailheads and parking data", "Forest roads data",
+      "Wildfires data", "Winter data", "Weekly alpine rideable trails", "Weekly ski heatmap", "Weekly possible unmapped trails", "People count"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true   # a newer publish has everything an older one has
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: site
+      - name: Add the Canada-wide data
+        run: |
+          git clone -q --depth 1 --branch canada-data "https://github.com/${GITHUB_REPOSITORY}.git" canada || { echo "No canada-data branch yet."; exit 0; }
+          mv canada/ca site/ca
+      - name: Leave out what the website doesn't need
+        run: rm -rf site/.git site/.github site/scripts site/supabase
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

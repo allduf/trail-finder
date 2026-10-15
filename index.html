@@ -1412,7 +1412,44 @@ body.sport-ski #rideMapBtn { display: none !important; }
   const map = L.map("map", { zoomControl: true, preferCanvas: false });
   window.tfLeaflet = map;   // for the 3D view (map3d.js)
   window.tfZones = ZONES;   // for Offline maps (offline.js)
-  const zoneById = (id) => ZONES.find((z) => z.id === id);
+  // ---------- Canada-wide trail data (scripts/build-canada.mjs, nightly from Geofabrik), loaded for what's on screen ----------
+  // Outside the home zones above, 1 deg x 1.2 deg map chunks stand in for zones (ids "ca_<chunk>") with the same
+  // trails / names / mtb data, so new trails, name search, All trails and Prime loam work anywhere in Canada online.
+  // Chunks that overlap a home zone are skipped: there the zone files and the live search work as before.
+  const caIndex = { data: null, zones: new Map() };
+  let caLoad = null;
+  function caIndexLoad() {
+    if (!caLoad) caLoad = (/^https?:$/.test(location.protocol) && !/claude/.test(location.hostname)
+      ? fetch("ca/index.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null) : Promise.resolve(null))
+      .then((f) => {
+        if (!f || f.v !== 1) return caIndex;
+        const prov = new Map();
+        f.provinces.forEach((p) => p.chunks.forEach((c) => { if (!prov.has(c)) prov.set(c, p.name); }));
+        const overlaps = (a, b) => a.getSouth() < b.getNorth() && b.getSouth() < a.getNorth() && a.getWest() < b.getEast() && b.getWest() < a.getEast();
+        Object.keys(f.chunks).forEach((c) => {
+          const [s, w] = c.split("_").map(Number), box = [s, w, s + f.chunkLat, +(w + f.chunkLon).toFixed(1)];
+          const bounds = L.latLngBounds([box[0], box[1]], [box[2], box[3]]);
+          if (!ZONES.some((z) => overlaps(z.bounds, bounds))) caIndex.zones.set("ca_" + c, { id: "ca_" + c, chunk: c, name: prov.get(c) || "Canada", box, bounds });
+        });
+        caIndex.data = f;
+        return caIndex;
+      });
+    return caLoad;
+  }
+  // The chunks touching these bounds, nearest the map centre first, at most CA_MAX (a zoomed-out view would be all of Canada).
+  const CA_MAX = 12;
+  function caZonesIn(boxes) {
+    const c = map.getCenter();
+    return [...caIndex.zones.values()].filter((z) => boxes.some((b) => b.intersects(z.bounds)))
+      .sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter())).slice(0, CA_MAX);
+  }
+  const caChunks = new Map();   // chunk id -> Promise(chunk or null), fetched once per visit
+  function caChunk(id) {
+    if (!caChunks.has(id)) caChunks.set(id, fetch(`ca/c/${id}.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null));
+    return caChunks.get(id);
+  }
+  const zoneById = (id) => ZONES.find((z) => z.id === id) || caIndex.zones.get(id);
+  caIndexLoad();
   const regionById = (id) => REGIONS.find((r) => r.id === id);
   // The region the map is looking at (or nearest to), for "all areas" choices that shouldn't span both provinces.
   const regionHere = () => { const c = map.getCenter(); return REGIONS.find((r) => r.bounds.contains(c)) || REGIONS.slice().sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter()))[0]; };
@@ -2090,6 +2127,10 @@ out body;`;
   const nightlyFiles = new Map();            // file name -> Promise(json or null), fetched once per visit
   function nightly(name) {
     if (!useNightly) return Promise.resolve(null);
+    const ca = name.match(/^(trails|names|mtb)-ca_(.+)\.json$/);
+    if (ca) return caChunk(ca[2]).then((c) => (!c || c.v !== 1 ? null : ca[1] === "trails" ? c.trails
+      : ca[1] === "names" ? { v: 1, builtAt: c.builtAt, items: c.names } : { v: 1, builtAt: c.builtAt, ways: c.mtb.ways }));
+    if (/-ca_/.test(name)) return Promise.resolve(null);   // roads, access, GPS traces...: home zones only
     if (!nightlyFiles.has(name)) nightlyFiles.set(name, fetch("data/" + name, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null));
     return nightlyFiles.get(name);
   }
@@ -2164,7 +2205,9 @@ out body;`;
 
     // 1b. Inside the region, last night's file has every square: use it where it's newer than what's saved here.
     const nightlyAt = new Map();
-    const zonesHere = useNightly ? ZONES.filter((z) => boxes.some((b) => b.intersects(z.bounds))) : [];
+    if (useNightly) await caIndexLoad();
+    if (token !== state.token) return;
+    const zonesHere = useNightly ? ZONES.filter((z) => boxes.some((b) => b.intersects(z.bounds))).concat(caZonesIn(boxes)) : [];
     if (zonesHere.length) setStatus("Loading trails…");
     const [files] = await Promise.all([
       Promise.all(zonesHere.map((z) => nightly(`trails-${z.id}.json`))).then((fs) => fs.filter((f) => f && f.v === 1)),
@@ -2523,7 +2566,7 @@ out body;`;
 
   // ---------- Prime loam now: every named trail in the area, old or new, with Loam index 40-59 now ----------
   // Uses the trail-name lists (one point per trail); tapping one loads its full shape like the name search.
-  const primeZones = () => ZONES.filter((z) => state.searchedBounds.some((b) => z.bounds.intersects(b)));
+  const primeZones = () => ZONES.filter((z) => state.searchedBounds.some((b) => z.bounds.intersects(b))).concat(caZonesIn(state.searchedBounds));
   async function loadPrime(retry) {
     state.primeLoading = true; render();
     try { await loadNames(retry, primeZones(), () => { state.primeLoading = false; }); } finally { state.primeLoading = false; }
@@ -3808,6 +3851,7 @@ out body;`;
     if (!state.allTrails) return;
     const view = map.getBounds();
     ZONES.filter((z) => z.bounds.intersects(view)).forEach(loadZoneTrails);
+    caIndexLoad().then(() => { if (state.allTrails) caZonesIn([map.getBounds()]).forEach(loadZoneTrails); });
   }
   function loadZoneTrails(z) {
     if (!allLoads.has(z.id)) {
@@ -4570,7 +4614,9 @@ out body;`;
   const placeArea = () => nearPlace && { id: "near:" + nearPlace.box.map((n) => n.toFixed(2)).join(","), name: "Near " + nearPlace.label,
     bounds: L.latLngBounds([nearPlace.box[0], nearPlace.box[1]], [nearPlace.box[2], nearPlace.box[3]]) };
   const nameZone = () => ($("nameZone").value === "near" ? placeArea() : zoneById($("nameZone").value));
-  const wantedZones = () => (nameZone() ? [nameZone()] : regionHere().zones.slice());   // "All areas": the region the map is on
+  // "All areas": the region the map is on, plus the Canada-wide chunks on screen (only those outside the regions).
+  const wantedZones = () => (nameZone() ? [nameZone()]
+    : (REGIONS.some((r) => r.bounds.contains(map.getCenter())) ? regionHere().zones.slice() : []).concat(caZonesIn([map.getBounds()])));
   const shortZone = (z) => z.name.split(" (")[0];
   const STOP = new Set(["trail", "trails", "the", "path", "of", "and"]);
   function norm(s) {
