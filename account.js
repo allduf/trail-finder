@@ -101,6 +101,7 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
   }
   paintButtons();
   function openBox() {
+    api.load();
     q("acctIn").hidden = !!api.user; q("acctOut").hidden = !api.user;
     if (api.user) { q("acctWho").textContent = api.user.email || ""; showSettings(false); }
     else { q("acctMsg").textContent = ""; q("acctMsg").className = "acct-msg"; }
@@ -122,7 +123,10 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
   api.setSyncNote = (text) => { q("acctSync").textContent = text || ""; };
 
   // ---------- Supabase ----------
-  api.ready = new Promise((resolve) => {
+  // The sign-in library is about 170 KB, so it loads only when it's needed: a saved sign-in on this device, a sign-in
+  // link just opened, or the rider opening the sign-in box or a trail's reports (api.load). Signed-out visits skip it.
+  let libLoad = null;
+  api.load = () => libLoad || (libLoad = new Promise((resolve) => {
     const s = document.createElement("script");
     s.src = LIB;
     s.onload = async () => {
@@ -136,7 +140,10 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     };
     s.onerror = () => { buttons.forEach((b) => { b.hidden = true; }); resolve(null); };
     document.head.appendChild(s);
-  });
+  }));
+  const savedSession = !!lsGet(`sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`);
+  const fromLink = /[#&?](access_token|code|error_description)=/.test(location.href);
+  api.ready = savedSession || fromLink ? api.load() : Promise.resolve(null);
 
   function setUser(user) {
     const was = api.user ? api.user.id : null, now = user ? user.id : null;
@@ -149,8 +156,9 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
   }
 
   function say(text, err) { const m = q("acctMsg"); m.textContent = text; m.className = "acct-msg" + (err ? " err" : ""); }
-  function creds() {
+  async function creds() {
     const email = q("acctEmail").value.trim(), password = q("acctPass").value;
+    await api.load();
     if (!api.client) { say("Sign-in isn't available right now. Try again later.", true); return null; }
     if (!q("acctEmail").reportValidity()) return null;
     return { email, password };
@@ -158,7 +166,7 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
   const redirect = () => location.origin + location.pathname;
   q("acctIn").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const c = creds(); if (!c) return;
+    const c = await creds(); if (!c) return;
     if (!c.password) { say("Enter your password, or use \u201cEmail me a link\u201d.", true); return; }
     q("acctSend").disabled = true; say("Signing in…");
     const { error } = await api.client.auth.signInWithPassword(c);
@@ -167,7 +175,7 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     else box.close();
   });
   q("acctNew").addEventListener("click", async () => {
-    const c = creds(); if (!c) return;
+    const c = await creds(); if (!c) return;
     if (c.password.length < 6) { say("Pick a password of at least 6 characters, then tap Create an account.", true); q("acctPass").focus(); return; }
     say("Creating your account…");
     const { data, error } = await api.client.auth.signUp({ ...c, options: { emailRedirectTo: redirect() } });
@@ -176,7 +184,7 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     else say(`Almost done: check ${c.email} and tap the link once to confirm. After that, sign in with your password.`);
   });
   q("acctLink").addEventListener("click", async () => {
-    const c = creds(); if (!c) return;
+    const c = await creds(); if (!c) return;
     say("Sending…");
     const { error } = await api.client.auth.signInWithOtp({ email: c.email, options: { emailRedirectTo: redirect() } });
     if (error) say(error.message, true);

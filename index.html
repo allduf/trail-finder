@@ -17,7 +17,7 @@
 <body>
 <title>Trail Finder</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <style>
 /* required styles */
 
@@ -1068,7 +1068,8 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,600..900&family=Inter:wght@400..700&display=swap">
+<!-- Archivo and Inter (theme.css) and JetBrains Mono (tag tables): one request. The old Barlow fonts are only fallbacks now. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,600..900&family=Inter:wght@400..700&family=JetBrains+Mono:wght@400&display=swap">
 <style>
 /* the phone tab bar is styled in theme.css; hidden here so it never shows unstyled (e.g. with an older cached theme.css) */
 .tabbar, .tab-menu { display: none; }
@@ -1380,7 +1381,6 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     custom: false,       // true after "Search this area" / place search
     selected: null,
     token: 0,
-    example: false,
   };
 
   // ---------- map ----------
@@ -1611,7 +1611,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
   map.on("moveend", () => {
     const view = map.getBounds();
     const covered = state.searchedBounds.some((b) => b.contains(view)) || (!state.custom && state.searchedBounds.length && ALL_BOUNDS.contains(view) && map.getZoom() < MIN_ZOOM);
-    $("searchArea").hidden = !state.example && (covered || map.getZoom() < MIN_ZOOM);
+    $("searchArea").hidden = (covered || map.getZoom() < MIN_ZOOM);
   });
   $("searchArea").addEventListener("click", () => {
     if (map.getZoom() < MIN_ZOOM) { setStatus("Zoom in a bit more (to a town or trail area) before searching.", true); return; }
@@ -2116,7 +2116,6 @@ out body;`;
   async function search(boxes, offline, auto) {
     const token = ++state.token;
     state.waiting = !!auto;
-    state.example = false;
     gate.strikes = 0;
     $("searchArea").hidden = true;
     state.error = "";
@@ -2235,8 +2234,6 @@ out body;`;
     clearInterval(tick);
     if (token !== state.token) return;
     state.loading = null;
-    // Inside the Claude preview every request is blocked outright: show example trails instead.
-    if (todo.length && networkFails === todo.length && !savedCount && location.protocol !== "file:") { loadExample(); return; }
     if (failed.length) {
       const missing = tiles.filter((t) => !tileCache.has(t.key)).length;
       state.error = missing === tiles.length
@@ -2284,7 +2281,7 @@ out body;`;
   function visibleTrails() {
     if (state.waiting) return [];
     const cutoff = monthsAgo(state.months);
-    const zb = !state.custom && !state.example ? zoneBounds(state.zone) : null;
+    const zb = !state.custom ? zoneBounds(state.zone) : null;
     return state.trails.filter((t) => t.created >= cutoff && (!zb || zb.intersects(t.bounds)) && (!near || nearDist(t) <= near.km * 1000));
   }
 
@@ -2408,7 +2405,6 @@ out body;`;
   // them from the nightly files (or this browser), never from OpenStreetMap's busy server.
   const netTried = new Set();
   function ensureNetNames() {
-    if (state.example) return;
     const zs = primeZones().filter((z) => !names.zones.has(z.id) && !netTried.has(z.id));
     if (!zs.length) return;
     zs.forEach((z) => netTried.add(z.id));
@@ -2574,7 +2570,6 @@ out body;`;
     $("resetBtn").hidden = !!state.waiting || !state.searchedBounds.length;
     $("toggles").hidden = !!state.waiting || (!state.prime && !state.searchedBounds.length && !state.trails.length);
     $("debug").hidden = !state.error;
-    if (state.example) return;
     if (state.waiting) {
       const btn = state.prime ? "Find prime loam trails" : "Find new trails";
       $("findBtn").disabled = false; $("findLabel").textContent = btn;
@@ -2666,11 +2661,6 @@ out body;`;
   async function loadElevation(t) {
     const box = () => (state.selected === t.id ? $("elev") : null);
     try {
-      if (!t.elev && t.id < 0) {   // made-up example trail: made-up hill
-        const pts = samplePoints(t.geom, 60);
-        pts.forEach((p, i) => { p.e = 640 + 90 * Math.sin(i / 12) + 25 * Math.sin(i / 3); });
-        t.elev = { pts, stats: elevStats(pts) };
-      }
       if (!t.elev) {
         const pts = samplePoints(t.geom, 100);
         const url = `${ELEV_API}?latitude=${pts.map((p) => p.lat.toFixed(5)).join(",")}&longitude=${pts.map((p) => p.lon.toFixed(5)).join(",")}`;
@@ -2733,13 +2723,12 @@ out body;`;
   const loamCells = new Map();                   // "lat,lon" (rounded to 0.05°) -> { at, lmi }
   const cellOf = (t) => { const m = t.center || L.latLng(t.geom[Math.floor(t.geom.length / 2)]); return `${(Math.round(m.lat * 20) / 20).toFixed(2)},${(Math.round(m.lng * 20) / 20).toFixed(2)}`; };
   function loamOf(t) {
-    if (t.id < 0 && !t.ghost) return [28, 45, 33, 62, 22, 70, 35, 52, 30, 25, 40][-t.id % 11];   // made-up example trails
     const c = loamCells.get(cellOf(t));
     return c ? c.lmi : undefined;                 // undefined: not loaded yet; null: no soil data there
   }
   let loamBusy = false;
   async function loadLoam(trails) {
-    if (loamBusy || state.example) return;
+    if (loamBusy) return;
     const need = [...new Set(trails.filter((t) => t.center || t.id > 0 || t.ghost).map(cellOf))].filter((k) => { const c = loamCells.get(k); return !c || Date.now() - c.at > WX_FRESH_MS; });
     if (!need.length) return;
     loamBusy = true;
@@ -2775,8 +2764,7 @@ out body;`;
     try {
       if (!t.wx || Date.now() - t.wx.at > WX_FRESH_MS) {
         const mid = t.geom[Math.floor(t.geom.length / 2)];
-        if (t.id < 0) t.wx = { at: Date.now(), json: exampleWeather() };   // made-up example trail
-        else {
+        {
           const url = `${WX_API}?latitude=${mid[0].toFixed(4)}&longitude=${mid[1].toFixed(4)}&timezone=auto&past_days=2&forecast_days=4` +
             "&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m" +
             "&hourly=precipitation,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm" +
@@ -2818,21 +2806,6 @@ out body;`;
       <div class="lmi-ends">${["Dry", "Tacky", "Damp", "Wet", "Saturated"].map((x, k) => `<span style="left:${10 + 20 * k}%">${x}</span>`).join("")}</div>
       ${lmiKey(lvl)}`}
       <table class="etable wx-days"><thead><tr><th>Day</th><th>Sky</th><th>High / low</th><th>Rain</th></tr></thead><tbody>${days}</tbody></table>`;
-  }
-  function exampleWeather() {
-    const now = new Date(), pad = (n) => String(n).padStart(2, "0");
-    const loc = (dt) => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:00`;
-    const start = new Date(now); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - 2);
-    const time = [], precipitation = [], a = [], b = [], c = [];
-    for (let k = 0; k < 6 * 24; k++) {
-      const dt = new Date(start.getTime() + k * 3600e3); time.push(loc(dt));
-      const rain = k > 20 && k < 30 ? 1.2 : 0; precipitation.push(rain);
-      const m = 0.30 - Math.max(0, k - 30) * 0.0009; a.push(m - 0.02); b.push(m); c.push(m + 0.02);
-    }
-    const days = [0, 1, 2, 3, 4, 5].map((k) => loc(new Date(start.getTime() + k * 864e5)).slice(0, 10));
-    return { elevation: 640, current: { time: loc(now), temperature_2m: 9.4, apparent_temperature: 7.1, precipitation: 0, weather_code: 3, wind_speed_10m: 11, wind_gusts_10m: 26 },
-      hourly: { time, precipitation, soil_moisture_0_to_1cm: a, soil_moisture_1_to_3cm: b, soil_moisture_3_to_9cm: c },
-      daily: { time: days, weather_code: [61, 63, 3, 2, 80, 1], temperature_2m_max: [10, 9, 11, 13, 10, 14], temperature_2m_min: [4, 5, 3, 4, 6, 5], precipitation_sum: [3, 12, 0, 0, 4.2, 0], precipitation_probability_max: [70, 90, 20, 10, 60, 5] } };
   }
 
   const niceStep = (span, n) => { const raw = span / n, p = 10 ** Math.floor(Math.log10(raw)); return [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= raw); };
@@ -3641,7 +3614,7 @@ out body;`;
   let allKey = "";
   const allLoads = new Map();                      // zone id -> promise of its list
   function loadAllTrails() {
-    if (!state.allTrails || state.example) return;
+    if (!state.allTrails) return;
     const view = map.getBounds();
     ZONES.filter((z) => z.bounds.intersects(view)).forEach(loadZoneTrails);
   }
@@ -3658,7 +3631,7 @@ out body;`;
           const tags = w.tags["tf:name"] && !w.tags.name ? { ...w.tags, name: w.tags["tf:name"] } : w.tags;
           return { id: +id, tags, geom, c: classify(tags, inRoute.get(+id) || []) };
         }).filter((w) => w.c && !w.c.use && w.geom.length > 1) : []);
-        drawAllTrails();
+        queueAllDraw();
         return f && f.v === 1 ? allData.get(z.id) : null;        // null: the list couldn't be loaded
       }));
     }
@@ -3689,6 +3662,11 @@ out body;`;
       if (w) return Object.fromEntries(Object.entries(w.tags).filter(([k]) => k.startsWith("tf:")));
     }
     return {};
+  }
+  // Zones arriving close together (up to 10 at the start) are drawn once, not once per zone.
+  let allDrawTimer = 0;
+  function queueAllDraw() {
+    if (!allDrawTimer) allDrawTimer = setTimeout(() => { allDrawTimer = 0; drawAllTrails(); }, 60);
   }
   function drawAllTrails() {
     const loaded = [...allData.values()].filter(Boolean);
@@ -3766,7 +3744,7 @@ out body;`;
   let roadKey = "";
   const roadGeom = (g) => { const geom = []; for (let i = 0; i < g.length; i += 2) geom.push([g[i], g[i + 1]]); return geom; };
   function loadRoads() {
-    if (state.example || map.getZoom() < ROAD_MIN_ZOOM) return;   // loaded with the button off too, for the plain lines
+    if (map.getZoom() < ROAD_MIN_ZOOM) return;   // loaded with the button off too, for the plain lines
     const view = map.getBounds();
     ZONES.filter((z) => z.bounds.intersects(view)).forEach(roadZone);
   }
@@ -3955,7 +3933,7 @@ out body;`;
   const fireLayer = L.layerGroup().addTo(map);
   const withRings = (list) => (list || []).map((a) => ({ ...a, rings: rings(a.g) }));
   function loadFires() {
-    if (fires || !state.fires || state.example) return;
+    if (fires || !state.fires) return;
     fires = { fires: [], perims: [], restr: [], evac: [] };
     nightly("fires.json").then((f) => {
       if (f && f.v === 1) fires = { at: f.builtAt, fires: f.fires || [], perims: withRings(f.perims), restr: withRings(f.restr), evac: withRings(f.evac) };
@@ -4215,7 +4193,7 @@ out body;`;
   // Pins on the map, from zoom 13, only the ones in view. Pins are kept while in view, so an open popup that pans the map stays open.
   const accessLayer = L.layerGroup().addTo(map), accessPins = new Map();   // id -> marker
   function drawAccess() {
-    if (state.example || !state.access || map.getZoom() < FEAT_MIN_ZOOM) { accessLayer.clearLayers(); accessPins.clear(); return; }
+    if (!state.access || map.getZoom() < FEAT_MIN_ZOOM) { accessLayer.clearLayers(); accessPins.clear(); return; }
     const view = map.getBounds().pad(0.2);
     accessPins.forEach((m, id) => { if (!view.contains(m.getLatLng()) && !m.isPopupOpen()) { accessLayer.removeLayer(m); accessPins.delete(id); } });
     ZONES.filter((z) => z.bounds.intersects(view)).forEach((z) => accessZone(z).then((pts) => {
@@ -4486,7 +4464,6 @@ out tags center qt;`;
     return extra.length ? items.concat(extra) : items;
   }
   async function loadNames(retry, zones, onLocal, localOnly) {
-    if (state.example) return;
     if (retry) { names.failed.clear(); gate.strikes = 0; }
     const c = map.getCenter();
     const changed = () => { refreshHits(); if (state.prime) render(); };
@@ -4603,8 +4580,7 @@ out tags center qt;`;
     const want = wantedZones(), zsel = nameZone();
     const loading = want.some((z) => names.inflight.has(z.id));
     const failed = want.filter((z) => names.failed.has(z.id));
-    if (state.example) note = "This preview only has the made-up example trails.";
-    else if (loading) note = (zsel ? `Loading trail names in ${esc(shortZone(zsel))}…` : `Loading trail names: ${want.filter((z) => names.fresh.has(z.id)).length} of ${want.length} areas…`) + (busyFor() ? " OpenStreetMap is busy, so this can take a minute." : "");
+    if (loading) note = (zsel ? `Loading trail names in ${esc(shortZone(zsel))}…` : `Loading trail names: ${want.filter((z) => names.fresh.has(z.id)).length} of ${want.length} areas…`) + (busyFor() ? " OpenStreetMap is busy, so this can take a minute." : "");
     else if (failed.length) note = `Names for ${esc(failed.map(shortZone).join(", "))} didn't load. <button class="linkish" type="button" data-retry>Try again</button>`;
     if (!hits.length && !loading) note = `No trail named “${esc(raw)}” found${zsel ? ` in ${esc(shortZone(zsel))}` : ""}. Check the spelling${zsel ? ", or choose All areas" : " or type part of the name"}.` + (note ? "<br>" + note : "");
     box.innerHTML = rows + (note ? `<li class="hnote">${note}</li>` : "");
@@ -4786,7 +4762,6 @@ out tags center qt;`;
   }
   async function pickTrailAt(ll) {
     if (state.selected) closeDetail();
-    if (state.example) return;
     if (map.getZoom() < PICK_MIN_ZOOM) { pickNote(ll, "Zoom in to click a trail"); return; }
     const token = ++foundToken;
     pickLayer.clearLayers();
@@ -4981,37 +4956,6 @@ out tags center qt;`;
     showFound({ type: "w", name: g.name, kind: kindOf(main.tags), tags: main.tags, items: g.ways.map((w) => ({ id: w.id })) }, true);
   }
 
-  // ---------- example data (used only when OpenStreetMap can't be reached) ----------
-  function loadExample() {
-    state.example = true;
-    if (near) { clearNear(); state.custom = true; $("zone").value = "custom"; }
-    const c = L.latLng(49.735, -123.13);
-    map.setView(c, 13);
-    const mk = (id, cat, tags, pts, daysAgo, version) => {
-      const created = new Date(Date.now() - daysAgo * 864e5);
-      const geom = pts.map(([dy, dx]) => [c.lat + dy * 0.004, c.lng + dx * 0.006]);
-      return { id, cat, tags, geom, created, creator: "example_mapper", version: version || 1, lastEdit: created,
-        ...(({ why, unoff, official, use, useWhy }) => ({ why, unoff, official, use, useWhy }))(classify(tags, cat === "mtb" && id === -3 ? ["Example Ridge Loop"] : [])), km: lengthKm(geom) };
-    };
-    state.trails = [
-      mk(-1, "mtb", { highway: "path", name: "Copper Flow", "mtb:scale": "1", "mtb:scale:imba": "2", bicycle: "designated", surface: "dirt" }, [[0, -2], [.4, -1.4], [.2, -.8], [.7, -.2], [.5, .3]], 12),
-      mk(-2, "mtb", { highway: "path", name: "Rock Garden", "mtb:scale": "3", surface: "rock" }, [[-.5, .4], [-.2, .9], [-.6, 1.4], [-.3, 2]], 48),
-      mk(-3, "mtb", { highway: "path", bicycle: "yes", surface: "ground" }, [[1, -1], [1.4, -.4], [1.2, .5], [1.6, 1]], 150),
-      mk(-4, "looks", { highway: "path", bicycle: "yes", surface: "earth", width: "0.8" }, [[-1, -2], [-1.3, -1.2], [-1, -.6], [-1.4, 0]], 25),
-      mk(-5, "looks", { highway: "path", name: "Berm Line", surface: "dirt" }, [[.9, 1.6], [.5, 2.1], [.8, 2.6]], 200),
-      mk(-6, "looks", { highway: "track", tracktype: "grade5", surface: "ground", smoothness: "bad" }, [[-1.6, .8], [-1.2, 1.5], [-1.5, 2.3]], 420),
-      mk(-7, "other", { highway: "path" }, [[.1, 2.2], [-.2, 2.8]], 70),
-      mk(-8, "other", { highway: "path", surface: "gravel" }, [[-.8, -2.6], [-.3, -2.2]], 300),
-      mk(-9, "looks", { highway: "path", name: "Hidden Line", informal: "yes", surface: "dirt", width: "0.6" }, [[1.8, -2], [2.1, -1.3], [1.9, -.6]], 95),
-      mk(-10, "looks", { highway: "track", name: "Moto Climb", motorcycle: "designated", surface: "dirt" }, [[-2, -1], [-2.3, -.2], [-2.1, .6]], 40),
-      mk(-11, "other", { highway: "path", name: "Lookout Steps", bicycle: "no", foot: "designated", surface: "dirt" }, [[2.2, .2], [2.5, .9]], 60),
-    ].sort((a, b) => b.created - a.created);
-    state.searchedBounds = [];
-    render();
-    $("searchArea").hidden = false;
-    setStatus("Can't reach OpenStreetMap from this preview, so these are made-up example trails. Open the app file in your own browser to see real trails.", true);
-  }
-
   const zoneSel = $("zone");
   zoneSel.innerHTML = REGIONS.map((r) => `<optgroup label="${esc(r.name)}"><option value="${r.id}">All of ${esc(r.name)}</option>` +
     r.zones.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("") + `</optgroup>`).join("") +
@@ -5094,9 +5038,7 @@ out tags center qt;`;
   window.tfMtbLayers = [trailLayer, foundLayer, nearLayer, allLayer, boxLayer, pickLayer];   // hidden in Skiing (winter.js)
   window.tfTrails = () => ({ shown: state.merged ? [...state.merged.values()] : [], all: [...allData.values()].filter(Boolean), selected: state.selected });   // for My rides (rides.js)
   render();
-  // Inside the Claude preview OpenStreetMap is blocked, so show example trails there.
-  if (location.protocol !== "file:" && /claude/.test(location.hostname)) loadExample();
-  else searchZones(true, true);
+  searchZones(true, true);
 })();
 </script>
 

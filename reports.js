@@ -45,7 +45,7 @@
     current = t;
     const box = document.getElementById("reports");
     if (!box) return;
-    await acct.ready;
+    await acct.load();
     if (current !== t || !acct.client) { if (!acct.client) box.textContent = "Trail reports aren't available right now."; return; }
     const type = t.osmType || "way";
     const since = new Date(Date.now() - LIST_DAYS * DAY).toISOString();
