@@ -207,6 +207,11 @@
           // Sentinel-2 cloudless (EOX, free): a newer yearly mosaic of the whole region, but 10 m pixels, so blurrier.
           s2: { type: "raster", tileSize: 256, maxzoom: 15, tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2023_3857/default/g/{z}/{y}/{x}.jpg"],
             attribution: "<a href=\"https://s2maps.eu\">Sentinel-2 cloudless 2023</a> by EOX (Copernicus Sentinel data 2023)" },
+          // Winter: real snow cover from NASA's daily MODIS satellite (free, no key), two days back because
+          // NASA posts it with a delay. 500 m pixels, so it is drawn as a white wash over the sharp photos.
+          snow: { type: "raster", tileSize: 256, maxzoom: 8, tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDSI_Snow_Cover/default/"
+            + new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10) + "/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png"],
+            attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           sat: { type: "raster", tileSize: 256, maxzoom: 19, tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
           // Sharp place, peak and lake names from OpenFreeMap (free, no key), instead of blurry label pictures.
@@ -221,6 +226,8 @@
           { id: "s2", type: "raster", source: "s2", layout: { visibility: "none" } },
           { id: "sat", type: "raster", source: "sat", paint: { "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
+          { id: "snow", type: "raster", source: "snow", layout: { visibility: "none" },
+            paint: { "raster-saturation": -1, "raster-brightness-min": 0.9, "raster-opacity": 0.72, "raster-resampling": "linear" } },
           { id: "osm-roads", type: "line", source: "names", "source-layer": "transportation", minzoom: 9,
             filter: ["in", ["get", "class"], ["literal", ["motorway", "trunk", "primary", "secondary", "tertiary", "minor", "service", "track"]]],
             layout: { "line-cap": "round", "line-join": "round" },
@@ -268,16 +275,25 @@
     const photoBtn = document.createElement("button");
     photoBtn.type = "button";
     photoBtn.style.cssText = "width:auto;padding:0 8px;font:600 12px var(--font-body, system-ui)";
-    const setPhotos = (recent) => {
-      gl.setLayoutProperty("s2", "visibility", recent ? "visible" : "none");
-      gl.setLayoutProperty("sat", "visibility", recent ? "none" : "visible");
-      photoBtn.textContent = recent ? "Photos: newer (2023, 10 m)" : "Photos: sharp (Esri)";
-      photoBtn.title = recent ? "Switch to the sharp aerial photos" : "Switch to a newer but blurrier satellite mosaic";
-      store.set("3dPhotos", recent ? "recent" : "sharp");
+    const PHOTOS = { sharp: "Photos: sharp (Esri)", recent: "Photos: newer (2023, 10 m)", winter: "Photos: winter (today's snow)" };
+    const NEXT = { sharp: "recent", recent: "winter", winter: "sharp" };
+    let photos = "sharp";
+    const setPhotos = (mode) => {
+      photos = PHOTOS[mode] ? mode : "sharp";
+      gl.setLayoutProperty("s2", "visibility", photos === "recent" ? "visible" : "none");
+      gl.setLayoutProperty("sat", "visibility", photos === "recent" ? "none" : "visible");
+      gl.setLayoutProperty("snow", "visibility", photos === "winter" ? "visible" : "none");
+      photoBtn.textContent = PHOTOS[photos];
+      photoBtn.title = "Tap for: " + PHOTOS[NEXT[photos]].replace("Photos: ", "");
+      store.set(ski() ? "3dPhotosSki" : "3dPhotos", photos);
     };
-    photoBtn.addEventListener("click", () => setPhotos(gl.getLayoutProperty("s2", "visibility") !== "visible"));
+    photoBtn.addEventListener("click", () => setPhotos(NEXT[photos]));
+    // Skiing opens on the winter look unless the person picked something else there.
+    const ski = () => document.body.classList.contains("sport-ski");
+    new MutationObserver(() => setPhotos(ski() ? store.get("3dPhotosSki", "winter") : store.get("3dPhotos", "sharp")))
+      .observe(document.body, { attributes: true, attributeFilter: ["class"] });
     gl.addControl({ onAdd() { const d = document.createElement("div"); d.className = "maplibregl-ctrl maplibregl-ctrl-group"; d.append(photoBtn); return d; }, onRemove() {} }, "bottom-right");
-    gl.once("styledata", () => setPhotos(store.get("3dPhotos", "sharp") === "recent"));
+    gl.once("styledata", () => setPhotos(ski() ? store.get("3dPhotosSki", "winter") : store.get("3dPhotos", "sharp")));
     // "load" waits for every first tile, and imagery that fails to load can hold it back, so the
     // trails go on as soon as the style itself is ready.
     gl.on("styledata", () => { if (!drawn && gl.getSource("lines")) scheduleSync(); });
