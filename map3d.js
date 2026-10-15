@@ -197,6 +197,10 @@
 
     addDemProtocol();
     const c = map.getCenter();
+    const FULL_SNOW_DAYS = (() => {   // the most recent February that has passed
+      const now = new Date(), y = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+      return ["02-05", "02-15", "02-25", "03-05"].map((md) => y + "-" + md);
+    })();
     gl = new maplibregl.Map({
       container: box, antialias: true, center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 60, bearing: -15, maxPitch: 85,
       attributionControl: { compact: true },
@@ -212,6 +216,10 @@
           snow: { type: "raster", tileSize: 256, maxzoom: 8, tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDSI_Snow_Cover/default/"
             + new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10) + "/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
+          // Full winter: the same NASA snow map from four days of the last deep-snow season (February to early
+          // March), stacked so clouds on one day are filled in by another.
+          ...Object.fromEntries(FULL_SNOW_DAYS.map((d, i) => ["full" + i, { type: "raster", tileSize: 256, maxzoom: 8,
+            tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDSI_Snow_Cover/default/" + d + "/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png"] }])),
           sat: { type: "raster", tileSize: 256, maxzoom: 19, tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
           // Sharp place, peak and lake names from OpenFreeMap (free, no key), instead of blurry label pictures.
@@ -228,6 +236,8 @@
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
           { id: "snow", type: "raster", source: "snow", layout: { visibility: "none" },
             paint: { "raster-saturation": -1, "raster-brightness-min": 0.9, "raster-opacity": 0.72, "raster-resampling": "linear" } },
+          ...FULL_SNOW_DAYS.map((d, i) => ({ id: "full" + i, type: "raster", source: "full" + i, layout: { visibility: "none" },
+            paint: { "raster-saturation": -1, "raster-brightness-min": 0.9, "raster-opacity": 0.6, "raster-resampling": "linear" } })),
           { id: "osm-roads", type: "line", source: "names", "source-layer": "transportation", minzoom: 9,
             filter: ["in", ["get", "class"], ["literal", ["motorway", "trunk", "primary", "secondary", "tertiary", "minor", "service", "track"]]],
             layout: { "line-cap": "round", "line-join": "round" },
@@ -279,21 +289,23 @@
     const ski = () => document.body.classList.contains("sport-ski");
     let photos = "sharp";
     const setPhotos = (mode) => {
-      photos = ["sharp", "recent", "winter"].includes(mode) ? mode : "sharp";
-      const w = photos === "winter";
+      photos = ["sharp", "recent", "winter", "live"].includes(mode) ? mode : "sharp";
+      const w = photos === "winter" || photos === "live";
       gl.setLayoutProperty("s2", "visibility", photos === "recent" ? "visible" : "none");
       gl.setLayoutProperty("sat", "visibility", photos === "recent" ? "none" : "visible");
-      gl.setLayoutProperty("snow", "visibility", w ? "visible" : "none");
+      gl.setLayoutProperty("snow", "visibility", photos === "live" ? "visible" : "none");
+      FULL_SNOW_DAYS.forEach((d, i) => gl.setLayoutProperty("full" + i, "visibility", photos === "winter" ? "visible" : "none"));
       gl.setPaintProperty("sat", "raster-saturation", w ? -0.45 : 0.12);   // colder, greyer ground under the snow
       gl.setPaintProperty("sat", "raster-brightness-min", w ? 0.12 : 0.02);
       sumBtn.textContent = photos === "recent" ? "Summer · 2023" : "Summer";
       sumBtn.title = photos === "sharp" ? "Tap again for the newer 2023 mosaic (blurrier)" : "Snow-free sharp photos";
-      winBtn.title = "Sharp photos with the latest real snow cover (NASA, 2 days old)";
+      winBtn.textContent = photos === "live" ? "Winter · today" : "Winter";
+      winBtn.title = photos === "winter" ? "Full mid-winter snow. Tap again for today's real snow (NASA, 2 days old)" : "Full mid-winter snow (February)";
       for (const [el, on] of [[sumBtn, !w], [winBtn, w]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; }
       store.set(ski() ? "3dPhotosSki" : "3dPhotos", photos);
     };
     sumBtn.addEventListener("click", () => setPhotos(photos === "sharp" ? "recent" : "sharp"));
-    winBtn.addEventListener("click", () => setPhotos("winter"));
+    winBtn.addEventListener("click", () => setPhotos(photos === "winter" ? "live" : "winter"));
     // MTB opens on Summer and Skiing on Winter, unless the person picked something else in that sport.
     const pick = () => setPhotos(ski() ? store.get("3dPhotosSki", "winter") : store.get("3dPhotos", "sharp"));
     new MutationObserver(pick).observe(document.body, { attributes: true, attributeFilter: ["class"] });
