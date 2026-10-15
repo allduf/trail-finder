@@ -1299,7 +1299,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <h3>Draw a square</h3>
     <p>Tap “▭ Draw a square to find trails” (under the search), then drag over the map: every MTB trail inside the square shows up on the map and in a list, old or new, from the same daily list as “All trails” (unofficial ones included, with dots). Tap a name to see the trail's details. “Clear square” removes it.</p>
     <h3>Official trails</h3>
-    <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. The named trails of the South Chilcotin (South Chilcotin Mountains Park and the Spruce Lake area), and the paths around Gold Bridge that follow a Recreation Sites and Trails BC trail, count as official too. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
+    <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. The named trails of the South Chilcotin (South Chilcotin Mountains Park and the Spruce Lake area), the paths around Gold Bridge that follow a Recreation Sites and Trails BC trail, and every MTB trail in Williams Lake count as official too. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
 <h3>Moto and hiking-only trails</h3>
     <p>To keep the list about mountain biking, trails that look like dirt-bike, ATV or 4x4 trails, and trails where bikes aren't allowed, are left out of the list. Moto means tags like <code>dirtbike:scale</code>, <code>motorcycle=designated</code>, <code>atv=yes</code>, <code>4wd_only=yes</code>, an ATV route, or a name like “ATV trail”. Hiking only means <code>bicycle=no</code>, <code>mtb=no</code>, stairs, hard hiking terrain (<code>sac_scale</code> T4 and up), or a signed hiking route with no bike access. A trail with any MTB tag, in an MTB route, or with <code>bicycle=designated</code> is never hidden, even if motorbikes are allowed on it too.</p>
     <h3>Unofficial (possibly unsanctioned) trails</h3>
@@ -1703,7 +1703,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
   // Signs that a trail is official (sanctioned), from what mappers tagged. Returns the reason, or null.
   function officialWhy(tags) {
     if (unofficial(tags).length) return null;
-    if (tags["tf:official"]) return tags["tf:official"];   // from the all-trails job: riding-areas.json or Recreation Sites and Trails BC (South Chilcotin)
+    if (tags["tf:official"]) return tags["tf:official"];   // from the all-trails job: riding-areas.json, Recreation Sites and Trails BC (South Chilcotin) or the whole zone (Williams Lake)
     if (tags["ref:FFID"] || /recreation line/i.test(tags.source || "")) return "listed by Recreation Sites and Trails BC";
     if (tags.bicycle === "customers") return tags.operator ? `bike park trail run by ${tags.operator}` : "bike park trail";
     if (tags.operator) return `run by ${tags.operator}`;
