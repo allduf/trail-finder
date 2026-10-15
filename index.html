@@ -3154,6 +3154,23 @@ out body;`;
   const userLink = (u) => u ? `<a href="https://www.openstreetmap.org/user/${encodeURIComponent(u)}" target="_blank" rel="noopener">${esc(u)}</a>` : "unknown";
   const csLink = (c) => c ? `<a href="https://www.openstreetmap.org/changeset/${c}" target="_blank" rel="noopener">#${c}</a>` : "";
 
+  // YouTube videos of a trail: the videos its map tags link to, then a YouTube search for "<name> <town> mtb"
+  // (YouTube has no free search without an API key, so the search opens on YouTube itself).
+  const VIDEO_TOWN = { van: "North Shore", sqm: "Squamish", chil: "Chilcotin", sun: "Sunshine Coast" };
+  const VIDEO_URL = /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|vimeo\.com)\//i;
+  function videoLinks(t) {
+    const tagged = [...new Set(Object.entries(t.tags)
+      .filter(([k, v]) => /^(video|youtube|contact:youtube|contact:vimeo|website)(:\d+)?$/.test(k) || (/^video:/.test(k) && VIDEO_URL.test(v)))
+      .flatMap(([, v]) => String(v).split(";").map((x) => x.trim()))
+      .map((v) => /^[\w-]{11}$/.test(v) ? `https://www.youtube.com/watch?v=${v}` : v)
+      .filter((v) => VIDEO_URL.test(v)))];
+    const name = t.tags.name || t.tfName;
+    const z = ZONES.find((x) => x.name === t.zone);
+    const town = z ? VIDEO_TOWN[z.id] || z.name.split(/ & | \(|, /)[0] : "";
+    return tagged.map((u, i) => `<a href="${esc(u)}" target="_blank" rel="noopener">▶ ${/vimeo/i.test(u) ? "Video on Vimeo" : "Video on YouTube"}${tagged.length > 1 ? ` ${i + 1}` : ""}</a>`).join("")
+      + (name ? `<a href="https://www.youtube.com/results?search_query=${encodeURIComponent(`${name} ${town} mtb`.replace(/\s+/g, " "))}" target="_blank" rel="noopener">▶ Search videos on YouTube</a>` : "");
+  }
+
   function openDetail(t) {
     if (t.ghost) { openGhostDetail(t); return; }
     const d = $("detail");
@@ -3193,6 +3210,7 @@ out body;`;
       ${routes ? `<h3>Part of MTB route</h3><ul class="plain">${routes}</ul>` : ""}
       ${real ? `<h3>Links</h3><div class="links">
         ${t.tags.name || t.tfName ? `<a href="https://www.trailforks.com/search/?search=${encodeURIComponent(t.tags.name || t.tfName)}" target="_blank" rel="noopener">Search on Trailforks</a>` : ""}
+        ${videoLinks(t)}
         <a href="https://www.openstreetmap.org/${type}/${t.id}" target="_blank" rel="noopener">Open on OpenStreetMap</a>
         <a href="https://www.openstreetmap.org/edit?${type}=${t.id}" target="_blank" rel="noopener">Edit or fix it</a>
       </div>` : `<p class="muted">Example trail, not real data.</p>`}
