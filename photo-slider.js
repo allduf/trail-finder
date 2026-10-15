@@ -99,6 +99,7 @@
     handle.setAttribute("aria-valuenow", Math.round(split * 100));
     tagOld.style.left = ""; tagOld.style.right = `calc(100% - ${left - 8}px)`;
     tagNew.style.right = ""; tagNew.style.left = left + 8 + "px";
+    if (layerOld) { tagOld.hidden = x < 100; tagNew.hidden = size.x - x < 100; }   // no room beside the handle
   }
   map.on("move zoom resize viewreset", clip);
 
@@ -118,12 +119,13 @@
   // Walk back through the releases: each tile map answer names the release whose photo this tile really shows
   // ("select"), so the next one to ask about is the release just before that. One request per real photo.
   const walked = new Map();
-  function changesAt(ll, z) {
+  function changesAt(ll, z, step) {
     const k = Object.values(tileAt(ll, z)).join("/");
-    if (!walked.has(k)) walked.set(k, walk(ll, z).then((r) => { if (!r.length) walked.delete(k); return r; }));
+    if (!walked.has(k)) walked.set(k, walk(ll, z, step).then((r) => { if (!r.length) walked.delete(k); return r; }));
     return walked.get(k);
   }
-  async function walk(ll, z) {
+  // Each photo found also starts the look-up of its date right away. Returns [{ r: release, d: Promise of date }].
+  async function walk(ll, z, step) {
     const t = tileAt(ll, z), list = newestFirst(), out = [];
     let i = 0;
     while (i < list.length && out.length < 30) {
@@ -132,7 +134,7 @@
       try { j = await (await fetch(`${TILEMAP}/${r.num}/${t.z}/${t.y}/${t.x}`)).json(); } catch { j = null; }
       if (!j || !j.data || j.data[0] !== 1) break;   // no photo this far back
       const pick = releases[j.select?.[0] ?? r.num] || r;
-      if (!out.some((o) => o.num === pick.num)) out.push(pick);
+      if (!out.some((o) => o.r === pick)) { out.push({ r: pick, d: photoDate(pick, ll, z) }); step(out.length); }
       const at = list.indexOf(pick);
       i = Math.max(i, at) + 1;
     }
@@ -165,10 +167,12 @@
     const id = ++look;
     $("psNote").textContent = "Finding the photos taken here…";
     let list;
-    try { await loadReleases(); list = await changesAt(ll, z); } catch { list = null; }
+    const step = (n) => { if (id === look) $("psNote").textContent = `Finding the photos taken here… ${n} so far`; };
+    try { await loadReleases(); list = await changesAt(ll, z, step); } catch { list = null; }
     if (id !== look) return;
     if (!list || !list.length) { $("psNote").textContent = "Couldn't reach the photo archive. Check your connection and try again."; lookedAt = null; return; }
-    const dates = await Promise.all(list.map((r) => photoDate(r, ll, z)));
+    const dates = await Promise.all(list.map((f) => f.d));
+    list = list.map((f) => f.r);
     if (id !== look) return;
     const prevOld = shown.find((s) => s.num === +$("psOld").value), prevNew = shown.find((s) => s.num === +$("psNew").value);
     shown = list.map((r, k) => {
@@ -203,7 +207,6 @@
     layerOld = swap(layerOld, o, dO, "psOld");
     const lab = (num) => shown.find((s) => s.num === num)?.label || "";
     tagOld.textContent = "◀ " + lab(o); tagNew.textContent = lab(n) + " ▶";
-    tagOld.hidden = tagNew.hidden = false;
     clip();
   }
   $("psOld").addEventListener("change", show);
