@@ -185,6 +185,71 @@
     });
   }
 
+  // ---------- winter photos ----------
+  // tfwinter://full|live/z/x/y draws snow into the sharp Esri photo itself, pixel by pixel, so the
+  // photo's texture stays. Where the snow goes: "full" = everything above a mid-winter snow line
+  // (fading in from 300 m to 800 m), "live" = NASA's latest MODIS snow map. Then, like real winter
+  // photos: open ground, clearings and alpine go white, dark conifer forest keeps its trees with only a
+  // dusting, and cliffs too steep to hold snow stay rock. The hillshade layer adds the relief.
+  const ESRI = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+  const LIVE_DAY = new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10);   // NASA posts with a delay
+  const NASA_SNOW = (z, x, y) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDSI_Snow_Cover/default/${LIVE_DAY}/GoogleMapsCompatible_Level8/${z}/${y}/${x}.png`;
+  const cache = new Map();   // a few recent height / snow-map tiles, shared by neighbouring photo tiles
+  function cached(key, make) {
+    if (!cache.has(key)) { const p = make(); cache.set(key, p); p.catch(() => cache.delete(key)); if (cache.size > 48) cache.delete(cache.keys().next().value); }
+    return cache.get(key);
+  }
+  const pixels = (img) => { const cv = new OffscreenCanvas(img.width, img.height), cx = cv.getContext("2d", { willReadFrequently: true });
+    cx.drawImage(img, 0, 0); return cx.getImageData(0, 0, img.width, img.height); };
+  // The part of an ancestor tile (zoom pz) that lies under tile z/x/y, as [data, left, top, size].
+  const under = async (pz, z, x, y, get) => {
+    const k = z - pz, img = await get(pz, x >> k, y >> k), n = 1 << k, size = img.width / n;
+    return [img, (x % n) * size, (y % n) * size, size];
+  };
+  const smooth = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+  let winterProtocol = false;
+  function addWinterProtocol() {
+    if (winterProtocol) return;
+    winterProtocol = true;
+    maplibregl.addProtocol("tfwinter", async (params, abort) => {
+      const [mode, zs, xs, ys] = params.url.replace("tfwinter://", "").split("/"), z = +zs, x = +xs, y = +ys, sig = abort.signal;
+      const photo = pixels(await image(ESRI(z, x, y), sig)), W = photo.width, P = photo.data;
+      const dz = Math.min(z, 13);
+      const [dem, dl, dt, ds] = await under(dz, z, x, y, (a, b, c) => cached(`d${a}/${b}/${c}`, () => demTile(a, b, c, new AbortController().signal).then(pixels)));
+      let live = null;
+      if (mode === "live") live = await under(Math.min(z, 8), z, x, y, (a, b, c) => cached(`s${a}/${b}/${c}`, () => image(NASA_SNOW(a, b, c), new AbortController().signal).then(pixels))).catch(() => null);
+      const D = dem.data, DW = dem.width, h = (px, py) => {
+        px = Math.min(DW - 1, Math.max(0, px | 0)); py = Math.min(DW - 1, Math.max(0, py | 0));
+        const i = (py * DW + px) * 4; return D[i] * 256 + D[i + 1] + D[i + 2] / 256 - 32768;
+      };
+      const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 0.5) / (1 << z))));
+      const mpp = 40075016 * Math.cos(lat) / ((1 << dz) * DW);   // metres per height pixel
+      for (let py = 0; py < W; py++) for (let px = 0; px < W; px++) {
+        const i = (py * W + px) * 4, r = P[i], g = P[i + 1], b = P[i + 2];
+        const hx = dl + (px + 0.5) * ds / W, hy = dt + (py + 0.5) * ds / W;
+        const e = h(hx, hy);
+        let s;
+        if (live) {
+          const [L, ll, lt, ls] = live, sx = Math.min(L.width - 1, (ll + (px + 0.5) * ls / W) | 0), sy = Math.min(L.width - 1, (lt + (py + 0.5) * ls / W) | 0);
+          s = L.data[(sy * L.width + sx) * 4 + 3] > 0 ? 1 : 0;
+        } else s = smooth(300, 800, e);
+        if (s === 0) { P[i] = r * 0.9 + 6; P[i + 1] = g * 0.9 + 6; P[i + 2] = b * 0.9 + 14; continue; }   // cold, grey-blue valley
+        const gx = h(hx + 1, hy) - h(hx - 1, hy), gy = h(hx, hy + 1) - h(hx, hy - 1);
+        const slope = Math.atan(Math.hypot(gx, gy) / (2 * mpp)) * 57.3;
+        s *= 1 - smooth(40, 55, slope);   // cliffs shed their snow
+        const lum = 0.3 * r + 0.59 * g + 0.11 * b;
+        const water = b > g + 8 && b > r + 15 && lum < 110;
+        const forest = smooth(20, 6, lum - 55) * smooth(-4, 10, g - r);   // dark and green: trees
+        const a = s * (water ? 0.15 : 0.95 - 0.75 * forest);   // trees keep their dark green, with a dusting
+        const snow = 222 + (lum - 110) * 0.22;   // keeps the photo's light and shade in the snow
+        P[i] = r + (snow - 6 - r) * a; P[i + 1] = g + (snow - 2 - g) * a; P[i + 2] = b + (snow + 10 - b) * a;
+      }
+      const out = new OffscreenCanvas(W, W);
+      out.getContext("2d").putImageData(photo, 0, 0);
+      return { data: await (await out.convertToBlob({ type: "image/jpeg", quality: 0.9 })).arrayBuffer() };
+    });
+  }
+
   // ---------- the 3D map ----------
   function build() {
     box = document.createElement("div");
@@ -196,11 +261,8 @@
     ["pointerdown", "touchstart", "contextmenu", "keydown"].forEach((t) => box.addEventListener(t, (e) => e.stopPropagation()));
 
     addDemProtocol();
+    addWinterProtocol();
     const c = map.getCenter();
-    const FULL_SNOW_DAYS = (() => {   // the most recent February that has passed
-      const now = new Date(), y = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
-      return ["02-05", "02-15", "02-25", "03-05"].map((md) => y + "-" + md);
-    })();
     gl = new maplibregl.Map({
       container: box, antialias: true, center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 60, bearing: -15, maxPitch: 85,
       attributionControl: { compact: true },
@@ -211,15 +273,11 @@
           // Sentinel-2 cloudless (EOX, free): a newer yearly mosaic of the whole region, but 10 m pixels, so blurrier.
           s2: { type: "raster", tileSize: 256, maxzoom: 15, tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2023_3857/default/g/{z}/{y}/{x}.jpg"],
             attribution: "<a href=\"https://s2maps.eu\">Sentinel-2 cloudless 2023</a> by EOX (Copernicus Sentinel data 2023)" },
-          // Winter: real snow cover from NASA's daily MODIS satellite (free, no key), two days back because
-          // NASA posts it with a delay. 500 m pixels, so it is drawn as a white wash over the sharp photos.
-          snow: { type: "raster", tileSize: 256, maxzoom: 8, tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDSI_Snow_Cover/default/"
-            + new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10) + "/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png"],
+          // Winter and Live: the sharp photos with snow drawn in (see tfwinter above).
+          winter: { type: "raster", tileSize: 256, maxzoom: 19, tiles: ["tfwinter://full/{z}/{x}/{y}"] },
+          live: { type: "raster", tileSize: 256, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
-          // Full winter: the same NASA snow map from four days of the last deep-snow season (February to early
-          // March), stacked so clouds on one day are filled in by another.
-          ...Object.fromEntries(FULL_SNOW_DAYS.map((d, i) => ["full" + i, { type: "raster", tileSize: 256, maxzoom: 8,
-            tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDSI_Snow_Cover/default/" + d + "/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png"] }])),
+          shade: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: 14, tiles: ["tfdem://{z}/{x}/{y}"] },
           sat: { type: "raster", tileSize: 256, maxzoom: 19, tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
           // Sharp place, peak and lake names from OpenFreeMap (free, no key), instead of blurry label pictures.
@@ -234,10 +292,11 @@
           { id: "s2", type: "raster", source: "s2", layout: { visibility: "none" } },
           { id: "sat", type: "raster", source: "sat", paint: { "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
-          { id: "snow", type: "raster", source: "snow", layout: { visibility: "none" },
-            paint: { "raster-saturation": -1, "raster-brightness-min": 0.9, "raster-opacity": 0.72, "raster-resampling": "linear" } },
-          ...FULL_SNOW_DAYS.map((d, i) => ({ id: "full" + i, type: "raster", source: "full" + i, layout: { visibility: "none" },
-            paint: { "raster-saturation": -1, "raster-brightness-min": 0.9, "raster-opacity": 0.6, "raster-resampling": "linear" } })),
+          { id: "winter", type: "raster", source: "winter", layout: { visibility: "none" } },
+          { id: "live", type: "raster", source: "live", layout: { visibility: "none" } },
+          // Soft sun and shadow on the slopes, so white mountains still read in winter.
+          { id: "shade", type: "hillshade", source: "shade", layout: { visibility: "none" },
+            paint: { "hillshade-exaggeration": 0.35, "hillshade-shadow-color": "#3a4a66", "hillshade-highlight-color": "#ffffff", "hillshade-accent-color": "#5a6a80" } },
           { id: "osm-roads", type: "line", source: "names", "source-layer": "transportation", minzoom: 9,
             filter: ["in", ["get", "class"], ["literal", ["motorway", "trunk", "primary", "secondary", "tertiary", "minor", "service", "track"]]],
             layout: { "line-cap": "round", "line-join": "round" },
@@ -273,7 +332,7 @@
     // Sharper far away: keep the photos at one zoom level all the way to the horizon and allow more tiles
     // when tilted (MapLibre's default lets the far half get blurry fast). Costs more photo downloads.
     // Full sharpness only once the camera stops: while moving, a lighter setting keeps it smooth.
-    const lod = (levels, ratio) => ["sat", "s2"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(levels, ratio, id); } catch {} });
+    const lod = (levels, ratio) => ["sat", "s2", "winter", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(levels, ratio, id); } catch {} });
     let still = 0;
     gl.once("load", () => lod(1, 30));
     gl.on("movestart", () => { clearTimeout(still); lod(3, 4); });
@@ -292,11 +351,10 @@
       photos = ["sharp", "recent", "winter", "live"].includes(mode) ? mode : "sharp";
       const w = photos === "winter" || photos === "live";
       gl.setLayoutProperty("s2", "visibility", photos === "recent" ? "visible" : "none");
-      gl.setLayoutProperty("sat", "visibility", photos === "recent" ? "none" : "visible");
-      gl.setLayoutProperty("snow", "visibility", photos === "live" ? "visible" : "none");
-      FULL_SNOW_DAYS.forEach((d, i) => gl.setLayoutProperty("full" + i, "visibility", photos === "winter" ? "visible" : "none"));
-      gl.setPaintProperty("sat", "raster-saturation", w ? -0.45 : 0.12);   // colder, greyer ground under the snow
-      gl.setPaintProperty("sat", "raster-brightness-min", w ? 0.12 : 0.02);
+      gl.setLayoutProperty("sat", "visibility", photos === "sharp" ? "visible" : "none");
+      gl.setLayoutProperty("winter", "visibility", photos === "winter" ? "visible" : "none");
+      gl.setLayoutProperty("live", "visibility", photos === "live" ? "visible" : "none");
+      gl.setLayoutProperty("shade", "visibility", w ? "visible" : "none");
       sumBtn.textContent = photos === "recent" ? "Summer · 2023" : "Summer";
       sumBtn.title = photos === "sharp" ? "Tap again for the newer 2023 mosaic (blurrier)" : "Snow-free sharp photos";
       winBtn.title = "Full mid-winter snow (February)";
