@@ -3,7 +3,7 @@
 // as there is a connection; the cached copy is used only when the network fails. Map tiles and outside APIs
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection.
-const VERSION = "tf-2";
+const VERSION = "tf-3";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
   "./", "index.html", "ride.html", "theme.css?v=3", "account.js", "reports.js", "map3d.js", "winter.js", "offline.js", "manifest.webmanifest",
@@ -25,7 +25,9 @@ self.addEventListener("activate", (e) => {
 async function networkFirst(req) {
   const cache = await caches.open(VERSION);
   try {
-    const res = await fetch(req);
+    // no-cache: check GitHub Pages for a newer copy instead of using the browser's 10-minute cached one, so a
+    // fresh deploy shows up on the next load. (A navigation request can't take options, and reloads check anyway.)
+    const res = await (req.mode === "navigate" ? fetch(req) : fetch(req, { cache: "no-cache" }));
     if (res.ok) {
       cache.put(req, res.clone());
       const off = await caches.open(OFFLINE);   // keep a saved area's trail data as fresh as the last visit
