@@ -181,7 +181,23 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   }
   addBtn.addEventListener("click", () => { if (pinsOn) setPins(false); else startPick(); });
   $("spNew").addEventListener("click", startPick);
-  map.on("click", (e) => { if (picking && isSki()) { stopPick(); edit(null, { lat: e.latlng.lat, lon: e.latlng.lng }); } });
+  // While choosing, a tap anywhere places the point, even on a ski route or hut (their own click handlers would
+  // otherwise take it), so listen on the map container before Leaflet does. A drag to pan doesn't count.
+  let downAt = null;
+  const box2d = map.getContainer();
+  box2d.addEventListener("pointerdown", (e) => { downAt = picking ? [e.clientX, e.clientY] : null; }, true);
+  box2d.addEventListener("click", (e) => {
+    if (!picking || !isSki() || !downAt || banner && banner.contains(e.target) || e.target.closest(".leaflet-control")) return;
+    if (Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 6) return;
+    e.stopPropagation(); e.preventDefault();
+    const gl = window.trailMap3d, glBox = gl && gl.getContainer();
+    let ll;
+    if (glBox && glBox.contains(e.target)) {   // on the 3D map: where the tap meets the ground
+      const r = glBox.getBoundingClientRect();
+      ll = gl.unproject([e.clientX - r.left, e.clientY - r.top]);
+    } else ll = map.mouseEventToLatLng(e);
+    stopPick(); edit(null, { lat: ll.lat, lon: ll.lng });
+  }, true);
   map.on("contextmenu", (e) => { if (isSki()) { stopPick(); setPins(true); edit(null, { lat: e.latlng.lat, lon: e.latlng.lng }); } });   // right-click, or a long press on a phone
 
   // ---------- add / edit form ----------
