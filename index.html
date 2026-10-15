@@ -1076,6 +1076,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
         <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
         <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire">🔥 Wildfires</button>
         <button id="areasBtn" type="button" aria-pressed="false" title="Show logging areas (cut blocks) and areas closed to motor vehicles">▦ Logging areas</button>
+        <button id="contourBtn" type="button" aria-pressed="false">〰 Elevation lines</button>
         <button id="avyBtn" type="button" aria-pressed="false" hidden>⚠ Avalanche risk</button>
         </div>
         <div class="lm-head">Tools</div>
@@ -1191,7 +1192,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
       <li><strong>New trails:</strong> pick an area (or tap Near me) and how new, then tap Find new trails. A trail is new when it was first added to OpenStreetMap in that time.</li>
       <li><strong>Prime loam now:</strong> trails whose dirt is damp right now (Loam index 40 to 59), the best riding.</li>
       <li><strong>Tap any trail</strong> on the map for its difficulty, weather, loam, how to get there and rider reports.</li>
-      <li><strong>Layers</strong> (top right of the map) turns on forest roads, wildfires, logging areas, your rides, the map style, 3D and offline maps.</li>
+      <li><strong>Layers</strong> (top right of the map) turns on forest roads, wildfires, logging areas, elevation lines, your rides, the map style, 3D and offline maps.</li>
       <li><strong>Colours</strong> are like Trailforks: green, blue, black, double black (red) and pro line (orange). Grey isn't rated yet. Dotted lines may be unofficial.</li>
       <li>Trails come from OpenStreetMap mappers, so details can be missing or out of date. Check local rules and closures before riding.</li>
     </ul>
@@ -4640,6 +4641,7 @@ out tags center qt;`;
 </script>
 
 <script src="map3d.js"></script>
+<script src="contours.js"></script>
 <script src="winter.js"></script>
 <script src="offline.js"></script>
 <script src="rides.js"></script>
