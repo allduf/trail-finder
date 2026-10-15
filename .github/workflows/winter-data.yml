@@ -1,8 +1,9 @@
 name: Winter data
 
 # For the site's "Winter" mode:
-#  - every 2 hours, Avalanche Canada's current avalanche forecasts for the region -> data/avalanche.json
-#  - every night, backcountry ski routes and huts (OpenStreetMap + BC Recreation Sites and Trails) -> data/ski.json
+#  - every 2 hours, Avalanche Canada's current avalanche forecasts for the region -> data/avalanche.json, and the
+#    snowmobile clubs' grooming reports (data/snowmobile-clubs.json) -> data/grooming.json
+#  - every night, backcountry ski routes, snowmobile trails and huts (OpenStreetMap + BC Recreation Sites and Trails) -> data/ski.json
 # On a pull request that changes the script it only does a test run, without saving anything.
 on:
   schedule:
@@ -13,6 +14,7 @@ on:
     paths:
       - scripts/build-winter.mjs
       - .github/workflows/winter-data.yml
+      - data/snowmobile-clubs.json
 
 permissions:
   contents: write   # commit the data files
@@ -33,10 +35,11 @@ jobs:
           node-version: 20
       - name: Collect winter data
         env:
-          ONLY: ${{ github.event.schedule == '23 */2 * * *' && 'avy' || (github.event.schedule == '41 10 * * *' && 'ski' || '') }}
+          ONLY: ${{ github.event.schedule == '23 */2 * * *' && 'avy,groom' || (github.event.schedule == '41 10 * * *' && 'ski' || '') }}
+          PROBE: ${{ github.event_name == 'pull_request' && '1' || '' }}
         run: node scripts/build-winter.mjs
       - name: File sizes
-        run: ls -l data/ski.json data/avalanche.json || true
+        run: ls -l data/ski.json data/avalanche.json data/grooming.json || true
       - name: Commit the new data
         if: github.event_name != 'pull_request'
         run: |

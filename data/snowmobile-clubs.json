@@ -1,0 +1,167 @@
+{
+ "about": "Snowmobile clubs in the Sea to Sky and Sunshine Coast region, kept by hand. Staging area points are approximate. report.auto = true: the winter data job (scripts/build-winter.mjs, ONLY=groom) reads the report page, if its robots.txt allows. check: other pages the job's test run looks at, to find a readable report.",
+ "links": [
+  {
+   "url": "https://letsridebc.com/bc-snowmobile-trail-map",
+   "label": "BC snowmobile trail map (BC Snowmobile Federation)"
+  },
+  {
+   "url": "https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information/sea-to-sky-natural-resource-district-road-safety-information",
+   "label": "Sea to Sky non-motorized winter zones (BC government)"
+  }
+ ],
+ "clubs": [
+  {
+   "id": "pmsc",
+   "name": "Powder Mountain Snowmobile Club",
+   "town": "Whistler",
+   "web": "https://www.powdermountainsnowmobileclub.com/",
+   "areas": [
+    {
+     "name": "Brandywine snowmobile trail and bowls",
+     "lat": 50.075,
+     "lon": -123.12,
+     "radiusKm": 20,
+     "note": "Booth at the trailhead at the end of the parking lot, at the Callaghan Valley turn-off on Hwy 99. About 9 km groomed (Rec Sites and Trails REC6902)."
+    }
+   ],
+   "pass": "$30 + GST per sled per day ($5 off with another BCSF club card); passengers and under-16s with a parent free; season passes sold on the website",
+   "report": {
+    "url": "https://www.powdermountainsnowmobileclub.com/grooming-report/",
+    "label": "Grooming report",
+    "auto": true,
+    "note": "The club posts its grooming report on its website.",
+    "start": "\\nGrooming Report\\n",
+    "end": "Our Sponsors"
+   },
+   "maps": [
+    {
+     "url": "https://sledpulse.com/ski-areas/CA/BC/Powder-Mountain-Snowmobile-Club",
+     "label": "Live grooming map (Sled Pulse)"
+    },
+    {
+     "url": "https://www.powdermountainsnowmobileclub.com/maps-safety/",
+     "label": "Maps and safety"
+    },
+    {
+     "url": "https://www.sitesandtrailsbc.ca/search/search-result.aspx?site=REC6902&type=Trail",
+     "label": "Rec Sites and Trails page"
+    },
+    {
+     "url": "https://pmsccams.com/Home/Index",
+     "label": "Webcams"
+    }
+   ],
+   "check": [
+    "https://www.powdermountainsnowmobileclub.com/"
+   ]
+  },
+  {
+   "id": "btsc",
+   "name": "Black Tusk Snowmobile Club",
+   "town": "Squamish",
+   "web": "https://btsc.ca",
+   "areas": [
+    {
+     "name": "Brohm Ridge (Cheekye FSR) and club chalet",
+     "lat": 49.825,
+     "lon": -123.085,
+     "radiusKm": 15,
+     "note": "Cat Lake turn-off 3 km north of Squamish, Cheekye FSR to the gate (about 1350 m), chalet about 1720 m (reserve ahead)."
+    }
+   ],
+   "pass": "Season trail pass about $230 (2024/25), sold on the club website; the chalet is extra",
+   "report": {
+    "url": "https://www.facebook.com/blacktusksnowmobileclub/",
+    "label": "Updates on Facebook",
+    "auto": false,
+    "note": "Posts trail and grooming updates on Facebook, which other sites aren't allowed to read."
+   },
+   "maps": [],
+   "check": [
+    "https://btsc.ca"
+   ]
+  },
+  {
+   "id": "pvsc",
+   "name": "Pemberton Valley Snowmobile Club",
+   "town": "Pemberton",
+   "web": "https://sledpemberton.com",
+   "areas": [
+    {
+     "name": "Rutherford trail to the Pemberton Icefield",
+     "lat": 50.265,
+     "lon": -122.875,
+     "radiusKm": 25,
+     "note": "Off Hwy 99 south of Pemberton. Emergency-only cabin at the end."
+    },
+    {
+     "name": "Hurley FSR to Bralorne and Gold Bridge",
+     "lat": 50.48,
+     "lon": -123.08,
+     "radiusKm": 25,
+     "note": "Groomed and managed by the club in winter."
+    }
+   ],
+   "pass": "sold on the club website (price not posted for this season yet)",
+   "report": {
+    "url": "https://www.instagram.com/pembertonsnowmobileclub/",
+    "label": "Updates on Instagram",
+    "auto": false,
+    "note": "Posts updates on Instagram, which other sites aren't allowed to read."
+   },
+   "maps": [],
+   "check": [
+    "https://sledpemberton.com"
+   ]
+  },
+  {
+   "id": "brvsc",
+   "name": "Bridge River Valley Snowmobile Club",
+   "town": "Gold Bridge",
+   "web": "https://bcsf.org/club",
+   "areas": [
+    {
+     "name": "Hurley from the Gold Bridge side",
+     "lat": 50.85,
+     "lon": -122.86,
+     "radiusKm": 25,
+     "note": "Grooms the Hurley from Gold Bridge toward the Lone Goat split."
+    }
+   ],
+   "pass": "",
+   "report": {
+    "url": "",
+    "auto": false,
+    "note": "No grooming report found online: contact the club."
+   },
+   "maps": [],
+   "check": []
+  },
+  {
+   "id": "bmsa",
+   "name": "Burke Mountain Snowmobile Association",
+   "town": "Burnaby",
+   "web": "https://bcsf.org/club/burke-mountain-snowmobile-association",
+   "areas": [
+    {
+     "name": "Burke Mountain",
+     "lat": 49.33,
+     "lon": -122.72,
+     "radiusKm": 10,
+     "note": "The only Lower Mainland area open to snowmobiles."
+    }
+   ],
+   "pass": "",
+   "report": {
+    "url": "",
+    "auto": false,
+    "note": "No grooming report found online: contact the club."
+   },
+   "maps": [],
+   "check": [
+    "https://bcsf.org/club/burke-mountain-snowmobile-association"
+   ]
+  }
+ ]
+}

@@ -12,9 +12,12 @@
 //    region (Sea to Sky, South Coast, South Coast Inland...), with the area outlines, danger ratings by elevation
 //    band for each day and the avalanche problems (aspects, elevations, likelihood, size). From the public
 //    Avalanche Canada API (no key). Out of season there are no forecasts and the file says so.
+//  - data/grooming.json: the latest grooming report of each snowmobile club in data/snowmobile-clubs.json (a hand-kept
+//    list) whose report is on a public web page ("auto": true), as plain text with when it last changed. Clubs that
+//    post only on Facebook or Instagram are not read (their terms forbid it): the site links to them instead.
 // A source that fails keeps its last good data.
 //
-// Run: node scripts/build-winter.mjs   (Node 18 or newer, no packages; ONLY=ski or ONLY=avy runs one part)
+// Run: node scripts/build-winter.mjs   (Node 18 or newer, no packages; ONLY=ski, avy or groom runs one part; ONLY=avy,groom two)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 
@@ -30,7 +33,7 @@ if (ZONES.length < 2) throw new Error("Couldn't read the zones from index.html")
 // The whole region, a little wider: the ski terrain goes further up the valleys than the riding areas.
 const REGION = [Math.min(...ZONES.map((z) => z.box[0])) - 0.05, Math.min(...ZONES.map((z) => z.box[1])) - 0.1,
   Math.max(...ZONES.map((z) => z.box[2])) + 0.05, Math.max(...ZONES.map((z) => z.box[3])) + 0.1].map((v) => +v.toFixed(2));
-const ONLY = process.env.ONLY || "";
+const ONLY = (process.env.ONLY || "").split(",").filter(Boolean), runs = (part) => !ONLY.length || ONLY.includes(part);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
 const round = (n) => Math.round(n * 1e5) / 1e5;
@@ -93,6 +96,8 @@ const skiQuery = ([s, w, n, e]) => `[out:json][timeout:200][bbox:${s},${w},${n},
   way["ski:nordic"~"^(yes|designated)$"];
   nwr["tourism"~"^(alpine_hut|wilderness_hut)$"];
   nwr["amenity"="shelter"]["shelter_type"="basic_hut"];
+  way["snowmobile"~"^(yes|designated|permissive)$"]["highway"!~"^(motorway|trunk|primary|secondary|tertiary|residential|motorway_link|trunk_link|primary_link|secondary_link)$"];
+  relation["route"="snowmobile"];
 );
 out tags geom qt;`;
 async function fetchOsm(box, depth = 0) {
@@ -107,6 +112,9 @@ async function fetchOsm(box, depth = 0) {
 }
 
 // What kind of winter route a set of tags is. Backcountry downhill (piste:grooming=backcountry) is ski touring.
+// piste:type=sled is a sledding / tubing hill; snowmobile trails are piste:type=snowmobile, route=snowmobile or
+// snowmobile=yes|designated|permissive (often a forest road that is a sled trail in winter).
+const SNOWMOBILE_OK = /^(yes|designated|permissive)$/;
 function skiType(t) {
   const pt = String(t["piste:type"] || "").split(";")[0];
   const groom = t["piste:grooming"] || "";
@@ -114,13 +122,15 @@ function skiType(t) {
   if (pt === "nordic") return "nordic";
   if (pt === "hike") return "snowshoe";
   if (pt === "downhill") return "resort";
-  if (pt === "sled" || pt === "snowmobile" || t.snowmobile === "designated") return "sled";
+  if (pt === "snowmobile" || t.route === "snowmobile") return "snowmobile";
+  if (pt === "sled") return "sled";
   if (pt) return "other";
+  if (SNOWMOBILE_OK.test(t.snowmobile || "")) return "snowmobile";
   if (t["ski:nordic"]) return "nordic";
   if (t.ski) return "access";
   return "";
 }
-const OSM_KEEP = ["name", "ref", "piste:name", "piste:difficulty", "piste:grooming", "piste:type", "description", "note", "website", "operator", "access", "ski", "ele", "fee", "capacity", "reservation", "url", "seasonal", "opening_hours"];
+const OSM_KEEP = ["name", "ref", "piste:name", "piste:difficulty", "piste:grooming", "piste:type", "description", "note", "website", "operator", "access", "ski", "ele", "fee", "capacity", "reservation", "url", "seasonal", "opening_hours", "snowmobile", "snowmobile:conditional", "highway", "surface"];
 const keepTags = (t) => Object.fromEntries(OSM_KEEP.filter((k) => t[k]).map((k) => [k, String(t[k]).slice(0, 300)]));
 
 async function buildOsm() {
@@ -168,7 +178,7 @@ async function buildOsm() {
     huts.push({ id: el.type[0] + el.id, name: t.name || "", kind: t.tourism || "shelter", lat: round(lat), lon: round(lon), tags: keepTags(t) });
   }
   const count = (k) => routes.filter((r) => r.type === k).length;
-  log(`  routes: ${routes.length} (tour ${count("tour")}, nordic ${count("nordic")}, snowshoe ${count("snowshoe")}, resort ${count("resort")}, sled ${count("sled")}, access ${count("access")}, other ${count("other")}); huts: ${huts.length}`);
+  log(`  routes: ${routes.length} (tour ${count("tour")}, nordic ${count("nordic")}, snowshoe ${count("snowshoe")}, resort ${count("resort")}, sled ${count("sled")}, snowmobile ${count("snowmobile")}, access ${count("access")}, other ${count("other")}); huts: ${huts.length}`);
   return { routes, huts };
 }
 
@@ -222,7 +232,8 @@ const lines = (geom) => {
   const ls = geom.type === "MultiLineString" ? geom.coordinates : geom.type === "LineString" ? [geom.coordinates] : [];
   return ls.map((l) => { let pts = l.map(([x, y]) => ({ lat: y, lon: x })); if (pts.length && Math.abs(pts[0].lat) > 90) pts = l.map(([x, y]) => ({ lat: x, lon: y })); return pts; });
 };
-const WINTER_WORDS = /\b(ski|skiing|skis|nordic|x-?c|cross[- ]country|snowshoe\w*|snow ?shoe\w*|backcountry|touring|winter)\b/i;
+const SLED_WORDS = /\b(snowmobil\w*|snow ?machin\w*|sledd?(er|ers|ing)?|skidoo|ski-doo|motori[sz]ed winter)\b/i;
+const WINTER_WORDS = new RegExp(`\\b(ski|skiing|skis|nordic|x-?c|cross[- ]country|snowshoe\\w*|snow ?shoe\\w*|backcountry|touring|winter)\\b|${SLED_WORDS.source}`, "i");
 async function buildBc() {
   const REC = "WHSE_FOREST_TENURE.FTEN_RECREATION_LINES_SVW";
   log(`BC Recreation Sites and Trails (${REC})`);
@@ -250,7 +261,7 @@ async function buildBc() {
     const g = lines(f.geometry || { type: "" }).map((l) => flat(l, 8)).filter((l) => l.length >= 4);
     if (!g.length) continue;
     const name = p.PROJECT_NAME || p.SITE_NAME || p.TRAIL_NAME || "";
-    const type = /nordic|x-?c|cross[- ]country/i.test(text) ? "nordic" : /snowshoe|snow ?shoe/i.test(text) && !/\bski/i.test(text) ? "snowshoe" : "tour";
+    const type = SLED_WORDS.test(text) && !/\b(ski|nordic|snowshoe)/i.test(text.replace(/ski-?doo/gi, "")) ? "snowmobile" : /nordic|x-?c|cross[- ]country/i.test(text) ? "nordic" : /snowshoe|snow ?shoe/i.test(text) && !/\bski/i.test(text) ? "snowshoe" : "tour";
     routes.push({ id: "bc" + (p.FOREST_FILE_ID || f.id), src: "bc", type, name, diff: "", g,
       tags: Object.fromEntries(Object.entries(p).filter(([k, v]) => v != null && v !== "" && typeof v !== "object" && !/GEOMETRY|SHAPE|OBJECTID|SE_ANNO/.test(k)).slice(0, 14).map(([k, v]) => [k, String(v).slice(0, 300)])) });
   }
@@ -435,12 +446,100 @@ async function buildAvalanche() {
   return { areas: out, products: products.length };
 }
 
+// ---------- snowmobile club grooming reports ----------
+const htmlText = (h) => h
+  .replace(/<(script|style|noscript|svg|nav|footer|header|form|iframe)\b[\s\S]*?<\/\1>/gi, " ")
+  .replace(/<!--[\s\S]*?-->/g, " ")
+  .replace(/<(br|\/p|\/li|\/h\d|\/tr|\/div|\/td)\b[^>]*>/gi, "\n").replace(/<li\b[^>]*>/gi, "\n• ").replace(/<[^>]+>/g, " ")
+  .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#0?39;|&rsquo;|&lsquo;/g, "'").replace(/&quot;|&ldquo;|&rdquo;/g, '"')
+  .replace(/&ndash;|&mdash;/g, "-").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n))
+  .replace(/[ \t\r\f\v]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{2,}/g, "\n").trim();
+const MONTHS = "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?";
+const DATE_RE = new RegExp(`\\b(?:(?:${MONTHS})\\.? \\d{1,2}(?:st|nd|rd|th)?,? \\d{4}|\\d{1,2}(?:st|nd|rd|th)? (?:${MONTHS}),? \\d{4}|\\d{4}-\\d{2}-\\d{2}|(?:${MONTHS})\\.? \\d{1,2}(?:st|nd|rd|th)?)\\b`, "i");
+// The report part of a page: from the club's "start" words (or the first mention of grooming) to its "end" words.
+function reportPart(text, r) {
+  let i = -1;
+  if (r.start) { const m = new RegExp(r.start, "i").exec(text); if (m) i = m.index; }
+  if (i < 0) { const m = /groom|trail (conditions|report)|snow report/i.exec(text); if (m) i = Math.max(0, text.lastIndexOf("\n", m.index)); }
+  if (i < 0) return "";
+  let part = text.slice(i);
+  if (r.end) { const m = new RegExp(r.end, "i").exec(part.slice(20)); if (m) part = part.slice(0, m.index + 20); }
+  return part.slice(0, r.max || 1500).trim();
+}
+// robots.txt: is this path allowed for every robot ("User-agent: *")?
+const robotsCache = new Map();
+async function robotsOk(url) {
+  const u = new URL(url);
+  if (!robotsCache.has(u.origin)) {
+    let rules = [];
+    try {
+      const res = await fetch(u.origin + "/robots.txt", { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20000) });
+      if (res.ok) {
+        let mine = false;
+        for (const line of (await res.text()).split(/\r?\n/)) {
+          const [k, ...v] = line.replace(/#.*/, "").split(":"), val = v.join(":").trim();
+          if (/^user-agent$/i.test(k.trim())) mine = val === "*";
+          else if (mine && /^(dis)?allow$/i.test(k.trim()) && val) rules.push({ allow: /^allow$/i.test(k.trim()), path: val });
+        }
+      }
+    } catch {}
+    robotsCache.set(u.origin, rules);
+  }
+  const path = u.pathname + u.search;
+  const hit = robotsCache.get(u.origin).filter((r) => path.startsWith(r.path.replace(/\*$/, ""))).sort((a, b) => b.path.length - a.path.length)[0];
+  return !hit || hit.allow;
+}
+// Test runs (PROBE=1): what's on a club's pages, to find a report the job could read.
+async function probe(url) {
+  try {
+    const ok = await robotsOk(url);
+    const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(30000) });
+    const body = await res.text();
+    const hits = [...body.matchAll(/groom|trail (?:conditions|report)|last updated/gi)].slice(0, 4).map((m) => JSON.stringify(body.slice(Math.max(0, m.index - 100), m.index + 160).replace(/\s+/g, " ")));
+    const links = [...new Set([...body.matchAll(/href="([^"#]+)"[^>]*>([^<]{0,60})</gi)].filter((m) => /groom|map|trail|condition|report/i.test(m[1] + m[2])).map((m) => `${m[2].trim()} -> ${m[1]}`))].slice(0, 15);
+    log(`    probe ${url}: links ${JSON.stringify(links)}`);
+    log(`    probe ${url}: HTTP ${res.status}, ${body.length} bytes, robots ${ok ? "ok" : "DISALLOWED"}, ${hits.length ? "mentions: " + hits.join(" | ") : "no grooming mentions"}; text: ${JSON.stringify(htmlText(body).slice(0, 600))}`);
+  } catch (e) { log(`    probe ${url}: ${e.message}`); }
+}
+async function buildGrooming() {
+  const list = readJson("snowmobile-clubs.json")?.clubs || [];
+  const old = readJson("grooming.json")?.reports || {};
+  log(`Snowmobile club grooming reports (${list.length} clubs)`);
+  const reports = {};
+  for (const c of list) {
+    const r = c.report || {};
+    if (!r.auto || !r.url) {
+      log(`  ${c.name}: not read automatically (${r.url || "no report link"})`);
+      if (process.env.PROBE) for (const u of c.check || []) await probe(u);
+      continue;
+    }
+    const prev = old[c.id] || {};
+    if (process.env.PROBE) for (const u of [r.url, ...(c.check || [])].filter(Boolean)) await probe(u);
+    try {
+      if (!(await robotsOk(r.url))) throw new Error("the page's robots.txt asks robots not to read it");
+      const res = await fetch(r.url, { headers: { "User-Agent": UA, Accept: "text/html,application/json,*/*" }, signal: AbortSignal.timeout(60000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = await res.text();
+      const part = reportPart(htmlText(body), r);
+      if (!part) throw new Error(`no grooming report found on the page (${body.length} bytes)`);
+      const date = (part.match(DATE_RE) || [])[0] || "";
+      reports[c.id] = { url: r.url, fetchedAt: builtAt, text: part, date, changedAt: prev.text === part ? prev.changedAt || builtAt : builtAt };
+      log(`  ${c.name}: ${part.length} characters${date ? `, dated ${date}` : ""}: ${JSON.stringify(part.slice(0, 200))}`);
+    } catch (e) {
+      log(`  ${c.name}: ${e.message}${prev.text ? "; keeping the last report" : ""}`);
+      if (prev.text) reports[c.id] = { ...prev, error: e.message.slice(0, 200) };
+    }
+    await sleep(1500);
+  }
+  return reports;
+}
+
 // ---------- write ----------
 if (!existsSync(DATA)) mkdirSync(DATA);
 const builtAt = new Date().toISOString().slice(0, 19) + "Z";
 let failed = 0;
 
-if (!ONLY || ONLY === "ski") {
+if (runs("ski")) {
   const old = readJson("ski.json") || {};
   let osm = null, bc = null, c2c = null;
   try { osm = await buildOsm(); } catch (e) { failed++; log(`  OpenStreetMap failed: ${e.message}; keeping the last data`); }
@@ -460,7 +559,7 @@ if (!ONLY || ONLY === "ski") {
   }
 }
 
-if (!ONLY || ONLY === "avy") {
+if (runs("avy")) {
   try {
     const { areas, products } = await buildAvalanche();
     const old = readJson("avalanche.json");
@@ -473,5 +572,12 @@ if (!ONLY || ONLY === "avy") {
     }));
     log(`data/avalanche.json written`);
   } catch (e) { failed++; log(`Avalanche forecast failed: ${e.message}; keeping the last data`); }
+}
+if (runs("groom")) {
+  try {
+    const reports = await buildGrooming();
+    writeFileSync(new URL("grooming.json", DATA), JSON.stringify({ builtAt, reports }, null, 1));
+    log(`data/grooming.json: ${Object.keys(reports).length} reports`);
+  } catch (e) { failed++; log(`Grooming reports failed: ${e.message}; keeping the last data`); }
 }
 if (failed && process.env.STRICT) process.exit(1);
