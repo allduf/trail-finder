@@ -276,13 +276,13 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
   // Pins at each club's staging areas; the card lists every club with its latest grooming report when the nightly
   // job could read it (data/grooming.json), or a link to where the club posts it (often Facebook, which can't be read).
   const clubLayer = L.layerGroup();
-  let clubs = null, grooming = null, clubOn = null;
+  let clubs = null, clubLinks = [], grooming = null, clubOn = null;
   function loadClubs() {
     if (clubs) return;
     clubs = [];
     const get = (u) => fetch(u, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     Promise.all([get("data/snowmobile-clubs.json"), get("data/grooming.json")]).then(([c, g]) => {
-      clubs = (c && c.clubs) || []; grooming = g;
+      clubs = (c && c.clubs) || []; clubLinks = (c && c.links) || []; grooming = g;
       renderChips(); drawClubs(); renderClubs();
     });
   }
@@ -339,7 +339,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
         ${status}
         ${c.pass ? `<span>Trail pass: ${esc(c.pass)}</span>` : ""}
         <div class="sb-links">${link(r.url, r.label || "Grooming report")}${(c.maps || []).map((m) => link(m.url, m.label || "Trail map")).join("")}${link(c.web, "Website")}</div></div>`;
-    }).join("") + `<p class="sk-safe">Pins on the map are the staging areas, placed roughly. Grooming reports are the clubs' own posts, copied here as they are. Sled areas need an avalanche forecast check too, and most club areas need a trail pass.</p>`;
+    }).join("") + (clubLinks.length ? `<div class="sb-club"><b>For the whole region</b><div class="sb-links">${clubLinks.map((l) => link(l.url, l.label)).join("")}</div></div>` : "") + `<p class="sk-safe">Pins on the map are the staging areas, placed roughly. Grooming reports are the clubs' own posts, copied here as they are. Sled areas need an avalanche forecast check too, and most club areas need a trail pass.</p>`;
     $("sbBody").querySelectorAll(".sb-area").forEach((el) => el.addEventListener("click", (e) => {
       e.preventDefault();
       if (el.dataset.lat !== "undefined") map.setView([+el.dataset.lat, +el.dataset.lon], Math.max(map.getZoom(), 11));

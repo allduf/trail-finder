@@ -1,5 +1,15 @@
 {
  "about": "Snowmobile clubs in the Sea to Sky and Sunshine Coast region, kept by hand. Staging area points are approximate. report.auto = true: the winter data job (scripts/build-winter.mjs, ONLY=groom) reads the report page, if its robots.txt allows. check: other pages the job's test run looks at, to find a readable report.",
+ "links": [
+  {
+   "url": "https://letsridebc.com/bc-snowmobile-trail-map",
+   "label": "BC snowmobile trail map (BC Snowmobile Federation)"
+  },
+  {
+   "url": "https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information/sea-to-sky-natural-resource-district-road-safety-information",
+   "label": "Sea to Sky non-motorized winter zones (BC government)"
+  }
+ ],
  "clubs": [
   {
    "id": "pmsc",
@@ -20,12 +30,18 @@
     "url": "https://www.powdermountainsnowmobileclub.com/grooming-report/",
     "label": "Grooming report",
     "auto": true,
-    "note": "The club posts its grooming report on its website."
+    "note": "The club posts its grooming report on its website.",
+    "start": "\\nGrooming Report\\n",
+    "end": "Our Sponsors"
    },
    "maps": [
     {
      "url": "https://sledpulse.com/ski-areas/CA/BC/Powder-Mountain-Snowmobile-Club",
      "label": "Live grooming map (Sled Pulse)"
+    },
+    {
+     "url": "https://www.powdermountainsnowmobileclub.com/maps-safety/",
+     "label": "Maps and safety"
     },
     {
      "url": "https://www.sitesandtrailsbc.ca/search/search-result.aspx?site=REC6902&type=Trail",
@@ -103,7 +119,7 @@
    "id": "brvsc",
    "name": "Bridge River Valley Snowmobile Club",
    "town": "Gold Bridge",
-   "web": "https://bcsf.org/club/bridge-river-valley-snowmobile-club",
+   "web": "https://bcsf.org/club",
    "areas": [
     {
      "name": "Hurley from the Gold Bridge side",
@@ -120,9 +136,7 @@
     "note": "No grooming report found online: contact the club."
    },
    "maps": [],
-   "check": [
-    "https://bcsf.org/club/bridge-river-valley-snowmobile-club"
-   ]
+   "check": []
   },
   {
    "id": "bmsa",
