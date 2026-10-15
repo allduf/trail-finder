@@ -791,7 +791,9 @@ label.toggle.off { background: transparent; color: var(--muted); border: 1.5px d
 label.toggle.off .sw { background: var(--muted); }
 label.toggle.t-unoff .sw { background: repeating-linear-gradient(90deg, var(--fg) 0 3px, transparent 3px 6px); }
 .periods .prime-btn { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 6px; }
-.periods .prime-btn .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--prime); }
+.periods .prime-btn .dot, .prime-go .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--prime); }
+.prime-go { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.prime-go .dot { display: inline-block; flex: none; }
 .trail .loam { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; white-space: nowrap; }
 .trail .loam i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .use-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; background: var(--chip); color: var(--muted); border: 1px solid var(--line); vertical-align: 1px; }
@@ -1156,6 +1158,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
           <span class="label" id="diffPickLabel">Or show every trail of these levels (tap several), or only unofficial ones</span>
           <div class="diff-chips"><button type="button" class="diff-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip" data-d="unoff" aria-pressed="false" title="Trails in the area that aren&#39;t part of the official bike network: plain paths with no bike tags (the dotted lines on the base map) and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button></div>
         </div>
+        <button type="button" class="btn prime-go" id="primeGo" title="Trails in the area, old or new, with damp prime loam right now (Loam index 40 to 59)"><span class="dot" aria-hidden="true"></span>Prime loam now</button>
         <div class="wantlist" id="wantList" hidden></div>
       </section>
       <section class="pane" id="paneNew" role="tabpanel" aria-labelledby="tabNew">
@@ -4652,6 +4655,12 @@ out tags center qt;`;
     document.body.classList.toggle("mode-name", m === "name");   // hides the new-trail "Search this area" button
     if (focus) (m === "name" ? $("trailQ") : $("findBtn")).focus();
   }
+  // "Prime loam now" in Find a trail by name: same as picking it in New trails in an area.
+  $("primeGo").addEventListener("click", () => {
+    setMode("new"); syncTabbar();
+    document.querySelector('.periods [data-p="prime"]').click();
+    if (state.waiting || !state.searchedBounds.length) findNewTrails();
+  });
   $("tabName").addEventListener("click", () => setMode("name", true));
   $("tabNew").addEventListener("click", () => setMode("new"));
   document.querySelector(".modes").addEventListener("keydown", (e) => {
