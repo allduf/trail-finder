@@ -7,7 +7,7 @@
 //      - bc: BC government Recreation Sites and Trails (DataBC layer WHSE_FOREST_TENURE.FTEN_RECREATION_LINES_SVW,
 //        Open Government Licence - British Columbia) whose name or description says ski, snowshoe or nordic.
 //      - c2c: camptocamp.org ski touring and snowshoe routes (CC BY-SA), from its public API (no key). Mostly the
-//        Alps, so only a few here; routes with only a start point (no drawn line) are left out.
+//        Alps, so only a few here; routes with only a start point (no drawn line) go in "starts" as pins.
 //  - data/avalanche.json: Avalanche Canada's current avalanche forecasts for the forecast areas that touch the
 //    region (Sea to Sky, South Coast, South Coast Inland...), with the area outlines, danger ratings by elevation
 //    band for each day and the avalanche problems (aspects, elevations, likelihood, size). From the public
@@ -280,8 +280,7 @@ async function buildC2c() {
     if (list.length < 100 || docs.length >= (page.total || 0)) break;
     await sleep(1000);
   }
-  const routes = [];
-  let pointOnly = 0;
+  const routes = [], starts = [];
   for (const d of docs) {
     const id = d.document_id;
     let full;
@@ -291,7 +290,6 @@ async function buildC2c() {
     try { if (typeof geom === "string") geom = JSON.parse(geom); } catch { geom = null; }
     const parts = !geom ? [] : geom.type === "LineString" ? [geom.coordinates] : geom.type === "MultiLineString" ? geom.coordinates : [];
     const g = parts.map((l) => flat(l.map(fromMerc), 8)).filter((l) => l.length >= 4);
-    if (!g.length) { pointOnly++; continue; }
     const acts = full.activities || d.activities || [];
     const tags = {};
     if (full.ski_rating) tags["ski rating"] = String(full.ski_rating);
@@ -300,10 +298,16 @@ async function buildC2c() {
     if (full.elevation_max) tags["top elevation"] = full.elevation_max + " m";
     if (full.height_diff_up) tags.climb = full.height_diff_up + " m";
     if (full.orientations?.length) tags.aspects = full.orientations.join(", ");
-    routes.push({ id: "c2c" + id, src: "c2c", type: acts.includes("skitouring") ? "tour" : "snowshoe", name: c2cTitle(full) || c2cTitle(d), diff: full.ski_rating || "", g, tags });
+    const type = acts.includes("skitouring") ? "tour" : "snowshoe", name = c2cTitle(full) || c2cTitle(d);
+    if (g.length) { routes.push({ id: "c2c" + id, src: "c2c", type, name, diff: full.ski_rating || "", g, tags }); continue; }
+    let pt = full.geometry?.geom || d.geometry?.geom;
+    try { if (typeof pt === "string") pt = JSON.parse(pt); } catch { pt = null; }
+    if (pt?.type !== "Point") continue;
+    const { lat, lon } = fromMerc(pt.coordinates);
+    starts.push({ id: "c2c" + id, src: "c2c", type, name, diff: full.ski_rating || "", lat: round(lat), lon: round(lon), tags });
   }
-  log(`  ${routes.length} routes with a drawn line kept, ${pointOnly} with only a start point left out`);
-  return routes;
+  log(`  ${routes.length} routes with a drawn line, ${starts.length} with only a start point (shown as pins)`);
+  return { routes, starts };
 }
 
 // ---------- Avalanche Canada forecasts ----------
@@ -443,13 +447,14 @@ if (!ONLY || ONLY === "ski") {
   try { bc = await buildBc(); } catch (e) { failed++; log(`  DataBC failed: ${e.message}; keeping the last data`); }
   try { c2c = await buildC2c(); } catch (e) { failed++; log(`  camptocamp failed: ${e.message}; keeping the last data`); }
   const oldOf = (src) => (old.routes || []).filter((r) => r.src === src);
-  const routes = [...(osm ? osm.routes : oldOf("osm")), ...(bc || oldOf("bc")), ...(c2c || oldOf("c2c"))];
+  const routes = [...(osm ? osm.routes : oldOf("osm")), ...(bc || oldOf("bc")), ...(c2c ? c2c.routes : oldOf("c2c"))];
+  const starts = c2c ? c2c.starts : old.starts || [];
   const huts = osm ? osm.huts : old.huts || [];
   if (routes.length || huts.length) {
     writeFileSync(new URL("ski.json", DATA), JSON.stringify({
       builtAt: osm || bc || c2c ? builtAt : old.builtAt, region: REGION,
       sources: { osm: osm ? builtAt : old.sources?.osm || "", bc: bc ? builtAt : old.sources?.bc || "", c2c: c2c ? builtAt : old.sources?.c2c || "" },
-      routes, huts,
+      routes, huts, starts,
     }));
     log(`data/ski.json: ${routes.length} routes, ${huts.length} huts`);
   }
