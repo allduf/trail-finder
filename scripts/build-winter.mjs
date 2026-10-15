@@ -496,7 +496,9 @@ async function probe(url) {
     const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(30000) });
     const body = await res.text();
     const hits = [...body.matchAll(/groom|trail (?:conditions|report)|last updated/gi)].slice(0, 4).map((m) => JSON.stringify(body.slice(Math.max(0, m.index - 100), m.index + 160).replace(/\s+/g, " ")));
-    log(`    probe ${url}: HTTP ${res.status}, ${body.length} bytes, robots ${ok ? "ok" : "DISALLOWED"}, ${hits.length ? "mentions: " + hits.join(" | ") : "no grooming mentions"}; text: ${JSON.stringify(htmlText(body).slice(0, 300))}`);
+    const links = [...new Set([...body.matchAll(/href="([^"#]+)"[^>]*>([^<]{0,60})</gi)].filter((m) => /groom|map|trail|condition|report/i.test(m[1] + m[2])).map((m) => `${m[2].trim()} -> ${m[1]}`))].slice(0, 15);
+    log(`    probe ${url}: links ${JSON.stringify(links)}`);
+    log(`    probe ${url}: HTTP ${res.status}, ${body.length} bytes, robots ${ok ? "ok" : "DISALLOWED"}, ${hits.length ? "mentions: " + hits.join(" | ") : "no grooming mentions"}; text: ${JSON.stringify(htmlText(body).slice(0, 600))}`);
   } catch (e) { log(`    probe ${url}: ${e.message}`); }
 }
 async function buildGrooming() {
