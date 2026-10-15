@@ -975,6 +975,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .map-tools #roadsBtn.on { background: var(--road); border-color: var(--road); color: #fff; }
 .map-tools #firesBtn.on { background: #e85d04; border-color: #e85d04; color: #fff; }
 .map-tools #areasBtn.on { background: #8b4513; border-color: #8b4513; color: #fff; }
+.map-tools #accessBtn.on { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
 .road-pop { font-family: var(--font-body); font-size: .85rem; line-height: 1.35; }
 .road-pop h4 { margin: 0 0 4px; font-size: .95rem; }
 .road-pop p { margin: 4px 0 !important; }
@@ -1078,6 +1079,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
         <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
         <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire">🔥 Wildfires</button>
         <button id="areasBtn" type="button" aria-pressed="false" title="Show logging areas (cut blocks) and areas closed to motor vehicles">▦ Logging areas</button>
+        <button id="accessBtn" type="button" aria-pressed="false" title="Show trailheads, parking and BC recreation sites">Ⓟ Trailheads and parking</button>
         <button id="contourBtn" type="button" aria-pressed="false">〰 Elevation lines</button>
         <button id="avyBtn" type="button" aria-pressed="false" hidden>⚠ Avalanche risk</button>
         </div>
@@ -1334,6 +1336,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     colorBy: store.get("colorBy", "diff"),     // trail colours on the map: "diff" (difficulty, like Trailforks) or "type"
     allTrails: store.get("allTrails", true),  // "All trails": every MTB trail in view, any age, under the new ones
     fires: store.get("fires", true),          // "Wildfires": BC Wildfire Service fires, perimeters, area restrictions and evacuations
+    access: store.get("access", false),       // "Trailheads and parking" pins, off by default: towns have lots of parking (alex)
     areas: store.get("areas", true),          // "Logging areas": cut blocks and motor vehicle closures, their own button (alex)
     roads: store.get("roads", true),          // "Forest roads": dirt and Forest Service roads, coloured by their status
     prime: store.get("prime", false),   // "Prime loam now" (time row): every named trail in the area with Loam index 40-59 now
@@ -3881,11 +3884,11 @@ out body;`;
   // Pins on the map, from zoom 13, only the ones in view. Pins are kept while in view, so an open popup that pans the map stays open.
   const accessLayer = L.layerGroup().addTo(map), accessPins = new Map();   // id -> marker
   function drawAccess() {
-    if (state.example || map.getZoom() < FEAT_MIN_ZOOM) { accessLayer.clearLayers(); accessPins.clear(); return; }
+    if (state.example || !state.access || map.getZoom() < FEAT_MIN_ZOOM) { accessLayer.clearLayers(); accessPins.clear(); return; }
     const view = map.getBounds().pad(0.2);
     accessPins.forEach((m, id) => { if (!view.contains(m.getLatLng()) && !m.isPopupOpen()) { accessLayer.removeLayer(m); accessPins.delete(id); } });
     ZONES.filter((z) => z.bounds.intersects(view)).forEach((z) => accessZone(z).then((pts) => {
-      if (map.getZoom() < FEAT_MIN_ZOOM) return;
+      if (!state.access || map.getZoom() < FEAT_MIN_ZOOM) return;
       const now = map.getBounds().pad(0.2);
       pts.forEach((x) => {
         const ll = L.latLng(x.lat, x.lon), k = ACCESS[x.k];
@@ -3900,6 +3903,18 @@ out body;`;
     }));
   }
   map.on("moveend", drawAccess);
+  function syncAccessBtn() {
+    const b = $("accessBtn");
+    b.setAttribute("aria-pressed", String(state.access));
+    b.classList.toggle("on", state.access);
+    b.title = state.access ? "Hide the trailheads and parking" : "Show trailheads, parking and BC recreation sites";
+  }
+  $("accessBtn").addEventListener("click", () => {
+    state.access = !state.access; store.set("access", state.access);
+    syncAccessBtn(); drawAccess(); renderKey();
+    if (state.access && map.getZoom() < FEAT_MIN_ZOOM) setStatus("Zoom in to see trailheads and parking.");
+  });
+  syncAccessBtn();
   drawAccess();
 
   // The map key: what the colours mean, and a switch between difficulty and trail-type colours.
@@ -3924,7 +3939,7 @@ out body;`;
   const keyWas = {}, keySeen = new Set(store.get("keySeen", []));
   function popFirstKey() {
     let popped = false;
-    [["Forest roads", state.roads], ["Logging areas", state.areas], ["Wildfires", state.fires]].forEach(([k, on]) => {
+    [["Forest roads", state.roads], ["Logging areas", state.areas], ["Wildfires", state.fires], ["Trailheads and parking (zoom in)", state.access]].forEach(([k, on]) => {
       if (on && keyWas[k] === false && !keySeen.has(k)) { keySeen.add(k); keyOpen.add(k); popped = k; }
       keyWas[k] = !!on;
     });
@@ -3951,7 +3966,7 @@ out body;`;
     else html += section("Forest roads", sw("background: var(--road-plain)", "Forest road (turn on Forest roads in Layers for status)"));
     if (state.areas) html += section("Logging areas", Object.values(AREA_STYLE).map(areaSw).join(""));
     if (state.fires) html += section("Wildfires", `<li>${pinHtml(FIRE_STYLE.fire, "lg-ico")}${FIRE_STYLE.fire.label}</li>` + ["perim", "restr", "order", "alert"].map((k) => areaSw(FIRE_STYLE[k])).join(""));
-    html += section("Trailheads and parking (zoom in)", Object.values(ACCESS).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join(""));
+    if (state.access) html += section("Trailheads and parking (zoom in)", Object.values(ACCESS).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join(""));
     $("keyList").innerHTML = html;
     if (popped) {
       const lg = document.querySelector("details.legend");
