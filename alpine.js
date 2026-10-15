@@ -106,6 +106,15 @@ body.sport-ski .leaflet-alpine-pane, body.sport-ski #alpineBtn, body.sport-ski l
   // For index.html: the key line, and the facts the trail details show (as tf: tags, like the all-trails job's).
   window.tfAlpine = {
     on: () => on,
+    setOn(v) { if (on !== v) toggle(); },
+    // Every alpine way touching b, once its zones' files are loaded.
+    async list(b) {
+      loadZones([b]);
+      await Promise.all((window.tfZones || []).filter((z) => z.bounds.intersects(b)).map((z) => loads.get(z.id)));
+      const out = [];
+      for (const l of data.values()) for (const w of l) if (b.intersects(w.bounds || (w.bounds = L.latLngBounds(w.geom)))) out.push(w);
+      return out;
+    },
     count(boxes) { searched = boxes || []; if (searched.length) loadZones(searched); showCount(); },
     keyItem: (sw) => sw(`background: repeating-linear-gradient(90deg, ${COLOR} 0 7px, transparent 7px 10px, ${COLOR} 10px 12px, transparent 12px 15px)`, `${peak(14)} Alpine, looks rideable`),
     icon: peak(16),
@@ -118,6 +127,8 @@ body.sport-ski .leaflet-alpine-pane, body.sport-ski #alpineBtn, body.sport-ski l
     },
   };
   btn.innerHTML = `${peak(15)} Alpine rideable`;
+  const chip = document.querySelector("#alpChip .diff");
+  if (chip) chip.innerHTML = `${peak(14)}Alpine rideable`;
   sync(); load();
   if (window.tfRenderKey) window.tfRenderKey();
 })();
