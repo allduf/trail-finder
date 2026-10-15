@@ -1,6 +1,6 @@
 // Alpine rideable: OpenStreetMap paths above the tree line that look doable on a mountain bike, from the weekly
 // data/alpine-<zone>.json files (scripts/build-alpine.mjs). alex: "all the alpine trail that you think are doable on a MTB".
-// The "Alpine rideable" button in Layers (on by default) draws them in their own blue dash-dot style, with a snowy-peak
+// The "Alpine rideable" button in Layers and the matching tick box under the results' type chips (one switch, on by default) draws them in their own blue dash-dot style, with a snowy-peak
 // icon at each trail's high point when zoomed in (not ▲, which is the Pro line level), and adds them to the map key. Tapping one opens it like any trail on the map, with
 // a box saying how much of it is above the tree line and why it looks rideable. Hidden in Skiing.
 // index.html provides window.tfLeaflet, tfZones, tfOpenWay and tfRenderKey.
@@ -17,6 +17,7 @@
 
   const css = document.createElement("style");
   css.textContent = `
+label.toggle.t-alpine .sw { background: repeating-linear-gradient(90deg, ${COLOR} 0 6px, transparent 6px 8px, ${COLOR} 8px 10px, transparent 10px 12px); }
 .map-tools #alpineBtn.on { background: ${COLOR}; border-color: ${COLOR}; color: #fff; }
 .alpine-top { background: none; border: 0; }
 .alpine-top span { display: block; transform: translate(-50%, -50%); line-height: 0; cursor: pointer; filter: drop-shadow(0 1px 1px rgba(0,0,0,.35)); }
@@ -25,7 +26,7 @@
 .alpine-box { margin: 14px 0 0; padding: 10px 12px; border: 1.5px dashed ${COLOR}; border-radius: 8px; background: var(--chip); }
 .alpine-box strong { color: ${COLOR}; }
 .alpine-box p { margin: 4px 0 0; font-size: .9rem; }
-body.sport-ski .leaflet-alpine-pane, body.sport-ski #alpineBtn { display: none; }`;
+body.sport-ski .leaflet-alpine-pane, body.sport-ski #alpineBtn, body.sport-ski label.t-alpine { display: none; }`;
   document.head.appendChild(css);
 
   map.createPane("alpine").style.zIndex = 392;   // over the All trails lines, under the new trails in the list
@@ -38,15 +39,17 @@ body.sport-ski .leaflet-alpine-pane, body.sport-ski #alpineBtn { display: none; 
 
   function load() {
     if (!on || map.getZoom() < MIN_ZOOM) return;
-    const view = map.getBounds();
-    (window.tfZones || []).filter((z) => z.bounds.intersects(view) && !loads.has(z.id)).forEach((z) => {
+    loadZones([map.getBounds()]);
+  }
+  function loadZones(boxes) {
+    (window.tfZones || []).filter((z) => boxes.some((b) => z.bounds.intersects(b)) && !loads.has(z.id)).forEach((z) => {
       loads.set(z.id, fetch(`data/alpine-${z.id}.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null).then((f) => {
         data.set(z.id, f && f.v === 1 ? Object.entries(f.ways).map(([id, w]) => {
           const geom = [];
           for (let i = 0; i < w.g.length; i += 2) geom.push([w.g[i], w.g[i + 1]]);
           return { ...w, id: +id, geom, tl: f.treeline };
         }) : []);
-        draw();
+        draw(); showCount();
       }));
     });
   }
@@ -72,22 +75,38 @@ body.sport-ski .leaflet-alpine-pane, body.sport-ski #alpineBtn { display: none; 
   }
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
+  // The tick box's number: alpine trails in the area of the last search (New trails in an area).
+  let searched = [];
+  function showCount() {
+    const n = document.getElementById("nAlpine");
+    if (!n) return;
+    let c = 0;
+    for (const list of data.values()) for (const w of list) {
+      if (searched.some((b) => b.intersects(w.bounds || (w.bounds = L.latLngBounds(w.geom))))) c++;
+    }
+    n.textContent = c;
+  }
+  const box = document.getElementById("showAlpine");
   function sync() {
+    if (box) { box.checked = on; box.closest("label").classList.toggle("off", !on); }
     btn.setAttribute("aria-pressed", String(on));
     btn.classList.toggle("on", on);
     btn.title = on ? "Hide the alpine paths that look rideable" : "Show the alpine paths, above the tree line, that look doable on a mountain bike";
   }
-  btn.addEventListener("click", () => {
+  function toggle() {
     on = !on;
     try { localStorage.setItem(KEY, String(on)); } catch {}
     sync(); load(); draw();
     if (window.tfRenderKey) window.tfRenderKey();
-  });
+  }
+  btn.addEventListener("click", toggle);
+  if (box) box.addEventListener("change", () => { if (box.checked !== on) toggle(); });
   map.on("moveend", () => { load(); draw(); });
 
   // For index.html: the key line, and the facts the trail details show (as tf: tags, like the all-trails job's).
   window.tfAlpine = {
     on: () => on,
+    count(boxes) { searched = boxes || []; if (searched.length) loadZones(searched); showCount(); },
     keyItem: (sw) => sw(`background: repeating-linear-gradient(90deg, ${COLOR} 0 7px, transparent 7px 10px, ${COLOR} 10px 12px, transparent 12px 15px)`, `${peak(14)} Alpine, looks rideable`),
     icon: peak(16),
     tf(id) {

@@ -6,9 +6,6 @@ on:
   schedule:
     - cron: "17 13 * * 3"   # Wednesdays, 13:17 UTC (early morning in Vancouver)
   workflow_dispatch:         # "Run workflow" button on the Actions tab
-  push:
-    branches: [claude/alpine-rideable-unq8w3]   # TEMPORARY: first build on the PR branch, removed before merge
-    paths: [scripts/build-alpine.mjs, .github/workflows/alpine-trails.yml]
 
 permissions:
   contents: write   # commit the data files
