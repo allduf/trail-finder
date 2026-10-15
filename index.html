@@ -1155,11 +1155,11 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
           </form>
           <p class="hint" id="nameNearMsg" role="status" hidden></p>
         </div>
+        <button type="button" class="btn prime-go" id="primeGo" title="Trails in the area, old or new, with damp prime loam right now (Loam index 40 to 59)"><span class="dot" aria-hidden="true"></span>Prime loam now</button>
         <div class="diff-pick" role="group" aria-labelledby="diffPickLabel">
           <span class="label" id="diffPickLabel">Or show every trail of these levels (tap several), or only unofficial ones</span>
           <div class="diff-chips"><button type="button" class="diff-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip" data-d="unoff" aria-pressed="false" title="Trails in the area that aren&#39;t part of the official bike network: plain paths with no bike tags (the dotted lines on the base map) and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button></div>
         </div>
-        <button type="button" class="btn prime-go" id="primeGo" title="Trails in the area, old or new, with damp prime loam right now (Loam index 40 to 59)"><span class="dot" aria-hidden="true"></span>Prime loam now</button>
         <div class="wantlist" id="wantList" hidden></div>
       </section>
       <section class="pane" id="paneNew" role="tabpanel" aria-labelledby="tabNew">
@@ -4633,6 +4633,8 @@ out tags center qt;`;
   }
   // "Prime loam now" in Find a trail by name: same as picking it in New trails in an area.
   $("primeGo").addEventListener("click", () => {
+    const nz = $("nameZone").value;
+    if (zoneById(nz) && nz !== state.zone) goToZone(nz);   // use the area picked in "Where is it?"
     setMode("new"); syncTabbar();
     document.querySelector('.periods [data-p="prime"]').click();
     if (state.waiting || !state.searchedBounds.length) findNewTrails();
