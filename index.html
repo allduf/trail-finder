@@ -1620,6 +1620,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     return out;
   }
   const isUnoff = (t) => !!(t.unoff && t.unoff.length);
+  const UNOFF_DASH = "1 9";   // unofficial trails: round dots in the trail's own colour (with round line caps)
   // Signs that a trail is official (sanctioned), from what mappers tagged. Returns the reason, or null.
   function officialWhy(tags) {
     if (unofficial(tags).length) return null;
@@ -2391,7 +2392,7 @@ out body;`;
         color: t.cat === "ghost" ? color.ghost : byDiff ? diffColor(d) : t.use ? css("--other") : color[t.cat],
         weight: byDiff && t.cat !== "ghost" ? (sel ? 8 : 5) : sel ? 9 : t.cat === "other" ? 5 : 7,
         opacity: byDiff && t.cat !== "ghost" ? (sel ? 1 : state.selected ? 0.35 : 0.95) : sel ? 0.8 : state.selected ? 0.3 : 0.45,
-        dashArray: t.cat === "ghost" ? "1 10" : t.cat === "looks" && !sel ? "10 6" : null, lineCap: "round", interactive: false,
+        dashArray: t.cat === "ghost" ? "1 10" : isUnoff(t) ? UNOFF_DASH : t.cat === "looks" && !sel ? "10 6" : null, lineCap: "round", interactive: false,
       });
       // A wide invisible line on top makes thin trails easy to click or tap.
       const hit = L.polyline(shape, { weight: 18, opacity: 0, interactive: true })
@@ -2399,8 +2400,6 @@ out body;`;
       hit.on("click", (e) => { L.DomEvent.stopPropagation(e); select(t.id, false); });
       t._line = line;
       trailLayer.addLayer(line);
-      // Unofficial trails get a dark dotted line along them.
-      if (isUnoff(t)) trailLayer.addLayer(L.polyline(shape, { color: css("--fg"), weight: 2.5, opacity: sel || !state.selected ? 0.9 : 0.35, dashArray: "1 7", lineCap: "round", interactive: false }));
       trailLayer.addLayer(hit);
     });
     const selT = shown.find((t) => t.id === state.selected);
@@ -3409,8 +3408,7 @@ out body;`;
       if (seen.has(w.id) || !(off && !state.onlyUnoff || wanted(w.c.cat, unoff, off))) return;
       seen.add(w.id);
       const d = difficulty(w.tags);
-      allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks"), weight: off ? 4.5 : 2.5, opacity: off ? 1 : 0.75, interactive: false }));
-      if (unoff) allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: css("--fg"), weight: 2, dashArray: "1 7", interactive: false }));
+      allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks"), weight: off ? 4.5 : unoff ? 3.5 : 2.5, opacity: off ? 1 : 0.75, dashArray: unoff ? UNOFF_DASH : null, lineCap: "round", interactive: false }));
     }));
   }
   function syncAllBtn() {
@@ -4466,7 +4464,7 @@ out tags center qt;`;
     const color = state.colorBy === "diff" ? diffColor(dd) : { mtb: css("--mtb"), looks: css("--looks"), other: css("--accent") }[t.cat];
     t.segments.forEach((s) => {
       foundLayer.addLayer(L.polyline(s, { color: "#ffffff", weight: 12, opacity: 0.9, lineCap: "round", interactive: false }));
-      foundLayer.addLayer(L.polyline(s, { color, weight: 6, opacity: 1, lineCap: "round" })
+      foundLayer.addLayer(L.polyline(s, { color, weight: 6, opacity: 1, lineCap: "round", dashArray: isUnoff(t) ? UNOFF_DASH : null })
         .bindTooltip(esc(trailName(t)), { sticky: true, direction: "top", offset: [0, -8] })
         .on("click", (e) => { L.DomEvent.stopPropagation(e); openDetail(t); }));
     });
@@ -4634,8 +4632,7 @@ out tags center qt;`;
       const color = w.c.cat === "path" ? UNRATED : byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks");
       const name = (w.tags.name || w.tags["mtb:name"] || "").trim();
       boxLayer.addLayer(L.polyline(w.geom, { renderer: boxRenderer, color: "#fff", weight: 8, opacity: 0.9, interactive: false }));
-      const line = L.polyline(w.geom, { renderer: boxRenderer, color, weight: 4.5, opacity: 1 });
-      if (unoff || w.c.cat === "path") boxLayer.addLayer(L.polyline(w.geom, { renderer: boxRenderer, color: css("--fg"), weight: 2.5, dashArray: "1 7", interactive: false }));
+      const line = L.polyline(w.geom, { renderer: boxRenderer, color, weight: 4.5, opacity: 1, dashArray: unoff || w.c.cat === "path" ? UNOFF_DASH : null, lineCap: "round" });
       boxLayer.addLayer(line);
       if (!name) { unnamed++; line.on("click", (e) => { L.DomEvent.stopPropagation(e); pickTrailAt(e.latlng); }); return; }
       const key = name.toLowerCase();
