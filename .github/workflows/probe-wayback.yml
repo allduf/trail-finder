@@ -2,48 +2,47 @@ name: probe-wayback
 on:
   push:
     branches: [claude/photo-time-slider-v4exnd]
-    paths: [.github/workflows/probe-wayback.yml]
+    paths: [.github/workflows/probe-wayback.yml, photo-slider.js]
+permissions:
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: |
+          npm i --no-save playwright@1.56.1 >/dev/null && npx playwright install --with-deps chromium >/dev/null
+          (python3 -m http.server 8765 >/dev/null 2>&1 &)
+          sleep 1
+          mkdir -p probe-shots
           cat > p.mjs <<'JS'
-          const H = { "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130 Safari/537.36", Origin: "https://allduf.github.io", Referer: "https://allduf.github.io/" };
-          const get = async (u) => { const r = await fetch(u, { headers: H }); if (!r.ok) throw new Error(r.status + " " + u); return r; };
-          const cfg = await (await get("https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json")).json();
-          const rel = Object.entries(cfg).map(([k, v]) => ({ num: +k, url: v.itemURL, meta: v.metadataLayerUrl, published: v.itemTitle.match(/\d{4}-\d\d-\d\d/)[0] }));
-          const byNum = Object.fromEntries(rel.map((r) => [r.num, r]));
-          const list = rel.sort((a, b) => b.published.localeCompare(a.published) || b.num - a.num);
-          const tile = (lat, lon, z) => { const n = 2 ** z; return { z, x: Math.floor((lon + 180) / 360 * n), y: Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n) }; };
-          for (const [name, lat, lon] of [["Squamish Diamond Head", 49.745, -123.115], ["Pemberton Mosquito", 50.325, -122.81], ["Kamloops Harper", 50.69, -120.14], ["Revelstoke", 51.0, -118.17], ["Duffey", 50.40, -122.40]]) {
-            for (const z of [14, 16, 17]) {
-              const t = tile(lat, lon, z), out = []; let i = 0, calls = 0, why = "";
-              while (i < list.length && out.length < 30) {
-                const r = list[i]; calls++;
-                let j; try { j = await (await get(`https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tilemap/${r.num}/${t.z}/${t.y}/${t.x}`)).json(); } catch (e) { why = e.message; break; }
-                if (!j.data || j.data[0] !== 1) { why = `data0 at ${r.published} ${JSON.stringify(j)}`; break; }
-                const pick = byNum[j.select?.[0] ?? r.num] || r;
-                if (!out.includes(pick)) out.push(pick);
-                i = Math.max(i, list.indexOf(pick)) + 1;
-              }
-              const dates = await Promise.all(out.map(async (r) => {
-                const layer = Math.max(0, Math.min(11, 23 - Math.max(12, z)));
-                const q = new URLSearchParams({ f: "json", where: "1=1", outFields: "SRC_DATE2,NICE_DESC,SRC_RES", returnGeometry: "false", geometryType: "esriGeometryPoint", spatialRel: "esriSpatialRelIntersects", inSR: "4326", geometry: `${lon},${lat}` });
-                try { const j = await (await get(`${r.meta}/${layer}/query?${q}`)).json(); const a = j.features?.[0]?.attributes; return a ? `${new Date(a.SRC_DATE2).toISOString().slice(0, 10)} ${a.NICE_DESC} ${a.SRC_RES}m` : "nofeat " + JSON.stringify(j).slice(0, 120); } catch (e) { return "err " + e.message; }
-              }));
-              console.log(`\n${name} z${z} calls=${calls} stop=${why.slice(0, 160)}`);
-              out.forEach((r, k) => console.log(`  ${r.published} #${r.num} -> photo ${dates[k]}`));
-            }
+          import { chromium } from "playwright";
+          const b = await chromium.launch();
+          for (const [name, lat, lon, z, w, h] of [["squamish", 49.745, -123.115, 16, 1280, 800], ["revelstoke", 51.0, -118.17, 16, 1280, 800], ["kamloops-phone", 50.69, -120.14, 16, 390, 800]]) {
+            const p = await b.newPage({ viewport: { width: w, height: h } });
+            p.on("pageerror", (e) => console.log(name, "pageerror", e.message));
+            const t0 = Date.now();
+            await p.goto("http://localhost:8765/index.html");
+            await p.waitForFunction(() => window.tfLeaflet && window.tfPhotoSlider);
+            await p.evaluate(([lat, lon, z]) => tfLeaflet.setView([lat, lon], z, { animate: false }), [lat, lon, z]);
+            await p.waitForTimeout(1500);
+            await p.evaluate(() => { document.getElementById("firstTip").hidden = true; tfPhotoSlider.setOn(true); });
+            const t1 = Date.now();
+            await p.waitForFunction(() => /photos? (of|has)|Only one|Couldn't/.test(document.getElementById("psNote").textContent), null, { timeout: 60000 }).catch(() => {});
+            console.log(name, "list in", Date.now() - t1, "ms:", await p.evaluate(() => [...document.querySelectorAll("#psOld option")].map((o) => o.textContent).join(", ") + " | " + document.getElementById("psNote").textContent));
+            await p.waitForTimeout(6000);
+            await p.screenshot({ path: `probe-shots/${name}-50.png` });
+            await p.evaluate(() => { const r = tfLeaflet.getContainer().getBoundingClientRect(); });
+            const hb = await p.locator(".ps-handle").boundingBox();
+            await p.mouse.move(hb.x + 22, hb.y + hb.height / 2 + 60); await p.mouse.down(); await p.mouse.move(hb.x + 22 - w * 0.3, hb.y + hb.height / 2 + 60, { steps: 6 }); await p.mouse.up();
+            await p.waitForTimeout(1500);
+            await p.screenshot({ path: `probe-shots/${name}-left.png` });
+            await p.close();
           }
-          // tile fetch check
-          const r = list[0]; const t = tile(49.745, -123.115, 17);
-          const tr = await fetch(r.url.replace("{level}", t.z).replace("{row}", t.y).replace("{col}", t.x), { headers: H, redirect: "manual" });
-          console.log("tile", tr.status, tr.headers.get("content-type"), tr.headers.get("location"), tr.headers.get("access-control-allow-origin"));
-          const t19 = tile(49.745, -123.115, 21);
-          const tr2 = await fetch(r.url.replace("{level}", t19.z).replace("{row}", t19.y).replace("{col}", t19.x), { headers: H, redirect: "manual" });
-          console.log("tile z21", tr2.status, tr2.headers.get("content-type"), tr2.headers.get("location"));
+          await b.close();
           JS
           node p.mjs
+          git config user.name "github-actions[bot]"; git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add probe-shots && git commit -qm "Probe screenshots" && git push -q
