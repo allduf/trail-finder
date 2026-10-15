@@ -8,9 +8,6 @@ on:
   schedule:
     - cron: "41 10 * * 0"   # Sundays 10:41 UTC
   workflow_dispatch:        # "Run workflow" button on the Actions tab
-  push:                     # TEMP: first build on the thread branch
-    branches: [claude/project-thread-0othea]
-    paths: [scripts/build-official.mjs, .github/workflows/official-data.yml]
   pull_request:
     paths:
       - scripts/build-official.mjs

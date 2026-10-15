@@ -38,7 +38,7 @@
     return getIndex().then((ix) => {
       if (!ix || ix.v !== 2 || !bounds) return;
       const s = bounds.getSouth(), n = bounds.getNorth(), w = bounds.getWest(), e = bounds.getEast();
-      if ((n - s) * (e - w) > 40) return;   // zoomed far out: no single trail to match yet
+      if ((n - s) * (e - w) > 4) return;   // zoomed far out (more than about 2 x 2 degrees): only load closer in
       const want = [];
       for (let la = sq(s); la <= n; la += 0.5) for (let lo = sq(w); lo <= e; lo += 0.5) {
         const k = la + "_" + lo;
