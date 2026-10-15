@@ -719,6 +719,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
   --warn-bg: #3a2f12; --warn-fg: #ffd98a; --map-ground: #1f2622; color-scheme: dark;
 }
 html, body { height: 100%; }
+/* The app fills the window and only the panel and map scroll, so the page itself never scrolls up and leaves an empty band below. */
+html, body { overflow: hidden; }
 [hidden] { display: none !important; }
 body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
 .app { height: 100%; display: grid; grid-template-columns: minmax(320px, 380px) 1fr; }
@@ -857,7 +859,10 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .trail .right { text-align: right; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .grade { display: inline-block; font-family: var(--font-display); font-weight: 700; font-size: .8rem; padding: 0 6px; border-radius: 4px; background: var(--fg); color: var(--panel); letter-spacing: .04em; }
 .trail-focus .leaflet-allTrails-pane, .trail-focus .leaflet-boxTrails-pane { opacity: .25; transition: opacity .2s; }
+.trail-focus .leaflet-roads-pane { opacity: .4; transition: opacity .2s; }
 .panel.detail-open .status, .panel.detail-open .debug, .panel.detail-open .list { display: none; }
+/* tall enough that the details can always scroll up to the top of the panel, even while they are still loading */
+.panel.detail-open .detail { min-height: 100%; box-sizing: border-box; }
 .detail { flex: 1; overflow-y: auto; min-height: 0; padding: 12px 16px 24px; }
 .panel { overflow-y: auto; overscroll-behavior: contain; }
 .panel .list, .panel .detail { flex: none; overflow: visible; min-height: auto; }
@@ -1493,6 +1498,34 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 
   const trailLayer = L.layerGroup().addTo(map);
   const foundLayer = L.layerGroup().addTo(map);  // a trail picked in the name search
+  const PICK_GLOW = "#ffe14d";                   // highlighter under the picked trail: bright on every trail colour and map style
+  // Scroll the side panel, not the page, to show el. (scrollIntoView scrolled the whole page on desktop too, pushing
+  // the app up and leaving an empty band under it.)
+  function panelScrollTo(el, how = "start", smooth = false) {
+    const p = $("panel"); if (!el || !p) return;
+    const pr = p.getBoundingClientRect(), r = el.getBoundingClientRect();
+    let top = p.scrollTop + r.top - pr.top;
+    if (how === "nearest") {
+      if (r.top >= pr.top && r.bottom <= pr.bottom) return;
+      if (r.top > pr.top && r.height < pr.height) top = p.scrollTop + r.bottom - pr.bottom;
+    }
+    p.scrollTo({ top: Math.max(0, top), behavior: smooth ? "smooth" : "auto" });
+  }
+  // Belt and braces: a scrollIntoView elsewhere must not shift the whole app up either.
+  window.addEventListener("scroll", () => { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); });
+  // Show a picked trail clearly: zoom in when it's only a few pixels long, and keep it out from under the colour key.
+  function focusTrail(b, force) {
+    if (!b || !b.isValid()) return;
+    map.invalidateSize();
+    const box = map.getContainer().getBoundingClientRect();
+    const lg = document.querySelector("details.legend[open]");
+    let left = 40;
+    if (lg) { const r = lg.getBoundingClientRect(); if (r.width && r.right - box.left < box.width / 2) left = Math.round(r.right - box.left) + 24; }
+    const nw = map.latLngToContainerPoint(b.getNorthWest()), se = map.latLngToContainerPoint(b.getSouthEast());
+    const tiny = Math.max(se.x - nw.x, se.y - nw.y) < 120 && map.getZoom() < 17;
+    const clear = nw.x >= left && nw.y >= 40 && se.x <= box.width - 40 && se.y <= box.height - 40;
+    if (force || tiny || !clear) map.fitBounds(b, { paddingTopLeft: [left, 40], paddingBottomRight: [40, 40], maxZoom: tiny ? 17 : 16 });
+  }
   // Map button (under the zoom buttons) that clears whatever trail is selected. Shown only when one is.
   const clearCtl = new (L.Control.extend({ options: { position: "topleft" }, onAdd() {
     const d = L.DomUtil.create("div", "leaflet-bar clear-ctl");
@@ -2413,6 +2446,9 @@ out body;`;
       const shape = t.segments || t.geom;
       const d = byDiff && t.cat !== "ghost" ? difficulty(t.tags) : null;
       // By difficulty, new trails get a white edge so they stand out from the thin "All trails" lines.
+      // The picked trail gets a highlighter glow so it stands out from the faded rest.
+      t._glow = sel ? L.polyline(shape, { color: PICK_GLOW, weight: 24, opacity: 0.6, lineCap: "round", interactive: false }) : null;
+      if (t._glow) trailLayer.addLayer(t._glow);
       if (byDiff && t.cat !== "ghost") trailLayer.addLayer(t._edge = L.polyline(shape, { color: "#fff", weight: sel ? 12 : 9, opacity: sel || !state.selected ? 0.9 : 0.4, lineCap: "round", interactive: false }));
       const line = L.polyline(shape, {
         color: t.cat === "ghost" ? color.ghost : byDiff ? diffColor(d) : t.use ? css("--other") : color[t.cat],
@@ -2429,7 +2465,7 @@ out body;`;
       trailLayer.addLayer(hit);
     });
     const selT = shown.find((t) => t.id === state.selected);
-    if (selT) { if (selT._edge && byDiff) selT._edge.bringToFront(); selT._line.bringToFront(); }
+    if (selT) { if (selT._glow) selT._glow.bringToFront(); if (selT._edge && byDiff) selT._edge.bringToFront(); selT._line.bringToFront(); }
 
     renderStatus();
 
@@ -2917,7 +2953,7 @@ out body;`;
       <div id="shuttle"></div>`;
     $("panel").classList.add("detail-open"); setTrailFocus(true);
     $("detail").hidden = false;
-    $("detail").scrollIntoView({ block: "start" });
+    panelScrollTo($("detail"));
     syncClear();
     $("detailBack").addEventListener("click", closeDetail);
     if (real) wireWant(t);
@@ -2968,7 +3004,7 @@ out body;`;
       <p class="muted">Once it's mapped on OpenStreetMap, it shows up as a normal new trail. Mapping tip: the OpenStreetMap editor can show the Strava heatmap as a background to trace from by hand.</p>`;
     $("panel").classList.add("detail-open"); setTrailFocus(true);
     $("detail").hidden = false;
-    $("detail").scrollIntoView({ block: "start" });
+    panelScrollTo($("detail"));
     $("detailBack").addEventListener("click", closeDetail);
     loadElevation(t);
     loadWeather(t);
@@ -3054,7 +3090,7 @@ out body;`;
     setMode("name");
     getFolders().forEach((x) => openFolders.add(x.id));
     renderFolders();
-    $("wantList").scrollIntoView({ block: "start", behavior: "smooth" });
+    panelScrollTo($("wantList"), "start", true);
   }
   window.addEventListener("tf:open-folders", (e) => { e.detail.handled = true; showFolders(); });
 
@@ -3105,7 +3141,7 @@ out body;`;
     render();
     if (!t) return;
     openDetail(t);
-    if (fly) setTimeout(() => { map.invalidateSize(); map.fitBounds(t.bounds || L.latLngBounds(t.geom), { maxZoom: 16, padding: [40, 40] }); }, 60);
+    setTimeout(() => focusTrail(t.bounds || L.latLngBounds(t.geom), fly), 60);
   }
   // For reports.js map badges: open a trail's details if it's loaded.
   window.tfClassify = classify;   // for new-trail notifications (notify.js)
@@ -4496,17 +4532,14 @@ out tags center qt;`;
       state.selected = t.id;
       render();
       openDetail(t);
-      setTimeout(() => {
-        map.invalidateSize();
-        if (view === "fit") map.fitBounds(bounds, { maxZoom: 16, padding: [40, 40] });
-        else if (view && !map.getBounds().pad(-0.1).contains(view)) map.panTo(view);
-      }, 60);
+      setTimeout(() => focusTrail(bounds, view === "fit"), 60);
   }
   function drawFound(t) {
     foundLayer.clearLayers();
     const dd = state.colorBy === "diff" ? difficulty(t.tags) : null;
     const color = state.colorBy === "diff" ? diffColor(dd) : { mtb: css("--mtb"), looks: css("--looks"), other: css("--accent") }[t.cat];
     t.segments.forEach((s) => {
+      foundLayer.addLayer(L.polyline(s, { color: PICK_GLOW, weight: 24, opacity: 0.6, lineCap: "round", interactive: false }));   // highlighter so the picked trail stands out
       foundLayer.addLayer(L.polyline(s, { color: "#ffffff", weight: 12, opacity: 0.9, lineCap: "round", interactive: false }));
       foundLayer.addLayer(L.polyline(s, { color, weight: 6, opacity: 1, lineCap: "round", dashArray: isUnoff(t) ? UNOFF_DASH : null })
         .bindTooltip(esc(trailName(t)), { sticky: true, direction: "top", offset: [0, -8] })
@@ -4707,7 +4740,7 @@ out tags center qt;`;
     $("boxRes").innerHTML = `<div class="box-head"><div><b>${none ? `No ${what} ${esc(inWhere)}` : `${boxGroups.length} ${one}${boxGroups.length === 1 ? "" : "s"} ${esc(inWhere)}`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed bit${unnamed === 1 ? "" : "s"} (on the map)</span>` : ""}</div><button class="linkish" id="boxClear" type="button">${diff ? "Clear" : "Clear square"}</button></div>${why}${rows}`;
     $("boxClear").addEventListener("click", clearBox);
     $("boxRes").querySelectorAll(".box-row").forEach((r) => r.addEventListener("click", () => openBoxGroup(boxGroups[+r.dataset.i])));
-    $("boxRes").scrollIntoView({ block: "nearest" });
+    panelScrollTo($("boxRes"), "nearest");
   }
   // Difficulty chips in Find a trail: every trail of that level in the chosen area. Tap again to clear.
   // Chips can be combined: tap to add or remove one; with none left, the list clears.
