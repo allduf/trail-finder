@@ -1121,6 +1121,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
         <div class="lm-head">Show on the map</div>
         <div class="lm-list lm-overlays">
         <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
+        <button id="alpineBtn" type="button" aria-pressed="false" title="Show the alpine paths, above the tree line, that look doable on a mountain bike">Alpine rideable</button>
         <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
         <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire">🔥 Wildfires</button>
         <button id="areasBtn" type="button" aria-pressed="false" title="Show logging areas (cut blocks) and areas closed to motor vehicles">▦ Logging areas</button>
@@ -2437,6 +2438,7 @@ out body;`;
     tfName: (!tags.name && tags["tf:name"]) || null,
     rec: tags["tf:rec"] ? { name: tags["tf:rec"], id: tags["tf:rec-id"] || "", use: tags["tf:rec-use"] || "", about: tags["tf:rec-about"] || "" } : null,
     park: tags["tf:park"] || null,
+    alpine: tags["tf:alpine-hi"] ? { lo: +tags["tf:alpine-lo"], hi: +tags["tf:alpine-hi"], up: +tags["tf:alpine-up"], tl: +tags["tf:alpine-tl"], why: tags["tf:alpine-why"] || "" } : null,
   });
   // BC Parks' rules for bikes in a park, from the park's own trail map.
   const PARK_RULES = { "South Chilcotin Mountains Park": "bikes stay on the designated trails, and e-bikes aren't allowed in the park (BC Parks trail map)" };
@@ -3126,6 +3128,9 @@ out body;`;
         <p class="muted">${t.use === "moto" ? "Dirt-bike, ATV and 4x4 trails" : "Hiking-only trails"} are left out of the new-trails list. This is a guess from the map tags.</p></div>` : ""}
       ${isUnoff(t) ? `<div class="unoff-box"><strong>Possibly unsanctioned</strong><ul>${t.unoff.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">This only shows what OpenStreetMap mappers tagged. It's a hint, not the trail's legal status. Check with the land manager or Trailforks before riding.</p></div>` : ""}
+      ${tf.alpine ? `<div class="alpine-box"><strong>${window.tfAlpine ? window.tfAlpine.icon : ""} Alpine, looks rideable</strong>
+        <p>${tf.alpine.up >= 1000 ? (tf.alpine.up / 1000).toFixed(1) + " km" : Math.round(tf.alpine.up / 10) * 10 + " m"} of it is above the tree line (about ${tf.alpine.tl} m here), up to ${tf.alpine.hi} m.${tf.alpine.why ? ` From the map: ${esc(tf.alpine.why)}.` : ""}</p>
+        <p class="muted">A guess from the map tags and terrain heights, not a bike rating. Expect rock, hike-a-bike and late snow, and check the area's rules: bikes may still be closed there.</p></div>` : ""}
       ${tf.park ? `<p class="park-note">In <a href="${parkUrl(tf.park)}" target="_blank" rel="noopener">${esc(tf.park)}</a>${PARK_RULES[tf.park] ? `: ${esc(PARK_RULES[tf.park])}` : ""}.</p>` : ""}
       <div class="go"><a class="go-btn" id="goBtn" target="_blank" rel="noopener" aria-disabled="true">Go to trail</a><p class="muted" id="goNote">Finding the top of the trail…</p></div>
       <h3>Weather and Loam moisture index</h3><div id="wx" class="muted">Loading weather…</div>
@@ -3838,6 +3843,8 @@ out body;`;
   }
   // The tags the all-trails job adds to a way (tf:area, tf:official, tf:rec, tf:park...), for a trail loaded from OpenStreetMap.
   function allTfOf(id) {
+    const alp = window.tfAlpine && window.tfAlpine.tf(id);   // the Alpine rideable layer (alpine.js)
+    if (alp) return alp;
     for (const list of allData.values()) {
       const w = list && list.find((w) => w.id === id);
       if (w) return Object.fromEntries(Object.entries(w.tags).filter(([k]) => k.startsWith("tf:")));
@@ -4448,6 +4455,7 @@ out body;`;
         + sw(`background: ${UNRATED}`, "Not rated") + sw(dots, "Unofficial?")
       : sw("background: var(--mtb)", "MTB tagged") + sw("background: repeating-linear-gradient(90deg, var(--looks) 0 8px, transparent 8px 12px)", "Looks like MTB")
         + sw("background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 8px)", "Possible unmapped") + sw(dots, "Unofficial?");
+    if (window.tfAlpine && window.tfAlpine.on()) html += window.tfAlpine.keyItem(sw);
     if (state.roads) html += section("Forest roads", ["good", "degraded", "heavy", "impass", "unknown", "closed"].map((st) => {
         const c = roadStyle(st).color;
         return sw(ROAD_STYLE[st].dashArray ? `background: repeating-linear-gradient(90deg, ${c} 0 6px, #fff 6px 10px)` : `background: ${c}`, ROAD_STATUS[st].label);
@@ -4470,6 +4478,7 @@ out body;`;
       : state.allTrails ? "All trails: bold = official, thin = not known. Thick: trails in the list." : "";
   }
   renderKey();
+  window.tfRenderKey = renderKey;   // alpine.js adds its line to the key
 
   // ---------- Layers: the map style, overlays and map tools live in one drop-down ----------
   const layersMenu = $("layersMenu"), layersBtn = $("layersBtn");
@@ -4835,6 +4844,17 @@ out tags center qt;`;
   async function getJson(url) { const r = await fetch(url); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }
   const wayLine = (w, nodes) => w.nodes.map((id) => nodes.get(id)).filter(Boolean).map((n) => [n.lat, n.lon]);
   const kindOf = (tags, isRel) => isRel ? ROUTE_KIND[tags.route] || "Route" : hasMtb(tags) ? "MTB trail" : WAY_KIND[tags.highway] || "Path";
+  // A tap on the Alpine rideable layer (alpine.js): open the path by its way id, as a click on the map does.
+  window.tfOpenWay = async (id, ll) => {
+    if (state.selected) closeDetail();
+    const token = ++foundToken;
+    try {
+      const els = (await getJson(`${OSM_API}/way/${id}/full.json`)).elements;
+      const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e])), w = els.find((e) => e.type === "way");
+      if (!w || token !== foundToken) return;
+      await presentTrail({ main: w, segs: [wayLine(w, nodes)], segIds: [w.id], type: "way", kind: kindOf(w.tags || {}), token, view: ll });
+    } catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${e.message}).`, true); }
+  };
   window.tfShowFound = (g) => showFound(g, true);   // notify.js opens a new trail by its way ids
   async function showFound(g, fromClick) {
     if (!fromClick) { $("trailQ").value = g.name; $("trailHits").hidden = true; $("trailQ").blur(); }
@@ -4898,6 +4918,7 @@ out tags center qt;`;
       if (c && c.cat === "other") t.catLabel = kind;
       t.net = !!(c && c.net);
       if (netCheck(t).inNet) t.catLabel = null;
+      if (ctags["tf:alpine-hi"] && t.cat !== "mtb") t.catLabel = "Alpine, looks rideable";
       // First-mapped date: version 1 of the oldest segment (or of the route).
       const v1 = segIds.length ? await fetchV1(segIds).catch(() => new Map()) : new Map();
       if (type === "relation") {
@@ -5243,6 +5264,7 @@ out tags center qt;`;
 <script src="visitors.js"></script>
 <script src="notify.js"></script>
 <script src="areas.js"></script>
+<script src="alpine.js"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
