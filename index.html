@@ -1717,6 +1717,8 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     const motor = /^(designated|customers)$/.test(tags.bicycle || "") ? null : !isNaN(w) && w >= 2 ? `wide (${w} m)` : ["motorcycle", "motor_vehicle", "atv", "ohv", "orv"].filter((k) => MOTO_OK.test(tags[k] || "")).map((k) => `${k}=${tags[k]}`)[0];
 
     if (score >= 2 && !motor) return { cat: "looks", why: why.concat(`score ${score}`) };
+    // Added by the all-trails job (scripts/build-mtb.mjs): a named path in a riding area where mappers seldom tag bike trails.
+    if (tags["tf:area"] && !motor) return { cat: "looks", why: why.concat(`named trail in the ${tags["tf:area"]} riding area, where few trails have bike tags`) };
     if (hw === "path") return { cat: "other", net: !motor && netOk(tags), why: motor ? [`open to motor vehicles or wide (${motor})`] : why.length ? why.concat(`score ${score}`) : ["no bike-related tags yet"] };
     return null;
   }
@@ -2865,7 +2867,7 @@ out body;`;
       </dl>
       ${real ? `<p><a href="https://www.openstreetmap.org/${type}/${t.id}/history" target="_blank" rel="noopener">Full history on OpenStreetMap</a></p>` : ""}
       <details class="more"><summary>Edit history</summary><div id="history" class="muted">${real ? "Loading…" : "Not available for example trails."}</div></details>
-      <details class="more"><summary>All tags (${Object.keys(t.tags).length})</summary><table class="tagtable"><tbody>${Object.entries(t.tags).map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table></details>
+      <details class="more"><summary>All tags (${Object.keys(t.tags).filter((k) => !k.startsWith("tf:")).length})</summary><table class="tagtable"><tbody>${Object.entries(t.tags).filter(([k]) => !k.startsWith("tf:")).map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table></details>
       ${segs && type === "way" ? `<p class="muted">The tags, history and links are for its main segment. All segments: ${t.segIds.map((id) => `<a href="https://www.openstreetmap.org/way/${id}" target="_blank" rel="noopener">${id}</a>`).join(", ")}</p>` : ""}
       <p class="muted">OpenStreetMap ${type} ${real ? t.id : "(example)"}</p></details>
       <!-- Getting there and Shuttle access sit at the bottom of the details; the trail facts are in More info (alex). -->
@@ -3357,6 +3359,9 @@ out body;`;
       }));
     }
     return allLoads.get(z.id);
+  }
+  function allAreaOf(id) {
+    for (const list of allData.values()) { const w = list && list.find((w) => w.id === id); if (w) return w.tags["tf:area"]; }
   }
   function drawAllTrails() {
     const loaded = [...allData.values()].filter(Boolean);
@@ -4387,7 +4392,8 @@ out tags center qt;`;
   async function presentTrail({ main, segs, segIds, type, kind, routes = [], routeTypes = [], token, view }) {
       const tags = main.tags || {};
       const types = routeTypes.concat(tags.route ? [tags.route] : []);
-      const c = classify(tags, routes.map((r) => r.name).concat(tags.route === "mtb" ? [tags.name] : []), types);
+      const area = tags["tf:area"] || allAreaOf(main.id);   // a named path the all-trails job added in a sparse riding area
+      const c = classify(area ? { ...tags, "tf:area": area } : tags, routes.map((r) => r.name).concat(tags.route === "mtb" ? [tags.name] : []), types);
       const { line: geom, all: chainAll } = chainSegments(segs);
       const bounds = segs.reduce((b, s) => b.extend(L.latLngBounds(s)), L.latLngBounds(segs[0]));
       const t = {
