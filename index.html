@@ -1244,7 +1244,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     <h3>Possible unmapped trails (unverified)</h3>
     <p>Purple dotted lines are guesses, not mapped trails. Once a week the site looks at the public GPS traces people upload to OpenStreetMap. Where 2 or more different traces run together for 100 m or more, more than 20 m from any mapped road, path, lift or ski run, it's listed. Only lines most traces ride at bike speed (faster than walking, slower than a car) are shown. The date is the first GPS trace on it. Each one links to the Strava and Trailforks heatmaps so you can compare, and to OpenStreetMap so you can map it if it's real. It may be private land, closed, or a GPS glitch: check before riding.</p>
     <h3>Forest roads</h3>
-    <p>Forest Service Roads and other dirt roads have a white edge and a colour for their status (turn them off with “Forest roads”). Once a week the site collects them from two open sources: the BC government's Forest Tenure roads (DataBC, Open Government Licence - British Columbia), which list every Forest Service Road and road permit with its tenure status, and OpenStreetMap dirt roads with their gate, access and deactivation tags. The colour is the road's condition, like on a backroad map. Green is good condition (an active Forest Service tenure, or mapped as smooth or solid). Yellow is degraded (mapped as bad or partly soft). Red is heavily degraded: very rough, 4x4 only, or a retired tenure that's no longer maintained and often deactivated. Black dashes are impassable: deactivated, washed out or abandoned. Grey dashes mean the condition isn't known. Pink dashes mean closed to public vehicles: gated, private or industrial use only. Tap a road to see why. This is mapped data, not a live closure list: check the <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p>
+    <p>Forest Service Roads and other dirt roads have a white edge and a colour for their status (turn them off with “Forest roads”). Once a week the site collects them from two open sources: the BC government's Forest Tenure roads (DataBC, Open Government Licence - British Columbia), which list every Forest Service Road and road permit with its tenure status, and OpenStreetMap dirt roads with their gate, access and deactivation tags. The colour is the road's condition, like on a backroad map. Green is good condition (an active Forest Service tenure, or mapped as smooth or solid). Yellow is degraded (mapped as bad or partly soft). Red is heavily degraded: very rough, 4x4 only, or a retired tenure that's no longer maintained and often deactivated. Black dashes are impassable: deactivated, washed out or abandoned. Grey dashes mean the condition isn't known. Pink dashes mean closed to public vehicles: gated, private or industrial use only. Each road is one line: where both sources map the same road, what a mapper saw on the ground (OpenStreetMap) wins, and the tenure decides only when OpenStreetMap has no condition for it. Tap a road to see both sources. This is mapped data, not a live closure list: check the <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p>
     <p>With “Forest roads” on, the map also shows, once you zoom in: gates (open, locked or not known), barriers, bridges and bridges out, foot bridges, fords and hydro plants, from OpenStreetMap. Tap any of them for details. The “Logging areas” button shows cut blocks (pending, active or recently logged, and retired in the last 15 years) and areas closed to motor vehicles, from the BC government, on their own. With the button off, the roads stay on the map as plain grey-brown lines.</p>
     <h3>Wildfires</h3>
     <p>The “Wildfires” button shows the BC Wildfire Service's current fires (fires that are out are left off) and their perimeters, areas closed because of fire (area restriction orders), and evacuation orders and alerts. It's refreshed every 3 hours, so always check the <a href="https://wildfiresituation.nrs.gov.bc.ca/map" target="_blank" rel="noopener">BC Wildfire map</a> and <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a> before heading out.</p>
@@ -3378,10 +3378,7 @@ out body;`;
             const [st, why] = osmRoadStatus(w.tags), geom = roadGeom(w.g);
             if (geom.length > 1) list.push({ src: "osm", id: +id, name: w.tags.name || w.tags.ref || "", tags: w.tags, st, why, geom, bounds: L.latLngBounds(geom) });
           });
-          (f.ften || []).forEach((r) => {
-            const [st, why] = ftenRoadStatus(r), geom = roadGeom(r.g);
-            if (geom.length > 1) list.push({ src: "ften", name: r.n, r, st, why, geom, bounds: L.latLngBounds(geom) });
-          });
+          list.push(...conflateFten(list, f.ften || []));
         }
         roadData.set(z.id, { at: f && f.builtAt, list, ...(f && f.v === 1 ? zoneExtras(f, list) : { feats: [], areas: [] }) });
         drawRoads();
@@ -3389,6 +3386,80 @@ out body;`;
       }));
     }
     return roadLoads.get(z.id);
+  }
+  // One line per road (alex): the government (Forest Tenure) road lines are drawn a few tens of metres off the
+  // OpenStreetMap ones, and several tenures often cover the same road, which drew two or three side-by-side lines in
+  // different colours. A government section that runs along an OpenStreetMap road (or along a government section
+  // already kept) is folded into it instead of drawn; only the stretches no other line covers are drawn on their own.
+  // Status of a folded road: what a mapper saw on the ground (OpenStreetMap condition, gates, washouts) first; when
+  // OpenStreetMap has no condition, the tenure decides (an active tenure means maintained, so it wins over a retired one).
+  const MATCH_M = 60, STEP_M = 25, CELL_M = 100, MIN_RUN = 6;
+  function conflateFten(osm, ften) {
+    if (!ften.length) return [];
+    const lat0 = (osm[0] && osm[0].geom[0][0]) || ften[0].g[0], kx = Math.cos((lat0 * Math.PI) / 180) * 111320, ky = 110540;
+    const xy = ([la, lo]) => [lo * kx, la * ky];
+    const grid = new Map(), cellKey = (cx, cy) => cx + "," + cy;
+    const addLine = (item, geom) => {
+      for (let i = 1; i < geom.length; i++) {
+        const a = xy(geom[i - 1]), b = xy(geom[i]);
+        for (let cx = Math.floor(Math.min(a[0], b[0]) / CELL_M); cx <= Math.floor(Math.max(a[0], b[0]) / CELL_M); cx++)
+          for (let cy = Math.floor(Math.min(a[1], b[1]) / CELL_M); cy <= Math.floor(Math.max(a[1], b[1]) / CELL_M); cy++) {
+            const k = cellKey(cx, cy);
+            if (!grid.has(k)) grid.set(k, []);
+            grid.get(k).push([item, a, b]);
+          }
+      }
+    };
+    const nearest = (p) => {
+      const q = xy(p), cx = Math.floor(q[0] / CELL_M), cy = Math.floor(q[1] / CELL_M);
+      let best = null, bd = MATCH_M;
+      for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) (grid.get(cellKey(cx + i, cy + j)) || []).forEach(([item, a, b]) => {
+        const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy;
+        const t = l2 ? Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / l2)) : 0;
+        const d = Math.hypot(q[0] - a[0] - t * dx, q[1] - a[1] - t * dy);
+        if (d < bd) { bd = d; best = item; }
+      });
+      return best;
+    };
+    const densify = (geom) => {
+      const out = [geom[0]];
+      for (let i = 1; i < geom.length; i++) {
+        const a = geom[i - 1], b = geom[i], n = Math.ceil(Math.hypot((b[1] - a[1]) * kx, (b[0] - a[0]) * ky) / STEP_M);
+        for (let j = 1; j <= n; j++) out.push([a[0] + ((b[0] - a[0]) * j) / n, a[1] + ((b[1] - a[1]) * j) / n]);
+      }
+      return out;
+    };
+    osm.forEach((o) => { o.ften = []; addLine(o, o.geom); });
+    const rank = { ACTIVE: 0, PENDING: 1, RETIRED: 2 }, kept = [];
+    ften.slice().sort((a, b) => (rank[a.s] ?? 1) - (rank[b.s] ?? 1)).forEach((r) => {
+      const geom = roadGeom(r.g);
+      if (geom.length < 2) return;
+      const pts = densify(geom), owner = pts.map(nearest), hits = new Map();
+      owner.forEach((o) => o && hits.set(o, (hits.get(o) || 0) + 1));
+      hits.forEach((n, o) => { if (n >= 3 && !o.ften.includes(r)) o.ften.push(r); });
+      const [st, why] = ftenRoadStatus(r);
+      for (let i = 0; i < pts.length; ) {
+        if (owner[i]) { i++; continue; }
+        let j = i;
+        while (j < pts.length && !owner[j]) j++;
+        if (j - i >= MIN_RUN) {
+          const run = pts.slice(Math.max(0, i - 1), Math.min(pts.length, j + 1));
+          const piece = { src: "ften", name: r.n, r, st, why, ften: [], geom: run, bounds: L.latLngBounds(run) };
+          kept.push(piece); addLine(piece, run);
+        }
+        i = j;
+      }
+    });
+    osm.forEach((o) => {
+      if (!o.ften.length) return;
+      o.osmSt = o.st; o.osmWhy = o.why;
+      if (!o.name) o.name = (o.ften.find((r) => r.n) || {}).n || "";
+      if (o.st !== "unknown") return;
+      const r = o.ften.find((x) => x.s === "ACTIVE") || o.ften.find((x) => x.s === "RETIRED") || o.ften[0];
+      [o.st, o.why] = ftenRoadStatus(r);
+      o.why += "; OpenStreetMap has no condition for it";
+    });
+    return kept;
   }
   function drawRoads() {
     const zoomed = map.getZoom() >= ROAD_MIN_ZOOM, on = state.roads && zoomed;
@@ -3609,9 +3680,10 @@ out body;`;
     // OpenStreetMap names come first: government labels are often permit codes like "R00591 G".
     const named = hits.filter((r) => r.name).sort((a, b) => (a.src === "osm" ? 0 : 1) - (b.src === "osm" ? 0 : 1));
     const name = named.length ? named[0].name : "Unnamed dirt road";
+    const tenure = (t) => `BC Forest Tenure roads: ${esc(t.t || "road section")}${t.p ? ", " + esc(t.p) : ""}${t.f ? ", file " + esc(t.f) : ""} (${esc(ROAD_STATUS[ftenRoadStatus(t)[0]].label.toLowerCase())}, tenure ${esc((t.s || "?").toLowerCase())})`;
     const parts = hits.map((r) => r.src === "ften"
-      ? `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">BC Forest Tenure roads: ${esc(r.r.t || "road section")}${r.r.p ? ", " + esc(r.r.p) : ""}${r.r.f ? ", file " + esc(r.r.f) : ""}</span></p>`
-      : `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">OpenStreetMap: ${esc(["highway=" + (r.tags.highway || r.tags["disused:highway"] || r.tags["abandoned:highway"] || "?"), r.tags.tracktype, r.tags.surface].filter(Boolean).join(", "))} · <a href="https://www.openstreetmap.org/way/${r.id}" target="_blank" rel="noopener">way ${r.id}</a></span></p>`);
+      ? `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">${[r.r, ...(r.ften || [])].map(tenure).join("<br>")}</span></p>`
+      : `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">OpenStreetMap: ${esc(["highway=" + (r.tags.highway || r.tags["disused:highway"] || r.tags["abandoned:highway"] || "?"), r.tags.tracktype, r.tags.surface].filter(Boolean).join(", "))}${r.osmSt ? ` (${r.osmSt === "unknown" ? "no condition mapped" : esc(ROAD_STATUS[r.osmSt].label.toLowerCase())})` : ""} · <a href="https://www.openstreetmap.org/way/${r.id}" target="_blank" rel="noopener">way ${r.id}</a>${(r.ften || []).map((t) => "<br>" + tenure(t)).join("")}</span></p>`);
     L.popup({ className: "road-pop-wrap", maxWidth: 280 }).setLatLng(ll).setContent(`<div class="road-pop"><h4>${esc(name)}</h4>${parts.join("")}${areas.join("")}
       <p class="src">From mapped data, not a live closure list: check the
       <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p></div>`).openOn(map);
