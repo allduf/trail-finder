@@ -28,5 +28,17 @@
   {"name": "Coast Gravity Park", "zone": "sun", "c": [49.5026, -123.7199], "tier": 1},
   {"name": "Duck Lake", "zone": "pr", "c": [49.9045, -124.4739], "tier": 1},
   {"name": "Penticton St", "zone": "pr", "c": [49.8105, -124.501], "tier": 2},
-  {"name": "Myrtle Springs", "zone": "pr", "c": [49.7856, -124.4237], "tier": 2}
+  {"name": "Myrtle Springs", "zone": "pr", "c": [49.7856, -124.4237], "tier": 2},
+  {"name": "Canada Olympic Park", "zone": "yyc", "c": [51.0827, -114.2152], "tier": 1},
+  {"name": "Nose Hill", "zone": "yyc", "c": [51.1131, -114.1086], "tier": 2},
+  {"name": "Fish Creek", "zone": "yyc", "c": [50.9135, -114.0322], "tier": 2},
+  {"name": "Glenbow Ranch", "zone": "yyc", "c": [51.1596, -114.3842], "tier": 2},
+  {"name": "West Bragg Creek", "zone": "brg", "c": [50.9406, -114.6667], "tier": 1},
+  {"name": "Moose Mountain", "zone": "brg", "c": [50.9327, -114.8302], "tier": 1},
+  {"name": "Canmore Nordic Centre", "zone": "kan", "c": [51.0898, -115.3916], "tier": 1},
+  {"name": "Quarry Lake", "zone": "kan", "c": [51.0668, -115.3756], "tier": 2},
+  {"name": "Barrier Lake", "zone": "kan", "c": [51.0276, -115.0386], "tier": 2},
+  {"name": "Kananaskis Village", "zone": "kan", "c": [50.9358, -115.1435], "tier": 2},
+  {"name": "Banff", "zone": "bnf", "c": [51.1765, -115.5698], "tier": 1},
+  {"name": "Tunnel Mountain", "zone": "bnf", "c": [51.1866, -115.5513], "tier": 2}
 ]}

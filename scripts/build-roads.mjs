@@ -25,6 +25,8 @@ const WFS = "https://openmaps.gov.bc.ca/geo/pub/wfs";
 const FTEN_LAYER = "WHSE_FOREST_TENURE.FTEN_ROAD_SECTION_LINES_SVW";
 const ZONES = [...html.matchAll(/\{ id: "(\w+)", name: "([^"]+)", box: \[([^\]]+)\] \}/g)].map((m) => ({ id: m[1], name: m[2], box: m[3].split(",").map(Number) }));
 if (ZONES.length < 2) throw new Error("Couldn't read the zones from index.html");
+// DataBC and BC Wildfire only cover BC: zones east of 116.5° W (Calgary and the Rockies) are in Alberta.
+const inBC = (z) => z.box[1] < -116.5;
 const ONLY = process.env.ONLY || "";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
@@ -267,7 +269,7 @@ let updated = 0, failed = 0;
 // Wildfires (BC Wildfire Service, current season): fire points and perimeters for the whole region, in data/fires.json.
 // Fires that are out are left out. Run on its own every few hours with ONLY=fires.
 if (!ONLY || ONLY === "fires") {
-  const all = ZONES.reduce((b, z) => [Math.min(b[0], z.box[0]), Math.min(b[1], z.box[1]), Math.max(b[2], z.box[2]), Math.max(b[3], z.box[3])], [90, 180, -90, -180]);
+  const all = ZONES.filter(inBC).reduce((b, z) => [Math.min(b[0], z.box[0]), Math.min(b[1], z.box[1]), Math.max(b[2], z.box[2]), Math.max(b[3], z.box[3])], [90, 180, -90, -180]);
   const box = [all[0] - 0.3, all[1] - 0.4, all[2] + 0.3, all[3] + 0.4];
   const notOut = (p) => !/^out$/i.test(String(p.FIRE_STATUS || "").trim());
   try {
@@ -317,7 +319,7 @@ for (const z of ZONES) {
   const old = readJson(`roads-${z.id}.json`) || {};
   const file = { v: 1, builtAt, ften: old.ften || [], osm: old.osm || {}, feat: old.feat || [], cut: old.cut || [], mv: old.mv || [], ftenAt: old.ftenAt || null, osmAt: old.osmAt || null };
   let changed = false;
-  if (ONLY !== "osm") {
+  if (ONLY !== "osm" && inBC(z)) {
     try {
       file.ften = ftenRoads([...(await fetchFten(z.box)).values()], z.box);
       file.ftenAt = builtAt; changed = true;

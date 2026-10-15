@@ -22,6 +22,8 @@ const WFS = "https://openmaps.gov.bc.ca/geo/pub/wfs";
 const REC_LAYER = "WHSE_FOREST_TENURE.FTEN_REC_SITE_POINTS_SVW";
 const ZONES = [...html.matchAll(/\{ id: "(\w+)", name: "([^"]+)", box: \[([^\]]+)\] \}/g)].map((m) => ({ id: m[1], name: m[2], box: m[3].split(",").map(Number) }));
 if (ZONES.length < 2) throw new Error("Couldn't read the zones from index.html");
+// DataBC and BC Wildfire only cover BC: zones east of 116.5° W (Calgary and the Rockies) are in Alberta.
+const inBC = (z) => z.box[1] < -116.5;
 const ONLY = process.env.ONLY || "";
 const PARK_M = 1500;   // parking and rec sites further than this from any MTB trail are left out
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -189,7 +191,7 @@ for (const z of ZONES) {
       log(`${z.name}: ${file.osm.filter((p) => p.k === "th").length} trailheads, ${file.osm.filter((p) => p.k === "p").length} parking near trails`);
     } catch (e) { failed++; log(`${z.name}: OpenStreetMap failed (${e.message}), keeping last good data`); }
   }
-  if (ONLY !== "osm") {
+  if (ONLY !== "osm" && inBC(z)) {
     try {
       file.rec = recPoints(await recSites(z.box), grid); file.recAt = builtAt; changed = true;
       log(`${z.name}: ${file.rec.length} recreation sites and trails${file.rec[0] ? ` (e.g. ${file.rec[0].t.name}, ${file.rec[0].t.type})` : ""}`);
