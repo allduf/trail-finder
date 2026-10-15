@@ -9,7 +9,8 @@
 // marked with the made-up tag tf:area=<area name> so the site can say why it shows them. An area with its own radius r
 // (metres, e.g. South Chilcotin) is backcountry where every named path within r counts, however many have bike tags,
 // and so does every named path inside the area's park (park: the park's name; REC_ZONES only, where parks are loaded).
-// An area with an official reason marks its named paths tf:official=<reason> (not ones named like roads).
+// An area with an official reason marks its named paths tf:official=<reason> (not ones named like roads), and in the
+// OFFICIAL_ZONES (Williams Lake) every trail of the list is marked so.
 // In the REC_ZONES (Gold Bridge & South Chilcotin), the BC government's Recreation Sites and Trails BC trails fill the gaps
 // (see recData below): paths along them count too, named after them when OpenStreetMap has no name, and park trails say so.
 // A zone whose riding areas change is rebuilt on the next run.
@@ -47,6 +48,9 @@ const radius = (a) => a.r || AREA_M;
 // Every trail of the zone inside a provincial park or protected area (WHSE_TANTALIS.TA_PARK_ECORES_PA_SVW, same licence)
 // gets tf:park=<park name>. If DataBC can't be reached, the zone keeps its last good list.
 const REC_ZONES = ["chil"];
+// Zones where every trail in the list is official (alex: "make all mtb tagged trail in williams lake official trail"):
+// each way gets tf:official=<reason>, unless it already has a reason or is named like a road.
+const OFFICIAL_ZONES = { wl: "an established Williams Lake mountain bike trail (Fox Mountain, Desous Mountain and around town)" };
 const REC_M = 60, REC_SHARE = 0.6;
 const WFS = "https://openmaps.gov.bc.ca/geo/pub/wfs";
 const WINTER = /\b(winter|snowmobile|sled|ski|snowshoe|nordic)\b/i;
@@ -128,10 +132,11 @@ if (!existsSync(DATA)) mkdirSync(DATA);
 const builtAt = new Date().toISOString().slice(0, 19) + "Z";
 const lastBuilt = (z) => Date.parse((readJson(`mtb-${z.id}.json`) || {}).builtAt) || 0;
 const areasOf = (z) => AREAS.filter((a) => a.zone === z.id);
-const areasKey = (z) => JSON.stringify(areasOf(z).map((a) => [a.name, a.c, radius(a), a.official || ""].concat(a.park ? [a.park] : [])).concat(REC_ZONES.includes(z.id) ? [["rec", REC_M, REC_SHARE]] : []));
+const zoneRules = (z) => (REC_ZONES.includes(z.id) ? [["rec", REC_M, REC_SHARE]] : []).concat(OFFICIAL_ZONES[z.id] ? [["official", OFFICIAL_ZONES[z.id]]] : []);
+const areasKey = (z) => JSON.stringify(areasOf(z).map((a) => [a.name, a.c, radius(a), a.official || ""].concat(a.park ? [a.park] : [])).concat(zoneRules(z)));
 // A list made for a different box (or before boxes were saved), older rules or other riding areas is out of date, however fresh.
-// Files from before areas were saved count as up to date unless the zone has a backcountry area (radius r).
-const sameAreas = (z, f) => (f.areas === undefined ? !areasOf(z).some((a) => a.r) : f.areas === areasKey(z));
+// Files from before areas were saved count as up to date unless the zone has a backcountry area (radius r) or a zone rule.
+const sameAreas = (z, f) => (f.areas === undefined ? !areasOf(z).some((a) => a.r) && !zoneRules(z).length : f.areas === areasKey(z));
 const sameBox = (z) => { const f = readJson(`mtb-${z.id}.json`) || {}; return String(f.box) === String(z.box) && f.rules === RULES && sameAreas(z, f); };
 const metres = (a, b) => Math.hypot((a[0] - b[0]) * 110540, (a[1] - b[1]) * 111320 * Math.cos((a[0] * Math.PI) / 180));
 const ownMtb = (t) => Object.keys(t).some((k) => /^mtb(:|$)/.test(k) && !(k === "mtb" && t.mtb === "no")) || t.bicycle === "customers";
@@ -297,6 +302,7 @@ for (const z of order) {
         if (t.about) tags["tf:rec-about"] = t.about;
       }
       if (park) tags["tf:park"] = park.name;
+      if (OFFICIAL_ZONES[z.id] && !tags["tf:official"] && !/\b(road|rd)\b/i.test(tags.name || "")) tags["tf:official"] = OFFICIAL_ZONES[z.id];
       ways[w.id] = { tags, g: simplify(w.geometry).flatMap((p) => [round(p.lat), round(p.lon)]) };
     }
     rels.filter((r) => !longRoutes.includes(r)).forEach((r) => {
