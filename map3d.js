@@ -215,12 +215,30 @@
     if (winterProtocol) return;
     winterProtocol = true;
     maplibregl.addProtocol("tfwinter", async (params, abort) => {
-      const [mode, zs, xs, ys] = params.url.replace("tfwinter://", "").split("/"), z = +zs, x = +xs, y = +ys, sig = abort.signal;
-      const photo = pixels(await image(ESRI(z, x, y), sig)), W = photo.width, P = photo.data;
+      const [, zs, xs, ys] = params.url.replace("tfwinter://", "").split("/"), z = +zs, x = +xs, y = +ys, sig = abort.signal;
+      const [raw, live] = await Promise.all([
+        fetch(ESRI(z, x, y), { signal: sig }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); }),
+        under(Math.min(z, 8), z, x, y, (a, b, c) => cached(`s${a}/${b}/${c}`, () => image(NASA_SNOW(a, b, c), new AbortController().signal).then(pixels))).catch(() => null)]);
+      // How much snow NASA saw at each photo pixel (0 to 1), blended between its 500 m cells so edges
+      // aren't blocky. Only clear, bright snow counts, so a thin or patchy dusting doesn't paint a mountain white.
+      const W = 256, snowAt = new Float32Array(W * W);
+      let any = false;
+      if (live) {
+        const [L, ll, lt, ls] = live, LW = L.width, cell = (cx, cy) => {
+          cx = Math.min(LW - 1, Math.max(0, cx)); cy = Math.min(LW - 1, Math.max(0, cy));
+          const i = (cy * LW + cx) * 4; if (!L.data[i + 3]) return 0;
+          return smooth(140, 230, 0.3 * L.data[i] + 0.59 * L.data[i + 1] + 0.11 * L.data[i + 2]);
+        };
+        for (let py = 0; py < W; py++) for (let px = 0; px < W; px++) {
+          const fx = ll + (px + 0.5) * ls / W - 0.5, fy = lt + (py + 0.5) * ls / W - 0.5, cx = Math.floor(fx), cy = Math.floor(fy), tx = fx - cx, ty = fy - cy;
+          const v = (cell(cx, cy) * (1 - tx) + cell(cx + 1, cy) * tx) * (1 - ty) + (cell(cx, cy + 1) * (1 - tx) + cell(cx + 1, cy + 1) * tx) * ty;
+          snowAt[py * W + px] = v; if (v > 0.02) any = true;
+        }
+      }
+      if (!any) return { data: raw };   // no snow here today: the sharp photo exactly as it is
+      const photo = pixels(await createImageBitmap(new Blob([raw]))), P = photo.data;
       const dz = Math.min(z, 13);
       const [dem, dl, dt, ds] = await under(dz, z, x, y, (a, b, c) => cached(`d${a}/${b}/${c}`, () => demTile(a, b, c, new AbortController().signal).then(pixels)));
-      let live = null;
-      if (mode === "live") live = await under(Math.min(z, 8), z, x, y, (a, b, c) => cached(`s${a}/${b}/${c}`, () => image(NASA_SNOW(a, b, c), new AbortController().signal).then(pixels))).catch(() => null);
       const D = dem.data, DW = dem.width, h = (px, py) => {
         px = Math.min(DW - 1, Math.max(0, px | 0)); py = Math.min(DW - 1, Math.max(0, py | 0));
         const i = (py * DW + px) * 4; return D[i] * 256 + D[i + 1] + D[i + 2] / 256 - 32768;
@@ -230,13 +248,8 @@
       for (let py = 0; py < W; py++) for (let px = 0; px < W; px++) {
         const i = (py * W + px) * 4, r = P[i], g = P[i + 1], b = P[i + 2];
         const hx = dl + (px + 0.5) * ds / W, hy = dt + (py + 0.5) * ds / W;
-        const e = h(hx, hy);
-        let s;
-        if (live) {
-          const [L, ll, lt, ls] = live, sx = Math.min(L.width - 1, (ll + (px + 0.5) * ls / W) | 0), sy = Math.min(L.width - 1, (lt + (py + 0.5) * ls / W) | 0);
-          s = L.data[(sy * L.width + sx) * 4 + 3] > 0 ? 1 : 0;
-        } else s = smooth(300, 800, e);
-        if (s === 0) { P[i] = r * 0.9 + 6; P[i + 1] = g * 0.9 + 6; P[i + 2] = b * 0.9 + 14; continue; }   // cold, grey-blue valley
+        let s = snowAt[py * W + px];
+        if (s <= 0.02) continue;   // bare ground keeps the photo untouched
         const gx = h(hx + 1, hy) - h(hx - 1, hy), gy = h(hx, hy + 1) - h(hx, hy - 1);
         const slope = Math.atan(Math.hypot(gx, gy) / (2 * mpp)) * 57.3;
         s *= 1 - smooth(40, 55, slope);   // cliffs shed their snow
@@ -249,7 +262,7 @@
       }
       const out = new OffscreenCanvas(W, W);
       out.getContext("2d").putImageData(photo, 0, 0);
-      return { data: await (await out.convertToBlob({ type: "image/jpeg", quality: 0.9 })).arrayBuffer() };
+      return { data: await (await out.convertToBlob({ type: "image/jpeg", quality: 0.95 })).arrayBuffer() };
     });
   }
 
@@ -356,7 +369,6 @@
       gl.setLayoutProperty("sat", "visibility", photos === "sharp" || photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
       gl.setLayoutProperty("winter", "visibility", photos === "winter" ? "visible" : "none");
       gl.setLayoutProperty("live", "visibility", photos === "live" ? "visible" : "none");
-      gl.setLayoutProperty("shade", "visibility", photos === "live" ? "visible" : "none");
       sumBtn.title = "Sharp, snow-free photos";
       winBtn.title = "Real satellite photos from February and March 2026 (Sentinel-2, 10 m, so softer)";
       liveBtn.title = "Today's real snow (NASA satellite, 2 days old)";
