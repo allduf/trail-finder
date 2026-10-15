@@ -30,9 +30,13 @@ const WFS = "https://openmaps.gov.bc.ca/geo/pub/wfs";
 const AVCAN = process.env.AVCAN_API || "https://api.avalanche.ca";
 const ZONES = [...html.matchAll(/\{ id: "(\w+)", name: "([^"]+)", box: \[([^\]]+)\] \}/g)].map((m) => ({ id: m[1], name: m[2], box: m[3].split(",").map(Number) }));
 if (ZONES.length < 2) throw new Error("Couldn't read the zones from index.html");
-// The whole region, a little wider: the ski terrain goes further up the valleys than the riding areas.
-const REGION = [Math.min(...ZONES.map((z) => z.box[0])) - 0.05, Math.min(...ZONES.map((z) => z.box[1])) - 0.1,
-  Math.max(...ZONES.map((z) => z.box[2])) + 0.05, Math.max(...ZONES.map((z) => z.box[3])) + 0.1].map((v) => +v.toFixed(2));
+// Each region (BC's Sea to Sky + Sunshine Coast, and Calgary & the Rockies in Alberta, east of 116.5° W), a little wider:
+// the ski terrain goes further up the valleys than the riding areas. Two boxes, not one, so the BC interior between isn't asked for.
+const regionBox = (zs) => [Math.min(...zs.map((z) => z.box[0])) - 0.05, Math.min(...zs.map((z) => z.box[1])) - 0.1,
+  Math.max(...zs.map((z) => z.box[2])) + 0.05, Math.max(...zs.map((z) => z.box[3])) + 0.1].map((v) => +v.toFixed(2));
+const inBC = (z) => z.box[1] < -116.5;
+const BC_REGION = ZONES.some(inBC) ? regionBox(ZONES.filter(inBC)) : null;
+const REGIONS = [BC_REGION, ZONES.some((z) => !inBC(z)) ? regionBox(ZONES.filter((z) => !inBC(z))) : null].filter(Boolean);
 const ONLY = (process.env.ONLY || "").split(",").filter(Boolean), runs = (part) => !ONLY.length || ONLY.includes(part);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
@@ -134,8 +138,12 @@ const OSM_KEEP = ["name", "ref", "piste:name", "piste:difficulty", "piste:groomi
 const keepTags = (t) => Object.fromEntries(OSM_KEEP.filter((k) => t[k]).map((k) => [k, String(t[k]).slice(0, 300)]));
 
 async function buildOsm() {
-  log(`OpenStreetMap ski routes and huts in ${REGION.join(",")}`);
-  const els = await fetchOsm(REGION);
+  const seen = new Map();
+  for (const box of REGIONS) {
+    log(`OpenStreetMap ski routes and huts in ${box.join(",")}`);
+    for (const el of await fetchOsm(box)) seen.set(el.type + el.id, el);
+  }
+  const els = [...seen.values()];
   log(`  ${els.length} elements`);
   const routes = [], huts = [], wayIds = new Set();
   // Ways first, so relation members already drawn on their own aren't drawn twice.
@@ -239,7 +247,8 @@ async function buildBc() {
   log(`BC Recreation Sites and Trails (${REC})`);
   const d = await describe(REC);
   log(`  fields: ${d.fields.join(", ")}`);
-  const feats = [...(await wfsAll(REC, REGION, d.geom)).values()];
+  if (!BC_REGION) return [];
+  const feats = [...(await wfsAll(REC, BC_REGION, d.geom)).values()];
   log(`  ${feats.length} recreation trails in the region`);
   // Optional: a recreation activity table, if DataBC has one, says which sites are for skiing or snowshoeing.
   const skiIds = new Set();
@@ -279,17 +288,21 @@ const c2cTitle = (d) => {
   return [l.title_prefix, l.title].filter(Boolean).join(" : ");
 };
 async function buildC2c() {
-  const [x0, y0] = toMerc(REGION[0], REGION[1]), [x1, y1] = toMerc(REGION[2], REGION[3]);
-  const bbox = [x0, y0, x1, y1].map((v) => Math.round(v)).join(",");
-  log(`camptocamp.org ski touring and snowshoe routes in ${bbox} (EPSG:3857)`);
   const docs = [];
-  for (let offset = 0; offset < 2000; offset += 100) {
-    const page = await getJson(`${C2C}/routes?bbox=${bbox}&act=skitouring,snowshoeing&limit=100&offset=${offset}&pl=en`);
-    const list = page.documents || [];
-    if (!offset) log(`  ${page.total} routes; first keys: ${Object.keys(list[0] || {}).join(", ")}`);
-    docs.push(...list);
-    if (list.length < 100 || docs.length >= (page.total || 0)) break;
-    await sleep(1000);
+  for (const R of REGIONS) {
+    const [x0, y0] = toMerc(R[0], R[1]), [x1, y1] = toMerc(R[2], R[3]);
+    const bbox = [x0, y0, x1, y1].map((v) => Math.round(v)).join(",");
+    log(`camptocamp.org ski touring and snowshoe routes in ${bbox} (EPSG:3857)`);
+    const got = [];
+    for (let offset = 0; offset < 2000; offset += 100) {
+      const page = await getJson(`${C2C}/routes?bbox=${bbox}&act=skitouring,snowshoeing&limit=100&offset=${offset}&pl=en`);
+      const list = page.documents || [];
+      if (!offset) log(`  ${page.total} routes; first keys: ${Object.keys(list[0] || {}).join(", ")}`);
+      got.push(...list);
+      if (list.length < 100 || got.length >= (page.total || 0)) break;
+      await sleep(1000);
+    }
+    docs.push(...got);
   }
   const routes = [], starts = [];
   for (const d of docs) {
@@ -384,7 +397,7 @@ function areaRings(geom) {
   const polys = geom?.type === "MultiPolygon" ? geom.coordinates : geom?.type === "Polygon" ? [geom.coordinates] : [];
   return polys.map((poly) => flat(poly[0].map(([x, y]) => ({ lat: y, lon: x })), 150)).filter((r) => r.length >= 8);
 }
-const touches = (rings) => rings.some((r) => { for (let i = 0; i < r.length; i += 2) if (r[i] >= REGION[0] && r[i] <= REGION[2] && r[i + 1] >= REGION[1] && r[i + 1] <= REGION[3]) return true; return false; });
+const touches = (rings) => rings.some((r) => { for (let i = 0; i < r.length; i += 2) if (REGIONS.some((b) => r[i] >= b[0] && r[i] <= b[2] && r[i + 1] >= b[1] && r[i + 1] <= b[3])) return true; return false; });
 const boxRing = ([w, s, e, n]) => [s, w, s, e, n, e, n, w, s, w].map(round);
 
 async function buildAvalanche() {
@@ -551,7 +564,7 @@ if (runs("ski")) {
   const huts = osm ? osm.huts : old.huts || [];
   if (routes.length || huts.length) {
     writeFileSync(new URL("ski.json", DATA), JSON.stringify({
-      builtAt: osm || bc || c2c ? builtAt : old.builtAt, region: REGION,
+      builtAt: osm || bc || c2c ? builtAt : old.builtAt, regions: REGIONS,
       sources: { osm: osm ? builtAt : old.sources?.osm || "", bc: bc ? builtAt : old.sources?.bc || "", c2c: c2c ? builtAt : old.sources?.c2c || "" },
       routes, huts, starts,
     }));

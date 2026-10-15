@@ -1,5 +1,5 @@
 # trail-finder
-Finds newly mapped mountain bike trails in the Sea to Sky corridor and Sunshine Coast, using OpenStreetMap data.
+Finds newly mapped mountain bike trails in the Sea to Sky corridor, the Sunshine Coast and Calgary and the Rockies (Bragg Creek, Canmore, Kananaskis, Banff), using OpenStreetMap data.
 
 Live site: https://allduf.github.io/trail-finder/
 
