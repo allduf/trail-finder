@@ -281,11 +281,11 @@
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
-    // Summer / Winter: two clear choices. Summer = snow-free photos (tap Summer again for the newer
-    // 2023 mosaic), Winter = the sharp photos with NASA's latest real snow cover painted on.
+    // Summer / Winter / Live: Summer = snow-free photos (tap Summer again for the newer 2023 mosaic),
+    // Winter = full mid-winter snow, Live = NASA's latest real snow cover, both painted on the sharp photos.
     const mk = (label) => { const el = document.createElement("button"); el.type = "button"; el.textContent = label;
       el.style.cssText = "width:auto;padding:0 10px;font:600 12px var(--font-body, system-ui)"; return el; };
-    const sumBtn = mk("Summer"), winBtn = mk("Winter");
+    const sumBtn = mk("Summer"), winBtn = mk("Winter"), liveBtn = mk("Live");
     const ski = () => document.body.classList.contains("sport-ski");
     let photos = "sharp";
     const setPhotos = (mode) => {
@@ -299,18 +299,19 @@
       gl.setPaintProperty("sat", "raster-brightness-min", w ? 0.12 : 0.02);
       sumBtn.textContent = photos === "recent" ? "Summer · 2023" : "Summer";
       sumBtn.title = photos === "sharp" ? "Tap again for the newer 2023 mosaic (blurrier)" : "Snow-free sharp photos";
-      winBtn.textContent = photos === "live" ? "Winter · today" : "Winter";
-      winBtn.title = photos === "winter" ? "Full mid-winter snow. Tap again for today's real snow (NASA, 2 days old)" : "Full mid-winter snow (February)";
-      for (const [el, on] of [[sumBtn, !w], [winBtn, w]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; }
+      winBtn.title = "Full mid-winter snow (February)";
+      liveBtn.title = "Today's real snow (NASA satellite, 2 days old)";
+      for (const [el, on] of [[sumBtn, !w], [winBtn, photos === "winter"], [liveBtn, photos === "live"]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; }
       store.set(ski() ? "3dPhotosSki" : "3dPhotos", photos);
     };
     sumBtn.addEventListener("click", () => setPhotos(photos === "sharp" ? "recent" : "sharp"));
-    winBtn.addEventListener("click", () => setPhotos(photos === "winter" ? "live" : "winter"));
+    winBtn.addEventListener("click", () => setPhotos("winter"));
+    liveBtn.addEventListener("click", () => setPhotos("live"));
     // MTB opens on Summer and Skiing on Winter, unless the person picked something else in that sport.
     const pick = () => setPhotos(ski() ? store.get("3dPhotosSki", "winter") : store.get("3dPhotos", "sharp"));
     new MutationObserver(pick).observe(document.body, { attributes: true, attributeFilter: ["class"] });
     gl.addControl({ onAdd() { const d = document.createElement("div"); d.className = "maplibregl-ctrl maplibregl-ctrl-group";
-      d.style.display = "flex"; d.append(sumBtn, winBtn); return d; }, onRemove() {} }, "bottom-right");
+      d.style.display = "flex"; d.append(sumBtn, winBtn, liveBtn); return d; }, onRemove() {} }, "bottom-right");
     gl.once("styledata", pick);
     // "load" waits for every first tile, and imagery that fails to load can hold it back, so the
     // trails go on as soon as the style itself is ready.
