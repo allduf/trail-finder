@@ -36,7 +36,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
 const readJson = (name) => { try { return JSON.parse(readFileSync(new URL(name, DATA), "utf8")); } catch { return null; } };
 
-const RULES = 1;   // files built with older rules are rebuilt, however fresh
+const RULES = 2;   // files built with older rules are rebuilt, however fresh
 // Where the trees give way to alpine meadow and rock, roughly, in metres: lowest on the wet coast, highest in the Rockies.
 const TREELINE = {
   van: 1600, sqm: 1600, wh: 1650, sun: 1550, pr: 1550, fv: 1650,
@@ -55,7 +55,7 @@ const HARD = /^(demanding_mountain_hiking|alpine_hiking|demanding_alpine_hiking|
 const BIKES_OK = /^(yes|permissive|designated)$/;
 const MOTO_OK = /^(yes|designated|permissive|permit)$/;
 const MOTO_NAME = /\b(atvs?|quads?|motocross|mx|dirt ?bikes?|motorbikes?|motorcycles?|orv|ohv|4x4|4wd|jeep)\b/i;
-const CLIMB_NAME = /\b(scramble|via ferrata|climbers?'? (route|access)|glacier)\b/i;
+const CLIMB_NAME = /\b(scramble|via ferrata|climbers?'? (route|access)|summit route|glacier)\b/i;
 const PAVED = /^(asphalt|concrete|paved|paving_stones|sett|chipseal)$/;
 // Why bikes can't or shouldn't go there, or null.
 function notRideable(t, routeTypes) {

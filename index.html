@@ -838,7 +838,10 @@ label.toggle.off .sw { background: var(--muted); }
 .diff-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .diff-chip { border: 2px solid transparent; background: none; padding: 1px; border-radius: 7px; cursor: pointer; }
 .diff-chip .diff { font-size: .85rem; padding: 4px 9px; }
-.diff-chip[aria-pressed="true"] { border-color: var(--fg); }
+.diff-chip[aria-pressed="true"], .alp-chip[aria-pressed="true"] { border-color: var(--fg); }
+.alp-chip { border: 2px solid transparent; background: none; padding: 1px; border-radius: 7px; cursor: pointer; }
+.alp-chip .diff { font-size: .85rem; padding: 2px 7px; background: var(--bg); color: #0b8fc4; border: 2px dashed #0b8fc4; }
+.alp-chip .alpine-ico { margin-right: 4px; }
 .box-row .box-len { margin-left: auto; color: var(--muted); font-size: .85rem; }
 button.btn.box-btn { width: 100%; margin: 2px 0 8px; }
 button.btn.reset-btn { width: 100%; margin: 6px 0 0; }
@@ -1150,7 +1153,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
         <span class="brand-links"><a class="linkish rec-link" href="ride.html"><span class="rec-dot" aria-hidden="true"></span>Record ride</a><button class="linkish" id="aboutBtn" type="button">How it works</button><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hike" disabled>🥾 Hiking (soon)</option></select></span>
       </div>
       <div class="modes" role="tablist" aria-label="What do you want to find?">
-        <button type="button" role="tab" id="tabName" aria-controls="paneName" aria-selected="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Find a trail by name</span></button>
+        <button type="button" role="tab" id="tabName" aria-controls="paneName" aria-selected="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Find a trail</span></button>
         <button type="button" role="tab" id="tabNew" aria-controls="paneNew" aria-selected="true"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span>New trails in an area</span></button>
       </div>
       <section class="pane" id="paneName" role="tabpanel" aria-labelledby="tabName" hidden>
@@ -1174,8 +1177,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
         </div>
         <button type="button" class="btn prime-go" id="primeGo" title="Trails in the area, old or new, with damp prime loam right now (Loam index 40 to 59)"><span class="dot" aria-hidden="true"></span>Prime loam now</button>
         <div class="diff-pick" role="group" aria-labelledby="diffPickLabel">
-          <span class="label" id="diffPickLabel">Or show every trail of these levels (tap several), or only unofficial ones</span>
-          <div class="diff-chips"><button type="button" class="diff-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip" data-d="unoff" aria-pressed="false" title="Trails in the area that aren&#39;t part of the official bike network: plain paths with no bike tags (the dotted lines on the base map) and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button></div>
+          <span class="label" id="diffPickLabel">Or show every trail of these levels (tap several), or only unofficial or alpine ones</span>
+          <div class="diff-chips"><button type="button" class="diff-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip" data-d="unoff" aria-pressed="false" title="Trails in the area that aren&#39;t part of the official bike network: plain paths with no bike tags (the dotted lines on the base map) and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button><button type="button" class="alp-chip" id="alpChip" aria-pressed="false" title="Alpine paths above the tree line that look doable on a mountain bike, any age (alpine.js, weekly data)"><span class="diff d-alpine">Alpine rideable</span></button></div>
         </div>
         <div class="wantlist" id="wantList" hidden></div>
       </section>
@@ -5057,7 +5060,7 @@ out tags center qt;`;
     boxGroups = [];
     $("boxRes").hidden = true;
     $("boxRes").innerHTML = "";
-    document.querySelectorAll(".diff-chip:not(.lvl-chip)").forEach((c) => c.setAttribute("aria-pressed", "false"));
+    document.querySelectorAll(".diff-chip:not(.lvl-chip), #alpChip").forEach((c) => c.setAttribute("aria-pressed", "false"));
   }
   // Plain paths for the Unofficial button: the area itself when it is one riding area or a zoomed-in view, else null.
   function plainBounds(b) {
@@ -5162,7 +5165,29 @@ out tags center qt;`;
     if (c.getAttribute("aria-pressed") !== "true") picks.push(c.dataset.d);
     showDiff(picks);
   }));
-  $("nameZone").addEventListener("change", () => { if (diffPick().length) showDiff(); });
+  $("nameZone").addEventListener("change", () => { if (diffPick().length) showDiff(); else if ($("alpChip").getAttribute("aria-pressed") === "true") showAlpine(); });
+  // Alpine rideable chip: every alpine path in the chosen area that looks doable on a bike (alpine.js), on the map and in a list.
+  async function showAlpine() {
+    if (!window.tfAlpine) return;
+    clearBox();
+    const token = boxToken, z = nameZone(), r = regionHere(), b = z ? z.bounds : r.bounds, where = z ? z.name : r.short;
+    $("alpChip").setAttribute("aria-pressed", "true");
+    window.tfAlpine.setOn(true);
+    if (isFull()) setFullMap(false);
+    $("boxRes").hidden = false;
+    $("boxRes").innerHTML = `<div class="box-head"><b>Looking for alpine trails in ${esc(where)}…</b></div>`;
+    const ways = (await window.tfAlpine.list(b)).sort((a, c) => (c.tags.name ? 1 : 0) - (a.tags.name ? 1 : 0) || c.hi - a.hi);
+    if (token !== boxToken) return;
+    const named = ways.filter((w) => w.tags.name), unnamed = ways.length - named.length;
+    const rows = named.map((w, i) => `<button class="box-row" type="button" data-i="${i}"><span class="box-name">${window.tfAlpine.icon} ${esc(w.tags.name)}</span><span class="muted">up to ${w.hi} m</span><span class="box-len">${fmtLen(w.m / 1000)}</span></button>`).join("");
+    $("boxRes").innerHTML = `<div class="box-head"><div><b>${ways.length ? `${named.length} alpine trail${named.length === 1 ? "" : "s"} in ${esc(where)}` : `No alpine trails in ${esc(where)}`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed (on the map)</span>` : ""}</div><button class="linkish" id="boxClear" type="button">Clear</button></div>
+      <p class="muted" style="margin: 0 16px 8px">Paths above the tree line that look doable on a mountain bike, from the map tags. Not a bike rating: check the area's rules.</p>${rows}`;
+    $("boxClear").addEventListener("click", clearBox);
+    $("boxRes").querySelectorAll(".box-row").forEach((row) => row.addEventListener("click", () => window.tfOpenWay(named[+row.dataset.i].id, L.latLng(named[+row.dataset.i].top))));
+    if (ways.length) map.fitBounds(ways.reduce((acc, w) => acc.extend(w.bounds), L.latLngBounds(ways[0].geom)), { padding: [30, 30] });
+    panelScrollTo($("boxRes"), "nearest");
+  }
+  $("alpChip").addEventListener("click", () => { if ($("alpChip").getAttribute("aria-pressed") === "true") clearBox(); else showAlpine(); });
   function openBoxGroup(g) {
     const main = g.ways.reduce((a, w) => (lengthKm(w.geom) > lengthKm(a.geom) ? w : a));
     showFound({ type: "w", name: g.name, kind: kindOf(main.tags), tags: main.tags, items: g.ways.map((w) => ({ id: w.id })) }, true);
