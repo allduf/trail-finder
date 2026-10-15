@@ -350,6 +350,8 @@
     let photos = "sharp";
     const setPhotos = (mode) => {
       photos = ["sharp", "winter", "live"].includes(mode) ? mode : "sharp";   // (an old saved "2023" choice becomes Summer)
+      if (photos === "winter" && !ski()) photos = "sharp";   // last winter's snow photos are for Skiing only
+      winBtn.style.display = ski() ? "" : "none";
       const w = photos === "winter" || photos === "live";
       gl.setLayoutProperty("sat", "visibility", photos === "sharp" || photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
       gl.setLayoutProperty("winter", "visibility", photos === "winter" ? "visible" : "none");
