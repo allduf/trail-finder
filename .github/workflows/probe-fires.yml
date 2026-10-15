@@ -1,12 +1,24 @@
-name: Probe fire hosts (temporary)
+name: Test the wildfire job (temporary)
 on:
   push:
     branches: [claude/canada-wildfires-c2kzil]
-    paths: [.github/workflows/probe-fires.yml, scripts/probe-fires.sh]
+    paths: [.github/workflows/probe-fires.yml, scripts/build-roads.mjs]
 jobs:
-  probe:
+  test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - run: bash scripts/probe-fires.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: ONLY=fires node scripts/build-roads.mjs
+      - run: |
+          ls -la data/fires.json data/fires-ca.json
+          python3 -c "
+          import json
+          d=json.load(open('data/fires-ca.json'))
+          for k in ('fires','perims','restr','evac'):
+              print(k, len(d[k]), len(json.dumps(d[k])), 'bytes')
+              for x in d[k][:4]: print('   ', json.dumps({a:b for a,b in x.items() if a!='g'})[:300], 'rings', len(x.get('g',[])))
+          "

@@ -265,6 +265,168 @@ const round = (n) => Math.round(n * 1e5) / 1e5;
 const readJson = (name) => { try { return JSON.parse(readFileSync(new URL(name, DATA), "utf8")); } catch { return null; } };
 if (!existsSync(DATA)) mkdirSync(DATA);
 
+// ---------- Wildfires outside BC ----------
+// - CWFIS (Canadian Wildland Fire Information System, Natural Resources Canada, Open Government Licence - Canada):
+//   the fires every agency reports as active today, and the satellite fire area estimates (M3 hotspot polygons) next
+//   to them. BC Wildfire Service fires are left out (fires.json has them, in more detail); Parks Canada fires in BC stay.
+// - Alberta Wildfire (geospatial.alberta.ca, Open Government Licence - Alberta): Alberta's own active fires and
+//   perimeters, and its fire control orders (forest area closures, fire bans, fire restrictions, off-highway vehicle
+//   restrictions; fire advisories, the mildest level, are left off).
+// - Alberta Emergency Alert: wildfire evacuation orders and alerts that come with a map area.
+// Each source is optional: one that fails keeps its part of the last good file.
+const CWFIF = "https://geoserver.cwfif.nrcan.gc.ca/geoserver/wfs";
+const CWFIS = "https://cwfis.cfs.nrcan.gc.ca/geoserver/public/wfs";
+const AB_WILDFIRE = "https://geospatial.alberta.ca/mimas/rest/services/wildfire";
+const AEA_FEED = "https://www.emergencyalert.alberta.ca/aeapublic/feed.atom";
+async function getText(url, what, tries = 3) {
+  let lastErr;
+  for (let attempt = 0; attempt < tries; attempt++) {
+    try {
+      const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(120000) });
+      const text = await res.text();
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${wfsError(text).slice(0, 200)}`);
+      return text;
+    } catch (e) { lastErr = e; log(`    ${what}: ${e.message}; trying again`); await sleep(5000 * (attempt + 1)); }
+  }
+  throw lastErr;
+}
+const getJson = async (url, what) => {
+  const j = JSON.parse(await getText(url, what));
+  if (j.error) throw new Error(`${what}: ${JSON.stringify(j.error).slice(0, 200)}`);
+  return j;
+};
+const wfsUrl = (base, layer, extra = {}) => `${base}?${new URLSearchParams({ service: "WFS", version: "2.0.0", request: "GetFeature",
+  typeName: layer, outputFormat: "application/json", srsName: "EPSG:4326", ...extra })}`;
+const arcUrl = (layer, extra = {}) => `${AB_WILDFIRE}/${layer}/query?${new URLSearchParams({ where: "1=1", outFields: "*",
+  outSR: "4326", geometryPrecision: "5", f: "geojson", ...extra })}`;
+const AGENCY = { AB: "Alberta Wildfire", SK: "Saskatchewan Public Safety Agency", MB: "Manitoba Wildfire Service",
+  ON: "Ontario Forest Fires", QC: "SOPFEU (Quebec)", NB: "New Brunswick Forest Fire Service", NS: "Nova Scotia Natural Resources",
+  PE: "PEI Forests, Fish and Wildlife", NL: "Newfoundland and Labrador Forestry", YT: "Yukon Wildland Fire Management",
+  NT: "NWT Forest Management", NU: "Nunavut", PC: "Parks Canada" };
+const STAGE = { OC: "Out of Control", BH: "Being Held", UC: "Under Control" };
+const CAUSE = { N: "Lightning", H: "Person", U: "", R: "Prescribed" };
+const RESPONSE = { MON: "monitored", MOD: "modified response", FUL: "" };
+const epochYmd = (v) => (typeof v === "number" ? new Date(v).toISOString().slice(0, 10) : ymd(v));
+const near = (a, b, km) => Math.abs(a.lat - b.lat) < km / 111 && Math.abs(a.lon - b.lon) < km / (111 * Math.cos((a.lat * Math.PI) / 180));
+// The rough middle of a shape's rings, to match satellite fire areas to reported fires.
+const ringsMid = (g) => { let la = 0, lo = 0, n = 0; g.forEach((r) => { for (let i = 0; i < r.length; i += 2) { la += r[i]; lo += r[i + 1]; n++; } }); return { lat: la / n, lon: lo / n }; };
+const ringsBox = (g) => { let s = 90, w = 180, n = -90, e = -180; g.forEach((r) => { for (let i = 0; i < r.length; i += 2) { s = Math.min(s, r[i]); n = Math.max(n, r[i]); w = Math.min(w, r[i + 1]); e = Math.max(e, r[i + 1]); } }); return { s, w, n, e }; };
+
+async function canadaFires() {
+  const old = readJson("fires-ca.json");
+  const keep = (key, src) => ((old && old[key]) || []).filter((x) => x.src === src);
+  const part = async (what, fn) => { try { return await fn(); } catch (e) { log(`::warning::${what} failed, keeping its last data (${e.message.slice(0, 200)})`); return null; } };
+
+  // Alberta Wildfire: active fires (their own, mutual aid and municipal) and active perimeters.
+  const ab = await part("Alberta Wildfire fires", async () => {
+    const pts = [];
+    for (const id of [0, 1, 8]) pts.push(...((await getJson(arcUrl(`alberta_fire_status_by_category_group/MapServer/${id}`), `Alberta fires layer ${id}`)).features || []));
+    const polys = [];
+    for (const id of [4, 5]) polys.push(...((await getJson(arcUrl(`alberta_fire_status_by_category_group/MapServer/${id}`, { maxAllowableOffset: "0.0003" }), `Alberta perimeters layer ${id}`)).features || []));
+    if (pts[0]) log(`    Alberta fire fields: ${Object.keys(pts[0].properties || {}).join(", ")}`);
+    const fires = pts.filter((f) => f.geometry && f.geometry.type === "Point").map((f) => {
+      const p = f.properties || {}, [lon, lat] = f.geometry.coordinates;
+      return { src: "ab", ag: "AB", n: p.LABEL || p.FIRE_NUMBER || "", name: p.FIRE_TYPE === "Wildfire" ? "" : p.FIRE_TYPE || "", st: p.FIRE_STATUS || "",
+        ha: p.AREA_ESTIMATE ?? null, cause: p.GENERAL_CAUSE || "", d: epochYmd(p.ASSESSMENT_ASSISTANCE_DATE), lat: round(lat), lon: round(lon) };
+    });
+    const perims = polys.filter((f) => f.geometry).map((f) => {
+      const p = f.properties || {}, g = polyRings(f.geometry, 30);
+      return g.length ? { src: "ab", n: p.LABEL || p.FIRE_NUMBER || "", st: p.FIRE_STATUS || "", ha: p.AREA_ESTIMATE ?? p.AREA ?? null, g } : null;
+    }).filter(Boolean);
+    log(`    Alberta Wildfire: ${fires.length} active fires, ${perims.length} perimeters`);
+    return { fires, perims };
+  });
+
+  // CWFIS: every other agency's active fires, then the satellite fire areas within 10 km of one of them.
+  const cw = await part("CWFIS active fires", async () => {
+    const fc = await getJson(wfsUrl(CWFIF, "public:cwfif_national_activefires", { CQL_FILTER: "now() >= record_start AND now() <= record_end" }), "CWFIS active fires");
+    const skip = new Set(["BC", ...(ab ? ["AB"] : [])]);
+    const fires = (fc.features || []).map((f) => f.properties || {}).filter((p) => !skip.has(p.agency_code) && p.latitude && p.longitude && !/^(OUT|EX)$/.test(p.stage_of_control_status || ""))
+      .map((p) => ({ src: "cwfis", ag: p.agency_code || "", n: p.agency_fire_id || p.national_fire_id || "", name: "",
+        st: [STAGE[p.stage_of_control_status] || p.stage_of_control_status || "", RESPONSE[p.response_type] || ""].filter(Boolean).join(", "),
+        ha: p.fire_size >= 0 ? p.fire_size : null, cause: CAUSE[p.national_fire_cause] || "", d: ymd(p.status_date || p.situation_report_date),
+        lat: round(p.latitude), lon: round(p.longitude) }));
+    const agencies = {};
+    fires.forEach((x) => { agencies[x.ag] = (agencies[x.ag] || 0) + 1; });
+    log(`    CWFIS: ${(fc.features || []).length} active fires in Canada, ${fires.length} kept (${JSON.stringify(agencies)})`);
+    return fires;
+  });
+  const m3 = await part("CWFIS fire areas", async () => {
+    const reported = cw || keep("fires", "cwfis");
+    if (!reported.length) return [];
+    const fc = await getJson(wfsUrl(CWFIS, "public:m3_polygons_current"), "CWFIS fire areas");
+    const perims = (fc.features || []).filter((f) => f.geometry).map((f) => {
+      const p = f.properties || {}, g = polyRings(f.geometry, 60);
+      if (!g.length) return null;
+      const b = ringsBox(g), mid = ringsMid(g);
+      const pad = 10 / 111, padLon = pad / Math.cos((mid.lat * Math.PI) / 180);
+      if (!reported.some((x) => x.lat > b.s - pad && x.lat < b.n + pad && x.lon > b.w - padLon && x.lon < b.e + padLon)) return null;
+      return { src: "m3", n: "", st: "", ha: p.area ? Math.round(p.area) : null, d: ymd(p.lastdate), d0: ymd(p.firstdate), g };
+    }).filter(Boolean);
+    log(`    CWFIS: ${(fc.features || []).length} satellite fire areas this season, ${perims.length} next to a reported fire`);
+    return perims;
+  });
+
+  // Alberta fire control orders, most severe first. Fire advisories are left off: they cover most of the prairies.
+  const orders = await part("Alberta fire control orders", async () => {
+    const fc = await getJson(arcUrl("fire_control_order_data/MapServer/1", { outFields: "name,alert_type,jurisdictions,start_date,description", maxAllowableOffset: "0.001" }), "Alberta fire control orders");
+    const ohv = await getJson(arcUrl("fire_control_order_data/MapServer/0", { outFields: "Order_Number,Effective,Website_Name,Website_URL", maxAllowableOffset: "0.001" }), "Alberta OHV restrictions");
+    const kindOf = (t) => (/closure/i.test(t) ? "closed" : /ban/i.test(t) ? "ban" : /restriction/i.test(t) ? "frestr" : null);
+    const list = (fc.features || []).filter((f) => f.geometry).map((f) => {
+      const p = f.properties || {}, kind = kindOf(p.alert_type || "");
+      const g = kind ? polyRings(f.geometry, 100) : [];
+      return g.length ? { src: "ab", kind, n: (p.name || "").trim(), t: p.alert_type || "", who: (p.jurisdictions || "").trim(),
+        d: String(p.description || "").replace(/\s+/g, " ").trim().slice(0, 300), from: epochYmd(p.start_date), g } : null;
+    }).filter(Boolean);
+    (ohv.features || []).filter((f) => f.geometry).forEach((f) => {
+      const p = f.properties || {}, g = polyRings(f.geometry, 100);
+      if (g.length) list.push({ src: "ab", kind: "ohv", n: (p.Website_Name || "").trim(), t: "OHV Restriction", who: p.Order_Number || "", d: "", from: epochYmd(p.Effective), url: p.Website_URL || "", g });
+    });
+    const types = {};
+    (fc.features || []).forEach((f) => { const t = (f.properties || {}).alert_type || "?"; types[t] = (types[t] || 0) + 1; });
+    log(`    Alberta fire control orders: ${JSON.stringify(types)}, ${(ohv.features || []).length} OHV restrictions; ${list.length} kept`);
+    return list;
+  });
+
+  // Alberta Emergency Alert: the current alerts feed, keeping wildfire evacuations that have a map area.
+  const evac = await part("Alberta Emergency Alert", async () => {
+    const feed = await getText(AEA_FEED, "Alberta Emergency Alert feed");
+    const entries = [...feed.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map((m) => m[1]);
+    const tag = (x, t) => ((x.match(new RegExp(`<${t}[^>]*>([\\s\\S]*?)<\/${t}>`)) || [])[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
+    const out = [];
+    for (const e of entries) {
+      const text = [tag(e, "title"), tag(e, "summary"), tag(e, "content"), tag(e, "category")].join(" ");
+      if (!/fire/i.test(text) || !/evacuat/i.test(text)) continue;
+      let polys = [...e.matchAll(/<georss:polygon>([^<]+)<\/georss:polygon>/g)].map((m) => m[1]);
+      const link = (e.match(/<link[^>]*href="([^"]+)"/) || [])[1];
+      let cap = "";
+      if (!polys.length && link) { try { cap = await getText(link.replace(/&amp;/g, "&"), "Alberta Emergency Alert CAP", 2); } catch { /* the alert stays off the map */ } }
+      if (!polys.length) polys = [...cap.matchAll(/<polygon>([^<]+)<\/polygon>/g)].map((m) => m[1]);
+      // CAP polygons are "lat,lon lat,lon ..."; GeoRSS ones are "lat lon lat lon ...".
+      const g = polys.map((s) => {
+        const nums = s.trim().split(/[\s,]+/).map(Number).filter((v) => !Number.isNaN(v));
+        const pts = []; for (let i = 0; i + 1 < nums.length; i += 2) pts.push({ lat: nums[i], lon: nums[i + 1] });
+        const sp = simplify(pts, 25);
+        return sp.length >= 4 ? sp.flatMap((q) => [round(q.lat), round(q.lon)]) : null;
+      }).filter(Boolean);
+      log(`    Alberta Emergency Alert: "${tag(e, "title").slice(0, 120)}" (${g.length} map areas)`);
+      if (!g.length) continue;
+      const st = tag(e, "title");
+      out.push({ src: "ab", kind: /alert|prepare|be ready/i.test(st) && !/order/i.test(st) ? "alert" : "order", st, n: (tag(cap, "areaDesc") || "").slice(0, 200),
+        who: tag(cap, "senderName") || "Alberta Emergency Alert", d: ymd(tag(e, "updated")), url: link || "", g });
+    }
+    log(`    Alberta Emergency Alert: ${entries.length} current alerts, ${out.length} wildfire evacuations with a map area`);
+    return out;
+  });
+
+  const fires = [...(ab ? ab.fires : keep("fires", "ab")), ...(cw || keep("fires", "cwfis"))];
+  const perims = [...(ab ? ab.perims : keep("perims", "ab")), ...(m3 || keep("perims", "m3"))];
+  const restr = orders || keep("restr", "ab");
+  const ev = evac || keep("evac", "ab");
+  writeFileSync(new URL("fires-ca.json", DATA), JSON.stringify({ v: 1, builtAt, fires, perims, restr, evac: ev }));
+  log(`Canada wildfires: ${fires.length} fires, ${perims.length} perimeters or fire areas, ${restr.length} Alberta fire orders, ${ev.length} Alberta evacuations`);
+}
+
 const started = Date.now(), builtAt = new Date().toISOString().slice(0, 19) + "Z";
 let updated = 0, failed = 0;
 
@@ -314,6 +476,9 @@ if (!ONLY || ONLY === "fires") {
     log(`Wildfires: ${fires.length} burning or held, ${perims.length} perimeters (of ${pts.length} fires this season in the area), ` +
       `${restrRaw ? restr.length : "?"} area restrictions, ${evacRaw ? evac.length : "?"} evacuation orders or alerts`);
   } catch (e) { failed++; log(`Wildfires failed (${e.message})`); }
+  // The rest of Canada, in data/fires-ca.json. It keeps its last good data when its sources fail, without failing the
+  // job, so a national outage never holds back the BC fires.
+  try { await canadaFires(); } catch (e) { log(`::warning::Canada wildfires failed (${e.message})`); }
   if (ONLY === "fires") { if (failed) process.exit(1); process.exit(0); }
 }
 

@@ -1258,7 +1258,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
       <li>Trails come from OpenStreetMap mappers, so details can be missing or out of date. Check local rules and closures before riding.</li>
     </ul>
     <details class="about-more"><summary>All the details</summary>
-    <p>All data comes from OpenStreetMap. For the riding areas from Vancouver to Calgary, GitHub collects the new trails and trail names several times a day, so searches there load in a second or two without waiting on OpenStreetMap. A trail added today shows up after one of the next updates (with so many areas, each one is refreshed every day or two). Anywhere else, the app asks OpenStreetMap live. The areas are grouped into four regions in the Area menu: Sea to Sky and the Sunshine Coast; the Fraser Valley, Kamloops, the Okanagan and Williams Lake; the Kootenays, Revelstoke and Golden; and Calgary, Bragg Creek, Canmore and Kananaskis, and Banff in Alberta. The empty country between the riding towns isn't collected: use “Search this area” there. Forest Service roads from the BC government, BC recreation sites and the Wildfires button only cover BC; in Alberta the forest roads, trailheads and parking come from OpenStreetMap only. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
+    <p>All data comes from OpenStreetMap. For the riding areas from Vancouver to Calgary, GitHub collects the new trails and trail names several times a day, so searches there load in a second or two without waiting on OpenStreetMap. A trail added today shows up after one of the next updates (with so many areas, each one is refreshed every day or two). Anywhere else, the app asks OpenStreetMap live. The areas are grouped into four regions in the Area menu: Sea to Sky and the Sunshine Coast; the Fraser Valley, Kamloops, the Okanagan and Williams Lake; the Kootenays, Revelstoke and Golden; and Calgary, Bragg Creek, Canmore and Kananaskis, and Banff in Alberta. The empty country between the riding towns isn't collected: use “Search this area” there. Forest Service roads from the BC government and BC recreation sites only cover BC (the Wildfires button covers all of Canada); in Alberta the forest roads, trailheads and parking come from OpenStreetMap only. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
     <h3>Loam in the list</h3>
     <p>Each new trail shows its Loam moisture index right now, from the same Open-Meteo soil model as the trail details (trails within about 5 km share one reading). Pick “Prime loam now” in the time row to see every named trail in the area, old or new, whose index is 40 to 59 right now (damp hero dirt). They show as teal dots on the map: tap one to load the whole trail.</p>
     <h3>Near me</h3>
@@ -1310,7 +1310,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <p>Forest Service Roads and other dirt roads have a white edge and a colour for their status (turn them off with “Forest roads”). Once a week the site collects them from two open sources: the BC government's Forest Tenure roads (DataBC, Open Government Licence - British Columbia), which list every Forest Service Road and road permit with its tenure status, and OpenStreetMap dirt roads with their gate, access and deactivation tags. The colour is the road's condition, like on a backroad map. Green is good condition (an active Forest Service tenure, or mapped as smooth or solid). Yellow is degraded (mapped as bad or partly soft). Red is heavily degraded: very rough, 4x4 only, or a retired tenure that's no longer maintained and often deactivated. Black dashes are impassable: deactivated, washed out or abandoned. Grey dashes mean the condition isn't known. Pink dashes mean closed to public vehicles: gated, private or industrial use only. Each road is one line: where both sources map the same road, what a mapper saw on the ground (OpenStreetMap) wins, and the tenure decides only when OpenStreetMap has no condition for it. Tap a road to see both sources. This is mapped data, not a live closure list: check the <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p>
     <p>With “Forest roads” on, the map also shows, once you zoom in: gates (open, locked or not known), barriers, bridges and bridges out, foot bridges, fords and hydro plants, from OpenStreetMap. Tap any of them for details. The “Logging areas” button shows cut blocks (pending, active or recently logged, and retired in the last 15 years) and areas closed to motor vehicles, from the BC government, on their own. With the button off, the roads stay on the map as plain grey-brown lines.</p>
     <h3>Wildfires</h3>
-    <p>The “Wildfires” button shows the BC Wildfire Service's current fires (fires that are out are left off) and their perimeters, areas closed because of fire (area restriction orders), and evacuation orders and alerts. It's refreshed every 3 hours, so always check the <a href="https://wildfiresituation.nrs.gov.bc.ca/map" target="_blank" rel="noopener">BC Wildfire map</a> and <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a> before heading out.</p>
+    <p>The “Wildfires” button shows active wildfires across Canada (fires that are out are left off). In BC they come from the BC Wildfire Service, with their perimeters, areas closed because of fire (area restriction orders), and evacuation orders and alerts. In Alberta they come from Alberta Wildfire, with Alberta's fire control orders (forest area closures, fire bans, fire restrictions and off-highway vehicle bans; the milder fire advisories are left off) and wildfire evacuations from Alberta Emergency Alert. Everywhere else they come from the agencies' reports gathered by the Canadian Wildland Fire Information System, with rough fire areas seen by satellite next to them. It's refreshed every 3 hours, so always check the <a href="https://wildfiresituation.nrs.gov.bc.ca/map" target="_blank" rel="noopener">BC Wildfire map</a> and <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a>, <a href="https://www.alberta.ca/wildfire-status" target="_blank" rel="noopener">Alberta wildfire status</a> and <a href="https://www.albertafirebans.ca/" target="_blank" rel="noopener">Alberta fire bans</a>, or the <a href="https://cwfis.cfs.nrcan.gc.ca/interactive-map" target="_blank" rel="noopener">CWFIS fire map</a> and the local fire agency before heading out.</p>
+    <p class="src">Fires outside BC and Alberta: Canadian Forest Service, Canadian Wildland Fire Information System (CWFIS), Natural Resources Canada, Canadian Forest Service, Northern Forestry Centre, Edmonton, Alberta (Open Government Licence – Canada). Alberta: contains information licensed under the Open Government Licence – Alberta.</p>
     <h3>Skiing</h3>
     <p>Pick “⛷ Skiing” in the sport menu at the top. The map then shows backcountry ski routes and huts instead of the bike trails, with a list of what's in view. Every night the site collects them from OpenStreetMap (ski touring, nordic, snowshoe and snowmobile routes, ski route relations, and alpine and wilderness huts; resort runs are there too but off by default) from BC Recreation Sites and Trails (trails whose name or description says ski, nordic, snowshoe or snowmobile), and from camptocamp.org (ski touring and snowshoe routes that have a drawn line). Tap a route or hut for its details.</p>
     <p>Snowmobile trails (red dashes) are OpenStreetMap ways marked for snowmobiles (<code>piste:type=snowmobile</code>, <code>route=snowmobile</code>, or <code>snowmobile=yes</code> or <code>designated</code>, often forest roads that are sled trails in winter) and BC recreation trails that say snowmobile. The ❄ pins are the snowmobile clubs' staging areas: Powder Mountain (Brandywine), Black Tusk (Brohm Ridge), Pemberton Valley (Rutherford and the Hurley), Bridge River Valley (Gold Bridge) and Burke Mountain. “Snowmobile clubs and grooming” lists each club with its trail pass and its latest grooming report. Every 2 hours the site reads the reports that are on a public web page, when the page's robots.txt allows it. Clubs that only post on Facebook or Instagram get a link instead, because those sites don't allow others to copy their posts.</p>
@@ -4100,7 +4101,24 @@ out body;`;
     restr: { label: "Area closed because of fire", color: "#b5179e", fillOpacity: 0.14, dashArray: "8 5" },
     order: { label: "Evacuation order (leave now)", color: "#c1121f", fillOpacity: 0.22 },
     alert: { label: "Evacuation alert (be ready)", color: "#f4a261", fillOpacity: 0.18, dashArray: "4 4" },
+    m3: { label: "Fire area seen by satellite (rough)", color: "#ff9e00", fillOpacity: 0.14, dashArray: "3 4" },
+    ban: { label: "Fire ban (Alberta)", color: "#9d0208", fillOpacity: 0.07, dashArray: "2 6" },
+    frestr: { label: "Fire restriction (Alberta)", color: "#e76f51", fillOpacity: 0.05, dashArray: "2 6" },
+    ohv: { label: "Off-highway vehicles banned for fire (Alberta)", color: "#6a4c93", fillOpacity: 0.06, dashArray: "10 4" },
   };
+  // Who reported a fire, and where to check it. Outside BC the fires come from Alberta Wildfire or from CWFIS
+  // (Natural Resources Canada), which gathers every agency's reports (data/fires-ca.json).
+  const FIRE_AGENCY = { AB: "Alberta Wildfire", SK: "Saskatchewan Public Safety Agency", MB: "Manitoba Wildfire Service", ON: "Ontario Forest Fires",
+    QC: "SOPFEU", NB: "New Brunswick", NS: "Nova Scotia", PE: "PEI", NL: "Newfoundland and Labrador", YT: "Yukon Wildland Fire Management",
+    NT: "NWT Fire", NU: "Nunavut", PC: "Parks Canada" };
+  const lnk = (u, t) => `<a href="${u}" target="_blank" rel="noopener">${t}</a>`;
+  const FIRE_LINKS = {
+    bc: `${lnk("https://wildfiresituation.nrs.gov.bc.ca/map", "BC Wildfire map")} and ${lnk("https://www.emergencyinfobc.gov.bc.ca/", "EmergencyInfoBC")}`,
+    ab: `${lnk("https://www.alberta.ca/wildfire-status", "Alberta wildfire status")}, ${lnk("https://www.albertafirebans.ca/", "Alberta fire bans")} and ${lnk("https://www.emergencyalert.alberta.ca/", "Alberta Emergency Alert")}`,
+    cwfis: `${lnk("https://cwfis.cfs.nrcan.gc.ca/interactive-map", "CWFIS fire map")} and the local fire agency`,
+  };
+  const CWFIS_CITE = "Canadian Wildland Fire Information System (CWFIS), Natural Resources Canada, Canadian Forest Service";
+  const fireWho = (x) => (x.src === "ab" ? "Alberta Wildfire fire" : x.src === "cwfis" ? `${FIRE_AGENCY[x.ag] || x.ag || "Agency"} fire` : "BC Wildfire Service fire");
   const FEAT_MIN_ZOOM = 13;
   const GATE = /^(gate|lift_gate|swing_gate|sliding_gate|chain|wicket_gate)$/, BLOCK = /^(block|jersey_barrier|log|debris|ditch|bollard|boulder|yes|fence|stile|kissing_gate)$/;
   function featKind(t) {
@@ -4128,24 +4146,33 @@ out body;`;
   function loadFires() {
     if (fires || !state.fires) return;
     fires = { fires: [], perims: [], restr: [], evac: [] };
-    nightly("fires.json").then((f) => {
-      if (f && f.v === 1) fires = { at: f.builtAt, fires: f.fires || [], perims: withRings(f.perims), restr: withRings(f.restr), evac: withRings(f.evac) };
+    // BC (fires.json) and the rest of Canada (fires-ca.json), each drawn as soon as it arrives.
+    const add = (f, src) => {
+      if (!f || f.v !== 1) return;
+      const tag = (list) => (list || []).map((x) => ({ src, ...x }));
+      fires = { at: fires.at || f.builtAt, fires: [...fires.fires, ...tag(f.fires)], perims: [...fires.perims, ...withRings(tag(f.perims))],
+        restr: [...fires.restr, ...withRings(tag(f.restr))], evac: [...fires.evac, ...withRings(tag(f.evac))] };
       drawFires();
-    });
+    };
+    nightly("fires.json").then((f) => add(f, "bc")).then(renderKey);
+    nightly("fires-ca.json").then((f) => add(f, "ca")).then(renderKey);
   }
   function drawFires() {
     fireLayer.clearLayers();
     if (!state.fires || !fires) return;
     const poly = (rs, st) => fireLayer.addLayer(L.polygon(rs, { renderer: fireRenderer, interactive: false, weight: 2, fillColor: st.color, ...st }));
-    fires.restr.forEach((a) => poly(a.rings, FIRE_STYLE.restr));
+    // Mildest first, so evacuations and fires sit on top.
+    ["frestr", "ohv", "ban"].forEach((kind) => fires.restr.filter((a) => a.kind === kind).forEach((a) => poly(a.rings, { ...FIRE_STYLE[kind], weight: 1.5 })));
+    fires.restr.filter((a) => !FIRE_STYLE[a.kind]).forEach((a) => poly(a.rings, FIRE_STYLE.restr));
     fires.evac.filter((a) => a.kind === "alert").forEach((a) => poly(a.rings, FIRE_STYLE.alert));
     fires.evac.filter((a) => a.kind !== "alert").forEach((a) => poly(a.rings, FIRE_STYLE.order));
-    fires.perims.forEach((p) => poly(p.rings, { ...FIRE_STYLE.perim, weight: 2.5 }));
+    fires.perims.filter((p) => p.src === "m3").forEach((p) => poly(p.rings, FIRE_STYLE.m3));
+    fires.perims.filter((p) => p.src !== "m3").forEach((p) => poly(p.rings, { ...FIRE_STYLE.perim, weight: 2.5 }));
     const k = FIRE_STYLE.fire;
     fires.fires.forEach((x) => fireLayer.addLayer(L.marker([x.lat, x.lon], { icon: pinIcon(k), keyboard: false, title: k.label })
       .bindPopup(`<div class="road-pop"><h4>${esc(k.label)}</h4><p><span class="st">${esc(x.st || "Burning")}</span>${x.name ? " · " + esc(x.name) : ""}</p>
-      <p class="src">BC Wildfire Service fire ${esc(x.n)}${x.ha ? ` · ${esc(x.ha)} ha` : ""}${x.d ? ` · started ${esc(x.d)}` : ""}${x.cause ? ` · ${esc(x.cause)}` : ""}.
-      Check the <a href="https://wildfiresituation.nrs.gov.bc.ca/map" target="_blank" rel="noopener">BC Wildfire map</a> and <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a> for the latest.</p></div>`, { maxWidth: 280 })));
+      <p class="src">${esc(fireWho(x))} ${esc(x.n)}${x.ha ? ` · ${esc(x.ha)} ha` : ""}${x.d ? ` · ${x.src === "cwfis" ? "updated" : "started"} ${esc(x.d)}` : ""}${x.cause ? ` · ${esc(x.cause)}` : ""}${x.src === "cwfis" ? `, via ${CWFIS_CITE}` : ""}.
+      Check the ${FIRE_LINKS[x.src] || FIRE_LINKS.bc} for the latest.</p></div>`, { maxWidth: 280 })));
   }
   function syncFiresBtn() {
     const b = $("firesBtn");
@@ -4213,9 +4240,21 @@ out body;`;
   function areasAt(ll) {
     const out = [];
     if (state.fires && fires) {
-      fires.evac.forEach((a) => { if (inRings(ll, a.rings)) out.push(`<p><span class="st">${esc(FIRE_STYLE[a.kind === "alert" ? "alert" : "order"].label)}</span>${a.n ? " · " + esc(a.n) : ""}<br><span class="src">${esc([a.who, a.d && "updated " + a.d].filter(Boolean).join(" · "))} · <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a></span></p>`); });
-      fires.restr.forEach((a) => { if (inRings(ll, a.rings)) out.push(`<p><span class="st">Area closed because of fire</span>${a.n ? " · " + esc(a.n) : ""}<br><span class="src">BC Wildfire Service area restriction${a.from ? " since " + esc(a.from) : ""}${a.d ? " · " + esc(a.d) : ""}${a.url ? ` · <a href="${esc(a.url)}" target="_blank" rel="noopener">order</a>` : ""}</span></p>`); });
-      fires.perims.forEach((p) => { if (inRings(ll, p.rings)) out.push(`<p><span class="st">Fire perimeter</span> · ${esc(p.st || "")}<br><span class="src">BC Wildfire Service fire ${esc(p.n)}${p.ha ? ` · ${esc(p.ha)} ha` : ""}</span></p>`); });
+      const safeUrl = (u) => (/^https:\/\//.test(u || "") ? u : "");
+      fires.evac.forEach((a) => { if (inRings(ll, a.rings)) out.push(`<p><span class="st">${esc(FIRE_STYLE[a.kind === "alert" ? "alert" : "order"].label)}</span>${a.n ? " · " + esc(a.n) : a.src === "ab" && a.st ? " · " + esc(a.st) : ""}<br><span class="src">${esc([a.who, a.d && "updated " + a.d].filter(Boolean).join(" · "))} · ${a.src === "ab"
+        ? (safeUrl(a.url) ? lnk(esc(a.url), "the alert") + " · " : "") + lnk("https://www.emergencyalert.alberta.ca/", "Alberta Emergency Alert")
+        : lnk("https://www.emergencyinfobc.gov.bc.ca/", "EmergencyInfoBC")}</span></p>`); });
+      fires.restr.forEach((a) => {
+        if (!inRings(ll, a.rings)) return;
+        if (a.src !== "ab") { out.push(`<p><span class="st">Area closed because of fire</span>${a.n ? " · " + esc(a.n) : ""}<br><span class="src">BC Wildfire Service area restriction${a.from ? " since " + esc(a.from) : ""}${a.d ? " · " + esc(a.d) : ""}${a.url ? ` · <a href="${esc(a.url)}" target="_blank" rel="noopener">order</a>` : ""}</span></p>`); return; }
+        const label = a.kind === "closed" ? "Forest area closed because of fire" : (FIRE_STYLE[a.kind] || FIRE_STYLE.restr).label.replace(" (Alberta)", "");
+        out.push(`<p><span class="st">${esc(label)}</span>${a.n ? " · " + esc(a.n) : ""}${a.d ? `<br>${esc(a.d)}` : ""}<br><span class="src">Alberta fire control order${a.from ? " since " + esc(a.from) : ""}${a.who && a.who !== a.n ? " · " + esc(a.who) : ""} · ${safeUrl(a.url) ? lnk(esc(a.url), "order") : lnk("https://www.albertafirebans.ca/", "Alberta fire bans")}</span></p>`);
+      });
+      fires.perims.forEach((p) => {
+        if (!inRings(ll, p.rings)) return;
+        if (p.src === "m3") out.push(`<p><span class="st">${esc(FIRE_STYLE.m3.label)}</span>${p.ha ? ` · about ${esc(p.ha)} ha` : ""}<br><span class="src">Hotspots ${esc([p.d0, p.d].filter(Boolean).join(" to "))}, ${esc(CWFIS_CITE)} · ${lnk("https://cwfis.cfs.nrcan.gc.ca/interactive-map", "CWFIS fire map")}</span></p>`);
+        else out.push(`<p><span class="st">Fire perimeter</span> · ${esc(p.st || "")}<br><span class="src">${esc(fireWho(p))} ${esc(p.n)}${p.ha ? ` · ${esc(p.ha)} ha` : ""}</span></p>`);
+      });
     }
     if (!state.areas || map.getZoom() < ROAD_MIN_ZOOM) return out;
     roadData.forEach((z) => z && z.areas.forEach((a) => {
@@ -4468,7 +4507,12 @@ out body;`;
       + section("Road features (zoom in)", Object.values(FEAT).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join(""));
     else html += section("Forest roads", sw("background: var(--road-plain)", "Forest road (turn on Forest roads in Layers for status)"));
     if (state.areas) html += section("Logging areas", Object.values(AREA_STYLE).map(areaSw).join(""));
-    if (state.fires) html += section("Wildfires", `<li>${pinHtml(FIRE_STYLE.fire, "lg-ico")}${FIRE_STYLE.fire.label}</li>` + ["perim", "restr", "order", "alert"].map((k) => areaSw(FIRE_STYLE[k])).join(""));
+    if (state.fires) {
+      // The satellite fire areas and Alberta's fire orders only get a key line when some are on the map.
+      const has = (k) => fires && (k === "m3" ? fires.perims.some((p) => p.src === "m3") : fires.restr.some((a) => a.kind === k));
+      html += section("Wildfires", `<li>${pinHtml(FIRE_STYLE.fire, "lg-ico")}${FIRE_STYLE.fire.label}</li>` + ["perim", "m3", "restr", "order", "alert", "ban", "frestr", "ohv"]
+        .filter((k) => !["m3", "ban", "frestr", "ohv"].includes(k) || has(k)).map((k) => areaSw(FIRE_STYLE[k])).join(""));
+    }
     if (state.access) html += section("Trailheads and parking (zoom in)", Object.values(ACCESS).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join(""));
     $("keyList").innerHTML = html;
     if (popped) {
