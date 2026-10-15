@@ -1129,7 +1129,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
         </div>
         <div class="diff-pick" role="group" aria-labelledby="diffPickLabel">
           <span class="label" id="diffPickLabel">Or show every trail of one level, or every unofficial one</span>
-          <div class="diff-chips"><button type="button" class="diff-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip" data-d="unoff" aria-pressed="false" title="Every MTB tagged or Looks like MTB trail in the area that isn&#39;t marked official: first the ones mappers flagged as unofficial (informal, closed, no bikes, or a note saying unsanctioned), then the ones with no sign either way"><span class="diff d-unoff">Unofficial</span></button></div>
+          <div class="diff-chips"><button type="button" class="diff-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip" data-d="unoff" aria-pressed="false" title="Trails in the area that aren&#39;t part of the official bike network: plain paths with no bike tags (the dotted lines on the base map) and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button></div>
         </div>
         <div class="wantlist" id="wantList" hidden></div>
       </section>
@@ -4548,6 +4548,26 @@ out tags center qt;`;
     $("boxRes").innerHTML = "";
     document.querySelectorAll(".diff-chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
   }
+  // Plain paths for the Unofficial button: the area itself when it is one riding area or a zoomed-in view, else null.
+  function plainBounds(b) {
+    const size = (x) => (x.getNorth() - x.getSouth()) * (x.getEast() - x.getWest());
+    if (size(b) <= 0.07) return b;
+    const v = map.getBounds();
+    return b.intersects(v) && size(v) <= 0.07 ? L.latLngBounds([Math.max(b.getSouth(), v.getSouth()), Math.max(b.getWest(), v.getWest())], [Math.min(b.getNorth(), v.getNorth()), Math.min(b.getEast(), v.getEast())]) : null;
+  }
+  // highway=path ways that aren't in the bike lists, official, ski trails or paved town paths. Drawn grey and dotted.
+  async function loadPlainPaths(b, lists) {
+    const bb = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((n) => n.toFixed(5)).join(",");
+    const json = await overpass(`[out:json][timeout:60];way["highway"~"^(path|bridleway)$"](${bb});out tags geom;`);
+    if (!json) return [];
+    const net = lists.flatMap((l) => l || []), inNet = new Set(net.map((w) => w.id));
+    const netNames = new Set(net.map((w) => (w.tags.name || "").trim().toLowerCase()).filter(Boolean));   // a bike trail's own untagged piece
+    return json.elements.filter((e) => e.geometry && e.geometry.length > 1 && !inNet.has(e.id)).map((e) => {
+      const tags = e.tags || {};
+      return { id: e.id, tags, geom: e.geometry.map((p) => [p.lat, p.lon]), c: { cat: "path", unoff: unofficial(tags), official: officialWhy(tags) } };
+    }).filter((w) => !w.c.official && !netNames.has((w.tags.name || "").trim().toLowerCase()) && !w.tags["piste:type"] && !w.tags.footway && w.tags.lit !== "yes" && !PAVED.test(w.tags.surface || "")
+      && !(hasMtb(w.tags) && !w.c.unoff.length) && lengthKm(w.geom) >= 0.06);
+  }
   // b: the square, or with diff (a DIFF key, or "unoff" for every unofficial MTB trail) the area to list them in (named where).
   async function showBox(b, diff, where) {
     clearBox();
@@ -4555,26 +4575,37 @@ out tags center qt;`;
     if (diff) document.querySelectorAll(".diff-chip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.d === diff)));
     else boxLayer.addLayer(L.rectangle(b, { color: css("--accent"), weight: 2, dashArray: "6 6", fillOpacity: 0.04, interactive: false }));
     if (isFull()) setFullMap(false);
-    const unoffPick = diff === "unoff", one = unoffPick ? "unofficial or unmarked MTB trail" : diff ? DIFF[diff].label + " trail" : "MTB trail";
+    const unoffPick = diff === "unoff", one = unoffPick ? "unofficial trail" : diff ? DIFF[diff].label + " trail" : "MTB trail";
     const what = one + "s", inWhere = diff ? `in ${where}` : "in your square";
     $("boxRes").hidden = false;
     $("boxRes").innerHTML = `<div class="box-head"><b>Looking for ${what} ${inWhere}…</b></div>`;
     const zs = ZONES.filter((z) => z.bounds.intersects(b));
     const lists = await Promise.all(zs.map(loadZoneTrails));
     if (token !== boxToken) return;
+    // Unofficial: also the plain paths around the bike network (no bike tags, not official), live from OpenStreetMap.
+    let pathNote = "";
+    if (unoffPick) {
+      const pb = plainBounds(b);
+      if (!pb) pathNote = "Pick one area (or zoom the map in) to also see the plain paths that aren't part of the bike network.";
+      else {
+        try { lists.push(await loadPlainPaths(pb, lists)); }
+        catch (e) { pathNote = `Couldn't load the plain paths (${e.message})`; }
+        if (token !== boxToken) return;
+      }
+    }
     const missing = zs.filter((z, i) => !lists[i]).map((z) => shortZone(z));
     const seen = new Set(), byName = new Map(), found = L.latLngBounds([]);
     let unnamed = 0;
     lists.forEach((list) => (list || []).forEach((w) => {
-      if (seen.has(w.id) || (unoffPick ? !!w.c.official : diff && difficulty(w.tags) !== diff) || !w.geom.some((p) => b.contains(p))) return;
+      if (seen.has(w.id) || (unoffPick ? w.c.cat !== "path" && !w.c.unoff.length : diff && difficulty(w.tags) !== diff) || !w.geom.some((p) => b.contains(p))) return;
       seen.add(w.id);
       found.extend(w.geom);
       const byDiff = state.colorBy === "diff", d = difficulty(w.tags), unoff = w.c.unoff.length > 0;
-      const color = byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks");
+      const color = w.c.cat === "path" ? UNRATED : byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks");
       const name = (w.tags.name || w.tags["mtb:name"] || "").trim();
       boxLayer.addLayer(L.polyline(w.geom, { renderer: boxRenderer, color: "#fff", weight: 8, opacity: 0.9, interactive: false }));
       const line = L.polyline(w.geom, { renderer: boxRenderer, color, weight: 4.5, opacity: 1 });
-      if (unoff) boxLayer.addLayer(L.polyline(w.geom, { renderer: boxRenderer, color: css("--fg"), weight: 2.5, dashArray: "1 7", interactive: false }));
+      if (unoff || w.c.cat === "path") boxLayer.addLayer(L.polyline(w.geom, { renderer: boxRenderer, color: css("--fg"), weight: 2.5, dashArray: "1 7", interactive: false }));
       boxLayer.addLayer(line);
       if (!name) { unnamed++; line.on("click", (e) => { L.DomEvent.stopPropagation(e); pickTrailAt(e.latlng); }); return; }
       const key = name.toLowerCase();
@@ -4587,15 +4618,16 @@ out tags center qt;`;
     boxGroups = [...byName.values()].sort((a, b) => (unoffPick && flagged(b) - flagged(a)) || a.name.localeCompare(b.name));
     const rows = boxGroups.map((g, i) => {
       const main = g.ways.reduce((a, w) => (lengthKm(w.geom) > lengthKm(a.geom) ? w : a));
-      const off = g.ways.find((w) => w.c.official), unoff = g.ways.every((w) => w.c.unoff.length);
-      return `<button class="box-row" type="button" data-i="${i}"><span class="box-name">${esc(g.name)}</span>${diffBadge(main.tags)}${unoff ? `<span class="unoff-tag">Unofficial?</span>` : unoffPick ? `<span class="unmarked-tag" title="Nothing on the map says whether this trail is official or not">Not marked</span>` : ""}${off ? officialTag(off.c.official) : ""}<span class="box-len">${fmtLen(g.km)}</span></button>`;
+      const off = g.ways.find((w) => w.c.official), unoff = g.ways.every((w) => w.c.unoff.length), path = main.c.cat === "path";
+      return `<button class="box-row" type="button" data-i="${i}"><span class="box-name">${esc(g.name)}</span>${path ? "" : diffBadge(main.tags)}${unoff ? `<span class="unoff-tag">Unofficial?</span>` : ""}${path ? `<span class="unmarked-tag" title="Mapped as a plain path with no bike tags, outside the official bike network">Plain path</span>` : ""}${off ? officialTag(off.c.official) : ""}<span class="box-len">${fmtLen(g.km)}</span></button>`;
     }).join("");
     const none = !boxGroups.length && !unnamed;
     if (diff && found.isValid()) map.fitBounds(found, { padding: [20, 20], maxZoom: 15 });
     const why = missing.length ? `<p class="hint box-why">Couldn't load the trail list for ${esc(missing.join(" and "))}. Reload the page and try again.</p>`
-      : none && unoffPick ? `<p class="hint box-why">Every MTB trail ${esc(inWhere)} is marked official in OpenStreetMap (run by a club, park or bike park, or listed by Recreation Sites and Trails BC).</p>`
+      : unoffPick && pathNote ? `<p class="hint box-why">${esc(pathNote)}</p>`
+      : none && unoffPick ? `<p class="hint box-why">No plain paths or flagged trails ${esc(inWhere)}: every trail here is part of the bike network or marked official.</p>`
       : none && diff ? `<p class="hint box-why">No trails ${esc(inWhere)} are rated ${DIFF[diff].label} in OpenStreetMap. Only trails with a difficulty rating show up here.</p>`
-      : unoffPick && !none ? `<p class="hint box-why">Trails mappers flagged as unofficial come first (dotted on the map), then trails with no sign either way. Official trails (club, park, bike park or Recreation Sites and Trails BC) are left out.</p>`
+      : unoffPick && !none ? `<p class="hint box-why">Grey dotted: plain paths with no bike tags, outside the bike network. MTB trails mappers flagged as unofficial come first. The tagged bike network and official trails (club, park, ski or Recreation Sites and Trails BC) are left out.</p>`
       : none ? `<p class="hint box-why">OpenStreetMap has no trails tagged for mountain biking here: the lines on the map are hiking trails or forest roads, or nothing is mapped yet. Try a bigger square, or tap a line to see what it is.</p>` : "";
     $("boxRes").innerHTML = `<div class="box-head"><div><b>${none ? `No ${what} ${esc(inWhere)}` : `${boxGroups.length} ${one}${boxGroups.length === 1 ? "" : "s"} ${esc(inWhere)}`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed bit${unnamed === 1 ? "" : "s"} (on the map)</span>` : ""}</div><button class="linkish" id="boxClear" type="button">${diff ? "Clear" : "Clear square"}</button></div>${why}${rows}`;
     $("boxClear").addEventListener("click", clearBox);
