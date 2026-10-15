@@ -271,7 +271,6 @@
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
-    // Photos: sharp aerial photos (Esri, a few years old in places) or the newer but blurrier Sentinel-2 mosaic.
     // Summer / Winter: two clear choices. Summer = snow-free photos (tap Summer again for the newer
     // 2023 mosaic), Winter = the sharp photos with NASA's latest real snow cover painted on.
     const mk = (label) => { const el = document.createElement("button"); el.type = "button"; el.textContent = label;
