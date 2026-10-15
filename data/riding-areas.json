@@ -1,4 +1,4 @@
-{"v":1,"note":"Hand-picked riding area names for the map labels (areas.js). c is the middle of the area's MTB trails in data/mtb-<zone>.json. tier 1 shows from zoom 8, tier 2 from zoom 10; all hide from zoom 13. r (metres, optional) marks a backcountry area where every named path within r is a bike trail, however it is tagged (scripts/build-mtb.mjs). official (optional) marks those named paths official on the map, with that text as the reason (paths named like roads excepted).","areas":[
+{"v":1,"note":"Hand-picked riding area names for the map labels (areas.js). c is the middle of the area's MTB trails in data/mtb-<zone>.json. tier 1 shows from zoom 8, tier 2 from zoom 10; all hide from zoom 13. r (metres, optional) marks a backcountry area where every named path within r is a bike trail, however it is tagged (scripts/build-mtb.mjs). park (optional) adds every named path inside that provincial park too (zones in REC_ZONES only). official (optional) marks those named paths official on the map, with that text as the reason (paths named like roads excepted).","areas":[
   {"name": "Mount Fromme", "zone": "van", "c": [49.3608, -123.0595], "tier": 1},
   {"name": "Mount Seymour", "zone": "van", "c": [49.3427, -122.9707], "tier": 1},
   {"name": "Cypress Mountain", "zone": "van", "c": [49.3598, -123.2086], "tier": 1},
@@ -22,7 +22,7 @@
   {"name": "Signal Hill", "zone": "pem", "c": [50.3086, -122.8065], "tier": 2},
   {"name": "Mosquito Lake", "zone": "pem", "c": [50.3332, -122.7602], "tier": 2},
   {"name": "Seton Ridge", "zone": "lil", "c": [50.6536, -122.1471], "tier": 1},
-  {"name": "South Chilcotin", "zone": "chil", "c": [50.95, -122.92], "tier": 1, "r": 30000, "official": "an established trail of South Chilcotin Mountains Park and the Spruce Lake area"},
+  {"name": "South Chilcotin", "zone": "chil", "c": [50.95, -122.92], "tier": 1, "r": 30000, "park": "South Chilcotin Mountains Park", "official": "an established trail of South Chilcotin Mountains Park and the Spruce Lake area"},
   {"name": "Mount Elphinstone", "zone": "sun", "c": [49.4465, -123.5783], "tier": 1},
   {"name": "Sprockids", "zone": "sun", "c": [49.4318, -123.5225], "tier": 2},
   {"name": "Coast Gravity Park", "zone": "sun", "c": [49.5026, -123.7199], "tier": 1},
