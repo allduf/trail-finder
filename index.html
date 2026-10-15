@@ -1081,12 +1081,12 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
         </div>
         <div class="lm-head">Tools</div>
         <div class="lm-list">
-        <button id="btn3d" type="button" aria-pressed="false">⛰ 3D</button>
         <button id="offlineBtn" type="button" aria-pressed="false" title="Save an area's map, trails and forest roads on this device for riding with no signal">⤓ Offline maps</button>
         </div>
       </div>
       <button id="locate" type="button">◎ My location</button>
       <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
+      <button id="btn3d" type="button" aria-pressed="false" title="Show the mountains in 3D">⛰ 3D</button>
       <div class="map-note" id="mapNote" hidden></div>
     </div>
     <div class="first-tip" id="firstTip" role="note" hidden><strong>New here?</strong> <span class="tip-wide">Pick an area and tap <b>Find new trails</b>.</span><span class="tip-phone">Tap <b>New trails</b> below to see what's new.</span> Tap any trail on the map for its details, weather and loam. <button type="button" class="linkish" id="firstTipOk">Got it</button></div>
@@ -1192,7 +1192,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
       <li><strong>New trails:</strong> pick an area (or tap Near me) and how new, then tap Find new trails. A trail is new when it was first added to OpenStreetMap in that time.</li>
       <li><strong>Prime loam now:</strong> trails whose dirt is damp right now (Loam index 40 to 59), the best riding.</li>
       <li><strong>Tap any trail</strong> on the map for its difficulty, weather, loam, how to get there and rider reports.</li>
-      <li><strong>Layers</strong> (top right of the map) turns on forest roads, wildfires, logging areas, elevation lines, your rides, the map style, 3D and offline maps.</li>
+      <li><strong>Layers</strong> (top right of the map) turns on forest roads, wildfires, logging areas, elevation lines, your rides, the map style and offline maps. The ⛰ 3D button sits right under it.</li>
       <li><strong>Colours</strong> are like Trailforks: green, blue, black, double black (red) and pro line (orange). Grey isn't rated yet. Dotted lines may be unofficial.</li>
       <li>Trails come from OpenStreetMap mappers, so details can be missing or out of date. Check local rules and closures before riding.</li>
     </ul>
@@ -3895,7 +3895,7 @@ out body;`;
   layersBtn.addEventListener("click", () => setLayersOpen(layersMenu.hidden));
   document.addEventListener("click", (e) => { if (!layersMenu.hidden && !layersMenu.contains(e.target) && !layersBtn.contains(e.target)) setLayersOpen(false); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !layersMenu.hidden) { setLayersOpen(false); layersBtn.focus(); } });
-  ["btn3d", "offlineBtn"].forEach((id) => $(id).addEventListener("click", () => setLayersOpen(false)));   // tools open their own view
+  $("offlineBtn").addEventListener("click", () => setLayersOpen(false));   // Offline maps opens its own view
   function countLayers() {   // "Layers · 3" says how many overlays are on without opening the menu
     const on = [...layersMenu.querySelector(".lm-overlays").children].filter((b) => b.getAttribute("aria-pressed") === "true" && !b.hidden && getComputedStyle(b).display !== "none").length;
     $("layersN").textContent = on ? String(on) : "";
