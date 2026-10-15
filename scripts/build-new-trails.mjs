@@ -16,7 +16,7 @@ import { execFileSync } from "node:child_process";
 const root = new URL("../", import.meta.url);
 const DATA = new URL("data/", root);
 const FEED = new URL("new-trails.json", DATA);
-const FRESH_DAYS = 30;       // first mapped this recently to count as a new trail
+const FRESH_DAYS = 7;        // first mapped this recently to count as a new trail (not an old one found late)
 const KEEP_DAYS = 90;        // items stay in the feed this long
 const MAX_ITEMS = 500;
 
