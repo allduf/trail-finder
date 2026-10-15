@@ -26,7 +26,7 @@ jobs:
             const t0 = Date.now();
             await p.goto("http://localhost:8765/index.html");
             await p.waitForFunction(() => window.tfLeaflet && window.tfPhotoSlider);
-            await p.evaluate(([lat, lon, z]) => tfLeaflet.setView([lat, lon], z, { animate: false }), [lat, lon, z]);
+            await p.evaluate(([lat, lon, z]) => { tfLeaflet.setView([lat, lon], z, { animate: false }); }, [lat, lon, z]);
             await p.waitForTimeout(1500);
             await p.evaluate(() => { document.getElementById("firstTip").hidden = true; tfPhotoSlider.setOn(true); });
             const t1 = Date.now();
