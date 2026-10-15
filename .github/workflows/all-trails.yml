@@ -4,7 +4,7 @@ name: All trails data
 # data/mtb-<zone>.json, so the website can draw them all coloured by difficulty.
 on:
   schedule:
-    - cron: "41 8 * * *"   # 08:41 UTC, before the nightly trail data run
+    - cron: "41 */6 * * *"   # every 6 hours: each run does the zones built longest ago for 25 minutes
   workflow_dispatch:        # "Run workflow" button on the Actions tab
 
 permissions:

@@ -1,11 +1,11 @@
 name: Forest roads data
 
-# Every Monday, collect the region's dirt and Forest Service roads with their status (BC government Forest Tenure
+# Every Monday and Thursday, collect the region's dirt and Forest Service roads with their status (BC government Forest Tenure
 # roads + OpenStreetMap) into data/roads-<zone>.json, for the "Forest roads" layer on the website.
 # On a pull request that changes the script it only does a test run, without saving anything.
 on:
   schedule:
-    - cron: "17 9 * * 1"   # Mondays 09:17 UTC
+    - cron: "17 9 * * 1,4"   # Mondays and Thursdays 09:17 UTC; each run does the zones done longest ago for 60 minutes
   workflow_dispatch:        # "Run workflow" button on the Actions tab
   pull_request:
     paths:

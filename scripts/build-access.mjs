@@ -22,8 +22,10 @@ const WFS = "https://openmaps.gov.bc.ca/geo/pub/wfs";
 const REC_LAYER = "WHSE_FOREST_TENURE.FTEN_REC_SITE_POINTS_SVW";
 const ZONES = [...html.matchAll(/\{ id: "(\w+)", name: "([^"]+)", box: \[([^\]]+)\] \}/g)].map((m) => ({ id: m[1], name: m[2], box: m[3].split(",").map(Number) }));
 if (ZONES.length < 2) throw new Error("Couldn't read the zones from index.html");
-// DataBC and BC Wildfire only cover BC: zones east of 116.5° W (Calgary and the Rockies) are in Alberta.
-const inBC = (z) => z.box[1] < -116.5;
+// DataBC and BC Wildfire only cover BC: the zones in ALBERTA_ZONES (index.html) skip them.
+const ALBERTA = JSON.parse((html.match(/const ALBERTA_ZONES = (\[[^\]]*\]);/) || [])[1] || "null");
+if (!ALBERTA) throw new Error("Couldn't find ALBERTA_ZONES in index.html");
+const inBC = (z) => !ALBERTA.includes(z.id);
 const ONLY = process.env.ONLY || "";
 const PARK_M = 1500;   // parking and rec sites further than this from any MTB trail are left out
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -179,8 +181,13 @@ function recPoints(feats, grid) {
 }
 
 const started = Date.now(), builtAt = new Date().toISOString().slice(0, 19) + "Z";
-let updated = 0, failed = 0;
-for (const z of ZONES) {
+let updated = 0, failed = 0, skipped = 0;
+// With many zones, one night can't always do them all before the job's time limit: zones done longest ago go first,
+// and no new zone starts after ACCESS_MINUTES (the rest keep their last good data and go first next night).
+const MINUTES = +process.env.ACCESS_MINUTES || 35;
+const lastDone = (z) => { const f = readJson(`access-${z.id}.json`); return f ? Math.min(Date.parse(f.osmAt) || 0, inBC(z) ? Date.parse(f.recAt) || 0 : Infinity) : 0; };
+for (const z of [...ZONES].sort((a, b) => lastDone(a) - lastDone(b))) {
+  if (Date.now() - started > MINUTES * 60e3) { skipped++; continue; }
   const old = readJson(`access-${z.id}.json`) || {};
   const file = { v: 1, builtAt, osm: old.osm || [], rec: old.rec || [], osmAt: old.osmAt || null, recAt: old.recAt || null };
   const grid = trailGrid(z.id);
@@ -199,5 +206,5 @@ for (const z of ZONES) {
   }
   if (changed) { writeFileSync(new URL(`access-${z.id}.json`, DATA), JSON.stringify(file)); updated++; }
 }
-log(`Done in ${Math.round((Date.now() - started) / 60e3)} min: ${updated} zones updated, ${failed} source failures.`);
+log(`Done in ${Math.round((Date.now() - started) / 60e3)} min: ${updated} zones updated, ${failed} source failures${skipped ? `, ${skipped} zones left for next time` : ""}.`);
 if (failed && !updated) process.exit(1);

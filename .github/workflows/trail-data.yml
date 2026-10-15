@@ -1,11 +1,13 @@
 name: Nightly trail data
 
-# Every night, collect the region's new trails and trail names from OpenStreetMap into data/,
+# Every 3 hours, collect the region's new trails and trail names from OpenStreetMap into data/,
 # so the website loads them from GitHub instead of every visitor asking Overpass.
-# Trails that appeared since last night go into data/new-trails.json, the app's 🔔 notifications.
+# Overpass is busy and the region (Vancouver to Calgary) has about 170 map squares, so each run does the
+# squares built longest ago until its time is up; together the runs refresh every square every day or two.
+# Trails that appeared since the last run go into data/new-trails.json, the app's 🔔 notifications.
 on:
   schedule:
-    - cron: "23 10 * * *"   # 10:23 UTC, around 3 am in Vancouver
+    - cron: "23 */3 * * *"   # every 3 hours (10:23 UTC is around 3 am in Vancouver)
   workflow_dispatch:         # "Run workflow" button on the Actions tab
 
 permissions:

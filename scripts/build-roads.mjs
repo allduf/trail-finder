@@ -25,8 +25,10 @@ const WFS = "https://openmaps.gov.bc.ca/geo/pub/wfs";
 const FTEN_LAYER = "WHSE_FOREST_TENURE.FTEN_ROAD_SECTION_LINES_SVW";
 const ZONES = [...html.matchAll(/\{ id: "(\w+)", name: "([^"]+)", box: \[([^\]]+)\] \}/g)].map((m) => ({ id: m[1], name: m[2], box: m[3].split(",").map(Number) }));
 if (ZONES.length < 2) throw new Error("Couldn't read the zones from index.html");
-// DataBC and BC Wildfire only cover BC: zones east of 116.5° W (Calgary and the Rockies) are in Alberta.
-const inBC = (z) => z.box[1] < -116.5;
+// DataBC and BC Wildfire only cover BC: the zones in ALBERTA_ZONES (index.html) skip them.
+const ALBERTA = JSON.parse((html.match(/const ALBERTA_ZONES = (\[[^\]]*\]);/) || [])[1] || "null");
+if (!ALBERTA) throw new Error("Couldn't find ALBERTA_ZONES in index.html");
+const inBC = (z) => !ALBERTA.includes(z.id);
 const ONLY = process.env.ONLY || "";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
@@ -315,7 +317,13 @@ if (!ONLY || ONLY === "fires") {
   if (ONLY === "fires") { if (failed) process.exit(1); process.exit(0); }
 }
 
-for (const z of ZONES) {
+// With many zones, one run can't always do them all before the job's time limit: zones done longest ago go first,
+// and no new zone starts after ROADS_MINUTES (the rest keep their last good data and go first next run).
+const MINUTES = +process.env.ROADS_MINUTES || 60;
+let skipped = 0;
+const lastDone = (z) => { const f = readJson(`roads-${z.id}.json`); return f ? Math.min(Date.parse(f.osmAt) || 0, inBC(z) ? Date.parse(f.ftenAt) || 0 : Infinity) : 0; };
+for (const z of [...ZONES].sort((a, b) => lastDone(a) - lastDone(b))) {
+  if (Date.now() - started > MINUTES * 60e3) { skipped++; continue; }
   const old = readJson(`roads-${z.id}.json`) || {};
   const file = { v: 1, builtAt, ften: old.ften || [], osm: old.osm || {}, feat: old.feat || [], cut: old.cut || [], mv: old.mv || [], ftenAt: old.ftenAt || null, osmAt: old.osmAt || null };
   let changed = false;
@@ -359,5 +367,5 @@ for (const z of ZONES) {
   }
   if (changed) { writeFileSync(new URL(`roads-${z.id}.json`, DATA), JSON.stringify(file)); updated++; }
 }
-log(`Done in ${Math.round((Date.now() - started) / 60e3)} min: ${updated} zones updated, ${failed} source failures.`);
+log(`Done in ${Math.round((Date.now() - started) / 60e3)} min: ${updated} zones updated, ${failed} source failures${skipped ? `, ${skipped} zones left for next time` : ""}.`);
 if (failed && !updated) process.exit(1);

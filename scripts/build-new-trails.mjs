@@ -48,7 +48,10 @@ for (const z of ZONES) {
   const prev = seeding ? { ways: {} } : lastNight(`trails-${z.id}.json`);
   if (!prev || !prev.ways) { console.log(`${z.name}: no file from last night, skipping`); continue; }
 
-  const newWays = Object.entries(cur.ways).filter(([id, w]) => !prev.ways[id] && !inFeed.has(+id) && isFresh(w));
+  // Only squares last night's file already had: a zone that's still filling in (squares built for the first time)
+  // would otherwise count every recent trail in those squares as new today.
+  const seen = new Set(Object.entries(cur.tiles || {}).filter(([k]) => prev.tiles && prev.tiles[k]).flatMap(([, t]) => t.ways.map(String)));
+  const newWays = Object.entries(cur.ways).filter(([id, w]) => (seeding || seen.has(id)) && !prev.ways[id] && !inFeed.has(+id) && isFresh(w));
   if (!newWays.length) { console.log(`${z.name}: nothing new`); continue; }
   const freshIds = new Set(newWays.map(([id]) => id));
 

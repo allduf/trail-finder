@@ -30,13 +30,28 @@ const WFS = "https://openmaps.gov.bc.ca/geo/pub/wfs";
 const AVCAN = process.env.AVCAN_API || "https://api.avalanche.ca";
 const ZONES = [...html.matchAll(/\{ id: "(\w+)", name: "([^"]+)", box: \[([^\]]+)\] \}/g)].map((m) => ({ id: m[1], name: m[2], box: m[3].split(",").map(Number) }));
 if (ZONES.length < 2) throw new Error("Couldn't read the zones from index.html");
-// Each region (BC's Sea to Sky + Sunshine Coast, and Calgary & the Rockies in Alberta, east of 116.5° W), a little wider:
-// the ski terrain goes further up the valleys than the riding areas. Two boxes, not one, so the BC interior between isn't asked for.
-const regionBox = (zs) => [Math.min(...zs.map((z) => z.box[0])) - 0.05, Math.min(...zs.map((z) => z.box[1])) - 0.1,
-  Math.max(...zs.map((z) => z.box[2])) + 0.05, Math.max(...zs.map((z) => z.box[3])) + 0.1].map((v) => +v.toFixed(2));
-const inBC = (z) => z.box[1] < -116.5;
-const BC_REGION = ZONES.some(inBC) ? regionBox(ZONES.filter(inBC)) : null;
-const REGIONS = [BC_REGION, ZONES.some((z) => !inBC(z)) ? regionBox(ZONES.filter((z) => !inBC(z))) : null].filter(Boolean);
+// Where to look for ski routes: each zone, a little wider (the ski terrain goes further up the valleys than the riding areas),
+// with nearby zones merged into one box. Not one box around everything, so the empty country between isn't asked for.
+const ALBERTA = JSON.parse((html.match(/const ALBERTA_ZONES = (\[[^\]]*\]);/) || [])[1] || "null");
+if (!ALBERTA) throw new Error("Couldn't find ALBERTA_ZONES in index.html");
+const inBC = (z) => !ALBERTA.includes(z.id);
+const pad = ([s, w, n, e]) => [s - 0.05, w - 0.1, n + 0.05, e + 0.1];
+const area = ([s, w, n, e]) => (n - s) * (e - w);
+const union = (a, b) => [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])];
+// Two boxes merge when the merged box is at most twice the zone area they cover (so mostly riding areas, not empty land between).
+function mergeBoxes(boxes) {
+  const list = boxes.map((b) => ({ b, covered: area(b) }));
+  for (let merged = true; merged;) {
+    merged = false;
+    for (let i = 0; i < list.length && !merged; i++) for (let j = i + 1; j < list.length && !merged; j++) {
+      const u = union(list[i].b, list[j].b), covered = list[i].covered + list[j].covered;
+      if (area(u) <= 2 * covered) { list[i] = { b: u, covered }; list.splice(j, 1); merged = true; }
+    }
+  }
+  return list.map(({ b }) => b.map((v) => +v.toFixed(2)));
+}
+const REGIONS = mergeBoxes(ZONES.map((z) => pad(z.box)));
+const BC_REGIONS = mergeBoxes(ZONES.filter(inBC).map((z) => pad(z.box)));
 const ONLY = (process.env.ONLY || "").split(",").filter(Boolean), runs = (part) => !ONLY.length || ONLY.includes(part);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
@@ -247,8 +262,9 @@ async function buildBc() {
   log(`BC Recreation Sites and Trails (${REC})`);
   const d = await describe(REC);
   log(`  fields: ${d.fields.join(", ")}`);
-  if (!BC_REGION) return [];
-  const feats = [...(await wfsAll(REC, BC_REGION, d.geom)).values()];
+  const all = new Map();
+  for (const box of BC_REGIONS) for (const [k, f] of await wfsAll(REC, box, d.geom)) all.set(k, f);
+  const feats = [...all.values()];
   log(`  ${feats.length} recreation trails in the region`);
   // Optional: a recreation activity table, if DataBC has one, says which sites are for skiing or snowshoeing.
   const skiIds = new Set();
@@ -302,7 +318,7 @@ async function buildC2c() {
       if (list.length < 100 || got.length >= (page.total || 0)) break;
       await sleep(1000);
     }
-    docs.push(...got);
+    got.forEach((d) => { if (!docs.some((x) => x.document_id === d.document_id)) docs.push(d); });   // boxes can overlap
   }
   const routes = [], starts = [];
   for (const d of docs) {

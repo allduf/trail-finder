@@ -1197,7 +1197,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
       <li>Trails come from OpenStreetMap mappers, so details can be missing or out of date. Check local rules and closures before riding.</li>
     </ul>
     <details class="about-more"><summary>All the details</summary>
-    <p>All data comes from OpenStreetMap. For Sea to Sky, the Sunshine Coast and Calgary and the Rockies, GitHub collects the new trails and trail names every night, so searches there load in a second or two without waiting on OpenStreetMap. A trail added today shows up after the next nightly update. Anywhere else, the app asks OpenStreetMap live. It covers two regions, split into the zones in the Area menu: the Sea to Sky corridor and the Sunshine Coast in BC, and Calgary, Bragg Creek, Canmore and Kananaskis, and Banff in Alberta. Forest Service roads from the BC government, BC recreation sites and the Wildfires button only cover BC; in Alberta the forest roads, trailheads and parking come from OpenStreetMap only. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
+    <p>All data comes from OpenStreetMap. For the riding areas from Vancouver to Calgary, GitHub collects the new trails and trail names several times a day, so searches there load in a second or two without waiting on OpenStreetMap. A trail added today shows up after one of the next updates (with so many areas, each one is refreshed every day or two). Anywhere else, the app asks OpenStreetMap live. The areas are grouped into four regions in the Area menu: Sea to Sky and the Sunshine Coast; the Fraser Valley, Kamloops, the Okanagan and Williams Lake; the Kootenays, Revelstoke and Golden; and Calgary, Bragg Creek, Canmore and Kananaskis, and Banff in Alberta. The empty country between the riding towns isn't collected: use “Search this area” there. Forest Service roads from the BC government, BC recreation sites and the Wildfires button only cover BC; in Alberta the forest roads, trailheads and parking come from OpenStreetMap only. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
     <h3>Loam in the list</h3>
     <p>Each new trail shows its Loam moisture index right now, from the same Open-Meteo soil model as the trail details (trails within about 5 km share one reading). Pick “Prime loam now” in the time row to see every named trail in the area, old or new, whose index is 40 to 59 right now (damp hero dirt). They show as teal dots on the map: tap one to load the whole trail.</p>
     <h3>Near me</h3>
@@ -1265,8 +1265,8 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
   const OSM_API = "https://api.openstreetmap.org/api/0.6";
   const MAX_MONTHS = 24;
-  // Sea to Sky + Sunshine Coast, and Calgary & the Rockies, as boxes around the riding areas (south, west, north, east).
-  // The nightly jobs (scripts/) read this list too. Zones east of 116.5° W are in Alberta, where the BC government sources are skipped.
+  // Riding areas from Vancouver to Calgary, as boxes around them (south, west, north, east). The nightly jobs (scripts/) read
+  // this list and ALBERTA_ZONES too: the BC government sources (DataBC, BC Wildfire) are skipped for the Alberta zones.
   const ZONES = [
     { id: "van", name: "Vancouver & North Shore", box: [49.18, -123.30, 49.45, -122.75] },
     { id: "sqm", name: "Howe Sound & Squamish", box: [49.45, -123.32, 49.96, -122.95] },
@@ -1276,21 +1276,42 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     { id: "chil", name: "Gold Bridge & South Chilcotin", box: [50.62, -123.20, 51.20, -122.30] },
     { id: "sun", name: "Sunshine Coast (Gibsons to Egmont)", box: [49.38, -124.12, 49.80, -123.45] },
     { id: "pr", name: "Powell River & Lund", box: [49.75, -124.78, 50.06, -124.25] },
+    { id: "fv", name: "Fraser Valley (Coquitlam to Hope)", box: [49.00, -122.74, 49.42, -121.38] },
+    { id: "pri", name: "Princeton", box: [49.38, -120.65, 49.56, -120.40] },
+    { id: "mer", name: "Merritt", box: [50.02, -120.95, 50.22, -120.62] },
+    { id: "kam", name: "Kamloops & Sun Peaks", box: [50.55, -120.60, 50.95, -119.80] },
+    { id: "wl", name: "Williams Lake", box: [52.00, -122.35, 52.25, -121.95] },
+    { id: "shu", name: "Salmon Arm & Shuswap", box: [50.62, -119.45, 50.85, -119.05] },
+    { id: "ver", name: "Vernon & Silver Star", box: [50.10, -119.45, 50.42, -119.02] },
+    { id: "kel", name: "Kelowna & West Kelowna", box: [49.72, -119.72, 50.05, -119.25] },
+    { id: "pen", name: "Penticton & Summerland", box: [49.38, -119.75, 49.70, -119.45] },
+    { id: "sok", name: "Oliver & Osoyoos", box: [49.00, -119.65, 49.35, -119.40] },
+    { id: "gfk", name: "Grand Forks & Christina Lake", box: [49.00, -118.55, 49.20, -118.15] },
+    { id: "ros", name: "Rossland, Trail & Castlegar", box: [49.02, -117.90, 49.38, -117.55] },
+    { id: "nel", name: "Nelson", box: [49.40, -117.45, 49.62, -117.15] },
+    { id: "rev", name: "Revelstoke", box: [50.90, -118.32, 51.10, -118.08] },
+    { id: "gol", name: "Golden", box: [51.18, -117.12, 51.42, -116.82] },
+    { id: "inv", name: "Invermere & Radium", box: [50.40, -116.30, 50.65, -115.95] },
+    { id: "cbk", name: "Cranbrook & Kimberley", box: [49.45, -116.05, 49.75, -115.65] },
+    { id: "fer", name: "Fernie & Elk Valley", box: [49.40, -115.20, 49.80, -114.80] },
     { id: "yyc", name: "Calgary", box: [50.84, -114.42, 51.20, -113.86] },
     { id: "brg", name: "Bragg Creek & Moose Mountain", box: [50.78, -114.90, 51.05, -114.42] },
     { id: "kan", name: "Canmore & Kananaskis", box: [50.72, -115.45, 51.15, -114.90] },
     { id: "bnf", name: "Banff", box: [51.08, -115.75, 51.30, -115.45] },
   ];
+  const ALBERTA_ZONES = ["yyc", "brg", "kan", "bnf"];
   ZONES.forEach((z) => { z.bounds = L.latLngBounds([z.box[0], z.box[1]], [z.box[2], z.box[3]]); });
   const boundsOf = (zs) => zs.reduce((b, z) => b.extend(z.bounds), L.latLngBounds(zs[0].bounds.getSouthWest(), zs[0].bounds.getNorthEast()));
   const ALL_BOUNDS = boundsOf(ZONES);
-  // The two regions, each picked as a whole in the Area menu. "all" is the Sea to Sky one, as it was before Calgary was added,
+  // The regions, each picked as a whole in the Area menu. "all" is the Sea to Sky one, as it was before the rest was added,
   // so riders who saved "all" keep their area.
   const REGIONS = [
-    { id: "all", name: "Sea to Sky + Sunshine Coast", short: "Sea to Sky and the Sunshine Coast", zones: ZONES.filter((z) => z.box[1] < -116.5) },
-    { id: "ab", name: "Calgary & the Rockies", short: "Calgary and the Rockies", zones: ZONES.filter((z) => z.box[1] >= -116.5) },
+    { id: "all", name: "Sea to Sky + Sunshine Coast", short: "Sea to Sky and the Sunshine Coast", ids: ["van", "sqm", "wh", "pem", "lil", "chil", "sun", "pr"] },
+    { id: "tok", name: "Fraser Valley, Kamloops, Okanagan & Cariboo", short: "the Fraser Valley, Kamloops, the Okanagan and Williams Lake", ids: ["fv", "pri", "mer", "kam", "wl", "shu", "ver", "kel", "pen", "sok"] },
+    { id: "koot", name: "Kootenays, Revelstoke & Golden", short: "the Kootenays, Revelstoke and Golden", ids: ["gfk", "ros", "nel", "rev", "gol", "inv", "cbk", "fer"] },
+    { id: "ab", name: "Calgary & the Rockies", short: "Calgary and the Rockies", ids: ALBERTA_ZONES },
   ];
-  REGIONS.forEach((r) => { r.bounds = boundsOf(r.zones); });
+  REGIONS.forEach((r) => { r.zones = ZONES.filter((z) => r.ids.includes(z.id)); r.bounds = boundsOf(r.zones); });
   const MIN_ZOOM = 11;
 
   const $ = (id) => document.getElementById(id);
@@ -3985,7 +4006,7 @@ out body;`;
   const placeArea = () => nearPlace && { id: "near:" + nearPlace.box.map((n) => n.toFixed(2)).join(","), name: "Near " + nearPlace.label,
     bounds: L.latLngBounds([nearPlace.box[0], nearPlace.box[1]], [nearPlace.box[2], nearPlace.box[3]]) };
   const nameZone = () => ($("nameZone").value === "near" ? placeArea() : zoneById($("nameZone").value));
-  const wantedZones = () => (nameZone() ? [nameZone()] : ZONES.slice());
+  const wantedZones = () => (nameZone() ? [nameZone()] : regionHere().zones.slice());   // "All areas": the region the map is on
   const shortZone = (z) => z.name.split(" (")[0];
   const STOP = new Set(["trail", "trails", "the", "path", "of", "and"]);
   function norm(s) {

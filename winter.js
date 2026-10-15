@@ -45,8 +45,9 @@
   const ASPECTS = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
   // Where treeline sits, roughly (m): wetter coast ranges lower than the drier inland ranges (Duffey, Lillooet),
   // and highest in the Rockies (Kananaskis, Banff).
-  const bandsFor = (area) => /rock|kananaskis|banff|yoho|kootenay|jasper|purcell/i.test(area.name || "") ? { lo: 1900, hi: 2400 }
-    : /inland|duffey|lillooet|chilcotin|cariboo|interior/i.test(area.name || "") ? { lo: 1700, hi: 2200 } : { lo: 1500, hi: 1900 };
+  const bandsFor = (area) => /rock|kananaskis|banff|yoho|jasper|purcell/i.test(area.name || "") ? { lo: 1900, hi: 2400 }
+    : /inland|duffey|lillooet|chilcotin|cariboo|interior|columbia|selkirk|monashee|kootenay|boundary|glacier|lizard|flathead|okanagan|shuswap|thompson/i.test(area.name || "")
+      ? { lo: 1700, hi: 2200 } : { lo: 1500, hi: 1900 };
 
   const css = document.createElement("style");
   css.textContent = `
