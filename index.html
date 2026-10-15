@@ -2614,13 +2614,9 @@ out body;`;
     // The hour now, in the trail's own time zone (Open-Meteo times are local, without an offset).
     let i = h.time.findIndex((x) => x > c.time) - 1;
     if (i < 0) i = h.time.length - 1;
-    const sum = (from, to) => h.precipitation.slice(Math.max(0, from), Math.max(0, to)).reduce((a, b) => a + (b || 0), 0);
-    const rainPast = sum(i - 47, i + 1), rainNext = sum(i + 1, i + 25);
-    const lmi = lmiAt(h, i), later = lmiAt(h, Math.min(i + 24, h.time.length - 1));
+    const lmi = lmiAt(h, i);
     const lvl = lmi == null ? null : lmiLevel(lmi);
     const [sky, icon] = wmo(c.weather_code);
-    const trend = lmi == null || later == null ? "" : later >= lmi + 5 ? `Getting wetter: about ${later} by this time tomorrow.` : later <= lmi - 5 ? `Drying out: about ${later} by this time tomorrow.` : "About the same by this time tomorrow.";
-    const mm = (v) => (v < 0.1 ? "no" : v < 10 ? v.toFixed(1) + " mm of" : Math.round(v) + " mm of");
     const today = c.time.slice(0, 10);
     const days = d.time.map((day, k) => ({ day, k })).filter((x) => x.day >= today).map(({ day, k }) => {
       const [txt, ic] = wmo(d.weather_code[k]);
@@ -2637,10 +2633,7 @@ out body;`;
       ${lmi == null ? "" : `<div class="lmi-scale" role="img" aria-label="Loam moisture index ${lmi} out of 100"><i style="left:${lmi}%"></i></div>
       <div class="lmi-ends">${["Dry", "Tacky", "Damp", "Wet", "Saturated"].map((x, k) => `<span style="left:${10 + 20 * k}%">${x}</span>`).join("")}</div>
       ${lmiKey(lvl)}`}
-      <p class="wx-note">${lvl ? esc(lvl[2]) + " " : ""}${trend}</p>
-      <p class="wx-note">${mm(rainPast).replace(/^no$/, "No")} rain in the last 48 hours, ${mm(rainNext)} rain expected in the next 24. Wind ${Math.round(c.wind_speed_10m)} km/h${c.wind_gusts_10m > c.wind_speed_10m + 10 ? `, gusts ${Math.round(c.wind_gusts_10m)}` : ""}.</p>
-      <table class="etable wx-days"><thead><tr><th>Day</th><th>Sky</th><th>High / low</th><th>Rain</th></tr></thead><tbody>${days}</tbody></table>
-      <p class="muted enote">Forecast and soil moisture from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> weather models, for an area of a few kilometres around the middle of the trail at ${Math.round(w.elevation)} m. It's a model estimate, not a measurement on the trail: shaded forest and north slopes usually stay wetter, and sunny exposed trails dry faster. The Loam moisture index is the water in the top 9 cm of soil on a scale from 0 (bone dry) to 100 (saturated).</p>`;
+      <table class="etable wx-days"><thead><tr><th>Day</th><th>Sky</th><th>High / low</th><th>Rain</th></tr></thead><tbody>${days}</tbody></table>`;
   }
   function exampleWeather() {
     const now = new Date(), pad = (n) => String(n).padStart(2, "0");
