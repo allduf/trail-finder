@@ -794,7 +794,7 @@ label.toggle.t-unoff .sw { background: repeating-linear-gradient(90deg, var(--fg
 .use-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; background: var(--chip); color: var(--muted); border: 1px solid var(--line); vertical-align: 1px; }
 label.toggle.t-unoff.off .sw { background: repeating-linear-gradient(90deg, var(--muted) 0 3px, transparent 3px 6px); }
 .diff { display: inline-block; font-family: var(--font-display); font-weight: 700; font-size: .78rem; padding: 0 6px; border-radius: 4px; color: #fff; letter-spacing: .03em; white-space: nowrap; vertical-align: 1px; }
-.diff.d-green { background: #2f9e44; } .diff.d-blue { background: #1c6fe0; } .diff.d-black { background: #1b1b1b; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); } .diff.d-dbl { background: #d6202a; } .diff.d-pro { background: #e8590c; }
+.diff.d-green { background: #2f9e44; } .diff.d-blue { background: #1c6fe0; } .diff.d-black { background: #1b1b1b; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); } .diff.d-dbl { background: #d6202a; } .diff.d-pro { background: #e8590c; } .diff.d-unoff { background: var(--bg); color: var(--fg); border: 2px dashed var(--fg); padding: 2px 7px; }
 .off-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; border: 1px solid currentColor; color: var(--fg); vertical-align: 1px; }
 label.toggle.t-off .sw { background: var(--fg); }
 /* Map key (trail colours) */
@@ -1127,8 +1127,8 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
           <p class="hint" id="nameNearMsg" role="status" hidden></p>
         </div>
         <div class="diff-pick" role="group" aria-labelledby="diffPickLabel">
-          <span class="label" id="diffPickLabel">Or show every trail of one level</span>
-          <div class="diff-chips"><button type="button" class="diff-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button></div>
+          <span class="label" id="diffPickLabel">Or show every trail of one level, or every unofficial one</span>
+          <div class="diff-chips"><button type="button" class="diff-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip" data-d="unoff" aria-pressed="false" title="Every MTB tagged or Looks like MTB trail in the area that mappers flagged as unofficial: informal, closed, no bikes, or a note saying unsanctioned"><span class="diff d-unoff">Unofficial</span></button></div>
         </div>
         <div class="wantlist" id="wantList" hidden></div>
       </section>
@@ -4541,14 +4541,15 @@ out tags center qt;`;
     $("boxRes").innerHTML = "";
     document.querySelectorAll(".diff-chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
   }
-  // b: the square, or with diff (a DIFF key) the area to list every trail of that level in (named where).
+  // b: the square, or with diff (a DIFF key, or "unoff" for every unofficial MTB trail) the area to list them in (named where).
   async function showBox(b, diff, where) {
     clearBox();
     const token = boxToken;
     if (diff) document.querySelectorAll(".diff-chip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.d === diff)));
     else boxLayer.addLayer(L.rectangle(b, { color: css("--accent"), weight: 2, dashArray: "6 6", fillOpacity: 0.04, interactive: false }));
     if (isFull()) setFullMap(false);
-    const what = diff ? `${DIFF[diff].label} trails` : "MTB trails", inWhere = diff ? `in ${where}` : "in your square";
+    const unoffPick = diff === "unoff", one = unoffPick ? "unofficial MTB trail" : diff ? DIFF[diff].label + " trail" : "MTB trail";
+    const what = one + "s", inWhere = diff ? `in ${where}` : "in your square";
     $("boxRes").hidden = false;
     $("boxRes").innerHTML = `<div class="box-head"><b>Looking for ${what} ${inWhere}…</b></div>`;
     const zs = ZONES.filter((z) => z.bounds.intersects(b));
@@ -4558,7 +4559,7 @@ out tags center qt;`;
     const seen = new Set(), byName = new Map(), found = L.latLngBounds([]);
     let unnamed = 0;
     lists.forEach((list) => (list || []).forEach((w) => {
-      if (seen.has(w.id) || (diff && difficulty(w.tags) !== diff) || !w.geom.some((p) => b.contains(p))) return;
+      if (seen.has(w.id) || (unoffPick ? !w.c.unoff.length : diff && difficulty(w.tags) !== diff) || !w.geom.some((p) => b.contains(p))) return;
       seen.add(w.id);
       found.extend(w.geom);
       const byDiff = state.colorBy === "diff", d = difficulty(w.tags), unoff = w.c.unoff.length > 0;
@@ -4584,9 +4585,10 @@ out tags center qt;`;
     const none = !boxGroups.length && !unnamed;
     if (diff && found.isValid()) map.fitBounds(found, { padding: [20, 20], maxZoom: 15 });
     const why = missing.length ? `<p class="hint box-why">Couldn't load the trail list for ${esc(missing.join(" and "))}. Reload the page and try again.</p>`
+      : none && unoffPick ? `<p class="hint box-why">No MTB trails ${esc(inWhere)} are flagged as unofficial in OpenStreetMap (informal, closed, no bikes, or a note saying so). Unsanctioned trails that mappers didn't flag can't be told apart.</p>`
       : none && diff ? `<p class="hint box-why">No trails ${esc(inWhere)} are rated ${DIFF[diff].label} in OpenStreetMap. Only trails with a difficulty rating show up here.</p>`
       : none ? `<p class="hint box-why">OpenStreetMap has no trails tagged for mountain biking here: the lines on the map are hiking trails or forest roads, or nothing is mapped yet. Try a bigger square, or tap a line to see what it is.</p>` : "";
-    $("boxRes").innerHTML = `<div class="box-head"><div><b>${none ? `No ${what} ${esc(inWhere)}` : `${boxGroups.length} ${diff ? DIFF[diff].label + " trail" : "MTB trail"}${boxGroups.length === 1 ? "" : "s"} ${esc(inWhere)}`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed bit${unnamed === 1 ? "" : "s"} (on the map)</span>` : ""}</div><button class="linkish" id="boxClear" type="button">${diff ? "Clear" : "Clear square"}</button></div>${why}${rows}`;
+    $("boxRes").innerHTML = `<div class="box-head"><div><b>${none ? `No ${what} ${esc(inWhere)}` : `${boxGroups.length} ${one}${boxGroups.length === 1 ? "" : "s"} ${esc(inWhere)}`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed bit${unnamed === 1 ? "" : "s"} (on the map)</span>` : ""}</div><button class="linkish" id="boxClear" type="button">${diff ? "Clear" : "Clear square"}</button></div>${why}${rows}`;
     $("boxClear").addEventListener("click", clearBox);
     $("boxRes").querySelectorAll(".box-row").forEach((r) => r.addEventListener("click", () => openBoxGroup(boxGroups[+r.dataset.i])));
     $("boxRes").scrollIntoView({ block: "nearest" });
