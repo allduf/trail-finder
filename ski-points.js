@@ -12,6 +12,10 @@
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const isSki = () => document.body.classList.contains("sport-ski");
   const COLOR = "#0a7d6e";
+  // The map's "📍 Save point" button is also the on/off switch for the pins: on shows them, off hides them.
+  let pinsOn = false;
+  try { pinsOn = localStorage.getItem("tf:skiPoints") === "true"; } catch {}
+  const shown = () => isSki() && pinsOn;
 
   // ---------- storage ----------
   const dbP = new Promise((resolve, reject) => {
@@ -116,7 +120,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
       m.bindTooltip(esc(p.name), { direction: "top", offset: [0, -40] });
       m.on("click", (e) => { L.DomEvent.stopPropagation(e); view(p.id); });
       layer.addLayer(m);
-      if (gl && window.maplibregl && isSki()) {   // the 3D map draws Leaflet lines and dots, not markers, so add them there too
+      if (gl && window.maplibregl && shown()) {   // the 3D map draws Leaflet lines and dots, not markers, so add them there too
         const el = document.createElement("div");
         el.className = "sp-gl"; el.title = p.name; el.innerHTML = pinHtml(p, url);
         el.addEventListener("click", (e) => { e.stopPropagation(); view(p.id); });
@@ -137,6 +141,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     }).join("");
     list.querySelectorAll("button[data-i]").forEach((b) => b.addEventListener("click", () => {
       const p = sorted[+b.dataset.i];
+      setPins(true);
       map.setView([p.lat, p.lon], Math.max(map.getZoom(), 14));
       view(p.id);
     }));
@@ -149,10 +154,10 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   // ---------- choosing where ----------
   let picking = false, banner = null;
   function startPick() {
-    if (picking) { stopPick(); return; }
+    if (picking) return;
+    setPins(true);
     picking = true;
     document.body.classList.add("sp-picking");
-    addBtn.classList.add("on");
     banner = document.createElement("div");
     banner.className = "sp-banner";
     banner.innerHTML = `<span>Tap the map where the point goes</span><button type="button" data-a="me">◎ Use my location</button><button type="button" data-a="x">Cancel</button>`;
@@ -172,13 +177,12 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   function stopPick() {
     picking = false;
     document.body.classList.remove("sp-picking");
-    addBtn.classList.remove("on");
     if (banner) { banner.remove(); banner = null; }
   }
-  addBtn.addEventListener("click", startPick);
-  $("spNew").addEventListener("click", () => { if (!picking) startPick(); });
+  addBtn.addEventListener("click", () => { if (pinsOn) setPins(false); else startPick(); });
+  $("spNew").addEventListener("click", startPick);
   map.on("click", (e) => { if (picking && isSki()) { stopPick(); edit(null, { lat: e.latlng.lat, lon: e.latlng.lng }); } });
-  map.on("contextmenu", (e) => { if (isSki()) { stopPick(); edit(null, { lat: e.latlng.lat, lon: e.latlng.lng }); } });   // right-click, or a long press on a phone
+  map.on("contextmenu", (e) => { if (isSki()) { stopPick(); setPins(true); edit(null, { lat: e.latlng.lat, lon: e.latlng.lng }); } });   // right-click, or a long press on a phone
 
   // ---------- add / edit form ----------
   const form = document.createElement("dialog");
@@ -379,10 +383,21 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   }
 
   // ---------- only in Skiing ----------
+  function setPins(on) {
+    if (on === pinsOn) return;
+    pinsOn = on;
+    try { localStorage.setItem("tf:skiPoints", String(on)); } catch {}
+    if (!on) stopPick();
+    onSport();
+  }
   function onSport() {
-    const on = isSki();
+    const on = shown();
     if (on && !map.hasLayer(layer)) layer.addTo(map);
-    if (!on) { if (map.hasLayer(layer)) map.removeLayer(layer); stopPick(); }
+    if (!on && map.hasLayer(layer)) map.removeLayer(layer);
+    if (!isSki()) stopPick();
+    addBtn.classList.toggle("on", pinsOn);
+    addBtn.setAttribute("aria-pressed", String(pinsOn));
+    addBtn.title = pinsOn ? "Your saved points are on the map. Tap to hide them" : "Show your saved points and add a new one";
     draw();
   }
   let lastSki = isSki();   // winter.js sets body.sport-ski when the sport menu changes
