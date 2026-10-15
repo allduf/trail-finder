@@ -815,6 +815,7 @@ label.toggle.t-off .sw { background: var(--fg); }
 .unoff-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; border: 1px dashed currentColor; color: var(--fg); vertical-align: 1px; }
 .unoff-box { margin: 14px 0 0; padding: 10px 12px; border: 1px dashed var(--fg); border-radius: 8px; background: var(--chip); }
 .use-box { border: 1px solid var(--line); }
+.park-note { margin: 12px 0 0; font-size: 14px; }
 .unoff-box strong { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .04em; }
 .unoff-box ul { margin: 6px 0; padding-left: 18px; }
 .unoff-box p { margin: 6px 0 0; font-size: .85rem; }
@@ -1225,7 +1226,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     <p>One catch: when a mapper splits an old trail into two pieces, the new piece gets a new id and shows up as new. Check the history link in the popup when something looks off.</p>
     <h3>MTB tagged</h3>
     <p>Any tag starting with <code>mtb</code> (<code>mtb:scale</code>, <code>mtb:scale:imba</code>, <code>mtb:type</code>, <code>mtb=yes</code>, …) or membership in a <code>route=mtb</code> relation. <code>mtb=no</code> is excluded.</p>
-    <p>Riding areas where mappers seldom tag bike trails (Fernie, Three Blind Mice, the South Chilcotin…): their named paths count as MTB trails too, from the daily all-trails lists. Paths that are wide, open to motor vehicles or closed to bikes are still left out.</p>
+    <p>Riding areas where mappers seldom tag bike trails (Fernie, Three Blind Mice, the South Chilcotin…): their named paths count as MTB trails too, from the daily all-trails lists. Paths that are wide, open to motor vehicles or closed to bikes are still left out. Around Gold Bridge and the South Chilcotin, every path that follows a Recreation Sites and Trails BC trail counts as well, named or not: it takes the trail's name when the map has none, and its details show what Recreation Sites and Trails BC says about it. Trails inside a provincial park say so, with BC Parks' rules for bikes there (no e-bikes in South Chilcotin Mountains Park). The Recreation Sites and Trails BC trails and the park boundaries come from DataBC (Open Government Licence - British Columbia).</p>
     <h3>Looks like MTB</h3>
     <p>A <code>path</code> or <code>bridleway</code> with no MTB tags that scores 2 points or more:</p>
     <ul>
@@ -1249,7 +1250,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     <h3>Draw a square</h3>
     <p>Tap “▭ Draw a square to find trails” (under the search), then drag over the map: every MTB trail inside the square shows up on the map and in a list, old or new, from the same daily list as “All trails” (unofficial ones included, with dots). Tap a name to see the trail's details. “Clear square” removes it.</p>
     <h3>Official trails</h3>
-    <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. The named trails of the South Chilcotin (South Chilcotin Mountains Park and the Spruce Lake area) count as official too. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
+    <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. The named trails of the South Chilcotin (South Chilcotin Mountains Park and the Spruce Lake area), and the paths around Gold Bridge that follow a Recreation Sites and Trails BC trail, count as official too. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
 <h3>Moto and hiking-only trails</h3>
     <p>To keep the list about mountain biking, trails that look like dirt-bike, ATV or 4x4 trails, and trails where bikes aren't allowed, are left out of the list. Moto means tags like <code>dirtbike:scale</code>, <code>motorcycle=designated</code>, <code>atv=yes</code>, <code>4wd_only=yes</code>, an ATV route, or a name like “ATV trail”. Hiking only means <code>bicycle=no</code>, <code>mtb=no</code>, stairs, hard hiking terrain (<code>sac_scale</code> T4 and up), or a signed hiking route with no bike access. A trail with any MTB tag, in an MTB route, or with <code>bicycle=designated</code> is never hidden, even if motorbikes are allowed on it too.</p>
     <h3>Unofficial (possibly unsanctioned) trails</h3>
@@ -1285,7 +1286,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     { id: "wh", name: "Whistler", box: [49.96, -123.20, 50.25, -122.85] },
     { id: "pem", name: "Pemberton & Pemberton Meadows", box: [50.25, -123.35, 50.62, -122.62] },
     { id: "lil", name: "Lillooet & Duffey", box: [50.42, -122.45, 50.80, -121.80] },
-    { id: "chil", name: "Gold Bridge & South Chilcotin", box: [50.62, -123.20, 51.20, -122.30] },
+    { id: "chil", name: "Gold Bridge & South Chilcotin", box: [50.62, -123.42, 51.25, -122.30] },
     { id: "sun", name: "Sunshine Coast (Gibsons to Egmont)", box: [49.38, -124.12, 49.80, -123.45] },
     { id: "pr", name: "Powell River & Lund", box: [49.75, -124.78, 50.06, -124.25] },
     { id: "fv", name: "Fraser Valley (Coquitlam to Hope)", box: [49.00, -122.74, 49.42, -121.38] },
@@ -1626,7 +1627,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
   // Signs that a trail is official (sanctioned), from what mappers tagged. Returns the reason, or null.
   function officialWhy(tags) {
     if (unofficial(tags).length) return null;
-    if (tags["tf:official"]) return tags["tf:official"];   // from data/riding-areas.json, via the all-trails job (South Chilcotin)
+    if (tags["tf:official"]) return tags["tf:official"];   // from the all-trails job: riding-areas.json or Recreation Sites and Trails BC (South Chilcotin)
     if (tags["ref:FFID"] || /recreation line/i.test(tags.source || "")) return "listed by Recreation Sites and Trails BC";
     if (tags.bicycle === "customers") return tags.operator ? `bike park trail run by ${tags.operator}` : "bike park trail";
     if (tags.operator) return `run by ${tags.operator}`;
@@ -1739,6 +1740,8 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     // Added by the all-trails job (scripts/build-mtb.mjs): a named path in a riding area where mappers seldom tag bike
     // trails. alex: those are bike trails, so they count as MTB trails, not Looks like MTB.
     if (tags["tf:area"] && !motor) return { cat: "mtb", why: [`named trail in the ${tags["tf:area"]} riding area, where few trails have bike tags`].concat(why) };
+    // Also from the all-trails job: a path along a Recreation Sites and Trails BC trail in the Gold Bridge & South Chilcotin backcountry.
+    if (tags["tf:rec"] && !motor) return { cat: "mtb", why: [`on the ${tags["tf:rec"]} (Recreation Sites and Trails BC), in backcountry where few trails have bike tags`].concat(why) };
     if (score >= 2 && !motor) return { cat: "looks", why: why.concat(`score ${score}`) };
     if (hw === "path") return { cat: "other", net: !motor && netOk(tags), why: motor ? [`open to motor vehicles or wide (${motor})`] : why.length ? why.concat(`score ${score}`) : ["no bike-related tags yet"] };
     return null;
@@ -2361,7 +2364,17 @@ out body;`;
     loadNames(false, zs, null, true).then(() => { if (!state.prime) render(); });
   }
 
-  function trailName(t) { if (t.ghost) return "Possible unmapped trail"; return t.tags.name || t.tags["mtb:name"] || "Unnamed " + t.tags.highway; }
+  // What the all-trails job (scripts/build-mtb.mjs) adds about a trail in the Gold Bridge & South Chilcotin backcountry:
+  // the Recreation Sites and Trails BC trail it's on (and the name it gives a path the map hasn't named), and its park.
+  const tfInfo = (tags) => ({
+    tfName: (!tags.name && tags["tf:name"]) || null,
+    rec: tags["tf:rec"] ? { name: tags["tf:rec"], id: tags["tf:rec-id"] || "", use: tags["tf:rec-use"] || "", about: tags["tf:rec-about"] || "" } : null,
+    park: tags["tf:park"] || null,
+  });
+  // BC Parks' rules for bikes in a park, from the park's own trail map.
+  const PARK_RULES = { "South Chilcotin Mountains Park": "bikes stay on the designated trails, and e-bikes aren't allowed in the park (BC Parks trail map)" };
+  const parkUrl = (name) => `https://bcparks.ca/${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}/`;
+  function trailName(t) { if (t.ghost) return "Possible unmapped trail"; return t.tags.name || t.tags["mtb:name"] || t.tfName || "Unnamed " + t.tags.highway; }
   const CAT_LABEL = { mtb: "MTB tagged", looks: "Looks like MTB", other: "Other new path", ghost: "Possible unmapped trail" };
 
   // One short reason for the list, in plain words (the trail details keep the map tags).
@@ -2854,6 +2867,8 @@ out body;`;
     const type = t.osmType || "way";
     const segs = t.segments && t.segments.length > 1 ? t.segments.length : 0;
     const routes = (t.routes || []).map((r) => `<li><a href="https://www.openstreetmap.org/relation/${r.id}" target="_blank" rel="noopener">${esc(r.name)}</a></li>`).join("");
+    const tf = tfInfo({ ...(real ? allTfOf(t.id) : {}), ...t.tags });
+    if (tf.tfName) t.tfName = tf.tfName;
     d.innerHTML = `
       <div class="d-top"><button class="linkish back" id="detailBack" type="button">← Back</button>${real ? `<button class="want-btn" id="wantBtn" type="button" aria-pressed="false"></button>` : ""}</div>
       ${real ? `<div class="save-pick" id="savePick" hidden></div>` : ""}
@@ -2866,13 +2881,14 @@ out body;`;
         <p class="muted">${t.use === "moto" ? "Dirt-bike, ATV and 4x4 trails" : "Hiking-only trails"} are left out of the new-trails list. This is a guess from the map tags.</p></div>` : ""}
       ${isUnoff(t) ? `<div class="unoff-box"><strong>Possibly unsanctioned</strong><ul>${t.unoff.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">This only shows what OpenStreetMap mappers tagged. It's a hint, not the trail's legal status. Check with the land manager or Trailforks before riding.</p></div>` : ""}
+      ${tf.park ? `<p class="park-note">In <a href="${parkUrl(tf.park)}" target="_blank" rel="noopener">${esc(tf.park)}</a>${PARK_RULES[tf.park] ? `: ${esc(PARK_RULES[tf.park])}` : ""}.</p>` : ""}
       <div class="go"><a class="go-btn" id="goBtn" target="_blank" rel="noopener" aria-disabled="true">Go to trail</a><p class="muted" id="goNote">Finding the top of the trail…</p></div>
       <h3>Weather and Loam moisture index</h3><div id="wx" class="muted">Loading weather…</div>
       <h3>Elevation</h3><div id="elev" class="muted">${real || t.elev ? "Loading elevation…" : ""}</div>
       ${real && window.tfReports ? `<h3>Trail conditions from riders</h3><div id="reports" class="muted">Loading reports…</div>` : ""}
       ${routes ? `<h3>Part of MTB route</h3><ul class="plain">${routes}</ul>` : ""}
       ${real ? `<h3>Links</h3><div class="links">
-        ${t.tags.name ? `<a href="https://www.trailforks.com/search/?search=${encodeURIComponent(t.tags.name)}" target="_blank" rel="noopener">Search on Trailforks</a>` : ""}
+        ${t.tags.name || t.tfName ? `<a href="https://www.trailforks.com/search/?search=${encodeURIComponent(t.tags.name || t.tfName)}" target="_blank" rel="noopener">Search on Trailforks</a>` : ""}
         <a href="https://www.openstreetmap.org/${type}/${t.id}" target="_blank" rel="noopener">Open on OpenStreetMap</a>
         <a href="https://www.openstreetmap.org/edit?${type}=${t.id}" target="_blank" rel="noopener">Edit or fix it</a>
       </div>` : `<p class="muted">Example trail, not real data.</p>`}
@@ -2881,6 +2897,7 @@ out body;`;
         <dt>First mapped</dt><dd>${t.created ? `${fmtDate(t.created)} · ${ago(t.created)}` : "Unknown"}</dd>
         ${factRows(true)}
         <dt>Official?</dt><dd>${t.official ? `Yes: ${esc(t.official)}.` : isUnoff(t) ? "Possibly not (see above)." : `<span class="muted">Not known</span>`}</dd>
+        ${tf.rec ? `<dt>Recreation Sites and Trails BC</dt><dd>${tf.rec.id ? `<a href="https://www.sitesandtrailsbc.ca/search/search-result.aspx?site=${encodeURIComponent(tf.rec.id)}&type=Trail" target="_blank" rel="noopener">${esc(tf.rec.name)}</a>` : esc(tf.rec.name)}${tf.rec.use ? `<br>Uses: ${esc(tf.rec.use)}` : ""}${tf.rec.about ? `<br>${esc(tf.rec.about)}` : ""}${tf.tfName ? `<br><span class="muted">The name is theirs: OpenStreetMap has no name for this path yet.</span>` : ""}</dd>` : ""}
         ${t.cat === "looks" ? `<dt>Why it looks like MTB</dt><dd>${t.why.filter((w) => !/^score /.test(w)).map(esc).join("<br>")}${t.inNet ? `<br><span class="muted">It has no bike tags yet. If it's a bike trail, adding <code>mtb:scale</code> on OpenStreetMap makes it “MTB tagged”.</span>` : ""}</dd>` : ""}
         ${t.cat === "mtb" && t.why && t.why.length ? `<dt>Why it's MTB tagged</dt><dd>${t.why.map(esc).join("<br>")}</dd>` : ""}
         <dt>Map points</dt><dd>${segs ? `${segs} map segments` : `${t.geom.length} map points`}</dd>
@@ -3383,7 +3400,9 @@ out body;`;
         allData.set(z.id, f && f.v === 1 ? Object.entries(f.ways).map(([id, w]) => {
           const geom = [];
           for (let i = 0; i < w.g.length; i += 2) geom.push([w.g[i], w.g[i + 1]]);
-          return { id: +id, tags: w.tags, geom, c: classify(w.tags, inRoute.get(+id) || []) };
+          // A path with no name on the map, named after its Recreation Sites and Trails BC trail (tf:name), for the lists and search.
+          const tags = w.tags["tf:name"] && !w.tags.name ? { ...w.tags, name: w.tags["tf:name"] } : w.tags;
+          return { id: +id, tags, geom, c: classify(tags, inRoute.get(+id) || []) };
         }).filter((w) => w.c && !w.c.use && w.geom.length > 1) : []);
         drawAllTrails();
         return f && f.v === 1 ? allData.get(z.id) : null;        // null: the list couldn't be loaded
@@ -3394,7 +3413,7 @@ out body;`;
   // The same-name pieces of a trail from the all-trails lists, for a tap when the area's name list isn't loaded:
   // pieces whose ends meet (within 100 m) or whose middles are within 3 km, as the name search groups them.
   function allGroupOf(way) {
-    const name = way.tags && way.tags.name;
+    const name = (way.tags && way.tags.name) || allTfOf(way.id)["tf:name"];
     if (!name) return null;
     const pieces = new Map();
     for (const list of allData.values()) (list || []).forEach((w) => { if (w.tags.name === name) pieces.set(w.id, w); });
@@ -3409,7 +3428,7 @@ out body;`;
     if (items.length < 2) return null;
     return { name, type: "w", kind: kindOf(way.tags), tags: way.tags, items: items.map((w) => ({ t: "w", id: w.id, c: mid(w), tags: w.tags })) };
   }
-  // The tags the all-trails job adds to a way (tf:area, tf:official), for a trail loaded from OpenStreetMap.
+  // The tags the all-trails job adds to a way (tf:area, tf:official, tf:rec, tf:park...), for a trail loaded from OpenStreetMap.
   function allTfOf(id) {
     for (const list of allData.values()) {
       const w = list && list.find((w) => w.id === id);
@@ -4454,6 +4473,7 @@ out tags center qt;`;
         km: segs.reduce((s, l) => s + lengthKm(l), 0), zone: zoneOf(bounds.getCenter()),
         version: main.version, lastEdit: new Date(main.timestamp), lastUser: main.user || "", lastChangeset: main.changeset,
         cat: c ? c.cat : "other", catLabel: c ? null : isRoad(tags) ? "Forest road" : kind, unoff: unofficial(tags), official: officialWhy(ctags), ...useOf(tags, routes.length ? types.concat("mtb") : types),
+        ...tfInfo(ctags),
         why: c ? c.why : isRoad(tags) ? ["A forest or logging road, not a trail, so it's left out of the MTB trails. Turn on “Forest roads” to see roads on the map."] : [`No bike tags and not trail-like enough for the MTB colours (highway=${tags.highway || "none"}, ${tags.route ? "route=" + tags.route : "no route"}).`],
       };
       if (c && c.cat === "other") t.catLabel = kind;
