@@ -1158,6 +1158,10 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
             <button type="button" data-p="prime" class="prime-btn" aria-pressed="false" title="Trails in the area, old or new, with damp prime loam right now (Loam index 40 to 59)"><span class="dot" aria-hidden="true"></span>Prime loam now</button>
           </div>
         </div>
+        <div class="diff-pick" role="group" aria-labelledby="newPickLabel">
+          <span class="label" id="newPickLabel">Only one level, or only unofficial</span>
+          <div class="diff-chips"><button type="button" class="diff-chip lvl-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip lvl-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip lvl-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip lvl-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip lvl-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip lvl-chip" data-d="unoff" aria-pressed="false" title="New trails that aren&#39;t part of the official bike network: plain paths with no bike tags, and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button></div>
+        </div>
         <button class="btn primary find" id="findBtn" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span id="findLabel">Find new trails</span></button>
         <button class="btn reset-btn" id="resetBtn" type="button" hidden>✕ Clear results</button>
         <div class="toggles" id="toggles" role="group" aria-label="Show these trails" hidden>
@@ -1332,6 +1336,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     months: store.get("months", 6),
     show: { mtb: true, looks: true, other: false, ghost: true },   // "other" paths have no chip and stay hidden
     ghosts: [],          // possible unmapped trails from the weekly GPS-trace file
+    newPick: null,        // level chip in New trails: a DIFF key, "unoff" or null
     onlyUnoff: false,     // "Unofficial only": flagged trails of the ticked types (of every type when none is ticked)
     onlyOff: false,       // "Official only": trails with signs of being official, of the ticked types (same rule)
     colorBy: store.get("colorBy", "diff"),     // trail colours on the map: "diff" (difficulty, like Trailforks) or "type"
@@ -1629,6 +1634,8 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
   // ticked types, or of every type when none is ticked.
   const TYPE_KEYS = ["mtb", "looks", "ghost"];
   const unoffTypes = () => { const on = TYPE_KEYS.filter((k) => state.show[k]); return on.length ? on : TYPE_KEYS; };
+  // Level chips in New trails: only that level (of the ticked types), or "unoff": flagged trails and plain paths, not official.
+  const picked = (cat, unoff, off, tags) => (state.newPick === "unoff" ? !off && (!!unoff || cat === "other") : wanted(cat, unoff, off) && (!state.newPick || difficulty(tags) === state.newPick));
   const wanted = (cat, unoff, off) => (state.onlyUnoff ? !!unoff && unoffTypes().includes(cat) : state.onlyOff ? !!off && unoffTypes().includes(cat) : state.show[cat]);
 
   // Moto and hiking-only trails: hidden unless their toggle is on. Never applied to trails with MTB tags.
@@ -2189,6 +2196,11 @@ out body;`;
     } else searchZones(false);
   }
   $("findBtn").addEventListener("click", findNewTrails);
+  document.querySelectorAll(".lvl-chip").forEach((c) => c.addEventListener("click", () => {
+    state.newPick = state.newPick === c.dataset.d ? null : c.dataset.d;
+    document.querySelectorAll(".lvl-chip").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.d === state.newPick)));
+    if (!state.trails.length && !state.prime && !state.searchedBounds.length) findNewTrails(); else render();
+  }));
   // Clear results: back to the plain map (coloured trail lines only), as before any search.
   $("resetBtn").addEventListener("click", () => {
     state.token++; state.loading = null; state.waiting = true;
@@ -2360,7 +2372,7 @@ out body;`;
     $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nGhost").textContent = counts.ghost;
     $("nUnoff").textContent = vis.filter((t) => isUnoff(t) && unoffTypes().includes(t.cat)).length;
     $("nOff").textContent = vis.filter((t) => t.official && unoffTypes().includes(t.cat)).length;
-    const shown = vis.filter((t) => wanted(t.cat, isUnoff(t), t.official));
+    const shown = vis.filter((t) => picked(t.cat, isUnoff(t), t.official, t.tags));
     drawAllTrails();
     state.shownCount = shown.length;
     state.shownIds = new Set(shown.map((t) => t.id));
@@ -2457,7 +2469,7 @@ out body;`;
     $("nUnoff").textContent = prime.filter((e) => e.unoff.length && unoffTypes().includes(e.cat)).length;
     $("nOff").textContent = prime.filter((e) => e.official && unoffTypes().includes(e.cat)).length;
     const dist = (e) => near.ll.distanceTo(e.center);
-    const shown = prime.filter((e) => wanted(e.cat, e.unoff.length, e.official)).sort(near ? (a, b) => dist(a) - dist(b) : (a, b) => a.g.name.localeCompare(b.g.name));
+    const shown = prime.filter((e) => picked(e.cat, e.unoff.length, e.official, e.g.tags)).sort(near ? (a, b) => dist(a) - dist(b) : (a, b) => a.g.name.localeCompare(b.g.name));
     state.primeShown = shown; state.shownCount = shown.length; state.primeTotal = typed.length;
     state.shownIds = new Set();
     state.loamPending = typed.some((e) => loamOf(e) === undefined);
@@ -4546,7 +4558,7 @@ out tags center qt;`;
     boxGroups = [];
     $("boxRes").hidden = true;
     $("boxRes").innerHTML = "";
-    document.querySelectorAll(".diff-chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
+    document.querySelectorAll(".diff-chip:not(.lvl-chip)").forEach((c) => c.setAttribute("aria-pressed", "false"));
   }
   // Plain paths for the Unofficial button: the area itself when it is one riding area or a zoomed-in view, else null.
   function plainBounds(b) {
@@ -4572,7 +4584,7 @@ out tags center qt;`;
   async function showBox(b, diff, where) {
     clearBox();
     const token = boxToken;
-    if (diff) document.querySelectorAll(".diff-chip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.d === diff)));
+    if (diff) document.querySelectorAll(".diff-chip:not(.lvl-chip)").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.d === diff)));
     else boxLayer.addLayer(L.rectangle(b, { color: css("--accent"), weight: 2, dashArray: "6 6", fillOpacity: 0.04, interactive: false }));
     if (isFull()) setFullMap(false);
     const unoffPick = diff === "unoff", one = unoffPick ? "unofficial trail" : diff ? DIFF[diff].label + " trail" : "MTB trail";
@@ -4641,12 +4653,12 @@ out tags center qt;`;
     const r = regionHere();
     showBox(z ? z.bounds : r.bounds, diffPick, z ? z.name : r.short);
   }
-  document.querySelectorAll(".diff-chip").forEach((c) => c.addEventListener("click", () => {
+  document.querySelectorAll(".diff-chip:not(.lvl-chip)").forEach((c) => c.addEventListener("click", () => {
     if (diffPick === c.dataset.d && c.getAttribute("aria-pressed") === "true") { diffPick = null; clearBox(); return; }
     diffPick = c.dataset.d;
     showDiff();
   }));
-  $("nameZone").addEventListener("change", () => { if (diffPick && document.querySelector('.diff-chip[aria-pressed="true"]')) showDiff(); });
+  $("nameZone").addEventListener("change", () => { if (diffPick && document.querySelector('.diff-chip:not(.lvl-chip)[aria-pressed="true"]')) showDiff(); });
   function openBoxGroup(g) {
     const main = g.ways.reduce((a, w) => (lengthKm(w.geom) > lengthKm(a.geom) ? w : a));
     showFound({ type: "w", name: g.name, kind: kindOf(main.tags), tags: main.tags, items: g.ways.map((w) => ({ id: w.id })) }, true);
