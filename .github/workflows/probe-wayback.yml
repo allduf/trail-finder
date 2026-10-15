@@ -1,0 +1,63 @@
+name: probe-wayback
+on:
+  push:
+    branches: [claude/photo-time-slider-v4exnd]
+    paths: [.github/workflows/probe-wayback.yml]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          set -x
+          O="-H Origin:https://allduf.github.io"
+          curl -sS -D - -o cfg.json $O https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json | head -20
+          python3 - <<'PY'
+          import json
+          j=json.load(open('cfg.json'))
+          ks=sorted(j, key=lambda k:int(k))
+          print(len(ks))
+          for k in ks[:2]+ks[-3:]: print(k, json.dumps(j[k]))
+          PY
+          # Squamish (Half Nelson-ish) 49.73,-123.12; Pemberton 50.32,-122.80; Kamloops Harper 50.69,-120.14
+          for P in "49.73 -123.12" "50.32 -122.80" "50.69 -120.14"; do
+            set -- $P
+            python3 -c "
+          import math;lat,lon=$1,$2
+          for z in (15,17,19):
+            n=2**z;x=int((lon+180)/360*n);y=int((1-math.log(math.tan(math.radians(lat))+1/math.cos(math.radians(lat)))/math.pi)/2*n);print(z,x,y)" > t.txt
+            cat t.txt
+            NEW=$(python3 -c "import json;j=json.load(open('cfg.json'));print(max(j,key=int))")
+            while read z x y; do
+              echo "== tilemap $z/$y/$x"
+              curl -sS $O -D - "https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tilemap/$NEW/$z/$y/$x" | tr -d '\r' | grep -i "access-control\|^{\|content-type"
+            done < t.txt
+            read z x y < <(tail -1 t.txt)
+            echo "== tile"
+            curl -sS $O -D - -o /dev/null "https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/$NEW/$z/$y/$x" | tr -d '\r' | grep -i "HTTP\|access-control\|content-type\|content-length"
+            # releases with local changes: walk all releases
+            python3 - "$z" "$x" "$y" "$1" "$2" <<'PY'
+          import json,sys,urllib.request
+          z,x,y,lat,lon=sys.argv[1:]
+          j=json.load(open('cfg.json'))
+          seen={}
+          for k in sorted(j,key=int,reverse=True):
+            try:
+              r=json.load(urllib.request.urlopen(f"https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tilemap/{k}/{z}/{y}/{x}",timeout=20))
+            except Exception as e: print(k,'err',e); continue
+            s=r.get('select',[None])[0]
+            if s not in seen: seen[s]=k; print('release',k,j[k]['itemTitle'],'-> select',s, r)
+          print('distinct', len(seen))
+          # metadata for each distinct
+          for s in list(seen)[:8]:
+            if s is None: continue
+            m=j[str(s)]['metadataLayerUrl']
+            u=m+f"/{20-int(z) if False else 0}/query?f=json&where=1%3D1&outFields=SRC_DATE2,NICE_DESC,SRC_RES,SRC_DESC&returnGeometry=false&geometryType=esriGeometryPoint&spatialRel=esriSpatialRelIntersects&inSR=4326&geometry={lon},{lat}"
+            print(s, m)
+            try:
+              txt=urllib.request.urlopen(u,timeout=20).read().decode()[:400]; print(txt)
+            except Exception as e: print('meta err',e)
+          PY
+          done
+          echo "== metadata layers"
+          M=$(python3 -c "import json;j=json.load(open('cfg.json'));print(j[max(j,key=int)]['metadataLayerUrl'])")
+          curl -sS $O -D - "$M?f=json" | tr -d '\r' | grep -i "access-control" ; curl -sS "$M?f=json" | head -c 1500
