@@ -2973,7 +2973,6 @@ out body;`;
   }
   // For reports.js map badges: open a trail's details if it's loaded.
   window.tfClassify = classify;   // for new-trail notifications (notify.js)
-  window.tfSelectTrail = (id) => { if (!(state.merged && state.merged.get(id)) && !state.trails.some((x) => x.id === id)) return false; select(id, true); return true; };
   const openRow = (li) => { if (li.dataset.pk) showFound(state.primeShown[+li.dataset.pk].g, true); else select(+li.dataset.id, true); };
   $("list").addEventListener("click", (e) => { const li = e.target.closest(".trail"); if (li) openRow(li); });
   $("list").addEventListener("keydown", (e) => { if (e.key === "Enter") { const li = e.target.closest(".trail"); if (li) openRow(li); } });
