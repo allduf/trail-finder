@@ -1,0 +1,29 @@
+name: People count
+
+# Once a day, count the devices that used Trail Finder in the last 30 days and warn alex on a GitHub
+# issue (so GitHub emails them) when it passes 50. See scripts/people-count.mjs and supabase/visitors.sql.
+on:
+  schedule:
+    - cron: "7 15 * * *"   # 15:07 UTC, morning in BC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  count:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Count and warn
+        env:
+          SUPABASE_URL: https://fohdmserpbkurcvcrbbb.supabase.co
+          SUPABASE_KEY: sb_publishable_kzmEvM2ENCwNcH7-Nu-pOA_88II-bhX   # the public anon key, same as account.js
+          LIMIT: "50"
+          OWNER: allduf
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/people-count.mjs

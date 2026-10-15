@@ -13,7 +13,7 @@
   const SETTINGS = ["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "nearKm", "track", "nameNear", "mode", "nameZone", "map3d", "want", "folders", "notify", "notifyRead"];
   const STAMP = "tf:settingsAt";   // when this device last changed a setting (ms)
 
-  const api = window.tfAccount = { enabled: !!(SUPABASE_URL && SUPABASE_ANON_KEY), client: null, user: null, ready: null };
+  const api = window.tfAccount = { enabled: !!(SUPABASE_URL && SUPABASE_ANON_KEY), url: SUPABASE_URL, key: SUPABASE_ANON_KEY, client: null, user: null, ready: null };
   if (!api.enabled) { api.ready = Promise.resolve(null); return; }
 
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
