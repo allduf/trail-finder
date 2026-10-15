@@ -6,7 +6,9 @@
 // Long-distance bikepacking routes (BC Epic 1000, Great Divide...) are left out: they're mostly roads.
 // In riding areas where mappers seldom tag bike trails (fewer than SPARSE MTB-tagged ways within AREA_M of a
 // data/riding-areas.json label, e.g. Three Blind Mice, Fox Mountain), the area's named paths are added too,
-// marked with the made-up tag tf:area=<area name> so the site can say why it shows them.
+// marked with the made-up tag tf:area=<area name> so the site can say why it shows them. An area with its own radius r
+// (metres, e.g. South Chilcotin) is backcountry where every named path within r counts, however many have bike tags.
+// A zone whose riding areas change is rebuilt on the next run.
 // Lists refreshed in the last FRESH_HOURS are skipped; a zone that fails keeps its last good file.
 //
 // Run: node scripts/build-mtb.mjs   (Node 18 or newer, no packages needed; FORCE=1 refreshes every zone)
@@ -31,9 +33,11 @@ const AREA_M = 3000, SPARSE = 20;
 const AREAS = (readJsonAt(new URL("data/riding-areas.json", root)) || { areas: [] }).areas;
 function readJsonAt(url) { try { return JSON.parse(readFileSync(url, "utf8")); } catch { return null; } }
 
+const radius = (a) => a.r || AREA_M;
+
 function mtbQuery([s, w, n, e], areas = []) {
   const bb = [s, w, n, e].map((x) => x.toFixed(5)).join(",");
-  const named = areas.map((a) => `  way["highway"~"^(path|bridleway)$"]["name"](around:${AREA_M},${a.c[0]},${a.c[1]});\n`).join("");
+  const named = areas.map((a) => `  way["highway"~"^(path|bridleway)$"]["name"](around:${radius(a)},${a.c[0]},${a.c[1]});\n`).join("");
   return `[out:json][timeout:180];
 (
   way["highway"]["mtb:scale"](${bb});
@@ -107,8 +111,12 @@ if (!existsSync(DATA)) mkdirSync(DATA);
 
 const builtAt = new Date().toISOString().slice(0, 19) + "Z";
 const lastBuilt = (z) => Date.parse((readJson(`mtb-${z.id}.json`) || {}).builtAt) || 0;
-// A list made for a different box (or before boxes were saved) is out of date, however fresh.
-const sameBox = (z) => { const f = readJson(`mtb-${z.id}.json`) || {}; return String(f.box) === String(z.box) && f.rules === RULES; };
+const areasOf = (z) => AREAS.filter((a) => a.zone === z.id);
+const areasKey = (z) => JSON.stringify(areasOf(z).map((a) => [a.name, a.c, radius(a)]));
+// A list made for a different box (or before boxes were saved), older rules or other riding areas is out of date, however fresh.
+// Files from before areas were saved count as up to date unless the zone has a backcountry area (radius r).
+const sameAreas = (z, f) => (f.areas === undefined ? !areasOf(z).some((a) => a.r) : f.areas === areasKey(z));
+const sameBox = (z) => { const f = readJson(`mtb-${z.id}.json`) || {}; return String(f.box) === String(z.box) && f.rules === RULES && sameAreas(z, f); };
 const metres = (a, b) => Math.hypot((a[0] - b[0]) * 110540, (a[1] - b[1]) * 111320 * Math.cos((a[0] * Math.PI) / 180));
 const ownMtb = (t) => Object.keys(t).some((k) => /^mtb(:|$)/.test(k) && !(k === "mtb" && t.mtb === "no")) || t.bicycle === "customers";
 const order = [...ZONES].sort((a, b) => lastBuilt(a) - lastBuilt(b));   // oldest lists first
@@ -117,22 +125,22 @@ for (const z of order) {
   if (sameBox(z) && Date.now() - lastBuilt(z) < FRESH_HOURS * 3600e3) { log(`${z.name}: fresh, skipped`); continue; }
   if (outOfTime()) { log(`${z.name}: out of time, keeping last good data`); continue; }
   try {
-    const areas = AREAS.filter((a) => a.zone === z.id);
+    const areas = areasOf(z);
     const els = await fetchBox(z.box, areas);
     const all = new Map(els.filter((e) => e.type === "way" && e.geometry && e.geometry.length > 1).map((w) => [w.id, w]));
     const rels = els.filter((e) => e.type === "relation");
     const longRoutes = rels.filter((r) => (r.members || []).filter((m) => m.type === "way").length > LONG_ROUTE);
     const routeWays = new Set(rels.filter((r) => !longRoutes.includes(r)).flatMap((r) => (r.members || []).filter((m) => m.type === "way").map((m) => m.ref)));
-    // Riding areas with few MTB-tagged ways around them: their named paths count too.
+    // Riding areas with few MTB-tagged ways around them, and backcountry areas (own radius): their named paths count too.
     const tagged = [...all.values()].filter((w) => ownMtb(w.tags || {}) || routeWays.has(w.id));
-    const sparse = areas.filter((a) => tagged.filter((w) => w.geometry.some((p) => metres([p.lat, p.lon], a.c) <= AREA_M)).length < SPARSE);
+    const sparse = areas.filter((a) => a.r || tagged.filter((w) => w.geometry.some((p) => metres([p.lat, p.lon], a.c) <= AREA_M)).length < SPARSE);
     const ways = {}, routes = {};
     let fromAreas = 0;
     for (const w of all.values()) {
       const tags = { ...(w.tags || {}) };
       if (!ownMtb(tags) && !routeWays.has(w.id)) {
         const mid = w.geometry[w.geometry.length >> 1];
-        const a = sparse.find((a) => metres([mid.lat, mid.lon], a.c) <= AREA_M);
+        const a = sparse.find((a) => metres([mid.lat, mid.lon], a.c) <= radius(a));
         if (!a || !tags.name || /^(no|private)$/.test(tags.access || "")) continue;
         tags["tf:area"] = a.name; fromAreas++;
       }
@@ -142,7 +150,7 @@ for (const z of order) {
       const ids = (r.members || []).filter((m) => m.type === "way" && ways[m.ref]).map((m) => m.ref);
       if (ids.length) routes[r.id] = { name: (r.tags && (r.tags.name || r.tags.ref)) || "unnamed", ways: ids };
     });
-    writeFileSync(new URL(`mtb-${z.id}.json`, DATA), JSON.stringify({ v: 1, rules: RULES, builtAt, box: z.box, ways, routes }));
+    writeFileSync(new URL(`mtb-${z.id}.json`, DATA), JSON.stringify({ v: 1, rules: RULES, areas: areasKey(z), builtAt, box: z.box, ways, routes }));
     updated++;
     log(`${z.name}: ${Object.keys(ways).length} trails, ${Object.keys(routes).length} MTB routes` +
       (longRoutes.length ? `; left out long-distance routes ${longRoutes.map((r) => (r.tags && r.tags.name) || r.id).join(", ")}` : "") +

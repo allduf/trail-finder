@@ -3373,6 +3373,24 @@ out body;`;
     }
     return allLoads.get(z.id);
   }
+  // The same-name pieces of a trail from the all-trails lists, for a tap when the area's name list isn't loaded:
+  // pieces whose ends meet (within 100 m) or whose middles are within 3 km, as the name search groups them.
+  function allGroupOf(way) {
+    const name = way.tags && way.tags.name;
+    if (!name) return null;
+    const pieces = new Map();
+    for (const list of allData.values()) (list || []).forEach((w) => { if (w.tags.name === name) pieces.set(w.id, w); });
+    if (!pieces.has(way.id)) return null;
+    const ends = (w) => [w.geom[0], w.geom[w.geom.length - 1]];
+    const mid = (w) => w.geom[w.geom.length >> 1];
+    const near = (a, b) => L.latLng(mid(a)).distanceTo(mid(b)) < 3000 || ends(a).some((p) => ends(b).some((q) => L.latLng(p).distanceTo(q) < 100));
+    const items = [pieces.get(way.id)], left = [...pieces.values()].filter((w) => w.id !== way.id);
+    for (let i = 0; i < items.length; i++) {
+      for (let j = left.length - 1; j >= 0; j--) if (near(items[i], left[j])) items.push(...left.splice(j, 1));
+    }
+    if (items.length < 2) return null;
+    return { name, type: "w", kind: kindOf(way.tags), tags: way.tags, items: items.map((w) => ({ t: "w", id: w.id, c: mid(w), tags: w.tags })) };
+  }
   function allAreaOf(id) {
     for (const list of allData.values()) { const w = list && list.find((w) => w.id === id); if (w) return w.tags["tf:area"]; }
   }
@@ -4507,7 +4525,7 @@ out tags center qt;`;
     const w = best.w;
     // Part of a named trail made of several pieces? Show the whole trail, as the name search does.
     if (names.zones.size && (names.dirty || names.trailCount !== state.trails.length)) buildGroups();
-    const g = names.groups.find((g) => g.type === "w" && g.items.length > 1 && g.items.some((i) => i.id === w.id));
+    const g = names.groups.find((g) => g.type === "w" && g.items.length > 1 && g.items.some((i) => i.id === w.id)) || allGroupOf(w);
     if (g) { showFound(g, true); return; }
     const routeTypes = [...new Set(els.filter((r) => r.type === "relation" && r.tags && r.tags.route && (r.members || []).some((m) => m.type === "way" && m.ref === w.id)).map((r) => r.tags.route))];
     const routes = els.filter((r) => r.type === "relation" && r.tags && r.tags.route === "mtb" && (r.members || []).some((m) => m.type === "way" && m.ref === w.id))
