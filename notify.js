@@ -9,7 +9,7 @@
   if (!ZONES || !slot || !window.tfClassify || !window.tfShowFound) return;
 
   const DAY = 86400000;
-  const START_DAYS = 30;      // when a rider first picks regions, trails from the last month count as unread
+  const SAME_VISIT_MS = 3600e3;   // a reload or return within an hour is still the same visit
   const LABEL = { mtb: "MTB tagged", looks: "Looks like MTB" };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const store = {
@@ -21,6 +21,20 @@
   const readSet = () => new Set(store.get("notifyRead", []));
   const keyOf = (it) => String(it.ids[0]);
   const zoneName = (id) => { const z = ZONES.find((z) => z.id === id); return z ? z.name : ""; };
+  // The bell lists only trails that appeared since the rider's last visit (alex): older ones never show.
+  // tf:notifyVisit = { at: last time the app was open, prev: when the visit before that ended }. Kept on this device
+  // only: saving it to the account on every visit would make each device's settings look newest.
+  const putVisit = (v) => { try { localStorage.setItem("tf:notifyVisit", JSON.stringify(v)); } catch {} };
+  const visit = (() => {
+    const v = store.get("notifyVisit", null), now = Date.now();
+    const prev = !v ? null : now - Date.parse(v.at) < SAME_VISIT_MS ? v.prev : v.at;
+    putVisit({ at: new Date(now).toISOString(), prev });
+    return prev;
+  })();
+  const stampVisit = () => putVisit({ at: new Date().toISOString(), prev: visit });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) stampVisit(); });
+  // New = appeared after the last visit and after notifications were turned on.
+  const cutoff = (p) => (visit && visit > p.since ? visit : p.since);
   const ago = (iso) => { const d = Math.floor((Date.now() - Date.parse(iso)) / DAY); return d < 1 ? "today" : d === 1 ? "yesterday" : `${d} days ago`; };
 
   const css = document.createElement("style");
@@ -89,13 +103,13 @@ dialog.notify li:not(.unread) strong { font-weight: 500; }`;
   }
   function mine() {
     const p = prefs(); if (!p) return [];
-    const all = p.zones.includes("all");
-    return feed.filter((it) => all || p.zones.includes(it.z));
+    const all = p.zones.includes("all"), from = cutoff(p);
+    return feed.filter((it) => it.at > from && (all || p.zones.includes(it.z)));
   }
   function unread() {
     const p = prefs(); if (!p) return [];
-    const read = readSet(), from = new Date(Date.parse(p.since) - START_DAYS * DAY).toISOString();
-    return mine().filter((it) => it.at >= from && !read.has(keyOf(it)));
+    const read = readSet();
+    return mine().filter((it) => !read.has(keyOf(it)));
   }
   function markRead(keys) {
     const read = store.get("notifyRead", []).filter((k) => !keys.includes(k)).concat(keys);
@@ -135,12 +149,13 @@ dialog.notify li:not(.unread) strong { font-weight: 500; }`;
 
   function paintList() {
     const p = prefs(), items = mine(), fresh = new Set(unread().map(keyOf));
-    q("ntWhere").textContent = p.zones.includes("all") ? "All regions" : p.zones.map(zoneName).join(", ");
+    const from = new Date(cutoff(p)).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    q("ntWhere").textContent = `${p.zones.includes("all") ? "All regions" : p.zones.map(zoneName).join(", ")} · new since ${visit && visit > p.since ? "your last visit" : "you turned this on"} (${from})`;
     q("ntAll").hidden = !fresh.size;
     q("ntItems").innerHTML = items.length ? items.map((it, i) => `<li class="${fresh.has(keyOf(it)) ? "unread" : ""}"><button type="button" data-i="${i}">
       <strong>${esc(it.name || "Unnamed trail")}</strong>
       <small>${esc(LABEL[it.c.cat])} · ${esc(zoneName(it.z))} · mapped ${ago(it.ft || it.at)}${it.u ? ` by ${esc(it.u)}` : ""}</small></button></li>`).join("")
-      : `<li><p>No new trails in ${p.zones.includes("all") ? "the region" : "these regions"} yet. They'll show up here the morning after someone maps one.</p></li>`;
+      : `<li><p>No new trails since ${visit && visit > p.since ? "your last visit" : "you turned this on"}. When someone maps one, it shows up here the next morning.</p></li>`;
     q("ntItems").querySelectorAll("button[data-i]").forEach((b) => b.addEventListener("click", () => {
       const it = items[+b.dataset.i];
       markRead([keyOf(it)]);
