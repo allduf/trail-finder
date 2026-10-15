@@ -1,0 +1,12 @@
+name: Probe fire hosts (temporary)
+on:
+  push:
+    branches: [claude/canada-wildfires-c2kzil]
+    paths: [.github/workflows/probe-fires.yml, scripts/probe-fires.sh]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/probe-fires.sh
