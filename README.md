@@ -8,6 +8,13 @@ Every hour, `.github/workflows/watch-mapper.yml` checks OpenStreetMap for new ed
 (now: eerib) and posts them as a comment on the issue "New OpenStreetMap edits by &lt;name&gt;", mentioning @allduf so GitHub
 sends an email. Each comment says what the edit did to trails, with links to the edit and a before/after map.
 
+## Riding area names
+`areas.js` writes the names of riding areas (Alice Lake, Diamond Head, Mount Fromme, Lost Lake...) on the map when
+zoomed out, and hides them from zoom 13, where the trails take over. Tapping a name zooms in to it. The list is
+hand-picked in `data/riding-areas.json` (name, zone, label position, tier); tier 1 names show from zoom 8, tier 2 from
+zoom 10. Each label sits in the middle of that area's MTB trails from `data/mtb-<zone>.json`. To add an area, add a line
+there.
+
 ## Possible unmapped trails
 Every Sunday, `.github/workflows/unmapped-trails.yml` runs `scripts/find-unmapped.mjs`. It reads the public GPS traces
 people upload to OpenStreetMap and looks for lines that 2 or more traces follow, more than 20 m from anything mapped.
