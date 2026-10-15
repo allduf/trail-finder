@@ -270,9 +270,6 @@
         version: 8,
         glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
         sources: {
-          // Sentinel-2 cloudless (EOX, free): a newer yearly mosaic of the whole region, but 10 m pixels, so blurrier.
-          s2: { type: "raster", tileSize: 256, maxzoom: 15, tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2023_3857/default/g/{z}/{y}/{x}.jpg"],
-            attribution: "<a href=\"https://s2maps.eu\">Sentinel-2 cloudless 2023</a> by EOX (Copernicus Sentinel data 2023)" },
           // Winter: last winter's real satellite photos, built once by scripts/winter-photos (Sentinel-2,
           // Feb-Mar 2026, clouds removed). Live: the sharp photos with today's snow drawn in (tfwinter).
           winter: { type: "raster", tileSize: 256, minzoom: 7, maxzoom: 13, bounds: [-124.65, 49.1, -121.75, 50.9], tiles: ["data/winter/{z}/{x}/{y}.webp"],
@@ -291,7 +288,6 @@
           hits: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
         },
         layers: [
-          { id: "s2", type: "raster", source: "s2", layout: { visibility: "none" } },
           { id: "sat", type: "raster", source: "sat", paint: { "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
           { id: "winter", type: "raster", source: "winter", layout: { visibility: "none" } },
@@ -334,7 +330,7 @@
     // Sharper far away: keep the photos at one zoom level all the way to the horizon and allow more tiles
     // when tilted (MapLibre's default lets the far half get blurry fast). Costs more photo downloads.
     // Full sharpness only once the camera stops: while moving, a lighter setting keeps it smooth.
-    const lod = (levels, ratio) => ["sat", "s2", "winter", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(levels, ratio, id); } catch {} });
+    const lod = (levels, ratio) => ["sat", "winter", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(levels, ratio, id); } catch {} });
     let still = 0;
     gl.once("load", () => lod(1, 30));
     gl.on("movestart", () => { clearTimeout(still); lod(3, 4); });
@@ -342,29 +338,27 @@
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
-    // Summer / Winter / Live: Summer = snow-free photos (tap Summer again for the newer 2023 mosaic),
-    // Winter = full mid-winter snow, Live = NASA's latest real snow cover, both painted on the sharp photos.
+    // Summer / Winter / Live: Summer = the sharp snow-free Esri photos, Winter = last winter's real
+    // Sentinel-2 photos, Live = NASA's latest snow cover painted on the sharp photos.
     const mk = (label) => { const el = document.createElement("button"); el.type = "button"; el.textContent = label;
       el.style.cssText = "width:auto;padding:0 10px;font:600 12px var(--font-body, system-ui)"; return el; };
     const sumBtn = mk("Summer"), winBtn = mk("Winter"), liveBtn = mk("Live");
     const ski = () => document.body.classList.contains("sport-ski");
     let photos = "sharp";
     const setPhotos = (mode) => {
-      photos = ["sharp", "recent", "winter", "live"].includes(mode) ? mode : "sharp";
+      photos = ["sharp", "winter", "live"].includes(mode) ? mode : "sharp";   // (an old saved "2023" choice becomes Summer)
       const w = photos === "winter" || photos === "live";
-      gl.setLayoutProperty("s2", "visibility", photos === "recent" ? "visible" : "none");
       gl.setLayoutProperty("sat", "visibility", photos === "sharp" || photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
       gl.setLayoutProperty("winter", "visibility", photos === "winter" ? "visible" : "none");
       gl.setLayoutProperty("live", "visibility", photos === "live" ? "visible" : "none");
       gl.setLayoutProperty("shade", "visibility", photos === "live" ? "visible" : "none");
-      sumBtn.textContent = photos === "recent" ? "Summer · 2023" : "Summer";
-      sumBtn.title = photos === "sharp" ? "Tap again for the newer 2023 mosaic (blurrier)" : "Snow-free sharp photos";
+      sumBtn.title = "Sharp, snow-free photos";
       winBtn.title = "Real satellite photos from February and March 2026 (Sentinel-2, 10 m, so softer)";
       liveBtn.title = "Today's real snow (NASA satellite, 2 days old)";
       for (const [el, on] of [[sumBtn, !w], [winBtn, photos === "winter"], [liveBtn, photos === "live"]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; }
       store.set(ski() ? "3dPhotosSki" : "3dPhotos", photos);
     };
-    sumBtn.addEventListener("click", () => setPhotos(photos === "sharp" ? "recent" : "sharp"));
+    sumBtn.addEventListener("click", () => setPhotos("sharp"));
     winBtn.addEventListener("click", () => setPhotos("winter"));
     liveBtn.addEventListener("click", () => setPhotos("live"));
     // MTB opens on Summer and Skiing on Winter, unless the person picked something else in that sport.
