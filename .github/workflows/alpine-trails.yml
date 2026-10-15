@@ -1,0 +1,45 @@
+name: Weekly alpine rideable trails
+
+# Once a week, find the alpine paths (above the tree line) that look doable on a mountain bike,
+# and save them in data/alpine-<zone>.json for the site's "Alpine rideable" layer (scripts/build-alpine.mjs).
+on:
+  schedule:
+    - cron: "17 13 * * 3"   # Wednesdays, 13:17 UTC (early morning in Vancouver)
+  workflow_dispatch:         # "Run workflow" button on the Actions tab
+  push:
+    branches: [claude/alpine-rideable-unq8w3]   # TEMPORARY: first build on the PR branch, removed before merge
+    paths: [scripts/build-alpine.mjs, .github/workflows/alpine-trails.yml]
+
+permissions:
+  contents: write   # commit the data files
+  pages: write      # ask GitHub Pages to publish them
+
+concurrency:
+  group: trail-data   # never at the same time as the other data jobs, they all commit to data/
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Find alpine trails that look rideable
+        run: node scripts/build-alpine.mjs
+      - name: Commit the new data
+        run: |
+          git add data
+          if git diff --cached --quiet; then echo "No changes."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Weekly alpine rideable trails"
+          git pull -q --rebase origin "${GITHUB_REF_NAME}"
+          git push -q origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Publish the website
+        if: github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent || echo "Pages will publish on its own."
