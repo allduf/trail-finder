@@ -5212,7 +5212,12 @@ out tags center qt;`;
     const what = one + "s", inWhere = diff ? `in ${where}` : "in your square";
     $("boxRes").hidden = false;
     $("boxRes").innerHTML = `<div class="box-head"><b>Looking for ${what} ${inWhere}…</b></div>`;
-    const zs = ZONES.filter((z) => z.bounds.intersects(b));
+    await caIndexLoad();
+    if (token !== boxToken) return;
+    // Outside the home regions the trails come from the Canada map chunks, loaded only for a small enough area.
+    const caZs = caZonesIn([b]), inHome = ZONES.some((z) => z.bounds.intersects(b));
+    const zs = ZONES.filter((z) => z.bounds.intersects(b)).concat(caZs);
+    const tooBig = !inHome && !caZs.length && caIndex.zones.size > 0;
     const lists = await Promise.all(zs.map(loadZoneTrails));
     if (token !== boxToken) return;
     // Unofficial: also the plain paths around the bike network (no bike tags, not official), live from OpenStreetMap.
@@ -5255,7 +5260,8 @@ out tags center qt;`;
     }).join("");
     const none = !boxGroups.length && !unnamed;
     if (diff && found.isValid()) map.fitBounds(found, { padding: [20, 20], maxZoom: 15 });
-    const why = missing.length ? `<p class="hint box-why">Couldn't load the trail list for ${esc(missing.join(" and "))}. Reload the page and try again.</p>`
+    const why = tooBig ? `<p class="hint box-why">Zoom the map in closer (or pick a place under Where is it?) to list the trails here.</p>`
+      : missing.length ? `<p class="hint box-why">Couldn't load the trail list for ${esc(missing.join(" and "))}. Reload the page and try again.</p>`
       : unoffPick && pathNote ? `<p class="hint box-why">${esc(pathNote)}</p>`
       : none && unoffPick ? `<p class="hint box-why">No unofficial trails ${esc(inWhere)}${lvlText ? ` rated ${esc(lvlText)} or unrated` : ""}: every trail here is tagged for MTB or marked official.</p>`
       : none && diff ? `<p class="hint box-why">No trails ${esc(inWhere)} are rated ${esc(lvlText)} in OpenStreetMap. Only trails with a difficulty rating show up here.</p>`
@@ -5273,8 +5279,10 @@ out tags center qt;`;
   function showDiff(picks = diffPick()) {
     if (!picks.length) { clearBox(); return; }
     const z = nameZone();
-    const r = regionHere();
-    showBox(z ? z.bounds : r.bounds, picks, z ? z.name : r.short);
+    if (z) return showBox(z.bounds, picks, z.name);
+    // All areas: the region the map is on, or outside the regions the part of Canada on screen.
+    const r = REGIONS.find((x) => x.bounds.contains(map.getCenter()));
+    showBox(r ? r.bounds : map.getBounds(), picks, r ? r.short : "this area");
   }
   nameChips.forEach((c) => c.addEventListener("click", () => {
     const picks = diffPick().filter((k) => k !== c.dataset.d);
