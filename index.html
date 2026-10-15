@@ -968,6 +968,8 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 #map { position: absolute; inset: 0; background: var(--map-ground); background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 48px 48px; }
 .map-actions { position: absolute; z-index: 500; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
 .map-tools { position: absolute; z-index: 500; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.map-tools #satBtn.on { background: var(--fg); border-color: var(--fg); color: var(--panel); }
+.mapwrap.is3d #satBtn { display: none; }
 .map-tools #locate.on { background: #2b7de9; border-color: #2b7de9; color: #fff; }
 .map-tools #allBtn.on { background: var(--fg); border-color: var(--fg); color: var(--panel); }
 .map-tools #roadsBtn.on { background: var(--road); border-color: var(--road); color: #fff; }
@@ -1087,6 +1089,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
       <button id="locate" type="button">◎ My location</button>
       <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
       <button id="btn3d" type="button" aria-pressed="false" title="Show the mountains in 3D">⛰ 3D</button>
+      <button id="satBtn" type="button" aria-pressed="false" title="Aerial and satellite photos, as sharp as they come for each area">🛰 Satellite</button>
       <div class="map-note" id="mapNote" hidden></div>
     </div>
     <div class="first-tip" id="firstTip" role="note" hidden><strong>New here?</strong> <span class="tip-wide">Pick an area and tap <b>Find new trails</b>.</span><span class="tip-phone">Tap <b>New trails</b> below to see what's new.</span> Tap any trail on the map for its details, weather and loam. <button type="button" class="linkish" id="firstTipOk">Got it</button></div>
@@ -1337,6 +1340,8 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
   function zoneBounds(id) { return areaById(id).bounds; }
   map.fitBounds(zoneBounds(state.zone));
   const OSM_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  const ESRI_SAT = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+  const SAT_ATTR = 'Imagery &copy; Esri, Maxar, Earthstar Geographics, Eagleview, District of Squamish, Village of Pemberton, Sunshine Coast, qathet';
   const BASEMAPS = {
     osm: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: OSM_ATTR }],
     osmde: ["https://tile.openstreetmap.de/{z}/{x}/{y}.png", { maxZoom: 18, attribution: OSM_ATTR + ' | tiles <a href="https://www.openstreetmap.de">openstreetmap.de</a>' }],
@@ -1345,9 +1350,11 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     hot: ["https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 19, attribution: OSM_ATTR + ' | Humanitarian style by <a href="https://www.hotosm.org">HOT</a>, hosted by <a href="https://openstreetmap.fr">OSM France</a>' }],
     topo: ["https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 17, attribution: OSM_ATTR + ', SRTM | &copy; <a href="https://opentopomap.org">OpenTopoMap</a>' }],
     voyager: ["https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 20, attribution: OSM_ATTR + ' &copy; <a href="https://carto.com/attributions">CARTO</a>' }],
-    // Free, no key. Esri photos are ~30-60 cm per pixel down to zoom 19 here; deeper zooms enlarge them.
-    sat: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 19, maxZoom: 21, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics' }],
-    sathybrid: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 19, maxZoom: 21, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics' }],
+    // Free, no key. Esri World Imagery is the sharpest free source here: it already carries the local
+    // 7.5 cm aerial photos (Squamish 2024, Pemberton 2023, Sunshine Coast 2024), qathet 20 cm (2022) and
+    // 31-50 cm satellite elsewhere. Those go to zoom 20-22; EsriDeep (below) uses each spot's deepest level.
+    sat: [ESRI_SAT, { maxZoom: 22, attribution: SAT_ATTR }],
+    sathybrid: [ESRI_SAT, { maxZoom: 22, attribution: SAT_ATTR }],
     // OpenMapTiles vector map hosted free by OpenFreeMap: drawn by the browser, so it's sharp at any zoom and on retina screens.
     vector: ["https://tiles.openfreemap.org/styles/liberty", { maxZoom: 22, attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> <a href="https://www.openmaptiles.org/">&copy; OpenMapTiles</a> ' + OSM_ATTR }],
   };
@@ -1368,10 +1375,39 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
   async function makeBase(key) {
     const [url, opt] = BASEMAPS[key];
     if (key === "vector") { await loadVectorLib(); return L.maplibreGL({ style: url, attributionControl: { customAttribution: opt.attribution } }); }
-    const layer = L.tileLayer(url, opt);
+    const layer = key === "sat" || key === "sathybrid" ? new EsriDeep(url, opt) : L.tileLayer(url, opt);
     if (key !== "sathybrid") return layer;
-    return L.layerGroup([layer, L.tileLayer(SAT_NAMES, { maxNativeZoom: 19, maxZoom: 21 })]);
+    return L.layerGroup([layer, L.tileLayer(SAT_NAMES, { maxNativeZoom: 19, maxZoom: 22 })]);
   }
+  // Esri photos stop at a different zoom in each place (22 over Squamish, 21 in Whistler, 18 at Duffey Lake)
+  // and show a grey "Map data not yet available" tile past that. Esri's tile map says which tiles exist, so
+  // each tile uses the deepest real photo and enlarges it from there.
+  const EsriDeep = L.TileLayer.extend({
+    _have: new Map(),   // "z/blockX/blockY" -> Promise of a 32x32 array of 1/0, or null if unknown
+    have(z, x, y) {
+      const bx = x >> 5, by = y >> 5, k = `${z}/${bx}/${by}`;
+      if (!this._have.has(k)) this._have.set(k, fetch(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tilemap/${z}/${by * 32}/${bx * 32}/32/32`)
+        .then((r) => r.json()).then((j) => j.valid === false || !j.data || j.location?.left !== bx * 32 || j.location?.top !== by * 32 ? null : j.data)
+        .catch(() => null));
+      return this._have.get(k).then((d) => d ? d[(y - by * 32) * 32 + (x - bx * 32)] === 1 : z <= 19);
+    },
+    createTile(c, done) {
+      const box = document.createElement("div"), img = document.createElement("img");
+      box.style.overflow = "hidden"; img.alt = ""; img.setAttribute("role", "presentation");
+      box.append(img);
+      const size = this.getTileSize().x;
+      (async () => {
+        let z = c.z, x = c.x, y = c.y;
+        while (z > 0 && z > c.z - 6 && !(await this.have(z, x, y))) { z--; x >>= 1; y >>= 1; }
+        const k = 2 ** (c.z - z), s = size * k;
+        Object.assign(img.style, { position: "absolute", width: s + "px", height: s + "px", maxWidth: "none",
+          left: -(c.x - x * k) * size + "px", top: -(c.y - y * k) * size + "px" });
+        img.onload = () => done(null, box); img.onerror = (e) => done(e, box);
+        img.src = L.Util.template(this._url, { z, x, y });
+      })();
+      return box;
+    },
+  });
   // The official OSM tile server refuses pages opened as a local file (no Referer header) and
   // serves an "Access blocked" image instead. On a file, try look-alike copies in this order.
   const FROM_FILE = location.protocol === "file:";
@@ -1402,6 +1438,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     if (baseLayer) map.removeLayer(baseLayer);
     baseLayer = next.addTo(map);
     $("basemap").value = use;
+    satSync(use);
     if (remember) store.set("basemap4", key);
     const note = $("mapNote");
     note.hidden = use === key;
@@ -1411,6 +1448,14 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
   }
   setBasemap(store.get("basemap4", "osm"));
   $("basemap").addEventListener("change", (e) => setBasemap(e.target.value, true));
+  // One tap to satellite photos and back to the last map style.
+  function isSat(k) { return k === "sat" || k === "sathybrid"; }
+  function satSync(k) { const on = isSat(k); $("satBtn").setAttribute("aria-pressed", on); $("satBtn").classList.toggle("on", on); }
+  $("satBtn").addEventListener("click", () => {
+    const cur = $("basemap").value;
+    if (!isSat(cur)) store.set("basemapPrev", cur);
+    setBasemap(isSat(cur) ? store.get("basemapPrev", "osm") : "sathybrid", true);
+  });
   window.tfSetBasemap = setBasemap;   // offline.js opens the saved vector map when there's no signal
 
   const trailLayer = L.layerGroup().addTo(map);
