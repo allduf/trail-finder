@@ -56,6 +56,9 @@ const log = (...a) => console.log(...a);
 // and go first tomorrow night.
 const started = Date.now();
 const TRAILS_MINUTES = +process.env.TRAILS_MINUTES || 80, NAMES_MINUTES = +process.env.NAMES_MINUTES || 100;
+// The job runs several times a day (Overpass is slow, and there are many squares from Vancouver to Calgary). Squares and
+// name lists built more recently than this are left alone, so a quick run ends early instead of asking again.
+const SQUARE_FRESH_MS = (+process.env.SQUARE_FRESH_HOURS || 12) * 3600e3, NAMES_FRESH_MS = (+process.env.NAMES_FRESH_HOURS || 20) * 3600e3;
 let deadline = started + TRAILS_MINUTES * 60e3;
 const outOfTime = () => Date.now() >= deadline;
 
@@ -142,9 +145,10 @@ ZONES.forEach((z) => gridTiles(z.box).forEach((t) => allTiles.set(t.key, t)));
 const lastAt = (files, key) => { for (const f of files) if (f && f.tiles && f.tiles[key]) return Date.parse(f.tiles[key].at) || 0; return 0; };
 const order = [...allTiles.values()].sort((a, b) => lastAt(before.values(), a.key) - lastAt(before.values(), b.key));
 log(`Trails: ${allTiles.size} map squares, ways first mapped since ${since.slice(0, 10)}, for up to ${TRAILS_MINUTES} minutes.`);
-let failedTiles = 0, skippedTiles = 0, n = 0;
+let failedTiles = 0, skippedTiles = 0, freshTiles = 0, n = 0;
 for (const t of order) {
   n++;
+  if (Date.now() - lastAt(before.values(), t.key) < SQUARE_FRESH_MS) { freshTiles++; continue; }
   if (outOfTime()) { skippedTiles++; continue; }
   try {
     const els = await fetchBox(t.box, (b) => overpassQuery(b, since));
@@ -166,7 +170,8 @@ for (const t of order) {
     log(`  ${n}/${allTiles.size} ${t.key}: failed (${e.message}), keeping last good data`);
   }
 }
-if (skippedTiles) log(`  Out of time: ${skippedTiles} squares left for tomorrow night, keeping their last good data.`);
+if (freshTiles) log(`  ${freshTiles} squares were built less than ${SQUARE_FRESH_MS / 3600e3} hours ago, left as they are.`);
+if (skippedTiles) log(`  Out of time: ${skippedTiles} squares left for the next run, keeping their last good data.`);
 
 let written = 0;
 for (const z of ZONES) {
@@ -196,8 +201,9 @@ deadline = Math.max(Date.now() + 15 * 60e3, started + NAMES_MINUTES * 60e3);
 const namesAt = (z) => (readJson(`names-${z.id}.json`) || {}).builtAt;
 const zoneOrder = [...ZONES].sort((a, b) => (Date.parse(namesAt(a)) || 0) - (Date.parse(namesAt(b)) || 0));
 log(`Names: ${ZONES.length} zones.`);
-let failedNames = 0, skippedNames = 0;
+let failedNames = 0, skippedNames = 0, freshNames = 0;
 for (const z of zoneOrder) {
+  if (Date.now() - (Date.parse(namesAt(z)) || 0) < NAMES_FRESH_MS) { freshNames++; continue; }
   if (outOfTime()) { skippedNames++; log(`  ${z.name}: out of time, keeping last good data`); continue; }
   try {
     const els = await fetchBox(z.box, (b) => namesQuery(b));
@@ -212,6 +218,7 @@ for (const z of zoneOrder) {
 }
 
 const minutes = Math.round((Date.now() - started) / 60e3);
-log(`Done in ${minutes} min: ${allTiles.size - failedTiles - skippedTiles} of ${allTiles.size} squares and ${ZONES.length - failedNames - skippedNames} of ${ZONES.length} name lists updated.`);
+log(`Done in ${minutes} min: ${allTiles.size - failedTiles - skippedTiles - freshTiles} of ${allTiles.size} squares and ${ZONES.length - failedNames - skippedNames - freshNames} of ${ZONES.length} name lists updated` +
+  ` (${freshTiles} squares and ${freshNames} name lists were still fresh).`);
 // Fail the job only when nothing at all could be updated, so a bad night shows up in GitHub.
-if (failedTiles + skippedTiles === allTiles.size && failedNames + skippedNames === ZONES.length) process.exit(1);
+if (failedTiles + skippedTiles + freshTiles === allTiles.size && failedNames + skippedNames + freshNames === ZONES.length && failedTiles + failedNames) process.exit(1);

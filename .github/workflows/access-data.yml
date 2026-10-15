@@ -5,7 +5,7 @@ name: Trailheads and parking data
 # On a pull request that changes the script it only does a test run, without saving anything.
 on:
   schedule:
-    - cron: "31 9 * * *"   # 09:31 UTC, after the all-trails run that it reads
+    - cron: "31 9,21 * * *"   # twice a day; each run does the zones done longest ago for 35 minutes
   workflow_dispatch:        # "Run workflow" button on the Actions tab
   pull_request:
     paths:

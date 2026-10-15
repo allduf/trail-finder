@@ -48,7 +48,8 @@ const MAX_GAP_S = 30;        // s between two GPS points: longer is a gap in the
 const SINCE = Date.parse(process.env.TRACES_SINCE || "2012-01-01");   // older recordings are skipped
 const PAGES_PER_SQUARE = +(process.env.PAGES_PER_SQUARE || 200);    // 5000 GPS points per page
 const PAGE_BUDGET = +(process.env.PAGE_BUDGET || 2000);             // pages per run, all squares together
-const WINTER_ZONES = new Set(["wh", "pem", "lil", "chil", "brg", "kan", "bnf"]);   // snow: skiing traces look like riding
+// Snowy zones, where skiing traces look like riding: all but the coast, the Fraser Valley and Calgary.
+const WINTER_ZONES = new Set(["wh", "pem", "lil", "chil", "pri", "mer", "kam", "wl", "shu", "ver", "kel", "pen", "sok", "gfk", "ros", "nel", "rev", "gol", "inv", "cbk", "fer", "brg", "kan", "bnf"]);
 const BIKE_KMH = 9, VEHICLE_KMH = 50;
 
 // ---------- small helpers ----------
