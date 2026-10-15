@@ -66,6 +66,8 @@ heights from AWS Terrain Tiles). `.github/workflows/winter-data.yml` runs `scrip
 saves the forecasts for the region to `data/avalanche.json` (public Avalanche Canada API, no key), and every night it
 saves the ski routes and huts to `data/ski.json` from OpenStreetMap and BC Recreation Sites and Trails
 (`WHSE_FOREST_TENURE.FTEN_RECREATION_LINES_SVW`, Open Government Licence - British Columbia).
+In Skiing, "📍 Save point" (on the map, or a long press) saves a point with a name, a description and a photo
+(`ski-points.js`). Points are kept in the browser's IndexedDB and, when signed in, in the account (`supabase/ski-points.sql`).
 
 ## Install on a phone
 The site installs as a home screen app (no App Store). iPhone: open the site in Safari, tap Share, then Add to Home
