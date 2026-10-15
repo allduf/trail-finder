@@ -1225,6 +1225,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     <p>One catch: when a mapper splits an old trail into two pieces, the new piece gets a new id and shows up as new. Check the history link in the popup when something looks off.</p>
     <h3>MTB tagged</h3>
     <p>Any tag starting with <code>mtb</code> (<code>mtb:scale</code>, <code>mtb:scale:imba</code>, <code>mtb:type</code>, <code>mtb=yes</code>, …) or membership in a <code>route=mtb</code> relation. <code>mtb=no</code> is excluded.</p>
+    <p>Riding areas where mappers seldom tag bike trails (Fernie, Three Blind Mice, the South Chilcotin…): their named paths count as MTB trails too, from the daily all-trails lists. Paths that are wide, open to motor vehicles or closed to bikes are still left out.</p>
     <h3>Looks like MTB</h3>
     <p>A <code>path</code> or <code>bridleway</code> with no MTB tags that scores 2 points or more:</p>
     <ul>
@@ -1734,9 +1735,10 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
     // Wide enough for a dirt bike or quad, or motor vehicles allowed: not counted as looking like MTB.
     const motor = /^(designated|customers)$/.test(tags.bicycle || "") ? null : !isNaN(w) && w >= 2 ? `wide (${w} m)` : ["motorcycle", "motor_vehicle", "atv", "ohv", "orv"].filter((k) => MOTO_OK.test(tags[k] || "")).map((k) => `${k}=${tags[k]}`)[0];
 
+    // Added by the all-trails job (scripts/build-mtb.mjs): a named path in a riding area where mappers seldom tag bike
+    // trails. alex: those are bike trails, so they count as MTB trails, not Looks like MTB.
+    if (tags["tf:area"] && !motor) return { cat: "mtb", why: [`named trail in the ${tags["tf:area"]} riding area, where few trails have bike tags`].concat(why) };
     if (score >= 2 && !motor) return { cat: "looks", why: why.concat(`score ${score}`) };
-    // Added by the all-trails job (scripts/build-mtb.mjs): a named path in a riding area where mappers seldom tag bike trails.
-    if (tags["tf:area"] && !motor) return { cat: "looks", why: why.concat(`named trail in the ${tags["tf:area"]} riding area, where few trails have bike tags`) };
     if (hw === "path") return { cat: "other", net: !motor && netOk(tags), why: motor ? [`open to motor vehicles or wide (${motor})`] : why.length ? why.concat(`score ${score}`) : ["no bike-related tags yet"] };
     return null;
   }
