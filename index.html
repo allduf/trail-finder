@@ -1049,7 +1049,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 /* the phone tab bar is styled in theme.css; hidden here so it never shows unstyled (e.g. with an older cached theme.css) */
 .tabbar, .tab-menu { display: none; }
 </style>
-<link rel="stylesheet" href="theme.css?v=3">
+<link rel="stylesheet" href="theme.css?v=4">
 
 <div class="app">
   <div class="mapwrap">
@@ -1090,7 +1090,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
         <button id="offlineBtn" type="button" aria-pressed="false" title="Save an area's map, trails and forest roads on this device for riding with no signal">⤓ Offline maps</button>
         </div>
       </div>
-      <button id="locate" type="button">◎ My location</button>
+      <button id="locate" type="button" aria-label="My location">◎ My location</button>
       <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
       <button id="btn3d" type="button" aria-pressed="false" title="Show the mountains in 3D">⛰ 3D</button>
       <button id="satBtn" type="button" aria-pressed="false" title="Aerial and satellite photos, as sharp as they come for each area">🛰 Satellite</button>

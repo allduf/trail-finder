@@ -327,3 +327,35 @@ body.sport-ski .first-tip { display: none; }
 }
 .first-tip .tip-phone { display: none; }
 @media (max-width: 760px) { .first-tip .tip-wide { display: none; } .first-tip .tip-phone { display: inline; } }
+
+/* Phone usability pass 2: fields that don't zoom the page, a one-line sheet header,
+   a Find button that stays in reach, a trail header that stays on top, and a shorter chip row */
+@media (max-width: 760px) {
+  /* iPhone Safari zooms the whole page into any field under 16px when you tap it */
+  input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea { font-size: 16px !important; }
+  /* title, sport and bell on one row, so the peek is short and the half sheet shows more */
+  .brand { padding: 18px 14px 10px; flex-wrap: nowrap; }
+  .brand::after { display: none; }
+  .brand h1 { font-size: 1.15rem; min-width: 0; white-space: nowrap; }
+  .brand { gap: 10px; }
+  .brand .sport-pick { order: 1; flex: none; width: auto; max-width: 128px; min-height: 38px; padding-top: 4px; padding-bottom: 4px; }
+  .brand [data-notify-slot] { order: 2; }
+  .brand .notify-btn { min-width: 40px; min-height: 40px; justify-content: center; }
+  /* the main button sticks to the bottom of the sheet while the search form is in view */
+  .panel:not(.sheet-peek) #findBtn { position: sticky; bottom: 0; z-index: 2; box-shadow: 0 -10px 18px 4px var(--panel), 0 4px 14px rgba(20, 33, 26, .22); }
+  /* trail details: Back and Save stay at the top while you scroll */
+  .panel.detail-open .detail > .d-top, .panel.detail-open .detail > .back:first-child {
+    position: sticky; top: 0; z-index: 2; margin: 0 -16px 8px; padding: 22px 16px 8px; background: var(--panel); box-shadow: 0 1px 0 var(--line);
+  }
+  .panel.detail-open .detail .back { min-height: 40px; display: inline-flex; align-items: center; font-size: 1rem; }
+  .panel.detail-open .want-btn { min-height: 40px; }
+  .panel.detail-open .sheet-toggle { margin-bottom: -22px; }
+  .panel.detail-open .detail { padding-top: 0; }
+  /* My location is just its symbol, so the whole chip row fits */
+  .map-tools #locate { width: 40px; min-width: 40px; padding: 0; font-size: 0; justify-content: center; }
+  .map-tools #locate::before { content: "◎"; font-size: 1.3rem; line-height: 1; }
+  /* bigger level chips */
+  .diff-chip { min-height: 40px; }
+  /* wildfire, parking and other pins a bit smaller so they don't bury the trails */
+  .rf-pin span { transform: scale(.82); }
+}
