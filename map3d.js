@@ -272,28 +272,35 @@
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
     // Photos: sharp aerial photos (Esri, a few years old in places) or the newer but blurrier Sentinel-2 mosaic.
-    const photoBtn = document.createElement("button");
-    photoBtn.type = "button";
-    photoBtn.style.cssText = "width:auto;padding:0 8px;font:600 12px var(--font-body, system-ui)";
-    const PHOTOS = { sharp: "Photos: sharp (Esri)", recent: "Photos: newer (2023, 10 m)", winter: "Photos: winter (today's snow)" };
-    const NEXT = { sharp: "recent", recent: "winter", winter: "sharp" };
+    // Summer / Winter: two clear choices. Summer = snow-free photos (tap Summer again for the newer
+    // 2023 mosaic), Winter = the sharp photos with NASA's latest real snow cover painted on.
+    const mk = (label) => { const el = document.createElement("button"); el.type = "button"; el.textContent = label;
+      el.style.cssText = "width:auto;padding:0 10px;font:600 12px var(--font-body, system-ui)"; return el; };
+    const sumBtn = mk("Summer"), winBtn = mk("Winter");
+    const ski = () => document.body.classList.contains("sport-ski");
     let photos = "sharp";
     const setPhotos = (mode) => {
-      photos = PHOTOS[mode] ? mode : "sharp";
+      photos = ["sharp", "recent", "winter"].includes(mode) ? mode : "sharp";
+      const w = photos === "winter";
       gl.setLayoutProperty("s2", "visibility", photos === "recent" ? "visible" : "none");
       gl.setLayoutProperty("sat", "visibility", photos === "recent" ? "none" : "visible");
-      gl.setLayoutProperty("snow", "visibility", photos === "winter" ? "visible" : "none");
-      photoBtn.textContent = PHOTOS[photos];
-      photoBtn.title = "Tap for: " + PHOTOS[NEXT[photos]].replace("Photos: ", "");
+      gl.setLayoutProperty("snow", "visibility", w ? "visible" : "none");
+      gl.setPaintProperty("sat", "raster-saturation", w ? -0.45 : 0.12);   // colder, greyer ground under the snow
+      gl.setPaintProperty("sat", "raster-brightness-min", w ? 0.12 : 0.02);
+      sumBtn.textContent = photos === "recent" ? "Summer · 2023" : "Summer";
+      sumBtn.title = photos === "sharp" ? "Tap again for the newer 2023 mosaic (blurrier)" : "Snow-free sharp photos";
+      winBtn.title = "Sharp photos with the latest real snow cover (NASA, 2 days old)";
+      for (const [el, on] of [[sumBtn, !w], [winBtn, w]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; }
       store.set(ski() ? "3dPhotosSki" : "3dPhotos", photos);
     };
-    photoBtn.addEventListener("click", () => setPhotos(NEXT[photos]));
-    // Skiing opens on the winter look unless the person picked something else there.
-    const ski = () => document.body.classList.contains("sport-ski");
-    new MutationObserver(() => setPhotos(ski() ? store.get("3dPhotosSki", "winter") : store.get("3dPhotos", "sharp")))
-      .observe(document.body, { attributes: true, attributeFilter: ["class"] });
-    gl.addControl({ onAdd() { const d = document.createElement("div"); d.className = "maplibregl-ctrl maplibregl-ctrl-group"; d.append(photoBtn); return d; }, onRemove() {} }, "bottom-right");
-    gl.once("styledata", () => setPhotos(ski() ? store.get("3dPhotosSki", "winter") : store.get("3dPhotos", "sharp")));
+    sumBtn.addEventListener("click", () => setPhotos(photos === "sharp" ? "recent" : "sharp"));
+    winBtn.addEventListener("click", () => setPhotos("winter"));
+    // MTB opens on Summer and Skiing on Winter, unless the person picked something else in that sport.
+    const pick = () => setPhotos(ski() ? store.get("3dPhotosSki", "winter") : store.get("3dPhotos", "sharp"));
+    new MutationObserver(pick).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    gl.addControl({ onAdd() { const d = document.createElement("div"); d.className = "maplibregl-ctrl maplibregl-ctrl-group";
+      d.style.display = "flex"; d.append(sumBtn, winBtn); return d; }, onRemove() {} }, "bottom-right");
+    gl.once("styledata", pick);
     // "load" waits for every first tile, and imagery that fails to load can hold it back, so the
     // trails go on as soon as the style itself is ready.
     gl.on("styledata", () => { if (!drawn && gl.getSource("lines")) scheduleSync(); });
