@@ -13,10 +13,15 @@
   const listeners = [];
 
   const getIndex = () => index || (index = fetch(DIR + "index.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null));
-  const keyOf = (lat, lon) => `${Math.floor(lat)}_${Math.floor(lon)}`;
+  const sq = (v) => Math.floor(v * 2) / 2;   // half-degree squares, named by their south-west corner
+  const keyOf = (lat, lon) => `${sq(lat)}_${sq(lon)}`;
 
   function prepare(f) {
-    const cells = new Map(), lines = f.lines.map(([s, src, name, note, g], i) => ({ i, s, src, name, note, g }));
+    const cells = new Map(), lines = f.lines.map(([s, src, name, note, d]) => {
+      const g = new Array(d.length);   // points come as 1e-5 degree differences (see scripts/build-official.mjs)
+      for (let k = 0, a = 0, o = 0; k < d.length; k += 2) { a += d[k]; o += d[k + 1]; g[k] = a / 1e5; g[k + 1] = o / 1e5; }
+      return { s, src, name, note, g };
+    });
     lines.forEach((l) => {
       for (let k = 0; k + 3 < l.g.length; k += 2) {
         const la1 = Math.min(l.g[k], l.g[k + 2]), la2 = Math.max(l.g[k], l.g[k + 2]), lo1 = Math.min(l.g[k + 1], l.g[k + 3]), lo2 = Math.max(l.g[k + 1], l.g[k + 3]);
@@ -31,15 +36,15 @@
 
   function load(bounds) {
     return getIndex().then((ix) => {
-      if (!ix || !bounds) return;
+      if (!ix || ix.v !== 2 || !bounds) return;
       const s = bounds.getSouth(), n = bounds.getNorth(), w = bounds.getWest(), e = bounds.getEast();
       if ((n - s) * (e - w) > 40) return;   // zoomed far out: no single trail to match yet
       const want = [];
-      for (let la = Math.floor(s); la <= Math.floor(n); la++) for (let lo = Math.floor(w); lo <= Math.floor(e); lo++) {
+      for (let la = sq(s); la <= n; la += 0.5) for (let lo = sq(w); lo <= e; lo += 0.5) {
         const k = la + "_" + lo;
         if (!ix.squares[k] || squares.has(k)) continue;
         const p = fetch(DIR + k + ".json").then((r) => (r.ok ? r.json() : null)).catch(() => null)
-          .then((f) => { squares.set(k, f && f.v === 1 ? prepare(f) : { lines: [], cells: new Map() }); });
+          .then((f) => { squares.set(k, f && f.v === 2 ? prepare(f) : { lines: [], cells: new Map() }); });
         squares.set(k, p); want.push(p);
       }
       if (want.length) return Promise.all(want).then(() => listeners.forEach((fn) => { try { fn(); } catch (err) { console.warn(err); } }));
@@ -101,10 +106,10 @@
   }
 
   function why(l) {
-    const src = NAMES[l.src] || l.src;
-    const name = l.name ? ` “${l.name}”` : "";
-    if (l.s === 1) return `listed by ${src}${name ? " as" + name : ""}, with bikes allowed${l.note && l.src !== "bc" ? ` (${l.note})` : ""}`;
-    if (l.s === 2) return `listed by ${src}${name ? " as" + name : ""} as an official trail (bike use not given)`;
+    const src = NAMES[l.src] || l.src, name = l.name ? ` “${l.name}”` : "";
+    const extra = !l.note || l.src === "bc" || l.src === "ab" ? "" : l.src === "qc" ? ` in the ${l.note}` : `, run by ${l.note}`;
+    if (l.s === 1) return `listed by ${src}${name ? " as" + name : ""}${extra}, with bikes allowed`;
+    if (l.s === 2) return `listed by ${src} as an official trail${name}${extra}; it doesn't say whether bikes are allowed`;
     return `${src} lists this trail${name} for ${l.note || "other uses"}, not for bikes.`;
   }
   const NAMES = { on: "Ontario Trails", qc: "Sépaq", bc: "Recreation Sites and Trails BC", ab: "Alberta designated trails", pc: "Parks Canada", ott: "the City of Ottawa" };

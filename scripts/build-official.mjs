@@ -1,9 +1,11 @@
 // Official (sanctioned) trails from government open data, for the "Official" badge across Canada.
 // Every week: download each source's trail lines, keep the ones that say whether bikes are allowed, simplify them, and
-// write them in 1-degree squares to data/official/<lat>_<lon>.json, plus data/official/index.json (squares, sources).
+// write them in half-degree squares to data/official/<lat>_<lon>.json (south-west corner, e.g. 43.5_-80), plus
+// data/official/index.json (squares and their sizes, sources).
 // The website (official.js) matches OpenStreetMap trails to these lines by shape.
 //
-// Each line: [status, source, name, note, [lat, lon, lat, lon, ...]]. Status:
+// Each line: [status, source, name, note, g], g = the points in 1e-5 degrees (~1 m): lat, lon of the first point, then
+// the difference to the previous point (dlat, dlon, dlat, dlon...), which keeps the files small. Status:
 //   1 = official trail, bikes allowed      -> "Official" badge
 //   2 = official trail, bike use not given  -> "Official" badge only on trails already tagged for MTB
 //   3 = official trail, listed for other uses but not bikes -> warning in the trail details (note = the uses)
@@ -71,8 +73,8 @@ function lambertQc(x, y) {
   return [p / rad, (th / n + l0) / rad];
 }
 
-// Douglas-Peucker in metres (local flat approximation): keeps the shape within ~4 m, rounds to 5 decimals (~1 m).
-function simplify(pts, tol = 4) {
+// Douglas-Peucker in metres (local flat approximation): keeps the shape within ~6 m.
+function simplify(pts, tol = 6) {
   if (pts.length < 3) return pts;
   const k = Math.cos(pts[0][0] * Math.PI / 180) * 111320, K = 110540;
   const xy = pts.map(([la, lo]) => [lo * k, la * K]);
@@ -110,7 +112,7 @@ const jobs = {
       const uses = a.PERMITTED_USES || "";
       const status = /cycling/i.test(uses) ? 1 : /hiking|walking/i.test(uses) ? 3 : 0;   // portage, ski-only, ATV...: left out
       if (!status) continue;
-      const note = status === 3 ? uses.replace(/Hiking or Walking/i, "hiking") : a.TRAIL_ASSOCIATION || "";
+      const note = status === 3 ? uses.replace(/Hiking or Walking/i, "hiking").toLowerCase() : a.TRAIL_ASSOCIATION || "";
       paths.forEach((p) => add(status, "on", a.TRAIL_NAME, status === 1 ? a.TRAIL_ASSOCIATION : note, lonlat(p)));
     }
   },
@@ -178,12 +180,15 @@ for (const [id, job] of Object.entries(jobs)) {
 }
 if (failed.length === Object.keys(jobs).length) { console.log("Every source failed; keeping the old files."); process.exit(1); }
 
-// Squares: a line goes in every 1-degree square its points touch (and the squares next to a point near the edge).
+// Squares: a line goes in every half-degree square its points touch (and the squares next to a point near the edge).
+const sq = (v) => Math.floor(v * 2) / 2;
 const squares = new Map();
 for (const [status, src, name, note, pts] of lines) {
   const keys = new Set();
-  for (const [la, lo] of pts) for (const dl of [-0.002, 0.002]) for (const dn of [-0.003, 0.003]) keys.add(`${Math.floor(la + dl)}_${Math.floor(lo + dn)}`);
-  const flat = pts.flatMap(([la, lo]) => [+la.toFixed(5), +lo.toFixed(5)]);
+  for (const [la, lo] of pts) for (const dl of [-0.002, 0.002]) for (const dn of [-0.003, 0.003]) keys.add(`${sq(la + dl)}_${sq(lo + dn)}`);
+  const flat = [];
+  let pa = 0, po = 0;
+  for (const [la, lo] of pts) { const a = Math.round(la * 1e5), o = Math.round(lo * 1e5); flat.push(a - pa, o - po); pa = a; po = o; }
   for (const k of keys) { if (!squares.has(k)) squares.set(k, []); squares.get(k).push([status, src, name, note, flat]); }
 }
 
@@ -200,10 +205,10 @@ if (failed.length) {
 
 mkdirSync(OUT, { recursive: true });
 for (const f of readdirSync(OUT)) unlinkSync(`${OUT}/${f}`);
-const builtAt = new Date().toISOString(), index = { v: 1, builtAt, sources: SOURCES, squares: {} };
+const builtAt = new Date().toISOString(), index = { v: 2, builtAt, size: 0.5, sources: SOURCES, squares: {} };
 let total = 0;
 for (const [k, ls] of [...squares].sort()) {
-  const body = JSON.stringify({ v: 1, builtAt, lines: ls });
+  const body = JSON.stringify({ v: 2, builtAt, lines: ls });
   writeFileSync(`${OUT}/${k}.json`, body);
   index.squares[k] = body.length; total += body.length;
 }
