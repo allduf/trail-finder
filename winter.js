@@ -29,6 +29,7 @@
     other: { label: "Other winter routes", color: "#8e9aab", weight: 2 },
   };
   const HUT = { label: "Huts and cabins", color: "#7a2e10" };
+  const START = { label: "camptocamp route starts", color: "#d9480f" };
   const HEAT = { label: "Ski heatmap", ramp: ["#2b59c3", "#00b4d8", "#ffd23f", "#ff6a1a"] };   // 1, 2, 3-5, 6+ traces
   const MINE = { label: "Your ski tours", color: "#e0218a" };
   // Avalanche Canada's danger scale colours.
@@ -85,6 +86,8 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 #skiPane .av-legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; border: 1px solid #0002; }
 #skiPane details summary { cursor: pointer; font-weight: 600; font-size: .85rem; }
 #skiPane details p { white-space: pre-line; }
+.sk-pin { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px #0006; color: #fff; font-size: 12px; line-height: 1; }
+.sk-pin.on { outline: 3px solid #ffe14d; }
 #skiPane .sk-safe { font-size: .78rem; color: var(--muted); margin: 0; }`;
   document.head.append(css);
 
@@ -116,6 +119,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
   const hutLayer = L.layerGroup();
   let ski = null, skiLoading = null, skiErr = "";
   let shown = new Set(store.get("skiTypes", ["tour", "access", "nordic", "snowshoe", "sled", "other", "hut", "heat", "mine"]));
+  if (!store.get("skiStartChip", false)) { shown.add("c2c"); store.set("skiStartChip", true); store.set("skiTypes", [...shown]); }
   if (!store.get("skiHeatChips", false)) { shown.add("heat"); shown.add("mine"); store.set("skiHeatChips", true); store.set("skiTypes", [...shown]); }
   let selected = null;   // route or hut object
   const lineOf = (flat) => { const out = []; for (let i = 0; i < flat.length; i += 2) out.push([flat[i], flat[i + 1]]); return out; };
@@ -158,21 +162,28 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       m.on("click", (e) => { L.DomEvent.stopPropagation(e); select(h); });
       hutLayer.addLayer(m);
     }
+    if (shown.has("c2c")) for (const h of ski.starts || []) {
+      const m = L.marker([h.lat, h.lon], { icon: L.divIcon({ className: "", html: `<span class="sk-pin${selected === h ? " on" : ""}" style="background:${START.color}">⛷</span>`, iconSize: [24, 24], iconAnchor: [12, 12] }) });
+      m.bindTooltip(esc(h.name || "camptocamp route"));
+      m.on("click", (e) => { L.DomEvent.stopPropagation(e); select(h); });
+      hutLayer.addLayer(m);
+    }
   }
   function counts() {
     const c = {};
     (ski?.routes || []).forEach((r) => { c[r.type] = (c[r.type] || 0) + 1; });
     c.hut = (ski?.huts || []).length;
+    c.c2c = (ski?.starts || []).length;
     c.heat = heat ? heat.traces : 0;
     c.mine = mine.length;
     return c;
   }
   function renderChips() {
     const c = counts();
-    const keys = [...Object.keys(TYPES).filter((k) => c[k]), "hut", "heat", ...(mine.length ? ["mine"] : [])];
+    const keys = [...Object.keys(TYPES).filter((k) => c[k]), "hut", ...(c.c2c ? ["c2c"] : []), "heat", ...(mine.length ? ["mine"] : [])];
     $("skChips").innerHTML = keys.map((k) => {
-      const t = TYPES[k] || { hut: HUT, heat: HEAT, mine: MINE }[k];
-      const sw = k === "hut" ? `<span class="sk-dot" style="background:${HUT.color}"></span>`
+      const t = TYPES[k] || { hut: HUT, c2c: START, heat: HEAT, mine: MINE }[k];
+      const sw = k === "hut" || k === "c2c" ? `<span class="sk-dot" style="background:${t.color}"></span>`
         : k === "heat" ? `<span class="sk-sw" style="background:linear-gradient(90deg, ${HEAT.ramp.join(", ")})"></span>`
         : `<span class="sk-sw" style="background:${t.dashArray ? `repeating-linear-gradient(90deg, ${t.color} 0 5px, transparent 5px 8px)` : t.color}"></span>`;
       const n = k === "heat" ? (heat ? `${c.heat} traces` : heatErr ? "not yet" : "…") : c[k] || 0;
@@ -191,7 +202,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
     if (!ski) { $("skCount").textContent = "Routes in view"; list.innerHTML = `<li class="sk-hint">${skiErr ? "The ski route list isn't on the site yet (it's collected every night). Try again later." : "Loading ski routes…"}</li>`; return; }
     const b = map.getBounds();
     const items = (ski.routes || []).filter((r) => shown.has(r.type) && b.intersects(r.bounds));
-    const huts = shown.has("hut") ? (ski.huts || []).filter((h) => b.contains([h.lat, h.lon])) : [];
+    const huts = [...(shown.has("c2c") ? ski.starts || [] : []), ...(shown.has("hut") ? ski.huts || [] : [])].filter((h) => b.contains([h.lat, h.lon]));
     // Named routes first, then by type; pieces with the same name and type are one entry.
     const groups = new Map();
     for (const r of items) {
@@ -200,9 +211,10 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       groups.get(key).push(r);
     }
     const rows = [...groups.values()].sort((a, b2) => (!a[0].name - !b2[0].name) || typeOrder.indexOf(a[0].type) - typeOrder.indexOf(b2[0].type) || (a[0].name || "").localeCompare(b2[0].name || ""));
-    $("skCount").textContent = `${rows.length} route${rows.length === 1 ? "" : "s"} and ${huts.length} hut${huts.length === 1 ? "" : "s"} in view`;
+    const nStarts = huts.filter((h) => h.src === "c2c").length, nHuts = huts.length - nStarts;
+    $("skCount").textContent = `${rows.length + nStarts} route${rows.length + nStarts === 1 ? "" : "s"} and ${nHuts} hut${nHuts === 1 ? "" : "s"} in view`;
     const MAX = 120;
-    list.innerHTML = huts.slice(0, 30).map((h, i) => `<li><button type="button" data-h="${i}"${selected === h ? ' aria-current="true"' : ""}><span class="sk-dot" style="background:${HUT.color}"></span><span class="nm">${esc(h.name || "Hut")}</span><span class="meta">${h.tags?.ele ? esc(h.tags.ele) + " m" : "hut"}</span></button></li>`).join("")
+    list.innerHTML = huts.slice(0, 30).map((h, i) => `<li><button type="button" data-h="${i}"${selected === h ? ' aria-current="true"' : ""}><span class="sk-dot" style="background:${h.src === "c2c" ? START.color : HUT.color}"></span><span class="nm">${esc(h.name || "Hut")}</span><span class="meta">${h.src === "c2c" ? "camptocamp" : h.tags?.ele ? esc(h.tags.ele) + " m" : "hut"}</span></button></li>`).join("")
       + rows.slice(0, MAX).map((g, i) => {
         const r = g[0], t = TYPES[r.type] || TYPES.other, len = g.reduce((s, x) => s + km(x), 0);
         return `<li><button type="button" data-g="${i}"${g.includes(selected) ? ' aria-current="true"' : ""}><span class="sk-sw" style="background:${t.color}"></span><span class="nm">${esc(r.name || "Unnamed " + t.label.toLowerCase())}</span><span class="meta">${len.toFixed(1)} km${r.diff ? " · " + esc(r.diff) : ""}</span></button></li>`;
@@ -222,7 +234,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       else map.fitBounds(group.reduce((b, x) => b.extend(x.bounds), L.latLngBounds(r.bounds.getSouthWest(), r.bounds.getNorthEast())), { padding: [30, 30], maxZoom: 15 });
     }
     const d = $("skDetail");
-    const isHut = r.lat != null, t = isHut ? HUT : TYPES[r.type] || TYPES.other;
+    const isHut = r.lat != null, isStart = isHut && r.src === "c2c", t = isStart ? TYPES[r.type] || TYPES.tour : isHut ? HUT : TYPES[r.type] || TYPES.other;
     const osmType = { w: "way", r: "relation", n: "node" }[r.id[0]];
     const src = r.src === "bc"
       ? `BC Recreation Sites and Trails (<a href="https://www.sitesandtrailsbc.ca/" target="_blank" rel="noopener">sitesandtrailsbc.ca</a>)`
@@ -232,8 +244,8 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
     const tags = Object.entries(r.tags || {}).filter(([k]) => !/^(name|piste:name)$/.test(k));
     const area = (avy || example) && areaAt(isHut ? r.lat : r.lines[0][0][0], isHut ? r.lon : r.lines[0][0][1]);
     d.hidden = false;
-    d.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(r.name || (isHut ? "Hut" : "Unnamed route"))}</h3></div>
-      <dl><dt>Type</dt><dd>${esc(isHut ? (r.kind || "hut").replace(/_/g, " ") : t.label)}</dd>
+    d.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(r.name || (isHut && !isStart ? "Hut" : "Unnamed route"))}</h3></div>
+      <dl><dt>Type</dt><dd>${esc(isStart ? t.label + " (start point only; see camptocamp for the route)" : isHut ? (r.kind || "hut").replace(/_/g, " ") : t.label)}</dd>
       ${isHut ? "" : `<dt>Length</dt><dd>${group.reduce((s, x) => s + km(x), 0).toFixed(1)} km${group.length > 1 ? ` (${group.length} pieces)` : ""}</dd>`}
       ${r.diff ? `<dt>Difficulty</dt><dd>${esc(r.diff)}</dd>` : ""}
       ${r.routes ? `<dt>Part of</dt><dd>${esc(r.routes.join(", "))}</dd>` : ""}
