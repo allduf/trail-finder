@@ -47,7 +47,9 @@ function isTrail(t) {
   if ((h === "footway" || h === "cycleway") && (has(t, "mtb") || has(t, "mtb:scale") || has(t, "mtb:scale:imba") || has(t, "mtb:type"))) return true;
   return false;
 }
-const isNamed = (t) => /^(path|track|bridleway|cycleway|footway)$/.test(t.highway || "") && (t.name || t["mtb:name"]);
+// Named footways and cycleways only with MTB tags: across Canada they are mostly city sidewalks, crossings and bike lanes
+// named after their street (170,000 around Montreal alone), not trails.
+const isNamed = (t) => (t.name || t["mtb:name"]) && (/^(path|track|bridleway)$/.test(t.highway || "") || isTrail(t));
 const TRAIL_ROUTES = /^(mtb|bicycle|hiking|foot|horse|motorcycle|atv)$/, NAMED_ROUTES = /^(mtb|bicycle|hiking|foot)$/;
 // "All trails" (like build-mtb.mjs): any mtb* tag, bike park paths, and ways of MTB routes that aren't long-distance rides.
 const isMtb = (t) => Object.keys(t).some((k) => k.startsWith("mtb")) || t.bicycle === "customers";

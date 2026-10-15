@@ -1436,10 +1436,12 @@ body.sport-ski #rideMapBtn { display: none !important; }
       });
     return caLoad;
   }
-  // The chunks touching these bounds, nearest the map centre first, at most CA_MAX (a zoomed-out view would be all of Canada).
-  const CA_MAX = 12;
+  // The chunks touching these bounds, nearest the map centre first, at most CA_MAX. Only for areas up to about a town's
+  // riding (CA_SPAN degrees): a zoomed-out map or a whole region would load chunks far from where you're looking.
+  const CA_MAX = 12, CA_SPAN = 2.5;
   function caZonesIn(boxes) {
     const c = map.getCenter();
+    boxes = boxes.filter((b) => b.getNorth() - b.getSouth() <= CA_SPAN && b.getEast() - b.getWest() <= CA_SPAN * 1.5);
     return [...caIndex.zones.values()].filter((z) => boxes.some((b) => b.intersects(z.bounds)))
       .sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter())).slice(0, CA_MAX);
   }
