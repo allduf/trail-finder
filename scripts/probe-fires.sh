@@ -23,4 +23,15 @@ g "https://www.emergencyalert.alberta.ca/content/rss/alerts.xml" 2000
 g "https://www.emergencyalert.alberta.ca/aeapublic/feed.atom" 2000
 g "https://open.alberta.ca/api/3/action/package_search?q=wildfire&rows=20" 6000
 g "https://open.alberta.ca/api/3/action/package_search?q=fire%20ban&rows=10" 4000
+M=https://geospatial.alberta.ca/mimas/rest/services
+g "$M?f=json" 3000
+g "$M/wildfire?f=json" 6000
+for S in alberta_fire_status_by_category_group fire_control_order_data fire_bans_forestry_data fire_bans_other_agency_data; do
+  g "$M/wildfire/$S/MapServer?f=json" 4000
+  for i in 0 1 2 3; do g "$M/wildfire/$S/MapServer/$i?f=json" 2500; g "$M/wildfire/$S/MapServer/$i/query?where=1%3D1&outFields=*&returnGeometry=false&resultRecordCount=2&f=json" 2500; g "$M/wildfire/$S/MapServer/$i/query?where=1%3D1&returnCountOnly=true&f=json" 200; done
+done
+g "https://www.alberta.ca/data/aea/rss/feed-full.atom" 2500
+g "https://www.emergencyalert.alberta.ca/aeapublic/feed.atom" 2500
+g "https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?service=WFS&request=GetCapabilities" 600
+g "https://cwfis.cfs.nrcan.gc.ca/home" 1500
 exit 0
