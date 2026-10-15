@@ -4728,7 +4728,8 @@ out tags center qt;`;
   nameZoneSel.value = zoneById(savedNameZone) || (savedNameZone === "near" && nearPlace) ? savedNameZone : "all";
   $("nameNearForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const q = $("nameNear").value.trim(); if (!q) return;
+    const q = $("nameNear").value.trim();
+    if (!q) { goToNameZone(); return; }   // empty box: go to the area picked in "Where is it?"
     const msg = $("nameNearMsg");
     msg.hidden = false; msg.textContent = `Finding ${q}…`;
     const gps = parseGps(q);
@@ -4768,15 +4769,17 @@ out tags center qt;`;
       refreshHits();
     } catch { msg.textContent = "Couldn't reach the place search. Pick an area from the list instead."; }
   });
-  nameZoneSel.addEventListener("change", () => {
+  function goToNameZone() {
     store.set("nameZone", nameZoneSel.value);
+    $("nameNearMsg").hidden = true;
     const z = nameZone();
     map.fitBounds(z ? z.bounds : regionHere().bounds);
     hitSel = -1;
     $("trailQ").focus();
     if ($("trailQ").value.trim()) loadNames();
     refreshHits();
-  });
+  }
+  nameZoneSel.addEventListener("change", goToNameZone);
   function goToZone(id) {
     clearNear();
     zoneSel.value = id;
