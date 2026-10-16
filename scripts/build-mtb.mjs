@@ -13,6 +13,9 @@
 // OFFICIAL_ZONES (Williams Lake) every trail of the list is marked so.
 // In the REC_ZONES (Gold Bridge & South Chilcotin; Revelstoke, bike trails only), the BC government's Recreation Sites and
 // Trails BC trails fill the gaps (see recData below): paths along them count too, and park trails say so.
+// Across every zone, a path that runs among MTB trails (within NET_M of two or more differently named ones, like the site's
+// own "MTB trail network" rule) is added too, marked tf:net=<two of those names>, so the networks' untagged trails show:
+// Azrael and Trial and Error at Emerald (Whistler), Berminator on Golden's Mount 7, the bicycle=designated trails of Ellison.
 // A zone whose riding areas change is rebuilt on the next run.
 // Lists refreshed in the last FRESH_HOURS are skipped; a zone that fails keeps its last good file.
 //
@@ -32,9 +35,9 @@ const started = Date.now(), outOfTime = () => Date.now() - started > MINUTES * 6
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
 
-const RULES = 3;                      // files built with older rules are rebuilt, however fresh
+const RULES = 4;                      // files built with older rules are rebuilt, however fresh
 const LONG_ROUTE = 150;               // MTB route relations with more ways than this are long-distance routes
-const AREA_M = 3000, SPARSE = 20;
+const AREA_M = 3000, SPARSE = 20, NET_M = 400;
 const AREAS = (readJsonAt(new URL("data/riding-areas.json", root)) || { areas: [] }).areas;
 function readJsonAt(url) { try { return JSON.parse(readFileSync(url, "utf8")); } catch { return null; } }
 
@@ -63,7 +66,7 @@ const WINTER = /\b(winter|snowmobile|sled|ski|snowshoe|nordic)\b/i;
 
 // Every mtb* key counts (ownMtb), but a key-prefix regex is very slow on Overpass, so the keys mappers use on their own
 // are listed. Alpine Capone and Grim Ripper on Brohm Ridge (Squamish) have only mtb:scale:uphill.
-function mtbQuery([s, w, n, e], areas = [], rec = false) {
+function mtbQuery([s, w, n, e], areas = []) {
   const bb = [s, w, n, e].map((x) => x.toFixed(5)).join(",");
   const named = areas.map((a) => `  way["highway"~"^(path|bridleway)$"]["name"](around:${radius(a)},${a.c[0]},${a.c[1]});\n`).join("");
   return `[out:json][timeout:180];
@@ -76,7 +79,9 @@ function mtbQuery([s, w, n, e], areas = [], rec = false) {
   way["highway"]["mtb:name"](${bb});
   way["highway"]["mtb:description"](${bb});
   way["highway"="path"]["bicycle"="customers"](${bb});
-${named}${rec ? `  way["highway"~"^(path|bridleway)$"](${bb});\n  way["highway"="footway"]["bicycle"~"^(yes|designated|permissive)$"](${bb});\n` : ""})->.w;
+${named}  way["highway"~"^(path|bridleway)$"](${bb});
+  way["highway"="footway"]["bicycle"~"^(yes|designated|permissive)$"](${bb});
+)->.w;
 relation["route"="mtb"](${bb})->.r;
 way(r.r)["highway"]->.rw;
 (.w; .rw;);
@@ -111,13 +116,13 @@ async function overpass(query) {
 }
 // A zone too heavy for the server is fetched as 4 smaller boxes (2 levels at most).
 const quarters = ([s, w, n, e]) => { const cs = (s + n) / 2, cw = (w + e) / 2; return [[s, w, cs, cw], [s, cw, cs, e], [cs, w, n, cw], [cs, cw, n, e]]; };
-async function fetchBox(box, areas, rec, depth = 0) {
-  try { return (await overpass(mtbQuery(box, areas, rec))).elements; }
+async function fetchBox(box, areas, depth = 0) {
+  try { return (await overpass(mtbQuery(box, areas))).elements; }
   catch (e) {
     if (!e.heavy || depth >= 2) throw e;
     log(`    too heavy, splitting in 4`);
     const seen = new Map();
-    for (const q of quarters(box)) for (const el of await fetchBox(q, areas, rec, depth + 1)) seen.set(el.type + el.id, el);
+    for (const q of quarters(box)) for (const el of await fetchBox(q, areas, depth + 1)) seen.set(el.type + el.id, el);
     return [...seen.values()];
   }
 }
@@ -284,6 +289,58 @@ function inPark([lat, lon], park) {
     return inside;
   });
 }
+// ---------- MTB trail networks ----------
+// A path open to bikes: not closed to them or to everyone (The Blood and CPR Ridge at Kicking Horse are bicycle=no), not a
+// snowmobile trail (Boulder Mountain), not a ski or snowshoe trail unless bikes are allowed on it too (Silver Star's Nordic trails).
+const bikeOk = (t) => !/^(no|private)$/.test(t.access || "") && !/^(no|dismount|use_sidepath)$/.test(t.bicycle || "") && t.snowmobile !== "designated"
+  && !(t["piste:type"] && !/^(yes|designated|permissive|customers)$/.test(t.bicycle || ""));
+// Open to motors or wide like a quad trail (as in classifyTrail() in index.html), unless signed for bikes.
+const MOTO_OK = /^(yes|designated|permissive|destination)$/;
+const motor = (t) => !/^(designated|customers)$/.test(t.bicycle || "") && (parseFloat(t.width) >= 2 || ["motorcycle", "motor_vehicle", "atv", "ohv", "orv"].some((k) => MOTO_OK.test(t[k] || "")));
+// The same exclusions as netOk() in index.html: graded for hiking, signed for walkers (unless signed for bikes too), golf or
+// park paths, smooth gravel or pavement, or named or noted as something else.
+const NOT_BIKE_NAME = /\b(pedestrian|boardwalk|interpretive|nature walk|stairs?|steps|suspension bridge|crag|snowshoe|skin track|hiking trail)\b/i;
+const NOT_BIKE_NOTE = /\b(hik(e|ing)|walk(ing)?|climbing|motorcycles?|dirt ?bikes?|atvs?|quads?|logging road)\b/i;
+const SMOOTH = /^(gravel|fine_gravel|compacted|pebblestone|wood|paved|asphalt|concrete|paving_stones|sett|metal)$/;   // not "unpaved" (Whistler's dirt trails)
+const netOk = (t) => !t.sac_scale && !t.golf && (t.foot !== "designated" || t.bicycle === "designated") && t.lit !== "yes"
+  && !t.wikipedia && !t.wikidata && !SMOOTH.test(t.surface || "") && !NOT_BIKE_NAME.test(t.name || "")
+  && ![t.description, t.note].some((v) => v && NOT_BIKE_NOTE.test(v));
+const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+// Adds the paths of `rest` ({ w: way, park }) that run among two or more differently named trails of `ways` (within NET_M of points along them,
+// not counting a trail of their own name) as tf:net=<two of the names>. One pass: a path added here doesn't count for others.
+function addNetwork(rest, ways) {
+  const grid = new Map(), cell = (lat, lon) => `${Math.floor(lat / 0.005)}:${Math.floor(lon / 0.007)}`;
+  for (const w of Object.values(ways)) {
+    const name = w.tags.name || w.tags["mtb:name"] || w.tags["tf:name"];
+    if (!name || w.tags.highway === "track" || !/^(path|bridleway|footway|cycleway)$/.test(w.tags.highway || "")) continue;
+    for (let i = 0; i < w.g.length; i += 2) {
+      const k = cell(w.g[i], w.g[i + 1]);
+      if (!grid.has(k)) grid.set(k, []);
+      grid.get(k).push([w.g[i], w.g[i + 1], norm(name), name]);
+    }
+  }
+  let n = 0;
+  for (const { w, park } of rest) {
+    const tags = { ...(w.tags || {}) };
+    if (!netOk(tags) || motor(tags)) continue;
+    const pts = w.geometry, step = Math.max(1, Math.floor(pts.length / 12)), self = norm(tags.name), found = new Map();
+    const idx = [];
+    for (let i = 0; i < pts.length; i += step) idx.push(i);
+    idx.push(pts.length - 1);
+    for (const i of idx) {
+      if (found.size >= 2) break;
+      const r = Math.floor(pts[i].lat / 0.005), c = Math.floor(pts[i].lon / 0.007);
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) for (const [lat, lon, key, name] of grid.get(`${r + dr}:${c + dc}`) || [])
+        if (key !== self && !found.has(key) && metres([pts[i].lat, pts[i].lon], [lat, lon]) <= NET_M) found.set(key, name);
+    }
+    if (found.size < 2) continue;
+    tags["tf:net"] = [...found.values()].slice(0, 2).join("|");
+    if (park) tags["tf:park"] = park.name;
+    ways[w.id] = { tags, g: simplify(w.geometry).flatMap((p) => [round(p.lat), round(p.lon)]) };
+    n++;
+  }
+  return n;
+}
 const order = [...ZONES].sort((a, b) => lastBuilt(a) - lastBuilt(b));   // oldest lists first
 let updated = 0, failed = 0;
 for (const z of order) {
@@ -292,7 +349,7 @@ for (const z of order) {
   try {
     const areas = areasOf(z);
     const mode = REC_ZONES[z.id], rec = mode ? await recData(z.box, mode) : null;
-    const els = await fetchBox(z.box, areas, !!rec);
+    const els = await fetchBox(z.box, areas);
     const all = new Map(els.filter((e) => e.type === "way" && e.geometry && e.geometry.length > 1).map((w) => [w.id, w]));
     const rels = els.filter((e) => e.type === "relation");
     const longRoutes = rels.filter((r) => (r.members || []).filter((m) => m.type === "way").length > LONG_ROUTE);
@@ -300,7 +357,7 @@ for (const z of order) {
     // Riding areas with few MTB-tagged ways around them, and backcountry areas (own radius): their named paths count too.
     const tagged = [...all.values()].filter((w) => ownMtb(w.tags || {}) || routeWays.has(w.id));
     const sparse = areas.filter((a) => a.r || tagged.filter((w) => w.geometry.some((p) => metres([p.lat, p.lon], a.c) <= AREA_M)).length < SPARSE);
-    const ways = {}, routes = {};
+    const ways = {}, routes = {}, rest = [];
     let fromAreas = 0, fromRec = 0;
     for (const w of all.values()) {
       const tags = { ...(w.tags || {}) };
@@ -309,8 +366,9 @@ for (const z of order) {
       const t = rec && bikeWay && !/^(no|private)$/.test(tags.access || "") ? recMatch(w.geometry, rec.index) : null;
       const park = rec && rec.parks.find((p) => inPark([mid.lat, mid.lon], p));
       if (!ownMtb(tags) && !routeWays.has(w.id) && !t) {
-        const a = sparse.find((a) => metres([mid.lat, mid.lon], a.c) <= radius(a) || (a.park && park && park.name === a.park));
-        if (!a || !tags.name || /^(no|private)$/.test(tags.access || "") || tags.snowmobile === "designated") continue;   // not snowmobile trails (Boulder Mountain)
+        if (!bikeWay || !bikeOk(tags)) continue;
+        const a = tags.name && !NOT_BIKE_NAME.test(tags.name) && sparse.find((a) => metres([mid.lat, mid.lon], a.c) <= radius(a) || (a.park && park && park.name === a.park));
+        if (!a) { rest.push({ w, park }); continue; }   // maybe in an MTB trail network (below)
         tags["tf:area"] = a.name; fromAreas++;
         if (a.official && !/\b(road|rd)\b/i.test(tags.name)) tags["tf:official"] = a.official;
       }
@@ -326,6 +384,7 @@ for (const z of order) {
       if (OFFICIAL_ZONES[z.id] && !tags["tf:official"] && !/\b(road|rd)\b/i.test(tags.name || "")) tags["tf:official"] = OFFICIAL_ZONES[z.id];
       ways[w.id] = { tags, g: simplify(w.geometry).flatMap((p) => [round(p.lat), round(p.lon)]) };
     }
+    const fromNet = addNetwork(rest, ways);
     rels.filter((r) => !longRoutes.includes(r)).forEach((r) => {
       const ids = (r.members || []).filter((m) => m.type === "way" && ways[m.ref]).map((m) => m.ref);
       if (ids.length) routes[r.id] = { name: (r.tags && (r.tags.name || r.tags.ref)) || "unnamed", ways: ids };
@@ -335,7 +394,7 @@ for (const z of order) {
     log(`${z.name}: ${Object.keys(ways).length} trails, ${Object.keys(routes).length} MTB routes` +
       (longRoutes.length ? `; left out long-distance routes ${longRoutes.map((r) => (r.tags && r.tags.name) || r.id).join(", ")}` : "") +
       (sparse.length ? `; ${fromAreas} named paths added in ${sparse.map((a) => a.name).join(", ")} (few bike tags there)` : "") +
-      (rec ? `; ${fromRec} paths along Recreation Sites and Trails BC trails` : ""));
+      (rec ? `; ${fromRec} paths along Recreation Sites and Trails BC trails` : "") + `; ${fromNet} paths in MTB trail networks`);
   } catch (e) {
     failed++;
     log(`${z.name}: failed (${e.message}), keeping last good data`);

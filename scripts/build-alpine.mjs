@@ -41,7 +41,7 @@ const RULES = 2;   // files built with older rules are rebuilt, however fresh
 const TREELINE = {
   van: 1600, sqm: 1600, wh: 1650, sun: 1550, pr: 1550, fv: 1650,
   pem: 1800, lil: 1950, chil: 2000, wl: 2000,
-  pri: 1950, mer: 1950, kam: 1950, shu: 1950, ver: 1950, kel: 1950, pen: 1950, sok: 2000, gfk: 2000,
+  pri: 1950, mer: 1950, kam: 1950, shu: 1950, ver: 1950, kel: 1950, bwh: 2000, pen: 1950, sok: 2000, gfk: 2000,
   ros: 1950, nel: 1950, rev: 1900, gol: 2050,
   inv: 2200, cbk: 2150, fer: 2100, yyc: 2200, brg: 2150, kan: 2200, bnf: 2250,
 };
