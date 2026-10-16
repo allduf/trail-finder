@@ -1933,6 +1933,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
     // Also from the all-trails job: a path along a Recreation Sites and Trails BC trail in the Gold Bridge & South Chilcotin
     // backcountry, or along one of their bike trails around Revelstoke.
     if (tags["tf:rec"] && !motor) return { cat: "mtb", why: [`on the ${tags["tf:rec"]} (Recreation Sites and Trails BC)`].concat(why) };
+    // A path inside a ski hill that carries bikes up in summer (Kicking Horse, Sun Peaks, Silver Star, Big White...).
+    if (tags["tf:lift"] && !motor) return { cat: "mtb", why: [`in ${tags["tf:lift"]}'s lift-served bike park${tags["tf:lift-why"] ? ` (${tags["tf:lift-why"]})` : ""}`].concat(why) };
     // And a path among two or more named MTB trails, in every zone (the same rule as netCheck(), done ahead for the whole region,
     // so the networks' untagged trails, like Azrael at Emerald or Berminator on Mount 7, show in All trails too).
     if (tags["tf:net"] && !motor) return { cat: "looks", why: [`in an MTB trail network (near ${tags["tf:net"].split("|").map((n) => `“${n}”`).join(" and ")})`].concat(why) };
