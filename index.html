@@ -1133,6 +1133,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
         <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire">🔥 Wildfires</button>
         <button id="areasBtn" type="button" aria-pressed="false" title="Show logging areas (cut blocks) and areas closed to motor vehicles">▦ Logging areas</button>
         <button id="accessBtn" type="button" aria-pressed="false" title="Show trailheads, parking and BC recreation sites">Ⓟ Trailheads and parking</button>
+        <button id="parkBtn" type="button" aria-pressed="true" title="Show bike parks, pump tracks and MTB centres across Canada">🚵 Bike parks</button>
         <button id="contourBtn" type="button" aria-pressed="false">〰 Elevation lines</button>
         <button id="avyBtn" type="button" aria-pressed="false" hidden>⚠ Avalanche risk</button>
         </div>
@@ -1258,6 +1259,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
       <li><strong>Tap any trail</strong> on the map for its difficulty, weather, loam, how to get there and rider reports.</li>
       <li><strong>Layers</strong> (top right of the map) turns on forest roads, wildfires, logging areas, elevation lines, your rides, the map style and offline maps. The ⛰ 3D button sits right under it.</li>
       <li><strong>Old vs new photos</strong> (in Layers) puts an older satellite photo on the left and a newer one on the right. Drag the ⇆ handle across the map: a trail that appears as you pass over it was cut between the two photos.</li>
+      <li><strong>Bike parks</strong> (in Layers) pins the bike parks, MTB centres, skills and jump parks, and pump and BMX tracks across Canada. Orange pins are lift-served bike parks. Tap one for its website, hours, price and directions.</li>
       <li><strong>Colours</strong> are like Trailforks: green, blue, black, double black (red) and pro line (orange). Grey isn't rated yet. Dotted lines may be unofficial.</li>
       <li>Trails come from OpenStreetMap mappers, so details can be missing or out of date. Check local rules and closures before riding.</li>
     </ul>
@@ -4777,6 +4779,7 @@ out body;`;
       html += section("Wildfires", `<li>${pinHtml(FIRE_STYLE.fire, "lg-ico")}${FIRE_STYLE.fire.label}</li>` + ["perim", "m3", "restr", "order", "alert", "ban", "frestr", "ohv"]
         .filter((k) => !["m3", "ban", "frestr", "ohv"].includes(k) || has(k)).map((k) => areaSw(FIRE_STYLE[k])).join(""));
     }
+    if (window.tfBikeParks && window.tfBikeParks.on()) html += section("Bike parks", window.tfBikeParks.keyItems());
     if (state.access) html += section("Trailheads and parking (zoom in)", Object.values(ACCESS).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join(""));
     $("keyList").innerHTML = html;
     if (popped) {
@@ -5632,6 +5635,7 @@ out tags center qt;`;
 <script src="notify.js"></script>
 <script src="areas.js"></script>
 <script src="alpine.js"></script>
+<script src="bikeparks.js"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

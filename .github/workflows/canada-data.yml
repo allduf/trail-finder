@@ -3,7 +3,8 @@ name: Canada trail data
 # Every night, build trail data for all of Canada from Geofabrik's OpenStreetMap extracts (one file per province),
 # so the website works anywhere in Canada. scripts/build-canada.mjs writes map chunks to out/ca/; they are kept on
 # the canada-data branch (one commit, replaced each night, so the repo doesn't grow) and published with the
-# website by pages.yml. They are never committed to main.
+# website by pages.yml. They are never committed to main. The same run lists Canada's bike parks, pump tracks and
+# MTB centres (scripts/build-bike-parks.mjs -> ca/bike-parks.json).
 on:
   schedule:
     - cron: "17 8 * * *"    # 08:17 UTC; Geofabrik's daily extracts are out by then
@@ -47,15 +48,23 @@ jobs:
             ls -lh /tmp/osm/p.pbf
             osmium tags-filter --overwrite -o /tmp/osm/f.pbf /tmp/osm/p.pbf \
               w/highway=path,bridleway,track,footway,cycleway r/route=mtb,bicycle,hiking,foot,horse,motorcycle,atv
+            # Bike parks, pump tracks and MTB centres (scripts/build-bike-parks.mjs), with ski hills and lifts for lift-served ones.
+            osmium tags-filter --overwrite -o /tmp/osm/b.pbf /tmp/osm/p.pbf \
+              nwr/sport=bmx,mtb,cycling,mountain_biking,bicycle,pump_track,dirt_jumping,freeride \
+              nwr/leisure=track,pitch,sports_centre,park,recreation_ground,bmx_track nwr/landuse=winter_sports w/aerialway nwr/pump_track
             rm /tmp/osm/p.pbf
+            osmium export --overwrite -a type,id -f geojsonseq -o /tmp/osm/b.geojsonseq /tmp/osm/b.pbf
             osmium export --overwrite -c /tmp/export.json -f geojsonseq -o /tmp/osm/w.geojsonseq /tmp/osm/f.pbf
             osmium cat --overwrite -t relation -f opl -o /tmp/osm/r.opl /tmp/osm/f.pbf
             node scripts/build-canada.mjs ingest "$p" /tmp/osm/w.geojsonseq /tmp/osm/r.opl
+            node scripts/build-bike-parks.mjs ingest "$p" /tmp/osm/b.geojsonseq /tmp/osm/w.geojsonseq || echo "::warning::Bike parks failed for $p"
             rm /tmp/osm/*
             echo "::endgroup::"
           done
       - name: Build the chunks
         run: node scripts/build-canada.mjs finish
+      - name: Build the bike parks list
+        run: node scripts/build-bike-parks.mjs finish || echo "::warning::Bike parks list failed"
       - name: Replace the canada-data branch
         env:
           GH_TOKEN: ${{ github.token }}
