@@ -1124,7 +1124,6 @@ body.sport-ski #rideMapBtn { display: none !important; }
         <div class="lm-head">Show on the map</div>
         <div class="lm-list lm-overlays">
         <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
-        <button id="alpineBtn" type="button" aria-pressed="false" title="Show the alpine paths, above the tree line, that look doable on a mountain bike">Alpine rideable</button>
         <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
         <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire">🔥 Wildfires</button>
         <button id="areasBtn" type="button" aria-pressed="false" title="Show logging areas (cut blocks) and areas closed to motor vehicles">▦ Logging areas</button>
@@ -1219,7 +1218,6 @@ body.sport-ski #rideMapBtn { display: none !important; }
           <label class="toggle t-ghost" title="Lines that several GPS traces follow at bike speed, where OpenStreetMap has no trail yet. Unverified."><input type="checkbox" id="showGhost" checked><span class="ck"></span><span class="sw"></span>Possible unmapped <span class="n" id="nGhost">0</span></label>
           <label class="toggle t-unoff off" title="Show only trails tagged as informal, closed or no bikes: of the types ticked, or of every type when none is ticked"><input type="checkbox" id="onlyUnoff"><span class="ck"></span><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
           <label class="toggle t-off off" title="Show only trails the map says are official: run by a park, town, trail club or bike park, listed by Recreation Sites and Trails BC, or mapped as informal=no. Of the types ticked, or of every type when none is ticked"><input type="checkbox" id="onlyOff"><span class="ck"></span><span class="sw"></span>Official only <span class="n" id="nOff">0</span></label>
-          <label class="toggle t-alpine" title="Alpine paths above the tree line that look doable on a mountain bike, any age, drawn blue dash-dot on the map (same switch as Alpine rideable in Layers). The number counts them in the searched area."><input type="checkbox" id="showAlpine" checked><span class="ck"></span><span class="sw"></span>Alpine rideable <span class="n" id="nAlpine">0</span></label>
         </div>
       </section>
       <button class="btn box-btn" id="boxBtn" type="button" aria-pressed="false" title="Drag a square on the map to list every MTB trail inside it, old or new">▭ Draw a square to find trails</button>
@@ -2545,7 +2543,6 @@ out body;`;
     $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nGhost").textContent = counts.ghost;
     $("nUnoff").textContent = vis.filter((t) => isUnoff(t) && unoffTypes().includes(t.cat)).length;
     $("nOff").textContent = vis.filter((t) => t.official && unoffTypes().includes(t.cat)).length;
-    if (window.tfAlpine) window.tfAlpine.count(state.searchedBounds);   // alpine.js
     const shown = vis.filter((t) => picked(t.cat, isUnoff(t), t.official, t.tags));
     drawAllTrails();
     state.shownCount = shown.length;
@@ -3467,6 +3464,7 @@ out body;`;
   const toRide = (() => {
     map.createPane("toRide").style.zIndex = 455;
     const layer = L.layerGroup();
+    const lines = L.canvas({ pane: "toRide", padding: 0.3, tolerance: L.Browser.touch ? 10 : 5 });   // one canvas, not an SVG path per line
     const btn = document.createElement("button");
     btn.id = "rideMapBtn"; btn.type = "button";
     $("allBtn").parentNode.insertBefore(btn, $("allBtn"));
@@ -3504,8 +3502,8 @@ out body;`;
         const color = k < 0 ? "#6b6b6b" : LMI_RIDE[k][0];
         const open = () => showFound({ type: w.type, items: w.ids.map((id) => ({ id })), name: w.name, kind: w.kind });
         s.g.forEach((l) => {
-          layer.addLayer(L.polyline(l, { pane: "toRide", color: "#ffc61a", weight: 11, opacity: 0.75, lineCap: "round", interactive: false }));
-          layer.addLayer(L.polyline(l, { pane: "toRide", color, weight: 4, opacity: 1, lineCap: "round" }).on("click", open));
+          layer.addLayer(L.polyline(l, { pane: "toRide", renderer: lines, color: "#ffc61a", weight: 11, opacity: 0.75, lineCap: "round", interactive: false }));
+          layer.addLayer(L.polyline(l, { pane: "toRide", renderer: lines, color, weight: 4, opacity: 1, lineCap: "round", bubblingMouseEvents: false }).on("click", open));
         });
         const label = v == null ? "" : ` ${v}`;
         const tip = `${w.name}${v == null ? "" : ` · Loam ${v}, ${LMI_LEVELS[k][1].toLowerCase()} (${LMI_RIDE[k][1].toLowerCase()})`}${w.note ? `\n${w.note}` : ""}`;
@@ -3514,48 +3512,53 @@ out body;`;
           .on("click", open).addTo(layer);
       });
     }
-    let tries = 0, busy = false;
+    // Shapes for old saves are loaded from OpenStreetMap in the background: the pins and lines that are already known
+    // draw at once, and a trail whose shape couldn't be loaded isn't asked for again until the page is reloaded.
+    const failed = new Set();
+    async function fetchShape(w) {
+      try {
+        const lists = await Promise.all(w.ids.slice(0, 20).map(async (id) => {
+          const els = (await getJson(`${OSM_API}/${w.type === "r" ? "relation" : "way"}/${id}/full.json`)).elements;
+          const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e]));
+          return els.filter((e) => e.type === "way").map((x) => wayLine(x, nodes)).filter((l) => l.length > 1);
+        }));
+        const sh = rideShape(lists.flat());
+        if (sh.c) cache[w.key] = sh; else failed.add(w.key);
+      } catch { failed.add(w.key); }
+    }
+    let tries = 0, busy = false, retry = 0;
     async function refresh() {
       paintBtn();
-      if (!on || busy || document.body.classList.contains("sport-ski")) { draw(); return; }
+      draw();
+      if (!on || busy || document.body.classList.contains("sport-ski")) return;
       busy = true;
       const list = trails();
-      // Old saves with no shape: load them from OpenStreetMap, a few at a time.
-      const missing = list.filter((w) => !shapeOf(w)).slice(0, 30);
-      for (let i = 0; i < missing.length; i += 4) {
-        await Promise.all(missing.slice(i, i + 4).map(async (w) => {
-          try {
-            const segs = [];
-            for (const id of w.ids.slice(0, 20)) {
-              const els = (await getJson(`${OSM_API}/${w.type === "r" ? "relation" : "way"}/${id}/full.json`)).elements;
-              const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e]));
-              els.filter((e) => e.type === "way").forEach((x) => { const l = wayLine(x, nodes); if (l.length > 1) segs.push(l); });
-            }
-            const sh = rideShape(segs);
-            if (sh.c) cache[w.key] = sh;
-          } catch {}
-        }));
-      }
-      if (missing.length) { try { localStorage.setItem(CACHE, JSON.stringify(cache)); } catch {} }
-      draw();
+      const missing = list.filter((w) => !shapeOf(w) && !failed.has(w.key)).slice(0, 30);
+      for (let i = 0; i < missing.length; i += 6) await Promise.all(missing.slice(i, i + 6).map(fetchShape));
+      if (missing.length) { try { localStorage.setItem(CACHE, JSON.stringify(cache)); } catch {} draw(); }
       const shapes = list.map(shapeOf).filter(Boolean);
+      const before = shapes.map((s) => loamOf(fake(s))).join();
       if (shapes.length) await loadLoam(shapes.map(fake)).catch(() => {});
       busy = false;
-      draw();
-      if (!$("wantList").hidden) renderFolders();
+      // Only redraw when the loam numbers actually changed.
+      if (shapes.map((s) => loamOf(fake(s))).join() !== before) {
+        draw();
+        if (!$("wantList").hidden) renderFolders();
+      }
       // loadLoam skips a call while the list's own loam is loading: try again shortly.
-      if (shapes.some((s) => loamOf(fake(s)) === undefined) && tries++ < 5) setTimeout(refresh, 4000); else tries = 0;
+      clearTimeout(retry);
+      if (shapes.some((s) => loamOf(fake(s)) === undefined) && tries++ < 5) retry = setTimeout(refresh, 4000); else tries = 0;
     }
     function show(fit) {
       if (!on) { on = true; store.set("toride", true); layer.addTo(map); }
-      refresh().then(() => {
-        const shapes = trails().map(shapeOf).filter(Boolean);
-        if (!fit || !shapes.length) return;
+      draw();
+      const shapes = trails().map(shapeOf).filter(Boolean);
+      if (fit && shapes.length) {
         const b = L.latLngBounds(shapes.flatMap((s) => s.g.flat()));
         // Phones: lower the sheet so the map shows (after the tap, which would grow it again), then frame the trails.
         setTimeout(() => { snapTo("peek"); focusTrail(b, true); }, 0);
-      });
-      paintBtn();
+      }
+      refresh();
     }
     btn.addEventListener("click", () => {
       if (!trails().length) { showFolders(); return; }
@@ -5218,6 +5221,7 @@ out tags center qt;`;
     $("boxRes").hidden = true;
     $("boxRes").innerHTML = "";
     document.querySelectorAll(".diff-chip:not(.lvl-chip), #alpChip").forEach((c) => c.setAttribute("aria-pressed", "false"));
+    if (window.tfAlpine) window.tfAlpine.setOn(false);   // the alpine trails show only while their chip is on
   }
   // Plain paths for the Unofficial button: the area itself when it is one riding area or a zoomed-in view, else null.
   function plainBounds(b) {
