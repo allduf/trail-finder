@@ -1442,13 +1442,45 @@ body.sport-ski #rideMapBtn { display: none !important; }
   }
   // The chunks touching these bounds, nearest the map centre first, at most CA_MAX. Only for areas up to about a town's
   // riding (CA_SPAN degrees): a zoomed-out map or a whole region would load chunks far from where you're looking.
+  // The chunks around the rider's home (caHomeZones below) are added at any zoom, like the home zones.
   const CA_MAX = 12, CA_SPAN = 2.5;
   function caZonesIn(boxes) {
     const c = map.getCenter();
-    boxes = boxes.filter((b) => b.getNorth() - b.getSouth() <= CA_SPAN && b.getEast() - b.getWest() <= CA_SPAN * 1.5);
-    return [...caIndex.zones.values()].filter((z) => boxes.some((b) => b.intersects(z.bounds)))
+    const small = boxes.filter((b) => b.getNorth() - b.getSouth() <= CA_SPAN && b.getEast() - b.getWest() <= CA_SPAN * 1.5);
+    const near = [...caIndex.zones.values()].filter((z) => small.some((b) => b.intersects(z.bounds)))
       .sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter())).slice(0, CA_MAX);
+    return near.concat(caHomeZones().filter((z) => !near.includes(z) && boxes.some((b) => b.intersects(z.bounds))));
   }
+  // ---------- Around you: for riders outside the home regions, the chunks around where they are stay loaded ----------
+  // alex: "make the area around each person's location load automatically, the same way your home area does".
+  // Home is the last location fix (tf:caHome, this device only), or the last spot looked at zoomed in when location
+  // isn't shared. It covers about 130 km across (up to 9 chunks) and becomes the "Around you" area in the Area list.
+  const HOME_LAT = 0.6, HOME_LON = 0.9, HOME_MOVE_M = 20000;
+  let caHome = store.get("caHome", null);          // { ll: [lat, lng], gps: true when from the location fix }
+  const inRegions = (ll) => REGIONS.some((r) => r.bounds.contains(ll));
+  const homeBox = () => caHome && !inRegions(caHome.ll)
+    && L.latLngBounds([caHome.ll[0] - HOME_LAT, caHome.ll[1] - HOME_LON], [caHome.ll[0] + HOME_LAT, caHome.ll[1] + HOME_LON]);
+  function caHomeZones() {
+    const b = homeBox();
+    return b ? [...caIndex.zones.values()].filter((z) => b.intersects(z.bounds)) : [];
+  }
+  function caHomeArea() {
+    const b = homeBox();
+    if (!b) return null;
+    const zones = caHomeZones();
+    return { id: "home", name: "Around you", short: "the area around you", zones, bounds: zones.length ? zones.reduce((a, z) => a.extend(z.bounds), L.latLngBounds(zones[0].bounds.getSouthWest(), zones[0].bounds.getNorthEast())) : b };
+  }
+  // Returns true when home moved (first fix, or more than 20 km away from the last one).
+  function setHome(ll, gps) {
+    if (!gps && caHome && caHome.gps) return false;  // a location fix wins over the map view
+    ll = L.latLng(ll);
+    if (caHome && (gps || !caHome.gps) && ll.distanceTo(caHome.ll) < HOME_MOVE_M) return false;
+    caHome = { ll: [+ll.lat.toFixed(3), +ll.lng.toFixed(3)], gps: !!gps };
+    try { localStorage.setItem("tf:caHome", JSON.stringify(caHome)); } catch {}
+    return true;
+  }
+  if (store.get("zone", null) == null && homeBox()) state.zone = "home";   // no area picked yet: open where they ride
+  else if (state.zone === "home" && !homeBox()) state.zone = "all";
   const caChunks = new Map();   // chunk id -> Promise(chunk or null), fetched once per visit
   function caChunk(id) {
     if (!caChunks.has(id)) caChunks.set(id, fetch(`ca/c/${id}.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null));
@@ -1459,7 +1491,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
   const regionById = (id) => REGIONS.find((r) => r.id === id);
   // The region the map is looking at (or nearest to), for "all areas" choices that shouldn't span both provinces.
   const regionHere = () => { const c = map.getCenter(); return REGIONS.find((r) => r.bounds.contains(c)) || REGIONS.slice().sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter()))[0]; };
-  const areaById = (id) => zoneById(id) || regionById(id) || REGIONS[0];   // a zone or a whole region: has name and bounds
+  const areaById = (id) => zoneById(id) || regionById(id) || (id === "home" && caHomeArea()) || REGIONS[0];   // a zone or a whole region: has name and bounds
   const zonesOf = (id) => (zoneById(id) ? [zoneById(id)] : areaById(id).zones);
   function zoneBounds(id) { return areaById(id).bounds; }
   map.fitBounds(zoneBounds(state.zone));
@@ -3743,6 +3775,7 @@ out body;`;
   function showYou(pos) {
     const ll = L.latLng(pos.coords.latitude, pos.coords.longitude), acc = Math.min(pos.coords.accuracy || 0, 5000);
     you.ll = ll;
+    if (setHome(ll, true)) homeMoved(true);
     if (!you.dot) {
       you.ring = L.circle(ll, { radius: acc, color: "#2b7de9", weight: 1, opacity: 0.5, fillColor: "#2b7de9", fillOpacity: 0.12, interactive: false }).addTo(youLayer);
       you.dot = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: "#2b7de9", fillOpacity: 1 }).bindTooltip("You are here", { direction: "top", offset: [0, -8] }).addTo(youLayer);
@@ -3768,6 +3801,16 @@ out body;`;
     youLayer.clearLayers();
     syncLocate();
   }
+  // Home moved (see setHome): load its trails, and the first time, open the Area on it if none was picked yet.
+  function homeMoved(gps) {
+    caIndexLoad().then(() => {
+      syncHomeOpt();
+      loadAllTrails();
+      if (gps && homeBox() && store.get("zone", null) == null && !state.custom && !near) goToZone("home");
+    });
+  }
+  // With no location shared, the last spot looked at zoomed in (outside the home regions) is home.
+  map.on("moveend", () => { if (!you.ll && map.getZoom() >= MIN_ZOOM && !inRegions(map.getCenter()) && setHome(map.getCenter(), false)) homeMoved(false); });
   let locatedOnce = false;
   $("locate").addEventListener("click", () => {
     if (!navigator.geolocation) { setStatus("This browser can't share your location.", true); return; }
@@ -5455,8 +5498,10 @@ out tags center qt;`;
   const zoneSel = $("zone");
   zoneSel.innerHTML = REGIONS.map((r) => `<optgroup label="${esc(r.name)}"><option value="${r.id}">All of ${esc(r.name)}</option>` +
     r.zones.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("") + `</optgroup>`).join("") +
-    `<option value="custom" hidden>Custom area (from the map)</option><option value="near" hidden>Near me</option>`;
-  zoneSel.value = zoneById(state.zone) || regionById(state.zone) ? state.zone : "all";
+    `<option value="home" hidden>Around you</option><option value="custom" hidden>Custom area (from the map)</option><option value="near" hidden>Near me</option>`;
+  const syncHomeOpt = () => { zoneSel.querySelector('option[value="home"]').hidden = !homeBox(); };
+  syncHomeOpt();
+  zoneSel.value = zoneById(state.zone) || regionById(state.zone) || state.zone === "home" ? state.zone : "all";
   const nameZoneSel = $("nameZone");
   function fillNameZones() {
     nameZoneSel.innerHTML = `<option value="all">All areas</option>` + ZONES.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("") +
@@ -5534,7 +5579,7 @@ out tags center qt;`;
   window.tfMtbLayers = [trailLayer, foundLayer, nearLayer, allLayer, boxLayer, pickLayer];   // hidden in Skiing (winter.js)
   window.tfTrails = () => ({ shown: state.merged ? [...state.merged.values()] : [], all: [...allData.values()].filter(Boolean), selected: state.selected });   // for My rides (rides.js)
   render();
-  searchZones(true, true);
+  if (state.zone === "home") caIndexLoad().then(() => searchZones(true, true)); else searchZones(true, true);
 })();
 </script>
 
