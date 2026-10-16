@@ -800,6 +800,8 @@ label.toggle.t-unoff .sw { background: repeating-linear-gradient(90deg, var(--fg
 label.toggle.t-unoff.off .sw { background: repeating-linear-gradient(90deg, var(--muted) 0 3px, transparent 3px 6px); }
 .diff { display: inline-block; font-family: var(--font-display); font-weight: 700; font-size: .78rem; padding: 0 6px; border-radius: 4px; color: #fff; letter-spacing: .03em; white-space: nowrap; vertical-align: 1px; }
 .diff.d-green { background: #2f9e44; } .diff.d-blue { background: #1c6fe0; } .diff.d-black { background: #1b1b1b; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); } .diff.d-dbl { background: #d6202a; } .diff.d-pro { background: #e8590c; } .diff.d-unoff { background: var(--bg); color: var(--fg); border: 2px dashed var(--fg); padding: 2px 7px; }
+.diff.est { opacity: .7; outline: 1.5px dashed currentColor; outline-offset: -3px; font-style: italic; }
+.diff-note { margin: 4px 0 8px; font-size: .85rem; }
 .off-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; border: 1px solid currentColor; color: var(--fg); vertical-align: 1px; }
 label.toggle.t-off .sw { background: var(--fg); }
 /* Map key (trail colours) */
@@ -864,7 +866,10 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .trail .meta { font-size: .85rem; color: var(--muted); }
 .trail .right { text-align: right; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .grade { display: inline-block; font-family: var(--font-display); font-weight: 700; font-size: .8rem; padding: 0 6px; border-radius: 4px; background: var(--fg); color: var(--panel); letter-spacing: .04em; }
-.trail-focus .leaflet-allTrails-pane, .trail-focus .leaflet-boxTrails-pane { opacity: .25; transition: opacity .2s; }
+.trail-focus .leaflet-allTrails-pane, .trail-focus .leaflet-boxTrails-pane, .trail-focus .leaflet-trailNames-pane { opacity: .25; transition: opacity .2s; }
+.trail-name { background: none; border: 0; }
+.trail-name span { display: block; transform: translate(-50%, -130%); white-space: nowrap; font-family: var(--font-body); font-size: 11.5px; font-weight: 700; letter-spacing: .01em;
+  text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff; }
 .trail-focus .leaflet-roads-pane { opacity: .4; transition: opacity .2s; }
 .panel.detail-open .status, .panel.detail-open .debug, .panel.detail-open .list { display: none; }
 /* tall enough that the details can always scroll up to the top of the panel, even while they are still loading */
@@ -1250,7 +1255,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <ul class="about-quick">
       <li><strong>New trails:</strong> pick an area (or tap Near me) and how new, then tap Find new trails. A trail is new when it was first added to OpenStreetMap in that time.</li>
       <li><strong>Prime loam now:</strong> trails whose dirt is damp right now (Loam index 40 to 59), the best riding.</li>
-      <li><strong>Loam alerts:</strong> the 🔔 at the top tells you when a trail on your To ride list, or a new trail from the last month in the regions you picked, is in prime loam. Each one alerts once every time it turns damp. Turn it off in the 🔔 under Change regions.</li>
+      <li><strong>Loam alerts:</strong> the 🔔 at the top tells you when a trail on your To ride list, or a new trail from the last month in the regions you picked, is in prime loam. Each one alerts once every time it turns damp. Each kind has its own switch in the 🔔 under Change regions.</li>
       <li><strong>Tap any trail</strong> on the map for its difficulty, weather, loam, how to get there and rider reports.</li>
       <li><strong>Layers</strong> (top right of the map) turns on forest roads, wildfires, logging areas, elevation lines, your rides, the map style and offline maps. The ⛰ 3D button sits right under it.</li>
       <li><strong>Old vs new photos</strong> (in Layers) puts an older satellite photo on the left and a newer one on the right. Drag the ⇆ handle across the map: a trail that appears as you pass over it was cut between the two photos.</li>
@@ -1294,7 +1299,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <p>MTB trail networks: many bike trails have no bike tags at all. A plain path with no bike tags that runs within 400 m of two or more other MTB-tagged trails (with different names) also counts as Looks like MTB, unless it's graded for hiking (<code>sac_scale</code>), signed for walkers (<code>foot=designated</code>), a ski, golf or lit park path, gravel or boardwalk, open to motor vehicles, or its note says it's for hiking, climbing or motorbikes. This is checked again every time trails or trail lists load, so it keeps up as mappers add trails.</p>
     <p>Skipped: tracks (most are forest roads or ATV, moto and 4x4 tracks), paths 2 m wide or more, paths open to motorbikes, ATVs or other motor vehicles, paved surfaces, <code>bicycle=dismount</code>, and alpine hiking routes (<code>sac_scale</code> alpine).</p>
 <h3>Difficulty colours</h3>
-    <p>Trails are coloured like Trailforks: green, blue, black, double black (red) and pro line (orange). The colour comes from <code>mtb:scale:imba</code> (0-1 green, 2 blue, 3 black, 4 double black, 5 pro line), or else from <code>mtb:scale</code>, which mappers here use the same way (S0-S1 green, S2 blue, S3 black, S4 double black, S5-S6 pro line). Grey means nobody rated it on the map yet. The “Trail colours” key on the map switches back to colours by trail type.</p>
+    <p>Trails are coloured like Trailforks: green, blue, black, double black (red) and pro line (orange). The colour comes from <code>mtb:scale:imba</code> (0-1 green, 2 blue, 3 black, 4 double black, 5 pro line), or else from <code>mtb:scale</code>, which mappers here use the same way (S0-S1 green, S2 blue, S3 black, S4 double black, S5-S6 pro line). When a trail has no rating on the map, the app looks for one elsewhere: official open data that rates bike trails (Sépaq, the City of Ottawa, Utah and Pennsylvania state parks), then a rated piece of the same trail. Failing that, it estimates the level from the slope and draws it dashed, with an “Est.” badge: slope can't see rocks, roots or drops, so the guess is the right level about half the time and within one level 96% of the time. Trailforks ratings can't be copied. Grey means no source and no estimate. The “Trail colours” key on the map switches back to colours by trail type.</p>
     <h3>All trails</h3>
     <p>“All trails” (on by default) draws every MTB trail in view, old and new: every way with an MTB tag, bike park trails and the trails of MTB routes. Official trails (see below) are bold and always shown, even with no option ticked; trails whose status isn't known are thin, and unofficial trails are left out, as before (tick “Unofficial only” to see them). A list of them is collected from OpenStreetMap every day. The trails in the list (new trails, or prime loam) are drawn thicker on top, with a white edge.</p>
     <h3>Draw a square</h3>
@@ -1325,6 +1330,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script src="official.js"></script>
+<script src="ratings.js"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1441,13 +1447,45 @@ body.sport-ski #rideMapBtn { display: none !important; }
   }
   // The chunks touching these bounds, nearest the map centre first, at most CA_MAX. Only for areas up to about a town's
   // riding (CA_SPAN degrees): a zoomed-out map or a whole region would load chunks far from where you're looking.
+  // The chunks around the rider's home (caHomeZones below) are added at any zoom, like the home zones.
   const CA_MAX = 12, CA_SPAN = 2.5;
   function caZonesIn(boxes) {
     const c = map.getCenter();
-    boxes = boxes.filter((b) => b.getNorth() - b.getSouth() <= CA_SPAN && b.getEast() - b.getWest() <= CA_SPAN * 1.5);
-    return [...caIndex.zones.values()].filter((z) => boxes.some((b) => b.intersects(z.bounds)))
+    const small = boxes.filter((b) => b.getNorth() - b.getSouth() <= CA_SPAN && b.getEast() - b.getWest() <= CA_SPAN * 1.5);
+    const near = [...caIndex.zones.values()].filter((z) => small.some((b) => b.intersects(z.bounds)))
       .sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter())).slice(0, CA_MAX);
+    return near.concat(caHomeZones().filter((z) => !near.includes(z) && boxes.some((b) => b.intersects(z.bounds))));
   }
+  // ---------- Around you: for riders outside the home regions, the chunks around where they are stay loaded ----------
+  // alex: "make the area around each person's location load automatically, the same way your home area does".
+  // Home is the last location fix (tf:caHome, this device only), or the last spot looked at zoomed in when location
+  // isn't shared. It covers about 130 km across (up to 9 chunks) and becomes the "Around you" area in the Area list.
+  const HOME_LAT = 0.6, HOME_LON = 0.9, HOME_MOVE_M = 20000;
+  let caHome = store.get("caHome", null);          // { ll: [lat, lng], gps: true when from the location fix }
+  const inRegions = (ll) => REGIONS.some((r) => r.bounds.contains(ll));
+  const homeBox = () => caHome && !inRegions(caHome.ll)
+    && L.latLngBounds([caHome.ll[0] - HOME_LAT, caHome.ll[1] - HOME_LON], [caHome.ll[0] + HOME_LAT, caHome.ll[1] + HOME_LON]);
+  function caHomeZones() {
+    const b = homeBox();
+    return b ? [...caIndex.zones.values()].filter((z) => b.intersects(z.bounds)) : [];
+  }
+  function caHomeArea() {
+    const b = homeBox();
+    if (!b) return null;
+    const zones = caHomeZones();
+    return { id: "home", name: "Around you", short: "the area around you", zones, bounds: zones.length ? zones.reduce((a, z) => a.extend(z.bounds), L.latLngBounds(zones[0].bounds.getSouthWest(), zones[0].bounds.getNorthEast())) : b };
+  }
+  // Returns true when home moved (first fix, or more than 20 km away from the last one).
+  function setHome(ll, gps) {
+    if (!gps && caHome && caHome.gps) return false;  // a location fix wins over the map view
+    ll = L.latLng(ll);
+    if (caHome && (gps || !caHome.gps) && ll.distanceTo(caHome.ll) < HOME_MOVE_M) return false;
+    caHome = { ll: [+ll.lat.toFixed(3), +ll.lng.toFixed(3)], gps: !!gps };
+    try { localStorage.setItem("tf:caHome", JSON.stringify(caHome)); } catch {}
+    return true;
+  }
+  if (store.get("zone", null) == null && homeBox()) state.zone = "home";   // no area picked yet: open where they ride
+  else if (state.zone === "home" && !homeBox()) state.zone = "all";
   const caChunks = new Map();   // chunk id -> Promise(chunk or null), fetched once per visit
   function caChunk(id) {
     if (!caChunks.has(id)) caChunks.set(id, fetch(`ca/c/${id}.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null));
@@ -1458,7 +1496,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
   const regionById = (id) => REGIONS.find((r) => r.id === id);
   // The region the map is looking at (or nearest to), for "all areas" choices that shouldn't span both provinces.
   const regionHere = () => { const c = map.getCenter(); return REGIONS.find((r) => r.bounds.contains(c)) || REGIONS.slice().sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter()))[0]; };
-  const areaById = (id) => zoneById(id) || regionById(id) || REGIONS[0];   // a zone or a whole region: has name and bounds
+  const areaById = (id) => zoneById(id) || regionById(id) || (id === "home" && caHomeArea()) || REGIONS[0];   // a zone or a whole region: has name and bounds
   const zonesOf = (id) => (zoneById(id) ? [zoneById(id)] : areaById(id).zones);
   function zoneBounds(id) { return areaById(id).bounds; }
   map.fitBounds(zoneBounds(state.zone));
@@ -1902,10 +1940,28 @@ body.sport-ski #rideMapBtn { display: none !important; }
     const imba = parseFloat(tags["mtb:scale:imba"]), sts = parseInt(tags["mtb:scale"], 10);
     if (!isNaN(imba)) return imba < 2 ? "green" : imba < 3 ? "blue" : imba < 4 ? "black" : imba < 5 ? "dbl" : "pro";
     if (!isNaN(sts)) return sts <= 1 ? "green" : sts === 2 ? "blue" : sts === 3 ? "black" : sts === 4 ? "dbl" : "pro";
-    return null;
+    return DIFF[tags["tf:diff"]] ? tags["tf:diff"] : null;   // from another source, or estimated (rateTags, ratings.js)
   }
   const diffColor = (d) => (d ? DIFF[d].color : UNRATED);
-  const diffBadge = (tags) => { const d = difficulty(tags); return d ? `<span class="diff d-${d}">${DIFF[d].sym} ${DIFF[d].label}</span>` : ""; };
+  // An estimated level (from the slope) is never shown as a real rating: "Est." badge, and dashed on the map.
+  const EST_DASH = "7 6";
+  const isEst = (tags) => tags["tf:diffsrc"] === "est" && difficulty(tags) === tags["tf:diff"];
+  const diffBadge = (tags) => {
+    const d = difficulty(tags);
+    if (!d) return "";
+    if (isEst(tags)) return `<span class="diff d-${d} est" title="Estimated from the slope, not a real rating">Est. ${DIFF[d].label.toLowerCase()}?</span>`;
+    return `<span class="diff d-${d}"${tags["tf:diffwhy"] && difficulty(tags) === tags["tf:diff"] ? ` title="${esc(tags["tf:diffwhy"])}"` : ""}>${DIFF[d].sym} ${DIFF[d].label}</span>`;
+  };
+  // Trails with no MTB rating on OpenStreetMap get one from ratings.js (official open data, the same trail's rated piece,
+  // a rider's own rating, or an estimate from the slope) as made-up tags tf:diff, tf:diffsrc (hand, off, same, est) and tf:diffwhy. Changes tags in place.
+  function rateTags(tags, geom, id) {
+    if (!tags || !window.tfRatings) return tags;
+    delete tags["tf:diff"]; delete tags["tf:diffsrc"]; delete tags["tf:diffwhy"];
+    if (difficulty(tags)) return tags;
+    const r = window.tfRatings.rate(id, geom, tags);
+    if (r) Object.assign(tags, { "tf:diff": r.d, "tf:diffsrc": r.src, "tf:diffwhy": r.why });
+    return tags;
+  }
   const officialTag = (why) => (why ? `<span class="off-tag" title="${esc(why)}">Official</span>` : "");
   // The colour bar of a list row or trail header: difficulty colours, or the type colours (from the stylesheet).
   function barStyle(t) {
@@ -2095,7 +2151,7 @@ out body;`;
       const all = routesByWay.get(w.id) || [], routes = all.filter((r) => r.type === "mtb").map(({ id, name }) => ({ id, name }));
       const routeTypes = [...new Set(all.map((r) => r.type))];
       const geom = w.geometry.map((p) => [p.lat, p.lon]);
-      const c = classify(withOfficial(tags, geom), routes.map((r) => r.name), routeTypes);
+      const c = classify(withOfficial(rateTags(tags, geom, w.id), geom), routes.map((r) => r.name), routeTypes);
       if (!c) return;
       candidates.push({ id: w.id, tags, ...c, routes, routeTypes, version: w.version, lastEdit: new Date(w.timestamp), lastUser: w.user || "", lastChangeset: w.changeset,
         geom,
@@ -2147,7 +2203,7 @@ out body;`;
   function unpackTrail(o) {
     const t = { ...o, created: new Date(o.created), lastEdit: new Date(o.lastEdit) };
     t.bounds = L.latLngBounds(t.geom);
-    const c = classify(withOfficial(t.tags, t.geom), (t.routes || []).map((r) => r.name), t.routeTypes || []);   // saved by an older version of the app
+    const c = classify(withOfficial(rateTags(t.tags, t.geom, t.id), t.geom), (t.routes || []).map((r) => r.name), t.routeTypes || []);   // saved by an older version of the app
     if (c) Object.assign(t, { cat: c.cat, why: c.why, unoff: c.unoff, net: c.net, official: c.official });
     return Object.assign(t, useOf(t.tags, (t.routeTypes || []).concat(t.routes && t.routes.length ? ["mtb"] : [])));
   }
@@ -2568,7 +2624,7 @@ out body;`;
         color: t.cat === "ghost" ? color.ghost : byDiff ? diffColor(d) : t.use ? css("--other") : color[t.cat],
         weight: byDiff && t.cat !== "ghost" ? (sel ? 8 : 5) : sel ? 9 : t.cat === "other" ? 5 : 7,
         opacity: byDiff && t.cat !== "ghost" ? (sel ? 1 : state.selected ? 0.35 : 0.95) : sel ? 0.8 : state.selected ? 0.3 : 0.45,
-        dashArray: t.cat === "ghost" ? "1 10" : isUnoff(t) ? UNOFF_DASH : t.cat === "looks" && !sel ? "10 6" : null, lineCap: "round", interactive: false,
+        dashArray: t.cat === "ghost" ? "1 10" : isUnoff(t) ? UNOFF_DASH : byDiff && isEst(t.tags) ? EST_DASH : t.cat === "looks" && !sel ? "10 6" : null, lineCap: "round", interactive: false,
       });
       // A wide invisible line on top makes thin trails easy to click or tap.
       const hit = L.polyline(shape, { weight: 18, opacity: 0, interactive: true })
@@ -3232,6 +3288,7 @@ out body;`;
         <div><h2>${esc(trailName(t))}</h2>
         <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${diffBadge(t.tags)}${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""}${officialTag(t.official)}${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
       </div>
+      <p class="diff-note muted" id="diffNote"${t.tags["tf:diffwhy"] && difficulty(t.tags) === t.tags["tf:diff"] ? "" : " hidden"}>${esc(t.tags["tf:diffwhy"] || "")}</p>
       ${t.use ? `<div class="unoff-box use-box"><strong>${t.use === "moto" ? "Looks like a moto trail" : "Looks like a hiking-only trail"}</strong><ul>${t.useWhy.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">${t.use === "moto" ? "Dirt-bike, ATV and 4x4 trails" : "Hiking-only trails"} are left out of the new-trails list. This is a guess from the map tags.</p></div>` : ""}
       ${isUnoff(t) ? `<div class="unoff-box"><strong>Possibly unsanctioned</strong><ul>${t.unoff.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
@@ -3285,9 +3342,28 @@ out body;`;
     loadElevation(t);
     renderAccess(t);
     loadWeather(t);
+    rateDetail(t);
     if (real && window.tfReports) window.tfReports.show(t);   // reports.js
     if (real) loadAbout(t);
     leaveFullMap(t);
+  }
+
+  // No rating from any source yet: estimate one from the slope (ratings.js), then show it in the open details.
+  function rateDetail(t) {
+    if (!window.tfRatings || difficulty(t.tags) || !t.geom || t.geom.length < 2) return;
+    const note = $("diffNote");
+    note.hidden = false; note.textContent = "Not rated on OpenStreetMap. Estimating the level from the slope…";
+    window.tfRatings.estimate(t.id > 0 ? t.id : 0, t.geom, t.tags).then((r) => {
+      if ($("diffNote") !== note) return;   // another trail's details opened since
+      if (r && t.id <= 0) Object.assign(t.tags, { "tf:diff": r.d, "tf:diffsrc": r.src, "tf:diffwhy": r.why });
+      else rateTags(t.tags, t.geom, t.id);
+      if (!difficulty(t.tags)) { note.textContent = "Not rated on OpenStreetMap, and too short to estimate from the slope."; return; }
+      note.textContent = t.tags["tf:diffwhy"];
+      const chip = document.querySelector("#detail .d-head .chips .chip");
+      if (chip && !document.querySelector("#detail .d-head .chips .diff")) chip.insertAdjacentHTML("afterend", diffBadge(t.tags));
+      const bar = document.querySelector("#detail .d-head .bar");
+      if (bar && state.colorBy === "diff") bar.style.background = diffColor(difficulty(t.tags));
+    }).catch(() => { note.textContent = "Not rated on OpenStreetMap. The elevation needed for an estimate didn't load."; });
   }
 
   // A possible unmapped trail: what the GPS traces say, and where to compare and check it.
@@ -3704,6 +3780,7 @@ out body;`;
   function showYou(pos) {
     const ll = L.latLng(pos.coords.latitude, pos.coords.longitude), acc = Math.min(pos.coords.accuracy || 0, 5000);
     you.ll = ll;
+    if (setHome(ll, true)) homeMoved(true);
     if (!you.dot) {
       you.ring = L.circle(ll, { radius: acc, color: "#2b7de9", weight: 1, opacity: 0.5, fillColor: "#2b7de9", fillOpacity: 0.12, interactive: false }).addTo(youLayer);
       you.dot = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: "#2b7de9", fillOpacity: 1 }).bindTooltip("You are here", { direction: "top", offset: [0, -8] }).addTo(youLayer);
@@ -3729,6 +3806,16 @@ out body;`;
     youLayer.clearLayers();
     syncLocate();
   }
+  // Home moved (see setHome): load its trails, and the first time, open the Area on it if none was picked yet.
+  function homeMoved(gps) {
+    caIndexLoad().then(() => {
+      syncHomeOpt();
+      loadAllTrails();
+      if (gps && homeBox() && store.get("zone", null) == null && !state.custom && !near) goToZone("home");
+    });
+  }
+  // With no location shared, the last spot looked at zoomed in (outside the home regions) is home.
+  map.on("moveend", () => { if (!you.ll && map.getZoom() >= MIN_ZOOM && !inRegions(map.getCenter()) && setHome(map.getCenter(), false)) homeMoved(false); });
   let locatedOnce = false;
   $("locate").addEventListener("click", () => {
     if (!navigator.geolocation) { setStatus("This browser can't share your location.", true); return; }
@@ -3916,6 +4003,7 @@ out body;`;
   const allLayer = L.layerGroup().addTo(map);
   const allData = new Map();                       // zone id -> list of { id, tags, geom, c }, null while loading
   let allKey = "";
+  let allShown = [];                               // what drawAllTrails drew: { w, color }, for the names
   const allLoads = new Map();                      // zone id -> promise of its list
   // With All trails off, zooming in still shows every trail that isn't flagged unofficial (alex: "I want to see all the
   // official trails when I zoom in"; outside BC few trails carry the operator tags that make them "official" here).
@@ -3938,7 +4026,7 @@ out body;`;
           for (let i = 0; i < w.g.length; i += 2) geom.push([w.g[i], w.g[i + 1]]);
           // A path with no name on the map, named after its Recreation Sites and Trails BC trail (tf:name), for the lists and search.
           const tags = w.tags["tf:name"] && !w.tags.name ? { ...w.tags, name: w.tags["tf:name"] } : w.tags;
-          return { id: +id, tags, geom, r: inRoute.get(+id) || [], c: classify(withOfficial(tags, geom), inRoute.get(+id) || []) };
+          return { id: +id, tags, geom, r: inRoute.get(+id) || [], c: classify(withOfficial(rateTags(tags, geom, +id), geom), inRoute.get(+id) || []) };
         }).filter((w) => w.c && !w.c.use && w.geom.length > 1) : []);
         queueAllDraw();
         return f && f.v === 1 ? allData.get(z.id) : null;        // null: the list couldn't be loaded
@@ -3976,7 +4064,7 @@ out body;`;
   // Zones arriving close together (up to 10 at the start) are drawn once, not once per zone.
   let allDrawTimer = 0;
   function queueAllDraw() {
-    if (!allDrawTimer) allDrawTimer = setTimeout(() => { allDrawTimer = 0; drawAllTrails(); }, 60);
+    if (!allDrawTimer) allDrawTimer = setTimeout(() => { allDrawTimer = 0; drawAllTrails(); drawTrailNames(); }, 60);
   }
   function drawAllTrails() {
     const loaded = [...allData.values()].filter(Boolean);
@@ -3984,6 +4072,7 @@ out body;`;
     if (key === allKey) return;
     allKey = key;
     allLayer.clearLayers();
+    allShown = [];
     if (!state.allTrails && !officialOnly()) return;
     const seen = new Set(), byDiff = state.colorBy === "diff";
     loaded.forEach((list) => list.forEach((w) => {
@@ -3993,9 +4082,41 @@ out body;`;
       if (seen.has(w.id) || !(state.allTrails ? off && !state.onlyUnoff || wanted(w.c.cat, unoff, off) : !unoff && !state.onlyUnoff)) return;
       seen.add(w.id);
       const d = difficulty(w.tags);
-      allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks"), weight: off ? 4.5 : unoff ? 3.5 : 2.5, opacity: off ? 1 : 0.75, dashArray: unoff ? UNOFF_DASH : null, lineCap: "round", interactive: false }));
+      allShown.push({ w, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks") });
+      allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks"), weight: off ? 4.5 : unoff ? 3.5 : 2.5, opacity: off ? 1 : 0.75, dashArray: unoff ? UNOFF_DASH : byDiff && isEst(w.tags) ? EST_DASH : null, lineCap: "round", interactive: false }));
     }));
   }
+  // Trail names on the All trails lines from zoom 13 (alex: "put the name of the trail on the map like all the other
+  // trails"): one label per name in view, on the piece with the most of it in view, in the trail's colour; labels that
+  // would overlap are left out.
+  map.createPane("trailNames").style.zIndex = 395;
+  map.getPane("trailNames").style.pointerEvents = "none";
+  const nameLayer = L.layerGroup().addTo(map);
+  const NAME_ZOOM = 13, MAX_NAMES = 80;
+  function drawTrailNames() {
+    nameLayer.clearLayers();
+    if (map.getZoom() < NAME_ZOOM || !allShown.length) return;
+    const view = map.getBounds().pad(-0.08), best = new Map();   // not right at the edges
+    allShown.forEach(({ w, color }) => {
+      const name = (w.tags.name || w.tags["mtb:name"] || "").trim();
+      if (!name) return;
+      const inView = w.geom.filter((p) => view.contains(p));
+      if (!inView.length) return;
+      const b = best.get(name);
+      if (!b || inView.length > b.pts.length) best.set(name, { name, color, pts: inView });
+    });
+    const placed = [];
+    [...best.values()].sort((a, b) => b.pts.length - a.pts.length).slice(0, MAX_NAMES * 2).forEach((b) => {
+      if (placed.length >= MAX_NAMES) return;
+      const at = b.pts[b.pts.length >> 1], xy = map.latLngToContainerPoint(at);
+      const half = Math.min(110, b.name.length * 3.4 + 6);
+      if (placed.some((q) => Math.abs(q.x - xy.x) < half + q.half && Math.abs(q.y - xy.y) < 16)) return;
+      placed.push({ x: xy.x, y: xy.y, half });
+      nameLayer.addLayer(L.marker(at, { pane: "trailNames", interactive: false, keyboard: false,
+        icon: L.divIcon({ className: "trail-name", iconSize: null, html: `<span style="color: ${b.color}">${esc(b.name)}</span>` }) }));
+    });
+  }
+  map.on("zoomend", drawTrailNames);
   function syncAllBtn() {
     const b = $("allBtn");
     b.setAttribute("aria-pressed", String(state.allTrails));
@@ -4020,6 +4141,22 @@ out body;`;
         if (c) Object.assign(t, { unoff: c.unoff, official: c.official });
       });
       if (state.trails && state.trails.length) render();
+    });
+  }
+  // Ratings for unrated trails (ratings.js): load the rated open-data squares in view; when ratings arrive (the region's
+  // file, new squares or an estimate), rate the loaded trails again and redraw.
+  if (window.tfRatings) {
+    const rateLoad = () => window.tfRatings.load(map.getBounds());
+    map.on("moveend", rateLoad); rateLoad();
+    let rateTimer = 0;
+    window.tfRatings.onChange(() => {
+      clearTimeout(rateTimer);
+      rateTimer = setTimeout(() => {
+        for (const list of allData.values()) (list || []).forEach((w) => rateTags(w.tags, w.geom, w.id));
+        (state.trails || []).forEach((t) => rateTags(t.tags, t.geom, t.id));
+        allKey = ""; queueAllDraw();
+        if (state.trails && state.trails.length) render();
+      }, 150);
     });
   }
   loadAllTrails();
@@ -4592,8 +4729,7 @@ out body;`;
   const keyCtl = L.control({ position: "topleft" });
   keyCtl.onAdd = () => {
     const el = L.DomUtil.create("details", "legend");
-    el.open = store.get("keyOpen", !matchMedia("(max-width: 760px)").matches);
-    el.addEventListener("toggle", () => store.set("keyOpen", el.open));
+    el.open = false;   // starts folded to just its title; tap it to see the colours (alex)
     el.innerHTML = `<summary>Trail colours</summary><div class="lg-mode" role="group" aria-label="Colour the trails by">
       <button type="button" data-c="diff">Difficulty</button><button type="button" data-c="type">Type</button></div><ul id="keyList"></ul><p class="lg-note" id="keyNote"></p>`;
     L.DomEvent.disableClickPropagation(el); L.DomEvent.disableScrollPropagation(el);
@@ -4626,7 +4762,7 @@ out body;`;
     const section = (title, items) => `<li class="lg-more"><details data-k="${title}"${keyOpen.has(title) ? " open" : ""}><summary>${title}</summary><ul>${items}</ul></details></li>`;
     let html = byDiff
       ? Object.entries(DIFF).map(([k, v]) => sw(`background: ${v.color}`, `${v.sym} ${v.label}`)).join("")
-        + sw(`background: ${UNRATED}`, "Not rated") + sw(dots, "Unofficial?")
+        + sw(`background: repeating-linear-gradient(90deg, ${DIFF.blue.color} 0 6px, transparent 6px 10px)`, "Dashed: estimated level") + sw(`background: ${UNRATED}`, "Not rated") + sw(dots, "Unofficial?")
       : sw("background: var(--mtb)", "MTB tagged") + sw("background: repeating-linear-gradient(90deg, var(--looks) 0 8px, transparent 8px 12px)", "Looks like MTB")
         + sw("background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 8px)", "Possible unmapped") + sw(dots, "Unofficial?");
     if (window.tfAlpine && window.tfAlpine.on()) html += window.tfAlpine.keyItem(sw);
@@ -5085,8 +5221,10 @@ out tags center qt;`;
   async function presentTrail({ main, segs, segIds, type, kind, routes = [], routeTypes = [], token, view }) {
       const tags = main.tags || {};
       const types = routeTypes.concat(tags.route ? [tags.route] : []);
-      const ctags = { ...allTfOf(main.id), ...tags };   // a named path the all-trails job added in a riding area
       const { line: geom, all: chainAll } = chainSegments(segs);
+      if (window.tfRatings) await window.tfRatings.load(L.latLngBounds(geom));   // rated trails from open data around it (ratings.js)
+      rateTags(tags, geom, main.id);
+      const ctags = { ...allTfOf(main.id), ...tags };   // a named path the all-trails job added in a riding area
       if (window.tfOfficial) await window.tfOfficial.load(L.latLngBounds(geom));   // official trails around it (official.js)
       const c = classify(withOfficial(ctags, geom), routes.map((r) => r.name).concat(tags.route === "mtb" ? [tags.name] : []), types);
       const bounds = segs.reduce((b, s) => b.extend(L.latLngBounds(s)), L.latLngBounds(segs[0]));
@@ -5306,7 +5444,7 @@ out tags center qt;`;
       const color = w.c.cat === "path" ? UNRATED : byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks");
       const name = (w.tags.name || w.tags["mtb:name"] || "").trim();
       boxLayer.addLayer(L.polyline(w.geom, { renderer: boxRenderer, color: "#fff", weight: 8, opacity: 0.9, interactive: false }));
-      const line = L.polyline(w.geom, { renderer: boxRenderer, color, weight: 4.5, opacity: 1, dashArray: unoff || unoffPick ? UNOFF_DASH : null, lineCap: "round" });
+      const line = L.polyline(w.geom, { renderer: boxRenderer, color, weight: 4.5, opacity: 1, dashArray: unoff || unoffPick ? UNOFF_DASH : byDiff && isEst(w.tags) ? EST_DASH : null, lineCap: "round" });
       boxLayer.addLayer(line);
       if (!name && !diff) { loose.push({ w, line }); return; }   // listed below as "Unnamed trail", joined where the pieces meet
       if (!name) { unnamed++; line.on("click", (e) => { L.DomEvent.stopPropagation(e); pickTrailAt(e.latlng); }); return; }
@@ -5399,8 +5537,10 @@ out tags center qt;`;
   const zoneSel = $("zone");
   zoneSel.innerHTML = REGIONS.map((r) => `<optgroup label="${esc(r.name)}"><option value="${r.id}">All of ${esc(r.name)}</option>` +
     r.zones.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("") + `</optgroup>`).join("") +
-    `<option value="custom" hidden>Custom area (from the map)</option><option value="near" hidden>Near me</option>`;
-  zoneSel.value = zoneById(state.zone) || regionById(state.zone) ? state.zone : "all";
+    `<option value="home" hidden>Around you</option><option value="custom" hidden>Custom area (from the map)</option><option value="near" hidden>Near me</option>`;
+  const syncHomeOpt = () => { zoneSel.querySelector('option[value="home"]').hidden = !homeBox(); };
+  syncHomeOpt();
+  zoneSel.value = zoneById(state.zone) || regionById(state.zone) || state.zone === "home" ? state.zone : "all";
   const nameZoneSel = $("nameZone");
   function fillNameZones() {
     nameZoneSel.innerHTML = `<option value="all">All areas</option>` + ZONES.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("") +
@@ -5478,7 +5618,7 @@ out tags center qt;`;
   window.tfMtbLayers = [trailLayer, foundLayer, nearLayer, allLayer, boxLayer, pickLayer];   // hidden in Skiing (winter.js)
   window.tfTrails = () => ({ shown: state.merged ? [...state.merged.values()] : [], all: [...allData.values()].filter(Boolean), selected: state.selected });   // for My rides (rides.js)
   render();
-  searchZones(true, true);
+  if (state.zone === "home") caIndexLoad().then(() => searchZones(true, true)); else searchZones(true, true);
 })();
 </script>
 
