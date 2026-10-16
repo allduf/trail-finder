@@ -1951,12 +1951,12 @@ body.sport-ski #rideMapBtn { display: none !important; }
     return `<span class="diff d-${d}"${tags["tf:diffwhy"] && difficulty(tags) === tags["tf:diff"] ? ` title="${esc(tags["tf:diffwhy"])}"` : ""}>${DIFF[d].sym} ${DIFF[d].label}</span>`;
   };
   // Trails with no MTB rating on OpenStreetMap get one from ratings.js (official open data, the same trail's rated piece,
-  // or an estimate from the slope) as made-up tags tf:diff, tf:diffsrc (off, same, est) and tf:diffwhy. Changes tags in place.
+  // a rider's own rating, or an estimate from the slope) as made-up tags tf:diff, tf:diffsrc (hand, off, same, est) and tf:diffwhy. Changes tags in place.
   function rateTags(tags, geom, id) {
     if (!tags || !window.tfRatings) return tags;
     delete tags["tf:diff"]; delete tags["tf:diffsrc"]; delete tags["tf:diffwhy"];
     if (difficulty(tags)) return tags;
-    const r = window.tfRatings.rate(id, geom);
+    const r = window.tfRatings.rate(id, geom, tags);
     if (r) Object.assign(tags, { "tf:diff": r.d, "tf:diffsrc": r.src, "tf:diffwhy": r.why });
     return tags;
   }
