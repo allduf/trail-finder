@@ -35,7 +35,7 @@ const started = Date.now(), outOfTime = () => Date.now() - started > MINUTES * 6
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
 
-const RULES = 4;                      // files built with older rules are rebuilt, however fresh
+const RULES = 5;                      // files built with older rules are rebuilt, however fresh
 const LONG_ROUTE = 150;               // MTB route relations with more ways than this are long-distance routes
 const AREA_M = 3000, SPARSE = 20, NET_M = 400;
 const AREAS = (readJsonAt(new URL("data/riding-areas.json", root)) || { areas: [] }).areas;
@@ -86,7 +86,9 @@ relation["route"="mtb"](${bb})->.r;
 way(r.r)["highway"]->.rw;
 (.w; .rw;);
 out geom qt;
-.r out body qt;`;
+.r out body qt;
+(way["landuse"="winter_sports"](${bb}); relation["landuse"="winter_sports"](${bb}); way["aerialway"](${bb}););
+out geom qt;`;
 }
 
 // Overpass, politely: one query at a time, long waits when a server is busy.
@@ -289,6 +291,47 @@ function inPark([lat, lon], park) {
     return inside;
   });
 }
+// ---------- Lift-served bike parks ----------
+// Ski hills that carry bikes up in summer: the resort area (landuse=winter_sports) holds a lift tagged for bikes
+// (aerialway:bicycle=yes|summer, like Kicking Horse's Golden Eagle Express), or is one of LIFT_PARKS, resorts known to run a
+// summer bike park whose lifts aren't tagged yet. Every path inside one is a bike park trail (tf:lift=<resort>), unless it's
+// closed to bikes, graded beyond easy hiking (Terminator Ridge, The Blood) or open to motors. Bike park lines are often
+// left unnamed and untagged (Kicking Horse: 5 of 54 paths had bike tags).
+const LIFT_PARKS = { "Fernie Alpine Resort": "runs a lift-served bike park in summer", "Panorama Mountain Resort": "runs a lift-served bike park in summer" };
+const BIKE_LIFT = /\b(yes|summer|designated|permissive)\b/;
+function rings(el) {
+  if (el.type === "way") return el.geometry && el.geometry.length > 3 ? [el.geometry.map((p) => [p.lat, p.lon])] : [];
+  // A relation's outer ways, joined end to end into rings.
+  const parts = (el.members || []).filter((m) => m.type === "way" && m.role !== "inner" && m.geometry).map((m) => m.geometry.map((p) => [p.lat, p.lon]));
+  const out = [], same = (a, b) => a[0] === b[0] && a[1] === b[1];
+  while (parts.length) {
+    let r = parts.shift();
+    for (let grew = true; grew && !same(r[0], r[r.length - 1]);) {
+      grew = false;
+      for (let i = 0; i < parts.length; i++) {
+        const q = parts[i], end = r[r.length - 1];
+        if (same(end, q[0])) r = r.concat(q.slice(1));
+        else if (same(end, q[q.length - 1])) r = r.concat(q.slice(0, -1).reverse());
+        else continue;
+        parts.splice(i, 1); grew = true; break;
+      }
+    }
+    if (r.length > 3) out.push(r);
+  }
+  return out;
+}
+function liftParks(els) {
+  const lifts = els.filter((e) => e.type === "way" && e.tags && e.tags.aerialway && e.geometry && !/^(zip_line|station|pylon|magic_carpet)$/.test(e.tags.aerialway));
+  return els.filter((e) => e.tags && e.tags.landuse === "winter_sports" && e.tags.name).map((e) => {
+    const rs = rings(e), pts = rs.flat();
+    if (!pts.length) return null;
+    const park = { name: e.tags.name, polys: [rs], box: [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))] };
+    const bikeLifts = lifts.filter((l) => BIKE_LIFT.test(l.tags["aerialway:bicycle"] || l.tags.bicycle || "") && l.geometry.some((p) => inPark([p.lat, p.lon], park)));
+    park.why = bikeLifts.length ? `${bikeLifts.map((l) => l.tags.name || "a lift").slice(0, 2).join(" and ")} carr${bikeLifts.length > 1 ? "y" : "ies"} bikes in summer` : LIFT_PARKS[e.tags.name];
+    return park.why ? park : null;
+  }).filter(Boolean);
+}
+
 // ---------- MTB trail networks ----------
 // A path open to bikes: not closed to them or to everyone (The Blood and CPR Ridge at Kicking Horse are bicycle=no), not a
 // snowmobile trail (Boulder Mountain), not a ski or snowshoe trail unless bikes are allowed on it too (Silver Star's Nordic trails).
@@ -350,15 +393,16 @@ for (const z of order) {
     const areas = areasOf(z);
     const mode = REC_ZONES[z.id], rec = mode ? await recData(z.box, mode) : null;
     const els = await fetchBox(z.box, areas);
-    const all = new Map(els.filter((e) => e.type === "way" && e.geometry && e.geometry.length > 1).map((w) => [w.id, w]));
-    const rels = els.filter((e) => e.type === "relation");
+    const all = new Map(els.filter((e) => e.type === "way" && e.tags && e.tags.highway && e.geometry && e.geometry.length > 1).map((w) => [w.id, w]));
+    const rels = els.filter((e) => e.type === "relation" && e.tags && e.tags.route === "mtb");
+    const parks = liftParks(els);
     const longRoutes = rels.filter((r) => (r.members || []).filter((m) => m.type === "way").length > LONG_ROUTE);
     const routeWays = new Set(rels.filter((r) => !longRoutes.includes(r)).flatMap((r) => (r.members || []).filter((m) => m.type === "way").map((m) => m.ref)));
     // Riding areas with few MTB-tagged ways around them, and backcountry areas (own radius): their named paths count too.
     const tagged = [...all.values()].filter((w) => ownMtb(w.tags || {}) || routeWays.has(w.id));
     const sparse = areas.filter((a) => a.r || tagged.filter((w) => w.geometry.some((p) => metres([p.lat, p.lon], a.c) <= AREA_M)).length < SPARSE);
     const ways = {}, routes = {}, rest = [];
-    let fromAreas = 0, fromRec = 0;
+    let fromAreas = 0, fromRec = 0, fromLift = 0;
     for (const w of all.values()) {
       const tags = { ...(w.tags || {}) };
       const mid = w.geometry[w.geometry.length >> 1];
@@ -368,9 +412,12 @@ for (const z of order) {
       if (!ownMtb(tags) && !routeWays.has(w.id) && !t) {
         if (!bikeWay || !bikeOk(tags)) continue;
         const a = tags.name && !NOT_BIKE_NAME.test(tags.name) && sparse.find((a) => metres([mid.lat, mid.lon], a.c) <= radius(a) || (a.park && park && park.name === a.park));
-        if (!a) { rest.push({ w, park }); continue; }   // maybe in an MTB trail network (below)
-        tags["tf:area"] = a.name; fromAreas++;
-        if (a.official && !/\b(road|rd)\b/i.test(tags.name)) tags["tf:official"] = a.official;
+        const lp = /^(path|bridleway)$/.test(tags.highway) && !motor(tags) && /^(hiking)?$/.test(tags.sac_scale || "") && !NOT_BIKE_NAME.test(tags.name || "")
+          && parks.find((p) => inPark([mid.lat, mid.lon], p));
+        if (lp) { tags["tf:lift"] = lp.name; tags["tf:lift-why"] = lp.why; fromLift++; }
+        else if (!a) { rest.push({ w, park }); continue; }   // maybe in an MTB trail network (below)
+        else { tags["tf:area"] = a.name; fromAreas++; }
+        if (a && a.official && !/\b(road|rd)\b/i.test(tags.name)) tags["tf:official"] = a.official;
       }
       if (t) {
         tags["tf:rec"] = t.name; tags["tf:rec-id"] = t.id; fromRec++;
@@ -394,7 +441,8 @@ for (const z of order) {
     log(`${z.name}: ${Object.keys(ways).length} trails, ${Object.keys(routes).length} MTB routes` +
       (longRoutes.length ? `; left out long-distance routes ${longRoutes.map((r) => (r.tags && r.tags.name) || r.id).join(", ")}` : "") +
       (sparse.length ? `; ${fromAreas} named paths added in ${sparse.map((a) => a.name).join(", ")} (few bike tags there)` : "") +
-      (rec ? `; ${fromRec} paths along Recreation Sites and Trails BC trails` : "") + `; ${fromNet} paths in MTB trail networks`);
+      (rec ? `; ${fromRec} paths along Recreation Sites and Trails BC trails` : "") + `; ${fromNet} paths in MTB trail networks` +
+      (parks.length ? `; ${fromLift} paths in lift-served bike parks (${parks.map((p) => p.name).join(", ")})` : ""));
   } catch (e) {
     failed++;
     log(`${z.name}: failed (${e.message}), keeping last good data`);
