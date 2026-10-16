@@ -1640,6 +1640,24 @@ body.sport-ski #rideMapBtn { display: none !important; }
   window.tfSetBasemap = setBasemap;   // offline.js opens the saved vector map when there's no signal
 
   const trailLayer = L.layerGroup().addTo(map);
+  // New-trail results go on one canvas: a big search drew thousands of SVG paths, which made panning and zooming lag.
+  // Over All trails, under trail names, area labels and Draw a square lines; tolerance makes thin lines easy to tap.
+  map.createPane("newTrails").style.zIndex = 394;
+  const newRenderer = L.canvas({ pane: "newTrails", padding: 0.3, tolerance: L.Browser.touch ? 10 : 6 });
+  // A canvas catches every pointer event over the map, so a canvas lower down never sees them. passThrough hands
+  // the events that miss all of upper's lines on to lower. Call it before upper is first added to the map.
+  function passThrough(upper, lower) {
+    const hits = (r, e) => { const p = map.mouseEventToLayerPoint(e); for (let o = r._drawFirst; o; o = o.next) if (o.layer.options.interactive && o.layer._containsPoint(p)) return true; return false; };
+    const click = upper._onClick, move = upper._onMouseMove, out = upper._handleMouseOut;
+    upper._onClick = function (e) { if (lower._map && !hits(this, e)) lower._onClick(e); else click.call(this, e); };
+    upper._onMouseMove = function (e) {
+      move.call(this, e);
+      if (!lower._map) return;
+      if (this._hoveredLayer) lower._handleMouseOut(e); else lower._onMouseMove(e);
+      this._container.classList.toggle("leaflet-interactive", !!(this._hoveredLayer || lower._hoveredLayer));
+    };
+    upper._handleMouseOut = function (e) { out.call(this, e); if (lower._map) lower._handleMouseOut(e); };
+  }
   const foundLayer = L.layerGroup().addTo(map);  // a trail picked in the name search
   const PICK_GLOW = "#ffe14d";                   // highlighter under the picked trail: bright on every trail colour and map style
   // Scroll the side panel, not the page, to show el. (scrollIntoView scrolled the whole page on desktop too, pushing
@@ -2639,6 +2657,59 @@ out body;`;
     if (/^(trail_visibility|incline)=/.test(first)) return "trail details mapped";
     return first.replace(/\s*\([a-z_:]+=[^)]*\)/g, "");
   }
+  // The new-trail lines on the map. When only the picked trail changed (opening or closing a trail's details, or the
+  // list updating with the Loam index), the lines are restyled in place instead of drawn again.
+  let drawn = { key: "", lines: new Map() };   // id -> { edge, line, glow }
+  function drawNewTrails(shown) {
+    const color = { mtb: css("--mtb"), looks: css("--looks"), other: css("--other"), ghost: css("--ghost") };
+    const byDiff = state.colorBy === "diff";
+    const look = shown.map((t) => {
+      const d = byDiff && t.cat !== "ghost" ? difficulty(t.tags) : null;
+      return { t, d, color: t.cat === "ghost" ? color.ghost : byDiff ? diffColor(d) : t.use ? css("--other") : color[t.cat],
+        dash: t.cat === "ghost" ? "1 10" : isUnoff(t) ? UNOFF_DASH : byDiff && isEst(t.tags) ? EST_DASH : t.cat === "looks" ? "10 6" : null };
+    });
+    const key = byDiff + "|" + look.map(({ t, color, dash }) => `${t.id}:${t.cat}:${color}:${dash}:${trailName(t)}:${(t.segments || t.geom).length}`).join("|");
+    const edged = (t) => byDiff && t.cat !== "ghost";
+    // By difficulty, new trails get a white edge so they stand out from the thin "All trails" lines.
+    // The picked trail gets a highlighter glow so it stands out from the faded rest.
+    const edgeStyle = (sel) => ({ weight: sel ? 12 : 9, opacity: sel || !state.selected ? 0.9 : 0.4 });
+    const lineStyle = ({ t, color, dash }, sel) => ({
+      color,
+      weight: edged(t) ? (sel ? 8 : 5) : sel ? 9 : t.cat === "other" ? 5 : 7,
+      opacity: edged(t) ? (sel ? 1 : state.selected ? 0.35 : 0.95) : sel ? 0.8 : state.selected ? 0.3 : 0.45,
+      dashArray: dash === "10 6" && sel ? null : dash,
+    });
+    const glowOf = (t) => L.polyline(t.segments || t.geom, { renderer: newRenderer, color: PICK_GLOW, weight: 24, opacity: 0.6, lineCap: "round", interactive: false });
+    if (key === drawn.key) {
+      look.forEach((lk) => {
+        const t = lk.t, sel = state.selected === t.id, e = drawn.lines.get(t.id);
+        if (e.glow && !sel) { trailLayer.removeLayer(e.glow); e.glow = null; }
+        if (sel && !e.glow) trailLayer.addLayer(e.glow = glowOf(t));
+        if (e.edge) e.edge.setStyle(edgeStyle(sel));
+        e.line.setStyle(lineStyle(lk, sel));
+        Object.assign(t, { _glow: e.glow, _edge: e.edge, _line: e.line });
+      });
+    } else {
+      trailLayer.clearLayers();
+      drawn = { key, lines: new Map() };
+      look.slice().reverse().forEach((lk) => {
+        const t = lk.t, sel = state.selected === t.id, shape = t.segments || t.geom;
+        t._glow = sel ? glowOf(t) : null;
+        if (t._glow) trailLayer.addLayer(t._glow);
+        t._edge = edged(t) ? L.polyline(shape, { renderer: newRenderer, color: "#fff", lineCap: "round", interactive: false, ...edgeStyle(sel) }) : null;
+        if (t._edge) trailLayer.addLayer(t._edge);
+        const id = t.id;
+        const line = L.polyline(shape, { renderer: newRenderer, lineCap: "round", ...lineStyle(lk, sel) })
+          .bindTooltip(esc(trailName(t)), { sticky: true, direction: "top", offset: [0, -8] });
+        line.on("click", (e) => { L.DomEvent.stopPropagation(e); select(id, false); });
+        t._line = line;
+        trailLayer.addLayer(line);
+        drawn.lines.set(id, { edge: t._edge, line, glow: t._glow });
+      });
+    }
+    const selT = shown.find((t) => t.id === state.selected);
+    if (selT) { if (selT._glow) selT._glow.bringToFront(); if (selT._edge) selT._edge.bringToFront(); selT._line.bringToFront(); }
+  }
   function render() {
     syncClear();
     if (state.prime) { renderPrime(); return; }
@@ -2658,35 +2729,7 @@ out body;`;
     state.shownIds = new Set(shown.map((t) => t.id));
     if (shown.length) loadLoam(shown);
 
-    trailLayer.clearLayers();
-    const color = { mtb: css("--mtb"), looks: css("--looks"), other: css("--other"), ghost: css("--ghost") };
-    const byDiff = state.colorBy === "diff";
-    shown.slice().reverse().forEach((t) => {
-      const sel = state.selected === t.id;
-      const shape = t.segments || t.geom;
-      const d = byDiff && t.cat !== "ghost" ? difficulty(t.tags) : null;
-      // By difficulty, new trails get a white edge so they stand out from the thin "All trails" lines.
-      // The picked trail gets a highlighter glow so it stands out from the faded rest.
-      t._glow = sel ? L.polyline(shape, { color: PICK_GLOW, weight: 24, opacity: 0.6, lineCap: "round", interactive: false }) : null;
-      if (t._glow) trailLayer.addLayer(t._glow);
-      if (byDiff && t.cat !== "ghost") trailLayer.addLayer(t._edge = L.polyline(shape, { color: "#fff", weight: sel ? 12 : 9, opacity: sel || !state.selected ? 0.9 : 0.4, lineCap: "round", interactive: false }));
-      const line = L.polyline(shape, {
-        color: t.cat === "ghost" ? color.ghost : byDiff ? diffColor(d) : t.use ? css("--other") : color[t.cat],
-        weight: byDiff && t.cat !== "ghost" ? (sel ? 8 : 5) : sel ? 9 : t.cat === "other" ? 5 : 7,
-        opacity: byDiff && t.cat !== "ghost" ? (sel ? 1 : state.selected ? 0.35 : 0.95) : sel ? 0.8 : state.selected ? 0.3 : 0.45,
-        dashArray: t.cat === "ghost" ? "1 10" : isUnoff(t) ? UNOFF_DASH : byDiff && isEst(t.tags) ? EST_DASH : t.cat === "looks" && !sel ? "10 6" : null, lineCap: "round", interactive: false,
-      });
-      // A wide invisible line on top makes thin trails easy to click or tap.
-      const hit = L.polyline(shape, { weight: 18, opacity: 0, interactive: true })
-        .bindTooltip(esc(trailName(t)), { sticky: true, direction: "top", offset: [0, -8] });
-      hit.on("click", (e) => { L.DomEvent.stopPropagation(e); select(t.id, false); });
-      t._line = line;
-      trailLayer.addLayer(line);
-      trailLayer.addLayer(hit);
-    });
-    const selT = shown.find((t) => t.id === state.selected);
-    if (selT) { if (selT._glow) selT._glow.bringToFront(); if (selT._edge && byDiff) selT._edge.bringToFront(); selT._line.bringToFront(); }
-
+    drawNewTrails(shown);
     renderStatus();
 
     const list = $("list");
@@ -2755,7 +2798,7 @@ out body;`;
     state.shownIds = new Set();
     state.loamPending = typed.some((e) => loamOf(e) === undefined);
 
-    trailLayer.clearLayers();
+    trailLayer.clearLayers(); drawn.key = "";
     drawAllTrails();
     shown.forEach((e) => trailLayer.addLayer(L.circleMarker(dotOn(e.g), { radius: 7, color: "#fff", weight: 2, fillColor: state.colorBy === "diff" ? diffColor(difficulty(e.g.tags)) : css("--prime"), fillOpacity: 0.95 })
       .bindTooltip(esc(e.g.name), { direction: "top", offset: [0, -6] })
@@ -4203,14 +4246,17 @@ out body;`;
   if (window.tfOfficial) {
     const offLoad = () => window.tfOfficial.load(map.getBounds());
     map.on("moveend", offLoad); offLoad();
-    window.tfOfficial.onChange(() => {
-      for (const list of allData.values()) (list || []).forEach((w) => { w.c = classify(withOfficial(w.tags, w.geom), w.r || []) || w.c; });
-      allKey = ""; queueAllDraw();
+    // Only trails the new squares reach are checked again: checking every loaded trail froze the map for a moment on each pan.
+    window.tfOfficial.onChange((touches = () => true) => {
+      let all = 0, found = 0;
+      for (const list of allData.values()) (list || []).forEach((w) => { if (w.geom && touches(w.geom)) { w.c = classify(withOfficial(w.tags, w.geom), w.r || []) || w.c; all++; } });
+      if (all) { allKey = ""; queueAllDraw(); }
       (state.trails || []).forEach((t) => {
+        if (!t.geom || !touches(t.geom)) return;
         const c = classify(withOfficial(t.tags, t.geom), (t.routes || []).map((r) => r.name), t.routeTypes || []);
-        if (c) Object.assign(t, { unoff: c.unoff, official: c.official });
+        if (c) { Object.assign(t, { unoff: c.unoff, official: c.official }); found++; }
       });
-      if (state.trails && state.trails.length) render();
+      if (found) render();
     });
   }
   // Ratings for unrated trails (ratings.js): load the rated open-data squares in view; when ratings arrive (the region's
@@ -5115,11 +5161,12 @@ out tags center qt;`;
       g.items.push(i);
       if (hasMtb(i.tags)) g.tags = i.tags;
     }
+    const newIds = new Set(state.trails.map((t) => t.id));   // a Set: looking each one up in the list took seconds on phones
     groups.forEach((g) => {
       const lat = g.items.reduce((s, i) => s + i.c[0], 0) / g.items.length, lon = g.items.reduce((s, i) => s + i.c[1], 0) / g.items.length;
       g.center = L.latLng(lat, lon);
       g.zone = zoneOf(g.center);
-      g.isNew = g.type === "w" && g.items.some((i) => state.trails.some((t) => t.id === i.id));
+      g.isNew = g.type === "w" && g.items.some((i) => newIds.has(i.id));
       g.mtb = g.type === "r" ? g.tags.route === "mtb" : hasMtb(g.tags);
       g.use = g.type === "r" ? null : useOf(g.tags, []).use;   // a route's own kind (Hiking route...) already says it
       g.kind = kindOf(g.tags, g.type === "r");
@@ -5437,6 +5484,7 @@ out tags center qt;`;
   // ---- draw a square: list every MTB trail inside it, old or new (from the daily all-trails lists) ----
   map.createPane("boxTrails").style.zIndex = 395;
   const boxRenderer = L.canvas({ pane: "boxTrails", padding: 0.3 });
+  passThrough(boxRenderer, newRenderer);   // its canvas sits over the new-trail lines
   const boxLayer = L.layerGroup().addTo(map);
   const boxDraw = { on: false, start: null, rect: null, done: false };
   let boxToken = 0, boxGroups = [];
