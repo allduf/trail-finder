@@ -156,6 +156,7 @@
   // Trails a local rider rated (alex), matched by name within r metres of c. Remove one once OpenStreetMap has a rating.
   const HAND = [
     { name: "Alpine Capone", c: [49.845, -123.092], r: 3000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish" },
+    { name: "Just a Cough", c: [49.823, -123.118], r: 2000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish, like Flying Whales" },
   ];
   function hand(geom, tags) {
     const name = ((tags && (tags.name || tags["tf:name"])) || "").toLowerCase(), mid = geom && geom[geom.length >> 1];
