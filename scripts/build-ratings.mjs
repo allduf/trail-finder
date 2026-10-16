@@ -9,8 +9,10 @@
 //      ut  Utah trails and pathways (UGRC, CC BY 4.0): BikeDifficulty
 //      pa  Pennsylvania state park trails (public): Difficulty, on trails where mountain bikes are promoted or permitted
 //          (their rating is for every trail user, not only bikes; the site says so)
-//    BC and Alberta have no open data with an MTB difficulty (Recreation Sites and Trails BC only has a few
-//    descriptions in free text), so near alex this part finds nothing.
+//      wh  Resort Municipality of Whistler bike trails, "Multi-Use Trails" layer (OGL-RMOW): RATING Easy, Moderate,
+//          Difficult, Expert (green, blue, black, double black, as on the municipality's trail map)
+//    The province of BC and Alberta have no open data with an MTB difficulty (Recreation Sites and Trails BC only has a few
+//    descriptions in free text); towns can (Whistler). scripts/find-sources.mjs looks for more.
 // 2. For the unrated ways of the all-trails lists (data/mtb-<zone>.json), data/ratings/osm.json:
 //      same  another piece of the same named trail, joined to this one, is rated on OpenStreetMap
 //      est   an estimate from the slope (AWS Terrain Tiles, the elevation the 3D view already uses) and a few map tags.
@@ -215,6 +217,7 @@ const SOURCES = {
   ott: { name: "City of Ottawa", licence: "Open Government Licence – City of Ottawa", url: "https://open.ottawa.ca/" },
   ut: { name: "Utah Geospatial Resource Center", licence: "CC BY 4.0", url: "https://gis.utah.gov/products/sgid/recreation/trails-pathways" },
   pa: { name: "Pennsylvania DCNR state parks", licence: "Public", url: "https://gis.dcnr.pa.gov/" },
+  wh: { name: "Resort Municipality of Whistler", licence: "Open Government Licence – Resort Municipality of Whistler", url: "https://portal-rmow.opendata.arcgis.com/" },
 };
 async function arcgis(layer, fields, where = "1=1") {
   const out = [];
@@ -284,6 +287,10 @@ async function buildLines() {
       const fs = await arcgis("https://gis.dcnr.pa.gov/agsprod/rest/services/Parks/StateParksTrailsSimplifiedPortal/MapServer/0",
         "OBJECTID,Name,Park_ForestName,MtnBike,Difficulty", "MtnBike IN ('Promoted','Permitted')");
       for (const { a, paths } of fs) paths.forEach((p) => add(levelOfWords(a.Difficulty), "pa", a.Name, a.Difficulty, lonlat(p)));
+    },
+    async wh() {
+      const fs = await arcgis("https://webmap.whistler.ca/server/rest/services/OpenData/opParksRecreation/MapServer/13", "OBJECTID,ASSETNAME,RATING");
+      for (const { a, paths } of fs) paths.forEach((p) => add(levelOfWords(a.RATING), "wh", a.ASSETNAME, a.RATING, lonlat(p)));
     },
   };
   const failed = [];

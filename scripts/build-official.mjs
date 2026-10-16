@@ -19,6 +19,8 @@
 //   ab  Alberta designated and provincial trails (OGL-Alberta) -> 2 (no uses in the data)
 //   pc  Parks Canada trails (OGL-Canada): Official_Officiel = 1 -> 2, or 1 when the comment says Bike
 //   ott City of Ottawa mountain bike trails (OGL-Ottawa) -> 1
+//   wh  Resort Municipality of Whistler bike trails, its "Multi-Use Trails" layer (OGL-RMOW) -> 1
+//       (Emerald, Lost Lake, Cheakamus, Westside...: the municipality's own MTB inventory, so they also count as MTB trails)
 import { mkdirSync, writeFileSync, readdirSync, unlinkSync } from "node:fs";
 
 const OUT = "data/official";
@@ -31,6 +33,7 @@ const SOURCES = {
   ab: { name: "Alberta designated trails", licence: "Open Government Licence – Alberta", url: "https://open.alberta.ca/opendata/gda-97415cb9-1a6f-4886-9212-d91097c9a23e" },
   pc: { name: "Parks Canada", licence: "Open Government Licence – Canada", url: "https://open.canada.ca/data/en/dataset/64a90e8d-5bc0-4027-8645-b5881b4068d4" },
   ott: { name: "City of Ottawa", licence: "Open Government Licence – City of Ottawa", url: "https://open.ottawa.ca/" },
+  wh: { name: "Resort Municipality of Whistler", licence: "Open Government Licence – Resort Municipality of Whistler", url: "https://portal-rmow.opendata.arcgis.com/" },
 };
 
 async function get(url, tries = 3) {
@@ -171,6 +174,10 @@ const jobs = {
   async ott() {
     const fs = await arcgis("https://maps.ottawa.ca/arcgis/rest/services/CyclingMap/MapServer/17", "OBJECTID,TRAILNAME_EN,DATA_SOURCE");
     for (const { a, paths } of fs) paths.forEach((p) => add(1, "ott", a.TRAILNAME_EN, a.DATA_SOURCE || "", lonlat(p)));
+  },
+  async wh() {
+    const fs = await arcgis("https://webmap.whistler.ca/server/rest/services/OpenData/opParksRecreation/MapServer/13", "OBJECTID,ASSETNAME");
+    for (const { a, paths } of fs) paths.forEach((p) => add(1, "wh", a.ASSETNAME, "", lonlat(p)));
   },
 };
 

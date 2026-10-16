@@ -102,7 +102,7 @@
       // Bikes allowed beats official beats not for bikes, when two sources overlap.
       if (ok && (!pick || [0, 3, 1, 2][t.l.s] < [0, 3, 1, 2][pick.s] || t.l.s === pick.s && t.near > pick.near)) pick = { s: t.l.s, l: t.l, near: t.near };
     });
-    return pick ? { s: pick.s, why: why(pick.l) } : null;
+    return pick ? { s: pick.s, src: pick.l.src, why: why(pick.l) } : null;
   }
 
   function why(l) {
@@ -113,7 +113,7 @@
     if (l.s === 2) return `official trail${!name ? "" : l.src === "bc" ? " in " + name : " " + name}, listed by ${src}${l.src === "on" && l.note ? ` for ${l.note} (bikes aren't on its list)` : l.src === "ab" ? "" : "; it doesn't say whether bikes are allowed"}`;
     return `${src} lists this trail${name ? " (" + name + ")" : ""} for ${l.note || "other uses"}, not for bikes.`;
   }
-  const NAMES = { on: "Ontario Trails", qc: "Sépaq", bc: "Recreation Sites and Trails BC", ab: "Alberta designated trails", pc: "Parks Canada", ott: "the City of Ottawa" };
+  const NAMES = { on: "Ontario Trails", qc: "Sépaq", bc: "Recreation Sites and Trails BC", ab: "Alberta designated trails", pc: "Parks Canada", ott: "the City of Ottawa", wh: "the Resort Municipality of Whistler" };
 
   window.tfOfficial = { load, match, onChange: (fn) => listeners.push(fn) };
 })();

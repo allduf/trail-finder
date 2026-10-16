@@ -1,46 +1,23 @@
-import { readFileSync } from "node:fs";
 const UA = { "User-Agent": "trail-finder (github.com/allduf/trail-finder)" };
-const get = async (u) => { try { const r = await fetch(u, { headers: UA, signal: AbortSignal.timeout(45000) }); const t = await r.text(); try { return JSON.parse(t); } catch { return { _text: t.slice(0, 300), _status: r.status }; } } catch (e) { return { _err: e.message }; } };
-const html = readFileSync("index.html", "utf8");
-const ZONES = [...html.matchAll(/\{ id: "(\w+)", name: "([^"]+)", box: \[([^\]]+)\] \}/g)].map((m) => ({ id: m[1], name: m[2], box: m[3].split(",").map(Number) }));
-const seen = new Set();
-const DIFF = /diff|rating|rate|level|class/i;
-async function inspect(url, zone) {
-  if (seen.has(url)) return; seen.add(url);
-  const s = await get(`${url}?f=json`);
-  const layers = (s.layers || []).filter((l) => !l.subLayerIds);
-  for (const l of layers.length ? layers : [{ id: null }]) {
-    const lu = l.id === null ? url : `${url}/${l.id}`;
-    const lj = await get(`${lu}?f=json`);
-    if (lj.geometryType !== "esriGeometryPolyline") continue;
-    const fields = (lj.fields || []).map((f) => f.name);
-    const df = fields.filter((n) => DIFF.test(n) && !/shape|globalid/i.test(n));
-    const cnt = await get(`${lu}/query?where=1%3D1&returnCountOnly=true&f=json`);
-    let line = `  [${zone}] ${lu} "${lj.name}" n=${cnt.count} fields=${fields.join(",").slice(0, 300)}`;
-    for (const fn of df.slice(0, 3)) {
-      const st = await get(`${lu}/query?where=1%3D1&groupByFieldsForStatistics=${fn}&outStatistics=${encodeURIComponent(JSON.stringify([{ statisticType: "count", onStatisticField: fields.includes("OBJECTID") ? "OBJECTID" : fields[0], outStatisticFieldName: "n" }]))}&f=json`);
-      line += `\n      ${fn}: ` + ((st.features || []).map((f) => `${f.attributes[fn]}=${f.attributes.n}`).join(" | ").slice(0, 400) || JSON.stringify(st).slice(0, 150));
-    }
-    console.log(line);
-  }
+const get = async (u) => { try { const r = await fetch(u, { headers: UA, signal: AbortSignal.timeout(60000) }); return await r.json(); } catch (e) { return { _err: e.message }; } };
+const C = "https://services5.arcgis.com/wjH30HL7rqC55zVw/arcgis/rest/services/Trails/FeatureServer/0";
+const lj = await get(`${C}?f=json`);
+console.log("FIELDS", (lj.fields || []).map((f) => `${f.name}(${f.alias})${f.domain ? "{" + (f.domain.codedValues || []).map((c) => c.code + "=" + c.name).join(",") + "}" : ""}`).join("; "));
+console.log("DESC", (lj.description || "").slice(0, 600), "COPY", lj.copyrightText);
+const st = async (fn, where = "1=1") => { const j = await get(`${C}/query?where=${encodeURIComponent(where)}&groupByFieldsForStatistics=${fn}&outStatistics=${encodeURIComponent(JSON.stringify([{ statisticType: "count", onStatisticField: "OBJECTID", outStatisticFieldName: "n" }]))}&f=json`); return (j.features || []).map((f) => `${f.attributes[fn]}=${f.attributes.n}`).join(" | ") || JSON.stringify(j).slice(0, 200); };
+for (const fn of (lj.fields || []).map((f) => f.name).filter((n) => !/OBJECTID|GlobalID|Shape|Trail_Name|Description|Distance|Elev_|_ID$|Date|date/i.test(n))) console.log("STAT", fn, ":", (await st(fn)).slice(0, 700));
+console.log("SYSTEMS", (await st("System_Name")).slice(0, 4000));
+for (const nm of ["Schacher", "B12", "Summit", "Saints", "Dead Dog", "Kobe", "Magic Dragon", "Quinton", "GnR", "Skid Marks", "Cliff Side", "True Value", "5K", "6K"]) {
+  const j = await get(`${C}/query?where=${encodeURIComponent(`Trail_Name LIKE '%${nm}%'`)}&outFields=*&returnGeometry=false&outSR=4326&f=json&resultRecordCount=5`);
+  for (const f of j.features || []) { const a = { ...f.attributes }; delete a.Description; console.log("ROW", nm, JSON.stringify(a).slice(0, 700)); }
+  if (!(j.features || []).length) console.log("ROW", nm, "none", JSON.stringify(j).slice(0, 150));
 }
-for (const z of ZONES) {
-  const [s, w, n, e] = z.box;
-  const town = z.name.split(/[&(,]/)[0].trim();
-  const qs = [`trail`, `trails`, `bike`, `mountain bike`, `${town}`];
-  const hits = new Map();
-  for (const q of qs) {
-    const j = await get(`https://www.arcgis.com/sharing/rest/search?q=${encodeURIComponent(q + ' (type:"Feature Service" OR type:"Map Service")')}&bbox=${w},${s},${e},${n}&f=json&num=100`);
-    for (const r of j.results || []) {
-      const ext = r.extent && r.extent.length === 2 ? (r.extent[1][0] - r.extent[0][0]) : 99;
-      if (ext > 6 || !r.url) continue;
-      if (!/trail|bike|mtb|path|recreat|park|bike/i.test(r.title + " " + (r.tags || []).join(" ") + " " + (r.snippet || ""))) continue;
-      hits.set(r.url, r);
-    }
-  }
-  console.log(`\n=== ${z.id} ${z.name}: ${hits.size} local trail services`);
-  for (const r of hits.values()) {
-    console.log(` * ${r.title} | owner=${r.owner} | access=${r.access} | ${r.url} | lic=${(r.licenseInfo || "").replace(/<[^>]+>/g, "").slice(0, 100)}`);
-  }
-  for (const r of [...hits.values()].slice(0, 12)) await inspect(r.url.replace(/\/$/, ""), z.id);
+const ext = await get(`${C}/query?where=1%3D1&returnExtentOnly=true&outSR=4326&f=json`); console.log("EXTENT", JSON.stringify(ext));
+const sys = "https://services5.arcgis.com/wjH30HL7rqC55zVw/arcgis/rest/services/Trail_Systems/FeatureServer/0";
+const sj = await get(`${sys}/query?where=1%3D1&outFields=*&returnGeometry=false&f=json`);
+for (const f of (sj.features || []).slice(0, 80)) { const a = { ...f.attributes }; for (const k in a) if (typeof a[k] === "string" && a[k].length > 120) a[k] = a[k].slice(0, 120); console.log("SYS", JSON.stringify(a).slice(0, 500)); }
+for (const L of ["https://www.rdcogis.com/arcgis/rest/services/DataDownload/RDCO_Parks_Data_Download/FeatureServer/15", "https://www.rdcogis.com/arcgis/rest/services/DataDownload/RDCO_Parks_Data_Download/FeatureServer/14"]) {
+  const j = await get(`${L}?f=json`); console.log("RDCO", j.name, (j.fields || []).map((f) => f.name).join(","));
+  const q = await get(`${L}/query?where=1%3D1&outFields=*&returnGeometry=false&resultRecordCount=6&f=json`);
+  for (const f of q.features || []) console.log("  ", JSON.stringify(f.attributes).slice(0, 400));
 }

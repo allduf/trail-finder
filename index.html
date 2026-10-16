@@ -1876,8 +1876,12 @@ body.sport-ski #rideMapBtn { display: none !important; }
     const m = window.tfOfficial && geom && geom.length > 1 ? window.tfOfficial.match(geom) : null;
     if (!m || m.s === 1 && tags["tf:official"]) return tags;
     if (m.s === 3 && /^(yes|designated|permissive)$/.test(tags.bicycle || "")) return tags;   // mappers saw bikes allowed: no warning
-    return { ...tags, [m.s === 1 ? "tf:official" : m.s === 2 ? "tf:off2" : "tf:offno"]: m.why };
+    const t = { ...tags, [m.s === 1 ? "tf:official" : m.s === 2 ? "tf:off2" : "tf:offno"]: m.why };
+    if (m.s === 1 && MTB_LISTS[m.src]) t["tf:offmtb"] = MTB_LISTS[m.src];
+    return t;
   }
+  // Sources whose lines are a town's own list of mountain bike trails: a path on one is an MTB trail, not Looks like MTB.
+  const MTB_LISTS = { wh: "Resort Municipality of Whistler", ott: "City of Ottawa" };
   // Forest and logging roads are never MTB trails, even with a bike rating or in an MTB route (alex): they're on the Forest roads layer.
   const ROAD_NAME = /\b(forest service road|f\.?s\.?r\.?|service road|logging road|main ?line|road|rd)\b/i;
   function isRoad(tags) {
@@ -1926,6 +1930,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
     // Also from the all-trails job: a path along a Recreation Sites and Trails BC trail in the Gold Bridge & South Chilcotin
     // backcountry, or along one of their bike trails around Revelstoke.
     if (tags["tf:rec"] && !motor) return { cat: "mtb", why: [`on the ${tags["tf:rec"]} (Recreation Sites and Trails BC)`].concat(why) };
+    // A trail on a town's own mountain bike trail list (official.js), like Trial and Error at Emerald in Whistler's.
+    if (tags["tf:offmtb"] && !motor) return { cat: "mtb", why: [`on the ${tags["tf:offmtb"]}'s list of bike trails`].concat(why) };
     // And a path among two or more named MTB trails, in every zone (the same rule as netCheck(), done ahead for the whole region,
     // so the networks' untagged trails, like Azrael at Emerald or Berminator on Mount 7, show in All trails too).
     if (tags["tf:net"] && !motor) return { cat: "looks", why: [`in an MTB trail network (near ${tags["tf:net"].split("|").map((n) => `“${n}”`).join(" and ")})`].concat(why) };
