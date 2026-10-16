@@ -1143,6 +1143,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
         </div>
       </div>
       <button id="locate" type="button" aria-label="My location">◎ My location</button>
+      <button id="navRideBtn" type="button" title="Ride with the map: it follows you, shows the trail you're on and the next junction, and records the ride">▶ Ride</button>
       <button id="fullBtn" type="button" aria-pressed="false" title="Hide the search panel so the map fills the screen">⤢ Full map</button>
       <button id="btn3d" type="button" aria-pressed="false" title="Show the mountains in 3D">⛰ 3D</button>
       <button id="satBtn" type="button" aria-pressed="false" title="Aerial and satellite photos, as sharp as they come for each area">🛰 Satellite</button>
@@ -1244,13 +1245,14 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <button type="button" data-nav="new" class="mtb-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span>New trails</span></button>
     <button type="button" data-nav="name" class="mtb-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Search</span></button>
     <button type="button" data-nav="ski" class="ski-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 20 21 8 M6 21l2-6 M12 4a2 2 0 1 0 0 .1 M9 12l4-3 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Routes</span></button>
-    <a href="ride.html" data-nav="ride"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#ff4d5e"/></svg><span>Record</span></a>
+    <button type="button" data-nav="ride" title="Ride with the map: it follows you, shows the trail you're on and the next junction, and records the ride"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 8v8l6-4z" fill="#ff4d5e"/></svg><span>Ride</span></button>
     <button type="button" data-nav="more" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg><span>More</span></button>
   </nav>
   <div class="tab-menu" id="tabMenu" role="menu" hidden>
     <button type="button" role="menuitem" data-act="about">How it works</button>
     <button type="button" role="menuitem" data-act="account">Sign in</button>
     <button type="button" role="menuitem" data-act="full">⤢ Full map</button>
+    <button type="button" role="menuitem" data-act="rides">My rides</button>
   </div>
 </div>
 
@@ -1263,6 +1265,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
       <li><strong>Loam alerts:</strong> the 🔔 at the top tells you when a trail on your To ride list, or a new trail from the last month in the regions you picked, is in prime loam. Each one alerts once every time it turns damp. Each kind has its own switch in the 🔔 under Change regions.</li>
       <li><strong>Tap any trail</strong> on the map for its difficulty, weather, loam, how to get there and rider reports.</li>
       <li><strong>Layers</strong> (top right of the map) turns on forest roads, wildfires, logging areas, elevation lines, your rides, the map style and offline maps. The ⛰ 3D button sits right under it.</li>
+      <li><strong>▶ Ride</strong> (the Ride tab on phones) is for riding with the map: it follows you, points the arrow the way you're facing, keeps the screen on and records the ride. The strip at the bottom names the trail you're on, how much of it is left and which trails branch off at the next junction. Stop, then Save ride, to give it a title and photos in My rides. Keep the page open: phones stop web pages when the screen is locked.</li>
       <li><strong>Old vs new photos</strong> (in Layers) puts an older satellite photo on the left and a newer one on the right. Drag the ⇆ handle across the map: a trail that appears as you pass over it was cut between the two photos.</li>
       <li><strong>Bike parks</strong> (in Layers) pins the bike parks, MTB centres, skills and jump parks, and pump and BMX tracks across Canada. Orange pins are lift-served bike parks. Tap one for its website, hours, price and directions.</li>
       <li><strong>Colours</strong> are like Trailforks: green, blue, black, double black (red) and pro line (orange). Grey isn't rated yet. Dotted lines may be unofficial.</li>
@@ -3989,6 +3992,7 @@ out body;`;
       panelEl.scrollTop = 0;
       growTo("half"); syncTabbar();
     } else if (nav === "ski") { panelEl.scrollTop = 0; growTo("half"); }
+    else if (nav === "ride") { if (window.tfRide) window.tfRide.start(); }
     else if (nav === "more") {
       const acct = document.querySelector(".brand [data-account-slot] button");
       tabMenu.querySelector('[data-act="account"]').hidden = !acct;
@@ -4002,6 +4006,7 @@ out body;`;
     if (b.dataset.act === "about") $("aboutBtn").click();
     else if (b.dataset.act === "account") document.querySelector(".brand [data-account-slot] button")?.click();
     else if (b.dataset.act === "full") $("fullBtn").click();
+    else if (b.dataset.act === "rides") location.href = "ride.html#rides";
   });
   document.addEventListener("click", (e) => { if (!tabMenu.hidden && !e.target.closest("#tabMenu, [data-nav=more]")) showMenu(false); });
   ["tabNew", "tabName"].forEach((id) => $(id).addEventListener("click", () => setTimeout(syncTabbar)));
@@ -5671,6 +5676,10 @@ out tags center qt;`;
   });
 
   window.tfMtbLayers = [trailLayer, foundLayer, nearLayer, allLayer, boxLayer, pickLayer];   // hidden in Skiing (winter.js)
+  // For Ride mode (navigate.js): the loaded trails, with what it needs to name and colour them.
+  window.tfNav = { map, youLayer, DIFF, difficulty, diffColor,
+    ways: () => [...allData.values()].filter(Boolean).flat(),
+    load: () => { const v = map.getBounds(); ZONES.filter((z) => z.bounds.intersects(v)).forEach(loadZoneTrails); caIndexLoad().then(() => caZonesIn([v]).forEach(loadZoneTrails)); } };
   window.tfTrails = () => ({ shown: state.merged ? [...state.merged.values()] : [], all: [...allData.values()].filter(Boolean), selected: state.selected });   // for My rides (rides.js)
   render();
   if (state.zone === "home") caIndexLoad().then(() => searchZones(true, true)); else searchZones(true, true);
@@ -5683,6 +5692,7 @@ out tags center qt;`;
 <script src="winter.js"></script>
 <script src="ski-points.js"></script>
 <script src="offline.js"></script>
+<script src="navigate.js"></script>
 <script src="rides.js"></script>
 <script src="account.js"></script>
 <script src="reports.js"></script>

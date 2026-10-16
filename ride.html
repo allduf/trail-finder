@@ -845,7 +845,7 @@ ${pts}
         $("resumeText").textContent = rec.end
           ? `You stopped a ride (${fmtTime(rec.start)}, ${km(st.dist)} km) but didn't save it yet.`
           : `You were recording a ride (started ${fmtTime(rec.start)}, ${km(st.dist)} km so far) when the page closed.`;
-        $("resumeBox").hidden = false;
+        $("resumeBox").hidden = location.hash === "#save" && !!rec.end;   // a ride stopped in Ride mode (navigate.js): straight to saving it
         $("resumeGo").textContent = "Keep recording";
         renderLive();
       }
