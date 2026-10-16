@@ -32,7 +32,7 @@ const started = Date.now(), outOfTime = () => Date.now() - started > MINUTES * 6
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
 
-const RULES = 2;                      // files built with older rules are rebuilt, however fresh
+const RULES = 3;                      // files built with older rules are rebuilt, however fresh
 const LONG_ROUTE = 150;               // MTB route relations with more ways than this are long-distance routes
 const AREA_M = 3000, SPARSE = 20;
 const AREAS = (readJsonAt(new URL("data/riding-areas.json", root)) || { areas: [] }).areas;
@@ -61,6 +61,8 @@ const REC_M = 60, REC_SHARE = 0.6;
 const WFS = "https://openmaps.gov.bc.ca/geo/pub/wfs";
 const WINTER = /\b(winter|snowmobile|sled|ski|snowshoe|nordic)\b/i;
 
+// Every mtb* key counts (ownMtb), but a key-prefix regex is very slow on Overpass, so the keys mappers use on their own
+// are listed. Alpine Capone and Grim Ripper on Brohm Ridge (Squamish) have only mtb:scale:uphill.
 function mtbQuery([s, w, n, e], areas = [], rec = false) {
   const bb = [s, w, n, e].map((x) => x.toFixed(5)).join(",");
   const named = areas.map((a) => `  way["highway"~"^(path|bridleway)$"]["name"](around:${radius(a)},${a.c[0]},${a.c[1]});\n`).join("");
@@ -70,6 +72,9 @@ function mtbQuery([s, w, n, e], areas = [], rec = false) {
   way["highway"]["mtb:scale:imba"](${bb});
   way["highway"]["mtb"](${bb});
   way["highway"]["mtb:type"](${bb});
+  way["highway"]["mtb:scale:uphill"](${bb});
+  way["highway"]["mtb:name"](${bb});
+  way["highway"]["mtb:description"](${bb});
   way["highway"="path"]["bicycle"="customers"](${bb});
 ${named}${rec ? `  way["highway"~"^(path|bridleway)$"](${bb});\n  way["highway"="footway"]["bicycle"~"^(yes|designated|permissive)$"](${bb});\n` : ""})->.w;
 relation["route"="mtb"](${bb})->.r;
