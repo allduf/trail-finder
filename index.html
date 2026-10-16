@@ -866,7 +866,10 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .trail .meta { font-size: .85rem; color: var(--muted); }
 .trail .right { text-align: right; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .grade { display: inline-block; font-family: var(--font-display); font-weight: 700; font-size: .8rem; padding: 0 6px; border-radius: 4px; background: var(--fg); color: var(--panel); letter-spacing: .04em; }
-.trail-focus .leaflet-allTrails-pane, .trail-focus .leaflet-boxTrails-pane { opacity: .25; transition: opacity .2s; }
+.trail-focus .leaflet-allTrails-pane, .trail-focus .leaflet-boxTrails-pane, .trail-focus .leaflet-trailNames-pane { opacity: .25; transition: opacity .2s; }
+.trail-name { background: none; border: 0; }
+.trail-name span { display: block; transform: translate(-50%, -130%); white-space: nowrap; font-family: var(--font-body); font-size: 11.5px; font-weight: 700; letter-spacing: .01em;
+  text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff; }
 .trail-focus .leaflet-roads-pane { opacity: .4; transition: opacity .2s; }
 .panel.detail-open .status, .panel.detail-open .debug, .panel.detail-open .list { display: none; }
 /* tall enough that the details can always scroll up to the top of the panel, even while they are still loading */
@@ -3955,6 +3958,7 @@ out body;`;
   const allLayer = L.layerGroup().addTo(map);
   const allData = new Map();                       // zone id -> list of { id, tags, geom, c }, null while loading
   let allKey = "";
+  let allShown = [];                               // what drawAllTrails drew: { w, color }, for the names
   const allLoads = new Map();                      // zone id -> promise of its list
   // With All trails off, zooming in still shows every trail that isn't flagged unofficial (alex: "I want to see all the
   // official trails when I zoom in"; outside BC few trails carry the operator tags that make them "official" here).
@@ -4015,7 +4019,7 @@ out body;`;
   // Zones arriving close together (up to 10 at the start) are drawn once, not once per zone.
   let allDrawTimer = 0;
   function queueAllDraw() {
-    if (!allDrawTimer) allDrawTimer = setTimeout(() => { allDrawTimer = 0; drawAllTrails(); }, 60);
+    if (!allDrawTimer) allDrawTimer = setTimeout(() => { allDrawTimer = 0; drawAllTrails(); drawTrailNames(); }, 60);
   }
   function drawAllTrails() {
     const loaded = [...allData.values()].filter(Boolean);
@@ -4023,6 +4027,7 @@ out body;`;
     if (key === allKey) return;
     allKey = key;
     allLayer.clearLayers();
+    allShown = [];
     if (!state.allTrails && !officialOnly()) return;
     const seen = new Set(), byDiff = state.colorBy === "diff";
     loaded.forEach((list) => list.forEach((w) => {
@@ -4032,9 +4037,41 @@ out body;`;
       if (seen.has(w.id) || !(state.allTrails ? off && !state.onlyUnoff || wanted(w.c.cat, unoff, off) : !unoff && !state.onlyUnoff)) return;
       seen.add(w.id);
       const d = difficulty(w.tags);
+      allShown.push({ w, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks") });
       allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks"), weight: off ? 4.5 : unoff ? 3.5 : 2.5, opacity: off ? 1 : 0.75, dashArray: unoff ? UNOFF_DASH : byDiff && isEst(w.tags) ? EST_DASH : null, lineCap: "round", interactive: false }));
     }));
   }
+  // Trail names on the All trails lines from zoom 13 (alex: "put the name of the trail on the map like all the other
+  // trails"): one label per name in view, on the piece with the most of it in view, in the trail's colour; labels that
+  // would overlap are left out.
+  map.createPane("trailNames").style.zIndex = 395;
+  map.getPane("trailNames").style.pointerEvents = "none";
+  const nameLayer = L.layerGroup().addTo(map);
+  const NAME_ZOOM = 13, MAX_NAMES = 80;
+  function drawTrailNames() {
+    nameLayer.clearLayers();
+    if (map.getZoom() < NAME_ZOOM || !allShown.length) return;
+    const view = map.getBounds().pad(-0.08), best = new Map();   // not right at the edges
+    allShown.forEach(({ w, color }) => {
+      const name = (w.tags.name || w.tags["mtb:name"] || "").trim();
+      if (!name) return;
+      const inView = w.geom.filter((p) => view.contains(p));
+      if (!inView.length) return;
+      const b = best.get(name);
+      if (!b || inView.length > b.pts.length) best.set(name, { name, color, pts: inView });
+    });
+    const placed = [];
+    [...best.values()].sort((a, b) => b.pts.length - a.pts.length).slice(0, MAX_NAMES * 2).forEach((b) => {
+      if (placed.length >= MAX_NAMES) return;
+      const at = b.pts[b.pts.length >> 1], xy = map.latLngToContainerPoint(at);
+      const half = Math.min(110, b.name.length * 3.4 + 6);
+      if (placed.some((q) => Math.abs(q.x - xy.x) < half + q.half && Math.abs(q.y - xy.y) < 16)) return;
+      placed.push({ x: xy.x, y: xy.y, half });
+      nameLayer.addLayer(L.marker(at, { pane: "trailNames", interactive: false, keyboard: false,
+        icon: L.divIcon({ className: "trail-name", iconSize: null, html: `<span style="color: ${b.color}">${esc(b.name)}</span>` }) }));
+    });
+  }
+  map.on("zoomend", drawTrailNames);
   function syncAllBtn() {
     const b = $("allBtn");
     b.setAttribute("aria-pressed", String(state.allTrails));
