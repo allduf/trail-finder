@@ -1275,7 +1275,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <p>One catch: when a mapper splits an old trail into two pieces, the new piece gets a new id and shows up as new. Check the history link in the popup when something looks off.</p>
     <h3>MTB tagged</h3>
     <p>Any tag starting with <code>mtb</code> (<code>mtb:scale</code>, <code>mtb:scale:imba</code>, <code>mtb:type</code>, <code>mtb=yes</code>, …) or membership in a <code>route=mtb</code> relation. <code>mtb=no</code> is excluded.</p>
-    <p>Riding areas where mappers seldom tag bike trails (Fernie, Three Blind Mice, the South Chilcotin…): their named paths count as MTB trails too, from the daily all-trails lists. Paths that are wide, open to motor vehicles or closed to bikes are still left out. Around Gold Bridge and the South Chilcotin, every path that follows a Recreation Sites and Trails BC trail counts as well, named or not: it takes the trail's name when the map has none, and its details show what Recreation Sites and Trails BC says about it. Trails inside a provincial park say so, with BC Parks' rules for bikes there (no e-bikes in South Chilcotin Mountains Park). The Recreation Sites and Trails BC trails and the park boundaries come from DataBC (Open Government Licence - British Columbia).</p>
+    <p>Riding areas where mappers seldom tag bike trails (Fernie, Three Blind Mice, the South Chilcotin…): their named paths count as MTB trails too, from the daily all-trails lists. Paths that are wide, open to motor vehicles or closed to bikes are still left out. Around Gold Bridge and the South Chilcotin, every path that follows a Recreation Sites and Trails BC trail counts as well, named or not: it takes the trail's name when the map has none, and its details show what Recreation Sites and Trails BC says about it. Around Revelstoke, so do the paths along their bike trails (the ones listed for mountain biking, like the Revelstoke Cycling Association's Mount Macpherson and Boulder Mountain trails, Frisby Ridge and Mount Cartier), but not the Nordic ski, snowmobile, dirt bike or hiking trails. A trail they list as closed says so. Trails inside a provincial park say so, with BC Parks' rules for bikes there (no e-bikes in South Chilcotin Mountains Park). The Recreation Sites and Trails BC trails and the park boundaries come from DataBC (Open Government Licence - British Columbia).</p>
     <h3>Looks like MTB</h3>
     <p>A <code>path</code> or <code>bridleway</code> with no MTB tags that scores 2 points or more:</p>
     <ul>
@@ -1299,7 +1299,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <h3>Draw a square</h3>
     <p>Tap “▭ Draw a square to find trails” (under the search), then drag over the map: every MTB trail inside the square shows up on the map and in a list, old or new, from the same daily list as “All trails” (unofficial ones included, with dots). Tap a name to see the trail's details. “Clear square” removes it.</p>
     <h3>Official trails</h3>
-    <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. The named trails of the South Chilcotin (South Chilcotin Mountains Park and the Spruce Lake area), the paths around Gold Bridge that follow a Recreation Sites and Trails BC trail, and every MTB trail in Williams Lake count as official too. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
+    <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. The named trails of the South Chilcotin (South Chilcotin Mountains Park and the Spruce Lake area), the paths around Gold Bridge that follow a Recreation Sites and Trails BC trail, the paths around Revelstoke that follow one of their bike trails, and every MTB trail in Williams Lake count as official too. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
 <h3>Moto and hiking-only trails</h3>
     <p>To keep the list about mountain biking, trails that look like dirt-bike, ATV or 4x4 trails, and trails where bikes aren't allowed, are left out of the list. Moto means tags like <code>dirtbike:scale</code>, <code>motorcycle=designated</code>, <code>atv=yes</code>, <code>4wd_only=yes</code>, an ATV route, or a name like “ATV trail”. Hiking only means <code>bicycle=no</code>, <code>mtb=no</code>, stairs, hard hiking terrain (<code>sac_scale</code> T4 and up), or a signed hiking route with no bike access. A trail with any MTB tag, in an MTB route, or with <code>bicycle=designated</code> is never hidden, even if motorbikes are allowed on it too.</p>
     <h3>Unofficial (possibly unsanctioned) trails</h3>
@@ -1353,7 +1353,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     { id: "gfk", name: "Grand Forks & Christina Lake", box: [49.00, -118.55, 49.20, -118.15] },
     { id: "ros", name: "Rossland, Trail & Castlegar", box: [49.02, -117.90, 49.38, -117.55] },
     { id: "nel", name: "Nelson", box: [49.40, -117.45, 49.62, -117.15] },
-    { id: "rev", name: "Revelstoke", box: [50.90, -118.32, 51.10, -118.08] },
+    { id: "rev", name: "Revelstoke", box: [50.90, -118.32, 51.20, -118.08] },
     { id: "gol", name: "Golden", box: [51.18, -117.12, 51.42, -116.82] },
     { id: "inv", name: "Invermere & Radium", box: [50.40, -116.30, 50.65, -115.95] },
     { id: "cbk", name: "Cranbrook & Kimberley", box: [49.45, -116.05, 49.75, -115.65] },
@@ -1735,6 +1735,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     if (/^(no|private)$/.test(tags.bicycle || "")) out.push(`Bikes are not allowed (bicycle=${tags.bicycle}).`);
     if (tags.mtb === "no") out.push("Marked as not for mountain bikes (mtb=no).");
     if (tags["tf:offno"]) out.push(tags["tf:offno"]);   // an official trail for other uses (official.js)
+    if (tags["tf:rec-closed"]) out.push(`Closed, says Recreation Sites and Trails BC: “${tags["tf:rec-closed"]}”`);   // from the all-trails job
     [["note", "The mapper's note"], ["description", "The description"], ["fixme", "A fixme note"]].forEach(([k, label]) => {
       if (tags[k] && CLOSED_NOTE.test(tags[k])) out.push(`${label} says: “${tags[k]}”`);
     });
@@ -1745,7 +1746,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
   // Signs that a trail is official (sanctioned), from what mappers tagged. Returns the reason, or null.
   function officialWhy(tags) {
     if (unofficial(tags).length) return null;
-    if (tags["tf:official"]) return tags["tf:official"];   // from the all-trails job: riding-areas.json, Recreation Sites and Trails BC (South Chilcotin) or the whole zone (Williams Lake)
+    if (tags["tf:official"]) return tags["tf:official"];   // from the all-trails job: riding-areas.json, Recreation Sites and Trails BC (South Chilcotin, Revelstoke) or the whole zone (Williams Lake)
     if (tags["ref:FFID"] || /recreation line/i.test(tags.source || "")) return "listed by Recreation Sites and Trails BC";
     if (tags.bicycle === "customers") return tags.operator ? `bike park trail run by ${tags.operator}` : "bike park trail";
     if (tags.operator) return `run by ${tags.operator}`;
@@ -1845,7 +1846,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
       return { cat: "mtb", why };
     }
     // Tracks are vehicle-wide (forest roads, ATV, moto and 4x4 tracks), so only paths and bridleways can look like MTB.
-    if (!/^(path|bridleway)$/.test(hw)) return null;
+    // A footway can still be on a Recreation Sites and Trails BC bike trail when it's open to bikes (Frisby Ridge, Revelstoke).
+    if (!/^(path|bridleway)$/.test(hw) && !(hw === "footway" && tags["tf:rec"])) return null;
     if (PAVED.test(tags.surface || "")) return null;
     if (/alpine/.test(tags.sac_scale || "")) return null;
 
@@ -1868,8 +1870,9 @@ body.sport-ski #rideMapBtn { display: none !important; }
     // Added by the all-trails job (scripts/build-mtb.mjs): a named path in a riding area where mappers seldom tag bike
     // trails. alex: those are bike trails, so they count as MTB trails, not Looks like MTB.
     if (tags["tf:area"] && !motor) return { cat: "mtb", why: [`named trail in the ${tags["tf:area"]} riding area, where few trails have bike tags`].concat(why) };
-    // Also from the all-trails job: a path along a Recreation Sites and Trails BC trail in the Gold Bridge & South Chilcotin backcountry.
-    if (tags["tf:rec"] && !motor) return { cat: "mtb", why: [`on the ${tags["tf:rec"]} (Recreation Sites and Trails BC), in backcountry where few trails have bike tags`].concat(why) };
+    // Also from the all-trails job: a path along a Recreation Sites and Trails BC trail in the Gold Bridge & South Chilcotin
+    // backcountry, or along one of their bike trails around Revelstoke.
+    if (tags["tf:rec"] && !motor) return { cat: "mtb", why: [`on the ${tags["tf:rec"]} (Recreation Sites and Trails BC)`].concat(why) };
     if (score >= 2 && !motor) return { cat: "looks", why: why.concat(`score ${score}`) };
     if (hw === "path") return { cat: "other", net: !motor && netOk(tags), why: motor ? [`open to motor vehicles or wide (${motor})`] : why.length ? why.concat(`score ${score}`) : ["no bike-related tags yet"] };
     return null;
@@ -2495,7 +2498,7 @@ out body;`;
     loadNames(false, zs, null, true).then(() => { if (!state.prime) render(); });
   }
 
-  // What the all-trails job (scripts/build-mtb.mjs) adds about a trail in the Gold Bridge & South Chilcotin backcountry:
+  // What the all-trails job (scripts/build-mtb.mjs) adds about a trail in the Gold Bridge & South Chilcotin backcountry and Revelstoke:
   // the Recreation Sites and Trails BC trail it's on (and the name it gives a path the map hasn't named), and its park.
   const tfInfo = (tags) => ({
     tfName: (!tags.name && tags["tf:name"]) || null,
@@ -3210,7 +3213,7 @@ out body;`;
       ${t.use ? `<div class="unoff-box use-box"><strong>${t.use === "moto" ? "Looks like a moto trail" : "Looks like a hiking-only trail"}</strong><ul>${t.useWhy.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">${t.use === "moto" ? "Dirt-bike, ATV and 4x4 trails" : "Hiking-only trails"} are left out of the new-trails list. This is a guess from the map tags.</p></div>` : ""}
       ${isUnoff(t) ? `<div class="unoff-box"><strong>Possibly unsanctioned</strong><ul>${t.unoff.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
-        <p class="muted">This only shows what OpenStreetMap mappers tagged. It's a hint, not the trail's legal status. Check with the land manager or Trailforks before riding.</p></div>` : ""}
+        <p class="muted">This only shows what OpenStreetMap mappers tagged and what government trail lists say. It's a hint, not the trail's legal status. Check with the land manager or Trailforks before riding.</p></div>` : ""}
       ${tf.alpine ? `<div class="alpine-box"><strong>${window.tfAlpine ? window.tfAlpine.icon : ""} Alpine, looks rideable</strong>
         <p>${tf.alpine.up >= 1000 ? (tf.alpine.up / 1000).toFixed(1) + " km" : Math.round(tf.alpine.up / 10) * 10 + " m"} of it is above the tree line (about ${tf.alpine.tl} m here), up to ${tf.alpine.hi} m.${tf.alpine.why ? ` From the map: ${esc(tf.alpine.why)}.` : ""}</p>
         <p class="muted">A guess from the map tags and terrain heights, not a bike rating. Expect rock, hike-a-bike and late snow, and check the area's rules: bikes may still be closed there.</p></div>` : ""}
@@ -3932,13 +3935,12 @@ out body;`;
   }
   // The tags the all-trails job adds to a way (tf:area, tf:official, tf:rec, tf:park...), for a trail loaded from OpenStreetMap.
   function allTfOf(id) {
-    const alp = window.tfAlpine && window.tfAlpine.tf(id);   // the Alpine rideable layer (alpine.js)
-    if (alp) return alp;
+    const alp = (window.tfAlpine && window.tfAlpine.tf(id)) || {};   // the Alpine rideable layer (alpine.js), on top of the list's own
     for (const list of allData.values()) {
       const w = list && list.find((w) => w.id === id);
-      if (w) return Object.fromEntries(Object.entries(w.tags).filter(([k]) => k.startsWith("tf:")));
+      if (w) return { ...Object.fromEntries(Object.entries(w.tags).filter(([k]) => k.startsWith("tf:"))), ...alp };
     }
-    return {};
+    return alp;
   }
   // Zones arriving close together (up to 10 at the start) are drawn once, not once per zone.
   let allDrawTimer = 0;
@@ -5060,7 +5062,7 @@ out tags center qt;`;
         id: main.id, osmType: type, tags, routes, searched: true, geom, chainAll, segments: segs, segIds, bounds,
         km: segs.reduce((s, l) => s + lengthKm(l), 0), zone: zoneOf(bounds.getCenter()),
         version: main.version, lastEdit: new Date(main.timestamp), lastUser: main.user || "", lastChangeset: main.changeset,
-        cat: c ? c.cat : "other", catLabel: c ? null : isRoad(tags) ? "Forest road" : kind, unoff: unofficial(tags), official: officialWhy(ctags), ...useOf(tags, routes.length ? types.concat("mtb") : types),
+        cat: c ? c.cat : "other", catLabel: c ? null : isRoad(tags) ? "Forest road" : kind, unoff: c ? c.unoff : unofficial(ctags), official: c ? c.official : officialWhy(ctags), ...useOf(tags, routes.length ? types.concat("mtb") : types),
         ...tfInfo(ctags),
         why: c ? c.why : isRoad(tags) ? ["A forest or logging road, not a trail, so it's left out of the MTB trails. Turn on “Forest roads” to see roads on the map."] : [`No bike tags and not trail-like enough for the MTB colours (highway=${tags.highway || "none"}, ${tags.route ? "route=" + tags.route : "no route"}).`],
       };
