@@ -3464,6 +3464,7 @@ out body;`;
   const toRide = (() => {
     map.createPane("toRide").style.zIndex = 455;
     const layer = L.layerGroup();
+    const lines = L.canvas({ pane: "toRide", padding: 0.3, tolerance: L.Browser.touch ? 10 : 5 });   // one canvas, not an SVG path per line
     const btn = document.createElement("button");
     btn.id = "rideMapBtn"; btn.type = "button";
     $("allBtn").parentNode.insertBefore(btn, $("allBtn"));
@@ -3501,8 +3502,8 @@ out body;`;
         const color = k < 0 ? "#6b6b6b" : LMI_RIDE[k][0];
         const open = () => showFound({ type: w.type, items: w.ids.map((id) => ({ id })), name: w.name, kind: w.kind });
         s.g.forEach((l) => {
-          layer.addLayer(L.polyline(l, { pane: "toRide", color: "#ffc61a", weight: 11, opacity: 0.75, lineCap: "round", interactive: false }));
-          layer.addLayer(L.polyline(l, { pane: "toRide", color, weight: 4, opacity: 1, lineCap: "round" }).on("click", open));
+          layer.addLayer(L.polyline(l, { pane: "toRide", renderer: lines, color: "#ffc61a", weight: 11, opacity: 0.75, lineCap: "round", interactive: false }));
+          layer.addLayer(L.polyline(l, { pane: "toRide", renderer: lines, color, weight: 4, opacity: 1, lineCap: "round", bubblingMouseEvents: false }).on("click", open));
         });
         const label = v == null ? "" : ` ${v}`;
         const tip = `${w.name}${v == null ? "" : ` · Loam ${v}, ${LMI_LEVELS[k][1].toLowerCase()} (${LMI_RIDE[k][1].toLowerCase()})`}${w.note ? `\n${w.note}` : ""}`;
@@ -3511,48 +3512,53 @@ out body;`;
           .on("click", open).addTo(layer);
       });
     }
-    let tries = 0, busy = false;
+    // Shapes for old saves are loaded from OpenStreetMap in the background: the pins and lines that are already known
+    // draw at once, and a trail whose shape couldn't be loaded isn't asked for again until the page is reloaded.
+    const failed = new Set();
+    async function fetchShape(w) {
+      try {
+        const lists = await Promise.all(w.ids.slice(0, 20).map(async (id) => {
+          const els = (await getJson(`${OSM_API}/${w.type === "r" ? "relation" : "way"}/${id}/full.json`)).elements;
+          const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e]));
+          return els.filter((e) => e.type === "way").map((x) => wayLine(x, nodes)).filter((l) => l.length > 1);
+        }));
+        const sh = rideShape(lists.flat());
+        if (sh.c) cache[w.key] = sh; else failed.add(w.key);
+      } catch { failed.add(w.key); }
+    }
+    let tries = 0, busy = false, retry = 0;
     async function refresh() {
       paintBtn();
-      if (!on || busy || document.body.classList.contains("sport-ski")) { draw(); return; }
+      draw();
+      if (!on || busy || document.body.classList.contains("sport-ski")) return;
       busy = true;
       const list = trails();
-      // Old saves with no shape: load them from OpenStreetMap, a few at a time.
-      const missing = list.filter((w) => !shapeOf(w)).slice(0, 30);
-      for (let i = 0; i < missing.length; i += 4) {
-        await Promise.all(missing.slice(i, i + 4).map(async (w) => {
-          try {
-            const segs = [];
-            for (const id of w.ids.slice(0, 20)) {
-              const els = (await getJson(`${OSM_API}/${w.type === "r" ? "relation" : "way"}/${id}/full.json`)).elements;
-              const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e]));
-              els.filter((e) => e.type === "way").forEach((x) => { const l = wayLine(x, nodes); if (l.length > 1) segs.push(l); });
-            }
-            const sh = rideShape(segs);
-            if (sh.c) cache[w.key] = sh;
-          } catch {}
-        }));
-      }
-      if (missing.length) { try { localStorage.setItem(CACHE, JSON.stringify(cache)); } catch {} }
-      draw();
+      const missing = list.filter((w) => !shapeOf(w) && !failed.has(w.key)).slice(0, 30);
+      for (let i = 0; i < missing.length; i += 6) await Promise.all(missing.slice(i, i + 6).map(fetchShape));
+      if (missing.length) { try { localStorage.setItem(CACHE, JSON.stringify(cache)); } catch {} draw(); }
       const shapes = list.map(shapeOf).filter(Boolean);
+      const before = shapes.map((s) => loamOf(fake(s))).join();
       if (shapes.length) await loadLoam(shapes.map(fake)).catch(() => {});
       busy = false;
-      draw();
-      if (!$("wantList").hidden) renderFolders();
+      // Only redraw when the loam numbers actually changed.
+      if (shapes.map((s) => loamOf(fake(s))).join() !== before) {
+        draw();
+        if (!$("wantList").hidden) renderFolders();
+      }
       // loadLoam skips a call while the list's own loam is loading: try again shortly.
-      if (shapes.some((s) => loamOf(fake(s)) === undefined) && tries++ < 5) setTimeout(refresh, 4000); else tries = 0;
+      clearTimeout(retry);
+      if (shapes.some((s) => loamOf(fake(s)) === undefined) && tries++ < 5) retry = setTimeout(refresh, 4000); else tries = 0;
     }
     function show(fit) {
       if (!on) { on = true; store.set("toride", true); layer.addTo(map); }
-      refresh().then(() => {
-        const shapes = trails().map(shapeOf).filter(Boolean);
-        if (!fit || !shapes.length) return;
+      draw();
+      const shapes = trails().map(shapeOf).filter(Boolean);
+      if (fit && shapes.length) {
         const b = L.latLngBounds(shapes.flatMap((s) => s.g.flat()));
         // Phones: lower the sheet so the map shows (after the tap, which would grow it again), then frame the trails.
         setTimeout(() => { snapTo("peek"); focusTrail(b, true); }, 0);
-      });
-      paintBtn();
+      }
+      refresh();
     }
     btn.addEventListener("click", () => {
       if (!trails().length) { showFolders(); return; }
