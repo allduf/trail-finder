@@ -8,6 +8,10 @@ on:
   schedule:
     - cron: "41 10 * * 0"   # Sundays 10:41 UTC
   workflow_dispatch:        # "Run workflow" button on the Actions tab
+  push:                     # right away when a source is added or changed, not on the next Sunday
+    branches: [main]
+    paths:
+      - scripts/build-official.mjs
   pull_request:
     paths:
       - scripts/build-official.mjs
