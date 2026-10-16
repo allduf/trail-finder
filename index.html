@@ -1297,7 +1297,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <h3>All trails</h3>
     <p>“All trails” (on by default) draws every MTB trail in view, old and new: every way with an MTB tag, bike park trails and the trails of MTB routes. Official trails (see below) are bold and always shown, even with no option ticked; trails whose status isn't known are thin, and unofficial trails are left out, as before (tick “Unofficial only” to see them). A list of them is collected from OpenStreetMap every day. The trails in the list (new trails, or prime loam) are drawn thicker on top, with a white edge.</p>
     <h3>Draw a square</h3>
-    <p>Tap “▭ Draw a square to find trails” (under the search), then drag over the map: every MTB trail inside the square shows up on the map and in a list, old or new, from the same daily list as “All trails” (unofficial ones included, with dots). Tap a name to see the trail's details. “Clear square” removes it.</p>
+    <p>Tap “▭ Draw a square to find trails” (under the search), then drag over the map: every MTB trail inside the square shows up on the map and in a list, old or new (trails with no name on the map are listed as “Unnamed trail”), from the same daily list as “All trails” (unofficial ones included, with dots). Tap a name to see the trail's details. “Clear square” removes it.</p>
     <h3>Official trails</h3>
     <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. The named trails of the South Chilcotin (South Chilcotin Mountains Park and the Spruce Lake area), the paths around Gold Bridge that follow a Recreation Sites and Trails BC trail, and every MTB trail in Williams Lake count as official too. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
 <h3>Moto and hiking-only trails</h3>
@@ -5273,6 +5273,7 @@ out tags center qt;`;
     const missing = zs.filter((z, i) => !lists[i]).map((z) => shortZone(z));
     const seen = new Set(), byName = new Map(), found = L.latLngBounds([]);
     let unnamed = 0;
+    const loose = [];
     lists.forEach((list) => (list || []).forEach((w) => {
       if (seen.has(w.id) || (unoffPick && !unoffOk(w.c.cat, w.c.unoff.length, w.c.official)) || (levels.length && !levelOk(levels, w.tags, unoffPick)) || !w.geom.some((p) => b.contains(p))) return;
       seen.add(w.id);
@@ -5283,6 +5284,7 @@ out tags center qt;`;
       boxLayer.addLayer(L.polyline(w.geom, { renderer: boxRenderer, color: "#fff", weight: 8, opacity: 0.9, interactive: false }));
       const line = L.polyline(w.geom, { renderer: boxRenderer, color, weight: 4.5, opacity: 1, dashArray: unoff || unoffPick ? UNOFF_DASH : null, lineCap: "round" });
       boxLayer.addLayer(line);
+      if (!name && !diff) { loose.push({ w, line }); return; }   // listed below as "Unnamed trail", joined where the pieces meet
       if (!name) { unnamed++; line.on("click", (e) => { L.DomEvent.stopPropagation(e); pickTrailAt(e.latlng); }); return; }
       const key = name.toLowerCase();
       if (!byName.has(key)) byName.set(key, { name, ways: [], km: 0 });
@@ -5292,6 +5294,20 @@ out tags center qt;`;
     }));
     const flagged = (g) => g.ways.every((w) => w.c.unoff.length);
     boxGroups = [...byName.values()].sort((a, b) => (unoffPick && flagged(b) - flagged(a)) || a.name.localeCompare(b.name));
+    // Unnamed pieces in the square: pieces whose ends meet (within 30 m) make one trail, longest first, after the named ones.
+    // Bits under 50 m stay on the map only.
+    const ends = (w) => [w.geom[0], w.geom[w.geom.length - 1]];
+    const meet = (a, b) => ends(a).some((p) => ends(b).some((q) => L.latLng(p).distanceTo(q) < 30));
+    const left = loose.slice(), noName = [];
+    while (left.length) {
+      const grp = [left.shift()];
+      for (let i = 0; i < grp.length; i++) for (let j = left.length - 1; j >= 0; j--) if (meet(grp[i].w, left[j].w)) grp.push(...left.splice(j, 1));
+      const g = { name: "Unnamed trail", ways: grp.map((x) => x.w), km: grp.reduce((k, x) => k + lengthKm(x.w.geom), 0) };
+      if (g.km < 0.05) { unnamed++; grp.forEach((x) => x.line.on("click", (e) => { L.DomEvent.stopPropagation(e); pickTrailAt(e.latlng); })); continue; }
+      grp.forEach((x) => x.line.bindTooltip("Unnamed trail", { sticky: true, direction: "top", offset: [0, -8] }).on("click", (e) => { L.DomEvent.stopPropagation(e); openBoxGroup(g); }));
+      noName.push(g);
+    }
+    boxGroups.push(...noName.sort((a, b) => b.km - a.km));
     const rows = boxGroups.map((g, i) => {
       const main = g.ways.reduce((a, w) => (lengthKm(w.geom) > lengthKm(a.geom) ? w : a));
       const off = g.ways.find((w) => w.c.official), unoff = g.ways.every((w) => w.c.unoff.length), path = main.c.cat === "path";
