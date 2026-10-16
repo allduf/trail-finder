@@ -1251,6 +1251,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <ul class="about-quick">
       <li><strong>New trails:</strong> pick an area (or tap Near me) and how new, then tap Find new trails. A trail is new when it was first added to OpenStreetMap in that time.</li>
       <li><strong>Prime loam now:</strong> trails whose dirt is damp right now (Loam index 40 to 59), the best riding.</li>
+      <li><strong>Loam alerts:</strong> the 🔔 at the top tells you when a trail on your To ride list, or a new trail from the last month in the regions you picked, is in prime loam. Each one alerts once every time it turns damp. Turn it off in the 🔔 under Change regions.</li>
       <li><strong>Tap any trail</strong> on the map for its difficulty, weather, loam, how to get there and rider reports.</li>
       <li><strong>Layers</strong> (top right of the map) turns on forest roads, wildfires, logging areas, elevation lines, your rides, the map style and offline maps. The ⛰ 3D button sits right under it.</li>
       <li><strong>Old vs new photos</strong> (in Layers) puts an older satellite photo on the left and a newer one on the right. Drag the ⇆ handle across the map: a trail that appears as you pass over it was cut between the two photos.</li>
@@ -2826,11 +2827,17 @@ out body;`;
     return c ? c.lmi : undefined;                 // undefined: not loaded yet; null: no soil data there
   }
   let loamBusy = false;
+  const staleCells = (keys) => [...new Set(keys)].filter((k) => { const c = loamCells.get(k); return !c || Date.now() - c.at > WX_FRESH_MS; });
   async function loadLoam(trails) {
     if (loamBusy) return;
-    const need = [...new Set(trails.filter((t) => t.center || t.id > 0 || t.ghost).map(cellOf))].filter((k) => { const c = loamCells.get(k); return !c || Date.now() - c.at > WX_FRESH_MS; });
+    const need = staleCells(trails.filter((t) => t.center || t.id > 0 || t.ghost).map(cellOf));
     if (!need.length) return;
     loamBusy = true;
+    await fetchLoamCells(need);
+    loamBusy = false;
+    render();
+  }
+  async function fetchLoamCells(need) {
     for (let i = 0; i < need.length; i += 50) {
       const chunk = need.slice(i, i + 50), ll = chunk.map((k) => k.split(","));
       try {
@@ -2848,9 +2855,14 @@ out body;`;
         chunk.forEach((k) => loamCells.set(k, { at: Date.now() - WX_FRESH_MS + 5 * 60000, lmi: null }));   // try again in 5 minutes
       }
     }
-    loamBusy = false;
-    render();
   }
+  // Loam alerts (notify.js): the Loam index now at each [lat, lon], null where there's no soil data.
+  window.tfLoamAt = async (pts) => {
+    const keys = pts.map((p) => cellOf({ center: L.latLng(p[0], p[1]) }));
+    const need = staleCells(keys);
+    if (need.length) await fetchLoamCells(need);
+    return keys.map((k) => { const c = loamCells.get(k); return c ? c.lmi : null; });
+  };
   function loamBadge(t) {
     const v = loamOf(t);
     if (v == null) return "";
@@ -3562,6 +3574,9 @@ out body;`;
     if (on) layer.addTo(map);
     // Loam goes stale: refresh it when the rider comes back to the page.
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && on) refresh(); });
+    // Loam alerts (notify.js) watch the to-ride trails that have a known spot.
+    window.tfToRideList = () => trails().map((w) => ({ w, s: shapeOf(w) })).filter((x) => x.s)
+      .map(({ w, s }) => ({ key: w.key, name: w.name, type: w.type, ids: w.ids, kind: w.kind, c: s.c }));
     return { refresh, show, loamPill, draw };
   })();
   setTimeout(() => toRide.refresh(), 0);
