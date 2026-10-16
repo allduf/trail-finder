@@ -30,7 +30,8 @@ const RE = {
 };
 const BIKE_SPORT = /^(mtb|mountain_biking|bmx|cycling|bicycle|pump_track|dirt_jumping|freeride|downhill)$/;
 const sports = (t) => String(t.sport || "").split(";").map((s) => s.trim());
-const bikeLift = (t) => /^(yes|designated|permissive|customers|summer)$/.test(t.bicycle || t["aerialway:bicycle"] || "") || /^(yes|designated)$/.test(t.mtb || "");
+// Bikes on a lift: bicycle=yes, or aerialway:bicycle=yes / "yes|summer" (how Sun Peaks and Kicking Horse are mapped).
+const bikeLift = (t) => [t.bicycle, t["aerialway:bicycle"], t.mtb].some((v) => /^(yes|designated|permissive|customers|summer)\b/.test(v || ""));
 const pick = (t, ...k) => k.map((x) => t[x]).find((v) => v);
 
 // The kind of a place, or null when it isn't a bike place. Kinds: park, centre, skills, pump (pump, BMX or bike track).
@@ -87,9 +88,9 @@ async function ingest(prov, placesFile, trailsFile) {
     if (seen.has(id)) continue;   // a closed way can come out both as a line and an area
     seen.add(id);
     const b = bbox(f.geometry);
-    if (t.aerialway && !/^(station|pylon|goods|zip_line|rope_tow|magic_carpet)$/.test(t.aerialway)) { lifts.push({ c: centre(b), bike: bikeLift(t), n: t.name || "" }); continue; }
+    if (t.aerialway && !/^(station|pylon|goods|zip_line|rope_tow|magic_carpet)$/.test(t.aerialway)) { lifts.push({ c: centre(b), bike: bikeLift(t), n: t.name || "", ...(t.operator ? { op: t.operator } : {}) }); continue; }
     if (t.landuse === "winter_sports" || /skiing/.test(t.sport || "") && t.leisure === "sports_centre") {
-      if (t.name) resorts.push({ id, n: t.name, b, t: keep(t), centre: RE.centre.test(t.name) });
+      if (t.name && !/terrain park|snow ?park|tubing|glissade|luge/i.test(t.name)) resorts.push({ id, n: t.name, b, t: keep(t), centre: RE.centre.test(t.name) });
       if (!kindOf(t, f.geometry.type === "Point")) continue;
     }
     const k = kindOf(t, f.geometry.type === "Point");
@@ -101,9 +102,10 @@ async function ingest(prov, placesFile, trailsFile) {
   for await (const line of createInterface({ input: createReadStream(trailsFile) })) {
     if (!line.includes('"customers"') && !line.includes('"mtb')) continue;
     const f = JSON.parse(line.replace(/^\x1e/, "")), p = f.properties || {};
-    if (!f.geometry || f.geometry.type !== "LineString" || !/^(path|track|bridleway)$/.test(p.highway || "")) continue;
+    if (!f.geometry || f.geometry.type !== "LineString" || !/^(path|track|bridleway|cycleway|footway)$/.test(p.highway || "")) continue;
     if (/^(asphalt|concrete|paved|paving_stones|sett|concrete:plates|wood|metal)$/.test(p.surface || "") || p.golf || p.golf_cart) continue;
     const anyMtb = Object.keys(p).some((k) => k.startsWith("mtb") && p[k] !== "no");
+    if (!anyMtb && !/^(path|track|bridleway)$/.test(p.highway)) continue;   // bike park lines mapped as cycleways (Sun Peaks) have mtb tags
     const g = f.geometry.coordinates, m = g[Math.floor(g.length / 2)];
     if (p.bicycle === "customers" && (anyMtb || p.name || !/^(track)$/.test(p.highway))) pay.push([round(m[1]), round(m[0]), p.name || "", p.operator || ""]);
     // Third field: looks like a gravity trail (downhill or freeride, or rated S2 / IMBA black or harder).
@@ -137,6 +139,19 @@ function finish() {
       const paid = x.k === "pump" ? [] : pay.filter((q) => inBox(q, x.b, 1000));
       out.push({ ...x, p: prov, ...(bikeLs.length ? { lift: "yes", lifts: bikeLs.map((l) => l.n).filter(Boolean).slice(0, 8) } : {}), ...(paid.length ? { pay: paid.length } : {}) });
     }
+    // Lifts open to bikes on a ski hill that isn't mapped as an area: one lift-served bike park per group of lifts,
+    // named after the nearest ski hill within 5 km, or the lifts' operator.
+    const lone = lifts.filter((l) => l.bike && !out.some((o) => o.p === prov && o.lift && inBox(l.c, o.b, 2000)));
+    const taken = new Set();
+    lone.forEach((l, i) => {
+      if (taken.has(i)) return;
+      const group = lone.filter((o, j) => !taken.has(j) && metres(l.c, o.c) < 4000 && taken.add(j));
+      const pts = group.map((o) => o.c), b = [Math.min(...pts.map((o) => o[0])), Math.min(...pts.map((o) => o[1])), Math.max(...pts.map((o) => o[0])), Math.max(...pts.map((o) => o[1]))];
+      const hill = resorts.map((r) => ({ r, d: metres(centre(b), centre(r.b)) })).filter((o) => o.d < 5000).sort((a, c) => a.d - c.d)[0];
+      const name = (hill && hill.r.n) || group.map((o) => o.op).find(Boolean);
+      out.push({ id: `l${round(b[0])}_${round(b[1])}`, k: "park", p: prov, c: centre(b), b, t: hill ? hill.r.t : name ? { name } : {}, lift: "yes",
+        lifts: group.map((o) => o.n).filter(Boolean).slice(0, 8) });
+    });
     // Pay-to-ride trail networks no place covers (often mapped as trails only): one bike park each, named by their operator.
     const free = pay.filter((q) => !out.some((o) => o.p === prov && o.k !== "pump" && inBox(q, o.b, 2000)));
     const used = new Set();
