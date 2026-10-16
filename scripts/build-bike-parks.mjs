@@ -22,10 +22,11 @@ const log = (...a) => console.log(...a);
 const RE = {
   pump: /pump ?track|pumptrack|pump park|piste (à|a) (rouleaux|bosses)|parcours (à|a) bosses|pumptrack/i,
   bmx: /\bbmx\b/i,
-  skills: /skills?\b|jump ?park|dirt ?jumps?|jump line|freeride park|slopestyle|parc (de )?(saut|habilet)|terrain de (bmx|saut)/i,
+  jumps: /jump ?park|dirt ?jumps?|jump lines?|freeride park|slopestyle|parc (de )?(saut|habilet)|terrain de (bmx|saut)/i,
+  skills: /skills?\b/i,
   centre: /(mountain bike|mtb|bike|biking|cycling|v[ée]lo( de montagne)?)( trail| adventure)? (centre|center)|centre (de )?v[ée]lo|trail (centre|center)|ski (and|&|et) (bike|v[ée]lo)|(bike|v[ée]lo) (and|&|et) ski|(montagne|mont) .*v[ée]lo/i,
   park: /bike ?park|bikepark|mtb park|parc (de )?v[ée]lo|v[ée]lo ?parc|parc (de )?v[ée]lo de montagne|freeride area|bike area/i,
-  notBike: /velodrome|vélodrome|motocross|\bmx park|moto|\batv\b|quad|snowmobile|golf|disc golf|skate ?park(?! .*bike)/i,
+  notBike: /velodrome|vélodrome|motocross|\bmx park|moto|dirt ?bike|\batv\b|quad|snowmobile|golf|disc golf|skate ?park(?! .*bike)/i,
 };
 const BIKE_SPORT = /^(mtb|mountain_biking|bmx|cycling|bicycle|pump_track|dirt_jumping|freeride|downhill)$/;
 const sports = (t) => String(t.sport || "").split(";").map((s) => s.trim());
@@ -33,7 +34,7 @@ const bikeLift = (t) => /^(yes|designated|permissive|customers|summer)$/.test(t.
 const pick = (t, ...k) => k.map((x) => t[x]).find((v) => v);
 
 // The kind of a place, or null when it isn't a bike place. Kinds: park, centre, skills, pump (pump, BMX or bike track).
-function kindOf(t) {
+function kindOf(t, point) {
   const name = `${t.name || ""} ${t["name:en"] || ""} ${t["name:fr"] || ""}`;
   if (t.shop || /^bicycle_/.test(t.amenity || "") || t.highway || t.building && !t.leisure) return null;
   if (RE.notBike.test(name) && !RE.park.test(name)) return null;
@@ -41,8 +42,10 @@ function kindOf(t) {
   if (t.pump_track || /pump/.test(`${t.cycling || ""} ${t.bmx || ""} ${t.track || ""} ${t.sport || ""}`) || RE.pump.test(name)) return "pump";
   if (RE.centre.test(name)) return "centre";
   if (RE.park.test(name)) return "park";
-  if (RE.skills.test(name) && (bikeSport || /bike|v[ée]lo|bmx|mtb/i.test(name) || /^(park|pitch|track|recreation_ground)$/.test(t.leisure || ""))) return "skills";
+  if (RE.jumps.test(name) || RE.skills.test(name) && (bikeSport || /bike|biking|v[ée]lo|bmx|mtb/i.test(name))) return "skills";
   if (sp.includes("bmx") || t.leisure === "bmx_track" || RE.bmx.test(name)) return "pump";
+  // From here on only tags say it's a bike place: a point needs to be a park or track itself (not a jump or drop in one).
+  if (point && !/^(park|sports_centre|pitch|track|recreation_ground)$/.test(t.leisure || "") && t.landuse !== "winter_sports") return null;
   if (sp.some((s) => /^(mtb|mountain_biking|dirt_jumping|freeride|downhill)$/.test(s))) return t.leisure === "track" ? "pump" : "park";
   // A cycling track that isn't a velodrome (those are named so, and dropped above): most are pump tracks mapped without saying so.
   if (sp.includes("cycling") && t.leisure === "track") return "pump";
@@ -73,7 +76,7 @@ const keep = (t) => Object.fromEntries(KEEP.filter((k) => t[k]).map((k) => [k, S
 
 // ---------- ingest: one province -> out/parks/<prov>.json ----------
 async function ingest(prov, placesFile, trailsFile) {
-  const places = [], resorts = [], lifts = [], pay = [], seen = new Set();
+  const places = [], resorts = [], lifts = [], pay = [], mtb = [], seen = new Set();
   for await (const line of createInterface({ input: createReadStream(placesFile) })) {
     const s = line.replace(/^\x1e/, "");
     if (!s) continue;
@@ -87,23 +90,28 @@ async function ingest(prov, placesFile, trailsFile) {
     if (t.aerialway && !/^(station|pylon|goods|zip_line|rope_tow|magic_carpet)$/.test(t.aerialway)) { lifts.push({ c: centre(b), bike: bikeLift(t), n: t.name || "" }); continue; }
     if (t.landuse === "winter_sports" || /skiing/.test(t.sport || "") && t.leisure === "sports_centre") {
       if (t.name) resorts.push({ id, n: t.name, b, t: keep(t), centre: RE.centre.test(t.name) });
-      if (!kindOf(t)) continue;
+      if (!kindOf(t, f.geometry.type === "Point")) continue;
     }
-    const k = kindOf(t);
+    const k = kindOf(t, f.geometry.type === "Point");
     if (!k) continue;
     places.push({ id, k, c: centre(b), b, t: keep(t), ...(k === "pump" ? { sub: pumpSub(t) } : {}) });
   }
-  // Pay-to-ride paths: only lines mentioning customers are parsed, the rest of the (big) trail file is skipped.
+  // Pay-to-ride paths and MTB trails: only lines mentioning customers or mtb are parsed, the rest of the (big) trail file is skipped.
+  // Only dirt paths count: in Quebec thousands of paved paths (campuses, golf courses, malls) are tagged bicycle=customers too.
   for await (const line of createInterface({ input: createReadStream(trailsFile) })) {
-    if (!line.includes('"customers"')) continue;
+    if (!line.includes('"customers"') && !line.includes('"mtb')) continue;
     const f = JSON.parse(line.replace(/^\x1e/, "")), p = f.properties || {};
-    if (p.bicycle !== "customers" || !f.geometry || f.geometry.type !== "LineString") continue;
+    if (!f.geometry || f.geometry.type !== "LineString" || !/^(path|track|bridleway)$/.test(p.highway || "")) continue;
+    if (/^(asphalt|concrete|paved|paving_stones|sett|concrete:plates|wood|metal)$/.test(p.surface || "") || p.golf || p.golf_cart) continue;
+    const anyMtb = Object.keys(p).some((k) => k.startsWith("mtb") && p[k] !== "no");
     const g = f.geometry.coordinates, m = g[Math.floor(g.length / 2)];
-    pay.push([round(m[1]), round(m[0]), p.name || "", p.operator || ""]);
+    if (p.bicycle === "customers" && (anyMtb || p.name || !/^(track)$/.test(p.highway))) pay.push([round(m[1]), round(m[0]), p.name || "", p.operator || ""]);
+    // Third field: looks like a gravity trail (downhill or freeride, or rated S2 / IMBA black or harder).
+    if (anyMtb) mtb.push([round(m[1]), round(m[0]), /downhill|gravity|freeride/.test(p["mtb:type"] || "") || +String(p["mtb:scale"] || "0")[0] >= 2 || +(p["mtb:scale:imba"] || 0) >= 3 ? 1 : 0]);
   }
   mkdirSync(PART, { recursive: true });
-  writeFileSync(new URL(`${prov}.json`, PART), JSON.stringify({ prov, places, resorts, lifts, pay }));
-  log(`${prov}: ${places.length} bike places, ${resorts.length} ski hills, ${lifts.length} lifts (${lifts.filter((l) => l.bike).length} open to bikes), ${pay.length} pay-to-ride paths.`);
+  writeFileSync(new URL(`${prov}.json`, PART), JSON.stringify({ prov, places, resorts, lifts, pay, mtb }));
+  log(`${prov}: ${places.length} bike places, ${resorts.length} ski hills, ${lifts.length} lifts (${lifts.filter((l) => l.bike).length} open to bikes), ${pay.length} pay-to-ride paths, ${mtb.length} MTB paths.`);
 }
 
 // ---------- finish: lift-served bike parks, merging, one file for Canada ----------
@@ -111,14 +119,16 @@ function finish() {
   const builtAt = new Date().toISOString().slice(0, 19) + "Z";
   const out = [];
   for (const f of readdirSync(PART).filter((x) => x.endsWith(".json"))) {
-    const { prov, places, resorts, lifts, pay } = JSON.parse(readFileSync(new URL(f, PART), "utf8"));
+    const { prov, places, resorts, lifts, pay, mtb = [] } = JSON.parse(readFileSync(new URL(f, PART), "utf8"));
     const near = (list, b, pad) => list.filter((x) => inBox(x.c || x, b, pad));
-    // Ski hills with a lift open to bikes, or with pay-to-ride trails and lifts, are lift-served bike parks.
+    // Ski hills with a lift open to bikes are lift-served bike parks. Most lifts aren't tagged for bikes, so a ski hill with
+    // lifts and pay-to-ride trails, or with lots of MTB trails including downhill ones, is "likely lift-served".
     for (const r of resorts) {
       const ls = near(lifts, r.b, 300), bikeLs = ls.filter((l) => l.bike), paid = pay.filter((q) => inBox(q, r.b, 300));
-      const lift = bikeLs.length ? "yes" : ls.length && paid.length >= 5 ? "likely" : null;
+      const trails = mtb.filter((q) => inBox(q, r.b, 200)), dh = trails.filter((q) => q[2]).length;
+      const lift = bikeLs.length ? "yes" : ls.length && (paid.length >= 5 || (trails.length >= 10 && dh >= 3)) ? "likely" : null;
       if (!lift && !r.centre) continue;
-      out.push({ id: r.id, k: r.centre && !lift ? "centre" : "park", p: prov, c: centre(r.b), b: r.b, t: r.t, ...(lift ? { lift } : {}), ...(paid.length ? { pay: paid.length } : {}),
+      out.push({ id: r.id, k: r.centre && !lift ? "centre" : "park", p: prov, c: centre(r.b), b: r.b, t: r.t, ...(lift ? { lift } : {}), ...(paid.length ? { pay: paid.length } : {}), ...(trails.length ? { mtb: trails.length } : {}),
         ...(bikeLs.length ? { lifts: bikeLs.map((l) => l.n).filter(Boolean).slice(0, 8) } : {}) });
     }
     for (const x of places) {
@@ -143,7 +153,7 @@ function finish() {
     });
   }
   // The same place mapped twice (a point and an area, or a ski hill and its bike park): keep one, with both sets of facts.
-  const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9à-ÿ]+/g, " ").replace(/\b(the|bike|park|mountain|resort|ski|area|le|la|de|du)\b/g, "").trim();
+  const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9à-ÿ]+/g, " ").replace(/\b(the|bike|park|mountain|resort|ski|area|le|la|les|de|des|du)\b/g, "").trim();
   const merged = [];
   for (const x of out.sort((a, b) => (b.lift ? 2 : 0) + (b.b[2] - b.b[0]) - ((a.lift ? 2 : 0) + (a.b[2] - a.b[0])))) {
     const same = merged.find((m) => (m.k === x.k || (m.k !== "pump" && x.k !== "pump" && (m.lift || x.lift))) &&
@@ -152,7 +162,7 @@ function finish() {
     if (same) {
       same.t = { ...x.t, ...same.t };
       if (x.t.name && same.t.name !== x.t.name && !(same.also || []).includes(x.t.name)) (same.also ||= []).push(x.t.name);
-      ["lift", "lifts", "pay", "sub", "trails"].forEach((k) => { if (x[k] && !same[k]) same[k] = x[k]; });
+      ["lift", "lifts", "pay", "mtb", "sub", "trails"].forEach((k) => { if (x[k] && !same[k]) same[k] = x[k]; });
       continue;
     }
     merged.push(x);
