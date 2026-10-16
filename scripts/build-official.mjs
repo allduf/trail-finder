@@ -21,6 +21,9 @@
 //   ott City of Ottawa mountain bike trails (OGL-Ottawa) -> 1
 //   wh  Resort Municipality of Whistler bike trails, its "Multi-Use Trails" layer (OGL-RMOW) -> 1
 //       (Emerald, Lost Lake, Cheakamus, Westside...: the municipality's own MTB inventory, so they also count as MTB trails)
+//   csrd Columbia Shuswap Regional District trails (OGL-CSRD; Golden, Revelstoke, Shuswap, Sicamous): in a trail system the
+//       district lists for mountain biking (Mount 7, Moonraker, Mt MacPherson...) and not closed to bikes -> 1 (also MTB trails);
+//   csrd2 other CSRD trails: Cycling or E-Biking "Yes" -> 1, "No" -> 3 (hiking...), else 2. Snowmobile routes and roads left out.
 import { mkdirSync, writeFileSync, readdirSync, unlinkSync } from "node:fs";
 
 const OUT = "data/official";
@@ -33,6 +36,8 @@ const SOURCES = {
   ab: { name: "Alberta designated trails", licence: "Open Government Licence – Alberta", url: "https://open.alberta.ca/opendata/gda-97415cb9-1a6f-4886-9212-d91097c9a23e" },
   pc: { name: "Parks Canada", licence: "Open Government Licence – Canada", url: "https://open.canada.ca/data/en/dataset/64a90e8d-5bc0-4027-8645-b5881b4068d4" },
   ott: { name: "City of Ottawa", licence: "Open Government Licence – City of Ottawa", url: "https://open.ottawa.ca/" },
+  csrd: { name: "Columbia Shuswap Regional District", licence: "Open Government Licence – Columbia Shuswap Regional District", url: "https://www.csrd.bc.ca/" },
+  csrd2: { name: "Columbia Shuswap Regional District", licence: "Open Government Licence – Columbia Shuswap Regional District", url: "https://www.csrd.bc.ca/" },
   wh: { name: "Resort Municipality of Whistler", licence: "Open Government Licence – Resort Municipality of Whistler", url: "https://portal-rmow.opendata.arcgis.com/" },
 };
 
@@ -50,14 +55,14 @@ async function get(url, tries = 3) {
 }
 
 // An ArcGIS layer, all features, in lat/lon: [{ a: attributes, paths: [[[lon, lat], ...], ...] }].
-async function arcgis(layer, fields, where = "1=1") {
+async function arcgis(layer, fields, where = "1=1", geometry = true) {
   const out = [];
   for (let offset = 0; ; ) {
-    const q = `${layer}/query?where=${encodeURIComponent(where)}&outFields=${fields}&outSR=4326&returnGeometry=true&f=json&resultOffset=${offset}&resultRecordCount=1000&orderByFields=OBJECTID`;
+    const q = `${layer}/query?where=${encodeURIComponent(where)}&outFields=${fields}&outSR=4326&returnGeometry=${geometry}&f=json&resultOffset=${offset}&resultRecordCount=1000&orderByFields=OBJECTID`;
     const j = await get(q);
     if (j.error) throw new Error(`${layer}: ${JSON.stringify(j.error).slice(0, 200)}`);
     const fs = j.features || [];
-    fs.forEach((f) => f.geometry && f.geometry.paths && out.push({ a: f.attributes, paths: f.geometry.paths }));
+    fs.forEach((f) => geometry ? f.geometry && f.geometry.paths && out.push({ a: f.attributes, paths: f.geometry.paths }) : out.push({ a: f.attributes }));
     offset += fs.length;
     if (!fs.length || !j.exceededTransferLimit && fs.length < 1000) break;
   }
@@ -179,7 +184,34 @@ const jobs = {
     const fs = await arcgis("https://webmap.whistler.ca/server/rest/services/OpenData/opParksRecreation/MapServer/13", "OBJECTID,ASSETNAME");
     for (const { a, paths } of fs) paths.forEach((p) => add(1, "wh", a.ASSETNAME, "", lonlat(p)));
   },
+  async csrd() {
+    for (const t of await csrdTrails()) {
+      const status = t.mtb ? 1 : t.bike === "Yes" ? 1 : t.bike === "No" ? 3 : 2;
+      t.paths.forEach((p) => add(status, t.mtb ? "csrd" : "csrd2", t.name, status === 3 ? t.uses : t.system, lonlat(p)));
+    }
+    console.log(`csrd2: ${JSON.stringify(counts.csrd2 || {})}`);
+  },
 };
+
+// Columbia Shuswap Regional District trails with their trail system. mtb: the system is listed for mountain biking and the
+// trail isn't closed to bikes or a winter trail. bike: the trail's own Cycling or E-Biking answer ("Yes", "No" or "").
+async function csrdTrails() {
+  const base = "https://services5.arcgis.com/wjH30HL7rqC55zVw/arcgis/rest/services";
+  const sys = new Map();
+  for (const { a } of await arcgis(`${base}/Trail_Systems/FeatureServer/0`, "OBJECTID,SysName,MtnBiking", "1=1", false))
+    sys.set((a.SysName || "").trim().toLowerCase(), a.MtnBiking === "Yes" || /\b(bike|mtb|freeride)\b/i.test(a.SysName || ""));
+  const out = [];
+  for (const { a, paths } of await arcgis(`${base}/Trails/FeatureServer/0`,
+    "OBJECTID,System_Name,Trail_Name,Trail_Type,Difficulty,Status_Operational,Hiking,Cycling,EBiking,Skiing,Snowshoeing,Snowmobiling,Equestrian")) {
+    if (/^(Snowmobile|Road)$/.test(a.Trail_Type || "") || a.Status_Operational === "Closed") continue;
+    const system = (a.System_Name || "").trim(), bike = [a.Cycling, a.EBiking].includes("Yes") ? "Yes" : a.Cycling === "No" ? "No" : "";
+    const winter = /nordic|ski|snowshoe|snowmobile/i.test(system) || [a.Skiing, a.Snowshoeing, a.Snowmobiling].includes("Yes");
+    const mtb = bike !== "No" && !!sys.get(system.toLowerCase()) && (!winter || bike === "Yes");
+    const uses = [["Hiking", "hiking"], ["Skiing", "skiing"], ["Snowshoeing", "snowshoeing"], ["Equestrian", "horses"]].filter(([k]) => a[k] === "Yes").map(([, v]) => v).join(", ");
+    out.push({ name: (a.Trail_Name || "").trim(), system, difficulty: a.Difficulty || "", mtb, bike, winter, uses, paths });
+  }
+  return out;
+}
 
 const failed = [];
 for (const [id, job] of Object.entries(jobs)) {

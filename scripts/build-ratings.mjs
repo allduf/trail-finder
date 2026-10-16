@@ -11,6 +11,9 @@
 //          (their rating is for every trail user, not only bikes; the site says so)
 //      wh  Resort Municipality of Whistler bike trails, "Multi-Use Trails" layer (OGL-RMOW): RATING Easy, Moderate,
 //          Difficult, Expert (green, blue, black, double black, as on the municipality's trail map)
+//      csrd Columbia Shuswap Regional District trails (OGL-CSRD; Golden, Revelstoke, Shuswap): Difficulty Easiest/Easy,
+//          More Difficult, Most Difficult, Expert, only on bike trails (in a system the district lists for mountain biking,
+//          or Cycling "Yes"), not on ski, snowshoe or hiking-only trails
 //    The province of BC and Alberta have no open data with an MTB difficulty (Recreation Sites and Trails BC only has a few
 //    descriptions in free text); towns can (Whistler). scripts/find-sources.mjs looks for more.
 // 2. For the unrated ways of the all-trails lists (data/mtb-<zone>.json), data/ratings/osm.json:
@@ -217,15 +220,16 @@ const SOURCES = {
   ott: { name: "City of Ottawa", licence: "Open Government Licence – City of Ottawa", url: "https://open.ottawa.ca/" },
   ut: { name: "Utah Geospatial Resource Center", licence: "CC BY 4.0", url: "https://gis.utah.gov/products/sgid/recreation/trails-pathways" },
   pa: { name: "Pennsylvania DCNR state parks", licence: "Public", url: "https://gis.dcnr.pa.gov/" },
+  csrd: { name: "Columbia Shuswap Regional District", licence: "Open Government Licence – Columbia Shuswap Regional District", url: "https://www.csrd.bc.ca/" },
   wh: { name: "Resort Municipality of Whistler", licence: "Open Government Licence – Resort Municipality of Whistler", url: "https://portal-rmow.opendata.arcgis.com/" },
 };
-async function arcgis(layer, fields, where = "1=1") {
+async function arcgis(layer, fields, where = "1=1", geometry = true) {
   const out = [];
   for (let offset = 0; ; ) {
-    const j = await get(`${layer}/query?where=${encodeURIComponent(where)}&outFields=${fields}&outSR=4326&returnGeometry=true&f=json&resultOffset=${offset}&resultRecordCount=1000&orderByFields=OBJECTID`);
+    const j = await get(`${layer}/query?where=${encodeURIComponent(where)}&outFields=${fields}&outSR=4326&returnGeometry=${geometry}&f=json&resultOffset=${offset}&resultRecordCount=1000&orderByFields=OBJECTID`);
     if (j.error) throw new Error(`${layer}: ${JSON.stringify(j.error).slice(0, 200)}`);
     const fs = j.features || [];
-    fs.forEach((f) => f.geometry && f.geometry.paths && out.push({ a: f.attributes, paths: f.geometry.paths }));
+    fs.forEach((f) => geometry ? f.geometry && f.geometry.paths && out.push({ a: f.attributes, paths: f.geometry.paths }) : out.push({ a: f.attributes }));
     offset += fs.length;
     if (!fs.length || !j.exceededTransferLimit && fs.length < 1000) break;
   }
@@ -253,6 +257,27 @@ const levelOfWords = (s) => {
   if (/facile|easy|easiest|begin|green/.test(s)) return "green";
   return null;
 };
+
+// (The same as in build-official.mjs: change both.)
+// Columbia Shuswap Regional District trails with their trail system. mtb: the system is listed for mountain biking and the
+// trail isn't closed to bikes or a winter trail. bike: the trail's own Cycling or E-Biking answer ("Yes", "No" or "").
+async function csrdTrails() {
+  const base = "https://services5.arcgis.com/wjH30HL7rqC55zVw/arcgis/rest/services";
+  const sys = new Map();
+  for (const { a } of await arcgis(`${base}/Trail_Systems/FeatureServer/0`, "OBJECTID,SysName,MtnBiking", "1=1", false))
+    sys.set((a.SysName || "").trim().toLowerCase(), a.MtnBiking === "Yes" || /\b(bike|mtb|freeride)\b/i.test(a.SysName || ""));
+  const out = [];
+  for (const { a, paths } of await arcgis(`${base}/Trails/FeatureServer/0`,
+    "OBJECTID,System_Name,Trail_Name,Trail_Type,Difficulty,Status_Operational,Hiking,Cycling,EBiking,Skiing,Snowshoeing,Snowmobiling,Equestrian")) {
+    if (/^(Snowmobile|Road)$/.test(a.Trail_Type || "") || a.Status_Operational === "Closed") continue;
+    const system = (a.System_Name || "").trim(), bike = [a.Cycling, a.EBiking].includes("Yes") ? "Yes" : a.Cycling === "No" ? "No" : "";
+    const winter = /nordic|ski|snowshoe|snowmobile/i.test(system) || [a.Skiing, a.Snowshoeing, a.Snowmobiling].includes("Yes");
+    const mtb = bike !== "No" && !!sys.get(system.toLowerCase()) && (!winter || bike === "Yes");
+    const uses = [["Hiking", "hiking"], ["Skiing", "skiing"], ["Snowshoeing", "snowshoeing"], ["Equestrian", "horses"]].filter(([k]) => a[k] === "Yes").map(([, v]) => v).join(", ");
+    out.push({ name: (a.Trail_Name || "").trim(), system, difficulty: a.Difficulty || "", mtb, bike, winter, uses, paths });
+  }
+  return out;
+}
 
 async function buildLines() {
   const lines = [], counts = {};
@@ -291,6 +316,12 @@ async function buildLines() {
     async wh() {
       const fs = await arcgis("https://webmap.whistler.ca/server/rest/services/OpenData/opParksRecreation/MapServer/13", "OBJECTID,ASSETNAME,RATING");
       for (const { a, paths } of fs) paths.forEach((p) => add(levelOfWords(a.RATING), "wh", a.ASSETNAME, a.RATING, lonlat(p)));
+    },
+    async csrd() {
+      for (const t of await csrdTrails()) {
+        if (!t.mtb && !(t.bike === "Yes" && !t.winter)) continue;
+        t.paths.forEach((p) => add(levelOfWords(t.difficulty), "csrd", t.system && t.system !== t.name ? `${t.name}, ${t.system}` : t.name, t.difficulty, lonlat(p)));
+      }
     },
   };
   const failed = [];

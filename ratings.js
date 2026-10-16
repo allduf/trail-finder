@@ -1,5 +1,5 @@
 // Difficulty for trails with no MTB rating on OpenStreetMap (built by scripts/build-ratings.mjs, see there for sources):
-//   off   official open data that rates bike trails (Sépaq, City of Ottawa, Whistler, Utah, Pennsylvania state parks), matched by shape
+//   off   official open data that rates bike trails (Sépaq, City of Ottawa, Whistler, Columbia Shuswap, Utah, Pennsylvania state parks), matched by shape
 //   same  another piece of the same named trail is rated on OpenStreetMap (data/ratings/osm.json)
 //   hand  a rider who knows the trail rated it here (HAND below), for trails with no rating on OpenStreetMap
 //   est   an estimate from the slope and a few map tags (data/ratings/osm.json for the region's all-trails lists, or
@@ -74,7 +74,7 @@
     }
     return out;
   }
-  const SRC = { qc: "Sépaq", ott: "the City of Ottawa", ut: "Utah's trail data (UGRC)", pa: "Pennsylvania state parks", wh: "the Resort Municipality of Whistler" };
+  const SRC = { qc: "Sépaq", ott: "the City of Ottawa", ut: "Utah's trail data (UGRC)", pa: "Pennsylvania state parks", wh: "the Resort Municipality of Whistler", csrd: "the Columbia Shuswap Regional District" };
   function official(geom) {
     if (!squares.size || !geom || geom.length < 2) return null;
     const pts = along(geom, 20), hits = new Map();

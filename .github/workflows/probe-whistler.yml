@@ -2,12 +2,21 @@ name: Probe Whistler data (temporary)
 on:
   push:
     branches: [claude/project-thread-r10k6z]
+    paths: [".github/workflows/probe-whistler.yml", "scripts/build-official.mjs", "scripts/build-ratings.mjs"]
+permissions:
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: node probe-whistler.mjs
+      - run: node scripts/build-official.mjs
+      - run: ONLY=lines node scripts/build-ratings.mjs
+      - run: |
+          git add -A data/official data/ratings
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -qm "Test data (temporary)" && git push -q origin HEAD:refs/heads/tmp-local-data-test --force
