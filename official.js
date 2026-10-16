@@ -1,7 +1,8 @@
 // Official trails from government open data (data/official/, built weekly by scripts/build-official.mjs):
-// Ontario Trail Network, Sépaq, Recreation Sites and Trails BC, Alberta designated trails, Parks Canada, City of Ottawa.
+// Ontario Trail Network, Sépaq, Recreation Sites and Trails BC, Alberta designated trails, Parks Canada, City of Ottawa,
+// Resort Municipality of Whistler, Columbia Shuswap Regional District.
 // An OpenStreetMap trail counts as one of their trails when most of it runs along that trail's line.
-// window.tfOfficial = { load(bounds) -> Promise (loads the squares in view), match(geom) -> { s, why } | null,
+// window.tfOfficial = { load(bounds) -> Promise (loads the squares in view), match(geom, name) -> { s, src, why } | null,
 //   onChange(fn) (called when new squares arrive) }. s: 1 official + bikes allowed, 2 official, 3 official but not for bikes.
 (function () {
   const DIR = "data/official/";
@@ -73,7 +74,13 @@
   }
   const pt = (p) => (Array.isArray(p) ? p : [p.lat, p.lng]);
 
-  function match(geom) {
+  // Towns' own trail lists name each trail: a line with another trail's name is a different trail on the same spot.
+  const NAMED = /^(wh|csrd)$/, words = (s) => new Set((s || "").toLowerCase().match(/[a-z0-9]{3,}/g) || []);
+  const sameName = (a, b) => { const A = words(a), B = words(b); return !A.size || !B.size || [...A].some((w) => B.has(w)); };
+  // Local lists (a town's or regional district's) beat the province's when both say bikes are allowed.
+  const LOCAL = /^(wh|csrd|csrd2|ott)$/;
+
+  function match(geom, name) {
     if (!geom || geom.length < 2 || !squares.size) return null;
     const pts = samples(geom.map(pt));
     const hits = new Map();   // line -> [points within NEAR_M, points within NO_BIKE_M]
@@ -84,6 +91,7 @@
       if (!list) continue;
       const best = new Map();
       for (const [l, k] of list) {
+        if (name && NAMED.test(l.src) && !sameName(name, l.name)) continue;
         const d = segDist(p, l.g[k], l.g[k + 1], l.g[k + 2], l.g[k + 3]);
         if (d <= NEAR_M && (!best.has(l) || d < best.get(l))) best.set(l, d);
       }
@@ -99,21 +107,22 @@
     let pick = null;
     byTrail.forEach((t) => {
       const ok = t.l.s === 3 ? t.close >= NO_BIKE_SHARE * pts.length : t.near >= SHARE * pts.length;
-      // Bikes allowed beats official beats not for bikes, when two sources overlap.
-      if (ok && (!pick || [0, 3, 1, 2][t.l.s] < [0, 3, 1, 2][pick.s] || t.l.s === pick.s && t.near > pick.near)) pick = { s: t.l.s, l: t.l, near: t.near };
+      // Bikes allowed beats official beats not for bikes, when two sources overlap; then a local list, then the closer match.
+      const rank = (s, src) => [9, 0, 2, 4][s] + (LOCAL.test(src) ? 0 : 1);
+      if (ok && (!pick || rank(t.l.s, t.l.src) < rank(pick.s, pick.l.src) || rank(t.l.s, t.l.src) === rank(pick.s, pick.l.src) && t.near > pick.near)) pick = { s: t.l.s, l: t.l, near: t.near };
     });
-    return pick ? { s: pick.s, why: why(pick.l) } : null;
+    return pick ? { s: pick.s, src: pick.l.src, why: why(pick.l) } : null;
   }
 
   function why(l) {
     const src = NAMES[l.src] || l.src, name = l.name ? `“${l.name}”` : "";
     // Recreation Sites and Trails BC names the whole trail or trail system; the others name the trail.
     const as = !name ? "" : l.src === "bc" ? ` as part of ${name}` : ` as ${name}`;
-    if (l.s === 1) return `listed by ${src}${as}${!l.note || l.src === "bc" ? "" : l.src === "qc" ? ` in the ${l.note}` : `, run by ${l.note}`}, with bikes allowed`;
+    if (l.s === 1) return `listed by ${src}${as}${!l.note || l.src === "bc" ? "" : l.src === "qc" ? ` in the ${l.note}` : /^csrd/.test(l.src) ? ` in the ${l.note} trails` : `, run by ${l.note}`}, with bikes allowed`;
     if (l.s === 2) return `official trail${!name ? "" : l.src === "bc" ? " in " + name : " " + name}, listed by ${src}${l.src === "on" && l.note ? ` for ${l.note} (bikes aren't on its list)` : l.src === "ab" ? "" : "; it doesn't say whether bikes are allowed"}`;
     return `${src} lists this trail${name ? " (" + name + ")" : ""} for ${l.note || "other uses"}, not for bikes.`;
   }
-  const NAMES = { on: "Ontario Trails", qc: "Sépaq", bc: "Recreation Sites and Trails BC", ab: "Alberta designated trails", pc: "Parks Canada", ott: "the City of Ottawa" };
+  const NAMES = { on: "Ontario Trails", qc: "Sépaq", bc: "Recreation Sites and Trails BC", ab: "Alberta designated trails", pc: "Parks Canada", ott: "the City of Ottawa", wh: "the Resort Municipality of Whistler", csrd: "the Columbia Shuswap Regional District", csrd2: "the Columbia Shuswap Regional District" };
 
   window.tfOfficial = { load, match, onChange: (fn) => listeners.push(fn) };
 })();
