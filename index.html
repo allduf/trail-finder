@@ -1124,7 +1124,6 @@ body.sport-ski #rideMapBtn { display: none !important; }
         <div class="lm-head">Show on the map</div>
         <div class="lm-list lm-overlays">
         <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
-        <button id="alpineBtn" type="button" aria-pressed="false" title="Show the alpine paths, above the tree line, that look doable on a mountain bike">Alpine rideable</button>
         <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
         <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire">🔥 Wildfires</button>
         <button id="areasBtn" type="button" aria-pressed="false" title="Show logging areas (cut blocks) and areas closed to motor vehicles">▦ Logging areas</button>
@@ -1219,7 +1218,6 @@ body.sport-ski #rideMapBtn { display: none !important; }
           <label class="toggle t-ghost" title="Lines that several GPS traces follow at bike speed, where OpenStreetMap has no trail yet. Unverified."><input type="checkbox" id="showGhost" checked><span class="ck"></span><span class="sw"></span>Possible unmapped <span class="n" id="nGhost">0</span></label>
           <label class="toggle t-unoff off" title="Show only trails tagged as informal, closed or no bikes: of the types ticked, or of every type when none is ticked"><input type="checkbox" id="onlyUnoff"><span class="ck"></span><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
           <label class="toggle t-off off" title="Show only trails the map says are official: run by a park, town, trail club or bike park, listed by Recreation Sites and Trails BC, or mapped as informal=no. Of the types ticked, or of every type when none is ticked"><input type="checkbox" id="onlyOff"><span class="ck"></span><span class="sw"></span>Official only <span class="n" id="nOff">0</span></label>
-          <label class="toggle t-alpine" title="Alpine paths above the tree line that look doable on a mountain bike, any age, drawn blue dash-dot on the map (same switch as Alpine rideable in Layers). The number counts them in the searched area."><input type="checkbox" id="showAlpine" checked><span class="ck"></span><span class="sw"></span>Alpine rideable <span class="n" id="nAlpine">0</span></label>
         </div>
       </section>
       <button class="btn box-btn" id="boxBtn" type="button" aria-pressed="false" title="Drag a square on the map to list every MTB trail inside it, old or new">▭ Draw a square to find trails</button>
@@ -2542,7 +2540,6 @@ out body;`;
     $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nGhost").textContent = counts.ghost;
     $("nUnoff").textContent = vis.filter((t) => isUnoff(t) && unoffTypes().includes(t.cat)).length;
     $("nOff").textContent = vis.filter((t) => t.official && unoffTypes().includes(t.cat)).length;
-    if (window.tfAlpine) window.tfAlpine.count(state.searchedBounds);   // alpine.js
     const shown = vis.filter((t) => picked(t.cat, isUnoff(t), t.official, t.tags));
     drawAllTrails();
     state.shownCount = shown.length;
@@ -5222,6 +5219,7 @@ out tags center qt;`;
     $("boxRes").hidden = true;
     $("boxRes").innerHTML = "";
     document.querySelectorAll(".diff-chip:not(.lvl-chip), #alpChip").forEach((c) => c.setAttribute("aria-pressed", "false"));
+    if (window.tfAlpine) window.tfAlpine.setOn(false);   // the alpine trails show only while their chip is on
   }
   // Plain paths for the Unofficial button: the area itself when it is one riding area or a zoomed-in view, else null.
   function plainBounds(b) {
