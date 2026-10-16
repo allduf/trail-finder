@@ -1,5 +1,5 @@
 // Difficulty for trails with no MTB rating on OpenStreetMap (built by scripts/build-ratings.mjs, see there for sources):
-//   off   official open data that rates bike trails (Sépaq, City of Ottawa, Utah, Pennsylvania state parks), matched by shape
+//   off   official open data that rates bike trails (Sépaq, City of Ottawa, Whistler, Columbia Shuswap, Utah, Pennsylvania state parks), matched by shape
 //   same  another piece of the same named trail is rated on OpenStreetMap (data/ratings/osm.json)
 //   hand  a rider who knows the trail rated it here (HAND below), for trails with no rating on OpenStreetMap
 //   est   an estimate from the slope and a few map tags (data/ratings/osm.json for the region's all-trails lists, or
@@ -74,15 +74,18 @@
     }
     return out;
   }
-  const SRC = { qc: "Sépaq", ott: "the City of Ottawa", ut: "Utah's trail data (UGRC)", pa: "Pennsylvania state parks" };
-  function official(geom) {
+  const SRC = { qc: "Sépaq", ott: "the City of Ottawa", ut: "Utah's trail data (UGRC)", pa: "Pennsylvania state parks", wh: "the Resort Municipality of Whistler", csrd: "the Columbia Shuswap Regional District" };
+  // Towns' own trail lists name each trail: a line with another trail's name is a different trail on the same spot.
+  const NAMED = /^(wh|csrd)$/, words = (s) => new Set((s || "").toLowerCase().match(/[a-z0-9]{3,}/g) || []);
+  const sameName = (a, b) => { const A = words(a), B = words(b); return !A.size || !B.size || [...A].some((w) => B.has(w)); };
+  function official(geom, name) {
     if (!squares.size || !geom || geom.length < 2) return null;
     const pts = along(geom, 20), hits = new Map();
     for (const p of pts) {
       const cells = squares.get(`${sq(p[0])}_${sq(p[1])}`), list = cells && cells.get(Math.floor(p[0] / CELL) + "," + Math.floor(p[1] / CELL));
       if (!list) continue;
       const seen = new Set();
-      for (const [l, k] of list) if (!seen.has(l) && segDist(p, l.g[k], l.g[k + 1], l.g[k + 2], l.g[k + 3]) <= NEAR_M) seen.add(l);
+      for (const [l, k] of list) if (!seen.has(l) && !(name && NAMED.test(l.src) && !sameName(name, l.name.split(", ")[0])) && segDist(p, l.g[k], l.g[k + 1], l.g[k + 2], l.g[k + 3]) <= NEAR_M) seen.add(l);
       seen.forEach((l) => { const key = l.src + "|" + l.name + "|" + l.d; hits.set(key, { l, n: ((hits.get(key) || {}).n || 0) + 1 }); });
     }
     let pick = null;
@@ -170,7 +173,7 @@
   function rate(id, geom, tags) {
     const m = hand(geom, tags);
     if (m) return m;
-    const o = official(geom);
+    const o = official(geom, tags && (tags.name || tags["tf:name"]));
     if (o) return o;
     const w = osm && id && osm[id];
     if (w && w[1] === "same") return { d: w[0], src: "same", why: `From the rated part of ${w[2] ? `“${w[2]}”` : "the same trail"} it joins on OpenStreetMap; this piece has no rating of its own.` };

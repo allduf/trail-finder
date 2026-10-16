@@ -1304,7 +1304,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <p>MTB trail networks: many bike trails have no bike tags at all. A plain path with no bike tags that runs within 400 m of two or more other MTB-tagged trails (with different names) also counts as Looks like MTB, unless it's graded for hiking (<code>sac_scale</code>), signed for walkers (<code>foot=designated</code>), a ski, golf or lit park path, gravel or boardwalk, open to motor vehicles, or its note says it's for hiking, climbing or motorbikes. This is checked again every time trails or trail lists load, so it keeps up as mappers add trails.</p>
     <p>Skipped: tracks (most are forest roads or ATV, moto and 4x4 tracks), paths 2 m wide or more, paths open to motorbikes, ATVs or other motor vehicles, paved surfaces, <code>bicycle=dismount</code>, and alpine hiking routes (<code>sac_scale</code> alpine).</p>
 <h3>Difficulty colours</h3>
-    <p>Trails are coloured like Trailforks: green, blue, black, double black (red) and pro line (orange). The colour comes from <code>mtb:scale:imba</code> (0-1 green, 2 blue, 3 black, 4 double black, 5 pro line), or else from <code>mtb:scale</code>, which mappers here use the same way (S0-S1 green, S2 blue, S3 black, S4 double black, S5-S6 pro line). When a trail has no rating on the map, the app looks for one elsewhere: official open data that rates bike trails (Sépaq, the City of Ottawa, Utah and Pennsylvania state parks), then a rated piece of the same trail. Failing that, it estimates the level from the slope and draws it dashed, with an “Est.” badge: slope can't see rocks, roots or drops, so the guess is the right level about half the time and within one level 96% of the time. Trailforks ratings can't be copied. Grey means no source and no estimate. The “Trail colours” key on the map switches back to colours by trail type.</p>
+    <p>Trails are coloured like Trailforks: green, blue, black, double black (red) and pro line (orange). The colour comes from <code>mtb:scale:imba</code> (0-1 green, 2 blue, 3 black, 4 double black, 5 pro line), or else from <code>mtb:scale</code>, which mappers here use the same way (S0-S1 green, S2 blue, S3 black, S4 double black, S5-S6 pro line). When a trail has no rating on the map, the app looks for one elsewhere: official open data that rates bike trails (the Resort Municipality of Whistler, the Columbia Shuswap Regional District around Golden, Revelstoke and the Shuswap, Sépaq, the City of Ottawa, Utah and Pennsylvania state parks), then a rated piece of the same trail. Failing that, it estimates the level from the slope and draws it dashed, with an “Est.” badge: slope can't see rocks, roots or drops, so the guess is the right level about half the time and within one level 96% of the time. Trailforks ratings can't be copied. Grey means no source and no estimate. The “Trail colours” key on the map switches back to colours by trail type.</p>
     <h3>All trails</h3>
     <p>“All trails” (on by default) draws every MTB trail in view, old and new: every way with an MTB tag, bike park trails and the trails of MTB routes. Official trails (see below) are bold and always shown, even with no option ticked; trails whose status isn't known are thin, and unofficial trails are left out, as before (tick “Unofficial only” to see them). A list of them is collected from OpenStreetMap every day. The trails in the list (new trails, or prime loam) are drawn thicker on top, with a white edge.</p>
     <h3>Draw a square</h3>
@@ -1880,11 +1880,15 @@ body.sport-ski #rideMapBtn { display: none !important; }
   // Official trails from government open data (official.js): the trail's shape is matched to their lines, and the
   // answer added as tf:official (bikes allowed), tf:off2 (official, bike use not given) or tf:offno (not for bikes).
   function withOfficial(tags, geom) {
-    const m = window.tfOfficial && geom && geom.length > 1 ? window.tfOfficial.match(geom) : null;
+    const m = window.tfOfficial && geom && geom.length > 1 ? window.tfOfficial.match(geom, tags.name || tags["tf:name"]) : null;
     if (!m || m.s === 1 && tags["tf:official"]) return tags;
     if (m.s === 3 && /^(yes|designated|permissive)$/.test(tags.bicycle || "")) return tags;   // mappers saw bikes allowed: no warning
-    return { ...tags, [m.s === 1 ? "tf:official" : m.s === 2 ? "tf:off2" : "tf:offno"]: m.why };
+    const t = { ...tags, [m.s === 1 ? "tf:official" : m.s === 2 ? "tf:off2" : "tf:offno"]: m.why };
+    if (m.s === 1 && MTB_LISTS[m.src]) t["tf:offmtb"] = MTB_LISTS[m.src];
+    return t;
   }
+  // Sources whose lines are a town's own list of mountain bike trails: a path on one is an MTB trail, not Looks like MTB.
+  const MTB_LISTS = { wh: "Resort Municipality of Whistler", ott: "City of Ottawa", csrd: "Columbia Shuswap Regional District" };
   // Forest and logging roads are never MTB trails, even with a bike rating or in an MTB route (alex): they're on the Forest roads layer.
   const ROAD_NAME = /\b(forest service road|f\.?s\.?r\.?|service road|logging road|main ?line|road|rd)\b/i;
   function isRoad(tags) {
@@ -1935,6 +1939,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
     if (tags["tf:rec"] && !motor) return { cat: "mtb", why: [`on the ${tags["tf:rec"]} (Recreation Sites and Trails BC)`].concat(why) };
     // A path inside a ski hill that carries bikes up in summer (Kicking Horse, Sun Peaks, Silver Star, Big White...).
     if (tags["tf:lift"] && !motor) return { cat: "mtb", why: [`in ${tags["tf:lift"]}'s lift-served bike park${tags["tf:lift-why"] ? ` (${tags["tf:lift-why"]})` : ""}`].concat(why) };
+    // A trail on a town's own mountain bike trail list (official.js), like Trial and Error at Emerald in Whistler's.
+    if (tags["tf:offmtb"] && !motor) return { cat: "mtb", why: [`on the ${tags["tf:offmtb"]}'s list of bike trails`].concat(why) };
     // And a path among two or more named MTB trails, in every zone (the same rule as netCheck(), done ahead for the whole region,
     // so the networks' untagged trails, like Azrael at Emerald or Berminator on Mount 7, show in All trails too).
     if (tags["tf:net"] && !motor) return { cat: "looks", why: [`in an MTB trail network (near ${tags["tf:net"].split("|").map((n) => `“${n}”`).join(" and ")})`].concat(why) };
