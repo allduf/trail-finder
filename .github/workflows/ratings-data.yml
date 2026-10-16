@@ -1,0 +1,55 @@
+name: Trail ratings data
+
+# Every day, difficulty for the trails that have no MTB rating on OpenStreetMap (scripts/build-ratings.mjs):
+# official open data that rates bike trails (Sépaq, City of Ottawa, Utah, Pennsylvania state parks) into data/ratings/<square>.json,
+# and for the all-trails lists, the rated piece of the same trail or an estimate from the slope into data/ratings/osm.json.
+# Used by ratings.js. On a pull request that changes the script it only does a test run, without saving anything.
+on:
+  schedule:
+    - cron: "17 12 * * *"   # daily 12:17 UTC
+  workflow_dispatch:        # "Run workflow" button on the Actions tab
+  push:
+    branches: [main]
+    paths:
+      - scripts/build-ratings.mjs
+  pull_request:
+    paths:
+      - scripts/build-ratings.mjs
+      - .github/workflows/ratings-data.yml
+
+permissions:
+  contents: write   # commit the data files
+  actions: write    # start "Publish website" afterwards
+
+concurrency:
+  group: ratings-data-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Collect ratings
+        run: node scripts/build-ratings.mjs
+      - name: File sizes
+        run: du -sh data/ratings && ls data/ratings | wc -l
+      - name: Commit the new data
+        if: github.event_name != 'pull_request'
+        run: |
+          git add -A data/ratings
+          if git diff --cached --quiet; then echo "No changes."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Trail ratings data"
+          git pull -q --rebase origin "${GITHUB_REF_NAME}"
+          git push -q origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Publish the website
+        if: github.event_name != 'pull_request' && github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main || echo "The website will publish with the next data job."
