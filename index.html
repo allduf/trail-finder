@@ -1301,7 +1301,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <h3>Official trails</h3>
     <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. The named trails of the South Chilcotin (South Chilcotin Mountains Park and the Spruce Lake area), the paths around Gold Bridge that follow a Recreation Sites and Trails BC trail, and every MTB trail in Williams Lake count as official too. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
 <h3>Moto and hiking-only trails</h3>
-    <p>To keep the list about mountain biking, trails that look like dirt-bike, ATV or 4x4 trails, and trails where bikes aren't allowed, are left out of the list. Moto means tags like <code>dirtbike:scale</code>, <code>motorcycle=designated</code>, <code>atv=yes</code>, <code>4wd_only=yes</code>, an ATV route, or a name like “ATV trail”. Hiking only means <code>bicycle=no</code>, <code>mtb=no</code>, stairs, hard hiking terrain (<code>sac_scale</code> T4 and up), or a signed hiking route with no bike access. A trail with any MTB tag, in an MTB route, or with <code>bicycle=designated</code> is never hidden, even if motorbikes are allowed on it too. The one exception is a ski trail (<code>piste:type</code>) where bikes are banned, like the ski trails of Gatineau Park.</p>
+    <p>To keep the list about mountain biking, trails that look like dirt-bike, ATV or 4x4 trails, and trails where bikes aren't allowed, are left out of the list. Moto means tags like <code>dirtbike:scale</code>, <code>motorcycle=designated</code>, <code>atv=yes</code>, <code>4wd_only=yes</code>, an ATV route, or a name like “ATV trail”. Hiking only means <code>bicycle=no</code>, <code>mtb=no</code>, stairs, hard hiking terrain (<code>sac_scale</code> T4 and up), or a signed hiking route with no bike access. A trail with any MTB tag, in an MTB route, or with <code>bicycle=designated</code> is never hidden, even if motorbikes are allowed on it too. The exceptions are a ski trail (<code>piste:type</code>) where bikes are banned, like the ski trails of Gatineau Park, and a trail whose name marks it as ski, snowshoe or hiking, like “Loup-Garou (Ski)” or “Marais (Rando)”, unless it also says “(Vélo)” or is signed open to bikes.</p>
     <h3>Unofficial (possibly unsanctioned) trails</h3>
     <p>Marked with a dark dotted line and an “Unofficial?” tag. A trail is flagged when mappers tagged it <code>informal=yes</code>, closed it (<code>access=no</code> or <code>private</code>), banned bikes (<code>bicycle=no</code>, <code>mtb=no</code>), or wrote “unsanctioned”, “closed”, “illegal” or similar in its note or description. Turn on “Unofficial only” to see just those. This is a hint from the map data, not the legal status: many unsanctioned trails aren't tagged at all, and some tags are out of date.</p>
     <h3>Possible unmapped trails (unverified)</h3>
@@ -1776,6 +1776,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
   const MOTO_NAME = /\b(atvs?|quads?|motocross|mx|dirt ?bikes?|motorbikes?|motorcycles?|orv|ohv|4x4|4wd|jeep)\b/i;
   const NOT_MOTO_NAME = /\b(no|non|not)[- ]?(motori[sz]ed|atvs?|quads?|motorbikes?|motorcycles?|dirt ?bikes?|vehicles?)\b/i;
   const HARD_HIKE = /^(demanding_mountain_hiking|alpine_hiking|demanding_alpine_hiking|difficult_alpine_hiking)$/;
+  const WINTER_NAME = /\((ski|rando|raquettes?|snowshoe|hiking|marche|pédestre)\)|\bhiver\b/i;
+  const BIKE_IN_NAME = /\b(vélo|velo|vtt|fat ?bike|bike)\b/i;
   function trailUse(tags, routeTypes) {
     const hw = tags.highway || "";
     const hasMtb = Object.keys(tags).some((k) => /^mtb(:|$)/.test(k) && !(k === "mtb" && tags.mtb === "no"));
@@ -1783,6 +1785,11 @@ body.sport-ski #rideMapBtn { display: none !important; }
     const banned = /^(no|dismount)$/.test(tags.bicycle || "") || tags.mtb === "no";
     if (banned && tags["piste:type"] && !routeTypes.includes("mtb"))
       return { use: "hike", why: [`ski trail closed to bikes (bicycle=${tags.bicycle || "-"}${tags.mtb === "no" ? ", mtb=no" : ""})`] };
+    // Quebec networks label each trail's use in its name: "Loup-Garou (Ski)", "Marais (Rando)", "Lac Richer (Rando) hiver".
+    // alex: keep only the "(Vélo)" ones, unless the trail is also signed open to bikes.
+    const name = tags.name || "";
+    if (WINTER_NAME.test(name) && !BIKE_IN_NAME.test(name) && !/^(yes|designated|permissive)$/.test(tags.bicycle || ""))
+      return { use: "hike", why: [`its name marks it as a ski, snowshoe or hiking trail (“${name}”)`] };
     if (hasMtb || routeTypes.includes("mtb") || tags.bicycle === "designated") return null;
 
     const moto = [];
