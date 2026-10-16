@@ -5768,7 +5768,7 @@ out tags center qt;`;
 
   window.tfMtbLayers = [trailLayer, foundLayer, nearLayer, allLayer, boxLayer, pickLayer];   // hidden in Skiing (winter.js)
   // For Ride mode (navigate.js): the loaded trails, with what it needs to name and colour them.
-  window.tfNav = { map, youLayer, DIFF, difficulty, diffColor,
+  window.tfNav = { map, youLayer, DIFF, difficulty, diffColor, shown: () => allShown.map((x) => x.w.id),
     ways: () => [...allData.values()].filter(Boolean).flat(),
     load: () => { const v = map.getBounds(); ZONES.filter((z) => z.bounds.intersects(v)).forEach(loadZoneTrails); caIndexLoad().then(() => caZonesIn([v]).forEach(loadZoneTrails)); } };
   window.tfTrails = () => ({ shown: state.merged ? [...state.merged.values()] : [], all: [...allData.values()].filter(Boolean), selected: state.selected });   // for My rides (rides.js)

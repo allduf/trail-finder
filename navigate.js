@@ -77,6 +77,11 @@
     return w._bb;
   }
   const key = (p) => p[0].toFixed(5) + "," + p[1].toFixed(5);
+  // One-way for bikes: 1 along the line, -1 against it, 0 both ways. oneway:bicycle wins over oneway.
+  function onewayOf(tags) {
+    const v = tags["oneway:bicycle"] != null ? tags["oneway:bicycle"] : tags["oneway:mtb"] != null ? tags["oneway:mtb"] : tags.oneway;
+    return v === "yes" || v === "1" || v === "true" ? 1 : v === "-1" || v === "reverse" ? -1 : 0;
+  }
   const nameOf = (w) => (w.tags.name || w.tags["mtb:name"] || "").trim();
 
   // ---------- the trails around you, with their shared points (junctions) ----------
@@ -215,7 +220,7 @@
 .nav-btns [hidden] { display: none; }
 .nav-gps { position: fixed; z-index: 1200; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); background: #fff3cd; color: #5c4400; border-radius: 999px; padding: 6px 12px; font-size: .85rem; box-shadow: 0 2px 8px rgba(0,0,0,.18); max-width: calc(100vw - 24px); }
 .nav-gps[hidden] { display: none; }
-.nav-you { background: none; border: 0; }
+.nav-you, .oneway-arrow { background: none; border: 0; }
 .nav-route { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #7b2ff7 12%, transparent); font-size: .95rem; }
 .nav-route[hidden] { display: none; }
 .nav-route.off { background: #d6202a; color: #fff; font-weight: 700; }
@@ -333,7 +338,12 @@ body.sport-ski #navRideBtn { display: none; }
       return;
     }
     const ahead = lookAhead(w, pr.along, ride.dir);
+    const wrong = onewayOf(w.tags) && onewayOf(w.tags) !== ride.dir;
     $("navSub").textContent = `${lvl ? lvl.sym + " " + lvl.label : "Not rated"} · ${fmtM(ahead.left)} to the end`;
+    if (wrong) {
+      $("navSub").innerHTML = `<b style="color:#d6202a">⚠ One-way trail: you're going the wrong way</b>`;
+      if (ride.warned !== w.id) { ride.warned = w.id; alarm(); }
+    }
     const j = ahead.junction;
     if (!j) { $("navNext").hidden = true; layer.removeLayer(jDot); return; }
     const ARROW = { left: "←", right: "→", straight: "↑", back: "↩" };
@@ -502,6 +512,54 @@ body.sport-ski #navRideBtn { display: none; }
     else keepAwake();
   });
   window.addEventListener("pagehide", () => { if (rec) putCurrent(rec); });
+
+  // ---------- one-way arrows on the trails, from zoom 14 ----------
+  map.createPane("onewayArrows").style.zIndex = 396;
+  map.getPane("onewayArrows").style.pointerEvents = "none";
+  const arrows = L.layerGroup().addTo(map);
+  const ARROW_ZOOM = 14, ARROW_EVERY_PX = 140, MAX_ARROWS = 400;
+  let arrowTimer = 0, arrowN = -1, arrowView = "";
+  function drawArrows() {
+    const z = map.getZoom(), view = map.getBounds(), all = nav.ways();
+    const k = z + "|" + view.toBBoxString() + "|" + all.length;
+    if (k === arrowView) return;
+    arrowView = k; arrowN = all.length;
+    arrows.clearLayers();
+    if (z < ARROW_ZOOM || document.body.classList.contains("sport-ski")) return;
+    const shown = nav.shown ? new Set(nav.shown()) : null;   // only on trails drawn on the map now
+    const seen = new Set(), pad = view.pad(0.1);
+    let n = 0;
+    for (const w of all) {
+      if (n >= MAX_ARROWS) break;
+      if (seen.has(w.id)) continue;
+      seen.add(w.id);
+      const dir = onewayOf(w.tags);
+      if (!dir || (shown && !shown.has(w.id))) continue;
+      const b = boxOf(w);
+      if (!pad.intersects([[b[0], b[1]], [b[2], b[3]]])) continue;
+      const color = nav.diffColor(nav.difficulty(w.tags));
+      let run = ARROW_EVERY_PX / 2;
+      const px = w.geom.map((q) => map.latLngToLayerPoint(q));
+      for (let i = 1; i < px.length && n < MAX_ARROWS; i++) {
+        const seg = px[i].distanceTo(px[i - 1]);
+        while (run <= seg && n < MAX_ARROWS) {
+          const t = run / seg, at = map.layerPointToLatLng(L.point(px[i - 1].x + t * (px[i].x - px[i - 1].x), px[i - 1].y + t * (px[i].y - px[i - 1].y)));
+          if (pad.contains(at)) {
+            const deg = Math.atan2(px[i].y - px[i - 1].y, px[i].x - px[i - 1].x) * 180 / Math.PI + (dir > 0 ? 0 : 180);
+            arrows.addLayer(L.marker(at, { pane: "onewayArrows", interactive: false, keyboard: false, icon: L.divIcon({ className: "oneway-arrow", iconSize: [22, 22], iconAnchor: [11, 11],
+              html: `<svg viewBox="0 0 22 22" width="22" height="22" style="transform: rotate(${Math.round(deg)}deg)" aria-hidden="true"><path d="M4 3.5 19 11 4 18.5 8.5 11z" fill="${color}" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>` }) }));
+            n++;
+          }
+          run += ARROW_EVERY_PX;
+        }
+        run -= seg;
+      }
+    }
+  }
+  const queueArrows = () => { clearTimeout(arrowTimer); arrowTimer = setTimeout(drawArrows, 120); };
+  map.on("moveend zoomend", queueArrows);
+  setInterval(() => { if (nav.ways().length !== arrowN) queueArrows(); }, 3000);   // trail files still loading
+  queueArrows();
 
   const rideBtn = $("navRideBtn");
   if (rideBtn) rideBtn.addEventListener("click", start);
