@@ -51,7 +51,7 @@ body.sport-ski #parkBtn, body.sport-ski .leaflet-bikeParks-pane { display: none 
     return loading;
   }
 
-  const nameOf = (x) => x.t.name || x.t["name:en"] || x.t["name:fr"] || (x.kind === "pump" ? SUB[x.sub] || KIND.pump.label : `Unnamed ${KIND[x.kind].label.toLowerCase()}`);
+  const nameOf = (x) => x.t.name || x.t["name:en"] || x.t["name:fr"] || (x.lifts && x.lifts.length ? `${x.lifts[0]} bike lift` : null) || (x.kind === "pump" ? SUB[x.sub] || KIND.pump.label : `Unnamed ${KIND[x.kind].label.toLowerCase()}`);
   const what = (x) => (x.kind === "pump" ? SUB[x.sub] || KIND.pump.label : x.lift === "likely" ? "Bike park, likely lift-served" : KIND[x.kind].label);
   const link = (u) => { const s = String(u).trim(); return /^https?:\/\//i.test(s) ? s : /^[\w.-]+\.[a-z]{2,}(\/|$)/i.test(s) ? `https://${s}` : null; };
   function popup(x) {
