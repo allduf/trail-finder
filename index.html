@@ -4647,8 +4647,7 @@ out body;`;
   const keyCtl = L.control({ position: "topleft" });
   keyCtl.onAdd = () => {
     const el = L.DomUtil.create("details", "legend");
-    el.open = store.get("keyOpen", !matchMedia("(max-width: 760px)").matches);
-    el.addEventListener("toggle", () => store.set("keyOpen", el.open));
+    el.open = false;   // starts folded to just its title; tap it to see the colours (alex)
     el.innerHTML = `<summary>Trail colours</summary><div class="lg-mode" role="group" aria-label="Colour the trails by">
       <button type="button" data-c="diff">Difficulty</button><button type="button" data-c="type">Type</button></div><ul id="keyList"></ul><p class="lg-note" id="keyNote"></p>`;
     L.DomEvent.disableClickPropagation(el); L.DomEvent.disableScrollPropagation(el);
