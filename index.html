@@ -1787,7 +1787,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
   // Signs that a trail is official (sanctioned), from what mappers tagged. Returns the reason, or null.
   function officialWhy(tags) {
     if (unofficial(tags).length) return null;
-    if (tags["tf:official"]) return tags["tf:official"];   // from the all-trails job: riding-areas.json, Recreation Sites and Trails BC (South Chilcotin, Revelstoke) or the whole zone (Williams Lake)
+    if (tags["tf:official"]) return tags["tf:official"];
+    if (tags["tf:handoff"]) return tags["tf:handoff"];   // ratings.js HAND list   // from the all-trails job: riding-areas.json, Recreation Sites and Trails BC (South Chilcotin, Revelstoke) or the whole zone (Williams Lake)
     if (tags["ref:FFID"] || /recreation line/i.test(tags.source || "")) return "listed by Recreation Sites and Trails BC";
     if (tags.bicycle === "customers") return tags.operator ? `bike park trail run by ${tags.operator}` : "bike park trail";
     if (tags.operator) return `run by ${tags.operator}`;
@@ -1892,8 +1893,9 @@ body.sport-ski #rideMapBtn { display: none !important; }
     if (isRoad(tags)) return null;
 
     const mtbTags = Object.keys(tags).filter((k) => /^mtb(:|$)/.test(k) && !(k === "mtb" && tags.mtb === "no"));
-    if (mtbTags.length || routes.length) {
+    if (mtbTags.length || routes.length || tags["tf:handoff"]) {
       const why = mtbTags.map((k) => `${k}=${tags[k]}`);
+      if (tags["tf:handoff"]) why.push(tags["tf:handoff"]);
       routes.forEach((r) => why.push(`part of MTB route “${r}”`));
       return { cat: "mtb", why };
     }
@@ -1962,10 +1964,11 @@ body.sport-ski #rideMapBtn { display: none !important; }
   // a rider's own rating, or an estimate from the slope) as made-up tags tf:diff, tf:diffsrc (hand, off, same, est) and tf:diffwhy. Changes tags in place.
   function rateTags(tags, geom, id) {
     if (!tags || !window.tfRatings) return tags;
-    delete tags["tf:diff"]; delete tags["tf:diffsrc"]; delete tags["tf:diffwhy"];
+    delete tags["tf:diff"]; delete tags["tf:diffsrc"]; delete tags["tf:diffwhy"]; delete tags["tf:handoff"];
     if (difficulty(tags)) return tags;
     const r = window.tfRatings.rate(id, geom, tags);
     if (r) Object.assign(tags, { "tf:diff": r.d, "tf:diffsrc": r.src, "tf:diffwhy": r.why });
+    if (r && r.off) tags["tf:handoff"] = r.off;   // a rider says it's official: Official, and an MTB trail (officialWhy, classifyTrail)
     return tags;
   }
   const officialTag = (why) => (why ? `<span class="off-tag" title="${esc(why)}">Official</span>` : "");
