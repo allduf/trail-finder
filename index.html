@@ -948,6 +948,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
 .go { margin: 14px 0 0; }
 .detail a.go-btn { display: block; text-align: center; font-weight: 600; padding: 10px 12px; border-radius: 8px; background: var(--accent); color: var(--accent-fg); text-decoration: none; }
 .detail a.go-btn[aria-disabled="true"] { opacity: .6; pointer-events: none; }
+.detail .follow-btn { display: block; width: 100%; margin-top: 10px; font-weight: 700; }
 .go p { margin: 6px 0 0; font-size: .85rem; }
 .links a { padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; font-size: .9rem; }
 .ab-desc p { margin: 0 0 4px; }
@@ -3350,7 +3351,7 @@ out body;`;
         <p>${tf.alpine.up >= 1000 ? (tf.alpine.up / 1000).toFixed(1) + " km" : Math.round(tf.alpine.up / 10) * 10 + " m"} of it is above the tree line (about ${tf.alpine.tl} m here), up to ${tf.alpine.hi} m.${tf.alpine.why ? ` From the map: ${esc(tf.alpine.why)}.` : ""}</p>
         <p class="muted">A guess from the map tags and terrain heights, not a bike rating. Expect rock, hike-a-bike and late snow, and check the area's rules: bikes may still be closed there.</p></div>` : ""}
       ${tf.park ? `<p class="park-note">In <a href="${parkUrl(tf.park)}" target="_blank" rel="noopener">${esc(tf.park)}</a>${PARK_RULES[tf.park] ? `: ${esc(PARK_RULES[tf.park])}` : ""}.</p>` : ""}
-      <div class="go"><a class="go-btn" id="goBtn" target="_blank" rel="noopener" aria-disabled="true">Go to trail</a><p class="muted" id="goNote">Finding the top of the trail…</p></div>
+      <div class="go"><a class="go-btn" id="goBtn" target="_blank" rel="noopener" aria-disabled="true">Go to trail</a><p class="muted" id="goNote">Finding the top of the trail…</p>${window.tfRide ? `<button class="btn follow-btn" id="followBtn" type="button">▶ Ride this trail</button><p class="muted">The map follows you along it and buzzes if you go off it.</p>` : ""}</div>
       <h3>Weather and Loam moisture index</h3><div id="wx" class="muted">Loading weather…</div>
       <h3>Elevation</h3><div id="elev" class="muted">${real || t.elev ? "Loading elevation…" : ""}</div>
       ${real && window.tfReports ? `<h3>Trail conditions from riders</h3><div id="reports" class="muted">Loading reports…</div>` : ""}
@@ -3390,6 +3391,7 @@ out body;`;
     panelScrollTo($("detail"));
     syncClear();
     $("detailBack").addEventListener("click", closeDetail);
+    if ($("followBtn")) $("followBtn").addEventListener("click", () => window.tfRide.follow(t.segments && t.segments.length ? t.segments : [t.geom], trailName(t)));
     if (real) wireWant(t);
     if (real) loadHistory(t);
     loadElevation(t);

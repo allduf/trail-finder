@@ -216,6 +216,10 @@
 .nav-gps { position: fixed; z-index: 1200; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); background: #fff3cd; color: #5c4400; border-radius: 999px; padding: 6px 12px; font-size: .85rem; box-shadow: 0 2px 8px rgba(0,0,0,.18); max-width: calc(100vw - 24px); }
 .nav-gps[hidden] { display: none; }
 .nav-you { background: none; border: 0; }
+.nav-route { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #7b2ff7 12%, transparent); font-size: .95rem; }
+.nav-route[hidden] { display: none; }
+.nav-route.off { background: #d6202a; color: #fff; font-weight: 700; }
+.nav-route .x { float: right; font: inherit; font-size: .85rem; border: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; padding: 0 0 0 8px; }
 #navRideBtn { font-weight: 700; }
 @media (max-width: 760px) { #navRideBtn { display: none; } }
 body.sport-ski #navRideBtn { display: none; }
@@ -226,6 +230,7 @@ body.sport-ski #navRideBtn { display: none; }
   strip.innerHTML = `<div class="nav-row"><span class="nav-bar" id="navBar"></span><div class="nav-main"><div class="nav-name" id="navName">Finding you…</div><div class="nav-sub" id="navSub">Waiting for GPS</div></div>
     <div class="nav-stats"><b id="navTime">0:00:00</b><span id="navDist">0.00 km</span></div></div>
     <div class="nav-next" id="navNext" hidden></div>
+    <div class="nav-route" id="navRoute" hidden></div>
     <div class="nav-btns" id="navBtns"><button type="button" id="navFollow" hidden>◎ Follow me</button><button type="button" class="stop" id="navStop">■ Stop</button></div>
     <div class="nav-btns" id="navAsk" hidden><button type="button" class="go" id="navSave">Save ride</button><button type="button" id="navKeep">Keep riding</button><button type="button" id="navDrop">Don't save</button></div>`;
   document.body.appendChild(strip);
@@ -234,7 +239,7 @@ body.sport-ski #navRideBtn { display: none; }
   document.body.appendChild(gpsMsg);
 
   // ---------- riding ----------
-  let rec = null, watchId = null, wakeLock = null, ticker = 0, lastSave = 0, follow = true, lastFix = null;
+  let rec = null, watchId = null, wakeLock = null, ticker = 0, lastSave = 0, following = true, lastFix = null;
   const pad2 = (n) => String(n).padStart(2, "0");
   const hms = (s) => { s = Math.floor(s); return `${Math.floor(s / 3600)}:${pad2(Math.floor(s / 60) % 60)}:${pad2(s % 60)}`; };
   const fmtM = (m) => (m < 1000 ? Math.round(m / 10) * 10 + " m" : (m / 1000).toFixed(1) + " km");
@@ -275,11 +280,12 @@ body.sport-ski #navRideBtn { display: none; }
     const c = pos.coords, t = pos.timestamp || Date.now(), p = [c.latitude, c.longitude];
     lastFix = { c, t };
     drawYou();
-    if (follow) map.setView(p, Math.max(map.getZoom(), RIDE_ZOOM), { animate: false });
+    if (following) map.setView(p, Math.max(map.getZoom(), RIDE_ZOOM), { animate: false });
     if (c.accuracy > MAX_ACC_M) { gpsMsg.textContent = `Weak GPS (±${Math.round(c.accuracy)} m). Waiting for a better fix…`; gpsMsg.hidden = false; }
     else gpsMsg.hidden = true;
     nav.load();
     updateTrail(p, c.accuracy);
+    updateRoute(p);
     if (!rec || c.accuracy > MAX_ACC_M) return;
     const q = [+c.latitude.toFixed(6), +c.longitude.toFixed(6), c.altitude == null ? null : +c.altitude.toFixed(1), t, Math.round(c.accuracy)];
     const last = rec.points[rec.points.length - 1];
@@ -337,6 +343,84 @@ body.sport-ski #navRideBtn { display: none; }
     jDot.setLatLng(j.at).addTo(layer);
   }
 
+  // ---------- following a trail or a planned loop ----------
+  // route: { name, lines, pts: every point with its length share, done: Set of points passed, total, on: been on it yet,
+  // offSince: when you first went off it, alerted }. Points count as ridden when you pass within 30 m of them.
+  const OFF_M = 40, OFF_MS = 15000, PASS_M = 30;
+  let route = null;
+  const routeCase = L.polyline([], { color: "#fff", weight: 12, opacity: 0.9, lineCap: "round", lineJoin: "round", interactive: false });
+  const routeLine = L.polyline([], { color: "#7b2ff7", weight: 7, opacity: 0.9, lineCap: "round", lineJoin: "round", interactive: false });
+  function setRoute(lines, name) {
+    const pts = [];
+    lines.forEach((g) => g.forEach((q, i) => pts.push({ q, m: i ? metres(g[i - 1], q) : 0 })));
+    route = { name, lines, pts, done: new Set(), total: pts.reduce((a, x) => a + x.m, 0), on: false, offSince: 0, alerted: false };
+    routeCase.setLatLngs(lines); routeLine.setLatLngs(lines);
+    [routeCase, routeLine].forEach((l) => l.addTo(layer));
+  }
+  function clearRoute() {
+    route = null; routeCase.setLatLngs([]); routeLine.setLatLngs([]);
+    $("navRoute").hidden = true;
+  }
+  let audio = null;
+  function alarm() {
+    try { navigator.vibrate && navigator.vibrate([400, 150, 400, 150, 400]); } catch {}
+    try {                                          // two short beeps, for phones that can't vibrate (iPhone)
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.3].forEach((t) => {
+        const o = audio.createOscillator(), g = audio.createGain();
+        o.frequency.value = 880; g.gain.value = 0.25;
+        o.connect(g); g.connect(audio.destination);
+        o.start(audio.currentTime + t); o.stop(audio.currentTime + t + 0.18);
+      });
+    } catch {}
+  }
+  function updateRoute(p) {
+    if (!route) return;
+    let best = { d: Infinity }, near = null;
+    route.lines.forEach((g) => { const pr = project(g, p); if (pr.d < best.d) best = pr, near = g; });
+    route.pts.forEach((x, i) => { if (!route.done.has(i) && metres(x.q, p) <= PASS_M) route.done.add(i); });
+    const ridden = [...route.done].reduce((a, i) => a + route.pts[i].m, 0);
+    const left = Math.max(0, route.total - ridden), box = $("navRoute"), now = Date.now();
+    const x = '<button type="button" class="x" id="navUnfollow">Stop following</button>';
+    if (best.d <= OFF_M) {
+      if (!route.on && !following) { following = true; $("navFollow").hidden = true; map.setView(p, Math.max(map.getZoom(), RIDE_ZOOM)); }   // reached it: follow you again
+      route.on = true; route.offSince = 0; route.alerted = false;
+      box.classList.remove("off");
+      box.innerHTML = `${x}Following <b>${esc(route.name)}</b> · ${fmtM(left)} left of ${fmtM(route.total)}`;
+    } else if (!route.on) {
+      // Not there yet: how far to the nearest point of it, and which way.
+      const at = near ? pointOnLine(near, best) : null, dirs = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"];
+      box.classList.remove("off");
+      box.innerHTML = `${x}<b>${esc(route.name)}</b> is ${fmtM(best.d)} away${at ? `, to the ${dirs[Math.round(bearing(p, at) / 45) % 8]}` : ""}`;
+    } else {
+      if (!route.offSince) route.offSince = now;
+      if (now - route.offSince >= OFF_MS && !route.alerted) { route.alerted = true; alarm(); }
+      box.classList.toggle("off", route.alerted);
+      box.innerHTML = `${x}${route.alerted ? "Off route" : "Leaving the route?"}: ${fmtM(best.d)} from <b>${esc(route.name)}</b>`;
+    }
+    box.hidden = false;
+    $("navUnfollow").addEventListener("click", clearRoute);
+  }
+  function pointOnLine(g, pr) {
+    const a = g[pr.i], b = g[Math.min(pr.i + 1, g.length - 1)];
+    return [a[0] + pr.t * (b[0] - a[0]), a[1] + pr.t * (b[1] - a[1])];
+  }
+  async function follow(lines, name) {
+    if (!lines || !lines.length) return;
+    if (!rec) { await start(); if (!rec) return; }
+    try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch {}   // from the tap, so iPhones allow the beep later
+    setRoute(lines, name || "this trail");
+    const here = lastFix && [lastFix.c.latitude, lastFix.c.longitude];
+    if (!here || Math.min(...lines.map((g) => project(g, here).d)) > 300) {   // far from it: show the whole trail and you
+      const b = L.latLngBounds(lines.flat());
+      if (here) b.extend(here);
+      following = false; $("navFollow").hidden = false;
+      map.fitBounds(b, { padding: [40, 40], maxZoom: RIDE_ZOOM });
+    }
+    if (lastFix) updateRoute([lastFix.c.latitude, lastFix.c.longitude]);
+    else { $("navRoute").hidden = false; $("navRoute").innerHTML = `Following <b>${esc(route.name)}</b> · waiting for GPS`; }
+  }
+
   function tick() {
     if (!rec) return;
     $("navTime").textContent = hms((Date.now() - rec.start) / 1000);
@@ -370,7 +454,7 @@ body.sport-ski #navRideBtn { display: none; }
     [track, onGlow].forEach((l) => l.addTo(layer));
     layer.addTo(map);
     if (nav.youLayer) map.removeLayer(nav.youLayer);   // the plain blue dot: Ride mode has its own arrow
-    follow = true; $("navFollow").hidden = true;
+    following = true; $("navFollow").hidden = true;
     $("navBtns").hidden = false; $("navAsk").hidden = true;
     setRiding(true);
     if (map.getZoom() < RIDE_ZOOM) map.setZoom(RIDE_ZOOM);
@@ -385,6 +469,7 @@ body.sport-ski #navRideBtn { display: none; }
   }
   function leave() {
     stopWatching();
+    clearRoute();
     rec = null; lastFix = null; ride.on = null;
     layer.clearLayers(); map.removeLayer(layer); you = null;
     track.setLatLngs([]); onGlow.setLatLngs([]);
@@ -392,9 +477,9 @@ body.sport-ski #navRideBtn { display: none; }
     if (nav.youLayer) nav.youLayer.addTo(map);
     setRiding(false);
   }
-  map.on("dragstart", () => { if (rec) { follow = false; $("navFollow").hidden = false; } });
+  map.on("dragstart", () => { if (rec) { following = false; $("navFollow").hidden = false; } });
   $("navFollow").addEventListener("click", () => {
-    follow = true; $("navFollow").hidden = true;
+    following = true; $("navFollow").hidden = true;
     if (lastFix) map.setView([lastFix.c.latitude, lastFix.c.longitude], Math.max(map.getZoom(), RIDE_ZOOM));
   });
   $("navStop").addEventListener("click", () => { $("navBtns").hidden = true; $("navAsk").hidden = false; });
@@ -420,5 +505,5 @@ body.sport-ski #navRideBtn { display: none; }
 
   const rideBtn = $("navRideBtn");
   if (rideBtn) rideBtn.addEventListener("click", start);
-  window.tfRide = { start, riding: () => !!rec };
+  window.tfRide = { start, follow, riding: () => !!rec };
 })();
