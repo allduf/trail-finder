@@ -157,16 +157,20 @@
 
   // ---------- rated by hand ----------
   // Trails a local rider rated (alex), matched by name within r metres of c. Remove one once OpenStreetMap has a rating.
+  // off: the rider says it's an official trail (shown as Official and as an MTB trail).
   const HAND = [
     { name: "Alpine Capone", c: [49.845, -123.092], r: 3000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish" },
     { name: "Just a Cough", c: [49.823, -123.118], r: 2000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish, like Flying Whales" },
+    { name: "Trial and Error", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
+    { name: "Trial and Error (lower)", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
   ];
   function hand(geom, tags) {
     const name = ((tags && (tags.name || tags["tf:name"])) || "").toLowerCase(), mid = geom && geom[geom.length >> 1];
     if (!name || !mid) return null;
     const h = HAND.find((h) => h.name.toLowerCase() === name
       && Math.hypot((mid[0] - h.c[0]) * 110540, (mid[1] - h.c[1]) * 111320 * Math.cos((h.c[0] * Math.PI) / 180)) <= h.r);
-    return h ? { d: h.d, src: "hand", why: `Rated ${LEVEL[h.d]} by ${h.who}, who rides it: ${h.note}. It has no rating on OpenStreetMap yet.` } : null;
+    return h ? { d: h.d, src: "hand", why: `Rated ${LEVEL[h.d]} by ${h.who}, who rides it: ${h.note}. It has no rating on OpenStreetMap yet.`,
+      off: h.off ? `${h.who}, who rides it, says it's an official trail` : null } : null;
   }
 
   // Best rating known now: a rider's own rating, official open data, then the same trail, then an estimate.
