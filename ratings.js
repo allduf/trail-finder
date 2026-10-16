@@ -1,9 +1,10 @@
 // Difficulty for trails with no MTB rating on OpenStreetMap (built by scripts/build-ratings.mjs, see there for sources):
 //   off   official open data that rates bike trails (Sépaq, City of Ottawa, Utah, Pennsylvania state parks), matched by shape
 //   same  another piece of the same named trail is rated on OpenStreetMap (data/ratings/osm.json)
+//   hand  a rider who knows the trail rated it here (HAND below), for trails with no rating on OpenStreetMap
 //   est   an estimate from the slope and a few map tags (data/ratings/osm.json for the region's all-trails lists, or
 //         worked out here from the AWS terrain tiles when a trail's details open). Never shown as a real rating.
-// window.tfRatings = { rate(id, geom) -> { d, src, why } | null (sync, from what's loaded), estimate(id, geom, tags) -> Promise,
+// window.tfRatings = { rate(id, geom, tags) -> { d, src, why } | null (sync, from what's loaded), estimate(id, geom, tags) -> Promise,
 //   load(bounds) (official squares in view), onChange(fn) }. d: green, blue, black, dbl.
 (function () {
   const DIR = "data/ratings/";
@@ -151,8 +152,24 @@
     return r;
   }
 
-  // Best rating known now: official open data, then the same trail, then an estimate.
-  function rate(id, geom) {
+  // ---------- rated by hand ----------
+  // Trails a local rider rated (alex), matched by name within r metres of c. Remove one once OpenStreetMap has a rating.
+  const HAND = [
+    { name: "Alpine Capone", c: [49.845, -123.092], r: 3000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish" },
+    { name: "Just a Cough", c: [49.823, -123.118], r: 2000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish, like Flying Whales" },
+  ];
+  function hand(geom, tags) {
+    const name = ((tags && (tags.name || tags["tf:name"])) || "").toLowerCase(), mid = geom && geom[geom.length >> 1];
+    if (!name || !mid) return null;
+    const h = HAND.find((h) => h.name.toLowerCase() === name
+      && Math.hypot((mid[0] - h.c[0]) * 110540, (mid[1] - h.c[1]) * 111320 * Math.cos((h.c[0] * Math.PI) / 180)) <= h.r);
+    return h ? { d: h.d, src: "hand", why: `Rated ${LEVEL[h.d]} by ${h.who}, who rides it: ${h.note}. It has no rating on OpenStreetMap yet.` } : null;
+  }
+
+  // Best rating known now: a rider's own rating, official open data, then the same trail, then an estimate.
+  function rate(id, geom, tags) {
+    const m = hand(geom, tags);
+    if (m) return m;
     const o = official(geom);
     if (o) return o;
     const w = osm && id && osm[id];
