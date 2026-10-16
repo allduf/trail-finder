@@ -746,7 +746,7 @@ button.btn { font: inherit; font-weight: 600; padding: 8px 12px; border-radius: 
 button.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 button:focus-visible, input:focus-visible, select:focus-visible, label.toggle:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 .label { font-family: var(--font-display); font-weight: 600; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.periods { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--chip); padding: 4px; border-radius: 10px; }
+.periods { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; background: var(--chip); padding: 4px; border-radius: 10px; }
 .periods button { font: inherit; font-weight: 600; border: 0; background: transparent; color: var(--fg); padding: 6px 4px; border-radius: 7px; cursor: pointer; }
 .periods button[aria-pressed="true"] { background: var(--panel); color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 .toggles { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -845,6 +845,9 @@ label.toggle.off .sw { background: var(--muted); }
 .alp-chip .diff { font-size: .85rem; padding: 2px 7px; background: var(--bg); color: #0b8fc4; border: 2px dashed #0b8fc4; }
 .alp-chip .alpine-ico { margin-right: 4px; }
 .box-row .box-len { margin-left: auto; color: var(--muted); font-size: .85rem; }
+.box-row .box-meta { flex-basis: 100%; display: flex; gap: 8px; align-items: baseline; }
+.box-row .box-added { color: var(--muted); font-size: .85rem; }
+.box-row .box-added.fresh { color: var(--accent); font-weight: 600; }
 button.btn.box-btn { width: 100%; margin: 2px 0 8px; }
 button.btn.reset-btn { width: 100%; margin: 6px 0 0; }
 button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
@@ -1148,7 +1151,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
       <button id="satBtn" type="button" aria-pressed="false" title="Aerial and satellite photos, as sharp as they come for each area">🛰 Satellite</button>
       <div class="map-note" id="mapNote" hidden></div>
     </div>
-    <div class="first-tip" id="firstTip" role="note" hidden><strong>New here?</strong> <span class="tip-wide">Pick an area and tap <b>Find new trails</b>.</span><span class="tip-phone">Tap <b>New trails</b> below to see what's new.</span> Tap any trail on the map for its details, weather and loam. <button type="button" class="linkish" id="firstTipOk">Got it</button></div>
+    <div class="first-tip" id="firstTip" role="note" hidden><strong>New here?</strong> <span class="tip-wide">Search a trail by name, or pick an area and how new.</span><span class="tip-phone">Tap <b>Search</b> below to find trails, new or old.</span> Tap any trail on the map for its details, weather and loam. <button type="button" class="linkish" id="firstTipOk">Got it</button></div>
   </div>
   <aside class="panel" id="panel">
     <div class="panel-head">
@@ -1157,20 +1160,12 @@ body.sport-ski #rideMapBtn { display: none !important; }
         <h1>Trail <span>Finder</span></h1>
         <span class="brand-links"><a class="linkish rec-link" href="ride.html"><span class="rec-dot" aria-hidden="true"></span>Record ride</a><button class="linkish" id="aboutBtn" type="button">How it works</button><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hike" disabled>🥾 Hiking (soon)</option></select></span>
       </div>
-      <div class="modes" role="tablist" aria-label="What do you want to find?">
+      <div class="modes" role="tablist" aria-label="What do you want to find?" hidden>
         <button type="button" role="tab" id="tabName" aria-controls="paneName" aria-selected="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Find a trail</span></button>
         <button type="button" role="tab" id="tabNew" aria-controls="paneNew" aria-selected="true"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span>New trails in an area</span></button>
       </div>
       <section class="pane" id="paneName" role="tabpanel" aria-labelledby="tabName" hidden>
         <p class="hint">Any trail, old or new. Typos are OK.</p>
-        <div class="tsearch-row">
-          <div class="tsearch" id="tsearch">
-            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-            <input id="trailQ" type="search" placeholder="Trail name" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="trailHits" aria-autocomplete="list" aria-label="Search a trail by name">
-            <ul class="hits" id="trailHits" role="listbox" hidden></ul>
-          </div>
-          <button class="btn primary" id="trailGo" type="button">Search</button>
-        </div>
         <div>
           <label class="label" for="nameZone">Where is it? <span class="label-note">(optional, makes it faster)</span></label>
           <select id="nameZone" class="zone"></select>
@@ -1188,12 +1183,19 @@ body.sport-ski #rideMapBtn { display: none !important; }
         <button type="button" class="btn prime-go" id="primeGo" title="Trails in the area, old or new, with damp prime loam right now (Loam index 40 to 59)"><span class="dot" aria-hidden="true"></span>Prime loam now</button>
         <div class="diff-pick" role="group" aria-labelledby="diffPickLabel">
           <span class="label" id="diffPickLabel">Or show every trail of these levels (tap several), or only unofficial or alpine ones</span>
-          <div class="diff-chips"><button type="button" class="diff-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip" data-d="unoff" aria-pressed="false" title="Trails in the area that aren&#39;t part of the official bike network: plain paths with no bike tags (the dotted lines on the base map) and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button><button type="button" class="alp-chip" id="alpChip" aria-pressed="false" title="Alpine paths above the tree line that look doable on a mountain bike, any age (alpine.js, weekly data)"><span class="diff d-alpine">Alpine rideable</span></button></div>
+          <div class="diff-chips"><button type="button" class="diff-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip" data-d="unoff" aria-pressed="false" title="Trails in the area that aren&#39;t part of the official bike network: plain paths with no bike tags (the dotted lines on the base map) and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button></div>
         </div>
-        <div class="wantlist" id="wantList" hidden></div>
       </section>
       <section class="pane" id="paneNew" role="tabpanel" aria-labelledby="tabNew">
-        <p class="hint">Pick where and how new, then tap <strong>Find new trails</strong>.</p>
+        <p class="hint">Search a trail by name, or pick where and how new.</p>
+        <div class="tsearch-row">
+          <div class="tsearch" id="tsearch">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+            <input id="trailQ" type="search" placeholder="Trail name" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="trailHits" aria-autocomplete="list" aria-label="Search a trail by name">
+            <ul class="hits" id="trailHits" role="listbox" hidden></ul>
+          </div>
+          <button class="btn primary" id="trailGo" type="button">Search</button>
+        </div>
         <div>
           <label class="label" for="zone">Area</label>
           <select id="zone" class="zone"></select>
@@ -1210,16 +1212,17 @@ body.sport-ski #rideMapBtn { display: none !important; }
         <div>
           <div class="label" id="periodLabel">How new</div>
           <div class="periods" role="group" aria-labelledby="periodLabel">
+            <button type="button" data-p="0" aria-pressed="false" title="Every trail, old or new">Any</button>
             <button type="button" data-p="1" aria-pressed="false">Month</button>
-            <button type="button" data-p="6" aria-pressed="true">6 months</button>
+            <button type="button" data-p="6" aria-pressed="true">6 mo</button>
             <button type="button" data-p="12" aria-pressed="false">Year</button>
-            <button type="button" data-p="24" aria-pressed="false">2 years</button>
+            <button type="button" data-p="24" aria-pressed="false">2 yr</button>
             <button type="button" data-p="prime" class="prime-btn" aria-pressed="false" title="Trails in the area, old or new, with damp prime loam right now (Loam index 40 to 59)"><span class="dot" aria-hidden="true"></span>Prime loam now</button>
           </div>
         </div>
         <div class="diff-pick" role="group" aria-labelledby="newPickLabel">
-          <span class="label" id="newPickLabel">Only these levels (tap several), or only unofficial</span>
-          <div class="diff-chips"><button type="button" class="diff-chip lvl-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip lvl-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip lvl-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip lvl-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip lvl-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip lvl-chip" data-d="unoff" aria-pressed="false" title="New trails that aren&#39;t part of the official bike network: plain paths with no bike tags, and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button></div>
+          <span class="label" id="newPickLabel">Only these levels (tap several), or only unofficial or alpine</span>
+          <div class="diff-chips"><button type="button" class="diff-chip lvl-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip lvl-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip lvl-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip lvl-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip lvl-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip lvl-chip" data-d="unoff" aria-pressed="false" title="New trails that aren&#39;t part of the official bike network: plain paths with no bike tags, and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button><button type="button" class="alp-chip" id="alpChip" aria-pressed="false" title="Alpine paths above the tree line that look doable on a mountain bike, any age (alpine.js, weekly data)"><span class="diff d-alpine">Alpine rideable</span></button></div>
         </div>
         <button class="btn primary find" id="findBtn" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span id="findLabel">Find new trails</span></button>
         <button class="btn reset-btn" id="resetBtn" type="button" hidden>✕ Clear results</button>
@@ -1230,6 +1233,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
           <label class="toggle t-unoff off" title="Show only trails tagged as informal, closed or no bikes: of the types ticked, or of every type when none is ticked"><input type="checkbox" id="onlyUnoff"><span class="ck"></span><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
           <label class="toggle t-off off" title="Show only trails the map says are official: run by a park, town, trail club or bike park, listed by Recreation Sites and Trails BC, or mapped as informal=no. Of the types ticked, or of every type when none is ticked"><input type="checkbox" id="onlyOff"><span class="ck"></span><span class="sw"></span>Official only <span class="n" id="nOff">0</span></label>
         </div>
+        <div class="wantlist" id="wantList" hidden></div>
       </section>
       <button class="btn box-btn" id="boxBtn" type="button" aria-pressed="false" title="Drag a square on the map to list every MTB trail inside it, old or new">▭ Draw a square to find trails</button>
     </div>
@@ -1241,8 +1245,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
   </aside>
   <nav class="tabbar" id="tabbar" aria-label="Sections">
     <button type="button" data-nav="map"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z M9 4v13.5 M15 6.5V20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Map</span></button>
-    <button type="button" data-nav="new" class="mtb-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span>New trails</span></button>
-    <button type="button" data-nav="name" class="mtb-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Search</span></button>
+    <button type="button" data-nav="new" class="mtb-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Search</span></button>
     <button type="button" data-nav="ski" class="ski-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 20 21 8 M6 21l2-6 M12 4a2 2 0 1 0 0 .1 M9 12l4-3 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Routes</span></button>
     <a href="ride.html" data-nav="ride"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#ff4d5e"/></svg><span>Record</span></a>
     <button type="button" data-nav="more" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg><span>More</span></button>
@@ -1258,7 +1261,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
     <h2 id="aboutTitle">How Trail Finder works</h2>
     <ul class="about-quick">
-      <li><strong>New trails:</strong> pick an area (or tap Near me) and how new, then tap Find new trails. A trail is new when it was first added to OpenStreetMap in that time.</li>
+      <li><strong>Search:</strong> type a trail name, or pick an area (or tap Near me) and how new. <b>Any</b> lists every trail there, old or new, with when it was added; Month to 2 yr show the new trails. A trail is new when it was first added to OpenStreetMap in that time.</li>
       <li><strong>Prime loam now:</strong> trails whose dirt is damp right now (Loam index 40 to 59), the best riding.</li>
       <li><strong>Loam alerts:</strong> the 🔔 at the top tells you when a trail on your To ride list, or a new trail from the last month in the regions you picked, is in prime loam. Each one alerts once every time it turns damp. Each kind has its own switch in the 🔔 under Change regions.</li>
       <li><strong>Tap any trail</strong> on the map for its difficulty, weather, loam, how to get there and rider reports.</li>
@@ -1401,6 +1404,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
 
   const state = {
     months: store.get("months", 6),
+    any: store.get("any", false),   // How new: Any = every trail in the area, old or new (the list under the search)
     show: { mtb: true, looks: true, other: false, ghost: true },   // "other" paths have no chip and stay hidden
     ghosts: [],          // possible unmapped trails from the weekly GPS-trace file
     newPick: [],          // level chips in New trails: DIFF keys and/or "unoff"
@@ -1747,7 +1751,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
   function ago(d) {
     const days = Math.floor((Date.now() - d) / 864e5);
     if (days < 1) return "today";
-    if (days < 60) return days + (days === 1 ? " day ago" : " days ago");
+    if (days < 14) return days + (days === 1 ? " day ago" : " days ago");
+    if (days < 60) return Math.round(days / 7) + " weeks ago";
     const mo = Math.round(days / 30.4);
     return mo < 24 ? mo + " months ago" : Math.round(days / 365) + " years ago";
   }
@@ -2291,6 +2296,7 @@ out body;`;
   // auto: the quiet load when the page opens or the area changes. Its trails stay off the map
   // until a button is pressed (alex: no dots before pressing search).
   async function search(boxes, offline, auto) {
+    if (!auto && anyMode()) { findAny(); return; }   // How new: Any lists every trail in the area instead
     const token = ++state.token;
     state.waiting = !!auto;
     gate.strikes = 0;
@@ -2431,6 +2437,16 @@ out body;`;
     search(z ? [z.bounds] : zonesOf(state.zone).map((z) => z.bounds), offline, auto);
   }
 
+  const anyMode = () => state.any && !state.prime;
+  // How new: Any. Every MTB trail in the chosen area (or Near me circle, or the map), filtered by the level chips.
+  function findAny() {
+    state.waiting = true; render();
+    const picks = state.newPick.slice();
+    if (near) return showBox(nearBox(), picks, near.label || "you", { ll: near.ll, km: near.km });
+    if (state.custom) return showBox(map.getBounds(), picks, "this part of the map");
+    const a = areaById(state.zone);
+    showBox(a.bounds, picks, zoneById(state.zone) ? shortZone(a) : a.short || a.name);
+  }
   function findNewTrails() {
     if (near) { search([nearBox()]); return; }
     if (state.custom) {
@@ -2443,7 +2459,7 @@ out body;`;
     const k = c.dataset.d;
     state.newPick = state.newPick.includes(k) ? state.newPick.filter((x) => x !== k) : state.newPick.concat(k);
     document.querySelectorAll(".lvl-chip").forEach((x) => x.setAttribute("aria-pressed", String(state.newPick.includes(x.dataset.d))));
-    if (!state.trails.length && !state.prime && !state.searchedBounds.length) findNewTrails(); else render();
+    if (anyMode()) findAny(); else if (!state.trails.length && !state.prime && !state.searchedBounds.length) findNewTrails(); else render();
   }));
   // Clear results: back to the plain map (coloured trail lines only), as before any search.
   $("resetBtn").addEventListener("click", () => {
@@ -2747,6 +2763,13 @@ out body;`;
   }
 
   function renderStatus() {
+    if (anyMode()) {
+      $("resetBtn").hidden = true; $("toggles").hidden = true; $("debug").hidden = !state.error;
+      $("findBtn").disabled = false; $("findLabel").textContent = "Find trails";
+      const area = areaById(state.zone), where = near ? `${near.km} km around ${near.label || "you"}` : state.custom || !area.bounds.contains(map.getCenter()) ? "this area" : zoneById(state.zone) ? zoneById(state.zone).name : area.short;
+      setStatus($("boxRes").hidden ? `Tap Find trails to list every trail in ${where}, old or new.` : "");
+      return;
+    }
     $("resetBtn").hidden = !!state.waiting || !state.searchedBounds.length;
     $("toggles").hidden = !!state.waiting || (!state.prime && !state.searchedBounds.length && !state.trails.length);
     $("debug").hidden = !state.error;
@@ -3745,13 +3768,18 @@ out body;`;
   $("list").addEventListener("keydown", (e) => { if (e.key === "Enter") { const li = e.target.closest(".trail"); if (li) openRow(li); } });
 
   // ---------- controls ----------
+  // How new: Any lists every trail in the area (old or new, the same list as a square); Month to 2 yr are the new trails.
   document.querySelectorAll(".periods button").forEach((b) => {
-    const isPrimeBtn = b.dataset.p === "prime";
-    b.setAttribute("aria-pressed", String(isPrimeBtn ? state.prime : !state.prime && +b.dataset.p === state.months));
+    const isPrimeBtn = b.dataset.p === "prime", isAny = b.dataset.p === "0";
+    b.setAttribute("aria-pressed", String(isPrimeBtn ? state.prime : !state.prime && (isAny ? state.any : !state.any && +b.dataset.p === state.months)));
     b.addEventListener("click", () => {
+      const wasAny = state.any && !state.prime;
       state.prime = isPrimeBtn; store.set("prime", state.prime);
-      if (!isPrimeBtn) { state.months = +b.dataset.p; store.set("months", state.months); }
+      state.any = isAny; store.set("any", state.any);
+      if (!isPrimeBtn && !isAny) { state.months = +b.dataset.p; store.set("months", state.months); }
       document.querySelectorAll(".periods button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      if (isAny) { state.token++; state.loading = null; state.waiting = true; render(); findAny(); return; }
+      if (wasAny) { clearBox(); render(); findNewTrails(); return; }
       if (state.prime) loadPrime(false);
       render();
     });
@@ -3975,7 +4003,7 @@ out body;`;
   new MutationObserver(() => { if (!$("boxRes").hidden) growTo("half"); }).observe($("boxRes"), { attributes: true, attributeFilter: ["hidden"] });
   // App tab bar (phones): Map lowers the sheet, New trails and Search open those panes, More has the rest.
   function syncTabbar() {
-    const cur = sheet.snap === "peek" ? "map" : document.body.classList.contains("sport-ski") ? "ski" : $("tabName").getAttribute("aria-selected") === "true" ? "name" : "new";
+    const cur = sheet.snap === "peek" ? "map" : document.body.classList.contains("sport-ski") ? "ski" : "new";
     $("tabbar").querySelectorAll("[data-nav]").forEach((b) => b.setAttribute("aria-current", String(b.dataset.nav === cur)));
   }
   const tabMenu = $("tabMenu"), moreBtn = $("tabbar").querySelector('[data-nav="more"]');
@@ -5151,17 +5179,15 @@ out tags center qt;`;
   });
 
   // ---------- two modes: find a trail by name / new trails in an area ----------
+  // One search now (name box, area, How new with Any, levels): the old "Find a trail" pane stays hidden.
   function setMode(m, focus) {
-    store.set("mode", m);
-    $("tabName").setAttribute("aria-selected", String(m === "name"));
-    $("tabNew").setAttribute("aria-selected", String(m === "new"));
-    $("paneName").hidden = m !== "name";
-    $("paneNew").hidden = m !== "new";
-    $("panel").classList.toggle("mode-name", m === "name");
-    document.body.classList.toggle("mode-name", m === "name");   // hides the new-trail "Search this area" button
+    $("tabName").setAttribute("aria-selected", "false");
+    $("tabNew").setAttribute("aria-selected", "true");
+    $("paneName").hidden = true;
+    $("paneNew").hidden = false;
     if (focus) (m === "name" ? $("trailQ") : $("findBtn")).focus();
   }
-  // "Prime loam now" in Find a trail by name: same as picking it in New trails in an area.
+  // "Prime loam now" in the old Find a trail pane (hidden): same as picking it under How new.
   $("primeGo").addEventListener("click", () => {
     const nz = $("nameZone").value;
     if (zoneById(nz) && nz !== state.zone) goToZone(nz);   // use the area picked in "Where is it?"
@@ -5432,6 +5458,23 @@ out tags center qt;`;
     $("boxRes").innerHTML = "";
     document.querySelectorAll(".diff-chip:not(.lvl-chip), #alpChip").forEach((c) => c.setAttribute("aria-pressed", "false"));
     if (window.tfAlpine) window.tfAlpine.setOn(false);   // the alpine trails show only while their chip is on
+    if (anyMode()) renderStatus();
+  }
+  // When each trail was first added to OpenStreetMap: the nightly new-trail files list every way added in the last
+  // 2 years with its first-mapped date (ft), so a way missing from them is older. null when no file could be loaded.
+  async function firstMappedIn(zs) {
+    const fs = await Promise.all(zs.map((z) => nightly(`trails-${z.id}.json`).catch(() => null)));
+    if (!fs.some((f) => f && f.v === 1)) return null;
+    const m = new Map();
+    fs.forEach((f) => { if (f && f.v === 1) Object.entries(f.ways).forEach(([id, w]) => { const t = w.ft || (w.v === 1 ? w.t : null); if (t) m.set(+id, Date.parse(t)); }); });
+    return m;
+  }
+  // "added 3 months ago" for a trail (its oldest piece); plain paths loaded live aren't in the files, so they get none.
+  function addedAgo(ways, born) {
+    if (!born || ways.some((w) => w.c.cat === "path")) return null;
+    if (ways.some((w) => !born.has(w.id))) return { text: "added 2+ years ago" };
+    const t = Math.min(...ways.map((w) => born.get(w.id)));
+    return { text: "added " + ago(t), fresh: Date.now() - t < 183 * 864e5 };
   }
   // Plain paths for the Unofficial button: the area itself when it is one riding area or a zoomed-in view, else null.
   function plainBounds(b) {
@@ -5472,6 +5515,7 @@ out tags center qt;`;
     const one = (lvlText ? lvlText + (unoffPick ? " or unrated " : " ") : "") + (unoffPick ? "unofficial trail" : lvlText ? "trail" : "MTB trail");
     const what = one + "s", inWhere = circle ? `within ${circle.km} km of ${where}` : diff ? `in ${where}` : "in your square";
     $("boxRes").hidden = false;
+    if (anyMode()) setStatus("");
     $("boxRes").innerHTML = `<div class="box-head"><b>Looking for ${what} ${inWhere}…</b></div>`;
     await caIndexLoad();
     if (token !== boxToken) return;
@@ -5479,7 +5523,7 @@ out tags center qt;`;
     const caZs = caZonesIn([b]), inHome = ZONES.some((z) => z.bounds.intersects(b));
     const zs = ZONES.filter((z) => z.bounds.intersects(b)).concat(caZs);
     const tooBig = !inHome && !caZs.length && caIndex.zones.size > 0;
-    const lists = await Promise.all(zs.map(loadZoneTrails));
+    const [lists, born] = await Promise.all([Promise.all(zs.map(loadZoneTrails)), firstMappedIn(zs)]);
     if (token !== boxToken) return;
     // Unofficial: also the plain paths around the bike network (no bike tags, not official), live from OpenStreetMap.
     let pathNote = "";
@@ -5537,7 +5581,8 @@ out tags center qt;`;
     const rows = boxGroups.map((g, i) => {
       const main = g.ways.reduce((a, w) => (lengthKm(w.geom) > lengthKm(a.geom) ? w : a));
       const off = g.ways.find((w) => w.c.official), unoff = g.ways.every((w) => w.c.unoff.length), path = main.c.cat === "path";
-      return `<button class="box-row" type="button" data-i="${i}"><span class="box-name">${esc(g.name)}</span>${path ? "" : diffBadge(main.tags)}${unoff ? unoffTag(UNOFF_FLAGGED) : path ? unoffTag("A path with no bike tags, outside the official bike network") : unoffPick && main.c.cat === "looks" ? unoffTag("No bike tags, but it looks like a bike trail, and nothing marks it official") : ""}${off ? officialTag(off.c.official) : ""}<span class="box-len">${fmtLen(g.km)}${circle ? ` · ${fmtAway(g.away)}` : ""}</span></button>`;
+      const added = addedAgo(g.ways, born);
+      return `<button class="box-row" type="button" data-i="${i}"><span class="box-name">${esc(g.name)}</span>${path ? "" : diffBadge(main.tags)}${unoff ? unoffTag(UNOFF_FLAGGED) : path ? unoffTag("A path with no bike tags, outside the official bike network") : unoffPick && main.c.cat === "looks" ? unoffTag("No bike tags, but it looks like a bike trail, and nothing marks it official") : ""}${off ? officialTag(off.c.official) : ""}<span class="box-meta">${added ? `<span class="box-added${added.fresh ? " fresh" : ""}">${added.text}</span>` : ""}<span class="box-len">${fmtLen(g.km)}${circle ? ` · ${fmtAway(g.away)}` : ""}</span></span></button>`;
     }).join("");
     const none = !boxGroups.length && !unnamed;
     if (circle) map.fitBounds(circle.ll.toBounds(circle.km * 2000));
@@ -5616,6 +5661,7 @@ out tags center qt;`;
   fillNameZones();
   const savedNameZone = store.get("nameZone", "all");
   nameZoneSel.value = zoneById(savedNameZone) || (savedNameZone === "near" && nearPlace) ? savedNameZone : "all";
+  if (zoneById(state.zone)) nameZoneSel.value = state.zone;   // one search: the name box looks in the Area picked above
   $("nameNearForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const q = $("nameNear").value.trim();
@@ -5694,8 +5740,10 @@ out tags center qt;`;
     clearNear();
     zoneSel.value = id;
     state.zone = id; store.set("zone", state.zone);
+    nameZoneSel.value = zoneById(id) ? id : "all"; store.set("nameZone", nameZoneSel.value);   // name search looks in the same area
     map.fitBounds(zoneBounds(state.zone));
     searchZones(true, true);
+    if (anyMode()) findAny();
   }
   zoneSel.addEventListener("change", () => {
     if (zoneSel.value === "custom" || zoneSel.value === "near") return;
