@@ -1355,6 +1355,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     { id: "shu", name: "Salmon Arm & Shuswap", box: [50.62, -119.45, 50.85, -119.05] },
     { id: "ver", name: "Vernon & Silver Star", box: [50.10, -119.45, 50.42, -119.02] },
     { id: "kel", name: "Kelowna & West Kelowna", box: [49.72, -119.72, 50.05, -119.25] },
+    { id: "bwh", name: "Big White", box: [49.70, -119.00, 49.78, -118.88] },
     { id: "pen", name: "Penticton & Summerland", box: [49.38, -119.75, 49.70, -119.45] },
     { id: "sok", name: "Oliver & Osoyoos", box: [49.00, -119.65, 49.35, -119.40] },
     { id: "gfk", name: "Grand Forks & Christina Lake", box: [49.00, -118.55, 49.20, -118.15] },
@@ -1378,7 +1379,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
   // so riders who saved "all" keep their area.
   const REGIONS = [
     { id: "all", name: "Sea to Sky + Sunshine Coast", short: "Sea to Sky and the Sunshine Coast", ids: ["van", "sqm", "wh", "pem", "lil", "chil", "sun", "pr"] },
-    { id: "tok", name: "Fraser Valley, Kamloops, Okanagan & Cariboo", short: "the Fraser Valley, Kamloops, the Okanagan and Williams Lake", ids: ["fv", "pri", "mer", "kam", "wl", "shu", "ver", "kel", "pen", "sok"] },
+    { id: "tok", name: "Fraser Valley, Kamloops, Okanagan & Cariboo", short: "the Fraser Valley, Kamloops, the Okanagan and Williams Lake", ids: ["fv", "pri", "mer", "kam", "wl", "shu", "ver", "kel", "bwh", "pen", "sok"] },
     { id: "koot", name: "Kootenays, Revelstoke & Golden", short: "the Kootenays, Revelstoke and Golden", ids: ["gfk", "ros", "nel", "rev", "gol", "inv", "cbk", "fer"] },
     { id: "ab", name: "Calgary & the Rockies", short: "Calgary and the Rockies", ids: ALBERTA_ZONES },
   ];
@@ -1758,7 +1759,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
   const NO_BIKE_NOTE = /\b(no|not|non|closed to)\b[\w -]{0,14}\b(bik|mtb|cycl)/i;
   const NOT_BIKE_NAME = /\b(pedestrian|boardwalk|interpretive|nature walk|stairs?|steps|suspension bridge)\b/i;
   const NOT_BIKE_NOTE = /\b(hik(e|ing)|walk(ing)?|climbing|motorcycles?|dirt ?bikes?|atvs?|quads?|logging road)\b/i;
-  const SMOOTH = /^(gravel|fine_gravel|compacted|pebblestone|wood|unpaved)$/;
+  // Not "unpaved": Whistler's mappers tag dirt singletrack that way (Trial and Error, Section 102 at Emerald).
+  const SMOOTH = /^(gravel|fine_gravel|compacted|pebblestone|wood)$/;
   // A plain path that could be an untagged bike trail when it runs among MTB trails (see MTB trail networks):
   // not graded for hiking, signed for walkers, a ski, golf or park path, smooth gravel, or noted as something else.
   const netOk = (tags) => !tags.sac_scale && !tags["piste:type"] && !tags.golf && tags.foot !== "designated" && tags.lit !== "yes"
@@ -1897,7 +1899,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
     }
     // Tracks are vehicle-wide (forest roads, ATV, moto and 4x4 tracks), so only paths and bridleways can look like MTB.
     // A footway can still be on a Recreation Sites and Trails BC bike trail when it's open to bikes (Frisby Ridge, Revelstoke).
-    if (!/^(path|bridleway)$/.test(hw) && !(hw === "footway" && tags["tf:rec"])) return null;
+    // The all-trails job also adds footways open to bikes that run among MTB trails (tf:net) or in a riding area (tf:area).
+    if (!/^(path|bridleway)$/.test(hw) && !(hw === "footway" && (tags["tf:rec"] || tags["tf:net"] || tags["tf:area"]))) return null;
     if (PAVED.test(tags.surface || "")) return null;
     if (/alpine/.test(tags.sac_scale || "")) return null;
 
@@ -1923,6 +1926,9 @@ body.sport-ski #rideMapBtn { display: none !important; }
     // Also from the all-trails job: a path along a Recreation Sites and Trails BC trail in the Gold Bridge & South Chilcotin
     // backcountry, or along one of their bike trails around Revelstoke.
     if (tags["tf:rec"] && !motor) return { cat: "mtb", why: [`on the ${tags["tf:rec"]} (Recreation Sites and Trails BC)`].concat(why) };
+    // And a path among two or more named MTB trails, in every zone (the same rule as netCheck(), done ahead for the whole region,
+    // so the networks' untagged trails, like Azrael at Emerald or Berminator on Mount 7, show in All trails too).
+    if (tags["tf:net"] && !motor) return { cat: "looks", why: [`in an MTB trail network (near ${tags["tf:net"].split("|").map((n) => `“${n}”`).join(" and ")})`].concat(why) };
     if (score >= 2 && !motor) return { cat: "looks", why: why.concat(`score ${score}`) };
     if (hw === "path") return { cat: "other", net: !motor && netOk(tags), why: motor ? [`open to motor vehicles or wide (${motor})`] : why.length ? why.concat(`score ${score}`) : ["no bike-related tags yet"] };
     return null;
