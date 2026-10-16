@@ -3,7 +3,7 @@
 // Resort Municipality of Whistler, Columbia Shuswap Regional District.
 // An OpenStreetMap trail counts as one of their trails when most of it runs along that trail's line.
 // window.tfOfficial = { load(bounds) -> Promise (loads the squares in view), match(geom, name) -> { s, src, why } | null,
-//   onChange(fn) (called when new squares arrive) }. s: 1 official + bikes allowed, 2 official, 3 official but not for bikes.
+//   onChange(fn) (called with touches(geom) when new squares arrive: true for trails the new squares could change) }. s: 1 official + bikes allowed, 2 official, 3 official but not for bikes.
 (function () {
   const DIR = "data/official/";
   const CELL = 0.005;                 // index cells, degrees (~550 m north-south)
@@ -46,9 +46,17 @@
         if (!ix.squares[k] || squares.has(k)) continue;
         const p = fetch(DIR + k + ".json").then((r) => (r.ok ? r.json() : null)).catch(() => null)
           .then((f) => { squares.set(k, f && f.v === 2 ? prepare(f) : { lines: [], cells: new Map() }); });
-        squares.set(k, p); want.push(p);
+        p.key = k; squares.set(k, p); want.push(p);
       }
-      if (want.length) return Promise.all(want).then(() => listeners.forEach((fn) => { try { fn(); } catch (err) { console.warn(err); } }));
+      if (!want.length) return;
+      // touches(geom): could the new squares change this trail's match? (its box overlaps one of them)
+      const fresh = want.map((p) => p.key.split("_").map(Number));
+      const touches = (geom) => {
+        let s = 90, n = -90, w = 180, e = -180;
+        for (const q of geom) { const [a, o] = pt(q); if (a < s) s = a; if (a > n) n = a; if (o < w) w = o; if (o > e) e = o; }
+        return fresh.some(([a, o]) => s < a + 0.5 && n >= a && w < o + 0.5 && e >= o);
+      };
+      return Promise.all(want).then(() => listeners.forEach((fn) => { try { fn(touches); } catch (err) { console.warn(err); } }));
     });
   }
 
