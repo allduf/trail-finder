@@ -1228,7 +1228,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
         <button class="btn reset-btn" id="resetBtn" type="button" hidden>✕ Clear results</button>
         <div class="toggles" id="toggles" role="group" aria-label="Show these trails" hidden>
           <label class="toggle t-mtb"><input type="checkbox" id="showMtb" checked><span class="ck"></span><span class="sw"></span>MTB tagged <span class="n" id="nMtb">0</span></label>
-          <label class="toggle t-looks"><input type="checkbox" id="showLooks" checked><span class="ck"></span><span class="sw"></span>Looks like MTB <span class="n" id="nLooks">0</span></label>
+          <label class="toggle t-looks"><input type="checkbox" id="showLooks" checked><span class="ck"></span><span class="sw"></span>Likely MTB <span class="n" id="nLooks">0</span></label>
           <label class="toggle t-ghost" title="Lines that several GPS traces follow at bike speed, where OpenStreetMap has no trail yet. Unverified."><input type="checkbox" id="showGhost" checked><span class="ck"></span><span class="sw"></span>Possible unmapped <span class="n" id="nGhost">0</span></label>
           <label class="toggle t-unoff off" title="Show only trails tagged as informal, closed or no bikes: of the types ticked, or of every type when none is ticked"><input type="checkbox" id="onlyUnoff"><span class="ck"></span><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
           <label class="toggle t-off off" title="Show only trails the map says are official: run by a park, town, trail club or bike park, listed by Recreation Sites and Trails BC, or mapped as informal=no. Of the types ticked, or of every type when none is ticked"><input type="checkbox" id="onlyOff"><span class="ck"></span><span class="sw"></span>Official only <span class="n" id="nOff">0</span></label>
@@ -1292,7 +1292,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <h3>MTB tagged</h3>
     <p>Any tag starting with <code>mtb</code> (<code>mtb:scale</code>, <code>mtb:scale:imba</code>, <code>mtb:type</code>, <code>mtb=yes</code>, …) or membership in a <code>route=mtb</code> relation. <code>mtb=no</code> is excluded.</p>
     <p>Riding areas where mappers seldom tag bike trails (Fernie, Three Blind Mice, the South Chilcotin…): their named paths count as MTB trails too, from the daily all-trails lists. Paths that are wide, open to motor vehicles or closed to bikes are still left out. Around Gold Bridge and the South Chilcotin, every path that follows a Recreation Sites and Trails BC trail counts as well, named or not: it takes the trail's name when the map has none, and its details show what Recreation Sites and Trails BC says about it. Around Revelstoke, so do the paths along their bike trails (the ones listed for mountain biking, like the Revelstoke Cycling Association's Mount Macpherson and Boulder Mountain trails, Frisby Ridge and Mount Cartier), but not the Nordic ski, snowmobile, dirt bike or hiking trails. A trail they list as closed says so. Trails inside a provincial park say so, with BC Parks' rules for bikes there (no e-bikes in South Chilcotin Mountains Park). The Recreation Sites and Trails BC trails and the park boundaries come from DataBC (Open Government Licence - British Columbia).</p>
-    <h3>Looks like MTB</h3>
+    <h3>Likely MTB (no bike tags)</h3>
     <p>A <code>path</code> or <code>bridleway</code> with no MTB tags that scores 2 points or more:</p>
     <ul>
       <li>+2 signed for bikes: <code>bicycle=designated</code></li>
@@ -1306,7 +1306,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
       <li>+2 the mapper's <code>description</code> or <code>note</code> calls it a bike trail (mountain bike, MTB, downhill…)</li>
       <li>+1 linked to Trailforks (<code>source</code> or <code>website</code> mentions Trailforks)</li>
     </ul>
-    <p>MTB trail networks: many bike trails have no bike tags at all. A plain path with no bike tags that runs within 400 m of two or more other MTB-tagged trails (with different names) also counts as Looks like MTB, unless it's graded for hiking (<code>sac_scale</code>), signed for walkers (<code>foot=designated</code>), a ski, golf or lit park path, gravel or boardwalk, open to motor vehicles, or its note says it's for hiking, climbing or motorbikes. This is checked again every time trails or trail lists load, so it keeps up as mappers add trails.</p>
+    <p>MTB trail networks: many bike trails have no bike tags at all. A plain path with no bike tags that runs within 400 m of two or more other MTB-tagged trails (with different names) also counts as Likely MTB, unless it's graded for hiking (<code>sac_scale</code>), signed for walkers (<code>foot=designated</code>), a ski, golf or lit park path, gravel or boardwalk, open to motor vehicles, or its note says it's for hiking, climbing or motorbikes. This is checked again every time trails or trail lists load, so it keeps up as mappers add trails.</p>
     <p>Skipped: tracks (most are forest roads or ATV, moto and 4x4 tracks), paths 2 m wide or more, paths open to motorbikes, ATVs or other motor vehicles, paved surfaces, <code>bicycle=dismount</code>, and alpine hiking routes (<code>sac_scale</code> alpine).</p>
 <h3>Difficulty colours</h3>
     <p>Trails are coloured like Trailforks: green, blue, black, double black (red) and pro line (orange). The colour comes from <code>mtb:scale:imba</code> (0-1 green, 2 blue, 3 black, 4 double black, 5 pro line), or else from <code>mtb:scale</code>, which mappers here use the same way (S0-S1 green, S2 blue, S3 black, S4 double black, S5-S6 pro line). When a trail has no rating on the map, the app looks for one elsewhere: official open data that rates bike trails (the Resort Municipality of Whistler, the Columbia Shuswap Regional District around Golden, Revelstoke and the Shuswap, Sépaq, the City of Ottawa, Utah and Pennsylvania state parks), then a rated piece of the same trail. Failing that, it estimates the level from the slope and draws it dashed, with an “Est.” badge: slope can't see rocks, roots or drops, so the guess is the right level about half the time and within one level 96% of the time. Trailforks ratings can't be copied. Grey means no source and no estimate. The “Trail colours” key on the map switches back to colours by trail type.</p>
@@ -1318,8 +1318,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. The named trails of the South Chilcotin (South Chilcotin Mountains Park and the Spruce Lake area), the paths around Gold Bridge that follow a Recreation Sites and Trails BC trail, the paths around Revelstoke that follow one of their bike trails, and every MTB trail in Williams Lake count as official too. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
 <h3>Moto and hiking-only trails</h3>
     <p>To keep the list about mountain biking, trails that look like dirt-bike, ATV or 4x4 trails, and trails where bikes aren't allowed, are left out of the list. Moto means tags like <code>dirtbike:scale</code>, <code>motorcycle=designated</code>, <code>atv=yes</code>, <code>4wd_only=yes</code>, an ATV route, or a name like “ATV trail”. Hiking only means <code>bicycle=no</code>, <code>mtb=no</code>, stairs, hard hiking terrain (<code>sac_scale</code> T4 and up), or a signed hiking route with no bike access. A trail with any MTB tag, in an MTB route, or with <code>bicycle=designated</code> is never hidden, even if motorbikes are allowed on it too. The exceptions are a ski trail (<code>piste:type</code>) where bikes are banned, like the ski trails of Gatineau Park, and a trail whose name marks it as ski, snowshoe or hiking, like “Loup-Garou (Ski)” or “Marais (Rando)”, unless it also says “(Vélo)” or is signed open to bikes.</p>
-    <h3>Unofficial (possibly unsanctioned) trails</h3>
-    <p>Marked with a dark dotted line and an “Unofficial?” tag. A trail is flagged when mappers tagged it <code>informal=yes</code>, closed it (<code>access=no</code> or <code>private</code>), banned bikes (<code>bicycle=no</code>, <code>mtb=no</code>), or wrote “unsanctioned”, “closed”, “illegal” or similar in its note or description. Turn on “Unofficial only” to see just those. This is a hint from the map data, not the legal status: many unsanctioned trails aren't tagged at all, and some tags are out of date.</p>
+    <h3>Unofficial trails</h3>
+    <p>Marked with a dark dotted line and an “Unofficial” tag (hover or long-press it to see why). A trail is flagged when mappers tagged it <code>informal=yes</code>, closed it (<code>access=no</code> or <code>private</code>), banned bikes (<code>bicycle=no</code>, <code>mtb=no</code>), or wrote “unsanctioned”, “closed”, “illegal” or similar in its note or description. Turn on “Unofficial only” to see just those. This is a hint from the map data, not the legal status: many unsanctioned trails aren't tagged at all, and some tags are out of date.</p>
     <h3>Possible unmapped trails (unverified)</h3>
     <p>Purple dotted lines are guesses, not mapped trails. Once a week the site looks at the public GPS traces people upload to OpenStreetMap. Where 2 or more different traces run together for 100 m or more, more than 20 m from any mapped road, path, lift or ski run, it's listed. Only lines most traces ride at bike speed (faster than walking, slower than a car) are shown. The date is the first GPS trace on it. Each one links to the Strava and Trailforks heatmaps so you can compare, and to OpenStreetMap so you can map it if it's real. It may be private land, closed, or a GPS glitch: check before riding.</p>
     <h3>Forest roads</h3>
@@ -1782,6 +1782,9 @@ body.sport-ski #rideMapBtn { display: none !important; }
 
   // Signs that a trail may be unsanctioned (unofficial, closed or not for bikes). Only what mappers tagged.
   const CLOSED_NOTE = /\b(unsanctioned|unauthori[sz]ed|illegal|not sanctioned|unofficial|closed|decommissioned|no bikes)\b/i;
+  // One word everywhere for trails outside the official bike network: an "Unofficial" tag, with why in its tooltip.
+  const UNOFF_FLAGGED = "Mappers flagged it as informal, closed or no bikes";
+  const unoffTag = (why) => `<span class="unoff-tag" title="${esc(why)}">Unofficial</span>`;
   function unofficial(tags) {
     const out = [];
     if (tags.informal === "yes") out.push("Mapped as an informal trail (informal=yes): it exists and gets used, but isn't an official trail.");
@@ -2605,7 +2608,7 @@ out body;`;
   const PARK_RULES = { "South Chilcotin Mountains Park": "bikes stay on the designated trails, and e-bikes aren't allowed in the park (BC Parks trail map)" };
   const parkUrl = (name) => `https://bcparks.ca/${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}/`;
   function trailName(t) { if (t.ghost) return "Possible unmapped trail"; return t.tags.name || t.tags["mtb:name"] || t.tfName || "Unnamed " + t.tags.highway; }
-  const CAT_LABEL = { mtb: "MTB tagged", looks: "Looks like MTB", other: "Other new path", ghost: "Possible unmapped trail" };
+  const CAT_LABEL = { mtb: "MTB tagged", looks: "Likely MTB", other: "Other new path", ghost: "Possible unmapped trail" };
 
   // One short reason for the list, in plain words (the trail details keep the map tags).
   function plainWhy(t) {
@@ -2671,7 +2674,7 @@ out body;`;
     list.innerHTML = "<ol>" + shown.map((t) => {
       return `<li class="trail ${t.cat}${state.selected === t.id ? " sel" : ""}" data-id="${t.id}" tabindex="0">
         <span class="bar"${barStyle(t)}></span>
-        <div><div class="name">${esc(trailName(t))} ${t.ghost ? "" : diffBadge(t.tags)} ${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""}${officialTag(t.official)} ${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}</div>
+        <div><div class="name">${esc(trailName(t))} ${t.ghost ? "" : diffBadge(t.tags)} ${isUnoff(t) ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(t.official)} ${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}</div>
         <div class="meta">${near ? `<span class="zone-tag">${fmtAway(nearDist(t))}</span> · ` : ""}${!zoneById(state.zone) && !state.custom && t.zone ? `<span class="zone-tag">${esc(t.zone.split(" (")[0])}</span> · ` : ""}${esc(plainWhy(t))}</div></div>
         <div class="right">${fmtLen(t.km)}<br>${ago(t.created)}${loamBadge(t)}</div></li>`;
     }).join("") + "</ol>";
@@ -2743,7 +2746,7 @@ out body;`;
     list.innerHTML = shown.length ? "<ol>" + shown.map((e, i) => {
       return `<li class="trail prime ${e.cat}" data-pk="${i}" tabindex="0">
         <span class="bar"${barStyle({ tags: e.g.tags })}></span>
-        <div><div class="name">${esc(e.g.name)} ${diffBadge(e.g.tags)} ${e.unoff.length ? `<span class="unoff-tag">Unofficial?</span>` : ""}${officialTag(e.official)}</div>
+        <div><div class="name">${esc(e.g.name)} ${diffBadge(e.g.tags)} ${e.unoff.length ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(e.official)}</div>
         <div class="meta">${near ? `<span class="zone-tag">${fmtAway(dist(e))}</span> · ` : ""}${esc([e.g.kind, e.g.zone].filter(Boolean).join(" · "))}</div></div>
         <div class="right">${loamBadge(e).replace(/^<br>/, "")}</div></li>`;
     }).join("") + "</ol>" : "";
@@ -3313,12 +3316,12 @@ out body;`;
       <div class="d-head ${t.cat}">
         <span class="bar"${barStyle(t)}></span>
         <div><h2>${esc(trailName(t))}</h2>
-        <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${diffBadge(t.tags)}${isUnoff(t) ? `<span class="unoff-tag">Unofficial?</span>` : ""}${officialTag(t.official)}${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
+        <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${diffBadge(t.tags)}${isUnoff(t) ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(t.official)}${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
       </div>
       <p class="diff-note muted" id="diffNote"${t.tags["tf:diffwhy"] && difficulty(t.tags) === t.tags["tf:diff"] ? "" : " hidden"}>${esc(t.tags["tf:diffwhy"] || "")}</p>
       ${t.use ? `<div class="unoff-box use-box"><strong>${t.use === "moto" ? "Looks like a moto trail" : "Looks like a hiking-only trail"}</strong><ul>${t.useWhy.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">${t.use === "moto" ? "Dirt-bike, ATV and 4x4 trails" : "Hiking-only trails"} are left out of the new-trails list. This is a guess from the map tags.</p></div>` : ""}
-      ${isUnoff(t) ? `<div class="unoff-box"><strong>Possibly unsanctioned</strong><ul>${t.unoff.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
+      ${isUnoff(t) ? `<div class="unoff-box"><strong>Unofficial</strong><ul>${t.unoff.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">This only shows what OpenStreetMap mappers tagged and what government trail lists say. It's a hint, not the trail's legal status. Check with the land manager or Trailforks before riding.</p></div>` : ""}
       ${tf.alpine ? `<div class="alpine-box"><strong>${window.tfAlpine ? window.tfAlpine.icon : ""} Alpine, looks rideable</strong>
         <p>${tf.alpine.up >= 1000 ? (tf.alpine.up / 1000).toFixed(1) + " km" : Math.round(tf.alpine.up / 10) * 10 + " m"} of it is above the tree line (about ${tf.alpine.tl} m here), up to ${tf.alpine.hi} m.${tf.alpine.why ? ` From the map: ${esc(tf.alpine.why)}.` : ""}</p>
@@ -3342,7 +3345,7 @@ out body;`;
         ${factRows(true)}
         <dt>Official?</dt><dd>${t.official ? `Yes: ${esc(t.official)}.` : isUnoff(t) ? "Possibly not (see above)." : `<span class="muted">Not known</span>`}</dd>
         ${tf.rec ? `<dt>Recreation Sites and Trails BC</dt><dd>${tf.rec.id ? `<a href="https://www.sitesandtrailsbc.ca/search/search-result.aspx?site=${encodeURIComponent(tf.rec.id)}&type=Trail" target="_blank" rel="noopener">${esc(tf.rec.name)}</a>` : esc(tf.rec.name)}${tf.rec.use ? `<br>Uses: ${esc(tf.rec.use)}` : ""}${tf.rec.about ? `<br>${esc(tf.rec.about)}` : ""}${tf.tfName ? `<br><span class="muted">The name is theirs: OpenStreetMap has no name for this path yet.</span>` : ""}</dd>` : ""}
-        ${t.cat === "looks" ? `<dt>Why it looks like MTB</dt><dd>${t.why.filter((w) => !/^score /.test(w)).map(esc).join("<br>")}${t.inNet ? `<br><span class="muted">It has no bike tags yet. If it's a bike trail, adding <code>mtb:scale</code> on OpenStreetMap makes it “MTB tagged”.</span>` : ""}</dd>` : ""}
+        ${t.cat === "looks" ? `<dt>Why it's likely MTB</dt><dd>${t.why.filter((w) => !/^score /.test(w)).map(esc).join("<br>")}${t.inNet ? `<br><span class="muted">It has no bike tags yet. If it's a bike trail, adding <code>mtb:scale</code> on OpenStreetMap makes it “MTB tagged”.</span>` : ""}</dd>` : ""}
         ${t.cat === "mtb" && t.why && t.why.length ? `<dt>Why it's MTB tagged</dt><dd>${t.why.map(esc).join("<br>")}</dd>` : ""}
         <dt>Map points</dt><dd>${segs ? `${segs} map segments` : `${t.geom.length} map points`}</dd>
         <dt>Mapped by</dt><dd>${t.created ? `${userLink(t.creator)} ${csLink(t.firstChangeset)}` : "Unknown"}${segs && type === "way" ? `<br><span class="muted">earliest of its segments</span>` : ""}</dd>
@@ -4797,9 +4800,9 @@ out body;`;
     const section = (title, items) => `<li class="lg-more"><details data-k="${title}"${keyOpen.has(title) ? " open" : ""}><summary>${title}</summary><ul>${items}</ul></details></li>`;
     let html = byDiff
       ? Object.entries(DIFF).map(([k, v]) => sw(`background: ${v.color}`, `${v.sym} ${v.label}`)).join("")
-        + sw(`background: repeating-linear-gradient(90deg, ${DIFF.blue.color} 0 6px, transparent 6px 10px)`, "Dashed: estimated level") + sw(`background: ${UNRATED}`, "Not rated") + sw(dots, "Unofficial?")
-      : sw("background: var(--mtb)", "MTB tagged") + sw("background: repeating-linear-gradient(90deg, var(--looks) 0 8px, transparent 8px 12px)", "Looks like MTB")
-        + sw("background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 8px)", "Possible unmapped") + sw(dots, "Unofficial?");
+        + sw(`background: repeating-linear-gradient(90deg, ${DIFF.blue.color} 0 6px, transparent 6px 10px)`, "Dashed: estimated level") + sw(`background: ${UNRATED}`, "Not rated") + sw(dots, "Unofficial")
+      : sw("background: var(--mtb)", "MTB tagged") + sw("background: repeating-linear-gradient(90deg, var(--looks) 0 8px, transparent 8px 12px)", "Likely MTB")
+        + sw("background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 8px)", "Possible unmapped") + sw(dots, "Unofficial");
     if (window.tfAlpine && window.tfAlpine.on()) html += window.tfAlpine.keyItem(sw);
     if (state.roads) html += section("Forest roads", ["good", "degraded", "heavy", "impass", "unknown", "closed"].map((st) => {
         const c = roadStyle(st).color;
@@ -4825,7 +4828,7 @@ out body;`;
     }
     $("keyList").querySelectorAll(".lg-more details").forEach((d) => d.addEventListener("toggle", () => { if (d.open) keyOpen.add(d.dataset.k); else keyOpen.delete(d.dataset.k); }));
     $("keyNote").textContent = byDiff
-      ? state.allTrails ? "All trails: bold = official, thin = not known, dotted = unofficial. White edge: trails in the list." : "Dashed: looks like MTB (no bike tags)."
+      ? state.allTrails ? "All trails: bold = official, thin = not known, dotted = unofficial. White edge: trails in the list." : "Dashed: likely MTB (no bike tags)."
       : state.allTrails ? "All trails: bold = official, thin = not known. Thick: trails in the list." : "";
   }
   renderKey();
@@ -5118,7 +5121,7 @@ out tags center qt;`;
       const g = h.g;
       const meta = [g.kind, g.zone, g.items.length > 1 ? g.items.length + " segments" : "", fmtDist(h.d)].filter(Boolean).join(" · ");
       return `<li class="hit ${g.mtb ? "mtb" : ""}" role="option" id="hit${n}" data-n="${n}" aria-selected="${n === hitSel}"><span class="bar"></span>
-        <div><div class="hn">${esc(g.name)} ${diffBadge(g.tags)} ${g.isNew ? `<span class="newtag">New</span>` : ""} ${unofficial(g.tags).length ? `<span class="unoff-tag">Unofficial?</span>` : ""} ${g.use ? `<span class="use-tag">${USE_LABEL[g.use]}</span>` : ""}</div><div class="hm">${esc(meta)}</div></div></li>`;
+        <div><div class="hn">${esc(g.name)} ${diffBadge(g.tags)} ${g.isNew ? `<span class="newtag">New</span>` : ""} ${unofficial(g.tags).length ? unoffTag(UNOFF_FLAGGED) : ""} ${g.use ? `<span class="use-tag">${USE_LABEL[g.use]}</span>` : ""}</div><div class="hm">${esc(meta)}</div></div></li>`;
     }).join("");
     let note = "";
     const want = wantedZones(), zsel = nameZone();
@@ -5312,6 +5315,27 @@ out tags center qt;`;
   // ---- click anywhere near a trail on the map (loaded or not): show it like a search result ----
   const PICK_PX = L.Browser.touch ? 22 : 14;              // how close to the line a click must land
   const PICK_MIN_ZOOM = 13;
+  // A tap this close to a trail drawn by All trails picks the nearest one, so riders don't have to hit the line exactly.
+  const SNAP_PX = L.Browser.touch ? 44 : 26, SNAP_MIN_ZOOM = 11;
+  function nearestDrawn(ll) {
+    const p = map.latLngToLayerPoint(ll);
+    const pad = map.layerPointToLatLng(p.add([SNAP_PX, SNAP_PX])), dLat = Math.abs(pad.lat - ll.lat), dLng = Math.abs(pad.lng - ll.lng);
+    const box = L.latLngBounds([ll.lat - dLat, ll.lng - dLng], [ll.lat + dLat, ll.lng + dLng]);
+    let best = null;
+    allShown.forEach(({ w }) => {
+      if (!w.bounds) w.bounds = L.latLngBounds(w.geom);
+      if (!box.intersects(w.bounds)) return;
+      let prev = map.latLngToLayerPoint(w.geom[0]);
+      for (let i = 1; i < w.geom.length; i++) {
+        const q = map.latLngToLayerPoint(w.geom[i]);
+        const d = L.LineUtil.pointToSegmentDistance(p, prev, q);
+        if (d <= SNAP_PX && (!best || d < best.d)) best = { w, d, a: prev, b: q };
+        prev = q;
+      }
+    });
+    if (!best) return null;
+    return { w: best.w, ll: map.layerPointToLatLng(L.LineUtil.closestPointOnSegment(p, best.a, best.b)) };
+  }
   const TRAIL_HW = /^(path|track|bridleway|cycleway|footway|steps)$/;
   const pickLayer = L.layerGroup().addTo(map);
   let clickTimer = 0;
@@ -5329,7 +5353,14 @@ out tags center qt;`;
   }
   async function pickTrailAt(ll) {
     if (state.selected) closeDetail();
-    if (map.getZoom() < PICK_MIN_ZOOM) { pickNote(ll, "Zoom in to click a trail"); return; }
+    const snap = map.getZoom() >= SNAP_MIN_ZOOM ? nearestDrawn(ll) : null;
+    if (snap) {                                    // onto the nearest trail on the map
+      ll = snap.ll;
+      // A named trail made of several pieces opens right away from the loaded list, no need to ask OpenStreetMap.
+      if (names.zones.size && (names.dirty || names.trailCount !== state.trails.length)) buildGroups();
+      const g = names.groups.find((g) => g.type === "w" && g.items.length > 1 && g.items.some((i) => i.id === snap.w.id)) || allGroupOf(snap.w);
+      if (g) { ++foundToken; pickLayer.clearLayers(); showFound(g, true); return; }
+    } else if (map.getZoom() < PICK_MIN_ZOOM) { pickNote(ll, "Zoom in to click a trail"); return; }
     const token = ++foundToken;
     pickLayer.clearLayers();
     pickLayer.addLayer(L.circleMarker(ll, { radius: 10, color: css("--fg"), weight: 2, dashArray: "3 3", fill: false, interactive: false, className: "pick-ring" }));
@@ -5352,6 +5383,7 @@ out tags center qt;`;
       const pts = line.map((q) => map.latLngToLayerPoint(q));
       let d = Infinity;
       for (let i = 1; i < pts.length; i++) d = Math.min(d, L.LineUtil.pointToSegmentDistance(p, pts[i - 1], pts[i]));
+      if (snap && w.id === snap.w.id) d = -1;      // the trail the tap was snapped to wins
       if (d <= PICK_PX && (!best || d < best.d)) best = { w, line, d };
     });
     if (showRoadAt(ll, best && best.w)) return;
@@ -5519,7 +5551,7 @@ out tags center qt;`;
     const rows = boxGroups.map((g, i) => {
       const main = g.ways.reduce((a, w) => (lengthKm(w.geom) > lengthKm(a.geom) ? w : a));
       const off = g.ways.find((w) => w.c.official), unoff = g.ways.every((w) => w.c.unoff.length), path = main.c.cat === "path";
-      return `<button class="box-row" type="button" data-i="${i}"><span class="box-name">${esc(g.name)}</span>${path ? "" : diffBadge(main.tags)}${unoff ? `<span class="unoff-tag">Unofficial?</span>` : ""}${path ? `<span class="unmarked-tag" title="Mapped as a plain path with no bike tags, outside the official bike network">Plain path</span>` : ""}${unoffPick && !unoff && main.c.cat === "looks" ? `<span class="unmarked-tag" title="No bike tags, but looks like a bike trail, and nothing marks it official">Looks like MTB</span>` : ""}${off ? officialTag(off.c.official) : ""}<span class="box-len">${fmtLen(g.km)}${circle ? ` · ${fmtAway(g.away)}` : ""}</span></button>`;
+      return `<button class="box-row" type="button" data-i="${i}"><span class="box-name">${esc(g.name)}</span>${path ? "" : diffBadge(main.tags)}${unoff ? unoffTag(UNOFF_FLAGGED) : path ? unoffTag("A path with no bike tags, outside the official bike network") : unoffPick && main.c.cat === "looks" ? unoffTag("No bike tags, but it looks like a bike trail, and nothing marks it official") : ""}${off ? officialTag(off.c.official) : ""}<span class="box-len">${fmtLen(g.km)}${circle ? ` · ${fmtAway(g.away)}` : ""}</span></button>`;
     }).join("");
     const none = !boxGroups.length && !unnamed;
     if (circle) map.fitBounds(circle.ll.toBounds(circle.km * 2000));
@@ -5529,7 +5561,7 @@ out tags center qt;`;
       : unoffPick && pathNote ? `<p class="hint box-why">${esc(pathNote)}</p>`
       : none && unoffPick ? `<p class="hint box-why">No unofficial trails ${esc(inWhere)}${lvlText ? ` rated ${esc(lvlText)} or unrated` : ""}: every trail here is tagged for MTB or marked official.</p>`
       : none && diff ? `<p class="hint box-why">No trails ${esc(inWhere)} are rated ${esc(lvlText)} in OpenStreetMap. Only trails with a difficulty rating show up here.</p>`
-      : unoffPick && !none ? `<p class="hint box-why">Unofficial: trails mappers flagged as unofficial (first), Looks like MTB trails, and plain paths with no bike tags (grey). MTB tagged trails and official ones (club, park, ski or Recreation Sites and Trails BC) are left out.${lvlText ? " Most unofficial trails have no difficulty rating, so unrated ones are included with the levels you picked." : ""}</p>`
+      : unoffPick && !none ? `<p class="hint box-why">Unofficial trails: the ones mappers flagged come first, then trails with no bike tags (paths with no bike tags are grey). MTB tagged and official trails (club, park, ski or Recreation Sites and Trails BC) are left out.${lvlText ? " Most unofficial trails have no difficulty rating, so unrated ones are included with the levels you picked." : ""}</p>`
       : none && circle ? `<p class="hint box-why">No MTB trails are mapped within ${circle.km} km. Pick a bigger distance.</p>`
       : none ? `<p class="hint box-why">OpenStreetMap has no trails tagged for mountain biking here: the lines on the map are hiking trails or forest roads, or nothing is mapped yet. Try a bigger square, or tap a line to see what it is.</p>` : "";
     $("boxRes").innerHTML = `<div class="box-head"><div><b>${none ? `No ${what} ${esc(inWhere)}` : `${boxGroups.length} ${one}${boxGroups.length === 1 ? "" : "s"} ${esc(inWhere)}`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed bit${unnamed === 1 ? "" : "s"} (on the map)</span>` : ""}</div><button class="linkish" id="boxClear" type="button">${diff || circle ? "Clear" : "Clear square"}</button></div>${why}${rows}`;

@@ -14,7 +14,7 @@
 
   const DAY = 86400000;
   const SAME_VISIT_MS = 3600e3;   // a reload or return within an hour is still the same visit
-  const LABEL = { mtb: "MTB tagged", looks: "Looks like MTB" };
+  const LABEL = { mtb: "MTB tagged", looks: "Likely MTB" };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const store = {
     get(k, d) { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
