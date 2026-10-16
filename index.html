@@ -1035,6 +1035,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
 .road-pop .src { color: #5c6862; font-size: .78rem; }
 .rf-pin span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; border: 2.5px solid #fff; box-shadow: 0 0 0 1.5px rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.5); box-sizing: border-box; }
 .rf-pin span svg { width: 19px; height: 19px; }
+.fire-pin span { width: 18px; height: 18px; border-width: 1.5px; box-shadow: 0 0 0 1px rgba(0,0,0,.45); opacity: .9; }
+.fire-pin span svg { width: 12px; height: 12px; }
 .acc-list li, .acc-ends li { margin: 0 0 8px; }
 .acc-row { display: flex; gap: 8px; align-items: flex-start; }
 .acc-row .lg-ico { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; flex: none; margin-top: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
@@ -1408,10 +1410,11 @@ body.sport-ski #rideMapBtn { display: none !important; }
     onlyOff: false,       // "Official only": trails with signs of being official, of the ticked types (same rule)
     colorBy: store.get("colorBy", "diff"),     // trail colours on the map: "diff" (difficulty, like Trailforks) or "type"
     allTrails: store.get("allTrails", true),  // "All trails": every MTB trail in view, any age, under the new ones
-    fires: store.get("fires", true),          // "Wildfires": BC Wildfire Service fires, perimeters, area restrictions and evacuations
+    // First screen: only All trails and Bike parks are on until the rider turns more on in Layers (a calmer map).
+    fires: store.get("fires", false),         // "Wildfires": BC Wildfire Service fires, perimeters, area restrictions and evacuations
     access: store.get("access", false),       // "Trailheads and parking" pins, off by default: towns have lots of parking (alex)
-    areas: store.get("areas", true),          // "Logging areas": cut blocks and motor vehicle closures, their own button (alex)
-    roads: store.get("roads", true),          // "Forest roads": dirt and Forest Service roads, coloured by their status
+    areas: store.get("areas", false),         // "Logging areas": cut blocks and motor vehicle closures, their own button (alex)
+    roads: store.get("roads", false),         // "Forest roads": dirt and Forest Service roads, coloured by their status
     prime: store.get("prime", false),   // "Prime loam now" (time row): every named trail in the area with Loam index 40-59 now
     trails: [],          // all candidates from last search (2-year window), with .created
     searchedBounds: [],
@@ -3853,9 +3856,13 @@ out body;`;
     center.asked = true;
     startTracking(center);
   });
-  // When the app opens: show the dot if location is allowed (the browser asks the first time). The map stays put.
+  // When the app opens: show the dot if location is allowed (the browser asks the first time), and the first fix
+  // centres the map on the rider once, unless they've already started moving the map or using the panel.
+  let touched = false;
+  ["pointerdown", "wheel", "keydown"].forEach((ev) => document.addEventListener(ev, () => { touched = true; }, { capture: true, once: true }));
+  const openHere = (ll) => { if (!touched && !state.selected) map.setView(ll, Math.max(map.getZoom(), 12)); };
   if (navigator.geolocation && store.get("track", true)) {
-    const auto = () => startTracking(null);
+    const auto = () => startTracking(openHere);
     if (navigator.permissions && navigator.permissions.query) navigator.permissions.query({ name: "geolocation" }).then((q) => { if (q.state !== "denied") auto(); }, auto);
     else auto();
   }
@@ -4457,7 +4464,9 @@ out body;`;
     fires.perims.filter((p) => p.src === "m3").forEach((p) => poly(p.rings, FIRE_STYLE.m3));
     fires.perims.filter((p) => p.src !== "m3").forEach((p) => poly(p.rings, { ...FIRE_STYLE.perim, weight: 2.5 }));
     const k = FIRE_STYLE.fire;
-    fires.fires.forEach((x) => fireLayer.addLayer(L.marker([x.lat, x.lon], { icon: pinIcon(k), keyboard: false, title: k.label })
+    // Fire pins are small and sit under the other pins, so they don't take over the map.
+    const fireIcon = L.divIcon({ className: "rf-pin fire-pin", html: pinHtml(k), iconSize: [18, 18] });
+    fires.fires.forEach((x) => fireLayer.addLayer(L.marker([x.lat, x.lon], { icon: fireIcon, keyboard: false, title: k.label, zIndexOffset: -1000 })
       .bindPopup(`<div class="road-pop"><h4>${esc(k.label)}</h4><p><span class="st">${esc(x.st || "Burning")}</span>${x.name ? " · " + esc(x.name) : ""}</p>
       <p class="src">${esc(fireWho(x))} ${esc(x.n)}${x.ha ? ` · ${esc(x.ha)} ha` : ""}${x.d ? ` · ${x.src === "cwfis" ? "updated" : "started"} ${esc(x.d)}` : ""}${x.cause ? ` · ${esc(x.cause)}` : ""}${x.src === "cwfis" ? `, via ${CWFIS_CITE}` : ""}.
       Check the ${FIRE_LINKS[x.src] || FIRE_LINKS.bc} for the latest.</p></div>`, { maxWidth: 280 })));
