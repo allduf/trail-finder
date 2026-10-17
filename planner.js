@@ -545,11 +545,12 @@
   // The trail at a tap: every same-name piece joined end to end with it (within 60 m), or the one line if unnamed.
   function trailAt(ll) {
     const z = map.getZoom(), tol = Math.max(15, Math.min(150, (26 * 156543 * Math.cos(ll[0] * RAD)) / 2 ** z));
-    const sn = snap(ll, tol);
+    // Not the streets and paths loaded to join trails (alex picked Copper Drive by accident and rode it down).
+    const sn = snap(ll, tol, allWays().filter((w) => !w.conn));
     if (!sn) return null;
     const w0 = sn.w, name = nameOf(w0);
     if (!name) return { name: w0.road ? "Forest road" : "Unnamed trail", ways: [w0] };
-    const near = boxOf([w0.geom[0]], 0.08), cands = allWays().filter((w) => w !== w0 && nameOf(w) === name && inBox(w, near));
+    const near = boxOf([w0.geom[0]], 0.08), cands = allWays().filter((w) => w !== w0 && !w.conn && nameOf(w) === name && inBox(w, near));
     const touches = (a, b) => [b.geom[0], b.geom[b.geom.length - 1]].some((e) => a.geom.some((p) => metres(p, e) < 60))
       || [a.geom[0], a.geom[a.geom.length - 1]].some((e) => b.geom.some((p) => metres(p, e) < 60));
     const group = [w0], todo = [w0];
@@ -985,7 +986,8 @@
   function resolvePicks() {
     if (!pending || !pending.length) { pending = null; return; }
     allWays();
-    const got = pending.map((p) => ({ name: p.name, ways: p.ids.map((id) => cache.byId.get(id)).filter(Boolean), pedal: !!p.pedal }));
+    const got = pending.filter((p) => !p.ids.some((id) => String(id)[0] === "c"))   // a street picked before streets couldn't be
+      .map((p) => ({ name: p.name, ways: p.ids.map((id) => cache.byId.get(id)).filter(Boolean), pedal: !!p.pedal }));
     if (got.every((p) => p.ways.length) || ++pendingTries > 15) {
       picks = got.filter((p) => p.ways.length); pending = null;
       if (mode === "pick") changedPicks();
