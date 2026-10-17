@@ -800,6 +800,7 @@ label.toggle.t-unoff.off .sw { background: repeating-linear-gradient(90deg, var(
 .diff.d-green { background: #2f9e44; } .diff.d-blue { background: #1c6fe0; } .diff.d-black { background: #1b1b1b; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); } .diff.d-dbl { background: #d6202a; } .diff.d-pro { background: #e8590c; } .diff.d-unoff { background: var(--bg); color: var(--fg); border: 2px dashed var(--fg); padding: 2px 7px; }
 .diff.est { opacity: .7; outline: 1.5px dashed currentColor; outline-offset: -3px; font-style: italic; }
 .diff-note { margin: 4px 0 8px; font-size: .85rem; }
+.dir-note { margin: 4px 0 8px; font-size: .9rem; }
 .off-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 4px; border: 1px solid currentColor; color: var(--fg); vertical-align: 1px; }
 label.toggle.t-off .sw { background: var(--fg); }
 /* Map key (trail colours) */
@@ -1349,9 +1350,10 @@ body.sport-ski #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=208"></script>
-<script src="official.js?v=208"></script>
-<script src="ratings.js?v=208"></script>
+<script src="rotate.js?v=209"></script>
+<script src="official.js?v=209"></script>
+<script src="directions.js?v=209"></script>
+<script src="ratings.js?v=209"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3376,7 +3378,17 @@ out body;`;
       + (name ? `<a href="https://www.youtube.com/results?search_query=${encodeURIComponent(`${name} ${town} mtb`.replace(/\s+/g, " "))}" target="_blank" rel="noopener">▶ Search videos on YouTube</a>` : "");
   }
 
+  // Which way it's ridden: climb, descent, one-way or both ways (directions.js; both ways when nothing says).
+  let dirOpen = null;
+  function dirNote(t) {
+    const r = window.tfDir && !t.ghost ? window.tfDir.of(t.tags, t.geom, t.id) : null;
+    if (!r) return "";
+    const head = r.dir === "climb" ? "↗ Climbing trail: ridden up" : r.dir === "down" ? "↘ Descent: ridden down" : r.dir === "oneway" ? "→ One-way for bikes" : "⇅ Both ways";
+    return `<p class="dir-note" id="dirNote"><b>${head}.</b> <span class="muted">${esc(r.why)}</span></p>`;
+  }
+  if (window.tfDir) window.tfDir.onChange(() => { const el = $("dirNote"); if (el && dirOpen) el.outerHTML = dirNote(dirOpen); });
   function openDetail(t) {
+    dirOpen = t;
     if (t.ghost) { openGhostDetail(t); return; }
     const d = $("detail");
     const real = t.id > 0;
@@ -3400,6 +3412,7 @@ out body;`;
         <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${diffBadge(t.tags)}${isUnoff(t) ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(t.official)}${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
       </div>
       <p class="diff-note muted" id="diffNote"${t.tags["tf:diffwhy"] && difficulty(t.tags) === t.tags["tf:diff"] ? "" : " hidden"}>${esc(t.tags["tf:diffwhy"] || "")}</p>
+      ${dirNote(t)}
       ${t.use ? `<div class="unoff-box use-box"><strong>${t.use === "moto" ? "Looks like a moto trail" : "Looks like a hiking-only trail"}</strong><ul>${t.useWhy.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">${t.use === "moto" ? "Dirt-bike, ATV and 4x4 trails" : "Hiking-only trails"} are left out of the new-trails list. This is a guess from the map tags.</p></div>` : ""}
       ${isUnoff(t) ? `<div class="unoff-box"><strong>Unofficial</strong><ul>${t.unoff.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
@@ -5855,22 +5868,22 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=208"></script>
-<script src="contours.js?v=208"></script>
-<script src="photo-slider.js?v=208"></script>
-<script src="winter.js?v=208"></script>
-<script src="ski-points.js?v=208"></script>
-<script src="offline.js?v=208"></script>
-<script src="navigate.js?v=208"></script>
-<script src="planner.js?v=208"></script>
-<script src="rides.js?v=208"></script>
-<script src="account.js?v=208"></script>
-<script src="reports.js?v=208"></script>
-<script src="visitors.js?v=208"></script>
-<script src="notify.js?v=208"></script>
-<script src="areas.js?v=208"></script>
-<script src="alpine.js?v=208"></script>
-<script src="bikeparks.js?v=208"></script>
+<script src="map3d.js?v=209"></script>
+<script src="contours.js?v=209"></script>
+<script src="photo-slider.js?v=209"></script>
+<script src="winter.js?v=209"></script>
+<script src="ski-points.js?v=209"></script>
+<script src="offline.js?v=209"></script>
+<script src="navigate.js?v=209"></script>
+<script src="planner.js?v=209"></script>
+<script src="rides.js?v=209"></script>
+<script src="account.js?v=209"></script>
+<script src="reports.js?v=209"></script>
+<script src="visitors.js?v=209"></script>
+<script src="notify.js?v=209"></script>
+<script src="areas.js?v=209"></script>
+<script src="alpine.js?v=209"></script>
+<script src="bikeparks.js?v=209"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
