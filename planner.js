@@ -114,7 +114,26 @@
   // highway to the forest road (alex: Black Slabbith, down Highway 99 and up the Soo River FSR).
   const MAIN_HW = "trunk|trunk_link|primary|primary_link|secondary|secondary_link";
   const CONN_HW = MAIN_HW + "|tertiary|tertiary_link|unclassified|residential|living_street|service|pedestrian|footway|path|cycleway|steps|track|bridleway|road";
+  // Squares loaded before are kept on the device for two weeks (IndexedDB), so a route there is quick the next time.
+  const store = (() => {
+    let db = null;
+    const open = () => db || (db = new Promise((ok) => {
+      const r = indexedDB.open("tf-plan", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("sq");
+      r.onsuccess = () => ok(r.result); r.onerror = () => ok(null);
+    }).catch(() => null));
+    const run = (mode, fn) => open().then((d) => d && new Promise((ok) => { const q = fn(d.transaction("sq", mode).objectStore("sq")); q.onsuccess = () => ok(q.result || null); q.onerror = () => ok(null); })).catch(() => null);
+    return { get: (k) => run("readonly", (o) => o.get(k)), set: (k, v) => run("readwrite", (o) => o.put(v, k)) };
+  })();
+  const KEEP_MS = 14 * 864e5;
   async function connectorSquare(sq) {
+    const kept = await store.get(sq);
+    if (kept && kept.at > Date.now() - KEEP_MS && Array.isArray(kept.ways)) return kept.ways;
+    const ways = await fetchSquare(sq);
+    if (ways) store.set(sq, { at: Date.now(), ways });
+    return ways;
+  }
+  async function fetchSquare(sq) {
     const main = sq[0] === "m", size = main ? 0.05 : 0.02, hw = main ? MAIN_HW : CONN_HW, ok = new RegExp(`^(${hw})$`);
     const [i, j] = sq.replace(/^m/, "").split(":").map(Number), s = i * size, w = j * size, n = s + size, e = w + size;
     const keep = (tags) => tags && ok.test(tags.highway || "") && !/^(no|private|dismount)$/.test(tags.bicycle || "") && !/^(private|no)$/.test(tags.access || "");
@@ -155,6 +174,20 @@
     if (!sqs.length) return false;
     sqs.splice(12);
     return loadSquares(sqs);
+  }
+  // While planning, the streets and paths in view (up to 9 squares, nearest the middle first) load ahead, so the
+  // route that joins your trails is ready sooner.
+  let aheadTimer = 0;
+  function loadAhead() {
+    clearTimeout(aheadTimer);
+    aheadTimer = setTimeout(() => {
+      if (!planning || map.getZoom() < 13) return;
+      const b = map.getBounds(), c = b.getCenter(), now = Date.now(), sqs = [];
+      for (let i = Math.floor(b.getSouth() / 0.02); i <= Math.floor(b.getNorth() / 0.02); i++)
+        for (let j = Math.floor(b.getWest() / 0.02); j <= Math.floor(b.getEast() / 0.02); j++) { const sq = i + ":" + j; if (!connectors.has(sq) && !connLoading.has(sq) && !(connFailed.get(sq) > now - 60000)) sqs.push(sq); }
+      const d = (sq) => { const [i, j] = sq.split(":").map(Number); return Math.hypot((i + 0.5) * 0.02 - c.lat, ((j + 0.5) * 0.02 - c.lng) * 0.65); };
+      if (sqs.length) loadSquares(sqs.sort((x, y) => d(x) - d(y)).slice(0, 9));
+    }, 800);
   }
   // The main roads all over a box (up to 16 squares of 0.05 degrees).
   function loadMain(box) {
@@ -560,7 +593,7 @@
   //   legs alternate links and the picked trails.
   // A leg: { pts, ways, gap (no trail, straight line), pick (index of the picked trail it rides, or -1), up, down }.
   let planning = false, mode = "tap", stops = [], legs = [], elev = null, picks = [], pickStart = null, pickBack = true, pickManual = true, pickHomePedal = false, settingStart = false;
-  let busy = 0, joining = 0, gen = 0, note = "", noteWarn = true;
+  let busy = 0, joining = 0, gen = 0, rootGen = 0, note = "", noteWarn = true;
   const layer = L.layerGroup();
   const pickCase = L.polyline([], { color: "#ffd43b", weight: 13, opacity: 0.85, lineCap: "round", lineJoin: "round", interactive: false });
   const caseLine = L.polyline([], { color: "#fff", weight: 10, opacity: 0.9, lineCap: "round", lineJoin: "round", interactive: false });
@@ -684,8 +717,13 @@
     if (!picks.length) { legs = []; elev = null; draw(); return; }
     busy++; render();
     const c0 = connN;
+    if (!retried) rootGen = my;   // rebuilds for streets that came in keep to this list of trails
+    const root = rootGen;
     try {
       const T = picks.map(through);
+      // The streets around the trail ends and the start start loading now (a dash usually ends there); the build
+      // below doesn't wait for them, and the loads after it join these.
+      if (!retried) loadConnectors([...T.flatMap((t) => [[t.pts[0], t.pts[0]], [t.pts[t.pts.length - 1], t.pts[t.pts.length - 1]]]), ...(pickStart ? [[pickStart, pickStart]] : [])]);
       const box = boxOf([...T.flatMap((t) => t.pts), ...(pickStart ? [pickStart] : [])], 0.05);   // room for a climb that goes around (about 5 km)
       const ht = await terrainOr(box);
       if (my !== gen) return;
@@ -736,7 +774,26 @@
       const posOf = (k) => G.pos.get(k) || T.flatMap((t) => [[t.a, t.pts[0]], [t.b, t.pts[t.pts.length - 1]]]).find((x) => x[0] === k)[1];
       const backs = new Map(), bridges = new Map();
       const back = (k, car = shuttle) => { const id = (car ? "c" : "p") + k; if (!backs.has(id)) backs.set(id, dijkstraBack(G, k, effort(G, car))); return backs.get(id); };
-      const across = (k1, k2, car) => { const id = [k1, k2, car].join(); if (!bridges.has(id)) bridges.set(id, bridge(from(k1, car), back(k2, car), posOf)); return bridges.get(id); };
+      // When k1 itself is cut off (a start away from every line, streets not in yet), a dash to the nearest line first
+      // (hub), then ride on from there: two short dashes instead of one long one (alex: 2.7 km from the Britannia lot).
+      const across = (k1, k2, car) => {
+        const id = [k1, k2, car].join();
+        if (!bridges.has(id)) {
+          const A = from(k1, car);
+          let b = bridge(A, back(k2, car), posOf);
+          if (A.dist.size < 30) {
+            const p1 = posOf(k1);
+            let hub = null, hd = 1500;
+            G.pos.forEach((p, k) => { if (!A.dist.has(k) && G.adj.has(k)) { const d = metres(p1, p); if (d < hd) { hd = d; hub = k; } } });
+            if (hub) {
+              const H = from(hub, car), b2 = H.dist.has(k2) ? { m: k2, n: k2, cost: H.dist.get(k2) } : bridge(H, back(k2, car), posOf);
+              if (dash(hd) + b2.cost < b.cost) b = { ...b2, hub, cost: dash(hd) + b2.cost };
+            }
+          }
+          bridges.set(id, b);
+        }
+        return bridges.get(id);
+      };
       G.carFrom = posOf(S); G.carStrict = !!pickStart;
       const C = (k1, k2, car) => {
         if (k1 === k2) return 0;
@@ -805,9 +862,10 @@
         };
         const p = pathTo(G, from(k1, car), k2);
         if (p) return ride(p);
-        const b = across(k1, k2, car);
-        if (b.m !== k1) ride(pathTo(G, from(k1, car), b.m));
-        out.push({ pts: [posOf(b.m), posOf(b.n)], ways: [], gap: true, pick: -1 });
+        const b = across(k1, k2, car), k0 = b.hub || k1;
+        if (b.hub) out.push({ pts: [posOf(k1), posOf(b.hub)], ways: [], gap: true, pick: -1 });
+        if (b.m !== k0) ride(pathTo(G, from(k0, car), b.m));
+        if (b.m !== b.n) out.push({ pts: [posOf(b.m), posOf(b.n)], ways: [], gap: true, pick: -1 });
         if (b.n !== k2) ride(pathOn(G, back(k2, car), b.n));
       };
       let at = S;
@@ -846,9 +904,11 @@
         // Rebuilt when any streets came in since this build started, also from an earlier build's load of the same
         // squares (it used to wait for that load, find nothing new and leave the dashes).
         // And the highways around, for the way to the forest roads.
-        Promise.all([loadConnectors(want), loadMain(boxOf(T.flatMap((t) => [t.pts[0], t.pts[t.pts.length - 1]]).concat([posOf(S)]), 0.05))])
-          .then(() => { if (connN !== c0 && my === gen) later(() => buildRide(true)); })
-          .finally(() => { joining--; render(); });
+        // Each rebuilds when it comes in: the highways (big squares, slow when Overpass is busy) used to hold up the
+        // streets that fill the dashes (alex: "it take a while to make the actual route").
+        const again = () => { if (connN !== c0 && rootGen === root) later(() => buildRide(true)); };
+        loadConnectors(want).then(again).finally(() => { joining--; render(); });
+        loadMain(boxOf(T.flatMap((t) => [t.pts[0], t.pts[t.pts.length - 1]]).concat([posOf(S)]), 0.05)).then(again);
       }
     } finally { busy--; }
     if (my === gen) { draw(); fitRoute(); }
@@ -1235,7 +1295,7 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
     const after = $("map").getBoundingClientRect();
     map.panBy([after.left - before.left, after.top - before.top], { animate: false });
     if (on) {
-      nav.load();
+      nav.load(); loadAhead();
       layer.addTo(map);
       try { mode = localStorage.getItem("tf:planMode") === "pick" ? "pick" : "tap"; } catch {}
       if (mode === "tap") { if (!stops.length) restore(); }
@@ -1262,7 +1322,7 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
     onTap(map.mouseEventToLatLng(e));
   }, true);
   map.on("click", (e) => { if (planning && !e.originalEvent) onTap(e.latlng); });   // a click fired from code
-  map.on("moveend", () => { if (planning) { nav.load(); drawArrows(); } });
+  map.on("moveend", () => { if (planning) { nav.load(); drawArrows(); loadAhead(); } });
   bar.querySelectorAll(".plan-modes button[data-mode]").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
   bar.querySelectorAll(".plan-how button").forEach((b) => b.addEventListener("click", () => setHow(b.dataset.how)));
   function setHow(h) {
