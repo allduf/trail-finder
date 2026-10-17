@@ -1027,7 +1027,7 @@
     const has = mode === "tap" ? stops.length : picks.length, ready = mode === "tap" ? stops.length >= 2 : legs.length > 0;
     $("planUndo").disabled = !has; $("planClear").disabled = !has && !(mode === "pick" && pickStart);
     $("planLoop").disabled = mode === "tap" && stops.length < 2;
-    $("planLoop").textContent = mode === "tap" ? "↺ Back to start" : pickBack ? "↺ Loop: on" : "↺ Loop: off";
+    $("planLoop").textContent = mode === "tap" ? "↺ Back to start" : pickBack ? "↺ Back to start: on" : "↺ Back to start: off";
     $("planLoop").setAttribute("aria-pressed", String(mode === "pick" && pickBack));
     $("planStart").hidden = mode !== "pick";
     $("planStart").setAttribute("aria-pressed", String(settingStart));
@@ -1121,10 +1121,22 @@
   // ---------- UI ----------
   const css = document.createElement("style");
   css.textContent = `
-.app.planning { grid-template-columns: 1fr !important; grid-template-rows: 1fr !important; }
-.app.planning .panel, .app.planning .tabbar, .app.planning .map-actions, .app.planning .first-tip { display: none !important; }
-.app.planning .mapwrap { grid-column: 1; grid-row: 1; }
+/* The side panel stays while planning, so you can still look for trails (alex). On phones the bar takes the screen
+   and 🔍 Find trails swaps it for the panel (plan-find) until ✎ Back to my route. */
+.app.planning .map-actions, .app.planning .first-tip { display: none !important; }
 .app.planning #map { cursor: crosshair; }
+body.planning:has(.app:not(.fullmap)) .plan-bar { left: 396px; }
+#planFind, #planBack { display: none; }
+@media (max-width: 760px) {
+  .app.planning:not(.plan-find) { grid-template-columns: 1fr !important; grid-template-rows: 1fr !important; }
+  .app.planning:not(.plan-find) .panel, .app.planning:not(.plan-find) .tabbar { display: none !important; }
+  .app.planning:not(.plan-find) .mapwrap { grid-column: 1; grid-row: 1; }
+  body.planning:has(.app:not(.fullmap)) .plan-bar { left: 8px; }
+  #planFind { display: block; }
+  body.plan-find .plan-bar { display: none; }
+  body.plan-find #planBack { display: block; position: fixed; z-index: 1200; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); font: inherit; font-weight: 700; padding: 9px 16px; border-radius: 999px; border: 0; background: #7b2ff7; color: #fff; box-shadow: 0 3px 12px rgba(0,0,0,.3); cursor: pointer; }
+}
+.add-ride-btn.add-ride-btn { display: block; width: 100%; margin: 0 0 8px; border-color: #7b2ff7; color: #7b2ff7; font-weight: 700; }
 .plan-bar { position: fixed; z-index: 1200; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); max-width: 600px; margin: 0 auto; background: var(--panel, #fff); color: var(--fg, #14211a); border-radius: 18px; box-shadow: 0 6px 24px rgba(0,0,0,.28); padding: 12px 14px; }
 .plan-bar[hidden] { display: none; }
 .plan-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
@@ -1189,10 +1201,18 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
       <button type="button" data-how="shuttle" title="A 4x4 pickup drives you up the open forest roads; you ride from where it stops">🛻 Shuttle</button></div></div>
     <div class="plan-stats" id="planStats" aria-live="polite"></div><div class="plan-trails" id="planTrails"></div><ol class="plan-steps" id="planSteps"></ol>
     <div class="plan-btns"><button type="button" id="planUndo">↶ Undo</button><button type="button" id="planStart" hidden>📍 Set start</button><button type="button" id="planLoop" title="End the ride back at the start">↺ Back to start</button><button type="button" id="planClear">Clear</button>
-    <button type="button" id="planSave" title="Save this ride to open again later">💾 Save</button><button type="button" id="planSavedBtn" aria-pressed="false" title="Your saved routes">📂 Saved</button>
+    <button type="button" id="planFind" title="Look for trails by name, level or area, then come back">🔍 Find trails</button><button type="button" id="planSave" title="Save this ride to open again later">💾 Save</button><button type="button" id="planSavedBtn" aria-pressed="false" title="Your saved routes">📂 Saved</button>
     <button type="button" id="planGpx">⤓ GPX</button><button type="button" class="go" id="planRide">▶ Ride it</button><button type="button" id="planDone">Done</button></div>
     <ul class="plan-saved" id="planSaved" hidden aria-label="Saved routes"></ul>`;
   document.body.appendChild(bar);
+  const back = document.createElement("button");
+  back.id = "planBack"; back.type = "button"; back.textContent = "✎ Back to my route";
+  document.body.appendChild(back);
+  function setFind(on) {
+    document.body.classList.toggle("plan-find", on);
+    document.querySelector(".app").classList.toggle("plan-find", on);
+    map.invalidateSize({ pan: false });
+  }
 
   function setMode(m) {
     if (m === mode) return;
@@ -1224,7 +1244,7 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
       const pts = allPts().length ? allPts() : mode === "tap" ? stops.map((s) => s.ll) : picks.flatMap((p) => p.ways.flatMap((w) => w.geom));
       if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 });
       else if (map.getZoom() < 13) map.setZoom(13);
-    } else { map.removeLayer(layer); settingStart = false; }
+    } else { map.removeLayer(layer); settingStart = false; setFind(false); }
     const b = $("planBtn"); if (b) b.setAttribute("aria-pressed", String(on));
   }
   function onTap(latlng) {
@@ -1339,6 +1359,8 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
     }).join("");
   }
   $("planSave").addEventListener("click", saveRoute);
+  $("planFind").addEventListener("click", () => setFind(true));
+  back.addEventListener("click", () => setFind(false));
   $("planSavedBtn").addEventListener("click", () => showSaved(!savedOpen));
   $("planSaved").addEventListener("click", (ev) => {
     const b = ev.target.closest("[data-sv]");
@@ -1369,5 +1391,7 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
       if (!ways.length) return;
       setPlanning(true); setMode("pick");
       if (!picks.some((p) => p.ways.some((w) => ids.includes(w.id)))) { picks.push({ name: name || nameOf(ways[0]) || "Unnamed trail", ways }); changedPicks(); }
-    } };
+      setFind(false);
+    },
+    has: (ids) => picks.some((p) => p.ways.some((w) => ids.includes(w.id))) };
 })();
