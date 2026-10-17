@@ -104,12 +104,53 @@
   }
 
   // ---------- the lines a bike can use: trails and forest roads ----------
+  // Streets, paths and bridges, fetched from OpenStreetMap only where a leg found no way along the trails and forest
+  // roads (a town, a footbridge across a creek): the trail files hold bike trails and the road files dirt roads only.
+  // Kept in memory, in 0.02 degree squares.
+  const connectors = new Map();   // square -> [ways]
+  let connN = 0;
+  const CONN_HW = "primary|secondary|tertiary|unclassified|residential|living_street|service|pedestrian|footway|path|cycleway|steps|track|bridleway|road";
+  const CONN_OK = new RegExp(`^(${CONN_HW})$`);
+  async function connectorSquare(sq) {
+    const [i, j] = sq.split(":").map(Number), s = i * 0.02, w = j * 0.02, n = s + 0.02, e = w + 0.02;
+    const keep = (tags) => tags && CONN_OK.test(tags.highway || "") && !/^(no|private|dismount)$/.test(tags.bicycle || "") && !/^(private|no)$/.test(tags.access || "");
+    const make = (id, tags, geom) => ({ id: "c" + id, osm: id, conn: true, tags, name: tags.name || "", geom });
+    const q = `[out:json][timeout:10];way["highway"~"^(${CONN_HW})$"](${s},${w},${n},${e});out tags geom;`;
+    for (const url of ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"]) {
+      try {
+        const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), signal: AbortSignal.timeout(12000) });
+        if (!r.ok) continue;
+        return (await r.json()).elements.filter((x) => x.type === "way" && x.geometry && keep(x.tags))
+          .map((x) => make(x.id, x.tags, x.geometry.map((g) => [+g.lat.toFixed(5), +g.lon.toFixed(5)])));
+      } catch {}
+    }
+    try {   // Overpass busy: the OpenStreetMap map call for the same square
+      const r = await fetch(`https://api.openstreetmap.org/api/0.6/map.json?bbox=${w},${s},${e},${n}`, { signal: AbortSignal.timeout(30000) });
+      if (!r.ok) return null;
+      const els = (await r.json()).elements, nodes = new Map();
+      els.forEach((x) => { if (x.type === "node") nodes.set(x.id, [+x.lat.toFixed(5), +x.lon.toFixed(5)]); });
+      return els.filter((x) => x.type === "way" && keep(x.tags)).map((x) => make(x.id, x.tags, x.nodes.map((id) => nodes.get(id)).filter(Boolean)))
+        .filter((x) => x.geom.length > 1);
+    } catch { return null; }
+  }
+  // Loads the squares a box covers (up to 6). True when new lines came in.
+  async function loadConnectors(box) {
+    const sqs = [];
+    for (let i = Math.floor(box[0] / 0.02); i <= Math.floor(box[2] / 0.02); i++)
+      for (let j = Math.floor(box[1] / 0.02); j <= Math.floor(box[3] / 0.02); j++) if (!connectors.has(i + ":" + j)) sqs.push(i + ":" + j);
+    if (!sqs.length || sqs.length > 6) return false;
+    const got = await Promise.all(sqs.map(connectorSquare));
+    let added = false;
+    sqs.forEach((sq, k) => { if (got[k]) { connectors.set(sq, got[k]); added = added || got[k].length > 0; } });
+    if (added) connN++;
+    return added;
+  }
   const roadWays = new WeakMap();
   let roadN = 0;
   const cache = { n: -1, r: -1, list: [], byId: new Map() };
   function allWays() {
     const trails = nav.ways(), roads = nav.roads ? nav.roads() : [];
-    if (cache.n === trails.length && cache.r === roads.length) return cache.list;
+    if (cache.n === trails.length && cache.r === roads.length && cache.c === connN) return cache.list;
     const byId = new Map();
     trails.forEach((w) => { if (!byId.has(w.id)) byId.set(w.id, w); });
     roads.forEach((r) => {
@@ -122,7 +163,9 @@
       }
       if (!byId.has(w.id)) byId.set(w.id, w);
     });
-    Object.assign(cache, { n: trails.length, r: roads.length, list: [...byId.values()], byId });
+    const osmIds = new Set([...byId.values()].map((w) => (w.road ? (String(w.id)[0] === "r" ? +String(w.id).slice(1) : null) : w.id)));
+    connectors.forEach((list) => list.forEach((w) => { if (!osmIds.has(w.osm) && !byId.has(w.id)) byId.set(w.id, w); }));
+    Object.assign(cache, { n: trails.length, r: roads.length, c: connN, list: [...byId.values()], byId });
     return cache.list;
   }
   const bbs = new WeakMap();
@@ -148,7 +191,9 @@
     if (!kinds.has(w)) {
       const t = w.tags, name = nameOf(w), d = nav.difficulty(t), type = (t["mtb:type"] || "") + " " + (t.mtb || "");
       let k = "trail";
-      if (w.road || (/^(track|service|unclassified|residential|tertiary|secondary)$/.test(t.highway || "") && !(d && d !== "green"))) k = "road";
+      if (w.conn && !/^(path|track|bridleway)$/.test(t.highway)) k = t.highway === "steps" ? "steps" : /^(footway|pedestrian)$/.test(t.highway) ? "path" : "street";
+      else if (w.conn) k = t.highway === "track" ? "road" : "path";
+      else if (w.road || (/^(track|service|unclassified|residential|tertiary|secondary)$/.test(t.highway || "") && !(d && d !== "green"))) k = "road";
       else if (/\b(climb|climbing|uphill|ascent|up ?track)\b/i.test(name) || /uphill|climb/.test(type) || (t.incline === "up" && onewayOf(w) === 1)
         || (t["mtb:scale:uphill"] != null && +t["mtb:scale:uphill"] <= 2 && !(parseInt(t["mtb:scale"], 10) >= 2))) k = "climb";
       else if (/downhill|gravity|freeride/.test(type) || t.downhill === "yes" || /\b(dh|downhill)\b/i.test(name) || d === "black" || d === "dbl" || d === "pro"
@@ -160,7 +205,7 @@
   // Effort of a stretch: [per metre, per metre climbed, per metre dropped]. Climbing costs about like riding 7 to 14 m
   // on the flat, and much more up a downhill trail (pushing, and riders coming down); descending a road or a climbing
   // trail costs a little (the fun is on the trails); downhill trails ride a bit cheaper.
-  const COST = { road: [1.15, 7, 1.5], climb: [1, 7, 3], down: [0.85, 60, 0], trail: [1, 14, 0], link: [1.5, 12, 1] };
+  const COST = { street: [1.3, 9, 1.5], path: [1.4, 12, 1], steps: [4, 30, 4], road: [1.15, 7, 1.5], climb: [1, 7, 3], down: [0.85, 60, 0], trail: [1, 14, 0], link: [1.5, 12, 1] };
   const edgeCost = (d, dh, kind) => { const c = COST[kind]; return d * c[0] + (dh > 0 ? dh * c[1] : -dh * c[2]); };
 
   // Nearest point on any line: { w, i (segment), q (the point), d }.
@@ -177,7 +222,7 @@
         const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
         const d = Math.hypot(ax + t * dx, ay + t * dy);
         // A trail wins over a road a few metres closer, so a tap on a trail by a road picks the trail.
-        const score = d + (w.road ? 8 : 0);
+        const score = d + (w.road ? 8 : w.conn ? 15 : 0);
         if (d <= max && (!best || score < best.score)) best = { w, i, d, score, q: [g[i][0] + t * (g[i + 1][0] - g[i][0]), g[i][1] + t * (g[i + 1][1] - g[i][1])] };
       }
     });
@@ -333,7 +378,15 @@
   const total = () => legs.reduce((s, l) => s + lengthOf(l.pts), 0);
   const clean = (pts) => pts.filter((q, i, arr) => !i || metres(arr[i - 1], q) > 0.5);
 
+  // A leg; if nothing joins the two points along trails and roads, the streets and paths around them are loaded and
+  // it is tried again, so the straight dash is left only where nothing at all is mapped.
   async function legFor(a, b) {
+    const l = await legOn(a, b);
+    if (!l.gap || !(await loadConnectors(boxOf([a.tap || a.ll, b.tap || b.ll], 0.006)))) return l;
+    [a, b].forEach((s) => { if (!s.snap && s.tap) { const sn = snap(s.tap); if (sn) Object.assign(s, { ll: sn.q, snap: sn }); } });
+    return legOn(a, b);
+  }
+  async function legOn(a, b) {
     if (!a.snap || !b.snap) return { pts: [a.ll, b.ll], ways: [], gap: true, pick: -1 };
     const box = boxOf([a.ll, b.ll], PAD_DEG), ht = await terrainOr(box);
     const G = graph(allWays().filter((w) => inBox(w, box)), ht);
@@ -404,9 +457,12 @@
 
   // A picked trail's line from one end to the other: in the pieces' own little graph, the two ends farthest apart.
   function through(t) {
-    const G = graph(t.ways, noHeights, { anyWay: true, bridge: 60 }), ends = [];
-    G.adj.forEach((list, k) => { if (new Set(list.map((x) => x[0])).size === 1) ends.push(k); });
-    const cand = (ends.length >= 2 ? ends : [...G.pos.keys()]).slice(0, 60);
+    const G = graph(t.ways, noHeights, { anyWay: true, bridge: 60 });
+    // Its ends: piece ends that no other piece reaches (within 15 m).
+    const tips = t.ways.flatMap((w) => [w.geom[0], w.geom[w.geom.length - 1]]);
+    const ends = t.ways.flatMap((w) => [w.geom[0], w.geom[w.geom.length - 1]].filter((e) =>
+      !t.ways.some((o) => o !== w && o.geom.some((p) => metres(p, e) < 15)))).map(key);
+    const cand = [...new Set(ends.length >= 2 ? ends : tips.map(key))].slice(0, 60);
     let a = cand[0], b = cand[cand.length - 1], far = -1;
     cand.forEach((k1, i) => cand.slice(i + 1).forEach((k2) => { const d = metres(G.pos.get(k1), G.pos.get(k2)); if (d > far) { far = d; a = k1; b = k2; } }));
     const p = a !== b && pathTo(G, dijkstra(G, a, b, (k1, k2, m) => m), b);
@@ -416,7 +472,7 @@
   }
   // Build the ride: every picked trail in the order and direction that cost the least effort in all, from the start
   // and (if asked) back to it. Exact (Held-Karp) for up to 12 trails.
-  async function buildRide() {
+  async function buildRide(retried) {
     const my = ++gen;
     if (!picks.length) { legs = []; elev = null; draw(); return; }
     busy++; render();
@@ -525,6 +581,12 @@
         savePicks();
       }
       out.forEach((l) => Object.assign(l, climbOf(l.pts, ht) || {}));
+      const gaps = out.filter((l) => l.gap);
+      if (gaps.length && !retried && (await loadConnectors(boxOf(gaps.flatMap((l) => l.pts), 0.006)))) {
+        if (my === gen) later(() => buildRide(true));   // again, with the streets and paths there
+        return;
+      }
+      if (my !== gen) return;
       legs = out;
       const c = climbOf(allPts(), ht);
       elev = c;
@@ -614,13 +676,14 @@
   }
   const levelOf = (w) => {
     if (w.road) return { color: "#8d6e63", lvl: "forest road" };
+    if (w.conn) return { color: "#9aa0a6", lvl: kindOf(w) === "street" ? "street" : "path" };
     const d = nav.difficulty(w.tags);
     return { color: nav.diffColor(d), lvl: d ? nav.DIFF[d].label : "" };
   };
   function namesOf(ways) {
     const out = [];
     ways.forEach((w) => {
-      const name = nameOf(w) || (w.road ? "forest road" : "unnamed trail");
+      const name = nameOf(w) || (w.road ? "forest road" : w.conn ? (kindOf(w) === "street" ? "street" : "path") : "unnamed trail");
       if (out.length && out[out.length - 1].name === name) return;
       out.push({ name, ...levelOf(w) });
     });
