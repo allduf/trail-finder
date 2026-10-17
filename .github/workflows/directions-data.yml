@@ -1,0 +1,57 @@
+name: Trail directions data
+
+# Every day, which way each trail of the region is ridden (climb, descent, one-way; both ways when nothing says) into
+# data/directions.json (scripts/build-directions.mjs), used by directions.js for trail details and Plan a route.
+# Runs after the all-trails lists it reads. On a pull request that changes the script it only does a test run, and
+# prints the fields of the local open-data layers (PROBE) to look for a direction field.
+on:
+  schedule:
+    - cron: "5 11 * * *"   # daily 11:05 UTC
+  workflow_dispatch:       # "Run workflow" button on the Actions tab
+  push:
+    branches: [main]
+    paths:
+      - scripts/build-directions.mjs
+      - directions.js
+  pull_request:
+    paths:
+      - scripts/build-directions.mjs
+      - directions.js
+      - .github/workflows/directions-data.yml
+
+permissions:
+  contents: write   # commit the data file
+  actions: write    # start "Publish website" afterwards
+
+concurrency:
+  group: directions-data-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Work out trail directions
+        env:
+          PROBE: ${{ github.event_name == 'pull_request' && '1' || '' }}
+        run: node scripts/build-directions.mjs
+      - name: Commit the new data
+        if: github.event_name != 'pull_request'
+        run: |
+          git add data/directions.json
+          if git diff --cached --quiet; then echo "No changes."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Trail directions data"
+          git pull -q --rebase origin "${GITHUB_REF_NAME}"
+          git push -q origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Publish the website
+        if: github.event_name != 'pull_request' && github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main || echo "The website will publish with the next data job."
