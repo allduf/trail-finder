@@ -245,14 +245,35 @@
     const t = w.tags, v = t["oneway:bicycle"] != null ? t["oneway:bicycle"] : t["oneway:mtb"] != null ? t["oneway:mtb"] : t.oneway;
     return v === "yes" || v === "1" || v === "true" ? 1 : v === "-1" || v === "reverse" ? -1 : 0;
   }
+  // Which way a trail is ridden, from directions.js (tags, names, local data, riders like alex on Into The Mystic):
+  // { dir: climb | down | oneway | both, along: 1 from its first point, -1 the other way, 0 not known }. null for
+  // streets and roads, or before directions.js is on the page. When its nightly data comes in, kinds are worked out again.
+  let dirs = new WeakMap(), kinds = new WeakMap(), dirHooked = false;
+  function dirOf(w) {
+    const D = window.tfDir;
+    if (!D || !D.of || w.conn || w.road) return null;
+    if (!dirHooked && D.onChange) { dirHooked = true; D.onChange(() => { dirs = new WeakMap(); kinds = new WeakMap(); if (planning && mode === "pick" && picks.length) replan(); }); }
+    if (!dirs.has(w)) { let r = null; try { r = D.of(w.tags, w.geom, w.id); } catch (e) { console.warn(e); } dirs.set(w, r); }
+    return dirs.get(w);
+  }
+  // Which way a line has to be ridden: 1 along it, -1 against it, 0 either. One-way tags, else a climb (or, for the
+  // trails you pick, a descent too) whose direction is known. Routes between trails may still push up a descent when
+  // nothing else gets there (it costs 60 times the climb), but never ride down a climbing trail.
+  function wayOf(w, down) {
+    const one = onewayOf(w);
+    if (one) return one;
+    const r = dirOf(w);
+    return r && (r.dir === "climb" || (down && r.dir !== "both")) ? r.along || 0 : 0;
+  }
   // What a line is for, which sets how it costs to ride up or down it:
   // road (forest and dirt roads), climb (climbing trails), down (downhill and harder trails), trail (the rest).
-  const kinds = new WeakMap();
+  // A climb or a descent from directions.js wins; otherwise the trail's tags, name and level decide.
   function kindOf(w) {
     if (!kinds.has(w)) {
-      const t = w.tags, name = nameOf(w), d = nav.difficulty(t), type = (t["mtb:type"] || "") + " " + (t.mtb || "");
+      const t = w.tags, name = nameOf(w), d = nav.difficulty(t), type = (t["mtb:type"] || "") + " " + (t.mtb || ""), dir = dirOf(w);
       let k = "trail";
-      if (w.conn && !/^(path|track|bridleway)$/.test(t.highway)) k = t.highway === "steps" ? "steps" : /^(footway|pedestrian)$/.test(t.highway) ? "path" : "street";
+      if (dir && (dir.dir === "climb" || dir.dir === "down") && !(/^(track|service|unclassified|residential|tertiary|secondary)$/.test(t.highway || "") && !(d && d !== "green"))) k = dir.dir;
+      else if (w.conn && !/^(path|track|bridleway)$/.test(t.highway)) k = t.highway === "steps" ? "steps" : /^(footway|pedestrian)$/.test(t.highway) ? "path" : "street";
       else if (w.conn) k = t.highway === "track" ? "road" : "path";
       else if (w.road || (/^(track|service|unclassified|residential|tertiary|secondary)$/.test(t.highway || "") && !(d && d !== "green"))) k = "road";
       else if (/\b(climb|climbing|uphill|ascent|up ?track)\b/i.test(name) || /uphill|climb/.test(type) || (t.incline === "up" && onewayOf(w) === 1)
@@ -445,7 +466,7 @@
       if (k2 !== k) { const d = Math.max(1, best.d); add(k, k2, d, null, 0); add(k2, k, d, null, 0); }
     }));
     ways.forEach((w) => {
-      const g = w.geom, one = opts.anyWay ? 0 : onewayOf(w), sp = splits.get(w);
+      const g = w.geom, one = opts.anyWay ? 0 : wayOf(w), sp = splits.get(w);
       for (let i = 0; i < g.length - 1; i++) {
         const chain = [key(g[i]), ...(sp && sp.has(i) ? sp.get(i).sort((x, y) => x[0] - y[0]).map((x) => x[1]) : []), key(g[i + 1])];
         for (let j = 1; j < chain.length; j++) {
@@ -468,7 +489,7 @@
   }
   // A tapped spot joined into the segment it snapped to, as node `name`.
   function addPoint(G, name, sn) {
-    const g = sn.w.geom, k1 = key(g[sn.i]), k2 = key(g[sn.i + 1]), one = onewayOf(sn.w);
+    const g = sn.w.geom, k1 = key(g[sn.i]), k2 = key(g[sn.i + 1]), one = wayOf(sn.w);
     const add = (a, b, d, dir) => { if (!G.adj.has(a)) G.adj.set(a, []); G.adj.get(a).push([b, d, sn.w, dir]); };
     G.pos.set(name, sn.q); G.h.set(name, G.ht(sn.q));
     [[k1, -1], [k2, 1]].forEach(([k, dir]) => {
@@ -632,7 +653,7 @@
     addPoint(G, "A", a.snap); addPoint(G, "B", b.snap);
     G.carFrom = stops[0] ? stops[0].ll : a.ll; G.carStrict = true;
     if (a.snap.w === b.snap.w && a.snap.i === b.snap.i) {   // both on one stretch
-      const g = a.snap.w.geom, along = metres(g[a.snap.i], a.snap.q) <= metres(g[a.snap.i], b.snap.q) ? 1 : -1, one = onewayOf(a.snap.w);
+      const g = a.snap.w.geom, along = metres(g[a.snap.i], a.snap.q) <= metres(g[a.snap.i], b.snap.q) ? 1 : -1, one = wayOf(a.snap.w);
       if (one === 0 || one === along) G.adj.get("A").push(["B", metres(a.snap.q, b.snap.q), a.snap.w, along]);
     }
     const p = pathTo(G, dijkstra(G, "A", "B", effort(G)), "B");
@@ -735,9 +756,9 @@
         const kind = Object.keys(byKind).sort((x, y) => byKind[y] - byKind[x])[0] || "trail";
         const ha = ht(t.pts[0]), hb = ht(t.pts[t.pts.length - 1]), dh = ha != null && hb != null ? hb - ha : 0;
         let ow = 0;   // one-way stretches with (+) or against (-) a to b
-        t.segs.forEach(([w, dir], i) => { const one = w ? onewayOf(w) : 0; if (one) ow += one * dir * metres(t.pts[i], t.pts[i + 1]); });
+        t.segs.forEach(([w, dir], i) => { const one = w ? wayOf(w, true) : 0; if (one) ow += one * dir * metres(t.pts[i], t.pts[i + 1]); });
         const ok = [true, true];
-        if (Math.abs(ow) > len * 0.3) ok[ow > 0 ? 1 : 0] = false;            // follows its one-way tags
+        if (Math.abs(ow) > len * 0.3) ok[ow > 0 ? 1 : 0] = false;            // follows its one-way tags, or the way a climb or descent is ridden
         else if (kind === "climb" && Math.abs(dh) >= 15) ok[dh > 0 ? 1 : 0] = false;   // climbing trails go up
         else if (kind !== "road" && kind !== "climb" && Math.abs(dh) >= 40) ok[dh < 0 ? 1 : 0] = false;   // the rest go down
         const run = (o) => {   // effort along the trail ridden that way, point by point
