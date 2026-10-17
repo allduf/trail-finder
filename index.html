@@ -1105,7 +1105,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
 /* the phone tab bar is styled in theme.css; hidden here so it never shows unstyled (e.g. with an older cached theme.css) */
 .tabbar, .tab-menu { display: none; }
 </style>
-<link rel="stylesheet" href="theme.css?v=4">
+<link rel="stylesheet" href="theme.css?v=5">
 
 <div class="app">
   <div class="mapwrap">
@@ -1350,10 +1350,10 @@ body.sport-ski #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=209"></script>
-<script src="official.js?v=209"></script>
-<script src="directions.js?v=209"></script>
-<script src="ratings.js?v=209"></script>
+<script src="rotate.js?v=210"></script>
+<script src="official.js?v=210"></script>
+<script src="directions.js?v=210"></script>
+<script src="ratings.js?v=210"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3409,7 +3409,7 @@ out body;`;
       <div class="d-head ${t.cat}">
         <span class="bar"${barStyle(t)}></span>
         <div><h2>${esc(trailName(t))}</h2>
-        <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${diffBadge(t.tags)}${isUnoff(t) ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(t.official)}${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
+        <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${diffBadge(t.tags)}${t.km ? `<span class="chip">↔ ${fmtLen(t.km)}</span>` : ""}${isUnoff(t) ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(t.official)}${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
       </div>
       <p class="diff-note muted" id="diffNote"${t.tags["tf:diffwhy"] && difficulty(t.tags) === t.tags["tf:diff"] ? "" : " hidden"}>${esc(t.tags["tf:diffwhy"] || "")}</p>
       ${dirNote(t)}
@@ -4080,7 +4080,7 @@ out body;`;
   const showResults = () => { if (Date.now() < showResultsUntil) panelEl.scrollTo({ top: $("status").offsetTop - 30 }); };
   $("findBtn").addEventListener("click", () => {
     if (!phoneMQ.matches) return;
-    growTo("half");
+    snapTo("half");                                  // results with the map above them
     showResultsUntil = Date.now() + 20000;
     setTimeout(showResults, 300);
   });
@@ -4107,7 +4107,7 @@ out body;`;
       if (panelEl.classList.contains("detail-open")) closeDetail();
       if (tab.getAttribute("aria-selected") !== "true") tab.click();
       panelEl.scrollTop = 0;
-      growTo("half"); syncTabbar();
+      snapTo("full"); syncTabbar();   // the whole search form at once, with Find under it (the half sheet hid How new behind Find)
     } else if (nav === "ski") { panelEl.scrollTop = 0; growTo("half"); }
     else if (nav === "ride") { if (window.tfRide) window.tfRide.start(); }
     else if (nav === "more") {
@@ -4133,6 +4133,8 @@ out body;`;
   const resnap = () => { if (phoneMQ.matches) snapTo(sheet.snap); else { appEl.style.removeProperty("--sheet-h"); appEl.style.removeProperty("--sheet-vis"); } };
   window.addEventListener("resize", resnap);
   phoneMQ.addEventListener("change", resnap);
+  // phones show the map credit on one line; tapping it shows all of it (links inside still work)
+  map.attributionControl.getContainer().addEventListener("click", (e) => { if (!e.target.closest("a")) e.currentTarget.classList.toggle("open"); });
   if (document.fonts) document.fonts.ready.then(resnap);
   resnap();
 
@@ -4953,6 +4955,7 @@ out body;`;
   // ---------- Layers: the map style, overlays and map tools live in one drop-down ----------
   const layersMenu = $("layersMenu"), layersBtn = $("layersBtn");
   function setLayersOpen(open) {
+    if (open && phoneMQ.matches && sheet.snap !== "peek") snapTo("peek");   // phones: the menu gets the screen, not a sliver above the sheet
     layersMenu.hidden = !open;
     layersBtn.setAttribute("aria-expanded", String(open));
     layersBtn.classList.toggle("open", open);
@@ -5868,22 +5871,22 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=209"></script>
-<script src="contours.js?v=209"></script>
-<script src="photo-slider.js?v=209"></script>
-<script src="winter.js?v=209"></script>
-<script src="ski-points.js?v=209"></script>
-<script src="offline.js?v=209"></script>
-<script src="navigate.js?v=209"></script>
-<script src="planner.js?v=209"></script>
-<script src="rides.js?v=209"></script>
-<script src="account.js?v=209"></script>
-<script src="reports.js?v=209"></script>
-<script src="visitors.js?v=209"></script>
-<script src="notify.js?v=209"></script>
-<script src="areas.js?v=209"></script>
-<script src="alpine.js?v=209"></script>
-<script src="bikeparks.js?v=209"></script>
+<script src="map3d.js?v=210"></script>
+<script src="contours.js?v=210"></script>
+<script src="photo-slider.js?v=210"></script>
+<script src="winter.js?v=210"></script>
+<script src="ski-points.js?v=210"></script>
+<script src="offline.js?v=210"></script>
+<script src="navigate.js?v=210"></script>
+<script src="planner.js?v=210"></script>
+<script src="rides.js?v=210"></script>
+<script src="account.js?v=210"></script>
+<script src="reports.js?v=210"></script>
+<script src="visitors.js?v=210"></script>
+<script src="notify.js?v=210"></script>
+<script src="areas.js?v=210"></script>
+<script src="alpine.js?v=210"></script>
+<script src="bikeparks.js?v=210"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

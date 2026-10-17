@@ -52,7 +52,7 @@ dialog.notify h2 { margin: 0 0 6px; font-family: var(--font-display); font-size:
 dialog.notify p { margin: 0 0 10px; color: var(--muted); font-size: .9rem; }
 dialog.notify button { font: inherit; cursor: pointer; }
 dialog.notify .nt-row { display: flex; gap: 8px; justify-content: space-between; align-items: center; flex-wrap: wrap; margin: 10px 0 0; }
-dialog.notify .nt-row button { font-weight: 600; padding: 8px 13px; border-radius: 9px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); }
+dialog.notify .nt-row button { font-weight: 600; min-height: 42px; padding: 8px 13px; border-radius: 9px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); }
 dialog.notify .nt-row button.go { background: var(--accent); color: var(--accent-fg, #fff); border-color: transparent; }
 dialog.notify .nt-link { background: none; border: 0; padding: 2px 0; color: var(--accent); font-weight: 600; }
 dialog.notify .nt-zones { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
@@ -71,7 +71,12 @@ dialog.notify .nt-loam li.unread button::before { background: var(--prime, #2f8f
 dialog.notify .nt-loam .lv { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--fg); }
 dialog.notify .nt-loam .lv i { width: 8px; height: 8px; border-radius: 50%; background: var(--prime, #2f8f88); display: inline-block; }
 dialog.notify .nt-opt { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; font-size: .9rem; cursor: pointer; }
-dialog.notify .nt-opt input { margin: 0; accent-color: var(--accent); }`;
+dialog.notify .nt-opt input { margin: 0; accent-color: var(--accent); }
+dialog.notify .nt-zhead { margin: 14px 0 6px; }
+dialog.notify .nt-x { position: absolute; top: 8px; right: 8px; width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: var(--muted); font-size: 1.1rem; }
+dialog.notify h2 { padding-right: 36px; }
+/* Save / Done stay in reach under the long region list */
+dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10px -18px -18px; padding: 10px 18px 18px; background: var(--panel); box-shadow: 0 -1px 0 var(--line); }`;
   document.head.appendChild(css);
 
   const btn = document.createElement("button");
@@ -83,10 +88,10 @@ dialog.notify .nt-opt input { margin: 0; accent-color: var(--accent); }`;
   box.innerHTML = `
 <h2>Notifications</h2>
 <div id="ntPick" hidden>
-  <p>Get a notification here for every new trail mapped in the regions you pick.</p>
-  <div class="nt-zones" id="ntZones"></div>
   <label class="nt-opt"><input type="checkbox" id="ntLoamNew">Tell me when a new trail is in prime loam</label>
   <label class="nt-opt"><input type="checkbox" id="ntLoamRide">Tell me when a trail on my To ride list is in prime loam</label>
+  <p class="nt-zhead">Get a notification here for every new trail mapped in the regions you pick.</p>
+  <div class="nt-zones" id="ntZones"></div>
   <div class="nt-row"><button type="button" data-close>Not now</button><button type="button" class="go" id="ntSave">Save</button></div>
 </div>
 <div id="ntList" hidden>
@@ -94,7 +99,8 @@ dialog.notify .nt-opt input { margin: 0; accent-color: var(--accent); }`;
   <p id="ntWhere"></p>
   <ol id="ntItems"></ol>
   <div class="nt-row"><button type="button" class="nt-link" id="ntEdit">Change regions</button><span><button type="button" id="ntAll">Mark all read</button> <button type="button" class="go" data-close>Done</button></span></div>
-</div>`;
+</div>
+<button type="button" class="nt-x" data-close aria-label="Close">✕</button>`;
   document.body.appendChild(box);
   const q = (id) => box.querySelector("#" + id);
   box.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => box.close()));
