@@ -110,13 +110,16 @@
   // Kept in memory, in 0.02 degree squares.
   const connectors = new Map(), connLoading = new Map(), connFailed = new Map();   // square -> [ways], a load on its way, when it failed
   let connN = 0;
-  const CONN_HW = "primary|secondary|tertiary|unclassified|residential|living_street|service|pedestrian|footway|path|cycleway|steps|track|bridleway|road";
-  const CONN_OK = new RegExp(`^(${CONN_HW})$`);
+  // Main roads (highways) come in bigger squares ("m" keys) for the whole area of a ride: a shuttle often drives the
+  // highway to the forest road (alex: Black Slabbith, down Highway 99 and up the Soo River FSR).
+  const MAIN_HW = "trunk|trunk_link|primary|primary_link|secondary|secondary_link";
+  const CONN_HW = MAIN_HW + "|tertiary|tertiary_link|unclassified|residential|living_street|service|pedestrian|footway|path|cycleway|steps|track|bridleway|road";
   async function connectorSquare(sq) {
-    const [i, j] = sq.split(":").map(Number), s = i * 0.02, w = j * 0.02, n = s + 0.02, e = w + 0.02;
-    const keep = (tags) => tags && CONN_OK.test(tags.highway || "") && !/^(no|private|dismount)$/.test(tags.bicycle || "") && !/^(private|no)$/.test(tags.access || "");
-    const make = (id, tags, geom) => ({ id: "c" + id, osm: id, conn: true, tags, name: tags.name || "", geom });
-    const q = `[out:json][timeout:10];way["highway"~"^(${CONN_HW})$"](${s},${w},${n},${e});out tags geom;`;
+    const main = sq[0] === "m", size = main ? 0.05 : 0.02, hw = main ? MAIN_HW : CONN_HW, ok = new RegExp(`^(${hw})$`);
+    const [i, j] = sq.replace(/^m/, "").split(":").map(Number), s = i * size, w = j * size, n = s + size, e = w + size;
+    const keep = (tags) => tags && ok.test(tags.highway || "") && !/^(no|private|dismount)$/.test(tags.bicycle || "") && !/^(private|no)$/.test(tags.access || "");
+    const make = (id, tags, geom) => ({ id: "c" + id, osm: id, conn: true, tags, name: tags.name || tags.ref || "", geom });
+    const q = `[out:json][timeout:10];way["highway"~"^(${hw})$"](${s},${w},${n},${e});out tags geom;`;
     const overpass = (url) => fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), signal: AbortSignal.timeout(10000) })
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((j) => j.elements.filter((x) => x.type === "way" && x.geometry && keep(x.tags))
@@ -151,6 +154,16 @@
       for (let k = 1; k <= n; k++) add([q[0] + ((p[0] - q[0]) * k) / (n + 1), q[1] + ((p[1] - q[1]) * k) / (n + 1)]); }));
     if (!sqs.length) return false;
     sqs.splice(12);
+    return loadSquares(sqs);
+  }
+  // The main roads all over a box (up to 16 squares of 0.05 degrees).
+  function loadMain(box) {
+    const sqs = [], now = Date.now();
+    for (let i = Math.floor(box[0] / 0.05); i <= Math.floor(box[2] / 0.05); i++)
+      for (let j = Math.floor(box[1] / 0.05); j <= Math.floor(box[3] / 0.05); j++) { const sq = "m" + i + ":" + j; if (!connectors.has(sq) && !(connFailed.get(sq) > now - 60000)) sqs.push(sq); }
+    return sqs.length ? loadSquares(sqs.slice(0, 16)) : Promise.resolve(false);
+  }
+  async function loadSquares(sqs) {
     // A square already on its way is waited for, not asked for again; one that failed is left for a minute.
     // A square that fails (servers busy) is asked for once more, 3 s later.
     const again = (sq) => connectorSquare(sq).then((r) => r || new Promise((ok) => setTimeout(ok, 3000)).then(() => connectorSquare(sq)));
@@ -232,7 +245,7 @@
   // and climbing costs nothing.
   let how = "pedal";
   const DRIVE = { good: 0.1, degraded: 0.12, heavy: 0.16, unknown: 0.14, street: 0.08 };
-  const CAR_HW = /^(primary|secondary|tertiary|unclassified|residential|living_street|service|road|track)$/;
+  const CAR_HW = /^(trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|service|road|track)$/;
   const NO_CAR = /^(no|private|forestry|agricultural|delivery)$/;
   function driveRate(w) {
     if (!w) return 0;
@@ -282,7 +295,7 @@
   // with a locked gate (or a barrier, a bridge out) within 1 km of that start, only the streets: you're at the gates
   // (alex at Britannia: "shuttle should not be available because the gate are locked").
   // G.gate: the road with that gate, for the "No shuttle" note.
-  const PUBLIC = /^(primary|secondary|tertiary|unclassified|residential|living_street)$/;
+  const PUBLIC = /^(trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street)$/;
   function carReach(G) {
     if (G.reach) return G.reach;
     const comp = new Map(), info = [], p0 = G.carFrom;
@@ -828,11 +841,13 @@
       // Stretches with no mapped way: show the ride now, load the streets and paths there, and build it again with them.
       // Shuttle: also the streets around the start, where the truck comes in.
       const want = [...out.filter((l) => l.gap).map((l) => l.pts), ...(shuttle ? [[posOf(S), posOf(S)]] : [])];
-      if (want.length && !retried) {
+      if (!retried) {
         joining++;
         // Rebuilt when any streets came in since this build started, also from an earlier build's load of the same
         // squares (it used to wait for that load, find nothing new and leave the dashes).
-        loadConnectors(want).then(() => { if (connN !== c0 && my === gen) later(() => buildRide(true)); })
+        // And the highways around, for the way to the forest roads.
+        Promise.all([loadConnectors(want), loadMain(boxOf(T.flatMap((t) => [t.pts[0], t.pts[t.pts.length - 1]]).concat([posOf(S)]), 0.05))])
+          .then(() => { if (connN !== c0 && my === gen) later(() => buildRide(true)); })
           .finally(() => { joining--; render(); });
       }
     } finally { busy--; }
