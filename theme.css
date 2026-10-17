@@ -359,3 +359,26 @@ body.sport-ski .first-tip { display: none; }
   /* wildfire, parking and other pins a bit smaller so they don't bury the trails */
   .rf-pin span { transform: scale(.82); }
 }
+
+/* Phone pass 3 (alex: "make it easier on the phone, look at all the features"): the map chip row fits every phone
+   and in Skiing, the sheet title never runs under the sport menu, a one-line map credit, tool cards clear of the
+   chip row and the sheet, bigger close buttons */
+@media (max-width: 760px) {
+  /* Satellite is just its symbol, Save point says "Save": with Skiing's extra chip the row still fits a 360 px phone */
+  .map-tools #satBtn, .map-tools #spAdd { font-size: 0; gap: 0; }
+  .map-tools #satBtn { width: 44px; min-width: 44px; padding: 0; justify-content: center; }
+  .map-tools #satBtn::before { content: "🛰"; font-size: 1.15rem; line-height: 1; }
+  .map-tools #spAdd::before { content: "📍 Save"; font-size: .84rem; line-height: 1; }
+  /* the title shrinks instead of sliding under the sport menu */
+  .brand h1 { overflow: hidden; text-overflow: ellipsis; }
+  .brand .sport-pick { max-width: 118px; }
+  /* map credit: one short line; tap it to read all of it */
+  .leaflet-container .leaflet-control-attribution { font-size: 10px; line-height: 1.5; padding: 1px 6px; max-width: calc(100vw - 16px); box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  .leaflet-container .leaflet-control-attribution.open { white-space: normal; }
+  /* Offline maps opens under the chip row, full width, above the sheet */
+  .offline-card { z-index: 1120; left: 12px; right: 12px; width: auto; top: calc(env(safe-area-inset-top, 0px) + 60px); max-height: calc(100% - var(--sheet-vis, 190px) - 76px); }
+  .offline-card h2 button { min-width: 40px; min-height: 40px; margin: -8px -8px -8px 0; }
+  /* Ride mode: the three buttons after Stop stay on one line */
+  .nav-btns button { padding: 11px 6px; white-space: nowrap; }
+}
+@media (max-width: 380px) { .map-tools select, .map-tools button { padding-left: 10px; padding-right: 10px; } .map-tools { gap: 5px; } }

@@ -220,6 +220,7 @@
 .nav-btns [hidden] { display: none; }
 .nav-gps { position: fixed; z-index: 1200; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); background: #fff3cd; color: #5c4400; border-radius: 999px; padding: 6px 12px; font-size: .85rem; box-shadow: 0 2px 8px rgba(0,0,0,.18); max-width: calc(100vw - 24px); }
 .nav-gps[hidden] { display: none; }
+.nav-strip .nav-gps { position: static; transform: none; max-width: none; margin: 0 0 10px; border-radius: 10px; box-shadow: none; padding: 7px 10px; }
 .nav-you, .oneway-arrow { background: none; border: 0; }
 .nav-route { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #7b2ff7 12%, transparent); font-size: .95rem; }
 .nav-route[hidden] { display: none; }
@@ -241,7 +242,7 @@ body.sport-ski #navRideBtn { display: none; }
   document.body.appendChild(strip);
   const gpsMsg = document.createElement("div");
   gpsMsg.className = "nav-gps"; gpsMsg.hidden = true; gpsMsg.setAttribute("role", "status");
-  document.body.appendChild(gpsMsg);
+  strip.prepend(gpsMsg);   // at the top of the strip, so it never covers the map buttons
 
   // ---------- riding ----------
   let rec = null, watchId = null, wakeLock = null, ticker = 0, lastSave = 0, following = true, lastFix = null;
