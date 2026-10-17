@@ -42,6 +42,12 @@ const AREAS = (readJsonAt(new URL("data/riding-areas.json", root)) || { areas: [
 function readJsonAt(url) { try { return JSON.parse(readFileSync(url, "utf8")); } catch { return null; } }
 
 const radius = (a) => a.r || AREA_M;
+// Trails a rider (alex) listed in ratings.js HAND are MTB trails even with no bike tags, so the lists keep them too
+// (the app draws only what's in a list). Read from ratings.js, the one place they're kept.
+const HAND = (() => {
+  const m = readFileSync(new URL("ratings.js", root), "utf8").match(/const HAND = (\[[\s\S]*?\n  \]);/);
+  try { return m ? Function(`return ${m[1]}`)() : []; } catch { return []; }
+})();
 
 // Zones where the Recreation Sites and Trails BC trails (DataBC layer WHSE_FOREST_TENURE.FTEN_RECREATION_LINES_SVW, Open
 // Government Licence - British Columbia) count as MTB trails.
@@ -150,7 +156,10 @@ if (!existsSync(DATA)) mkdirSync(DATA);
 const builtAt = new Date().toISOString().slice(0, 19) + "Z";
 const lastBuilt = (z) => Date.parse((readJson(`mtb-${z.id}.json`) || {}).builtAt) || 0;
 const areasOf = (z) => AREAS.filter((a) => a.zone === z.id);
-const zoneRules = (z) => (REC_ZONES[z.id] ? [["rec", REC_M, REC_SHARE].concat(REC_ZONES[z.id] === "all" ? [] : [REC_ZONES[z.id]])] : []).concat(OFFICIAL_ZONES[z.id] ? [["official", OFFICIAL_ZONES[z.id]]] : []);
+const inBox = (c, [s, w, n, e]) => c[0] >= s && c[0] <= n && c[1] >= w && c[1] <= e;
+const handNames = (z) => HAND.filter((h) => inBox(h.c, z.box)).map((h) => h.name);   // editing the list rebuilds the zone
+const zoneRules = (z) => (REC_ZONES[z.id] ? [["rec", REC_M, REC_SHARE].concat(REC_ZONES[z.id] === "all" ? [] : [REC_ZONES[z.id]])] : []).concat(OFFICIAL_ZONES[z.id] ? [["official", OFFICIAL_ZONES[z.id]]] : [])
+  .concat(handNames(z).length ? [["hand"].concat(handNames(z))] : []);
 const areasKey = (z) => JSON.stringify(areasOf(z).map((a) => [a.name, a.c, radius(a), a.official || ""].concat(a.park ? [a.park] : [])).concat(zoneRules(z)));
 // A list made for a different box (or before boxes were saved), older rules or other riding areas is out of date, however fresh.
 // Files from before areas were saved count as up to date unless the zone has a backcountry area (radius r) or a zone rule.
@@ -402,14 +411,16 @@ for (const z of order) {
     const tagged = [...all.values()].filter((w) => ownMtb(w.tags || {}) || routeWays.has(w.id));
     const sparse = areas.filter((a) => a.r || tagged.filter((w) => w.geometry.some((p) => metres([p.lat, p.lon], a.c) <= AREA_M)).length < SPARSE);
     const ways = {}, routes = {}, rest = [];
-    let fromAreas = 0, fromRec = 0, fromLift = 0;
+    let fromAreas = 0, fromRec = 0, fromLift = 0, fromHand = 0;
     for (const w of all.values()) {
       const tags = { ...(w.tags || {}) };
       const mid = w.geometry[w.geometry.length >> 1];
       const bikeWay = /^(path|bridleway)$/.test(tags.highway || "") || tags.highway === "footway" && /^(yes|designated|permissive)$/.test(tags.bicycle || "");
       const t = rec && bikeWay && !/^(no|private)$/.test(tags.access || "") ? recMatch(w.geometry, rec.index) : null;
       const park = rec && rec.parks.find((p) => inPark([mid.lat, mid.lon], p));
-      if (!ownMtb(tags) && !routeWays.has(w.id) && !t) {
+      const hand = tags.name && HAND.find((h) => h.name.toLowerCase() === tags.name.toLowerCase() && metres([mid.lat, mid.lon], h.c) <= h.r);
+      if (hand) { tags["tf:hand"] = hand.who; fromHand++; }
+      else if (!ownMtb(tags) && !routeWays.has(w.id) && !t) {
         if (!bikeWay || !bikeOk(tags)) continue;
         const a = tags.name && !NOT_BIKE_NAME.test(tags.name) && sparse.find((a) => metres([mid.lat, mid.lon], a.c) <= radius(a) || (a.park && park && park.name === a.park));
         const lp = /^(path|bridleway)$/.test(tags.highway) && !motor(tags) && /^(hiking)?$/.test(tags.sac_scale || "") && !NOT_BIKE_NAME.test(tags.name || "")
@@ -441,7 +452,7 @@ for (const z of order) {
     log(`${z.name}: ${Object.keys(ways).length} trails, ${Object.keys(routes).length} MTB routes` +
       (longRoutes.length ? `; left out long-distance routes ${longRoutes.map((r) => (r.tags && r.tags.name) || r.id).join(", ")}` : "") +
       (sparse.length ? `; ${fromAreas} named paths added in ${sparse.map((a) => a.name).join(", ")} (few bike tags there)` : "") +
-      (rec ? `; ${fromRec} paths along Recreation Sites and Trails BC trails` : "") + `; ${fromNet} paths in MTB trail networks` +
+      (fromHand ? `; ${fromHand} paths a rider listed (ratings.js)` : "") + (rec ? `; ${fromRec} paths along Recreation Sites and Trails BC trails` : "") + `; ${fromNet} paths in MTB trail networks` +
       (parks.length ? `; ${fromLift} paths in lift-served bike parks (${parks.map((p) => p.name).join(", ")})` : ""));
   } catch (e) {
     failed++;
