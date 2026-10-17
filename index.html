@@ -1284,7 +1284,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <details class="about-more"><summary>All the details</summary>
     <p>All data comes from OpenStreetMap. For the riding areas from Vancouver to Calgary, GitHub collects the new trails and trail names several times a day, so searches there load in a second or two without waiting on OpenStreetMap. A trail added today shows up after one of the next updates (with so many areas, each one is refreshed every day or two). Anywhere else, the app asks OpenStreetMap live. The areas are grouped into four regions in the Area menu: Sea to Sky and the Sunshine Coast; the Fraser Valley, Kamloops, the Okanagan and Williams Lake; the Kootenays, Revelstoke and Golden; and Calgary, Bragg Creek, Canmore and Kananaskis, and Banff in Alberta. The empty country between the riding towns isn't collected: use “Search this area” there. Forest Service roads from the BC government and BC recreation sites only cover BC (the Wildfires button covers all of Canada); in Alberta the forest roads, trailheads and parking come from OpenStreetMap only. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
     <h3>Loam in the list</h3>
-    <p>Each new trail shows its Loam moisture index right now, from the same Open-Meteo soil model as the trail details (trails within about 5 km share one reading). Pick “Prime loam now” in the time row to see every named trail in the area, old or new, whose index is 40 to 59 right now (damp hero dirt). They show as teal dots on the map: tap one to load the whole trail.</p>
+    <p>Each new trail shows its Loam moisture index right now, from the same Open-Meteo soil model as the trail details (trails within about 2 km share one reading, and the trail details use that same reading). Pick “Prime loam now” in the time row to see every named trail in the area, old or new, whose index is 40 to 59 right now (damp hero dirt). They show as teal dots on the map: tap one to load the whole trail.</p>
     <h3>Near me</h3>
     <p>Tap “Near me” and pick 5, 10, 25 or 50 km. The app asks your browser for your location (it stays on your device), searches that circle and lists only the new trails within that distance, with how far each one is. Find a trail has the same Near me button: it lists every trail, old or new, within that distance, nearest first. Tap level or Unofficial chips to narrow it, and trail name searches stay inside the circle.</p>
     <h3>Click any trail</h3>
@@ -2991,8 +2991,11 @@ out body;`;
     `<li class="${l === lvl ? "on" : ""}"><span class="dot" style="background:${LMI_RIDE[k][0]}"></span><span>${k * 20}–${Math.min(100, l[0] - 1)}</span><span>${esc(l[1])}</span><span class="ride ${LMI_RIDE[k][2] || ""}">${LMI_RIDE[k][1]}</span></li>`).join("")}</ul>`;
 
   // ---- Loam moisture index for the whole new-trails list ----
-  const loamCells = new Map();                   // "lat,lon" (rounded to 0.05°) -> { at, lmi }
-  const cellOf = (t) => { const m = t.center || L.latLng(t.geom[Math.floor(t.geom.length / 2)]); return `${(Math.round(m.lat * 20) / 20).toFixed(2)},${(Math.round(m.lng * 20) / 20).toFixed(2)}`; };
+  // Lists, trail details, alerts and To ride pins all read one shared reading per cell, so a trail
+  // shows the same number everywhere. 0.02° (about 2 km) is close to the weather model's own grid:
+  // 0.05° cells put some trails' reading 3 km away, in a wetter or drier model cell.
+  const loamCells = new Map();                   // "lat,lon" (rounded to 0.02°) -> { at, lmi }
+  const cellOf = (t) => { const m = t.loamAt || t.center || L.latLng(t.geom[Math.floor(t.geom.length / 2)]); return `${(Math.round(m.lat * 50) / 50).toFixed(2)},${(Math.round(m.lng * 50) / 50).toFixed(2)}`; };
   function loamOf(t) {
     const c = loamCells.get(cellOf(t));
     return c ? c.lmi : undefined;                 // undefined: not loaded yet; null: no soil data there
@@ -3045,9 +3048,9 @@ out body;`;
     const box = () => (state.selected === t.id ? $("wx") : null);
     try {
       if (!t.wx || Date.now() - t.wx.at > WX_FRESH_MS) {
-        const mid = t.geom[Math.floor(t.geom.length / 2)];
+        const mid = cellOf(t).split(",");          // the same point the lists read, so the numbers match
         {
-          const url = `${WX_API}?latitude=${mid[0].toFixed(4)}&longitude=${mid[1].toFixed(4)}&timezone=auto&past_days=2&forecast_days=4` +
+          const url = `${WX_API}?latitude=${mid[0]}&longitude=${mid[1]}&timezone=auto&past_days=2&forecast_days=4` +
             "&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m" +
             "&hourly=precipitation,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm" +
             "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max";
@@ -3056,6 +3059,12 @@ out body;`;
           const json = await res.json();
           if (!json.current || !json.hourly || !json.daily) throw new Error("unexpected answer");
           t.wx = { at: Date.now(), json };
+          const h = json.hourly;
+          let i = h.time.findIndex((x) => x > json.current.time) - 1;
+          if (i < 0) i = h.time.length - 1;
+          const key = cellOf(t), was = loamCells.get(key), lmi = lmiAt(h, i);
+          loamCells.set(key, { at: Date.now(), lmi });   // a fresher reading: the list shows it too
+          if (!was || was.lmi !== lmi) render();
         }
       }
       const el = box(); if (el) renderWeather(el, t.wx.json);
@@ -5367,7 +5376,7 @@ out tags center qt;`;
       }
       if (token !== foundToken) return;
       if (!segs.length) throw new Error("the trail's shape didn't load");
-      await presentTrail({ main, segs, segIds, type: g.type === "r" ? "relation" : "way", kind: g.kind, token, view: "fit" });
+      await presentTrail({ main, segs, segIds, type: g.type === "r" ? "relation" : "way", kind: g.kind, token, view: "fit", loamAt: g.center });   // same Loam reading as its list row
     } catch (e) {
       if (token === foundToken) setStatus(`Couldn't load ${g.name} (${e.message}). Try again in a moment.`, true);
     }
@@ -5375,7 +5384,7 @@ out tags center qt;`;
 
   // Build the full trail record (category, first-mapped date), draw it and open its panel.
   // view: "fit" zooms to the whole trail; a LatLng only makes sure that spot stays visible.
-  async function presentTrail({ main, segs, segIds, type, kind, routes = [], routeTypes = [], token, view }) {
+  async function presentTrail({ main, segs, segIds, type, kind, routes = [], routeTypes = [], token, view, loamAt }) {
       const tags = main.tags || {};
       const types = routeTypes.concat(tags.route ? [tags.route] : []);
       const { line: geom, all: chainAll } = chainSegments(segs);
@@ -5386,7 +5395,7 @@ out tags center qt;`;
       const c = classify(withOfficial(ctags, geom), routes.map((r) => r.name).concat(tags.route === "mtb" ? [tags.name] : []), types);
       const bounds = segs.reduce((b, s) => b.extend(L.latLngBounds(s)), L.latLngBounds(segs[0]));
       const t = {
-        id: main.id, osmType: type, tags, routes, searched: true, geom, chainAll, segments: segs, segIds, bounds,
+        id: main.id, osmType: type, tags, routes, searched: true, geom, loamAt, chainAll, segments: segs, segIds, bounds,
         km: segs.reduce((s, l) => s + lengthKm(l), 0), zone: zoneOf(bounds.getCenter()),
         version: main.version, lastEdit: new Date(main.timestamp), lastUser: main.user || "", lastChangeset: main.changeset,
         cat: c ? c.cat : "other", catLabel: c ? null : isRoad(tags) ? "Forest road" : kind, unoff: c ? c.unoff : unofficial(ctags), official: c ? c.official : officialWhy(ctags), ...useOf(tags, routes.length ? types.concat("mtb") : types),
