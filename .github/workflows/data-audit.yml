@@ -58,6 +58,8 @@ jobs:
           node scripts/audit.mjs
           cat out/audit.md >> "$GITHUB_STEP_SUMMARY"
           cp data/audit.json out/audit.json
+          # The findings in the log too, one per line (for reading the run without downloading anything).
+          node -e 'for (const f of require("./data/audit.json").findings) console.log(["AUDIT", f.sev, f.check, f.zone, f.title, f.where || "", f.detail].join(" | "))' 
       - name: Keep the findings with the run
         uses: actions/upload-artifact@v4
         with:
