@@ -159,6 +159,8 @@
   // Trails a local rider rated (alex), matched by name within r metres of c. Remove one once OpenStreetMap has a rating.
   // Every trail listed is an MTB trail (the rider says so). d: their level (leave out to keep the estimate);
   // off: they say it's an official trail (shown as Official).
+  // Entries with src instead of who come from the weekly data audit's research (scripts/audit.mjs): src names the
+  // resort, club or tourism page that gives the level or calls it a bike trail, url is that page. Never Trailforks.
   const HAND = [
     { name: "Alpine Capone", c: [49.845, -123.092], r: 3000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish" },
     { name: "Just a Cough", c: [49.823, -123.118], r: 2000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish, like Flying Whales" },
@@ -166,6 +168,52 @@
     { name: "Trial and Error (lower)", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Pretty Slabs", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
     { name: "Stepping Stones", c: [49.636, -123.177], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail below Pretty Slabs, Britannia" },
+    { name: "Bumble Bee", c: [49.731, -118.94], r: 2000, d: "green", src: "Big White Ski Resort, bike school page", url: "https://www.bigwhite.com/summer/mountain-biking/bike-school" },
+    { name: "Pry Bar", c: [49.737, -118.928], r: 2000, d: "green", src: "Big White Ski Resort, bike school page", url: "https://www.bigwhite.com/summer/mountain-biking/bike-school" },
+    { name: "Nessy", c: [49.732, -118.924], r: 2000, d: "green", src: "Big White Ski Resort, bike school page", url: "https://www.bigwhite.com/summer/mountain-biking/bike-school" },
+    { name: "Bermslang", c: [49.73, -118.925], r: 2000, d: "blue", src: "Big White Ski Resort, bike school page", url: "https://www.bigwhite.com/summer/mountain-biking/bike-school" },
+    { name: "Lightning Strike", c: [49.73, -118.932], r: 2000, d: "blue", src: "Big White Ski Resort, bike school page", url: "https://www.bigwhite.com/summer/mountain-biking/bike-school" },
+    { name: "Ace of Spades", c: [49.733, -118.922], r: 2000, d: "blue", src: "Big White Ski Resort, bike school page", url: "https://www.bigwhite.com/summer/mountain-biking/bike-school" },
+    { name: "Gecko", c: [49.737, -118.928], r: 2000, d: "blue", src: "Big White Ski Resort blog, 2024 trail improvements", url: "https://www.bigwhite.com/summer/explore-big-white/blog/mountain-biking/trail-improvements-24" },
+    { name: "Squirts", c: [49.729, -118.919], r: 2000, d: "blue", src: "Big White Ski Resort blog, 2024 trail improvements", url: "https://www.bigwhite.com/summer/explore-big-white/blog/mountain-biking/trail-improvements-24" },
+    { name: "Home Run", c: [49.725, -118.925], r: 2000, d: "green", src: "Mountain Biking BC, first visit to Big White bike park", url: "https://www.mountainbikingbc.ca/blog/your-first-visit-to-bcs-newest-lift-accessed-bike-park-in-big-white/" },
+    { name: "It's So Easy", c: [49.723, -118.924], r: 2000, d: "green", src: "Mountain Biking BC, first visit to Big White bike park", url: "https://www.mountainbikingbc.ca/blog/your-first-visit-to-bcs-newest-lift-accessed-bike-park-in-big-white/" },
+    { name: "Easy Steezy", c: [49.723, -118.926], r: 2000, d: "green", src: "Mountain Biking BC, first visit to Big White bike park", url: "https://www.mountainbikingbc.ca/blog/your-first-visit-to-bcs-newest-lift-accessed-bike-park-in-big-white/" },
+    { name: "Dark Roast", c: [49.734, -118.926], r: 2000, d: "black", src: "Mountain Biking BC, Bike Parks BC road trip part 2", url: "https://www.mountainbikingbc.ca/blog/bike-parks-bc-road-trip-part-2-silverstar-and-big-white/" },
+    { name: "Rocket Science", c: [49.724, -118.935], r: 2000, d: "black", src: "Mountain Biking BC, Bike Parks BC road trip part 2", url: "https://www.mountainbikingbc.ca/blog/bike-parks-bc-road-trip-part-2-silverstar-and-big-white/" },
+    { name: "Black Mamba", c: [49.725, -118.922], r: 2000, d: "black", src: "Freehub, BC bike parks travel guide", url: "https://freehub.com/features/bc-bike-parks-travel-guide" },
+    { name: "Shark Fin Soup", c: [49.725, -118.925], r: 2000, d: "blue", src: "Freehub, BC bike parks travel guide", url: "https://freehub.com/features/bc-bike-parks-travel-guide" },
+    { name: "Rock Hammer", c: [49.737, -118.927], r: 2000, d: "dbl", src: "Adventures NW, In Praise of Gravity (2017)", url: "https://www.adventuresnw.com/in-praise-of-gravity-freeriding-the-okanogan/" },
+    { name: "Bronco", c: [49.547, -119.533], r: 2000, d: "black", src: "Swagman ride guide on Visit Penticton, Three Blind Mice", url: "https://visitpenticton.com/swagmans-backyard-ride-guide-three-blind-mice-part-1-flow/" },
+    { name: "High Pony", c: [49.553, -119.533], r: 2000, d: "blue", src: "Swagman ride guide on Visit Penticton, Three Blind Mice", url: "https://visitpenticton.com/swagmans-backyard-ride-guide-three-blind-mice-part-1-flow/" },
+    { name: "Slabs", c: [49.556, -119.547], r: 2000, d: "black", src: "Swagman ride guide on Visit Penticton, Three Blind Mice", url: "https://visitpenticton.com/swagmans-backyard-ride-guide-three-blind-mice-part-1-flow/" },
+    { name: "Fred", c: [49.563, -119.549], r: 2000, d: "blue", src: "Mountain Biking BC, something for everyone in Penticton", url: "https://www.mountainbikingbc.ca/blog/theres-something-for-everyone-in-penticton/" },
+    { name: "Flow Coaster", c: [49.546, -119.553], r: 2000, d: "blue", src: "Mountain Biking BC, something for everyone in Penticton", url: "https://www.mountainbikingbc.ca/blog/theres-something-for-everyone-in-penticton/" },
+    { name: "Test of Humanity", c: [49.597, -119.699], r: 2000, d: "blue", src: "Summerland tourism, best trails for experienced riders", url: "https://summerland.com/articles/biking-bliss-summerlands-best-mountain-trails-for-experienced-riders/" },
+    { name: "Chief William XC", c: [52.14, -122.054], r: 2000, d: "blue", src: "First Journey Trails, Chief William XC", url: "https://firstjourneytrails.com/trail/chief-william-xc/" },
+    { name: "Fox Fire", c: [52.14, -122.106], r: 2000, d: "green", src: "Explore Cariboo, mountain biking", url: "https://explorecariboo.com/mountain-biking/" },
+    { name: "Shuttle Bunny", c: [52.157, -122.132], r: 2000, d: "green", src: "Explore Cariboo, mountain biking", url: "https://explorecariboo.com/mountain-biking/" },
+    { name: "Loose Moose", c: [52.133, -122.081], r: 2000, d: "blue", src: "Williams Lake Tribune, 2022 trail opening", url: "https://wltribune.com/2022/06/17/mountain-bike-trail-grand-opening-event-draws-a-crowd-to-williams-lake/" },
+    { name: "Westlake Trail", c: [49.045, -118.245], r: 2000, d: "black", src: "Christina Lake tourism, Westlake Trail", url: "https://christinalake.ca/westlake-trail-tnt/" },
+    { name: "Upper Harpold", c: [49.049, -118.416], r: 2000, d: "blue", src: "Discover Grand Forks, mountain biking", url: "https://discovergrandforks.ca/news/why-grand-forks-bc-is-the-best-hidden-gem-for-mountain-biking-adventures/" },
+    { name: "Lower Harpold", c: [49.044, -118.43], r: 2000, d: "blue", src: "Discover Grand Forks, mountain biking", url: "https://discovergrandforks.ca/news/why-grand-forks-bc-is-the-best-hidden-gem-for-mountain-biking-adventures/" },
+    { name: "Phat Bastard", c: [49.511, -115.086], r: 2000, d: "black", src: "Sacred Rides, Fernie top 10 trails", url: "https://sacredrides.com/fernie-mountain-biking-the-top-10-trails/" },
+    { name: "Red Sonja", c: [49.51, -115.084], r: 2000, d: "black", src: "Sacred Rides, Fernie top 10 trails", url: "https://sacredrides.com/fernie-mountain-biking-the-top-10-trails/" },
+    { name: "Old Goat", c: [49.481, -115.106], r: 2000, d: "blue", src: "Sacred Rides, Fernie top 10 trails", url: "https://sacredrides.com/fernie-mountain-biking-the-top-10-trails/" },
+    { name: "Academy Trail", c: [49.325, -122.852], r: 2000, src: "Singletracks, Eagle Mountain trails", url: "https://www.singletracks.com/bike-trails/lower-eagle-bluff/" },
+    { name: "Academy Trail Bike Route", c: [49.334, -122.854], r: 2000, src: "Singletracks, Eagle Mountain trails", url: "https://www.singletracks.com/bike-trails/lower-eagle-bluff/" },
+    { name: "Eagle Bluff Trail", c: [49.323, -122.849], r: 2000, src: "Singletracks, Eagle Mountain trails", url: "https://www.singletracks.com/bike-trails/lower-eagle-bluff/" },
+    { name: "Eagle Bluff North Trail", c: [49.326, -122.846], r: 2000, src: "Singletracks, Eagle Mountain trails", url: "https://www.singletracks.com/bike-trails/lower-eagle-bluff/" },
+    { name: "Eagle Bluff South", c: [49.321, -122.843], r: 2000, src: "Singletracks, Eagle Mountain trails", url: "https://www.singletracks.com/bike-trails/lower-eagle-bluff/" },
+    { name: "Riders of Rohan", c: [51.072, -115.395], r: 2000, src: "Alberta Parks trail report, Riders of Rohan", url: "https://www.albertaparks.ca/parks/kananaskis/kananaskis-country/advisories-and-public-safety/trail-reports/canmore-and-area/riders-of-rohan/" },
+    { name: "Highline Trail", c: [51.06, -115.362], r: 2000, src: "The Banff Blog, Canmore biking", url: "https://thebanffblog.com/canmore-biking/" },
+    { name: "Highline East Connector", c: [51.065, -115.362], r: 2000, src: "The Banff Blog, Canmore biking", url: "https://thebanffblog.com/canmore-biking/" },
+    { name: "Highline West Connector", c: [51.071, -115.381], r: 2000, src: "The Banff Blog, Canmore biking", url: "https://thebanffblog.com/canmore-biking/" },
+    { name: "Highline West End", c: [51.073, -115.394], r: 2000, src: "The Banff Blog, Canmore biking", url: "https://thebanffblog.com/canmore-biking/" },
+    { name: "Reclaimer Trail", c: [51.082, -115.402], r: 2000, d: "black", src: "The Banff Blog, Canmore biking", url: "https://thebanffblog.com/canmore-biking/" },
+    { name: "Apex Trail", c: [49.906, -119.489], r: 2000, src: "Tourism Kelowna, the Knox network", url: "https://www.tourismkelowna.com/blog/stories/post/mountain-biking-in-kelowna-a-close-look-at-the-knox-network/" },
+    { name: "Kathleen Lake Loop Trail", c: [49.905, -119.471], r: 2000, src: "Tourism Kelowna, the Knox network", url: "https://www.tourismkelowna.com/blog/stories/post/mountain-biking-in-kelowna-a-close-look-at-the-knox-network/" },
+    { name: "Gear Jammer Connector", c: [49.276, -122.904], r: 2000, src: "Komoot, Burnaby Mountain Gearjammer", url: "https://www.komoot.com/smarttour/31037183" },
   ];
   function handOf(geom, tags) {
     const name = ((tags && (tags.name || tags["tf:name"])) || "").toLowerCase(), mid = geom && geom[geom.length >> 1];
@@ -177,13 +225,16 @@
   // { mtb, off }: why the trail counts as an MTB trail, and as official (null when not), or null when it isn't listed.
   function hand(geom, tags) {
     const h = handOf(geom, tags);
-    return h ? { mtb: `${h.who}, who rides it, says it's a mountain bike trail`, off: h.off ? `${h.who}, who rides it, says it's an official trail` : null } : null;
+    if (!h) return null;
+    if (!h.who) return { mtb: `${h.src} calls it a mountain bike trail`, off: null };
+    return { mtb: `${h.who}, who rides it, says it's a mountain bike trail`, off: h.off ? `${h.who}, who rides it, says it's an official trail` : null };
   }
 
   // Best rating known now: a rider's own rating, official open data, then the same trail, then an estimate.
   function rate(id, geom, tags) {
     const h = handOf(geom, tags);
-    if (h && h.d) return { d: h.d, src: "hand", why: `Rated ${LEVEL[h.d]} by ${h.who}, who rides it: ${h.note}. It has no rating on OpenStreetMap yet.` };
+    if (h && h.d) return { d: h.d, src: "hand", why: h.who ? `Rated ${LEVEL[h.d]} by ${h.who}, who rides it: ${h.note}. It has no rating on OpenStreetMap yet.`
+      : `Rated ${LEVEL[h.d]} by ${h.src}. It has no rating on OpenStreetMap yet.` };
     const o = official(geom, tags && (tags.name || tags["tf:name"]));
     if (o) return o;
     const w = osm && id && osm[id];

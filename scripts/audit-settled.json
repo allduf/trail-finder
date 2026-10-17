@@ -1,1 +1,120 @@
-{"note":"Audit findings that were looked into (scripts/audit.mjs reports them as settled instead of again). Key: the finding key in data/audit.json. date, who, note: what was found or decided, with the source.","settled":{}}
+{
+ "note": "Audit findings that were looked into (scripts/audit.mjs reports them as settled instead of again). Key: the finding key in data/audit.json. date, who, note: what was found or decided, with the source.",
+ "settled": {
+  "area-new:inv:50.51,-116.14": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "High/Low Voltage, Power Outage, Uptrack and others just west of Lillian and Eileen lakes: no source names this network. It fits the Barbour Rock trails the Columbia Valley Cycling Society proposed (columbiavalleypioneer.com), with no sign they were approved; Mountain Biking BC calls No Respect there unsanctioned. No label until a name is confirmed (c would be 50.5089,-116.1461)."
+  },
+  "area-thin:Black Mountain": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "sntsk'il'ntən / Black Mountain Regional Park (RDCO) is a small park with a handful of multi-use trails; the label is within 600 m of their middle, 6 is its real size."
+  },
+  "area-thin:Seton Ridge": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "One long ridge trail (11.5 km, bicycle=designated), not a network, so 1 is right. Label made tier 2."
+  },
+  "area-thin:Nose Hill": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "City of Calgary allows off-road riding in the hilltop multi-use zone where the label sits; most of its paths have no name on OpenStreetMap, which keeps the count low."
+  },
+  "area-thin:Fish Creek": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "Alberta Parks signs a singletrack system in Fish Creek (Ice Caves, Sluice, Path No More); most of it has no name on OpenStreetMap, which keeps the count low. Label is beside the mapped singletrack."
+  },
+  "area-thin:Kicking Horse": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "Label moved from the Dawn Mountain Nordic and walking paths onto the bike park (Kranky Pants, Buffalo Jump, Devil's Disco). OpenStreetMap has only a few of the park's 35+ km of trails, so the count stays low until mappers add them."
+  },
+  "area-plain:Valleycliffe": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "The left-out paths are Chief and Gondola hikes, climbing approaches, dykes and waterfront walks; none is a bike trail."
+  },
+  "area-plain:Britannia Beach": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "Informal paths mapped by a climbing mapper (sac_scale=mountain_hiking, some sport=trial, probably motorbike trials lines); no source calls them bike trails. Pretty Slabs and Stepping Stones are already in from alex."
+  },
+  "area-plain:Pacific Spirit Park": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "Metro Vancouver multi-use gravel trails (Salish, Hemlock, Imperial, Sasamat...), open to bikes but not singletrack; left as plain paths on purpose (sac_scale=strolling, gravel surface)."
+  },
+  "area-plain:Rubberhead": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "The left-out names are Larch Hills Nordic ski trails; Shuswap Trails says bikes may use them spring to fall, but they're ski trails, not MTB trails, so they stay plain paths."
+  },
+  "area-plain:Burnaby Mountain": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "Gear Jammer Connector added (ratings.js HAND, Komoot / BMBA). Lost Stapler, Ocean 1974, Jamtart and the rest are the Canada Pacific Trials Association motorcycle trials area at Ioco; the others are walks."
+  },
+  "area-plain:Knox Mountain": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "Apex Trail and Kathleen Lake Loop added (ratings.js HAND, Tourism Kelowna Knox network story). The rest are walks, boardwalks and the paved Rail Trail and promenade."
+  },
+  "area-plain:Eagle Mountain": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "Academy and Eagle Bluff trails added (ratings.js HAND, Singletracks). The rest are Heritage Woods sidewalks, Coquitlam Crunch and David Bikeway; Homerun, Peanut Butter, Upper Backyard and Strong Road Connector had no source beyond Trailforks. Exterminator, Rokalypse and other motorcycle=designated trails show as moto on purpose."
+  },
+  "area-plain:Quarry Lake": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "Riders of Rohan, the Highline trails and Reclaimer added (ratings.js HAND, Alberta Parks trail report, The Banff Blog). Powerline Trail and Water Line had no source; the rest are walks."
+  },
+  "ratings:pen": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "6 of 42 rated from Visit Penticton (Swagman ride guide), Mountain Biking BC and Summerland tourism. The Penticton & Area Cycling Association (bikepenticton.com) only links to Trailforks maps; no other open list gives levels."
+  },
+  "ratings:wl": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "4 of 62 rated from First Journey Trails, Explore Cariboo and the Williams Lake Tribune. The club's Fox Mountain map PDF exists but couldn't be read; no open text list gives levels."
+  },
+  "ratings:gfk": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "3 of 21 rated from Christina Lake tourism and Discover Grand Forks; no club or municipal list gives levels for the rest."
+  },
+  "ratings:fer": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "3 of 151 rated from Sacred Rides' top-10 list. The Fernie Trails Alliance has no rating list outside Trailforks; the Fernie Alpine Resort bike park map PDF couldn't be read."
+  },
+  "trailhead:n3562422097": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "Radium Lake Trailhead (BC Parks) is a hike-in junction on the Trans Canada Trail bridleway; no road is missing."
+  },
+  "trailhead:n269837876": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "'Intersection' (Calgary Area Trail Mapping Project) is a junction of hiking footways in Kananaskis, not a road trailhead."
+  },
+  "trailhead:n269836948": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "Headwall Lake trailhead is a junction on the Headwall Lakes trail in Kananaskis, reached on foot from the Chester Lake parking."
+  },
+  "trailhead:n269837611": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "Three Lakes Valley is a junction of the Chester Lake and Three Lakes Valley trails in Kananaskis, not a road trailhead."
+  },
+  "trailhead:n5217082970": {
+   "date": "2026-10-17",
+   "who": "Claude (weekly audit)",
+   "note": "Unnamed trailhead node on an unnamed path near Squamish; no road is missing."
+  }
+ }
+}
