@@ -468,7 +468,7 @@
   // Pick trails: picks [{ name, ways }], start (a spot or null: the lowest trail end), back (end at the start);
   //   legs alternate links and the picked trails.
   // A leg: { pts, ways, gap (no trail, straight line), pick (index of the picked trail it rides, or -1), up, down }.
-  let planning = false, mode = "tap", stops = [], legs = [], elev = null, picks = [], pickStart = null, pickBack = true, pickManual = false, pickHomePedal = false, settingStart = false;
+  let planning = false, mode = "tap", stops = [], legs = [], elev = null, picks = [], pickStart = null, pickBack = true, pickManual = true, pickHomePedal = false, settingStart = false;
   let busy = 0, gen = 0, note = "", noteWarn = true;
   const layer = L.layerGroup();
   const pickCase = L.polyline([], { color: "#ffd43b", weight: 13, opacity: 0.85, lineCap: "round", lineJoin: "round", interactive: false });
@@ -529,7 +529,7 @@
     later(() => { stops.pop(); legs.pop(); draw(); save(); });
   }
   function clear() {
-    if (mode === "pick") { picks = []; pickStart = null; pickManual = false; pickHomePedal = false; changedPicks(); return; }
+    if (mode === "pick") { picks = []; pickStart = null; pickManual = true; pickHomePedal = false; changedPicks(); return; }
     later(() => { stops = []; legs = []; elev = null; draw(); save(); });
   }
   function closeLoop() {
@@ -562,7 +562,6 @@
     if (at >= 0) { picks.splice(at, 1); flash(`Took out ${t.name}`, false); }
     else if (picks.length >= MAX_PICKS) { flash(`Up to ${MAX_PICKS} trails in one ride.`); return; }
     else { picks.push(t); flash(`Added ${t.name}`, false); }
-    if (picks.length < 2) pickManual = false;
     changedPicks();
   }
   let flashTimer = 0;
@@ -900,8 +899,8 @@
       $("planSteps").innerHTML = "";
     } else {
       $("planTrails").innerHTML = picks.length < 2 ? "" : pickManual
-        ? `Your order. <button type="button" class="ps-auto" data-act="auto">↻ Let the app choose</button>`
-        : "The app chose the order. Use ▲ ▼ (or drag) to ride one first.";
+        ? `In the order you tapped them (▲ ▼ or drag to change it). <button type="button" class="ps-auto" data-act="auto">↻ Let the app choose</button>`
+        : "The app chose the order. Use ▲ ▼ (or drag) to set your own.";
       $("planSteps").innerHTML = !picks.length ? `<li class="ps-empty">Your trails will show here. Tap a trail on the map to add it.</li>` : !legs.length ? picks.map((p, i) => pickRow(i, chip({ name: p.name, ...levelOf(p.ways[0]) }))).join("")
         : `<li class="ps-start"><span class="ps-n">S</span><span><b>Start</b>${pickStart ? "" : " at the lowest end of your trails"}</span></li>`
           + legs.map(stepHtml).join("") + (pickBack ? `<li class="ps-start"><span class="ps-n">S</span><span><b>Back at the start</b></span></li>` : "");
@@ -931,7 +930,7 @@
   function save() { try { localStorage.setItem("tf:plan", JSON.stringify(stops.map((s) => s.ll))); } catch {} }
   function savePicks() {
     if (pending) return;   // still waiting for the saved picks' trails to load
-    try { localStorage.setItem("tf:planPicks", JSON.stringify({ picks: picks.map((p) => ({ name: p.name, ids: p.ways.map((w) => w.id), pedal: !!p.pedal })), start: pickStart, back: pickBack, manual: pickManual, homePedal: pickHomePedal })); } catch {}
+    try { localStorage.setItem("tf:planPicks", JSON.stringify({ picks: picks.map((p) => ({ name: p.name, ids: p.ways.map((w) => w.id), pedal: !!p.pedal })), start: pickStart, back: pickBack, order: pickManual ? "tap" : "auto", homePedal: pickHomePedal })); } catch {}
   }
   function restore() {
     let saved = [];
@@ -974,7 +973,7 @@
   // Saved picks come back once their trail files have loaded (tried for a little while after opening).
   let pending = null, pendingTries = 0;
   function restorePicks() {
-    try { const s = JSON.parse(localStorage.getItem("tf:planPicks") || "null"); if (s) { pending = s.picks || []; pickStart = s.start || null; pickBack = s.back !== false; pickManual = !!s.manual; pickHomePedal = !!s.homePedal; } } catch {}
+    try { const s = JSON.parse(localStorage.getItem("tf:planPicks") || "null"); if (s) { pending = s.picks || []; pickStart = s.start || null; pickBack = s.back !== false; pickManual = s.order !== "auto"; pickHomePedal = !!s.homePedal; } } catch {}
     pendingTries = 0; resolvePicks();
   }
   function resolvePicks() {
@@ -1143,7 +1142,7 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
       if (ride && picks.length > 1) pickManual = true;   // keep the order you see, so the trails stay back to back
       changedPicks();
     }
-    else if (b.dataset.act === "x") { picks.splice(i, 1); if (picks.length < 2) pickManual = false; changedPicks(); }
+    else if (b.dataset.act === "x") { picks.splice(i, 1); changedPicks(); }
   });
   let dragI = -1;
   $("planSteps").addEventListener("dragstart", (e) => { const li = e.target.closest(".ps-trail"); if (li) { dragI = +li.dataset.i; e.dataTransfer.effectAllowed = "move"; } });
