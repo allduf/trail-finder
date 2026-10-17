@@ -3,13 +3,14 @@
 // as there is a connection; the cached copy is used only when the network fails. Map tiles and outside APIs
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection.
-const VERSION = "tf-8";
+const VERSION = "tf-9";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=4", "account.js", "reports.js", "visitors.js", "map3d.js", "winter.js", "ski-points.js", "offline.js", "navigate.js", "planner.js", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=4", "account.js", "reports.js", "visitors.js", "map3d.js", "winter.js", "ski-points.js", "offline.js", "navigate.js", "planner.js", "rotate.js", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
+  "https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js",
 ];
 // Versioned libraries and fonts: they never change at the same URL, so the cached copy is served first.
 const STATIC_HOSTS = ["cdnjs.cloudflare.com", "unpkg.com", "fonts.googleapis.com", "fonts.gstatic.com"];

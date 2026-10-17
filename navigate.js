@@ -274,11 +274,43 @@ body.sport-ski #navRideBtn { display: none; }
     if (!lastFix) return;
     const c = lastFix.c, ll = [c.latitude, c.longitude];
     const deg = c.heading != null && !isNaN(c.heading) && (c.speed || 0) > 1 ? c.heading : compass;
-    if (!you) { you = L.marker(ll, { icon: youIcon(deg), interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(layer); youDeg = deg; }
+    if (!you) { you = L.marker(ll, { icon: youIcon(deg), interactive: false, keyboard: false, zIndexOffset: 1000, rotateWithView: true }).addTo(layer); youDeg = deg; }
     else {
       you.setLatLng(ll);
       if (deg == null ? youDeg != null : youDeg == null || Math.abs(deg - youDeg) > 4) { you.setIcon(youIcon(deg)); youDeg = deg; }
     }
+    faceTo(deg);
+  }
+
+  // ---------- which way the map faces: north up, or the way you're going (rotate.js) ----------
+  // The compass button switches it while riding; the choice is kept for the next ride. Turning the map by hand
+  // goes back to north up... until the button is tapped again.
+  const canTurn = !!(map.setBearing && map.compass);
+  let faceWay = false, lastFace = 0;
+  try { faceWay = localStorage.getItem("tf:rideFace") === "1"; } catch {}
+  const turnNorm = (d) => ((d % 360) + 540) % 360 - 180;
+  function faceTo(deg) {
+    if (!canTurn || !faceWay || !rec || deg == null || isNaN(deg)) return;
+    const now = Date.now();
+    if (Math.abs(turnNorm(-deg - map.getBearing())) < 3 || now - lastFace < 150) return;   // the compass sends many small changes
+    lastFace = now;
+    map.setBearing(-deg);
+  }
+  function syncCompass() {
+    if (!canTurn) return;
+    if (!rec) { map.compass.setMode(null, false); return; }
+    map.compass.setMode(faceWay ? "Map faces the way you're going. Tap for north up" : "North up. Tap to turn the map the way you're going", faceWay);
+  }
+  function setFace(on, keep = true) {
+    faceWay = on;
+    if (keep) try { localStorage.setItem("tf:rideFace", on ? "1" : "0"); } catch {}
+    syncCompass();
+    if (!on) map.turnTo(0);
+    else if (lastFix) { lastFace = 0; const c = lastFix.c; faceTo(c.heading != null && !isNaN(c.heading) && (c.speed || 0) > 1 ? c.heading : compass); map.fire("rotateend"); }
+  }
+  if (canTurn) {
+    window.tfRotate.onCompass = () => { if (!rec) return false; setFace(!faceWay); return true; };
+    map.on("rotatestart", (e) => { if (rec && faceWay && e.user) { faceWay = false; syncCompass(); } });
   }
 
   function onFix(pos) {
@@ -467,6 +499,7 @@ body.sport-ski #navRideBtn { display: none; }
     following = true; $("navFollow").hidden = true;
     $("navBtns").hidden = false; $("navAsk").hidden = true;
     setRiding(true);
+    syncCompass();
     if (map.getZoom() < RIDE_ZOOM) map.setZoom(RIDE_ZOOM);
     watchId = navigator.geolocation.watchPosition(onFix, onGpsError, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
     keepAwake();
@@ -486,6 +519,7 @@ body.sport-ski #navRideBtn { display: none; }
     gpsMsg.hidden = true;
     if (nav.youLayer) nav.youLayer.addTo(map);
     setRiding(false);
+    if (canTurn) { syncCompass(); if (faceWay) map.turnTo(0); }
   }
   map.on("dragstart", () => { if (rec) { following = false; $("navFollow").hidden = false; } });
   $("navFollow").addEventListener("click", () => {
@@ -546,7 +580,7 @@ body.sport-ski #navRideBtn { display: none; }
           const t = run / seg, at = map.layerPointToLatLng(L.point(px[i - 1].x + t * (px[i].x - px[i - 1].x), px[i - 1].y + t * (px[i].y - px[i - 1].y)));
           if (pad.contains(at)) {
             const deg = Math.atan2(px[i].y - px[i - 1].y, px[i].x - px[i - 1].x) * 180 / Math.PI + (dir > 0 ? 0 : 180);
-            arrows.addLayer(L.marker(at, { pane: "onewayArrows", interactive: false, keyboard: false, icon: L.divIcon({ className: "oneway-arrow", iconSize: [22, 22], iconAnchor: [11, 11],
+            arrows.addLayer(L.marker(at, { pane: "onewayArrows", interactive: false, keyboard: false, rotateWithView: true, icon: L.divIcon({ className: "oneway-arrow", iconSize: [22, 22], iconAnchor: [11, 11],
               html: `<svg viewBox="0 0 22 22" width="22" height="22" style="transform: rotate(${Math.round(deg)}deg)" aria-hidden="true"><path d="M4 3.5 19 11 4 18.5 8.5 11z" fill="${color}" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>` }) }));
             n++;
           }
