@@ -108,7 +108,7 @@
   // Streets, paths and bridges, fetched from OpenStreetMap only where a leg found no way along the trails and forest
   // roads (a town, a footbridge across a creek): the trail files hold bike trails and the road files dirt roads only.
   // Kept in memory, in 0.02 degree squares.
-  const connectors = new Map();   // square -> [ways]
+  const connectors = new Map(), connLoading = new Map(), connFailed = new Map();   // square -> [ways], a load on its way, when it failed
   let connN = 0;
   const CONN_HW = "primary|secondary|tertiary|unclassified|residential|living_street|service|pedestrian|footway|path|cycleway|steps|track|bridleway|road";
   const CONN_OK = new RegExp(`^(${CONN_HW})$`);
@@ -117,30 +117,33 @@
     const keep = (tags) => tags && CONN_OK.test(tags.highway || "") && !/^(no|private|dismount)$/.test(tags.bicycle || "") && !/^(private|no)$/.test(tags.access || "");
     const make = (id, tags, geom) => ({ id: "c" + id, osm: id, conn: true, tags, name: tags.name || "", geom });
     const q = `[out:json][timeout:10];way["highway"~"^(${CONN_HW})$"](${s},${w},${n},${e});out tags geom;`;
-    for (const url of ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"]) {
-      try {
-        const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), signal: AbortSignal.timeout(12000) });
-        if (!r.ok) continue;
-        return (await r.json()).elements.filter((x) => x.type === "way" && x.geometry && keep(x.tags))
-          .map((x) => make(x.id, x.tags, x.geometry.map((g) => [+g.lat.toFixed(5), +g.lon.toFixed(5)])));
-      } catch {}
-    }
-    try {   // Overpass busy: the OpenStreetMap map call for the same square
-      const r = await fetch(`https://api.openstreetmap.org/api/0.6/map.json?bbox=${w},${s},${e},${n}`, { signal: AbortSignal.timeout(30000) });
-      if (!r.ok) return null;
-      const els = (await r.json()).elements, nodes = new Map();
-      els.forEach((x) => { if (x.type === "node") nodes.set(x.id, [+x.lat.toFixed(5), +x.lon.toFixed(5)]); });
-      return els.filter((x) => x.type === "way" && keep(x.tags)).map((x) => make(x.id, x.tags, x.nodes.map((id) => nodes.get(id)).filter(Boolean)))
-        .filter((x) => x.geom.length > 1);
+    const overpass = (url) => fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), signal: AbortSignal.timeout(10000) })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((j) => j.elements.filter((x) => x.type === "way" && x.geometry && keep(x.tags))
+        .map((x) => make(x.id, x.tags, x.geometry.map((g) => [+g.lat.toFixed(5), +g.lon.toFixed(5)]))));
+    const osmApi = () => fetch(`https://api.openstreetmap.org/api/0.6/map.json?bbox=${w},${s},${e},${n}`, { signal: AbortSignal.timeout(20000) })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((j) => {
+        const nodes = new Map();
+        j.elements.forEach((x) => { if (x.type === "node") nodes.set(x.id, [+x.lat.toFixed(5), +x.lon.toFixed(5)]); });
+        return j.elements.filter((x) => x.type === "way" && keep(x.tags)).map((x) => make(x.id, x.tags, x.nodes.map((id) => nodes.get(id)).filter(Boolean)))
+          .filter((x) => x.geom.length > 1);
+      });
+    // Overpass first; if it hasn't answered in 2.5 s (busy), the other Overpass and the OpenStreetMap map call race
+    // it, and the first answer wins. (They used to be tried one after the other: up to a minute when Overpass hung.)
+    const wait = (f) => new Promise((ok) => setTimeout(ok, 2500)).then(f);
+    try {
+      return await Promise.any([overpass("https://overpass-api.de/api/interpreter"),
+        wait(() => overpass("https://overpass.private.coffee/api/interpreter")), wait(osmApi)]);
     } catch { return null; }
   }
   // Loads the squares around stretches with no mapped way (their ends first, then along them; up to 12).
   // True when new lines came in.
   async function loadConnectors(lines) {
-    const sqs = [], add = (p) => {
+    const sqs = [], now = Date.now(), add = (p) => {
       const b = boxOf([p], 0.006);
       for (let i = Math.floor(b[0] / 0.02); i <= Math.floor(b[2] / 0.02); i++)
-        for (let j = Math.floor(b[1] / 0.02); j <= Math.floor(b[3] / 0.02); j++) { const sq = i + ":" + j; if (!connectors.has(sq) && !sqs.includes(sq)) sqs.push(sq); }
+        for (let j = Math.floor(b[1] / 0.02); j <= Math.floor(b[3] / 0.02); j++) { const sq = i + ":" + j; if (!connectors.has(sq) && !(connFailed.get(sq) > now - 60000) && !sqs.includes(sq)) sqs.push(sq); }
     };
     lines.forEach((l) => { add(l[0]); add(l[l.length - 1]); });
     lines.forEach((l) => l.forEach((p, i) => { if (!i) return;
@@ -148,9 +151,10 @@
       for (let k = 1; k <= n; k++) add([q[0] + ((p[0] - q[0]) * k) / (n + 1), q[1] + ((p[1] - q[1]) * k) / (n + 1)]); }));
     if (!sqs.length) return false;
     sqs.splice(12);
-    const got = await Promise.all(sqs.map(connectorSquare));
+    // A square already on its way is waited for, not asked for again; one that failed is left for a minute.
+    const got = await Promise.all(sqs.map((sq) => { if (!connLoading.has(sq)) connLoading.set(sq, connectorSquare(sq).finally(() => connLoading.delete(sq))); return connLoading.get(sq); }));
     let added = false;
-    sqs.forEach((sq, k) => { if (got[k]) { connectors.set(sq, got[k]); added = added || got[k].length > 0; } });
+    sqs.forEach((sq, k) => { if (got[k]) { if (!connectors.has(sq)) { connectors.set(sq, got[k]); added = added || got[k].length > 0; } } else connFailed.set(sq, Date.now()); });
     if (added) connN++;
     return added;
   }
@@ -469,7 +473,7 @@
   //   legs alternate links and the picked trails.
   // A leg: { pts, ways, gap (no trail, straight line), pick (index of the picked trail it rides, or -1), up, down }.
   let planning = false, mode = "tap", stops = [], legs = [], elev = null, picks = [], pickStart = null, pickBack = true, pickManual = true, pickHomePedal = false, settingStart = false;
-  let busy = 0, gen = 0, note = "", noteWarn = true;
+  let busy = 0, joining = 0, gen = 0, note = "", noteWarn = true;
   const layer = L.layerGroup();
   const pickCase = L.polyline([], { color: "#ffd43b", weight: 13, opacity: 0.85, lineCap: "round", lineJoin: "round", interactive: false });
   const caseLine = L.polyline([], { color: "#fff", weight: 10, opacity: 0.9, lineCap: "round", lineJoin: "round", interactive: false });
@@ -727,14 +731,16 @@
         savePicks();
       }
       out.forEach((l) => { Object.assign(l, climbOf(l.pts, ht) || {}); (l.runs || []).forEach((r) => Object.assign(r, climbOf(r.pts, ht) || {})); });
-      const gaps = out.filter((l) => l.gap);
-      if (gaps.length && !retried && (await loadConnectors(gaps.map((l) => l.pts)))) {
-        if (my === gen) later(() => buildRide(true));   // again, with the streets and paths there
-        return;
-      }
       if (my !== gen) return;
       legs = out;
       elev = rideClimb(ht);
+      // Stretches with no mapped way: show the ride now, load the streets and paths there, and build it again with them.
+      const gaps = out.filter((l) => l.gap);
+      if (gaps.length && !retried) {
+        joining++;
+        loadConnectors(gaps.map((l) => l.pts)).then((got) => { if (got && my === gen) later(() => buildRide(true)); })
+          .finally(() => { joining--; render(); });
+      }
     } finally { busy--; }
     if (my === gen) { draw(); fitRoute(); }
   }
@@ -891,7 +897,7 @@
     else if (settingStart) stats = "Tap the map where you start.";
     else if (!picks.length) stats = "Tap the trails you want to ride. The app puts them in a logical order and direction, and you can change the order.";
     else if (busy || !legs.length) stats = `${picks.length} trail${picks.length > 1 ? "s" : ""} picked · building the ride…`;
-    else stats = `${ride(fmtM(m))}${climb}${drive} · ${picks.length} trail${picks.length > 1 ? "s" : ""}${gaps ? ` · <span class="gap-note">${gaps} stretch${gaps > 1 ? "es" : ""} off mapped trails</span>` : ""}`;
+    else stats = `${ride(fmtM(m))}${climb}${drive} · ${picks.length} trail${picks.length > 1 ? "s" : ""}${gaps ? ` · <span class="gap-note">${gaps} stretch${gaps > 1 ? "es" : ""} off mapped trails${joining ? " (looking for streets and paths…)" : ""}</span>` : ""}`;
     $("planStats").innerHTML = stats;
     if (mode === "tap") {
       const used = namesOf(legs.flatMap((l) => l.ways));
