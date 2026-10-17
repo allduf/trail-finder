@@ -308,6 +308,10 @@ async function audit() {
       if (t.wikipedia || t.wikidata) why.push("has a Wikipedia entry (a known hiking trail)");
       if (t.surface && /^(gravel|fine_gravel|compacted|pebblestone|wood|asphalt|paved|concrete)$/.test(t.surface)) why.push(`smooth surface (${t.surface})`);
       if (!why.length) why.push(app.netOk(t) ? "open to motors or wide" : "its name or note says it's not a bike trail");
+      // Leave out what is plainly not a bike trail (town walks, ski and golf paths, footways, moto tracks): those would
+      // bury the few real bike trails that a hiking grade or a gravel surface keeps out of the list.
+      if (why.some((w) => /^(a footway|ski run|golf|lit|has a Wikipedia|open to motors|signed for walkers)/.test(w))
+        || /^(asphalt|paved|concrete|wood)$/.test(t.surface || "") || t.sac_scale === "strolling" || /\b(walk|interpretive|nature|heritage|boardwalk|lookout|viewpoint)\b/i.test(p.name)) continue;
       add({ check: "network", zone: z.id, sev: "research", key: `network:${z.id}:${p.name}`, where: at(p.c), title: `${p.name}: plain path among ${[...names].slice(0, 2).join(" and ")}`,
         detail: `Left out of the trail list: ${why.join("; ")}. Way ${p.id}, ${Math.round(p.len)} m.` });
     }
