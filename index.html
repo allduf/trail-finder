@@ -1346,6 +1346,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
+<script src="rotate.js"></script>
 <script src="official.js"></script>
 <script src="ratings.js"></script>
 <script>
@@ -1438,7 +1440,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
   };
 
   // ---------- map ----------
-  const map = L.map("map", { zoomControl: true, preferCanvas: false });
+  // rotate: turn the map with two fingers, right-drag or Ctrl+drag, and the compass button (rotate.js).
+  const map = L.map("map", { zoomControl: true, preferCanvas: false, rotate: true, touchRotate: true, shiftKeyRotate: false, rotateControl: false });
   window.tfLeaflet = map;   // for the 3D view (map3d.js)
   window.tfZones = ZONES;   // for Offline maps (offline.js)
   // ---------- Canada-wide trail data (scripts/build-canada.mjs, nightly from Geofabrik), loaded for what's on screen ----------
@@ -4213,10 +4216,14 @@ out body;`;
     nameLayer.clearLayers();
     if (map.getZoom() < NAME_ZOOM || !allShown.length) return;
     const view = map.getBounds().pad(-0.08), best = new Map();   // not right at the edges
+    // A turned map (rotate.js) shows less than its north-up box: check each point against the screen instead.
+    const turned = !!map.getBearing && Math.abs(map.getBearing()) > 0.5, size = map.getSize(), m = 0.08;
+    const box = turned ? map.getBounds() : view;
+    const onScreen = (p) => { const q = map.latLngToContainerPoint(p); return q.x > size.x * m && q.x < size.x * (1 - m) && q.y > size.y * m && q.y < size.y * (1 - m); };
     allShown.forEach(({ w, color }) => {
       const name = (w.tags.name || w.tags["mtb:name"] || "").trim();
       if (!name) return;
-      const inView = w.geom.filter((p) => view.contains(p));
+      const inView = w.geom.filter((p) => box.contains(p) && (!turned || onScreen(p)));
       if (!inView.length) return;
       const b = best.get(name);
       if (!b || inView.length > b.pts.length) best.set(name, { name, color, pts: inView });
@@ -4232,7 +4239,7 @@ out body;`;
         icon: L.divIcon({ className: "trail-name", iconSize: null, html: `<span style="color: ${b.color}">${esc(b.name)}</span>` }) }));
     });
   }
-  map.on("zoomend", drawTrailNames);
+  map.on("zoomend rotateend", drawTrailNames);
   function syncAllBtn() {
     const b = $("allBtn");
     b.setAttribute("aria-pressed", String(state.allTrails));
