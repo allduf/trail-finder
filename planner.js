@@ -318,8 +318,8 @@
   // Pick trails: picks [{ name, ways }], start (a spot or null: the lowest trail end), back (end at the start);
   //   legs alternate links and the picked trails.
   // A leg: { pts, ways, gap (no trail, straight line), pick (index of the picked trail it rides, or -1), up, down }.
-  let planning = false, mode = "tap", stops = [], legs = [], elev = null, picks = [], pickStart = null, pickBack = true, settingStart = false;
-  let busy = 0, gen = 0, note = "";
+  let planning = false, mode = "tap", stops = [], legs = [], elev = null, picks = [], pickStart = null, pickBack = true, pickManual = false, settingStart = false;
+  let busy = 0, gen = 0, note = "", noteWarn = true;
   const layer = L.layerGroup();
   const pickCase = L.polyline([], { color: "#ffd43b", weight: 13, opacity: 0.85, lineCap: "round", lineJoin: "round", interactive: false });
   const caseLine = L.polyline([], { color: "#fff", weight: 10, opacity: 0.9, lineCap: "round", lineJoin: "round", interactive: false });
@@ -346,11 +346,12 @@
     if (!p) return { pts: [a.ll, b.ll], ways: [], gap: true, pick: -1 };
     return { pts: clean([a.ll, ...p.pts, b.ll]), raw: p.pts, segs: p.segs, ways: p.ways, gap: false, pick: -1 };
   }
+  const makeStop = (ll) => { const sn = snap(ll); return { ll: sn ? sn.q : ll, tap: ll, snap: sn }; };
   let queue = Promise.resolve();
   const later = (fn) => (queue = queue.then(fn).catch((e) => console.warn("planner", e)));
   function addStop(ll) {
     later(async () => {
-      const sn = snap(ll), stop = { ll: sn ? sn.q : ll, snap: sn };
+      const stop = makeStop(ll);
       busy++; render();
       try { if (stops.length) legs.push(await legFor(stops[stops.length - 1], stop)); } finally { busy--; }
       stops.push(stop);
@@ -362,7 +363,7 @@
     later(() => { stops.pop(); legs.pop(); draw(); save(); });
   }
   function clear() {
-    if (mode === "pick") { picks = []; pickStart = null; changedPicks(); return; }
+    if (mode === "pick") { picks = []; pickStart = null; pickManual = false; changedPicks(); return; }
     later(() => { stops = []; legs = []; elev = null; draw(); save(); });
   }
   function closeLoop() {
@@ -392,13 +393,14 @@
     const t = trailAt(ll);
     if (!t) { flash("No trail there. Tap right on a trail line."); return; }
     const ids = new Set(t.ways.map((w) => w.id)), at = picks.findIndex((p) => p.ways.some((w) => ids.has(w.id)));
-    if (at >= 0) picks.splice(at, 1);
+    if (at >= 0) { picks.splice(at, 1); flash(`Took out ${t.name}`, false); }
     else if (picks.length >= MAX_PICKS) { flash(`Up to ${MAX_PICKS} trails in one ride.`); return; }
-    else picks.push(t);
+    else { picks.push(t); flash(`Added ${t.name}`, false); }
+    if (picks.length < 2) pickManual = false;
     changedPicks();
   }
   let flashTimer = 0;
-  function flash(text) { note = text; render(); clearTimeout(flashTimer); flashTimer = setTimeout(() => { note = ""; render(); }, 2600); }
+  function flash(text, warn = true) { note = text; noteWarn = warn; render(); clearTimeout(flashTimer); flashTimer = setTimeout(() => { note = ""; render(); }, 2600); }
 
   // A picked trail's line from one end to the other: in the pieces' own little graph, the two ends farthest apart.
   function through(t) {
@@ -470,7 +472,11 @@
         const d = from(k1).dist.get(k2);
         return d != null ? d : metres(posOf(k1), posOf(k2)) * 6 + 500;   // no way along lines: a straight dash, costly
       };
-      const N = T.length, full = (1 << N) - 1, idx = (m, j, o) => (m * N + j) * 2 + o;
+      const N = T.length;
+      let order;
+      if (pickManual) order = fixedOrder(N, tc, C, S, entry, exit);   // your order: only the directions are chosen
+      else {
+      const full = (1 << N) - 1, idx = (m, j, o) => (m * N + j) * 2 + o;
       const dp = new Float64Array((full + 1) * N * 2).fill(Infinity), par = new Int32Array((full + 1) * N * 2).fill(-1);
       for (let j = 0; j < N; j++) for (let o = 0; o < 2; o++) if (tc[j][o] < Infinity) dp[idx(1 << j, j, o)] = C(S, entry(j, o)) + tc[j][o];
       for (let m = 1; m <= full; m++) for (let j = 0; j < N; j++) for (let o = 0; o < 2; o++) {
@@ -491,8 +497,9 @@
         if (v < best) { best = v; end = j * 2 + o; }
       }
       if (end < 0) { legs = []; flash("Couldn't build a ride with those trails."); draw(); return; }
-      const order = [];
+      order = [];
       for (let m = full, cur = end; cur >= 0; ) { order.unshift(cur); const p = par[idx(m, cur >> 1, cur & 1)]; m &= ~(1 << (cur >> 1)); cur = p; }
+      }
       // The legs: link to the trail, the trail, ..., and the link home.
       const out = [];
       const link = (k1, k2) => {
@@ -511,6 +518,12 @@
         at = exit(j, o);
       });
       if (pickBack) link(at, S);
+      if (!pickManual) {   // the list shows the trails in the order chosen
+        const posOfPick = new Map(order.map((x, i) => [x >> 1, i]));
+        picks = order.map((x) => picks[x >> 1]);
+        out.forEach((l) => { if (l.pick >= 0) l.pick = posOfPick.get(l.pick); });
+        savePicks();
+      }
       out.forEach((l) => Object.assign(l, climbOf(l.pts, ht) || {}));
       legs = out;
       const c = climbOf(allPts(), ht);
@@ -526,9 +539,30 @@
     if (L.latLngBounds(top, bottom).contains(b)) return;
     map.fitBounds(b, { paddingTopLeft: [30, 60], paddingBottomRight: [30, bar.offsetHeight + 24], maxZoom: 16 });
   }
+  // The trails in the order of the list: the best direction for each, start to finish (and back).
+  function fixedOrder(N, tc, C, S, entry, exit) {
+    const best = [], from = [];
+    for (let j = 0; j < N; j++) {
+      best.push([Infinity, Infinity]); from.push([-1, -1]);
+      for (let o = 0; o < 2; o++) {
+        if (tc[j][o] === Infinity) continue;
+        if (!j) { best[0][o] = C(S, entry(0, o)) + tc[0][o]; continue; }
+        for (let p = 0; p < 2; p++) {
+          const v = best[j - 1][p] + C(exit(j - 1, p), entry(j, o)) + tc[j][o];
+          if (v < best[j][o]) { best[j][o] = v; from[j][o] = p; }
+        }
+      }
+    }
+    const last = [0, 1].map((o) => best[N - 1][o] + (pickBack ? C(exit(N - 1, o), S) : 0));
+    let o = last[1] < last[0] ? 1 : 0;
+    const order = [];
+    for (let j = N - 1; j >= 0; j--) { order.unshift(j * 2 + o); o = from[j][o]; }
+    return order;
+  }
   let buildTimer = 0;
   function changedPicks() {
     clearTimeout(buildTimer);
+    gen++;   // a ride still being built is for the old list
     savePicks();
     legs = []; elev = null; draw();
     buildTimer = setTimeout(() => later(buildRide), 250);
@@ -572,8 +606,7 @@
     else {
       if (legs.length) mk(legs[0].pts[0], stopIcon("S"));
       else if (pickStart) mk(pickStart, stopIcon("S"));
-      let n = 0;
-      legs.forEach((l) => { if (l.pick >= 0) mk(l.pts[0], stopIcon(++n, "pick")); });
+      legs.forEach((l) => { if (l.pick >= 0) mk(l.pts[0], stopIcon(l.pick + 1, "pick")); });
     }
     drawArrows();
     render();
@@ -601,13 +634,20 @@
     return [...by.entries()].filter((x) => x[1] >= 150).sort((a, b) => b[1] - a[1]).slice(0, 2).map((x) => x[0]);
   }
   // One row of the ride: a picked trail (its yellow number, as on the map) or a link between them.
-  function stepHtml(l, n) {
+  // A picked trail in the list: its number (as its pin on the map), and buttons to move it or take it out.
+  // Rows can also be dragged (with a mouse).
+  function pickRow(i, body) {
+    const n = picks.length;
+    return `<li class="ps-trail" draggable="true" data-i="${i}"><span class="ps-n">${i + 1}</span><span class="ps-body">${body}</span>
+      <span class="ps-ctl"><button type="button" data-act="up" data-i="${i}" title="Ride it earlier" aria-label="Move up"${i ? "" : " disabled"}>▲</button><button type="button" data-act="down" data-i="${i}" title="Ride it later" aria-label="Move down"${i < n - 1 ? "" : " disabled"}>▼</button><button type="button" data-act="x" data-i="${i}" title="Take it out" aria-label="Take it out">✕</button></span></li>`;
+  }
+  function stepHtml(l) {
     const len = lengthOf(l.pts), up = l.up || 0, down = l.down || 0;
     const verb = up > 25 && up > down * 1.5 ? "Climb" : down > 25 && down > up * 1.5 ? "Descend" : "Ride";
     const m = `<span class="m">${fmtM(len)}${up >= 10 ? ` ↑ ${up} m` : ""}${down >= 10 ? ` ↓ ${down} m` : ""}</span>`;
     if (l.pick >= 0) {
       const p = picks[l.pick], lv = p && p.ways[0] ? levelOf(p.ways[0]) : { color: "#8a8f98" };
-      return `<li class="ps-trail"><span class="ps-n">${n}</span><span><b>${verb}</b> ${chip({ name: p ? p.name : "trail", color: lv.color })} ${m}</span></li>`;
+      return pickRow(l.pick, `<b>${verb}</b> ${chip({ name: p ? p.name : "trail", color: lv.color })} ${m}`);
     }
     if (l.gap) return `<li class="ps-link"><span class="ps-n">↝</span><span><b>Cross</b> <span class="gap-note">off mapped trails</span> ${m}</span></li>`;
     const names = mainNames(l);
@@ -618,7 +658,7 @@
     document.querySelectorAll(".plan-modes button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
     bar.classList.toggle("pick", mode === "pick");
     let stats;
-    if (note) stats = `<span class="gap-note">${esc(note)}</span>`;
+    if (note) stats = noteWarn ? `<span class="gap-note">${esc(note)}</span>` : `<b>${esc(note)}</b>`;
     else if (mode === "tap") stats = stops.length < 2 ? (busy ? "Finding the way…" : stops.length ? "Tap the next point. The route takes the trails that make sense." : "Tap the map where you start.")
       : `<b>${fmtM(m)}</b>${climb}${gaps ? ` · <span class="gap-note">${gaps} stretch${gaps > 1 ? "es" : ""} off mapped trails (dashed)</span>` : ""}${busy ? " · finding the way…" : ""}`;
     else if (settingStart) stats = "Tap the map where you start.";
@@ -631,10 +671,12 @@
       $("planTrails").innerHTML = used.length ? used.slice(0, 12).map(chip).join(" → ") + (used.length > 12 ? ` → +${used.length - 12} more` : "") : "";
       $("planSteps").innerHTML = "";
     } else {
-      $("planTrails").innerHTML = legs.length ? "" : picks.map((p, i) => `<button type="button" class="pick-x" data-i="${i}" title="Take it out">${chip({ name: p.name, ...levelOf(p.ways[0]) })} ✕</button>`).join(" ");
-      let n = 0;
-      $("planSteps").innerHTML = legs.length ? `<li class="ps-start"><span class="ps-n">S</span><span><b>Start</b>${pickStart ? "" : " at the lowest end of your trails"}</span></li>`
-        + legs.map((l) => stepHtml(l, l.pick >= 0 ? ++n : 0)).join("") + (pickBack ? `<li class="ps-start"><span class="ps-n">S</span><span><b>Back at the start</b></span></li>` : "") : "";
+      $("planTrails").innerHTML = picks.length < 2 ? "" : pickManual
+        ? `Your order. <button type="button" class="ps-auto" data-act="auto">↻ Let the app choose</button>`
+        : "The app chose the order. Use ▲ ▼ (or drag) to ride one first.";
+      $("planSteps").innerHTML = !picks.length ? "" : !legs.length ? picks.map((p, i) => pickRow(i, chip({ name: p.name, ...levelOf(p.ways[0]) }))).join("")
+        : `<li class="ps-start"><span class="ps-n">S</span><span><b>Start</b>${pickStart ? "" : " at the lowest end of your trails"}</span></li>`
+          + legs.map(stepHtml).join("") + (pickBack ? `<li class="ps-start"><span class="ps-n">S</span><span><b>Back at the start</b></span></li>` : "");
     }
     const has = mode === "tap" ? stops.length : picks.length, ready = mode === "tap" ? stops.length >= 2 : legs.length > 0;
     $("planUndo").disabled = !has; $("planClear").disabled = !has && !(mode === "pick" && pickStart);
@@ -661,7 +703,7 @@
   function save() { try { localStorage.setItem("tf:plan", JSON.stringify(stops.map((s) => s.ll))); } catch {} }
   function savePicks() {
     if (pending) return;   // still waiting for the saved picks' trails to load
-    try { localStorage.setItem("tf:planPicks", JSON.stringify({ picks: picks.map((p) => ({ name: p.name, ids: p.ways.map((w) => w.id) })), start: pickStart, back: pickBack })); } catch {}
+    try { localStorage.setItem("tf:planPicks", JSON.stringify({ picks: picks.map((p) => ({ name: p.name, ids: p.ways.map((w) => w.id) })), start: pickStart, back: pickBack, manual: pickManual })); } catch {}
   }
   function restore() {
     let saved = [];
@@ -669,17 +711,42 @@
     later(async () => {
       stops = []; legs = [];
       for (const ll of saved) {
-        const sn = snap(ll), stop = { ll: sn ? sn.q : ll, snap: sn };
+        const stop = makeStop(ll);
         if (stops.length) legs.push(await legFor(stops[stops.length - 1], stop));
         stops.push(stop);
       }
       draw();
     });
   }
+  // The trail and road files load in the background (a zone's forest roads are several MB), so a leg planned before
+  // they arrived may be a straight dash or miss a road. When more have loaded, plan again with them.
+  let dataKey = "", replanTimer = 0;
+  setInterval(() => {
+    if (!planning) return;
+    const k = nav.ways().length + ":" + (nav.roads ? nav.roads().length : 0);
+    if (k === dataKey) return;
+    dataKey = k;
+    clearTimeout(replanTimer);
+    replanTimer = setTimeout(replan, 600);
+  }, 1500);
+  function replan() {
+    if (mode === "pick") { if (picks.length && !pending) later(buildRide); return; }
+    if (stops.length < 2) return;
+    later(async () => {
+      const taps = stops.map((s) => s.tap || s.ll), next = [], nextLegs = [];
+      for (const ll of taps) {
+        const stop = makeStop(ll);
+        if (next.length) nextLegs.push(await legFor(next[next.length - 1], stop));
+        next.push(stop);
+      }
+      if (mode !== "tap" || next.length !== stops.length) return;   // changed meanwhile
+      stops = next; legs = nextLegs; draw();
+    });
+  }
   // Saved picks come back once their trail files have loaded (tried for a little while after opening).
   let pending = null, pendingTries = 0;
   function restorePicks() {
-    try { const s = JSON.parse(localStorage.getItem("tf:planPicks") || "null"); if (s) { pending = s.picks || []; pickStart = s.start || null; pickBack = s.back !== false; } } catch {}
+    try { const s = JSON.parse(localStorage.getItem("tf:planPicks") || "null"); if (s) { pending = s.picks || []; pickStart = s.start || null; pickBack = s.back !== false; pickManual = !!s.manual; } } catch {}
     pendingTries = 0; resolvePicks();
   }
   function resolvePicks() {
@@ -720,10 +787,15 @@
 .plan-trails { font-size: .88rem; color: var(--muted, #5b6660); margin-top: 4px; max-height: 3.2em; overflow: auto; }
 .plan-bar.pick .plan-trails { max-height: 5em; color: inherit; }
 .plan-trails .pt i, .plan-steps .pt i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: 0; }
-.pick-x { font: inherit; font-size: .85rem; margin: 2px 0; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line, #d6dad3); background: var(--bg, #f4f5f0); color: inherit; cursor: pointer; }
-.plan-steps { list-style: none; margin: 6px 0 0; padding: 0; max-height: 9.5em; overflow: auto; font-size: .9rem; }
+.plan-steps { list-style: none; margin: 6px 0 0; padding: 0; max-height: 13em; overflow: auto; font-size: .9rem; }
 .plan-steps li { display: flex; gap: 8px; align-items: baseline; margin: 3px 0; }
 .plan-steps .ps-n { flex: 0 0 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; font: 700 11px/1 system-ui, sans-serif; align-self: center; }
+.plan-steps .ps-trail { cursor: grab; }
+.plan-steps .ps-body { flex: 1 1 auto; }
+.plan-steps .ps-ctl { display: inline-flex; gap: 2px; flex: 0 0 auto; align-self: center; }
+.plan-steps .ps-ctl button { font: 700 11px/1 system-ui, sans-serif; width: 26px; height: 24px; padding: 0; border-radius: 7px; border: 1px solid var(--line, #d6dad3); background: var(--bg, #f4f5f0); color: inherit; cursor: pointer; }
+.plan-steps .ps-ctl button:disabled { opacity: .3; cursor: default; }
+.ps-auto { font: inherit; font-size: .85rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid #7b2ff7; background: none; color: #7b2ff7; cursor: pointer; }
 .plan-steps .ps-trail .ps-n { background: #ffd43b; color: #2b2100; }
 .plan-steps .ps-start .ps-n { background: #7b2ff7; color: #fff; }
 .plan-steps .ps-link { color: var(--muted, #5b6660); }
@@ -796,7 +868,26 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
   });
   map.on("moveend", () => { if (planning) { nav.load(); drawArrows(); } });
   bar.querySelectorAll(".plan-modes button").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
-  $("planTrails").addEventListener("click", (e) => { const b = e.target.closest(".pick-x"); if (b) { picks.splice(+b.dataset.i, 1); changedPicks(); } });
+  function movePick(i, j) {
+    if (i === j || j < 0 || j >= picks.length) return;
+    const [p] = picks.splice(i, 1);
+    picks.splice(j, 0, p);
+    pickManual = true; changedPicks();
+  }
+  $("planTrails").addEventListener("click", (e) => { if (e.target.closest('[data-act="auto"]')) { pickManual = false; changedPicks(); } });
+  $("planSteps").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-act]");
+    if (!b) return;
+    const i = +b.dataset.i;
+    if (b.dataset.act === "up") movePick(i, i - 1);
+    else if (b.dataset.act === "down") movePick(i, i + 1);
+    else if (b.dataset.act === "x") { picks.splice(i, 1); if (picks.length < 2) pickManual = false; changedPicks(); }
+  });
+  let dragI = -1;
+  $("planSteps").addEventListener("dragstart", (e) => { const li = e.target.closest(".ps-trail"); if (li) { dragI = +li.dataset.i; e.dataTransfer.effectAllowed = "move"; } });
+  $("planSteps").addEventListener("dragover", (e) => { if (dragI >= 0 && e.target.closest(".ps-trail")) e.preventDefault(); });
+  $("planSteps").addEventListener("drop", (e) => { const li = e.target.closest(".ps-trail"); if (li && dragI >= 0) { e.preventDefault(); movePick(dragI, +li.dataset.i); } dragI = -1; });
+  $("planSteps").addEventListener("dragend", () => { dragI = -1; });
   $("planUndo").addEventListener("click", undo);
   $("planClear").addEventListener("click", () => { if ((mode === "tap" ? stops.length : picks.length) < 3 || confirm("Clear this plan?")) clear(); });
   $("planLoop").addEventListener("click", closeLoop);
