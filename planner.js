@@ -1241,7 +1241,9 @@ body.planning:has(.app:not(.fullmap)) .plan-bar { left: 396px; }
 .plan-saved .sv-body b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plan-saved .sv-body small { color: var(--muted, #5b6660); }
 .plan-saved .sv-ctl button { font: inherit; font-size: .85rem; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line, #d6dad3); background: var(--bg, #f4f5f0); color: inherit; cursor: pointer; }
-.plan-saved .sv-empty { color: var(--muted, #5b6660); font-size: .9rem; }
+.plan-saved .sv-empty, .plan-saved .sv-sync { color: var(--muted, #5b6660); font-size: .9rem; }
+.plan-saved .sv-sync { display: block; border-bottom: 0; font-size: .82rem; }
+.plan-saved .sv-sync button { font: inherit; font-weight: 600; background: none; border: 0; padding: 0; color: var(--accent, #2f6b3a); cursor: pointer; text-decoration: underline; }
 .plan-stop, .plan-arrow { background: none; border: 0; }
 .plan-stop span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #7b2ff7; color: #fff; font: 700 12px/1 system-ui, sans-serif; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); box-sizing: border-box; }
 .plan-stop.pick span { background: #ffd43b; color: #2b2100; }
@@ -1373,7 +1375,8 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
 
   // ---------- saved routes (alex: "save the ride for later") ----------
   // tf:planSaved: [{ id, name, at, mode, how, box, km, up, drive, pick (as tf:planPicks) | stops (as tf:plan) }], newest
-  // first. Synced to the rider's account when signed in (account.js), like the To ride list.
+  // first. Synced to the rider's account when signed in (account.js merges both devices' lists; deleted ids go in
+  // tf:planGone so another device's copy doesn't bring them back).
   const savedList = () => { try { const v = JSON.parse(localStorage.getItem("tf:planSaved") || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } };
   function setSaved(list) {
     try { localStorage.setItem("tf:planSaved", JSON.stringify(list)); window.dispatchEvent(new Event("tf:setting")); } catch { flash("Couldn't save on this device (storage full?)."); }
@@ -1408,15 +1411,25 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
     else { mode = e.mode === "pick" ? "pick" : "tap"; nav.load(); if (mode === "pick") restorePicks(); else restore(); draw(); }
   }
   let savedOpen = false;
-  function showSaved(on) { savedOpen = on; $("planSaved").hidden = !on; $("planSavedBtn").setAttribute("aria-pressed", String(on)); if (on) renderSaved(); }
+  function showSaved(on) {
+    savedOpen = on; $("planSaved").hidden = !on; $("planSavedBtn").setAttribute("aria-pressed", String(on));
+    if (on) { renderSaved(); window.tfAccount?.sync?.(); }   // routes saved on another device come in (account.js)
+  }
   function renderSaved() {
     if (!savedOpen) return;
     const list = savedList();
-    $("planSaved").innerHTML = !list.length ? `<li class="sv-empty">No saved routes yet. Plan one and tap 💾 Save.</li>` : list.map((e) => {
+    $("planSaved").innerHTML = (!list.length ? `<li class="sv-empty">No saved routes yet. Plan one and tap 💾 Save.</li>` : list.map((e) => {
       const meta = [e.mode === "pick" ? "Pick trails" : "Tap points", e.km != null ? `${e.drive ? "Ride " : ""}${e.km} km` : "", e.up != null ? `↑ ${e.up} m` : "", e.drive ? `🛻 ${e.drive} km` : "", e.at ? new Date(e.at).toLocaleDateString() : ""].filter(Boolean).join(" · ");
       return `<li><button type="button" class="sv-body" data-sv="open" data-id="${esc(e.id)}" title="Open this route"><b>${esc(e.name)}</b><small>${esc(meta)}</small></button>
         <span class="sv-ctl"><button type="button" data-sv="rename" data-id="${esc(e.id)}" aria-label="Rename">✎</button> <button type="button" data-sv="del" data-id="${esc(e.id)}" aria-label="Delete">🗑</button></span></li>`;
-    }).join("");
+    }).join("")) + syncLine();
+  }
+  // Saved routes reach other devices only through an account, so say which this is.
+  function syncLine() {
+    const acct = window.tfAccount;
+    if (!acct || !acct.enabled) return "";
+    if (acct.user) return `<li class="sv-sync">☁ Synced with your account (${esc(acct.user.email || "signed in")}), so they're on your other devices too.</li>`;
+    return `<li class="sv-sync">Saved on this device only. <button type="button" data-sv="signin" data-id="">Sign in</button> on your phone and computer to see them on both.</li>`;
   }
   $("planSave").addEventListener("click", saveRoute);
   $("planFind").addEventListener("click", () => setFind(true));
@@ -1425,13 +1438,18 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
   $("planSaved").addEventListener("click", (ev) => {
     const b = ev.target.closest("[data-sv]");
     if (!b) return;
+    if (b.dataset.sv === "signin") { window.tfAccount?.open?.(); return; }
     const list = savedList(), e = list.find((x) => x.id === b.dataset.id);
     if (!e) return;
     if (b.dataset.sv === "open") openSaved(e);
-    else if (b.dataset.sv === "rename") { const n = prompt("Rename this ride", e.name); if (n != null && n.trim()) { e.name = n.trim(); setSaved(list); } }
-    else if (b.dataset.sv === "del" && confirm(`Delete "${e.name}"?`)) setSaved(list.filter((x) => x !== e));
+    else if (b.dataset.sv === "rename") { const n = prompt("Rename this ride", e.name); if (n != null && n.trim()) { e.name = n.trim(); e.ed = Date.now(); setSaved(list); } }
+    else if (b.dataset.sv === "del" && confirm(`Delete "${e.name}"?`)) {
+      try { const g = JSON.parse(localStorage.getItem("tf:planGone") || "[]"); localStorage.setItem("tf:planGone", JSON.stringify([{ id: e.id, at: Date.now() }, ...(Array.isArray(g) ? g : [])].slice(0, 300))); } catch {}
+      setSaved(list.filter((x) => x !== e));
+    }
   });
-  window.addEventListener("tf:account", () => setTimeout(renderSaved, 1500));   // the account's list may have come in
+  window.addEventListener("tf:account", renderSaved);
+  window.addEventListener("tf:settings-synced", (ev) => { if (ev.detail.includes("planSaved")) renderSaved(); });
 
   const btn = document.createElement("button");
   btn.id = "planBtn"; btn.type = "button"; btn.setAttribute("aria-pressed", "false");

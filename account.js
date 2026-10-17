@@ -10,7 +10,7 @@
   const LIB = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.3/dist/umd/supabase.js";
 
   // Settings saved to the account: the tf:* localStorage keys the pages remember.
-  const SETTINGS = ["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "nearKm", "track", "nameNear", "mode", "nameZone", "map3d", "want", "folders", "notify", "notifyRead", "toride", "loamAlert", "loamNew", "loamRide", "planSaved"];
+  const SETTINGS = ["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "nearKm", "track", "nameNear", "mode", "nameZone", "map3d", "want", "folders", "notify", "notifyRead", "toride", "loamAlert", "loamNew", "loamRide", "planGone", "planSaved"];
   const STAMP = "tf:settingsAt";   // when this device last changed a setting (ms)
 
   const api = window.tfAccount = { enabled: !!(SUPABASE_URL && SUPABASE_ANON_KEY), url: SUPABASE_URL, key: SUPABASE_ANON_KEY, client: null, user: null, ready: null };
@@ -120,6 +120,7 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     window.dispatchEvent(ev);
     if (!ev.detail.handled) location.href = "./#folders";
   });
+  api.open = openBox;
   api.setSyncNote = (text) => { q("acctSync").textContent = text || ""; };
 
   // ---------- Supabase ----------
@@ -151,7 +152,7 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     paintButtons();
     if (was === now) return;
     if (!was && now && box.open) openBox();
-    if (now) pullSettings();
+    if (now) api.sync();
     window.dispatchEvent(new CustomEvent("tf:account", { detail: user }));
   }
 
@@ -211,37 +212,79 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
   });
 
   // ---------- settings ----------
+  // Each device stamps every setting it changes (tf:settingsKeyAt), and a sync merges key by key: the newer change
+  // wins, so changing the map style on the phone no longer wipes a route just saved on the computer. Saved routes
+  // merge both devices' lists (deleted ones are remembered in tf:planGone). Syncs run on sign-in, after a change,
+  // when the app comes back to the screen, and when a page asks (tfAccount.sync(), e.g. opening 📂 Saved).
+  const KEYAT = "tf:settingsKeyAt";
+  const LIVE = new Set(["planSaved", "planGone", "notifyRead", "loamAlert"]);   // read fresh by the page, so no reload
+  const jparse = (v, d) => { try { const x = JSON.parse(v); return x == null ? d : x; } catch { return d; } };
+  const MERGE = {
+    planGone: (a, b) => {
+      const all = {};
+      [...jparse(a, []), ...jparse(b, [])].forEach((g) => { if (g && g.id && !(all[g.id] >= g.at)) all[g.id] = g.at || 0; });
+      const list = Object.entries(all).map(([id, at]) => ({ id, at })).sort((x, y) => y.at - x.at || (x.id < y.id ? -1 : 1)).slice(0, 300);
+      return list.length ? JSON.stringify(list) : null;
+    },
+    planSaved: (a, b, out) => {
+      const gone = new Set(jparse(out.planGone, []).map((g) => g.id)), all = {};
+      const when = (e) => e.ed || Date.parse(e.at) || 0;
+      [...jparse(a, []), ...jparse(b, [])].forEach((e) => { if (e && e.id && !gone.has(e.id) && (!all[e.id] || when(e) > when(all[e.id]))) all[e.id] = e; });
+      const list = Object.values(all).sort((x, y) => (Date.parse(y.at) || 0) - (Date.parse(x.at) || 0) || (x.id < y.id ? -1 : 1));
+      return list.length ? JSON.stringify(list) : null;
+    },
+  };
   function localSettings() {
     const data = {};
     SETTINGS.forEach((k) => { const v = lsGet("tf:" + k); if (v != null) data[k] = v; });
     return data;
   }
-  let pushTimer = null;
+  const keyAts = () => jparse(lsGet(KEYAT), null);
+  // First run with per-key stamps: this device's settings count as changed when it last changed anything.
+  if (!keyAts()) { const at = +(lsGet(STAMP) || 0), o = {}; Object.keys(localSettings()).forEach((k) => { o[k] = at; }); lsSet(KEYAT, JSON.stringify(o)); }
+  let snap = localSettings(), pushTimer = null, lastSync = 0, firstSync = true;
   window.addEventListener("tf:setting", () => {
-    lsSet(STAMP, String(Date.now()));
+    const now = Date.now(), cur = localSettings(), at = keyAts() || {};
+    SETTINGS.forEach((k) => { if (cur[k] !== snap[k]) at[k] = now; });
+    snap = cur;
+    lsSet(KEYAT, JSON.stringify(at)); lsSet(STAMP, String(now));
     if (!api.user) return;
-    clearTimeout(pushTimer); pushTimer = setTimeout(pushSettings, 1500);
+    clearTimeout(pushTimer); pushTimer = setTimeout(api.sync, 1500);
   });
-  async function pushSettings() {
-    if (!api.user) return;
-    const at = +(lsGet(STAMP) || Date.now());
-    const { error } = await api.client.from("settings").upsert({ user_id: api.user.id, data: localSettings(), updated_at: new Date(at).toISOString() });
-    if (error) console.warn("Couldn't save settings:", error.message);
-  }
-  // On sign-in or page load: the newer of this device's settings and the account's wins.
-  async function pullSettings() {
+  let syncing = null;
+  api.sync = () => syncing || (syncing = doSync().catch((e) => { console.warn("Couldn't sync settings:", e); return false; }).finally(() => { syncing = null; }));
+  async function doSync() {
+    if (!api.user || !api.client) return false;
+    lastSync = Date.now();
     const { data: row, error } = await api.client.from("settings").select("data, updated_at").eq("user_id", api.user.id).maybeSingle();
-    if (error) { console.warn("Couldn't load settings:", error.message); return; }
-    const localAt = +(lsGet(STAMP) || 0), remoteAt = row ? Date.parse(row.updated_at) : 0;
-    if (!row || localAt > remoteAt) { if (Object.keys(localSettings()).length) pushSettings(); return; }
-    if (localAt === remoteAt) return;
-    let changed = false;
+    if (error) { console.warn("Couldn't load settings:", error.message); return false; }
+    const local = localSettings(), lat = keyAts() || {}, rdata = (row && row.data) || {}, rat = rdata._at || null;
+    const rAll = row ? Date.parse(row.updated_at) || 0 : 0;   // rows saved before per-key stamps: all keys at the row's time
+    const out = {}, outAt = {}, changed = [];
+    let push = !row;
     SETTINGS.forEach((k) => {
-      const v = row.data[k] == null ? null : String(row.data[k]);
-      if (lsGet("tf:" + k) !== v) { lsSet("tf:" + k, v); changed = true; }
+      const lv = local[k] == null ? null : local[k], rv = rdata[k] == null ? null : String(rdata[k]);
+      const la = lat[k] || 0, ra = rat ? rat[k] || 0 : rv != null ? rAll : 0;
+      const v = MERGE[k] ? MERGE[k](lv, rv, out) : ra > la ? rv : lv;
+      if (v !== lv) { lsSet("tf:" + k, v); changed.push(k); }
+      if (v !== rv || (rat && (rat[k] || 0) !== Math.max(la, ra))) push = true;
+      if (v != null) out[k] = v;
+      if (Math.max(la, ra)) outAt[k] = Math.max(la, ra);
     });
-    lsSet(STAMP, String(remoteAt));
-    // The map page reads settings once at start, so reload it to show the account's settings.
-    if (changed && document.documentElement.dataset.accountReload === "settings") location.reload();
+    if (!rat && row) push = true;
+    lsSet(KEYAT, JSON.stringify(outAt));
+    snap = localSettings();
+    if (push) {
+      const { error: e2 } = await api.client.from("settings").upsert({ user_id: api.user.id, data: { ...out, _at: outAt }, updated_at: new Date().toISOString() });
+      if (e2) console.warn("Couldn't save settings:", e2.message);
+    }
+    const first = firstSync; firstSync = false;
+    if (changed.length) window.dispatchEvent(new CustomEvent("tf:settings-synced", { detail: changed }));
+    // The map page reads most settings once at start, so on the first sync after opening it reloads to show the
+    // account's settings. Later syncs never reload (the rider is using the page); lists like saved routes update live.
+    if (first && changed.some((k) => !LIVE.has(k)) && document.documentElement.dataset.accountReload === "settings") location.reload();
+    return true;
   }
+  // Coming back to the app (phones keep it open for days): pick up what other devices changed.
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && api.user && Date.now() - lastSync > 15000) api.sync(); });
 })();
