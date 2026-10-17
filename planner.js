@@ -422,7 +422,7 @@
     busy++; render();
     try {
       const T = picks.map(through);
-      const box = boxOf([...T.flatMap((t) => t.pts), ...(pickStart ? [pickStart] : [])], 0.02);
+      const box = boxOf([...T.flatMap((t) => t.pts), ...(pickStart ? [pickStart] : [])], 0.05);   // room for a climb that goes around (about 5 km)
       const ht = await terrainOr(box);
       if (my !== gen) return;
       const G = graph(allWays().filter((w) => inBox(w, box)), ht);
@@ -650,8 +650,9 @@
       return pickRow(l.pick, `<b>${verb}</b> ${chip({ name: p ? p.name : "trail", color: lv.color })} ${m}`);
     }
     if (l.gap) return `<li class="ps-link"><span class="ps-n">↝</span><span><b>Cross</b> <span class="gap-note">off mapped trails</span> ${m}</span></li>`;
-    const names = mainNames(l);
-    return `<li class="ps-link"><span class="ps-n">${verb === "Climb" ? "↗" : verb === "Descend" ? "↘" : "→"}</span><span><b>${verb}</b>${names.length ? " on " + names.map(esc).join(", ") : ""} ${m}</span></li>`;
+    const names = mainNames(l), picked = new Set(picks.map((p) => p.name));
+    const onlyWay = verb === "Climb" && names.some((n) => picked.has(n)) ? ` <span class="gap-note">no other mapped way up</span>` : "";
+    return `<li class="ps-link"><span class="ps-n">${verb === "Climb" ? "↗" : verb === "Descend" ? "↘" : "→"}</span><span><b>${verb}</b>${names.length ? " on " + names.map(esc).join(", ") : ""} ${m}${onlyWay}</span></li>`;
   }
   function render() {
     const m = total(), gaps = legs.filter((l) => l.gap).length, climb = elev ? ` · ↑ ${elev.up} m · ↓ ${elev.down} m` : "";
