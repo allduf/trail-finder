@@ -26,7 +26,7 @@ const RE = {
   skills: /skills?\b/i,
   centre: /(mountain bike|mtb|bike|biking|cycling|v[ée]lo( de montagne)?)( trail| adventure)? (centre|center)|centre (de )?v[ée]lo|trail (centre|center)|ski (and|&|et) (bike|v[ée]lo)|(bike|v[ée]lo) (and|&|et) ski|(montagne|mont) .*v[ée]lo/i,
   park: /bike ?park|bikepark|mtb park|parc (de )?v[ée]lo|v[ée]lo ?parc|parc (de )?v[ée]lo de montagne|freeride area|bike area/i,
-  notBike: /velodrome|vélodrome|motocross|\bmx park|moto|dirt ?bike|\batv\b|quad|snowmobile|golf|disc golf|skate ?park(?! .*bike)/i,
+  notBike: /velodrome|vélodrome|national cycling cent(re|er)|motocross|\bmx park|moto|dirt ?bike|\batv\b|quad|snowmobile|golf|disc golf|skate ?park(?! .*bike)/i,
 };
 const BIKE_SPORT = /^(mtb|mountain_biking|bmx|cycling|bicycle|pump_track|dirt_jumping|freeride|downhill)$/;
 const sports = (t) => String(t.sport || "").split(";").map((s) => s.trim());
@@ -182,6 +182,16 @@ function finish() {
     }
     merged.push(x);
   }
+  // A "bike park" with no lift, no pay-to-ride trails and a footprint under 1.5 km is a town's dirt jump or terrain park
+  // (Railway Granville in Richmond, Penzer in Langley, South Surrey, Salt Spring Lions): shown as a skills park, from zoom 11.
+  // Ski hills mapped as a point with MTB tags (Mont SM, Mont-Édouard) stay bike parks.
+  const hill = /\b(ski|station|resort|mont|mt|mount)\b/i;
+  merged.forEach((x) => {
+    if (x.k !== "park" || x.lift || (x.pay || 0) >= 5) return;
+    const name = x.t.name || "";
+    if (metres([x.b[0], x.b[1]], [x.b[2], x.b[3]]) >= 1500 || hill.test(name) && !RE.park.test(name)) return;
+    x.k = "skills";
+  });
   merged.forEach((x) => { if (x.b[0] === x.b[2] && x.b[1] === x.b[3]) delete x.b; });
   merged.sort((a, b) => a.id.localeCompare(b.id));
   mkdirSync(OUT, { recursive: true });
