@@ -252,12 +252,21 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     clearTimeout(pushTimer); pushTimer = setTimeout(api.sync, 1500);
   });
   let syncing = null;
-  api.sync = () => syncing || (syncing = doSync().catch((e) => { console.warn("Couldn't sync settings:", e); return false; }).finally(() => { syncing = null; }));
+  // api.syncState: { at (ms, last good sync), error (text, last sync failed), routes (saved routes on the account) },
+  // shown by 📂 Saved so a rider can see whether the account answered. A sync that hangs (a phone waking up) gives up
+  // after 20 s, so the next one can run.
+  api.syncState = { at: 0, error: "", routes: null };
+  const syncSay = (o) => { Object.assign(api.syncState, o); window.dispatchEvent(new CustomEvent("tf:sync-state", { detail: api.syncState })); };
+  let again = false;   // a change made while a sync was running goes up in one more sync right after
+  api.sync = () => { if (syncing) { again = true; return syncing; } return runSync(); };
+  const runSync = () => (syncing = Promise.race([doSync(), new Promise((_, no) => setTimeout(() => no(new Error("your account didn't answer")), 20000))])
+    .catch((e) => { console.warn("Couldn't sync settings:", e); syncSay({ error: (e && e.message) || String(e) }); return false; })
+    .finally(() => { syncing = null; if (again) { again = false; setTimeout(api.sync, 500); } }));
   async function doSync() {
     if (!api.user || !api.client) return false;
     lastSync = Date.now();
-    const { data: row, error } = await api.client.from("settings").select("data, updated_at").eq("user_id", api.user.id).maybeSingle();
-    if (error) { console.warn("Couldn't load settings:", error.message); return false; }
+    const { data: row, error } = await api.client.from("settings").select("data, updated_at").eq("user_id", api.user.id).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+    if (error) { console.warn("Couldn't load settings:", error.message); syncSay({ error: error.message }); return false; }
     const local = localSettings(), lat = keyAts() || {}, rdata = (row && row.data) || {}, rat = rdata._at || null;
     const rAll = row ? Date.parse(row.updated_at) || 0 : 0;   // rows saved before per-key stamps: all keys at the row's time
     const out = {}, outAt = {}, changed = [];
@@ -274,15 +283,18 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     if (!rat && row) push = true;
     lsSet(KEYAT, JSON.stringify(outAt));
     snap = localSettings();
+    let saveErr = "";
     if (push) {
       const { error: e2 } = await api.client.from("settings").upsert({ user_id: api.user.id, data: { ...out, _at: outAt }, updated_at: new Date().toISOString() });
-      if (e2) console.warn("Couldn't save settings:", e2.message);
+      if (e2) { console.warn("Couldn't save settings:", e2.message); saveErr = e2.message; }
     }
     const first = firstSync; firstSync = false;
     if (changed.length) window.dispatchEvent(new CustomEvent("tf:settings-synced", { detail: changed }));
     // The map page reads most settings once at start, so on the first sync after opening it reloads to show the
     // account's settings. Later syncs never reload (the rider is using the page); lists like saved routes update live.
     if (first && changed.some((k) => !LIVE.has(k)) && document.documentElement.dataset.accountReload === "settings") location.reload();
+    if (saveErr) { syncSay({ error: saveErr }); return false; }
+    syncSay({ at: Date.now(), error: "", routes: jparse(out.planSaved, []).length });
     return true;
   }
   // Coming back to the app (phones keep it open for days): pick up what other devices changed.
