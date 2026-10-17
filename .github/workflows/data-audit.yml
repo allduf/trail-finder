@@ -57,6 +57,15 @@ jobs:
         run: |
           node scripts/audit.mjs
           cat out/audit.md >> "$GITHUB_STEP_SUMMARY"
+          cp data/audit.json out/audit.json
+      - name: Keep the findings with the run
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit
+          path: |
+            out/audit.json
+            out/audit.md
+          retention-days: 30
       - name: Save the findings
         if: github.event_name != 'pull_request'
         run: bash scripts/commit-data.sh "Trail data audit" data/audit.json
