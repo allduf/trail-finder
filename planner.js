@@ -219,8 +219,8 @@
 
   // ---------- shuttle: drive up, ride down ----------
   // Shuttle (alex): a 4x4 pickup drives you up the forest roads as close to the trails as it gets, and you ride from
-  // there. It drives forest and dirt roads in any condition except closed to vehicles or impassable (gated, private,
-  // deactivated, washed out) and streets; never past a locked gate, a barrier or a bridge that's out; and only on road
+  // there. It drives forest and dirt roads that are good, degraded or of unknown condition (not heavily degraded,
+  // closed to vehicles or impassable: alex) and streets; never past a locked gate, a barrier or a bridge that's out; and only on road
   // networks of 2 km or more (a bit of road cut off from the rest can't be reached by car). Driving costs about a
   // tenth of riding the same stretch on the flat, and climbing costs nothing.
   let how = "pedal";
@@ -229,7 +229,7 @@
   const NO_CAR = /^(no|private|forestry|agricultural|delivery)$/;
   function driveRate(w) {
     if (!w) return 0;
-    if (w.road) return w.st === "closed" || w.st === "impass" ? 0 : DRIVE[w.st] || DRIVE.unknown;
+    if (w.road) return w.st === "heavy" || w.st === "closed" || w.st === "impass" ? 0 : DRIVE[w.st] || DRIVE.unknown;
     if (!w.conn || !CAR_HW.test(w.tags.highway || "") || ["access", "vehicle", "motor_vehicle", "motorcar"].some((k) => NO_CAR.test(w.tags[k] || ""))) return 0;
     return w.tags.highway === "track" ? DRIVE.unknown : DRIVE.street;
   }
@@ -449,11 +449,16 @@
     }, []);
     let runs = merge(p.segs.map((sg, i) => ({ drive: drives(G, p.keys[i], p.keys[i + 1], sg[0], metres(p.pts[i], p.pts[i + 1])), pts: [p.pts[i], p.pts[i + 1]], segs: [sg] })));
     // You stay in the truck between two drives (a short link the data doesn't show as drivable)...
-    runs.forEach((r, i) => { if (!r.drive && i > 0 && i < runs.length - 1 && lengthOf(r.pts) < 500) r.drive = true; });
+    const noCar = (r) => r.segs.some(([w]) => w && w.road && !driveRate(w));   // a road the truck can't take
+    runs.forEach((r, i) => { if (!r.drive && i > 0 && i < runs.length - 1 && lengthOf(r.pts) < 500 && !noCar(r)) r.drive = true; });
     runs = merge(runs);
     runs.forEach((r) => { if (r.drive && lengthOf(r.pts) < 300) r.drive = false; });   // ...and get out for less than 300 m
     runs = merge(runs);
-    runs.forEach((r) => { r.raw = r.pts; r.pick = -1; });
+    runs.forEach((r, i) => {
+      r.raw = r.pts; r.pick = -1;
+      const w = !r.drive && i && runs[i - 1].drive && r.segs.map(([x]) => x).find((x) => x && x.road);   // why the truck stopped
+      if (w && !driveRate(w)) r.stop = { heavy: "heavily degraded", closed: "closed to vehicles", impass: "impassable" }[w.st];
+    });
     return runs.some((r) => r.drive) ? runs : null;
   }
   const effort = (G) => (k1, k2, m, w) => cost(G, k1, k2, m, w);
@@ -860,7 +865,8 @@
     if (l.gap) return `<li class="ps-link"><span class="ps-n">↝</span><span><b>Cross</b> <span class="gap-note">off mapped trails</span> ${m}</span></li>`;
     const names = mainNames(l), picked = new Set(picks.map((p) => p.name));
     const onlyWay = verb === "Climb" && names.some((n) => picked.has(n)) ? ` <span class="gap-note">no other mapped way up</span>` : "";
-    return `<li class="ps-link"><span class="ps-n">${verb === "Climb" ? "↗" : verb === "Descend" ? "↘" : "→"}</span><span><b>${verb}</b>${names.length ? " on " + names.map(esc).join(", ") : ""} ${m}${onlyWay}</span></li>`;
+    const stop = l.stop ? ` <span class="gap-note">road ahead ${l.stop}, ride from here</span>` : "";
+    return `<li class="ps-link"><span class="ps-n">${verb === "Climb" ? "↗" : verb === "Descend" ? "↘" : "→"}</span><span><b>${verb}</b>${names.length ? " on " + names.map(esc).join(", ") : ""} ${m}${onlyWay}${stop}</span></li>`;
   }
   function render() {
     const gaps = legs.filter((l) => l.gap).length, climb = elev ? ` · ↑ ${elev.up} m · ↓ ${elev.down} m` : "";

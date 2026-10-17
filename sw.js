@@ -3,10 +3,10 @@
 // as there is a connection; the cached copy is used only when the network fails. Map tiles and outside APIs
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection.
-const VERSION = "tf-17";
+const VERSION = "tf-18";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=4", "account.js?v=197", "reports.js?v=197", "visitors.js?v=197", "map3d.js?v=197", "winter.js?v=197", "ski-points.js?v=197", "offline.js?v=197", "navigate.js?v=197", "planner.js?v=197", "rotate.js?v=197", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=4", "account.js?v=198", "reports.js?v=198", "visitors.js?v=198", "map3d.js?v=198", "winter.js?v=198", "ski-points.js?v=198", "offline.js?v=198", "navigate.js?v=198", "planner.js?v=198", "rotate.js?v=198", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
