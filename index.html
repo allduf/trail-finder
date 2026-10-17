@@ -1828,8 +1828,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
   // Signs that a trail is official (sanctioned), from what mappers tagged. Returns the reason, or null.
   function officialWhy(tags) {
     if (unofficial(tags).length) return null;
-    if (tags["tf:official"]) return tags["tf:official"];
-    if (tags["tf:handoff"]) return tags["tf:handoff"];   // ratings.js HAND list   // from the all-trails job: riding-areas.json, Recreation Sites and Trails BC (South Chilcotin, Revelstoke) or the whole zone (Williams Lake)
+    if (tags["tf:official"]) return tags["tf:official"];   // from the all-trails job: riding-areas.json, Recreation Sites and Trails BC (South Chilcotin, Revelstoke) or the whole zone (Williams Lake)
+    if (tags["tf:handoff"]) return tags["tf:handoff"];   // a rider says so (ratings.js HAND list)
     if (tags["ref:FFID"] || /recreation line/i.test(tags.source || "")) return "listed by Recreation Sites and Trails BC";
     if (tags.bicycle === "customers") return tags.operator ? `bike park trail run by ${tags.operator}` : "bike park trail";
     if (tags.operator) return `run by ${tags.operator}`;
@@ -1874,7 +1874,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     const name = tags.name || "";
     if (WINTER_NAME.test(name) && !BIKE_IN_NAME.test(name) && !/^(yes|designated|permissive)$/.test(tags.bicycle || ""))
       return { use: "hike", why: [`its name marks it as a ski, snowshoe or hiking trail (“${name}”)`] };
-    if (hasMtb || routeTypes.includes("mtb") || tags.bicycle === "designated") return null;
+    if (hasMtb || routeTypes.includes("mtb") || tags.bicycle === "designated" || tags["tf:handmtb"]) return null;
 
     const moto = [];
     if (tags["dirtbike:scale"]) moto.push(`dirt-bike difficulty dirtbike:scale=${tags["dirtbike:scale"]}`);
@@ -1938,9 +1938,9 @@ body.sport-ski #rideMapBtn { display: none !important; }
     if (isRoad(tags)) return null;
 
     const mtbTags = Object.keys(tags).filter((k) => /^mtb(:|$)/.test(k) && !(k === "mtb" && tags.mtb === "no"));
-    if (mtbTags.length || routes.length || tags["tf:handoff"]) {
+    if (mtbTags.length || routes.length || tags["tf:handmtb"]) {
       const why = mtbTags.map((k) => `${k}=${tags[k]}`);
-      if (tags["tf:handoff"]) why.push(tags["tf:handoff"]);
+      if (tags["tf:handmtb"] && !why.length) why.push(tags["tf:handmtb"]);
       routes.forEach((r) => why.push(`part of MTB route “${r}”`));
       return { cat: "mtb", why };
     }
@@ -2013,11 +2013,13 @@ body.sport-ski #rideMapBtn { display: none !important; }
   // a rider's own rating, or an estimate from the slope) as made-up tags tf:diff, tf:diffsrc (hand, off, same, est) and tf:diffwhy. Changes tags in place.
   function rateTags(tags, geom, id) {
     if (!tags || !window.tfRatings) return tags;
-    delete tags["tf:diff"]; delete tags["tf:diffsrc"]; delete tags["tf:diffwhy"]; delete tags["tf:handoff"];
+    delete tags["tf:diff"]; delete tags["tf:diffsrc"]; delete tags["tf:diffwhy"]; delete tags["tf:handoff"]; delete tags["tf:handmtb"];
+    // A rider says it's an MTB trail (classifyTrail, trailUse), and maybe official (officialWhy): ratings.js HAND list.
+    const h = window.tfRatings.hand(geom, tags);
+    if (h) { tags["tf:handmtb"] = h.mtb; if (h.off) tags["tf:handoff"] = h.off; }
     if (difficulty(tags)) return tags;
     const r = window.tfRatings.rate(id, geom, tags);
     if (r) Object.assign(tags, { "tf:diff": r.d, "tf:diffsrc": r.src, "tf:diffwhy": r.why });
-    if (r && r.off) tags["tf:handoff"] = r.off;   // a rider says it's official: Official, and an MTB trail (officialWhy, classifyTrail)
     return tags;
   }
   const officialTag = (why) => (why ? `<span class="off-tag" title="${esc(why)}">Official</span>` : "");
