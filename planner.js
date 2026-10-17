@@ -795,7 +795,8 @@
     linkLine.setLatLngs(mode === "pick" ? real.filter((l) => l.pick < 0).map((l) => l.pts) : []);
     gapLine.setLatLngs(legs.filter((l) => l.gap).map((l) => l.pts));
     driveLine.setLatLngs(driven().map((r) => r.pts));
-    pickCase.setLatLngs(mode === "pick" ? picks.flatMap((p) => p.ways.map((w) => w.geom)) : []);
+    // Yellow under your trails: just the part ridden once the ride is built (a trail can be left where the next starts).
+    pickCase.setLatLngs(mode !== "pick" ? [] : legs.length ? legs.filter((l) => l.pick >= 0).map((l) => l.pts) : picks.flatMap((p) => p.ways.map((w) => w.geom)));
     dots.clearLayers();
     const mk = (ll, icon) => dots.addLayer(L.marker(ll, { interactive: false, keyboard: false, icon }));
     if (mode === "tap") stops.forEach((s, i) => mk(s.ll, stopIcon(i === 0 ? "S" : i)));
