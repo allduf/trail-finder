@@ -1027,12 +1027,12 @@
     const has = mode === "tap" ? stops.length : picks.length, ready = mode === "tap" ? stops.length >= 2 : legs.length > 0;
     $("planUndo").disabled = !has; $("planClear").disabled = !has && !(mode === "pick" && pickStart);
     $("planLoop").disabled = mode === "tap" && stops.length < 2;
-    $("planLoop").textContent = mode === "tap" ? "↺ Back to start" : pickBack ? "↺ Loop: on" : "↺ Loop: off";
+    $("planLoop").textContent = mode === "tap" ? "↺ Back to start" : pickBack ? "↺ Back to start: on" : "↺ Back to start: off";
     $("planLoop").setAttribute("aria-pressed", String(mode === "pick" && pickBack));
     $("planStart").hidden = mode !== "pick";
     $("planStart").setAttribute("aria-pressed", String(settingStart));
     $("planStart").textContent = settingStart ? "Tap the start…" : pickStart ? "📍 Move start" : "📍 Set start";
-    ["planGpx", "planRide"].forEach((id) => { $(id).disabled = !ready || busy > 0; });
+    ["planGpx", "planRide", "planSave"].forEach((id) => { $(id).disabled = !ready || busy > 0; });
   }
   // Climb for Tap points, from the same terrain heights.
   let climbGen = 0;
@@ -1121,10 +1121,22 @@
   // ---------- UI ----------
   const css = document.createElement("style");
   css.textContent = `
-.app.planning { grid-template-columns: 1fr !important; grid-template-rows: 1fr !important; }
-.app.planning .panel, .app.planning .tabbar, .app.planning .map-actions, .app.planning .first-tip { display: none !important; }
-.app.planning .mapwrap { grid-column: 1; grid-row: 1; }
+/* The side panel stays while planning, so you can still look for trails (alex). On phones the bar takes the screen
+   and 🔍 Find trails swaps it for the panel (plan-find) until ✎ Back to my route. */
+.app.planning .map-actions, .app.planning .first-tip { display: none !important; }
 .app.planning #map { cursor: crosshair; }
+body.planning:has(.app:not(.fullmap)) .plan-bar { left: 396px; }
+#planFind, #planBack { display: none; }
+@media (max-width: 760px) {
+  .app.planning:not(.plan-find) { grid-template-columns: 1fr !important; grid-template-rows: 1fr !important; }
+  .app.planning:not(.plan-find) .panel, .app.planning:not(.plan-find) .tabbar { display: none !important; }
+  .app.planning:not(.plan-find) .mapwrap { grid-column: 1; grid-row: 1; }
+  body.planning:has(.app:not(.fullmap)) .plan-bar { left: 8px; }
+  #planFind { display: block; }
+  body.plan-find .plan-bar { display: none; }
+  body.plan-find #planBack { display: block; position: fixed; z-index: 1200; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); font: inherit; font-weight: 700; padding: 9px 16px; border-radius: 999px; border: 0; background: #7b2ff7; color: #fff; box-shadow: 0 3px 12px rgba(0,0,0,.3); cursor: pointer; }
+}
+.add-ride-btn.add-ride-btn { display: block; width: 100%; margin: 0 0 8px; border-color: #7b2ff7; color: #7b2ff7; font-weight: 700; }
 .plan-bar { position: fixed; z-index: 1200; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); max-width: 600px; margin: 0 auto; background: var(--panel, #fff); color: var(--fg, #14211a); border-radius: 18px; box-shadow: 0 6px 24px rgba(0,0,0,.28); padding: 12px 14px; }
 .plan-bar[hidden] { display: none; }
 .plan-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
@@ -1162,6 +1174,14 @@
 .plan-btns button:disabled { opacity: .45; cursor: default; }
 .plan-btns button[aria-pressed="true"] { border-color: #7b2ff7; }
 .plan-btns .go { background: var(--cta, #c6f05a); border-color: transparent; color: var(--cta-fg, #10230f); }
+.plan-saved { list-style: none; margin: 8px 0 0; padding: 0; max-height: 16em; overflow: auto; border-top: 1px solid var(--line, #d6dad3); }
+.plan-saved[hidden] { display: none; }
+.plan-saved li { display: flex; align-items: center; gap: 6px; padding: 7px 0; border-bottom: 1px solid var(--line, #d6dad3); }
+.plan-saved .sv-body { flex: 1 1 auto; min-width: 0; text-align: left; font: inherit; background: none; border: 0; padding: 0; color: inherit; cursor: pointer; }
+.plan-saved .sv-body b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-saved .sv-body small { color: var(--muted, #5b6660); }
+.plan-saved .sv-ctl button { font: inherit; font-size: .85rem; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line, #d6dad3); background: var(--bg, #f4f5f0); color: inherit; cursor: pointer; }
+.plan-saved .sv-empty { color: var(--muted, #5b6660); font-size: .9rem; }
 .plan-stop, .plan-arrow { background: none; border: 0; }
 .plan-stop span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #7b2ff7; color: #fff; font: 700 12px/1 system-ui, sans-serif; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); box-sizing: border-box; }
 .plan-stop.pick span { background: #ffd43b; color: #2b2100; }
@@ -1181,8 +1201,18 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
       <button type="button" data-how="shuttle" title="A 4x4 pickup drives you up the open forest roads; you ride from where it stops">🛻 Shuttle</button></div></div>
     <div class="plan-stats" id="planStats" aria-live="polite"></div><div class="plan-trails" id="planTrails"></div><ol class="plan-steps" id="planSteps"></ol>
     <div class="plan-btns"><button type="button" id="planUndo">↶ Undo</button><button type="button" id="planStart" hidden>📍 Set start</button><button type="button" id="planLoop" title="End the ride back at the start">↺ Back to start</button><button type="button" id="planClear">Clear</button>
-    <button type="button" id="planGpx">⤓ GPX</button><button type="button" class="go" id="planRide">▶ Ride it</button><button type="button" id="planDone">Done</button></div>`;
+    <button type="button" id="planFind" title="Look for trails by name, level or area, then come back">🔍 Find trails</button><button type="button" id="planSave" title="Save this ride to open again later">💾 Save</button><button type="button" id="planSavedBtn" aria-pressed="false" title="Your saved routes">📂 Saved</button>
+    <button type="button" id="planGpx">⤓ GPX</button><button type="button" class="go" id="planRide">▶ Ride it</button><button type="button" id="planDone">Done</button></div>
+    <ul class="plan-saved" id="planSaved" hidden aria-label="Saved routes"></ul>`;
   document.body.appendChild(bar);
+  const back = document.createElement("button");
+  back.id = "planBack"; back.type = "button"; back.textContent = "✎ Back to my route";
+  document.body.appendChild(back);
+  function setFind(on) {
+    document.body.classList.toggle("plan-find", on);
+    document.querySelector(".app").classList.toggle("plan-find", on);
+    map.invalidateSize({ pan: false });
+  }
 
   function setMode(m) {
     if (m === mode) return;
@@ -1214,7 +1244,7 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
       const pts = allPts().length ? allPts() : mode === "tap" ? stops.map((s) => s.ll) : picks.flatMap((p) => p.ways.flatMap((w) => w.geom));
       if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 });
       else if (map.getZoom() < 13) map.setZoom(13);
-    } else { map.removeLayer(layer); settingStart = false; }
+    } else { map.removeLayer(layer); settingStart = false; setFind(false); }
     const b = $("planBtn"); if (b) b.setAttribute("aria-pressed", String(on));
   }
   function onTap(latlng) {
@@ -1281,6 +1311,68 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
     if (window.tfRide) window.tfRide.follow(lines, name);
   });
 
+  // ---------- saved routes (alex: "save the ride for later") ----------
+  // tf:planSaved: [{ id, name, at, mode, how, box, km, up, drive, pick (as tf:planPicks) | stops (as tf:plan) }], newest
+  // first. Synced to the rider's account when signed in (account.js), like the To ride list.
+  const savedList = () => { try { const v = JSON.parse(localStorage.getItem("tf:planSaved") || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } };
+  function setSaved(list) {
+    try { localStorage.setItem("tf:planSaved", JSON.stringify(list)); window.dispatchEvent(new Event("tf:setting")); } catch { flash("Couldn't save on this device (storage full?)."); }
+    renderSaved();
+  }
+  function saveRoute() {
+    const pts = allPts();
+    if (pts.length < 2) return;
+    const names = mode === "pick" ? picks.map((p) => p.name) : namesOf(legs.flatMap((l) => l.ways)).map((t) => t.name);
+    const guess = names.length ? names.slice(0, 3).join(" + ") + (names.length > 3 ? ` +${names.length - 3}` : "") : `Route ${fmtM(total())}`;
+    const name = prompt("Name this ride", guess);
+    if (name == null) return;
+    const b = L.latLngBounds(pts), car = driven().reduce((a, r) => a + lengthOf(r.pts), 0);
+    const e = { id: Date.now().toString(36), name: name.trim() || guess, at: new Date().toISOString(), mode, how,
+      box: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((x) => +x.toFixed(5)), km: +((total() - car) / 1000).toFixed(1), up: elev ? elev.up : null, drive: car ? +(car / 1000).toFixed(1) : 0 };
+    if (mode === "pick") e.pick = { picks: picks.map((p) => ({ name: p.name, ids: p.ways.map((w) => w.id), pedal: !!p.pedal })), start: pickStart, back: pickBack, order: pickManual ? "tap" : "auto", homePedal: pickHomePedal };
+    else e.stops = stops.map((st) => st.tap || st.ll);
+    setSaved([e, ...savedList()]);
+    flash(`Saved "${e.name}". 📂 Saved opens it again.`, false);
+  }
+  function openSaved(e) {
+    try {
+      localStorage.setItem("tf:planMode", e.mode); localStorage.setItem("tf:planHow", e.how);
+      if (e.mode === "pick") localStorage.setItem("tf:planPicks", JSON.stringify(e.pick)); else localStorage.setItem("tf:plan", JSON.stringify(e.stops || []));
+    } catch {}
+    how = e.how === "shuttle" ? "shuttle" : "pedal";
+    picks = []; stops = []; legs = []; elev = null; pending = null; settingStart = false; note = "";
+    showSaved(false);
+    // The trails there load once the map is on them, so go there first.
+    if (e.box) map.fitBounds([[e.box[0], e.box[1]], [e.box[2], e.box[3]]], { paddingTopLeft: [30, 60], paddingBottomRight: [30, bar.offsetHeight + 24], maxZoom: 16, animate: false });
+    if (!planning) setPlanning(true);
+    else { mode = e.mode === "pick" ? "pick" : "tap"; nav.load(); if (mode === "pick") restorePicks(); else restore(); draw(); }
+  }
+  let savedOpen = false;
+  function showSaved(on) { savedOpen = on; $("planSaved").hidden = !on; $("planSavedBtn").setAttribute("aria-pressed", String(on)); if (on) renderSaved(); }
+  function renderSaved() {
+    if (!savedOpen) return;
+    const list = savedList();
+    $("planSaved").innerHTML = !list.length ? `<li class="sv-empty">No saved routes yet. Plan one and tap 💾 Save.</li>` : list.map((e) => {
+      const meta = [e.mode === "pick" ? "Pick trails" : "Tap points", e.km != null ? `${e.drive ? "Ride " : ""}${e.km} km` : "", e.up != null ? `↑ ${e.up} m` : "", e.drive ? `🛻 ${e.drive} km` : "", e.at ? new Date(e.at).toLocaleDateString() : ""].filter(Boolean).join(" · ");
+      return `<li><button type="button" class="sv-body" data-sv="open" data-id="${esc(e.id)}" title="Open this route"><b>${esc(e.name)}</b><small>${esc(meta)}</small></button>
+        <span class="sv-ctl"><button type="button" data-sv="rename" data-id="${esc(e.id)}" aria-label="Rename">✎</button> <button type="button" data-sv="del" data-id="${esc(e.id)}" aria-label="Delete">🗑</button></span></li>`;
+    }).join("");
+  }
+  $("planSave").addEventListener("click", saveRoute);
+  $("planFind").addEventListener("click", () => setFind(true));
+  back.addEventListener("click", () => setFind(false));
+  $("planSavedBtn").addEventListener("click", () => showSaved(!savedOpen));
+  $("planSaved").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-sv]");
+    if (!b) return;
+    const list = savedList(), e = list.find((x) => x.id === b.dataset.id);
+    if (!e) return;
+    if (b.dataset.sv === "open") openSaved(e);
+    else if (b.dataset.sv === "rename") { const n = prompt("Rename this ride", e.name); if (n != null && n.trim()) { e.name = n.trim(); setSaved(list); } }
+    else if (b.dataset.sv === "del" && confirm(`Delete "${e.name}"?`)) setSaved(list.filter((x) => x !== e));
+  });
+  window.addEventListener("tf:account", () => setTimeout(renderSaved, 1500));   // the account's list may have come in
+
   const btn = document.createElement("button");
   btn.id = "planBtn"; btn.type = "button"; btn.setAttribute("aria-pressed", "false");
   btn.title = "Plan a route: tap points on the map, or pick the trails you want and the app builds the ride. Distance, climb, GPX, and Ride it";
@@ -1291,7 +1383,7 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
 
   if ($("planMapBtn")) $("planMapBtn").addEventListener("click", () => setPlanning(true));   // on the map, under ▶ Ride (desktop)
 
-  window.tfPlan = { open: () => setPlanning(true), planning: () => planning,
+  window.tfPlan = { open: () => setPlanning(true), planning: () => planning, saved: () => { setPlanning(true); showSaved(true); },
     // For trail details or the To ride list later: open Pick trails with these way ids added.
     pick: (ids, name) => {
       allWays();
@@ -1299,5 +1391,7 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
       if (!ways.length) return;
       setPlanning(true); setMode("pick");
       if (!picks.some((p) => p.ways.some((w) => ids.includes(w.id)))) { picks.push({ name: name || nameOf(ways[0]) || "Unnamed trail", ways }); changedPicks(); }
-    } };
+      setFind(false);
+    },
+    has: (ids) => picks.some((p) => p.ways.some((w) => ids.includes(w.id))) };
 })();
