@@ -138,7 +138,7 @@
     } catch { return null; }
   }
   // Loads the squares around stretches with no mapped way (their ends first, then along them; up to 12).
-  // True when new lines came in.
+  // Callers compare connN before and after: lines another load brought in count too.
   async function loadConnectors(lines) {
     const sqs = [], now = Date.now(), add = (p) => {
       const b = boxOf([p], 0.006);
@@ -152,7 +152,9 @@
     if (!sqs.length) return false;
     sqs.splice(12);
     // A square already on its way is waited for, not asked for again; one that failed is left for a minute.
-    const got = await Promise.all(sqs.map((sq) => { if (!connLoading.has(sq)) connLoading.set(sq, connectorSquare(sq).finally(() => connLoading.delete(sq))); return connLoading.get(sq); }));
+    // A square that fails (servers busy) is asked for once more, 3 s later.
+    const again = (sq) => connectorSquare(sq).then((r) => r || new Promise((ok) => setTimeout(ok, 3000)).then(() => connectorSquare(sq)));
+    const got = await Promise.all(sqs.map((sq) => { if (!connLoading.has(sq)) connLoading.set(sq, again(sq).finally(() => connLoading.delete(sq))); return connLoading.get(sq); }));
     let added = false;
     sqs.forEach((sq, k) => { if (got[k]) { if (!connectors.has(sq)) { connectors.set(sq, got[k]); added = added || got[k].length > 0; } } else connFailed.set(sq, Date.now()); });
     if (added) connN++;
@@ -224,9 +226,10 @@
   // ---------- shuttle: drive up, ride down ----------
   // Shuttle (alex): a 4x4 pickup drives you up the forest roads as close to the trails as it gets, and you ride from
   // there. It drives forest and dirt roads that are good, degraded or of unknown condition (not heavily degraded,
-  // closed to vehicles or impassable: alex) and streets; never past a locked gate, a barrier or a bridge that's out; and only on road
-  // networks of 2 km or more (a bit of road cut off from the rest can't be reached by car). Driving costs about a
-  // tenth of riding the same stretch on the flat, and climbing costs nothing.
+  // closed to vehicles or impassable: alex) and streets; never past a locked gate, a barrier or a bridge that's out; and only
+  // on roads it can reach from where you start (G.carFrom) that way: a road behind a locked gate is out even if the
+  // bikes ride past the gate (alex, Britannia). Driving costs about a tenth of riding the same stretch on the flat,
+  // and climbing costs nothing.
   let how = "pedal";
   const DRIVE = { good: 0.1, degraded: 0.12, heavy: 0.16, unknown: 0.14, street: 0.08 };
   const CAR_HW = /^(primary|secondary|tertiary|unclassified|residential|living_street|service|road|track)$/;
@@ -274,21 +277,43 @@
     }
     return G.car.get(id);
   }
-  function carReach(G) {   // points on drivable networks of 2 km or more
+  // The points the truck can get to: drivable networks with a public street in it (streets load around your start), or
+  // of 2 km or more (they meet roads not loaded), and the one nearest a start you set (G.carFrom, G.carStrict). But
+  // with a locked gate (or a barrier, a bridge out) within 1 km of that start, only the streets: you're at the gates
+  // (alex at Britannia: "shuttle should not be available because the gate are locked").
+  // G.gate: the road with that gate, for the "No shuttle" note.
+  const PUBLIC = /^(primary|secondary|tertiary|unclassified|residential|living_street)$/;
+  function carReach(G) {
     if (G.reach) return G.reach;
-    const seen = new Set(), ok = new Set();
-    G.adj.forEach((_, k0) => {
-      if (seen.has(k0)) return;
-      seen.add(k0);
-      const comp = [k0];
-      let len = 0;
-      for (let i = 0; i < comp.length; i++) (G.adj.get(comp[i]) || []).forEach(([k2, m, w]) => {
-        if (!carOk(G, comp[i], k2, w, m)) return;
-        len += m / 2;   // each stretch is counted from both ends
-        if (!seen.has(k2)) { seen.add(k2); comp.push(k2); }
+    const comp = new Map(), info = [], p0 = G.carFrom;
+    G.adj.forEach((l, k0) => {
+      if (comp.has(k0) || !l.some(([k2, m, w]) => carOk(G, k0, k2, w, m))) return;
+      const c = { id: info.length, len: 0, pub: false }, todo = [k0];
+      info.push(c); comp.set(k0, c.id);
+      for (let i = 0; i < todo.length; i++) (G.adj.get(todo[i]) || []).forEach(([k2, m, w]) => {
+        if (!carOk(G, todo[i], k2, w, m)) return;
+        if (w && w.conn && PUBLIC.test(w.tags.highway || "")) c.pub = true;
+        c.len += m / 2;   // each stretch is counted from both ends
+        if (!comp.has(k2)) { comp.set(k2, c.id); todo.push(k2); }
       });
-      if (len >= 2000) comp.forEach((k) => ok.add(k));
     });
+    let home = -1, gated = false;
+    if (p0 && G.carStrict) {
+      let near = 500;
+      comp.forEach((i, k) => { const d = metres(p0, G.pos.get(k)); if (d < near) { near = d; home = i; } });
+      let gd = 1000;
+      (nav.roadFeats ? nav.roadFeats() : []).forEach((f) => {
+        if (!/^(gate_locked|impasse|bridge_out)$/.test(f.kind)) return;
+        const d = metres(p0, [f.lat, f.lon]);
+        if (d >= gd) return;
+        gd = d; gated = true;
+        const w = allWays().filter((x) => x.road && nameOf(x) && inBox(x, boxOf([[f.lat, f.lon]], 0.0003))).find((x) => x.geom.some((q) => metres(q, [f.lat, f.lon]) < 30));
+        G.gate = w ? nameOf(w) : "the road";
+      });
+    }
+    const open = info.map((c) => c.pub || (!gated && (c.id === home || c.len >= 2000)));
+    const ok = new Set();
+    comp.forEach((i, k) => { if (open[i]) ok.add(k); });
     return (G.reach = ok);
   }
   const drives = (G, k1, k2, w, d) => carOk(G, k1, k2, w, d) && (carReach(G).has(k1) || carReach(G).has(k2));
@@ -442,6 +467,55 @@
     segs.forEach(([w]) => { if (w && ways[ways.length - 1] !== w) ways.push(w); });
     return { pts, ways, segs, keys, cost: D.dist.get(to) };
   }
+  // Dijkstra backwards: the effort from every point to `to`. prev leads on toward `to`.
+  function dijkstraBack(G, to, weigh) {
+    if (!G.radj) {
+      G.radj = new Map();
+      G.adj.forEach((l, k) => l.forEach(([k2, d, w, dir]) => { if (!G.radj.has(k2)) G.radj.set(k2, []); G.radj.get(k2).push([k, d, w, dir]); }));
+    }
+    return dijkstra({ adj: G.radj }, to, null, (a, b, m, w, dir) => weigh(b, a, m, w, dir));
+  }
+  // The way from `k` on to where D (from dijkstraBack) leads, like pathTo.
+  function pathOn(G, D, k) {
+    if (!D.dist.has(k)) return null;
+    const pts = [], segs = [], keys = [];
+    for (let x = k; ; ) {
+      pts.push(G.pos.get(x)); keys.push(x);
+      const pv = D.prev.get(x);
+      if (!pv) break;
+      segs.push([pv[1], pv[2]]);
+      x = pv[0];
+    }
+    const ways = [];
+    segs.forEach(([w]) => { if (w && ways[ways.length - 1] !== w) ways.push(w); });
+    return { pts, ways, segs, keys, cost: D.dist.get(k) };
+  }
+  // No way along the lines between two points (a start away from them, streets not loaded or not mapped): cross off
+  // the lines only where it has to, from what the first point reaches (A, a dijkstra) to what reaches the second
+  // (B, a dijkstraBack), the cheapest way in all. Before, the whole leg was one straight dash (alex: 2.2 km straight
+  // up from the Britannia lot with the forest roads right there). { m, n, cost }: ride to m, cross to n, ride on.
+  const dash = (d) => d * 6 + 500;
+  function bridge(A, B, posOf) {
+    const CELL = 0.002, at = (p) => [Math.floor(p[0] / CELL), Math.floor(p[1] / CELL)];
+    const [sm, bg] = A.dist.size <= B.dist.size ? [A, B] : [B, A], grid = new Map(), mine = [];
+    bg.dist.forEach((c, k) => { const p = posOf(k); if (!p) return; const id = at(p).join(":"); if (!grid.has(id)) grid.set(id, []); grid.get(id).push([k, p, c]); });
+    sm.dist.forEach((c, k) => { const p = posOf(k); if (p) mine.push([k, p, c]); });
+    const p1 = posOf(A.from), p2 = posOf(B.from), straight = metres(p1, p2);
+    let best = { m: A.from, n: B.from, cost: dash(straight) }, near = Infinity;   // the straight dash
+    // Wider and wider around each point (about 220 m, 440 m, ...), until past the nearest pair by 300 m.
+    for (let r = 1; ; r *= 2) {
+      mine.forEach(([k, p, c]) => {
+        const [y, x] = at(p), rx = Math.ceil(r / Math.cos(p[0] * RAD));
+        for (let i = y - r; i <= y + r; i++) for (let j = x - rx; j <= x + rx; j++) (grid.get(i + ":" + j) || []).forEach(([k2, q, c2]) => {
+          const d = metres(p, q);
+          near = Math.min(near, d);
+          const v = c + c2 + dash(d);
+          if (v < best.cost) best = sm === A ? { m: k, n: k2, cost: v } : { m: k2, n: k, cost: v };
+        });
+      });
+      if (near + 300 < r * CELL * 111000 || r * CELL * 111000 > straight + 300) return best;
+    }
+  }
   // Shuttle: a way split into what's driven and what's ridden, [{ drive, pts, segs }], or null if nothing is driven.
   // One shuttle is one drive; a drive under 300 m is just riding across a road.
   function runsOf(G, p, car = how === "shuttle") {
@@ -498,8 +572,10 @@
   // A leg; if nothing joins the two points along trails and roads, the streets and paths around them are loaded and
   // it is tried again, so the straight dash is left only where nothing at all is mapped.
   async function legFor(a, b) {
-    const l = await legOn(a, b);
-    if (!l.gap || !(await loadConnectors([[a.tap || a.ll, b.tap || b.ll]]))) return l;
+    const c0 = connN, l = await legOn(a, b), s0 = stops[0] ? stops[0].ll : a.ll;
+    if (!l.gap && how !== "shuttle") return l;
+    await loadConnectors([...(l.gap ? [[a.tap || a.ll, b.tap || b.ll]] : []), ...(how === "shuttle" ? [[s0, s0]] : [])]);
+    if (connN === c0) return l;
     [a, b].forEach((s) => { if (!s.snap && s.tap) { const sn = snap(s.tap); if (sn) Object.assign(s, { ll: sn.q, snap: sn }); } });
     return legOn(a, b);
   }
@@ -508,13 +584,14 @@
     const box = boxOf([a.ll, b.ll], PAD_DEG), ht = await terrainOr(box);
     const G = graph(allWays().filter((w) => inBox(w, box)), ht);
     addPoint(G, "A", a.snap); addPoint(G, "B", b.snap);
+    G.carFrom = stops[0] ? stops[0].ll : a.ll; G.carStrict = true;
     if (a.snap.w === b.snap.w && a.snap.i === b.snap.i) {   // both on one stretch
       const g = a.snap.w.geom, along = metres(g[a.snap.i], a.snap.q) <= metres(g[a.snap.i], b.snap.q) ? 1 : -1, one = onewayOf(a.snap.w);
       if (one === 0 || one === along) G.adj.get("A").push(["B", metres(a.snap.q, b.snap.q), a.snap.w, along]);
     }
     const p = pathTo(G, dijkstra(G, "A", "B", effort(G)), "B");
     if (!p) return { pts: [a.ll, b.ll], ways: [], gap: true, pick: -1 };
-    return { pts: clean([a.ll, ...p.pts, b.ll]), raw: p.pts, segs: p.segs, ways: p.ways, gap: false, pick: -1, runs: runsOf(G, p) };
+    return { pts: clean([a.ll, ...p.pts, b.ll]), raw: p.pts, segs: p.segs, ways: p.ways, gap: false, pick: -1, runs: runsOf(G, p), gate: G.gate };
   }
   const makeStop = (ll) => { const sn = snap(ll); return { ll: sn ? sn.q : ll, tap: ll, snap: sn }; };
   let queue = Promise.resolve();
@@ -593,6 +670,7 @@
     const my = ++gen;
     if (!picks.length) { legs = []; elev = null; draw(); return; }
     busy++; render();
+    const c0 = connN;
     try {
       const T = picks.map(through);
       const box = boxOf([...T.flatMap((t) => t.pts), ...(pickStart ? [pickStart] : [])], 0.05);   // room for a climb that goes around (about 5 km)
@@ -643,10 +721,14 @@
       const runs = new Map();
       const from = (k, car = shuttle) => { const id = (car ? "c" : "p") + k; if (!runs.has(id)) runs.set(id, dijkstra(G, k, null, effort(G, car))); return runs.get(id); };
       const posOf = (k) => G.pos.get(k) || T.flatMap((t) => [[t.a, t.pts[0]], [t.b, t.pts[t.pts.length - 1]]]).find((x) => x[0] === k)[1];
+      const backs = new Map(), bridges = new Map();
+      const back = (k, car = shuttle) => { const id = (car ? "c" : "p") + k; if (!backs.has(id)) backs.set(id, dijkstraBack(G, k, effort(G, car))); return backs.get(id); };
+      const across = (k1, k2, car) => { const id = [k1, k2, car].join(); if (!bridges.has(id)) bridges.set(id, bridge(from(k1, car), back(k2, car), posOf)); return bridges.get(id); };
+      G.carFrom = posOf(S); G.carStrict = !!pickStart;
       const C = (k1, k2, car) => {
         if (k1 === k2) return 0;
         const d = from(k1, car).dist.get(k2);
-        return d != null ? d : metres(posOf(k1), posOf(k2)) * 6 + 500;   // no way along lines: a straight dash, costly
+        return d != null ? d : across(k1, k2, car).cost;   // no way along lines: as little straight dash as it can
       };
       // Branching off (alex): where the next trail starts partway along this one, leave it there instead of riding
       // to its end and coming back. cut(j, o, k, o2): { i (point on trail j), key, cost of trail j up to there } or null.
@@ -702,10 +784,18 @@
       const out = [];
       const link = (k1, k2, car, into) => {   // into: the trail it leads to (-1: home)
         if (k1 === k2) return;
-        const p = pathTo(G, from(k1, car), k2), runs = runsOf(G, p, car);
-        (runs || []).forEach((r) => { r.into = into; });
-        if (p && p.pts.length > 1) out.push({ pts: clean(p.pts), raw: p.pts, segs: p.segs, ways: p.ways, gap: false, pick: -1, runs, into, pedalled: shuttle && !car });
-        else out.push({ pts: [posOf(k1), posOf(k2)], ways: [], gap: true, pick: -1 });
+        const ride = (p) => {
+          if (!p || p.pts.length < 2) return;
+          const runs = runsOf(G, p, car);
+          (runs || []).forEach((r) => { r.into = into; });
+          out.push({ pts: clean(p.pts), raw: p.pts, segs: p.segs, ways: p.ways, gap: false, pick: -1, runs, into, pedalled: shuttle && !car, gate: G.gate });
+        };
+        const p = pathTo(G, from(k1, car), k2);
+        if (p) return ride(p);
+        const b = across(k1, k2, car);
+        if (b.m !== k1) ride(pathTo(G, from(k1, car), b.m));
+        out.push({ pts: [posOf(b.m), posOf(b.n)], ways: [], gap: true, pick: -1 });
+        if (b.n !== k2) ride(pathOn(G, back(k2, car), b.n));
       };
       let at = S;
       order.forEach((x, n) => {
@@ -736,10 +826,13 @@
       legs = out;
       elev = rideClimb(ht);
       // Stretches with no mapped way: show the ride now, load the streets and paths there, and build it again with them.
-      const gaps = out.filter((l) => l.gap);
-      if (gaps.length && !retried) {
+      // Shuttle: also the streets around the start, where the truck comes in.
+      const want = [...out.filter((l) => l.gap).map((l) => l.pts), ...(shuttle ? [[posOf(S), posOf(S)]] : [])];
+      if (want.length && !retried) {
         joining++;
-        loadConnectors(gaps.map((l) => l.pts)).then((got) => { if (got && my === gen) later(() => buildRide(true)); })
+        // Rebuilt when any streets came in since this build started, also from an earlier build's load of the same
+        // squares (it used to wait for that load, find nothing new and leave the dashes).
+        loadConnectors(want).then(() => { if (connN !== c0 && my === gen) later(() => buildRide(true)); })
           .finally(() => { joining--; render(); });
       }
     } finally { busy--; }
@@ -887,7 +980,11 @@
   function render() {
     const gaps = legs.filter((l) => l.gap).length, climb = elev ? ` · ↑ ${elev.up} m · ↓ ${elev.down} m` : "";
     const car = driven().reduce((a, r) => a + lengthOf(r.pts), 0), m = total() - car;
-    const ride = (s) => (car ? `<b>Ride ${s}</b>` : `<b>${s}</b>`), drive = car ? ` · 🛻 Drive ${fmtM(car)}` : "";
+    const ride = (s) => (car ? `<b>Ride ${s}</b>` : `<b>${s}</b>`);
+    // Shuttle with nothing driven (and not because you took every shuttle out): say why.
+    const gate = legs.map((l) => l.gate).find(Boolean), wanted = mode === "tap" || picks.some((p) => !p.pedal);
+    const drive = car ? ` · 🛻 Drive ${fmtM(car)}` : how === "shuttle" && wanted && legs.length && !busy && !joining
+      ? ` · <span class="gap-note">No shuttle from your start${gate ? `: locked gate ${gate === "the road" ? "near it" : "on " + esc(gate)}` : ": no road a truck can take goes up"}, so you ride it all</span>` : "";
     document.querySelectorAll(".plan-how button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.how === how)));
     document.querySelectorAll(".plan-modes button[data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
     bar.classList.toggle("pick", mode === "pick");
