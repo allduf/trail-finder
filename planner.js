@@ -422,7 +422,7 @@
     busy++; render();
     try {
       const T = picks.map(through);
-      const box = boxOf([...T.flatMap((t) => t.pts), ...(pickStart ? [pickStart] : [])], 0.02);
+      const box = boxOf([...T.flatMap((t) => t.pts), ...(pickStart ? [pickStart] : [])], 0.05);   // room for a climb that goes around (about 5 km)
       const ht = await terrainOr(box);
       if (my !== gen) return;
       const G = graph(allWays().filter((w) => inBox(w, box)), ht);
@@ -650,8 +650,9 @@
       return pickRow(l.pick, `<b>${verb}</b> ${chip({ name: p ? p.name : "trail", color: lv.color })} ${m}`);
     }
     if (l.gap) return `<li class="ps-link"><span class="ps-n">↝</span><span><b>Cross</b> <span class="gap-note">off mapped trails</span> ${m}</span></li>`;
-    const names = mainNames(l);
-    return `<li class="ps-link"><span class="ps-n">${verb === "Climb" ? "↗" : verb === "Descend" ? "↘" : "→"}</span><span><b>${verb}</b>${names.length ? " on " + names.map(esc).join(", ") : ""} ${m}</span></li>`;
+    const names = mainNames(l), picked = new Set(picks.map((p) => p.name));
+    const onlyWay = verb === "Climb" && names.some((n) => picked.has(n)) ? ` <span class="gap-note">no other mapped way up</span>` : "";
+    return `<li class="ps-link"><span class="ps-n">${verb === "Climb" ? "↗" : verb === "Descend" ? "↘" : "→"}</span><span><b>${verb}</b>${names.length ? " on " + names.map(esc).join(", ") : ""} ${m}${onlyWay}</span></li>`;
   }
   function render() {
     const m = total(), gaps = legs.filter((l) => l.gap).length, climb = elev ? ` · ↑ ${elev.up} m · ↓ ${elev.down} m` : "";
@@ -662,7 +663,7 @@
     else if (mode === "tap") stats = stops.length < 2 ? (busy ? "Finding the way…" : stops.length ? "Tap the next point. The route takes the trails that make sense." : "Tap the map where you start.")
       : `<b>${fmtM(m)}</b>${climb}${gaps ? ` · <span class="gap-note">${gaps} stretch${gaps > 1 ? "es" : ""} off mapped trails (dashed)</span>` : ""}${busy ? " · finding the way…" : ""}`;
     else if (settingStart) stats = "Tap the map where you start.";
-    else if (!picks.length) stats = "Tap the trails you want to ride. The app puts them in a logical order and direction.";
+    else if (!picks.length) stats = "Tap the trails you want to ride. The app puts them in a logical order and direction, and you can change the order.";
     else if (busy || !legs.length) stats = `${picks.length} trail${picks.length > 1 ? "s" : ""} picked · building the ride…`;
     else stats = `<b>${fmtM(m)}</b>${climb} · ${picks.length} trail${picks.length > 1 ? "s" : ""}${gaps ? ` · <span class="gap-note">${gaps} stretch${gaps > 1 ? "es" : ""} off mapped trails</span>` : ""}`;
     $("planStats").innerHTML = stats;
@@ -674,7 +675,7 @@
       $("planTrails").innerHTML = picks.length < 2 ? "" : pickManual
         ? `Your order. <button type="button" class="ps-auto" data-act="auto">↻ Let the app choose</button>`
         : "The app chose the order. Use ▲ ▼ (or drag) to ride one first.";
-      $("planSteps").innerHTML = !picks.length ? "" : !legs.length ? picks.map((p, i) => pickRow(i, chip({ name: p.name, ...levelOf(p.ways[0]) }))).join("")
+      $("planSteps").innerHTML = !picks.length ? `<li class="ps-empty">Your trails will show here. Tap a trail on the map to add it.</li>` : !legs.length ? picks.map((p, i) => pickRow(i, chip({ name: p.name, ...levelOf(p.ways[0]) }))).join("")
         : `<li class="ps-start"><span class="ps-n">S</span><span><b>Start</b>${pickStart ? "" : " at the lowest end of your trails"}</span></li>`
           + legs.map(stepHtml).join("") + (pickBack ? `<li class="ps-start"><span class="ps-n">S</span><span><b>Back at the start</b></span></li>` : "");
     }
@@ -791,6 +792,7 @@
 .plan-steps li { display: flex; gap: 8px; align-items: baseline; margin: 3px 0; }
 .plan-steps .ps-n { flex: 0 0 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; font: 700 11px/1 system-ui, sans-serif; align-self: center; }
 .plan-steps .ps-trail { cursor: grab; }
+.plan-steps .ps-empty { color: var(--muted, #5b6660); border: 1px dashed var(--line, #d6dad3); border-radius: 10px; padding: 8px 10px; }
 .plan-steps .ps-body { flex: 1 1 auto; }
 .plan-steps .ps-ctl { display: inline-flex; gap: 2px; flex: 0 0 auto; align-self: center; }
 .plan-steps .ps-ctl button { font: 700 11px/1 system-ui, sans-serif; width: 26px; height: 24px; padding: 0; border-radius: 7px; border: 1px solid var(--line, #d6dad3); background: var(--bg, #f4f5f0); color: inherit; cursor: pointer; }
@@ -859,13 +861,21 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
     } else { map.removeLayer(layer); settingStart = false; }
     const b = $("planBtn"); if (b) b.setAttribute("aria-pressed", String(on));
   }
-  map.on("click", (e) => {
-    if (!planning) return;
-    const ll = [e.latlng.lat, e.latlng.lng];
+  function onTap(latlng) {
+    const ll = [latlng.lat, latlng.lng];
     if (mode === "tap") addStop(ll);
     else if (settingStart) { settingStart = false; pickStart = ll; changedPicks(); }
     else togglePick(ll);
-  });
+  }
+  // Taps on the map come here before any map layer sees them: search results, Near me and New trails lines open
+  // their trail details on a tap and stop it there, which swallowed taps on those trails while planning.
+  map.getContainer().addEventListener("click", (e) => {
+    if (!planning || !e.target.closest || !e.target.closest(".leaflet-map-pane")) return;   // not the zoom buttons
+    if (map.dragging && map.dragging.moved()) return;   // the end of a pan
+    e.stopPropagation();
+    onTap(map.mouseEventToLatLng(e));
+  }, true);
+  map.on("click", (e) => { if (planning && !e.originalEvent) onTap(e.latlng); });   // a click fired from code
   map.on("moveend", () => { if (planning) { nav.load(); drawArrows(); } });
   bar.querySelectorAll(".plan-modes button").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
   function movePick(i, j) {
