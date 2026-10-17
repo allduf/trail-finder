@@ -91,9 +91,13 @@
   function clip() {
     if (!on) return;
     const size = map.getSize(), x = Math.round(size.x * split);
-    const nw = map.containerPointToLayerPoint([0, 0]), se = map.containerPointToLayerPoint(size);
-    map.getPane("psOld").style.clip = `rect(${nw.y}px, ${nw.x + x}px, ${se.y}px, ${nw.x}px)`;
-    map.getPane("psNew").style.clip = `rect(${nw.y}px, ${se.x}px, ${se.y}px, ${nw.x + x}px)`;
+    // Each photo is cut to its side of the handle on screen. The cut is drawn in the photo's own (map) pixels,
+    // which are turned when the map is turned (rotate.js), so it's a polygon of the screen corners.
+    const cut = (x0, x1) => "polygon(" + [[x0, 0], [x1, 0], [x1, size.y], [x0, size.y]].map((p) => {
+      const q = map.containerPointToLayerPoint(p); return `${q.x}px ${q.y}px`;
+    }).join(", ") + ")";
+    map.getPane("psOld").style.clipPath = cut(0, x);
+    map.getPane("psNew").style.clipPath = cut(x, size.x);
     const left = map.getContainer().offsetLeft + x;
     handle.style.left = left + "px";
     handle.setAttribute("aria-valuenow", Math.round(split * 100));
@@ -101,7 +105,7 @@
     tagNew.style.right = ""; tagNew.style.left = left + 8 + "px";
     if (layerOld) { tagOld.hidden = x < 100; tagNew.hidden = size.x - x < 100; }   // no room beside the handle
   }
-  map.on("move zoom resize viewreset", clip);
+  map.on("move zoom resize viewreset rotate", clip);
 
   // ---------- which photos exist here ----------
   async function loadReleases() {

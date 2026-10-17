@@ -126,7 +126,7 @@
     if (!gl || syncing) return;
     syncing++;
     const c = map.getCenter();
-    gl.flyTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, duration: 1200 });
+    gl.flyTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d(), duration: 1200 });
     setTimeout(() => syncing--, 1300);
   }
   function to2d() {
@@ -134,9 +134,12 @@
     syncing++;
     const c = gl.getCenter();
     map.setView([c.lat, c.lng], Math.round(gl.getZoom() + 1), { animate: false });
+    if (map.setBearing) { map.setBearing(-gl.getBearing()); map.fire("rotateend"); }
     setTimeout(() => syncing--, 0);
   }
-  map.on("moveend", () => { if (on) from2d(); });
+  map.on("moveend rotateend", () => { if (on) from2d(); });
+  // The flat map turned by b degrees (rotate.js) shows the compass direction -b at the top, which is MapLibre's bearing.
+  function bearing2d() { return map.getBearing ? -map.getBearing() : 0; }
 
   // ---------- terrain heights ----------
   // Mapterhorn (free, open) has 2 m lidar heights for much of BC and 30 m everywhere else, as 512 px
@@ -280,7 +283,7 @@
     addWinterProtocol();
     const c = map.getCenter();
     gl = new maplibregl.Map({
-      container: box, antialias: true, center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 60, bearing: -15, maxPitch: 85,
+      container: box, antialias: true, center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 60, bearing: bearing2d(), maxPitch: 85,
       attributionControl: { compact: true },
       style: {
         version: 8,
@@ -424,7 +427,7 @@
     map.getContainer().parentElement.classList.toggle("is3d", on);   // hides the 2D map style menu
     if (on) {
       if (!gl) build();
-      else { box.hidden = false; gl.resize(); const c = map.getCenter(); syncing++; gl.jumpTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1 }); syncing--; }
+      else { box.hidden = false; gl.resize(); const c = map.getCenter(); syncing++; gl.jumpTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d() }); syncing--; }
       syncData();
     } else if (box) box.hidden = true;
     syncBtn();
