@@ -4,7 +4,7 @@
 //   hand  a rider who knows the trail rated it here (HAND below), for trails with no rating on OpenStreetMap
 //   est   an estimate from the slope and a few map tags (data/ratings/osm.json for the region's all-trails lists, or
 //         worked out here from the AWS terrain tiles when a trail's details open). Never shown as a real rating.
-// window.tfRatings = { rate(id, geom, tags) -> { d, src, why } | null (sync, from what's loaded), estimate(id, geom, tags) -> Promise,
+// window.tfRatings = { rate(id, geom, tags) -> { d, src, why } | null (sync, from what's loaded), hand(geom, tags) -> { mtb, off } | null, estimate(id, geom, tags) -> Promise,
 //   load(bounds) (official squares in view), onChange(fn) }. d: green, blue, black, dbl.
 (function () {
   const DIR = "data/ratings/";
@@ -157,26 +157,33 @@
 
   // ---------- rated by hand ----------
   // Trails a local rider rated (alex), matched by name within r metres of c. Remove one once OpenStreetMap has a rating.
-  // off: the rider says it's an official trail (shown as Official and as an MTB trail).
+  // Every trail listed is an MTB trail (the rider says so). d: their level (leave out to keep the estimate);
+  // off: they say it's an official trail (shown as Official).
   const HAND = [
     { name: "Alpine Capone", c: [49.845, -123.092], r: 3000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish" },
     { name: "Just a Cough", c: [49.823, -123.118], r: 2000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish, like Flying Whales" },
     { name: "Trial and Error", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Trial and Error (lower)", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
+    { name: "Pretty Slabs", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
+    { name: "Stepping Stones", c: [49.636, -123.177], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail below Pretty Slabs, Britannia" },
   ];
-  function hand(geom, tags) {
+  function handOf(geom, tags) {
     const name = ((tags && (tags.name || tags["tf:name"])) || "").toLowerCase(), mid = geom && geom[geom.length >> 1];
     if (!name || !mid) return null;
     const h = HAND.find((h) => h.name.toLowerCase() === name
       && Math.hypot((mid[0] - h.c[0]) * 110540, (mid[1] - h.c[1]) * 111320 * Math.cos((h.c[0] * Math.PI) / 180)) <= h.r);
-    return h ? { d: h.d, src: "hand", why: `Rated ${LEVEL[h.d]} by ${h.who}, who rides it: ${h.note}. It has no rating on OpenStreetMap yet.`,
-      off: h.off ? `${h.who}, who rides it, says it's an official trail` : null } : null;
+    return h || null;
+  }
+  // { mtb, off }: why the trail counts as an MTB trail, and as official (null when not), or null when it isn't listed.
+  function hand(geom, tags) {
+    const h = handOf(geom, tags);
+    return h ? { mtb: `${h.who}, who rides it, says it's a mountain bike trail`, off: h.off ? `${h.who}, who rides it, says it's an official trail` : null } : null;
   }
 
   // Best rating known now: a rider's own rating, official open data, then the same trail, then an estimate.
   function rate(id, geom, tags) {
-    const m = hand(geom, tags);
-    if (m) return m;
+    const h = handOf(geom, tags);
+    if (h && h.d) return { d: h.d, src: "hand", why: `Rated ${LEVEL[h.d]} by ${h.who}, who rides it: ${h.note}. It has no rating on OpenStreetMap yet.` };
     const o = official(geom, tags && (tags.name || tags["tf:name"]));
     if (o) return o;
     const w = osm && id && osm[id];
@@ -186,5 +193,5 @@
     return null;
   }
 
-  window.tfRatings = { rate, estimate, load, onChange: (fn) => listeners.push(fn) };
+  window.tfRatings = { rate, hand, estimate, load, onChange: (fn) => listeners.push(fn) };
 })();
