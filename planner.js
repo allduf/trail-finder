@@ -502,15 +502,16 @@
         if (Math.abs(ow) > len * 0.3) ok[ow > 0 ? 1 : 0] = false;            // follows its one-way tags
         else if (kind === "climb" && Math.abs(dh) >= 15) ok[dh > 0 ? 1 : 0] = false;   // climbing trails go up
         else if (kind !== "road" && kind !== "climb" && Math.abs(dh) >= 40) ok[dh < 0 ? 1 : 0] = false;   // the rest go down
-        const run = (o) => {
-          const pts = o ? [...t.pts].reverse() : t.pts, segs = o ? [...t.segs].reverse() : t.segs;
-          return segs.reduce((s, [w], i) => {
+        const run = (o) => {   // effort along the trail ridden that way, point by point
+          const pts = o ? [...t.pts].reverse() : t.pts, segs = o ? [...t.segs].reverse() : t.segs, cum = [0];
+          segs.forEach(([w], i) => {
             const h1 = ht(pts[i]), h2 = ht(pts[i + 1]);
-            return s + edgeCost(metres(pts[i], pts[i + 1]), h1 != null && h2 != null ? h2 - h1 : 0, w ? kindOf(w) : "link");
-          }, 0);
+            cum.push(cum[i] + edgeCost(metres(pts[i], pts[i + 1]), h1 != null && h2 != null ? h2 - h1 : 0, w ? kindOf(w) : "link"));
+          });
+          return { pts, segs, cum };
         };
-        T[j].dh = dh; T[j].kind = kind;
-        return [ok[0] ? run(0) : Infinity, ok[1] ? run(1) : Infinity];
+        T[j].dh = dh; T[j].kind = kind; T[j].run = [run(0), run(1)];
+        return [0, 1].map((o) => (ok[o] ? T[j].run[o].cum[T[j].run[o].cum.length - 1] : Infinity));
       });
       const entry = (j, o) => (o ? T[j].b : T[j].a), exit = (j, o) => (o ? T[j].a : T[j].b);
       // The start: a spot you set, else the lowest end you can start a trail from (park at the bottom, ride up).
@@ -536,9 +537,30 @@
         const d = from(k1).dist.get(k2);
         return d != null ? d : metres(posOf(k1), posOf(k2)) * 6 + 500;   // no way along lines: a straight dash, costly
       };
+      // Branching off (alex): where the next trail starts partway along this one, leave it there instead of riding
+      // to its end and coming back. cut(j, o, k, o2): { i (point on trail j), key, cost of trail j up to there } or null.
+      const cuts = new Map();
+      const cut = (j, o, k, o2) => {
+        const id = [j, o, k, o2].join();
+        if (!cuts.has(id)) {
+          const r = T[j].run[o], to = posOf(entry(k, o2));
+          let best = null;
+          for (let i = 1; i < r.pts.length - 1; i++) {
+            const d = metres(r.pts[i], to), kk = key(r.pts[i]);
+            if (d < 40 && G.adj.has(kk) && (!best || d < best.d)) best = { i, d, key: kk, cost: r.cum[i] };
+          }
+          cuts.set(id, best && lengthOf(r.pts.slice(best.i)) > 100 ? best : null);   // not for the last few metres
+        }
+        return cuts.get(id);
+      };
+      // Effort from the start of trail j to the start of trail k: all of j and the link, or j up to where k branches off.
+      const step = (j, o, k, o2) => {
+        const full = tc[j][o] + C(exit(j, o), entry(k, o2)), c = tc[j][o] < Infinity && cut(j, o, k, o2);
+        return c ? Math.min(full, c.cost + C(c.key, entry(k, o2))) : full;
+      };
       const N = T.length;
       let order;
-      if (pickManual) order = fixedOrder(N, tc, C, S, entry, exit);   // your order: only the directions are chosen
+      if (pickManual) order = fixedOrder(N, tc, C, S, entry, exit, step);   // your order: only the directions are chosen
       else {
       const full = (1 << N) - 1, idx = (m, j, o) => (m * N + j) * 2 + o;
       const dp = new Float64Array((full + 1) * N * 2).fill(Infinity), par = new Int32Array((full + 1) * N * 2).fill(-1);
@@ -550,7 +572,7 @@
           if (m & (1 << k)) continue;
           for (let o2 = 0; o2 < 2; o2++) {
             if (tc[k][o2] === Infinity) continue;
-            const nv = v + C(exit(j, o), entry(k, o2)) + tc[k][o2], at = idx(m | (1 << k), k, o2);
+            const nv = v - tc[j][o] + step(j, o, k, o2) + tc[k][o2], at = idx(m | (1 << k), k, o2);
             if (nv < dp[at]) { dp[at] = nv; par[at] = j * 2 + o; }
           }
         }
@@ -573,19 +595,26 @@
         else out.push({ pts: [posOf(k1), posOf(k2)], ways: [], gap: true, pick: -1 });
       };
       let at = S;
-      order.forEach((x) => {
-        const j = x >> 1, o = x & 1, t = T[j];
+      order.forEach((x, n) => {
+        const j = x >> 1, o = x & 1, r = T[j].run[o], nx = order[n + 1];
         link(at, entry(j, o));
-        const pts = o ? [...t.pts].reverse() : t.pts, ways = [];
-        (o ? [...t.segs].reverse() : t.segs).forEach(([w]) => { if (w && ways[ways.length - 1] !== w) ways.push(w); });
-        out.push({ pts: clean(pts), ways, gap: false, pick: j });
+        let pts = r.pts, segs = r.segs, to = -1;
         at = exit(j, o);
+        if (nx != null) {   // the next trail branches off this one: leave it there
+          const k = nx >> 1, o2 = nx & 1, c = cut(j, o, k, o2);
+          if (c && c.cost + C(c.key, entry(k, o2)) < tc[j][o] + C(exit(j, o), entry(k, o2))) {
+            pts = pts.slice(0, c.i + 1); segs = segs.slice(0, c.i); at = c.key; to = k;
+          }
+        }
+        const ways = [];
+        segs.forEach(([w]) => { if (w && ways[ways.length - 1] !== w) ways.push(w); });
+        out.push({ pts: clean(pts), ways, gap: false, pick: j, to });
       });
       if (pickBack) link(at, S);
       if (!pickManual) {   // the list shows the trails in the order chosen
         const posOfPick = new Map(order.map((x, i) => [x >> 1, i]));
         picks = order.map((x) => picks[x >> 1]);
-        out.forEach((l) => { if (l.pick >= 0) l.pick = posOfPick.get(l.pick); });
+        out.forEach((l) => { if (l.pick >= 0) l.pick = posOfPick.get(l.pick); if (l.to >= 0) l.to = posOfPick.get(l.to); });
         savePicks();
       }
       out.forEach((l) => Object.assign(l, climbOf(l.pts, ht) || {}));
@@ -610,7 +639,7 @@
     map.fitBounds(b, { paddingTopLeft: [30, 60], paddingBottomRight: [30, bar.offsetHeight + 24], maxZoom: 16 });
   }
   // The trails in the order of the list: the best direction for each, start to finish (and back).
-  function fixedOrder(N, tc, C, S, entry, exit) {
+  function fixedOrder(N, tc, C, S, entry, exit, step) {
     const best = [], from = [];
     for (let j = 0; j < N; j++) {
       best.push([Infinity, Infinity]); from.push([-1, -1]);
@@ -618,7 +647,7 @@
         if (tc[j][o] === Infinity) continue;
         if (!j) { best[0][o] = C(S, entry(0, o)) + tc[0][o]; continue; }
         for (let p = 0; p < 2; p++) {
-          const v = best[j - 1][p] + C(exit(j - 1, p), entry(j, o)) + tc[j][o];
+          const v = best[j - 1][p] - tc[j - 1][p] + step(j - 1, p, j, o) + tc[j][o];
           if (v < best[j][o]) { best[j][o] = v; from[j][o] = p; }
         }
       }
@@ -718,8 +747,10 @@
     const m = `<span class="m">${fmtM(len)}${up >= 10 ? ` ↑ ${up} m` : ""}${down >= 10 ? ` ↓ ${down} m` : ""}</span>`;
     if (l.pick >= 0) {
       const p = picks[l.pick], lv = p && p.ways[0] ? levelOf(p.ways[0]) : { color: "#8a8f98" };
-      return pickRow(l.pick, `<b>${verb}</b> ${chip({ name: p ? p.name : "trail", color: lv.color })} ${m}`);
+      const to = l.to >= 0 && picks[l.to] ? ` <span class="ps-to">to where ${esc(picks[l.to].name)} starts</span>` : "";
+      return pickRow(l.pick, `<b>${verb}</b> ${chip({ name: p ? p.name : "trail", color: lv.color })}${to} ${m}`);
     }
+    if (!l.gap && len < 25) return "";   // a few metres between two trails
     if (l.gap) return `<li class="ps-link"><span class="ps-n">↝</span><span><b>Cross</b> <span class="gap-note">off mapped trails</span> ${m}</span></li>`;
     const names = mainNames(l), picked = new Set(picks.map((p) => p.name));
     const onlyWay = verb === "Climb" && names.some((n) => picked.has(n)) ? ` <span class="gap-note">no other mapped way up</span>` : "";
@@ -830,9 +861,12 @@
       if (mode === "pick") changedPicks();
     } else setTimeout(() => { if (planning) resolvePicks(); }, 1500);
   }
-  function gpx() {
+  // The route as a GPX track, with each point's height (from the same terrain tiles; left out where there are none).
+  async function gpx() {
     const pts = allPts(), now = new Date().toISOString(), name = mode === "pick" ? "Trail Finder ride" : "Trail Finder route";
-    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${name}</name><time>${now}</time></metadata>\n<trk><name>${name}</name><trkseg>\n${pts.map((q) => `<trkpt lat="${q[0].toFixed(6)}" lon="${q[1].toFixed(6)}"/>`).join("\n")}\n</trkseg></trk>\n</gpx>\n`;
+    const ht = await terrainOr(boxOf(pts, 0.005));
+    const pt = (q) => { const h = ht(q); return `<trkpt lat="${q[0].toFixed(6)}" lon="${q[1].toFixed(6)}">${h != null ? `<ele>${h.toFixed(1)}</ele>` : ""}</trkpt>`; };
+    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${name}</name><time>${now}</time></metadata>\n<trk><name>${name}</name><trkseg>\n${pts.map(pt).join("\n")}\n</trkseg></trk>\n</gpx>\n`;
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([body], { type: "application/gpx+xml" }));
     a.download = `trail-finder-route-${now.slice(0, 10)}.gpx`;
@@ -874,6 +908,7 @@
 .plan-steps .ps-link { color: var(--muted, #5b6660); }
 .plan-steps .ps-link .ps-n { color: #7b2ff7; font-size: 15px; }
 .plan-steps .pt { font-weight: 700; }
+.plan-steps .ps-to { font-size: .88rem; }
 .plan-steps .m { color: var(--muted, #5b6660); white-space: nowrap; }
 .plan-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .plan-btns button { flex: 1 1 auto; font: inherit; font-size: .92rem; font-weight: 700; padding: 9px 10px; border-radius: 11px; border: 1px solid var(--line, #d6dad3); background: var(--bg, #f4f5f0); color: inherit; cursor: pointer; }
