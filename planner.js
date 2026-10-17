@@ -30,6 +30,8 @@
   const SNAP_M = 80;              // a tap this close to a trail starts or ends on it
   const PAD_DEG = 0.03;           // route inside the two points' box plus about 3 km
   const BRIDGE_M = 20;            // a trail end this close to another line, with no shared point, joins it
+  const FAR_M = 50;               // a dead-end trail end with nothing that close joins the nearest line this close,
+                                  // as a costlier unmapped link (OpenStreetMap stops short; 267 trail ends, audit #204)
   const MAX_PICKS = 12;
 
   // ---------- terrain heights ----------
@@ -287,7 +289,7 @@
   // Effort of a stretch: [per metre, per metre climbed, per metre dropped]. Climbing costs about like riding 7 to 14 m
   // on the flat, and much more up a downhill trail (pushing, and riders coming down); descending a road or a climbing
   // trail costs a little (the fun is on the trails); downhill trails ride a bit cheaper.
-  const COST = { street: [1.3, 9, 1.5], path: [1.4, 12, 1], steps: [4, 30, 4], road: [1.15, 7, 1.5], climb: [1, 7, 3], down: [0.85, 60, 0], trail: [1, 14, 0], link: [1.5, 12, 1] };
+  const COST = { street: [1.3, 9, 1.5], path: [1.4, 12, 1], steps: [4, 30, 4], road: [1.15, 7, 1.5], climb: [1, 7, 3], down: [0.85, 60, 0], trail: [1, 14, 0], link: [1.5, 12, 1], unmapped: [4, 20, 2] };
   const edgeCost = (d, dh, kind) => { const c = COST[kind]; return d * c[0] + (dh > 0 ? dh * c[1] : -dh * c[2]); };
 
   // ---------- shuttle: drive up, ride down ----------
@@ -434,13 +436,14 @@
       }
     });
     const splits = new Map();   // way -> Map(segment -> [[t, key]])
-    const bridgeEnd = opts.bridge || BRIDGE_M;
+    const bridgeEnd = opts.bridge || BRIDGE_M, far = new Set();
     ways.forEach((w) => w.geom.forEach((p, vi) => {
       const k = key(p);
       if (owner.get(k) === null) return;
       const end = vi === 0 || vi === w.geom.length - 1;
       if (!end && w.road) return;   // roads join at trails' points, and at their own ends
-      const max = end ? bridgeEnd : NEAR_M, kx = Math.cos(p[0] * RAD) * R * RAD, ky = R * RAD, [cy, cx] = cellOf(p);
+      const reach = end && !w.road && !w.conn && bridgeEnd < FAR_M;   // a trail's own end may reach further
+      const max = end ? (reach ? FAR_M : bridgeEnd) : NEAR_M, kx = Math.cos(p[0] * RAD) * R * RAD, ky = R * RAD, [cy, cx] = cellOf(p);
       let best = null;
       for (let y = cy - 1; y <= cy + 1; y++) for (let x = cx - 1; x <= cx + 1; x++) (grid.get(y + ":" + x) || []).forEach(([w2, i]) => {
         if (w2 === w) return;
@@ -463,7 +466,11 @@
         if (!m.has(best.i)) m.set(best.i, []);
         m.get(best.i).push([best.t, k2]);
       }
-      if (k2 !== k) { const d = Math.max(1, best.d); add(k, k2, d, null, 0); add(k2, k, d, null, 0); }
+      if (k2 !== k) {
+        const d = Math.max(1, best.d);
+        add(k, k2, d, null, 0); add(k2, k, d, null, 0);
+        if (end && best.d >= bridgeEnd) { far.add(k + "|" + k2); far.add(k2 + "|" + k); }
+      }
     }));
     ways.forEach((w) => {
       const g = w.geom, one = opts.anyWay ? 0 : wayOf(w), sp = splits.get(w);
@@ -479,13 +486,13 @@
       }
     });
     pos.forEach((p, k) => h.set(k, ht(p)));
-    return { adj, pos, h, ht };
+    return { adj, pos, h, ht, far };
   }
   function cost(G, k1, k2, d, w, car = how === "shuttle") {
     if (car && drives(G, k1, k2, w, d)) return d * (w ? driveRate(w) : DRIVE.street);
     const h1 = G.h.get(k1), h2 = G.h.get(k2), dh = h1 != null && h2 != null ? h2 - h1 : 0;
     // Up a one-way trail (the only way the graph lets you ride it) is a climbing trail, like Stl'lhalem Sintl'.
-    return edgeCost(d, dh, w ? (dh > 0 && kindOf(w) !== "road" && onewayOf(w) ? "climb" : kindOf(w)) : "link");
+    return edgeCost(d, dh, w ? (dh > 0 && kindOf(w) !== "road" && onewayOf(w) ? "climb" : kindOf(w)) : G.far && G.far.has(k1 + "|" + k2) ? "unmapped" : "link");
   }
   // A tapped spot joined into the segment it snapped to, as node `name`.
   function addPoint(G, name, sn) {
