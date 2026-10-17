@@ -133,12 +133,20 @@
         .filter((x) => x.geom.length > 1);
     } catch { return null; }
   }
-  // Loads the squares a box covers (up to 6). True when new lines came in.
-  async function loadConnectors(box) {
-    const sqs = [];
-    for (let i = Math.floor(box[0] / 0.02); i <= Math.floor(box[2] / 0.02); i++)
-      for (let j = Math.floor(box[1] / 0.02); j <= Math.floor(box[3] / 0.02); j++) if (!connectors.has(i + ":" + j)) sqs.push(i + ":" + j);
-    if (!sqs.length || sqs.length > 6) return false;
+  // Loads the squares around stretches with no mapped way (their ends first, then along them; up to 12).
+  // True when new lines came in.
+  async function loadConnectors(lines) {
+    const sqs = [], add = (p) => {
+      const b = boxOf([p], 0.006);
+      for (let i = Math.floor(b[0] / 0.02); i <= Math.floor(b[2] / 0.02); i++)
+        for (let j = Math.floor(b[1] / 0.02); j <= Math.floor(b[3] / 0.02); j++) { const sq = i + ":" + j; if (!connectors.has(sq) && !sqs.includes(sq)) sqs.push(sq); }
+    };
+    lines.forEach((l) => { add(l[0]); add(l[l.length - 1]); });
+    lines.forEach((l) => l.forEach((p, i) => { if (!i) return;
+      const q = l[i - 1], n = Math.floor(Math.max(Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1])) / 0.01);
+      for (let k = 1; k <= n; k++) add([q[0] + ((p[0] - q[0]) * k) / (n + 1), q[1] + ((p[1] - q[1]) * k) / (n + 1)]); }));
+    if (!sqs.length) return false;
+    sqs.splice(12);
     const got = await Promise.all(sqs.map(connectorSquare));
     let added = false;
     sqs.forEach((sq, k) => { if (got[k]) { connectors.set(sq, got[k]); added = added || got[k].length > 0; } });
@@ -382,7 +390,7 @@
   // it is tried again, so the straight dash is left only where nothing at all is mapped.
   async function legFor(a, b) {
     const l = await legOn(a, b);
-    if (!l.gap || !(await loadConnectors(boxOf([a.tap || a.ll, b.tap || b.ll], 0.006)))) return l;
+    if (!l.gap || !(await loadConnectors([[a.tap || a.ll, b.tap || b.ll]]))) return l;
     [a, b].forEach((s) => { if (!s.snap && s.tap) { const sn = snap(s.tap); if (sn) Object.assign(s, { ll: sn.q, snap: sn }); } });
     return legOn(a, b);
   }
@@ -582,7 +590,7 @@
       }
       out.forEach((l) => Object.assign(l, climbOf(l.pts, ht) || {}));
       const gaps = out.filter((l) => l.gap);
-      if (gaps.length && !retried && (await loadConnectors(boxOf(gaps.flatMap((l) => l.pts), 0.006)))) {
+      if (gaps.length && !retried && (await loadConnectors(gaps.map((l) => l.pts)))) {
         if (my === gen) later(() => buildRide(true));   // again, with the streets and paths there
         return;
       }
