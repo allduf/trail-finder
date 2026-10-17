@@ -20,6 +20,28 @@
   // No Trailforks: its terms don't allow copying.
   const HAND = [
     { name: "Into The Mystic", c: [50.111, -123.045], r: 4000, dir: "climb", who: "alex, who rides it", note: "a climbing trail (Whistler)" },
+    { name: "Yummy Numby", c: [50.127, -122.926], r: 3000, dir: "climb", who: "Vital MTB's Whistler guide", where: "vitalmtb.com", note: "a singletrack climb (Whistler)" },
+    { name: "Highline", c: [50.07, -123.028], r: 3000, dir: "climb", who: "MTB Project", where: "mtbproject.com", note: "the warm-up climb to the Cheakamus descents (Whistler)" },
+    { name: "50 Shades of Green", c: [49.776, -123.118], r: 3000, dir: "climb", who: "Tourism Squamish's Alice Lake and Highlands map", where: "exploresquamish.com", note: "a well built climb into the Alice Lake and Mashiter trails (Squamish)" },
+    { name: "Of Mice and Men", c: [49.77, -123.111], r: 3000, dir: "climb", who: "Singletracks", where: "singletracks.com", note: "an intermediate climbing trail in the Alice Lake network (Squamish)" },
+    { name: "Upstream", c: [49.79, -123.099], r: 3000, dir: "climb", who: "Outmap", where: "outmap.pro", note: "built to be ridden uphill (Squamish)" },
+    { name: "Cardiac Bypass", c: [49.328, -122.986], r: 3000, dir: "climb", who: "the NSMBA", where: "nsmba.ca", note: "part of the singletrack climb up Mount Seymour" },
+    { name: "Academy Climb", c: [49.329, -122.987], r: 3000, dir: "climb", who: "the NSMBA", where: "nsmba.ca", note: "part of the singletrack climb up Mount Seymour" },
+    { name: "Rapid Transit", c: [49.329, -122.986], r: 3000, dir: "climb", who: "the NSMBA", where: "nsmba.ca", note: "part of the singletrack climb up Mount Seymour" },
+    { name: "C-Buster", c: [49.333, -122.986], r: 3000, dir: "climb", who: "the NSMBA", where: "nsmba.ca", note: "part of the singletrack climb up Mount Seymour" },
+    { name: "Penny Lane", c: [49.333, -122.984], r: 3000, dir: "climb", who: "the NSMBA", where: "nsmba.ca", note: "part of the singletrack climb up Mount Seymour" },
+    { name: "R&R Climb", c: [49.332, -122.987], r: 3000, dir: "climb", who: "the NSMBA", where: "nsmba.ca", note: "part of the singletrack climb up Mount Seymour" },
+    { name: "NIMBY", c: [50.341, -122.782], r: 3000, dir: "climb", who: "Singletracks and Tourism Pemberton", where: "singletracks.com", note: "the first leg of the Mackenzie climb (Pemberton)" },
+    { name: "Middle Earth", c: [50.355, -122.792], r: 3000, dir: "climb", who: "Singletracks", where: "singletracks.com", note: "the last leg of the Mackenzie climb (Pemberton)" },
+    { name: "Ket-R-Done", c: [50.729, -120.161], r: 3000, dir: "climb", who: "Tourism Kamloops", where: "tourismkamloops.com", note: "Harper Mountain's dedicated uphill route (Kamloops)" },
+    { name: "Holy Pail Up", c: [49.863, -119.657], r: 3000, dir: "climb", who: "Visit Westside's riders' guide", where: "visitwestside.com", note: "the cross-country climb at Smith Creek (West Kelowna)" },
+    { name: "Stone Free", c: [50.19, -119.245], r: 3000, dir: "climb", who: "Tourism Vernon", where: "tourismvernon.com", note: "the climb before the Flovid flow trail (Vernon)" },
+    { name: "Yellow Brick Road", c: [49.572, -119.559], r: 3000, dir: "climb", who: "Visit Penticton", where: "visitpenticton.com", note: "the main climb at Three Blind Mice (Penticton)" },
+    { name: "Buff Enuff", c: [50.966, -118.236], r: 3000, dir: "climb", who: "Singletracks", where: "singletracks.com", note: "a climb in the Mount Macpherson trails (Revelstoke)" },
+    { name: "Schacher", c: [51.275, -116.895], r: 3000, dir: "climb", who: "Pinkbike", where: "pinkbike.com", note: "the climbing trail from Golden to the Mount 7 launch" },
+    { name: "Swine Flu", c: [49.535, -115.069], r: 3000, dir: "climb", who: "the Fernie trail map", where: "wiki.ubc.ca", note: "a technical ascent up Mount Proctor (Fernie)" },
+    { name: "Dairy Run", c: [49.526, -115.054], r: 3000, dir: "climb", who: "the Fernie trail map", where: "wiki.ubc.ca", note: "the climb to the base of Swine Flu (Fernie)" },
+    { name: "Bottoms Up", c: [49.485, -117.359], r: 3000, dir: "climb", who: "Singletracks", where: "singletracks.com", note: "the easy way to climb Morning Mountain (Nelson)" },
   ];
   const WHY = {
     none: "No map tag, local trail data or rider report says which way it's ridden, so it's shown as both ways.",
@@ -52,7 +74,7 @@
   function rules(t, geom) {
     if (!t) return null;
     const h = handOf(t, geom);
-    if (h) return { dir: h.dir, along: 0, src: "hand", why: `${h.note[0].toUpperCase()}${h.note.slice(1)}, says ${h.who}${h.where ? ` (${h.where})` : ""}.` };
+    if (h) return { dir: h.dir, along: onewayTag(t) || 0, src: "hand", why: `${h.note[0].toUpperCase()}${h.note.slice(1)}, says ${h.who}${h.where ? ` (${h.where})` : ""}.` };
     const one = onewayTag(t), inc = inclineOf(t), type = `${t["mtb:type"] || ""} ${t.mtb || ""}`.toLowerCase(), name = nameOf(t);
     if (/uphill|climb/.test(type)) return { dir: "climb", along: 0, src: "osm", why: "Tagged as a climbing trail on OpenStreetMap (mtb:type)." };
     if (one && inc) return { dir: one === inc ? "climb" : "down", along: one, src: "osm", why: `Tagged one-way and ${one === inc ? "uphill" : "downhill"} on OpenStreetMap.` };
@@ -62,7 +84,7 @@
     if (one) return { dir: "oneway", along: one, src: "osm", why: "Tagged one-way for bikes on OpenStreetMap." };
     if (up && !dn) return { dir: "climb", along: 0, src: "name", why: "Its name says it's a climb." };
     if (dn && !up) return { dir: "down", along: 0, src: "name", why: "Its name says it's a descent." };
-    if (+t["mtb:scale:uphill"] >= 5) return { dir: "down", along: 0, src: "osm", why: "OpenStreetMap rates it too steep or rough to ride up (mtb:scale:uphill 5), so it's ridden down." };
+    if (+t["mtb:scale:uphill"] >= 5) return { dir: "down", along: 0, src: "osm", weak: true, why: "OpenStreetMap rates it too steep or rough to ride up (mtb:scale:uphill 5), so it's ridden down." };
     if (one === 0) return { dir: "both", along: 0, src: "osm", why: "Tagged two-way on OpenStreetMap." };
     return null;
   }
@@ -71,8 +93,8 @@
   const SRC_WHY = {
     same: (n) => `Another piece of the same trail${n ? ` (${n})` : ""}, joined to this one, is marked that way.`,
     osm: (n) => `Tagged one-way for bikes on OpenStreetMap${n ? `, and it goes ${n}` : ""}.`,
-    wh: (n) => `Whistler's trail data says so${n ? ` (${n})` : ""}.`,
-    csrd: (n) => `Columbia Shuswap Regional District's trail data says so${n ? ` (${n})` : ""}.`,
+    wh: (n) => `The Resort Municipality of Whistler's trail data says ${n ? `“${n}”` : "so"}.`,
+    csrd: (n) => `The Columbia Shuswap Regional District's trail data says ${n ? `“${n}”` : "so"}.`,
   };
   let data = null;
   const listeners = [];

@@ -84,12 +84,75 @@ async function rise(geom) {
 }
 
 // ---------- local open data with a direction ----------
-// Whistler's Multi-Use Trails and Columbia Shuswap's Trails layers (the ones build-official.mjs and build-ratings.mjs use).
-// PROBE=1 lists their fields; a layer is used once a direction field is found and added here.
+// Whistler's Multi-Use Trails layer, DIRECTION: Ascent, Descent, One-way, Two-way (and "Difficult", a slip, skipped).
+// Columbia Shuswap's Trails layer, Direction: Up Only, Down Only, Both (bike trails only: Cycling not "No").
+// A way takes a line's direction when 60% or more of its points lie within 30 m of that line.
+// PROBE=1 lists the fields of these layers, to spot new ones.
 const LOCAL = {
   wh: "https://webmap.whistler.ca/server/rest/services/OpenData/opParksRecreation/MapServer/13",
   csrd: "https://services5.arcgis.com/wjH30HL7rqC55zVw/arcgis/rest/services",
 };
+const LOCAL_DIR = { Ascent: "climb", Descent: "down", "One-way": "oneway", "Two-way": "both", "Up Only": "climb", "Down Only": "down", Both: "both" };
+async function arcgis(layer, fields) {
+  const out = [];
+  for (let offset = 0; ; ) {
+    const j = await get(`${layer}/query?where=1%3D1&outFields=${fields}&outSR=4326&returnGeometry=true&f=json&resultOffset=${offset}&resultRecordCount=1000&orderByFields=OBJECTID`);
+    if (j.error) throw new Error(`${layer}: ${JSON.stringify(j.error).slice(0, 200)}`);
+    const fs = j.features || [];
+    fs.forEach((f) => f.geometry && f.geometry.paths && out.push({ a: f.attributes, paths: f.geometry.paths }));
+    offset += fs.length;
+    if (!fs.length || (!j.exceededTransferLimit && fs.length < 1000)) break;
+  }
+  return out;
+}
+// Lines with a direction: { src, dir, value, name, g: [[lat, lon], ...] }, in a grid of 0.005 degree cells.
+const CELL = 0.005, cells = new Map(), failed = new Set();
+async function loadLocal() {
+  const lines = [];
+  const take = (src, value, name, paths) => {
+    const dir = LOCAL_DIR[(value || "").trim()];
+    if (dir) paths.forEach((p) => p.length > 1 && lines.push({ src, dir, value: value.trim(), name: (name || "").trim(), g: p.map(([lo, la]) => [la, lo]) }));
+  };
+  try {
+    for (const { a, paths } of await arcgis(LOCAL.wh, "OBJECTID,ASSETNAME,DIRECTION")) take("wh", a.DIRECTION, a.ASSETNAME, paths);
+  } catch (e) { console.log(`wh: ${e.message}`); failed.add("wh"); }
+  try {
+    for (const { a, paths } of await arcgis(`${LOCAL.csrd}/Trails/FeatureServer/0`, "OBJECTID,Trail_Name,Trail_Type,Cycling,Direction,Status_Operational")) {
+      if (/^(Snowmobile|Road)$/.test(a.Trail_Type || "") || a.Cycling === "No" || a.Status_Operational === "Closed") continue;
+      take("csrd", a.Direction, a.Trail_Name, paths);
+    }
+  } catch (e) { console.log(`csrd: ${e.message}`); failed.add("csrd"); }
+  for (const l of lines) {
+    for (let k = 0; k + 1 < l.g.length; k++) {
+      const [a, b] = [l.g[k], l.g[k + 1]];
+      for (let x = Math.floor((Math.min(a[0], b[0]) - 0.0003) / CELL); x <= Math.floor((Math.max(a[0], b[0]) + 0.0003) / CELL); x++)
+        for (let y = Math.floor((Math.min(a[1], b[1]) - 0.0005) / CELL); y <= Math.floor((Math.max(a[1], b[1]) + 0.0005) / CELL); y++) {
+          const c = x + "," + y; if (!cells.has(c)) cells.set(c, []); cells.get(c).push([l, k]);
+        }
+    }
+  }
+  const n = {}; lines.forEach((l) => (n[`${l.src} ${l.value}`] = (n[`${l.src} ${l.value}`] || 0) + 1));
+  console.log(`local lines with a direction: ${JSON.stringify(n)}`);
+}
+function segDist(p, a, b) {
+  const k = Math.cos((p[0] * Math.PI) / 180) * 111320, K = 110540;
+  const ax = (a[1] - p[1]) * k, ay = (a[0] - p[0]) * K, bx = (b[1] - p[1]) * k, by = (b[0] - p[0]) * K;
+  const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy, t = L2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L2)) : 0;
+  return Math.hypot(ax + t * dx, ay + t * dy);
+}
+// The local line most of the way runs along, or null.
+function localOf(geom) {
+  const hits = new Map();
+  for (const p of geom) {
+    const near = new Set();
+    for (const [l, k] of cells.get(Math.floor(p[0] / CELL) + "," + Math.floor(p[1] / CELL)) || [])
+      if (!near.has(l) && segDist(p, l.g[k], l.g[k + 1]) <= 30) near.add(l);
+    near.forEach((l) => hits.set(l, (hits.get(l) || 0) + 1));
+  }
+  let best = null, most = 0;
+  hits.forEach((v, l) => { if (v > most) { most = v; best = l; } });
+  return best && most >= 0.6 * geom.length ? best : null;
+}
 async function probe() {
   const layers = [LOCAL.wh];
   try {
@@ -110,6 +173,10 @@ async function probe() {
 }
 
 // ---------- build ----------
+await loadLocal();
+// A source that couldn't be reached tonight keeps its directions from the last build.
+let old = {};
+try { old = JSON.parse(readFileSync("data/directions.json", "utf8")).ways || {}; } catch {}
 const files = readdirSync("data").filter((f) => /^mtb-\w+\.json$/.test(f)).sort();
 const out = {}, count = {};
 const add = (k) => (count[k] = (count[k] || 0) + 1);
@@ -120,7 +187,16 @@ for (const f of files) {
     for (let i = 0; i < w.g.length; i += 2) geom.push([w.g[i], w.g[i + 1]]);
     return { id, tags: w.tags || {}, geom, ends: [geom[0], geom[geom.length - 1]], r: null };
   });
-  for (const w of ways) w.r = rules(w.tags, w.geom);
+  for (const w of ways) {
+    w.r = rules(w.tags, w.geom);
+    const o = old[w.id];
+    if (o && failed.has(o[2]) && (!w.r || w.r.weak)) { w.r = { dir: o[0], along: o[1], src: o[2], note: o[3] }; continue; }
+    // Local open data, where the tags and name say nothing (or only that it's too hard to ride up).
+    if (cells.size && (!w.r || w.r.weak)) {
+      const l = localOf(w.geom);
+      if (l) w.r = { dir: l.dir, along: 0, src: l.src, note: l.value };
+    }
+  }
   // Same named trail: spread climbs and descents to the joined pieces with no direction, piece by piece.
   const byName = new Map();
   for (const w of ways) { const n = fold(w.tags.name); if (n) { if (!byName.has(n)) byName.set(n, []); byName.get(n).push(w); } }
@@ -138,12 +214,14 @@ for (const f of files) {
   let n = 0;
   for (const w of ways) {
     const r = w.r;
-    if (!r || r.dir === "both") continue;
+    if (!r || (r.dir === "both" && !/^(wh|csrd)$/.test(r.src))) continue;
     let note = r.note || "";
     try {
       const { dh, len } = await rise(w.geom);
       const s = Math.sign(dh), steep = Math.abs(dh) >= 25 && Math.abs(dh) / len >= 0.03;
-      if (r.dir === "oneway" && steep) { r.dir = dh * r.along > 0 ? "climb" : "down"; note = `${r.dir === "climb" ? "up" : "down"} ${Math.round(Math.abs(dh))} m`; add("oneway+slope"); }
+      // A one-way trail in the local data with no way along it: one that drops steadily is ridden down.
+      if (r.dir === "oneway" && !r.along && steep) { r.dir = "down"; r.along = -s; add("local oneway+slope"); }
+      else if (r.dir === "oneway" && steep) { r.dir = dh * r.along > 0 ? "climb" : "down"; note = `${r.dir === "climb" ? "up" : "down"} ${Math.round(Math.abs(dh))} m`; add("oneway+slope"); }
       else if ((r.dir === "climb" || r.dir === "down") && !r.along && Math.abs(dh) >= 5) r.along = r.dir === "climb" ? s : -s;
     } catch (e) { console.log(`way ${w.id}: ${e.message}`); }
     out[w.id] = note ? [r.dir, r.along || 0, r.src, note] : [r.dir, r.along || 0, r.src];
