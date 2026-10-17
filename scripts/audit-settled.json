@@ -1,0 +1,1 @@
+{"note":"Audit findings that were looked into (scripts/audit.mjs reports them as settled instead of again). Key: the finding key in data/audit.json. date, who, note: what was found or decided, with the source.","settled":{}}

@@ -1,0 +1,67 @@
+name: Trail data audit
+
+# Every Saturday, look over every zone's data the way a rider would (scripts/audit.mjs): missing or old data files,
+# riding areas with few trails, unrated trails, plain paths among MTB trails, trail ends Plan a route can't join,
+# trailheads with no road. Saves data/audit.json and keeps the GitHub issue "Trail data audit" up to date, without
+# notifying anyone; a weekly Claude routine then researches and fixes what it can, and asks alex only what it can't settle.
+# On a pull request that changes the audit it only does a test run, without saving anything.
+on:
+  schedule:
+    - cron: "37 14 * * 6"   # Saturdays 14:37 UTC; Geofabrik's daily extracts are out by then
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - scripts/audit.mjs
+      - scripts/audit-settled.json
+      - .github/workflows/data-audit.yml
+
+permissions:
+  contents: write   # commit data/audit.json
+  issues: write     # update the "Trail data audit" issue
+  actions: read     # read the data jobs' last runs
+
+concurrency:
+  group: data-audit-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NODE_OPTIONS: --max-old-space-size=12000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install osmium
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool
+      - name: Download the zones' roads and trails from OpenStreetMap (Geofabrik)
+        run: |
+          mkdir -p /tmp/osm
+          for p in british-columbia alberta; do
+            curl -sSfL --retry 3 -o /tmp/osm/p.pbf "https://download.geofabrik.de/north-america/canada/$p-latest.osm.pbf"
+            # Southern BC and Alberta, where the zones are (index.html ZONES), then every highway way in it.
+            osmium extract --overwrite -b -124.9,48.9,-113.7,52.4 -o /tmp/osm/x.pbf /tmp/osm/p.pbf
+            osmium tags-filter --overwrite -o /tmp/osm/h.pbf /tmp/osm/x.pbf w/highway
+            osmium export --overwrite -a type,id -f geojsonseq -o /tmp/osm/$p.geojsonseq /tmp/osm/h.pbf
+            rm /tmp/osm/p.pbf /tmp/osm/x.pbf /tmp/osm/h.pbf
+            ls -lh /tmp/osm
+          done
+          node scripts/audit.mjs ingest /tmp/osm/british-columbia.geojsonseq /tmp/osm/alberta.geojsonseq
+          rm /tmp/osm/*.geojsonseq
+      - name: Audit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/audit.mjs
+          cat out/audit.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Save the findings
+        if: github.event_name != 'pull_request'
+        run: bash scripts/commit-data.sh "Trail data audit" data/audit.json
+      - name: Update the issue
+        if: github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/audit.mjs publish
