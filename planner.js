@@ -1,8 +1,15 @@
-// Plan a loop: tap the map to add points and the route follows the mapped trails between them (like Komoot or
-// Trailforks' route planner), with total distance, climb, the trails it uses, a GPX file, and Ride it (Ride mode,
-// navigate.js, follows it with the off-route alert). Routing uses the same trail files as All trails, so it works
-// offline in saved areas; a stretch with no mapped trail between two points is drawn as a dashed straight line.
-// The plan is kept on this device (tf:plan) until it's cleared.
+// Plan a route, two ways (like Komoot or Trailforks' route planner):
+// - Tap points: tap where you start, then each next point, and the route between them takes the trails and forest
+//   roads that make the most sense on a bike: one-way trails only their way, climbs on roads and climbing trails,
+//   descents on the downhill trails.
+// - Pick trails: tap the trails you want to ride and the app builds the ride: the order and direction that make
+//   sense (climb the climbing trails, descend the downhill ones, follow one-way tags) joined by the easiest climbs
+//   and links, from a start (the lowest end of the picked trails, or one you set) and back to it.
+// Both show distance, climb, the trails used, a GPX file, and Ride it (Ride mode, navigate.js, follows it with the
+// off-route alert). Routing uses the all-trails and forest-road files (window.tfNav), so it works offline in saved
+// areas; heights come from free terrain tiles (AWS Terrain Tiles, as Elevation lines), and without them the route
+// goes by distance. A stretch with no mapped trail is drawn as a dashed straight line. The plan is kept on this
+// device (tf:plan, tf:planPicks, tf:planMode) until it's cleared.
 (() => {
   "use strict";
   const nav = window.tfNav;
@@ -17,61 +24,260 @@
     return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
   }
   const key = (p) => p[0].toFixed(5) + "," + p[1].toFixed(5);
-  const nameOf = (w) => (w.tags.name || w.tags["mtb:name"] || "").trim();
+  const nameOf = (w) => (w.road ? w.name : (w.tags.name || w.tags["mtb:name"] || "")).trim();
   const fmtM = (m) => (m < 1000 ? Math.round(m / 10) * 10 + " m" : (m / 1000).toFixed(1) + " km");
   const SNAP_M = 80;              // a tap this close to a trail starts or ends on it
   const PAD_DEG = 0.03;           // route inside the two points' box plus about 3 km
+  const BRIDGE_M = 20;            // a trail end this close to another line, with no shared point, joins it
+  const MAX_PICKS = 12;
 
-  // ---------- routing on the trail lines ----------
-  // Nearest point on any trail: { w, i (segment), q (the point), d }.
-  function snap(p) {
-    const kx = Math.cos(p[0] * RAD) * R * RAD, ky = R * RAD;
+  // ---------- terrain heights ----------
+  // Terrarium tiles (256 px), decoded once and kept. Zoom 13 (about 13 m a pixel here), or wider for a big box.
+  const TERRAIN = (z, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
+  const tiles = new Map();        // "z/x/y" -> Float32Array(256 * 256), null (failed), or a promise while loading
+  function tileXY(p, z) {
+    const n = 2 ** z, s = Math.sin(p[0] * RAD);
+    return [((p[1] + 180) / 360) * n, (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n];
+  }
+  function loadTile(z, x, y) {
+    const k = `${z}/${x}/${y}`;
+    if (!tiles.has(k)) tiles.set(k, (async () => {
+      try {
+        const r = await fetch(TERRAIN(z, x, y));
+        if (!r.ok) return null;
+        const bm = await createImageBitmap(await r.blob());
+        const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(256, 256) : Object.assign(document.createElement("canvas"), { width: 256, height: 256 });
+        const cx = cv.getContext("2d", { willReadFrequently: true });
+        cx.imageSmoothingEnabled = false;   // blending pixels would scramble the colour-coded heights
+        cx.drawImage(bm, 0, 0);
+        const px = cx.getImageData(0, 0, 256, 256).data, e = new Float32Array(65536);
+        for (let i = 0; i < e.length; i++) e[i] = px[i * 4] * 256 + px[i * 4 + 1] + px[i * 4 + 2] / 256 - 32768;
+        return e;
+      } catch { return null; }
+    })().then((e) => { tiles.set(k, e); return e; }));
+    return tiles.get(k);
+  }
+  // Height function for a box [s, w, n, e]: metres, or null where there's no tile (offline).
+  async function terrain(box) {
+    let z = 13, a, b;
+    for (; z > 9; z--) {
+      a = tileXY([box[2], box[1]], z).map(Math.floor); b = tileXY([box[0], box[3]], z).map(Math.floor);
+      if ((b[0] - a[0] + 1) * (b[1] - a[1] + 1) <= 36) break;
+    }
+    const jobs = [];
+    for (let x = a[0]; x <= b[0]; x++) for (let y = a[1]; y <= b[1]; y++) jobs.push(loadTile(z, x, y));
+    await Promise.all(jobs);
+    const px = (x, y) => {   // one pixel, across tile edges
+      const tx = Math.floor(x / 256), ty = Math.floor(y / 256), e = tiles.get(`${z}/${tx}/${ty}`);
+      return e instanceof Float32Array ? e[(y - ty * 256) * 256 + (x - tx * 256)] : null;
+    };
+    return (p) => {
+      const [fx, fy] = tileXY(p, z), X = fx * 256 - 0.5, Y = fy * 256 - 0.5, x = Math.floor(X), y = Math.floor(Y), u = X - x, v = Y - y;
+      const h00 = px(x, y), h10 = px(x + 1, y), h01 = px(x, y + 1), h11 = px(x + 1, y + 1);
+      if (h00 == null || h10 == null || h01 == null || h11 == null) return h00;
+      return (h00 * (1 - u) + h10 * u) * (1 - v) + (h01 * (1 - u) + h11 * u) * v;
+    };
+  }
+  const noHeights = () => null;
+  const terrainOr = (box) => terrain(box).catch(() => noHeights);
+  function boxOf(pts, pad) {
+    let s = 90, n = -90, w = 180, e = -180;
+    pts.forEach((p) => { s = Math.min(s, p[0]); n = Math.max(n, p[0]); w = Math.min(w, p[1]); e = Math.max(e, p[1]); });
+    const wPad = pad / Math.cos(((s + n) / 2) * RAD);
+    return [s - pad, w - wPad, n + pad, e + wPad];
+  }
+  // Up and down along a line, from heights every 25 m, counted in 4 m steps (like a GPS unit).
+  function climbOf(pts, ht) {
+    const hs = [];
+    for (let i = 0; i < pts.length; i++) {
+      if (i) {
+        const d = metres(pts[i - 1], pts[i]), n = Math.floor(d / 25);
+        for (let j = 1; j <= n; j++) hs.push(ht([pts[i - 1][0] + ((pts[i][0] - pts[i - 1][0]) * j) / (n + 1), pts[i - 1][1] + ((pts[i][1] - pts[i - 1][1]) * j) / (n + 1)]));
+      }
+      hs.push(ht(pts[i]));
+    }
+    const ok = hs.filter((x) => x != null);
+    if (ok.length < 2 || ok.length < hs.length / 2) return null;
+    let up = 0, down = 0, ref = ok[0];
+    ok.forEach((x) => { if (x - ref >= 4) { up += x - ref; ref = x; } else if (ref - x >= 4) { down += ref - x; ref = x; } });
+    return { up: Math.round(up), down: Math.round(down) };
+  }
+
+  // ---------- the lines a bike can use: trails and forest roads ----------
+  const roadWays = new WeakMap();
+  let roadN = 0;
+  const cache = { n: -1, r: -1, list: [], byId: new Map() };
+  function allWays() {
+    const trails = nav.ways(), roads = nav.roads ? nav.roads() : [];
+    if (cache.n === trails.length && cache.r === roads.length) return cache.list;
+    const byId = new Map();
+    trails.forEach((w) => { if (!byId.has(w.id)) byId.set(w.id, w); });
+    roads.forEach((r) => {
+      if (r.src === "osm" && byId.has(r.id)) return;   // a track that is also a trail
+      let w = roadWays.get(r);
+      if (!w) {
+        w = { id: r.src === "osm" ? "r" + r.id : "f" + ++roadN, road: true, name: r.name || "", st: r.st, geom: r.geom,
+          tags: r.tags || { highway: "track", name: r.name || "" } };
+        roadWays.set(r, w);
+      }
+      if (!byId.has(w.id)) byId.set(w.id, w);
+    });
+    Object.assign(cache, { n: trails.length, r: roads.length, list: [...byId.values()], byId });
+    return cache.list;
+  }
+  const bbs = new WeakMap();
+  function bbOf(w) {
+    if (!bbs.has(w)) {
+      let s = 90, n = -90, west = 180, e = -180;
+      w.geom.forEach((p) => { s = Math.min(s, p[0]); n = Math.max(n, p[0]); west = Math.min(west, p[1]); e = Math.max(e, p[1]); });
+      bbs.set(w, [s, west, n, e]);
+    }
+    return bbs.get(w);
+  }
+  const inBox = (w, b) => { const bb = bbOf(w); return !(bb[0] > b[2] || bb[2] < b[0] || bb[1] > b[3] || bb[3] < b[1]); };
+  // One-way for bikes: 1 along the line, -1 against it, 0 both ways (as navigate.js).
+  function onewayOf(w) {
+    if (w.road) return 0;
+    const t = w.tags, v = t["oneway:bicycle"] != null ? t["oneway:bicycle"] : t["oneway:mtb"] != null ? t["oneway:mtb"] : t.oneway;
+    return v === "yes" || v === "1" || v === "true" ? 1 : v === "-1" || v === "reverse" ? -1 : 0;
+  }
+  // What a line is for, which sets how it costs to ride up or down it:
+  // road (forest and dirt roads), climb (climbing trails), down (downhill and harder trails), trail (the rest).
+  const kinds = new WeakMap();
+  function kindOf(w) {
+    if (!kinds.has(w)) {
+      const t = w.tags, name = nameOf(w), d = nav.difficulty(t), type = (t["mtb:type"] || "") + " " + (t.mtb || "");
+      let k = "trail";
+      if (w.road || (/^(track|service|unclassified|residential|tertiary|secondary)$/.test(t.highway || "") && !(d && d !== "green"))) k = "road";
+      else if (/\b(climb|climbing|uphill|ascent|up ?track)\b/i.test(name) || /uphill|climb/.test(type) || (t.incline === "up" && onewayOf(w) === 1)
+        || (t["mtb:scale:uphill"] != null && +t["mtb:scale:uphill"] <= 2 && !(parseInt(t["mtb:scale"], 10) >= 2))) k = "climb";
+      else if (/downhill|gravity|freeride/.test(type) || t.downhill === "yes" || /\b(dh|downhill)\b/i.test(name) || d === "black" || d === "dbl" || d === "pro"
+        || (t.incline === "down" && onewayOf(w) === 1)) k = "down";
+      kinds.set(w, k);
+    }
+    return kinds.get(w);
+  }
+  // Effort of a stretch: [per metre, per metre climbed, per metre dropped]. Climbing costs about like riding 7 to 14 m
+  // on the flat, and much more up a downhill trail (pushing, and riders coming down); descending a road or a climbing
+  // trail costs a little (the fun is on the trails); downhill trails ride a bit cheaper.
+  const COST = { road: [1.15, 7, 1.5], climb: [1, 7, 3], down: [0.85, 60, 0], trail: [1, 14, 0], link: [1.5, 12, 1] };
+  const edgeCost = (d, dh, kind) => { const c = COST[kind]; return d * c[0] + (dh > 0 ? dh * c[1] : -dh * c[2]); };
+
+  // Nearest point on any line: { w, i (segment), q (the point), d }.
+  function snap(p, max = SNAP_M, ways = allWays()) {
+    const kx = Math.cos(p[0] * RAD) * R * RAD, ky = R * RAD, dLat = max / ky, dLon = max / kx;
     let best = null;
-    const seen = new Set();
-    nav.ways().forEach((w) => {
-      if (seen.has(w.id)) return;
-      seen.add(w.id);
+    ways.forEach((w) => {
+      const bb = bbOf(w);
+      if (bb[0] > p[0] + dLat || bb[2] < p[0] - dLat || bb[1] > p[1] + dLon || bb[3] < p[1] - dLon) return;
       const g = w.geom;
       for (let i = 0; i < g.length - 1; i++) {
         const ax = (g[i][1] - p[1]) * kx, ay = (g[i][0] - p[0]) * ky, bx = (g[i + 1][1] - p[1]) * kx, by = (g[i + 1][0] - p[0]) * ky;
-        if (Math.min(ax, bx) > SNAP_M || Math.max(ax, bx) < -SNAP_M || Math.min(ay, by) > SNAP_M || Math.max(ay, by) < -SNAP_M) continue;
+        if (Math.min(ax, bx) > max || Math.max(ax, bx) < -max || Math.min(ay, by) > max || Math.max(ay, by) < -max) continue;
         const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
         const d = Math.hypot(ax + t * dx, ay + t * dy);
-        if (d <= SNAP_M && (!best || d < best.d)) best = { w, i, d, q: [g[i][0] + t * (g[i + 1][0] - g[i][0]), g[i][1] + t * (g[i + 1][1] - g[i][1])] };
+        // A trail wins over a road a few metres closer, so a tap on a trail by a road picks the trail.
+        const score = d + (w.road ? 8 : 0);
+        if (d <= max && (!best || score < best.score)) best = { w, i, d, score, q: [g[i][0] + t * (g[i + 1][0] - g[i][0]), g[i][1] + t * (g[i + 1][1] - g[i][1])] };
       }
     });
     return best;
   }
-  // Shortest way along the trails from a to b (snapped points). Returns { pts, ways: [way ids in order] } or null.
-  function route(a, b) {
-    const s = Math.min(a.q[0], b.q[0]) - PAD_DEG, n = Math.max(a.q[0], b.q[0]) + PAD_DEG;
-    const wPad = PAD_DEG / Math.cos(a.q[0] * RAD), w0 = Math.min(a.q[1], b.q[1]) - wPad, e = Math.max(a.q[1], b.q[1]) + wPad;
-    const adj = new Map(), pos = new Map();
-    const edge = (k1, k2, m, wid) => {
-      if (!adj.has(k1)) adj.set(k1, []);
-      if (!adj.has(k2)) adj.set(k2, []);
-      adj.get(k1).push([k2, m, wid]); adj.get(k2).push([k1, m, wid]);
-    };
-    const seen = new Set();
-    nav.ways().forEach((w) => {
-      if (seen.has(w.id)) return;
-      seen.add(w.id);
+
+  // ---------- the graph: points shared by lines are junctions ----------
+  // adj: key -> [[key2, metres, way, dir (1 along the way, -1 against, 0 a link)]]. ht: height function.
+  // The data files simplify every line (trails to about 2 m, roads to 8 m), which can drop the point two lines
+  // share, and mappers often stop a trail a few metres short of the road it meets. So a point of one line within
+  // NEAR_M of another line (an end within opts.bridge) is joined to it, splitting that line's stretch there.
+  const NEAR_M = 8;
+  function graph(ways, ht, opts = {}) {
+    const adj = new Map(), pos = new Map(), owner = new Map(), h = new Map();
+    const add = (k1, k2, d, w, dir) => { if (!adj.has(k1)) adj.set(k1, []); adj.get(k1).push([k2, d, w, dir]); };
+    ways.forEach((w) => w.geom.forEach((p) => {
+      const k = key(p);
+      if (!pos.has(k)) pos.set(k, p);
+      if (!owner.has(k)) owner.set(k, w); else if (owner.get(k) !== w) owner.set(k, null);   // null: already a junction
+    }));
+    // Every stretch in a grid of about 100 m cells.
+    const CY = 0.0009, CX = 0.0013, grid = new Map(), cellOf = (p) => [Math.floor(p[0] / CY), Math.floor(p[1] / CX)];
+    ways.forEach((w) => {
       const g = w.geom;
-      if (!g.some((q) => q[0] >= s && q[0] <= n && q[1] >= w0 && q[1] <= e)) return;
-      for (let i = 0; i < g.length; i++) {
-        const k = key(g[i]); pos.set(k, g[i]);
-        if (i) edge(key(g[i - 1]), k, metres(g[i - 1], g[i]), w.id);
+      for (let i = 0; i < g.length - 1; i++) {
+        const [a0, a1] = cellOf(g[i]), [b0, b1] = cellOf(g[i + 1]);
+        for (let y = Math.min(a0, b0); y <= Math.max(a0, b0); y++) for (let x = Math.min(a1, b1); x <= Math.max(a1, b1); x++) {
+          const c = y + ":" + x;
+          if (!grid.has(c)) grid.set(c, []);
+          grid.get(c).push([w, i]);
+        }
       }
     });
-    // The two tapped spots, joined into the segments they snapped to.
-    [["A", a], ["B", b]].forEach(([k, p]) => {
-      const g = p.w.geom, k1 = key(g[p.i]), k2 = key(g[p.i + 1]);
-      pos.set(k, p.q);
-      edge(k, k1, metres(p.q, g[p.i]), p.w.id); edge(k, k2, metres(p.q, g[p.i + 1]), p.w.id);
+    const splits = new Map();   // way -> Map(segment -> [[t, key]])
+    const bridgeEnd = opts.bridge || BRIDGE_M;
+    ways.forEach((w) => w.geom.forEach((p, vi) => {
+      const k = key(p);
+      if (owner.get(k) === null) return;
+      const end = vi === 0 || vi === w.geom.length - 1;
+      if (!end && w.road) return;   // roads join at trails' points, and at their own ends
+      const max = end ? bridgeEnd : NEAR_M, kx = Math.cos(p[0] * RAD) * R * RAD, ky = R * RAD, [cy, cx] = cellOf(p);
+      let best = null;
+      for (let y = cy - 1; y <= cy + 1; y++) for (let x = cx - 1; x <= cx + 1; x++) (grid.get(y + ":" + x) || []).forEach(([w2, i]) => {
+        if (w2 === w) return;
+        const g = w2.geom, ax = (g[i][1] - p[1]) * kx, ay = (g[i][0] - p[0]) * ky, bx = (g[i + 1][1] - p[1]) * kx, by = (g[i + 1][0] - p[0]) * ky;
+        const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
+        const d = Math.hypot(ax + t * dx, ay + t * dy);
+        if (d < max && (!best || d < best.d)) best = { w2, i, t, d, len: Math.sqrt(l2) };
+      });
+      if (!best) return;
+      const g = best.w2.geom, along = best.t * best.len;
+      let k2;
+      if (along < 2) k2 = key(g[best.i]);
+      else if (best.len - along < 2) k2 = key(g[best.i + 1]);
+      else {
+        const q = [g[best.i][0] + best.t * (g[best.i + 1][0] - g[best.i][0]), g[best.i][1] + best.t * (g[best.i + 1][1] - g[best.i][1])];
+        k2 = key(q);
+        if (!pos.has(k2)) pos.set(k2, q);
+        if (!splits.has(best.w2)) splits.set(best.w2, new Map());
+        const m = splits.get(best.w2);
+        if (!m.has(best.i)) m.set(best.i, []);
+        m.get(best.i).push([best.t, k2]);
+      }
+      if (k2 !== k) { const d = Math.max(1, best.d); add(k, k2, d, null, 0); add(k2, k, d, null, 0); }
+    }));
+    ways.forEach((w) => {
+      const g = w.geom, one = opts.anyWay ? 0 : onewayOf(w), sp = splits.get(w);
+      for (let i = 0; i < g.length - 1; i++) {
+        const chain = [key(g[i]), ...(sp && sp.has(i) ? sp.get(i).sort((x, y) => x[0] - y[0]).map((x) => x[1]) : []), key(g[i + 1])];
+        for (let j = 1; j < chain.length; j++) {
+          const k0 = chain[j - 1], k = chain[j];
+          if (k0 === k) continue;
+          const d = metres(pos.get(k0), pos.get(k));
+          if (one >= 0) add(k0, k, d, w, 1);
+          if (one <= 0) add(k, k0, d, w, -1);
+        }
+      }
     });
-    if (a.w === b.w && a.i === b.i) edge("A", "B", metres(a.q, b.q), a.w.id);
-    // Dijkstra with a small binary heap.
-    const dist = new Map([["A", 0]]), prev = new Map(), heap = [[0, "A"]];
+    pos.forEach((p, k) => h.set(k, ht(p)));
+    return { adj, pos, h, ht };
+  }
+  function cost(G, k1, k2, d, w) {
+    const h1 = G.h.get(k1), h2 = G.h.get(k2), dh = h1 != null && h2 != null ? h2 - h1 : 0;
+    // Up a one-way trail (the only way the graph lets you ride it) is a climbing trail, like Stl'lhalem Sintl'.
+    return edgeCost(d, dh, w ? (dh > 0 && kindOf(w) !== "road" && onewayOf(w) ? "climb" : kindOf(w)) : "link");
+  }
+  // A tapped spot joined into the segment it snapped to, as node `name`.
+  function addPoint(G, name, sn) {
+    const g = sn.w.geom, k1 = key(g[sn.i]), k2 = key(g[sn.i + 1]), one = onewayOf(sn.w);
+    const add = (a, b, d, dir) => { if (!G.adj.has(a)) G.adj.set(a, []); G.adj.get(a).push([b, d, sn.w, dir]); };
+    G.pos.set(name, sn.q); G.h.set(name, G.ht(sn.q));
+    [[k1, -1], [k2, 1]].forEach(([k, dir]) => {
+      const d = metres(sn.q, G.pos.get(k) || (k === k1 ? g[sn.i] : g[sn.i + 1]));
+      if (one === 0 || one === dir) add(name, k, d, dir);
+      if (one === 0 || one === -dir) add(k, name, d, -dir);
+    });
+  }
+  // Dijkstra with a small binary heap. weigh(k1, k2, metres, way) -> cost. Stops early at `to` if given.
+  function dijkstra(G, from, to, weigh) {
+    const dist = new Map([[from, 0]]), prev = new Map(), heap = [[0, from]];
     const push = (x) => { heap.push(x); let i = heap.length - 1; while (i) { const j = (i - 1) >> 1; if (heap[j][0] <= heap[i][0]) break; [heap[i], heap[j]] = [heap[j], heap[i]]; i = j; } };
     const pop = () => {
       const top = heap[0], last = heap.pop();
@@ -80,116 +286,417 @@
     };
     while (heap.length) {
       const [d, k] = pop();
-      if (k === "B") break;
+      if (k === to) break;
       if (d > dist.get(k)) continue;
-      (adj.get(k) || []).forEach(([k2, m, wid]) => {
-        const nd = d + m;
-        if (nd < (dist.has(k2) ? dist.get(k2) : Infinity)) { dist.set(k2, nd); prev.set(k2, [k, wid]); push([nd, k2]); }
+      (G.adj.get(k) || []).forEach(([k2, m, w, dir]) => {
+        const nd = d + weigh(k, k2, m, w, dir);
+        if (nd < (dist.has(k2) ? dist.get(k2) : Infinity)) { dist.set(k2, nd); prev.set(k2, [k, w, dir]); push([nd, k2]); }
       });
     }
-    if (!dist.has("B")) return null;
-    const pts = [], ways = [];
-    for (let k = "B"; k; ) {
-      pts.push(pos.get(k));
-      const pv = prev.get(k);
+    return { dist, prev, from };
+  }
+  // The way to `to`: { pts, ways (in order), segs: [[way, dir] per stretch] } or null.
+  function pathTo(G, D, to) {
+    if (!D.dist.has(to)) return null;
+    const pts = [], segs = [];
+    for (let k = to; ; ) {
+      pts.push(G.pos.get(k));
+      const pv = D.prev.get(k);
       if (!pv) break;
-      if (ways[ways.length - 1] !== pv[1]) ways.push(pv[1]);
+      segs.push([pv[1], pv[2]]);
       k = pv[0];
     }
-    return { pts: pts.reverse(), ways: ways.reverse() };
+    pts.reverse(); segs.reverse();
+    const ways = [];
+    segs.forEach(([w]) => { if (w && ways[ways.length - 1] !== w) ways.push(w); });
+    return { pts, ways, segs, cost: D.dist.get(to) };
   }
+  const effort = (G) => (k1, k2, m, w) => cost(G, k1, k2, m, w);
 
   // ---------- the plan ----------
-  // stops: [{ ll, snap }], legs[i] joins stops[i] and stops[i+1]: { pts, ways, gap (no trail, straight line) }.
-  let planning = false, stops = [], legs = [], elev = null, elevFor = "";
+  // Tap points: stops [{ ll, snap }], legs[i] joins stops[i] and stops[i+1].
+  // Pick trails: picks [{ name, ways }], start (a spot or null: the lowest trail end), back (end at the start);
+  //   legs alternate links and the picked trails.
+  // A leg: { pts, ways, gap (no trail, straight line), pick (index of the picked trail it rides, or -1), up, down }.
+  let planning = false, mode = "tap", stops = [], legs = [], elev = null, picks = [], pickStart = null, pickBack = true, settingStart = false;
+  let busy = 0, gen = 0, note = "";
   const layer = L.layerGroup();
+  const pickCase = L.polyline([], { color: "#ffd43b", weight: 13, opacity: 0.85, lineCap: "round", lineJoin: "round", interactive: false });
   const caseLine = L.polyline([], { color: "#fff", weight: 10, opacity: 0.9, lineCap: "round", lineJoin: "round", interactive: false });
+  const linkLine = L.polyline([], { color: "#a77bf3", weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round", interactive: false });
   const line = L.polyline([], { color: "#7b2ff7", weight: 6, opacity: 0.95, lineCap: "round", lineJoin: "round", interactive: false });
   const gapLine = L.polyline([], { color: "#7b2ff7", weight: 4, opacity: 0.9, dashArray: "6 8", interactive: false });
-  const dots = L.layerGroup();
-  [caseLine, line, gapLine, dots].forEach((l) => l.addTo(layer));
+  const arrows = L.layerGroup(), dots = L.layerGroup();
+  [pickCase, caseLine, linkLine, line, gapLine, arrows, dots].forEach((l) => l.addTo(layer));
   const allPts = () => legs.flatMap((l, i) => (i ? l.pts.slice(1) : l.pts));
-  const total = () => legs.reduce((s, l) => s + l.pts.reduce((a, q, i) => a + (i ? metres(l.pts[i - 1], q) : 0), 0), 0);
+  const lengthOf = (pts) => pts.reduce((a, q, i) => a + (i ? metres(pts[i - 1], q) : 0), 0);
+  const total = () => legs.reduce((s, l) => s + lengthOf(l.pts), 0);
+  const clean = (pts) => pts.filter((q, i, arr) => !i || metres(arr[i - 1], q) > 0.5);
 
-  function legFor(a, b) {
-    const r = a.snap && b.snap ? route(a.snap, b.snap) : null;
-    if (r) return { pts: [a.ll, ...r.pts, b.ll].filter((q, i, arr) => !i || metres(arr[i - 1], q) > 0.5), ways: r.ways, gap: false };
-    return { pts: [a.ll, b.ll], ways: [], gap: true };
+  async function legFor(a, b) {
+    if (!a.snap || !b.snap) return { pts: [a.ll, b.ll], ways: [], gap: true, pick: -1 };
+    const box = boxOf([a.ll, b.ll], PAD_DEG), ht = await terrainOr(box);
+    const G = graph(allWays().filter((w) => inBox(w, box)), ht);
+    addPoint(G, "A", a.snap); addPoint(G, "B", b.snap);
+    if (a.snap.w === b.snap.w && a.snap.i === b.snap.i) {   // both on one stretch
+      const g = a.snap.w.geom, along = metres(g[a.snap.i], a.snap.q) <= metres(g[a.snap.i], b.snap.q) ? 1 : -1, one = onewayOf(a.snap.w);
+      if (one === 0 || one === along) G.adj.get("A").push(["B", metres(a.snap.q, b.snap.q), a.snap.w, along]);
+    }
+    const p = pathTo(G, dijkstra(G, "A", "B", effort(G)), "B");
+    if (!p) return { pts: [a.ll, b.ll], ways: [], gap: true, pick: -1 };
+    return { pts: clean([a.ll, ...p.pts, b.ll]), raw: p.pts, segs: p.segs, ways: p.ways, gap: false, pick: -1 };
   }
+  let queue = Promise.resolve();
+  const later = (fn) => (queue = queue.then(fn).catch((e) => console.warn("planner", e)));
   function addStop(ll) {
-    const sn = snap(ll), stop = { ll: sn ? sn.q : ll, snap: sn };
-    if (stops.length) legs.push(legFor(stops[stops.length - 1], stop));
-    stops.push(stop);
-    draw(); save();
+    later(async () => {
+      const sn = snap(ll), stop = { ll: sn ? sn.q : ll, snap: sn };
+      busy++; render();
+      try { if (stops.length) legs.push(await legFor(stops[stops.length - 1], stop)); } finally { busy--; }
+      stops.push(stop);
+      draw(); save();
+    });
   }
-  function undo() { stops.pop(); legs.pop(); draw(); save(); }
-  function clear() { stops = []; legs = []; elev = null; draw(); save(); }
-  function closeLoop() { if (stops.length >= 2) addStop(stops[0].ll); }
+  function undo() {
+    if (mode === "pick") { picks.pop(); changedPicks(); return; }
+    later(() => { stops.pop(); legs.pop(); draw(); save(); });
+  }
+  function clear() {
+    if (mode === "pick") { picks = []; pickStart = null; changedPicks(); return; }
+    later(() => { stops = []; legs = []; elev = null; draw(); save(); });
+  }
+  function closeLoop() {
+    if (mode === "pick") { pickBack = !pickBack; changedPicks(); return; }
+    if (stops.length >= 2) addStop(stops[0].ll);
+  }
 
-  function draw() {
-    caseLine.setLatLngs(legs.filter((l) => !l.gap).map((l) => l.pts));
-    line.setLatLngs(legs.filter((l) => !l.gap).map((l) => l.pts));
-    gapLine.setLatLngs(legs.filter((l) => l.gap).map((l) => l.pts));
-    dots.clearLayers();
-    stops.forEach((s, i) => dots.addLayer(L.marker(s.ll, { interactive: false, keyboard: false, icon: L.divIcon({ className: "plan-stop", iconSize: [24, 24], iconAnchor: [12, 12], html: `<span>${i === 0 ? "S" : i}</span>` }) })));
-    render();
-    loadClimb();
+  // ---------- pick trails ----------
+  // The trail at a tap: every same-name piece joined end to end with it (within 60 m), or the one line if unnamed.
+  function trailAt(ll) {
+    const z = map.getZoom(), tol = Math.max(15, Math.min(150, (26 * 156543 * Math.cos(ll[0] * RAD)) / 2 ** z));
+    const sn = snap(ll, tol);
+    if (!sn) return null;
+    const w0 = sn.w, name = nameOf(w0);
+    if (!name) return { name: w0.road ? "Forest road" : "Unnamed trail", ways: [w0] };
+    const near = boxOf([w0.geom[0]], 0.08), cands = allWays().filter((w) => w !== w0 && nameOf(w) === name && inBox(w, near));
+    const touches = (a, b) => [b.geom[0], b.geom[b.geom.length - 1]].some((e) => a.geom.some((p) => metres(p, e) < 60))
+      || [a.geom[0], a.geom[a.geom.length - 1]].some((e) => b.geom.some((p) => metres(p, e) < 60));
+    const group = [w0], todo = [w0];
+    while (todo.length) {
+      const c = todo.pop();
+      cands.forEach((w) => { if (!group.includes(w) && touches(c, w)) { group.push(w); todo.push(w); } });
+    }
+    return { name, ways: group };
   }
-  function trailsUsed() {
-    const byId = new Map(nav.ways().map((w) => [w.id, w])), out = [];
-    legs.forEach((l) => l.ways.forEach((id) => {
-      const w = byId.get(id), name = w ? nameOf(w) || "unnamed trail" : "unnamed trail";
+  function togglePick(ll) {
+    const t = trailAt(ll);
+    if (!t) { flash("No trail there. Tap right on a trail line."); return; }
+    const ids = new Set(t.ways.map((w) => w.id)), at = picks.findIndex((p) => p.ways.some((w) => ids.has(w.id)));
+    if (at >= 0) picks.splice(at, 1);
+    else if (picks.length >= MAX_PICKS) { flash(`Up to ${MAX_PICKS} trails in one ride.`); return; }
+    else picks.push(t);
+    changedPicks();
+  }
+  let flashTimer = 0;
+  function flash(text) { note = text; render(); clearTimeout(flashTimer); flashTimer = setTimeout(() => { note = ""; render(); }, 2600); }
+
+  // A picked trail's line from one end to the other: in the pieces' own little graph, the two ends farthest apart.
+  function through(t) {
+    const G = graph(t.ways, noHeights, { anyWay: true, bridge: 60 }), ends = [];
+    G.adj.forEach((list, k) => { if (new Set(list.map((x) => x[0])).size === 1) ends.push(k); });
+    const cand = (ends.length >= 2 ? ends : [...G.pos.keys()]).slice(0, 60);
+    let a = cand[0], b = cand[cand.length - 1], far = -1;
+    cand.forEach((k1, i) => cand.slice(i + 1).forEach((k2) => { const d = metres(G.pos.get(k1), G.pos.get(k2)); if (d > far) { far = d; a = k1; b = k2; } }));
+    const p = a !== b && pathTo(G, dijkstra(G, a, b, (k1, k2, m) => m), b);
+    if (p) return { a, b, pts: p.pts, segs: p.segs };
+    const w = t.ways.reduce((x, y) => (lengthOf(y.geom) > lengthOf(x.geom) ? y : x));   // pieces that don't join: the longest one
+    return { a: key(w.geom[0]), b: key(w.geom[w.geom.length - 1]), pts: w.geom, segs: w.geom.slice(1).map(() => [w, 1]) };
+  }
+  // Build the ride: every picked trail in the order and direction that cost the least effort in all, from the start
+  // and (if asked) back to it. Exact (Held-Karp) for up to 12 trails.
+  async function buildRide() {
+    const my = ++gen;
+    if (!picks.length) { legs = []; elev = null; draw(); return; }
+    busy++; render();
+    try {
+      const T = picks.map(through);
+      const box = boxOf([...T.flatMap((t) => t.pts), ...(pickStart ? [pickStart] : [])], 0.02);
+      const ht = await terrainOr(box);
+      if (my !== gen) return;
+      const G = graph(allWays().filter((w) => inBox(w, box)), ht);
+      // How each trail can be ridden: o = 0 from a to b, 1 from b to a. Infinity: not that way.
+      const tc = T.map((t, j) => {
+        let len = 0; const byKind = {};
+        t.segs.forEach(([w], i) => { const d = metres(t.pts[i], t.pts[i + 1]); len += d; if (w) byKind[kindOf(w)] = (byKind[kindOf(w)] || 0) + d; });
+        const kind = Object.keys(byKind).sort((x, y) => byKind[y] - byKind[x])[0] || "trail";
+        const ha = ht(t.pts[0]), hb = ht(t.pts[t.pts.length - 1]), dh = ha != null && hb != null ? hb - ha : 0;
+        let ow = 0;   // one-way stretches with (+) or against (-) a to b
+        t.segs.forEach(([w, dir], i) => { const one = w ? onewayOf(w) : 0; if (one) ow += one * dir * metres(t.pts[i], t.pts[i + 1]); });
+        const ok = [true, true];
+        if (Math.abs(ow) > len * 0.3) ok[ow > 0 ? 1 : 0] = false;            // follows its one-way tags
+        else if (kind === "climb" && Math.abs(dh) >= 15) ok[dh > 0 ? 1 : 0] = false;   // climbing trails go up
+        else if (kind !== "road" && kind !== "climb" && Math.abs(dh) >= 40) ok[dh < 0 ? 1 : 0] = false;   // the rest go down
+        const run = (o) => {
+          const pts = o ? [...t.pts].reverse() : t.pts, segs = o ? [...t.segs].reverse() : t.segs;
+          return segs.reduce((s, [w], i) => {
+            const h1 = ht(pts[i]), h2 = ht(pts[i + 1]);
+            return s + edgeCost(metres(pts[i], pts[i + 1]), h1 != null && h2 != null ? h2 - h1 : 0, w ? kindOf(w) : "link");
+          }, 0);
+        };
+        T[j].dh = dh; T[j].kind = kind;
+        return [ok[0] ? run(0) : Infinity, ok[1] ? run(1) : Infinity];
+      });
+      const entry = (j, o) => (o ? T[j].b : T[j].a), exit = (j, o) => (o ? T[j].a : T[j].b);
+      // The start: a spot you set, else the lowest end you can start a trail from (park at the bottom, ride up).
+      let S = "S", sKey = null;
+      if (pickStart) {
+        const sn = snap(pickStart, 300);
+        if (sn) addPoint(G, "S", sn); else { G.pos.set("S", pickStart); G.h.set("S", ht(pickStart)); }
+      } else {
+        let low = Infinity;
+        T.forEach((t) => [[t.a, t.pts[0]], [t.b, t.pts[t.pts.length - 1]]].forEach(([k, p]) => {
+          const h = ht(p);
+          if (!sKey || (h != null && h < low)) { low = h != null ? h : Infinity; sKey = k; }
+        }));
+        S = sKey || T[0].a;
+        if (!G.pos.has(S)) { G.pos.set(S, T[0].pts[0]); G.h.set(S, ht(T[0].pts[0])); }
+      }
+      // Effort between every pair of points that matter (start, trail ends): one Dijkstra from each.
+      const runs = new Map(), weigh = effort(G);
+      const from = (k) => { if (!runs.has(k)) runs.set(k, dijkstra(G, k, null, weigh)); return runs.get(k); };
+      const posOf = (k) => G.pos.get(k) || T.flatMap((t) => [[t.a, t.pts[0]], [t.b, t.pts[t.pts.length - 1]]]).find((x) => x[0] === k)[1];
+      const C = (k1, k2) => {
+        if (k1 === k2) return 0;
+        const d = from(k1).dist.get(k2);
+        return d != null ? d : metres(posOf(k1), posOf(k2)) * 6 + 500;   // no way along lines: a straight dash, costly
+      };
+      const N = T.length, full = (1 << N) - 1, idx = (m, j, o) => (m * N + j) * 2 + o;
+      const dp = new Float64Array((full + 1) * N * 2).fill(Infinity), par = new Int32Array((full + 1) * N * 2).fill(-1);
+      for (let j = 0; j < N; j++) for (let o = 0; o < 2; o++) if (tc[j][o] < Infinity) dp[idx(1 << j, j, o)] = C(S, entry(j, o)) + tc[j][o];
+      for (let m = 1; m <= full; m++) for (let j = 0; j < N; j++) for (let o = 0; o < 2; o++) {
+        const v = dp[idx(m, j, o)];
+        if (v === Infinity) continue;
+        for (let k = 0; k < N; k++) {
+          if (m & (1 << k)) continue;
+          for (let o2 = 0; o2 < 2; o2++) {
+            if (tc[k][o2] === Infinity) continue;
+            const nv = v + C(exit(j, o), entry(k, o2)) + tc[k][o2], at = idx(m | (1 << k), k, o2);
+            if (nv < dp[at]) { dp[at] = nv; par[at] = j * 2 + o; }
+          }
+        }
+      }
+      let best = Infinity, end = -1;
+      for (let j = 0; j < N; j++) for (let o = 0; o < 2; o++) {
+        const v = dp[idx(full, j, o)] + (pickBack ? C(exit(j, o), S) : 0);
+        if (v < best) { best = v; end = j * 2 + o; }
+      }
+      if (end < 0) { legs = []; flash("Couldn't build a ride with those trails."); draw(); return; }
+      const order = [];
+      for (let m = full, cur = end; cur >= 0; ) { order.unshift(cur); const p = par[idx(m, cur >> 1, cur & 1)]; m &= ~(1 << (cur >> 1)); cur = p; }
+      // The legs: link to the trail, the trail, ..., and the link home.
+      const out = [];
+      const link = (k1, k2) => {
+        if (k1 === k2) return;
+        const p = pathTo(G, from(k1), k2);
+        if (p && p.pts.length > 1) out.push({ pts: clean(p.pts), raw: p.pts, segs: p.segs, ways: p.ways, gap: false, pick: -1 });
+        else out.push({ pts: [posOf(k1), posOf(k2)], ways: [], gap: true, pick: -1 });
+      };
+      let at = S;
+      order.forEach((x) => {
+        const j = x >> 1, o = x & 1, t = T[j];
+        link(at, entry(j, o));
+        const pts = o ? [...t.pts].reverse() : t.pts, ways = [];
+        (o ? [...t.segs].reverse() : t.segs).forEach(([w]) => { if (w && ways[ways.length - 1] !== w) ways.push(w); });
+        out.push({ pts: clean(pts), ways, gap: false, pick: j });
+        at = exit(j, o);
+      });
+      if (pickBack) link(at, S);
+      out.forEach((l) => Object.assign(l, climbOf(l.pts, ht) || {}));
+      legs = out;
+      const c = climbOf(allPts(), ht);
+      elev = c;
+    } finally { busy--; }
+    if (my === gen) { draw(); fitRoute(); }
+  }
+  // Show the whole ride above the bar, if part of it is out of sight.
+  function fitRoute() {
+    const pts = allPts();
+    if (pts.length < 2) return;
+    const b = L.latLngBounds(pts), size = map.getSize(), top = map.containerPointToLatLng([0, 0]), bottom = map.containerPointToLatLng([size.x, size.y - bar.offsetHeight - 12]);
+    if (L.latLngBounds(top, bottom).contains(b)) return;
+    map.fitBounds(b, { paddingTopLeft: [30, 60], paddingBottomRight: [30, bar.offsetHeight + 24], maxZoom: 16 });
+  }
+  let buildTimer = 0;
+  function changedPicks() {
+    clearTimeout(buildTimer);
+    savePicks();
+    legs = []; elev = null; draw();
+    buildTimer = setTimeout(() => later(buildRide), 250);
+  }
+
+  // ---------- drawing ----------
+  function bearing(a, b) {
+    const y = Math.sin((b[1] - a[1]) * RAD) * Math.cos(b[0] * RAD);
+    const x = Math.cos(a[0] * RAD) * Math.sin(b[0] * RAD) - Math.sin(a[0] * RAD) * Math.cos(b[0] * RAD) * Math.cos((b[1] - a[1]) * RAD);
+    return Math.atan2(y, x) / RAD;
+  }
+  function drawArrows() {   // which way to ride, about every 400 m (more when zoomed in)
+    arrows.clearLayers();
+    if (!planning || !legs.length) return;
+    const every = Math.max(120, 400 * 2 ** (14 - map.getZoom())), pts = allPts(), view = map.getBounds().pad(0.2);
+    let run = every / 2, n = 0;
+    for (let i = 1; i < pts.length && n < 80; i++) {
+      const d = metres(pts[i - 1], pts[i]);
+      run += d;
+      if (run >= every && d > 3) {
+        run = 0;
+        const at = [(pts[i - 1][0] + pts[i][0]) / 2, (pts[i - 1][1] + pts[i][1]) / 2];
+        if (!view.contains(at)) continue;
+        n++;
+        arrows.addLayer(L.marker(at, { interactive: false, keyboard: false, icon: L.divIcon({ className: "plan-arrow", iconSize: [16, 16], iconAnchor: [8, 8],
+          html: `<span style="transform:rotate(${Math.round(bearing(pts[i - 1], pts[i]))}deg)">▲</span>` }) }));
+      }
+    }
+  }
+  const stopIcon = (text, cls = "") => L.divIcon({ className: "plan-stop " + cls, iconSize: [24, 24], iconAnchor: [12, 12], html: `<span>${text}</span>` });
+  function draw() {
+    const real = legs.filter((l) => !l.gap);
+    caseLine.setLatLngs(real.map((l) => l.pts));
+    line.setLatLngs(real.filter((l) => mode === "tap" || l.pick >= 0).map((l) => l.pts));
+    linkLine.setLatLngs(mode === "pick" ? real.filter((l) => l.pick < 0).map((l) => l.pts) : []);
+    gapLine.setLatLngs(legs.filter((l) => l.gap).map((l) => l.pts));
+    pickCase.setLatLngs(mode === "pick" ? picks.flatMap((p) => p.ways.map((w) => w.geom)) : []);
+    dots.clearLayers();
+    const mk = (ll, icon) => dots.addLayer(L.marker(ll, { interactive: false, keyboard: false, icon }));
+    if (mode === "tap") stops.forEach((s, i) => mk(s.ll, stopIcon(i === 0 ? "S" : i)));
+    else {
+      if (legs.length) mk(legs[0].pts[0], stopIcon("S"));
+      else if (pickStart) mk(pickStart, stopIcon("S"));
+      let n = 0;
+      legs.forEach((l) => { if (l.pick >= 0) mk(l.pts[0], stopIcon(++n, "pick")); });
+    }
+    drawArrows();
+    render();
+    if (mode === "tap") loadClimb();
+  }
+  const levelOf = (w) => {
+    if (w.road) return { color: "#8d6e63", lvl: "forest road" };
+    const d = nav.difficulty(w.tags);
+    return { color: nav.diffColor(d), lvl: d ? nav.DIFF[d].label : "" };
+  };
+  function namesOf(ways) {
+    const out = [];
+    ways.forEach((w) => {
+      const name = nameOf(w) || (w.road ? "forest road" : "unnamed trail");
       if (out.length && out[out.length - 1].name === name) return;
-      const d = w ? nav.difficulty(w.tags) : null;
-      out.push({ name, color: nav.diffColor(d), lvl: d ? nav.DIFF[d].label : "" });
-    }));
+      out.push({ name, ...levelOf(w) });
+    });
     return out;
   }
-  function render() {
-    const m = total(), gaps = legs.filter((l) => l.gap).length;
-    $("planStats").innerHTML = stops.length < 2 ? (stops.length ? "Tap the next point. The route follows the trails." : "Tap the map where you start.")
-      : `<b>${fmtM(m)}</b>${elev ? ` · ↑ ${elev.up} m · ↓ ${elev.down} m` : ""}${gaps ? ` · <span class="gap-note">${gaps} stretch${gaps > 1 ? "es" : ""} off mapped trails (dashed)</span>` : ""}`;
-    const used = trailsUsed();
-    $("planTrails").innerHTML = used.length ? used.slice(0, 12).map((t) => `<span class="pt"><i style="background:${t.color}"></i>${esc(t.name)}</span>`).join(" → ") + (used.length > 12 ? ` → +${used.length - 12} more` : "") : "";
-    ["planUndo", "planClear"].forEach((id) => { $(id).disabled = !stops.length; });
-    ["planLoop", "planGpx", "planRide"].forEach((id) => { $(id).disabled = stops.length < 2; });
+  const chip = (t) => `<span class="pt"><i style="background:${t.color}"></i>${esc(t.name)}</span>`;
+  // A link's main lines: the named ones by the length ridden on them, for "Climb on Mashiter FSR".
+  function mainNames(l) {
+    const by = new Map();
+    (l.segs || []).forEach(([w], i) => { const n = w && nameOf(w); if (n) by.set(n, (by.get(n) || 0) + metres(l.raw[i], l.raw[i + 1])); });
+    return [...by.entries()].filter((x) => x[1] >= 150).sort((a, b) => b[1] - a[1]).slice(0, 2).map((x) => x[0]);
   }
-  // Climb from Open-Meteo heights at up to 100 points along the plan (one request), counted in 4 m steps.
-  let climbTimer = 0;
+  // One row of the ride: a picked trail (its yellow number, as on the map) or a link between them.
+  function stepHtml(l, n) {
+    const len = lengthOf(l.pts), up = l.up || 0, down = l.down || 0;
+    const verb = up > 25 && up > down * 1.5 ? "Climb" : down > 25 && down > up * 1.5 ? "Descend" : "Ride";
+    const m = `<span class="m">${fmtM(len)}${up >= 10 ? ` ↑ ${up} m` : ""}${down >= 10 ? ` ↓ ${down} m` : ""}</span>`;
+    if (l.pick >= 0) {
+      const p = picks[l.pick], lv = p && p.ways[0] ? levelOf(p.ways[0]) : { color: "#8a8f98" };
+      return `<li class="ps-trail"><span class="ps-n">${n}</span><span><b>${verb}</b> ${chip({ name: p ? p.name : "trail", color: lv.color })} ${m}</span></li>`;
+    }
+    if (l.gap) return `<li class="ps-link"><span class="ps-n">↝</span><span><b>Cross</b> <span class="gap-note">off mapped trails</span> ${m}</span></li>`;
+    const names = mainNames(l);
+    return `<li class="ps-link"><span class="ps-n">${verb === "Climb" ? "↗" : verb === "Descend" ? "↘" : "→"}</span><span><b>${verb}</b>${names.length ? " on " + names.map(esc).join(", ") : ""} ${m}</span></li>`;
+  }
+  function render() {
+    const m = total(), gaps = legs.filter((l) => l.gap).length, climb = elev ? ` · ↑ ${elev.up} m · ↓ ${elev.down} m` : "";
+    document.querySelectorAll(".plan-modes button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
+    bar.classList.toggle("pick", mode === "pick");
+    let stats;
+    if (note) stats = `<span class="gap-note">${esc(note)}</span>`;
+    else if (mode === "tap") stats = stops.length < 2 ? (busy ? "Finding the way…" : stops.length ? "Tap the next point. The route takes the trails that make sense." : "Tap the map where you start.")
+      : `<b>${fmtM(m)}</b>${climb}${gaps ? ` · <span class="gap-note">${gaps} stretch${gaps > 1 ? "es" : ""} off mapped trails (dashed)</span>` : ""}${busy ? " · finding the way…" : ""}`;
+    else if (settingStart) stats = "Tap the map where you start.";
+    else if (!picks.length) stats = "Tap the trails you want to ride. The app puts them in a logical order and direction.";
+    else if (busy || !legs.length) stats = `${picks.length} trail${picks.length > 1 ? "s" : ""} picked · building the ride…`;
+    else stats = `<b>${fmtM(m)}</b>${climb} · ${picks.length} trail${picks.length > 1 ? "s" : ""}${gaps ? ` · <span class="gap-note">${gaps} stretch${gaps > 1 ? "es" : ""} off mapped trails</span>` : ""}`;
+    $("planStats").innerHTML = stats;
+    if (mode === "tap") {
+      const used = namesOf(legs.flatMap((l) => l.ways));
+      $("planTrails").innerHTML = used.length ? used.slice(0, 12).map(chip).join(" → ") + (used.length > 12 ? ` → +${used.length - 12} more` : "") : "";
+      $("planSteps").innerHTML = "";
+    } else {
+      $("planTrails").innerHTML = legs.length ? "" : picks.map((p, i) => `<button type="button" class="pick-x" data-i="${i}" title="Take it out">${chip({ name: p.name, ...levelOf(p.ways[0]) })} ✕</button>`).join(" ");
+      let n = 0;
+      $("planSteps").innerHTML = legs.length ? `<li class="ps-start"><span class="ps-n">S</span><span><b>Start</b>${pickStart ? "" : " at the lowest end of your trails"}</span></li>`
+        + legs.map((l) => stepHtml(l, l.pick >= 0 ? ++n : 0)).join("") + (pickBack ? `<li class="ps-start"><span class="ps-n">S</span><span><b>Back at the start</b></span></li>` : "") : "";
+    }
+    const has = mode === "tap" ? stops.length : picks.length, ready = mode === "tap" ? stops.length >= 2 : legs.length > 0;
+    $("planUndo").disabled = !has; $("planClear").disabled = !has && !(mode === "pick" && pickStart);
+    $("planLoop").disabled = mode === "tap" && stops.length < 2;
+    $("planLoop").textContent = mode === "tap" ? "↺ Back to start" : pickBack ? "↺ Loop: on" : "↺ Loop: off";
+    $("planLoop").setAttribute("aria-pressed", String(mode === "pick" && pickBack));
+    $("planStart").hidden = mode !== "pick";
+    $("planStart").setAttribute("aria-pressed", String(settingStart));
+    $("planStart").textContent = settingStart ? "Tap the start…" : pickStart ? "📍 Move start" : "📍 Set start";
+    ["planGpx", "planRide"].forEach((id) => { $(id).disabled = !ready || busy > 0; });
+  }
+  // Climb for Tap points, from the same terrain heights.
+  let climbGen = 0;
   function loadClimb() {
-    clearTimeout(climbTimer);
-    const pts = allPts();
+    const pts = allPts(), my = ++climbGen;
     if (pts.length < 2) { elev = null; return; }
-    const k = key(pts[0]) + key(pts[pts.length - 1]) + pts.length;
-    if (k === elevFor) return;
-    elev = null;
-    climbTimer = setTimeout(async () => {
-      const step = Math.max(1, (pts.length - 1) / 99), sample = [];
-      for (let i = 0; i < pts.length; i += step) sample.push(pts[Math.round(i)]);
-      if (sample[sample.length - 1] !== pts[pts.length - 1]) sample.push(pts[pts.length - 1]);
-      try {
-        const r = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${sample.slice(0, 100).map((q) => q[0].toFixed(5)).join(",")}&longitude=${sample.slice(0, 100).map((q) => q[1].toFixed(5)).join(",")}`);
-        const h = (await r.json()).elevation;
-        let up = 0, down = 0, ref = h[0];
-        h.forEach((x) => { if (x - ref >= 4) { up += x - ref; ref = x; } else if (ref - x >= 4) { down += ref - x; ref = x; } });
-        elev = { up: Math.round(up), down: Math.round(down) }; elevFor = k;
-        render();
-      } catch {}
-    }, 600);
+    terrainOr(boxOf(pts, 0.005)).then((ht) => {
+      if (my !== climbGen) return;
+      legs.forEach((l) => Object.assign(l, climbOf(l.pts, ht) || {}));
+      elev = climbOf(pts, ht);
+      render();
+    });
   }
   function save() { try { localStorage.setItem("tf:plan", JSON.stringify(stops.map((s) => s.ll))); } catch {} }
+  function savePicks() {
+    if (pending) return;   // still waiting for the saved picks' trails to load
+    try { localStorage.setItem("tf:planPicks", JSON.stringify({ picks: picks.map((p) => ({ name: p.name, ids: p.ways.map((w) => w.id) })), start: pickStart, back: pickBack })); } catch {}
+  }
   function restore() {
     let saved = [];
     try { saved = JSON.parse(localStorage.getItem("tf:plan") || "[]") || []; } catch {}
-    stops = []; legs = [];
-    saved.forEach((ll) => { const sn = snap(ll), stop = { ll: sn ? sn.q : ll, snap: sn }; if (stops.length) legs.push(legFor(stops[stops.length - 1], stop)); stops.push(stop); });
+    later(async () => {
+      stops = []; legs = [];
+      for (const ll of saved) {
+        const sn = snap(ll), stop = { ll: sn ? sn.q : ll, snap: sn };
+        if (stops.length) legs.push(await legFor(stops[stops.length - 1], stop));
+        stops.push(stop);
+      }
+      draw();
+    });
+  }
+  // Saved picks come back once their trail files have loaded (tried for a little while after opening).
+  let pending = null, pendingTries = 0;
+  function restorePicks() {
+    try { const s = JSON.parse(localStorage.getItem("tf:planPicks") || "null"); if (s) { pending = s.picks || []; pickStart = s.start || null; pickBack = s.back !== false; } } catch {}
+    pendingTries = 0; resolvePicks();
+  }
+  function resolvePicks() {
+    if (!pending || !pending.length) { pending = null; return; }
+    allWays();
+    const got = pending.map((p) => ({ name: p.name, ways: p.ids.map((id) => cache.byId.get(id)).filter(Boolean) }));
+    if (got.every((p) => p.ways.length) || ++pendingTries > 15) {
+      picks = got.filter((p) => p.ways.length); pending = null;
+      if (mode === "pick") changedPicks();
+    } else setTimeout(() => { if (planning) resolvePicks(); }, 1500);
   }
   function gpx() {
-    const pts = allPts(), now = new Date().toISOString();
-    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>Trail Finder loop</name><time>${now}</time></metadata>\n<trk><name>Trail Finder loop</name><trkseg>\n${pts.map((q) => `<trkpt lat="${q[0].toFixed(6)}" lon="${q[1].toFixed(6)}"/>`).join("\n")}\n</trkseg></trk>\n</gpx>\n`;
+    const pts = allPts(), now = new Date().toISOString(), name = mode === "pick" ? "Trail Finder ride" : "Trail Finder route";
+    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${name}</name><time>${now}</time></metadata>\n<trk><name>${name}</name><trkseg>\n${pts.map((q) => `<trkpt lat="${q[0].toFixed(6)}" lon="${q[1].toFixed(6)}"/>`).join("\n")}\n</trkseg></trk>\n</gpx>\n`;
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([body], { type: "application/gpx+xml" }));
-    a.download = `trail-finder-loop-${now.slice(0, 10)}.gpx`;
+    a.download = `trail-finder-route-${now.slice(0, 10)}.gpx`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   }
@@ -203,27 +710,58 @@
 .app.planning #map { cursor: crosshair; }
 .plan-bar { position: fixed; z-index: 1200; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); max-width: 600px; margin: 0 auto; background: var(--panel, #fff); color: var(--fg, #14211a); border-radius: 18px; box-shadow: 0 6px 24px rgba(0,0,0,.28); padding: 12px 14px; }
 .plan-bar[hidden] { display: none; }
-.plan-bar h3 { margin: 0 0 4px; font-size: 1.05rem; }
+.plan-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.plan-head h3 { margin: 0; font-size: 1.05rem; flex: 1 1 auto; }
+.plan-modes { display: flex; border: 1px solid var(--line, #d6dad3); border-radius: 11px; overflow: hidden; }
+.plan-modes button { font: inherit; font-size: .88rem; font-weight: 700; padding: 6px 10px; border: 0; background: var(--bg, #f4f5f0); color: inherit; cursor: pointer; }
+.plan-modes button[aria-pressed="true"] { background: #7b2ff7; color: #fff; }
 .plan-stats { font-size: 1rem; }
-.plan-stats .gap-note { color: #c25e00; font-size: .9rem; }
+.plan-stats .gap-note, .plan-steps .gap-note { color: #c25e00; font-size: .9rem; }
 .plan-trails { font-size: .88rem; color: var(--muted, #5b6660); margin-top: 4px; max-height: 3.2em; overflow: auto; }
-.plan-trails .pt i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: 0; }
+.plan-bar.pick .plan-trails { max-height: 5em; color: inherit; }
+.plan-trails .pt i, .plan-steps .pt i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: 0; }
+.pick-x { font: inherit; font-size: .85rem; margin: 2px 0; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line, #d6dad3); background: var(--bg, #f4f5f0); color: inherit; cursor: pointer; }
+.plan-steps { list-style: none; margin: 6px 0 0; padding: 0; max-height: 9.5em; overflow: auto; font-size: .9rem; }
+.plan-steps li { display: flex; gap: 8px; align-items: baseline; margin: 3px 0; }
+.plan-steps .ps-n { flex: 0 0 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; font: 700 11px/1 system-ui, sans-serif; align-self: center; }
+.plan-steps .ps-trail .ps-n { background: #ffd43b; color: #2b2100; }
+.plan-steps .ps-start .ps-n { background: #7b2ff7; color: #fff; }
+.plan-steps .ps-link { color: var(--muted, #5b6660); }
+.plan-steps .ps-link .ps-n { color: #7b2ff7; font-size: 15px; }
+.plan-steps .pt { font-weight: 700; }
+.plan-steps .m { color: var(--muted, #5b6660); white-space: nowrap; }
 .plan-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .plan-btns button { flex: 1 1 auto; font: inherit; font-size: .92rem; font-weight: 700; padding: 9px 10px; border-radius: 11px; border: 1px solid var(--line, #d6dad3); background: var(--bg, #f4f5f0); color: inherit; cursor: pointer; }
 .plan-btns button:disabled { opacity: .45; cursor: default; }
+.plan-btns button[aria-pressed="true"] { border-color: #7b2ff7; }
 .plan-btns .go { background: var(--cta, #c6f05a); border-color: transparent; color: var(--cta-fg, #10230f); }
-.plan-stop { background: none; border: 0; }
+.plan-stop, .plan-arrow { background: none; border: 0; }
 .plan-stop span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #7b2ff7; color: #fff; font: 700 12px/1 system-ui, sans-serif; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); box-sizing: border-box; }
+.plan-stop.pick span { background: #ffd43b; color: #2b2100; }
+.plan-arrow span { display: block; width: 16px; height: 16px; color: #fff; font: 700 11px/16px system-ui, sans-serif; text-align: center; text-shadow: 0 0 2px #4b1aa0, 0 0 2px #4b1aa0; }
 body.sport-ski #planBtn { display: none; }
 `;
   document.head.appendChild(css);
   const bar = document.createElement("div");
-  bar.className = "plan-bar"; bar.hidden = true; bar.setAttribute("role", "region"); bar.setAttribute("aria-label", "Plan a loop");
-  bar.innerHTML = `<h3>Plan a loop</h3><div class="plan-stats" id="planStats"></div><div class="plan-trails" id="planTrails"></div>
-    <div class="plan-btns"><button type="button" id="planUndo">↶ Undo</button><button type="button" id="planLoop" title="Add a last point back at the start">↺ Back to start</button><button type="button" id="planClear">Clear</button>
+  bar.className = "plan-bar"; bar.hidden = true; bar.setAttribute("role", "region"); bar.setAttribute("aria-label", "Plan a route");
+  bar.innerHTML = `<div class="plan-head"><h3>Plan a route</h3><div class="plan-modes" role="group" aria-label="How to make the route">
+      <button type="button" data-mode="tap" title="Tap points on the map; the route follows the trails between them">Tap points</button>
+      <button type="button" data-mode="pick" title="Tap the trails you want to ride; the app builds the ride through them">Pick trails</button></div></div>
+    <div class="plan-stats" id="planStats" aria-live="polite"></div><div class="plan-trails" id="planTrails"></div><ol class="plan-steps" id="planSteps"></ol>
+    <div class="plan-btns"><button type="button" id="planUndo">↶ Undo</button><button type="button" id="planStart" hidden>📍 Set start</button><button type="button" id="planLoop" title="End the ride back at the start">↺ Back to start</button><button type="button" id="planClear">Clear</button>
     <button type="button" id="planGpx">⤓ GPX</button><button type="button" class="go" id="planRide">▶ Ride it</button><button type="button" id="planDone">Done</button></div>`;
   document.body.appendChild(bar);
 
+  function setMode(m) {
+    if (m === mode) return;
+    mode = m; settingStart = false; note = "";
+    try { localStorage.setItem("tf:planMode", m); } catch {}
+    legs = []; elev = null;
+    if (m === "tap") restore();
+    else if (!picks.length && !pending) restorePicks();
+    else if (!pending) changedPicks();
+    draw();
+  }
   function setPlanning(on) {
     if (planning === on) return;
     planning = on;
@@ -237,33 +775,53 @@ body.sport-ski #planBtn { display: none; }
     if (on) {
       nav.load();
       layer.addTo(map);
-      if (!stops.length) restore();
+      try { mode = localStorage.getItem("tf:planMode") === "pick" ? "pick" : "tap"; } catch {}
+      if (mode === "tap") { if (!stops.length) restore(); }
+      else if (!picks.length) restorePicks();
       draw();
-      if (stops.length) map.fitBounds(L.latLngBounds(allPts().length ? allPts() : stops.map((s) => s.ll)), { padding: [40, 40], maxZoom: 16 });
+      const pts = allPts().length ? allPts() : mode === "tap" ? stops.map((s) => s.ll) : picks.flatMap((p) => p.ways.flatMap((w) => w.geom));
+      if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 });
       else if (map.getZoom() < 13) map.setZoom(13);
-    } else map.removeLayer(layer);
+    } else { map.removeLayer(layer); settingStart = false; }
     const b = $("planBtn"); if (b) b.setAttribute("aria-pressed", String(on));
   }
-  map.on("click", (e) => { if (planning) addStop([e.latlng.lat, e.latlng.lng]); });
-  map.on("moveend", () => { if (planning) nav.load(); });
+  map.on("click", (e) => {
+    if (!planning) return;
+    const ll = [e.latlng.lat, e.latlng.lng];
+    if (mode === "tap") addStop(ll);
+    else if (settingStart) { settingStart = false; pickStart = ll; changedPicks(); }
+    else togglePick(ll);
+  });
+  map.on("moveend", () => { if (planning) { nav.load(); drawArrows(); } });
+  bar.querySelectorAll(".plan-modes button").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
+  $("planTrails").addEventListener("click", (e) => { const b = e.target.closest(".pick-x"); if (b) { picks.splice(+b.dataset.i, 1); changedPicks(); } });
   $("planUndo").addEventListener("click", undo);
-  $("planClear").addEventListener("click", () => { if (stops.length < 3 || confirm("Clear this plan?")) clear(); });
+  $("planClear").addEventListener("click", () => { if ((mode === "tap" ? stops.length : picks.length) < 3 || confirm("Clear this plan?")) clear(); });
   $("planLoop").addEventListener("click", closeLoop);
+  $("planStart").addEventListener("click", () => { settingStart = !settingStart; render(); });
   $("planGpx").addEventListener("click", gpx);
   $("planDone").addEventListener("click", () => setPlanning(false));
   $("planRide").addEventListener("click", () => {
-    const lines = legs.map((l) => l.pts);
+    const lines = legs.map((l) => l.pts), name = mode === "pick" ? `your ride (${fmtM(total())})` : `your route (${fmtM(total())})`;
     setPlanning(false);
-    if (window.tfRide) window.tfRide.follow(lines, `your loop (${fmtM(total())})`);
+    if (window.tfRide) window.tfRide.follow(lines, name);
   });
 
   const btn = document.createElement("button");
   btn.id = "planBtn"; btn.type = "button"; btn.setAttribute("aria-pressed", "false");
-  btn.title = "Tap points on the map to plan a ride along the trails: distance, climb, GPX, and Ride it";
-  btn.textContent = "✎ Plan a loop";
+  btn.title = "Plan a route: tap points on the map, or pick the trails you want and the app builds the ride. Distance, climb, GPX, and Ride it";
+  btn.textContent = "✎ Plan a route";
   const tools = $("offlineBtn")?.parentElement;
   if (tools) tools.prepend(btn);
   btn.addEventListener("click", () => { setPlanning(!planning); if ($("layersMenu") && !$("layersMenu").hidden) $("layersBtn").click(); });
 
-  window.tfPlan = { open: () => setPlanning(true), planning: () => planning };
+  window.tfPlan = { open: () => setPlanning(true), planning: () => planning,
+    // For trail details or the To ride list later: open Pick trails with these way ids added.
+    pick: (ids, name) => {
+      allWays();
+      const ways = ids.map((id) => cache.byId.get(id)).filter(Boolean);
+      if (!ways.length) return;
+      setPlanning(true); setMode("pick");
+      if (!picks.some((p) => p.ways.some((w) => ids.includes(w.id)))) { picks.push({ name: name || nameOf(ways[0]) || "Unnamed trail", ways }); changedPicks(); }
+    } };
 })();
