@@ -287,7 +287,7 @@
     });
     return (G.reach = ok);
   }
-  const drives = (G, k1, k2, w, d) => how === "shuttle" && carOk(G, k1, k2, w, d) && (carReach(G).has(k1) || carReach(G).has(k2));
+  const drives = (G, k1, k2, w, d) => carOk(G, k1, k2, w, d) && (carReach(G).has(k1) || carReach(G).has(k2));
 
   // Nearest point on any line: { w, i (segment), q (the point), d }.
   function snap(p, max = SNAP_M, ways = allWays()) {
@@ -385,8 +385,8 @@
     pos.forEach((p, k) => h.set(k, ht(p)));
     return { adj, pos, h, ht };
   }
-  function cost(G, k1, k2, d, w) {
-    if (how === "shuttle" && drives(G, k1, k2, w, d)) return d * (w ? driveRate(w) : DRIVE.street);
+  function cost(G, k1, k2, d, w, car = how === "shuttle") {
+    if (car && drives(G, k1, k2, w, d)) return d * (w ? driveRate(w) : DRIVE.street);
     const h1 = G.h.get(k1), h2 = G.h.get(k2), dh = h1 != null && h2 != null ? h2 - h1 : 0;
     // Up a one-way trail (the only way the graph lets you ride it) is a climbing trail, like Stl'lhalem Sintl'.
     return edgeCost(d, dh, w ? (dh > 0 && kindOf(w) !== "road" && onewayOf(w) ? "climb" : kindOf(w)) : "link");
@@ -440,8 +440,8 @@
   }
   // Shuttle: a way split into what's driven and what's ridden, [{ drive, pts, segs }], or null if nothing is driven.
   // One shuttle is one drive; a drive under 300 m is just riding across a road.
-  function runsOf(G, p) {
-    if (how !== "shuttle" || !p || p.segs.length < 1) return null;
+  function runsOf(G, p, car = how === "shuttle") {
+    if (!car || !p || p.segs.length < 1) return null;
     const merge = (runs) => runs.reduce((out, r) => {
       const last = out[out.length - 1];
       if (last && last.drive === r.drive) { last.pts.push(...r.pts.slice(1)); last.segs.push(...r.segs); } else out.push({ drive: r.drive, pts: [...r.pts], segs: [...r.segs] });
@@ -461,14 +461,14 @@
     });
     return runs.some((r) => r.drive) ? runs : null;
   }
-  const effort = (G) => (k1, k2, m, w) => cost(G, k1, k2, m, w);
+  const effort = (G, car) => (k1, k2, m, w) => cost(G, k1, k2, m, w, car);
 
   // ---------- the plan ----------
   // Tap points: stops [{ ll, snap }], legs[i] joins stops[i] and stops[i+1].
   // Pick trails: picks [{ name, ways }], start (a spot or null: the lowest trail end), back (end at the start);
   //   legs alternate links and the picked trails.
   // A leg: { pts, ways, gap (no trail, straight line), pick (index of the picked trail it rides, or -1), up, down }.
-  let planning = false, mode = "tap", stops = [], legs = [], elev = null, picks = [], pickStart = null, pickBack = true, pickManual = false, settingStart = false;
+  let planning = false, mode = "tap", stops = [], legs = [], elev = null, picks = [], pickStart = null, pickBack = true, pickManual = false, pickHomePedal = false, settingStart = false;
   let busy = 0, gen = 0, note = "", noteWarn = true;
   const layer = L.layerGroup();
   const pickCase = L.polyline([], { color: "#ffd43b", weight: 13, opacity: 0.85, lineCap: "round", lineJoin: "round", interactive: false });
@@ -529,7 +529,7 @@
     later(() => { stops.pop(); legs.pop(); draw(); save(); });
   }
   function clear() {
-    if (mode === "pick") { picks = []; pickStart = null; pickManual = false; changedPicks(); return; }
+    if (mode === "pick") { picks = []; pickStart = null; pickManual = false; pickHomePedal = false; changedPicks(); return; }
     later(() => { stops = []; legs = []; elev = null; draw(); save(); });
   }
   function closeLoop() {
@@ -634,12 +634,14 @@
         if (!G.pos.has(S)) { G.pos.set(S, T[0].pts[0]); G.h.set(S, ht(T[0].pts[0])); }
       }
       // Effort between every pair of points that matter (start, trail ends): one Dijkstra from each.
-      const runs = new Map(), weigh = effort(G);
-      const from = (k) => { if (!runs.has(k)) runs.set(k, dijkstra(G, k, null, weigh)); return runs.get(k); };
+      // Shuttle: each way into a trail goes by truck unless you took that shuttle out (pick.pedal; home: pickHomePedal).
+      const shuttle = how === "shuttle", carInto = (j) => shuttle && !picks[j].pedal, carHome = shuttle && !pickHomePedal;
+      const runs = new Map();
+      const from = (k, car = shuttle) => { const id = (car ? "c" : "p") + k; if (!runs.has(id)) runs.set(id, dijkstra(G, k, null, effort(G, car))); return runs.get(id); };
       const posOf = (k) => G.pos.get(k) || T.flatMap((t) => [[t.a, t.pts[0]], [t.b, t.pts[t.pts.length - 1]]]).find((x) => x[0] === k)[1];
-      const C = (k1, k2) => {
+      const C = (k1, k2, car) => {
         if (k1 === k2) return 0;
-        const d = from(k1).dist.get(k2);
+        const d = from(k1, car).dist.get(k2);
         return d != null ? d : metres(posOf(k1), posOf(k2)) * 6 + 500;   // no way along lines: a straight dash, costly
       };
       // Branching off (alex): where the next trail starts partway along this one, leave it there instead of riding
@@ -660,16 +662,17 @@
       };
       // Effort from the start of trail j to the start of trail k: all of j and the link, or j up to where k branches off.
       const step = (j, o, k, o2) => {
-        const full = tc[j][o] + C(exit(j, o), entry(k, o2)), c = tc[j][o] < Infinity && cut(j, o, k, o2);
-        return c ? Math.min(full, c.cost + C(c.key, entry(k, o2))) : full;
+        const full = tc[j][o] + C(exit(j, o), entry(k, o2), carInto(k)), c = tc[j][o] < Infinity && cut(j, o, k, o2);
+        return c ? Math.min(full, c.cost + C(c.key, entry(k, o2), carInto(k))) : full;
       };
       const N = T.length;
       let order;
-      if (pickManual) order = fixedOrder(N, tc, C, S, entry, exit, step);   // your order: only the directions are chosen
+      const CS = (j, o) => C(S, entry(j, o), carInto(j)), CH = (j, o) => (pickBack ? C(exit(j, o), S, carHome) : 0);
+      if (pickManual) order = fixedOrder(N, tc, CS, CH, step);   // your order: only the directions are chosen
       else {
       const full = (1 << N) - 1, idx = (m, j, o) => (m * N + j) * 2 + o;
       const dp = new Float64Array((full + 1) * N * 2).fill(Infinity), par = new Int32Array((full + 1) * N * 2).fill(-1);
-      for (let j = 0; j < N; j++) for (let o = 0; o < 2; o++) if (tc[j][o] < Infinity) dp[idx(1 << j, j, o)] = C(S, entry(j, o)) + tc[j][o];
+      for (let j = 0; j < N; j++) for (let o = 0; o < 2; o++) if (tc[j][o] < Infinity) dp[idx(1 << j, j, o)] = CS(j, o) + tc[j][o];
       for (let m = 1; m <= full; m++) for (let j = 0; j < N; j++) for (let o = 0; o < 2; o++) {
         const v = dp[idx(m, j, o)];
         if (v === Infinity) continue;
@@ -684,7 +687,7 @@
       }
       let best = Infinity, end = -1;
       for (let j = 0; j < N; j++) for (let o = 0; o < 2; o++) {
-        const v = dp[idx(full, j, o)] + (pickBack ? C(exit(j, o), S) : 0);
+        const v = dp[idx(full, j, o)] + CH(j, o);
         if (v < best) { best = v; end = j * 2 + o; }
       }
       if (end < 0) { legs = []; flash("Couldn't build a ride with those trails."); draw(); return; }
@@ -693,21 +696,22 @@
       }
       // The legs: link to the trail, the trail, ..., and the link home.
       const out = [];
-      const link = (k1, k2) => {
+      const link = (k1, k2, car, into) => {   // into: the trail it leads to (-1: home)
         if (k1 === k2) return;
-        const p = pathTo(G, from(k1), k2);
-        if (p && p.pts.length > 1) out.push({ pts: clean(p.pts), raw: p.pts, segs: p.segs, ways: p.ways, gap: false, pick: -1, runs: runsOf(G, p) });
+        const p = pathTo(G, from(k1, car), k2), runs = runsOf(G, p, car);
+        (runs || []).forEach((r) => { r.into = into; });
+        if (p && p.pts.length > 1) out.push({ pts: clean(p.pts), raw: p.pts, segs: p.segs, ways: p.ways, gap: false, pick: -1, runs, into, pedalled: shuttle && !car });
         else out.push({ pts: [posOf(k1), posOf(k2)], ways: [], gap: true, pick: -1 });
       };
       let at = S;
       order.forEach((x, n) => {
         const j = x >> 1, o = x & 1, r = T[j].run[o], nx = order[n + 1];
-        link(at, entry(j, o));
+        link(at, entry(j, o), carInto(j), j);
         let pts = r.pts, segs = r.segs, to = -1;
         at = exit(j, o);
         if (nx != null) {   // the next trail branches off this one: leave it there
           const k = nx >> 1, o2 = nx & 1, c = cut(j, o, k, o2);
-          if (c && c.cost + C(c.key, entry(k, o2)) < tc[j][o] + C(exit(j, o), entry(k, o2))) {
+          if (c && c.cost + C(c.key, entry(k, o2), carInto(k)) < tc[j][o] + C(exit(j, o), entry(k, o2), carInto(k))) {
             pts = pts.slice(0, c.i + 1); segs = segs.slice(0, c.i); at = c.key; to = k;
           }
         }
@@ -715,11 +719,12 @@
         segs.forEach(([w]) => { if (w && ways[ways.length - 1] !== w) ways.push(w); });
         out.push({ pts: clean(pts), ways, gap: false, pick: j, to });
       });
-      if (pickBack) link(at, S);
+      if (pickBack) link(at, S, carHome, -1);
       if (!pickManual) {   // the list shows the trails in the order chosen
         const posOfPick = new Map(order.map((x, i) => [x >> 1, i]));
         picks = order.map((x) => picks[x >> 1]);
-        out.forEach((l) => { if (l.pick >= 0) l.pick = posOfPick.get(l.pick); if (l.to >= 0) l.to = posOfPick.get(l.to); });
+        const re = (l) => { if (l.pick >= 0) l.pick = posOfPick.get(l.pick); if (l.to >= 0) l.to = posOfPick.get(l.to); if (l.into >= 0) l.into = posOfPick.get(l.into); };
+        out.forEach((l) => { re(l); (l.runs || []).forEach(re); });
         savePicks();
       }
       out.forEach((l) => { Object.assign(l, climbOf(l.pts, ht) || {}); (l.runs || []).forEach((r) => Object.assign(r, climbOf(r.pts, ht) || {})); });
@@ -743,20 +748,20 @@
     map.fitBounds(b, { paddingTopLeft: [30, 60], paddingBottomRight: [30, bar.offsetHeight + 24], maxZoom: 16 });
   }
   // The trails in the order of the list: the best direction for each, start to finish (and back).
-  function fixedOrder(N, tc, C, S, entry, exit, step) {
+  function fixedOrder(N, tc, CS, CH, step) {
     const best = [], from = [];
     for (let j = 0; j < N; j++) {
       best.push([Infinity, Infinity]); from.push([-1, -1]);
       for (let o = 0; o < 2; o++) {
         if (tc[j][o] === Infinity) continue;
-        if (!j) { best[0][o] = C(S, entry(0, o)) + tc[0][o]; continue; }
+        if (!j) { best[0][o] = CS(0, o) + tc[0][o]; continue; }
         for (let p = 0; p < 2; p++) {
           const v = best[j - 1][p] - tc[j - 1][p] + step(j - 1, p, j, o) + tc[j][o];
           if (v < best[j][o]) { best[j][o] = v; from[j][o] = p; }
         }
       }
     }
-    const last = [0, 1].map((o) => best[N - 1][o] + (pickBack ? C(exit(N - 1, o), S) : 0));
+    const last = [0, 1].map((o) => best[N - 1][o] + CH(N - 1, o));
     let o = last[1] < last[0] ? 1 : 0;
     const order = [];
     for (let j = N - 1; j >= 0; j--) { order.unshift(j * 2 + o); o = from[j][o]; }
@@ -849,6 +854,10 @@
   }
   function stepHtml(l) {
     if (l.runs) return l.runs.map(stepHtml).join("");
+    if (l.pedalled && l.into != null) {   // a shuttle you took out: ride it, with a way to put the truck back
+      const back = `<button type="button" class="ps-car" data-act="car" data-i="${l.into}" title="Take the truck up here again">🛻 Shuttle here</button>`;
+      return stepHtml({ ...l, pedalled: false, into: null }).replace(/<\/span><\/li>$/, ` ${back}</span></li>`);
+    }
     const len = lengthOf(l.pts), up = l.up || 0, down = l.down || 0;
     const verb = up > 25 && up > down * 1.5 ? "Climb" : down > 25 && down > up * 1.5 ? "Descend" : "Ride";
     const m = `<span class="m">${fmtM(len)}${up >= 10 ? ` ↑ ${up} m` : ""}${down >= 10 ? ` ↓ ${down} m` : ""}</span>`;
@@ -860,7 +869,8 @@
     if (!l.gap && len < 25) return "";   // a few metres between two trails
     if (l.drive) {
       const names = mainNames(l);
-      return `<li class="ps-link ps-drive"><span class="ps-n">🛻</span><span><b>${up > down ? "Shuttle up" : "Shuttle"}</b>${names.length ? " via " + names.map(esc).join(", ") : ""} ${m}</span></li>`;
+      const x = l.into != null ? `<span class="ps-ctl"><button type="button" data-act="nocar" data-i="${l.into}" title="No shuttle here: ride it, one big run" aria-label="Take out this shuttle">✕</button></span>` : "";
+      return `<li class="ps-link ps-drive"><span class="ps-n">🛻</span><span class="ps-body"><b>${up > down ? "Shuttle up" : "Shuttle"}</b>${names.length ? " via " + names.map(esc).join(", ") : ""} ${m}</span>${x}</li>`;
     }
     if (l.gap) return `<li class="ps-link"><span class="ps-n">↝</span><span><b>Cross</b> <span class="gap-note">off mapped trails</span> ${m}</span></li>`;
     const names = mainNames(l), picked = new Set(picks.map((p) => p.name));
@@ -921,7 +931,7 @@
   function save() { try { localStorage.setItem("tf:plan", JSON.stringify(stops.map((s) => s.ll))); } catch {} }
   function savePicks() {
     if (pending) return;   // still waiting for the saved picks' trails to load
-    try { localStorage.setItem("tf:planPicks", JSON.stringify({ picks: picks.map((p) => ({ name: p.name, ids: p.ways.map((w) => w.id) })), start: pickStart, back: pickBack, manual: pickManual })); } catch {}
+    try { localStorage.setItem("tf:planPicks", JSON.stringify({ picks: picks.map((p) => ({ name: p.name, ids: p.ways.map((w) => w.id), pedal: !!p.pedal })), start: pickStart, back: pickBack, manual: pickManual, homePedal: pickHomePedal })); } catch {}
   }
   function restore() {
     let saved = [];
@@ -964,13 +974,13 @@
   // Saved picks come back once their trail files have loaded (tried for a little while after opening).
   let pending = null, pendingTries = 0;
   function restorePicks() {
-    try { const s = JSON.parse(localStorage.getItem("tf:planPicks") || "null"); if (s) { pending = s.picks || []; pickStart = s.start || null; pickBack = s.back !== false; pickManual = !!s.manual; } } catch {}
+    try { const s = JSON.parse(localStorage.getItem("tf:planPicks") || "null"); if (s) { pending = s.picks || []; pickStart = s.start || null; pickBack = s.back !== false; pickManual = !!s.manual; pickHomePedal = !!s.homePedal; } } catch {}
     pendingTries = 0; resolvePicks();
   }
   function resolvePicks() {
     if (!pending || !pending.length) { pending = null; return; }
     allWays();
-    const got = pending.map((p) => ({ name: p.name, ways: p.ids.map((id) => cache.byId.get(id)).filter(Boolean) }));
+    const got = pending.map((p) => ({ name: p.name, ways: p.ids.map((id) => cache.byId.get(id)).filter(Boolean), pedal: !!p.pedal }));
     if (got.every((p) => p.ways.length) || ++pendingTries > 15) {
       picks = got.filter((p) => p.ways.length); pending = null;
       if (mode === "pick") changedPicks();
@@ -1019,6 +1029,7 @@
 .plan-steps .ps-ctl { display: inline-flex; gap: 2px; flex: 0 0 auto; align-self: center; }
 .plan-steps .ps-ctl button { font: 700 11px/1 system-ui, sans-serif; width: 26px; height: 24px; padding: 0; border-radius: 7px; border: 1px solid var(--line, #d6dad3); background: var(--bg, #f4f5f0); color: inherit; cursor: pointer; }
 .plan-steps .ps-ctl button:disabled { opacity: .3; cursor: default; }
+.ps-car { font: inherit; font-size: .8rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; border: 1px solid #37474f; background: none; color: inherit; cursor: pointer; }
 .ps-auto { font: inherit; font-size: .85rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid #7b2ff7; background: none; color: #7b2ff7; cursor: pointer; }
 .plan-steps .ps-trail .ps-n { background: #ffd43b; color: #2b2100; }
 .plan-steps .ps-start .ps-n { background: #7b2ff7; color: #fff; }
@@ -1126,6 +1137,12 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
     const i = +b.dataset.i;
     if (b.dataset.act === "up") movePick(i, i - 1);
     else if (b.dataset.act === "down") movePick(i, i + 1);
+    else if (b.dataset.act === "nocar" || b.dataset.act === "car") {   // take a shuttle out, or put it back
+      const ride = b.dataset.act === "nocar";
+      if (i < 0) pickHomePedal = ride; else if (picks[i]) picks[i].pedal = ride;
+      if (ride && picks.length > 1) pickManual = true;   // keep the order you see, so the trails stay back to back
+      changedPicks();
+    }
     else if (b.dataset.act === "x") { picks.splice(i, 1); if (picks.length < 2) pickManual = false; changedPicks(); }
   });
   let dragI = -1;
