@@ -439,7 +439,7 @@
     return { pts, ways, segs, keys, cost: D.dist.get(to) };
   }
   // Shuttle: a way split into what's driven and what's ridden, [{ drive, pts, segs }], or null if nothing is driven.
-  // A drive under 300 m is just riding across a road.
+  // One shuttle is one drive; a drive under 300 m is just riding across a road.
   function runsOf(G, p) {
     if (how !== "shuttle" || !p || p.segs.length < 1) return null;
     const merge = (runs) => runs.reduce((out, r) => {
@@ -448,7 +448,10 @@
       return out;
     }, []);
     let runs = merge(p.segs.map((sg, i) => ({ drive: drives(G, p.keys[i], p.keys[i + 1], sg[0], metres(p.pts[i], p.pts[i + 1])), pts: [p.pts[i], p.pts[i + 1]], segs: [sg] })));
-    runs.forEach((r) => { if (r.drive && lengthOf(r.pts) < 300) r.drive = false; });
+    // You stay in the truck between two drives (a short link the data doesn't show as drivable)...
+    runs.forEach((r, i) => { if (!r.drive && i > 0 && i < runs.length - 1 && lengthOf(r.pts) < 500) r.drive = true; });
+    runs = merge(runs);
+    runs.forEach((r) => { if (r.drive && lengthOf(r.pts) < 300) r.drive = false; });   // ...and get out for less than 300 m
     runs = merge(runs);
     runs.forEach((r) => { r.raw = r.pts; r.pick = -1; });
     return runs.some((r) => r.drive) ? runs : null;
@@ -852,7 +855,7 @@
     if (!l.gap && len < 25) return "";   // a few metres between two trails
     if (l.drive) {
       const names = mainNames(l);
-      return `<li class="ps-link ps-drive"><span class="ps-n">🛻</span><span><b>${up > down ? "Drive up" : "Drive"}</b>${names.length ? " " + names.map(esc).join(", ") : ""} ${m}</span></li>`;
+      return `<li class="ps-link ps-drive"><span class="ps-n">🛻</span><span><b>${up > down ? "Shuttle up" : "Shuttle"}</b>${names.length ? " via " + names.map(esc).join(", ") : ""} ${m}</span></li>`;
     }
     if (l.gap) return `<li class="ps-link"><span class="ps-n">↝</span><span><b>Cross</b> <span class="gap-note">off mapped trails</span> ${m}</span></li>`;
     const names = mainNames(l), picked = new Set(picks.map((p) => p.name));
