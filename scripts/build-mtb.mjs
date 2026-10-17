@@ -419,7 +419,7 @@ for (const z of order) {
       const t = rec && bikeWay && !/^(no|private)$/.test(tags.access || "") ? recMatch(w.geometry, rec.index) : null;
       const park = rec && rec.parks.find((p) => inPark([mid.lat, mid.lon], p));
       const hand = tags.name && HAND.find((h) => h.name.toLowerCase() === tags.name.toLowerCase() && metres([mid.lat, mid.lon], h.c) <= h.r);
-      if (hand) { tags["tf:hand"] = hand.who; fromHand++; }
+      if (hand) { tags["tf:hand"] = hand.who || hand.src; fromHand++; }
       else if (!ownMtb(tags) && !routeWays.has(w.id) && !t) {
         if (!bikeWay || !bikeOk(tags)) continue;
         const a = tags.name && !NOT_BIKE_NAME.test(tags.name) && sparse.find((a) => metres([mid.lat, mid.lon], a.c) <= radius(a) || (a.park && park && park.name === a.park));
