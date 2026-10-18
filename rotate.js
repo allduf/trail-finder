@@ -36,6 +36,7 @@
   if (!window.L || !L.Map.prototype.setBearing) return;   // leaflet-rotate didn't load: the map just doesn't turn
   const TWIST_DEG = 12;   // two fingers must turn this far before the map starts turning with them
   const PINCH_LOCK = 1.25;   // ...and before the pinch has zoomed by this much (in or out), or it's a zoom and never turns
+  const PINCH_START = Math.log(1.05);   // fingers must spread or close 5% before the map starts to zoom
 
   const norm = (d) => ((d % 360) + 540) % 360 - 180;   // -180..180
   window.tfRotate = { onCompass: null };
@@ -56,12 +57,19 @@
     },
   });
 
-  // ---------- trail lines: redrawn a few times a second while turning, not on every step ----------
-  // Their canvases turn with the map anyway; the redraw only fills in the corners that come into view.
+  // ---------- trail lines: redrawn while turning only when a corner of the screen would go past their canvas ----------
+  // Their canvases turn with the map anyway; the redraw only fills in the corners that come into view. Each redraw costs
+  // a frame or more on a phone (alex, 2026-10-18: "when you zoom and rotate it lag"), so it only happens once a corner
+  // of the screen is about to leave the canvas, and then draws a canvas wide enough for the screen at any angle, so
+  // that one turn needs it once at most. The next pan or zoom goes back to the usual size.
   // Not while a pinch is zooming the map (alex, 2026-10-18: "it is weird when you zoom in and out"): the lines are still
   // worked out for the zoom the pinch started at, so a redraw then drew them at that old size over a map that was
   // already bigger or smaller, bunched up or spread out, until the pinch ended. The redraw at the end fills the corners.
-  const rendererEvents = L.Renderer.prototype.getEvents;
+  const covers = (map, b) => {
+    const s = map.getSize();
+    return [[0, 0], [s.x, 0], [0, s.y], [s.x, s.y]].every((c) => b.contains(map.containerPointToLayerPoint(c)));
+  };
+  const rendererEvents = L.Renderer.prototype.getEvents, rendererUpdate = L.Renderer.prototype._update;
   L.Renderer.include({
     getEvents() {
       const ev = rendererEvents.call(this);
@@ -69,11 +77,22 @@
         const update = ev.rotate;
         ev.rotate = this._turnLater || (this._turnLater = L.Util.throttle(function () {
           const map = this._map;
-          if (map && (map._animatingZoom || map.getZoom() !== this._zoom)) return;
-          update.call(this);
-        }, 150, this));
+          if (!map || map._animatingZoom || map.getZoom() !== this._zoom) return;
+          if (this._bounds && covers(map, this._bounds)) return;
+          this._wide = true;
+          try { update.call(this); } finally { this._wide = false; }
+        }, 100, this));
       }
       return ev;
+    },
+    _update() {
+      rendererUpdate.call(this);
+      const map = this._map;
+      if (!this._wide || !map || !map._rotate) return;
+      const s = map.getSize(), half = Math.ceil(Math.hypot(s.x, s.y) / 2 + Math.max(s.x, s.y) * 0.1);
+      const c = map.containerPointToLayerPoint(s.divideBy(2)).round();
+      this._bounds = L.bounds(c.subtract([half, half]), c.add([half, half]));
+      this._topLeft = map.layerPointToLatLng(this._bounds.min);
     },
   });
 
@@ -92,7 +111,7 @@
       this._zooming = !!this.zoom;
       if (this._zooming) {
         if (map.options.touchZoom !== "center") this._pinchStartLatLng = map.containerPointToLatLng(p1.add(p2)._divideBy(2));
-        this._startDist = p1.distanceTo(p2);
+        this._startDist = this._firstDist = p1.distanceTo(p2);
         this._startZoom = map.getZoom();
       }
       this._rotating = !!this.rotate;
@@ -109,14 +128,24 @@
       const map = this._map;
       const p1 = map.mouseEventToContainerPoint(e.touches[0]), p2 = map.mouseEventToContainerPoint(e.touches[1]);
       // A pinch that has already zoomed clearly is a zoom: fingers drifting round as they spread don't turn the map then.
-      if (this._zooming && !this._twist) { const s = p1.distanceTo(p2) / this._startDist; if (s > PINCH_LOCK || s < 1 / PINCH_LOCK) this._rotating = false; }
+      const dist = p1.distanceTo(p2);
+      if (this._zooming && !this._twist) { const s = dist / this._firstDist; if (s > PINCH_LOCK || s < 1 / PINCH_LOCK) this._rotating = false; }
       if (this._rotating) {
         const d = norm(angleOf(map, e) - this._startAngle);
         if (!this._twist && Math.abs(d) > TWIST_DEG) { this._twist = d > 0 ? TWIST_DEG : -TWIST_DEG; map.fire("rotatestart", { user: true }); }
         if (this._twist) map.setBearing(this._startBearing + d - this._twist);
       }
+      // The map only starts to zoom once the fingers have spread or closed a little (alex, 2026-10-18: "when you zoom
+      // and rotate it lag"). A twist alone then never zooms, so letting go doesn't redo every trail line for a new zoom
+      // (a second or more on a phone with the whole region's trails), and the map doesn't creep with the fingers.
+      // It starts from where the fingers are then, so it doesn't jump.
+      if (this._zooming && !this._moved && map.options.touchZoom !== "center") {
+        if (Math.abs(Math.log(dist / this._firstDist)) < PINCH_START) { L.DomEvent.preventDefault(e); return; }
+        this._startDist = dist;
+        this._pinchStartLatLng = map.containerPointToLatLng(p1.add(p2)._divideBy(2));
+      }
       if (this._zooming) {
-        const scale = p1.distanceTo(p2) / this._startDist;
+        const scale = dist / this._startDist;
         this._zoom = map.getScaleZoom(scale, this._startZoom);
         if (!map.options.bounceAtZoomLimits && ((this._zoom < map.getMinZoom() && scale < 1) || (this._zoom > map.getMaxZoom() && scale > 1))) this._zoom = map._limitZoom(this._zoom);
         if (map.options.touchZoom === "center") this._center = this._startLatLng;
@@ -308,6 +337,13 @@
   L.Map.addInitHook(function () {
     if (!this.options.rotate) return;
     const map = this;
+    // leaflet-rotate swaps in its own pinch handler (TouchGestures, above) but Leaflet's own pinch zoom was added to
+    // the map before that and stays on: every pinch was zoomed twice over, by two handlers fighting over where the
+    // middle of the map is (Leaflet's doesn't know the map is turned), and every trail line redone twice when it ended.
+    map._handlers.filter((h) => h !== map.touchGestures && h !== map.touchZoom && h._onTouchStart && h._onTouchEnd && h._onTouchMove).forEach((h) => {
+      h.disable();
+      map._handlers.splice(map._handlers.indexOf(h), 1);
+    });
     // Our own panes turn with the map unless told otherwise.
     map.createPane = function (name, container) { return createPane.call(this, name, container || this._rotatePane); };
     mouseRotate(map);
