@@ -1355,10 +1355,10 @@ body.sport-ski #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=222"></script>
-<script src="official.js?v=222"></script>
-<script src="directions.js?v=222"></script>
-<script src="ratings.js?v=222"></script>
+<script src="rotate.js?v=223"></script>
+<script src="official.js?v=223"></script>
+<script src="directions.js?v=223"></script>
+<script src="ratings.js?v=223"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -4267,7 +4267,7 @@ out body;`;
   map.createPane("trailNames").style.zIndex = 395;
   map.getPane("trailNames").style.pointerEvents = "none";
   const nameLayer = L.layerGroup().addTo(map);
-  const NAME_ZOOM = 13, MAX_NAMES = 80;
+  const NAME_ZOOM = 13, MAX_NAMES = 80, nameBounds = new WeakMap();
   function drawTrailNames() {
     nameLayer.clearLayers();
     if (map.getZoom() < NAME_ZOOM || !allShown.length) return;
@@ -4279,6 +4279,9 @@ out body;`;
     allShown.forEach(({ w, color }) => {
       const name = (w.tags.name || w.tags["mtb:name"] || "").trim();
       if (!name) return;
+      let wb = nameBounds.get(w);   // the whole region's trails are in allShown: skip those nowhere near the screen first
+      if (!wb) nameBounds.set(w, (wb = L.latLngBounds(w.geom)));
+      if (!box.intersects(wb)) return;
       const inView = w.geom.filter((p) => box.contains(p) && (!turned || onScreen(p)));
       if (!inView.length) return;
       const b = best.get(name);
@@ -4295,7 +4298,9 @@ out body;`;
         icon: L.divIcon({ className: "trail-name", iconSize: null, html: `<span style="color: ${b.color}">${esc(b.name)}</span>` }) }));
     });
   }
-  map.on("zoomend rotateend", drawTrailNames);
+  // Once per frame: letting go of a twist and a pinch ends both at once.
+  let namesQueued = false;
+  map.on("zoomend rotateend", () => { if (!namesQueued) { namesQueued = true; requestAnimationFrame(() => { namesQueued = false; drawTrailNames(); }); } });
   function syncAllBtn() {
     const b = $("allBtn");
     b.setAttribute("aria-pressed", String(state.allTrails));
@@ -5951,22 +5956,22 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=222"></script>
-<script src="contours.js?v=222"></script>
-<script src="photo-slider.js?v=222"></script>
-<script src="winter.js?v=222"></script>
-<script src="ski-points.js?v=222"></script>
-<script src="offline.js?v=222"></script>
-<script src="navigate.js?v=222"></script>
-<script src="planner.js?v=222"></script>
-<script src="rides.js?v=222"></script>
-<script src="account.js?v=222"></script>
-<script src="reports.js?v=222"></script>
-<script src="visitors.js?v=222"></script>
-<script src="notify.js?v=222"></script>
-<script src="areas.js?v=222"></script>
-<script src="alpine.js?v=222"></script>
-<script src="bikeparks.js?v=222"></script>
+<script src="map3d.js?v=223"></script>
+<script src="contours.js?v=223"></script>
+<script src="photo-slider.js?v=223"></script>
+<script src="winter.js?v=223"></script>
+<script src="ski-points.js?v=223"></script>
+<script src="offline.js?v=223"></script>
+<script src="navigate.js?v=223"></script>
+<script src="planner.js?v=223"></script>
+<script src="rides.js?v=223"></script>
+<script src="account.js?v=223"></script>
+<script src="reports.js?v=223"></script>
+<script src="visitors.js?v=223"></script>
+<script src="notify.js?v=223"></script>
+<script src="areas.js?v=223"></script>
+<script src="alpine.js?v=223"></script>
+<script src="bikeparks.js?v=223"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
