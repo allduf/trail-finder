@@ -158,7 +158,7 @@
   // ---------- rated by hand ----------
   // Trails a local rider rated (alex), matched by name within r metres of c. Remove one once OpenStreetMap has a rating.
   // Every trail listed is an MTB trail (the rider says so). d: their level (leave out to keep the estimate);
-  // off: they say it's an official trail (shown as Official).
+  // off: they say it's an official trail (shown as Official). Unnamed trails are listed by OpenStreetMap way id (ids) instead of name.
   // Entries with src instead of who come from the weekly data audit's research (scripts/audit.mjs): src names the
   // resort, club or tourism page that gives the level or calls it a bike trail, url is that page. Never Trailforks.
   const HAND = [
@@ -168,6 +168,8 @@
     { name: "Trial and Error (lower)", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Pretty Slabs", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
     { name: "Stepping Stones", c: [49.636, -123.177], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail below Pretty Slabs, Britannia" },
+    { ids: [1055222771, 1065048117, 1283478720, 1285445609, 1285445610, 1285445611, 1285445613], c: [49.6372, -123.1735], r: 1000, who: "alex",
+      note: "the unnamed unsanctioned trails between Pretty Slabs, Stepping Stones and Semtex Roll, Britannia" },
     { name: "Bumble Bee", c: [49.731, -118.94], r: 2000, d: "green", src: "Big White Ski Resort, bike school page", url: "https://www.bigwhite.com/summer/mountain-biking/bike-school" },
     { name: "Pry Bar", c: [49.737, -118.928], r: 2000, d: "green", src: "Big White Ski Resort, bike school page", url: "https://www.bigwhite.com/summer/mountain-biking/bike-school" },
     { name: "Nessy", c: [49.732, -118.924], r: 2000, d: "green", src: "Big White Ski Resort, bike school page", url: "https://www.bigwhite.com/summer/mountain-biking/bike-school" },
@@ -215,16 +217,18 @@
     { name: "Kathleen Lake Loop Trail", c: [49.905, -119.471], r: 2000, src: "Tourism Kelowna, the Knox network", url: "https://www.tourismkelowna.com/blog/stories/post/mountain-biking-in-kelowna-a-close-look-at-the-knox-network/" },
     { name: "Gear Jammer Connector", c: [49.276, -122.904], r: 2000, src: "Komoot, Burnaby Mountain Gearjammer", url: "https://www.komoot.com/smarttour/31037183" },
   ];
-  function handOf(geom, tags) {
+  function handOf(geom, tags, id) {
+    const n = Number(String(id || "").replace(/^\D+/, ""));
+    if (n) { const h = HAND.find((h) => h.ids && h.ids.includes(n)); if (h) return h; }
     const name = ((tags && (tags.name || tags["tf:name"])) || "").toLowerCase(), mid = geom && geom[geom.length >> 1];
     if (!name || !mid) return null;
-    const h = HAND.find((h) => h.name.toLowerCase() === name
+    const h = HAND.find((h) => h.name && h.name.toLowerCase() === name
       && Math.hypot((mid[0] - h.c[0]) * 110540, (mid[1] - h.c[1]) * 111320 * Math.cos((h.c[0] * Math.PI) / 180)) <= h.r);
     return h || null;
   }
   // { mtb, off }: why the trail counts as an MTB trail, and as official (null when not), or null when it isn't listed.
-  function hand(geom, tags) {
-    const h = handOf(geom, tags);
+  function hand(geom, tags, id) {
+    const h = handOf(geom, tags, id);
     if (!h) return null;
     if (!h.who) return { mtb: `${h.src} calls it a mountain bike trail`, off: null };
     return { mtb: `${h.who}, who rides it, says it's a mountain bike trail`, off: h.off ? `${h.who}, who rides it, says it's an official trail` : null };
@@ -232,7 +236,7 @@
 
   // Best rating known now: a rider's own rating, official open data, then the same trail, then an estimate.
   function rate(id, geom, tags) {
-    const h = handOf(geom, tags);
+    const h = handOf(geom, tags, id);
     if (h && h.d) return { d: h.d, src: "hand", why: h.who ? `Rated ${LEVEL[h.d]} by ${h.who}, who rides it: ${h.note}. It has no rating on OpenStreetMap yet.`
       : `Rated ${LEVEL[h.d]} by ${h.src}. It has no rating on OpenStreetMap yet.` };
     const o = official(geom, tags && (tags.name || tags["tf:name"]));
