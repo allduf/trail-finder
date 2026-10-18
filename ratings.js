@@ -167,6 +167,7 @@
     { name: "Trial and Error", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Trial and Error (lower)", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Pretty Slabs", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
+    { name: "Fluffy Little Clouds", c: [49.354, -123.064], r: 1500, d: "blue", who: "alex", note: "an official trail on Mt Fromme, North Shore (OpenStreetMap calls it unsanctioned)", off: true },
     { name: "Stepping Stones", c: [49.636, -123.177], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail below Pretty Slabs, Britannia" },
     { name: "Bumble Bee", c: [49.731, -118.94], r: 2000, d: "green", src: "Big White Ski Resort, bike school page", url: "https://www.bigwhite.com/summer/mountain-biking/bike-school" },
     { name: "Pry Bar", c: [49.737, -118.928], r: 2000, d: "green", src: "Big White Ski Resort, bike school page", url: "https://www.bigwhite.com/summer/mountain-biking/bike-school" },
