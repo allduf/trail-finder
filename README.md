@@ -8,6 +8,14 @@ Every hour, `.github/workflows/watch-mapper.yml` checks OpenStreetMap for new ed
 (now: eerib) and posts them as a comment on the issue "New OpenStreetMap edits by &lt;name&gt;", mentioning @allduf so GitHub
 sends an email. Each comment says what the edit did to trails, with links to the edit and a before/after map.
 
+## Phone notifications
+The 🔔 box has a "📱 Also send them to this phone" switch. It saves the phone's push address and its 🔔 settings
+(regions, the prime loam and new trail switches, the To ride list) to Supabase through `push_save()` (`supabase/push.sql`).
+`.github/workflows/loam-push.yml` runs `scripts/push-loam.mjs` five times a day: it reads the Loam index the same way the
+site does and sends one notification for the riding areas and To ride trails that just turned prime, and one for new
+trails. Setup: run `supabase/push.sql` once in the Supabase SQL Editor and add the repository secret `SUPABASE_SECRET_KEY`.
+On iPhone it works only from the Home Screen (Safari, Share, Add to Home Screen; iOS 16.4 or newer).
+
 ## Riding area names
 `areas.js` writes the names of riding areas (Alice Lake, Diamond Head, Mount Fromme, Lost Lake...) on the map when
 zoomed out, and hides them from zoom 13, where the trails take over. Tapping a name zooms in to it. The list is
