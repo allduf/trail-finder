@@ -1353,10 +1353,10 @@ body.sport-ski #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=218"></script>
-<script src="official.js?v=218"></script>
-<script src="directions.js?v=218"></script>
-<script src="ratings.js?v=218"></script>
+<script src="rotate.js?v=216"></script>
+<script src="official.js?v=216"></script>
+<script src="directions.js?v=216"></script>
+<script src="ratings.js?v=216"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1831,19 +1831,16 @@ body.sport-ski #rideMapBtn { display: none !important; }
   // One word everywhere for trails outside the official bike network: an "Unofficial" tag, with why in its tooltip.
   const UNOFF_FLAGGED = "Mappers flagged it as informal, closed or no bikes";
   const unoffTag = (why) => `<span class="unoff-tag" title="${esc(why)}">Unofficial</span>`;
-  // A rider's word that it's official (ratings.js HAND, tf:handoff) outweighs informal=yes and "unsanctioned" notes,
-  // not closures or access=no (alex: Fluffy Little Clouds on Fromme).
-  const SANCTION_NOTE = /\b(unsanctioned|not sanctioned|unofficial)\b/i;
   function unofficial(tags) {
-    const out = [], rider = !!tags["tf:handoff"];
-    if (tags.informal === "yes" && !rider) out.push("Mapped as an informal trail (informal=yes): it exists and gets used, but isn't an official trail.");
+    const out = [];
+    if (tags.informal === "yes") out.push("Mapped as an informal trail (informal=yes): it exists and gets used, but isn't an official trail.");
     if (/^(no|private)$/.test(tags.access || "") && !/^(yes|designated|permissive)$/.test(tags.bicycle || "")) out.push(`Access is closed to the public (access=${tags.access}).`);
     if (/^(no|private)$/.test(tags.bicycle || "")) out.push(`Bikes are not allowed (bicycle=${tags.bicycle}).`);
     if (tags.mtb === "no") out.push("Marked as not for mountain bikes (mtb=no).");
     if (tags["tf:offno"]) out.push(tags["tf:offno"]);   // an official trail for other uses (official.js)
     if (tags["tf:rec-closed"]) out.push(`Closed, says Recreation Sites and Trails BC: “${tags["tf:rec-closed"]}”`);   // from the all-trails job
     [["note", "The mapper's note"], ["description", "The description"], ["fixme", "A fixme note"]].forEach(([k, label]) => {
-      if (tags[k] && CLOSED_NOTE.test(tags[k]) && !(rider && !CLOSED_NOTE.test(tags[k].replace(SANCTION_NOTE, "")))) out.push(`${label} says: “${tags[k]}”`);
+      if (tags[k] && CLOSED_NOTE.test(tags[k])) out.push(`${label} says: “${tags[k]}”`);
     });
     return out;
   }
@@ -5927,22 +5924,22 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=218"></script>
-<script src="contours.js?v=218"></script>
-<script src="photo-slider.js?v=218"></script>
-<script src="winter.js?v=218"></script>
-<script src="ski-points.js?v=218"></script>
-<script src="offline.js?v=218"></script>
-<script src="navigate.js?v=218"></script>
-<script src="planner.js?v=218"></script>
-<script src="rides.js?v=218"></script>
-<script src="account.js?v=218"></script>
-<script src="reports.js?v=218"></script>
-<script src="visitors.js?v=218"></script>
-<script src="notify.js?v=218"></script>
-<script src="areas.js?v=218"></script>
-<script src="alpine.js?v=218"></script>
-<script src="bikeparks.js?v=218"></script>
+<script src="map3d.js?v=216"></script>
+<script src="contours.js?v=216"></script>
+<script src="photo-slider.js?v=216"></script>
+<script src="winter.js?v=216"></script>
+<script src="ski-points.js?v=216"></script>
+<script src="offline.js?v=216"></script>
+<script src="navigate.js?v=216"></script>
+<script src="planner.js?v=216"></script>
+<script src="rides.js?v=216"></script>
+<script src="account.js?v=216"></script>
+<script src="reports.js?v=216"></script>
+<script src="visitors.js?v=216"></script>
+<script src="notify.js?v=216"></script>
+<script src="areas.js?v=216"></script>
+<script src="alpine.js?v=216"></script>
+<script src="bikeparks.js?v=216"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
