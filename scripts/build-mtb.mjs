@@ -157,7 +157,7 @@ const builtAt = new Date().toISOString().slice(0, 19) + "Z";
 const lastBuilt = (z) => Date.parse((readJson(`mtb-${z.id}.json`) || {}).builtAt) || 0;
 const areasOf = (z) => AREAS.filter((a) => a.zone === z.id);
 const inBox = (c, [s, w, n, e]) => c[0] >= s && c[0] <= n && c[1] >= w && c[1] <= e;
-const handNames = (z) => HAND.filter((h) => inBox(h.c, z.box)).map((h) => h.name);   // editing the list rebuilds the zone
+const handNames = (z) => HAND.filter((h) => inBox(h.c, z.box)).map((h) => h.name || h.ids.join(","));   // editing the list rebuilds the zone
 const zoneRules = (z) => (REC_ZONES[z.id] ? [["rec", REC_M, REC_SHARE].concat(REC_ZONES[z.id] === "all" ? [] : [REC_ZONES[z.id]])] : []).concat(OFFICIAL_ZONES[z.id] ? [["official", OFFICIAL_ZONES[z.id]]] : [])
   .concat(handNames(z).length ? [["hand"].concat(handNames(z))] : []);
 const areasKey = (z) => JSON.stringify(areasOf(z).map((a) => [a.name, a.c, radius(a), a.official || ""].concat(a.park ? [a.park] : [])).concat(zoneRules(z)));
@@ -418,7 +418,8 @@ for (const z of order) {
       const bikeWay = /^(path|bridleway)$/.test(tags.highway || "") || tags.highway === "footway" && /^(yes|designated|permissive)$/.test(tags.bicycle || "");
       const t = rec && bikeWay && !/^(no|private)$/.test(tags.access || "") ? recMatch(w.geometry, rec.index) : null;
       const park = rec && rec.parks.find((p) => inPark([mid.lat, mid.lon], p));
-      const hand = tags.name && HAND.find((h) => h.name.toLowerCase() === tags.name.toLowerCase() && metres([mid.lat, mid.lon], h.c) <= h.r);
+      const hand = HAND.find((h) => h.ids && h.ids.includes(w.id))   // unnamed trails, by way id
+        || tags.name && HAND.find((h) => h.name && h.name.toLowerCase() === tags.name.toLowerCase() && metres([mid.lat, mid.lon], h.c) <= h.r);
       if (hand) { tags["tf:hand"] = hand.who || hand.src; fromHand++; }
       else if (!ownMtb(tags) && !routeWays.has(w.id) && !t) {
         if (!bikeWay || !bikeOk(tags)) continue;
