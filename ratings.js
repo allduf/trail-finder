@@ -171,6 +171,8 @@
     { name: "Stepping Stones", c: [49.636, -123.177], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail below Pretty Slabs, Britannia" },
     { ids: [1055222771, 1065048117, 1283478720, 1285445609, 1285445610, 1285445611, 1285445613], c: [49.6372, -123.1735], r: 1000, who: "alex",
       note: "the unnamed unsanctioned trails between Pretty Slabs, Stepping Stones and Semtex Roll, Britannia" },
+    { name: "Leftovers Skid Road", c: [50.103, -123.016], r: 1500, d: "green", who: "alex",
+      note: "an old access skid road on the Rainbow-Sproat flank, Whistler, ridden as an easy MTB climbing trail" },
     { name: "electric unicorn", c: [50.31, -122.816], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail",
       note: "an unsanctioned trail by Signal Hill, Pemberton; mapped as a bike path (bicycle=designated) in a 2026-10-14 edit that dropped its informal=yes" },
     { name: "Taste the Candy", c: [50.326, -122.843], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail", note: "an unsanctioned trail off Pemberton Creek, Pemberton" },
