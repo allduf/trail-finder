@@ -9,6 +9,28 @@
 // - our own panes (map.createPane) turn with the map, and pins and labels added to them go into a twin pane that
 //   doesn't turn, so names stay level and pins stay upright and in place.
 // The map fires "rotatestart" and "rotateend" around a turn made by the person ({ user: true }).
+
+// When the button goes up where the page never hears it (over the browser's own right-click menu, another window,
+// after switching apps mid-drag), the map's drag stayed on and the map followed the pointer with no button held
+// (alex, 2026-10-18: "the map stick to my cursor and the map move without clicking"). The next move with no button
+// down, a new press, or the window losing focus now ends it.
+(() => {
+  "use strict";
+  if (!window.L || !L.Draggable) return;
+  const Drag = L.Draggable.prototype, dragMove = Drag._onMove, dragDown = Drag._onDown;
+  Drag._onMove = function (e) {
+    if (e.type === "mousemove" && e.buttons === 0 && L.Draggable._dragging === this) { this.finishDrag(true); return; }
+    dragMove.call(this, e);
+  };
+  Drag._onDown = function (e) {
+    let was = L.Draggable._dragging;
+    if (was === this && this._tfMouse && e.type === "mousedown") { this.finishDrag(true); was = null; }   // its release was missed
+    dragDown.call(this, e);
+    if (was !== this && L.Draggable._dragging === this) this._tfMouse = e.type === "mousedown";   // (a pen's drag also sends a mousedown)
+  };
+  window.addEventListener("blur", () => { if (L.Draggable._dragging) L.Draggable._dragging.finishDrag(true); });
+})();
+
 (() => {
   "use strict";
   if (!window.L || !L.Map.prototype.setBearing) return;   // leaflet-rotate didn't load: the map just doesn't turn
@@ -128,6 +150,7 @@
     const angleAt = (e) => { const r = box.getBoundingClientRect(); return Math.atan2(e.clientY - r.top - r.height / 2, e.clientX - r.left - r.width / 2) * 180 / Math.PI; };
     const onMove = (e) => {
       if (!down) return;
+      if (e.buttons === 0) { onUp(null); return; }   // the button went up where we didn't hear it: stop turning
       if (!down.moved) {
         if (Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y) < 5) return;
         down.moved = true; box.classList.add("map-turning"); map.fire("rotatestart", { user: true });
@@ -137,13 +160,13 @@
       map.setBearing(down.bearing + norm(angleAt(e) - down.angle));
       e.preventDefault();
     };
-    const onUp = () => {
+    const onUp = (e) => {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
       const d = down; down = null;
       if (!d) return;
       if (d.moved) { lastTurn = Date.now(); box.classList.remove("map-turning"); map.fire("rotateend", { user: true }); return; }
-      if (d.menu) {                                   // the click's own right-click, held back until we knew it wasn't a drag
+      if (d.menu && e) {                                   // the click's own right-click, held back until we knew it wasn't a drag
         replaying = true;
         d.menu.target.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: d.menu.x, clientY: d.menu.y, screenX: d.menu.sx, screenY: d.menu.sy, button: 2, ctrlKey: d.menu.ctrl, view: window }));
         replaying = false;
@@ -153,6 +176,7 @@
       if (!(e.button === 2 || (e.button === 0 && e.ctrlKey)) || e.target.closest(".leaflet-control, .leaflet-popup") || !map.options.rotate) return;
       if (box.classList.contains("drawing")) return;   // drawing a square to find trails
       if (e.button === 0) { e.stopPropagation(); e.preventDefault(); }   // Ctrl+drag: turn, don't pan
+      if (down) onUp(null);                            // the last turn's release was missed
       down = { x: e.clientX, y: e.clientY, angle: angleAt(e), bearing: map.getBearing(), moved: false, menu: null };
       map._stop();
       document.addEventListener("mousemove", onMove);
