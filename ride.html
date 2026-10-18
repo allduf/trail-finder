@@ -54,6 +54,13 @@ main { flex: 1; min-height: 0; width: 100%; max-width: 820px; margin: 0 auto; di
 .stats dt { font-family: var(--font-display); font-weight: 600; font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .stats dd { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; line-height: 1.1; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stats dd small { font-size: .9rem; font-weight: 600; color: var(--muted); margin-left: 2px; }
+#saveStats, #rStats { grid-template-columns: repeat(4, 1fr); }
+.profile:empty, .hint:empty { display: none; }
+.profile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px 6px; }
+.profile svg { display: block; width: 100%; height: 110px; }
+.profile .fill { fill: color-mix(in srgb, var(--accent) 22%, transparent); }
+.profile .line { fill: none; stroke: var(--accent); stroke-width: 2; }
+.prof-k { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .stats .big { grid-column: span 3; display: flex; align-items: baseline; justify-content: space-between; }
 .stats .big dd { font-size: 2.6rem; }
 .gps { margin: 0; font-size: .85rem; color: var(--muted); text-align: center; min-height: 1.3em; }
@@ -113,6 +120,10 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
 }
 @media (max-width: 760px) {
   .stats dd { font-size: 1.35rem; }
+  #saveStats dd, #rStats dd { font-size: 1.12rem; }
+  #saveStats dt, #rStats dt { letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #saveStats, #rStats { gap: 6px; }
+  #saveStats div, #rStats div { padding: 5px 7px; }
   .stats .big dd { font-size: 2.2rem; }
   #recMap { min-height: 30vh; }
 }
@@ -165,6 +176,8 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
   <section class="view" id="viewSave" hidden>
     <h2 id="saveHead">Save your ride</h2>
     <dl class="stats" id="saveStats"></dl>
+    <div class="profile" id="saveProfile"></div>
+    <p class="hint warn" id="saveGaps"></p>
     <div class="field"><label class="label" for="fTitle">Title</label><input type="text" id="fTitle" maxlength="120" autocomplete="off"></div>
     <div class="field"><label class="label" for="fDesc">Description</label><textarea id="fDesc" maxlength="5000" placeholder="How was it? Trails ridden, conditions, who you rode with…"></textarea></div>
     <div class="field">
@@ -199,6 +212,8 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     <p class="when" id="rWhen"></p>
     <div class="map" id="rideMap" role="application" aria-label="Map of this ride"></div>
     <dl class="stats" id="rStats"></dl>
+    <div class="profile" id="rProfile"></div>
+    <p class="hint warn" id="rGaps"></p>
     <p class="desc" id="rDesc"></p>
     <div class="photos" id="rPhotos"></div>
     <div class="actions">
@@ -210,9 +225,10 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
 </main>
 <div class="lightbox" id="lightbox" hidden><img id="lightImg" alt=""></div>
 
-<script src="account.js?v=223"></script>
+<script src="account.js?v=224"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-<script src="ride-files.js?v=223"></script>
+<script src="ride-files.js?v=224"></script>
+<script src="ride-stats.js?v=224"></script>
 <script>
 (() => {
   "use strict";
@@ -220,8 +236,6 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
   const MAX_ACC_M = 30;        // ignore GPS fixes less accurate than this
   const MIN_STEP_M = 5;        // keep a point only after moving this far (stops GPS jitter adding distance)
   const MAX_SPEED_MS = 33;     // 120 km/h: a jump faster than this is a GPS glitch
-  const CLIMB_STEP_M = 4;      // count climbing only in steps of 4 m (GPS height is noisy)
-  const MOVING_MS = 0.6;       // slower than ~2 km/h counts as stopped
   const ELEV_API = "https://api.open-meteo.com/v1/elevation";
   const OSM_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
   // The official OSM tiles refuse pages opened as a local file, so use the German copy there.
@@ -257,34 +271,8 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * rad) * Math.cos(b[0] * rad) * Math.sin(dLon / 2) ** 2;
     return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
   }
-  function climbOf(alts) {
-    let climb = 0, ref = null;
-    alts.forEach((a) => {
-      if (a == null) return;
-      if (ref == null) ref = a;
-      else if (a - ref >= CLIMB_STEP_M) { climb += a - ref; ref = a; }
-      else if (ref - a >= CLIMB_STEP_M) ref = a;
-    });
-    return climb;
-  }
-  function statsOf(pts, start, end) {
-    let dist = 0, moving = 0, max = 0;
-    const cum = [0];
-    for (let i = 1; i < pts.length; i++) {
-      const d = metres(pts[i - 1], pts[i]), dt = (pts[i][3] - pts[i - 1][3]) / 1000;
-      dist += d; cum.push(dist);
-      if (dt > 0 && dt <= 60 && d / dt >= MOVING_MS) moving += dt;
-    }
-    // Max speed over stretches of at least 5 s, so one jumpy fix can't set it.
-    for (let i = 1, j = 0; i < pts.length; i++) {
-      while (j < i - 1 && pts[i][3] - pts[j + 1][3] >= 5000) j++;
-      const dt = (pts[i][3] - pts[j][3]) / 1000;
-      if (dt >= 5 && dt <= 30) max = Math.max(max, (cum[i] - cum[j]) / dt);
-    }
-    const withAlt = pts.filter((p) => p[2] != null).length;
-    const climb = pts.length > 1 && withAlt >= pts.length / 2 ? climbOf(pts.map((p) => p[2])) : null;
-    return { dist, moving, elapsed: Math.max(0, (end - start) / 1000), max: Math.min(max, MAX_SPEED_MS), climb };
-  }
+  // Distance, moving time, climb and descent, max speed: ride-stats.js, shared with Ride mode (navigate.js).
+  const { climbOf, upDown, statsOf, gapsOf, profileOf } = window.tfRideStats;
   const kmh = (ms) => (ms * 3.6).toFixed(1);
   const pad = (n) => String(n).padStart(2, "0");
   function hms(s, withSec = true) {
@@ -295,12 +283,14 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
   const fmtDay = (t) => new Date(t).toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" });
   const fmtTime = (t) => new Date(t).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
-  function statsHtml(st, extra) {
+  function statsHtml(st, extra, pts) {
     const avg = st.moving > 0 ? st.dist / st.moving : 0;
+    const alts = (pts || []).filter((p) => p[2] != null && !p[5]).map((p) => p[2]);
+    const high = alts.length ? Math.round(Math.max(...alts)) : null;
+    const m = (v) => (v == null ? ["–", ""] : [Math.round(v), "m"]);
     const cells = [
-      ["Distance", km(st.dist), "km"], ["Time", hms(st.elapsed), ""], ["Moving", hms(st.moving), ""],
-      ["Climb", st.climb == null ? "–" : Math.round(st.climb), st.climb == null ? "" : "m"],
-      ["Avg speed", kmh(avg), "km/h"], ["Max speed", kmh(st.max), "km/h"],
+      ["Distance", km(st.dist), "km"], ["Moving", hms(st.moving), ""], ["Elapsed", hms(st.elapsed), ""], ["Avg km/h", kmh(avg), ""],
+      ["Climb", ...m(st.climb)], ["Descent", ...m(st.descent)], ["Highest", ...m(high)], ["Max km/h", kmh(st.max), ""],
     ];
     return cells.map(([k, v, u]) => `<div><dt>${k}</dt><dd>${v}${u ? `<small>${u}</small>` : ""}</dd></div>`).join("") + (extra || "");
   }
@@ -308,6 +298,36 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     const h = new Date(t).getHours();
     const part = h < 5 ? "Night" : h < 12 ? "Morning" : h < 17 ? "Afternoon" : h < 21 ? "Evening" : "Night";
     return `${part} ride`;
+  }
+
+  // Rides saved before descent was counted: work it out from the points.
+  function withDescent(r) {
+    if (r.stats.descent !== undefined || !r.points) return r.stats;
+    return { ...r.stats, descent: statsOf(r.points, r.start, r.end, r.breaks).descent };
+  }
+  // Height along the ride: a filled line chart, distance across, with the low and high points.
+  function profileSvg(pts, breaks) {
+    const prof = pts && pts.length > 1 ? profileOf(pts, breaks) : [];
+    if (prof.length < 5 || prof[prof.length - 1].m < 200) return "";
+    const W = 600, H = 120, top = 8, bot = 20, total = prof[prof.length - 1].m;
+    const step = Math.max(1, Math.floor(prof.length / 400)), pr = prof.filter((_, i) => i % step === 0 || i === prof.length - 1);
+    let lo = Math.min(...pr.map((p) => p.a)), hi = Math.max(...pr.map((p) => p.a));
+    if (hi - lo < 30) { const mid = (hi + lo) / 2; lo = mid - 15; hi = mid + 15; }
+    const x = (m) => (m / total * W).toFixed(1), y = (a) => (top + (1 - (a - lo) / (hi - lo)) * (H - top - bot)).toFixed(1);
+    const line = pr.map((p, i) => `${i ? "L" : "M"}${x(p.m)} ${y(p.a)}`).join("");
+    return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Height along the ride, from ${Math.round(lo)} to ${Math.round(hi)} m">
+      <path d="${line}L${W} ${H - bot}L0 ${H - bot}Z" class="fill"/><path d="${line}" class="line" vector-effect="non-scaling-stroke"/></svg>
+      <div class="prof-k"><span>${Math.round(Math.max(...pr.map((p) => p.a)))} m high · ${Math.round(Math.min(...pr.map((p) => p.a)))} m low</span><span>${km(total)} km</span></div>`;
+  }
+  function gapsNote(pts, breaks) {
+    const g = pts && pts.length > 1 ? gapsOf(pts, breaks) : [];
+    if (!g.length) return "";
+    const filled = g.filter((x) => x.filled).length, mins = Math.round(g.reduce((a, x) => a + x.s, 0) / 60);
+    return `The GPS stopped ${g.length === 1 ? "once" : g.length + " times"} (${mins} min in all), most likely while the phone was locked. ` +
+      (filled === g.length ? `${g.length === 1 ? "It's" : "They're"} filled in along the trails and dashed on the map.`
+        : !filled ? `${g.length === 1 ? "That stretch is a straight line" : "Those stretches are straight lines"}, dashed on the map.`
+        : `${filled} filled in along the trails, the rest straight lines, all dashed on the map.`) +
+      " Next time, use 🔒 Pocket in Ride mode instead of locking the phone.";
   }
 
   // ---------- maps ----------
@@ -440,9 +460,12 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     editing = ride;
     freeUrls();
     formPhotos = [];
-    const st = ride ? ride.stats : statsOf(rec.points, rec.start, rec.end || Date.now());
+    const st = ride ? withDescent(ride) : statsOf(rec.points, rec.start, rec.end || Date.now(), rec.breaks);
+    const pts = ride ? ride.points : rec.points, brks = ride ? ride.breaks : rec.breaks;
     $("saveHead").textContent = ride ? "Edit ride" : "Save your ride";
-    $("saveStats").innerHTML = statsHtml(st);
+    $("saveStats").innerHTML = statsHtml(st, "", pts);
+    $("saveProfile").innerHTML = profileSvg(pts, brks);
+    $("saveGaps").innerHTML = gapsNote(pts, brks);
     $("fTitle").value = ride ? ride.title : (rec.title || `${defaultTitle(rec.start)}`);
     $("fDesc").value = ride ? ride.description : (rec.description || "");
     $("resumeBtn").hidden = !!ride; $("discardBtn").hidden = !!ride; $("cancelEdit").hidden = !ride;
@@ -490,7 +513,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     const res = await fetch(url);
     if (!res.ok) throw new Error("HTTP " + res.status);
     const json = await res.json();
-    return climbOf(json.elevation || []);
+    return upDown(json.elevation || []);
   }
   $("saveBtn").addEventListener("click", async () => {
     const btn = $("saveBtn"); btn.disabled = true; $("saveLabel").textContent = "Saving…";
@@ -499,8 +522,9 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
       if (editing) ride = { ...editing, edited: Date.now() };
       else {
         const end = rec.end || Date.now();
-        ride = { id: "ride-" + rec.start, start: rec.start, end, points: rec.points, stats: statsOf(rec.points, rec.start, end), saved: Date.now() };
-        if (ride.stats.climb == null && rec.points.length > 1) { try { ride.stats.climb = await mapClimb(rec.points); ride.stats.climbFrom = "map"; } catch {} }
+        ride = { id: "ride-" + rec.start, start: rec.start, end, points: rec.points, stats: statsOf(rec.points, rec.start, end, rec.breaks), saved: Date.now() };
+        if (rec.breaks && rec.breaks.length) ride.breaks = rec.breaks;
+        if (ride.stats.climb == null && rec.points.length > 1) { try { const ud = await mapClimb(rec.points); ride.stats.climb = ud.up; ride.stats.descent = ud.down; ride.stats.climbFrom = "map"; } catch {} }
       }
       ride.title = $("fTitle").value.trim() || defaultTitle(ride.start);
       ride.description = $("fDesc").value.trim();
@@ -533,7 +557,11 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
       alert("Couldn't save the ride: " + (e && e.message ? e.message : e) + ". Your ride is still kept on this page.");
     } finally { btn.disabled = false; $("saveLabel").textContent = editing ? "Save changes" : "Save to My rides"; }
   });
-  $("resumeBtn").addEventListener("click", () => { delete rec.end; show("record"); beginRecording(rec); });
+  $("resumeBtn").addEventListener("click", async () => {
+    delete rec.end;
+    if (rec.from === "ride") { await saveCurrent(true); location.href = "./"; return; }   // recorded in Ride mode: carry on there
+    show("record"); beginRecording(rec);
+  });
   $("cancelEdit").addEventListener("click", () => openRide(editing.id));
   $("discardBtn").addEventListener("click", async () => {
     if (!confirm("Discard this ride? It won't be saved.")) return;
@@ -586,7 +614,9 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     freeUrls();
     $("rTitle").textContent = r.title;
     $("rWhen").textContent = `${fmtDay(r.start)} · ${fmtTime(r.start)} to ${fmtTime(r.end)}${r.imported ? " · imported" : ""}`;
-    $("rStats").innerHTML = statsHtml(r.stats);
+    $("rStats").innerHTML = statsHtml(withDescent(r), "", r.points);
+    $("rProfile").innerHTML = profileSvg(r.points, r.breaks);
+    $("rGaps").innerHTML = gapsNote(r.points, r.breaks);
     $("rDesc").textContent = r.description || "";
     $("rDesc").hidden = !r.description;
     const box = $("rPhotos"); box.innerHTML = "";
@@ -603,7 +633,11 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     rideLayer.clearLayers();
     const ll = r.points.map((p) => [p[0], p[1]]);
     if (ll.length) {
-      const line = L.polyline(ll, { color: getComputedStyle(document.documentElement).getPropertyValue("--track").trim(), weight: 5 }).addTo(rideLayer);
+      const brk = new Set(r.breaks || []), parts = [];
+      ll.forEach((p, i) => { if (!parts.length || brk.has(i)) parts.push([]); parts[parts.length - 1].push(p); });
+      const line = L.polyline(parts, { color: getComputedStyle(document.documentElement).getPropertyValue("--track").trim(), weight: 5 }).addTo(rideLayer);
+      // stretches with no GPS (phone locked): dashed, filled along trails or straight
+      gapsOf(r.points, r.breaks).forEach((g) => L.polyline(ll.slice(g.from, g.to + 1), { color: "#fff", weight: 2.5, dashArray: "4 7", interactive: false }).addTo(rideLayer));
       L.circleMarker(ll[0], { radius: 7, color: "#fff", weight: 2, fillColor: "#1f9d55", fillOpacity: 1 }).bindTooltip("Start").addTo(rideLayer);
       L.circleMarker(ll[ll.length - 1], { radius: 7, color: "#fff", weight: 2, fillColor: "#d92b2b", fillOpacity: 1 }).bindTooltip("Finish").addTo(rideLayer);
       rideMap.fitBounds(line.getBounds(), { padding: [20, 20], maxZoom: 17 });
@@ -623,7 +657,8 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
   $("gpxBtn").addEventListener("click", () => {
     const r = shown, iso = (t) => new Date(t).toISOString();
     const xmlEsc = (s) => esc(s).replace(/&#39;/g, "&apos;");
-    const pts = r.points.map((p) => `<trkpt lat="${p[0]}" lon="${p[1]}">${p[2] != null ? `<ele>${p[2]}</ele>` : ""}<time>${iso(p[3])}</time></trkpt>`).join("\n");
+    const brk = new Set(r.breaks || []);   // Pause: a new track segment
+    const pts = r.points.map((p, i) => `${brk.has(i) ? "</trkseg><trkseg>\n" : ""}<trkpt lat="${p[0]}" lon="${p[1]}">${p[2] != null ? `<ele>${p[2]}</ele>` : ""}<time>${iso(p[3])}</time></trkpt>`).join("\n");
     const gpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1">
 <metadata><name>${xmlEsc(r.title)}</name><time>${iso(r.start)}</time></metadata>
@@ -669,7 +704,7 @@ ${pts}
           title: (name && !/^\d+$/.test(name) ? name : defaultTitle(start)).slice(0, 120), description: "",
           cover: null, photoCount: 0, imported: { file: file.name, at: Date.now() }, sport: String(got.sport || "").slice(0, 40),
         };
-        if (ride.stats.climb == null) { try { ride.stats.climb = await mapClimb(pts); ride.stats.climbFrom = "map"; } catch {} }
+        if (ride.stats.climb == null) { try { const ud = await mapClimb(pts); ride.stats.climb = ud.up; ride.stats.descent = ud.down; ride.stats.climbFrom = "map"; } catch {} }
         await dbPut("rides", ride);
         have.push(ride); added.push(ride);
         uploadSoon(ride.id);
