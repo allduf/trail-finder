@@ -107,6 +107,9 @@ async function overpass(query) {
       if (res.ok) {
         const json = await res.json();
         if (json.remark && /error/i.test(json.remark)) throw Object.assign(new Error(`${host}: ${json.remark}`), { heavy: true });
+        // A mirror can lag months behind (2026-10-18: Vancouver's list came back without every trail mapped since June).
+        const base = Date.parse((json.osm3s || {}).timestamp_osm_base);
+        if (base && Date.now() - base > 2 * 864e5) throw new Error(`${host}: map data from ${json.osm3s.timestamp_osm_base}, too old`);
         await sleep(2000);
         return json;
       }
