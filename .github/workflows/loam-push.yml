@@ -1,0 +1,33 @@
+name: Loam alerts to phones
+
+# A few times a day, check the Loam index at the trails each phone watches and send a phone notification for the
+# ones that just turned prime (40-59). See scripts/push-loam.mjs and supabase/push.sql.
+# Needs the repository secret SUPABASE_SECRET_KEY (Supabase: Project Settings → API Keys → secret key).
+on:
+  schedule:
+    # 7 am, 10 am, 1 pm, 4 pm and 7 pm Pacific (8, 11, 2, 5 and 8 in Alberta) in summer time; an hour earlier in winter.
+    - cron: "7 14,17,20,23,2 * * *"
+  workflow_dispatch:         # "Run workflow" button on the Actions tab
+
+permissions:
+  contents: read
+
+concurrency:
+  group: loam-push
+  cancel-in-progress: false
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install the push library
+        run: npm install --no-save --no-package-lock web-push@3.6.7
+      - name: Send loam alerts
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: node scripts/push-loam.mjs
