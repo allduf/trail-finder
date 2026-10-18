@@ -775,6 +775,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, label.toggle:ha
 .hits .hit.mtb .bar { background: var(--mtb); } .hits .hit.looks .bar { background: var(--looks); }
 .hits .hn { font-weight: 600; overflow-wrap: anywhere; }
 .hits .hm { font-size: .82rem; color: var(--muted); }
+.hits .hhead { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 12px 2px; font-size: .74rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.hits .hhead .linkish { padding: 0; font-size: .8rem; font-weight: 600; letter-spacing: 0; text-transform: none; text-decoration: underline; }
 .hits .hnote { padding: 8px 12px; font-size: .82rem; color: var(--muted); }
 .hits .hnote .linkish { padding: 0; text-decoration: underline; font-size: inherit; }
 .newtag { font-size: .72rem; font-weight: 700; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--accent-fg); vertical-align: 1px; }
@@ -1353,10 +1355,10 @@ body.sport-ski #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=213"></script>
-<script src="official.js?v=213"></script>
-<script src="directions.js?v=213"></script>
-<script src="ratings.js?v=213"></script>
+<script src="rotate.js?v=216"></script>
+<script src="official.js?v=216"></script>
+<script src="directions.js?v=216"></script>
+<script src="ratings.js?v=216"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -5254,20 +5256,42 @@ out tags center qt;`;
 
   let hits = [], hitSel = -1;
   const fmtDist = (m) => m < 1000 ? "nearby" : m < 10000 ? (m / 1000).toFixed(1) + " km away" : Math.round(m / 1000) + " km away";
+  function hitRow(h, n) {
+    const g = h.g;
+    const meta = [g.kind, g.zone, g.items.length > 1 ? g.items.length + " segments" : "", fmtDist(h.d)].filter(Boolean).join(" · ");
+    return `<li class="hit ${g.mtb ? "mtb" : ""}" role="option" id="hit${n}" data-n="${n}" aria-selected="${n === hitSel}"><span class="bar"></span>
+      <div><div class="hn">${esc(g.name)} ${diffBadge(g.tags)} ${g.isNew ? `<span class="newtag">New</span>` : ""} ${unofficial(g.tags).length ? unoffTag(UNOFF_FLAGGED) : ""} ${g.use ? `<span class="use-tag">${USE_LABEL[g.use]}</span>` : ""}</div><div class="hm">${esc(meta)}</div></div></li>`;
+  }
+  // Past searches: the trails picked from the name box, newest first, shown when the box is tapped while empty (alex).
+  // Kept small (ids, centre, tags) so they reopen without the names files, and synced like other settings.
+  const RECENT_MAX = 8;
+  const recentTrails = () => (store.get("recentTrails", []) || []).filter((r) => r && r.name && r.items && r.items.length && r.c)
+    .map((r) => ({ ...r, center: L.latLng(r.c[0], r.c[1]), tags: r.tags || {}, recent: true }));
+  function rememberTrail(g) {
+    if (!g || !g.name || !g.center) return;
+    const key = g.name.trim().toLowerCase(), ids = g.items.slice(0, 40).map((i) => ({ id: i.id }));
+    const r = { name: g.name, type: g.type, items: ids, kind: g.kind, zone: g.zone, c: [+g.center.lat.toFixed(5), +g.center.lng.toFixed(5)], tags: g.tags || {}, mtb: !!g.mtb, use: g.use || null };
+    const old = (store.get("recentTrails", []) || []).filter((x) => x && !(x.name.trim().toLowerCase() === key && x.zone === r.zone));
+    store.set("recentTrails", [r, ...old].slice(0, RECENT_MAX));
+  }
   function refreshHits() {
     const box = $("trailHits"), input = $("trailQ");
     const raw = input.value.trim();
-    const open = !!raw && document.activeElement === input;
+    const past = raw ? [] : recentTrails();
+    const open = (!!raw || past.length > 0) && document.activeElement === input;
     box.hidden = !open; input.setAttribute("aria-expanded", String(open));
     if (!open) return;
+    if (!raw) {
+      const here = map.getCenter();
+      hits = past.map((g) => ({ g, d: here.distanceTo(g.center) }));
+      if (hitSel >= hits.length) hitSel = hits.length - 1;
+      box.innerHTML = `<li class="hhead"><span>Recent searches</span><button class="linkish" type="button" data-clear-recent>Clear</button></li>` + hits.map((h, n) => hitRow(h, n)).join("");
+      input.setAttribute("aria-activedescendant", hitSel >= 0 ? "hit" + hitSel : "");
+      return;
+    }
     hits = findNames(raw);
     if (hitSel >= hits.length) hitSel = hits.length - 1;
-    const rows = hits.map((h, n) => {
-      const g = h.g;
-      const meta = [g.kind, g.zone, g.items.length > 1 ? g.items.length + " segments" : "", fmtDist(h.d)].filter(Boolean).join(" · ");
-      return `<li class="hit ${g.mtb ? "mtb" : ""}" role="option" id="hit${n}" data-n="${n}" aria-selected="${n === hitSel}"><span class="bar"></span>
-        <div><div class="hn">${esc(g.name)} ${diffBadge(g.tags)} ${g.isNew ? `<span class="newtag">New</span>` : ""} ${unofficial(g.tags).length ? unoffTag(UNOFF_FLAGGED) : ""} ${g.use ? `<span class="use-tag">${USE_LABEL[g.use]}</span>` : ""}</div><div class="hm">${esc(meta)}</div></div></li>`;
-    }).join("");
+    const rows = hits.map((h, n) => hitRow(h, n)).join("");
     let note = "";
     const want = wantedZones(), zsel = nameZone();
     const loading = want.some((z) => names.inflight.has(z.id));
@@ -5296,7 +5320,7 @@ out tags center qt;`;
     } else if (e.key === "Enter") {
       e.preventDefault();
       clearTimeout(hitTimer); refreshHits();
-      const h = hits[Math.max(hitSel, 0)]; if (h) showFound(h.g);
+      const h = hits[$("trailQ").value.trim() ? Math.max(hitSel, 0) : hitSel]; if (h) showFound(h.g);
     } else if (e.key === "Escape") {
       e.stopPropagation();
       if (!$("trailHits").hidden) { $("trailHits").hidden = true; } else { $("trailQ").value = ""; clearNamePick(); }
@@ -5338,6 +5362,7 @@ out tags center qt;`;
   if (location.hash === "#folders") { history.replaceState(null, "", location.pathname + location.search); showFolders(); }
   $("trailHits").addEventListener("click", (e) => {
     if (e.target.closest("[data-retry]")) { loadNames(true); return; }
+    if (e.target.closest("[data-clear-recent]")) { store.set("recentTrails", []); hitSel = -1; refreshHits(); return; }
     const li = e.target.closest(".hit"); if (li) showFound(hits[+li.dataset.n].g);
   });
 
@@ -5362,6 +5387,7 @@ out tags center qt;`;
     if (!fromClick) {
       $("trailQ").value = g.name; $("trailHits").hidden = true; $("trailQ").blur();
       namePick = { key: g.name.trim().toLowerCase(), name: g.name, g, ids: new Set(g.items.map((i) => i.id)) };
+      rememberTrail(g);
       applyNamePick(); render();
     }
     // Already in the new-trail list and on the map: just select it there.
@@ -5924,22 +5950,22 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=213"></script>
-<script src="contours.js?v=213"></script>
-<script src="photo-slider.js?v=213"></script>
-<script src="winter.js?v=213"></script>
-<script src="ski-points.js?v=213"></script>
-<script src="offline.js?v=213"></script>
-<script src="navigate.js?v=213"></script>
-<script src="planner.js?v=213"></script>
-<script src="rides.js?v=213"></script>
-<script src="account.js?v=213"></script>
-<script src="reports.js?v=213"></script>
-<script src="visitors.js?v=213"></script>
-<script src="notify.js?v=213"></script>
-<script src="areas.js?v=213"></script>
-<script src="alpine.js?v=213"></script>
-<script src="bikeparks.js?v=213"></script>
+<script src="map3d.js?v=216"></script>
+<script src="contours.js?v=216"></script>
+<script src="photo-slider.js?v=216"></script>
+<script src="winter.js?v=216"></script>
+<script src="ski-points.js?v=216"></script>
+<script src="offline.js?v=216"></script>
+<script src="navigate.js?v=216"></script>
+<script src="planner.js?v=216"></script>
+<script src="rides.js?v=216"></script>
+<script src="account.js?v=216"></script>
+<script src="reports.js?v=216"></script>
+<script src="visitors.js?v=216"></script>
+<script src="notify.js?v=216"></script>
+<script src="areas.js?v=216"></script>
+<script src="alpine.js?v=216"></script>
+<script src="bikeparks.js?v=216"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
