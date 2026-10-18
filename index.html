@@ -832,6 +832,9 @@ label.toggle.off .sw { background: var(--muted); }
 .box-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 10px 16px; }
 .box-head .linkish { white-space: nowrap; }
 .box-why { padding: 0 16px 10px; }
+.box-row[hidden] { display: none; }
+.name-pick { padding: 8px 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
+.name-pick b { color: var(--fg); }
 .box-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; width: 100%; text-align: left; font: inherit; color: var(--fg); background: none; border: 0; border-top: 1px solid var(--line); padding: 8px 16px; cursor: pointer; }
 .box-row:hover, .box-row:focus-visible { background: var(--line); }
 .box-row .box-name { font-weight: 600; }
@@ -1666,6 +1669,15 @@ body.sport-ski #rideMapBtn { display: none !important; }
     upper._handleMouseOut = function (e) { out.call(this, e); if (lower._map) lower._handleMouseOut(e); };
   }
   const foundLayer = L.layerGroup().addTo(map);  // a trail picked in the name search
+  // A trail picked in the name box: the lists show only it until the name changes or "Show all" (alex: "When I look
+  // for one trail I just want that one showing up on the list"). { key: lower-case name, ids: its way ids }.
+  let namePick = null;
+  const namePicked = (name, ids) => !!namePick && (namePick.key === (name || "").trim().toLowerCase() || ids.some((id) => namePick.ids.has(id)));
+  // When the picked trail isn't one of the listed ones (a bike path in an MTB list), it gets a row of its own.
+  const namePickBar = (n, total) => `<div class="name-pick">Showing only <b>${esc(namePick.name)}</b>. <button class="linkish" type="button" data-show-all>Show all ${total}</button></div>`
+    + (n ? "" : `<button class="box-row" type="button" data-pick><span class="box-name">${esc(namePick.name)}</span>${diffBadge(namePick.g.tags || {})}<span class="box-meta"><span class="box-added">${esc(namePick.g.kind || "Trail")}</span></span></button>`);
+  // Where the panel was scrolled before a trail's details opened, so Back lands there again instead of deep in a long list.
+  let detailFrom = null;
   const PICK_GLOW = "#ffe14d";                   // highlighter under the picked trail: bright on every trail colour and map style
   // Scroll the side panel, not the page, to show el. (scrollIntoView scrolled the whole page on desktop too, pushing
   // the app up and leaving an empty band under it.)
@@ -2506,7 +2518,7 @@ out body;`;
   $("resetBtn").addEventListener("click", () => {
     state.token++; state.loading = null; state.waiting = true;
     if (!$("detail").hidden) closeDetail();
-    state.selected = null; foundLayer.clearLayers();
+    state.selected = null; foundLayer.clearLayers(); namePick = null;
     clearBox(); clearNear();
     if (state.custom) { state.custom = false; $("zone").value = state.zone; }
     $("list").scrollTop = 0;
@@ -2747,7 +2759,8 @@ out body;`;
 
     const list = $("list");
     if (!shown.length) { list.innerHTML = state.trails.length || state.searchedBounds.length ? "" : `<div class="empty">Results appear here after a search.</div>`; return; }
-    list.innerHTML = "<ol>" + shown.map((t) => {
+    const rows = namePick ? shown.filter((t) => namePicked(trailName(t), t.segIds || [t.id])) : shown;
+    list.innerHTML = (namePick ? namePickBar(rows.length, shown.length) : "") + "<ol>" + rows.map((t) => {
       return `<li class="trail ${t.cat}${state.selected === t.id ? " sel" : ""}" data-id="${t.id}" tabindex="0">
         <span class="bar"${barStyle(t)}></span>
         <div><div class="name">${esc(trailName(t))} ${t.ghost ? "" : diffBadge(t.tags)} ${isUnoff(t) ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(t.official)} ${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}</div>
@@ -3465,6 +3478,7 @@ out body;`;
       <!-- Getting there and Shuttle access sit at the bottom of the details; the trail facts are in More info (alex). -->
       <h3>Getting there</h3><div id="access" class="muted">Looking for trailheads, parking and roads…</div>
       <div id="shuttle"></div>`;
+    if (!$("panel").classList.contains("detail-open")) detailFrom = $("panel").scrollTop;
     $("panel").classList.add("detail-open"); setTrailFocus(true);
     $("detail").hidden = false;
     panelScrollTo($("detail"));
@@ -3544,6 +3558,7 @@ out body;`;
         <a href="https://www.openstreetmap.org/edit#map=18/${at}" target="_blank" rel="noopener">Map it on OpenStreetMap</a>
       </div>
       <p class="muted">Once it's mapped on OpenStreetMap, it shows up as a normal new trail. Mapping tip: the OpenStreetMap editor can show the Strava heatmap as a background to trace from by hand.</p>`;
+    if (!$("panel").classList.contains("detail-open")) detailFrom = $("panel").scrollTop;
     $("panel").classList.add("detail-open"); setTrailFocus(true);
     $("detail").hidden = false;
     panelScrollTo($("detail"));
@@ -3819,6 +3834,7 @@ out body;`;
     $("panel").classList.remove("detail-open"); setTrailFocus(false);
     $("detail").hidden = true;
     render();
+    if (detailFrom != null) { $("panel").scrollTop = detailFrom; detailFrom = null; }
     setTimeout(() => map.invalidateSize(), 50);  // on phones the map grows back when the panel shrinks
   }
 
@@ -5264,7 +5280,9 @@ out tags center qt;`;
   }
 
   let hitTimer = 0;
-  $("trailQ").addEventListener("input", () => { hitSel = -1; clearTimeout(hitTimer); hitTimer = setTimeout(refreshHits, 120); loadNames(); });
+  $("trailQ").addEventListener("input", () => {
+    if (namePick && $("trailQ").value.trim().toLowerCase() !== namePick.key) clearNamePick();
+    hitSel = -1; clearTimeout(hitTimer); hitTimer = setTimeout(refreshHits, 120); loadNames(); });
   // Names load once something is typed, so a "Where is it?" area picked first limits the download.
   $("trailQ").addEventListener("focus", () => { if ($("trailQ").value.trim()) loadNames(); refreshHits(); });
   $("trailQ").addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== $("trailQ")) { $("trailHits").hidden = true; $("trailQ").setAttribute("aria-expanded", "false"); } }, 150));
@@ -5281,7 +5299,7 @@ out tags center qt;`;
       const h = hits[Math.max(hitSel, 0)]; if (h) showFound(h.g);
     } else if (e.key === "Escape") {
       e.stopPropagation();
-      if (!$("trailHits").hidden) { $("trailHits").hidden = true; } else { $("trailQ").value = ""; }
+      if (!$("trailHits").hidden) { $("trailHits").hidden = true; } else { $("trailQ").value = ""; clearNamePick(); }
     }
   });
   $("trailHits").addEventListener("mousedown", (e) => e.preventDefault()); // keep focus in the box
@@ -5341,7 +5359,11 @@ out tags center qt;`;
   };
   window.tfShowFound = (g) => showFound(g, true);   // notify.js opens a new trail by its way ids
   async function showFound(g, fromClick) {
-    if (!fromClick) { $("trailQ").value = g.name; $("trailHits").hidden = true; $("trailQ").blur(); }
+    if (!fromClick) {
+      $("trailQ").value = g.name; $("trailHits").hidden = true; $("trailQ").blur();
+      namePick = { key: g.name.trim().toLowerCase(), name: g.name, g, ids: new Set(g.items.map((i) => i.id)) };
+      applyNamePick(); render();
+    }
     // Already in the new-trail list and on the map: just select it there.
     if (g.type === "w" && state.merged) {
       const ids = new Set(g.items.map((i) => i.id));
@@ -5567,6 +5589,27 @@ out tags center qt;`;
     if (px < 20) { boxLayer.removeLayer(boxDraw.rect); return; }               // a tap, not a square
     showBox(b);
   }, true);
+  // The name pick in the square / area list: hide every other row, with a "Show all" button above them.
+  function applyNamePick() {
+    const box = $("boxRes");
+    box.querySelectorAll(".name-pick, [data-pick]").forEach((el) => el.remove());
+    const rows = [...box.querySelectorAll(".box-row")];
+    let n = 0;
+    rows.forEach((r) => {
+      const g = boxGroups[+r.dataset.i], hit = !namePick || namePicked(g.name === "Unnamed trail" ? "" : g.name, g.ways.map((w) => w.id));
+      r.hidden = !hit; if (hit) n++;
+    });
+    if (namePick && rows.length) rows[0].insertAdjacentHTML("beforebegin", namePickBar(n, rows.length));
+  }
+  function clearNamePick() {
+    if (!namePick) return;
+    namePick = null; applyNamePick(); render();
+  }
+  // "Show all" in either list (the list is redrawn, so listen on the panel).
+  $("panel").addEventListener("click", (e) => {
+    if (e.target.closest("[data-show-all]")) clearNamePick();
+    else if (e.target.closest("[data-pick]") && namePick) showFound(namePick.g, true);
+  });
   function clearBox() {
     boxToken++;
     boxLayer.clearLayers();
@@ -5715,6 +5758,7 @@ out tags center qt;`;
     $("boxRes").innerHTML = `<div class="box-head"><div><b>${none ? `No ${what} ${esc(inWhere)}` : `${boxGroups.length} ${one}${boxGroups.length === 1 ? "" : "s"} ${esc(inWhere)}`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed bit${unnamed === 1 ? "" : "s"} (on the map)</span>` : ""}</div><button class="linkish" id="boxClear" type="button">${diff || circle ? "Clear" : "Clear square"}</button></div>${why}${rows}`;
     $("boxClear").addEventListener("click", clearBox);
     $("boxRes").querySelectorAll(".box-row").forEach((r) => r.addEventListener("click", () => openBoxGroup(boxGroups[+r.dataset.i])));
+    applyNamePick();
     panelScrollTo($("boxRes"), "nearest");
   }
   // Difficulty chips in Find a trail: every trail of that level in the chosen area. Tap again to clear.
