@@ -158,7 +158,8 @@
   // ---------- rated by hand ----------
   // Trails a local rider rated (alex), matched by name within r metres of c. Remove one once OpenStreetMap has a rating.
   // Every trail listed is an MTB trail (the rider says so). d: their level (leave out to keep the estimate);
-  // off: they say it's an official trail (shown as Official). Unnamed trails are listed by OpenStreetMap way id (ids) instead of name.
+  // off: they say it's an official trail (shown as Official). unoff: why it's not official (shown dotted as Unofficial, even when
+  // the map's tags say official). Unnamed trails are listed by OpenStreetMap way id (ids) instead of name.
   // Entries with src instead of who come from the weekly data audit's research (scripts/audit.mjs): src names the
   // resort, club or tourism page that gives the level or calls it a bike trail, url is that page. Never Trailforks.
   const HAND = [
@@ -170,6 +171,19 @@
     { name: "Stepping Stones", c: [49.636, -123.177], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail below Pretty Slabs, Britannia" },
     { ids: [1055222771, 1065048117, 1283478720, 1285445609, 1285445610, 1285445611, 1285445613], c: [49.6372, -123.1735], r: 1000, who: "alex",
       note: "the unnamed unsanctioned trails between Pretty Slabs, Stepping Stones and Semtex Roll, Britannia" },
+    { name: "electric unicorn", c: [50.31, -122.816], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail",
+      note: "an unsanctioned trail by Signal Hill, Pemberton; mapped as a bike path (bicycle=designated) in a 2026-10-14 edit that dropped its informal=yes" },
+    { name: "Taste the Candy", c: [50.326, -122.843], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail", note: "an unsanctioned trail off Pemberton Creek, Pemberton" },
+    { name: "Taste the Gravy", c: [50.322, -122.83], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail", note: "an unsanctioned trail off Pemberton Creek, Pemberton" },
+    // One OpenStreetMap mapper (tresspasserlover69, 2026-10-07 to 14) maps new unsanctioned lines as bike paths (highway=cycleway,
+    // bicycle=designated), which reads as official, and removed informal=yes from older ones. Their edits: "added sick new line",
+    // "added death line", "fun freeride line built for trolldom".
+    { ids: [1228978479, 1568299895, 1565717920, 1565717921, 1565717922], c: [50.315, -122.815], r: 3000, src: "OpenStreetMap edit history",
+      url: "https://www.openstreetmap.org/user/tresspasserlover69/history", unoff: "A mapper drew this new, unsanctioned line as a bike path (bicycle=designated), which made it look official; it isn't.", note: "Upper Pacific, KOG and Gnar Log Bridge, Pemberton" },
+    { ids: [1568013247, 1568014331, 1568015037, 1568015906, 1568017673, 1568300627, 1568300903, 1565892823], c: [50.09, -122.95], r: 15000, src: "OpenStreetMap edit history",
+      url: "https://www.openstreetmap.org/user/tresspasserlover69/history", unoff: "A mapper drew this new, unsanctioned line as a bike path (bicycle=designated), which made it look official; it isn't.", note: "new lines on Whistler and Fitzsimmons" },
+    { ids: [1568302348, 1568302185], c: [49.92, -123.28], r: 5000, src: "OpenStreetMap edit history",
+      url: "https://www.openstreetmap.org/user/tresspasserlover69/history", unoff: "A mapper drew this new, unsanctioned line as a bike path (bicycle=designated), which made it look official; it isn't.", note: "new lines in Paradise Valley, Squamish" },
     { name: "Bumble Bee", c: [49.731, -118.94], r: 2000, d: "green", src: "Big White Ski Resort, bike school page", url: "https://www.bigwhite.com/summer/mountain-biking/bike-school" },
     { name: "Pry Bar", c: [49.737, -118.928], r: 2000, d: "green", src: "Big White Ski Resort, bike school page", url: "https://www.bigwhite.com/summer/mountain-biking/bike-school" },
     { name: "Nessy", c: [49.732, -118.924], r: 2000, d: "green", src: "Big White Ski Resort, bike school page", url: "https://www.bigwhite.com/summer/mountain-biking/bike-school" },
@@ -226,12 +240,13 @@
       && Math.hypot((mid[0] - h.c[0]) * 110540, (mid[1] - h.c[1]) * 111320 * Math.cos((h.c[0] * Math.PI) / 180)) <= h.r);
     return h || null;
   }
-  // { mtb, off }: why the trail counts as an MTB trail, and as official (null when not), or null when it isn't listed.
+  // { mtb, off, unoff }: why the trail counts as an MTB trail, as official and as unofficial (null when not), or null when it isn't listed.
   function hand(geom, tags, id) {
     const h = handOf(geom, tags, id);
     if (!h) return null;
-    if (!h.who) return { mtb: `${h.src} calls it a mountain bike trail`, off: null };
-    return { mtb: `${h.who}, who rides it, says it's a mountain bike trail`, off: h.off ? `${h.who}, who rides it, says it's an official trail` : null };
+    const unoff = h.unoff || null;
+    if (!h.who) return { mtb: h.unoff ? "mapped as a mountain bike line" : `${h.src} calls it a mountain bike trail`, off: null, unoff };
+    return { mtb: `${h.who}, who rides it, says it's a mountain bike trail`, off: h.off ? `${h.who}, who rides it, says it's an official trail` : null, unoff };
   }
 
   // Best rating known now: a rider's own rating, official open data, then the same trail, then an estimate.
