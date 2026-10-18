@@ -1,6 +1,7 @@
 // Turning the map (alex, 2026-10-17: "make it so we can rotate the map"). The turning itself is leaflet-rotate
 // (loaded just before this file); this adds what the app needs on top:
-// - a twist with two fingers on a phone, only once it's clearly a twist (a pinch to zoom never turns the map a bit);
+// - a twist with two fingers on a phone, only once it's clearly a twist (a pinch to zoom never turns the map a bit, even
+//   when the fingers drift round as they spread);
 // - right-drag, or Ctrl+drag, with a mouse: the map turns with the pointer around the middle of the map;
 // - a compass button under the zoom buttons: its needle points north, a tap turns the map back to north up.
 //   On a phone it only shows while the map is turned (or in Ride mode). In Ride mode navigate.js uses it to switch
@@ -12,6 +13,7 @@
   "use strict";
   if (!window.L || !L.Map.prototype.setBearing) return;   // leaflet-rotate didn't load: the map just doesn't turn
   const TWIST_DEG = 12;   // two fingers must turn this far before the map starts turning with them
+  const PINCH_LOCK = 1.25;   // ...and before the pinch has zoomed by this much (in or out), or it's a zoom and never turns
 
   const norm = (d) => ((d % 360) + 540) % 360 - 180;   // -180..180
   window.tfRotate = { onCompass: null };
@@ -34,11 +36,21 @@
 
   // ---------- trail lines: redrawn a few times a second while turning, not on every step ----------
   // Their canvases turn with the map anyway; the redraw only fills in the corners that come into view.
+  // Not while a pinch is zooming the map (alex, 2026-10-18: "it is weird when you zoom in and out"): the lines are still
+  // worked out for the zoom the pinch started at, so a redraw then drew them at that old size over a map that was
+  // already bigger or smaller, bunched up or spread out, until the pinch ended. The redraw at the end fills the corners.
   const rendererEvents = L.Renderer.prototype.getEvents;
   L.Renderer.include({
     getEvents() {
       const ev = rendererEvents.call(this);
-      if (ev.rotate) ev.rotate = this._turnLater || (this._turnLater = L.Util.throttle(ev.rotate, 150, this));
+      if (ev.rotate) {
+        const update = ev.rotate;
+        ev.rotate = this._turnLater || (this._turnLater = L.Util.throttle(function () {
+          const map = this._map;
+          if (map && (map._animatingZoom || map.getZoom() !== this._zoom)) return;
+          update.call(this);
+        }, 150, this));
+      }
       return ev;
     },
   });
@@ -74,6 +86,8 @@
       if (!e.touches || e.touches.length !== 2 || !(this._zooming || this._rotating)) return;
       const map = this._map;
       const p1 = map.mouseEventToContainerPoint(e.touches[0]), p2 = map.mouseEventToContainerPoint(e.touches[1]);
+      // A pinch that has already zoomed clearly is a zoom: fingers drifting round as they spread don't turn the map then.
+      if (this._zooming && !this._twist) { const s = p1.distanceTo(p2) / this._startDist; if (s > PINCH_LOCK || s < 1 / PINCH_LOCK) this._rotating = false; }
       if (this._rotating) {
         const d = norm(angleOf(map, e) - this._startAngle);
         if (!this._twist && Math.abs(d) > TWIST_DEG) { this._twist = d > 0 ? TWIST_DEG : -TWIST_DEG; map.fire("rotatestart", { user: true }); }
