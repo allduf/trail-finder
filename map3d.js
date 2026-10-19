@@ -301,7 +301,9 @@
         sources: {
           // Winter: last winter's real satellite photos, built once by scripts/winter-photos (Sentinel-2,
           // Feb-Mar 2026, clouds removed). Live: the sharp photos with today's snow drawn in (tfwinter).
-          winter: { type: "raster", tileSize: 256, minzoom: 8, maxzoom: 14, bounds: [-124.65, 49.1, -121.75, 50.9], tiles: ["data/winter/{z}/{x}/{y}.webp"],
+          // tileSize 128 like the other photos: one zoom deeper, so the 10 m photos are at full detail up close
+          // instead of the half-size zoom 12-13 ones (blurry and stretched on the slopes, alex 2026-10-19).
+          winter: { type: "raster", tileSize: 128, minzoom: 8, maxzoom: 14, bounds: [-124.65, 49.1, -121.75, 50.9], tiles: ["data/winter/{z}/{x}/{y}.webp"],
             attribution: "Winter: Copernicus Sentinel-2 data 2026 (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>" },
           live: { type: "raster", tileSize: 128, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
