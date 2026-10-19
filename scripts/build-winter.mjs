@@ -8,10 +8,14 @@
 //        Open Government Licence - British Columbia) whose name or description says ski, snowshoe or nordic.
 //      - c2c: camptocamp.org ski touring and snowshoe routes (CC BY-SA), from its public API (no key). Mostly the
 //        Alps, so only a few here; routes with only a start point (no drawn line) go in "starts" as pins.
+//      Unnamed routes get "near": the named OpenStreetMap peak closest to them (within 3 km).
 //  - data/avalanche.json: Avalanche Canada's current avalanche forecasts for the forecast areas that touch the
 //    region (Sea to Sky, South Coast, South Coast Inland...), with the area outlines, danger ratings by elevation
 //    band for each day and the avalanche problems (aspects, elevations, likelihood, size). From the public
 //    Avalanche Canada API (no key). Out of season there are no forecasts and the file says so.
+//  - data/avalanche-reports.json: the last 14 days of Avalanche Canada Mountain Information Network reports in the
+//    region (riders' own avalanche, snowpack and conditions reports, public on avalanche.ca), for "Avalanches
+//    reported nearby" in a ski route's details. Made with the forecasts (ONLY=avy).
 //  - data/grooming.json: the latest grooming report of each snowmobile club in data/snowmobile-clubs.json (a hand-kept
 //    list) whose report is on a public web page ("auto": true), as plain text with when it last changed. Clubs that
 //    post only on Facebook or Instagram are not read (their terms forbid it): the site links to them instead.
@@ -203,6 +207,36 @@ async function buildOsm() {
   const count = (k) => routes.filter((r) => r.type === k).length;
   log(`  routes: ${routes.length} (tour ${count("tour")}, nordic ${count("nordic")}, snowshoe ${count("snowshoe")}, resort ${count("resort")}, sled ${count("sled")}, snowmobile ${count("snowmobile")}, access ${count("access")}, other ${count("other")}); huts: ${huts.length}`);
   return { routes, huts };
+}
+
+// Named peaks, so an unnamed route can be called after the peak it goes up or passes ("Ski touring near Ipsoot Mountain").
+async function buildPeaks() {
+  const peaks = new Map();
+  for (const [s, w, n, e] of REGIONS) {
+    const json = await overpass(`[out:json][timeout:120][bbox:${s},${w},${n},${e}];node["natural"~"^(peak|volcano)$"]["name"];out;`);
+    for (const el of json.elements || []) peaks.set(el.id, { name: el.tags.name, lat: el.lat, lon: el.lon, ele: parseFloat(el.tags.ele) || 0 });
+  }
+  log(`  ${peaks.size} named peaks`);
+  return [...peaks.values()];
+}
+// The named peak closest to any point of the route, within 3 km.
+function nameNearPeaks(routes, peaks) {
+  const CELL = 0.05, grid = new Map(), key = (a, b) => a + "," + b;
+  for (const p of peaks) { const k = key(Math.floor(p.lat / CELL), Math.floor(p.lon / CELL)); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(p); }
+  let n = 0;
+  for (const r of routes) {
+    if (r.name || !r.g) continue;
+    let best = null, bestD = 3000;
+    for (const part of r.g) for (let i = 0; i < part.length; i += 2) {
+      const lat = part[i], lon = part[i + 1], cy = Math.floor(lat / CELL), cx = Math.floor(lon / CELL), k = Math.cos((lat * Math.PI) / 180);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) for (const p of grid.get(key(cy + dy, cx + dx)) || []) {
+        const d = Math.hypot((p.lat - lat) * 110540, (p.lon - lon) * 111320 * k);
+        if (d < bestD) { bestD = d; best = p; }
+      }
+    }
+    if (best) { r.near = best.name; n++; } else delete r.near;
+  }
+  log(`  ${n} unnamed routes named after a peak within 3 km`);
 }
 
 // ---------- BC Recreation Sites and Trails (DataBC WFS) ----------
@@ -563,6 +597,78 @@ async function buildGrooming() {
   return reports;
 }
 
+// ---------- Mountain Information Network (Avalanche Canada) ----------
+// Riders' own reports of avalanches, snowpack and conditions, public on avalanche.ca. The last 14 days in the region,
+// so a ski route's details can list the avalanche activity reported near it. The API isn't documented in detail,
+// so the fields are read loosely and the first report's shape is logged.
+const MIN_APIS = process.env.MIN_API ? [process.env.MIN_API] : ["https://avcan-services-api.prod.avalanche.ca", AVCAN];
+const MIN_DAYS = 14;
+const num = (v) => (v == null || v === "" ? NaN : +v);
+function minLatLon(s) {
+  const l = s.latlng || s.location || s.lnglat || s.geometry || s.point || {};
+  if (Array.isArray(s.latlng) && s.latlng.length >= 2) return [num(s.latlng[0]), num(s.latlng[1])];
+  if (Array.isArray(s.lnglat) && s.lnglat.length >= 2) return [num(s.lnglat[1]), num(s.lnglat[0])];
+  if (Array.isArray(l.coordinates)) return [num(l.coordinates[1]), num(l.coordinates[0])];
+  const lat = num(l.latitude ?? l.lat ?? s.latitude ?? s.lat), lon = num(l.longitude ?? l.lng ?? l.lon ?? s.longitude ?? s.lng ?? s.lon);
+  return [lat, lon];
+}
+// Each report's observations, as { type: object } (old API: obs: [{ obtype, ob }]; newer: observations: { quick: {...}, ... }).
+function minObs(s) {
+  const out = {};
+  if (Array.isArray(s.obs)) for (const o of s.obs) out[String(o.obtype || o.type || "").toLowerCase()] = o.ob || o;
+  const o = s.observations || s.obs;
+  if (o && !Array.isArray(o) && typeof o === "object") for (const [k, v] of Object.entries(o)) if (v) out[k.toLowerCase()] = v;
+  for (const t of s.obtypes || s.types || []) if (!out[String(t).toLowerCase()]) out[String(t).toLowerCase()] = {};
+  return out;
+}
+// The free-text comments anywhere in a report's observations.
+const flatText = (o, depth = 0) => (!o || typeof o !== "object" || depth > 3 ? []
+  : Object.entries(o).flatMap(([k, v]) => (typeof v === "string" && /comment|description|narrative|summary/i.test(k) ? [v] : flatText(v, depth + 1))));
+function minAvalanche(obs) {
+  const a = obs.avalanche, q = obs.quick || {};
+  if (a && Object.keys(a).length) {
+    const n = val(a.avalancheNumber || a.number), size = val(a.avalancheSize || a.size);
+    return { seen: true, what: [n, n === "1" ? "avalanche" : "avalanches", size && `size ${size}`].filter(Boolean).join(" "),
+      trigger: val(a.triggerType || a.trigger), aspect: [].concat(a.startZoneAspect || a.aspect || []).map(val).join(" ") };
+  }
+  if (obs.incident && Object.keys(obs.incident).length) return { seen: true, what: "avalanche incident" };
+  const ac = q.avalancheConditions || {};
+  const signs = [ac.slab && "recent slab avalanches", ac.sound && "whumpfing or shooting cracks", ac.snow && "30 cm or more of new snow or wind loading", ac.temp && "rapid warming"].filter(Boolean);
+  return signs.length ? { seen: !!ac.slab, what: ac.slab ? "recent slab avalanches seen" : "", signs } : null;
+}
+async function buildMin() {
+  log("Mountain Information Network reports");
+  const to = new Date(), from = new Date(to - MIN_DAYS * 86400e3), d = (x) => x.toISOString().slice(0, 10);
+  let list = null, lastErr;
+  for (const base of MIN_APIS) {
+    for (const path of [`/min/en/submissions?fromdate=${d(from)}&todate=${d(to)}&pagesize=2000`, `/min/en/submissions?fromdate=${d(from)}&todate=${d(to)}`]) {
+      try {
+        const json = await getJson(base + path);
+        list = Array.isArray(json) ? json : json.items || json.submissions || json.data || json.results || null;
+        if (list) { log(`  ${base}${path}: ${list.length} reports; first: ${JSON.stringify(list[0] || null).slice(0, 1500)}`); break; }
+        log(`  ${base}${path}: unexpected answer ${JSON.stringify(json).slice(0, 300)}`);
+      } catch (e) { lastErr = e; }
+    }
+    if (list) break;
+  }
+  if (!list) throw lastErr || new Error("no answer");
+  const out = [];
+  for (const s of list) {
+    const [lat, lon] = minLatLon(s);
+    if (!isFinite(lat) || !isFinite(lon) || !REGIONS.some((b) => lat >= b[0] - 0.2 && lat <= b[2] + 0.2 && lon >= b[1] - 0.3 && lon <= b[3] + 0.3)) continue;
+    const obs = minObs(s), id = String(s.subid || s.id || s.submissionId || "");
+    const comments = [...new Set(flatText(obs).map((t) => text(t)).filter(Boolean))].join(" ").slice(0, 400);
+    out.push({
+      id, lat: round(lat), lon: round(lon), date: val(s.datetime || s.dateTime || s.date || s.observationDate || s.createdAt || ""),
+      title: text(s.title || s.locationName || s.location?.name || "").slice(0, 120), types: Object.keys(obs).filter(Boolean),
+      av: minAvalanche(obs), text: comments,
+    });
+  }
+  out.sort((a, b) => (b.date > a.date ? 1 : -1));
+  log(`  ${out.length} reports in the region, ${out.filter((r) => r.av?.seen).length} with avalanches seen`);
+  return out;
+}
+
 // ---------- write ----------
 if (!existsSync(DATA)) mkdirSync(DATA);
 const builtAt = new Date().toISOString().slice(0, 19) + "Z";
@@ -578,6 +684,11 @@ if (runs("ski")) {
   const routes = [...(osm ? osm.routes : oldOf("osm")), ...(bc || oldOf("bc")), ...(c2c ? c2c.routes : oldOf("c2c"))];
   const starts = c2c ? c2c.starts : old.starts || [];
   const huts = osm ? osm.huts : old.huts || [];
+  try { nameNearPeaks(routes, await buildPeaks()); } catch (e) {
+    log(`  Peaks failed: ${e.message}; unnamed routes keep their last peak name`);
+    const was = new Map((old.routes || []).filter((r) => r.near).map((r) => [r.id, r.near]));
+    for (const r of routes) if (!r.name && !r.near && was.has(r.id)) r.near = was.get(r.id);
+  }
   if (routes.length || huts.length) {
     writeFileSync(new URL("ski.json", DATA), JSON.stringify({
       builtAt: osm || bc || c2c ? builtAt : old.builtAt, regions: REGIONS,
@@ -601,6 +712,13 @@ if (runs("avy")) {
     }));
     log(`data/avalanche.json written`);
   } catch (e) { failed++; log(`Avalanche forecast failed: ${e.message}; keeping the last data`); }
+}
+if (runs("avy")) {
+  try {
+    const reports = await buildMin();
+    writeFileSync(new URL("avalanche-reports.json", DATA), JSON.stringify({ builtAt, days: MIN_DAYS, source: "Avalanche Canada Mountain Information Network", reports }));
+    log(`data/avalanche-reports.json: ${reports.length} reports`);
+  } catch (e) { failed++; log(`Mountain Information Network failed: ${e.message}; keeping the last data`); }
 }
 if (runs("groom")) {
   try {

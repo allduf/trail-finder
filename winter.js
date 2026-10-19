@@ -8,6 +8,9 @@
 // Data: data/ski.json and data/avalanche.json, made by .github/workflows/winter-data.yml; data/ski-heat.json, made
 // by .github/workflows/ski-heat.yml; data/snowmobile-clubs.json (hand-kept club list) and data/grooming.json (the
 // clubs' grooming reports, read every few hours by winter-data.yml where a club's page can be read); your tours from this browser's IndexedDB "trail-finder-rides" (ride.html).
+// A route's details: heights, profile and slopes from the terrain tiles, the avalanche forecast for the bands it goes
+// through, riders' avalanche reports near it (data/avalanche-reports.json, Avalanche Canada's Mountain Information
+// Network, made by winter-data.yml), and the weather at its top (Open-Meteo, free, no key).
 // Terrain heights: AWS Terrain Tiles (Mapzen, open, no key).
 (() => {
   "use strict";
@@ -101,7 +104,39 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 #skiPane .sb-areas, #skiPane .sb-when { color: var(--muted); }
 #skiPane .sb-rep { white-space: pre-line; background: var(--chip); border-radius: 8px; padding: 6px 8px; max-height: 9em; overflow: auto; }
 #skiPane .sb-links { display: flex; flex-wrap: wrap; gap: 4px 12px; }
-#skiPane .sb-club.on { outline: 2px solid #ffe14d; outline-offset: 4px; border-radius: 4px; }`;
+#skiPane .sb-club.on { outline: 2px solid #ffe14d; outline-offset: 4px; border-radius: 4px; }
+#skiPane .sk-sec { border-top: 1px solid var(--line); padding-top: 8px; display: flex; flex-direction: column; gap: 6px; font-size: .85rem; }
+#skiPane .sk-sec h4 { margin: 0; font-size: .92rem; }
+#skiPane .sk-sec h5 { margin: 4px 0 0; font-size: .85rem; }
+#skiPane .sk-sec p { margin: 0; }
+#skiPane .sk-note { color: var(--muted); font-size: .78rem; font-weight: 400; }
+#skiPane .sk-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
+#skiPane .sk-stats div { background: var(--chip); border-radius: 8px; padding: 5px 2px; display: flex; flex-direction: column; }
+#skiPane .sk-stats b { font-size: .88rem; white-space: nowrap; }
+#skiPane .sk-stats span { color: var(--muted); font-size: .72rem; }
+#skiPane .sk-prof { width: 100%; height: auto; display: block; touch-action: none; cursor: crosshair; }
+#skiPane .sk-prof .pf-fill { fill: #1f5fe0; opacity: .14; }
+#skiPane .sk-prof .pf-line { fill: none; stroke: #1f5fe0; stroke-width: 2; stroke-linejoin: round; }
+#skiPane .sk-prof .pf-steep { fill: none; stroke: #e8590c; stroke-width: 3; stroke-linecap: round; }
+#skiPane .sk-prof .pf-band { stroke: var(--muted); stroke-dasharray: 3 3; stroke-width: 1; opacity: .7; }
+#skiPane .sk-prof .pf-lbl { font-size: 9px; fill: var(--muted); }
+#skiPane .sk-prof .pf-cur { stroke: #e8590c; stroke-width: 1.2; }
+#skiPane .pf-read { font-size: .78rem; color: var(--muted); min-height: 1.2em; }
+#skiPane table.sk-avt, #skiPane table.sk-wx { border-collapse: collapse; width: 100%; font-size: .8rem; }
+#skiPane .sk-avt th, #skiPane .sk-avt td, #skiPane .sk-wx th, #skiPane .sk-wx td { padding: 3px 4px; text-align: left; vertical-align: middle; }
+#skiPane .sk-wx th { font-weight: 600; color: var(--muted); font-size: .72rem; }
+#skiPane .sk-wx tr > th:first-child, #skiPane .sk-avt tr > th:first-child { color: var(--fg); font-size: .8rem; white-space: nowrap; }
+#skiPane .sk-wx td { white-space: nowrap; }
+#skiPane .sk-avt .av-chip { min-width: 0; display: block; font-size: .72rem; padding: 2px 4px; white-space: nowrap; }
+#skiPane .sk-avt th .sk-note { display: block; font-size: .7rem; }
+#skiPane .sk-avt td + td { width: 28px; }
+#skiPane .sk-avt tr.off, #skiPane .av-prob.off { opacity: .45; }
+#skiPane .sk-pre { white-space: pre-line; }
+#skiPane ul.sk-min { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+#skiPane ul.sk-min li { border-left: 3px solid var(--line); padding-left: 8px; }
+#skiPane ul.sk-min li.av { border-left-color: #ef1c29; }
+#skiPane details.sk-tags summary { font-size: .8rem; color: var(--muted); font-weight: 600; }
+#skiPane details.sk-tags dl { margin-top: 4px; }`;
   document.head.append(css);
 
   // ---------- the sport menu ----------
@@ -166,7 +201,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       for (const line of r.lines) {
         skiLayer.addLayer(L.polyline(line, { renderer: skiRenderer, color: sel ? "#ffe14d" : "#fff", weight: t.weight + (sel ? 6 : 3), opacity: sel ? 1 : 0.8, interactive: false }));
         const l = L.polyline(line, { renderer: skiRenderer, color: t.color, weight: t.weight + (sel ? 1.5 : 0), opacity: 1, dashArray: t.dashArray });
-        l.bindTooltip(esc(r.name || t.label), { sticky: true });
+        l.bindTooltip(esc(nameOf(r) || t.label), { sticky: true });
         l.on("click", (e) => { L.DomEvent.stopPropagation(e); select(r); });
         skiLayer.addLayer(l);
       }
@@ -233,22 +268,333 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
     list.innerHTML = huts.slice(0, 30).map((h, i) => `<li><button type="button" data-h="${i}"${selected === h ? ' aria-current="true"' : ""}><span class="sk-dot" style="background:${h.src === "c2c" ? START.color : HUT.color}"></span><span class="nm">${esc(h.name || "Hut")}</span><span class="meta">${h.src === "c2c" ? "camptocamp" : h.tags?.ele ? esc(h.tags.ele) + " m" : "hut"}</span></button></li>`).join("")
       + rows.slice(0, MAX).map((g, i) => {
         const r = g[0], t = TYPES[r.type] || TYPES.other, len = g.reduce((s, x) => s + km(x), 0);
-        return `<li><button type="button" data-g="${i}"${g.includes(selected) ? ' aria-current="true"' : ""}><span class="sk-sw" style="background:${t.color}"></span><span class="nm">${esc(r.name || "Unnamed " + t.label.toLowerCase())}</span><span class="meta">${len.toFixed(1)} km${r.diff ? " · " + esc(r.diff) : ""}</span></button></li>`;
+        return `<li><button type="button" data-g="${i}"${g.includes(selected) ? ' aria-current="true"' : ""}><span class="sk-sw" style="background:${t.color}"></span><span class="nm">${esc(nameOf(r) || "Unnamed " + t.label.toLowerCase())}</span><span class="meta">${len.toFixed(1)} km${r.diff ? " · " + esc(r.diff) : ""}</span></button></li>`;
       }).join("")
       + (rows.length > MAX ? `<li class="sk-hint">…and ${rows.length - MAX} more: zoom in.</li>` : "")
       + (!rows.length && !huts.length ? `<li class="sk-hint">No ski routes in view. Zoom out or move the map.</li>` : "");
     list.querySelectorAll("button[data-g]").forEach((bt) => bt.addEventListener("click", () => select(rows[+bt.dataset.g], true)));
     list.querySelectorAll("button[data-h]").forEach((bt) => bt.addEventListener("click", () => select(huts[+bt.dataset.h], true)));
   }
+  // ---------- route details: heights, slopes, avalanche forecast and reports, weather ----------
+  // A short name for each kind of route, for unnamed routes: "Ski touring near Ipsoot Mountain" (data/ski.json "near"
+  // is the named peak closest to the route, found by the nightly job).
+  const SHORT = { tour: "Ski touring", access: "Ski access", nordic: "Nordic trail", snowshoe: "Snowshoe trail", snowmobile: "Snowmobile trail", sled: "Sledding hill", resort: "Ski run", other: "Winter route" };
+  const nameOf = (r) => r.name || (r.near ? `${SHORT[r.type] || "Route"} near ${r.near}` : "");
+  const fmtM = (m) => Math.round(m).toLocaleString() + " m";
+  const SAMPLE_M = 25;   // a height every 25 m along the route
+  // The route's pieces as one line, each piece joined to the end of the last at its nearer end.
+  function chain(group) {
+    const left = group.flatMap((r) => r.lines).filter((l) => l.length > 1).map((l) => l.slice()), out = [];
+    if (!left.length) return out;
+    out.push(left.shift());
+    while (left.length) {
+      const end = out[out.length - 1].at(-1), start = out[0][0];
+      let best = 0, bestD = Infinity, how = "";
+      left.forEach((l, i) => {
+        for (const [h, a, b] of [["ae", end, l[0]], ["be", end, l.at(-1)], ["as", start, l.at(-1)], ["bs", start, l[0]]]) {
+          const d = map.distance(a, b);
+          if (d < bestD) { bestD = d; best = i; how = h; }
+        }
+      });
+      const l = left.splice(best, 1)[0];
+      if (how === "ae") out.push(l); else if (how === "be") out.push(l.reverse());
+      else if (how === "as") out.unshift(l); else out.unshift(l.reverse());
+    }
+    return out;
+  }
+  // Points every SAMPLE_M metres along the pieces; d = distance along the route (gaps between pieces not counted).
+  function sampleLine(pieces, step) {
+    const pts = [];
+    let d0 = 0;
+    pieces.forEach((line, seg) => {
+      let next = d0;
+      for (let i = 1; i < line.length; i++) {
+        const a = line[i - 1], b = line[i], len = map.distance(a, b);
+        for (; next < d0 + len; next += step) { const f = len ? (next - d0) / len : 0; pts.push({ lat: a[0] + (b[0] - a[0]) * f, lon: a[1] + (b[1] - a[1]) * f, d: next, seg }); }
+        d0 += len;
+      }
+      const z = line.at(-1);
+      pts.push({ lat: z[0], lon: z[1], d: d0, seg });
+    });
+    return pts;
+  }
+  // Height, slope and the way the slope faces at each point, from the AWS terrain tiles (the same ones as the shading).
+  async function heights(pts, total) {
+    const z = total > 80000 ? 11 : total > 40000 ? 12 : 13, n = 2 ** z, k = 25 / minSlope(z);
+    pts.forEach((p) => {
+      const x = ((p.lon + 180) / 360) * n, s = Math.sin((p.lat * Math.PI) / 180), y = (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n;
+      p.tx = Math.floor(x); p.ty = Math.floor(y); p.px = (x - p.tx) * 256 - 0.5; p.py = (y - p.ty) * 256 - 0.5;
+    });
+    const keys = [...new Set(pts.map((p) => p.tx + "/" + p.ty))];
+    const tiles = new Map(await Promise.all(keys.map(async (key) => { const [x, y] = key.split("/").map(Number); return [key, await dem(z, x, y)]; })));
+    for (const p of pts) {
+      const E = tiles.get(p.tx + "/" + p.ty), at = (x, y) => E[Math.min(255, Math.max(0, y)) * 256 + Math.min(255, Math.max(0, x))];
+      const x0 = Math.floor(p.px), y0 = Math.floor(p.py), fx = p.px - x0, fy = p.py - y0;
+      p.e = (at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx) * (1 - fy) + (at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx) * fy;
+      const xi = Math.round(p.px), yi = Math.round(p.py), m = (40075016.686 * Math.cos((p.lat * Math.PI) / 180)) / (256 * n);
+      const dzdx = (at(xi + 1, yi) - at(xi - 1, yi)) / (2 * m), dzdy = (at(xi, yi + 1) - at(xi, yi - 1)) / (2 * m);
+      p.slope = Math.min(60, ((Math.atan(Math.hypot(dzdx, dzdy)) * 180) / Math.PI) * k);
+      p.asp = Math.round((((Math.atan2(-dzdx, dzdy) * 180) / Math.PI + 360) % 360) / 45) % 8;
+      delete p.tx; delete p.ty; delete p.px; delete p.py;
+    }
+  }
+  const DEFAULT_BANDS = { lo: 1500, hi: 1900 };
+  const bandOf = (e, b) => (e >= b.hi ? "alp" : e >= b.lo ? "tln" : "btl");
+  // Everything about the route's shape: heights, climb, slopes, which bands and aspects it crosses.
+  async function routeInfo(group) {
+    const r = group[0];
+    if (r.info) return r.info;
+    const pieces = chain(group);
+    let pts = sampleLine(pieces, SAMPLE_M);
+    const total = pts.length ? pts.at(-1).d : 0;
+    if (pts.length > 1500) { const st = Math.ceil(pts.length / 1500); pts = pts.filter((_, i) => i % st === 0 || i === pts.length - 1); }
+    await heights(pts, total);
+    // Start from the lower end: a tour climbs from the valley.
+    if (pts.at(-1).e < pts[0].e) { pts.reverse(); pts.forEach((p) => { p.d = total - p.d; }); }
+    let up = 0, down = 0, ref = pts[0].e;
+    for (const p of pts) { if (p.e - ref >= 5) { up += p.e - ref; ref = p.e; } else if (ref - p.e >= 5) { down += ref - p.e; ref = p.e; } }
+    const es = pts.map((p) => p.e), top = pts[es.indexOf(Math.max(...es))];
+    // Steepness of the ground under the route: the middle of each 3 points, so one odd pixel doesn't count.
+    const sl = pts.map((p, i) => [pts[i - 1]?.slope ?? p.slope, p.slope, pts[i + 1]?.slope ?? p.slope].sort((a, b) => a - b)[1]);
+    let km30 = 0, km35 = 0;
+    const aspects = new Array(8).fill(0);
+    pts.forEach((p, i) => {
+      const seg = i ? (p.d - pts[i - 1].d) / 1000 : 0;
+      if (sl[i] >= 30) km30 += seg;
+      if (sl[i] >= 35) km35 += seg;
+      if (sl[i] >= 25) aspects[p.asp] += seg;
+    });
+    const steepKm = aspects.reduce((s, x) => s + x, 0);
+    const faces = steepKm ? ASPECTS.filter((_, i) => aspects[i] >= steepKm * 0.15).sort((a, b) => aspects[ASPECTS.indexOf(b)] - aspects[ASPECTS.indexOf(a)]) : [];
+    return (r.info = { pts, sl, total, up, down, top, min: Math.min(...es), max: top.e, maxSlope: Math.max(...sl), km30, km35, faces });
+  }
+  const bandKm = (info, b) => {
+    const out = { alp: 0, tln: 0, btl: 0 };
+    info.pts.forEach((p, i) => { if (i) out[bandOf(p.e, b)] += (p.d - info.pts[i - 1].d) / 1000; });
+    return out;
+  };
+  // Height profile: distance across, height up; steep ground (30° and more) in orange, treeline and alpine heights dashed.
+  function profileSvg(info, bands) {
+    const W = 320, H = 130, L0 = 38, R0 = 6, T0 = 8, B0 = 18, pts = info.pts;
+    const lo = Math.floor(info.min / 100) * 100, hi = Math.max(lo + 100, Math.ceil(info.max / 100) * 100);
+    const X = (d) => L0 + (d / (info.total || 1)) * (W - L0 - R0), Y = (e) => T0 + (1 - (e - lo) / (hi - lo)) * (H - T0 - B0);
+    const line = pts.map((p) => `${X(p.d).toFixed(1)},${Y(p.e).toFixed(1)}`).join(" ");
+    let steep = "";
+    pts.forEach((p, i) => { if (i && info.sl[i] >= 30) steep += `M${X(pts[i - 1].d).toFixed(1)} ${Y(pts[i - 1].e).toFixed(1)}L${X(p.d).toFixed(1)} ${Y(p.e).toFixed(1)}`; });
+    const bandLines = [[bands.lo, "treeline"], [bands.hi, "alpine"]].filter(([e]) => e > lo && e < hi)
+      .map(([e, n]) => `<line x1="${L0}" x2="${W - R0}" y1="${Y(e).toFixed(1)}" y2="${Y(e).toFixed(1)}" class="pf-band"/><text x="${W - R0 - 2}" y="${(Y(e) - 3).toFixed(1)}" text-anchor="end" class="pf-lbl">${n} ~${e} m</text>`).join("");
+    const kmMax = info.total / 1000, tick = kmMax > 20 ? 5 : kmMax > 8 ? 2 : kmMax > 3 ? 1 : 0.5;
+    let ticks = "";
+    for (let k = tick; k < kmMax - tick / 3; k += tick) ticks += `<text x="${X(k * 1000).toFixed(1)}" y="${H - 4}" text-anchor="middle" class="pf-lbl">${k} km</text>`;
+    return `<svg class="sk-prof" viewBox="0 0 ${W} ${H}" role="img" aria-label="Height profile: from ${fmtM(info.min)} up to ${fmtM(info.max)} over ${kmMax.toFixed(1)} km">
+      <polygon points="${L0},${H - B0} ${line} ${W - R0},${H - B0}" class="pf-fill"/>
+      ${bandLines}
+      <polyline points="${line}" class="pf-line"/>
+      <path d="${steep}" class="pf-steep"/>
+      <text x="${L0 - 4}" y="${T0 + 4}" text-anchor="end" class="pf-lbl">${hi}</text><text x="${L0 - 4}" y="${H - B0}" text-anchor="end" class="pf-lbl">${lo}</text>
+      ${ticks}<line class="pf-cur" x1="0" x2="0" y1="${T0}" y2="${H - B0}" visibility="hidden"/></svg>
+      <div class="pf-read" aria-live="polite">Move along the profile to see the spot on the map.</div>`;
+  }
+  const hoverLayer = L.layerGroup();
+  function bindProfile(el, info) {
+    const svg = el.querySelector(".sk-prof"), cur = svg && svg.querySelector(".pf-cur"), read = el.querySelector(".pf-read");
+    if (!svg) return;
+    const W = 320, L0 = 38, R0 = 6;
+    const move = (e) => {
+      const b = svg.getBoundingClientRect(), x = ((e.clientX - b.left) / b.width) * W;
+      const d = Math.max(0, Math.min(1, (x - L0) / (W - L0 - R0))) * info.total;
+      let i = 0;
+      while (i < info.pts.length - 1 && info.pts[i].d < d) i++;
+      const p = info.pts[i];
+      cur.setAttribute("x1", x.toFixed(1)); cur.setAttribute("x2", x.toFixed(1)); cur.setAttribute("visibility", "visible");
+      read.textContent = `${fmtM(p.e)} · ${(p.d / 1000).toFixed(1)} km · ground ${Math.round(info.sl[i])}° facing ${ASPECTS[p.asp].toUpperCase()}`;
+      hoverLayer.clearLayers();
+      hoverLayer.addLayer(L.circleMarker([p.lat, p.lon], { radius: 7, color: "#fff", weight: 3, fillColor: "#e8590c", fillOpacity: 1, interactive: false }));
+      if (!map.hasLayer(hoverLayer)) hoverLayer.addTo(map);
+    };
+    svg.addEventListener("pointermove", move);
+    svg.addEventListener("pointerdown", move);
+    svg.addEventListener("pointerleave", () => { cur.setAttribute("visibility", "hidden"); read.textContent = "Move along the profile to see the spot on the map."; hoverLayer.clearLayers(); });
+  }
+  function elevHtml(info, bands, area) {
+    const bk = bandKm(info, bands), asp = info.faces.map((s) => s.toUpperCase()).join(", ");
+    return `<h4>Elevation</h4>
+      <div class="sk-stats"><div><b>${fmtM(info.max)}</b><span>top</span></div><div><b>${fmtM(info.min)}</b><span>bottom</span></div>
+        <div><b>↑ ${fmtM(info.up)}</b><span>climb</span></div><div><b>↓ ${fmtM(info.down)}</b><span>descent</span></div></div>
+      ${profileSvg(info, bands)}
+      <dl><dt>Ground</dt><dd>steepest about ${Math.round(info.maxSlope)}°${info.km30 >= 0.05 ? `; ${info.km30.toFixed(1)} km on slopes of 30° or more${info.km35 >= 0.05 ? ` (${info.km35.toFixed(1)} km of 35°+)` : ""}` : "; no slopes of 30° or more under the route"}</dd>
+      ${asp ? `<dt>Steep parts face</dt><dd>${asp}</dd>` : ""}
+      <dt>Bands</dt><dd>${BANDS.filter(([b]) => bk[b] >= 0.05).map(([b, n]) => `${n} ${bk[b].toFixed(1)} km`).join(" · ")}<span class="sk-note"> (treeline about ${bands.lo}-${bands.hi} m${area ? "" : ", roughly"})</span></dd></dl>
+      <p class="sk-note">Heights and slopes from terrain data about ${info.total > 40000 ? 25 : 12} m apart, so small cliffs and rolls don't show. The ground under the line, not the slopes above it: check what's above you too. Orange on the profile is 30° and steeper, where avalanches start.</p>`;
+  }
+
+  // Avalanche Canada forecast for the route, and riders' reports of avalanches near it (data/avalanche-reports.json).
+  let minData = null, minLoading = null, minErr = "";
+  function loadMin() {
+    if (minData || minLoading) return minLoading;
+    minLoading = fetch("data/avalanche-reports.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((d) => { minData = d; }).catch((e) => { minErr = e.message; }).finally(() => { minLoading = null; });
+    return minLoading;
+  }
+  const near = (pts, lat, lon) => { let best = Infinity; for (let i = 0; i < pts.length; i += 4) best = Math.min(best, map.distance([pts[i].lat, pts[i].lon], [lat, lon])); return best / 1000; };
+  const MIN_KM = 15;
+  function minHtml(pts) {
+    if (!minData) return minErr ? `<p class="sk-note">Riders' avalanche reports aren't on the site yet (they're collected every 2 hours).</p>` : "<p class=\"sk-note\">Loading riders' reports…</p>";
+    const days = minData.days || 14;
+    const list = (minData.reports || []).map((m) => ({ m, km: near(pts, m.lat, m.lon) })).filter((x) => x.km <= MIN_KM)
+      .sort((a, b) => (!!b.m.av?.seen - !!a.m.av?.seen) || (b.m.date > a.m.date ? 1 : -1));
+    const seen = list.filter((x) => x.m.av?.seen).length;
+    const head = `<h5>Reported by riders within ${MIN_KM} km, last ${days} days</h5>`;
+    if (!list.length) return `${head}<p class="sk-note">No reports near here on Avalanche Canada's Mountain Information Network. No report doesn't mean no avalanches: few people post.</p>`;
+    return `${head}<p>${seen ? `<b>${seen} report${seen === 1 ? "" : "s"} of avalanches</b>` : "No avalanches reported"}, ${list.length} report${list.length === 1 ? "" : "s"} in all.</p>
+      <ul class="sk-min">${list.slice(0, 8).map(({ m, km }) => {
+        const a = m.av || {}, what = [a.what, a.signs && a.signs.length && (a.what ? "also " : "") + a.signs.join(", ")].filter(Boolean).join("; ");
+        const extra = [a.trigger && "trigger: " + a.trigger, a.aspect && "aspect " + a.aspect].filter(Boolean).join(", ");
+        return `<li class="${a.seen ? "av" : ""}"><b>${esc(when(m.date) || "")}</b>, ${km.toFixed(0)} km away${m.title ? `: ${esc(m.title)}` : ""}${what ? `<br>${esc(what)}${extra ? ` (${esc(extra)})` : ""}` : ""}${m.text ? `<br><span class="sk-note">${esc(m.text.slice(0, 220))}${m.text.length > 220 ? "…" : ""}</span>` : ""}
+          ${m.id ? `<br><a href="https://avalanche.ca/mountain-information-network/submissions/${encodeURIComponent(m.id)}" target="_blank" rel="noopener">Full report</a>` : ""}</li>`;
+      }).join("")}</ul>${list.length > 8 ? `<p class="sk-note">…and ${list.length - 8} more on <a href="https://avalanche.ca/map" target="_blank" rel="noopener">avalanche.ca</a>.</p>` : ""}`;
+  }
+  function avyHtml(area, info, pt) {
+    const data = example ? exampleData() : avy;
+    const link = `<a href="https://avalanche.ca/map" target="_blank" rel="noopener">Avalanche Canada map</a>`;
+    if (!data) return `<h4>Avalanche</h4><p class="sk-note">${avyErr ? `The avalanche forecast isn't on the site yet. ${link}` : "Loading the avalanche forecast…"}</p>`;
+    const f = area && area.forecast, d = f && dayOf(f);
+    const rated = f && f.days?.some((x) => x.alp || x.tln || x.btl);
+    let html = `<h4>Avalanche${f ? `: ${esc(f.title || area.name)}` : ""}</h4>`;
+    if (example) html += `<div class="av-warn">EXAMPLE, not a real forecast.</div>`;
+    if (!f || !d) html += `<p>No avalanche forecast here right now. Avalanche Canada's daily forecasts run from about late November to April. ${link}</p>`;
+    else {
+      const expired = !example && f.validUntil && new Date(f.validUntil) < new Date();
+      const on = info ? bandKm(info, area.bands) : null;
+      // Today in words, later days as the number only, so three days fit across a phone.
+      const chip = (r, short) => `<span class="av-chip" title="${DANGER[r].label}" style="background:${DANGER[r].color};color:${r >= 4 ? "#fff" : "#1a1a1a"}">${short ? r || "–" : DANGER[r].label}</span>`;
+      if (expired) html += `<div class="av-warn">This forecast has expired. Check avalanche.ca for the latest.</div>`;
+      if (rated) {
+        html += `<table class="sk-avt"><tr><th></th>${f.days.map((x) => `<th>${esc((x.label || x.date || "").slice(0, 3))}</th>`).join("")}</tr>
+          ${BANDS.map(([b, n]) => `<tr class="${on && on[b] < 0.05 ? "off" : ""}"><th>${n}${on ? `<span class="sk-note">${on[b] >= 0.05 ? `${on[b].toFixed(1)} km of the route` : "not on the route"}</span>` : ""}</th>${f.days.map((x, j) => `<td>${chip(x[b], j > 0)}</td>`).join("")}</tr>`).join("")}</table>`;
+      } else html += `<p>No danger ratings yet${f.highlights ? ":" : "."}</p>`;
+      if (f.highlights) html += `<p><strong>${esc(f.highlights)}</strong></p>`;
+      // Each problem, and whether it's where this route goes.
+      const bandsOn = on ? BANDS.filter(([b]) => on[b] >= 0.05).map(([b]) => b) : null;
+      html += (f.problems || []).map((p) => {
+        const bHit = bandsOn ? p.elevations.filter((b) => bandsOn.includes(b)) : p.elevations;
+        const aHit = info && info.faces.length ? p.aspects.filter((a) => info.faces.includes(a)) : [];
+        const names = (bs) => bs.map((b) => BANDS.find((x) => x[0] === b)[1].toLowerCase()).join(", ");
+        const where = !bandsOn ? `${esc(p.aspects.map((s) => s.toUpperCase()).join(" "))} · ${names(p.elevations)}`
+          : !bHit.length ? `not in the bands this route goes through (${names(p.elevations)})`
+          : `on this route: ${names(bHit)}${aHit.length ? `, on its ${aHit.map((s) => s.toUpperCase()).join(", ")} slopes` : info.faces.length ? `, but its steep slopes face other ways (problem on ${p.aspects.map((s) => s.toUpperCase()).join(" ")})` : ""}`;
+        return `<div class="av-prob${bandsOn && !bHit.length ? " off" : ""}">${rose(p)}<div><b>${esc(p.type)}</b><p>${where}</p><p>${p.likelihood ? "Likelihood: " + esc(p.likelihood) : ""}${p.size ? ` · size ${esc(p.size)}` : ""}</p></div></div>`;
+      }).join("");
+      const sum = f.summaries?.["avalanche-summary"] || f.summaries?.["avalanche summary"];
+      if (sum) html += `<h5>Recent avalanches (forecaster)</h5><p class="sk-pre">${esc(sum.slice(0, 900))}${sum.length > 900 ? "…" : ""}</p>`;
+      html += `<p><a href="${esc(f.url || "https://avalanche.ca/map")}" target="_blank" rel="noopener">Full forecast on avalanche.ca</a></p>`;
+    }
+    html += minHtml(info ? info.pts : [{ lat: pt[0], lon: pt[1] }]);
+    return html;
+  }
+
+  // Mountain weather at the top of the route, from Open-Meteo (free, no key), adjusted to the top's height.
+  const WX = "https://api.open-meteo.com/v1/forecast";
+  const WICON = { 0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️", 51: "🌦️", 53: "🌦️", 55: "🌧️", 56: "🌧️", 57: "🌧️", 61: "🌦️", 63: "🌧️", 65: "🌧️",
+    66: "🌧️", 67: "🌧️", 71: "🌨️", 73: "🌨️", 75: "❄️", 77: "🌨️", 80: "🌦️", 81: "🌧️", 82: "🌧️", 85: "🌨️", 86: "❄️", 95: "⛈️", 96: "⛈️", 99: "⛈️" };
+  const wxCache = new Map();
+  function weather(lat, lon, ele) {
+    const key = `${lat.toFixed(2)},${lon.toFixed(2)},${Math.round(ele / 50) * 50}`, c = wxCache.get(key);
+    if (c && Date.now() - c.at < 30 * 60000) return c.p;
+    const p = fetch(`${WX}?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}${ele != null ? `&elevation=${Math.round(ele)}` : ""}&timezone=auto&past_days=3&forecast_days=4`
+      + "&daily=weather_code,temperature_2m_max,temperature_2m_min,snowfall_sum,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant&hourly=freezing_level_height")
+      .then((r) => { if (!r.ok) throw new Error(r.status === 429 ? "too many requests today, try later" : `HTTP ${r.status}`); return r.json(); });
+    p.catch(() => wxCache.delete(key));
+    wxCache.set(key, { at: Date.now(), p });
+    return p;
+  }
+  const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  function wxHtml(w, ele) {
+    const dd = w.daily, today = dd.time.indexOf(new Date().toLocaleDateString("en-CA", { timeZone: w.timezone }));
+    const t0 = today >= 0 ? today : 3;
+    const past = dd.snowfall_sum.slice(Math.max(0, t0 - 3), t0).reduce((s, x) => s + (x || 0), 0);
+    const fz = (date) => { const v = w.hourly.time.map((t, i) => (t.startsWith(date) ? w.hourly.freezing_level_height[i] : null)).filter((x) => x != null); return v.length ? Math.max(...v) : null; };
+    const rows = dd.time.slice(t0, t0 + 4).map((date, j) => {
+      const i = t0 + j, dayName = j === 0 ? "Today" : new Date(date + "T12:00").toLocaleDateString(undefined, { weekday: "short" }), f = fz(date);
+      return `<tr><th>${dayName}</th><td>${WICON[dd.weather_code[i]] || ""}</td><td>${Math.round(dd.temperature_2m_min[i])}° / ${Math.round(dd.temperature_2m_max[i])}°</td>
+        <td>${dd.snowfall_sum[i] >= 0.5 ? `<b>${Math.round(dd.snowfall_sum[i])} cm</b>` : dd.precipitation_sum[i] >= 1 ? `${Math.round(dd.precipitation_sum[i])} mm rain` : "–"}</td>
+        <td>${Math.round(dd.wind_speed_10m_max[i])}<span class="sk-note">/${Math.round(dd.wind_gusts_10m_max[i])}</span> ${COMPASS[Math.round(dd.wind_direction_10m_dominant[i] / 45) % 8]}</td>
+        <td>${f != null ? fmtM(f) : "–"}</td></tr>`;
+    }).join("");
+    return `<h4>Weather at ${ele != null ? `the top (${fmtM(ele)})` : "this spot"}</h4>
+      <p>New snow in the last 3 days: <b>${Math.round(past)} cm</b></p>
+      <table class="sk-wx"><tr><th></th><th></th><th>Low / high</th><th>Snow</th><th>Wind km/h</th><th>Freezing level</th></tr>${rows}</table>
+      <p class="sk-note">Forecast from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>, a weather model, not a measurement. Wind is the day's strongest / gusts.</p>`;
+  }
+
+  // OpenStreetMap tags in plain words; the rest go under "All tags".
+  const GROOM = { backcountry: "Not groomed (backcountry)", no: "Not groomed", classic: "Groomed for classic", skating: "Groomed for skate", "classic+skating": "Groomed for classic and skate", "classic;skating": "Groomed for classic and skate", scooter: "Packed by snowmobile", mogul: "Moguls" };
+  const DIFF = { novice: "Novice", easy: "Easy", intermediate: "Intermediate", advanced: "Advanced", expert: "Expert", freeride: "Freeride (off-piste)", extreme: "Extreme" };
+  const ON = { track: "a forest road or track", path: "a trail", footway: "a footpath", service: "a road", unclassified: "a road", bridleway: "a trail" };
+  const yesNo = (v) => ({ yes: "allowed", designated: "allowed (signed for it)", permissive: "allowed", no: "not allowed", private: "private" }[v] || v);
+  const PLAIN = {
+    "piste:grooming": (v) => ["Grooming", GROOM[v] || v], "piste:difficulty": null, highway: (v) => ON[v] && ["Follows", ON[v]],
+    description: (v) => ["Description", v], note: (v) => ["Note", v], operator: (v) => ["Run by", v], fee: (v) => ["Fee", v === "yes" ? "yes, a fee to use it" : v === "no" ? "free" : v],
+    access: (v) => ["Access", yesNo(v)], ski: (v) => ["Skiing", yesNo(v)], snowmobile: (v) => ["Snowmobiles", yesNo(v)], "snowmobile:conditional": (v) => ["Snowmobiles when", v],
+    seasonal: (v) => ["Seasonal", v], opening_hours: (v) => ["Open", v], ref: (v) => ["Number", v], ele: (v) => ["Height", v + " m"],
+    capacity: (v) => ["Sleeps", v], reservation: (v) => ["Booking", v === "required" ? "required" : v], website: (v) => ["Website", v], url: (v) => ["Website", v],
+    "piste:type": null, name: null, "piste:name": null,
+  };
+  const val2 = (v) => (/^https?:\/\//.test(v) ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""))}</a>` : esc(v));
+  function tagsHtml(r) {
+    const plain = [], raw = [];
+    for (const [k, v] of Object.entries(r.tags || {})) {
+      const f = PLAIN[k];
+      if (f === null) continue;
+      const out = f ? f(v) : r.src === "c2c" ? [k[0].toUpperCase() + k.slice(1), v] : null;
+      if (out) plain.push(out); else raw.push([k, v]);
+    }
+    return { plain: plain.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${val2(v)}</dd>`).join(""),
+      raw: raw.length ? `<details class="sk-tags"><summary>All the source's tags (${raw.length})</summary><dl>${raw.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${val2(v)}</dd>`).join("")}</dl></details>` : "" };
+  }
+  // Huts and camptocamp routes within 2 km of the route.
+  function nearbyHtml(info) {
+    if (!ski || !info) return "";
+    const pts = info.pts, out = [];
+    for (const h of [...(ski.huts || []), ...(ski.starts || [])]) {
+      const km = near(pts, h.lat, h.lon);
+      if (km <= 2) out.push({ h, km });
+    }
+    if (!out.length) return "";
+    out.sort((a, b) => a.km - b.km);
+    return `<dt>Nearby</dt><dd>${out.slice(0, 6).map(({ h, km }) => `<a href="#" class="sk-go" data-id="${esc(h.id)}">${esc(h.name || (h.src === "c2c" ? "camptocamp route" : "Hut"))}</a> <span class="sk-note">${h.src === "c2c" ? "camptocamp route, " : ""}${km < 0.1 ? "on the route" : km.toFixed(1) + " km"}</span>`).join("<br>")}</dd>`;
+  }
+  // GPX of the route, with the heights when they're loaded.
+  function gpx(title, group, info) {
+    const x = (s) => esc(s);
+    const segs = info ? Object.values(info.pts.reduce((o, p) => ((o[p.seg] = o[p.seg] || []).push(p), o), {})).map((s) => s.sort((a, b) => a.d - b.d))
+      : group.flatMap((r) => r.lines).map((l) => l.map(([lat, lon]) => ({ lat, lon })));
+    const body = segs.map((s) => `<trkseg>${s.map((p) => `<trkpt lat="${p.lat.toFixed(6)}" lon="${p.lon.toFixed(6)}">${p.e != null ? `<ele>${p.e.toFixed(1)}</ele>` : ""}</trkpt>`).join("")}</trkseg>`).join("\n");
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>${x(title)}</name></metadata><trk><name>${x(title)}</name>\n${body}\n</trk></gpx>\n`;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([xml], { type: "application/gpx+xml" }));
+    a.download = (title.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-") || "ski-route") + ".gpx";
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+
+  let selToken = 0;
   function select(it, fly) {
     const group = Array.isArray(it) ? it : [it];
     const r = group[0];
+    if (selected !== r) hoverLayer.clearLayers();
     selected = r;
     drawSki(); renderList();
     if (fly) {
       if (r.lat != null) map.setView([r.lat, r.lon], Math.max(map.getZoom(), 14));
       else map.fitBounds(group.reduce((b, x) => b.extend(x.bounds), L.latLngBounds(r.bounds.getSouthWest(), r.bounds.getNorthEast())), { padding: [30, 30], maxZoom: 15 });
     }
+    // The pieces of a route with the same name and type go together (as in the list).
+    if (!Array.isArray(it) && r.lat == null && r.name && ski) {
+      const box = r.bounds.pad(0.5), same = (ski.routes || []).filter((x) => x.type === r.type && x.name && x.name.toLowerCase() === r.name.toLowerCase() && box.intersects(x.bounds));
+      if (same.length > 1) group.splice(0, group.length, r, ...same.filter((x) => x !== r));
+    }
+    const token = ++selToken, live = () => token === selToken && selected === r;
     const d = $("skDetail");
     const isHut = r.lat != null, isStart = isHut && r.src === "c2c", t = isStart ? TYPES[r.type] || TYPES.tour : isHut ? HUT : TYPES[r.type] || TYPES.other;
     const osmType = { w: "way", r: "relation", n: "node" }[r.id[0]];
@@ -257,22 +603,64 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       : r.src === "c2c"
       ? `<a href="https://www.camptocamp.org/routes/${esc(r.id.slice(3))}" target="_blank" rel="noopener">camptocamp.org</a> (CC BY-SA)`
       : `<a href="https://www.openstreetmap.org/${osmType}/${r.id.slice(1)}" target="_blank" rel="noopener">OpenStreetMap</a>`;
-    const tags = Object.entries(r.tags || {}).filter(([k]) => !/^(name|piste:name)$/.test(k));
+    const tags = tagsHtml(r);
     const club = !isHut && r.type === "snowmobile" ? clubNear(r.lines[0][0][0], r.lines[0][0][1]) : null;
-    const area = (avy || example) && areaAt(isHut ? r.lat : r.lines[0][0][0], isHut ? r.lon : r.lines[0][0][1]);
+    const title = isHut ? r.name || (isStart ? "camptocamp route" : "Hut") : nameOf(r) || "Unnamed route";
+    const pt = isHut ? [r.lat, r.lon] : r.lines[0][0];
     d.hidden = false;
-    d.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(r.name || (isHut && !isStart ? "Hut" : "Unnamed route"))}</h3></div>
+    d.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>
       <dl><dt>Type</dt><dd>${esc(isStart ? t.label + " (start point only; see camptocamp for the route)" : isHut ? (r.kind || "hut").replace(/_/g, " ") : t.label)}</dd>
       ${isHut ? "" : `<dt>Length</dt><dd>${group.reduce((s, x) => s + km(x), 0).toFixed(1)} km${group.length > 1 ? ` (${group.length} pieces)` : ""}</dd>`}
-      ${r.diff ? `<dt>Difficulty</dt><dd>${esc(r.diff)}</dd>` : ""}
+      ${r.diff ? `<dt>Difficulty</dt><dd>${esc(DIFF[r.diff] || r.diff)}</dd>` : ""}
       ${r.routes ? `<dt>Part of</dt><dd>${esc(r.routes.join(", "))}</dd>` : ""}
       ${club ? `<dt>Club</dt><dd><a href="#" class="sb-go">${esc(club.c.name)}</a> (${esc(club.a.name)}, ${club.km.toFixed(0)} km away): grooming report and trail pass</dd>` : ""}
-      ${tags.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${/^https?:\/\//.test(v) ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(v)}</dd>`).join("")}
-      <dt>Source</dt><dd>${src}</dd>
-      ${area && area.forecast ? `<dt>Avalanche</dt><dd>${esc(area.forecast.title || area.name)}: ${dayOf(area.forecast) ? BANDS.map(([b, n]) => `${n} ${DANGER[dayOf(area.forecast)[b]].label}`).join(", ") : "no rating"}</dd>` : ""}</dl>`;
-    d.querySelector(".sk-x").addEventListener("click", () => { selected = null; d.hidden = true; drawSki(); renderList(); });
+      ${tags.plain}<span id="skNear"></span>
+      <dt>Source</dt><dd>${src}</dd></dl>
+      ${tags.raw}
+      ${isHut ? "" : `<div class="sk-sec" id="skElev"><h4>Elevation</h4><p class="sk-note">Loading heights…</p></div>`}
+      <div class="sk-sec" id="skAvy"></div>
+      <div class="sk-sec" id="skWx"><h4>Weather</h4><p class="sk-note">Loading the forecast…</p></div>
+      ${isHut ? "" : `<p><button type="button" class="btn" id="skGpx">⬇ Download GPX</button></p>`}`;
+    d.querySelector(".sk-x").addEventListener("click", () => { selected = null; selToken++; d.hidden = true; hoverLayer.clearLayers(); drawSki(); renderList(); });
     const go = d.querySelector(".sb-go");
     if (go) go.addEventListener("click", (e) => { e.preventDefault(); showClub(club.c); });
+    const gpxBtn = $("skGpx");
+    if (gpxBtn) gpxBtn.addEventListener("click", () => gpx(title, group, r.info));
+
+    // The avalanche forecast is needed here even with the shading off.
+    if (!avy && !example && !avyErr) loadAvy();
+    const showAvy = (info) => {
+      if (!live()) return;
+      const p = info ? [info.top.lat, info.top.lon] : pt;
+      const area = (avy || example) ? areaAt(p[0], p[1]) : null;
+      const el = $("skAvy");
+      el.innerHTML = avyHtml(area, info, p);
+      const elev = $("skElev");
+      if (info && elev) { elev.innerHTML = elevHtml(info, area ? area.bands : DEFAULT_BANDS, area); bindProfile(elev, info); }
+    };
+    const showWx = (lat, lon, ele) => weather(lat, lon, ele).then((w) => { if (live()) $("skWx").innerHTML = wxHtml(w, ele); })
+      .catch((e) => { if (live()) $("skWx").innerHTML = `<h4>Weather</h4><p class="sk-note">Couldn't load the weather (${esc(e.message)}).</p>`; });
+    showAvy(r.info || null);
+    if (!minData && !minErr) loadMin().then(() => showAvy(r.info || null));
+    if (isHut) { showWx(r.lat, r.lon, parseFloat(r.tags?.ele) || null); return; }
+    routeInfo(group).then((info) => {
+      if (!live()) return;
+      showAvy(info);
+      showWx(info.top.lat, info.top.lon, info.max);
+      const nb = $("skNear");
+      if (nb) {
+        nb.outerHTML = nearbyHtml(info);
+        d.querySelectorAll(".sk-go").forEach((a) => a.addEventListener("click", (e) => {
+          e.preventDefault();
+          const h = [...(ski.huts || []), ...(ski.starts || [])].find((x) => x.id === a.dataset.id);
+          if (h) select(h, true);
+        }));
+      }
+    }).catch((e) => {
+      if (!live()) return;
+      $("skElev").innerHTML = `<h4>Elevation</h4><p class="sk-note">Couldn't load the heights (${esc(e.message)}).</p>`;
+      showWx(pt[0], pt[1], null);
+    });
   }
 
   // ---------- snowmobile clubs and their grooming reports ----------
@@ -752,7 +1140,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       loadSki(); loadMine(); loadClubs(); renderList();
     } else {
       mtb.forEach((l) => { if (!map.hasLayer(l)) l.addTo(map); });
-      map.removeLayer(skiLayer); map.removeLayer(hutLayer); map.removeLayer(mineLayer); map.removeLayer(clubLayer);
+      map.removeLayer(skiLayer); map.removeLayer(hutLayer); map.removeLayer(mineLayer); map.removeLayer(clubLayer); map.removeLayer(hoverLayer);
     }
     refreshAvy(); refreshHeat();
   }
