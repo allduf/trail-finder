@@ -173,6 +173,8 @@
 
   // ---------- mouse: right-drag or Ctrl+drag turns the map ----------
   // A right-click that doesn't drag still reaches the map as a right-click (Skiing uses it to add a point).
+  // The 3D map sits inside this one and turns itself: listening here (before it) would turn this map too,
+  // and its end would fly the 3D map back to this map's bearing.
   function mouseRotate(map) {
     const box = map.getContainer();
     let down = null, replaying = false, lastTurn = 0;
@@ -202,7 +204,7 @@
       }
     };
     box.addEventListener("mousedown", (e) => {
-      if (!(e.button === 2 || (e.button === 0 && e.ctrlKey)) || e.target.closest(".leaflet-control, .leaflet-popup") || !map.options.rotate) return;
+      if (!(e.button === 2 || (e.button === 0 && e.ctrlKey)) || e.target.closest(".leaflet-control, .leaflet-popup, #map3d") || !map.options.rotate) return;
       if (box.classList.contains("drawing")) return;   // drawing a square to find trails
       if (e.button === 0) { e.stopPropagation(); e.preventDefault(); }   // Ctrl+drag: turn, don't pan
       if (down) onUp(null);                            // the last turn's release was missed
