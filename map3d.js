@@ -19,6 +19,7 @@
   let hits = [];              // Leaflet layers that react to clicks, by index (the "id" of the 3D hit lines)
   let dashLayers = new Set(); // dashed line layers made so far, one per dash pattern
   let drawn = false;          // trails copied at least once
+  let last2d = null;          // the flat map's view as the 3D map last set it
   let syncing = 0;            // >0 while one map is moving the other, so the moves don't echo back
 
   const css = document.createElement("style");
@@ -129,6 +130,11 @@
     if (!gl || syncing) return;
     syncing++;
     const c = map.getCenter();
+    // The flat map moving because the 3D map just moved it (its zoom rounded to a whole step) is not a new
+    // place: flying there would zoom and turn the 3D map again after the person let go.
+    if (last2d && map.getZoom() === last2d.zoom && Math.abs(bearing2d() - last2d.bearing) < 0.5 &&
+        map.latLngToContainerPoint(c).distanceTo(map.latLngToContainerPoint(last2d.c)) < 2) { syncing--; return; }
+    last2d = null;
     gl.flyTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d(), duration: 1200 });
     setTimeout(() => syncing--, 1300);
   }
@@ -138,6 +144,7 @@
     const c = gl.getCenter();
     map.setView([c.lat, c.lng], Math.round(gl.getZoom() + 1), { animate: false });
     if (map.setBearing) { map.setBearing(-gl.getBearing()); map.fire("rotateend"); }
+    last2d = { c: map.getCenter(), zoom: map.getZoom(), bearing: bearing2d() };
     setTimeout(() => syncing--, 0);
   }
   map.on("moveend rotateend", () => { if (on) from2d(); });
@@ -394,6 +401,18 @@
     // trails go on as soon as the style itself is ready.
     gl.on("styledata", () => { if (!drawn && gl.getSource("lines")) scheduleSync(); });
     gl.on("moveend", (e) => { if (e.originalEvent) to2d(); });   // the person moved the 3D map
+    // A turn or tilt stops where the finger lets go. MapLibre otherwise keeps turning the map (up to 179°)
+    // and tilting it after release; a slide still glides on.
+    const inertia = gl.handlers && gl.handlers._inertia;
+    if (inertia && inertia._onMoveEnd) {
+      const onMoveEnd = inertia._onMoveEnd;
+      inertia._onMoveEnd = function () {
+        const ease = onMoveEnd.apply(this, arguments);
+        if (!ease) return ease;
+        delete ease.bearing; delete ease.pitch; delete ease.roll;
+        return ease.center || ease.zoom !== undefined ? ease : undefined;
+      };
+    }
     new ResizeObserver(() => gl.resize()).observe(box);
 
     // Taps go to the same Leaflet trail lines (opening the same details panel); anywhere else is a
