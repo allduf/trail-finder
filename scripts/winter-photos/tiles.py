@@ -1,20 +1,17 @@
-"""Cuts build.mjs's 2048 px blocks (zoom-11 tiles) into data/winter/{z}/{x}/{y}.webp, zooms 8 to 14."""
+"""Cuts build.py's 2048 px blocks (zoom-11 tiles) into data/winter/{z}/{x}/{y}.webp, zooms 8 to 14."""
 import os, sys
 from PIL import Image
 src = sys.argv[1] if len(sys.argv) > 1 else "winter-blocks"
 dst = os.path.join(os.path.dirname(__file__), "../../data/winter")
 tiles = {}   # zoom 14 tiles (8 x 8 per block), by (x, y)
-LIFT = [min(255, round(255 * (v / 255) ** 0.8 * 1.06)) for v in range(256)]
 def save(z, x, y, im):
     if im.getextrema()[3][1] == 0: return   # all see-through: leave it out, the summer photos show
     os.makedirs(f"{dst}/{z}/{x}", exist_ok=True)
-    im.save(f"{dst}/{z}/{x}/{y}.webp", "WEBP", quality=65, method=6)
+    im.save(f"{dst}/{z}/{x}/{y}.webp", "WEBP", quality=70, method=6)
 for f in sorted(os.listdir(src)):
     if not f.endswith(".png"): continue
     bx, by = map(int, f[:-4].split("_"))
     block = Image.open(os.path.join(src, f)).convert("RGBA")
-    r, g, b, a = block.split()   # winter sun is low, so the raw photos are dark: lift the shadows a little
-    block = Image.merge("RGBA", [ch.point(LIFT) for ch in (r, g, b)] + [a])
     for i in range(8):
         for j in range(8):
             t = block.crop((i * 256, j * 256, i * 256 + 256, j * 256 + 256))
