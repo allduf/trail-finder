@@ -259,6 +259,11 @@
     const k = z - pz, img = await get(pz, x >> k, y >> k), n = 1 << k, size = img.width / n;
     return [img, (x % n) * size, (y % n) * size, size];
   };
+  // NASA's NDSI snow palette (gibs.earthdata.nasa.gov/colormaps/v1.3/MODIS_NDSI_Snow_Cover.xml) back to
+  // the index, 1-100: 1-80 step green 240/210/180/150 every 20 with blue 128-147 inside each step, 81-99
+  // are about (240,120-133,128-133), 100 is pure red. Clouds, night, water and bare land are transparent.
+  const ndsi = (r, g, b) => r === 255 ? (g === 0 && b === 0 ? 100 : 0) : r !== 240 ? 0
+    : g >= 150 && b >= 128 && b <= 147 && (240 - g) % 30 === 0 ? (240 - g) / 30 * 20 + b - 127 : g >= 120 && g <= 133 ? 90 : 0;
   const smooth = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
   let winterProtocol = false;
   function addWinterProtocol() {
@@ -270,14 +275,16 @@
         fetch(ESRI(z, x, y), { signal: sig }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); }),
         under(Math.min(z, 8), z, x, y, (a, b, c) => cached(`s${a}/${b}/${c}`, () => image(NASA_SNOW(a, b, c), new AbortController().signal).then(pixels))).catch(() => null)]);
       // How much snow NASA saw at each photo pixel (0 to 1), blended between its 500 m cells so edges
-      // aren't blocky. Only clear, bright snow counts, so a thin or patchy dusting doesn't paint a mountain white.
+      // aren't blocky. The tile's colour is a code for the snow index (ndsi below), not a picture of snow:
+      // pale yellow is the WEAKEST reading, red the strongest. Only a solid reading counts, so the faint
+      // readings MODIS makes over bright rock, cloud edges and haze don't paint a mountain white.
       const W = 256, snowAt = new Float32Array(W * W);
       let any = false;
       if (live) {
         const [L, ll, lt, ls] = live, LW = L.width, cell = (cx, cy) => {
           cx = Math.min(LW - 1, Math.max(0, cx)); cy = Math.min(LW - 1, Math.max(0, cy));
           const i = (cy * LW + cx) * 4; if (!L.data[i + 3]) return 0;
-          return smooth(140, 230, 0.3 * L.data[i] + 0.59 * L.data[i + 1] + 0.11 * L.data[i + 2]);
+          return smooth(35, 70, ndsi(L.data[i], L.data[i + 1], L.data[i + 2]));
         };
         for (let py = 0; py < W; py++) for (let px = 0; px < W; px++) {
           const fx = ll + (px + 0.5) * ls / W - 0.5, fy = lt + (py + 0.5) * ls / W - 0.5, cx = Math.floor(fx), cy = Math.floor(fy), tx = fx - cx, ty = fy - cy;
