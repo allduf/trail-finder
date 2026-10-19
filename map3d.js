@@ -27,6 +27,10 @@
   try { crashed = localStorage.getItem(OPEN) != null; } catch {}
   mark(false);
 
+  // Photo tiles drawn at 128 px (one zoom deeper, sharper) on computers; 256 px on phones: a quarter of the photos
+  // in memory. alex's iPhone still ran out of memory moving around 3D at 128 (2026-10-19).
+  const PHOTO_TILE = PHONE ? 256 : 128;
+
   const LINE_SCALE = 1.15;    // trails a little bolder than in 2D, so they read against the photos
   let on = false, gl = null, box = null, libLoading = null;
   let hits = [];              // Leaflet layers that react to clicks, by index (the "id" of the 3D hit lines)
@@ -81,8 +85,12 @@
     // A trail's details are open: the other trail lines fade, as in 2D.
     const focus = map.getContainer().classList.contains("trail-focus");
     const faded = (o) => focus && o.renderer && /^(allTrails|boxTrails)$/.test(o.renderer.options.pane);
+    // Phones: only the trails around the view (the whole region is ~10,000 lines and 4-5 MB each copy, which the
+    // 3D map keeps a tiled index of); they're copied again after each move.
+    const near = PHONE && map.getBounds().pad(2);
     map.eachLayer((l) => {
       if (!(l instanceof L.Path)) return;
+      if (near) { const bb = l.getBounds ? l.getBounds() : L.latLngBounds([l.getLatLng()]); if (!bb.isValid() || !near.intersects(bb)) return; }
       const o = l.options, order = k++;
       if (l instanceof L.CircleMarker && !(l instanceof L.Circle)) {
         dots.push({ type: "Feature", geometry: { type: "Point", coordinates: ll(l.getLatLng()) },
@@ -148,6 +156,7 @@
   // need the whole region's trails sent to the 3D map again.
   map.on("layeradd layerremove", (e) => { if (e.layer instanceof L.Path) scheduleSync(); });
   map.on("trailfocus", scheduleSync);
+  if (PHONE) map.on("moveend", scheduleSync);
   // Selecting a trail restyles lines without adding or removing any.
   const setStyle = L.Path.prototype.setStyle;
   L.Path.prototype.setStyle = function (style) { const r = setStyle.call(this, style); scheduleSync(); return r; };
@@ -404,7 +413,7 @@
     const c = map.getCenter();
     gl = new maplibregl.Map({
       container: box, antialias: !PHONE, pixelRatio: PHONE ? Math.min(devicePixelRatio || 1, 2) : undefined,
-      maxTileCacheSize: PHONE ? 40 : null, center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 60, bearing: bearing2d(), maxPitch: 85,
+      maxTileCacheSize: PHONE ? 24 : null, center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 60, bearing: bearing2d(), maxPitch: 85,
       attributionControl: { compact: true },
       style: {
         version: 8,
@@ -416,16 +425,17 @@
           // instead of the half-size zoom 12-13 ones (blurry and stretched on the slopes, alex 2026-10-19).
           // Zooms 15-16 add finer detail to them (tfwinterhd above); not on phones, where the extra tiles and their
           // drawing would use the memory iPhone Safari runs out of.
-          winter: { type: "raster", tileSize: 128, minzoom: 8, maxzoom: PHONE ? 14 : 16, bounds: [-124.65, 49.1, -121.75, 50.9], tiles: ["tfwinterhd://{z}/{x}/{y}"],
+          winter: { type: "raster", tileSize: PHOTO_TILE, minzoom: 8, maxzoom: PHONE ? 14 : 16, bounds: [-124.65, 49.1, -121.75, 50.9], tiles: ["tfwinterhd://{z}/{x}/{y}"],
             attribution: "Winter: Copernicus Sentinel-2 data 2026 (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>" },
-          live: { type: "raster", tileSize: 128, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
+          live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           shade: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: 14, tiles: ["tfdem://{z}/{x}/{y}"] },
-          sat: { type: "raster", tileSize: 128, maxzoom: 19, tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+          sat: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
           // Sharp place, peak and lake names from OpenFreeMap (free, no key), instead of blurry label pictures.
           names: { type: "vector", url: "https://tiles.openfreemap.org/planet", attribution: "<a href=\"https://openfreemap.org\">OpenFreeMap</a>" },
-          dem: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: 16, tiles: ["tfdem://{z}/{x}/{y}"],
+          // Heights: phones stop at zoom 14 (~10 m), a sixteenth of the close-up height tiles.
+          dem: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: PHONE ? 14 : 16, tiles: ["tfdem://{z}/{x}/{y}"],
             attribution: "Terrain: <a href=\"https://mapterhorn.com/attribution\">© Mapterhorn</a>, <a href=\"https://registry.opendata.aws/terrain-tiles/\">Mapzen Terrain Tiles</a>" },
           lines: { type: "geojson", data: { type: "FeatureCollection", features: [] }, attribution: "Trails © <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors" },
           dots: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
