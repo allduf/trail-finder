@@ -626,6 +626,11 @@ const flatText = (o, depth = 0) => (!o || typeof o !== "object" || depth > 3 ? [
   : Object.entries(o).flatMap(([k, v]) => (typeof v === "string" && /comment|description|narrative|summary/i.test(k) ? [v] : flatText(v, depth + 1))));
 function minAvalanche(obs) {
   const a = obs.avalanche, q = obs.quick || {};
+  // The submissions list gives only how many of each kind of observation a report has ({ avalanche: 1, quick: 1 }).
+  if (typeof a === "number" || typeof obs.incident === "number") {
+    if (obs.incident > 0) return { seen: true, what: "avalanche incident" };
+    return a > 0 ? { seen: true, what: "avalanche observation" } : null;
+  }
   if (a && Object.keys(a).length) {
     const n = val(a.avalancheNumber || a.number), size = val(a.avalancheSize || a.size);
     return { seen: true, what: [n, n === "1" ? "avalanche" : "avalanches", size && `size ${size}`].filter(Boolean).join(" "),
