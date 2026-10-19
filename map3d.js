@@ -115,7 +115,10 @@
     gl.getSource("hits").setData({ type: "FeatureCollection", features: s.hitLines });
     drawn = true;
   }
-  map.on("layeradd layerremove trailfocus", scheduleSync);
+  // Only lines and dots are copied: names and pins coming and going (the trail names redraw after every move) don't
+  // need the whole region's trails sent to the 3D map again.
+  map.on("layeradd layerremove", (e) => { if (e.layer instanceof L.Path) scheduleSync(); });
+  map.on("trailfocus", scheduleSync);
   // Selecting a trail restyles lines without adding or removing any.
   const setStyle = L.Path.prototype.setStyle;
   L.Path.prototype.setStyle = function (style) { const r = setStyle.call(this, style); scheduleSync(); return r; };
@@ -293,10 +296,10 @@
           // Feb-Mar 2026, clouds removed). Live: the sharp photos with today's snow drawn in (tfwinter).
           winter: { type: "raster", tileSize: 256, minzoom: 8, maxzoom: 14, bounds: [-124.65, 49.1, -121.75, 50.9], tiles: ["data/winter/{z}/{x}/{y}.webp"],
             attribution: "Winter: Copernicus Sentinel-2 data 2026 (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>" },
-          live: { type: "raster", tileSize: 256, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
+          live: { type: "raster", tileSize: 128, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           shade: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: 14, tiles: ["tfdem://{z}/{x}/{y}"] },
-          sat: { type: "raster", tileSize: 256, maxzoom: 19, tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+          sat: { type: "raster", tileSize: 128, maxzoom: 19, tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
           // Sharp place, peak and lake names from OpenFreeMap (free, no key), instead of blurry label pictures.
           names: { type: "vector", url: "https://tiles.openfreemap.org/planet", attribution: "<a href=\"https://openfreemap.org\">OpenFreeMap</a>" },
@@ -346,14 +349,14 @@
         sky: { "sky-color": "#5d9be0", "horizon-color": "#d8e6f2", "fog-color": "#c9d9e8", "sky-horizon-blend": 0.5, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.85, "atmosphere-blend": 0.9 },
       },
     });
-    // Sharper far away: keep the photos at one zoom level all the way to the horizon and allow more tiles
-    // when tilted (MapLibre's default lets the far half get blurry fast). Costs more photo downloads.
-    // Full sharpness only once the camera stops: while moving, a lighter setting keeps it smooth.
-    const lod = (levels, ratio) => ["sat", "winter", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(levels, ratio, id); } catch {} });
-    let still = 0;
-    gl.once("load", () => lod(1, 30));
-    gl.on("movestart", () => { clearTimeout(still); lod(3, 4); });
-    gl.on("moveend", () => { clearTimeout(still); still = setTimeout(() => lod(1, 30), 600); });   // 1 = the same photo detail all the way to the horizon
+    // How sharp the photos are, near and far (alex, 2026-10-18: "it lag" and "i dont like the resolution make it
+    // better"). The photos come one zoom deeper than MapLibre would pick for their size (tileSize 128 below), so
+    // up close they're as sharp as the screen, and the far ones get a little softer with distance (6 zoom levels
+    // at most on screen). One setting all the time: switching to a lighter one while moving and back once still
+    // (as before) reloaded every photo after each move, up to 900 tiles each time, and showed blurry ones while
+    // moving. Now about 150 to 380 tiles in a tilted view, against 500 to 900.
+    const lod = () => ["sat", "winter", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
+    gl.once("load", lod);
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
