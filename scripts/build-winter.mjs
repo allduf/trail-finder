@@ -684,8 +684,11 @@ if (runs("ski")) {
   const routes = [...(osm ? osm.routes : oldOf("osm")), ...(bc || oldOf("bc")), ...(c2c ? c2c.routes : oldOf("c2c"))];
   const starts = c2c ? c2c.starts : old.starts || [];
   const huts = osm ? osm.huts : old.huts || [];
-  try { nameNearPeaks(routes, await buildPeaks()); } catch (e) {
-    log(`  Peaks failed: ${e.message}; unnamed routes keep their last peak name`);
+  // Peaks come from Overpass too: when it just failed for the routes, don't spend the run's time limit on it again.
+  let peaksOk = false;
+  if (osm) try { nameNearPeaks(routes, await buildPeaks()); peaksOk = true; } catch (e) { log(`  Peaks failed: ${e.message}`); }
+  if (!peaksOk) {
+    log("  unnamed routes keep their last peak name");
     const was = new Map((old.routes || []).filter((r) => r.near).map((r) => [r.id, r.near]));
     for (const r of routes) if (!r.name && !r.near && was.has(r.id)) r.near = was.get(r.id);
   }
