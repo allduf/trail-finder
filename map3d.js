@@ -14,6 +14,19 @@
     },
   };
 
+  // Phones have far less memory for the 3D map than a computer, and iPhone Safari kills the whole page when it
+  // runs out ("A problem repeatedly occurred", alex 2026-10-19). So on phones: no edge smoothing, the picture
+  // drawn at 2x instead of 3x, fewer photos kept in memory and fewer far-away ones.
+  const PHONE = matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) < 600;
+  // Crash guard: "tf:3dOpen" is set while the 3D map is on screen and cleared when the page is hidden or closed
+  // normally. If it's still set when the page opens, the page died in 3D (out of memory), so it opens on the
+  // flat map instead of going straight back into 3D and crashing again. Not a synced setting.
+  const OPEN = "tf:3dOpen";
+  const mark = (v) => { try { v ? localStorage.setItem(OPEN, String(Date.now())) : localStorage.removeItem(OPEN); } catch {} };
+  let crashed = false;
+  try { crashed = localStorage.getItem(OPEN) != null; } catch {}
+  mark(false);
+
   const LINE_SCALE = 1.15;    // trails a little bolder than in 2D, so they read against the photos
   let on = false, gl = null, box = null, libLoading = null;
   let hits = [];              // Leaflet layers that react to clicks, by index (the "id" of the 3D hit lines)
@@ -293,7 +306,8 @@
     addWinterProtocol();
     const c = map.getCenter();
     gl = new maplibregl.Map({
-      container: box, antialias: true, center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 60, bearing: bearing2d(), maxPitch: 85,
+      container: box, antialias: !PHONE, pixelRatio: PHONE ? Math.min(devicePixelRatio || 1, 2) : undefined,
+      maxTileCacheSize: PHONE ? 40 : null, center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 60, bearing: bearing2d(), maxPitch: 85,
       attributionControl: { compact: true },
       style: {
         version: 8,
@@ -364,7 +378,8 @@
     // at most on screen). One setting all the time: switching to a lighter one while moving and back once still
     // (as before) reloaded every photo after each move, up to 900 tiles each time, and showed blurry ones while
     // moving. Now about 150 to 380 tiles in a tilted view, against 500 to 900.
-    const lod = () => ["sat", "winter", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
+    // Phones: 4 zoom levels and fewer tiles far away (about half the photos in a tilted view).
+    const lod = () => ["sat", "winter", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(PHONE ? 4 : 6, PHONE ? 2 : 3, id); } catch {} });
     gl.once("load", lod);
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
@@ -446,7 +461,7 @@
       loadLib().then(() => set3d(true), () => { btn.textContent = "⛰ 3D unavailable"; setTimeout(syncBtn, 3000); });
       return;
     }
-    on = want; store.set("map3d", on);
+    on = want; store.set("map3d", on); mark(on);
     map.getContainer().classList.toggle("is3d", on);
     map.getContainer().parentElement.classList.toggle("is3d", on);   // hides the 2D map style menu
     if (on) {
@@ -464,5 +479,10 @@
   }
   btn.addEventListener("click", () => set3d(!on));
   syncBtn();
-  if (store.get("map3d", false)) set3d(true);
+  // Hidden or closed normally: not a crash. Back on screen in 3D: watch again.
+  document.addEventListener("visibilitychange", () => mark(on && document.visibilityState === "visible"));
+  addEventListener("pagehide", () => mark(false));
+  addEventListener("pageshow", () => mark(on));
+  if (crashed) store.set("map3d", false);
+  else if (store.get("map3d", false)) set3d(true);
 })();

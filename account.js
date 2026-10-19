@@ -10,7 +10,8 @@
   const LIB = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.3/dist/umd/supabase.js";
 
   // Settings saved to the account: the tf:* localStorage keys the pages remember.
-  const SETTINGS = ["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "nearKm", "track", "nameNear", "mode", "nameZone", "map3d", "want", "folders", "notify", "notifyRead", "toride", "loamAlert", "loamNew", "loamRide", "loamArea", "notifyNew", "planGone", "planSaved", "recentTrails"];
+  // Not "map3d": 3D turned on at a computer would open a phone straight into 3D, which can run it out of memory.
+  const SETTINGS = ["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "nearKm", "track", "nameNear", "mode", "nameZone", "want", "folders", "notify", "notifyRead", "toride", "loamAlert", "loamNew", "loamRide", "loamArea", "notifyNew", "planGone", "planSaved", "recentTrails"];
   const STAMP = "tf:settingsAt";   // when this device last changed a setting (ms)
 
   const api = window.tfAccount = { enabled: !!(SUPABASE_URL && SUPABASE_ANON_KEY), url: SUPABASE_URL, key: SUPABASE_ANON_KEY, client: null, user: null, ready: null };
