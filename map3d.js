@@ -74,8 +74,8 @@
   // Leaflet dashes are in pixels, MapLibre's in line widths.
   const dashKey = (d, w) => String(d).trim().split(/[\s,]+/).map((n) => Math.max(0.1, +n / Math.max(w, 1)).toFixed(2)).join(",");
   // Dotted lines (unofficial trails: round dots in the trail's colour) vanish against the photos at 2D size, so in 3D the
-  // dots are bigger, further apart and ringed in white. The key carries the 2D weight: the ring's spacing depends on it.
-  const DOT_GROW = 1.7, DOT_RING = 3;
+  // dots are bigger and closer together, on a dark see-through band that keeps them reading as one trail.
+  const DOT_GROW = 1.3, DOT_STEP = 2.2, DOT_BAND = 2.5;
   const dotKey = (d, w) => { const n = String(d).trim().split(/[\s,]+/).map(Number); return n.length === 2 && n[0] <= 1 ? "dot:" + (n[0] + n[1]) + ":" + w : ""; };
 
   function snapshot() {
@@ -125,14 +125,12 @@
     if (dashLayers.has(id)) return;
     dashLayers.add(id);
     if (d.startsWith("dot:")) {
-      // A zero-length dash with round caps draws a dot as wide as the line; dashes count in line widths, so each
-      // layer's gap is set to put the white rings and the dots at the same spacing in pixels.
-      const [, step, w] = d.split(":").map(Number), dot = w * LINE_SCALE * DOT_GROW, ring = dot + DOT_RING, gapPx = step * LINE_SCALE * DOT_GROW;
-      const dotted = (lid, width, color, op) => gl.addLayer({ id: lid, type: "line", source: "lines", filter: ["==", ["get", "d"], d],
-        layout: { "line-cap": "round", "line-join": "round", "line-sort-key": ["get", "k"] },
-        paint: { "line-color": color, "line-width": width, "line-opacity": op, "line-dasharray": [0, gapPx / width] } }, "dots");
-      dotted(id + ":ring", ring, "#ffffff", ["*", ["get", "o"], 0.9]);
-      dotted(id, dot, ["get", "c"], ["get", "o"]);
+      // A zero-length dash with round caps draws a dot as wide as the line; dashes count in line widths.
+      const w = +d.split(":")[2], dot = w * LINE_SCALE * DOT_GROW;
+      const line = (lid, paint) => gl.addLayer({ id: lid, type: "line", source: "lines", filter: ["==", ["get", "d"], d],
+        layout: { "line-cap": "round", "line-join": "round", "line-sort-key": ["get", "k"] }, paint }, "dots");
+      line(id + ":band", { "line-color": "#14201a", "line-width": dot + DOT_BAND, "line-opacity": ["*", ["get", "o"], 0.55] });
+      line(id, { "line-color": ["get", "c"], "line-width": dot, "line-opacity": ["get", "o"], "line-dasharray": [0, DOT_STEP] });
       return;
     }
     gl.addLayer({ id, type: "line", source: "lines", filter: ["==", ["get", "d"], d],

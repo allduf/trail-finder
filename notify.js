@@ -410,6 +410,14 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
       } catch {}
     }, 1500);
   }
+  // What the job will check for this phone, so a phone with nothing picked (the Home Screen app keeps its own
+  // settings, apart from Safari's) says so instead of staying quiet.
+  function watchingText() {
+    const p = prefs(), n = p ? (p.zones.includes("all") ? ZONES.length : p.zones.length) : 0, r = loamOn() ? rideList().length : 0;
+    if (!n && !r) return "It's watching nothing yet: pick your regions below and tap Save, or sign in to bring them over.";
+    const parts = [n && (p.zones.includes("all") ? "all regions" : `${n} region${n > 1 ? "s" : ""}`), r && `${r} To ride trail${r > 1 ? "s" : ""}`].filter(Boolean);
+    return `Watching ${parts.join(" and ")}.`;
+  }
   function pushMsg(text) { q("ntPushMsg").textContent = text; }
   function paintPush() {
     const on = q("ntPushOn");
@@ -419,7 +427,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
       ? "On iPhone, this works from the Home Screen: in Safari tap Share, then Add to Home Screen. Open Trail Finder from that icon and turn this on there."
       : iPhone ? "Phone notifications need iOS 16.4 or newer." : "This browser can't show notifications.");
     if (Notification.permission === "denied") return pushMsg("Notifications are blocked for Trail Finder. Allow them in your phone's settings, then turn this on.");
-    pushMsg(on.checked ? `On for this phone. Checked at ${PUSH_TIMES}.` : "");
+    pushMsg(on.checked ? `On for this phone. ${watchingText()} Checked at ${PUSH_TIMES}.` : "");
     getKey().catch(() => {});
   }
   q("ntPushOn").addEventListener("change", async (e) => {
