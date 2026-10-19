@@ -636,6 +636,14 @@ function minAvalanche(obs) {
   const signs = [ac.slab && "recent slab avalanches", ac.sound && "whumpfing or shooting cracks", ac.snow && "30 cm or more of new snow or wind loading", ac.temp && "rapid warming"].filter(Boolean);
   return signs.length ? { seen: !!ac.slab, what: ac.slab ? "recent slab avalanches seen" : "", signs } : null;
 }
+// The list of reports: the answer itself, or the first array of objects inside it (items, items.data, results...).
+function findList(json, depth = 0) {
+  if (Array.isArray(json)) return json.length === 0 || typeof json[0] === "object" ? json : null;
+  if (!json || typeof json !== "object" || depth > 2) return null;
+  for (const k of ["items", "submissions", "data", "results", "features"]) { const l = findList(json[k], depth + 1); if (l) return l; }
+  for (const v of Object.values(json)) { const l = findList(v, depth + 1); if (l && l.length) return l; }
+  return null;
+}
 async function buildMin() {
   log("Mountain Information Network reports");
   const to = new Date(), from = new Date(to - MIN_DAYS * 86400e3), d = (x) => x.toISOString().slice(0, 10);
@@ -644,9 +652,9 @@ async function buildMin() {
     for (const path of [`/min/en/submissions?fromdate=${d(from)}&todate=${d(to)}&pagesize=2000`, `/min/en/submissions?fromdate=${d(from)}&todate=${d(to)}`]) {
       try {
         const json = await getJson(base + path);
-        list = Array.isArray(json) ? json : json.items || json.submissions || json.data || json.results || null;
+        list = findList(json);
         if (list) { log(`  ${base}${path}: ${list.length} reports; first: ${JSON.stringify(list[0] || null).slice(0, 1500)}`); break; }
-        log(`  ${base}${path}: unexpected answer ${JSON.stringify(json).slice(0, 300)}`);
+        log(`  ${base}${path}: no list of reports in the answer; keys ${JSON.stringify(Object.keys(json || {}))}: ${JSON.stringify(json).slice(0, 600)}`);
       } catch (e) { lastErr = e; }
     }
     if (list) break;
