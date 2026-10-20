@@ -20,6 +20,16 @@ const SCHEMA = {
     places: list("Towns, riding areas or regions the pictures or text point to"),
     terrain: list("Short plain words for what the trail and background look like: granite slabs, roots, loam, alpine, desert, cedar forest, lake below, ocean view..."),
     scene: { type: "STRING", description: "One or two sentences on what is in the picture and where it might be" },
+    viewpoint: {
+      type: "OBJECT",
+      description: "Your best estimate of where the camera stood, worked out from the background (which peaks, water, towns are where, and from what angle). km is how far off you might be; 0 when you can't tell",
+      properties: {
+        lat: { type: "NUMBER" }, lon: { type: "NUMBER" },
+        km: { type: "NUMBER", description: "0 when you can't tell; else how far off the spot might be, in km" },
+        where: { type: "STRING", description: "A few words for that spot, like 'above Britannia Beach'" },
+      },
+      required: ["lat", "lon", "km", "where"],
+    },
     guesses: {
       type: "ARRAY",
       description: "Up to 3 trails you think it is, best first; empty when you don't know",
@@ -34,16 +44,25 @@ const SCHEMA = {
       },
     },
   },
-  required: ["trail_names", "landmarks", "places", "terrain", "scene", "guesses"],
+  required: ["trail_names", "landmarks", "places", "terrain", "scene", "viewpoint", "guesses"],
 };
 
-type Out = { trail_names: string[]; landmarks: string[]; places: string[]; terrain: string[]; scene: string; guesses: { trail: string; area: string; why: string }[] };
+type Viewpoint = { lat: number; lon: number; km: number; where: string } | null;
+type Out = { trail_names: string[]; landmarks: string[]; places: string[]; terrain: string[]; scene: string; viewpoint: Viewpoint; guesses: { trail: string; area: string; why: string }[] };
 const strs = (v: unknown) => (Array.isArray(v) ? v.filter((s) => typeof s === "string").map((s) => s.slice(0, 120)).slice(0, 12) : []);
+// Only a spot inside the app's area (British Columbia and Alberta) with a usable size counts.
+function spot(v: unknown): Viewpoint {
+  const o = v as Record<string, unknown> | null;
+  if (!o || typeof o.lat !== "number" || typeof o.lon !== "number" || typeof o.km !== "number") return null;
+  if (o.lat < 48 || o.lat > 60.5 || o.lon < -139.5 || o.lon > -109.5 || !(o.km > 0) || o.km > 50) return null;
+  return { lat: o.lat, lon: o.lon, km: o.km, where: String(o.where || "").slice(0, 80) };
+}
 function clean(o: Record<string, unknown>): Out {
   const g = Array.isArray(o.guesses) ? o.guesses : [];
   return {
     trail_names: strs(o.trail_names), landmarks: strs(o.landmarks), places: strs(o.places), terrain: strs(o.terrain),
     scene: typeof o.scene === "string" ? o.scene.slice(0, 600) : "",
+    viewpoint: spot(o.viewpoint),
     guesses: g.filter((x) => x && typeof x.trail === "string").slice(0, 3)
       .map((x) => ({ trail: x.trail.slice(0, 120), area: String(x.area || "").slice(0, 120), why: String(x.why || "").slice(0, 300) })),
   };
@@ -77,6 +96,7 @@ Deno.serve(async (req) => {
     `Help find which trail it is. The app covers British Columbia (Vancouver to the Rockies) and Alberta riding areas.\n` +
     `Look at everything: words written anywhere, the post's caption, location tags, Strava or Trailforks overlays, and the background: ` +
     `big mountains, rock walls, peaks, glaciers, lakes, ocean, towns, ski runs, the type of forest, rock and dirt.\n` +
+    `Then work out where the camera stood: which way the landmarks, water and valleys lie, and how high above them, and give that spot as the viewpoint.\n` +
     `Only name a landmark you really recognise; say nothing rather than guess. Prefer these landmark names when one fits: ${(body.landmarks || []).slice(0, 120).map((s) => clip(s, 60)).join("; ")}.\n` +
     (clip(body.area, 80) ? `The rider thinks it's in: ${clip(body.area, 80)}.\n` : "") +
     (clip(body.description, 800) ? `The rider describes it as: """${clip(body.description, 800)}"""\n` : "") +

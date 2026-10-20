@@ -2,6 +2,7 @@
 // see in the background of a trail photo, with the names and plain words people use for them. Each one is looked up
 // on OpenStreetMap (Nominatim) for its spot; a spot written here (c) wins. Run by hand when the list changes:
 //   node scripts/build-landmarks.mjs
+// pts: spots along a long sound or lake, so trails along all of it count (a single spot can be 20 km away).
 // looks: words a rider might use to describe it ("granite wall", "pointy black peak"); they only count together
 // with the area (picked, or named in the picture), as many places have a granite wall.
 import { writeFileSync } from "node:fs";
@@ -18,7 +19,7 @@ const L = [
   { name: "Sky Pilot Mountain", q: "Sky Pilot Mountain", aka: ["sky pilot"], looks: ["pointy peak", "rocky peak"] },
   { name: "Mount Garibaldi", q: "Mount Garibaldi", aka: ["garibaldi"], looks: ["glacier", "snowy volcano", "big snowy mountain", "volcano"] },
   { name: "The Tantalus Range", q: "Mount Tantalus", aka: ["tantalus", "tantalus range"], looks: ["glacier", "snowy range", "jagged peaks", "snowy peaks"] },
-  { name: "Howe Sound", q: "Howe Sound", looks: ["ocean", "sea", "fjord", "sound", "water view", "islands"] },
+  { name: "Howe Sound", q: "Howe Sound", pts: [[49.672, -123.185], [49.62, -123.218], [49.575, -123.245], [49.53, -123.268], [49.47, -123.3], [49.42, -123.29], [49.523, -123.484]], looks: ["ocean", "sea", "fjord", "sound", "water view", "islands"] },
   { name: "Mount Habrich", q: "Mount Habrich", aka: ["habrich"], looks: ["granite peak"] },
   { name: "Alice Lake", q: "Alice Lake Provincial Park", looks: ["lake"] },
   { name: "Smoke Bluffs", q: "Smoke Bluffs Park", aka: ["smoke bluffs"], looks: ["granite", "bluffs", "slabs", "rock slabs"] },
@@ -107,7 +108,7 @@ for (const l of L) {
     await new Promise((res) => setTimeout(res, 1100));   // Nominatim: one request a second
   }
   if (!c) { console.error("not found:", l.name); continue; }
-  out.push({ name: l.name, c, aka: l.aka || [], looks: l.looks || [] });
+  out.push({ name: l.name, c, aka: l.aka || [], looks: l.looks || [], ...(l.pts ? { pts: l.pts } : {}) });
   console.error(l.name, c.join(","));
 }
 writeFileSync(new URL("../data/landmarks.json", import.meta.url), JSON.stringify({ v: 1, note: "scripts/build-landmarks.mjs", items: out }, null, 0) + "\n");

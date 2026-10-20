@@ -463,7 +463,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const seen = file ? await askAI(my, $("pfRead").value) : null;
     if (my !== job) return;
     $("pfAi").hidden = !seen && !aiWhy;
-    $("pfAi").textContent = seen ? `The AI sees${seen.ms ? ` (${Math.round(seen.ms / 1000)} s)` : ""}: ` + seen.scene + (seen.landmarks.length ? ` Landmarks: ${seen.landmarks.join(", ")}.` : "")
+    $("pfAi").textContent = seen ? `The AI sees${seen.ms ? ` (${Math.round(seen.ms / 1000)} s)` : ""}: ` + seen.scene + (seen.landmarks.length ? ` Landmarks: ${seen.landmarks.join(", ")}.` : "") + (seen.viewpoint && seen.viewpoint.where ? ` Taken around: ${seen.viewpoint.where}.` : "")
       : aiWhy ? `AI check skipped (${aiWhy}): matching the words, your description and landmarks.` : "";
     // The AI's places and landmarks first, then the trail names it read or guessed (so a hit there says "AI named it").
     const aiSaw = seen ? [...seen.places, ...seen.landmarks].join("\n") : "";
@@ -497,7 +497,10 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     "share save more view views search explore reels video photo story stories post posts message today yesterday week weeks year years ago km mile miles elevation gain moving " +
     "speed avg max time map maps segment segments strava trailforks kudos activity morning afternoon evening night lunch ride rides route routes forest woods dirt loam loamy " +
     "jump jumps drop drops flow fast steep tech gnar rock rocks roots root slab slabs berm berms line lines lap laps spring summer fall autumn winter snow rain sun sunny " +
-    "wet dry dust dusty mud muddy easy hard green blue black double pro official unofficial new old first last big little long short high low great awesome epic sick").split(" "));
+    "wet dry dust dusty mud muddy easy hard green blue black double pro official unofficial new old first last big little long short high low great awesome epic sick " +
+    // everyday words in a description ("it looks like ..., we can see ...")
+    "look looks looking see seen seeing think maybe there here this that these those with from have picture photo pic pics image behind front just really kind sort " +
+    "probably somewhere around where what which could would should they them their your very much also about over under near close far left right").split(" "));
   const PART = new Set(["upper", "lower", "middle", "top", "bottom"]);
   const words = (s) => F.norm(s).split(" ").filter(Boolean).map((w) => SAME[w] || w);
   const core = (ws) => { const c = ws.filter((w) => !STOP.has(w)); return c.length ? c : ws; };
@@ -708,7 +711,21 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         const why = `${v.vis ? "sees" : "near"} ${l.name} (${(v.d / 1000).toFixed(1)} km)`;
         if (have) { have.s += v.vis ? 0.15 : 0.05; have.why.push(why); }
         // In the background: a few hundred metres to several km away reads best; right under it, less so.
-        else if (v.vis) hits.push({ g: v.g, s: Math.min(STRONG - 0.06, base + 0.1 * (v.d < 500 ? 0.3 : Math.max(0, 1 - v.d / 8000))), why: [why], lm: true });
+        else if (v.vis) hits.push({ g: v.g, s: Math.min(STRONG - 0.06, base + 0.1 * (l.water ? Math.min(1, v.angle * 5) : v.d < 500 ? 0.3 : Math.max(0, 1 - v.d / 8000))), why: [why], lm: true });
+      }
+    }
+    // Where the AI thinks the photo was taken (from the background): the trails around that spot.
+    const vp = aiSeen && aiSeen.viewpoint;
+    if (vp && vp.km > 0 && vp.km <= 15) {
+      const R = Math.max(2, vp.km) * 1000, spot = L.latLng(vp.lat, vp.lon);
+      say("Looking at the trails where the AI places the photo…", 0.985);
+      const { list } = await trailsNear([spot], R);
+      if (my !== job) return null;
+      for (const g of list.slice(0, 40)) {
+        const why = `where the AI places the photo${vp.where ? " (" + vp.where + ")" : ""}, ${(g.d / 1000).toFixed(1)} km`;
+        const have = hits.find((h) => keyOf(h.g) === keyOf(g)), near = 1 - g.d / R;
+        if (have) { have.s += 0.1 + 0.1 * near; have.why.push(why); }
+        else hits.push({ g, s: 0.7 + 0.2 * near, why: [why], lm: true });
       }
     }
     // The AI's own guesses go up a little.
@@ -717,16 +734,20 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       hits.forEach((h) => { if (guess.has(h.g.ws.join(" ")) && !h.why.includes("AI named it")) { h.s += 0.1; h.why.push("AI thinks so too"); } });
     }
     // Past confirmed matches with similar words (supabase/trail-matches.sql) lift their trail.
+    // Sharing only place or landmark names ("howe sound") lifts a trail already in the list but doesn't add one: many
+    // trails share a place.
     const rare = new Set(tokens.filter((t) => t.length >= 4 && !GENERIC.has(t)));
+    const placey = new Set([...found.flatMap((p) => p.ws), ...(await landmarkList()).flatMap((l) => [...l.ws, ...l.akaWs.flat()])]);
     for (const m of rare.size >= 2 ? await pastMatches() : []) {
-      const ws = (m.words || "").split(" ").filter(Boolean), shared = ws.filter((w) => rare.has(w)).length;
+      const ws = (m.words || "").split(" ").filter((w) => w && !GENERIC.has(w)), both = ws.filter((w) => rare.has(w)), shared = both.length;
       if (shared < 2 || shared / Math.min(ws.length, rare.size) < 0.3) continue;
+      const onlyPlaces = both.every((w) => placey.has(w));
       const zone = F.zoneById(m.zone) || { id: m.zone || "?", name: m.zone || "" };
       const g = { name: m.trail_name, type: m.osm_type === "relation" ? "r" : "w", ws: core(words(m.trail_name)), alts: [], tags: { name: m.trail_name }, zone, center: L.latLng(m.lat || 0, m.lon || 0),
         items: m.osm_ids.map((id) => ({ t: m.osm_type === "relation" ? "r" : "w", id, c: [m.lat, m.lon], tags: {} })) };
       const have = hits.find((h) => keyOf(h.g) === keyOf(g));
       if (have) { if (!have.past) { have.s += 0.2; have.past = true; have.why.push("picked for similar words before"); } }
-      else hits.push({ g, s: 0.95, why: ["picked for similar words before"], past: true });
+      else if (!onlyPlaces) hits.push({ g, s: 0.85, why: ["picked for similar words before"], past: true });
     }
     // One row per trail name and area; the best first.
     hits.sort((a, b) => b.s - a.s || map.getCenter().distanceTo(a.g.center) - map.getCenter().distanceTo(b.g.center));
@@ -757,8 +778,10 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   function landmarkList() {
     if (!landmarks) landmarks = F.nightly("landmarks.json").then((f) => ((f && f.items) || []).map((l) => {
       const c = L.latLng(l.c);
-      return { ...l, ws: core(words(l.name)), akaWs: l.aka.map((a) => core(words(a))).filter((w) => w.join("").length >= 4), looksWs: l.looks.map((a) => core(words(a))),
-        zones: F.zones.filter((z) => z.bounds.pad(0.3).contains(c)).map((z) => z.id), water: WATER.test(l.name) };
+      // A long lake or sound has several spots along it (pts); a peak has one.
+      const pts = (l.pts && l.pts.length ? l.pts : [l.c]).map((p) => L.latLng(p));
+      return { ...l, pts, ws: core(words(l.name)), akaWs: l.aka.map((a) => core(words(a))).filter((w) => w.join("").length >= 4), looksWs: l.looks.map((a) => core(words(a))),
+        zones: F.zones.filter((z) => pts.some((q) => z.bounds.pad(0.3).contains(q)) || z.bounds.pad(0.3).contains(c)).map((z) => z.id), water: WATER.test(l.name) };
     })).catch(() => []);
     return landmarks;
   }
@@ -824,17 +847,21 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     }
     return true;
   }
-  // The named MTB trails within SEE_M of a landmark, nearest first, and whether any of their points can see it.
-  async function viewers(l) {
-    const c = L.latLng(l.c), b = c.toBounds(2 * SEE_M);
+  // The named MTB trails within SEE_M of a landmark (of any of its spots), and whether any of their points can see it.
+  // Peaks: nearest first. Water (a sound, a lake): the trails looking down on it most steeply first, as a "view over
+  // the water" photo is taken from high above it, not from the shore.
+  // The named MTB trails within R metres of any of the spots, nearest first (d: metres from the nearest spot).
+  async function trailsNear(spots, R) {
+    let b = L.latLngBounds(spots);
+    b = L.latLngBounds(b.getSouthWest().toBounds(2 * R).getSouthWest(), b.getNorthEast().toBounds(2 * R).getNorthEast());
     const zones = F.zones.filter((z) => z.bounds.intersects(b));
     const lists = await Promise.all(zones.map((z) => F.mtbWays(z).catch(() => null)));
     const groups = new Map();
     lists.forEach((list, i) => (list || []).forEach((w) => {
       const name = w.tags.name || w.tags["mtb:name"];
       if (!name || w.geom.length < 2) return;
-      const mid = w.geom[w.geom.length >> 1], d = c.distanceTo(mid);
-      if (d > SEE_M) return;
+      const mid = w.geom[w.geom.length >> 1], d = Math.min(...spots.map((q) => q.distanceTo(mid)));
+      if (d > R) return;
       const z = zones[i], key = F.norm(name) + "|" + z.id;
       let g = groups.get(key);
       if (!g) groups.set(key, (g = { name, type: "w", ws: core(words(name)), alts: [], items: [], tags: w.tags, zone: z, pts: [], d, mtb: true }));
@@ -843,15 +870,28 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       if (d < g.d) g.d = d;
     }));
     const list = [...groups.values()].sort((a, b) => a.d - b.d).slice(0, 150);
+    list.forEach((g) => { g.center = L.latLng(g.items[0].c); });
+    return { list, b };
+  }
+  async function viewers(l) {
+    const spots = l.pts || [L.latLng(l.c)];
+    const { list, b } = await trailsNear(spots, SEE_M);
     if (!list.length) return [];
     await demLoad(b);
-    const top = summit(l.c, l.water);
+    const tops = spots.map((q) => summit([q.lat, q.lng], l.water)).filter(Boolean);
     let shownVis = 0;
-    return list.map((g) => {
-      g.center = L.latLng(g.items[0].c);
-      const vis = !!top && g.pts.slice(0, 12).some((p) => sees(p, top));
-      return { g, d: g.d, vis };
-    }).filter((v) => !v.vis || shownVis++ < 8);   // the 8 nearest that see it (and all, to lift name matches)
+    const out = list.map((g) => {
+      let vis = false, angle = 0;
+      for (const p of g.pts.slice(0, 12)) for (const top of tops) {
+        if (!sees(p, top)) continue;
+        vis = true;
+        const h = elev(p[0], p[1]), D = L.latLng(p).distanceTo([top[0], top[1]]);
+        if (h != null && D > 0) angle = Math.max(angle, (h - top[2]) / D);
+      }
+      return { g, d: g.d, vis, angle };
+    });
+    if (l.water) out.sort((a, b) => (b.vis - a.vis) || (b.angle - a.angle));
+    return out.filter((v) => !v.vis || shownVis++ < 8);   // the 8 best that see it (and all, to lift name matches)
   }
 
   // ---------- past confirmed matches, and saving a new one (supabase/trail-matches.sql) ----------
