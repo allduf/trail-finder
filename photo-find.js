@@ -372,6 +372,29 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     return out;
   }
   // A small JPEG of a picture or frame (base64, no header), for the AI and for a saved match.
+  // A 64-bit fingerprint of the picture (difference hash): the same picture, resized or recompressed, gives nearly the
+  // same one. Saved with a confirmed match so the same picture later finds that trail.
+  function dhash(c) {
+    const s = document.createElement("canvas");
+    s.width = 9; s.height = 8;
+    const x = s.getContext("2d", { willReadFrequently: true });
+    x.drawImage(c, 0, 0, 9, 8);
+    const d = x.getImageData(0, 0, 9, 8).data, g = (i) => d[i * 4] * 0.299 + d[i * 4 + 1] * 0.587 + d[i * 4 + 2] * 0.114;
+    let out = "";
+    for (let y = 0; y < 8; y++) {
+      let n = 0;
+      for (let i = 0; i < 8; i++) n = (n << 1) | (g(y * 9 + i) > g(y * 9 + i + 1) ? 1 : 0);
+      out += n.toString(16).padStart(2, "0");
+    }
+    s.width = s.height = 0;
+    return out;
+  }
+  const hamming = (a, b) => {
+    if (a.length !== b.length) return 99;
+    let n = 0;
+    for (let i = 0; i < a.length; i += 2) { let v = parseInt(a.slice(i, i + 2), 16) ^ parseInt(b.slice(i, i + 2), 16); while (v) { n += v & 1; v >>= 1; } }
+    return n;
+  };
   function jpeg(c) {
     const k = Math.min(1, AI_SIDE / Math.max(c.width, c.height)), s = document.createElement("canvas");
     s.width = Math.round(c.width * k); s.height = Math.round(c.height * k);
@@ -385,7 +408,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     if (!canvases.length) throw new Error("no frames could be taken from the video");
     // Up to 3 frames spread through the video (the middle ones), or the picture.
     const pick = canvases.length <= 3 ? canvases : [canvases[1], canvases[Math.floor(canvases.length / 2)], canvases[canvases.length - 2]];
-    media = { jpegs: pick.map(jpeg) };
+    media = { jpegs: pick.map(jpeg), hash: dhash(pick[0]) };
     say("Getting the word reader ready (about 7 MB the first time)…", 0);
     await loadScript(TESS);
     let part = 0;
@@ -478,7 +501,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       : aiWhy ? `AI check skipped (${aiWhy}): matching the words, your description and landmarks.` : "";
     // The AI's places and landmarks first, then the trail names it read or guessed (so a hit there says "AI named it").
     const aiSaw = seen ? [...seen.places, ...seen.landmarks].join("\n") : "";
-    const aiNames = seen ? [...seen.trail_names, ...seen.guesses.map((g) => g.trail + " " + g.area)].join("\n") : "";
+    // Only names the AI read in the picture count as named: its own guesses just lift a trail already listed (below).
+    const aiNames = seen ? seen.trail_names.join("\n") : "";
     const own = [$("pfCaption").value, $("pfRead").value].join("\n"), text = [own, aiSaw, aiNames].join("\n");
     // Saved with a confirmed match: the rider's and the picture's words, and what the AI saw (not its trail guesses).
     lastText = seen ? [own, ...seen.landmarks, ...seen.places, ...seen.terrain].join("\n") : own;
@@ -782,7 +806,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     // Where the AI thinks the photo was taken (from the background): the trails around that spot.
     const vp = aiSeen && aiSeen.viewpoint;
     if (vp && vp.km > 0 && vp.km <= 15) {
-      const R = Math.max(2, vp.km) * 1000, spot = L.latLng(vp.lat, vp.lon);
+      // The AI's "how far off" is often too small: look a bit wider.
+      const R = Math.min(15, Math.max(3, vp.km * 1.5)) * 1000, spot = L.latLng(vp.lat, vp.lon);
       say("Looking at the trails where the AI places the photo…", 0.985);
       const { list } = await trailsNear([spot], R);
       if (my !== job) return null;
@@ -803,6 +828,11 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         else hits.push({ g, s: 0.55 + 0.15 * (1 - g.d / AREA_M), why: [why], lm: true });
       }
     }
+    // Slabs or bare rock in the picture: trails mapped on bare rock go up.
+    const rockSaid = /\b(slabs?|granite|bare rock|rock face|rock rolls?|rock slabs?)\b/i.test([$("pfCaption").value, $("pfRead").value, ...(aiSeen ? [...aiSeen.terrain, aiSeen.scene] : [])].join(" "));
+    if (rockSaid) hits.forEach((h) => {
+      if ([h.g.tags, ...h.g.items.map((i) => i.tags)].some((t) => t && /^(bare_)?rock$/.test(t.surface || ""))) { h.s += 0.15; h.why.push("mapped on bare rock"); }
+    });
     // The AI's own guesses go up a little.
     if (aiSeen) {
       const guess = new Set([...aiSeen.trail_names, ...aiSeen.guesses.map((g) => g.trail)].map((n) => core(words(n)).join(" ")));
@@ -813,7 +843,20 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     // trails share a place.
     const rare = new Set(tokens.filter((t) => t.length >= 4 && !GENERIC.has(t)));
     const placey = new Set([...found.flatMap((p) => p.ws), ...(await landmarkList()).flatMap((l) => [...l.ws, ...l.akaWs.flat()])]);
-    for (const m of rare.size >= 2 ? await pastMatches() : []) {
+    // A plain or nearly plain picture has a fingerprint like any other plain one: not used.
+    const picHash = file && media && media.hash && Math.abs(hamming(media.hash, "0".repeat(16)) - 32) <= 24 ? media.hash : null;
+    for (const m of rare.size >= 2 || picHash ? await pastMatches() : []) {
+      // The same picture (or nearly) was confirmed before: that trail.
+      if (picHash && m.hash && hamming(picHash, m.hash) <= 10) {
+        const zone = F.zoneById(m.zone) || { id: m.zone || "?", name: m.zone || "" };
+        const g = { name: m.trail_name, type: m.osm_type === "relation" ? "r" : "w", ws: core(words(m.trail_name)), alts: [], tags: { name: m.trail_name }, zone, center: L.latLng(m.lat || 0, m.lon || 0),
+          items: m.osm_ids.map((id) => ({ t: m.osm_type === "relation" ? "r" : "w", id, c: [m.lat, m.lon], tags: {} })) };
+        const have = hits.find((h) => keyOf(h.g) === keyOf(g)), why = "same picture as one confirmed before";
+        if (have) { if (!have.why.includes(why)) { have.s = Math.max(have.s, STRONG + 0.15) + 0.1; have.why.unshift(why); have.past = true; } }
+        else hits.push({ g, s: STRONG + 0.25, why: [why], past: true });
+        continue;
+      }
+      if (rare.size < 2) continue;
       const ws = (m.words || "").split(" ").filter((w) => w && !GENERIC.has(w)), both = ws.filter((w) => rare.has(w)), shared = both.length;
       if (shared < 2 || shared / Math.min(ws.length, rare.size) < 0.3) continue;
       const onlyPlaces = both.every((w) => placey.has(w));
@@ -974,7 +1017,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   function pastMatches() {
     const acct = window.tfAccount;
     if (!acct || !acct.enabled) return Promise.resolve([]);
-    if (!past) past = acct.load().then(() => acct.client ? acct.client.from("trail_matches").select("trail_name, osm_type, osm_ids, zone, lat, lon, words")
+    if (!past) past = acct.load().then(() => acct.client ? acct.client.from("trail_matches").select("trail_name, osm_type, osm_ids, zone, lat, lon, words, hash:details->>hash")
       .order("created_at", { ascending: false }).limit(500) : { data: [] }).then(({ data, error }) => (error ? [] : data || [])).catch(() => []);
     return past;
   }
@@ -982,7 +1025,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     if (media || !file) return media;
     try {
       const cs = isVideo(file) ? (await videoFrames(thumbUrl, job)).slice(0, 1) : [await imageCanvas(thumbUrl)];
-      if (cs.length) media = { jpegs: cs.map(jpeg) };
+      if (cs.length) media = { jpegs: cs.map(jpeg), hash: dhash(cs[0]) };
       cs.forEach((c) => { c.width = c.height = 0; });
     } catch {}
     return media;
@@ -1005,7 +1048,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const { error } = await acct.client.from("trail_matches").insert({
       trail_name: sv.name.slice(0, 120), osm_type: sv.type, osm_ids: sv.ids, zone: sv.zone ? String(sv.zone).slice(0, 60) : null,
       lat: sv.c ? +sv.c[0] : null, lon: sv.c ? +sv.c[1] : null, words: keep.join(" ").slice(0, 600), method: sv.method, photo,
-      details: { read: $("pfRead").value.slice(0, 2000), said: $("pfCaption").value.slice(0, 800), area: $("pfArea").value, gps: gpsSpot, conf: r.conf, video: !!(file && isVideo(file)),
+      details: { hash: m && m.hash, read: $("pfRead").value.slice(0, 2000), said: $("pfCaption").value.slice(0, 800), area: $("pfArea").value, gps: gpsSpot, conf: r.conf, video: !!(file && isVideo(file)),
         ai: ai ? { scene: ai.scene, landmarks: ai.landmarks, places: ai.places, trail_names: ai.trail_names, terrain: ai.terrain, guesses: ai.guesses } : null },
     });
     if (!error) past = null;   // read again next time, with this one
