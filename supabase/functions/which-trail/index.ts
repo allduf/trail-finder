@@ -82,17 +82,28 @@ Deno.serve(async (req) => {
     (clip(body.description, 800) ? `The rider describes it as: """${clip(body.description, 800)}"""\n` : "") +
     (clip(body.text, 2000) ? `Words already read from the picture (may have errors): """${clip(body.text, 2000)}"""\n` : "");
 
-  const request = JSON.stringify({
+  // Little or no thinking: it answers in seconds instead of tens of seconds (a model that refuses the setting is asked
+  // again without it).
+  const ask = (think: boolean) => JSON.stringify({
     contents: [{ role: "user", parts: [...images.map((data) => ({ inline_data: { mime_type: "image/jpeg", data } })), { text: prompt }] }],
-    generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, temperature: 0.2 },
+    generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, temperature: 0.2, ...(think ? {} : { thinkingConfig: { thinkingBudget: 0 } }) },
   });
   const models = [Deno.env.get("GEMINI_MODEL"), ...MODELS].filter((m): m is string => !!m);
+  const t0 = Date.now();
   for (const model of models) {
-    let r: Response;
-    try {
-      r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-        { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": key }, body: request });
-    } catch { return reply(502, { error: "the picture check failed" }); }
+    let r: Response | null = null;
+    for (const think of [false, true]) {
+      try {
+        r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+          { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": key }, body: ask(think), signal: AbortSignal.timeout(Math.max(1000, 26000 - (Date.now() - t0))) });
+      } catch (e) {
+        return reply(e instanceof DOMException && e.name === "TimeoutError" ? 504 : 502, { error: e instanceof DOMException && e.name === "TimeoutError" ? "the AI took too long" : "the picture check failed" });
+      }
+      if (r.status !== 400 || think) break;
+      const msg = await r.clone().text();
+      if (!/thinking/i.test(msg)) break;                  // another 400: handled below
+    }
+    if (!r) continue;
     if (r.status === 404) continue;                       // that model name is gone: try the next
     if (r.status === 429) return reply(429, { error: "the free AI is busy or used up for today, try again later" });
     if (r.status === 400 || r.status === 401 || r.status === 403) {
@@ -105,7 +116,7 @@ Deno.serve(async (req) => {
     const cand = j?.candidates?.[0];
     const text = (cand?.content?.parts || []).filter((p: { text?: string; thought?: boolean }) => typeof p.text === "string" && !p.thought).map((p: { text: string }) => p.text).join("");
     if (!text) return reply(200, { ok: false });           // blocked, or nothing to say
-    try { return reply(200, { ok: true, model, ...clean(JSON.parse(text)) }); } catch { return reply(200, { ok: false }); }
+    try { return reply(200, { ok: true, model, ms: Date.now() - t0, ...clean(JSON.parse(text)) }); } catch { return reply(200, { ok: false }); }
   }
   return reply(502, { error: "no Gemini model answered" });
 });
