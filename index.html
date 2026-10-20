@@ -873,7 +873,8 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .trail .meta { font-size: .85rem; color: var(--muted); }
 .trail .right { text-align: right; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .grade { display: inline-block; font-family: var(--font-display); font-weight: 700; font-size: .8rem; padding: 0 6px; border-radius: 4px; background: var(--fg); color: var(--panel); letter-spacing: .04em; }
-.trail-focus .leaflet-allTrails-pane, .trail-focus .leaflet-boxTrails-pane, .trail-focus .leaflet-trailNames-pane { opacity: .25; transition: opacity .2s; }
+/* 25% made the other trails vanish on the map tiles, leaving only their names (alex, 2026-10-20): keep them readable */
+.trail-focus .leaflet-allTrails-pane, .trail-focus .leaflet-boxTrails-pane, .trail-focus .leaflet-trailNames-pane { opacity: .6; transition: opacity .2s; }
 .trail-name { background: none; border: 0; }
 .trail-name span { display: block; transform: translate(-50%, -130%); white-space: nowrap; font-family: var(--font-body); font-size: 11.5px; font-weight: 700; letter-spacing: .01em;
   text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff; }
@@ -1359,10 +1360,10 @@ body.sport-ski #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=253"></script>
-<script src="official.js?v=253"></script>
-<script src="directions.js?v=253"></script>
-<script src="ratings.js?v=253"></script>
+<script src="rotate.js?v=255"></script>
+<script src="official.js?v=255"></script>
+<script src="directions.js?v=255"></script>
+<script src="ratings.js?v=255"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1951,7 +1952,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     return t;
   }
   // Sources whose lines are a town's own list of mountain bike trails: a path on one is an MTB trail, not Looks like MTB.
-  const MTB_LISTS = { wh: "Resort Municipality of Whistler", ott: "City of Ottawa", csrd: "Columbia Shuswap Regional District" };
+  const MTB_LISTS = { wh: "the Resort Municipality of Whistler", ott: "the City of Ottawa", csrd: "the Columbia Shuswap Regional District" };
   // Forest and logging roads are never MTB trails, even with a bike rating or in an MTB route (alex): they're on the Forest roads layer.
   const ROAD_NAME = /\b(forest service road|f\.?s\.?r\.?|service road|logging road|main ?line|road|rd)\b/i;
   function isRoad(tags) {
@@ -2003,8 +2004,9 @@ body.sport-ski #rideMapBtn { display: none !important; }
     if (tags["tf:rec"] && !motor) return { cat: "mtb", why: [`on the ${tags["tf:rec"]} (Recreation Sites and Trails BC)`].concat(why) };
     // A path inside a ski hill that carries bikes up in summer (Kicking Horse, Sun Peaks, Silver Star, Big White...).
     if (tags["tf:lift"] && !motor) return { cat: "mtb", why: [`in ${tags["tf:lift"]}'s lift-served bike park${tags["tf:lift-why"] ? ` (${tags["tf:lift-why"]})` : ""}`].concat(why) };
-    // A trail on a town's own mountain bike trail list (official.js), like Trial and Error at Emerald in Whistler's.
-    if (tags["tf:offmtb"] && !motor) return { cat: "mtb", why: [`on the ${tags["tf:offmtb"]}'s list of bike trails`].concat(why) };
+    // A trail on a town's own mountain bike trail list (official.js), like Trial and Error at Emerald in Whistler's, or (from the
+    // all-trails job) along any government trail open to bikes, like Semaphore in Pemberton (Recreation Sites and Trails BC).
+    if (tags["tf:offmtb"] && !motor) return { cat: "mtb", why: [`listed for bikes by ${tags["tf:offmtb"]}`].concat(why) };
     // And a path among two or more named MTB trails, in every zone (the same rule as netCheck(), done ahead for the whole region,
     // so the networks' untagged trails, like Azrael at Emerald or Berminator on Mount 7, show in All trails too).
     if (tags["tf:net"] && !motor) return { cat: "looks", why: [`in an MTB trail network (near ${tags["tf:net"].split("|").map((n) => `“${n}”`).join(" and ")})`].concat(why) };
@@ -5990,24 +5992,24 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=253"></script>
-<script src="contours.js?v=253"></script>
-<script src="photo-slider.js?v=253"></script>
-<script src="winter.js?v=253"></script>
-<script src="ski-points.js?v=253"></script>
-<script src="offline.js?v=253"></script>
-<script src="ride-stats.js?v=253"></script>
-<script src="navigate.js?v=253"></script>
-<script src="planner.js?v=253"></script>
-<script src="rides.js?v=253"></script>
-<script src="account.js?v=253"></script>
-<script src="reports.js?v=253"></script>
-<script src="visitors.js?v=253"></script>
-<script src="notify.js?v=253"></script>
-<script src="areas.js?v=253"></script>
-<script src="alpine.js?v=253"></script>
-<script src="bikeparks.js?v=253"></script>
-<script src="photo-find.js?v=253"></script>
+<script src="map3d.js?v=255"></script>
+<script src="contours.js?v=255"></script>
+<script src="photo-slider.js?v=255"></script>
+<script src="winter.js?v=255"></script>
+<script src="ski-points.js?v=255"></script>
+<script src="offline.js?v=255"></script>
+<script src="ride-stats.js?v=255"></script>
+<script src="navigate.js?v=255"></script>
+<script src="planner.js?v=255"></script>
+<script src="rides.js?v=255"></script>
+<script src="account.js?v=255"></script>
+<script src="reports.js?v=255"></script>
+<script src="visitors.js?v=255"></script>
+<script src="notify.js?v=255"></script>
+<script src="areas.js?v=255"></script>
+<script src="alpine.js?v=255"></script>
+<script src="bikeparks.js?v=255"></script>
+<script src="photo-find.js?v=255"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
