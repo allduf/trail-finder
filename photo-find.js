@@ -33,6 +33,7 @@
   const FAR_M = 3000;         // nothing within NEAR_M: the nearest trails up to this far
   const MAX_SIDE = 2400;      // pictures are shrunk to this many pixels on the long side before reading (phone memory)
   const VIDEO_FRAMES = 5;
+  const AREA_M = 3000;        // a riding area named in the words: its trails within this of its centre
   const STRONG = 1.05;        // a match this good in the areas looked at first doesn't need the other regions
   // The Supabase function holding supabase/functions/which-trail (the dashboard deployed it as "smooth-worker").
 const AI_FN = "smooth-worker";
@@ -748,7 +749,11 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     // that can see them. A trail found by name and also seeing the landmark goes up; one only seeing it is "Possible".
     const areaZones = new Set([...pickedIds, ...hinted]);
     const named = [], looked = [];
+    // A riding area named in the words ("alice lake trails") means the trails there, not a view of it, unless the AI saw
+    // that landmark in the picture.
+    const areas = found.filter((p) => p.c), aiLm = new Set(aiSeen ? aiSeen.landmarks.map((n) => F.norm(n)) : []);
     (await landmarkList()).forEach((l) => {
+      if (areas.some((p) => F.norm(p.label) === F.norm(l.name)) && !aiLm.has(F.norm(l.name))) return;
       if ([l.ws, ...l.akaWs].some((ws) => findIn(tokens, ws, joins))) named.push(l);
       else if (areaZones.size && l.zones.some((id) => areaZones.has(id))) {
         // Described, not named: the landmark whose description fits best ("big granite wall" beats "granite").
@@ -786,6 +791,16 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         const have = hits.find((h) => keyOf(h.g) === keyOf(g)), near = 1 - g.d / R;
         if (have) { have.s += 0.1 + 0.1 * near; have.why.push(why); }
         else hits.push({ g, s: 0.7 + 0.2 * near, why: [why], lm: true });
+      }
+    }
+    // The trails in a riding area named in the words.
+    for (const p of areas.slice(0, 2)) {
+      const { list } = await trailsNear([p.c], AREA_M);
+      if (my !== job) return null;
+      for (const g of list.slice(0, 30)) {
+        const why = `in the ${p.label} riding area (${(g.d / 1000).toFixed(1)} km)`, have = hits.find((h) => keyOf(h.g) === keyOf(g));
+        if (have) { if (!have.why.includes(why)) { have.s += 0.05; have.why.push(why); } }
+        else hits.push({ g, s: 0.55 + 0.15 * (1 - g.d / AREA_M), why: [why], lm: true });
       }
     }
     // The AI's own guesses go up a little.

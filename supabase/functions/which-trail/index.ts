@@ -14,7 +14,7 @@ const MAX_IMAGES = 3, MAX_B64 = 1_500_000, PER_HOUR = 30;
 const MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest"];
 // Ways to ask for little or no thinking (it answers in seconds instead of tens of seconds): Gemini 2.5 takes a budget,
 // Gemini 3 and later a level. A model that refuses one setting is asked with the next.
-const THINK = [{ thinkingBudget: 0 }, { thinkingLevel: "minimal" }, { thinkingLevel: "low" }, null];
+const THINK = [{ thinkingLevel: "minimal" }, { thinkingBudget: 0 }, { thinkingLevel: "low" }, null];
 const slow = new Set<string>();   // models that ran out of time in this running copy: tried last from then on
 const seen = new Map<string, number[]>();   // a light brake per address (each running copy of the function keeps its own)
 
@@ -132,11 +132,13 @@ async function gemini(key: string, parts: unknown[], o: { schema?: unknown; sear
   });
   const named = [Deno.env.get("GEMINI_MODEL"), ...MODELS].filter((m, i, a): m is string => !!m && a.indexOf(m) === i);
   const models = [...named.filter((m) => !slow.has(m)), ...named.filter((m) => slow.has(m))];
-  const late: string[] = [];
+  const notes: string[] = [];   // what happened with each model, shown when none answers (and in the function's Logs)
+  let late = false;
   for (const [n, model] of models.entries()) {
     const left = until - Date.now();
     if (left < 2500) break;
-    const stop = Date.now() + (n === models.length - 1 ? left : Math.min(left, PER_MODEL));
+    const t1 = Date.now(), stop = t1 + (n === models.length - 1 ? left : Math.min(left, PER_MODEL));
+    const note = (why: string) => { notes.push(`${model}: ${why}`); console.log("gemini", model, why, Date.now() - t1, "ms"); };
     let r: Response | null = null;
     try {
       for (const think of THINK) {
@@ -146,26 +148,31 @@ async function gemini(key: string, parts: unknown[], o: { schema?: unknown; sear
         if (!/thinking/i.test(await r.clone().text())) break;   // another 400: handled below
       }
     } catch (e) {
-      if (e instanceof DOMException && e.name === "TimeoutError") { slow.add(model); late.push(model); continue; }
-      return { status: 502, error: "the picture check failed" };
+      if (e instanceof DOMException && e.name === "TimeoutError") { slow.add(model); late = true; note(`too slow (${Math.round((Date.now() - t1) / 1000)} s)`); continue; }
+      note("network error " + String(e).slice(0, 80));
+      continue;
     }
     if (!r) continue;
-    if (r.status === 404) continue;                       // that model name is gone: try the next
+    if (r.status === 404) { note("not available (404)"); continue; }   // that model name is gone: try the next
     if (r.status === 429) return { status: 429, error: "the free AI is busy or used up for today, try again later", search: o.search };
     if (r.status === 400 || r.status === 401 || r.status === 403) {
       const msg = await r.text();
       if (/API key|API_KEY|UNAUTHENTICATED/i.test(msg)) return { status: 503, error: "the API key was refused" };
       if (o.search && /search|ground|tool/i.test(msg)) return { status: 502, error: "the picture check failed (" + r.status + ")", search: true };
+      let m = msg;
+      try { m = JSON.parse(msg).error.message || msg; } catch { /* not JSON */ }
+      note(`error ${r.status}: ${m.slice(0, 120)}`);
       continue;                                           // this model can't take the request: try the next
     }
-    if (!r.ok) continue;
+    if (!r.ok) { note(`error ${r.status}`); continue; }
+    console.log("gemini", model, "answered", Date.now() - t1, "ms");
     const j = await r.json().catch(() => null);
     slow.delete(model);
     const cand = j?.candidates?.[0];
     const text = (cand?.content?.parts || []).filter((p: { text?: string; thought?: boolean }) => typeof p.text === "string" && !p.thought).map((p: { text: string }) => p.text).join("");
     return { text, model, meta: cand?.groundingMetadata || null };
   }
-  return late.length ? { status: 504, error: `the AI took too long (${late.join(", ")})` } : { status: 502, error: "no Gemini model answered" };
+  return { status: late ? 504 : 502, error: `no AI model answered (${notes.join("; ") || "no time left"})` };
 }
 
 // ---------- compare: the app's likely trails against what's online about them ----------
