@@ -34,6 +34,7 @@
   const STRONG = 1.05;        // a match this good in the areas looked at first doesn't need the other regions
   // The Supabase function holding supabase/functions/which-trail (the dashboard deployed it as "smooth-worker").
 const AI_FN = "smooth-worker";
+const AI_WAIT = 30000;     // ms the AI may take before the search goes on without it
 const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirmed match
   const SEE_M = 12000;        // trails up to this far from a landmark are checked for a view of it
   const DEM = (z, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
@@ -126,7 +127,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   let job = 0, file = null, gpsSpot = null, pin = null, thumbUrl = null;
   let lastText = "";        // the words the last search matched, saved with a confirmed match
   let media = null;          // { jpegs: [base64...] } small copies of the picture or frames, for the AI and for saving
-  let ai = null, aiKey = "", aiOff = false;   // the AI's answer for this picture; aiOff: the function isn't set up
+  let ai = null, aiKey = "", aiOff = false, aiSlow = 0;   // the AI's answer for this picture; aiOff: the function isn't set up
   function open() {
     box.hidden = false;
     $("pfPaste").hidden = !(navigator.clipboard && navigator.clipboard.read);
@@ -407,30 +408,41 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     }
     return lines.join("\n");
   }
-  // The AI looks at the picture (supabase/functions/which-trail). null when it isn't set up, fails or has nothing.
+  // The AI looks at the picture (supabase/functions/which-trail). null when it isn't set up, fails, is too slow or has
+  // nothing; aiWhy then says why, shown under the picture so a screenshot tells what went wrong.
+  let aiWhy = "";
   async function askAI(my, read) {
+    aiWhy = "";
     const acct = window.tfAccount;
     if (aiOff || !media || !media.jpegs.length || !acct || !acct.enabled) return null;
     const area = $("pfArea").selectedOptions[0];
     const key = [$("pfCaption").value.trim(), $("pfArea").value].join("|");
     if (ai && aiKey === key) return ai;      // once per picture and description: the free AI allows only so many a day
-    say("The AI is looking at the picture (mountains, rock, lakes, words)…", 0.9);
-    try {
+    say(`The AI is looking at the picture (mountains, rock, lakes, words)… up to ${AI_WAIT / 1000} s`, 0.9);
+    const look = async () => {
       await acct.load();
       if (!acct.client) return null;
       const lm = (await landmarkList()).map((l) => l.name);
-      const { data, error } = await acct.client.functions.invoke(AI_FN, { body: {
+      const { data, error } = await acct.client.functions.invoke(AI_FN, { timeout: AI_WAIT, body: {
         images: media.jpegs, text: read.slice(0, 2000), description: $("pfCaption").value.slice(0, 800), area: $("pfArea").value ? area.textContent : "", landmarks: lm } });
-      if (my !== job) return null;
       if (error) {
         const st = error.context && error.context.status;
-        if (st === 404 || st === 503 || /not found|Failed to send/i.test(error.message || "")) aiOff = true;   // not set up yet: don't ask again this visit
+        let msg = "";
+        try { msg = (await error.context.json()).error || ""; } catch { /* not JSON */ }
+        aiWhy = msg || (st ? "error " + st : error.name === "AbortError" || /abort/i.test(error.message || "") ? "too slow" : error.message || "failed");
+        if (st === 404 || st === 503 || /Failed to send/i.test(error.message || "")) aiOff = true;   // not set up (or key refused): don't ask again this visit
         return null;
       }
-      if (!data || !data.ok) return null;
-      ai = data; aiKey = key;
-      return ai;
-    } catch { return null; }
+      if (!data || !data.ok) { aiWhy = "it found nothing it could name"; return null; }
+      return data;
+    };
+    // A hard stop too, in case loading the account library or the network hangs.
+    const late = new Promise((res) => setTimeout(() => res("late"), AI_WAIT + 2000));
+    const got = await Promise.race([look().catch((e) => { aiWhy = e && e.message || "failed"; return null; }), late]);
+    if (my !== job) return null;
+    if (got === "late") { aiWhy = "too slow"; aiSlow++; if (aiSlow >= 2) aiOff = true; return null; }
+    if (got) { ai = got; aiKey = key; }
+    return got;
   }
   async function byWords(my, read) {
     if (pin && !gpsSpot) { pin.remove(); pin = null; }
@@ -447,8 +459,9 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     }
     const seen = file ? await askAI(my, $("pfRead").value) : null;
     if (my !== job) return;
-    $("pfAi").hidden = !seen;
-    if (seen) $("pfAi").textContent = "The AI sees: " + seen.scene + (seen.landmarks.length ? ` Landmarks: ${seen.landmarks.join(", ")}.` : "");
+    $("pfAi").hidden = !seen && !aiWhy;
+    $("pfAi").textContent = seen ? `The AI sees${seen.ms ? ` (${Math.round(seen.ms / 1000)} s)` : ""}: ` + seen.scene + (seen.landmarks.length ? ` Landmarks: ${seen.landmarks.join(", ")}.` : "")
+      : aiWhy ? `AI check skipped (${aiWhy}): matching the words, your description and landmarks.` : "";
     // The AI's places and landmarks first, then the trail names it read or guessed (so a hit there says "AI named it").
     const aiSaw = seen ? [...seen.places, ...seen.landmarks].join("\n") : "";
     const aiNames = seen ? [...seen.trail_names, ...seen.guesses.map((g) => g.trail + " " + g.area)].join("\n") : "";

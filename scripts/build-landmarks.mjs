@@ -23,6 +23,8 @@ const L = [
   { name: "Alice Lake", q: "Alice Lake Provincial Park", looks: ["lake"] },
   { name: "Smoke Bluffs", q: "Smoke Bluffs Park", aka: ["smoke bluffs"], looks: ["granite", "bluffs", "slabs", "rock slabs"] },
   { name: "Squamish River", q: "Squamish River", looks: ["river"] },
+  { name: "Squamish Terminals", q: "Squamish Terminals", aka: ["squamish port", "squamish terminals", "port of squamish"], looks: ["port", "harbour", "harbor", "dock", "docks", "ships", "cranes", "terminal", "terminals"] },
+  { name: "Squamish downtown", q: "Squamish, British Columbia", looks: ["town", "town below", "downtown", "houses"] },
   // Whistler
   { name: "Black Tusk", q: "Black Tusk", aka: ["tusk", "the black tusk"], looks: ["spire", "pointy black peak", "black peak", "tooth", "volcanic spire"] },
   { name: "Wedge Mountain", q: "Wedge Mountain, British Columbia", aka: ["wedge", "wedgemount"], looks: ["glacier", "biggest peak", "snowy peak"] },
