@@ -136,7 +136,8 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 #skiPane ul.sk-min li { border-left: 3px solid var(--line); padding-left: 8px; }
 #skiPane ul.sk-min li.av { border-left-color: #ef1c29; }
 #skiPane details.sk-tags summary { font-size: .8rem; color: var(--muted); font-weight: 600; }
-#skiPane details.sk-tags dl { margin-top: 4px; }`;
+#skiPane details.sk-tags dl { margin-top: 4px; }
+#skiPane .ab-photos { margin: 0; }`;
   document.head.append(css);
 
   // ---------- the sport menu ----------
@@ -564,6 +565,60 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
     out.sort((a, b) => a.km - b.km);
     return `<dt>Nearby</dt><dd>${out.slice(0, 6).map(({ h, km }) => `<a href="#" class="sk-go" data-id="${esc(h.id)}">${esc(h.name || (h.src === "c2c" ? "camptocamp route" : "Hut"))}</a> <span class="sk-note">${h.src === "c2c" ? "camptocamp route, " : ""}${km < 0.1 ? "on the route" : km.toFixed(1) + " km"}</span>`).join("<br>")}</dd>`;
   }
+  // Photos of the route and its top: Wikimedia Commons pictures taken within PH_NEAR m of the line or PH_TOP m of
+  // its high point, and the route's own photos on camptocamp.org. Open licences only, each credited.
+  const PH_NEAR = 400, PH_TOP = 1500, PH_MAX = 24, PH_FIRST = 9;
+  const C2C_MEDIA = "https://media.camptocamp.org/c2corg-active/";
+  async function c2cPhotos(id) {
+    const r = await fetch(`https://api.camptocamp.org/routes/${encodeURIComponent(id)}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    return ((j.associations && j.associations.images) || []).filter((im) => im.filename).map((im) => {
+      const size = (k) => C2C_MEDIA + im.filename.replace(/\.(\w+)$/, k + ".$1"), loc = (im.locales || [])[0] || {};
+      return { src: "camptocamp.org", thumb: size("MI"), big: size("BI"), full: C2C_MEDIA + im.filename, page: `https://www.camptocamp.org/images/${im.document_id}`,
+        title: loc.title || "Route photo", about: "", author: "", licence: im.image_type === "personal" ? "CC BY-NC-ND 4.0" : "CC BY-SA 4.0", date: "", dist: 0, own: true };
+    });
+  }
+  const metresTo = (pts, lat, lon) => { let best = Infinity; for (const p of pts) best = Math.min(best, map.distance([p.lat, p.lon], [lat, lon])); return best; };
+  async function routePhotos(r, info) {
+    if (r.photos) return r.photos;
+    const P = window.tfPhotos;
+    if (!P) return (r.photos = { list: [], failed: true });
+    const pts = info ? info.pts : [{ lat: r.lat, lon: r.lon }], top = info ? info.top : pts[0];
+    // Around the top, then a few points along the line.
+    const picks = [top];
+    if (info) { const step = Math.max(1, Math.floor(pts.length / 6)); for (let i = 0; i < pts.length && picks.length < 8; i += step) picks.push(pts[i]); }
+    const jobs = picks.map((p, k) => P.commons({ generator: "geosearch", ggscoord: `${p.lat.toFixed(5)}|${p.lon.toFixed(5)}`, ggsradius: k ? "1000" : String(PH_TOP), ggsnamespace: "6", ggslimit: "50" }).catch(() => null));
+    const own = r.src === "c2c" ? c2cPhotos(r.id.slice(3)).catch(() => []) : Promise.resolve([]);
+    const [mine, ...lists] = await Promise.all([own, ...jobs]);
+    const seen = new Set(), list = [...mine];
+    mine.forEach((p) => seen.add(p.full));
+    for (const p of lists.filter(Boolean).flat()) {
+      if (seen.has(p.full) || !p.at) continue;
+      seen.add(p.full);
+      const dist = metresTo(pts, p.at[0], p.at[1]), dTop = map.distance([top.lat, top.lon], p.at);
+      if (dist <= PH_NEAR || dTop <= PH_TOP) list.push({ ...p, dist, from: "route", top: dTop <= PH_TOP && dist > PH_NEAR });
+    }
+    list.sort((a, b) => !!b.own - !!a.own || a.dist - b.dist);
+    return (r.photos = { list: list.slice(0, PH_MAX), failed: lists.every((l) => l == null) });
+  }
+  function photosHtml(ph, isHut) {
+    const { list, failed } = ph;
+    const credit = (p) => [p.author && `© ${p.author}`, p.licence, p.src].filter(Boolean).join(" · ");
+    const nTop = list.filter((p) => p.top).length;
+    const body = list.length ? `<div class="ab-photos">${list.map((p, i) => `<button type="button" class="ab-ph" data-i="${i}"${i >= PH_FIRST ? " hidden" : ""} title="${esc(p.title + (credit(p) ? " · " + credit(p) : ""))}">
+        <img src="${esc(p.thumb)}" alt="${esc(p.title)}" loading="lazy" referrerpolicy="no-referrer"></button>`).join("")}</div>
+      ${list.length > PH_FIRST ? `<button class="linkish ab-all" type="button">Show all ${list.length} photos</button>` : ""}
+      <p class="sk-note">${list.length} photo${list.length === 1 ? "" : "s"} from ${[...new Set(list.map((p) => p.src))].join(" and ")}: ${isHut ? `taken within ${PH_TOP / 1000} km` : `on or within ${PH_NEAR} m of the route${nTop ? `, ${nTop} of them around the top (within ${PH_TOP / 1000} km)` : ""}`}. Tap one to see it big, with its author and licence. Photos can be from any season.</p>`
+      : `<p class="sk-note">${failed ? "Couldn't reach the photo sources right now." : `No open photos found ${isHut ? "here" : "on this route or around its top"} yet.`}</p>`;
+    return `<h4>Photos</h4>${body}<p class="sk-note"><a href="https://commons.wikimedia.org/wiki/Special:UploadWizard" target="_blank" rel="noopener">Share your photo on Wikimedia Commons</a></p>`;
+  }
+  function bindPhotos(el, list) {
+    const all = el.querySelector(".ab-all");
+    if (all) all.addEventListener("click", () => { el.querySelectorAll(".ab-ph[hidden]").forEach((b) => { b.hidden = false; }); all.remove(); });
+    el.querySelectorAll(".ab-ph").forEach((b) => b.addEventListener("click", () => window.tfPhotos.open(list, +b.dataset.i)));
+    el.querySelectorAll(".ab-ph img").forEach((img) => img.addEventListener("error", () => img.closest(".ab-ph").remove()));
+  }
   // GPX of the route, with the heights when they're loaded.
   function gpx(title, group, info) {
     const x = (s) => esc(s);
@@ -620,7 +675,8 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       ${isHut ? "" : `<div class="sk-sec" id="skElev"><h4>Elevation</h4><p class="sk-note">Loading heights…</p></div>`}
       <div class="sk-sec" id="skAvy"></div>
       <div class="sk-sec" id="skWx"><h4>Weather</h4><p class="sk-note">Loading the forecast…</p></div>
-      ${isHut ? "" : `<p><button type="button" class="btn" id="skGpx">⬇ Download GPX</button></p>`}`;
+      ${isHut ? "" : `<p><button type="button" class="btn" id="skGpx">⬇ Download GPX</button></p>`}
+      <div class="sk-sec" id="skPh"><h4>Photos</h4><p class="sk-note">Looking for photos…</p></div>`;
     d.querySelector(".sk-x").addEventListener("click", () => { selected = null; selToken++; d.hidden = true; hoverLayer.clearLayers(); drawSki(); renderList(); });
     const go = d.querySelector(".sb-go");
     if (go) go.addEventListener("click", (e) => { e.preventDefault(); showClub(club.c); });
@@ -642,11 +698,13 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       .catch((e) => { if (live()) $("skWx").innerHTML = `<h4>Weather</h4><p class="sk-note">Couldn't load the weather (${esc(e.message)}).</p>`; });
     showAvy(r.info || null);
     if (!minData && !minErr) loadMin().then(() => showAvy(r.info || null));
-    if (isHut) { showWx(r.lat, r.lon, parseFloat(r.tags?.ele) || null); return; }
+    const showPh = (info) => routePhotos(r, info).then((ph) => { const el = $("skPh"); if (!live() || !el) return; el.innerHTML = photosHtml(ph, isHut); bindPhotos(el, ph.list); });
+    if (isHut) { showWx(r.lat, r.lon, parseFloat(r.tags?.ele) || null); showPh(null); return; }
     routeInfo(group).then((info) => {
       if (!live()) return;
       showAvy(info);
       showWx(info.top.lat, info.top.lon, info.max);
+      showPh(info);
       const nb = $("skNear");
       if (nb) {
         nb.outerHTML = nearbyHtml(info);
@@ -660,6 +718,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       if (!live()) return;
       $("skElev").innerHTML = `<h4>Elevation</h4><p class="sk-note">Couldn't load the heights (${esc(e.message)}).</p>`;
       showWx(pt[0], pt[1], null);
+      showPh({ pts: group.flatMap((x) => x.lines.flat()).map(([lat, lon]) => ({ lat, lon })), top: { lat: pt[0], lon: pt[1] } });
     });
   }
 
