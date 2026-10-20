@@ -51,7 +51,7 @@ const L = [
   { name: "Texada Island", q: "Texada Island", looks: ["island", "ocean"] },
   // Fraser Valley
   { name: "Golden Ears", q: "Golden Ears, British Columbia", aka: ["golden ears", "the ears"], looks: ["two peaks", "twin peaks"] },
-  { name: "Mount Cheam", q: "Mount Cheam", aka: ["cheam"], looks: ["big mountain", "snowy peak", "pyramid"] },
+  { name: "Mount Cheam", c: [49.16798, -121.69422], aka: ["cheam"], looks: ["big mountain", "snowy peak", "pyramid"] },
   { name: "Mount Baker", c: [48.77677, -121.81457], aka: ["baker", "mt baker"], looks: ["volcano", "snowy volcano", "big snowy mountain"] },
   { name: "Vedder Mountain", aka: ["vedder"] },
   { name: "Cultus Lake", q: "Cultus Lake", looks: ["lake"] },
