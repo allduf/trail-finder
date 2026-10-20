@@ -429,7 +429,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         const st = error.context && error.context.status;
         let msg = "";
         try { msg = (await error.context.json()).error || ""; } catch { /* not JSON */ }
-        aiWhy = msg || (st ? "error " + st : error.name === "AbortError" || /abort/i.test(error.message || "") ? "too slow" : error.message || "failed");
+        const plain = { 401: "the function still has Verify JWT on", 404: "not set up yet", 546: "the function ran out of time", 504: "too slow" };
+        aiWhy = msg || (st ? plain[st] || "error " + st : error.name === "AbortError" || /abort/i.test(error.message || "") ? "too slow" : error.message || "failed");
         if (st === 404 || st === 503 || /Failed to send/i.test(error.message || "")) aiOff = true;   // not set up (or key refused): don't ask again this visit
         return null;
       }
@@ -446,6 +447,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   }
   async function byWords(my, read) {
     if (pin && !gpsSpot) { pin.remove(); pin = null; }
+    // A new search: last search's list, note and AI line go, so nothing stale shows while this one runs.
+    shown = []; $("pfRes").innerHTML = ""; $("pfNote").textContent = ""; $("pfAi").hidden = true;
     if (read && file) {
       try {
         const text = await readWords(my);
