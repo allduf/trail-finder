@@ -322,84 +322,42 @@
   }
 
   // ---------- sharper Winter photos up close ----------
-  // tfwinterhd://z/x/y: zooms 8-14 are last winter's Sentinel-2 photos (data/winter) as they are. They're 10 m a
-  // pixel, so closer in (zooms 15-16) they'd only be enlarged and smeared (alex, 2026-10-19: "make it even better").
-  // There the colours still come from the winter photo, and two real sources add the detail it can't hold:
-  //  - Mapterhorn's 2 m lidar heights: the light on the snow from rolls, bumps and gullies 6 to 10 m across, with
-  //    the sun where it was for the photos (late morning in February and March: south-south-east, 28° up). Only the
-  //    part finer than 10 m is added, since the photo already has the bigger shading.
-  //  - Esri's sharp (summer) photo: the fine detail of trees, rock and buildings, as how much lighter or darker
-  //    each spot is than the 10 m average around it, not its summer colours. Mostly on dark ground (trees, rock):
-  //    open snow takes only a little, since the summer photo has meadow and scree there.
-  const WINTER = (z, x, y) => `data/winter/${z}/${x}/${y}.webp`;
-  const SUN = [Math.sin(160 / 57.3) * Math.cos(28 / 57.3), Math.cos(160 / 57.3) * Math.cos(28 / 57.3), Math.sin(28 / 57.3)];   // east, north, up
-  let winterHdProtocol = false;
+  // tfwinterhd://z/x/y (zooms 15-16, computers only): last winter's 10 m Sentinel-2 photos with finer detail added
+  // from Mapterhorn's 2 m lidar and Esri's sharp photo (see winter-hd.js). Drawn by workers, so the page stays free
+  // to move the map and load its terrain, and drawn as a layer over the plain Winter photos, which show right away
+  // and sharpen as these arrive (alex, 2026-10-19: "that map is long to load", "try to not compromize the resolution").
+  let hdWorkers = null, hdNext = 0, hdId = 0;
+  const hdWaiting = new Map();
+  const terrainReady = () => new Promise((ok) => {
+    const done = () => { if (!gl || !gl.getSource("dem") || gl.isSourceLoaded("dem")) { clearTimeout(t); if (gl) gl.off("sourcedata", done); ok(); } };
+    const t = setTimeout(() => { if (gl) gl.off("sourcedata", done); ok(); }, 3000);
+    if (gl) gl.on("sourcedata", done);
+    done();
+  });
   function addWinterHdProtocol() {
-    if (winterHdProtocol) return;
-    winterHdProtocol = true;
-    maplibregl.addProtocol("tfwinterhd", async (params, abort) => {
-      const [z, x, y] = params.url.replace("tfwinterhd://", "").split("/").map(Number), sig = abort.signal;
-      if (z <= 14) {
-        const r = await fetch(WINTER(z, x, y), { signal: sig });
-        if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { status: r.status });
-        return { data: await r.arrayBuffer() };
-      }
-      const keep = (p) => p.catch((e) => { if (sig.aborted) throw e; return null; });
-      const [win, sharp, soft, dem] = await Promise.all([
-        under(14, z, x, y, (a, b, c) => cached(`w${a}/${b}/${c}`, () => image(WINTER(a, b, c), new AbortController().signal).then(pixels))),
-        keep(image(ESRI(z, x, y), sig).then(pixels)),
-        keep(under(13, z, x, y, (a, b, c) => cached(`e${a}/${b}/${c}`, () => image(ESRI(a, b, c), new AbortController().signal).then(pixels)))),
-        keep(under(Math.min(z - 1, 15), z, x, y, (a, b, c) => cached(`d${a}/${b}/${c}`, () => demTile(a, b, c, new AbortController().signal).then(pixels))))]);
-      const W = 256, out = new ImageData(W, W), O = out.data;
-      // bilinear sample of channel ch at (fx, fy) in an image's pixels
-      const at = (img, fx, fy, ch) => {
-        const w = img.width, d = img.data, x0 = Math.min(w - 1, Math.max(0, Math.floor(fx - 0.5))), y0 = Math.min(w - 1, Math.max(0, Math.floor(fy - 0.5)));
-        const x1 = Math.min(w - 1, x0 + 1), y1 = Math.min(w - 1, y0 + 1), tx = Math.min(1, Math.max(0, fx - 0.5 - x0)), ty = Math.min(1, Math.max(0, fy - 0.5 - y0));
-        return (d[(y0 * w + x0) * 4 + ch] * (1 - tx) + d[(y0 * w + x1) * 4 + ch] * tx) * (1 - ty) + (d[(y1 * w + x0) * 4 + ch] * (1 - tx) + d[(y1 * w + x1) * 4 + ch] * tx) * ty;
+    if (hdWorkers) return;
+    hdWorkers = [...Array(Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
+      const w = new Worker("winter-hd.js?v=243");
+      w.onmessage = ({ data: m }) => {
+        const job = hdWaiting.get(m.id);
+        if (!job) return;
+        hdWaiting.delete(m.id);
+        if (m.data) job.ok({ data: m.data }); else job.no(new Error(m.err || "no tile"));
       };
-      const lum = (img, fx, fy) => 0.3 * at(img, fx, fy, 0) + 0.59 * at(img, fx, fy, 1) + 0.11 * at(img, fx, fy, 2);
-      let light = null;
-      // Only real fine heights: where Mapterhorn has no lidar, its tile here is a coarser one enlarged, whose steps
-      // would draw stripes.
-      const dz = Math.min(z - 1, 15), lidar = dem && !isMissing(dz, x >> (z - dz), y >> (z - dz));
-      if (lidar) {
-        const [D, dl, dt, ds] = dem, DW = D.width, h0 = (px, py) => {
-          px = Math.min(DW - 1, Math.max(0, px)); py = Math.min(DW - 1, Math.max(0, py));
-          const i = (py * DW + px) * 4; return D.data[i] * 256 + D.data[i + 1] + D.data[i + 2] / 256 - 32768;
-        };
-        const h = (fx, fy) => {   // blended between height pixels
-          const x0 = Math.floor(fx - 0.5), y0 = Math.floor(fy - 0.5), tx = fx - 0.5 - x0, ty = fy - 0.5 - y0;
-          return (h0(x0, y0) * (1 - tx) + h0(x0 + 1, y0) * tx) * (1 - ty) + (h0(x0, y0 + 1) * (1 - tx) + h0(x0 + 1, y0 + 1) * tx) * ty;
-        };
-        const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 0.5) / (1 << z))));
-        const mpp = 40075016 * Math.cos(lat) / ((1 << dz) * DW), k = 5 / mpp, k1 = Math.max(1, 3 / mpp);   // 5 m: a 10 m wide slope; 3 m: the finest that shows through snow
-        const shade = (hx, hy, r) => {
-          const ex = (h(hx + r, hy) - h(hx - r, hy)) / (2 * r * mpp), ny = (h(hx, hy - r) - h(hx, hy + r)) / (2 * r * mpp);
-          return Math.max(0.04, (-ex * SUN[0] - ny * SUN[1] + SUN[2]) / Math.hypot(ex, ny, 1));
-        };
-        light = (px, py) => {
-          const hx = dl + (px + 0.5) * ds / W, hy = dt + (py + 0.5) * ds / W;
-          const edge = smooth(k, 2 * k + 2, Math.min(hx, hy, DW - hx, DW - hy));   // heights run out at the edge: fade out
-          return 1 + (Math.min(1.3, Math.max(0.75, shade(hx, hy, k1) / shade(hx, hy, k))) - 1) * edge;
-        };
-      }
-      for (let py = 0; py < W; py++) for (let px = 0; px < W; px++) {
-        const [wi, wl, wt, ws] = win, fx = wl + (px + 0.5) * ws / W, fy = wt + (py + 0.5) * ws / W, i = (py * W + px) * 4;
-        const a = at(wi, fx, fy, 3);
-        if (a < 8) continue;   // outside the winter photos: the summer photo underneath shows
-        const r = at(wi, fx, fy, 0), g = at(wi, fx, fy, 1), b = at(wi, fx, fy, 2), snow = smooth(140, 215, 0.3 * r + 0.59 * g + 0.11 * b);
-        let f = 1;
-        if (light) f *= light(px, py) ** (0.3 + 0.4 * snow);
-        if (sharp && soft) {
-          const [si, sl, st, ss] = soft, e = lum(sharp, px + 0.5, py + 0.5), e0 = lum(si, sl + (px + 0.5) * ss / W, st + (py + 0.5) * ss / W);
-          f *= 1 + (Math.min(2.2, Math.max(0.35, (e + 12) / (e0 + 12))) - 1) * (0.9 - 0.82 * snow);
-        }
-        O[i] = r * f; O[i + 1] = g * f; O[i + 2] = b * f; O[i + 3] = a;
-      }
-      const cv = new OffscreenCanvas(W, W);
-      cv.getContext("2d").putImageData(out, 0, 0);
-      return { data: await (await cv.convertToBlob({ type: "image/png" })).arrayBuffer() };
+      return w;
     });
+    maplibregl.addProtocol("tfwinterhd", (params, abort) => new Promise((ok, no) => {
+      const [z, x, y] = params.url.replace("tfwinterhd://", "").split("/").map(Number), id = ++hdId;
+      const w = hdWorkers[hdNext++ % hdWorkers.length];
+      hdWaiting.set(id, { ok, no });
+      abort.signal.addEventListener("abort", () => {   // scrolled away before it was drawn
+        if (!hdWaiting.delete(id)) return;
+        w.postMessage({ cancel: id }); no(new DOMException("aborted", "AbortError"));
+      });
+      // The terrain first: these wait until the ground in view has its heights (at most 3 s), so they don't
+      // hold up the mountains, then sharpen the photos already showing.
+      terrainReady().then(() => { if (hdWaiting.has(id)) w.postMessage({ id, z, x, y, base: location.href }); });
+    }));
   }
 
   // ---------- the 3D map ----------
@@ -414,7 +372,7 @@
 
     addDemProtocol();
     addWinterProtocol();
-    addWinterHdProtocol();
+    if (!PHONE) addWinterHdProtocol();
     const c = map.getCenter();
     gl = new maplibregl.Map({
       container: box, antialias: !PHONE, pixelRatio: PHONE ? Math.min(devicePixelRatio || 1, 2) : undefined,
@@ -428,10 +386,11 @@
           // Feb-Mar 2026, clouds removed). Live: the sharp photos with today's snow drawn in (tfwinter).
           // tileSize 128 like the other photos: one zoom deeper, so the 10 m photos are at full detail up close
           // instead of the half-size zoom 12-13 ones (blurry and stretched on the slopes, alex 2026-10-19).
-          // Zooms 15-16 add finer detail to them (tfwinterhd above); not on phones, where the extra tiles and their
-          // drawing would use the memory iPhone Safari runs out of.
-          winter: { type: "raster", tileSize: PHOTO_TILE, minzoom: 8, maxzoom: PHONE ? 14 : 16, bounds: [-124.65, 49.1, -121.75, 50.9], tiles: ["tfwinterhd://{z}/{x}/{y}"],
+          winter: { type: "raster", tileSize: PHOTO_TILE, minzoom: 8, maxzoom: 14, bounds: [-124.65, 49.1, -121.75, 50.9], tiles: ["data/winter/{z}/{x}/{y}.webp"],
             attribution: "Winter: Copernicus Sentinel-2 data 2026 (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>" },
+          // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above). Not on phones,
+          // where the extra tiles would use the memory iPhone Safari runs out of.
+          ...(PHONE ? {} : { winterhd: { type: "raster", tileSize: 128, minzoom: 15, maxzoom: 16, bounds: [-124.65, 49.1, -121.75, 50.9], tiles: ["tfwinterhd://{z}/{x}/{y}"] } }),
           live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           shade: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: 14, tiles: ["tfdem://{z}/{x}/{y}"] },
@@ -450,6 +409,7 @@
           { id: "sat", type: "raster", source: "sat", paint: { "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
           { id: "winter", type: "raster", source: "winter", layout: { visibility: "none" } },
+          ...(PHONE ? [] : [{ id: "winterhd", type: "raster", source: "winterhd", layout: { visibility: "none" }, paint: { "raster-fade-duration": 200 } }]),
           { id: "live", type: "raster", source: "live", layout: { visibility: "none" } },
           // Soft sun and shadow on the slopes, so white mountains still read in winter.
           { id: "shade", type: "hillshade", source: "shade", layout: { visibility: "none" },
@@ -493,7 +453,7 @@
     // (as before) reloaded every photo after each move, up to 900 tiles each time, and showed blurry ones while
     // moving. Now about 150 to 380 tiles in a tilted view, against 500 to 900.
     // Phones: 4 zoom levels and fewer tiles far away (about half the photos in a tilted view).
-    const lod = () => ["sat", "winter", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(PHONE ? 4 : 6, PHONE ? 2 : 3, id); } catch {} });
+    const lod = () => ["sat", "winter", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(PHONE ? 4 : 6, PHONE ? 2 : 3, id); } catch {} });
     gl.once("load", lod);
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
@@ -511,7 +471,7 @@
       winBtn.style.display = ski() ? "" : "none";
       const w = photos === "winter" || photos === "live";
       gl.setLayoutProperty("sat", "visibility", photos === "sharp" || photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
-      gl.setLayoutProperty("winter", "visibility", photos === "winter" ? "visible" : "none");
+      for (const id of ["winter", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
       gl.setLayoutProperty("live", "visibility", photos === "live" ? "visible" : "none");
       sumBtn.title = "Sharp, snow-free photos";
       winBtn.title = "Real satellite photos from February and March 2026 (Sentinel-2, 10 m, so softer)";
