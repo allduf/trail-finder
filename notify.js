@@ -271,7 +271,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     if (!zones.length) { try { localStorage.removeItem("tf:notify"); } catch {} window.dispatchEvent(new Event("tf:setting")); }
     else { const p = prefs(); store.set("notify", { zones, since: p ? p.since : new Date().toISOString() }); }
     checkLoam(true);
-    pushSync();
+    pushSync(0);   // right away: on iPhone the app is often put away straight after Save
     if (zones.length || watching()) showList(); else box.close();
     paint();
   });
@@ -348,6 +348,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) return;
     if (Date.now() - fetchedAt > 3 * 3600e3) load(); else checkLoam();
+    pushSync();   // an iPhone app brought back from the background: send a change it didn't get to send before it was put away
   });
   window.addEventListener("storage", (e) => { if (/^tf:(notify|notifyNew|loam(New|Ride|Alert|Area))$/.test(e.key || "")) paint(); });
   // A trail added to (or taken off) the To ride list, or settings pulled from the account: check its loam soon.
@@ -398,7 +399,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   }
   // Keep the job's copy of this phone's settings and To ride list up to date, and renew an expired push address.
   let syncT = 0;
-  function pushSync() {
+  function pushSync(wait = 1500) {
     if (!pushOk || !pushId() || Notification.permission !== "granted") return;
     clearTimeout(syncT);
     syncT = setTimeout(async () => {
@@ -408,7 +409,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
         if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(await getKey()) });
         await pushSave(sub);
       } catch {}
-    }, 1500);
+    }, wait);
   }
   // What the job will check for this phone, so a phone with nothing picked (the Home Screen app keeps its own
   // settings, apart from Safari's) says so instead of staying quiet.
@@ -416,7 +417,8 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     const p = prefs(), n = p ? (p.zones.includes("all") ? ZONES.length : p.zones.length) : 0, r = loamOn() ? rideList().length : 0;
     if (!n && !r) return "It's watching nothing yet: pick your regions below and tap Save, or sign in to bring them over.";
     const parts = [n && (p.zones.includes("all") ? "all regions" : `${n} region${n > 1 ? "s" : ""}`), r && `${r} To ride trail${r > 1 ? "s" : ""}`].filter(Boolean);
-    return `Watching ${parts.join(" and ")}.`;
+    const what = [loamOn() && "prime loam", newOn() && n && "new trails"].filter(Boolean);
+    return what.length ? `Watching ${parts.join(" and ")} for ${what.join(" and ")}.` : "Both switches above are off, so it won't send anything.";
   }
   function pushMsg(text) { q("ntPushMsg").textContent = text; }
   function paintPush() {
