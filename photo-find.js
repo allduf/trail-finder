@@ -36,7 +36,7 @@
   const STRONG = 1.05;        // a match this good in the areas looked at first doesn't need the other regions
   // The Supabase function holding supabase/functions/which-trail (the dashboard deployed it as "smooth-worker").
 const AI_FN = "smooth-worker";
-const AI_WAIT = 30000;     // ms the AI may take before the search goes on without it
+const AI_WAIT = 45000;     // ms the AI may take before the search goes on without it
 const CMP_WAIT = 80000;    // ms the online check (Google search + photos of the likely trails) may take; the list shows meanwhile
 const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirmed match
   const SEE_M = 12000;        // trails up to this far from a landmark are checked for a view of it

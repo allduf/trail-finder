@@ -10,7 +10,12 @@
 
 const ORIGINS = [/^https:\/\/allduf\.github\.io$/, /^http:\/\/localhost(:\d+)?$/];
 const MAX_IMAGES = 3, MAX_B64 = 1_500_000, PER_HOUR = 30;
-const MODELS = ["gemini-flash-latest", "gemini-2.5-flash"];   // the first that answers; a name Google retired gives 404
+// Tried in turn: a name Google retired (404) or one that is too slow moves on to the next. Lite is the quick fallback.
+const MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest"];
+// Ways to ask for little or no thinking (it answers in seconds instead of tens of seconds): Gemini 2.5 takes a budget,
+// Gemini 3 and later a level. A model that refuses one setting is asked with the next.
+const THINK = [{ thinkingBudget: 0 }, { thinkingLevel: "minimal" }, { thinkingLevel: "low" }, null];
+const slow = new Set<string>();   // models that ran out of time in this running copy: tried last from then on
 const seen = new Map<string, number[]>();   // a light brake per address (each running copy of the function keeps its own)
 
 const list = (description: string) => ({ type: "ARRAY", items: { type: "STRING" }, description });
@@ -106,7 +111,7 @@ Deno.serve(async (req) => {
 
   const t0 = Date.now();
   if (body.mode === "compare") return compare(body as Compare, images, key, t0, reply);
-  const r = await gemini(key, [...images.map((d) => img(d)), { text: prompt }], { schema: SCHEMA }, t0 + 26000);
+  const r = await gemini(key, [...images.map((d) => img(d)), { text: prompt }], { schema: SCHEMA }, t0 + 40000);
   if ("error" in r) return reply(r.status, { error: r.error });
   if (!r.text) return reply(200, { ok: false });           // blocked, or nothing to say
   try { return reply(200, { ok: true, model: r.model, ms: Date.now() - t0, ...clean(JSON.parse(r.text)) }); } catch { return reply(200, { ok: false }); }
@@ -114,30 +119,35 @@ Deno.serve(async (req) => {
 
 const img = (data: string, mime = "image/jpeg") => ({ inline_data: { mime_type: mime, data } });
 
-// One Gemini answer: the first model that answers, with little or no thinking (it answers in seconds instead of tens of
-// seconds; a model that refuses the setting is asked again without it). schema: JSON in that shape; search: Google Search
-// on (then no schema: Gemini 2.5 can't do both, so the prompt asks for JSON in the text).
+// One Gemini answer from the first model that answers in time. schema: JSON in that shape; search: Google Search on (then
+// no schema: Gemini 2.5 can't do both, so the prompt asks for JSON in the text). Each model but the last gets at most
+// PER_MODEL ms, so one slow model can't use up all the time.
+const PER_MODEL = 16000;
 type Said = { text: string; model: string; meta: Record<string, unknown> | null } | { status: number; error: string; search?: boolean };
 async function gemini(key: string, parts: unknown[], o: { schema?: unknown; search?: boolean }, until: number): Promise<Said> {
-  const ask = (think: boolean) => JSON.stringify({
+  const ask = (think: Record<string, unknown> | null) => JSON.stringify({
     contents: [{ role: "user", parts }],
     ...(o.search ? { tools: [{ google_search: {} }] } : {}),
-    generationConfig: { temperature: 0.2, ...(o.schema ? { responseMimeType: "application/json", responseSchema: o.schema } : {}), ...(think ? {} : { thinkingConfig: { thinkingBudget: 0 } }) },
+    generationConfig: { temperature: 0.2, ...(o.schema ? { responseMimeType: "application/json", responseSchema: o.schema } : {}), ...(think ? { thinkingConfig: think } : {}) },
   });
-  const models = [Deno.env.get("GEMINI_MODEL"), ...MODELS].filter((m): m is string => !!m);
-  for (const model of models) {
+  const named = [Deno.env.get("GEMINI_MODEL"), ...MODELS].filter((m, i, a): m is string => !!m && a.indexOf(m) === i);
+  const models = [...named.filter((m) => !slow.has(m)), ...named.filter((m) => slow.has(m))];
+  const late: string[] = [];
+  for (const [n, model] of models.entries()) {
+    const left = until - Date.now();
+    if (left < 2500) break;
+    const stop = Date.now() + (n === models.length - 1 ? left : Math.min(left, PER_MODEL));
     let r: Response | null = null;
-    for (const think of [false, true]) {
-      try {
+    try {
+      for (const think of THINK) {
         r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-          { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": key }, body: ask(think), signal: AbortSignal.timeout(Math.max(1000, until - Date.now())) });
-      } catch (e) {
-        const late = e instanceof DOMException && e.name === "TimeoutError";
-        return { status: late ? 504 : 502, error: late ? "the AI took too long" : "the picture check failed" };
+          { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": key }, body: ask(think), signal: AbortSignal.timeout(Math.max(1000, stop - Date.now())) });
+        if (r.status !== 400 || !think) break;
+        if (!/thinking/i.test(await r.clone().text())) break;   // another 400: handled below
       }
-      if (r.status !== 400 || think) break;
-      const msg = await r.clone().text();
-      if (!/thinking/i.test(msg)) break;                  // another 400: handled below
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "TimeoutError") { slow.add(model); late.push(model); continue; }
+      return { status: 502, error: "the picture check failed" };
     }
     if (!r) continue;
     if (r.status === 404) continue;                       // that model name is gone: try the next
@@ -145,15 +155,17 @@ async function gemini(key: string, parts: unknown[], o: { schema?: unknown; sear
     if (r.status === 400 || r.status === 401 || r.status === 403) {
       const msg = await r.text();
       if (/API key|API_KEY|UNAUTHENTICATED/i.test(msg)) return { status: 503, error: "the API key was refused" };
-      return { status: 502, error: "the picture check failed (" + r.status + ")", search: o.search && /search|ground|tool/i.test(msg) };
+      if (o.search && /search|ground|tool/i.test(msg)) return { status: 502, error: "the picture check failed (" + r.status + ")", search: true };
+      continue;                                           // this model can't take the request: try the next
     }
-    if (!r.ok) return { status: 502, error: "the picture check failed (" + r.status + ")" };
+    if (!r.ok) continue;
     const j = await r.json().catch(() => null);
+    slow.delete(model);
     const cand = j?.candidates?.[0];
     const text = (cand?.content?.parts || []).filter((p: { text?: string; thought?: boolean }) => typeof p.text === "string" && !p.thought).map((p: { text: string }) => p.text).join("");
     return { text, model, meta: cand?.groundingMetadata || null };
   }
-  return { status: 502, error: "no Gemini model answered" };
+  return late.length ? { status: 504, error: `the AI took too long (${late.join(", ")})` } : { status: 502, error: "no Gemini model answered" };
 }
 
 // ---------- compare: the app's likely trails against what's online about them ----------
