@@ -6,6 +6,8 @@
 // Wikimedia Commons photos near each trail) and compares them with the rider's picture. Setup (once): Supabase dashboard → Edge Functions → deploy this file (it's deployed as
 // "smooth-worker"; AI_FN in photo-find.js must match), turn "Verify JWT" off; then Edge Functions → Secrets → add
 // GEMINI_API_KEY (free from aistudio.google.com/apikey). Optional secret GEMINI_MODEL picks another model.
+// Optional secret VISION_API_KEY (Google Cloud Vision, 1,000 pictures a month free): a reverse image search first, which
+// finds the pages that show the same picture (or video frame) online; their titles often name the trail.
 // Free-tier pictures may be used by Google to improve its products; a paid Google key stops that.
 
 const ORIGINS = [/^https:\/\/allduf\.github\.io$/, /^http:\/\/localhost(:\d+)?$/];
@@ -112,11 +114,51 @@ Deno.serve(async (req) => {
 
   const t0 = Date.now();
   if (body.mode === "compare") return compare(body as Compare, images, key, t0, reply);
-  const r = await gemini(key, [...images.map((d) => img(d)), { text: prompt }], { schema: SCHEMA }, t0 + 40000);
-  if ("error" in r) return reply(r.status, { error: r.error });
-  if (!r.text) return reply(200, { ok: false });           // blocked, or nothing to say
-  try { return reply(200, { ok: true, model: r.model, ms: Date.now() - t0, ...clean(JSON.parse(r.text)) }); } catch { return reply(200, { ok: false }); }
+  const online = await reverse(images);
+  const found = online && online.pages.length ? `The same ${images.length > 1 ? "frames were" : "picture was"} found online on these pages (their titles and addresses often name the trail and area):\n` +
+    online.pages.map((p) => `- ${p.title} (${p.url.slice(0, 160)})`).join("\n") + (online.labels.length ? `\nGoogle's best guess for it: ${online.labels.join("; ")}` : "") + "\n" : "";
+  const r = await gemini(key, [...images.map((d) => img(d)), { text: prompt + found }], { schema: SCHEMA }, t0 + 40000);
+  const empty = clean({});
+  if ("error" in r) return online?.pages.length ? reply(200, { ok: true, ms: Date.now() - t0, ...empty, online, aiError: r.error }) : reply(r.status, { error: r.error, online });
+  if (!r.text) return reply(200, { ok: !!online?.pages.length, ms: Date.now() - t0, ...empty, online });   // blocked, or nothing to say
+  try { return reply(200, { ok: true, model: r.model, ms: Date.now() - t0, ...clean(JSON.parse(r.text)), online }); } catch { return reply(200, { ok: !!online?.pages.length, ...empty, online }); }
 });
+
+// Reverse image search (Google Cloud Vision web detection): the pages that show the same picture or video frame, and
+// Google's best guess and the things it links to the picture. One call for all the frames.
+type Online = { pages: { url: string; title: string; same: boolean }[]; labels: string[]; entities: string[]; error?: string };
+async function reverse(images: string[]): Promise<Online | null> {
+  const k = Deno.env.get("VISION_API_KEY");
+  if (!k) return null;
+  const strip = (v: unknown) => String(v || "").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"').trim().slice(0, 200);
+  try {
+    const r = await fetch("https://vision.googleapis.com/v1/images:annotate", {
+      method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": k }, signal: AbortSignal.timeout(9000),
+      body: JSON.stringify({ requests: images.map((content) => ({ image: { content }, features: [{ type: "WEB_DETECTION", maxResults: 15 }] })) }),
+    });
+    if (!r.ok) {
+      const why = await r.text().catch(() => "");
+      console.log("vision", r.status, why.slice(0, 300));
+      return { pages: [], labels: [], entities: [], error: r.status === 403 ? "reverse search isn't allowed on this key (Cloud Vision API or billing not turned on)" : `reverse search failed (${r.status})` };
+    }
+    type W = { pagesWithMatchingImages?: { url?: string; pageTitle?: string; fullMatchingImages?: unknown[] }[]; bestGuessLabels?: { label?: string }[]; webEntities?: { description?: string; score?: number }[] };
+    const ws = ((await r.json()).responses || []).map((x: { webDetection?: W }) => x.webDetection || {}) as W[];
+    const pages = new Map<string, { url: string; title: string; same: boolean }>();
+    for (const w of ws) for (const p of w.pagesWithMatchingImages || []) {
+      if (!p.url || !/^https?:/.test(p.url) || pages.has(p.url)) continue;
+      pages.set(p.url, { url: p.url.slice(0, 400), title: strip(p.pageTitle), same: !!p.fullMatchingImages?.length });
+    }
+    return {
+      // Pages with the very same picture first.
+      pages: [...pages.values()].sort((a, b) => +b.same - +a.same).slice(0, 12),
+      labels: [...new Set(ws.flatMap((w) => (w.bestGuessLabels || []).map((l) => strip(l.label))).filter(Boolean))].slice(0, 3),
+      entities: [...new Set(ws.flatMap((w) => (w.webEntities || []).filter((e) => (e.score || 0) >= 0.3).map((e) => strip(e.description))).filter(Boolean))].slice(0, 10),
+    };
+  } catch (e) {
+    console.log("vision", String(e));
+    return { pages: [], labels: [], entities: [], error: "reverse search didn't answer" };
+  }
+}
 
 const img = (data: string, mime = "image/jpeg") => ({ inline_data: { mime_type: mime, data } });
 
@@ -344,6 +386,13 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
     c: Array.isArray(t?.c) && typeof t.c[0] === "number" && typeof t.c[1] === "number" ? [t.c[0], t.c[1]] as [number, number] : null,
   })).filter((t) => t.name);
   if (!trails.length) return reply(400, { error: "no trails" });
+  // The AI sometimes copies the whole list line ("1. Pretty Slabs (Trail, Squamish)"): back to the list's name.
+  const named = (x: string) => {
+    const n = norm(x.replace(/^\s*\d+[.)]\s*/, "").replace(/\s*\(.*$/, ""));
+    if (trails.some((t) => norm(t.name) === n)) return trails.find((t) => norm(t.name) === n)!.name;
+    const longest = trails.filter((t) => norm(t.name).length >= 4 && norm(x).includes(norm(t.name))).sort((a, b) => b.name.length - a.name.length)[0];
+    return longest?.name || x.slice(0, 120);
+  };
   const list = trails.map((t, i) => `${i + 1}. ${t.name} (${[t.kind, t.area].filter(Boolean).join(", ")})`).join("\n");
   // Where the AI placed the camera (the first look): photos from all around it, not only of the listed trails.
   const v = body.spot || {}, km = +(v.km as number);
@@ -372,7 +421,7 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
     searched = true;
     const o = json(s.text) || {};
     web = (Array.isArray(o.trails) ? o.trails : []).filter((x) => x && typeof x.trail === "string").slice(0, 8)
-      .map((x) => ({ trail: x.trail.slice(0, 120), looks: String(x.looks || "").slice(0, 300), fit: Math.max(0, Math.min(1, +x.fit || 0)), why: String(x.why || "").slice(0, 200) }));
+      .map((x) => ({ trail: named(x.trail), looks: String(x.looks || "").slice(0, 300), fit: Math.max(0, Math.min(1, +x.fit || 0)), why: String(x.why || "").slice(0, 200) }));
     pages = (Array.isArray(o.pages) ? o.pages : []).filter((x) => x && typeof x.url === "string" && typeof x.trail === "string").slice(0, 12);
     area = (spot && Array.isArray(o.area) ? o.area : []).filter((x) => x && typeof x.url === "string").slice(0, 8)
       .map((x) => ({ url: x.url, trail: typeof x.trail === "string" ? x.trail.slice(0, 120) : "" }));
@@ -388,7 +437,7 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
     const t = norm(title + " " + decodeURIComponent(page).replace(/[-_/]/g, " "));
     return trails.find((x) => norm(x.name).length >= 4 && t.includes(norm(x.name)))?.name || "";
   };
-  const fromPages = [...pages.map((p) => ({ url: p.url, trail: trails.find((t) => norm(t.name) === norm(p.trail))?.name || "", from: "web" })),
+  const fromPages = [...pages.map((p) => ({ url: p.url, trail: trails.find((t) => t.name === named(p.trail))?.name || "", from: "web" })),
     ...area.map((p) => ({ url: p.url, trail: p.trail, from: "area" })), ...sources.map((w) => ({ url: w.uri, trail: "", from: "web" }))].slice(0, 18);
   const [found, near, around] = await Promise.all([
     Promise.all(fromPages.map(async (p) => { const f = await pagePhoto(p.url); return f && { ...f, trail: p.trail || whose(f.title, f.page), from: p.from }; })),
@@ -433,7 +482,7 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
     const o = json(f.text) || {};
     ranks = (Array.isArray(o.ranks) ? o.ranks : []).filter((x) => x && typeof x.trail === "string").slice(0, 8).map((x) => {
       const p = photos[Math.round(+x.photo || 0) - 1];
-      return { trail: x.trail.slice(0, 120), fit: Math.max(0, Math.min(1, +x.fit || 0)), why: String(x.why || "").slice(0, 200), photo: pub(p), confirmed: p?.from === "confirmed" };
+      return { trail: named(x.trail), fit: Math.max(0, Math.min(1, +x.fit || 0)), why: String(x.why || "").slice(0, 200), photo: pub(p), confirmed: p?.from === "confirmed" };
     });
     close = (Array.isArray(o.photos) ? o.photos : []).map((x) => ({ p: photos[Math.round(+x?.n || 0) - 1], c: Math.max(0, Math.min(1, +x?.close || 0)), why: String(x?.why || "").slice(0, 200) }))
       .filter((x) => x.p && x.p.from === "area" && (x.p.at || x.p.trail) && x.c >= 0.4).sort((a, b) => b.c - a.c).slice(0, 5)

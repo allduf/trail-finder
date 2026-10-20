@@ -496,14 +496,27 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     }
     const seen = file ? await askAI(my, $("pfRead").value) : null;
     if (my !== job) return;
+    // The pages that show the same picture online (reverse image search): their titles and addresses count like a caption.
+    const on = seen && seen.online, pages = on && Array.isArray(on.pages) ? on.pages : [];
+    const rev = pages.map((p) => { let path = ""; try { const u = new URL(p.url); path = decodeURIComponent(u.pathname + " " + (u.searchParams.get("v") ? "" : u.search)); } catch {} return p.title + "\n" + path.replace(/[-_/.+=&?]+/g, " "); })
+      .concat(on ? [...(on.labels || []), ...(on.entities || [])] : []).join("\n");
     $("pfAi").hidden = !seen && !aiWhy;
-    $("pfAi").textContent = seen ? `The AI sees${seen.ms ? ` (${Math.round(seen.ms / 1000)} s)` : ""}: ` + seen.scene + (seen.landmarks.length ? ` Landmarks: ${seen.landmarks.join(", ")}.` : "") + (seen.viewpoint && seen.viewpoint.where ? ` Taken around: ${seen.viewpoint.where}.` : "")
+    $("pfAi").textContent = seen && !seen.scene && pages.length ? "" : seen ? `The AI sees${seen.ms ? ` (${Math.round(seen.ms / 1000)} s)` : ""}: ` + seen.scene + (seen.landmarks.length ? ` Landmarks: ${seen.landmarks.join(", ")}.` : "") + (seen.viewpoint && seen.viewpoint.where ? ` Taken around: ${seen.viewpoint.where}.` : "")
       : aiWhy ? `AI check skipped (${aiWhy}): matching the words, your description and landmarks.` : "";
+    // Where the same picture is online: a link to each page (the rider can read the post there).
+    if (pages.length || (on && on.error)) {
+      const box = document.createElement("div");
+      box.className = "src";
+      box.innerHTML = pages.length ? `Same picture found online: ` + pages.slice(0, 5).map((p) => { let h = "page"; try { h = new URL(p.url).hostname.replace(/^www\./, ""); } catch {} return `<a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer" title="${esc(p.title)}">${esc(h)}</a>`; }).join(" ")
+        : esc(`Reverse image search skipped (${on.error}).`);
+      $("pfAi").append(box);
+      $("pfAi").hidden = false;
+    }
     // The AI's places and landmarks first, then the trail names it read or guessed (so a hit there says "AI named it").
     const aiSaw = seen ? [...seen.places, ...seen.landmarks].join("\n") : "";
     // Only names the AI read in the picture count as named: its own guesses just lift a trail already listed (below).
     const aiNames = seen ? seen.trail_names.join("\n") : "";
-    const own = [$("pfCaption").value, $("pfRead").value].join("\n"), text = [own, aiSaw, aiNames].join("\n");
+    const own = [$("pfCaption").value, $("pfRead").value].join("\n"), text = [own, rev, aiSaw, aiNames].join("\n");
     // Saved with a confirmed match: the rider's and the picture's words, and what the AI saw (not its trail guesses).
     lastText = seen ? [own, ...seen.landmarks, ...seen.places, ...seen.terrain].join("\n") : own;
     if (!text.trim()) {
@@ -513,7 +526,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     }
     say("Matching the words with the trail names…", 0.95);
     let res;
-    try { res = await match(text, my, seen, core(words(own + "\n" + aiSaw)).length, core(words(own)).length); } catch (e) { if (my === job) say(`Couldn't load the trail names (${e.message}).`); return; }
+    try { res = await match(text, my, seen, core(words([own, rev, aiSaw].join("\n"))).length, core(words(own + "\n" + rev)).length, rev.trim() ? core(words(own)).length : Infinity); } catch (e) { if (my === job) say(`Couldn't load the trail names (${e.message}).`); return; }
     if (!res || my !== job) return;
     const n = res.rows.length;
     const sure = n && res.rows[0].conf !== "Possible";
@@ -528,8 +541,10 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   // like), photos from those pages, geotagged photos near them and pictures riders confirmed, and (when the AI placed
   // the photo) pages, videos and geotagged photos from all around that spot, compared with this picture. The list is
   // already up; it's reordered when the answer comes, and trails where a close-looking photo was taken join it.
+  // The AI's spot is often several km off (a slab 5 km from where it put the camera): look wide.
+  const vpRadius = (vp) => Math.min(15, Math.max(6, vp.km * 2.5)) * 1000;
   async function compareOnline(my, rows, seen) {
-    const acct = window.tfAccount, list = rows.filter((r) => r.save && r.name !== "Unnamed trail").slice(0, 6);
+    const acct = window.tfAccount, list = rows.filter((r) => r.save && r.name !== "Unnamed trail").slice(0, 8);
     const vp = seen.viewpoint && seen.viewpoint.km > 0 && seen.viewpoint.km <= 15 ? seen.viewpoint : null;
     if (aiOff || !list.length || !media || !acct || !acct.client) return;
     const out = $("pfCmp"), key = aiKey + "|" + list.map((r) => r.name + "@" + r.save.zone).join(",");
@@ -556,24 +571,28 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     }
     // Each trail's fit (0-1) moves it up or down; a found photo of the same place counts extra, a picture a rider
     // confirmed more.
-    const fitOf = new Map((got.ranks || []).map((k) => [F.norm(k.trail), k]));
+    const fitOf = new Map((got.ranks || []).map((k) => [F.norm(String(k.trail).replace(/^\s*\d+[.)]\s*/, "").replace(/\s*\(.*$/, "")), k]));
     let next = shown.map((r) => {
       const k = fitOf.get(F.norm(r.name));
       return k ? { ...r, s: r.s + 0.4 * (k.fit - 0.5) + (k.photo ? 0.1 : 0) + (k.confirmed && k.fit >= 0.6 ? 0.15 : 0), web: k } : r;
     });
     // Photos from around the spot that look close, even if not the same place: the trails where they were taken (or the
     // one their page is about) go up, or join the list.
-    const around = vp && (got.close || []).length ? (await trailsNear([L.latLng(vp.lat, vp.lon)], Math.min(15, Math.max(3, vp.km * 1.5)) * 1000)).list : [];
+    const around = vp && (got.close || []).length ? (await trailsNear([L.latLng(vp.lat, vp.lon)], vpRadius(vp))).list : [];
+    const found = [];
     for (const c of got.close || []) {
       let gs = c.trail ? around.filter((g) => F.norm(g.name) === F.norm(c.trail)).slice(0, 1) : [];
       if (!gs.length && c.at) gs = (await trailsNear([L.latLng(c.at[0], c.at[1])], 600)).list.slice(0, 2);
       if (my !== job) return;
       const why = `${c.close >= 0.8 ? "an online photo of the same place" : "an online photo that looks close"}${c.at ? " was taken near it" : ""}`;
-      for (const g of gs) {
+      for (const [i, g] of gs.entries()) {
         const web = { fit: c.close, why: c.why || why, photo: { img: c.img, page: c.page, title: c.title }, close: true };
         const have = next.find((r) => F.norm(r.name) === F.norm(g.name) && r.save && r.save.zone === g.zone.id);
-        if (have) { if (!have.closeBy) { have.s += 0.3 * c.close; have.closeBy = true; have.meta += " · " + why; if (!have.web || !have.web.photo) have.web = web; } }
-        else next.push({ ...rowOf({ g, s: 0.45 + 0.45 * c.close, why: [why] }, "mixed"), web, closeBy: true });
+        // A photo the AI calls the same place puts its trail at the top.
+        const top = c.close >= 0.8 ? Math.max(...next.map((r) => r.s), STRONG) + 0.05 - 0.06 * i : 0;   // the nearest trail first
+        if (have) { if (!have.closeBy) { have.s = Math.max(have.s + 0.3 * c.close, top); have.closeBy = true; have.meta += " · " + why; if (!have.web || !have.web.photo) have.web = web; } }
+        else next.push({ ...rowOf({ g, s: Math.max(0.45 + 0.45 * c.close, top), why: [why] }, "mixed"), web, closeBy: true });
+        found.push(g.name);
       }
     }
     next = next.sort((a, b) => b.s - a.s).slice(0, 10);
@@ -587,6 +606,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const src = (got.sources || []).map((w) => `<a href="${esc(w.uri)}" target="_blank" rel="noopener">${esc(w.title || "page")}</a>`).join("");
     out.innerHTML = `Checked online${got.ms ? ` (${Math.round(got.ms / 1000)} s)` : ""}: ${got.searched ? "Google search" : "no Google search" + (got.noSearch ? ` (${esc(got.noSearch)})` : "")}` +
       `${got.photos ? `, ${got.photos} photo${got.photos > 1 ? "s" : ""} compared with yours${got.area ? ` (${got.area} from around where it seems taken)` : ""}` : ""}.` +
+      ` ${found.length ? `Close photos online point to: ${esc([...new Set(found)].join(", "))}.` : vp ? "No photo from around there looked close." : ""}` +
       (src ? `<div class="src">${src}</div>` : "") +
       // Google asks for its search suggestions to be shown wherever search results are used.
       (got.suggest ? `<iframe sandbox="allow-popups allow-popups-to-escape-sandbox" title="Google searches used" srcdoc="${esc(got.suggest)}"></iframe>` : "");
@@ -685,7 +705,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     }
     return best;
   }
-  async function match(text, my, aiSeen, aiFrom = Infinity, aiSawFrom = Infinity) {   // first trail-name word / first word from the AI
+  async function match(text, my, aiSeen, aiFrom = Infinity, aiSawFrom = Infinity, revFrom = Infinity) {   // first trail-name word / first word from the AI / first word from pages with the same picture
     const tokens = core(words(text));
     const pre = [""];  // pre[i] = tokens[0..i) joined, for quick runs
     tokens.forEach((t, i) => { pre.push(pre[i] + t); });
@@ -770,7 +790,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       // The same words are also a place it names ("Alice Lake"): weaker as a trail.
       if (found.some((p) => p.ws.join("") === t.ws.join(""))) s -= 0.2;
       const said = tokens.slice(t.hit.at, t.hit.at + t.hit.n).join(" ");
-      why.unshift(t.hit.at >= aiFrom ? "AI named it" : t.hit.at >= aiSawFrom ? `AI saw “${said}”` : t.hit.how === "tag" || t.ws !== g.ws ? `“${said}” is in the words` : t.hit.d ? `read as “${said}”` : `“${g.name}” is in the words`);
+      why.unshift(t.hit.at >= aiFrom ? "AI named it" : t.hit.at >= aiSawFrom ? `AI saw “${said}”` : t.hit.at >= revFrom ? "named on a page with the same picture" : t.hit.how === "tag" || t.ws !== g.ws ? `“${said}” is in the words` : t.hit.d ? `read as “${said}”` : `“${g.name}” is in the words`);
       return { g, s, why, said: said.replace(/ /g, "") };
     }).filter((h) => h.s >= 0.7);
     let hits = scored(raw);
@@ -826,15 +846,15 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const vp = aiSeen && aiSeen.viewpoint;
     if (vp && vp.km > 0 && vp.km <= 15) {
       // The AI's "how far off" is often too small: look a bit wider.
-      const R = Math.min(15, Math.max(3, vp.km * 1.5)) * 1000, spot = L.latLng(vp.lat, vp.lon);
+      const R = vpRadius(vp), spot = L.latLng(vp.lat, vp.lon);
       say("Looking at the trails where the AI places the photo…", 0.985);
       const { list } = await trailsNear([spot], R);
       if (my !== job) return null;
-      for (const g of list.slice(0, 40)) {
+      for (const g of list.slice(0, 60)) {
         const why = `where the AI places the photo${vp.where ? " (" + vp.where + ")" : ""}, ${(g.d / 1000).toFixed(1)} km`;
         const have = hits.find((h) => keyOf(h.g) === keyOf(g)), near = 1 - g.d / R;
         if (have) { have.s += 0.1 + 0.1 * near; have.why.push(why); }
-        else hits.push({ g, s: 0.7 + 0.2 * near, why: [why], lm: true });
+        else hits.push({ g, s: 0.7 + 0.15 * near, why: [why], lm: true });
       }
     }
     // The trails in a riding area named in the words.
@@ -858,8 +878,6 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       hits.forEach((h) => { if (guess.has(h.g.ws.join(" ")) && !h.why.includes("AI named it")) { h.s += 0.1; h.why.push("AI thinks so too"); } });
     }
     // Past confirmed matches with similar words (supabase/trail-matches.sql) lift their trail.
-    // Sharing only place or landmark names ("howe sound") lifts a trail already in the list but doesn't add one: many
-    // trails share a place.
     const rare = new Set(tokens.filter((t) => t.length >= 4 && !GENERIC.has(t)));
     const placey = new Set([...found.flatMap((p) => p.ws), ...(await landmarkList()).flatMap((l) => [...l.ws, ...l.akaWs.flat()])]);
     // A plain or nearly plain picture has a fingerprint like any other plain one: not used.
@@ -883,8 +901,10 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       const g = { name: m.trail_name, type: m.osm_type === "relation" ? "r" : "w", ws: core(words(m.trail_name)), alts: [], tags: { name: m.trail_name }, zone, center: L.latLng(m.lat || 0, m.lon || 0),
         items: m.osm_ids.map((id) => ({ t: m.osm_type === "relation" ? "r" : "w", id, c: [m.lat, m.lon], tags: {} })) };
       const have = hits.find((h) => keyOf(h.g) === keyOf(g));
+      // Sharing only place or landmark names ("squamish", "howe sound") says nothing: every photo there shares them.
+      if (onlyPlaces) continue;
       if (have) { if (!have.past) { have.s += 0.2; have.past = true; have.why.push("picked for similar words before"); } }
-      else if (!onlyPlaces) hits.push({ g, s: 0.85, why: ["picked for similar words before"], past: true });
+      else hits.push({ g, s: 0.85, why: ["picked for similar words before"], past: true });
     }
     // One row per trail name and area; the best first.
     hits.sort((a, b) => b.s - a.s || map.getCenter().distanceTo(a.g.center) - map.getCenter().distanceTo(b.g.center));
