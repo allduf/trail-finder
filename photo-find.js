@@ -5,7 +5,13 @@
 //    loaded only when needed, about 7 MB the first time) from the picture or a few frames of the video, together
 //    with a caption the rider pastes. Trail names, hashtags and place names in those words are matched against the
 //    nightly name lists (data/names-<zone>.json) and the likely trails are listed, best first.
-// Nothing leaves the device: the picture is read in the browser and only the public trail lists are downloaded.
+// 3. Landmarks: big mountains, rock walls and lakes named in the words or described by the rider (data/landmarks.json)
+//    list the trails that can actually see them (a line-of-sight check on the elevation tiles), nearest first.
+// 4. Claude (optional): when the Supabase function "which-trail" is set up (supabase/functions/which-trail), a small
+//    copy of the picture goes to Claude, which says what it recognises (landmarks, trail names, places, terrain).
+//    Without it everything above still works.
+// 5. "Is this the trail?": a Yes saves a small copy of the picture and what led to the match (supabase/trail-matches.sql),
+//    quietly, and past matches with similar words lift that trail in later searches.
 (() => {
   "use strict";
   const F = window.tfFind, map = window.tfLeaflet;
@@ -26,6 +32,9 @@
   const MAX_SIDE = 2400;      // pictures are shrunk to this many pixels on the long side before reading (phone memory)
   const VIDEO_FRAMES = 5;
   const STRONG = 1.05;        // a match this good in the areas looked at first doesn't need the other regions
+  const AI_SIDE = 1024;       // the copy sent to Claude and saved with a confirmed match
+  const SEE_M = 12000;        // trails up to this far from a landmark are checked for a view of it
+  const DEM = (z, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
 
   const css = document.createElement("style");
   css.textContent = `
@@ -42,6 +51,16 @@
 .pf .pf-drop .pf-or { color: var(--muted); font-size: .82rem; flex-basis: 100%; }
 .pf .pf-prev { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
 .pf .pf-prev[hidden] { display: none; }
+.pf .pf-tw { position: relative; flex: none; }
+.pf .pf-rm { position: absolute; top: -8px; right: -8px; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font: inherit; font-weight: 700; line-height: 1; cursor: pointer; box-shadow: var(--shadow-sm); }
+.pf .pf-res .pv { font-size: .78rem; margin-top: 3px; display: flex; gap: 10px; flex-wrap: wrap; }
+.pf .pf-res .pv a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.pf .pf-ai { font-size: .85rem; margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--chip); }
+.pf .pf-ai[hidden] { display: none; }
+.pf-ask { position: fixed; z-index: 1000; left: 50%; top: calc(12px + env(safe-area-inset-top)); transform: translateX(-50%); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px;
+  max-width: calc(100% - 24px); box-sizing: border-box; padding: 8px 12px; border-radius: 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); box-shadow: var(--shadow); font-size: .9rem; }
+.pf-ask[hidden] { display: none; }
+.pf-ask .btn { padding: 6px 12px; }
 .pf .pf-prev img, .pf .pf-prev video { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; background: var(--chip); flex: none; }
 .pf .pf-status { font-size: .9rem; }
 .pf .pf-bar { height: 4px; border-radius: 2px; background: var(--line); margin-top: 6px; overflow: hidden; }
@@ -81,17 +100,21 @@
     <span class="pf-or">or drop one here${matchMedia("(pointer: fine)").matches ? ", or press Ctrl+V / ⌘V" : ""}</span>
     <input type="file" id="pfFile" accept="image/*,video/*" hidden>
   </div>
-  <div class="pf-prev" id="pfPrev" hidden><span id="pfThumb"></span><div style="flex:1;min-width:0"><div class="pf-status" id="pfStatus" role="status"></div><div class="pf-bar" id="pfBar" hidden><span></span></div></div></div>
+  <div class="pf-prev" id="pfPrev" hidden><span class="pf-tw"><span id="pfThumb"></span><button type="button" class="pf-rm" id="pfRemove" aria-label="Remove this picture to add another" title="Remove this picture" hidden>✕</button></span><div style="flex:1;min-width:0"><div class="pf-status" id="pfStatus" role="status"></div><div class="pf-bar" id="pfBar" hidden><span></span></div></div></div>
   <ul class="pf-res" id="pfRes" role="list"></ul>
   <p class="pf-note" id="pfNote"></p>
+  <p class="pf-ai" id="pfAi" hidden></p>
   <label class="pf-l" for="pfArea">Where is it? <small>(optional, helps when the picture has no spot)</small></label>
   <select id="pfArea"></select>
-  <label class="pf-l" for="pfCaption">The post's caption or anything you know <small>(optional)</small></label>
-  <textarea id="pfCaption" placeholder="Paste the caption, or type a trail or place you saw, like “Half Nelson Squamish”" spellcheck="false"></textarea>
+  <label class="pf-l" for="pfCaption">What do you see? <small>(optional: describe it, or paste the post's caption)</small></label>
+  <textarea id="pfCaption" placeholder="Like: big granite wall behind (the Chief?), rooty forest, lake below, slabs. Or a trail or place name you saw." spellcheck="false"></textarea>
   <details id="pfReadBox" hidden><summary>Words read from the picture</summary><textarea id="pfRead" spellcheck="false" aria-label="Words read from the picture (you can fix them)"></textarea></details>
   <div class="pf-go"><button type="button" class="btn" id="pfGo">Find the trail</button><button type="button" class="btn" id="pfWords" hidden>Read the words instead</button></div>
 </div>`;
   document.body.append(box);
+  const ask = document.createElement("div");
+  ask.className = "pf-ask"; ask.id = "pfAsk"; ask.hidden = true; ask.setAttribute("role", "status");
+  document.body.append(ask);
 
   F.regions.forEach((r) => { if (!r.zones) r.zones = F.zones.filter((z) => r.ids.includes(z.id)); });
   $("pfArea").innerHTML = `<option value="">Anywhere (I don't know)</option>` + F.regions.map((r) => `<optgroup label="${esc(r.name)}"><option value="r:${r.id}">All of ${esc(r.name)}</option>` +
@@ -99,6 +122,9 @@
 
   // ---------- open / close ----------
   let job = 0, file = null, gpsSpot = null, pin = null, thumbUrl = null;
+  let lastText = "";        // the words the last search matched, saved with a confirmed match
+  let media = null;          // { jpegs: [base64...] } small copies of the picture or frames, for Claude and for saving
+  let ai = null, aiKey = "", aiOff = false;   // Claude's answer for this picture; aiOff: the function isn't set up
   function open() {
     box.hidden = false;
     $("pfPaste").hidden = !(navigator.clipboard && navigator.clipboard.read);
@@ -142,11 +168,25 @@
     if (frac != null) $("pfBar").firstElementChild.style.width = Math.round(Math.max(0, Math.min(1, frac)) * 100) + "%";
   }
 
+  // ✕ on the picture: forget it (and what came from it) to add another one; the description and area stay.
+  function reset() {
+    job++;
+    file = null; gpsSpot = null; media = null; ai = null; aiKey = "";
+    box.classList.remove("has-file");
+    if (thumbUrl) { URL.revokeObjectURL(thumbUrl); thumbUrl = null; }
+    if (pin) { pin.remove(); pin = null; }
+    $("pfThumb").innerHTML = ""; $("pfRemove").hidden = true; $("pfPrev").hidden = true;
+    $("pfRes").innerHTML = ""; $("pfNote").textContent = ""; $("pfAi").hidden = true; $("pfRead").value = ""; $("pfReadBox").hidden = true; $("pfWords").hidden = true;
+    shown = [];
+  }
+  $("pfRemove").addEventListener("click", () => { reset(); $("pfPick").focus(); });
+
   async function start(f) {
-    file = f; gpsSpot = null;
+    reset();
+    file = f;
     box.classList.add("has-file");
-    const my = ++job;
-    $("pfRes").innerHTML = ""; $("pfNote").textContent = ""; $("pfRead").value = ""; $("pfReadBox").hidden = true; $("pfWords").hidden = true;
+    $("pfRemove").hidden = false;
+    const my = job;
     if (thumbUrl) URL.revokeObjectURL(thumbUrl);
     thumbUrl = URL.createObjectURL(f);
     $("pfThumb").innerHTML = isVideo(f) ? `<video src="${thumbUrl}#t=0.5" muted playsinline preload="metadata"></video>` : `<img src="${thumbUrl}" alt="">`;
@@ -262,6 +302,8 @@
       conf: i === 0 && r.x.d <= ON_M ? "Taken on it" : r.x.d <= NEAR_M ? "Nearby" : "Nearest",
       meta: [F.kindOf(r.x.w.tags), F.zoneOf(L.latLng(p)), "taken " + fmt(r.x.d)].filter(Boolean).join(" · "),
       open: r.g ? () => F.show(r.g) : () => F.openWay(r.x.w.id, L.latLng(p)),
+      zone: F.zoneOf(L.latLng(p)),
+      save: { name: r.name || "Unnamed trail", type: "way", ids: r.g ? r.g.items.map((i) => i.id) : [r.x.w.id], zone: F.zoneOf(L.latLng(p)), c: p, method: "gps" },
     }));
     map.setView(p, Math.max(map.getZoom(), 15));
     if (my !== job) return;
@@ -315,9 +357,21 @@
     v.removeAttribute("src"); v.load();
     return out;
   }
+  // A small JPEG of a picture or frame (base64, no header), for Claude and for a saved match.
+  function jpeg(c) {
+    const k = Math.min(1, AI_SIDE / Math.max(c.width, c.height)), s = document.createElement("canvas");
+    s.width = Math.round(c.width * k); s.height = Math.round(c.height * k);
+    s.getContext("2d").drawImage(c, 0, 0, s.width, s.height);
+    const url = s.toDataURL("image/jpeg", 0.8);
+    s.width = s.height = 0;
+    return url.slice(url.indexOf(",") + 1);
+  }
   async function readWords(my) {
     const canvases = isVideo(file) ? await videoFrames(thumbUrl, my) : [await imageCanvas(thumbUrl)];
     if (!canvases.length) throw new Error("no frames could be taken from the video");
+    // Up to 3 frames spread through the video (the middle ones), or the picture.
+    const pick = canvases.length <= 3 ? canvases : [canvases[1], canvases[Math.floor(canvases.length / 2)], canvases[canvases.length - 2]];
+    media = { jpegs: pick.map(jpeg) };
     say("Getting the word reader ready (about 7 MB the first time)…", 0);
     await loadScript(TESS);
     let part = 0;
@@ -351,6 +405,31 @@
     }
     return lines.join("\n");
   }
+  // Claude looks at the picture (supabase/functions/which-trail). null when it isn't set up, fails or has nothing.
+  async function askClaude(my, read) {
+    const acct = window.tfAccount;
+    if (aiOff || !media || !media.jpegs.length || !acct || !acct.enabled) return null;
+    const area = $("pfArea").selectedOptions[0];
+    const key = [$("pfCaption").value.trim(), $("pfArea").value].join("|");
+    if (ai && aiKey === key) return ai;      // once per picture and description: each look costs about 2 cents
+    say("Claude is looking at the picture (mountains, rock, lakes, words)…", 0.9);
+    try {
+      await acct.load();
+      if (!acct.client) return null;
+      const lm = (await landmarkList()).map((l) => l.name);
+      const { data, error } = await acct.client.functions.invoke("which-trail", { body: {
+        images: media.jpegs, text: read.slice(0, 2000), description: $("pfCaption").value.slice(0, 800), area: $("pfArea").value ? area.textContent : "", landmarks: lm } });
+      if (my !== job) return null;
+      if (error) {
+        const st = error.context && error.context.status;
+        if (st === 404 || st === 503 || /not found|Failed to send/i.test(error.message || "")) aiOff = true;   // not set up yet: don't ask again this visit
+        return null;
+      }
+      if (!data || !data.ok) return null;
+      ai = data; aiKey = key;
+      return ai;
+    } catch { return null; }
+  }
   async function byWords(my, read) {
     if (pin && !gpsSpot) { pin.remove(); pin = null; }
     if (read && file) {
@@ -364,7 +443,16 @@
         say(`Couldn't read the words in it (${e.message}).`);
       }
     }
-    const text = [$("pfCaption").value, $("pfRead").value].join("\n");
+    const seen = file ? await askClaude(my, $("pfRead").value) : null;
+    if (my !== job) return;
+    $("pfAi").hidden = !seen;
+    if (seen) $("pfAi").textContent = "Claude sees: " + seen.scene + (seen.landmarks.length ? ` Landmarks: ${seen.landmarks.join(", ")}.` : "");
+    // Claude's places and landmarks first, then the trail names it read or guessed (so a hit there says "Claude named it").
+    const aiSaw = seen ? [...seen.places, ...seen.landmarks].join("\n") : "";
+    const aiNames = seen ? [...seen.trail_names, ...seen.guesses.map((g) => g.trail + " " + g.area)].join("\n") : "";
+    const own = [$("pfCaption").value, $("pfRead").value].join("\n"), text = [own, aiSaw, aiNames].join("\n");
+    // Saved with a confirmed match: the rider's and the picture's words, and what Claude saw (not its trail guesses).
+    lastText = seen ? [own, ...seen.landmarks, ...seen.places, ...seen.terrain].join("\n") : own;
     if (!text.trim()) {
       say(file ? "No words found in it." : "Add a photo or video, or type what you know.");
       show([], "Paste the post's caption above, or type a trail or place name you saw, then tap Find the trail.");
@@ -372,7 +460,7 @@
     }
     say("Matching the words with the trail names…", 0.95);
     let res;
-    try { res = await match(text, my); } catch (e) { if (my === job) say(`Couldn't load the trail names (${e.message}).`); return; }
+    try { res = await match(text, my, seen, core(words(own + "\n" + aiSaw)).length, core(words(own)).length); } catch (e) { if (my === job) say(`Couldn't load the trail names (${e.message}).`); return; }
     if (!res || my !== job) return;
     const n = res.rows.length;
     const sure = n && res.rows[0].conf !== "Possible";
@@ -472,7 +560,7 @@
     }
     return best;
   }
-  async function match(text, my) {
+  async function match(text, my, aiSeen, aiFrom = Infinity, aiSawFrom = Infinity) {   // first trail-name word / first word from Claude
     const tokens = core(words(text));
     const pre = [""];  // pre[i] = tokens[0..i) joined, for quick runs
     tokens.forEach((t, i) => { pre.push(pre[i] + t); });
@@ -543,8 +631,8 @@
       if (again.some((z) => !first.includes(z))) { raw = await textHits(again); if (my !== job) return null; }
       first = again;
     }
-    const hinted = new Set(found.flatMap((p) => p.zones.map((z) => z.id)));
-    const spots = found.filter((p) => p.c);
+    let hinted = new Set(found.flatMap((p) => p.zones.map((z) => z.id)));
+    let spots = found.filter((p) => p.c);
     const scored = (list) => list.map((t) => {
       const g = t.g, why = [];
       let s = t.s;
@@ -557,8 +645,8 @@
       // The same words are also a place it names ("Alice Lake"): weaker as a trail.
       if (found.some((p) => p.ws.join("") === t.ws.join(""))) s -= 0.2;
       const said = tokens.slice(t.hit.at, t.hit.at + t.hit.n).join(" ");
-      why.unshift(t.hit.how === "tag" || t.ws !== g.ws ? `“${said}” is in the words` : t.hit.d ? `read as “${said}”` : `“${g.name}” is in the words`);
-      return { g, s, why };
+      why.unshift(t.hit.at >= aiFrom ? "Claude named it" : t.hit.at >= aiSawFrom ? `Claude saw “${said}”` : t.hit.how === "tag" || t.ws !== g.ws ? `“${said}” is in the words` : t.hit.d ? `read as “${said}”` : `“${g.name}” is in the words`);
+      return { g, s, why, said: said.replace(/ /g, "") };
     }).filter((h) => h.s >= 0.7);
     let hits = scored(raw);
     // Nothing sure in the areas looked at first (and no area picked): look through every region too.
@@ -566,7 +654,61 @@
       say("Looking through every region…", 0.97);
       const rest = await textHits(F.zones.filter((z) => !first.includes(z)));
       if (my !== job) return null;
-      hits = hits.concat(scored(rest));
+      raw = raw.concat(rest);
+      // A trail name found in another region can hold a "place" too ("Nelson" in Squamish's "Half Nelson").
+      if (found.some((p) => inName(p, raw))) {
+        found = found.filter((p) => !inName(p, raw));
+        hinted = new Set(found.flatMap((p) => p.zones.map((z) => z.id)));
+        spots = found.filter((p) => p.c);
+      }
+      hits = scored(raw);
+    }
+    // Landmarks named in the words (or by Claude), or described ("granite wall") in an area it points to: the trails
+    // that can see them. A trail found by name and also seeing the landmark goes up; one only seeing it is "Possible".
+    const areaZones = new Set([...pickedIds, ...hinted]);
+    const named = [], looked = [];
+    (await landmarkList()).forEach((l) => {
+      if ([l.ws, ...l.akaWs].some((ws) => findIn(tokens, ws, joins))) named.push(l);
+      else if (areaZones.size && l.zones.some((id) => areaZones.has(id))) {
+        // Described, not named: the landmark whose description fits best ("big granite wall" beats "granite").
+        const fit = l.looksWs.filter((ws) => findIn(tokens, ws, joins)).reduce((m, ws) => Math.max(m, ws.join("").length), 0);
+        if (fit) looked.push({ l, fit });
+      }
+    });
+    looked.sort((a, b) => b.fit - a.fit);
+    const used = [...named.map((l) => ({ l, base: 0.8 })), ...looked.filter((x) => x.fit === looked[0].fit).slice(0, 2).map((x) => ({ l: x.l, base: 0.6 }))].slice(0, 3);
+    // A trail named like a landmark it mentions ("The Chief") is weaker as a trail.
+    // Same when only the landmark's name matched in a longer trail name ("Stawamus Chief / Sea to Summit").
+    hits.forEach((h) => { if (named.some((l) => [l.ws, ...l.akaWs].some((ws) => ws.join("") === h.g.ws.join("") || ws.join("") === h.said))) h.s -= 0.2; });
+    const keyOf = (g) => g.ws.join(" ") + "|" + g.zone.id;
+    for (const { l, base } of used) {
+      say(`Checking which trails can see ${l.name}…`, 0.98);
+      const views = await viewers(l);
+      if (my !== job) return null;
+      for (const v of views) {
+        const have = hits.find((h) => keyOf(h.g) === keyOf(v.g));
+        const why = `${v.vis ? "sees" : "near"} ${l.name} (${(v.d / 1000).toFixed(1)} km)`;
+        if (have) { have.s += v.vis ? 0.15 : 0.05; have.why.push(why); }
+        // In the background: a few hundred metres to several km away reads best; right under it, less so.
+        else if (v.vis) hits.push({ g: v.g, s: Math.min(STRONG - 0.06, base + 0.1 * (v.d < 500 ? 0.3 : Math.max(0, 1 - v.d / 8000))), why: [why], lm: true });
+      }
+    }
+    // Claude's own guesses go up a little.
+    if (aiSeen) {
+      const guess = new Set([...aiSeen.trail_names, ...aiSeen.guesses.map((g) => g.trail)].map((n) => core(words(n)).join(" ")));
+      hits.forEach((h) => { if (guess.has(h.g.ws.join(" ")) && !h.why.includes("Claude named it")) { h.s += 0.1; h.why.push("Claude thinks so too"); } });
+    }
+    // Past confirmed matches with similar words (supabase/trail-matches.sql) lift their trail.
+    const rare = new Set(tokens.filter((t) => t.length >= 4 && !GENERIC.has(t)));
+    for (const m of rare.size >= 2 ? await pastMatches() : []) {
+      const ws = (m.words || "").split(" ").filter(Boolean), shared = ws.filter((w) => rare.has(w)).length;
+      if (shared < 2 || shared / Math.min(ws.length, rare.size) < 0.3) continue;
+      const zone = F.zoneById(m.zone) || { id: m.zone || "?", name: m.zone || "" };
+      const g = { name: m.trail_name, type: m.osm_type === "relation" ? "r" : "w", ws: core(words(m.trail_name)), alts: [], tags: { name: m.trail_name }, zone, center: L.latLng(m.lat || 0, m.lon || 0),
+        items: m.osm_ids.map((id) => ({ t: m.osm_type === "relation" ? "r" : "w", id, c: [m.lat, m.lon], tags: {} })) };
+      const have = hits.find((h) => keyOf(h.g) === keyOf(g));
+      if (have) { if (!have.past) { have.s += 0.2; have.past = true; have.why.push("picked for similar words before"); } }
+      else hits.push({ g, s: 0.95, why: ["picked for similar words before"], past: true });
     }
     // One row per trail name and area; the best first.
     hits.sort((a, b) => b.s - a.s || map.getCenter().distanceTo(a.g.center) - map.getCenter().distanceTo(b.g.center));
@@ -584,20 +726,197 @@
         const g = h.g, best = i === 0 && h.s >= STRONG && (rows.length === 1 || rows[1].s <= h.s - 0.049);
         const conf = best ? "Best match" : h.s >= top - 0.05 && h.s >= STRONG ? "Likely" : "Possible";
         const fg = { name: g.name, type: g.type, kind: F.kindOf(g.tags, g.type === "r"), tags: g.tags, zone: g.zone.name.split(" (")[0], center: g.center, items: g.items };
-        return { name: g.name, tags: g.tags, best, conf, meta: [fg.kind, fg.zone, ...h.why].filter(Boolean).join(" · "), open: () => F.show(fg) };
+        return { name: g.name, tags: g.tags, best, conf, meta: [fg.kind, fg.zone, ...h.why].filter(Boolean).join(" · "), open: () => F.show(fg), zone: fg.zone,
+          save: { name: g.name, type: g.type === "r" ? "relation" : "way", ids: g.items.map((i) => i.id).slice(0, 60), zone: g.zone.id, c: [g.center.lat, g.center.lng],
+            method: h.lm ? "landmark" : aiSeen ? "mixed" : "words" } };
       }),
     };
   }
 
+  // ---------- landmarks and what can see them ----------
+  let landmarks = null;
+  const WATER = /\b(lake|inlet|sound|river|strait|arm|canyon|valley|falls|skyline|island)\b/i;
+  function landmarkList() {
+    if (!landmarks) landmarks = F.nightly("landmarks.json").then((f) => ((f && f.items) || []).map((l) => {
+      const c = L.latLng(l.c);
+      return { ...l, ws: core(words(l.name)), akaWs: l.aka.map((a) => core(words(a))).filter((w) => w.join("").length >= 4), looksWs: l.looks.map((a) => core(words(a))),
+        zones: F.zones.filter((z) => z.bounds.pad(0.3).contains(c)).map((z) => z.id), water: WATER.test(l.name) };
+    })).catch(() => []);
+    return landmarks;
+  }
+  // Elevation tiles (Terrarium, about 50 m a pixel at zoom 11), kept for the visit.
+  const DEM_Z = 11, demTiles = new Map();
+  const tileOf = (lat, lon) => {
+    const n = 2 ** DEM_Z, r = lat * Math.PI / 180;
+    return [(lon + 180) / 360 * n, (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n];
+  };
+  function demTile(x, y) {
+    const k = x + "/" + y;
+    if (!demTiles.has(k)) demTiles.set(k, new Promise((res) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const c = document.createElement("canvas"); c.width = c.height = 256;
+        const g = c.getContext("2d"); g.drawImage(img, 0, 0);
+        const d = g.getImageData(0, 0, 256, 256).data, h = new Float32Array(256 * 256);
+        for (let i = 0; i < h.length; i++) h[i] = d[i * 4] * 256 + d[i * 4 + 1] + d[i * 4 + 2] / 256 - 32768;
+        c.width = c.height = 0;
+        demTiles.set(k, h); res(h);
+      };
+      img.onerror = () => { demTiles.set(k, null); res(null); };
+      img.src = DEM(DEM_Z, x, y);
+    }));
+    return demTiles.get(k);
+  }
+  async function demLoad(b) {
+    const [x0, y0] = tileOf(b.getNorth(), b.getWest()), [x1, y1] = tileOf(b.getSouth(), b.getEast()), jobs = [];
+    for (let x = Math.floor(x0); x <= Math.floor(x1); x++) for (let y = Math.floor(y0); y <= Math.floor(y1); y++) jobs.push(demTile(x, y));
+    await Promise.all(jobs);
+  }
+  function elev(lat, lon) {
+    const [fx, fy] = tileOf(lat, lon), x = Math.floor(fx), y = Math.floor(fy), h = demTiles.get(x + "/" + y);
+    if (!h || h instanceof Promise) return null;
+    return h[Math.min(255, Math.floor((fy - y) * 256)) * 256 + Math.min(255, Math.floor((fx - x) * 256))];
+  }
+  // The top of a mountain: the highest pixel within about 1 km of its spot (the name's spot is often at its foot).
+  function summit(c, water) {
+    if (water) { const h = elev(c[0], c[1]); return h == null ? null : [c[0], c[1], h + 2]; }
+    let best = null;
+    for (let i = -5; i <= 5; i++) for (let j = -5; j <= 5; j++) {
+      const lat = c[0] + i * 0.0018, lon = c[1] + j * 0.0028, h = elev(lat, lon);
+      if (h != null && (!best || h > best[2])) best = [lat, lon, h];
+    }
+    return best;
+  }
+  // Line of sight from a rider (2 m up) at p to the top, over the elevation tiles, with the earth's curve. The last
+  // 250 m before the top don't count: seeing the upper part of a big rock or peak is seeing it.
+  function sees(p, top) {
+    const h0 = elev(p[0], p[1]);
+    if (h0 == null) return false;
+    const D = L.latLng(p).distanceTo([top[0], top[1]]);
+    if (D < 300) return true;
+    const a = h0 + 2, n = Math.min(160, Math.ceil(D / 60));
+    for (let i = 1; i < n; i++) {
+      const t = i / n;
+      if (D * (1 - t) < 250) break;
+      const h = elev(p[0] + (top[0] - p[0]) * t, p[1] + (top[1] - p[1]) * t);
+      if (h == null) continue;
+      const bulge = (D * t) * (D * (1 - t)) / (2 * 6371000 * 1.13);
+      if (h + bulge > a + (top[2] - a) * t + 1) return false;
+    }
+    return true;
+  }
+  // The named MTB trails within SEE_M of a landmark, nearest first, and whether any of their points can see it.
+  async function viewers(l) {
+    const c = L.latLng(l.c), b = c.toBounds(2 * SEE_M);
+    const zones = F.zones.filter((z) => z.bounds.intersects(b));
+    const lists = await Promise.all(zones.map((z) => F.mtbWays(z).catch(() => null)));
+    const groups = new Map();
+    lists.forEach((list, i) => (list || []).forEach((w) => {
+      const name = w.tags.name || w.tags["mtb:name"];
+      if (!name || w.geom.length < 2) return;
+      const mid = w.geom[w.geom.length >> 1], d = c.distanceTo(mid);
+      if (d > SEE_M) return;
+      const z = zones[i], key = F.norm(name) + "|" + z.id;
+      let g = groups.get(key);
+      if (!g) groups.set(key, (g = { name, type: "w", ws: core(words(name)), alts: [], items: [], tags: w.tags, zone: z, pts: [], d, mtb: true }));
+      g.items.push({ t: "w", id: w.id, c: mid, tags: w.tags });
+      g.pts.push(w.geom[0], mid, w.geom[w.geom.length - 1]);
+      if (d < g.d) g.d = d;
+    }));
+    const list = [...groups.values()].sort((a, b) => a.d - b.d).slice(0, 150);
+    if (!list.length) return [];
+    await demLoad(b);
+    const top = summit(l.c, l.water);
+    let shownVis = 0;
+    return list.map((g) => {
+      g.center = L.latLng(g.items[0].c);
+      const vis = !!top && g.pts.slice(0, 12).some((p) => sees(p, top));
+      return { g, d: g.d, vis };
+    }).filter((v) => !v.vis || shownVis++ < 8);   // the 8 nearest that see it (and all, to lift name matches)
+  }
+
+  // ---------- past confirmed matches, and saving a new one (supabase/trail-matches.sql) ----------
+  let past = null;
+  function pastMatches() {
+    const acct = window.tfAccount;
+    if (!acct || !acct.enabled) return Promise.resolve([]);
+    if (!past) past = acct.load().then(() => acct.client ? acct.client.from("trail_matches").select("trail_name, osm_type, osm_ids, zone, lat, lon, words")
+      .order("created_at", { ascending: false }).limit(500) : { data: [] }).then(({ data, error }) => (error ? [] : data || [])).catch(() => []);
+    return past;
+  }
+  async function ensureMedia() {
+    if (media || !file) return media;
+    try {
+      const cs = isVideo(file) ? (await videoFrames(thumbUrl, job)).slice(0, 1) : [await imageCanvas(thumbUrl)];
+      if (cs.length) media = { jpegs: cs.map(jpeg) };
+      cs.forEach((c) => { c.width = c.height = 0; });
+    } catch {}
+    return media;
+  }
+  async function saveMatch(r) {
+    const acct = window.tfAccount, sv = r.save;
+    if (!sv || !acct || !acct.enabled) return false;
+    await acct.load();
+    if (!acct.client) return false;
+    let photo = null;
+    const m = await ensureMedia();
+    if (m && m.jpegs[0]) {
+      const bin = atob(m.jpegs[0]), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const path = `${new Date().toISOString().slice(0, 7)}/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+      const { error } = await acct.client.storage.from("trail-match-photos").upload(path, new Blob([bytes], { type: "image/jpeg" }), { contentType: "image/jpeg", upsert: false });
+      if (!error) photo = path;
+    }
+    const keep = sv.method === "gps" ? [] : [...new Set(core(words(lastText)).filter((t) => t.length >= 4 && !GENERIC.has(t)))].slice(0, 40);
+    const { error } = await acct.client.from("trail_matches").insert({
+      trail_name: sv.name.slice(0, 120), osm_type: sv.type, osm_ids: sv.ids, zone: sv.zone ? String(sv.zone).slice(0, 60) : null,
+      lat: sv.c ? +sv.c[0] : null, lon: sv.c ? +sv.c[1] : null, words: keep.join(" ").slice(0, 600), method: sv.method, photo,
+      details: { read: $("pfRead").value.slice(0, 2000), said: $("pfCaption").value.slice(0, 800), area: $("pfArea").value, gps: gpsSpot, conf: r.conf, video: !!(file && isVideo(file)),
+        ai: ai ? { scene: ai.scene, landmarks: ai.landmarks, places: ai.places, trail_names: ai.trail_names, terrain: ai.terrain, guesses: ai.guesses } : null },
+    });
+    if (!error) past = null;   // read again next time, with this one
+    return !error;
+  }
+
   // ---------- results ----------
   let shown = [];
+  const tagOf = (n) => F.norm(n).replace(/ /g, "");
+  function links(r) {
+    const q = encodeURIComponent(`${r.name} ${r.zone || ""} mtb`.replace(/\s+/g, " ").trim());
+    return `<div class="pv" aria-label="Videos and photos of ${esc(r.name)}"><a href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener">▶ YouTube</a>` +
+      `<a href="https://www.instagram.com/explore/tags/${encodeURIComponent(tagOf(r.name))}/" target="_blank" rel="noopener">Instagram</a>` +
+      `<a href="https://www.trailforks.com/search/?q=${encodeURIComponent(r.name)}" target="_blank" rel="noopener">Trailforks</a>` +
+      `<a href="https://www.google.com/search?tbm=isch&q=${q}" target="_blank" rel="noopener">Photos</a></div>`;
+  }
   function show(rows, note) {
     shown = rows;
     $("pfRes").innerHTML = rows.map((r, n) => `<li tabindex="0" data-n="${n}" class="${r.best ? "best" : ""}"><span class="bar"></span>
-      <div><div class="pn">${esc(r.name)} ${r.tags ? F.diffBadge(r.tags) : ""}</div><div class="pm">${esc(r.meta)}</div></div><span class="pc">${esc(r.conf)}</span></li>`).join("");
+      <div><div class="pn">${esc(r.name)} ${r.tags ? F.diffBadge(r.tags) : ""}</div><div class="pm">${esc(r.meta)}</div>${r.name !== "Unnamed trail" ? links(r) : ""}</div><span class="pc">${esc(r.conf)}</span></li>`).join("");
     $("pfNote").textContent = note || "";
   }
-  const pickRow = (li) => { const r = li && shown[+li.dataset.n]; if (r) { close(); r.open(); } };
-  $("pfRes").addEventListener("click", (e) => pickRow(e.target.closest("li")));
-  $("pfRes").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickRow(e.target.closest("li")); } });
+  // After a pick: "Is this the trail in your picture?" Yes saves it quietly; No brings the list back.
+  let asking = null, askTimer = 0;
+  function showAsk(r) {
+    asking = r; clearTimeout(askTimer);
+    ask.innerHTML = `<span>Is <b>${esc(r.name)}</b> the trail in your picture?</span><button type="button" class="btn primary" data-a="yes">Yes, that's it</button>` +
+      `<button type="button" class="btn" data-a="no">No, show the list</button><button type="button" class="btn" data-a="x" aria-label="Close">✕</button>`;
+    ask.hidden = false;
+  }
+  ask.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-a]"), r = asking;
+    if (!a || !r) return;
+    asking = null;
+    if (a.dataset.a === "yes") {
+      ask.innerHTML = "<span>Thanks! It will help the next searches.</span>";
+      saveMatch(r).catch(() => false);
+      askTimer = setTimeout(() => { ask.hidden = true; }, 2500);
+    } else {
+      ask.hidden = true;
+      if (a.dataset.a === "no") open();
+    }
+  });
+  const pickRow = (li) => { const r = li && shown[+li.dataset.n]; if (r) { close(); r.open(); if (r.save) showAsk(r); } };
+  $("pfRes").addEventListener("click", (e) => { if (!e.target.closest("a")) pickRow(e.target.closest("li")); });
+  $("pfRes").addEventListener("keydown", (e) => { if (e.target.matches("li") && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pickRow(e.target); } });
 })();
