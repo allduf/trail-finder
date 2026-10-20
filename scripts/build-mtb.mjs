@@ -16,6 +16,10 @@
 // Across every zone, a path that runs among MTB trails (within NET_M of two or more differently named ones, like the site's
 // own "MTB trail network" rule) is added too, marked tf:net=<two of those names>, so the networks' untagged trails show:
 // Azrael and Trial and Error at Emerald (Whistler), Berminator on Golden's Mount 7, the bicycle=designated trails of Ellison.
+// And in every zone, a path along a government trail open to bikes (data/official/, built by scripts/build-official.mjs:
+// Whistler's and the Columbia Shuswap's own trail lists, Recreation Sites and Trails BC trails listing mountain biking,
+// Parks Canada...) is added, marked tf:offmtb=<who lists it> and tf:official, so official trails without bike tags show on
+// the map too (alex 2026-10-20: Cheakamus Lake Trail, Rainbow-Sproatt Flank, Semaphore, Three Blind Mice weren't drawn).
 // A zone whose riding areas change is rebuilt on the next run.
 // Lists refreshed in the last FRESH_HOURS are skipped; a zone that fails keeps its last good file.
 //
@@ -35,7 +39,7 @@ const started = Date.now(), outOfTime = () => Date.now() - started > MINUTES * 6
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
 
-const RULES = 5;                      // files built with older rules are rebuilt, however fresh
+const RULES = 6;                      // files built with older rules are rebuilt, however fresh
 const LONG_ROUTE = 150;               // MTB route relations with more ways than this are long-distance routes
 const AREA_M = 3000, SPARSE = 20, NET_M = 400;
 const AREAS = (readJsonAt(new URL("data/riding-areas.json", root)) || { areas: [] }).areas;
@@ -67,6 +71,11 @@ const REC_ZONES = { chil: "all", rev: "bikes" };
 // each way gets tf:official=<reason>, unless it already has a reason or is named like a road.
 const OFFICIAL_ZONES = { wl: "an established Williams Lake mountain bike trail (Fox Mountain, Desous Mountain and around town)" };
 const REC_M = 60, REC_SHARE = 0.6;
+// The government lists (as official.js matches them on the site): who each source is, and the town lists that name each
+// trail (a line there with another trail's name is a different trail on the same spot).
+const OFF_WHO = { on: "Ontario Trails", qc: "Sépaq", bc: "Recreation Sites and Trails BC", ab: "Alberta designated trails", pc: "Parks Canada",
+  ott: "the City of Ottawa", wh: "the Resort Municipality of Whistler", csrd: "the Columbia Shuswap Regional District", csrd2: "the Columbia Shuswap Regional District" };
+const OFF_NAMED = /^(wh|csrd)$/;
 const WFS = "https://openmaps.gov.bc.ca/geo/pub/wfs";
 const WINTER = /\b(winter|snowmobile|sled|ski|snowshoe|nordic)\b/i;
 
@@ -291,6 +300,56 @@ function recMatch(geometry, index) {
   const [t, n] = [...hits].sort((a, b) => b[1] - a[1])[0] || [];
   return t && n / pts.length >= REC_SHARE ? t : null;
 }
+// ---------- Government trails open to bikes (data/official/), every zone ----------
+// The zone's lines with bikes allowed (s 1), indexed by cell like the Recreation Sites and Trails BC ones.
+function offData([s, w, n, e]) {
+  const index = new Map(), sq = (v) => Math.floor(v * 2) / 2;
+  let lines = 0;
+  for (let la = sq(s); la < n; la += 0.5) for (let lo = sq(w); lo < e; lo += 0.5) {
+    const f = readJsonAt(new URL(`data/official/${la}_${lo}.json`, root));
+    if (!f || f.v !== 2) continue;
+    for (const [st, src, name, note, d] of f.lines) {
+      if (st !== 1) continue;
+      const g = [];   // 1e-5 degree differences (see scripts/build-official.mjs)
+      for (let k = 0, a = 0, o = 0; k < d.length; k += 2) { a += d[k]; o += d[k + 1]; g.push([a / 1e5, o / 1e5]); }
+      const t = { src, name: name || "", key: `${src}|${name}` };
+      lines++;
+      for (let k = 1; k < g.length; k++) {   // points about every 15 m
+        const nn = Math.max(1, Math.ceil(metres(g[k - 1], g[k]) / 15));
+        for (let j = 0; j < nn; j++) {
+          const q = [g[k - 1][0] + ((g[k][0] - g[k - 1][0]) * j) / nn, g[k - 1][1] + ((g[k][1] - g[k - 1][1]) * j) / nn], c = cellOf(q).join(",");
+          if (!index.has(c)) index.set(c, []);
+          index.get(c).push([q, t]);
+        }
+      }
+      if (g.length === 1) { const c = cellOf(g[0]).join(","); if (!index.has(c)) index.set(c, []); index.get(c).push([g[0], t]); }
+    }
+  }
+  return lines ? index : null;
+}
+const offWords = (s) => new Set((s || "").toLowerCase().match(/[a-z0-9]{3,}/g) || []);
+const offSameName = (a, b) => { const A = offWords(a), B = offWords(b); return !A.size || !B.size || [...A].some((w) => B.has(w)); };
+// The government trail a way runs along (REC_SHARE of its points within REC_M of the same trail), or null.
+function offMatch(geometry, name, index) {
+  const pts = [];
+  for (let i = 1; i < geometry.length; i++) {
+    const a = [geometry[i - 1].lat, geometry[i - 1].lon], b = [geometry[i].lat, geometry[i].lon], n = Math.max(1, Math.ceil(metres(a, b) / 25));
+    for (let k = 0; k < n; k++) pts.push([a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n]);
+  }
+  pts.push([geometry[geometry.length - 1].lat, geometry[geometry.length - 1].lon]);
+  const hits = new Map();   // trail key -> [trail, points near it]
+  for (const p of pts) {
+    const [i, j] = cellOf(p), seen = new Set();
+    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) for (const [q, t] of index.get(`${i + di},${j + dj}`) || []) {
+      if (seen.has(t.key) || metres(p, q) > REC_M || name && OFF_NAMED.test(t.src) && !offSameName(name, t.name)) continue;
+      seen.add(t.key);
+      const h = hits.get(t.key) || [t, 0]; h[1]++; hits.set(t.key, h);
+    }
+  }
+  // A town's own list beats the province's, then the closer fit.
+  const [t, n] = [...hits.values()].sort((a, b) => b[1] - a[1] || (OFF_NAMED.test(b[0].src) ? 1 : 0) - (OFF_NAMED.test(a[0].src) ? 1 : 0))[0] || [];
+  return t && n / pts.length >= REC_SHARE ? t : null;
+}
 function inPark([lat, lon], park) {
   const [s, w, n, e] = park.box;
   if (lat < s || lat > n || lon < w || lon > e) return false;
@@ -404,6 +463,7 @@ for (const z of order) {
   try {
     const areas = areasOf(z);
     const mode = REC_ZONES[z.id], rec = mode ? await recData(z.box, mode) : null;
+    const offIndex = offData(z.box);
     const els = await fetchBox(z.box, areas);
     const all = new Map(els.filter((e) => e.type === "way" && e.tags && e.tags.highway && e.geometry && e.geometry.length > 1).map((w) => [w.id, w]));
     const rels = els.filter((e) => e.type === "relation" && e.tags && e.tags.route === "mtb");
@@ -414,7 +474,7 @@ for (const z of order) {
     const tagged = [...all.values()].filter((w) => ownMtb(w.tags || {}) || routeWays.has(w.id));
     const sparse = areas.filter((a) => a.r || tagged.filter((w) => w.geometry.some((p) => metres([p.lat, p.lon], a.c) <= AREA_M)).length < SPARSE);
     const ways = {}, routes = {}, rest = [];
-    let fromAreas = 0, fromRec = 0, fromLift = 0, fromHand = 0;
+    let fromAreas = 0, fromRec = 0, fromLift = 0, fromHand = 0, fromOff = 0;
     for (const w of all.values()) {
       const tags = { ...(w.tags || {}) };
       const mid = w.geometry[w.geometry.length >> 1];
@@ -429,7 +489,12 @@ for (const z of order) {
         const a = tags.name && !NOT_BIKE_NAME.test(tags.name) && sparse.find((a) => metres([mid.lat, mid.lon], a.c) <= radius(a) || (a.park && park && park.name === a.park));
         const lp = /^(path|bridleway)$/.test(tags.highway) && !motor(tags) && /^(hiking)?$/.test(tags.sac_scale || "") && !NOT_BIKE_NAME.test(tags.name || "")
           && parks.find((p) => inPark([mid.lat, mid.lon], p));
+        const om = !lp && !a && offIndex && !motor(tags) && !NOT_BIKE_NAME.test(tags.name || "") ? offMatch(w.geometry, tags.name, offIndex) : null;
         if (lp) { tags["tf:lift"] = lp.name; tags["tf:lift-why"] = lp.why; fromLift++; }
+        else if (om) {
+          tags["tf:offmtb"] = OFF_WHO[om.src] || om.src; fromOff++;
+          if (!tags["tf:official"]) tags["tf:official"] = `listed by ${OFF_WHO[om.src] || om.src}${om.name ? ` as “${om.name}”` : ""}, with bikes allowed`;
+        }
         else if (!a) { rest.push({ w, park }); continue; }   // maybe in an MTB trail network (below)
         else { tags["tf:area"] = a.name; fromAreas++; }
         if (a && a.official && !/\b(road|rd)\b/i.test(tags.name)) tags["tf:official"] = a.official;
@@ -456,7 +521,7 @@ for (const z of order) {
     log(`${z.name}: ${Object.keys(ways).length} trails, ${Object.keys(routes).length} MTB routes` +
       (longRoutes.length ? `; left out long-distance routes ${longRoutes.map((r) => (r.tags && r.tags.name) || r.id).join(", ")}` : "") +
       (sparse.length ? `; ${fromAreas} named paths added in ${sparse.map((a) => a.name).join(", ")} (few bike tags there)` : "") +
-      (fromHand ? `; ${fromHand} paths a rider listed (ratings.js)` : "") + (rec ? `; ${fromRec} paths along Recreation Sites and Trails BC trails` : "") + `; ${fromNet} paths in MTB trail networks` +
+      (fromHand ? `; ${fromHand} paths a rider listed (ratings.js)` : "") + (rec ? `; ${fromRec} paths along Recreation Sites and Trails BC trails` : "") + `; ${fromOff} paths along government trails open to bikes` + `; ${fromNet} paths in MTB trail networks` +
       (parks.length ? `; ${fromLift} paths in lift-served bike parks (${parks.map((p) => p.name).join(", ")})` : ""));
   } catch (e) {
     failed++;
