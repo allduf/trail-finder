@@ -918,7 +918,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   function showAsk(r) {
     asking = r; clearTimeout(askTimer);
     ask.innerHTML = `<span>Is <b>${esc(r.name)}</b> the trail in your picture?</span><button type="button" class="btn primary" data-a="yes">Yes, that's it</button>` +
-      `<button type="button" class="btn" data-a="no">No, show the list</button><button type="button" class="btn" data-a="x" aria-label="Close">✕</button>`;
+      `<button type="button" class="btn" data-a="no">No, show the list</button><button type="button" class="btn" data-a="unsure">Not sure</button><button type="button" class="btn" data-a="x" aria-label="Close">✕</button>`;
     ask.hidden = false;
   }
   ask.addEventListener("click", (e) => {
@@ -929,6 +929,10 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       ask.innerHTML = "<span>Thanks! It will help the next searches.</span>";
       saveMatch(r).catch(() => false);
       askTimer = setTimeout(() => { ask.hidden = true; }, 2500);
+    } else if (a.dataset.a === "unsure") {
+      // Nothing saved: only a sure Yes teaches later searches.
+      ask.innerHTML = "<span>OK, nothing saved. The YouTube and Photos links in the list help compare.</span>";
+      askTimer = setTimeout(() => { ask.hidden = true; }, 3500);
     } else {
       ask.hidden = true;
       if (a.dataset.a === "no") open();
