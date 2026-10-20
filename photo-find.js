@@ -7,8 +7,8 @@
 //    nightly name lists (data/names-<zone>.json) and the likely trails are listed, best first.
 // 3. Landmarks: big mountains, rock walls and lakes named in the words or described by the rider (data/landmarks.json)
 //    list the trails that can actually see them (a line-of-sight check on the elevation tiles), nearest first.
-// 4. Claude (optional): when the Supabase function (AI_FN) is set up (supabase/functions/which-trail), a small
-//    copy of the picture goes to Claude, which says what it recognises (landmarks, trail names, places, terrain).
+// 4. AI (optional, Gemini): when the Supabase function (AI_FN) is set up (supabase/functions/which-trail), a small
+//    copy of the picture goes to the AI, which says what it recognises (landmarks, trail names, places, terrain).
 //    Without it everything above still works.
 // 5. "Is this the trail?": a Yes saves a small copy of the picture and what led to the match (supabase/trail-matches.sql),
 //    quietly, and past matches with similar words lift that trail in later searches.
@@ -34,7 +34,7 @@
   const STRONG = 1.05;        // a match this good in the areas looked at first doesn't need the other regions
   // The Supabase function holding supabase/functions/which-trail (the dashboard deployed it as "smooth-worker").
 const AI_FN = "smooth-worker";
-const AI_SIDE = 1024;       // the copy sent to Claude and saved with a confirmed match
+const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirmed match
   const SEE_M = 12000;        // trails up to this far from a landmark are checked for a view of it
   const DEM = (z, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
 
@@ -125,8 +125,8 @@ const AI_SIDE = 1024;       // the copy sent to Claude and saved with a confirme
   // ---------- open / close ----------
   let job = 0, file = null, gpsSpot = null, pin = null, thumbUrl = null;
   let lastText = "";        // the words the last search matched, saved with a confirmed match
-  let media = null;          // { jpegs: [base64...] } small copies of the picture or frames, for Claude and for saving
-  let ai = null, aiKey = "", aiOff = false;   // Claude's answer for this picture; aiOff: the function isn't set up
+  let media = null;          // { jpegs: [base64...] } small copies of the picture or frames, for the AI and for saving
+  let ai = null, aiKey = "", aiOff = false;   // the AI's answer for this picture; aiOff: the function isn't set up
   function open() {
     box.hidden = false;
     $("pfPaste").hidden = !(navigator.clipboard && navigator.clipboard.read);
@@ -359,7 +359,7 @@ const AI_SIDE = 1024;       // the copy sent to Claude and saved with a confirme
     v.removeAttribute("src"); v.load();
     return out;
   }
-  // A small JPEG of a picture or frame (base64, no header), for Claude and for a saved match.
+  // A small JPEG of a picture or frame (base64, no header), for the AI and for a saved match.
   function jpeg(c) {
     const k = Math.min(1, AI_SIDE / Math.max(c.width, c.height)), s = document.createElement("canvas");
     s.width = Math.round(c.width * k); s.height = Math.round(c.height * k);
@@ -407,14 +407,14 @@ const AI_SIDE = 1024;       // the copy sent to Claude and saved with a confirme
     }
     return lines.join("\n");
   }
-  // Claude looks at the picture (supabase/functions/which-trail). null when it isn't set up, fails or has nothing.
-  async function askClaude(my, read) {
+  // The AI looks at the picture (supabase/functions/which-trail). null when it isn't set up, fails or has nothing.
+  async function askAI(my, read) {
     const acct = window.tfAccount;
     if (aiOff || !media || !media.jpegs.length || !acct || !acct.enabled) return null;
     const area = $("pfArea").selectedOptions[0];
     const key = [$("pfCaption").value.trim(), $("pfArea").value].join("|");
-    if (ai && aiKey === key) return ai;      // once per picture and description: each look costs about 2 cents
-    say("Claude is looking at the picture (mountains, rock, lakes, words)…", 0.9);
+    if (ai && aiKey === key) return ai;      // once per picture and description: the free AI allows only so many a day
+    say("The AI is looking at the picture (mountains, rock, lakes, words)…", 0.9);
     try {
       await acct.load();
       if (!acct.client) return null;
@@ -445,15 +445,15 @@ const AI_SIDE = 1024;       // the copy sent to Claude and saved with a confirme
         say(`Couldn't read the words in it (${e.message}).`);
       }
     }
-    const seen = file ? await askClaude(my, $("pfRead").value) : null;
+    const seen = file ? await askAI(my, $("pfRead").value) : null;
     if (my !== job) return;
     $("pfAi").hidden = !seen;
-    if (seen) $("pfAi").textContent = "Claude sees: " + seen.scene + (seen.landmarks.length ? ` Landmarks: ${seen.landmarks.join(", ")}.` : "");
-    // Claude's places and landmarks first, then the trail names it read or guessed (so a hit there says "Claude named it").
+    if (seen) $("pfAi").textContent = "The AI sees: " + seen.scene + (seen.landmarks.length ? ` Landmarks: ${seen.landmarks.join(", ")}.` : "");
+    // The AI's places and landmarks first, then the trail names it read or guessed (so a hit there says "AI named it").
     const aiSaw = seen ? [...seen.places, ...seen.landmarks].join("\n") : "";
     const aiNames = seen ? [...seen.trail_names, ...seen.guesses.map((g) => g.trail + " " + g.area)].join("\n") : "";
     const own = [$("pfCaption").value, $("pfRead").value].join("\n"), text = [own, aiSaw, aiNames].join("\n");
-    // Saved with a confirmed match: the rider's and the picture's words, and what Claude saw (not its trail guesses).
+    // Saved with a confirmed match: the rider's and the picture's words, and what the AI saw (not its trail guesses).
     lastText = seen ? [own, ...seen.landmarks, ...seen.places, ...seen.terrain].join("\n") : own;
     if (!text.trim()) {
       say(file ? "No words found in it." : "Add a photo or video, or type what you know.");
@@ -562,7 +562,7 @@ const AI_SIDE = 1024;       // the copy sent to Claude and saved with a confirme
     }
     return best;
   }
-  async function match(text, my, aiSeen, aiFrom = Infinity, aiSawFrom = Infinity) {   // first trail-name word / first word from Claude
+  async function match(text, my, aiSeen, aiFrom = Infinity, aiSawFrom = Infinity) {   // first trail-name word / first word from the AI
     const tokens = core(words(text));
     const pre = [""];  // pre[i] = tokens[0..i) joined, for quick runs
     tokens.forEach((t, i) => { pre.push(pre[i] + t); });
@@ -647,7 +647,7 @@ const AI_SIDE = 1024;       // the copy sent to Claude and saved with a confirme
       // The same words are also a place it names ("Alice Lake"): weaker as a trail.
       if (found.some((p) => p.ws.join("") === t.ws.join(""))) s -= 0.2;
       const said = tokens.slice(t.hit.at, t.hit.at + t.hit.n).join(" ");
-      why.unshift(t.hit.at >= aiFrom ? "Claude named it" : t.hit.at >= aiSawFrom ? `Claude saw “${said}”` : t.hit.how === "tag" || t.ws !== g.ws ? `“${said}” is in the words` : t.hit.d ? `read as “${said}”` : `“${g.name}” is in the words`);
+      why.unshift(t.hit.at >= aiFrom ? "AI named it" : t.hit.at >= aiSawFrom ? `AI saw “${said}”` : t.hit.how === "tag" || t.ws !== g.ws ? `“${said}” is in the words` : t.hit.d ? `read as “${said}”` : `“${g.name}” is in the words`);
       return { g, s, why, said: said.replace(/ /g, "") };
     }).filter((h) => h.s >= 0.7);
     let hits = scored(raw);
@@ -665,7 +665,7 @@ const AI_SIDE = 1024;       // the copy sent to Claude and saved with a confirme
       }
       hits = scored(raw);
     }
-    // Landmarks named in the words (or by Claude), or described ("granite wall") in an area it points to: the trails
+    // Landmarks named in the words (or by the AI), or described ("granite wall") in an area it points to: the trails
     // that can see them. A trail found by name and also seeing the landmark goes up; one only seeing it is "Possible".
     const areaZones = new Set([...pickedIds, ...hinted]);
     const named = [], looked = [];
@@ -695,10 +695,10 @@ const AI_SIDE = 1024;       // the copy sent to Claude and saved with a confirme
         else if (v.vis) hits.push({ g: v.g, s: Math.min(STRONG - 0.06, base + 0.1 * (v.d < 500 ? 0.3 : Math.max(0, 1 - v.d / 8000))), why: [why], lm: true });
       }
     }
-    // Claude's own guesses go up a little.
+    // The AI's own guesses go up a little.
     if (aiSeen) {
       const guess = new Set([...aiSeen.trail_names, ...aiSeen.guesses.map((g) => g.trail)].map((n) => core(words(n)).join(" ")));
-      hits.forEach((h) => { if (guess.has(h.g.ws.join(" ")) && !h.why.includes("Claude named it")) { h.s += 0.1; h.why.push("Claude thinks so too"); } });
+      hits.forEach((h) => { if (guess.has(h.g.ws.join(" ")) && !h.why.includes("AI named it")) { h.s += 0.1; h.why.push("AI thinks so too"); } });
     }
     // Past confirmed matches with similar words (supabase/trail-matches.sql) lift their trail.
     const rare = new Set(tokens.filter((t) => t.length >= 4 && !GENERIC.has(t)));
