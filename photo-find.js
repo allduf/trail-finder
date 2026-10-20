@@ -7,7 +7,7 @@
 //    nightly name lists (data/names-<zone>.json) and the likely trails are listed, best first.
 // 3. Landmarks: big mountains, rock walls and lakes named in the words or described by the rider (data/landmarks.json)
 //    list the trails that can actually see them (a line-of-sight check on the elevation tiles), nearest first.
-// 4. Claude (optional): when the Supabase function "which-trail" is set up (supabase/functions/which-trail), a small
+// 4. Claude (optional): when the Supabase function (AI_FN) is set up (supabase/functions/which-trail), a small
 //    copy of the picture goes to Claude, which says what it recognises (landmarks, trail names, places, terrain).
 //    Without it everything above still works.
 // 5. "Is this the trail?": a Yes saves a small copy of the picture and what led to the match (supabase/trail-matches.sql),
@@ -32,7 +32,9 @@
   const MAX_SIDE = 2400;      // pictures are shrunk to this many pixels on the long side before reading (phone memory)
   const VIDEO_FRAMES = 5;
   const STRONG = 1.05;        // a match this good in the areas looked at first doesn't need the other regions
-  const AI_SIDE = 1024;       // the copy sent to Claude and saved with a confirmed match
+  // The Supabase function holding supabase/functions/which-trail (the dashboard deployed it as "smooth-worker").
+const AI_FN = "smooth-worker";
+const AI_SIDE = 1024;       // the copy sent to Claude and saved with a confirmed match
   const SEE_M = 12000;        // trails up to this far from a landmark are checked for a view of it
   const DEM = (z, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
 
@@ -417,7 +419,7 @@
       await acct.load();
       if (!acct.client) return null;
       const lm = (await landmarkList()).map((l) => l.name);
-      const { data, error } = await acct.client.functions.invoke("which-trail", { body: {
+      const { data, error } = await acct.client.functions.invoke(AI_FN, { body: {
         images: media.jpegs, text: read.slice(0, 2000), description: $("pfCaption").value.slice(0, 800), area: $("pfArea").value ? area.textContent : "", landmarks: lm } });
       if (my !== job) return null;
       if (error) {

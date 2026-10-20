@@ -1,7 +1,7 @@
 // Trail Finder "Which trail is this?": Claude looks at a trail photo (or a few frames of a video) and says what it
 // sees that can place it: trail names written in it, big landmarks in the background (the Chief, Black Tusk...),
 // places, the kind of terrain, and its best guesses. The site (photo-find.js) then matches that against its own
-// trail lists. Setup (once): Supabase dashboard → Edge Functions → Deploy a new function named "which-trail",
+// trail lists. Setup (once): Supabase dashboard → Edge Functions → Deploy a new function (deployed as "smooth-worker"; AI_FN in photo-find.js must match),
 // paste this file, turn "Verify JWT" off; then Edge Functions → Secrets → add ANTHROPIC_API_KEY.
 import Anthropic from "npm:@anthropic-ai/sdk@0.135.0";
 import { zodOutputFormat } from "npm:@anthropic-ai/sdk@0.135.0/helpers/zod";
