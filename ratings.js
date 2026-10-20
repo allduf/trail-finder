@@ -159,7 +159,8 @@
   // Trails a local rider rated (alex), matched by name within r metres of c. Remove one once OpenStreetMap has a rating.
   // Every trail listed is an MTB trail (the rider says so). d: their level (leave out to keep the estimate);
   // off: they say it's an official trail (shown as Official). unoff: why it's not official (shown dotted as Unofficial, even when
-  // the map's tags say official). Unnamed trails are listed by OpenStreetMap way id (ids) instead of name.
+  // the map's tags say official). Unnamed trails are listed by OpenStreetMap way id (ids) instead of name;
+  // named: the trail the rider says they're part of, so lists, search and details show and group them under that name.
   // Entries with src instead of who come from the weekly data audit's research (scripts/audit.mjs): src names the
   // resort, club or tourism page that gives the level or calls it a bike trail, url is that page. Never Trailforks.
   const HAND = [
@@ -176,6 +177,8 @@
     { name: "electric unicorn", c: [50.31, -122.816], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail",
       note: "an unsanctioned trail by Signal Hill, Pemberton; mapped as a bike path (bicycle=designated) in a 2026-10-14 edit that dropped its informal=yes" },
     { name: "Taste the Candy", c: [50.326, -122.843], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail", note: "an unsanctioned trail off Pemberton Creek, Pemberton" },
+    { ids: [1105675082], c: [50.309, -122.942], r: 2000, who: "alex", named: "Hidden Peak Trail",
+      note: "the unnamed AlpX black descent, Pemberton (its old_name is Hidden Peak Trail), which joins the Hidden Peak Trail climb" },
     { name: "Taste the Gravy", c: [50.322, -122.83], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail", note: "an unsanctioned trail off Pemberton Creek, Pemberton" },
     // One OpenStreetMap mapper (tresspasserlover69, 2026-10-07 to 14) maps new unsanctioned lines as bike paths (highway=cycleway,
     // bicycle=designated), which reads as official, and removed informal=yes from older ones. Their edits: "added sick new line",
@@ -242,13 +245,14 @@
       && Math.hypot((mid[0] - h.c[0]) * 110540, (mid[1] - h.c[1]) * 111320 * Math.cos((h.c[0] * Math.PI) / 180)) <= h.r);
     return h || null;
   }
-  // { mtb, off, unoff }: why the trail counts as an MTB trail, as official and as unofficial (null when not), or null when it isn't listed.
+  // { mtb, off, unoff, named }: why the trail counts as an MTB trail, as official and as unofficial (null when not), the trail
+  // an unnamed piece belongs to (null when none), or null when it isn't listed.
   function hand(geom, tags, id) {
     const h = handOf(geom, tags, id);
     if (!h) return null;
-    const unoff = h.unoff || null;
-    if (!h.who) return { mtb: h.unoff ? "mapped as a mountain bike line" : `${h.src} calls it a mountain bike trail`, off: null, unoff };
-    return { mtb: `${h.who}, who rides it, says it's a mountain bike trail`, off: h.off ? `${h.who}, who rides it, says it's an official trail` : null, unoff };
+    const unoff = h.unoff || null, named = h.named || null;
+    if (!h.who) return { mtb: h.unoff ? "mapped as a mountain bike line" : `${h.src} calls it a mountain bike trail`, off: null, unoff, named };
+    return { mtb: `${h.who}, who rides it, says it's a mountain bike trail`, off: h.off ? `${h.who}, who rides it, says it's an official trail` : null, unoff, named };
   }
 
   // Best rating known now: a rider's own rating, official open data, then the same trail, then an estimate.
