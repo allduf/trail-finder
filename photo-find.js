@@ -525,18 +525,20 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   }
 
   // The online check (the function's "compare"): Google search on the likely trails (what riders and sites say they look
-  // like), photos from those pages and geotagged photos near them, compared with this picture. The list is already up;
-  // it's reordered when the answer comes.
+  // like), photos from those pages, geotagged photos near them and pictures riders confirmed, and (when the AI placed
+  // the photo) pages, videos and geotagged photos from all around that spot, compared with this picture. The list is
+  // already up; it's reordered when the answer comes, and trails where a close-looking photo was taken join it.
   async function compareOnline(my, rows, seen) {
     const acct = window.tfAccount, list = rows.filter((r) => r.save && r.name !== "Unnamed trail").slice(0, 6);
+    const vp = seen.viewpoint && seen.viewpoint.km > 0 && seen.viewpoint.km <= 15 ? seen.viewpoint : null;
     if (aiOff || !list.length || !media || !acct || !acct.client) return;
     const out = $("pfCmp"), key = aiKey + "|" + list.map((r) => r.name + "@" + r.save.zone).join(",");
     let got = cmp && cmpKey === key ? cmp : null, why = "";
     if (!got) {
       out.hidden = false;
-      out.textContent = `Searching Google for videos, photos and descriptions of ${list.length > 1 ? "these trails" : "this trail"} to compare with yours… up to ${CMP_WAIT / 1000} s`;
+      out.textContent = `Searching Google for videos, photos and descriptions of ${list.length > 1 ? "these trails" : "this trail"}${vp ? " and of riding around where it seems taken" : ""} to compare with yours… up to ${CMP_WAIT / 1000} s`;
       const look = acct.client.functions.invoke(AI_FN, { timeout: CMP_WAIT, body: { mode: "compare", images: media.jpegs, scene: seen.scene, description: $("pfCaption").value.slice(0, 800),
-        trails: list.map((r) => ({ name: r.name, area: r.zone, kind: r.kind, c: r.save.c })) } }).then(async ({ data, error }) => {
+        trails: list.map((r) => ({ name: r.name, area: r.zone, kind: r.kind, c: r.save.c })), spot: vp || undefined } }).then(async ({ data, error }) => {
         if (!error) return data;
         let msg = "";
         try { msg = (await error.context.json()).error || ""; } catch { /* not JSON */ }
@@ -552,12 +554,29 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       out.textContent = `Online check skipped (${got ? got.why || got.noSearch || "found nothing" : why}).`;
       return;
     }
-    // Each trail's fit (0-1) moves it up or down; a found photo of the same place counts extra.
-    const fitOf = new Map(got.ranks.map((k) => [F.norm(k.trail), k]));
-    const next = shown.map((r) => {
+    // Each trail's fit (0-1) moves it up or down; a found photo of the same place counts extra, a picture a rider
+    // confirmed more.
+    const fitOf = new Map((got.ranks || []).map((k) => [F.norm(k.trail), k]));
+    let next = shown.map((r) => {
       const k = fitOf.get(F.norm(r.name));
-      return k ? { ...r, s: r.s + 0.4 * (k.fit - 0.5) + (k.photo ? 0.1 : 0), web: k } : r;
-    }).sort((a, b) => b.s - a.s);
+      return k ? { ...r, s: r.s + 0.4 * (k.fit - 0.5) + (k.photo ? 0.1 : 0) + (k.confirmed && k.fit >= 0.6 ? 0.15 : 0), web: k } : r;
+    });
+    // Photos from around the spot that look close, even if not the same place: the trails where they were taken (or the
+    // one their page is about) go up, or join the list.
+    const around = vp && (got.close || []).length ? (await trailsNear([L.latLng(vp.lat, vp.lon)], Math.min(15, Math.max(3, vp.km * 1.5)) * 1000)).list : [];
+    for (const c of got.close || []) {
+      let gs = c.trail ? around.filter((g) => F.norm(g.name) === F.norm(c.trail)).slice(0, 1) : [];
+      if (!gs.length && c.at) gs = (await trailsNear([L.latLng(c.at[0], c.at[1])], 600)).list.slice(0, 2);
+      if (my !== job) return;
+      const why = `${c.close >= 0.8 ? "an online photo of the same place" : "an online photo that looks close"}${c.at ? " was taken near it" : ""}`;
+      for (const g of gs) {
+        const web = { fit: c.close, why: c.why || why, photo: { img: c.img, page: c.page, title: c.title }, close: true };
+        const have = next.find((r) => F.norm(r.name) === F.norm(g.name) && r.save && r.save.zone === g.zone.id);
+        if (have) { if (!have.closeBy) { have.s += 0.3 * c.close; have.closeBy = true; have.meta += " · " + why; if (!have.web || !have.web.photo) have.web = web; } }
+        else next.push({ ...rowOf({ g, s: 0.45 + 0.45 * c.close, why: [why] }, "mixed"), web, closeBy: true });
+      }
+    }
+    next = next.sort((a, b) => b.s - a.s).slice(0, 10);
     const top = next.length ? next[0].s : 0;
     next.forEach((r, i) => {
       r.best = i === 0 && r.s >= STRONG && (next.length === 1 || next[1].s <= r.s - 0.049);
@@ -567,7 +586,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     say(next[0].best ? "Likely trails, best first (checked online)." : "Possible trails, best first (checked online).");
     const src = (got.sources || []).map((w) => `<a href="${esc(w.uri)}" target="_blank" rel="noopener">${esc(w.title || "page")}</a>`).join("");
     out.innerHTML = `Checked online${got.ms ? ` (${Math.round(got.ms / 1000)} s)` : ""}: ${got.searched ? "Google search" : "no Google search" + (got.noSearch ? ` (${esc(got.noSearch)})` : "")}` +
-      `${got.photos ? `, ${got.photos} photo${got.photos > 1 ? "s" : ""} of these trails compared with yours` : ""}.` +
+      `${got.photos ? `, ${got.photos} photo${got.photos > 1 ? "s" : ""} compared with yours${got.area ? ` (${got.area} from around where it seems taken)` : ""}` : ""}.` +
       (src ? `<div class="src">${src}</div>` : "") +
       // Google asks for its search suggestions to be shown wherever search results are used.
       (got.suggest ? `<iframe sandbox="allow-popups allow-popups-to-escape-sandbox" title="Google searches used" srcdoc="${esc(got.suggest)}"></iframe>` : "");
@@ -845,18 +864,18 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const placey = new Set([...found.flatMap((p) => p.ws), ...(await landmarkList()).flatMap((l) => [...l.ws, ...l.akaWs.flat()])]);
     // A plain or nearly plain picture has a fingerprint like any other plain one: not used.
     const picHash = file && media && media.hash && Math.abs(hamming(media.hash, "0".repeat(16)) - 32) <= 24 ? media.hash : null;
-    for (const m of rare.size >= 2 || picHash ? await pastMatches() : []) {
-      // The same picture (or nearly) was confirmed before: that trail.
-      if (picHash && m.hash && hamming(picHash, m.hash) <= 10) {
-        const zone = F.zoneById(m.zone) || { id: m.zone || "?", name: m.zone || "" };
-        const g = { name: m.trail_name, type: m.osm_type === "relation" ? "r" : "w", ws: core(words(m.trail_name)), alts: [], tags: { name: m.trail_name }, zone, center: L.latLng(m.lat || 0, m.lon || 0),
-          items: m.osm_ids.map((id) => ({ t: m.osm_type === "relation" ? "r" : "w", id, c: [m.lat, m.lon], tags: {} })) };
-        const have = hits.find((h) => keyOf(h.g) === keyOf(g)), why = "same picture as one confirmed before";
-        if (have) { if (!have.why.includes(why)) { have.s = Math.max(have.s, STRONG + 0.15) + 0.1; have.why.unshift(why); have.past = true; } }
-        else hits.push({ g, s: STRONG + 0.25, why: [why], past: true });
-        continue;
-      }
-      if (rare.size < 2) continue;
+    // The same picture (or nearly) was confirmed before: that trail. The function compares the fingerprints (the site
+    // can't read them).
+    for (const m of picHash ? await samePicture(picHash) : []) {
+      if (!Array.isArray(m.osm_ids) || !m.osm_ids.length) continue;
+      const zone = F.zoneById(m.zone) || { id: m.zone || "?", name: m.zone || "" };
+      const g = { name: m.trail_name, type: m.osm_type === "relation" ? "r" : "w", ws: core(words(m.trail_name)), alts: [], tags: { name: m.trail_name }, zone, center: L.latLng(m.lat || 0, m.lon || 0),
+        items: m.osm_ids.map((id) => ({ t: m.osm_type === "relation" ? "r" : "w", id, c: [m.lat, m.lon], tags: {} })) };
+      const have = hits.find((h) => keyOf(h.g) === keyOf(g)), why = "same picture as one confirmed before";
+      if (have) { if (!have.why.includes(why)) { have.s = Math.max(have.s, STRONG + 0.15) + 0.1; have.why.unshift(why); have.past = true; } }
+      else hits.push({ g, s: STRONG + 0.25, why: [why], past: true });
+    }
+    for (const m of rare.size >= 2 ? await pastMatches() : []) {
       const ws = (m.words || "").split(" ").filter((w) => w && !GENERIC.has(w)), both = ws.filter((w) => rare.has(w)), shared = both.length;
       if (shared < 2 || shared / Math.min(ws.length, rare.size) < 0.3) continue;
       const onlyPlaces = both.every((w) => placey.has(w));
@@ -880,14 +899,16 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     return {
       places: [...new Set(found.map((p) => p.label))],
       rows: rows.map((h, i) => {
-        const g = h.g, best = i === 0 && h.s >= STRONG && (rows.length === 1 || rows[1].s <= h.s - 0.049);
-        const conf = best ? "Best match" : h.s >= top - 0.05 && h.s >= STRONG ? "Likely" : "Possible";
-        const fg = { name: g.name, type: g.type, kind: F.kindOf(g.tags, g.type === "r"), tags: g.tags, zone: g.zone.name.split(" (")[0], center: g.center, items: g.items };
-        return { name: g.name, tags: g.tags, best, conf, s: h.s, kind: fg.kind, meta: [fg.kind, fg.zone, ...h.why].filter(Boolean).join(" · "), open: () => F.show(fg), zone: fg.zone,
-          save: { name: g.name, type: g.type === "r" ? "relation" : "way", ids: g.items.map((i) => i.id).slice(0, 60), zone: g.zone.id, c: [g.center.lat, g.center.lng],
-            method: h.lm ? "landmark" : aiSeen ? "mixed" : "words" } };
+        const best = i === 0 && h.s >= STRONG && (rows.length === 1 || rows[1].s <= h.s - 0.049);
+        return { ...rowOf(h, h.lm ? "landmark" : aiSeen ? "mixed" : "words"), best, conf: best ? "Best match" : h.s >= top - 0.05 && h.s >= STRONG ? "Likely" : "Possible" };
       }),
     };
+  }
+  // A list row for a found trail group (h: { g, s, why }).
+  function rowOf(h, method) {
+    const g = h.g, fg = { name: g.name, type: g.type, kind: F.kindOf(g.tags, g.type === "r"), tags: g.tags, zone: g.zone.name.split(" (")[0], center: g.center, items: g.items };
+    return { name: g.name, tags: g.tags, s: h.s, kind: fg.kind, why: h.why, meta: [fg.kind, fg.zone, ...h.why].filter(Boolean).join(" · "), open: () => F.show(fg), zone: fg.zone,
+      save: { name: g.name, type: g.type === "r" ? "relation" : "way", ids: g.items.map((i) => i.id).slice(0, 60), zone: g.zone.id, c: [g.center.lat, g.center.lng], method } };
   }
 
   // ---------- landmarks and what can see them ----------
@@ -1017,9 +1038,19 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   function pastMatches() {
     const acct = window.tfAccount;
     if (!acct || !acct.enabled) return Promise.resolve([]);
-    if (!past) past = acct.load().then(() => acct.client ? acct.client.from("trail_matches").select("trail_name, osm_type, osm_ids, zone, lat, lon, words, hash:details->>hash")
+    if (!past) past = acct.load().then(() => acct.client ? acct.client.from("trail_matches").select("trail_name, osm_type, osm_ids, zone, lat, lon, words")
       .order("created_at", { ascending: false }).limit(500) : { data: [] }).then(({ data, error }) => (error ? [] : data || [])).catch(() => []);
     return past;
+  }
+  async function samePicture(hash) {
+    const acct = window.tfAccount;
+    if (!acct || !acct.enabled) return [];
+    try {
+      await acct.load();
+      if (!acct.client) return [];
+      const { data, error } = await acct.client.functions.invoke(AI_FN, { timeout: 8000, body: { mode: "same", hash } });
+      return !error && data && Array.isArray(data.same) ? data.same : [];
+    } catch { return []; }
   }
   async function ensureMedia() {
     if (media || !file) return media;
@@ -1068,7 +1099,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   // What the online check said about this trail, with the found photo that looks like the same place.
   function online(k) {
     const pic = k.photo && /^https:/.test(k.photo.img) ? `<a href="${esc(k.photo.page)}" target="_blank" rel="noopener" title="${esc(k.photo.title)}"><img src="${esc(k.photo.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>` : "";
-    return `<div class="pw">${pic}<span>Online (${Math.round(k.fit * 100)}% fit): ${esc(k.why)}</span></div>`;
+    return `<div class="pw">${pic}<span>Online (${Math.round(k.fit * 100)}% ${k.close ? "close" : "fit"}): ${esc(k.why)}${k.confirmed && k.fit >= 0.6 ? " · looks like a picture a rider confirmed" : ""}</span></div>`;
   }
   function show(rows, note) {
     shown = rows;
