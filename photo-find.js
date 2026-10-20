@@ -429,7 +429,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         const st = error.context && error.context.status;
         let msg = "";
         try { msg = (await error.context.json()).error || ""; } catch { /* not JSON */ }
-        aiWhy = msg || (st ? "error " + st : error.name === "AbortError" || /abort/i.test(error.message || "") ? "too slow" : error.message || "failed");
+        const plain = { 401: "the function still has Verify JWT on", 404: "not set up yet", 546: "the function ran out of time", 504: "too slow" };
+        aiWhy = msg || (st ? plain[st] || "error " + st : error.name === "AbortError" || /abort/i.test(error.message || "") ? "too slow" : error.message || "failed");
         if (st === 404 || st === 503 || /Failed to send/i.test(error.message || "")) aiOff = true;   // not set up (or key refused): don't ask again this visit
         return null;
       }
@@ -446,6 +447,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   }
   async function byWords(my, read) {
     if (pin && !gpsSpot) { pin.remove(); pin = null; }
+    // A new search: last search's list, note and AI line go, so nothing stale shows while this one runs.
+    shown = []; $("pfRes").innerHTML = ""; $("pfNote").textContent = ""; $("pfAi").hidden = true;
     if (read && file) {
       try {
         const text = await readWords(my);
@@ -915,7 +918,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   function showAsk(r) {
     asking = r; clearTimeout(askTimer);
     ask.innerHTML = `<span>Is <b>${esc(r.name)}</b> the trail in your picture?</span><button type="button" class="btn primary" data-a="yes">Yes, that's it</button>` +
-      `<button type="button" class="btn" data-a="no">No, show the list</button><button type="button" class="btn" data-a="x" aria-label="Close">✕</button>`;
+      `<button type="button" class="btn" data-a="no">No, show the list</button><button type="button" class="btn" data-a="unsure">Not sure</button><button type="button" class="btn" data-a="x" aria-label="Close">✕</button>`;
     ask.hidden = false;
   }
   ask.addEventListener("click", (e) => {
@@ -926,6 +929,10 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       ask.innerHTML = "<span>Thanks! It will help the next searches.</span>";
       saveMatch(r).catch(() => false);
       askTimer = setTimeout(() => { ask.hidden = true; }, 2500);
+    } else if (a.dataset.a === "unsure") {
+      // Nothing saved: only a sure Yes teaches later searches.
+      ask.innerHTML = "<span>OK, nothing saved. The YouTube and Photos links in the list help compare.</span>";
+      askTimer = setTimeout(() => { ask.hidden = true; }, 3500);
     } else {
       ask.hidden = true;
       if (a.dataset.a === "no") open();
