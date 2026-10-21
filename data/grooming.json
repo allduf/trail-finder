@@ -1,13 +1,12 @@
 {
- "builtAt": "2026-10-21T19:06:45Z",
+ "builtAt": "2026-10-21T20:56:25Z",
  "reports": {
   "pmsc": {
    "url": "https://www.powdermountainsnowmobileclub.com/grooming-report/",
-   "fetchedAt": "2026-10-21T14:57:58Z",
+   "fetchedAt": "2026-10-21T20:56:25Z",
    "text": "Grooming Report\nGrooming has begun for the 2025/26 season. Please check back daily for live updates on what has been groomed.",
    "date": "",
-   "changedAt": "2026-10-15T03:03:01Z",
-   "error": "HTTP 502"
+   "changedAt": "2026-10-15T03:03:01Z"
   }
  }
 }
