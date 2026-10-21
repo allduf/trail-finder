@@ -13,6 +13,7 @@
 // Phone notifications (Web Push): a third switch saves this phone's push address and the settings above to Supabase
 // (push_save(), supabase/push.sql); scripts/push-loam.mjs sends the same alerts a few times a day. Device only: tf:pushId.
 (() => {
+  const APP_V = ((document.currentScript && document.currentScript.src.match(/[?&]v=(\d+)/)) || [])[1] || "?";   // the job logs it per phone
   const ZONES = window.tfZones, slot = document.querySelector("[data-notify-slot]");
   if (!ZONES || !slot || !window.tfClassify || !window.tfShowFound) return;
 
@@ -271,7 +272,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     if (!zones.length) { try { localStorage.removeItem("tf:notify"); } catch {} window.dispatchEvent(new Event("tf:setting")); }
     else { const p = prefs(); store.set("notify", { zones, since: p ? p.since : new Date().toISOString() }); }
     checkLoam(true);
-    pushSync(0);   // right away: on iPhone the app is often put away straight after Save
+    pushSync(0, true);   // right away (on iPhone the app is often put away straight after Save), even if nothing looks changed
     if (zones.length || watching()) showList(); else box.close();
     paint();
   });
@@ -386,29 +387,36 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   // What this phone wants, for the job: the same switches and regions as the 🔔, and the To ride trails' spots.
   const pushWatch = () => {
     const p = prefs();
-    return { zones: p ? p.zones : [], since: p ? p.since : null, loam: loamOn(), newt: newOn() && !!p,
+    return { v: APP_V, zones: p ? p.zones : [], since: p ? p.since : null, loam: loamOn(), newt: newOn() && !!p,
       ride: rideList().filter((t) => t.c).map((t) => ({ k: t.key, n: t.name, c: [r5(t.c[0]), r5(t.c[1])] })) };
   };
   const swReady = () => Promise.race([navigator.serviceWorker.ready, new Promise((_, no) => setTimeout(() => no(new Error("no service worker")), 8000))]);
-  async function pushSave(sub) {
+  const lastSave = () => { try { return JSON.parse(lsGet("tf:pushSaved") || "{}") || {}; } catch { return {}; } };
+  async function pushSave(sub, force) {
     const watch = pushWatch(), body = { p_id: pushId(), p_sub: sub.toJSON(), p_watch: watch };
-    const hash = JSON.stringify([sub.endpoint, watch]), last = JSON.parse(lsGet("tf:pushSaved") || "{}");
-    if (last.h === hash && Date.now() - last.at < 3 * 86400e3) return;   // nothing new (re-saved every few days anyway)
+    const hash = JSON.stringify([sub.endpoint, watch]), last = lastSave();
+    if (!force && last.h === hash && Date.now() - last.at < 3 * 86400e3) return;   // nothing new (re-saved every few days anyway)
     await rpc("push_save", body);
     lsSet("tf:pushSaved", JSON.stringify({ h: hash, at: Date.now() }));
   }
   // Keep the job's copy of this phone's settings and To ride list up to date, and renew an expired push address.
-  let syncT = 0;
-  function pushSync(wait = 1500) {
-    if (!pushOk || !pushId() || Notification.permission !== "granted") return;
+  // A failure is kept (tf:pushErr) and shown on the 📱 line, so a phone that stops updating says why.
+  let syncT = 0, pushErr = lsGet("tf:pushErr") || "";
+  function pushSync(wait = 1500, force = false) {
+    if (!pushOk || !pushId()) return;
     clearTimeout(syncT);
     syncT = setTimeout(async () => {
       try {
+        if (Notification.permission !== "granted") throw new Error("notifications not allowed");
         const reg = await swReady();
         let sub = await reg.pushManager.getSubscription();
-        if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(await getKey()) });
-        await pushSave(sub);
-      } catch {}
+        if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(await getKey()) })
+          .catch(() => { throw new Error("the phone dropped its push address: turn 📱 off and on again"); });
+        await pushSave(sub, force);
+        pushErr = "";
+      } catch (e) { pushErr = (e && e.message) || String(e); }
+      lsSet("tf:pushErr", pushErr || null);
+      if (box.open) paintPush();
     }, wait);
   }
   // What the job will check for this phone, so a phone with nothing picked (the Home Screen app keeps its own
@@ -429,7 +437,11 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
       ? "On iPhone, this works from the Home Screen: in Safari tap Share, then Add to Home Screen. Open Trail Finder from that icon and turn this on there."
       : iPhone ? "Phone notifications need iOS 16.4 or newer." : "This browser can't show notifications.");
     if (Notification.permission === "denied") return pushMsg("Notifications are blocked for Trail Finder. Allow them in your phone's settings, then turn this on.");
-    pushMsg(on.checked ? `On for this phone. ${watchingText()} Checked at ${PUSH_TIMES}.` : "");
+    const at = lastSave().at, ago = at && Math.round((Date.now() - at) / 60000);
+    const sent = !at ? "" : ago < 2 ? " Sent to Trail Finder just now." : ago < 120 ? ` Sent to Trail Finder ${ago} min ago.`
+      : ` Last sent to Trail Finder ${new Date(at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.`;
+    pushMsg(!on.checked ? "" : pushErr ? `On for this phone, but your latest changes didn't reach Trail Finder (${pushErr}). Tap Save to try again.`
+      : `On for this phone. ${watchingText()}${sent} Checked at ${PUSH_TIMES}.`);
     getKey().catch(() => {});
   }
   q("ntPushOn").addEventListener("change", async (e) => {
