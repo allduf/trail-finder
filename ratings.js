@@ -166,6 +166,8 @@
   const HAND = [
     { name: "Alpine Capone", c: [49.845, -123.092], r: 3000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish" },
     { name: "Just a Cough", c: [49.823, -123.118], r: 2000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish, like Flying Whales" },
+    // BC's Trail is tagged blue (mtb:scale:imba 2) on OpenStreetMap; a rider's level beats the map's (rateTags in index.html).
+    { name: "BC's Trail", c: [50.088, -122.981], r: 1500, d: "dbl", who: "alex", note: "a Whistler Bike Park trail in Creekside, by Kadenwood" },
     { name: "Trial and Error", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Trial and Error (lower)", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Pretty Slabs", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
@@ -258,8 +260,9 @@
   // Best rating known now: a rider's own rating, official open data, then the same trail, then an estimate.
   function rate(id, geom, tags) {
     const h = handOf(geom, tags, id);
-    if (h && h.d) return { d: h.d, src: "hand", why: h.who ? `Rated ${LEVEL[h.d]} by ${h.who}, who rides it: ${h.note}. It has no rating on OpenStreetMap yet.`
-      : `Rated ${LEVEL[h.d]} by ${h.src}. It has no rating on OpenStreetMap yet.` };
+    const mapped = tags && (tags["mtb:scale:imba"] != null || tags["mtb:scale"] != null) ? " OpenStreetMap rates it differently." : " It has no rating on OpenStreetMap yet.";
+    if (h && h.d) return { d: h.d, src: "hand", why: h.who ? `Rated ${LEVEL[h.d]} by ${h.who}, who rides it: ${h.note}.${mapped}`
+      : `Rated ${LEVEL[h.d]} by ${h.src}.${mapped}` };
     const o = official(geom, tags && (tags.name || tags["tf:name"]));
     if (o) return o;
     const w = osm && id && osm[id];

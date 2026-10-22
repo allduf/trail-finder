@@ -1369,10 +1369,10 @@ body.sport-ski #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=262"></script>
-<script src="official.js?v=262"></script>
-<script src="directions.js?v=262"></script>
-<script src="ratings.js?v=262"></script>
+<script src="rotate.js?v=263"></script>
+<script src="official.js?v=263"></script>
+<script src="directions.js?v=263"></script>
+<script src="ratings.js?v=263"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -2034,6 +2034,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
   };
   const UNRATED = "#8a8f98";
   function difficulty(tags) {
+    if (tags["tf:diffsrc"] === "hand" && DIFF[tags["tf:diff"]]) return tags["tf:diff"];   // a rider's level beats the map's
     const imba = parseFloat(tags["mtb:scale:imba"]), sts = parseInt(tags["mtb:scale"], 10);
     if (!isNaN(imba)) return imba < 2 ? "green" : imba < 3 ? "blue" : imba < 4 ? "black" : imba < 5 ? "dbl" : "pro";
     if (!isNaN(sts)) return sts <= 1 ? "green" : sts === 2 ? "blue" : sts === 3 ? "black" : sts === 4 ? "dbl" : "pro";
@@ -2060,8 +2061,8 @@ body.sport-ski #rideMapBtn { display: none !important; }
     if (h) { tags["tf:handmtb"] = h.mtb; if (h.off) tags["tf:handoff"] = h.off; if (h.unoff) tags["tf:handunoff"] = h.unoff; }
     // An unnamed piece the rider says is part of a named trail takes its name, so it groups with the rest (like tf:name below).
     if (h && h.named && !tags.name) { tags.name = h.named; tags["tf:name"] = h.named; }
-    if (difficulty(tags)) return tags;
-    const r = window.tfRatings.rate(id, geom, tags);
+    const r = h || !difficulty(tags) ? window.tfRatings.rate(id, geom, tags) : null;   // a rider's level beats the map's (BC's Trail)
+    if (difficulty(tags) && !(r && r.src === "hand")) return tags;
     if (r) Object.assign(tags, { "tf:diff": r.d, "tf:diffsrc": r.src, "tf:diffwhy": r.why });
     return tags;
   }
@@ -3012,7 +3013,7 @@ out body;`;
         const pts = samplePoints(t.geom, 100);
         const url = `${ELEV_API}?latitude=${pts.map((p) => p.lat.toFixed(5)).join(",")}&longitude=${pts.map((p) => p.lon.toFixed(5)).join(",")}`;
         const res = await fetch(url);
-        if (!res.ok) throw new Error(res.status === 429 ? "too many requests today, try later" : "HTTP " + res.status);
+        if (!res.ok) throw await meteoErr(res);
         const json = await res.json();
         if (!json.elevation || json.elevation.length !== pts.length) throw new Error("unexpected answer");
         pts.forEach((p, i) => { p.e = json.elevation[i]; });
@@ -3039,6 +3040,28 @@ out body;`;
   }
   // ---------- weather and Loam moisture index (Open-Meteo forecast, free, no key) ----------
   const WX_API = "https://api.open-meteo.com/v1/forecast";
+  // Open-Meteo's free limits count each place asked for, per internet address: 600 a minute, 5,000 an hour, 10,000 a day.
+  // A 429 says which one ran out (its "reason"), so the message says when to try again.
+  async function meteoErr(res) {
+    if (res.status !== 429) return new Error("HTTP " + res.status);
+    let why = "";
+    try { why = ((await res.json()).reason || "").toLowerCase(); } catch {}
+    meteoPause = Date.now() + (why.includes("daily") ? 3600e3 : why.includes("hourly") ? 15 * 60000 : 70000);
+    return new Error(why.includes("minutely") ? "too many requests this minute, try again in a minute"
+      : why.includes("hourly") ? "too many requests this hour, try later" : "too many requests today, try later");
+  }
+  // Loam for whole lists and alert regions (hundreds of places) is spread out so it never takes the whole minute's
+  // allowance (a trail's own weather and elevation then still load), and it stops for a while after a 429.
+  const LOAM_PER_MIN = 300;
+  let meteoPause = 0, loamSent = [];   // [time, places] of loam requests in the last minute
+  async function loamTurn(n) {
+    for (;;) {
+      if (Date.now() < meteoPause) return false;
+      loamSent = loamSent.filter((x) => Date.now() - x[0] < 60000);
+      if (loamSent.reduce((a, x) => a + x[1], 0) + n <= LOAM_PER_MIN) { loamSent.push([Date.now(), n]); return true; }
+      await new Promise((r) => setTimeout(r, Math.max(1000, loamSent[0][0] + 60000 - Date.now())));
+    }
+  }
   const WX_FRESH_MS = 30 * 60000;
   const WMO = { 0: ["Clear", "☀️"], 1: ["Mostly clear", "🌤️"], 2: ["Partly cloudy", "⛅"], 3: ["Cloudy", "☁️"], 45: ["Fog", "🌫️"], 48: ["Freezing fog", "🌫️"],
     51: ["Light drizzle", "🌦️"], 53: ["Drizzle", "🌦️"], 55: ["Heavy drizzle", "🌧️"], 56: ["Freezing drizzle", "🌧️"], 57: ["Freezing drizzle", "🌧️"],
@@ -3070,7 +3093,22 @@ out body;`;
   // Lists, trail details, alerts and To ride pins all read one shared reading per cell, so a trail
   // shows the same number everywhere. 0.02° (about 2 km) is close to the weather model's own grid:
   // 0.05° cells put some trails' reading 3 km away, in a wetter or drier model cell.
+  // Kept on this device for half an hour, so reloading the page doesn't ask Open-Meteo for every place again.
+  const LOAM_STORE = "tf:loamCells";
   const loamCells = new Map();                   // "lat,lon" (rounded to 0.02°) -> { at, lmi }
+  try {
+    Object.entries(JSON.parse(localStorage.getItem(LOAM_STORE) || "{}") || {})
+      .forEach(([k, [at, lmi]]) => { if (Date.now() - at < WX_FRESH_MS) loamCells.set(k, { at, lmi }); });
+  } catch {}
+  let loamSaveT = 0;
+  const saveLoamCells = () => {
+    clearTimeout(loamSaveT);
+    loamSaveT = setTimeout(() => {
+      const o = {};
+      loamCells.forEach((c, k) => { if (c.lmi !== null && Date.now() - c.at < WX_FRESH_MS) o[k] = [c.at, c.lmi]; });
+      try { localStorage.setItem(LOAM_STORE, JSON.stringify(o)); } catch {}
+    }, 2000);
+  };
   const cellOf = (t) => { const m = t.loamAt || t.center || L.latLng(t.geom[Math.floor(t.geom.length / 2)]); return `${(Math.round(m.lat * 50) / 50).toFixed(2)},${(Math.round(m.lng * 50) / 50).toFixed(2)}`; };
   function loamOf(t) {
     const c = loamCells.get(cellOf(t));
@@ -3090,16 +3128,21 @@ out body;`;
   async function fetchLoamCells(need) {
     for (let i = 0; i < need.length; i += 50) {
       const chunk = need.slice(i, i + 50), ll = chunk.map((k) => k.split(","));
+      if (!(await loamTurn(chunk.length))) {   // paused after a 429: try these again once the pause is over
+        need.slice(i).forEach((k) => loamCells.set(k, { at: Date.now() - WX_FRESH_MS + Math.max(60000, meteoPause - Date.now()), lmi: null }));
+        break;
+      }
       try {
         const res = await fetch(`${WX_API}?latitude=${ll.map((x) => x[0]).join(",")}&longitude=${ll.map((x) => x[1]).join(",")}&timezone=auto&past_days=1&forecast_days=1` +
           "&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm");
-        if (!res.ok) throw new Error(res.status === 429 ? "too many requests today" : "HTTP " + res.status);
+        if (!res.ok) throw await meteoErr(res);
         const json = await res.json();
         (Array.isArray(json) ? json : [json]).forEach((w, k) => {
           let j = w.hourly.time.findIndex((x) => x > w.current.time) - 1;
           if (j < 0) j = w.hourly.time.length - 1;
           loamCells.set(chunk[k], { at: Date.now(), lmi: lmiAt(w.hourly, j) });
         });
+        saveLoamCells();
       } catch (e) {
         log(`Loam moisture index for the list: ${e.message}.`);
         chunk.forEach((k) => loamCells.set(k, { at: Date.now() - WX_FRESH_MS + 5 * 60000, lmi: null }));   // try again in 5 minutes
@@ -3131,7 +3174,7 @@ out body;`;
             "&hourly=precipitation,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm" +
             "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max";
           const res = await fetch(url);
-          if (!res.ok) throw new Error(res.status === 429 ? "too many requests today, try later" : "HTTP " + res.status);
+          if (!res.ok) throw await meteoErr(res);
           const json = await res.json();
           if (!json.current || !json.hourly || !json.daily) throw new Error("unexpected answer");
           t.wx = { at: Date.now(), json };
@@ -3822,6 +3865,10 @@ out body;`;
   function savedLayer(o) {
     map.createPane(o.pane).style.zIndex = o.z;
     const layer = L.layerGroup();
+    // o.pinsBelow: pins only when zoomed out further than this (a long Ridden list covered the trails in pins up close).
+    const pins = L.layerGroup().addTo(layer);
+    const pinsFit = () => !o.pinsBelow || map.getZoom() < o.pinsBelow;
+    if (o.pinsBelow) map.on("zoomend", () => { if (pinsFit() !== layer.hasLayer(pins)) pinsFit() ? layer.addLayer(pins) : layer.removeLayer(pins); });
     const lines = L.canvas({ pane: o.pane, padding: 0.3, tolerance: L.Browser.touch ? 10 : 5 });   // one canvas, not an SVG path per line
     const btn = document.createElement("button");
     btn.id = o.btnId; btn.type = "button";
@@ -3851,6 +3898,8 @@ out body;`;
     }
     function draw() {
       layer.clearLayers();
+      pins.clearLayers();
+      if (pinsFit()) layer.addLayer(pins);
       paintBtn();
       if (!on) return;
       trails().forEach((w) => {
@@ -3867,7 +3916,7 @@ out body;`;
         const tip = `${w.name}${v == null ? "" : ` · Loam ${v}, ${LMI_LEVELS[k][1].toLowerCase()} (${LMI_RIDE[k][1].toLowerCase()})`}${w.note ? `\n${w.note}` : ""}`;
         L.marker(s.c, { pane: o.pane, title: tip, keyboard: true,
           icon: L.divIcon({ className: "toride-pin" + o.pin + (k < 0 ? " unknown" : ""), iconSize: [0, 0], html: `<span style="${k < 0 ? "" : `background:${color}`}"><b>${o.glyph}</b>${esc(label)}</span>` }) })
-          .on("click", open).addTo(layer);
+          .on("click", open).addTo(pins);
       });
     }
     // Shapes for old saves are loaded from OpenStreetMap in the background: the pins and lines that are already known
@@ -3934,7 +3983,7 @@ out body;`;
   const toRide = savedLayer({ pane: "toRide", z: 455, btnId: "rideMapBtn", key: "toride", label: "★ To ride", glyph: "★", pin: "", halo: "#ffc61a",
     what: "to-ride trails", empty: "Your to-ride list is empty: open a trail and tap ☆ To ride",
     trails: () => { const x = getFolders().find((x) => x.id === TO_RIDE); return x ? x.trails : []; } });
-  const riddenMap = savedLayer({ pane: "riddenTrails", z: 454, btnId: "riddenMapBtn", key: "riddenMap", label: "✓ Ridden", glyph: "✓", pin: " ridden", halo: "#b8f03a",
+  const riddenMap = savedLayer({ pane: "riddenTrails", z: 454, btnId: "riddenMapBtn", key: "riddenMap", label: "✓ Ridden", glyph: "✓", pin: " ridden", halo: "#b8f03a", pinsBelow: 13,
     what: "ridden trails", empty: "Your Ridden list is empty: open a trail and tap + Ridden, or record or import a ride",
     trails: () => riddenTrails() });
   window.tfToRideList = toRide.known;
@@ -6104,24 +6153,24 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=262"></script>
-<script src="contours.js?v=262"></script>
-<script src="photo-slider.js?v=262"></script>
-<script src="winter.js?v=262"></script>
-<script src="ski-points.js?v=262"></script>
-<script src="offline.js?v=262"></script>
-<script src="ride-stats.js?v=262"></script>
-<script src="navigate.js?v=262"></script>
-<script src="planner.js?v=262"></script>
-<script src="rides.js?v=262"></script>
-<script src="account.js?v=262"></script>
-<script src="reports.js?v=262"></script>
-<script src="visitors.js?v=262"></script>
-<script src="notify.js?v=262"></script>
-<script src="areas.js?v=262"></script>
-<script src="alpine.js?v=262"></script>
-<script src="bikeparks.js?v=262"></script>
-<script src="photo-find.js?v=262"></script>
+<script src="map3d.js?v=263"></script>
+<script src="contours.js?v=263"></script>
+<script src="photo-slider.js?v=263"></script>
+<script src="winter.js?v=263"></script>
+<script src="ski-points.js?v=263"></script>
+<script src="offline.js?v=263"></script>
+<script src="ride-stats.js?v=263"></script>
+<script src="navigate.js?v=263"></script>
+<script src="planner.js?v=263"></script>
+<script src="rides.js?v=263"></script>
+<script src="account.js?v=263"></script>
+<script src="reports.js?v=263"></script>
+<script src="visitors.js?v=263"></script>
+<script src="notify.js?v=263"></script>
+<script src="areas.js?v=263"></script>
+<script src="alpine.js?v=263"></script>
+<script src="bikeparks.js?v=263"></script>
+<script src="photo-find.js?v=263"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

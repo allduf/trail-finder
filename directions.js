@@ -20,6 +20,9 @@
   // No Trailforks: its terms don't allow copying.
   const HAND = [
     { name: "Into The Mystic", c: [50.111, -123.045], r: 4000, dir: "climb", who: "alex, who rides it", note: "a climbing trail (Whistler)" },
+    // Tagged one-way on OpenStreetMap but drawn bottom to top, so the tag reads as a climb: wrongWay drops the tag's way and
+    // the slope points it (scripts/build-directions.mjs).
+    { name: "Sabertooth Horse", c: [50.085, -122.966], r: 1500, dir: "down", wrongWay: true, who: "alex, who rides it", note: "a Whistler Bike Park descent in Creekside, mapped the wrong way round" },
     { name: "Leftovers Skid Road", c: [50.103, -123.016], r: 1500, dir: "climb", who: "alex, who rides it", note: "an access skid road ridden as a climbing trail (Whistler)" },
     { name: "Yummy Numby", c: [50.127, -122.926], r: 3000, dir: "climb", who: "Vital MTB's Whistler guide", where: "vitalmtb.com", note: "a singletrack climb (Whistler)" },
     { name: "Highline", c: [50.07, -123.028], r: 3000, dir: "climb", who: "MTB Project", where: "mtbproject.com", note: "the warm-up climb to the Cheakamus descents (Whistler)" },
@@ -75,7 +78,7 @@
   function rules(t, geom) {
     if (!t) return null;
     const h = handOf(t, geom);
-    if (h) return { dir: h.dir, along: onewayTag(t) || 0, src: "hand", why: `${h.note[0].toUpperCase()}${h.note.slice(1)}, says ${h.who}${h.where ? ` (${h.where})` : ""}.` };
+    if (h) return { dir: h.dir, along: h.wrongWay ? 0 : onewayTag(t) || 0, src: "hand", why: `${h.note[0].toUpperCase()}${h.note.slice(1)}, says ${h.who}${h.where ? ` (${h.where})` : ""}.` };
     const one = onewayTag(t), inc = inclineOf(t), type = `${t["mtb:type"] || ""} ${t.mtb || ""}`.toLowerCase(), name = nameOf(t);
     if (/uphill|climb/.test(type)) return { dir: "climb", along: 0, src: "osm", why: "Tagged as a climbing trail on OpenStreetMap (mtb:type)." };
     if (one && inc) return { dir: one === inc ? "climb" : "down", along: one, src: "osm", why: `Tagged one-way and ${one === inc ? "uphill" : "downhill"} on OpenStreetMap.` };
