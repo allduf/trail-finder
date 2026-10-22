@@ -1369,10 +1369,10 @@ body.sport-ski #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=266"></script>
-<script src="official.js?v=266"></script>
-<script src="directions.js?v=266"></script>
-<script src="ratings.js?v=266"></script>
+<script src="rotate.js?v=272"></script>
+<script src="official.js?v=272"></script>
+<script src="directions.js?v=272"></script>
+<script src="ratings.js?v=272"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -2575,8 +2575,76 @@ out body;`;
     }
     return { line, all: !left.length };
   }
+  // ---------- Trails split where they cross a forest road ----------
+  // alex (2026-10-22): "when a trail cross an fsr you can segment it". Same-named pieces on either side of a road are two
+  // trails, each with its own highlight, length and details. The nightly job (scripts/build-road-splits.mjs) works out
+  // data/road-splits.json: ways[id] = part (a way on one side), or [cuts, parts, mids] (a way that crosses a road itself:
+  // cut there, one part per piece); ends[id] = 1/2/3 (first/last/both ends of an unnamed way sit on a road).
+  const roadSplits = { ways: {}, ends: {} };
+  fetch("data/road-splits.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((j) => {
+    if (!j) return;
+    roadSplits.ways = j.ways || {}; roadSplits.ends = j.ends || {};
+    names.dirty = true;
+    if (state.trails.length) render();
+  }).catch(() => {});
+  const roadCut = (id) => { const s = roadSplits.ways[id]; return Array.isArray(s) ? s : null; };
+  // The part of a trail's group key: "" when no road splits it. k: the piece of a cut way; without it, line (the way's
+  // shape) picks its longest piece.
+  function partOf(id, k, line) {
+    const s = roadSplits.ways[id];
+    if (s == null) return "";
+    if (!Array.isArray(s)) return "#" + s;
+    if (k == null && line) {
+      const parts = cutLine(line, s[0]);
+      if (parts.length === s[1].length) k = parts.reduce((b, l, i) => (lengthKm(l) > lengthKm(parts[b]) ? i : b), 0);
+    }
+    return "#" + s[1][k ?? 0];
+  }
+  // The pieces of a way cut at roads: [{ k, part, mid }], or null.
+  const roadPieces = (id) => { const s = roadCut(id); return s && s[1].map((p, k) => ({ k, part: "#" + p, mid: s[2][k] })); };
+  // Cut a line (a way's shape, from a list or from OpenStreetMap) at its road crossings: one line per piece.
+  function cutLine(line, cuts) {
+    const out = [];
+    let cur = [], from = 0;
+    const kx = Math.cos(L.latLng(line[0]).lat * Math.PI / 180), xy = (p) => { p = L.latLng(p); return L.point(p.lng * kx, p.lat); };
+    const pts = line.map(xy);
+    cuts.forEach((c) => {
+      const at = L.latLng(c), q = xy(at);
+      let best = -1, bd = Infinity;
+      for (let i = Math.max(from, 1); i < pts.length; i++) {
+        const d = L.LineUtil.pointToSegmentDistance(q, pts[i - 1], pts[i]);
+        if (d < bd) { bd = d; best = i; }
+      }
+      if (best < 0) return;
+      cur.push(...line.slice(from, best), [at.lat, at.lng]);
+      out.push(cur);
+      cur = [[at.lat, at.lng]]; from = best;
+    });
+    cur.push(...line.slice(from));
+    out.push(cur);
+    return out.map((l) => (l.length > 1 ? l : line));
+  }
+  // The piece k of a way's line (the whole line when it isn't cut).
+  function pieceOf(id, line, k) {
+    const s = roadCut(id);
+    if (!s || k == null) return line;
+    const parts = cutLine(line, s[0]);
+    return parts.length === s[1].length ? parts[k] || line : line;
+  }
+  // Which piece of a cut way lies nearest a spot (a tap on the map). geom: the way's shape, else the pieces' middles count.
+  function pieceNear(id, ll, geom) {
+    const s = roadCut(id);
+    if (!s) return null;
+    const lines = geom ? cutLine(geom, s[0]) : null;
+    const away = lines && lines.length === s[1].length
+      ? (k) => Math.min(...lines[k].map((p) => L.latLng(p).distanceTo(ll)))
+      : (k) => L.latLng(s[2][k]).distanceTo(ll);
+    return s[1].reduce((b, _, k) => (away(k) < away(b) ? k : b), 0);
+  }
+
   // One list entry per trail: OpenStreetMap often splits a trail into many pieces (at junctions,
   // bridges...). Pieces with the same name whose ends lie within 1 km of each other become one trail.
+  // Pieces a forest road keeps apart (data/road-splits.json above) are separate trails.
   const MERGE_GAP_M = 1000;
   const MIN_TRAIL_M = 60;                          // shorter trails (after joining same-name pieces) are left out
   const CAT_RANK = { mtb: 0, looks: 1, other: 2 };
@@ -2605,7 +2673,7 @@ out body;`;
     trails.forEach((t) => {
       const name = !t.ghost && (t.tags.name || t.tags["mtb:name"]);
       if (!name) { out.push(t); return; }
-      const k = norm(name);
+      const k = norm(name) + partOf(t.id, null, t.geom);
       if (!byName.has(k)) byName.set(k, []);
       byName.get(k).push(t);
     });
@@ -3383,6 +3451,26 @@ out body;`;
       page: `https://api.panoramax.xyz/#focus=pic&pic=${encodeURIComponent(id)}`, title: "Street-level photo linked on the map", about: "", author: "", licence: "CC BY-SA 4.0", date: "", tagged: true }));
     return out;
   }
+  // alex: anything we find about a trail beyond OpenStreetMap goes on the trail. data/trail-info.json holds what
+  // resort and club pages say (map number, part of the mountain, trail type, length, a short description in our words).
+  let trailInfo = null;
+  const foldName = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  async function officialAbout(t) {
+    trailInfo = trailInfo || fetch("data/trail-info.json?v=272").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
+    const j = await trailInfo; if (!j) return [];
+    const names = new Set([t.tags.name, t.tags["mtb:name"], t.tags["tf:name"], t.tfName].filter(Boolean).map(foldName));
+    const mid = t.geom[Math.floor(t.geom.length / 2)], k = Math.cos(mid[0] * Math.PI / 180);
+    const near = (c, r) => Math.hypot((c[0] - mid[0]) * 110540, (c[1] - mid[1]) * 111320 * k) <= r;
+    return j.trails.filter((e) => {
+      const s = j.src[e.s];
+      return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
+    }).map((e) => {
+      const s = j.src[e.s], facts = [e.no && `#${e.no} on the official map`, e.where, e.level && `Park rating: ${e.level}`,
+        e.kind && `${e.kind} trail`, e.km && `${e.km} km`].filter(Boolean).join(" · ");
+      const kind = j.kinds && j.kinds[e.s] && j.kinds[e.s][e.kind];
+      return { text: [facts && facts + ".", e.text, kind].filter(Boolean).join(" "), src: s.name, url: s.url, licence: "summarised" };
+    });
+  }
   async function wikipediaAbout(t) {
     const m = String(t.tags.wikipedia || "").match(/^([a-z-]{2,12}):(.+)$/);
     if (!m) return null;
@@ -3405,8 +3493,9 @@ out body;`;
       const osm = t.tags["description:en"] || t.tags.description;
       if (osm) texts.push({ text: osm, src: "OpenStreetMap mappers", url: `https://www.openstreetmap.org/${t.osmType || "way"}/${t.id}` });
       if (tf.rec && tf.rec.about) texts.push({ text: tf.rec.about, src: "Recreation Sites and Trails BC", url: tf.rec.id ? `https://www.sitesandtrailsbc.ca/search/search-result.aspx?site=${encodeURIComponent(tf.rec.id)}&type=Trail` : null });
-      const [wiki, tagged, commons, pano] = await Promise.all([
+      const [official, wiki, tagged, commons, pano] = await Promise.all([officialAbout(t).catch(() => []),
         wikipediaAbout(t).catch(() => null), taggedPhotos(t).catch(() => []), commonsNear(t).catch(() => null), panoramaxNear(t).catch(() => null)]);
+      texts.unshift(...official);
       if (wiki) texts.push(wiki);
       const seen = new Set(), photos = [];
       [...tagged, ...(commons || []), ...(pano || [])].forEach((p) => { if (!seen.has(p.full) && !wintry(p)) { seen.add(p.full); photos.push(p); } });
@@ -4410,11 +4499,21 @@ out body;`;
   };
   // The same-name pieces of a trail from the all-trails lists, for a tap when the area's name list isn't loaded:
   // pieces whose ends meet (within 100 m) or whose middles are within 3 km, as the name search groups them.
-  function allGroupOf(way) {
+  function allGroupOf(way, ll, geom) {
     const name = (way.tags && way.tags.name) || allTfOf(way.id)["tf:name"];
     if (!name) return null;
+    // Only the pieces on the tapped side of a forest road (data/road-splits.json); a cut way gives just its piece there.
+    const k0 = ll ? pieceNear(way.id, ll, geom || way.geom) : null, part = partOf(way.id, k0);
     const pieces = new Map();
-    for (const list of allData.values()) (list || []).forEach((w) => { if (w.tags.name === name) pieces.set(w.id, w); });
+    for (const list of allData.values()) (list || []).forEach((w) => {
+      if (w.tags.name !== name || pieces.has(w.id)) return;
+      const cut = roadCut(w.id);
+      if (!cut) { if (partOf(w.id) === part) pieces.set(w.id, w); return; }
+      const lines = cutLine(w.geom, cut[0]);
+      if (lines.length !== cut[1].length) { pieces.set(w.id, w); return; }
+      const ks = cut[1].map((p, k) => k).filter((k) => "#" + cut[1][k] === part && (w.id !== way.id || k0 == null || k === k0));
+      if (ks.length) pieces.set(w.id, { ...w, geom: ks.length === 1 ? lines[ks[0]] : lines[ks[0]].concat(...ks.slice(1).map((k) => lines[k])), k: ks.length === 1 ? ks[0] : undefined });
+    });
     if (!pieces.has(way.id)) return null;
     const ends = (w) => [w.geom[0], w.geom[w.geom.length - 1]];
     const mid = (w) => w.geom[w.geom.length >> 1];
@@ -4423,8 +4522,8 @@ out body;`;
     for (let i = 0; i < items.length; i++) {
       for (let j = left.length - 1; j >= 0; j--) if (near(items[i], left[j])) items.push(...left.splice(j, 1));
     }
-    if (items.length < 2) return null;
-    return { name, type: "w", kind: kindOf(way.tags), tags: way.tags, items: items.map((w) => ({ t: "w", id: w.id, c: mid(w), tags: w.tags })) };
+    if (items.length < 2 && items[0].k == null) return null;
+    return { name, type: "w", kind: kindOf(way.tags), tags: way.tags, items: items.map((w) => ({ t: "w", id: w.id, k: w.k, c: mid(w), tags: w.tags })) };
   }
   // The tags the all-trails job adds to a way (tf:area, tf:official, tf:rec, tf:park...), for a trail loaded from OpenStreetMap.
   function allTfOf(id) {
@@ -5416,17 +5515,26 @@ out tags center qt;`;
       const c = t.bounds.getCenter();
       if (!items.has("w" + t.id)) items.set("w" + t.id, { t: "w", id: t.id, c: [c.lat, c.lng], tags: t.tags });
     });
-    const byKey = new Map(), groups = [];
+    // A way that crosses a forest road is one item per piece, each in the trail of its own side (data/road-splits.json).
+    const list = [];
     for (const i of items.values()) {
+      const pieces = i.t === "w" && roadPieces(i.id);
+      if (pieces) pieces.forEach((p) => list.push({ ...i, k: p.k, c: p.mid }));
+      else list.push(i);
+    }
+    const byKey = new Map(), groups = [];
+    for (const i of list) {
       const name = i.tags.name || i.tags["mtb:name"];
-      const key = i.t + ":" + norm(name);
+      const key = i.t + ":" + norm(name), part = i.t === "w" ? partOf(i.id, i.k) : "";
       const ll = L.latLng(i.c);
       const same = byKey.get(key) || [];
-      let g = i.t === "w" && same.find((g) => g.items.some((o) => ll.distanceTo(o.c) < 3000));
+      // A piece the road splits don't know (not in the MTB lists) joins whichever side lies nearest.
+      let g = i.t === "w" && same.find((g) => (g.part === part || !g.part || !part) && g.items.some((o) => ll.distanceTo(o.c) < 3000));
+      if (g && part && !g.part) g.part = part;
       if (!g) {
         const alt = ["mtb:name", "alt_name", "old_name", "official_name", "short_name", "loc_name"]
           .flatMap((k) => (i.tags[k] || "").split(";")).map(norm).filter(Boolean);
-        g = { name, texts: [norm(name), ...alt], items: [], type: i.t, tags: i.tags };
+        g = { name, texts: [norm(name), ...alt], items: [], type: i.t, tags: i.tags, part };
         same.push(g); byKey.set(key, same); groups.push(g);
       }
       g.items.push(i);
@@ -5479,7 +5587,7 @@ out tags center qt;`;
     .map((r) => ({ ...r, center: L.latLng(r.c[0], r.c[1]), tags: r.tags || {}, recent: true }));
   function rememberTrail(g) {
     if (!g || !g.name || !g.center) return;
-    const key = g.name.trim().toLowerCase(), ids = g.items.slice(0, 40).map((i) => ({ id: i.id }));
+    const key = g.name.trim().toLowerCase(), ids = g.items.slice(0, 40).map((i) => (i.k != null ? { id: i.id, k: i.k } : { id: i.id }));   // k: its piece of a way crossing a road
     const r = { name: g.name, type: g.type, items: ids, kind: g.kind, zone: g.zone, c: [+g.center.lat.toFixed(5), +g.center.lng.toFixed(5)], tags: g.tags || {}, mtb: !!g.mtb, use: g.use || null };
     const old = (store.get("recentTrails", []) || []).filter((x) => x && !(x.name.trim().toLowerCase() === key && x.zone === r.zone));
     store.set("recentTrails", [r, ...old].slice(0, RECENT_MAX));
@@ -5625,19 +5733,23 @@ out tags center qt;`;
         els.filter((e) => e.type === "way").forEach((w) => { const l = wayLine(w, nodes); if (l.length > 1) segs.push(l); });
       } else {
         const ways = [];
-        const ids = g.items.slice(0, 40).map((i) => i.id);
-        await Promise.all(ids.map(async (id) => {
+        const its = g.items.slice(0, 40);
+        await Promise.all([...new Set(its.map((i) => i.id))].map(async (id) => {
           try {
             const els = (await getJson(`${OSM_API}/way/${id}/full.json`)).elements;
             const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e]));
             const w = els.find((e) => e.type === "way");
-            const line = wayLine(w, nodes);
-            if (line.length > 1) ways.push({ w, line, km: lengthKm(line) });
+            const full = wayLine(w, nodes);
+            // A way that crosses a forest road: only its pieces on this trail's side (data/road-splits.json).
+            its.filter((i) => i.id === id).forEach((i) => {
+              const line = pieceOf(id, full, i.k);
+              if (line.length > 1) ways.push({ w, line, km: lengthKm(line) });
+            });
           } catch {}
         }));
         if (!ways.length) throw new Error("the trail's shape didn't load");
         ways.sort((a, b) => b.km - a.km);
-        main = ways[0].w; segs = ways.map((x) => x.line); segIds = ways.map((x) => x.w.id);
+        main = ways[0].w; segs = ways.map((x) => x.line); segIds = [...new Set(ways.map((x) => x.w.id))];
       }
       if (token !== foundToken) return;
       if (!segs.length) throw new Error("the trail's shape didn't load");
@@ -5744,6 +5856,11 @@ out tags center qt;`;
     pickLayer.addLayer(L.tooltip({ permanent: true, direction: "top", offset: [0, -6], className: "pick-note" }).setLatLng(ll).setContent(text));
     setTimeout(() => pickLayer.clearLayers(), 2200);
   }
+  // The named trail a tapped way belongs to; for a way crossing a forest road, the trail on the tapped side.
+  function groupOfWay(id, ll, geom) {
+    const k = pieceNear(id, ll, geom);
+    return names.groups.find((g) => g.type === "w" && (g.items.length > 1 || k != null) && g.items.some((i) => i.id === id && (k == null || i.k === k)));
+  }
   async function pickTrailAt(ll) {
     if (state.selected) closeDetail();
     const snap = map.getZoom() >= SNAP_MIN_ZOOM ? nearestDrawn(ll) : null;
@@ -5751,7 +5868,7 @@ out tags center qt;`;
       ll = snap.ll;
       // A named trail made of several pieces opens right away from the loaded list, no need to ask OpenStreetMap.
       if (names.zones.size && (names.dirty || names.trailCount !== state.trails.length)) buildGroups();
-      const g = names.groups.find((g) => g.type === "w" && g.items.length > 1 && g.items.some((i) => i.id === snap.w.id)) || allGroupOf(snap.w);
+      const g = groupOfWay(snap.w.id, ll, snap.w.geom) || allGroupOf(snap.w, ll);
       if (g) { ++foundToken; pickLayer.clearLayers(); showFound(g, true); return; }
     } else if (map.getZoom() < PICK_MIN_ZOOM) { pickNote(ll, "Zoom in to click a trail"); return; }
     const token = ++foundToken;
@@ -5785,7 +5902,7 @@ out tags center qt;`;
     const w = best.w;
     // Part of a named trail made of several pieces? Show the whole trail, as the name search does.
     if (names.zones.size && (names.dirty || names.trailCount !== state.trails.length)) buildGroups();
-    const g = names.groups.find((g) => g.type === "w" && g.items.length > 1 && g.items.some((i) => i.id === w.id)) || allGroupOf(w);
+    const g = groupOfWay(w.id, ll, best.line) || allGroupOf(w, ll, best.line);
     if (g) { showFound(g, true); return; }
     const routeTypes = [...new Set(els.filter((r) => r.type === "relation" && r.tags && r.tags.route && (r.members || []).some((m) => m.type === "way" && m.ref === w.id)).map((r) => r.tags.route))];
     const routes = els.filter((r) => r.type === "relation" && r.tags && r.tags.route === "mtb" && (r.members || []).some((m) => m.type === "way" && m.ref === w.id))
@@ -5947,6 +6064,11 @@ out tags center qt;`;
       if (seen.has(w.id) || (unoffPick && !unoffOk(w.c.cat, w.c.unoff.length, w.c.official)) || (levels.length && !levelOk(levels, w.tags, unoffPick)) || !inArea(w)) return;
       seen.add(w.id);
       found.extend(w.geom);
+      const cut = (w.tags.name || w.tags["mtb:name"]) && roadCut(w.id), lines = cut ? cutLine(w.geom, cut[0]) : null;
+      if (lines && lines.length === cut[1].length) lines.forEach((geom, k) => addBoxWay({ ...w, geom, k }));   // a way crossing a road: each side on its own
+      else addBoxWay(w);
+    }));
+    function addBoxWay(w) {
       const byDiff = state.colorBy === "diff", d = difficulty(w.tags), unoff = w.c.unoff.length > 0;
       const color = w.c.cat === "path" ? UNRATED : byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks");
       const name = (w.tags.name || w.tags["mtb:name"] || "").trim();
@@ -5955,18 +6077,19 @@ out tags center qt;`;
       boxLayer.addLayer(line);
       if (!name && !diff && !circle) { loose.push({ w, line }); return; }   // listed below as "Unnamed trail", joined where the pieces meet
       if (!name) { unnamed++; line.on("click", (e) => { L.DomEvent.stopPropagation(e); pickTrailAt(e.latlng); }); return; }
-      const key = name.toLowerCase();
+      const key = name.toLowerCase() + partOf(w.id, w.k, w.geom);   // pieces a forest road keeps apart are two trails
       if (!byName.has(key)) byName.set(key, { name, ways: [], km: 0 });
       const g = byName.get(key);
       g.ways.push(w); g.km += lengthKm(w.geom);
       line.bindTooltip(esc(name), { sticky: true, direction: "top", offset: [0, -8] }).on("click", (e) => { L.DomEvent.stopPropagation(e); openBoxGroup(g); });
-    }));
+    }
     const flagged = (g) => g.ways.every((w) => w.c.unoff.length);
     boxGroups = [...byName.values()].sort((a, b) => (unoffPick && flagged(b) - flagged(a)) || a.name.localeCompare(b.name));
     // Unnamed pieces in the square: pieces whose ends meet (within 30 m) make one trail, longest first, after the named ones.
     // Bits under 50 m stay on the map only.
     const ends = (w) => [w.geom[0], w.geom[w.geom.length - 1]];
-    const meet = (a, b) => ends(a).some((p) => ends(b).some((q) => L.latLng(p).distanceTo(q) < 30));
+    const onRoad = (w, i) => (roadSplits.ends[w.id] || 0) & (i + 1);   // that end sits on a forest road: a trail starts there
+    const meet = (a, b) => ends(a).some((p, i) => ends(b).some((q, j) => L.latLng(p).distanceTo(q) < 30 && !(onRoad(a, i) && onRoad(b, j))));
     const left = loose.slice(), noName = [];
     while (left.length) {
       const grp = [left.shift()];
@@ -6047,7 +6170,7 @@ out tags center qt;`;
   $("alpChip").addEventListener("click", () => { if ($("alpChip").getAttribute("aria-pressed") === "true") clearBox(); else showAlpine(); });
   function openBoxGroup(g) {
     const main = g.ways.reduce((a, w) => (lengthKm(w.geom) > lengthKm(a.geom) ? w : a));
-    showFound({ type: "w", name: g.name, kind: kindOf(main.tags), tags: main.tags, items: g.ways.map((w) => ({ id: w.id })) }, true);
+    showFound({ type: "w", name: g.name, kind: kindOf(main.tags), tags: main.tags, items: g.ways.map((w) => ({ id: w.id, k: w.k })) }, true);
   }
 
   const zoneSel = $("zone");
@@ -6167,24 +6290,24 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=266"></script>
-<script src="contours.js?v=266"></script>
-<script src="photo-slider.js?v=266"></script>
-<script src="winter.js?v=266"></script>
-<script src="ski-points.js?v=266"></script>
-<script src="offline.js?v=266"></script>
-<script src="ride-stats.js?v=266"></script>
-<script src="navigate.js?v=266"></script>
-<script src="planner.js?v=266"></script>
-<script src="rides.js?v=266"></script>
-<script src="account.js?v=266"></script>
-<script src="reports.js?v=266"></script>
-<script src="visitors.js?v=266"></script>
-<script src="notify.js?v=266"></script>
-<script src="areas.js?v=266"></script>
-<script src="alpine.js?v=266"></script>
-<script src="bikeparks.js?v=266"></script>
-<script src="photo-find.js?v=266"></script>
+<script src="map3d.js?v=272"></script>
+<script src="contours.js?v=272"></script>
+<script src="photo-slider.js?v=272"></script>
+<script src="winter.js?v=272"></script>
+<script src="ski-points.js?v=272"></script>
+<script src="offline.js?v=272"></script>
+<script src="ride-stats.js?v=272"></script>
+<script src="navigate.js?v=272"></script>
+<script src="planner.js?v=272"></script>
+<script src="rides.js?v=272"></script>
+<script src="account.js?v=272"></script>
+<script src="reports.js?v=272"></script>
+<script src="visitors.js?v=272"></script>
+<script src="notify.js?v=272"></script>
+<script src="areas.js?v=272"></script>
+<script src="alpine.js?v=272"></script>
+<script src="bikeparks.js?v=272"></script>
+<script src="photo-find.js?v=272"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

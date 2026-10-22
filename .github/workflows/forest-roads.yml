@@ -33,10 +33,12 @@ jobs:
         run: node scripts/build-roads.mjs
       - name: File sizes
         run: ls -l data/roads-*.json
+      - name: Split trails where they cross a road
+        run: node scripts/build-road-splits.mjs
       - name: Commit the new data
         if: github.event_name != 'pull_request'
         # Only the roads files: the full run also refreshes the wildfire files, which the Wildfires job saves every 3 hours.
-        run: bash scripts/commit-data.sh "Forest roads data" data/roads-*.json
+        run: bash scripts/commit-data.sh "Forest roads data" data/roads-*.json data/road-splits.json
       - name: Publish the website
         if: github.event_name != 'pull_request'
         env:

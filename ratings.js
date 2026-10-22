@@ -5,10 +5,10 @@
 //   est   an estimate from the slope and a few map tags (data/ratings/osm.json for the region's all-trails lists, or
 //         worked out here from the AWS terrain tiles when a trail's details open). Never shown as a real rating.
 // window.tfRatings = { rate(id, geom, tags) -> { d, src, why } | null (sync, from what's loaded), hand(geom, tags) -> { mtb, off } | null, estimate(id, geom, tags) -> Promise,
-//   load(bounds) (official squares in view), onChange(fn) }. d: green, blue, black, dbl.
+//   load(bounds) (official squares in view), onChange(fn) }. d: green, blue, black, dbl, pro (pro line: bike park HAND entries only, incl. the Kamloops Bike Ranch).
 (function () {
   const DIR = "data/ratings/";
-  const LEVEL = { green: "green", blue: "blue", black: "black", dbl: "double black" };
+  const LEVEL = { green: "green", blue: "blue", black: "black", dbl: "double black", pro: "pro line" };
   const listeners = [], fire = () => listeners.forEach((fn) => { try { fn(); } catch (e) { console.warn(e); } });
   const est = new Map();   // way id -> estimate worked out here
 
@@ -164,11 +164,196 @@
   // Entries with src instead of who come from the weekly data audit's research (scripts/audit.mjs): src names the
   // resort, club or tourism page that gives the level or calls it a bike trail, url is that page. Never Trailforks.
   const HAND = [
+    // Lift-served bike parks: levels from the resort's own trail list or map (checked 2026-10-22), where OpenStreetMap has none
+    // or a different one. Fernie's list marks black and double black the same, so its blacks may include double blacks.
+    // Sun Peaks (OpenStreetMap rates every park trail; these four differ from the resort's list)
+    { name: "DH", c: [50.895, -119.895], r: 2500, d: "dbl", src: "Sun Peaks Resort, bike trail status", url: "https://www.sunpeaksresort.com/bike-hike/bike/lift-trail-status" },
+    { name: "High Octane", c: [50.895, -119.895], r: 2500, d: "black", src: "Sun Peaks Resort, bike trail status", url: "https://www.sunpeaksresort.com/bike-hike/bike/lift-trail-status" },
+    { name: "Mach", c: [50.895, -119.895], r: 2500, d: "black", src: "Sun Peaks Resort, bike trail status", url: "https://www.sunpeaksresort.com/bike-hike/bike/lift-trail-status" },
+    { name: "Sweet One", c: [50.895, -119.895], r: 2500, d: "black", src: "Sun Peaks Resort, bike trail status", url: "https://www.sunpeaksresort.com/bike-hike/bike/lift-trail-status" },
+    // Panorama
+    { name: "Let It Ride", c: [50.448, -116.235], r: 2500, d: "green", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Rocking Horse", c: [50.448, -116.235], r: 2500, d: "green", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Mercy Me", c: [50.448, -116.235], r: 2500, d: "blue", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Sanchez", c: [50.448, -116.235], r: 2500, d: "blue", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Bazooka Joe", c: [50.448, -116.235], r: 2500, d: "blue", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Stiffy", c: [50.448, -116.235], r: 2500, d: "blue", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Rusty Cage", c: [50.448, -116.235], r: 2500, d: "blue", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Hell's Bells", c: [50.448, -116.235], r: 2500, d: "black", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Look Out", c: [50.448, -116.235], r: 2500, d: "black", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Quadzilla", c: [50.448, -116.235], r: 2500, d: "black", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Bender", c: [50.448, -116.235], r: 2500, d: "black", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Get In Line", c: [50.448, -116.235], r: 2500, d: "black", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Moose Powder", c: [50.448, -116.235], r: 2500, d: "black", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Crazy Train", c: [50.448, -116.235], r: 2500, d: "dbl", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Insanity", c: [50.448, -116.235], r: 2500, d: "dbl", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Punnisher", c: [50.448, -116.235], r: 2500, d: "dbl", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    // Revelstoke
+    { name: "Big Easy", c: [50.958, -118.15], r: 3000, d: "blue", src: "Revelstoke Mountain Resort, trail report", url: "https://www.revelstokemountainresort.com/mountain/conditions/trail-report/" },
+    { name: "Stoke Climb", c: [50.958, -118.15], r: 3000, d: "blue", src: "Revelstoke Mountain Resort, trail report", url: "https://www.revelstokemountainresort.com/mountain/conditions/trail-report/" },
+    { name: "Pipe Wrench", c: [50.958, -118.15], r: 3000, d: "dbl", src: "Revelstoke Mountain Resort, trail report", url: "https://www.revelstokemountainresort.com/mountain/conditions/trail-report/" },
+    // Big White (more below, from the audit; Rock Hammer and Rocket Science corrected there)
+    { name: "Mop Up", c: [49.73, -118.927], r: 2000, d: "blue", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
+    { name: "Knockout", c: [49.73, -118.927], r: 2000, d: "black", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
+    { name: "Catapult Ranch", c: [49.73, -118.927], r: 2000, d: "black", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
+    { name: "Stacked Deck", c: [49.73, -118.927], r: 2000, d: "black", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
+    { name: "Hubba Bubba", c: [49.73, -118.927], r: 2000, d: "black", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
+    { name: "Black Slabbath", c: [49.73, -118.927], r: 2000, d: "black", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
+    { name: "The Joker", c: [49.73, -118.927], r: 2000, d: "dbl", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
+    // Fernie Alpine Resort
+    { name: "Ben's Big Rig", c: [49.462, -115.1], r: 3500, d: "green", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Boom Trail", c: [49.462, -115.1], r: 3500, d: "green", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Deer Trail", c: [49.462, -115.1], r: 3500, d: "green", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Duff Dynasty", c: [49.462, -115.1], r: 3500, d: "green", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Eville", c: [49.462, -115.1], r: 3500, d: "green", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Lil' Miss Buffit", c: [49.462, -115.1], r: 3500, d: "green", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "GT Racer", c: [49.462, -115.1], r: 3500, d: "blue", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Holo Bike", c: [49.462, -115.1], r: 3500, d: "blue", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Mr. Berms", c: [49.462, -115.1], r: 3500, d: "blue", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Top Gun", c: [49.462, -115.1], r: 3500, d: "blue", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Aggravated Assault", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Alternate Flight Pattern", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Bicycle Thief", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Case Closed", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Cats Pyjamas", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Kodiak Karnage", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Megasaurus", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Neverland", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Phat Larry's", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Playground", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Rubber Ducky", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Rumplestumpskin", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "TNT Lower", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "TNT Upper", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Trac III", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    { name: "Will Power", c: [49.462, -115.1], r: 3500, d: "black", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
+    // SilverStar (the 2022 map; Challenger is both a green and a blue line there, so it's left out)
+    { name: "Paradise", c: [50.37, -119.05], r: 2500, d: "green", src: "SilverStar Bike Park downhill trail map (2022)", url: "https://gobybikebc.ca/vernon-north-okanagan/wp-content/uploads/sites/56/2022/09/2022SilverStar_bike_downhill.pdf" },
+    { name: "Comet Trail", c: [50.37, -119.05], r: 2500, d: "blue", src: "SilverStar Bike Park downhill trail map (2022)", url: "https://gobybikebc.ca/vernon-north-okanagan/wp-content/uploads/sites/56/2022/09/2022SilverStar_bike_downhill.pdf" },
+    { name: "Jedi Mind Trick", c: [50.37, -119.05], r: 2500, d: "blue", src: "SilverStar Bike Park downhill trail map (2022)", url: "https://gobybikebc.ca/vernon-north-okanagan/wp-content/uploads/sites/56/2022/09/2022SilverStar_bike_downhill.pdf" },
+    { name: "LTG", c: [50.37, -119.05], r: 2500, d: "blue", src: "SilverStar Bike Park downhill trail map (2022)", url: "https://gobybikebc.ca/vernon-north-okanagan/wp-content/uploads/sites/56/2022/09/2022SilverStar_bike_downhill.pdf" },
+    { name: "Shazam", c: [50.37, -119.05], r: 2500, d: "blue", src: "SilverStar Bike Park downhill trail map (2022)", url: "https://gobybikebc.ca/vernon-north-okanagan/wp-content/uploads/sites/56/2022/09/2022SilverStar_bike_downhill.pdf" },
+    { name: "Snake Pit", c: [50.37, -119.05], r: 2500, d: "blue", src: "SilverStar Bike Park downhill trail map (2022)", url: "https://gobybikebc.ca/vernon-north-okanagan/wp-content/uploads/sites/56/2022/09/2022SilverStar_bike_downhill.pdf" },
+    { name: "Super Star", c: [50.37, -119.05], r: 2500, d: "blue", src: "SilverStar Bike Park downhill trail map (2022)", url: "https://gobybikebc.ca/vernon-north-okanagan/wp-content/uploads/sites/56/2022/09/2022SilverStar_bike_downhill.pdf" },
+    { name: "SuperStar", c: [50.37, -119.05], r: 2500, d: "blue", src: "SilverStar Bike Park downhill trail map (2022)", url: "https://gobybikebc.ca/vernon-north-okanagan/wp-content/uploads/sites/56/2022/09/2022SilverStar_bike_downhill.pdf" },
+    { name: "Double Dog", c: [50.37, -119.05], r: 2500, d: "black", src: "SilverStar Bike Park downhill trail map (2022)", url: "https://gobybikebc.ca/vernon-north-okanagan/wp-content/uploads/sites/56/2022/09/2022SilverStar_bike_downhill.pdf" },
+    { name: "Flow", c: [50.37, -119.05], r: 2500, d: "black", src: "SilverStar Bike Park downhill trail map (2022)", url: "https://gobybikebc.ca/vernon-north-okanagan/wp-content/uploads/sites/56/2022/09/2022SilverStar_bike_downhill.pdf" },
+    { name: "Pipe Dream", c: [50.37, -119.05], r: 2500, d: "black", src: "SilverStar Bike Park downhill trail map (2022)", url: "https://gobybikebc.ca/vernon-north-okanagan/wp-content/uploads/sites/56/2022/09/2022SilverStar_bike_downhill.pdf" },
+    { name: "Rockstar", c: [50.37, -119.05], r: 2500, d: "black", src: "SilverStar Bike Park downhill trail map (2022)", url: "https://gobybikebc.ca/vernon-north-okanagan/wp-content/uploads/sites/56/2022/09/2022SilverStar_bike_downhill.pdf" },
+    { name: "Chainsaw Mullet", c: [50.37, -119.05], r: 2500, d: "dbl", src: "SilverStar Bike Park downhill trail map (2022)", url: "https://gobybikebc.ca/vernon-north-okanagan/wp-content/uploads/sites/56/2022/09/2022SilverStar_bike_downhill.pdf" },
+    { name: "Dog's Downhill", c: [50.37, -119.05], r: 2500, d: "dbl", src: "SilverStar Bike Park downhill trail map (2022)", url: "https://gobybikebc.ca/vernon-north-okanagan/wp-content/uploads/sites/56/2022/09/2022SilverStar_bike_downhill.pdf" },
+    { name: "Gnar", c: [50.37, -119.05], r: 2500, d: "dbl", src: "SilverStar Bike Park downhill trail map (2022)", url: "https://gobybikebc.ca/vernon-north-okanagan/wp-content/uploads/sites/56/2022/09/2022SilverStar_bike_downhill.pdf" },
+    // Kicking Horse
+    { name: "Kranky Pants", c: [51.29, -117.06], r: 3000, d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
+    { name: "Devil's Disco", c: [51.29, -117.06], r: 3000, d: "black", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
     { name: "Alpine Capone", c: [49.845, -123.092], r: 3000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish" },
     { name: "Just a Cough", c: [49.823, -123.118], r: 2000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish, like Flying Whales" },
     // BC's Trail is tagged blue (mtb:scale:imba 2) on OpenStreetMap; a rider's level beats the map's (rateTags in index.html).
     { name: "BC's Trail", c: [50.088, -122.981], r: 1500, d: "dbl", who: "alex", note: "a Whistler Bike Park trail in Creekside, by Kadenwood" },
-    { name: "Dirt Merchant", c: [50.1, -122.958], r: 1500, d: "dbl", who: "alex", note: "the Dirt Merchant pro line in the Whistler Bike Park" },
+    // Whistler Bike Park trails whose OpenStreetMap level differs from the park's own 2026 map (or that have none).
+    { name: "Dirt Merchant", c: [50.1, -122.958], r: 1500, d: "pro", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },   // Lower Dirt Merchant (alex: the pro line)
+    { name: "1199", c: [50.093, -122.971], r: 1500, d: "pro", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
+    { name: "D1", c: [50.096, -122.955], r: 1500, d: "pro", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
+    { name: "Crabapple Hits", c: [50.101, -122.957], r: 1500, d: "pro", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
+    { name: "Dwayne Johnson", c: [50.105, -122.956], r: 1500, d: "pro", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
+    { name: "Drop in Clinic", c: [50.09, -122.965], r: 1500, d: "dbl", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
+    { name: "Miss Fire", c: [50.078, -122.968], r: 1500, d: "dbl", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
+    { name: "No Duff", c: [50.096, -122.963], r: 1500, d: "dbl", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
+    { name: "Too Tight", c: [50.096, -122.954], r: 1500, d: "black", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
+    { name: "Top of the World", c: [50.073, -122.966], r: 1500, d: "black", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
+    { name: "Fantastic", c: [50.101, -122.95], r: 1500, d: "blue", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
+    // RED Mountain (its map ranks Red Riding Hood with the beginner trails; OpenStreetMap says blue)
+    { name: "Red Riding Hood", c: [49.099, -117.823], r: 1500, d: "green", src: "RED Mountain Resort, bike park trail map", url: "https://www.redresort.com/wp-content/uploads/2020/09/red-mtn-bike-park-trail-map-website-v12.1.jpg" },
+    // Riding hubs and MTB centres: levels from the club's, town's or park's own trail list or map (checked 2026-10-22),
+    // where OpenStreetMap has none or a different one. Where the source has four levels (Easiest/Easier/More Difficult/
+    // Most Difficult), the two easiest are green. Golden's club map also names unnamed ways it draws (named).
+    // Coast Gravity Park
+    { name: "Lower Dirt Wave", c: [49.503, -123.724], r: 1500, d: "blue", src: "Coast Gravity Park, trail guide", url: "https://www.coastgravitypark.ca/trails" },
+    { name: "Sliver", c: [49.502, -123.724], r: 1500, d: "dbl", src: "Coast Gravity Park, trail guide", url: "https://www.coastgravitypark.ca/trails" },   // they say Expert
+    { name: "Doggers", c: [49.502, -123.724], r: 1500, d: "blue", src: "Coast Gravity Park, trail guide", url: "https://www.coastgravitypark.ca/trails" },   // they say Intermediate/Advanced
+    { name: "Red Dragon", c: [49.502, -123.717], r: 1500, d: "blue", src: "Coast Gravity Park, trail guide", url: "https://www.coastgravitypark.ca/trails" },   // they say Intermediate/Advanced
+    // Lost Lake
+    { name: "I'm Not Satisifed", c: [50.134, -122.939], r: 1500, d: "blue", src: "Resort Municipality of Whistler, Lost Lake Park summer trail map (2024)", url: "https://www.whistler.ca/wp-content/uploads/2025/LostLake_Pamphlet-Map_Dec.2024.pdf" },
+    { name: "Fountain of Love", c: [50.128, -122.944], r: 1500, d: "blue", src: "Resort Municipality of Whistler, Lost Lake Park summer trail map (2024)", url: "https://www.whistler.ca/wp-content/uploads/2025/LostLake_Pamphlet-Map_Dec.2024.pdf" },
+    { name: "Packard Goose", c: [50.135, -122.941], r: 1500, d: "green", src: "Resort Municipality of Whistler, Lost Lake Park summer trail map (2024)", url: "https://www.whistler.ca/wp-content/uploads/2025/LostLake_Pamphlet-Map_Dec.2024.pdf" },
+    // Kamloops Bike Ranch
+    { name: "Fist Full of Dollars", c: [50.668, -120.264], r: 1500, d: "pro", src: "City of Kamloops, Kamloops Bike Ranch trail map", url: "https://kamloops.ca/sites/default/files/Trail%20Map_Facility%20Overview.pdf" },
+    // Kenna Cartwright
+    { name: "Prickly Pear Cactus", c: [50.664, -120.403], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
+    { name: "Sage Trail", c: [50.679, -120.39], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
+    { name: "Saskatoon", c: [50.667, -120.397], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
+    { name: "West Vista", c: [50.674, -120.413], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
+    // Canmore Nordic Centre
+    { name: "Canmore Trail", c: [51.09, -115.376], r: 1500, d: "green", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    { name: "Narnia", c: [51.088, -115.374], r: 1500, d: "green", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    { name: "Orchid Trail", c: [51.092, -115.379], r: 1500, d: "green", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    { name: "Dipped Cone", c: [51.091, -115.384], r: 1500, d: "blue", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    { name: "FYI", c: [51.093, -115.388], r: 1500, d: "blue", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    { name: "Georgetown Climb", c: [51.103, -115.393], r: 1500, d: "black", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    { name: "No Homers", c: [51.111, -115.398], r: 1500, d: "black", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    { name: "Oven / Downhill", c: [51.089, -115.398], r: 1500, d: "black", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    // Banff
+    { name: "Fenland Trail", c: [51.184, -115.584], r: 1500, d: "green", src: "Parks Canada, mountain biking trails in the Banff area", url: "https://parks.canada.ca/pn-np/ab/banff/activ/cyclisme-biking/velomontagne-mountainbiking/banff" },
+    { name: "Surprise Corner to Hoodoos - Alternate", c: [51.17, -115.552], r: 1500, d: "blue", src: "Parks Canada, mountain biking trails in the Banff area", url: "https://parks.canada.ca/pn-np/ab/banff/activ/cyclisme-biking/velomontagne-mountainbiking/banff" },
+    { name: "Surprise Corner to Hoodoos", c: [51.175, -115.546], r: 1500, d: "blue", src: "Parks Canada, mountain biking trails in the Banff area", url: "https://parks.canada.ca/pn-np/ab/banff/activ/cyclisme-biking/velomontagne-mountainbiking/banff" },
+    // Golden (club trails, plus Kicking Horse trails the club lists)
+    { name: "CBT Mainline", c: [51.268, -116.978], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Gold Rush", c: [51.284, -116.987], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "The Mighty Quinn", c: [51.291, -116.989], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Kobe's", c: [51.277, -116.927], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Bear Claw", c: [51.24, -116.953], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Canyon Creek", c: [51.23, -116.966], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Sternwheeler", c: [51.239, -116.936], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Selkirk Slacker", c: [51.286, -116.94], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Reflection Lake", c: [51.282, -116.937], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Odonata", c: [51.273, -116.997], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Twisted Sister", c: [51.303, -117.03], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Wapiti Ridge", c: [51.243, -116.947], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Klahowya", c: [51.242, -116.948], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "French Connection", c: [51.298, -117.005], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Summit", c: [51.274, -116.89], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    // Kicking Horse: unnamed ways that lie along one trail of the club's map, graded from the resort's bike trail report
+    { ids: [550683444], c: [51.279, -117.08], r: 1000, named: "Dragon Chaser", d: "green", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
+    { ids: [550683470], c: [51.293, -117.05], r: 1000, named: "Easy Rider", d: "green", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
+    { ids: [550683463], c: [51.29, -117.065], r: 1000, named: "Road Runner", d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
+    { ids: [550683472, 550683473], c: [51.294, -117.052], r: 1000, named: "Buffalo Jump", d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },   // the resort says blue to black
+    { ids: [550683475], c: [51.289, -117.054], r: 1000, named: "Superberm", d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
+    { ids: [550683483], c: [51.297, -117.053], r: 1000, named: "Claim Jumper", d: "black", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
+    { ids: [550683461, 550683485], c: [51.297, -117.051], r: 1000, named: "It's a 10", d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },   // the resort says green to blue
+    { ids: [550683471], c: [51.297, -117.053], r: 1000, named: "Hop A Long", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683446], c: [51.282, -117.075], r: 1000, d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },   // along It's a 10 and Chute to View, both blue
+    // unnamed on OpenStreetMap; the club's map names them (way lies along the club's line)
+    { ids: [491189967], c: [51.284, -116.93], r: 1000, named: "Cliff Side", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [491189975], c: [51.272, -116.915], r: 1000, named: "Rock About", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [491189971, 1210187388], c: [51.286, -116.934], r: 1000, named: "Roller Coaster", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550685730], c: [51.227, -116.981], r: 1000, named: "LSD (Little Sir Donald)", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550693956], c: [51.273, -116.993], r: 1000, named: "Hymenoptera", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [491189977, 550667217], c: [51.295, -116.946], r: 1000, named: "Rotary Trail", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550667212], c: [51.281, -116.909], r: 1000, named: "B52", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550667215], c: [51.287, -116.941], r: 1000, named: "Rodeo Drive", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550667219], c: [51.29, -116.945], r: 1000, named: "Connector", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683476], c: [51.286, -117.032], r: 1000, named: "Scalli Mag", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550693952], c: [51.236, -116.941], r: 1000, named: "Easy Out", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550693953], c: [51.235, -116.939], r: 1000, named: "Private Lands", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683469], c: [51.292, -117.055], r: 1000, named: "Stump Jumper", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683454], c: [51.292, -117.061], r: 1000, named: "L.Y.M", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [1562597863], c: [51.276, -117.081], r: 1000, named: "Rock Garden", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683448], c: [51.282, -117.076], r: 1000, named: "Gale Force", d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },   // the club says black
+    { ids: [550683479], c: [51.281, -117.078], r: 1000, named: "Training Wheels", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683455], c: [51.293, -117.07], r: 1000, named: "Blaster", d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },   // the club says black
+    { ids: [550683453], c: [51.287, -117.062], r: 1000, named: "Rock n Roll", d: "black", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },   // the club says dbl
+    { ids: [550683457, 550683458], c: [51.292, -117.065], r: 1000, named: "Pioneer", d: "dbl", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683466], c: [51.29, -117.053], r: 1000, named: "Super Berm", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683459], c: [51.299, -117.06], r: 1000, named: "Claim Jumper", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683474], c: [51.296, -117.05], r: 1000, named: "Easy Rider", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683449, 550683450], c: [51.284, -117.071], r: 1000, named: "Magic Carpet Ride", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [170402117, 587796643, 587796644], c: [51.248, -116.951], r: 1000, named: "2% CRL Road", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [645185433], c: [51.277, -116.897], r: 1000, named: "10K", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [491189972], c: [51.285, -116.939], r: 1000, named: "Snake Hill/Tail Gate", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683441], c: [51.278, -117.084], r: 1000, named: "Excalibur", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683443, 1562597864], c: [51.278, -117.078], r: 1000, named: "Pipestone", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683465], c: [51.278, -117.044], r: 1000, named: "Swamp Donkey", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [1562597865], c: [51.28, -117.078], r: 1000, named: "Dragon Chaser", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { name: "Trial and Error", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Trial and Error (lower)", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Pretty Slabs", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
@@ -204,10 +389,10 @@
     { name: "It's So Easy", c: [49.723, -118.924], r: 2000, d: "green", src: "Mountain Biking BC, first visit to Big White bike park", url: "https://www.mountainbikingbc.ca/blog/your-first-visit-to-bcs-newest-lift-accessed-bike-park-in-big-white/" },
     { name: "Easy Steezy", c: [49.723, -118.926], r: 2000, d: "green", src: "Mountain Biking BC, first visit to Big White bike park", url: "https://www.mountainbikingbc.ca/blog/your-first-visit-to-bcs-newest-lift-accessed-bike-park-in-big-white/" },
     { name: "Dark Roast", c: [49.734, -118.926], r: 2000, d: "black", src: "Mountain Biking BC, Bike Parks BC road trip part 2", url: "https://www.mountainbikingbc.ca/blog/bike-parks-bc-road-trip-part-2-silverstar-and-big-white/" },
-    { name: "Rocket Science", c: [49.724, -118.935], r: 2000, d: "black", src: "Mountain Biking BC, Bike Parks BC road trip part 2", url: "https://www.mountainbikingbc.ca/blog/bike-parks-bc-road-trip-part-2-silverstar-and-big-white/" },
+    { name: "Rocket Science", c: [49.724, -118.935], r: 2000, d: "dbl", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
     { name: "Black Mamba", c: [49.725, -118.922], r: 2000, d: "black", src: "Freehub, BC bike parks travel guide", url: "https://freehub.com/features/bc-bike-parks-travel-guide" },
     { name: "Shark Fin Soup", c: [49.725, -118.925], r: 2000, d: "blue", src: "Freehub, BC bike parks travel guide", url: "https://freehub.com/features/bc-bike-parks-travel-guide" },
-    { name: "Rock Hammer", c: [49.737, -118.927], r: 2000, d: "dbl", src: "Adventures NW, In Praise of Gravity (2017)", url: "https://www.adventuresnw.com/in-praise-of-gravity-freeriding-the-okanogan/" },
+    { name: "Rock Hammer", c: [49.737, -118.927], r: 2000, d: "black", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
     { name: "Bronco", c: [49.547, -119.533], r: 2000, d: "black", src: "Swagman ride guide on Visit Penticton, Three Blind Mice", url: "https://visitpenticton.com/swagmans-backyard-ride-guide-three-blind-mice-part-1-flow/" },
     { name: "High Pony", c: [49.553, -119.533], r: 2000, d: "blue", src: "Swagman ride guide on Visit Penticton, Three Blind Mice", url: "https://visitpenticton.com/swagmans-backyard-ride-guide-three-blind-mice-part-1-flow/" },
     { name: "Slabs", c: [49.556, -119.547], r: 2000, d: "black", src: "Swagman ride guide on Visit Penticton, Three Blind Mice", url: "https://visitpenticton.com/swagmans-backyard-ride-guide-three-blind-mice-part-1-flow/" },

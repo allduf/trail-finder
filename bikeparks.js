@@ -23,6 +23,25 @@
   const kindOf = (x) => (x.lift === "yes" ? "lift" : x.k);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const ORDER = ["lift", "park", "centre", "skills", "pump"];
+  // Lift-served bike parks the resort's own site confirms (checked 2026-10-22) but OpenStreetMap doesn't show as one: no lift
+  // tagged for bikes and too few bike tags on the hill (Fernie, Panorama, Revelstoke), or a hill with no name (WinSport).
+  // A place within 3 km becomes lift-served; with none, the park is added. Remove one once OpenStreetMap shows it.
+  const KNOWN = [
+    { name: "Fernie Alpine Resort", c: [49.4627, -115.0876], web: "https://skifernie.com/", src: "Fernie Alpine Resort's 2026 bike park trail list" },
+    { name: "Panorama Mountain Resort", c: [50.4585, -116.2387], web: "https://www.panoramaresort.com/explore/dh-mountain-biking", src: "Panorama's 2024 DH trail map" },
+    { name: "Revelstoke Mountain Resort", c: [50.9607, -118.1637], web: "https://www.revelstokemountainresort.com/mountain/conditions/trail-report/", src: "Revelstoke Mountain Resort's bike trail report" },
+    { name: "WinSport Bike Park", c: [51.0794, -114.2161], web: "https://www.winsport.ca/explore-winsport/current-activities/mountain-biking/", src: "WinSport's 2026 summer trail map" },
+  ];
+  const metres = (a, b) => Math.hypot((b[0] - a[0]) * 110540, (b[1] - a[1]) * 111320 * Math.cos((a[0] * Math.PI) / 180));
+  function addKnown(list) {
+    KNOWN.forEach((h, i) => {
+      const x = list.filter((x) => (x.lift || x.k === "park" || x.k === "centre") && metres(x.c, h.c) < 3000).sort((a, b) => metres(a.c, h.c) - metres(b.c, h.c))[0];
+      if (!x) { list.push({ id: `h${i}`, k: "park", c: h.c, t: { name: h.name, website: h.web }, lift: "yes", known: h.src }); return; }
+      x.lift = "yes"; x.known = h.src;
+      x.t = { ...x.t, name: x.t.name || h.name, ...(x.t.website || x.t["contact:website"] ? {} : { website: h.web }) };
+    });
+    return list;
+  }
 
   const css = document.createElement("style");
   css.textContent = `
@@ -45,7 +64,7 @@ body.sport-ski #parkBtn, body.sport-ski .leaflet-bikeParks-pane { display: none 
   function load() {
     if (!loading) loading = (/^https?:$/.test(location.protocol) ? fetch("ca/bike-parks.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)) : Promise.resolve(null))
       .catch(() => null).then((f) => {
-        places = f && f.v === 1 ? f.places.map((x) => ({ ...x, kind: kindOf(x) })).sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind) || (b.pay || 0) - (a.pay || 0)) : [];
+        places = f && f.v === 1 ? addKnown(f.places).map((x) => ({ ...x, kind: kindOf(x) })).sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind) || (b.pay || 0) - (a.pay || 0)) : [];
         draw();
       });
     return loading;
@@ -62,6 +81,7 @@ body.sport-ski #parkBtn, body.sport-ski .leaflet-bikeParks-pane { display: none 
     else if (t.fee === "no") tags.push(`<span class="tag">Free</span>`);
     if (t.lit === "yes") tags.push(`<span class="tag">Lit at night</span>`);
     const facts = [
+      x.known && `Lift-served, says ${x.known}`,
       x.lifts && x.lifts.length && `Lifts open to bikes: ${x.lifts.join(", ")}`,
       x.pay && `${x.pay} pay-to-ride trail${x.pay === 1 ? "" : "s"} mapped`,
       x.mtb && !x.pay && `${x.mtb} MTB trail${x.mtb === 1 ? "" : "s"} mapped on the hill`,
