@@ -29,6 +29,8 @@ const SOURCES = [
   { park: "Revelstoke", url: "https://www.revelstokemountainresort.com/mountain/conditions/trail-report/" },
   { park: "Kicking Horse", url: "https://kickinghorseresort.com/conditions/trail-report/" },
   { park: "WinSport (Calgary)", url: "https://www.winsport.ca/assets/PDFs/Maps/2026/2026-WinSport-Summer-Trail-Map.pdf" },
+  { park: "Mount Washington", url: "https://mountwashington.ca/summer/bike-park" },
+  { park: "RED Mountain", url: "https://www.redresort.com/wp-content/uploads/2020/09/red-mtn-bike-park-trail-map-website-v12.1.jpg" },
   // Riding hubs and MTB centres
   { park: "Coast Gravity Park", url: "https://www.coastgravitypark.ca/trails" },
   { park: "Golden Cycling Club trails", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },

@@ -262,6 +262,8 @@
     { name: "Too Tight", c: [50.096, -122.954], r: 1500, d: "black", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
     { name: "Top of the World", c: [50.073, -122.966], r: 1500, d: "black", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
     { name: "Fantastic", c: [50.101, -122.95], r: 1500, d: "blue", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
+    // RED Mountain (its map ranks Red Riding Hood with the beginner trails; OpenStreetMap says blue)
+    { name: "Red Riding Hood", c: [49.099, -117.823], r: 1500, d: "green", src: "RED Mountain Resort, bike park trail map", url: "https://www.redresort.com/wp-content/uploads/2020/09/red-mtn-bike-park-trail-map-website-v12.1.jpg" },
     // Riding hubs and MTB centres: levels from the club's, town's or park's own trail list or map (checked 2026-10-22),
     // where OpenStreetMap has none or a different one. Where the source has four levels (Easiest/Easier/More Difficult/
     // Most Difficult), the two easiest are green. Golden's club map also names unnamed ways it draws (named).
