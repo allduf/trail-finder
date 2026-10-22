@@ -26,6 +26,8 @@ jobs:
           node-version: 20
       - name: Collect all MTB trails
         run: node scripts/build-mtb.mjs
+      - name: Split trails where they cross a road
+        run: node scripts/build-road-splits.mjs   # data/road-splits.json, from the trail lists and data/roads-<zone>.json
       - name: Commit the new data
         run: |
           git add data
