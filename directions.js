@@ -49,6 +49,8 @@
       who: "Revelstoke Mountain Resort's bike park map", where: "revelstokemountainresort.com", note: "a Revelstoke bike park descent" })),
     { name: "Take It Easy", c: [50.958, -118.15], r: 3000, dir: "climb", who: "Revelstoke Mountain Resort's bike park map", where: "revelstokemountainresort.com",
       note: "the Take It Easy Climb, a climbing trail at Revelstoke Mountain Resort" },
+    ...["BBQ Jello", "Double Jeopardy", "Haircut Rabbit", "Pandamonium", "Squirrely Dan", "Tender Vittles", "Toad's Salami"].map((name) => ({ name,
+      c: [51.079, -114.218], r: 1500, dir: "down", who: "WinSport's 2026 summer trail map", where: "winsport.ca", note: "a WinSport bike park descent (Calgary)" })),
     { name: "Devil's Disco", c: [51.29, -117.06], r: 3000, dir: "down", who: "Kicking Horse's bike trail report", where: "kickinghorseresort.com", note: "a Kicking Horse bike park descent" },
     { name: "Leftovers Skid Road", c: [50.103, -123.016], r: 1500, dir: "climb", who: "alex, who rides it", note: "an access skid road ridden as a climbing trail (Whistler)" },
     { name: "Yummy Numby", c: [50.127, -122.926], r: 3000, dir: "climb", who: "Vital MTB's Whistler guide", where: "vitalmtb.com", note: "a singletrack climb (Whistler)" },
