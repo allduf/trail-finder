@@ -32,7 +32,9 @@
   const ON_M = 60;            // this close: "taken on" the trail (phone GPS is good to a few tens of metres)
   const FAR_M = 3000;         // nothing within NEAR_M: the nearest trails up to this far
   const MAX_SIDE = 2400;      // pictures are shrunk to this many pixels on the long side before reading (phone memory)
-  const VIDEO_FRAMES = 5;
+  const VIDEO_FRAMES = 3;
+  // Short clips only (alex, 2026-10-22): a big video is slow and heavy on a phone, and 3 frames of 5 seconds are enough.
+  const VIDEO_MAX_S = 5, VIDEO_MAX_MB = 60;
   const AREA_M = 3000;        // a riding area named in the words: its trails within this of its centre
   const STRONG = 1.05;        // a match this good in the areas looked at first doesn't need the other regions
   // The Supabase function holding supabase/functions/which-trail (the dashboard deployed it as "smooth-worker").
@@ -105,9 +107,9 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   box.className = "pf"; box.id = "photoFind"; box.hidden = true;
   box.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="pfTitle">
   <h2 id="pfTitle">📷 Which trail is this? <button type="button" class="pf-x" id="pfClose" aria-label="Close">✕</button></h2>
-  <p class="pf-hint">A photo, a screenshot of a post or a short video. With the spot where it was taken, you get that trail. Without it, the app reads the words in it (trail names, places, hashtags, Strava or Trailforks labels) and lists the likely trails. The words are read on your device; to place the picture, a copy goes to Google's AI (Gemini) and Google's image search, which may keep it. “Yes, that's it” saves a small copy for Trail Finder to learn from (never shown in the app).</p>
+  <p class="pf-hint">A photo, a screenshot of a post or a video of up to ${VIDEO_MAX_S} seconds. With the spot where it was taken, you get that trail. Without it, the app reads the words in it (trail names, places, hashtags, Strava or Trailforks labels) and lists the likely trails. The words are read on your device; to place the picture, a copy goes to Google's AI (Gemini) and Google's image search, which may keep it. “Yes, that's it” saves a small copy for Trail Finder to learn from (never shown in the app).</p>
   <div class="pf-drop" id="pfDrop">
-    <button type="button" class="btn primary" id="pfPick">Choose a photo or video</button>
+    <button type="button" class="btn primary" id="pfPick">Choose a photo or short video</button>
     <button type="button" class="btn" id="pfPaste" hidden>📋 Paste a screenshot</button>
     <span class="pf-or">or drop one here${matchMedia("(pointer: fine)").matches ? ", or press Ctrl+V / ⌘V" : ""}</span>
     <input type="file" id="pfFile" accept="image/*,video/*" hidden>
@@ -170,7 +172,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         if (type) { const b = await item.getType(type); start(new File([b], "pasted." + type.split("/")[1], { type })); return; }
       }
       say("There's no picture to paste. Take a screenshot (or copy a picture) first.");
-    } catch { say("The browser didn't allow pasting. Use Choose a photo or video instead."); }
+    } catch { say("The browser didn't allow pasting. Use Choose a photo or short video instead."); }
   });
   const isMedia = (f) => /^(image|video)\//.test(f.type) || /\.(heic|heif|jpe?g|png|webp|mov|mp4|m4v)$/i.test(f.name || "");
   const isVideo = (f) => /^video\//.test(f.type) || /\.(mov|mp4|m4v)$/i.test(f.name || "");
@@ -204,6 +206,14 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     if (thumbUrl) URL.revokeObjectURL(thumbUrl);
     thumbUrl = URL.createObjectURL(f);
     $("pfThumb").innerHTML = isVideo(f) ? `<video src="${thumbUrl}#t=0.5" muted playsinline preload="metadata"></video>` : `<img src="${thumbUrl}" alt="">`;
+    if (isVideo(f)) {
+      const long = f.size > VIDEO_MAX_MB * 1e6 ? "too big" : (await videoLength(thumbUrl)) > VIDEO_MAX_S + 0.5 ? "too long" : "";
+      if (my !== job) return;
+      if (long) {
+        say(`This video is ${long}: videos can be up to ${VIDEO_MAX_S} seconds. Trim it, or add a screenshot of the best moment instead.`);
+        return;
+      }
+    }
     say("Looking for the spot where it was taken…");
     let spot = null;
     try { spot = isVideo(f) ? await videoSpot(f) : await photoSpot(f); } catch {}
@@ -355,6 +365,14 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     x.drawImage(src, 0, 0);
     return c;
   }
+  // A video's length in seconds (0 when the browser can't tell: then its size limit is enough).
+  async function videoLength(src) {
+    const v = document.createElement("video");
+    v.muted = true; v.preload = "metadata"; v.src = src;
+    const d = await new Promise((res) => { const t = setTimeout(() => res(0), 8000); v.addEventListener("loadedmetadata", () => { clearTimeout(t); res(v.duration); }, { once: true }); v.addEventListener("error", () => { clearTimeout(t); res(0); }, { once: true }); });
+    v.removeAttribute("src"); v.load();
+    return Number.isFinite(d) ? d : 0;
+  }
   // A few frames spread through the video (text on a video often shows for only a second or two).
   async function videoFrames(src, my) {
     const v = document.createElement("video");
@@ -362,7 +380,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const wait = (ev, ms) => new Promise((res, rej) => { const t = setTimeout(() => rej(new Error("timeout")), ms); v.addEventListener(ev, () => { clearTimeout(t); res(); }, { once: true }); });
     await wait("loadeddata", 15000);
     const dur = v.duration && Number.isFinite(v.duration) ? v.duration : 0;
-    const n = dur < 3 ? 1 : VIDEO_FRAMES, out = [];
+    const n = dur < 1.5 ? 1 : VIDEO_FRAMES, out = [];
     for (let i = 0; i < n; i++) {
       if (my !== job) break;
       const t = n === 1 ? Math.min(dur / 2, 0.5) : dur * (0.06 + 0.88 * i / (n - 1));
