@@ -5,7 +5,7 @@
 //   est   an estimate from the slope and a few map tags (data/ratings/osm.json for the region's all-trails lists, or
 //         worked out here from the AWS terrain tiles when a trail's details open). Never shown as a real rating.
 // window.tfRatings = { rate(id, geom, tags) -> { d, src, why } | null (sync, from what's loaded), hand(geom, tags) -> { mtb, off } | null, estimate(id, geom, tags) -> Promise,
-//   load(bounds) (official squares in view), onChange(fn) }. d: green, blue, black, dbl, pro (pro line: bike park HAND entries only).
+//   load(bounds) (official squares in view), onChange(fn) }. d: green, blue, black, dbl, pro (pro line: bike park HAND entries only, incl. the Kamloops Bike Ranch).
 (function () {
   const DIR = "data/ratings/";
   const LEVEL = { green: "green", blue: "blue", black: "black", dbl: "double black", pro: "pro line" };
@@ -262,6 +262,89 @@
     { name: "Too Tight", c: [50.096, -122.954], r: 1500, d: "black", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
     { name: "Top of the World", c: [50.073, -122.966], r: 1500, d: "black", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
     { name: "Fantastic", c: [50.101, -122.95], r: 1500, d: "blue", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
+    // RED Mountain (its map ranks Red Riding Hood with the beginner trails; OpenStreetMap says blue)
+    { name: "Red Riding Hood", c: [49.099, -117.823], r: 1500, d: "green", src: "RED Mountain Resort, bike park trail map", url: "https://www.redresort.com/wp-content/uploads/2020/09/red-mtn-bike-park-trail-map-website-v12.1.jpg" },
+    // Riding hubs and MTB centres: levels from the club's, town's or park's own trail list or map (checked 2026-10-22),
+    // where OpenStreetMap has none or a different one. Where the source has four levels (Easiest/Easier/More Difficult/
+    // Most Difficult), the two easiest are green. Golden's club map also names unnamed ways it draws (named).
+    // Coast Gravity Park
+    { name: "Lower Dirt Wave", c: [49.503, -123.724], r: 1500, d: "blue", src: "Coast Gravity Park, trail guide", url: "https://www.coastgravitypark.ca/trails" },
+    { name: "Sliver", c: [49.502, -123.724], r: 1500, d: "dbl", src: "Coast Gravity Park, trail guide", url: "https://www.coastgravitypark.ca/trails" },   // they say Expert
+    { name: "Doggers", c: [49.502, -123.724], r: 1500, d: "blue", src: "Coast Gravity Park, trail guide", url: "https://www.coastgravitypark.ca/trails" },   // they say Intermediate/Advanced
+    { name: "Red Dragon", c: [49.502, -123.717], r: 1500, d: "blue", src: "Coast Gravity Park, trail guide", url: "https://www.coastgravitypark.ca/trails" },   // they say Intermediate/Advanced
+    // Lost Lake
+    { name: "I'm Not Satisifed", c: [50.134, -122.939], r: 1500, d: "blue", src: "Resort Municipality of Whistler, Lost Lake Park summer trail map (2024)", url: "https://www.whistler.ca/wp-content/uploads/2025/LostLake_Pamphlet-Map_Dec.2024.pdf" },
+    { name: "Fountain of Love", c: [50.128, -122.944], r: 1500, d: "blue", src: "Resort Municipality of Whistler, Lost Lake Park summer trail map (2024)", url: "https://www.whistler.ca/wp-content/uploads/2025/LostLake_Pamphlet-Map_Dec.2024.pdf" },
+    { name: "Packard Goose", c: [50.135, -122.941], r: 1500, d: "green", src: "Resort Municipality of Whistler, Lost Lake Park summer trail map (2024)", url: "https://www.whistler.ca/wp-content/uploads/2025/LostLake_Pamphlet-Map_Dec.2024.pdf" },
+    // Kamloops Bike Ranch
+    { name: "Fist Full of Dollars", c: [50.668, -120.264], r: 1500, d: "pro", src: "City of Kamloops, Kamloops Bike Ranch trail map", url: "https://kamloops.ca/sites/default/files/Trail%20Map_Facility%20Overview.pdf" },
+    // Kenna Cartwright
+    { name: "Prickly Pear Cactus", c: [50.664, -120.403], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
+    { name: "Sage Trail", c: [50.679, -120.39], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
+    { name: "Saskatoon", c: [50.667, -120.397], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
+    { name: "West Vista", c: [50.674, -120.413], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
+    // Canmore Nordic Centre
+    { name: "Canmore Trail", c: [51.09, -115.376], r: 1500, d: "green", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    { name: "Narnia", c: [51.088, -115.374], r: 1500, d: "green", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    { name: "Orchid Trail", c: [51.092, -115.379], r: 1500, d: "green", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    { name: "Dipped Cone", c: [51.091, -115.384], r: 1500, d: "blue", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    { name: "FYI", c: [51.093, -115.388], r: 1500, d: "blue", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    { name: "Georgetown Climb", c: [51.103, -115.393], r: 1500, d: "black", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    { name: "No Homers", c: [51.111, -115.398], r: 1500, d: "black", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    { name: "Oven / Downhill", c: [51.089, -115.398], r: 1500, d: "black", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+    // Banff
+    { name: "Fenland Trail", c: [51.184, -115.584], r: 1500, d: "green", src: "Parks Canada, mountain biking trails in the Banff area", url: "https://parks.canada.ca/pn-np/ab/banff/activ/cyclisme-biking/velomontagne-mountainbiking/banff" },
+    { name: "Surprise Corner to Hoodoos - Alternate", c: [51.17, -115.552], r: 1500, d: "blue", src: "Parks Canada, mountain biking trails in the Banff area", url: "https://parks.canada.ca/pn-np/ab/banff/activ/cyclisme-biking/velomontagne-mountainbiking/banff" },
+    { name: "Surprise Corner to Hoodoos", c: [51.175, -115.546], r: 1500, d: "blue", src: "Parks Canada, mountain biking trails in the Banff area", url: "https://parks.canada.ca/pn-np/ab/banff/activ/cyclisme-biking/velomontagne-mountainbiking/banff" },
+    // Golden (club trails, plus Kicking Horse trails the club lists)
+    { name: "CBT Mainline", c: [51.268, -116.978], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Gold Rush", c: [51.284, -116.987], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "The Mighty Quinn", c: [51.291, -116.989], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Kobe's", c: [51.277, -116.927], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Bear Claw", c: [51.24, -116.953], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Canyon Creek", c: [51.23, -116.966], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Sternwheeler", c: [51.239, -116.936], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Selkirk Slacker", c: [51.286, -116.94], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Reflection Lake", c: [51.282, -116.937], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Odonata", c: [51.273, -116.997], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Twisted Sister", c: [51.303, -117.03], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Wapiti Ridge", c: [51.243, -116.947], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Klahowya", c: [51.242, -116.948], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "French Connection", c: [51.298, -117.005], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { name: "Summit", c: [51.274, -116.89], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    // unnamed on OpenStreetMap; the club's map names them (way lies along the club's line)
+    { ids: [491189967], c: [51.284, -116.93], r: 1000, named: "Cliff Side", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [491189975], c: [51.272, -116.915], r: 1000, named: "Rock About", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [491189971, 1210187388], c: [51.286, -116.934], r: 1000, named: "Roller Coaster", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550685730], c: [51.227, -116.981], r: 1000, named: "LSD (Little Sir Donald)", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550693956], c: [51.273, -116.993], r: 1000, named: "Hymenoptera", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [491189977, 550667217], c: [51.295, -116.946], r: 1000, named: "Rotary Trail", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550667212], c: [51.281, -116.909], r: 1000, named: "B52", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550667215], c: [51.287, -116.941], r: 1000, named: "Rodeo Drive", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550667219], c: [51.29, -116.945], r: 1000, named: "Connector", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683476], c: [51.286, -117.032], r: 1000, named: "Scalli Mag", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550693952], c: [51.236, -116.941], r: 1000, named: "Easy Out", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550693953], c: [51.235, -116.939], r: 1000, named: "Private Lands", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683469], c: [51.292, -117.055], r: 1000, named: "Stump Jumper", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683454], c: [51.292, -117.061], r: 1000, named: "L.Y.M", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [1562597863], c: [51.276, -117.081], r: 1000, named: "Rock Garden", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683448], c: [51.282, -117.076], r: 1000, named: "Gale Force", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683479], c: [51.281, -117.078], r: 1000, named: "Training Wheels", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683455], c: [51.293, -117.07], r: 1000, named: "Blaster", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683453], c: [51.287, -117.062], r: 1000, named: "Rock n Roll", d: "dbl", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683457, 550683458], c: [51.292, -117.065], r: 1000, named: "Pioneer", d: "dbl", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683466], c: [51.29, -117.053], r: 1000, named: "Super Berm", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683459], c: [51.299, -117.06], r: 1000, named: "Claim Jumper", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683474], c: [51.296, -117.05], r: 1000, named: "Easy Rider", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683452], c: [51.286, -117.065], r: 1000, named: "Showdown", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683449, 550683450], c: [51.284, -117.071], r: 1000, named: "Magic Carpet Ride", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [170402117, 587796643, 587796644], c: [51.248, -116.951], r: 1000, named: "2% CRL Road", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [645185433], c: [51.277, -116.897], r: 1000, named: "10K", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [491189972], c: [51.285, -116.939], r: 1000, named: "Snake Hill/Tail Gate", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683441], c: [51.278, -117.084], r: 1000, named: "Excalibur", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683443, 1562597864], c: [51.278, -117.078], r: 1000, named: "Pipestone", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683465], c: [51.278, -117.044], r: 1000, named: "Swamp Donkey", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [1562597865], c: [51.28, -117.078], r: 1000, named: "Dragon Chaser", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { name: "Trial and Error", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Trial and Error (lower)", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Pretty Slabs", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
