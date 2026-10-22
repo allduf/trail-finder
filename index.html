@@ -1369,10 +1369,10 @@ body.sport-ski #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=265"></script>
-<script src="official.js?v=265"></script>
-<script src="directions.js?v=265"></script>
-<script src="ratings.js?v=265"></script>
+<script src="rotate.js?v=266"></script>
+<script src="official.js?v=266"></script>
+<script src="directions.js?v=266"></script>
+<script src="ratings.js?v=266"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3877,7 +3877,11 @@ out body;`;
     const pins = L.layerGroup().addTo(layer);
     const pinsFit = () => !o.pinsBelow || map.getZoom() < o.pinsBelow;
     if (o.pinsBelow) map.on("zoomend", () => { if (pinsFit() !== layer.hasLayer(pins)) pinsFit() ? layer.addLayer(pins) : layer.removeLayer(pins); });
-    const lines = L.canvas({ pane: o.pane, padding: 0.3, tolerance: L.Browser.touch ? 10 : 5 });   // one canvas, not an SVG path per line
+    // o.under: only a halo, under the trail lines (alex saw grey ridden lines over the trails' own colours, cutting the
+    // switchbacks), following the trail's full shape when it's loaded (the saved copy is simplified).
+    const linePane = o.under ? o.pane + "Halo" : o.pane;
+    if (o.under) map.createPane(linePane).style.zIndex = 387;
+    const lines = L.canvas({ pane: linePane, padding: 0.3, tolerance: L.Browser.touch ? 10 : 5 });   // one canvas, not an SVG path per line
     const btn = document.createElement("button");
     btn.id = o.btnId; btn.type = "button";
     $("allBtn").parentNode.insertBefore(btn, $("allBtn"));
@@ -3910,15 +3914,17 @@ out body;`;
       if (pinsFit()) layer.addLayer(pins);
       paintBtn();
       if (!on) return;
+      const full = o.under && window.tfTrails ? new Map(window.tfTrails().all.flat().map((x) => [x.id, x.geom])) : null;
       trails().forEach((w) => {
         const s = shapeOf(w);
         if (!s) return;
         const v = loamFor(w), k = v == null ? -1 : LMI_LEVELS.indexOf(lmiLevel(v));
         const color = k < 0 ? "#6b6b6b" : LMI_RIDE[k][0];
         const open = () => showFound({ type: w.type, items: w.ids.map((id) => ({ id })), name: w.name, kind: w.kind });
-        s.g.forEach((l) => {
-          layer.addLayer(L.polyline(l, { pane: o.pane, renderer: lines, color: o.halo, weight: 11, opacity: 0.75, lineCap: "round", interactive: false }));
-          layer.addLayer(L.polyline(l, { pane: o.pane, renderer: lines, color, weight: 4, opacity: 1, lineCap: "round", bubblingMouseEvents: false }).on("click", open));
+        const ls = full && w.type === "w" && w.ids.every((id) => full.has(id)) ? w.ids.map((id) => full.get(id)) : s.g;
+        ls.forEach((l) => {
+          layer.addLayer(L.polyline(l, { pane: linePane, renderer: lines, color: o.halo, weight: 11, opacity: 0.75, lineCap: "round", interactive: false }));
+          if (!o.under) layer.addLayer(L.polyline(l, { pane: o.pane, renderer: lines, color, weight: 4, opacity: 1, lineCap: "round", bubblingMouseEvents: false }).on("click", open));
         });
         const label = v == null ? "" : ` ${v}`;
         const tip = `${w.name}${v == null ? "" : ` · Loam ${v}, ${LMI_LEVELS[k][1].toLowerCase()} (${LMI_RIDE[k][1].toLowerCase()})`}${w.note ? `\n${w.note}` : ""}`;
@@ -3991,7 +3997,7 @@ out body;`;
   const toRide = savedLayer({ pane: "toRide", z: 455, btnId: "rideMapBtn", key: "toride", label: "★ To ride", glyph: "★", pin: "", halo: "#ffc61a",
     what: "to-ride trails", empty: "Your to-ride list is empty: open a trail and tap ☆ To ride",
     trails: () => { const x = getFolders().find((x) => x.id === TO_RIDE); return x ? x.trails : []; } });
-  const riddenMap = savedLayer({ pane: "riddenTrails", z: 454, btnId: "riddenMapBtn", key: "riddenMap", label: "✓ Ridden", glyph: "✓", pin: " ridden", halo: "#b8f03a", pinsBelow: 13,
+  const riddenMap = savedLayer({ pane: "riddenTrails", z: 454, btnId: "riddenMapBtn", key: "riddenMap", label: "✓ Ridden", glyph: "✓", pin: " ridden", halo: "#b8f03a", pinsBelow: 13, under: true,
     what: "ridden trails", empty: "Your Ridden list is empty: open a trail and tap + Ridden, or record or import a ride",
     trails: () => riddenTrails() });
   window.tfToRideList = toRide.known;
@@ -6161,24 +6167,24 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=265"></script>
-<script src="contours.js?v=265"></script>
-<script src="photo-slider.js?v=265"></script>
-<script src="winter.js?v=265"></script>
-<script src="ski-points.js?v=265"></script>
-<script src="offline.js?v=265"></script>
-<script src="ride-stats.js?v=265"></script>
-<script src="navigate.js?v=265"></script>
-<script src="planner.js?v=265"></script>
-<script src="rides.js?v=265"></script>
-<script src="account.js?v=265"></script>
-<script src="reports.js?v=265"></script>
-<script src="visitors.js?v=265"></script>
-<script src="notify.js?v=265"></script>
-<script src="areas.js?v=265"></script>
-<script src="alpine.js?v=265"></script>
-<script src="bikeparks.js?v=265"></script>
-<script src="photo-find.js?v=265"></script>
+<script src="map3d.js?v=266"></script>
+<script src="contours.js?v=266"></script>
+<script src="photo-slider.js?v=266"></script>
+<script src="winter.js?v=266"></script>
+<script src="ski-points.js?v=266"></script>
+<script src="offline.js?v=266"></script>
+<script src="ride-stats.js?v=266"></script>
+<script src="navigate.js?v=266"></script>
+<script src="planner.js?v=266"></script>
+<script src="rides.js?v=266"></script>
+<script src="account.js?v=266"></script>
+<script src="reports.js?v=266"></script>
+<script src="visitors.js?v=266"></script>
+<script src="notify.js?v=266"></script>
+<script src="areas.js?v=266"></script>
+<script src="alpine.js?v=266"></script>
+<script src="bikeparks.js?v=266"></script>
+<script src="photo-find.js?v=266"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
