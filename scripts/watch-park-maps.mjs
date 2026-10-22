@@ -3,7 +3,7 @@
 // (the HAND lists in ratings.js and directions.js) can be checked again.
 //
 // For each source below it reads the map (PDF text, or the page's text plus the class names and
-// icon file names that carry grades), and remembers a short fingerprint of every line in the
+// icon file names that carry grades), and remembers a 5-character fingerprint of every line in the
 // issue "Bike park maps changed". When lines appear or vanish it comments on that issue,
 // mentioning OWNER so GitHub emails them: the new lines, how many went, the trails graded from
 // that source it named last time but not now, and any newer year of a dated map (…-2026.pdf → …-2027.pdf).
@@ -29,6 +29,15 @@ const SOURCES = [
   { park: "Revelstoke", url: "https://www.revelstokemountainresort.com/mountain/conditions/trail-report/" },
   { park: "Kicking Horse", url: "https://kickinghorseresort.com/conditions/trail-report/" },
   { park: "WinSport (Calgary)", url: "https://www.winsport.ca/assets/PDFs/Maps/2026/2026-WinSport-Summer-Trail-Map.pdf" },
+  // Riding hubs and MTB centres
+  { park: "Coast Gravity Park", url: "https://www.coastgravitypark.ca/trails" },
+  { park: "Golden Cycling Club trails", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+  { park: "Whistler, Lost Lake Park", url: "https://www.whistler.ca/wp-content/uploads/2025/LostLake_Pamphlet-Map_Dec.2024.pdf" },
+  { park: "Whistler Interpretive Forest (Cheakamus)", url: "https://www.whistler.ca/wp-content/uploads/2025/Whistler-Interpretive-Forest_Pamphlet-Map_Dec.2024.pdf" },
+  { park: "Kamloops Bike Ranch", url: "https://kamloops.ca/sites/default/files/Trail%20Map_Facility%20Overview.pdf" },
+  { park: "Kenna Cartwright Nature Park (Kamloops)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
+  { park: "Canmore Nordic Centre", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
+  { park: "Banff (Parks Canada)", url: "https://parks.canada.ca/pn-np/ab/banff/activ/cyclisme-biking/velomontagne-mountainbiking/banff" },
 ];
 
 const OWNER = process.env.OWNER || "allduf";
@@ -51,7 +60,7 @@ async function github(path, method = "GET", body) {
 }
 
 const md = (s) => String(s).replace(/[\\`*_[\]<>|#]/g, "\\$&").replace(/\s+/g, " ").trim();
-const fp = (s) => createHash("sha1").update(s).digest("base64url").slice(0, 7);
+const fp = (s) => createHash("sha1").update(s).digest("base64url").slice(0, 5);
 const fold = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
 // Words and bits that change from day to day on trail reports, not when the map changes.
@@ -66,6 +75,8 @@ function clean(lines) {
 }
 
 function pageLines(html) {
+  // Trail lists some club sites keep in page data: {"name":"Gold Rush","number":12,"difficulty":"blue",...}
+  const data = [...html.matchAll(/"name":"([^"]{2,80})"[^{}]{0,60}?"difficulty":"(\w+)"/g)].map((m) => `${m[1]}: ${m[2]}`);
   html = html.replace(/<(script|style|noscript|svg)\b[\s\S]*?<\/\1>/gi, " ").replace(/<!--[\s\S]*?-->/g, " ");
   // Grades often live only in class names (cat-3-level, black-diamond) or icon files: keep those as text.
   html = html.replace(/<img\b[^>]*>/gi, (t) => {
@@ -75,7 +86,7 @@ function pageLines(html) {
   html = html.replace(/<[a-z][^>]*\bclass="([^"]*(?:level|diff|rating|grade|green|blue|black|double|expert|pro)[^"]*)"[^>]*>/gi, " [$1] ");
   const text = html.replace(/<(br|\/p|\/div|\/li|\/tr|\/h\d|\/td|\/th)\b[^>]*>/gi, "\n").replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#0?39;|&rsquo;|&#8217;/g, "'").replace(/&[a-z]+;|&#\d+;/g, " ");
-  return text.split("\n");
+  return [...text.split("\n"), ...data];
 }
 
 const dir = mkdtempSync(join(tmpdir(), "parkmaps-"));
