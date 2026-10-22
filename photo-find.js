@@ -107,7 +107,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   box.className = "pf"; box.id = "photoFind"; box.hidden = true;
   box.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="pfTitle">
   <h2 id="pfTitle">📷 Which trail is this? <button type="button" class="pf-x" id="pfClose" aria-label="Close">✕</button></h2>
-  <p class="pf-hint">A photo, a screenshot of a post or a video of up to ${VIDEO_MAX_S} seconds. With the spot where it was taken, you get that trail. Without it, the app reads the words in it (trail names, places, hashtags, Strava or Trailforks labels) and lists the likely trails. It stays on your device.</p>
+  <p class="pf-hint">A photo, a screenshot of a post or a video of up to ${VIDEO_MAX_S} seconds. With the spot where it was taken, you get that trail. Without it, the app reads the words in it (trail names, places, hashtags, Strava or Trailforks labels) and lists the likely trails. The words are read on your device; to place the picture, a copy goes to Google's AI (Gemini) and Google's image search, which may keep it. “Yes, that's it” saves a small copy for Trail Finder to learn from (never shown in the app).</p>
   <div class="pf-drop" id="pfDrop">
     <button type="button" class="btn primary" id="pfPick">Choose a photo or short video</button>
     <button type="button" class="btn" id="pfPaste" hidden>📋 Paste a screenshot</button>
