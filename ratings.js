@@ -312,6 +312,16 @@
     { name: "Klahowya", c: [51.242, -116.948], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { name: "French Connection", c: [51.298, -117.005], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { name: "Summit", c: [51.274, -116.89], r: 1500, d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    // Kicking Horse: unnamed ways that lie along one trail of the club's map, graded from the resort's bike trail report
+    { ids: [550683444], c: [51.279, -117.08], r: 1000, named: "Dragon Chaser", d: "green", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
+    { ids: [550683470], c: [51.293, -117.05], r: 1000, named: "Easy Rider", d: "green", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
+    { ids: [550683463], c: [51.29, -117.065], r: 1000, named: "Road Runner", d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
+    { ids: [550683472, 550683473], c: [51.294, -117.052], r: 1000, named: "Buffalo Jump", d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },   // the resort says blue to black
+    { ids: [550683475], c: [51.289, -117.054], r: 1000, named: "Superberm", d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
+    { ids: [550683483], c: [51.297, -117.053], r: 1000, named: "Claim Jumper", d: "black", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
+    { ids: [550683461, 550683485], c: [51.297, -117.051], r: 1000, named: "It's a 10", d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },   // the resort says green to blue
+    { ids: [550683471], c: [51.297, -117.053], r: 1000, named: "Hop A Long", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683446], c: [51.282, -117.075], r: 1000, d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },   // along It's a 10 and Chute to View, both blue
     // unnamed on OpenStreetMap; the club's map names them (way lies along the club's line)
     { ids: [491189967], c: [51.284, -116.93], r: 1000, named: "Cliff Side", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { ids: [491189975], c: [51.272, -116.915], r: 1000, named: "Rock About", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
@@ -328,15 +338,14 @@
     { ids: [550683469], c: [51.292, -117.055], r: 1000, named: "Stump Jumper", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { ids: [550683454], c: [51.292, -117.061], r: 1000, named: "L.Y.M", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { ids: [1562597863], c: [51.276, -117.081], r: 1000, named: "Rock Garden", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
-    { ids: [550683448], c: [51.282, -117.076], r: 1000, named: "Gale Force", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683448], c: [51.282, -117.076], r: 1000, named: "Gale Force", d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },   // the club says black
     { ids: [550683479], c: [51.281, -117.078], r: 1000, named: "Training Wheels", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
-    { ids: [550683455], c: [51.293, -117.07], r: 1000, named: "Blaster", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
-    { ids: [550683453], c: [51.287, -117.062], r: 1000, named: "Rock n Roll", d: "dbl", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    { ids: [550683455], c: [51.293, -117.07], r: 1000, named: "Blaster", d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },   // the club says black
+    { ids: [550683453], c: [51.287, -117.062], r: 1000, named: "Rock n Roll", d: "black", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },   // the club says dbl
     { ids: [550683457, 550683458], c: [51.292, -117.065], r: 1000, named: "Pioneer", d: "dbl", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { ids: [550683466], c: [51.29, -117.053], r: 1000, named: "Super Berm", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { ids: [550683459], c: [51.299, -117.06], r: 1000, named: "Claim Jumper", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { ids: [550683474], c: [51.296, -117.05], r: 1000, named: "Easy Rider", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
-    { ids: [550683452], c: [51.286, -117.065], r: 1000, named: "Showdown", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { ids: [550683449, 550683450], c: [51.284, -117.071], r: 1000, named: "Magic Carpet Ride", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { ids: [170402117, 587796643, 587796644], c: [51.248, -116.951], r: 1000, named: "2% CRL Road", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { ids: [645185433], c: [51.277, -116.897], r: 1000, named: "10K", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },

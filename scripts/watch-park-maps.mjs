@@ -27,7 +27,8 @@ const SOURCES = [
   { park: "Big White (progression chart)", url: "https://www.bigwhite.com/sites/default/files/inline-images/BBW-Trail-Progression-350x713px.png" },
   { park: "Sun Peaks", url: "https://www.sunpeaksresort.com/bike-hike/bike/lift-trail-status" },
   { park: "Revelstoke", url: "https://www.revelstokemountainresort.com/mountain/conditions/trail-report/" },
-  { park: "Kicking Horse", url: "https://kickinghorseresort.com/conditions/trail-report/" },
+  { park: "Kicking Horse", url: "https://kickinghorseresort.com/conditions/trail-report/", cookie: "oshsSeason=summer" },   // the bike list only shows in summer mode
+  { park: "Kicking Horse (bike park map)", url: "https://kickinghorseresort.com/wp-content/uploads/2024/05/6198531806-KHmap-24-brochure.pdf" },
   { park: "WinSport (Calgary)", url: "https://www.winsport.ca/assets/PDFs/Maps/2026/2026-WinSport-Summer-Trail-Map.pdf" },
   { park: "Mount Washington", url: "https://mountwashington.ca/summer/bike-park" },
   { park: "RED Mountain", url: "https://www.redresort.com/wp-content/uploads/2020/09/red-mtn-bike-park-trail-map-website-v12.1.jpg" },
@@ -99,8 +100,8 @@ function pdfLines(buf) {
     .flatMap((l) => l.split(/\s{3,}/)); // layout columns become separate lines
 }
 
-async function read(url) {
-  const res = await fetch(url, { headers: { "User-Agent": UA }, redirect: "follow" });
+async function read(url, cookie) {
+  const res = await fetch(url, { headers: { "User-Agent": UA, ...(cookie && { Cookie: cookie }) }, redirect: "follow" });
   if (!res.ok) throw new Error(`the site said ${res.status}`);
   const type = res.headers.get("content-type") || "", buf = Buffer.from(await res.arrayBuffer());
   if (/pdf/i.test(type) || /\.pdf($|\?)/i.test(url)) return { lines: clean(pdfLines(buf)) };
@@ -152,7 +153,7 @@ const state = {}, report = [];
 for (const s of SOURCES) {
   const link = `[${md(s.park)}](${s.url})`;
   let got;
-  try { got = await read(s.url); }
+  try { got = await read(s.url, s.cookie); }
   catch (e) {
     state[s.url] = old[s.url];
     if (old[s.url]) report.push(`- **${link}**: couldn't read it this time (${md(e.message)}). It may have moved.`);
