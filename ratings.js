@@ -166,6 +166,40 @@
   const HAND = [
     // Lift-served bike parks: levels from the resort's own trail list or map (checked 2026-10-22), where OpenStreetMap has none
     // or a different one. Fernie's list marks black and double black the same, so its blacks may include double blacks.
+    // Sun Peaks (OpenStreetMap rates every park trail; these four differ from the resort's list)
+    { name: "DH", c: [50.895, -119.895], r: 2500, d: "dbl", src: "Sun Peaks Resort, bike trail status", url: "https://www.sunpeaksresort.com/bike-hike/bike/lift-trail-status" },
+    { name: "High Octane", c: [50.895, -119.895], r: 2500, d: "black", src: "Sun Peaks Resort, bike trail status", url: "https://www.sunpeaksresort.com/bike-hike/bike/lift-trail-status" },
+    { name: "Mach", c: [50.895, -119.895], r: 2500, d: "black", src: "Sun Peaks Resort, bike trail status", url: "https://www.sunpeaksresort.com/bike-hike/bike/lift-trail-status" },
+    { name: "Sweet One", c: [50.895, -119.895], r: 2500, d: "black", src: "Sun Peaks Resort, bike trail status", url: "https://www.sunpeaksresort.com/bike-hike/bike/lift-trail-status" },
+    // Panorama
+    { name: "Let It Ride", c: [50.448, -116.235], r: 2500, d: "green", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Rocking Horse", c: [50.448, -116.235], r: 2500, d: "green", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Mercy Me", c: [50.448, -116.235], r: 2500, d: "blue", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Sanchez", c: [50.448, -116.235], r: 2500, d: "blue", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Bazooka Joe", c: [50.448, -116.235], r: 2500, d: "blue", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Stiffy", c: [50.448, -116.235], r: 2500, d: "blue", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Rusty Cage", c: [50.448, -116.235], r: 2500, d: "blue", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Hell's Bells", c: [50.448, -116.235], r: 2500, d: "black", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Look Out", c: [50.448, -116.235], r: 2500, d: "black", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Quadzilla", c: [50.448, -116.235], r: 2500, d: "black", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Bender", c: [50.448, -116.235], r: 2500, d: "black", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Get In Line", c: [50.448, -116.235], r: 2500, d: "black", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Moose Powder", c: [50.448, -116.235], r: 2500, d: "black", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Crazy Train", c: [50.448, -116.235], r: 2500, d: "dbl", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Insanity", c: [50.448, -116.235], r: 2500, d: "dbl", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    { name: "Punnisher", c: [50.448, -116.235], r: 2500, d: "dbl", src: "Panorama Mountain Resort, 2024 DH trail map", url: "https://www.panoramaresort.com/assets/Maps/2024-BikeMap.pdf" },
+    // Revelstoke
+    { name: "Big Easy", c: [50.958, -118.15], r: 3000, d: "blue", src: "Revelstoke Mountain Resort, trail report", url: "https://www.revelstokemountainresort.com/mountain/conditions/trail-report/" },
+    { name: "Stoke Climb", c: [50.958, -118.15], r: 3000, d: "blue", src: "Revelstoke Mountain Resort, trail report", url: "https://www.revelstokemountainresort.com/mountain/conditions/trail-report/" },
+    { name: "Pipe Wrench", c: [50.958, -118.15], r: 3000, d: "dbl", src: "Revelstoke Mountain Resort, trail report", url: "https://www.revelstokemountainresort.com/mountain/conditions/trail-report/" },
+    // Big White (more below, from the audit; Rock Hammer and Rocket Science corrected there)
+    { name: "Mop Up", c: [49.73, -118.927], r: 2000, d: "blue", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
+    { name: "Knockout", c: [49.73, -118.927], r: 2000, d: "black", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
+    { name: "Catapult Ranch", c: [49.73, -118.927], r: 2000, d: "black", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
+    { name: "Stacked Deck", c: [49.73, -118.927], r: 2000, d: "black", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
+    { name: "Hubba Bubba", c: [49.73, -118.927], r: 2000, d: "black", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
+    { name: "Black Slabbath", c: [49.73, -118.927], r: 2000, d: "black", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
+    { name: "The Joker", c: [49.73, -118.927], r: 2000, d: "dbl", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
     // Fernie Alpine Resort
     { name: "Ben's Big Rig", c: [49.462, -115.1], r: 3500, d: "green", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
     { name: "Boom Trail", c: [49.462, -115.1], r: 3500, d: "green", src: "Fernie Alpine Resort, bike park trail descriptions (2026)", url: "https://skifernie.com/wp-content/uploads/2026/07/Bike-Trail-descriptions-2026.pdf" },
@@ -263,10 +297,10 @@
     { name: "It's So Easy", c: [49.723, -118.924], r: 2000, d: "green", src: "Mountain Biking BC, first visit to Big White bike park", url: "https://www.mountainbikingbc.ca/blog/your-first-visit-to-bcs-newest-lift-accessed-bike-park-in-big-white/" },
     { name: "Easy Steezy", c: [49.723, -118.926], r: 2000, d: "green", src: "Mountain Biking BC, first visit to Big White bike park", url: "https://www.mountainbikingbc.ca/blog/your-first-visit-to-bcs-newest-lift-accessed-bike-park-in-big-white/" },
     { name: "Dark Roast", c: [49.734, -118.926], r: 2000, d: "black", src: "Mountain Biking BC, Bike Parks BC road trip part 2", url: "https://www.mountainbikingbc.ca/blog/bike-parks-bc-road-trip-part-2-silverstar-and-big-white/" },
-    { name: "Rocket Science", c: [49.724, -118.935], r: 2000, d: "black", src: "Mountain Biking BC, Bike Parks BC road trip part 2", url: "https://www.mountainbikingbc.ca/blog/bike-parks-bc-road-trip-part-2-silverstar-and-big-white/" },
+    { name: "Rocket Science", c: [49.724, -118.935], r: 2000, d: "dbl", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
     { name: "Black Mamba", c: [49.725, -118.922], r: 2000, d: "black", src: "Freehub, BC bike parks travel guide", url: "https://freehub.com/features/bc-bike-parks-travel-guide" },
     { name: "Shark Fin Soup", c: [49.725, -118.925], r: 2000, d: "blue", src: "Freehub, BC bike parks travel guide", url: "https://freehub.com/features/bc-bike-parks-travel-guide" },
-    { name: "Rock Hammer", c: [49.737, -118.927], r: 2000, d: "dbl", src: "Adventures NW, In Praise of Gravity (2017)", url: "https://www.adventuresnw.com/in-praise-of-gravity-freeriding-the-okanogan/" },
+    { name: "Rock Hammer", c: [49.737, -118.927], r: 2000, d: "black", src: "Big White Bike Park trail progression chart", url: "https://www.bigwhite.com/summer/bike-park-trail-map" },
     { name: "Bronco", c: [49.547, -119.533], r: 2000, d: "black", src: "Swagman ride guide on Visit Penticton, Three Blind Mice", url: "https://visitpenticton.com/swagmans-backyard-ride-guide-three-blind-mice-part-1-flow/" },
     { name: "High Pony", c: [49.553, -119.533], r: 2000, d: "blue", src: "Swagman ride guide on Visit Penticton, Three Blind Mice", url: "https://visitpenticton.com/swagmans-backyard-ride-guide-three-blind-mice-part-1-flow/" },
     { name: "Slabs", c: [49.556, -119.547], r: 2000, d: "black", src: "Swagman ride guide on Visit Penticton, Three Blind Mice", url: "https://visitpenticton.com/swagmans-backyard-ride-guide-three-blind-mice-part-1-flow/" },
