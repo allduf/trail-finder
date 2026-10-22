@@ -140,11 +140,37 @@ body.sport-ski #ridesBtn { display: none !important; }
 
   function trails() {
     const t = window.tfTrails(), out = [], seen = new Set();
-    t.shown.forEach((x) => { if (!x.ghost && x.id > 0) { seen.add(x.id); out.push({ key: "n" + x.id, id: x.id, isNew: true, name: x.tags.name || x.tags["mtb:name"], lines: x.segments || [x.geom] }); } });
-    t.all.forEach((list) => list.forEach((w) => { if (!seen.has(w.id)) { seen.add(w.id); out.push({ key: "w" + w.id, id: w.id, name: w.tags.name || w.tags["mtb:name"], lines: [w.geom] }); } }));
+    t.shown.forEach((x) => { if (!x.ghost && x.id > 0) { seen.add(x.id); out.push({ key: "n" + x.id, id: x.id, rel: x.osmType === "relation", ids: x.segIds && x.segIds.length ? x.segIds : [x.id], isNew: true, name: x.tags.name || x.tags["mtb:name"], lines: x.segments || [x.geom] }); } });
+    t.all.forEach((list) => list.forEach((w) => { if (!seen.has(w.id)) { seen.add(w.id); out.push({ key: "w" + w.id, id: w.id, ids: [w.id], name: w.tags.name || w.tags["mtb:name"], lines: [w.geom] }); } }));
     return out;
   }
+  // The named trails ridden in full on at least one ride, for the Ridden folder in index.html (one entry per name,
+  // with every way of that name the rides covered). Worked out whether My rides is showing or not.
+  let gps = [], gpsSig = "";
+  function findRidden() {
+    const by = new Map();
+    if (rides.length) trails().forEach((t) => {
+      const name = (t.name || "").trim(), m = name && match(t.key, t.lines);
+      if (!m || m.state !== "ridden" || t.rel) return;
+      const k = "g:" + name.toLowerCase();
+      let e = by.get(k);
+      if (!e) by.set(k, e = { key: k, gps: true, type: "w", ids: [], name, kind: "", zone: "", lines: [], rideIds: new Set() });
+      e.ids.push(...t.ids); e.lines.push(...t.lines); m.rides.forEach((i) => e.rideIds.add(i));
+    });
+    const list = [...by.values()].map((e) => {
+      const rs = [...e.rideIds].map((i) => rides[i]);
+      const shape = window.tfRideShape ? window.tfRideShape(e.lines) : {};
+      return { key: e.key, gps: true, type: "w", ids: [...new Set(e.ids)].slice(0, 40), name: e.name, kind: "", zone: "", at: Math.max(...rs.map((r) => r.start || 0)), n: rs.length, ...shape };
+    });
+    const sig = list.map((e) => e.key + e.n + e.at).sort().join();
+    if (sig === gpsSig) return;
+    gps = list; gpsSig = sig;
+    window.dispatchEvent(new Event("tf:ridden"));
+  }
+  window.tfRiddenGps = () => gps;
+
   function draw() {
+    findRidden();
     layer.clearLayers();
     byId.clear();
     syncBtn();
