@@ -168,6 +168,7 @@
     { name: "Just a Cough", c: [49.823, -123.118], r: 2000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish, like Flying Whales" },
     // BC's Trail is tagged blue (mtb:scale:imba 2) on OpenStreetMap; a rider's level beats the map's (rateTags in index.html).
     { name: "BC's Trail", c: [50.088, -122.981], r: 1500, d: "dbl", who: "alex", note: "a Whistler Bike Park trail in Creekside, by Kadenwood" },
+    { name: "Dirt Merchant", c: [50.1, -122.958], r: 1500, d: "dbl", who: "alex", note: "the Dirt Merchant pro line in the Whistler Bike Park" },
     { name: "Trial and Error", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Trial and Error (lower)", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Pretty Slabs", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
