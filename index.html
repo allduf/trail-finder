@@ -829,6 +829,7 @@ label.toggle.t-off .sw { background: var(--fg); }
 .unoff-box p { margin: 6px 0 0; font-size: .85rem; }
 label.toggle.t-mtb .sw { background: var(--mtb); } label.toggle.t-looks .sw { background: var(--looks); }
 label.toggle.t-ghost .sw { background: repeating-linear-gradient(90deg, var(--ghost) 0 4px, transparent 4px 7px); }
+label.toggle.t-bits .sw { background: repeating-linear-gradient(90deg, var(--muted) 0 2px, transparent 2px 4px); }
 label.toggle.off .sw { background: var(--muted); }
 .boxres { border-bottom: 1px solid var(--line); }
 .box-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 10px 16px; }
@@ -1243,6 +1244,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
           <label class="toggle t-ghost" title="Lines that several GPS traces follow at bike speed, where OpenStreetMap has no trail yet. Unverified."><input type="checkbox" id="showGhost" checked><span class="ck"></span><span class="sw"></span>Possible unmapped <span class="n" id="nGhost">0</span></label>
           <label class="toggle t-unoff off" title="Show only trails tagged as informal, closed or no bikes: of the types ticked, or of every type when none is ticked"><input type="checkbox" id="onlyUnoff"><span class="ck"></span><span class="sw"></span>Unofficial only <span class="n" id="nUnoff">0</span></label>
           <label class="toggle t-off off" title="Show only trails the map says are official: run by a park, town, trail club or bike park, listed by Recreation Sites and Trails BC, or mapped as informal=no. Of the types ticked, or of every type when none is ticked"><input type="checkbox" id="onlyOff"><span class="ck"></span><span class="sw"></span>Official only <span class="n" id="nOff">0</span></label>
+          <label class="toggle t-bits off" title="Hidden unless ticked: unnamed scraps under 200 m, and pieces of old trails that a mapper split or re-drew (same name as an older trail within 1 km), which only look new"><input type="checkbox" id="showBits"><span class="ck"></span><span class="sw"></span>Bits &amp; re-drawn old trails <span class="n" id="nBits">0</span></label>
         </div>
         <div class="wantlist" id="wantList" hidden></div>
       </section>
@@ -1284,7 +1286,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
       <li><strong>▶ Ride</strong> (the Ride tab on phones) is for riding with the map: it follows you, points the arrow the way you're facing, keeps the screen on and records the ride. The strip at the bottom names the trail you're on, how much of it is left and which trails branch off at the next junction. The numbers on top are moving time (stops don't count), distance, climb and speed; <strong>Ⅱ Pause</strong> stops counting while you take a break. Stop, then Save ride, to give it a title and photos in My rides. Don't lock the phone: a locked phone stops the GPS for websites. Tap <strong>🔒 Pocket</strong> instead for a black screen that ignores touches (hold to unlock). If the GPS stops anyway, the missing stretch is filled in along the trails when it fits, and a ride cut off by the phone closing the page can be carried on when you open the map again.</li>
       <li><strong>▶ Ride this trail</strong> (in a trail's details) draws the trail in purple and follows it in Ride mode: it says how far away it is until you reach it, then how much is left. More than 40 m off it for 15 seconds, the phone buzzes (or beeps on iPhones) and the strip turns red. Riding a one-way trail the wrong way also buzzes. One-way trails have small arrows on the map from zoom 14.</li>
       <li><strong>✎ Plan a route</strong> (Layers, Tools; More on phones) has two ways. <em>Tap points</em>: tap where you start, then each next point, and the route takes the trails and forest roads that make sense on a bike between them: one-way trails only their way, climbs on roads and climbing trails, descents on the downhill trails. <em>Pick trails</em>: tap the trails you want to ride (tap again to take one out) and the app builds the ride, in the order you tapped them, each in the direction that makes sense (climb the climbing trails, descend the downhill ones, follow one-way tags) and joining them with the easiest climbs. Where the next trail starts partway down the one before, the route leaves it there instead of riding to the bottom and climbing back. Your trails show as a list: use ▲ ▼ (or drag them) to ride one first, and the route follows your order; ↻ Let the app choose finds the order with the least effort. It starts at the lowest end of your trails unless you use 📍 Set start, and comes back to the start unless you turn ↺ Back to start off. Both show the distance, climb and the trails used, with arrows for the way to ride. ⤓ GPX downloads it (with heights) and ▶ Ride it follows it in Ride mode. Where trails and forest roads don't connect, it joins them on streets, paths and bridges, and only the stretch with nothing mapped is a dashed straight line, as short as it can be. <em>🚲 Pedal</em> rides all of it. <em>🛻 Shuttle</em> has a 4x4 pickup drive you (on the highway too) up the forest roads as close to your trails as it can get, and you ride from there (and get picked up at the bottom): it drives roads in good, degraded or unknown condition (never heavily degraded, closed to vehicles or impassable; where one starts, the truck stops and you ride from there), and never past a locked gate, a barrier or a bridge that's out. With a locked gate near your start there's no shuttle (you're at the gates) and it says so. The drive shows as a dark line with its own distance. Tap ✕ on a shuttle to ride that part instead (one big run from one trail to the next); 🛻 Shuttle here puts it back. Road status is mapped data, not a live closure list: check the road safety notices before driving. Heights come from terrain tiles; without a connection the route goes by distance. The plan stays on this device until you clear it. The side panel stays open while you plan (🔍 Find trails on phones): open a trail and tap ✎ Add to my ride. 💾 Save keeps a ride under a name, and 📂 Saved (also Saved routes in More) opens, renames or deletes them; signed in, they follow you to any device.</li>
-      <li><strong>📷 Which trail is this?</strong> (the camera button next to Search; More on phones) finds a trail from a photo, a screenshot of a post or a short video. A photo or video that kept the spot where it was taken (most phone camera ones do) goes straight to the trail it was taken on. A screenshot or a video from online has no spot, so the app reads the words in it (trail names, places, hashtags, Strava or Trailforks labels, the caption) and lists the likely trails, best first. Paste the post's caption, or write what you see ("big granite wall behind", "Black Tusk in the back"), and pick the area to help it. Big mountains, rock walls and lakes it knows (the Chief, Black Tusk, Mount Currie, Ha Ling and more) list the trails that can actually see them. When the picture checker is set up, a small copy of the picture also goes to an AI (Google Gemini), which looks at the background, signs and overlays. Each result has YouTube, Instagram, Trailforks and Photos links to compare with other riders' videos. After you open one it asks "Is this the trail?": Yes saves the match (with a small copy of the picture, kept private) so later searches with similar words find it faster. The ✕ on the picture clears it to try another. The first time, the word reader downloads about 7 MB.</li>
+      <li><strong>📷 Which trail is this?</strong> (the camera button next to Search; More on phones) finds a trail from a photo, a screenshot of a post or a short video. A photo or video that kept the spot where it was taken (most phone camera ones do) goes straight to the trail it was taken on. A screenshot or a video from online has no spot, so the app reads the words in it (trail names, places, hashtags, Strava or Trailforks labels, the caption) and lists the likely trails, best first. Paste the post's caption, or write what you see ("big granite wall behind", "Black Tusk in the back"), and pick the area to help it. Big mountains, rock walls and lakes it knows (the Chief, Black Tusk, Mount Currie, Ha Ling and more) list the trails that can actually see them. When the picture checker is set up, a small copy of the picture also goes to an AI (Google Gemini), which looks at the background, signs and overlays, and to Google's image search to find pages with the same picture. Google may keep pictures sent to its free AI. Each result has YouTube, Instagram, Trailforks and Photos links to compare with other riders' videos. After you open one it asks "Is this the trail?": Yes saves the match (with a small copy of the picture, kept private) so later searches with similar words find it faster. The ✕ on the picture clears it to try another. The first time, the word reader downloads about 7 MB.</li>
       <li><strong>Old vs new photos</strong> (in Layers) puts an older satellite photo on the left and a newer one on the right. Drag the ⇆ handle across the map: a trail that appears as you pass over it was cut between the two photos.</li>
       <li><strong>Bike parks</strong> (in Layers) pins the bike parks, MTB centres, skills and jump parks, and pump and BMX tracks across Canada. Orange pins are lift-served bike parks. Tap one for its website, hours, price and directions.</li>
       <li><strong>Colours</strong> are like Trailforks: green, blue, black, double black (red) and pro line (orange). Grey isn't rated yet. Dotted lines may be unofficial.</li>
@@ -1360,10 +1362,10 @@ body.sport-ski #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=257"></script>
-<script src="official.js?v=257"></script>
-<script src="directions.js?v=257"></script>
-<script src="ratings.js?v=257"></script>
+<script src="rotate.js?v=259"></script>
+<script src="official.js?v=259"></script>
+<script src="directions.js?v=259"></script>
+<script src="ratings.js?v=259"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1434,6 +1436,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     ghosts: [],          // possible unmapped trails from the weekly GPS-trace file
     newPick: [],          // level chips in New trails: DIFF keys and/or "unoff"
     onlyUnoff: false,     // "Unofficial only": flagged trails of the ticked types (of every type when none is ticked)
+    showBits: false,      // "Bits & re-drawn old trails": off hides them from the new-trails list
     onlyOff: false,       // "Official only": trails with signs of being official, of the ticked types (same rule)
     colorBy: store.get("colorBy", "diff"),     // trail colours on the map: "diff" (difficulty, like Trailforks) or "type"
     allTrails: store.get("allTrails", true),  // "All trails": every MTB trail in view, any age, under the new ones
@@ -2613,6 +2616,39 @@ out body;`;
     return out.sort((a, b) => b.created - a.created);
   }
 
+  // ---------- Bits and re-drawn old trails ----------
+  // App review (alex): about half the named "new" pieces were old trails a mapper split or re-drew (a new piece gets
+  // a new id and date), and most unnamed ones were 60-200 m scraps, which buried the real new trails. A named trail
+  // is re-drawn when an older way (not first mapped in the chosen time) has its name within OLD_NAME_M, the rule the
+  // 🔔 feed uses (scripts/build-new-trails.mjs). Both are left out unless "Bits & re-drawn old trails" is ticked.
+  const BIT_M = 200, OLD_NAME_M = 1000;
+  const oldNames = { key: "", map: new Map() };
+  function oldNameIndex(cutoff) {                  // name -> centres of older named ways, from the trail-name lists
+    const key = names.rev + "/" + state.trails.length + "/" + Math.round(cutoff / 864e5);
+    if (oldNames.key === key) return oldNames.map;
+    const fresh = new Set(state.trails.filter((t) => t.created >= cutoff).map((t) => t.id)), map = new Map();
+    for (const list of names.zones.values()) list.forEach((i) => {
+      const n = i.t === "w" && !fresh.has(i.id) && (i.tags.name || i.tags["mtb:name"]);
+      if (!n) return;
+      const k = norm(n);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(L.latLng(i.c[0], i.c[1]));
+    });
+    oldNames.key = key; oldNames.map = map;
+    return map;
+  }
+  function bitOf(t, idx) {                         // "bit", "old" (re-drawn piece of an older trail) or ""
+    if (t.ghost) return "";
+    const name = t.tags.name || t.tags["mtb:name"];
+    if (!name) return !t.tfName && t.km * 1000 < BIT_M ? "bit" : "";
+    const olds = idx.get(norm(name));
+    if (!olds) return "";
+    const line = t.segments ? t.segments.flat() : t.geom, step = Math.max(1, Math.floor(line.length / 20));
+    for (let i = 0; i < line.length; i += step) { const p = L.latLng(line[i]); if (olds.some((o) => o.distanceTo(p) <= OLD_NAME_M)) return "old"; }
+    return "";
+  }
+  const BIT_TAG = { bit: "Short bit", old: "Re-drawn old trail" };
+
   // ---------- MTB trail networks ----------
   // Many bike trails have no bike tags in OpenStreetMap. A plain path (no bike tags, not open to
   // motors, not graded for hiking) that runs among two or more differently named MTB-tagged trails,
@@ -2754,12 +2790,18 @@ out body;`;
     const vis = mergeSegments(base.filter((t) => !t.use))   // moto and hiking-only trails are left out
       .filter((t) => t.km * 1000 >= MIN_TRAIL_M);
     state.merged = new Map(vis.map((t) => [t.id, t]));
+    const idx = oldNameIndex(monthsAgo(state.months));
+    vis.forEach((t) => { t.bit = bitOf(t, idx); });
+    const kept = state.showBits ? vis : vis.filter((t) => !t.bit);
     const counts = { mtb: 0, looks: 0, other: 0, ghost: 0 };
-    vis.forEach((t) => counts[t.cat]++);
+    kept.forEach((t) => counts[t.cat]++);
     $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nGhost").textContent = counts.ghost;
-    $("nUnoff").textContent = vis.filter((t) => isUnoff(t) && unoffTypes().includes(t.cat)).length;
-    $("nOff").textContent = vis.filter((t) => t.official && unoffTypes().includes(t.cat)).length;
-    const shown = vis.filter((t) => picked(t.cat, isUnoff(t), t.official, t.tags));
+    $("nUnoff").textContent = kept.filter((t) => isUnoff(t) && unoffTypes().includes(t.cat)).length;
+    $("nOff").textContent = kept.filter((t) => t.official && unoffTypes().includes(t.cat)).length;
+    const bits = vis.filter((t) => t.bit && picked(t.cat, isUnoff(t), t.official, t.tags)).length;
+    $("nBits").textContent = bits;
+    state.bitsHidden = state.showBits ? 0 : bits;
+    const shown = kept.filter((t) => picked(t.cat, isUnoff(t), t.official, t.tags));
     drawAllTrails();
     state.shownCount = shown.length;
     state.shownIds = new Set(shown.map((t) => t.id));
@@ -2774,7 +2816,7 @@ out body;`;
     list.innerHTML = (namePick ? namePickBar(rows.length, shown.length) : "") + "<ol>" + rows.map((t) => {
       return `<li class="trail ${t.cat}${state.selected === t.id ? " sel" : ""}" data-id="${t.id}" tabindex="0">
         <span class="bar"${barStyle(t)}></span>
-        <div><div class="name">${esc(trailName(t))} ${t.ghost ? "" : diffBadge(t.tags)} ${isUnoff(t) ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(t.official)} ${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}</div>
+        <div><div class="name">${esc(trailName(t))} ${t.ghost ? "" : diffBadge(t.tags)} ${isUnoff(t) ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(t.official)} ${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}${t.bit ? ` <span class="use-tag">${BIT_TAG[t.bit]}</span>` : ""}</div>
         <div class="meta">${near ? `<span class="zone-tag">${fmtAway(nearDist(t))}</span> · ` : ""}${!zoneById(state.zone) && !state.custom && t.zone ? `<span class="zone-tag">${esc(t.zone.split(" (")[0])}</span> · ` : ""}${esc(plainWhy(t))}</div></div>
         <div class="right">${fmtLen(t.km)}<br>${ago(t.created)}${loamBadge(t)}</div></li>`;
     }).join("") + "</ol>";
@@ -2829,8 +2871,11 @@ out body;`;
     $("nMtb").textContent = prime.filter((e) => e.cat === "mtb").length; $("nLooks").textContent = prime.filter((e) => e.cat === "looks").length; $("nGhost").textContent = "–";
     $("nUnoff").textContent = prime.filter((e) => e.unoff.length && unoffTypes().includes(e.cat)).length;
     $("nOff").textContent = prime.filter((e) => e.official && unoffTypes().includes(e.cat)).length;
-    const dist = (e) => near.ll.distanceTo(e.center);
-    const shown = prime.filter((e) => picked(e.cat, e.unoff.length, e.official, e.g.tags)).sort(near ? (a, b) => dist(a) - dist(b) : (a, b) => a.g.name.localeCompare(b.g.name));
+    // Nearest first (alex, app review: 938 trails A to Z was hard to use): from the Near me spot, else from you, else
+    // from the middle of the map.
+    const from = near ? L.latLng(near.ll) : you.ll || map.getCenter(), showAway = !!(near || you.ll);
+    const dist = (e) => from.distanceTo(e.center);
+    const shown = prime.filter((e) => picked(e.cat, e.unoff.length, e.official, e.g.tags)).sort((a, b) => dist(a) - dist(b) || a.g.name.localeCompare(b.g.name));
     state.primeShown = shown; state.shownCount = shown.length; state.primeTotal = typed.length;
     state.shownIds = new Set();
     state.loamPending = typed.some((e) => loamOf(e) === undefined);
@@ -2847,7 +2892,7 @@ out body;`;
       return `<li class="trail prime ${e.cat}" data-pk="${i}" tabindex="0">
         <span class="bar"${barStyle({ tags: e.g.tags })}></span>
         <div><div class="name">${esc(e.g.name)} ${diffBadge(e.g.tags)} ${e.unoff.length ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(e.official)}</div>
-        <div class="meta">${near ? `<span class="zone-tag">${fmtAway(dist(e))}</span> · ` : ""}${esc([e.g.kind, e.g.zone].filter(Boolean).join(" · "))}</div></div>
+        <div class="meta">${showAway ? `<span class="zone-tag">${fmtAway(dist(e))}</span> · ` : ""}${esc([e.g.kind, e.g.zone].filter(Boolean).join(" · "))}</div></div>
         <div class="right">${loamBadge(e).replace(/^<br>/, "")}</div></li>`;
     }).join("") + "</ol>" : "";
   }
@@ -2912,7 +2957,7 @@ out body;`;
     } else if (state.error && !state.trails.length) {
       setStatus(`Search failed. ${state.error.replace(/\.?$/, ".")} If it keeps happening, open “Search details” below and send a screenshot.`, true, state.retry && { label: "Try again", fn: state.retry });
     } else if (state.searchedBounds.length) {
-      setStatus((noType && !n ? "Tick a trail type above to see the trails." : n ? `${n} new ${only}trail${n === 1 ? "" : "s"} from the last ${label}, newest first.` : (only ? `No ${only}trails here in the last ${label}. Turn off ${onlyOff} to see the others.` : `No new trails here in the last ${label}. Try a longer time or another area.`)) + (state.error ? " " + state.error : ""),
+      setStatus((noType && !n ? "Tick a trail type above to see the trails." : n ? `${n} new ${only}trail${n === 1 ? "" : "s"} from the last ${label}, newest first.${state.bitsHidden ? ` ${state.bitsHidden} short bit${state.bitsHidden === 1 ? "" : "s"} and re-drawn old trail${state.bitsHidden === 1 ? "" : "s"} left out (tick “Bits & re-drawn old trails” to see them).` : ""}` : (only ? `No ${only}trails here in the last ${label}. Turn off ${onlyOff} to see the others.` : `No new trails here in the last ${label}. Try a longer time or another area.`)) + (state.error ? " " + state.error : ""),
         !!state.error, state.error && state.retry && { label: "Load missing squares", fn: state.retry });
     }
   }
@@ -3915,6 +3960,7 @@ out body;`;
   }
   $("onlyUnoff").addEventListener("change", (e) => setOnly("unoff", e.target.checked));
   $("onlyOff").addEventListener("change", (e) => setOnly("off", e.target.checked));
+  $("showBits").addEventListener("change", (e) => { state.showBits = e.target.checked; e.target.closest("label").classList.toggle("off", !state.showBits); render(); });
   [["showMtb", "mtb"], ["showLooks", "looks"], ["showGhost", "ghost"]].forEach(([id, k]) => {
     const el = $(id);
     el.checked = state.show[k];
@@ -5280,7 +5326,7 @@ out tags center qt;`;
     if (!q) return [];
     if (names.dirty || names.trailCount !== state.trails.length) buildGroups();
     const qWords = q.split(" ");
-    const here = map.getCenter();
+    const here = you.ll || map.getCenter();
     const zb = nameZone() ? nameZone().bounds.pad(0.02) : null;
     return names.groups.filter((g) => !zb || zb.contains(g.center)).map((g) => {
       let s = 0; for (const t of g.texts) s = Math.max(s, matchScore(q, qWords, t));
@@ -5290,7 +5336,12 @@ out tags center qt;`;
   }
 
   let hits = [], hitSel = -1;
-  const fmtDist = (m) => m < 1000 ? "nearby" : m < 10000 ? (m / 1000).toFixed(1) + " km away" : Math.round(m / 1000) + " km away";
+  // From you when the app knows where you are (alex saw Half Nelson "45 km away" from 5 km: it was measured from
+  // the map, still on a Vancouver trail); otherwise from the middle of the map, and it says so.
+  const fmtDist = (m) => {
+    const km = m < 10000 ? (m / 1000).toFixed(1) : Math.round(m / 1000);
+    return you.ll ? (m < 1000 ? "nearby" : km + " km away") : (m < 1000 ? "in view" : km + " km from the map's centre");
+  };
   function hitRow(h, n) {
     const g = h.g;
     const meta = [g.kind, g.zone, g.items.length > 1 ? g.items.length + " segments" : "", fmtDist(h.d)].filter(Boolean).join(" · ");
@@ -5317,7 +5368,7 @@ out tags center qt;`;
     box.hidden = !open; input.setAttribute("aria-expanded", String(open));
     if (!open) return;
     if (!raw) {
-      const here = map.getCenter();
+      const here = you.ll || map.getCenter();
       hits = past.map((g) => ({ g, d: here.distanceTo(g.center) }));
       if (hitSel >= hits.length) hitSel = hits.length - 1;
       box.innerHTML = `<li class="hhead"><span>Recent searches</span><button class="linkish" type="button" data-clear-recent>Clear</button></li>` + hits.map((h, n) => hitRow(h, n)).join("");
@@ -5992,24 +6043,24 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=257"></script>
-<script src="contours.js?v=257"></script>
-<script src="photo-slider.js?v=257"></script>
-<script src="winter.js?v=257"></script>
-<script src="ski-points.js?v=257"></script>
-<script src="offline.js?v=257"></script>
-<script src="ride-stats.js?v=257"></script>
-<script src="navigate.js?v=257"></script>
-<script src="planner.js?v=257"></script>
-<script src="rides.js?v=257"></script>
-<script src="account.js?v=257"></script>
-<script src="reports.js?v=257"></script>
-<script src="visitors.js?v=257"></script>
-<script src="notify.js?v=257"></script>
-<script src="areas.js?v=257"></script>
-<script src="alpine.js?v=257"></script>
-<script src="bikeparks.js?v=257"></script>
-<script src="photo-find.js?v=257"></script>
+<script src="map3d.js?v=259"></script>
+<script src="contours.js?v=259"></script>
+<script src="photo-slider.js?v=259"></script>
+<script src="winter.js?v=259"></script>
+<script src="ski-points.js?v=259"></script>
+<script src="offline.js?v=259"></script>
+<script src="ride-stats.js?v=259"></script>
+<script src="navigate.js?v=259"></script>
+<script src="planner.js?v=259"></script>
+<script src="rides.js?v=259"></script>
+<script src="account.js?v=259"></script>
+<script src="reports.js?v=259"></script>
+<script src="visitors.js?v=259"></script>
+<script src="notify.js?v=259"></script>
+<script src="areas.js?v=259"></script>
+<script src="alpine.js?v=259"></script>
+<script src="bikeparks.js?v=259"></script>
+<script src="photo-find.js?v=259"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
