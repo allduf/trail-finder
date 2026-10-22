@@ -1369,10 +1369,10 @@ body.sport-ski #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=270"></script>
-<script src="official.js?v=270"></script>
-<script src="directions.js?v=270"></script>
-<script src="ratings.js?v=270"></script>
+<script src="rotate.js?v=271"></script>
+<script src="official.js?v=271"></script>
+<script src="directions.js?v=271"></script>
+<script src="ratings.js?v=271"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3383,6 +3383,26 @@ out body;`;
       page: `https://api.panoramax.xyz/#focus=pic&pic=${encodeURIComponent(id)}`, title: "Street-level photo linked on the map", about: "", author: "", licence: "CC BY-SA 4.0", date: "", tagged: true }));
     return out;
   }
+  // alex: anything we find about a trail beyond OpenStreetMap goes on the trail. data/trail-info.json holds what
+  // resort and club pages say (map number, part of the mountain, trail type, length, a short description in our words).
+  let trailInfo = null;
+  const foldName = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  async function officialAbout(t) {
+    trailInfo = trailInfo || fetch("data/trail-info.json?v=271").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
+    const j = await trailInfo; if (!j) return [];
+    const names = new Set([t.tags.name, t.tags["mtb:name"], t.tags["tf:name"], t.tfName].filter(Boolean).map(foldName));
+    const mid = t.geom[Math.floor(t.geom.length / 2)], k = Math.cos(mid[0] * Math.PI / 180);
+    const near = (c, r) => Math.hypot((c[0] - mid[0]) * 110540, (c[1] - mid[1]) * 111320 * k) <= r;
+    return j.trails.filter((e) => {
+      const s = j.src[e.s];
+      return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
+    }).map((e) => {
+      const s = j.src[e.s], facts = [e.no && `#${e.no} on the official map`, e.where, e.level && `Park rating: ${e.level}`,
+        e.kind && `${e.kind} trail`, e.km && `${e.km} km`].filter(Boolean).join(" · ");
+      const kind = j.kinds && j.kinds[e.s] && j.kinds[e.s][e.kind];
+      return { text: [facts && facts + ".", e.text, kind].filter(Boolean).join(" "), src: s.name, url: s.url, licence: "summarised" };
+    });
+  }
   async function wikipediaAbout(t) {
     const m = String(t.tags.wikipedia || "").match(/^([a-z-]{2,12}):(.+)$/);
     if (!m) return null;
@@ -3405,8 +3425,9 @@ out body;`;
       const osm = t.tags["description:en"] || t.tags.description;
       if (osm) texts.push({ text: osm, src: "OpenStreetMap mappers", url: `https://www.openstreetmap.org/${t.osmType || "way"}/${t.id}` });
       if (tf.rec && tf.rec.about) texts.push({ text: tf.rec.about, src: "Recreation Sites and Trails BC", url: tf.rec.id ? `https://www.sitesandtrailsbc.ca/search/search-result.aspx?site=${encodeURIComponent(tf.rec.id)}&type=Trail` : null });
-      const [wiki, tagged, commons, pano] = await Promise.all([
+      const [official, wiki, tagged, commons, pano] = await Promise.all([officialAbout(t).catch(() => []),
         wikipediaAbout(t).catch(() => null), taggedPhotos(t).catch(() => []), commonsNear(t).catch(() => null), panoramaxNear(t).catch(() => null)]);
+      texts.unshift(...official);
       if (wiki) texts.push(wiki);
       const seen = new Set(), photos = [];
       [...tagged, ...(commons || []), ...(pano || [])].forEach((p) => { if (!seen.has(p.full) && !wintry(p)) { seen.add(p.full); photos.push(p); } });
@@ -6161,24 +6182,24 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=270"></script>
-<script src="contours.js?v=270"></script>
-<script src="photo-slider.js?v=270"></script>
-<script src="winter.js?v=270"></script>
-<script src="ski-points.js?v=270"></script>
-<script src="offline.js?v=270"></script>
-<script src="ride-stats.js?v=270"></script>
-<script src="navigate.js?v=270"></script>
-<script src="planner.js?v=270"></script>
-<script src="rides.js?v=270"></script>
-<script src="account.js?v=270"></script>
-<script src="reports.js?v=270"></script>
-<script src="visitors.js?v=270"></script>
-<script src="notify.js?v=270"></script>
-<script src="areas.js?v=270"></script>
-<script src="alpine.js?v=270"></script>
-<script src="bikeparks.js?v=270"></script>
-<script src="photo-find.js?v=270"></script>
+<script src="map3d.js?v=271"></script>
+<script src="contours.js?v=271"></script>
+<script src="photo-slider.js?v=271"></script>
+<script src="winter.js?v=271"></script>
+<script src="ski-points.js?v=271"></script>
+<script src="offline.js?v=271"></script>
+<script src="ride-stats.js?v=271"></script>
+<script src="navigate.js?v=271"></script>
+<script src="planner.js?v=271"></script>
+<script src="rides.js?v=271"></script>
+<script src="account.js?v=271"></script>
+<script src="reports.js?v=271"></script>
+<script src="visitors.js?v=271"></script>
+<script src="notify.js?v=271"></script>
+<script src="areas.js?v=271"></script>
+<script src="alpine.js?v=271"></script>
+<script src="bikeparks.js?v=271"></script>
+<script src="photo-find.js?v=271"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
