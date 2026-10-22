@@ -3319,7 +3319,7 @@ out body;`;
   // Wikimedia Commons: files from one query (geosearch, category or titles), as photos with author and licence.
   async function commonsPhotos(params) {
     const q = new URLSearchParams({ action: "query", format: "json", origin: "*", prop: "imageinfo|coordinates", iiprop: "url|mime|extmetadata",
-      iiurlwidth: "330", iiextmetadatafilter: "LicenseShortName|Artist|ObjectName|ImageDescription|DateTimeOriginal", ...params });
+      iiurlwidth: "330", iiextmetadatafilter: "LicenseShortName|Artist|ObjectName|ImageDescription|DateTimeOriginal|Categories", ...params });
     const j = await aboutJson(`${COMMONS_API}?${q}`);
     return Object.values((j.query && j.query.pages) || {}).map((p) => {
       const ii = p.imageinfo && p.imageinfo[0];
@@ -3328,7 +3328,8 @@ out body;`;
       const c = p.coordinates && p.coordinates[0];
       return { src: "Wikimedia Commons", thumb: ii.thumburl || ii.url, full: ii.url, big: (ii.thumburl || "").replace(/\/330px-/, "/1280px-") || ii.url, page: ii.descriptionurl,
         title: v("ObjectName") || p.title.replace(/^File:/, "").replace(/\.\w+$/, ""), about: v("ImageDescription").slice(0, 200),
-        author: v("Artist").slice(0, 80), licence: v("LicenseShortName"), date: v("DateTimeOriginal").slice(0, 10), at: c ? [c.lat, c.lon] : null };
+        author: v("Artist").slice(0, 80), licence: v("LicenseShortName"), date: v("DateTimeOriginal").slice(0, 10), at: c ? [c.lat, c.lon] : null,
+        cats: v("Categories").slice(0, 600) };
     }).filter(Boolean);
   }
   async function commonsNear(t) {
@@ -3389,6 +3390,13 @@ out body;`;
     return j && j.extract ? { text: j.extract, src: "Wikipedia", url: j.content_urls && j.content_urls.desktop && j.content_urls.desktop.page, licence: "CC BY-SA 4.0" } : null;
   }
 
+  // alex: no winter pictures in a bike trail's details. Out: taken November to April, or snow, skiing or ice in the
+  // title, description or Commons categories. Photos with no date and no such words stay.
+  const WINTER_WORDS = /\b(snow\w*|winter|ski|skis|skiing|skier\w*|snowboard\w*|powder|avalanche\w*|frost\w*|hoar|ice|icy|icicles?|blizzard|sledding|snowshoe\w*)\b/i;
+  const wintry = (p) => {
+    const m = +String(p.date || "").slice(5, 7);
+    return (m >= 1 && m <= 4) || m >= 11 || WINTER_WORDS.test(`${p.title || ""} ${p.about || ""} ${p.cats || ""}`);
+  };
   async function loadAbout(t) {
     const box = () => (state.selected === t.id ? $("trailAbout") : null);
     if (!t.about) {
@@ -3401,7 +3409,7 @@ out body;`;
         wikipediaAbout(t).catch(() => null), taggedPhotos(t).catch(() => []), commonsNear(t).catch(() => null), panoramaxNear(t).catch(() => null)]);
       if (wiki) texts.push(wiki);
       const seen = new Set(), photos = [];
-      [...tagged, ...(commons || []), ...(pano || [])].forEach((p) => { if (!seen.has(p.full)) { seen.add(p.full); photos.push(p); } });
+      [...tagged, ...(commons || []), ...(pano || [])].forEach((p) => { if (!seen.has(p.full) && !wintry(p)) { seen.add(p.full); photos.push(p); } });
       t.about = { texts, photos, failed: commons == null && pano == null };
     }
     const el = box(); if (!el) return;
