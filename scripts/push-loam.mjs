@@ -45,7 +45,7 @@ webpush.setVapidDetails(SITE, keys.public_key, keys.private_key);
 const subs = await db("push_subs?select=id,sub,watch,sent,updated_at");
 console.log(`${subs.length} phone(s) signed up.`);
 // What each phone asked for (no addresses), so a quiet phone can be told apart from one with nothing picked.
-subs.forEach((s, i) => { const w = s.watch || {}; console.log(`  phone ${i + 1}: regions ${JSON.stringify(w.zones || [])}, prime loam ${w.loam ? "on" : "off"}, new trails ${w.newt ? "on" : "off"}, ${(w.ride || []).length} To ride trail(s), ${Object.keys(s.sent || {}).length} already sent, saved ${s.updated_at}`); });
+subs.forEach((s, i) => { const w = s.watch || {}; console.log(`  phone ${i + 1}: regions ${JSON.stringify(w.zones || [])}, prime loam ${w.loam ? "on" : "off"}, new trails ${w.newt ? "on" : "off"}, ${(w.ride || []).length} To ride trail(s), app v${w.v || "older than 257"}, ${Object.keys(s.sent || {}).length} already sent, saved ${s.updated_at}`); });
 if (!subs.length) process.exit(0);
 const zonesOf = (w) => ((w.zones || []).includes("all") ? [...ZONES.keys()] : (w.zones || []).filter((z) => ZONES.has(z)));
 
