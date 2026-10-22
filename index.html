@@ -893,6 +893,13 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .d-saves { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .ride-btn { border-color: #e0a800; color: #9a6b00; }
 .ride-btn[aria-pressed="true"] { background: #ffc61a; border-color: #e0a800; color: #2b1d00; }
+.ridden-btn { border-color: #6fae00; color: #4d7a00; }
+.ridden-btn[aria-pressed="true"] { background: #b8f03a; border-color: #6fae00; color: #10230f; }
+.wantlist .folder[data-id="ridden"] .wl-map { border-color: #6fae00; }
+.wantlist li .open .gps { font-size: .75rem; font-weight: 700; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: #b8f03a; color: #10230f; white-space: nowrap; }
+.map-tools #riddenMapBtn.on { background: #b8f03a; border-color: #6fae00; color: #10230f; }
+body.sport-ski #riddenMapBtn { display: none !important; }
+.toride-pin.ridden span b { color: #b8f03a; }
 .ride-note { margin-bottom: 10px; }
 .ride-note label { display: block; font-size: .85rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
 .ride-note textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--fg); resize: vertical; }
@@ -1360,10 +1367,10 @@ body.sport-ski #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=257"></script>
-<script src="official.js?v=257"></script>
-<script src="directions.js?v=257"></script>
-<script src="ratings.js?v=257"></script>
+<script src="rotate.js?v=260"></script>
+<script src="official.js?v=260"></script>
+<script src="directions.js?v=260"></script>
+<script src="ratings.js?v=260"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3439,7 +3446,7 @@ out body;`;
     const tf = tfInfo({ ...(real ? allTfOf(t.id) : {}), ...t.tags });
     if (tf.tfName) t.tfName = tf.tfName;
     d.innerHTML = `
-      <div class="d-top"><button class="linkish back" id="detailBack" type="button">← Back</button>${real ? `<span class="d-saves"><button class="want-btn ride-btn" id="rideBtn" type="button" aria-pressed="false"></button><button class="want-btn" id="wantBtn" type="button" aria-pressed="false"></button></span>` : ""}</div>
+      <div class="d-top"><button class="linkish back" id="detailBack" type="button">← Back</button>${real ? `<span class="d-saves"><button class="want-btn ride-btn" id="rideBtn" type="button" aria-pressed="false"></button><button class="want-btn ridden-btn" id="riddenBtn" type="button" aria-pressed="false"></button><button class="want-btn" id="wantBtn" type="button" aria-pressed="false"></button></span>` : ""}</div>
       ${real ? `<div class="save-pick" id="savePick" hidden></div><div class="ride-note" id="rideNote" hidden><label for="rideNoteIn">Your note</label><textarea id="rideNoteIn" rows="2" maxlength="500" placeholder="Why you want to ride it, who told you about it, where to park…"></textarea></div>` : ""}
       <div class="d-head ${t.cat}">
         <span class="bar"${barStyle(t)}></span>
@@ -3588,9 +3595,29 @@ out body;`;
     let f = store.get("folders", null);
     // Not saved until the rider changes something, so a new device doesn't overwrite the account's folders.
     if (!Array.isArray(f)) f = [{ id: "want", name: "Want to ride", trails: store.get("want", []) }];
+    // The Ridden folder is always there, right after Want to ride (saved with the others once the rider changes something).
+    if (!f.some((x) => x.id === RIDDEN)) { f = f.slice(); f.splice(f.findIndex((x) => x.id === TO_RIDE) + 1, 0, { id: RIDDEN, name: "Ridden", trails: [] }); }
     return f;
   }
-  const putFolders = (f) => { store.set("folders", f); renderFolders(); toRide.draw(); };
+  const putFolders = (f) => { store.set("folders", f); renderFolders(); toRide.draw(); riddenMap.draw(); };
+  // ---- Ridden: trails the rider tapped "+ Ridden" on, plus the named trails My rides (rides.js) finds in their recorded
+  // and imported rides. Those are worked out on the fly (rides live on the device and sync on their own), keyed by
+  // name ("g:half nelson"), and a trail taken off the list goes in the folder's "gone" list so it doesn't come back.
+  const nameKey = (n) => "g:" + String(n || "").trim().toLowerCase();
+  const riddenFolder = (f) => f.find((x) => x.id === RIDDEN);
+  function riddenTrails(f = getFolders()) {
+    const x = riddenFolder(f);
+    if (!x) return [];
+    const gone = new Set(x.gone || []), have = new Set(x.trails.map((w) => nameKey(w.name)));
+    const gps = (window.tfRiddenGps ? window.tfRiddenGps() : []).filter((w) => !gone.has(w.key) && !have.has(w.key));
+    return [...x.trails, ...gps].sort((a, b) => (b.at || 0) - (a.at || 0));
+  }
+  let repaintSaves = null;   // the open trail's buttons, repainted when My rides finds more ridden trails
+  window.addEventListener("tf:ridden", () => {
+    if (repaintSaves) repaintSaves();
+    if (!$("wantList").hidden) renderFolders();
+    riddenMap.draw();
+  });
   const wantIds = (t) => t.osmType === "relation" || !(t.segIds && t.segIds.length) ? [t.id] : t.segIds;
   const wantKey = (t) => (t.osmType || "way")[0] + wantIds(t).slice().sort((a, b) => a - b).join(",");
   function newFolder(name) {
@@ -3605,7 +3632,16 @@ out body;`;
     const b = $("wantBtn"), pick = $("savePick"), key = wantKey(t);
     const entry = () => ({ key, type: (t.osmType || "way") === "relation" ? "r" : "w", ids: wantIds(t), name: trailName(t), kind: t.catLabel || CAT_LABEL[t.cat] || "", zone: t.zone || "", at: Date.now(),
       ...rideShape(t.segments && t.segments.length ? t.segments : [t.geom]), ...(noteOf(key) ? { note: noteOf(key) } : {}) });
-    const rb = $("rideBtn"), noteBox = $("rideNote"), noteIn = $("rideNoteIn");
+    const rb = $("rideBtn"), db = $("riddenBtn"), noteBox = $("rideNote"), noteIn = $("rideNoteIn"), nk = nameKey(trailName(t));
+    const isRidden = (f = getFolders()) => { const x = riddenFolder(f); return !!x && (x.trails.some((w) => w.key === key) || riddenTrails(f).some((w) => w.gps && w.key === nk)); };
+    db.addEventListener("click", () => {
+      const f = getFolders(), x = riddenFolder(f), was = isRidden(f);
+      if (was && noteOf(key)) droppedNotes.set(key, noteOf(key));
+      x.trails = x.trails.filter((w) => w.key !== key);
+      x.gone = (x.gone || []).filter((k) => k !== nk);
+      if (was) x.gone.push(nk); else x.trails.unshift(entry());
+      putFolders(f); paint();
+    });
     rb.addEventListener("click", () => {
       const f = getFolders();
       let x = f.find((x) => x.id === TO_RIDE);
@@ -3627,11 +3663,15 @@ out body;`;
       b.title = "Save to a trail folder";
       rb.setAttribute("aria-pressed", String(toRideOn)); rb.textContent = toRideOn ? "★ To ride" : "☆ To ride";
       rb.title = toRideOn ? "On your to-ride list. Tap to take it off." : "Add to your to-ride list, shown on the map with today's loam";
+      const riddenOn = isRidden(f);
+      db.setAttribute("aria-pressed", String(riddenOn)); db.textContent = riddenOn ? "✓ Ridden" : "+ Ridden";
+      db.title = riddenOn ? "On your Ridden list. Tap to take it off." : "Add to your list of trails you've ridden";
       noteBox.hidden = !inAny;
       if (document.activeElement !== noteIn) noteIn.value = noteOf(key);
-      pick.innerHTML = `<p class="muted">Save to a folder:</p>${f.map((x) => `<label><input type="checkbox" data-id="${esc(x.id)}"${x.trails.some((w) => w.key === key) ? " checked" : ""}> ${esc(x.name)}</label>`).join("")}
+      pick.innerHTML = `<p class="muted">Save to a folder:</p>${f.map((x) => `<label><input type="checkbox" data-id="${esc(x.id)}"${(x.id === RIDDEN ? riddenOn : x.trails.some((w) => w.key === key)) ? " checked" : ""}> ${esc(x.name)}</label>`).join("")}
         <form class="newf"><input type="text" placeholder="New folder name" maxlength="60" aria-label="New folder name"><button class="btn" type="submit">+ Add</button></form>`;
       pick.querySelectorAll("input[type=checkbox]").forEach((c) => c.addEventListener("change", () => {
+        if (c.dataset.id === RIDDEN) { if (c.checked !== isRidden()) db.click(); return; }
         const f = getFolders(), x = f.find((x) => x.id === c.dataset.id);
         x.trails = x.trails.filter((w) => w.key !== key);
         if (c.checked) x.trails.unshift(entry());
@@ -3645,6 +3685,7 @@ out body;`;
       });
     };
     b.addEventListener("click", () => { pick.hidden = !pick.hidden; });
+    repaintSaves = () => { if ($("riddenBtn") === db && document.activeElement !== noteIn) paint(); };
     paint();
   }
   function renderFolders() {
@@ -3653,30 +3694,41 @@ out body;`;
     box.innerHTML = `<div class="wl-head"><h3>📁 My trail folders</h3><button class="linkish" type="button" id="newFolderBtn">+ New folder</button></div>`;
     $("newFolderBtn").addEventListener("click", () => { const n = prompt("Name of the new folder"); if (n) newFolder(n); });
     f.forEach((x) => {
+      const ridden = x.id === RIDDEN, items = ridden ? riddenTrails(f) : x.trails;
       const d = document.createElement("details");
       d.className = "folder"; d.dataset.id = x.id;
-      d.innerHTML = `<summary><span class="fname"></span> <small>(${x.trails.length})</small><button class="rm" type="button" aria-label="Delete folder" title="Delete folder">🗑</button></summary><ol></ol>`;
-      d.querySelector(".fname").textContent = x.name;
-      d.querySelector("summary .rm").addEventListener("click", (e) => {
+      d.innerHTML = `<summary><span class="fname"></span> <small>(${items.length})</small>${ridden ? "" : `<button class="rm" type="button" aria-label="Delete folder" title="Delete folder">🗑</button>`}</summary><ol></ol>`;
+      d.querySelector(".fname").textContent = ridden ? "✓ " + x.name : x.name;
+      if (!ridden) d.querySelector("summary .rm").addEventListener("click", (e) => {
         e.preventDefault();
         if (!confirm(`Delete the folder “${x.name}”${x.trails.length ? ` and the ${x.trails.length} trail${x.trails.length > 1 ? "s" : ""} in it` : ""}?`)) return;
         putFolders(getFolders().filter((y) => y.id !== x.id));
       });
       const ol = d.querySelector("ol");
-      if (!x.trails.length) ol.innerHTML = `<li class="muted">Empty. Open a trail and tap ${x.id === TO_RIDE ? "☆ To ride" : "📁 Save"} to add it here.</li>`;
-      if (x.id === TO_RIDE && x.trails.length) {
+      if (!items.length) ol.innerHTML = ridden
+        ? `<li class="muted">Empty. Open a trail and tap + Ridden to add it here. Trails you ride with Record ride, or in rides you import, show up here on their own.</li>`
+        : `<li class="muted">Empty. Open a trail and tap ${x.id === TO_RIDE ? "☆ To ride" : "📁 Save"} to add it here.</li>`;
+      const lay = x.id === TO_RIDE ? toRide : ridden ? riddenMap : null;
+      if (lay && items.length) {
         const mb = document.createElement("button");
         mb.type = "button"; mb.className = "wl-map";
-        mb.textContent = "★ Show them on the map with today's loam";
-        mb.addEventListener("click", () => toRide.show(true));
+        mb.textContent = ridden ? "✓ Show them on the map with today's loam" : "★ Show them on the map with today's loam";
+        mb.addEventListener("click", () => lay.show(true));
         ol.before(mb);
       }
-      x.trails.forEach((w) => {
+      items.forEach((w) => {
         const li = document.createElement("li");
         li.innerHTML = `<button class="open" type="button"></button><button class="rm" type="button" aria-label="Remove from folder" title="Remove from folder">✕</button>`;
-        li.querySelector(".open").innerHTML = `${esc(w.name)}${w.zone ? `<small>${esc(w.zone)}</small>` : ""}${x.id === TO_RIDE ? toRide.loamPill(w) : ""}${w.note ? `<span class="wl-note">${esc(w.note)}</span>` : ""}`;
+        const gps = w.gps ? `<span class="gps" title="Found in your rides">🚵 ${w.n > 1 ? `${w.n} rides, last ` : ""}${esc(new Date(w.at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }))}</span>` : "";
+        li.querySelector(".open").innerHTML = `${esc(w.name)}${w.zone ? `<small>${esc(w.zone)}</small>` : ""}${gps}${lay ? lay.loamPill(w) : ""}${w.note ? `<span class="wl-note">${esc(w.note)}</span>` : ""}`;
         li.querySelector(".open").addEventListener("click", () => showFound({ type: w.type, items: w.ids.map((id) => ({ id })), name: w.name, kind: w.kind }));
-        li.querySelector(".rm").addEventListener("click", () => { const f = getFolders(); const y = f.find((y) => y.id === x.id); y.trails = y.trails.filter((z) => z.key !== w.key); putFolders(f); });
+        li.querySelector(".rm").addEventListener("click", () => {
+          const f = getFolders(), y = f.find((y) => y.id === x.id);
+          y.trails = y.trails.filter((z) => z.key !== w.key);
+          // A ride found it: remember it was taken off, so it doesn't come back from the rides.
+          if (ridden) y.gone = [...new Set([...(y.gone || []), nameKey(w.name)])];
+          putFolders(f);
+        });
         ol.appendChild(li);
       });
       if (openFolders.has(x.id)) d.open = true;
@@ -3696,7 +3748,7 @@ out body;`;
   // ---- To-ride list: the "Want to ride" folder. ☆ To ride in a trail's details adds it in one tap, with a note
   // kept on the saved trail (in every folder it's in). "★ To ride" on the map shows them all, each with a pin
   // coloured by today's Loam moisture index. Saved in tf:folders, so it follows a signed-in rider to any device.
-  const TO_RIDE = "want";
+  const TO_RIDE = "want", RIDDEN = "ridden";
   // A centre and a light copy of the shape (at most ~80 points), so the map can draw saved trails without loading them.
   function rideShape(segs) {
     segs = (segs || []).filter((l) => l && l.length > 1);
@@ -3707,6 +3759,7 @@ out body;`;
     const b = L.latLngBounds(g.flat()), c = b.getCenter();
     return { c: [r5(c.lat), r5(c.lng)], g };
   }
+  window.tfRideShape = rideShape;   // for the trails My rides (rides.js) finds in the rider's rides
   const droppedNotes = new Map();   // a trail taken off by mistake gets its note back when it's put back
   function noteOf(key) {
     for (const x of getFolders()) { const w = x.trails.find((w) => w.key === key && w.note); if (w) return w.note; }
@@ -3720,21 +3773,22 @@ out body;`;
     putFolders(f);
   }
 
-  const toRide = (() => {
-    map.createPane("toRide").style.zIndex = 455;
+  // The same map layer shows the Ridden folder ("✓ Ridden" on the map, lime instead of yellow).
+  function savedLayer(o) {
+    map.createPane(o.pane).style.zIndex = o.z;
     const layer = L.layerGroup();
-    const lines = L.canvas({ pane: "toRide", padding: 0.3, tolerance: L.Browser.touch ? 10 : 5 });   // one canvas, not an SVG path per line
+    const lines = L.canvas({ pane: o.pane, padding: 0.3, tolerance: L.Browser.touch ? 10 : 5 });   // one canvas, not an SVG path per line
     const btn = document.createElement("button");
-    btn.id = "rideMapBtn"; btn.type = "button";
+    btn.id = o.btnId; btn.type = "button";
     $("allBtn").parentNode.insertBefore(btn, $("allBtn"));
-    let on = store.get("toride", false);
+    let on = store.get(o.key, false);
     // Shapes for trails saved before shapes were kept: loaded once from OpenStreetMap and cached on this device only
     // (written without "tf:setting", so it never counts as a change to the rider's synced folders).
     const CACHE = "tf:rideShapes";
     let cache = {};
     try { cache = JSON.parse(localStorage.getItem(CACHE) || "{}") || {}; } catch {}
     const shapeOf = (w) => (w.g && w.c ? w : cache[w.key]);
-    const trails = () => { const x = getFolders().find((x) => x.id === TO_RIDE); return x ? x.trails : []; };
+    const trails = o.trails;
     const fake = (s) => ({ id: 1, center: L.latLng(s.c[0], s.c[1]) });   // what loamOf() and loadLoam() need
     const loamFor = (w) => { const s = shapeOf(w); return s ? loamOf(fake(s)) : undefined; };
     function loamPill(w) {
@@ -3747,8 +3801,8 @@ out body;`;
       const n = trails().length;
       btn.classList.toggle("on", on);
       btn.setAttribute("aria-pressed", String(on));
-      btn.textContent = n ? `★ To ride · ${n}` : "★ To ride";
-      btn.title = n ? (on ? "Hide your to-ride trails" : "Show your to-ride trails with today's loam") : "Your to-ride list is empty: open a trail and tap ☆ To ride";
+      btn.textContent = n ? `${o.label} · ${n}` : o.label;
+      btn.title = n ? (on ? `Hide your ${o.what}` : `Show your ${o.what} with today's loam`) : o.empty;
     }
     function draw() {
       layer.clearLayers();
@@ -3761,13 +3815,13 @@ out body;`;
         const color = k < 0 ? "#6b6b6b" : LMI_RIDE[k][0];
         const open = () => showFound({ type: w.type, items: w.ids.map((id) => ({ id })), name: w.name, kind: w.kind });
         s.g.forEach((l) => {
-          layer.addLayer(L.polyline(l, { pane: "toRide", renderer: lines, color: "#ffc61a", weight: 11, opacity: 0.75, lineCap: "round", interactive: false }));
-          layer.addLayer(L.polyline(l, { pane: "toRide", renderer: lines, color, weight: 4, opacity: 1, lineCap: "round", bubblingMouseEvents: false }).on("click", open));
+          layer.addLayer(L.polyline(l, { pane: o.pane, renderer: lines, color: o.halo, weight: 11, opacity: 0.75, lineCap: "round", interactive: false }));
+          layer.addLayer(L.polyline(l, { pane: o.pane, renderer: lines, color, weight: 4, opacity: 1, lineCap: "round", bubblingMouseEvents: false }).on("click", open));
         });
         const label = v == null ? "" : ` ${v}`;
         const tip = `${w.name}${v == null ? "" : ` · Loam ${v}, ${LMI_LEVELS[k][1].toLowerCase()} (${LMI_RIDE[k][1].toLowerCase()})`}${w.note ? `\n${w.note}` : ""}`;
-        L.marker(s.c, { pane: "toRide", title: tip, keyboard: true,
-          icon: L.divIcon({ className: "toride-pin" + (k < 0 ? " unknown" : ""), iconSize: [0, 0], html: `<span style="${k < 0 ? "" : `background:${color}`}"><b>★</b>${esc(label)}</span>` }) })
+        L.marker(s.c, { pane: o.pane, title: tip, keyboard: true,
+          icon: L.divIcon({ className: "toride-pin" + o.pin + (k < 0 ? " unknown" : ""), iconSize: [0, 0], html: `<span style="${k < 0 ? "" : `background:${color}`}"><b>${o.glyph}</b>${esc(label)}</span>` }) })
           .on("click", open).addTo(layer);
       });
     }
@@ -3809,7 +3863,7 @@ out body;`;
       if (shapes.some((s) => loamOf(fake(s)) === undefined) && tries++ < 5) retry = setTimeout(refresh, 4000); else tries = 0;
     }
     function show(fit) {
-      if (!on) { on = true; store.set("toride", true); layer.addTo(map); }
+      if (!on) { on = true; store.set(o.key, true); layer.addTo(map); }
       draw();
       const shapes = trails().map(shapeOf).filter(Boolean);
       if (fit && shapes.length) {
@@ -3821,18 +3875,25 @@ out body;`;
     }
     btn.addEventListener("click", () => {
       if (!trails().length) { showFolders(); return; }
-      if (on) { on = false; store.set("toride", false); map.removeLayer(layer); draw(); }
+      if (on) { on = false; store.set(o.key, false); map.removeLayer(layer); draw(); }
       else show(true);
     });
     if (on) layer.addTo(map);
     // Loam goes stale: refresh it when the rider comes back to the page.
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && on) refresh(); });
-    // Loam alerts (notify.js) watch the to-ride trails that have a known spot.
-    window.tfToRideList = () => trails().map((w) => ({ w, s: shapeOf(w) })).filter((x) => x.s)
+    // Trails with a known spot (loam alerts in notify.js watch the to-ride ones).
+    const known = () => trails().map((w) => ({ w, s: shapeOf(w) })).filter((x) => x.s)
       .map(({ w, s }) => ({ key: w.key, name: w.name, type: w.type, ids: w.ids, kind: w.kind, c: s.c }));
-    return { refresh, show, loamPill, draw };
-  })();
-  setTimeout(() => toRide.refresh(), 0);
+    return { refresh, show, loamPill, draw, known };
+  }
+  const toRide = savedLayer({ pane: "toRide", z: 455, btnId: "rideMapBtn", key: "toride", label: "★ To ride", glyph: "★", pin: "", halo: "#ffc61a",
+    what: "to-ride trails", empty: "Your to-ride list is empty: open a trail and tap ☆ To ride",
+    trails: () => { const x = getFolders().find((x) => x.id === TO_RIDE); return x ? x.trails : []; } });
+  const riddenMap = savedLayer({ pane: "riddenTrails", z: 454, btnId: "riddenMapBtn", key: "riddenMap", label: "✓ Ridden", glyph: "✓", pin: " ridden", halo: "#b8f03a",
+    what: "ridden trails", empty: "Your Ridden list is empty: open a trail and tap + Ridden, or record or import a ride",
+    trails: () => riddenTrails() });
+  window.tfToRideList = toRide.known;
+  setTimeout(() => { toRide.refresh(); riddenMap.refresh(); }, 0);
 
   // With a trail's details open, every other trail line fades so the picked one stands out (3D reads the same class).
   function setTrailFocus(on) {
@@ -5992,24 +6053,24 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=257"></script>
-<script src="contours.js?v=257"></script>
-<script src="photo-slider.js?v=257"></script>
-<script src="winter.js?v=257"></script>
-<script src="ski-points.js?v=257"></script>
-<script src="offline.js?v=257"></script>
-<script src="ride-stats.js?v=257"></script>
-<script src="navigate.js?v=257"></script>
-<script src="planner.js?v=257"></script>
-<script src="rides.js?v=257"></script>
-<script src="account.js?v=257"></script>
-<script src="reports.js?v=257"></script>
-<script src="visitors.js?v=257"></script>
-<script src="notify.js?v=257"></script>
-<script src="areas.js?v=257"></script>
-<script src="alpine.js?v=257"></script>
-<script src="bikeparks.js?v=257"></script>
-<script src="photo-find.js?v=257"></script>
+<script src="map3d.js?v=260"></script>
+<script src="contours.js?v=260"></script>
+<script src="photo-slider.js?v=260"></script>
+<script src="winter.js?v=260"></script>
+<script src="ski-points.js?v=260"></script>
+<script src="offline.js?v=260"></script>
+<script src="ride-stats.js?v=260"></script>
+<script src="navigate.js?v=260"></script>
+<script src="planner.js?v=260"></script>
+<script src="rides.js?v=260"></script>
+<script src="account.js?v=260"></script>
+<script src="reports.js?v=260"></script>
+<script src="visitors.js?v=260"></script>
+<script src="notify.js?v=260"></script>
+<script src="areas.js?v=260"></script>
+<script src="alpine.js?v=260"></script>
+<script src="bikeparks.js?v=260"></script>
+<script src="photo-find.js?v=260"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
