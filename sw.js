@@ -3,10 +3,10 @@
 // as there is a connection; the cached copy is used only when the network fails. Map tiles and outside APIs
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection.
-const VERSION = "tf-73";
+const VERSION = "tf-75";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=5", "account.js?v=266", "reports.js?v=266", "visitors.js?v=266", "map3d.js?v=266", "winter.js?v=266", "ski-points.js?v=266", "offline.js?v=266", "navigate.js?v=266", "ride-stats.js?v=266", "planner.js?v=266", "rotate.js?v=266", "photo-find.js?v=266", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=5", "account.js?v=268", "reports.js?v=268", "visitors.js?v=268", "map3d.js?v=268", "winter.js?v=268", "ski-points.js?v=268", "offline.js?v=268", "navigate.js?v=268", "ride-stats.js?v=268", "planner.js?v=268", "rotate.js?v=268", "photo-find.js?v=268", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",

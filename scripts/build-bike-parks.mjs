@@ -88,7 +88,7 @@ async function ingest(prov, placesFile, trailsFile) {
     if (seen.has(id)) continue;   // a closed way can come out both as a line and an area
     seen.add(id);
     const b = bbox(f.geometry);
-    if (t.aerialway && !/^(station|pylon|goods|zip_line|rope_tow|magic_carpet)$/.test(t.aerialway)) { lifts.push({ c: centre(b), bike: bikeLift(t), n: t.name || "", ...(t.operator ? { op: t.operator } : {}) }); continue; }
+    if (t.aerialway && !/^(station|pylon|goods|zip_line|rope_tow|magic_carpet)$/.test(t.aerialway)) { lifts.push({ c: centre(b), bike: bikeLift(t), n: t.name || "", ...(t.aerialway === "cable_car" ? { a: "cable_car" } : {}), ...(t.operator ? { op: t.operator } : {}) }); continue; }
     if (t.landuse === "winter_sports" || /skiing/.test(t.sport || "") && t.leisure === "sports_centre") {
       if (t.name && !/terrain park|snow ?park|tubing|glissade|luge/i.test(t.name)) resorts.push({ id, n: t.name, b, t: keep(t), centre: RE.centre.test(t.name) });
       if (!kindOf(t, f.geometry.type === "Point")) continue;
@@ -148,6 +148,8 @@ function finish() {
       const group = lone.filter((o, j) => !taken.has(j) && metres(l.c, o.c) < 4000 && taken.add(j));
       const pts = group.map((o) => o.c), b = [Math.min(...pts.map((o) => o[0])), Math.min(...pts.map((o) => o[1])), Math.max(...pts.map((o) => o[0])), Math.max(...pts.map((o) => o[1]))];
       const hill = resorts.map((r) => ({ r, d: metres(centre(b), centre(r.b)) })).filter((o) => o.d < 5000).sort((a, c) => a.d - c.d)[0];
+      // A cable car open to bikes far from any ski hill is a river crossing (the Slocan Valley's "Cable Car"), not a bike park.
+      if (!hill && group.every((o) => o.a === "cable_car")) return;
       const name = (hill && hill.r.n) || group.map((o) => o.op).find(Boolean);
       out.push({ id: `l${round(b[0])}_${round(b[1])}`, k: "park", p: prov, c: centre(b), b, t: hill ? hill.r.t : name ? { name } : {}, lift: "yes",
         lifts: group.map((o) => o.n).filter(Boolean).slice(0, 8) });
