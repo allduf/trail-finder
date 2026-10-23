@@ -240,6 +240,26 @@
 .nav-route { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #7b2ff7 12%, transparent); font-size: .95rem; }
 .nav-route[hidden] { display: none; }
 .nav-route.off { background: #d6202a; color: #fff; font-weight: 700; }
+.nav-parts { margin-top: 6px; }
+.nav-parts[hidden] { display: none; }
+.np-head { display: flex; width: 100%; gap: 8px; align-items: baseline; font: inherit; font-size: .9rem; text-align: left; border: 0; background: none; color: inherit; padding: 2px 2px 4px; cursor: pointer; }
+.np-head .np-tog { margin-left: auto; color: var(--muted, #5b6660); white-space: nowrap; }
+.np-list { list-style: none; margin: 0; padding: 0; max-height: 7.4em; overflow: auto; font-size: .92rem; position: relative; }
+.np-list[hidden] { display: none; }
+.np-list li { display: flex; align-items: center; gap: 7px; padding: 3px 4px; border-radius: 8px; cursor: pointer; line-height: 1.25; }
+.np-list li i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.np-n { width: 20px; flex: none; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+.np-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.np-name small { color: var(--muted, #5b6660); }
+.np-m { flex: none; font-variant-numeric: tabular-nums; color: var(--muted, #5b6660); font-size: .85rem; }
+.np-list li.done { opacity: .5; }
+.np-list li.done .np-n { color: #2e8b3d; }
+.np-list li.now { background: #7b2ff7; color: #fff; font-weight: 700; }
+.np-list li.now .np-m, .np-list li.now small { color: #fff; }
+.np-list li.next { background: color-mix(in srgb, #7b2ff7 14%, transparent); font-weight: 700; }
+.route-num { box-sizing: border-box; border-radius: 50%; background: #fff; color: #7b2ff7; border: 2px solid #7b2ff7; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.route-num b { display: block; text-align: center; font: 800 11px/18px system-ui, sans-serif; }
+.route-num.next { background: #7b2ff7; color: #fff; border-color: #fff; }
 .nav-route .x { float: right; font: inherit; font-size: .85rem; border: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; padding: 0 0 0 8px; }
 #navRideBtn { font-weight: 700; }
 @media (max-width: 760px) { #navRideBtn { display: none; } }
@@ -253,6 +273,7 @@ body.sport-ski #navRideBtn { display: none; }
     <div class="nav-row"><span class="nav-bar" id="navBar"></span><div class="nav-main"><div class="nav-name" id="navName">Finding you…</div><div class="nav-sub" id="navSub">Waiting for GPS</div></div></div>
     <div class="nav-next" id="navNext" hidden></div>
     <div class="nav-route" id="navRoute" hidden></div>
+    <div class="nav-parts" id="navParts" hidden><button type="button" class="np-head" id="navPartsHead"></button><ol class="np-list" id="navPartsList"></ol></div>
     <div class="nav-btns" id="navBtns"><button type="button" id="navFollow" hidden>◎ Follow</button><button type="button" id="navPause" title="Pause recording (stops counting time and distance)">Ⅱ Pause</button><button type="button" id="navPocket" title="Black screen that ignores touches, so the phone can go in your pocket without locking it (a locked phone stops the GPS)">🔒 Pocket</button><button type="button" class="stop" id="navStop">■ Stop</button></div>
     <div class="nav-btns" id="navAsk" hidden><button type="button" class="nav-cta" id="navSave">Save ride</button><button type="button" id="navKeep">Keep riding</button><button type="button" id="navDrop">Don't save</button></div>`;
   document.body.appendChild(strip);
@@ -337,19 +358,27 @@ body.sport-ski #navRideBtn { display: none; }
     map.on("rotatestart", (e) => { if (rec && faceWay && e.user) { faceWay = false; syncCompass(); } });
   }
 
+  // The map centre that puts p in the middle of the map you can see above the ride strip (it covers the bottom half
+  // of a phone), so the way ahead isn't hidden under it.
+  function aboveStrip(p) {
+    const box = map.getContainer().getBoundingClientRect(), top = strip.hidden ? box.bottom : strip.getBoundingClientRect().top;
+    const visH = Math.max(box.height * 0.35, Math.min(box.height, top - box.top));
+    const c = map.latLngToContainerPoint(p), want = L.point(box.width / 2, visH / 2);
+    return map.containerPointToLatLng(L.point(box.width / 2, box.height / 2).add(c.subtract(want)));
+  }
   function onFix(pos) {
     const c = pos.coords, t = pos.timestamp || Date.now(), p = [c.latitude, c.longitude];
     lastFix = { c, t };
     drawYou();
     if (following) {                              // a short slide, not a jump, while the zoom stays put
       const z = Math.max(map.getZoom(), RIDE_ZOOM), glide = z === map.getZoom() && !document.hidden && !map._animatingZoom;
-      map.setView(p, z, glide ? { animate: true, pan: { duration: 0.6, easeLinearity: 1, noMoveStart: true } } : { animate: false });
+      map.setView(z === map.getZoom() ? aboveStrip(p) : p, z, glide ? { animate: true, pan: { duration: 0.6, easeLinearity: 1, noMoveStart: true } } : { animate: false });
     }
     if (c.accuracy > MAX_ACC_M) { gpsMsg.textContent = `Weak GPS (±${Math.round(c.accuracy)} m). Waiting for a better fix…`; gpsMsg.hidden = false; }
     else gpsMsg.hidden = true;
     nav.load();
     updateTrail(p, c.accuracy);
-    updateRoute(p);
+    updateRoute(p, c.accuracy);
     if (!rec || rec.paused || c.accuracy > MAX_ACC_M) return;
     const q = [+c.latitude.toFixed(6), +c.longitude.toFixed(6), c.altitude == null ? null : +c.altitude.toFixed(1), t, Math.round(c.accuracy)];
     const last = rec.points[rec.points.length - 1], fresh = (rec.breaks || []).includes(rec.points.length);
@@ -493,14 +522,43 @@ body.sport-ski #navRideBtn { display: none; }
     jDot.setLatLng(j.at).addTo(layer);
   }
 
-  // ---------- following a trail or a planned loop ----------
-  // route: { name, lines, pts: every point with its length share, done: Set of points passed, total, on: been on it yet,
-  // offSince: when you first went off it, alerted }. Points count as ridden when you pass within 30 m of them.
-  const OFF_M = 40, OFF_MS = 15000, PASS_M = 30;
+  // ---------- following a trail or a planned ride ----------
+  // route: { name, lines, total, on: been on it yet, offSince: when you first went off it, alerted }.
+  // Ride this trail (no parts): points count as ridden when you pass within 30 m of them (pts, done: Set of points passed).
+  // A planned ride comes with its trails in order, parts: [{ name, color, lvl, kind, pts }]. Then the route is one line
+  // (seq: [{ q, at metres along, n part }]) and you are route.pos metres along it: the first place past where you were
+  // that you're on, so a ride that crosses or rides back over itself doesn't tick off the later pass. The map shows the
+  // ridden part faded, the next stretch bold with arrows and numbered trail starts, the rest light; the strip lists the
+  // trails in order (alex: "When i start a route I want to see where I'm going").
+  const OFF_M = 40, OFF_MS = 15000, PASS_M = 30, BACK_M = 60, JUMP_M = 300, JUMP_FIXES = 3, NEXT_MIN_M = 600, NEXT_MAX_M = 2500;
+  const ROUTE_ARROW_PX = 90, MAX_ROUTE_ARROWS = 60, MAX_NUMS = 25;
   let route = null;
   const routeCase = L.polyline([], { color: "#fff", weight: 12, opacity: 0.9, lineCap: "round", lineJoin: "round", interactive: false });
   const routeLine = L.polyline([], { color: "#7b2ff7", weight: 7, opacity: 0.9, lineCap: "round", lineJoin: "round", interactive: false });
-  function setRoute(lines, name) {
+  const routeDone = L.polyline([], { color: "#5b6068", weight: 4, opacity: 0.6, dashArray: "1 9", lineCap: "round", lineJoin: "round", interactive: false });
+  const routeRest = L.polyline([], { color: "#7b2ff7", weight: 4, opacity: 0.35, lineCap: "round", lineJoin: "round", interactive: false });
+  const routeMarks = L.layerGroup();
+  function setRoute(lines, name, parts) {
+    clearRoute();
+    parts = (parts || []).filter((x) => x && x.pts && x.pts.length > 1);
+    if (parts.length) {
+      const seq = [];
+      let at = 0;
+      parts.forEach((x, n) => {
+        x.from = at;
+        x.pts.forEach((q, i) => {
+          const last = seq[seq.length - 1];
+          if (last && metres(last.q, q) < 0.5) return;
+          if (last) at += metres(last.q, q);
+          seq.push({ q, at, n });
+        });
+        x.to = at;
+      });
+      route = { name, lines, parts, seq, total: at, pos: 0, jump: null, on: false, offSince: 0, alerted: false, drawn: null, listN: -1 };
+      [routeDone, routeRest, routeCase, routeLine, routeMarks].forEach((l) => l.addTo(layer));
+      drawProgress();
+      return;
+    }
     const pts = [];
     lines.forEach((g) => g.forEach((q, i) => pts.push({ q, m: i ? metres(g[i - 1], q) : 0 })));
     route = { name, lines, pts, done: new Set(), total: pts.reduce((a, x) => a + x.m, 0), on: false, offSince: 0, alerted: false };
@@ -508,9 +566,109 @@ body.sport-ski #navRideBtn { display: none; }
     [routeCase, routeLine].forEach((l) => l.addTo(layer));
   }
   function clearRoute() {
-    route = null; routeCase.setLatLngs([]); routeLine.setLatLngs([]);
-    $("navRoute").hidden = true;
+    route = null;
+    [routeCase, routeLine, routeDone, routeRest].forEach((l) => { l.setLatLngs([]); layer.removeLayer(l); });
+    routeMarks.clearLayers(); layer.removeLayer(routeMarks);
+    $("navRoute").hidden = true; $("navParts").hidden = true;
   }
+
+  // Where you are along a planned ride: the nearest point of it (near), and the first pass near you that's not behind
+  // where you were (hit). Passes come in order along the line, so the first one wins over a later pass on the same spot.
+  function locate(p) {
+    const s = route.seq, kx = Math.cos(p[0] * RAD) * R * RAD, ky = R * RAD;
+    let near = { d: Infinity }, hit = null, ended = false;
+    for (let i = 0; i < s.length - 1; i++) {
+      const a = s[i].q, b = s[i + 1].q;
+      const ax = (a[1] - p[1]) * kx, ay = (a[0] - p[0]) * ky, bx = (b[1] - p[1]) * kx, by = (b[0] - p[0]) * ky;
+      const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
+      const t = len2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len2)) : 0;
+      const d = Math.hypot(ax + t * dx, ay + t * dy), along = s[i].at + t * (s[i + 1].at - s[i].at);
+      if (d < near.d) near = { d, i, t, along };
+      if (ended) continue;
+      if (d <= OFF_M && s[i + 1].at >= route.pos - BACK_M) { if (!hit || d < hit.d) hit = { d, along }; }
+      else if (hit) ended = true;   // that pass is over: a later one on the same spot is for later
+    }
+    return { near, hit };
+  }
+  // The ride's line from a to b metres along it.
+  function sliceSeq(a, b) {
+    const s = route.seq, out = [];
+    const mid = (x, y, at) => { const t = (at - x.at) / (y.at - x.at || 1); return [x.q[0] + t * (y.q[0] - x.q[0]), x.q[1] + t * (y.q[1] - x.q[1])]; };
+    for (let i = 0; i < s.length; i++) {
+      const x = s[i];
+      if (x.at < a) { const y = s[i + 1]; if (y && y.at > a) out.push(mid(x, y, a)); continue; }
+      if (x.at > b) { if (i && s[i - 1].at < b) out.push(mid(s[i - 1], x, b)); break; }
+      out.push(x.q);
+    }
+    return out;
+  }
+  const partAt = (pos) => { const i = route.parts.findIndex((x) => pos < x.to - 1); return i < 0 ? route.parts.length - 1 : i; };
+  // Faded behind you, bold for the rest of this trail and the next one (600 m to 2.5 km), light after that.
+  function drawProgress(force) {
+    if (!route || !route.parts) return;
+    const pos = route.pos, cur = partAt(pos), z = map.getZoom(), d = route.drawn;
+    if (!force && d && d.z === z && Math.abs(d.pos - pos) < 15 && d.cur === cur) return;
+    route.drawn = { pos, cur, z };
+    const nx = route.parts[cur + 1], end = Math.min(route.total, Math.max(pos + NEXT_MIN_M, Math.min(pos + NEXT_MAX_M, nx ? nx.to : route.total)));
+    const bold = sliceSeq(pos, end);
+    routeDone.setLatLngs(pos > 0 ? sliceSeq(0, pos) : []);
+    routeCase.setLatLngs(bold); routeLine.setLatLngs(bold);
+    routeRest.setLatLngs(end < route.total ? sliceSeq(end, route.total) : []);
+    routeMarks.clearLayers();
+    // Arrows along the bold part, the way you ride it.
+    const px = bold.map((q) => map.latLngToLayerPoint(q));
+    let run = ROUTE_ARROW_PX / 2, n = 0;
+    for (let i = 1; i < px.length && n < MAX_ROUTE_ARROWS; i++) {
+      const seg = px[i].distanceTo(px[i - 1]);
+      while (run <= seg && n < MAX_ROUTE_ARROWS) {
+        const t = run / seg, at = map.layerPointToLatLng(L.point(px[i - 1].x + t * (px[i].x - px[i - 1].x), px[i - 1].y + t * (px[i].y - px[i - 1].y)));
+        const deg = Math.atan2(px[i].y - px[i - 1].y, px[i].x - px[i - 1].x) * 180 / Math.PI;
+        routeMarks.addLayer(L.marker(at, { pane: "onewayArrows", interactive: false, keyboard: false, rotateWithView: true, icon: L.divIcon({ className: "oneway-arrow", iconSize: [20, 20], iconAnchor: [10, 10],
+          html: `<svg viewBox="0 0 20 20" width="20" height="20" style="transform: rotate(${Math.round(deg)}deg)" aria-hidden="true"><path d="M4 3 17 10 4 17 7.5 10z" fill="#4b0fb0" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>` }) }));
+        n++; run += ROUTE_ARROW_PX;
+      }
+      run -= seg;
+    }
+    // Each trail ahead: its number from the list where it starts.
+    route.parts.slice(cur + 1, cur + 1 + MAX_NUMS).forEach((x, k) => {
+      routeMarks.addLayer(L.marker(x.pts[0], { pane: "onewayArrows", interactive: false, keyboard: false, icon: L.divIcon({ className: "route-num" + (k ? "" : " next"), iconSize: [22, 22], iconAnchor: [11, 11], html: `<b>${cur + 2 + k}</b>` }) }));
+    });
+  }
+  map.on("zoomend", () => drawProgress(true));
+
+  // The trails of a planned ride, in order: done ones ticked, the one you're on, the next one highlighted.
+  const listOpen = () => { try { return localStorage.getItem("tf:navParts") !== "0"; } catch { return true; } };
+  function renderParts() {
+    const box = $("navParts");
+    if (!route || !route.parts || route.parts.length < 2) { box.hidden = true; return; }
+    const pos = route.pos, cur = partAt(pos), all = route.parts, finished = route.total - pos < 30, open = listOpen();
+    const lvl = (x) => (x.lvl ? ` <small>${esc(x.lvl)}</small>` : "");
+    $("navPartsHead").innerHTML = finished ? `<b>All ${all.length} done</b>` : (open ? `<b>Trail ${cur + 1} of ${all.length}</b>`
+      : `<b>${cur + 1}/${all.length}</b> ${esc(all[cur].name)}${all[cur + 1] ? ` · next <b>${esc(all[cur + 1].name)}</b>` : ""}`) + `<span class="np-tog">${open ? "Hide ▴" : "List ▾"}</span>`;
+    const list = $("navPartsList");
+    list.hidden = !open;
+    if (open) {
+      const keep = list.scrollTop;
+      list.innerHTML = all.map((x, i) => {
+        const st = finished || i < cur ? "done" : i === cur ? "now" : i === cur + 1 ? "next" : "";
+        const m = st === "now" && route.on ? `${fmtM(Math.max(0, x.to - pos))} left` : st === "next" ? `in ${fmtM(Math.max(0, x.from - pos))}` : fmtM(x.to - x.from);
+        return `<li class="${st}" data-n="${i}"><span class="np-n">${st === "done" ? "✓" : i + 1}</span><i style="background:${x.color || "#7b2ff7"}"></i><span class="np-name">${esc(x.name)}${lvl(x)}</span><span class="np-m">${m}</span></li>`;
+      }).join("");
+      if (route.listN !== cur) {   // keep the one you're on in sight (the panel itself never scrolls into view)
+        route.listN = cur;
+        const row = list.children[Math.max(0, cur - 1)];
+        list.scrollTop = row ? row.offsetTop : 0;
+      } else list.scrollTop = keep;
+    }
+    box.hidden = false;
+  }
+  function showPart(n) {
+    const x = route && route.parts && route.parts[n];
+    if (!x) return;
+    following = false; $("navFollow").hidden = false;
+    map.fitBounds(L.latLngBounds(x.pts), { padding: [40, 40], maxZoom: 17 });
+  }
+
   let audio = null;
   function alarm() {
     try { navigator.vibrate && navigator.vibrate([400, 150, 400, 150, 400]); } catch {}
@@ -524,22 +682,38 @@ body.sport-ski #navRideBtn { display: none; }
       });
     } catch {}
   }
-  function updateRoute(p) {
+  function updateRoute(p, acc) {
     if (!route) return;
-    let best = { d: Infinity }, near = null;
-    route.lines.forEach((g) => { const pr = project(g, p); if (pr.d < best.d) best = pr, near = g; });
-    route.pts.forEach((x, i) => { if (!route.done.has(i) && metres(x.q, p) <= PASS_M) route.done.add(i); });
-    const ridden = [...route.done].reduce((a, i) => a + route.pts[i].m, 0);
-    const left = Math.max(0, route.total - ridden), box = $("navRoute"), now = Date.now();
+    let best = { d: Infinity }, aim = null, left;
+    if (route.parts) {
+      const at = locate(p), h = at.hit;
+      if (h && !(acc > MAX_ACC_M * 2)) {
+        if (route.on && h.along - route.pos > JUMP_M) {   // well ahead: only after a few fixes there, not a GPS blip or a crossing
+          const j = route.jump;
+          route.jump = j && h.along >= j.along - BACK_M ? { along: h.along, n: j.n + 1 } : { along: h.along, n: 1 };
+          if (route.jump.n >= JUMP_FIXES) { route.pos = h.along; route.jump = null; }
+        } else { route.pos = Math.max(route.pos, h.along); route.jump = null; }
+      }
+      best = at.near;
+      aim = best.d < Infinity ? sliceSeq(best.along, best.along)[0] : null;
+      left = Math.max(0, route.total - route.pos);
+    } else {
+      let near = null;
+      route.lines.forEach((g) => { const pr = project(g, p); if (pr.d < best.d) best = pr, near = g; });
+      aim = near ? pointOnLine(near, best) : null;
+      route.pts.forEach((x, i) => { if (!route.done.has(i) && metres(x.q, p) <= PASS_M) route.done.add(i); });
+      left = Math.max(0, route.total - [...route.done].reduce((a, i) => a + route.pts[i].m, 0));
+    }
+    const box = $("navRoute"), now = Date.now();
     const x = '<button type="button" class="x" id="navUnfollow">Stop following</button>';
     if (best.d <= OFF_M) {
-      if (!route.on && !following) { following = true; $("navFollow").hidden = true; map.setView(p, Math.max(map.getZoom(), RIDE_ZOOM)); }   // reached it: follow you again
+      if (!route.on && !following) { following = true; $("navFollow").hidden = true; map.setView(map.getZoom() >= RIDE_ZOOM ? aboveStrip(p) : p, Math.max(map.getZoom(), RIDE_ZOOM)); }   // reached it: follow you again
       route.on = true; route.offSince = 0; route.alerted = false;
       box.classList.remove("off");
       box.innerHTML = `${x}Following <b>${esc(route.name)}</b> · ${fmtM(left)} left of ${fmtM(route.total)}`;
     } else if (!route.on) {
       // Not there yet: how far to the nearest point of it, and which way.
-      const at = near ? pointOnLine(near, best) : null, dirs = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"];
+      const at = aim, dirs = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"];
       box.classList.remove("off");
       box.innerHTML = `${x}<b>${esc(route.name)}</b> is ${fmtM(best.d)} away${at ? `, to the ${dirs[Math.round(bearing(p, at) / 45) % 8]}` : ""}`;
     } else {
@@ -550,16 +724,18 @@ body.sport-ski #navRideBtn { display: none; }
     }
     box.hidden = false;
     $("navUnfollow").addEventListener("click", clearRoute);
+    drawProgress(); renderParts();
   }
   function pointOnLine(g, pr) {
     const a = g[pr.i], b = g[Math.min(pr.i + 1, g.length - 1)];
     return [a[0] + pr.t * (b[0] - a[0]), a[1] + pr.t * (b[1] - a[1])];
   }
-  async function follow(lines, name) {
+  // parts (optional, from Plan a route): the ride's trails in order, [{ name, color, lvl, kind, pts }].
+  async function follow(lines, name, parts) {
     if (!lines || !lines.length) return;
     if (!rec) { await start(); if (!rec) return; }
     try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch {}   // from the tap, so iPhones allow the beep later
-    setRoute(lines, name || "this trail");
+    setRoute(lines, name || "this trail", parts);
     const here = lastFix && [lastFix.c.latitude, lastFix.c.longitude];
     if (!here || Math.min(...lines.map((g) => project(g, here).d)) > 300) {   // far from it: show the whole trail and you
       const b = L.latLngBounds(lines.flat());
@@ -567,8 +743,8 @@ body.sport-ski #navRideBtn { display: none; }
       following = false; $("navFollow").hidden = false;
       map.fitBounds(b, { padding: [40, 40], maxZoom: RIDE_ZOOM });
     }
-    if (lastFix) updateRoute([lastFix.c.latitude, lastFix.c.longitude]);
-    else { $("navRoute").hidden = false; $("navRoute").innerHTML = `Following <b>${esc(route.name)}</b> · waiting for GPS`; }
+    if (lastFix) updateRoute([lastFix.c.latitude, lastFix.c.longitude], lastFix.c.accuracy);
+    else { $("navRoute").hidden = false; $("navRoute").innerHTML = `Following <b>${esc(route.name)}</b> · waiting for GPS`; renderParts(); }
   }
 
   // Numbers: moving time (stops don't count), distance, climb, speed now. Paused / Stopped show in place of Moving.
@@ -609,6 +785,12 @@ body.sport-ski #navRideBtn { display: none; }
     putCurrent(rec);
   }
   $("navPause").addEventListener("click", () => setPaused(!rec.paused));
+  $("navPartsHead").addEventListener("click", () => {
+    try { localStorage.setItem("tf:navParts", listOpen() ? "0" : "1"); } catch {}
+    if (route) route.listN = -1;
+    renderParts();
+  });
+  $("navPartsList").addEventListener("click", (e) => { const li = e.target.closest("li[data-n]"); if (li) showPart(+li.dataset.n); });
 
   // ---------- Pocket: a black screen that ignores touches, so the phone stays unlocked (and the GPS on) ----------
   const pocket = document.createElement("div");
@@ -705,7 +887,7 @@ body.sport-ski #navRideBtn { display: none; }
   map.on("dragstart", () => { if (rec) { following = false; $("navFollow").hidden = false; } });
   $("navFollow").addEventListener("click", () => {
     following = true; $("navFollow").hidden = true;
-    if (lastFix) map.setView([lastFix.c.latitude, lastFix.c.longitude], Math.max(map.getZoom(), RIDE_ZOOM));
+    if (lastFix) { const p = [lastFix.c.latitude, lastFix.c.longitude]; map.setView(map.getZoom() >= RIDE_ZOOM ? aboveStrip(p) : p, Math.max(map.getZoom(), RIDE_ZOOM)); }
   });
   $("navStop").addEventListener("click", () => { $("navBtns").hidden = true; $("navAsk").hidden = false; });
   $("navKeep").addEventListener("click", () => { $("navBtns").hidden = false; $("navAsk").hidden = true; });
