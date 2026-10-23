@@ -331,6 +331,13 @@
     });
   }
 
+  // Last winter's photos cover the riding areas from the Sunshine Coast to the Rockies (scripts/winter-photos);
+  // data/winter/blocks.json lists the zoom-11 squares that have them.
+  const WINTER_BOUNDS = [-124.9, 48.9, -114.4, 52.4];
+  let winterBlocks = null;
+  const loadWinterBlocks = () => winterBlocks || (winterBlocks = fetch("data/winter/blocks.json").then((r) => r.json())
+    .then((a) => new Set(a.map(([x, y]) => x + "/" + y))).catch(() => { winterBlocks = null; return null; }));
+
   // ---------- sharper Winter photos up close ----------
   // tfwinterhd://z/x/y (zooms 15-16, computers only): last winter's 10 m Sentinel-2 photos with finer detail added
   // from Mapterhorn's 2 m lidar and Esri's sharp photo (see winter-hd.js). Drawn by workers, so the page stays free
@@ -416,11 +423,11 @@
           // Feb-Mar 2026, clouds removed). Live: the sharp photos with today's snow drawn in (tfwinter).
           // tileSize 128 like the other photos: one zoom deeper, so the 10 m photos are at full detail up close
           // instead of the half-size zoom 12-13 ones (blurry and stretched on the slopes, alex 2026-10-19).
-          winter: { type: "raster", tileSize: PHOTO_TILE, minzoom: 8, maxzoom: 14, bounds: [-124.65, 49.1, -121.75, 50.9], tiles: ["data/winter/{z}/{x}/{y}.webp"],
+          winter: { type: "raster", tileSize: PHOTO_TILE, minzoom: 8, maxzoom: 14, bounds: WINTER_BOUNDS, tiles: ["data/winter/{z}/{x}/{y}.webp"],
             attribution: "Winter: Copernicus Sentinel-2 data 2026 (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>" },
           // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above). Not on phones,
           // where the extra tiles would use the memory iPhone Safari runs out of.
-          ...(PHONE ? {} : { winterhd: { type: "raster", tileSize: 128, minzoom: 15, maxzoom: 16, bounds: [-124.65, 49.1, -121.75, 50.9], tiles: ["tfwinterhd://{z}/{x}/{y}"] } }),
+          ...(PHONE ? {} : { winterhd: { type: "raster", tileSize: 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] } }),
           live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           shade: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: 14, tiles: ["tfdem://{z}/{x}/{y}"] },
@@ -515,7 +522,19 @@
       liveBtn.title = "Today's real snow (NASA satellite, 2 days old)";
       for (const [el, on] of [[sumBtn, !w], [winBtn, photos === "winter"], [liveBtn, photos === "live"]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; }
       store.set(ski() ? "3dPhotosSki" : "3dPhotos", photos);
+      winterHere();
     };
+    // Winter outside the photos' area shows the summer photos: say so, so it doesn't look broken.
+    const noWinter = document.createElement("div");
+    noWinter.textContent = "No winter photos here yet: summer photos";
+    noWinter.style.cssText = "display:none;position:absolute;right:0;bottom:100%;margin-bottom:4px;white-space:nowrap;padding:3px 8px;border-radius:6px;background:rgba(20,30,25,.85);color:#fff;font:600 12px var(--font-body, system-ui)";
+    const winterHere = async () => {
+      if (photos !== "winter") { noWinter.style.display = "none"; return; }
+      const have = await loadWinterBlocks(), c = gl.getCenter(), n = 2048;
+      const x = Math.floor((c.lng + 180) / 360 * n), y = Math.floor((1 - Math.asinh(Math.tan(c.lat * Math.PI / 180)) / Math.PI) / 2 * n);
+      noWinter.style.display = photos === "winter" && have && !have.has(x + "/" + y) ? "" : "none";
+    };
+    gl.on("moveend", winterHere);
     sumBtn.addEventListener("click", () => setPhotos("sharp"));
     winBtn.addEventListener("click", () => setPhotos("winter"));
     liveBtn.addEventListener("click", () => setPhotos("live"));
@@ -523,7 +542,7 @@
     const pick = () => setPhotos(ski() ? store.get("3dPhotosSki", "winter") : store.get("3dPhotos", "sharp"));
     new MutationObserver(pick).observe(document.body, { attributes: true, attributeFilter: ["class"] });
     gl.addControl({ onAdd() { const d = document.createElement("div"); d.className = "maplibregl-ctrl maplibregl-ctrl-group";
-      d.style.display = "flex"; d.append(sumBtn, winBtn, liveBtn); return d; }, onRemove() {} }, "bottom-right");
+      d.style.cssText += ";display:flex;position:relative;overflow:visible"; d.append(sumBtn, winBtn, liveBtn, noWinter); return d; }, onRemove() {} }, "bottom-right");
     gl.once("styledata", pick);
     // "load" waits for every first tile, and imagery that fails to load can hold it back, so the
     // trails go on as soon as the style itself is ready.
