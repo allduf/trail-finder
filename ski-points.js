@@ -70,7 +70,7 @@
   css.textContent = `
 body:not(.sport-ski):not(.sport-hunt) #spAdd { display: none !important; }
 body.sport-hunt .sp-pin { background: ${HUNT_COLOR}; }
-body.sport-hunt #spBox .sp-new { background: ${HUNT_COLOR}; }
+body.sport-hunt #spBox .sp-new { display: none; }   /* Hunting has its own Save a point button */
 body:not(.sport-hunt) dialog.sp-dlg .sp-kind, dialog.sp-dlg .sp-harvest[hidden] { display: none; }
 dialog.sp-dlg .sp-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
 dialog.sp-dlg input[type=date], dialog.sp-dlg input[type=number] { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--fg); margin-bottom: 10px; }
@@ -149,7 +149,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   const skiPane = document.getElementById("skiPane");
   // The list sits under the chips of whichever sport is on (Skiing's or Hunting's panel).
   function placeBox() {
-    const at = isMtb() ? document.getElementById("wantList") : isHunt() ? document.getElementById("hnLayers") : document.getElementById("skChips");
+    const at = isMtb() ? document.getElementById("wantList") : isHunt() ? document.getElementById("hnCond") : document.getElementById("skChips");
     if (at) { if (at.nextElementSibling !== box) at.after(box); } else if (!box.parentNode) skiPane.append(box);
   }
   placeBox();
@@ -608,7 +608,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     renderLog();
     if (!logDlg.open) logDlg.showModal();
   }
-  window.tfPoints = { add: startPick, markTruck, backToTruck, openLog };
+  window.tfPoints = { add: startPick, markTruck, backToTruck, openLog, hasTruck: () => all.some((p) => sportOf(p) === "hunt" && p.kind === "truck") };
 
   // ---------- sharing ----------
   const shareLink = (p) => `${location.origin}${location.pathname}#pin=${p.lat.toFixed(5)},${p.lon.toFixed(5)},${sportOf(p)},${p.kind || ""},${encodeURIComponent(p.name)}`;
