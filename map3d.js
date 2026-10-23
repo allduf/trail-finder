@@ -90,8 +90,15 @@
     // Phones: only the trails around the view (the whole region is ~10,000 lines and 4-5 MB each copy, which the
     // 3D map keeps a tiled index of); they're copied again after each move.
     const near = PHONE && map.getBounds().pad(2);
+    // Lines in a pane the 2D map hides (MTB-only layers like ✓ Ridden in Skiing and Hunting) stay off the 3D map too.
+    const hidden = new Map();
+    const paneHidden = (o) => {
+      const name = (o.renderer && o.renderer.options.pane) || o.pane || "overlayPane";
+      if (!hidden.has(name)) { const el = map.getPane(name); hidden.set(name, !!el && getComputedStyle(el).display === "none"); }
+      return hidden.get(name);
+    };
     map.eachLayer((l) => {
-      if (!(l instanceof L.Path)) return;
+      if (!(l instanceof L.Path) || paneHidden(l.options)) return;
       if (near) { const bb = l.getBounds ? l.getBounds() : L.latLngBounds([l.getLatLng()]); if (!bb.isValid() || !near.intersects(bb)) return; }
       const o = l.options, order = k++;
       if (l instanceof L.CircleMarker && !(l instanceof L.Circle)) {
@@ -156,6 +163,7 @@
   // need the whole region's trails sent to the 3D map again.
   map.on("layeradd layerremove", (e) => { if (e.layer instanceof L.Path) scheduleSync(); });
   map.on("trailfocus", scheduleSync);
+  window.addEventListener("tf:sport", scheduleSync);   // panes shown or hidden by sport
   if (PHONE) map.on("moveend", scheduleSync);
   // Selecting a trail restyles lines without adding or removing any.
   const setStyle = L.Path.prototype.setStyle;
