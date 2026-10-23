@@ -1,0 +1,10 @@
+{
+  "name": "trail-finder-ios",
+  "private": true,
+  "description": "The Trail Finder iPhone app: the website in a Capacitor shell, built and sent to TestFlight by .github/workflows/ios-app.yml.",
+  "dependencies": {
+    "@capacitor/cli": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/ios": "8.5.3"
+  }
+}
