@@ -1364,10 +1364,10 @@ body.sport-ski #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=273"></script>
-<script src="official.js?v=273"></script>
-<script src="directions.js?v=273"></script>
-<script src="ratings.js?v=273"></script>
+<script src="rotate.js?v=286"></script>
+<script src="official.js?v=286"></script>
+<script src="directions.js?v=286"></script>
+<script src="ratings.js?v=286"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3451,7 +3451,7 @@ out body;`;
   let trailInfo = null;
   const foldName = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   async function officialAbout(t) {
-    trailInfo = trailInfo || fetch("data/trail-info.json?v=273").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
+    trailInfo = trailInfo || fetch("data/trail-info.json?v=286").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
     const j = await trailInfo; if (!j) return [];
     const names = new Set([t.tags.name, t.tags["mtb:name"], t.tags["tf:name"], t.tfName].filter(Boolean).map(foldName));
     const mid = t.geom[Math.floor(t.geom.length / 2)], k = Math.cos(mid[0] * Math.PI / 180);
@@ -6283,24 +6283,24 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=273"></script>
-<script src="contours.js?v=273"></script>
-<script src="photo-slider.js?v=273"></script>
-<script src="winter.js?v=273"></script>
-<script src="ski-points.js?v=273"></script>
-<script src="offline.js?v=273"></script>
-<script src="ride-stats.js?v=273"></script>
-<script src="navigate.js?v=273"></script>
-<script src="planner.js?v=273"></script>
-<script src="rides.js?v=273"></script>
-<script src="account.js?v=273"></script>
-<script src="reports.js?v=273"></script>
-<script src="visitors.js?v=273"></script>
-<script src="notify.js?v=273"></script>
-<script src="areas.js?v=273"></script>
-<script src="alpine.js?v=273"></script>
-<script src="bikeparks.js?v=273"></script>
-<script src="photo-find.js?v=273"></script>
+<script src="map3d.js?v=286"></script>
+<script src="contours.js?v=286"></script>
+<script src="photo-slider.js?v=286"></script>
+<script src="winter.js?v=286"></script>
+<script src="ski-points.js?v=286"></script>
+<script src="offline.js?v=286"></script>
+<script src="ride-stats.js?v=286"></script>
+<script src="navigate.js?v=286"></script>
+<script src="planner.js?v=286"></script>
+<script src="rides.js?v=286"></script>
+<script src="account.js?v=286"></script>
+<script src="reports.js?v=286"></script>
+<script src="visitors.js?v=286"></script>
+<script src="notify.js?v=286"></script>
+<script src="areas.js?v=286"></script>
+<script src="alpine.js?v=286"></script>
+<script src="bikeparks.js?v=286"></script>
+<script src="photo-find.js?v=286"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
