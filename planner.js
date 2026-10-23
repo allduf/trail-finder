@@ -1226,10 +1226,10 @@
   }
   // The route as a GPX track, with each point's height (from the same terrain tiles; left out where there are none).
   // With near (alex, for the map on a DJI Avinox bike, which shows only what's in the file and joins every track in it
-  // into one line): one track, the route, with the first SPUR_M of each trail or road that crosses it or leaves it
-  // ridden out and back from where it meets the route, so the junctions show as short stubs on the route line.
+  // into one line): the junctions where a trail or road crosses or leaves the route, as named waypoints. A side line
+  // counts when its first SPUR_M heads away from the route (not one running beside it).
   const SPUR_M = 100, TOUCH_M = 20;
-  function withSpurs(pts) {
+  function junctions(pts) {
     const cell = 0.002, grid = new Map(), at = (a, b) => a + "," + b;
     for (let i = 0; i + 1 < pts.length; i++) {
       const [a, b] = [pts[i], pts[i + 1]];
@@ -1279,30 +1279,28 @@
           const tip = key(spur[spur.length - 1]).replace(/(\.\d{3})\d+/g, "$1");
           if (seen.has(tip)) return;   // the same stub from another piece of the line
           seen.add(tip);
-          spurs.push({ ...n[k], spur });
+          spurs.push({ ...n[k], spur, name: nameOf(w) || (w.road ? "Forest road" : "Unnamed trail") });
         });
       });
     });
+    // The stubs made the Avinox send alex down every side trail (alex: "I don't want to go in the trail I cross, I just
+    // want to see it"), so each junction is a named waypoint instead and the track stays the route alone.
     spurs.sort((a, b) => a.i - b.i || a.t - b.t);
     const out = [];
-    let s = 0;
-    pts.forEach((p, i) => {
-      out.push(p);
-      for (; s < spurs.length && spurs[s].i === i; s++) {
-        const { t, spur } = spurs[s], b = pts[i + 1] || p, on = [p[0] + (b[0] - p[0]) * t, p[1] + (b[1] - p[1]) * t];
-        out.push(on, ...spur, ...spur.slice(0, -1).reverse(), on);
-      }
+    spurs.forEach(({ i, t, name }) => {
+      const p = pts[i], b = pts[i + 1] || p, on = [p[0] + (b[0] - p[0]) * t, p[1] + (b[1] - p[1]) * t];
+      if (!out.some((x) => x.name === name && metres(x.at, on) < 60)) out.push({ name, at: on });
     });
-    return { pts: out, n: spurs.length };
+    return out;
   }
   async function gpx(near) {
     const pts = allPts(), now = new Date().toISOString(), name = mode === "pick" ? "Trail Finder ride" : "Trail Finder route";
-    const sp = near === true ? withSpurs(pts) : null;
+    const wpts = near === true ? junctions(pts) : null;
     const ht = await terrainOr(boxOf(pts, 0.005));
     const pt = (q) => { const h = ht(q); return `<trkpt lat="${q[0].toFixed(6)}" lon="${q[1].toFixed(6)}">${h != null ? `<ele>${h.toFixed(1)}</ele>` : ""}</trkpt>`; };
     const trk = (n, list) => `<trk><name>${esc(n)}</name><trkseg>\n${list.map(pt).join("\n")}\n</trkseg></trk>`;
-    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${name}</name><time>${now}</time></metadata>\n${trk(name, sp ? sp.pts : pts)}\n</gpx>\n`;
-    saveGpx(body, `trail-finder-route${sp ? "-with-trail-starts" : ""}-${now.slice(0, 10)}.gpx`);
+    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${name}</name><time>${now}</time></metadata>\n${(wpts || []).map((w) => `<wpt lat="${w.at[0].toFixed(6)}" lon="${w.at[1].toFixed(6)}"><name>${esc(w.name)}</name><sym>Crossing</sym></wpt>\n`).join("")}${trk(name, pts)}\n</gpx>\n`;
+    saveGpx(body, `trail-finder-route${wpts ? "-with-junctions" : ""}-${now.slice(0, 10)}.gpx`);
   }
   // Phones (and the iPhone app, where a download link does nothing: alex couldn't export) get the share sheet, so the
   // file goes straight to the DJI app, Files, Mail... Computers download it. Heights take a moment to load, which can
@@ -1439,7 +1437,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
       <button type="button" data-how="pedal" title="Ride all of it, climbs included">🚲 Pedal</button>
       <button type="button" data-how="shuttle" title="A 4x4 pickup drives you up the open forest roads; you ride from where it stops">🛻 Shuttle</button></div></div>
       <div class="plan-btns"><button type="button" id="planStart" hidden>📍 Set start</button><button type="button" id="planLoop" title="End the ride back at the start">↺ Back to start</button>
-      <button type="button" id="planShare" title="Send this ride to a friend: the link opens it in their app">↗ Share</button><button type="button" id="planGpx">⤓ GPX</button><button type="button" id="planGpxNear" title="One line: the route, with the first ${SPUR_M} m of each trail that crosses or leaves it as a short out-and-back stub, for a bike computer map that shows only the file (DJI Avinox)">⤓ GPX + trail starts</button>
+      <button type="button" id="planShare" title="Send this ride to a friend: the link opens it in their app">↗ Share</button><button type="button" id="planGpx">⤓ GPX</button><button type="button" id="planGpxNear" title="The route, plus a named point where each trail or road crosses or leaves it (the route stays only your ride)">⤓ GPX + junctions</button>
       <button type="button" id="planSavedBtn" aria-pressed="false" title="Your saved routes">📂 Saved</button><button type="button" id="planClear">🗑 Clear</button></div></div>
     <ul class="plan-saved" id="planSaved" hidden aria-label="Saved routes"></ul>`;
   document.body.appendChild(bar);
