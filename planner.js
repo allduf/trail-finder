@@ -620,7 +620,7 @@
   // Pick trails: picks [{ name, ways }], start (a spot or null: the lowest trail end), back (end at the start);
   //   legs alternate links and the picked trails.
   // A leg: { pts, ways, gap (no trail, straight line), pick (index of the picked trail it rides, or -1), up, down }.
-  let planning = false, mode = "tap", stops = [], legs = [], elev = null, picks = [], pickStart = null, pickBack = true, pickManual = true, pickHomePedal = false, settingStart = false;
+  let planning = false, mode = "pick", stops = [], legs = [], elev = null, picks = [], pickStart = null, pickBack = true, pickManual = true, pickHomePedal = false, settingStart = false;
   let busy = 0, joining = 0, gen = 0, rootGen = 0, note = "", noteWarn = true;
   const layer = L.layerGroup();
   const pickCase = L.polyline([], { color: "#ffd43b", weight: 13, opacity: 0.85, lineCap: "round", lineJoin: "round", interactive: false });
@@ -1101,22 +1101,24 @@
     bar.classList.toggle("pick", mode === "pick");
     let stats;
     if (note) stats = noteWarn ? `<span class="gap-note">${esc(note)}</span>` : `<b>${esc(note)}</b>`;
-    else if (mode === "tap") stats = stops.length < 2 ? (busy ? "Finding the way…" : stops.length ? "Tap the next point. The route takes the trails that make sense." : "Tap the map where you start.")
+    else if (mode === "tap") stats = stops.length < 2 ? (busy ? "Finding the way…" : stops.length ? "<b>2.</b> Tap the next point. The route follows the trails between them." : "<b>1.</b> Tap the map where you start.")
       : `${ride(fmtM(m))}${climb}${rideTime(m)}${drive}${gaps ? ` · <span class="gap-note">${gaps} stretch${gaps > 1 ? "es" : ""} off mapped trails (dashed)</span>` : ""}${busy ? " · finding the way…" : ""}`;
     else if (settingStart) stats = "Tap the map where you start.";
-    else if (!picks.length) stats = "Tap the trails you want to ride. The app puts them in a logical order and direction, and you can change the order.";
+    else if (!picks.length) stats = "<b>1.</b> Tap the trails you want to ride, in the order you want them.";
     else if (busy || !legs.length) stats = `${picks.length} trail${picks.length > 1 ? "s" : ""} picked · building the ride…`;
     else stats = `${ride(fmtM(m))}${climb}${rideTime(m)}${drive} · ${picks.length} trail${picks.length > 1 ? "s" : ""}${gaps ? ` · <span class="gap-note">${gaps} stretch${gaps > 1 ? "es" : ""} off mapped trails${joining ? " (looking for streets and paths…)" : ""}</span>` : ""}`;
     $("planStats").innerHTML = stats;
     if (mode === "tap") {
       const used = namesOf(legs.flatMap((l) => l.ways));
-      $("planTrails").innerHTML = used.length ? used.slice(0, 12).map(chip).join(" → ") + (used.length > 12 ? ` → +${used.length - 12} more` : "") : "";
+      $("planTrails").innerHTML = used.length ? used.slice(0, 12).map(chip).join(" → ") + (used.length > 12 ? ` → +${used.length - 12} more` : "")
+        : stops.length ? "" : `<button type="button" class="plan-switch" data-act="mode">Or pick whole trails instead</button>`;
       $("planSteps").innerHTML = "";
     } else {
-      $("planTrails").innerHTML = picks.length < 2 ? "" : pickManual
-        ? `In the order you tapped them (▲ ▼ or drag to change it). <button type="button" class="ps-auto" data-act="auto">↻ Let the app choose</button>`
-        : "The app chose the order. Use ▲ ▼ (or drag) to set your own.";
-      $("planSteps").innerHTML = !picks.length ? `<li class="ps-empty">Your trails will show here. Tap a trail on the map to add it.</li>` : !legs.length ? picks.map((p, i) => pickRow(i, chip({ name: p.name, ...levelOf(p.ways[0]) }))).join("")
+      $("planTrails").innerHTML = !picks.length && !pending ? `<button type="button" class="plan-switch" data-act="mode">Or tap points on the map instead</button>`
+        : picks.length === 1 && legs.length ? "<b>2.</b> Tap more trails to add them, or ▶ Ride it." : picks.length < 2 ? "" : pickManual
+        ? `In the order you tapped. <button type="button" class="ps-auto" data-act="auto">↻ Best order</button>`
+        : "The app chose the best order. ▲ ▼ to change it.";
+      $("planSteps").innerHTML = !picks.length ? "" : !legs.length ? picks.map((p, i) => pickRow(i, chip({ name: p.name, ...levelOf(p.ways[0]) }))).join("")
         : `<li class="ps-start"><span class="ps-n">S</span><span><b>Start</b>${pickStart ? "" : " at the lowest end of your trails"}</span></li>`
           + legs.map(stepHtml).join("") + (pickBack ? `<li class="ps-start"><span class="ps-n">S</span><span><b>Back at the start</b></span></li>` : "");
     }
@@ -1129,6 +1131,11 @@
     $("planStart").setAttribute("aria-pressed", String(settingStart));
     $("planStart").textContent = settingStart ? "Tap the start…" : pickStart ? "📍 Move start" : "📍 Set start";
     ["planGpx", "planRide", "planSave", "planShare"].forEach((id) => { $(id).disabled = !ready || busy > 0; });
+    // Only what works now: Saved while there's nothing yet, Save and Ride it once you've started one.
+    $("planUndo").hidden = !has; $("planSavedTop").hidden = !!has; $("planSavedBtn").hidden = !has;
+    $("planSave").hidden = $("planRide").hidden = !has;
+    const tag = how === "shuttle" ? "🛻 Shuttle" : mode === "tap" ? "Tapping points" : "";
+    $("planTag").hidden = !tag; $("planTag").textContent = tag;
   }
   // Climb for Tap points, from the same terrain heights.
   let climbGen = 0;
@@ -1236,7 +1243,17 @@ body.planning:has(.app:not(.fullmap)) .plan-bar { left: 396px; }
 .plan-bar { position: fixed; z-index: 1200; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); max-width: 600px; margin: 0 auto; background: var(--panel, #fff); color: var(--fg, #14211a); border-radius: 18px; box-shadow: 0 6px 24px rgba(0,0,0,.28); padding: 12px 14px; }
 .plan-bar[hidden] { display: none; }
 .plan-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
-.plan-head h3 { margin: 0; font-size: 1.05rem; flex: 1 1 auto; }
+.plan-head h3 { margin: 0; font-size: 1.05rem; }
+.plan-tag { font-size: .8rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #37474f; color: #fff; }
+.plan-x { margin-left: auto; font: inherit; font-size: 1.05rem; font-weight: 700; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line, #d6dad3); background: var(--bg, #f4f5f0); color: inherit; cursor: pointer; }
+.plan-more { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line, #d6dad3); }
+.plan-more[hidden] { display: none; }
+.plan-opt { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: .9rem; }
+.plan-switch { font: inherit; font-size: .88rem; font-weight: 600; background: none; border: 0; padding: 0; color: #7b2ff7; text-decoration: underline; cursor: pointer; }
+.plan-main #planUndo, .plan-main #planMoreBtn { flex: 0 0 auto; min-width: 44px; font-size: 1.1rem; padding: 7px 10px; }
+.plan-btns.plan-main { flex-wrap: nowrap; }
+.plan-main button { min-width: 0; padding-left: 8px; padding-right: 8px; white-space: nowrap; }
+.plan-main .go { flex: 2 1 auto; margin: 0; }
 .plan-modes { display: flex; border: 1px solid var(--line, #d6dad3); border-radius: 11px; overflow: hidden; }
 .plan-modes button { font: inherit; font-size: .88rem; font-weight: 700; padding: 6px 10px; border: 0; background: var(--bg, #f4f5f0); color: inherit; cursor: pointer; }
 .plan-modes button[aria-pressed="true"] { background: #7b2ff7; color: #fff; }
@@ -1248,6 +1265,7 @@ body.planning:has(.app:not(.fullmap)) .plan-bar { left: 396px; }
 .plan-bar.pick .plan-trails { max-height: 5em; color: inherit; }
 .plan-trails .pt i, .plan-steps .pt i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: 0; }
 .plan-steps { list-style: none; margin: 6px 0 0; padding: 0; max-height: 13em; overflow: auto; font-size: .9rem; }
+@media (max-width: 760px) { .plan-steps { max-height: 9.5em; } .plan-bar { padding: 10px 12px; } }
 .plan-steps li { display: flex; gap: 8px; align-items: baseline; margin: 3px 0; }
 .plan-steps .ps-n { flex: 0 0 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; font: 700 11px/1 system-ui, sans-serif; align-self: center; }
 .plan-steps .ps-trail { cursor: grab; }
@@ -1268,7 +1286,8 @@ body.planning:has(.app:not(.fullmap)) .plan-bar { left: 396px; }
 .plan-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .plan-btns button { flex: 1 1 auto; font: inherit; font-size: .92rem; font-weight: 700; padding: 9px 10px; border-radius: 11px; border: 1px solid var(--line, #d6dad3); background: var(--bg, #f4f5f0); color: inherit; cursor: pointer; }
 .plan-btns button:disabled { opacity: .45; cursor: default; }
-.plan-btns button[aria-pressed="true"] { border-color: #7b2ff7; }
+.plan-btns button[aria-pressed="true"], .plan-btns button[aria-expanded="true"] { border-color: #7b2ff7; }
+.plan-btns button[hidden] { display: none !important; }
 .plan-btns .go { background: var(--cta, #c6f05a); border-color: transparent; color: var(--cta-fg, #10230f); }
 .plan-saved { list-style: none; margin: 8px 0 0; padding: 0; max-height: 16em; overflow: auto; border-top: 1px solid var(--line, #d6dad3); }
 .plan-saved[hidden] { display: none; }
@@ -1292,16 +1311,25 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
   document.head.appendChild(css);
   const bar = document.createElement("div");
   bar.className = "plan-bar"; bar.hidden = true; bar.setAttribute("role", "region"); bar.setAttribute("aria-label", "Plan a route");
-  bar.innerHTML = `<div class="plan-head"><h3>Plan a route</h3><div class="plan-modes" role="group" aria-label="How to make the route">
-      <button type="button" data-mode="tap" title="Tap points on the map; the route follows the trails between them">Tap points</button>
-      <button type="button" data-mode="pick" title="Tap the trails you want to ride; the app builds the ride through them">Pick trails</button></div>
-      <div class="plan-modes plan-how" role="group" aria-label="Pedal or shuttle">
+  // One step at a time (alex found it hard to use with 11 buttons and two switches up front): the bar shows what to do
+  // next and only the buttons that work now. How the route is made (Pick trails / Tap points), Pedal or Shuttle, the
+  // start and the rest wait under ⋯ More.
+  bar.innerHTML = `<div class="plan-head"><h3>Plan a route</h3><span class="plan-tag" id="planTag" hidden></span>
+      <button type="button" class="plan-x" id="planDone" title="Close the planner (your route stays until you clear it)" aria-label="Close">✕</button></div>
+    <div class="plan-stats" id="planStats" aria-live="polite"></div><div class="plan-trails" id="planTrails"></div><ol class="plan-steps" id="planSteps"></ol>
+    <div class="plan-btns plan-main"><button type="button" id="planUndo" title="Undo" aria-label="Undo">↶</button><button type="button" id="planSavedTop" aria-pressed="false" title="Your saved routes">📂 Saved</button>
+    <button type="button" id="planFind" title="Look for trails by name, level or area, then come back">🔍 Find</button><button type="button" id="planSave" title="Save this ride to open again later">💾 Save</button><button type="button" class="go" id="planRide">▶ Ride it</button>
+    <button type="button" id="planMoreBtn" aria-expanded="false" aria-controls="planMore" title="More options" aria-label="More options">⋯</button></div>
+    <div class="plan-more" id="planMore" hidden>
+      <div class="plan-opt"><span>Build it by</span><div class="plan-modes" role="group" aria-label="How to make the route">
+      <button type="button" data-mode="pick" title="Tap the trails you want to ride; the app builds the ride through them">Picking trails</button>
+      <button type="button" data-mode="tap" title="Tap points on the map; the route follows the trails between them">Tapping points</button></div></div>
+      <div class="plan-opt"><span>Climbs</span><div class="plan-modes plan-how" role="group" aria-label="Pedal or shuttle">
       <button type="button" data-how="pedal" title="Ride all of it, climbs included">🚲 Pedal</button>
       <button type="button" data-how="shuttle" title="A 4x4 pickup drives you up the open forest roads; you ride from where it stops">🛻 Shuttle</button></div></div>
-    <div class="plan-stats" id="planStats" aria-live="polite"></div><div class="plan-trails" id="planTrails"></div><ol class="plan-steps" id="planSteps"></ol>
-    <div class="plan-btns"><button type="button" id="planUndo">↶ Undo</button><button type="button" id="planStart" hidden>📍 Set start</button><button type="button" id="planLoop" title="End the ride back at the start">↺ Back to start</button><button type="button" id="planClear">Clear</button>
-    <button type="button" id="planFind" title="Look for trails by name, level or area, then come back">🔍 Find trails</button><button type="button" id="planSave" title="Save this ride to open again later">💾 Save</button><button type="button" id="planShare" title="Send this ride to a friend: the link opens it in their app">↗ Share</button><button type="button" id="planSavedBtn" aria-pressed="false" title="Your saved routes">📂 Saved</button>
-    <button type="button" id="planGpx">⤓ GPX</button><button type="button" class="go" id="planRide">▶ Ride it</button><button type="button" id="planDone">Done</button></div>
+      <div class="plan-btns"><button type="button" id="planStart" hidden>📍 Set start</button><button type="button" id="planLoop" title="End the ride back at the start">↺ Back to start</button>
+      <button type="button" id="planShare" title="Send this ride to a friend: the link opens it in their app">↗ Share</button><button type="button" id="planGpx">⤓ GPX</button>
+      <button type="button" id="planSavedBtn" aria-pressed="false" title="Your saved routes">📂 Saved</button><button type="button" id="planClear">🗑 Clear</button></div></div>
     <ul class="plan-saved" id="planSaved" hidden aria-label="Saved routes"></ul>`;
   document.body.appendChild(bar);
   const back = document.createElement("button");
@@ -1336,7 +1364,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
     if (on) {
       nav.load(); loadAhead();
       layer.addTo(map);
-      try { mode = localStorage.getItem("tf:planMode") === "pick" ? "pick" : "tap"; } catch {}
+      try { mode = localStorage.getItem("tf:planMode") === "tap" ? "tap" : "pick"; } catch {}
       if (mode === "tap") { if (!stops.length) restore(); }
       else if (!picks.length) restorePicks();
       draw();
@@ -1378,7 +1406,11 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
     picks.splice(j, 0, p);
     pickManual = true; changedPicks();
   }
-  $("planTrails").addEventListener("click", (e) => { if (e.target.closest('[data-act="auto"]')) { pickManual = false; changedPicks(); } });
+  $("planTrails").addEventListener("click", (e) => {
+    if (e.target.closest('[data-act="auto"]')) { pickManual = false; changedPicks(); }
+    else if (e.target.closest('[data-act="mode"]')) setMode(mode === "tap" ? "pick" : "tap");
+  });
+  $("planMoreBtn").addEventListener("click", () => { const on = $("planMore").hidden; $("planMore").hidden = !on; $("planMoreBtn").setAttribute("aria-expanded", String(on)); });
   $("planSteps").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-act]");
     if (!b) return;
@@ -1492,7 +1524,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
   }
   let savedOpen = false;
   function showSaved(on) {
-    savedOpen = on; $("planSaved").hidden = !on; $("planSavedBtn").setAttribute("aria-pressed", String(on));
+    savedOpen = on; $("planSaved").hidden = !on; $("planSavedBtn").setAttribute("aria-pressed", String(on)); $("planSavedTop").setAttribute("aria-pressed", String(on));
     if (on) { renderSaved(); window.tfAccount?.sync?.(); }   // routes saved on another device come in (account.js)
   }
   function renderSaved() {
@@ -1545,6 +1577,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
   $("planFind").addEventListener("click", () => setFind(true));
   back.addEventListener("click", () => setFind(false));
   $("planSavedBtn").addEventListener("click", () => showSaved(!savedOpen));
+  $("planSavedTop").addEventListener("click", () => showSaved(!savedOpen));
   $("planSaved").addEventListener("click", (ev) => {
     const b = ev.target.closest("[data-sv]");
     if (!b) return;
