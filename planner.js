@@ -1277,7 +1277,7 @@ body.planning:has(.app:not(.fullmap)) .plan-bar { left: 396px; }
 .plan-stop span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #7b2ff7; color: #fff; font: 700 12px/1 system-ui, sans-serif; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); box-sizing: border-box; }
 .plan-stop.pick span { background: #ffd43b; color: #2b2100; }
 .plan-arrow span { display: block; width: 16px; height: 16px; color: #fff; font: 700 11px/16px system-ui, sans-serif; text-align: center; text-shadow: 0 0 2px #4b1aa0, 0 0 2px #4b1aa0; }
-body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .app.planning #planMapBtn { display: none; }
+body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .app.planning #planMapBtn { display: none; }
 #planMapBtn { font-weight: 700; }
 @media (max-width: 760px) { #planMapBtn { display: none; } }
 `;
@@ -1398,9 +1398,47 @@ body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .a
   $("planDone").addEventListener("click", () => setPlanning(false));
   $("planRide").addEventListener("click", () => {
     const lines = legs.map((l) => l.pts), name = mode === "pick" ? `your ride (${fmtM(total())})` : `your route (${fmtM(total())})`;
+    const parts = rideParts();
     setPlanning(false);
-    if (window.tfRide) window.tfRide.follow(lines, name);
+    if (window.tfRide) window.tfRide.follow(lines, name, parts);
   });
+  // The ride in order, one part per trail or road, for the list while you ride it: [{ name, color, lvl, kind, pts }].
+  // Bits under 60 m (a few metres of another line at a junction) join the part before them.
+  function rideParts() {
+    const out = [];
+    const add = (name, lv, kind, pts) => {
+      if (!pts || pts.length < 2) return;
+      const last = out[out.length - 1];
+      if (last && last.name === name && last.kind === kind) { last.pts.push(...pts.slice(1)); return; }
+      out.push({ name, color: lv.color, lvl: lv.lvl || "", kind, pts: [...pts] });
+    };
+    const wayName = (w) => (w && nameOf(w)) || (!w ? "connector" : w.road ? "forest road" : w.conn ? (kindOf(w) === "street" ? "street" : "path") : "unnamed trail");
+    const grey = { color: "#9aa0a6", lvl: "" };
+    legs.forEach((l) => (l.runs || [l]).forEach((r) => {
+      if (l.pick >= 0) { const p = picks[l.pick]; return add(p ? p.name : "trail", p && p.ways[0] ? levelOf(p.ways[0]) : grey, "pick", r.pts); }
+      if (r.drive) { const names = mainNames(r); return add("Shuttle" + (names.length ? " via " + names.join(", ") : ""), { color: "#3d3d3d", lvl: "" }, "drive", r.pts); }
+      if (l.gap || r.gap) return add("Off mapped trails", grey, "gap", r.pts);
+      const raw = r.raw || r.pts, segs = r.segs || [];
+      if (!segs.length) return add("connector", grey, "link", r.pts);
+      const n0 = out.length;
+      segs.forEach(([w], i) => add(wayName(w), w ? levelOf(w) : grey, "link", [raw[i], raw[i + 1]]));
+      // Tap points: the leg runs from your tap to the line and back off it at the end.
+      if (out.length > n0) {
+        if (metres(r.pts[0], raw[0]) > 0.5) out[n0].pts.unshift(r.pts[0]);
+        const e = r.pts[r.pts.length - 1];
+        if (metres(e, raw[raw.length - 1]) > 0.5) out[out.length - 1].pts.push(e);
+      }
+    }));
+    const len = (x) => lengthOf(x.pts);
+    const merged = [];
+    out.forEach((x) => {
+      const last = merged[merged.length - 1];
+      if (last && (x.kind !== "pick" && len(x) < 60 || last.name === x.name && last.kind === x.kind)) { last.pts.push(...x.pts.slice(1)); return; }
+      if (last && last.kind !== "pick" && len(last) < 60 && merged.length === 1) { x.pts.unshift(...last.pts.slice(0, -1)); merged.pop(); }
+      merged.push(x);
+    });
+    return merged.map((x) => ({ ...x, name: x.name.charAt(0).toUpperCase() + x.name.slice(1) }));
+  }
 
   // ---------- saved routes (alex: "save the ride for later") ----------
   // tf:planSaved: [{ id, name, at, mode, how, box, km, up, drive, pick (as tf:planPicks) | stops (as tf:plan) }], newest

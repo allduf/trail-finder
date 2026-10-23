@@ -19,7 +19,7 @@
   color: #1f4a33; text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 2px #fff, 0 0 1px #fff; }
 .ride-area.t2 span { font-size: 11px; font-weight: 700; color: #2f5a42; }
 .ride-area span:hover { color: #0d2a1a; text-decoration: underline; }
-body.sport-ski .leaflet-rideAreas-pane { display: none; }`;
+body.sport-alt .leaflet-rideAreas-pane, body.sport-alt .leaflet-rideAreasPins-pane { display: none; }   /* leaflet-rotate moves markers to a "…Pins" pane */`;
   document.head.appendChild(css);
 
   map.createPane("rideAreas").style.zIndex = 395;   // over the trail lines, under pins and popups

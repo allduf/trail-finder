@@ -1,0 +1,52 @@
+name: Hunting data
+
+# Once a month, collect the map layers for Hunting (scripts/build-hunting.mjs): BC and Alberta Wildlife Management
+# Units, BC Limited Entry Hunting zones, and the parks, reserves, towns, closures and public land with their own hunting
+# rules, and BC's open seasons per unit from the regulations synopsis PDFs, into data/hunting/*.json. On a pull request that changes the script it only does a test run, without saving.
+on:
+  schedule:
+    - cron: "17 10 2 * *"   # the 2nd of each month (LEH zones change each year, parks and closures now and then)
+  workflow_dispatch:        # "Run workflow" button on the Actions tab
+  pull_request:
+    paths:
+      - scripts/build-hunting.mjs
+      - .github/workflows/hunting-data.yml
+
+permissions:
+  contents: write   # commit the data files
+  pages: write      # ask GitHub Pages to publish them
+
+concurrency:
+  group: hunting-data-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install pdftotext (reads the season tables from the regulations PDFs)
+        run: sudo apt-get update -q && sudo apt-get install -y -q poppler-utils
+      - name: Collect hunting zones and areas
+        run: node scripts/build-hunting.mjs
+      - name: File sizes
+        run: ls -l data/hunting
+      - name: Commit the new data
+        if: github.event_name != 'pull_request'
+        run: |
+          git add data/hunting
+          if git diff --cached --quiet; then echo "No changes."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Hunting data"
+          git pull -q --rebase origin "${GITHUB_REF_NAME}"
+          git push -q origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Publish the website
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent || echo "Pages will publish on its own."

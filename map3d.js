@@ -27,9 +27,11 @@
   try { crashed = localStorage.getItem(OPEN) != null; } catch {}
   mark(false);
 
-  // Photo tiles drawn at 128 px (one zoom deeper, sharper) on computers; 256 px on phones: a quarter of the photos
-  // in memory. alex's iPhone still ran out of memory moving around 3D at 128 (2026-10-19).
-  const PHOTO_TILE = PHONE ? 256 : 128;
+  // Photo tiles drawn at 128 px: one zoom deeper, as sharp as the screen up close. Phones too (2026-10-23, alex:
+  // "more realistic with a good resolution"): measured in a phone test, the photos are only ~15-60 MB of the
+  // 3D map's memory; most of it (~400-500 MB) is the buffers the photos are painted into on the mountains (see
+  // trimPaintBuffers). At 256 px the photos were half as sharp as those buffers, so the detail was just lost.
+  const PHOTO_TILE = 128;
 
   const LINE_SCALE = 1.15;    // trails a little bolder than in 2D, so they read against the photos
   let on = false, gl = null, box = null, libLoading = null;
@@ -360,6 +362,26 @@
     }));
   }
 
+  // ---------- phone memory ----------
+  // MapLibre paints the photos and lines for each piece of ground in view into a 2048 px buffer (about 32 MB with
+  // its depth buffer) and drapes that over the mountains. It keeps every buffer it ever made: one tilted view
+  // toward the horizon that needed 14 leaves 14 (~470 MB) for the rest of the visit, the main thing that can run
+  // an iPhone out of memory. Once the map is still, the spare ones are let go (they're made again if needed).
+  // MapLibre internals (pinned 5.24.0): any surprise just skips it.
+  function trimPaintBuffers() {
+    try {
+      const rtt = gl.painter.renderToTexture, pool = rtt && rtt.pool, terrain = gl.terrain;
+      if (!pool || !terrain) return;
+      const need = new Set(terrain.tileManager.getRenderableTiles().flatMap((t) => (t ? t.rtt : []).filter(Boolean).map((r) => r.id))).size;
+      if (pool._objects.length <= need + 1) return;
+      terrain.tileManager.freeRtt();   // every piece of ground paints again into the buffers left
+      pool.freeAllObjects();
+      while (pool._objects.length > need) pool._objects.pop().fbo.destroy();   // the colour buffer and depth buffer
+      pool._recentlyUsed = pool._recentlyUsed.filter((id) => id < pool._objects.length);
+      gl.triggerRepaint();
+    } catch {}
+  }
+
   // ---------- the 3D map ----------
   function build() {
     box = document.createElement("div");
@@ -398,8 +420,9 @@
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
           // Sharp place, peak and lake names from OpenFreeMap (free, no key), instead of blurry label pictures.
           names: { type: "vector", url: "https://tiles.openfreemap.org/planet", attribution: "<a href=\"https://openfreemap.org\">OpenFreeMap</a>" },
-          // Heights: phones stop at zoom 14 (~10 m), a sixteenth of the close-up height tiles.
-          dem: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: PHONE ? 14 : 16, tiles: ["tfdem://{z}/{x}/{y}"],
+          // Heights down to zoom 16 (2 m lidar where Mapterhorn has it): real gullies and rock bands up close, not
+          // smoothed 10 m slopes. Only a few MB more on phones (measured), so phones get them too.
+          dem: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: 16, tiles: ["tfdem://{z}/{x}/{y}"],
             attribution: "Terrain: <a href=\"https://mapterhorn.com/attribution\">© Mapterhorn</a>, <a href=\"https://registry.opendata.aws/terrain-tiles/\">Mapzen Terrain Tiles</a>" },
           lines: { type: "geojson", data: { type: "FeatureCollection", features: [] }, attribution: "Trails © <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors" },
           dots: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
@@ -426,9 +449,12 @@
           { id: "lines", type: "line", source: "lines", filter: ["==", ["get", "d"], ""],
             layout: { "line-cap": "round", "line-join": "round", "line-sort-key": ["get", "k"] },
             paint: { "line-color": ["get", "c"], "line-width": ["get", "w"], "line-opacity": ["get", "o"] } },
+          // The invisible tap lines sit with the other lines, under the dots: after the dots they made a second
+          // set of paint buffers per piece of ground, more than MapLibre keeps, so every frame repainted all the
+          // photos onto the mountains (2026-10-23).
+          { id: "hits", type: "line", source: "hits", paint: { "line-color": "#000", "line-opacity": 0, "line-width": ["get", "w"] } },
           { id: "dots", type: "circle", source: "dots",
             paint: { "circle-radius": ["get", "r"], "circle-color": ["get", "f"], "circle-opacity": ["get", "fo"], "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["get", "w"], "circle-pitch-alignment": "viewport" } },
-          { id: "hits", type: "line", source: "hits", paint: { "line-color": "#000", "line-opacity": 0, "line-width": ["get", "w"] } },
           { id: "water-names", type: "symbol", source: "names", "source-layer": "water_name", minzoom: 10,
             layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Italic"], "text-size": 12 },
             paint: { "text-color": "#d4ecff", "text-halo-color": "rgba(10,30,50,.8)", "text-halo-width": 1.2 } },
@@ -443,7 +469,9 @@
         ],
         // Close to real heights: more exaggeration stretches the photos on steep slopes.
         terrain: { source: "dem", exaggeration: 1.15 },
-        sky: { "sky-color": "#5d9be0", "horizon-color": "#d8e6f2", "fog-color": "#c9d9e8", "sky-horizon-blend": 0.5, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.85, "atmosphere-blend": 0.9 },
+        // A light blue haze over the far valleys and ridges, as on a real clear day (and it hides the far photos
+        // being softer than the near ones).
+        sky: { "sky-color": "#5d9be0", "horizon-color": "#d8e6f2", "fog-color": "#bfd2e4", "sky-horizon-blend": 0.5, "horizon-fog-blend": 0.5, "fog-ground-blend": 0.7, "atmosphere-blend": 0.9 },
       },
     });
     // How sharp the photos are, near and far (alex, 2026-10-18: "it lag" and "i dont like the resolution make it
@@ -452,9 +480,10 @@
     // at most on screen). One setting all the time: switching to a lighter one while moving and back once still
     // (as before) reloaded every photo after each move, up to 900 tiles each time, and showed blurry ones while
     // moving. Now about 150 to 380 tiles in a tilted view, against 500 to 900.
-    // Phones: 4 zoom levels and fewer tiles far away (about half the photos in a tilted view).
-    const lod = () => ["sat", "winter", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(PHONE ? 4 : 6, PHONE ? 2 : 3, id); } catch {} });
+    // Phones the same since 2026-10-23 (they had 4 levels and fewer far tiles, which made the distance blurry).
+    const lod = () => ["sat", "winter", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
     gl.once("load", lod);
+    if (PHONE) gl.on("idle", trimPaintBuffers);
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
