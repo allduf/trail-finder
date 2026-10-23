@@ -1,0 +1,11 @@
+{
+  "name": "trail-gps",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The app's own GPS for recording rides: keeps going with the phone locked. Used by native-gps.js on the website.",
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  }
+}

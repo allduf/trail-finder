@@ -225,10 +225,11 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
 </main>
 <div class="lightbox" id="lightbox" hidden><img id="lightImg" alt=""></div>
 
-<script src="account.js?v=297"></script>
+<script src="account.js?v=299"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-<script src="ride-files.js?v=297"></script>
-<script src="ride-stats.js?v=297"></script>
+<script src="ride-files.js?v=299"></script>
+<script src="ride-stats.js?v=299"></script>
+<script src="native-gps.js?v=299"></script>
 <script>
 (() => {
   "use strict";
@@ -323,11 +324,12 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     const g = pts && pts.length > 1 ? gapsOf(pts, breaks) : [];
     if (!g.length) return "";
     const filled = g.filter((x) => x.filled).length, mins = Math.round(g.reduce((a, x) => a + x.s, 0) / 60);
-    return `The GPS stopped ${g.length === 1 ? "once" : g.length + " times"} (${mins} min in all), most likely while the phone was locked. ` +
+    const inApp = !!(window.tfGps && tfGps.native);   // the iPhone app records with the phone locked
+    return `The GPS stopped ${g.length === 1 ? "once" : g.length + " times"} (${mins} min in all), most likely ${inApp ? "with no GPS signal or while the app was closed" : "while the phone was locked"}. ` +
       (filled === g.length ? `${g.length === 1 ? "It's" : "They're"} filled in along the trails and dashed on the map.`
         : !filled ? `${g.length === 1 ? "That stretch is a straight line" : "Those stretches are straight lines"}, dashed on the map.`
         : `${filled} filled in along the trails, the rest straight lines, all dashed on the map.`) +
-      " Next time, use 🔒 Pocket in Ride mode instead of locking the phone.";
+      (inApp ? "" : " Next time, use 🔒 Pocket in Ride mode instead of locking the phone.");
   }
 
   // ---------- maps ----------
@@ -345,7 +347,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
 
   // ---------- recording ----------
   let rec = null;          // { id: "current", start, points, resumedAt? }
-  let watchId = null, wakeLock = null, ticker = null, lastFix = null, lastSave = 0;
+  let gps = null, wakeLock = null, ticker = null, lastFix = null, lastSave = 0;
 
   function showGps(text, warn) { const el = $("gpsMsg"); el.textContent = text; el.classList.toggle("warn", !!warn); }
   function onFix(pos) {
@@ -376,11 +378,15 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
       if (rec && !rec.points.length) { stopWatch(); rec = null; dbDel("current", "current"); setRecButton(false); renderLive(); }
     } else showGps("Looking for GPS… Being outside with a view of the sky helps.", true);
   }
+  // native-gps.js: in the iPhone app this GPS keeps recording with the phone locked
   function startWatch() {
-    if (watchId != null) return;
-    watchId = navigator.geolocation.watchPosition(onFix, onGpsError, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
+    if (gps) return;
+    const after = rec.points.length ? rec.points[rec.points.length - 1][3] : rec.start;
+    if (window.tfGps) { gps = tfGps.watch(onFix, onGpsError, { after }); return; }
+    const id = navigator.geolocation.watchPosition(onFix, onGpsError, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
+    gps = { stop: () => navigator.geolocation.clearWatch(id), catchUp: async () => {} };
   }
-  function stopWatch() { if (watchId != null) navigator.geolocation.clearWatch(watchId); watchId = null; }
+  function stopWatch() { if (gps) gps.stop(); gps = null; }
   async function keepAwake() {
     try { if (rec && "wakeLock" in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } } catch {}
   }
@@ -399,7 +405,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
   }
   function renderLive() {
     const pts = rec ? rec.points : [];
-    const end = !rec ? 0 : watchId != null ? Date.now() : rec.end || (pts.length ? pts[pts.length - 1][3] : rec.start);
+    const end = !rec ? 0 : gps ? Date.now() : rec.end || (pts.length ? pts[pts.length - 1][3] : rec.start);
     const st = statsOf(pts, rec ? rec.start : 0, end);
     let cur = 0;
     if (lastFix && Date.now() - lastFix.t < 10000) {
@@ -440,12 +446,12 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     saveCurrent(true);
     openSave(null);
   }
-  $("recBtn").addEventListener("click", () => { if (watchId != null && rec) stopRecording(); else beginRecording(rec); });
+  $("recBtn").addEventListener("click", () => { if (gps && rec) stopRecording(); else beginRecording(rec); });
   $("resumeGo").addEventListener("click", () => { delete rec.end; beginRecording(rec); });
   $("resumeStop").addEventListener("click", () => { $("resumeBox").hidden = true; rec.end = rec.end || (rec.points.length ? rec.points[rec.points.length - 1][3] : Date.now()); openSave(null); });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") saveCurrent(true);
-    else if (watchId != null) keepAwake();
+    else if (gps) { keepAwake(); gps.catchUp(); }
   });
   window.addEventListener("pagehide", () => saveCurrent(true));
 
@@ -747,7 +753,7 @@ ${pts}
     const h = location.hash;
     if (h.startsWith("#ride/")) openRide(decodeURIComponent(h.slice(6)));
     else if (h === "#rides") { show("rides"); renderRides(); }
-    else if (rec && rec.end && watchId == null && $("resumeBox").hidden) openSave(null);
+    else if (rec && rec.end && !gps && $("resumeBox").hidden) openSave(null);
     else show("record");
   }
   $("tabRecord").addEventListener("click", () => { if (location.hash === "#record") route(); else location.hash = "#record"; });
@@ -874,6 +880,8 @@ ${pts}
       const cur = await dbGet("current", "current");
       if (cur) {
         rec = cur;
+        // Ride mode (navigate.js) only sends a ride here to save it: never show it as still recording
+        if (location.hash === "#save" && !rec.end) { rec.end = rec.points.length ? rec.points[rec.points.length - 1][3] : Date.now(); saveCurrent(true); }
         recLine.setLatLngs(rec.points.map((p) => [p[0], p[1]]));
         if (rec.points.length) recMap.fitBounds(recLine.getBounds(), { padding: [20, 20], maxZoom: 16 });
         const st = statsOf(rec.points, rec.start, rec.end || (rec.points.length ? rec.points[rec.points.length - 1][3] : rec.start));

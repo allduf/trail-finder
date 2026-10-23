@@ -18,6 +18,13 @@
   const STAY_M = 40;          // keep the trail you're on until you're this far from it, so a side trail doesn't steal it
   const AHEAD_M = 2000;       // look this far ahead for the next junction
   const RIDE_ZOOM = 16;
+  // The GPS that records: the iPhone app's own (keeps going with the phone locked) or the browser's (native-gps.js).
+  const GPS = window.tfGps || { native: false, watch(onFix, onError) {
+    const id = navigator.geolocation.watchPosition(onFix, onError, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
+    return { native: false, stop: () => navigator.geolocation.clearWatch(id), catchUp: async () => {} };
+  } };
+  const IN_APP = GPS.native;
+  const pocketHint = () => (IN_APP ? "" : " Tap 🔒 Pocket instead of locking the phone.");
   const RESUME_MS = 6 * 3600000;   // a ride whose last point is older than this is over: offer to save it, not to carry on
 
   // ---------- storage: the ride being recorded, shared with ride.html ----------
@@ -35,8 +42,11 @@
   const done = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
   const store = async (mode) => (await dbP).transaction("current", mode).objectStore("current");
   const getCurrent = async () => { try { return await done((await store("readonly")).get("current")); } catch { return null; } };
-  const putCurrent = async (v) => { try { await done((await store("readwrite")).put(v)); } catch {} };
-  const delCurrent = async () => { try { await done((await store("readwrite")).delete("current")); } catch {} };
+  // Writes wait for the whole transaction to be on disk: Safari drops one still in flight when the page moves on to
+  // ride.html#save, which then found the ride unfinished and showed the Record screen instead of the save form.
+  const commit = (os, req) => new Promise((res, rej) => { const t = os.transaction; req.onerror = () => rej(req.error); t.oncomplete = () => res(); t.onerror = t.onabort = () => rej(t.error); });
+  const putCurrent = async (v) => { try { const os = await store("readwrite"); await commit(os, os.put(v)); } catch {} };
+  const delCurrent = async () => { try { const os = await store("readwrite"); await commit(os, os.delete("current")); } catch {} };
 
   // ---------- geometry: metres on a flat patch around the rider (fine over a few km) ----------
   const R = 6371008.8, RAD = Math.PI / 180;
@@ -289,7 +299,7 @@ body.sport-alt #navRideBtn { display: none; }
   document.body.appendChild(resumeBox);
 
   // ---------- riding ----------
-  let rec = null, watchId = null, wakeLock = null, ticker = 0, lastSave = 0, following = true, lastFix = null;
+  let rec = null, gps = null, wakeLock = null, ticker = 0, lastSave = 0, following = true, lastFix = null;
   const pad2 = (n) => String(n).padStart(2, "0");
   const hms = (s) => { s = Math.floor(s); return `${Math.floor(s / 3600)}:${pad2(Math.floor(s / 60) % 60)}:${pad2(s % 60)}`; };
   const fmtM = (m) => (m < 1000 ? Math.round(m / 10) * 10 + " m" : (m / 1000).toFixed(1) + " km");
@@ -458,8 +468,8 @@ body.sport-alt #navRideBtn { display: none; }
         const t = Math.round(a[3] + (b[3] - a[3]) * Math.min(1, run / (got.len + metres(all[all.length - 2], b) + metres(a, all[1]))));
         rec.points.push([+all[i][0].toFixed(6), +all[i][1].toFixed(6), null, t, 0, 1]);
       }
-      showTip(`GPS stopped for ${when} (phone locked?). I filled in ${fmtM(got.len)} along the trails. Tap 🔒 Pocket instead of locking the phone.`, 20000);
-    } else showTip(`GPS stopped for ${when} (phone locked?), so that stretch is a straight line. Tap 🔒 Pocket instead of locking the phone.`, 20000);
+      showTip(`GPS stopped for ${when} (${IN_APP ? "no signal?" : "phone locked?"}). I filled in ${fmtM(got.len)} along the trails.${pocketHint()}`, 20000);
+    } else showTip(`GPS stopped for ${when} (${IN_APP ? "no signal?" : "phone locked?"}), so that stretch is a straight line.${pocketHint()}`, 20000);
     rec.gaps = (rec.gaps || 0) + 1;
     drawTrack();
   }
@@ -817,13 +827,18 @@ body.sport-alt #navRideBtn { display: none; }
   }
   $("navPocket").addEventListener("click", () => setPocket(true));
 
+  // In the iPhone app (native-gps.js) the GPS keeps going with the phone locked, so there's no Pocket there.
+  $("navPocket").hidden = IN_APP;
+
   // ---------- coming back: the screen was off, so the phone stopped the GPS ----------
   let hiddenAt = 0;
-  document.addEventListener("visibilitychange", () => {
+  document.addEventListener("visibilitychange", async () => {
     if (!rec) return;
     if (document.visibilityState === "hidden") { hiddenAt = Date.now(); return; }
+    if (gps) await gps.catchUp();                 // the app's GPS kept going: the fixes the page slept through
+    if (!rec) return;
     if (hiddenAt && Date.now() - hiddenAt > 20000 && !rec.paused && !(rec.lastReal > hiddenAt + 15000))   // no fixes came while it was off
-      showTip(`The phone stopped the GPS for ${Math.max(1, Math.round((Date.now() - hiddenAt) / 60000))} min while the screen was off. It's back on now. Next time tap 🔒 Pocket instead of locking the phone.`, 20000);
+      showTip(`The phone stopped the GPS for ${Math.max(1, Math.round((Date.now() - hiddenAt) / 60000))} min while the screen was off. It's back on now.${IN_APP ? "" : " Next time tap 🔒 Pocket instead of locking the phone."}`, 20000);
     hiddenAt = 0;
   });
 
@@ -839,7 +854,7 @@ body.sport-alt #navRideBtn { display: none; }
 
   async function start() {
     if (rec) return;
-    if (!navigator.geolocation) { alert("This browser can't share your location, so Ride mode can't follow you."); return; }
+    if (!navigator.geolocation && !IN_APP) { alert("This browser can't share your location, so Ride mode can't follow you."); return; }
     startCompass();                               // first, while the tap still counts (iPhone asks here)
     const cur = await getCurrent();
     const lastT = cur && (cur.points.length ? cur.points[cur.points.length - 1][3] : cur.start);
@@ -854,7 +869,8 @@ body.sport-alt #navRideBtn { display: none; }
     drawTrack();
     lastStats = null; setPaused(!!rec.paused);
     try {
-      if (!localStorage.getItem("tf:pocketTip")) showTip("Don't lock your phone while you ride: a locked phone stops the GPS for websites. Tap <b>🔒 Pocket</b> to put it away with a black screen.", 0, () => { try { localStorage.setItem("tf:pocketTip", "1"); } catch {} });
+      if (IN_APP) { if (!localStorage.getItem("tf:lockTip")) showTip("You can lock your phone while you ride: the app keeps recording. The blue pill at the top of the screen shows the GPS is on.", 0, () => { try { localStorage.setItem("tf:lockTip", "1"); } catch {} }); }
+      else if (!localStorage.getItem("tf:pocketTip")) showTip("Don't lock your phone while you ride: a locked phone stops the GPS for websites. Tap <b>🔒 Pocket</b> to put it away with a black screen.", 0, () => { try { localStorage.setItem("tf:pocketTip", "1"); } catch {} });
     } catch {}
     [track, onGlow].forEach((l) => l.addTo(layer));
     layer.addTo(map);
@@ -864,14 +880,14 @@ body.sport-alt #navRideBtn { display: none; }
     setRiding(true);
     syncCompass();
     if (map.getZoom() < RIDE_ZOOM) map.setZoom(RIDE_ZOOM);
-    watchId = navigator.geolocation.watchPosition(onFix, onGpsError, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
+    gps = GPS.watch(onFix, onGpsError, { after: rec.points.length ? rec.points[rec.points.length - 1][3] : rec.start });
     keepAwake();
     ticker = setInterval(tick, 1000); tick();
     putCurrent(rec);
   }
   function stopWatching() {
-    if (watchId != null) navigator.geolocation.clearWatch(watchId);
-    watchId = null; clearInterval(ticker); ticker = 0; letSleep(); stopCompass();
+    if (gps) gps.stop();
+    gps = null; clearInterval(ticker); ticker = 0; letSleep(); stopCompass();
   }
   function leave() {
     stopWatching();
