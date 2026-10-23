@@ -1298,6 +1298,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <button type="button" role="menuitem" data-act="account">Sign in</button>
     <button type="button" role="menuitem" data-act="full">⤢ Full map</button>
     <button type="button" role="menuitem" data-act="plan">✎ Plan a route</button>
+    <button type="button" role="menuitem" data-act="today">☀ Where to ride today</button>
     <button type="button" role="menuitem" data-act="mytrails">📁 My trails, routes and rides</button>
     <button type="button" role="menuitem" data-act="photo">📷 Trail from a photo</button>
   </div>
@@ -4596,6 +4597,7 @@ out body;`;
     else if (b.dataset.act === "plan") { if (window.tfPlan) window.tfPlan.open(); }
     else if (b.dataset.act === "planSaved") { if (window.tfPlan) window.tfPlan.saved(); }
     else if (b.dataset.act === "mytrails") showFolders();
+    else if (b.dataset.act === "today") { if (window.tfTodayOpen) window.tfTodayOpen(); }
     else if (b.dataset.act === "photo") { if (window.tfPhotoFind) window.tfPhotoFind.open(); }
   });
   document.addEventListener("click", (e) => { if (!tabMenu.hidden && !e.target.closest("#tabMenu, [data-nav=more]")) showMenu(false); });
@@ -6564,6 +6566,9 @@ out tags center qt;`;
     roads: () => [...roadData.values()].filter(Boolean).flatMap((z) => z.list),   // forest roads, for Plan a route (planner.js)
     roadFeats: () => [...roadData.values()].filter(Boolean).flatMap((z) => z.feats || []),   // gates, barriers, bridges (Shuttle)
     load: () => { const v = map.getBounds(); ZONES.filter((z) => z.bounds.intersects(v)).forEach((z) => { loadZoneTrails(z); roadZone(z); }); caIndexLoad().then(() => caZonesIn([v]).forEach(loadZoneTrails)); } };
+  // Where to ride today (status.js): the zones, nightly files, ridden trails and where you are.
+  window.tfToday = { zones: ZONES, nightly, firstMappedIn, nameKey, you: () => you.ll || null, center: () => map.getCenter(),
+    ridden: () => new Set(riddenTrails().map((w) => nameKey(w.name))) };
   window.tfTrails = () => ({ shown: state.merged ? [...state.merged.values()] : [], all: [...allData.values()].filter(Boolean), selected: state.selected });   // for My rides (rides.js)
   render();
   if (state.zone === "home") caIndexLoad().then(() => searchZones(true, true)); else searchZones(true, true);
@@ -6585,6 +6590,7 @@ out tags center qt;`;
 <script src="reports.js?v=295"></script>
 <script src="visitors.js?v=295"></script>
 <script src="notify.js?v=295"></script>
+<script src="status.js?v=295"></script>
 <script src="areas.js?v=295"></script>
 <script src="alpine.js?v=295"></script>
 <script src="bikeparks.js?v=295"></script>
