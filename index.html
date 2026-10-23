@@ -891,6 +891,9 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .d-top .back { margin-bottom: 0; }
 .want-btn { font: inherit; font-weight: 600; font-size: .9rem; border: 1.5px solid var(--accent); color: var(--accent); background: transparent; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
 .want-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg, #fff); }
+.wl-more { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.wl-more button { font: inherit; font-weight: 600; font-size: .9rem; padding: 7px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--chip, #fff); color: var(--fg); cursor: pointer; }
+.wl-more small { color: var(--muted); font-weight: 500; }
 .want-btn.share-btn { padding-left: 11px; padding-right: 11px; }
 .tf-toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); z-index: 3000; max-width: calc(100vw - 32px);
   padding: 10px 16px; border-radius: 10px; background: var(--fg); color: var(--panel); font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
@@ -1152,16 +1155,24 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <option value="sathybrid">Satellite + names</option>
         <option value="vector">Sharp outdoor (vector)</option>
         </select></div>
+        <div class="lm-head lm-looks-head">Quick looks</div>
+        <div class="lm-looks" id="lmLooks" role="group" aria-label="Quick looks: turn on the layers for">
+        <button type="button" data-look="ride" title="Riding today: all trails, trailheads and parking, bike parks">🚵 Ride</button>
+        <button type="button" data-look="plan" title="Planning a trip: all trails, forest roads, elevation lines, trailheads">🗺 Plan</button>
+        <button type="button" data-look="safety" title="Before you go: wildfires, forest road closures and status, logging areas">⚠ Safety</button>
+        </div>
         <div class="lm-head">Show on the map</div>
         <div class="lm-list lm-overlays">
         <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
         <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
         <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire">🔥 Wildfires</button>
-        <button id="areasBtn" type="button" aria-pressed="false" title="Show logging areas (cut blocks) and areas closed to motor vehicles">▦ Logging areas</button>
         <button id="accessBtn" type="button" aria-pressed="false" title="Show trailheads, parking and BC recreation sites">Ⓟ Trailheads and parking</button>
         <button id="parkBtn" type="button" aria-pressed="true" title="Show bike parks, pump tracks and MTB centres across Canada">🚵 Bike parks</button>
-        <button id="contourBtn" type="button" aria-pressed="false">〰 Elevation lines</button>
         <button id="avyBtn" type="button" aria-pressed="false" hidden>⚠ Avalanche risk</button>
+        <details class="lm-more" id="lmMore"><summary>More layers</summary><div class="lm-list">
+        <button id="areasBtn" type="button" aria-pressed="false" title="Show logging areas (cut blocks) and areas closed to motor vehicles">▦ Logging areas</button>
+        <button id="contourBtn" type="button" aria-pressed="false">〰 Elevation lines</button>
+        </div></details>
         </div>
         <div class="lm-head">Tools</div>
         <div class="lm-list">
@@ -1283,9 +1294,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <button type="button" role="menuitem" data-act="account">Sign in</button>
     <button type="button" role="menuitem" data-act="full">⤢ Full map</button>
     <button type="button" role="menuitem" data-act="plan">✎ Plan a route</button>
-    <button type="button" role="menuitem" data-act="planSaved">📂 Saved routes</button>
+    <button type="button" role="menuitem" data-act="mytrails">📁 My trails, routes and rides</button>
     <button type="button" role="menuitem" data-act="photo">📷 Trail from a photo</button>
-    <button type="button" role="menuitem" data-act="rides">My rides</button>
   </div>
 </div>
 
@@ -3742,8 +3752,8 @@ out body;`;
       ${tf.park ? `<p class="park-note">In <a href="${parkUrl(tf.park)}" target="_blank" rel="noopener">${esc(tf.park)}</a>${PARK_RULES[tf.park] ? `: ${esc(PARK_RULES[tf.park])}` : ""}.</p>` : ""}
       <div class="go">${real && window.tfPlan && window.tfPlan.planning() ? `<button class="btn add-ride-btn" id="addRideBtn" type="button">✎ Add to my ride</button>` : ""}<a class="go-btn" id="goBtn" target="_blank" rel="noopener" aria-disabled="true">Go to trail</a><p class="muted" id="goNote">Finding the top of the trail…</p>${window.tfRide ? `<button class="btn follow-btn" id="followBtn" type="button">▶ Ride this trail</button><p class="muted">The map follows you along it and buzzes if you go off it.</p>` : ""}</div>
       <h3>Weather and Loam moisture index</h3><div id="wx" class="muted">Loading weather…</div>
-      <h3>Elevation</h3><div id="elev" class="muted">${real || t.elev ? "Loading elevation…" : ""}</div>
       ${real && window.tfReports ? `<h3>Trail conditions from riders</h3><div id="reports" class="muted">Loading reports…</div>` : ""}
+      <h3>Elevation</h3><div id="elev" class="muted">${real || t.elev ? "Loading elevation…" : ""}</div>
       ${real ? `<h3>About this trail</h3><div id="trailAbout" class="muted">Looking for a description and photos…</div>` : ""}
       ${routes ? `<h3>Part of MTB route</h3><ul class="plain">${routes}</ul>` : ""}
       ${real ? `<h3>Links</h3><div class="links">
@@ -3971,7 +3981,7 @@ out body;`;
   function renderFolders() {
     const box = $("wantList"), f = getFolders();
     box.hidden = false;
-    box.innerHTML = `<div class="wl-head"><h3>📁 My trail folders</h3><button class="linkish" type="button" id="newFolderBtn">+ New folder</button></div>`;
+    box.innerHTML = `<div class="wl-head"><h3>📁 My trails</h3><button class="linkish" type="button" id="newFolderBtn">+ New folder</button></div>`;
     $("newFolderBtn").addEventListener("click", () => { const n = prompt("Name of the new folder"); if (n) newFolder(n); });
     f.forEach((x) => {
       const ridden = x.id === RIDDEN, items = ridden ? riddenTrails(f) : x.trails;
@@ -4015,7 +4025,18 @@ out body;`;
       d.addEventListener("toggle", () => { d.open ? openFolders.add(x.id) : openFolders.delete(x.id); });
       box.appendChild(d);
     });
+    // Everything you keep in one place (alex, from Trailforks favourites): saved routes and your rides sit with the folders.
+    let routes = 0; try { routes = (JSON.parse(localStorage.getItem("tf:planSaved") || "[]") || []).length; } catch {}
+    const more = document.createElement("div");
+    more.className = "wl-more";
+    more.innerHTML = `<button type="button" data-wl="routes">📂 Saved routes <small>(${routes})</small></button><button type="button" data-wl="rides">🚴 My rides</button>`;
+    more.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-wl]"); if (!b) return;
+      if (b.dataset.wl === "routes") { if (window.tfPlan) window.tfPlan.saved(); } else location.href = "ride.html#rides";
+    });
+    box.appendChild(more);
   }
+  window.addEventListener("tf:settings-synced", (ev) => { if (ev.detail.includes("planSaved") && !$("wantList").hidden) renderFolders(); });
   const openFolders = new Set();
   function showFolders() {
     setMode("name");
@@ -4570,6 +4591,7 @@ out body;`;
     else if (b.dataset.act === "rides") location.href = "ride.html#rides";
     else if (b.dataset.act === "plan") { if (window.tfPlan) window.tfPlan.open(); }
     else if (b.dataset.act === "planSaved") { if (window.tfPlan) window.tfPlan.saved(); }
+    else if (b.dataset.act === "mytrails") showFolders();
     else if (b.dataset.act === "photo") { if (window.tfPhotoFind) window.tfPhotoFind.open(); }
   });
   document.addEventListener("click", (e) => { if (!tabMenu.hidden && !e.target.closest("#tabMenu, [data-nav=more]")) showMenu(false); });
@@ -5479,12 +5501,34 @@ out body;`;
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !layersMenu.hidden) { setLayersOpen(false); layersBtn.focus(); } });
   $("offlineBtn").addEventListener("click", () => setLayersOpen(false));   // Offline maps opens its own view
   function countLayers() {   // "Layers · 3" says how many overlays are on without opening the menu
-    const on = [...layersMenu.querySelector(".lm-overlays").children].filter((b) => b.getAttribute("aria-pressed") === "true" && !b.hidden && getComputedStyle(b).display !== "none").length;
+    const on = [...layersMenu.querySelectorAll(".lm-overlays button")].filter((b) => b.getAttribute("aria-pressed") === "true" && !b.hidden && getComputedStyle(b).display !== "none").length;
     $("layersN").textContent = on ? String(on) : "";
   }
   new MutationObserver(countLayers).observe(layersMenu, { subtree: true, childList: true, attributes: true, attributeFilter: ["aria-pressed", "hidden", "class"] });
   new MutationObserver(countLayers).observe(document.body, { attributes: true, attributeFilter: ["class"] });   // ski mode hides some layers
   countLayers();
+
+  // ---------- Quick looks (alex, from onX's map modes): one tap turns on the layers for riding, planning or safety ----------
+  // Each look switches its layers on and the others in the list off; every layer stays one tap away below.
+  const LOOKS = {
+    ride: { on: ["allBtn", "accessBtn", "parkBtn"], off: ["roadsBtn", "firesBtn", "areasBtn", "contourBtn"] },
+    plan: { on: ["allBtn", "roadsBtn", "contourBtn", "accessBtn"], off: ["firesBtn", "areasBtn"] },
+    safety: { on: ["allBtn", "firesBtn", "roadsBtn", "areasBtn"], off: ["contourBtn"] },
+  };
+  const layerOn = (b) => b.getAttribute("aria-pressed") === "true";
+  const lookIs = (l) => l.on.every((id) => !$(id) || layerOn($(id))) && l.off.every((id) => !$(id) || !layerOn($(id)));
+  function syncLooks() { $("lmLooks").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(lookIs(LOOKS[b.dataset.look])))); }
+  $("lmLooks").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-look]");
+    if (!b) return;
+    const l = LOOKS[b.dataset.look];
+    l.on.forEach((id) => { const x = $(id); if (x && !x.hidden && !layerOn(x)) x.click(); });
+    l.off.forEach((id) => { const x = $(id); if (x && !x.hidden && layerOn(x)) x.click(); });
+    if (["areasBtn", "contourBtn"].some((id) => l.on.includes(id))) $("lmMore").open = true;
+    syncLooks();
+  });
+  new MutationObserver(syncLooks).observe(layersMenu.querySelector(".lm-overlays"), { subtree: true, attributes: true, attributeFilter: ["aria-pressed"] });
+  syncLooks();
 
   // ---------- First visit: one short tip, until it's dismissed or the rider gets going ----------
   if (!store.get("tipSeen", false)) {

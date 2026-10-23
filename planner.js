@@ -1501,7 +1501,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
     $("planSaved").innerHTML = (!list.length ? `<li class="sv-empty">No saved routes yet. Plan one and tap 💾 Save.</li>` : list.map((e) => {
       const meta = [e.mode === "pick" ? "Pick trails" : "Tap points", e.km != null ? `${e.drive ? "Ride " : ""}${e.km} km` : "", e.up != null ? `↑ ${e.up} m` : "", e.drive ? `🛻 ${e.drive} km` : "", e.km != null && rs && rs.timeFor ? `⏱ ${rs.fmtHours(rs.timeFor(e.km * 1000, e.up).h)}` : "", e.at ? new Date(e.at).toLocaleDateString() : ""].filter(Boolean).join(" · ");
       return `<li><button type="button" class="sv-body" data-sv="open" data-id="${esc(e.id)}" title="Open this route"><b>${esc(e.name)}</b><small>${esc(meta)}</small></button>
-        <span class="sv-ctl"><button type="button" data-sv="rename" data-id="${esc(e.id)}" aria-label="Rename">✎</button> <button type="button" data-sv="del" data-id="${esc(e.id)}" aria-label="Delete">🗑</button></span></li>`;
+        <span class="sv-ctl">${e.box && window.tfOffline ? `<button type="button" data-sv="offline" data-id="${esc(e.id)}" aria-label="Save offline" title="Save the map and trails around this route on this device, for riding with no signal">⤓</button> ` : ""}<button type="button" data-sv="rename" data-id="${esc(e.id)}" aria-label="Rename">✎</button> <button type="button" data-sv="del" data-id="${esc(e.id)}" aria-label="Delete">🗑</button></span></li>`;
     }).join("")) + syncLine();
   }
   // Saved routes reach other devices only through an account, so say which this is.
@@ -1553,6 +1553,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
     const list = savedList(), e = list.find((x) => x.id === b.dataset.id);
     if (!e) return;
     if (b.dataset.sv === "open") openSaved(e);
+    else if (b.dataset.sv === "offline") { showSaved(false); window.tfOffline.saveBox(e.box, e.name); }
     else if (b.dataset.sv === "rename") { const n = prompt("Rename this ride", e.name); if (n != null && n.trim()) { e.name = n.trim(); e.ed = Date.now(); setSaved(list); } }
     else if (b.dataset.sv === "del" && confirm(`Delete "${e.name}"?`)) {
       try { const g = JSON.parse(localStorage.getItem("tf:planGone") || "[]"); localStorage.setItem("tf:planGone", JSON.stringify([{ id: e.id, at: Date.now() }, ...(Array.isArray(g) ? g : [])].slice(0, 300))); } catch {}

@@ -297,6 +297,11 @@ label.toggle.off { background: transparent; border: 1px dashed var(--line); box-
 .map-tools .layers-menu .lm-overlays button::after { content: "Off"; margin-left: auto; font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--fg) 10%, transparent); color: var(--muted); }
 .map-tools .layers-menu .lm-overlays button.on::after { content: "On"; background: rgba(255, 255, 255, .25); color: inherit; }
 .mapwrap.is3d .layers-menu .lm-style { display: none; }
+.layers-menu .lm-looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.map-tools .layers-menu .lm-looks button { justify-content: center; padding-left: 4px; padding-right: 4px; font-size: .85rem; }
+.map-tools .layers-menu .lm-looks button[aria-pressed="true"] { background: var(--forest); border-color: var(--forest); color: #fff; }
+.layers-menu .lm-more summary { cursor: pointer; font-size: .85rem; font-weight: 600; color: var(--muted); padding: 4px 2px; }
+.layers-menu .lm-more .lm-list { margin-top: 6px; }
 
 /* First-visit tip */
 .first-tip {
@@ -382,3 +387,4 @@ body.sport-alt .first-tip { display: none; }
   .nav-btns button { padding: 11px 6px; white-space: nowrap; }
 }
 @media (max-width: 380px) { .map-tools select, .map-tools button { padding-left: 10px; padding-right: 10px; } .map-tools { gap: 5px; } }
+body.sport-alt .layers-menu .lm-looks, body.sport-alt .layers-menu .lm-looks-head { display: none; }

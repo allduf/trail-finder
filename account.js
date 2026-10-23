@@ -65,7 +65,7 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     <p>Signed in as <strong id="acctWho"></strong>. Your settings, rides and trail folders are saved to your account.</p>
     <p class="acct-msg" id="acctSync" role="status"></p>
     <div class="acct-menu">
-      <button type="button" id="acctGoFolders"><span aria-hidden="true">📁</span> My trail folders<small>Trails you want to ride, in folders you make</small></button>
+      <button type="button" id="acctGoFolders"><span aria-hidden="true">📁</span> My trails<small>To ride, Ridden, your folders, saved routes and rides</small></button>
       <button type="button" id="acctGoSettings"><span aria-hidden="true">⚙️</span> Settings<small>Email, password, sign out</small></button>
     </div>
     <div class="acct-row"><button type="button" class="go" data-close>Done</button></div>
@@ -144,6 +144,7 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     document.head.appendChild(s);
   }));
   const savedSession = !!lsGet(`sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`);
+  api.savedSession = savedSession;   // signed in on this device, even with no signal (reports.js keeps reports for later)
   const fromLink = /[#&?](access_token|code|error_description)=/.test(location.href);
   api.ready = savedSession || fromLink ? api.load() : Promise.resolve(null);
 
