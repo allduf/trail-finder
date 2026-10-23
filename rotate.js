@@ -137,6 +137,7 @@
   L.Map.TouchGestures.include({
     _onTouchStart(e) {
       const map = this._map;
+      if (e.touches && e.touches.length > 1) L.DomEvent.preventDefault(e);   // never the browser's own page zoom (see below)
       if (!e.touches || e.touches.length !== 2 || map._animatingZoom || this._zooming || this._rotating) return;
       const p1 = map.mouseEventToContainerPoint(e.touches[0]), p2 = map.mouseEventToContainerPoint(e.touches[1]);
       this._centerPoint = map.getSize()._divideBy(2);
@@ -380,6 +381,13 @@
       map._handlers.splice(map._handlers.indexOf(h), 1);
     });
     // Our own panes turn with the map unless told otherwise.
+    // Leaflet's pinch zoom set the class that stops the browser zooming the page on a pinch; with it gone the map
+    // allowed page zoom, so a pinch the map didn't take (one starting while the last zoom was still moving) zoomed the
+    // whole page out instead: the app shrank into a corner and the map jumped far away, to the Arctic (alex, 2026-10-23,
+    // "it does that sometimes when I zoom out").
+    if (map.touchZoom && map.touchZoom.enabled()) L.DomUtil.addClass(map._container, "leaflet-touch-zoom");
+    // iPhones also zoom the page on their own "gesture" events unless told no.
+    ["gesturestart", "gesturechange"].forEach((t) => map._container.addEventListener(t, (e) => e.preventDefault()));
     map.createPane = function (name, container) { return createPane.call(this, name, container || this._rotatePane); };
     mouseRotate(map);
     glTrack(map);
