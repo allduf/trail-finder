@@ -698,6 +698,7 @@
     later(() => { stops.pop(); legs.pop(); draw(); save(); });
   }
   function clear() {
+    readyGpx = null;
     if (mode === "pick") { picks = []; pickStart = null; pickManual = true; pickHomePedal = false; changedPicks(); return; }
     later(() => { stops = []; legs = []; elev = null; draw(); save(); });
   }
@@ -1148,6 +1149,7 @@
     // Only what works now: Saved while there's nothing yet, Save and Ride it once you've started one.
     $("planUndo").hidden = !has; $("planSavedTop").hidden = !!has; $("planSavedBtn").hidden = !has;
     $("planSave").hidden = $("planRide").hidden = !has;
+    $("planGpxSend").hidden = !readyGpx; if (readyGpx) $("planRide").hidden = true;
     const tag = how === "shuttle" ? "🛻 Shuttle" : mode === "tap" ? "Tapping points" : "";
     $("planTag").hidden = !tag; $("planTag").textContent = tag;
   }
@@ -1270,9 +1272,32 @@
     const pt = (q) => { const h = ht(q); return `<trkpt lat="${q[0].toFixed(6)}" lon="${q[1].toFixed(6)}">${h != null ? `<ele>${h.toFixed(1)}</ele>` : ""}</trkpt>`; };
     const trk = (n, list) => `<trk><name>${esc(n)}</name><trkseg>\n${list.map(pt).join("\n")}\n</trkseg></trk>`;
     const body = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${name}</name><time>${now}</time></metadata>\n${[trk(name, pts), ...others.map((o) => trk(o.name, o.pts))].join("\n")}\n</gpx>\n`;
+    saveGpx(body, `trail-finder-route${others.length ? "-with-trails" : ""}-${now.slice(0, 10)}.gpx`);
+  }
+  // Phones (and the iPhone app, where a download link does nothing: alex couldn't export) get the share sheet, so the
+  // file goes straight to the DJI app, Files, Mail... Computers download it. Heights take a moment to load, which can
+  // use up the tap the share sheet needs, so then a ⤓ Send the GPX button asks for one more tap.
+  let readyGpx = null;
+  const phone = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) || matchMedia("(pointer: coarse)").matches;
+  function gpxFile(body, name) {
+    for (const type of ["application/gpx+xml", "application/octet-stream", "text/xml"]) {
+      const f = new File([body], name, { type });
+      if (navigator.canShare && navigator.canShare({ files: [f] })) return f;
+    }
+    return null;
+  }
+  async function saveGpx(body, name) {
+    const f = phone() && navigator.share ? gpxFile(body, name) : null;
+    if (f) {
+      try { await navigator.share({ files: [f], title: name }); readyGpx = null; render(); return; }
+      catch (e) {
+        if (e && e.name === "AbortError") { readyGpx = null; render(); return; }   // closed the share sheet
+        if (e && e.name === "NotAllowedError") { readyGpx = f; render(); return; }   // needs a fresh tap
+      }
+    }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([body], { type: "application/gpx+xml" }));
-    a.download = `trail-finder-route${others.length ? "-with-trails" : ""}-${now.slice(0, 10)}.gpx`;
+    a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   }
@@ -1374,7 +1399,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
       <button type="button" class="plan-x" id="planDone" title="Close the planner (your route stays until you clear it)" aria-label="Close">✕</button></div>
     <div class="plan-stats" id="planStats" aria-live="polite"></div><div class="plan-trails" id="planTrails"></div><ol class="plan-steps" id="planSteps"></ol>
     <div class="plan-btns plan-main"><button type="button" id="planUndo" title="Undo" aria-label="Undo">↶</button><button type="button" id="planSavedTop" aria-pressed="false" title="Your saved routes">📂 Saved</button>
-    <button type="button" id="planFind" title="Look for trails by name, level or area, then come back">🔍 Find</button><button type="button" id="planSave" title="Save this ride to open again later">💾 Save</button><button type="button" class="go" id="planRide">▶ Ride it</button>
+    <button type="button" id="planFind" title="Look for trails by name, level or area, then come back">🔍 Find</button><button type="button" id="planSave" title="Save this ride to open again later">💾 Save</button><button type="button" class="go" id="planGpxSend" hidden>⤓ Send the GPX</button><button type="button" class="go" id="planRide">▶ Ride it</button>
     <button type="button" id="planMoreBtn" aria-expanded="false" aria-controls="planMore" title="More options" aria-label="More options">⋯</button></div>
     <div class="plan-more" id="planMore" hidden>
       <div class="plan-opt"><span>Build it by</span><div class="plan-modes" role="group" aria-label="How to make the route">
@@ -1496,6 +1521,10 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
   $("planStart").addEventListener("click", () => { settingStart = !settingStart; render(); });
   $("planGpx").addEventListener("click", () => gpx(false));
   $("planGpxNear").addEventListener("click", () => gpx(true));
+  $("planGpxSend").addEventListener("click", () => {
+    const f = readyGpx; readyGpx = null; render();
+    if (f) navigator.share({ files: [f], title: f.name }).catch(() => {});
+  });
   $("planDone").addEventListener("click", () => setPlanning(false));
   $("planRide").addEventListener("click", () => {
     const lines = legs.map((l) => l.pts), name = mode === "pick" ? `your ride (${fmtM(total())})` : `your route (${fmtM(total())})`;
