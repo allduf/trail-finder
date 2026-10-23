@@ -8,6 +8,9 @@
 //        Open Government Licence - British Columbia) whose name or description says ski, snowshoe or nordic.
 //      - c2c: camptocamp.org ski touring and snowshoe routes (CC BY-SA), from its public API (no key). Mostly the
 //        Alps, so only a few here; routes with only a start point (no drawn line) go in "starts" as pins.
+//      Off-piste downhill (piste:grooming=backcountry / no) inside a ski resort's boundary (landuse=winter_sports) is
+//      in-bounds resort terrain, not a ski tour: type "offpiste". A route drawn as a closed ring is an area (a bowl,
+//      glade or zone outline), not a line to follow: "area": 1.
 //      Unnamed routes get "near": the named OpenStreetMap peak closest to them (within 3 km).
 //  - data/avalanche.json: Avalanche Canada's current avalanche forecasts for the forecast areas that touch the
 //    region (Sea to Sky, South Coast, South Coast Inland...), with the area outlines, danger ratings by elevation
@@ -121,6 +124,7 @@ const skiQuery = ([s, w, n, e]) => `[out:json][timeout:200][bbox:${s},${w},${n},
   nwr["amenity"="shelter"]["shelter_type"="basic_hut"];
   way["snowmobile"~"^(yes|designated|permissive)$"]["highway"!~"^(motorway|trunk|primary|secondary|tertiary|residential|motorway_link|trunk_link|primary_link|secondary_link)$"];
   relation["route"="snowmobile"];
+  wr["landuse"="winter_sports"];
 );
 out tags geom qt;`;
 async function fetchOsm(box, depth = 0) {
@@ -156,6 +160,58 @@ function skiType(t) {
 const OSM_KEEP = ["name", "ref", "piste:name", "piste:difficulty", "piste:grooming", "piste:type", "description", "note", "website", "operator", "access", "ski", "ele", "fee", "capacity", "reservation", "url", "seasonal", "opening_hours", "snowmobile", "snowmobile:conditional", "highway", "surface"];
 const keepTags = (t) => Object.fromEntries(OSM_KEEP.filter((k) => t[k]).map((k) => [k, String(t[k]).slice(0, 300)]));
 
+// Ski resort boundaries (landuse=winter_sports ways and multipolygons): every outer edge as one list of segments,
+// [lat1, lon1, lat2, lon2, ...] per resort with its box, for an even-odd point-in-area test.
+function resortAreas(els) {
+  const out = [];
+  for (const el of els) {
+    if ((el.tags || {}).landuse !== "winter_sports") continue;
+    const rings = el.type === "way" ? [el.geometry || []] : (el.members || []).filter((m) => m.type === "way" && m.role !== "inner").map((m) => m.geometry || []);
+    const seg = [];
+    let s = 90, w = 180, n = -90, e = -180;
+    for (const ring of rings) for (let i = 1; i < ring.length; i++) {
+      const a = ring[i - 1], b = ring[i];
+      if (!a || !b) continue;
+      seg.push(a.lat, a.lon, b.lat, b.lon);
+      s = Math.min(s, b.lat); n = Math.max(n, b.lat); w = Math.min(w, b.lon); e = Math.max(e, b.lon);
+    }
+    if (seg.length >= 12) out.push({ seg, box: [s, w, n, e] });
+  }
+  return out;
+}
+function inResort(resorts, lat, lon) {
+  for (const r of resorts) {
+    const [s, w, n, e] = r.box;
+    if (lat < s || lat > n || lon < w || lon > e) continue;
+    let inside = false;
+    for (let i = 0; i < r.seg.length; i += 4) {
+      const [la1, lo1, la2, lo2] = [r.seg[i], r.seg[i + 1], r.seg[i + 2], r.seg[i + 3]];
+      if ((la1 > lat) !== (la2 > lat) && lon < lo1 + ((lat - la1) * (lo2 - lo1)) / (la2 - la1)) inside = !inside;
+    }
+    if (inside) return true;
+  }
+  return false;
+}
+// Off-piste downhill mostly (70 %+ of its points) inside a resort boundary is in-bounds resort terrain; closed downhill
+// or touring rings are areas (bowls, glades, zones).
+function resortTerrain(routes, resorts) {
+  let off = 0, areas = 0;
+  for (const r of routes) {
+    const pt = String(r.tags?.["piste:type"] || "").split(";")[0];
+    if (r.type === "tour" && pt === "downhill") {
+      let n = 0, inside = 0;
+      for (const part of r.g) for (let i = 0; i < part.length; i += 2) { n++; if (inResort(resorts, part[i], part[i + 1])) inside++; }
+      if (n && inside / n >= 0.7) { r.type = "offpiste"; off++; }
+    }
+    // Only downhill and touring terrain: a nordic, snowshoe or sled loop that closes on itself is still a trail.
+    if (/^(tour|offpiste|resort)$/.test(r.type) && r.g.length === 1 && r.g[0].length >= 8) {
+      const p = r.g[0], gap = Math.hypot((p[0] - p.at(-2)) * 110540, (p[1] - p.at(-1)) * 71000);
+      if (gap < 15) { r.area = 1; areas++; }
+    }
+  }
+  log(`  ${resorts.length} ski resort boundaries; ${off} off-piste runs inside them are resort terrain, not ski tours; ${areas} routes drawn as areas`);
+}
+
 async function buildOsm() {
   const seen = new Map();
   for (const box of REGIONS) {
@@ -168,7 +224,7 @@ async function buildOsm() {
   // Ways first, so relation members already drawn on their own aren't drawn twice.
   for (const el of els.filter((e) => e.type === "way" && e.geometry)) {
     const t = el.tags || {};
-    if (/hut|shelter/.test(t.tourism || t.amenity || "")) continue;
+    if (/hut|shelter/.test(t.tourism || t.amenity || "") || t.landuse === "winter_sports") continue;
     const type = skiType(t);
     if (!type) continue;
     const g = flat(el.geometry.map((p) => ({ lat: p.lat, lon: p.lon })), 6);
@@ -178,7 +234,7 @@ async function buildOsm() {
   }
   for (const el of els.filter((e) => e.type === "relation")) {
     const t = el.tags || {};
-    if (/hut|shelter/.test(t.tourism || t.amenity || "")) continue;
+    if (/hut|shelter/.test(t.tourism || t.amenity || "") || t.landuse === "winter_sports") continue;
     const type = skiType(t) || "tour";
     const name = t.name || t["piste:name"] || t.ref || "";
     const parts = [], memberIds = [];
@@ -204,8 +260,9 @@ async function buildOsm() {
     if (lat == null) continue;
     huts.push({ id: el.type[0] + el.id, name: t.name || "", kind: t.tourism || "shelter", lat: round(lat), lon: round(lon), tags: keepTags(t) });
   }
+  resortTerrain(routes, resortAreas(els));
   const count = (k) => routes.filter((r) => r.type === k).length;
-  log(`  routes: ${routes.length} (tour ${count("tour")}, nordic ${count("nordic")}, snowshoe ${count("snowshoe")}, resort ${count("resort")}, sled ${count("sled")}, snowmobile ${count("snowmobile")}, access ${count("access")}, other ${count("other")}); huts: ${huts.length}`);
+  log(`  routes: ${routes.length} (tour ${count("tour")}, off-piste ${count("offpiste")}, nordic ${count("nordic")}, snowshoe ${count("snowshoe")}, resort ${count("resort")}, sled ${count("sled")}, snowmobile ${count("snowmobile")}, access ${count("access")}, other ${count("other")}); huts: ${huts.length}`);
   return { routes, huts };
 }
 
