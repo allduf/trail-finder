@@ -341,8 +341,9 @@ body.sport-ski #navRideBtn { display: none; }
     const c = pos.coords, t = pos.timestamp || Date.now(), p = [c.latitude, c.longitude];
     lastFix = { c, t };
     drawYou();
-    if (following) {                              // a short slide, not a jump, while the zoom stays put
-      const z = Math.max(map.getZoom(), RIDE_ZOOM), glide = z === map.getZoom() && !document.hidden && !map._animatingZoom;
+    const g = map.touchGestures || map.touchZoom || {}, busy = map._animatingZoom || g._zooming || g._rotating || L.Draggable._dragging;
+    if (following && !busy) {                     // a short slide, not a jump, while the zoom stays put; never mid-pinch
+      const z = Math.max(map.getZoom(), RIDE_ZOOM), glide = z === map.getZoom() && !document.hidden;
       map.setView(p, z, glide ? { animate: true, pan: { duration: 0.6, easeLinearity: 1, noMoveStart: true } } : { animate: false });
     }
     if (c.accuracy > MAX_ACC_M) { gpsMsg.textContent = `Weak GPS (±${Math.round(c.accuracy)} m). Waiting for a better fix…`; gpsMsg.hidden = false; }

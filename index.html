@@ -4221,7 +4221,7 @@ out body;`;
   }
   // Keep the map on you. On a phone the dot sits in the middle of the map you can see, above the bottom sheet.
   function keepOnYou(ll, animate) {
-    if (!you.follow || riding() || map._animatingZoom) return;
+    if (!you.follow || riding() || busy()) return;
     const app = document.querySelector(".app");
     const cover = matchMedia("(max-width: 760px)").matches && !app.classList.contains("fullmap") ? parseFloat(app.style.getPropertyValue("--sheet-vis")) || 0 : 0;
     const top = cover ? 56 : 0;              // the chip row along the top
@@ -4230,6 +4230,12 @@ out body;`;
     if (map.getCenter().distanceTo(c) < 0.5) return;
     if (animate) map.panTo(c, { animate: true, duration: 0.6, easeLinearity: 1, noMoveStart: true });
     else map.panTo(c, { animate: false });
+  }
+  // Mid-pinch, mid-twist or mid-drag a pan would make the map jump when the fingers lift: wait for the next fix.
+  // (Not touchGestures._moved: leaflet-rotate leaves it true after a pinch ends, which would stop following for good.)
+  function busy() {
+    const g = map.touchGestures || map.touchZoom || {};
+    return !!(map._animatingZoom || g._zooming || g._rotating || L.Draggable._dragging);
   }
   function setFollow(on) {
     you.follow = on; you.lost = false;
