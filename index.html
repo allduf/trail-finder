@@ -854,6 +854,9 @@ label.toggle.off .sw { background: var(--muted); }
 .box-row .box-added { color: var(--muted); font-size: .85rem; }
 .box-row .box-added.fresh { color: var(--accent); font-weight: 600; }
 button.btn.box-btn { width: 100%; margin: 2px 0 8px; }
+.box-row-btns { display: flex; gap: 8px; }
+.box-row-btns #screenBtn { flex: 1.4; }
+.box-row-btns .box-draw { flex: 1; }
 button.btn.reset-btn { width: 100%; margin: 6px 0 0; }
 button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 .leaflet-container.drawing { cursor: crosshair; touch-action: none; }
@@ -1273,7 +1276,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
         </div>
         <div class="wantlist" id="wantList" hidden></div>
       </section>
-      <button class="btn box-btn" id="boxBtn" type="button" aria-pressed="false" title="Drag a square on the map to list every MTB trail inside it, old or new">▭ Draw a square to find trails</button>
+      <div class="box-row-btns"><button class="btn box-btn" id="screenBtn" type="button" title="List every MTB trail on the map on screen, old or new">▭ Every trail on screen</button>
+      <button class="btn box-btn box-draw" id="boxBtn" type="button" aria-pressed="false" title="Drag a square on the map to list every MTB trail inside it, old or new">or draw a square</button></div>
     </div>
     <div class="boxres" id="boxRes" hidden></div>
     <div class="status" id="status" role="status">Pick an area and tap Find new trails.</div>
@@ -1357,7 +1361,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <h3>All trails</h3>
     <p>“All trails” (on by default) draws every MTB trail in view, old and new: every way with an MTB tag, bike park trails and the trails of MTB routes. Official trails (see below) are bold and always shown, even with no option ticked; trails whose status isn't known are thin, and unofficial trails are left out, as before (tick “Unofficial only” to see them). A list of them is collected from OpenStreetMap every day. The trails in the list (new trails, or prime loam) are drawn thicker on top, with a white edge.</p>
     <h3>Draw a square</h3>
-    <p>Tap “▭ Draw a square to find trails” (under the search), then drag over the map: every MTB trail inside the square shows up on the map and in a list, old or new (trails with no name on the map are listed as “Unnamed trail”), from the same daily list as “All trails” (unofficial ones included, with dots). Tap a name to see the trail's details. “Clear square” removes it.</p>
+    <p>Tap “▭ Every trail on screen” (under the search) to list every MTB trail on the map you're looking at, or “or draw a square” and drag over the map: every MTB trail inside the square shows up on the map and in a list, old or new (trails with no name on the map are listed as “Unnamed trail”), from the same daily list as “All trails” (unofficial ones included, with dots). Tap a name to see the trail's details. “Clear square” removes it.</p>
     <h3>Official trails</h3>
     <p>A trail counts as official when the map says it's run by someone (<code>operator</code>, e.g. a park, town, trail club or bike park), it's on the Recreation Sites and Trails BC list (<code>ref:FFID</code>), it's mapped as <code>informal=no</code>, or it's signed for bikes (<code>bicycle=designated</code>), and nothing flags it as unofficial. The named trails of the South Chilcotin (South Chilcotin Mountains Park and the Spruce Lake area), the paths around Gold Bridge that follow a Recreation Sites and Trails BC trail, the paths around Revelstoke that follow one of their bike trails, and every MTB trail in Williams Lake count as official too. Many official trails have none of these tags, so “Official only” misses some. Unofficial trails are shown as before.</p>
 <h3>Moto and hiking-only trails</h3>
@@ -6188,12 +6192,20 @@ out tags center qt;`;
   function setBoxMode(on) {
     boxDraw.on = on;
     $("boxBtn").setAttribute("aria-pressed", on);
-    $("boxBtn").textContent = on ? "✕ Cancel (drag on the map)" : "▭ Draw a square to find trails";
+    $("boxBtn").textContent = on ? "✕ Cancel (drag on the map)" : "or draw a square";
     map.getContainer().classList.toggle("drawing", on);
     if (on) { map.dragging.disable(); pickNote(map.getCenter(), "Drag a square over the trails"); }
     else map.dragging.enable();
   }
   $("boxBtn").addEventListener("click", () => setBoxMode(!boxDraw.on));
+  // One button for "what's here" (alex: three ways to search a spot was too many): the trails on screen, zoomed in
+  // enough; zoomed out it asks for a square instead.
+  const SCREEN_MIN_ZOOM = 11;
+  $("screenBtn").addEventListener("click", () => {
+    if (boxDraw.on) setBoxMode(false);
+    if (map.getZoom() < SCREEN_MIN_ZOOM) { setBoxMode(true); pickNote(map.getCenter(), "That's a big area: zoom in, or drag a square over the trails"); return; }
+    showBox(map.getBounds().pad(-0.04), null, "on screen");
+  });
   const mapEl = map.getContainer();
   mapEl.addEventListener("pointerdown", (e) => {
     if (!boxDraw.on || e.button > 0 || e.target.closest(".leaflet-control")) return;
@@ -6300,7 +6312,7 @@ out tags center qt;`;
     const unoffPick = !!diff && diff.includes("unoff"), levels = (diff || []).filter((k) => k !== "unoff");
     const lvlText = levels.map((k) => DIFF[k].label).join(" or ");
     const one = (lvlText ? lvlText + (unoffPick ? " or unrated " : " ") : "") + (unoffPick ? "unofficial trail" : lvlText ? "trail" : "MTB trail");
-    const what = one + "s", inWhere = circle ? `within ${circle.km} km of ${where}` : diff ? `in ${where}` : "in your square";
+    const what = one + "s", inWhere = circle ? `within ${circle.km} km of ${where}` : diff ? `in ${where}` : where || "in your square";
     $("boxRes").hidden = false;
     if (anyMode()) setStatus("");
     $("boxRes").innerHTML = `<div class="box-head"><b>Looking for ${what} ${inWhere}…</b></div>`;
