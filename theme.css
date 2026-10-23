@@ -265,16 +265,8 @@ label.toggle.off { background: transparent; border: 1px dashed var(--line); box-
   .tabbar > [aria-current="true"] svg { background: color-mix(in srgb, var(--cta) 70%, transparent); color: var(--cta-fg, #10230f); }
   body.sport-alt .tabbar .mtb-only, body:not(.sport-ski) .tabbar .ski-only, body:not(.sport-hunt) .tabbar .hunt-only { display: none; }
   .app.fullmap .tabbar { display: none; }
-  .tab-menu {
-    position: fixed; right: 10px; bottom: calc(var(--nav-h) + 10px); z-index: 1160; min-width: 190px;
-    display: flex; flex-direction: column; padding: 6px; border-radius: 16px; background: var(--panel);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, .28); border: 1px solid var(--line);
-  }
-  .tab-menu[hidden] { display: none; }
-  .tab-menu button { font: inherit; font-weight: 600; text-align: left; padding: 12px 14px; min-height: 46px; border: 0; border-radius: 10px; background: none; color: var(--fg); cursor: pointer; }
-  .tab-menu button:active { background: var(--chip); }
 }
-@media (min-width: 761px) { .tabbar, .tab-menu { display: none !important; } }
+@media (min-width: 761px) { .tabbar { display: none !important; } }
 
 /* Layers menu: map style, overlays and map tools in one drop-down (usability pass) */
 .map-tools.menu-open { z-index: 1001; }   /* the open menu sits over the map key */
@@ -388,3 +380,71 @@ body.sport-alt .first-tip { display: none; }
 }
 @media (max-width: 380px) { .map-tools select, .map-tools button { padding-left: 10px; padding-right: 10px; } .map-tools { gap: 5px; } }
 body.sport-alt .layers-menu .lm-looks, body.sport-alt .layers-menu .lm-looks-head { display: none; }
+
+/* Phone navigation (alex, 2026-10-23: "more natural to navigate"): five tabs, a search box on the map's sheet,
+   Find / Ride / Saved / More as pages in the sheet, and one ← Back at the top of every page (index.html showNav) */
+.peek-search, .peek-photo, .peek-quick, .sheet-nav, .hub { display: none; }
+@media (max-width: 760px) {
+  /* the sheet's top row: logo, a search box, the photo search and the bell (the sport menu moved to More) */
+  .brand .sport-pick { display: none; }
+  body:not(.sport-alt) .brand h1 { flex: none; font-size: 0; gap: 0; }
+  .peek-search {
+    flex: 1 1 auto; min-width: 0; min-height: 44px; align-items: center; gap: 8px; padding: 0 14px;
+    font: inherit; font-size: 1rem; color: rgba(255, 255, 255, .78); text-align: left; border: 0; border-radius: 12px;
+    background: rgba(255, 255, 255, .13); cursor: text;
+  }
+  .peek-search span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .peek-photo { flex: none; width: 44px; height: 44px; place-items: center; font-size: 1.15rem; border: 0; border-radius: 12px; background: rgba(255, 255, 255, .13); cursor: pointer; }
+  body:not(.sport-alt) .peek-search, body:not(.sport-alt) .peek-photo { display: inline-flex; }
+  body:not(.sport-alt) .peek-photo { display: grid; }
+  .brand [data-notify-slot] { order: 0; }
+  /* quick searches under it, one row that scrolls sideways */
+  body:not(.sport-alt) .peek-quick { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px 4px; }
+  .peek-quick::-webkit-scrollbar { display: none; }
+  .peek-quick button {
+    flex: none; min-height: 40px; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border-radius: 999px;
+    font: inherit; font-size: .9rem; font-weight: 600; color: var(--fg); background: var(--panel); border: 1px solid var(--line); cursor: pointer;
+  }
+  .peek-quick .dot, .hub .dot { width: 10px; height: 10px; border-radius: 50%; background: #2f9e5b; display: inline-block; }
+  /* a page in the sheet: its title bar, with ← Back to the page you came from */
+  .sheet-nav:not([hidden]) {
+    display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 4;
+    margin: 0; padding: 22px 16px 12px; background: var(--forest); color: #fff; touch-action: none;
+  }
+  .sheet-nav::before { content: ""; position: absolute; top: 8px; left: 50%; width: 42px; height: 5px; margin-left: -21px; border-radius: 3px; background: rgba(255, 255, 255, .5); }
+  .panel.detail-open .sheet-nav { display: none !important; }
+  .panel:not(.detail-open) .sheet-nav:not([hidden]) ~ .panel-head .sheet-toggle { display: none; }
+  .sheet-nav h2 { margin: 0; font-family: var(--font-display); font-size: 1.3rem; font-weight: 800; color: #fff; text-transform: none; letter-spacing: 0; }
+  .nav-back { min-height: 44px; display: inline-flex; align-items: center; gap: 4px; margin: -6px 0; padding: 0 12px 0 8px; font: inherit; font-size: 1rem; font-weight: 700; color: var(--cta); background: rgba(255, 255, 255, .12); border: 0; border-radius: 10px; cursor: pointer; }
+  .nav-back[hidden] { display: none; }
+  .panel:is(.hub-on, .nav-search, .nav-results) .brand,
+  .panel:is(.hub-on, .nav-search, .nav-results) .peek-quick { display: none !important; }
+  /* Find, Ride, Saved, More: only the page shows */
+  .panel.hub-on .panel-head > :not(.sheet-toggle):not(.sheet-nav):not(.hub),
+  .panel.hub-on > .boxres, .panel.hub-on > .status, .panel.hub-on > .debug, .panel.hub-on > .list { display: none !important; }
+  .panel:not(.detail-open) .hub:not([hidden]) { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+  /* New trails: the form without the name box (that's on Find) */
+  .panel.nav-search .tsearch-row, .panel.nav-search #paneNew > .hint, .panel.nav-search .box-row-btns,
+  .panel.nav-search #todayBtn, .panel.nav-search #paneNew > .wantlist { display: none !important; }
+  /* Results of Near me, Prime loam, Every trail on screen: just the list */
+  .panel.nav-results .panel-head > .pane, .panel.nav-results .box-row-btns { display: none !important; }
+  .hub-sec { margin: 8px 0 -2px; font-size: .75rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .hub-card {
+    display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 14px; box-sizing: border-box;
+    font: inherit; text-align: left; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 14px; cursor: pointer;
+  }
+  .hub-card:active { background: var(--chip); }
+  .hub-card .ic { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; background: var(--chip); font-size: 1.2rem; }
+  .hub-card .tx { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .hub-card b { font-size: 1rem; }
+  .hub-card small { color: var(--muted); font-size: .82rem; }
+  .hub-card .go { flex: none; color: var(--muted); font-size: 1.4rem; line-height: 1; }
+  .hub-start { min-height: 60px; font: inherit; font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; color: var(--cta-fg); background: var(--cta); border: 0; border-radius: 16px; cursor: pointer; }
+  .hub-note { margin: -4px 0 2px; text-align: center; color: var(--muted); font-size: .85rem; }
+  .hub-seg { display: flex; padding: 4px; gap: 4px; border-radius: 12px; background: var(--chip); }
+  .hub-seg button { flex: 1 1 0; min-height: 44px; font: inherit; font-weight: 700; color: var(--fg); background: none; border: 0; border-radius: 9px; cursor: pointer; }
+  .hub-seg [aria-pressed="true"] { background: var(--panel); box-shadow: var(--shadow-sm); }
+  .hub-slot:empty { display: none; }
+  .hub .wantlist { margin: 0; }
+  body.sport-alt .hub .wantlist > details.folder { display: none; }
+}
