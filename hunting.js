@@ -533,11 +533,26 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
   // ---------- the spot: your location, a tapped spot or the map centre ----------
   let spot = null;   // { lat, lon, how: "you" | "tap" | "centre" }
   const spotMarker = L.marker([0, 0], { pane: "huntLabels", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html: '<div class="hn-spot"></div>', iconSize: [0, 0] }) });
-  function setSpot(lat, lon, how) {
+  let skyAt = null;   // where the light times were last worked out
+  function setSpot(lat, lon, how, moving) {
     spot = { lat, lon, how };
     if (how === "centre") windLayer.removeLayer(spotMarker); else { spotMarker.setLatLng([lat, lon]); windLayer.addLayer(spotMarker); }
-    loadWeather(); drawRings(); renderSky(); sync3d();
+    loadWeather(); drawRings(); sync3d();
+    // Walking with the map following you: the light times barely change, so they're redone every 2 km, not every step.
+    if (!moving || !skyAt || map.distance(skyAt, [lat, lon]) > 2000) { skyAt = [lat, lon]; renderSky(); }
   }
+  // "My location" following you (alex: "I want the circle and the scent cone following me"): the spot, the scent
+  // cone and the range rings move with you, on the 2D and 3D maps. A tapped spot stays put when you aren't followed.
+  window.addEventListener("tf:you", (e) => {
+    const { lat, lon, follow } = e.detail;
+    if (!follow || !isHunt()) return;
+    if (spot && spot.how === "you" && map.distance([spot.lat, spot.lon], [lat, lon]) < 8) return;   // GPS jitter
+    const fresh = !spot || spot.how !== "you";
+    setSpot(lat, lon, "you", true);
+    // The spot card (zone, seasons, land) follows too: at once, then every 500 m, since it asks the map services.
+    if (fresh || !cardAt || map.distance(cardAt, [lat, lon]) > 500) { cardAt = [lat, lon]; showSpot(lat, lon); }
+  });
+  let cardAt = null;
   // Range rings around the spot, for judging shot distances (tap the map where you'll stand).
   function drawRings() {
     ringLayer.clearLayers();
