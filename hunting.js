@@ -82,6 +82,11 @@
   const forestSld = () => sld(VRI, [[`<Not><PropertyIsNull><PropertyName>SPECIES_CD_1</PropertyName></PropertyIsNull></Not>`,
     `<Function name="Recode"><Function name="strSubstring"><PropertyName>SPECIES_CD_1</PropertyName><Literal>0</Literal><Literal>1</Literal></Function>${FOREST.map(([c, , col]) => `<Literal>${c}</Literal><Literal>${col}</Literal>`).join("")}</Function>`]]);
   const VRI = "pub:WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY", PMBC = "pub:WHSE_CADASTRE.PMBC_PARCEL_FABRIC_POLY_SVW";
+  const FIRES = "pub:WHSE_LAND_AND_NATURAL_RESOURCE.PROT_HISTORICAL_FIRE_POLYS_SP", WETLANDS = "pub:WHSE_BASEMAPPING.FWA_WETLANDS_POLY";
+  // Old burns by age: young burns green up into good feed (browse and berries) for several years.
+  const YEAR = new Date().getFullYear();
+  const BURNS = [[YEAR - 5, YEAR, "#d9480f", "Burned in the last 5 years"], [YEAR - 15, YEAR - 6, "#f08c00", "Burned 6-15 years ago"], [YEAR - 30, YEAR - 16, "#fcc419", "Burned 16-30 years ago"]];
+  const between = (p, a, b) => `<PropertyIsBetween><PropertyName>${p}</PropertyName><LowerBoundary><Literal>${a}</Literal></LowerBoundary><UpperBoundary><Literal>${b}</Literal></UpperBoundary></PropertyIsBetween>`;
   const SLOPES = [[15, "15-25°", "#f2e14c"], [25, "25-35°", "#f59f00"], [35, "35-45°", "#e03131"], [45, "45° and up", "#862e9c"]];
   const ASPECT_COLORS = ["#1c7ed6", "#22b8cf", "#40c057", "#a9e34b", "#fcc419", "#fd7e14", "#f03e3e", "#ae3ec9"];   // N NE E SE S SW W NW
   const DIRS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -92,10 +97,14 @@
     rules: { label: "Parks, reserves and closures", on: true },
     land: { label: "Private and public land", on: true },
     forest: { label: "Forest types", on: false },
+    burns: { label: "Old burns", on: false },
+    wet: { label: "Wetlands", on: false },
     slope: { label: "Slope angle", on: false },
     aspect: { label: "Aspect", on: false },
     wind: { label: "Wind and scent", on: true },
+    rings: { label: "Range rings", on: false },
   };
+  const RINGS = [50, 100, 200, 300, 400];   // metres around the spot
   let shown = new Set(store.get("huntLayers", Object.keys(LAYERS).filter((k) => LAYERS[k].on)));
 
   const css = document.createElement("style");
@@ -131,6 +140,8 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
 #huntPane .hn-key { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; font-size: .78rem; }
 #huntPane .hn-key i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; border: 1px solid #0002; }
 #huntPane details summary { cursor: pointer; font-weight: 600; font-size: .85rem; }
+#huntPane .hn-seasons { margin-top: 6px; }
+#huntPane .hn-seasons ul { margin-top: 6px; }
 .hn-label { background: #fff; color: #7a3300; border: 1.5px solid #e8590c; border-radius: 6px; padding: 1px 5px; font: 700 11px/1.2 var(--font-body, system-ui); white-space: nowrap; box-shadow: 0 1px 2px #0003; transform: translate(-50%, -50%); width: max-content; pointer-events: none; }
 .hn-label.ab { color: #0b4a8b; border-color: #1c7ed6; }
 .hn-label small { font-weight: 500; color: #555; }
@@ -180,8 +191,8 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
   map.createPane("huntLabels").style.zIndex = 640;
   map.getPane("huntLabels").style.pointerEvents = "none";
   const renderer = L.canvas({ pane: "hunt", padding: 0.3 });
-  const zoneLayer = L.layerGroup(), lehLayer = L.layerGroup(), rulesLayer = L.layerGroup(), labelLayer = L.layerGroup(), windLayer = L.layerGroup();
-  const allHunt = [zoneLayer, lehLayer, rulesLayer, labelLayer, windLayer];
+  const zoneLayer = L.layerGroup(), lehLayer = L.layerGroup(), rulesLayer = L.layerGroup(), labelLayer = L.layerGroup(), windLayer = L.layerGroup(), ringLayer = L.layerGroup();
+  const allHunt = [zoneLayer, lehLayer, rulesLayer, labelLayer, windLayer, ringLayer];
   let zones = null, leh = null, areas = null;
 
   async function drawZones() {
@@ -232,6 +243,13 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
   const forestTiles = L.tileLayer.wms(WMS, { pane: "huntTiles", layers: VRI, styles: "", format: "image/png", transparent: true, opacity: 0.5, minZoom: 11, maxZoom: 20, uppercase: true,
     SLD_BODY: forestSld(),
     attribution: 'Forest: <a href="https://www2.gov.bc.ca/gov/content/industry/forestry/managing-our-forest-resources/forest-inventory">BC Vegetation Resources Inventory</a>' });
+
+  const burnTiles = L.tileLayer.wms(WMS, { pane: "huntTiles", layers: FIRES, styles: "", format: "image/png", transparent: true, opacity: 0.45, minZoom: 7, maxZoom: 20, uppercase: true,
+    SLD_BODY: sld(FIRES, BURNS.map(([a, b, col]) => [between("FIRE_YEAR", a, b), col])),
+    attribution: 'Burns: <a href="https://catalogue.data.gov.bc.ca/dataset/fire-perimeters-historical">BC Wildfire Service</a>' });
+  const wetTiles = L.tileLayer.wms(WMS, { pane: "huntTiles", layers: WETLANDS, styles: "", format: "image/png", transparent: true, opacity: 0.55, minZoom: 10, maxZoom: 20, uppercase: true,
+    SLD_BODY: sld(WETLANDS, [[`<Not><PropertyIsNull><PropertyName>WATERBODY_TYPE</PropertyName></PropertyIsNull></Not>`, "#15aabf"]]),
+    attribution: 'Wetlands: <a href="https://www2.gov.bc.ca/gov/content/data/geographic-data-services/topographic-data/freshwater">BC Freshwater Atlas</a>' });
 
   // Slope angle and aspect from the terrain tiles (Terrarium colour code, 256 px, up to zoom 14).
   const demCache = new Map();
@@ -295,7 +313,7 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
   });
   const terrainOpts = { pane: "huntTiles", minZoom: 9, maxNativeZoom: 14, maxZoom: 20, attribution: 'Terrain: <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>' };
   const slopeGrid = new TerrainGrid({ ...terrainOpts, mode: "slope" }), aspectGrid = new TerrainGrid({ ...terrainOpts, mode: "aspect" });
-  const tiles = { land: landTiles, forest: forestTiles, slope: slopeGrid, aspect: aspectGrid };
+  const tiles = { land: landTiles, forest: forestTiles, burns: burnTiles, wet: wetTiles, slope: slopeGrid, aspect: aspectGrid };
 
   function syncTiles() {
     for (const [k, l] of Object.entries(tiles)) {
@@ -320,7 +338,9 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     if (k === "leh") drawLeh();
     if (k === "rules" || k === "land") drawRules();
     if (k === "wind") drawWind();
+    if (k === "rings") drawRings();
     const z = map.getZoom();
+    if (k === "wet" && shown.has(k) && z < 10) hint("Zoom in closer to see the wetlands.");
     if ((k === "land" || k === "forest") && shown.has(k) && z < 11) hint("Zoom in closer to see " + (k === "land" ? "private land." : "the forest types."));
     if ((k === "slope" || k === "aspect") && shown.has(k) && z < 9) hint("Zoom in closer to see the " + (k === "slope" ? "slope angles." : "aspects."));
   });
@@ -332,10 +352,13 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     if (shown.has("rules")) rows.push(`<li>${sw("#c1121f")}No hunting</li>`, `<li>${sw("#e8590c")}Park: rules vary</li>`, `<li>${sw("#2b8a3e")}Usually open in season</li>`,
       `<li>${sw("#7b2cbf")}Reserve: ask first</li>`, `<li>${sw("#495057")}Town: shooting banned by bylaw</li>`, `<li>${sw("#9c36b5", true)}Motor vehicle closure</li>`);
     if (shown.has("land")) rows.push(`<li>${sw("#ff8c00")}Private land (BC)</li>`, `<li>${sw("#2f9e44", true)}Public forest (Alberta Green Area)</li>`);
+    if (shown.has("burns")) rows.push(...BURNS.map(([, , c, n]) => `<li>${sw(c)}${esc(n)}</li>`));
+    if (shown.has("wet")) rows.push(`<li>${sw("#15aabf")}Wetland (BC)</li>`);
     if (shown.has("forest")) rows.push(...FOREST.map(([, n, c]) => `<li>${sw(c)}${esc(n)}</li>`), `<li>${sw("#808080")}Other species</li>`);
     if (shown.has("slope")) rows.push(...SLOPES.map(([, n, c]) => `<li>${sw(c)}${esc(n)}</li>`));
     if (shown.has("aspect")) rows.push(...DIRS.map((d, i) => `<li>${sw(ASPECT_COLORS[i])}Faces ${d}</li>`));
     if (shown.has("wind")) rows.push(`<li>${sw("#f08c00")}Scent cone (downwind)</li>`);
+    if (shown.has("rings")) rows.push(`<li>${sw("#212529", true)}Range rings: ${RINGS.join(", ")} m</li>`);
     $("hnKey").innerHTML = rows.join("");
     $("hnKeyCard").hidden = !rows.length;
   }
@@ -353,7 +376,17 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
   function setSpot(lat, lon, how) {
     spot = { lat, lon, how };
     if (how === "centre") windLayer.removeLayer(spotMarker); else { spotMarker.setLatLng([lat, lon]); windLayer.addLayer(spotMarker); }
-    loadWeather(); sync3d();
+    loadWeather(); drawRings(); sync3d();
+  }
+  // Range rings around the spot, for judging shot distances (tap the map where you'll stand).
+  function drawRings() {
+    ringLayer.clearLayers();
+    if (!shown.has("rings") || !spot) return;
+    for (const m of RINGS) {
+      L.circle([spot.lat, spot.lon], { radius: m, pane: "hunt", interactive: false, color: "#212529", weight: 1.5, opacity: 0.8, dashArray: "5 5", fill: false }).addTo(ringLayer);
+      L.marker([spot.lat + (m * Math.SQRT1_2) / 111320, spot.lon + (m * Math.SQRT1_2) / (111320 * Math.cos(spot.lat * Math.PI / 180))], {   // north-east, so the labels spread out pane: "huntLabels", interactive: false, keyboard: false,
+        icon: L.divIcon({ className: "", html: `<div class="hn-label" style="color:#212529;border-color:#212529;font-size:10px">${m} m</div>`, iconSize: [0, 0] }) }).addTo(ringLayer);
+    }
   }
   const fmtLL = (lat, lon) => `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
 
@@ -458,7 +491,7 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     const el = $("hnWx");
     if (!spot) { el.innerHTML = `<p class="hn-note">Move the map or tap it to pick a spot.</p>`; return; }
     const where = spot.how === "you" ? "Where you are" : spot.how === "tap" ? "At the spot you tapped" : "At the map centre";
-    const btns = `<div class="hn-spotbtns"><button type="button" id="hnMe">📍 Use my location</button>${spot.how !== "centre" ? `<button type="button" id="hnCentre">Follow the map centre</button>` : ""}</div>`;
+    const btns = `<div class="hn-spotbtns"><button type="button" id="hnMe">📍 Use my location</button>${spot.how !== "centre" ? `<button type="button" id="hnCentre">Follow the map centre</button>` : ""}${window.tfRide && !window.tfRide.riding() ? `<button type="button" id="hnRec" title="Records your walk like a ride (saved in My rides, where you can share it as GPX)">⏺ Record my walk</button>` : ""}</div>`;
     let body;
     if (wxErr && !wx) body = `<p class="hn-note">Couldn't load the weather: ${esc(wxErr)}.</p>`;
     else if (!wx) body = `<p class="hn-note">Loading the wind and weather…</p>`;
@@ -478,6 +511,7 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     }
     el.innerHTML = `<h3>${where}</h3><p class="hn-note">${fmtLL(spot.lat, spot.lon)} · weather: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></p>${btns}${body}${skyHtml(spot.lat, spot.lon)}`;
     $("hnMe").addEventListener("click", locate);
+    const rec = $("hnRec"); if (rec) rec.addEventListener("click", () => window.tfRide.start());
     const cb = $("hnCentre"); if (cb) cb.addEventListener("click", () => { const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); $("hnSpot").hidden = true; });
   }
   function locate() {
@@ -505,6 +539,31 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     sync3d();
   }
 
+  // ---------- open seasons (BC, from data/hunting/seasons-bc.json) ----------
+  const MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+  // "Sept 10 - Nov 30" (every year) or "Oct 10, 2026 - Jan 24, 2027": is today inside? null if it can't be read.
+  function openNow(text, now = new Date()) {
+    const parts = String(text).split(/\s+[-–]\s+/);
+    if (parts.length !== 2) return null;
+    const read = (t) => { const m = t.match(/([A-Za-z]{3})[a-z]*\.?\s*(\d{1,2})(?:,?\s*(\d{4}))?/); return m && MONTHS[m[1].toLowerCase()] != null ? { m: MONTHS[m[1].toLowerCase()], d: +m[2], y: m[3] ? +m[3] : null } : null; };
+    const a = read(parts[0]), b = read(parts[1]);
+    if (!a || !b) return null;
+    if (a.y && b.y) return now >= new Date(a.y, a.m, a.d) && now < new Date(b.y, b.m, b.d + 1);
+    const k = (x) => x.m * 100 + x.d, t = now.getMonth() * 100 + now.getDate();
+    return k(a) <= k(b) ? t >= k(a) && t <= k(b) : t >= k(a) || t <= k(b);   // seasons can run over New Year
+  }
+  function seasonsHtml(u, mu) {
+    const rows = mu && mu[u.id];
+    if (!rows || !rows.length) return "";
+    const by = new Map();
+    for (const r of rows) (by.get(r[0]) || by.set(r[0], []).get(r[0])).push(r);
+    const now = [...by.keys()].filter((sp) => by.get(sp).some((r) => openNow(r[3])));
+    const list = [...by.entries()].map(([sp, rs]) => `<li style="border-color:${rs.some((r) => openNow(r[3])) ? "#2f9e44" : "var(--line)"}"><b>${esc(sp)}</b>${rs.map((r) =>
+      `${openNow(r[3]) ? "🟢 " : ""}${r[1] ? esc(r[1]) + ": " : ""}${r[2] ? esc(r[2]) + ", " : ""}${esc(r[3])}${r[4] ? " †" : ""}`).join("<br>")}</li>`).join("");
+    return `<details class="hn-seasons"><summary>Open seasons in MU ${esc(u.id)}: ${now.length ? `open now for ${esc(now.join(", "))}` : "none open today"}</summary>
+      <ul class="hn-list">${list}</ul><p class="hn-note">General open seasons, read by the app from the BC Hunting and Trapping Regulations Synopsis. † has footnotes or applies to part of the unit only, and limited entry hunts aren't listed: always check <a href="${regionPdf(u)}" target="_blank" rel="noopener">the region's synopsis</a> before you hunt.</p></details>`;
+  }
+
   // ---------- what's at a spot ----------
   async function showSpot(lat, lon) {
     const el = $("hnSpot");
@@ -514,11 +573,13 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     try { zones = zones || (await load("zones")).zones; z = at(zones, lat, lon); } catch {}
     try { leh = leh || (await load("leh")).zones; l = at(leh, lat, lon); } catch {}
     try { areas = areas || (await load("areas")).areas; a = at(areas, lat, lon); } catch {}
+    let seasons = null;
+    if (z.some((u) => u.p === "bc")) try { seasons = (await load("seasons-bc")).mu; } catch {}
     const items = [];
     for (const u of z) {
       items.push(u.p === "ab"
         ? `<li style="border-color:#1c7ed6"><b>Alberta Wildlife Management Unit ${esc(u.id)}${u.n ? ` (${esc(u.n)})` : ""}</b>Seasons, licences and weapons for this unit are in the <a href="${AB_REGS}" target="_blank" rel="noopener">Alberta Guide to Hunting Regulations</a> (look up WMU ${esc(u.id)}).</li>`
-        : `<li style="border-color:#e8590c"><b>BC Management Unit ${esc(u.id)}</b>Region ${esc(u.r)} ${esc(u.rn || "")}${u.zn ? `, game management zone ${esc(u.z)} ${esc(u.zn)}` : ""}. Seasons, bag limits and closures for MU ${esc(u.id)}: <a href="${regionPdf(u)}" target="_blank" rel="noopener">Region ${esc(u.r)} regulations (PDF)</a>.</li>`);
+        : `<li style="border-color:#e8590c"><b>BC Management Unit ${esc(u.id)}</b>Region ${esc(u.r)} ${esc(u.rn || "")}${u.zn ? `, game management zone ${esc(u.z)} ${esc(u.zn)}` : ""}. Seasons, bag limits and closures for MU ${esc(u.id)}: <a href="${regionPdf(u)}" target="_blank" rel="noopener">Region ${esc(u.r)} regulations (PDF)</a>.${seasonsHtml(u, seasons)}</li>`);
     }
     if (!z.length) items.push(`<li><b>Outside the BC and Alberta hunting zones</b>Only BC and Alberta zones are on the map so far.</li>`);
     for (const x of l) items.push(`<li style="border-color:#6741d9"><b>Limited entry hunting: ${esc(x.s)}</b>${esc(x.l || x.id)}${x.mu ? ` (MU ${esc(x.mu)})` : ""}. This hunt needs an LEH draw: <a href="${LEH_PAGE}" target="_blank" rel="noopener">BC Limited Entry Hunting</a>.</li>`);
@@ -537,14 +598,16 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
   let liveSeq = 0;
   async function liveSpot(lat, lon) {
     const seq = ++liveSeq, out = [];
-    const q = (layer, geom, props) => {   // (each layer names its shape column differently)
+    const q = (layer, geom, props, sortBy) => {   // (each layer names its shape column differently)
       const p = new URLSearchParams({ service: "WFS", version: "2.0.0", request: "GetFeature", typeName: layer, outputFormat: "application/json", count: "1",
         propertyName: props, CQL_FILTER: `INTERSECTS(${geom}, SRID=4326;POINT(${lon} ${lat}))` });
+      if (sortBy) p.set("sortBy", sortBy);
       return fetch(`${WFS}?${p}`, { signal: AbortSignal.timeout(8000) }).then((r) => (r.ok ? r.json() : undefined)).then((j) => (j ? j.features?.[0]?.properties || null : undefined)).catch(() => undefined);   // null: nothing there, undefined: no answer
     };
-    const [parcel, stand] = await Promise.all([
+    const [parcel, stand, burn] = await Promise.all([
       q(PMBC, "SHAPE", "OWNER_TYPE,PARCEL_CLASS,MUNICIPALITY,PID_FORMATTED"),
       q(VRI, "GEOMETRY", "SPECIES_CD_1,SPECIES_PCT_1,SPECIES_CD_2,SPECIES_PCT_2,PROJ_AGE_1,PROJ_HEIGHT_1,BCLCS_LEVEL_4,HARVEST_DATE"),
+      q(FIRES, "SHAPE", "FIRE_YEAR,FIRE_LABEL,FIRE_SIZE_HECTARES", "FIRE_YEAR D"),
     ]);
     if (seq !== liveSeq || !$("hnLive")) return;
     if (parcel) {
@@ -556,6 +619,10 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
       const sp = (c, p) => (c ? `${esc(SPECIES[c] || c)}${p ? ` ${p}%` : ""}` : "");
       const age = stand.PROJ_AGE_1 != null ? Math.round(stand.PROJ_AGE_1) : null;
       out.push(`<li style="border-color:${(FOREST.find((f) => stand.SPECIES_CD_1.startsWith(f[0])) || [, , "#868e96"])[2]}"><b>Forest: ${sp(stand.SPECIES_CD_1, stand.SPECIES_PCT_1)}${stand.SPECIES_CD_2 ? `, ${sp(stand.SPECIES_CD_2, stand.SPECIES_PCT_2)}` : ""}</b>${age != null ? `About ${age} years old` : ""}${stand.PROJ_HEIGHT_1 ? `, ${Math.round(stand.PROJ_HEIGHT_1)} m tall` : ""}${age != null && age < 25 ? ": young forest, often good browse for deer, elk and moose." : "."}${stand.HARVEST_DATE ? ` Logged ${esc(String(stand.HARVEST_DATE).slice(0, 4))}.` : ""}</li>`);
+    }
+    if (burn && burn.FIRE_YEAR) {
+      const ago = YEAR - burn.FIRE_YEAR;
+      out.push(`<li style="border-color:${ago <= 5 ? "#d9480f" : ago <= 15 ? "#f08c00" : "#fcc419"}"><b>Burned in ${esc(burn.FIRE_YEAR)}</b>Fire ${esc(burn.FIRE_LABEL || "")}${burn.FIRE_SIZE_HECTARES ? `, ${Math.round(burn.FIRE_SIZE_HECTARES).toLocaleString()} ha` : ""}.${ago <= 20 ? " Young burns grow back as browse and berries that draw deer, elk, moose and bears." : ""}</li>`);
     }
     if (out.length) $("hnLive").innerHTML = `<ul class="hn-list">${out.join("")}</ul>`;
   }
@@ -595,6 +662,8 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
       };
       raster("hn-land", want("land"), { type: "raster", tiles: [wmsTiles(landTiles)], tileSize: 256, minzoom: 10, attribution: "Land: ParcelMap BC, DataBC" }, 0.45);
       raster("hn-forest", want("forest"), { type: "raster", tiles: [wmsTiles(forestTiles)], tileSize: 256, minzoom: 10, attribution: "Forest: BC Vegetation Resources Inventory" }, 0.5);
+      raster("hn-burns", want("burns"), { type: "raster", tiles: [wmsTiles(burnTiles)], tileSize: 256, minzoom: 6, attribution: "Burns: BC Wildfire Service" }, 0.45);
+      raster("hn-wet", want("wet"), { type: "raster", tiles: [wmsTiles(wetTiles)], tileSize: 256, minzoom: 9, attribution: "Wetlands: BC Freshwater Atlas" }, 0.55);
       raster("hn-slope", want("slope"), { type: "raster", tiles: ["tfhunt://slope/{z}/{x}/{y}"], tileSize: 256, minzoom: 8, maxzoom: 14 }, 1);
       raster("hn-aspect", want("aspect"), { type: "raster", tiles: ["tfhunt://aspect/{z}/{x}/{y}"], tileSize: 256, minzoom: 8, maxzoom: 14 }, 1);
       // Rules areas as fills (their outlines come over with the other lines).

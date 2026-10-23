@@ -1,6 +1,6 @@
 // Monthly job (see .github/workflows/hunting-data.yml): the map layers for Hunting, the third sport in the sport menu.
 //
-// Writes three files in data/hunting/, all from free official open data:
+// Writes four files in data/hunting/, all from free official open data:
 //  - zones.json: every Wildlife Management Unit in BC (DataBC WHSE_WILDLIFE_MANAGEMENT.WAA_WILDLIFE_MGMT_UNITS_SVW,
 //    with its game management zone and region) and in Alberta (Alberta Environment and Protected Areas,
 //    boundaries/fishwild_wildlife_mgmt_unit_public), each with a label point.
@@ -11,10 +11,12 @@
 //    where shooting is usually banned by bylaw), motor vehicle closures (WAA_MVPR_AREAS_SP), Alberta parks and
 //    protected areas (environment/parks_and_protected_areas_of_alberta_10tm_nad83_aep), Alberta First Nation reserves
 //    (federal CLSS Aboriginal Lands) and Metis settlements, and Alberta's Green Area (public forest land).
+//  - seasons-bc.json: BC open seasons per management unit, read from the regulations synopsis PDFs (below).
 // DataBC: Open Government Licence - British Columbia. Alberta: Open Government Licence - Alberta. CLSS: Open Government
 // Licence - Canada. A source that fails keeps its last good data.
 //
-// Run: node scripts/build-hunting.mjs   (Node 18 or newer, no packages needed)
+// Run: node scripts/build-hunting.mjs   (Node 18 or newer, no packages needed; pdftotext from poppler-utils for the
+// season tables; ONLY=seasons runs just those)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 
@@ -231,12 +233,101 @@ async function abAreas() {
   return out;
 }
 
+// ---------- BC open seasons per management unit ----------
+// Read from the region PDFs of the BC Hunting and Trapping Regulations Synopsis, turned into text by pdftotext
+// (poppler-utils): each region's "General Open Seasons" table, one row per species, management units, class and
+// dates. Rows with footnote marks are flagged (last item 1), as the site can't show the footnotes.
+const SYN = "https://www2.gov.bc.ca/assets/gov/sports-recreation-arts-and-culture/outdoor-recreation/fishing-and-hunting/hunting/regulations/hunting-trapping-synopsis-";
+const SYN_REGIONS = [["1", "region-1-vancouver-island"], ["2", "region-2-lower-mainland"], ["3", "region-3-thompson"], ["4", "region-4-kootenay"], ["5", "region-5-cariboo"],
+  ["6", "region-6-skeena"], ["7", "region-7a-omineca"], ["7", "region-7b-peace"], ["8", "region-8-okanagan"]];
+function parseSeasons(text) {
+  const lines = text.split("\n"), out = {};
+  const MON = /(Jan|Feb|Mar|Apr|May|June?|July?|Aug|Sept?|Oct|Nov|Dec)[a-z]*\.?\s*\d{1,2}/;
+  const MU = /(\d{1,2})-(\d{1,2})(?:\s*to\s*(?:(\d{1,2})-)?(\d{1,2}))?/g;
+  let inTable = false, misses = 0, species = null, qual = "";
+  // A species name is mostly capitals ("MULE DEER (Black-tailed)", "GROUSE: SOOTY (Blue), RUFFED"); a qualifier isn't ("Bow Only").
+  const isSpecies = (t) => { const u = t.replace(/\([^)]*\)/g, ""); return /^[A-Z&]/.test(t) && (u.match(/[A-Z]/g) || []).length > (u.match(/[a-z]/g) || []).length; };
+  for (const raw of lines) {
+    if (/SPECIES\s+MANAGEMENT UNIT/.test(raw)) { inTable = true; misses = 0; continue; }
+    if (!inTable) continue;
+    const cells = [...raw.matchAll(/\S+(?: \S+)*/g)].map((m) => ({ t: m[0], at: m.index }));
+    if (!cells.length) continue;
+    const muI = cells.findIndex((c) => /\d{1,2}-\d{1,2}/.test(c.t) && !MON.test(c.t) && c.at > 20);
+    const dI = cells.findIndex((c) => MON.test(c.t));
+    const first = cells[0];
+    if (muI < 0 || dI < 0) {
+      // a species name on its own line, or the end of a wrapped one ("& SPRUCE")
+      if (first.at < 20 && isSpecies(first.t) && /[A-Z]{3}|^&/.test(first.t) && cells.length <= 2) {
+        if ((/^&/.test(first.t) || /&$/.test(species?.n || "")) && species) species.n += " " + first.t; else { species = { n: first.t }; qual = ""; }
+      }
+      if (++misses > 60) inTable = false;
+      continue;
+    }
+    misses = 0;
+    if (muI > 0 && first.at < 20) {
+      const t = first.t.replace(/\*+/g, "").trim();
+      if (isSpecies(t) && /[A-Z]{3}/.test(t)) {
+        if (/&$/.test(species?.n || "")) species.n += " " + t;   // "GROUSE: DUSKY (Blue), RUFFED &" / "SPRUCE"
+        else { species = { n: t }; qual = ""; }
+      }
+      else qual = t;   // Bow Only, Youth Only...
+    } else if (muI === 0) qual = "";
+    if (!species) continue;
+    const muCell = cells[muI].t;
+    let between = cells.slice(muI + 1, dI).map((c) => c.t).join(" "), note = /[^\d\s,\-to]/.test(muCell.replace(/to/g, "")) || /\*/.test(first.t);
+    // footnote marks stuck to the class or dates ("s4 Point Bucks", "HSpike-fork Bulls", "tAug 1")
+    if (/^[sHStu\]n]\s?(?=[\dA-Z])/.test(between) && !/^(Spike|Bulls|Bucks|Bearded)/.test(between)) { between = between.replace(/^[sHStu\]n]\s?/, ""); note = true; }
+    let dates = cells[dI].t.replace(/\s+/g, " ");
+    if (dates.search(MON) > 0) { dates = dates.slice(dates.search(MON)); note = true; }
+    const mus = [];
+    for (const m of muCell.matchAll(MU)) {
+      const r = m[1], a = +m[2], b = m[4] != null ? +m[4] : a;
+      for (let i = a; i <= b && i - a < 60; i++) mus.push(`${r}-${i}`);
+    }
+    const row = [species, qual, between, dates, note ? 1 : 0];
+    for (const mu of mus) (out[mu] = out[mu] || []).push(row);
+  }
+  for (const mu of Object.keys(out)) out[mu] = out[mu].map(([s, q, c, d, n]) => [s.n, q, c, d, n]);
+  return out;
+}
+const species = (n) => n.toLowerCase().replace(/^./, (c) => c.toUpperCase()).replace(/\(([a-z])/g, (m, c) => "(" + c.toUpperCase());
+async function bcSeasons() {
+  const { execFileSync } = await import("node:child_process");
+  const { mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const dir = mkdtempSync(`${tmpdir()}/syn-`), mu = {};
+  for (const [r, name] of SYN_REGIONS) {
+    let buf = null;
+    for (let i = 0; i < 4 && !buf; i++) {
+      try {
+        const res = await fetch(`${SYN}${name}.pdf`, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(120000) });
+        if (!res.ok) throw new Error(`${name}: HTTP ${res.status}`);
+        buf = Buffer.from(await res.arrayBuffer());
+      } catch (e) { log(`    ${e.message}; trying again`); if (i === 3) throw e; await sleep(10000 * (i + 1)); }
+    }
+    writeFileSync(`${dir}/${name}.pdf`, buf);
+    execFileSync("pdftotext", ["-layout", `${dir}/${name}.pdf`, `${dir}/${name}.txt`]);
+    const got = parseSeasons(readFileSync(`${dir}/${name}.txt`, "utf8"));
+    let n = 0;
+    for (const [u, rows] of Object.entries(got)) {
+      if (!u.startsWith(`${r}-`)) continue;   // a region's PDF can also name units of the regions next to it
+      (mu[u] = mu[u] || []).push(...rows.map(([s, q, c, d, f]) => [species(s), q, c, d, f]));
+      n++;
+    }
+    log(`    ${name}: ${n} units`);
+  }
+  if (Object.keys(mu).length < 150) throw new Error(`only ${Object.keys(mu).length} units read`);
+  return mu;
+}
+
 // ---------- run ----------
 async function part(name, fn) {
   try { const v = await fn(); log(`  ${name}: ${v.length}`); return v; }
   catch (e) { log(`  ${name} failed: ${e.message}`); return null; }
 }
 const now = new Date().toISOString();
+const ONLY = process.env.ONLY || "";   // ONLY=seasons reads just the season tables
+if (ONLY !== "seasons") {
 log("Hunting zones");
 const old = { zones: readOld("zones.json"), leh: readOld("leh.json"), areas: readOld("areas.json") };
 const bcZ = await part("BC WMUs", bcZones), abZ = await part("Alberta WMUs", abZones);
@@ -248,3 +339,7 @@ const write = (name, obj) => { for (const f of obj.zones || obj.areas) f.g = enc
 if (zones.length) write("zones.json", { updated: now, zones });
 if (leh.length) write("leh.json", { updated: now, zones: leh });
 if (areas.length) write("areas.json", { updated: now, areas });
+}
+let seasons = null;
+try { seasons = await bcSeasons(); log(`  BC seasons: ${Object.keys(seasons).length} units`); } catch (e) { log(`  BC seasons failed: ${e.message}`); }
+if (seasons) writeFileSync(new URL("seasons-bc.json", OUT), JSON.stringify({ updated: now, src: "BC Hunting and Trapping Regulations Synopsis", mu: seasons }));
