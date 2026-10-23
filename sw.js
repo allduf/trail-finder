@@ -2,11 +2,12 @@
 // Pages, scripts and data/*.json are network first, so a fresh deploy and each nightly data build show up as soon
 // as there is a connection; the cached copy is used only when the network fails. Map tiles and outside APIs
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
-// Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection.
-const VERSION = "tf-95";
+// Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
+// picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
+const VERSION = "tf-96";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=5", "account.js?v=288", "reports.js?v=288", "visitors.js?v=288", "map3d.js?v=288", "winter.js?v=288", "ski-points.js?v=288", "offline.js?v=288", "navigate.js?v=288", "ride-stats.js?v=288", "planner.js?v=288", "rotate.js?v=288", "photo-find.js?v=288", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=6", "account.js?v=289", "reports.js?v=289", "visitors.js?v=289", "map3d.js?v=289", "winter.js?v=289", "ski-points.js?v=289", "hunting.js?v=289", "offline.js?v=289", "navigate.js?v=289", "ride-stats.js?v=289", "planner.js?v=289", "rotate.js?v=289", "photo-find.js?v=289", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
@@ -64,6 +65,13 @@ async function openFreeMap(req) {
   } catch { return hit; }
 }
 
+// Hunting layers (DataBC and Alberta map images, terrain tiles): the saved copy when there is one, else the network.
+const HUNT_HOSTS = ["openmaps.gov.bc.ca", "geospatial.alberta.ca", "s3.amazonaws.com"];
+async function savedFirst(req) {
+  const hit = await (await caches.open(OFFLINE)).match(req.url, { ignoreVary: true });
+  return hit || fetch(req);
+}
+
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
@@ -71,6 +79,7 @@ self.addEventListener("fetch", (e) => {
   if (url.origin === self.location.origin) e.respondWith(networkFirst(req));
   else if (STATIC_HOSTS.includes(url.hostname)) e.respondWith(cacheFirst(req));
   else if (url.hostname === "tiles.openfreemap.org") e.respondWith(openFreeMap(req));
+  else if (HUNT_HOSTS.includes(url.hostname)) e.respondWith(savedFirst(req));
 });
 
 // Phone notifications (prime loam alerts, scripts/push-loam.mjs). Tapping one opens the 🔔 box: in an open

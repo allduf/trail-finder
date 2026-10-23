@@ -1,4 +1,6 @@
-// Skiing, the second sport in the header's sport menu (MTB / Skiing / Hiking later).
+// Skiing, the second sport in the header's sport menu (MTB / Skiing / Hunting). This file owns the menu: each sport
+// sets body.sport-<id>, every non-MTB sport also body.sport-alt (which hides the MTB parts), and "tf:sport" is sent
+// on every change (hunting.js listens).
 // In Skiing the map shows backcountry ski routes and huts instead of the MTB trails, with a list of the routes in
 // view, and an "Avalanche risk" button that shades the mountain faces by Avalanche Canada's forecast, on the flat
 // map and on the 3D map: each slope steep enough to slide (about 25° and more) gets the danger colour of its
@@ -59,9 +61,9 @@
   border: 1px solid rgba(255,255,255,.28); appearance: none; -webkit-appearance: none; }
 .brand .sport-pick:hover { background-color: rgba(255,255,255,.18); }
 .brand .sport-pick option { color: #15211a; background: #fff; }
-body.sport-ski .panel .modes, body.sport-ski .panel .pane, body.sport-ski #boxBtn, body.sport-ski .tap-hint, body.sport-ski #boxRes,
-body.sport-ski #status, body.sport-ski #debug, body.sport-ski #list, body.sport-ski #detail, body.sport-ski #allBtn,
-body.sport-ski details.legend, body.sport-ski #searchArea { display: none !important; }
+body.sport-alt .panel .modes, body.sport-alt .panel .pane, body.sport-alt #boxBtn, body.sport-alt .tap-hint, body.sport-alt #boxRes,
+body.sport-alt #status, body.sport-alt #debug, body.sport-alt #list, body.sport-alt #detail, body.sport-alt #allBtn,
+body.sport-alt details.legend, body.sport-alt #searchArea { display: none !important; }
 body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !important; }
 .map-tools #avyBtn.on { background: #f79218; border-color: #f79218; color: #1a1a1a; }
 #skiPane { display: flex; flex-direction: column; gap: 12px; font-size: .9rem; }
@@ -141,7 +143,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
   document.head.append(css);
 
   // ---------- the sport menu ----------
-  const SPORTS = ["mtb", "ski"];
+  const SPORTS = ["mtb", "ski", "hunt"];   // an old saved "hike" (Hiking, never built) opens MTB
   let sport = SPORTS.includes(store.get("sport", "mtb")) ? store.get("sport", "mtb") : "mtb";
   let avyOn = store.get("avy", false);
 
@@ -1191,17 +1193,19 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
     sport = SPORTS.includes(s) ? s : "mtb";
     store.set("sport", sport);
     sel.value = sport;
-    document.body.classList.toggle("sport-ski", sport === "ski");
+    for (const s of SPORTS) document.body.classList.toggle(`sport-${s}`, sport === s);
+    document.body.classList.toggle("sport-alt", sport !== "mtb");
     const mtb = window.tfMtbLayers || [];
+    if (sport === "mtb") mtb.forEach((l) => { if (!map.hasLayer(l)) l.addTo(map); });
+    else mtb.forEach((l) => map.removeLayer(l));
     if (sport === "ski") {
-      mtb.forEach((l) => map.removeLayer(l));
       skiLayer.addTo(map); hutLayer.addTo(map); mineLayer.addTo(map); clubLayer.addTo(map);
       loadSki(); loadMine(); loadClubs(); renderList();
     } else {
-      mtb.forEach((l) => { if (!map.hasLayer(l)) l.addTo(map); });
       map.removeLayer(skiLayer); map.removeLayer(hutLayer); map.removeLayer(mineLayer); map.removeLayer(clubLayer); map.removeLayer(hoverLayer);
     }
     refreshAvy(); refreshHeat();
+    window.dispatchEvent(new CustomEvent("tf:sport", { detail: sport }));
   }
   sel.addEventListener("change", () => setSport(sel.value));
   setSport(sport);

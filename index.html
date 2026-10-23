@@ -899,7 +899,8 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .wantlist .folder[data-id="ridden"] .wl-map { border-color: #6fae00; }
 .wantlist li .open .gps { font-size: .75rem; font-weight: 700; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: #b8f03a; color: #10230f; white-space: nowrap; }
 .map-tools #riddenMapBtn.on { background: #b8f03a; border-color: #6fae00; color: #10230f; }
-body.sport-ski #riddenMapBtn { display: none !important; }
+body.sport-alt #riddenMapBtn { display: none !important; }
+body.sport-alt .leaflet-trailNames-pane, body.sport-alt .leaflet-trailNamesPins-pane { display: none; }   /* MTB trail names: not in Skiing or Hunting */
 .ride-note { margin-bottom: 10px; }
 .ride-note label { display: block; font-size: .85rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
 .ride-note textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--fg); resize: vertical; }
@@ -908,7 +909,7 @@ body.sport-ski #riddenMapBtn { display: none !important; }
 .wantlist li .open .loam i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .wantlist .wl-map { font: inherit; font-size: .88rem; font-weight: 600; margin: 6px 0 2px; padding: 6px 10px; border-radius: 8px; border: 1.5px solid #e0a800; background: transparent; color: var(--fg); cursor: pointer; }
 .map-tools #rideMapBtn.on { background: #ffc61a; border-color: #e0a800; color: #2b1d00; }
-body.sport-ski #rideMapBtn { display: none !important; }
+body.sport-alt #rideMapBtn { display: none !important; }
 .wantlist h3 { margin: 4px 0 6px; font-size: 1rem; }
 .wl-head { display: flex; justify-content: space-between; align-items: center; }
 .wantlist .folder { border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; margin-bottom: 6px; }
@@ -1114,7 +1115,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
 /* the phone tab bar is styled in theme.css; hidden here so it never shows unstyled (e.g. with an older cached theme.css) */
 .tabbar, .tab-menu { display: none; }
 </style>
-<link rel="stylesheet" href="theme.css?v=5">
+<link rel="stylesheet" href="theme.css?v=6">
 
 <div class="app">
   <div class="mapwrap">
@@ -1171,7 +1172,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
       <button class="sheet-toggle" id="sheetToggle" aria-label="Expand trail list"></button>
       <div class="brand">
         <h1>Trail <span>Finder</span></h1>
-        <span class="brand-links"><button class="linkish" id="aboutBtn" type="button">How it works</button><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hike" disabled>🥾 Hiking (soon)</option></select></span>
+        <span class="brand-links"><button class="linkish" id="aboutBtn" type="button">How it works</button><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hunt">🦌 Hunting</option></select></span>
       </div>
       <div class="modes" role="tablist" aria-label="What do you want to find?" hidden>
         <button type="button" role="tab" id="tabName" aria-controls="paneName" aria-selected="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Find a trail</span></button>
@@ -1262,6 +1263,7 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <button type="button" data-nav="map"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z M9 4v13.5 M15 6.5V20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Map</span></button>
     <button type="button" data-nav="new" class="mtb-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Search</span></button>
     <button type="button" data-nav="ski" class="ski-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 20 21 8 M6 21l2-6 M12 4a2 2 0 1 0 0 .1 M9 12l4-3 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Routes</span></button>
+    <button type="button" data-nav="hunt" class="hunt-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Hunt</span></button>
     <button type="button" data-nav="ride" title="Ride with the map: it follows you, shows the trail you're on and the next junction, and records the ride"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 8v8l6-4z" fill="#ff4d5e"/></svg><span>Ride</span></button>
     <button type="button" data-nav="more" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg><span>More</span></button>
   </nav>
@@ -1355,6 +1357,14 @@ body.sport-ski #rideMapBtn { display: none !important; }
     <p>Snowmobile trails (red dashes) are OpenStreetMap ways marked for snowmobiles (<code>piste:type=snowmobile</code>, <code>route=snowmobile</code>, or <code>snowmobile=yes</code> or <code>designated</code>, often forest roads that are sled trails in winter) and BC recreation trails that say snowmobile. The ❄ pins are the snowmobile clubs' staging areas: Powder Mountain (Brandywine), Black Tusk (Brohm Ridge), Pemberton Valley (Rutherford and the Hurley), Bridge River Valley (Gold Bridge) and Burke Mountain. “Snowmobile clubs and grooming” lists each club with its trail pass and its latest grooming report. Every 2 hours the site reads the reports that are on a public web page, when the page's robots.txt allows it. Clubs that only post on Facebook or Instagram get a link instead, because those sites don't allow others to copy their posts.</p>
     <p>“Ski heatmap” shows where people actually go in winter: every week the site counts the public GPS traces uploaded to OpenStreetMap from December to April, per 30 m square, leaving out roads, railways, ferries and lifts. Blue is one trace, then cyan, yellow and orange for the busiest lines. Few people upload traces here, so it's patchy. Strava's and Trailforks' heatmaps don't allow other sites to reuse them. “Your ski tours” draws the tours you imported or recorded with Ride (My rides): a ride counts as a ski tour when its file says skiing or snowshoeing, its name says ski, skin, splitboard, snowshoe or powder, or it was in winter (November to May) and went above 1300 m. They stay on your device.</p>
     <p>“⚠ Avalanche risk” shades the mountains by Avalanche Canada's forecast, on the flat map and on the 3D map. Only slopes steeper than about 25° are coloured, since that's where avalanches start. Each slope gets the danger rating (Low green, Moderate yellow, Considerable orange, High red, Extreme black) of its elevation band, worked out from its height: below treeline under about 1500 m, alpine above about 1900 m on the coast (1700 m and 2200 m inland, 1900 m and 2400 m in the Rockies). Stripes and a stronger colour mark slopes whose direction (aspect) and elevation are named in the day's avalanche problems. The site checks the forecast every 2 hours. It's an estimate from the forecast and the shape of the terrain, not a terrain rating: always read the full forecast on avalanche.ca and travel with training and rescue gear.</p>
+    <h3>Hunting</h3>
+    <p>Pick “🦌 Hunting” in the sport menu at the top. The bike trails make way for every hunting zone in BC (orange management units, labelled with the number and, closer in, the game management zone) and Alberta (blue WMUs with number and name). The buttons at the top of the panel do the main jobs in one tap: <b>My spot</b> (your location), <b>Save a point</b>, <b>Hunting log</b>, <b>Mark my truck</b>, <b>Back to truck</b> (a line from you to the truck with its distance and direction, updated as you walk) and <b>Record walk</b> (saved in My rides, shareable as GPX).</p>
+    <p><b>Tap the map</b> to see that spot: its zone with a link to the regulations, the open seasons there by species (the ones open today marked ● Open, read each month from the BC regional synopses and the Alberta Guide to Hunting Regulations), the BC limited entry hunts in the unit with last year's first-choice odds (shaded when the spot is inside the hunt's zone) or Alberta's special licence draws with this year's tags, applicants and the priority needed, and any park, town, reserve, military land or closure with what it means for hunting (towns link to their firearm discharge bylaw). In BC it also says whether the land is private or Crown, the forest stand (species, age, height) and when it last burned, from DataBC; in Alberta, whether it's a grazing lease (contact the leaseholder), the forest fuel type, burns and wetlands from Alberta's map server.</p>
+    <p>The wind card shows where the wind comes from and where your scent goes (the orange cone on the map, wider in light wind), gusts, temperature, cloud and the next 12 hours, from Open-Meteo. The light card has legal light (half an hour before sunrise to half an hour after sunset), sunrise, sunset, the moon and solunar feeding times, and ⏰ Alarms: tick legal light start, sunrise, sunset or legal light end, pick how early, and the app rings and shows a notice while it's open; “Add to my calendar” puts the next 14 days at that spot in your phone's calendar with alerts, so they ring with the app closed.</p>
+    <p><b>Map layers</b> are grouped, and each one shows its own key when it's on. Boundaries: hunting zones, BC limited entry zones, and parks, towns and closures (red no hunting, orange rules vary, green usually open, purple reserves, grey towns where shooting is banned by bylaw, purple dashes BC motor vehicle closures). Land: BC private parcels (ParcelMap BC, from zoom 11), Alberta grazing leases on public land and Alberta's Green Area (public forest). Habitat: forest types (BC stands by leading tree species; Alberta fuel types such as boreal spruce, pine, aspen and mixedwood), old burns by age, and wetlands. Terrain: slope angle and aspect. Tools: the scent cone and 50 to 400 m range rings around the spot. Every layer works on the 3D map too.</p>
+    <p>“Hunting maps offline” saves the zones, parks, seasons and draw results, and the picture layers you have on for the area on screen (zoom 10 to 15), so they work with no signal; save the base map with Offline maps in the Layers menu.</p>
+    <p>Your points: truck or parking, tree stands, blinds, sightings, tracks, rubs, scrapes, bedding and feeding areas, trail cameras, water, harvests and camps, each with a photo and notes, on the flat and 3D maps (signed in, they go to your account too). Open one to Share it or “Guide me here”. A 🎯 Harvest point takes the species, animal, date and zone (filled in from the map), and the <b>Hunting log</b> lists harvests by season (April to March) with a CSV download. A 📷 Trail camera point keeps its checks: each time you pull the card, add the best photo, the date and what it caught, and the log shows every camera's photos in order. This is a guide, not the law: always check the BC Hunting and Trapping Regulations Synopsis or the Alberta Guide to Hunting Regulations.</p>
+    <p class="src">Hunting data: DataBC (Open Government Licence - British Columbia), Alberta Environment and Protected Areas (Open Government Licence - Alberta), Canada Lands Survey System (Open Government Licence - Canada), ParcelMap BC (LTSA), BC Vegetation Resources Inventory, BC Limited Entry Hunting Synopsis, Alberta Guide to Hunting Regulations and AlbertaRELM draw summaries, Alberta Wildfire fuel types and fire history, Alberta Merged Wetland Inventory. Weather: Open-Meteo. Terrain: Mapzen Terrain Tiles on AWS.</p>
     </details>
     <p><button class="btn primary" id="aboutClose" type="button">Got it</button></p>
   </div>
@@ -1364,10 +1374,10 @@ body.sport-ski #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=288"></script>
-<script src="official.js?v=288"></script>
-<script src="directions.js?v=288"></script>
-<script src="ratings.js?v=288"></script>
+<script src="rotate.js?v=289"></script>
+<script src="official.js?v=289"></script>
+<script src="directions.js?v=289"></script>
+<script src="ratings.js?v=289"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3451,7 +3461,7 @@ out body;`;
   let trailInfo = null;
   const foldName = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   async function officialAbout(t) {
-    trailInfo = trailInfo || fetch("data/trail-info.json?v=288").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
+    trailInfo = trailInfo || fetch("data/trail-info.json?v=289").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
     const j = await trailInfo; if (!j) return [];
     const names = new Set([t.tags.name, t.tags["mtb:name"], t.tags["tf:name"], t.tfName].filter(Boolean).map(foldName));
     const mid = t.geom[Math.floor(t.geom.length / 2)], k = Math.cos(mid[0] * Math.PI / 180);
@@ -4026,7 +4036,7 @@ out body;`;
     async function refresh() {
       paintBtn();
       draw();
-      if (!on || busy || document.body.classList.contains("sport-ski")) return;
+      if (!on || busy || document.body.classList.contains("sport-alt")) return;
       busy = true;
       const list = trails();
       const missing = list.filter((w) => !shapeOf(w) && !failed.has(w.key)).slice(0, 30);
@@ -4439,7 +4449,7 @@ out body;`;
   new MutationObserver(() => { if (!$("boxRes").hidden) growTo("half"); }).observe($("boxRes"), { attributes: true, attributeFilter: ["hidden"] });
   // App tab bar (phones): Map lowers the sheet, New trails and Search open those panes, More has the rest.
   function syncTabbar() {
-    const cur = sheet.snap === "peek" ? "map" : document.body.classList.contains("sport-ski") ? "ski" : "new";
+    const cur = sheet.snap === "peek" ? "map" : document.body.classList.contains("sport-ski") ? "ski" : document.body.classList.contains("sport-hunt") ? "hunt" : "new";
     $("tabbar").querySelectorAll("[data-nav]").forEach((b) => b.setAttribute("aria-current", String(b.dataset.nav === cur)));
   }
   const tabMenu = $("tabMenu"), moreBtn = $("tabbar").querySelector('[data-nav="more"]');
@@ -4455,7 +4465,7 @@ out body;`;
       if (tab.getAttribute("aria-selected") !== "true") tab.click();
       panelEl.scrollTop = 0;
       snapTo("full"); syncTabbar();   // the whole search form at once, with Find under it (the half sheet hid How new behind Find)
-    } else if (nav === "ski") { panelEl.scrollTop = 0; growTo("half"); }
+    } else if (nav === "ski" || nav === "hunt") { panelEl.scrollTop = 0; growTo("half"); }
     else if (nav === "ride") { if (window.tfRide) window.tfRide.start(); }
     else if (nav === "more") {
       const acct = document.querySelector(".brand [data-account-slot] button");
@@ -5896,7 +5906,7 @@ out tags center qt;`;
   map.on("click", (e) => {
     if (boxDraw.on || boxDraw.done) return;          // drawing a square, not picking a trail
     if (document.querySelector(".app.riding, .app.planning")) return;   // Ride mode and Plan a route (navigate.js, planner.js)
-    if (document.body.classList.contains("sport-ski")) { if (sheetUp()) lowerSheet(); return; }   // Skiing (winter.js) has its own routes
+    if (document.body.classList.contains("sport-alt")) { if (sheetUp()) lowerSheet(); return; }   // Skiing (winter.js) and Hunting (hunting.js) have their own taps
     clearTimeout(clickTimer);
     clickTimer = setTimeout(() => {                  // a double-click zooms instead
       // Phones: a tap on the map with the sheet up lowers it so the map is bigger (alex), unless it lands on a trail,
@@ -6332,7 +6342,8 @@ out tags center qt;`;
     goToZone(zoneSel.value);
   });
 
-  window.tfMtbLayers = [trailLayer, foundLayer, nearLayer, allLayer, boxLayer, pickLayer];   // hidden in Skiing (winter.js)
+  window.tfMtbLayers = [trailLayer, foundLayer, nearLayer, allLayer, boxLayer, pickLayer];   // hidden in Skiing (winter.js) and Hunting
+  window.tfRoadAt = (ll) => showRoadAt(ll);   // Hunting (hunting.js): a tap on a forest road, closure or fire still shows its popup
   // For Ride mode (navigate.js): the loaded trails, with what it needs to name and colour them.
   window.tfNav = { map, youLayer, DIFF, difficulty, diffColor, shown: () => allShown.map((x) => x.w.id),
     ways: () => [...allData.values()].filter(Boolean).flat(),
@@ -6345,24 +6356,25 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=288"></script>
-<script src="contours.js?v=288"></script>
-<script src="photo-slider.js?v=288"></script>
-<script src="winter.js?v=288"></script>
-<script src="ski-points.js?v=288"></script>
-<script src="offline.js?v=288"></script>
-<script src="ride-stats.js?v=288"></script>
-<script src="navigate.js?v=288"></script>
-<script src="planner.js?v=288"></script>
-<script src="rides.js?v=288"></script>
-<script src="account.js?v=288"></script>
-<script src="reports.js?v=288"></script>
-<script src="visitors.js?v=288"></script>
-<script src="notify.js?v=288"></script>
-<script src="areas.js?v=288"></script>
-<script src="alpine.js?v=288"></script>
-<script src="bikeparks.js?v=288"></script>
-<script src="photo-find.js?v=288"></script>
+<script src="map3d.js?v=289"></script>
+<script src="contours.js?v=289"></script>
+<script src="photo-slider.js?v=289"></script>
+<script src="winter.js?v=289"></script>
+<script src="hunting.js?v=289"></script>
+<script src="ski-points.js?v=289"></script>
+<script src="offline.js?v=289"></script>
+<script src="ride-stats.js?v=289"></script>
+<script src="navigate.js?v=289"></script>
+<script src="planner.js?v=289"></script>
+<script src="rides.js?v=289"></script>
+<script src="account.js?v=289"></script>
+<script src="reports.js?v=289"></script>
+<script src="visitors.js?v=289"></script>
+<script src="notify.js?v=289"></script>
+<script src="areas.js?v=289"></script>
+<script src="alpine.js?v=289"></script>
+<script src="bikeparks.js?v=289"></script>
+<script src="photo-find.js?v=289"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
