@@ -3,9 +3,13 @@
   "private": true,
   "description": "The Trail Finder iPhone app: the website in a Capacitor shell, built and sent to TestFlight by .github/workflows/ios-app.yml.",
   "dependencies": {
+    "@capacitor-community/keep-awake": "8.0.1",
     "@capacitor/cli": "8.5.3",
     "@capacitor/core": "8.5.3",
+    "@capacitor/haptics": "8.0.2",
     "@capacitor/ios": "8.5.3",
+    "@capacitor/share": "8.0.3",
+    "@capacitor/splash-screen": "8.0.2",
     "trail-gps": "file:plugins/TrailGps"
   }
 }
