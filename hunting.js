@@ -101,7 +101,7 @@
     EP: "Paper birch", DR: "Red alder", MB: "Bigleaf maple",
   };
   const sld = (layer, rules) => `<StyledLayerDescriptor version="1.0.0"><NamedLayer><Name>${layer}</Name><UserStyle><FeatureTypeStyle>${rules.map(([filter, color]) =>
-    `<Rule><Filter>${filter}</Filter><PolygonSymbolizer><Fill><CssParameter name="fill">${color}</CssParameter></Fill></PolygonSymbolizer></Rule>`).join("")}</FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>`;
+    `<Rule><Filter>${filter}</Filter>${color.startsWith("<PolygonSymbolizer") ? color : `<PolygonSymbolizer><Fill><CssParameter name="fill">${color}</CssParameter></Fill></PolygonSymbolizer>`}</Rule>`).join("")}</FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>`;
   // One rule that picks the colour from the species code's first letter (Recode), so the style fits in a map tile's
   // web address (12 rules made it too long for DataBC). Other species fall back to grey; stands with no species aren't painted.
   const forestSld = () => sld(VRI, [[`<Not><PropertyIsNull><PropertyName>SPECIES_CD_1</PropertyName></PropertyIsNull></Not>`,
@@ -110,7 +110,14 @@
   const FIRES = "pub:WHSE_LAND_AND_NATURAL_RESOURCE.PROT_HISTORICAL_FIRE_POLYS_SP", WETLANDS = "pub:WHSE_BASEMAPPING.FWA_WETLANDS_POLY";
   // Old burns by age: young burns green up into good feed (browse and berries) for several years.
   const YEAR = new Date().getFullYear();
-  const BURNS = [[YEAR - 5, YEAR, "#5c2e0e", "Burned in the last 5 years"], [YEAR - 15, YEAR - 6, "#9c5b28", "Burned 6-15 years ago"], [YEAR - 30, YEAR - 16, "#c9a27a", "Burned 16-30 years ago"]];
+  // Charred black stripes over a light wash, closer for younger burns (alex: "make that layer easier to see"): brown
+  // fills vanished into the forest types and the 3D photos; stripes read over any colour. [from, to, stripe gap px, name]
+  const BURNS = [[YEAR - 5, YEAR, 5, "Burned in the last 5 years"], [YEAR - 15, YEAR - 6, 9, "Burned 6-15 years ago"], [YEAR - 30, YEAR - 16, 15, "Burned 16-30 years ago"]];
+  const BURN = "#111111";
+  // GeoServer hatch: a white wash, black diagonal stripes every gap px and a black edge.
+  const burnSym = (gap) => `<PolygonSymbolizer><Fill><CssParameter name="fill">#ffffff</CssParameter><CssParameter name="fill-opacity">0.3</CssParameter></Fill></PolygonSymbolizer>`
+    + `<PolygonSymbolizer><Fill><GraphicFill><Graphic><Mark><WellKnownName>shape://slash</WellKnownName><Stroke><CssParameter name="stroke">${BURN}</CssParameter><CssParameter name="stroke-width">1.5</CssParameter></Stroke></Mark><Size>${gap}</Size></Graphic></GraphicFill></Fill><Stroke><CssParameter name="stroke">${BURN}</CssParameter><CssParameter name="stroke-width">2</CssParameter></Stroke></PolygonSymbolizer>`;
+  const burnCss = (gap) => `background:#fff repeating-linear-gradient(135deg, ${BURN} 0 1.5px, transparent 1.5px ${Math.max(3, gap / 2)}px);border:1.5px solid ${BURN}`;
   const between = (p, a, b) => `<PropertyIsBetween><PropertyName>${p}</PropertyName><LowerBoundary><Literal>${a}</Literal></LowerBoundary><UpperBoundary><Literal>${b}</Literal></UpperBoundary></PropertyIsBetween>`;
   const SLOPES = [[15, "15-25°", "#f2e14c"], [25, "25-35°", "#f59f00"], [35, "35-45°", "#e03131"], [45, "45° and up", "#862e9c"]];
   const ASPECT_COLORS = ["#1c7ed6", "#22b8cf", "#40c057", "#a9e34b", "#fcc419", "#fd7e14", "#f03e3e", "#ae3ec9"];   // N NE E SE S SW W NW
@@ -125,7 +132,7 @@
     rules: { g: "Boundaries", label: "Parks, towns and closures", sub: "Where hunting is banned or has its own rules", on: true, sw: [C.no, "hatch"] },
     land: { g: "Land", label: "Private and public land", sub: "BC private parcels, Alberta Green Area and grazing leases", on: false, sw: [C.private, "fill"], minZoom: 9 },
     forest: { g: "Habitat", label: "Forest types", sub: "Leading tree species (BC), fuel types (Alberta)", on: false, sw: ["#1b5e20", "fill"], minZoom: 8 },
-    burns: { g: "Habitat", label: "Old burns", sub: "Fire scars by age: young burns grow feed", on: false, sw: [BURNS[1][2], "fill"], minZoom: 7 },
+    burns: { g: "Habitat", label: "Old burns", sub: "Fire scars by age: young burns grow feed", on: false, sw: [BURN, "burn"], minZoom: 7 },
     wet: { g: "Habitat", label: "Wetlands", sub: "Marshes, fens, bogs and swamps", on: false, sw: [C.wet, "fill"], minZoom: 10 },
     slope: { g: "Terrain", label: "Slope angle", sub: "Steepness in four bands", on: false, sw: ["#e03131", "fill"], minZoom: 9 },
     aspect: { g: "Terrain", label: "Aspect", sub: "Which way each slope faces", on: false, sw: ["#40c057", "fill"], minZoom: 9 },
@@ -145,7 +152,12 @@
 
   const css = document.createElement("style");
   css.textContent = `
-body:not(.sport-hunt) #huntPane { display: none !important; }
+body:not(.sport-hunt) #huntPane, body:not(.sport-hunt) .lm-hunt { display: none !important; }
+.lm-hunt { display: flex; flex-direction: column; gap: 0; }
+.lm-hunt .hn-note { color: var(--muted); font-size: .74rem; margin: 2px 0 4px; }
+.lm-hunt .hn-group { margin: 0; font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-top: 6px; }
+.lm-hunt .hn-layer { padding: 4px 0; }
+#huntPane #hnAll { align-self: flex-start; }
 #huntPane { display: flex; flex-direction: column; gap: 12px; font-size: .9rem; }
 #huntPane .hn-note { color: var(--muted); font-size: .76rem; margin: 0; }
 #huntPane .hn-safe { color: var(--muted); margin: 0; font-size: .76rem; line-height: 1.4; }
@@ -216,17 +228,17 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
 #huntPane .hn-tbl tr.here td { background: #fff4e6; }
 #huntPane .hn-tbl .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 #huntPane .hn-open { color: #2b8a3e; font-weight: 800; }
-#huntPane .hn-group { margin: 0; font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-top: 4px; }
-#huntPane .hn-layer { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 6px 0; cursor: pointer; }
-#huntPane .hn-layer b { display: block; font-size: .86rem; }
-#huntPane .hn-layer small { display: block; color: var(--muted); font-size: .74rem; line-height: 1.25; }
-#huntPane .hn-layer small.z { color: ${ORANGE}; }
-#huntPane .hn-ic { width: 22px; height: 22px; border-radius: 6px; display: block; box-sizing: border-box; }
-#huntPane .hn-sw-input { appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; margin: 0; transition: background .15s; flex: none; }
-#huntPane .hn-sw-input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0004; transition: left .15s; }
-#huntPane .hn-sw-input:checked { background: ${ORANGE}; }
-#huntPane .hn-sw-input:checked::after { left: 19px; }
-#huntPane .hn-sw-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:is(#huntPane, .lm-hunt) .hn-group { margin: 0; font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-top: 4px; }
+:is(#huntPane, .lm-hunt) .hn-layer { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 6px 0; cursor: pointer; }
+:is(#huntPane, .lm-hunt) .hn-layer b { display: block; font-size: .86rem; }
+:is(#huntPane, .lm-hunt) .hn-layer small { display: block; color: var(--muted); font-size: .74rem; line-height: 1.25; }
+:is(#huntPane, .lm-hunt) .hn-layer small.z { color: ${ORANGE}; }
+:is(#huntPane, .lm-hunt) .hn-ic { width: 22px; height: 22px; border-radius: 6px; display: block; box-sizing: border-box; }
+:is(#huntPane, .lm-hunt) .hn-sw-input { appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; margin: 0; transition: background .15s; flex: none; }
+:is(#huntPane, .lm-hunt) .hn-sw-input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0004; transition: left .15s; }
+:is(#huntPane, .lm-hunt) .hn-sw-input:checked { background: ${ORANGE}; }
+:is(#huntPane, .lm-hunt) .hn-sw-input:checked::after { left: 19px; }
+:is(#huntPane, .lm-hunt) .hn-sw-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #huntPane .hn-key { list-style: none; margin: 0 0 4px 32px; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; font-size: .74rem; color: var(--muted); }
 #huntPane .hn-key li { display: flex; align-items: center; gap: 6px; min-width: 0; }
 #huntPane .hn-key i, #huntPane .hn-key img { display: inline-block; width: 14px; height: 10px; border-radius: 2px; flex: none; box-sizing: border-box; }
@@ -245,6 +257,9 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
 .hn-label { background: #fff; color: ${C.zone}; border: 1.5px solid ${C.zone}; border-radius: 6px; padding: 1px 5px; font: 700 11px/1.2 var(--font-body, system-ui); white-space: nowrap; box-shadow: 0 1px 2px #0003; transform: translate(-50%, -50%); width: max-content; pointer-events: none; }
 .hn-label small { font-weight: 500; color: #555; }
 .hn-mapkey { font: 600 12px/1.3 var(--font-body, system-ui); color: #212529; }
+/* the map credits get long with several layers on: one line (tap to read it all), clear of the Key button */
+body.sport-hunt .leaflet-bottom.leaflet-right { max-width: calc(100% - 120px); }
+body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max-width: 100%; box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .mapwrap.is3d .hn-mapkey { margin-bottom: 46px; }   /* clear of the 3D map's credits line */
 .hn-keybtn { font: inherit; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; border-radius: 999px; border: 0; background: #fff; color: #212529; box-shadow: 0 1px 4px #0004; cursor: pointer; }
 .hn-keybtn svg { color: ${ORANGE}; }
@@ -276,10 +291,16 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     <div class="hn-card" id="hnSpot" hidden></div>
     <div class="hn-card" id="hnLayers"><header>${svg(IC.layers)}<h3>Map</h3></header>
       <div class="hn-views" role="group" aria-label="Map views">${Object.entries(VIEWS).map(([k, v]) => `<button type="button" class="hn-view" data-view="${k}">${esc(v.label)}<small>${esc(v.sub)}</small></button>`).join("")}</div>
-      <details class="hn-fold" id="hnAll"><summary>All layers</summary><div id="hnLayerList"></div><p class="hn-note">What the colours mean: tap Key on the map.</p></details></div>
+      <button type="button" class="hn-pill" id="hnAll">${svg(IC.layers, 16)}All hunting layers</button></div>
     <div class="hn-card" id="hnCond"><div id="hnWx"></div><div id="hnSky"></div></div>
     <details class="hn-card" id="hnOffBox"><summary>${svg(IC.down, 16)} Hunting maps offline</summary><div id="hnOff"></div></details>
     <details class="hn-safe"><summary>A guide, not the law</summary>Zones, parks, seasons and draw odds come from BC and Alberta open data and regulation booklets, read by the app each month, and can be out of date or simplified. Always check the <a href="${BC_SYNOPSIS}" target="_blank" rel="noopener">BC Hunting and Trapping Regulations Synopsis</a> or the <a href="${AB_REGS}" target="_blank" rel="noopener">Alberta Guide to Hunting Regulations</a>, and get permission before hunting private land or a lease.</details>`;
+  // Every hunting layer switch lives in the map's Layers menu (alex: "should we put that here?"), shown only in Hunting.
+  const lmHunt = document.createElement("div");
+  lmHunt.className = "lm-hunt";
+  lmHunt.innerHTML = `<div class="lm-head">Hunting layers</div><div id="hnLayerList"></div><p class="hn-note">What the colours mean: tap Key on the map.</p>`;
+  const lmStyle = document.querySelector("#layersMenu .lm-style");
+  if (lmStyle) lmStyle.after(lmHunt); else pane.append(lmHunt);
   const head = document.querySelector(".panel-head");
   const skiPane = $("skiPane"), modes = head && head.querySelector(".modes");
   if (skiPane) skiPane.after(pane); else if (modes) modes.after(pane); else if (head) head.append(pane);
@@ -388,8 +409,8 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
   });
   const wms = (layer, style) => `${WMS}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${encodeURIComponent(layer)}&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&SRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&SLD_BODY=${encodeURIComponent(style)}&BBOX={bbox}`;
   const arcgis = (service, extra) => `${AB}/${service}/MapServer/export?bboxSR=3857&imageSR=3857&size=256%2C256&format=png32&transparent=true&f=image&${extra}&bbox={bbox}`;
-  const dyn = (ids, fill, line) => `dynamicLayers=${encodeURIComponent(JSON.stringify(ids.map((id) => ({ id, source: { type: "mapLayer", mapLayerId: id },
-    drawingInfo: { renderer: { type: "simple", symbol: { type: "esriSFS", style: "esriSFSSolid", color: fill, outline: { type: "esriSLS", style: "esriSLSSolid", color: line, width: 1 } } } } }))))}`;
+  const dyn = (ids, fill, line, style = "esriSFSSolid") => `dynamicLayers=${encodeURIComponent(JSON.stringify(ids.map((id) => ({ id, source: { type: "mapLayer", mapLayerId: id },
+    drawingInfo: { renderer: { type: "simple", symbol: { type: "esriSFS", style, color: fill, outline: { type: "esriSLS", style: "esriSLSSolid", color: line, width: style === "esriSFSSolid" ? 1 : 1.5 } } } } }))))}`;
   const rgba = (h, a) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), a];
   const FIRE_SVC = "mimas/rest/services/wildfire/historical_wildfires_data", FUEL_SVC = "mimas/rest/services/wildfire/fbp_fuel_type";
   const GRAZE_SVC = "titan/rest/services/recaccess/recaccess_grazing", WET_SVC = "titan/rest/services/environment/alberta_merged_wetland_inventory";
@@ -400,9 +421,9 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     { id: "hn-graze", layer: "land", tmpl: arcgis(GRAZE_SVC, dyn([1], rgba(GRAZE_COLOR, 90), rgba("#b07d00", 255))), min: 9, opacity: 0.8, attr: "Leases: Alberta Recreational Access" },
     { id: "hn-forest", layer: "forest", tmpl: wms(VRI, forestSld()), min: 11, opacity: 0.5, attr: 'Forest: <a href="https://www2.gov.bc.ca/gov/content/industry/forestry/managing-our-forest-resources/forest-inventory">BC Vegetation Resources Inventory</a>' },
     { id: "hn-fuel", layer: "forest", tmpl: arcgis(FUEL_SVC, "layers=show%3A1"), min: 8, opacity: 0.5, ab: true, attr: "Forest: Alberta Wildfire fuel types" },
-    { id: "hn-burns", layer: "burns", tmpl: wms(FIRES, sld(FIRES, BURNS.map(([a, b, col]) => [between("FIRE_YEAR", a, b), col]))), min: 7, opacity: 0.45, attr: 'Burns: <a href="https://catalogue.data.gov.bc.ca/dataset/fire-perimeters-historical">BC Wildfire Service</a>' },
-    { id: "hn-abburn1", layer: "burns", tmpl: arcgis(FIRE_SVC, dyn([11, 12, 13, 14, 15], rgba(BURNS[0][2], 115), rgba(BURNS[0][2], 255))), min: 7, opacity: 1, ab: true, attr: "Burns: Alberta Wildfire" },
-    { id: "hn-abburn2", layer: "burns", tmpl: arcgis(FIRE_SVC, dyn([16, 17, 18, 19, 20], rgba(BURNS[1][2], 115), rgba(BURNS[1][2], 255))), min: 7, opacity: 1, ab: true, attr: "Burns: Alberta Wildfire" },
+    { id: "hn-burns", layer: "burns", tmpl: wms(FIRES, sld(FIRES, BURNS.map(([a, b, gap]) => [between("FIRE_YEAR", a, b), burnSym(gap)]))), min: 7, opacity: 1, attr: 'Burns: <a href="https://catalogue.data.gov.bc.ca/dataset/fire-perimeters-historical">BC Wildfire Service</a>' },
+    { id: "hn-abburn1", layer: "burns", tmpl: arcgis(FIRE_SVC, dyn([11, 12, 13, 14, 15], rgba(BURN, 255), rgba(BURN, 255), "esriSFSDiagonalCross")), min: 7, opacity: 1, ab: true, attr: "Burns: Alberta Wildfire" },
+    { id: "hn-abburn2", layer: "burns", tmpl: arcgis(FIRE_SVC, dyn([16, 17, 18, 19, 20], rgba(BURN, 255), rgba(BURN, 255), "esriSFSBackwardDiagonal")), min: 7, opacity: 1, ab: true, attr: "Burns: Alberta Wildfire" },
     { id: "hn-wet", layer: "wet", tmpl: wms(WETLANDS, sld(WETLANDS, [[`<Not><PropertyIsNull><PropertyName>WATERBODY_TYPE</PropertyName></PropertyIsNull></Not>`, C.wet]])), min: 10, opacity: 0.55, attr: 'Wetlands: <a href="https://www2.gov.bc.ca/gov/content/data/geographic-data-services/topographic-data/freshwater">BC Freshwater Atlas</a>' },
     { id: "hn-abwet", layer: "wet", tmpl: arcgis(WET_SVC, "layers=show%3A3"), min: 13, opacity: 0.6, ab: true, attr: "Wetlands: Alberta Merged Wetland Inventory" },
   ];
@@ -509,14 +530,14 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     land: () => [`<li>${sw(C.private)}Private land (BC)</li>`, `<li>${sw(GRAZE_COLOR)}Grazing lease (AB): ask</li>`, `<li class="wide">${sw(C.green, "dash")}Alberta Green Area: public forest</li>`],
     forest: () => [...FOREST.map(([, n, c]) => `<li>${sw(c)}${esc(n)}</li>`), `<li>${sw("#808080")}Other species</li>`,
       ...(fuelLegend && fuelLegend.length ? [`<li class="wide"><b>Alberta fuel types</b></li>`, ...fuelLegend.map(([n, src]) => `<li><img alt="" src="${src}">${esc(n.replace(/^[A-Z]-\d(\/[A-Z]-\d)? \((.*)\)$/, "$2"))}</li>`)] : [])],
-    burns: () => [...BURNS.map(([, , c, n]) => `<li>${sw(c)}${esc(n)}</li>`), `<li class="wide">Alberta: the last 10 years</li>`],
+    burns: () => [...BURNS.map(([, , gap, n]) => `<li><i style="${burnCss(gap)}"></i>${esc(n)}</li>`), `<li class="wide">Alberta: the last 10 years</li>`],
     wet: () => [`<li>${sw(C.wet)}Wetland (BC)</li>`, `<li>Alberta: from zoom 13</li>`],
     slope: () => SLOPES.map(([, n, c]) => `<li>${sw(c)}${esc(n)}</li>`),
     aspect: () => DIRS.map((d, i) => `<li>${sw(ASPECT_COLORS[i])}Faces ${d}</li>`),
     wind: () => [`<li class="wide">${sw(ORANGE)}Downwind of the spot: game there can smell you</li>`],
     rings: () => [`<li class="wide">${sw(C.rings, "dash")}${RINGS.join(", ")} m</li>`],
   };
-  const icon = ([c, kind]) => kind === "hatch" ? `<span class="hn-ic" style="border:2px solid ${c};background:${hatchCss(c)}"></span>` : kind === "line" ? `<span class="hn-ic" style="border:3px solid ${c}"></span>` : kind === "dash" ? `<span class="hn-ic" style="border:3px dashed ${c}"></span>`
+  const icon = ([c, kind]) => kind === "burn" ? `<span class="hn-ic" style="${burnCss(9)}"></span>` : kind === "hatch" ? `<span class="hn-ic" style="border:2px solid ${c};background:${hatchCss(c)}"></span>` : kind === "line" ? `<span class="hn-ic" style="border:3px solid ${c}"></span>` : kind === "dash" ? `<span class="hn-ic" style="border:3px dashed ${c}"></span>`
     : kind === "cone" ? `<span class="hn-ic" style="background:conic-from 0deg, transparent;background:linear-gradient(135deg, ${c}55, ${c})"></span>` : kind === "ring" ? `<span class="hn-ic" style="border:2px dashed ${c};border-radius:50%"></span>`
     : `<span class="hn-ic" style="background:${c};opacity:.85"></span>`;
   function renderLayers() {
@@ -550,6 +571,12 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     if (k === "slope" && shown.has("slope")) shown.delete("aspect");   // one terrain shading at a time
     if (k === "aspect" && shown.has("aspect")) shown.delete("slope");
     applyLayers([k]);
+  });
+  $("hnAll").addEventListener("click", (e) => {
+    e.stopPropagation();   // or the page's click-outside closes the menu again at once
+    const b = $("layersBtn"); if (!b) return;
+    if ($("layersMenu").hidden) b.click();
+    lmHunt.scrollIntoView({ block: "nearest" });
   });
   pane.querySelector(".hn-views").addEventListener("click", (e) => {
     const b = e.target.closest("[data-view]"); if (!b) return;
@@ -1014,7 +1041,7 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
   }
   const burnItem = (year, label, ha) => {
     const ago = YEAR - year;
-    return `<li style="border-color:${ago <= 5 ? BURNS[0][2] : ago <= 15 ? BURNS[1][2] : BURNS[2][2]}"><b>Burned in ${esc(year)}</b>Fire ${esc(label || "")}${ha ? `, ${Math.round(ha).toLocaleString()} ha` : ""}.${ago <= 20 ? " Young burns grow back as browse and berries that draw deer, elk, moose and bears." : ""}</li>`;
+    return `<li style="border-color:${BURN}"><b>Burned in ${esc(year)}</b>Fire ${esc(label || "")}${ha ? `, ${Math.round(ha).toLocaleString()} ha` : ""}.${ago <= 20 ? " Young burns grow back as browse and berries that draw deer, elk, moose and bears." : ""}</li>`;
   };
   // Alberta: forest fuel type, grazing leases, burns and wetlands from Alberta's map server.
   async function liveAlberta(lat, lon, seq) {
