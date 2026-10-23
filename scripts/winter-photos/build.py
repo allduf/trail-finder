@@ -1,5 +1,7 @@
 """Builds the 3D map's Winter photos once (they're last winter's, so they don't change):
     python3 scripts/winter-photos/build.py <block-dir>     then   python3 scripts/winter-photos/tiles.py <block-dir>
+tiles.py writes data/winter (not kept on main): copy it to winter/ on the winter-photos branch, as a single commit
+pushed over the old one, and the "Publish website" workflow adds it to the site.
 Draws 2048 px blocks (one zoom-11 tile each, = 8 x 8 zoom-14 tiles, about 10 m a pixel like the photos) of the
 region straight from the Sentinel-2 passes in data/winter-scenes.json (free, open data on AWS). Needs rasterio
 (pip install rasterio). Optional: python3 build.py <block-dir> 325 691  draws just that block.
@@ -22,7 +24,7 @@ os.environ.setdefault("GDAL_HTTP_MULTIRANGE", "YES")
 os.environ.setdefault("GDAL_HTTP_MERGE_CONSECUTIVE_RANGES", "YES")
 here = os.path.dirname(os.path.abspath(__file__))
 out = sys.argv[1] if len(sys.argv) > 1 else "winter-blocks"
-X0, Y0, X1, Y1 = 315, 686, 331, 702   # zoom 11: Sunshine Coast and Vancouver to Lillooet
+X0, Y0, X1, Y1 = 315, 686, 331, 702   # zoom 11: Sunshine Coast and Vancouver to Lillooet (other areas: pass x y)
 S2 = "/vsicurl/https://sentinel-cogs.s3.us-west-2.amazonaws.com/"
 W = 2048
 CLOUD_SWIR = float(os.environ.get("CLOUD_SWIR", 0.2))
