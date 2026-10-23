@@ -900,7 +900,6 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .wantlist li .open .gps { font-size: .75rem; font-weight: 700; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: #b8f03a; color: #10230f; white-space: nowrap; }
 .map-tools #riddenMapBtn.on { background: #b8f03a; border-color: #6fae00; color: #10230f; }
 body.sport-ski #riddenMapBtn { display: none !important; }
-.toride-pin.ridden span b { color: #b8f03a; }
 .ride-note { margin-bottom: 10px; }
 .ride-note label { display: block; font-size: .85rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
 .ride-note textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--fg); resize: vertical; }
@@ -910,10 +909,6 @@ body.sport-ski #riddenMapBtn { display: none !important; }
 .wantlist .wl-map { font: inherit; font-size: .88rem; font-weight: 600; margin: 6px 0 2px; padding: 6px 10px; border-radius: 8px; border: 1.5px solid #e0a800; background: transparent; color: var(--fg); cursor: pointer; }
 .map-tools #rideMapBtn.on { background: #ffc61a; border-color: #e0a800; color: #2b1d00; }
 body.sport-ski #rideMapBtn { display: none !important; }
-.toride-pin { background: none; border: 0; }
-.toride-pin span { display: inline-flex; align-items: center; gap: 3px; transform: translate(-50%, -50%); white-space: nowrap; font: 700 12px/1 system-ui, sans-serif; padding: 4px 7px 4px 5px; border-radius: 999px; border: 2px solid #2b1d00; box-shadow: 0 1px 4px rgba(0,0,0,.35); color: #fff; }
-.toride-pin span b { color: #ffc61a; font-size: 14px; text-shadow: 0 0 2px #2b1d00; }
-.toride-pin.unknown span { background: #6b6b6b; }
 .wantlist h3 { margin: 4px 0 6px; font-size: 1rem; }
 .wl-head { display: flex; justify-content: space-between; align-items: center; }
 .wantlist .folder { border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; margin-bottom: 6px; }
@@ -1369,10 +1364,10 @@ body.sport-ski #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=272"></script>
-<script src="official.js?v=272"></script>
-<script src="directions.js?v=272"></script>
-<script src="ratings.js?v=272"></script>
+<script src="rotate.js?v=284"></script>
+<script src="official.js?v=284"></script>
+<script src="directions.js?v=284"></script>
+<script src="ratings.js?v=284"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3456,7 +3451,7 @@ out body;`;
   let trailInfo = null;
   const foldName = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   async function officialAbout(t) {
-    trailInfo = trailInfo || fetch("data/trail-info.json?v=272").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
+    trailInfo = trailInfo || fetch("data/trail-info.json?v=284").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
     const j = await trailInfo; if (!j) return [];
     const names = new Set([t.tags.name, t.tags["mtb:name"], t.tags["tf:name"], t.tfName].filter(Boolean).map(foldName));
     const mid = t.geom[Math.floor(t.geom.length / 2)], k = Math.cos(mid[0] * Math.PI / 180);
@@ -3897,7 +3892,7 @@ out body;`;
       if (lay && items.length) {
         const mb = document.createElement("button");
         mb.type = "button"; mb.className = "wl-map";
-        mb.textContent = ridden ? "✓ Show them on the map with today's loam" : "★ Show them on the map with today's loam";
+        mb.textContent = ridden ? "✓ Show them on the map" : "★ Show them on the map";
         mb.addEventListener("click", () => lay.show(true));
         ol.before(mb);
       }
@@ -3962,10 +3957,8 @@ out body;`;
   function savedLayer(o) {
     map.createPane(o.pane).style.zIndex = o.z;
     const layer = L.layerGroup();
-    // o.pinsBelow: pins only when zoomed out further than this (a long Ridden list covered the trails in pins up close).
-    const pins = L.layerGroup().addTo(layer);
-    const pinsFit = () => !o.pinsBelow || map.getZoom() < o.pinsBelow;
-    if (o.pinsBelow) map.on("zoomend", () => { if (pinsFit() !== layer.hasLayer(pins)) pinsFit() ? layer.addLayer(pins) : layer.removeLayer(pins); });
+    // Only the trails are highlighted: no loam-number pins on the map (alex: "I just want to see the trail highlighted";
+    // a long list piled pins over whole valleys). The loam stays in the list (loamPill) and the trail's details.
     // o.under: only a halo, under the trail lines (alex saw grey ridden lines over the trails' own colours, cutting the
     // switchbacks), following the trail's full shape when it's loaded (the saved copy is simplified).
     const linePane = o.under ? o.pane + "Halo" : o.pane;
@@ -3995,12 +3988,10 @@ out body;`;
       btn.classList.toggle("on", on);
       btn.setAttribute("aria-pressed", String(on));
       btn.textContent = n ? `${o.label} · ${n}` : o.label;
-      btn.title = n ? (on ? `Hide your ${o.what}` : `Show your ${o.what} with today's loam`) : o.empty;
+      btn.title = n ? (on ? `Hide your ${o.what}` : `Show your ${o.what} on the map`) : o.empty;
     }
     function draw() {
       layer.clearLayers();
-      pins.clearLayers();
-      if (pinsFit()) layer.addLayer(pins);
       paintBtn();
       if (!on) return;
       const full = o.under && window.tfTrails ? new Map(window.tfTrails().all.flat().map((x) => [x.id, x.geom])) : null;
@@ -4015,11 +4006,6 @@ out body;`;
           layer.addLayer(L.polyline(l, { pane: linePane, renderer: lines, color: o.halo, weight: 11, opacity: 0.75, lineCap: "round", interactive: false }));
           if (!o.under) layer.addLayer(L.polyline(l, { pane: o.pane, renderer: lines, color, weight: 4, opacity: 1, lineCap: "round", bubblingMouseEvents: false }).on("click", open));
         });
-        const label = v == null ? "" : ` ${v}`;
-        const tip = `${w.name}${v == null ? "" : ` · Loam ${v}, ${LMI_LEVELS[k][1].toLowerCase()} (${LMI_RIDE[k][1].toLowerCase()})`}${w.note ? `\n${w.note}` : ""}`;
-        L.marker(s.c, { pane: o.pane, title: tip, keyboard: true,
-          icon: L.divIcon({ className: "toride-pin" + o.pin + (k < 0 ? " unknown" : ""), iconSize: [0, 0], html: `<span style="${k < 0 ? "" : `background:${color}`}"><b>${o.glyph}</b>${esc(label)}</span>` }) })
-          .on("click", open).addTo(pins);
       });
     }
     // Shapes for old saves are loaded from OpenStreetMap in the background: the pins and lines that are already known
@@ -4083,10 +4069,10 @@ out body;`;
       .map(({ w, s }) => ({ key: w.key, name: w.name, type: w.type, ids: w.ids, kind: w.kind, c: s.c }));
     return { refresh, show, loamPill, draw, known };
   }
-  const toRide = savedLayer({ pane: "toRide", z: 455, btnId: "rideMapBtn", key: "toride", label: "★ To ride", glyph: "★", pin: "", halo: "#ffc61a",
+  const toRide = savedLayer({ pane: "toRide", z: 455, btnId: "rideMapBtn", key: "toride", label: "★ To ride", halo: "#ffc61a",
     what: "to-ride trails", empty: "Your to-ride list is empty: open a trail and tap ☆ To ride",
     trails: () => { const x = getFolders().find((x) => x.id === TO_RIDE); return x ? x.trails : []; } });
-  const riddenMap = savedLayer({ pane: "riddenTrails", z: 454, btnId: "riddenMapBtn", key: "riddenMap", label: "✓ Ridden", glyph: "✓", pin: " ridden", halo: "#b8f03a", pinsBelow: 13, under: true,
+  const riddenMap = savedLayer({ pane: "riddenTrails", z: 454, btnId: "riddenMapBtn", key: "riddenMap", label: "✓ Ridden", halo: "#b8f03a", under: true,
     what: "ridden trails", empty: "Your Ridden list is empty: open a trail and tap + Ridden, or record or import a ride",
     trails: () => riddenTrails() });
   window.tfToRideList = toRide.known;
@@ -4311,6 +4297,8 @@ out body;`;
     if (name === "peek") panelEl.scrollTop = 0;
     setSheetH(snapHeights()[name], name);
   }
+  const sheetUp = () => phoneMQ.matches && sheet.snap !== "peek";
+  const lowerSheet = () => snapTo("peek");
   function growTo(name) {                            // only ever grows the sheet
     const order = ["peek", "half", "full"];
     if (order.indexOf(sheet.snap) < order.indexOf(name)) snapTo(name);
@@ -5846,9 +5834,14 @@ out tags center qt;`;
   map.on("click", (e) => {
     if (boxDraw.on || boxDraw.done) return;          // drawing a square, not picking a trail
     if (document.querySelector(".app.riding, .app.planning")) return;   // Ride mode and Plan a route (navigate.js, planner.js)
-    if (document.body.classList.contains("sport-ski")) return;   // Skiing (winter.js) has its own routes
+    if (document.body.classList.contains("sport-ski")) { if (sheetUp()) lowerSheet(); return; }   // Skiing (winter.js) has its own routes
     clearTimeout(clickTimer);
-    clickTimer = setTimeout(() => pickTrailAt(e.latlng), 260); // a double-click zooms instead
+    clickTimer = setTimeout(() => {                  // a double-click zooms instead
+      // Phones: a tap on the map with the sheet up lowers it so the map is bigger (alex), unless it lands on a trail,
+      // which still opens that trail. Drags and pinches don't fire click.
+      if (sheetUp() && !(map.getZoom() >= SNAP_MIN_ZOOM && nearestDrawn(e.latlng))) { lowerSheet(); return; }
+      pickTrailAt(e.latlng);
+    }, 260);
   });
   map.on("dblclick", () => clearTimeout(clickTimer));
   function pickNote(ll, text) {
@@ -6290,24 +6283,24 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=272"></script>
-<script src="contours.js?v=272"></script>
-<script src="photo-slider.js?v=272"></script>
-<script src="winter.js?v=272"></script>
-<script src="ski-points.js?v=272"></script>
-<script src="offline.js?v=278"></script>
-<script src="ride-stats.js?v=272"></script>
-<script src="navigate.js?v=272"></script>
-<script src="planner.js?v=272"></script>
-<script src="rides.js?v=272"></script>
-<script src="account.js?v=272"></script>
-<script src="reports.js?v=272"></script>
-<script src="visitors.js?v=272"></script>
-<script src="notify.js?v=272"></script>
-<script src="areas.js?v=272"></script>
-<script src="alpine.js?v=272"></script>
-<script src="bikeparks.js?v=272"></script>
-<script src="photo-find.js?v=272"></script>
+<script src="map3d.js?v=284"></script>
+<script src="contours.js?v=284"></script>
+<script src="photo-slider.js?v=284"></script>
+<script src="winter.js?v=284"></script>
+<script src="ski-points.js?v=284"></script>
+<script src="offline.js?v=284"></script>
+<script src="ride-stats.js?v=284"></script>
+<script src="navigate.js?v=284"></script>
+<script src="planner.js?v=284"></script>
+<script src="rides.js?v=284"></script>
+<script src="account.js?v=284"></script>
+<script src="reports.js?v=284"></script>
+<script src="visitors.js?v=284"></script>
+<script src="notify.js?v=284"></script>
+<script src="areas.js?v=284"></script>
+<script src="alpine.js?v=284"></script>
+<script src="bikeparks.js?v=284"></script>
+<script src="photo-find.js?v=284"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
