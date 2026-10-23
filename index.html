@@ -1379,6 +1379,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <p class="src">Fires outside BC and Alberta: Canadian Forest Service, Canadian Wildland Fire Information System (CWFIS), Natural Resources Canada, Canadian Forest Service, Northern Forestry Centre, Edmonton, Alberta (Open Government Licence – Canada). Alberta: contains information licensed under the Open Government Licence – Alberta.</p>
     <h3>Skiing</h3>
     <p>Pick “⛷ Skiing” in the sport menu at the top. The map then shows backcountry ski routes and huts instead of the bike trails, with a list of what's in view. Every night the site collects them from OpenStreetMap (ski touring, nordic, snowshoe and snowmobile routes, ski route relations, and alpine and wilderness huts; resort runs are there too but off by default) from BC Recreation Sites and Trails (trails whose name or description says ski, nordic, snowshoe or snowmobile), and from camptocamp.org (ski touring and snowshoe routes that have a drawn line). Tap a route or hut for its details.</p>
+    <p>Four buttons at the top of the panel pick what's on the map: <b>⛷ Touring</b> (ski touring and ski access routes, other winter routes, huts and camptocamp route starts, with the Avalanche card), <b>🎿 Nordic</b> (nordic and snowshoe trails), <b>🛷 Snowmobile</b> (snowmobile trails and the clubs with their grooming reports) and <b>🚡 Resorts</b> (runs, and in-bounds off-piste and bowls). More than one can be on. The Avalanche card shows today's ratings for the middle of the map, with the problems, the forecaster's notes and riders' reports under “Problems, notes and riders' reports”. In <b>Layers</b> on the map, the Skiing part has ⚠ Avalanche risk, the Ski heatmap, Your ski tours, and every single layer under “Single layers”. Sledding and tubing hills aren't shown.</p>
     <p>A route's details lead with its elevation: top and bottom height, climb and descent, and a height profile (move along it to see the spot on the map; orange is ground of 30° and steeper). Below that: how steep the ground under the route gets, which way its steep parts face and how much of it is below treeline, at treeline and in the alpine; the avalanche forecast for the route's area with the bands it goes through, and which of the day's avalanche problems are on its slopes; avalanches that riders reported within 15 km in the last 14 days on Avalanche Canada's Mountain Information Network, and the forecaster's notes on recent avalanches; the weather at the top (temperature, new snow, wind and freezing level, from Open-Meteo); huts and camptocamp routes close by; and a GPX download with the heights. Heights come from open terrain data about 12 m apart, so small cliffs don't show. Unnamed routes are named after the closest named peak, like “Ski touring near Ipsoot Mountain”.</p>
     <p>Snowmobile trails (red dashes) are OpenStreetMap ways marked for snowmobiles (<code>piste:type=snowmobile</code>, <code>route=snowmobile</code>, or <code>snowmobile=yes</code> or <code>designated</code>, often forest roads that are sled trails in winter) and BC recreation trails that say snowmobile. The ❄ pins are the snowmobile clubs' staging areas: Powder Mountain (Brandywine), Black Tusk (Brohm Ridge), Pemberton Valley (Rutherford and the Hurley), Bridge River Valley (Gold Bridge) and Burke Mountain. “Snowmobile clubs and grooming” lists each club with its trail pass and its latest grooming report. Every 2 hours the site reads the reports that are on a public web page, when the page's robots.txt allows it. Clubs that only post on Facebook or Instagram get a link instead, because those sites don't allow others to copy their posts.</p>
     <p>“Ski heatmap” shows where people actually go in winter: every week the site counts the public GPS traces uploaded to OpenStreetMap from December to April, per 30 m square, leaving out roads, railways, ferries and lifts. Blue is one trace, then cyan, yellow and orange for the busiest lines. Few people upload traces here, so it's patchy. Strava's and Trailforks' heatmaps don't allow other sites to reuse them. “Your ski tours” draws the tours you imported or recorded with Ride (My rides): a ride counts as a ski tour when its file says skiing or snowshoeing, its name says ski, skin, splitboard, snowshoe or powder, or it was in winter (November to May) and went above 1300 m. They stay on your device.</p>
@@ -1400,11 +1401,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=309"></script>
-<script src="rotate.js?v=309"></script>
-<script src="official.js?v=309"></script>
-<script src="directions.js?v=309"></script>
-<script src="ratings.js?v=309"></script>
+<script src="native.js?v=310"></script>
+<script src="rotate.js?v=310"></script>
+<script src="official.js?v=310"></script>
+<script src="directions.js?v=310"></script>
+<script src="ratings.js?v=310"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3564,7 +3565,7 @@ out body;`;
   let trailInfo = null;
   const foldName = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   async function officialAbout(t) {
-    trailInfo = trailInfo || fetch("data/trail-info.json?v=309").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
+    trailInfo = trailInfo || fetch("data/trail-info.json?v=310").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
     const j = await trailInfo; if (!j) return [];
     const names = new Set([t.tags.name, t.tags["mtb:name"], t.tags["tf:name"], t.tfName].filter(Boolean).map(foldName));
     const mid = t.geom[Math.floor(t.geom.length / 2)], k = Math.cos(mid[0] * Math.PI / 180);
@@ -5641,7 +5642,7 @@ out body;`;
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !layersMenu.hidden) { setLayersOpen(false); layersBtn.focus(); } });
   $("offlineBtn").addEventListener("click", () => setLayersOpen(false));   // Offline maps opens its own view
   function countLayers() {   // "Layers · 3" says how many overlays are on without opening the menu
-    const on = [...layersMenu.querySelectorAll(".lm-overlays button")].filter((b) => b.getAttribute("aria-pressed") === "true" && !b.hidden && getComputedStyle(b).display !== "none").length;
+    const on = [...layersMenu.querySelectorAll(".lm-overlays button")].filter((b) => b.getAttribute("aria-pressed") === "true" && !b.hidden && !b.closest(".lm-ski-singles") && getComputedStyle(b).display !== "none").length;
     $("layersN").textContent = on ? String(on) : "";
   }
   new MutationObserver(countLayers).observe(layersMenu, { subtree: true, childList: true, attributes: true, attributeFilter: ["aria-pressed", "hidden", "class"] });
@@ -6709,28 +6710,28 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=309"></script>
-<script src="contours.js?v=309"></script>
-<script src="photo-slider.js?v=309"></script>
-<script src="winter.js?v=309"></script>
-<script src="hunting.js?v=309"></script>
-<script src="ski-points.js?v=309"></script>
-<script src="offline.js?v=309"></script>
-<script src="ride-stats.js?v=309"></script>
-<script src="native-gps.js?v=309"></script>
-<script src="navigate.js?v=309"></script>
-<script src="planner.js?v=309"></script>
-<script src="rides.js?v=309"></script>
-<script src="account.js?v=309"></script>
-<script src="reports.js?v=309"></script>
-<script src="trail-photos.js?v=309"></script>
-<script src="visitors.js?v=309"></script>
-<script src="notify.js?v=309"></script>
-<script src="status.js?v=309"></script>
-<script src="areas.js?v=309"></script>
-<script src="alpine.js?v=309"></script>
-<script src="bikeparks.js?v=309"></script>
-<script src="photo-find.js?v=309"></script>
+<script src="map3d.js?v=310"></script>
+<script src="contours.js?v=310"></script>
+<script src="photo-slider.js?v=310"></script>
+<script src="winter.js?v=310"></script>
+<script src="hunting.js?v=310"></script>
+<script src="ski-points.js?v=310"></script>
+<script src="offline.js?v=310"></script>
+<script src="ride-stats.js?v=310"></script>
+<script src="native-gps.js?v=310"></script>
+<script src="navigate.js?v=310"></script>
+<script src="planner.js?v=310"></script>
+<script src="rides.js?v=310"></script>
+<script src="account.js?v=310"></script>
+<script src="reports.js?v=310"></script>
+<script src="trail-photos.js?v=310"></script>
+<script src="visitors.js?v=310"></script>
+<script src="notify.js?v=310"></script>
+<script src="status.js?v=310"></script>
+<script src="areas.js?v=310"></script>
+<script src="alpine.js?v=310"></script>
+<script src="bikeparks.js?v=310"></script>
+<script src="photo-find.js?v=310"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
