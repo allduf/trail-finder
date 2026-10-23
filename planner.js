@@ -1225,10 +1225,11 @@
     } else setTimeout(() => { if (planning) resolvePicks(); }, 1500);
   }
   // The route as a GPX track, with each point's height (from the same terrain tiles; left out where there are none).
-  // With near (alex, for the map on a DJI Avinox bike, which shows only what's in the file): the trails and roads within
-  // GPX_NEAR_M of the route go in too, each as its own track, cut to the bits near the route.
-  const GPX_NEAR_M = 100;
-  function nearbyTracks(pts) {
+  // With near (alex, for the map on a DJI Avinox bike, which shows only what's in the file and joins every track in it
+  // into one line): one track, the route, with the first SPUR_M of each trail or road that crosses it or leaves it
+  // ridden out and back from where it meets the route, so the junctions show as short stubs on the route line.
+  const SPUR_M = 100, TOUCH_M = 20;
+  function withSpurs(pts) {
     const cell = 0.002, grid = new Map(), at = (a, b) => a + "," + b;
     for (let i = 0; i + 1 < pts.length; i++) {
       const [a, b] = [pts[i], pts[i + 1]];
@@ -1238,41 +1239,70 @@
         }
     }
     const ky = 110540, kx = Math.cos(pts[0][0] * RAD) * 111320;
-    const segDist = (q, a, b) => {   // metres from q to the segment a-b, flat (short distances)
-      const ax = (a[1] - q[1]) * kx, ay = (a[0] - q[0]) * ky, bx = (b[1] - q[1]) * kx, by = (b[0] - q[0]) * ky;
-      const dx = bx - ax, dy = by - ay, l = dx * dx + dy * dy, t = l ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l)) : 0;
-      return Math.hypot(ax + t * dx, ay + t * dy);
-    };
-    const dist = (q) => {
-      let best = Infinity;
+    // Nearest point on the route to q: { d metres, i segment, t along it }.
+    const near = (q) => {
+      let best = { d: Infinity, i: 0, t: 0 };
       const cx = Math.floor(q[0] / cell), cy = Math.floor(q[1] / cell);
       for (let x = cx - 1; x <= cx + 1; x++) for (let y = cy - 1; y <= cy + 1; y++)
-        (grid.get(at(x, y)) || []).forEach((i) => { best = Math.min(best, segDist(q, pts[i], pts[i + 1])); });
+        (grid.get(at(x, y)) || []).forEach((i) => {
+          const a = pts[i], b = pts[i + 1];
+          const ax = (a[1] - q[1]) * kx, ay = (a[0] - q[0]) * ky, bx = (b[1] - q[1]) * kx, by = (b[0] - q[0]) * ky;
+          const dx = bx - ax, dy = by - ay, l = dx * dx + dy * dy, t = l ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l)) : 0;
+          const d = Math.hypot(ax + t * dx, ay + t * dy);
+          if (d < best.d) best = { d, i, t };
+        });
       return best;
     };
-    const box = boxOf(pts, 0.002), out = [];
+    // The first SPUR_M of the line from geom[k] stepping by dir, cut to length.
+    const walk = (g, k, dir) => {
+      const out = [g[k]];
+      let left = SPUR_M;
+      for (let n = k + dir; n >= 0 && n < g.length && left > 0; n += dir) {
+        const a = out[out.length - 1], step = metres(a, g[n]);
+        if (step > left) { const f = left / step; out.push([a[0] + (g[n][0] - a[0]) * f, a[1] + (g[n][1] - a[1]) * f]); break; }
+        out.push(g[n]); left -= step;
+      }
+      return out;
+    };
+    const box = boxOf(pts, 0.002), spurs = [], seen = new Set();
     allWays().forEach((w) => {
       if (w.conn || !inBox(w, box)) return;
-      const d = w.geom.map(dist);
-      if (d.filter((x) => x < 15).length > d.length * 0.8) return;   // the route itself rides it
-      let run = [];
-      const flush = () => { if (run.length > 1) out.push({ name: nameOf(w) || (w.road ? "Forest road" : "Trail"), pts: run }); run = []; };
-      w.geom.forEach((q, i) => {
-        // keep the points near the route, plus one either side so the line reaches the edge of the band
-        if (d[i] <= GPX_NEAR_M || d[i - 1] <= GPX_NEAR_M || d[i + 1] <= GPX_NEAR_M) run.push(q); else flush();
+      const g = w.geom, n = g.map(near);
+      if (n.filter((x) => x.d < 15).length > g.length * 0.8) return;   // the route itself rides it
+      g.forEach((q, k) => {
+        if (n[k].d > TOUCH_M) return;
+        [-1, 1].forEach((dir) => {
+          const nx = k + dir;
+          if (nx < 0 || nx >= g.length || n[nx].d <= TOUCH_M) return;   // carries on along the route, or ends here
+          const spur = walk(g, k, dir);
+          if (spur.length < 2 || near(spur[spur.length - 1]).d < TOUCH_M + 10) return;   // runs beside the route
+          const tip = key(spur[spur.length - 1]).replace(/(\.\d{3})\d+/g, "$1");
+          if (seen.has(tip)) return;   // the same stub from another piece of the line
+          seen.add(tip);
+          spurs.push({ ...n[k], spur });
+        });
       });
-      flush();
     });
-    return out;
+    spurs.sort((a, b) => a.i - b.i || a.t - b.t);
+    const out = [];
+    let s = 0;
+    pts.forEach((p, i) => {
+      out.push(p);
+      for (; s < spurs.length && spurs[s].i === i; s++) {
+        const { t, spur } = spurs[s], b = pts[i + 1] || p, on = [p[0] + (b[0] - p[0]) * t, p[1] + (b[1] - p[1]) * t];
+        out.push(on, ...spur, ...spur.slice(0, -1).reverse(), on);
+      }
+    });
+    return { pts: out, n: spurs.length };
   }
   async function gpx(near) {
     const pts = allPts(), now = new Date().toISOString(), name = mode === "pick" ? "Trail Finder ride" : "Trail Finder route";
-    const others = near === true ? nearbyTracks(pts) : [];
+    const sp = near === true ? withSpurs(pts) : null;
     const ht = await terrainOr(boxOf(pts, 0.005));
     const pt = (q) => { const h = ht(q); return `<trkpt lat="${q[0].toFixed(6)}" lon="${q[1].toFixed(6)}">${h != null ? `<ele>${h.toFixed(1)}</ele>` : ""}</trkpt>`; };
     const trk = (n, list) => `<trk><name>${esc(n)}</name><trkseg>\n${list.map(pt).join("\n")}\n</trkseg></trk>`;
-    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${name}</name><time>${now}</time></metadata>\n${[trk(name, pts), ...others.map((o) => trk(o.name, o.pts))].join("\n")}\n</gpx>\n`;
-    saveGpx(body, `trail-finder-route${others.length ? "-with-trails" : ""}-${now.slice(0, 10)}.gpx`);
+    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${name}</name><time>${now}</time></metadata>\n${trk(name, sp ? sp.pts : pts)}\n</gpx>\n`;
+    saveGpx(body, `trail-finder-route${sp ? "-with-trail-starts" : ""}-${now.slice(0, 10)}.gpx`);
   }
   // Phones (and the iPhone app, where a download link does nothing: alex couldn't export) get the share sheet, so the
   // file goes straight to the DJI app, Files, Mail... Computers download it. Heights take a moment to load, which can
@@ -1409,7 +1439,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
       <button type="button" data-how="pedal" title="Ride all of it, climbs included">🚲 Pedal</button>
       <button type="button" data-how="shuttle" title="A 4x4 pickup drives you up the open forest roads; you ride from where it stops">🛻 Shuttle</button></div></div>
       <div class="plan-btns"><button type="button" id="planStart" hidden>📍 Set start</button><button type="button" id="planLoop" title="End the ride back at the start">↺ Back to start</button>
-      <button type="button" id="planShare" title="Send this ride to a friend: the link opens it in their app">↗ Share</button><button type="button" id="planGpx">⤓ GPX</button><button type="button" id="planGpxNear" title="The route plus the trails and roads within ${GPX_NEAR_M} m of it, for a bike computer map that shows only the file">⤓ GPX + trails nearby</button>
+      <button type="button" id="planShare" title="Send this ride to a friend: the link opens it in their app">↗ Share</button><button type="button" id="planGpx">⤓ GPX</button><button type="button" id="planGpxNear" title="One line: the route, with the first ${SPUR_M} m of each trail that crosses or leaves it as a short out-and-back stub, for a bike computer map that shows only the file (DJI Avinox)">⤓ GPX + trail starts</button>
       <button type="button" id="planSavedBtn" aria-pressed="false" title="Your saved routes">📂 Saved</button><button type="button" id="planClear">🗑 Clear</button></div></div>
     <ul class="plan-saved" id="planSaved" hidden aria-label="Saved routes"></ul>`;
   document.body.appendChild(bar);
