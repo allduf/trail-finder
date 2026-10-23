@@ -1,6 +1,8 @@
 name: Publish website
 
-# Publishes the website: main as it stands, plus the Canada-wide trail data from the canada-data branch under ca/.
+# Publishes the website: main as it stands, plus the Canada-wide trail data from the canada-data branch under ca/
+# and the 3D map's Winter photos from the winter-photos branch under data/winter/ (both kept out of main's history,
+# so the repository doesn't grow by hundreds of MB each time they're rebuilt).
 # Runs after every push to main and after every data job (their commits to main don't start workflows by themselves).
 # Needs Settings > Pages > Build and deployment > Source = "GitHub Actions".
 on:
@@ -37,6 +39,10 @@ jobs:
         run: |
           git clone -q --depth 1 --branch canada-data "https://github.com/${GITHUB_REPOSITORY}.git" canada || { echo "No canada-data branch yet."; exit 0; }
           mv canada/ca site/ca
+      - name: Add the Winter photos
+        run: |
+          git clone -q --depth 1 --branch winter-photos "https://github.com/${GITHUB_REPOSITORY}.git" winter || { echo "No winter-photos branch yet."; exit 0; }
+          rm -rf site/data/winter && mv winter/winter site/data/winter
       - name: Leave out what the website doesn't need
         run: rm -rf site/.git site/.github site/scripts site/supabase site/ios-app
       - uses: actions/upload-pages-artifact@v3
