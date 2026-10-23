@@ -248,8 +248,8 @@
 
   // ---------- winter photos ----------
   // tfwinter://full|live/z/x/y draws snow into the sharp Esri photo itself, pixel by pixel, so the
-  // photo's texture stays. Where the snow goes: "full" = everything above a mid-winter snow line
-  // (fading in from 300 m to 800 m), "live" = NASA's latest MODIS snow map. Then, like real winter
+  // photo's texture stays. Where the snow goes: NASA's latest MODIS snow map. "live" draws it everywhere, "fill"
+  // only outside last winter's photos (it lies under them in Winter, so Winter has snow everywhere). Then, like real winter
   // photos: open ground, clearings and alpine go white, dark conifer forest keeps its trees with only a
   // dusting, and cliffs too steep to hold snow stay rock. The hillshade layer adds the relief.
   const ESRI = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
@@ -278,7 +278,9 @@
     if (winterProtocol) return;
     winterProtocol = true;
     maplibregl.addProtocol("tfwinter", async (params, abort) => {
-      const [, zs, xs, ys] = params.url.replace("tfwinter://", "").split("/"), z = +zs, x = +xs, y = +ys, sig = abort.signal;
+      const [mode, zs, xs, ys] = params.url.replace("tfwinter://", "").split("/"), z = +zs, x = +xs, y = +ys, sig = abort.signal;
+      if (mode === "fill" && covered(await loadWinterBlocks(), z, x, y))   // last winter's photos cover it: the plain photo will do
+        return { data: await fetch(ESRI(z, x, y), { signal: sig }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); }) };
       const [raw, live] = await Promise.all([
         fetch(ESRI(z, x, y), { signal: sig }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); }),
         under(Math.min(z, 8), z, x, y, (a, b, c) => cached(`s${a}/${b}/${c}`, () => image(NASA_SNOW(a, b, c), new AbortController().signal).then(pixels))).catch(() => null)]);
@@ -337,6 +339,14 @@
   let winterBlocks = null;
   const loadWinterBlocks = () => winterBlocks || (winterBlocks = fetch("data/winter/blocks.json").then((r) => r.json())
     .then((a) => new Set(a.map(([x, y]) => x + "/" + y))).catch(() => { winterBlocks = null; return null; }));
+  // Is tile z/x/y all inside the zoom-11 squares that have winter photos?
+  const covered = (have, z, x, y) => {
+    if (!have) return false;
+    if (z >= 11) return have.has((x >> (z - 11)) + "/" + (y >> (z - 11)));
+    const n = 1 << (11 - z);
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (!have.has((x * n + i) + "/" + (y * n + j))) return false;
+    return true;
+  };
 
   // ---------- sharper Winter photos up close ----------
   // tfwinterhd://z/x/y (zooms 15-16, computers only): last winter's 10 m Sentinel-2 photos with finer detail added
@@ -430,6 +440,9 @@
           ...(PHONE ? {} : { winterhd: { type: "raster", tileSize: 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] } }),
           live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
+          // Under the Winter photos instead of the summer ones: today's snow wherever last winter's photos don't reach.
+          fill: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://fill/{z}/{x}/{y}"],
+            attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           shade: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: 14, tiles: ["tfdem://{z}/{x}/{y}"] },
           sat: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
@@ -446,6 +459,7 @@
         layers: [
           { id: "sat", type: "raster", source: "sat", paint: { "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
+          { id: "fill", type: "raster", source: "fill", layout: { visibility: "none" } },
           { id: "winter", type: "raster", source: "winter", layout: { visibility: "none" } },
           ...(PHONE ? [] : [{ id: "winterhd", type: "raster", source: "winterhd", layout: { visibility: "none" }, paint: { "raster-fade-duration": 200 } }]),
           { id: "live", type: "raster", source: "live", layout: { visibility: "none" } },
@@ -496,14 +510,15 @@
     // (as before) reloaded every photo after each move, up to 900 tiles each time, and showed blurry ones while
     // moving. Now about 150 to 380 tiles in a tilted view, against 500 to 900.
     // Phones the same since 2026-10-23 (they had 4 levels and fewer far tiles, which made the distance blurry).
-    const lod = () => ["sat", "winter", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
+    const lod = () => ["sat", "fill", "winter", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
     gl.once("load", lod);
     if (PHONE) gl.on("idle", trimPaintBuffers);
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
     // Summer / Winter / Live: Summer = the sharp snow-free Esri photos, Winter = last winter's real
-    // Sentinel-2 photos, Live = NASA's latest snow cover painted on the sharp photos.
+    // Sentinel-2 photos, Live = NASA's latest snow cover painted on the sharp photos. Skiing has only Winter and
+    // Live (alex, 2026-10-23), and MTB only Summer and Live.
     const mk = (label) => { const el = document.createElement("button"); el.type = "button"; el.textContent = label;
       el.style.cssText = "width:auto;padding:0 10px;font:600 12px var(--font-body, system-ui)"; return el; };
     const sumBtn = mk("Summer"), winBtn = mk("Winter"), liveBtn = mk("Live");
@@ -512,9 +527,12 @@
     const setPhotos = (mode) => {
       photos = ["sharp", "winter", "live"].includes(mode) ? mode : "sharp";   // (an old saved "2023" choice becomes Summer)
       if (photos === "winter" && !ski()) photos = "sharp";   // last winter's snow photos are for Skiing only
+      if (photos === "sharp" && ski()) photos = "winter";
       winBtn.style.display = ski() ? "" : "none";
+      sumBtn.style.display = ski() ? "none" : "";
       const w = photos === "winter" || photos === "live";
-      gl.setLayoutProperty("sat", "visibility", photos === "sharp" || photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
+      gl.setLayoutProperty("sat", "visibility", photos === "sharp" ? "visible" : "none");
+      gl.setLayoutProperty("fill", "visibility", photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
       for (const id of ["winter", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
       gl.setLayoutProperty("live", "visibility", photos === "live" ? "visible" : "none");
       sumBtn.title = "Sharp, snow-free photos";
@@ -524,9 +542,9 @@
       store.set(ski() ? "3dPhotosSki" : "3dPhotos", photos);
       winterHere();
     };
-    // Winter outside the photos' area shows the summer photos: say so, so it doesn't look broken.
+    // Winter outside last winter's photos shows today's snow (NASA, as in Live): say so.
     const noWinter = document.createElement("div");
-    noWinter.textContent = "No winter photos here yet: summer photos";
+    noWinter.textContent = "No winter photos here yet: today's snow";
     noWinter.style.cssText = "display:none;position:absolute;right:0;bottom:100%;margin-bottom:4px;white-space:nowrap;padding:3px 8px;border-radius:6px;background:rgba(20,30,25,.85);color:#fff;font:600 12px var(--font-body, system-ui)";
     const winterHere = async () => {
       if (photos !== "winter") { noWinter.style.display = "none"; return; }
