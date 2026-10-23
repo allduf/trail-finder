@@ -243,7 +243,7 @@
 .nav-route .x { float: right; font: inherit; font-size: .85rem; border: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; padding: 0 0 0 8px; }
 #navRideBtn { font-weight: 700; }
 @media (max-width: 760px) { #navRideBtn { display: none; } }
-body.sport-ski #navRideBtn { display: none; }
+body.sport-alt #navRideBtn { display: none; }
 `;
   document.head.appendChild(css);
   const strip = document.createElement("div");
@@ -737,7 +737,7 @@ body.sport-ski #navRideBtn { display: none; }
     if (k === arrowView) return;
     arrowView = k; arrowN = all.length;
     arrows.clearLayers();
-    if (z < ARROW_ZOOM || document.body.classList.contains("sport-ski")) return;
+    if (z < ARROW_ZOOM || document.body.classList.contains("sport-alt")) return;
     const shown = nav.shown ? new Set(nav.shown()) : null;   // only on trails drawn on the map now
     const seen = new Set(), pad = view.pad(0.1);
     let n = 0;

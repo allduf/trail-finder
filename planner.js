@@ -1277,7 +1277,7 @@ body.planning:has(.app:not(.fullmap)) .plan-bar { left: 396px; }
 .plan-stop span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #7b2ff7; color: #fff; font: 700 12px/1 system-ui, sans-serif; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); box-sizing: border-box; }
 .plan-stop.pick span { background: #ffd43b; color: #2b2100; }
 .plan-arrow span { display: block; width: 16px; height: 16px; color: #fff; font: 700 11px/16px system-ui, sans-serif; text-align: center; text-shadow: 0 0 2px #4b1aa0, 0 0 2px #4b1aa0; }
-body.sport-ski #planBtn, body.sport-ski #planMapBtn, .app.riding #planMapBtn, .app.planning #planMapBtn { display: none; }
+body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .app.planning #planMapBtn { display: none; }
 #planMapBtn { font-weight: 700; }
 @media (max-width: 760px) { #planMapBtn { display: none; } }
 `;

@@ -23,7 +23,7 @@
   const css = document.createElement("style");
   css.textContent = `
 .map-tools #ridesBtn.on { background: ${GLOW}; border-color: ${TRACK}; color: ${INK}; }
-body.sport-ski #ridesBtn { display: none !important; }
+body.sport-alt #ridesBtn { display: none !important; }
 .ridden-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: ${GLOW}; color: ${INK}; vertical-align: 1px; white-space: nowrap; }
 .ridden-tag.part { background: transparent; color: var(--fg); border: 1.5px dashed ${TRACK}; }
 .ridden-note { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; border-left: 4px solid ${TRACK}; background: color-mix(in srgb, ${GLOW} 22%, transparent); font-size: .9rem; }
@@ -257,6 +257,6 @@ body.sport-ski #ridesBtn { display: none !important; }
   // Rides saved or imported in ride.html (another tab, or coming back to this page) show up when this page is seen again.
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh(); });
   window.addEventListener("pageshow", (e) => { if (e.persisted) refresh(); });
-  if (!document.body.classList.contains("sport-ski")) layer.addTo(map);
+  if (!document.body.classList.contains("sport-alt")) layer.addTo(map);
   refresh();
 })();

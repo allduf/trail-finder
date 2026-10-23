@@ -1,0 +1,250 @@
+// Monthly job (see .github/workflows/hunting-data.yml): the map layers for Hunting, the third sport in the sport menu.
+//
+// Writes three files in data/hunting/, all from free official open data:
+//  - zones.json: every Wildlife Management Unit in BC (DataBC WHSE_WILDLIFE_MANAGEMENT.WAA_WILDLIFE_MGMT_UNITS_SVW,
+//    with its game management zone and region) and in Alberta (Alberta Environment and Protected Areas,
+//    boundaries/fishwild_wildlife_mgmt_unit_public), each with a label point.
+//  - leh.json: BC Limited Entry Hunting zones for this year (WAA_LTD_HNT_ZONE_CURR_YEAR_SVW): the hunts that need an LEH draw.
+//  - areas.json: places with their own hunting rules: BC parks, protected areas, conservancies and ecological reserves
+//    (WHSE_TANTALIS.TA_PARK_ECORES_PA_SVW), BC wildlife management areas (TA_WILDLIFE_MGMT_AREAS_SVW), national parks
+//    (CLAB_NATIONAL_PARKS), First Nation reserves (CLAB_INDIAN_RESERVES), BC towns and cities (ABMS_MUNICIPALITIES_SP,
+//    where shooting is usually banned by bylaw), motor vehicle closures (WAA_MVPR_AREAS_SP), Alberta parks and
+//    protected areas (environment/parks_and_protected_areas_of_alberta_10tm_nad83_aep), Alberta First Nation reserves
+//    (federal CLSS Aboriginal Lands) and Metis settlements, and Alberta's Green Area (public forest land).
+// DataBC: Open Government Licence - British Columbia. Alberta: Open Government Licence - Alberta. CLSS: Open Government
+// Licence - Canada. A source that fails keeps its last good data.
+//
+// Run: node scripts/build-hunting.mjs   (Node 18 or newer, no packages needed)
+
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+
+const OUT = new URL("../data/hunting/", import.meta.url);
+const UA = "trail-finder hunting data (https://github.com/allduf/trail-finder)";
+const WFS = "https://openmaps.gov.bc.ca/geo/pub/wfs";
+const AB = "https://geospatial.alberta.ca";
+const CLSS = "https://proxyinternet.nrcan-rncan.gc.ca/arcgis/rest/services/CLSS-SATC/CLSS_Administrative_Boundaries/MapServer/0";
+const AB_BOX = [48.99, -120.01, 60.01, -109.99];   // s, w, n, e
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const log = (...a) => console.log(...a);
+if (!existsSync(OUT)) mkdirSync(OUT, { recursive: true });
+// Rings are written as whole numbers (degrees x 10,000), each point after the first as the change from the one before:
+// about a third of the size of plain coordinates. hunting.js decodes them.
+const encode = (g) => g.map((r) => { const out = []; let pa = 0, po = 0; for (let i = 0; i < r.length; i += 2) { const a = Math.round(r[i] * 1e4), o = Math.round(r[i + 1] * 1e4); out.push(a - pa, o - po); pa = a; po = o; } return out; });
+const decode = (g) => g.map((r) => { const out = []; let a = 0, o = 0; for (let i = 0; i < r.length; i += 2) { a += r[i]; o += r[i + 1]; out.push(a / 1e4, o / 1e4); } return out; });
+const readOld = (name) => {
+  try { const j = JSON.parse(readFileSync(new URL(name, OUT), "utf8")); for (const f of j.zones || j.areas || []) f.g = decode(f.g); return j; } catch { return null; }
+};
+
+async function getJson(url, tries = 4) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(240000) });
+      const text = await res.text();
+      if (!res.ok || !text.startsWith("{")) throw new Error(`HTTP ${res.status}: ${text.slice(0, 300).replace(/\s+/g, " ")}`);
+      return JSON.parse(text);
+    } catch (e) {
+      lastErr = e; log(`    ${e.message.slice(0, 120)}; trying again`);
+      if (/HTTP 400/.test(e.message)) break;   // a bad request won't get better
+      await sleep(8000 * (i + 1));
+    }
+  }
+  throw lastErr;
+}
+// A whole DataBC layer, page by page (props: the fields used, for the log; the geometry column's name varies, so all fields come).
+async function databc(layer, props, where = "") {
+  const out = [];
+  for (let start = 0; ; start += 2000) {
+    const p = new URLSearchParams({ service: "WFS", version: "2.0.0", request: "GetFeature", typeName: `pub:${layer}`, outputFormat: "application/json",
+      srsName: "EPSG:4326", count: "2000", startIndex: String(start), sortBy: "OBJECTID" });
+    if (where) p.set("CQL_FILTER", where);
+    const fc = await getJson(`${WFS}?${p}`);
+    if (start === 0 && fc.features?.[0]) { const miss = props.filter((k) => !(k in fc.features[0].properties)); if (miss.length) log(`    ${layer}: no field ${miss.join(", ")}`); }
+    out.push(...(fc.features || []));
+    log(`    ${layer.split(".")[1]}: ${out.length} of ${fc.numberMatched ?? "?"}`);
+    if (!fc.features || fc.features.length < 2000) break;
+  }
+  return out;
+}
+// A whole ArcGIS layer as GeoJSON in WGS84, simplified on the server (offset in degrees).
+async function arcgis(layer, fields, where = "1=1", offset = 0.0005, box = null) {
+  const out = [];
+  for (let start = 0; ; start += 500) {
+    const p = new URLSearchParams({ where, outFields: fields.join(","), outSR: "4326", f: "geojson", resultOffset: String(start), resultRecordCount: "500",
+      maxAllowableOffset: String(offset), orderByFields: "OBJECTID" });
+    if (box) { p.set("geometry", [box[1], box[0], box[3], box[2]].join(",")); p.set("geometryType", "esriGeometryEnvelope"); p.set("inSR", "4326"); p.set("spatialRel", "esriSpatialRelIntersects"); }
+    const fc = await getJson(`${layer}/query?${p}`);
+    out.push(...(fc.features || []));
+    log(`    ${layer.split("/services/")[1]}: ${out.length}`);
+    if (!fc.features || fc.features.length < 500) break;
+  }
+  return out;
+}
+
+// ---------- geometry ----------
+// Douglas-Peucker on [lon, lat] points, tolerance in degrees of latitude (longitude scaled by cos(lat)).
+function simplify(pts, tol) {
+  if (pts.length < 5) return pts;
+  const k = Math.cos((pts[0][1] * Math.PI) / 180), keep = new Uint8Array(pts.length);
+  keep[0] = keep[pts.length - 1] = 1;
+  const stack = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    const ax = pts[a][0] * k, ay = pts[a][1], bx = pts[b][0] * k, by = pts[b][1], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+    let best = -1, bi = -1;
+    for (let i = a + 1; i < b; i++) {
+      const px = pts[i][0] * k, py = pts[i][1];
+      let t = L2 ? ((px - ax) * dx + (py - ay) * dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
+      const d = Math.hypot(px - ax - t * dx, py - ay - t * dy);
+      if (d > best) { best = d; bi = i; }
+    }
+    if (best > tol) { keep[bi] = 1; stack.push([a, bi], [bi, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+const r4 = (n) => Math.round(n * 1e4) / 1e4;
+// Polygons as a list of rings [lat, lon, lat, lon, ...] (outer rings and holes together; drawn and tested even-odd).
+function rings(geom, tol, minPts = 4) {
+  if (!geom) return [];
+  const polys = geom.type === "MultiPolygon" ? geom.coordinates : geom.type === "Polygon" ? [geom.coordinates] : [];
+  return polys.flatMap((poly) => poly.map((ring) => {
+    const pts = simplify(ring, tol);
+    if (pts.length < minPts) return null;
+    const flat = [];
+    for (const [x, y] of pts) flat.push(r4(y), r4(x));
+    return flat;
+  }).filter(Boolean));
+}
+function bbox(g) {
+  let s = 90, w = 180, n = -90, e = -180;
+  for (const r of g) for (let i = 0; i < r.length; i += 2) { s = Math.min(s, r[i]); n = Math.max(n, r[i]); w = Math.min(w, r[i + 1]); e = Math.max(e, r[i + 1]); }
+  return [s, w, n, e].map(r4);
+}
+function inside(g, lat, lon) {
+  let c = false;
+  for (const r of g) for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) {
+    if ((r[i] > lat) !== (r[j] > lat) && lon < ((r[j + 1] - r[i + 1]) * (lat - r[i])) / (r[j] - r[i]) + r[i + 1]) c = !c;
+  }
+  return c;
+}
+function edgeDist(g, lat, lon) {
+  const k = Math.cos((lat * Math.PI) / 180);
+  let best = Infinity;
+  for (const r of g) for (let i = 2; i < r.length; i += 2) {
+    const ax = r[i - 1] * k, ay = r[i - 2], bx = r[i + 1] * k, by = r[i], px = lon * k, py = lat, dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+    let t = L2 ? ((px - ax) * dx + (py - ay) * dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
+    best = Math.min(best, Math.hypot(px - ax - t * dx, py - ay - t * dy));
+  }
+  return best;
+}
+// A label point well inside the shape: the grid point furthest from any edge, refined around the best one twice.
+function labelPoint(g) {
+  let [s, w, n, e] = bbox(g), best = null, bd = -1;
+  for (let round = 0; round < 3; round++) {
+    const N = 24;
+    for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
+      const lat = s + ((n - s) * i) / N, lon = w + ((e - w) * j) / N;
+      if (!inside(g, lat, lon)) continue;
+      const d = edgeDist(g, lat, lon);
+      if (d > bd) { bd = d; best = [lat, lon]; }
+    }
+    if (!best) break;
+    const hs = (n - s) / 8, hw = (e - w) / 8;
+    [s, w, n, e] = [best[0] - hs, best[1] - hw, best[0] + hs, best[1] + hw];
+  }
+  return best ? best.map(r4) : null;
+}
+const title = (s) => String(s || "").toLowerCase().replace(/(^|[\s\-/(])([a-z])/g, (m, a, b) => a + b.toUpperCase()).trim();
+const date = (v) => (v ? (typeof v === "number" ? new Date(v).toISOString() : String(v)).slice(0, 10) : "");
+
+// ---------- the parts ----------
+async function bcZones() {
+  const f = await databc("WHSE_WILDLIFE_MANAGEMENT.WAA_WILDLIFE_MGMT_UNITS_SVW",
+    ["WILDLIFE_MGMT_UNIT_ID", "REGION_RESPONSIBLE_ID", "REGION_RESPONSIBLE_NAME", "GAME_MANAGEMENT_ZONE_ID", "GAME_MANAGEMENT_ZONE_NAME"]);
+  return f.map((x) => {
+    const p = x.properties, g = rings(x.geometry, 0.0015);
+    return g.length ? { p: "bc", id: p.WILDLIFE_MGMT_UNIT_ID, r: p.REGION_RESPONSIBLE_ID, rn: p.REGION_RESPONSIBLE_NAME, z: p.GAME_MANAGEMENT_ZONE_ID,
+      zn: p.GAME_MANAGEMENT_ZONE_NAME, b: bbox(g), c: labelPoint(g), g } : null;
+  }).filter(Boolean);
+}
+async function abZones() {
+  const f = await arcgis(`${AB}/mimas/rest/services/boundaries/fishwild_wildlife_mgmt_unit_public/FeatureServer/0`, ["WMUNIT_NAME", "WMUNIT_CODE", "OBJECTID"], "1=1", 0.0008);
+  return f.map((x) => {
+    const p = x.properties, g = rings(x.geometry, 0.0015);
+    return g.length ? { p: "ab", id: String(Number(p.WMUNIT_CODE)), n: p.WMUNIT_NAME, b: bbox(g), c: labelPoint(g), g } : null;
+  }).filter(Boolean);
+}
+async function lehZones() {
+  const f = await databc("WHSE_WILDLIFE_MANAGEMENT.WAA_LTD_HNT_ZONE_CURR_YEAR_SVW",
+    ["LIMITED_ENTRY_HUNTING_ZONE", "MANAGEMENT_UNITS", "LTD_ENTRY_HUNTING_ZONE_TYPE", "LTD_ENTRY_HUNTING_ZONE_LABEL", "LEH_HUNT_AREA_ID"]);
+  return f.map((x) => {
+    const p = x.properties, g = rings(x.geometry, 0.0015);
+    return g.length ? { id: p.LIMITED_ENTRY_HUNTING_ZONE, s: title(p.LTD_ENTRY_HUNTING_ZONE_TYPE), l: p.LTD_ENTRY_HUNTING_ZONE_LABEL || "", mu: p.MANAGEMENT_UNITS || "", b: bbox(g), g } : null;
+  }).filter(Boolean);
+}
+// k: what kind of place, with its hunting rule worked out on the site (hunting.js AREA_KINDS).
+async function bcAreas() {
+  const out = [];
+  const parks = await databc("WHSE_TANTALIS.TA_PARK_ECORES_PA_SVW", ["PROTECTED_LANDS_NAME", "PROTECTED_LANDS_DESIGNATION", "PARK_CLASS", "ORCS_PRIMARY"]);
+  for (const x of parks) {
+    const p = x.properties, d = String(p.PROTECTED_LANDS_DESIGNATION || "").toUpperCase(), g = rings(x.geometry, 0.0006);
+    if (!g.length) continue;
+    const k = /ECOLOGICAL/.test(d) ? "eco" : /CONSERVANCY/.test(d) ? "conservancy" : /RECREATION/.test(d) ? "rec" : /PROTECTED/.test(d) ? "protected" : "park";
+    out.push({ k, n: title(p.PROTECTED_LANDS_NAME), o: p.ORCS_PRIMARY || "", b: bbox(g), g });
+  }
+  const wma = await databc("WHSE_TANTALIS.TA_WILDLIFE_MGMT_AREAS_SVW", ["WILDLIFE_MANAGEMENT_AREA_NAME"]).catch((e) => { log(`    WMA: ${e.message}`); return []; });
+  for (const x of wma) {
+    const p = x.properties, g = rings(x.geometry, 0.0006);
+    if (g.length) out.push({ k: "wma", n: title(p.WILDLIFE_MANAGEMENT_AREA_NAME || "Wildlife Management Area"), b: bbox(g), g });
+  }
+  const np = await databc("WHSE_ADMIN_BOUNDARIES.CLAB_NATIONAL_PARKS", ["ENGLISH_NAME"]);
+  for (const x of np) { const g = rings(x.geometry, 0.0006); if (g.length) out.push({ k: "national", n: x.properties.ENGLISH_NAME, b: bbox(g), g }); }
+  const ir = await databc("WHSE_ADMIN_BOUNDARIES.CLAB_INDIAN_RESERVES", ["ENGLISH_NAME"]);
+  for (const x of ir) { const g = rings(x.geometry, 0.0002); if (g.length) out.push({ k: "reserve", n: title(x.properties.ENGLISH_NAME), b: bbox(g), g }); }
+  const town = await databc("WHSE_LEGAL_ADMIN_BOUNDARIES.ABMS_MUNICIPALITIES_SP", ["ADMIN_AREA_ABBREVIATION", "ADMIN_AREA_NAME"]).catch((e) => { log(`    towns: ${e.message}`); return []; });
+  for (const x of town) { const g = rings(x.geometry, 0.0006); if (g.length) out.push({ k: "town", n: x.properties.ADMIN_AREA_ABBREVIATION || x.properties.ADMIN_AREA_NAME, b: bbox(g), g }); }
+  const mv = await databc("WHSE_WILDLIFE_MANAGEMENT.WAA_MVPR_AREAS_SP", ["REGULATION_GEOGRAPHIC_NAME", "PROHIBITION_TYPE", "EFFECTIVE_DESCRIPTION", "EXEMPTION", "MU_NUMBER", "PDF_NAME"]);
+  for (const x of mv) {
+    const p = x.properties, g = rings(x.geometry, 0.0006);
+    if (g.length) out.push({ k: "mvpr", n: p.REGULATION_GEOGRAPHIC_NAME || "", t: p.PROHIBITION_TYPE || "", d: p.EFFECTIVE_DESCRIPTION || "", x: p.EXEMPTION || "", mu: p.MU_NUMBER || "", b: bbox(g), g });
+  }
+  return out;
+}
+const AB_PARK_LAYERS = [[3, "eco"], [7, "rangeland"], [11, "natural"], [15, "national"], [19, "park"], [23, "pra"], [27, "wilderness"], [31, "wildland"], [35, "wildland"]];
+async function abAreas() {
+  const out = [];
+  const base = `${AB}/titan/rest/services/environment/parks_and_protected_areas_of_alberta_10tm_nad83_aep/MapServer`;
+  for (const [layer, k] of AB_PARK_LAYERS) {
+    const f = await arcgis(`${base}/${layer}`, ["NAME", "TYPE", "OBJECTID"], "1=1", 0.0003);
+    for (const x of f) { const g = rings(x.geometry, 0.0006); if (g.length) out.push({ k, n: title(x.properties.NAME), p: "ab", b: bbox(g), g }); }
+  }
+  // Alberta only (BC reserves come from DataBC)
+  const ir = await arcgis(CLSS, ["adminAreaNameEng", "OBJECTID"], "jurisdictionEng='Alberta'", 0.0002, AB_BOX).catch((e) => { log(`    CLSS: ${e.message}`); return []; });
+  for (const x of ir) {
+    const g = rings(x.geometry, 0.0002);
+    if (g.length) out.push({ k: "reserve", n: title(x.properties.adminAreaNameEng || "First Nation reserve"), p: "ab", b: bbox(g), g });
+  }
+  const met = await arcgis(`${AB}/mimas/rest/services/boundaries/indigenous_land_public/FeatureServer/0`, ["METIS_NAME", "OBJECTID"], "1=1", 0.0003).catch(() => []);
+  for (const x of met) { const g = rings(x.geometry, 0.0006); if (g.length) out.push({ k: "metis", n: `${x.properties.METIS_NAME} Metis Settlement`, p: "ab", b: bbox(g), g }); }
+  const gw = await arcgis(`${AB}/mimas/rest/services/boundaries/land_green_white_area_public/FeatureServer/0`, ["GWA_NAME", "GWA_CODE", "OBJECTID"], "GWA_CODE='GLC_G'", 0.001).catch(() => []);
+  for (const x of gw) { const g = rings(x.geometry, 0.0015); if (g.length) out.push({ k: "green", n: "Alberta Green Area (public forest land)", p: "ab", b: bbox(g), g }); }
+  return out;
+}
+
+// ---------- run ----------
+async function part(name, fn) {
+  try { const v = await fn(); log(`  ${name}: ${v.length}`); return v; }
+  catch (e) { log(`  ${name} failed: ${e.message}`); return null; }
+}
+const now = new Date().toISOString();
+log("Hunting zones");
+const old = { zones: readOld("zones.json"), leh: readOld("leh.json"), areas: readOld("areas.json") };
+const bcZ = await part("BC WMUs", bcZones), abZ = await part("Alberta WMUs", abZones);
+const zones = [...(bcZ || (old.zones?.zones || []).filter((z) => z.p === "bc")), ...(abZ || (old.zones?.zones || []).filter((z) => z.p === "ab"))];
+const leh = (await part("LEH zones", lehZones)) || old.leh?.zones || [];
+const bcA = await part("BC areas", bcAreas), abA = await part("Alberta areas", abAreas);
+const areas = [...(bcA || (old.areas?.areas || []).filter((a) => a.p !== "ab")), ...(abA || (old.areas?.areas || []).filter((a) => a.p === "ab"))];
+const write = (name, obj) => { for (const f of obj.zones || obj.areas) f.g = encode(f.g); const s = JSON.stringify(obj); writeFileSync(new URL(name, OUT), s); log(`  ${name}: ${(s.length / 1e6).toFixed(2)} MB`); };
+if (zones.length) write("zones.json", { updated: now, zones });
+if (leh.length) write("leh.json", { updated: now, zones: leh });
+if (areas.length) write("areas.json", { updated: now, areas });

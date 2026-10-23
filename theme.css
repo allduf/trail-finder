@@ -263,7 +263,7 @@ label.toggle.off { background: transparent; border: 1px dashed var(--line); box-
   .tabbar svg { width: 24px; height: 24px; padding: 3px 14px; border-radius: 999px; transition: background .15s; }
   .tabbar > [aria-current="true"] { color: var(--fg); }
   .tabbar > [aria-current="true"] svg { background: color-mix(in srgb, var(--cta) 70%, transparent); color: var(--cta-fg, #10230f); }
-  body.sport-ski .tabbar .mtb-only, body:not(.sport-ski) .tabbar .ski-only { display: none; }
+  body.sport-alt .tabbar .mtb-only, body:not(.sport-ski) .tabbar .ski-only, body:not(.sport-hunt) .tabbar .hunt-only { display: none; }
   .app.fullmap .tabbar { display: none; }
   .tab-menu {
     position: fixed; right: 10px; bottom: calc(var(--nav-h) + 10px); z-index: 1160; min-width: 190px;
@@ -305,7 +305,7 @@ label.toggle.off { background: transparent; border: 1px dashed var(--line); box-
 }
 .first-tip strong { color: var(--cta); }
 .first-tip .linkish { color: var(--cta); font-weight: 700; margin-left: 4px; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; text-decoration: underline; }
-body.sport-ski .first-tip { display: none; }
+body.sport-alt .first-tip { display: none; }
 
 /* Legend: rarely needed symbols tucked away */
 .legend .lg-more details summary { cursor: pointer; font-weight: 700; margin-top: 4px; list-style: none; }
@@ -371,7 +371,7 @@ body.sport-ski .first-tip { display: none; }
   .map-tools #spAdd::before { content: "📍 Save"; font-size: .84rem; line-height: 1; }
   /* the title shrinks instead of sliding under the sport menu */
   .brand h1 { overflow: hidden; text-overflow: ellipsis; }
-  .brand .sport-pick { max-width: 118px; }
+  .brand .sport-pick { max-width: 132px; }
   /* map credit: one short line; tap it to read all of it */
   .leaflet-container .leaflet-control-attribution { font-size: 10px; line-height: 1.5; padding: 1px 6px; max-width: calc(100vw - 16px); box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
   .leaflet-container .leaflet-control-attribution.open { white-space: normal; }
