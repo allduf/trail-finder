@@ -1401,11 +1401,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=312"></script>
-<script src="rotate.js?v=312"></script>
-<script src="official.js?v=312"></script>
-<script src="directions.js?v=312"></script>
-<script src="ratings.js?v=312"></script>
+<script src="native.js?v=313"></script>
+<script src="rotate.js?v=313"></script>
+<script src="official.js?v=313"></script>
+<script src="directions.js?v=313"></script>
+<script src="ratings.js?v=313"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3565,7 +3565,7 @@ out body;`;
   let trailInfo = null;
   const foldName = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   async function officialAbout(t) {
-    trailInfo = trailInfo || fetch("data/trail-info.json?v=312").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
+    trailInfo = trailInfo || fetch("data/trail-info.json?v=313").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
     const j = await trailInfo; if (!j) return [];
     const names = new Set([t.tags.name, t.tags["mtb:name"], t.tags["tf:name"], t.tfName].filter(Boolean).map(foldName));
     const mid = t.geom[Math.floor(t.geom.length / 2)], k = Math.cos(mid[0] * Math.PI / 180);
@@ -4756,6 +4756,13 @@ out body;`;
   map.createPane("allTrails").style.zIndex = 390;
   const allRenderer = L.canvas({ pane: "allTrails", padding: 0.3 });
   const allLayer = L.layerGroup().addTo(map);
+  // Long jobs at the start (sorting a zone's trails, its forest roads) work in slices of SLICE_MS and let the page
+  // handle taps, pans and drawing in between.
+  const SLICE_MS = 40;
+  const breather = () => new Promise((r) => (window.scheduler && scheduler.yield ? scheduler.yield().then(r) : setTimeout(r, 0)));
+  const domReady = new Promise((r) => (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", () => r(), { once: true }) : r()));
+  let viewSquares = Promise.resolve();   // the official and rating squares asked for at the start (set below)
+  const sortReady = () => domReady.then(() => Promise.race([viewSquares, new Promise((r) => setTimeout(r, 4000))]));
   const allData = new Map();                       // zone id -> list of { id, tags, geom, c }, null while loading
   let allKey = "";
   let allShown = [];                               // what drawAllTrails drew: { w, color }, for the names
@@ -4771,21 +4778,33 @@ out body;`;
     ZONES.filter((z) => z.bounds.intersects(view)).forEach(loadZoneTrails);
     caIndexLoad().then(() => { if (state.allTrails || officialOnly()) caZonesIn([map.getBounds()]).forEach(loadZoneTrails); });
   }
+  // Opening the app (alex, 2026-10-23: "lagging and take a long time to open"): a zone's file is fetched right away, but
+  // its trails are only sorted once the page has finished loading its scripts (sorting them first held up the rest of
+  // the page, so its buttons did nothing for seconds), once the official and rating squares in view are in (else every
+  // trail was checked twice), and a few hundred at a time, so taps and pans still get through in between.
   function loadZoneTrails(z) {
     if (!allLoads.has(z.id)) {
       allData.set(z.id, null);
-      allLoads.set(z.id, nightly(`mtb-${z.id}.json`).then((f) => {
+      allLoads.set(z.id, Promise.all([nightly(`mtb-${z.id}.json`), sortReady()]).then(async ([f]) => {
         const inRoute = new Map();
         Object.values((f && f.routes) || {}).forEach((r) => r.ways.forEach((w) => { if (!inRoute.has(w)) inRoute.set(w, []); inRoute.get(w).push(r.name); }));
-        allData.set(z.id, f && f.v === 1 ? Object.entries(f.ways).map(([id, w]) => {
-          const geom = [];
-          for (let i = 0; i < w.g.length; i += 2) geom.push([w.g[i], w.g[i + 1]]);
-          // A path with no name on the map, named after its Recreation Sites and Trails BC trail (tf:name), for the lists and search.
-          const tags = w.tags["tf:name"] && !w.tags.name ? { ...w.tags, name: w.tags["tf:name"] } : w.tags;
-          return { id: +id, tags, geom, r: inRoute.get(+id) || [], c: classify(withOfficial(rateTags(tags, geom, +id), geom), inRoute.get(+id) || []) };
-        }).filter((w) => w.c && !w.c.use && w.geom.length > 1) : []);
+        const list = [];
+        if (f && f.v === 1) {
+          await breather();
+          let t0 = performance.now();
+          for (const [id, w] of Object.entries(f.ways)) {
+            if (performance.now() - t0 > SLICE_MS) { await breather(); t0 = performance.now(); }
+            const geom = [];
+            for (let i = 0; i < w.g.length; i += 2) geom.push([w.g[i], w.g[i + 1]]);
+            // A path with no name on the map, named after its Recreation Sites and Trails BC trail (tf:name), for the lists and search.
+            const tags = w.tags["tf:name"] && !w.tags.name ? { ...w.tags, name: w.tags["tf:name"] } : w.tags;
+            const r = inRoute.get(+id) || [], c = classify(withOfficial(rateTags(tags, geom, +id), geom), r);
+            if (c && !c.use && geom.length > 1) list.push({ id: +id, tags, geom, r, c });
+          }
+        }
+        allData.set(z.id, list);
         queueAllDraw();
-        return f && f.v === 1 ? allData.get(z.id) : null;        // null: the list couldn't be loaded
+        return f && f.v === 1 ? list : null;        // null: the list couldn't be loaded
       }));
     }
     return allLoads.get(z.id);
@@ -4796,6 +4815,8 @@ out body;`;
   window.tfZoneTrails = async (id, loadedOnly) => {
     const z = ZONES.find((z) => z.id === id);
     if (!z || (loadedOnly && !allLoads.has(id))) return [];
+    // A zone the map hasn't asked for waits for the ones it has, so the trails on screen are drawn first.
+    if (!allLoads.has(id)) await Promise.allSettled([...allLoads.values()]);
     const ways = (await loadZoneTrails(z)) || [], by = new Map();
     ways.forEach((w) => {
       const name = w.tags.name;
@@ -4860,7 +4881,10 @@ out body;`;
     if (key !== allKey) { allKey = key; allLayer.clearLayers(); allShown = []; allDrawn.clear(); allSeen.clear(); }
     if (!state.allTrails && !officialOnly()) return;
     const seen = allSeen, byDiff = state.colorBy === "diff", byLoam = state.colorBy === "loam";
-    loaded.filter((l) => !allDrawn.has(l)).forEach((list) => {
+    // A zone or two per go: the rest are drawn on the next one (queueAllDraw), so the map can move in between.
+    const todo = loaded.filter((l) => !allDrawn.has(l)), t0 = performance.now();
+    for (const list of todo) {
+      if (performance.now() - t0 > SLICE_MS) { queueAllDraw(); break; }
       const group = L.layerGroup(), ids = [];
       allDrawn.set(list, { group, ids });
       list.forEach((w) => {
@@ -4875,7 +4899,7 @@ out body;`;
         group.addLayer(L.polyline(w.geom, { renderer: allRenderer, color, weight: off ? 4.5 : unoff ? 3.5 : 2.5, opacity: off ? 1 : 0.75, dashArray: unoff ? UNOFF_DASH : byDiff && isEst(w.tags) ? EST_DASH : null, lineCap: "round", interactive: false }));
       });
       allLayer.addLayer(group);
-    });
+    }
   }
   // Some of a zone's trails changed (new ratings or official data): its lines are drawn again on the next drawAllTrails.
   function allRedo(list) {
@@ -4943,7 +4967,7 @@ out body;`;
   // Official trails (official.js): load the squares in view; when new ones arrive, check the trails already loaded again.
   if (window.tfOfficial) {
     const offLoad = () => window.tfOfficial.load(map.getBounds());
-    map.on("moveend", offLoad); offLoad();
+    map.on("moveend", offLoad); viewSquares = Promise.all([viewSquares, offLoad()]).catch(() => {});
     // Only trails the new squares reach are checked again: checking every loaded trail froze the map for a moment on each pan.
     window.tfOfficial.onChange((touches = () => true) => {
       let all = 0, found = 0;
@@ -4965,7 +4989,7 @@ out body;`;
   // file, new squares or an estimate), rate the loaded trails again and redraw.
   if (window.tfRatings) {
     const rateLoad = () => window.tfRatings.load(map.getBounds());
-    map.on("moveend", rateLoad); rateLoad();
+    map.on("moveend", rateLoad); viewSquares = Promise.all([viewSquares, rateLoad(), window.tfRatings.ready]).catch(() => {});
     let rateTimer = 0, rateWho = [];   // what may change: touches(geom, id) from ratings.js, null for every trail
     window.tfRatings.onChange((touches) => {
       if (rateWho) rateWho.push(touches || null);
@@ -5040,14 +5064,18 @@ out body;`;
   function roadZone(z) {
     if (!roadLoads.has(z.id)) {
       roadData.set(z.id, null);
-      roadLoads.set(z.id, nightly(`roads-${z.id}.json`).then((f) => {
+      // Sorted after the trails in view (they matter more when the app opens), a slice at a time.
+      roadLoads.set(z.id, Promise.all([nightly(`roads-${z.id}.json`), sortReady().then(() => Promise.allSettled([...allLoads.values()]))]).then(async ([f]) => {
         const list = [];
         if (f && f.v === 1) {
-          Object.entries(f.osm || {}).forEach(([id, w]) => {
+          await breather();
+          let t0 = performance.now();
+          for (const [id, w] of Object.entries(f.osm || {})) {
+            if (performance.now() - t0 > SLICE_MS) { await breather(); t0 = performance.now(); }
             const [st, why] = osmRoadStatus(w.tags), geom = roadGeom(w.g);
             if (geom.length > 1) list.push({ src: "osm", id: +id, name: w.tags.name || w.tags.ref || "", tags: w.tags, st, why, geom, bounds: L.latLngBounds(geom) });
-          });
-          list.push(...conflateFten(list, f.ften || []));
+          }
+          list.push(...(await conflateFten(list, f.ften || [])));
         }
         roadData.set(z.id, { at: f && f.builtAt, list, ...(f && f.v === 1 ? zoneExtras(f, list) : { feats: [], areas: [] }) });
         drawRoads();
@@ -5063,7 +5091,7 @@ out body;`;
   // Status of a folded road: what a mapper saw on the ground (OpenStreetMap condition, gates, washouts) first; when
   // OpenStreetMap has no condition, the tenure decides (an active tenure means maintained, so it wins over a retired one).
   const MATCH_M = 60, STEP_M = 25, CELL_M = 100, MIN_RUN = 6;
-  function conflateFten(osm, ften) {
+  async function conflateFten(osm, ften) {
     if (!ften.length) return [];
     const lat0 = (osm[0] && osm[0].geom[0][0]) || ften[0].g[0], kx = Math.cos((lat0 * Math.PI) / 180) * 111320, ky = 110540;
     const xy = ([la, lo]) => [lo * kx, la * ky];
@@ -5100,9 +5128,11 @@ out body;`;
     };
     osm.forEach((o) => { o.ften = []; addLine(o, o.geom); });
     const rank = { ACTIVE: 0, PENDING: 1, RETIRED: 2 }, kept = [];
-    ften.slice().sort((a, b) => (rank[a.s] ?? 1) - (rank[b.s] ?? 1)).forEach((r) => {
+    let t0 = performance.now();
+    for (const r of ften.slice().sort((a, b) => (rank[a.s] ?? 1) - (rank[b.s] ?? 1))) {
+      if (performance.now() - t0 > SLICE_MS) { await breather(); t0 = performance.now(); }
       const geom = roadGeom(r.g);
-      if (geom.length < 2) return;
+      if (geom.length < 2) continue;
       const pts = densify(geom), owner = pts.map(nearest), hits = new Map();
       owner.forEach((o) => o && hits.set(o, (hits.get(o) || 0) + 1));
       hits.forEach((n, o) => { if (n >= 3 && !o.ften.includes(r)) o.ften.push(r); });
@@ -5118,7 +5148,7 @@ out body;`;
         }
         i = j;
       }
-    });
+    }
     osm.forEach((o) => {
       if (!o.ften.length) return;
       o.osmSt = o.st; o.osmWhy = o.why;
@@ -6710,28 +6740,28 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=312"></script>
-<script src="contours.js?v=312"></script>
-<script src="photo-slider.js?v=312"></script>
-<script src="winter.js?v=312"></script>
-<script src="hunting.js?v=312"></script>
-<script src="ski-points.js?v=312"></script>
-<script src="offline.js?v=312"></script>
-<script src="ride-stats.js?v=312"></script>
-<script src="native-gps.js?v=312"></script>
-<script src="navigate.js?v=312"></script>
-<script src="planner.js?v=312"></script>
-<script src="rides.js?v=312"></script>
-<script src="account.js?v=312"></script>
-<script src="reports.js?v=312"></script>
-<script src="trail-photos.js?v=312"></script>
-<script src="visitors.js?v=312"></script>
-<script src="notify.js?v=312"></script>
-<script src="status.js?v=312"></script>
-<script src="areas.js?v=312"></script>
-<script src="alpine.js?v=312"></script>
-<script src="bikeparks.js?v=312"></script>
-<script src="photo-find.js?v=312"></script>
+<script src="map3d.js?v=313"></script>
+<script src="contours.js?v=313"></script>
+<script src="photo-slider.js?v=313"></script>
+<script src="winter.js?v=313"></script>
+<script src="hunting.js?v=313"></script>
+<script src="ski-points.js?v=313"></script>
+<script src="offline.js?v=313"></script>
+<script src="ride-stats.js?v=313"></script>
+<script src="native-gps.js?v=313"></script>
+<script src="navigate.js?v=313"></script>
+<script src="planner.js?v=313"></script>
+<script src="rides.js?v=313"></script>
+<script src="account.js?v=313"></script>
+<script src="reports.js?v=313"></script>
+<script src="trail-photos.js?v=313"></script>
+<script src="visitors.js?v=313"></script>
+<script src="notify.js?v=313"></script>
+<script src="status.js?v=313"></script>
+<script src="areas.js?v=313"></script>
+<script src="alpine.js?v=313"></script>
+<script src="bikeparks.js?v=313"></script>
+<script src="photo-find.js?v=313"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

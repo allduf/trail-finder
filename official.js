@@ -66,7 +66,8 @@
     const ax = (a1 - p[1]) * k, ay = (a0 - p[0]) * K, bx = (b1 - p[1]) * k, by = (b0 - p[0]) * K;
     const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
     let u = L2 ? -(ax * dx + ay * dy) / L2 : 0; u = Math.max(0, Math.min(1, u));
-    return Math.hypot(ax + u * dx, ay + u * dy);
+    const x = ax + u * dx, y = ay + u * dy;
+    return Math.sqrt(x * x + y * y);
   }
   // Points along the trail, about every 20 m.
   function samples(geom) {
@@ -99,15 +100,21 @@
     if (!geom || geom.length < 2 || !squares.size) return null;
     const pts = samples(geom.map(pt));
     const hits = new Map();   // line -> [points within NEAR_M, points within NO_BIKE_M]
+    const best = new Map(), skip = new Map();
     for (const p of pts) {
       const sq = squares.get(keyOf(p[0], p[1]));
       if (!sq || !sq.cells) continue;
       const list = sq.cells.get(Math.floor(p[0] / CELL) + "," + Math.floor(p[1] / CELL));
       if (!list) continue;
-      const best = new Map();
+      best.clear();
+      // A segment whose box is more than NEAR_M away north-south or east-west can't be near: skip the distance.
+      const la = p[0], lo = p[1], dLa = NEAR_M / 110540, dLo = NEAR_M / (Math.cos(la * Math.PI / 180) * 111320);
       for (const [l, k] of list) {
-        const d = segDist(p, l.g[k], l.g[k + 1], l.g[k + 2], l.g[k + 3]);
-        if (d > NEAR_M || (name && NAMED.test(l.src) && !sameName(name, l.name))) continue;
+        const g = l.g, a0 = g[k], a1 = g[k + 1], b0 = g[k + 2], b1 = g[k + 3];
+        if ((a0 < b0 ? b0 : a0) < la - dLa || (a0 < b0 ? a0 : b0) > la + dLa || (a1 < b1 ? b1 : a1) < lo - dLo || (a1 < b1 ? a1 : b1) > lo + dLo) continue;
+        const d = segDist(p, a0, a1, b0, b1);
+        if (d > NEAR_M) continue;
+        if (name && NAMED.test(l.src)) { let no = skip.get(l); if (no == null) skip.set(l, (no = !sameName(name, l.name))); if (no) continue; }
         if (!best.has(l) || d < best.get(l)) best.set(l, d);
       }
       best.forEach((d, l) => { const h = hits.get(l) || [0, 0]; h[0]++; if (d <= NO_BIKE_M) h[1]++; hits.set(l, h); });

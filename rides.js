@@ -192,8 +192,11 @@ body.sport-alt #ridesBtn { display: none !important; }
     });
     tagList(); tagDetail(); syncBtn();
   }
-  let drawTimer = null;
-  const drawSoon = () => { clearTimeout(drawTimer); drawTimer = setTimeout(draw, 150); };
+  // Called for every line added to the map (thousands when a zone's trails are drawn): one timer, pushed back by time
+  // instead of cleared and set again on each call, which alone took most of a second when the app opened.
+  let drawTimer = null, drawAt = 0;
+  const drawTick = () => { const left = drawAt - performance.now(); if (left > 1) { drawTimer = setTimeout(drawTick, left); return; } drawTimer = null; draw(); };
+  const drawSoon = () => { drawAt = performance.now() + 150; if (!drawTimer) drawTimer = setTimeout(drawTick, 150); };
 
   // ---------- "Ridden" tags in the results list and the trail details ----------
   function tagList() {
