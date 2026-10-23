@@ -1037,6 +1037,7 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
   // rules areas and scent cone as see-through fills, the zone labels, and the spot pin. A tap on the 3D map picks a
   // spot as on the flat map.
   let gl3 = null, proto3 = false, fillsSet = false, labelsSet = false, spot3 = null;
+  let applyWait = false;
   function sync3d() {
     const gl = gl3;
     if (!gl || !window.maplibregl) return;
@@ -1101,7 +1102,10 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
         spot3.setLngLat([spot.lon, spot.lat]).addTo(gl);
       } else if (spot3) spot3.remove();
     };
-    if (gl.isStyleLoaded()) apply(); else gl.once("styledata", apply);
+    // isStyleLoaded() is also false while tiles are loading (every tap and move), and "styledata" may not come again:
+    // the style itself being ready is enough (alex lost the spot circle in 3D).
+    if (gl.style && (gl.style._loaded || gl.isStyleLoaded())) apply();
+    else if (!applyWait) { applyWait = true; gl.once("idle", () => { applyWait = false; apply(); }); }
   }
   window.addEventListener("tf:map3d", (e) => {
     gl3 = e.detail;
