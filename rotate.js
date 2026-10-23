@@ -29,6 +29,39 @@
     if (was !== this && L.Draggable._dragging === this) this._tfMouse = e.type === "mousedown";   // (a pen's drag also sends a mousedown)
   };
   window.addEventListener("blur", () => { if (L.Draggable._dragging) L.Draggable._dragging.finishDrag(true); });
+
+  // The glide after letting go of a drag works out the finger's speed from its last moves. Leaflet timed each move
+  // when the page got round to it, so after the page froze for a moment mid-drag (loading or drawing trails), all the
+  // moves made during the freeze arrived together and looked like one very fast flick: the map flew far past the
+  // finger (alex, 2026-10-23: "it lags and jumps somewhere else"). The time the phone stamped on each touch is used
+  // instead, so a freeze changes nothing, and the glide has a top speed in case a phone's stamps are off.
+  const dragUp = Drag._onUp;
+  Drag._onUp = function (e) { this._tfUpAt = e && e.timeStamp; dragUp.call(this, e); };
+  if (!L.Map.Drag) return;
+  L.Map.mergeOptions({ inertiaMaxSpeed: 1500 });
+  const stamp = (e) => (e && e.timeStamp > 0 ? e.timeStamp : performance.now());
+  const MapDrag = L.Map.Drag.prototype;
+  MapDrag._onDrag = function (e) {
+    if (this._map.options.inertia) {
+      const time = this._lastTime = stamp(e && e.originalEvent), pos = this._lastPos = this._draggable._absPos || this._draggable._newPos;
+      this._positions.push(pos); this._times.push(time);
+      this._prunePositions(time);
+    }
+    this._map.fire("move", e).fire("drag", e);
+  };
+  MapDrag._onDragEnd = function (e) {   // Leaflet's, with the touch's own times
+    const map = this._map, o = map.options;
+    map.fire("dragend", e);
+    if (o.inertia && !e.noInertia && this._times.length > 1) this._prunePositions(this._draggable._tfUpAt > 0 ? this._draggable._tfUpAt : performance.now());
+    const secs = this._times.length > 1 ? (this._lastTime - this._times[0]) / 1000 : 0;
+    if (!o.inertia || e.noInertia || secs < 0.008) { map.fire("moveend"); return; }   // held still before letting go, or too little to tell
+    const ease = o.easeLinearity, v = this._lastPos.subtract(this._positions[0]).multiplyBy(ease / secs), speed = v.distanceTo([0, 0]);
+    const top = Math.min(o.inertiaMaxSpeed, speed), secsOut = top / (o.inertiaDeceleration * ease);
+    let offset = v.multiplyBy(top / speed).multiplyBy(-secsOut / 2).round();
+    if (!offset.x && !offset.y) { map.fire("moveend"); return; }
+    offset = map._limitOffset(offset, o.maxBounds);
+    L.Util.requestAnimFrame(() => map.panBy(offset, { duration: secsOut, easeLinearity: ease, noMoveStart: true, animate: true }));
+  };
 })();
 
 (() => {

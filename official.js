@@ -83,7 +83,14 @@
   const pt = (p) => (Array.isArray(p) ? p : [p.lat, p.lng]);
 
   // Towns' own trail lists name each trail: a line with another trail's name is a different trail on the same spot.
-  const NAMED = /^(wh|csrd)$/, words = (s) => new Set((s || "").toLowerCase().match(/[a-z0-9]{3,}/g) || []);
+  // Words are kept per name: the same few names are checked against every point of every trail (a freeze of a second
+  // or more on a phone when a new part of the map loaded, alex 2026-10-23).
+  const NAMED = /^(wh|csrd)$/, wordsOf = new Map(), words = (s) => {
+    s = s || "";
+    let w = wordsOf.get(s);
+    if (!w) { if (wordsOf.size > 20000) wordsOf.clear(); wordsOf.set(s, (w = new Set(s.toLowerCase().match(/[a-z0-9]{3,}/g) || []))); }
+    return w;
+  };
   const sameName = (a, b) => { const A = words(a), B = words(b); return !A.size || !B.size || [...A].some((w) => B.has(w)); };
   // Local lists (a town's or regional district's) beat the province's when both say bikes are allowed.
   const LOCAL = /^(wh|csrd|csrd2|ott)$/;
@@ -99,9 +106,9 @@
       if (!list) continue;
       const best = new Map();
       for (const [l, k] of list) {
-        if (name && NAMED.test(l.src) && !sameName(name, l.name)) continue;
         const d = segDist(p, l.g[k], l.g[k + 1], l.g[k + 2], l.g[k + 3]);
-        if (d <= NEAR_M && (!best.has(l) || d < best.get(l))) best.set(l, d);
+        if (d > NEAR_M || (name && NAMED.test(l.src) && !sameName(name, l.name))) continue;
+        if (!best.has(l) || d < best.get(l)) best.set(l, d);
       }
       best.forEach((d, l) => { const h = hits.get(l) || [0, 0]; h[0]++; if (d <= NO_BIKE_M) h[1]++; hits.set(l, h); });
     }
