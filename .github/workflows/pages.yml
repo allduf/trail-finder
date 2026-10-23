@@ -38,7 +38,7 @@ jobs:
           git clone -q --depth 1 --branch canada-data "https://github.com/${GITHUB_REPOSITORY}.git" canada || { echo "No canada-data branch yet."; exit 0; }
           mv canada/ca site/ca
       - name: Leave out what the website doesn't need
-        run: rm -rf site/.git site/.github site/scripts site/supabase
+        run: rm -rf site/.git site/.github site/scripts site/supabase site/ios-app
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

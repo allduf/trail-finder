@@ -1,0 +1,14 @@
+{
+  "appId": "com.allduf.trailfinder",
+  "appName": "Trail Finder",
+  "webDir": "www",
+  "backgroundColor": "#f2efe7",
+  "server": {
+    "url": "https://allduf.github.io/trail-finder/",
+    "errorPath": "offline.html"
+  },
+  "ios": {
+    "limitsNavigationsToAppBoundDomains": true,
+    "contentInset": "never"
+  }
+}
