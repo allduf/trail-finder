@@ -1400,11 +1400,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=302"></script>
-<script src="rotate.js?v=302"></script>
-<script src="official.js?v=302"></script>
-<script src="directions.js?v=302"></script>
-<script src="ratings.js?v=302"></script>
+<script src="native.js?v=303"></script>
+<script src="rotate.js?v=303"></script>
+<script src="official.js?v=303"></script>
+<script src="directions.js?v=303"></script>
+<script src="ratings.js?v=303"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3564,7 +3564,7 @@ out body;`;
   let trailInfo = null;
   const foldName = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   async function officialAbout(t) {
-    trailInfo = trailInfo || fetch("data/trail-info.json?v=302").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
+    trailInfo = trailInfo || fetch("data/trail-info.json?v=303").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
     const j = await trailInfo; if (!j) return [];
     const names = new Set([t.tags.name, t.tags["mtb:name"], t.tags["tf:name"], t.tfName].filter(Boolean).map(foldName));
     const mid = t.geom[Math.floor(t.geom.length / 2)], k = Math.cos(mid[0] * Math.PI / 180);
@@ -4353,10 +4353,12 @@ out body;`;
     const g = map.touchGestures || map.touchZoom || {};
     return !!(map._animatingZoom || g._zooming || g._rotating || L.Draggable._dragging);
   }
+  // Other parts (Hunting: the spot, scent cone and range rings) can move with you while the map follows you.
+  const tellYou = () => { if (you.ll) window.dispatchEvent(new CustomEvent("tf:you", { detail: { lat: you.ll.lat, lon: you.ll.lng, follow: you.follow } })); };
   function setFollow(on) {
     you.follow = on; you.lost = false;
     if (on && you.ll) keepOnYou(you.ll, true);
-    syncLocate();
+    syncLocate(); tellYou();
   }
   // You moved the map yourself (a drag, not a zoom): stop following until "Recenter".
   map.on("dragstart", () => { if (you.follow) { you.follow = false; you.lost = true; syncLocate(); } });
@@ -4390,7 +4392,7 @@ out body;`;
     } else moveDot(ll, acc);
     if (you.onFirst) { const f = you.onFirst; you.onFirst = null; f(ll); }
     else if (!first) keepOnYou(ll, !document.hidden);
-    syncLocate();
+    syncLocate(); tellYou();
   }
   function startTracking(onFirst) {
     you.onFirst = onFirst;
@@ -6707,28 +6709,28 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=302"></script>
-<script src="contours.js?v=302"></script>
-<script src="photo-slider.js?v=302"></script>
-<script src="winter.js?v=302"></script>
-<script src="hunting.js?v=302"></script>
-<script src="ski-points.js?v=302"></script>
-<script src="offline.js?v=302"></script>
-<script src="ride-stats.js?v=302"></script>
-<script src="native-gps.js?v=302"></script>
-<script src="navigate.js?v=302"></script>
-<script src="planner.js?v=302"></script>
-<script src="rides.js?v=302"></script>
-<script src="account.js?v=302"></script>
-<script src="reports.js?v=302"></script>
-<script src="trail-photos.js?v=302"></script>
-<script src="visitors.js?v=302"></script>
-<script src="notify.js?v=302"></script>
-<script src="status.js?v=302"></script>
-<script src="areas.js?v=302"></script>
-<script src="alpine.js?v=302"></script>
-<script src="bikeparks.js?v=302"></script>
-<script src="photo-find.js?v=302"></script>
+<script src="map3d.js?v=303"></script>
+<script src="contours.js?v=303"></script>
+<script src="photo-slider.js?v=303"></script>
+<script src="winter.js?v=303"></script>
+<script src="hunting.js?v=303"></script>
+<script src="ski-points.js?v=303"></script>
+<script src="offline.js?v=303"></script>
+<script src="ride-stats.js?v=303"></script>
+<script src="native-gps.js?v=303"></script>
+<script src="navigate.js?v=303"></script>
+<script src="planner.js?v=303"></script>
+<script src="rides.js?v=303"></script>
+<script src="account.js?v=303"></script>
+<script src="reports.js?v=303"></script>
+<script src="trail-photos.js?v=303"></script>
+<script src="visitors.js?v=303"></script>
+<script src="notify.js?v=303"></script>
+<script src="status.js?v=303"></script>
+<script src="areas.js?v=303"></script>
+<script src="alpine.js?v=303"></script>
+<script src="bikeparks.js?v=303"></script>
+<script src="photo-find.js?v=303"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
