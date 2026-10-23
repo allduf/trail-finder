@@ -29,6 +29,39 @@
     if (was !== this && L.Draggable._dragging === this) this._tfMouse = e.type === "mousedown";   // (a pen's drag also sends a mousedown)
   };
   window.addEventListener("blur", () => { if (L.Draggable._dragging) L.Draggable._dragging.finishDrag(true); });
+
+  // The glide after letting go of a drag works out the finger's speed from its last moves. Leaflet timed each move
+  // when the page got round to it, so after the page froze for a moment mid-drag (loading or drawing trails), all the
+  // moves made during the freeze arrived together and looked like one very fast flick: the map flew far past the
+  // finger (alex, 2026-10-23: "it lags and jumps somewhere else"). The time the phone stamped on each touch is used
+  // instead, so a freeze changes nothing, and the glide has a top speed in case a phone's stamps are off.
+  const dragUp = Drag._onUp;
+  Drag._onUp = function (e) { this._tfUpAt = e && e.timeStamp; dragUp.call(this, e); };
+  if (!L.Map.Drag) return;
+  L.Map.mergeOptions({ inertiaMaxSpeed: 1500 });
+  const stamp = (e) => (e && e.timeStamp > 0 ? e.timeStamp : performance.now());
+  const MapDrag = L.Map.Drag.prototype;
+  MapDrag._onDrag = function (e) {
+    if (this._map.options.inertia) {
+      const time = this._lastTime = stamp(e && e.originalEvent), pos = this._lastPos = this._draggable._absPos || this._draggable._newPos;
+      this._positions.push(pos); this._times.push(time);
+      this._prunePositions(time);
+    }
+    this._map.fire("move", e).fire("drag", e);
+  };
+  MapDrag._onDragEnd = function (e) {   // Leaflet's, with the touch's own times
+    const map = this._map, o = map.options;
+    map.fire("dragend", e);
+    if (o.inertia && !e.noInertia && this._times.length > 1) this._prunePositions(this._draggable._tfUpAt > 0 ? this._draggable._tfUpAt : performance.now());
+    const secs = this._times.length > 1 ? (this._lastTime - this._times[0]) / 1000 : 0;
+    if (!o.inertia || e.noInertia || secs < 0.008) { map.fire("moveend"); return; }   // held still before letting go, or too little to tell
+    const ease = o.easeLinearity, v = this._lastPos.subtract(this._positions[0]).multiplyBy(ease / secs), speed = v.distanceTo([0, 0]);
+    const top = Math.min(o.inertiaMaxSpeed, speed), secsOut = top / (o.inertiaDeceleration * ease);
+    let offset = v.multiplyBy(top / speed).multiplyBy(-secsOut / 2).round();
+    if (!offset.x && !offset.y) { map.fire("moveend"); return; }
+    offset = map._limitOffset(offset, o.maxBounds);
+    L.Util.requestAnimFrame(() => map.panBy(offset, { duration: secsOut, easeLinearity: ease, noMoveStart: true, animate: true }));
+  };
 })();
 
 (() => {
@@ -104,6 +137,7 @@
   L.Map.TouchGestures.include({
     _onTouchStart(e) {
       const map = this._map;
+      if (e.touches && e.touches.length > 1) L.DomEvent.preventDefault(e);   // never the browser's own page zoom (see below)
       if (!e.touches || e.touches.length !== 2 || map._animatingZoom || this._zooming || this._rotating) return;
       const p1 = map.mouseEventToContainerPoint(e.touches[0]), p2 = map.mouseEventToContainerPoint(e.touches[1]);
       this._centerPoint = map.getSize()._divideBy(2);
@@ -347,6 +381,13 @@
       map._handlers.splice(map._handlers.indexOf(h), 1);
     });
     // Our own panes turn with the map unless told otherwise.
+    // Leaflet's pinch zoom set the class that stops the browser zooming the page on a pinch; with it gone the map
+    // allowed page zoom, so a pinch the map didn't take (one starting while the last zoom was still moving) zoomed the
+    // whole page out instead: the app shrank into a corner and the map jumped far away, to the Arctic (alex, 2026-10-23,
+    // "it does that sometimes when I zoom out").
+    if (map.touchZoom && map.touchZoom.enabled()) L.DomUtil.addClass(map._container, "leaflet-touch-zoom");
+    // iPhones also zoom the page on their own "gesture" events unless told no.
+    ["gesturestart", "gesturechange"].forEach((t) => map._container.addEventListener(t, (e) => e.preventDefault()));
     map.createPane = function (name, container) { return createPane.call(this, name, container || this._rotatePane); };
     mouseRotate(map);
     glTrack(map);

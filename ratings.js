@@ -5,11 +5,11 @@
 //   est   an estimate from the slope and a few map tags (data/ratings/osm.json for the region's all-trails lists, or
 //         worked out here from the AWS terrain tiles when a trail's details open). Never shown as a real rating.
 // window.tfRatings = { rate(id, geom, tags) -> { d, src, why } | null (sync, from what's loaded), hand(geom, tags) -> { mtb, off } | null, estimate(id, geom, tags) -> Promise,
-//   load(bounds) (official squares in view), onChange(fn) }. d: green, blue, black, dbl, pro (pro line: bike park HAND entries only, incl. the Kamloops Bike Ranch).
+//   load(bounds) (official squares in view), onChange(fn) } (fn gets touches(geom, id) when only some trails can change). d: green, blue, black, dbl, pro (pro line: bike park HAND entries only, incl. the Kamloops Bike Ranch).
 (function () {
   const DIR = "data/ratings/";
   const LEVEL = { green: "green", blue: "blue", black: "black", dbl: "double black", pro: "pro line" };
-  const listeners = [], fire = () => listeners.forEach((fn) => { try { fn(); } catch (e) { console.warn(e); } });
+  const listeners = [], fire = (touches) => listeners.forEach((fn) => { try { fn(touches); } catch (e) { console.warn(e); } });
   const est = new Map();   // way id -> estimate worked out here
 
   // ---------- data/ratings/osm.json ----------
@@ -49,9 +49,18 @@
         if (!ix.squares[k] || squares.has(k)) continue;
         const p = fetch(DIR + k + ".json").then((r) => (r.ok ? r.json() : null)).catch(() => null)
           .then((f) => squares.set(k, f && f.v === 1 ? prepare(f) : new Map()));
-        squares.set(k, null); want.push(p);
+        p.key = k; squares.set(k, null); want.push(p);
       }
-      if (want.length) return Promise.all(want).then(fire);
+      if (!want.length) return;
+      // Only trails whose box overlaps a new square can change: rating every loaded trail again froze the map for a
+      // moment on each pan into a new square (alex, 2026-10-23).
+      const fresh = want.map((p) => p.key.split("_").map(Number));
+      const touches = (geom) => {
+        let s = 90, n = -90, w = 180, e = -180;
+        for (const q of geom || []) { const [a, o] = pt(q); if (a < s) s = a; if (a > n) n = a; if (o < w) w = o; if (o > e) e = o; }
+        return fresh.some(([a, o]) => s < a + 0.5 && n >= a && w < o + 0.5 && e >= o);
+      };
+      return Promise.all(want).then(() => fire(touches));
     });
   }
   function segDist(p, a0, a1, b0, b1) {
@@ -76,7 +85,14 @@
   }
   const SRC = { qc: "Sépaq", ott: "the City of Ottawa", ut: "Utah's trail data (UGRC)", pa: "Pennsylvania state parks", wh: "the Resort Municipality of Whistler", csrd: "the Columbia Shuswap Regional District" };
   // Towns' own trail lists name each trail: a line with another trail's name is a different trail on the same spot.
-  const NAMED = /^(wh|csrd)$/, words = (s) => new Set((s || "").toLowerCase().match(/[a-z0-9]{3,}/g) || []);
+  // Words are kept per name: the same few names are checked against every point of every trail (a freeze of a second
+  // or more on a phone when a new part of the map loaded, alex 2026-10-23).
+  const NAMED = /^(wh|csrd)$/, wordsOf = new Map(), words = (s) => {
+    s = s || "";
+    let w = wordsOf.get(s);
+    if (!w) { if (wordsOf.size > 20000) wordsOf.clear(); wordsOf.set(s, (w = new Set(s.toLowerCase().match(/[a-z0-9]{3,}/g) || []))); }
+    return w;
+  };
   const sameName = (a, b) => { const A = words(a), B = words(b); return !A.size || !B.size || [...A].some((w) => B.has(w)); };
   function official(geom, name) {
     if (!squares.size || !geom || geom.length < 2) return null;
@@ -85,7 +101,7 @@
       const cells = squares.get(`${sq(p[0])}_${sq(p[1])}`), list = cells && cells.get(Math.floor(p[0] / CELL) + "," + Math.floor(p[1] / CELL));
       if (!list) continue;
       const seen = new Set();
-      for (const [l, k] of list) if (!seen.has(l) && !(name && NAMED.test(l.src) && !sameName(name, l.name.split(", ")[0])) && segDist(p, l.g[k], l.g[k + 1], l.g[k + 2], l.g[k + 3]) <= NEAR_M) seen.add(l);
+      for (const [l, k] of list) if (!seen.has(l) && segDist(p, l.g[k], l.g[k + 1], l.g[k + 2], l.g[k + 3]) <= NEAR_M && !(name && NAMED.test(l.src) && !sameName(name, l.name.split(", ")[0]))) seen.add(l);
       seen.forEach((l) => { const key = l.src + "|" + l.name + "|" + l.d; hits.set(key, { l, n: ((hits.get(key) || {}).n || 0) + 1 }); });
     }
     let pick = null;
@@ -151,7 +167,7 @@
     const s = slopeStats(z), v = W[0] * s.p50 + W[1] * s.p90 + W[2] * s.avg + W[3] * s.relief + tagHint(tags || {});
     const r = { d: LEVELS[v < CUTS[0] ? 0 : v < CUTS[1] ? 1 : v < CUTS[2] ? 2 : 3], src: "est", why: estWhy(Math.round(s.p90 * 100)) };
     if (id) est.set(id, r);
-    fire();
+    fire(id ? (g, i) => i === id : undefined);
     return r;
   }
 

@@ -1374,10 +1374,10 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="rotate.js?v=290"></script>
-<script src="official.js?v=290"></script>
-<script src="directions.js?v=290"></script>
-<script src="ratings.js?v=290"></script>
+<script src="rotate.js?v=291"></script>
+<script src="official.js?v=291"></script>
+<script src="directions.js?v=291"></script>
+<script src="ratings.js?v=291"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1715,6 +1715,20 @@ body.sport-alt #rideMapBtn { display: none !important; }
   }
   // Belt and braces: a scrollIntoView elsewhere must not shift the whole app up either.
   window.addEventListener("scroll", () => { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); });
+  // The page itself zoomed out on a pinch is never wanted (alex, 2026-10-23: the app shrank into the top-left corner):
+  // snap it back to full size. Zooming in to read stays allowed.
+  if (window.visualViewport) {
+    let snapT = 0;
+    visualViewport.addEventListener("resize", () => {
+      clearTimeout(snapT);
+      snapT = setTimeout(() => {
+        if (visualViewport.scale > 0.99) return;
+        const m = document.querySelector('meta[name="viewport"]'), was = m.content;
+        m.content = was + ", minimum-scale=1, maximum-scale=1";
+        setTimeout(() => { m.content = was; }, 300);
+      }, 300);
+    });
+  }
   // Show a picked trail clearly: zoom in when it's only a few pixels long, and keep it out from under the colour key.
   function focusTrail(b, force) {
     if (!b || !b.isValid()) return;
@@ -3461,7 +3475,7 @@ out body;`;
   let trailInfo = null;
   const foldName = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   async function officialAbout(t) {
-    trailInfo = trailInfo || fetch("data/trail-info.json?v=290").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
+    trailInfo = trailInfo || fetch("data/trail-info.json?v=291").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
     const j = await trailInfo; if (!j) return [];
     const names = new Set([t.tags.name, t.tags["mtb:name"], t.tags["tf:name"], t.tfName].filter(Boolean).map(foldName));
     const mid = t.geom[Math.floor(t.geom.length / 2)], k = Math.cos(mid[0] * Math.PI / 180);
@@ -4509,6 +4523,7 @@ out body;`;
   const allData = new Map();                       // zone id -> list of { id, tags, geom, c }, null while loading
   let allKey = "";
   let allShown = [];                               // what drawAllTrails drew: { w, color }, for the names
+  const allDrawn = new Map(), allSeen = new Set(); // zone list -> { group, ids } drawn since allKey last changed; way ids drawn
   const allLoads = new Map();                      // zone id -> promise of its list
   // With All trails off, zooming in still shows every trail that isn't flagged unofficial (alex: "I want to see all the
   // official trails when I zoom in"; outside BC few trails carry the operator tags that make them "official" here).
@@ -4601,23 +4616,39 @@ out body;`;
   }
   function drawAllTrails() {
     const loaded = [...allData.values()].filter(Boolean);
-    const key = [state.allTrails, officialOnly(), state.colorBy, state.onlyUnoff, state.onlyOff, TYPE_KEYS.map((k) => state.show[k]), loaded.length].join("/");
-    if (key === allKey) return;
-    allKey = key;
-    allLayer.clearLayers();
-    allShown = [];
+    const key = [state.allTrails, officialOnly(), state.colorBy, state.onlyUnoff, state.onlyOff, TYPE_KEYS.map((k) => state.show[k])].join("/");
+    // A zone that just arrived only adds its own lines, and new ratings only redraw the zones they changed: redrawing
+    // every loaded zone's trails each time froze the map for a moment when panning into a new area (alex, 2026-10-23:
+    // "it lags and jumps somewhere else").
+    if (key === allKey && loaded.every((l) => allDrawn.has(l))) return;
+    if (key !== allKey) { allKey = key; allLayer.clearLayers(); allShown = []; allDrawn.clear(); allSeen.clear(); }
     if (!state.allTrails && !officialOnly()) return;
-    const seen = new Set(), byDiff = state.colorBy === "diff";
-    loaded.forEach((list) => list.forEach((w) => {
-      const unoff = w.c.unoff.length > 0, off = !!w.c.official;
-      // Official trails always show (alex: even with no option ticked), unless "Unofficial only" is on.
-      // Unofficial ones show too, with a dotted overlay, same as in the square.
-      if (seen.has(w.id) || !(state.allTrails ? off && !state.onlyUnoff || wanted(w.c.cat, unoff, off) : !unoff && !state.onlyUnoff)) return;
-      seen.add(w.id);
-      const d = difficulty(w.tags);
-      allShown.push({ w, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks") });
-      allLayer.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks"), weight: off ? 4.5 : unoff ? 3.5 : 2.5, opacity: off ? 1 : 0.75, dashArray: unoff ? UNOFF_DASH : byDiff && isEst(w.tags) ? EST_DASH : null, lineCap: "round", interactive: false }));
-    }));
+    const seen = allSeen, byDiff = state.colorBy === "diff";
+    loaded.filter((l) => !allDrawn.has(l)).forEach((list) => {
+      const group = L.layerGroup(), ids = [];
+      allDrawn.set(list, { group, ids });
+      list.forEach((w) => {
+        const unoff = w.c.unoff.length > 0, off = !!w.c.official;
+        // Official trails always show (alex: even with no option ticked), unless "Unofficial only" is on.
+        // Unofficial ones show too, with a dotted overlay, same as in the square.
+        if (seen.has(w.id) || !(state.allTrails ? off && !state.onlyUnoff || wanted(w.c.cat, unoff, off) : !unoff && !state.onlyUnoff)) return;
+        seen.add(w.id); ids.push(w.id);
+        const d = difficulty(w.tags);
+        allShown.push({ w, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks") });
+        group.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks"), weight: off ? 4.5 : unoff ? 3.5 : 2.5, opacity: off ? 1 : 0.75, dashArray: unoff ? UNOFF_DASH : byDiff && isEst(w.tags) ? EST_DASH : null, lineCap: "round", interactive: false }));
+      });
+      allLayer.addLayer(group);
+    });
+  }
+  // Some of a zone's trails changed (new ratings or official data): its lines are drawn again on the next drawAllTrails.
+  function allRedo(list) {
+    const was = allDrawn.get(list);
+    if (!was) return;
+    allDrawn.delete(list);
+    allLayer.removeLayer(was.group);
+    const ids = new Set(was.ids);
+    ids.forEach((id) => allSeen.delete(id));
+    allShown = allShown.filter((x) => !ids.has(x.w.id));
   }
   // Trail names on the All trails lines from zoom 13 (alex: "put the name of the trail on the map like all the other
   // trails"): one label per name in view, on the piece with the most of it in view, in the trail's colour; labels that
@@ -4678,8 +4709,12 @@ out body;`;
     // Only trails the new squares reach are checked again: checking every loaded trail froze the map for a moment on each pan.
     window.tfOfficial.onChange((touches = () => true) => {
       let all = 0, found = 0;
-      for (const list of allData.values()) (list || []).forEach((w) => { if (w.geom && touches(w.geom)) { w.c = classify(withOfficial(w.tags, w.geom), w.r || []) || w.c; all++; } });
-      if (all) { allKey = ""; queueAllDraw(); }
+      for (const list of allData.values()) {
+        let n = 0;
+        (list || []).forEach((w) => { if (w.geom && touches(w.geom)) { w.c = classify(withOfficial(w.tags, w.geom), w.r || []) || w.c; n++; } });
+        if (n) { allRedo(list); all += n; }
+      }
+      if (all) queueAllDraw();
       (state.trails || []).forEach((t) => {
         if (!t.geom || !touches(t.geom)) return;
         const c = classify(withOfficial(t.tags, t.geom), (t.routes || []).map((r) => r.name), t.routeTypes || []);
@@ -4693,13 +4728,21 @@ out body;`;
   if (window.tfRatings) {
     const rateLoad = () => window.tfRatings.load(map.getBounds());
     map.on("moveend", rateLoad); rateLoad();
-    let rateTimer = 0;
-    window.tfRatings.onChange(() => {
+    let rateTimer = 0, rateWho = [];   // what may change: touches(geom, id) from ratings.js, null for every trail
+    window.tfRatings.onChange((touches) => {
+      if (rateWho) rateWho.push(touches || null);
+      if (!touches) rateWho = null;
       clearTimeout(rateTimer);
       rateTimer = setTimeout(() => {
-        for (const list of allData.values()) (list || []).forEach((w) => rateTags(w.tags, w.geom, w.id));
-        (state.trails || []).forEach((t) => rateTags(t.tags, t.geom, t.id));
-        allKey = ""; queueAllDraw();
+        const who = rateWho; rateWho = [];
+        const may = (geom, id) => !who || who.some((f) => f(geom, id));
+        for (const list of allData.values()) {
+          let n = 0;
+          (list || []).forEach((w) => { if (may(w.geom, w.id)) { rateTags(w.tags, w.geom, w.id); n++; } });
+          if (n) allRedo(list);
+        }
+        (state.trails || []).forEach((t) => { if (may(t.geom, t.id)) rateTags(t.tags, t.geom, t.id); });
+        queueAllDraw();
         if (state.trails && state.trails.length) render();
       }, 150);
     });
@@ -6356,25 +6399,25 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=290"></script>
-<script src="contours.js?v=290"></script>
-<script src="photo-slider.js?v=290"></script>
-<script src="winter.js?v=290"></script>
-<script src="hunting.js?v=290"></script>
-<script src="ski-points.js?v=290"></script>
-<script src="offline.js?v=290"></script>
-<script src="ride-stats.js?v=290"></script>
-<script src="navigate.js?v=290"></script>
-<script src="planner.js?v=290"></script>
-<script src="rides.js?v=290"></script>
-<script src="account.js?v=290"></script>
-<script src="reports.js?v=290"></script>
-<script src="visitors.js?v=290"></script>
-<script src="notify.js?v=290"></script>
-<script src="areas.js?v=290"></script>
-<script src="alpine.js?v=290"></script>
-<script src="bikeparks.js?v=290"></script>
-<script src="photo-find.js?v=290"></script>
+<script src="map3d.js?v=291"></script>
+<script src="contours.js?v=291"></script>
+<script src="photo-slider.js?v=291"></script>
+<script src="winter.js?v=291"></script>
+<script src="hunting.js?v=291"></script>
+<script src="ski-points.js?v=291"></script>
+<script src="offline.js?v=291"></script>
+<script src="ride-stats.js?v=291"></script>
+<script src="navigate.js?v=291"></script>
+<script src="planner.js?v=291"></script>
+<script src="rides.js?v=291"></script>
+<script src="account.js?v=291"></script>
+<script src="reports.js?v=291"></script>
+<script src="visitors.js?v=291"></script>
+<script src="notify.js?v=291"></script>
+<script src="areas.js?v=291"></script>
+<script src="alpine.js?v=291"></script>
+<script src="bikeparks.js?v=291"></script>
+<script src="photo-find.js?v=291"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
