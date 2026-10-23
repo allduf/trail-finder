@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: 20
       - name: Install pdftotext (reads the season tables from the regulations PDFs)
-        run: sudo apt-get install -y -q poppler-utils
+        run: sudo apt-get update -q && sudo apt-get install -y -q poppler-utils
       - name: Collect hunting zones and areas
         run: node scripts/build-hunting.mjs
       - name: File sizes
