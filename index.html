@@ -4297,6 +4297,8 @@ out body;`;
     if (name === "peek") panelEl.scrollTop = 0;
     setSheetH(snapHeights()[name], name);
   }
+  const sheetUp = () => phoneMQ.matches && sheet.snap !== "peek";
+  const lowerSheet = () => snapTo("peek");
   function growTo(name) {                            // only ever grows the sheet
     const order = ["peek", "half", "full"];
     if (order.indexOf(sheet.snap) < order.indexOf(name)) snapTo(name);
@@ -5832,9 +5834,14 @@ out tags center qt;`;
   map.on("click", (e) => {
     if (boxDraw.on || boxDraw.done) return;          // drawing a square, not picking a trail
     if (document.querySelector(".app.riding, .app.planning")) return;   // Ride mode and Plan a route (navigate.js, planner.js)
-    if (document.body.classList.contains("sport-ski")) return;   // Skiing (winter.js) has its own routes
+    if (document.body.classList.contains("sport-ski")) { if (sheetUp()) lowerSheet(); return; }   // Skiing (winter.js) has its own routes
     clearTimeout(clickTimer);
-    clickTimer = setTimeout(() => pickTrailAt(e.latlng), 260); // a double-click zooms instead
+    clickTimer = setTimeout(() => {                  // a double-click zooms instead
+      // Phones: a tap on the map with the sheet up lowers it so the map is bigger (alex), unless it lands on a trail,
+      // which still opens that trail. Drags and pinches don't fire click.
+      if (sheetUp() && !(map.getZoom() >= SNAP_MIN_ZOOM && nearestDrawn(e.latlng))) { lowerSheet(); return; }
+      pickTrailAt(e.latlng);
+    }, 260);
   });
   map.on("dblclick", () => clearTimeout(clickTimer));
   function pickNote(ll, text) {
