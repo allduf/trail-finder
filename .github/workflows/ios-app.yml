@@ -13,6 +13,10 @@ on:
   push:
     branches: [main]
     paths: ["ios-app/**", ".github/workflows/ios-app.yml"]
+  # A pull request that changes the app only gets a test build (no Apple key, nothing sent to TestFlight),
+  # so a native change that doesn't compile shows up before it's merged.
+  pull_request:
+    paths: ["ios-app/**", ".github/workflows/ios-app.yml"]
   schedule:
     - cron: "17 9 1 * *"
   workflow_dispatch:
@@ -21,11 +25,37 @@ permissions:
   contents: read
 
 concurrency:
-  group: ios-app
+  group: ios-app-${{ github.event_name == 'pull_request' && github.ref || 'release' }}
   cancel-in-progress: false
 
 jobs:
+  build-check:
+    if: github.event_name == 'pull_request'
+    runs-on: macos-15
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ios-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test build (unsigned)
+        run: |
+          npm ci
+          npx cap sync ios
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build | tail -60
+
   testflight:
+    if: github.event_name != 'pull_request'
     runs-on: macos-15
     timeout-minutes: 45
     defaults:

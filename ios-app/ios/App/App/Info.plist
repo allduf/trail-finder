@@ -29,11 +29,15 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Trail Finder uses the camera when you take a picture to find which trail it is, or add a photo to a ride or ski point.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Trail Finder uses your location to show trails near you, follow you on the map and record your rides.</string>
+	<string>Trail Finder uses your location to show trails near you, follow you on the map and record your rides, also with the phone locked while you record.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Trail Finder only uses the microphone if you record a short video to find which trail it is.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Trail Finder opens the pictures you pick to find which trail they show, or to add them to a ride or ski point.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
