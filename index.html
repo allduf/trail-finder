@@ -3704,6 +3704,7 @@ out body;`;
       <div id="shuttle"></div>`;
     if (!$("panel").classList.contains("detail-open")) detailFrom = $("panel").scrollTop;
     $("panel").classList.add("detail-open"); setTrailFocus(true);
+    growTo("half");   // phones: opening a trail shows its details. Only here: a class watcher re-grew the sheet after every drag down or map tap (alex)
     $("detail").hidden = false;
     panelScrollTo($("detail"));
     syncClear();
@@ -3784,6 +3785,7 @@ out body;`;
       <p class="muted">Once it's mapped on OpenStreetMap, it shows up as a normal new trail. Mapping tip: the OpenStreetMap editor can show the Strava heatmap as a background to trace from by hand.</p>`;
     if (!$("panel").classList.contains("detail-open")) detailFrom = $("panel").scrollTop;
     $("panel").classList.add("detail-open"); setTrailFocus(true);
+    growTo("half");   // phones: opening a trail shows its details. Only here: a class watcher re-grew the sheet after every drag down or map tap (alex)
     $("detail").hidden = false;
     panelScrollTo($("detail"));
     $("detailBack").addEventListener("click", closeDetail);
@@ -4457,9 +4459,6 @@ out body;`;
   });
   new MutationObserver(() => requestAnimationFrame(showResults)).observe($("status"), { childList: true, characterData: true, subtree: true });
   [panelEl, $("tabbar")].forEach((el) => el.addEventListener("pointerdown", () => { showResultsUntil = 0; }, { passive: true }));
-  new MutationObserver(() => {
-    if (panelEl.classList.contains("detail-open")) growTo("half");
-  }).observe(panelEl, { attributes: true, attributeFilter: ["class"] });
   new MutationObserver(() => { if (!$("boxRes").hidden) growTo("half"); }).observe($("boxRes"), { attributes: true, attributeFilter: ["hidden"] });
   // App tab bar (phones): Map lowers the sheet, New trails and Search open those panes, More has the rest.
   function syncTabbar() {
