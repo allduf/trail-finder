@@ -1144,7 +1144,7 @@
     $("planStart").hidden = mode !== "pick";
     $("planStart").setAttribute("aria-pressed", String(settingStart));
     $("planStart").textContent = settingStart ? "Tap the start…" : pickStart ? "📍 Move start" : "📍 Set start";
-    ["planGpx", "planRide", "planSave", "planShare"].forEach((id) => { $(id).disabled = !ready || busy > 0; });
+    ["planGpx", "planGpxNear", "planRide", "planSave", "planShare"].forEach((id) => { $(id).disabled = !ready || busy > 0; });
     // Only what works now: Saved while there's nothing yet, Save and Ride it once you've started one.
     $("planUndo").hidden = !has; $("planSavedTop").hidden = !!has; $("planSavedBtn").hidden = !has;
     $("planSave").hidden = $("planRide").hidden = !has;
@@ -1223,14 +1223,56 @@
     } else setTimeout(() => { if (planning) resolvePicks(); }, 1500);
   }
   // The route as a GPX track, with each point's height (from the same terrain tiles; left out where there are none).
-  async function gpx() {
+  // With near (alex, for the map on a DJI Avinox bike, which shows only what's in the file): the trails and roads within
+  // GPX_NEAR_M of the route go in too, each as its own track, cut to the bits near the route.
+  const GPX_NEAR_M = 100;
+  function nearbyTracks(pts) {
+    const cell = 0.002, grid = new Map(), at = (a, b) => a + "," + b;
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const [a, b] = [pts[i], pts[i + 1]];
+      for (let x = Math.floor(Math.min(a[0], b[0]) / cell); x <= Math.floor(Math.max(a[0], b[0]) / cell); x++)
+        for (let y = Math.floor(Math.min(a[1], b[1]) / cell); y <= Math.floor(Math.max(a[1], b[1]) / cell); y++) {
+          const k = at(x, y); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(i);
+        }
+    }
+    const ky = 110540, kx = Math.cos(pts[0][0] * RAD) * 111320;
+    const segDist = (q, a, b) => {   // metres from q to the segment a-b, flat (short distances)
+      const ax = (a[1] - q[1]) * kx, ay = (a[0] - q[0]) * ky, bx = (b[1] - q[1]) * kx, by = (b[0] - q[0]) * ky;
+      const dx = bx - ax, dy = by - ay, l = dx * dx + dy * dy, t = l ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l)) : 0;
+      return Math.hypot(ax + t * dx, ay + t * dy);
+    };
+    const dist = (q) => {
+      let best = Infinity;
+      const cx = Math.floor(q[0] / cell), cy = Math.floor(q[1] / cell);
+      for (let x = cx - 1; x <= cx + 1; x++) for (let y = cy - 1; y <= cy + 1; y++)
+        (grid.get(at(x, y)) || []).forEach((i) => { best = Math.min(best, segDist(q, pts[i], pts[i + 1])); });
+      return best;
+    };
+    const box = boxOf(pts, 0.002), out = [];
+    allWays().forEach((w) => {
+      if (w.conn || !inBox(w, box)) return;
+      const d = w.geom.map(dist);
+      if (d.filter((x) => x < 15).length > d.length * 0.8) return;   // the route itself rides it
+      let run = [];
+      const flush = () => { if (run.length > 1) out.push({ name: nameOf(w) || (w.road ? "Forest road" : "Trail"), pts: run }); run = []; };
+      w.geom.forEach((q, i) => {
+        // keep the points near the route, plus one either side so the line reaches the edge of the band
+        if (d[i] <= GPX_NEAR_M || d[i - 1] <= GPX_NEAR_M || d[i + 1] <= GPX_NEAR_M) run.push(q); else flush();
+      });
+      flush();
+    });
+    return out;
+  }
+  async function gpx(near) {
     const pts = allPts(), now = new Date().toISOString(), name = mode === "pick" ? "Trail Finder ride" : "Trail Finder route";
+    const others = near === true ? nearbyTracks(pts) : [];
     const ht = await terrainOr(boxOf(pts, 0.005));
     const pt = (q) => { const h = ht(q); return `<trkpt lat="${q[0].toFixed(6)}" lon="${q[1].toFixed(6)}">${h != null ? `<ele>${h.toFixed(1)}</ele>` : ""}</trkpt>`; };
-    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${name}</name><time>${now}</time></metadata>\n<trk><name>${name}</name><trkseg>\n${pts.map(pt).join("\n")}\n</trkseg></trk>\n</gpx>\n`;
+    const trk = (n, list) => `<trk><name>${esc(n)}</name><trkseg>\n${list.map(pt).join("\n")}\n</trkseg></trk>`;
+    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>${name}</name><time>${now}</time></metadata>\n${[trk(name, pts), ...others.map((o) => trk(o.name, o.pts))].join("\n")}\n</gpx>\n`;
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([body], { type: "application/gpx+xml" }));
-    a.download = `trail-finder-route-${now.slice(0, 10)}.gpx`;
+    a.download = `trail-finder-route${others.length ? "-with-trails" : ""}-${now.slice(0, 10)}.gpx`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   }
@@ -1342,7 +1384,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
       <button type="button" data-how="pedal" title="Ride all of it, climbs included">🚲 Pedal</button>
       <button type="button" data-how="shuttle" title="A 4x4 pickup drives you up the open forest roads; you ride from where it stops">🛻 Shuttle</button></div></div>
       <div class="plan-btns"><button type="button" id="planStart" hidden>📍 Set start</button><button type="button" id="planLoop" title="End the ride back at the start">↺ Back to start</button>
-      <button type="button" id="planShare" title="Send this ride to a friend: the link opens it in their app">↗ Share</button><button type="button" id="planGpx">⤓ GPX</button>
+      <button type="button" id="planShare" title="Send this ride to a friend: the link opens it in their app">↗ Share</button><button type="button" id="planGpx">⤓ GPX</button><button type="button" id="planGpxNear" title="The route plus the trails and roads within ${GPX_NEAR_M} m of it, for a bike computer map that shows only the file">⤓ GPX + trails nearby</button>
       <button type="button" id="planSavedBtn" aria-pressed="false" title="Your saved routes">📂 Saved</button><button type="button" id="planClear">🗑 Clear</button></div></div>
     <ul class="plan-saved" id="planSaved" hidden aria-label="Saved routes"></ul>`;
   document.body.appendChild(bar);
@@ -1452,7 +1494,8 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
   $("planClear").addEventListener("click", () => { if ((mode === "tap" ? stops.length : picks.length) < 3 || confirm("Clear this plan?")) clear(); });
   $("planLoop").addEventListener("click", closeLoop);
   $("planStart").addEventListener("click", () => { settingStart = !settingStart; render(); });
-  $("planGpx").addEventListener("click", gpx);
+  $("planGpx").addEventListener("click", () => gpx(false));
+  $("planGpxNear").addEventListener("click", () => gpx(true));
   $("planDone").addEventListener("click", () => setPlanning(false));
   $("planRide").addEventListener("click", () => {
     const lines = legs.map((l) => l.pts), name = mode === "pick" ? `your ride (${fmtM(total())})` : `your route (${fmtM(total())})`;
