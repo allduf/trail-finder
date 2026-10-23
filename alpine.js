@@ -23,7 +23,7 @@
 .alpine-box { margin: 14px 0 0; padding: 10px 12px; border: 1.5px dashed ${COLOR}; border-radius: 8px; background: var(--chip); }
 .alpine-box strong { color: ${COLOR}; }
 .alpine-box p { margin: 4px 0 0; font-size: .9rem; }
-body.sport-ski .leaflet-alpine-pane { display: none; }`;
+body.sport-alt .leaflet-alpine-pane { display: none; }`;
   document.head.appendChild(css);
 
   map.createPane("alpine").style.zIndex = 392;   // over the All trails lines, under the new trails in the list

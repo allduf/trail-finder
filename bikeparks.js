@@ -53,7 +53,7 @@
 .legend .lg-ico.bp { border-radius: 50%; }
 .bp-pop .tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 1px 6px; border-radius: 9px; margin: 2px 4px 0 0; background: #eef0f2; color: #333; }
 .bp-pop .tag.lift { background: #d9480f; color: #fff; }
-body.sport-ski #parkBtn, body.sport-ski .leaflet-bikeParks-pane { display: none !important; }`;
+body.sport-alt #parkBtn, body.sport-alt .leaflet-bikeParks-pane, body.sport-alt .leaflet-bikeParksPins-pane { display: none !important; }`;
   document.head.appendChild(css);
 
   map.createPane("bikeParks").style.zIndex = 615;   // over trails and the other pins, under popups
