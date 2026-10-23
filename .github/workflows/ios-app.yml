@@ -63,7 +63,13 @@ jobs:
           npm ci
           npx cap sync ios
           mkdir -p "$RUNNER_TEMP/keys"
-          printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/AuthKey.p8"
+          # Rebuild the .p8 from just its key text, so a paste with Windows line ends, lost line breaks or extra spaces still works.
+          body=$(printf '%s' "$ASC_KEY_P8" | tr -d '\r' | sed -e 's/-----BEGIN PRIVATE KEY-----//' -e 's/-----END PRIVATE KEY-----//' | tr -d ' \n\t')
+          { echo "-----BEGIN PRIVATE KEY-----"; printf '%s\n' "$body" | fold -w 64; echo "-----END PRIVATE KEY-----"; } > "$RUNNER_TEMP/keys/AuthKey.p8"
+          if ! openssl pkey -in "$RUNNER_TEMP/keys/AuthKey.p8" -noout 2>/dev/null; then
+            echo "::error::ASC_KEY_P8 isn't a valid key (${#body} key characters, a real one has about 184). Open the AuthKey_XXXX.p8 file in Notepad, copy everything, and paste it again as the ASC_KEY_P8 secret."
+            exit 1
+          fi
           sed "s/TEAM_ID/$APPLE_TEAM_ID/" ExportOptions.plist > "$RUNNER_TEMP/ExportOptions.plist"
       - name: Build
         if: steps.keys.outputs.ok == 'true'
