@@ -34,6 +34,8 @@
     snowmobile: { label: "Snowmobile trails", color: "#c2255c", weight: 3, dashArray: "12 4" },
     sled: { label: "Sledding / tubing hills", color: "#3a3a42", weight: 2.5, dashArray: "2 6" },
     resort: { label: "Ski resort runs", color: "#6b7787", weight: 2 },
+    // Ungroomed in-bounds terrain (bowls, glades, chutes) inside a ski resort's boundary: resort skiing, not touring.
+    offpiste: { label: "Resort off-piste and bowls", color: "#7a8fb8", weight: 2, dashArray: "5 4" },
     other: { label: "Other winter routes", color: "#8e9aab", weight: 2 },
   };
   const HUT = { label: "Huts and cabins", color: "#7a2e10" };
@@ -182,6 +184,13 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
     for (const part of r.g) for (let i = 2; i < part.length; i += 2) m += map.distance([part[i - 2], part[i - 1]], [part[i], part[i + 1]]);
     return (r.km = m / 1000);
   };
+  // The size of a route mapped as a closed ring (r.area), in hectares.
+  const hectares = (r) => {
+    const p = r.g[0], k = Math.cos((p[0] * Math.PI) / 180) * 111320;
+    let a = 0;
+    for (let i = 2; i < p.length; i += 2) a += (p[i - 1] * k) * (p[i] * 110540) - (p[i + 1] * k) * (p[i - 2] * 110540);
+    return Math.abs(a) / 2 / 10000;
+  };
   function loadSki() {
     if (ski || skiLoading) return skiLoading;
     skiLoading = fetch("data/ski.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
@@ -202,6 +211,14 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       const t = TYPES[r.type] || TYPES.other, sel = selected === r;
       r.layers = [];
       for (const line of r.lines) {
+        // An area (a bowl or zone mapped as a closed ring): a light fill with a thin outline, not a route to follow.
+        if (r.area) {
+          const a = L.polygon(line, { renderer: skiRenderer, color: sel ? "#ffe14d" : t.color, weight: sel ? 3 : 1.5, opacity: 0.9, dashArray: sel ? null : "5 4", fillColor: t.color, fillOpacity: sel ? 0.25 : 0.12 });
+          a.bindTooltip(esc(nameOf(r) || t.label), { sticky: true });
+          a.on("click", (e) => { L.DomEvent.stopPropagation(e); select(r); });
+          skiLayer.addLayer(a);
+          continue;
+        }
         skiLayer.addLayer(L.polyline(line, { renderer: skiRenderer, color: sel ? "#ffe14d" : "#fff", weight: t.weight + (sel ? 6 : 3), opacity: sel ? 1 : 0.8, interactive: false }));
         const l = L.polyline(line, { renderer: skiRenderer, color: t.color, weight: t.weight + (sel ? 1.5 : 0), opacity: 1, dashArray: t.dashArray });
         l.bindTooltip(esc(nameOf(r) || t.label), { sticky: true });
@@ -281,7 +298,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
   // ---------- route details: heights, slopes, avalanche forecast and reports, weather ----------
   // A short name for each kind of route, for unnamed routes: "Ski touring near Ipsoot Mountain" (data/ski.json "near"
   // is the named peak closest to the route, found by the nightly job).
-  const SHORT = { tour: "Ski touring", access: "Ski access", nordic: "Nordic trail", snowshoe: "Snowshoe trail", snowmobile: "Snowmobile trail", sled: "Sledding hill", resort: "Ski run", other: "Winter route" };
+  const SHORT = { tour: "Ski touring", access: "Ski access", nordic: "Nordic trail", snowshoe: "Snowshoe trail", snowmobile: "Snowmobile trail", sled: "Sledding hill", resort: "Ski run", offpiste: "Resort off-piste", other: "Winter route" };
   const nameOf = (r) => r.name || (r.near ? `${SHORT[r.type] || "Route"} near ${r.near}` : "");
   const fmtM = (m) => Math.round(m).toLocaleString() + " m";
   const SAMPLE_M = 25;   // a height every 25 m along the route
@@ -667,7 +684,8 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
     d.hidden = false;
     d.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>
       <dl><dt>Type</dt><dd>${esc(isStart ? t.label + " (start point only; see camptocamp for the route)" : isHut ? (r.kind || "hut").replace(/_/g, " ") : t.label)}</dd>
-      ${isHut ? "" : `<dt>Length</dt><dd>${group.reduce((s, x) => s + km(x), 0).toFixed(1)} km${group.length > 1 ? ` (${group.length} pieces)` : ""}</dd>`}
+      ${isHut ? "" : r.area ? `<dt>Size</dt><dd>${hectares(r).toFixed(0)} ha: mapped as an area (a bowl or zone), not a line to follow</dd>`
+        : `<dt>Length</dt><dd>${group.reduce((s, x) => s + km(x), 0).toFixed(1)} km${group.length > 1 ? ` (${group.length} pieces)` : ""}</dd>`}
       ${r.diff ? `<dt>Difficulty</dt><dd>${esc(DIFF[r.diff] || r.diff)}</dd>` : ""}
       ${r.routes ? `<dt>Part of</dt><dd>${esc(r.routes.join(", "))}</dd>` : ""}
       ${club ? `<dt>Club</dt><dd><a href="#" class="sb-go">${esc(club.c.name)}</a> (${esc(club.a.name)}, ${club.km.toFixed(0)} km away): grooming report and trail pass</dd>` : ""}
