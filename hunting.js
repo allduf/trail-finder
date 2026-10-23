@@ -326,12 +326,13 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     for (const z of leh) L.polygon(ringsLL(z.g), { renderer, interactive: false, color: C.leh, weight: 2, dashArray: "7 5", opacity: 0.85, fill: false }).addTo(lehLayer);
   }
   // No-hunting areas are hatched (red stripes), so they never read as just another tint.
-  const hatchTile = (() => {
-    const cv = document.createElement("canvas"); cv.width = cv.height = 10;
-    const cx = cv.getContext("2d"); cx.strokeStyle = C.no; cx.lineWidth = 2;
-    cx.beginPath(); cx.moveTo(-1, 11); cx.lineTo(11, -1); cx.moveTo(-1, 1); cx.lineTo(1, -1); cx.moveTo(9, 11); cx.lineTo(11, 9); cx.stroke();
+  const makeHatch = (n, w) => {   // n px square, w px stripes
+    const cv = document.createElement("canvas"); cv.width = cv.height = n;
+    const cx = cv.getContext("2d"); cx.strokeStyle = C.no; cx.lineWidth = w;
+    cx.beginPath(); cx.moveTo(-1, n + 1); cx.lineTo(n + 1, -1); cx.moveTo(-1, 1); cx.lineTo(1, -1); cx.moveTo(n - 1, n + 1); cx.lineTo(n + 1, n - 1); cx.stroke();
     return cv;
-  })();
+  };
+  const hatchTile = makeHatch(10, 2), hatch3d = makeHatch(16, 3.5);   // bolder on the 3D photos
   const HATCH = document.createElement("canvas").getContext("2d").createPattern(hatchTile, "repeat");
   const hatched = (k) => k.color === C.no;   // reserves are "no" too (ask first) but keep their own violet
   const fillOp = (id, k) => (hatched(k) ? 0.6 : id === "town" ? 0.2 : k.color === C.vary ? 0.16 : k.color === C.reserve ? 0.12 : 0.07);
@@ -344,8 +345,8 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
       if (!k) continue;
       const want = a.k === "green" ? shown.has("land") : shown.has("rules");
       if (!want) continue;
-      L.polygon(ringsLL(a.g), { renderer, interactive: false, color: k.color, weight: k.line || k.color === C.vary || k.color === C.reserve ? 2 : hatched(k) ? 1.5 : 1, dashArray: k.dash || null, lineCap: k.dash ? "round" : "butt",
-        opacity: a.k === "town" ? 0.5 : 0.85, fill: !k.line, fillColor: hatched(k) ? HATCH : k.color, fillOpacity: fillOp(a.k, k) }).addTo(rulesLayer);
+      L.polygon(ringsLL(a.g), { renderer, interactive: false, color: k.color, weight: k.line || k.color === C.vary || k.color === C.reserve ? 2 : hatched(k) || a.k === "town" ? 1.5 : 1, dashArray: k.dash || null, lineCap: k.dash ? "round" : "butt",
+        opacity: 0.85, fill: !k.line, fillColor: hatched(k) ? HATCH : k.color, fillOpacity: fillOp(a.k, k) }).addTo(rulesLayer);
     }
     sync3d();
   }
@@ -1069,13 +1070,13 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
         fillsSet = true;
         const feats = areas.filter((a) => AREA_KINDS[a.k] && !AREA_KINDS[a.k].line).map((a) => {
           const k = AREA_KINDS[a.k];
-          return { type: "Feature", properties: { c: k.color, o: fillOp(a.k, k), h: hatched(k) },
+          return { type: "Feature", properties: { c: k.color, o: Math.min(0.35, fillOp(a.k, k) * 2.5), h: hatched(k) },   // fills stronger over the photos than over the 2D map
             geometry: { type: "Polygon", coordinates: a.g.map((r) => { const out = []; for (let i = 0; i < r.length; i += 2) out.push([r[i + 1], r[i]]); return out; }) } };
         });
         gl.addSource("hn-fill", { type: "geojson", data: { type: "FeatureCollection", features: feats } });
         gl.addLayer({ id: "hn-fill", type: "fill", source: "hn-fill", filter: ["!", ["get", "h"]], paint: { "fill-color": ["get", "c"], "fill-opacity": ["get", "o"] } }, under);
-        if (!gl.hasImage("hn-hatch")) gl.addImage("hn-hatch", hatchTile.getContext("2d").getImageData(0, 0, 10, 10));
-        gl.addLayer({ id: "hn-hatch", type: "fill", source: "hn-fill", filter: ["get", "h"], paint: { "fill-pattern": "hn-hatch", "fill-opacity": 0.75 } }, under);
+        if (!gl.hasImage("hn-hatch")) gl.addImage("hn-hatch", hatch3d.getContext("2d").getImageData(0, 0, 16, 16));
+        gl.addLayer({ id: "hn-hatch", type: "fill", source: "hn-fill", filter: ["get", "h"], paint: { "fill-pattern": "hn-hatch", "fill-opacity": 1 } }, under);
       }
       vis("hn-fill", want("rules")); vis("hn-hatch", want("rules"));
       // Zone labels.
