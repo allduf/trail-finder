@@ -1080,6 +1080,14 @@
     const stop = l.stop ? ` <span class="gap-note">road ahead ${l.stop}, ride from here</span>` : "";
     return `<li class="ps-link"><span class="ps-n">${verb === "Climb" ? "↗" : verb === "Descend" ? "↘" : "→"}</span><span><b>${verb}</b>${names.length ? " on " + names.map(esc).join(", ") : ""} ${m}${onlyWay}${stop}</span></li>`;
   }
+  // About how long the riding takes (ride-stats.js): tuned to your own saved rides once there are some.
+  const rs = window.tfRideStats;
+  if (rs && rs.loadPace) rs.loadPace().then(() => { if (planning) render(); });
+  function rideTime(m) {
+    if (!rs || !rs.timeFor || m < 300) return "";
+    const t = rs.timeFor(m, elev ? elev.up : 0);
+    return ` · <span class="plan-time" title="${t.rides ? `From your pace on ${t.rides} saved ride${t.rides > 1 ? "s" : ""}` : "For an average trail rider: 14 km an hour on the flat, 600 m of climbing an hour. Import or record rides and it learns your pace"}, riding time only (no stops${how === "shuttle" ? " or driving" : ""}).">⏱ about ${rs.fmtHours(t.h)}${t.rides ? " at your pace" : ""}</span>`;
+  }
   function render() {
     const gaps = legs.filter((l) => l.gap).length, climb = elev ? ` · ↑ ${elev.up} m · ↓ ${elev.down} m` : "";
     const car = driven().reduce((a, r) => a + lengthOf(r.pts), 0), m = total() - car;
@@ -1094,11 +1102,11 @@
     let stats;
     if (note) stats = noteWarn ? `<span class="gap-note">${esc(note)}</span>` : `<b>${esc(note)}</b>`;
     else if (mode === "tap") stats = stops.length < 2 ? (busy ? "Finding the way…" : stops.length ? "Tap the next point. The route takes the trails that make sense." : "Tap the map where you start.")
-      : `${ride(fmtM(m))}${climb}${drive}${gaps ? ` · <span class="gap-note">${gaps} stretch${gaps > 1 ? "es" : ""} off mapped trails (dashed)</span>` : ""}${busy ? " · finding the way…" : ""}`;
+      : `${ride(fmtM(m))}${climb}${rideTime(m)}${drive}${gaps ? ` · <span class="gap-note">${gaps} stretch${gaps > 1 ? "es" : ""} off mapped trails (dashed)</span>` : ""}${busy ? " · finding the way…" : ""}`;
     else if (settingStart) stats = "Tap the map where you start.";
     else if (!picks.length) stats = "Tap the trails you want to ride. The app puts them in a logical order and direction, and you can change the order.";
     else if (busy || !legs.length) stats = `${picks.length} trail${picks.length > 1 ? "s" : ""} picked · building the ride…`;
-    else stats = `${ride(fmtM(m))}${climb}${drive} · ${picks.length} trail${picks.length > 1 ? "s" : ""}${gaps ? ` · <span class="gap-note">${gaps} stretch${gaps > 1 ? "es" : ""} off mapped trails${joining ? " (looking for streets and paths…)" : ""}</span>` : ""}`;
+    else stats = `${ride(fmtM(m))}${climb}${rideTime(m)}${drive} · ${picks.length} trail${picks.length > 1 ? "s" : ""}${gaps ? ` · <span class="gap-note">${gaps} stretch${gaps > 1 ? "es" : ""} off mapped trails${joining ? " (looking for streets and paths…)" : ""}</span>` : ""}`;
     $("planStats").innerHTML = stats;
     if (mode === "tap") {
       const used = namesOf(legs.flatMap((l) => l.ways));
@@ -1120,7 +1128,7 @@
     $("planStart").hidden = mode !== "pick";
     $("planStart").setAttribute("aria-pressed", String(settingStart));
     $("planStart").textContent = settingStart ? "Tap the start…" : pickStart ? "📍 Move start" : "📍 Set start";
-    ["planGpx", "planRide", "planSave"].forEach((id) => { $(id).disabled = !ready || busy > 0; });
+    ["planGpx", "planRide", "planSave", "planShare"].forEach((id) => { $(id).disabled = !ready || busy > 0; });
   }
   // Climb for Tap points, from the same terrain heights.
   let climbGen = 0;
@@ -1292,7 +1300,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
       <button type="button" data-how="shuttle" title="A 4x4 pickup drives you up the open forest roads; you ride from where it stops">🛻 Shuttle</button></div></div>
     <div class="plan-stats" id="planStats" aria-live="polite"></div><div class="plan-trails" id="planTrails"></div><ol class="plan-steps" id="planSteps"></ol>
     <div class="plan-btns"><button type="button" id="planUndo">↶ Undo</button><button type="button" id="planStart" hidden>📍 Set start</button><button type="button" id="planLoop" title="End the ride back at the start">↺ Back to start</button><button type="button" id="planClear">Clear</button>
-    <button type="button" id="planFind" title="Look for trails by name, level or area, then come back">🔍 Find trails</button><button type="button" id="planSave" title="Save this ride to open again later">💾 Save</button><button type="button" id="planSavedBtn" aria-pressed="false" title="Your saved routes">📂 Saved</button>
+    <button type="button" id="planFind" title="Look for trails by name, level or area, then come back">🔍 Find trails</button><button type="button" id="planSave" title="Save this ride to open again later">💾 Save</button><button type="button" id="planShare" title="Send this ride to a friend: the link opens it in their app">↗ Share</button><button type="button" id="planSavedBtn" aria-pressed="false" title="Your saved routes">📂 Saved</button>
     <button type="button" id="planGpx">⤓ GPX</button><button type="button" class="go" id="planRide">▶ Ride it</button><button type="button" id="planDone">Done</button></div>
     <ul class="plan-saved" id="planSaved" hidden aria-label="Saved routes"></ul>`;
   document.body.appendChild(bar);
@@ -1449,18 +1457,23 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
     try { localStorage.setItem("tf:planSaved", JSON.stringify(list)); window.dispatchEvent(new Event("tf:setting")); } catch { flash("Couldn't save on this device (storage full?)."); }
     renderSaved();
   }
-  function saveRoute() {
-    const pts = allPts();
-    if (pts.length < 2) return;
+  function routeGuess() {
     const names = mode === "pick" ? picks.map((p) => p.name) : namesOf(legs.flatMap((l) => l.ways)).map((t) => t.name);
-    const guess = names.length ? names.slice(0, 3).join(" + ") + (names.length > 3 ? ` +${names.length - 3}` : "") : `Route ${fmtM(total())}`;
-    const name = prompt("Name this ride", guess);
-    if (name == null) return;
-    const b = L.latLngBounds(pts), car = driven().reduce((a, r) => a + lengthOf(r.pts), 0);
-    const e = { id: Date.now().toString(36), name: name.trim() || guess, at: new Date().toISOString(), mode, how,
+    return names.length ? names.slice(0, 3).join(" + ") + (names.length > 3 ? ` +${names.length - 3}` : "") : `Route ${fmtM(total())}`;
+  }
+  function routeEntry(name) {
+    const pts = allPts(), b = L.latLngBounds(pts), car = driven().reduce((a, r) => a + lengthOf(r.pts), 0);
+    const e = { id: Date.now().toString(36), name, at: new Date().toISOString(), mode, how,
       box: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((x) => +x.toFixed(5)), km: +((total() - car) / 1000).toFixed(1), up: elev ? elev.up : null, drive: car ? +(car / 1000).toFixed(1) : 0 };
     if (mode === "pick") e.pick = { picks: picks.map((p) => ({ name: p.name, ids: p.ways.map((w) => w.id), pedal: !!p.pedal })), start: pickStart, back: pickBack, order: pickManual ? "tap" : "auto", homePedal: pickHomePedal };
     else e.stops = stops.map((st) => st.tap || st.ll);
+    return e;
+  }
+  function saveRoute() {
+    if (allPts().length < 2) return;
+    const guess = routeGuess(), name = prompt("Name this ride", guess);
+    if (name == null) return;
+    const e = routeEntry(name.trim() || guess);
     setSaved([e, ...savedList()]);
     flash(`Saved "${e.name}". 📂 Saved opens it again.`, false);
   }
@@ -1486,9 +1499,9 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
     if (!savedOpen) return;
     const list = savedList();
     $("planSaved").innerHTML = (!list.length ? `<li class="sv-empty">No saved routes yet. Plan one and tap 💾 Save.</li>` : list.map((e) => {
-      const meta = [e.mode === "pick" ? "Pick trails" : "Tap points", e.km != null ? `${e.drive ? "Ride " : ""}${e.km} km` : "", e.up != null ? `↑ ${e.up} m` : "", e.drive ? `🛻 ${e.drive} km` : "", e.at ? new Date(e.at).toLocaleDateString() : ""].filter(Boolean).join(" · ");
+      const meta = [e.mode === "pick" ? "Pick trails" : "Tap points", e.km != null ? `${e.drive ? "Ride " : ""}${e.km} km` : "", e.up != null ? `↑ ${e.up} m` : "", e.drive ? `🛻 ${e.drive} km` : "", e.km != null && rs && rs.timeFor ? `⏱ ${rs.fmtHours(rs.timeFor(e.km * 1000, e.up).h)}` : "", e.at ? new Date(e.at).toLocaleDateString() : ""].filter(Boolean).join(" · ");
       return `<li><button type="button" class="sv-body" data-sv="open" data-id="${esc(e.id)}" title="Open this route"><b>${esc(e.name)}</b><small>${esc(meta)}</small></button>
-        <span class="sv-ctl"><button type="button" data-sv="rename" data-id="${esc(e.id)}" aria-label="Rename">✎</button> <button type="button" data-sv="del" data-id="${esc(e.id)}" aria-label="Delete">🗑</button></span></li>`;
+        <span class="sv-ctl">${e.box && window.tfOffline ? `<button type="button" data-sv="offline" data-id="${esc(e.id)}" aria-label="Save offline" title="Save the map and trails around this route on this device, for riding with no signal">⤓</button> ` : ""}<button type="button" data-sv="rename" data-id="${esc(e.id)}" aria-label="Rename">✎</button> <button type="button" data-sv="del" data-id="${esc(e.id)}" aria-label="Delete">🗑</button></span></li>`;
     }).join("")) + syncLine();
   }
   // Saved routes reach other devices only through an account, so say which this is.
@@ -1505,6 +1518,30 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
     return `<li class="sv-sync">Saved on this device only. <button type="button" data-sv="signin" data-id="">Sign in</button> on your phone and computer to see them on both.</li>`;
   }
   $("planSave").addEventListener("click", saveRoute);
+  // Share (alex, from Outmap): the route goes in the link itself, so it works with no account.
+  const b64 = (o) => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const unb64 = (s) => JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g, "+").replace(/_/g, "/")))));
+  $("planShare").addEventListener("click", () => {
+    if (allPts().length < 2) return;
+    const e = routeEntry(routeGuess()), { id, at, ...rest } = e;
+    const url = `${location.origin}${location.pathname}#route=${b64(rest)}`;
+    const t = rs && rs.timeFor && e.km != null ? `, about ${rs.fmtHours(rs.timeFor(e.km * 1000, e.up).h)}` : "";
+    if (window.tfShare) window.tfShare({ title: e.name, text: `${e.name}: ${e.km} km${e.up != null ? `, ↑ ${e.up} m` : ""}${t}`, url });
+  });
+  // A shared route link: saved in the list (so it's there later) and opened.
+  (() => {
+    const m = location.hash.match(/^#route=([\w-]+)$/);
+    if (!m) return;
+    history.replaceState(null, "", location.pathname + location.search);
+    try {
+      const e = unb64(m[1]);
+      if (!e || !(e.mode === "pick" ? e.pick && Array.isArray(e.pick.picks) : Array.isArray(e.stops))) throw new Error("bad route");
+      const entry = { ...e, id: Date.now().toString(36), at: new Date().toISOString(), name: String(e.name || "Shared route").slice(0, 120), shared: true };
+      setSaved([entry, ...savedList()]);
+      setTimeout(() => openSaved(entry), 600);
+      setTimeout(() => flash(`"${entry.name}" was shared with you. It's in 📂 Saved.`, false), 1500);
+    } catch { setTimeout(() => flash("That shared route link is broken."), 1000); }
+  })();
   $("planFind").addEventListener("click", () => setFind(true));
   back.addEventListener("click", () => setFind(false));
   $("planSavedBtn").addEventListener("click", () => showSaved(!savedOpen));
@@ -1516,6 +1553,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
     const list = savedList(), e = list.find((x) => x.id === b.dataset.id);
     if (!e) return;
     if (b.dataset.sv === "open") openSaved(e);
+    else if (b.dataset.sv === "offline") { showSaved(false); window.tfOffline.saveBox(e.box, e.name); }
     else if (b.dataset.sv === "rename") { const n = prompt("Rename this ride", e.name); if (n != null && n.trim()) { e.name = n.trim(); e.ed = Date.now(); setSaved(list); } }
     else if (b.dataset.sv === "del" && confirm(`Delete "${e.name}"?`)) {
       try { const g = JSON.parse(localStorage.getItem("tf:planGone") || "[]"); localStorage.setItem("tf:planGone", JSON.stringify([{ id: e.id, at: Date.now() }, ...(Array.isArray(g) ? g : [])].slice(0, 300))); } catch {}

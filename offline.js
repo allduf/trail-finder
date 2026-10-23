@@ -328,6 +328,21 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
   }
   $("[data-stop]").addEventListener("click", () => { if (busy) busy.stop = true; });
 
+  // Save a given box straight away (alex, from Outmap: "save offline" on a saved route or a riding area, no square to
+  // draw). The box gets a margin; too big for one save, the card opens on it and says so.
+  window.tfOffline = {
+    saveBox(box, name) {
+      const latM = (box[2] - box[0]) * 0.15 + 0.004, lonM = (box[3] - box[1]) * 0.15 + 0.006;
+      const b = [box[0] - latM, box[1] - lonM, box[2] + latM, box[3] + lonM].map((v) => +v.toFixed(5));
+      if (card.hidden) open(true);
+      map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { animate: false });
+      setDrawn(b);
+      const nm = $("[data-name]");
+      nm.value = name; nm.dataset.typed = "1";
+      if (countTiles(tileRanges(b, 0, MAX_Z)) <= MAX_TILES && navigator.onLine) saveArea(b, name);
+    },
+  };
+
   // Delete an area's tiles, except ones another saved area also covers. With no areas left, empty the cache.
   async function remove(a, areas) {
     const rest = areas.filter((x) => x !== a);

@@ -92,18 +92,26 @@ subs.forEach(({ watch: w = {} }) => {
   zonesOf(w).forEach((z) => trailsOf(z).forEach((t) => cells.add(cellOf(t.c))));
   rideOf(w).forEach((t) => cells.add(cellOf(t.c)));
 });
-const lmi = new Map(), cellList = [...cells];
+// Loam forecast, as in index.html: the 1 pm reading of each coming day; soon = the first prime one.
+const dayName = (d, today) => {
+  const n = Math.round((Date.parse(d) - Date.parse(today)) / 86400e3);
+  return n === 1 ? "tomorrow" : new Date(d + "T12:00Z").toLocaleDateString("en-CA", { weekday: "long", timeZone: "UTC" });
+};
+const lmi = new Map(), soonOf = new Map(), cellList = [...cells];
 for (let i = 0; i < cellList.length; i += 50) {
   const chunk = cellList.slice(i, i + 50), ll = chunk.map((k) => k.split(","));
   try {
     const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${ll.map((x) => x[0]).join(",")}&longitude=${ll.map((x) => x[1]).join(",")}` +
-      "&timezone=auto&past_days=1&forecast_days=1&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm");
+      "&timezone=auto&past_days=1&forecast_days=4&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm");
     if (!r.ok) throw new Error("HTTP " + r.status);
     const json = await r.json();
     (Array.isArray(json) ? json : [json]).forEach((w, k) => {
       let j = w.hourly.time.findIndex((x) => x > w.current.time) - 1;
       if (j < 0) j = w.hourly.time.length - 1;
       lmi.set(chunk[k], lmiAt(w.hourly, j));
+      const today = w.current.time.slice(0, 10), h = w.hourly;
+      const i = h.time.findIndex((x, n) => x.slice(0, 10) > today && x.endsWith("T13:00") && isPrime(lmiAt(h, n)));
+      if (i >= 0) soonOf.set(chunk[k], { d: h.time[i].slice(0, 10), day: dayName(h.time[i].slice(0, 10), today), v: lmiAt(h, i) });
     });
   } catch (e) { console.log(`Open-Meteo, spots ${i}-${i + chunk.length}: ${e.message}`); }
 }
@@ -138,6 +146,24 @@ for (const s of subs) {
     }));
     const freshAreas = [];
     prime.forEach((p, k) => { now[k] = 1; if (!was[k]) freshAreas.push(p); });
+    // Prime soon: areas with nothing prime now, and To ride trails, that turn prime in the next 3 days. Once per streak.
+    const soon = new Map();   // "s:" key -> { name, d, day, vs }
+    zonesOf(w).forEach((z) => trailsOf(z).forEach((t) => {
+      const cell = cellOf(t.c), key = "s:a:" + t.area, f = soonOf.get(cell);
+      if (prime.has("a:" + t.area)) return;
+      if (!lmi.has(cell)) { if (was[key]) now[key] = 1; return; }
+      if (!f || isPrime(lmi.get(cell))) return;
+      const o = soon.get(key);
+      if (!o || f.d < o.d) soon.set(key, { name: t.area, d: f.d, day: f.day, vs: [f.v] });
+      else if (f.d === o.d) o.vs.push(f.v);
+    }));
+    rideOf(w).forEach((t) => {
+      const cell = cellOf(t.c), key = "s:r:" + t.k, f = soonOf.get(cell);
+      if (!lmi.has(cell)) { if (was[key]) now[key] = 1; return; }
+      if (f && !isPrime(lmi.get(cell))) soon.set(key, { name: t.n, d: f.d, day: f.day, vs: [f.v], ride: true });
+    });
+    const freshSoon = [];
+    soon.forEach((p, k) => { now[k] = 1; if (!was[k]) freshSoon.push({ ...p, key: k }); });
     const freshRide = [];
     rideOf(w).forEach((t) => {
       const cell = cellOf(t.c), key = "r:" + t.k;
@@ -152,6 +178,12 @@ for (const s of subs) {
     if (lines.length) {
       const names = freshRide.map((t) => t.n).concat(freshAreas.map((p) => p.name));
       msgs.push({ title: `Prime loam: ${list(names, 2)}`, body: lines.slice(0, 5).join("\n") + (lines.length > 5 ? `\nand ${lines.length - 5} more` : ""), keys: freshRide.map((t) => "r:" + t.k).concat([...prime.keys()].filter((k) => !was[k])) });
+    }
+    if (freshSoon.length) {
+      freshSoon.sort((x, y) => x.d.localeCompare(y.d) || (y.ride ? 1 : 0) - (x.ride ? 1 : 0) || y.vs.length - x.vs.length);
+      const lines = freshSoon.map((p) => p.ride ? `${p.name} (To ride): ${p.day}, Loam ${p.vs[0]}` : `${p.name}: ${p.day}, ${p.vs.length} trail${p.vs.length > 1 ? "s" : ""}, ${range(p.vs)}`);
+      msgs.push({ title: `Prime loam ${freshSoon[0].day}: ${list(freshSoon.filter((p) => p.d === freshSoon[0].d).map((p) => p.name), 2)}`,
+        body: lines.slice(0, 5).join("\n") + (lines.length > 5 ? `\nand ${lines.length - 5} more` : ""), keys: freshSoon.map((p) => p.key) });
     }
   }
   // New trails in the picked regions.
@@ -177,7 +209,7 @@ for (const s of subs) {
   let expired = false;
   for (const m of msgs) {
     try {
-      await webpush.sendNotification(s.sub, JSON.stringify({ title: m.title, body: m.body, url: "./#notify", tag: m.keys[0].startsWith("n:") ? "tf-new" : "tf-loam" }), { TTL: 6 * 3600, urgency: "normal" });
+      await webpush.sendNotification(s.sub, JSON.stringify({ title: m.title, body: m.body, url: "./#notify", tag: m.keys[0].startsWith("n:") ? "tf-new" : m.keys[0].startsWith("s:") ? "tf-loam-soon" : "tf-loam" }), { TTL: 6 * 3600, urgency: "normal" });
       sent++;
     } catch (e) {
       if (e.statusCode === 404 || e.statusCode === 410) { expired = true; break; }   // turned off on the phone, or the address expired

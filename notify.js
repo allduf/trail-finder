@@ -75,6 +75,7 @@ dialog.notify h3 + p { margin-bottom: 4px; }
 dialog.notify .nt-loam li.unread button::before { background: var(--prime, #2f8f88); }
 dialog.notify .nt-loam .lv { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--fg); }
 dialog.notify .nt-loam .lv i { width: 8px; height: 8px; border-radius: 50%; background: var(--prime, #2f8f88); display: inline-block; }
+dialog.notify .nt-loam .lv.soon i { background: transparent; box-shadow: inset 0 0 0 2px var(--prime, #2f8f88); }
 dialog.notify .nt-opt { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; font-size: .9rem; cursor: pointer; }
 dialog.notify .nt-opt input { margin: 0; accent-color: var(--accent); }
 dialog.notify .nt-zhead { margin: 14px 0 6px; }
@@ -114,7 +115,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   <div class="nt-row"><button type="button" data-close>Not now</button><button type="button" class="go" id="ntSave">Save</button></div>
 </div>
 <div id="ntList" hidden>
-  <div id="ntLoam" class="nt-loam" hidden><h3>Prime loam now</h3><p id="ntLoamWhere"></p><ol id="ntLoamItems"></ol><h3 id="ntNewHead">New trails</h3></div>
+  <div id="ntLoam" class="nt-loam" hidden><h3>Prime loam, now and soon</h3><p id="ntLoamWhere"></p><ol id="ntLoamItems"></ol><h3 id="ntNewHead">New trails</h3></div>
   <p id="ntWhere"></p>
   <ol id="ntItems"></ol>
   <div class="nt-row"><button type="button" class="nt-link" id="ntEdit">Change regions</button><span><button type="button" id="ntAll">Mark all read</button> <button type="button" class="go" data-close>Done</button></span></div>
@@ -194,7 +195,10 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     try {
       const ride = rideList(), region = await regionTrails();
       if (!ride.length && !region.length) { loamList = []; loamAt = Date.now(); throw null; }
-      const vals = await window.tfLoamAt(ride.map((t) => t.c).concat(region.map((t) => t.c)));
+      const pts = ride.map((t) => t.c).concat(region.map((t) => t.c));
+      const vals = await window.tfLoamAt(pts);
+      // Loam forecast: the first coming day each spot turns prime (same readings, nothing more to download).
+      const soon = window.tfLoamSoon ? await window.tfLoamSoon(pts).catch(() => pts.map(() => null)) : pts.map(() => null);
       const now = [], areas = new Map(), seen = new Set();
       const mark = (key, prime) => { const was = alertState[key]; if (prime) { if (!was || !was.p) alertState[key] = { p: 1, r: 0 }; } else if (was) alertState[key] = { p: 0, r: 1 }; };
       ride.forEach((t, i) => {
@@ -203,18 +207,32 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
         seen.add(t.key);
         if (isPrime(v)) now.push({ ...t, v });
         mark(t.key, isPrime(v));
+        const s = !isPrime(v) && soon[i];
+        seen.add("s:" + t.key);
+        if (s) now.push({ ...t, key: "s:" + t.key, v: s.v, soon: s, why: "On your To ride list" });
+        mark("s:" + t.key, !!s);
       });
       region.forEach((t, i) => {
         const v = vals[ride.length + i], key = "a:" + t.area;
         seen.add(key);
-        if (!areas.has(key)) areas.set(key, { key, name: t.area, area: true, trails: [], known: false });
+        if (!areas.has(key)) areas.set(key, { key, name: t.area, area: true, trails: [], soonTrails: [], known: false });
         if (v == null) return;
         const a = areas.get(key);
         a.known = true;
         if (isPrime(v)) a.trails.push({ ...t, v });
+        else if (soon[ride.length + i]) a.soonTrails.push({ ...t, v: soon[ride.length + i].v, soon: soon[ride.length + i] });
       });
       areas.forEach((a) => {
         if (!a.known) return;
+        // Nothing prime now but some trails will be: one "prime loam <day>" line for the area, earliest day first.
+        const sk = "s:" + a.key, first = a.trails.length ? null : a.soonTrails.map((t) => t.soon).sort((x, y) => x.d.localeCompare(y.d))[0];
+        seen.add(sk);
+        mark(sk, !!first);
+        if (first) {
+          const ts = a.soonTrails.filter((t) => t.soon.d === first.d).sort((x, y) => x.name.localeCompare(y.name)), vs = ts.map((t) => t.v);
+          now.push({ key: sk, name: a.name, area: true, soon: first, trails: ts,
+            why: `Prime loam ${first.day} · ${ts.length} trail${ts.length > 1 ? "s" : ""} · Loam ${Math.min(...vs) === Math.max(...vs) ? vs[0] : `${Math.min(...vs)} to ${Math.max(...vs)}`}` });
+        }
         mark(a.key, a.trails.length > 0);
         if (!a.trails.length) return;
         const vs = a.trails.map((t) => t.v), lo = Math.min(...vs), hi = Math.max(...vs);
@@ -225,8 +243,8 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
       // Forget trails and areas no longer watched, so the list doesn't grow forever.
       Object.keys(alertState).forEach((k) => { if (!seen.has(k)) delete alertState[k]; });
       putAlerts();
-      // Unread first, To ride trails before areas, bigger areas first.
-      const rank = (t) => alertState[t.key].r * 2 + (t.area ? 1 : 0);
+      // Unread first, prime now before prime soon, To ride trails before areas, bigger areas first.
+      const rank = (t) => alertState[t.key].r * 4 + (t.soon ? 2 : 0) + (t.area ? 1 : 0);
       loamList = now.sort((a, b) => rank(a) - rank(b) || (b.trails || []).length - (a.trails || []).length || a.name.localeCompare(b.name));
       loamAt = Date.now();
     } catch {}
@@ -284,14 +302,14 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     if (!loamOn()) return;
     const fresh = new Set(loamUnread().map((t) => t.key)), items = loamList;
     const what = [prefs() && "the trails in your regions", "your To ride trails"].filter(Boolean);
-    q("ntLoamWhere").textContent = `Damp hero dirt (Loam index 40 to 59) on ${what.join(" and ")}.`;
+    q("ntLoamWhere").textContent = `Damp hero dirt (Loam index 40 to 59) on ${what.join(" and ")}, now and in the next 3 days.`;
     const trailBtn = (t, data) => `<button type="button" ${data}><strong>${esc(t.name)}</strong>
-      <small><span class="lv"><i></i>Loam ${t.v}</span>${t.why ? ` · ${esc(t.why)}` : t.kind ? ` · ${esc(t.kind)}` : ""}</small></button>`;
+      <small><span class="lv${t.soon ? " soon" : ""}"><i></i>Loam ${t.v}${t.soon ? ` ${esc(t.soon.day)}` : ""}</span>${t.why ? ` · ${esc(t.why)}` : t.kind ? ` · ${esc(t.kind)}` : ""}</small></button>`;
     q("ntLoamItems").innerHTML = items.length ? items.map((t, i) => `<li class="${fresh.has(t.key) ? "unread" : ""}">${t.area
-      ? `<details data-a="${i}"><summary><strong>${esc(t.name)}</strong><small><span class="lv"><i></i>${esc(t.why)}</span></small></summary>
+      ? `<details data-a="${i}"><summary><strong>${esc(t.name)}</strong><small><span class="lv${t.soon ? " soon" : ""}"><i></i>${esc(t.why)}</span></small></summary>
         <ol>${t.trails.map((x, j) => `<li>${trailBtn(x, `data-l="${i}" data-j="${j}"`)}</li>`).join("")}</ol></details>`
       : trailBtn(t, `data-l="${i}"`)}</li>`).join("")
-      : `<li><p>${loamBusy || (!loamAt && watching()) ? "Checking the loam…" : watching() ? "Nothing is in prime loam right now. You'll see trails here when they are." : "Pick regions, or add trails to your To ride list (☆ To ride in a trail's details), to hear when they're in prime loam."}</p></li>`;
+      : `<li><p>${loamBusy || (!loamAt && watching()) ? "Checking the loam…" : watching() ? "Nothing is in prime loam now or in the next 3 days. You'll see trails here when they are." : "Pick regions, or add trails to your To ride list (☆ To ride in a trail's details), to hear when they're in prime loam."}</p></li>`;
     q("ntLoamItems").querySelectorAll("details[data-a]").forEach((d) => d.addEventListener("toggle", () => {
       if (d.open) { const t = items[+d.dataset.a]; if (alertState[t.key] && !alertState[t.key].r) { alertState[t.key].r = 1; putAlerts(); d.parentNode.classList.remove("unread"); paint(); } }
     }));

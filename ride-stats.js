@@ -80,5 +80,54 @@
     return out;
   }
 
-  window.tfRideStats = { metres, climbOf, upDown, statsOf, gapsOf, profileOf, MOVING_MS, GAP_S, MAX_SPEED_MS };
+  // Ride time for a planned route (like onX's time estimates): an average trail rider covers about 14 km an hour on
+  // the flat and climbs about 600 m an hour; the rider's own saved rides (moving time vs this guess) tune it to them.
+  const FLAT_KMH = 14, CLIMB_MH = 600;
+  const guess = (m, up) => m / 1000 / FLAT_KMH + (up || 0) / CLIMB_MH;   // hours
+  let pace = { factor: 1, rides: 0 }, paceP = null;
+  function loadPace() {
+    if (paceP) return paceP;
+    paceP = new Promise((resolve) => {
+      let r;
+      try { r = indexedDB.open("trail-finder-rides", 1); } catch { resolve(pace); return; }
+      r.onupgradeneeded = () => {   // same stores as ride.html and rides.js
+        const db = r.result;
+        db.createObjectStore("rides", { keyPath: "id" });
+        db.createObjectStore("photos", { keyPath: "id" }).createIndex("rideId", "rideId");
+        db.createObjectStore("current", { keyPath: "id" });
+      };
+      r.onerror = () => resolve(pace);
+      r.onsuccess = () => {
+        const db = r.result;
+        try {
+          const q = db.transaction("rides").objectStore("rides").getAll();
+          q.onsuccess = () => {
+            db.close();
+            const ratios = [];
+            (q.result || []).forEach((ride) => {
+              try {
+                const st = ride.stats && ride.stats.moving ? ride.stats : statsOf(ride.points || [], ride.start, ride.end, ride.breaks);
+                if (st.dist >= 3000 && st.moving >= 900) ratios.push(st.moving / 3600 / guess(st.dist, st.climb));
+              } catch {}
+            });
+            if (ratios.length) {
+              ratios.sort((a, b) => a - b);
+              pace = { factor: Math.max(0.5, Math.min(2.5, ratios[Math.floor(ratios.length / 2)])), rides: ratios.length };
+            }
+            resolve(pace);
+          };
+          q.onerror = () => { db.close(); resolve(pace); };
+        } catch { db.close(); resolve(pace); }
+      };
+    });
+    return paceP;
+  }
+  // { h: hours, rides: how many of your rides it learned from (0 = the average rider) }
+  const timeFor = (m, up) => ({ h: guess(m, up) * pace.factor, rides: pace.rides });
+  const fmtHours = (h) => {
+    const mins = Math.max(5, Math.round(h * 12) * 5);
+    return mins < 60 ? `${mins} min` : `${Math.floor(mins / 60)} h${mins % 60 ? ` ${String(mins % 60).padStart(2, "0")}` : ""}`;
+  };
+
+  window.tfRideStats = { metres, climbOf, upDown, statsOf, gapsOf, profileOf, MOVING_MS, GAP_S, MAX_SPEED_MS, loadPace, timeFor, fmtHours };
 })();
