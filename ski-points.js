@@ -105,6 +105,8 @@ dialog.sp-dlg select { width: 100%; font: inherit; padding: 9px 11px; border: 1p
 .sp-guide { font-variant-numeric: tabular-nums; }
 .map-tools #spAdd.on { background: ${COLOR}; border-color: ${COLOR}; color: #fff; }
 #spBox { display: flex; flex-direction: column; gap: 6px; }
+#spBox .sp-list { list-style: none; margin: 0; padding: 0; }
+#spBox .sk-hint { color: var(--muted); font-size: .86rem; }
 #spBox .sp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 #spBox .sp-new { font: inherit; font-size: .82rem; font-weight: 700; padding: 6px 12px; border-radius: 999px; border: 0; background: ${COLOR}; color: #fff; cursor: pointer; }
 #spBox .sp-list .sp-th { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; flex: none; background: var(--chip); display: grid; place-items: center; font-size: 14px; }

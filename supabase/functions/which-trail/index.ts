@@ -329,9 +329,21 @@ async function confirmed(trails: Trail[]): Promise<Photo[]> {
     const rows = (await r.json()) as { trail_name: string; photo: string }[];
     const per = new Map<string, string[]>();
     for (const x of rows) { const l = per.get(x.trail_name) || []; if (l.length < 2 && !l.includes(x.photo)) per.set(x.trail_name, [...l, x.photo]); }
-    const want = [...per.entries()].flatMap(([trail, ps]) => ps.map((path) => ({ trail, path }))).slice(0, 4);
-    const got = await Promise.all(want.map(async ({ trail, path }) => {
-      const f = await db(`/storage/v1/object/trail-match-photos/${path.split("/").map(encodeURIComponent).join("/")}`);
+    // Riders' own photos on these trails (supabase/trail-photos.sql) fill in where there's no confirmed match yet.
+    const r2 = await db(`/rest/v1/trail_photos?select=trail_name,path&trail_name=in.(${encodeURIComponent(names)})&order=created_at.desc&limit=30`);
+    const extra: { trail: string; path: string; bucket: string }[] = [];
+    if (r2?.ok) {
+      try {
+        const seen = new Map<string, number>();
+        for (const x of (await r2.json()) as { trail_name: string; path: string }[]) {
+          const n = (per.get(x.trail_name) || []).length + (seen.get(x.trail_name) || 0);
+          if (n < 2) { seen.set(x.trail_name, (seen.get(x.trail_name) || 0) + 1); extra.push({ trail: x.trail_name, path: x.path, bucket: "trail-photos" }); }
+        }
+      } catch { /* no rider photos */ }
+    }
+    const want = [...per.entries()].flatMap(([trail, ps]) => ps.map((path) => ({ trail, path, bucket: "trail-match-photos" }))).concat(extra).slice(0, 6);
+    const got = await Promise.all(want.map(async ({ trail, path, bucket }) => {
+      const f = await db(`/storage/v1/object/${bucket}/${path.split("/").map(encodeURIComponent).join("/")}`);
       if (!f?.ok) return null;
       try {
         const bytes = new Uint8Array(await f.arrayBuffer());
