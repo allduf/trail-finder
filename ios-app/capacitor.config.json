@@ -9,6 +9,16 @@
   },
   "ios": {
     "limitsNavigationsToAppBoundDomains": true,
-    "contentInset": "never"
+    "contentInset": "never",
+    "scrollEnabled": false,
+    "allowsLinkPreview": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 3000,
+      "launchAutoHide": true,
+      "backgroundColor": "#f2efe7",
+      "showSpinner": false
+    }
   }
 }
