@@ -27,7 +27,12 @@
   const $ = (id) => document.getElementById(id);
   const isHunt = () => document.body.classList.contains("sport-hunt");
   const WMS = "https://openmaps.gov.bc.ca/geo/pub/wms", WFS = "https://openmaps.gov.bc.ca/geo/pub/wfs", AB = "https://geospatial.alberta.ca";
-  const ORANGE = "#d9480f";   // the Hunting accent (blaze orange)
+  const ORANGE = "#d9480f";   // the Hunting accent (blaze orange): only you, your spot and your scent
+  // One colour family per layer, so layers that are on together never look alike (alex: "a lot of things that are the same color").
+  const C = {
+    zone: "#343a40", leh: "#c2255c", no: "#e03131", vary: "#1971c2", open: "#2f9e44", reserve: "#7048e8", town: "#868e96",
+    closure: "#212529", green: "#0ca678", private: "#fab005", graze: "#94a83a", wet: "#22b8cf", rings: "#212529",
+  };
 
   // ---------- icons (one stroke style everywhere) ----------
   const svg = (d, size = 20) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -49,24 +54,24 @@
   // ---------- what each rules area means for hunting ----------
   // no: hunting is not allowed there. A guide only: the regulations and the park's own rules decide.
   const AREA_KINDS = {
-    national: { label: "National park", color: "#c1121f", no: true, rule: "No hunting in national parks." },
-    eco: { label: "Ecological reserve", color: "#c1121f", no: true, rule: "No hunting in ecological reserves." },
-    wilderness: { label: "Wilderness area (Alberta)", color: "#c1121f", no: true, rule: "No hunting in Alberta's wilderness areas." },
-    military: { label: "Military land (Alberta)", color: "#c1121f", no: true, rule: "Military bases and air weapons ranges are closed to the public, except the special draw hunts at CFB Wainwright and CFB Suffield in the Alberta guide." },
-    park: { label: "Provincial park", color: "#e8590c", rule: "BC: hunting is allowed in season in many provincial parks, but not in some parks or near campgrounds and trails, so check the park's page. Alberta: hunting isn't allowed in most provincial parks; the Alberta Guide to Hunting Regulations lists the exceptions (and a firearm discharge permit is needed where it is)." },
-    protected: { label: "Protected area", color: "#e8590c", rule: "Hunting is often allowed in season in BC protected areas, with each area's own rules: check BC Parks." },
-    conservancy: { label: "Conservancy", color: "#e8590c", rule: "Hunting is often allowed in season in BC conservancies, with each one's own rules: check BC Parks." },
-    rec: { label: "Recreation area", color: "#e8590c", rule: "Rules vary: check BC Parks." },
-    pra: { label: "Provincial recreation area (Alberta)", color: "#e8590c", rule: "Hunting isn't allowed in most of Alberta's provincial recreation areas; the Alberta Guide to Hunting Regulations lists the exceptions." },
-    wildland: { label: "Wildland park (Alberta)", color: "#2b8a3e", rule: "Hunting is allowed in season in Alberta's wildland parks (and Willmore Wilderness Park), with the usual licences." },
-    natural: { label: "Natural area (Alberta)", color: "#2b8a3e", rule: "Hunting is usually allowed in Alberta's natural areas, with some closures: check the Alberta Guide to Hunting Regulations." },
-    rangeland: { label: "Heritage rangeland (Alberta)", color: "#e8590c", rule: "Grazing land: ask the leaseholder and check the Alberta Guide to Hunting Regulations first." },
-    wma: { label: "Wildlife management area", color: "#2b8a3e", rule: "Hunting is usually allowed in BC wildlife management areas, but some have their own closures or rules: check the regulations." },
-    reserve: { label: "First Nation reserve", color: "#7b2cbf", no: true, rule: "Reserve land: no hunting without the First Nation's permission." },
-    metis: { label: "Metis settlement", color: "#7b2cbf", no: true, rule: "Metis settlement land: no hunting without the settlement's permission." },
-    town: { label: "Town or city", color: "#495057", rule: "Shooting is banned inside most cities, towns and villages by bylaw, often with a no-shooting buffer around them (BC also has no-shooting areas in the regional synopses). Check the local firearm discharge bylaw before you hunt here." },
-    mvpr: { label: "Motor vehicle closure", color: "#9c36b5", line: true, rule: "Closed to motor vehicles under BC's Motor Vehicle Prohibition Regulation." },
-    green: { label: "Green Area (Alberta public forest)", color: "#2f9e44", line: true, rule: "Alberta's Green Area: mostly public forest land, where you can usually hunt in season without asking a landowner (leases and dispositions still have rules)." },
+    national: { label: "National park", color: C.no, no: true, rule: "No hunting in national parks." },
+    eco: { label: "Ecological reserve", color: C.no, no: true, rule: "No hunting in ecological reserves." },
+    wilderness: { label: "Wilderness area (Alberta)", color: C.no, no: true, rule: "No hunting in Alberta's wilderness areas." },
+    military: { label: "Military land (Alberta)", color: C.no, no: true, rule: "Military bases and air weapons ranges are closed to the public, except the special draw hunts at CFB Wainwright and CFB Suffield in the Alberta guide." },
+    park: { label: "Provincial park", color: C.vary, rule: "BC: hunting is allowed in season in many provincial parks, but not in some parks or near campgrounds and trails, so check the park's page. Alberta: hunting isn't allowed in most provincial parks; the Alberta Guide to Hunting Regulations lists the exceptions (and a firearm discharge permit is needed where it is)." },
+    protected: { label: "Protected area", color: C.vary, rule: "Hunting is often allowed in season in BC protected areas, with each area's own rules: check BC Parks." },
+    conservancy: { label: "Conservancy", color: C.vary, rule: "Hunting is often allowed in season in BC conservancies, with each one's own rules: check BC Parks." },
+    rec: { label: "Recreation area", color: C.vary, rule: "Rules vary: check BC Parks." },
+    pra: { label: "Provincial recreation area (Alberta)", color: C.vary, rule: "Hunting isn't allowed in most of Alberta's provincial recreation areas; the Alberta Guide to Hunting Regulations lists the exceptions." },
+    wildland: { label: "Wildland park (Alberta)", color: C.open, rule: "Hunting is allowed in season in Alberta's wildland parks (and Willmore Wilderness Park), with the usual licences." },
+    natural: { label: "Natural area (Alberta)", color: C.open, rule: "Hunting is usually allowed in Alberta's natural areas, with some closures: check the Alberta Guide to Hunting Regulations." },
+    rangeland: { label: "Heritage rangeland (Alberta)", color: C.vary, rule: "Grazing land: ask the leaseholder and check the Alberta Guide to Hunting Regulations first." },
+    wma: { label: "Wildlife management area", color: C.open, rule: "Hunting is usually allowed in BC wildlife management areas, but some have their own closures or rules: check the regulations." },
+    reserve: { label: "First Nation reserve", color: C.reserve, no: true, rule: "Reserve land: no hunting without the First Nation's permission." },
+    metis: { label: "Metis settlement", color: C.reserve, no: true, rule: "Metis settlement land: no hunting without the settlement's permission." },
+    town: { label: "Town or city", color: C.town, rule: "Shooting is banned inside most cities, towns and villages by bylaw, often with a no-shooting buffer around them (BC also has no-shooting areas in the regional synopses). Check the local firearm discharge bylaw before you hunt here." },
+    mvpr: { label: "Motor vehicle closure", color: C.closure, line: true, dash: "2 5", rule: "Closed to motor vehicles under BC's Motor Vehicle Prohibition Regulation." },
+    green: { label: "Green Area (Alberta public forest)", color: C.green, line: true, dash: "6 4", rule: "Alberta's Green Area: mostly public forest land, where you can usually hunt in season without asking a landowner (leases and dispositions still have rules)." },
   };
   const BC_REGION_PDF = {
     "1": "region-1-vancouver-island", "2": "region-2-lower-mainland", "3": "region-3-thompson", "4": "region-4-kootenay", "5": "region-5-cariboo",
@@ -106,31 +111,32 @@
   const FIRES = "pub:WHSE_LAND_AND_NATURAL_RESOURCE.PROT_HISTORICAL_FIRE_POLYS_SP", WETLANDS = "pub:WHSE_BASEMAPPING.FWA_WETLANDS_POLY";
   // Old burns by age: young burns green up into good feed (browse and berries) for several years.
   const YEAR = new Date().getFullYear();
-  const BURNS = [[YEAR - 5, YEAR, "#d9480f", "Burned in the last 5 years"], [YEAR - 15, YEAR - 6, "#f08c00", "Burned 6-15 years ago"], [YEAR - 30, YEAR - 16, "#fcc419", "Burned 16-30 years ago"]];
+  const BURNS = [[YEAR - 5, YEAR, "#5c2e0e", "Burned in the last 5 years"], [YEAR - 15, YEAR - 6, "#9c5b28", "Burned 6-15 years ago"], [YEAR - 30, YEAR - 16, "#c9a27a", "Burned 16-30 years ago"]];
   const between = (p, a, b) => `<PropertyIsBetween><PropertyName>${p}</PropertyName><LowerBoundary><Literal>${a}</Literal></LowerBoundary><UpperBoundary><Literal>${b}</Literal></UpperBoundary></PropertyIsBetween>`;
   const SLOPES = [[15, "15-25°", "#f2e14c"], [25, "25-35°", "#f59f00"], [35, "35-45°", "#e03131"], [45, "45° and up", "#862e9c"]];
   const ASPECT_COLORS = ["#1c7ed6", "#22b8cf", "#40c057", "#a9e34b", "#fcc419", "#fd7e14", "#f03e3e", "#ae3ec9"];   // N NE E SE S SW W NW
   const DIRS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
   // Alberta grazing and farm dispositions on public land: under the Recreational Access Regulation, contact the leaseholder first.
   const GRAZE = { GRL: "Grazing lease", FGL: "Forest grazing licence", FDL: "Farm development lease", GRP: "Grazing permit", CUP: "Cultivation permit", HAY: "Hay permit" };
-  const GRAZE_COLOR = "#e6a700";
+  const GRAZE_COLOR = C.graze;
 
   const LAYERS = {
-    zones: { g: "Boundaries", label: "Hunting zones", sub: "BC management units and Alberta WMUs", on: true, sw: [ORANGE, "line"] },
-    leh: { g: "Boundaries", label: "Limited entry zones", sub: "BC draw-only hunts", on: false, sw: ["#6741d9", "dash"] },
-    rules: { g: "Boundaries", label: "Parks, towns and closures", sub: "Where hunting is banned or has its own rules", on: true, sw: ["#c1121f", "fill"] },
-    land: { g: "Land", label: "Private and public land", sub: "BC private parcels, Alberta Green Area and grazing leases", on: true, sw: ["#ff8c00", "fill"], minZoom: 9 },
+    zones: { g: "Boundaries", label: "Hunting zones", sub: "BC management units and Alberta WMUs", on: true, sw: [C.zone, "line"] },
+    leh: { g: "Boundaries", label: "Limited entry zones", sub: "BC draw-only hunts", on: false, sw: [C.leh, "dash"] },
+    rules: { g: "Boundaries", label: "Parks, towns and closures", sub: "Where hunting is banned or has its own rules", on: true, sw: [C.no, "hatch"] },
+    land: { g: "Land", label: "Private and public land", sub: "BC private parcels, Alberta Green Area and grazing leases", on: false, sw: [C.private, "fill"], minZoom: 9 },
     forest: { g: "Habitat", label: "Forest types", sub: "Leading tree species (BC), fuel types (Alberta)", on: false, sw: ["#1b5e20", "fill"], minZoom: 8 },
-    burns: { g: "Habitat", label: "Old burns", sub: "Fire scars by age: young burns grow feed", on: false, sw: ["#f08c00", "fill"], minZoom: 7 },
-    wet: { g: "Habitat", label: "Wetlands", sub: "Marshes, fens, bogs and swamps", on: false, sw: ["#15aabf", "fill"], minZoom: 10 },
+    burns: { g: "Habitat", label: "Old burns", sub: "Fire scars by age: young burns grow feed", on: false, sw: [BURNS[1][2], "fill"], minZoom: 7 },
+    wet: { g: "Habitat", label: "Wetlands", sub: "Marshes, fens, bogs and swamps", on: false, sw: [C.wet, "fill"], minZoom: 10 },
     slope: { g: "Terrain", label: "Slope angle", sub: "Steepness in four bands", on: false, sw: ["#e03131", "fill"], minZoom: 9 },
     aspect: { g: "Terrain", label: "Aspect", sub: "Which way each slope faces", on: false, sw: ["#40c057", "fill"], minZoom: 9 },
-    wind: { g: "Tools", label: "Scent cone", sub: "Where the wind carries your scent", on: true, sw: ["#f08c00", "cone"] },
-    rings: { g: "Tools", label: "Range rings", sub: "50 to 400 m around the spot", on: false, sw: ["#212529", "ring"] },
+    wind: { g: "Tools", label: "Scent cone", sub: "Where the wind carries your scent", on: true, sw: [ORANGE, "cone"] },
+    rings: { g: "Tools", label: "Range rings", sub: "50 to 400 m around the spot", on: false, sw: [C.rings, "ring"] },
   };
   const GROUPS = ["Boundaries", "Land", "Habitat", "Terrain", "Tools"];
   const RINGS = [50, 100, 200, 300, 400];   // metres around the spot
-  let shown = new Set(store.get("huntLayers", Object.keys(LAYERS).filter((k) => LAYERS[k].on)));
+  // "huntLayers2": the first version turned on more layers at first; everyone starts again from the lighter set.
+  let shown = new Set(store.get("huntLayers2", Object.keys(LAYERS).filter((k) => LAYERS[k].on)));
 
   const css = document.createElement("style");
   css.textContent = `
@@ -209,9 +215,18 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
 #huntPane .hn-btn:disabled { opacity: .6; cursor: default; }
 @media (prefers-color-scheme: dark) { #huntPane .hn-tbl tr.here td { background: #3a2410; } }
 :root[data-theme="dark"] #huntPane .hn-tbl tr.here td { background: #3a2410; }
-.hn-label { background: #fff; color: #7a2a00; border: 1.5px solid ${ORANGE}; border-radius: 6px; padding: 1px 5px; font: 700 11px/1.2 var(--font-body, system-ui); white-space: nowrap; box-shadow: 0 1px 2px #0003; transform: translate(-50%, -50%); width: max-content; pointer-events: none; }
-.hn-label.ab { color: #0b4a8b; border-color: #1c7ed6; }
+.hn-label { background: #fff; color: ${C.zone}; border: 1.5px solid ${C.zone}; border-radius: 6px; padding: 1px 5px; font: 700 11px/1.2 var(--font-body, system-ui); white-space: nowrap; box-shadow: 0 1px 2px #0003; transform: translate(-50%, -50%); width: max-content; pointer-events: none; }
 .hn-label small { font-weight: 500; color: #555; }
+.hn-mapkey { font: 600 12px/1.3 var(--font-body, system-ui); color: #212529; }
+.mapwrap.is3d .hn-mapkey { margin-bottom: 46px; }   /* clear of the 3D map's credits line */
+.hn-keybtn { font: inherit; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; border-radius: 999px; border: 0; background: #fff; color: #212529; box-shadow: 0 1px 4px #0004; cursor: pointer; }
+.hn-keybtn svg { color: ${ORANGE}; }
+.hn-keybox { margin-top: 6px; background: #fff; border-radius: 12px; padding: 8px 10px; box-shadow: 0 2px 10px #0004; width: min(250px, calc(100vw - 40px)); max-height: 45vh; overflow: auto; }
+.hn-keybox b { display: block; font-size: 11px; margin: 4px 0 2px; }
+.hn-keybox p { margin: 0; }
+.hn-keybox .hn-key { list-style: none; margin: 0 0 4px; padding: 0; display: grid; grid-template-columns: 1fr; gap: 2px; font-size: 11px; font-weight: 500; color: #444; }
+.hn-keybox .hn-key li { display: flex; align-items: center; gap: 6px; }
+.hn-keybox .hn-key i, .hn-keybox .hn-key img { display: inline-block; width: 16px; height: 11px; border-radius: 2px; flex: none; box-sizing: border-box; }
 .hn-spot { width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 3px solid ${ORANGE}; background: #fff6; box-shadow: 0 0 0 2px #fff; }
 .hn-spot::after { content: ""; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: ${ORANGE}; }
 .hn-ring { position: fixed; z-index: 3000; left: 50%; top: 14px; transform: translateX(-50%); width: min(420px, calc(100% - 24px)); box-sizing: border-box; background: ${ORANGE}; color: #fff; border-radius: 14px;
@@ -233,9 +248,9 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
       <button type="button" class="hn-act" data-act="rec">${svg(IC.rec)}Record walk</button>
     </div>
     <div class="hn-card" id="hnSpot" hidden></div>
+    <div class="hn-card" id="hnLayers"><header>${svg(IC.layers)}<h3>Map layers</h3></header><div id="hnLayerList"></div></div>
     <div class="hn-card" id="hnWx"></div>
     <div class="hn-card" id="hnSky"></div>
-    <div class="hn-card" id="hnLayers"><header>${svg(IC.layers)}<h3>Map layers</h3></header><div id="hnLayerList"></div></div>
     <div class="hn-card" id="hnOff"></div>
     <p class="hn-safe">A guide, not the law: zones, parks, seasons and draw odds come from BC and Alberta open data and regulation booklets, read by the app each month, and can be out of date or simplified. Always check the <a href="${BC_SYNOPSIS}" target="_blank" rel="noopener">BC Hunting and Trapping Regulations Synopsis</a> or the <a href="${AB_REGS}" target="_blank" rel="noopener">Alberta Guide to Hunting Regulations</a>, and get permission before hunting private land or a lease.</p>`;
   const head = document.querySelector(".panel-head");
@@ -287,7 +302,8 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     if (!shown.has("zones")) { labelLayer.clearLayers(); return; }
     try { zones = zones || (await load("zones")).zones; } catch { return; }
     for (const z of zones) {
-      L.polygon(ringsLL(z.g), { renderer, interactive: false, color: z.p === "ab" ? "#1c7ed6" : ORANGE, weight: 2, opacity: 0.85, fill: false }).addTo(zoneLayer);
+      L.polygon(ringsLL(z.g), { renderer, interactive: false, color: "#fff", weight: 4.5, opacity: 0.55, fill: false }).addTo(zoneLayer);   // white edge: reads on photos and dark forest
+      L.polygon(ringsLL(z.g), { renderer, interactive: false, color: C.zone, weight: 2, opacity: 0.9, fill: false }).addTo(zoneLayer);
     }
     drawLabels(); sync3d();
   }
@@ -300,15 +316,25 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
       if (!u.c || !b.contains(u.c)) continue;
       const name = u.p === "ab" ? `WMU ${u.id}${z >= 9 && u.n ? ` <small>${esc(u.n)}</small>` : ""}` : `${esc(u.id)}${z >= 9 && u.zn ? ` <small>${esc(u.zn)}</small>` : ""}`;
       L.marker(u.c, { pane: "huntLabels", interactive: false, keyboard: false,
-        icon: L.divIcon({ className: "", html: `<div class="hn-label${u.p === "ab" ? " ab" : ""}">${name}</div>`, iconSize: [0, 0] }) }).addTo(labelLayer);
+        icon: L.divIcon({ className: "", html: `<div class="hn-label">${name}</div>`, iconSize: [0, 0] }) }).addTo(labelLayer);
     }
   }
   async function drawLeh() {
     lehLayer.clearLayers();
     if (!shown.has("leh")) return;
     try { leh = leh || (await load("leh")).zones; } catch { return; }
-    for (const z of leh) L.polygon(ringsLL(z.g), { renderer, interactive: false, color: "#6741d9", weight: 1.5, dashArray: "6 5", opacity: 0.8, fill: false }).addTo(lehLayer);
+    for (const z of leh) L.polygon(ringsLL(z.g), { renderer, interactive: false, color: C.leh, weight: 2, dashArray: "7 5", opacity: 0.85, fill: false }).addTo(lehLayer);
   }
+  // No-hunting areas are hatched (red stripes), so they never read as just another tint.
+  const hatchTile = (() => {
+    const cv = document.createElement("canvas"); cv.width = cv.height = 10;
+    const cx = cv.getContext("2d"); cx.strokeStyle = C.no; cx.lineWidth = 2;
+    cx.beginPath(); cx.moveTo(-1, 11); cx.lineTo(11, -1); cx.moveTo(-1, 1); cx.lineTo(1, -1); cx.moveTo(9, 11); cx.lineTo(11, 9); cx.stroke();
+    return cv;
+  })();
+  const HATCH = document.createElement("canvas").getContext("2d").createPattern(hatchTile, "repeat");
+  const hatched = (k) => k.color === C.no;   // reserves are "no" too (ask first) but keep their own violet
+  const fillOp = (id, k) => (hatched(k) ? 0.6 : id === "town" ? 0.2 : k.color === C.vary ? 0.16 : k.color === C.reserve ? 0.12 : 0.07);
   async function drawRules() {
     rulesLayer.clearLayers();
     if (!shown.has("rules") && !shown.has("land")) return;
@@ -318,8 +344,8 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
       if (!k) continue;
       const want = a.k === "green" ? shown.has("land") : shown.has("rules");
       if (!want) continue;
-      L.polygon(ringsLL(a.g), { renderer, interactive: false, color: k.color, weight: k.line ? 1.5 : 1, dashArray: a.k === "mvpr" ? "8 4" : null,
-        opacity: 0.8, fill: !k.line, fillColor: k.color, fillOpacity: k.no ? 0.2 : a.k === "town" ? 0.14 : 0.1 }).addTo(rulesLayer);
+      L.polygon(ringsLL(a.g), { renderer, interactive: false, color: k.color, weight: k.line || k.color === C.vary || k.color === C.reserve ? 2 : hatched(k) ? 1.5 : 1, dashArray: k.dash || null, lineCap: k.dash ? "round" : "butt",
+        opacity: a.k === "town" ? 0.5 : 0.85, fill: !k.line, fillColor: hatched(k) ? HATCH : k.color, fillOpacity: fillOp(a.k, k) }).addTo(rulesLayer);
     }
     sync3d();
   }
@@ -341,15 +367,15 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
   const GRAZE_SVC = "titan/rest/services/recaccess/recaccess_grazing", WET_SVC = "titan/rest/services/environment/alberta_merged_wetland_inventory";
   // id: the 3D map's layer name; layer: which switch shows it
   const PICS = [
-    { id: "hn-land", layer: "land", tmpl: wms(PMBC, sld(PMBC, [[`<PropertyIsEqualTo><PropertyName>OWNER_TYPE</PropertyName><Literal>Private</Literal></PropertyIsEqualTo>`, "#ff8c00"]])),
-      min: 11, opacity: 0.45, attr: 'Land: <a href="https://ltsa.ca/property-owners/about-land-records/parcelmap-bc/">ParcelMap BC</a>, DataBC' },
+    { id: "hn-land", layer: "land", tmpl: wms(PMBC, sld(PMBC, [[`<PropertyIsEqualTo><PropertyName>OWNER_TYPE</PropertyName><Literal>Private</Literal></PropertyIsEqualTo>`, C.private]])),
+      min: 11, opacity: 0.4, attr: 'Land: <a href="https://ltsa.ca/property-owners/about-land-records/parcelmap-bc/">ParcelMap BC</a>, DataBC' },
     { id: "hn-graze", layer: "land", tmpl: arcgis(GRAZE_SVC, dyn([1], rgba(GRAZE_COLOR, 90), rgba("#b07d00", 255))), min: 9, opacity: 0.8, attr: "Leases: Alberta Recreational Access" },
     { id: "hn-forest", layer: "forest", tmpl: wms(VRI, forestSld()), min: 11, opacity: 0.5, attr: 'Forest: <a href="https://www2.gov.bc.ca/gov/content/industry/forestry/managing-our-forest-resources/forest-inventory">BC Vegetation Resources Inventory</a>' },
     { id: "hn-fuel", layer: "forest", tmpl: arcgis(FUEL_SVC, "layers=show%3A1"), min: 8, opacity: 0.5, ab: true, attr: "Forest: Alberta Wildfire fuel types" },
     { id: "hn-burns", layer: "burns", tmpl: wms(FIRES, sld(FIRES, BURNS.map(([a, b, col]) => [between("FIRE_YEAR", a, b), col]))), min: 7, opacity: 0.45, attr: 'Burns: <a href="https://catalogue.data.gov.bc.ca/dataset/fire-perimeters-historical">BC Wildfire Service</a>' },
     { id: "hn-abburn1", layer: "burns", tmpl: arcgis(FIRE_SVC, dyn([11, 12, 13, 14, 15], rgba(BURNS[0][2], 115), rgba(BURNS[0][2], 255))), min: 7, opacity: 1, ab: true, attr: "Burns: Alberta Wildfire" },
     { id: "hn-abburn2", layer: "burns", tmpl: arcgis(FIRE_SVC, dyn([16, 17, 18, 19, 20], rgba(BURNS[1][2], 115), rgba(BURNS[1][2], 255))), min: 7, opacity: 1, ab: true, attr: "Burns: Alberta Wildfire" },
-    { id: "hn-wet", layer: "wet", tmpl: wms(WETLANDS, sld(WETLANDS, [[`<Not><PropertyIsNull><PropertyName>WATERBODY_TYPE</PropertyName></PropertyIsNull></Not>`, "#15aabf"]])), min: 10, opacity: 0.55, attr: 'Wetlands: <a href="https://www2.gov.bc.ca/gov/content/data/geographic-data-services/topographic-data/freshwater">BC Freshwater Atlas</a>' },
+    { id: "hn-wet", layer: "wet", tmpl: wms(WETLANDS, sld(WETLANDS, [[`<Not><PropertyIsNull><PropertyName>WATERBODY_TYPE</PropertyName></PropertyIsNull></Not>`, C.wet]])), min: 10, opacity: 0.55, attr: 'Wetlands: <a href="https://www2.gov.bc.ca/gov/content/data/geographic-data-services/topographic-data/freshwater">BC Freshwater Atlas</a>' },
     { id: "hn-abwet", layer: "wet", tmpl: arcgis(WET_SVC, "layers=show%3A3"), min: 13, opacity: 0.6, ab: true, attr: "Wetlands: Alberta Merged Wetland Inventory" },
   ];
   // each province's layers only ask for tiles over that province
@@ -442,23 +468,27 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
       renderLayers();
     }).catch(() => { fuelLegend = null; });
   }
-  const sw = (c, kind = "fill") => kind === "line" || kind === "dash" ? `<i style="border:2px ${kind === "dash" ? "dashed" : "solid"} ${c};background:transparent"></i>` : `<i style="background:${c}"></i>`;
+  const hatchCss = (c) => `repeating-linear-gradient(135deg, ${c} 0 2px, transparent 2px 5px)`;
+  const sw = (c, kind = "fill") => kind === "line" || kind === "dash" || kind === "dot" ? `<i style="border:2px ${kind === "line" ? "solid" : kind === "dash" ? "dashed" : "dotted"} ${c};background:transparent"></i>`
+    : kind === "hatch" ? `<i style="border:1.5px solid ${c};background:${hatchCss(c)}"></i>`
+    : kind === "soft" ? `<i style="border:1.5px solid ${c};background:${c}33"></i>`
+    : kind === "edge" ? `<i style="border:2px solid ${c};background:${c}14"></i>` : `<i style="background:${c}"></i>`;
   const KEYS = {
-    zones: () => [`<li>${sw(ORANGE, "line")}BC management unit</li>`, `<li>${sw("#1c7ed6", "line")}Alberta WMU</li>`],
-    leh: () => [`<li>${sw("#6741d9", "dash")}Limited entry zone</li>`],
-    rules: () => [`<li>${sw("#c1121f")}No hunting</li>`, `<li>${sw("#e8590c")}Park: rules vary</li>`, `<li>${sw("#2b8a3e")}Usually open in season</li>`,
-      `<li>${sw("#7b2cbf")}Reserve: ask first</li>`, `<li>${sw("#495057")}Town: no shooting</li>`, `<li>${sw("#9c36b5", "dash")}Vehicle closure</li>`],
-    land: () => [`<li>${sw("#ff8c00")}Private land (BC)</li>`, `<li>${sw(GRAZE_COLOR)}Grazing lease (AB): ask</li>`, `<li class="wide">${sw("#2f9e44", "dash")}Alberta Green Area: public forest</li>`],
+    zones: () => [`<li class="wide">${sw(C.zone, "line")}Zone edge (BC MU, Alberta WMU)</li>`],
+    leh: () => [`<li>${sw(C.leh, "dash")}Limited entry zone</li>`],
+    rules: () => [`<li>${sw(C.no, "hatch")}No hunting</li>`, `<li>${sw(C.vary, "soft")}Park: rules vary</li>`, `<li>${sw(C.open, "edge")}Usually open in season</li>`,
+      `<li>${sw(C.reserve, "edge")}Reserve: ask first</li>`, `<li>${sw(C.town)}Town: no shooting</li>`, `<li>${sw(C.closure, "dot")}Vehicle closure</li>`],
+    land: () => [`<li>${sw(C.private)}Private land (BC)</li>`, `<li>${sw(GRAZE_COLOR)}Grazing lease (AB): ask</li>`, `<li class="wide">${sw(C.green, "dash")}Alberta Green Area: public forest</li>`],
     forest: () => [...FOREST.map(([, n, c]) => `<li>${sw(c)}${esc(n)}</li>`), `<li>${sw("#808080")}Other species</li>`,
       ...(fuelLegend && fuelLegend.length ? [`<li class="wide"><b>Alberta fuel types</b></li>`, ...fuelLegend.map(([n, src]) => `<li><img alt="" src="${src}">${esc(n.replace(/^[A-Z]-\d(\/[A-Z]-\d)? \((.*)\)$/, "$2"))}</li>`)] : [])],
     burns: () => [...BURNS.map(([, , c, n]) => `<li>${sw(c)}${esc(n)}</li>`), `<li class="wide">Alberta: the last 10 years</li>`],
-    wet: () => [`<li>${sw("#15aabf")}Wetland (BC)</li>`, `<li>Alberta: from zoom 13</li>`],
+    wet: () => [`<li>${sw(C.wet)}Wetland (BC)</li>`, `<li>Alberta: from zoom 13</li>`],
     slope: () => SLOPES.map(([, n, c]) => `<li>${sw(c)}${esc(n)}</li>`),
     aspect: () => DIRS.map((d, i) => `<li>${sw(ASPECT_COLORS[i])}Faces ${d}</li>`),
-    wind: () => [`<li class="wide">${sw("#f08c00")}Downwind of the spot: game there can smell you</li>`],
-    rings: () => [`<li class="wide">${sw("#212529", "dash")}${RINGS.join(", ")} m</li>`],
+    wind: () => [`<li class="wide">${sw(ORANGE)}Downwind of the spot: game there can smell you</li>`],
+    rings: () => [`<li class="wide">${sw(C.rings, "dash")}${RINGS.join(", ")} m</li>`],
   };
-  const icon = ([c, kind]) => kind === "line" ? `<span class="hn-ic" style="border:3px solid ${c}"></span>` : kind === "dash" ? `<span class="hn-ic" style="border:3px dashed ${c}"></span>`
+  const icon = ([c, kind]) => kind === "hatch" ? `<span class="hn-ic" style="border:2px solid ${c};background:${hatchCss(c)}"></span>` : kind === "line" ? `<span class="hn-ic" style="border:3px solid ${c}"></span>` : kind === "dash" ? `<span class="hn-ic" style="border:3px dashed ${c}"></span>`
     : kind === "cone" ? `<span class="hn-ic" style="background:conic-from 0deg, transparent;background:linear-gradient(135deg, ${c}55, ${c})"></span>` : kind === "ring" ? `<span class="hn-ic" style="border:2px dashed ${c};border-radius:50%"></span>`
     : `<span class="hn-ic" style="background:${c};opacity:.85"></span>`;
   function renderLayers() {
@@ -468,6 +498,21 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
       return `<label class="hn-layer">${icon(l.sw)}<span><b>${esc(l.label)}</b><small${far ? ' class="z"' : ""}>${far ? "Zoom in closer to see it" : esc(l.sub)}</small></span><input type="checkbox" class="hn-sw-input" role="switch" data-k="${k}"${on ? " checked" : ""} aria-label="${esc(l.label)}"></label>${on ? `<ul class="hn-key">${KEYS[k]().join("")}</ul>` : ""}`;
     }).join("")).join("");
   }
+  // Map key: what the colours on the map mean, for the layers that are on (handy on a phone with the sheet down).
+  const keyCtl = L.control({ position: "bottomleft" });
+  keyCtl.onAdd = () => {
+    const d = L.DomUtil.create("div", "hn-mapkey");
+    L.DomEvent.disableClickPropagation(d); L.DomEvent.disableScrollPropagation(d);
+    d.innerHTML = `<button type="button" class="hn-keybtn" aria-expanded="false">${svg(IC.layers, 16)}Key</button><div class="hn-keybox" hidden></div>`;
+    d.querySelector("button").addEventListener("click", (e) => { const box = d.querySelector(".hn-keybox"); box.hidden = !box.hidden; e.currentTarget.setAttribute("aria-expanded", String(!box.hidden)); renderMapKey(); });
+    return d;
+  };
+  function renderMapKey() {
+    const box = document.querySelector(".hn-mapkey .hn-keybox");
+    if (!box || box.hidden) return;
+    const on = Object.keys(LAYERS).filter((k) => shown.has(k));
+    box.innerHTML = on.length ? on.map((k) => `<b>${esc(LAYERS[k].label)}</b><ul class="hn-key">${KEYS[k]().join("")}</ul>`).join("") : `<p>No layers on: turn some on in Map layers.</p>`;
+  }
   $("hnLayerList").addEventListener("change", (e) => {
     const b = e.target.closest("[data-k]"); if (!b) return;
     const k = b.dataset.k;
@@ -475,8 +520,8 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     if (k === "slope" && shown.has("slope")) shown.delete("aspect");   // one terrain shading at a time
     if (k === "aspect" && shown.has("aspect")) shown.delete("slope");
     if (k === "forest" && shown.has("forest")) loadFuelLegend();
-    store.set("huntLayers", [...shown]);
-    renderLayers(); syncTiles(); sync3d();
+    store.set("huntLayers2", [...shown]);
+    renderLayers(); renderMapKey(); syncTiles(); sync3d();
     if (k === "zones") drawZones();
     if (k === "leh") drawLeh();
     if (k === "rules" || k === "land") drawRules();
@@ -580,7 +625,7 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
         <dt>Moon</dt><dd>${p[2]} ${p[1]}, ${Math.round(ph.fraction * 100)}% <small>· rises ${hm(s.moonRise)}, sets ${hm(s.moonSet)}</small></dd>
         <dt>Feeding times</dt><dd>${major || "none"}${minor ? ` <small>· minor ${minor}</small>` : ""}</dd>
       </dl>
-      <p class="hn-note">Legal light is half an hour before sunrise to half an hour after sunset, the usual hunting hours in BC and Alberta (some hunts differ). Feeding times are solunar: the moon overhead or underfoot (major) and moonrise or moonset (minor), a traditional guide. ${wx && wx.timezone_abbreviation ? `Local time at the spot (${esc(wx.timezone_abbreviation)}).` : "Times on this device's clock."}</p>
+      <details><summary>What these times mean</summary><p class="hn-note">Legal light is half an hour before sunrise to half an hour after sunset, the usual hunting hours in BC and Alberta (some hunts differ). Feeding times are solunar: the moon overhead or underfoot (major) and moonrise or moonset (minor), a traditional guide. ${wx && wx.timezone_abbreviation ? `Local time at the spot (${esc(wx.timezone_abbreviation)}).` : "Times on this device's clock."}</p></details>
       <details id="hnAlarms"${al.open ? " open" : ""}><summary>⏰ Alarms${Object.values(al.on).some(Boolean) ? `: ${LIGHT_EVENTS.filter(([k]) => al.on[k]).map(([, n]) => n.toLowerCase()).join(", ")}` : ""}</summary>
         <div class="hn-checks">${LIGHT_EVENTS.map(([k, n]) => `<label><input type="checkbox" data-al="${k}"${al.on[k] ? " checked" : ""}>${n}</label>`).join("")}</div>
         <div class="hn-row" style="margin-top:8px"><label for="hnBefore" class="hn-note">Ring</label><select id="hnBefore">${[0, 5, 10, 15, 30, 45, 60].map((m) => `<option value="${m}"${al.before === m ? " selected" : ""}>${m ? `${m} min before` : "right on time"}</option>`).join("")}</select>
@@ -671,7 +716,7 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     56: "Freezing drizzle", 57: "Freezing drizzle", 61: "Light rain", 63: "Rain", 65: "Heavy rain", 66: "Freezing rain", 67: "Freezing rain", 71: "Light snow", 73: "Snow",
     75: "Heavy snow", 77: "Snow grains", 80: "Showers", 81: "Showers", 82: "Heavy showers", 85: "Snow showers", 86: "Heavy snow showers", 95: "Thunderstorm", 96: "Thunderstorm, hail", 99: "Thunderstorm, hail" };
   const compass = (deg) => DIRS[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
-  const arrow = (to, size = 34) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" style="transform:rotate(${to}deg)" aria-hidden="true"><path d="M12 2 18 14h-4v8h-4v-8H6z" fill="#f08c00" stroke="#7a3d00" stroke-width="1"/></svg>`;
+  const arrow = (to, size = 34) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" style="transform:rotate(${to}deg)" aria-hidden="true"><path d="M12 2 18 14h-4v8h-4v-8H6z" fill="${ORANGE}" stroke="#7a2a00" stroke-width="1"/></svg>`;
   let wx = null, wxKey = "", wxBusy = false, wxErr = "";
   const wxCache = new Map();
   async function loadWeather() {
@@ -746,7 +791,7 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     };
     const ring = [[spot.lat, spot.lon]];
     for (let a = -half; a <= half; a += 5) ring.push(pt(to + a, len));
-    L.polygon(ring, { pane: "hunt", interactive: false, color: "#e8590c", weight: 2, fillColor: "#f08c00", fillOpacity: 0.3 }).addTo(windLayer);
+    L.polygon(ring, { pane: "hunt", interactive: false, color: ORANGE, weight: 2, fillColor: ORANGE, fillOpacity: 0.25 }).addTo(windLayer);
     L.polyline([[spot.lat, spot.lon], pt(to, len * 0.9)], { pane: "hunt", interactive: false, color: ORANGE, weight: 3 }).addTo(windLayer);
     sync3d();
   }
@@ -821,11 +866,11 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     const items = [];
     for (const u of z) {
       items.push(u.p === "ab"
-        ? `<li style="border-color:#1c7ed6"><b>Alberta WMU ${esc(u.id)}${u.n ? ` · ${esc(u.n)}` : ""}</b>Licences, weapons and bag limits: <a href="${AB_REGS}" target="_blank" rel="noopener">Alberta Guide to Hunting Regulations</a>.${seasonsHtml(u.id, sab && sab.wmu[u.id], true, AB_REGS)}${drawsHtml(u, draws, l)}</li>`
-        : `<li style="border-color:${ORANGE}"><b>BC MU ${esc(u.id)}${u.zn ? ` · ${esc(u.zn)}` : ""}</b>Region ${esc(u.r)} ${esc(u.rn || "")}${u.z ? `, game management zone ${esc(u.z)}` : ""}. Bag limits and closures: <a href="${regionPdf(u)}" target="_blank" rel="noopener">Region ${esc(u.r)} synopsis (PDF)</a>.${seasonsHtml(u.id, sbc && sbc.mu[u.id], false, regionPdf(u))}${drawsHtml(u, draws, l)}</li>`);
+        ? `<li style="border-color:${C.zone}"><b>Alberta WMU ${esc(u.id)}${u.n ? ` · ${esc(u.n)}` : ""}</b>Licences, weapons and bag limits: <a href="${AB_REGS}" target="_blank" rel="noopener">Alberta Guide to Hunting Regulations</a>.${seasonsHtml(u.id, sab && sab.wmu[u.id], true, AB_REGS)}${drawsHtml(u, draws, l)}</li>`
+        : `<li style="border-color:${C.zone}"><b>BC MU ${esc(u.id)}${u.zn ? ` · ${esc(u.zn)}` : ""}</b>Region ${esc(u.r)} ${esc(u.rn || "")}${u.z ? `, game management zone ${esc(u.z)}` : ""}. Bag limits and closures: <a href="${regionPdf(u)}" target="_blank" rel="noopener">Region ${esc(u.r)} synopsis (PDF)</a>.${seasonsHtml(u.id, sbc && sbc.mu[u.id], false, regionPdf(u))}${drawsHtml(u, draws, l)}</li>`);
     }
     if (!z.length) items.push(`<li><b>Outside the BC and Alberta hunting zones</b>Only BC and Alberta zones are on the map so far.</li>`);
-    for (const x of l) items.push(`<li style="border-color:#6741d9"><b>Limited entry zone: ${esc(x.s)}</b>${esc(x.l || x.id)}${x.mu ? ` (MU ${esc(x.mu)})` : ""}. Hunting it needs an LEH draw: see the shaded hunts above.</li>`);
+    for (const x of l) items.push(`<li style="border-color:${C.leh}"><b>Limited entry zone: ${esc(x.s)}</b>${esc(x.l || x.id)}${x.mu ? ` (MU ${esc(x.mu)})` : ""}. Hunting it needs an LEH draw: see the shaded hunts above.</li>`);
     for (const x of a) {
       const k = AREA_KINDS[x.k]; if (!k) continue;
       const link = ["park", "protected", "conservancy", "rec", "eco"].includes(x.k) && x.p !== "ab" ? ` <a href="https://bcparks.ca/find-a-park/?q=${encodeURIComponent(x.n)}" target="_blank" rel="noopener">BC Parks</a>`
@@ -856,7 +901,7 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     ]);
     if (parcel) {
       const own = String(parcel.OWNER_TYPE || "");
-      out.push(`<li style="border-color:${/private/i.test(own) ? "#ff8c00" : "#2f9e44"}"><b>Land: ${esc(own || "parcel")}</b>${/private/i.test(own) ? "Private land: you need the owner's permission to hunt here." : /crown/i.test(own) ? "Crown land: usually open to hunting in season, unless a park, lease or closure says otherwise." : ""}${parcel.PID_FORMATTED ? ` <span class="hn-note">PID ${esc(parcel.PID_FORMATTED)}</span>` : ""}</li>`);
+      out.push(`<li style="border-color:${/private/i.test(own) ? C.private : C.open}"><b>Land: ${esc(own || "parcel")}</b>${/private/i.test(own) ? "Private land: you need the owner's permission to hunt here." : /crown/i.test(own) ? "Crown land: usually open to hunting in season, unless a park, lease or closure says otherwise." : ""}${parcel.PID_FORMATTED ? ` <span class="hn-note">PID ${esc(parcel.PID_FORMATTED)}</span>` : ""}</li>`);
     } else if (parcel === null) out.push(`<li style="border-color:#2f9e44"><b>Land: no titled parcel mapped</b>Most likely Crown land, usually open to hunting in season, unless a park, reserve, lease or closure above says otherwise.</li>`);
     if (stand && stand.SPECIES_CD_1) {
       const sp = (c, p) => (c ? `${esc(SPECIES[c] || c)}${p ? ` ${p}%` : ""}` : "");
@@ -868,7 +913,7 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
   }
   const burnItem = (year, label, ha) => {
     const ago = YEAR - year;
-    return `<li style="border-color:${ago <= 5 ? "#d9480f" : ago <= 15 ? "#f08c00" : "#fcc419"}"><b>Burned in ${esc(year)}</b>Fire ${esc(label || "")}${ha ? `, ${Math.round(ha).toLocaleString()} ha` : ""}.${ago <= 20 ? " Young burns grow back as browse and berries that draw deer, elk, moose and bears." : ""}</li>`;
+    return `<li style="border-color:${ago <= 5 ? BURNS[0][2] : ago <= 15 ? BURNS[1][2] : BURNS[2][2]}"><b>Burned in ${esc(year)}</b>Fire ${esc(label || "")}${ha ? `, ${Math.round(ha).toLocaleString()} ha` : ""}.${ago <= 20 ? " Young burns grow back as browse and berries that draw deer, elk, moose and bears." : ""}</li>`;
   };
   // Alberta: forest fuel type, grazing leases, burns and wetlands from Alberta's map server.
   async function liveAlberta(lat, lon, seq) {
@@ -888,7 +933,7 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     const fr = fire && fire.results && fire.results.map((r) => r.attributes).sort((a, b) => (+b.YEAR || 0) - (+a.YEAR || 0))[0];
     if (fr && fr.YEAR) out.push(burnItem(+fr.YEAR, fr.FIRENUMBER || fr.FIRE_NUMBE, +fr.HECTARES_UTM));
     const w = wet && wet.features && wet.features[0] && wet.features[0].attributes;
-    if (w && w.CWCS_Class) out.push(`<li style="border-color:#15aabf"><b>Wetland: ${esc(w.CWCS_Class)}</b>Alberta Merged Wetland Inventory.</li>`);
+    if (w && w.CWCS_Class) out.push(`<li style="border-color:${C.wet}"><b>Wetland: ${esc(w.CWCS_Class)}</b>Alberta Merged Wetland Inventory.</li>`);
     liveOut(seq, out);
   }
 
@@ -930,7 +975,7 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
     const layers = [...shown].filter((k) => PICS.some((p) => p.layer === k) || k === "slope" || k === "aspect");
     const n = offUrls(viewBox(), layers).length;
     el.innerHTML = `<header>${svg(IC.down)}<h3>Hunting maps offline</h3></header>
-      <p class="hn-note">Saves the zones, parks, seasons and draws, and the layers you have on${layers.length ? ` (${esc(layers.map((k) => LAYERS[k].label.toLowerCase()).join(", "))})` : ""} for the area on screen, so they work with no signal. Save the base map too with Offline maps in the Layers menu.</p>
+      <p class="hn-note">Zones, seasons, draws${layers.length ? ` and ${esc(layers.map((k) => LAYERS[k].label.toLowerCase()).join(", "))}` : ""} for the area on screen, for no signal. The base map is saved with Offline maps in the Layers menu.</p>
       ${offBusy ? `<div class="hn-bar"><i style="width:${Math.round(offBusy.pct)}%"></i></div><p class="hn-note">${esc(offBusy.msg)}</p><div class="hn-row"><button type="button" class="hn-btn ghost" id="hnOffStop">Stop</button></div>`
         : `<div class="hn-row"><button type="button" class="hn-btn" id="hnOffSave"${n > OFF_MAX ? " disabled" : ""}>Save this area</button><span class="hn-note">${n > OFF_MAX ? "Too big: zoom in closer" : `About ${Math.max(1, Math.round(n * 0.03))} MB`}</span></div>`}
       ${saved.length ? `<ul class="hn-list">${saved.map((s, i) => `<li><b>${esc(s.name)}</b><span class="hn-note">${esc(new Date(s.at).toLocaleDateString())} · ${s.n} files${s.missing ? ` · ${s.missing} missing` : ""}</span> <button type="button" class="hn-pill" data-off="${i}">Show</button> <button type="button" class="hn-pill" data-offdel="${i}" style="color:#c0392b">Delete</button></li>`).join("")}</ul>` : ""}`;
@@ -1023,13 +1068,15 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
         fillsSet = true;
         const feats = areas.filter((a) => AREA_KINDS[a.k] && !AREA_KINDS[a.k].line).map((a) => {
           const k = AREA_KINDS[a.k];
-          return { type: "Feature", properties: { c: k.color, o: k.no ? 0.2 : a.k === "town" ? 0.14 : 0.1 },
+          return { type: "Feature", properties: { c: k.color, o: fillOp(a.k, k), h: hatched(k) },
             geometry: { type: "Polygon", coordinates: a.g.map((r) => { const out = []; for (let i = 0; i < r.length; i += 2) out.push([r[i + 1], r[i]]); return out; }) } };
         });
         gl.addSource("hn-fill", { type: "geojson", data: { type: "FeatureCollection", features: feats } });
-        gl.addLayer({ id: "hn-fill", type: "fill", source: "hn-fill", paint: { "fill-color": ["get", "c"], "fill-opacity": ["get", "o"] } }, under);
+        gl.addLayer({ id: "hn-fill", type: "fill", source: "hn-fill", filter: ["!", ["get", "h"]], paint: { "fill-color": ["get", "c"], "fill-opacity": ["get", "o"] } }, under);
+        if (!gl.hasImage("hn-hatch")) gl.addImage("hn-hatch", hatchTile.getContext("2d").getImageData(0, 0, 10, 10));
+        gl.addLayer({ id: "hn-hatch", type: "fill", source: "hn-fill", filter: ["get", "h"], paint: { "fill-pattern": "hn-hatch", "fill-opacity": 0.75 } }, under);
       }
-      vis("hn-fill", want("rules"));
+      vis("hn-fill", want("rules")); vis("hn-hatch", want("rules"));
       // Zone labels.
       if (want("zones") && zones && !labelsSet) {
         labelsSet = true;
@@ -1038,7 +1085,7 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
         gl.addSource("hn-labels", { type: "geojson", data: { type: "FeatureCollection", features: feats } });
         gl.addLayer({ id: "hn-labels", type: "symbol", source: "hn-labels", minzoom: 5,
           layout: { "text-field": ["step", ["zoom"], ["get", "t"], 8, ["concat", ["get", "t"], "\n", ["get", "n"]]], "text-font": ["Noto Sans Bold"], "text-size": 13, "text-allow-overlap": false },
-          paint: { "text-color": ["case", ["get", "ab"], "#0b4a8b", "#7a2a00"], "text-halo-color": "#fff", "text-halo-width": 2 } });
+          paint: { "text-color": C.zone, "text-halo-color": "#fff", "text-halo-width": 2 } });
       }
       vis("hn-labels", want("zones"));
       // Scent cone fill.
@@ -1046,7 +1093,7 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
       const coneData = { type: "FeatureCollection", features: cone && want("wind") ? [{ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [cone.getLatLngs()[0].map((p) => [p.lng, p.lat]).concat([[cone.getLatLngs()[0][0].lng, cone.getLatLngs()[0][0].lat]])] } }] : [] };
       if (!gl.getSource("hn-cone")) {
         gl.addSource("hn-cone", { type: "geojson", data: coneData });
-        gl.addLayer({ id: "hn-cone", type: "fill", source: "hn-cone", paint: { "fill-color": "#f08c00", "fill-opacity": 0.3 } }, gl.getLayer("lines") ? "lines" : undefined);
+        gl.addLayer({ id: "hn-cone", type: "fill", source: "hn-cone", paint: { "fill-color": ORANGE, "fill-opacity": 0.25 } }, gl.getLayer("lines") ? "lines" : undefined);
       } else gl.getSource("hn-cone").setData(coneData);
       // The spot pin.
       if (isHunt() && spot && spot.how !== "centre") {
@@ -1096,6 +1143,7 @@ body:not(.sport-hunt) #huntPane { display: none !important; }
   function sync() {
     const on = isHunt();
     for (const l of allHunt) { if (on && !map.hasLayer(l)) l.addTo(map); else if (!on && map.hasLayer(l)) map.removeLayer(l); }
+    if (on && !keyCtl._map) keyCtl.addTo(map); else if (!on && keyCtl._map) keyCtl.remove();
     syncTiles(); sync3d();
     if (!on) return;
     if (!started) { started = true; if (shown.has("forest")) loadFuelLegend(); renderLayers(); drawZones(); drawLeh(); drawRules(); }
