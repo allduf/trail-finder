@@ -4198,24 +4198,78 @@ out body;`;
   });
 
   // ---------- Live location: a blue dot that moves with you, once you allow it ----------
-  // "My location" is a plain button (alex): each tap centres the map on you once, it never follows you
-  // around. The dot shows by itself when the app opens, unless the browser blocks location.
-  const you = { watch: null, ll: null, dot: null, ring: null, onFirst: null };
+  // "My location" follows you (alex, 2026-10-23: "when I was moving it was not following me"). A tap centres the map
+  // on you and keeps it on you as you move (button filled blue). Dragging the map yourself pauses that (button
+  // outlined, "Recenter"), so you can look around; a tap brings it back. A tap while it's following stops following.
+  // The dot glides from fix to fix instead of jumping. The dot shows by itself when the app opens, unless the browser
+  // blocks location. Ride mode has its own follow (navigate.js) and takes over while you ride.
+  const you = { watch: null, ll: null, dot: null, ring: null, onFirst: null, follow: false, lost: false, shown: null, anim: 0, t: 0 };
   const youLayer = L.layerGroup().addTo(map);
+  const GLIDE_MS = 900;
+  const riding = () => !!(window.tfRide && window.tfRide.riding());
   function syncLocate() {
-    const b = $("locate");
-    b.textContent = you.onFirst && you.onFirst.asked && !you.ll ? "◎ Finding you…" : "◎ My location";
-    b.title = "Centre the map on where you are";
+    const b = $("locate"), finding = you.onFirst && you.onFirst.asked && !you.ll;
+    b.classList.toggle("on", you.follow || you.lost);
+    b.classList.toggle("lost", you.lost);
+    b.setAttribute("aria-pressed", String(you.follow));
+    b.textContent = finding ? "◎ Finding you…" : you.follow ? "◉ Following you" : you.lost ? "◎ Recenter" : "◎ My location";
+    b.title = you.follow ? "The map follows you as you move. Tap to stop following" : you.lost ? "Centre the map on you again and follow you" : "Centre the map on where you are and follow you as you move";
+  }
+  // Keep the map on you. On a phone the dot sits in the middle of the map you can see, above the bottom sheet.
+  function keepOnYou(ll, animate) {
+    if (!you.follow || riding() || busy()) return;
+    const app = document.querySelector(".app");
+    const cover = matchMedia("(max-width: 760px)").matches && !app.classList.contains("fullmap") ? parseFloat(app.style.getPropertyValue("--sheet-vis")) || 0 : 0;
+    const top = cover ? 56 : 0;              // the chip row along the top
+    const shift = (cover - top) / 2;
+    const c = shift ? map.containerPointToLatLng(map.latLngToContainerPoint(ll).add([0, shift])) : ll;
+    if (map.getCenter().distanceTo(c) < 0.5) return;
+    if (animate) map.panTo(c, { animate: true, duration: 0.6, easeLinearity: 1, noMoveStart: true });
+    else map.panTo(c, { animate: false });
+  }
+  // Mid-pinch, mid-twist or mid-drag a pan would make the map jump when the fingers lift: wait for the next fix.
+  // (Not touchGestures._moved: leaflet-rotate leaves it true after a pinch ends, which would stop following for good.)
+  function busy() {
+    const g = map.touchGestures || map.touchZoom || {};
+    return !!(map._animatingZoom || g._zooming || g._rotating || L.Draggable._dragging);
+  }
+  function setFollow(on) {
+    you.follow = on; you.lost = false;
+    if (on && you.ll) keepOnYou(you.ll, true);
+    syncLocate();
+  }
+  // You moved the map yourself (a drag, not a zoom): stop following until "Recenter".
+  map.on("dragstart", () => { if (you.follow) { you.follow = false; you.lost = true; syncLocate(); } });
+  map.on("zoomend", () => { if (you.follow && you.ll) keepOnYou(you.ll, false); });
+  // The dot slides from where it is to the new fix, so it moves smoothly instead of hopping every second.
+  function moveDot(ll, acc) {
+    cancelAnimationFrame(you.anim);
+    const from = you.shown || ll, t0 = performance.now(), far = from.distanceTo(ll) > 300;   // a big jump (first good fix): no glide
+    you.ring.setRadius(acc);
+    if (far || document.hidden) { you.shown = ll; you.dot.setLatLng(ll); you.ring.setLatLng(ll); return; }
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / GLIDE_MS);
+      const p = L.latLng(from.lat + (ll.lat - from.lat) * k, from.lng + (ll.lng - from.lng) * k);
+      you.shown = p; you.dot.setLatLng(p); you.ring.setLatLng(p);
+      if (k < 1) you.anim = requestAnimationFrame(step);
+    };
+    you.anim = requestAnimationFrame(step);
   }
   function showYou(pos) {
     const ll = L.latLng(pos.coords.latitude, pos.coords.longitude), acc = Math.min(pos.coords.accuracy || 0, 5000);
+    const t = pos.timestamp || Date.now();
+    if (t < you.t) return;                       // an older fix arriving late
+    you.t = t;
+    const first = !you.ll;
     you.ll = ll;
     if (setHome(ll, true)) homeMoved(true);
     if (!you.dot) {
       you.ring = L.circle(ll, { radius: acc, color: "#2b7de9", weight: 1, opacity: 0.5, fillColor: "#2b7de9", fillOpacity: 0.12, interactive: false }).addTo(youLayer);
       you.dot = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: "#2b7de9", fillOpacity: 1 }).bindTooltip("You are here", { direction: "top", offset: [0, -8] }).addTo(youLayer);
-    } else { you.ring.setLatLng(ll).setRadius(acc); you.dot.setLatLng(ll); }
+      you.shown = ll;
+    } else moveDot(ll, acc);
     if (you.onFirst) { const f = you.onFirst; you.onFirst = null; f(ll); }
+    else if (!first) keepOnYou(ll, !document.hidden);
     syncLocate();
   }
   function startTracking(onFirst) {
@@ -4226,16 +4280,22 @@ out body;`;
         const asked = !!you.onFirst && you.onFirst.asked;
         stopTracking();
         if (asked) setStatus("Location wasn't shared. Allow location for this site in your browser settings, or search a place instead.", true);
-      }, { enableHighAccuracy: true, maximumAge: 10000 });
+      }, { enableHighAccuracy: true, maximumAge: 0 });   // always a fresh fix: an old one left the dot behind you
     } else if (you.ll && onFirst) { you.onFirst = null; onFirst(you.ll); }
     syncLocate();
   }
   function stopTracking() {
     if (you.watch != null) navigator.geolocation.clearWatch(you.watch);
-    Object.assign(you, { watch: null, ll: null, dot: null, ring: null, onFirst: null });
+    cancelAnimationFrame(you.anim);
+    Object.assign(you, { watch: null, ll: null, dot: null, ring: null, onFirst: null, follow: false, lost: false, shown: null, t: 0 });
     youLayer.clearLayers();
     syncLocate();
   }
+  // Back from another app or the lock screen: the phone may have paused the GPS, so jump straight to the newest fix.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden || you.watch == null) return;
+    navigator.geolocation.getCurrentPosition(showYou, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+  });
   // Home moved (see setHome): load its trails, and the first time, open the Area on it if none was picked yet.
   function homeMoved(gps) {
     caIndexLoad().then(() => {
@@ -4250,8 +4310,10 @@ out body;`;
   $("locate").addEventListener("click", () => {
     if (!navigator.geolocation) { setStatus("This browser can't share your location.", true); return; }
     store.set("track", true);
+    if (you.follow && you.ll) { setFollow(false); return; }   // following: a tap stops following (the dot stays)
     const center = (ll) => {
       map.setView(ll, Math.max(map.getZoom(), 13));
+      setFollow(true);
       if (!locatedOnce) {                          // the first tap also finds the trails around you, as before
         locatedOnce = true;
         clearNear();
