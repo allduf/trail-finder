@@ -44,6 +44,8 @@
     .map((u) => new URL(u, location.href).href);
   const viewBox = () => { const b = map.getBounds().pad(0.1);   // a margin, as the vector map draws a little past the screen
     return [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((v) => +v.toFixed(5)); };
+  let drawn = null;   // [south, west, north, east] of a square drawn on the map, saved instead of the screen
+  const areaBox = () => drawn || viewBox();
 
   // ---------- panel ----------
   const css = document.createElement("style");
@@ -62,37 +64,46 @@
 .offline-card li { display: flex; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); }
 .offline-card li div { flex: 1; min-width: 0; }
 .offline-card li b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.offline-card h3 { margin: 12px 0 0; font-size: .9rem; }
+.offline-card li .warn { display: block; color: #b45309; font-size: .8rem; }
+.offline-card li button.del { color: #b42318; }
 .offline-card li button { font: inherit; font-size: .8rem; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
+.offline-card .linkish { font: inherit; border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; }
+.offline-draw-tip { position: absolute; z-index: 1001; left: 50%; top: 12px; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; white-space: nowrap;
+  background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.2); padding: 8px 8px 8px 14px; font-size: .88rem; }
+.offline-draw-tip button { font: inherit; border: 1px solid var(--line); border-radius: 999px; background: var(--chip); color: var(--fg); padding: 4px 10px; cursor: pointer; }
 .map-tools #offlineBtn.on { background: var(--accent); border-color: var(--accent); color: #fff; }`;
   document.head.append(css);
   const card = document.createElement("div");
   card.className = "offline-card";
   card.hidden = true;
   card.innerHTML = `<h2>Offline maps <button type="button" data-x aria-label="Close">✕</button></h2>
-<p class="muted">Save the area on screen to use the map, trails and forest roads with no signal. Saved maps use the Sharp outdoor style, which the map switches to when you're offline.</p>
+<p class="muted">Save the area on screen, or draw a square on the map, to use the map, trails and forest roads with no signal. Saved maps use the Sharp outdoor style, which the map switches to when you're offline.</p>
 <div data-new><input data-name maxlength="60" aria-label="Name for this area"><p data-est></p>
-<div class="row"><button class="btn primary" type="button" data-save>Save this area</button><button class="btn" type="button" data-stop hidden>Stop</button></div>
+<div class="row"><button class="btn primary" type="button" data-save>Save this area</button><button class="btn" type="button" data-draw>▭ Draw a square</button><button class="btn" type="button" data-stop hidden>Stop</button></div>
+<p class="muted" data-drawn hidden>Saving the square you drew. <button type="button" class="linkish" data-undraw>Use the screen instead</button></p>
 <div class="bar" hidden><i></i></div><p class="muted" data-prog></p></div>
-<ul data-list></ul><p class="muted" data-use></p>`;
+<h3 data-saved-h hidden>Saved areas</h3><ul data-list></ul><p class="muted" data-use></p>`;
   document.querySelector(".mapwrap").append(card);
   L.DomEvent.disableClickPropagation(card);
   L.DomEvent.disableScrollPropagation(card);
   const $ = (s) => card.querySelector(s);
   const outlines = L.layerGroup();
+  const drawnLayer = L.layerGroup();
 
   let busy = null; // { stop: bool } while saving
   function open(on) {
     card.hidden = !on;
     btn.classList.toggle("on", on);
     btn.setAttribute("aria-pressed", on);
-    if (on) { outlines.addTo(map); $("[data-name]").value = suggestName(); renderList(); estimate(); }
-    else outlines.remove();
+    if (on) { outlines.addTo(map); drawnLayer.addTo(map); $("[data-name]").value = suggestName(); renderList(); estimate(); }
+    else { outlines.remove(); drawnLayer.remove(); setDrawn(null); drawMode(false); }
   }
   btn.addEventListener("click", () => open(card.hidden));
   $("[data-x]").addEventListener("click", () => open(false));
 
   function suggestName() {
-    const box = viewBox(), c = [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2];
+    const box = areaBox(), c = [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2];
     const z = (window.tfZones || []).find((z) => c[0] >= z.box[0] && c[0] <= z.box[2] && c[1] >= z.box[1] && c[1] <= z.box[3]);
     return z ? z.name : `Area near ${c[0].toFixed(3)}, ${c[1].toFixed(3)}`;
   }
@@ -105,11 +116,11 @@
   let estToken = 0;
   async function estimate() {
     if (card.hidden || busy) return;
-    const box = viewBox(), tiles = countTiles(tileRanges(box, 0, MAX_Z)), my = ++estToken;
+    const box = areaBox(), tiles = countTiles(tileRanges(box, 0, MAX_Z)), my = ++estToken;
     const save = $("[data-save]"), est = $("[data-est]");
     if (tiles > MAX_TILES) {
       save.disabled = true;
-      est.textContent = `Zoom in to save: this view needs ${tiles.toLocaleString()} map tiles, and the limit is ${MAX_TILES.toLocaleString()} (about one big valley).`;
+      est.textContent = drawn ? `That square is too big: it needs ${tiles.toLocaleString()} map tiles, and the limit is ${MAX_TILES.toLocaleString()} (about one big valley). Draw a smaller one.` : `Zoom in or draw a smaller square to save: this view needs ${tiles.toLocaleString()} map tiles, and the limit is ${MAX_TILES.toLocaleString()} (about one big valley).`;
       return;
     }
     save.disabled = !navigator.onLine;
@@ -128,8 +139,9 @@
     const areas = load();
     outlines.clearLayers();
     areas.forEach((a) => L.rectangle([[a.box[0], a.box[1]], [a.box[2], a.box[3]]], { color: "#1f6f4a", weight: 2, dashArray: "6 5", fill: false, interactive: false }).addTo(outlines));
-    $("[data-list]").innerHTML = areas.map((a) => `<li><div><b>${esc(a.name)}</b><span class="muted">${mb(a.bytes)} · saved ${new Date(a.at).toLocaleDateString()}</span></div>
-<button type="button" data-show="${a.id}">Show</button><button type="button" data-del="${a.id}">Delete</button></li>`).join("");
+    $("[data-saved-h]").hidden = !areas.length;
+    $("[data-list]").innerHTML = areas.map((a) => `<li><div><b>${esc(a.name)}</b><span class="muted">${mb(a.bytes)} · saved ${new Date(a.at).toLocaleDateString()}</span>${a.missing ? `<span class="warn">Not finished: ${a.missing.toLocaleString()} file${a.missing > 1 ? "s" : ""} missing</span>` : ""}</div>
+${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""}<button type="button" data-show="${a.id}">Show</button><button type="button" class="del" data-del="${a.id}">Delete</button></li>`).join("");
     const use = $("[data-use]");
     use.textContent = "";
     if (navigator.storage && navigator.storage.estimate) {
@@ -140,9 +152,10 @@
   $("[data-list]").addEventListener("click", async (e) => {
     const b = e.target.closest("button");
     if (!b) return;
-    const areas = load(), a = areas.find((x) => x.id === (b.dataset.show || b.dataset.del));
+    const areas = load(), a = areas.find((x) => x.id === (b.dataset.show || b.dataset.del || b.dataset.finish));
     if (!a) return;
     if (b.dataset.show) map.fitBounds([[a.box[0], a.box[1]], [a.box[2], a.box[3]]]);
+    else if (b.dataset.finish) { map.fitBounds([[a.box[0], a.box[1]], [a.box[2], a.box[3]]]); saveArea(a.box, a.name, a.id); }
     else if (!busy && confirm(`Delete the saved map of ${a.name}?`)) { b.disabled = true; await remove(a, areas); renderList(); estimate(); }
   });
 
@@ -171,59 +184,148 @@
     await cache.put(url, res.clone());
     return res.json();
   }
-  // Fetch and keep a list of URLs, a few at a time, skipping ones already saved. Returns the bytes saved.
+  // Fetch and keep a list of URLs, a few at a time, skipping ones already saved. Returns the bytes saved and the
+  // URLs that still failed after 3 quick tries.
   async function fetchAll(cache, urls, onDone, optional) {
-    let i = 0, bytes = 0, failed = 0;
+    let i = 0, bytes = 0;
+    const failed = [];
     async function worker() {
       while (i < urls.length && !busy.stop) {
         const u = urls[i++];
         let res = await cache.match(u);
         if (!res) {
           for (let tries = 0; tries < 3 && !res; tries++) {
-            try { const r = await fetch(u); if (r.ok) { await cache.put(u, r.clone()); res = r; } else if (r.status === 404) break; }
-            catch { await new Promise((ok) => setTimeout(ok, 800 * (tries + 1))); }
+            try { const r = await fetch(u); if (r.ok) { await cache.put(u, r.clone()); res = r; continue; } if (r.status === 404) break; }
+            catch {}
+            await wait(800 * (tries + 1));   // dropped connection or a busy server (429, 5xx): give it a moment
           }
         }
-        if (res) bytes += (await res.blob()).size; else if (!optional) failed++;
-        onDone();
+        if (res) bytes += (await res.blob()).size; else if (!optional) failed.push(u);
+        if (onDone) onDone();
       }
     }
     await Promise.all(Array.from({ length: 6 }, worker));
-    if (failed) throw new Error(`${failed} files didn't download`);
-    return bytes;
+    return { bytes, failed };
+  }
+  const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+  // Files that failed get a few more rounds, slower each time, before the save gives up on them.
+  const RETRY_WAIT = [3000, 10000, 30000];
+  async function retryFailed(cache, failed, prog) {
+    let bytes = 0;
+    for (let r = 0; r < RETRY_WAIT.length && failed.length && !busy.stop; r++) {
+      prog.textContent = `${failed.length} file${failed.length > 1 ? "s" : ""} didn't download. Trying again (${r + 1} of ${RETRY_WAIT.length})…`;
+      await wait(RETRY_WAIT[r]);
+      if (busy.stop) break;
+      const got = await fetchAll(cache, failed);
+      bytes += got.bytes; failed = got.failed;
+    }
+    return { bytes, failed };
   }
 
-  $("[data-save]").addEventListener("click", async () => {
+  $("[data-save]").addEventListener("click", () => saveArea(areaBox(), $("[data-name]").value.trim() || suggestName()));
+
+  // ---------- draw a square to save ----------
+  // Same gesture as "Draw a square to find trails": the map stops panning and a drag draws the square.
+  const tip = document.createElement("div");
+  tip.className = "offline-draw-tip";
+  tip.hidden = true;
+  tip.innerHTML = `<span>Drag a square over the area to save</span><button type="button">Cancel</button>`;
+  document.querySelector(".mapwrap").append(tip);
+  L.DomEvent.disableClickPropagation(tip);
+  const draw = { on: false, start: null, rect: null };
+  const swallow = (c) => c.stopPropagation();
+  function drawMode(on) {
+    if (draw.on === on) return;
+    draw.on = on;
+    tip.hidden = !on;
+    if (!busy) card.hidden = on;   // out of the way while drawing, back when done
+    map.getContainer().classList.toggle("drawing", on);
+    if (on) map.dragging.disable(); else map.dragging.enable();
+  }
+  function setDrawn(b) {
+    drawn = b;
+    drawnLayer.clearLayers();
+    if (b) L.rectangle([[b[0], b[1]], [b[2], b[3]]], { color: "#1f6f4a", weight: 2, fillOpacity: 0.08, interactive: false }).addTo(drawnLayer);
+    $("[data-drawn]").hidden = !b;
+    $("[data-save]").textContent = b ? "Save this square" : "Save this area";
+    const nm = $("[data-name]");
+    if (!nm.dataset.typed) nm.value = suggestName();
+    estimate();
+  }
+  $("[data-draw]").addEventListener("click", () => drawMode(true));
+  tip.querySelector("button").addEventListener("click", () => drawMode(false));
+  $("[data-undraw]").addEventListener("click", () => setDrawn(null));
+  const mapEl = map.getContainer();
+  mapEl.addEventListener("pointerdown", (e) => {
+    if (!draw.on || e.button > 0 || e.target.closest(".leaflet-control, .offline-draw-tip")) return;
+    e.preventDefault(); e.stopPropagation();
+    mapEl.setPointerCapture(e.pointerId);
+    draw.start = map.mouseEventToLatLng(e);
+    draw.rect = L.rectangle([draw.start, draw.start], { color: "#1f6f4a", weight: 2, dashArray: "6 6", fillOpacity: 0.06, interactive: false }).addTo(map);
+  }, true);
+  mapEl.addEventListener("pointermove", (e) => {
+    if (draw.start) { e.stopPropagation(); draw.rect.setBounds(L.latLngBounds(draw.start, map.mouseEventToLatLng(e))); }
+  }, true);
+  mapEl.addEventListener("pointerup", (e) => {
+    if (!draw.start) return;
+    e.stopPropagation();
+    const b = L.latLngBounds(draw.start, map.mouseEventToLatLng(e));
+    draw.start = null;
+    draw.rect.remove();
+    mapEl.addEventListener("click", swallow, true);   // swallow the click that follows (so no trail opens)
+    setTimeout(() => mapEl.removeEventListener("click", swallow, true), 400);
+    const px = map.latLngToContainerPoint(b.getNorthWest()).distanceTo(map.latLngToContainerPoint(b.getSouthEast()));
+    if (px < 20) return;   // a tap, not a square: keep drawing
+    drawMode(false);
+    setDrawn([b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((v) => +v.toFixed(5)));
+  }, true);
+  // Save (or finish saving) an area. Anything downloaded goes in the list, even when the save is stopped or some
+  // files never come, so it can always be finished or deleted from there.
+  async function saveArea(box, name, id) {
     if (busy) return;
-    const box = viewBox(), name = $("[data-name]").value.trim() || suggestName();
     const bar = card.querySelector(".bar"), prog = $("[data-prog]");
     busy = { stop: false };
     $("[data-save]").disabled = true; $("[data-stop]").hidden = false; bar.hidden = false;
     prog.textContent = "Getting the map style…";
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    let sources = null, bytes = 0, failed = [];
+    const record = () => {
+      if (!sources) return;
+      const areas = load(), old = areas.find((x) => x.id === id);
+      const entry = { id: id || Date.now().toString(36), name, box, sources, bytes, at: Date.now() };
+      if (failed.length || busy.stop) entry.missing = Math.max(1, failed.length + busy.left);
+      if (old) Object.assign(old, entry); else areas.push(entry);
+      id = entry.id;
+      save(areas);
+    };
     try {
       const cache = await caches.open(CACHE);
-      const { sources, extra } = await styleParts(cache);
+      const parts = await styleParts(cache);
+      sources = parts.sources;
       const tiles = sources.flatMap((s) => [...tileUrls(s, box)]);
       const data = dataUrls(box);
-      const total = tiles.length + data.length + extra.length + LIBS.length;
+      const total = tiles.length + data.length + parts.extra.length + LIBS.length;
       let done = 0;
-      const tick = () => { done++; bar.firstChild.style.width = (100 * done) / total + "%"; prog.textContent = `${done.toLocaleString()} of ${total.toLocaleString()} files`; };
-      let bytes = await fetchAll(cache, [...LIBS, ...extra], tick);
-      bytes += await fetchAll(cache, data, tick, true);   // a zone may not have every kind of file
-      bytes += await fetchAll(cache, tiles, tick);
-      if (busy.stop) throw new Error("Stopped");
-      const areas = load();
-      areas.push({ id: Date.now().toString(36), name, box, sources, bytes, at: Date.now() });
-      save(areas);
+      busy.left = total;
+      const tick = () => { done++; busy.left = total - done; bar.firstChild.style.width = (100 * done) / total + "%"; prog.textContent = `${done.toLocaleString()} of ${total.toLocaleString()} files`; };
+      for (const [urls, optional] of [[[...LIBS, ...parts.extra]], [data, true], [tiles]]) {   // a zone may not have every kind of file
+        const got = await fetchAll(cache, urls, tick, optional);
+        bytes += got.bytes; failed.push(...got.failed);
+      }
+      if (failed.length && !busy.stop) { const got = await retryFailed(cache, failed, prog); bytes += got.bytes; failed = got.failed; }
+      if (busy.stop) { record(); throw new Error("Stopped"); }
+      busy.left = 0;
+      record();
+      if (failed.length) throw new Error(`${failed.length} file${failed.length > 1 ? "s" : ""} still didn't download after ${RETRY_WAIT.length + 1} tries`);
       prog.textContent = `Saved ${name} (${mb(bytes)}). It works with no signal now.`;
     } catch (e) {
-      prog.textContent = e.message === "Stopped" ? "Stopped. Saving again picks up where it left off." : `Couldn't save the whole area (${e.message}). Try again with signal: what's saved so far is kept.`;
+      prog.textContent = e.message === "Stopped" ? `Stopped. Tap Finish next to ${name} below to pick up where it left off, or Delete to remove it.`
+        : `Couldn't save the whole area (${e.message}). ${sources ? `Tap Finish next to ${name} below when you have better signal, or Delete to remove it.` : "Try again with signal."}`;
     }
     busy = null;
     $("[data-stop]").hidden = true; bar.hidden = true; bar.firstChild.style.width = "0";
     renderList(); estimate();
-  });
+  }
   $("[data-stop]").addEventListener("click", () => { if (busy) busy.stop = true; });
 
   // Delete an area's tiles, except ones another saved area also covers. With no areas left, empty the cache.
