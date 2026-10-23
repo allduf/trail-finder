@@ -891,6 +891,10 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .d-top .back { margin-bottom: 0; }
 .want-btn { font: inherit; font-weight: 600; font-size: .9rem; border: 1.5px solid var(--accent); color: var(--accent); background: transparent; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
 .want-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg, #fff); }
+.want-btn.share-btn { padding-left: 11px; padding-right: 11px; }
+.tf-toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); z-index: 3000; max-width: calc(100vw - 32px);
+  padding: 10px 16px; border-radius: 10px; background: var(--fg); color: var(--panel); font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+.tf-toast.on { opacity: 1; transform: translate(-50%, 0); }
 .d-saves { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .ride-btn { border-color: #e0a800; color: #9a6b00; }
 .ride-btn[aria-pressed="true"] { background: #ffc61a; border-color: #e0a800; color: #2b1d00; }
@@ -1019,6 +1023,10 @@ body.sport-alt #rideMapBtn { display: none !important; }
 .wx-note { font-size: .85rem; margin: 6px 0; }
 .wx-days td:first-child { white-space: nowrap; }
 .wx-days td:nth-child(2), .wx-days th:nth-child(2) { text-align: left; }
+.lmi-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+.wx-days td.lmi-prime { white-space: nowrap; }
+.wx-days td.lmi-prime b { color: var(--prime, #2f8f88); font-weight: 600; }
+.lmi-soon { margin: 8px 0 0; font-weight: 600; }
 .near-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .near-row .btn { display: inline-flex; align-items: center; gap: 6px; }
 .near-row label { color: var(--muted); font-size: .9rem; white-space: nowrap; }
@@ -2832,10 +2840,10 @@ out body;`;
   let drawn = { key: "", lines: new Map() };   // id -> { edge, line, glow }
   function drawNewTrails(shown) {
     const color = { mtb: css("--mtb"), looks: css("--looks"), other: css("--other"), ghost: css("--ghost") };
-    const byDiff = state.colorBy === "diff";
+    const byDiff = state.colorBy === "diff", byLoam = state.colorBy === "loam";
     const look = shown.map((t) => {
       const d = byDiff && t.cat !== "ghost" ? difficulty(t.tags) : null;
-      return { t, d, color: t.cat === "ghost" ? color.ghost : byDiff ? diffColor(d) : t.use ? css("--other") : color[t.cat],
+      return { t, d, color: t.cat === "ghost" ? color.ghost : byDiff ? diffColor(d) : byLoam ? loamColor(t) : t.use ? css("--other") : color[t.cat],
         dash: t.cat === "ghost" ? "1 10" : isUnoff(t) ? UNOFF_DASH : byDiff && isEst(t.tags) ? EST_DASH : t.cat === "looks" ? "10 6" : null };
     });
     const key = byDiff + "|" + look.map(({ t, color, dash }) => `${t.id}:${t.cat}:${color}:${dash}:${trailName(t)}:${(t.segments || t.geom).length}`).join("|");
@@ -2980,7 +2988,7 @@ out body;`;
 
     trailLayer.clearLayers(); drawn.key = "";
     drawAllTrails();
-    shown.forEach((e) => trailLayer.addLayer(L.circleMarker(dotOn(e.g), { radius: 7, color: "#fff", weight: 2, fillColor: state.colorBy === "diff" ? diffColor(difficulty(e.g.tags)) : css("--prime"), fillOpacity: 0.95 })
+    shown.forEach((e) => trailLayer.addLayer(L.circleMarker(dotOn(e.g), { radius: 7, color: "#fff", weight: 2, fillColor: state.colorBy === "diff" ? diffColor(difficulty(e.g.tags)) : state.colorBy === "loam" ? loamColor(e.g) : css("--prime"), fillOpacity: 0.95 })
       .bindTooltip(esc(e.g.name), { direction: "top", offset: [0, -6] })
       .on("click", (ev) => { L.DomEvent.stopPropagation(ev); showFound(e.g, true); })));
     renderStatus();
@@ -3175,6 +3183,17 @@ out body;`;
     return Math.round(Math.max(0, Math.min(100, (v - 0.08) / (0.42 - 0.08) * 100)));
   }
   const lmiLevel = (v) => LMI_LEVELS.find((l) => v < l[0]);
+  // Loam forecast: the reading at 1 pm on each coming day (the hour most people ride), from the same hourly
+  // soil moisture forecast as "now". [{ d: "YYYY-MM-DD", v }], tomorrow first.
+  const LOAM_HOUR = "T13:00";
+  const lmiDays = (h, today) => h.time.map((x, i) => [x, i]).filter(([x]) => x.slice(0, 10) > today && x.endsWith(LOAM_HOUR))
+    .map(([x, i]) => ({ d: x.slice(0, 10), v: lmiAt(h, i) })).filter((x) => x.v != null);
+  const isPrimeLoam = (v) => v != null && v >= 40 && v < 60;
+  const dayName = (d, today) => {
+    const n = Math.round((Date.parse(d + "T12:00") - Date.parse(today + "T12:00")) / 86400000);
+    return n === 0 ? "today" : n === 1 ? "tomorrow" : new Date(d + "T12:00").toLocaleDateString(undefined, { weekday: "long" });
+  };
+  const lmiDot = (v) => { const k = LMI_LEVELS.indexOf(lmiLevel(v)); return `<i class="lmi-dot" style="background:${LMI_RIDE[k][0]}"></i>`; };
   const LMI_RIDE = [["#d9a35a", "OK, loose"], ["#5aa86a", "Good"], ["#3f8f8c", "Prime", "best"], ["#3b6fb0", "Slippery"], ["#33468f", "Very slippery"]];
   const lmiKey = (lvl) => `<ul class="lmi-key" aria-label="What the numbers mean">${LMI_LEVELS.map((l, k) =>
     `<li class="${l === lvl ? "on" : ""}"><span class="dot" style="background:${LMI_RIDE[k][0]}"></span><span>${k * 20}–${Math.min(100, l[0] - 1)}</span><span>${esc(l[1])}</span><span class="ride ${LMI_RIDE[k][2] || ""}">${LMI_RIDE[k][1]}</span></li>`).join("")}</ul>`;
@@ -3185,17 +3204,17 @@ out body;`;
   // 0.05° cells put some trails' reading 3 km away, in a wetter or drier model cell.
   // Kept on this device for half an hour, so reloading the page doesn't ask Open-Meteo for every place again.
   const LOAM_STORE = "tf:loamCells";
-  const loamCells = new Map();                   // "lat,lon" (rounded to 0.02°) -> { at, lmi }
+  const loamCells = new Map();                   // "lat,lon" (rounded to 0.02°) -> { at, lmi, today, days } (days: lmiDays)
   try {
     Object.entries(JSON.parse(localStorage.getItem(LOAM_STORE) || "{}") || {})
-      .forEach(([k, [at, lmi]]) => { if (Date.now() - at < WX_FRESH_MS) loamCells.set(k, { at, lmi }); });
+      .forEach(([k, [at, lmi, today, days]]) => { if (Date.now() - at < WX_FRESH_MS) loamCells.set(k, { at, lmi, today, days }); });
   } catch {}
   let loamSaveT = 0;
   const saveLoamCells = () => {
     clearTimeout(loamSaveT);
     loamSaveT = setTimeout(() => {
       const o = {};
-      loamCells.forEach((c, k) => { if (c.lmi !== null && Date.now() - c.at < WX_FRESH_MS) o[k] = [c.at, c.lmi]; });
+      loamCells.forEach((c, k) => { if (c.lmi !== null && Date.now() - c.at < WX_FRESH_MS) o[k] = [c.at, c.lmi, c.today, c.days]; });
       try { localStorage.setItem(LOAM_STORE, JSON.stringify(o)); } catch {}
     }, 2000);
   };
@@ -3203,6 +3222,42 @@ out body;`;
   function loamOf(t) {
     const c = loamCells.get(cellOf(t));
     return c ? c.lmi : undefined;                 // undefined: not loaded yet; null: no soil data there
+  }
+  // "Loam" trail colours (the map key's third mode, like Trailforks colouring its map by trail condition): each line
+  // in the colour of today's Loam index at its spot, grey until read or where there's no soil data.
+  function loamColor(t) {
+    try {
+      const v = loamOf(t.geom || t.center || t.loamAt ? t : { geom: (t.segments || [[]])[0] });
+      return v == null ? UNRATED : LMI_RIDE[LMI_LEVELS.indexOf(lmiLevel(v))][0];
+    } catch { return UNRATED; }
+  }
+  // In Loam colours, read the loam for the All trails lines in view (zoomed in, so it's a few hundred spots at most),
+  // then redraw only the zones whose trails got a new reading.
+  const LOAM_MAP_ZOOM = 11;
+  let loamMapBusy = false, loamMapAgain = false;
+  async function loamForView() {
+    if (state.colorBy !== "loam" || map.getZoom() < LOAM_MAP_ZOOM) return;
+    if (loamMapBusy) { loamMapAgain = true; return; }
+    const view = map.getBounds().pad(0.1), lists = [...allData.values()].filter(Boolean), byCell = new Map();
+    lists.forEach((list) => list.forEach((w) => {
+      const m = w.geom[Math.floor(w.geom.length / 2)];
+      if (!view.contains(m)) return;
+      const k = cellOf(w);
+      if (!byCell.has(k)) byCell.set(k, new Set());
+      byCell.get(k).add(list);
+    }));
+    const need = staleCells([...byCell.keys()]);
+    if (!need.length) return;
+    loamMapBusy = true;
+    try { await fetchLoamCells(need); } catch {}
+    loamMapBusy = false;
+    if (state.colorBy !== "loam") return;
+    const redo = new Set();
+    need.forEach((k) => (byCell.get(k) || []).forEach((l) => redo.add(l)));
+    redo.forEach(allRedo);
+    queueAllDraw();
+    render();
+    if (loamMapAgain) { loamMapAgain = false; loamForView(); }
   }
   let loamBusy = false;
   const staleCells = (keys) => [...new Set(keys)].filter((k) => { const c = loamCells.get(k); return !c || Date.now() - c.at > WX_FRESH_MS; });
@@ -3223,14 +3278,15 @@ out body;`;
         break;
       }
       try {
-        const res = await fetch(`${WX_API}?latitude=${ll.map((x) => x[0]).join(",")}&longitude=${ll.map((x) => x[1]).join(",")}&timezone=auto&past_days=1&forecast_days=1` +
+        const res = await fetch(`${WX_API}?latitude=${ll.map((x) => x[0]).join(",")}&longitude=${ll.map((x) => x[1]).join(",")}&timezone=auto&past_days=1&forecast_days=4` +
           "&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm");
         if (!res.ok) throw await meteoErr(res);
         const json = await res.json();
         (Array.isArray(json) ? json : [json]).forEach((w, k) => {
           let j = w.hourly.time.findIndex((x) => x > w.current.time) - 1;
           if (j < 0) j = w.hourly.time.length - 1;
-          loamCells.set(chunk[k], { at: Date.now(), lmi: lmiAt(w.hourly, j) });
+          const today = w.current.time.slice(0, 10);
+          loamCells.set(chunk[k], { at: Date.now(), lmi: lmiAt(w.hourly, j), today, days: lmiDays(w.hourly, today) });
         });
         saveLoamCells();
       } catch (e) {
@@ -3245,6 +3301,16 @@ out body;`;
     const need = staleCells(keys);
     if (need.length) await fetchLoamCells(need);
     return keys.map((k) => { const c = loamCells.get(k); return c ? c.lmi : null; });
+  };
+  // Loam forecast (notify.js): the first coming day in prime loam at each [lat, lon], { d, day, v } or null.
+  window.tfLoamSoon = async (pts) => {
+    const keys = pts.map((p) => cellOf({ center: L.latLng(p[0], p[1]) }));
+    const need = staleCells(keys);
+    if (need.length) await fetchLoamCells(need);
+    return keys.map((k) => {
+      const c = loamCells.get(k), x = c && c.days && c.days.find((y) => isPrimeLoam(y.v));
+      return x ? { d: x.d, day: dayName(x.d, c.today), v: x.v } : null;
+    });
   };
   function loamBadge(t) {
     const v = loamOf(t);
@@ -3271,8 +3337,8 @@ out body;`;
           const h = json.hourly;
           let i = h.time.findIndex((x) => x > json.current.time) - 1;
           if (i < 0) i = h.time.length - 1;
-          const key = cellOf(t), was = loamCells.get(key), lmi = lmiAt(h, i);
-          loamCells.set(key, { at: Date.now(), lmi });   // a fresher reading: the list shows it too
+          const key = cellOf(t), was = loamCells.get(key), lmi = lmiAt(h, i), today = json.current.time.slice(0, 10);
+          loamCells.set(key, { at: Date.now(), lmi, today, days: lmiDays(h, today) });   // a fresher reading: the list shows it too
           if (!was || was.lmi !== lmi) render();
         }
       }
@@ -3290,11 +3356,14 @@ out body;`;
     const lvl = lmi == null ? null : lmiLevel(lmi);
     const [sky, icon] = wmo(c.weather_code);
     const today = c.time.slice(0, 10);
+    const ahead = new Map(lmiDays(h, today).map((x) => [x.d, x.v]));
+    const loamCell = (v) => v == null ? "<td>–</td>" : `<td class="${isPrimeLoam(v) ? "lmi-prime" : ""}">${lmiDot(v)}${v}${isPrimeLoam(v) ? " <b>prime</b>" : ""}</td>`;
+    const soon = [...ahead].find(([, v]) => isPrimeLoam(v));
     const days = d.time.map((day, k) => ({ day, k })).filter((x) => x.day >= today).map(({ day, k }) => {
       const [txt, ic] = wmo(d.weather_code[k]);
       const name = day === today ? "Today" : new Date(day + "T12:00").toLocaleDateString(undefined, { weekday: "short" });
       const pop = d.precipitation_probability_max && d.precipitation_probability_max[k] != null ? ` · ${d.precipitation_probability_max[k]} %` : "";
-      return `<tr><td>${name}</td><td>${ic} ${esc(txt)}</td><td>${Math.round(d.temperature_2m_max[k])}° / ${Math.round(d.temperature_2m_min[k])}°</td><td>${fmtMm(d.precipitation_sum[k])}${pop}</td></tr>`;
+      return `<tr><td>${name}</td><td>${ic} ${esc(txt)}</td><td>${Math.round(d.temperature_2m_max[k])}° / ${Math.round(d.temperature_2m_min[k])}°</td><td>${fmtMm(d.precipitation_sum[k])}${pop}</td>${loamCell(day === today ? lmi : ahead.get(day))}</tr>`;
     }).join("");
     el.classList.remove("muted");
     el.innerHTML = `
@@ -3305,7 +3374,8 @@ out body;`;
       ${lmi == null ? "" : `<div class="lmi-scale" role="img" aria-label="Loam moisture index ${lmi} out of 100"><i style="left:${lmi}%"></i></div>
       <div class="lmi-ends">${["Dry", "Tacky", "Damp", "Wet", "Saturated"].map((x, k) => `<span style="left:${10 + 20 * k}%">${x}</span>`).join("")}</div>
       ${lmiKey(lvl)}`}
-      <table class="etable wx-days"><thead><tr><th>Day</th><th>Sky</th><th>High / low</th><th>Rain</th></tr></thead><tbody>${days}</tbody></table>`;
+      ${lmi != null && !isPrimeLoam(lmi) && soon ? `<p class="lmi-soon">${lmiDot(soon[1])}Prime loam ${esc(dayName(soon[0], today))} (${soon[1]})</p>` : ""}
+      <table class="etable wx-days"><thead><tr><th>Day</th><th>Sky</th><th>High / low</th><th>Rain</th><th title="Loam moisture index at 1 pm">Loam</th></tr></thead><tbody>${days}</tbody></table>`;
   }
 
   const niceStep = (span, n) => { const raw = span / n, p = 10 ** Math.floor(Math.log10(raw)); return [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= raw); };
@@ -3653,7 +3723,7 @@ out body;`;
     const tf = tfInfo({ ...(real ? allTfOf(t.id) : {}), ...t.tags });
     if (tf.tfName) t.tfName = tf.tfName;
     d.innerHTML = `
-      <div class="d-top"><button class="linkish back" id="detailBack" type="button">← Back</button>${real ? `<span class="d-saves"><button class="want-btn ride-btn" id="rideBtn" type="button" aria-pressed="false"></button><button class="want-btn ridden-btn" id="riddenBtn" type="button" aria-pressed="false"></button><button class="want-btn" id="wantBtn" type="button" aria-pressed="false"></button></span>` : ""}</div>
+      <div class="d-top"><button class="linkish back" id="detailBack" type="button">← Back</button>${real ? `<span class="d-saves"><button class="want-btn share-btn" id="shareTrail" type="button" aria-label="Share this trail" title="Send this trail to a friend: the link opens the app on it">↗</button><button class="want-btn ride-btn" id="rideBtn" type="button" aria-pressed="false"></button><button class="want-btn ridden-btn" id="riddenBtn" type="button" aria-pressed="false"></button><button class="want-btn" id="wantBtn" type="button" aria-pressed="false"></button></span>` : ""}</div>
       ${real ? `<div class="save-pick" id="savePick" hidden></div><div class="ride-note" id="rideNote" hidden><label for="rideNoteIn">Your note</label><textarea id="rideNoteIn" rows="2" maxlength="500" placeholder="Why you want to ride it, who told you about it, where to park…"></textarea></div>` : ""}
       <div class="d-head ${t.cat}">
         <span class="bar"${barStyle(t)}></span>
@@ -3712,6 +3782,7 @@ out body;`;
     panelScrollTo($("detail"));
     syncClear();
     $("detailBack").addEventListener("click", closeDetail);
+    if ($("shareTrail")) $("shareTrail").addEventListener("click", () => shareTrail(t));
     // While planning a route: add this trail to Pick trails (alex: "look for trail when im making a route").
     const addRide = $("addRideBtn"), rideIds = t.segIds && t.segIds.length ? t.segIds : [t.id];
     if (addRide) {
@@ -4614,7 +4685,7 @@ out body;`;
   // Zones arriving close together (up to 10 at the start) are drawn once, not once per zone.
   let allDrawTimer = 0;
   function queueAllDraw() {
-    if (!allDrawTimer) allDrawTimer = setTimeout(() => { allDrawTimer = 0; drawAllTrails(); drawTrailNames(); }, 60);
+    if (!allDrawTimer) allDrawTimer = setTimeout(() => { allDrawTimer = 0; drawAllTrails(); drawTrailNames(); if (state.colorBy === "loam") loamForView(); }, 60);
   }
   function drawAllTrails() {
     const loaded = [...allData.values()].filter(Boolean);
@@ -4625,7 +4696,7 @@ out body;`;
     if (key === allKey && loaded.every((l) => allDrawn.has(l))) return;
     if (key !== allKey) { allKey = key; allLayer.clearLayers(); allShown = []; allDrawn.clear(); allSeen.clear(); }
     if (!state.allTrails && !officialOnly()) return;
-    const seen = allSeen, byDiff = state.colorBy === "diff";
+    const seen = allSeen, byDiff = state.colorBy === "diff", byLoam = state.colorBy === "loam";
     loaded.filter((l) => !allDrawn.has(l)).forEach((list) => {
       const group = L.layerGroup(), ids = [];
       allDrawn.set(list, { group, ids });
@@ -4636,8 +4707,9 @@ out body;`;
         if (seen.has(w.id) || !(state.allTrails ? off && !state.onlyUnoff || wanted(w.c.cat, unoff, off) : !unoff && !state.onlyUnoff)) return;
         seen.add(w.id); ids.push(w.id);
         const d = difficulty(w.tags);
-        allShown.push({ w, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks") });
-        group.addLayer(L.polyline(w.geom, { renderer: allRenderer, color: byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks"), weight: off ? 4.5 : unoff ? 3.5 : 2.5, opacity: off ? 1 : 0.75, dashArray: unoff ? UNOFF_DASH : byDiff && isEst(w.tags) ? EST_DASH : null, lineCap: "round", interactive: false }));
+        const color = byDiff ? diffColor(d) : byLoam ? loamColor(w) : w.c.cat === "mtb" ? css("--mtb") : css("--looks");
+        allShown.push({ w, color });
+        group.addLayer(L.polyline(w.geom, { renderer: allRenderer, color, weight: off ? 4.5 : unoff ? 3.5 : 2.5, opacity: off ? 1 : 0.75, dashArray: unoff ? UNOFF_DASH : byDiff && isEst(w.tags) ? EST_DASH : null, lineCap: "round", interactive: false }));
       });
       allLayer.addLayer(group);
     });
@@ -4702,7 +4774,8 @@ out body;`;
     state.allTrails = !state.allTrails; store.set("allTrails", state.allTrails);
     syncAllBtn(); loadAllTrails(); drawAllTrails(); renderKey();
   });
-  map.on("moveend", () => { loadAllTrails(); queueAllDraw(); if (state.waiting) renderStatus(); });
+  map.on("moveend", () => { loadAllTrails(); queueAllDraw(); loamForView(); if (state.waiting) renderStatus(); });
+  map.on("zoomend", () => { if (state.colorBy === "loam") renderKey(); });
   syncAllBtn();
   // Official trails (official.js): load the squares in view; when new ones arrive, check the trails already loaded again.
   if (window.tfOfficial) {
@@ -5323,11 +5396,11 @@ out body;`;
     const el = L.DomUtil.create("details", "legend");
     el.open = false;   // starts folded to just its title; tap it to see the colours (alex)
     el.innerHTML = `<summary>Trail colours</summary><div class="lg-mode" role="group" aria-label="Colour the trails by">
-      <button type="button" data-c="diff">Difficulty</button><button type="button" data-c="type">Type</button></div><ul id="keyList"></ul><p class="lg-note" id="keyNote"></p>`;
+      <button type="button" data-c="diff">Difficulty</button><button type="button" data-c="type">Type</button><button type="button" data-c="loam">Loam</button></div><ul id="keyList"></ul><p class="lg-note" id="keyNote"></p>`;
     L.DomEvent.disableClickPropagation(el); L.DomEvent.disableScrollPropagation(el);
     el.querySelectorAll(".lg-mode button").forEach((b) => b.addEventListener("click", () => {
       state.colorBy = b.dataset.c; store.set("colorBy", state.colorBy);
-      renderKey(); render();
+      renderKey(); render(); loamForView();
     }));
     return el;
   };
@@ -5352,7 +5425,9 @@ out body;`;
     const sw = (style, label) => `<li><i style="${style}"></i>${label}</li>`;
     const dots = "background: repeating-linear-gradient(90deg, var(--fg) 0 3px, transparent 3px 7px)";
     const section = (title, items) => `<li class="lg-more"><details data-k="${title}"${keyOpen.has(title) ? " open" : ""}><summary>${title}</summary><ul>${items}</ul></details></li>`;
-    let html = byDiff
+    let html = state.colorBy === "loam"
+      ? LMI_LEVELS.map((l, k) => sw(`background: ${LMI_RIDE[k][0]}`, `${k * 20}–${Math.min(100, l[0] - 1)} ${esc(l[1])}`)).join("") + sw(`background: ${UNRATED}`, "Not read yet") + sw(dots, "Unofficial")
+      : byDiff
       ? Object.entries(DIFF).map(([k, v]) => sw(`background: ${v.color}`, `${v.sym} ${v.label}`)).join("")
         + sw(`background: repeating-linear-gradient(90deg, ${DIFF.blue.color} 0 6px, transparent 6px 10px)`, "Dashed: estimated level") + sw(`background: ${UNRATED}`, "Not rated") + sw(dots, "Unofficial")
       : sw("background: var(--mtb)", "MTB tagged") + sw("background: repeating-linear-gradient(90deg, var(--looks) 0 8px, transparent 8px 12px)", "Likely MTB")
@@ -5381,7 +5456,9 @@ out body;`;
       if (sec) sec.scrollIntoView({ block: "nearest" });
     }
     $("keyList").querySelectorAll(".lg-more details").forEach((d) => d.addEventListener("toggle", () => { if (d.open) keyOpen.add(d.dataset.k); else keyOpen.delete(d.dataset.k); }));
-    $("keyNote").textContent = byDiff
+    $("keyNote").textContent = state.colorBy === "loam"
+      ? `Today's Loam moisture index on each trail. 40–59 is prime loam.${map.getZoom() < LOAM_MAP_ZOOM ? " Zoom in to colour more trails." : ""}`
+      : byDiff
       ? state.allTrails ? "All trails: bold = official, thin = not known, dotted = unofficial. White edge: trails in the list." : "Dashed: likely MTB (no bike tags)."
       : state.allTrails ? "All trails: bold = official, thin = not known. Thick: trails in the list." : "";
   }
@@ -5806,6 +5883,42 @@ out tags center qt;`;
     } catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${e.message}).`, true); }
   };
   window.tfShowFound = (g) => showFound(g, true);   // notify.js opens a new trail by its way ids
+
+  // ---------- share links (alex, from Outmap and Trailforks: "ride this with me") ----------
+  // A trail: #trail=w|r:<ids, dot-separated>:<name>. A planned route: #route=<the saved route, base64>
+  // (planner.js). A pin: #pin=... (ski-points.js). The phone's share sheet when there is one, else the link is copied.
+  const toast = (msg) => {
+    let el = $("tfToast");
+    if (!el) { el = document.createElement("div"); el.id = "tfToast"; el.className = "tf-toast"; el.setAttribute("role", "status"); document.body.appendChild(el); }
+    el.textContent = msg; el.classList.add("on");
+    clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 3200);
+  };
+  window.tfToast = toast;
+  window.tfShare = async ({ title, text, url }) => {
+    try {
+      if (navigator.share) { await navigator.share({ title, text, url }); return; }
+      await navigator.clipboard.writeText(url);
+      toast("Link copied: paste it in a message.");
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      try { prompt("Copy this link:", url); } catch {}
+    }
+  };
+  const appUrl = () => location.origin + location.pathname;
+  function shareTrail(t) {
+    const ids = (t.segIds && t.segIds.length ? t.segIds : [t.id]).slice(0, 40), name = trailName(t);
+    const url = `${appUrl()}#trail=${t.osmType === "relation" ? "r" : "w"}:${ids.join(".")}:${encodeURIComponent(name)}`;
+    const lvl = DIFF[difficulty(t.tags)];
+    window.tfShare({ title: name, text: `${name}${t.zone ? ` (${t.zone})` : ""}${lvl ? `, ${lvl.label}` : ""}${t.km ? `, ${fmtLen(t.km)}` : ""}`, url });
+  }
+  (() => {
+    const m = location.hash.match(/^#trail=([wr]):([\d.]+):?(.*)$/);
+    if (!m) return;
+    history.replaceState(null, "", location.pathname + location.search);
+    let name = "Shared trail"; try { name = decodeURIComponent(m[3]).slice(0, 120) || name; } catch {}
+    const ids = m[2].split(".").map(Number).filter((x) => x > 0).slice(0, 40);
+    if (ids.length) setTimeout(() => showFound({ type: m[1], items: ids.map((id) => ({ id })), name }, true), 400);
+  })();
   // Which trail is this? (photo-find.js): the zones, the nightly name and all-trails lists, and opening a trail.
   window.tfFind = {
     zones: ZONES, regions: REGIONS, zoneById, regionHere, caIndexLoad, caZonesIn, nightly, zoneOf,
@@ -5910,7 +6023,7 @@ out tags center qt;`;
   function drawFound(t) {
     foundLayer.clearLayers();
     const dd = state.colorBy === "diff" ? difficulty(t.tags) : null;
-    const color = state.colorBy === "diff" ? diffColor(dd) : { mtb: css("--mtb"), looks: css("--looks"), other: css("--accent") }[t.cat];
+    const color = state.colorBy === "diff" ? diffColor(dd) : state.colorBy === "loam" ? loamColor(t) : { mtb: css("--mtb"), looks: css("--looks"), other: css("--accent") }[t.cat];
     t.segments.forEach((s) => {
       foundLayer.addLayer(L.polyline(s, { color: PICK_GLOW, weight: 24, opacity: 0.6, lineCap: "round", interactive: false }));   // highlighter so the picked trail stands out
       foundLayer.addLayer(L.polyline(s, { color: "#ffffff", weight: 12, opacity: 0.9, lineCap: "round", interactive: false }));
@@ -6180,7 +6293,7 @@ out tags center qt;`;
     }));
     function addBoxWay(w) {
       const byDiff = state.colorBy === "diff", d = difficulty(w.tags), unoff = w.c.unoff.length > 0;
-      const color = w.c.cat === "path" ? UNRATED : byDiff ? diffColor(d) : w.c.cat === "mtb" ? css("--mtb") : css("--looks");
+      const color = w.c.cat === "path" ? UNRATED : byDiff ? diffColor(d) : state.colorBy === "loam" ? loamColor(w) : w.c.cat === "mtb" ? css("--mtb") : css("--looks");
       const name = (w.tags.name || w.tags["mtb:name"] || "").trim();
       boxLayer.addLayer(L.polyline(w.geom, { renderer: boxRenderer, color: "#fff", weight: 8, opacity: 0.9, interactive: false }));
       const line = L.polyline(w.geom, { renderer: boxRenderer, color, weight: 4.5, opacity: 1, dashArray: unoff || unoffPick ? UNOFF_DASH : byDiff && isEst(w.tags) ? EST_DASH : null, lineCap: "round" });
