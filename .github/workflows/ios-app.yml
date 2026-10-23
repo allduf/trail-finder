@@ -32,20 +32,28 @@ jobs:
       run:
         working-directory: ios-app
     env:
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
     steps:
       - name: Check the Apple secrets
         id: keys
         working-directory: .
+        # The three IDs reach later steps only through GITHUB_ENV, trimmed (a job-level env would win over it).
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           if [ -z "$APPLE_TEAM_ID" ] || [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$ASC_KEY_P8" ]; then
             echo "::notice::Apple secrets not set yet, so no iPhone build. See the top of .github/workflows/ios-app.yml."
             echo "ok=false" >> "$GITHUB_OUTPUT"
           else
             echo "ok=true" >> "$GITHUB_OUTPUT"
+            # Pasted values often carry a stray space or line break; use them trimmed from here on.
+            for v in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID; do
+              t=$(printf '%s' "${!v}" | tr -d ' \r\n\t')
+              echo "::add-mask::$t"
+              echo "$v=$t" >> "$GITHUB_ENV"
+            done
           fi
       - uses: actions/checkout@v4
         if: steps.keys.outputs.ok == 'true'
@@ -71,6 +79,9 @@ jobs:
             exit 1
           fi
           sed "s/TEAM_ID/$APPLE_TEAM_ID/" ExportOptions.plist > "$RUNNER_TEMP/ExportOptions.plist"
+      - name: Check the key with Apple
+        if: steps.keys.outputs.ok == 'true'
+        run: node check-key.mjs "$RUNNER_TEMP/keys/AuthKey.p8"
       - name: Build
         if: steps.keys.outputs.ok == 'true'
         # Archived unsigned: xcodebuild's API-key login only works for the export below, which signs it
