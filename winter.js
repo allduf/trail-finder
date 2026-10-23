@@ -1,8 +1,11 @@
 // Skiing, the second sport in the header's sport menu (MTB / Skiing / Hunting). This file owns the menu: each sport
 // sets body.sport-<id>, every non-MTB sport also body.sport-alt (which hides the MTB parts), and "tf:sport" is sent
 // on every change (hunting.js listens).
-// In Skiing the map shows backcountry ski routes and huts instead of the MTB trails, with a list of the routes in
-// view, and an "Avalanche risk" button that shades the mountain faces by Avalanche Canada's forecast, on the flat
+// In Skiing the map shows ski routes and huts instead of the MTB trails. The panel (alex: "simplify the skiing mode")
+// is four buttons, Touring / Nordic / Snowmobile / Resorts, each turning on a group of route types, then the
+// Avalanche card (with Touring), the route details, the snowmobile clubs (with Snowmobile) and a list of the routes in
+// view. The heatmap, your ski tours and each single route type are switches in the map's Layers menu, next to the
+// "Avalanche risk" button that shades the mountain faces by Avalanche Canada's forecast, on the flat
 // map and on the 3D map: each slope steep enough to slide (about 25° and more) gets the danger colour of its
 // elevation band, and stripes where its aspect and elevation are named in the day's avalanche problems.
 // Also a "Ski heatmap" of winter OpenStreetMap GPS traces, "Your ski tours" from the rider's own rides, and
@@ -28,21 +31,32 @@
 
   const TYPES = {
     tour: { label: "Ski touring", color: "#1f5fe0", weight: 3.5 },
-    access: { label: "Ski access (ski=yes)", color: "#1f5fe0", weight: 2.5, dashArray: "8 6" },
+    access: { label: "Ski access", color: "#1f5fe0", weight: 2.5, dashArray: "8 6" },
     nordic: { label: "Nordic / cross-country", color: "#0b9bb5", weight: 3 },
     snowshoe: { label: "Snowshoe", color: "#8b4fe0", weight: 3, dashArray: "6 5" },
     snowmobile: { label: "Snowmobile trails", color: "#c2255c", weight: 3, dashArray: "12 4" },
-    sled: { label: "Sledding / tubing hills", color: "#3a3a42", weight: 2.5, dashArray: "2 6" },
     resort: { label: "Ski resort runs", color: "#6b7787", weight: 2 },
     // Ungroomed in-bounds terrain (bowls, glades, chutes) inside a ski resort's boundary: resort skiing, not touring.
     offpiste: { label: "Resort off-piste and bowls", color: "#7a8fb8", weight: 2, dashArray: "5 4" },
     other: { label: "Other winter routes", color: "#8e9aab", weight: 2 },
   };
+  // Sledding and tubing hills (type "sled") aren't drawn: alex asked to take out what isn't needed.
   const HUT = { label: "Huts and cabins", color: "#7a2e10" };
-  const START = { label: "camptocamp route starts", color: "#d9480f" };
+  const START = { label: "camptocamp route starts", color: "#d9480f" };   // drawn with Ski touring
   const HEAT = { label: "Ski heatmap", ramp: ["#2b59c3", "#00b4d8", "#ffd23f", "#ff6a1a"] };   // 1, 2, 3-5, 6+ traces
   const MINE = { label: "Your ski tours", color: "#e0218a" };
   const CLUB = { label: "Snowmobile clubs", color: "#c2255c" };
+  // The four buttons at the top of the panel: each one turns its group of layers on or off (more than one can be on).
+  const VIEWS = {
+    tour: { icon: "⛷", label: "Touring", sub: "backcountry", layers: ["tour", "access", "other", "hut"] },
+    nordic: { icon: "🎿", label: "Nordic", sub: "and snowshoe", layers: ["nordic", "snowshoe"] },
+    sled: { icon: "🛷", label: "Snowmobile", sub: "trails, clubs", layers: ["snowmobile", "club"] },
+    resort: { icon: "🚡", label: "Resorts", sub: "runs, bowls", layers: ["resort", "offpiste"] },
+  };
+  // The switches in the map's Layers menu: the two extras, then every single layer under "Single layers".
+  const EXTRAS = ["heat", "mine"];
+  const SINGLES = ["tour", "access", "other", "hut", "nordic", "snowshoe", "snowmobile", "club", "resort", "offpiste"];
+  const LABEL = (k) => (TYPES[k] || { hut: HUT, heat: HEAT, mine: MINE, club: CLUB }[k]).label;
   // Avalanche Canada's danger scale colours.
   const DANGER = [
     { label: "No rating", color: "#9aa3ad" }, { label: "1 Low", color: "#52ba4a" }, { label: "2 Moderate", color: "#fff300" },
@@ -63,17 +77,23 @@
   border: 1px solid rgba(255,255,255,.28); appearance: none; -webkit-appearance: none; }
 .brand .sport-pick:hover { background-color: rgba(255,255,255,.18); }
 .brand .sport-pick option { color: #15211a; background: #fff; }
-body.sport-alt .panel .modes, body.sport-alt .panel .pane, body.sport-alt #boxBtn, body.sport-alt .tap-hint, body.sport-alt #boxRes,
+body.sport-alt .panel .modes, body.sport-alt .panel .pane, body.sport-alt #boxBtn, body.sport-alt .box-row-btns, body.sport-alt .tap-hint, body.sport-alt #boxRes,
 body.sport-alt #status, body.sport-alt #debug, body.sport-alt #list, body.sport-alt #detail, body.sport-alt #allBtn,
 body.sport-alt details.legend, body.sport-alt #searchArea { display: none !important; }
 body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !important; }
 .map-tools #avyBtn.on { background: #f79218; border-color: #f79218; color: #1a1a1a; }
 #skiPane { display: flex; flex-direction: column; gap: 12px; font-size: .9rem; }
 #skiPane .sk-hint { color: var(--muted); margin: 0; font-size: .85rem; }
-#skiPane .sk-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-#skiPane .sk-chip { font: inherit; font-size: .8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
-#skiPane .sk-chip[aria-pressed="false"] { opacity: .55; }
-#skiPane .sk-chip .n { color: var(--muted); font-weight: 500; }
+#skiPane .sk-views { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+#skiPane .sk-view { font: inherit; font-size: .8rem; font-weight: 700; padding: 8px 2px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; }
+#skiPane .sk-view .ic { font-size: 1.3rem; line-height: 1.2; }
+#skiPane .sk-view small { font-weight: 500; font-size: .66rem; color: var(--muted); white-space: nowrap; }
+#skiPane .sk-view[aria-pressed="true"] { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
+#skiPane .sk-view[aria-pressed="true"] small { color: #fff; }
+body:not(.sport-ski) .lm-ski { display: none !important; }
+.layers-menu .lm-ski { display: grid; gap: 6px; }
+.layers-menu .lm-ski .lm-head { margin-top: 6px; }
+.map-tools .layers-menu .lm-ski button.on { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
 #skiPane .sk-sw { width: 18px; height: 4px; border-radius: 2px; flex: none; display: inline-block; }
 #skiPane .sk-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #0003; flex: none; display: inline-block; }
 #skiPane ul.sk-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -139,8 +159,6 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 #skiPane ul.sk-min { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 #skiPane ul.sk-min li { border-left: 3px solid var(--line); padding-left: 8px; }
 #skiPane ul.sk-min li.av { border-left-color: #ef1c29; }
-#skiPane details.sk-tags summary { font-size: .8rem; color: var(--muted); font-weight: 600; }
-#skiPane details.sk-tags dl { margin-top: 4px; }
 #skiPane .ab-photos { margin: 0; }`;
   document.head.append(css);
 
@@ -154,13 +172,13 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
   pane.id = "skiPane";
   pane.setAttribute("aria-label", "Skiing");
   pane.innerHTML = `
-    <p class="sk-hint">Backcountry ski routes, snowmobile trails and huts from OpenStreetMap, BC Recreation Sites and Trails and camptocamp.org, the snowmobile clubs' grooming reports, a heatmap of winter GPS traces, and your own ski tours (<a href="ride.html#rides">import them in My rides</a>). Tap a route for its details. <strong>Avalanche risk</strong> (on the map) shades the slopes by today's avalanche forecast.</p>
-    <div class="av-card sk-card" id="avCard" hidden></div>
-    <div class="sk-chips" id="skChips" role="group" aria-label="Show these routes"></div>
+    <div class="sk-views" id="skViews" role="group" aria-label="Show these routes"></div>
+    <p class="sk-hint">Tap a route for its details. More in <b>Layers</b> on the map.</p>
     <div class="sk-card" id="skDetail" hidden></div>
+    <div class="av-card sk-card" id="avCard" hidden></div>
     <details class="sk-card" id="sbCard" hidden><summary id="sbSum">Snowmobile clubs and grooming</summary><div id="sbBody"></div></details>
     <div><div class="label" id="skCount">Routes in view</div><ul class="sk-list" id="skList"></ul></div>
-    <p class="sk-safe">Routes on open maps can be wrong, old or missing, and none of them is avalanche-safe on its own. Backcountry travel needs avalanche training (AST 1), a beacon, probe and shovel, and the day's forecast.</p>`;
+    <p class="sk-safe">Open maps can be wrong and no route is avalanche-safe: go with training, a beacon, probe and shovel, and the day's forecast.</p>`;
   const head = document.querySelector(".panel-head");
   const modes = head && head.querySelector(".modes");
   if (modes) modes.after(pane); else if (head) head.append(pane);
@@ -172,10 +190,8 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
   const skiLayer = L.layerGroup();
   const hutLayer = L.layerGroup();
   let ski = null, skiLoading = null, skiErr = "";
-  let shown = new Set(store.get("skiTypes", ["tour", "access", "nordic", "snowshoe", "snowmobile", "sled", "other", "hut", "heat", "mine", "club"]));
-  if (!store.get("skiStartChip", false)) { shown.add("c2c"); store.set("skiStartChip", true); store.set("skiTypes", [...shown]); }
-  if (!store.get("skiSledChips", false)) { shown.add("snowmobile"); shown.add("club"); store.set("skiSledChips", true); store.set("skiTypes", [...shown]); }
-  if (!store.get("skiHeatChips", false)) { shown.add("heat"); shown.add("mine"); store.set("skiHeatChips", true); store.set("skiTypes", [...shown]); }
+  // "skiLayers2": the simpler Skiing starts everyone again on Touring (and their own tours), the old 13 chips forgotten.
+  let shown = new Set(store.get("skiLayers2", [...VIEWS.tour.layers, "mine"]));
   let selected = null;   // route or hut object
   const lineOf = (flat) => { const out = []; for (let i = 0; i < flat.length; i += 2) out.push([flat[i], flat[i + 1]]); return out; };
   const km = (r) => {
@@ -197,7 +213,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       .then((d) => {
         ski = d;
         (d.routes || []).forEach((r) => { r.lines = r.g.map(lineOf); r.bounds = L.latLngBounds(r.lines.flat()); });
-        drawSki(); renderChips(); renderList();
+        drawSki(); renderSwitches(); renderList();
       })
       .catch((e) => { skiErr = e.message; renderList(); })
       .finally(() => { skiLoading = null; });
@@ -232,48 +248,52 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       m.on("click", (e) => { L.DomEvent.stopPropagation(e); select(h); });
       hutLayer.addLayer(m);
     }
-    if (shown.has("c2c")) for (const h of ski.starts || []) {
+    if (shown.has("tour")) for (const h of ski.starts || []) {
       const m = L.marker([h.lat, h.lon], { icon: L.divIcon({ className: "", html: `<span class="sk-pin${selected === h ? " on" : ""}" style="background:${START.color}">⛷</span>`, iconSize: [24, 24], iconAnchor: [12, 12] }) });
       m.bindTooltip(esc(h.name || "camptocamp route"));
       m.on("click", (e) => { L.DomEvent.stopPropagation(e); select(h); });
       hutLayer.addLayer(m);
     }
   }
-  function counts() {
-    const c = {};
-    (ski?.routes || []).forEach((r) => { c[r.type] = (c[r.type] || 0) + 1; });
-    c.hut = (ski?.huts || []).length;
-    c.c2c = (ski?.starts || []).length;
-    c.heat = heat ? heat.traces : 0;
-    c.mine = mine.length;
-    c.club = (clubs || []).length;
-    return c;
+  // The four buttons in the panel, and the Skiing switches in the map's Layers menu.
+  const lm = document.createElement("div");
+  lm.className = "lm-ski";
+  lm.innerHTML = `<div class="lm-head">Skiing</div><div class="lm-list" id="lmSkiExtras"></div>
+    <details class="lm-more lm-ski-singles"><summary>Single layers</summary><div class="lm-list" id="lmSkiSingles"></div></details>`;
+  if (avyBtn) { avyBtn.before(lm); lm.querySelector(".lm-head").after(avyBtn); }
+  function renderSwitches() {
+    $("skViews").innerHTML = Object.entries(VIEWS).map(([k, v]) => `<button type="button" class="sk-view" data-view="${k}" aria-pressed="${v.layers.some((x) => shown.has(x))}"><span class="ic" aria-hidden="true">${v.icon}</span>${esc(v.label)}<small>${esc(v.sub)}</small></button>`).join("");
+    const btn = (k) => {
+      const on = shown.has(k), extra = k === "heat" && !heat ? (heatErr ? " (not yet)" : "") : k === "mine" && !mine.length ? " (none yet)" : "";
+      return `<button type="button" data-k="${k}" aria-pressed="${on}" class="${on ? "on" : ""}"${k === "heat" ? ' title="Public OpenStreetMap GPS traces from December to April, roads and lifts left out"' : k === "mine" ? ' title="Your tours from My rides (import or record them there)"' : ""}>${esc(LABEL(k))}${extra}</button>`;
+    };
+    $("lmSkiExtras").innerHTML = EXTRAS.map(btn).join("");
+    $("lmSkiSingles").innerHTML = SINGLES.map(btn).join("");
   }
-  function renderChips() {
-    const c = counts();
-    const keys = [...Object.keys(TYPES).filter((k) => c[k]), "hut", ...(c.c2c ? ["c2c"] : []), ...(c.club ? ["club"] : []), "heat", ...(mine.length ? ["mine"] : [])];
-    $("skChips").innerHTML = keys.map((k) => {
-      const t = TYPES[k] || { hut: HUT, c2c: START, heat: HEAT, mine: MINE, club: CLUB }[k];
-      const sw = k === "hut" || k === "c2c" || k === "club" ? `<span class="sk-dot" style="background:${t.color}"></span>`
-        : k === "heat" ? `<span class="sk-sw" style="background:linear-gradient(90deg, ${HEAT.ramp.join(", ")})"></span>`
-        : `<span class="sk-sw" style="background:${t.dashArray ? `repeating-linear-gradient(90deg, ${t.color} 0 5px, transparent 5px 8px)` : t.color}"></span>`;
-      const n = k === "heat" ? (heat ? `${c.heat} traces` : heatErr ? "not yet" : "…") : c[k] || 0;
-      return `<button type="button" class="sk-chip" data-k="${k}" aria-pressed="${shown.has(k)}"${k === "heat" ? ' title="Public OpenStreetMap GPS traces from December to April, roads and lifts left out"' : ""}>${sw}${t.label} <span class="n">${n}</span></button>`;
-    }).join("");
-    $("skChips").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
-      const k = b.dataset.k;
-      shown.has(k) ? shown.delete(k) : shown.add(k);
-      store.set("skiTypes", [...shown]);
-      renderChips(); drawSki(); renderList(); refreshHeat(); drawMine(); drawClubs();
-    }));
+  function applySwitches() {
+    store.set("skiLayers2", [...shown]);
+    renderSwitches(); drawSki(); renderList(); refreshHeat(); drawMine(); drawClubs(); renderClubs(); renderForecast();
   }
+  $("skViews").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-view]"); if (!b) return;
+    const v = VIEWS[b.dataset.view].layers, on = v.some((k) => shown.has(k));
+    v.forEach((k) => (on ? shown.delete(k) : shown.add(k)));
+    if (!on && b.dataset.view === "sled") loadClubs();
+    applySwitches();
+  });
+  lm.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-k]"); if (!b) return;
+    const k = b.dataset.k;
+    shown.has(k) ? shown.delete(k) : shown.add(k);
+    applySwitches();
+  });
   const typeOrder = Object.keys(TYPES);
   function renderList() {
     const list = $("skList");
     if (!ski) { $("skCount").textContent = "Routes in view"; list.innerHTML = `<li class="sk-hint">${skiErr ? "The ski route list isn't on the site yet (it's collected every night). Try again later." : "Loading ski routes…"}</li>`; return; }
     const b = map.getBounds();
     const items = (ski.routes || []).filter((r) => shown.has(r.type) && b.intersects(r.bounds));
-    const huts = [...(shown.has("c2c") ? ski.starts || [] : []), ...(shown.has("hut") ? ski.huts || [] : [])].filter((h) => b.contains([h.lat, h.lon]));
+    const huts = [...(shown.has("tour") ? ski.starts || [] : []), ...(shown.has("hut") ? ski.huts || [] : [])].filter((h) => b.contains([h.lat, h.lon]));
     // Named routes first, then by type; pieces with the same name and type are one entry.
     const groups = new Map();
     for (const r of items) {
@@ -298,7 +318,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
   // ---------- route details: heights, slopes, avalanche forecast and reports, weather ----------
   // A short name for each kind of route, for unnamed routes: "Ski touring near Ipsoot Mountain" (data/ski.json "near"
   // is the named peak closest to the route, found by the nightly job).
-  const SHORT = { tour: "Ski touring", access: "Ski access", nordic: "Nordic trail", snowshoe: "Snowshoe trail", snowmobile: "Snowmobile trail", sled: "Sledding hill", resort: "Ski run", offpiste: "Resort off-piste", other: "Winter route" };
+  const SHORT = { tour: "Ski touring", access: "Ski access", nordic: "Nordic trail", snowshoe: "Snowshoe trail", snowmobile: "Snowmobile trail", resort: "Ski run", offpiste: "Resort off-piste", other: "Winter route" };
   const nameOf = (r) => r.name || (r.near ? `${SHORT[r.type] || "Route"} near ${r.near}` : "");
   const fmtM = (m) => Math.round(m).toLocaleString() + " m";
   const SAMPLE_M = 25;   // a height every 25 m along the route
@@ -444,8 +464,8 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       ${profileSvg(info, bands)}
       <dl><dt>Ground</dt><dd>steepest about ${Math.round(info.maxSlope)}°${info.km30 >= 0.05 ? `; ${info.km30.toFixed(1)} km on slopes of 30° or more${info.km35 >= 0.05 ? ` (${info.km35.toFixed(1)} km of 35°+)` : ""}` : "; no slopes of 30° or more under the route"}</dd>
       ${asp ? `<dt>Steep parts face</dt><dd>${asp}</dd>` : ""}
-      <dt>Bands</dt><dd>${BANDS.filter(([b]) => bk[b] >= 0.05).map(([b, n]) => `${n} ${bk[b].toFixed(1)} km`).join(" · ")}<span class="sk-note"> (treeline about ${bands.lo}-${bands.hi} m${area ? "" : ", roughly"})</span></dd></dl>
-      <p class="sk-note">Heights and slopes from terrain data about ${info.total > 40000 ? 25 : 12} m apart, so small cliffs and rolls don't show. The ground under the line, not the slopes above it: check what's above you too. Orange on the profile is 30° and steeper, where avalanches start.</p>`;
+      <dt>Bands</dt><dd>${BANDS.filter(([b]) => bk[b] >= 0.05).map(([b, n]) => `${n} ${bk[b].toFixed(1)} km`).join(" · ")}</dd></dl>
+      <p class="sk-note">Orange is 30° and steeper. The ground under the line only: check what's above you too.</p>`;
   }
 
   // Avalanche Canada forecast for the route, and riders' reports of avalanches near it (data/avalanche-reports.json).
@@ -465,7 +485,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       .sort((a, b) => (!!b.m.av?.seen - !!a.m.av?.seen) || (b.m.date > a.m.date ? 1 : -1));
     const seen = list.filter((x) => x.m.av?.seen).length;
     const head = `<h5>Reported by riders within ${MIN_KM} km, last ${days} days</h5>`;
-    if (!list.length) return `${head}<p class="sk-note">No reports near here on Avalanche Canada's Mountain Information Network. No report doesn't mean no avalanches: few people post.</p>`;
+    if (!list.length) return `${head}<p class="sk-note">None near here (few people post, so that doesn't mean no avalanches).</p>`;
     return `${head}<p>${seen ? `<b>${seen} report${seen === 1 ? "" : "s"} of avalanches</b>` : "No avalanches reported"}, ${list.length} report${list.length === 1 ? "" : "s"} in all.</p>
       <ul class="sk-min">${list.slice(0, 8).map(({ m, km }) => {
         const a = m.av || {}, what = [a.what, a.signs && a.signs.length && (a.what ? "also " : "") + a.signs.join(", ")].filter(Boolean).join("; ");
@@ -544,10 +564,10 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
     return `<h4>Weather at ${ele != null ? `the top (${fmtM(ele)})` : "this spot"}</h4>
       <p>New snow in the last 3 days: <b>${Math.round(past)} cm</b></p>
       <table class="sk-wx"><tr><th></th><th></th><th>Low / high</th><th>Snow</th><th>Wind km/h</th><th>Freezing level</th></tr>${rows}</table>
-      <p class="sk-note">Forecast from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>, a weather model, not a measurement. Wind is the day's strongest / gusts.</p>`;
+      <p class="sk-note">Model forecast from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>. Wind: strongest / gusts.</p>`;
   }
 
-  // OpenStreetMap tags in plain words; the rest go under "All tags".
+  // OpenStreetMap tags in plain words; the rest are left out (alex: "take out everything unnecessary").
   const GROOM = { backcountry: "Not groomed (backcountry)", no: "Not groomed", classic: "Groomed for classic", skating: "Groomed for skate", "classic+skating": "Groomed for classic and skate", "classic;skating": "Groomed for classic and skate", scooter: "Packed by snowmobile", mogul: "Moguls" };
   const DIFF = { novice: "Novice", easy: "Easy", intermediate: "Intermediate", advanced: "Advanced", expert: "Expert", freeride: "Freeride (off-piste)", extreme: "Extreme" };
   const ON = { track: "a forest road or track", path: "a trail", footway: "a footpath", service: "a road", unclassified: "a road", bridleway: "a trail" };
@@ -562,15 +582,14 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
   };
   const val2 = (v) => (/^https?:\/\//.test(v) ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""))}</a>` : esc(v));
   function tagsHtml(r) {
-    const plain = [], raw = [];
+    const plain = [];
     for (const [k, v] of Object.entries(r.tags || {})) {
       const f = PLAIN[k];
       if (f === null) continue;
       const out = f ? f(v) : r.src === "c2c" ? [k[0].toUpperCase() + k.slice(1), v] : null;
-      if (out) plain.push(out); else raw.push([k, v]);
+      if (out) plain.push(out);
     }
-    return { plain: plain.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${val2(v)}</dd>`).join(""),
-      raw: raw.length ? `<details class="sk-tags"><summary>All the source's tags (${raw.length})</summary><dl>${raw.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${val2(v)}</dd>`).join("")}</dl></details>` : "" };
+    return { plain: plain.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${val2(v)}</dd>`).join("") };
   }
   // Huts and camptocamp routes within 2 km of the route.
   function nearbyHtml(info) {
@@ -624,13 +643,12 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
   function photosHtml(ph, isHut) {
     const { list, failed } = ph;
     const credit = (p) => [p.author && `© ${p.author}`, p.licence, p.src].filter(Boolean).join(" · ");
-    const nTop = list.filter((p) => p.top).length;
     const body = list.length ? `<div class="ab-photos">${list.map((p, i) => `<button type="button" class="ab-ph" data-i="${i}"${i >= PH_FIRST ? " hidden" : ""} title="${esc(p.title + (credit(p) ? " · " + credit(p) : ""))}">
         <img src="${esc(p.thumb)}" alt="${esc(p.title)}" loading="lazy" referrerpolicy="no-referrer"></button>`).join("")}</div>
       ${list.length > PH_FIRST ? `<button class="linkish ab-all" type="button">Show all ${list.length} photos</button>` : ""}
-      <p class="sk-note">${list.length} photo${list.length === 1 ? "" : "s"} from ${[...new Set(list.map((p) => p.src))].join(" and ")}: ${isHut ? `taken within ${PH_TOP / 1000} km` : `on or within ${PH_NEAR} m of the route${nTop ? `, ${nTop} of them around the top (within ${PH_TOP / 1000} km)` : ""}`}. Tap one to see it big, with its author and licence. Photos can be from any season.</p>`
+`
       : `<p class="sk-note">${failed ? "Couldn't reach the photo sources right now." : `No open photos found ${isHut ? "here" : "on this route or around its top"} yet.`}</p>`;
-    return `<h4>Photos</h4>${body}<p class="sk-note"><a href="https://commons.wikimedia.org/wiki/Special:UploadWizard" target="_blank" rel="noopener">Share your photo on Wikimedia Commons</a></p>`;
+    return `<h4>Photos</h4>${body}`;
   }
   function bindPhotos(el, list) {
     const all = el.querySelector(".ab-all");
@@ -689,15 +707,15 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
       ${r.diff ? `<dt>Difficulty</dt><dd>${esc(DIFF[r.diff] || r.diff)}</dd>` : ""}
       ${r.routes ? `<dt>Part of</dt><dd>${esc(r.routes.join(", "))}</dd>` : ""}
       ${club ? `<dt>Club</dt><dd><a href="#" class="sb-go">${esc(club.c.name)}</a> (${esc(club.a.name)}, ${club.km.toFixed(0)} km away): grooming report and trail pass</dd>` : ""}
-      ${tags.plain}<span id="skNear"></span>
-      <dt>Source</dt><dd>${src}</dd></dl>
-      ${tags.raw}
+      ${tags.plain}<span id="skNear"></span></dl>
       ${isHut ? "" : `<div class="sk-sec" id="skElev"><h4>Elevation</h4><p class="sk-note">Loading heights…</p></div>`}
       <div class="sk-sec" id="skAvy"></div>
       <div class="sk-sec" id="skWx"><h4>Weather</h4><p class="sk-note">Loading the forecast…</p></div>
       ${isHut ? "" : `<p><button type="button" class="btn" id="skGpx">⬇ Download GPX</button></p>`}
-      <div class="sk-sec" id="skPh"><h4>Photos</h4><p class="sk-note">Looking for photos…</p></div>`;
-    d.querySelector(".sk-x").addEventListener("click", () => { selected = null; selToken++; d.hidden = true; hoverLayer.clearLayers(); drawSki(); renderList(); });
+      <div class="sk-sec" id="skPh"><h4>Photos</h4><p class="sk-note">Looking for photos…</p></div>
+      <p class="sk-note">From ${src}</p>`;
+    d.querySelector(".sk-x").addEventListener("click", () => { selected = null; selToken++; d.hidden = true; hoverLayer.clearLayers(); drawSki(); renderList(); renderForecast(); });
+    renderForecast();
     const go = d.querySelector(".sb-go");
     if (go) go.addEventListener("click", (e) => { e.preventDefault(); showClub(club.c); });
     const gpxBtn = $("skGpx");
@@ -753,7 +771,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
     const get = (u) => fetch(u, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     Promise.all([get("data/snowmobile-clubs.json"), get("data/grooming.json")]).then(([c, g]) => {
       clubs = (c && c.clubs) || []; clubLinks = (c && c.links) || []; grooming = g;
-      renderChips(); drawClubs(); renderClubs();
+      renderSwitches(); drawClubs(); renderClubs();
     });
   }
   const when = (iso) => {
@@ -794,7 +812,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
   const link = (u, t) => (u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>` : "");
   function renderClubs() {
     const card = $("sbCard");
-    card.hidden = !(clubs && clubs.length);
+    card.hidden = !(clubs && clubs.length && shown.has("club"));
     if (card.hidden) return;
     $("sbSum").textContent = `Snowmobile clubs and grooming (${clubs.length})`;
     $("sbBody").innerHTML = clubs.map((c) => {
@@ -809,13 +827,13 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
         ${status}
         ${c.pass ? `<span>Trail pass: ${esc(c.pass)}</span>` : ""}
         <div class="sb-links">${link(r.url, r.label || "Grooming report")}${(c.maps || []).map((m) => link(m.url, m.label || "Trail map")).join("")}${link(c.web, "Website")}</div></div>`;
-    }).join("") + (clubLinks.length ? `<div class="sb-club"><b>For the whole region</b><div class="sb-links">${clubLinks.map((l) => link(l.url, l.label)).join("")}</div></div>` : "") + `<p class="sk-safe">Pins on the map are the staging areas, placed roughly. Grooming reports are the clubs' own posts, copied here as they are. Sled areas need an avalanche forecast check too, and most club areas need a trail pass.</p>`;
+    }).join("") + (clubLinks.length ? `<div class="sb-club"><b>For the whole region</b><div class="sb-links">${clubLinks.map((l) => link(l.url, l.label)).join("")}</div></div>` : "") + `<p class="sk-safe">Pins are the staging areas, placed roughly. Reports are the clubs' own posts.</p>`;
     $("sbBody").querySelectorAll(".sb-area").forEach((el) => el.addEventListener("click", (e) => {
       e.preventDefault();
       if (el.dataset.lat !== "undefined") map.setView([+el.dataset.lat, +el.dataset.lon], Math.max(map.getZoom(), 11));
     }));
   }
-  map.on("moveend", () => { if (sport === "ski") { renderList(); if (avyOn) renderForecast(); } });
+  map.on("moveend", () => { if (sport === "ski") { renderList(); renderForecast(); } });
 
   // ---------- avalanche forecast ----------
   let avy = null, avyLoading = null, avyErr = "", example = false, day = 0;
@@ -888,44 +906,55 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
     }));
     return `<svg viewBox="0 0 80 88" width="74" height="81" role="img" aria-label="${esc(p.type)}: ${esc(p.aspects.join(", ").toUpperCase())} aspects, ${esc(p.elevations.join(", "))}">${s}<text x="40" y="86" text-anchor="middle" font-size="8" fill="currentColor">N at top</text></svg>`;
   }
+  // The Avalanche card (with Touring, or with the slope shading on): today's ratings for the area in the middle of the
+  // map, then the problems, the forecaster's notes, riders' reports near the middle of the map and the colour key
+  // folded under "More".
+  let avMore = false;
   function renderForecast() {
     const card = $("avCard");
-    card.hidden = !(sport === "ski" && avyOn);
+    card.hidden = !(sport === "ski" && (avyOn || shown.has("tour")) && $("skDetail").hidden);   // a route's details have their own
     if (card.hidden) return;
+    if (!avy && !example && !avyErr) loadAvy();
+    if (!minData && !minErr && !minLoading) loadMin().then(renderForecast);
     const data = example ? exampleData() : avy;
-    if (!data) { card.innerHTML = avyErr ? `<p>The avalanche forecast isn't on the site yet (it's collected every 2 hours). <button type="button" class="linkish" id="avEx">Show an example</button></p>` : "<p>Loading the avalanche forecast…</p>"; bindEx(); return; }
+    const shade = `<button type="button" class="linkish" id="avShade">${avyOn ? "Hide the slope shading" : "Shade the slopes on the map"}</button>`;
+    if (!data) { card.innerHTML = avyErr ? `<h3>Avalanche</h3><p class="sk-hint">The forecast isn't on the site yet. <button type="button" class="linkish" id="avEx">Show an example</button></p>` : "<h3>Avalanche</h3><p class=\"sk-hint\">Loading the forecast…</p>"; bindEx(); return; }
     if (!example && !hasForecasts()) {
-      card.innerHTML = `<h3>Avalanche forecast</h3><p>No avalanche forecast right now. Avalanche Canada publishes daily forecasts in winter, usually from late November to April; the site checks every 2 hours${data.builtAt ? ` (last check ${new Date(data.builtAt).toLocaleString()})` : ""}.</p>
-        <p><button type="button" class="btn" id="avEx">Show an example forecast</button></p>
-        <p><a href="https://avalanche.ca/map" target="_blank" rel="noopener">Avalanche Canada map</a></p>`;
+      card.innerHTML = `<h3>Avalanche</h3><p class="sk-hint">No forecast right now: Avalanche Canada's run from about late November to April. <button type="button" class="linkish" id="avEx">Show an example</button></p>`;
       bindEx(); return;
     }
     const c = map.getCenter();
     const area = (example ? null : areaAt(c.lat, c.lng)) || (data.areas.find((a) => a.polys.some((p) => inPoly(c.lat, c.lng, p))) || data.areas.find((a) => a.forecast?.days?.length));
     const f = area && area.forecast;
-    if (!area) { card.innerHTML = "<h3>Avalanche forecast</h3><p>No forecast area here.</p>"; return; }
-    if (!f || !f.days?.length) { card.innerHTML = `<h3>${esc(area.name)}</h3><p>No forecast for this area right now.</p>`; return; }
+    if (!area) { card.innerHTML = "<h3>Avalanche</h3><p class=\"sk-hint\">No forecast area here.</p>"; return; }
+    if (!f || !f.days?.length) { card.innerHTML = `<h3>Avalanche: ${esc(area.name)}</h3><p class="sk-hint">No forecast for this area right now.</p>`; return; }
     const d = dayOf(f), expired = !example && f.validUntil && new Date(f.validUntil) < new Date();
     const chip = (r) => `<span class="av-chip" style="background:${DANGER[r].color};color:${r >= 4 ? "#fff" : "#1a1a1a"}">${DANGER[r].label}</span>`;
-    card.innerHTML = `${example ? `<div class="av-warn">EXAMPLE, not a real forecast. It only shows how the shading works.</div>` : ""}
-      ${expired ? `<div class="av-warn">This forecast has expired. Check avalanche.ca for the latest.</div>` : ""}
-      <h3>Avalanche forecast: ${esc(f.title || area.name)}</h3>
-      <p class="sk-hint">${f.issued ? "Issued " + esc(new Date(f.issued).toLocaleString()) : ""}${f.owner ? " by " + esc(f.owner) : ""}. For the area in the middle of the map.</p>
-      <div class="av-days" role="group" aria-label="Day">${f.days.map((x, i) => `<button type="button" data-d="${i}" aria-pressed="${x === d}">${esc(x.label || x.date)}</button>`).join("")}</div>
-      <div class="av-rate">${BANDS.map(([b, n]) => `<span>${n}</span>${chip(d[b])}`).join("")}</div>
-      ${!example && f.days.every((x) => !x.alp && !x.tln && !x.btl) ? `<p>No danger ratings yet (early season), so no slopes are shaded. <button type="button" class="linkish" id="avEx">Show an example forecast</button></p>` : ""}
+    const notes = Object.values(f.summaries || {}).filter(Boolean), rated = example || f.days.some((x) => x.alp || x.tln || x.btl);
+    card.innerHTML = `${example ? `<div class="av-warn">EXAMPLE, not a real forecast.</div>` : ""}
+      ${expired ? `<div class="av-warn">This forecast has expired. Check avalanche.ca.</div>` : ""}
+      <h3>Avalanche: ${esc(f.title || area.name)}</h3>
+      ${rated ? `<div class="av-days" role="group" aria-label="Day">${f.days.map((x, i) => `<button type="button" data-d="${i}" aria-pressed="${x === d}">${esc(x.label || x.date)}</button>`).join("")}</div>
+      <div class="av-rate">${BANDS.map(([b, n]) => `<span>${n}</span>${chip(d[b])}`).join("")}</div>`
+        : `<p>No danger ratings yet (early season). <button type="button" class="linkish" id="avEx">Show an example</button></p>`}
       ${f.highlights ? `<p><strong>${esc(f.highlights)}</strong></p>` : ""}
-      ${(f.problems || []).map((p) => `<div class="av-prob">${rose(p)}<div><b>${esc(p.type)}</b><p>${esc(p.aspects.map((s) => s.toUpperCase()).join(" "))} · ${esc(p.elevations.map((b) => BANDS.find((x) => x[0] === b)[1]).join(", "))}</p><p>${p.likelihood ? "Likelihood: " + esc(p.likelihood) : ""}${p.size ? " · Size " + esc(p.size) : ""}</p>${p.comment ? `<details><summary>More</summary><p>${esc(p.comment)}</p></details>` : ""}</div></div>`).join("")}
-      ${Object.values(f.summaries || {}).filter(Boolean).length ? `<details><summary>Forecaster's notes</summary>${Object.values(f.summaries).filter(Boolean).map((s) => `<p>${esc(s)}</p>`).join("")}</details>` : ""}
-      <details><summary>What the map colours mean</summary>
-        <ul class="av-legend">${DANGER.slice(1).map((x) => `<li><i style="background:${x.color}"></i>${x.label}</li>`).join("")}<li><i style="background:repeating-linear-gradient(135deg,#f79218 0 3px,#7a4a0c 3px 5px)"></i>Problem aspect</li></ul>
-        <p>Only slopes steeper than about 25° are shaded: that's where avalanches start. Each slope gets the danger rating of its elevation band (below treeline under about ${area.bands.lo} m, alpine above about ${area.bands.hi} m here; the real treeline varies). Stripes and stronger colour mark the aspects and elevations named in the avalanche problems above. Gentle slopes under steep ones are left clear but can still be hit from above. This is an estimate from the forecast and the terrain shape, not a terrain rating.</p></details>
-      <p><a href="${esc(f.url || "https://avalanche.ca/map")}" target="_blank" rel="noopener">Full forecast on avalanche.ca</a>${example ? ` · <button type="button" class="linkish" id="avExOff">Hide the example</button>` : ""}</p>`;
+      <details id="avMore"${avMore ? " open" : ""}><summary>Problems, notes and riders' reports</summary>
+        ${(f.problems || []).map((p) => `<div class="av-prob">${rose(p)}<div><b>${esc(p.type)}</b><p>${esc(p.aspects.map((s) => s.toUpperCase()).join(" "))} · ${esc(p.elevations.map((b) => BANDS.find((x) => x[0] === b)[1]).join(", "))}</p><p>${p.likelihood ? "Likelihood: " + esc(p.likelihood) : ""}${p.size ? " · Size " + esc(p.size) : ""}</p>${p.comment ? `<details><summary>More</summary><p>${esc(p.comment)}</p></details>` : ""}</div></div>`).join("")}
+        ${notes.length ? `<h5>Forecaster's notes</h5>${notes.map((s) => `<p>${esc(s)}</p>`).join("")}` : ""}
+        ${minHtml([{ lat: c.lat, lon: c.lng }])}
+        ${avyOn ? `<h5>Slope colours</h5><ul class="av-legend">${DANGER.slice(1).map((x) => `<li><i style="background:${x.color}"></i>${x.label}</li>`).join("")}<li><i style="background:repeating-linear-gradient(135deg,#f79218 0 3px,#7a4a0c 3px 5px)"></i>Problem aspect</li></ul>
+        <p class="sk-note">Slopes of 25° and more, coloured by their band's rating (treeline about ${area.bands.lo}-${area.bands.hi} m here). An estimate, not a terrain rating.</p>` : ""}
+      </details>
+      <p class="sk-hint">${f.issued ? "Issued " + esc(new Date(f.issued).toLocaleDateString()) + " · " : ""}for the middle of the map · <a href="${esc(f.url || "https://avalanche.ca/map")}" target="_blank" rel="noopener">avalanche.ca</a><br>${shade}${example ? ` · <button type="button" class="linkish" id="avExOff">Hide the example</button>` : ""}</p>`;
     card.querySelectorAll(".av-days button").forEach((b) => b.addEventListener("click", () => { day = +b.dataset.d; refreshAvy(); }));
+    $("avMore").addEventListener("toggle", (e) => { avMore = e.currentTarget.open; });
     const off = $("avExOff"); if (off) off.addEventListener("click", () => { example = false; refreshAvy(); });
     bindEx();
   }
-  function bindEx() { const b = $("avEx"); if (b) b.addEventListener("click", () => { example = true; refreshAvy(); }); }
+  function bindEx() {
+    const b = $("avEx"); if (b) b.addEventListener("click", () => { example = true; refreshAvy(); });
+    const sh = $("avShade"); if (sh) sh.addEventListener("click", () => avyBtn.click());
+  }
 
   // ---------- slope shading ----------
   // Terrain heights: AWS Terrain Tiles (Terrarium colour code), 256 px, up to zoom 14 here.
@@ -1068,9 +1097,9 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
         const squares = Object.values(d.tiles || {}).filter((t) => t && t.box && t.c && t.c.length);
         heat = { cell: d.cell || [0.0003, 0.00045], builtAt: d.builtAt, squares: squares.map((t) => ({ box: t.box, c: Int32Array.from(t.c) })),
           traces: Object.values(d.tiles || {}).reduce((a, t) => a + ((t && t.n) || 0), 0) };
-        heatVer++; renderChips(); refreshHeat();
+        heatVer++; renderSwitches(); refreshHeat();
       })
-      .catch((e) => { heatErr = e.message; renderChips(); })
+      .catch((e) => { heatErr = e.message; renderSwitches(); })
       .finally(() => { heatLoading = null; });
     return heatLoading;
   }
@@ -1188,7 +1217,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
   function loadMine() {
     return loadRides().then((all) => {
       mine = all.filter(isSkiTour).sort((a, b) => b.start - a.start);
-      renderChips(); drawMine();
+      renderSwitches(); drawMine();
     });
   }
   function drawMine() {
@@ -1218,7 +1247,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
     else mtb.forEach((l) => map.removeLayer(l));
     if (sport === "ski") {
       skiLayer.addTo(map); hutLayer.addTo(map); mineLayer.addTo(map); clubLayer.addTo(map);
-      loadSki(); loadMine(); loadClubs(); renderList();
+      loadSki(); loadMine(); loadClubs(); renderSwitches(); renderList();
     } else {
       map.removeLayer(skiLayer); map.removeLayer(hutLayer); map.removeLayer(mineLayer); map.removeLayer(clubLayer); map.removeLayer(hoverLayer);
     }
