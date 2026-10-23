@@ -341,7 +341,10 @@ body.sport-ski #navRideBtn { display: none; }
     const c = pos.coords, t = pos.timestamp || Date.now(), p = [c.latitude, c.longitude];
     lastFix = { c, t };
     drawYou();
-    if (following) map.setView(p, Math.max(map.getZoom(), RIDE_ZOOM), { animate: false });
+    if (following) {                              // a short slide, not a jump, while the zoom stays put
+      const z = Math.max(map.getZoom(), RIDE_ZOOM), glide = z === map.getZoom() && !document.hidden && !map._animatingZoom;
+      map.setView(p, z, glide ? { animate: true, pan: { duration: 0.6, easeLinearity: 1, noMoveStart: true } } : { animate: false });
+    }
     if (c.accuracy > MAX_ACC_M) { gpsMsg.textContent = `Weak GPS (±${Math.round(c.accuracy)} m). Waiting for a better fix…`; gpsMsg.hidden = false; }
     else gpsMsg.hidden = true;
     nav.load();
