@@ -12,11 +12,16 @@
 //    protected areas (environment/parks_and_protected_areas_of_alberta_10tm_nad83_aep), Alberta First Nation reserves
 //    (federal CLSS Aboriginal Lands) and Metis settlements, and Alberta's Green Area (public forest land).
 //  - seasons-bc.json: BC open seasons per management unit, read from the regulations synopsis PDFs (below).
+//  - seasons-ab.json: Alberta seasons per WMU (big game, cougar, black bear, game birds) from the Alberta Guide to Hunting
+//    Regulations PDFs on albertaregulations.ca.
+//  - draws.json: BC limited entry hunts per unit with last year's first-choice odds (LEH synopsis PDF) and Alberta's
+//    special licence draw results per hunt (quota, applicants, priority needed; AlbertaRELM draw summaries).
+//  areas.json also has Alberta's cities, towns and villages and military land (recaccess_military).
 // DataBC: Open Government Licence - British Columbia. Alberta: Open Government Licence - Alberta. CLSS: Open Government
 // Licence - Canada. A source that fails keeps its last good data.
 //
 // Run: node scripts/build-hunting.mjs   (Node 18 or newer, no packages needed; pdftotext from poppler-utils for the
-// season tables; ONLY=seasons runs just those)
+// season tables; ONLY=seasons skips the map layers, ONLY=draws also skips the BC season tables)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 
@@ -230,6 +235,23 @@ async function abAreas() {
   for (const x of met) { const g = rings(x.geometry, 0.0006); if (g.length) out.push({ k: "metis", n: `${x.properties.METIS_NAME} Metis Settlement`, p: "ab", b: bbox(g), g }); }
   const gw = await arcgis(`${AB}/mimas/rest/services/boundaries/land_green_white_area_public/FeatureServer/0`, ["GWA_NAME", "GWA_CODE", "OBJECTID"], "GWA_CODE='GLC_G'", 0.001).catch(() => []);
   for (const x of gw) { const g = rings(x.geometry, 0.0015); if (g.length) out.push({ k: "green", n: "Alberta Green Area (public forest land)", p: "ab", b: bbox(g), g }); }
+  // Cities, towns, villages and summer villages (shooting is banned by bylaw in most of them).
+  const muni = `${AB}/titan/rest/services/boundaries/municipal_communities_public/MapServer`;
+  for (const [layer, kind] of [[5, "City"], [3, "Town"], [1, "Village"], [2, "Summer village"], [6, "Settlement"], [4, "Urban service area"]]) {
+    const f = await arcgis(`${muni}/${layer}`, ["*"], "1=1", 0.0002, AB_BOX).catch((e) => { log(`    ${kind}: ${e.message}`); return []; });
+    for (const x of f) {
+      const pr = x.properties || {}, name = pr[Object.keys(pr).find((k) => /(^|_)NAME$/.test(k))] || kind;
+      const g = rings(x.geometry, 0.0003); if (g.length) out.push({ k: "town", n: title(name), p: "ab", b: bbox(g), g });
+    }
+  }
+  // Military bases and air weapons ranges: closed except for the special CFB hunts in the guide.
+  for (const layer of [1, 3]) {
+    const f = await arcgis(`${AB}/titan/rest/services/recaccess/recaccess_military/MapServer/${layer}`, ["*"], "1=1", 0.0005).catch((e) => { log(`    military: ${e.message}`); return []; });
+    for (const x of f) {
+      const pr = x.properties || {}, name = pr[Object.keys(pr).find((k) => /(^|_)NAME$/.test(k))] || "Military land";
+      const g = rings(x.geometry, 0.0006); if (g.length) out.push({ k: "military", n: title(name).replace(/\bC\.f\.b\./i, "CFB"), p: "ab", b: bbox(g), g });
+    }
+  }
   return out;
 }
 
@@ -326,8 +348,8 @@ async function part(name, fn) {
   catch (e) { log(`  ${name} failed: ${e.message}`); return null; }
 }
 const now = new Date().toISOString();
-const ONLY = process.env.ONLY || "";   // ONLY=seasons reads just the season tables
-if (ONLY !== "seasons") {
+const ONLY = process.env.ONLY || "";   // ONLY=seasons reads just the season tables and draws, ONLY=draws skips BC's season tables too
+if (!ONLY) {
 log("Hunting zones");
 const old = { zones: readOld("zones.json"), leh: readOld("leh.json"), areas: readOld("areas.json") };
 const bcZ = await part("BC WMUs", bcZones), abZ = await part("Alberta WMUs", abZones);
@@ -341,5 +363,60 @@ if (leh.length) write("leh.json", { updated: now, zones: leh });
 if (areas.length) write("areas.json", { updated: now, areas });
 }
 let seasons = null;
-try { seasons = await bcSeasons(); log(`  BC seasons: ${Object.keys(seasons).length} units`); } catch (e) { log(`  BC seasons failed: ${e.message}`); }
+if (ONLY !== "draws") try { seasons = await bcSeasons(); log(`  BC seasons: ${Object.keys(seasons).length} units`); } catch (e) { log(`  BC seasons failed: ${e.message}`); }
 if (seasons) writeFileSync(new URL("seasons-bc.json", OUT), JSON.stringify({ updated: now, src: "BC Hunting and Trapping Regulations Synopsis", mu: seasons }));
+
+// ---------- Alberta seasons, BC limited entry odds, Alberta draw results ----------
+const { abSeasons, bcLeh, abDrawPage } = await import("./hunting-parse.mjs");
+const { execFileSync } = await import("node:child_process");
+const { mkdtempSync } = await import("node:fs");
+const { tmpdir } = await import("node:os");
+const tmp = mkdtempSync(`${tmpdir()}/hunt-`);
+// albertaregulations.ca and AlbertaRELM answer curl but turn away scripts that don't look like a browser, and limit
+// how fast pages can be asked for: curl, a pause between files and a few tries.
+function curl(url, file, tries = 4) {
+  for (let i = 0; i < tries; i++) {
+    try {
+      execFileSync("curl", ["-sfL", "-m", "180", "-A", "Mozilla/5.0 (trail-finder hunting data)", "-c", `${tmp}/cj`, "-b", `${tmp}/cj`, "-o", file, url]);
+      return file;
+    } catch (e) { log(`    ${url.split("/").pop()}: try ${i + 1} failed`); execFileSync("sleep", [String(8 * (i + 1))]); }
+  }
+  throw new Error(`couldn't download ${url}`);
+}
+const pdfText = (url, name) => { curl(url, `${tmp}/${name}.pdf`); execFileSync("pdftotext", ["-layout", `${tmp}/${name}.pdf`, `${tmp}/${name}.txt`]); execFileSync("sleep", ["5"]); return readFileSync(`${tmp}/${name}.txt`, "utf8"); };
+const ABR = "https://www.albertaregulations.ca/pdfs/hunting-regs/";
+try {
+  const wmu = abSeasons(pdfText(`${ABR}Big-Game-Seasons.pdf`, "ab-big-game"), pdfText(`${ABR}Game-Bird-Seasons.pdf`, "ab-birds"));
+  // ranges like "102-402" also make numbers that aren't WMUs: keep the real ones
+  const real = new Set((readOld("zones.json")?.zones || []).filter((z) => z.p === "ab").map((z) => String(z.id)));
+  if (real.size) for (const k of Object.keys(wmu)) if (!real.has(k)) delete wmu[k];
+  if (Object.keys(wmu).length < 120) throw new Error(`only ${Object.keys(wmu).length} WMUs read`);
+  writeFileSync(new URL("seasons-ab.json", OUT), JSON.stringify({ updated: now, src: "Alberta Guide to Hunting Regulations", wmu }));
+  log(`  Alberta seasons: ${Object.keys(wmu).length} WMUs`);
+} catch (e) { log(`  Alberta seasons failed: ${e.message}`); }
+
+// draws.json: { bc: { "2-5": [limited entry hunts with last year's first-choice odds] }, ab: [special licence hunts] }
+const oldDraws = (() => { try { return JSON.parse(readFileSync(new URL("draws.json", OUT), "utf8")); } catch { return {}; } })();
+let bcDraws = null, abDraws = null;
+try {
+  bcDraws = bcLeh(pdfText("https://www2.gov.bc.ca/assets/gov/sports-recreation-arts-and-culture/outdoor-recreation/fishing-and-hunting/hunting/limited-entry-hunting/leh-regulations-synopsis.pdf", "bc-leh"));
+  if (Object.keys(bcDraws).length < 100) throw new Error(`only ${Object.keys(bcDraws).length} units read`);
+  log(`  BC limited entry hunts: ${Object.keys(bcDraws).length} units`);
+} catch (e) { bcDraws = null; log(`  BC limited entry hunts failed: ${e.message}`); }
+try {
+  const RELM = "https://www.albertarelm.com/";
+  const index = readFileSync(curl(`${RELM}cust.drawsummary.page`, `${tmp}/relm.html`), "utf8");
+  abDraws = [];
+  for (const m of index.matchAll(/href="(cust\.drawsummary(\w+?)\d\d\.page)">([^<]+)</g)) {
+    execFileSync("sleep", ["3"]);
+    const got = abDrawPage(readFileSync(curl(RELM + m[1], `${tmp}/${m[2]}.html`), "utf8"), m[3].trim());
+    log(`    ${m[3].trim()}: ${got.length} hunts`);
+    abDraws.push(...got);
+  }
+  if (abDraws.length < 100) throw new Error(`only ${abDraws.length} hunts read`);
+  log(`  Alberta draw results: ${abDraws.length} hunts`);
+} catch (e) { abDraws = null; log(`  Alberta draw results failed: ${e.message}`); }
+if (bcDraws || abDraws) writeFileSync(new URL("draws.json", OUT), JSON.stringify({ updated: now,
+  bc: bcDraws || oldDraws.bc || {}, bcSrc: "BC Limited Entry Hunting Regulations Synopsis (last year's first-choice odds)",
+  ab: abDraws || oldDraws.ab || [], abSrc: "AlbertaRELM draw summaries" }));
+
