@@ -274,7 +274,8 @@
     if (!kinds.has(w)) {
       const t = w.tags, name = nameOf(w), d = nav.difficulty(t), type = (t["mtb:type"] || "") + " " + (t.mtb || ""), dir = dirOf(w);
       let k = "trail";
-      if (dir && (dir.dir === "climb" || dir.dir === "down") && !(/^(track|service|unclassified|residential|tertiary|secondary)$/.test(t.highway || "") && !(d && d !== "green"))) k = dir.dir;
+      if (noClimb(w)) k = "noclimb";
+      else if (dir && (dir.dir === "climb" || dir.dir === "down") && !(/^(track|service|unclassified|residential|tertiary|secondary)$/.test(t.highway || "") && !(d && d !== "green"))) k = dir.dir;
       else if (w.conn && !/^(path|track|bridleway)$/.test(t.highway)) k = t.highway === "steps" ? "steps" : /^(footway|pedestrian)$/.test(t.highway) ? "path" : "street";
       else if (w.conn) k = t.highway === "track" ? "road" : "path";
       else if (w.road || (/^(track|service|unclassified|residential|tertiary|secondary)$/.test(t.highway || "") && !(d && d !== "green"))) k = "road";
@@ -286,10 +287,23 @@
     }
     return kinds.get(w);
   }
+  // Lines a rider says you can't climb (directions.js only covers trails, and these are roads): matched by name (or
+  // OpenStreetMap ref) with a point within r metres of c. Riding down them is fine; going up costs so much the route
+  // takes any other way.
+  const NO_CLIMB = [
+    // The Forest Tenure line runs up from Alpine Meadows to the top of La Traversée du Diable, but that's not a way up:
+    // climb Rick's Roost instead (alex, 2026-10-23, who rides it).
+    { name: "9284 01", c: [50.162, -122.975], r: 3500, who: "alex" },
+  ];
+  const fold = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  function noClimb(w) {
+    const n = [fold(nameOf(w) || w.name), fold(w.tags && w.tags.ref)];
+    return NO_CLIMB.some((x) => n.includes(fold(x.name)) && w.geom.some((q) => metres(q, x.c) < x.r));
+  }
   // Effort of a stretch: [per metre, per metre climbed, per metre dropped]. Climbing costs about like riding 7 to 14 m
   // on the flat, and much more up a downhill trail (pushing, and riders coming down); descending a road or a climbing
   // trail costs a little (the fun is on the trails); downhill trails ride a bit cheaper.
-  const COST = { street: [1.3, 9, 1.5], path: [1.4, 12, 1], steps: [4, 30, 4], road: [1.15, 7, 1.5], climb: [1, 7, 3], down: [0.85, 60, 0], trail: [1, 14, 0], link: [1.5, 12, 1], unmapped: [4, 20, 2] };
+  const COST = { street: [1.3, 9, 1.5], path: [1.4, 12, 1], steps: [4, 30, 4], road: [1.15, 7, 1.5], climb: [1, 7, 3], down: [0.85, 60, 0], noclimb: [1.15, 2000, 1.5], trail: [1, 14, 0], link: [1.5, 12, 1], unmapped: [4, 20, 2] };
   const edgeCost = (d, dh, kind) => { const c = COST[kind]; return d * c[0] + (dh > 0 ? dh * c[1] : -dh * c[2]); };
 
   // ---------- shuttle: drive up, ride down ----------
@@ -1410,7 +1424,11 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
     if (e.target.closest('[data-act="auto"]')) { pickManual = false; changedPicks(); }
     else if (e.target.closest('[data-act="mode"]')) setMode(mode === "tap" ? "pick" : "tap");
   });
-  $("planMoreBtn").addEventListener("click", () => { const on = $("planMore").hidden; $("planMore").hidden = !on; $("planMoreBtn").setAttribute("aria-expanded", String(on)); });
+  // The options under ⋯ stay as you left them (alex wants them showing): open by default on a computer, where there's
+  // room; on phones only once you open them, so the bar doesn't cover the map.
+  function showMore(on) { $("planMore").hidden = !on; $("planMoreBtn").setAttribute("aria-expanded", String(on)); }
+  $("planMoreBtn").addEventListener("click", () => { const on = $("planMore").hidden; showMore(on); try { localStorage.setItem("tf:planMore", on ? "1" : "0"); } catch {} });
+  { let v = null; try { v = localStorage.getItem("tf:planMore"); } catch {} showMore(v ? v === "1" : !matchMedia("(max-width: 760px)").matches); }
   $("planSteps").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-act]");
     if (!b) return;
