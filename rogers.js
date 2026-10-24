@@ -56,7 +56,6 @@
 .rp-pin.p { background: var(--c); }
 .rp-pin.run { border-radius: 11px; background: var(--c); }
 .rp-pin.on { outline: 3px solid #ffe14d; }
-.rp-gl { position: relative; }
 `;
   document.head.appendChild(css);
 
