@@ -53,9 +53,17 @@
     sled: { icon: "🛷", label: "Snowmobile", sub: "trails, clubs", layers: ["snowmobile", "club"] },
     resort: { icon: "🚡", label: "Resorts", sub: "runs, bowls", layers: ["resort", "offpiste"] },
   };
-  // The switches in the map's Layers menu: the two extras, then every single layer under "Single layers".
-  const EXTRAS = ["slope", "aspect", "runout", "snow", "heat", "mine"];
-  const SINGLES = ["tour", "access", "other", "hut", "nordic", "snowshoe", "snowmobile", "club", "resort", "offpiste"];
+  // The Skiing switches in the map's Layers menu, in groups like Hunting's (alex 2026-10-24: "i like how all the layers
+  // in hunting or set. can we do the same for skiing"). A group's slot holds switches other files own (Avalanche risk,
+  // Webcams, Rogers Pass, Ski areas: window.tfSkiSlot); "routes" groups are what the four panel buttons turn on.
+  const GROUPS = [
+    { g: "Backcountry", keys: ["tour", "access", "other", "hut"], routes: true },
+    { g: "Avalanche", slot: "avy", keys: ["slope", "aspect", "runout"] },
+    { g: "Snow and weather", keys: ["snow"], slot: "wx", slotAfter: true },
+    { g: "Nordic and snowmobile", keys: ["nordic", "snowshoe", "snowmobile", "club"], routes: true },
+    { g: "Resorts", keys: ["resort", "offpiste"], routes: true },
+    { g: "Places and tracks", slot: "places", keys: ["heat", "mine"] },
+  ];
   const SNOW = { label: "Snow stations", color: "#0b7285" };
   const LABEL = (k) => (TYPES[k] || { hut: HUT, heat: HEAT, mine: MINE, club: CLUB, snow: SNOW, slope: { label: "Slope angle" }, aspect: { label: "Slope direction" }, runout: { label: "Runout zones and traps" } }[k]).label;
   // Avalanche Canada's danger scale colours.
@@ -106,7 +114,6 @@ body.sport-alt .panel .modes, body.sport-alt .panel .pane, body.sport-alt #boxBt
 body.sport-alt #status, body.sport-alt #debug, body.sport-alt #list, body.sport-alt #detail, body.sport-alt #allBtn,
 body.sport-alt details.legend, body.sport-alt #searchArea { display: none !important; }
 body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !important; }
-.map-tools #avyBtn.on { background: #f79218; border-color: #f79218; color: #1a1a1a; }
 #skiPane { display: flex; flex-direction: column; gap: 12px; font-size: .9rem; }
 #skiPane .sk-hint { color: var(--muted); margin: 0; font-size: .85rem; }
 #skiPane .sk-views { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
@@ -141,9 +148,20 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 .sk-snow.none { background: #6b7787; }
 .sk-plan-pt { width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 3px solid #e8590c; box-sizing: border-box; }
 body:not(.sport-ski) .lm-ski { display: none !important; }
-.layers-menu .lm-ski { display: grid; gap: 6px; }
-.layers-menu .lm-ski .lm-head { margin-top: 6px; }
-.map-tools .layers-menu .lm-ski button.on { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
+/* Skiing layers in the Layers menu: grouped rows with a colour icon and a switch, the same as Hunting's */
+.layers-menu .lm-ski { display: flex; flex-direction: column; }
+.lm-ski .sk-group { margin: 0; font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-top: 8px; }
+.lm-ski .sk-note { color: var(--muted); font-size: .74rem; margin: 4px 0 2px; }
+.lm-ski .sk-layer, .map-tools .layers-menu .lm-ski .sk-slot button { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 6px 0; cursor: pointer;
+  font: inherit; color: var(--fg); background: none; border: 0; border-radius: 0; min-height: 0; width: 100%; text-align: left; box-shadow: none; }
+.lm-ski .sk-layer b, .lm-ski .sk-slot button b { display: block; font-size: .86rem; }
+.lm-ski .sk-layer small { display: block; color: var(--muted); font-size: .74rem; line-height: 1.25; font-weight: 400; }
+.lm-ski .sk-lic { width: 22px; height: 22px; border-radius: 6px; box-sizing: border-box; display: grid; place-items: center; font-size: 12px; line-height: 1; color: #fff; }
+.lm-ski .sk-sw, .map-tools .layers-menu .lm-ski .sk-slot button::after { appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; margin: 0; flex: none; cursor: pointer; transition: background .15s;
+  background: radial-gradient(circle at 12px 50%, #fff 8.5px, transparent 9.5px), var(--line); box-shadow: none; }
+.map-tools .layers-menu .lm-ski .sk-slot button::after { content: ""; padding: 0; }
+.lm-ski .sk-sw:checked, .map-tools .layers-menu .lm-ski .sk-slot button[aria-pressed="true"]::after { background: radial-gradient(circle at 28px 50%, #fff 8.5px, transparent 9.5px), #1f5fe0; }
+.lm-ski .sk-sw:focus-visible, .lm-ski .sk-slot button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #skiPane .sk-sw { width: 18px; height: 4px; border-radius: 2px; flex: none; display: inline-block; }
 #skiPane .sk-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #0003; flex: none; display: inline-block; }
 #skiPane .sk-listwrap { display: flex; flex-direction: column; gap: 8px; }
@@ -390,22 +408,56 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       hutLayer.addLayer(m);
     }
   }
-  // The four buttons in the panel, and the Skiing switches in the map's Layers menu.
+  // The four buttons in the panel, and the Skiing switches in the map's Layers menu (under Map style, like Hunting's).
   const lm = document.createElement("div");
   lm.className = "lm-ski";
-  lm.innerHTML = `<div class="lm-head">Skiing</div><div class="lm-list" id="lmSkiExtras"></div>
-    <details class="lm-more lm-ski-singles"><summary>Single layers</summary><div class="lm-list" id="lmSkiSingles"></div></details>`;
-  if (avyBtn) { avyBtn.before(lm); lm.querySelector(".lm-head").after(avyBtn); }
+  lm.innerHTML = `<div class="lm-head">Skiing layers</div>` + GROUPS.map((x, i) => {
+    const slot = x.slot ? `<div class="sk-slot" id="lmSkiSlot-${x.slot}"></div>` : "";
+    return `<h4 class="sk-group">${esc(x.g)}</h4>${x.slotAfter ? "" : slot}<div class="sk-rows${x.routes ? " sk-routes" : ""}" data-g="${i}"></div>${x.slotAfter ? slot : ""}`;
+  }).join("") + `<p class="sk-note">What the lines and dots mean: tap Map key on the map.</p>`;
+  const lmStyle = document.querySelector("#layersMenu .lm-style");
+  if (lmStyle) lmStyle.after(lm); else if (avyBtn) avyBtn.before(lm);
+  // Puts another file's switch in a group, drawn as a row like the others: icon (a symbol on a colour), label, switch.
+  window.tfSkiSlot = (slot, btn, ic) => {
+    const box = $("lmSkiSlot-" + slot);
+    if (!box) return false;
+    if (!btn.querySelector(".sk-lic")) btn.innerHTML = `<span class="sk-lic" style="background:${ic.bg}" aria-hidden="true">${ic.sym || ""}</span><b>${esc(ic.label)}</b>`;
+    if (btn.parentElement !== box) box.append(btn);
+    return true;
+  };
+  if (avyBtn) window.tfSkiSlot("avy", avyBtn, { label: "Avalanche risk", sym: "⚠", bg: "linear-gradient(135deg, #52ba4a, #fff300 40%, #f79218 70%, #ef1c29)" });
+  // The colour icon of each row: what the layer looks like on the map.
+  const SW_ICON = {
+    hut: `background:${HUT.color};border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px #0004`,
+    club: `background:${CLUB.color};border-radius:50%`,
+    snow: `background:${SNOW.color}`,
+    slope: "background:linear-gradient(135deg, #f2e14c, #f59f00 35%, #e8392f 60%, #9c36b5 80%, #1c3faa)",
+    aspect: "background:conic-gradient(#1c7ed6, #0ca678, #74b816, #fab005, #f76707, #e03131, #ae3ec9, #5c5fd6, #1c7ed6)",
+    runout: "background:repeating-linear-gradient(135deg, #8c28a0 0 3px, #d6336c99 3px 7px)",
+    heat: `background:linear-gradient(135deg, ${HEAT.ramp.join(", ")})`,
+    mine: `border:3px solid ${MINE.color}`,
+  };
+  const SW_SYM = { club: "❄", snow: "❄" };
+  const swIcon = (k) => {
+    const t = TYPES[k];
+    const st = t ? `border:3px ${t.dashArray ? "dashed" : "solid"} ${t.color}` : SW_ICON[k] || "";
+    return `<span class="sk-lic" style="${st}" aria-hidden="true">${SW_SYM[k] || ""}</span>`;
+  };
+  const SW_TITLE = {
+    heat: "Public OpenStreetMap GPS traces from December to April, roads and lifts left out",
+    mine: "Your tours from My rides (import or record them there)",
+    slope: "Colours the slopes by steepness: 27° and up, where avalanches start",
+    snow: "BC snow pillow stations: snow depth, new snow and temperature, every 2 hours",
+    aspect: "Colours the slopes of 25° and more by the way they face, to match the forecast's problem aspects",
+    runout: "Where avalanches from steep slopes above can reach, and the gullies and creek beds where snow piles up deep",
+  };
   function renderSwitches() {
     $("skViews").innerHTML = Object.entries(VIEWS).map(([k, v]) => `<button type="button" class="sk-view" data-view="${k}" aria-pressed="${v.layers.some((x) => shown.has(x))}"><span class="ic" aria-hidden="true">${v.icon}</span>${esc(v.label)}<small>${esc(v.sub)}</small></button>`).join("");
-    const btn = (k) => {
-      const on = shown.has(k), extra = k === "heat" && !heat ? (heatErr ? " (not yet)" : "") : k === "snow" && snowErr ? " (not yet)" : k === "mine" && !mine.length ? " (none yet)" : "";
-      return `<button type="button" data-k="${k}" aria-pressed="${on}" class="${on ? "on" : ""}"${k === "heat" ? ' title="Public OpenStreetMap GPS traces from December to April, roads and lifts left out"' : k === "mine" ? ' title="Your tours from My rides (import or record them there)"' : k === "slope" ? ' title="Colours the slopes by steepness: 27° and up, where avalanches start"' : k === "snow" ? ' title="BC snow pillow stations: snow depth, new snow and temperature, every 2 hours"'
-        : k === "aspect" ? ' title="Colours the slopes of 25° and more by the way they face, to match the forecast\'s problem aspects"'
-        : k === "runout" ? ' title="Where avalanches from steep slopes above can reach, and the gullies and creek beds where snow piles up deep"' : ""}>${esc(LABEL(k))}${extra}</button>`;
+    const row = (k) => {
+      const on = shown.has(k), extra = k === "heat" && !heat ? (heatErr ? "Not ready yet" : "") : k === "snow" && snowErr ? "Not ready yet" : k === "mine" && !mine.length ? "None yet: record or import them in My rides" : "";
+      return `<label class="sk-layer"${SW_TITLE[k] ? ` title="${esc(SW_TITLE[k])}"` : ""}>${swIcon(k)}<span><b>${esc(LABEL(k))}</b>${extra ? `<small>${esc(extra)}</small>` : ""}</span><input type="checkbox" class="sk-sw" role="switch" data-k="${k}"${on ? " checked" : ""} aria-label="${esc(LABEL(k))}"></label>`;
     };
-    $("lmSkiExtras").innerHTML = EXTRAS.map(btn).join("");
-    $("lmSkiSingles").innerHTML = SINGLES.map(btn).join("");
+    lm.querySelectorAll(".sk-rows").forEach((el) => { el.innerHTML = GROUPS[el.dataset.g].keys.map(row).join(""); });
   }
   function applySwitches() {
     store.set("skiLayers2", [...shown]);
@@ -443,10 +495,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!on && b.dataset.view === "sled") loadClubs();
     applySwitches();
   });
-  lm.addEventListener("click", (e) => {
+  lm.addEventListener("change", (e) => {
     const b = e.target.closest("[data-k]"); if (!b) return;
     const k = b.dataset.k;
-    shown.has(k) ? shown.delete(k) : shown.add(k);
+    if (b.checked) shown.add(k); else shown.delete(k);
+    if (k === "club" && b.checked) loadClubs();
     applySwitches();
   });
   // The list under the map: Routes or Huts, nearest the middle of the map first, each with how far it is, how long it

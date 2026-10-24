@@ -56,13 +56,7 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
   btn.textContent = "📷 Webcams";
   function placeBtn() {
     if (btn.isConnected) return true;
-    const extras = $("lmSkiExtras");
-    if (!extras) return false;
-    const list = document.createElement("div");
-    list.className = "lm-list";
-    list.appendChild(btn);
-    extras.after(list);
-    return true;
+    return !!window.tfSkiSlot && window.tfSkiSlot("wx", btn, { label: "Webcams", sym: "📷", bg: "#343a40" });   // Skiing layers, Snow and weather
   }
   function setBtn() {
     btn.setAttribute("aria-pressed", String(on));

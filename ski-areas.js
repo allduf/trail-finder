@@ -71,12 +71,7 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
   listBtn.type = "button"; listBtn.className = "sa-open";
   listBtn.textContent = "⛰ Backcountry areas across Canada";
   function place() {
-    if (!btn.isConnected && $("lmSkiExtras")) {
-      const list = document.createElement("div");
-      list.className = "lm-list";
-      list.appendChild(btn);
-      $("lmSkiExtras").after(list);
-    }
+    if (!btn.isConnected && window.tfSkiSlot) window.tfSkiSlot("places", btn, { label: "Ski areas", sym: "⛰", bg: "#5f3dc4" });
     const acts = document.querySelector("#skiPane .sk-acts");
     if (!listBtn.isConnected && acts) acts.after(listBtn);
   }
