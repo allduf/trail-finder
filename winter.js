@@ -85,6 +85,7 @@
 .map-tools #sportMapBtn { display: inline-flex; align-items: center; justify-content: center; gap: 2px; padding: 0 8px 0 9px; min-width: 52px; }
 .map-tools #sportMapBtn .spb-i { font-size: 1.25rem; line-height: 1; }
 .map-tools #sportMapBtn .spb-c { font-size: .6rem; opacity: .6; }
+.map-tools #sportMapBtn .spb-l { display: none; }
 .map-tools #sportMapBtn.open { background: var(--forest, #15211a); border-color: var(--forest, #15211a); color: #fff; }
 .sport-menu { position: absolute; z-index: 3; top: 48px; right: 0; width: 210px; box-sizing: border-box; padding: 8px; display: flex; flex-direction: column; gap: 6px;
   background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow, 0 6px 24px rgba(0,0,0,.2)); }
@@ -124,6 +125,12 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 #skiPane .sk-view[aria-pressed="true"] small { color: #fff; }
 #skiPane .sk-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 #skiPane .sk-act { font: inherit; font-size: .88rem; font-weight: 700; padding: 10px 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
+#skiPane #skSaveBtn { display: none; }
+@media (max-width: 760px) {
+  #skiPane .sk-acts { grid-template-columns: repeat(3, 1fr); }
+  #skiPane .sk-act { font-size: .8rem; padding: 10px 4px; }
+  #skiPane #skSaveBtn { display: block; }
+}
 #skiPane .sk-act[aria-pressed="true"] { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
 #skiPane .sk-slopekey { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: .78rem; }
 #skiPane .sk-slopekey i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; opacity: .8; }
@@ -300,7 +307,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   pane.setAttribute("aria-label", "Skiing");
   pane.innerHTML = `
     <div class="sk-views" id="skViews" role="group" aria-label="Show these routes"></div>
-    <div class="sk-acts"><button type="button" class="sk-act" id="skPlanBtn">✎ Plan a tour</button><button type="button" class="sk-act" id="skRecBtn">▶ Record a tour</button></div>
+    <div class="sk-acts"><button type="button" class="sk-act" id="skPlanBtn">✎ Plan a tour</button><button type="button" class="sk-act" id="skRecBtn">▶ Record a tour</button><button type="button" class="sk-act" id="skSaveBtn" title="Save a point on the map with a name, a description and a photo">📍 Save a point</button></div>
     <div class="sk-slopekey" id="skSlopeKey" hidden></div>
     <div class="sk-slopekey" id="skLayerKey" hidden></div>
     <div class="sk-card sk-plan" id="skPlan" hidden></div>
@@ -1285,6 +1292,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   let dbl3d = null;
   window.addEventListener("tf:map3d", () => { const gl = window.trailMap3d; if (gl && gl !== dbl3d) { dbl3d = gl; gl.on("dblclick", () => clearTimeout(offTimer)); } });
   $("skPlanBtn").addEventListener("click", () => setPlanning(!plan.on));
+  // Save a point lives here on phones, so the map keeps the same four buttons in every sport
+  $("skSaveBtn").addEventListener("click", () => { if (window.tfPoints) window.tfPoints.add(); });
   $("skRecBtn").addEventListener("click", () => {
     if (!window.tfRide) return;
     if (plan.on) setPlanning(false);
@@ -2243,7 +2252,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const syncSportBtn = () => {
     if (!sportBtn) return;
     const [icon, name] = SPORT_UI[sport];
-    sportBtn.innerHTML = `<span class="spb-i" aria-hidden="true">${icon}</span><span class="spb-c" aria-hidden="true">▾</span>`;
+    sportBtn.innerHTML = `<span class="spb-i" aria-hidden="true">${icon}</span><span class="spb-l" aria-hidden="true">${name}</span><span class="spb-c" aria-hidden="true">▾</span>`;
     sportBtn.setAttribute("aria-label", `Sport: ${name}. Change sport`);
     sportBtn.title = `Sport: ${name} (tap to change)`;
     sportMenu.querySelectorAll("button[data-sport]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.sport === sport)));
