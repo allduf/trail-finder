@@ -18,6 +18,8 @@
   // runs out ("A problem repeatedly occurred", alex 2026-10-19). So on phones: no edge smoothing, the picture
   // drawn at 2x instead of 3x, fewer photos kept in memory and fewer far-away ones.
   const PHONE = matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) < 600;
+  // A finger covers more of the screen than a mouse pointer: trail lines take taps from further away.
+  const TOUCH = matchMedia("(pointer: coarse)").matches, TAP = TOUCH ? 18 : 8;
   // Crash guard: "tf:3dOpen" is set while the 3D map is on screen and cleared when the page is hidden or closed
   // normally. If it's still set when the page opens, the page died in 3D (out of memory), so it opens on the
   // flat map instead of going straight back into 3D and crashing again. Not a synced setting.
@@ -36,6 +38,7 @@
   const LINE_SCALE = 1.15;    // trails a little bolder than in 2D, so they read against the photos
   let on = false, gl = null, box = null, libLoading = null;
   let hits = [];              // Leaflet layers that react to clicks, by index (the "id" of the 3D hit lines)
+  let hitParts = [];          // their lines as [lng, lat] points, same index (nearestHit)
   let dashLayers = new Set(); // dashed line layers made so far, one per dash pattern
   let drawn = false;          // trails copied at least once
   let last2d = null;          // the flat map's view as the 3D map last set it
@@ -82,7 +85,7 @@
 
   function snapshot() {
     const lines = [], dots = [], hitLines = [];
-    hits = [];
+    hits = []; hitParts = [];
     let k = 0;
     // A trail's details are open: the other trail lines fade, as in 2D.
     const focus = map.getContainer().classList.contains("trail-focus");
@@ -120,8 +123,8 @@
       if (!parts.length) return;
       const geometry = { type: "MultiLineString", coordinates: parts };
       if (o.interactive !== false && l.listens("click")) {
-        hits.push(l);
-        hitLines.push({ type: "Feature", geometry, properties: { i: hits.length - 1, w: Math.max(o.weight || 3, 14) } });
+        hits.push(l); hitParts.push(parts);
+        hitLines.push({ type: "Feature", geometry, properties: { i: hits.length - 1, w: Math.max(o.weight || 3, TOUCH ? 24 : 14) } });
       }
       if (!o.stroke || !(o.opacity > 0)) return;
       lines.push({ type: "Feature", geometry, properties: { c: o.color, w: o.weight * LINE_SCALE, o: faded(o) ? o.opacity * 0.6 : o.opacity, k: order, d: o.dashArray ? (o.lineCap === "round" && dotKey(o.dashArray, o.weight)) || dashKey(o.dashArray, o.weight) : "" } });
@@ -651,10 +654,38 @@
     // Taps go to the same Leaflet trail lines (opening the same details panel); anywhere else is a
     // click on the 2D map at that spot, which looks up the nearest trail just like it does in 2D.
     const near = (p, pad) => gl.queryRenderedFeatures([[p.x - pad, p.y - pad], [p.x + pad, p.y + pad]], { layers: ["hits"] });
+    // MapLibre finds what's under a tap on the mountains by reading back a picture of the ground from the graphics
+    // card, and on some screens that comes back empty (alex 2026-10-24: ski routes drawn on Blackcomb in 3D, taps did
+    // nothing). So when it finds no line, the tap is checked against the lines themselves, put on the screen at their
+    // heights: the closest one within TAP px. Only lines whose box is in view are measured.
+    function nearestHit(p, pad) {
+      const v = gl.getBounds(), w = v.getWest(), e = v.getEast(), s = v.getSouth(), n = v.getNorth();
+      let best = -1, bestD = pad * pad;
+      const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+      hits.forEach((l, i) => {
+        const bb = l.getBounds && l.getBounds();
+        if (!bb || !bb.isValid() || bb.getWest() > e || bb.getEast() < w || bb.getSouth() > n || bb.getNorth() < s) return;
+        // Placing a point at its height takes time: first skip lines whose box is nowhere near the tap (its corners
+        // can sit at other heights than the line, hence the margin).
+        const c = gl.project(bb.getCenter()), half = Math.max(...[bb.getSouthWest(), bb.getNorthEast(), bb.getNorthWest(), bb.getSouthEast()].map((q) => dist(c, gl.project(q))));
+        if (dist(c, p) > half + pad + 150) return;
+        for (const part of hitParts[i]) {
+          let a = gl.project(part[0]);
+          for (let j = 1; j < part.length; j++) {
+            const b = gl.project(part[j]), dx = b.x - a.x, dy = b.y - a.y, len = dx * dx + dy * dy;
+            const t = len ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len)) : 0;
+            const ex = a.x + t * dx - p.x, ey = a.y + t * dy - p.y, d = ex * ex + ey * ey;
+            if (d < bestD) { bestD = d; best = i; }
+            a = b;
+          }
+        }
+      });
+      return best;
+    }
     const toLL = (lngLat) => L.latLng(lngLat.lat, lngLat.lng);
     gl.on("click", (e) => {
-      const f = near(e.point, 8)[0], latlng = toLL(e.lngLat);
-      const layer = f && hits[f.properties.i];
+      const f = near(e.point, TAP)[0], latlng = toLL(e.lngLat);
+      const layer = f ? hits[f.properties.i] : hits[nearestHit(e.point, TAP + 4)];
       if (layer) layer.fire("click", { latlng, originalEvent: e.originalEvent });
       else {
         to2d();
