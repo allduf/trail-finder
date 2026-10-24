@@ -160,6 +160,46 @@
    "date": "2026-10-24",
    "who": "Claude (weekly audit)",
    "note": "Researched 2026-10-17: Alberta Parks allows bikes on most of the park's gravel and dirt trails, but most are wide multi-use trails, and the zone's west edge (-114.42) cuts off the western trails."
+  },
+  "network:pem:Cloudbase Grind": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "A steep hike up to the Pemberton paragliding launch; hiking guides (10Adventures) say not to ride it."
+  },
+  "network:kam:Eagle Eye": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "The Eagles Eyrie viewpoint hike at Isobel Lake (Kamloops Hiking Club), not a bike trail."
+  },
+  "network:van:Rubber Monkey": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "Inside Mount Seymour Provincial Park, where BC Parks allows bikes only on designated trails, and mapped with closure signs at both ends. Stays off the map."
+  },
+  "network:van:Three Chop Trail": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "About 85% inside Mount Seymour Provincial Park; BC Parks allows bikes only on the access road and designated trails, and Three Chop isn't one."
+  },
+  "network:sqm:After Work / After Party Approach": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "Climbers' approach to two Squamish crags, not a bike trail."
+  },
+  "ratings:mer": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "4 of 51 rated from Mountain Biking BC's Merritt day-trip story (2017). The Merritt Mountain Bike Association has no site or map outside Trailforks, and Tourism Merritt gives no levels."
+  },
+  "ratings:pri": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "No open source gives levels: Town of Princeton, Discover Princeton and Similkameen Valley pages describe China Ridge without ratings; chinaridge.ca didn't load. Only Trailforks has levels."
+  },
+  "ratings:sok": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "No open source gives levels: Visit Oliver has none, Mountain Biking BC only counts trails per level, Destination Osoyoos blocked every request. Only Trailforks has levels."
   }
  }
 }
