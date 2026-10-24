@@ -28,6 +28,12 @@
   let crashed = false;
   try { crashed = localStorage.getItem(OPEN) != null; } catch {}
   mark(false);
+  // Where the 3D map was looking, kept while it's open: after a crash the page opens there on the flat map, not on
+  // the whole area (alex 2026-10-24: "it lag and jump somewhere in the 2d map"). Not a synced setting either.
+  const VIEW = "tf:3dView";
+  const keepView = () => { if (!gl) return; const c = gl.getCenter(); try { localStorage.setItem(VIEW, JSON.stringify([c.lat, c.lng, gl.getZoom() + 1])); } catch {} };
+  let crashView = null;
+  try { crashView = crashed && JSON.parse(localStorage.getItem(VIEW)); } catch {}
 
   // Photo tiles drawn at 128 px: one zoom deeper, as sharp as the screen up close. Phones too (2026-10-23, alex:
   // "more realistic with a good resolution"): measured in a phone test, the photos are only ~15-60 MB of the
@@ -457,6 +463,7 @@
   // toward the horizon that needed 14 leaves 14 (~470 MB) for the rest of the visit, the main thing that can run
   // an iPhone out of memory. Once the map is still, the spare ones are let go (they're made again if needed).
   // MapLibre internals (pinned 5.24.0): any surprise just skips it.
+  const PHONE_BUFFERS = 12;   // ~380 MB: enough for a view tilted to 70-75° (measured)
   function trimPaintBuffers() {
     try {
       const rtt = gl.painter.renderToTexture, pool = rtt && rtt.pool, terrain = gl.terrain;
@@ -576,7 +583,14 @@
     // Phones the same since 2026-10-23 (they had 4 levels and fewer far tiles, which made the distance blurry).
     const lod = () => ["sat", "fill", "winter", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
     gl.once("load", lod);
-    if (PHONE) gl.on("idle", trimPaintBuffers);
+    if (PHONE) {
+      gl.on("idle", trimPaintBuffers);
+      // At most PHONE_BUFFERS paint buffers, even while moving: with no limit (30) a long tilted ride across the
+      // mountains kept up to 16 (~510 MB, measured) until the map stopped, and the iPhone app ran out of memory and
+      // restarted on the flat map. A view that needs more paints its ground in turns: a little slower, never a crash.
+      gl.on("render", () => { const pool = gl.painter && gl.painter.renderToTexture && gl.painter.renderToTexture.pool; if (pool && pool._size !== PHONE_BUFFERS) pool._size = PHONE_BUFFERS; });
+    }
+    gl.on("moveend", keepView);
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
@@ -720,20 +734,29 @@
     gl.getCanvas().addEventListener("mouseleave", () => tip.remove());
   }
 
-  function set3d(want) {
-    if (want === on) return;
+  // Skiing opens on the 3D map (alex 2026-10-24: "when you enter in skiing mode make that the 3d map come up by
+  // default"). The saved "map3d" choice is MTB's (and Hunting's): Skiing doesn't change it, and leaving Skiing goes
+  // back to it. "▭ 2D map" tapped in Skiing keeps Skiing flat until the app is closed.
+  const inSki = () => document.body.classList.contains("sport-ski");
+  let skiFlat = false;
+  let want3d = null;   // last asked for, so a switch back to 2D while the 3D library loads isn't undone when it arrives
+  function set3d(want, auto) {
+    want3d = want;
+    if (want === on) { syncBtn(); return; }
     if (want && !window.maplibregl) {
       btn.textContent = "⛰ Loading 3D…";
-      loadLib().then(() => set3d(true), () => { btn.textContent = "⛰ 3D unavailable"; setTimeout(syncBtn, 3000); });
+      loadLib().then(() => { if (want3d) set3d(true, auto); }, () => { btn.textContent = "⛰ 3D unavailable"; setTimeout(syncBtn, 3000); });
       return;
     }
-    on = want; store.set("map3d", on); mark(on);
+    on = want; mark(on);
+    if (!inSki()) store.set("map3d", on);
+    else if (!auto) skiFlat = !on;
     map.getContainer().classList.toggle("is3d", on);
     map.getContainer().parentElement.classList.toggle("is3d", on);   // hides the 2D map style menu
     if (on) {
       if (!gl) build();
       else { box.hidden = false; gl.resize(); const c = map.getCenter(); syncing++; gl.jumpTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d() }); syncing--; }
-      syncData();
+      syncData(); keepView();
     } else if (box) box.hidden = true;
     syncBtn();
   }
@@ -745,10 +768,27 @@
   }
   btn.addEventListener("click", () => set3d(!on));
   syncBtn();
+  // The crash guard wins: if the page died in 3D, this visit opens Skiing flat too (the 3D button still works).
+  let sport = null;
+  window.addEventListener("tf:sport", (e) => {
+    const s = e.detail, was = sport;
+    sport = s;
+    if (s === was) return;
+    if (s === "ski") { if (!crashed && !skiFlat) set3d(true, true); }
+    else if (was === "ski") set3d(!crashed && store.get("map3d", false), true);
+  });
   // Hidden or closed normally: not a crash. Back on screen in 3D: watch again.
   document.addEventListener("visibilitychange", () => mark(on && document.visibilityState === "visible"));
   addEventListener("pagehide", () => mark(false));
   addEventListener("pageshow", () => mark(on));
-  if (crashed) store.set("map3d", false);
+  if (crashed) {
+    store.set("map3d", false);
+    // Back where the 3D map was, once the page has set its first view, and say what happened.
+    const back = () => {
+      if (Array.isArray(crashView) && crashView.every(Number.isFinite) && !/^#(trail|route|pin)=/.test(location.hash)) map.setView([crashView[0], crashView[1]], Math.round(crashView[2]), { animate: false });
+      if (window.tfToast) window.tfToast("3D ran out of memory: back on the flat map here. Tap ⛰ 3D to return.");
+    };
+    if (document.readyState === "complete") setTimeout(back, 0); else addEventListener("load", () => setTimeout(back, 0), { once: true });
+  }
   else if (store.get("map3d", false)) set3d(true);
 })();
