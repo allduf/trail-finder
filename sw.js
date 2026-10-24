@@ -4,14 +4,14 @@
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-160";
+const VERSION = "tf-162";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=353", "reports.js?v=353", "grades.js?v=353", "trail-photos.js?v=353", "status.js?v=353", "visitors.js?v=353", "map3d.js?v=353", "winter.js?v=353", "clouds.js?v=353", "smoke.js?v=353", "ski-points.js?v=353", "webcams.js?v=353", "hunting.js?v=353", "offline.js?v=353", "native-gps.js?v=353", "native.js?v=353", "navigate.js?v=353", "ride-stats.js?v=353", "ride-finds.js?v=353", "rides.js?v=353", "planner.js?v=353", "rotate.js?v=353", "photo-find.js?v=353", "ebike.js?v=353", "closures.js?v=353", "loops.js?v=353", "strava.js?v=353", "share.js?v=353", "community.js?v=353", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=355", "reports.js?v=355", "grades.js?v=355", "trail-photos.js?v=355", "status.js?v=355", "visitors.js?v=355", "map3d.js?v=355", "winter.js?v=355", "clouds.js?v=355", "smoke.js?v=355", "ski-points.js?v=355", "webcams.js?v=355", "hunting.js?v=355", "offline.js?v=355", "native-gps.js?v=355", "native.js?v=355", "navigate.js?v=355", "ride-stats.js?v=355", "ride-finds.js?v=355", "rides.js?v=355", "planner.js?v=355", "rotate.js?v=355", "photo-find.js?v=355", "ebike.js?v=355", "closures.js?v=355", "loops.js?v=355", "strava.js?v=355", "share.js?v=355", "community.js?v=355", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
-  "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js",
+  "vendor/leaflet-1.9.4.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
-  "https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js",
+  "vendor/leaflet-rotate-0.2.8.js",
 ];
 // Versioned libraries and fonts: they never change at the same URL, so the cached copy is served first.
 const STATIC_HOSTS = ["cdnjs.cloudflare.com", "unpkg.com", "fonts.googleapis.com", "fonts.gstatic.com"];
@@ -26,8 +26,8 @@ self.addEventListener("activate", (e) => {
 
 // Data files (data/*.json) on a slow connection: when the network takes longer than DATA_WAIT_MS and a saved copy is
 // there, the saved copy is used and the download carries on in the background for next time (alex, 2026-10-23: the
-// app took a long time to open; on weak phone signal every file waited for the network). Pages and scripts always
-// wait for the network, so a new page never runs with an old script.
+// app took a long time to open; on weak phone signal every file waited for the network). Pages and scripts without
+// a ?v= always wait for the network, so a new page never runs with an old script.
 const DATA_WAIT_MS = 3000;
 async function networkFirst(req, e) {
   const cache = await caches.open(VERSION);
@@ -96,7 +96,11 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  if (url.origin === self.location.origin) e.respondWith(networkFirst(req, e));
+  // A script with ?v= (bumped on every change) or a file in vendor/ (version in its name) never changes at the same
+  // address, so the saved copy is served first. alex, 2026-10-24 ("it lag", blank map, empty Area list): right after
+  // a deploy the page sat waiting on the network for scripts it already had.
+  if (url.origin === self.location.origin && (url.searchParams.has("v") || url.pathname.includes("/vendor/"))) e.respondWith(cacheFirst(req));
+  else if (url.origin === self.location.origin) e.respondWith(networkFirst(req, e));
   else if (STATIC_HOSTS.includes(url.hostname)) e.respondWith(cacheFirst(req));
   else if (url.hostname === "tiles.openfreemap.org") e.respondWith(openFreeMap(req));
   else if (HUNT_HOSTS.includes(url.hostname)) e.respondWith(savedFirst(req));
