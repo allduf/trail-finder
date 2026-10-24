@@ -1131,6 +1131,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
 .about h2 { font-family: var(--font-display); text-transform: uppercase; margin: 0 0 8px; font-size: 1.5rem; }
 .about h3 { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .04em; font-size: 1.05rem; margin: 16px 0 4px; }
 .about p, .about li { max-width: 65ch; }
+.about .about-lead { margin: 0 0 4px; }
+.about .about-quick { margin: 4px 0; padding-left: 20px; }
+.about .about-quick li { margin: 3px 0; }
+.about .about-more { margin-top: 16px; }
+.about .about-more summary { cursor: pointer; font-weight: 600; }
 .about code { font-family: var(--font-mono); font-size: .85em; background: var(--chip); padding: 1px 4px; border-radius: 4px; }
 @media (max-width: 760px) {
   .app { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
@@ -1332,7 +1337,35 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <div class="about" id="about" hidden>
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
     <h2 id="aboutTitle">How Trail Finder works</h2>
+    <p class="about-lead">Find mountain bike trails that are new to you, ride them when the dirt is just right, and switch to Skiing or Hunting in the sport menu at the top.</p>
+    <h3>🚵 MTB</h3>
     <ul class="about-quick">
+      <li><b>Search</b> a trail name, an area or Near me, and pick how new.</li>
+      <li><b>Prime loam</b> = damp dirt right now, the best riding. The 🔔 can tell you when.</li>
+      <li><b>Tap a trail</b> for its difficulty, weather, loam and how to get there.</li>
+      <li><b>▶ Ride</b> follows you on the map and records the ride. <b>✎ Plan a route</b> joins the trails you pick into one ride.</li>
+      <li><b>📷</b> tells you which trail a photo was taken on.</li>
+      <li>Colours like Trailforks: green, blue, black, red (double black), orange (pro line). Dotted = unofficial.</li>
+    </ul>
+    <h3>⛷ Skiing</h3>
+    <ul class="about-quick">
+      <li>Ski tours, huts, resorts and snowmobile trails, with the avalanche forecast and snow stations.</li>
+      <li><b>✎ Plan a tour</b>, then record or follow it. <b>Slope angle</b> shows steep ground.</li>
+    </ul>
+    <h3>🦌 Hunting</h3>
+    <ul class="about-quick">
+      <li>Hunting zones, open seasons and no-shooting areas (towns in red).</li>
+      <li>Tap the map for the rules and wind there. Save your own spots.</li>
+    </ul>
+    <h3>Everywhere</h3>
+    <ul class="about-quick">
+      <li><b>Layers</b> (top right of the map): clouds, smoke, wildfires, forest roads, 3D, offline maps and more.</li>
+      <li>On phones, use the tabs at the bottom: Map, Find, Ride, Saved, More.</li>
+      <li>Trails come from OpenStreetMap, so check local rules and closures before you go.</li>
+    </ul>
+    <details class="about-more"><summary>All the details</summary>
+    <h3>Every feature</h3>
+    <ul>
       <li><strong>Search:</strong> type a trail name, or pick an area (or tap Near me) and how new. <b>Any</b> lists every trail there, old or new, with when it was added; Month to 2 yr show the new trails. A trail is new when it was first added to OpenStreetMap in that time.</li>
       <li><strong>Prime loam now:</strong> trails whose dirt is damp right now (Loam index 40 to 59), the best riding.</li>
       <li><strong>Loam alerts:</strong> the 🔔 at the top tells you when a trail on your To ride list, or a new trail from the last month in the regions you picked, is in prime loam. Each one alerts once every time it turns damp. Each kind has its own switch in the 🔔 under Change regions.</li>
@@ -1350,7 +1383,6 @@ body.sport-alt #rideMapBtn { display: none !important; }
       <li><strong>Colours</strong> are like Trailforks: green, blue, black, double black (red) and pro line (orange). Grey isn't rated yet. Dotted lines may be unofficial.</li>
       <li>Trails come from OpenStreetMap mappers, so details can be missing or out of date. Check local rules and closures before riding.</li>
     </ul>
-    <details class="about-more"><summary>All the details</summary>
     <p>All data comes from OpenStreetMap. For the riding areas from Vancouver to Calgary, GitHub collects the new trails and trail names several times a day, so searches there load in a second or two without waiting on OpenStreetMap. A trail added today shows up after one of the next updates (with so many areas, each one is refreshed every day or two). Anywhere else, the app asks OpenStreetMap live. The areas are grouped into four regions in the Area menu: Sea to Sky and the Sunshine Coast; the Fraser Valley, Kamloops, the Okanagan and Williams Lake; the Kootenays, Revelstoke and Golden; and Calgary, Bragg Creek, Canmore and Kananaskis, and Banff in Alberta. The empty country between the riding towns isn't collected: use “Search this area” there. Forest Service roads from the BC government and BC recreation sites only cover BC (the Wildfires button covers all of Canada); in Alberta the forest roads, trailheads and parking come from OpenStreetMap only. You can also search any other place, or pan the map and tap “Search this area”. It finds paths and tracks that were <strong>first added to the map</strong> inside the period you pick.</p>
     <h3>Loam in the list</h3>
     <p>Each new trail shows its Loam moisture index right now, from the same Open-Meteo soil model as the trail details (trails within about 2 km share one reading, and the trail details use that same reading). Pick “Prime loam now” in the time row to see every named trail in the area, old or new, whose index is 40 to 59 right now (damp hero dirt). They show as teal dots on the map: tap one to load the whole trail.</p>
@@ -1434,12 +1466,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=358"></script>
-<script src="rotate.js?v=358"></script>
-<script src="official.js?v=358"></script>
-<script src="directions.js?v=358"></script>
-<script src="ratings.js?v=358"></script>
-<script src="ebike.js?v=358"></script>
+<script src="native.js?v=359"></script>
+<script src="rotate.js?v=359"></script>
+<script src="official.js?v=359"></script>
+<script src="directions.js?v=359"></script>
+<script src="ratings.js?v=359"></script>
+<script src="ebike.js?v=359"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3722,7 +3754,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=358").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=359").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -6971,38 +7003,38 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=358"></script>
-<script src="contours.js?v=358"></script>
-<script src="clouds.js?v=358"></script>
-<script src="smoke.js?v=358"></script>
-<script src="photo-slider.js?v=358"></script>
-<script src="winter.js?v=358"></script>
-<script src="hunting.js?v=358"></script>
-<script src="compass.js?v=358"></script>
-<script src="ski-points.js?v=358"></script>
-<script src="webcams.js?v=358"></script>
-<script src="offline.js?v=358"></script>
-<script src="ride-stats.js?v=358"></script>
-<script src="native-gps.js?v=358"></script>
-<script src="navigate.js?v=358"></script>
-<script src="planner.js?v=358"></script>
-<script src="loops.js?v=358"></script>
-<script src="ride-finds.js?v=358"></script>
-<script src="rides.js?v=358"></script>
-<script src="community.js?v=358"></script>
-<script src="account.js?v=358"></script>
-<script src="strava.js?v=358"></script>
-<script src="reports.js?v=358"></script>
-<script src="grades.js?v=358"></script>
-<script src="trail-photos.js?v=358"></script>
-<script src="visitors.js?v=358"></script>
-<script src="notify.js?v=358"></script>
-<script src="closures.js?v=358"></script>
-<script src="status.js?v=358"></script>
-<script src="areas.js?v=358"></script>
-<script src="alpine.js?v=358"></script>
-<script src="bikeparks.js?v=358"></script>
-<script src="photo-find.js?v=358"></script>
+<script src="map3d.js?v=359"></script>
+<script src="contours.js?v=359"></script>
+<script src="clouds.js?v=359"></script>
+<script src="smoke.js?v=359"></script>
+<script src="photo-slider.js?v=359"></script>
+<script src="winter.js?v=359"></script>
+<script src="hunting.js?v=359"></script>
+<script src="compass.js?v=359"></script>
+<script src="ski-points.js?v=359"></script>
+<script src="webcams.js?v=359"></script>
+<script src="offline.js?v=359"></script>
+<script src="ride-stats.js?v=359"></script>
+<script src="native-gps.js?v=359"></script>
+<script src="navigate.js?v=359"></script>
+<script src="planner.js?v=359"></script>
+<script src="loops.js?v=359"></script>
+<script src="ride-finds.js?v=359"></script>
+<script src="rides.js?v=359"></script>
+<script src="community.js?v=359"></script>
+<script src="account.js?v=359"></script>
+<script src="strava.js?v=359"></script>
+<script src="reports.js?v=359"></script>
+<script src="grades.js?v=359"></script>
+<script src="trail-photos.js?v=359"></script>
+<script src="visitors.js?v=359"></script>
+<script src="notify.js?v=359"></script>
+<script src="closures.js?v=359"></script>
+<script src="status.js?v=359"></script>
+<script src="areas.js?v=359"></script>
+<script src="alpine.js?v=359"></script>
+<script src="bikeparks.js?v=359"></script>
+<script src="photo-find.js?v=359"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

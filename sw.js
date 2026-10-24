@@ -4,10 +4,10 @@
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-165";
+const VERSION = "tf-166";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=358", "reports.js?v=358", "grades.js?v=358", "trail-photos.js?v=358", "status.js?v=358", "visitors.js?v=358", "map3d.js?v=358", "winter.js?v=358", "clouds.js?v=358", "smoke.js?v=358", "ski-points.js?v=358", "webcams.js?v=358", "hunting.js?v=358", "compass.js?v=358", "offline.js?v=358", "native-gps.js?v=358", "native.js?v=358", "navigate.js?v=358", "ride-stats.js?v=358", "ride-finds.js?v=358", "rides.js?v=358", "planner.js?v=358", "rotate.js?v=358", "photo-find.js?v=358", "ebike.js?v=358", "closures.js?v=358", "loops.js?v=358", "strava.js?v=358", "share.js?v=358", "community.js?v=358", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=359", "reports.js?v=359", "grades.js?v=359", "trail-photos.js?v=359", "status.js?v=359", "visitors.js?v=359", "map3d.js?v=359", "winter.js?v=359", "clouds.js?v=359", "smoke.js?v=359", "ski-points.js?v=359", "webcams.js?v=359", "hunting.js?v=359", "compass.js?v=359", "offline.js?v=359", "native-gps.js?v=359", "native.js?v=359", "navigate.js?v=359", "ride-stats.js?v=359", "ride-finds.js?v=359", "rides.js?v=359", "planner.js?v=359", "rotate.js?v=359", "photo-find.js?v=359", "ebike.js?v=359", "closures.js?v=359", "loops.js?v=359", "strava.js?v=359", "share.js?v=359", "community.js?v=359", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "vendor/leaflet-1.9.4.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
