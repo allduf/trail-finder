@@ -39,8 +39,6 @@ jobs:
           path: site
       - name: Add the data jobs' files
         working-directory: site
-        env:
-          SITE_DATA_READ_ONLY: "1"   # until the site-data branch exists, main's copies are published
         run: bash scripts/site-data.sh get
       - name: Add the Canada-wide data
         run: |
