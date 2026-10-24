@@ -56,6 +56,7 @@
 .cl-when { font-weight: 800; min-width: 6.2em; text-align: right; white-space: nowrap; }
 .cl-here { margin: 2px 0 0; font-size: .78rem; color: var(--muted); line-height: 1.3; }
 .cl-key { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0 0; color: var(--muted); font-size: .74rem; }
+.cl-key b { color: inherit; font-weight: 700; min-width: 2.6em; }
 .cl-key i { display: inline-block; width: 12px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; border: 1px solid #0003; }
 .cl-bar .cl-ico { padding: 4px 8px; }
 .cl-bar .cl-ico[aria-pressed=true] { background: #4a6fa5; border-color: #4a6fa5; color: #fff; }
@@ -645,9 +646,9 @@ onmessage = async (e) => {
     for (let i = 0; i <= HOURS; i++) {
       const d0 = new Date((T0 + i * 3600) * 1000);
       if (d0.getHours() === 0 || i === 0) {
-        const name = i === 0 ? "Now" : d0.toLocaleDateString("en-CA", { weekday: "short" });
-        s += `<line x1="${X(i).toFixed(1)}" x2="${X(i).toFixed(1)}" y1="${top}" y2="${sy + stripH}" stroke="#fff" stroke-opacity=".5" stroke-width=".8"/>`
-          + `<text x="${(X(i) + 2).toFixed(1)}" y="${sy + stripH + 11}" font-size="9" fill="currentColor">${name}</text>`;
+        const name = i === 0 ? "Now" : d0.toLocaleDateString("en-CA", { weekday: "short" });   // a day starting under "Now" gets its line only
+        s += `<line x1="${X(i).toFixed(1)}" x2="${X(i).toFixed(1)}" y1="${top}" y2="${sy + stripH}" stroke="#fff" stroke-opacity=".5" stroke-width=".8"/>`;
+        if (i === 0 || i >= 5) s += `<text x="${(X(i) + 2).toFixed(1)}" y="${sy + stripH + 11}" font-size="9" fill="currentColor">${name}</text>`;
       }
     }
     s += `<line class="cl-cur" x1="${X(hour).toFixed(1)}" x2="${X(hour).toFixed(1)}" y1="${top}" y2="${sy + stripH}" stroke="#e8590c" stroke-width="2"/>`;
@@ -686,9 +687,10 @@ onmessage = async (e) => {
       const words = kind === "route" ? { topWord: "Top", botWord: "Bottom", oneWord: "Route", what: "The top" } : { topWord: "Top", botWord: "Bottom", oneWord: "Here", what: "Here" };
       const c = chartSvg(d, lo, hi, words);
       el.innerHTML = `${el.id !== "clChart" ? "<h4>Clouds by height</h4>" : ""}${c.svg}
-        <div class="cl-key">${Object.values(STATES).map(([col, name]) => `<span><i style="background:${col}"></i>${name}</span>`).join("")}<span><i style="background:#3d5a86"></i>Night</span><span><i style="background:none;border:0;border-top:2px dashed #1971c2;height:0"></i>Freezing level</span></div>
+        <div class="cl-key"><b>Chart</b><span><i style="background:#fff"></i>Cloud (whiter = thicker)</span><span><i style="background:#6fa8dc"></i>Clear sky</span><span><i style="background:#3d5a86"></i>Night</span><span><i style="background:none;border:0;border-top:2px dashed #1971c2;height:0"></i>Freezing level</span><span><i style="background:#e8590c;height:3px;border:0"></i>${kind === "route" ? "Route top and bottom" : "This spot's height"}</span></div>
+        <div class="cl-key"><b>Strip</b>${Object.values(STATES).map(([col, name]) => `<span><i style="background:${col}"></i>${name}</span>`).join("")}</div>
         <p class="cl-sum">${summary(d, c.states, words.what)}</p>
-        <p class="cl-note">White is cloud at each height (more white, thicker). The strip shows ${kind === "route" ? "the top of the route" : "this spot"}. Tap the chart to see that hour on the map${on ? "" : " (with ☁ Clouds on)"}. Model forecast from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>.</p>`;
+        <p class="cl-note">Height goes up, time goes right. The strip under the chart says where ${kind === "route" ? "the top of the route" : "this spot"} is each hour. Tap the chart to see that hour on the map${on ? "" : " (with ☁ Clouds on)"}. Model forecast from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>.</p>`;
       const svg = el.querySelector("svg");
       const pick = (e) => {
         const b = svg.getBoundingClientRect(), x = ((e.clientX - b.left) / b.width) * c.W;
