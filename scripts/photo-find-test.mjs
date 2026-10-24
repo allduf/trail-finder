@@ -134,7 +134,7 @@ function how(d, c) {
     const fits = (d.cmp && d.cmp.ranks) || [], mine = fits.find(([t]) => norm(t) === norm(c.trail_name)), top = [...fits].sort((x, y) => y[1] - x[1])[0];
     const notes = d.cmp && d.cmp.detail ? ` [${d.cmp.detail.length > 220 ? d.cmp.detail.slice(0, 220) + "…" : d.cmp.detail}]` : "";
     out.push(`online check got ${d.before.length} trails${b ? `, this one ${b}${b === 1 ? "st" : b === 2 ? "nd" : b === 3 ? "rd" : "th"}` : ", not this one"}` +
-      (d.cmp ? (d.cmp.ok ? ` → ${d.cmp.searched ? "searched" : "no search (" + d.cmp.noSearch + ")"}, ${d.cmp.photos} photos` +
+      (d.cmp ? (d.cmp.ok ? ` → ${d.cmp.model ? d.cmp.model + ", " : ""}${d.cmp.searched ? "searched" : "no search (" + d.cmp.noSearch + ")"}, ${d.cmp.photos} photos` +
         (mine ? `, fit ${mine[1]}${mine[2] ? " with proof" : ""} for this one` : "") + (top && (!mine || top[0] !== mine[0]) ? ` (best: ${top[0]} ${top[1]}${top[2] ? " with proof" : ""})` : "") +
         `${d.cmp.close.length ? ", close: " + d.cmp.close.join(", ") : ""}` +
         // Trails further down the list that the AI says it knows the picture is from.

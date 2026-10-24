@@ -639,7 +639,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       if (my !== job) return;
       if (got && got.ok) { cmp = got; cmpKey = key; }
     }
-    if (TEST && TEST.diag) TEST.diag.cmp = got ? { ok: !!got.ok, searched: !!got.searched, noSearch: got.noSearch || "", photos: got.photos || 0, close: (got.close || []).map((c) => c.trail || "?"), why: got.why || "", detail: got.detail || "",
+    if (TEST && TEST.diag) TEST.diag.cmp = got ? { ok: !!got.ok, model: got.model || "", searched: !!got.searched, noSearch: got.noSearch || "", photos: got.photos || 0, why: got.why || "", detail: got.detail || "",
+      close: (got.close || []).map((c) => `${c.trail || "?"} ${c.close}${c.proof ? " with proof" : ""}${c.confirmed ? " (a rider's)" : ""}`),
       ranks: (got.ranks || []).map((k) => [k.trail, k.fit, !!k.proof]), other: (got.other || []).map((k) => [k.trail, k.fit]) } : { ok: false, why };
     if (!got || !got.ok) {
       out.hidden = false;
@@ -648,16 +649,19 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     }
     // Each trail's fit (0-1) moves it up or down; a found photo of the same place counts extra, a picture a rider
     // confirmed more. Above 0.6 the online check had to say what lines up (the same rock, tree, skyline): proof.
+    // "Best match" needs more: a fit of 0.85 or more with its proof (the free AI gave Pretty Slabs 0.7 "with proof" for an
+    // In and Out Burger picture, 2026-10-24).
+    const SURE_FIT = 0.85, sureFit = (k) => !!(k.proof && k.fit >= SURE_FIT);
     const fitOf = new Map((got.ranks || []).map((k) => [F.norm(String(k.trail).replace(/^\s*\d+[.)]\s*/, "").replace(/\s*\(.*$/, "")), k]));
     let next = shown.map((r) => {
       const k = fitOf.get(F.norm(r.name));
-      return k ? { ...r, s: r.s + 0.4 * (k.fit - 0.5) + (k.photo ? 0.1 : 0) + (k.confirmed && k.fit > 0.6 ? 0.15 : 0), web: k, sure: r.sure || !!(k.proof && k.fit > 0.6) } : r;
+      return k ? { ...r, s: r.s + 0.4 * (k.fit - 0.5) + (k.photo ? 0.1 : 0) + (k.confirmed && k.fit > 0.6 ? 0.15 : 0), web: k, sure: r.sure || sureFit(k) } : r;
     });
     // A trail further down that the AI knows the picture is from joins the list.
     for (const k of got.other || []) {
       const r = more.find((x) => F.norm(x.name) === F.norm(String(k.trail)));
       if (r && k.fit > 0.5 && !next.some((x) => F.norm(x.name) === F.norm(r.name)))
-        next.push({ ...r, s: r.s + 0.4 * (k.fit - 0.5), web: { fit: k.fit, why: k.why, proof: k.proof, photo: null }, sure: r.sure || !!(k.proof && k.fit > 0.6) });
+        next.push({ ...r, s: r.s + 0.4 * (k.fit - 0.5), web: { fit: k.fit, why: k.why, proof: k.proof, photo: null }, sure: r.sure || sureFit(k) });
     }
     // Photos from around the spot that look close, even if not the same place: the trails where they were taken (or the
     // one their page is about) go up, or join the list.
@@ -673,9 +677,12 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       for (const [i, g] of gs.entries()) {
         const web = { fit: c.close, why: c.why || why, proof: c.proof, photo: { img: c.img, page: c.page, title: c.title }, close: true };
         const have = next.find((r) => F.norm(r.name) === F.norm(g.name) && r.save && r.save.zone === g.zone.id);
-        // A photo the AI calls the same place puts its trail at the top.
-        const top = c.close >= 0.8 ? Math.max(...next.map((r) => r.s), STRONG) + 0.05 - 0.06 * i : 0;   // the nearest trail first
-        const same = !!c.proof && c.close >= 0.8;   // the same spot, with what lines up
+        // A photo the AI calls the same place puts its trail at the top: one a rider confirmed, or one whose page names the
+        // trail. A photo known only by where it was taken just lifts the trails there: the nearest one isn't necessarily the
+        // one in the picture (an online photo of Mount Currie put Gnar Log Bridge first for a Cream Puff picture).
+        const top = c.close >= 0.8 && c.trail ? Math.max(...next.map((r) => r.s), STRONG) + 0.05 - 0.06 * i : 0;
+        // "Best match" only from a picture a rider confirmed, as the very same spot, with what lines up.
+        const same = !!c.confirmed && !!c.proof && c.close >= 0.9;
         if (have) { if (!have.closeBy) { have.s = Math.max(have.s + 0.3 * c.close, top); have.closeBy = true; have.sure = have.sure || same; have.meta += " · " + why; if (!have.web || !have.web.photo) have.web = web; } }
         else next.push({ ...rowOf({ g, s: Math.max(0.45 + 0.45 * c.close, top), why: [why] }, "mixed"), web, closeBy: true, sure: same });
         found.push(g.name);
