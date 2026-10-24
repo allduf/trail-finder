@@ -74,6 +74,34 @@
   border: 1px solid rgba(255,255,255,.28); appearance: none; -webkit-appearance: none; }
 .brand .sport-pick:hover { background-color: rgba(255,255,255,.18); }
 .brand .sport-pick option { color: #15211a; background: #fff; }
+.map-tools #sportMapBtn { display: inline-flex; align-items: center; justify-content: center; gap: 2px; padding: 0 8px 0 9px; min-width: 52px; }
+.map-tools #sportMapBtn .spb-i { font-size: 1.25rem; line-height: 1; }
+.map-tools #sportMapBtn .spb-c { font-size: .6rem; opacity: .6; }
+.map-tools #sportMapBtn.open { background: var(--forest, #15211a); border-color: var(--forest, #15211a); color: #fff; }
+.sport-menu { position: absolute; z-index: 3; top: 48px; right: 0; width: 210px; box-sizing: border-box; padding: 8px; display: flex; flex-direction: column; gap: 6px;
+  background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow, 0 6px 24px rgba(0,0,0,.2)); }
+.sport-menu[hidden] { display: none; }
+.sport-menu .spm-head { font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 2px 4px 0; }
+.map-tools .sport-menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 8px 12px; border-radius: 12px; text-align: left;
+  font-size: 1rem; font-weight: 700; box-shadow: none; background: var(--chip, #fff); border: 1px solid var(--line); }
+.map-tools .sport-menu button span { font-size: 1.35rem; line-height: 1; width: 28px; text-align: center; }
+.map-tools .sport-menu button[aria-checked="true"] { background: var(--forest, #15211a); border-color: var(--forest, #15211a); color: #fff; }
+.map-tools .sport-menu button[aria-checked="true"]::after { content: "✓"; margin-left: auto; }
+@media (max-width: 760px) {
+  .map-tools #sportMapBtn { order: -1; width: 46px; min-width: 46px; padding: 0; }
+  .map-tools #sportMapBtn .spb-c { display: none; }
+  /* room for the sport chip: Skiing and Hunting have extra chips, so there Layers is its icon and count, Hunting's
+     Compass and Save point their symbols; a phone too narrow still scrolls the row sideways (the menus are fixed) */
+  .map-tools { overflow-x: auto; overflow-y: visible; }
+  body.sport-alt .map-tools #layersBtn > span:not(.layers-n) { display: none; }
+  body.sport-alt .map-tools #layersBtn { padding-left: 12px; padding-right: 10px; }
+  body.sport-hunt .map-tools { gap: 5px; }
+  body.sport-hunt .map-tools #compassBtn { font-size: 0; gap: 0; width: 44px; min-width: 44px; padding: 0; justify-content: center; }
+  body.sport-hunt .map-tools #compassBtn svg { width: 20px; height: 20px; }
+  body.sport-hunt .map-tools #spAdd { width: 44px; min-width: 44px; padding: 0; justify-content: center; }
+  body.sport-hunt .map-tools #spAdd::before { content: "📍"; font-size: 1.15rem; }
+  .sport-menu { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 60px); left: 12px; right: auto; width: min(260px, calc(100vw - 24px)); }
+}
 body.sport-alt .panel .modes, body.sport-alt .panel .pane, body.sport-alt #boxBtn, body.sport-alt .box-row-btns, body.sport-alt .tap-hint, body.sport-alt #boxRes,
 body.sport-alt #status, body.sport-alt #debug, body.sport-alt #list, body.sport-alt #detail, body.sport-alt #allBtn,
 body.sport-alt details.legend, body.sport-alt #searchArea { display: none !important; }
@@ -1962,5 +1990,52 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
     window.dispatchEvent(new CustomEvent("tf:sport", { detail: sport }));
   }
   sel.addEventListener("change", () => setSport(sel.value));
+
+  // ---------- the sport button on the map (alex: "make the sport mode easier to access, put an icon on the map") ----------
+  // Shows the current sport's icon; one tap opens the three sports, a second tap switches. On phones it is the first
+  // chip of the map's chip row, on wide screens it sits at the top of the map tools; the same on the 3D map.
+  const SPORT_UI = { mtb: ["🚵", "MTB"], ski: ["⛷", "Skiing"], hunt: ["🦌", "Hunting"] };
+  const tools = document.querySelector(".map-tools");
+  let sportBtn = null, sportMenu = null;
+  if (tools) {
+    sportBtn = document.createElement("button");
+    sportBtn.type = "button"; sportBtn.id = "sportMapBtn";
+    sportBtn.setAttribute("aria-haspopup", "true"); sportBtn.setAttribute("aria-expanded", "false"); sportBtn.setAttribute("aria-controls", "sportMenu");
+    sportMenu = document.createElement("div");
+    sportMenu.className = "sport-menu"; sportMenu.id = "sportMenu"; sportMenu.hidden = true;
+    sportMenu.setAttribute("role", "radiogroup"); sportMenu.setAttribute("aria-label", "Sport");
+    sportMenu.innerHTML = `<div class="spm-head">Sport</div>` + SPORTS.map((s) =>
+      `<button type="button" role="radio" data-sport="${s}" aria-checked="false"><span aria-hidden="true">${SPORT_UI[s][0]}</span>${SPORT_UI[s][1]}</button>`).join("");
+    tools.prepend(sportBtn, sportMenu);
+    const setOpen = (open) => {
+      sportMenu.hidden = !open;
+      sportBtn.setAttribute("aria-expanded", String(open));
+      sportBtn.classList.toggle("open", open);
+      tools.classList.toggle("menu-open", open);   // over the map key, like the Layers menu
+    };
+    sportBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const lb = document.getElementById("layersBtn");   // one menu at a time
+      if (lb && lb.getAttribute("aria-expanded") === "true") lb.click();
+      setOpen(sportMenu.hidden);
+    });
+    sportMenu.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-sport]");
+      if (!b) return;
+      setOpen(false);
+      if (b.dataset.sport !== sport) { sel.value = b.dataset.sport; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+    });
+    document.addEventListener("click", (e) => { if (!sportMenu.hidden && !sportMenu.contains(e.target) && !sportBtn.contains(e.target)) setOpen(false); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !sportMenu.hidden) { setOpen(false); sportBtn.focus(); } });
+  }
+  const syncSportBtn = () => {
+    if (!sportBtn) return;
+    const [icon, name] = SPORT_UI[sport];
+    sportBtn.innerHTML = `<span class="spb-i" aria-hidden="true">${icon}</span><span class="spb-c" aria-hidden="true">▾</span>`;
+    sportBtn.setAttribute("aria-label", `Sport: ${name}. Change sport`);
+    sportBtn.title = `Sport: ${name} (tap to change)`;
+    sportMenu.querySelectorAll("button[data-sport]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.sport === sport)));
+  };
+  window.addEventListener("tf:sport", syncSportBtn);
   setSport(sport);
 })();
