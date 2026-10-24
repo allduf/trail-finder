@@ -855,6 +855,12 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
   }
 
   let selToken = 0;
+  // Close the details and drop the highlight: the ✕, or a tap on the map away from any route (alex 2026-10-24).
+  function unselect() {
+    if (!selected) return;
+    selected = null; selToken++; $("skDetail").hidden = true; hoverLayer.clearLayers(); aboveLayer.clearLayers();
+    drawSki(); renderList(); renderForecast();
+  }
   function select(it, fly) {
     const group = Array.isArray(it) ? it : [it];
     const r = group[0];
@@ -902,7 +908,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
       ${isHut || r.area ? "" : `<div class="sk-row">${window.tfRide ? `<button type="button" class="btn primary" id="skFollow">▶ Follow this tour</button>` : ""}<button type="button" class="btn" id="skGpx">⬇ GPX</button></div>`}
       ${mine ? "" : `<div class="sk-sec" id="skPh"><h4>Photos</h4><p class="sk-note">Looking for photos…</p></div>
       <p class="sk-note">From ${src}</p>`}`;
-    d.querySelector(".sk-x").addEventListener("click", () => { selected = null; selToken++; d.hidden = true; hoverLayer.clearLayers(); aboveLayer.clearLayers(); drawSki(); renderList(); renderForecast(); });
+    d.querySelector(".sk-x").addEventListener("click", unselect);
     const fol = $("skFollow");
     if (fol) fol.addEventListener("click", () => { if (plan.on) setPlanning(false); window.tfRide.follow(r.info ? chain(group) : group.flatMap((x) => x.lines), title); });
     showNearSnow();
@@ -1096,7 +1102,19 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
     drawPlan(); renderPlan();
     if (!on && selected && selected.src === "plan" && window.tfPanelScrollTo) window.tfPanelScrollTo($("skPlan"));
   }
-  map.on("click", (e) => { if (sport === "ski" && plan.on) planAdd(e.latlng); });
+  // Taps on routes, huts, pins, webcams and stations stop here (they open their own details), so a click that reaches
+  // the map landed beside them. In 3D, map3d.js sends taps that miss every line to this same click.
+  let offTimer = 0;
+  map.on("click", (e) => {
+    if (sport !== "ski") return;
+    if (plan.on) { planAdd(e.latlng); return; }
+    if (!selected || document.body.classList.contains("sp-picking")) return;   // placing a saved point (ski-points.js)
+    clearTimeout(offTimer);
+    offTimer = setTimeout(unselect, 260);            // a double-click zooms instead
+  });
+  map.on("dblclick", () => clearTimeout(offTimer));
+  let dbl3d = null;
+  window.addEventListener("tf:map3d", () => { const gl = window.trailMap3d; if (gl && gl !== dbl3d) { dbl3d = gl; gl.on("dblclick", () => clearTimeout(offTimer)); } });
   $("skPlanBtn").addEventListener("click", () => setPlanning(!plan.on));
   $("skRecBtn").addEventListener("click", () => {
     if (!window.tfRide) return;

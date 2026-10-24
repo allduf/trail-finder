@@ -4,10 +4,10 @@
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-168";
+const VERSION = "tf-169";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=361", "reports.js?v=361", "grades.js?v=361", "trail-photos.js?v=361", "status.js?v=361", "visitors.js?v=361", "map3d.js?v=361", "ski-terrain.js?v=361", "winter.js?v=361", "clouds.js?v=361", "smoke.js?v=361", "ski-points.js?v=361", "webcams.js?v=361", "hunting.js?v=361", "compass.js?v=361", "offline.js?v=361", "native-gps.js?v=361", "native.js?v=361", "navigate.js?v=361", "ride-stats.js?v=361", "ride-finds.js?v=361", "rides.js?v=361", "planner.js?v=361", "rotate.js?v=361", "photo-find.js?v=361", "ebike.js?v=361", "closures.js?v=361", "loops.js?v=361", "strava.js?v=361", "share.js?v=361", "community.js?v=361", "ride-files.js?v=361", "rider-trails.js?v=361", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=362", "reports.js?v=362", "grades.js?v=362", "trail-photos.js?v=362", "status.js?v=362", "visitors.js?v=362", "map3d.js?v=362", "ski-terrain.js?v=362", "winter.js?v=362", "clouds.js?v=362", "smoke.js?v=362", "ski-points.js?v=362", "webcams.js?v=362", "hunting.js?v=362", "compass.js?v=362", "offline.js?v=362", "native-gps.js?v=362", "native.js?v=362", "navigate.js?v=362", "ride-stats.js?v=362", "ride-finds.js?v=362", "rides.js?v=362", "planner.js?v=362", "rotate.js?v=362", "photo-find.js?v=362", "ebike.js?v=362", "closures.js?v=362", "loops.js?v=362", "strava.js?v=362", "share.js?v=362", "community.js?v=362", "ride-files.js?v=362", "rider-trails.js?v=362", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "vendor/leaflet-1.9.4.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
