@@ -1186,7 +1186,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
 /* the phone tab bar is styled in theme.css; hidden here so it never shows unstyled (e.g. with an older cached theme.css) */
 .tabbar { display: none; }
 </style>
-<link rel="stylesheet" href="theme.css?v=9">
+<link rel="stylesheet" href="theme.css?v=10">
 
 <div class="app">
   <div class="mapwrap">
@@ -1199,8 +1199,17 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <div class="map-tools">
       <button id="layersBtn" class="layers-btn" type="button" aria-expanded="false" aria-controls="layersMenu"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 3 2.5 8 12 13l9.5-5z M2.5 12 12 17l9.5-5 M2.5 16 12 21l9.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Layers</span><span class="layers-n" id="layersN"></span></button>
       <div class="layers-menu" id="layersMenu" role="group" aria-label="Map layers" hidden>
+        <div class="lm-top"><b>Layers</b><button type="button" id="lmClose" aria-label="Close layers">✕</button></div>
         <div class="lm-style"><div class="lm-head">Map style</div>
-        <select id="basemap" aria-label="Map style">
+        <!-- 4 styles to pick (alex, 2026-10-24: "do we actually need 10?"). The select stays, hidden: the other styles are
+             still the fallbacks when one doesn't load, and the vector map is what Offline maps shows with no signal. -->
+        <div class="lm-tiles" id="lmTiles" role="radiogroup" aria-label="Map style">
+        <button type="button" role="radio" data-base="osm" class="t-osm"><span>Map</span></button>
+        <button type="button" role="radio" data-base="topo" class="t-topo"><span>Topo</span></button>
+        <button type="button" role="radio" data-base="sat" class="t-sat"><span>Satellite</span></button>
+        <button type="button" role="radio" data-base="sathybrid" class="t-sathybrid"><span>Sat + names</span></button>
+        </div>
+        <select id="basemap" aria-label="Map style" hidden>
         <option value="osm">Standard</option>
         <option value="cyclosm">CyclOSM</option>
         <option value="hot">Humanitarian</option>
@@ -1791,6 +1800,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     baseLayer = next.addTo(map);
     $("basemap").value = use;
     satSync(use);
+    syncTiles(use);
     if (remember) store.set("basemap4", key);
     const note = $("mapNote");
     note.hidden = use === key;
@@ -1798,7 +1808,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
       ? "The official OpenStreetMap map only loads on a website, not in a file opened from your computer. Showing the closest copy that works."
       : "That map style didn't load here, so a similar one is shown.";
   }
-  setBasemap(store.get("basemap4", "osm"));
+  // The 4 styles riders pick from; a style saved from before (CyclOSM, Light streets…) opens as Map.
+  const PICKS = ["osm", "topo", "sat", "sathybrid"];
+  function syncTiles(k) {
+    const cur = PICKS.includes(k) ? k : "osm";
+    document.querySelectorAll("#lmTiles [data-base]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.base === cur)));
+  }
+  $("lmTiles").addEventListener("click", (e) => { const b = e.target.closest("[data-base]"); if (b) setBasemap(b.dataset.base, true); });
+  { const saved = store.get("basemap4", "osm"); setBasemap(PICKS.includes(saved) ? saved : "osm", !PICKS.includes(saved)); }
   $("basemap").addEventListener("change", (e) => setBasemap(e.target.value, true));
   // One tap to satellite photos and back to the last map style.
   function isSat(k) { return k === "sat" || k === "sathybrid"; }
@@ -1806,7 +1823,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
   $("satBtn").addEventListener("click", () => {
     const cur = $("basemap").value;
     if (!isSat(cur)) store.set("basemapPrev", cur);
-    setBasemap(isSat(cur) ? store.get("basemapPrev", "osm") : "sathybrid", true);
+    const prev = store.get("basemapPrev", "osm");
+    setBasemap(isSat(cur) ? (PICKS.includes(prev) ? prev : "osm") : "sathybrid", true);
   });
   window.tfSetBasemap = setBasemap;   // offline.js opens the saved vector map when there's no signal
 
@@ -6046,11 +6064,13 @@ out body;`;
   function setLayersOpen(open) {
     if (open && phoneMQ.matches && sheet.snap !== "peek") snapTo("peek");   // phones: the menu gets the screen, not a sliver above the sheet
     layersMenu.hidden = !open;
+    document.body.classList.toggle("lm-open", open);   // phones: the panel steps aside while Layers fills the screen
     layersBtn.setAttribute("aria-expanded", String(open));
     layersBtn.classList.toggle("open", open);
     layersBtn.parentElement.classList.toggle("menu-open", open);
   }
   layersBtn.addEventListener("click", () => setLayersOpen(layersMenu.hidden));
+  $("lmClose").addEventListener("click", () => setLayersOpen(false));
   document.addEventListener("click", (e) => { if (!layersMenu.hidden && !layersMenu.contains(e.target) && !layersBtn.contains(e.target)) setLayersOpen(false); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !layersMenu.hidden) { setLayersOpen(false); layersBtn.focus(); } });
   $("offlineBtn").addEventListener("click", () => setLayersOpen(false));   // Offline maps opens its own view

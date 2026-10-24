@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-24", "text": "Layers opens as a full panel on phones, with 4 map styles: Map, Topo, Satellite, Satellite + names"},
     {"date": "2026-10-24", "text": "Trail details open as a half sheet over the map, with loam, length, down and up at the top"},
     {"date": "2026-10-24", "text": "A short What's new list when the app opens (you're reading it)"},
     {"date": "2026-10-24", "text": "Sport button on the map: MTB, Skiing or Hunting in one tap"},
