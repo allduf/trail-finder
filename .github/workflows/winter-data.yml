@@ -47,6 +47,7 @@ jobs:
         env:
           ONLY: ${{ github.event.schedule == '23 */2 * * *' && 'avy,groom' || (github.event.schedule == '41 10 * * *' && 'ski,canada' || '') }}
           PROBE: ${{ github.event_name == 'pull_request' && '1' || '' }}
+          CANADA_OSM_MIN: ${{ github.event_name == 'pull_request' && '8' || '30' }}   # Canada-wide OpenStreetMap: minutes a run (the rest keep their last data)
         run: node scripts/build-winter.mjs
       - name: Avalanche terrain class of each ski route (with the ski routes; a failure keeps the last file)
         if: github.event.schedule != '23 */2 * * *'

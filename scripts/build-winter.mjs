@@ -91,12 +91,13 @@ function simplify(pts, tol = 8) {
 const flat = (pts, tol) => simplify(pts, tol).flatMap((p) => [round(p.lat), round(p.lon)]);
 
 // ---------- OpenStreetMap (Overpass) ----------
-async function overpass(query) {
+// wait: how long one answer may take (a Canada-wide province query takes minutes); tries: how many times to ask.
+async function overpass(query, { wait = 240000, tries = 6 } = {}) {
   let lastErr;
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < tries; attempt++) {
     const url = OVERPASS[attempt % OVERPASS.length], host = new URL(url).host;
     try {
-      const res = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(query), headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA }, signal: AbortSignal.timeout(240000) });
+      const res = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(query), headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA }, signal: AbortSignal.timeout(wait) });
       if (res.ok) {
         const json = await res.json();
         if (json.remark && /error/i.test(json.remark)) throw Object.assign(new Error(`${host}: ${json.remark}`), { heavy: true });
@@ -109,9 +110,10 @@ async function overpass(query) {
       if (e.heavy || (/HTTP 4\d\d/.test(e.message) && !/HTTP 429/.test(e.message))) throw e;
       lastErr = e;
     }
-    const wait = Math.min(30000 * 2 ** Math.floor(attempt / OVERPASS.length), 240000);
-    log(`    ${lastErr.message}; trying again in ${Math.round(wait / 1000)} s`);
-    await sleep(wait);
+    if (attempt === tries - 1) break;
+    const pause = Math.min(30000 * 2 ** Math.floor(attempt / OVERPASS.length), 240000);
+    log(`    ${lastErr.message}; trying again in ${Math.round(pause / 1000)} s`);
+    await sleep(pause);
   }
   throw lastErr;
 }
@@ -471,7 +473,7 @@ const firstPt = (r) => (r.g ? [r.g[0][0], r.g[0][1]] : [r.lat, r.lon]);
 const tileOf = (lat, lon) => `${Math.floor(lat / TILE_LAT) * TILE_LAT}_${Math.floor(lon / TILE_LON) * TILE_LON}`;
 // Ungroomed nordic only: a groomed cross-country network isn't backcountry.
 const wildNordic = (r) => r.type !== "nordic" || /backcountry|no/.test(r.tags?.["piste:grooming"] || "");
-const tourQuery = (iso) => `[out:json][timeout:600];
+const tourQuery = (iso) => `[out:json][timeout:300];
 area["ISO3166-2"="CA-${iso}"]->.p;
 (
   way["piste:type"~"^(skitour|hike)$"](area.p);
@@ -485,25 +487,40 @@ area["ISO3166-2"="CA-${iso}"]->.p;
   wr["landuse"="winter_sports"](area.p);
 );
 out tags geom qt;`;
+// Canada-wide Overpass queries are slow (some provinces take many minutes), so the job gives them CANADA_OSM_MIN
+// minutes a night: the provinces done longest ago go first, the ones not reached keep their last data and go first
+// the next night. Peak names for unnamed routes come out of the same time.
+const CANADA_OSM_MIN = Number(process.env.CANADA_OSM_MIN || 30);
+const canadaT0 = { t: 0 };
+const canadaLate = () => (Date.now() - canadaT0.t) / 60000 > CANADA_OSM_MIN;
 async function buildCanadaOsm(old) {
-  const routes = [], huts = [], failed = [];
-  for (const pv of PROVINCES) {
+  const routes = [], huts = [], failed = [], skipped = [], osmPv = { ...old.osmPv };
+  canadaT0.t = Date.now();
+  const keepOld = (pv) => {
+    routes.push(...old.routes.filter((r) => r.src === "osm" && r.pv === pv));
+    huts.push(...old.huts.filter((h) => h.pv === pv));
+  };
+  for (const pv of [...PROVINCES].sort((a, b) => (osmPv[a] || "").localeCompare(osmPv[b] || ""))) {
+    if (canadaLate()) { skipped.push(pv); keepOld(pv); continue; }
     log(`OpenStreetMap backcountry routes and huts in CA-${pv}`);
+    const t = Date.now();
     try {
-      const got = osmRoutes((await overpass(tourQuery(pv))).elements || []);
+      const got = osmRoutes((await overpass(tourQuery(pv), { wait: 330000, tries: 2 })).elements || []);
       for (const r of got.routes) if (BACKCOUNTRY.has(r.type) && wildNordic(r)) routes.push({ ...r, pv });
       for (const h of got.huts) huts.push({ ...h, pv });
+      osmPv[pv] = builtAt;
+      log(`  CA-${pv} done in ${Math.round((Date.now() - t) / 1000)} s`);
     } catch (e) {
       failed.push(pv);
       log(`  CA-${pv} failed: ${e.message}; keeping its last data`);
-      routes.push(...old.routes.filter((r) => r.src === "osm" && r.pv === pv));
-      huts.push(...old.huts.filter((h) => h.pv === pv));
+      keepOld(pv);
     }
   }
-  if (failed.length === PROVINCES.length) throw new Error("every province failed");
+  if (skipped.length) log(`  out of time (${CANADA_OSM_MIN} min): ${skipped.join(", ")} keep their last data and go first next time`);
+  if (failed.length + skipped.length === PROVINCES.length) throw new Error("no province done");
   // A route in two provinces comes back twice.
   const uniq = (list) => [...new Map(list.map((x) => [x.id, x])).values()];
-  return { routes: uniq(routes), huts: uniq(huts), failed };
+  return { routes: uniq(routes), huts: uniq(huts), failed, osmPv };
 }
 
 // EPSG:32198 (NAD83 / Quebec Lambert, conformal conic) -> lat, lon. Snyder's inverse formulas.
@@ -619,10 +636,11 @@ function bcBackcountry(list) {
   return [...out.values()];
 }
 async function buildCanada(home) {
-  const old = { routes: [], huts: [], starts: [], sources: {} };
+  const old = { routes: [], huts: [], starts: [], sources: {}, osmPv: {} };
   const idx = (() => { try { return JSON.parse(readFileSync(new URL("index.json", CANADA_DIR), "utf8")); } catch { return null; } })();
   if (idx) {
     old.sources = idx.sources || {};
+    old.osmPv = idx.osmPv || {};
     for (const k of Object.keys(idx.tiles || {})) {
       try { const t = JSON.parse(readFileSync(new URL(k + ".json", CANADA_DIR), "utf8")); old.routes.push(...(t.routes || [])); old.huts.push(...(t.huts || [])); old.starts.push(...(t.starts || [])); } catch {}
     }
@@ -653,8 +671,10 @@ async function buildCanada(home) {
       const boxes = new Map();
       for (const r of routes) if (!r.name && r.g) { const k = tileOf(r.g[0][0], r.g[0][1]); const [la, lo] = k.split("_").map(Number); boxes.set(k, [la, lo, la + TILE_LAT, lo + TILE_LON]); }
       const peaks = [];
+      if (canadaLate()) throw new Error("out of time");
       for (const [s, w, n, e] of boxes.values()) {
-        const json = await overpass(`[out:json][timeout:180][bbox:${s},${w},${n},${e}];node["natural"~"^(peak|volcano)$"]["name"];out;`);
+        if (canadaLate()) throw new Error("out of time");
+        const json = await overpass(`[out:json][timeout:180][bbox:${s},${w},${n},${e}];node["natural"~"^(peak|volcano)$"]["name"];out;`, { tries: 2 });
         for (const el of json.elements || []) peaks.push({ name: el.tags.name, lat: el.lat, lon: el.lon });
       }
       log(`  ${peaks.length} named peaks in ${boxes.size} squares`);
@@ -665,9 +685,9 @@ async function buildCanada(home) {
       for (const r of routes) if (!r.name && !r.near && was.has(r.id)) r.near = was.get(r.id);
     }
   }
-  return { routes, huts, starts, sources };
+  return { routes, huts, starts, sources, osmPv: got.osm ? got.osm.osmPv : old.osmPv };
 }
-function writeCanada({ routes, huts, starts, sources }) {
+function writeCanada({ routes, huts, starts, sources, osmPv }) {
   const tiles = new Map();
   const add = (kind, x) => {
     const [la, lo] = firstPt(x), k = tileOf(la, lo);
@@ -692,7 +712,7 @@ function writeCanada({ routes, huts, starts, sources }) {
     index[k] = { r: t.routes.length, h: t.huts.length + t.starts.length, kb: Math.ceil(body.length / 1024), box: [s, w, n, e].map((v) => +v.toFixed(3)) };
     t.routes.forEach((r) => { const c = r.src + "/" + r.type; count[c] = (count[c] || 0) + 1; });
   }
-  writeFileSync(new URL("index.json", CANADA_DIR), JSON.stringify({ builtAt, sources, home: REGIONS, tile: [TILE_LAT, TILE_LON], tiles: index }));
+  writeFileSync(new URL("index.json", CANADA_DIR), JSON.stringify({ builtAt, sources, osmPv, home: REGIONS, tile: [TILE_LAT, TILE_LON], tiles: index }));
   log(`data/ski-canada: ${routes.length} routes, ${huts.length} huts, ${starts.length} route starts in ${tiles.size} squares, ${(bytes / 1e6).toFixed(2)} MB`);
   log(`  ${Object.entries(count).sort().map(([k, v]) => `${k} ${v}`).join(", ")}`);
 }
