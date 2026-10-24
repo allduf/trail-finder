@@ -253,11 +253,12 @@
     return p;
   }
   const mkCanvas = (n) => { if (window.OffscreenCanvas) return new OffscreenCanvas(n, n); const c = document.createElement("canvas"); c.width = c.height = n; return c; };
-  const toPng = (cv) => (cv.convertToBlob ? cv.convertToBlob({ type: "image/png" }) : new Promise((ok) => cv.toBlob(ok, "image/png")));
+  // Returns an ImageBitmap, not PNG bytes: encoding on the page waits on the 3D map's GPU work for every tile and
+  // made turning the 3D map stall (see map3d.js).
   async function fogTile(h, z, x, y) {
-    const H = gridAt(h), cv = mkCanvas(256), c = cv.getContext("2d");
+    const H = gridAt(h), img = new ImageData(256, 256);
     if (H) {
-      const e = await dem(z, x, y).catch(() => null), img = c.createImageData(256, 256), px = img.data, n = 2 ** z;
+      const e = await dem(z, x, y).catch(() => null), px = img.data, n = 2 ** z;
       const levG = LEVELS.map((_, k) => H.g[V.lev + k]), levs = new Array(LEVELS.length);
       for (let py = 0; py < 256; py++) {
         const lat = unmerc((y + (py + 0.5) / 256) / n);
@@ -278,9 +279,8 @@
           px[o] = r; px[o + 1] = g; px[o + 2] = b; px[o + 3] = Math.round(clamp01(a) * at.fade * 255);
         }
       }
-      c.putImageData(img, 0, 0);
     }
-    return (await toPng(cv)).arrayBuffer();
+    return createImageBitmap(img);
   }
   let protocol = false;
   const tilesUrl = () => `tfcloud://${field ? field.ver : 0}/${hour}/{z}/{x}/{y}`;
@@ -307,12 +307,14 @@
     try { apply(); } catch { gl.once("style.load", () => { try { apply(); } catch {} }); }
   }
   window.addEventListener("tf:map3d", () => setTimeout(() => { sync3d(); if (on) refresh(); }, 0));
+  if ($("btn3d")) $("btn3d").addEventListener("click", () => setTimeout(() => { if (on) { refresh(); draw(); } }, 50));
 
   // ---------- drawing ----------
   let draw3dTimer = 0;
   function draw() {
     if (!on || !field) return;
-    const p = paint2d();
+    // The flat picture only when the flat map shows (it's drawn again on the way back from 3D).
+    const p = map.getContainer().classList.contains("is3d") ? null : paint2d();
     if (p) {
       if (!overlay) overlay = L.imageOverlay(p.url, p.bounds, { pane: "clouds", interactive: false, attribution: ATTR }).addTo(map);
       else { overlay.setUrl(p.url); overlay.setBounds(L.latLngBounds(p.bounds)); if (!map.hasLayer(overlay)) overlay.addTo(map); }
