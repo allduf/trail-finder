@@ -1,0 +1,16 @@
+{
+  "note": "Live webcams shown in Skiing (webcams.js). Hand-edited. Feeds are never copied: 'embed' is the owner's own embeddable player (iframe), 'img' is the owner's live picture shown from their server, and 'page' is the owner's webcam page. Spots are the camera's real location, from OpenStreetMap lift stations and lodges.",
+  "owners": {
+    "wb": { "name": "Whistler Blackcomb", "page": "https://www.whistlerblackcomb.com/the-mountain/mountain-conditions/mountain-cams.aspx", "credit": "Whistler Blackcomb (Vail Resorts), streamed by Brownrice" }
+  },
+  "cams": [
+    { "id": "wb-peak", "owner": "wb", "resort": "Whistler Blackcomb", "kind": "resort", "name": "Whistler Peak", "view": "Looks south-west to Black Tusk", "lat": 50.05924, "lon": -122.95745, "ele": 2182, "where": "Top of Peak Express", "embed": "https://player.brownrice.com/embed/whistlerpeak" },
+    { "id": "wb-roundhouse", "owner": "wb", "resort": "Whistler Blackcomb", "kind": "resort", "name": "Roundhouse Lodge, Whistler Mountain", "lat": 50.06996, "lon": -122.94631, "ele": 1850, "where": "Roundhouse Lodge", "embed": "https://player.brownrice.com/embed/whistlerroundhouse" },
+    { "id": "wb-7th", "owner": "wb", "resort": "Whistler Blackcomb", "kind": "resort", "name": "7th Heaven, Blackcomb Mountain", "lat": 50.09169, "lon": -122.88403, "ele": 2284, "where": "Top of 7th Heaven Express, by Horstman Hut", "embed": "https://player.brownrice.com/embed/whistler7thheaven" },
+    { "id": "wb-glacier", "owner": "wb", "resort": "Whistler Blackcomb", "kind": "resort", "name": "Glacier Express, Blackcomb Mountain", "lat": 50.09582, "lon": -122.88123, "ele": 2130, "where": "Top of Glacier Express", "embed": "https://player.brownrice.com/embed/whistlerglacier" },
+    { "id": "wb-rendezvous", "owner": "wb", "resort": "Whistler Blackcomb", "kind": "resort", "name": "Rendezvous Lodge, Blackcomb Mountain", "lat": 50.09641, "lon": -122.90147, "ele": 1860, "where": "Rendezvous Lodge, top of Blackcomb Gondola", "embed": "https://player.brownrice.com/embed/whistlerblackcomb" },
+    { "id": "wb-village", "owner": "wb", "resort": "Whistler Blackcomb", "kind": "resort", "name": "Whistler Village", "lat": 50.11285, "lon": -122.95332, "ele": 675, "where": "Bottom of Fitzsimmons Express", "embed": "https://player.brownrice.com/embed/whistlervillagefitz" },
+    { "id": "wb-upper", "owner": "wb", "resort": "Whistler Blackcomb", "kind": "resort", "name": "Blackcomb Base, Upper Village", "lat": 50.11562, "lon": -122.94783, "ele": 685, "where": "Blackcomb Base", "embed": "https://player.brownrice.com/embed/whistlervillage" },
+    { "id": "wb-creekside", "owner": "wb", "resort": "Whistler Blackcomb", "kind": "resort", "name": "Whistler Creekside", "lat": 50.09367, "lon": -122.98877, "ele": 673, "where": "Bottom of Creekside Gondola", "embed": "https://player.brownrice.com/embed/whistlercreekside" }
+  ]
+}
