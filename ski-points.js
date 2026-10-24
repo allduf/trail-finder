@@ -608,7 +608,10 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     renderLog();
     if (!logDlg.open) logDlg.showModal();
   }
-  window.tfPoints = { add: startPick, markTruck, backToTruck, openLog, hasTruck: () => all.some((p) => sportOf(p) === "hunt" && p.kind === "truck") };
+  // Compass mode (compass.js): a new point at a place it worked out (the rangefinder's target), and the point being guided to.
+  const addAt = (lat, lon, preset) => { stopPick(); setPins(true); edit(null, { lat, lon }, preset); };
+  const guiding = () => (guideTo ? { lat: guideTo.lat, lon: guideTo.lon, name: guideTo.name } : null);
+  window.tfPoints = { add: startPick, addAt, guiding, markTruck, backToTruck, openLog, hasTruck: () => all.some((p) => sportOf(p) === "hunt" && p.kind === "truck") };
 
   // ---------- sharing ----------
   const shareLink = (p) => `${location.origin}${location.pathname}#pin=${p.lat.toFixed(5)},${p.lon.toFixed(5)},${sportOf(p)},${p.kind || ""},${encodeURIComponent(p.name)}`;
