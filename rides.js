@@ -221,7 +221,9 @@ body.sport-alt #ridesBtn { display: none !important; }
       line.bindTooltip(`🆕 ${esc(f.name || "Possible new trail")} · ${F.fmtM(f.m)}`, { sticky: true, direction: "top", offset: [0, -8] });
       const box = document.createElement("div");
       box.innerHTML = `<strong>🆕 ${esc(f.name || "Possible new trail")}</strong><br>${F.facts(f)}<br><small>Not on OpenStreetMap yet. Found on your ride <a href="ride.html#ride/${encodeURIComponent(f.ride)}">${esc(f.title || "ride")}</a>, ${fmtDay(f.at)}.</small>
-<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><a href="${F.osmEdit(f)}" target="_blank" rel="noopener">Add to OpenStreetMap</a> · <a href="#" data-rm>Remove</a></div>`;
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><a href="#" data-share>➕ Add for everyone</a> · <a href="${F.osmEdit(f)}" target="_blank" rel="noopener">Add to OpenStreetMap</a> · <a href="#" data-rm>Remove</a></div>`;
+      const sh = box.querySelector("[data-share]");
+      sh.addEventListener("click", (e) => { e.preventDefault(); map.closePopup(); if (window.tfRiderTrails) window.tfRiderTrails.fromFind(f); });
       box.querySelector("[data-rm]").addEventListener("click", (e) => {
         e.preventDefault();
         if (confirm("Remove this possible new trail from your saved ones?")) { map.closePopup(); F.remove(f.id); }
