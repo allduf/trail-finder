@@ -2,7 +2,7 @@ name: Hunting data
 
 # Once a month, collect the map layers for Hunting (scripts/build-hunting.mjs): BC and Alberta Wildlife Management
 # Units, BC Limited Entry Hunting zones, and the parks, reserves, towns, closures and public land with their own hunting
-# rules, and BC's open seasons per unit from the regulations synopsis PDFs, into data/hunting/*.json. On a pull request that changes the script it only does a test run, without saving.
+# rules, BC's open seasons per unit from the regulations synopsis PDFs, draw odds and harvest stats, into data/hunting/*.json. On a pull request that changes the script it only does a test run, without saving.
 on:
   schedule:
     - cron: "17 10 2 * *"   # the 2nd of each month (LEH zones change each year, parks and closures now and then)
