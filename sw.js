@@ -4,10 +4,10 @@
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-143";
+const VERSION = "tf-145";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=336", "reports.js?v=336", "grades.js?v=336", "trail-photos.js?v=336", "status.js?v=336", "visitors.js?v=336", "map3d.js?v=336", "winter.js?v=336", "ski-points.js?v=336", "hunting.js?v=336", "offline.js?v=336", "native-gps.js?v=336", "native.js?v=336", "navigate.js?v=336", "ride-stats.js?v=336", "ride-finds.js?v=336", "rides.js?v=336", "planner.js?v=336", "rotate.js?v=336", "photo-find.js?v=336", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=338", "reports.js?v=338", "grades.js?v=338", "trail-photos.js?v=338", "status.js?v=338", "visitors.js?v=338", "map3d.js?v=338", "winter.js?v=338", "ski-points.js?v=338", "hunting.js?v=338", "offline.js?v=338", "native-gps.js?v=338", "native.js?v=338", "navigate.js?v=338", "ride-stats.js?v=338", "ride-finds.js?v=338", "rides.js?v=338", "planner.js?v=338", "rotate.js?v=338", "photo-find.js?v=338", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
