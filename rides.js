@@ -306,6 +306,7 @@ body.sport-alt #ridesBtn { display: none !important; }
   // Rides saved or imported in ride.html (another tab, or coming back to this page) show up when this page is seen again.
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh(); });
   window.addEventListener("pageshow", (e) => { if (e.persisted) refresh(); });
+  window.addEventListener("tf:rides-imported", () => refresh());   // new rides from Strava (strava.js)
   if (!document.body.classList.contains("sport-alt")) layer.addTo(map);
   refresh();
 })();
