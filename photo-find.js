@@ -105,7 +105,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
 .pf .pf-note { font-size: .85rem; color: var(--muted); margin: 10px 0 0; }
 .pf .pf-note:empty { display: none; }
 .pf-pin { font-size: 22px; line-height: 30px; text-align: center; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
-@media (max-width: 760px) { .pf { padding: 0; align-items: end; } .pf .card { max-height: 94%; border-radius: 14px 14px 0 0; padding-bottom: calc(18px + env(safe-area-inset-bottom)); } }
+@media (max-width: 760px) { .pf { padding: 0; align-items: end; } .pf .card { max-height: 94%; border-radius: 14px 14px 0 0; padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
+  .pf.kb .card { max-height: 100%; padding-bottom: 12px; } }
 `;
   document.head.append(css);
 
@@ -152,12 +153,39 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     $("pfPaste").hidden = !(navigator.clipboard && navigator.clipboard.read);
     setTimeout(() => $("pfPick").focus(), 0);
   }
-  function close() { box.hidden = true; }
+  function close() { box.hidden = true; fitKeyboard(); }
   window.tfPhotoFind = { open };
   $("photoFindBtn").addEventListener("click", open);
   $("pfClose").addEventListener("click", close);
   box.addEventListener("click", (e) => { if (e.target === box) close(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !box.hidden) { e.stopPropagation(); close(); } }, true);
+
+  // The phone keyboard covers the bottom of the screen, and the page can't scroll up to show the box being typed in (the
+  // app snaps the page back; the iPhone app doesn't scroll at all): while it's up, the window fits the part of the screen
+  // above it, and that box scrolls into view inside the card (alex, 2026-10-24: "Can I see what I'm typing").
+  const card = box.querySelector(".card");
+  let typing = null;
+  function fitKeyboard() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const up = !box.hidden && window.innerHeight - vv.height * vv.scale > 120;   // the keyboard, not the browser's bars
+    box.classList.toggle("kb", up);
+    box.style.top = up ? vv.offsetTop + "px" : "";
+    box.style.height = up ? vv.height + "px" : "";
+    box.style.bottom = up ? "auto" : "";
+    if (!up || !typing || document.activeElement !== typing) return;
+    const c = card.getBoundingClientRect(), r = typing.getBoundingClientRect();
+    // Its bottom into view (or its top, when it's taller than the room left).
+    if (r.bottom > c.bottom - 12) card.scrollTop += Math.min(r.bottom - c.bottom + 12, r.top - c.top - 12);
+    else if (r.top < c.top + 12) card.scrollTop -= c.top + 12 - r.top;
+  }
+  if (window.visualViewport) { visualViewport.addEventListener("resize", fitKeyboard); visualViewport.addEventListener("scroll", fitKeyboard); }
+  box.addEventListener("focusin", (e) => {
+    if (!e.target.matches("textarea, select, input:not([type=file])")) return;
+    typing = e.target;
+    [50, 350, 700].forEach((ms) => setTimeout(fitKeyboard, ms));   // the keyboard slides up over about 300 ms
+  });
+  box.addEventListener("focusout", () => { typing = null; setTimeout(fitKeyboard, 350); });
 
   // ---------- getting the picture ----------
   $("pfPick").addEventListener("click", () => $("pfFile").click());
