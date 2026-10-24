@@ -6,12 +6,16 @@
 // Wikimedia Commons photos near each trail) and compares them with the rider's picture. Setup (once): Supabase dashboard → Edge Functions → deploy this file (it's deployed as
 // "smooth-worker"; AI_FN in photo-find.js must match), turn "Verify JWT" off; then Edge Functions → Secrets → add
 // GEMINI_API_KEY (free from aistudio.google.com/apikey). Optional secret GEMINI_MODEL picks another model.
-// Optional secret VISION_API_KEY (Google Cloud Vision, 1,000 pictures a month free): a reverse image search first, which
-// finds the pages that show the same picture (or video frame) online; their titles often name the trail.
+// Optional secret VISION_API_KEY (Google Cloud Vision, 1,000 pictures a month free, then billed): a reverse image search
+// first, which finds the pages that show the same picture (or video frame) online; their titles often name the trail. Make
+// that key in a Google Cloud project of its own with billing on: billing on the Gemini key's project ends Gemini's free tier.
+// Google can't stop Vision at the free 1,000 (its quotas are per minute; a budget only emails), so this function does: one
+// picture per search, at most 32 a day (32 × 31 = 992 a month), and none when the shared count can't be checked.
 // Free-tier pictures may be used by Google to improve its products; a paid Google key stops that.
 // Daily limits for the whole app (supabase/photo-ai-limits.sql, run once): VISION_PER_DAY reverse searches (30: the
-// 1,000 a month Google gives free), AI_PER_DAY looks and COMPARE_PER_DAY online checks; each can be changed with a
-// secret of that name. Until that SQL is run, each running copy of the function keeps its own count.
+// 1,000 a month Google gives free; never more than 32), AI_PER_DAY looks and COMPARE_PER_DAY online checks; each can be
+// changed (lowered, for Vision) with a secret of that name. Until that SQL is run, each running copy of the function keeps
+// its own count, and there's no reverse search.
 
 const ORIGINS = [/^https:\/\/allduf\.github\.io$/, /^http:\/\/localhost(:\d+)?$/];
 const MAX_IMAGES = 3, MAX_B64 = 1_500_000, PER_HOUR = 30;
@@ -141,7 +145,7 @@ Deno.serve(async (req) => {
   const t0 = Date.now();
   if (body.mode === "compare") return compare(body as Compare, images, key, t0, reply);
   const online = await reverse(images);
-  const found = online && online.pages.length ? `The same ${images.length > 1 ? "frames were" : "picture was"} found online on these pages (their titles and addresses often name the trail and area):\n` +
+  const found = online && online.pages.length ? `The ${images.length > 1 ? "video's first frame" : "same picture"} was found online on these pages (their titles and addresses often name the trail and area):\n` +
     online.pages.map((p) => `- ${p.title} (${p.url.slice(0, 160)})`).join("\n") + (online.labels.length ? `\nGoogle's best guess for it: ${online.labels.join("; ")}` : "") + "\n" : "";
   const r = await gemini(key, [...images.map((d) => img(d)), { text: prompt + found }], { schema: SCHEMA }, t0 + 40000);
   const empty = clean({});
@@ -150,8 +154,9 @@ Deno.serve(async (req) => {
   try { return reply(200, { ok: true, model: r.model, ms: Date.now() - t0, ...clean(JSON.parse(r.text)), online }); } catch { return reply(200, { ok: !!online?.pages.length, ...empty, online }); }
 });
 
-// Reverse image search (Google Cloud Vision web detection): the pages that show the same picture or video frame, and
-// Google's best guess and the things it links to the picture. One call for all the frames.
+// Reverse image search (Google Cloud Vision web detection): the pages that show the same picture, and Google's best
+// guess and the things it links to the picture. A video's first frame only: each picture searched is billed past the
+// free 1,000 a month.
 type Online = { pages: { url: string; title: string; same: boolean }[]; labels: string[]; entities: string[]; error?: string };
 async function reverse(images: string[]): Promise<Online | null> {
   const k = Deno.env.get("VISION_API_KEY");
@@ -161,7 +166,7 @@ async function reverse(images: string[]): Promise<Online | null> {
   try {
     const r = await fetch("https://vision.googleapis.com/v1/images:annotate", {
       method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": k }, signal: AbortSignal.timeout(9000),
-      body: JSON.stringify({ requests: images.map((content) => ({ image: { content }, features: [{ type: "WEB_DETECTION", maxResults: 15 }] })) }),
+      body: JSON.stringify({ requests: images.slice(0, 1).map((content) => ({ image: { content }, features: [{ type: "WEB_DETECTION", maxResults: 15 }] })) }),
     });
     if (!r.ok) {
       const why = await r.text().catch(() => "");
@@ -354,10 +359,12 @@ function db(path: string): Promise<Response | null> {
   return fetch(base + path, { headers: { apikey: sk, authorization: "Bearer " + sk }, signal: AbortSignal.timeout(4000) }).catch(() => null);
 }
 // One use of a daily limit (supabase/photo-ai-limits.sql): false when today's is used up. Without that table (or when the
-// database doesn't answer) this running copy counts on its own.
+// database doesn't answer) this running copy counts on its own, except for reverse searches: none then.
 const counted = new Map<string, number>();
 async function take(kind: keyof typeof PER_DAY): Promise<boolean> {
-  const cap = Math.max(0, Math.round(+(Deno.env.get(kind.toUpperCase() + "_PER_DAY") || PER_DAY[kind])));
+  const set = Math.max(0, Math.round(+(Deno.env.get(kind.toUpperCase() + "_PER_DAY") || PER_DAY[kind])));
+  // Reverse searches past Google's free 1,000 a month are billed: never more than 32 a day, whatever the secret says.
+  const cap = kind === "vision" ? Math.min(set, 32) : set;
   const base = Deno.env.get("SUPABASE_URL"), sk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (base && sk) {
     try {
@@ -367,6 +374,8 @@ async function take(kind: keyof typeof PER_DAY): Promise<boolean> {
       console.log("limit", kind, r.status, (await r.text()).slice(0, 200));
     } catch (e) { console.log("limit", kind, String(e)); }
   }
+  // Without the shared count, each running copy would count on its own and could pass the free 1,000 together.
+  if (kind === "vision") return false;
   const day = new Date().toISOString().slice(0, 10) + kind, n = counted.get(day) || 0;
   if (n >= cap) return false;
   counted.set(day, n + 1);
