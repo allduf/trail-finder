@@ -208,6 +208,13 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 #skiPane details p { white-space: pre-line; }
 .sk-pin { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px #0006; color: #fff; font-size: 12px; line-height: 1; }
 .sk-pin.on { outline: 3px solid #ffe14d; }
+body.sport-ski details.legend.sk-key { display: block !important; }
+body:not(.sport-ski) details.legend.sk-key { display: none !important; }
+.legend.sk-key .sk-kic { width: 34px; flex: none; display: flex; justify-content: center; }
+.legend.sk-key .sk-kic i { width: 30px; }
+.legend.sk-key .sk-kdot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #0005; }
+.legend.sk-key .sk-pin { width: 18px; height: 18px; font-size: 10px; }
+.legend.sk-key .sk-snow { transform: none; font-size: 9px; padding: 2px 4px; }
 #skiPane .sk-safe { font-size: .78rem; color: var(--muted); margin: 0; }
 #skiPane .sb-club { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; display: flex; flex-direction: column; gap: 3px; font-size: .82rem; }
 #skiPane .sb-club b { font-size: .9rem; }
@@ -403,8 +410,32 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
   function applySwitches() {
     store.set("skiLayers2", [...shown]);
     if (shown.has("snow")) loadSnow();
-    renderSwitches(); drawSki(); renderList(); refreshHeat(); refreshSlope(); refreshTerrainLayers(); drawMine(); drawClubs(); drawSnow(); renderClubs(); renderForecast();
+    renderSwitches(); drawSki(); renderList(); refreshHeat(); refreshSlope(); refreshTerrainLayers(); drawMine(); drawClubs(); drawSnow(); renderClubs(); renderForecast(); renderSkiKey();
   }
+  // The map key in Skiing: what each line, dot and pin on the map is, for the layers that are on (alex 2026-10-24:
+  // "What are those?" about the brown hut dots). Folded by default, like the MTB trail colours key.
+  const skiKey = L.control({ position: "topleft" });
+  skiKey.onAdd = () => {
+    const el = L.DomUtil.create("details", "legend sk-key");
+    el.innerHTML = `<summary>Map key</summary><ul id="skKeyList"></ul><p class="lg-note">Tap any line, dot or pin on the map to see what it is.</p>`;
+    L.DomEvent.disableClickPropagation(el); L.DomEvent.disableScrollPropagation(el);
+    return el;
+  };
+  skiKey.addTo(map);
+  function renderSkiKey() {
+    const ul = $("skKeyList");
+    if (!ul) return;
+    const line = (t) => `<li><span class="sk-kic"><i style="background:${t.dashArray ? `repeating-linear-gradient(90deg, ${t.color} 0 6px, transparent 6px 10px)` : t.color}"></i></span>${esc(t.label)}</li>`;
+    const pin = (c, ic, label) => `<li><span class="sk-kic"><span class="sk-pin" style="background:${c}">${ic}</span></span>${esc(label)}</li>`;
+    ul.innerHTML = Object.keys(TYPES).filter((k) => shown.has(k)).map((k) => line(TYPES[k])).join("")
+      + (shown.has("hut") ? `<li><span class="sk-kic"><span class="sk-kdot" style="background:${HUT.color}"></span></span>Huts, cabins and shelters (brown dots)</li>` : "")
+      + (shown.has("tour") ? pin(START.color, "⛷", "Start of a camptocamp ski route") : "")
+      + (shown.has("club") ? pin(CLUB.color, "❄", CLUB.label) : "")
+      + (shown.has("snow") ? `<li><span class="sk-kic"><span class="sk-snow">❄</span></span>${esc(SNOW.label)}: snow depth</li>` : "")
+      + (shown.has("mine") ? line(MINE) : "")
+      || `<li>No ski layers on. Turn some on with the buttons in the panel.</li>`;
+  }
+  renderSkiKey();
   $("skViews").addEventListener("click", (e) => {
     const b = e.target.closest("[data-view]"); if (!b) return;
     const v = VIEWS[b.dataset.view].layers, on = v.some((k) => shown.has(k));
@@ -440,6 +471,14 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
   // camptocamp names are "Summit : way up": the summit is the title, the way up goes under it.
   const c2cName = (n) => { const i = (n || "").indexOf(" : "); return i > 0 ? [n.slice(0, i), n.slice(i + 3)] : [n || "camptocamp route", ""]; };
   const KIND = { alpine_hut: "Alpine hut", wilderness_hut: "Backcountry cabin", shelter: "Shelter", basic_hut: "Hut", cabin: "Cabin" };
+  // One plain line at the top of a hut's details: what the brown dot on the map is.
+  const HUT_ABOUT = {
+    alpine_hut: "A staffed or bookable mountain hut, for staying overnight on a ski tour.",
+    wilderness_hut: "A backcountry cabin you ski or hike to: an unstaffed place to warm up or spend the night.",
+    shelter: "A small shelter from the weather, usually not for sleeping in.",
+    basic_hut: "A simple backcountry hut you ski or hike to.",
+    cabin: "A cabin in the backcountry. It may be private: check before using it.",
+  };
   // ---------- the trip planner light ----------
   // Avalanche Canada's Avaluator chart (ski-terrain.js): the day's danger rating in the bands a route goes through,
   // with its terrain class, gives Normal caution, Extra caution or Not recommended (alex 2026-10-24: "be a reference
@@ -918,11 +957,12 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
       : `<a href="https://www.openstreetmap.org/${osmType}/${r.id.slice(1)}" target="_blank" rel="noopener">OpenStreetMap</a>`;
     const tags = tagsHtml(r);
     const club = !isHut && r.type === "snowmobile" ? clubNear(r.lines[0][0][0], r.lines[0][0][1]) : null;
-    const title = isHut ? r.name || (isStart ? "camptocamp route" : "Hut") : nameOf(r) || "Unnamed route";
+    const title = isHut ? r.name || (isStart ? "camptocamp route" : KIND[r.kind] || "Hut") : nameOf(r) || "Unnamed route";
     const pt = isHut ? [r.lat, r.lon] : r.lines[0][0];
     d.hidden = false;
     d.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>
-      <dl><dt>Type</dt><dd>${esc(isStart ? t.label + " (start point only; see camptocamp for the route)" : isHut ? (r.kind || "hut").replace(/_/g, " ") : t.label)}</dd>
+      ${isHut && !isStart ? `<p class="sk-hint">${esc(HUT_ABOUT[r.kind] || HUT_ABOUT.basic_hut)}</p>` : ""}
+      <dl><dt>Type</dt><dd>${esc(isStart ? t.label + " (start point only; see camptocamp for the route)" : isHut ? KIND[r.kind] || (r.kind || "hut").replace(/_/g, " ") : t.label)}</dd>
       ${isHut ? "" : r.area ? `<dt>Size</dt><dd>${hectares(r).toFixed(0)} ha: mapped as an area (a bowl or zone), not a line to follow</dd>`
         : `<dt>Length</dt><dd>${group.reduce((s, x) => s + km(x), 0).toFixed(1)} km${group.length > 1 ? ` (${group.length} pieces)` : ""}</dd>`}
       ${r.diff ? `<dt>Difficulty</dt><dd>${esc(DIFF[r.diff] || r.diff)}</dd>` : ""}
