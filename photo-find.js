@@ -655,6 +655,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   const SAME = { mt: "mount", mtn: "mountain", st: "saint", rd: "road", fsr: "road", n: "north", s: "south" };
   // One-word trail names that are everyday words (or app buttons in a screenshot) aren't counted on their own.
   const GENERIC = new Set(("upper lower main middle road access connector loop climb climbing descent downhill uphill bridge creek lake river mountain park view ridge summit peak " +
+    // landscape words in a place's name ("Callaghan Valley" isn't the Valley Trail)
+    "valley canyon meadow meadows pass basin glacier falls bluff bluffs bowl hill hills alpine island beach bay inlet sound range village town " +
     "north south east west home love life good best nice fun day time ride riding bike biking mtb enduro shred send follow following followers like likes liked comment comments reply " +
     "share save more view views search explore reels video photo story stories post posts message today yesterday week weeks year years ago km mile miles elevation gain moving " +
     "speed avg max time map maps segment segments strava trailforks kudos activity morning afternoon evening night lunch ride rides route routes forest woods dirt loam loamy " +
@@ -894,13 +896,25 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       // The AI's "how far off" is often too small: look a bit wider.
       const R = vpRadius(vp), spot = L.latLng(vp.lat, vp.lon);
       say("Looking at the trails where the AI places the photo…", 0.985);
-      const { list } = await trailsNear([spot], R);
+      const { list, b } = await trailsNear([spot], R);
       if (my !== job) return null;
-      for (const g of list.slice(0, 60)) {
-        const why = `where the AI places the photo${vp.where ? " (" + vp.where + ")" : ""}, ${(g.d / 1000).toFixed(1)} km`;
-        const have = hits.find((h) => keyOf(h.g) === keyOf(g)), near = 1 - g.d / R;
-        if (have) { have.s += 0.1 + 0.1 * near; have.why.push(why); }
-        else hits.push({ g, s: 0.7 + 0.15 * near, why: [why], lm: true });
+      // How high the AI thinks the camera is (valley floor, forest, alpine): trails that reach about that height go up,
+      // ones far above or below it down. Then the 60 best of them.
+      const alt = vp.alt > 0 ? vp.alt : 0;
+      if (alt) { await demLoad(b); if (my !== job) return null; }
+      const near = list.map((g) => {
+        let up = 0, h = null;
+        if (alt) {
+          const hs = g.pts.map((p) => elev(p[0], p[1])).filter((x) => x != null);
+          if (hs.length) { h = hs.reduce((m, x) => (Math.abs(x - alt) < Math.abs(m - alt) ? x : m)); const dz = Math.abs(h - alt); up = dz <= 300 ? 0.08 : dz > 700 ? -0.15 : 0; }
+        }
+        return { g, up, h, at: 1 - g.d / R };
+      }).sort((a, z) => (z.at * 0.15 + z.up) - (a.at * 0.15 + a.up)).slice(0, 60);
+      for (const { g, up, h, at } of near) {
+        const why = `where the AI places the photo${vp.where ? " (" + vp.where + ")" : ""}, ${(g.d / 1000).toFixed(1)} km` + (up > 0 ? `, about as high (${Math.round(h)} m)` : "");
+        const have = hits.find((x) => keyOf(x.g) === keyOf(g));
+        if (have) { have.s += 0.1 + 0.1 * at + up; have.why.push(why); }
+        else hits.push({ g, s: 0.7 + 0.15 * at + up, why: [why], lm: true });
       }
       // Pictures riders confirmed around there: their trails join the list (or go up), and the online check then
       // compares those pictures with this one.
