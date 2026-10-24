@@ -6,16 +6,24 @@
 // Wikimedia Commons photos near each trail) and compares them with the rider's picture. Setup (once): Supabase dashboard → Edge Functions → deploy this file (it's deployed as
 // "smooth-worker"; AI_FN in photo-find.js must match), turn "Verify JWT" off; then Edge Functions → Secrets → add
 // GEMINI_API_KEY (free from aistudio.google.com/apikey). Optional secret GEMINI_MODEL picks another model.
-// Optional secret VISION_API_KEY (Google Cloud Vision, 1,000 pictures a month free): a reverse image search first, which
-// finds the pages that show the same picture (or video frame) online; their titles often name the trail.
+// Optional secret VISION_API_KEY (Google Cloud Vision, 1,000 pictures a month free, then billed): a reverse image search
+// first, which finds the pages that show the same picture (or video frame) online; their titles often name the trail. Make
+// that key in a Google Cloud project of its own with billing on: billing on the Gemini key's project ends Gemini's free tier.
+// Google can't stop Vision at the free 1,000 (its quotas are per minute; a budget only emails), so this function does: one
+// picture per search, at most 32 a day (32 × 31 = 992 a month), and none when the shared count can't be checked.
 // Free-tier pictures may be used by Google to improve its products; a paid Google key stops that.
 // Daily limits for the whole app (supabase/photo-ai-limits.sql, run once): VISION_PER_DAY reverse searches (30: the
-// 1,000 a month Google gives free), AI_PER_DAY looks and COMPARE_PER_DAY online checks; each can be changed with a
-// secret of that name. Until that SQL is run, each running copy of the function keeps its own count.
+// 1,000 a month Google gives free; never more than 32), AI_PER_DAY looks and COMPARE_PER_DAY online checks; each can be
+// changed (lowered, for Vision) with a secret of that name. Until that SQL is run, each running copy of the function keeps
+// its own count, and there's no reverse search.
+// Daily limits per person, before the app's (supabase/photo-ai-person-limits.sql, run once), so one keen rider can't use
+// up everyone's day: VISION_PER_PERSON reverse searches (10), AI_PER_PERSON looks (20) and COMPARE_PER_PERSON online
+// checks (20). A person is the signed-in account, or else the connection (a hash of its address, never the address).
 
 const ORIGINS = [/^https:\/\/allduf\.github\.io$/, /^http:\/\/localhost(:\d+)?$/];
 const MAX_IMAGES = 3, MAX_B64 = 1_500_000, PER_HOUR = 30;
 const PER_DAY = { vision: 30, ai: 200, compare: 100 };
+const PER_PERSON = { vision: 10, ai: 20, compare: 20 };
 // Tried in turn: a name Google retired (404), one that is too slow or one whose free allowance is used up (429) moves on
 // to the next. Each model has its own free allowance, so the later ones keep photo find working when the first runs out.
 // Google's model list (ai.google.dev/gemini-api/docs/models, 2026-10): the Flash models first (they see scenery best), then
@@ -123,7 +131,8 @@ Deno.serve(async (req) => {
 
   const images = (body.images || []).filter((s) => typeof s === "string" && s.length < MAX_B64).slice(0, MAX_IMAGES);
   if (!images.length) return reply(400, { error: "no picture" });
-  const kind = body.mode === "compare" ? "compare" : "ai";
+  const kind = body.mode === "compare" ? "compare" : "ai", person = await who(req, ip);
+  if (!(await takePerson(person, kind))) return reply(429, { error: "your daily limit is reached, try again tomorrow" });
   if (!(await take(kind))) return reply(429, { error: `the photo AI's daily limit is used up (${kind === "ai" ? "looks" : "online checks"}), try again tomorrow` });
   const clip = (s: unknown, n: number) => (typeof s === "string" ? s.slice(0, n) : "");
 
@@ -140,8 +149,8 @@ Deno.serve(async (req) => {
 
   const t0 = Date.now();
   if (body.mode === "compare") return compare(body as Compare, images, key, t0, reply);
-  const online = await reverse(images);
-  const found = online && online.pages.length ? `The same ${images.length > 1 ? "frames were" : "picture was"} found online on these pages (their titles and addresses often name the trail and area):\n` +
+  const online = await reverse(images, person);
+  const found = online && online.pages.length ? `The ${images.length > 1 ? "video's first frame" : "same picture"} was found online on these pages (their titles and addresses often name the trail and area):\n` +
     online.pages.map((p) => `- ${p.title} (${p.url.slice(0, 160)})`).join("\n") + (online.labels.length ? `\nGoogle's best guess for it: ${online.labels.join("; ")}` : "") + "\n" : "";
   const r = await gemini(key, [...images.map((d) => img(d)), { text: prompt + found }], { schema: SCHEMA }, t0 + 40000);
   const empty = clean({});
@@ -150,18 +159,20 @@ Deno.serve(async (req) => {
   try { return reply(200, { ok: true, model: r.model, ms: Date.now() - t0, ...clean(JSON.parse(r.text)), online }); } catch { return reply(200, { ok: !!online?.pages.length, ...empty, online }); }
 });
 
-// Reverse image search (Google Cloud Vision web detection): the pages that show the same picture or video frame, and
-// Google's best guess and the things it links to the picture. One call for all the frames.
+// Reverse image search (Google Cloud Vision web detection): the pages that show the same picture, and Google's best
+// guess and the things it links to the picture. A video's first frame only: each picture searched is billed past the
+// free 1,000 a month.
 type Online = { pages: { url: string; title: string; same: boolean }[]; labels: string[]; entities: string[]; error?: string };
-async function reverse(images: string[]): Promise<Online | null> {
+async function reverse(images: string[], person: string): Promise<Online | null> {
   const k = Deno.env.get("VISION_API_KEY");
   if (!k) return null;
+  if (!(await takePerson(person, "vision"))) return { pages: [], labels: [], entities: [], error: "your reverse searches for today are used up" };
   if (!(await take("vision"))) return { pages: [], labels: [], entities: [], error: "today's free reverse searches are used up" };
   const strip = (v: unknown) => String(v || "").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"').trim().slice(0, 200);
   try {
     const r = await fetch("https://vision.googleapis.com/v1/images:annotate", {
       method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": k }, signal: AbortSignal.timeout(9000),
-      body: JSON.stringify({ requests: images.map((content) => ({ image: { content }, features: [{ type: "WEB_DETECTION", maxResults: 15 }] })) }),
+      body: JSON.stringify({ requests: images.slice(0, 1).map((content) => ({ image: { content }, features: [{ type: "WEB_DETECTION", maxResults: 15 }] })) }),
     });
     if (!r.ok) {
       const why = await r.text().catch(() => "");
@@ -266,7 +277,7 @@ function quota(msg: string): string {
 
 // ---------- compare: the app's likely trails against what's online about them ----------
 type Trail = { name: string; area: string; kind: string; c: [number, number] | null };
-type Compare = { trails?: unknown; scene?: string; description?: string; spot?: { lat?: unknown; lon?: unknown; km?: unknown; where?: unknown }; skip?: unknown };
+type Compare = { trails?: unknown; more?: unknown; scene?: string; description?: string; spot?: { lat?: unknown; lon?: unknown; km?: unknown; where?: unknown }; skip?: unknown };
 type Photo = { img: string; page: string; title: string; trail: string; data: string; mime: string; from: string; at?: [number, number]; near?: boolean };
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 const UA = { "user-agent": "TrailFinder/1.0 (https://allduf.github.io/trail-finder/)" };
@@ -354,23 +365,58 @@ function db(path: string): Promise<Response | null> {
   return fetch(base + path, { headers: { apikey: sk, authorization: "Bearer " + sk }, signal: AbortSignal.timeout(4000) }).catch(() => null);
 }
 // One use of a daily limit (supabase/photo-ai-limits.sql): false when today's is used up. Without that table (or when the
-// database doesn't answer) this running copy counts on its own.
-const counted = new Map<string, number>();
+// database doesn't answer) this running copy counts on its own, except for reverse searches: none then.
 async function take(kind: keyof typeof PER_DAY): Promise<boolean> {
-  const cap = Math.max(0, Math.round(+(Deno.env.get(kind.toUpperCase() + "_PER_DAY") || PER_DAY[kind])));
+  const set = Math.max(0, Math.round(+(Deno.env.get(kind.toUpperCase() + "_PER_DAY") || PER_DAY[kind])));
+  // Reverse searches past Google's free 1,000 a month are billed: never more than 32 a day, whatever the secret says.
+  const cap = kind === "vision" ? Math.min(set, 32) : set;
+  const ok = await counter("photo_ai_take", { p_kind: kind, p_cap: cap });
+  if (ok !== null) return ok;
+  // Without the shared count, each running copy would count on its own and could pass the free 1,000 together.
+  if (kind === "vision") return false;
+  return countHere(kind, cap);
+}
+// One use of a person's daily limit (supabase/photo-ai-person-limits.sql). Without that table this running copy counts on
+// its own: the app's limit above still holds.
+async function takePerson(person: string, kind: keyof typeof PER_DAY): Promise<boolean> {
+  const cap = Math.max(0, Math.round(+(Deno.env.get(kind.toUpperCase() + "_PER_PERSON") || PER_PERSON[kind])));
+  const ok = await counter("photo_ai_take_person", { p_who: person, p_kind: kind, p_cap: cap });
+  return ok !== null ? ok : countHere(person + " " + kind, cap);
+}
+// A database counter (one of the functions above): true or false, or null when the database can't say.
+async function counter(fn: string, args: Record<string, unknown>): Promise<boolean | null> {
   const base = Deno.env.get("SUPABASE_URL"), sk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (base && sk) {
-    try {
-      const r = await fetch(base + "/rest/v1/rpc/photo_ai_take", { method: "POST", signal: AbortSignal.timeout(3000),
-        headers: { apikey: sk, authorization: "Bearer " + sk, "content-type": "application/json" }, body: JSON.stringify({ p_kind: kind, p_cap: cap }) });
-      if (r.ok) return (await r.json()) === true;
-      console.log("limit", kind, r.status, (await r.text()).slice(0, 200));
-    } catch (e) { console.log("limit", kind, String(e)); }
-  }
-  const day = new Date().toISOString().slice(0, 10) + kind, n = counted.get(day) || 0;
+  if (!base || !sk) return null;
+  try {
+    const r = await fetch(base + "/rest/v1/rpc/" + fn, { method: "POST", signal: AbortSignal.timeout(3000),
+      headers: { apikey: sk, authorization: "Bearer " + sk, "content-type": "application/json" }, body: JSON.stringify(args) });
+    if (r.ok) return (await r.json()) === true;
+    console.log("limit", fn, r.status, (await r.text()).slice(0, 200));
+  } catch (e) { console.log("limit", fn, String(e)); }
+  return null;
+}
+const counted = new Map<string, number>();
+function countHere(what: string, cap: number): boolean {
+  const day = new Date().toISOString().slice(0, 10) + " " + what, n = counted.get(day) || 0;
   if (n >= cap) return false;
   counted.set(day, n + 1);
   return true;
+}
+// Who is asking, for the per-person limits: the signed-in account (checked with Supabase), else the connection (a hash of
+// its address with a secret, so it can't be turned back into the address: the address itself is never kept).
+async function who(req: Request, ip: string): Promise<string> {
+  const tok = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  const base = Deno.env.get("SUPABASE_URL"), k = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (base && k && tok.split(".").length === 3) {
+    try {
+      const r = await fetch(base + "/auth/v1/user", { headers: { apikey: k, authorization: "Bearer " + tok }, signal: AbortSignal.timeout(3000) });
+      const u = r.ok ? await r.json() : null;
+      if (u && typeof u.id === "string") return "u:" + u.id;
+    } catch { /* not signed in, or no answer: the connection then */ }
+  }
+  const salt = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "trail-finder";
+  const h = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + " " + ip)));
+  return "ip:" + [...h.slice(0, 8)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 // Confirmed matches whose picture has nearly the same fingerprint (the same picture resized or recompressed).
 async function same(hash: unknown) {
@@ -473,6 +519,19 @@ const FINAL = {
         required: ["n", "close"],
       },
     },
+    other: {
+      type: "ARRAY",
+      description: "Trails from the other trails around there (not the list) that you know the rider's picture is from, if any",
+      items: {
+        type: "OBJECT",
+        properties: {
+          trail: { type: "STRING", description: "The name exactly as in the other trails" },
+          fit: { type: "NUMBER", description: "0 to 1, as for the list" },
+          why: { type: "STRING", description: "What you know of it that fits, in one short sentence" },
+        },
+        required: ["trail", "fit", "why"],
+      },
+    },
   },
   required: ["ranks"],
 };
@@ -491,6 +550,10 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
     return longest?.name || x.slice(0, 120);
   };
   const list = trails.map((t, i) => `${i + 1}. ${t.name} (${[t.kind, t.area].filter(Boolean).join(", ")})`).join("\n");
+  // The next trails around there, names only: the AI can say the picture is one of them from what it knows (a slab 5 km
+  // from where it placed the camera can be 180 trails down the site's list).
+  const more = [...new Set((Array.isArray(body.more) ? body.more : []).slice(0, 30).map((t: Record<string, unknown>) => String(t?.name || "").slice(0, 120).trim())
+    .filter((n) => n && !trails.some((t) => norm(t.name) === norm(n))))];
   // Where the AI placed the camera (the first look): photos from all around it, not only of the listed trails.
   const v = body.spot || {}, km = +(v.km as number);
   const spot: Spot | null = typeof v.lat === "number" && typeof v.lon === "number" && v.lat > 45 && v.lat < 62 && v.lon > -140 && v.lon < -108 && km > 0 && km <= 15
@@ -572,11 +635,16 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
     (web.length ? `What Google search found about them:\n${web.map((w) => `- ${w.trail}: ${w.looks} (fit ${w.fit}: ${w.why})`).join("\n")}\n`
       : `Google search wasn't available this time: use what you know about these trails too, if anything.\n`) +
     `Compare the rider's picture with each found photo: the same rock, slope, view, water, mountains or trail features means the same place. ` +
-    `A found photo can show a different part of the trail, so also weigh the descriptions. Give every trail a fit, and every found photo a closeness.` });
+    `A found photo can show a different part of the trail, so also weigh the descriptions. Give every trail a fit, and every found photo a closeness. ` +
+    `Rate a trail from its photos and what you really know of it, never from its name: "Slab" or "Rock" in a name doesn't make it this slab. ` +
+    `A trail with no photo here that you know nothing about gets 0.5.` +
+    (more.length ? `\nOther trails around there (not in the list): ${more.join("; ")}. If you know the picture is from one of these instead, ` +
+      `put it in "other".` : "") });
   const f = await gemini(key, parts, { schema: FINAL }, t0 + 75000);
   type Pic = { img: string; page: string; title: string };
   const pub = (p: Photo | undefined): Pic | null => p && p.from !== "confirmed" ? { img: p.img, page: p.page, title: p.title.slice(0, 100) } : null;
   let ranks: { trail: string; fit: number; why: string; photo: Pic | null; confirmed?: boolean }[] = [];
+  let other: { trail: string; fit: number; why: string }[] = [];
   // Photos from around the viewpoint that look close: their spot (or the trail their page is about) goes back to the
   // site, which adds the trails there to the list.
   let close: (Pic & { close: number; why: string; at: [number, number] | null; trail: string; confirmed?: boolean })[] = [];
@@ -586,6 +654,9 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
       const p = photos[Math.round(+x.photo || 0) - 1];
       return { trail: named(x.trail), fit: Math.max(0, Math.min(1, +x.fit || 0)), why: String(x.why || "").slice(0, 200), photo: pub(p), confirmed: p?.from === "confirmed" };
     });
+    other = (Array.isArray(o.other) ? o.other : []).filter((x) => x && typeof x.trail === "string").map((x) => ({
+      trail: more.find((n) => norm(n) === norm(String(x.trail).replace(/\s*\(.*$/, ""))) || "", fit: Math.max(0, Math.min(1, +x.fit || 0)), why: String(x.why || "").slice(0, 200),
+    })).filter((x) => x.trail).slice(0, 3);
     close = (Array.isArray(o.photos) ? o.photos : []).map((x) => ({ p: photos[Math.round(+x?.n || 0) - 1], c: Math.max(0, Math.min(1, +x?.close || 0)), why: String(x?.why || "").slice(0, 200) }))
       .filter((x) => x.p && (x.p.from === "area" || x.p.near) && (x.p.at || x.p.trail) && x.c >= 0.4).sort((a, b) => b.c - a.c).slice(0, 5)
       .map((x) => ({ ...(pub(x.p) || { img: "", page: "", title: "" }), close: x.c, why: x.why, at: x.p.at || null, trail: x.p.trail, ...(x.p.near ? { confirmed: true } : {}) }));
@@ -593,6 +664,6 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
     ranks = web.map((w) => ({ trail: w.trail, fit: w.fit, why: w.why, photo: null }));
     notes.push("compare: " + ("error" in f ? f.detail || f.error : "no answer"));
   }
-  return reply(200, { ok: ranks.length > 0 || close.length > 0, ms: Date.now() - t0, searched, noSearch, ranks, close, photos: photos.length,
+  return reply(200, { ok: ranks.length > 0 || close.length > 0, ms: Date.now() - t0, searched, noSearch, ranks, other, close, photos: photos.length,
     area: photos.filter((p) => p.from === "area" || p.near).length, sources, suggest, detail: notes.join(" | ") });
 }

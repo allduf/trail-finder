@@ -232,3 +232,40 @@ export function abDrawPage(html, species) {
   }
   return out;
 }
+
+// ---------- harvest statistics (harvest.json) ----------
+// BC Big Game Harvest Statistics, WMU table (CSV, DataBC catalogue): one row per year, species and unit, with resident
+// and non-resident hunters, days and kills. WMU "207" is MU 2-7; "200" (region number then 00) is the region's
+// unassigned share and "900" the province's, both dropped. Kept: the last `years` years, as [hunters, days, kills].
+export function bcHarvest(csv, years = 5) {
+  const rows = csv.replace(/^﻿/, "").trim().split(/\r?\n/).map((l) => l.split(","));
+  const head = rows.shift().map((h) => h.trim().toUpperCase()), col = (n) => head.indexOf(n);
+  const Y = col("HUNT YEAR"), S = col("SPECIES"), W = col("WMU");
+  const RH = col("RESIDENT HUNTERS"), RD = col("RESIDENT DAYS"), RK = col("RESIDENT KILLS");
+  const NH = col("NON-RESIDENT HUNTERS"), ND = col("NON-RESIDENT DAYS"), NK = col("NON-RESIDENT KILLS");
+  const last = Math.max(...rows.map((r) => +r[Y]).filter(Boolean)), from = last - years + 1;
+  const n = (v) => (v === "" || v == null || isNaN(+v) ? 0 : +v);
+  const mu = {};
+  for (const r of rows) {
+    const y = +r[Y], w = String(r[W] || "").trim();
+    if (!(y >= from) || !/^[1-9]\d\d$/.test(w) || w.endsWith("00")) continue;
+    const id = `${w[0]}-${+w.slice(1)}`;
+    const sp = ((mu[id] ||= {})[r[S]] ||= Array(years).fill(null));
+    sp[y - from] = [n(r[RH]) + n(r[NH]), n(r[RD]) + n(r[ND]), n(r[RK]) + n(r[NK])];
+  }
+  return { years: Array.from({ length: years }, (_, i) => from + i), mu };
+}
+// Alberta Hunter harvest report PDFs (one per species, resident harvest from general and special licences), turned
+// into text: rows of "WMU  male  female  young  total  success%". Some rows cover several WMUs together ("116/118/119",
+// "104,106,112"): each of them gets that row, with the group, unless it has a row of its own.
+// Kept per WMU: [total, success %] or [total, success %, "116/118/119"].
+export function abHarvest(text) {
+  const out = {};
+  for (const m of text.matchAll(/^\s*(\d{3}[A-Z]?(?:\s*[/,]\s*\d{3}[A-Z]?)*)\s+(\d[\d,]*)\s+(\d[\d,]*)\s+(\d[\d,]*)\s+(\d[\d,]*)\s+(\d{1,3})%?\s*$/gm)) {
+    const list = m[1].split(/\s*[/,]\s*/), v = [+m[5].replace(/,/g, ""), +m[6]];
+    if (list.length === 1) out[list[0]] = v;
+    else for (const w of list) if (!out[w] || out[w][2]) out[w] = [...v, list.join("/")];
+  }
+  const y = text.match(/Hunter harvest report (\d{4})/);
+  return { year: y ? +y[1] : null, wmu: out };
+}
