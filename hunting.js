@@ -1575,10 +1575,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
           return { data: await r.arrayBuffer() };
         }
         const [mode, z, x, y] = parts;
-        const img = await paintTerrain(mode, +z, +x, +y);
-        const cv = new OffscreenCanvas(256, 256);
-        cv.getContext("2d").putImageData(img, 0, 0);
-        return { data: await (await cv.convertToBlob({ type: "image/png" })).arrayBuffer() };
+        // A picture, not PNG bytes: encoding a canvas on the page waits for the 3D map's drawing (see map3d.js tfdem).
+        return { data: await createImageBitmap(await paintTerrain(mode, +z, +x, +y)) };
       });
     }
     const apply = () => {
