@@ -1,0 +1,42 @@
+name: Loam tuned by rider reports
+
+# Every night, compare the dry / tacky / muddy reports riders post (Supabase table trail_reports) with the Loam index
+# the soil model gave at that spot and hour, and save each zone's correction to data/loam-tune.json
+# (scripts/build-loam-tune.mjs). Read by index.html and scripts/push-loam.mjs. Reports are public, so no secret is needed.
+# On a pull request that changes the script it only does a test run, without saving anything.
+on:
+  schedule:
+    - cron: "41 10 * * *"   # daily 10:41 UTC (3:41 am Pacific in summer time)
+  workflow_dispatch:        # "Run workflow" button on the Actions tab
+  pull_request:
+    paths:
+      - scripts/build-loam-tune.mjs
+      - .github/workflows/loam-tune.yml
+
+permissions:
+  contents: write   # commit the data file
+  actions: write    # start "Publish website" afterwards
+
+concurrency:
+  group: loam-tune-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Compare rider reports with the soil model
+        run: node scripts/build-loam-tune.mjs
+      - name: Commit the new data
+        if: github.event_name != 'pull_request'
+        run: bash scripts/commit-data.sh "Loam tuned by rider reports" data/loam-tune.json
+      - name: Publish the website
+        if: github.event_name != 'pull_request' && github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main || echo "The website will publish with the next data job."
