@@ -11,8 +11,6 @@
 # Each job saves only its own files, so on a race (another job saved in the meantime) it starts again from the
 # branch's latest commit with its fresh files on top. Every save replaces the branch with a new commit that has no
 # parent, so old versions of the data aren't kept.
-#
-# The first run, when there is no site-data branch yet, starts it from main's data/ (seed).
 set -euo pipefail
 BRANCH=site-data
 # Edited by hand (or by a script run by hand), so they stay in main and never go to the branch.
@@ -53,16 +51,13 @@ case "${1:-}" in
   get)
     base=$(fetch)
     if [ -z "$base" ]; then
-      echo "No $BRANCH branch yet: starting it from main's data/."
-      git update-ref "$LAST" HEAD
-      # A test run on a pull request saves nothing, and the website publish only reads (main's copies are used).
-      if [ "${GITHUB_EVENT_NAME:-}" = pull_request ] || [ -n "${SITE_DATA_READ_ONLY:-}" ]; then exit 0; fi
-      c=$(commit_with "" "Website data (from main)" data)
-      if push "$c" ""; then echo "Started the $BRANCH branch."; else echo "Another job started it first."; fi
-      exit 0
+      # Main has had no data files since they moved to the branch (its last commit with them is f11338f4, if the
+      # branch ever needs starting again: git archive f11338f4 data | tar -x, then save "data").
+      if [ "${GITHUB_EVENT_NAME:-}" = pull_request ]; then echo "::warning::No $BRANCH branch: this test run starts with no data."; exit 0; fi
+      echo "::error::No $BRANCH branch: the data files are missing (see scripts/site-data.sh)."
+      exit 1
     fi
     git update-ref "$LAST" "$base"
-    # The branch's files win over main's: until main's old copies are removed, they're out of date.
     git archive "$base" data | tar -x -f - -C "$(git rev-parse --show-toplevel)"
     echo "Got the data files from the $BRANCH branch ($(git ls-tree -r --name-only "$base" data | wc -l) files)."
     ;;
