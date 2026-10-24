@@ -58,10 +58,15 @@ dialog.tp-view footer button { font: inherit; font-weight: 600; padding: 6px 12p
     const { data, error } = await acct.client.from("trail_photos").select("id, user_id, path, caption, created_at")
       .eq("osm_type", type).eq("osm_id", t.id).order("created_at", { ascending: false }).limit(MAX_SHOWN);
     if (current !== t || !document.body.contains(box)) return;
+    if (error) {   // photos not set up or not reachable: hide the section, never show riders a database message (alex)
+      console.warn("Rider photos:", error.message);
+      box.hidden = true;
+      if (box.previousElementSibling && box.previousElementSibling.tagName === "H3") box.previousElementSibling.hidden = true;
+      return;
+    }
     box.classList.remove("muted");
     const me = acct.user ? acct.user.id : null;
-    const grid = error ? `<p class="muted">Couldn't load rider photos (${esc(error.message)}).</p>`
-      : !data.length ? `<p class="muted">No rider photos yet.${me ? " Add the first one." : ""}</p>`
+    const grid = !data.length ? `<p class="muted">No rider photos yet.${me ? " Add the first one." : ""}</p>`
       : `<div class="tp-grid">${data.map((p, i) => `<button type="button" data-i="${i}" aria-label="Open photo"><img loading="lazy" alt="${esc(p.caption || "Rider photo")}" src="${esc(urlOf(p.path))}"></button>`).join("")}</div>`;
     const add = me ? `<label class="tp-add">📷 Add a photo<input type="file" accept="image/*"></label> <span class="muted tp-msg" role="status"></span>`
       : `<p><button type="button" class="linkish tp-signin">Sign in to add a photo</button></p>`;
