@@ -101,7 +101,7 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
         const el = document.createElement("div");
         el.title = a.name; el.innerHTML = pinHtml(a);
         el.addEventListener("click", (e) => { e.stopPropagation(); open(a); });
-        glMarkers.push(new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([a.lon, a.lat]).addTo(gl));
+        glMarkers.push(new maplibregl.Marker({ element: el, anchor: "center", opacityWhenCovered: 1 }).setLngLat([a.lon, a.lat]).addTo(gl));
       }
     }
   }

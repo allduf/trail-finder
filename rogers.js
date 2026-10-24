@@ -165,7 +165,7 @@
       if (gl) {
         const el = document.createElement("div"); el.className = "rp-gl"; el.title = tip; el.innerHTML = html;
         el.addEventListener("click", (e) => { e.stopPropagation(); pick(it); });
-        glMarkers.push(new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([lon, lat]).addTo(gl));
+        glMarkers.push(new maplibregl.Marker({ element: el, anchor: "center", opacityWhenCovered: 1 }).setLngLat([lon, lat]).addTo(gl));
       }
     };
     const z = map.getZoom();

@@ -183,7 +183,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
         const el = document.createElement("div");
         el.className = "sp-gl"; el.title = p.name; el.innerHTML = pinHtml(p, url);
         el.addEventListener("click", (e) => { e.stopPropagation(); view(p.id); });
-        glMarkers.push(new maplibregl.Marker({ element: el, anchor: "top-left", offset: [-17, -41] }).setLngLat([p.lon, p.lat]).addTo(gl));
+        glMarkers.push(new maplibregl.Marker({ element: el, anchor: "top-left", offset: [-17, -41], opacityWhenCovered: 1 }).setLngLat([p.lon, p.lat]).addTo(gl));
       }
     }
     renderList();
