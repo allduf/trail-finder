@@ -4,6 +4,7 @@
 // least 60% of it ("Partly ridden" from 25%), so a GPS track that wanders a little off the mapped line still counts.
 // Rides come from this browser's IndexedDB "trail-finder-rides" (ride.html keeps it in sync with the rider's
 // account when signed in). Trails come from index.html through window.tfTrails().
+// Possible new trails saved from rides (ride-finds.js) show with them as solid purple lines.
 (() => {
   "use strict";
   const map = window.tfLeaflet;
@@ -174,10 +175,11 @@ body.sport-alt #ridesBtn { display: none !important; }
     layer.clearLayers();
     byId.clear();
     syncBtn();
-    if (!on || !rides.length) { tagList(); tagDetail(); return; }
+    if (!on || (!rides.length && !finds().length)) { tagList(); tagDetail(); return; }
     rides.forEach((r) => {
       L.polyline(r.points.map((p) => [p[0], p[1]]), { renderer, color: TRACK, weight: 3, opacity: 0.85, interactive: false }).addTo(layer);
     });
+    drawFinds();
     trails().forEach((t) => {
       const m = match(t.key, t.lines);
       if (!m) return;
@@ -192,6 +194,38 @@ body.sport-alt #ridesBtn { display: none !important; }
     });
     tagList(); tagDetail(); syncBtn();
   }
+  // ---------- possible new trails saved from your rides (ride-finds.js, ride.html) ----------
+  // Purple like the "Possible unmapped" lines, solid with a white core so they read as yours. SVG in their own pane
+  // above the trails, so a tap on one opens it while taps beside it still reach the map.
+  if (!map.getPane("myFinds")) map.createPane("myFinds").style.zIndex = 452;
+  const findRenderer = L.svg({ pane: "myFinds", padding: 0.3 });
+  const finds = () => (window.tfRideFinds ? window.tfRideFinds.saved() : []);
+  function drawFinds() {
+    const F = window.tfRideFinds;
+    if (!F) return;
+    finds().forEach((f) => {
+      const line = L.polyline(f.g, { renderer: findRenderer, pane: "myFinds", color: F.COLOR, weight: 7, opacity: 0.95 }).addTo(layer);
+      L.polyline(f.g, { renderer: findRenderer, pane: "myFinds", color: "#fff", weight: 2, opacity: 0.9, interactive: false }).addTo(layer);
+      line.bindTooltip(`🆕 ${esc(f.name || "Possible new trail")} · ${F.fmtM(f.m)}`, { sticky: true, direction: "top", offset: [0, -8] });
+      const box = document.createElement("div");
+      box.innerHTML = `<strong>🆕 ${esc(f.name || "Possible new trail")}</strong><br>${F.facts(f)}<br><small>Not on OpenStreetMap yet. Found on your ride <a href="ride.html#ride/${encodeURIComponent(f.ride)}">${esc(f.title || "ride")}</a>, ${fmtDay(f.at)}.</small>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><a href="${F.osmEdit(f)}" target="_blank" rel="noopener">Add to OpenStreetMap</a> · <a href="#" data-rm>Remove</a></div>`;
+      box.querySelector("[data-rm]").addEventListener("click", (e) => {
+        e.preventDefault();
+        if (confirm("Remove this possible new trail from your saved ones?")) { map.closePopup(); F.remove(f.id); }
+      });
+      line.bindPopup(box, { maxWidth: 280 });
+    });
+  }
+  // Show them all (📁 My trails, "Possible new trails"): turns My rides on and gives index.html their bounds to frame.
+  window.tfShowFinds = () => {
+    const l = finds();
+    if (!l.length) return null;
+    on = true; store.set("rides", true); draw();
+    return L.latLngBounds(l.flatMap((f) => f.g));
+  };
+  window.addEventListener("tf:finds", () => draw());
+
   // Called for every line added to the map (thousands when a zone's trails are drawn): one timer, pushed back by time
   // instead of cleared and set again on each call, which alone took most of a second when the app opened.
   let drawTimer = null, drawAt = 0;
