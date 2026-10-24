@@ -252,7 +252,9 @@
   // only outside last winter's photos (it lies under them in Winter, so Winter has snow everywhere). Then, like real winter
   // photos: open ground, clearings and alpine go white, dark conifer forest keeps its trees with only a
   // dusting, and cliffs too steep to hold snow stay rock. The hillshade layer adds the relief.
-  const ESRI = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+  const ESRI_NOW = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+  let summerTiles = ESRI_NOW, summerNum = 0;   // Esri's newest photos, or an older summer one here (summerHere below)
+  const ESRI = (z, x, y) => summerTiles.replace("{z}", z).replace("{y}", y).replace("{x}", x);
   const LIVE_DAY = new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10);   // NASA posts with a delay
   const NASA_SNOW = (z, x, y) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDSI_Snow_Cover/default/${LIVE_DAY}/GoogleMapsCompatible_Level8/${z}/${y}/${x}.png`;
   const cache = new Map();   // a few recent height / snow-map tiles, shared by neighbouring photo tiles
@@ -302,6 +304,7 @@
           snowAt[py * W + px] = v; if (v > 0.02) any = true;
         }
       }
+      if (mode === "live") { liveTiles++; if (any) liveSnowy++; }
       if (!any) return { data: raw };   // no snow here today: the sharp photo exactly as it is
       const photo = pixels(await createImageBitmap(new Blob([raw]))), P = photo.data;
       const dz = Math.min(z, 13);
@@ -331,6 +334,62 @@
       out.getContext("2d").putImageData(photo, 0, 0);
       return { data: await (await out.convertToBlob({ type: "image/jpeg", quality: 0.95 })).arrayBuffer() };
     });
+  }
+
+  // ---------- summer photos without snow ----------
+  // Esri's newest photo isn't always a summer one: at Bromont it's from May, with the ski runs still white, so
+  // Summer showed spring snow and looked just like Live (alex, 2026-10-24). Esri keeps its older photos (World
+  // Imagery Wayback, as in Old vs new photos): where the newest photo here wasn't taken June to September, the
+  // newest older one that was is used instead (else one from October, then May). Picked for the zoom-11 square
+  // (about 15 km) in the middle of the view; Live paints today's snow on the same photo.
+  const WAYBACK = "https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json";
+  const WB_TILEMAP = "https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tilemap";
+  let waybackList = null, liveTiles = 0, liveSnowy = 0;
+  const releases = () => waybackList || (waybackList = fetch(WAYBACK).then((r) => r.json()).then((j) => Object.entries(j).map(([k, v]) => ({
+    num: +k, meta: v.metadataLayerUrl, pub: (/(\d{4}-\d{2}-\d{2})/.exec(v.itemTitle || "") || [, ""])[1],
+    tiles: v.itemURL.replace("{level}", "{z}").replace("{row}", "{y}").replace("{col}", "{x}") })).sort((a, b) => b.pub.localeCompare(a.pub) || b.num - a.num))
+    .catch(() => { waybackList = null; return null; }));
+  // The month a release's photo here was taken (1-12), from Esri's photo metadata at zoom 15; 0 if unknown.
+  async function photoMonth(r, lng, lat) {
+    const q = new URLSearchParams({ f: "json", where: "1=1", outFields: "SRC_DATE2", returnGeometry: "false", geometryType: "esriGeometryPoint",
+      spatialRel: "esriSpatialRelIntersects", inSR: "4326", geometry: `${lng},${lat}` });
+    try {
+      const a = (await (await fetch(`${r.meta}/8/query?${q}`)).json()).features?.[0]?.attributes, d = a && a.SRC_DATE2 ? new Date(a.SRC_DATE2) : null;
+      return d && !isNaN(d) ? d.getUTCMonth() + 1 : 0;
+    } catch { return 0; }
+  }
+  const SEASON = (m) => (m >= 6 && m <= 9 ? 3 : m === 10 ? 2 : m === 5 ? 1 : 0);
+  // Walks back through the photos really taken here (each tile map answer names the release whose photo the tile
+  // shows), at most 8. Resolves to a release, or null where the newest photo is the best one.
+  async function findSummer(lng, lat) {
+    const list = await releases();
+    if (!list) return null;
+    const n = 1 << 15, x = Math.floor((lng + 180) / 360 * n), y = Math.floor((1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * n);
+    let i = 0, best = null, bestScore = -1;
+    for (let k = 0; k < 8 && i < list.length; k++) {
+      let j;
+      try { j = await (await fetch(`${WB_TILEMAP}/${list[i].num}/15/${y}/${x}`)).json(); } catch { break; }
+      if (!j || !j.data || j.data[0] !== 1) break;   // no photo this far back
+      const r = list.find((q) => q.num === (j.select?.[0] ?? list[i].num)) || list[i], score = SEASON(await photoMonth(r, lng, lat));
+      if (score > bestScore) { best = k ? r : null; bestScore = score; }
+      if (score === 3) break;
+      i = Math.max(i, list.indexOf(r)) + 1;
+    }
+    return best;
+  }
+  const summers = new Map();
+  const summerAt = (lng, lat) => {
+    const n = 2048, key = Math.floor((lng + 180) / 360 * n) + "/" + Math.floor((1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * n);
+    if (!summers.has(key)) summers.set(key, findSummer(lng, lat).catch(() => null));
+    return summers.get(key);
+  };
+  async function summerHere() {
+    if (!gl) return;
+    const c = gl.getCenter(), r = await summerAt(c.lng, c.lat), tiles = r ? r.tiles : ESRI_NOW;
+    if (!gl || tiles === summerTiles) return;
+    summerTiles = tiles; summerNum = r ? r.num : 0;
+    gl.getSource("sat")?.setTiles([tiles]);
+    for (const id of ["live", "fill"]) gl.getSource(id)?.setTiles([`tfwinter://${id}/{z}/{x}/{y}/${summerNum}`]);
   }
 
   // Last winter's photos cover the riding areas from the Sunshine Coast to the Rockies (scripts/winter-photos);
@@ -364,7 +423,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=322");
+      const w = new Worker("winter-hd.js?v=323");
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return;
@@ -438,13 +497,13 @@
           // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above). Not on phones,
           // where the extra tiles would use the memory iPhone Safari runs out of.
           ...(PHONE ? {} : { winterhd: { type: "raster", tileSize: 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] } }),
-          live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
+          live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: [`tfwinter://live/{z}/{x}/{y}/${summerNum}`],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           // Under the Winter photos instead of the summer ones: today's snow wherever last winter's photos don't reach.
-          fill: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://fill/{z}/{x}/{y}"],
+          fill: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: [`tfwinter://fill/{z}/{x}/{y}/${summerNum}`],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           shade: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: 14, tiles: ["tfdem://{z}/{x}/{y}"] },
-          sat: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+          sat: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: [summerTiles],
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
           // Sharp place, peak and lake names from OpenFreeMap (free, no key), instead of blurry label pictures.
           names: { type: "vector", url: "https://tiles.openfreemap.org/planet", attribution: "<a href=\"https://openfreemap.org\">OpenFreeMap</a>" },
@@ -535,24 +594,34 @@
       gl.setLayoutProperty("fill", "visibility", photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
       for (const id of ["winter", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
       gl.setLayoutProperty("live", "visibility", photos === "live" ? "visible" : "none");
-      sumBtn.title = "Sharp, snow-free photos";
+      sumBtn.title = "Sharp photos, taken in summer where Esri has one";
       winBtn.title = "Real satellite photos from February and March 2026 (Sentinel-2, 10 m, so softer)";
       liveBtn.title = "Today's real snow (NASA satellite, 2 days old)";
       for (const [el, on] of [[sumBtn, !w], [winBtn, photos === "winter"], [liveBtn, photos === "live"]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; }
       store.set(ski() ? "3dPhotosSki" : "3dPhotos", photos);
       winterHere();
     };
-    // Winter outside last winter's photos shows today's snow (NASA, as in Live): say so.
+    // Winter outside last winter's photos shows today's snow (NASA, as in Live): say so. Live where NASA sees no
+    // snow today is the Summer photo as it is: say that too, so it doesn't look like the button did nothing.
     const noWinter = document.createElement("div");
     noWinter.textContent = "No winter photos here yet: today's snow";
     noWinter.style.cssText = "display:none;position:absolute;right:0;bottom:100%;margin-bottom:4px;white-space:nowrap;padding:3px 8px;border-radius:6px;background:rgba(20,30,25,.85);color:#fff;font:600 12px var(--font-body, system-ui)";
     const winterHere = async () => {
+      if (photos === "live") {
+        if (liveTiles) { noWinter.textContent = "No snow here today: same as Summer"; noWinter.style.display = liveSnowy ? "none" : ""; }
+        return;
+      }
+      noWinter.textContent = "No winter photos here yet: today's snow";
       if (photos !== "winter") { noWinter.style.display = "none"; return; }
       const have = await loadWinterBlocks(), c = gl.getCenter(), n = 2048;
       const x = Math.floor((c.lng + 180) / 360 * n), y = Math.floor((1 - Math.asinh(Math.tan(c.lat * Math.PI / 180)) / Math.PI) / 2 * n);
       noWinter.style.display = photos === "winter" && have && !have.has(x + "/" + y) ? "" : "none";
     };
     gl.on("moveend", winterHere);
+    gl.on("movestart", () => { liveTiles = liveSnowy = 0; });
+    gl.on("idle", () => { if (photos === "live") winterHere(); });
+    gl.on("moveend", summerHere);
+    summerHere();
     sumBtn.addEventListener("click", () => setPhotos("sharp"));
     winBtn.addEventListener("click", () => setPhotos("winter"));
     liveBtn.addEventListener("click", () => setPhotos("live"));
