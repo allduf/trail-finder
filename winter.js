@@ -82,12 +82,6 @@ body.sport-alt .panel .modes, body.sport-alt .panel .pane, body.sport-alt #boxBt
 body.sport-alt #status, body.sport-alt #debug, body.sport-alt #list, body.sport-alt #detail, body.sport-alt #allBtn,
 body.sport-alt details.legend, body.sport-alt #searchArea { display: none !important; }
 body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !important; }
-/* Wide desktop: the MTB results column stays empty in Skiing and Hunting, so the map takes its place. */
-@media (min-width: 1000px) {
-  body.sport-alt .app { grid-template-columns: minmax(340px, 400px) 1fr; }
-  body.sport-alt .panel { grid-template-columns: minmax(0, 1fr); }
-  body.sport-alt .panel > .results { display: none; }
-}
 .map-tools #avyBtn.on { background: #f79218; border-color: #f79218; color: #1a1a1a; }
 #skiPane { display: flex; flex-direction: column; gap: 12px; font-size: .9rem; }
 #skiPane .sk-hint { color: var(--muted); margin: 0; font-size: .85rem; }
@@ -1603,6 +1597,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
     sel.value = sport;
     for (const s of SPORTS) document.body.classList.toggle(`sport-${s}`, sport === s);
     document.body.classList.toggle("sport-alt", sport !== "mtb");
+    if (window.tfSyncResultsCol) window.tfSyncResultsCol();   // wide desktop: no empty MTB results column in Skiing or Hunting
     const mtb = window.tfMtbLayers || [];
     if (sport === "mtb") mtb.forEach((l) => { if (!map.hasLayer(l)) l.addTo(map); });
     else mtb.forEach((l) => map.removeLayer(l));

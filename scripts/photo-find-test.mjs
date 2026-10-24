@@ -133,7 +133,9 @@ function how(d, c) {
     out.push(`online check got ${d.before.length} trails${b ? `, this one ${b}${b === 1 ? "st" : b === 2 ? "nd" : b === 3 ? "rd" : "th"}` : ", not this one"}` +
       (d.cmp ? (d.cmp.ok ? ` → ${d.cmp.searched ? "searched" : "no search (" + d.cmp.noSearch + ")"}, ${d.cmp.photos} photos` +
         (mine ? `, fit ${mine[1]} for this one` : "") + (top && (!mine || top[0] !== mine[0]) ? ` (best: ${top[0]} ${top[1]})` : "") +
-        `${d.cmp.close.length ? ", close: " + d.cmp.close.join(", ") : ""}` : ` → skipped (${d.cmp.why || d.cmp.noSearch || "?"})`) + notes : ""));
+        `${d.cmp.close.length ? ", close: " + d.cmp.close.join(", ") : ""}` +
+        // Trails further down the list that the AI says it knows the picture is from.
+        `${(d.cmp.other || []).length ? ", knows it's: " + d.cmp.other.map(([t, f]) => `${t} ${f}`).join(", ") : ""}` : ` → skipped (${d.cmp.why || d.cmp.noSearch || "?"})`) + notes : ""));
   }
   return out.join(" · ");
 }

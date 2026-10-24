@@ -1,6 +1,6 @@
 // Monthly job (see .github/workflows/hunting-data.yml): the map layers for Hunting, the third sport in the sport menu.
 //
-// Writes four files in data/hunting/, all from free official open data:
+// Writes these files in data/hunting/, all from free official open data:
 //  - zones.json: every Wildlife Management Unit in BC (DataBC WHSE_WILDLIFE_MANAGEMENT.WAA_WILDLIFE_MGMT_UNITS_SVW,
 //    with its game management zone and region) and in Alberta (Alberta Environment and Protected Areas,
 //    boundaries/fishwild_wildlife_mgmt_unit_public), each with a label point.
@@ -16,6 +16,8 @@
 //    Regulations PDFs on albertaregulations.ca.
 //  - draws.json: BC limited entry hunts per unit with last year's first-choice odds (LEH synopsis PDF) and Alberta's
 //    special licence draw results per hunt (quota, applicants, priority needed; AlbertaRELM draw summaries).
+//  - harvest.json: hunters, days and animals taken per BC unit over the last 5 years (Big Game Harvest Statistics) and
+//    Alberta's estimated resident harvest and hunter success per WMU (Hunter harvest reports on open.alberta.ca).
 //  areas.json also has Alberta's cities, towns and villages and military land (recaccess_military).
 // DataBC: Open Government Licence - British Columbia. Alberta: Open Government Licence - Alberta. CLSS: Open Government
 // Licence - Canada. A source that fails keeps its last good data.
@@ -420,3 +422,33 @@ if (bcDraws || abDraws) writeFileSync(new URL("draws.json", OUT), JSON.stringify
   bc: bcDraws || oldDraws.bc || {}, bcSrc: "BC Limited Entry Hunting Regulations Synopsis (last year's first-choice odds)",
   ab: abDraws || oldDraws.ab || [], abSrc: "AlbertaRELM draw summaries" }));
 
+// harvest.json: hunters, days and kills per BC unit (last 5 years) and Alberta's estimated resident harvest and hunter
+// success per WMU (latest Hunter harvest reports), for "Harvest here" in the spot card.
+const { bcHarvest, abHarvest } = await import("./hunting-parse.mjs");
+const oldHarvest = (() => { try { return JSON.parse(readFileSync(new URL("harvest.json", OUT), "utf8")); } catch { return {}; } })();
+let bcH = null, abH = null;
+try {
+  const pkg = JSON.parse(readFileSync(curl("https://catalogue.data.gov.bc.ca/api/3/action/package_show?id=f2303645-5952-4766-bd5c-3b9b50dda1ca", `${tmp}/bch.json`), "utf8"));
+  const res = pkg.result.resources.find((r) => /- WMU$/i.test(r.name.trim()) && /\.csv$/i.test(r.url));
+  bcH = bcHarvest(readFileSync(curl(res.url, `${tmp}/bch.csv`), "utf8"));
+  if (Object.keys(bcH.mu).length < 100) throw new Error(`only ${Object.keys(bcH.mu).length} units read`);
+  log(`  BC harvest: ${Object.keys(bcH.mu).length} units, ${bcH.years[0]}-${bcH.years.at(-1)}`);
+} catch (e) { bcH = null; log(`  BC harvest failed: ${e.message}`); }
+try {
+  const AB_HARVEST = { "white-tailed-deer": "White-tailed deer", "mule-deer": "Mule deer", "elk": "Elk", "moose": "Moose", "black-bear": "Black bear", "pronghorn": "Pronghorn" };
+  abH = { year: null, wmu: {} };
+  for (const [slug, name] of Object.entries(AB_HARVEST)) {
+    const pkg = JSON.parse(readFileSync(curl(`https://open.alberta.ca/api/3/action/package_show?id=hunter-harvest-report-${slug}-estimated-resident-harvest-for-${slug}`, `${tmp}/abh.json`), "utf8"));
+    const pdfs = pkg.result.resources.filter((r) => /\.pdf$/i.test(r.url)).map((r) => ({ r, y: +((r.name.match(/\b(20\d\d)\b/) || [])[1] || 0) })).sort((a, b) => b.y - a.y);
+    if (!pdfs.length) continue;
+    const got = abHarvest(pdfText(pdfs[0].r.url, `abh-${slug}`));
+    if (Object.keys(got.wmu).length < 20) { log(`    ${name}: only ${Object.keys(got.wmu).length} WMUs`); continue; }
+    abH.year = Math.max(abH.year || 0, got.year || pdfs[0].y);
+    for (const [w, v] of Object.entries(got.wmu)) (abH.wmu[w] ||= {})[name] = v;
+    log(`    ${name} ${got.year || pdfs[0].y}: ${Object.keys(got.wmu).length} WMUs`);
+  }
+  if (Object.keys(abH.wmu).length < 50) throw new Error(`only ${Object.keys(abH.wmu).length} WMUs read`);
+} catch (e) { abH = null; log(`  Alberta harvest failed: ${e.message}`); }
+if (bcH || abH) writeFileSync(new URL("harvest.json", OUT), JSON.stringify({ updated: now,
+  bc: bcH || oldHarvest.bc || null, bcSrc: "BC Big Game Harvest Statistics (resident + non-resident)",
+  ab: abH || oldHarvest.ab || null, abSrc: "Alberta Hunter harvest reports (estimated resident harvest)" }));

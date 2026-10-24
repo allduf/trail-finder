@@ -48,6 +48,9 @@
     layers: '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>',
     down: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
     x: '<path d="M6 6l12 12M18 6 6 18"/>',
+    star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+    eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    ruler: '<path d="M3 17 17 3l4 4L7 21z"/><path d="m7 13 2 2M10 10l2 2M13 7l2 2"/>',
   };
 
   // ---------- what each rules area means for hunting ----------
@@ -125,14 +128,25 @@
   // Alberta grazing and farm dispositions on public land: under the Recreational Access Regulation, contact the leaseholder first.
   const GRAZE = { GRL: "Grazing lease", FGL: "Forest grazing licence", FDL: "Farm development lease", GRP: "Grazing permit", CUP: "Cultivation permit", HAY: "Hay permit" };
   const GRAZE_COLOR = C.graze;
+  // Far from roads (alex: "add it all"): every drivable road drawn as a band 500 m and 1.5 km wide on each side, grey,
+  // so the country past them, where few hunters walk to, stays clear. [metres each side, colour, label]
+  const REACH = [[1500, "#ced4da", "0.5 to 1.5 km from a road"], [500, "#868e96", "Within 500 m of a road"]];
+  // Cut blocks by age (BC's consolidated cut blocks, by harvest year): dots in a wash, the colour by age.
+  // [newest age, oldest age, colour, dot px, label]
+  const CUTS = [[0, 4, "#f59f00", 4, "Logged 0-4 years ago: open, little cover yet"], [5, 20, "#2b8a3e", 5, "Logged 5-20 years ago: thick browse, prime feed"], [21, 40, "#868e96", 4, "Logged 21-40 years ago: closing in"]];
+  const cutSym = (c, size) => `<PolygonSymbolizer><Fill><CssParameter name="fill">#ffffff</CssParameter><CssParameter name="fill-opacity">0.3</CssParameter></Fill></PolygonSymbolizer>`
+    + `<PolygonSymbolizer><Fill><GraphicFill><Graphic><Mark><WellKnownName>circle</WellKnownName><Fill><CssParameter name="fill">${c}</CssParameter></Fill></Mark><Size>${size}</Size></Graphic></GraphicFill></Fill><Stroke><CssParameter name="stroke">${c}</CssParameter><CssParameter name="stroke-width">1.5</CssParameter></Stroke><VendorOption name="graphic-margin">3</VendorOption></PolygonSymbolizer>`;
+  const cutCss = (c) => `background:#fff radial-gradient(${c} 1.6px, transparent 1.9px) 0 0 / 5px 5px;border:1.5px solid ${c}`;
 
   const LAYERS = {
     zones: { g: "Boundaries", label: "Hunting zones", sub: "BC management units and Alberta WMUs", on: true, sw: [C.zone, "line"] },
     leh: { g: "Boundaries", label: "Limited entry zones", sub: "BC draw-only hunts", on: false, sw: [C.leh, "dash"] },
     rules: { g: "Boundaries", label: "Parks, towns and closures", sub: "Where hunting is banned or has its own rules", on: true, sw: [C.no, "hatch"] },
     land: { g: "Land", label: "Private and public land", sub: "BC private parcels, Alberta Green Area and grazing leases", on: false, sw: [C.private, "fill"], minZoom: 9 },
+    reach: { g: "Land", label: "Far from roads", sub: "Clear where you're over 1.5 km from any road: few hunters walk that far", on: false, sw: [REACH[1][1], "fill"], minZoom: 9 },
     forest: { g: "Habitat", label: "Forest types", sub: "Leading tree species (BC), fuel types (Alberta)", on: false, sw: ["#1b5e20", "fill"], minZoom: 8 },
     burns: { g: "Habitat", label: "Old burns", sub: "Fire scars by age: young burns grow feed", on: false, sw: [BURN, "burn"], minZoom: 7 },
+    cut: { g: "Habitat", label: "Cut blocks by age", sub: "Logged areas (BC): 5-20 year old ones are prime browse", on: false, sw: [CUTS[1][2], "cut"], minZoom: 10 },
     wet: { g: "Habitat", label: "Wetlands", sub: "Marshes, fens, bogs and swamps", on: false, sw: [C.wet, "fill"], minZoom: 10 },
     slope: { g: "Terrain", label: "Slope angle", sub: "Steepness in four bands", on: false, sw: ["#e03131", "fill"], minZoom: 9 },
     aspect: { g: "Terrain", label: "Aspect", sub: "Which way each slope faces", on: false, sw: ["#40c057", "fill"], minZoom: 9 },
@@ -143,12 +157,17 @@
   // Map views (alex: "make it more simple"): one tap sets the layers for a job; All layers still has every switch.
   const VIEWS = {
     rules: { label: "Rules", sub: "where to hunt", layers: ["zones", "rules", "land"] },
-    scout: { label: "Scouting", sub: "feed and cover", layers: ["zones", "forest", "burns", "slope"] },
+    scout: { label: "Scouting", sub: "feed, far from roads", layers: ["zones", "burns", "cut", "reach"] },
     hunt: { label: "On the hunt", sub: "wind and range", layers: ["zones", "wind", "rings"] },
   };
   const RINGS = [50, 100, 200, 300, 400];   // metres around the spot
   // "huntLayers2": the first version turned on more layers at first; everyone starts again from the lighter set.
   let shown = new Set(store.get("huntLayers2", Object.keys(LAYERS).filter((k) => LAYERS[k].on)));
+  let glass = null;   // the glassing view on the map: { at: "lat,lon", url, box: [w, s, e, n] }
+  let meas = null;    // the measure tool's points while it's on
+  // Glassing: the ground within GLASS_M you can see from a spot. Dark is hidden; trees aren't in the terrain tiles.
+  const GLASS_M = 5000, GLASS_DARK = "rgba(15,20,30,.53)";
+  const GLASS_NOTE = "Clear ground is in sight from here, or a few steps to the edge (up to 100 m), as far as 5 km. Dark ground is hidden behind a ridge or a rise. Trees aren't counted, so look for openings and cut blocks.";
 
   const css = document.createElement("style");
   css.textContent = `
@@ -172,6 +191,14 @@ body:not(.sport-hunt) #huntPane, body:not(.sport-hunt) .lm-hunt { display: none 
 #huntPane .hn-now b { font-weight: 800; }
 #huntPane .hn-now span { display: inline-flex; align-items: center; gap: 5px; }
 #huntPane .hn-now svg { color: ${ORANGE}; flex: none; }
+#huntPane .hn-hour { display: flex; flex-direction: column; gap: 2px; font-size: .8rem; margin-top: 8px; }
+#huntPane .hn-hour input { width: 100%; accent-color: ${ORANGE}; }
+#huntPane .hn-therm { font-size: .82rem; margin: 4px 0 0; font-weight: 600; }
+#huntPane ul.hn-cast { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+#huntPane ul.hn-cast li { display: grid; grid-template-columns: 5.5em auto 1fr; gap: 0 8px; align-items: baseline; font-size: .84rem; }
+#huntPane ul.hn-cast small { grid-column: 1 / -1; color: var(--muted); font-size: .74rem; }
+#huntPane .hn-stars { color: #f59f00; letter-spacing: 1px; }
+#huntPane .hn-stars i { color: var(--line); font-style: normal; }
 #huntPane .hn-tmenu { display: flex; gap: 6px; flex-wrap: wrap; }
 #huntPane .hn-views { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 #huntPane .hn-view { font: inherit; font-size: .8rem; font-weight: 700; padding: 8px 4px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; }
@@ -227,6 +254,7 @@ body:not(.sport-hunt) #huntPane, body:not(.sport-hunt) .lm-hunt { display: none 
 #huntPane .hn-tbl td { padding: 4px 4px 4px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
 #huntPane .hn-tbl tr.here td { background: #fff4e6; }
 #huntPane .hn-tbl .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#huntPane .hn-tbl tr.hd td { font-weight: 700; white-space: normal; vertical-align: bottom; }
 #huntPane .hn-open { color: #2b8a3e; font-weight: 800; }
 :is(#huntPane, .lm-hunt) .hn-group { margin: 0; font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-top: 4px; }
 :is(#huntPane, .lm-hunt) .hn-layer { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 6px 0; cursor: pointer; }
@@ -273,6 +301,13 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
 .hn-spot::after { content: ""; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: ${ORANGE}; }
 .hn-ring { position: fixed; z-index: 3000; left: 50%; top: 14px; transform: translateX(-50%); width: min(420px, calc(100% - 24px)); box-sizing: border-box; background: ${ORANGE}; color: #fff; border-radius: 14px;
   padding: 12px 14px; box-shadow: 0 8px 28px #0006; display: flex; gap: 10px; align-items: center; font-weight: 700; }
+.sp-banner.hn-meas[hidden] { display: none; }
+.sp-banner.hn-meas { z-index: 660; left: 56px; right: 116px; transform: none; margin-inline: auto; max-width: calc(100% - 172px); }
+@media (max-width: 760px) { .sp-banner.hn-meas { top: 64px; left: 10px; right: 10px; width: auto; max-width: none; gap: 6px 8px; padding: 8px 10px; font-size: .84rem; } }
+.hn-meas svg { flex: none; color: ${ORANGE}; }
+.hn-meas button:disabled { opacity: .45; }
+.hn-measuring .leaflet-container, .hn-measuring .maplibregl-canvas { cursor: crosshair !important; }
+#huntPane #hnMeasure[aria-pressed="true"], #huntPane #hnMeasure[aria-pressed="true"] svg { background: ${ORANGE}; color: #fff; border-color: ${ORANGE}; }
 .hn-ring button { margin-left: auto; font: inherit; font-weight: 800; border: 0; border-radius: 10px; padding: 8px 12px; background: #fff; color: ${ORANGE}; cursor: pointer; }`;
   document.head.append(css);
 
@@ -291,8 +326,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     <div class="hn-card" id="hnSpot" hidden></div>
     <div class="hn-card" id="hnLayers"><header>${svg(IC.layers)}<h3>Map</h3></header>
       <div class="hn-views" role="group" aria-label="Map views">${Object.entries(VIEWS).map(([k, v]) => `<button type="button" class="hn-view" data-view="${k}">${esc(v.label)}<small>${esc(v.sub)}</small></button>`).join("")}</div>
-      <button type="button" class="hn-pill" id="hnAll">${svg(IC.layers, 16)}All hunting layers</button></div>
-    <div class="hn-card" id="hnCond"><div id="hnWx"></div><div id="hnSky"></div></div>
+      <div class="hn-row"><button type="button" class="hn-pill" id="hnAll">${svg(IC.layers, 16)}All hunting layers</button><button type="button" class="hn-pill" id="hnMeasure">${svg(IC.ruler, 16)}Measure</button></div></div>
+    <div class="hn-card" id="hnCond"><div id="hnWx"></div><div id="hnCast"></div><div id="hnSky"></div></div>
     <details class="hn-card" id="hnOffBox"><summary>${svg(IC.down, 16)} Hunting maps offline</summary><div id="hnOff"></div></details>
     <details class="hn-safe"><summary>A guide, not the law</summary>Zones, parks, seasons and draw odds come from BC and Alberta open data and regulation booklets, read by the app each month, and can be out of date or simplified. Always check the <a href="${BC_SYNOPSIS}" target="_blank" rel="noopener">BC Hunting and Trapping Regulations Synopsis</a> or the <a href="${AB_REGS}" target="_blank" rel="noopener">Alberta Guide to Hunting Regulations</a>, and get permission before hunting private land or a lease.</details>`;
   // Every hunting layer switch lives in the map's Layers menu (alex: "should we put that here?"), shown only in Hunting.
@@ -322,7 +357,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       .catch((e) => { delete files[name]; throw e; });
     return files[name];
   }
-  const DATA_FILES = ["zones", "leh", "areas", "seasons-bc", "seasons-ab", "draws"];
+  const DATA_FILES = ["zones", "leh", "areas", "seasons-bc", "seasons-ab", "draws", "harvest"];
   const ringsLL = (g) => g.map((r) => { const out = []; for (let i = 0; i < r.length; i += 2) out.push([r[i], r[i + 1]]); return out; });
   function inside(g, lat, lon) {
     let c = false;
@@ -342,7 +377,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   map.getPane("huntLabels").style.pointerEvents = "none";
   const renderer = L.canvas({ pane: "hunt", padding: 0.3 });
   const zoneLayer = L.layerGroup(), lehLayer = L.layerGroup(), rulesLayer = L.layerGroup(), labelLayer = L.layerGroup(), windLayer = L.layerGroup(), ringLayer = L.layerGroup();
-  const allHunt = [zoneLayer, lehLayer, rulesLayer, labelLayer, windLayer, ringLayer];
+  const glassLayer = L.layerGroup(), measureLayer = L.layerGroup();
+  const allHunt = [zoneLayer, lehLayer, rulesLayer, labelLayer, windLayer, ringLayer, glassLayer, measureLayer];
   let zones = null, leh = null, areas = null;
 
   async function drawZones() {
@@ -405,8 +441,25 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const tileBox = (z, x, y) => { const s = (2 * R) / 2 ** z; return [x * s - R, R - (y + 1) * s, (x + 1) * s - R, R - y * s].map((v) => v.toFixed(2)).join(","); };
   const BoxTiles = L.TileLayer.extend({
     initialize(tmpl, opts) { this._tmpl = tmpl; L.TileLayer.prototype.initialize.call(this, "", opts); },
-    getTileUrl(c) { return this._tmpl.replace("{bbox}", tileBox(c.z, c.x, c.y)); },
+    getTileUrl(c) { return picUrl(this.options.pic, c.z, c.x, c.y); },
   });
+  // A picture layer's address for one tile: most fill a fixed address in; "url" ones work theirs out per tile.
+  const picUrl = (p, z, x, y) => (p.url ? p.url(z, x, y) : p.tmpl.replace("{bbox}", tileBox(z, x, y)));
+  // Pixels across `m` metres on the ground at a tile (web mercator stretches by 1 / cos(latitude)).
+  const pxFor = (m, z, y) => m / ((40075016.686 * Math.cos((tileLat(y + 0.5, z) * Math.PI) / 180)) / (256 * 2 ** z));
+  // BC roads: the Digital Road Atlas (every road, resource roads too), minus trails, ferries and roads not built yet.
+  const DRA = "pub:WHSE_BASEMAPPING.DRA_DGTL_ROAD_ATLAS_MPAR_SP";
+  const reachBC = (z, x, y) => {
+    const notIn = ["trail", "ferry", "proposed"].map((c) => `<PropertyIsEqualTo><PropertyName>ROAD_CLASS</PropertyName><Literal>${c}</Literal></PropertyIsEqualTo>`).join("");
+    // one style per band, the wide one first, so a narrow band is never painted over by a neighbour's wide one
+    const band = ([m, c]) => `<FeatureTypeStyle><Rule><Filter><Not><Or>${notIn}</Or></Not></Filter><LineSymbolizer><Stroke><CssParameter name="stroke">${c}</CssParameter><CssParameter name="stroke-width">${Math.max(1, Math.round(pxFor(2 * m, z, y)))}</CssParameter><CssParameter name="stroke-linecap">round</CssParameter><CssParameter name="stroke-linejoin">round</CssParameter></Stroke></LineSymbolizer></Rule></FeatureTypeStyle>`;
+    return wms(DRA, `<StyledLayerDescriptor version="1.0.0"><NamedLayer><Name>${DRA}</Name><UserStyle>${REACH.map(band).join("")}</UserStyle></NamedLayer></StyledLayerDescriptor>`).replace("{bbox}", tileBox(z, x, y));
+  };
+  // Alberta roads: Alberta Base Features access roads, minus ferries, fords and winter roads (widths in points).
+  const reachAB = (z, x, y) => `${AB}/titan/rest/services/transportation/access_facility_roads/MapServer/export?bboxSR=3857&imageSR=3857&size=256%2C256&format=png32&transparent=true&f=image&dpi=96&dynamicLayers=${encodeURIComponent(JSON.stringify(
+    [...REACH].reverse().map(([m, c], i) => ({ id: 101 + i, source: { type: "mapLayer", mapLayerId: 0 }, definitionExpression: "FEATURE_TYPE NOT IN (1,2,12)",
+      drawingInfo: { renderer: { type: "simple", symbol: { type: "esriSLS", style: "esriSLSSolid", color: rgba(c, 255), width: Math.max(0.75, +(pxFor(2 * m, z, y) * 0.75).toFixed(1)) } } } }))))}&bbox=${tileBox(z, x, y)}`;
+  const CUTBLOCKS = "pub:WHSE_FOREST_VEGETATION.VEG_CONSOLIDATED_CUT_BLOCKS_SP";
   const wms = (layer, style) => `${WMS}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${encodeURIComponent(layer)}&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&SRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&SLD_BODY=${encodeURIComponent(style)}&BBOX={bbox}`;
   const arcgis = (service, extra) => `${AB}/${service}/MapServer/export?bboxSR=3857&imageSR=3857&size=256%2C256&format=png32&transparent=true&f=image&${extra}&bbox={bbox}`;
   const dyn = (ids, fill, line, style = "esriSFSSolid") => `dynamicLayers=${encodeURIComponent(JSON.stringify(ids.map((id) => ({ id, source: { type: "mapLayer", mapLayerId: id },
@@ -424,12 +477,15 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     { id: "hn-burns", layer: "burns", tmpl: wms(FIRES, sld(FIRES, BURNS.map(([a, b, gap]) => [between("FIRE_YEAR", a, b), burnSym(gap)]))), min: 7, opacity: 1, attr: 'Burns: <a href="https://catalogue.data.gov.bc.ca/dataset/fire-perimeters-historical">BC Wildfire Service</a>' },
     { id: "hn-abburn1", layer: "burns", tmpl: arcgis(FIRE_SVC, dyn([11, 12, 13, 14, 15], rgba(BURN, 255), rgba(BURN, 255), "esriSFSDiagonalCross")), min: 7, opacity: 1, ab: true, attr: "Burns: Alberta Wildfire" },
     { id: "hn-abburn2", layer: "burns", tmpl: arcgis(FIRE_SVC, dyn([16, 17, 18, 19, 20], rgba(BURN, 255), rgba(BURN, 255), "esriSFSBackwardDiagonal")), min: 7, opacity: 1, ab: true, attr: "Burns: Alberta Wildfire" },
+    { id: "hn-reach", layer: "reach", url: reachBC, min: 9, opacity: 0.55, attr: 'Roads: <a href="https://www2.gov.bc.ca/gov/content/data/geographic-data-services/topographic-data/roads">BC Digital Road Atlas</a>' },
+    { id: "hn-abreach", layer: "reach", url: reachAB, min: 9, opacity: 0.55, ab: true, attr: "Roads: Alberta Base Features" },
+    { id: "hn-cut", layer: "cut", tmpl: wms(CUTBLOCKS, sld(CUTBLOCKS, CUTS.map(([a, b, c, size]) => [between("HARVEST_MID_YEAR_CALENDAR", YEAR - b, YEAR - a), cutSym(c, size)]))), min: 10, opacity: 1, attr: 'Cut blocks: <a href="https://catalogue.data.gov.bc.ca/dataset/harvested-areas-of-bc-consolidated-cutblocks-">BC consolidated cut blocks</a>' },
     { id: "hn-wet", layer: "wet", tmpl: wms(WETLANDS, sld(WETLANDS, [[`<Not><PropertyIsNull><PropertyName>WATERBODY_TYPE</PropertyName></PropertyIsNull></Not>`, C.wet]])), min: 10, opacity: 0.55, attr: 'Wetlands: <a href="https://www2.gov.bc.ca/gov/content/data/geographic-data-services/topographic-data/freshwater">BC Freshwater Atlas</a>' },
     { id: "hn-abwet", layer: "wet", tmpl: arcgis(WET_SVC, "layers=show%3A3"), min: 13, opacity: 0.6, ab: true, attr: "Wetlands: Alberta Merged Wetland Inventory" },
   ];
   // each province's layers only ask for tiles over that province
   const BOUNDS = { bc: [[48.2, -139.1], [60.01, -114.0]], ab: [[48.99, -120.01], [60.01, -109.99]] };
-  for (const p of PICS) p.tiles = new BoxTiles(p.tmpl, { pane: "huntTiles", opacity: p.opacity, minZoom: p.min, maxZoom: 20, attribution: p.attr, bounds: BOUNDS[p.ab ? "ab" : "bc"] });
+  for (const p of PICS) p.tiles = new BoxTiles(p.tmpl, { pic: p, pane: "huntTiles", opacity: p.opacity, minZoom: p.min, maxZoom: 20, attribution: p.attr, bounds: BOUNDS[p.ab ? "ab" : "bc"] });
 
   // Slope angle and aspect from the terrain tiles (Terrarium colour code, 256 px, up to zoom 14).
   const DEM = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/";
@@ -531,13 +587,15 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     forest: () => [...FOREST.map(([, n, c]) => `<li>${sw(c)}${esc(n)}</li>`), `<li>${sw("#808080")}Other species</li>`,
       ...(fuelLegend && fuelLegend.length ? [`<li class="wide"><b>Alberta fuel types</b></li>`, ...fuelLegend.map(([n, src]) => `<li><img alt="" src="${src}">${esc(n.replace(/^[A-Z]-\d(\/[A-Z]-\d)? \((.*)\)$/, "$2"))}</li>`)] : [])],
     burns: () => [...BURNS.map(([, , gap, n]) => `<li><i style="${burnCss(gap)}"></i>${esc(n)}</li>`), `<li class="wide">Alberta: the last 10 years</li>`],
+    reach: () => [...[...REACH].reverse().map(([, c, n]) => `<li class="wide"><i style="background:${c};opacity:.8"></i>${esc(n)}</li>`), `<li class="wide"><i style="background:#fff;border:1px solid #adb5bd"></i>Clear: over 1.5 km from any road</li>`],
+    cut: () => [...CUTS.map(([, , c, , n]) => `<li class="wide"><i style="${cutCss(c)}"></i>${esc(n)}</li>`), `<li class="wide">Alberta: not on the map yet</li>`],
     wet: () => [`<li>${sw(C.wet)}Wetland (BC)</li>`, `<li>Alberta: from zoom 13</li>`],
     slope: () => SLOPES.map(([, n, c]) => `<li>${sw(c)}${esc(n)}</li>`),
     aspect: () => DIRS.map((d, i) => `<li>${sw(ASPECT_COLORS[i])}Faces ${d}</li>`),
     wind: () => [`<li class="wide">${sw(ORANGE)}Downwind of the spot: game there can smell you</li>`],
     rings: () => [`<li class="wide">${sw(C.rings, "dash")}${RINGS.join(", ")} m</li>`],
   };
-  const icon = ([c, kind]) => kind === "burn" ? `<span class="hn-ic" style="${burnCss(9)}"></span>` : kind === "hatch" ? `<span class="hn-ic" style="border:2px solid ${c};background:${hatchCss(c)}"></span>` : kind === "line" ? `<span class="hn-ic" style="border:3px solid ${c}"></span>` : kind === "dash" ? `<span class="hn-ic" style="border:3px dashed ${c}"></span>`
+  const icon = ([c, kind]) => kind === "cut" ? `<span class="hn-ic" style="${cutCss(c)}"></span>` : kind === "burn" ? `<span class="hn-ic" style="${burnCss(9)}"></span>` : kind === "hatch" ? `<span class="hn-ic" style="border:2px solid ${c};background:${hatchCss(c)}"></span>` : kind === "line" ? `<span class="hn-ic" style="border:3px solid ${c}"></span>` : kind === "dash" ? `<span class="hn-ic" style="border:3px dashed ${c}"></span>`
     : kind === "cone" ? `<span class="hn-ic" style="background:conic-from 0deg, transparent;background:linear-gradient(135deg, ${c}55, ${c})"></span>` : kind === "ring" ? `<span class="hn-ic" style="border:2px dashed ${c};border-radius:50%"></span>`
     : `<span class="hn-ic" style="background:${c};opacity:.85"></span>`;
   function renderLayers() {
@@ -562,7 +620,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     const box = document.querySelector(".hn-mapkey .hn-keybox");
     if (!box || box.hidden) return;
     const on = Object.keys(LAYERS).filter((k) => shown.has(k));
-    box.innerHTML = on.length ? on.map((k) => `<b>${esc(LAYERS[k].label)}</b><ul class="hn-key">${KEYS[k]().join("")}</ul>`).join("") : `<p>No layers on: turn some on in Map layers.</p>`;
+    box.innerHTML = (glass ? `<b>What you can see</b><ul class="hn-key"><li><i style="background:${GLASS_DARK}"></i>Hidden from the spot</li><li><i style="background:#fff8;border:1px solid var(--line)"></i>In sight (bare ground: trees not counted)</li><li><i style="border:2px dashed ${ORANGE}"></i>${GLASS_M / 1000} km around the spot</li></ul>` : "")
+      + (on.length ? on.map((k) => `<b>${esc(LAYERS[k].label)}</b><ul class="hn-key">${KEYS[k]().join("")}</ul>`).join("") : `<p>No layers on: turn some on in Map layers.</p>`);
   }
   $("hnLayerList").addEventListener("change", (e) => {
     const b = e.target.closest("[data-k]"); if (!b) return;
@@ -740,6 +799,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       const sp = Math.round(wx.current.wind_speed_10m ?? 0);
       parts.push([IC.wind, sp < 4 ? "Wind <b>light</b>" : `Wind from <b>${compass(wx.current.wind_direction_10m ?? 0)} ${sp}</b> km/h`]);
     }
+    const today = castDays()[0];
+    if (today) parts.push([IC.star, `Today: <b>${SCORE[today.n]}</b>`]);
     if (spotOpen) parts.push([IC.pin, spotOpen.length ? `Open: <b>${esc(spotOpen.slice(0, 3).join(", "))}${spotOpen.length > 3 ? ` +${spotOpen.length - 3}` : ""}</b>` : "Nothing open here today"]);
     el.innerHTML = parts.map(([ic, t]) => `<span>${svg(ic, 15)}${t}</span>`).join("");
     el.hidden = !parts.length;
@@ -823,12 +884,33 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const compass = (deg) => DIRS[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
   const arrow = (to, size = 34) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" style="transform:rotate(${to}deg)" aria-hidden="true"><path d="M12 2 18 14h-4v8h-4v-8H6z" fill="${ORANGE}" stroke="#7a2a00" stroke-width="1"/></svg>`;
   let wx = null, wxKey = "", wxBusy = false, wxErr = "";
+  // Wind through the day (alex: "add it all"): 0 is now, 1 to 12 the hours ahead; the cone and arrow follow the slider.
+  let windHour = 0;
+  function windAt() {
+    if (!wx) return null;
+    const h = wx.hourly || {}, c = wx.current || {};
+    if (windHour && h.time && h.time[windHour] != null) return { dir: h.wind_direction_10m[windHour] ?? 0, sp: h.wind_speed_10m[windHour] ?? 0, g: h.wind_gusts_10m?.[windHour], t: h.time[windHour] };
+    return { dir: c.wind_direction_10m ?? 0, sp: c.wind_speed_10m ?? 0, g: c.wind_gusts_10m, t: null };
+  }
+  const hourLabel = (t) => { const h = +t.slice(11, 13); return `${h % 12 || 12} ${h < 12 ? "AM" : "PM"}`; };
+  // Thermals: on calm days air sinks downhill while it's cool (night, dawn, dusk) and rises once the sun warms the slopes,
+  // from about 2 hours after sunrise to an hour before sunset. Hours here are the spot's own clock.
+  function thermals(t) {
+    if (!spot) return "";
+    const s = skyDay(spot.lat, spot.lon, 0, false);
+    if (!s.rise || !s.set) return "";
+    const local = (d) => { const x = new Date(d.valueOf() + tzOff()); return x.getUTCHours() + x.getUTCMinutes() / 60; };
+    const h = t ? +t.slice(11, 13) + 0.5 : local(new Date());
+    return h >= local(s.rise) + 2 && h < local(s.set) - 1
+      ? "⬆ Thermals rising: your scent drifts uphill, so stay above the animals."
+      : "⬇ Thermals sinking: your scent drifts downhill, so stay below the animals.";
+  }
   const wxCache = new Map();
   async function loadWeather() {
     if (!spot || !isHunt()) return;
     const key = `${spot.lat.toFixed(2)},${spot.lon.toFixed(2)}`;
     const hit = wxCache.get(key);
-    if (hit && Date.now() - hit.at < 15 * 60000) { wx = hit.d; wxKey = key; renderWx(); drawWind(); return; }
+    if (hit && Date.now() - hit.at < 15 * 60000) { wx = hit.d; wxKey = key; renderWx(); drawWind(); loadCast(); return; }
     if (wxBusy) return;
     wxBusy = true; wxErr = "";
     renderWx();
@@ -842,7 +924,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       wxCache.set(key, { at: Date.now(), d: wx });
     } catch (e) { wxErr = e.message || "no connection"; }
     wxBusy = false;
-    renderWx(); renderSky(); drawWind();
+    renderWx(); renderSky(); drawWind(); loadCast();
     // the spot may have moved while this one loaded
     if (spot && `${spot.lat.toFixed(2)},${spot.lon.toFixed(2)}` !== wxKey && !wxErr) loadWeather();
   }
@@ -854,24 +936,90 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     if (wxErr && !wx) body = `<p class="hn-note">Couldn't load the weather: ${esc(wxErr)}.</p>`;
     else if (!wx) body = `<p class="hn-note">Loading the wind and weather…</p>`;
     else {
-      const c = wx.current || {}, dir = c.wind_direction_10m ?? 0, to = (dir + 180) % 360, sp = Math.round(c.wind_speed_10m ?? 0), g = Math.round(c.wind_gusts_10m ?? 0);
-      const calm = sp < 4;
-      const h = wx.hourly || {};
+      const c = wx.current || {}, w = windAt(), g = Math.round(c.wind_gusts_10m ?? 0), sp = Math.round(c.wind_speed_10m ?? 0);
+      const h = wx.hourly || {}, hours = Math.min(12, (h.time || []).length - 1);
       const hourHtml = (h.time || []).slice(0, 13).map((_, i) => {
         const t = h.time[i].slice(11, 16), hd = h.wind_direction_10m[i];
         return `<div><b>${t}</b>${arrow((hd + 180) % 360, 18)}<span>${compass(hd)} ${Math.round(h.wind_speed_10m[i])}</span><span>${Math.round(h.temperature_2m[i])}°</span><span>${h.precipitation_probability?.[i] ?? "–"}%</span></div>`;
       }).join("");
-      body = `<div class="hn-wind"><div class="hn-arrow" title="The arrow points where the wind blows to">${arrow(to)}</div><div>
-        <div class="hn-big">${calm ? "Light and variable" : `From the ${compass(dir)}, ${sp} km/h`}</div>
-        <p>${calm ? "Little wind: your scent pools around you, sinking downhill in the evening and rising as the day warms." : `Your scent drifts ${compass(to)} (the orange cone). Approach from the ${compass(to)}, into the wind.`}</p></div></div>
+      body = `<div class="hn-wind"><div class="hn-arrow" id="hnArrow" title="The arrow points where the wind blows to">${arrow((w.dir + 180) % 360)}</div><div>
+        <div class="hn-big" id="hnWindBig"></div><p id="hnWindTxt"></p></div></div>
+        ${hours > 0 ? `<label class="hn-hour"><span id="hnHourLbl"></span><input type="range" id="hnHour" min="0" max="${hours}" step="1" value="${Math.min(windHour, hours)}" aria-label="Wind at this hour"></label>` : ""}
+        <p class="hn-therm" id="hnTherm"></p>
         <div class="hn-stats" style="margin-top:8px"><div><b>${Math.round(c.temperature_2m ?? 0)}°</b><span>Feels ${Math.round(c.apparent_temperature ?? 0)}°</span></div><div><b>${g || sp}</b><span>Gusts</span></div>
           <div><b>${c.cloud_cover ?? "–"}%</b><span>Cloud</span></div><div><b>${c.precipitation ?? 0}</b><span>mm now</span></div></div>
         <p class="hn-note">${esc(WX[c.weather_code] || "")} · weather from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · ${fmtLL(spot.lat, spot.lon)}</p>
         <details><summary>Next 12 hours</summary><div class="hn-hours">${hourHtml}</div><p class="hn-note">Hour, wind from (km/h), temperature, chance of rain or snow.</p></details>`;
     }
     el.innerHTML = `<header style="margin-bottom:8px">${svg(IC.wind)}<h3>Conditions <small class="hn-note">${where}</small></h3>${spot.how !== "centre" ? `<button type="button" class="hn-pill" id="hnCentre">Map centre</button>` : ""}</header>${body}`;
+    if (wx) fillWind();
+    const hr = $("hnHour"); if (hr) hr.addEventListener("input", () => { windHour = +hr.value; fillWind(); drawWind(); });
     const cb = $("hnCentre"); if (cb) cb.addEventListener("click", () => { const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); $("hnSpot").hidden = true; spotOpen = null; renderNow(); });
     renderNow();
+  }
+  // ---------- hunt forecast: a 1 to 5 score for today and the next two days ----------
+  // Hunters' rules of thumb, not science: animals move more when the pressure swings (a front coming or clearing), on a
+  // cold snap, with light wind and no heavy rain, and in daylight more around the new moon than the full moon.
+  let cast = null, castKey = "", castBusy = false;
+  const castCache = new Map();
+  async function loadCast() {
+    if (!spot || !isHunt() || castBusy) return;
+    const key = `${spot.lat.toFixed(1)},${spot.lon.toFixed(1)}`, hit = castCache.get(key);
+    if (hit && Date.now() - hit.at < 60 * 60000) { if (castKey !== key) { cast = hit.d; castKey = key; renderCast(); } return; }
+    castBusy = true;
+    try {
+      const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${spot.lat.toFixed(2)}&longitude=${spot.lon.toFixed(2)}`
+        + "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&hourly=surface_pressure&past_days=1&forecast_days=3&timezone=auto");
+      if (r.ok) { cast = await r.json(); castKey = key; castCache.set(key, { at: Date.now(), d: cast }); }
+    } catch {}
+    castBusy = false;
+    renderCast();
+  }
+  const SCORE = ["", "Poor", "Fair", "Okay", "Good", "Great"];
+  function castDays() {
+    const d = cast && cast.daily, p = cast && cast.hourly && cast.hourly.surface_pressure;
+    if (!d || !d.time || d.time.length < 2) return [];
+    const mean = (i) => { const v = (p || []).slice(i * 24, i * 24 + 24).filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+    const out = [];
+    const first = Math.max(1, d.time.indexOf(new Date().toLocaleDateString("en-CA")));   // today (the forecast starts yesterday)
+    for (let i = first; i < d.time.length && out.length < 3; i++) {
+      let n = 3; const why = [];
+      const p0 = mean(i - 1), p1 = mean(i), dp = p0 != null && p1 != null ? p1 - p0 : 0;
+      if (dp <= -4) { n += 1; why.push("pressure falling fast: feeding before the storm"); }
+      else if (dp <= -2) { n += 0.5; why.push("pressure falling"); }
+      else if (dp >= 2) { n += 1; why.push("pressure rising after a front"); }
+      const t0 = d.temperature_2m_max[i - 1], t1 = d.temperature_2m_max[i];
+      if (t0 != null && t1 != null && t0 - t1 >= 5) { n += 1; why.push("cold snap"); }
+      if (t1 >= 20) { n -= 1; why.push("warm: they bed down"); }
+      if (d.wind_speed_10m_max[i] >= 35) { n -= 1; why.push("strong wind"); }
+      if (d.precipitation_sum[i] >= 10) { n -= 1; why.push("heavy rain or snow"); }
+      else if (d.precipitation_sum[i] > 0 && d.precipitation_sum[i] < 3 && t1 < 5) { n += 0.5; why.push("light snow: fresh tracks"); }
+      const m = moonPhase(new Date(`${d.time[i]}T12:00:00`)).fraction;
+      if (m >= 0.85) { n -= 0.5; why.push("bright moon: more feeding at night"); }
+      else if (m <= 0.15) { n += 0.5; why.push("dark moon: more moving by day"); }
+      out.push({ day: d.time[i], n: Math.max(1, Math.min(5, Math.round(n))), why });
+    }
+    return out;
+  }
+  function renderCast() {
+    const el = $("hnCast"); if (!el) return;
+    const days = castDays();
+    if (!days.length) { el.innerHTML = ""; renderNow(); return; }
+    const today = new Date(), next = new Date(Date.now() + 864e5), ymd = (t) => t.toLocaleDateString("en-CA");
+    const name = (d) => (d === ymd(today) ? "Today" : d === ymd(next) ? "Tomorrow" : new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: "long" }));
+    el.innerHTML = `<p class="hn-sub">${svg(IC.star, 16)}Hunt forecast</p><ul class="hn-cast">${days.map((x) => `<li><b>${name(x.day)}</b><span class="hn-stars" aria-label="${x.n} out of 5">${"★".repeat(x.n)}<i>${"★".repeat(5 - x.n)}</i></span><span>${SCORE[x.n]}</span><small>${esc(x.why.join(" · ") || "an ordinary day")}</small></li>`).join("")}</ul>
+      <p class="hn-note">Rules of thumb hunters use (pressure, cold snaps, wind, rain, moon), not a promise.</p>`;
+    renderNow();
+  }
+  // The wind lines for the slider's hour, changed in place so the slider keeps working while it's dragged.
+  function fillWind() {
+    const w = windAt(); if (!w || !$("hnWindBig")) return;
+    const sp = Math.round(w.sp), to = (w.dir + 180) % 360, calm = sp < 4;
+    $("hnArrow").innerHTML = arrow(to);
+    $("hnWindBig").textContent = calm ? "Light and variable" : `From the ${compass(w.dir)}, ${sp} km/h`;
+    $("hnWindTxt").textContent = calm ? "Little wind: your scent follows the thermals (below)." : `Your scent drifts ${compass(to)} (the orange cone). Approach from the ${compass(to)}, into the wind.`;
+    if ($("hnHourLbl")) $("hnHourLbl").innerHTML = w.t ? `Wind at <b>${hourLabel(w.t)}</b>` : "Wind <b>now</b> · slide for later";
+    $("hnTherm").textContent = thermals(w.t);
   }
   function locate(btn) {
     if (!navigator.geolocation) { hint("This browser can't share your location."); return; }
@@ -889,7 +1037,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   function drawWind() {
     for (const l of windLayer.getLayers()) if (l !== spotMarker) windLayer.removeLayer(l);
     if (!shown.has("wind") || !spot || !wx || !wx.current) { sync3d(); return; }
-    const dir = wx.current.wind_direction_10m ?? 0, sp = wx.current.wind_speed_10m ?? 0, to = (dir + 180) % 360;
+    const { dir, sp } = windAt(), to = (dir + 180) % 360;
     const len = Math.min(1500, 400 + sp * 60), half = sp < 4 ? 60 : sp < 10 ? 30 : 20;
     const pt = (bearing, d) => {
       const b = bearing * rad, k = Math.cos(spot.lat * rad);
@@ -934,6 +1082,33 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     return `<details class="hn-seasons"><summary>Seasons in ${ab ? "WMU" : "MU"} ${esc(id)}: ${now.length ? `<span class="hn-open">${now.length} open now</span>` : "none open today"}</summary>
       <ul class="hn-list">${list}</ul><p class="hn-note" style="margin-top:6px">${ab ? "Read by the app from the Alberta Guide to Hunting Regulations. “Special licence (draw)” seasons need a drawn licence. † has a footnote" : "General open seasons, read by the app from the BC Hunting and Trapping Regulations Synopsis (limited entry hunts are listed below). † has footnotes or applies to part of the unit only"}: always check <a href="${link}" target="_blank" rel="noopener">${ab ? "the guide" : "the region's synopsis"}</a> before you hunt.</p></details>`;
   }
+  // Harvest here (alex: "add it all"): how many hunters went, how many animals were taken and the share who got one.
+  const BC_SPECIES = { DEMU: "Mule deer", DEWT: "White-tailed deer", MOOS: "Moose", ELK: "Elk", BEAB: "Black bear", BEAG: "Grizzly bear", CARI: "Caribou",
+    GOAT: "Mountain goat", SHEE: "Wild sheep", COUG: "Cougar", WOLF: "Wolf", LYNX: "Lynx", BOBC: "Bobcat" };
+  const pct = (k, h) => (h ? `${Math.round((k / h) * 100)}%` : "–");
+  function harvestHtml(u, hv) {
+    if (!hv) return "";
+    if (u.p === "bc") {
+      const mu = hv.bc && hv.bc.mu[u.id];
+      if (!mu) return "";
+      const ys = hv.bc.years, sum = (a, i) => a.reduce((s, r) => s + (r ? r[i] : 0), 0);
+      const rows = Object.entries(mu).map(([k, a]) => ({ n: BC_SPECIES[k] || k, h: sum(a, 0), d: sum(a, 1), k: sum(a, 2), last: a[a.length - 1] })).filter((r) => r.h >= 5).sort((a, b) => b.h - a.h);
+      if (!rows.length) return "";
+      const top = rows.slice(0, 2).map((r) => `${r.n.toLowerCase()} ${pct(r.k, r.h)}`).join(", ");
+      return `<details><summary>Harvest in MU ${esc(u.id)}: ${esc(top)} success</summary>
+        <table class="hn-tbl"><thead><tr class="hd"><td>Species</td><td class="num">Hunters</td><td class="num">Taken</td><td class="num">Success</td><td class="num">Days per animal</td></tr></thead>
+        <tbody>${rows.map((r) => `<tr><td>${esc(r.n)}</td><td class="num">${Math.round(r.h / ys.length)}</td><td class="num">${Math.round(r.k / ys.length)}</td><td class="num">${pct(r.k, r.h)}</td><td class="num">${r.k ? Math.round(r.d / r.k) : "–"}</td></tr>`).join("")}</tbody></table>
+        <p class="hn-note" style="margin-top:6px">Hunters and animals taken a year, averaged over ${ys[0]}-${ys[ys.length - 1]}, residents and non-residents, from BC's <a href="https://catalogue.data.gov.bc.ca/dataset/big-game-harvest-statistics-1976-to-current" target="_blank" rel="noopener">Big Game Harvest Statistics</a> (hunter survey estimates). Success: the share of hunters who took one.</p></details>`;
+    }
+    const w = hv.ab && hv.ab.wmu[String(u.id)];
+    if (!w) return "";
+    const rows = Object.entries(w).sort((a, b) => b[1][0] - a[1][0]);
+    const top = rows.slice(0, 2).map(([n, v]) => `${n.toLowerCase()} ${v[1]}%`).join(", ");
+    return `<details><summary>Harvest in WMU ${esc(u.id)}: ${esc(top)} success</summary>
+      <table class="hn-tbl"><thead><tr class="hd"><td>Species</td><td class="num">Taken</td><td class="num">Success</td></tr></thead>
+      <tbody>${rows.map(([n, v]) => `<tr><td>${esc(n)}${v[2] ? `<br><span class="hn-note">WMUs ${esc(v[2])} together</span>` : ""}</td><td class="num">${v[0]}</td><td class="num">${v[1]}%</td></tr>`).join("")}</tbody></table>
+      <p class="hn-note" style="margin-top:6px">Estimated resident harvest in ${hv.ab.year || "the last season"} from Alberta's <a href="https://mywildalberta.ca/hunting/hunters-harvest.aspx" target="_blank" rel="noopener">Hunter harvest reports</a>. Success: the share of hunters who took one.</p></details>`;
+  }
   // Limited entry (BC) and special licence draws (Alberta) for a unit, with last year's odds.
   const sameSpecies = (a, b) => { a = a.toLowerCase(); b = b.toLowerCase(); return a.includes(b) || b.includes(a) || a.split(" ").pop() === b.split(" ").pop(); };
   function drawsHtml(u, draws, lehHere) {
@@ -968,13 +1143,14 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     try { areas = areas || (await load("areas")).areas; a = at(areas, lat, lon); } catch {}
     const [sbc, sab, draws] = await Promise.all([z.some((u) => u.p === "bc") ? load("seasons-bc").catch(() => null) : null,
       z.some((u) => u.p === "ab") ? load("seasons-ab").catch(() => null) : null, z.length ? load("draws").catch(() => null) : null]);
+    const harvest = z.length ? await load("harvest").catch(() => null) : null;
     if (seq !== spotSeq) return;
     // Summary first (zone, land, what's open, warnings); the details fold below it.
     const open = new Set(), folds = [], rules = [], warn = [];
     for (const u of z) {
       const rows = u.p === "ab" ? sab && sab.wmu[u.id] : sbc && sbc.mu[u.id];
       for (const r of rows || []) if (openNow(r[3])) open.add(r[0]);
-      folds.push(seasonsHtml(u.id, rows, u.p === "ab", u.p === "ab" ? AB_REGS : regionPdf(u)), drawsHtml(u, draws, l));
+      folds.push(seasonsHtml(u.id, rows, u.p === "ab", u.p === "ab" ? AB_REGS : regionPdf(u)), drawsHtml(u, draws, l), harvestHtml(u, harvest));
       rules.push(u.p === "ab"
         ? `<li style="border-color:${C.zone}"><b>Alberta WMU ${esc(u.id)}</b>Licences, weapons and bag limits: <a href="${AB_REGS}" target="_blank" rel="noopener">Alberta Guide to Hunting Regulations</a>.</li>`
         : `<li style="border-color:${C.zone}"><b>BC MU ${esc(u.id)}</b>Region ${esc(u.r)} ${esc(u.rn || "")}${u.z ? `, game management zone ${esc(u.z)}` : ""}. Bag limits and closures: <a href="${regionPdf(u)}" target="_blank" rel="noopener">Region ${esc(u.r)} synopsis (PDF)</a>.</li>`);
@@ -1000,7 +1176,10 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       ${folds.join("")}
       <details${z.length ? "" : " open"}><summary>Rules here</summary><ul class="hn-list">${rules.join("") || "<li>Only BC and Alberta zones are on the map so far.</li>"}</ul></details>
       <details id="hnLiveBox" hidden><summary>Land and forest</summary><div id="hnLive"></div></details>
+      <div class="hn-row" id="hnGlass" data-at="${lat},${lon}">${glassRow(`${lat},${lon}`)}</div>
+      <p class="hn-note" id="hnGlassNote"${glass && glass.at === `${lat},${lon}` ? "" : " hidden"}>${GLASS_NOTE}</p>
       <p class="hn-note">${fmtLL(lat, lon)}</p>`;
+    $("hnGlass").addEventListener("click", (e) => { const b = e.target.closest("[data-glass]"); if (b) glassDo(b.dataset.glass, lat, lon, b); });
     el.querySelector(".hn-x").addEventListener("click", () => { el.hidden = true; spotOpen = null; const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); });
     renderNow();
     if (z.some((u) => u.p === "ab") || (!z.length && inAlberta(lat, lon))) liveAlberta(lat, lon, seq);
@@ -1065,6 +1244,125 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     liveOut(seq, out, g ? ["Grazing lease: ask", GRAZE_COLOR] : null);
   }
 
+  // ---------- glassing: what you can see from a spot ----------
+  // Worked out from the terrain tiles (zoom 12, about 25 m a pixel): from eyes 2 m off the ground to an animal 1 m
+  // tall, along rays round the spot every half pixel, with the earth's curve (less a little for the air bending light).
+  const glassRow = (at) => `${glass && glass.at === at ? "" : `<button type="button" class="hn-pill" data-glass="show">${svg(IC.eye, 16)}What can I see from here?</button>`}${glass ? `<button type="button" class="hn-pill" data-glass="hide">${svg(IC.x, 14)}Hide the view</button>` : ""}`;
+  let glassBusy = false;
+  async function glassDo(what, lat, lon, b) {
+    if (what === "hide") glassClear();
+    else if (!glassBusy) {
+      glassBusy = true; b.disabled = true; b.lastChild.textContent = "Working out the view…";
+      try { await glassShow(lat, lon); } catch { hint("Couldn't load the terrain here: try again with signal."); }
+      glassBusy = false;
+    }
+    const row = $("hnGlass");
+    if (row) { row.innerHTML = glassRow(row.dataset.at); $("hnGlassNote").hidden = !(glass && glass.at === row.dataset.at); }
+  }
+  function glassClear() {
+    if (glass) URL.revokeObjectURL(glass.url);
+    glass = null;
+    glassLayer.clearLayers(); renderMapKey(); sync3d();
+  }
+  async function glassShow(lat, lon) {
+    const z = 12, n = 256 * 2 ** z, rad = Math.PI / 180;
+    const m = (40075016.686 * Math.cos(lat * rad)) / n;   // metres a pixel here
+    const gx0 = ((lon + 180) / 360) * n, sn = Math.sin(lat * rad), gy0 = (0.5 - Math.log((1 + sn) / (1 - sn)) / (4 * Math.PI)) * n;
+    const r = GLASS_M / m, W = Math.ceil(2 * r) + 2, left = Math.floor(gx0 - r) - 1, top = Math.floor(gy0 - r) - 1;
+    const tx0 = left >> 8, ty0 = top >> 8, cols = ((left + W) >> 8) - tx0 + 1, rows = ((top + W) >> 8) - ty0 + 1;
+    const tiles = new Array(cols * rows);
+    await Promise.all(tiles.fill(null).map((_, i) => dem(z, tx0 + (i % cols), ty0 + Math.floor(i / cols)).then((e) => { tiles[i] = e; })));
+    const px = (x, y) => { const E = tiles[((y >> 8) - ty0) * cols + (x >> 8) - tx0], v = E ? E[(y & 255) * 256 + (x & 255)] : 0; return v > 0 ? v : 0; };
+    const h = (gx, gy) => {
+      const x = gx - 0.5, y = gy - 0.5, x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
+      return (px(x0, y0) * (1 - fx) + px(x0 + 1, y0) * fx) * (1 - fy) + (px(x0, y0 + 1) * (1 - fx) + px(x0 + 1, y0 + 1) * fx) * fy;
+    };
+    // Each way you look, you may also step up to 100 m that way to see over the edge (from one point, a rounded
+    // top hides its own slopes). Ground within a pixel of where you stand never blocks: the tiles are too coarse there.
+    const seen = new Uint8Array(W * W), K = 0.87 / (2 * 6371000), rays = Math.ceil(4 * Math.PI * r), walk = [0, 50 / m, 100 / m];
+    for (let i = 0; i < rays; i++) {
+      if (i % 300 === 299) await new Promise((ok) => setTimeout(ok));   // let the page breathe on slow phones
+      const a = (i / rays) * 2 * Math.PI, dx = Math.sin(a), dy = -Math.cos(a);
+      for (const s0 of walk) {
+        const ox = gx0 + dx * s0, oy = gy0 + dy * s0, eye = h(ox, oy) + 2;
+        let best = -Infinity;
+        for (let d = 0.5; d + s0 <= r; d += 0.5) {
+          const gx = ox + dx * d, gy = oy + dy * d, dm = d * m, g = h(gx, gy) - K * dm * dm - eye;
+          const c = (Math.floor(gy) - top) * W + Math.floor(gx) - left;
+          if ((g + 1) / dm >= best) seen[c] = 1; else if (!seen[c]) seen[c] = 2;
+          if (d >= 1 && g / dm > best) best = g / dm;
+        }
+      }
+    }
+    const cv = document.createElement("canvas"); cv.width = cv.height = W;
+    const cx = cv.getContext("2d"), img = cx.createImageData(W, W), o = img.data;
+    for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+      const c = y * W + x, ddx = x + left + 0.5 - gx0, ddy = y + top + 0.5 - gy0;
+      if (seen[c] === 1 || ddx * ddx + ddy * ddy > r * r) continue;
+      o[c * 4] = 15; o[c * 4 + 1] = 20; o[c * 4 + 2] = 30; o[c * 4 + 3] = 135;
+    }
+    cx.putImageData(img, 0, 0);
+    const blob = await new Promise((ok) => cv.toBlob(ok, "image/png"));
+    const lonAt = (gx) => (gx / n) * 360 - 180, latAt = (gy) => Math.atan(Math.sinh(Math.PI * (1 - (2 * gy) / n))) / rad;
+    if (glass) URL.revokeObjectURL(glass.url);
+    glass = { at: `${lat},${lon}`, url: URL.createObjectURL(blob), box: [lonAt(left), latAt(top + W), lonAt(left + W), latAt(top)] };
+    const [w, s, e, nn] = glass.box;
+    glassLayer.clearLayers();
+    glassLayer.addLayer(L.imageOverlay(glass.url, [[s, w], [nn, e]], { pane: "huntTiles", interactive: false }));
+    glassLayer.addLayer(L.circle([lat, lon], { radius: GLASS_M, pane: "hunt", color: ORANGE, weight: 2, opacity: 0.9, dashArray: "6 6", fill: false, interactive: false }));
+    renderMapKey(); sync3d();
+    if (!map.getBounds().contains(L.latLngBounds([[s, w], [nn, e]]))) map.fitBounds([[s, w], [nn, e]], { padding: [20, 20] });
+    if (phone()) showMap();
+  }
+  const phone = () => matchMedia("(max-width: 760px)").matches;
+  const showMap = () => { const b = document.querySelector('#tabbar [data-nav="map"]'); if (b) b.click(); };   // phones: drop the panel to see the map
+
+  // ---------- measure: tap points for the distance, and the area inside three or more ----------
+  const measBar = document.createElement("div");
+  measBar.className = "sp-banner hn-meas"; measBar.hidden = true; measBar.setAttribute("role", "status");
+  measBar.innerHTML = `${svg(IC.ruler, 18)}<span id="hnMeasTxt"></span><button type="button" data-m="undo">Undo</button><button type="button" data-m="done">Done</button>`;
+  L.DomEvent.disableClickPropagation(measBar);
+  map.getContainer().append(measBar);
+  measBar.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-m]"); if (!b) return;
+    if (b.dataset.m === "done") measStop(); else { meas.pop(); measDraw(); }
+  });
+  const fmtDist = (d) => (d < 1000 ? `${Math.round(d)} m` : `${(d / 1000).toFixed(d < 10000 ? 2 : 1)} km`);
+  const fmtArea = (a) => (a >= 1e7 ? `${(a / 1e6).toFixed(1)} km²` : `${a < 1e5 ? (a / 1e4).toFixed(1) : Math.round(a / 1e4)} ha (${Math.round(a / 4046.86)} acres)`);
+  function areaOf(p) {   // on the sphere, in m²
+    let a = 0;
+    for (let i = 0; i < p.length; i++) { const p1 = p[i], p2 = p[(i + 1) % p.length]; a += ((p2.lng - p1.lng) * Math.PI / 180) * (2 + Math.sin(p1.lat * Math.PI / 180) + Math.sin(p2.lat * Math.PI / 180)); }
+    return Math.abs((a * 6378137 * 6378137) / 2);
+  }
+  function measDraw() {
+    measureLayer.clearLayers();
+    const p = meas || [];
+    if (p.length > 2) measureLayer.addLayer(L.polygon(p, { pane: "hunt", stroke: false, fillColor: ORANGE, fillOpacity: 0.12, interactive: false }));
+    if (p.length > 1) {
+      measureLayer.addLayer(L.polyline(p, { pane: "hunt", color: "#fff", weight: 6, opacity: 0.85, interactive: false }));
+      measureLayer.addLayer(L.polyline(p, { pane: "hunt", color: ORANGE, weight: 3, dashArray: "8 6", interactive: false }));
+    }
+    for (const q of p) measureLayer.addLayer(L.circleMarker(q, { pane: "hunt", radius: 5, color: "#fff", weight: 2, fillColor: ORANGE, fillOpacity: 1, interactive: false }));
+    let d = 0;
+    for (let i = 1; i < p.length; i++) d += map.distance(p[i - 1], p[i]);
+    $("hnMeasTxt").innerHTML = !p.length ? "Tap the map where you start" : p.length === 1 ? "Now tap the next point" : `<b>${fmtDist(d)}</b>${p.length > 2 ? `<span class="hn-note"> · inside: ${fmtArea(areaOf(p))}</span>` : ""}`;
+    measBar.querySelector('[data-m="undo"]').disabled = !p.length;
+  }
+  function measStart() {
+    meas = [];
+    measBar.hidden = false; document.body.classList.add("hn-measuring"); $("hnMeasure").setAttribute("aria-pressed", "true");
+    measDraw();
+    if (phone()) showMap();
+  }
+  function measStop() {
+    meas = null;
+    measBar.hidden = true; document.body.classList.remove("hn-measuring"); $("hnMeasure").setAttribute("aria-pressed", "false");
+    measureLayer.clearLayers();
+  }
+  $("hnMeasure").addEventListener("click", () => (meas ? measStop() : measStart()));
+  $("hnMeasure").setAttribute("aria-pressed", "false");
+  document.addEventListener("keydown", (e) => { if (meas && e.key === "Escape") measStop(); });
+
   // ---------- quick actions ----------
   pane.querySelector(".hn-actions").addEventListener("click", (e) => {
     const b = e.target.closest("[data-act]"); if (!b) return;
@@ -1103,7 +1401,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     for (let z = 10; z <= 15; z++) {
       const x0 = tx(box[1], z), x1 = tx(box[3], z), y0 = ty(box[2], z), y1 = ty(box[0], z);
       for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
-        for (const p of PICS) if (layers.includes(p.layer) && z >= p.min && (p.ab ? ab : bc)) urls.push(p.tmpl.replace("{bbox}", tileBox(z, x, y)));
+        for (const p of PICS) if (layers.includes(p.layer) && z >= p.min && (p.ab ? ab : bc)) urls.push(picUrl(p, z, x, y));
         if ((layers.includes("slope") || layers.includes("aspect")) && z <= 14) urls.push(`${DEM}${z}/${x}/${y}.png`);
       }
     }
@@ -1176,7 +1474,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   // fills, labels, pins or picture layers, so those are added here: the picture layers draped on the terrain, the
   // rules areas and scent cone as see-through fills, the zone labels, and the spot pin. A tap on the 3D map picks a
   // spot as on the flat map.
-  let gl3 = null, proto3 = false, fillsSet = false, labelsSet = false, spot3 = null;
+  let gl3 = null, proto3 = false, fillsSet = false, labelsSet = false, spot3 = null, glass3 = "";
   let applyWait = false;
   function sync3d() {
     const gl = gl3;
@@ -1184,7 +1482,13 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     if (!proto3) {
       proto3 = true;
       maplibregl.addProtocol("tfhunt", async (params) => {
-        const [mode, z, x, y] = params.url.replace("tfhunt://", "").split("?")[0].split("/");
+        const parts = params.url.replace("tfhunt://", "").split("?")[0].split("/");
+        if (parts[0] === "pic") {   // a picture layer whose address depends on the tile (Far from roads)
+          const p = PICS.find((q) => q.id === parts[1]), r = await fetch(picUrl(p, +parts[2], +parts[3], +parts[4]));
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return { data: await r.arrayBuffer() };
+        }
+        const [mode, z, x, y] = parts;
         const img = await paintTerrain(mode, +z, +x, +y);
         const cv = new OffscreenCanvas(256, 256);
         cv.getContext("2d").putImageData(img, 0, 0);
@@ -1201,7 +1505,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
         if (on && !gl.getLayer(id)) gl.addLayer({ id, type: "raster", source: id, paint: { "raster-opacity": opacity, "raster-fade-duration": 0 } }, under);
         vis(id, on);
       };
-      for (const p of PICS) raster(p.id, want(p.layer), { type: "raster", tiles: [p.tmpl.replace("{bbox}", "{bbox-epsg-3857}")], tileSize: 256, minzoom: Math.max(0, p.min - 1), bounds: ((b) => [b[0][1], b[0][0], b[1][1], b[1][0]])(BOUNDS[p.ab ? "ab" : "bc"]), attribution: p.attr.replace(/<[^>]+>/g, "") }, p.opacity);
+      for (const p of PICS) raster(p.id, want(p.layer), { type: "raster", tiles: [p.url ? `tfhunt://pic/${p.id}/{z}/{x}/{y}` : p.tmpl.replace("{bbox}", "{bbox-epsg-3857}")], tileSize: 256, minzoom: Math.max(0, p.min - 1), bounds: ((b) => [b[0][1], b[0][0], b[1][1], b[1][0]])(BOUNDS[p.ab ? "ab" : "bc"]), attribution: p.attr.replace(/<[^>]+>/g, "") }, p.opacity);
       raster("hn-slope", want("slope"), { type: "raster", tiles: ["tfhunt://slope/{z}/{x}/{y}"], tileSize: 256, minzoom: 8, maxzoom: 14 }, 1);
       raster("hn-aspect", want("aspect"), { type: "raster", tiles: ["tfhunt://aspect/{z}/{x}/{y}"], tileSize: 256, minzoom: 8, maxzoom: 14 }, 1);
       // Rules areas as fills (their outlines come over with the other lines).
@@ -1229,6 +1533,15 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
           paint: { "text-color": C.zone, "text-halo-color": "#fff", "text-halo-width": 2 } });
       }
       vis("hn-labels", want("zones"));
+      // The glassing view (the ground hidden from the spot).
+      const gUrl = isHunt() && glass ? glass.url : "";
+      if (gl.getSource("hn-glass") && glass3 !== gUrl) { if (gl.getLayer("hn-glass")) gl.removeLayer("hn-glass"); gl.removeSource("hn-glass"); }
+      if (gUrl && !gl.getSource("hn-glass")) {
+        const [w, s, e, n] = glass.box;
+        gl.addSource("hn-glass", { type: "image", url: gUrl, coordinates: [[w, n], [e, n], [e, s], [w, s]] });
+        gl.addLayer({ id: "hn-glass", type: "raster", source: "hn-glass", paint: { "raster-opacity": 1, "raster-fade-duration": 0 } }, under);
+      }
+      glass3 = gUrl;
       // Scent cone fill.
       const cone = windLayer.getLayers().find((l) => l instanceof L.Polygon);
       const coneData = { type: "FeatureCollection", features: cone && want("wind") ? [{ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [cone.getLatLngs()[0].map((p) => [p.lng, p.lat]).concat([[cone.getLatLngs()[0][0].lng, cone.getLatLngs()[0][0].lat]])] } }] : [] };
@@ -1252,6 +1565,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     fillsSet = labelsSet = false;
     gl3.on("click", (ev) => {
       if (!isHunt() || document.querySelector(".app.riding, .app.planning")) return;
+      if (meas) { meas.push(L.latLng(ev.lngLat.lat, ev.lngLat.lng)); measDraw(); return; }
       if (gl3.getLayer("hits") && gl3.queryRenderedFeatures(ev.point, { layers: ["hits"] }).length) return;   // a trail or road line took the tap
       setSpot(ev.lngLat.lat, ev.lngLat.lng, "tap");
       showSpot(ev.lngLat.lat, ev.lngLat.lng);
@@ -1271,6 +1585,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   // ---------- switching sport ----------
   map.on("click", (e) => {
     if (!isHunt() || document.querySelector(".app.riding, .app.planning")) return;
+    if (meas) { meas.push(e.latlng); measDraw(); return; }
     setSpot(e.latlng.lat, e.latlng.lng, "tap");
     showSpot(e.latlng.lat, e.latlng.lng);
     if (window.tfRoadAt) try { window.tfRoadAt(e.latlng); } catch {}   // forest roads, logging areas and fires keep their popups
@@ -1286,6 +1601,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   let started = false;
   function sync() {
     const on = isHunt();
+    if (!on && meas) measStop();
     for (const l of allHunt) { if (on && !map.hasLayer(l)) l.addTo(map); else if (!on && map.hasLayer(l)) map.removeLayer(l); }
     if (on && !keyCtl._map) keyCtl.addTo(map); else if (!on && keyCtl._map) keyCtl.remove();
     syncTiles(); sync3d();
