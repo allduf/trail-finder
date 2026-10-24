@@ -172,7 +172,7 @@ const inBox = (c, [s, w, n, e]) => c[0] >= s && c[0] <= n && c[1] >= w && c[1] <
 const handNames = (z) => HAND.filter((h) => inBox(h.c, z.box)).map((h) => (h.name || h.ids.join(",")) + (h.named ? "=" + h.named : ""));   // editing the list rebuilds the zone
 const zoneRules = (z) => (REC_ZONES[z.id] ? [["rec", REC_M, REC_SHARE].concat(REC_ZONES[z.id] === "all" ? [] : [REC_ZONES[z.id]])] : []).concat(OFFICIAL_ZONES[z.id] ? [["official", OFFICIAL_ZONES[z.id]]] : [])
   .concat(handNames(z).length ? [["hand"].concat(handNames(z))] : []);
-const areasKey = (z) => JSON.stringify(areasOf(z).map((a) => [a.name, a.c, radius(a), a.official || ""].concat(a.park ? [a.park] : [])).concat(zoneRules(z)));
+const areasKey = (z) => JSON.stringify(areasOf(z).map((a) => [a.name, a.c, radius(a), a.official || ""].concat(a.summer ? ["summer"] : []).concat(a.park ? [a.park] : [])).concat(zoneRules(z)));
 // A list made for a different box (or before boxes were saved), older rules or other riding areas is out of date, however fresh.
 // Files from before areas were saved count as up to date unless the zone has a backcountry area (radius r) or a zone rule.
 const sameAreas = (z, f) => (f.areas === undefined ? !areasOf(z).some((a) => a.r) && !zoneRules(z).length : f.areas === areasKey(z));
@@ -485,7 +485,10 @@ for (const z of order) {
         || tags.name && HAND.find((h) => h.name && h.name.toLowerCase() === tags.name.toLowerCase() && metres([mid.lat, mid.lon], h.c) <= h.r);
       if (hand) { tags["tf:hand"] = hand.who || hand.src; if (hand.named && !tags.name) tags["tf:name"] = hand.named; fromHand++; }
       else if (!ownMtb(tags) && !routeWays.has(w.id) && !t) {
-        if (!bikeWay || !bikeOk(tags)) continue;
+        // A ski trail network that riders use in summer (summer on its label, e.g. China Ridge, Princeton): its ski trails count too.
+        const summerSki = tags["piste:type"] && bikeOk({ ...tags, "piste:type": undefined })
+          && sparse.some((a) => a.summer && metres([mid.lat, mid.lon], a.c) <= radius(a));
+        if (!bikeWay || !(bikeOk(tags) || summerSki)) continue;
         const a = tags.name && !NOT_BIKE_NAME.test(tags.name) && sparse.find((a) => metres([mid.lat, mid.lon], a.c) <= radius(a) || (a.park && park && park.name === a.park));
         const lp = /^(path|bridleway)$/.test(tags.highway) && !motor(tags) && /^(hiking)?$/.test(tags.sac_scale || "") && !NOT_BIKE_NAME.test(tags.name || "")
           && parks.find((p) => inPark([mid.lat, mid.lon], p));
