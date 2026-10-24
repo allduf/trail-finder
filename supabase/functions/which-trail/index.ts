@@ -9,9 +9,13 @@
 // Optional secret VISION_API_KEY (Google Cloud Vision, 1,000 pictures a month free): a reverse image search first, which
 // finds the pages that show the same picture (or video frame) online; their titles often name the trail.
 // Free-tier pictures may be used by Google to improve its products; a paid Google key stops that.
+// Daily limits for the whole app (supabase/photo-ai-limits.sql, run once): VISION_PER_DAY reverse searches (30: the
+// 1,000 a month Google gives free), AI_PER_DAY looks and COMPARE_PER_DAY online checks; each can be changed with a
+// secret of that name. Until that SQL is run, each running copy of the function keeps its own count.
 
 const ORIGINS = [/^https:\/\/allduf\.github\.io$/, /^http:\/\/localhost(:\d+)?$/];
 const MAX_IMAGES = 3, MAX_B64 = 1_500_000, PER_HOUR = 30;
+const PER_DAY = { vision: 30, ai: 200, compare: 100 };
 // Tried in turn: a name Google retired (404) or one that is too slow moves on to the next. Lite is the quick fallback.
 const MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest"];
 // Ways to ask for little or no thinking (it answers in seconds instead of tens of seconds): Gemini 2.5 takes a budget,
@@ -88,7 +92,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: h });
   const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: h });
   if (req.method !== "POST" || !origin || !ORIGINS.some((r) => r.test(origin))) return reply(403, { error: "not allowed" });
-  let body: { images?: string[]; text?: string; description?: string; area?: string; landmarks?: string[]; mode?: string; trails?: unknown; scene?: string; hash?: string };
+  let body: { images?: string[]; text?: string; description?: string; area?: string; landmarks?: string[]; mode?: string; trails?: unknown; scene?: string; hash?: string; skip?: unknown };
   try { body = await req.json(); } catch { return reply(400, { error: "bad request" }); }
   if (body.mode === "same") return reply(200, { same: await same(body.hash) });   // no AI: not counted
   const key = Deno.env.get("GEMINI_API_KEY");
@@ -100,6 +104,8 @@ Deno.serve(async (req) => {
 
   const images = (body.images || []).filter((s) => typeof s === "string" && s.length < MAX_B64).slice(0, MAX_IMAGES);
   if (!images.length) return reply(400, { error: "no picture" });
+  const kind = body.mode === "compare" ? "compare" : "ai";
+  if (!(await take(kind))) return reply(429, { error: `the photo AI's daily limit is used up (${kind === "ai" ? "looks" : "online checks"}), try again tomorrow` });
   const clip = (s: unknown, n: number) => (typeof s === "string" ? s.slice(0, n) : "");
 
   const prompt = `These are ${images.length > 1 ? "frames from a mountain bike video" : "a mountain bike picture"} (often a screenshot of a social media post). ` +
@@ -130,6 +136,7 @@ type Online = { pages: { url: string; title: string; same: boolean }[]; labels: 
 async function reverse(images: string[]): Promise<Online | null> {
   const k = Deno.env.get("VISION_API_KEY");
   if (!k) return null;
+  if (!(await take("vision"))) return { pages: [], labels: [], entities: [], error: "today's free reverse searches are used up" };
   const strip = (v: unknown) => String(v || "").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"').trim().slice(0, 200);
   try {
     const r = await fetch("https://vision.googleapis.com/v1/images:annotate", {
@@ -220,8 +227,8 @@ async function gemini(key: string, parts: unknown[], o: { schema?: unknown; sear
 
 // ---------- compare: the app's likely trails against what's online about them ----------
 type Trail = { name: string; area: string; kind: string; c: [number, number] | null };
-type Compare = { trails?: unknown; scene?: string; description?: string; spot?: { lat?: unknown; lon?: unknown; km?: unknown; where?: unknown } };
-type Photo = { img: string; page: string; title: string; trail: string; data: string; mime: string; from: string; at?: [number, number] };
+type Compare = { trails?: unknown; scene?: string; description?: string; spot?: { lat?: unknown; lon?: unknown; km?: unknown; where?: unknown }; skip?: unknown };
+type Photo = { img: string; page: string; title: string; trail: string; data: string; mime: string; from: string; at?: [number, number]; near?: boolean };
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 const UA = { "user-agent": "TrailFinder/1.0 (https://allduf.github.io/trail-finder/)" };
 // Only plain public web addresses (no addresses inside Supabase's own network).
@@ -307,6 +314,25 @@ function db(path: string): Promise<Response | null> {
   if (!base || !sk) return Promise.resolve(null);
   return fetch(base + path, { headers: { apikey: sk, authorization: "Bearer " + sk }, signal: AbortSignal.timeout(4000) }).catch(() => null);
 }
+// One use of a daily limit (supabase/photo-ai-limits.sql): false when today's is used up. Without that table (or when the
+// database doesn't answer) this running copy counts on its own.
+const counted = new Map<string, number>();
+async function take(kind: keyof typeof PER_DAY): Promise<boolean> {
+  const cap = Math.max(0, Math.round(+(Deno.env.get(kind.toUpperCase() + "_PER_DAY") || PER_DAY[kind])));
+  const base = Deno.env.get("SUPABASE_URL"), sk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (base && sk) {
+    try {
+      const r = await fetch(base + "/rest/v1/rpc/photo_ai_take", { method: "POST", signal: AbortSignal.timeout(3000),
+        headers: { apikey: sk, authorization: "Bearer " + sk, "content-type": "application/json" }, body: JSON.stringify({ p_kind: kind, p_cap: cap }) });
+      if (r.ok) return (await r.json()) === true;
+      console.log("limit", kind, r.status, (await r.text()).slice(0, 200));
+    } catch (e) { console.log("limit", kind, String(e)); }
+  }
+  const day = new Date().toISOString().slice(0, 10) + kind, n = counted.get(day) || 0;
+  if (n >= cap) return false;
+  counted.set(day, n + 1);
+  return true;
+}
 // Confirmed matches whose picture has nearly the same fingerprint (the same picture resized or recompressed).
 async function same(hash: unknown) {
   if (typeof hash !== "string" || !/^[0-9a-f]{16}$/.test(hash)) return [];
@@ -319,11 +345,14 @@ async function same(hash: unknown) {
       .slice(0, 3).map(({ hash: _, ...x }) => x);
   } catch { return []; }
 }
-// Pictures riders confirmed ("Is this the trail?" Yes) for these trails, from the private bucket. Only ever sent to
-// the AI to compare, never back to the site.
-async function confirmed(trails: Trail[]): Promise<Photo[]> {
+// Pictures riders confirmed ("Is this the trail?" Yes) for these trails, from the private bucket, and (with a spot)
+// confirmed pictures of other trails around where the AI placed this one: that's how each Yes teaches later searches.
+// Only ever sent to the AI to compare, never back to the site. skip: match ids left out (the accuracy test's own photo).
+type Spot = { c: [number, number]; r: number; where: string };
+async function confirmed(trails: Trail[], skip: number[], spot: Spot | null): Promise<Photo[]> {
   const names = trails.map((t) => '"' + t.name.replace(/["\\]/g, (c) => "\\" + c) + '"').join(",");
-  const r = await db(`/rest/v1/trail_matches?select=trail_name,photo&photo=not.is.null&trail_name=in.(${encodeURIComponent(names)})&order=created_at.desc&limit=30`);
+  const notSkip = skip.length ? `&id=not.in.(${skip.join(",")})` : "";
+  const r = await db(`/rest/v1/trail_matches?select=trail_name,photo&photo=not.is.null${notSkip}&trail_name=in.(${encodeURIComponent(names)})&order=created_at.desc&limit=30`);
   if (!r?.ok) return [];
   try {
     const rows = (await r.json()) as { trail_name: string; photo: string }[];
@@ -341,18 +370,35 @@ async function confirmed(trails: Trail[]): Promise<Photo[]> {
         }
       } catch { /* no rider photos */ }
     }
-    const want = [...per.entries()].flatMap(([trail, ps]) => ps.map((path) => ({ trail, path, bucket: "trail-match-photos" }))).concat(extra).slice(0, 6);
-    const got = await Promise.all(want.map(async ({ trail, path, bucket }) => {
+    type Want = { trail: string; path: string; bucket: string; at?: [number, number] };
+    const want: Want[] = [...per.entries()].flatMap(([trail, ps]) => ps.map((path) => ({ trail, path, bucket: "trail-match-photos" }))).concat(extra).slice(0, 4);
+    // Around the spot: the newest confirmed picture of each other trail there, nearest first.
+    if (spot) {
+      const dLat = spot.r / 111200, dLon = dLat / Math.cos(spot.c[0] * Math.PI / 180);
+      const r3 = await db(`/rest/v1/trail_matches?select=trail_name,photo,lat,lon&photo=not.is.null${notSkip}` +
+        `&lat=gte.${spot.c[0] - dLat}&lat=lte.${spot.c[0] + dLat}&lon=gte.${spot.c[1] - dLon}&lon=lte.${spot.c[1] + dLon}&order=created_at.desc&limit=40`);
+      if (r3?.ok) {
+        try {
+          const listed = new Set(trails.map((t) => norm(t.name))), seen = new Set<string>();
+          const near = ((await r3.json()) as { trail_name: string; photo: string; lat: number; lon: number }[])
+            .map((x) => ({ ...x, d: kmApart(spot.c, [x.lat, x.lon]) * 1000 })).filter((x) => x.d <= spot.r && !listed.has(norm(x.trail_name)))
+            .filter((x) => !seen.has(norm(x.trail_name)) && seen.add(norm(x.trail_name))).sort((a, b) => a.d - b.d).slice(0, 3);
+          want.push(...near.map((x) => ({ trail: x.trail_name, path: x.photo, bucket: "trail-match-photos", at: [x.lat, x.lon] as [number, number] })));
+        } catch { /* none near */ }
+      }
+    }
+    const got = await Promise.all(want.map(async ({ trail, path, bucket, at }) => {
       const f = await db(`/storage/v1/object/${bucket}/${path.split("/").map(encodeURIComponent).join("/")}`);
       if (!f?.ok) return null;
       try {
         const bytes = new Uint8Array(await f.arrayBuffer());
-        return bytes.length > 1_000_000 ? null : { img: "", page: "", title: "", trail, data: b64(bytes), mime: "image/jpeg", from: "confirmed" };
+        return bytes.length > 1_000_000 ? null : { img: "", page: "", title: "", trail, data: b64(bytes), mime: "image/jpeg", from: "confirmed", ...(at ? { at, near: true } : {}) };
       } catch { return null; }
     }));
     return got.filter((x): x is Photo => !!x);
   } catch { return []; }
 }
+const kmApart = (a: [number, number], b: [number, number]) => Math.hypot(a[0] - b[0], (a[1] - b[1]) * Math.cos(a[0] * Math.PI / 180)) * 111.2;
 function json(text: string): Record<string, unknown> | null {
   const a = text.indexOf("{"), b = text.lastIndexOf("}");
   if (a < 0 || b <= a) return null;
@@ -408,11 +454,12 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
   const list = trails.map((t, i) => `${i + 1}. ${t.name} (${[t.kind, t.area].filter(Boolean).join(", ")})`).join("\n");
   // Where the AI placed the camera (the first look): photos from all around it, not only of the listed trails.
   const v = body.spot || {}, km = +(v.km as number);
-  const spot = typeof v.lat === "number" && typeof v.lon === "number" && v.lat > 45 && v.lat < 62 && v.lon > -140 && v.lon < -108 && km > 0 && km <= 15
+  const spot: Spot | null = typeof v.lat === "number" && typeof v.lon === "number" && v.lat > 45 && v.lat < 62 && v.lon > -140 && v.lon < -108 && km > 0 && km <= 15
     ? { c: [v.lat, v.lon] as [number, number], r: Math.max(3000, Math.min(10000, km * 1500)), where: String(v.where || "").slice(0, 100) || `${v.lat.toFixed(3)}, ${v.lon.toFixed(3)}` } : null;
   const said = [body.scene ? `What the picture shows: ${String(body.scene).slice(0, 600)}` : "", body.description ? `The rider says: """${String(body.description).slice(0, 800)}"""` : ""].filter(Boolean).join("\n");
 
-  const mine = confirmed(trails);
+  const skip = (Array.isArray(body.skip) ? body.skip : []).filter((n): n is number => Number.isSafeInteger(n) && n > 0).slice(0, 20);
+  const mine = confirmed(trails, skip, spot);
   // 1. Google: what each trail looks like, from riders' and sites' descriptions and videos.
   const searchAsk = `The picture is from a mountain bike trail. These are the trails it might be:\n${list}\n${said}\n` +
     `Search Google for each trail (Trailforks, Pinkbike, YouTube videos, Instagram, Strava, local riding club and blog pages) and find what it looks ` +
@@ -459,7 +506,7 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
   const pics = found.filter((f): f is NonNullable<typeof f> => !!f && (!!f.trail || f.from === "area"));
   // Each kind gets its share of the photos the AI looks at.
   const cands = [...pics.filter((f) => f.from === "web").slice(0, 5), ...near.flat().slice(0, 4), ...pics.filter((f) => f.from === "area").slice(0, 4), ...around];
-  const photos: Photo[] = (await mine).slice(0, 3);
+  const photos: Photo[] = (await mine).slice(0, 6);
   const seenImg = new Set<string>();
   for (const c of cands) { if (seenImg.has(c.img)) continue; seenImg.add(c.img); }
   const loaded = await Promise.all([...seenImg].slice(0, 20).map(async (u) => ({ u, p: await picture(u) })));
@@ -471,8 +518,9 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
   // 3. The rider's picture next to the found photos and what the web says: a fit for each trail, and how close each
   // photo looks.
   if (!photos.length && !web.length) return reply(200, { ok: false, searched, noSearch, sources, suggest, why: "found nothing online about these trails" });
-  const km1 = (a: [number, number], b: [number, number]) => Math.hypot(a[0] - b[0], (a[1] - b[1]) * Math.cos(a[0] * Math.PI / 180)) * 111.2;
-  const label = (p: Photo) => p.from === "confirmed" ? `a rider confirmed this picture is ${p.trail}`
+  const km1 = kmApart;
+  const label = (p: Photo) => p.from === "confirmed" && p.near && p.at ? `a rider confirmed this picture is ${p.trail}, ${spot ? km1(p.at, spot.c).toFixed(1) + " km from" : "near"} where the picture seems taken`
+    : p.from === "confirmed" ? `a rider confirmed this picture is ${p.trail}`
     : p.from === "near" ? `a photo taken within 1.5 km of ${p.trail} ("${p.title.slice(0, 100)}")`
     : p.from === "area" && p.at ? `a photo taken ${spot ? km1(p.at, spot.c).toFixed(1) + " km from" : "near"} where the picture seems taken ("${p.title.slice(0, 100)}")`
     : p.from === "area" ? `from a page about riding around ${spot?.where || "there"}${p.trail ? ` (about ${p.trail})` : ""} ("${p.title.slice(0, 100)}")`
@@ -489,7 +537,7 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
   let ranks: { trail: string; fit: number; why: string; photo: Pic | null; confirmed?: boolean }[] = [];
   // Photos from around the viewpoint that look close: their spot (or the trail their page is about) goes back to the
   // site, which adds the trails there to the list.
-  let close: (Pic & { close: number; why: string; at: [number, number] | null; trail: string })[] = [];
+  let close: (Pic & { close: number; why: string; at: [number, number] | null; trail: string; confirmed?: boolean })[] = [];
   if (!("error" in f) && f.text) {
     const o = json(f.text) || {};
     ranks = (Array.isArray(o.ranks) ? o.ranks : []).filter((x) => x && typeof x.trail === "string").slice(0, 8).map((x) => {
@@ -497,8 +545,8 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
       return { trail: named(x.trail), fit: Math.max(0, Math.min(1, +x.fit || 0)), why: String(x.why || "").slice(0, 200), photo: pub(p), confirmed: p?.from === "confirmed" };
     });
     close = (Array.isArray(o.photos) ? o.photos : []).map((x) => ({ p: photos[Math.round(+x?.n || 0) - 1], c: Math.max(0, Math.min(1, +x?.close || 0)), why: String(x?.why || "").slice(0, 200) }))
-      .filter((x) => x.p && x.p.from === "area" && (x.p.at || x.p.trail) && x.c >= 0.4).sort((a, b) => b.c - a.c).slice(0, 5)
-      .map((x) => ({ ...pub(x.p)!, close: x.c, why: x.why, at: x.p.at || null, trail: x.p.trail }));
+      .filter((x) => x.p && (x.p.from === "area" || x.p.near) && (x.p.at || x.p.trail) && x.c >= 0.4).sort((a, b) => b.c - a.c).slice(0, 5)
+      .map((x) => ({ ...(pub(x.p) || { img: "", page: "", title: "" }), close: x.c, why: x.why, at: x.p.at || null, trail: x.p.trail, ...(x.p.near ? { confirmed: true } : {}) }));
   } else ranks = web.map((w) => ({ trail: w.trail, fit: w.fit, why: w.why, photo: null }));
-  return reply(200, { ok: ranks.length > 0 || close.length > 0, ms: Date.now() - t0, searched, noSearch, ranks, close, photos: photos.length, area: photos.filter((p) => p.from === "area").length, sources, suggest });
+  return reply(200, { ok: ranks.length > 0 || close.length > 0, ms: Date.now() - t0, searched, noSearch, ranks, close, photos: photos.length, area: photos.filter((p) => p.from === "area" || p.near).length, sources, suggest });
 }

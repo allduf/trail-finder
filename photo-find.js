@@ -43,6 +43,12 @@ const AI_WAIT = 45000;     // ms the AI may take before the search goes on witho
 const CMP_WAIT = 80000;    // ms the online check (Google search + photos of the likely trails) may take; the list shows meanwhile
 const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirmed match
   const SEE_M = 12000;        // trails up to this far from a landmark are checked for a view of it
+  // The accuracy test (scripts/photo-find-test.mjs) sets window.tfPhotoTest = { skip: [match ids] } before the page loads:
+  // that confirmed match (the test's own photo) is left out of every lookup, and each finished search is put in .result.
+  const TEST = window.tfPhotoTest && Array.isArray(window.tfPhotoTest.skip) ? window.tfPhotoTest : null;
+  const skipIds = TEST ? TEST.skip.filter((n) => Number.isSafeInteger(n)) : [];
+  const testDone = (rows) => { if (TEST) TEST.result = { rows: rows.map((r) => ({ name: r.name, zone: r.save ? r.save.zone : r.zone, conf: r.conf })), ai: $("pfAi").textContent, cmp: $("pfCmp").textContent }; };
+  const testEnd = (my) => { if (TEST && my === job) { testDone(shown); TEST.finished = Date.now(); } };
   const DEM = (z, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
 
   const css = document.createElement("style");
@@ -327,13 +333,14 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       meta: [F.kindOf(r.x.w.tags), F.zoneOf(L.latLng(p)), "taken " + fmt(r.x.d)].filter(Boolean).join(" · "),
       open: r.g ? () => F.show(r.g) : () => F.openWay(r.x.w.id, L.latLng(p)),
       zone: F.zoneOf(L.latLng(p)),
-      save: { name: r.name || "Unnamed trail", type: "way", ids: r.g ? r.g.items.map((i) => i.id) : [r.x.w.id], zone: F.zoneOf(L.latLng(p)), c: p, method: "gps" },
+      save: { name: r.name || "Unnamed trail", type: "way", ids: r.g ? r.g.items.map((i) => i.id) : [r.x.w.id], zone: (F.zones.find((z) => z.bounds.contains(L.latLng(p))) || { id: F.zoneOf(L.latLng(p)) }).id, c: p, method: "gps" },
     }));
     map.setView(p, Math.max(map.getZoom(), 15));
     if (my !== job) return;
     say(rows.length ? "Found from the spot where it was taken." : "No MTB trail near the spot where it was taken.");
     show(res, close.length ? "" : rows.length ? `No MTB trail within ${NEAR_M} m of the spot, so these are the nearest ones. The 📷 pin on the map shows where it was taken.`
       : "The 📷 pin on the map shows where it was taken. It may be on a path the app doesn't count as an MTB trail: tap it on the map.");
+    testEnd(my);
   }
   // The pieces of a named trail around the one found, for opening it whole (like a pick in the name search).
   function groupFrom(name, w, ways) {
@@ -540,6 +547,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     if (!text.trim()) {
       say(file ? "No words found in it." : "Add a photo or video, or type what you know.");
       show([], "Paste the post's caption above, or type a trail or place name you saw, then tap Find the trail.");
+      testEnd(my);
       return;
     }
     say("Matching the words with the trail names…", 0.95);
@@ -553,6 +561,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     show(res.rows, n ? where + (sure ? "" : "None is a sure match: check the names against the post.")
       : where + "No trail name in the picture or caption matched a trail the app knows. Paste the caption, type a trail name you saw, or pick the area and try again.");
     if (n && seen) await compareOnline(my, res.rows, seen);
+    testEnd(my);
   }
 
   // The online check (the function's "compare"): Google search on the likely trails (what riders and sites say they look
@@ -571,7 +580,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       out.hidden = false;
       out.textContent = `Searching Google for videos, photos and descriptions of ${list.length > 1 ? "these trails" : "this trail"}${vp ? " and of riding around where it seems taken" : ""} to compare with yours… up to ${CMP_WAIT / 1000} s`;
       const look = acct.client.functions.invoke(AI_FN, { timeout: CMP_WAIT, body: { mode: "compare", images: media.jpegs, scene: seen.scene, description: $("pfCaption").value.slice(0, 800),
-        trails: list.map((r) => ({ name: r.name, area: r.zone, kind: r.kind, c: r.save.c })), spot: vp || undefined } }).then(async ({ data, error }) => {
+        trails: list.map((r) => ({ name: r.name, area: r.zone, kind: r.kind, c: r.save.c })), spot: vp || undefined, skip: skipIds.length ? skipIds : undefined } }).then(async ({ data, error }) => {
         if (!error) return data;
         let msg = "";
         try { msg = (await error.context.json()).error || ""; } catch { /* not JSON */ }
@@ -600,9 +609,11 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const found = [];
     for (const c of got.close || []) {
       let gs = c.trail ? around.filter((g) => F.norm(g.name) === F.norm(c.trail)).slice(0, 1) : [];
+      if (!gs.length && c.confirmed && c.trail && c.at) gs = (await trailsNear([L.latLng(c.at[0], c.at[1])], 600)).list.filter((g) => F.norm(g.name) === F.norm(c.trail)).slice(0, 1);
       if (!gs.length && c.at) gs = (await trailsNear([L.latLng(c.at[0], c.at[1])], 600)).list.slice(0, 2);
       if (my !== job) return;
-      const why = `${c.close >= 0.8 ? "an online photo of the same place" : "an online photo that looks close"}${c.at ? " was taken near it" : ""}`;
+      const why = c.confirmed ? `${c.close >= 0.8 ? "looks like the same place as" : "looks close to"} a picture a rider confirmed on it`
+        : `${c.close >= 0.8 ? "an online photo of the same place" : "an online photo that looks close"}${c.at ? " was taken near it" : ""}`;
       for (const [i, g] of gs.entries()) {
         const web = { fit: c.close, why: c.why || why, photo: { img: c.img, page: c.page, title: c.title }, close: true };
         const have = next.find((r) => F.norm(r.name) === F.norm(g.name) && r.save && r.save.zone === g.zone.id);
@@ -624,7 +635,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const src = (got.sources || []).map((w) => `<a href="${esc(w.uri)}" target="_blank" rel="noopener">${esc(w.title || "page")}</a>`).join("");
     out.innerHTML = `Checked online${got.ms ? ` (${Math.round(got.ms / 1000)} s)` : ""}: ${got.searched ? "Google search" : "no Google search" + (got.noSearch ? ` (${esc(got.noSearch)})` : "")}` +
       `${got.photos ? `, ${got.photos} photo${got.photos > 1 ? "s" : ""} compared with yours${got.area ? ` (${got.area} from around where it seems taken)` : ""}` : ""}.` +
-      ` ${found.length ? `Close photos online point to: ${esc([...new Set(found)].join(", "))}.` : vp ? "No photo from around there looked close." : ""}` +
+      ` ${found.length ? `Close-looking photos point to: ${esc([...new Set(found)].join(", "))}.` : vp ? "No photo from around there looked close." : ""}` +
       (src ? `<div class="src">${src}</div>` : "") +
       // Google asks for its search suggestions to be shown wherever search results are used.
       (got.suggest ? `<iframe sandbox="allow-popups allow-popups-to-escape-sandbox" title="Google searches used" srcdoc="${esc(got.suggest)}"></iframe>` : "");
@@ -874,6 +885,17 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         if (have) { have.s += 0.1 + 0.1 * near; have.why.push(why); }
         else hits.push({ g, s: 0.7 + 0.15 * near, why: [why], lm: true });
       }
+      // Pictures riders confirmed around there: their trails join the list (or go up), and the online check then
+      // compares those pictures with this one.
+      for (const m of await pastMatches()) {
+        if (typeof m.lat !== "number" || typeof m.lon !== "number" || !Array.isArray(m.osm_ids) || !m.osm_ids.length) continue;
+        const d = spot.distanceTo([m.lat, m.lon]);
+        if (d > R) continue;
+        const g = pastGroup(m), have = hits.find((h) => keyOf(h.g) === keyOf(g)), why = "a rider confirmed a picture of it near there";
+        if (have) { if (!have.why.includes(why)) { have.s += 0.1; have.why.push(why); } }
+        else hits.push({ g, s: 0.72 + 0.1 * (1 - d / R), why: [why], lm: true });
+      }
+      if (my !== job) return null;
     }
     // The trails in a riding area named in the words.
     for (const p of areas.slice(0, 2)) {
@@ -904,9 +926,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     // can't read them).
     for (const m of picHash ? await samePicture(picHash) : []) {
       if (!Array.isArray(m.osm_ids) || !m.osm_ids.length) continue;
-      const zone = F.zoneById(m.zone) || { id: m.zone || "?", name: m.zone || "" };
-      const g = { name: m.trail_name, type: m.osm_type === "relation" ? "r" : "w", ws: core(words(m.trail_name)), alts: [], tags: { name: m.trail_name }, zone, center: L.latLng(m.lat || 0, m.lon || 0),
-        items: m.osm_ids.map((id) => ({ t: m.osm_type === "relation" ? "r" : "w", id, c: [m.lat, m.lon], tags: {} })) };
+      const g = pastGroup(m);
       const have = hits.find((h) => keyOf(h.g) === keyOf(g)), why = "same picture as one confirmed before";
       if (have) { if (!have.why.includes(why)) { have.s = Math.max(have.s, STRONG + 0.15) + 0.1; have.why.unshift(why); have.past = true; } }
       else hits.push({ g, s: STRONG + 0.25, why: [why], past: true });
@@ -915,9 +935,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       const ws = (m.words || "").split(" ").filter((w) => w && !GENERIC.has(w)), both = ws.filter((w) => rare.has(w)), shared = both.length;
       if (shared < 2 || shared / Math.min(ws.length, rare.size) < 0.3) continue;
       const onlyPlaces = both.every((w) => placey.has(w));
-      const zone = F.zoneById(m.zone) || { id: m.zone || "?", name: m.zone || "" };
-      const g = { name: m.trail_name, type: m.osm_type === "relation" ? "r" : "w", ws: core(words(m.trail_name)), alts: [], tags: { name: m.trail_name }, zone, center: L.latLng(m.lat || 0, m.lon || 0),
-        items: m.osm_ids.map((id) => ({ t: m.osm_type === "relation" ? "r" : "w", id, c: [m.lat, m.lon], tags: {} })) };
+      const g = pastGroup(m);
       const have = hits.find((h) => keyOf(h.g) === keyOf(g));
       // Sharing only place or landmark names ("squamish", "howe sound") says nothing: every photo there shares them.
       if (onlyPlaces) continue;
@@ -941,6 +959,14 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         return { ...rowOf(h, h.lm ? "landmark" : aiSeen ? "mixed" : "words"), best, conf: best ? "Best match" : h.s >= top - 0.05 && h.s >= STRONG ? "Likely" : "Possible" };
       }),
     };
+  }
+  // A trail group from a confirmed match (trail_matches row).
+  // Older matches found by GPS saved the area's name, not its id: both lead to the same zone (so the trail isn't listed twice).
+  function pastGroup(m) {
+    const named = (z) => z.name === m.zone || z.name.split(" (")[0] === m.zone;
+    const zone = F.zoneById(m.zone) || F.zones.find(named) || (typeof m.lat === "number" && F.zones.find((z) => z.bounds.contains([m.lat, m.lon]))) || { id: m.zone || "?", name: m.zone || "" };
+    return { name: m.trail_name, type: m.osm_type === "relation" ? "r" : "w", ws: core(words(m.trail_name)), alts: [], tags: { name: m.trail_name }, zone, center: L.latLng(m.lat || 0, m.lon || 0),
+      items: m.osm_ids.map((id) => ({ t: m.osm_type === "relation" ? "r" : "w", id, c: [m.lat, m.lon], tags: {} })) };
   }
   // A list row for a found trail group (h: { g, s, why }).
   function rowOf(h, method) {
@@ -1076,13 +1102,13 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   function pastMatches() {
     const acct = window.tfAccount;
     if (!acct || !acct.enabled) return Promise.resolve([]);
-    if (!past) past = acct.load().then(() => acct.client ? acct.client.from("trail_matches").select("trail_name, osm_type, osm_ids, zone, lat, lon, words")
-      .order("created_at", { ascending: false }).limit(500) : { data: [] }).then(({ data, error }) => (error ? [] : data || [])).catch(() => []);
+    if (!past) past = acct.load().then(() => acct.client ? acct.client.from("trail_matches").select("id, trail_name, osm_type, osm_ids, zone, lat, lon, words")
+      .order("created_at", { ascending: false }).limit(500) : { data: [] }).then(({ data, error }) => (error ? [] : (data || []).filter((m) => !skipIds.includes(m.id)))).catch(() => []);
     return past;
   }
   async function samePicture(hash) {
     const acct = window.tfAccount;
-    if (!acct || !acct.enabled) return [];
+    if (!acct || !acct.enabled || TEST) return [];   // the test's own photo would always match itself
     try {
       await acct.load();
       if (!acct.client) return [];
@@ -1141,6 +1167,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   }
   function show(rows, note) {
     shown = rows;
+    testDone(rows);
     $("pfRes").innerHTML = rows.map((r, n) => `<li tabindex="0" data-n="${n}" class="${r.best ? "best" : ""}"><span class="bar"></span>
       <div><div class="pn">${esc(r.name)} ${r.tags ? F.diffBadge(r.tags) : ""}</div><div class="pm">${esc(r.meta)}</div>${r.web ? online(r.web) : ""}${r.name !== "Unnamed trail" ? links(r) : ""}</div><span class="pc">${esc(r.conf)}</span></li>`).join("");
     $("pfNote").textContent = note || "";
