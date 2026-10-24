@@ -88,7 +88,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
 .pf .pf-bar[hidden] { display: none; }
 .pf label.pf-l { display: block; font-weight: 700; font-size: .82rem; margin: 12px 0 4px; }
 .pf label.pf-l small { font-weight: 400; color: var(--muted); }
-.pf select, .pf textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); }
+.pf select, .pf textarea, .pf .pf-fix input { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); }
 .pf textarea { min-height: 60px; resize: vertical; }
 .pf details { margin-top: 8px; font-size: .85rem; }
 .pf details textarea { margin-top: 6px; font-size: 14px; }
@@ -104,6 +104,11 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
 .pf .pf-res li.best .pc { color: var(--accent); }
 .pf .pf-note { font-size: .85rem; color: var(--muted); margin: 10px 0 0; }
 .pf .pf-note:empty { display: none; }
+.pf .pf-fix[hidden] { display: none; }
+.pf .pf-fix .pf-res { margin-top: 6px; }
+.pf .pf-fix .pf-ok { grid-template-columns: 1fr; cursor: default; }
+.pf .pf-fix .pf-ok:hover { background: none; }
+.pf .pf-fix .pf-ok .pf-go { margin-top: 6px; }
 .pf-pin { font-size: 22px; line-height: 30px; text-align: center; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
 @media (max-width: 760px) { .pf { padding: 0; align-items: end; } .pf .card { max-height: 94%; border-radius: 14px 14px 0 0; padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
   .pf.kb .card { max-height: 100%; padding-bottom: 12px; } }
@@ -124,6 +129,11 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   <div class="pf-prev" id="pfPrev" hidden><span class="pf-tw"><span id="pfThumb"></span><button type="button" class="pf-rm" id="pfRemove" aria-label="Remove this picture to add another" title="Remove this picture" hidden>✕</button></span><div style="flex:1;min-width:0"><div class="pf-status" id="pfStatus" role="status"></div><div class="pf-bar" id="pfBar" hidden><span></span></div></div></div>
   <ul class="pf-res" id="pfRes" role="list"></ul>
   <p class="pf-note" id="pfNote"></p>
+  <div class="pf-fix" id="pfFix" hidden>
+    <label class="pf-l" for="pfFixQ">Not in the list? Type the trail it is, and the app learns it <small>(saved like a “Yes”)</small></label>
+    <input type="search" id="pfFixQ" placeholder="The trail's name, like Cream Puff" autocomplete="off" spellcheck="false" enterkeyhint="search">
+    <ul class="pf-res" id="pfFixList" role="list"></ul>
+  </div>
   <p class="pf-ai" id="pfAi" hidden></p>
   <div class="pf-ai" id="pfCmp" role="status" hidden></div>
   <label class="pf-l" for="pfArea">Where is it? <small>(optional, helps when the picture has no spot)</small></label>
@@ -227,6 +237,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     if (pin) { pin.remove(); pin = null; }
     $("pfThumb").innerHTML = ""; $("pfRemove").hidden = true; $("pfPrev").hidden = true;
     $("pfRes").innerHTML = ""; $("pfNote").textContent = ""; $("pfAi").hidden = true; $("pfCmp").hidden = true; $("pfRead").value = ""; $("pfReadBox").hidden = true; $("pfWords").hidden = true;
+    $("pfFix").hidden = true; $("pfFixQ").value = ""; $("pfFixList").innerHTML = ""; fixJob++;
     shown = [];
   }
   $("pfRemove").addEventListener("click", () => { reset(); $("pfPick").focus(); });
@@ -1249,7 +1260,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       trail_name: sv.name.slice(0, 120), osm_type: sv.type, osm_ids: sv.ids, zone: sv.zone ? String(sv.zone).slice(0, 60) : null,
       lat: sv.c ? +sv.c[0] : null, lon: sv.c ? +sv.c[1] : null, words: keep.join(" ").slice(0, 600), method: sv.method, photo,
       details: { hash: m && m.hash, read: $("pfRead").value.slice(0, 2000), said: $("pfCaption").value.slice(0, 800), area: $("pfArea").value, gps: gpsSpot, conf: r.conf, video: !!(file && isVideo(file)),
-        ai: ai ? { scene: ai.scene, landmarks: ai.landmarks, places: ai.places, trail_names: ai.trail_names, terrain: ai.terrain, guesses: ai.guesses } : null },
+        ai: ai ? { scene: ai.scene, landmarks: ai.landmarks, places: ai.places, trail_names: ai.trail_names, terrain: ai.terrain, guesses: ai.guesses } : null,
+        first: shown.length ? shown[0].name : null },
     });
     if (!error) past = null;   // read again next time, with this one
     return !error;
@@ -1274,6 +1286,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   function show(rows, note) {
     shown = rows;
     testDone(rows);
+    $("pfFix").hidden = !(file || rows.length);
     $("pfRes").innerHTML = rows.map((r, n) => `<li tabindex="0" data-n="${n}" class="${r.best ? "best" : ""}"><span class="bar"></span>
       <div><div class="pn">${esc(r.name)} ${r.tags ? F.diffBadge(r.tags) : ""}</div><div class="pm">${esc(r.meta)}</div>${r.web ? online(r.web) : ""}${r.name !== "Unnamed trail" ? links(r) : ""}</div><span class="pc">${esc(r.conf)}</span></li>`).join("");
     $("pfNote").textContent = note || "";
@@ -1303,6 +1316,53 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       if (a.dataset.a === "no") open();
     }
   });
+  // "Not in the list?": the rider names the trail. It's saved like a "Yes" (with the same small copy of the picture), so
+  // the next searches learn from it: the same picture finds it at once, pictures taken near it are compared with this one,
+  // and the accuracy test gets it as a test picture (alex, 2026-10-24: "Can we learn every time from our research").
+  let fixJob = 0, fixT = 0, fixHits = [], fixRow = null;
+  async function fixFind() {
+    const my = ++fixJob, q = F.norm($("pfFixQ").value), out = $("pfFixList");
+    fixRow = null;
+    if (q.length < 3) { out.innerHTML = ""; return; }
+    const vp = ai && ai.viewpoint, from = vp ? L.latLng(vp.lat, vp.lon) : gpsSpot ? L.latLng(gpsSpot) : map.getCenter();
+    const zones = [...F.zones].sort((a, b) => a.bounds.getCenter().distanceTo(from) - b.bounds.getCenter().distanceTo(from));
+    const hits = [];
+    // The nearest areas first; the others only when none of those has a trail by that name.
+    for (const batch of [zones.slice(0, 6), zones.slice(6)]) {
+      const lists = await Promise.all(batch.map((z) => zoneNames(z).catch(() => [])));
+      if (my !== fixJob) return;
+      lists.flat().forEach((g) => { const at = F.norm(g.name).indexOf(q); if (at >= 0) hits.push({ g, at, d: from.distanceTo(g.center) }); });
+      if (hits.length) break;
+    }
+    const seen = new Set();
+    fixHits = hits.sort((a, b) => (a.at > 0) - (b.at > 0) || a.d - b.d).filter((h) => { const k = h.g.name + "|" + h.g.zone.id; return !seen.has(k) && seen.add(k); }).slice(0, 6);
+    out.innerHTML = fixHits.length ? fixHits.map((h, n) => `<li tabindex="0" data-n="${n}"><span class="bar"></span><div><div class="pn">${esc(h.g.name)} ${F.diffBadge(h.g.tags)}</div>` +
+      `<div class="pm">${esc([F.kindOf(h.g.tags, h.g.type === "r"), h.g.zone.name.split(" (")[0], vp ? `${(h.d / 1000).toFixed(1)} km from where the AI places the picture` : ""].filter(Boolean).join(" · "))}</div></div>` +
+      `<span class="pc">This one</span></li>`).join("")
+      : `<li class="pf-ok"><div class="pm">No trail by that name. Try part of the name, or another spelling.</div></li>`;
+  }
+  async function fixPick(e) {
+    const b = e.target.closest("[data-f]"), out = $("pfFixList");
+    if (b) {
+      const r = fixRow;
+      if (!r || b.dataset.f === "no") { fixFind(); return; }
+      if (b.dataset.f === "map") { close(); r.open(); return; }
+      b.disabled = true;
+      const ok = await saveMatch(r).catch(() => false);
+      out.innerHTML = `<li class="pf-ok"><div>${ok ? `Saved: <b>${esc(r.name)}</b>. From now on this picture finds it, and pictures taken near it are compared with this one.`
+        : "It couldn't be saved just now (no connection?). Try again in a moment."}</div><div class="pf-go"><button type="button" class="btn" data-f="map">Show it on the map</button></div></li>`;
+      return;
+    }
+    const li = e.target.closest("li[data-n]"), h = li && fixHits[+li.dataset.n];
+    if (!h) return;
+    fixRow = { ...rowOf({ g: h.g, s: 0, why: ["you named it"] }, "words"), conf: "Named by you" };
+    out.innerHTML = `<li class="pf-ok"><div>Save <b>${esc(h.g.name)}</b> (${esc(h.g.zone.name.split(" (")[0])}) as the trail in this picture?</div>` +
+      `<div class="pf-go"><button type="button" class="btn primary" data-f="yes">Yes, save it</button><button type="button" class="btn" data-f="no">Cancel</button></div></li>`;
+  }
+  $("pfFixQ").addEventListener("input", () => { clearTimeout(fixT); fixT = setTimeout(fixFind, 200); });
+  $("pfFixList").addEventListener("click", fixPick);
+  $("pfFixList").addEventListener("keydown", (e) => { if (e.target.matches("li[data-n]") && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); fixPick(e); } });
+
   const pickRow = (li) => { const r = li && shown[+li.dataset.n]; if (r) { close(); r.open(); if (r.save) showAsk(r); } };
   $("pfRes").addEventListener("click", (e) => { if (!e.target.closest("a")) pickRow(e.target.closest("li")); });
   $("pfRes").addEventListener("keydown", (e) => { if (e.target.matches("li") && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pickRow(e.target); } });

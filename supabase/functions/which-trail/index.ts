@@ -467,16 +467,17 @@ async function confirmed(trails: Trail[], skip: number[], spot: Spot | null): Pr
     }
     type Want = { trail: string; path: string; bucket: string; at?: [number, number] };
     const want: Want[] = [...per.entries()].flatMap(([trail, ps]) => ps.map((path) => ({ trail, path, bucket: "trail-match-photos" }))).concat(extra).slice(0, 4);
-    // Around the spot: the newest confirmed picture of each other trail there, nearest first.
+    // Around the spot: the newest confirmed picture of each other trail there, nearest first. Out to 10 km even when the
+    // AI is sure of its spot: it placed a Cream Puff picture at Signal Hill, 5 km off on the other side of Pemberton.
     if (spot) {
-      const dLat = spot.r / 111200, dLon = dLat / Math.cos(spot.c[0] * Math.PI / 180);
+      const R = Math.max(spot.r, 10000), dLat = R / 111200, dLon = dLat / Math.cos(spot.c[0] * Math.PI / 180);
       const r3 = await db(`/rest/v1/trail_matches?select=trail_name,photo,lat,lon&photo=not.is.null${notSkip}` +
         `&lat=gte.${spot.c[0] - dLat}&lat=lte.${spot.c[0] + dLat}&lon=gte.${spot.c[1] - dLon}&lon=lte.${spot.c[1] + dLon}&order=created_at.desc&limit=40`);
       if (r3?.ok) {
         try {
           const listed = new Set(trails.map((t) => norm(t.name))), seen = new Set<string>();
           const near = ((await r3.json()) as { trail_name: string; photo: string; lat: number; lon: number }[])
-            .map((x) => ({ ...x, d: kmApart(spot.c, [x.lat, x.lon]) * 1000 })).filter((x) => x.d <= spot.r && !listed.has(norm(x.trail_name)))
+            .map((x) => ({ ...x, d: kmApart(spot.c, [x.lat, x.lon]) * 1000 })).filter((x) => x.d <= R && !listed.has(norm(x.trail_name)))
             .filter((x) => !seen.has(norm(x.trail_name)) && seen.add(norm(x.trail_name))).sort((a, b) => a.d - b.d).slice(0, 3);
           want.push(...near.map((x) => ({ trail: x.trail_name, path: x.photo, bucket: "trail-match-photos", at: [x.lat, x.lon] as [number, number] })));
         } catch { /* none near */ }
