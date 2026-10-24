@@ -1033,6 +1033,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 .wx-days td.lmi-prime { white-space: nowrap; }
 .wx-days td.lmi-prime b { color: var(--prime, #2f8f88); font-weight: 600; }
 .lmi-soon { margin: 8px 0 0; font-weight: 600; }
+.diff.d-ebike { background: #e9f7e6; color: #1d5a22; border: 1px solid #7cc47f; padding: 2px 7px; }
+.ebike-note { margin: 8px 0 0; font-size: .9rem; }
+.ebike-note.ebike-no b { color: #b42318; }
+.ebike-note.ebike-class1 b, .ebike-note.ebike-yes b { color: #2f7d32; }
+.wx-days td.lmi-snow { white-space: nowrap; color: #3f6ea8; font-weight: 600; }
+.lmi-snowing { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; background: #e8f0fa; color: #1f3d63; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lmi-snowing { background: #1d2a3a; color: #cfe0f5; } }
+:root[data-theme="dark"] .lmi-snowing { background: #1d2a3a; color: #cfe0f5; }
 .near-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .near-row .btn { display: inline-flex; align-items: center; gap: 6px; }
 .near-row label { color: var(--muted); font-size: .9rem; white-space: nowrap; }
@@ -1083,6 +1091,9 @@ body.sport-alt #rideMapBtn { display: none !important; }
 .acc-row { display: flex; gap: 8px; align-items: flex-start; }
 .acc-row .lg-ico { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; flex: none; margin-top: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
 .acc-row .lg-ico svg { width: 15px; height: 15px; }
+.acc-needs { flex-wrap: wrap; gap: 6px 14px; }
+.acc-needs > span { display: inline-flex; align-items: center; gap: 6px; }
+.acc-needs .lg-ico { margin-top: 0; }
 .acc-row .lg-ico.round { border-radius: 50%; }
 .acc-sw { display: inline-block; width: 18px; height: 5px; border-radius: 2px; vertical-align: middle; margin-right: 6px; box-shadow: 0 0 0 1px rgba(0,0,0,.25); }
 .rf-pin span.round, .legend .lg-ico.round { border-radius: 50%; }
@@ -1181,7 +1192,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
         <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
         <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire">🔥 Wildfires</button>
-        <button id="accessBtn" type="button" aria-pressed="false" title="Show trailheads, parking and BC recreation sites">Ⓟ Trailheads and parking</button>
+        <button id="closeBtn" type="button" aria-pressed="false" title="Show closures and warnings from Alberta Parks, BC Parks, Parks Canada and riders">🚧 Closures and warnings</button>
+        <button id="accessBtn" type="button" aria-pressed="false" title="Show trailheads, parking, drinking water, toilets, bike repair stations, shelters and BC recreation sites">Ⓟ Trailheads, parking, water, toilets</button>
         <button id="parkBtn" type="button" aria-pressed="true" title="Show bike parks, pump tracks and MTB centres across Canada">🚵 Bike parks</button>
         <button id="avyBtn" type="button" aria-pressed="false" hidden>⚠ Avalanche risk</button>
         <details class="lm-more" id="lmMore"><summary>More layers</summary><div class="lm-list">
@@ -1241,7 +1253,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <button type="button" class="btn prime-go" id="primeGo" title="Trails in the area, old or new, with damp prime loam right now (Loam index 40 to 59)"><span class="dot" aria-hidden="true"></span>Prime loam now</button>
         <div class="diff-pick" role="group" aria-labelledby="diffPickLabel">
           <span class="label" id="diffPickLabel">Or show every trail of these levels (tap several), or only unofficial or alpine ones</span>
-          <div class="diff-chips"><button type="button" class="diff-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip" data-d="unoff" aria-pressed="false" title="Trails in the area that aren&#39;t part of the official bike network: plain paths with no bike tags (the dotted lines on the base map) and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button></div>
+          <div class="diff-chips"><button type="button" class="diff-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip" data-d="unoff" aria-pressed="false" title="Trails in the area that aren&#39;t part of the official bike network: plain paths with no bike tags (the dotted lines on the base map) and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button><button type="button" class="diff-chip ebike-chip" data-d="ebike" aria-pressed="false" title="Only trails e-bikes may ride: Class 1 (pedal-assist) where the land manager allows it, from the map tags, the park and the province's rules"><span class="diff d-ebike">🔋 E-bikes OK</span></button></div>
         </div>
       </section>
       <section class="pane" id="paneNew" role="tabpanel" aria-labelledby="tabNew">
@@ -1281,7 +1293,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
         </div>
         <div class="diff-pick" role="group" aria-labelledby="newPickLabel">
           <span class="label" id="newPickLabel">Only these levels (tap several), or only unofficial or alpine</span>
-          <div class="diff-chips"><button type="button" class="diff-chip lvl-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip lvl-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip lvl-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip lvl-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip lvl-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip lvl-chip" data-d="unoff" aria-pressed="false" title="New trails that aren&#39;t part of the official bike network: plain paths with no bike tags, and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button><button type="button" class="alp-chip" id="alpChip" aria-pressed="false" title="Alpine paths above the tree line that look doable on a mountain bike, any age (alpine.js, weekly data)"><span class="diff d-alpine">Alpine rideable</span></button></div>
+          <div class="diff-chips"><button type="button" class="diff-chip lvl-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip lvl-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip lvl-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip lvl-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip lvl-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip lvl-chip" data-d="unoff" aria-pressed="false" title="New trails that aren&#39;t part of the official bike network: plain paths with no bike tags, and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button><button type="button" class="diff-chip lvl-chip ebike-chip" data-d="ebike" aria-pressed="false" title="Only new trails e-bikes may ride: Class 1 (pedal-assist) where the land manager allows it, from the map tags, the park and the province's rules"><span class="diff d-ebike">🔋 E-bikes OK</span></button><button type="button" class="alp-chip" id="alpChip" aria-pressed="false" title="Alpine paths above the tree line that look doable on a mountain bike, any age (alpine.js, weekly data)"><span class="diff d-alpine">Alpine rideable</span></button></div>
         </div>
         <button class="btn primary find" id="findBtn" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span id="findLabel">Find new trails</span></button>
         <button class="btn reset-btn" id="resetBtn" type="button" hidden>✕ Clear results</button>
@@ -1421,11 +1433,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=341"></script>
-<script src="rotate.js?v=341"></script>
-<script src="official.js?v=341"></script>
-<script src="directions.js?v=341"></script>
-<script src="ratings.js?v=341"></script>
+<script src="native.js?v=342"></script>
+<script src="rotate.js?v=342"></script>
+<script src="official.js?v=342"></script>
+<script src="directions.js?v=342"></script>
+<script src="ratings.js?v=342"></script>
+<script src="ebike.js?v=342"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1494,7 +1507,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     any: store.get("any", false),   // How new: Any = every trail in the area, old or new (the list under the search)
     show: { mtb: true, looks: true, other: false, ghost: true },   // "other" paths have no chip and stay hidden
     ghosts: [],          // possible unmapped trails from the weekly GPS-trace file
-    newPick: [],          // level chips in New trails: DIFF keys and/or "unoff"
+    newPick: [],          // level chips in New trails: DIFF keys and/or "unoff" and/or "ebike"
     onlyUnoff: false,     // "Unofficial only": flagged trails of the ticked types (of every type when none is ticked)
     showBits: false,      // "Bits & re-drawn old trails": off hides them from the new-trails list
     onlyOff: false,       // "Official only": trails with signs of being official, of the ticked types (same rule)
@@ -1984,10 +1997,27 @@ body.sport-alt #rideMapBtn { display: none !important; }
   const unoffOk = (cat, unoff, off) => !!unoff || (!off && (cat === "looks" || cat === "other" || cat === "path"));
   // With Unofficial on, unrated trails count for any level: most unofficial trails have no rating.
   const levelOk = (levels, tags, withUnoff) => { const d = difficulty(tags); return levels.includes(d) || (withUnoff && !d); };
-  // Chips combine: levels add up, Unofficial narrows to unofficial trails (of those levels, if any).
-  function picked(cat, unoff, off, tags) {
-    const p = state.newPick, u = p.includes("unoff"), lv = p.filter((k) => k !== "unoff");
-    return (u ? unoffOk(cat, unoff, off) : wanted(cat, unoff, off)) && (!lv.length || levelOk(lv, tags, u));
+  // Chips combine: levels add up, Unofficial narrows to unofficial trails (of those levels, if any), and so does E-bikes OK.
+  function picked(cat, unoff, off, tags, ll) {
+    const p = state.newPick, u = p.includes("unoff"), lv = p.filter((k) => k !== "unoff" && k !== "ebike");
+    return (u ? unoffOk(cat, unoff, off) : wanted(cat, unoff, off)) && (!lv.length || levelOk(lv, tags, u)) && (!p.includes("ebike") || ebikeOk(tags, ll));
+  }
+  // E-bike rules (ebike.js): the rule for a trail's tags at its middle point, with the province from the app's zones.
+  const llOf = (t) => { const m = t.center || t.loamAt || (t.geom && t.geom[Math.floor(t.geom.length / 2)]); return !m ? null : Array.isArray(m) ? m : [m.lat, m.lng]; };
+  function ebikeRule(tags, ll) {
+    if (!window.tfEbike || !ll) return null;
+    const z = ZONES.find((x) => ll[0] >= x.box[0] && ll[0] <= x.box[2] && ll[1] >= x.box[1] && ll[1] <= x.box[3]);
+    const prov = z ? (ALBERTA_ZONES.includes(z.id) ? "ab" : "bc") : ll[1] < -120 && ll[0] > 48.3 && ll[0] < 60 ? "bc" : null;
+    // Alberta Parks' trail table (closures.js, once loaded) says which of its trails allow e-bikes.
+    const ap = window.tfClosures && window.tfClosures.apRow(tags.name || tags["mtb:name"], ll);
+    return window.tfEbike.of(tags, ll, prov, { zone: z && z.id, ap: ap && { ...ap.row, area: ap.area.name, url: ap.row.url || ap.area.url } });
+  }
+  const ebikeOk = (tags, ll) => !!window.tfEbike && window.tfEbike.ok(ebikeRule(tags, ll));
+  function ebikeNote(t) {
+    const r = ebikeRule(t.tags, llOf(t));
+    if (!r) return "";
+    const src = r.src.map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.name)}</a>`).join(" · ");
+    return `<p class="ebike-note ebike-${r.k}" id="ebikeNote"><b>🔋 ${esc(r.short)}.</b> ${esc(r.text)}${src ? ` <span class="muted">Source: ${src}.</span>` : ""}</p>`;
   }
   const wanted = (cat, unoff, off) => (state.onlyUnoff ? !!unoff && unoffTypes().includes(cat) : state.onlyOff ? !!off && unoffTypes().includes(cat) : state.show[cat]);
 
@@ -2982,10 +3012,10 @@ out body;`;
     $("nMtb").textContent = counts.mtb; $("nLooks").textContent = counts.looks; $("nGhost").textContent = counts.ghost;
     $("nUnoff").textContent = kept.filter((t) => isUnoff(t) && unoffTypes().includes(t.cat)).length;
     $("nOff").textContent = kept.filter((t) => t.official && unoffTypes().includes(t.cat)).length;
-    const bits = vis.filter((t) => t.bit && picked(t.cat, isUnoff(t), t.official, t.tags)).length;
+    const bits = vis.filter((t) => t.bit && picked(t.cat, isUnoff(t), t.official, t.tags, llOf(t))).length;
     $("nBits").textContent = bits;
     state.bitsHidden = state.showBits ? 0 : bits;
-    const shown = kept.filter((t) => picked(t.cat, isUnoff(t), t.official, t.tags));
+    const shown = kept.filter((t) => picked(t.cat, isUnoff(t), t.official, t.tags, llOf(t)));
     drawAllTrails();
     state.shownCount = shown.length;
     state.shownIds = new Set(shown.map((t) => t.id));
@@ -3048,7 +3078,7 @@ out body;`;
     const pool = state.waiting ? [] : names.groups.filter((g) => inside(g.center)).map(primeEntry).filter(Boolean);
     const typed = pool.filter((e) => wanted(e.cat, e.unoff.length, e.official));
     if (typed.length) loadLoam(typed);
-    const isPrime = (e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60; };
+    const isPrime = (e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60 && !isSnowy(snowOf(e)); };
     const prime = pool.filter(isPrime);
     const vals = typed.map(loamOf).filter((v) => v != null);
     state.primeRange = vals.length ? [Math.min(...vals), Math.max(...vals)] : null;
@@ -3059,7 +3089,7 @@ out body;`;
     // from the middle of the map.
     const from = near ? L.latLng(near.ll) : you.ll || map.getCenter(), showAway = !!(near || you.ll);
     const dist = (e) => from.distanceTo(e.center);
-    const shown = prime.filter((e) => picked(e.cat, e.unoff.length, e.official, e.g.tags)).sort((a, b) => dist(a) - dist(b) || a.g.name.localeCompare(b.g.name));
+    const shown = prime.filter((e) => picked(e.cat, e.unoff.length, e.official, e.g.tags, llOf(e))).sort((a, b) => dist(a) - dist(b) || a.g.name.localeCompare(b.g.name));
     state.primeShown = shown; state.shownCount = shown.length; state.primeTotal = typed.length;
     state.shownIds = new Set();
     state.loamPending = typed.some((e) => loamOf(e) === undefined);
@@ -3286,8 +3316,18 @@ out body;`;
   // soil moisture forecast as "now". [{ d: "YYYY-MM-DD", v }], tomorrow first.
   const LOAM_HOUR = "T13:00";
   const lmiDays = (h, today, key) => h.time.map((x, i) => [x, i]).filter(([x]) => x.slice(0, 10) > today && x.endsWith(LOAM_HOUR))
-    .map(([x, i]) => ({ d: x.slice(0, 10), v: lmiAt(h, i, key) })).filter((x) => x.v != null);
+    .map(([x, i]) => ({ d: x.slice(0, 10), v: lmiAt(h, i, key), s: snowAt(h, i) })).filter((x) => x.v != null);
   const isPrimeLoam = (v) => v != null && v >= 40 && v < 60;
+  // Snow on the ground (alex, spring and fall: which trails are still under snow): the weather model's snow depth at the
+  // same spot as the Loam index, in cm. Under the soil model, snowed-in dirt can read "prime", so snow wins: from SNOW_CM
+  // a trail reads "Snow", never prime loam; from SNOW_PATCH_CM it may have patches.
+  const SNOW_CM = 5, SNOW_PATCH_CM = 1;
+  function snowAt(h, i) {
+    const v = h.snow_depth && h.snow_depth[i];
+    return v == null ? null : Math.round(v * 100);
+  }
+  const isSnowy = (cm) => cm != null && cm >= SNOW_CM;
+  const primeDay = (x) => isPrimeLoam(x.v) && !isSnowy(x.s);
   const dayName = (d, today) => {
     const n = Math.round((Date.parse(d + "T12:00") - Date.parse(today + "T12:00")) / 86400000);
     return n === 0 ? "today" : n === 1 ? "tomorrow" : new Date(d + "T12:00").toLocaleDateString(undefined, { weekday: "long" });
@@ -3303,17 +3343,17 @@ out body;`;
   // 0.05° cells put some trails' reading 3 km away, in a wetter or drier model cell.
   // Kept on this device for half an hour, so reloading the page doesn't ask Open-Meteo for every place again.
   const LOAM_STORE = "tf:loamCells";
-  const loamCells = new Map();                   // "lat,lon" (rounded to 0.02°) -> { at, lmi, today, days } (days: lmiDays)
+  const loamCells = new Map();                   // "lat,lon" (rounded to 0.02°) -> { at, lmi, today, days, snow } (days: lmiDays; snow: cm, snowAt)
   try {
     Object.entries(JSON.parse(localStorage.getItem(LOAM_STORE) || "{}") || {})
-      .forEach(([k, [at, lmi, today, days]]) => { if (Date.now() - at < WX_FRESH_MS) loamCells.set(k, { at, lmi, today, days }); });
+      .forEach(([k, [at, lmi, today, days, snow]]) => { if (Date.now() - at < WX_FRESH_MS) loamCells.set(k, { at, lmi, today, days, snow: snow == null ? null : snow }); });
   } catch {}
   let loamSaveT = 0;
   const saveLoamCells = () => {
     clearTimeout(loamSaveT);
     loamSaveT = setTimeout(() => {
       const o = {};
-      loamCells.forEach((c, k) => { if (c.lmi !== null && Date.now() - c.at < WX_FRESH_MS) o[k] = [c.at, c.lmi, c.today, c.days]; });
+      loamCells.forEach((c, k) => { if (c.lmi !== null && Date.now() - c.at < WX_FRESH_MS) o[k] = [c.at, c.lmi, c.today, c.days, c.snow]; });
       try { localStorage.setItem(LOAM_STORE, JSON.stringify(o)); } catch {}
     }, 2000);
   };
@@ -3322,11 +3362,18 @@ out body;`;
     const c = loamCells.get(cellOf(t));
     return c ? c.lmi : undefined;                 // undefined: not loaded yet; null: no soil data there
   }
+  // Snow depth now at the trail's loam spot, in cm (undefined: not read yet).
+  function snowOf(t) {
+    const c = loamCells.get(cellOf(t));
+    return c ? c.snow : undefined;
+  }
+  const SNOW_COLOR = "#a9c4e6";
   // "Loam" trail colours (the map key's third mode, like Trailforks colouring its map by trail condition): each line
   // in the colour of today's Loam index at its spot, grey until read or where there's no soil data.
   function loamColor(t) {
     try {
-      const v = loamOf(t.geom || t.center || t.loamAt ? t : { geom: (t.segments || [[]])[0] });
+      const p = t.geom || t.center || t.loamAt ? t : { geom: (t.segments || [[]])[0] }, v = loamOf(p);
+      if (isSnowy(snowOf(p))) return SNOW_COLOR;
       return v == null ? UNRATED : LMI_RIDE[LMI_LEVELS.indexOf(lmiLevel(v))][0];
     } catch { return UNRATED; }
   }
@@ -3379,14 +3426,14 @@ out body;`;
       }
       try {
         const res = await fetch(`${WX_API}?latitude=${ll.map((x) => x[0]).join(",")}&longitude=${ll.map((x) => x[1]).join(",")}&timezone=auto&past_days=1&forecast_days=4` +
-          "&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm");
+          "&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth");
         if (!res.ok) throw await meteoErr(res);
         const json = await res.json();
         (Array.isArray(json) ? json : [json]).forEach((w, k) => {
           let j = w.hourly.time.findIndex((x) => x > w.current.time) - 1;
           if (j < 0) j = w.hourly.time.length - 1;
           const today = w.current.time.slice(0, 10);
-          loamCells.set(chunk[k], { at: Date.now(), lmi: lmiAt(w.hourly, j, chunk[k]), today, days: lmiDays(w.hourly, today, chunk[k]) });
+          loamCells.set(chunk[k], { at: Date.now(), lmi: lmiAt(w.hourly, j, chunk[k]), today, days: lmiDays(w.hourly, today, chunk[k]), snow: snowAt(w.hourly, j) });
         });
         saveLoamCells();
       } catch (e) {
@@ -3402,18 +3449,27 @@ out body;`;
     if (need.length) await fetchLoamCells(need);
     return keys.map((k) => { const c = loamCells.get(k); return c ? c.lmi : null; });
   };
+  // Snow on the ground (notify.js, status.js): cm of snow now at each [lat, lon] (null: not known), from the same readings.
+  window.tfSnowAt = async (pts) => {
+    const keys = pts.map((p) => cellOf({ center: L.latLng(p[0], p[1]) }));
+    const need = staleCells(keys);
+    if (need.length) await fetchLoamCells(need);
+    return keys.map((k) => { const c = loamCells.get(k); return c && c.snow != null ? c.snow : null; });
+  };
+  window.tfSnowCm = SNOW_CM;
   // Loam forecast (notify.js): the first coming day in prime loam at each [lat, lon], { d, day, v } or null.
   window.tfLoamSoon = async (pts) => {
     const keys = pts.map((p) => cellOf({ center: L.latLng(p[0], p[1]) }));
     const need = staleCells(keys);
     if (need.length) await fetchLoamCells(need);
     return keys.map((k) => {
-      const c = loamCells.get(k), x = c && c.days && c.days.find((y) => isPrimeLoam(y.v));
+      const c = loamCells.get(k), x = c && c.days && c.days.find(primeDay);
       return x ? { d: x.d, day: dayName(x.d, c.today), v: x.v } : null;
     });
   };
   function loamBadge(t) {
-    const v = loamOf(t);
+    const v = loamOf(t), sn = snowOf(t);
+    if (isSnowy(sn)) return `<br><span class="loam snow" title="The weather model has ${sn} cm of snow on the ground here"><i style="background:${SNOW_COLOR}"></i>❄ Snow ${sn} cm</span>`;
     if (v == null) return "";
     const k = LMI_LEVELS.indexOf(lmiLevel(v));
     return `<br><span class="loam" title="Loam moisture index now: ${esc(LMI_LEVELS[k][1])} (${LMI_RIDE[k][1]})"><i style="background:${LMI_RIDE[k][0]}"></i>Loam ${v}</span>`;
@@ -3427,7 +3483,7 @@ out body;`;
         {
           const url = `${WX_API}?latitude=${mid[0]}&longitude=${mid[1]}&timezone=auto&past_days=2&forecast_days=4` +
             "&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m" +
-            "&hourly=precipitation,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm" +
+            "&hourly=precipitation,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth" +
             "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max";
           const res = await fetch(url);
           if (!res.ok) throw await meteoErr(res);
@@ -3438,9 +3494,9 @@ out body;`;
           const h = json.hourly;
           let i = h.time.findIndex((x) => x > json.current.time) - 1;
           if (i < 0) i = h.time.length - 1;
-          const key = cellOf(t), was = loamCells.get(key), lmi = lmiAt(h, i, key), today = json.current.time.slice(0, 10);
-          loamCells.set(key, { at: Date.now(), lmi, today, days: lmiDays(h, today, key) });   // a fresher reading: the list shows it too
-          if (!was || was.lmi !== lmi) render();
+          const key = cellOf(t), was = loamCells.get(key), lmi = lmiAt(h, i, key), today = json.current.time.slice(0, 10), snow = snowAt(h, i);
+          loamCells.set(key, { at: Date.now(), lmi, today, days: lmiDays(h, today, key), snow });   // a fresher reading: the list shows it too
+          if (!was || was.lmi !== lmi || was.snow !== snow) render();
         }
       }
       const el = box(); if (el) renderWeather(el, t.wx.json, cellOf(t));
@@ -3457,14 +3513,18 @@ out body;`;
     const lvl = lmi == null ? null : lmiLevel(lmi);
     const [sky, icon] = wmo(c.weather_code);
     const today = c.time.slice(0, 10);
-    const ahead = new Map(lmiDays(h, today, key).map((x) => [x.d, x.v]));
-    const loamCell = (v) => v == null ? "<td>–</td>" : `<td class="${isPrimeLoam(v) ? "lmi-prime" : ""}">${lmiDot(v)}${v}${isPrimeLoam(v) ? " <b>prime</b>" : ""}</td>`;
-    const soon = [...ahead].find(([, v]) => isPrimeLoam(v));
+    const snow = snowAt(h, i), aheadDays = lmiDays(h, today, key);
+    const ahead = new Map(aheadDays.map((x) => [x.d, x.v])), aheadSnow = new Map(aheadDays.map((x) => [x.d, x.s]));
+    const loamCell = (v, sn) => isSnowy(sn) ? `<td class="lmi-snow">❄ ${sn} cm</td>` : v == null ? "<td>–</td>" : `<td class="${isPrimeLoam(v) ? "lmi-prime" : ""}">${lmiDot(v)}${v}${isPrimeLoam(v) ? " <b>prime</b>" : ""}</td>`;
+    const soon = aheadDays.find(primeDay), soonD = soon && [soon.d, soon.v];
+    // Snow on the ground: the weather model's depth at this spot (its own ground height, which can differ from the trail's).
+    const snowNote = isSnowy(snow) ? `<p class="lmi-snowing">❄ <b>Likely under snow:</b> about ${snow} cm on the ground here (weather model${Number.isFinite(w.elevation) ? `, at ${Math.round(w.elevation)} m` : ""}). The Loam index reads the soil under it, so it isn't prime loam until the snow melts.${(() => { const off = aheadDays.find((x) => !isSnowy(x.s)); return off ? ` Snow-free from about ${esc(dayName(off.d, today))}.` : ""; })()}</p>`
+      : snow != null && snow >= SNOW_PATCH_CM ? `<p class="lmi-snowing">❄ Patches of snow likely (about ${snow} cm here in the weather model, at ${Math.round(w.elevation)} m).</p>` : "";
     const days = d.time.map((day, k) => ({ day, k })).filter((x) => x.day >= today).map(({ day, k }) => {
       const [txt, ic] = wmo(d.weather_code[k]);
       const name = day === today ? "Today" : new Date(day + "T12:00").toLocaleDateString(undefined, { weekday: "short" });
       const pop = d.precipitation_probability_max && d.precipitation_probability_max[k] != null ? ` · ${d.precipitation_probability_max[k]} %` : "";
-      return `<tr><td>${name}</td><td>${ic} ${esc(txt)}</td><td>${Math.round(d.temperature_2m_max[k])}° / ${Math.round(d.temperature_2m_min[k])}°</td><td>${fmtMm(d.precipitation_sum[k])}${pop}</td>${loamCell(day === today ? lmi : ahead.get(day))}</tr>`;
+      return `<tr><td>${name}</td><td>${ic} ${esc(txt)}</td><td>${Math.round(d.temperature_2m_max[k])}° / ${Math.round(d.temperature_2m_min[k])}°</td><td>${fmtMm(d.precipitation_sum[k])}${pop}</td>${day === today ? loamCell(lmi, snow) : loamCell(ahead.get(day), aheadSnow.get(day))}</tr>`;
     }).join("");
     el.classList.remove("muted");
     el.innerHTML = `
@@ -3477,7 +3537,8 @@ out body;`;
       ${lmiKey(lvl)}
       ${tune.n ? `<p class="muted lmi-tune">Tuned by ${tune.n} rider report${tune.n > 1 ? "s" : ""} of dry, tacky or muddy dirt${tune.zone ? ` around ${esc(tune.zone)}` : ""}${tune.shift ? `: the soil model reads ${tune.shift > 0 ? "dry" : "wet"} here, so the number is moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"}` : ": they match the soil model, so no change"}.</p>`
         : tune.shift ? `<p class="muted lmi-tune">Moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"} from rider reports in this region.</p>` : ""}`}
-      ${lmi != null && !isPrimeLoam(lmi) && soon ? `<p class="lmi-soon">${lmiDot(soon[1])}Prime loam ${esc(dayName(soon[0], today))} (${soon[1]})</p>` : ""}
+      ${snowNote}
+      ${lmi != null && (!isPrimeLoam(lmi) || isSnowy(snow)) && soonD ? `<p class="lmi-soon">${lmiDot(soonD[1])}Prime loam ${esc(dayName(soonD[0], today))} (${soonD[1]})</p>` : ""}
       <table class="etable wx-days"><thead><tr><th>Day</th><th>Sky</th><th>High / low</th><th>Rain</th><th title="Loam moisture index at 1 pm">Loam</th></tr></thead><tbody>${days}</tbody></table>`;
   }
 
@@ -3660,7 +3721,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=341").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=342").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -3832,6 +3893,12 @@ out body;`;
     return `<p class="dir-note" id="dirNote"><b>${head}.</b> <span class="muted">${esc(r.why)}</span></p>`;
   }
   if (window.tfDir) window.tfDir.onChange(() => { const el = $("dirNote"); if (el && dirOpen) el.outerHTML = dirNote(dirOpen); });
+  // Alberta Parks' trail table came in (closures.js): its e-bike rule wins, in the details and the E-bikes OK chip.
+  addEventListener("tf:closures", () => {
+    const el = $("ebikeNote");
+    if (el && dirOpen && !dirOpen.ghost) el.outerHTML = ebikeNote(dirOpen);
+    if (state.newPick.includes("ebike")) render();
+  });
   function openDetail(t) {
     dirOpen = t;
     if (t.ghost) { openGhostDetail(t); return; }
@@ -3867,6 +3934,8 @@ out body;`;
         <p>${tf.alpine.up >= 1000 ? (tf.alpine.up / 1000).toFixed(1) + " km" : Math.round(tf.alpine.up / 10) * 10 + " m"} of it is above the tree line (about ${tf.alpine.tl} m here), up to ${tf.alpine.hi} m.${tf.alpine.why ? ` From the map: ${esc(tf.alpine.why)}.` : ""}</p>
         <p class="muted">A guess from the map tags and terrain heights, not a bike rating. Expect rock, hike-a-bike and late snow, and check the area's rules: bikes may still be closed there.</p></div>` : ""}
       ${tf.park ? `<p class="park-note">In <a href="${parkUrl(tf.park)}" target="_blank" rel="noopener">${esc(tf.park)}</a>${PARK_RULES[tf.park] ? `: ${esc(PARK_RULES[tf.park])}` : ""}.</p>` : ""}
+      ${t.ghost ? "" : ebikeNote(t)}
+      ${real && window.tfClosures ? `<div id="closures"></div>` : ""}
       <div class="go">${real && window.tfPlan && window.tfPlan.planning() ? `<button class="btn add-ride-btn" id="addRideBtn" type="button">✎ Add to my ride</button>` : ""}<a class="go-btn" id="goBtn" target="_blank" rel="noopener" aria-disabled="true">Go to trail</a><p class="muted" id="goNote">Finding the top of the trail…</p>${window.tfRide ? `<button class="btn follow-btn" id="followBtn" type="button">▶ Ride this trail</button><p class="muted">The map follows you along it and buzzes if you go off it.</p>` : ""}</div>
       <h3>Weather and Loam moisture index</h3><div id="wx" class="muted">Loading weather…</div>
       ${real && window.tfReports ? `<h3>Trail conditions from riders</h3><div id="reports" class="muted">Loading reports…</div>` : ""}
@@ -3926,6 +3995,7 @@ out body;`;
     loadWeather(t);
     rateDetail(t);
     if (real && window.tfReports) window.tfReports.show(t);   // reports.js
+    if (real && window.tfClosures) window.tfClosures.show(t);   // closures.js
     if (real && window.tfGrades) window.tfGrades.show(t);   // grades.js
     if (real && window.tfTrailPhotos) window.tfTrailPhotos.show(t);   // trail-photos.js
     if (real) loadAbout(t);
@@ -4956,11 +5026,13 @@ out body;`;
       if (!name) return;
       let len = 0;
       for (let i = 1; i < w.geom.length; i++) len += Math.abs(w.geom[i][0] - w.geom[i - 1][0]) + Math.abs(w.geom[i][1] - w.geom[i - 1][1]);
-      const g = by.get(name);
-      if (!g) by.set(name, { name, len, w, ids: [w.id] });
-      else { g.ids.push(w.id); if (len > g.len) { g.len = len; g.w = w; } }
+      const g = by.get(name), km = lengthKm(w.geom);
+      if (!g) by.set(name, { name, len, w, ids: [w.id], km });
+      else { g.ids.push(w.id); g.km += km; if (len > g.len) { g.len = len; g.w = w; } }
     });
-    return [...by.values()].map((g) => ({ name: g.name, ids: g.ids, kind: CAT_LABEL[g.w.c.cat] || "", c: g.w.geom[Math.floor(g.w.geom.length / 2)] }));
+    // id, tags and geom: the longest piece's; m: all pieces together; lvl: the difficulty key (or null); off: official.
+    return [...by.values()].map((g) => ({ name: g.name, id: g.w.id, ids: g.ids, kind: CAT_LABEL[g.w.c.cat] || "", c: g.w.geom[Math.floor(g.w.geom.length / 2)],
+      tags: g.w.tags, geom: g.w.geom, m: Math.round(g.km * 1000), lvl: difficulty(g.w.tags) || null, off: !!g.w.c.official, cat: g.w.c.cat }));
   };
   // The same-name pieces of a trail from the all-trails lists, for a tap when the area's name list isn't loaded:
   // pieces whose ends meet (within 100 m) or whose middles are within 3 km, as the name search groups them.
@@ -5610,7 +5682,13 @@ out body;`;
     th: { svg: svg(`<path d="M6 21V3M6 4h11l-2.5 4L17 12H6"/>`), bg: "#7c3aed", label: "Trailhead" },
     p: { svg: svg(`<path d="M8 20V4h5a4.5 4.5 0 0 1 0 9H8" stroke-width="3"/>`), bg: "#1d4ed8", label: "Parking" },
     rec: { svg: svg(`<path d="M2 20 9.5 6l4.5 8 2.5-4L22 20z"/>`, true), bg: "#15803d", label: "BC recreation site or trail" },
+    // Along the way (build-access.mjs, within 600 m of a trail): drinking water, toilets, bike repair stations, shelters.
+    w: { svg: svg(`<path d="M12 3c3.5 4.6 6 8 6 11a6 6 0 0 1-12 0c0-3 2.5-6.4 6-11z"/>`, true), bg: "#0284c7", label: "Drinking water" },
+    wc: { svg: svg(`<path d="M7 4v.01M17 4v.01M5 8h4l-1 6v6M19 8h-4l1 6v6M15 14h6M9 14H5" />`), bg: "#475569", label: "Toilets" },
+    fix: { svg: svg(`<path d="M14.5 5.5a4 4 0 0 0-5 5L4 16l4 4 5.5-5.5a4 4 0 0 0 5-5l-2.5 2.5-3-1-1-3z"/>`), bg: "#b45309", label: "Bike repair station" },
+    sh: { svg: svg(`<path d="M3 11 12 4l9 7M6 10v10M18 10v10"/>`), bg: "#57534e", label: "Shelter" },
   };
+  const NEED_KINDS = ["w", "wc", "fix", "sh"];
   const ACCESS_NEAR_M = 5000, ROAD_NEAR_M = 300, END_ROAD_M = 400;
   const accessLoads = new Map();   // zone id -> Promise([{ id, k, lat, lon, t, z }])
   function accessZone(z) {
@@ -5646,6 +5724,12 @@ out body;`;
   function accessInfo(x) {
     const t = x.t || {};
     if (x.k === "rec") return [t.closed && `Closure: ${t.closed}`, t.type, t.loc, t.dir && `Driving directions: ${t.dir}`].filter(Boolean);
+    if (NEED_KINDS.includes(x.k)) {
+      const tools = ["pump", "tools", "chain_tool", "stand"].filter((k) => t[`service:bicycle:${k}`] === "yes").map((k) => ({ pump: "pump", tools: "tools", chain_tool: "chain tool", stand: "stand" })[k]);
+      return [t.amenity === "bicycle_wash" && "Bike wash", tools.length && `has a ${tools.join(", ")}`, t.amenity === "toilets" && t["toilets:disposal"] && `${t["toilets:disposal"].replace(/_/g, " ")} toilet`,
+        t.drinking_water === "no" && "not drinking water", t.shelter_type && t.shelter_type.replace(/_/g, " "), t.fee === "yes" && "fee", t.access && t.access !== "yes" && `access: ${t.access}`,
+        t.opening_hours && `open ${t.opening_hours}`, t.seasonal && t.seasonal !== "no" && `seasonal${t.seasonal !== "yes" ? ` (${t.seasonal})` : ""}`, t.operator, t.description || t.note].filter(Boolean);
+    }
     const fee = t.fee === "no" ? "Free" : t.fee === "yes" ? `Paid${t.charge ? ` (${t.charge})` : ""}` : "";
     return [fee, t.capacity && `${t.capacity} spots`, t.surface && `surface: ${t.surface}`, t.access && t.access !== "yes" && `access: ${t.access}`, t.operator, t.opening_hours && `open ${t.opening_hours}`, t.seasonal === "yes" && "seasonal", t.description || t.note].filter(Boolean);
   }
@@ -5669,6 +5753,9 @@ out body;`;
       .filter((o) => o.d <= ACCESS_NEAR_M).sort((a, c) => a.d - c.d)[0];
     const th = near((x) => x.k === "th" || (x.k === "rec" && /trail/i.test(x.t.type || ""))) || near((x) => x.k === "rec");
     const park = near((x) => x.k === "p");
+    // Water, toilets and repair stations: the nearest of each within 2 km of the trail.
+    const needs = NEED_KINDS.map((k) => { const o = near((x) => x.k === k); return o && o.d <= 2000 ? { k, o } : null; }).filter(Boolean);
+    const needRow = needs.length ? `<li class="acc-row acc-needs">${needs.map(({ k, o }) => `<span>${pinHtml(ACCESS[k], "lg-ico")}${esc(ACCESS[k].label)} <span class="muted">${fmtM(o.d)}</span> <a href="https://www.google.com/maps/dir/?api=1&destination=${o.x.lat.toFixed(5)},${o.x.lon.toFixed(5)}" target="_blank" rel="noopener" aria-label="Directions to the ${esc(ACCESS[k].label.toLowerCase())}">↗</a></span>`).join("")}</li>` : "";
     const row = (o, kind) => {
       const x = o.x, info = accessInfo(x);
       return `<li class="acc-row">${pinHtml(ACCESS[x.k], "lg-ico")}<div><strong>${esc(kind)}: ${esc(accessName(x))}</strong> <span class="muted">${fmtM(o.d)} from the trail</span>
@@ -5682,8 +5769,8 @@ out body;`;
       : [["Start", t.geom[0]], ["End", t.geom[t.geom.length - 1]]];
     const endRow = ([label, ll]) => `<li>${esc(label)}: ${roadLine(nearestRoad(ll, roads, END_ROAD_M), `no forest road within ${END_ROAD_M} m, so pedal or hike ${label === "Top" ? "up" : "out"}.`)}</li>`;
     el.classList.remove("muted");
-    el.innerHTML = `${th || park ? `<ul class="plain acc-list">${th ? row(th, "Trailhead") : ""}${park ? row(park, "Parking") : ""}</ul>`
-        : `<p class="muted">No mapped trailhead or parking within ${ACCESS_NEAR_M / 1000} km.</p>`}`;
+    el.innerHTML = `${th || park ? `<ul class="plain acc-list">${th ? row(th, "Trailhead") : ""}${park ? row(park, "Parking") : ""}${needRow}</ul>`
+        : `<p class="muted">No mapped trailhead or parking within ${ACCESS_NEAR_M / 1000} km.</p>${needRow ? `<ul class="plain acc-list">${needRow}</ul>` : ""}`}`;
     // Shuttle access sits at the bottom of the trail details (alex).
     const sh = $("shuttle");
     if (sh) sh.innerHTML = `<h3>Shuttle access</h3><p class="muted">Forest roads near the ends of the trail.</p><ul class="plain acc-ends">${ends.map(endRow).join("")}</ul>`;
@@ -5714,12 +5801,12 @@ out body;`;
     const b = $("accessBtn");
     b.setAttribute("aria-pressed", String(state.access));
     b.classList.toggle("on", state.access);
-    b.title = state.access ? "Hide the trailheads and parking" : "Show trailheads, parking and BC recreation sites";
+    b.title = state.access ? "Hide the trailheads, parking, water and toilets" : "Show trailheads, parking, drinking water, toilets, bike repair stations, shelters and BC recreation sites";
   }
   $("accessBtn").addEventListener("click", () => {
     state.access = !state.access; store.set("access", state.access);
     syncAccessBtn(); drawAccess(); renderKey();
-    if (state.access && map.getZoom() < FEAT_MIN_ZOOM) setStatus("Zoom in to see trailheads and parking.");
+    if (state.access && map.getZoom() < FEAT_MIN_ZOOM) setStatus("Zoom in to see trailheads, parking, water and toilets.");
   });
   syncAccessBtn();
   drawAccess();
@@ -5760,7 +5847,7 @@ out body;`;
     const dots = "background: repeating-linear-gradient(90deg, var(--fg) 0 3px, transparent 3px 7px)";
     const section = (title, items) => `<li class="lg-more"><details data-k="${title}"${keyOpen.has(title) ? " open" : ""}><summary>${title}</summary><ul>${items}</ul></details></li>`;
     let html = state.colorBy === "loam"
-      ? LMI_LEVELS.map((l, k) => sw(`background: ${LMI_RIDE[k][0]}`, `${k * 20}–${Math.min(100, l[0] - 1)} ${esc(l[1])}`)).join("") + sw(`background: ${UNRATED}`, "Not read yet") + sw(dots, "Unofficial")
+      ? LMI_LEVELS.map((l, k) => sw(`background: ${LMI_RIDE[k][0]}`, `${k * 20}–${Math.min(100, l[0] - 1)} ${esc(l[1])}`)).join("") + sw(`background: ${SNOW_COLOR}`, `❄ Snow (${SNOW_CM} cm or more)`) + sw(`background: ${UNRATED}`, "Not read yet") + sw(dots, "Unofficial")
       : byDiff
       ? Object.entries(DIFF).map(([k, v]) => sw(`background: ${v.color}`, `${v.sym} ${v.label}`)).join("")
         + sw(`background: repeating-linear-gradient(90deg, ${DIFF.blue.color} 0 6px, transparent 6px 10px)`, "Dashed: estimated level") + sw(`background: ${UNRATED}`, "Not rated") + sw(dots, "Unofficial")
@@ -5781,7 +5868,7 @@ out body;`;
         .filter((k) => !["m3", "ban", "frestr", "ohv"].includes(k) || has(k)).map((k) => areaSw(FIRE_STYLE[k])).join(""));
     }
     if (window.tfBikeParks && window.tfBikeParks.on()) html += section("Bike parks", window.tfBikeParks.keyItems());
-    if (state.access) html += section("Trailheads and parking (zoom in)", Object.values(ACCESS).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join(""));
+    if (state.access) html += section("Trailheads, parking, water (zoom in)", Object.values(ACCESS).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join(""));
     $("keyList").innerHTML = html;
     if (popped) {
       const lg = document.querySelector("details.legend");
@@ -5825,7 +5912,7 @@ out body;`;
   const LOOKS = {
     ride: { on: ["allBtn", "accessBtn", "parkBtn"], off: ["roadsBtn", "firesBtn", "areasBtn", "contourBtn"] },
     plan: { on: ["allBtn", "roadsBtn", "contourBtn", "accessBtn"], off: ["firesBtn", "areasBtn"] },
-    safety: { on: ["allBtn", "firesBtn", "roadsBtn", "areasBtn"], off: ["contourBtn"] },
+    safety: { on: ["allBtn", "firesBtn", "closeBtn", "roadsBtn", "areasBtn"], off: ["contourBtn"] },
   };
   const layerOn = (b) => b.getAttribute("aria-pressed") === "true";
   const lookIs = (l) => l.on.every((id) => !$(id) || layerOn($(id))) && l.off.every((id) => !$(id) || !layerOn($(id)));
@@ -6617,9 +6704,9 @@ out tags center qt;`;
     const awayOf = (w) => (w._awayFor === circle ? w._away : (w._awayFor = circle, w._away = w.geom.reduce((m, p) => Math.min(m, circle.ll.distanceTo(p)), Infinity)));
     const inArea = circle ? (w) => awayOf(w) <= circle.km * 1000 : (w) => w.geom.some((p) => b.contains(p));
     if (isFull()) setFullMap(false);
-    const unoffPick = !!diff && diff.includes("unoff"), levels = (diff || []).filter((k) => k !== "unoff");
+    const unoffPick = !!diff && diff.includes("unoff"), ebikePick = !!diff && diff.includes("ebike"), levels = (diff || []).filter((k) => k !== "unoff" && k !== "ebike");
     const lvlText = levels.map((k) => DIFF[k].label).join(" or ");
-    const one = (lvlText ? lvlText + (unoffPick ? " or unrated " : " ") : "") + (unoffPick ? "unofficial trail" : lvlText ? "trail" : "MTB trail");
+    const one = (ebikePick ? "e-bike OK " : "") + (lvlText ? lvlText + (unoffPick ? " or unrated " : " ") : "") + (unoffPick ? "unofficial trail" : lvlText ? "trail" : "MTB trail");
     const what = one + "s", inWhere = circle ? `within ${circle.km} km of ${where}` : diff ? `in ${where}` : where || "in your square";
     $("boxRes").hidden = false;
     if (anyMode()) setStatus("");
@@ -6648,7 +6735,8 @@ out tags center qt;`;
     let unnamed = 0;
     const loose = [];
     lists.forEach((list) => (list || []).forEach((w) => {
-      if (seen.has(w.id) || (unoffPick && !unoffOk(w.c.cat, w.c.unoff.length, w.c.official)) || (levels.length && !levelOk(levels, w.tags, unoffPick)) || !inArea(w)) return;
+      if (seen.has(w.id) || (unoffPick && !unoffOk(w.c.cat, w.c.unoff.length, w.c.official)) || (levels.length && !levelOk(levels, w.tags, unoffPick)) || !inArea(w)
+        || (ebikePick && !ebikeOk(w.tags, llOf(w)))) return;
       seen.add(w.id);
       found.extend(w.geom);
       const cut = (w.tags.name || w.tags["mtb:name"]) && roadCut(w.id), lines = cut ? cutLine(w.geom, cut[0]) : null;
@@ -6704,7 +6792,8 @@ out tags center qt;`;
       : missing.length ? `<p class="hint box-why">Couldn't load the trail list for ${esc(missing.join(" and "))}. Reload the page and try again.</p>`
       : unoffPick && pathNote ? `<p class="hint box-why">${esc(pathNote)}</p>`
       : none && unoffPick ? `<p class="hint box-why">No unofficial trails ${esc(inWhere)}${lvlText ? ` rated ${esc(lvlText)} or unrated` : ""}: every trail here is tagged for MTB or marked official.</p>`
-      : none && diff ? `<p class="hint box-why">No trails ${esc(inWhere)} are rated ${esc(lvlText)} in OpenStreetMap. Only trails with a difficulty rating show up here.</p>`
+      : none && ebikePick && !levels.length ? `<p class="hint box-why">No trails ${esc(inWhere)} are open to e-bikes, from the map tags and the park and province rules.</p>`
+      : none && diff ? `<p class="hint box-why">No trails ${esc(inWhere)} are rated ${esc(lvlText)}${ebikePick ? " and open to e-bikes" : ""} in OpenStreetMap. Only trails with a difficulty rating show up here.</p>`
       : unoffPick && !none ? `<p class="hint box-why">Unofficial trails: the ones mappers flagged come first, then trails with no bike tags (paths with no bike tags are grey). MTB tagged and official trails (club, park, ski or Recreation Sites and Trails BC) are left out.${lvlText ? " Most unofficial trails have no difficulty rating, so unrated ones are included with the levels you picked." : ""}</p>`
       : none && circle ? `<p class="hint box-why">No MTB trails are mapped within ${circle.km} km. Pick a bigger distance.</p>`
       : none ? `<p class="hint box-why">OpenStreetMap has no trails tagged for mountain biking here: the lines on the map are hiking trails or forest roads, or nothing is mapped yet. Try a bigger square, or tap a line to see what it is.</p>` : "";
@@ -6881,32 +6970,35 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=341"></script>
-<script src="contours.js?v=341"></script>
-<script src="clouds.js?v=341"></script>
-<script src="photo-slider.js?v=341"></script>
-<script src="winter.js?v=341"></script>
-<script src="hunting.js?v=341"></script>
-<script src="ski-points.js?v=341"></script>
-<script src="webcams.js?v=341"></script>
-<script src="offline.js?v=341"></script>
-<script src="ride-stats.js?v=341"></script>
-<script src="native-gps.js?v=341"></script>
-<script src="navigate.js?v=341"></script>
-<script src="planner.js?v=341"></script>
-<script src="ride-finds.js?v=341"></script>
-<script src="rides.js?v=341"></script>
-<script src="account.js?v=341"></script>
-<script src="reports.js?v=341"></script>
-<script src="grades.js?v=341"></script>
-<script src="trail-photos.js?v=341"></script>
-<script src="visitors.js?v=341"></script>
-<script src="notify.js?v=341"></script>
-<script src="status.js?v=341"></script>
-<script src="areas.js?v=341"></script>
-<script src="alpine.js?v=341"></script>
-<script src="bikeparks.js?v=341"></script>
-<script src="photo-find.js?v=341"></script>
+<script src="map3d.js?v=342"></script>
+<script src="contours.js?v=342"></script>
+<script src="clouds.js?v=342"></script>
+<script src="photo-slider.js?v=342"></script>
+<script src="winter.js?v=342"></script>
+<script src="hunting.js?v=342"></script>
+<script src="ski-points.js?v=342"></script>
+<script src="webcams.js?v=342"></script>
+<script src="offline.js?v=342"></script>
+<script src="ride-stats.js?v=342"></script>
+<script src="native-gps.js?v=342"></script>
+<script src="navigate.js?v=342"></script>
+<script src="planner.js?v=342"></script>
+<script src="loops.js?v=342"></script>
+<script src="ride-finds.js?v=342"></script>
+<script src="rides.js?v=342"></script>
+<script src="account.js?v=342"></script>
+<script src="strava.js?v=342"></script>
+<script src="reports.js?v=342"></script>
+<script src="grades.js?v=342"></script>
+<script src="trail-photos.js?v=342"></script>
+<script src="visitors.js?v=342"></script>
+<script src="notify.js?v=342"></script>
+<script src="closures.js?v=342"></script>
+<script src="status.js?v=342"></script>
+<script src="areas.js?v=342"></script>
+<script src="alpine.js?v=342"></script>
+<script src="bikeparks.js?v=342"></script>
+<script src="photo-find.js?v=342"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

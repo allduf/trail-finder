@@ -111,15 +111,17 @@ for (let i = 0; i < cellList.length; i += 50) {
   const chunk = cellList.slice(i, i + 50), ll = chunk.map((k) => k.split(","));
   try {
     const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${ll.map((x) => x[0]).join(",")}&longitude=${ll.map((x) => x[1]).join(",")}` +
-      "&timezone=auto&past_days=1&forecast_days=4&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm");
+      "&timezone=auto&past_days=1&forecast_days=4&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth");
     if (!r.ok) throw new Error("HTTP " + r.status);
     const json = await r.json();
     (Array.isArray(json) ? json : [json]).forEach((w, k) => {
       let j = w.hourly.time.findIndex((x) => x > w.current.time) - 1;
       if (j < 0) j = w.hourly.time.length - 1;
-      lmi.set(chunk[k], lmiAt(w.hourly, j, chunk[k]));
+      // Snow on the ground (5 cm or more, as on the site): the soil under it can read prime, but it isn't, so no reading.
+      const snowy = (n) => (w.hourly.snow_depth && w.hourly.snow_depth[n]) >= 0.05;
+      lmi.set(chunk[k], snowy(j) ? null : lmiAt(w.hourly, j, chunk[k]));
       const today = w.current.time.slice(0, 10), h = w.hourly;
-      const i = h.time.findIndex((x, n) => x.slice(0, 10) > today && x.endsWith("T13:00") && isPrime(lmiAt(h, n, chunk[k])));
+      const i = h.time.findIndex((x, n) => x.slice(0, 10) > today && x.endsWith("T13:00") && !snowy(n) && isPrime(lmiAt(h, n, chunk[k])));
       if (i >= 0) soonOf.set(chunk[k], { d: h.time[i].slice(0, 10), day: dayName(h.time[i].slice(0, 10), today), v: lmiAt(h, i, chunk[k]) });
     });
   } catch (e) { console.log(`Open-Meteo, spots ${i}-${i + chunk.length}: ${e.message}`); }

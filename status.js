@@ -3,8 +3,11 @@
 //    new trails first (first mapped in the last 6 months), then nearest. It ranks; it never hides anything else.
 //  - Riding areas near you: loam now (how many trails are prime, or the day they turn prime), rider reports from the
 //    last 7 days (trees down called out), and wildfires or evacuation areas close by. Each area: Trails here, Save offline.
+//  - Snow: trails still under snow (Open-Meteo snow depth, tfSnowAt) never count as prime, and an area says so.
+//  - Closures and warnings close by (closures.js: Alberta Parks trail reports, BC Parks advisories, Parks Canada).
+//  - 🔁 Loops: ready-made loops for the area, with distance, climb and ride time (loops.js), opened in Plan a route.
 // Reads the same things as the rest of the app: tfZoneTrails (index.html, the All trails list), tfLoamAt / tfLoamSoon
-// (the shared Loam readings), trail_reports (reports.js), data/fires*.json, data/riding-areas.json.
+// (the shared Loam readings), trail_reports (reports.js), data/fires*.json, data/riding-areas.json, data/closures.json.
 (() => {
   "use strict";
   const T = window.tfToday, map = window.tfLeaflet;
@@ -17,7 +20,7 @@
   const level = (v) => LEVELS.find((l) => v < l[0]);
   const dot = (v) => `<i class="td-dot" style="background:${v == null ? "#8a8f98" : level(v)[2]}"></i>`;
   const ago = (t) => { const d = Math.floor((Date.now() - t) / 864e5); return d < 1 ? "today" : d === 1 ? "yesterday" : d < 30 ? `${d} days ago` : d < 60 ? "a month ago" : `${Math.round(d / 30)} months ago`; };
-  const REPORT = { dry: "☀️ Dry", tacky: "🤎 Tacky, loamy", muddy: "💧 Muddy", trees_down: "🌲 Trees down", snow: "❄️ Snow" };
+  const REPORT = { dry: "☀️ Dry", tacky: "🤎 Tacky, loamy", muddy: "💧 Muddy", trees_down: "🌲 Trees down", snow: "❄️ Snow", closed: "🚧 Closed" };
 
   const css = document.createElement("style");
   css.textContent = `
@@ -37,6 +40,7 @@ dialog.today .td-area { border: 1px solid var(--line); border-radius: 12px; padd
 dialog.today .td-area header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 dialog.today .td-area p { margin: 4px 0 0; font-size: .88rem; }
 dialog.today .td-warn { color: #b45309; }
+dialog.today .td-snow { color: #3f6ea8; }
 dialog.today .td-act { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 dialog.today .td-act button { font: inherit; font-size: .82rem; font-weight: 600; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip, #fff); color: var(--fg); cursor: pointer; }
 dialog.today .td-wait { color: var(--muted); font-size: .9rem; }
@@ -109,22 +113,25 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
       t.area = best; if (best) best.trails.push(t);
     });
     const pts = trails.map((t) => t.c);
-    const [vals, soon] = await Promise.all([window.tfLoamAt ? window.tfLoamAt(pts).catch(() => pts.map(() => null)) : pts.map(() => null),
-      window.tfLoamSoon ? window.tfLoamSoon(pts).catch(() => pts.map(() => null)) : pts.map(() => null)]);
+    const [vals, soon, snow] = await Promise.all([window.tfLoamAt ? window.tfLoamAt(pts).catch(() => pts.map(() => null)) : pts.map(() => null),
+      window.tfLoamSoon ? window.tfLoamSoon(pts).catch(() => pts.map(() => null)) : pts.map(() => null),
+      window.tfSnowAt ? window.tfSnowAt(pts).catch(() => pts.map(() => null)) : pts.map(() => null)]);
     if (my !== token) return;
-    trails.forEach((t, i) => { t.v = vals[i]; t.soon = isPrime(t.v) ? null : soon[i]; });
+    // Snow on the ground (5 cm or more): not prime loam, whatever the soil under it reads.
+    trails.forEach((t, i) => { t.snow = snow[i] >= (window.tfSnowCm || 5) ? snow[i] : 0; t.v = vals[i]; t.prime = isPrime(t.v) && !t.snow; t.soon = t.prime ? null : soon[i]; });
     const newSince = Date.now() - NEW_DAYS * 864e5;
     trails.forEach((t) => { const ts = born ? t.ids.map((id) => born.get(id)).filter(Boolean) : []; t.born = ts.length === t.ids.length && ts.length ? Math.min(...ts) : null; t.isNew = !!t.born && t.born >= newSince; });
     renderGo(trails);
     renderAreas(areas);
     addReports(areas, my);
     addFires(areas, my);
+    addClosures(areas, my);
   }
 
   function renderGo(trails) {
     const ridden = T.ridden();
-    const pick = trails.filter((t) => !ridden.has(T.nameKey(t.name)) && (isPrime(t.v) || t.soon))
-      .sort((a, b) => (isPrime(b.v) - isPrime(a.v)) || (b.isNew - a.isNew) || (a.soon && b.soon ? a.soon.d.localeCompare(b.soon.d) : 0) || a.km - b.km)
+    const pick = trails.filter((t) => !ridden.has(T.nameKey(t.name)) && (t.prime || t.soon))
+      .sort((a, b) => (b.prime - a.prime) || (b.isNew - a.isNew) || (a.soon && b.soon ? a.soon.d.localeCompare(b.soon.d) : 0) || a.km - b.km)
       .slice(0, GO_MAX);
     const el = $("tdGo");
     if (!pick.length) {
@@ -133,7 +140,7 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
       return;
     }
     el.innerHTML = pick.map((t, i) => `<li><button type="button" data-i="${i}"><b>${esc(t.name)}${t.isNew ? `<span class="td-new">New</span>` : ""}</b>
-      <small>${dot(isPrime(t.v) ? t.v : t.soon.v)}${isPrime(t.v) ? `Prime now · Loam ${t.v}` : `Prime ${esc(t.soon.day)} · Loam ${t.soon.v}`}${t.area ? ` · ${esc(t.area.name)}` : ""} · ${t.km < 1 ? "under 1" : Math.round(t.km)} km away${t.isNew ? ` · added ${ago(t.born)}` : ""}</small></button></li>`).join("");
+      <small>${dot(t.prime ? t.v : t.soon.v)}${t.prime ? `Prime now · Loam ${t.v}` : `Prime ${esc(t.soon.day)} · Loam ${t.soon.v}`}${t.area ? ` · ${esc(t.area.name)}` : ""} · ${t.km < 1 ? "under 1" : Math.round(t.km)} km away${t.isNew ? ` · added ${ago(t.born)}` : ""}</small></button></li>`).join("");
     el.querySelectorAll("button[data-i]").forEach((b) => b.addEventListener("click", () => {
       const t = pick[+b.dataset.i];
       dlg.close();
@@ -144,19 +151,26 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
   function renderAreas(areas) {
     const shown = areas.filter((a) => a.trails.length);
     $("tdAreas").innerHTML = !shown.length ? `<li class="td-wait">No riding areas within ${NEAR_KM} km.</li>` : shown.map((a, i) => {
-      const read = a.trails.filter((t) => t.v != null), prime = read.filter((t) => isPrime(t.v));
+      const read = a.trails.filter((t) => t.v != null), prime = read.filter((t) => t.prime), snowed = a.trails.filter((t) => t.snow);
       const vs = read.map((t) => t.v).sort((x, y) => x - y), mid = vs.length ? vs[Math.floor(vs.length / 2)] : null;
       const soonDay = !prime.length && a.trails.map((t) => t.soon).filter(Boolean).sort((x, y) => x.d.localeCompare(y.d))[0];
       const loam = mid == null ? "Loam not available" : prime.length ? `<b>${prime.length} of ${read.length} trails in prime loam</b> · middle ${mid}`
         : `${level(mid)[1]} · Loam ${mid}${soonDay ? ` · <b>prime ${esc(soonDay.day)}</b>` : ""}`;
       return `<li class="td-area" data-a="${i}"><header><b>${esc(a.name)}</b><small>${Math.round(a.km)} km</small></header>
-        <p>${dot(prime.length ? prime[0].v : mid)}${loam}</p><p class="td-rep"><small>Checking rider reports…</small></p><p class="td-fire"></p>
-        <div class="td-act"><button type="button" data-go>Trails here</button>${window.tfOffline ? `<button type="button" data-off>⤓ Save offline</button>` : ""}</div></li>`;
+        <p>${dot(prime.length ? prime[0].v : mid)}${loam}</p><p class="td-close"></p>${snowed.length ? `<p class="td-snow">❄ ${snowed.length === a.trails.length ? "All" : `${snowed.length} of ${a.trails.length}`} trail${a.trails.length > 1 ? "s" : ""} likely under snow (${Math.max(...snowed.map((t) => t.snow))} cm at the most)</p>` : ""}<p class="td-rep"><small>Checking rider reports…</small></p><p class="td-fire"></p>
+        <div class="td-act"><button type="button" data-go>Trails here</button>${window.tfLoops ? `<button type="button" data-loops aria-expanded="false">🔁 Loops</button>` : ""}${window.tfOffline ? `<button type="button" data-off>⤓ Save offline</button>` : ""}</div><div class="td-loops" hidden></div></li>`;
     }).join("");
     $("tdAreas").querySelectorAll("[data-a]").forEach((li) => {
       const a = shown[+li.dataset.a];
       a.el = li;
       li.querySelector("[data-go]").addEventListener("click", () => { dlg.close(); map.flyTo(a.c, 13); });
+      // Ready-made loops (loops.js), built when asked.
+      const lb = li.querySelector("[data-loops]"), lbox = li.querySelector(".td-loops");
+      if (lb) lb.addEventListener("click", () => {
+        const show = lbox.hidden;
+        lbox.hidden = !show; lb.setAttribute("aria-expanded", String(show));
+        if (show && !lbox.dataset.done) { lbox.dataset.done = "1"; window.tfLoops.show(lbox, a, () => dlg.close()); }
+      });
       const off = li.querySelector("[data-off]");
       if (off) off.addEventListener("click", () => {
         const lat = a.trails.map((t) => t.c[0]), lon = a.trails.map((t) => t.c[1]);
@@ -191,6 +205,20 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
       const trees = mine.filter((r) => r.condition === "trees_down").length, last = mine[0];
       say(a, `${mine.length} report${mine.length > 1 ? "s" : ""} this week · latest: ${esc(REPORT[last.condition] || last.condition)}${last.trail_name ? ` on ${esc(last.trail_name)}` : ""} (${ago(Date.parse(last.created_at))})${trees ? ` · <span class="td-warn">🌲 ${trees} tree${trees > 1 ? "s" : ""} down</span>` : ""}`);
     });
+  }
+
+  // Closures and warnings from the land managers within the area (closures.js): Alberta Parks closed trails, BC Parks
+  // advisories, Parks Canada bulletins.
+  async function addClosures(areas, my) {
+    if (!window.tfClosures) return;
+    for (const a of areas.filter((x) => x.el)) {
+      const list = await window.tfClosures.near(a.c, AREA_KM).catch(() => []);
+      if (my !== token) return;
+      const p = a.el.querySelector(".td-close");
+      if (!p || !list.length) continue;
+      const bad = list.filter((x) => x.bad);
+      p.innerHTML = `<span class="${bad.length ? "td-warn" : ""}">🚧 ${list.length} closure${list.length > 1 ? "s" : ""} or warning${list.length > 1 ? "s" : ""}:</span> ${list.slice(0, 3).map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.text)}</a>`).join(" · ")}${list.length > 3 ? ` <small>and ${list.length - 3} more (🚧 layer)</small>` : ""}`;
+    }
   }
 
   // Wildfires within 25 km and evacuation orders or alerts close by.
