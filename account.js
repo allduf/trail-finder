@@ -11,7 +11,7 @@
 
   // Settings saved to the account: the tf:* localStorage keys the pages remember.
   // Not "map3d": 3D turned on at a computer would open a phone straight into 3D, which can run it out of memory.
-  const SETTINGS = ["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "nearKm", "track", "nameNear", "mode", "nameZone", "want", "folders", "notify", "notifyRead", "toride", "riddenMap", "loamAlert", "loamNew", "loamRide", "loamArea", "notifyNew", "planGone", "planSaved", "recentTrails", "myFinds"];
+  const SETTINGS = ["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "nearKm", "track", "nameNear", "mode", "nameZone", "want", "folders", "notify", "notifyRead", "toride", "riddenMap", "loamAlert", "loamNew", "loamRide", "loamArea", "notifyNew", "planGone", "planSaved", "recentTrails", "myFinds", "shareOn", "shareKey", "sharePast", "shareFrom", "sharePlaces"];
   const STAMP = "tf:settingsAt";   // when this device last changed a setting (ms)
 
   const api = window.tfAccount = { enabled: !!(SUPABASE_URL && SUPABASE_ANON_KEY), url: SUPABASE_URL, key: SUPABASE_ANON_KEY, client: null, user: null, ready: null };
@@ -219,7 +219,7 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
   // merge both devices' lists (deleted ones are remembered in tf:planGone). Syncs run on sign-in, after a change,
   // when the app comes back to the screen, and when a page asks (tfAccount.sync(), e.g. opening 📂 Saved).
   const KEYAT = "tf:settingsKeyAt";
-  const LIVE = new Set(["planSaved", "planGone", "notifyRead", "loamAlert", "myFinds"]);   // read fresh by the page, so no reload
+  const LIVE = new Set(["planSaved", "planGone", "notifyRead", "loamAlert", "myFinds", "shareOn", "shareKey", "sharePast", "shareFrom", "sharePlaces"]);   // read fresh by the page, so no reload
   const jparse = (v, d) => { try { const x = JSON.parse(v); return x == null ? d : x; } catch { return d; } };
   const MERGE = {
     planGone: (a, b) => {
