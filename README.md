@@ -3,6 +3,16 @@ Finds newly mapped mountain bike trails in the Sea to Sky corridor, the Sunshine
 
 Live site: https://allduf.github.io/trail-finder/
 
+## Where the data files live
+The data jobs in `.github/workflows/` save the files they build (trails, names, roads, fires, winter...) to the
+`site-data` branch with `scripts/site-data.sh`, not to main: that branch is one commit with no history, replaced on
+every save, so the repository doesn't grow each time the data is rebuilt. `pages.yml` publishes main with the branch's
+`data/` on top (and `canada-data` under `ca/`, `winter-photos` under `data/winter/`). Each job starts with
+`bash scripts/site-data.sh get`, which puts the branch's files into `data/`. Files edited by hand
+(`data/trail-info.json`, `data/riding-areas.json`, `data/winter-scenes.json`, `data/snowmobile-clubs.json`,
+`data/landmarks.json`) stay in main. To work with the data locally: `git fetch origin site-data && git archive
+FETCH_HEAD data | tar -x`.
+
 ## Mapper watch
 Every hour, `.github/workflows/watch-mapper.yml` checks OpenStreetMap for new edits by the mappers in its `WATCH` list
 (now: eerib) and posts them as a comment on the issue "New OpenStreetMap edits by &lt;name&gt;", mentioning @allduf so GitHub

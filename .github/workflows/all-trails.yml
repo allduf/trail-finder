@@ -8,7 +8,7 @@ on:
   workflow_dispatch:        # "Run workflow" button on the Actions tab
 
 permissions:
-  contents: write   # commit the data files
+  contents: write   # save the data files (site-data branch)
   pages: write      # ask GitHub Pages to publish them
 
 concurrency:
@@ -21,6 +21,8 @@ jobs:
     timeout-minutes: 40   # build-mtb.mjs stops asking Overpass after 25 minutes
     steps:
       - uses: actions/checkout@v4
+      - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
+        run: bash scripts/site-data.sh get
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -28,15 +30,9 @@ jobs:
         run: node scripts/build-mtb.mjs
       - name: Split trails where they cross a road
         run: node scripts/build-road-splits.mjs   # data/road-splits.json, from the trail lists and data/roads-<zone>.json
-      - name: Commit the new data
-        run: |
-          git add data
-          if git diff --cached --quiet; then echo "No changes."; exit 0; fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -q -m "All trails data"
-          git pull -q --rebase origin "${GITHUB_REF_NAME}"
-          git push -q origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Save the new data
+        if: github.ref_name == 'main'
+        run: bash scripts/site-data.sh save "All trails data" 'data/mtb-*.json' data/road-splits.json
       - name: Publish the website
         env:
           GH_TOKEN: ${{ github.token }}

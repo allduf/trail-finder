@@ -22,20 +22,16 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
+        run: bash scripts/site-data.sh get
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - name: Collect wildfires
         run: ONLY=fires node scripts/build-roads.mjs
-      - name: Commit the new data
-        run: |
-          git add data/fires.json data/fires-ca.json
-          if git diff --cached --quiet; then echo "No changes."; exit 0; fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -q -m "Wildfires data"
-          git pull -q --rebase origin "${GITHUB_REF_NAME}"
-          git push -q origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Save the new data
+        if: github.ref_name == 'main'
+        run: bash scripts/site-data.sh save "Wildfires data" data/fires.json data/fires-ca.json
       - name: Publish the website
         env:
           GH_TOKEN: ${{ github.token }}

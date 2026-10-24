@@ -26,6 +26,8 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+      - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
+        run: bash scripts/site-data.sh get
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -35,10 +37,10 @@ jobs:
         run: ls -l data/roads-*.json
       - name: Split trails where they cross a road
         run: node scripts/build-road-splits.mjs
-      - name: Commit the new data
-        if: github.event_name != 'pull_request'
+      - name: Save the new data
+        if: github.event_name != 'pull_request' && github.ref_name == 'main'
         # Only the roads files: the full run also refreshes the wildfire files, which the Wildfires job saves every 3 hours.
-        run: bash scripts/commit-data.sh "Forest roads data" data/roads-*.json data/road-splits.json
+        run: bash scripts/site-data.sh save "Forest roads data" 'data/roads-*.json' data/motor-closures.json data/road-splits.json
       - name: Publish the website
         if: github.event_name != 'pull_request'
         env:
