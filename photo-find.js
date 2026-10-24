@@ -649,19 +649,19 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     }
     // Each trail's fit (0-1) moves it up or down; a found photo of the same place counts extra, a picture a rider
     // confirmed more. Above 0.6 the online check had to say what lines up (the same rock, tree, skyline): proof.
-    // "Best match" needs more: a fit of 0.85 or more with its proof (the free AI gave Pretty Slabs 0.7 "with proof" for an
-    // In and Out Burger picture, 2026-10-24).
-    const SURE_FIT = 0.85, sureFit = (k) => !!(k.proof && k.fit >= SURE_FIT);
+    // It never makes a "Best match" on its own: the free AI calls look-alikes the same place, proof and all (2026-10-24:
+    // Gnar Log Bridge, Pretty Slabs, Hanging Gardens and Peak Express Traverse, each 0.7 to 1 "with proof", all wrong).
+    // That stays for the trail's name in the words or a past confirmed match.
     const fitOf = new Map((got.ranks || []).map((k) => [F.norm(String(k.trail).replace(/^\s*\d+[.)]\s*/, "").replace(/\s*\(.*$/, "")), k]));
     let next = shown.map((r) => {
       const k = fitOf.get(F.norm(r.name));
-      return k ? { ...r, s: r.s + 0.4 * (k.fit - 0.5) + (k.photo ? 0.1 : 0) + (k.confirmed && k.fit > 0.6 ? 0.15 : 0), web: k, sure: r.sure || sureFit(k) } : r;
+      return k ? { ...r, s: r.s + 0.4 * (k.fit - 0.5) + (k.photo ? 0.1 : 0) + (k.confirmed && k.fit > 0.6 ? 0.15 : 0), web: k } : r;
     });
     // A trail further down that the AI knows the picture is from joins the list.
     for (const k of got.other || []) {
       const r = more.find((x) => F.norm(x.name) === F.norm(String(k.trail)));
       if (r && k.fit > 0.5 && !next.some((x) => F.norm(x.name) === F.norm(r.name)))
-        next.push({ ...r, s: r.s + 0.4 * (k.fit - 0.5), web: { fit: k.fit, why: k.why, proof: k.proof, photo: null }, sure: r.sure || sureFit(k) });
+        next.push({ ...r, s: r.s + 0.4 * (k.fit - 0.5), web: { fit: k.fit, why: k.why, proof: k.proof, photo: null } });
     }
     // Photos from around the spot that look close, even if not the same place: the trails where they were taken (or the
     // one their page is about) go up, or join the list.
@@ -681,10 +681,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         // trail. A photo known only by where it was taken just lifts the trails there: the nearest one isn't necessarily the
         // one in the picture (an online photo of Mount Currie put Gnar Log Bridge first for a Cream Puff picture).
         const top = c.close >= 0.8 && c.trail ? Math.max(...next.map((r) => r.s), STRONG) + 0.05 - 0.06 * i : 0;
-        // "Best match" only from a picture a rider confirmed, as the very same spot, with what lines up.
-        const same = !!c.confirmed && !!c.proof && c.close >= 0.9;
-        if (have) { if (!have.closeBy) { have.s = Math.max(have.s + 0.3 * c.close, top); have.closeBy = true; have.sure = have.sure || same; have.meta += " · " + why; if (!have.web || !have.web.photo) have.web = web; } }
-        else next.push({ ...rowOf({ g, s: Math.max(0.45 + 0.45 * c.close, top), why: [why] }, "mixed"), web, closeBy: true, sure: same });
+        if (have) { if (!have.closeBy) { have.s = Math.max(have.s + 0.3 * c.close, top); have.closeBy = true; have.meta += " · " + why; if (!have.web || !have.web.photo) have.web = web; } }
+        else next.push({ ...rowOf({ g, s: Math.max(0.45 + 0.45 * c.close, top), why: [why] }, "mixed"), web, closeBy: true });
         found.push(g.name);
       }
     }
