@@ -39,6 +39,7 @@
   let on = false, gl = null, box = null, libLoading = null;
   let hits = [];              // Leaflet layers that react to clicks, by index (the "id" of the 3D hit lines)
   let hitParts = [];          // their lines as [lng, lat] points, same index (nearestHit)
+  let hitDots = [];           // round markers that react to clicks (huts in Skiing...): { l, c: [lng, lat], r }
   let dashLayers = new Set(); // dashed line layers made so far, one per dash pattern
   let drawn = false;          // trails copied at least once
   let last2d = null;          // the flat map's view as the 3D map last set it
@@ -85,7 +86,7 @@
 
   function snapshot() {
     const lines = [], dots = [], hitLines = [];
-    hits = []; hitParts = [];
+    hits = []; hitParts = []; hitDots = [];
     let k = 0;
     // A trail's details are open: the other trail lines fade, as in 2D.
     const focus = map.getContainer().classList.contains("trail-focus");
@@ -105,6 +106,8 @@
       if (near) { const bb = l.getBounds ? l.getBounds() : L.latLngBounds([l.getLatLng()]); if (!bb.isValid() || !near.intersects(bb)) return; }
       const o = l.options, order = k++;
       if (l instanceof L.CircleMarker && !(l instanceof L.Circle)) {
+        // A dot that opens something when tapped in 2D (a hut in Skiing) opens it in 3D too (alex 2026-10-24).
+        if (o.interactive !== false && l.listens("click")) hitDots.push({ l, c: ll(l.getLatLng()), r: l.getRadius() + (o.weight || 0) });
         dots.push({ type: "Feature", geometry: { type: "Point", coordinates: ll(l.getLatLng()) },
           properties: { r: l.getRadius(), c: o.color, w: o.weight, f: o.fillColor || o.color, fo: o.fillOpacity, k: order } });
         return;
@@ -682,8 +685,22 @@
       });
       return best;
     }
+    // The closest tappable dot within pad px of its edge, placed at its height on the mountains. Dots win over
+    // lines: a hut sits on the routes that lead to it.
+    function nearestDot(p, pad) {
+      const v = gl.getBounds();
+      let best = null, bestD = Infinity;
+      for (const d of hitDots) {
+        if (!v.contains(d.c)) continue;
+        const q = gl.project(d.c), dd = Math.hypot(q.x - p.x, q.y - p.y);
+        if (dd <= d.r + pad && dd < bestD) { bestD = dd; best = d; }
+      }
+      return best;
+    }
     const toLL = (lngLat) => L.latLng(lngLat.lat, lngLat.lng);
     gl.on("click", (e) => {
+      const dot = nearestDot(e.point, TAP);
+      if (dot) { dot.l.fire("click", { latlng: dot.l.getLatLng(), originalEvent: e.originalEvent }); return; }
       const f = near(e.point, TAP)[0], latlng = toLL(e.lngLat);
       const layer = f ? hits[f.properties.i] : hits[nearestHit(e.point, TAP + 4)];
       if (layer) layer.fire("click", { latlng, originalEvent: e.originalEvent });
@@ -696,8 +713,8 @@
     gl.on("movestart", () => tip.remove());
     gl.on("mousemove", (e) => {
       if (gl.isMoving() || (e.originalEvent && e.originalEvent.buttons)) return;   // turning or tilting: no trail names under the mouse
-      const f = near(e.point, 6)[0], layer = f && hits[f.properties.i], t = layer && layer.getTooltip && layer.getTooltip();
-      gl.getCanvas().style.cursor = f ? "pointer" : "";
+      const dot = nearestDot(e.point, 2), f = !dot && near(e.point, 6)[0], layer = dot ? dot.l : f && hits[f.properties.i], t = layer && layer.getTooltip && layer.getTooltip();
+      gl.getCanvas().style.cursor = layer ? "pointer" : "";
       if (t) tip.setLngLat(e.lngLat).setHTML(String(t.getContent())).addTo(gl); else tip.remove();
     });
     gl.getCanvas().addEventListener("mouseleave", () => tip.remove());
