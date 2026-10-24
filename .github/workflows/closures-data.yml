@@ -1,0 +1,45 @@
+name: Closures and warnings data
+
+# Every 6 hours, collect closures and warnings from Alberta Parks (Kananaskis trail reports), BC Parks (advisories) and
+# Parks Canada (bulletins) into data/closures.json, for the "Closures and warnings" layer and the trail details
+# (closures.js). On a pull request that changes the script it only does a test run, without saving anything.
+on:
+  schedule:
+    - cron: "17 1,7,13,19 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - scripts/build-closures.mjs
+      - .github/workflows/closures-data.yml
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: closures-data-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
+        run: bash scripts/site-data.sh get
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Collect closures and warnings
+        run: node scripts/build-closures.mjs
+      - name: File size
+        run: ls -l data/closures.json
+      - name: Save the new data
+        if: github.event_name != 'pull_request' && github.ref_name == 'main'
+        run: bash scripts/site-data.sh save "Closures and warnings data" data/closures.json
+      - name: Publish the website
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent || echo "Pages will publish on its own."
