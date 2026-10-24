@@ -601,23 +601,24 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       if (got && got.ok) { cmp = got; cmpKey = key; }
     }
     if (TEST && TEST.diag) TEST.diag.cmp = got ? { ok: !!got.ok, searched: !!got.searched, noSearch: got.noSearch || "", photos: got.photos || 0, close: (got.close || []).map((c) => c.trail || "?"), why: got.why || "", detail: got.detail || "",
-      ranks: (got.ranks || []).map((k) => [k.trail, k.fit]), other: (got.other || []).map((k) => [k.trail, k.fit]) } : { ok: false, why };
+      ranks: (got.ranks || []).map((k) => [k.trail, k.fit, !!k.proof]), other: (got.other || []).map((k) => [k.trail, k.fit]) } : { ok: false, why };
     if (!got || !got.ok) {
       out.hidden = false;
       out.textContent = `Online check skipped (${got ? got.why || got.noSearch || "found nothing" : why}).`;
       return;
     }
     // Each trail's fit (0-1) moves it up or down; a found photo of the same place counts extra, a picture a rider
-    // confirmed more.
+    // confirmed more. Above 0.6 the online check had to say what lines up (the same rock, tree, skyline): proof.
     const fitOf = new Map((got.ranks || []).map((k) => [F.norm(String(k.trail).replace(/^\s*\d+[.)]\s*/, "").replace(/\s*\(.*$/, "")), k]));
     let next = shown.map((r) => {
       const k = fitOf.get(F.norm(r.name));
-      return k ? { ...r, s: r.s + 0.4 * (k.fit - 0.5) + (k.photo ? 0.1 : 0) + (k.confirmed && k.fit >= 0.6 ? 0.15 : 0), web: k } : r;
+      return k ? { ...r, s: r.s + 0.4 * (k.fit - 0.5) + (k.photo ? 0.1 : 0) + (k.confirmed && k.fit > 0.6 ? 0.15 : 0), web: k, sure: r.sure || !!(k.proof && k.fit > 0.6) } : r;
     });
     // A trail further down that the AI knows the picture is from joins the list.
     for (const k of got.other || []) {
       const r = more.find((x) => F.norm(x.name) === F.norm(String(k.trail)));
-      if (r && k.fit > 0.5 && !next.some((x) => F.norm(x.name) === F.norm(r.name))) next.push({ ...r, s: r.s + 0.4 * (k.fit - 0.5), web: { fit: k.fit, why: k.why, photo: null } });
+      if (r && k.fit > 0.5 && !next.some((x) => F.norm(x.name) === F.norm(r.name)))
+        next.push({ ...r, s: r.s + 0.4 * (k.fit - 0.5), web: { fit: k.fit, why: k.why, proof: k.proof, photo: null }, sure: r.sure || !!(k.proof && k.fit > 0.6) });
     }
     // Photos from around the spot that look close, even if not the same place: the trails where they were taken (or the
     // one their page is about) go up, or join the list.
@@ -631,19 +632,20 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       const why = c.confirmed ? `${c.close >= 0.8 ? "looks like the same place as" : "looks close to"} a picture a rider confirmed on it`
         : `${c.close >= 0.8 ? "an online photo of the same place" : "an online photo that looks close"}${c.at ? " was taken near it" : ""}`;
       for (const [i, g] of gs.entries()) {
-        const web = { fit: c.close, why: c.why || why, photo: { img: c.img, page: c.page, title: c.title }, close: true };
+        const web = { fit: c.close, why: c.why || why, proof: c.proof, photo: { img: c.img, page: c.page, title: c.title }, close: true };
         const have = next.find((r) => F.norm(r.name) === F.norm(g.name) && r.save && r.save.zone === g.zone.id);
         // A photo the AI calls the same place puts its trail at the top.
         const top = c.close >= 0.8 ? Math.max(...next.map((r) => r.s), STRONG) + 0.05 - 0.06 * i : 0;   // the nearest trail first
-        if (have) { if (!have.closeBy) { have.s = Math.max(have.s + 0.3 * c.close, top); have.closeBy = true; have.meta += " · " + why; if (!have.web || !have.web.photo) have.web = web; } }
-        else next.push({ ...rowOf({ g, s: Math.max(0.45 + 0.45 * c.close, top), why: [why] }, "mixed"), web, closeBy: true });
+        const same = !!c.proof && c.close >= 0.8;   // the same spot, with what lines up
+        if (have) { if (!have.closeBy) { have.s = Math.max(have.s + 0.3 * c.close, top); have.closeBy = true; have.sure = have.sure || same; have.meta += " · " + why; if (!have.web || !have.web.photo) have.web = web; } }
+        else next.push({ ...rowOf({ g, s: Math.max(0.45 + 0.45 * c.close, top), why: [why] }, "mixed"), web, closeBy: true, sure: same });
         found.push(g.name);
       }
     }
     next = next.sort((a, b) => b.s - a.s).slice(0, 10);
     const top = next.length ? next[0].s : 0;
     next.forEach((r, i) => {
-      r.best = i === 0 && r.s >= STRONG && (next.length === 1 || next[1].s <= r.s - 0.049);
+      r.best = i === 0 && !!r.sure && r.s >= STRONG && (next.length === 1 || next[1].s <= r.s - 0.049);
       r.conf = r.best ? "Best match" : r.s >= top - 0.05 && r.s >= STRONG ? "Likely" : "Possible";
     });
     show(next, $("pfNote").textContent);
@@ -844,7 +846,10 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       if (found.some((p) => p.ws.join("") === t.ws.join(""))) s -= aiPlace ? 9 : 0.2;
       const said = tokens.slice(t.hit.at, t.hit.at + t.hit.n).join(" ");
       why.unshift(t.hit.at >= aiFrom ? "AI named it" : t.hit.at >= aiSawFrom ? `AI saw “${said}”` : t.hit.at >= revFrom ? "named on a page with the same picture" : t.hit.how === "tag" || t.ws !== g.ws ? `“${said}” is in the words` : t.hit.d ? `read as “${said}”` : `“${g.name}” is in the words`);
-      return { g, s, why, said: said.replace(/ /g, ""), aiPlace };
+      // Named: the trail's own name is in the words, read in the picture or on a page with the same picture. Only that
+      // (or a past confirmed match, or the online check's proof) makes a "Best match": being near the right landmarks or
+      // where the AI places the photo fits a whole valley of trails.
+      return { g, s, why, said: said.replace(/ /g, ""), aiPlace, named: !aiPlace };
     }).filter((h) => h.s >= 0.7);
     let hits = scored(raw);
     // Nothing sure in the areas looked at first (and no area picked): look through every region too.
@@ -1025,10 +1030,10 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const top = rows.length ? rows[0].s : 0;
     return {
       places: [...new Set(found.map((p) => p.label))],
-      more: more.map((h) => ({ ...rowOf(h, h.lm ? "landmark" : aiSeen ? "mixed" : "words"), conf: "Possible" })),
+      more: more.map((h) => ({ ...rowOf(h, h.lm ? "landmark" : aiSeen ? "mixed" : "words"), sure: !!(h.named || h.past), conf: "Possible" })),
       rows: rows.map((h, i) => {
-        const best = i === 0 && h.s >= STRONG && (rows.length === 1 || rows[1].s <= h.s - 0.049);
-        return { ...rowOf(h, h.lm ? "landmark" : aiSeen ? "mixed" : "words"), best, conf: best ? "Best match" : h.s >= top - 0.05 && h.s >= STRONG ? "Likely" : "Possible" };
+        const sure = !!(h.named || h.past), best = i === 0 && sure && h.s >= STRONG && (rows.length === 1 || rows[1].s <= h.s - 0.049);
+        return { ...rowOf(h, h.lm ? "landmark" : aiSeen ? "mixed" : "words"), sure, best, conf: best ? "Best match" : h.s >= top - 0.05 && h.s >= STRONG ? "Likely" : "Possible" };
       }),
     };
   }
@@ -1235,7 +1240,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   // What the online check said about this trail, with the found photo that looks like the same place.
   function online(k) {
     const pic = k.photo && /^https:/.test(k.photo.img) ? `<a href="${esc(k.photo.page)}" target="_blank" rel="noopener" title="${esc(k.photo.title)}"><img src="${esc(k.photo.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>` : "";
-    return `<div class="pw">${pic}<span>Online (${Math.round(k.fit * 100)}% ${k.close ? "close" : "fit"}): ${esc(k.why)}${k.confirmed && k.fit >= 0.6 ? " · looks like a picture a rider confirmed" : ""}</span></div>`;
+    return `<div class="pw">${pic}<span>Online (${Math.round(k.fit * 100)}% ${k.close ? "close" : "fit"}): ${esc(k.why)}${k.proof ? ` · lines up: ${esc(k.proof)}` : ""}` +
+      `${k.confirmed && k.fit > 0.6 ? " · same place as a picture a rider confirmed" : ""}</span></div>`;
   }
   function show(rows, note) {
     shown = rows;

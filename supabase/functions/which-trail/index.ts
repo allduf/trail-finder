@@ -3,7 +3,8 @@
 // Chief, Black Tusk...), places, the kind of terrain, and its best guesses. The site (photo-find.js) then matches that
 // against its own trail lists. A second call ("compare") then takes the app's likely trails, searches Google for what
 // riders and sites say each one looks like, gathers photos of them (pictures on those pages, video thumbnails, geotagged
-// Wikimedia Commons photos near each trail) and compares them with the rider's picture. Setup (once): Supabase dashboard → Edge Functions → deploy this file (it's deployed as
+// Wikimedia Commons photos near each trail) and compares them with the rider's picture: it rates a trail or photo above 0.6
+// only when it can say what lines up one for one (the same rock, tree, skyline), never for the same kind of country. Setup (once): Supabase dashboard → Edge Functions → deploy this file (it's deployed as
 // "smooth-worker"; AI_FN in photo-find.js must match), turn "Verify JWT" off; then Edge Functions → Secrets → add
 // GEMINI_API_KEY (free from aistudio.google.com/apikey). Optional secret GEMINI_MODEL picks another model.
 // Optional secret VISION_API_KEY (Google Cloud Vision, 1,000 pictures a month free, then billed): a reverse image search
@@ -38,6 +39,9 @@ const slow = new Set<string>();   // models that ran out of time in this running
 // Search has an allowance of its own (often none on a free key): running out of it doesn't stop plain answers.
 const spent = new Map<string, number>();
 const gone = new Set<string>();   // model names Google doesn't serve (404): not asked again by this running copy
+// Until when the online check skips its Google search: no model had one to give (429) the last time. On a free key that
+// is every time, and asking all the models again on each check only makes the rider wait.
+let searchOff = 0;
 const seen = new Map<string, number[]>();   // a light brake per address (each running copy of the function keeps its own)
 
 const list = (description: string) => ({ type: "ARRAY", items: { type: "STRING" }, description });
@@ -49,7 +53,7 @@ const SCHEMA = {
     views: {
       type: "ARRAY",
       description: "Each named landmark you can actually see in the picture (not only named in its text), with where it is across the picture: 0 = left edge, 0.5 = middle, 1 = right edge. Left to right",
-      items: { type: "OBJECT", properties: { name: { type: "STRING" }, x: { type: "NUMBER" } }, required: ["name", "x"] },
+      items: { type: "OBJECT", properties: { name: { type: "STRING" }, x: { type: "NUMBER" } }, required: ["name", "x"], propertyOrdering: ["name", "x"] },
     },
     places: list("Towns, riding areas or regions the pictures or text point to"),
     terrain: list("Short plain words for what the trail and background look like: granite slabs, roots, loam, alpine, desert, cedar forest, lake below, ocean view..."),
@@ -64,6 +68,7 @@ const SCHEMA = {
         alt: { type: "NUMBER", description: "About how high the camera is, in metres above sea level (valley floor, forest, treeline, alpine); 0 when you can't tell" },
       },
       required: ["lat", "lon", "km", "where", "alt"],
+      propertyOrdering: ["where", "lat", "lon", "km", "alt"],
     },
     guesses: {
       type: "ARRAY",
@@ -76,10 +81,15 @@ const SCHEMA = {
           why: { type: "STRING" },
         },
         required: ["trail", "area", "why"],
+        propertyOrdering: ["trail", "area", "why"],
       },
     },
   },
   required: ["trail_names", "landmarks", "views", "places", "terrain", "scene", "viewpoint", "guesses"],
+  // Gemini writes the keys in this order (alphabetical without it: the trail guesses came first, before it had looked at
+  // anything). It thinks little before answering, so what it writes first is what it works from: what it sees, then
+  // where that is, then which trail.
+  propertyOrdering: ["trail_names", "scene", "terrain", "views", "landmarks", "places", "viewpoint", "guesses"],
 };
 
 type Viewpoint = { lat: number; lon: number; km: number; where: string; alt?: number } | null;
@@ -489,23 +499,14 @@ function json(text: string): Record<string, unknown> | null {
   if (a < 0 || b <= a) return null;
   try { return JSON.parse(text.slice(a, b + 1)); } catch { return null; }
 }
+// What proves a picture is from a place: things that line up one for one, never the kind of country (a whole valley of
+// trails has the same slabs and forest). Asked for before each score, and a score without it stays at 0.6 or less.
+const PROOF = "The individual things that line up between the rider's picture and that photo, or that only this trail has: the same rock's " +
+  "shape and cracks, the same tree, stump or log, bridge or sign, the same skyline from about the same spot. Empty when nothing does: the same " +
+  "kind of rock, slope, forest or view is not proof";
 const FINAL = {
   type: "OBJECT",
   properties: {
-    ranks: {
-      type: "ARRAY",
-      description: "Every trail from the list, best fit first",
-      items: {
-        type: "OBJECT",
-        properties: {
-          trail: { type: "STRING", description: "The name exactly as in the list" },
-          fit: { type: "NUMBER", description: "0 to 1: how well what is known of this trail (online descriptions and its photos) fits the rider's picture" },
-          photo: { type: "NUMBER", description: "The number of the found photo that looks like the same place as the rider's picture, or 0" },
-          why: { type: "STRING", description: "One short sentence" },
-        },
-        required: ["trail", "fit", "photo", "why"],
-      },
-    },
     photos: {
       type: "ARRAY",
       description: "Every found photo",
@@ -513,10 +514,28 @@ const FINAL = {
         type: "OBJECT",
         properties: {
           n: { type: "NUMBER", description: "The found photo's number" },
-          close: { type: "NUMBER", description: "0 to 1: 1 = the same place as the rider's picture, 0.6 = very like it (same kind of rock, slope, forest and view), 0 = nothing alike" },
-          why: { type: "STRING", description: "A few words" },
+          why: { type: "STRING", description: "A few words: what looks alike and what doesn't" },
+          proof: { type: "STRING", description: PROOF },
+          close: { type: "NUMBER", description: "0 to 1: 1 = the very same spot, with proof; 0.6 = very like it (same kind of rock, slope, forest and view) but nothing lines up one for one; 0 = nothing alike" },
         },
-        required: ["n", "close"],
+        required: ["n", "why", "proof", "close"],
+        propertyOrdering: ["n", "why", "proof", "close"],
+      },
+    },
+    ranks: {
+      type: "ARRAY",
+      description: "Every trail from the list, best fit first",
+      items: {
+        type: "OBJECT",
+        properties: {
+          trail: { type: "STRING", description: "The name exactly as in the list" },
+          photo: { type: "NUMBER", description: "The number of the found photo that shows the very same spot as the rider's picture, or 0" },
+          proof: { type: "STRING", description: PROOF },
+          fit: { type: "NUMBER", description: "0 to 1: the chance the rider's picture was taken on this trail. Above 0.6 only with proof" },
+          why: { type: "STRING", description: "One short sentence" },
+        },
+        required: ["trail", "photo", "proof", "fit", "why"],
+        propertyOrdering: ["trail", "photo", "proof", "fit", "why"],
       },
     },
     other: {
@@ -526,14 +545,24 @@ const FINAL = {
         type: "OBJECT",
         properties: {
           trail: { type: "STRING", description: "The name exactly as in the other trails" },
+          proof: { type: "STRING", description: "What you know of it that only this trail has and the picture shows; empty when nothing" },
           fit: { type: "NUMBER", description: "0 to 1, as for the list" },
           why: { type: "STRING", description: "What you know of it that fits, in one short sentence" },
         },
-        required: ["trail", "fit", "why"],
+        required: ["trail", "proof", "fit", "why"],
+        propertyOrdering: ["trail", "proof", "fit", "why"],
       },
     },
   },
-  required: ["ranks"],
+  required: ["photos", "ranks"],
+  // The photos first, then the trails they prove, then the others (alphabetical without it: the scores came first).
+  propertyOrdering: ["photos", "ranks", "other"],
+};
+// "None", "no clear match", "similar granite slabs"...: no proof (the same kind of country isn't).
+const proved = (v: unknown) => {
+  const t = String(v || "").trim();
+  return t.length >= 8 && !/^(none|nothing|no\b|not\b|n\/a|unclear|can'?t|cannot|unknown|-)/i.test(t) &&
+    !/\b(similar|typical|consistent with|resembl\w*|kind of|type of|characteristic)\b/i.test(t);
 };
 
 async function compare(body: Compare, images: string[], key: string, t0: number, reply: (s: number, b: unknown) => Response) {
@@ -571,7 +600,10 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
     (spot ? `,"area":[{"trail":"the trail's name, or empty","url":"a page or video"}]}\nAlso search for photos and videos of mountain bike riding around ` +
       `${spot.where} (within ${Math.round(spot.r / 1000)} km of ${spot.c[0].toFixed(3)}, ${spot.c[1].toFixed(3)}), on any trail there, not only the listed ones, ` +
       `and put the pages and videos whose photos look most like the rider's picture in "area", with the trail's name when the page is about one trail.` : "}");
-  const s = await gemini(key, [...images.slice(0, 1).map((d) => img(d)), { text: searchAsk }], { search: true }, t0 + 30000);
+  const skipSearch = Date.now() < searchOff;
+  const s: Said = skipSearch ? { status: 429, error: "Google search is off for now", detail: "no model had Google search in the last hour", search: true }
+    : await gemini(key, [...images.slice(0, 1).map((d) => img(d)), { text: searchAsk }], { search: true }, t0 + 30000);
+  if (!skipSearch && "error" in s && s.status === 429) searchOff = Date.now() + 3600e3;
   let web: { trail: string; looks: string; fit: number; why: string }[] = [], pages: { trail: string; url: string }[] = [], area: { trail: string; url: string }[] = [];
   let sources: { uri: string; title: string }[] = [], suggest = "", searched = false, noSearch = "";
   const notes: string[] = [];   // why a step had no AI answer (each model's note): for the accuracy test and the Logs
@@ -634,8 +666,11 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
   parts.push({ text: `Which of these mountain bike trails is the rider's picture from?\n${list}\n${said}\n` +
     (web.length ? `What Google search found about them:\n${web.map((w) => `- ${w.trail}: ${w.looks} (fit ${w.fit}: ${w.why})`).join("\n")}\n`
       : `Google search wasn't available this time: use what you know about these trails too, if anything.\n`) +
-    `Compare the rider's picture with each found photo: the same rock, slope, view, water, mountains or trail features means the same place. ` +
-    `A found photo can show a different part of the trail, so also weigh the descriptions. Give every trail a fit, and every found photo a closeness. ` +
+    `Compare the rider's picture with each found photo. The same place means individual things line up one for one: the same rock's shape and ` +
+    `cracks, the same tree, stump or log, the same bridge or sign, the same skyline from about the same spot. The same kind of rock, slope, forest ` +
+    `or view is not the same place: many trails around there look like this. A found photo can show a different part of the trail, so also weigh ` +
+    `the descriptions. Give every found photo a closeness and every trail a fit (the chance the picture was taken on it), each after its proof; ` +
+    `with no proof, 0.6 at most. Be strict: when nothing proves which trail it is, fits of 0.6 or less say so. ` +
     `Rate a trail from its photos and what you really know of it, never from its name: "Slab" or "Rock" in a name doesn't make it this slab. ` +
     `A trail with no photo here that you know nothing about gets 0.5.` +
     (more.length ? `\nOther trails around there (not in the list): ${more.join("; ")}. If you know the picture is from one of these instead, ` +
@@ -643,23 +678,30 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
   const f = await gemini(key, parts, { schema: FINAL }, t0 + 75000);
   type Pic = { img: string; page: string; title: string };
   const pub = (p: Photo | undefined): Pic | null => p && p.from !== "confirmed" ? { img: p.img, page: p.page, title: p.title.slice(0, 100) } : null;
-  let ranks: { trail: string; fit: number; why: string; photo: Pic | null; confirmed?: boolean }[] = [];
-  let other: { trail: string; fit: number; why: string }[] = [];
+  let ranks: { trail: string; fit: number; why: string; proof?: string; photo: Pic | null; confirmed?: boolean }[] = [];
+  let other: { trail: string; fit: number; why: string; proof: string }[] = [];
   // Photos from around the viewpoint that look close: their spot (or the trail their page is about) goes back to the
   // site, which adds the trails there to the list.
-  let close: (Pic & { close: number; why: string; at: [number, number] | null; trail: string; confirmed?: boolean })[] = [];
+  let close: (Pic & { close: number; why: string; proof: string; at: [number, number] | null; trail: string; confirmed?: boolean })[] = [];
+  // A score above 0.6 needs its proof (the AI is told so; this holds it to it): without one it's only alike.
+  const capped = (v: unknown, proof: string) => Math.max(0, Math.min(proof ? 1 : 0.6, +(v as number) || 0));
+  const proofOf = (v: unknown) => (proved(v) ? String(v).trim().slice(0, 200) : "");
   if (!("error" in f) && f.text) {
     const o = json(f.text) || {};
     ranks = (Array.isArray(o.ranks) ? o.ranks : []).filter((x) => x && typeof x.trail === "string").slice(0, 8).map((x) => {
-      const p = photos[Math.round(+x.photo || 0) - 1];
-      return { trail: named(x.trail), fit: Math.max(0, Math.min(1, +x.fit || 0)), why: String(x.why || "").slice(0, 200), photo: pub(p), confirmed: p?.from === "confirmed" };
+      // The "same spot" photo counts only with its proof.
+      const proof = proofOf(x.proof), p = proof ? photos[Math.round(+x.photo || 0) - 1] : undefined;
+      return { trail: named(x.trail), fit: capped(x.fit, proof), why: String(x.why || "").slice(0, 200), proof, photo: pub(p), confirmed: p?.from === "confirmed" };
     });
-    other = (Array.isArray(o.other) ? o.other : []).filter((x) => x && typeof x.trail === "string").map((x) => ({
-      trail: more.find((n) => norm(n) === norm(String(x.trail).replace(/\s*\(.*$/, ""))) || "", fit: Math.max(0, Math.min(1, +x.fit || 0)), why: String(x.why || "").slice(0, 200),
-    })).filter((x) => x.trail).slice(0, 3);
-    close = (Array.isArray(o.photos) ? o.photos : []).map((x) => ({ p: photos[Math.round(+x?.n || 0) - 1], c: Math.max(0, Math.min(1, +x?.close || 0)), why: String(x?.why || "").slice(0, 200) }))
-      .filter((x) => x.p && (x.p.from === "area" || x.p.near) && (x.p.at || x.p.trail) && x.c >= 0.4).sort((a, b) => b.c - a.c).slice(0, 5)
-      .map((x) => ({ ...(pub(x.p) || { img: "", page: "", title: "" }), close: x.c, why: x.why, at: x.p.at || null, trail: x.p.trail, ...(x.p.near ? { confirmed: true } : {}) }));
+    other = (Array.isArray(o.other) ? o.other : []).filter((x) => x && typeof x.trail === "string").map((x) => {
+      const proof = proofOf(x.proof);
+      return { trail: more.find((n) => norm(n) === norm(String(x.trail).replace(/\s*\(.*$/, ""))) || "", fit: capped(x.fit, proof), why: String(x.why || "").slice(0, 200), proof };
+    }).filter((x) => x.trail).slice(0, 3);
+    close = (Array.isArray(o.photos) ? o.photos : []).map((x) => {
+      const proof = proofOf(x?.proof);
+      return { p: photos[Math.round(+x?.n || 0) - 1], c: capped(x?.close, proof), why: String(x?.why || "").slice(0, 200), proof };
+    }).filter((x) => x.p && (x.p.from === "area" || x.p.near) && (x.p.at || x.p.trail) && x.c >= 0.4).sort((a, b) => b.c - a.c).slice(0, 5)
+      .map((x) => ({ ...(pub(x.p) || { img: "", page: "", title: "" }), close: x.c, why: x.why, proof: x.proof, at: x.p.at || null, trail: x.p.trail, ...(x.p.near ? { confirmed: true } : {}) }));
   } else {
     ranks = web.map((w) => ({ trail: w.trail, fit: w.fit, why: w.why, photo: null }));
     notes.push("compare: " + ("error" in f ? f.detail || f.error : "no answer"));
