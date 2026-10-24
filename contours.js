@@ -190,8 +190,7 @@ onmessage = async (e) => {
   const cv = new OffscreenCanvas(m.size, m.size);
   try { await draw(cv, m.z, m.x, m.y, m.look); } catch {}
   if (cancelled.delete(m.id)) { postMessage({ id: m.id }); return; }
-  if (m.png) { const buf = await (await cv.convertToBlob({ type: "image/png" })).arrayBuffer(); postMessage({ id: m.id, buf }, [buf]); }
-  else { const bmp = cv.transferToImageBitmap(); postMessage({ id: m.id, bmp }, [bmp]); }
+  const bmp = cv.transferToImageBitmap(); postMessage({ id: m.id, bmp }, [bmp]);
 };`;
       const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
       workers = [0, 1].map(() => {
@@ -202,19 +201,18 @@ onmessage = async (e) => {
     }
   } catch { workers = null; }
   let localDraw = null;
-  // Draws one tile; resolves to { bmp } (an ImageBitmap) or, with png, { buf } (PNG bytes); {} when cancelled.
-  function render(z, x, y, look, size, png, signal) {
+  // Draws one tile; resolves to { bmp } (an ImageBitmap); {} when cancelled.
+  function render(z, x, y, look, size, signal) {
     if (!workers) {
       localDraw = localDraw || contourEngine();
       const cv = new OffscreenCanvas(size, size);
-      return localDraw(cv, z, x, y, look).catch(() => {}).then(async () => (png
-        ? { buf: await (await cv.convertToBlob({ type: "image/png" })).arrayBuffer() } : { bmp: cv.transferToImageBitmap() }));
+      return localDraw(cv, z, x, y, look).catch(() => {}).then(() => ({ bmp: cv.transferToImageBitmap() }));
     }
     const id = nextId++, w = workers[id % workers.length];
     return new Promise((resolve) => {
       waiting.set(id, resolve);
       if (signal) signal.addEventListener("abort", () => { if (waiting.has(id)) w.postMessage({ cancel: id }); }, { once: true });
-      w.postMessage({ id, z, x, y, look, size, png });
+      w.postMessage({ id, z, x, y, look, size });
     });
   }
 
@@ -228,7 +226,7 @@ onmessage = async (e) => {
       const cv = document.createElement("canvas"), ac = new AbortController();
       cv.width = cv.height = window.devicePixelRatio > 1 ? 512 : 256;   // sharp lines on phone screens
       cv._abort = ac;
-      render(c.z, c.x, c.y, look2d(), cv.width, false, ac.signal).then((r) => {
+      render(c.z, c.x, c.y, look2d(), cv.width, ac.signal).then((r) => {
         cv._abort = null;
         if (r.bmp) { cv.getContext("2d").drawImage(r.bmp, 0, 0); r.bmp.close(); }
         done(null, cv);   // no terrain: leave it blank
@@ -251,9 +249,10 @@ onmessage = async (e) => {
       protocol = true;
       maplibregl.addProtocol("tfcontour", async (params, abort) => {
         const [z, x, y] = params.url.replace("tfcontour://", "").split("/").map(Number);
-        const r = await render(z, x, y, "3d", 256, true, abort && abort.signal);
-        if (!r.buf) throw new Error("cancelled");
-        return { data: r.buf };
+        // A picture straight from the worker, not PNG bytes to decode again on the page.
+        const r = await render(z, x, y, "3d", 256, abort && abort.signal);
+        if (!r.bmp) throw new Error("cancelled");
+        return { data: r.bmp };
       });
     }
     const apply = () => {

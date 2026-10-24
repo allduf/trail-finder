@@ -240,9 +240,10 @@
         if (r && r.ok) return { data: await r.arrayBuffer() };
         if (r && (r.status === 404 || r.status === 204)) missing.add(`${z}/${x}/${y}`);
       }
-      let t = await demTile(z, x, y, abort.signal);
-      if (!(t instanceof OffscreenCanvas)) { const cv = new OffscreenCanvas(t.width, t.height); cv.getContext("2d").drawImage(t, 0, 0); t = cv; }
-      return { data: await (await t.convertToBlob({ type: "image/png" })).arrayBuffer() };
+      // Handed over as a picture, not PNG bytes: encoding a canvas on the page waits for the graphics card to finish
+      // drawing the 3D map, which froze turning the map for a moment on every new tile (alex, 2026-10-24).
+      const t = await demTile(z, x, y, abort.signal);
+      return { data: t instanceof OffscreenCanvas ? t.transferToImageBitmap() : t };
     });
   }
 
@@ -330,9 +331,7 @@
         const snow = 222 + (lum - 110) * 0.22;   // keeps the photo's light and shade in the snow
         P[i] = r + (snow - 6 - r) * a; P[i + 1] = g + (snow - 2 - g) * a; P[i + 2] = b + (snow + 10 - b) * a;
       }
-      const out = new OffscreenCanvas(W, W);
-      out.getContext("2d").putImageData(photo, 0, 0);
-      return { data: await (await out.convertToBlob({ type: "image/jpeg", quality: 0.95 })).arrayBuffer() };
+      return { data: await createImageBitmap(photo) };   // a picture, not JPEG bytes (see tfdem above)
     });
   }
 
@@ -663,7 +662,9 @@
       }
     });
     const tip = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 });
+    gl.on("movestart", () => tip.remove());
     gl.on("mousemove", (e) => {
+      if (gl.isMoving() || (e.originalEvent && e.originalEvent.buttons)) return;   // turning or tilting: no trail names under the mouse
       const f = near(e.point, 6)[0], layer = f && hits[f.properties.i], t = layer && layer.getTooltip && layer.getTooltip();
       gl.getCanvas().style.cursor = f ? "pointer" : "";
       if (t) tip.setLngLat(e.lngLat).setHTML(String(t.getContent())).addTo(gl); else tip.remove();
