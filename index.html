@@ -1047,6 +1047,15 @@ body.sport-alt #rideMapBtn { display: none !important; }
 .empty { padding: 24px 16px; color: var(--muted); }
 .mapwrap { position: relative; min-width: 0; min-height: 0; grid-column: 2; grid-row: 1; }
 .panel { grid-column: 1; grid-row: 1; }
+/* The results (status, list, trail details) are one box: invisible on phones and narrow screens, where the whole panel
+   scrolls. On a wide desktop they sit beside the filters (alex), each column scrolling by itself (html and body never scroll). */
+.results { display: contents; }
+@media (min-width: 1000px) {
+  .app { grid-template-columns: minmax(640px, 760px) 1fr; }
+  .panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+  .panel > .panel-head { grid-column: 1; grid-row: 1; overflow-y: auto; overscroll-behavior: contain; min-height: 0; border-bottom: 0; border-right: 1px solid var(--line); }
+  .panel > .results { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+}
 #map { position: absolute; inset: 0; background: var(--map-ground); background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 48px 48px; }
 .map-actions { position: absolute; z-index: 500; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
 .map-tools { position: absolute; z-index: 500; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
@@ -1132,7 +1141,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
 /* the phone tab bar is styled in theme.css; hidden here so it never shows unstyled (e.g. with an older cached theme.css) */
 .tabbar { display: none; }
 </style>
-<link rel="stylesheet" href="theme.css?v=8">
+<link rel="stylesheet" href="theme.css?v=9">
 
 <div class="app">
   <div class="mapwrap">
@@ -1286,11 +1295,13 @@ body.sport-alt #rideMapBtn { display: none !important; }
       <div class="box-row-btns"><button class="btn box-btn" id="screenBtn" type="button" title="List every MTB trail on the map on screen, old or new">▭ Every trail on screen</button>
       <button class="btn box-btn box-draw" id="boxBtn" type="button" aria-pressed="false" title="Drag a square on the map to list every MTB trail inside it, old or new">or draw a square</button></div>
     </div>
+    <div class="results" id="results">
     <div class="boxres" id="boxRes" hidden></div>
     <div class="status" id="status" role="status">Pick an area and tap Find new trails.</div>
     <details class="debug" id="debug" hidden><summary>Search details</summary><pre id="debugLog">No search yet.</pre></details>
     <div class="list" id="list"></div>
     <div class="detail" id="detail" hidden></div>
+    </div>
   </aside>
   <nav class="tabbar" id="tabbar" aria-label="Sections">
     <button type="button" data-nav="map"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z M9 4v13.5 M15 6.5V20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Map</span></button>
@@ -1401,11 +1412,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=317"></script>
-<script src="rotate.js?v=317"></script>
-<script src="official.js?v=317"></script>
-<script src="directions.js?v=317"></script>
-<script src="ratings.js?v=317"></script>
+<script src="native.js?v=318"></script>
+<script src="rotate.js?v=318"></script>
+<script src="official.js?v=318"></script>
+<script src="directions.js?v=318"></script>
+<script src="ratings.js?v=318"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1731,8 +1742,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
   const PICK_GLOW = "#ffe14d";                   // highlighter under the picked trail: bright on every trail colour and map style
   // Scroll the side panel, not the page, to show el. (scrollIntoView scrolled the whole page on desktop too, pushing
   // the app up and leaving an empty band under it.)
+  // The box that scrolls: the whole panel, or on a wide desktop its filters or results column.
+  const panelScroller = (el) => { const p = $("panel"); for (let n = el && el.parentElement; n && n !== p; n = n.parentElement) if (/auto|scroll/.test(getComputedStyle(n).overflowY)) return n; return p; };
+  window.tfPanelScroller = panelScroller;
   function panelScrollTo(el, how = "start", smooth = false) {
-    const p = $("panel"); if (!el || !p) return;
+    const p = panelScroller(el); if (!el || !p) return;
     const pr = p.getBoundingClientRect(), r = el.getBoundingClientRect();
     let top = p.scrollTop + r.top - pr.top - ($("navBar") && !$("navBar").hidden ? $("navBar").offsetHeight : 0);   // clear of a page's title bar (phones)
     if (how === "nearest") {
@@ -3566,7 +3580,7 @@ out body;`;
   let trailInfo = null;
   const foldName = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   async function officialAbout(t) {
-    trailInfo = trailInfo || fetch("data/trail-info.json?v=317").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
+    trailInfo = trailInfo || fetch("data/trail-info.json?v=318").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
     const j = await trailInfo; if (!j) return [];
     const names = new Set([t.tags.name, t.tags["mtb:name"], t.tags["tf:name"], t.tfName].filter(Boolean).map(foldName));
     const mid = t.geom[Math.floor(t.geom.length / 2)], k = Math.cos(mid[0] * Math.PI / 180);
@@ -3795,7 +3809,7 @@ out body;`;
       <!-- Getting there and Shuttle access sit at the bottom of the details; the trail facts are in More info (alex). -->
       <h3>Getting there</h3><div id="access" class="muted">Looking for trailheads, parking and roads…</div>
       <div id="shuttle"></div>`;
-    if (!$("panel").classList.contains("detail-open")) detailFrom = $("panel").scrollTop;
+    if (!$("panel").classList.contains("detail-open")) detailFrom = panelScroller($("detail")).scrollTop;
     $("panel").classList.add("detail-open"); setTrailFocus(true);
     growTo("half");   // phones: opening a trail shows its details. Only here: a class watcher re-grew the sheet after every drag down or map tap (alex)
     $("detail").hidden = false;
@@ -3892,7 +3906,7 @@ out body;`;
         <a href="https://www.openstreetmap.org/edit#map=18/${at}" target="_blank" rel="noopener">Map it on OpenStreetMap</a>
       </div>
       <p class="muted">Once it's mapped on OpenStreetMap, it shows up as a normal new trail. Mapping tip: the OpenStreetMap editor can show the Strava heatmap as a background to trace from by hand.</p>`;
-    if (!$("panel").classList.contains("detail-open")) detailFrom = $("panel").scrollTop;
+    if (!$("panel").classList.contains("detail-open")) detailFrom = panelScroller($("detail")).scrollTop;
     $("panel").classList.add("detail-open"); setTrailFocus(true);
     growTo("half");   // phones: opening a trail shows its details. Only here: a class watcher re-grew the sheet after every drag down or map tap (alex)
     $("detail").hidden = false;
@@ -4238,7 +4252,7 @@ out body;`;
     $("panel").classList.remove("detail-open"); setTrailFocus(false);
     $("detail").hidden = true;
     render();
-    if (detailFrom != null) { $("panel").scrollTop = detailFrom; detailFrom = null; }
+    if (detailFrom != null) { panelScroller($("detail")).scrollTop = detailFrom; detailFrom = null; }
     setTimeout(() => map.invalidateSize(), 50);  // on phones the map grows back when the panel shrinks
   }
 
@@ -5071,7 +5085,10 @@ out body;`;
   let roadKey = "";
   const roadGeom = (g) => { const geom = []; for (let i = 0; i < g.length; i += 2) geom.push([g[i], g[i + 1]]); return geom; };
   function loadRoads() {
-    if (map.getZoom() < ROAD_MIN_ZOOM) return;   // loaded with the button off too, for the plain lines
+    if (map.getZoom() < ROAD_MIN_ZOOM) return;
+    // Desktop loads them with the button off too, for the plain lines. Phones skip the download unless Forest roads
+    // or Logging areas is on (the files are big); Plan a route and Getting there still load the zones they need.
+    if (phoneMQ.matches && !state.roads && !state.areas) return;
     const view = map.getBounds();
     ZONES.filter((z) => z.bounds.intersects(view)).forEach(roadZone);
   }
@@ -6756,29 +6773,29 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=317"></script>
-<script src="contours.js?v=317"></script>
-<script src="photo-slider.js?v=317"></script>
-<script src="winter.js?v=317"></script>
-<script src="hunting.js?v=317"></script>
-<script src="ski-points.js?v=317"></script>
-<script src="offline.js?v=317"></script>
-<script src="ride-stats.js?v=317"></script>
-<script src="native-gps.js?v=317"></script>
-<script src="navigate.js?v=317"></script>
-<script src="planner.js?v=317"></script>
-<script src="rides.js?v=317"></script>
-<script src="account.js?v=317"></script>
-<script src="reports.js?v=317"></script>
-<script src="grades.js?v=317"></script>
-<script src="trail-photos.js?v=317"></script>
-<script src="visitors.js?v=317"></script>
-<script src="notify.js?v=317"></script>
-<script src="status.js?v=317"></script>
-<script src="areas.js?v=317"></script>
-<script src="alpine.js?v=317"></script>
-<script src="bikeparks.js?v=317"></script>
-<script src="photo-find.js?v=317"></script>
+<script src="map3d.js?v=318"></script>
+<script src="contours.js?v=318"></script>
+<script src="photo-slider.js?v=318"></script>
+<script src="winter.js?v=318"></script>
+<script src="hunting.js?v=318"></script>
+<script src="ski-points.js?v=318"></script>
+<script src="offline.js?v=318"></script>
+<script src="ride-stats.js?v=318"></script>
+<script src="native-gps.js?v=318"></script>
+<script src="navigate.js?v=318"></script>
+<script src="planner.js?v=318"></script>
+<script src="rides.js?v=318"></script>
+<script src="account.js?v=318"></script>
+<script src="reports.js?v=318"></script>
+<script src="grades.js?v=318"></script>
+<script src="trail-photos.js?v=318"></script>
+<script src="visitors.js?v=318"></script>
+<script src="notify.js?v=318"></script>
+<script src="status.js?v=318"></script>
+<script src="areas.js?v=318"></script>
+<script src="alpine.js?v=318"></script>
+<script src="bikeparks.js?v=318"></script>
+<script src="photo-find.js?v=318"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

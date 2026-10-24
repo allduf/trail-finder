@@ -421,7 +421,7 @@ body.sport-alt .layers-menu .lm-looks, body.sport-alt .layers-menu .lm-looks-hea
   .panel:is(.hub-on, .nav-search, .nav-results) .peek-quick { display: none !important; }
   /* Find, Ride, Saved, More: only the page shows */
   .panel.hub-on .panel-head > :not(.sheet-toggle):not(.sheet-nav):not(.hub),
-  .panel.hub-on > .boxres, .panel.hub-on > .status, .panel.hub-on > .debug, .panel.hub-on > .list { display: none !important; }
+  .panel.hub-on .results > .boxres, .panel.hub-on .results > .status, .panel.hub-on .results > .debug, .panel.hub-on .results > .list { display: none !important; }
   .panel:not(.detail-open) .hub:not([hidden]) { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
   /* New trails: the form without the name box (that's on Find) */
   .panel.nav-search .tsearch-row, .panel.nav-search #paneNew > .hint, .panel.nav-search .box-row-btns,
