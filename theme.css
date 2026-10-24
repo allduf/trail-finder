@@ -294,6 +294,20 @@ label.toggle.off { background: transparent; border: 1px dashed var(--line); box-
 .map-tools .layers-menu .lm-looks button[aria-pressed="true"] { background: var(--forest); border-color: var(--forest); color: #fff; }
 .layers-menu .lm-more summary { cursor: pointer; font-size: .85rem; font-weight: 600; color: var(--muted); padding: 4px 2px; }
 .layers-menu .lm-more .lm-list { margin-top: 6px; }
+/* 4 map style tiles (alex, 2026-10-24) and on/off switches instead of Off/On pills */
+.layers-menu .lm-top { display: none; }
+.layers-menu .lm-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.map-tools .layers-menu .lm-tiles button { height: 58px; padding: 4px 2px; border-radius: 12px; border: 2px solid var(--line); justify-content: center; align-items: flex-end; font-size: .72rem; font-weight: 700; line-height: 1.1; text-align: center; }
+.map-tools .layers-menu .lm-tiles button[aria-checked="true"] { border-color: var(--forest); box-shadow: 0 0 0 1px var(--forest); }
+.map-tools .layers-menu .lm-tiles .t-osm { background: linear-gradient(135deg, #f2efe6 0 55%, #cfe6c3 55%); color: #15211a; }
+.map-tools .layers-menu .lm-tiles .t-topo { background: repeating-radial-gradient(circle at 70% 30%, #e7ecd8 0 5px, #c9b98f 5px 6px); color: #15211a; }
+.map-tools .layers-menu .lm-tiles .t-sat { background: radial-gradient(circle at 30% 30%, #6b7d4c, #2f3d24); color: #fff; }
+.map-tools .layers-menu .lm-tiles .t-sathybrid { background: radial-gradient(circle at 30% 30%, #6b7d4c, #2f3d24); color: #fff; }
+.map-tools .layers-menu .lm-tiles span { background: rgba(0, 0, 0, .0); }
+.map-tools .layers-menu .lm-overlays button::after { content: ""; width: 38px; height: 22px; padding: 0; border-radius: 999px; flex: none; background: color-mix(in srgb, var(--fg) 18%, transparent) radial-gradient(circle at 11px 11px, #fff 8px, transparent 8.5px); }
+.map-tools .layers-menu .lm-overlays button.on::after { content: ""; background: #2f8a3e radial-gradient(circle at 27px 11px, #fff 8px, transparent 8.5px); }
+.map-tools .layers-menu .lm-overlays button { background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 10px 2px; color: var(--fg); }
+#layersMenu .lm-overlays button, #layersMenu .lm-overlays button.on, #layersMenu .lm-overlays button[aria-pressed="true"] { background: transparent; border-color: var(--line); color: var(--fg); box-shadow: none; }
 
 /* First-visit tip */
 .first-tip {
@@ -319,7 +333,14 @@ body.sport-alt .first-tip { display: none; }
 @media (max-width: 760px) {
   .map-tools { overflow: visible; }
   .map-tools #fullBtn { display: none; }   /* phones have Full map in the More tab */
-  .layers-menu { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 60px); left: 12px; right: 12px; width: auto; max-height: calc(100vh - var(--sheet-vis, 190px) - var(--nav-h, 58px) - 84px); }
+  /* phones: Layers is a full-height panel from the bottom, not a small box to scroll (alex, 2026-10-24) */
+  .layers-menu { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 60px); left: 0; right: 0; bottom: calc(var(--nav-h, 58px) + env(safe-area-inset-bottom, 0px)); width: auto; max-height: none;
+    border-radius: 18px 18px 0 0; border: 0; box-shadow: 0 -4px 20px rgba(0, 0, 0, .2); padding: 6px 16px 24px; z-index: 1200; }
+  .layers-menu .lm-top { display: flex; align-items: center; justify-content: space-between; position: sticky; top: -6px; z-index: 1; background: var(--panel); margin: 0 -16px; padding: 10px 16px 6px; }
+  .layers-menu .lm-top b { font-size: 1.2rem; }
+  .map-tools .layers-menu .lm-top button { width: 40px; height: 40px; font-size: 1.1rem; justify-content: center; border: 0; background: var(--chip, #eee); border-radius: 50%; }
+  .layers-menu .lm-looks, .layers-menu .lm-looks-head { display: none; }
+  body.lm-open .panel { visibility: hidden; }
   .first-tip { left: 12px; right: 12px; transform: none; width: auto; max-width: none; bottom: calc(var(--sheet-vis) + 12px); transition: bottom .28s cubic-bezier(.2, .8, .2, 1); }
 }
 .first-tip .tip-phone { display: none; }
