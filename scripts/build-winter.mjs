@@ -26,7 +26,7 @@
 //
 // Run: node scripts/build-winter.mjs   (Node 18 or newer, no packages; ONLY=ski, avy or groom runs one part; ONLY=avy,groom two)
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from "node:fs";
 
 const root = new URL("../", import.meta.url);
 const html = readFileSync(new URL("index.html", root), "utf8");
@@ -222,7 +222,10 @@ async function buildOsm() {
     log(`OpenStreetMap ski routes and huts in ${box.join(",")}`);
     for (const el of await fetchOsm(box)) seen.set(el.type + el.id, el);
   }
-  const els = [...seen.values()];
+  return osmRoutes([...seen.values()]);
+}
+// OpenStreetMap elements (ways and relations with their geometry, huts) -> { routes, huts }.
+function osmRoutes(els) {
   log(`  ${els.length} elements`);
   const routes = [], huts = [], wayIds = new Set();
   // Ways first, so relation members already drawn on their own aren't drawn twice.
@@ -352,13 +355,13 @@ const lines = (geom) => {
 };
 const SLED_WORDS = /\b(snowmobil\w*|snow ?machin\w*|sledd?(er|ers|ing)?|skidoo|ski-doo|motori[sz]ed winter)\b/i;
 const WINTER_WORDS = new RegExp(`\\b(ski|skiing|skis|nordic|x-?c|cross[- ]country|snowshoe\\w*|snow ?shoe\\w*|backcountry|touring|winter)\\b|${SLED_WORDS.source}`, "i");
-async function buildBc() {
+async function buildBc(boxes = BC_REGIONS) {
   const REC = "WHSE_FOREST_TENURE.FTEN_RECREATION_LINES_SVW";
   log(`BC Recreation Sites and Trails (${REC})`);
   const d = await describe(REC);
   log(`  fields: ${d.fields.join(", ")}`);
   const all = new Map();
-  for (const box of BC_REGIONS) for (const [k, f] of await wfsAll(REC, box, d.geom)) all.set(k, f);
+  for (const box of boxes) for (const [k, f] of await wfsAll(REC, box, d.geom)) all.set(k, f);
   const feats = [...all.values()];
   log(`  ${feats.length} recreation trails in the region`);
   // Optional: a recreation activity table, if DataBC has one, says which sites are for skiing or snowshoeing.
@@ -398,15 +401,15 @@ const c2cTitle = (d) => {
   const l = (d.locales || []).find((x) => x.lang === "en") || (d.locales || [])[0] || {};
   return [l.title_prefix, l.title].filter(Boolean).join(" : ");
 };
-async function buildC2c() {
+// Each query is "bbox=..." (the home region's boxes) or "a=14236" (camptocamp's area for all of Canada).
+const c2cBoxes = () => REGIONS.map((R) => { const [x0, y0] = toMerc(R[0], R[1]), [x1, y1] = toMerc(R[2], R[3]); return "bbox=" + [x0, y0, x1, y1].map((v) => Math.round(v)).join(","); });
+async function buildC2c(queries = c2cBoxes()) {
   const docs = [];
-  for (const R of REGIONS) {
-    const [x0, y0] = toMerc(R[0], R[1]), [x1, y1] = toMerc(R[2], R[3]);
-    const bbox = [x0, y0, x1, y1].map((v) => Math.round(v)).join(",");
-    log(`camptocamp.org ski touring and snowshoe routes in ${bbox} (EPSG:3857)`);
+  for (const where of queries) {
+    log(`camptocamp.org ski touring and snowshoe routes in ${where}`);
     const got = [];
     for (let offset = 0; offset < 2000; offset += 100) {
-      const page = await getJson(`${C2C}/routes?bbox=${bbox}&act=skitouring,snowshoeing&limit=100&offset=${offset}&pl=en`);
+      const page = await getJson(`${C2C}/routes?${where}&act=skitouring,snowshoeing&limit=100&offset=${offset}&pl=en`);
       const list = page.documents || [];
       if (!offset) log(`  ${page.total} routes; first keys: ${Object.keys(list[0] || {}).join(", ")}`);
       got.push(...list);
@@ -443,6 +446,255 @@ async function buildC2c() {
   }
   log(`  ${routes.length} routes with a drawn line, ${starts.length} with only a start point (shown as pins)`);
   return { routes, starts };
+}
+
+// ---------- All of Canada: backcountry routes only, in map squares (data/ski-canada/) ----------
+// data/ski.json has every kind of winter route, but only in the home region. Outside it, the site loads the
+// backcountry ones (ski touring, ski access, snowshoe, ungroomed nordic, huts) square by square as the map moves, so
+// a phone never loads the whole country: data/ski-canada/index.json lists the squares (3° of latitude by 6° of
+// longitude) and data/ski-canada/<lat>_<lon>.json holds each one. Sources:
+//  - osm: OpenStreetMap, province by province (Overpass "area" queries), backcountry tags only.
+//  - c2c: camptocamp.org routes in its "Canada" area (CC BY-SA).
+//  - bc: BC Recreation Sites and Trails for the whole province (ski and snowshoe trails only).
+//  - sepaq: Sépaq winter trails (Données Québec "Sentiers hivernaux", CC BY 4.0): the Chic-Chocs and Gaspésie
+//    alpine touring zones, snowshoe trails and the ungroomed "ski nordique" trails of every Sépaq park.
+//  - pc: Parks Canada trails (open.canada.ca "Trails APCA", Open Government Licence - Canada) marked for skiing or
+//    snowshoeing.
+// Routes in the home region stay in ski.json (not repeated); a government or Sépaq trail drawn on top of an
+// OpenStreetMap one (most of its points within 40 m) is left out, so the same trail isn't drawn twice.
+const CANADA_DIR = new URL("ski-canada/", DATA);
+const TILE_LAT = 3, TILE_LON = 6;
+const PROVINCES = ["BC", "AB", "YT", "NT", "NU", "QC", "NL", "NB", "NS", "PE", "ON", "MB", "SK"];
+const BACKCOUNTRY = new Set(["tour", "access", "snowshoe", "nordic"]);
+const inHome = (lat, lon) => REGIONS.some(([s, w, n, e]) => lat >= s && lat <= n && lon >= w && lon <= e);
+const firstPt = (r) => (r.g ? [r.g[0][0], r.g[0][1]] : [r.lat, r.lon]);
+const tileOf = (lat, lon) => `${Math.floor(lat / TILE_LAT) * TILE_LAT}_${Math.floor(lon / TILE_LON) * TILE_LON}`;
+// Ungroomed nordic only: a groomed cross-country network isn't backcountry.
+const wildNordic = (r) => r.type !== "nordic" || /backcountry|no/.test(r.tags?.["piste:grooming"] || "");
+const tourQuery = (iso) => `[out:json][timeout:600];
+area["ISO3166-2"="CA-${iso}"]->.p;
+(
+  way["piste:type"~"^(skitour|hike)$"](area.p);
+  relation["piste:type"~"^(skitour|hike)$"](area.p);
+  way["piste:type"="downhill"]["piste:grooming"~"backcountry|^no$"](area.p);
+  way["piste:type"="downhill"]["piste:difficulty"="freeride"](area.p);
+  relation["route"="ski"](area.p);
+  way["piste:type"="nordic"]["piste:grooming"~"backcountry|^no$"](area.p);
+  nwr["tourism"~"^(alpine_hut|wilderness_hut)$"](area.p);
+  nwr["amenity"="shelter"]["shelter_type"="basic_hut"](area.p);
+  wr["landuse"="winter_sports"](area.p);
+);
+out tags geom qt;`;
+async function buildCanadaOsm(old) {
+  const routes = [], huts = [], failed = [];
+  for (const pv of PROVINCES) {
+    log(`OpenStreetMap backcountry routes and huts in CA-${pv}`);
+    try {
+      const got = osmRoutes((await overpass(tourQuery(pv))).elements || []);
+      for (const r of got.routes) if (BACKCOUNTRY.has(r.type) && wildNordic(r)) routes.push({ ...r, pv });
+      for (const h of got.huts) huts.push({ ...h, pv });
+    } catch (e) {
+      failed.push(pv);
+      log(`  CA-${pv} failed: ${e.message}; keeping its last data`);
+      routes.push(...old.routes.filter((r) => r.src === "osm" && r.pv === pv));
+      huts.push(...old.huts.filter((h) => h.pv === pv));
+    }
+  }
+  if (failed.length === PROVINCES.length) throw new Error("every province failed");
+  // A route in two provinces comes back twice.
+  const uniq = (list) => [...new Map(list.map((x) => [x.id, x])).values()];
+  return { routes: uniq(routes), huts: uniq(huts), failed };
+}
+
+// EPSG:32198 (NAD83 / Quebec Lambert, conformal conic) -> lat, lon. Snyder's inverse formulas.
+function quebecLambert(x, y) {
+  const a = 6378137, f = 1 / 298.257222101, e2 = 2 * f - f * f, e = Math.sqrt(e2), rad = Math.PI / 180;
+  const p1 = 60 * rad, p2 = 46 * rad, p0 = 44 * rad, l0 = -68.5 * rad;
+  const m = (p) => Math.cos(p) / Math.sqrt(1 - e2 * Math.sin(p) ** 2);
+  const t = (p) => Math.tan(Math.PI / 4 - p / 2) / ((1 - e * Math.sin(p)) / (1 + e * Math.sin(p))) ** (e / 2);
+  const n = Math.log(m(p1) / m(p2)) / Math.log(t(p1) / t(p2)), F = m(p1) / (n * t(p1) ** n), rho0 = a * F * t(p0) ** n;
+  const rho = Math.sign(n) * Math.hypot(x, rho0 - y), tt = (rho / (a * F)) ** (1 / n), th = Math.atan2(x, rho0 - y);
+  let p = Math.PI / 2 - 2 * Math.atan(tt);
+  for (let i = 0; i < 8; i++) p = Math.PI / 2 - 2 * Math.atan(tt * ((1 - e * Math.sin(p)) / (1 + e * Math.sin(p))) ** (e / 2));
+  return { lat: p / rad, lon: (th / n + l0) / rad };
+}
+const SEPAQ_URL = "https://www.donneesquebec.ca/recherche/dataset/9bb17648-06de-4581-83c9-c355ab8de1c4/resource/540ad36a-1303-4b1a-b554-64c97d31ed7a/download/sentierhiverl.json";
+// Sépaq's trail users -> route type. "Ski nordique" is Sépaq's ungroomed backcountry nordic skiing; groomed classic and
+// skate skiing ("Ski classique", "Pas de patin") are left out.
+const SEPAQ_TYPE = { "Randonnée alpine": "tour", "Accès ski hors-piste": "access", "Ski nordique": "nordic", "Raquette": "snowshoe", "Pédestre sur neige": "snowshoe" };
+const SEPAQ_PARK = { "Parc national": "Parc national", "Réserve faunique": "Réserve faunique", "Établissement touristique": "" };
+async function buildSepaq() {
+  log("Sépaq winter trails (Données Québec)");
+  const fc = await getJson(SEPAQ_URL);
+  const groups = new Map();
+  for (const f of fc.features || []) {
+    const p = f.properties || {}, users = [p.Usager, p.Usager_2, p.Usager_3, p.Usager_4].map((u) => (u || "").trim());
+    const type = ["tour", "access", "nordic", "snowshoe"].find((k) => users.some((u) => SEPAQ_TYPE[u] === k));
+    if (!type) continue;
+    const ls = f.geometry?.type === "MultiLineString" ? f.geometry.coordinates : f.geometry?.type === "LineString" ? [f.geometry.coordinates] : [];
+    const g = ls.map((l) => flat(l.map(([x, y]) => quebecLambert(x, y)), 8)).filter((l) => l.length >= 4);
+    if (!g.length) continue;
+    const park = [SEPAQ_PARK[p.Reseau] ?? "", p.Nom_etab].filter(Boolean).join(" ");
+    const top = (p.Toponyme1 || "").trim();
+    const name = !top || /^\d+$/.test(top) ? `${p.Nom_etab}${top ? " trail " + top : ""}${p.Secteur?.trim() ? " (" + p.Secteur.trim() + ")" : ""}` : top;
+    const key = [p.Code_etab, type, name].join("|");
+    const tags = { park, operator: "Sépaq", website: "https://www.sepaq.com" };
+    if (p.Niv_diff?.trim()) tags.difficulty = p.Niv_diff.trim();
+    if (p.Secteur?.trim()) tags.sector = p.Secteur.trim();
+    if (p.No_ident?.trim()) tags.ref = p.No_ident.trim();
+    if (type === "nordic") tags["piste:grooming"] = "backcountry";
+    tags.use = users.filter(Boolean).join(", ");
+    if (!groups.has(key)) groups.set(key, { id: "sq" + key.replace(/[^\w]+/g, "-").toLowerCase().slice(0, 60), src: "sepaq", type, name, diff: "", g: [], tags });
+    groups.get(key).g.push(...g);
+  }
+  const routes = [...groups.values()];
+  log(`  ${routes.length} backcountry, nordic and snowshoe trails (${routes.filter((r) => r.type === "tour" || r.type === "access").length} alpine touring)`);
+  return routes;
+}
+
+const PC_URL = "https://services2.arcgis.com/wCOMu5IS7YdSyPNx/arcgis/rest/services/Trails_Sentiers_APCA_Temporary_Temporaire_APCA_OpenOuvert/FeatureServer/0/query";
+// Skiing trails are backcountry ski trails (Skoki, Saddleback, Mosquito Creek) unless groomed (winter type 1) or
+// plainly a valley-bottom walk or loop.
+const PC_GROOMED = /cross-country|golf|townsite|campground|boardwalk|interpretive|by-?pass|parking|lakeshore|\bloop\b|connector|marsh|hoodoos|bike|horse|access/i;
+const pcType = (a) => (a.General_Activity === 1800 ? "snowshoe" : a.General_Activity !== 1600 ? "" : a.Winter_Type_Hiver === 1 || PC_GROOMED.test(a.Name_Official_e || "") ? "nordic" : "tour");
+const PC_DIFF = { 1: "Easy", 2: "Moderate", 3: "Difficult", 4: "Most difficult" };
+async function buildPc() {
+  log("Parks Canada trails for skiing and snowshoeing (open.canada.ca)");
+  const feats = [];
+  for (let offset = 0; offset < 20000; offset += 1000) {
+    const page = await getJson(`${PC_URL}?${new URLSearchParams({ where: "General_Activity IN (1600,1800) AND (Restr_Win_Hiv_Interd IS NULL OR Restr_Win_Hiv_Interd = 0)", outFields: "Name_Official_e,General_Activity,Winter_Type_Hiver,Winter_Classification_Hiver,URL_e", outSR: "4326", f: "json", resultOffset: offset, resultRecordCount: 1000 })}`);
+    if (page.error) throw new Error(JSON.stringify(page.error).slice(0, 200));
+    feats.push(...(page.features || []));
+    if (!page.exceededTransferLimit && (page.features || []).length < 1000) break;
+  }
+  const groups = new Map();
+  for (const f of feats) {
+    const a = f.attributes || {}, type = pcType(a), name = (a.Name_Official_e || "").trim();
+    const g = (f.geometry?.paths || []).map((l) => flat(l.map(([lon, lat]) => ({ lat, lon })), 8)).filter((l) => l.length >= 4);
+    if (!type || !g.length) continue;
+    const key = type + "|" + (name || g[0].slice(0, 2).join(","));
+    const tags = { operator: "Parks Canada" };
+    if (type === "nordic" && a.Winter_Type_Hiver === 1) tags["piste:grooming"] = "groomed";
+    if (PC_DIFF[a.Winter_Classification_Hiver]) tags["winter difficulty"] = PC_DIFF[a.Winter_Classification_Hiver];
+    if (a.URL_e) tags.website = a.URL_e;
+    if (!groups.has(key)) groups.set(key, { id: "pc" + key.replace(/[^\w]+/g, "-").toLowerCase().slice(0, 60), src: "pc", type, name, diff: "", g: [], tags });
+    const r = groups.get(key);
+    for (const l of g) if (!r.g.some((x) => x.join() === l.join())) r.g.push(l);   // the same line comes once per activity
+  }
+  const routes = [...groups.values()];
+  log(`  ${feats.length} trail pieces -> ${routes.length} ski and snowshoe trails`);
+  return routes;
+}
+
+// Leaves out the routes from other sources drawn on top of an OpenStreetMap route (75 % of their points within 40 m).
+function dropDrawnTwice(extra, osm) {
+  const C = 0.0004, grid = new Set(), key = (a, b) => a + "," + b;
+  for (const r of osm) for (const part of r.g || []) for (let i = 0; i < part.length; i += 2) {
+    // Fill the line between points too, so long straight pieces still count.
+    const n = i ? Math.ceil(Math.hypot(part[i] - part[i - 2], part[i + 1] - part[i - 1]) / C) : 0;
+    for (let k = 0; k <= n; k++) { const t = n ? k / n : 0, la = i ? part[i - 2] + (part[i] - part[i - 2]) * t : part[i], lo = i ? part[i - 1] + (part[i + 1] - part[i - 1]) * t : part[i + 1]; grid.add(key(Math.round(la / C), Math.round(lo / C))); }
+  }
+  const near = (la, lo) => { const y = Math.round(la / C), x = Math.round(lo / C); for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (grid.has(key(y + dy, x + dx))) return true; return false; };
+  return extra.filter((r) => {
+    let n = 0, on = 0;
+    for (const part of r.g) for (let i = 0; i < part.length; i += 2) { n++; if (near(part[i], part[i + 1])) on++; }
+    return !n || on / n < 0.75;
+  });
+}
+
+// BC recreation trails outside the home region, sorted more strictly than in ski.json (where any winter word will do):
+// most "Ski Trails" are cross-country trails, a trail only says "winter" in a place name (Winter Harbour), and a
+// trail mapped in many pieces with the same file number is one route.
+const BC_WORDS = /\b(ski|skiing|skis|nordic|x-?c|cross[- ]country|snowshoe\w*|snow ?shoe\w*|backcountry|ski ?touring|winter trail)\b/i;
+function bcBackcountry(list) {
+  const out = new Map();
+  for (const r of list) {
+    if (r.type === "snowmobile") continue;
+    const text = [r.name, r.tags?.PROJECT_NAME, r.tags?.MAP_LABEL].filter(Boolean).join(" ");
+    if (!BC_WORDS.test(text)) continue;
+    const type = /snowshoe|snow ?shoe/i.test(text) && !/\bski/i.test(text) ? "snowshoe" : /backcountry|touring|ski ?tour|alpine|randonn/i.test(text) ? "tour" : "nordic";
+    if (out.has(r.id)) { out.get(r.id).g.push(...r.g); continue; }
+    out.set(r.id, { ...r, type, g: [...r.g] });
+  }
+  return [...out.values()];
+}
+async function buildCanada(home) {
+  const old = { routes: [], huts: [], starts: [], sources: {} };
+  const idx = (() => { try { return JSON.parse(readFileSync(new URL("index.json", CANADA_DIR), "utf8")); } catch { return null; } })();
+  if (idx) {
+    old.sources = idx.sources || {};
+    for (const k of Object.keys(idx.tiles || {})) {
+      try { const t = JSON.parse(readFileSync(new URL(k + ".json", CANADA_DIR), "utf8")); old.routes.push(...(t.routes || [])); old.huts.push(...(t.huts || [])); old.starts.push(...(t.starts || [])); } catch {}
+    }
+  }
+  const oldOf = (src) => old.routes.filter((r) => r.src === src);
+  const sources = {}, got = {};
+  const run = async (src, fn) => {
+    try { got[src] = await fn(); sources[src] = builtAt; }
+    catch (e) { failed++; log(`  ${src} failed: ${e.message}; keeping the last data`); got[src] = null; sources[src] = old.sources[src] || ""; }
+  };
+  await run("osm", () => buildCanadaOsm(old));
+  await run("c2c", () => buildC2c(["a=14236"]));
+  await run("bc", () => buildBc([[48.2, -139.1, 60, -114]]));
+  await run("sepaq", buildSepaq);
+  await run("pc", buildPc);
+  const out = (list) => list.filter((x) => { const [la, lo] = firstPt(x); return !inHome(la, lo); });
+  const osm = out(got.osm ? got.osm.routes : oldOf("osm"));
+  const huts = out(got.osm ? got.osm.huts : old.huts);
+  const c2c = out(got.c2c ? got.c2c.routes : oldOf("c2c"));
+  const starts = out(got.c2c ? got.c2c.starts : old.starts);
+  const bc = out(got.bc ? bcBackcountry(got.bc) : oldOf("bc"));
+  // Sépaq and Parks Canada trails can be in the home region too (Banff): there they only add what OpenStreetMap lacks.
+  const homeOsm = (home || []).filter((r) => r.src === "osm");
+  const others = dropDrawnTwice([...(got.sepaq || oldOf("sepaq")), ...(got.pc || oldOf("pc")), ...bc], [...osm, ...homeOsm]);
+  const routes = [...osm, ...c2c, ...others];
+  if (got.osm && got.osm.routes.length) {   // unnamed routes: the named peak nearest them, asked for only in squares that need it
+    try {
+      const boxes = new Map();
+      for (const r of routes) if (!r.name && r.g) { const k = tileOf(r.g[0][0], r.g[0][1]); const [la, lo] = k.split("_").map(Number); boxes.set(k, [la, lo, la + TILE_LAT, lo + TILE_LON]); }
+      const peaks = [];
+      for (const [s, w, n, e] of boxes.values()) {
+        const json = await overpass(`[out:json][timeout:180][bbox:${s},${w},${n},${e}];node["natural"~"^(peak|volcano)$"]["name"];out;`);
+        for (const el of json.elements || []) peaks.push({ name: el.tags.name, lat: el.lat, lon: el.lon });
+      }
+      log(`  ${peaks.length} named peaks in ${boxes.size} squares`);
+      nameNearPeaks(routes, peaks);
+    } catch (e) {
+      log(`  Peaks failed: ${e.message}; unnamed routes keep their last peak name`);
+      const was = new Map(old.routes.filter((r) => r.near).map((r) => [r.id, r.near]));
+      for (const r of routes) if (!r.name && !r.near && was.has(r.id)) r.near = was.get(r.id);
+    }
+  }
+  return { routes, huts, starts, sources };
+}
+function writeCanada({ routes, huts, starts, sources }) {
+  const tiles = new Map();
+  const add = (kind, x) => {
+    const [la, lo] = firstPt(x), k = tileOf(la, lo);
+    if (!tiles.has(k)) tiles.set(k, { routes: [], huts: [], starts: [] });
+    tiles.get(k)[kind].push(x);
+  };
+  routes.forEach((r) => add("routes", r)); huts.forEach((h) => add("huts", h)); starts.forEach((s) => add("starts", s));
+  // Start clean, so a square that's now empty doesn't stay on the site.
+  if (existsSync(CANADA_DIR)) rmSync(CANADA_DIR, { recursive: true });
+  mkdirSync(CANADA_DIR, { recursive: true });
+  const index = {}, count = {};
+  let bytes = 0;
+  for (const [k, t] of [...tiles].sort()) {
+    const body = JSON.stringify(t);
+    writeFileSync(new URL(k + ".json", CANADA_DIR), body);
+    bytes += body.length;
+    // The real extent of what's in the square (lines can go past its edges), for loading it when the map shows any of it.
+    let s = 90, w = 180, n = -90, e = -180;
+    const ext = (la, lo) => { s = Math.min(s, la); n = Math.max(n, la); w = Math.min(w, lo); e = Math.max(e, lo); };
+    t.routes.forEach((r) => r.g.forEach((part) => { for (let i = 0; i < part.length; i += 2) ext(part[i], part[i + 1]); }));
+    [...t.huts, ...t.starts].forEach((h) => ext(h.lat, h.lon));
+    index[k] = { r: t.routes.length, h: t.huts.length + t.starts.length, kb: Math.ceil(body.length / 1024), box: [s, w, n, e].map((v) => +v.toFixed(3)) };
+    t.routes.forEach((r) => { const c = r.src + "/" + r.type; count[c] = (count[c] || 0) + 1; });
+  }
+  writeFileSync(new URL("index.json", CANADA_DIR), JSON.stringify({ builtAt, sources, home: REGIONS, tile: [TILE_LAT, TILE_LON], tiles: index }));
+  log(`data/ski-canada: ${routes.length} routes, ${huts.length} huts, ${starts.length} route starts in ${tiles.size} squares, ${(bytes / 1e6).toFixed(2)} MB`);
+  log(`  ${Object.entries(count).sort().map(([k, v]) => `${k} ${v}`).join(", ")}`);
 }
 
 // ---------- Avalanche Canada forecasts ----------
@@ -774,6 +1026,12 @@ if (runs("ski")) {
     }));
     log(`data/ski.json: ${routes.length} routes, ${huts.length} huts`);
   }
+}
+
+// After the home region's ski.json, so a Parks Canada or Sépaq trail OpenStreetMap already has there isn't drawn twice.
+if (runs("canada")) {
+  try { writeCanada(await buildCanada(readJson("ski.json")?.routes)); }
+  catch (e) { failed++; log(`All of Canada failed: ${e.message}; keeping the last data`); }
 }
 
 if (runs("avy")) {

@@ -364,12 +364,47 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         ski = d;
         (d.routes || []).forEach((r) => { r.lines = r.g.map(lineOf); r.bounds = L.latLngBounds(r.lines.flat()); });
         window.dispatchEvent(new CustomEvent("tf:ski-data", { detail: d }));   // rogers.js: official terrain classes (r.ates)
-        drawSki(); renderSwitches(); renderList();
+        drawSki(); renderSwitches(); renderList(); loadCanadaView();
       })
       .catch((e) => { skiErr = e.message; renderList(); })
       .finally(() => { skiLoading = null; });
     return skiLoading;
   }
+  // The rest of Canada (alex: "add all the backcountry route that you can find"): backcountry routes and huts outside
+  // the home region, in squares of 3° by 6° (data/ski-canada/, scripts/build-winter.mjs). Only the squares the map
+  // shows are loaded, then added to ski.routes / huts / starts like the home region's, so the list, search, details,
+  // 3D map and alerts all work the same. Zoomed out further than CAN_MIN_Z nothing more is loaded (a phone would
+  // otherwise load the whole country).
+  const CAN_MIN_Z = 5;
+  let canIdx = null, canIdxLoading = null, canRedraw = 0;
+  const canGot = new Map();   // square -> its loading promise
+  const loadCanIdx = () => canIdx ? Promise.resolve(canIdx) : canIdxLoading || (canIdxLoading = fetch("data/ski-canada/index.json", { cache: "no-cache" })
+    .then((r) => (r.ok ? r.json() : null)).then((d) => (canIdx = d || { tiles: {} })).catch(() => { canIdxLoading = null; return null; }));
+  function loadCanada(bounds) {
+    if (!ski || !canIdx) return Promise.resolve();
+    const want = Object.entries(canIdx.tiles || {}).filter(([k, t]) => !canGot.has(k) && bounds.intersects(L.latLngBounds([t.box[0], t.box[1]], [t.box[2], t.box[3]])));
+    return Promise.all(want.map(([k]) => {
+      const p = fetch(`data/ski-canada/${k}.json`, { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }).then((t) => {
+        const ids = new Set((ski.routes || []).map((r) => r.id));
+        for (const r of t.routes || []) {
+          if (ids.has(r.id)) continue;
+          r.lines = r.g.map(lineOf); r.bounds = L.latLngBounds(r.lines.flat());
+          ski.routes.push(r);
+        }
+        ski.huts = [...(ski.huts || []), ...(t.huts || [])];
+        ski.starts = [...(ski.starts || []), ...(t.starts || [])];
+        clearTimeout(canRedraw);
+        canRedraw = setTimeout(() => { if (sport === "ski") { drawSki(); renderList(); } }, 50);
+      }).catch(() => canGot.delete(k));
+      canGot.set(k, p);
+      return p;
+    }));
+  }
+  function loadCanadaView() {
+    if (sport !== "ski" || !ski || map.getZoom() < CAN_MIN_Z) return;
+    loadCanIdx().then(() => loadCanada(map.getBounds().pad(0.25)));
+  }
+  map.on("moveend", loadCanadaView);
   // A tap on a route, hut or start: its details, or, while planning a tour, the next point of the plan.
   const tap = (e, it) => { L.DomEvent.stopPropagation(e); if (plan.on) planAdd(e.latlng); else select(it); };
   function drawSki() {
@@ -884,7 +919,13 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     seasonal: (v) => ["Seasonal", v], opening_hours: (v) => ["Open", v], ref: (v) => ["Number", v], ele: (v) => ["Height", v + " m"],
     capacity: (v) => ["Sleeps", v], reservation: (v) => ["Booking", v === "required" ? "required" : v], website: (v) => ["Website", v], url: (v) => ["Website", v],
     "piste:type": null, name: null, "piste:name": null,
+    // Sépaq and Parks Canada trails (data/ski-canada/)
+    park: (v) => ["Park", v], sector: (v) => ["Sector", v], difficulty: (v) => ["Difficulty", FR_DIFF[v] || v], "winter difficulty": (v) => ["Difficulty in winter", v],
+    use: (v) => ["For", v.split(", ").map((u) => FR_USE[u] || u).join(", ")],
   };
+  const FR_DIFF = { Facile: "Easy", "Débutant": "Beginner", "Intermédiaire": "Intermediate", Difficile: "Difficult", "Très difficile": "Very difficult", Polyvalent: "Mixed" };
+  const FR_USE = { Raquette: "snowshoeing", "Ski nordique": "backcountry nordic skiing (not groomed)", "Randonnée alpine": "alpine ski touring", "Accès ski hors-piste": "access to off-piste skiing",
+    "Pédestre sur neige": "winter walking", VPS: "fat biking", "Ski classique": "classic skiing", "Pas de patin": "skate skiing", "Ski Hok": "Hok skis" };
   const val2 = (v) => (/^https?:\/\//.test(v) ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""))}</a>` : esc(v));
   function tagsHtml(r) {
     const plain = [];
@@ -1007,6 +1048,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ? `BC Recreation Sites and Trails (<a href="https://www.sitesandtrailsbc.ca/" target="_blank" rel="noopener">sitesandtrailsbc.ca</a>)`
       : r.src === "c2c"
       ? `<a href="https://www.camptocamp.org/routes/${esc(r.id.slice(3))}" target="_blank" rel="noopener">camptocamp.org</a> (CC BY-SA)`
+      : r.src === "sepaq"
+      ? `Sépaq winter trails (<a href="https://www.donneesquebec.ca/recherche/dataset/sentiers-hivernaux" target="_blank" rel="noopener">Données Québec</a>, CC BY 4.0)`
+      : r.src === "pc"
+      ? `Parks Canada trails (<a href="https://open.canada.ca/data/en/dataset/64a90e8d-5bc0-4027-8645-b5881b4068d4" target="_blank" rel="noopener">open.canada.ca</a>, Open Government Licence)`
       : `<a href="https://www.openstreetmap.org/${osmType}/${r.id.slice(1)}" target="_blank" rel="noopener">OpenStreetMap</a>`;
     const tags = tagsHtml(r);
     const club = !isHut && r.type === "snowmobile" ? clubNear(r.lines[0][0][0], r.lines[0][0][1]) : null;
@@ -2116,6 +2161,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     show: async (k, c) => {
       if (sport !== "ski") setSport("ski");
       await loadSki();
+      if (c && k && !(ski?.routes || []).some((x) => x.id === k)) { await loadCanIdx(); await loadCanada(L.latLngBounds([c, c]).pad(0.5)); }   // a tour elsewhere in Canada
       const r = k && (ski?.routes || []).find((x) => x.id === k);
       if (r) select(r, true); else if (c) map.setView(c, Math.max(map.getZoom(), k ? 13 : 10));
     },
@@ -2125,7 +2171,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const ty = (lat, z) => { const r = (lat * Math.PI) / 180; return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z); };
     const tiles = [];
     for (let z = 10; z <= OFFLINE_DEM_Z; z++) for (let x = tx(box[1], z); x <= tx(box[3], z); x++) for (let y = ty(box[2], z); y <= ty(box[0], z); y++) tiles.push(DEM(z, x, y));
-    const data = ["ski", "ski-terrain", "avalanche", "avalanche-reports", "snow-stations", "snowmobile-clubs", "grooming", "ski-heat", "rogers-pass", "rogers-status"].map((n) => new URL(`data/${n}.json`, location.href).href);
+    const can = Object.entries(canIdx?.tiles || {}).filter(([, t]) => t.box[0] <= box[2] && t.box[2] >= box[0] && t.box[1] <= box[3] && t.box[3] >= box[1]).map(([k]) => "ski-canada/" + k);
+    const data = ["ski", "ski-terrain", "avalanche", "avalanche-reports", "snow-stations", "snowmobile-clubs", "grooming", "ski-heat", "rogers-pass", "rogers-status", "ski-canada/index", ...can].map((n) => new URL(`data/${n}.json`, location.href).href);
     return { data, tiles };
   };
 
