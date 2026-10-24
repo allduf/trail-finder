@@ -92,6 +92,13 @@ h2 { font-family: var(--font-display); font-size: 1.5rem; text-transform: upperc
 .folder { display: flex; align-items: center; gap: 8px; }
 .folder svg { color: var(--accent); flex: none; }
 ol.rides { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rfolder > summary { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; list-style: none; }
+.rfolder > summary::-webkit-details-marker { display: none; }
+.rfolder > summary svg { color: #fc4c02; flex: none; }
+.rfolder > summary .rm { font-size: .85rem; color: var(--muted); }
+.rfolder > summary .tog { margin-left: auto; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.rfolder[open] > summary .tog::before { content: "Close ▴"; } .rfolder:not([open]) > summary .tog::before { content: "Open ▾"; }
+.rfolder > ol.rides { margin: 8px 0 0 14px; padding-left: 10px; border-left: 2px solid #fc4c02; }
 .ride { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; width: 100%; text-align: left; font: inherit; color: inherit; }
 .ride:hover { background: var(--chip); }
 .ride .th { width: 64px; height: 64px; border-radius: 8px; overflow: hidden; background: var(--chip); display: grid; place-items: center; }
@@ -609,12 +616,24 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     }
     const tot = rides.reduce((a, r) => ({ d: a.d + r.stats.dist, c: a.c + (r.stats.climb || 0), t: a.t + r.stats.moving }), { d: 0, c: 0, t: 0 });
     $("totals").textContent = `${rides.length} ride${rides.length > 1 ? "s" : ""} · ${km(tot.d)} km · ${Math.round(tot.c)} m climbed · ${hms(tot.t, false)} riding`;
-    rides.forEach((r) => {
+    // Rides that came from Strava (strava.js) sit together in a Strava folder at the top, opened or closed as last left.
+    const fromStrava = rides.filter((r) => r.imported && r.imported.strava), here = rides.filter((r) => !(r.imported && r.imported.strava));
+    let into = list;
+    if (fromStrava.length) {
+      const st = fromStrava.reduce((a, r) => a + r.stats.dist, 0), li = document.createElement("li");
+      let open = false;
+      try { open = localStorage.getItem("tf:stravaFolder") === "1"; } catch {}
+      li.innerHTML = `<details class="rfolder"${open ? " open" : ""}><summary><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 6.5a2 2 0 0 1 2-2h4.2l2 2.2H19a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg><span><span class="rt"><b>Strava</b></span><br><span class="rm">${fromStrava.length} ride${fromStrava.length > 1 ? "s" : ""} · ${km(st)} km</span></span><span class="tog"></span></summary><ol class="rides"></ol></details>`;
+      li.querySelector("details").addEventListener("toggle", (e) => { try { localStorage.setItem("tf:stravaFolder", e.target.open ? "1" : "0"); } catch {} });
+      list.appendChild(li);
+      into = li.querySelector("ol");
+    }
+    [...fromStrava, ...here].forEach((r) => {
       const li = document.createElement("li");
       li.innerHTML = `<button class="ride" type="button"><span class="th">${r.cover ? '<img alt="">' : trackSvg(r.points)}</span><span><span class="rt">${esc(r.title)}</span><br><span class="rm">${fmtDay(r.start)} · ${km(r.stats.dist)} km · ${hms(r.stats.moving, false)}${r.stats.climb != null ? ` · ${Math.round(r.stats.climb)} m up` : ""}${r.photoCount ? ` · ${r.photoCount} photo${r.photoCount > 1 ? "s" : ""}` : ""}</span></span></button>`;
       if (r.cover) li.querySelector("img").src = objUrl(r.cover);
       li.querySelector("button").addEventListener("click", () => { location.hash = "#ride/" + r.id; });
-      list.appendChild(li);
+      (r.imported && r.imported.strava ? into : list).appendChild(li);
     });
   }
   let shown = null;
@@ -624,7 +643,9 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     shown = r;
     freeUrls();
     $("rTitle").textContent = r.title;
-    $("rWhen").textContent = `${fmtDay(r.start)} · ${fmtTime(r.start)} to ${fmtTime(r.end)}${r.imported ? " · imported" : ""}`;
+    const sv = r.imported && r.imported.strava;
+    $("rWhen").innerHTML = esc(`${fmtDay(r.start)} · ${fmtTime(r.start)} to ${fmtTime(r.end)}${r.imported ? (sv ? " · from Strava" : " · imported") : ""}`) +
+      (sv ? ` · <a href="https://www.strava.com/activities/${encodeURIComponent(sv)}" target="_blank" rel="noopener">View on Strava</a>` : "");
     $("rStats").innerHTML = statsHtml(withDescent(r), "", r.points);
     $("rProfile").innerHTML = profileSvg(r.points, r.breaks);
     $("rGaps").innerHTML = gapsNote(r.points, r.breaks);
