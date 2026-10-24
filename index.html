@@ -1407,7 +1407,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <p class="src">Fires outside BC and Alberta: Canadian Forest Service, Canadian Wildland Fire Information System (CWFIS), Natural Resources Canada, Canadian Forest Service, Northern Forestry Centre, Edmonton, Alberta (Open Government Licence – Canada). Alberta: contains information licensed under the Open Government Licence – Alberta.</p>
     <h3>Skiing</h3>
     <p>Pick “⛷ Skiing” in the sport menu at the top. The map then shows backcountry ski routes and huts instead of the bike trails. Under the map buttons, a short Avalanche card and a list of what's in view: Routes and Huts, nearest the middle of the map first, each with how far it is, how long and how hard. Type a name in the search box to find a route or hut anywhere. Every night the site collects them from OpenStreetMap (ski touring, nordic, snowshoe and snowmobile routes, ski route relations, and alpine and wilderness huts; resort runs are there too but off by default) from BC Recreation Sites and Trails (trails whose name or description says ski, nordic, snowshoe or snowmobile), and from camptocamp.org (ski touring and snowshoe routes that have a drawn line). Tap a route or hut for its details.</p>
-    <p>Four buttons at the top of the panel pick what's on the map: <b>⛷ Touring</b> (ski touring and ski access routes, other winter routes, huts, camptocamp route starts and snow stations, with the Avalanche card), <b>🎿 Nordic</b> (nordic and snowshoe trails), <b>🛷 Snowmobile</b> (snowmobile trails and the clubs with their grooming reports) and <b>🚡 Resorts</b> (runs, and in-bounds off-piste and bowls). More than one can be on. The Avalanche card shows the day's ratings for the middle of the map (Alpine, Treeline and Below treeline), with the problems, the forecaster's notes and riders' reports one tap away under “Problems, notes and riders' reports”. In <b>Layers</b> on the map, the Skiing part has ⚠ Avalanche risk, Slope angle, Snow stations, the Ski heatmap, Your ski tours, and every single layer under “Single layers”, and 📷 Webcams: live ski resort and backcountry webcams pinned where each camera is (Whistler Blackcomb's eight cams so far, Whistler Peak first). Tap a pin for the live feed, shown from the owner's own player, with a link to their webcam page. Sledding and tubing hills aren't shown.</p>
+    <p>Four buttons at the top of the panel pick what's on the map: <b>⛷ Touring</b> (ski touring and ski access routes, other winter routes, huts, camptocamp route starts and snow stations, with the Avalanche card), <b>🎿 Nordic</b> (nordic and snowshoe trails), <b>🛷 Snowmobile</b> (snowmobile trails and the clubs with their grooming reports) and <b>🚡 Resorts</b> (runs, and in-bounds off-piste and bowls). More than one can be on. The Avalanche card shows the day's ratings for the middle of the map (Alpine, Treeline and Below treeline), with the problems, the forecaster's notes and riders' reports one tap away under “Problems, notes and riders' reports”. In <b>Layers</b> on the map, the Skiing part has ⚠ Avalanche risk, Slope angle, Snow stations, the Ski heatmap, Your ski tours, and every single layer under “Single layers”, and 📷 Webcams: live ski resort and backcountry webcams pinned where each camera is (about 100 cams at 21 BC and Alberta resorts, Whistler Peak first; backcountry cams at Kees and Claire Hut, Mount Abbott and Mount Fidelity at Rogers Pass, Boulder Cabin and Sol Mountain Lodge in teal; DriveBC highway cams at the passes where tours start, like Rogers Pass, the Duffey, the Coquihalla and Kootenay Pass, in grey). Tap a pin for the live feed, shown from the owner's own player, with a link to their webcam page. Sledding and tubing hills aren't shown.</p>
     <p>A route's details lead with its elevation: top and bottom height, climb and descent, and a height profile (move along it to see the spot on the map; orange is ground of 30° and steeper). Below that: how steep the ground under the route gets, which way its steep parts face and how much of it is below treeline, at treeline and in the alpine; the avalanche forecast for the route's area with the bands it goes through, and which of the day's avalanche problems are on its slopes; avalanches that riders reported within 15 km in the last 14 days on Avalanche Canada's Mountain Information Network, and the forecaster's notes on recent avalanches; the weather at the top (temperature, new snow, wind and freezing level, from Open-Meteo); huts and camptocamp routes close by; the closest snow stations; ▶ Follow this tour; and a GPX download with the heights. Heights come from open terrain data about 12 m apart, so small cliffs don't show. Unnamed routes are named after the closest named peak, like “Ski touring near Ipsoot Mountain”.</p>
     <p><b>⚠ Steep slopes above</b>: a route's details also say how much of it runs under ground of 30° or steeper, within 350 m and at least 50 m higher, that could slide onto it, and draw those stretches as red dashes. A valley route can be under avalanche terrain without ever being steep itself. It's worked out from the same terrain data, so it can miss small slopes and doesn't know about trees.</p>
     <p><b>Slope angle</b> (in Layers) colours the ground by how steep it is, any day, whatever the forecast: yellow 27-29°, orange 30-34°, red 35-39°, purple 40-44° and blue 45° and up. Most avalanches start on slopes from 30 to 45°. It shows from zoom 9 in.</p>
@@ -1434,12 +1434,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=352"></script>
-<script src="rotate.js?v=352"></script>
-<script src="official.js?v=352"></script>
-<script src="directions.js?v=352"></script>
-<script src="ratings.js?v=352"></script>
-<script src="ebike.js?v=352"></script>
+<script src="native.js?v=353"></script>
+<script src="rotate.js?v=353"></script>
+<script src="official.js?v=353"></script>
+<script src="directions.js?v=353"></script>
+<script src="ratings.js?v=353"></script>
+<script src="ebike.js?v=353"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3722,7 +3722,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=352").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=353").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -6971,37 +6971,37 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=352"></script>
-<script src="contours.js?v=352"></script>
-<script src="clouds.js?v=352"></script>
-<script src="smoke.js?v=352"></script>
-<script src="photo-slider.js?v=352"></script>
-<script src="winter.js?v=352"></script>
-<script src="hunting.js?v=352"></script>
-<script src="ski-points.js?v=352"></script>
-<script src="webcams.js?v=352"></script>
-<script src="offline.js?v=352"></script>
-<script src="ride-stats.js?v=352"></script>
-<script src="native-gps.js?v=352"></script>
-<script src="navigate.js?v=352"></script>
-<script src="planner.js?v=352"></script>
-<script src="loops.js?v=352"></script>
-<script src="ride-finds.js?v=352"></script>
-<script src="rides.js?v=352"></script>
-<script src="community.js?v=352"></script>
-<script src="account.js?v=352"></script>
-<script src="strava.js?v=352"></script>
-<script src="reports.js?v=352"></script>
-<script src="grades.js?v=352"></script>
-<script src="trail-photos.js?v=352"></script>
-<script src="visitors.js?v=352"></script>
-<script src="notify.js?v=352"></script>
-<script src="closures.js?v=352"></script>
-<script src="status.js?v=352"></script>
-<script src="areas.js?v=352"></script>
-<script src="alpine.js?v=352"></script>
-<script src="bikeparks.js?v=352"></script>
-<script src="photo-find.js?v=352"></script>
+<script src="map3d.js?v=353"></script>
+<script src="contours.js?v=353"></script>
+<script src="clouds.js?v=353"></script>
+<script src="smoke.js?v=353"></script>
+<script src="photo-slider.js?v=353"></script>
+<script src="winter.js?v=353"></script>
+<script src="hunting.js?v=353"></script>
+<script src="ski-points.js?v=353"></script>
+<script src="webcams.js?v=353"></script>
+<script src="offline.js?v=353"></script>
+<script src="ride-stats.js?v=353"></script>
+<script src="native-gps.js?v=353"></script>
+<script src="navigate.js?v=353"></script>
+<script src="planner.js?v=353"></script>
+<script src="loops.js?v=353"></script>
+<script src="ride-finds.js?v=353"></script>
+<script src="rides.js?v=353"></script>
+<script src="community.js?v=353"></script>
+<script src="account.js?v=353"></script>
+<script src="strava.js?v=353"></script>
+<script src="reports.js?v=353"></script>
+<script src="grades.js?v=353"></script>
+<script src="trail-photos.js?v=353"></script>
+<script src="visitors.js?v=353"></script>
+<script src="notify.js?v=353"></script>
+<script src="closures.js?v=353"></script>
+<script src="status.js?v=353"></script>
+<script src="areas.js?v=353"></script>
+<script src="alpine.js?v=353"></script>
+<script src="bikeparks.js?v=353"></script>
+<script src="photo-find.js?v=353"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
