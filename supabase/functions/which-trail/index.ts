@@ -428,16 +428,18 @@ async function who(req: Request, ip: string): Promise<string> {
   const h = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + " " + ip)));
   return "ip:" + [...h.slice(0, 8)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
-// Confirmed matches whose picture has nearly the same fingerprint (the same picture resized or recompressed).
+// Picture fingerprints (the app's 64-bit hash): 10 bits or fewer apart is the same picture resized or recompressed.
+const isHash = (h: unknown): h is string => typeof h === "string" && /^[0-9a-f]{16}$/.test(h);
+const bits = (a: string, b: string) => { let n = 0; for (let i = 0; i < 16; i++) { let x = parseInt(a[i], 16) ^ parseInt(b[i], 16); while (x) { n += x & 1; x >>= 1; } } return n; };
+const samePic = (a: unknown, b: unknown) => isHash(a) && isHash(b) && bits(a, b) <= 10;
+// Confirmed matches whose picture has nearly the same fingerprint.
 async function same(hash: unknown) {
-  if (typeof hash !== "string" || !/^[0-9a-f]{16}$/.test(hash)) return [];
+  if (!isHash(hash)) return [];
   const r = await db("/rest/v1/trail_matches?select=trail_name,osm_type,osm_ids,zone,lat,lon,hash:details->>hash&details->>hash=not.is.null&order=created_at.desc&limit=2000");
   if (!r?.ok) return [];
-  const bits = (a: string, b: string) => { let n = 0; for (let i = 0; i < 16; i++) { let x = parseInt(a[i], 16) ^ parseInt(b[i], 16); while (x) { n += x & 1; x >>= 1; } } return n; };
   try {
     const rows = (await r.json()) as { trail_name: string; hash: string | null }[];
-    return rows.filter((x) => typeof x.hash === "string" && /^[0-9a-f]{16}$/.test(x.hash) && bits(hash, x.hash) <= 10)
-      .slice(0, 3).map(({ hash: _, ...x }) => x);
+    return rows.filter((x) => samePic(hash, x.hash)).slice(0, 3).map(({ hash: _, ...x }) => x);
   } catch { return []; }
 }
 // Pictures riders confirmed ("Is this the trail?" Yes) for these trails, from the private bucket, and (with a spot)
@@ -447,12 +449,16 @@ type Spot = { c: [number, number]; r: number; where: string };
 async function confirmed(trails: Trail[], skip: number[], spot: Spot | null): Promise<Photo[]> {
   const names = trails.map((t) => '"' + t.name.replace(/["\\]/g, (c) => "\\" + c) + '"').join(",");
   const notSkip = skip.length ? `&id=not.in.(${skip.join(",")})` : "";
-  const r = await db(`/rest/v1/trail_matches?select=trail_name,photo&photo=not.is.null${notSkip}&trail_name=in.(${encodeURIComponent(names)})&order=created_at.desc&limit=30`);
+  const r = await db(`/rest/v1/trail_matches?select=trail_name,photo,hash:details->>hash&photo=not.is.null${notSkip}&trail_name=in.(${encodeURIComponent(names)})&order=created_at.desc&limit=30`);
   if (!r?.ok) return [];
   try {
-    const rows = (await r.json()) as { trail_name: string; photo: string }[];
-    const per = new Map<string, string[]>();
-    for (const x of rows) { const l = per.get(x.trail_name) || []; if (l.length < 2 && !l.includes(x.photo)) per.set(x.trail_name, [...l, x.photo]); }
+    const rows = (await r.json()) as { trail_name: string; photo: string; hash: string | null }[];
+    // Two different pictures of each trail at most: the same picture saved twice (a second "Yes" on it) counts once.
+    const per = new Map<string, { photo: string; hash: string | null }[]>();
+    for (const x of rows) {
+      const l = per.get(x.trail_name) || [];
+      if (l.length < 2 && !l.some((y) => y.photo === x.photo || samePic(y.hash, x.hash))) per.set(x.trail_name, [...l, x]);
+    }
     // Riders' own photos on these trails (supabase/trail-photos.sql) fill in where there's no confirmed match yet.
     const r2 = await db(`/rest/v1/trail_photos?select=trail_name,path&trail_name=in.(${encodeURIComponent(names)})&order=created_at.desc&limit=30`);
     const extra: { trail: string; path: string; bucket: string }[] = [];
@@ -466,7 +472,7 @@ async function confirmed(trails: Trail[], skip: number[], spot: Spot | null): Pr
       } catch { /* no rider photos */ }
     }
     type Want = { trail: string; path: string; bucket: string; at?: [number, number] };
-    const want: Want[] = [...per.entries()].flatMap(([trail, ps]) => ps.map((path) => ({ trail, path, bucket: "trail-match-photos" }))).concat(extra).slice(0, 4);
+    const want: Want[] = [...per.entries()].flatMap(([trail, ps]) => ps.map(({ photo }) => ({ trail, path: photo, bucket: "trail-match-photos" }))).concat(extra).slice(0, 4);
     // Around the spot: the newest confirmed picture of each other trail there, nearest first. Out to 10 km even when the
     // AI is sure of its spot: it placed a Cream Puff picture at Signal Hill, 5 km off on the other side of Pemberton.
     if (spot) {

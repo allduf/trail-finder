@@ -1248,6 +1248,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     if (!acct.client) return false;
     let photo = null;
     const m = await ensureMedia();
+    // This picture already saved for this trail (a second "Yes" on it): nothing new to learn, so it isn't saved twice.
+    if (m && m.hash && (await samePicture(m.hash)).some((x) => F.norm(x.trail_name) === F.norm(sv.name) && x.zone === sv.zone)) return true;
     if (m && m.jpegs[0]) {
       const bin = atob(m.jpegs[0]), bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
