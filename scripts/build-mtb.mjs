@@ -9,6 +9,7 @@
 // marked with the made-up tag tf:area=<area name> so the site can say why it shows them. An area with its own radius r
 // (metres, e.g. South Chilcotin) is backcountry where every named path within r counts, however many have bike tags,
 // and so does every named path inside the area's park (park: the park's name; REC_ZONES only, where parks are loaded).
+// An area marked all also counts its unnamed paths (alex: every path around Roberts Creek is a bike trail).
 // An area with an official reason marks its named paths tf:official=<reason> (not ones named like roads), and in the
 // OFFICIAL_ZONES (Williams Lake) every trail of the list is marked so.
 // In the REC_ZONES (Gold Bridge & South Chilcotin; Revelstoke, bike trails only), the BC government's Recreation Sites and
@@ -172,7 +173,7 @@ const inBox = (c, [s, w, n, e]) => c[0] >= s && c[0] <= n && c[1] >= w && c[1] <
 const handNames = (z) => HAND.filter((h) => inBox(h.c, z.box)).map((h) => (h.name || h.ids.join(",")) + (h.named ? "=" + h.named : ""));   // editing the list rebuilds the zone
 const zoneRules = (z) => (REC_ZONES[z.id] ? [["rec", REC_M, REC_SHARE].concat(REC_ZONES[z.id] === "all" ? [] : [REC_ZONES[z.id]])] : []).concat(OFFICIAL_ZONES[z.id] ? [["official", OFFICIAL_ZONES[z.id]]] : [])
   .concat(handNames(z).length ? [["hand"].concat(handNames(z))] : []);
-const areasKey = (z) => JSON.stringify(areasOf(z).map((a) => [a.name, a.c, radius(a), a.official || ""].concat(a.summer ? ["summer"] : []).concat(a.park ? [a.park] : [])).concat(zoneRules(z)));
+const areasKey = (z) => JSON.stringify(areasOf(z).map((a) => [a.name, a.c, radius(a), a.official || ""].concat(a.summer ? ["summer"] : []).concat(a.all ? ["all"] : []).concat(a.park ? [a.park] : [])).concat(zoneRules(z)));
 // A list made for a different box (or before boxes were saved), older rules or other riding areas is out of date, however fresh.
 // Files from before areas were saved count as up to date unless the zone has a backcountry area (radius r) or a zone rule.
 const sameAreas = (z, f) => (f.areas === undefined ? !areasOf(z).some((a) => a.r) && !zoneRules(z).length : f.areas === areasKey(z));
@@ -413,7 +414,7 @@ const MOTO_OK = /^(yes|designated|permissive|destination)$/;
 const motor = (t) => !/^(designated|customers)$/.test(t.bicycle || "") && (parseFloat(t.width) >= 2 || ["motorcycle", "motor_vehicle", "atv", "ohv", "orv"].some((k) => MOTO_OK.test(t[k] || "")));
 // The same exclusions as netOk() in index.html: graded for hiking, signed for walkers (unless signed for bikes too), golf or
 // park paths, smooth gravel or pavement, or named or noted as something else.
-const NOT_BIKE_NAME = /\b(pedestrian|boardwalk|interpretive|nature walk|stairs?|steps|suspension bridge|crag|snowshoe|skin track|hiking trail)\b/i;
+const NOT_BIKE_NAME = /\b(pedestrian|boardwalk|interpretive|nature walk|stairs?|steps|suspension bridge|crag|snowshoe|skin track|hiking trail|beach access)\b/i;
 const NOT_BIKE_NOTE = /\b(hik(e|ing)|walk(ing)?|climbing|motorcycles?|dirt ?bikes?|atvs?|quads?|logging road)\b/i;
 const SMOOTH = /^(gravel|fine_gravel|compacted|pebblestone|wood|paved|asphalt|concrete|paving_stones|sett|metal)$/;   // not "unpaved" (Whistler's dirt trails)
 const netOk = (t) => !t.sac_scale && !t.golf && (t.foot !== "designated" || t.bicycle === "designated") && t.lit !== "yes"
@@ -489,7 +490,9 @@ for (const z of order) {
         const summerSki = tags["piste:type"] && bikeOk({ ...tags, "piste:type": undefined })
           && sparse.some((a) => a.summer && metres([mid.lat, mid.lon], a.c) <= radius(a));
         if (!bikeWay || !(bikeOk(tags) || summerSki)) continue;
-        const a = tags.name && !NOT_BIKE_NAME.test(tags.name) && sparse.find((a) => metres([mid.lat, mid.lon], a.c) <= radius(a) || (a.park && park && park.name === a.park));
+        // An area marked all (a rider says every path in it is a bike trail, e.g. Roberts Creek) counts its unnamed paths too.
+        const a = !NOT_BIKE_NAME.test(tags.name || "") && sparse.find((a) => (tags.name || a.all && !motor(tags))
+          && (metres([mid.lat, mid.lon], a.c) <= radius(a) || (a.park && park && park.name === a.park)));
         const lp = /^(path|bridleway)$/.test(tags.highway) && !motor(tags) && /^(hiking)?$/.test(tags.sac_scale || "") && !NOT_BIKE_NAME.test(tags.name || "")
           && parks.find((p) => inPark([mid.lat, mid.lon], p));
         const om = !lp && !a && offIndex && !motor(tags) && !NOT_BIKE_NAME.test(tags.name || "") ? offMatch(w.geometry, tags.name, offIndex) : null;

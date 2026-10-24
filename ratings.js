@@ -440,6 +440,8 @@
     { name: "Apex Trail", c: [49.906, -119.489], r: 2000, src: "Tourism Kelowna, the Knox network", url: "https://www.tourismkelowna.com/blog/stories/post/mountain-biking-in-kelowna-a-close-look-at-the-knox-network/" },
     { name: "Kathleen Lake Loop Trail", c: [49.905, -119.471], r: 2000, src: "Tourism Kelowna, the Knox network", url: "https://www.tourismkelowna.com/blog/stories/post/mountain-biking-in-kelowna-a-close-look-at-the-knox-network/" },
     { name: "Gear Jammer Connector", c: [49.276, -122.904], r: 2000, src: "Komoot, Burnaby Mountain Gearjammer", url: "https://www.komoot.com/smarttour/31037183" },
+    // Roberts Creek (Sunshine Coast)
+    { name: "Mach Chicken", c: [49.4475, -123.603], r: 1500, d: "black", src: "MTB Project, Roberts Creek trails (rated Difficult)", url: "https://www.mtbproject.com/directory/8020882/roberts-creek-gibson" },
   ];
   // HAND by way id and by lower-case name (in list order), so each trail is a lookup, not a walk through the whole list:
   // every loaded trail is checked when the app opens.
