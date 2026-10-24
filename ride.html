@@ -226,13 +226,13 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
 </main>
 <div class="lightbox" id="lightbox" hidden><img id="lightImg" alt=""></div>
 
-<script src="native.js?v=331"></script>
-<script src="account.js?v=331"></script>
+<script src="native.js?v=332"></script>
+<script src="account.js?v=332"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-<script src="ride-files.js?v=331"></script>
-<script src="ride-stats.js?v=331"></script>
-<script src="ride-finds.js?v=331"></script>
-<script src="native-gps.js?v=331"></script>
+<script src="ride-files.js?v=332"></script>
+<script src="ride-stats.js?v=332"></script>
+<script src="ride-finds.js?v=332"></script>
+<script src="native-gps.js?v=332"></script>
 <script>
 (() => {
   "use strict";
@@ -298,10 +298,10 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     ];
     return cells.map(([k, v, u]) => `<div><dt>${k}</dt><dd>${v}${u ? `<small>${u}</small>` : ""}</dd></div>`).join("") + (extra || "");
   }
-  function defaultTitle(t) {
+  function defaultTitle(t, sport) {
     const h = new Date(t).getHours();
     const part = h < 5 ? "Night" : h < 12 ? "Morning" : h < 17 ? "Afternoon" : h < 21 ? "Evening" : "Night";
-    return `${part} ride`;
+    return `${part} ${sport === "ski" ? "ski tour" : "ride"}`;
   }
 
   // Rides saved before descent was counted: work it out from the points.
@@ -475,7 +475,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     $("saveStats").innerHTML = statsHtml(st, "", pts);
     $("saveProfile").innerHTML = profileSvg(pts, brks);
     $("saveGaps").innerHTML = gapsNote(pts, brks);
-    $("fTitle").value = ride ? ride.title : (rec.title || `${defaultTitle(rec.start)}`);
+    $("fTitle").value = ride ? ride.title : (rec.title || `${defaultTitle(rec.start, rec.sport)}`);
     $("fDesc").value = ride ? ride.description : (rec.description || "");
     $("resumeBtn").hidden = !!ride; $("discardBtn").hidden = !!ride; $("cancelEdit").hidden = !ride;
     $("saveLabel").textContent = ride ? "Save changes" : "Save to My rides";
@@ -533,9 +533,10 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
         const end = rec.end || Date.now();
         ride = { id: "ride-" + rec.start, start: rec.start, end, points: rec.points, stats: statsOf(rec.points, rec.start, end, rec.breaks), saved: Date.now() };
         if (rec.breaks && rec.breaks.length) ride.breaks = rec.breaks;
+        if (rec.sport) ride.sport = rec.sport;   // "ski": recorded in Skiing (navigate.js)
         if (ride.stats.climb == null && rec.points.length > 1) { try { const ud = await mapClimb(rec.points); ride.stats.climb = ud.up; ride.stats.descent = ud.down; ride.stats.climbFrom = "map"; } catch {} }
       }
-      ride.title = $("fTitle").value.trim() || defaultTitle(ride.start);
+      ride.title = $("fTitle").value.trim() || defaultTitle(ride.start, ride.sport);
       ride.description = $("fDesc").value.trim();
       // photos: drop removed ones, add new ones (shrunk), keep the order shown
       let order = 0, cover = null;

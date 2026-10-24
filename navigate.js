@@ -273,7 +273,7 @@
 .nav-route .x { float: right; font: inherit; font-size: .85rem; border: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; padding: 0 0 0 8px; }
 #navRideBtn { font-weight: 700; }
 @media (max-width: 760px) { #navRideBtn { display: none; } }
-body.sport-alt #navRideBtn { display: none; }
+body.sport-hunt #navRideBtn { display: none; }
 `;
   document.head.appendChild(css);
   const strip = document.createElement("div");
@@ -456,7 +456,7 @@ body.sport-alt #navRideBtn { display: none; }
   }
   function fillGap(a, b, dt) {
     let got = null;
-    try { got = trailPath(a, b, dt); } catch {}
+    try { if (!document.body.classList.contains("sport-ski")) got = trailPath(a, b, dt); } catch {}   // ski tours don't follow bike trails
     const min = Math.round(dt / 60), when = min >= 1 ? `${min} min` : `${Math.round(dt)} s`;
     if (got && got.path.length > 1) {
       // points along the trail at an even pace, between the two real fixes; heights unknown
@@ -489,7 +489,25 @@ body.sport-alt #navRideBtn { display: none; }
     else { gpsMsg.textContent = "Looking for GPS… Being outside with a view of the sky helps."; gpsMsg.hidden = false; }
   }
 
+  // Skiing (winter.js): no bike trails to name. The strip says what you're doing, your height and the slope under
+  // you, and warns on avalanche terrain (30° and steeper).
+  let skiAt = null;
+  function updateSki(p) {
+    ride.on = null; onGlow.setLatLngs([]); layer.removeLayer(jDot); $("navNext").hidden = true;
+    $("navName").textContent = route ? `Following ${route.name}` : "Recording your ski tour";
+    if (skiAt && metres(skiAt, p) < 15) return;
+    skiAt = p;
+    const S = window.tfSki;
+    if (!S) { $("navBar").style.background = "#1f5fe0"; return; }
+    S.slopeAt(p[0], p[1]).then(({ slope, e }) => {
+      if (!rec || skiAt !== p) return;
+      const steep = slope >= 30;
+      $("navBar").style.background = steep ? "#e8590c" : "#1f5fe0";
+      $("navSub").innerHTML = `${Math.round(e).toLocaleString()} m high · slope here ${Math.round(slope)}°${steep ? ` · <b>avalanche terrain</b>` : ""}`;
+    }).catch(() => { $("navSub").textContent = "Heights not available here"; });
+  }
   function updateTrail(p, acc) {
+    if (document.body.classList.contains("sport-ski")) { updateSki(p); return; }
     const found = findTrail(p, acc);
     if (!found.w) {
       ride.on = null; onGlow.setLatLngs([]); layer.removeLayer(jDot);
@@ -864,6 +882,7 @@ body.sport-alt #navRideBtn { display: none; }
       await delCurrent();
     }
     rec = cur && !cur.end ? cur : { id: "current", start: Date.now(), points: [], from: "ride" };
+    if (!rec.points.length && document.body.classList.contains("sport-ski")) rec.sport = "ski";   // a ski tour: My rides and Skiing's "Your ski tours" know it
     rec.from = "ride";             // ride.html's Keep riding sends it back here
     resumeBox.hidden = true;
     drawTrack();

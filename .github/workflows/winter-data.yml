@@ -4,6 +4,7 @@ name: Winter data
 #  - every 2 hours, Avalanche Canada's current avalanche forecasts for the region -> data/avalanche.json, and the
 #    snowmobile clubs' grooming reports (data/snowmobile-clubs.json) -> data/grooming.json
 #    and the last 2 weeks of Avalanche Canada Mountain Information Network reports -> data/avalanche-reports.json
+#    and the BC snow pillow stations' snow depth, new snow and temperature -> data/snow-stations.json
 #  - every night, backcountry ski routes, snowmobile trails and huts (OpenStreetMap + BC Recreation Sites and Trails) -> data/ski.json
 # On a pull request that changes the script it only does a test run, without saving anything.
 on:
@@ -14,6 +15,7 @@ on:
   pull_request:
     paths:
       - scripts/build-winter.mjs
+      - scripts/build-snow-stations.mjs
       - .github/workflows/winter-data.yml
       - data/snowmobile-clubs.json
 
@@ -41,11 +43,14 @@ jobs:
           ONLY: ${{ github.event.schedule == '23 */2 * * *' && 'avy,groom' || (github.event.schedule == '41 10 * * *' && 'ski' || '') }}
           PROBE: ${{ github.event_name == 'pull_request' && '1' || '' }}
         run: node scripts/build-winter.mjs
+      - name: Snow stations (with the avalanche forecasts; a failure keeps the last file)
+        if: github.event.schedule != '41 10 * * *'
+        run: node scripts/build-snow-stations.mjs || echo "::warning::Snow stations failed; keeping the last file"
       - name: File sizes
-        run: ls -l data/ski.json data/avalanche.json data/avalanche-reports.json data/grooming.json || true
+        run: ls -l data/ski.json data/avalanche.json data/avalanche-reports.json data/grooming.json data/snow-stations.json || true
       - name: Save the new data
         if: github.event_name != 'pull_request' && github.ref_name == 'main'
-        run: bash scripts/site-data.sh save "Winter data" data/ski.json data/avalanche.json data/avalanche-reports.json data/grooming.json
+        run: bash scripts/site-data.sh save "Winter data" data/ski.json data/avalanche.json data/avalanche-reports.json data/grooming.json data/snow-stations.json
       - name: Publish the website
         if: github.event_name != 'pull_request'
         env:

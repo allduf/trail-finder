@@ -42,6 +42,10 @@
   const zonesIn = (box) => (window.tfZones || []).filter((z) => z.box[0] < box[2] && z.box[2] > box[0] && z.box[1] < box[3] && z.box[3] > box[1]);
   const dataUrls = (box) => [...zonesIn(box).flatMap((z) => DATA.map((d) => `data/${d}-${z.id}.json`)), "data/fires.json", "data/motor-closures.json"]
     .map((u) => new URL(u, location.href).href);
+  // Saved in Skiing: the ski data and the terrain tiles behind slope shading (winter.js, window.tfSkiOffline).
+  const isSki = () => document.body.classList.contains("sport-ski");
+  const skiParts = (box, on) => (on && window.tfSkiOffline ? window.tfSkiOffline(box) : { data: [], tiles: [] });
+  const DEM_KB = 130;          // one terrain tile
   const viewBox = () => { const b = map.getBounds().pad(0.1);   // a margin, as the vector map draws a little past the screen
     return [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((v) => +v.toFixed(5)); };
   let drawn = null;   // [south, west, north, east] of a square drawn on the map, saved instead of the screen
@@ -78,7 +82,7 @@
   card.className = "offline-card";
   card.hidden = true;
   card.innerHTML = `<h2>Offline maps <button type="button" data-x aria-label="Close">✕</button></h2>
-<p class="muted">Save the area on screen, or draw a square on the map, to use the map, trails and forest roads with no signal. Saved maps use the Sharp outdoor style, which the map switches to when you're offline.</p>
+<p class="muted">Save the area on screen, or draw a square on the map, to use the map, trails and forest roads with no signal (in Skiing: ski routes, the avalanche forecast, snow stations and slope angles too). Saved maps use the Sharp outdoor style, which the map switches to when you're offline.</p>
 <div data-new><input data-name maxlength="60" aria-label="Name for this area"><p data-est></p>
 <div class="row"><button class="btn primary" type="button" data-save>Save this area</button><button class="btn" type="button" data-draw>▭ Draw a square</button><button class="btn" type="button" data-stop hidden>Stop</button></div>
 <p class="muted" data-drawn hidden>Saving the square you drew. <button type="button" class="linkish" data-undraw>Use the screen instead</button></p>
@@ -128,8 +132,10 @@
     est.textContent = `${tiles.toLocaleString()} map tiles${zones.length ? " plus trails and roads for " + zones.map((z) => z.name).join(", ") : ""}…`;
     const data = (await Promise.all(dataUrls(box).map(headSize))).reduce((a, b) => a + b, 0);
     if (my !== estToken) return;
-    est.textContent = `About ${mb(tiles * TILE_KB * 1e3 + data)}: ${tiles.toLocaleString()} map tiles` +
+    const ski = skiParts(box, isSki());
+    est.textContent = `About ${mb(tiles * TILE_KB * 1e3 + data + ski.tiles.length * DEM_KB * 1e3)}: ${tiles.toLocaleString()} map tiles` +
       (zones.length ? ` plus trails and forest roads for ${zones.map((z) => z.name).join(", ")}.` : ". This area is outside the trail data region, so only the map is saved.") +
+      (ski.tiles.length ? ` Skiing: ski routes, the avalanche forecast, snow stations and the terrain for slope angles (${ski.tiles.length.toLocaleString()} tiles).` : "") +
       (navigator.onLine ? "" : " You're offline: connect to save it.");
   }
   map.on("moveend", () => { if (!card.hidden && !busy) { estimate(); if (!$("[data-name]").dataset.typed) $("[data-name]").value = suggestName(); } });
@@ -289,10 +295,11 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
     prog.textContent = "Getting the map style…";
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     let sources = null, bytes = 0, failed = [];
+    const old0 = id && load().find((x) => x.id === id), withSki = old0 ? !!old0.ski : isSki(), ski = skiParts(box, withSki);
     const record = () => {
       if (!sources) return;
       const areas = load(), old = areas.find((x) => x.id === id);
-      const entry = { id: id || Date.now().toString(36), name, box, sources, bytes, at: Date.now() };
+      const entry = { id: id || Date.now().toString(36), name, box, sources, bytes, at: Date.now(), ski: withSki };
       if (failed.length || busy.stop) entry.missing = Math.max(1, failed.length + busy.left);
       if (old) Object.assign(old, entry); else areas.push(entry);
       id = entry.id;
@@ -303,12 +310,12 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
       const parts = await styleParts(cache);
       sources = parts.sources;
       const tiles = sources.flatMap((s) => [...tileUrls(s, box)]);
-      const data = dataUrls(box);
-      const total = tiles.length + data.length + parts.extra.length + LIBS.length;
+      const data = [...dataUrls(box), ...ski.data];
+      const total = tiles.length + data.length + parts.extra.length + LIBS.length + ski.tiles.length;
       let done = 0;
       busy.left = total;
       const tick = () => { done++; busy.left = total - done; bar.firstChild.style.width = (100 * done) / total + "%"; prog.textContent = `${done.toLocaleString()} of ${total.toLocaleString()} files`; };
-      for (const [urls, optional] of [[[...LIBS, ...parts.extra]], [data, true], [tiles]]) {   // a zone may not have every kind of file
+      for (const [urls, optional] of [[[...LIBS, ...parts.extra]], [data, true], [tiles], [ski.tiles]]) {   // a zone may not have every kind of file
         const got = await fetchAll(cache, urls, tick, optional);
         bytes += got.bytes; failed.push(...got.failed);
       }
@@ -348,9 +355,10 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
     const rest = areas.filter((x) => x !== a);
     save(rest);
     if (!rest.length) { await caches.delete(CACHE); return; }
-    const keep = new Set(rest.flatMap((x) => [...x.sources.flatMap((s) => [...tileUrls(s, x.box)]), ...dataUrls(x.box)]));
+    const urlsOf = (x) => { const k = skiParts(x.box, x.ski); return [...x.sources.flatMap((s) => [...tileUrls(s, x.box)]), ...dataUrls(x.box), ...k.tiles]; };   // ski data files stay: they are small and shared
+    const keep = new Set(rest.flatMap(urlsOf));
     const cache = await caches.open(CACHE);
-    const drop = [...a.sources.flatMap((s) => [...tileUrls(s, a.box)]), ...dataUrls(a.box)].filter((u) => !keep.has(u));
+    const drop = urlsOf(a).filter((u) => !keep.has(u));
     for (let i = 0; i < drop.length; i += 50) await Promise.all(drop.slice(i, i + 50).map((u) => cache.delete(u)));
   }
 
