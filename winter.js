@@ -818,7 +818,12 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
       const elev = $("skElev");
       if (info && elev) { elev.innerHTML = elevHtml(info, area ? area.bands : DEFAULT_BANDS, area); bindProfile(elev, info); }
     };
-    const showWx = (lat, lon, ele) => weather(lat, lon, ele).then((w) => { if (live()) $("skWx").innerHTML = wxHtml(w, ele); })
+    // Under the weather: clouds by height against the route's top and bottom (clouds.js).
+    const showWx = (lat, lon, ele, lo) => weather(lat, lon, ele).then((w) => {
+      if (!live()) return;
+      $("skWx").innerHTML = wxHtml(w, ele) + (window.tfClouds ? `<div class="sk-sec" id="skClouds"></div>` : "");
+      if (window.tfClouds) window.tfClouds.chart($("skClouds"), { lat, lon, lo: lo ?? ele, hi: ele, kind: lo != null && ele - lo >= 60 ? "route" : "here" });
+    })
       .catch((e) => { if (live()) $("skWx").innerHTML = `<h4>Weather</h4><p class="sk-note">Couldn't load the weather (${esc(e.message)}).</p>`; });
     showAvy(r.info || null);
     if (!minData && !minErr) loadMin().then(() => showAvy(r.info || null));
@@ -827,7 +832,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
     routeInfo(group).then((info) => {
       if (!live()) return;
       showAvy(info);
-      showWx(info.top.lat, info.top.lon, info.max);
+      showWx(info.top.lat, info.top.lon, info.max, info.min);
       showPh(info);
       drawAbove(info);
       if (mine) renderPlan();
@@ -1318,10 +1323,8 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
       protocol = true;
       maplibregl.addProtocol("tfavy", async (params) => {
         const [z, x, y] = params.url.replace("tfavy://", "").split("?")[0].split("/").map(Number);
-        const img = await paint(z, x, y);
-        const cv = new OffscreenCanvas(256, 256);
-        cv.getContext("2d").putImageData(img, 0, 0);
-        return { data: await (await cv.convertToBlob({ type: "image/png" })).arrayBuffer() };
+        // A picture, not PNG bytes: encoding a canvas on the page waits for the 3D map's drawing (see map3d.js tfdem).
+        return { data: await createImageBitmap(await paint(z, x, y)) };
       });
     }
     const want = sport === "ski" && avyOn;
@@ -1379,9 +1382,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
       slopeProtocol = true;
       maplibregl.addProtocol("tfslope", async (params) => {
         const [z, x, y] = params.url.replace("tfslope://", "").split("?")[0].split("/").map(Number);
-        const cv = new OffscreenCanvas(256, 256);
-        cv.getContext("2d").putImageData(await paintSlope(z, x, y), 0, 0);
-        return { data: await (await cv.convertToBlob({ type: "image/png" })).arrayBuffer() };
+        return { data: await createImageBitmap(await paintSlope(z, x, y)) };   // a picture, not PNG bytes (see avy above)
       });
     }
     const want = sport === "ski" && shown.has("slope");
@@ -1493,9 +1494,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
       heatProtocol = true;
       maplibregl.addProtocol("tfheat", async (params) => {
         const [z, x, y] = params.url.replace("tfheat://", "").split("?")[0].split("/").map(Number);
-        const cv = new OffscreenCanvas(256, 256);
-        cv.getContext("2d").putImageData(paintHeat(z, x, y), 0, 0);
-        return { data: await (await cv.convertToBlob({ type: "image/png" })).arrayBuffer() };
+        return { data: await createImageBitmap(paintHeat(z, x, y)) };   // a picture, not PNG bytes (see avy above)
       });
     }
     const want = sport === "ski" && shown.has("heat") && !!heat;
