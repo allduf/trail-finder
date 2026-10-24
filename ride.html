@@ -242,6 +242,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     <p class="when" id="rWhen"></p>
     <div class="map" id="rideMap" role="application" aria-label="Map of this ride"></div>
     <div class="finds" id="rFinds" aria-live="polite"></div>
+    <div id="rShare"></div>
     <dl class="stats" id="rStats"></dl>
     <div class="profile" id="rProfile"></div>
     <p class="hint warn" id="rGaps"></p>
@@ -256,14 +257,15 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
 </main>
 <div class="lightbox" id="lightbox" hidden><img id="lightImg" alt=""></div>
 
-<script src="native.js?v=348"></script>
-<script src="account.js?v=348"></script>
+<script src="native.js?v=350"></script>
+<script src="account.js?v=350"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-<script src="ride-files.js?v=348"></script>
-<script src="ride-stats.js?v=348"></script>
-<script src="strava.js?v=348"></script>
-<script src="ride-finds.js?v=348"></script>
-<script src="native-gps.js?v=348"></script>
+<script src="ride-files.js?v=350"></script>
+<script src="ride-stats.js?v=350"></script>
+<script src="strava.js?v=350"></script>
+<script src="ride-finds.js?v=350"></script>
+<script src="share.js?v=350"></script>
+<script src="native-gps.js?v=350"></script>
 <script>
 (() => {
   "use strict";
@@ -590,6 +592,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
       ride.photoCount = order;
       await dbPut("rides", ride);
       uploadSoon(ride.id);
+      if (window.tfShare) window.tfShare.kick();
       if (!editing) { await dbDel("current", "current"); rec = null; recLine.setLatLngs([]); renderLive(); showGps("Ride saved. Press Start for the next one."); }
       try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
       await countRides();
@@ -699,6 +702,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     }
     // Stretches with no trail on the map: offered as possible new trails (ride-finds.js).
     if (window.tfRideFinds) window.tfRideFinds.mount($("rFinds"), r, rideMap); else $("rFinds").innerHTML = "";
+    if (window.tfShare) window.tfShare.mountRide($("rShare"), r);   // "Help improve Trail Finder" (share.js)
   }
   $("backToRides").addEventListener("click", () => { location.hash = "#rides"; });
   $("editBtn").addEventListener("click", () => openSave(shown));
@@ -799,6 +803,7 @@ ${pts}
     if (added.length === 1 && files.length === 1) location.hash = "#ride/" + added[0].id;
     else if (location.hash === "#rides") renderRides(); else location.hash = "#rides";
     if (added.length > 1) showScan(added.map((r) => r.id));
+    if (added.length && window.tfShare) window.tfShare.kick();
   }
 
   // ---------- the whole Strava archive (.zip from "Download or Delete Your Account") ----------
@@ -861,6 +866,7 @@ ${pts}
     await countRides();
     if (location.hash === "#rides") renderRides(); else location.hash = "#rides";
     if (added.length) showScan(added.map((r) => r.id));
+    if (added.length && window.tfShare) window.tfShare.kick();
   }
   $("zipFile").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) importArchive(f).finally(() => { e.target.value = ""; }); });
 

@@ -1,0 +1,46 @@
+name: Shared rides (Help improve Trail Finder)
+
+# Every night, turn the ride lines riders chose to share (share.js, Supabase table shared_rides) into
+# data/community.json: trails 3 or more riders use that aren't on the map, which way trails are ridden and how busy
+# they are (scripts/build-community.mjs). Read by community.js. Lines older than 2 years are deleted on the way.
+# On a pull request that changes the script it only does a test run, without saving anything.
+on:
+  schedule:
+    - cron: "23 9 * * *"    # daily 9:23 UTC (2:23 am Pacific in summer time)
+  workflow_dispatch:        # "Run workflow" button on the Actions tab
+  pull_request:
+    paths:
+      - scripts/build-community.mjs
+      - .github/workflows/community-data.yml
+
+permissions:
+  contents: write   # save the data file (site-data branch)
+  actions: write    # start "Publish website" afterwards
+
+concurrency:
+  group: community-data-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
+        run: bash scripts/site-data.sh get
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build the shared-ride results
+        env:
+          SUPABASE_SECRET_KEY: ${{ github.event_name != 'pull_request' && secrets.SUPABASE_SECRET_KEY || '' }}
+        run: node scripts/build-community.mjs
+      - name: Save the new data
+        if: github.event_name != 'pull_request' && github.ref_name == 'main'
+        run: bash scripts/site-data.sh save "Shared rides" data/community.json
+      - name: Publish the website
+        if: github.event_name != 'pull_request' && github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main || echo "The website will publish with the next data job."

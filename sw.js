@@ -4,10 +4,10 @@
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-155";
+const VERSION = "tf-157";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=348", "reports.js?v=348", "grades.js?v=348", "trail-photos.js?v=348", "status.js?v=348", "visitors.js?v=348", "map3d.js?v=348", "winter.js?v=348", "clouds.js?v=348", "smoke.js?v=348", "ski-points.js?v=348", "webcams.js?v=348", "hunting.js?v=348", "offline.js?v=348", "native-gps.js?v=348", "native.js?v=348", "navigate.js?v=348", "ride-stats.js?v=348", "ride-finds.js?v=348", "rides.js?v=348", "planner.js?v=348", "rotate.js?v=348", "photo-find.js?v=348", "ebike.js?v=348", "closures.js?v=348", "loops.js?v=348", "strava.js?v=348", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=350", "reports.js?v=350", "grades.js?v=350", "trail-photos.js?v=350", "status.js?v=350", "visitors.js?v=350", "map3d.js?v=350", "winter.js?v=350", "clouds.js?v=350", "smoke.js?v=350", "ski-points.js?v=350", "webcams.js?v=350", "hunting.js?v=350", "offline.js?v=350", "native-gps.js?v=350", "native.js?v=350", "navigate.js?v=350", "ride-stats.js?v=350", "ride-finds.js?v=350", "rides.js?v=350", "planner.js?v=350", "rotate.js?v=350", "photo-find.js?v=350", "ebike.js?v=350", "closures.js?v=350", "loops.js?v=350", "strava.js?v=350", "share.js?v=350", "community.js?v=350", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
