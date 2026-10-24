@@ -26,7 +26,9 @@ const MODELS = ["gemini-flash-latest", "gemini-3.6-flash", "gemini-3-flash-previ
 // Gemini 3 and later a level. A model that refuses one setting is asked with the next.
 const THINK = [{ thinkingLevel: "minimal" }, { thinkingBudget: 0 }, { thinkingLevel: "low" }, null];
 const slow = new Set<string>();   // models that ran out of time in this running copy: tried last from then on
-const spent = new Map<string, number>();   // model -> when to try it again: its free allowance was used up (429)
+// model (or "model search": Google Search with it) -> when to try it again: that free allowance was used up (429). Google
+// Search has an allowance of its own (often none on a free key): running out of it doesn't stop plain answers.
+const spent = new Map<string, number>();
 const gone = new Set<string>();   // model names Google doesn't serve (404): not asked again by this running copy
 const seen = new Map<string, number[]>();   // a light brake per address (each running copy of the function keeps its own)
 
@@ -36,6 +38,11 @@ const SCHEMA = {
   properties: {
     trail_names: list("Trail names written anywhere in the pictures or text (signs, captions, overlays, hashtags), as written"),
     landmarks: list("Named landmarks you can see or that are named, using the names from the landmark list when one fits"),
+    views: {
+      type: "ARRAY",
+      description: "Each named landmark you can actually see in the picture (not only named in its text), with where it is across the picture: 0 = left edge, 0.5 = middle, 1 = right edge. Left to right",
+      items: { type: "OBJECT", properties: { name: { type: "STRING" }, x: { type: "NUMBER" } }, required: ["name", "x"] },
+    },
     places: list("Towns, riding areas or regions the pictures or text point to"),
     terrain: list("Short plain words for what the trail and background look like: granite slabs, roots, loam, alpine, desert, cedar forest, lake below, ocean view..."),
     scene: { type: "STRING", description: "One or two sentences on what is in the picture and where it might be" },
@@ -63,11 +70,12 @@ const SCHEMA = {
       },
     },
   },
-  required: ["trail_names", "landmarks", "places", "terrain", "scene", "viewpoint", "guesses"],
+  required: ["trail_names", "landmarks", "views", "places", "terrain", "scene", "viewpoint", "guesses"],
 };
 
 type Viewpoint = { lat: number; lon: number; km: number; where: string } | null;
-type Out = { trail_names: string[]; landmarks: string[]; places: string[]; terrain: string[]; scene: string; viewpoint: Viewpoint; guesses: { trail: string; area: string; why: string }[] };
+type Out = { trail_names: string[]; landmarks: string[]; views: { name: string; x: number }[]; places: string[]; terrain: string[]; scene: string; viewpoint: Viewpoint;
+  guesses: { trail: string; area: string; why: string }[] };
 const strs = (v: unknown) => (Array.isArray(v) ? v.filter((s) => typeof s === "string").map((s) => s.slice(0, 120)).slice(0, 12) : []);
 // Only a spot inside the app's area (British Columbia and Alberta) with a usable size counts.
 function spot(v: unknown): Viewpoint {
@@ -80,6 +88,9 @@ function clean(o: Record<string, unknown>): Out {
   const g = Array.isArray(o.guesses) ? o.guesses : [];
   return {
     trail_names: strs(o.trail_names), landmarks: strs(o.landmarks), places: strs(o.places), terrain: strs(o.terrain),
+    // Where each landmark seen is across the picture (the site works out from where the picture can show them so).
+    views: (Array.isArray(o.views) ? o.views : []).filter((v) => v && typeof v.name === "string" && typeof v.x === "number" && v.x >= 0 && v.x <= 1)
+      .slice(0, 6).map((v) => ({ name: v.name.slice(0, 120), x: Math.round(v.x * 100) / 100 })),
     scene: typeof o.scene === "string" ? o.scene.slice(0, 600) : "",
     viewpoint: spot(o.viewpoint),
     guesses: g.filter((x) => x && typeof x.trail === "string").slice(0, 3)
@@ -118,7 +129,8 @@ Deno.serve(async (req) => {
     `Help find which trail it is. The app covers British Columbia (Vancouver to the Rockies) and Alberta riding areas.\n` +
     `Look at everything: words written anywhere, the post's caption, location tags, Strava or Trailforks overlays, and the background: ` +
     `big mountains, rock walls, peaks, glaciers, lakes, ocean, towns, ski runs, the type of forest, rock and dirt.\n` +
-    `Then work out where the camera stood: which way the landmarks, water and valleys lie, and how high above them, and give that spot as the viewpoint.\n` +
+    `Then work out where the camera stood: which way the landmarks, water and valleys lie, and how high above them, and give that spot as the viewpoint. ` +
+    `For each landmark you can see in the picture, say where it sits across the picture (views).\n` +
     `Only name a landmark you really recognise; say nothing rather than guess. Prefer these landmark names when one fits: ${(body.landmarks || []).slice(0, 120).map((s) => clip(s, 60)).join("; ")}.\n` +
     (clip(body.area, 80) ? `The rider thinks it's in: ${clip(body.area, 80)}.\n` : "") +
     (clip(body.description, 800) ? `The rider describes it as: """${clip(body.description, 800)}"""\n` : "") +
@@ -186,7 +198,8 @@ async function gemini(key: string, parts: unknown[], o: { schema?: unknown; sear
     ...(o.search ? { tools: [{ google_search: {} }] } : {}),
     generationConfig: { temperature: 0.2, ...(o.schema ? { responseMimeType: "application/json", responseSchema: o.schema } : {}), ...(think ? { thinkingConfig: think } : {}) },
   });
-  const named = [Deno.env.get("GEMINI_MODEL"), ...MODELS].filter((m, i, a): m is string => !!m && a.indexOf(m) === i && !gone.has(m) && !((spent.get(m) || 0) > Date.now()));
+  const used = (k: string) => (spent.get(k) || 0) > Date.now();
+  const named = [Deno.env.get("GEMINI_MODEL"), ...MODELS].filter((m, i, a): m is string => !!m && a.indexOf(m) === i && !gone.has(m) && !used(m) && !(o.search && used(m + " search")));
   const models = [...named.filter((m) => !slow.has(m)), ...named.filter((m) => slow.has(m))];
   const notes: string[] = [];   // what happened with each model, shown when none answers (and in the function's Logs)
   let late = false, busy = !models.length;
@@ -212,10 +225,11 @@ async function gemini(key: string, parts: unknown[], o: { schema?: unknown; sear
     if (r.status === 404) { gone.add(model); note("not available (404)"); continue; }   // that model name is gone: try the next
     if (r.status === 429) {
       // Used up: today's allowance (back at midnight Pacific; tried again in an hour) or this minute's. Try the next model.
-      const daily = /per ?day|PerDay|daily/i.test(await r.text().catch(() => ""));
-      spent.set(model, Date.now() + (daily ? 3600e3 : 60e3));
+      const msg = await r.text().catch(() => "");
+      const daily = /per ?day|PerDay|daily/i.test(msg);
+      spent.set(o.search ? model + " search" : model, Date.now() + (daily ? 3600e3 : 60e3));
       busy = true;
-      note(daily ? "today's free allowance is used up (429)" : "busy this minute (429)");
+      note(`${o.search ? "Google search: " : ""}${daily ? "today's free allowance is used up" : "busy this minute"} (429${quota(msg)})`);
       continue;
     }
     if (r.status === 400 || r.status === 401 || r.status === 403) {
@@ -237,6 +251,15 @@ async function gemini(key: string, parts: unknown[], o: { schema?: unknown; sear
   }
   if (busy && !late) return { status: 429, error: "the free AI is busy or used up for today, try again later", detail: notes.join("; ") || "every model is used up", search: o.search };
   return { status: late ? 504 : 502, error: `no AI model answered (${notes.join("; ") || "no time left"})` };
+}
+
+// Which allowance Google says ran out, and its size ("…FreeTier, limit 20"): a limit of 0 means the free tier has none.
+function quota(msg: string): string {
+  try {
+    type V = { quotaId?: string; quotaValue?: string };
+    const v = ((JSON.parse(msg).error?.details || []) as { violations?: V[] }[]).flatMap((d) => d.violations || [])[0];
+    return v ? `: ${String(v.quotaId || "").slice(0, 70)}${v.quotaValue ? ", limit " + v.quotaValue : ""}` : "";
+  } catch { return ""; }
 }
 
 // ---------- compare: the app's likely trails against what's online about them ----------
@@ -486,10 +509,12 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
   const s = await gemini(key, [...images.slice(0, 1).map((d) => img(d)), { text: searchAsk }], { search: true }, t0 + 30000);
   let web: { trail: string; looks: string; fit: number; why: string }[] = [], pages: { trail: string; url: string }[] = [], area: { trail: string; url: string }[] = [];
   let sources: { uri: string; title: string }[] = [], suggest = "", searched = false, noSearch = "";
+  const notes: string[] = [];   // why a step had no AI answer (each model's note): for the accuracy test and the Logs
   if ("error" in s) {
     if (s.status === 503) return reply(503, { error: s.error });
     // Google Search not allowed on this key, used up or slow: the photos only.
     noSearch = s.status === 429 ? "Google search is busy or used up for today" : s.status === 504 ? "Google search took too long" : "Google search isn't available on this key";
+    notes.push("search: " + (s.detail || s.error));
   } else {
     searched = true;
     const o = json(s.text) || {};
@@ -531,7 +556,7 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
 
   // 3. The rider's picture next to the found photos and what the web says: a fit for each trail, and how close each
   // photo looks.
-  if (!photos.length && !web.length) return reply(200, { ok: false, searched, noSearch, sources, suggest, why: "found nothing online about these trails" });
+  if (!photos.length && !web.length) return reply(200, { ok: false, searched, noSearch, sources, suggest, why: "found nothing online about these trails", detail: notes.join(" | ") });
   const km1 = kmApart;
   const label = (p: Photo) => p.from === "confirmed" && p.near && p.at ? `a rider confirmed this picture is ${p.trail}, ${spot ? km1(p.at, spot.c).toFixed(1) + " km from" : "near"} where the picture seems taken`
     : p.from === "confirmed" ? `a rider confirmed this picture is ${p.trail}`
@@ -542,7 +567,8 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
   const parts: unknown[] = [{ text: "The rider's picture:" }, ...images.slice(0, 2).map((d) => img(d))];
   photos.forEach((p, i) => { parts.push({ text: `Found photo ${i + 1}: ${label(p)}` }, img(p.data, p.mime)); });
   parts.push({ text: `Which of these mountain bike trails is the rider's picture from?\n${list}\n${said}\n` +
-    (web.length ? `What Google search found about them:\n${web.map((w) => `- ${w.trail}: ${w.looks} (fit ${w.fit}: ${w.why})`).join("\n")}\n` : "") +
+    (web.length ? `What Google search found about them:\n${web.map((w) => `- ${w.trail}: ${w.looks} (fit ${w.fit}: ${w.why})`).join("\n")}\n`
+      : `Google search wasn't available this time: use what you know about these trails too, if anything.\n`) +
     `Compare the rider's picture with each found photo: the same rock, slope, view, water, mountains or trail features means the same place. ` +
     `A found photo can show a different part of the trail, so also weigh the descriptions. Give every trail a fit, and every found photo a closeness.` });
   const f = await gemini(key, parts, { schema: FINAL }, t0 + 75000);
@@ -561,6 +587,10 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
     close = (Array.isArray(o.photos) ? o.photos : []).map((x) => ({ p: photos[Math.round(+x?.n || 0) - 1], c: Math.max(0, Math.min(1, +x?.close || 0)), why: String(x?.why || "").slice(0, 200) }))
       .filter((x) => x.p && (x.p.from === "area" || x.p.near) && (x.p.at || x.p.trail) && x.c >= 0.4).sort((a, b) => b.c - a.c).slice(0, 5)
       .map((x) => ({ ...(pub(x.p) || { img: "", page: "", title: "" }), close: x.c, why: x.why, at: x.p.at || null, trail: x.p.trail, ...(x.p.near ? { confirmed: true } : {}) }));
-  } else ranks = web.map((w) => ({ trail: w.trail, fit: w.fit, why: w.why, photo: null }));
-  return reply(200, { ok: ranks.length > 0 || close.length > 0, ms: Date.now() - t0, searched, noSearch, ranks, close, photos: photos.length, area: photos.filter((p) => p.from === "area" || p.near).length, sources, suggest });
+  } else {
+    ranks = web.map((w) => ({ trail: w.trail, fit: w.fit, why: w.why, photo: null }));
+    notes.push("compare: " + ("error" in f ? f.detail || f.error : "no answer"));
+  }
+  return reply(200, { ok: ranks.length > 0 || close.length > 0, ms: Date.now() - t0, searched, noSearch, ranks, close, photos: photos.length,
+    area: photos.filter((p) => p.from === "area" || p.near).length, sources, suggest, detail: notes.join(" | ") });
 }

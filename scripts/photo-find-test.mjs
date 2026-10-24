@@ -107,6 +107,7 @@ for (const [i, c] of cases.entries()) {
     ai: !!(got && got.diag && got.diag.ai), how: err || how(got && got.diag, c), broken: !got };
   results.push(r);
   console.log(`${r.rank === 1 ? "✓" : r.rank ? "~" : "✗"} ${r.trail} (${r.zone}): ${r.rank ? "#" + r.rank : "not listed"}, top: ${r.top.join(", ") || "nothing"} (${r.s} s)\n    ${r.how}`);
+  if (got && got.diag && got.diag.cmp && got.diag.cmp.detail) console.log(`    online check notes: ${got.diag.cmp.detail}`);
 }
 await browser.close();
 server.close();
@@ -119,14 +120,20 @@ function how(d, c) {
   if (!d.ai) out.push(`AI skipped (${d.why || "?"}${d.detail ? ": " + d.detail : ""})`);
   else {
     const a = d.ai, vp = a.vp && c.lat != null ? km({ lat: a.vp.lat, lon: a.vp.lon }, c).toFixed(1) : null;
-    out.push(`AI: ${[a.places.length ? "places " + a.places.join(", ") : "", a.landmarks.length ? "landmarks " + a.landmarks.join(", ") : "",
+    out.push(`AI${a.model ? " (" + a.model + ")" : ""}: ${[a.places.length ? "places " + a.places.join(", ") : "", a.landmarks.length ? "landmarks " + a.landmarks.join(", ") : "",
+      (a.views || []).length ? "seen across the picture " + a.views.map((v) => `${v.name} ${v.x}`).join(", ") : "",
       a.guesses.length ? "guesses " + a.guesses.join(", ") : ""].filter(Boolean).join("; ") || "nothing named"}` +
       (vp ? `; placed it ${vp} km from the trail (it said ±${a.vp.km} km)` : "; no spot"), `reverse search: ${a.rev}`);
   }
   if (d.before) {
     const b = d.before.findIndex((n) => norm(n) === norm(c.trail_name)) + 1;
+    // The online check's fit for this trail and its best one; when it had no AI answer, why (each model's note, shortened).
+    const fits = (d.cmp && d.cmp.ranks) || [], mine = fits.find(([t]) => norm(t) === norm(c.trail_name)), top = [...fits].sort((x, y) => y[1] - x[1])[0];
+    const notes = d.cmp && d.cmp.detail ? ` [${d.cmp.detail.length > 220 ? d.cmp.detail.slice(0, 220) + "…" : d.cmp.detail}]` : "";
     out.push(`online check got ${d.before.length} trails${b ? `, this one ${b}${b === 1 ? "st" : b === 2 ? "nd" : b === 3 ? "rd" : "th"}` : ", not this one"}` +
-      (d.cmp ? (d.cmp.ok ? ` → ${d.cmp.searched ? "searched" : "no search (" + d.cmp.noSearch + ")"}, ${d.cmp.photos} photos${d.cmp.close.length ? ", close: " + d.cmp.close.join(", ") : ""}` : ` → skipped (${d.cmp.why || d.cmp.noSearch || "?"})`) : ""));
+      (d.cmp ? (d.cmp.ok ? ` → ${d.cmp.searched ? "searched" : "no search (" + d.cmp.noSearch + ")"}, ${d.cmp.photos} photos` +
+        (mine ? `, fit ${mine[1]} for this one` : "") + (top && (!mine || top[0] !== mine[0]) ? ` (best: ${top[0]} ${top[1]})` : "") +
+        `${d.cmp.close.length ? ", close: " + d.cmp.close.join(", ") : ""}` : ` → skipped (${d.cmp.why || d.cmp.noSearch || "?"})`) + notes : ""));
   }
   return out.join(" · ");
 }
