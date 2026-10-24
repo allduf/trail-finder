@@ -115,6 +115,51 @@
    "date": "2026-10-17",
    "who": "Claude (weekly audit)",
    "note": "Unnamed trailhead node on an unnamed path near Squamish; no road is missing."
+  },
+  "area-new:fv:49.04,-122.06": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "West Vedder Mountain above Yarrow: Recreation Sites and Trails BC lists these as the Vedder Mtn Motor Bike trails, with bikes allowed (tf:official). It's a dirt-bike network riders may share, not an MTB area, so no MTB label; the Vedder Mountain label stays on the MTB trails to the east."
+  },
+  "area-plain:Kicking Horse": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "The left-out names are Golden Nordic Club ski, snowshoe and walking loops at Dawn Mountain (The Dike, Wapiti, Ruby's Loop, Beaver, Chickadee); no source says they're ridden. They stay plain paths."
+  },
+  "area-plain:Lac du Bois": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "The left-out names are Batchelor Heights neighbourhood walking paths (Edgemount, Garden, Forest, Fulton Field trails) and the paved Rivers Trail, not part of the Batchelor Hills bike network."
+  },
+  "area-plain:McQueen Lake": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "The left-out names are the Isobel Lake interpretive and low-mobility walking trails and the Grasslands Community Trail; the McQueen Lake XC loops are already in."
+  },
+  "area-thin:Grand Forks": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "Researched 2026-10-17: Grand Forks' town riding is the small Lost Lake / Harpold network off Valley Heights Drive (Discover Grand Forks); 7 is its real size."
+  },
+  "area-thin:Merritt": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "Researched 2026-10-17: the label covers the small Swakum set (Tom Lacey, Scenic, Supra, Mojo); Merritt's bigger networks have their own labels (Iron Mountain, Midday Valley) since PR #214."
+  },
+  "area-thin:Princeton": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "Researched 2026-10-17: a small in-town hillside network (Forest, Ridge, Bear, Noon, Pipeline); Princeton's main riding, China Ridge, has its own label."
+  },
+  "area-thin:Oliver": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "Researched 2026-10-17: a small, unmaintained set of trails on Oliver Mountain up to the cell tower; 7 is its real size."
+  },
+  "area-thin:Glenbow Ranch": {
+   "date": "2026-10-24",
+   "who": "Claude (weekly audit)",
+   "note": "Researched 2026-10-17: Alberta Parks allows bikes on most of the park's gravel and dirt trails, but most are wide multi-use trails, and the zone's west edge (-114.42) cuts off the western trails."
   }
  }
 }
