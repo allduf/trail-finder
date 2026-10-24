@@ -10,11 +10,14 @@
 // Shapes are simplified to about 8 m and rounded to 5 decimals. A source that fails keeps its last good data.
 //
 // Also writes data/fires.json (BC Wildfire Service current fires and perimeters), and per zone cut blocks (Forest
-// Tenure cut block polygons) and Motor Vehicle Prohibition Regulation closure areas.
+// Tenure cut block polygons) and Motor Vehicle Prohibition Regulation closure areas. A closure area's shape is saved
+// once in data/motor-closures.json and the zones list it by id ("mvRef"): some areas are huge (the Thompson, Cariboo
+// and Okanagan Alpines alone is 3.5 MB) and copying them into every zone they touch took 75 MB.
 //
 // Run: node scripts/build-roads.mjs   (Node 18 or newer, no packages needed; ONLY=ften, ONLY=osm or ONLY=fires runs one part)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 
 const root = new URL("../", import.meta.url);
 const html = readFileSync(new URL("index.html", root), "utf8");
@@ -486,11 +489,19 @@ if (!ONLY || ONLY === "fires") {
 // and no new zone starts after ROADS_MINUTES (the rest keep their last good data and go first next run).
 const MINUTES = +process.env.ROADS_MINUTES || 60;
 let skipped = 0;
+// Closure area shapes, by id (a hash of the shape), shared by the zones: { v: 1, areas: { id: [rings] } }.
+const MV_FILE = "motor-closures.json";
+const mvShapes = (readJson(MV_FILE) || {}).areas || {};
+const packMv = (list) => list.map(({ g, ...m }) => {
+  const id = createHash("sha1").update(JSON.stringify(g)).digest("hex").slice(0, 12);
+  mvShapes[id] = g;
+  return { ...m, id };
+});
 const lastDone = (z) => { const f = readJson(`roads-${z.id}.json`); return f ? Math.min(Date.parse(f.osmAt) || 0, inBC(z) ? Date.parse(f.ftenAt) || 0 : Infinity) : 0; };
 for (const z of [...ZONES].sort((a, b) => lastDone(a) - lastDone(b))) {
   if (Date.now() - started > MINUTES * 60e3) { skipped++; continue; }
   const old = readJson(`roads-${z.id}.json`) || {};
-  const file = { v: 1, builtAt, ften: old.ften || [], osm: old.osm || {}, feat: old.feat || [], cut: old.cut || [], mv: old.mv || [], ftenAt: old.ftenAt || null, osmAt: old.osmAt || null };
+  const file = { v: 1, builtAt, ften: old.ften || [], osm: old.osm || {}, feat: old.feat || [], cut: old.cut || [], mv: [], mvRef: old.mvRef || packMv(old.mv || []), ftenAt: old.ftenAt || null, osmAt: old.osmAt || null };
   let changed = false;
   if (ONLY !== "osm" && inBC(z)) {
     try {
@@ -505,8 +516,8 @@ for (const z of [...ZONES].sort((a, b) => lastDone(a) - lastDone(b))) {
       log(`${z.name}: ${file.cut.length} cut blocks (${Object.entries(by).map(([k, v]) => `${v} ${k}`).join(", ")})`);
     } catch (e) { failed++; log(`${z.name}: cut blocks failed (${e.message}), keeping last good data`); }
     try {
-      file.mv = await motorClosures(z.box); changed = true;
-      log(`${z.name}: ${file.mv.length} motor vehicle closure areas${file.mv[0] ? ` (e.g. ${file.mv[0].n}: ${file.mv[0].d})` : ""}`);
+      file.mvRef = packMv(await motorClosures(z.box)); changed = true;
+      log(`${z.name}: ${file.mvRef.length} motor vehicle closure areas${file.mvRef[0] ? ` (e.g. ${file.mvRef[0].n}: ${file.mvRef[0].d})` : ""}`);
     } catch (e) { failed++; log(`${z.name}: motor vehicle closures failed (${e.message}), keeping last good data`); }
   }
   if (ONLY !== "ften") {
@@ -532,5 +543,16 @@ for (const z of [...ZONES].sort((a, b) => lastDone(a) - lastDone(b))) {
   }
   if (changed) { writeFileSync(new URL(`roads-${z.id}.json`, DATA), JSON.stringify(file)); updated++; }
 }
+// Zones not done this run that still have their closure shapes inside (files from before data/motor-closures.json).
+const mvUsed = new Set();
+for (const z of ZONES) {
+  const f = readJson(`roads-${z.id}.json`);
+  if (!f) continue;
+  if ((f.mv || []).length) { f.mvRef = packMv(f.mv); f.mv = []; writeFileSync(new URL(`roads-${z.id}.json`, DATA), JSON.stringify(f)); }
+  (f.mvRef || []).forEach((m) => mvUsed.add(m.id));
+}
+const mvOut = JSON.stringify({ v: 1, builtAt, areas: Object.fromEntries(Object.entries(mvShapes).filter(([id]) => mvUsed.has(id))) });
+writeFileSync(new URL(MV_FILE, DATA), mvOut);
+log(`${MV_FILE}: ${mvUsed.size} closure areas, ${(mvOut.length / 1e6).toFixed(1)} MB`);
 log(`Done in ${Math.round((Date.now() - started) / 60e3)} min: ${updated} zones updated, ${failed} source failures${skipped ? `, ${skipped} zones left for next time` : ""}.`);
 if (failed && !updated) process.exit(1);

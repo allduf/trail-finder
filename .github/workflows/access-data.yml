@@ -13,7 +13,7 @@ on:
       - .github/workflows/access-data.yml
 
 permissions:
-  contents: write   # commit the data files
+  contents: write   # save the data files (site-data branch)
   pages: write      # ask GitHub Pages to publish them
 
 concurrency:
@@ -26,6 +26,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
+        run: bash scripts/site-data.sh get
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -33,16 +35,9 @@ jobs:
         run: node scripts/build-access.mjs
       - name: File sizes
         run: ls -l data/access-*.json
-      - name: Commit the new data
-        if: github.event_name != 'pull_request'
-        run: |
-          git add data
-          if git diff --cached --quiet; then echo "No changes."; exit 0; fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -q -m "Trailheads and parking data"
-          git pull -q --rebase origin "${GITHUB_REF_NAME}"
-          git push -q origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Save the new data
+        if: github.event_name != 'pull_request' && github.ref_name == 'main'
+        run: bash scripts/site-data.sh save "Trailheads and parking data" 'data/access-*.json'
       - name: Publish the website
         if: github.event_name != 'pull_request'
         env:

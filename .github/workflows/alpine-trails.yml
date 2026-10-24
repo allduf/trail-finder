@@ -8,7 +8,7 @@ on:
   workflow_dispatch:         # "Run workflow" button on the Actions tab
 
 permissions:
-  contents: write   # commit the data files
+  contents: write   # save the data files (site-data branch)
   pages: write      # ask GitHub Pages to publish them
 
 concurrency:
@@ -21,20 +21,16 @@ jobs:
     timeout-minutes: 100
     steps:
       - uses: actions/checkout@v4
+      - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
+        run: bash scripts/site-data.sh get
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - name: Find alpine trails that look rideable
         run: node scripts/build-alpine.mjs
-      - name: Commit the new data
-        run: |
-          git add data
-          if git diff --cached --quiet; then echo "No changes."; exit 0; fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -q -m "Weekly alpine rideable trails"
-          git pull -q --rebase origin "${GITHUB_REF_NAME}"
-          git push -q origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Save the new data
+        if: github.ref_name == 'main'
+        run: bash scripts/site-data.sh save "Weekly alpine rideable trails" 'data/alpine-*.json'
       - name: Publish the website
         if: github.ref_name == 'main'
         env:

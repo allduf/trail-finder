@@ -14,7 +14,7 @@ on:
       - .github/workflows/loam-tune.yml
 
 permissions:
-  contents: write   # commit the data file
+  contents: write   # save the data file (site-data branch)
   actions: write    # start "Publish website" afterwards
 
 concurrency:
@@ -27,14 +27,16 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
+        run: bash scripts/site-data.sh get
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - name: Compare rider reports with the soil model
         run: node scripts/build-loam-tune.mjs
-      - name: Commit the new data
-        if: github.event_name != 'pull_request'
-        run: bash scripts/commit-data.sh "Loam tuned by rider reports" data/loam-tune.json
+      - name: Save the new data
+        if: github.event_name != 'pull_request' && github.ref_name == 'main'
+        run: bash scripts/site-data.sh save "Loam tuned by rider reports" data/loam-tune.json
       - name: Publish the website
         if: github.event_name != 'pull_request' && github.ref_name == 'main'
         env:

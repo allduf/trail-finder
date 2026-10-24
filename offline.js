@@ -40,7 +40,7 @@
       for (let x = r.x0; x <= r.x1; x++) for (let y = r.y0; y <= r.y1; y++) yield src.tmpl.replace("{z}", r.z).replace("{x}", x).replace("{y}", y);
   }
   const zonesIn = (box) => (window.tfZones || []).filter((z) => z.box[0] < box[2] && z.box[2] > box[0] && z.box[1] < box[3] && z.box[3] > box[1]);
-  const dataUrls = (box) => [...zonesIn(box).flatMap((z) => DATA.map((d) => `data/${d}-${z.id}.json`)), "data/fires.json"]
+  const dataUrls = (box) => [...zonesIn(box).flatMap((z) => DATA.map((d) => `data/${d}-${z.id}.json`)), "data/fires.json", "data/motor-closures.json"]
     .map((u) => new URL(u, location.href).href);
   const viewBox = () => { const b = map.getBounds().pad(0.1);   // a margin, as the vector map draws a little past the screen
     return [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((v) => +v.toFixed(5)); };

@@ -1412,11 +1412,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=319"></script>
-<script src="rotate.js?v=319"></script>
-<script src="official.js?v=319"></script>
-<script src="directions.js?v=319"></script>
-<script src="ratings.js?v=319"></script>
+<script src="native.js?v=320"></script>
+<script src="rotate.js?v=320"></script>
+<script src="official.js?v=320"></script>
+<script src="directions.js?v=320"></script>
+<script src="ratings.js?v=320"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3605,7 +3605,7 @@ out body;`;
   let trailInfo = null;
   const foldName = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   async function officialAbout(t) {
-    trailInfo = trailInfo || fetch("data/trail-info.json?v=319").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
+    trailInfo = trailInfo || fetch("data/trail-info.json?v=320").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
     const j = await trailInfo; if (!j) return [];
     const names = new Set([t.tags.name, t.tags["mtb:name"], t.tags["tf:name"], t.tfName].filter(Boolean).map(foldName));
     const mid = t.geom[Math.floor(t.geom.length / 2)], k = Math.cos(mid[0] * Math.PI / 180);
@@ -5135,7 +5135,8 @@ out body;`;
           }
           list.push(...(await conflateFten(list, f.ften || [])));
         }
-        roadData.set(z.id, { at: f && f.builtAt, list, ...(f && f.v === 1 ? zoneExtras(f, list) : { feats: [], areas: [] }) });
+        const mvShapes = f && (f.mvRef || []).length ? await nightly("motor-closures.json") : null;
+        roadData.set(z.id, { at: f && f.builtAt, list, ...(f && f.v === 1 ? zoneExtras(f, list, mvShapes) : { feats: [], areas: [] }) });
         drawRoads();
         return roadData.get(z.id);
       }));
@@ -5368,15 +5369,19 @@ out body;`;
     syncFiresBtn(); loadFires(); drawFires(); renderKey();
     if (state.fires && fires && fires.at && !fires.fires.length && !fires.perims.length && !fires.restr.length && !fires.evac.length) setStatus("No active wildfires or fire closures in the area right now.");
   });
-  // Points and areas of one zone file, ready to draw.
-  function zoneExtras(f, list) {
+  // Points and areas of one zone file, ready to draw. Closure areas listed by id (mvRef) have their shape in
+  // data/motor-closures.json; an area several zones list is drawn with the first of them only.
+  const mvShown = new Set();
+  function zoneExtras(f, list, mvShapes) {
     const feats = (f.feat || []).map((x) => ({ ...x, kind: featKind(x.tags) })).filter((x) => x.kind);
     list.filter((r) => r.src === "osm" && r.tags.bridge && r.tags.bridge !== "no").forEach((r) => {
       const mid = r.geom[Math.floor(r.geom.length / 2)], out = r.st === "impass" || /bridge (is )?(out|gone|removed)/i.test([r.tags.note, r.tags.description].join(" "));
       feats.push({ id: "w" + r.id, lat: mid[0], lon: mid[1], tags: r.tags, kind: out ? "bridge_out" : "bridge_in" });
     });
     const areas = (f.cut || []).map((c) => ({ type: "cut", key: AREA_STYLE[c.s] ? c.s : "ACTIVE", c, rings: rings(c.g) }))
-      .concat((f.mv || []).map((m) => ({ type: "mv", key: "mv", m, rings: rings(m.g) })));
+      .concat((f.mv || []).map((m) => ({ type: "mv", key: "mv", m, rings: rings(m.g) })))
+      .concat((f.mvRef || []).filter((m) => mvShapes && mvShapes.areas && mvShapes.areas[m.id] && !mvShown.has(m.id))
+        .map((m) => { mvShown.add(m.id); return { type: "mv", key: "mv", m, rings: rings(mvShapes.areas[m.id]) }; }));
     areas.forEach((a) => { a.bounds = L.latLngBounds(a.rings.flat()); });
     return { feats, areas };
   }
@@ -6798,29 +6803,29 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=319"></script>
-<script src="contours.js?v=319"></script>
-<script src="photo-slider.js?v=319"></script>
-<script src="winter.js?v=319"></script>
-<script src="hunting.js?v=319"></script>
-<script src="ski-points.js?v=319"></script>
-<script src="offline.js?v=319"></script>
-<script src="ride-stats.js?v=319"></script>
-<script src="native-gps.js?v=319"></script>
-<script src="navigate.js?v=319"></script>
-<script src="planner.js?v=319"></script>
-<script src="rides.js?v=319"></script>
-<script src="account.js?v=319"></script>
-<script src="reports.js?v=319"></script>
-<script src="grades.js?v=319"></script>
-<script src="trail-photos.js?v=319"></script>
-<script src="visitors.js?v=319"></script>
-<script src="notify.js?v=319"></script>
-<script src="status.js?v=319"></script>
-<script src="areas.js?v=319"></script>
-<script src="alpine.js?v=319"></script>
-<script src="bikeparks.js?v=319"></script>
-<script src="photo-find.js?v=319"></script>
+<script src="map3d.js?v=320"></script>
+<script src="contours.js?v=320"></script>
+<script src="photo-slider.js?v=320"></script>
+<script src="winter.js?v=320"></script>
+<script src="hunting.js?v=320"></script>
+<script src="ski-points.js?v=320"></script>
+<script src="offline.js?v=320"></script>
+<script src="ride-stats.js?v=320"></script>
+<script src="native-gps.js?v=320"></script>
+<script src="navigate.js?v=320"></script>
+<script src="planner.js?v=320"></script>
+<script src="rides.js?v=320"></script>
+<script src="account.js?v=320"></script>
+<script src="reports.js?v=320"></script>
+<script src="grades.js?v=320"></script>
+<script src="trail-photos.js?v=320"></script>
+<script src="visitors.js?v=320"></script>
+<script src="notify.js?v=320"></script>
+<script src="status.js?v=320"></script>
+<script src="areas.js?v=320"></script>
+<script src="alpine.js?v=320"></script>
+<script src="bikeparks.js?v=320"></script>
+<script src="photo-find.js?v=320"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

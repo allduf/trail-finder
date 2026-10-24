@@ -1,8 +1,8 @@
 // Nightly, after build-data.mjs (see .github/workflows/trail-data.yml): finds the trails that appeared
 // since the last build and adds them to data/new-trails.json, the feed behind the app's 🔔 notifications.
 //
-// A trail is new when tonight's data/trails-<zone>.json has a way that last night's (the committed file,
-// read with git) didn't, and the way was first mapped in the last FRESH_DAYS. Ways that only continue a
+// A trail is new when tonight's data/trails-<zone>.json has a way that last night's (the saved file, read with git
+// from the site-data branch commit the job started from, see scripts/site-data.sh) didn't, and the way was first mapped in the last FRESH_DAYS. Ways that only continue a
 // trail the map already had (same name as an older way in the zone, e.g. an OSM split) don't count.
 // Ways of one new trail are grouped: by name, or for unnamed ways, when they touch.
 // The app classifies each item itself (MTB tagged, looks like MTB...) and shows only the ones it would map.
@@ -27,10 +27,13 @@ if (ZONES.length < 2) throw new Error("Couldn't read the zones from index.html")
 const now = Date.now();
 const fresh = now - FRESH_DAYS * 864e5;
 const readJson = (url) => { try { return JSON.parse(readFileSync(url, "utf8")); } catch { return null; } };
-const lastNight = (name) => {   // the committed copy, before tonight's build overwrote it
-  try { return JSON.parse(execFileSync("git", ["show", `HEAD:data/${name}`], { cwd: root, encoding: "utf8", maxBuffer: 1 << 30, stdio: ["ignore", "pipe", "ignore"] })); }
+const gitJson = (rev, name) => {
+  try { return JSON.parse(execFileSync("git", ["show", `${rev}:data/${name}`], { cwd: root, encoding: "utf8", maxBuffer: 1 << 30, stdio: ["ignore", "pipe", "ignore"] })); }
   catch { return null; }
 };
+// The saved copy, before tonight's build overwrote it: the site-data branch's (scripts/site-data.sh get marks the
+// commit it got the files from), or main's when run by hand from a checkout that still has data/ committed.
+const lastNight = (name) => gitJson("refs/site-data/last", name) || gitJson("HEAD", name);
 const firstMapped = (w) => w.ft || (w.v === 1 ? w.t : null);
 const isFresh = (w) => { const t = Date.parse(firstMapped(w)); return t >= fresh; };
 const nameOf = (tags) => (tags.name || tags["mtb:name"] || "").trim();

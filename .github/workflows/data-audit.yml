@@ -32,6 +32,8 @@ jobs:
       NODE_OPTIONS: --max-old-space-size=12000
     steps:
       - uses: actions/checkout@v4
+      - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
+        run: bash scripts/site-data.sh get
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -69,8 +71,8 @@ jobs:
             out/audit.md
           retention-days: 30
       - name: Save the findings
-        if: github.event_name != 'pull_request'
-        run: bash scripts/commit-data.sh "Trail data audit" data/audit.json
+        if: github.event_name != 'pull_request' && github.ref_name == 'main'
+        run: bash scripts/site-data.sh save "Trail data audit" data/audit.json
       - name: Update the issue
         if: github.event_name != 'pull_request'
         env:

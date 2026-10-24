@@ -1,16 +1,18 @@
 name: Publish website
 
-# Publishes the website: main as it stands, plus the Canada-wide trail data from the canada-data branch under ca/
-# and the 3D map's Winter photos from the winter-photos branch under data/winter/ (both kept out of main's history,
-# so the repository doesn't grow by hundreds of MB each time they're rebuilt).
-# Runs after every push to main and after every data job (their commits to main don't start workflows by themselves).
+# Publishes the website: main as it stands, plus the data jobs' files from the site-data branch under data/
+# (scripts/site-data.sh), the Canada-wide trail data from the canada-data branch under ca/ and the 3D map's Winter
+# photos from the winter-photos branch under data/winter/ (all kept out of main's history, so the repository doesn't
+# grow each time they're rebuilt).
+# Runs after every push to main and after every data job (their saves don't start workflows by themselves).
 # Needs Settings > Pages > Build and deployment > Source = "GitHub Actions".
 on:
   push:
     branches: [main]
   workflow_run:
     workflows: ["Canada trail data", "Nightly trail data", "All trails data", "Trailheads and parking data", "Forest roads data",
-      "Wildfires data", "Winter data", "Weekly alpine rideable trails", "Weekly ski heatmap", "Weekly possible unmapped trails", "People count"]
+      "Wildfires data", "Winter data", "Weekly alpine rideable trails", "Weekly ski heatmap", "Weekly possible unmapped trails", "People count",
+      "Hunting data", "Trail data audit"]
     types: [completed]
   workflow_dispatch:
 
@@ -35,6 +37,11 @@ jobs:
         with:
           ref: main
           path: site
+      - name: Add the data jobs' files
+        working-directory: site
+        env:
+          SITE_DATA_READ_ONLY: "1"   # until the site-data branch exists, main's copies are published
+        run: bash scripts/site-data.sh get
       - name: Add the Canada-wide data
         run: |
           git clone -q --depth 1 --branch canada-data "https://github.com/${GITHUB_REPOSITORY}.git" canada || { echo "No canada-data branch yet."; exit 0; }
