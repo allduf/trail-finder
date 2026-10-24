@@ -1,0 +1,612 @@
+{
+ "about": "Rogers Pass (Glacier National Park) for Skiing mode, rogers.js. Hand-kept from Parks Canada (Winter Permit System page, ATES ratings 2026-05-05, Winter Terrain Atlas) and the Alpine Club of Canada hut pages, read 2026-10-24. Today's open/closed status and the area outlines come from data/rogers-status.json (scripts/build-rogers.mjs). Runs marked approx have a pin placed roughly from the atlas and nearby peaks; osm lists the OpenStreetMap route names that are this run (they get its official ATES class).",
+ "box": [
+  51.05,
+  -117.8,
+  51.48,
+  -117.3
+ ],
+ "season": "The Winter Permit System runs from November 15 to the end of the highway avalanche control season.",
+ "rules": [
+  "A Winter Permit is needed for ALL backcountry access, Unrestricted Areas too. Carry it with government photo ID; digital is fine. Fine up to $25,000.",
+  "Annual permit: apply online, allow a week or more; needed for huts and overnights. Daily permit: only at Summit Station on the day, after the quiz.",
+  "A national park pass for everyone, and the printed Winter Parking Permit on the dashboard (plate must match).",
+  "Winter Restricted Areas open or stay closed each day for artillery fire: status posted about 7:30 am. Restricted parking closes at midnight.",
+  "Winter Prohibited Areas are closed all winter: skier avalanches could reach the highway, or the snow is kept for forecasting.",
+  "No camping or overnight use in a Winter Restricted Area. No sleeping in vehicles. No drones.",
+  "Keep at least 16 m from the CP railway and use the designated access routes. No stopping in signed avalanche areas on the highway.",
+  "If you come back to a card on your windshield, avalanche control started: wait with your car until Parks Canada says the highway is open."
+ ],
+ "visit": "Summit Station (the Rogers Pass Centre is closed): passes, permits, opens 7:30 am. Parks Canada office: 301B 3 St. W, Revelstoke. Questions: 250-837-7500, permit-mrg-permis@pc.gc.ca.",
+ "emergency": "1-877-852-3100",
+ "links": [
+  {
+   "label": "Get a Winter Permit (annual, online)",
+   "url": "https://www.parksorders.ca",
+   "top": true
+  },
+  {
+   "label": "Parks Canada's live map (today's open areas)",
+   "url": "https://www.pc.gc.ca/apps/rogers-pass/",
+   "top": true
+  },
+  {
+   "label": "Glacier avalanche forecast",
+   "url": "https://avalanche.ca/forecasts/glacier",
+   "top": true
+  },
+  {
+   "label": "Winter Permit System, parking and rules",
+   "url": "https://parks.canada.ca/pn-np/bc/glacier/visit/hiver-winter/ski"
+  },
+  {
+   "label": "Daily permit quiz",
+   "url": "https://parks.canada.ca/pn-np/bc/glacier/visit/hiver-winter/ski/daily-quiz-quotidien"
+  },
+  {
+   "label": "Designated access routes",
+   "url": "https://parks.canada.ca/pn-np/bc/glacier/visit/hiver-winter/ski/designes-access"
+  },
+  {
+   "label": "Winter Terrain Atlas (run names, PDF)",
+   "url": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/WET4/visit/winter/ski/atlas/en-terrain-atlas-2019-web.pdf"
+  },
+  {
+   "label": "Avalanche terrain maps (runouts, terrain traps)",
+   "url": "https://parks.canada.ca/pn-np/bc/glacier/visit/hiver-winter/ski/terrain-aval"
+  },
+  {
+   "label": "ATES ratings",
+   "url": "https://parks.canada.ca/pn-np/bc/glacier/visit/hiver-winter/ski/ates"
+  },
+  {
+   "label": "Permit area boundaries (KML for your GPS)",
+   "url": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/WET4/visit/winter/permit-areas/Winter_Permit_Areas_2025_kml.kml"
+  },
+  {
+   "label": "Weather and webcams",
+   "url": "https://parks.canada.ca/pn-np/bc/glacier/visit/meteo-weather"
+  },
+  {
+   "label": "Highway (DriveBC)",
+   "url": "https://www.drivebc.ca/"
+  },
+  {
+   "label": "Book ACC huts",
+   "url": "https://app.alpineclubofcanada.ca/hut-bookings"
+  }
+ ],
+ "parking": {
+  "Rogers Pass Centre Parking": {
+   "needs": "National park pass. The lots in front of Summit Station and the washrooms are 30 minutes only: park on the other side of the Rogers Pass Centre for a day out.",
+   "overnight": "Only for ACC huts or backcountry camping in a Winter Unrestricted Area, with an overnight parking permit."
+  },
+  "Illecillewaet Valley Parking": {
+   "needs": "Winter Parking Permit and national park pass. A Winter Unrestricted Area: a Winter Permit is needed to go into the backcountry.",
+   "overnight": "Only for ACC huts or backcountry camping in a Winter Unrestricted Area, with an overnight parking permit."
+  },
+  "Beaver Parking": {
+   "needs": "Open only when posted. Winter Parking Permit and national park pass. Shaughnessy designated access route.",
+   "overnight": "Only for backcountry camping in a Winter Unrestricted Area, with an overnight parking permit."
+  },
+  "Bostock Parking": {
+   "needs": "Open only when West Rogers is open. Winter Parking Permit and national park pass. Flat Creek / Fortitude designated access route.",
+   "overnight": "Only for backcountry camping in a Winter Unrestricted Area, with an overnight parking permit."
+  },
+  "Hermit Parking": {
+   "needs": "Open only when East Rogers is open. Winter Parking Permit and national park pass.",
+   "overnight": "No."
+  },
+  "Loop Parking": {
+   "needs": "Open only when West Rogers is open. Winter Parking Permit and national park pass. Ross Peak designated access route.",
+   "overnight": "No."
+  },
+  "NRC Gully Parking": {
+   "needs": "Open only when West Rogers is open. Winter Parking Permit and national park pass.",
+   "overnight": "No."
+  },
+  "Stone Arch Parking": {
+   "needs": "Open only when East Rogers is open. Winter Parking Permit and national park pass. Mount Tupper designated access route.",
+   "overnight": "No."
+  }
+ },
+ "huts": [
+  {
+   "name": "Arthur O. Wheeler Hut",
+   "match": [
+    "Arthur O. Wheeler Hut",
+    "Wheeler Hut"
+   ],
+   "lat": 51.26378,
+   "lon": -117.49175,
+   "ele": 1250,
+   "sleeps": 24,
+   "from": "Illecillewaet Valley Parking",
+   "km": 1.2,
+   "up": 10,
+   "ates": 1,
+   "access": "From the plowed Illecillewaet Valley lot, 500 m west of the campground turn-off, climb 50 m through the trees to an old road, ski up the west bank to the old rail bed past the bridge and turn left: the hut is on your left.",
+   "note": "A base for the Asulkan and Illecillewaet day tours, with practice slopes nearby.",
+   "url": "https://alpineclubofcanada.ca/hut/a-o-wheeler-hut/"
+  },
+  {
+   "name": "Asulkan Cabin",
+   "match": [
+    "Asulkan Cabin"
+   ],
+   "lat": 51.21433,
+   "lon": -117.46969,
+   "ele": 2100,
+   "sleeps": 10,
+   "from": "Illecillewaet Valley Parking",
+   "km": 7,
+   "up": 850,
+   "ates": 3,
+   "access": "Asulkan Valley Trail from the Illecillewaet lot, along Asulkan Creek under several big slide paths, then steeply up through the trees (Tree Triangle) to the open slopes below the cabin.",
+   "note": "Day trips from the cabin: Seven Steps of Paradise, Asulkan Pass, Sapphire Col, the Dome Glacier. Propane stove, light and heat.",
+   "url": "https://alpineclubofcanada.ca/hut/asulkan-cabin/"
+  },
+  {
+   "name": "Sapphire Col Hut",
+   "match": [
+    "Sapphire Col Hut"
+   ],
+   "lat": 51.20903,
+   "lon": -117.50011,
+   "ele": 2580,
+   "sleeps": 4,
+   "from": "Illecillewaet Valley Parking",
+   "km": 9,
+   "up": 1375,
+   "ates": 3,
+   "access": "Up the Asulkan valley, through the Mouse Trap, past the Cleaver buttress, a traverse across a large slope, then south to the col: a small bivouac shelter in the col. Glacier travel.",
+   "note": "A serious trip for well-equipped, skilled teams.",
+   "url": "https://alpineclubofcanada.ca/hut/sapphire-col-hut/"
+  },
+  {
+   "name": "Glacier Circle Cabin",
+   "match": [
+    "Glacier Circle Cabin"
+   ],
+   "lat": 51.17228,
+   "lon": -117.39281,
+   "ele": 1800,
+   "sleeps": 8,
+   "from": "Illecillewaet Valley Parking",
+   "km": 14,
+   "up": 1425,
+   "ates": 3,
+   "access": "Over the Illecillewaet Glacier from the Asulkan / Illecillewaet lot: mountaineering gear and glacier travel skills needed. Often done as an overnight from the Asulkan Cabin.",
+   "note": "Remote cabin in the Dawson Range.",
+   "url": "https://alpineclubofcanada.ca/hut/glacier-circle-cabin/"
+  }
+ ],
+ "ates": {
+  "source": "Parks Canada, Avalanche Terrain Ratings for backcountry touring in the Mountain National Parks",
+  "url": "https://parks.canada.ca/pn-np/bc/glacier/visit/hiver-winter/ski/ates",
+  "runs": [
+   {
+    "name": "3 Pass Traverse",
+    "cls": 3
+   },
+   {
+    "name": "8812 Bowl",
+    "cls": 3,
+    "lat": 51.2919,
+    "lon": -117.5793,
+    "osm": [
+     "8812 Bowl"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Cheops-Mountain.pdf"
+   },
+   {
+    "name": "Asulkan Hut/Tree Triangle",
+    "cls": 3,
+    "lat": 51.2183,
+    "lon": -117.4724,
+    "osm": [
+     "Tree Triangle",
+     "Asulkan Cabin Winter Route"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Asulkan.pdf"
+   },
+   {
+    "name": "Asulkan Pass",
+    "cls": 3,
+    "lat": 51.202,
+    "lon": -117.458,
+    "approx": true,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Asulkan.pdf"
+   },
+   {
+    "name": "Asulkan Valley Practice Slopes",
+    "cls": 3,
+    "lat": 51.233,
+    "lon": -117.478,
+    "approx": true,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Asulkan.pdf"
+   },
+   {
+    "name": "Avalanche Crest - to treeline",
+    "cls": 2,
+    "lat": 51.2636,
+    "lon": -117.4859,
+    "osm": [
+     "Avalanche Crest Trail"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Macdonald-and-Avalanche.pdf"
+   },
+   {
+    "name": "Avalanche Crest bowl/slidepath",
+    "cls": 3,
+    "lat": 51.275,
+    "lon": -117.4948,
+    "osm": [
+     "Avalanche Crest"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Macdonald-and-Avalanche.pdf"
+   },
+   {
+    "name": "Balu Pass",
+    "cls": 3,
+    "lat": 51.2846,
+    "lon": -117.5824,
+    "osm": [
+     "Balu Pass Trail"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Connaught-Creek-Drainage.pdf"
+   },
+   {
+    "name": "Beaver River",
+    "cls": 1,
+    "lat": 51.33,
+    "lon": -117.43,
+    "approx": true
+   },
+   {
+    "name": "Bonney Glacier",
+    "cls": 3,
+    "lat": 51.2154,
+    "lon": -117.5467,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Loop-Brook.pdf"
+   },
+   {
+    "name": "Bruins Pass",
+    "cls": 3,
+    "lat": 51.295,
+    "lon": -117.5731,
+    "osm": [
+     "Bruins Pass Uptrack"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Connaught-Creek-Drainage.pdf"
+   },
+   {
+    "name": "Cheops Glades",
+    "cls": 2,
+    "lat": 51.288,
+    "lon": -117.56,
+    "approx": true,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Cheops-Mountain.pdf"
+   },
+   {
+    "name": "Cougar Valley",
+    "cls": 3,
+    "lat": 51.285,
+    "lon": -117.6,
+    "approx": true,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Cougar-Valley.pdf"
+   },
+   {
+    "name": "Dome Glacier",
+    "cls": 3,
+    "lat": 51.2226,
+    "lon": -117.4997,
+    "osm": [
+     "Dome"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Asulkan.pdf"
+   },
+   {
+    "name": "Flat Creek slidepaths",
+    "cls": 3,
+    "lat": 51.205,
+    "lon": -117.67,
+    "approx": true,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Flat-Creek.pdf"
+   },
+   {
+    "name": "Flat Creek valley trail",
+    "cls": 2,
+    "lat": 51.215,
+    "lon": -117.675,
+    "approx": true,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Flat-Creek.pdf"
+   },
+   {
+    "name": "Fortitude",
+    "cls": 3,
+    "lat": 51.16,
+    "lon": -117.68,
+    "approx": true,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Flat-Creek.pdf"
+   },
+   {
+    "name": "Glacier Circle",
+    "cls": 3,
+    "lat": 51.1723,
+    "lon": -117.3928,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Glacier-Circle.pdf"
+   },
+   {
+    "name": "Grizzly Shoulder",
+    "cls": 2,
+    "lat": 51.3059,
+    "lon": -117.5394,
+    "osm": [
+     "Grizzly Shoulder"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Connaught-Creek-Drainage.pdf"
+   },
+   {
+    "name": "Grizzly/Little Sifton Traverse",
+    "cls": 3,
+    "lat": 51.322,
+    "lon": -117.556,
+    "approx": true,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Connaught-Creek-Drainage.pdf"
+   },
+   {
+    "name": "Hermit Meadows",
+    "cls": 2,
+    "lat": 51.3233,
+    "lon": -117.525,
+    "osm": [
+     "Hermit Trail"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Hermit.pdf"
+   },
+   {
+    "name": "Illecillewaet Neve access",
+    "cls": 3,
+    "lat": 51.245,
+    "lon": -117.455,
+    "approx": true,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Illecillewaet.pdf"
+   },
+   {
+    "name": "Illecillewaet Practice Slopes",
+    "cls": 3,
+    "lat": 51.2574,
+    "lon": -117.4708,
+    "osm": [
+     "Practice Slopes"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Illecillewaet.pdf"
+   },
+   {
+    "name": "Lily Glacier",
+    "cls": 3,
+    "lat": 51.2163,
+    "lon": -117.5121,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Asulkan.pdf"
+   },
+   {
+    "name": "Lizards Tail",
+    "cls": 3
+   },
+   {
+    "name": "Lookout Col",
+    "cls": 3,
+    "lat": 51.227,
+    "lon": -117.46,
+    "approx": true,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Illecillewaet.pdf"
+   },
+   {
+    "name": "McGill Bowl - McGill Pass",
+    "cls": 3,
+    "lat": 51.235,
+    "lon": -117.655,
+    "approx": true,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Bostock-and-McGill.pdf"
+   },
+   {
+    "name": "McGill Shoulder",
+    "cls": 2,
+    "lat": 51.2509,
+    "lon": -117.6712,
+    "osm": [
+     "McGill Glades",
+     "McGill Uptrack"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Bostock-and-McGill.pdf"
+   },
+   {
+    "name": "Mt. Rogers",
+    "cls": 3,
+    "lat": 51.3542,
+    "lon": -117.5401,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Hermit.pdf"
+   },
+   {
+    "name": "Mt. Swanzy",
+    "cls": 3,
+    "lat": 51.208,
+    "lon": -117.5181,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Asulkan.pdf"
+   },
+   {
+    "name": "Mt. Tupper Traverse",
+    "cls": 3,
+    "lat": 51.341,
+    "lon": -117.4651,
+    "osm": [
+     "Tupper Traverse"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Glacier-East-Slide-Paths.pdf"
+   },
+   {
+    "name": "NRC Gullies",
+    "cls": 3,
+    "lat": 51.2911,
+    "lon": -117.5068,
+    "osm": [
+     "NRC Gully"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Macdonald-and-Avalanche.pdf"
+   },
+   {
+    "name": "Perley Rock",
+    "cls": 3,
+    "lat": 51.2485,
+    "lon": -117.4421,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Illecillewaet.pdf"
+   },
+   {
+    "name": "Rogers Pass Ski Hill (forest cuts behind hotel)",
+    "cls": 1,
+    "lat": 51.299,
+    "lon": -117.518,
+    "approx": true
+   },
+   {
+    "name": "Sapphire Col",
+    "cls": 3,
+    "lat": 51.209,
+    "lon": -117.5001,
+    "osm": [
+     "Sapphire Col Uptrack"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Asulkan.pdf"
+   },
+   {
+    "name": "Sifton Col",
+    "cls": 2,
+    "lat": 51.329,
+    "lon": -117.546,
+    "approx": true,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Connaught-Creek-Drainage.pdf"
+   },
+   {
+    "name": "Smart Ridge",
+    "cls": 3,
+    "lat": 51.234,
+    "lon": -117.628,
+    "approx": true,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Loop-Brook.pdf"
+   },
+   {
+    "name": "Steps of Paradise - Youngs Pk",
+    "cls": 3,
+    "lat": 51.2092,
+    "lon": -117.4552,
+    "osm": [
+     "Seven Steps of Paradise"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Asulkan.pdf"
+   },
+   {
+    "name": "Terminal Peak",
+    "cls": 3,
+    "lat": 51.2537,
+    "lon": -117.4195,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Illecillewaet.pdf"
+   },
+   {
+    "name": "The Cone",
+    "cls": 3
+   },
+   {
+    "name": "The Hourglass",
+    "cls": 2,
+    "lat": 51.2963,
+    "lon": -117.5361,
+    "osm": [
+     "The Hourglass"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Connaught-Creek-Drainage.pdf"
+   },
+   {
+    "name": "The Mouse Trap",
+    "cls": 3,
+    "lat": 51.225,
+    "lon": -117.49,
+    "approx": true,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Asulkan.pdf"
+   },
+   {
+    "name": "The Ravens",
+    "cls": 3,
+    "lat": 51.2267,
+    "lon": -117.4674,
+    "osm": [
+     "The Ravens"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Asulkan.pdf"
+   },
+   {
+    "name": "Ursus Major",
+    "cls": 3,
+    "lat": 51.2979,
+    "lon": -117.6012,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Ursus-Creek-Drainage.pdf"
+   },
+   {
+    "name": "Ursus Trees",
+    "cls": 3,
+    "lat": 51.2991,
+    "lon": -117.5674,
+    "osm": [
+     "Ursus Trees"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Ursus-Creek-Drainage.pdf"
+   },
+   {
+    "name": "Vaux Moraines/Sir Donald/Uto Col",
+    "cls": 3,
+    "lat": 51.2558,
+    "lon": -117.4376,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Illecillewaet.pdf"
+   },
+   {
+    "name": "Vent Shaft slopes",
+    "cls": 3,
+    "lat": 51.2888,
+    "lon": -117.4912,
+    "osm": [
+     "Vent Shaft Ridge"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Macdonald-and-Avalanche.pdf"
+   },
+   {
+    "name": "Video Peak",
+    "cls": 3,
+    "lat": 51.3024,
+    "lon": -117.5858,
+    "osm": [
+     "Video North Bowl",
+     "Video Uptrack"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Ursus-Creek-Drainage.pdf"
+   },
+   {
+    "name": "Wheeler Hut approach and vicinity",
+    "cls": 1,
+    "lat": 51.2638,
+    "lon": -117.4918,
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Illecillewaet.pdf"
+   },
+   {
+    "name": "Youngs Pk via Illecillewaet",
+    "cls": 3,
+    "lat": 51.2342,
+    "lon": -117.4504,
+    "osm": [
+     "Young's Peak Traverse",
+     "Youngs Peak Traverse"
+    ],
+    "atlas": "https://pcweb2.azureedge.net/-/media/pn-np/bc/glacier/pdf/Winter-Terrain-Atlas-du-Terrain-Hivernal/Eng/Illecillewaet.pdf"
+   }
+  ]
+ }
+}
