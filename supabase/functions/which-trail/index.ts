@@ -1,12 +1,13 @@
 // Trail Finder "Which trail is this?": an AI (Google Gemini, free tier) looks at a trail photo (or a few frames of a
 // video) and says what it sees that can place it: trail names written in it, big landmarks in the background (the
 // Chief, Black Tusk...), places, the kind of terrain, and its best guesses. The site (photo-find.js) then matches that
-// against its own trail lists. A second call ("compare") then takes the app's likely trails, searches Google for what
+// against its own trail lists. A second call ("compare") then takes the app's likely trails, searches Google (when on) for what
 // riders and sites say each one looks like, gathers photos of them (pictures on those pages, video thumbnails, geotagged
 // Wikimedia Commons photos near each trail) and compares them with the rider's picture: it rates a trail or photo above 0.6
 // only when it can say what lines up one for one (the same rock, tree, skyline), never for the same kind of country. Setup (once): Supabase dashboard → Edge Functions → deploy this file (it's deployed as
 // "smooth-worker"; AI_FN in photo-find.js must match), turn "Verify JWT" off; then Edge Functions → Secrets → add
-// GEMINI_API_KEY (free from aistudio.google.com/apikey). Optional secret GEMINI_MODEL picks another model.
+// GEMINI_API_KEY (free from aistudio.google.com/apikey). Optional secret GEMINI_MODEL picks another model, and
+// GEMINI_SEARCH=on lets the online check search Google first (a free key doesn't get it).
 // Optional secret VISION_API_KEY (Google Cloud Vision, 1,000 pictures a month free, then billed): a reverse image search
 // first, which finds the pages that show the same picture (or video frame) online; their titles often name the trail. Make
 // that key in a Google Cloud project of its own with billing on: billing on the Gemini key's project ends Gemini's free tier.
@@ -39,8 +40,10 @@ const slow = new Set<string>();   // models that ran out of time in this running
 // Search has an allowance of its own (often none on a free key): running out of it doesn't stop plain answers.
 const spent = new Map<string, number>();
 const gone = new Set<string>();   // model names Google doesn't serve (404): not asked again by this running copy
-// Until when the online check skips its Google search: no model had one to give (429) the last time. On a free key that
-// is every time, and asking all the models again on each check only makes the rider wait.
+// The online check's Google search is off unless the secret GEMINI_SEARCH is "on": the free key has never had it (every
+// model said 429 on every check), and asking all 8 models each time made riders wait and used up requests the picture
+// checks need. When on, it's skipped for an hour after a check where no model had it.
+const SEARCH = /^(1|on|yes|true)$/i.test(Deno.env.get("GEMINI_SEARCH") || "");
 let searchOff = 0;
 const seen = new Map<string, number[]>();   // a light brake per address (each running copy of the function keeps its own)
 
@@ -607,8 +610,9 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
     (spot ? `,"area":[{"trail":"the trail's name, or empty","url":"a page or video"}]}\nAlso search for photos and videos of mountain bike riding around ` +
       `${spot.where} (within ${Math.round(spot.r / 1000)} km of ${spot.c[0].toFixed(3)}, ${spot.c[1].toFixed(3)}), on any trail there, not only the listed ones, ` +
       `and put the pages and videos whose photos look most like the rider's picture in "area", with the trail's name when the page is about one trail.` : "}");
-  const skipSearch = Date.now() < searchOff;
-  const s: Said = skipSearch ? { status: 429, error: "Google search is off for now", detail: "no model had Google search in the last hour", search: true }
+  const skipSearch = !SEARCH || Date.now() < searchOff;
+  const s: Said = !SEARCH ? { status: 403, error: "Google search is off", detail: "off (secret GEMINI_SEARCH turns it on)", search: true }
+    : skipSearch ? { status: 429, error: "Google search is off for now", detail: "no model had Google search in the last hour", search: true }
     : await gemini(key, [...images.slice(0, 1).map((d) => img(d)), { text: searchAsk }], { search: true }, t0 + 30000);
   if (!skipSearch && "error" in s && s.status === 429) searchOff = Date.now() + 3600e3;
   let web: { trail: string; looks: string; fit: number; why: string }[] = [], pages: { trail: string; url: string }[] = [], area: { trail: string; url: string }[] = [];
@@ -713,6 +717,6 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
     ranks = web.map((w) => ({ trail: w.trail, fit: w.fit, why: w.why, photo: null }));
     notes.push("compare: " + ("error" in f ? f.detail || f.error : "no answer"));
   }
-  return reply(200, { ok: ranks.length > 0 || close.length > 0, ms: Date.now() - t0, searched, noSearch, ranks, other, close, photos: photos.length,
+  return reply(200, { ok: ranks.length > 0 || close.length > 0, ms: Date.now() - t0, model: "error" in f ? "" : f.model, searched, noSearch, ranks, other, close, photos: photos.length,
     area: photos.filter((p) => p.from === "area" || p.near).length, sources, suggest, detail: notes.join(" | ") });
 }
