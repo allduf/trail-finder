@@ -1,0 +1,50 @@
+name: Rogers Pass status
+
+# Parks Canada posts which Rogers Pass Winter Restricted Areas and parking lots are open each winter morning, around
+# 7:30 Pacific time (artillery avalanche control closes the rest). This reads it into data/rogers-status.json for
+# "Rogers Pass" in Skiing (rogers.js): every 15 minutes from 6:00 to 11:00 Pacific, every 2 hours the rest of the day.
+# Saved and published only when something changed. On a pull request that changes the script it only does a test run.
+on:
+  schedule:
+    - cron: "*/15 13-17 * * *"   # 13:00-17:45 UTC: 6:00-10:45 PDT (5:00-9:45 PST)
+    - cron: "9 0-12/2,18-23/2 * * *"
+  workflow_dispatch:
+  push:   # the first file, right after this is merged
+    branches: [main]
+    paths:
+      - scripts/build-rogers.mjs
+  pull_request:
+    paths:
+      - scripts/build-rogers.mjs
+      - .github/workflows/rogers-pass.yml
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: rogers-pass-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
+        run: bash scripts/site-data.sh get
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Read the Rogers Pass status
+        id: status
+        run: node scripts/build-rogers.mjs
+      - name: Save the new data
+        if: github.event_name != 'pull_request' && github.ref_name == 'main' && steps.status.outputs.changed == 'true'
+        run: bash scripts/site-data.sh save "Rogers Pass status" data/rogers-status.json
+      - name: Publish the website
+        if: github.event_name != 'pull_request' && steps.status.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent || echo "Pages will publish on its own."

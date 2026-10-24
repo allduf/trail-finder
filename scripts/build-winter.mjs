@@ -57,8 +57,10 @@ function mergeBoxes(boxes) {
   }
   return list.map(({ b }) => b.map((v) => +v.toFixed(2)));
 }
-const REGIONS = mergeBoxes(ZONES.map((z) => pad(z.box)));
-const BC_REGIONS = mergeBoxes(ZONES.filter(inBC).map((z) => pad(z.box)));
+// Ski country with no riding zone: Rogers Pass (Glacier National Park), between the Revelstoke and Golden zones.
+const SKI_ONLY = [[51.05, -117.8, 51.48, -117.3]];
+const REGIONS = mergeBoxes([...ZONES.map((z) => pad(z.box)), ...SKI_ONLY]);
+const BC_REGIONS = mergeBoxes([...ZONES.filter(inBC).map((z) => pad(z.box)), ...SKI_ONLY]);
 const ONLY = (process.env.ONLY || "").split(",").filter(Boolean), runs = (part) => !ONLY.length || ONLY.includes(part);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
@@ -138,14 +140,16 @@ async function fetchOsm(box, depth = 0) {
   }
 }
 
-// What kind of winter route a set of tags is. Backcountry downhill (piste:grooming=backcountry) is ski touring.
+// What kind of winter route a set of tags is. Backcountry downhill (piste:grooming=backcountry, or freeride with no
+// grooming) is ski touring.
 // piste:type=sled is a sledding / tubing hill; snowmobile trails are piste:type=snowmobile, route=snowmobile or
 // snowmobile=yes|designated|permissive (often a forest road that is a sled trail in winter).
 const SNOWMOBILE_OK = /^(yes|designated|permissive)$/;
 function skiType(t) {
   const pt = String(t["piste:type"] || "").split(";")[0];
   const groom = t["piste:grooming"] || "";
-  if (pt === "skitour" || (pt === "downhill" && /backcountry|no/.test(groom)) || (t.route === "ski" && !pt)) return "tour";
+  // Freeride downhill with no grooming tag is backcountry too (most Rogers Pass runs are mapped that way).
+  if (pt === "skitour" || (pt === "downhill" && (/backcountry|no/.test(groom) || (!groom && t["piste:difficulty"] === "freeride"))) || (t.route === "ski" && !pt)) return "tour";
   if (pt === "nordic") return "nordic";
   if (pt === "hike") return "snowshoe";
   if (pt === "downhill") return "resort";
