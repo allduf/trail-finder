@@ -1812,12 +1812,16 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
   }
   const HEAT_RGB = HEAT.ramp.map(rgb);
   const mercY = (lat) => { const r = (lat * Math.PI) / 180; return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2; };
+  const heatLevel = (v) => (v === 1 ? 1 : v === 2 ? 2 : v <= 5 ? 3 : 4);
   function paintHeat(z, x, y) {
     const out = new ImageData(256, 256);
     if (!heat) return out;
     const n = 2 ** z * 256, top = tileLat(y, z), bottom = tileLat(y + 1, z), left = tileLon(x, z), right = tileLon(x + 1, z);
-    const [cl, co] = heat.cell, buf = new Uint16Array(65536);
-    const cw = Math.max(1, (co / 360) * n);
+    const [cl, co] = heat.cell;
+    const cw = (co / 360) * n;
+    // Close up (a cell 3 px wide or more), squares of colour look blocky (alex, 2026-10-24): paint smooth lines.
+    if (cw >= 3) return paintHeatSmooth(out, z, x, y, top, bottom, left, right, cl, co);
+    const buf = new Uint16Array(65536);
     let any = false;
     for (const sq of heat.squares) {
       const [s, w, nn, e] = sq.box;
@@ -1827,7 +1831,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
         const lat0 = s + c[i] * cl, lon0 = w + c[i + 1] * co;
         if (lat0 > top || lat0 + cl < bottom || lon0 > right || lon0 + co < left) continue;
         const px0 = ((lon0 + 180) / 360) * n - x * 256, py1 = mercY(lat0) * n - y * 256, py0 = mercY(lat0 + cl) * n - y * 256;
-        const xa = Math.max(0, Math.floor(px0)), xb = Math.min(256, Math.max(xa + 1, Math.ceil(px0 + cw)));
+        const xa = Math.max(0, Math.floor(px0)), xb = Math.min(256, Math.max(xa + 1, Math.ceil(px0 + Math.max(1, cw))));
         const ya = Math.max(0, Math.floor(py0)), yb = Math.min(256, Math.max(ya + 1, Math.ceil(py1)));
         const v = c[i + 2];
         for (let yy = ya; yy < yb; yy++) for (let xx = xa; xx < xb; xx++) { const j = yy * 256 + xx; if (buf[j] < v) buf[j] = v; }
@@ -1839,8 +1843,76 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
     for (let j = 0; j < 65536; j++) {
       const v = buf[j];
       if (!v) continue;
-      const k = v === 1 ? 0 : v === 2 ? 1 : v <= 5 ? 2 : 3;
+      const k = heatLevel(v) - 1;
       o[j * 4] = HEAT_RGB[k][0]; o[j * 4 + 1] = HEAT_RGB[k][1]; o[j * 4 + 2] = HEAT_RGB[k][2]; o[j * 4 + 3] = k ? 235 : 190;
+    }
+    return out;
+  }
+  // The cells as a smooth field, so a line of cells reads as a smooth line instead of a staircase of squares: the
+  // cells are blurred a little (a Gaussian, 0.75 cell wide), then each pixel blends the 4 nearest cell centres. The
+  // colour blends the trace counts of the cells around, so it fades from one count to the next instead of stepping.
+  const HK = [0.015, 0.219, 0.532, 0.219, 0.015];
+  function paintHeatSmooth(out, z, x, y, top, bottom, left, right, cl, co) {
+    const o = out.data, best = new Float32Array(65536), col = new Float32Array(65536);
+    // Where each pixel row and column falls (pixel rows follow Mercator, not degrees).
+    const latOf = new Float64Array(256), lonOf = new Float64Array(256);
+    for (let p = 0; p < 256; p++) { latOf[p] = tileLat(y + (p + 0.5) / 256, z); lonOf[p] = tileLon(x + (p + 0.5) / 256, z); }
+    let any = false;
+    for (const sq of heat.squares) {
+      const [s, w, nn, e] = sq.box;
+      if (s > top + 3 * cl || nn < bottom - 3 * cl || w > right + 3 * co || e < left - 3 * co) continue;
+      // The square's cells that touch this tile (with 3 cells around it for the blur), on a small grid.
+      const r0 = Math.floor((bottom - s) / cl) - 3, r1 = Math.ceil((top - s) / cl) + 3;
+      const c0 = Math.floor((left - w) / co) - 3, c1 = Math.ceil((right - w) / co) + 3;
+      const R = r1 - r0 + 1, C = c1 - c0 + 1, N = R * C, c = sq.c;
+      const occ = new Float32Array(N), lev = new Float32Array(N);
+      let has = false;
+      for (let i = 0; i < c.length; i += 3) {
+        const r = c[i] - r0, k = c[i + 1] - c0;
+        if (r < 0 || k < 0 || r >= R || k >= C) continue;
+        occ[r * C + k] = 1; lev[r * C + k] = heatLevel(c[i + 2]); has = true;
+      }
+      if (!has) continue;
+      any = true;
+      // Blur both, along rows then columns.
+      const blur = (f) => {
+        const t = new Float32Array(N), u = new Float32Array(N);
+        for (let r = 0; r < R; r++) for (let k = 0; k < C; k++) {
+          let v = 0;
+          for (let d = -2; d <= 2; d++) { const kk = k + d; if (kk >= 0 && kk < C) v += f[r * C + kk] * HK[d + 2]; }
+          t[r * C + k] = v;
+        }
+        for (let r = 0; r < R; r++) for (let k = 0; k < C; k++) {
+          let v = 0;
+          for (let d = -2; d <= 2; d++) { const rr = r + d; if (rr >= 0 && rr < R) v += t[rr * C + k] * HK[d + 2]; }
+          u[r * C + k] = v;
+        }
+        return u;
+      };
+      const O = blur(occ), L = blur(lev);
+      for (let py = 0; py < 256; py++) {
+        const fr = (latOf[py] - s) / cl - 0.5 - r0, ra = Math.floor(fr), ty = fr - ra;
+        if (ra < 0 || ra + 1 >= R) continue;
+        for (let px = 0; px < 256; px++) {
+          const fc = (lonOf[px] - w) / co - 0.5 - c0, ca = Math.floor(fc), tx = fc - ca;
+          if (ca < 0 || ca + 1 >= C) continue;
+          const i0 = ra * C + ca, i1 = i0 + C;
+          const wa = (1 - tx) * (1 - ty), wb = tx * (1 - ty), wc = (1 - tx) * ty, wd = tx * ty;
+          const f = O[i0] * wa + O[i0 + 1] * wb + O[i1] * wc + O[i1 + 1] * wd, j = py * 256 + px;
+          if (f < 0.2 || f <= best[j]) continue;
+          best[j] = f;
+          col[j] = (L[i0] * wa + L[i0 + 1] * wb + L[i1] * wc + L[i1 + 1] * wd) / f;   // the trace level of the cells around
+        }
+      }
+    }
+    if (!any) return out;
+    for (let j = 0; j < 65536; j++) {
+      const f = best[j];
+      if (f < 0.22) continue;
+      const edge = Math.min(1, (f - 0.22) / 0.1);   // soft, anti-aliased edge
+      const lv = Math.max(0, col[j] - 1), k = Math.min(2, Math.floor(lv)), t = Math.min(1, lv - k), A = HEAT_RGB[k], B = HEAT_RGB[k + 1];
+      o[j * 4] = A[0] + (B[0] - A[0]) * t; o[j * 4 + 1] = A[1] + (B[1] - A[1]) * t; o[j * 4 + 2] = A[2] + (B[2] - A[2]) * t;
+      o[j * 4 + 3] = edge * (lv < 1 ? 190 + 45 * lv : 235);
     }
     return out;
   }
