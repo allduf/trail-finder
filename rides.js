@@ -45,11 +45,23 @@ body.sport-alt #ridesBtn { display: none !important; }
       r.onerror = () => resolve([]);
       r.onsuccess = () => {
         const db = r.result;
+        // One ride at a time, each kept as a light copy (a point every ~10 m, position only): a whole Strava archive
+        // can be hundreds of rides, too much for a phone to hold in full next to the map.
+        const out = [];
         try {
-          const q = db.transaction("rides").objectStore("rides").getAll();
-          q.onsuccess = () => { db.close(); resolve(q.result || []); };
-          q.onerror = () => { db.close(); resolve([]); };
-        } catch { db.close(); resolve([]); }
+          const q = db.transaction("rides").objectStore("rides").openCursor();
+          q.onsuccess = () => {
+            const c = q.result;
+            if (!c) { db.close(); resolve(out); return; }
+            const r = c.value, pts = [];
+            for (const p of r.points || []) if (!pts.length || Math.abs(p[0] - pts[pts.length - 1][0]) * 111195 + Math.abs(p[1] - pts[pts.length - 1][1]) * 70000 >= 10) pts.push([p[0], p[1]]);
+            const last = r.points && r.points[r.points.length - 1];
+            if (last && pts.length && pts[pts.length - 1][0] !== last[0]) pts.push([last[0], last[1]]);
+            out.push({ id: r.id, start: r.start, title: r.title, sport: r.sport, points: pts });
+            c.continue();
+          };
+          q.onerror = () => { db.close(); resolve(out); };
+        } catch { db.close(); resolve(out); }
       };
     });
   }

@@ -189,7 +189,9 @@
     const pieces = piecesOf(ride);
     const sections = pieces.length ? analyse(ride, await waysNear(pieces)) : [];
     cache[ride.id] = { at: Date.now(), n: ride.points.length, sections };
-    const keep = Object.entries(cache).sort((a, b) => b[1].at - a[1].at).slice(0, 40);
+    // The newest 40 rides, plus up to 150 more that found something (a big Strava import checks hundreds of rides).
+    const all = Object.entries(cache).sort((a, b) => b[1].at - a[1].at);
+    const keep = [...all.slice(0, 40), ...all.slice(40).filter(([, v]) => v.sections.length).slice(0, 150)];
     store.set("findsCache", Object.fromEntries(keep));
     return sections;
   }
