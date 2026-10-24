@@ -22,6 +22,7 @@ const root = new URL("../", import.meta.url);
 const html = readFileSync(new URL("index.html", root), "utf8");
 const readJson = (p) => { try { return JSON.parse(readFileSync(new URL(p, root), "utf8")); } catch { return null; } };
 const ZONES = new Map([...html.matchAll(/\{ id: "(\w+)", name: "([^"]+)", box: \[([^\]]+)\] \}/g)].map((m) => [m[1], m[2]]));
+const BOXES = [...html.matchAll(/\{ id: "(\w+)", name: "[^"]+", box: \[([^\]]+)\] \}/g)].map((m) => [m[1], m[2].split(",").map(Number)]);
 if (ZONES.size < 2) throw new Error("Couldn't read the zones from index.html");
 
 // New secret keys (sb_secret_...) go in the apikey header only; old service_role keys are JWTs and go in both.
@@ -75,13 +76,21 @@ function trailsOf(zone) {
   return out;
 }
 
-// ---------- the Loam index, as in index.html (lmiAt, cellOf, fetchLoamCells) ----------
+// ---------- the Loam index, as in index.html (lmiAt, cellOf, fetchLoamCells, loamTuneAt) ----------
 const cellOf = (c) => `${(Math.round(c[0] * 50) / 50).toFixed(2)},${(Math.round(c[1] * 50) / 50).toFixed(2)}`;
-function lmiAt(h, i) {
+// Tuned by rider reports per zone (data/loam-tune.json, scripts/build-loam-tune.mjs), as the site does.
+const tune = readJson("data/loam-tune.json");
+function shiftAt(key) {
+  if (!tune || tune.v !== 1) return 0;
+  const [lat, lon] = key.split(",").map(Number), z = BOXES.find(([, b]) => lat >= b[0] && lat <= b[2] && lon >= b[1] && lon <= b[3]);
+  const t = z ? tune.zones[z[0]] : tune.all;
+  return (t && t.shift) || 0;
+}
+function lmiAt(h, i, key) {
   const a = h.soil_moisture_0_to_1cm[i], b = h.soil_moisture_1_to_3cm[i], c = h.soil_moisture_3_to_9cm[i];
   if (a == null || b == null || c == null) return null;
   const v = 0.5 * a + 0.3 * b + 0.2 * c;
-  return Math.round(Math.max(0, Math.min(100, (v - 0.08) / (0.42 - 0.08) * 100)));
+  return Math.round(Math.max(0, Math.min(100, (v - 0.08) / (0.42 - 0.08) * 100 + shiftAt(key))));
 }
 const isPrime = (v) => v != null && v >= 40 && v < 60;
 const rideOf = (w) => (w.ride || []).filter((t) => t && t.k && Array.isArray(t.c));
@@ -108,10 +117,10 @@ for (let i = 0; i < cellList.length; i += 50) {
     (Array.isArray(json) ? json : [json]).forEach((w, k) => {
       let j = w.hourly.time.findIndex((x) => x > w.current.time) - 1;
       if (j < 0) j = w.hourly.time.length - 1;
-      lmi.set(chunk[k], lmiAt(w.hourly, j));
+      lmi.set(chunk[k], lmiAt(w.hourly, j, chunk[k]));
       const today = w.current.time.slice(0, 10), h = w.hourly;
-      const i = h.time.findIndex((x, n) => x.slice(0, 10) > today && x.endsWith("T13:00") && isPrime(lmiAt(h, n)));
-      if (i >= 0) soonOf.set(chunk[k], { d: h.time[i].slice(0, 10), day: dayName(h.time[i].slice(0, 10), today), v: lmiAt(h, i) });
+      const i = h.time.findIndex((x, n) => x.slice(0, 10) > today && x.endsWith("T13:00") && isPrime(lmiAt(h, n, chunk[k])));
+      if (i >= 0) soonOf.set(chunk[k], { d: h.time[i].slice(0, 10), day: dayName(h.time[i].slice(0, 10), today), v: lmiAt(h, i, chunk[k]) });
     });
   } catch (e) { console.log(`Open-Meteo, spots ${i}-${i + chunk.length}: ${e.message}`); }
 }

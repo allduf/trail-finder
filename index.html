@@ -1401,11 +1401,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=318"></script>
-<script src="rotate.js?v=318"></script>
-<script src="official.js?v=318"></script>
-<script src="directions.js?v=318"></script>
-<script src="ratings.js?v=318"></script>
+<script src="native.js?v=319"></script>
+<script src="rotate.js?v=319"></script>
+<script src="official.js?v=319"></script>
+<script src="directions.js?v=319"></script>
+<script src="ratings.js?v=319"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3194,18 +3194,39 @@ out body;`;
     [60, "Damp, prime loam", "Hero dirt: the best grip on loam. Roots and rocks get slick."],
     [80, "Wet and muddy", "Slippery, and riding leaves ruts."],
     [101, "Saturated", "Very muddy and very slippery. Still rideable: go easy and avoid skidding, which leaves ruts."]];
-  function lmiAt(h, i) {
+  // Tuned by rider reports (data/loam-tune.json, built every night by scripts/build-loam-tune.mjs): where riders said
+  // "Muddy" at a reading of 50, the zone's readings move up, and so on, so 40-59 stays prime loam everywhere. key is the
+  // loam cell (cellOf), so every place that shows a trail's loam gets the same tuned number.
+  function lmiAt(h, i, key) {
     const a = h.soil_moisture_0_to_1cm[i], b = h.soil_moisture_1_to_3cm[i], c = h.soil_moisture_3_to_9cm[i];
     if (a == null || b == null || c == null) return null;
     const v = 0.5 * a + 0.3 * b + 0.2 * c;
-    return Math.round(Math.max(0, Math.min(100, (v - 0.08) / (0.42 - 0.08) * 100)));
+    return Math.round(Math.max(0, Math.min(100, (v - 0.08) / (0.42 - 0.08) * 100 + loamTuneAt(key).shift)));
   }
   const lmiLevel = (v) => LMI_LEVELS.find((l) => v < l[0]);
+  const TUNE_STORE = "tf:loamTune";
+  let loamTune = null;
+  try { loamTune = JSON.parse(localStorage.getItem(TUNE_STORE) || "null"); } catch {}
+  // Readings wait for the file at most 3 s (then use the copy saved on this device, or no tuning).
+  const loamTuneReady = Promise.race([new Promise((ok) => setTimeout(ok, 3000)),
+    fetch("data/loam-tune.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((j) => {
+      if (!j || j.v !== 1) return;
+      loamTune = j;
+      try { localStorage.setItem(TUNE_STORE, JSON.stringify(j)); } catch {}
+    }).catch(() => {})]);
+  // The zone the cell is in ({ shift, n }), or the whole area's tuning outside the zones.
+  function loamTuneAt(key) {
+    const none = { shift: 0, n: 0 };
+    if (!loamTune || !key) return none;
+    const [lat, lon] = key.split(",").map(Number), z = ZONES.find((x) => lat >= x.box[0] && lat <= x.box[2] && lon >= x.box[1] && lon <= x.box[3]);
+    const t = z ? loamTune.zones[z.id] : loamTune.all;
+    return t ? { ...t, zone: z && z.name } : none;
+  }
   // Loam forecast: the reading at 1 pm on each coming day (the hour most people ride), from the same hourly
   // soil moisture forecast as "now". [{ d: "YYYY-MM-DD", v }], tomorrow first.
   const LOAM_HOUR = "T13:00";
-  const lmiDays = (h, today) => h.time.map((x, i) => [x, i]).filter(([x]) => x.slice(0, 10) > today && x.endsWith(LOAM_HOUR))
-    .map(([x, i]) => ({ d: x.slice(0, 10), v: lmiAt(h, i) })).filter((x) => x.v != null);
+  const lmiDays = (h, today, key) => h.time.map((x, i) => [x, i]).filter(([x]) => x.slice(0, 10) > today && x.endsWith(LOAM_HOUR))
+    .map(([x, i]) => ({ d: x.slice(0, 10), v: lmiAt(h, i, key) })).filter((x) => x.v != null);
   const isPrimeLoam = (v) => v != null && v >= 40 && v < 60;
   const dayName = (d, today) => {
     const n = Math.round((Date.parse(d + "T12:00") - Date.parse(today + "T12:00")) / 86400000);
@@ -3289,6 +3310,7 @@ out body;`;
     render();
   }
   async function fetchLoamCells(need) {
+    await loamTuneReady;
     for (let i = 0; i < need.length; i += 50) {
       const chunk = need.slice(i, i + 50), ll = chunk.map((k) => k.split(","));
       if (!(await loamTurn(chunk.length))) {   // paused after a 429: try these again once the pause is over
@@ -3304,7 +3326,7 @@ out body;`;
           let j = w.hourly.time.findIndex((x) => x > w.current.time) - 1;
           if (j < 0) j = w.hourly.time.length - 1;
           const today = w.current.time.slice(0, 10);
-          loamCells.set(chunk[k], { at: Date.now(), lmi: lmiAt(w.hourly, j), today, days: lmiDays(w.hourly, today) });
+          loamCells.set(chunk[k], { at: Date.now(), lmi: lmiAt(w.hourly, j, chunk[k]), today, days: lmiDays(w.hourly, today, chunk[k]) });
         });
         saveLoamCells();
       } catch (e) {
@@ -3351,30 +3373,31 @@ out body;`;
           if (!res.ok) throw await meteoErr(res);
           const json = await res.json();
           if (!json.current || !json.hourly || !json.daily) throw new Error("unexpected answer");
+          await loamTuneReady;
           t.wx = { at: Date.now(), json };
           const h = json.hourly;
           let i = h.time.findIndex((x) => x > json.current.time) - 1;
           if (i < 0) i = h.time.length - 1;
-          const key = cellOf(t), was = loamCells.get(key), lmi = lmiAt(h, i), today = json.current.time.slice(0, 10);
-          loamCells.set(key, { at: Date.now(), lmi, today, days: lmiDays(h, today) });   // a fresher reading: the list shows it too
+          const key = cellOf(t), was = loamCells.get(key), lmi = lmiAt(h, i, key), today = json.current.time.slice(0, 10);
+          loamCells.set(key, { at: Date.now(), lmi, today, days: lmiDays(h, today, key) });   // a fresher reading: the list shows it too
           if (!was || was.lmi !== lmi) render();
         }
       }
-      const el = box(); if (el) renderWeather(el, t.wx.json);
+      const el = box(); if (el) renderWeather(el, t.wx.json, cellOf(t));
     } catch (e) {
       const el = box(); if (el) el.textContent = `Couldn't load the weather (${e.message}).`;
     }
   }
-  function renderWeather(el, w) {
+  function renderWeather(el, w, key) {
     const c = w.current, h = w.hourly, d = w.daily, u = w.current_units || {};
     // The hour now, in the trail's own time zone (Open-Meteo times are local, without an offset).
     let i = h.time.findIndex((x) => x > c.time) - 1;
     if (i < 0) i = h.time.length - 1;
-    const lmi = lmiAt(h, i);
+    const lmi = lmiAt(h, i, key), tune = loamTuneAt(key);
     const lvl = lmi == null ? null : lmiLevel(lmi);
     const [sky, icon] = wmo(c.weather_code);
     const today = c.time.slice(0, 10);
-    const ahead = new Map(lmiDays(h, today).map((x) => [x.d, x.v]));
+    const ahead = new Map(lmiDays(h, today, key).map((x) => [x.d, x.v]));
     const loamCell = (v) => v == null ? "<td>–</td>" : `<td class="${isPrimeLoam(v) ? "lmi-prime" : ""}">${lmiDot(v)}${v}${isPrimeLoam(v) ? " <b>prime</b>" : ""}</td>`;
     const soon = [...ahead].find(([, v]) => isPrimeLoam(v));
     const days = d.time.map((day, k) => ({ day, k })).filter((x) => x.day >= today).map(({ day, k }) => {
@@ -3391,7 +3414,9 @@ out body;`;
       </div>
       ${lmi == null ? "" : `<div class="lmi-scale" role="img" aria-label="Loam moisture index ${lmi} out of 100"><i style="left:${lmi}%"></i></div>
       <div class="lmi-ends">${["Dry", "Tacky", "Damp", "Wet", "Saturated"].map((x, k) => `<span style="left:${10 + 20 * k}%">${x}</span>`).join("")}</div>
-      ${lmiKey(lvl)}`}
+      ${lmiKey(lvl)}
+      ${tune.n ? `<p class="muted lmi-tune">Tuned by ${tune.n} rider report${tune.n > 1 ? "s" : ""} of dry, tacky or muddy dirt${tune.zone ? ` around ${esc(tune.zone)}` : ""}${tune.shift ? `: the soil model reads ${tune.shift > 0 ? "dry" : "wet"} here, so the number is moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"}` : ": they match the soil model, so no change"}.</p>`
+        : tune.shift ? `<p class="muted lmi-tune">Moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"} from rider reports in this region.</p>` : ""}`}
       ${lmi != null && !isPrimeLoam(lmi) && soon ? `<p class="lmi-soon">${lmiDot(soon[1])}Prime loam ${esc(dayName(soon[0], today))} (${soon[1]})</p>` : ""}
       <table class="etable wx-days"><thead><tr><th>Day</th><th>Sky</th><th>High / low</th><th>Rain</th><th title="Loam moisture index at 1 pm">Loam</th></tr></thead><tbody>${days}</tbody></table>`;
   }
@@ -3566,7 +3591,7 @@ out body;`;
   let trailInfo = null;
   const foldName = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   async function officialAbout(t) {
-    trailInfo = trailInfo || fetch("data/trail-info.json?v=318").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
+    trailInfo = trailInfo || fetch("data/trail-info.json?v=319").then((r) => r.json()).catch(() => { trailInfo = null; return null; });
     const j = await trailInfo; if (!j) return [];
     const names = new Set([t.tags.name, t.tags["mtb:name"], t.tags["tf:name"], t.tfName].filter(Boolean).map(foldName));
     const mid = t.geom[Math.floor(t.geom.length / 2)], k = Math.cos(mid[0] * Math.PI / 180);
@@ -6760,30 +6785,30 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=318"></script>
-<script src="contours.js?v=318"></script>
-<script src="photo-slider.js?v=318"></script>
-<script src="winter.js?v=318"></script>
-<script src="hunting.js?v=318"></script>
-<script src="ski-points.js?v=318"></script>
-<script src="offline.js?v=318"></script>
-<script src="ride-stats.js?v=318"></script>
-<script src="native-gps.js?v=318"></script>
-<script src="navigate.js?v=318"></script>
-<script src="planner.js?v=318"></script>
-<script src="ride-finds.js?v=318"></script>
-<script src="rides.js?v=318"></script>
-<script src="account.js?v=318"></script>
-<script src="reports.js?v=318"></script>
-<script src="grades.js?v=318"></script>
-<script src="trail-photos.js?v=318"></script>
-<script src="visitors.js?v=318"></script>
-<script src="notify.js?v=318"></script>
-<script src="status.js?v=318"></script>
-<script src="areas.js?v=318"></script>
-<script src="alpine.js?v=318"></script>
-<script src="bikeparks.js?v=318"></script>
-<script src="photo-find.js?v=318"></script>
+<script src="map3d.js?v=319"></script>
+<script src="contours.js?v=319"></script>
+<script src="photo-slider.js?v=319"></script>
+<script src="winter.js?v=319"></script>
+<script src="hunting.js?v=319"></script>
+<script src="ski-points.js?v=319"></script>
+<script src="offline.js?v=319"></script>
+<script src="ride-stats.js?v=319"></script>
+<script src="native-gps.js?v=319"></script>
+<script src="navigate.js?v=319"></script>
+<script src="planner.js?v=319"></script>
+<script src="ride-finds.js?v=319"></script>
+<script src="rides.js?v=319"></script>
+<script src="account.js?v=319"></script>
+<script src="reports.js?v=319"></script>
+<script src="grades.js?v=319"></script>
+<script src="trail-photos.js?v=319"></script>
+<script src="visitors.js?v=319"></script>
+<script src="notify.js?v=319"></script>
+<script src="status.js?v=319"></script>
+<script src="areas.js?v=319"></script>
+<script src="alpine.js?v=319"></script>
+<script src="bikeparks.js?v=319"></script>
+<script src="photo-find.js?v=319"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
