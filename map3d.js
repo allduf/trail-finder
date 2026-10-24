@@ -405,7 +405,7 @@
 
   // Last winter's photos cover the riding areas from the Sunshine Coast to the Rockies (scripts/winter-photos);
   // data/winter/blocks.json lists the zoom-11 squares that have them.
-  const WINTER_BOUNDS = [-124.9, 48.9, -114.4, 52.4];
+  const WINTER_BOUNDS = [-125, 48.8, -114.25, 52.4];
   let winterBlocks = null;
   const loadWinterBlocks = () => winterBlocks || (winterBlocks = fetch("data/winter/blocks.json").then((r) => r.json())
     .then((a) => new Set(a.map(([x, y]) => x + "/" + y))).catch(() => { winterBlocks = null; return null; }));
@@ -434,7 +434,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=324");
+      const w = new Worker("winter-hd.js?v=364");
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return;
