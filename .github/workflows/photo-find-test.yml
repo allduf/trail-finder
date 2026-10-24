@@ -47,5 +47,5 @@ jobs:
           CASES: ${{ github.event.inputs.cases || '10' }}
           GITHUB_TOKEN: ${{ github.token }}
           OWNER: allduf
-          LABEL: ${{ github.event.pull_request.number && format('PR #{0}', github.event.pull_request.number) || '' }}
+          LABEL: "${{ github.event.pull_request.number && format('PR {0}', github.event.pull_request.number) || '' }}"
         run: node scripts/photo-find-test.mjs
