@@ -51,6 +51,7 @@
     star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
     eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
     ruler: '<path d="M3 17 17 3l4 4L7 21z"/><path d="m7 13 2 2M10 10l2 2M13 7l2 2"/>',
+    square: '<path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><path d="M10 4h4M20 10v4M10 20h4M4 10v4"/>',
   };
 
   // ---------- what each rules area means for hunting ----------
@@ -378,7 +379,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const renderer = L.canvas({ pane: "hunt", padding: 0.3 });
   const zoneLayer = L.layerGroup(), lehLayer = L.layerGroup(), rulesLayer = L.layerGroup(), labelLayer = L.layerGroup(), windLayer = L.layerGroup(), ringLayer = L.layerGroup();
   const glassLayer = L.layerGroup(), measureLayer = L.layerGroup();
-  const allHunt = [zoneLayer, lehLayer, rulesLayer, labelLayer, windLayer, ringLayer, glassLayer, measureLayer];
+  const squareLayer = L.layerGroup();   // the square drawn for Hunting maps offline
+  const allHunt = [zoneLayer, lehLayer, rulesLayer, labelLayer, windLayer, ringLayer, glassLayer, measureLayer, squareLayer];
   let zones = null, leh = null, areas = null;
 
   async function drawZones() {
@@ -1315,7 +1317,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     if (phone()) showMap();
   }
   const phone = () => matchMedia("(max-width: 760px)").matches;
-  const showMap = () => { const b = document.querySelector('#tabbar [data-nav="map"]'); if (b) b.click(); };   // phones: drop the panel to see the map
+  // Phones: drop the panel to see the map, once the tap is done (a tap in a lowered panel raises it again).
+  const showMap = () => setTimeout(() => { const b = document.querySelector('#tabbar [data-nav="map"]'); if (b) b.click(); });
 
   // ---------- measure: tap points for the distance, and the area inside three or more ----------
   const measBar = document.createElement("div");
@@ -1349,6 +1352,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     measBar.querySelector('[data-m="undo"]').disabled = !p.length;
   }
   function measStart() {
+    if (sqMode) squareCancel();
     meas = [];
     measBar.hidden = false; document.body.classList.add("hn-measuring"); $("hnMeasure").setAttribute("aria-pressed", "true");
     measDraw();
@@ -1408,16 +1412,20 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     return [...new Set(urls)];
   }
   const viewBox = () => { const b = map.getBounds(); return [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((v) => +v.toFixed(4)); };
+  const offLayers = () => [...shown].filter((k) => PICS.some((p) => p.layer === k) || k === "slope" || k === "aspect");
+  const offSize = (n) => (n > OFF_MAX ? "" : `About ${Math.max(1, Math.round(n * 0.03))} MB`);
   let offBusy = null;
   function renderOffline() {
-    const el = $("hnOff"), saved = store.get(OFF_KEY, []);
-    const layers = [...shown].filter((k) => PICS.some((p) => p.layer === k) || k === "slope" || k === "aspect");
-    const n = offUrls(viewBox(), layers).length;
-    el.innerHTML = `<p class="hn-note" style="margin-top:6px">Zones, seasons, draws${layers.length ? ` and ${esc(layers.map((k) => LAYERS[k].label.toLowerCase()).join(", "))}` : ""} for the area on screen, for no signal. The base map is saved with Offline maps in the Layers menu.</p>
+    const el = $("hnOff"), saved = store.get(OFF_KEY, []), layers = offLayers();
+    const n = offUrls(offSquare || viewBox(), layers).length;
+    el.innerHTML = `<p class="hn-note" style="margin-top:6px">Zones, seasons, draws${layers.length ? ` and ${esc(layers.map((k) => LAYERS[k].label.toLowerCase()).join(", "))}` : ""} for ${offSquare ? "the square you drew" : "the area on screen, or a square you draw"}, for no signal. The base map is saved with Offline maps in the Layers menu.</p>
       ${offBusy ? `<div class="hn-bar"><i style="width:${Math.round(offBusy.pct)}%"></i></div><p class="hn-note">${esc(offBusy.msg)}</p><div class="hn-row"><button type="button" class="hn-btn ghost" id="hnOffStop">Stop</button></div>`
-        : `<div class="hn-row"><button type="button" class="hn-btn" id="hnOffSave"${n > OFF_MAX ? " disabled" : ""}>Save this area</button><span class="hn-note">${n > OFF_MAX ? "Too big: zoom in closer" : `About ${Math.max(1, Math.round(n * 0.03))} MB`}</span></div>`}
+        : `<div class="hn-row"><button type="button" class="hn-btn" id="hnOffSave"${n > OFF_MAX ? " disabled" : ""}>${offSquare ? "Save this square" : "Save this area"}</button>${offSquare
+          ? `<button type="button" class="hn-pill" id="hnOffClear">${svg(IC.x, 14)}Clear the square</button>` : `<button type="button" class="hn-pill" id="hnOffDraw">${svg(IC.square, 16)}Draw a square</button>`}<span class="hn-note">${n > OFF_MAX ? (offSquare ? "Too big: draw a smaller square" : "Too big: zoom in or draw a square") : offSize(n)}</span></div>`}
       ${saved.length ? `<ul class="hn-list">${saved.map((s, i) => `<li><b>${esc(s.name)}</b><span class="hn-note">${esc(new Date(s.at).toLocaleDateString())} · ${s.n} files${s.missing ? ` · ${s.missing} missing` : ""}</span> <button type="button" class="hn-pill" data-off="${i}">Show</button> <button type="button" class="hn-pill" data-offdel="${i}" style="color:#c0392b">Delete</button></li>`).join("")}</ul>` : ""}`;
-    const sv = $("hnOffSave"); if (sv) sv.addEventListener("click", () => saveOffline(layers));
+    const sv = $("hnOffSave"); if (sv) sv.addEventListener("click", () => saveOffline(layers, offSquare));
+    const dr = $("hnOffDraw"); if (dr) dr.addEventListener("click", squareStart);
+    const cl = $("hnOffClear"); if (cl) cl.addEventListener("click", squareCancel);
     const st = $("hnOffStop"); if (st) st.addEventListener("click", () => { if (offBusy) offBusy.stop = true; });
     el.querySelectorAll("[data-off]").forEach((b) => b.addEventListener("click", () => { const s = store.get(OFF_KEY, [])[+b.dataset.off]; if (s) map.fitBounds([[s.box[0], s.box[1]], [s.box[2], s.box[3]]]); }));
     el.querySelectorAll("[data-offdel]").forEach((b) => b.addEventListener("click", async () => {
@@ -1432,12 +1440,12 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       renderOffline();
     }));
   }
-  async function saveOffline(layers) {
+  async function saveOffline(layers, square) {
     if (!("caches" in window)) { hint("This browser can't save maps offline."); return; }
-    const box = viewBox(), urls = offUrls(box, layers);
+    const box = square || viewBox(), urls = offUrls(box, layers);
     const c = await caches.open(OFF_CACHE);
     offBusy = { pct: 0, msg: "Starting…", stop: false };
-    renderOffline();
+    renderOffline(); if (square) squareBar("saving");
     let done = 0, bad = 0;
     const queue = [...urls];
     const worker = async () => {
@@ -1451,22 +1459,100 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
         if (!ok) bad++;
         done++;
         offBusy.pct = (done / urls.length) * 100; offBusy.msg = `Saved ${done} of ${urls.length} files${bad ? ` (${bad} failed)` : ""}…`;
-        if (done % 20 === 0) renderOffline();
+        if (done % 20 === 0) { renderOffline(); if (square) squareBar("saving"); }
       }
     };
     await Promise.all([1, 2, 3, 4, 5, 6].map(worker));
     const stopped = offBusy.stop;
     offBusy = null;
     try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
+    let name = "";
     if (!stopped) {
       const near = zones && zones.find((u) => u.c && inBox(u.b, (box[0] + box[2]) / 2, (box[1] + box[3]) / 2) && inside(u.g, (box[0] + box[2]) / 2, (box[1] + box[3]) / 2));
       const list = store.get(OFF_KEY, []);
-      list.unshift({ name: near ? (near.p === "ab" ? `WMU ${near.id}${near.n ? ` ${near.n}` : ""}` : `MU ${near.id}${near.zn ? ` ${near.zn}` : ""}`) : `Area at ${fmtLL((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)}`,
-        box, layers, n: urls.length - bad, missing: bad, at: Date.now() });
+      name = near ? (near.p === "ab" ? `WMU ${near.id}${near.n ? ` ${near.n}` : ""}` : `MU ${near.id}${near.zn ? ` ${near.zn}` : ""}`) : `Area at ${fmtLL((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)}`;
+      list.unshift({ name, box, layers, n: urls.length - bad, missing: bad, at: Date.now() });
       store.set(OFF_KEY, list.slice(0, 20));
-      hint(bad ? `Saved, but ${bad} files didn't download: save it again with signal to finish.` : "Saved: these hunting layers now work with no signal.");
+      if (!square) hint(bad ? `Saved, but ${bad} files didn't download: save it again with signal to finish.` : "Saved: these hunting layers now work with no signal.");
     }
     renderOffline();
+    if (square && offSquare === square) squareBar(stopped ? "ready" : "done", { bad, name });
+  }
+
+  // ---------- offline: draw a square to save instead of the area on screen ----------
+  // alex: "add the option draw a square". The same drag as Offline maps' "Draw a square" (the map stops panning and a
+  // drag draws it); a bar on the map then saves it, so on a phone there's no going back to the panel.
+  const SQUARE = "#1f6f4a";   // Offline maps' square colour
+  let offSquare = null, sqMode = "", sqDrag = null;   // the square [s, w, n, e]; "" | "draw" | "ready" | "saving" | "done"
+  const sqBar = document.createElement("div");
+  sqBar.className = "sp-banner hn-meas"; sqBar.hidden = true; sqBar.setAttribute("role", "status");
+  L.DomEvent.disableClickPropagation(sqBar);
+  map.getContainer().append(sqBar);
+  function squareBar(mode, info = {}) {
+    sqMode = mode;
+    const n = offSquare ? offUrls(offSquare, offLayers()).length : 0;
+    const [text, acts] = mode === "draw" ? ["Drag a square over the area to save", [["cancel", "Cancel"]]]
+      : mode === "ready" ? (n > OFF_MAX ? ["Too big: draw a smaller square", [["redraw", "Redraw"], ["cancel", "Cancel"]]]
+        : [`Hunting layers for this square, ${offSize(n).replace("About", "about")}`, [["save", "Save"], ["redraw", "Redraw"], ["cancel", "Cancel"]]])
+      : mode === "saving" ? [offBusy ? offBusy.msg : "Saving…", [["stop", "Stop"]]]
+      : [info.bad ? `Saved, but ${info.bad} files didn't download: save it again with signal.` : "Saved: the hunting layers here work with no signal.",
+        window.tfOffline ? [["base", "Save the base map too"], ["cancel", "Done"]] : [["cancel", "Done"]]];
+    sqBar.innerHTML = `${svg(IC.square, 18)}<span>${esc(text)}</span>${acts.map(([k, t]) => `<button type="button" data-sq="${k}">${t}</button>`).join("")}`;
+    sqBar.dataset.name = info.name || "";
+    sqBar.hidden = false;
+    const mapEl = map.getContainer();
+    mapEl.classList.toggle("drawing", mode === "draw");
+    if (mode === "draw") map.dragging.disable(); else map.dragging.enable();
+  }
+  function squareStart() {
+    if (meas) measStop();
+    const b3 = $("btn3d");
+    if (b3 && b3.getAttribute("aria-pressed") === "true") b3.click();   // the square is drawn on the flat map
+    offSquare = null; squareLayer.clearLayers();
+    squareBar("draw"); renderOffline();
+    if (phone()) showMap();
+  }
+  function squareCancel() {
+    if (sqMode === "saving" && offBusy) offBusy.stop = true;
+    sqMode = ""; sqDrag = null; offSquare = null;
+    squareLayer.clearLayers(); sqBar.hidden = true;
+    map.getContainer().classList.remove("drawing"); map.dragging.enable();
+    renderOffline();
+  }
+  sqBar.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-sq]"); if (!b) return;
+    const k = b.dataset.sq;
+    if (k === "cancel") squareCancel();
+    else if (k === "redraw") squareStart();
+    else if (k === "save") saveOffline(offLayers(), offSquare);
+    else if (k === "stop") { if (offBusy) offBusy.stop = true; }
+    else if (k === "base") { const box = offSquare, name = sqBar.dataset.name; squareCancel(); window.tfOffline.saveBox(box, name); }
+  });
+  {
+    const mapEl = map.getContainer(), swallow = (c) => c.stopPropagation();
+    mapEl.addEventListener("pointerdown", (e) => {
+      if (sqMode !== "draw" || e.button > 0 || e.target.closest(".leaflet-control, .sp-banner")) return;
+      e.preventDefault(); e.stopPropagation();
+      mapEl.setPointerCapture(e.pointerId);
+      const ll = map.mouseEventToLatLng(e);
+      sqDrag = { start: ll, rect: L.rectangle([ll, ll], { pane: "hunt", color: SQUARE, weight: 2, dashArray: "6 6", fillOpacity: 0.06, interactive: false }).addTo(squareLayer) };
+    }, true);
+    mapEl.addEventListener("pointermove", (e) => {
+      if (sqDrag) { e.stopPropagation(); sqDrag.rect.setBounds(L.latLngBounds(sqDrag.start, map.mouseEventToLatLng(e))); }
+    }, true);
+    mapEl.addEventListener("pointerup", (e) => {
+      if (!sqDrag) return;
+      e.stopPropagation();
+      const b = L.latLngBounds(sqDrag.start, map.mouseEventToLatLng(e));
+      sqDrag = null;
+      squareLayer.clearLayers();
+      mapEl.addEventListener("click", swallow, true);   // the click that follows the drag isn't a tap on the map
+      setTimeout(() => mapEl.removeEventListener("click", swallow, true), 400);
+      if (map.latLngToContainerPoint(b.getNorthWest()).distanceTo(map.latLngToContainerPoint(b.getSouthEast())) < 20) return;   // a tap: keep drawing
+      offSquare = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((v) => +v.toFixed(4));
+      L.rectangle(b, { pane: "hunt", color: SQUARE, weight: 2, fillOpacity: 0.08, interactive: false }).addTo(squareLayer);
+      squareBar("ready"); renderOffline();
+    }, true);
   }
 
   // ---------- 3D map (map3d.js) ----------
@@ -1584,7 +1670,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
 
   // ---------- switching sport ----------
   map.on("click", (e) => {
-    if (!isHunt() || document.querySelector(".app.riding, .app.planning")) return;
+    if (!isHunt() || document.querySelector(".app.riding, .app.planning") || sqMode === "draw") return;
     if (meas) { meas.push(e.latlng); measDraw(); return; }
     setSpot(e.latlng.lat, e.latlng.lng, "tap");
     showSpot(e.latlng.lat, e.latlng.lng);
@@ -1602,6 +1688,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   function sync() {
     const on = isHunt();
     if (!on && meas) measStop();
+    if (!on && sqMode) squareCancel();
     for (const l of allHunt) { if (on && !map.hasLayer(l)) l.addTo(map); else if (!on && map.hasLayer(l)) map.removeLayer(l); }
     if (on && !keyCtl._map) keyCtl.addTo(map); else if (!on && keyCtl._map) keyCtl.remove();
     syncTiles(); sync3d();
