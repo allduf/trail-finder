@@ -288,6 +288,13 @@
   const ndsi = (r, g, b) => r === 255 ? (g === 0 && b === 0 ? 100 : 0) : r !== 240 ? 0
     : g >= 150 && b >= 128 && b <= 147 && (240 - g) % 30 === 0 ? (240 - g) / 30 * 20 + b - 127 : g >= 120 && g <= 133 ? 90 : 0;
   const smooth = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+  // The summer photo for a snow tile: the picked older summer photo, else (if Esri's archive won't send it) the newest
+  // one, so a tile never comes back empty (that left holes in the 3D ground, alex 2026-10-24).
+  const getBytes = (url, sig) => fetch(url, { signal: sig }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); });
+  const photoBytes = (z, x, y, sig) => getBytes(ESRI(z, x, y), sig).catch((e) => {
+    if (sig.aborted || summerTiles === ESRI_NOW) throw e;
+    return getBytes(ESRI_NOW.replace("{z}", z).replace("{y}", y).replace("{x}", x), sig);
+  });
   let winterProtocol = false;
   function addWinterProtocol() {
     if (winterProtocol) return;
@@ -295,9 +302,9 @@
     maplibregl.addProtocol("tfwinter", async (params, abort) => {
       const [mode, zs, xs, ys] = params.url.replace("tfwinter://", "").split("/"), z = +zs, x = +xs, y = +ys, sig = abort.signal;
       if (mode === "fill" && covered(await loadWinterBlocks(), z, x, y))   // last winter's photos cover it: the plain photo will do
-        return { data: await fetch(ESRI(z, x, y), { signal: sig }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); }) };
+        return { data: await photoBytes(z, x, y, sig) };
       const [raw, live] = await Promise.all([
-        fetch(ESRI(z, x, y), { signal: sig }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); }),
+        photoBytes(z, x, y, sig),
         under(Math.min(z, 8), z, x, y, (a, b, c) => cached(`s${a}/${b}/${c}`, () => image(NASA_SNOW(a, b, c), new AbortController().signal).then(pixels))).catch(() => null)]);
       // How much snow NASA saw at each photo pixel (0 to 1), blended between its 500 m cells so edges
       // aren't blocky. The tile's colour is a code for the snow index (ndsi below), not a picture of snow:
@@ -321,7 +328,9 @@
       if (!any) return { data: raw };   // no snow here today: the sharp photo exactly as it is
       const photo = pixels(await createImageBitmap(new Blob([raw]))), P = photo.data;
       const dz = Math.min(z, 13);
-      const [dem, dl, dt, ds] = await under(dz, z, x, y, (a, b, c) => cached(`d${a}/${b}/${c}`, () => demTile(a, b, c, new AbortController().signal).then(pixels)));
+      const heights = await under(dz, z, x, y, (a, b, c) => cached(`d${a}/${b}/${c}`, () => demTile(a, b, c, new AbortController().signal).then(pixels))).catch(() => null);
+      if (!heights) return { data: raw };   // no heights for the slopes: the photo as it is rather than a hole
+      const [dem, dl, dt, ds] = heights;
       const D = dem.data, DW = dem.width, h = (px, py) => {
         px = Math.min(DW - 1, Math.max(0, px | 0)); py = Math.min(DW - 1, Math.max(0, py | 0));
         const i = (py * DW + px) * 4; return D[i] * 256 + D[i + 1] + D[i + 2] / 256 - 32768;
@@ -405,7 +414,7 @@
 
   // Last winter's photos cover the riding areas from the Sunshine Coast to the Rockies (scripts/winter-photos);
   // data/winter/blocks.json lists the zoom-11 squares that have them.
-  const WINTER_BOUNDS = [-124.9, 48.9, -114.4, 52.4];
+  const WINTER_BOUNDS = [-125, 48.8, -114.25, 52.4];
   let winterBlocks = null;
   const loadWinterBlocks = () => winterBlocks || (winterBlocks = fetch("data/winter/blocks.json").then((r) => r.json())
     .then((a) => new Set(a.map(([x, y]) => x + "/" + y))).catch(() => { winterBlocks = null; return null; }));
@@ -434,7 +443,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=324");
+      const w = new Worker("winter-hd.js?v=377");
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return;
@@ -504,7 +513,7 @@
           // Feb-Mar 2026, clouds removed). Live: the sharp photos with today's snow drawn in (tfwinter).
           // tileSize 128 like the other photos: one zoom deeper, so the 10 m photos are at full detail up close
           // instead of the half-size zoom 12-13 ones (blurry and stretched on the slopes, alex 2026-10-19).
-          winter: { type: "raster", tileSize: PHOTO_TILE, minzoom: 8, maxzoom: 14, bounds: WINTER_BOUNDS, tiles: ["data/winter/{z}/{x}/{y}.webp"],
+          winter: { type: "raster", tileSize: PHOTO_TILE, minzoom: 6, maxzoom: 14, bounds: WINTER_BOUNDS, tiles: ["data/winter/{z}/{x}/{y}.webp"],
             attribution: "Winter: Copernicus Sentinel-2 data 2026 (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>" },
           // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above). Not on phones,
           // where the extra tiles would use the memory iPhone Safari runs out of.
