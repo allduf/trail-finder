@@ -53,8 +53,9 @@ const SCHEMA = {
         lat: { type: "NUMBER" }, lon: { type: "NUMBER" },
         km: { type: "NUMBER", description: "0 when you can't tell; else how far off the spot might be, in km" },
         where: { type: "STRING", description: "A few words for that spot, like 'above Britannia Beach'" },
+        alt: { type: "NUMBER", description: "About how high the camera is, in metres above sea level (valley floor, forest, treeline, alpine); 0 when you can't tell" },
       },
-      required: ["lat", "lon", "km", "where"],
+      required: ["lat", "lon", "km", "where", "alt"],
     },
     guesses: {
       type: "ARRAY",
@@ -73,7 +74,7 @@ const SCHEMA = {
   required: ["trail_names", "landmarks", "views", "places", "terrain", "scene", "viewpoint", "guesses"],
 };
 
-type Viewpoint = { lat: number; lon: number; km: number; where: string } | null;
+type Viewpoint = { lat: number; lon: number; km: number; where: string; alt?: number } | null;
 type Out = { trail_names: string[]; landmarks: string[]; views: { name: string; x: number }[]; places: string[]; terrain: string[]; scene: string; viewpoint: Viewpoint;
   guesses: { trail: string; area: string; why: string }[] };
 const strs = (v: unknown) => (Array.isArray(v) ? v.filter((s) => typeof s === "string").map((s) => s.slice(0, 120)).slice(0, 12) : []);
@@ -82,7 +83,8 @@ function spot(v: unknown): Viewpoint {
   const o = v as Record<string, unknown> | null;
   if (!o || typeof o.lat !== "number" || typeof o.lon !== "number" || typeof o.km !== "number") return null;
   if (o.lat < 48 || o.lat > 60.5 || o.lon < -139.5 || o.lon > -109.5 || !(o.km > 0) || o.km > 50) return null;
-  return { lat: o.lat, lon: o.lon, km: o.km, where: String(o.where || "").slice(0, 80) };
+  const alt = typeof o.alt === "number" && o.alt > 0 && o.alt < 5000 ? Math.round(o.alt) : undefined;
+  return { lat: o.lat, lon: o.lon, km: o.km, where: String(o.where || "").slice(0, 80), ...(alt ? { alt } : {}) };
 }
 function clean(o: Record<string, unknown>): Out {
   const g = Array.isArray(o.guesses) ? o.guesses : [];

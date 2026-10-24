@@ -122,8 +122,8 @@ function how(d, c) {
     const a = d.ai, vp = a.vp && c.lat != null ? km({ lat: a.vp.lat, lon: a.vp.lon }, c).toFixed(1) : null;
     out.push(`AI${a.model ? " (" + a.model + ")" : ""}: ${[a.places.length ? "places " + a.places.join(", ") : "", a.landmarks.length ? "landmarks " + a.landmarks.join(", ") : "",
       (a.views || []).length ? "seen across the picture " + a.views.map((v) => `${v.name} ${v.x}`).join(", ") : "",
-      a.guesses.length ? "guesses " + a.guesses.join(", ") : ""].filter(Boolean).join("; ") || "nothing named"}` +
-      (vp ? `; placed it ${vp} km from the trail (it said ±${a.vp.km} km)` : "; no spot"), `reverse search: ${a.rev}`);
+      a.guesses.length ? "guesses " + a.guesses.join(", ") : "", (a.terrain || []).length ? "terrain " + a.terrain.slice(0, 5).join(", ") : ""].filter(Boolean).join("; ") || "nothing named"}` +
+      (vp ? `; placed it ${vp} km from the trail (it said ±${a.vp.km} km${a.vp.alt ? `, ${a.vp.alt} m up` : ""})` : "; no spot"), `reverse search: ${a.rev}`);
   }
   if (d.before) {
     const b = d.before.findIndex((n) => norm(n) === norm(c.trail_name)) + 1;

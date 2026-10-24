@@ -522,7 +522,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const seen = file ? await askAI(my, $("pfRead").value) : null;
     if (my !== job) return;
     if (TEST) TEST.diag = { words: core(words($("pfRead").value)).length, why: aiWhy, detail: aiDetail,
-      ai: seen ? { model: seen.model || "", places: seen.places, landmarks: seen.landmarks, views: seen.views || [], guesses: seen.guesses.map((g) => g.trail), vp: seen.viewpoint || null,
+      ai: seen ? { model: seen.model || "", places: seen.places, landmarks: seen.landmarks, views: seen.views || [], terrain: seen.terrain || [], guesses: seen.guesses.map((g) => g.trail), vp: seen.viewpoint || null,
         rev: seen.online ? seen.online.error || `${(seen.online.pages || []).length} pages` : "off" } : null };
     // The pages that show the same picture online (reverse image search): their titles and addresses count like a caption.
     const on = seen && seen.online, pages = on && Array.isArray(on.pages) ? on.pages : [];
@@ -655,6 +655,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   const SAME = { mt: "mount", mtn: "mountain", st: "saint", rd: "road", fsr: "road", n: "north", s: "south" };
   // One-word trail names that are everyday words (or app buttons in a screenshot) aren't counted on their own.
   const GENERIC = new Set(("upper lower main middle road access connector loop climb climbing descent downhill uphill bridge creek lake river mountain park view ridge summit peak " +
+    // landscape words in a place's name ("Callaghan Valley" isn't the Valley Trail)
+    "valley canyon meadow meadows pass basin glacier falls bluff bluffs bowl hill hills alpine island beach bay inlet sound range village town " +
     "north south east west home love life good best nice fun day time ride riding bike biking mtb enduro shred send follow following followers like likes liked comment comments reply " +
     "share save more view views search explore reels video photo story stories post posts message today yesterday week weeks year years ago km mile miles elevation gain moving " +
     "speed avg max time map maps segment segments strava trailforks kudos activity morning afternoon evening night lunch ride rides route routes forest woods dirt loam loamy " +
@@ -829,10 +831,10 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       else if (hinted.size) s -= 0.15;             // it names other places
       else if (hereIds.has(g.zone.id)) s += 0.05;
       if (spots.some((p) => p.c.distanceTo(g.center) < 8000)) s += 0.1;
-      // The same words are also a place it names ("Alice Lake"): weaker as a trail, much weaker when only the AI named
-      // the place ("Sea to Sky" the region, not the Sea to Sky Trail).
+      // The same words are also a place it names ("Alice Lake"): weaker as a trail; not a trail at all when only the AI
+      // named the place ("Sea to Sky" the region, not the Sea to Sky Trail).
       const aiPlace = t.hit.at >= aiSawFrom && t.hit.at < aiFrom;
-      if (found.some((p) => p.ws.join("") === t.ws.join(""))) s -= aiPlace ? 0.4 : 0.2;
+      if (found.some((p) => p.ws.join("") === t.ws.join(""))) s -= aiPlace ? 9 : 0.2;
       const said = tokens.slice(t.hit.at, t.hit.at + t.hit.n).join(" ");
       why.unshift(t.hit.at >= aiFrom ? "AI named it" : t.hit.at >= aiSawFrom ? `AI saw “${said}”` : t.hit.at >= revFrom ? "named on a page with the same picture" : t.hit.how === "tag" || t.ws !== g.ws ? `“${said}” is in the words` : t.hit.d ? `read as “${said}”` : `“${g.name}” is in the words`);
       return { g, s, why, said: said.replace(/ /g, ""), aiPlace };
@@ -872,7 +874,9 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const used = [...named.map((l) => ({ l, base: 0.8 })), ...looked.filter((x) => x.fit === looked[0].fit).slice(0, 2).map((x) => ({ l: x.l, base: 0.6 }))].slice(0, 3);
     // A trail named like a landmark it mentions ("The Chief") is weaker as a trail.
     // Same when only the landmark's name matched in a longer trail name ("Stawamus Chief / Sea to Summit").
-    hits.forEach((h) => { if (named.some((l) => [l.ws, ...l.akaWs].some((ws) => ws.join("") === h.g.ws.join("") || ws.join("") === h.said))) h.s -= h.aiPlace ? 0.4 : 0.2; });
+    // When only the AI named the landmark, it's the landmark, not that trail (which can still join below as a trail near it).
+    hits.forEach((h) => { if (named.some((l) => [l.ws, ...l.akaWs].some((ws) => ws.join("") === h.g.ws.join("") || ws.join("") === h.said))) h.s -= h.aiPlace ? 9 : 0.2; });
+    hits = hits.filter((h) => h.s > 0);
     const keyOf = (g) => g.ws.join(" ") + "|" + g.zone.id;
     for (const { l, base } of used) {
       say(`Checking which trails can see ${l.name}…`, 0.98);
@@ -892,13 +896,25 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       // The AI's "how far off" is often too small: look a bit wider.
       const R = vpRadius(vp), spot = L.latLng(vp.lat, vp.lon);
       say("Looking at the trails where the AI places the photo…", 0.985);
-      const { list } = await trailsNear([spot], R);
+      const { list, b } = await trailsNear([spot], R);
       if (my !== job) return null;
-      for (const g of list.slice(0, 60)) {
-        const why = `where the AI places the photo${vp.where ? " (" + vp.where + ")" : ""}, ${(g.d / 1000).toFixed(1)} km`;
-        const have = hits.find((h) => keyOf(h.g) === keyOf(g)), near = 1 - g.d / R;
-        if (have) { have.s += 0.1 + 0.1 * near; have.why.push(why); }
-        else hits.push({ g, s: 0.7 + 0.15 * near, why: [why], lm: true });
+      // How high the AI thinks the camera is (valley floor, forest, alpine): trails that reach about that height go up,
+      // ones far above or below it down. Then the 60 best of them.
+      const alt = vp.alt > 0 ? vp.alt : 0;
+      if (alt) { await demLoad(b); if (my !== job) return null; }
+      const near = list.map((g) => {
+        let up = 0, h = null;
+        if (alt) {
+          const hs = g.pts.map((p) => elev(p[0], p[1])).filter((x) => x != null);
+          if (hs.length) { h = hs.reduce((m, x) => (Math.abs(x - alt) < Math.abs(m - alt) ? x : m)); const dz = Math.abs(h - alt); up = dz <= 300 ? 0.08 : dz > 700 ? -0.15 : 0; }
+        }
+        return { g, up, h, at: 1 - g.d / R };
+      }).sort((a, z) => (z.at * 0.15 + z.up) - (a.at * 0.15 + a.up)).slice(0, 60);
+      for (const { g, up, h, at } of near) {
+        const why = `where the AI places the photo${vp.where ? " (" + vp.where + ")" : ""}, ${(g.d / 1000).toFixed(1)} km` + (up > 0 ? `, about as high (${Math.round(h)} m)` : "");
+        const have = hits.find((x) => keyOf(x.g) === keyOf(g));
+        if (have) { have.s += 0.1 + 0.1 * at + up; have.why.push(why); }
+        else hits.push({ g, s: 0.7 + 0.15 * at + up, why: [why], lm: true });
       }
       // Pictures riders confirmed around there: their trails join the list (or go up), and the online check then
       // compares those pictures with this one.
