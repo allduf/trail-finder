@@ -310,6 +310,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
       .then((d) => {
         ski = d;
         (d.routes || []).forEach((r) => { r.lines = r.g.map(lineOf); r.bounds = L.latLngBounds(r.lines.flat()); });
+        window.dispatchEvent(new CustomEvent("tf:ski-data", { detail: d }));   // rogers.js: official terrain classes (r.ates)
         drawSki(); renderSwitches(); renderList();
       })
       .catch((e) => { skiErr = e.message; renderList(); })
@@ -902,12 +903,14 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
       ${tags.plain}<span id="skNear"></span></dl>
       ${isHut || r.area ? "" : `<div class="sk-sec" id="skCheck"><h4>Avalanche check</h4><p class="sk-note">Working out the terrain…</p></div>`}
       ${isHut ? "" : `<div class="sk-sec" id="skElev"><h4>Elevation</h4><p class="sk-note">Loading heights…</p></div>`}
+      <div class="sk-sec" id="skLocal" hidden></div>
       <div class="sk-sec" id="skAvy"></div>
       <div class="sk-sec" id="skWx"><h4>Weather</h4><p class="sk-note">Loading the forecast…</p></div>
       <div class="sk-sec" id="skSnowNear" hidden></div>
       ${isHut || r.area ? "" : `<div class="sk-row">${window.tfRide ? `<button type="button" class="btn primary" id="skFollow">▶ Follow this tour</button>` : ""}<button type="button" class="btn" id="skGpx">⬇ GPX</button></div>`}
       ${mine ? "" : `<div class="sk-sec" id="skPh"><h4>Photos</h4><p class="sk-note">Looking for photos…</p></div>
       <p class="sk-note">From ${src}</p>`}`;
+    window.dispatchEvent(new CustomEvent("tf:ski-select", { detail: { item: r, el: $("skLocal") } }));   // rogers.js: permit areas, huts
     d.querySelector(".sk-x").addEventListener("click", unselect);
     const fol = $("skFollow");
     if (fol) fol.addEventListener("click", () => { if (plan.on) setPlanning(false); window.tfRide.follow(r.info ? chain(group) : group.flatMap((x) => x.lines), title); });
@@ -1923,7 +1926,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
     const ty = (lat, z) => { const r = (lat * Math.PI) / 180; return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z); };
     const tiles = [];
     for (let z = 10; z <= OFFLINE_DEM_Z; z++) for (let x = tx(box[1], z); x <= tx(box[3], z); x++) for (let y = ty(box[2], z); y <= ty(box[0], z); y++) tiles.push(DEM(z, x, y));
-    const data = ["ski", "ski-terrain", "avalanche", "avalanche-reports", "snow-stations", "snowmobile-clubs", "grooming", "ski-heat"].map((n) => new URL(`data/${n}.json`, location.href).href);
+    const data = ["ski", "ski-terrain", "avalanche", "avalanche-reports", "snow-stations", "snowmobile-clubs", "grooming", "ski-heat", "rogers-pass", "rogers-status"].map((n) => new URL(`data/${n}.json`, location.href).href);
     return { data, tiles };
   };
 
