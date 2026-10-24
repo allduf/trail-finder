@@ -15,7 +15,7 @@
 
   // ---------- data/ratings/osm.json ----------
   let osm = null;
-  fetch(DIR + "osm.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+  const osmReady = fetch(DIR + "osm.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
     .then((j) => { if (j && j.v === 1) { osm = j.ways; fire(); } });
 
   // ---------- official lines (like official.js) ----------
@@ -441,13 +441,24 @@
     { name: "Kathleen Lake Loop Trail", c: [49.905, -119.471], r: 2000, src: "Tourism Kelowna, the Knox network", url: "https://www.tourismkelowna.com/blog/stories/post/mountain-biking-in-kelowna-a-close-look-at-the-knox-network/" },
     { name: "Gear Jammer Connector", c: [49.276, -122.904], r: 2000, src: "Komoot, Burnaby Mountain Gearjammer", url: "https://www.komoot.com/smarttour/31037183" },
   ];
+  // HAND by way id and by lower-case name (in list order), so each trail is a lookup, not a walk through the whole list:
+  // every loaded trail is checked when the app opens.
+  let handById = null, handByName = null;
+  function handIndex() {
+    handById = new Map(); handByName = new Map();
+    HAND.forEach((h) => {
+      (h.ids || []).forEach((n) => { if (!handById.has(n)) handById.set(n, h); });
+      if (h.name) { const k = h.name.toLowerCase(); if (!handByName.has(k)) handByName.set(k, []); handByName.get(k).push(h); }
+    });
+  }
   function handOf(geom, tags, id) {
+    if (!handById) handIndex();
     const n = Number(String(id || "").replace(/^\D+/, ""));
-    if (n) { const h = HAND.find((h) => h.ids && h.ids.includes(n)); if (h) return h; }
+    if (n) { const h = handById.get(n); if (h) return h; }
     const name = ((tags && (tags.name || tags["tf:name"])) || "").toLowerCase(), mid = geom && geom[geom.length >> 1];
     if (!name || !mid) return null;
-    const h = HAND.find((h) => h.name && h.name.toLowerCase() === name
-      && Math.hypot((mid[0] - h.c[0]) * 110540, (mid[1] - h.c[1]) * 111320 * Math.cos((h.c[0] * Math.PI) / 180)) <= h.r);
+    const h = (handByName.get(name) || []).find((h) =>
+      Math.hypot((mid[0] - h.c[0]) * 110540, (mid[1] - h.c[1]) * 111320 * Math.cos((h.c[0] * Math.PI) / 180)) <= h.r);
     return h || null;
   }
   // { mtb, off, unoff, named }: why the trail counts as an MTB trail, as official and as unofficial (null when not), the trail
@@ -477,5 +488,5 @@
     return null;
   }
 
-  window.tfRatings = { rate, hand, estimate, load, onChange: (fn) => listeners.push(fn), changed: () => fire(null) };   // changed(): riders' grades arrived (grades.js)
+  window.tfRatings = { rate, hand, estimate, load, ready: osmReady, onChange: (fn) => listeners.push(fn), changed: () => fire(null) };   // changed(): riders' grades arrived (grades.js)
 })();
