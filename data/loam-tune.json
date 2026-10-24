@@ -1,0 +1,185 @@
+{
+ "v": 1,
+ "builtAt": "2026-10-24T11:03:31.207Z",
+ "reports": 2,
+ "bands": {
+  "dry": [
+   0,
+   19
+  ],
+  "tacky": [
+   20,
+   59
+  ],
+  "muddy": [
+   60,
+   100
+  ]
+ },
+ "all": {
+  "shift": 0,
+  "n": 2,
+  "own": 0,
+  "inBandBefore": 2,
+  "inBandAfter": 2,
+  "dry": 0,
+  "tacky": 2,
+  "muddy": 0
+ },
+ "regions": {
+  "all": {
+   "shift": 0,
+   "n": 2,
+   "own": 0,
+   "inBandBefore": 2,
+   "inBandAfter": 2,
+   "dry": 0,
+   "tacky": 2,
+   "muddy": 0
+  },
+  "tok": {
+   "shift": 0,
+   "n": 0
+  },
+  "koot": {
+   "shift": 0,
+   "n": 0
+  },
+  "ab": {
+   "shift": 0,
+   "n": 0
+  }
+ },
+ "zones": {
+  "van": {
+   "shift": 0,
+   "n": 0
+  },
+  "sqm": {
+   "shift": 0,
+   "n": 0
+  },
+  "wh": {
+   "shift": 0,
+   "n": 2,
+   "own": 0,
+   "inBandBefore": 2,
+   "inBandAfter": 2,
+   "dry": 0,
+   "tacky": 2,
+   "muddy": 0
+  },
+  "pem": {
+   "shift": 0,
+   "n": 0
+  },
+  "lil": {
+   "shift": 0,
+   "n": 0
+  },
+  "chil": {
+   "shift": 0,
+   "n": 0
+  },
+  "sun": {
+   "shift": 0,
+   "n": 0
+  },
+  "pr": {
+   "shift": 0,
+   "n": 0
+  },
+  "fv": {
+   "shift": 0,
+   "n": 0
+  },
+  "pri": {
+   "shift": 0,
+   "n": 0
+  },
+  "mer": {
+   "shift": 0,
+   "n": 0
+  },
+  "kam": {
+   "shift": 0,
+   "n": 0
+  },
+  "wl": {
+   "shift": 0,
+   "n": 0
+  },
+  "shu": {
+   "shift": 0,
+   "n": 0
+  },
+  "ver": {
+   "shift": 0,
+   "n": 0
+  },
+  "kel": {
+   "shift": 0,
+   "n": 0
+  },
+  "bwh": {
+   "shift": 0,
+   "n": 0
+  },
+  "pen": {
+   "shift": 0,
+   "n": 0
+  },
+  "sok": {
+   "shift": 0,
+   "n": 0
+  },
+  "gfk": {
+   "shift": 0,
+   "n": 0
+  },
+  "ros": {
+   "shift": 0,
+   "n": 0
+  },
+  "nel": {
+   "shift": 0,
+   "n": 0
+  },
+  "rev": {
+   "shift": 0,
+   "n": 0
+  },
+  "gol": {
+   "shift": 0,
+   "n": 0
+  },
+  "inv": {
+   "shift": 0,
+   "n": 0
+  },
+  "cbk": {
+   "shift": 0,
+   "n": 0
+  },
+  "fer": {
+   "shift": 0,
+   "n": 0
+  },
+  "yyc": {
+   "shift": 0,
+   "n": 0
+  },
+  "brg": {
+   "shift": 0,
+   "n": 0
+  },
+  "kan": {
+   "shift": 0,
+   "n": 0
+  },
+  "bnf": {
+   "shift": 0,
+   "n": 0
+  }
+ }
+}
