@@ -14,6 +14,11 @@
 //    Without it everything above still works.
 // 5. "Is this the trail?": a Yes saves a small copy of the picture and what led to the match (supabase/trail-matches.sql),
 //    quietly, and past matches with similar words lift that trail in later searches.
+// 6. In the woods (alex, 2026-10-24: "every trail has its own little things and classic features"): a picture with no
+//    spot, no name and no view to place it. The rider picks the area; its trails are ordered by what the picture shows
+//    that the trail lists know about each one (wooden bridges, bare rock, a gravel road, how hard, jumps, the alpine),
+//    and the online check compares the picture with riders' pictures of the best of them. "Teach it your trails" fills
+//    that library: ride photos that kept their spot, each placed on its trail and kept like a Yes.
 (() => {
   "use strict";
   const F = window.tfFind, map = window.tfLeaflet;
@@ -36,6 +41,9 @@
   // Short clips only (alex, 2026-10-22): a big video is slow and heavy on a phone, and 3 frames of 5 seconds are enough.
   const VIDEO_MAX_S = 5, VIDEO_MAX_MB = 60;
   const AREA_M = 3000;        // a riding area named in the words: its trails within this of its centre
+  const FRESH_MS = 5 * 60e3;  // a photo and a phone fix this new: "I took it here, just now" can use where the phone is
+  // Ride photos taught at once: the app saves at most 40 pictures an hour for everyone (supabase/trail-matches.sql).
+  const TEACH_MAX = 30, TEACH_READ = 80;
   const STRONG = 1.05;        // a match this good in the areas looked at first doesn't need the other regions
   // The Supabase function holding supabase/functions/which-trail (the dashboard deployed it as "smooth-worker").
 const AI_FN = "smooth-worker";
@@ -109,6 +117,18 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
 .pf .pf-fix .pf-ok { grid-template-columns: 1fr; cursor: default; }
 .pf .pf-fix .pf-ok:hover { background: none; }
 .pf .pf-fix .pf-ok .pf-go { margin-top: 6px; }
+.pf .pf-here { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin-top: 6px; font-size: .82rem; color: var(--muted); }
+.pf .pf-here .btn { padding: 5px 10px; font-size: .85rem; white-space: normal; text-align: left; }
+.pf .pf-here [hidden], .pf .pf-areas[hidden], .pf .pf-teach [hidden] { display: none; }
+.pf .pf-areas { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--chip); font-size: .85rem; }
+.pf .pf-areas span { flex-basis: 100%; }
+.pf .pf-areas .btn { padding: 5px 10px; font-size: .85rem; }
+.pf .pf-teach { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; font-size: .9rem; }
+.pf .pf-teach summary { font-weight: 700; cursor: pointer; }
+.pf .pf-teach .pf-res li { grid-template-columns: 4px 44px 1fr auto; cursor: default; }
+.pf .pf-teach .pf-res li img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; background: var(--chip); }
+.pf .pf-teach .pf-res li.off { opacity: .45; }
+.pf .pf-teach .pf-res input { width: 20px; height: 20px; }
 .pf-pin { font-size: 22px; line-height: 30px; text-align: center; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
 @media (max-width: 760px) { .pf { padding: 0; align-items: end; } .pf .card { max-height: 94%; border-radius: 14px 14px 0 0; padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
   .pf.kb .card { max-height: 100%; padding-bottom: 12px; } }
@@ -126,9 +146,11 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     <span class="pf-or">or drop one here${matchMedia("(pointer: fine)").matches ? ", or press Ctrl+V / ⌘V" : ""}</span>
     <input type="file" id="pfFile" accept="image/*,video/*" hidden>
   </div>
-  <div class="pf-prev" id="pfPrev" hidden><span class="pf-tw"><span id="pfThumb"></span><button type="button" class="pf-rm" id="pfRemove" aria-label="Remove this picture to add another" title="Remove this picture" hidden>✕</button></span><div style="flex:1;min-width:0"><div class="pf-status" id="pfStatus" role="status"></div><div class="pf-bar" id="pfBar" hidden><span></span></div></div></div>
+  <div class="pf-prev" id="pfPrev" hidden><span class="pf-tw"><span id="pfThumb"></span><button type="button" class="pf-rm" id="pfRemove" aria-label="Remove this picture to add another" title="Remove this picture" hidden>✕</button></span><div style="flex:1;min-width:0"><div class="pf-status" id="pfStatus" role="status"></div><div class="pf-bar" id="pfBar" hidden><span></span></div>
+    <div class="pf-here"><button type="button" class="btn" id="pfHere" hidden>📍 I took it here, just now</button><span id="pfTip" hidden>No location in this photo. If it's yours, choose it again with its location: in the photo picker tap Options, turn on Location, then pick it. The spot finds the exact trail.</span></div></div></div>
   <ul class="pf-res" id="pfRes" role="list"></ul>
   <p class="pf-note" id="pfNote"></p>
+  <div class="pf-areas" id="pfAreas" hidden></div>
   <div class="pf-fix" id="pfFix" hidden>
     <label class="pf-l" for="pfFixQ">Not in the list? Type the trail it is, and the app learns it <small>(saved like a “Yes”)</small></label>
     <input type="search" id="pfFixQ" placeholder="The trail's name, like Cream Puff" autocomplete="off" spellcheck="false" enterkeyhint="search">
@@ -142,6 +164,13 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   <textarea id="pfCaption" placeholder="Like: big granite wall behind (the Chief?), rooty forest, lake below, slabs. Or a trail or place name you saw." spellcheck="false"></textarea>
   <details id="pfReadBox" hidden><summary>Words read from the picture</summary><textarea id="pfRead" spellcheck="false" aria-label="Words read from the picture (you can fix them)"></textarea></details>
   <div class="pf-go"><button type="button" class="btn" id="pfGo">Find the trail</button><button type="button" class="btn" id="pfWords" hidden>Read the words instead</button></div>
+  <details class="pf-teach" id="pfTeach"><summary>📚 Teach it your trails</summary>
+    <p class="pf-note">Pick photos from your rides that kept their location (on iPhone: in the photo picker tap Options and turn on Location). Each one is placed on the trail it was taken on and a small copy is kept privately, never shown in the app. Photo find then compares pictures without a location with these spots, so it can tell the trails apart even deep in the woods. Up to ${TEACH_MAX} at a time.</p>
+    <div class="pf-go"><button type="button" class="btn" id="pfTeachPick">Choose ride photos</button><input type="file" id="pfTeachFile" accept="image/*" multiple hidden></div>
+    <p class="pf-note" id="pfTeachSay" role="status"></p>
+    <ul class="pf-res" id="pfTeachList" role="list"></ul>
+    <div class="pf-go"><button type="button" class="btn primary" id="pfTeachSave" hidden>Save</button></div>
+  </details>
 </div>`;
   document.body.append(box);
   const ask = document.createElement("div");
@@ -238,6 +267,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     $("pfThumb").innerHTML = ""; $("pfRemove").hidden = true; $("pfPrev").hidden = true;
     $("pfRes").innerHTML = ""; $("pfNote").textContent = ""; $("pfAi").hidden = true; $("pfCmp").hidden = true; $("pfRead").value = ""; $("pfReadBox").hidden = true; $("pfWords").hidden = true;
     $("pfFix").hidden = true; $("pfFixQ").value = ""; $("pfFixList").innerHTML = ""; fixJob++;
+    $("pfHere").hidden = true; $("pfHere").disabled = false; $("pfHere").textContent = "📍 I took it here, just now";
+    $("pfTip").hidden = true; $("pfAreas").hidden = true; gpsYou = false;
     shown = [];
   }
   $("pfRemove").addEventListener("click", () => { reset(); $("pfPick").focus(); });
@@ -260,17 +291,48 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       }
     }
     say("Looking for the spot where it was taken…");
-    let spot = null;
+    let spot = null, info = null;
     try { spot = isVideo(f) ? await videoSpot(f) : await photoSpot(f); } catch {}
+    if (!spot && !isVideo(f)) info = await aboutPhoto(f).catch(() => null);
     if (my !== job) return;
     if (spot) {
       gpsSpot = spot;
       await byGps(my);
     } else {
+      // Taken just now on a phone (the camera in the browser keeps no spot): one tap uses where the phone is. An older
+      // photo from a phone's camera, its location taken out (the photo picker does that unless Options → Location is
+      // on): the tip to keep it.
+      const taken = (info && info.taken) || f.lastModified || 0;
+      const fresh = PHONE && "geolocation" in navigator && Math.abs(Date.now() - taken) < FRESH_MS && !/png/i.test(f.type || "");
+      $("pfHere").hidden = !fresh;
+      $("pfTip").hidden = fresh || !(info && info.camera);
       say("No spot saved in it. Reading the words in it…");
       await byWords(my, true);
     }
   }
+  // Where the phone is: the map's blue dot when location is on (index.html sends "tf:you" with each fix), or else asked
+  // for once on the tap.
+  const PHONE = matchMedia("(pointer: coarse)").matches;
+  let you = null, gpsYou = false;
+  window.addEventListener("tf:you", (e) => { const d = e.detail || {}; if (okSpot(d.lat, d.lon)) you = { c: [d.lat, d.lon], acc: d.acc || 0, t: Date.now() }; });
+  const hereNow = () => new Promise((ok) => navigator.geolocation.getCurrentPosition(
+    (p) => ok(p.coords.accuracy <= 150 && okSpot(p.coords.latitude, p.coords.longitude) ? [p.coords.latitude, p.coords.longitude] : null),
+    () => ok(null), { enableHighAccuracy: true, timeout: 20000, maximumAge: 30000 }));
+  $("pfHere").addEventListener("click", async () => {
+    const btn = $("pfHere"), was = job;
+    let c = you && Date.now() - you.t < FRESH_MS && you.acc <= 100 ? you.c : null;
+    if (!c) {
+      btn.disabled = true; btn.textContent = "📍 Finding where you are…";
+      c = await hereNow();
+      btn.disabled = false; btn.textContent = "📍 I took it here, just now";
+      if (was !== job) return;   // another picture since
+      if (!c) { btn.disabled = true; btn.textContent = "📍 Couldn't get your location"; return; }
+    }
+    const my = ++job;
+    gpsSpot = c.slice(); gpsYou = true;
+    btn.hidden = true; $("pfTip").hidden = true; $("pfAreas").hidden = true;
+    byGps(my);
+  });
   $("pfGo").addEventListener("click", () => {
     const my = ++job;
     if (gpsSpot) byGps(my);
@@ -294,6 +356,15 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     await loadScript(EXIFR);
     const g = await window.exifr.gps(f);
     return g && okSpot(g.latitude, g.longitude) ? [g.latitude, g.longitude] : null;
+  }
+  // Whether it's a phone or camera's own photo (its make or model is in it, unlike a screenshot or a picture saved from
+  // online), and when it was taken (the picker keeps that even when it takes the location out; iPhone files picked
+  // from the library can carry today's date as their file date).
+  async function aboutPhoto(f) {
+    await loadScript(EXIFR);
+    const t = (await window.exifr.parse(f, { gps: false })) || {};
+    const when = t.DateTimeOriginal || t.CreateDate;
+    return { camera: !!(t.Make || t.Model), taken: when instanceof Date && !isNaN(when) ? when.getTime() : 0 };
   }
   // MOV and MP4 videos: phones write the spot as an ISO 6709 string ("+49.7016-123.1558+045.000/") in the moov box:
   // Apple under com.apple.quicktime.location.ISO6709, Android and older iPhones in udta/©xyz. moov is often at the end.
@@ -344,7 +415,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   }
   async function byGps(my) {
     const p = gpsSpot;
-    say(`Taken at ${p[0].toFixed(5)}, ${p[1].toFixed(5)}. Finding the trail there…`);
+    say(`${gpsYou ? "Taken where you are" : "Taken at"} ${p[0].toFixed(5)}, ${p[1].toFixed(5)}. Finding the trail there…`);
     showPin(p);
     $("pfWords").hidden = false;
     const zones = await zonesAround(p);
@@ -588,7 +659,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const own = [$("pfCaption").value, $("pfRead").value].join("\n"), text = [own, rev, aiSaw, aiNames].join("\n");
     // Saved with a confirmed match: the rider's and the picture's words, and what the AI saw (not its trail guesses).
     lastText = seen ? [own, ...seen.landmarks, ...seen.places, ...seen.terrain].join("\n") : own;
-    if (!text.trim()) {
+    // No words at all, and no AI look to go on (with one, a picture in the woods is still looked for in the area).
+    if (!text.trim() && !seen) {
       say(file ? "No words found in it." : "Add a photo or video, or type what you know.");
       show([], "Paste the post's caption above, or type a trail or place name you saw, then tap Find the trail.");
       testEnd(my);
@@ -602,11 +674,32 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const sure = n && res.rows[0].conf !== "Possible";
     say(n ? (sure ? "Likely trails, best first." : "Possible trails, best first.") : "No trail name found in the words.");
     const where = res.places.length ? `It mentions ${res.places.slice(0, 3).join(", ")}. ` : "";
-    show(res.rows, n ? where + (sure ? "" : "None is a sure match: check the names against the post.")
+    const wd = res.woods, inWoods = wd ? `Nothing in the picture places it, so these are trails in ${wd.where}${wd.shows.length ? " with what it shows" : ""}, the ones riders taught it first. ` : "";
+    show(res.rows, n ? where + inWoods + (sure ? "" : wd ? "Teaching it your ride photos (below) makes this better." : "None is a sure match: check the names against the post.")
       : where + "No trail name in the picture or caption matched a trail the app knows. Paste the caption, type a trail name you saw, or pick the area and try again.");
-    if (n && seen) await compareOnline(my, res.rows, seen, res.more);
+    if (res.askArea) askWhere();
+    if (n && seen) await compareOnline(my, res.rows, seen, res.more, wd);
     testEnd(my);
   }
+  // Nothing places the picture and no area is picked: where was it? One tap looks at that area's trails (the AI's look
+  // stays: it couldn't place the picture, and the free AI allows only so many looks a day).
+  function askWhere() {
+    const zs = F.regionHere().zones || [];
+    $("pfAreas").innerHTML = `<span>Nothing in the picture says where it is. Where was it taken?</span>` +
+      zs.map((z) => `<button type="button" class="btn" data-z="${esc(z.id)}">${esc(z.name.split(" (")[0])}</button>`).join("") +
+      `<button type="button" class="btn" data-z="">Another area…</button>`;
+    $("pfAreas").hidden = false;
+  }
+  $("pfAreas").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-z]");
+    if (!b) return;
+    if (!b.dataset.z) { card.scrollTop += $("pfArea").getBoundingClientRect().top - card.getBoundingClientRect().top - 60; $("pfArea").focus({ preventScroll: true }); return; }
+    $("pfArea").value = b.dataset.z;
+    $("pfAreas").hidden = true;
+    if (ai) aiKey = [$("pfCaption").value.trim(), $("pfArea").value].join("|");
+    const my = ++job;
+    byWords(my, false);
+  });
 
   // The online check (the function's "compare"): Google search on the likely trails (what riders and sites say they look
   // like), photos from those pages, geotagged photos near them and pictures riders confirmed, and (when the AI placed
@@ -615,7 +708,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   // The AI's spot is often several km off (a slab 5 km from where it put the camera, In and Out Burger 6.7 km when it said
   // 1 km): look wide.
   const vpRadius = (vp) => Math.min(15, Math.max(8, vp.km * 2.5)) * 1000;
-  async function compareOnline(my, rows, seen, more = []) {
+  async function compareOnline(my, rows, seen, more = [], woods = null) {
     const acct = window.tfAccount, list = rows.filter((r) => r.save && r.name !== "Unnamed trail").slice(0, 8);
     more = more.filter((r) => r.save && r.name !== "Unnamed trail" && !list.some((x) => F.norm(x.name) === F.norm(r.name))).slice(0, 30);
     const vp = seen.viewpoint && seen.viewpoint.km > 0 && seen.viewpoint.km <= 15 ? seen.viewpoint : null;
@@ -625,10 +718,13 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     let got = cmp && cmpKey === key ? cmp : null, why = "";
     if (!got) {
       out.hidden = false;
-      out.textContent = `Searching Google for videos, photos and descriptions of ${list.length > 1 ? "these trails" : "this trail"}${vp ? " and of riding around where it seems taken" : ""} to compare with yours… up to ${CMP_WAIT / 1000} s`;
+      out.textContent = woods ? `Comparing your picture with riders' pictures of these trails… up to ${CMP_WAIT / 1000} s`
+        : `Looking for photos of ${list.length > 1 ? "these trails" : "this trail"}${vp ? " and of riding around where it seems taken" : ""} to compare with yours… up to ${CMP_WAIT / 1000} s`;
       const look = acct.client.functions.invoke(AI_FN, { timeout: CMP_WAIT, body: { mode: "compare", images: media.jpegs, scene: seen.scene, description: $("pfCaption").value.slice(0, 800),
         trails: list.map((r) => ({ name: r.name, area: r.zone, kind: r.kind, c: r.save.c })), more: more.length ? more.map((r) => ({ name: r.name })) : undefined,
-        spot: vp || undefined, skip: skipIds.length ? skipIds : undefined } }).then(async ({ data, error }) => {
+        // In the woods: the area's middle and size, so riders' pictures from all over it are compared (one per trail).
+        spot: vp || (woods ? { lat: woods.c[0], lon: woods.c[1], km: woods.km, where: woods.where } : undefined), woods: woods ? true : undefined,
+        skip: skipIds.length ? skipIds : undefined } }).then(async ({ data, error }) => {
         if (!error) return data;
         let msg = "";
         try { msg = (await error.context.json()).error || ""; } catch { /* not JSON */ }
@@ -696,7 +792,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     say(next[0].best ? "Likely trails, best first (checked online)." : "Possible trails, best first (checked online).");
     const src = (got.sources || []).map((w) => `<a href="${esc(w.uri)}" target="_blank" rel="noopener">${esc(w.title || "page")}</a>`).join("");
     out.innerHTML = `Checked online${got.ms ? ` (${Math.round(got.ms / 1000)} s)` : ""}: ${got.searched ? "Google search" : "no Google search" + (got.noSearch ? ` (${esc(got.noSearch)})` : "")}` +
-      `${got.photos ? `, ${got.photos} photo${got.photos > 1 ? "s" : ""} compared with yours${got.area ? ` (${got.area} from around where it seems taken)` : ""}` : ""}.` +
+      `${got.photos ? `, ${got.photos} photo${got.photos > 1 ? "s" : ""} compared with yours${got.area ? ` (${got.area} ${woods ? `riders' pictures from around ${woods.where}` : "from around where it seems taken"})` : ""}` : ""}.` +
       ` ${found.length ? `Close-looking photos point to: ${esc([...new Set(found)].join(", "))}.` : vp ? "No photo from around there looked close." : ""}` +
       (src ? `<div class="src">${src}</div>` : "") +
       // Google asks for its search suggestions to be shown wherever search results are used.
@@ -801,6 +897,36 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       if (target.length >= 7 && tokens[i].length > target.length && tokens[i].includes(target) && !best) best = { d: 0, at: i, n: 1, how: "tag" };
     }
     return best;
+  }
+  // What a picture in the woods can show that the trail lists (OpenStreetMap tags) know about a trail: found in the AI's
+  // words and the rider's description. gain lifts a trail that has it; like says so in its row. The alpine is checked on
+  // the elevation tiles instead.
+  const LOOKS = {
+    wood: { re: /\b(wood(en)?|bridges?|boardwalks?|ladders?|skinn(y|ies)|north shore|log rides?|teeters?|planks?|stunts?)\b/, gain: 0.12, like: "wooden bridges" },
+    rock: { re: /\b(slabs?|granite|bare rock|rock faces?|rock rolls?|rock slabs?)\b/, gain: 0.15, like: "bare rock" },
+    road: { re: /\b(gravel|fire ?roads?|forest service roads?|logging roads?|double ?track|doubletrack)\b/, gain: 0.15, like: "a gravel road" },
+    hard: { re: /\b(drops?|gaps?|very steep|technical|chutes?|cliffs?|exposed|exposure|rock gardens?|double black|pro ?lines?)\b/, gain: 0.08, like: "rated hard" },
+    flow: { re: /\b(berms?|jumps?|tabletops?|flowy|flow trail|machine[- ]built|bike park|pump track)\b/, gain: 0.08, like: "jumps and berms" },
+    water: { re: /\b(creeks?|streams?|waterfalls?|fords?|creek crossing)\b/, gain: 0.06, like: "creek crossings" },
+    alpine: { re: /\b(alpine|above (?:the )?tree ?line|sub-?alpine|heather|scree|talus)\b/, gain: 0, like: "" },
+  };
+  const LEVEL = { green: 1, blue: 2, black: 3, dbl: 4, pro: 5 };
+  // The same things on a trail: from its pieces' tags (bridges, surface, a track), its rating, and its name or description
+  // ("Gnar Log Bridge", "Pretty Slabs", "rock roll line").
+  function looksOf(g) {
+    const ts = [g.tags, ...g.items.map((i) => i.tags)].filter(Boolean);
+    const text = F.norm([g.name, ...ts.map((t) => t.description || "")].join(" "));
+    const lv = Math.max(0, ...ts.map((t) => LEVEL[F.difficulty ? F.difficulty(t) : ""] || 0));
+    const bridge = (t) => /^(yes|boardwalk|log|trestle)$/.test(t.bridge || "");
+    return {
+      wood: ts.some((t) => bridge(t) || t.surface === "wood") || /\b(bridge|ladder|skinny|boardwalk)\b/.test(text),
+      rock: ts.some((t) => /^(bare_)?rock$/.test(t.surface || "")) || /\b(slabs?|rock roll|granite)\b/.test(text),
+      road: ts.every((t) => t.highway === "track" || /^(gravel|fine_gravel|compacted|asphalt|paved)$/.test(t.surface || "")),
+      hard: lv >= 3 || /\b(double black|pro line|gap|drop)\b/.test(text),
+      easy: lv === 1,
+      flow: ts.some((t) => t["tf:lift"]) || /\b(flow|jump line|jumps?|berms?)\b/.test(text),
+      water: ts.some((t) => t.ford === "yes" || bridge(t)),
+    };
   }
   async function match(text, my, aiSeen, aiFrom = Infinity, aiSawFrom = Infinity, revFrom = Infinity) {   // first trail-name word / first word from the AI / first word from pages with the same picture
     const tokens = core(words(text));
@@ -989,6 +1115,51 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       }
       if (my !== job) return null;
     }
+    // In the woods: nothing places the picture (no view the AI knows, no name in the words) but the rider picked the
+    // area, or named it (or a page with the same picture did; not the AI's guess). Its trails, best fitting first by what
+    // the picture shows that the trail lists know about each one, and among equals the ones riders taught with pictures:
+    // the online check then compares this picture with those.
+    let woods = null;
+    const placed = vp && vp.km > 0 && vp.km <= 15;
+    const namedIds = new Set(found.filter((p) => p.hit.at < aiSawFrom).flatMap((p) => p.zones.map((z) => z.id)));
+    const told = picked.length ? picked : namedIds.size <= 3 ? F.zones.filter((z) => namedIds.has(z.id)) : [];
+    if (!placed && told.length && !hits.some((h) => h.s >= STRONG)) {
+      const said = [$("pfCaption").value, ...(aiSeen ? [...aiSeen.terrain, aiSeen.scene] : [])].join(" ").toLowerCase();
+      const shows = Object.keys(LOOKS).filter((k) => LOOKS[k].re.test(said));
+      const b = told.reduce((a, z) => a.extend(z.bounds), L.latLngBounds(told[0].bounds.getSouthWest(), told[0].bounds.getNorthEast()));
+      const c = b.getCenter(), R = c.distanceTo(b.getNorthEast()), where = told.map((z) => z.name.split(" (")[0]).join(", "), toldIds = new Set(told.map((z) => z.id));
+      say(`Looking at the trails in ${told.length > 3 ? "the area" : where} for what the picture shows…`, 0.985);
+      const list = (await trailsNear([c], R, 6000)).list.filter((g) => toldIds.has(g.zone.id));
+      if (my !== job) return null;
+      // How high the camera is (the AI's guess), or "alpine" in the picture: the trails at about that height.
+      const alt = vp && vp.alt > 0 ? vp.alt : aiSeen && aiSeen.alt > 0 ? aiSeen.alt : 0, up = alt || shows.includes("alpine");
+      if (up && told.length <= 3) { await demLoad(b); if (my !== job) return null; }
+      const taught = new Set((await pastMatches()).filter((m) => typeof m.lat === "number" && b.contains([m.lat, m.lon])).map((m) => F.norm(m.trail_name)));
+      const fits = list.map((g) => {
+        const has = looksOf(g), why = [], like = shows.filter((k) => has[k] && LOOKS[k].gain);
+        let s = 0.5 + like.reduce((a, k) => a + LOOKS[k].gain, 0);
+        if (like.length) why.push("like the picture: " + like.map((k) => LOOKS[k].like).join(", "));
+        if (has.road && !shows.includes("road")) s -= 0.1;         // a gravel road, and the picture shows a trail
+        if (has.easy && shows.includes("hard")) s -= 0.08;
+        if (up && told.length <= 3) {
+          const hs = g.pts.map((p) => elev(p[0], p[1])).filter((x) => x != null);
+          if (hs.length) {
+            const top = Math.max(...hs), h = alt ? hs.reduce((m, x) => (Math.abs(x - alt) < Math.abs(m - alt) ? x : m)) : top;
+            if (alt) { const dz = Math.abs(h - alt); s += dz <= 300 ? 0.08 : dz > 700 ? -0.15 : 0; if (dz <= 300) why.push(`about as high (${Math.round(h)} m)`); }
+            else if (top >= 1400) { s += 0.12; why.push("up in the alpine like the picture"); }
+            else if (top < 900) s -= 0.1;
+          }
+        }
+        if (taught.has(F.norm(g.name))) { s += 0.1; why.push("riders' pictures of it to compare"); }
+        return { g, s, why, n: g.items.length };
+      }).sort((a, z) => z.s - a.s || z.n - a.n).slice(0, 40);
+      for (const { g, s, why } of fits) {
+        const have = hits.find((h) => keyOf(h.g) === keyOf(g));
+        if (have) { have.s += s - 0.4; have.why.push(...why); have.woods = true; }
+        else hits.push({ g, s, why, lm: true, woods: true });
+      }
+      woods = { c: [c.lat, c.lng], km: Math.round(R / 100) / 10, where, shows };
+    }
     // The trails in a riding area named in the words.
     for (const p of areas.slice(0, 2)) {
       const { list } = await trailsNear([p.c], AREA_M);
@@ -1019,7 +1190,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         if (my !== job) return null;
       }
     }
-    if (rockSaid) hits.forEach((h) => { if (onRock(h.g)) { h.s += 0.15; h.why.push("mapped on bare rock"); } });
+    if (rockSaid) hits.forEach((h) => { if (onRock(h.g) && !h.woods) { h.s += 0.15; h.why.push("mapped on bare rock"); } });
     // Past confirmed matches with similar words (supabase/trail-matches.sql) lift their trail.
     const rare = new Set(tokens.filter((t) => t.length >= 4 && !GENERIC.has(t)));
     const placey = new Set([...found.flatMap((p) => p.ws), ...(await landmarkList()).flatMap((l) => [...l.ws, ...l.akaWs.flat()])]);
@@ -1073,11 +1244,14 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     }
     const top = rows.length ? rows[0].s : 0;
     return {
+      woods,
+      // Nothing places it and no area picked or named: the rider is asked where it was (then it's looked at as in the woods).
+      askArea: !placed && !told.length && !hits.some((h) => (h.named || h.past) && h.s >= 0.85),
       places: [...new Set(found.map((p) => p.label))],
-      more: more.map((h) => ({ ...rowOf(h, h.lm ? "landmark" : aiSeen ? "mixed" : "words"), sure: !!(h.named || h.past), conf: "Possible" })),
+      more: more.map((h) => ({ ...rowOf(h, h.lm && !h.woods ? "landmark" : aiSeen ? "mixed" : "words"), sure: !!(h.named || h.past), conf: "Possible" })),
       rows: rows.map((h, i) => {
         const sure = !!(h.named || h.past), best = i === 0 && sure && h.s >= STRONG && (rows.length === 1 || rows[1].s <= h.s - 0.049);
-        return { ...rowOf(h, h.lm ? "landmark" : aiSeen ? "mixed" : "words"), sure, best, conf: best ? "Best match" : h.s >= top - 0.05 && h.s >= STRONG ? "Likely" : "Possible" };
+        return { ...rowOf(h, h.lm && !h.woods ? "landmark" : aiSeen ? "mixed" : "words"), sure, best, conf: best ? "Best match" : h.s >= top - 0.05 && h.s >= STRONG ? "Likely" : "Possible" };
       }),
     };
   }
@@ -1251,27 +1425,34 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     if (!sv || !acct || !acct.enabled) return false;
     await acct.load();
     if (!acct.client) return false;
-    let photo = null;
     const m = await ensureMedia();
     // This picture already saved for this trail (a second "Yes" on it): nothing new to learn, so it isn't saved twice.
     if (m && m.hash && (await samePicture(m.hash)).some((x) => F.norm(x.trail_name) === F.norm(sv.name) && x.zone === sv.zone)) return true;
+    const keep = sv.method === "gps" ? [] : [...new Set(core(words(lastText)).filter((t) => t.length >= 4 && !GENERIC.has(t)))].slice(0, 40);
+    const done = await keepPicture(acct.client, sv, m, keep, { hash: m && m.hash, read: $("pfRead").value.slice(0, 2000), said: $("pfCaption").value.slice(0, 800), area: $("pfArea").value,
+      gps: gpsSpot, here: gpsYou || undefined, conf: r.conf, video: !!(file && isVideo(file)),
+      ai: ai ? { scene: ai.scene, landmarks: ai.landmarks, places: ai.places, trail_names: ai.trail_names, terrain: ai.terrain, guesses: ai.guesses } : null,
+      first: shown.length ? shown[0].name : null });
+    return !done.error;
+  }
+  // A confirmed picture: its small copy in the private bucket and its row (supabase/trail-matches.sql). needPhoto: no row
+  // without the picture (a taught photo is only worth its picture).
+  async function keepPicture(client, sv, m, keep, details, needPhoto = false) {
+    let photo = null;
     if (m && m.jpegs[0]) {
       const bin = atob(m.jpegs[0]), bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       const path = `${new Date().toISOString().slice(0, 7)}/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-      const { error } = await acct.client.storage.from("trail-match-photos").upload(path, new Blob([bytes], { type: "image/jpeg" }), { contentType: "image/jpeg", upsert: false });
+      const { error } = await client.storage.from("trail-match-photos").upload(path, new Blob([bytes], { type: "image/jpeg" }), { contentType: "image/jpeg", upsert: false });
       if (!error) photo = path;
+      else if (needPhoto) return { error };
     }
-    const keep = sv.method === "gps" ? [] : [...new Set(core(words(lastText)).filter((t) => t.length >= 4 && !GENERIC.has(t)))].slice(0, 40);
-    const { error } = await acct.client.from("trail_matches").insert({
+    const { error } = await client.from("trail_matches").insert({
       trail_name: sv.name.slice(0, 120), osm_type: sv.type, osm_ids: sv.ids, zone: sv.zone ? String(sv.zone).slice(0, 60) : null,
-      lat: sv.c ? +sv.c[0] : null, lon: sv.c ? +sv.c[1] : null, words: keep.join(" ").slice(0, 600), method: sv.method, photo,
-      details: { hash: m && m.hash, read: $("pfRead").value.slice(0, 2000), said: $("pfCaption").value.slice(0, 800), area: $("pfArea").value, gps: gpsSpot, conf: r.conf, video: !!(file && isVideo(file)),
-        ai: ai ? { scene: ai.scene, landmarks: ai.landmarks, places: ai.places, trail_names: ai.trail_names, terrain: ai.terrain, guesses: ai.guesses } : null,
-        first: shown.length ? shown[0].name : null },
+      lat: sv.c ? +sv.c[0] : null, lon: sv.c ? +sv.c[1] : null, words: keep.join(" ").slice(0, 600), method: sv.method, photo, details,
     });
     if (!error) past = null;   // read again next time, with this one
-    return !error;
+    return { error };
   }
 
   // ---------- results ----------
@@ -1369,6 +1550,108 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   $("pfFixQ").addEventListener("input", () => { clearTimeout(fixT); fixT = setTimeout(fixFind, 200); });
   $("pfFixList").addEventListener("click", fixPick);
   $("pfFixList").addEventListener("keydown", (e) => { if (e.target.matches("li[data-n]") && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); fixPick(e); } });
+
+  // ---------- teaching it your trails: ride photos with their spot ----------
+  // Each photo whose spot is within ON_M of a named MTB trail is kept like a "Yes" on a photo found by its spot (method
+  // gps, the spot it was taken at): the online check compares later pictures with it (ones taken in the woods too), the
+  // same picture finds that trail at once, and the accuracy test can use it (its copy has no spot left).
+  let teach = [], teachJob = 0;
+  const zoneIdAt = (p) => (F.zones.find((z) => z.bounds.contains(L.latLng(p))) || { id: F.zoneOf(L.latLng(p)) }).id;
+  const teachFmt = (d) => (d < 15 ? "right on it" : `${Math.round(d / 5) * 5} m from it`);
+  $("pfTeachPick").addEventListener("click", () => $("pfTeachFile").click());
+  $("pfTeachFile").addEventListener("change", () => { const fs = [...$("pfTeachFile").files]; $("pfTeachFile").value = ""; if (fs.length) placeTaught(fs); });
+  // A small square copy for the list (a data URL: a long list doesn't keep big pictures in the phone's memory).
+  async function thumbOf(f) {
+    const u = URL.createObjectURL(f);
+    try {
+      const img = new Image(); img.src = u; await img.decode();
+      const c = document.createElement("canvas"), s = Math.min(img.naturalWidth, img.naturalHeight);
+      c.width = c.height = 88;
+      c.getContext("2d").drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, 88, 88);
+      const d = c.toDataURL("image/jpeg", 0.7);
+      c.width = c.height = 0;
+      return d;
+    } finally { URL.revokeObjectURL(u); }
+  }
+  function teachList() {
+    $("pfTeachList").innerHTML = teach.map((t, n) => `<li data-n="${n}" class="${t.on || t.saved ? "" : "off"}"><span class="bar"></span>${t.thumb ? `<img src="${t.thumb}" alt="">` : "<span></span>"}` +
+      `<div><div class="pn">${esc(t.g.name)} ${F.diffBadge(t.w.tags)}</div><div class="pm">${esc(F.zoneOf(L.latLng(t.p)) || "")} · taken ${teachFmt(t.d)}</div></div>` +
+      (t.saved ? `<span class="pc">✓ Saved</span>` : `<input type="checkbox" ${t.on ? "checked" : ""} aria-label="Keep this photo of ${esc(t.g.name)}">`) + `</li>`).join("");
+    const left = teach.filter((t) => t.on && !t.saved).length;
+    $("pfTeachSave").hidden = !left;
+    $("pfTeachSave").textContent = `Save ${Math.min(left, TEACH_MAX)} photo${Math.min(left, TEACH_MAX) > 1 ? "s" : ""}`;
+  }
+  $("pfTeachList").addEventListener("change", (e) => {
+    const li = e.target.closest("li[data-n]"), t = li && teach[+li.dataset.n];
+    if (t) { t.on = e.target.checked; teachList(); }
+  });
+  async function placeTaught(files) {
+    const my = ++teachJob, msg = $("pfTeachSay");
+    teach = []; teachList();
+    const pics = files.filter((f) => isMedia(f) && !isVideo(f)).slice(0, TEACH_READ);
+    let noSpot = 0, off = 0;
+    const ways = new Map(), loaded = new Set();
+    for (const [i, f] of pics.entries()) {
+      msg.textContent = `Placing photo ${i + 1} of ${pics.length}…`;
+      let p = null;
+      try { p = await photoSpot(f); } catch {}
+      if (my !== teachJob) return;
+      if (!p) { noSpot++; continue; }
+      for (const z of await zonesAround(p)) {
+        if (loaded.has(z.id)) continue;
+        loaded.add(z.id);
+        ((await F.mtbWays(z).catch(() => null)) || []).forEach((w) => ways.set(w.id, w));
+      }
+      let best = null;
+      for (const w of ways.values()) {
+        const name = w.tags.name || w.tags["mtb:name"];
+        if (!name) continue;
+        const d = wayDist(p, w.geom);
+        if (d <= ON_M && (!best || d < best.d)) best = { w, d, name };
+      }
+      if (!best) { off++; continue; }
+      const thumb = await thumbOf(f).catch(() => "");
+      if (my !== teachJob) return;
+      teach.push({ f, p, d: best.d, w: best.w, g: groupFrom(best.name, best.w, ways), on: true, thumb });
+      teachList();
+    }
+    msg.textContent = (teach.length ? `${teach.length} on a trail` : "None of them is on a mapped trail") +
+      (noSpot ? `, ${noSpot} without a location (on iPhone, pick them again with Options → Location on)` : "") + (off ? `, ${off} not on a named MTB trail` : "") + "." +
+      (teach.length ? ` Untick any that isn't on that trail, then save.${teach.length > TEACH_MAX ? ` ${TEACH_MAX} are saved at a time (the rest in an hour).` : ""}` : "");
+  }
+  $("pfTeachSave").addEventListener("click", async () => {
+    const acct = window.tfAccount, msg = $("pfTeachSay"), btn = $("pfTeachSave");
+    const pick = teach.filter((t) => t.on && !t.saved).slice(0, TEACH_MAX);
+    if (!pick.length || !acct || !acct.enabled) return;
+    await acct.load();
+    if (!acct.client) { msg.textContent = "Saving isn't available right now. Try again in a moment."; return; }
+    const my = teachJob;
+    btn.disabled = true;
+    let saved = 0, twice = 0, stop = null;
+    const hashes = new Set();
+    for (const [i, t] of pick.entries()) {
+      msg.textContent = `Saving ${i + 1} of ${pick.length}…`;
+      let m = null;
+      const u = URL.createObjectURL(t.f);
+      try { const c = await imageCanvas(u); m = { jpegs: [jpeg(c)], hash: dhash(c) }; c.width = c.height = 0; } catch {} finally { URL.revokeObjectURL(u); }
+      if (my !== teachJob) return;
+      if (!m) continue;
+      const sv = { name: t.g.name, type: "way", ids: t.g.items.map((x) => x.id).slice(0, 60), zone: zoneIdAt(t.p), c: t.p, method: "gps" };
+      // The same picture twice (in this batch, or saved before for this trail) is kept once.
+      if (hashes.has(m.hash) || (await samePicture(m.hash)).some((x) => F.norm(x.trail_name) === F.norm(sv.name))) { twice++; t.saved = true; continue; }
+      hashes.add(m.hash);
+      const r = await keepPicture(acct.client, sv, m, [], { hash: m.hash, gps: t.p, taught: true, conf: "Taught", d: Math.round(t.d) }, true);
+      if (r.error) { stop = r.error; break; }
+      saved++; t.saved = true;
+    }
+    btn.disabled = false;
+    teachList();
+    const left = teach.filter((t) => t.on && !t.saved).length;
+    const full = stop && /row-level security|policy|unauthori[sz]ed|403/i.test(`${stop.message || ""} ${stop.statusCode || ""}`);
+    msg.textContent = (saved ? `Saved ${saved} photo${saved > 1 ? "s" : ""}: photo find now knows ${new Set(pick.filter((t) => t.saved).map((t) => t.g.name)).size > 1 ? "those trails" : "that trail"} better.` : "Nothing new saved.") +
+      (twice ? ` ${twice} ${twice > 1 ? "were" : "was"} already saved.` : "") +
+      (full ? " The app saves at most 40 pictures an hour for everyone: save the rest in an hour." : stop ? " Couldn't save the rest (no connection?): tap Save again." : left ? ` ${left} left: tap Save again.` : "");
+  });
 
   const pickRow = (li) => { const r = li && shown[+li.dataset.n]; if (r) { close(); r.open(); if (r.save) showAsk(r); } };
   $("pfRes").addEventListener("click", (e) => { if (!e.target.closest("a")) pickRow(e.target.closest("li")); });
