@@ -47,7 +47,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   // that confirmed match (the test's own photo) is left out of every lookup, and each finished search is put in .result.
   const TEST = window.tfPhotoTest && Array.isArray(window.tfPhotoTest.skip) ? window.tfPhotoTest : null;
   const skipIds = TEST ? TEST.skip.filter((n) => Number.isSafeInteger(n)) : [];
-  const testDone = (rows) => { if (TEST) TEST.result = { rows: rows.map((r) => ({ name: r.name, zone: r.save ? r.save.zone : r.zone, conf: r.conf })), ai: $("pfAi").textContent, cmp: $("pfCmp").textContent }; };
+  const testDone = (rows) => { if (TEST) TEST.result = { rows: rows.map((r) => ({ name: r.name, zone: r.save ? r.save.zone : r.zone, conf: r.conf })), ai: $("pfAi").textContent, cmp: $("pfCmp").textContent, diag: TEST.diag || null }; };
   const testEnd = (my) => { if (TEST && my === job) { testDone(shown); TEST.finished = Date.now(); } };
   const DEM = (z, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
 
@@ -469,9 +469,9 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   }
   // The AI looks at the picture (supabase/functions/which-trail). null when it isn't set up, fails, is too slow or has
   // nothing; aiWhy then says why, shown under the picture so a screenshot tells what went wrong.
-  let aiWhy = "";
+  let aiWhy = "", aiDetail = "";   // why the AI was skipped; the function's note on each model (for the accuracy test)
   async function askAI(my, read) {
-    aiWhy = "";
+    aiWhy = ""; aiDetail = "";
     const acct = window.tfAccount;
     if (aiOff || !media || !media.jpegs.length || !acct || !acct.enabled) return null;
     const area = $("pfArea").selectedOptions[0];
@@ -487,7 +487,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       if (error) {
         const st = error.context && error.context.status;
         let msg = "";
-        try { msg = (await error.context.json()).error || ""; } catch { /* not JSON */ }
+        try { const j = await error.context.json(); msg = j.error || ""; aiDetail = j.detail || ""; } catch { /* not JSON */ }
         const plain = { 401: "the function still has Verify JWT on", 404: "not set up yet", 546: "the function ran out of time", 504: "too slow" };
         aiWhy = msg || (st ? plain[st] || "error " + st : error.name === "AbortError" || /abort/i.test(error.message || "") ? "too slow" : error.message || "failed");
         if (st === 404 || st === 503 || /Failed to send/i.test(error.message || "")) aiOff = true;   // not set up (or key refused): don't ask again this visit
@@ -521,6 +521,9 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     }
     const seen = file ? await askAI(my, $("pfRead").value) : null;
     if (my !== job) return;
+    if (TEST) TEST.diag = { words: core(words($("pfRead").value)).length, why: aiWhy, detail: aiDetail,
+      ai: seen ? { places: seen.places, landmarks: seen.landmarks, guesses: seen.guesses.map((g) => g.trail), vp: seen.viewpoint || null,
+        rev: seen.online ? seen.online.error || `${(seen.online.pages || []).length} pages` : "off" } : null };
     // The pages that show the same picture online (reverse image search): their titles and addresses count like a caption.
     const on = seen && seen.online, pages = on && Array.isArray(on.pages) ? on.pages : [];
     const rev = pages.map((p) => { let path = ""; try { const u = new URL(p.url); path = decodeURIComponent(u.pathname + " " + (u.searchParams.get("v") ? "" : u.search)); } catch {} return p.title + "\n" + path.replace(/[-_/.+=&?]+/g, " "); })
@@ -574,6 +577,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const acct = window.tfAccount, list = rows.filter((r) => r.save && r.name !== "Unnamed trail").slice(0, 8);
     const vp = seen.viewpoint && seen.viewpoint.km > 0 && seen.viewpoint.km <= 15 ? seen.viewpoint : null;
     if (aiOff || !list.length || !media || !acct || !acct.client) return;
+    if (TEST && TEST.diag) TEST.diag.before = list.map((r) => r.name);
     const out = $("pfCmp"), key = aiKey + "|" + list.map((r) => r.name + "@" + r.save.zone).join(",");
     let got = cmp && cmpKey === key ? cmp : null, why = "";
     if (!got) {
@@ -591,6 +595,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       if (my !== job) return;
       if (got && got.ok) { cmp = got; cmpKey = key; }
     }
+    if (TEST && TEST.diag) TEST.diag.cmp = got ? { ok: !!got.ok, searched: !!got.searched, noSearch: got.noSearch || "", photos: got.photos || 0, close: (got.close || []).map((c) => c.trail || "?"), why: got.why || "" } : { ok: false, why };
     if (!got || !got.ok) {
       out.hidden = false;
       out.textContent = `Online check skipped (${got ? got.why || got.noSearch || "found nothing" : why}).`;

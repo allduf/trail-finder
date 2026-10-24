@@ -16,12 +16,15 @@
 const ORIGINS = [/^https:\/\/allduf\.github\.io$/, /^http:\/\/localhost(:\d+)?$/];
 const MAX_IMAGES = 3, MAX_B64 = 1_500_000, PER_HOUR = 30;
 const PER_DAY = { vision: 30, ai: 200, compare: 100 };
-// Tried in turn: a name Google retired (404) or one that is too slow moves on to the next. Lite is the quick fallback.
-const MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest"];
+// Tried in turn: a name Google retired (404), one that is too slow or one whose free allowance is used up (429) moves on
+// to the next. Each model has its own free allowance, so the later ones keep photo find working when the first runs out.
+const MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest", "gemini-2.5-flash-lite"];
 // Ways to ask for little or no thinking (it answers in seconds instead of tens of seconds): Gemini 2.5 takes a budget,
 // Gemini 3 and later a level. A model that refuses one setting is asked with the next.
 const THINK = [{ thinkingLevel: "minimal" }, { thinkingBudget: 0 }, { thinkingLevel: "low" }, null];
 const slow = new Set<string>();   // models that ran out of time in this running copy: tried last from then on
+const spent = new Map<string, number>();   // model -> when to try it again: its free allowance was used up (429)
+const gone = new Set<string>();   // model names Google doesn't serve (404): not asked again by this running copy
 const seen = new Map<string, number[]>();   // a light brake per address (each running copy of the function keeps its own)
 
 const list = (description: string) => ({ type: "ARRAY", items: { type: "STRING" }, description });
@@ -125,7 +128,7 @@ Deno.serve(async (req) => {
     online.pages.map((p) => `- ${p.title} (${p.url.slice(0, 160)})`).join("\n") + (online.labels.length ? `\nGoogle's best guess for it: ${online.labels.join("; ")}` : "") + "\n" : "";
   const r = await gemini(key, [...images.map((d) => img(d)), { text: prompt + found }], { schema: SCHEMA }, t0 + 40000);
   const empty = clean({});
-  if ("error" in r) return online?.pages.length ? reply(200, { ok: true, ms: Date.now() - t0, ...empty, online, aiError: r.error }) : reply(r.status, { error: r.error, online });
+  if ("error" in r) return online?.pages.length ? reply(200, { ok: true, ms: Date.now() - t0, ...empty, online, aiError: r.error }) : reply(r.status, { error: r.error, detail: r.detail, online });
   if (!r.text) return reply(200, { ok: !!online?.pages.length, ms: Date.now() - t0, ...empty, online });   // blocked, or nothing to say
   try { return reply(200, { ok: true, model: r.model, ms: Date.now() - t0, ...clean(JSON.parse(r.text)), online }); } catch { return reply(200, { ok: !!online?.pages.length, ...empty, online }); }
 });
@@ -173,17 +176,17 @@ const img = (data: string, mime = "image/jpeg") => ({ inline_data: { mime_type: 
 // no schema: Gemini 2.5 can't do both, so the prompt asks for JSON in the text). Each model but the last gets at most
 // PER_MODEL ms, so one slow model can't use up all the time.
 const PER_MODEL = 16000;
-type Said = { text: string; model: string; meta: Record<string, unknown> | null } | { status: number; error: string; search?: boolean };
+type Said = { text: string; model: string; meta: Record<string, unknown> | null } | { status: number; error: string; detail?: string; search?: boolean };
 async function gemini(key: string, parts: unknown[], o: { schema?: unknown; search?: boolean }, until: number): Promise<Said> {
   const ask = (think: Record<string, unknown> | null) => JSON.stringify({
     contents: [{ role: "user", parts }],
     ...(o.search ? { tools: [{ google_search: {} }] } : {}),
     generationConfig: { temperature: 0.2, ...(o.schema ? { responseMimeType: "application/json", responseSchema: o.schema } : {}), ...(think ? { thinkingConfig: think } : {}) },
   });
-  const named = [Deno.env.get("GEMINI_MODEL"), ...MODELS].filter((m, i, a): m is string => !!m && a.indexOf(m) === i);
+  const named = [Deno.env.get("GEMINI_MODEL"), ...MODELS].filter((m, i, a): m is string => !!m && a.indexOf(m) === i && !gone.has(m) && !((spent.get(m) || 0) > Date.now()));
   const models = [...named.filter((m) => !slow.has(m)), ...named.filter((m) => slow.has(m))];
   const notes: string[] = [];   // what happened with each model, shown when none answers (and in the function's Logs)
-  let late = false;
+  let late = false, busy = !models.length;
   for (const [n, model] of models.entries()) {
     const left = until - Date.now();
     if (left < 2500) break;
@@ -203,8 +206,15 @@ async function gemini(key: string, parts: unknown[], o: { schema?: unknown; sear
       continue;
     }
     if (!r) continue;
-    if (r.status === 404) { note("not available (404)"); continue; }   // that model name is gone: try the next
-    if (r.status === 429) return { status: 429, error: "the free AI is busy or used up for today, try again later", search: o.search };
+    if (r.status === 404) { gone.add(model); note("not available (404)"); continue; }   // that model name is gone: try the next
+    if (r.status === 429) {
+      // Used up: today's allowance (back at midnight Pacific; tried again in an hour) or this minute's. Try the next model.
+      const daily = /per ?day|PerDay|daily/i.test(await r.text().catch(() => ""));
+      spent.set(model, Date.now() + (daily ? 3600e3 : 60e3));
+      busy = true;
+      note(daily ? "today's free allowance is used up (429)" : "busy this minute (429)");
+      continue;
+    }
     if (r.status === 400 || r.status === 401 || r.status === 403) {
       const msg = await r.text();
       if (/API key|API_KEY|UNAUTHENTICATED/i.test(msg)) return { status: 503, error: "the API key was refused" };
@@ -222,6 +232,7 @@ async function gemini(key: string, parts: unknown[], o: { schema?: unknown; sear
     const text = (cand?.content?.parts || []).filter((p: { text?: string; thought?: boolean }) => typeof p.text === "string" && !p.thought).map((p: { text: string }) => p.text).join("");
     return { text, model, meta: cand?.groundingMetadata || null };
   }
+  if (busy && !late) return { status: 429, error: "the free AI is busy or used up for today, try again later", detail: notes.join("; ") || "every model is used up", search: o.search };
   return { status: late ? 504 : 502, error: `no AI model answered (${notes.join("; ") || "no time left"})` };
 }
 

@@ -24,6 +24,7 @@ const KEY = process.env.SUPABASE_SECRET_KEY;
 const LIVE = "https://allduf.github.io/trail-finder/";
 const CASES = Math.max(1, +(process.env.CASES || 10));
 const WAIT_MS = 200_000;          // one picture: reading words + the AI look (45 s) + the online check (80 s), with room
+const GAP_MS = +(process.env.GAP_S || 20) * 1000;   // a pause between pictures: the free AI allows only so many asks a minute
 const REPO = process.env.GITHUB_REPOSITORY, TOKEN = process.env.GITHUB_TOKEN, OWNER = process.env.OWNER || "allduf";
 const GITHUB_API = process.env.GITHUB_API_URL || "https://api.github.com";
 const TITLE = "Photo find accuracy";
@@ -85,7 +86,8 @@ const SITE = `http://localhost:${server.address().port}/index.html`;
 const { chromium } = await import("playwright");
 const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 const results = [];
-for (const c of cases) {
+for (const [i, c] of cases.entries()) {
+  if (i) await new Promise((ok) => setTimeout(ok, GAP_MS));
   const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
   await page.addInitScript((skip) => { window.tfPhotoTest = { skip }; }, c.skip);
   const t0 = Date.now();
@@ -102,23 +104,45 @@ for (const c of cases) {
   const list = got ? got.rows : [];
   const rank = list.findIndex((r) => norm(r.name) === norm(c.trail_name)) + 1;   // 0 = not in the list
   const r = { id: c.id, trail: c.trail_name, zone: c.zone, method: c.method, rank, top: list.slice(0, 3).map((x) => x.name), s: Math.round((Date.now() - t0) / 1000),
-    note: err || (got && /skipped/i.test(got.ai + " " + got.cmp) ? (got.ai + " " + got.cmp).match(/[^.]*skipped[^.]*/i)[0].trim().slice(0, 120) : "") };
+    ai: !!(got && got.diag && got.diag.ai), how: err || how(got && got.diag, c), broken: !got };
   results.push(r);
-  console.log(`${r.rank === 1 ? "✓" : r.rank ? "~" : "✗"} ${r.trail} (${r.zone}): ${r.rank ? "#" + r.rank : "not listed"}, top: ${r.top.join(", ") || "nothing"} (${r.s} s)${r.note ? " · " + r.note : ""}`);
+  console.log(`${r.rank === 1 ? "✓" : r.rank ? "~" : "✗"} ${r.trail} (${r.zone}): ${r.rank ? "#" + r.rank : "not listed"}, top: ${r.top.join(", ") || "nothing"} (${r.s} s)\n    ${r.how}`);
 }
 await browser.close();
 server.close();
+
+// What each step found, for working out why a picture failed. Only counts, place and landmark names and distances: the
+// pictures' own words stay private (this repository and its logs are public).
+function how(d, c) {
+  if (!d) return "no search ran";
+  const out = [`${d.words} words read`];
+  if (!d.ai) out.push(`AI skipped (${d.why || "?"}${d.detail ? ": " + d.detail : ""})`);
+  else {
+    const a = d.ai, vp = a.vp && c.lat != null ? km({ lat: a.vp.lat, lon: a.vp.lon }, c).toFixed(1) : null;
+    out.push(`AI: ${[a.places.length ? "places " + a.places.join(", ") : "", a.landmarks.length ? "landmarks " + a.landmarks.join(", ") : "",
+      a.guesses.length ? "guesses " + a.guesses.join(", ") : ""].filter(Boolean).join("; ") || "nothing named"}` +
+      (vp ? `; placed it ${vp} km from the trail (it said ±${a.vp.km} km)` : "; no spot"), `reverse search: ${a.rev}`);
+  }
+  if (d.before) {
+    const b = d.before.findIndex((n) => norm(n) === norm(c.trail_name)) + 1;
+    out.push(`online check got ${d.before.length} trails${b ? `, this one ${b}${b === 1 ? "st" : b === 2 ? "nd" : b === 3 ? "rd" : "th"}` : ", not this one"}` +
+      (d.cmp ? (d.cmp.ok ? ` → ${d.cmp.searched ? "searched" : "no search (" + d.cmp.noSearch + ")"}, ${d.cmp.photos} photos${d.cmp.close.length ? ", close: " + d.cmp.close.join(", ") : ""}` : ` → skipped (${d.cmp.why || d.cmp.noSearch || "?"})`) : ""));
+  }
+  return out.join(" · ");
+}
 
 // ---------- the report ----------
 const n = results.length, first = results.filter((r) => r.rank === 1).length, top3 = results.filter((r) => r.rank && r.rank <= 3).length;
 const listed = results.filter((r) => r.rank).length;
 const day = new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC";
-const run = { at: day + (process.env.LABEL ? " (" + process.env.LABEL + ")" : ""), n, first, top3, listed };
+const withAi = results.filter((r) => r.ai).length;
+const run = { at: day + (process.env.LABEL ? " (" + process.env.LABEL + ")" : ""), n, first, top3, listed, ai: withAi };
 const pct = (k) => `${Math.round((k / n) * 100)}%`;
 const esc = (s) => String(s).replace(/[|\\`*_[\]<>#]/g, "\\$&");
-const table = `| Trail | Area | Found at | App's top 3 | Time |\n|---|---|---|---|---|\n` + results.map((r) =>
-  `| ${esc(r.trail)} | ${esc(r.zone || "")} | ${r.rank === 1 ? "✅ 1st" : r.rank ? `🟡 ${r.rank}${r.rank === 2 ? "nd" : r.rank === 3 ? "rd" : "th"}` : "❌ not listed"} | ${esc(r.top.join(", ") || "nothing")}${r.note ? ` (${esc(r.note)})` : ""} | ${r.s} s |`).join("\n");
-const summary = `**${run.at}**: ${n} confirmed pictures. Right trail first: **${first} (${pct(first)})**, in the top 3: **${top3} (${pct(top3)})**, listed at all: ${listed} (${pct(listed)}).\n\n${table}\n`;
+const table = `| Trail | Area | Found at | App's top 3 | What happened | Time |\n|---|---|---|---|---|---|\n` + results.map((r) =>
+  `| ${esc(r.trail)} | ${esc(r.zone || "")} | ${r.rank === 1 ? "✅ 1st" : r.rank ? `🟡 ${r.rank}${r.rank === 2 ? "nd" : r.rank === 3 ? "rd" : "th"}` : "❌ not listed"} | ${esc(r.top.join(", ") || "nothing")} | ${esc(r.how)} | ${r.s} s |`).join("\n");
+const summary = `**${run.at}**: ${n} confirmed pictures. Right trail first: **${first} (${pct(first)})**, in the top 3: **${top3} (${pct(top3)})**, listed at all: ${listed} (${pct(listed)}).` +
+  (withAi < n ? ` The AI answered for ${withAi} of ${n} (the free AI was busy or used up for the others), so this run says less.` : "") + `\n\n${table}\n`;
 if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `## ${TITLE}\n\n${summary}`);
 
 async function github(path, method = "GET", body) {
@@ -132,16 +156,17 @@ if (TOKEN && REPO) {
   let issue = open.find((i) => i.title === TITLE);
   const past = issue ? JSON.parse((issue.body || "").match(/<!-- runs:(.*?) -->/)?.[1] || "[]") : [];
   const runs = [...past, run].slice(-30);
-  const history = `| Run | Pictures | Right trail first | In the top 3 | Listed |\n|---|---|---|---|---|\n` +
-    [...runs].reverse().map((x) => `| ${x.at} | ${x.n} | ${x.first} (${Math.round(x.first / x.n * 100)}%) | ${x.top3} (${Math.round(x.top3 / x.n * 100)}%) | ${x.listed} |`).join("\n");
+  const history = `| Run | Pictures | Right trail first | In the top 3 | Listed | AI answered |\n|---|---|---|---|---|---|\n` +
+    [...runs].reverse().map((x) => `| ${x.at} | ${x.n} | ${x.first} (${Math.round(x.first / x.n * 100)}%) | ${x.top3} (${Math.round(x.top3 / x.n * 100)}%) | ${x.listed} | ${x.ai ?? "?"} |`).join("\n");
   const body = `How well "Which trail is this?" finds the trail in pictures riders confirmed (scripts/photo-find-test.mjs). ` +
     `Every "Yes, that's it" in the app adds a test picture.\n\n## Latest run\n\n${summary}\n## All runs\n\n${history}\n\n<!-- runs:${JSON.stringify(runs)} -->`;
   if (issue) await github(`/issues/${issue.number}`, "PATCH", { body });
   else issue = await github(`/issues`, "POST", { title: TITLE, body });
   const prev = past[past.length - 1];
-  // Worse than last time on the same number of pictures (or a share drop on a different number): tell OWNER.
-  if (prev && (prev.n === n ? top3 < prev.top3 : top3 / n < prev.top3 / prev.n - 0.1))
+  // Worse than last time on the same number of pictures (or a share drop on a different number): tell OWNER. Only when the
+  // AI answered for every picture in both runs: a run where the free AI was used up isn't a step back in the app.
+  if (prev && prev.ai === prev.n && withAi === n && (prev.n === n ? top3 < prev.top3 : top3 / n < prev.top3 / prev.n - 0.1))
     await github(`/issues/${issue.number}/comments`, "POST", { body: `@${OWNER} photo find got worse: ${top3} of ${n} pictures had the right trail in the top 3 (last run: ${prev.top3} of ${prev.n}). Details in the description.` });
   console.log(`Issue #${issue.number} updated.`);
 }
-if (!n || results.every((r) => r.note && !r.rank)) process.exit(1);   // nothing ran properly: the job shows red
+if (!n || results.every((r) => r.broken)) process.exit(1);   // the app didn't run at all: the job shows red

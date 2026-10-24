@@ -2,15 +2,13 @@ name: Photo find accuracy
 
 # Runs the pictures riders confirmed ("Yes, that's it") through "Which trail is this?" in a real browser and reports how
 # often the right trail comes first or in the top 3 (issue "Photo find accuracy"). See scripts/photo-find-test.mjs.
-# Weekly, after a change to photo find reaches main, on pull requests that change it, and with the "Run workflow" button.
+# Weekly, on pull requests that change photo find, and with the "Run workflow" button (not again when the change reaches
+# main: the free AI allows only so many asks a day, and the pull request already measured it).
 # Each picture uses one AI look, one online check and one reverse search from the function's daily limits.
 # Needs the repository secret SUPABASE_SECRET_KEY (the same one the loam alerts use).
 on:
   schedule:
     - cron: "23 15 * * 1"    # Mondays 8:23 am Pacific (summer time)
-  push:
-    branches: [main]
-    paths: ["photo-find.js", "supabase/functions/which-trail/**", "scripts/photo-find-test.mjs"]
   pull_request:
     paths: ["photo-find.js", "supabase/functions/which-trail/**", "scripts/photo-find-test.mjs"]
   workflow_dispatch:
