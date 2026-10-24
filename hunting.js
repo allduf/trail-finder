@@ -299,7 +299,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
 .hn-keybox .hn-key li { display: flex; align-items: center; gap: 6px; }
 .hn-keybox .hn-key i, .hn-keybox .hn-key img { display: inline-block; width: 16px; height: 11px; border-radius: 2px; flex: none; box-sizing: border-box; }
 .hn-spot { width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 3px solid ${ORANGE}; background: #fff6; box-shadow: 0 0 0 2px #fff; }
-.hn-spot::after { content: ""; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: ${ORANGE}; }
+.hn-spot::after { content: ""; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px; border-radius: 50%; background: ${ORANGE}; box-shadow: 0 0 0 1.5px #fff; }
 .hn-ring { position: fixed; z-index: 3000; left: 50%; top: 14px; transform: translateX(-50%); width: min(420px, calc(100% - 24px)); box-sizing: border-box; background: ${ORANGE}; color: #fff; border-radius: 14px;
   padding: 12px 14px; box-shadow: 0 8px 28px #0006; display: flex; gap: 10px; align-items: center; font-weight: 700; }
 .sp-banner.hn-meas[hidden] { display: none; }
@@ -685,7 +685,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   function drawRings() {
     ringLayer.clearLayers();
     if (!shown.has("rings") || !spot) return;
-    for (const m of RINGS) {
+    for (const m of RINGS) {   // a white line under the dark dashes, so the rings show on the photos (2D and 3D) too
+      L.circle([spot.lat, spot.lon], { radius: m, pane: "hunt", interactive: false, color: "#fff", weight: 3.5, opacity: 0.55, fill: false }).addTo(ringLayer);
       L.circle([spot.lat, spot.lon], { radius: m, pane: "hunt", interactive: false, color: "#212529", weight: 1.5, opacity: 0.8, dashArray: "5 5", fill: false }).addTo(ringLayer);
       L.marker([spot.lat + (m * Math.SQRT1_2) / 111320, spot.lon + (m * Math.SQRT1_2) / (111320 * Math.cos(spot.lat * Math.PI / 180))], {   // north-east, so the labels spread out
         pane: "huntLabels", interactive: false, keyboard: false,
@@ -1640,9 +1641,15 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       } else if (spot3) spot3.remove();
     };
     // isStyleLoaded() is also false while tiles are loading (every tap and move), and "styledata" may not come again:
-    // the style itself being ready is enough (alex lost the spot circle in 3D).
+    // the style itself being ready is enough (alex lost the spot circle in 3D). A 3D map just opened waits for its
+    // style ("style.load", a moment later), not for "idle": that waits for every photo and hunting tile, 30 s or
+    // more, and the spot dot and scent cone stayed off until then (alex: "add a dot like we had before").
     if (gl.style && (gl.style._loaded || gl.isStyleLoaded())) apply();
-    else if (!applyWait) { applyWait = true; gl.once("idle", () => { applyWait = false; apply(); }); }
+    else if (!applyWait) {
+      applyWait = true;
+      const go = () => { if (!applyWait) return; applyWait = false; apply(); };
+      gl.once("style.load", go); gl.once("load", go); gl.once("idle", go);
+    }
   }
   window.addEventListener("tf:map3d", (e) => {
     gl3 = e.detail;
