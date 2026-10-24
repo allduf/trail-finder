@@ -239,6 +239,7 @@
 .nav-next .dist { font-weight: 800; color: #c25e00; }
 .nav-btns { display: flex; gap: 8px; margin-top: 10px; }
 .nav-btns button { flex: 1; font: inherit; font-weight: 700; padding: 11px 6px; white-space: nowrap; border-radius: 12px; border: 1px solid var(--line, #d6dad3); background: var(--bg, #f4f5f0); color: inherit; cursor: pointer; }
+.nav-btns .nav-voice { flex: 0 0 auto; padding: 11px 13px; }
 .nav-btns .stop { background: #d6202a; border-color: #d6202a; color: #fff; }
 .nav-btns .on { background: #ff9f1c; border-color: #ff9f1c; color: #1d1200; }
 .nav-btns .nav-cta { background: var(--cta, #c6f05a); border-color: transparent; color: var(--cta-fg, #10230f); }
@@ -284,7 +285,7 @@ body.sport-hunt #navRideBtn { display: none; }
     <div class="nav-next" id="navNext" hidden></div>
     <div class="nav-route" id="navRoute" hidden></div>
     <div class="nav-parts" id="navParts" hidden><button type="button" class="np-head" id="navPartsHead"></button><ol class="np-list" id="navPartsList"></ol></div>
-    <div class="nav-btns" id="navBtns"><button type="button" id="navFollow" hidden>◎ Follow</button><button type="button" id="navPause" title="Pause recording (stops counting time and distance)">Ⅱ Pause</button><button type="button" id="navPocket" title="Black screen that ignores touches, so the phone can go in your pocket without locking it (a locked phone stops the GPS)">🔒 Pocket</button><button type="button" class="stop" id="navStop">■ Stop</button></div>
+    <div class="nav-btns" id="navBtns"><button type="button" id="navFollow" hidden>◎ Follow</button><button type="button" id="navPause" title="Pause recording (stops counting time and distance)">Ⅱ Pause</button><button type="button" id="navPocket" title="Black screen that ignores touches, so the phone can go in your pocket without locking it (a locked phone stops the GPS)">🔒 Pocket</button><button type="button" class="nav-voice" id="navVoice" aria-label="Spoken directions" aria-pressed="true">🔊</button><button type="button" class="stop" id="navStop">■ Stop</button></div>
     <div class="nav-btns" id="navAsk" hidden><button type="button" class="nav-cta" id="navSave">Save ride</button><button type="button" id="navKeep">Keep riding</button><button type="button" id="navDrop">Don't save</button></div>`;
   document.body.appendChild(strip);
   const gpsMsg = document.createElement("div");
@@ -510,7 +511,7 @@ body.sport-hunt #navRideBtn { display: none; }
     if (document.body.classList.contains("sport-ski")) { updateSki(p); return; }
     const found = findTrail(p, acc);
     if (!found.w) {
-      ride.on = null; onGlow.setLatLngs([]); layer.removeLayer(jDot);
+      ride.on = null; onGlow.setLatLngs([]); layer.removeLayer(jDot); voice.trail = "";
       $("navBar").style.background = "#8a8f98";
       $("navName").textContent = "Not on a mapped trail";
       const n = found.nearest;
@@ -535,12 +536,14 @@ body.sport-hunt #navRideBtn { display: none; }
       $("navNext").hidden = true; layer.removeLayer(jDot);
       return;
     }
-    const ahead = lookAhead(w, pr.along, ride.dir);
+    const ahead = lookAhead(w, pr.along, ride.dir), free = !(route && route.parts), nm = nameOf(w);
     const wrong = onewayOf(w.tags) && onewayOf(w.tags) !== ride.dir;
+    if (free && nm && nm !== voice.trail && !wrong) say(`${nm}${lvl ? ", " + lvl.label.toLowerCase() : ""}. ${sayM(ahead.left)} to the end.`, "t" + nm, NAME_AGAIN_MS);
+    if (nm) voice.trail = nm;
     $("navSub").textContent = `${lvl ? lvl.sym + " " + lvl.label : "Not rated"} · ${fmtM(ahead.left)} to the end`;
     if (wrong) {
       $("navSub").innerHTML = `<b style="color:#d6202a">⚠ One-way trail: you're going the wrong way</b>`;
-      if (ride.warned !== w.id) { ride.warned = w.id; alarm(); }
+      if (ride.warned !== w.id) { ride.warned = w.id; alarm(); say(`Wrong way: ${nm || "this trail"} is one-way.`); }
     }
     const j = ahead.junction;
     if (!j) { $("navNext").hidden = true; layer.removeLayer(jDot); return; }
@@ -549,6 +552,7 @@ body.sport-hunt #navRideBtn { display: none; }
       j.offs.slice(0, 4).map((o) => `${ARROW[o.side]} ${esc(o.name)}`).join(" · ") + (j.offs.length > 4 ? ` · +${j.offs.length - 4} more` : "");
     $("navNext").hidden = false;
     jDot.setLatLng(j.at).addTo(layer);
+    if (free && j.m >= JUNC_MIN && j.m <= JUNC_MAX) junctionVoice(j);
   }
 
   // ---------- following a trail or a planned ride ----------
@@ -599,6 +603,8 @@ body.sport-hunt #navRideBtn { display: none; }
     [routeCase, routeLine, routeDone, routeRest].forEach((l) => { l.setLatLngs([]); layer.removeLayer(l); });
     routeMarks.clearLayers(); layer.removeLayer(routeMarks);
     $("navRoute").hidden = true; $("navParts").hidden = true;
+    ["start", "end"].forEach((k) => voice.said.delete(k));
+    sendCues();
   }
 
   // Where you are along a planned ride: the nearest point of it (near), and the first pass near you that's not behind
@@ -711,6 +717,119 @@ body.sport-hunt #navRideBtn { display: none; }
       });
     } catch {}
   }
+
+  // ---------- spoken directions (alex, 2026-10-24: "spoken directions in Ride mode") ----------
+  // A planned ride's turns ("In 200 metres, turn left onto Crank It Up, blue", then "Turn left onto Crank It Up" at the
+  // turn), off the route and back on it, the end. Riding free: the trail you're on and the next junction's branches.
+  // Always: a one-way trail ridden the wrong way, and every 5 km the distance, climb and moving time. 🔊 in the strip
+  // turns it off (kept on this device). In the iPhone app the phone's own voice speaks, over the music (which dips
+  // meanwhile), and a planned ride's turns are handed to the app too, so they're still said with the phone locked and the
+  // page asleep (TrailGps cues). Elsewhere the browser's voice.
+  const CAP = window.Capacitor;
+  const NATIVE_VOICE = !!(IN_APP && CAP && CAP.nativePromise &&
+    (CAP.PluginHeaders || []).some((h) => h.name === "TrailGps" && (h.methods || []).some((x) => x.name === "speak")));   // builds before 12 can't
+  const PRE_MIN = 100, PRE_MAX = 260, PRE_M = 200, AT_M = 40, JUNC_MIN = 25, JUNC_MAX = 80, SUM_M = 5000, NAME_AGAIN_MS = 180000, JUNC_AGAIN_MS = 600000;
+  const voice = { said: new Map(), trail: "", km: null };
+  const voiceOn = () => { try { return localStorage.getItem("tf:navVoice") !== "0"; } catch { return true; } };
+  function sayNow(text) {
+    if (NATIVE_VOICE) { CAP.nativePromise("TrailGps", "speak", { text }).catch(() => {}); return; }
+    try { const u = new SpeechSynthesisUtterance(text); u.lang = "en-CA"; window.speechSynthesis.speak(u); } catch {}
+  }
+  // key: say it once per ride (a turn), or again after again ms (a junction, a trail's name); no key: every time.
+  function say(text, key, again) {
+    if (!rec || !text || !voiceOn()) return;
+    if (key) {
+      const at = voice.said.get(key);
+      if (at != null && !(again && Date.now() - at > again)) return;
+      voice.said.set(key, Date.now());
+    }
+    sayNow(text);
+  }
+  // iPhones only let a page speak after a tap: a silent word from the tap that starts the ride.
+  function primeVoice() {
+    if (NATIVE_VOICE) return;
+    try { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; window.speechSynthesis.speak(u); } catch {}
+  }
+  const sayM = (m) => {
+    if (m < 950) return `${Math.max(50, Math.round(m / 50) * 50)} metres`;
+    const k = (m / 1000).toFixed(1).replace(/\.0$/, "");
+    return k === "1" ? "1 kilometre" : `${k} kilometres`;
+  };
+  const sayTime = (s) => { const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return (h ? `${h} hour${h > 1 ? "s" : ""} ` : "") + `${m} minute${m === 1 ? "" : "s"}`; };
+  const GENERIC = { "forest road": "the forest road", street: "the street", path: "a path", "unnamed trail": "an unnamed trail", connector: "a connector", trail: "the trail" };
+  const generic = (s) => GENERIC[String(s || "").toLowerCase()];
+  const spokenPart = (x) => (generic(x.name) || x.name) + (x.lvl && !generic(x.lvl) ? `, ${x.lvl.toLowerCase()}` : "");
+  // Which way the ride goes where trail n starts: the line 25 m before it against the line 25 m after it.
+  function turnWord(n) {
+    const from = route.parts[n].from, a = sliceSeq(Math.max(0, from - 25), from), b = sliceSeq(from, Math.min(route.total, from + 25));
+    if (a.length < 2 || b.length < 2) return "Continue";
+    const t = ((bearing(b[0], b[b.length - 1]) - bearing(a[0], a[a.length - 1]) + 540) % 360) - 180, s = t < 0 ? "left" : "right", u = Math.abs(t);
+    return u < 25 ? "Continue" : u < 60 ? `Bear ${s}` : u < 135 ? `Turn ${s}` : u < 165 ? `Turn sharp ${s}` : "Turn around";
+  }
+  function turnText(n, pre) {
+    const x = route.parts[n];
+    const what = x.kind === "drive" ? "the shuttle" : x.kind === "gap" ? "a stretch off the mapped trails" : null;
+    const w = what ? "" : turnWord(n);
+    if (w === "Continue" && route.parts[n - 1].name === x.name) return "";    // the same trail carries on: nothing to say
+    const onto = what ? `${pre ? "" : "Here, "}${what}` : `${w} onto ${spokenPart(x)}`;
+    return pre ? `In ${sayM(pre)}, ${onto[0].toLowerCase() + onto.slice(1)}.` : `${onto}.`;
+  }
+  // A planned ride: the start, each turn (ahead, then at it), the end.
+  function routeVoice(left) {
+    if (!route.on) return;
+    if (!route.parts) { if (left < 30 && route.total > 200) say(`End of ${route.name}.`, "end"); return; }
+    if (document.hidden && voice.cues) return;     // the phone is locked: the app says the turns
+    const all = route.parts, pos = route.pos, cur = partAt(pos);
+    const picked = all.filter((x) => x.kind === "pick").length || all.length;
+    if (!voice.said.has("start")) say(pos < 150 ? `Starting your ride: ${picked > 1 ? `${picked} trails, ` : ""}${sayM(route.total)}. First, ${spokenPart(all[0])}.` : `On ${spokenPart(all[cur])}.`, "start");
+    if (route.total - pos < 30) { say("End of the route. Nice ride!", "end"); return; }
+    for (let n = Math.max(1, cur); n < all.length && n <= cur + 2; n++) {
+      const d = all[n].from - pos;
+      if (d > PRE_MAX) break;
+      if (d >= PRE_MIN) { if (all[n].from - all[n - 1].from > PRE_MAX + 100) say(turnText(n, d), "pre" + n); }
+      else if (d <= AT_M && d > -15) say(turnText(n), "at" + n);
+    }
+  }
+  // The planned ride's turns from where you are on, for the app to say with the phone locked (it says them in order).
+  let cuesSent = "";
+  function sendCues() {
+    if (!NATIVE_VOICE) return;
+    const list = [];
+    if (rec && route && route.parts && voiceOn()) {
+      const all = route.parts, pos = route.pos;
+      for (let n = 1; n < all.length; n++) {
+        const x = all[n];
+        if (x.from < pos - 15 || voice.said.has("at" + n)) continue;
+        if (x.from - all[n - 1].from > PRE_MAX + 100 && x.from - PRE_M > pos && !voice.said.has("pre" + n)) {
+          const q = sliceSeq(x.from - PRE_M, x.from - PRE_M)[0];
+          if (q && turnText(n, PRE_M)) list.push([q[0], q[1], 35, turnText(n, PRE_M)]);
+        }
+        if (turnText(n)) list.push([x.pts[0][0], x.pts[0][1], 30, turnText(n)]);
+      }
+      const e = route.seq[route.seq.length - 1];
+      if (route.total > 500 && !voice.said.has("end")) list.push([e.q[0], e.q[1], 30, "End of the route. Nice ride!"]);
+    }
+    const k = JSON.stringify(list);
+    if (k === cuesSent) return;
+    cuesSent = k;
+    voice.cues = list.length > 0;
+    CAP.nativePromise("TrailGps", "cues", { list }).catch(() => {});
+  }
+  function junctionVoice(j) {
+    const SIDE = { left: "left", right: "right", straight: "straight on", back: "back" };
+    const offs = j.offs.slice(0, 3).map((o) => `${SIDE[o.side]}, ${o.name}`).join("; ");
+    say(`Junction in ${sayM(j.m)}: ${offs}${j.offs.length > 3 ? `; and ${j.offs.length - 3} more` : ""}.`, "j" + key(j.at), JUNC_AGAIN_MS);
+  }
+  function setVoice(on) {
+    try { localStorage.setItem("tf:navVoice", on ? "1" : "0"); } catch {}
+    const b = $("navVoice");
+    b.textContent = on ? "🔊" : "🔇"; b.setAttribute("aria-pressed", String(on));
+    b.title = on ? "Spoken directions are on (tap to turn off)" : "Spoken directions are off (tap to turn on)";
+    if (on) { primeVoice(); sayNow("Voice on."); }
+    else { try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch {} }
+    sendCues();
+  }
+
   function updateRoute(p, acc) {
     if (!route) return;
     let best = { d: Infinity }, aim = null, left;
@@ -736,6 +855,7 @@ body.sport-hunt #navRideBtn { display: none; }
     const box = $("navRoute"), now = Date.now();
     const x = '<button type="button" class="x" id="navUnfollow">Stop following</button>';
     if (best.d <= OFF_M) {
+      if (route.alerted) say("Back on the route.");
       if (!route.on && !following) { following = true; $("navFollow").hidden = true; map.setView(map.getZoom() >= RIDE_ZOOM ? aboveStrip(p) : p, Math.max(map.getZoom(), RIDE_ZOOM)); }   // reached it: follow you again
       route.on = true; route.offSince = 0; route.alerted = false;
       box.classList.remove("off");
@@ -747,13 +867,18 @@ body.sport-hunt #navRideBtn { display: none; }
       box.innerHTML = `${x}<b>${esc(route.name)}</b> is ${fmtM(best.d)} away${at ? `, to the ${dirs[Math.round(bearing(p, at) / 45) % 8]}` : ""}`;
     } else {
       if (!route.offSince) route.offSince = now;
-      if (now - route.offSince >= OFF_MS && !route.alerted) { route.alerted = true; alarm(); }
+      if (now - route.offSince >= OFF_MS && !route.alerted) {
+        route.alerted = true; alarm();
+        const dirs = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"];
+        say(`Off route. The route is ${sayM(best.d)} away${aim ? `, to the ${dirs[Math.round(bearing(p, aim) / 45) % 8]}` : ""}.`);
+      }
       box.classList.toggle("off", route.alerted);
       box.innerHTML = `${x}${route.alerted ? "Off route" : "Leaving the route?"}: ${fmtM(best.d)} from <b>${esc(route.name)}</b>`;
     }
     box.hidden = false;
     $("navUnfollow").addEventListener("click", clearRoute);
     drawProgress(); renderParts();
+    routeVoice(left);
   }
   function pointOnLine(g, pr) {
     const a = g[pr.i], b = g[Math.min(pr.i + 1, g.length - 1)];
@@ -764,7 +889,9 @@ body.sport-hunt #navRideBtn { display: none; }
     if (!lines || !lines.length) return;
     if (!rec) { await start(); if (!rec) return; }
     try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch {}   // from the tap, so iPhones allow the beep later
+    primeVoice();
     setRoute(lines, name || "this trail", parts);
+    [...voice.said.keys()].forEach((k) => { if (/^(pre|at)\d/.test(k)) voice.said.delete(k); });
     const here = lastFix && [lastFix.c.latitude, lastFix.c.longitude];
     if (!here || Math.min(...lines.map((g) => project(g, here).d)) > 300) {   // far from it: show the whole trail and you
       const b = L.latLngBounds(lines.flat());
@@ -773,7 +900,8 @@ body.sport-hunt #navRideBtn { display: none; }
       map.fitBounds(b, { padding: [40, 40], maxZoom: RIDE_ZOOM });
     }
     if (lastFix) updateRoute([lastFix.c.latitude, lastFix.c.longitude], lastFix.c.accuracy);
-    else { $("navRoute").hidden = false; $("navRoute").innerHTML = `Following <b>${esc(route.name)}</b> · waiting for GPS`; renderParts(); }
+    sendCues();
+    if (!lastFix) { $("navRoute").hidden = false; $("navRoute").innerHTML = `Following <b>${esc(route.name)}</b> · waiting for GPS`; renderParts(); }
   }
 
   // Numbers: moving time (stops don't count), distance, climb, speed now. Paused / Stopped show in place of Moving.
@@ -797,6 +925,9 @@ body.sport-hunt #navRideBtn { display: none; }
     $("navDist").textContent = (st.dist / 1000).toFixed(2);
     $("navClimb").textContent = st.climb == null ? "–" : Math.round(st.climb);
     $("navSpeed").textContent = (v * 3.6).toFixed(1);
+    const k = Math.floor(st.dist / SUM_M);
+    if (voice.km == null || k < voice.km) voice.km = k;
+    else if (k > voice.km) { voice.km = k; say(`${k * SUM_M / 1000} kilometres. ${st.climb == null ? "" : `${Math.round(st.climb)} metres of climbing. `}${sayTime(st.moving)} riding.`); }
     if (!pocket.hidden) {
       $("pkTime").textContent = mins(st.moving);
       $("pkInfo").textContent = `${(st.dist / 1000).toFixed(2)} km · ${st.climb == null ? "–" : Math.round(st.climb)} m climb · ${rec.paused ? "paused" : lastFix && lastFix.c.accuracy <= MAX_ACC_M && Date.now() - lastFix.t < 15000 ? "recording" : "waiting for GPS"}`;
@@ -844,6 +975,9 @@ body.sport-hunt #navRideBtn { display: none; }
     if (on) { keepAwake(); tick(); }
   }
   $("navPocket").addEventListener("click", () => setPocket(true));
+  $("navVoice").addEventListener("click", () => setVoice(!voiceOn()));
+  if (!voiceOn()) { $("navVoice").textContent = "🔇"; $("navVoice").setAttribute("aria-pressed", "false"); }
+  $("navVoice").title = voiceOn() ? "Spoken directions are on (tap to turn off)" : "Spoken directions are off (tap to turn on)";
 
   // In the iPhone app (native-gps.js) the GPS keeps going with the phone locked, so there's no Pocket there.
   $("navPocket").hidden = IN_APP;
@@ -874,6 +1008,8 @@ body.sport-hunt #navRideBtn { display: none; }
     if (rec) return;
     if (!navigator.geolocation && !IN_APP) { alert("This browser can't share your location, so Ride mode can't follow you."); return; }
     startCompass();                               // first, while the tap still counts (iPhone asks here)
+    primeVoice();
+    voice.said.clear(); voice.trail = ""; voice.km = null;
     const cur = await getCurrent();
     const lastT = cur && (cur.points.length ? cur.points[cur.points.length - 1][3] : cur.start);
     if (cur && !cur.end && Date.now() - lastT > RESUME_MS) cur.end = lastT;   // left running long ago: that ride is over
@@ -941,7 +1077,7 @@ body.sport-hunt #navRideBtn { display: none; }
   });
   document.addEventListener("visibilitychange", () => {
     if (!rec) return;
-    if (document.visibilityState === "hidden") putCurrent(rec);
+    if (document.visibilityState === "hidden") { putCurrent(rec); sendCues(); }
     else keepAwake();
   });
   window.addEventListener("pagehide", () => { if (rec) putCurrent(rec); });

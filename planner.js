@@ -717,6 +717,10 @@
     const w0 = sn.w, name = nameOf(w0);
     if (!name) return { name: w0.road ? "Forest road" : "Unnamed trail", ways: [w0] };
     const near = boxOf([w0.geom[0]], 0.08), cands = allWays().filter((w) => w !== w0 && !w.conn && nameOf(w) === name && inBox(w, near));
+    return { name, ways: joined(w0, cands) };
+  }
+  // w0 and the pieces of cands joined to it end to end (within 60 m), and to those, and so on.
+  function joined(w0, cands) {
     const touches = (a, b) => [b.geom[0], b.geom[b.geom.length - 1]].some((e) => a.geom.some((p) => metres(p, e) < 60))
       || [a.geom[0], a.geom[a.geom.length - 1]].some((e) => b.geom.some((p) => metres(p, e) < 60));
     const group = [w0], todo = [w0];
@@ -724,7 +728,7 @@
       const c = todo.pop();
       cands.forEach((w) => { if (!group.includes(w) && touches(c, w)) { group.push(w); todo.push(w); } });
     }
-    return { name, ways: group };
+    return group;
   }
   function togglePick(ll) {
     const t = trailAt(ll);
@@ -749,8 +753,10 @@
     let a = cand[0], b = cand[cand.length - 1], far = -1;
     cand.forEach((k1, i) => cand.slice(i + 1).forEach((k2) => { const d = metres(G.pos.get(k1), G.pos.get(k2)); if (d > far) { far = d; a = k1; b = k2; } }));
     const p = a !== b && pathTo(G, dijkstra(G, a, b, (k1, k2, m) => m), b);
-    if (p) return { a, b, pts: p.pts, segs: p.segs };
-    const w = t.ways.reduce((x, y) => (lengthOf(y.geom) > lengthOf(x.geom) ? y : x));   // pieces that don't join: the longest one
+    const w = t.ways.reduce((x, y) => (lengthOf(y.geom) > lengthOf(x.geom) ? y : x));
+    // Pieces that don't join, or a trail that comes back near where it starts (Ray Peters Trail, Squamish: 7.6 km with
+    // its ends 200 m apart), where the way between its ends skips most of it: the longest piece, end to end.
+    if (p && lengthOf(p.pts) >= 0.5 * lengthOf(w.geom)) return { a, b, pts: p.pts, segs: p.segs };
     return { a: key(w.geom[0]), b: key(w.geom[w.geom.length - 1]), pts: w.geom, segs: w.geom.slice(1).map(() => [w, 1]) };
   }
   // Build the ride: every picked trail in the order and direction that cost the least effort in all, from the start
@@ -1665,5 +1671,17 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
       if (!picks.some((p) => p.ways.some((w) => ids.includes(w.id)))) { picks.push({ name: name || nameOf(ways[0]) || "Unnamed trail", ways }); changedPicks(); }
       setFind(false);
     },
-    has: (ids) => picks.some((p) => p.ways.some((w) => ids.includes(w.id))) };
+    has: (ids) => picks.some((p) => p.ways.some((w) => ids.includes(w.id))),
+    // Ready-made loops (loops.js): the pieces a tap on piece id picks (of ids, the trail's same-name pieces), and their
+    // length; then open a route entry (as tf:planSaved keeps them) without saving it, or save it first.
+    groupOf: (id, ids) => {
+      allWays();
+      const w0 = cache.byId.get(id);
+      if (!w0) return null;
+      const g = joined(w0, ids.map((x) => cache.byId.get(x)).filter((w) => w && w !== w0));
+      return { ids: g.map((w) => w.id), m: g.reduce((s, w) => s + lengthOf(w.geom), 0) };
+    },
+    openRoute: (e, keep) => { if (keep) setSaved([{ ...e, id: Date.now().toString(36), at: new Date().toISOString() }, ...savedList()]); openSaved(e); },
+    // Terrain heights at points (m, or null where the tiles have none), from the same tiles as the routes.
+    heights: async (pts) => { if (!pts.length) return []; const ht = await terrainOr(boxOf(pts, 0.005)); return pts.map((p) => { const h = ht(p); return h == null ? null : Math.round(h); }); } };
 })();
