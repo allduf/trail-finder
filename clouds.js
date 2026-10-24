@@ -1,7 +1,9 @@
 // Clouds for the trail finder, like Windy's cloud layer: "☁ Clouds" in Layers, in every sport, on the flat and 3D
-// maps. A slider at the bottom of the map moves through the next 3 days, hour by hour (▶ plays it).
-// - Flat map: cloud cover seen from above, white where it's cloudy (greyer for low, thick cloud), with rain in blue
-//   and snow in purple.
+// maps. A slim slider at the bottom of the map moves through the next 3 days, hour by hour (▶ plays it).
+// - Now: the real clouds from the GOES weather satellites (NASA GIBS, infrared, every 10 minutes): white where the
+//   cloud tops are cold. GOES-West over the west, GOES-East over the east.
+// - Later hours: the forecast as soft white clouds over a slightly dimmed map, with rain in blue and snow in
+//   purple, fading from one hour to the next (alex 2026-10-24: "i dont like the cloud layer", make it like Windy).
 // - 3D map: the ground that sits inside the cloud at that hour turns foggy white (no view up there), and the ground
 //   under cloud gets a soft shadow. Built from the model's cloud cover at heights from about 500 to 4,200 m and the
 //   real terrain heights, so "in cloud above 1,800 m" shows on the mountains themselves.
@@ -45,18 +47,23 @@
   const css = document.createElement("style");
   css.textContent = `
 .map-tools #cloudBtn.on { background: #4a6fa5; border-color: #4a6fa5; color: #fff; }
-.cl-bar { position: absolute; z-index: 610; left: 50%; bottom: 28px; transform: translateX(-50%); width: min(520px, calc(100% - 24px)); box-sizing: border-box;
-  padding: 8px 10px; border-radius: 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); box-shadow: 0 2px 10px rgba(0,0,0,.25); font-size: .85rem; }
+.cl-bar { position: absolute; z-index: 610; left: 50%; bottom: 28px; transform: translateX(-50%); width: min(480px, calc(100% - 24px)); box-sizing: border-box;
+  padding: 6px 8px; border-radius: 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); box-shadow: 0 2px 10px rgba(0,0,0,.25); font-size: .85rem; }
 .cl-bar[hidden] { display: none; }
 .cl-row { display: flex; align-items: center; gap: 8px; }
 .cl-row input[type=range] { flex: 1; min-width: 0; accent-color: #4a6fa5; height: 28px; }
 .cl-bar button { font: inherit; font-weight: 700; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--chip, transparent); color: var(--fg); cursor: pointer; flex: none; }
 .cl-when { font-weight: 800; min-width: 6.2em; text-align: right; white-space: nowrap; }
-.cl-here { margin: 4px 0 0; font-size: .8rem; }
+.cl-here { margin: 2px 0 0; font-size: .78rem; color: var(--muted); line-height: 1.3; }
 .cl-key { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0 0; color: var(--muted); font-size: .74rem; }
 .cl-key i { display: inline-block; width: 12px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; border: 1px solid #0003; }
-.cl-bar details { margin-top: 4px; }
-.cl-bar summary { cursor: pointer; font-weight: 700; font-size: .8rem; color: var(--accent); }
+.cl-bar .cl-ico { padding: 4px 8px; }
+.cl-bar .cl-ico[aria-pressed=true] { background: #4a6fa5; border-color: #4a6fa5; color: #fff; }
+#clMore { margin-top: 6px; }
+.leaflet-clouds-pane img.leaflet-image-layer { transition: opacity .45s ease; }
+/* Like Windy: the map a little darker under the clouds, so white cloud stands out on any map style. */
+.mapwrap.cl-dim .leaflet-tile-pane { filter: brightness(.78) saturate(.8); }
+.mapwrap.cl-dim.cl-photo .leaflet-tile-pane { filter: brightness(.88); }
 .cl-chart svg { display: block; width: 100%; height: auto; touch-action: pan-y; cursor: pointer; }
 .cl-chart .cl-sum { margin: 4px 0 0; font-size: .8rem; }
 .cl-chart .cl-note { color: var(--muted); font-size: .72rem; margin: 4px 0 0; }
@@ -193,48 +200,149 @@
   // ---------- flat map: cloud cover from above ----------
   map.createPane("clouds").style.zIndex = 380;   // over the photos, elevation lines and shading, under trails and pins
   map.getPane("clouds").style.pointerEvents = "none";
-  let overlay = null;
   const basemap = $("basemap");
   const restyle = () => setTimeout(() => { if (on) draw(); }, 0);
   if (basemap) basemap.addEventListener("change", restyle);
   if ($("satBtn")) $("satBtn").addEventListener("click", restyle);
-  const canvas = document.createElement("canvas");
-  function paint2d() {
+  // Catmull-Rom (bicubic) through the 4 x 4 grid points around a spot: smooth, round shapes instead of the diamonds
+  // straight lines between points make. Missing points take the value of the nearest one there is.
+  function cubic(arr, fi, fj) {
+    const nI = field.nI, nJ = field.nJ, i1 = Math.floor(fi), j1 = Math.floor(fj), u = fi - i1, w = fj - j1;
+    const wt = (t) => [((-t + 2) * t - 1) * t / 2, (((3 * t - 5) * t) * t + 2) / 2, ((-3 * t + 4) * t + 1) * t / 2, ((t - 1) * t * t) / 2];
+    const wu = wt(u), ww = wt(w);
+    let v = 0, sum = 0;
+    for (let a = 0; a < 4; a++) {
+      const i = Math.max(0, Math.min(nI - 1, i1 - 1 + a));
+      let row = 0, rs = 0;
+      for (let c = 0; c < 4; c++) {
+        const x = arr[i * nJ + Math.max(0, Math.min(nJ - 1, j1 - 1 + c))];
+        if (!Number.isNaN(x)) { row += x * ww[c]; rs += ww[c]; }
+      }
+      if (rs) { v += (row / rs) * wu[a]; sum += wu[a]; }
+    }
+    return sum ? v / sum : NaN;
+  }
+  // Puffy cloud texture: a few layers of noise in map coordinates (so it doesn't swim when the map moves).
+  const fbm = (x, y) => 0.5 * vnoise(x, y) + 0.27 * vnoise(x * 2.1 + 13, y * 2.1 + 7) + 0.15 * vnoise(x * 4.3 + 31, y * 4.3 + 3) + 0.08 * vnoise(x * 8.7 + 5, y * 8.7 + 29);
+  // The forecast for one hour as a picture: soft white cloud, thick where it's overcast and broken into puffs where
+  // it's partly cloudy, rain blue and snow purple through it.
+  function paint2d(cv) {
     const H = gridAt(hour);
     if (!H) return null;
     const s = field.step, latS = field.i0 * s, latN = (field.i0 + field.nI - 1) * s, lonW = field.j0 * s * LON_K, lonE = (field.j0 + field.nJ - 1) * s * LON_K;
     const yN = merc(latN), yS = merc(latS), xW = (lonW + 180) / 360, xE = (lonE + 180) / 360;
-    const W = 256, Hp = Math.max(32, Math.min(384, Math.round((W * (yS - yN)) / Math.max(1e-9, xE - xW))));
-    canvas.width = W; canvas.height = Hp;
-    const cx = canvas.getContext("2d"), img = cx.createImageData(W, Hp), px = img.data;
-    const K = 3 / s;   // texture: about three puffs per grid step
-    const photo = !!(basemap && /^sat/.test(basemap.value));
+    const W = 360, Hp = Math.max(48, Math.min(480, Math.round((W * (yS - yN)) / Math.max(1e-9, xE - xW))));
+    cv.width = W; cv.height = Hp;
+    const cx = cv.getContext("2d"), img = cx.createImageData(W, Hp), px = img.data;
+    const K = 2.2 / s;   // about two puffs per grid step
     for (let y = 0; y < Hp; y++) {
-      const lat = unmerc(yN + ((y + 0.5) / Hp) * (yS - yN));
+      const lat = unmerc(yN + ((y + 0.5) / Hp) * (yS - yN)), fi = lat / s - field.i0;
       for (let x = 0; x < W; x++) {
-        const lon = lonW + ((x + 0.5) / W) * (lonE - lonW), at = sampler(lat, lon), o = (y * W + x) * 4;
-        if (!at) continue;
-        const cc = at(H.g[V.cc]) / 100, low = at(H.g[V.low]) / 100, pr = at(H.g[V.pr]), sn = at(H.g[V.sn]);
+        const lon = lonW + ((x + 0.5) / W) * (lonE - lonW), fj = lon / (s * LON_K) - field.j0, o = (y * W + x) * 4;
+        const cc = clamp01(cubic(H.g[V.cc], fi, fj) / 100);
         if (Number.isNaN(cc)) continue;
-        const tex = 0.72 + 0.5 * noise(lon * K / LON_K, lat * K);
-        let a = Math.pow(clamp01((cc - 0.06) / 0.94), 0.85) * (photo ? 0.78 : 0.55) * Math.min(1, tex);
-        // White over the photos, like Windy; slate grey over the light map styles, where white wouldn't show.
-        const grey = photo ? 250 - 75 * clamp01(low) * cc : 128 - 40 * clamp01(low) * cc;   // low, thick cloud darker
-        let r = grey, g = grey + (photo ? 0 : 8), b = Math.min(255, grey + (photo ? 6 : 24));
-        const wet = pr >= 0.15 ? Math.pow(clamp01(pr / 4), 0.6) * 0.62 : 0;
+        const low = clamp01(cubic(H.g[V.low], fi, fj) / 100), pr = Math.max(0, cubic(H.g[V.pr], fi, fj)), sn = Math.max(0, cubic(H.g[V.sn], fi, fj));
+        const fade = clamp01(Math.min(fi, field.nI - 1 - fi, fj, field.nJ - 1 - fj) / 0.6 + (field.nI < 3 || field.nJ < 3 ? 1 : 0));
+        // Cover plus texture, through a soft edge: 100% is a solid deck, 50% puffs with gaps, 10% a few wisps.
+        const d = cc + 0.42 * (fbm((lon * K) / LON_K, lat * K) - 0.5) * (1 - 0.6 * cc);
+        let a = sm(clamp01((d - 0.12) / 0.55)) * 0.86;
+        const shade = 255 - 38 * low * cc;   // low, thick cloud a little grey underneath
+        let r = shade, g = shade, b = Math.min(255, shade + 4);
+        const wet = pr >= 0.15 ? Math.pow(clamp01(pr / 4), 0.6) * 0.6 : 0;
         if (wet > 0) {
           const snow = sn > 0.05 && sn * 7 >= pr * 0.5;   // cm of snow vs mm of water
-          const [wr, wg, wb] = snow ? [196, 150, 240] : [40, 110, 235];
+          const [wr, wg, wb] = snow ? [200, 160, 245] : [70, 140, 255];
           const t = wet / Math.max(wet, a + wet * (1 - a));
           r = r * (1 - t) + wr * t; g = g * (1 - t) + wg * t; b = b * (1 - t) + wb * t;
           a = a + wet * (1 - a);
         }
-        px[o] = r; px[o + 1] = g; px[o + 2] = b; px[o + 3] = Math.round(a * at.fade * 255);
+        px[o] = r; px[o + 1] = g; px[o + 2] = b; px[o + 3] = Math.round(a * fade * 255);
       }
     }
     cx.putImageData(img, 0, 0);
-    return { url: canvas.toDataURL("image/png"), bounds: [[latS, lonW], [latN, lonE]] };
+    return { url: cv.toDataURL("image/png"), bounds: [[latS, lonW], [latN, lonE]] };
   }
+
+  // ---------- flat map, now: the satellite ----------
+  // GOES infrared (band 13, "clean longwave window") from NASA GIBS, free and public domain. Its colours are a code
+  // for the temperature of what the satellite sees (colormaps/v1.3/Clean_Longwave_Infrared_Window_Band.xml): greys
+  // from 197 (-19 °C) down to 1 (+57 °C), 0.39 °C a step, and colours (plus a few greys) for colder cloud tops.
+  // Cold is cloud: from -15 °C it starts to show, from -45 °C it's solid white (snowy peaks on a cold night stay clear). 2 km pixels (zoom 6), smoothed when
+  // closer. The newest picture is found by trying back from now in 10-minute steps (GIBS is 20-60 minutes behind).
+  const GIBS = (id, t, z, x, y) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${id}/default/${t}/GoogleMapsCompatible_Level6/${z}/${y}/${x}.png`;
+  const SATS = { west: "GOES-West_ABI_Band13_Clean_Infrared", east: "GOES-East_ABI_Band13_Clean_Infrared" };
+  const COLD_GREYS = new Set([255, 230, 204, 177, 155, 129, 102, 76, 54, 27, 5]);
+  const satTime = {};   // west/east -> "2026-10-24T16:40:00Z"
+  let satAt = 0, satFinding = null;
+  function findSatTimes() {
+    if (satFinding && Date.now() - satAt < 10 * 60000) return satFinding;
+    satAt = Date.now();
+    const iso = (ms) => new Date(ms).toISOString().slice(0, 17) + "00Z";
+    const probe = async (k, x, y) => {
+      const t0 = Math.floor((Date.now() - 15 * 60000) / 600000) * 600000;
+      for (let i = 0; i < 10; i++) {
+        const t = iso(t0 - i * 600000);
+        try { const r = await fetch(GIBS(SATS[k], t, 3, x, y)); if (r.ok) { satTime[k] = t; return; } } catch {}
+      }
+    };
+    return (satFinding = Promise.all([probe("west", 1, 2), probe("east", 2, 2)]));
+  }
+  // separable box blur, radius 2, on a 256×256 field
+  function blur(F) {
+    const T = new Float32Array(65536), R = 2, W = 2 * R + 1;
+    for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) {
+      let s = 0; for (let k = -R; k <= R; k++) s += F[y * 256 + Math.min(255, Math.max(0, x + k))];
+      T[y * 256 + x] = s / W;
+    }
+    for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) {
+      let s = 0; for (let k = -R; k <= R; k++) s += T[Math.min(255, Math.max(0, y + k)) * 256 + x];
+      F[y * 256 + x] = s / W;
+    }
+  }
+  const SatLayer = L.GridLayer.extend({
+    createTile(c, done) {
+      const cv = document.createElement("canvas");
+      cv.width = cv.height = 256;
+      const n = 2 ** c.z, lon = ((c.x + 0.5) / n) * 360 - 180;
+      let k = lon < -100 ? "west" : "east";
+      if (!satTime[k]) k = k === "west" ? "east" : "west";
+      const t = satTime[k];
+      if (!t) { done(null, cv); return cv; }
+      const im = new Image();
+      im.crossOrigin = "anonymous";
+      im.onload = () => {
+        const cx = cv.getContext("2d", { willReadFrequently: true });
+        cx.drawImage(im, 0, 0);
+        let d;
+        try { d = cx.getImageData(0, 0, 256, 256); } catch { done(null, cv); return; }
+        const p = d.data, A = new Float32Array(65536), G = new Float32Array(65536);
+        for (let i = 0, j = 0; i < p.length; i += 4, j++) {
+          const r = p[i], g = p[i + 1], b = p[i + 2];
+          let T;
+          if (!p[i + 3]) T = 99;
+          else if (r === g && g === b && !COLD_GREYS.has(r)) T = 57.07 - 0.3867 * r;
+          else T = -60;
+          A[j] = sm(clamp01((-15 - T) / 30)) * 0.85;
+          G[j] = 1 - clamp01((-30 - T) / 25);   // thin, warmer cloud a touch grey
+        }
+        // soft edges like Windy: blur the 2 km pixels (edges clamped so tiles meet without seams)
+        blur(A); blur(A); blur(G);
+        for (let i = 0, j = 0; i < p.length; i += 4, j++) {
+          p[i] = p[i + 1] = p[i + 2] = 255 - Math.round(28 * G[j]);
+          p[i + 3] = Math.round(A[j] * 255);
+        }
+        cx.putImageData(d, 0, 0);
+        done(null, cv);
+      };
+      im.onerror = () => done(null, cv);
+      im.src = GIBS(SATS[k], t, c.z, c.x, c.y);
+      return cv;
+    },
+  });
+  const satLayer = new SatLayer({ pane: "clouds", maxNativeZoom: 6, minZoom: 1, maxZoom: 22, updateWhenZooming: false,
+    attribution: 'Satellite clouds: <a href="https://earthdata.nasa.gov/gibs">NASA GIBS</a>, NOAA GOES' });
+  const useSat = () => hour === 0 && !!(satTime.west || satTime.east);
+  const satLabel = () => { const t = satTime.west || satTime.east; return t ? new Date(t).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" }).replace(/\s?([ap])\.?m\.?/i, " $1m") : ""; };
 
   // ---------- 3D map: the ground inside the cloud ----------
   // tfcloud://<field version>/<hour>/z/x/y: a see-through picture draped on the mountains, misty white where the
@@ -370,14 +478,34 @@ onmessage = async (e) => {
 
   // ---------- drawing ----------
   let draw3dTimer = 0;
+  // Two pictures take turns, so one hour fades into the next instead of jumping.
+  const cvs = [document.createElement("canvas"), document.createElement("canvas")], overlays = [null, null];
+  let front = 0;
+  function show2d() {
+    const flat = !map.getContainer().classList.contains("is3d"), sat = useSat();
+    wrap.classList.toggle("cl-dim", on && flat);
+    wrap.classList.toggle("cl-photo", !!(basemap && /^sat/.test(basemap.value)));
+    if (on && flat && sat) { if (!map.hasLayer(satLayer)) satLayer.addTo(map); }
+    else if (map.hasLayer(satLayer)) map.removeLayer(satLayer);
+    if (!on || !flat || sat) { overlays.forEach((o) => o && o.setOpacity(0)); return false; }
+    return true;
+  }
   function draw() {
-    if (!on || !field) return;
-    // The flat picture only when the flat map shows (it's drawn again on the way back from 3D).
-    const p = map.getContainer().classList.contains("is3d") ? null : paint2d();
-    if (p) {
-      if (!overlay) overlay = L.imageOverlay(p.url, p.bounds, { pane: "clouds", interactive: false, attribution: ATTR }).addTo(map);
-      else { overlay.setUrl(p.url); overlay.setBounds(L.latLngBounds(p.bounds)); if (!map.hasLayer(overlay)) overlay.addTo(map); }
+    if (!on) return;
+    if (show2d() && field) {
+      const k = front ^ 1, p = paint2d(cvs[k]);
+      if (p) {
+        let o = overlays[k];
+        if (!o) o = overlays[k] = L.imageOverlay(p.url, p.bounds, { pane: "clouds", interactive: false, opacity: 0, attribution: ATTR }).addTo(map);
+        else { o.setBounds(L.latLngBounds(p.bounds)); o.setUrl(p.url); if (!map.hasLayer(o)) o.addTo(map); }
+        const old = overlays[front];
+        const swap = () => { o.setOpacity(1); if (old && old !== o) old.setOpacity(0); };
+        const el = o.getElement();
+        if (el && !el.complete) el.addEventListener("load", swap, { once: true }); else swap();
+        front = k;
+      }
     }
+    if (!field) { here(); return; }
     // The 3D pictures are slower to make: wait until the slider rests a moment.
     clearTimeout(draw3dTimer);
     draw3dTimer = setTimeout(sync3d, playing ? 0 : 400);
@@ -391,17 +519,13 @@ onmessage = async (e) => {
   bar.className = "cl-bar"; bar.hidden = true; bar.setAttribute("role", "group"); bar.setAttribute("aria-label", "Clouds forecast");
   bar.innerHTML = `<div class="cl-row"><button type="button" id="clPlay" aria-label="Play the next hours">▶</button>
 <input type="range" id="clHour" min="0" max="${HOURS}" step="1" value="0" aria-label="Forecast hour">
-<span class="cl-when" id="clWhen">Now</span><button type="button" id="clClose" aria-label="Turn clouds off">✕</button></div>
+<span class="cl-when" id="clWhen">Now</span><button type="button" class="cl-ico" id="clChartBtn" aria-pressed="false" aria-label="Clouds by height here, hour by hour" title="Clouds by height here, hour by hour">📈</button><button type="button" class="cl-ico" id="clClose" aria-label="Turn clouds off">✕</button></div>
 <p class="cl-here" id="clHere" aria-live="polite"></p>
-<div class="cl-key"><span><i style="background:#f4f4f6"></i>Cloud</span><span><i style="background:#286eeb"></i>Rain</span><span><i style="background:#c496f0"></i>Snow</span><span class="cl-k3d"><i style="background:#c4ccd8"></i>3D: grey mist on the ground: inside the cloud</span></div>
-<details id="clMore"><summary>Clouds by height here, hour by hour</summary><div class="cl-chart" id="clChart"></div></details>`;
+<div id="clMore" hidden><div class="cl-chart" id="clChart"></div></div>`;
   wrap.append(bar);
   const slider = $("clHour"), whenEl = $("clWhen"), playBtn = $("clPlay");
-  const css3d = document.createElement("style");
-  css3d.textContent = ".mapwrap:not(.is3d) .cl-k3d { display: none; }";
-  document.head.append(css3d);
   const label = (h) => {
-    if (h === 0) return "Now";
+    if (h === 0) return "Now";   // the satellite time is in the line under the slider
     const d = new Date((baseT + h * 3600) * 1000), today = new Date().toDateString() === d.toDateString();
     const t = d.toLocaleTimeString("en-CA", { hour: "numeric" }).replace(/\s?([ap])\.?m\.?/i, " $1m");
     return `${today ? "Today" : d.toLocaleDateString("en-CA", { weekday: "short" })} ${t}`;
@@ -426,18 +550,21 @@ onmessage = async (e) => {
   $("clClose").addEventListener("click", () => btn.click());
 
   const coverWord = (c) => (c < 10 ? "clear" : c < 35 ? "a few clouds" : c < 65 ? "partly cloudy" : c < 90 ? "mostly cloudy" : "overcast");
+  // One short line under the slider: what you're looking at, and the forecast at the map centre.
   function here() {
     const el = $("clHere");
+    const sat = useSat(), in3d = map.getContainer().classList.contains("is3d");
+    const lead = sat && !in3d ? `Satellite ${satLabel()}` : hour === 0 ? "Forecast now" : "Forecast";
     const H = gridAt(hour), c = map.getCenter(), at = H && sampler(c.lat, c.lng);
-    if (!at) { el.textContent = note || (loading ? "Loading the clouds…" : ""); return; }
+    if (!at) { el.textContent = note || (loading ? `${lead} · loading…` : lead); return; }
     const cc = at(H.g[V.cc]), pr = at(H.g[V.pr]), sn = at(H.g[V.sn]);
     const levs = LEVELS.map((_, k) => at(H.g[V.lev + k]));
     const base = LEVELS.find((_, k) => levs[k] >= IN_CLOUD);
-    let txt = `Map centre: ${coverWord(cc)} (${Math.round(cc)}%)`;
-    if (pr >= 0.1) txt += sn > 0.05 && sn * 7 >= pr * 0.5 ? `, snow ${sn.toFixed(1)} cm/h` : `, rain ${pr.toFixed(1)} mm/h`;
-    if (base) txt += base[1] <= 600 ? ". Cloud down to the valleys" : `. Mountains in cloud from about ${fmtM(Math.round(base[1] / 100) * 100)} up`;
-    el.textContent = txt + "." + (note ? " " + note : "");
-    if ($("clMore").open) chartHere();
+    const bits = [lead, `${Math.round(cc)}% cloud`];
+    if (pr >= 0.1) bits.push(sn > 0.05 && sn * 7 >= pr * 0.5 ? `snow ${sn.toFixed(1)} cm/h` : `rain ${pr.toFixed(1)} mm/h`);
+    if (base) bits.push(base[1] <= 600 ? "cloud down to the valleys" : `in cloud above ${fmtM(Math.round(base[1] / 100) * 100)}${in3d ? " (grey mist)" : ""}`);
+    el.textContent = bits.join(" · ") + (note ? ". " + note : "");
+    if (!$("clMore").hidden) chartHere();
   }
   function setNote() { here(); }
 
@@ -584,7 +711,12 @@ onmessage = async (e) => {
     chartKey = key;
     chart($("clChart"), { lat: c.lat, lon: c.lng, kind: "here" });
   }
-  $("clMore").addEventListener("toggle", () => { if ($("clMore").open) { chartKey = ""; chartHere(); } });
+  $("clChartBtn").addEventListener("click", () => {
+    const open = $("clMore").hidden;
+    $("clMore").hidden = !open;
+    $("clChartBtn").setAttribute("aria-pressed", String(open));
+    if (open) { chartKey = ""; chartHere(); }
+  });
 
   // ---------- the button ----------
   const btn = document.createElement("button");
@@ -602,11 +734,12 @@ onmessage = async (e) => {
     if (on) {
       if (!baseT || nowHour() !== baseT) { baseT = nowHour(); hourCache = null; }
       whenEl.textContent = label(hour);
-      if (field) draw();
+      draw();
       refresh();
+      findSatTimes().then(() => { if (on) { if (map.hasLayer(satLayer)) satLayer.redraw(); draw(); } });
     } else {
       stop();
-      if (overlay && map.hasLayer(overlay)) map.removeLayer(overlay);
+      show2d();
       sync3d();
     }
   }
@@ -615,6 +748,12 @@ onmessage = async (e) => {
   map.on("moveend", () => { if (!on) return; clearTimeout(moveT); moveT = setTimeout(() => { refresh(); here(); }, 400); });
   // Back after a while: the forecast moves on with the clock.
   document.addEventListener("visibilitychange", () => { if (on && document.visibilityState === "visible" && nowHour() !== baseT) { baseT = nowHour(); hourCache = null; refresh(); setHour(hour); } });
+  // The satellite every 10 minutes while the clouds are on.
+  setInterval(() => {
+    if (!on || document.visibilityState !== "visible") return;
+    const before = JSON.stringify(satTime);
+    findSatTimes().then(() => { if (JSON.stringify(satTime) !== before) { if (map.hasLayer(satLayer)) satLayer.redraw(); here(); } });
+  }, 10 * 60000);
   apply();
 
   window.tfClouds = { chart, isOn: () => on, hour: () => hour, setHour: (h) => { if (on) setHour(h); } };   // smoke.js follows this slider
