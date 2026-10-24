@@ -403,6 +403,7 @@ onmessage = async (e) => {
     if (from !== "slider") slider.value = String(hour);
     whenEl.textContent = label(hour);
     draw();
+    if (!field) window.dispatchEvent(new CustomEvent("tf:cloudhour", { detail: hour }));   // smoke.js follows even while the clouds load
   }
   slider.addEventListener("input", () => setHour(+slider.value, "slider"));
   let playing = 0;
