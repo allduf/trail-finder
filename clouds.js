@@ -26,6 +26,13 @@
   const API = "https://api.open-meteo.com/v1/forecast";
   const ATTR = 'Clouds: <a href="https://open-meteo.com/">Open-Meteo</a> (CC BY 4.0)';
   const HOURS = 72;
+  // Canada's own model (HRDPS 2.5 km, then the regional and global GEM). Open-Meteo's automatic choice gave GFS
+  // over BC, whose "low cloud 100%" disagreed with its own cloud at each height (0% up to 2,000 m), so the map,
+  // the 3D mist and the chart told different stories (alex 2026-10-24, Whistler).
+  const MODEL = "gem_seamless";
+  // Cloud cover at a height counts as "in the cloud" from this much: the model's cover at a height comes from the
+  // humidity there, and 50% is already about 94% humidity, grey and little view.
+  const IN_CLOUD = 50;
   // Pressure levels and their usual height (m above sea level). Standard heights are within about 100 m of the real
   // ones, close enough for "is this ridge in the cloud".
   const LEVELS = [[950, 540], [900, 990], [850, 1460], [800, 1950], [700, 3010], [600, 4200]];
@@ -84,7 +91,7 @@
     let err = null;
     const one = async (part, retry) => {
       const u = `${API}?latitude=${part.map((p) => p.lat.toFixed(3)).join(",")}&longitude=${part.map((p) => p.lon.toFixed(3)).join(",")}`
-        + `&hourly=${VARS.join(",")}&forecast_hours=${HOURS + 1}&timeformat=unixtime&timezone=GMT`;
+        + `&hourly=${VARS.join(",")}&forecast_hours=${HOURS + 1}&timeformat=unixtime&timezone=GMT&models=${MODEL}`;
       try {
         const r = await fetch(u, window.AbortSignal && AbortSignal.timeout ? { signal: AbortSignal.timeout(20000) } : undefined);
         if (!r.ok) throw new Error(r.status === 429 ? "too many weather requests for now, try again in a minute" : `HTTP ${r.status}`);
@@ -289,9 +296,10 @@
             if (h <= g.hts[0]) inC = levs[0];
             else if (h >= g.hts[L - 1]) inC = levs[L - 1] * Math.max(0, 1 - (h - g.hts[L - 1]) / 1500);
             else for (let k = 1; k < L; k++) if (h <= g.hts[k]) { const t = (h - g.hts[k - 1]) / (g.hts[k] - g.hts[k - 1]); inC = levs[k - 1] * (1 - t) + levs[k] * t; break; }
-            // Mist, not a white sheet: at most about half see-through, so the ridges and snow still read under it.
-            const f = clamp01((inC - 55) / 40) * 0.5 * (0.8 + 0.3 * noise(lon * 60, lat * 90));
-            if (f > 0) { const t = Math.min(1, f / Math.max(0.01, f + a * (1 - f))); r = r * (1 - t) + 240 * t; gg = gg * (1 - t) + 243 * t; b = b * (1 - t) + 247 * t; a = f + a * (1 - f); }
+            // Grey mist, not a white sheet (white vanished on snow): at most about 60%, so the ridges still read under it. From 30% cover at that
+            // height, full from 60% (50% is already "in the cloud" for the chart and the line in the bar).
+            const f = clamp01((inC - 30) / 30) * 0.62 * (0.8 + 0.3 * noise(lon * 60, lat * 90));
+            if (f > 0) { const t = Math.min(1, f / Math.max(0.01, f + a * (1 - f))); r = r * (1 - t) + 196 * t; gg = gg * (1 - t) + 204 * t; b = b * (1 - t) + 216 * t; a = f + a * (1 - f); }
           }
           const o = (py * SIZE + pq) * 4;
           px[o] = r; px[o + 1] = gg; px[o + 2] = b; px[o + 3] = Math.round(clamp01(a) * fade * 255);
@@ -385,7 +393,7 @@ onmessage = async (e) => {
 <input type="range" id="clHour" min="0" max="${HOURS}" step="1" value="0" aria-label="Forecast hour">
 <span class="cl-when" id="clWhen">Now</span><button type="button" id="clClose" aria-label="Turn clouds off">✕</button></div>
 <p class="cl-here" id="clHere" aria-live="polite"></p>
-<div class="cl-key"><span><i style="background:#f4f4f6"></i>Cloud</span><span><i style="background:#286eeb"></i>Rain</span><span><i style="background:#c496f0"></i>Snow</span><span class="cl-k3d"><i style="background:#eef2f6"></i>3D: misty ground is inside the cloud</span></div>
+<div class="cl-key"><span><i style="background:#f4f4f6"></i>Cloud</span><span><i style="background:#286eeb"></i>Rain</span><span><i style="background:#c496f0"></i>Snow</span><span class="cl-k3d"><i style="background:#c4ccd8"></i>3D: grey mist on the ground: inside the cloud</span></div>
 <details id="clMore"><summary>Clouds by height here, hour by hour</summary><div class="cl-chart" id="clChart"></div></details>`;
   wrap.append(bar);
   const slider = $("clHour"), whenEl = $("clWhen"), playBtn = $("clPlay");
@@ -424,7 +432,7 @@ onmessage = async (e) => {
     if (!at) { el.textContent = note || (loading ? "Loading the clouds…" : ""); return; }
     const cc = at(H.g[V.cc]), pr = at(H.g[V.pr]), sn = at(H.g[V.sn]);
     const levs = LEVELS.map((_, k) => at(H.g[V.lev + k]));
-    const base = LEVELS.find((_, k) => levs[k] >= 60);
+    const base = LEVELS.find((_, k) => levs[k] >= IN_CLOUD);
     let txt = `Map centre: ${coverWord(cc)} (${Math.round(cc)}%)`;
     if (pr >= 0.1) txt += sn > 0.05 && sn * 7 >= pr * 0.5 ? `, snow ${sn.toFixed(1)} cm/h` : `, rain ${pr.toFixed(1)} mm/h`;
     if (base) txt += base[1] <= 600 ? ". Cloud down to the valleys" : `. Mountains in cloud from about ${fmtM(Math.round(base[1] / 100) * 100)} up`;
@@ -440,9 +448,18 @@ onmessage = async (e) => {
   function profile(lat, lon) {
     const key = `${lat.toFixed(2)},${lon.toFixed(2)}`, c = chCache.get(key);
     if (c && Date.now() - c.at < KEEP_MS) return c.p;
-    const p = fetch(`${API}?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&hourly=${CH_LEVELS.map(([q]) => `cloud_cover_${q}hPa`).join(",")},freezing_level_height,is_day`
-      + `&forecast_hours=${HOURS + 1}&timeformat=unixtime&timezone=GMT`)
+    const get = (q) => fetch(`${API}?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&${q}&forecast_hours=${HOURS + 1}&timeformat=unixtime&timezone=GMT`)
       .then((r) => { if (!r.ok) throw new Error(r.status === 429 ? "too many weather requests for now, try again in a minute" : `HTTP ${r.status}`); return r.json(); });
+    // The clouds from the same model as the map; the freezing level from Open-Meteo's usual pick (not every model
+    // has it), and the chart simply goes without it if that fails.
+    const p = Promise.all([
+      get(`hourly=${CH_LEVELS.map(([q]) => `cloud_cover_${q}hPa`).join(",")},is_day&models=${MODEL}`),
+      get("hourly=freezing_level_height").catch(() => null),
+    ]).then(([d, f]) => {
+      const fz = f && f.hourly && f.hourly.freezing_level_height;
+      if (fz && f.hourly.time) d.hourly.freezing_level_height = d.hourly.time.map((t) => { const i = f.hourly.time.indexOf(t); return i >= 0 ? fz[i] : null; });
+      return d;
+    });
     p.catch(() => chCache.delete(key));
     chCache.set(key, { at: Date.now(), p });
     if (chCache.size > 30) chCache.delete(chCache.keys().next().value);
@@ -454,9 +471,9 @@ onmessage = async (e) => {
   // At height e: in the cloud (60%+ there), above a cloud layer below (with clear sky above), under one, or clear.
   function stateAt(levCov, e, ground) {
     const cAt = (h) => { for (let k = 1; k < CH_LEVELS.length; k++) if (h <= CH_LEVELS[k][1]) { const t = Math.max(0, (h - CH_LEVELS[k - 1][1]) / (CH_LEVELS[k][1] - CH_LEVELS[k - 1][1])); return levCov[k - 1] * (1 - t) + levCov[k] * t; } return levCov.at(-1); };
-    if (cAt(e) >= 60) return "inside";
-    const below = CH_LEVELS.some(([, h], k) => h < e - 150 && h >= ground - 200 && levCov[k] >= 60);
-    const over = CH_LEVELS.some(([, h], k) => h > e + 150 && levCov[k] >= 60);
+    if (cAt(e) >= IN_CLOUD) return "inside";
+    const below = CH_LEVELS.some(([, h], k) => h < e - 150 && h >= ground - 200 && levCov[k] >= IN_CLOUD);
+    const over = CH_LEVELS.some(([, h], k) => h > e + 150 && levCov[k] >= IN_CLOUD);
     return below && !over ? "above" : over ? "under" : "clear";
   }
   function chartSvg(d, lo, hi, opts) {
