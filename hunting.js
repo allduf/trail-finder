@@ -51,6 +51,7 @@
     star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
     eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
     ruler: '<path d="M3 17 17 3l4 4L7 21z"/><path d="m7 13 2 2M10 10l2 2M13 7l2 2"/>',
+    compass: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',
     square: '<path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><path d="M10 4h4M20 10v4M10 20h4M4 10v4"/>',
   };
 
@@ -327,7 +328,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     <div class="hn-card" id="hnSpot" hidden></div>
     <div class="hn-card" id="hnLayers"><header>${svg(IC.layers)}<h3>Map</h3></header>
       <div class="hn-views" role="group" aria-label="Map views">${Object.entries(VIEWS).map(([k, v]) => `<button type="button" class="hn-view" data-view="${k}">${esc(v.label)}<small>${esc(v.sub)}</small></button>`).join("")}</div>
-      <div class="hn-row"><button type="button" class="hn-pill" id="hnAll">${svg(IC.layers, 16)}All hunting layers</button><button type="button" class="hn-pill" id="hnMeasure">${svg(IC.ruler, 16)}Measure</button></div></div>
+      <div class="hn-row"><button type="button" class="hn-pill" id="hnAll">${svg(IC.layers, 16)}All hunting layers</button><button type="button" class="hn-pill" id="hnMeasure">${svg(IC.ruler, 16)}Measure</button><button type="button" class="hn-pill" id="hnCompass">${svg(IC.compass, 16)}Compass</button></div></div>
     <div class="hn-card" id="hnCond"><div id="hnWx"></div><div id="hnCast"></div><div id="hnSky"></div></div>
     <details class="hn-card" id="hnOffBox"><summary>${svg(IC.down, 16)} Hunting maps offline</summary><div id="hnOff"></div></details>
     <details class="hn-safe"><summary>A guide, not the law</summary>Zones, parks, seasons and draw odds come from BC and Alberta open data and regulation booklets, read by the app each month, and can be out of date or simplified. Always check the <a href="${BC_SYNOPSIS}" target="_blank" rel="noopener">BC Hunting and Trapping Regulations Synopsis</a> or the <a href="${AB_REGS}" target="_blank" rel="noopener">Alberta Guide to Hunting Regulations</a>, and get permission before hunting private land or a lease.</details>`;
@@ -1365,6 +1366,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     measureLayer.clearLayers();
   }
   $("hnMeasure").addEventListener("click", () => (meas ? measStop() : measStart()));
+  // Compass mode lives in compass.js (also the Compass button on the map).
+  $("hnCompass").addEventListener("click", () => { if (meas) measStop(); if (window.tfCompass) window.tfCompass.on() ? window.tfCompass.stop() : window.tfCompass.start(); });
   $("hnMeasure").setAttribute("aria-pressed", "false");
   document.addEventListener("keydown", (e) => { if (meas && e.key === "Escape") measStop(); });
 
@@ -1655,7 +1658,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     gl3 = e.detail;
     fillsSet = labelsSet = false;
     gl3.on("click", (ev) => {
-      if (!isHunt() || document.querySelector(".app.riding, .app.planning")) return;
+      if (!isHunt() || document.querySelector(".app.riding, .app.planning") || document.body.classList.contains("cp-on")) return;
       if (meas) { meas.push(L.latLng(ev.lngLat.lat, ev.lngLat.lng)); measDraw(); return; }
       if (gl3.getLayer("hits") && gl3.queryRenderedFeatures(ev.point, { layers: ["hits"] }).length) return;   // a trail or road line took the tap
       setSpot(ev.lngLat.lat, ev.lngLat.lng, "tap");
@@ -1674,8 +1677,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   };
 
   // ---------- switching sport ----------
+  const compassOn = () => document.body.classList.contains("cp-on");   // compass mode (compass.js) takes taps for its target
   map.on("click", (e) => {
-    if (!isHunt() || document.querySelector(".app.riding, .app.planning") || sqMode === "draw") return;
+    if (!isHunt() || document.querySelector(".app.riding, .app.planning") || sqMode === "draw" || compassOn()) return;
     if (meas) { meas.push(e.latlng); measDraw(); return; }
     setSpot(e.latlng.lat, e.latlng.lng, "tap");
     showSpot(e.latlng.lat, e.latlng.lng);

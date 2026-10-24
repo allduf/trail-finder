@@ -4,10 +4,10 @@
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-162";
+const VERSION = "tf-163";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=355", "reports.js?v=355", "grades.js?v=355", "trail-photos.js?v=355", "status.js?v=355", "visitors.js?v=355", "map3d.js?v=355", "winter.js?v=355", "clouds.js?v=355", "smoke.js?v=355", "ski-points.js?v=355", "webcams.js?v=355", "hunting.js?v=355", "offline.js?v=355", "native-gps.js?v=355", "native.js?v=355", "navigate.js?v=355", "ride-stats.js?v=355", "ride-finds.js?v=355", "rides.js?v=355", "planner.js?v=355", "rotate.js?v=355", "photo-find.js?v=355", "ebike.js?v=355", "closures.js?v=355", "loops.js?v=355", "strava.js?v=355", "share.js?v=355", "community.js?v=355", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=356", "reports.js?v=356", "grades.js?v=356", "trail-photos.js?v=356", "status.js?v=356", "visitors.js?v=356", "map3d.js?v=356", "winter.js?v=356", "clouds.js?v=356", "smoke.js?v=356", "ski-points.js?v=356", "webcams.js?v=356", "hunting.js?v=356", "compass.js?v=356", "offline.js?v=356", "native-gps.js?v=356", "native.js?v=356", "navigate.js?v=356", "ride-stats.js?v=356", "ride-finds.js?v=356", "rides.js?v=356", "planner.js?v=356", "rotate.js?v=356", "photo-find.js?v=356", "ebike.js?v=356", "closures.js?v=356", "loops.js?v=356", "strava.js?v=356", "share.js?v=356", "community.js?v=356", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "vendor/leaflet-1.9.4.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
