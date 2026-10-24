@@ -1,4 +1,5 @@
-// Trail condition reports from riders: quick dated "dry / tacky / muddy / trees down / snow" notes on a trail.
+// Trail condition reports from riders: quick dated "dry / tacky / muddy / trees down / snow / closed" notes on a trail.
+// "Closed" (2026-10-24) needs supabase/trail-reports-closed.sql run once; closures.js pins closed and trees-down reports.
 // Anyone can read them; posting needs the optional sign-in (account.js), to keep spam out.
 // Stored in the Supabase table trail_reports (see supabase/trail-reports.sql).
 // index.html calls tfReports.show(trail) when a trail's detail panel opens.
@@ -12,6 +13,7 @@
     muddy: { icon: "💧", label: "Muddy" },
     trees_down: { icon: "🌲", label: "Trees down" },
     snow: { icon: "❄️", label: "Snow" },
+    closed: { icon: "🚧", label: "Closed" },
   };
   const LIST_DAYS = 90;       // reports listed in a trail's details
   const DAY = 86400000;
@@ -99,7 +101,11 @@
         lat: p[0], lon: p[1], condition: b.dataset.c, note: note.value.trim().slice(0, 280) || null };
       const r = await post(row);
       if (r === "queued") { msg.textContent = "No signal: saved on this phone, it posts when you're back online."; note.value = ""; box.querySelectorAll(".rep-pick button").forEach((x) => { x.disabled = false; }); return; }
-      if (r) { msg.textContent = "Couldn't post: " + r; box.querySelectorAll(".rep-pick button").forEach((x) => { x.disabled = false; }); return; }
+      if (r) {
+        msg.textContent = b.dataset.c === "closed" && /check constraint|violates/i.test(r) ? "Closed reports aren't switched on yet (supabase/trail-reports-closed.sql needs running once)." : "Couldn't post: " + r;
+        box.querySelectorAll(".rep-pick button").forEach((x) => { x.disabled = false; });
+        return;
+      }
       show(t);
     }));
   }

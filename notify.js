@@ -199,15 +199,18 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
       const vals = await window.tfLoamAt(pts);
       // Loam forecast: the first coming day each spot turns prime (same readings, nothing more to download).
       const soon = window.tfLoamSoon ? await window.tfLoamSoon(pts).catch(() => pts.map(() => null)) : pts.map(() => null);
+      // Snow on the ground (same readings): the soil under snow can read prime, but it isn't.
+      const snow = window.tfSnowAt ? await window.tfSnowAt(pts).catch(() => pts.map(() => null)) : pts.map(() => null);
+      const primeAt = (i) => isPrime(vals[i]) && !(snow[i] >= (window.tfSnowCm || 5));
       const now = [], areas = new Map(), seen = new Set();
       const mark = (key, prime) => { const was = alertState[key]; if (prime) { if (!was || !was.p) alertState[key] = { p: 1, r: 0 }; } else if (was) alertState[key] = { p: 0, r: 1 }; };
       ride.forEach((t, i) => {
         const v = vals[i];
         if (v == null) { seen.add(t.key); return; }   // no soil data: leave its state alone
         seen.add(t.key);
-        if (isPrime(v)) now.push({ ...t, v });
-        mark(t.key, isPrime(v));
-        const s = !isPrime(v) && soon[i];
+        if (primeAt(i)) now.push({ ...t, v });
+        mark(t.key, primeAt(i));
+        const s = !primeAt(i) && soon[i];
         seen.add("s:" + t.key);
         if (s) now.push({ ...t, key: "s:" + t.key, v: s.v, soon: s, why: "On your To ride list" });
         mark("s:" + t.key, !!s);
@@ -219,7 +222,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
         if (v == null) return;
         const a = areas.get(key);
         a.known = true;
-        if (isPrime(v)) a.trails.push({ ...t, v });
+        if (primeAt(ride.length + i)) a.trails.push({ ...t, v });
         else if (soon[ride.length + i]) a.soonTrails.push({ ...t, v: soon[ride.length + i].v, soon: soon[ride.length + i] });
       });
       areas.forEach((a) => {
