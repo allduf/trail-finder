@@ -442,6 +442,29 @@
     { name: "Gear Jammer Connector", c: [49.276, -122.904], r: 2000, src: "Komoot, Burnaby Mountain Gearjammer", url: "https://www.komoot.com/smarttour/31037183" },
     // Roberts Creek (Sunshine Coast)
     { name: "Mach Chicken", c: [49.4475, -123.603], r: 1500, d: "black", src: "MTB Project, Roberts Creek trails (rated Difficult)", url: "https://www.mtbproject.com/directory/8020882/roberts-creek-gibson" },
+    // weekly audit, 2026-10-24: levels from tourism, club and town pages
+    { name: "Rock & Roll", c: [50.088, -120.852], r: 2000, d: "black", src: "Mountain Biking BC, Merritt day trip (2017)", url: "https://www.mountainbikingbc.ca/blog/ultimate-day-trip-to-the-interiors-hidden-gem-in-merritt-british-columbia/" },
+    { name: "Godey", c: [50.079, -120.748], r: 2000, d: "black", src: "Mountain Biking BC, Merritt day trip (2017)", url: "https://www.mountainbikingbc.ca/blog/ultimate-day-trip-to-the-interiors-hidden-gem-in-merritt-british-columbia/" },
+    { name: "Deer Hunter", c: [50.082, -120.737], r: 2000, d: "blue", src: "Mountain Biking BC, Merritt day trip (2017)", url: "https://www.mountainbikingbc.ca/blog/ultimate-day-trip-to-the-interiors-hidden-gem-in-merritt-british-columbia/" },
+    { name: "Ursa Major", c: [50.082, -120.74], r: 2000, d: "blue", src: "Mountain Biking BC, Merritt day trip (2017)", url: "https://www.mountainbikingbc.ca/blog/ultimate-day-trip-to-the-interiors-hidden-gem-in-merritt-british-columbia/" },
+    { name: "Simpson Trail", c: [49.909, -119.479], r: 2000, d: "blue", src: "Tourism Kelowna, the Knox network", url: "https://www.tourismkelowna.com/blog/stories/post/mountain-biking-in-kelowna-a-close-look-at-the-knox-network/" },
+    { name: "Shale Trail", c: [49.906, -119.485], r: 2000, d: "blue", src: "Tourism Kelowna, why Kelowna (Shale rated blue; black line is Shale Trail Direct)", url: "https://www.tourismkelowna.com/blog/stories/post/why-kelowna-should-be-your-next-mountain-biking-destination/" },
+    { name: "Kerplop", c: [49.768, -119.465], r: 2000, d: "black", src: "Tourism Kelowna, the Gillard network", url: "https://www.tourismkelowna.com/blog/stories/post/mountain-biking-in-kelowna-a-close-look-at-the-gillard-network/" },
+    { name: "Feel the Love", c: [49.865, -119.656], r: 2000, d: "black", src: "Tourism Kelowna, the Smith Creek network; Visit Westside agrees", url: "https://www.tourismkelowna.com/blog/stories/post/mountain-biking-in-kelowna-a-close-look-at-the-smith-creek-network/" },
+    { name: "Kid Dyn-O-Myt", c: [49.873, -119.656], r: 2000, d: "blue", src: "Tourism Kelowna, the Smith Creek network (as 'Kid DinoMyt Descent')", url: "https://www.tourismkelowna.com/blog/stories/post/mountain-biking-in-kelowna-a-close-look-at-the-smith-creek-network/" },
+    { name: "FOMO", c: [49.859, -119.66], r: 2000, d: "blue", src: "Visit Westside, Smith Creek intermediate rider's guide", url: "https://www.visitwestside.com/west-kelowna-smith-creek-trails-riders-guide/" },
+    { name: "Rock Candy", c: [49.887, -119.579], r: 2000, d: "dbl", src: "Tourism Kelowna, Kelowna's gnarliest trails (Sonya Looney)", url: "https://www.tourismkelowna.com/blog/stories/post/kelownas-gnarliest-mountain-biking-trails/" },
+    { name: "Vapour", c: [49.799, -119.418], r: 2000, d: "black", src: "KelownaNow, Biking the Okanagan guide by MTBCO", url: "https://www.kelownanow.com/watercooler/news/news/Biking_the_Okanagan/Biking_the_Okanagan_Guide_of_Where_to_Ride_1/" },
+    { name: "Silver Shack", c: [50.375, -119.03], r: 2000, d: "blue", src: "SilverStar 2025 Cross Country & Hiking trail map (PDF)", url: "https://cms.skisilverstar.com/sites/default/files/2025-05/2025_CrossCountryTrailMap.pdf" },
+    { name: "SW Passage", c: [49.65, -116.008], r: 2000, d: "black", src: "City of Kimberley Adventure Trail Network Map (PDF): 'SW Passage Loop - Advanced'", url: "https://www.kimberley.ca/sites/default/files/Adventure%20Trail%20Network%20Map.pdf" },
+    // weekly audit, 2026-10-24: bike trails left out for a hiking grade or a gravel surface
+    { name: "Easy Beaver", c: [49.482, -115.059], r: 2000, src: "Tourism Fernie", url: "https://elk.tourismfernie.com/activities/hiking-trails/easybeavertrail" },
+    { name: "Marlu", c: [49.487, -115.055], r: 2000, src: "Tourism Fernie", url: "https://tourismfernie.com/activities/mountain-biking/trails" },
+    { name: "Thaletel (Bike)", c: [49.162, -121.788], r: 2000, src: "Chilliwack Park Society", url: "https://chilliwackparksociety.ca/parks/lexw-qwo-m-park/" },
+    { name: "Goldmine/Cabin Trail", c: [49.24, -122.421], r: 2000, src: "NSMB forum", url: "https://nsmb.com/forum/forum/trail-conditions-6/topic/maple-ridge-2016-conditions-1301/" },
+    { name: "Ski Hill Climb", c: [49.684, -116.018], r: 2000, src: "Tourism Kimberley", url: "https://tourismkimberley.com/discover/blog/weve-gone-cross-country-getting-to-know-the-kimberley-nordic-club" },
+    { name: "Mystery DH", c: [49.357, -123.181], r: 2000, src: "NSMBA", url: "https://nsmb.com/the-hub/NSMBA/did-you-dig-the-shore-this-spring/" },
+    { name: "Sex Girl Connector", c: [49.353, -123.215], r: 2000, src: "Pinkbike", url: "https://www.pinkbike.com/video/308075/" },
   ];
   // HAND by way id and by lower-case name (in list order), so each trail is a lookup, not a walk through the whole list:
   // every loaded trail is checked when the app opens.

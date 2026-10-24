@@ -1,5 +1,5 @@
 // Live webcams in Skiing: resort cams (Whistler Peak first, alex 2026-10-24) and backcountry cams (huts, shelters,
-// ridges), pinned where the camera really is, on the flat map and the 3D map. Tapping a pin opens the live feed.
+// ridges, remote park cameras) and highway cameras at the mountain passes where tours start, pinned where the camera is, on the flat map and the 3D map. Tapping a pin opens the live feed.
 // The list is data/webcams.json (hand-edited). Feeds are never copied or kept: "embed" is the owner's own embeddable
 // player shown in a frame, "img" is the owner's live picture loaded from their server (reloaded every minute while
 // open), and every cam links to the owner's webcam page. A "📷 Webcams" switch in the Skiing part of the Layers menu
@@ -18,6 +18,7 @@
   css.textContent = `
 .wc-pin { box-sizing: border-box; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: #1c1c1e; color: #fff; border: 2px solid #fff; box-shadow: 0 1px 4px #0008; font-size: 14px; cursor: pointer; }
 .wc-pin.bc { background: #0b7285; }
+.wc-pin.road { background: #5c677d; }
 .wc-pin.on { border-color: #ffe14d; box-shadow: 0 0 0 3px #ffe14d, 0 1px 4px #0008; }
 .wc-pin b { position: absolute; top: -7px; right: -9px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px; background: #e03131; color: #fff; font: 700 10px/16px system-ui, sans-serif; text-align: center; }
 .wc-gl { position: relative; }
@@ -39,7 +40,7 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
 
   // ---------- data ----------
   let data = null, cams = [], owners = {};
-  const load = () => (data = data || fetch("data/webcams.json?v=354").then((r) => r.json()).then((d) => {
+  const load = () => (data = data || fetch("data/webcams.json?v=353").then((r) => r.json()).then((d) => {
     owners = d.owners || {};
     cams = (d.cams || []).filter((c) => isFinite(c.lat) && isFinite(c.lon));
     return d;
@@ -76,7 +77,7 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
   // ---------- pins ----------
   const layer = L.layerGroup();
   let glMarkers = [], selected = null;
-  const pinHtml = (c, n) => `<div class="wc-pin${c.kind === "backcountry" ? " bc" : ""}${selected && groupOf(selected) === groupOf(c) && (n > 1 || selected === c) ? " on" : ""}" style="position:relative">📷${n > 1 ? `<b>${n}</b>` : ""}</div>`;
+  const pinHtml = (c, n) => `<div class="wc-pin${c.kind === "backcountry" ? " bc" : c.kind === "road" ? " road" : ""}${selected && groupOf(selected) === groupOf(c) && (n > 1 || selected === c) ? " on" : ""}" style="position:relative">📷${n > 1 ? `<b>${n}</b>` : ""}</div>`;
   // Far out, one pin per resort (the first cam in the list, the one that matters most); zoomed in, every cam.
   function visible() {
     if (map.getZoom() >= 9) return cams.map((c) => [c, 1]);
@@ -124,7 +125,7 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
   let refresh = 0;
   function feedHtml(c) {
     if (c.embed) return `<iframe src="${esc(c.embed)}" title="${esc(c.name)} live webcam" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="origin" loading="eager"></iframe>`;
-    if (c.img) return `<img alt="${esc(c.name)}, latest picture" src="${esc(c.img + (c.img.includes("?") ? "&" : "?") + "t=" + Date.now())}">`;
+    if (c.img) return `<img alt="${esc(c.name)}, latest picture" referrerpolicy="no-referrer" src="${esc(c.img + (c.img.includes("?") ? "&" : "?") + "t=" + Date.now())}">`;
     return `<p>This camera's picture can only be seen on its own page.<br><a href="${esc(pageOf(c))}" target="_blank" rel="noopener" style="color:#fff">Open the live webcam ↗</a></p>`;
   }
   function open(c) {
@@ -132,7 +133,7 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
     clearInterval(refresh);
     const same = cams.filter((x) => groupOf(x) === groupOf(c));
     const o = owner(c), page = pageOf(c);
-    const sub = [c.view, c.where, c.ele ? `${Math.round(c.ele).toLocaleString()} m` : "", c.kind === "backcountry" ? "Backcountry" : ""].filter(Boolean).map(esc).join(" · ");
+    const sub = [c.resort && !c.name.includes(c.resort) ? c.resort : "", c.view, c.where, c.ele ? `${Math.round(c.ele).toLocaleString()} m` : "", c.kind === "backcountry" ? "Backcountry" : c.kind === "road" ? "Highway camera" : ""].filter(Boolean).map(esc).join(" · ");
     dlg.innerHTML = `<button type="button" class="wc-x" aria-label="Close">✕</button>
       <h2>${esc(c.name)}</h2>
       <p class="wc-sub">${sub}</p>
@@ -147,7 +148,7 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
   }
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
   // Closing empties the dialog so the stream stops instead of playing on, hidden.
-  dlg.addEventListener("close", () => { clearInterval(refresh); dlg.innerHTML = ""; selected = null; draw(); });
+  dlg.addEventListener("close", () => { if (dlg.open) return; clearInterval(refresh); dlg.innerHTML = ""; selected = null; draw(); });   // already reopened on another cam
 
   let lastSki = isSki();   // winter.js sets body.sport-ski when the sport menu changes
   new MutationObserver(() => { if (isSki() !== lastSki) { lastSki = isSki(); sync(); } }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
