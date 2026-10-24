@@ -1460,7 +1460,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <p>Pick “🦌 Hunting” in the sport menu at the top. The bike trails make way for every hunting zone in BC (management units, labelled with the number and, closer in, the game management zone) and Alberta (WMUs with number and name), all drawn as dark lines with a white edge. The buttons at the top of the panel do the main jobs in one tap: <b>My spot</b> (your location), <b>Save a point</b>, <b>Hunting log</b>, <b>Mark my truck</b>, <b>Back to truck</b> (a line from you to the truck with its distance and direction, updated as you walk) and <b>Record walk</b> (saved in My rides, shareable as GPX).</p>
     <p><b>Tap the map</b> to see that spot: its zone with a link to the regulations, the open seasons there by species (the ones open today marked ● Open, read each month from the BC regional synopses and the Alberta Guide to Hunting Regulations), the BC limited entry hunts in the unit with last year's first-choice odds (shaded when the spot is inside the hunt's zone) or Alberta's special licence draws with this year's tags, applicants and the priority needed, and any park, town, reserve, military land or closure with what it means for hunting (towns link to their firearm discharge bylaw). In BC it also says whether the land is private or Crown, the forest stand (species, age, height) and when it last burned, from DataBC; in Alberta, whether it's a grazing lease (contact the leaseholder), the forest fuel type, burns and wetlands from Alberta's map server.</p>
     <p>The wind card shows where the wind comes from and where your scent goes (the orange cone on the map, wider in light wind), gusts, temperature, cloud and the next 12 hours, from Open-Meteo. The light card has legal light (half an hour before sunrise to half an hour after sunset), sunrise, sunset, the moon and solunar feeding times, and ⏰ Alarms: tick legal light start, sunrise, sunset or legal light end, pick how early, and the app rings and shows a notice while it's open; “Add to my calendar” puts the next 14 days at that spot in your phone's calendar with alerts, so they ring with the app closed.</p>
-    <p><b>Map layers</b> are grouped, and each one shows its own key when it's on; the <b>Key</b> button on the map shows the same key there. Only zones, parks and the scent cone are on at first, and every layer has its own colour. Boundaries: hunting zones, BC limited entry zones, and parks, towns and closures (red stripes no hunting, blue rules vary, green usually open, violet reserves, grey towns where shooting is banned by bylaw, black dots BC motor vehicle closures). Land: BC private parcels (ParcelMap BC, from zoom 11), Alberta grazing leases on public land and Alberta's Green Area (public forest). Habitat: forest types (BC stands by leading tree species; Alberta fuel types such as boreal spruce, pine, aspen and mixedwood), old burns by age, and wetlands. Terrain: slope angle and aspect. Tools: the scent cone and 50 to 400 m range rings around the spot. Every layer works on the 3D map too.</p>
+    <p><b>Map layers</b> are grouped, and each one shows its own key when it's on; the <b>Key</b> button on the map shows the same key there. Only zones, parks and the scent cone are on at first, and every layer has its own colour. Boundaries: hunting zones, BC limited entry zones, and parks, towns and closures (red stripes no hunting, blue rules vary, green usually open, violet reserves, grey towns where shooting is banned by bylaw, black dots BC motor vehicle closures). Land: BC private parcels (ParcelMap BC, from zoom 11), Alberta grazing leases on public land and Alberta's Green Area (public forest). Habitat: forest types in five hunter classes (thick timber for bedding cover, open timber, aspen, birch and mixed forest, young forest and brush for browse, and meadows and grass; BC forest inventory, Alberta fuel types), old burns by age, and wetlands. Terrain: slope angle and aspect. Tools: the scent cone and 50 to 400 m range rings around the spot. Every layer works on the 3D map too.</p>
     <p>“Hunting maps offline” saves the zones, parks, seasons and draw results, and the picture layers you have on for the area on screen (zoom 10 to 15), so they work with no signal; save the base map with Offline maps in the Layers menu.</p>
     <p>Your points: truck or parking, tree stands, blinds, sightings, tracks, rubs, scrapes, bedding and feeding areas, trail cameras, water, harvests and camps, each with a photo and notes, on the flat and 3D maps (signed in, they go to your account too). Open one to Share it or “Guide me here”. A 🎯 Harvest point takes the species, animal, date and zone (filled in from the map), and the <b>Hunting log</b> lists harvests by season (April to March) with a CSV download. A 📷 Trail camera point keeps its checks: each time you pull the card, add the best photo, the date and what it caught, and the log shows every camera's photos in order. This is a guide, not the law: always check the BC Hunting and Trapping Regulations Synopsis or the Alberta Guide to Hunting Regulations.</p>
     <p class="src">Hunting data: DataBC (Open Government Licence - British Columbia), Alberta Environment and Protected Areas (Open Government Licence - Alberta), Canada Lands Survey System (Open Government Licence - Canada), ParcelMap BC (LTSA), BC Vegetation Resources Inventory, BC Limited Entry Hunting Synopsis, Alberta Guide to Hunting Regulations and AlbertaRELM draw summaries, Alberta Wildfire fuel types and fire history, Alberta Merged Wetland Inventory. Weather: Open-Meteo. Terrain: Mapzen Terrain Tiles on AWS.</p>
@@ -1473,12 +1473,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=368"></script>
-<script src="rotate.js?v=368"></script>
-<script src="official.js?v=368"></script>
-<script src="directions.js?v=368"></script>
-<script src="ratings.js?v=368"></script>
-<script src="ebike.js?v=368"></script>
+<script src="native.js?v=369"></script>
+<script src="rotate.js?v=369"></script>
+<script src="official.js?v=369"></script>
+<script src="directions.js?v=369"></script>
+<script src="ratings.js?v=369"></script>
+<script src="ebike.js?v=369"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3761,7 +3761,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=368").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=369").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -7012,43 +7012,43 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=368"></script>
-<script src="contours.js?v=368"></script>
-<script src="clouds.js?v=368"></script>
-<script src="smoke.js?v=368"></script>
-<script src="photo-slider.js?v=368"></script>
-<script src="ski-terrain.js?v=368"></script>
-<script src="winter.js?v=368"></script>
-<script src="hunting.js?v=368"></script>
-<script src="compass.js?v=368"></script>
-<script src="ski-points.js?v=368"></script>
-<script src="webcams.js?v=368"></script>
-<script src="rogers.js?v=368"></script>
-<script src="ski-areas.js?v=368"></script>
-<script src="offline.js?v=368"></script>
-<script src="ride-stats.js?v=368"></script>
-<script src="native-gps.js?v=368"></script>
-<script src="navigate.js?v=368"></script>
-<script src="planner.js?v=368"></script>
-<script src="loops.js?v=368"></script>
-<script src="ride-finds.js?v=368"></script>
-<script src="rides.js?v=368"></script>
-<script src="community.js?v=368"></script>
-<script src="ride-files.js?v=368"></script>
-<script src="rider-trails.js?v=368"></script>
-<script src="account.js?v=368"></script>
-<script src="strava.js?v=368"></script>
-<script src="reports.js?v=368"></script>
-<script src="grades.js?v=368"></script>
-<script src="trail-photos.js?v=368"></script>
-<script src="visitors.js?v=368"></script>
-<script src="notify.js?v=368"></script>
-<script src="closures.js?v=368"></script>
-<script src="status.js?v=368"></script>
-<script src="areas.js?v=368"></script>
-<script src="alpine.js?v=368"></script>
-<script src="bikeparks.js?v=368"></script>
-<script src="photo-find.js?v=368"></script>
+<script src="map3d.js?v=369"></script>
+<script src="contours.js?v=369"></script>
+<script src="clouds.js?v=369"></script>
+<script src="smoke.js?v=369"></script>
+<script src="photo-slider.js?v=369"></script>
+<script src="ski-terrain.js?v=369"></script>
+<script src="winter.js?v=369"></script>
+<script src="hunting.js?v=369"></script>
+<script src="compass.js?v=369"></script>
+<script src="ski-points.js?v=369"></script>
+<script src="webcams.js?v=369"></script>
+<script src="rogers.js?v=369"></script>
+<script src="ski-areas.js?v=369"></script>
+<script src="offline.js?v=369"></script>
+<script src="ride-stats.js?v=369"></script>
+<script src="native-gps.js?v=369"></script>
+<script src="navigate.js?v=369"></script>
+<script src="planner.js?v=369"></script>
+<script src="loops.js?v=369"></script>
+<script src="ride-finds.js?v=369"></script>
+<script src="rides.js?v=369"></script>
+<script src="community.js?v=369"></script>
+<script src="ride-files.js?v=369"></script>
+<script src="rider-trails.js?v=369"></script>
+<script src="account.js?v=369"></script>
+<script src="strava.js?v=369"></script>
+<script src="reports.js?v=369"></script>
+<script src="grades.js?v=369"></script>
+<script src="trail-photos.js?v=369"></script>
+<script src="visitors.js?v=369"></script>
+<script src="notify.js?v=369"></script>
+<script src="closures.js?v=369"></script>
+<script src="status.js?v=369"></script>
+<script src="areas.js?v=369"></script>
+<script src="alpine.js?v=369"></script>
+<script src="bikeparks.js?v=369"></script>
+<script src="photo-find.js?v=369"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
