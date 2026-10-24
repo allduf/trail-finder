@@ -240,7 +240,7 @@
       const no = new Set(noList()), shown = secs.filter((s) => !no.has(s.id)), hidden = secs.length - shown.length;
       if (!secs.length) { box.innerHTML = `<p>Every part of this ride follows a trail, path or road that's on OpenStreetMap.</p>`; return; }
       box.innerHTML = `<h3>🆕 Possible new trails on this ride</h3>
-<p>${shown.length ? `${shown.length === 1 ? "One stretch" : shown.length + " stretches"} of this ride follow${shown.length === 1 ? "s" : ""} no trail, path or road on OpenStreetMap. If it's a real trail, save it: it shows on the main map with 🚵 My rides, and you can add it to OpenStreetMap so everyone gets it.` : "Nothing left to look at here."}</p>
+<p>${shown.length ? `${shown.length === 1 ? "One stretch" : shown.length + " stretches"} of this ride follow${shown.length === 1 ? "s" : ""} no trail, path or road on OpenStreetMap. If it's a real trail, save it: it shows on the main map with 🚵 My rides, and then ➕ Add for everyone puts it on every rider's map (or add it to OpenStreetMap).` : "Nothing left to look at here."}</p>
 <ol></ol>${hidden ? `<p>${hidden} marked “Not a trail”. <button class="linkish" type="button" data-unhide>Show ${hidden === 1 ? "it" : "them"}</button></p>` : ""}`;
       const ol = box.querySelector("ol");
       shown.forEach((s, i) => {
@@ -248,7 +248,7 @@
         const li = document.createElement("li");
         li.innerHTML = `<span class="num">${i + 1}</span><div><div>${facts(s)}</div>
 <div class="row">${have
-  ? `<span class="ok">✓ ${mine ? "Saved" : "Already saved"}${have.name ? ` as “${esc(have.name)}”` : ""}</span> <a class="btn" href="${osmEdit(s)}" target="_blank" rel="noopener">Add to OpenStreetMap</a>${mine ? `<button class="btn" type="button" data-rm>Remove</button>` : ""}`
+  ? `<span class="ok">✓ ${mine ? "Saved" : "Already saved"}${have.name ? ` as “${esc(have.name)}”` : ""}</span> ${mine ? `<a class="btn primary" href="index.html#addtrail=${encodeURIComponent(s.id)}">➕ Add for everyone</a>` : ""}<a class="btn" href="${osmEdit(s)}" target="_blank" rel="noopener">Add to OpenStreetMap</a>${mine ? `<button class="btn" type="button" data-rm>Remove</button>` : ""}`
   : `<button class="btn primary" type="button" data-save>Save as a possible new trail</button><button class="btn" type="button" data-no>Not a trail</button>`}<button class="btn" type="button" data-show>Show</button></div></div>`;
         const line = L.polyline(s.g, { color: COLOR, weight: 7, opacity: 0.95, dashArray: have ? null : "10 7" }).addTo(lay);
         L.polyline(s.g, { color: "#fff", weight: 2, opacity: 0.9, interactive: false }).addTo(lay);
