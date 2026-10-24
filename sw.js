@@ -4,10 +4,10 @@
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-122";
+const VERSION = "tf-123";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=8", "account.js?v=315", "reports.js?v=315", "trail-photos.js?v=315", "status.js?v=315", "visitors.js?v=315", "map3d.js?v=315", "winter.js?v=315", "ski-points.js?v=315", "hunting.js?v=315", "offline.js?v=315", "native-gps.js?v=315", "native.js?v=315", "navigate.js?v=315", "ride-stats.js?v=315", "planner.js?v=315", "rotate.js?v=315", "photo-find.js?v=315", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=8", "account.js?v=316", "reports.js?v=316", "trail-photos.js?v=316", "status.js?v=316", "visitors.js?v=316", "map3d.js?v=316", "winter.js?v=316", "ski-points.js?v=316", "hunting.js?v=316", "offline.js?v=316", "native-gps.js?v=316", "native.js?v=316", "navigate.js?v=316", "ride-stats.js?v=316", "planner.js?v=316", "rotate.js?v=316", "photo-find.js?v=316", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
@@ -24,18 +24,38 @@ self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== OFFLINE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
-async function networkFirst(req) {
+// Data files (data/*.json) on a slow connection: when the network takes longer than DATA_WAIT_MS and a saved copy is
+// there, the saved copy is used and the download carries on in the background for next time (alex, 2026-10-23: the
+// app took a long time to open; on weak phone signal every file waited for the network). Pages and scripts always
+// wait for the network, so a new page never runs with an old script.
+const DATA_WAIT_MS = 3000;
+async function networkFirst(req, e) {
   const cache = await caches.open(VERSION);
   try {
     // no-cache: check GitHub Pages for a newer copy instead of using the browser's 10-minute cached one, so a
     // fresh deploy shows up on the next load. (A navigation request can't take options, and reloads check anyway.)
-    const res = await (req.mode === "navigate" ? fetch(req) : fetch(req, { cache: "no-cache" }));
-    if (res.ok) {
-      cache.put(req, res.clone());
-      const off = await caches.open(OFFLINE);   // keep a saved area's trail data as fresh as the last visit
-      if (await off.match(req)) off.put(req, res.clone());
+    const net = (req.mode === "navigate" ? fetch(req) : fetch(req, { cache: "no-cache" })).then((res) => {
+      if (res.ok) {
+        const copy = res.clone();
+        e.waitUntil((async () => {
+          await cache.put(req, copy);
+          const off = await caches.open(OFFLINE);   // keep a saved area's trail data as fresh as the last visit
+          if (await off.match(req)) await off.put(req, await cache.match(req));
+        })().catch(() => null));
+      }
+      return res;
+    });
+    if (/\/data\/[^?]*\.json$/.test(new URL(req.url).pathname)) {
+      const hit = await caches.match(req);
+      if (hit) {
+        e.waitUntil(net.catch(() => null));
+        // The whole file, not just its first bytes: a big file can start quickly and then crawl.
+        const whole = net.then(async (r) => (r.ok ? new Response(await r.blob(), { status: r.status, statusText: r.statusText, headers: r.headers }) : null)).catch(() => null);
+        const slow = new Promise((ok) => setTimeout(() => ok(null), DATA_WAIT_MS));
+        return (await Promise.race([whole, slow])) || hit;
+      }
     }
-    return res;
+    return await net;
   } catch (err) {
     const hit = await caches.match(req, { ignoreSearch: req.mode === "navigate" });
     if (hit) return hit;
@@ -76,7 +96,7 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  if (url.origin === self.location.origin) e.respondWith(networkFirst(req));
+  if (url.origin === self.location.origin) e.respondWith(networkFirst(req, e));
   else if (STATIC_HOSTS.includes(url.hostname)) e.respondWith(cacheFirst(req));
   else if (url.hostname === "tiles.openfreemap.org") e.respondWith(openFreeMap(req));
   else if (HUNT_HOSTS.includes(url.hostname)) e.respondWith(savedFirst(req));
