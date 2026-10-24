@@ -744,7 +744,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     el.innerHTML = parts.map(([ic, t]) => `<span>${svg(ic, 15)}${t}</span>`).join("");
     el.hidden = !parts.length;
   }
-  const scrollPanel = (el) => { const p = $("panel"); if (!p || !el) return; p.scrollTo({ top: Math.max(0, p.scrollTop + el.getBoundingClientRect().top - p.getBoundingClientRect().top - 8), behavior: "smooth" }); };
+  const scrollPanel = (el) => { const p = el && window.tfPanelScroller ? window.tfPanelScroller(el) : $("panel"); if (!p || !el) return; p.scrollTo({ top: Math.max(0, p.scrollTop + el.getBoundingClientRect().top - p.getBoundingClientRect().top - 8), behavior: "smooth" }); };
   $("hnNow").addEventListener("click", () => scrollPanel($("hnSpot").hidden ? $("hnCond") : $("hnSpot")));
 
   // ---------- alarms: legal light, sunrise and sunset ----------
