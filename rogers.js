@@ -370,11 +370,7 @@
   btn.textContent = "Rogers Pass permit areas";
   function placeBtn() {
     if (btn.isConnected) return true;
-    const extras = $("lmSkiExtras");
-    if (!extras) return false;
-    const list = document.createElement("div"); list.className = "lm-list"; list.appendChild(btn);
-    extras.after(list);
-    return true;
+    return !!window.tfSkiSlot && window.tfSkiSlot("places", btn, { label: "Rogers Pass permit areas", bg: "linear-gradient(135deg, #2f9e44 50%, #e03131 50%)" });
   }
   btn.addEventListener("click", () => { on = !on; try { localStorage.setItem("tf:skiRogers", String(on)); } catch {} sync(); });
   function sync() {
