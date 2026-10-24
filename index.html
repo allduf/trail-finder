@@ -1473,12 +1473,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=372"></script>
-<script src="rotate.js?v=372"></script>
-<script src="official.js?v=372"></script>
-<script src="directions.js?v=372"></script>
-<script src="ratings.js?v=372"></script>
-<script src="ebike.js?v=372"></script>
+<script src="native.js?v=373"></script>
+<script src="rotate.js?v=373"></script>
+<script src="official.js?v=373"></script>
+<script src="directions.js?v=373"></script>
+<script src="ratings.js?v=373"></script>
+<script src="ebike.js?v=373"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3761,7 +3761,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=372").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=373").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5145,8 +5145,28 @@ out body;`;
         allShown.push({ w, color });
         group.addLayer(L.polyline(w.geom, { renderer: allRenderer, color, weight: off ? 4.5 : unoff ? 3.5 : 2.5, opacity: off ? 1 : 0.75, dashArray: unoff ? UNOFF_DASH : byDiff && isEst(w.tags) ? EST_DASH : null, lineCap: "round", interactive: false }));
       });
-      allLayer.addLayer(group);
+      if (nearView(list)) allLayer.addLayer(group);
     }
+  }
+  // Only the zones near the screen have their lines on the map (alex, 2026-10-24: "make the app faster"): Leaflet works
+  // out every line again on each zoom and pan, so with the whole region's ~8,000 trails on the map a zoom froze it for a
+  // quarter of a second on a phone. A zone a screen or more away is taken off and put back as the map comes near it; its
+  // trails stay loaded (lists, search and loam alerts read allData, not the map).
+  const listBox = new WeakMap();
+  function nearView(list) {
+    let b = listBox.get(list);
+    if (!b) {
+      let s = 90, w = 180, n = -90, e = -180;
+      list.forEach((t) => t.geom.forEach(([la, lo]) => { if (la < s) s = la; if (la > n) n = la; if (lo < w) w = lo; if (lo > e) e = lo; }));
+      listBox.set(list, (b = L.latLngBounds([s, w], [n, e])));
+    }
+    return list.length > 0 && map.getBounds().pad(1).intersects(b);
+  }
+  function cullAllTrails() {
+    allDrawn.forEach(({ group }, list) => {
+      const want = nearView(list), has = allLayer.hasLayer(group);
+      if (want && !has) allLayer.addLayer(group); else if (!want && has) allLayer.removeLayer(group);
+    });
   }
   // Some of a zone's trails changed (new ratings or official data): its lines are drawn again on the next drawAllTrails.
   function allRedo(list) {
@@ -5208,7 +5228,7 @@ out body;`;
     state.allTrails = !state.allTrails; store.set("allTrails", state.allTrails);
     syncAllBtn(); loadAllTrails(); drawAllTrails(); renderKey();
   });
-  map.on("moveend", () => { loadAllTrails(); queueAllDraw(); loamForView(); if (state.waiting) renderStatus(); });
+  map.on("moveend", () => { cullAllTrails(); loadAllTrails(); queueAllDraw(); loamForView(); if (state.waiting) renderStatus(); });
   map.on("zoomend", () => { if (state.colorBy === "loam") renderKey(); });
   syncAllBtn();
   // Official trails (official.js): load the squares in view; when new ones arrive, check the trails already loaded again.
@@ -7015,43 +7035,43 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=372"></script>
-<script src="contours.js?v=372"></script>
-<script src="clouds.js?v=372"></script>
-<script src="smoke.js?v=372"></script>
-<script src="photo-slider.js?v=372"></script>
-<script src="ski-terrain.js?v=372"></script>
-<script src="winter.js?v=372"></script>
-<script src="hunting.js?v=372"></script>
-<script src="compass.js?v=372"></script>
-<script src="ski-points.js?v=372"></script>
-<script src="webcams.js?v=372"></script>
-<script src="rogers.js?v=372"></script>
-<script src="ski-areas.js?v=372"></script>
-<script src="offline.js?v=372"></script>
-<script src="ride-stats.js?v=372"></script>
-<script src="native-gps.js?v=372"></script>
-<script src="navigate.js?v=372"></script>
-<script src="planner.js?v=372"></script>
-<script src="loops.js?v=372"></script>
-<script src="ride-finds.js?v=372"></script>
-<script src="rides.js?v=372"></script>
-<script src="community.js?v=372"></script>
-<script src="ride-files.js?v=372"></script>
-<script src="rider-trails.js?v=372"></script>
-<script src="account.js?v=372"></script>
-<script src="strava.js?v=372"></script>
-<script src="reports.js?v=372"></script>
-<script src="grades.js?v=372"></script>
-<script src="trail-photos.js?v=372"></script>
-<script src="visitors.js?v=372"></script>
-<script src="notify.js?v=372"></script>
-<script src="closures.js?v=372"></script>
-<script src="status.js?v=372"></script>
-<script src="areas.js?v=372"></script>
-<script src="alpine.js?v=372"></script>
-<script src="bikeparks.js?v=372"></script>
-<script src="photo-find.js?v=372"></script>
+<script src="map3d.js?v=373"></script>
+<script src="contours.js?v=373"></script>
+<script src="clouds.js?v=373"></script>
+<script src="smoke.js?v=373"></script>
+<script src="photo-slider.js?v=373"></script>
+<script src="ski-terrain.js?v=373"></script>
+<script src="winter.js?v=373"></script>
+<script src="hunting.js?v=373"></script>
+<script src="compass.js?v=373"></script>
+<script src="ski-points.js?v=373"></script>
+<script src="webcams.js?v=373"></script>
+<script src="rogers.js?v=373"></script>
+<script src="ski-areas.js?v=373"></script>
+<script src="offline.js?v=373"></script>
+<script src="ride-stats.js?v=373"></script>
+<script src="native-gps.js?v=373"></script>
+<script src="navigate.js?v=373"></script>
+<script src="planner.js?v=373"></script>
+<script src="loops.js?v=373"></script>
+<script src="ride-finds.js?v=373"></script>
+<script src="rides.js?v=373"></script>
+<script src="community.js?v=373"></script>
+<script src="ride-files.js?v=373"></script>
+<script src="rider-trails.js?v=373"></script>
+<script src="account.js?v=373"></script>
+<script src="strava.js?v=373"></script>
+<script src="reports.js?v=373"></script>
+<script src="grades.js?v=373"></script>
+<script src="trail-photos.js?v=373"></script>
+<script src="visitors.js?v=373"></script>
+<script src="notify.js?v=373"></script>
+<script src="closures.js?v=373"></script>
+<script src="status.js?v=373"></script>
+<script src="areas.js?v=373"></script>
+<script src="alpine.js?v=373"></script>
+<script src="bikeparks.js?v=373"></script>
+<script src="photo-find.js?v=373"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
