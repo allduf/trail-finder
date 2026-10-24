@@ -1159,6 +1159,9 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <style>
 /* the phone tab bar is styled in theme.css; hidden here so it never shows unstyled (e.g. with an older cached theme.css) */
 .tabbar { display: none; }
+/* One home per tool on phones (alex, 2026-10-24): 📷 Which trail is this? sits next to Search trails on the map and
+   in the Find page's list; Offline maps sits in the Ride tab. Computers keep them by Search and in Layers. */
+@media (max-width: 760px) { #photoFindBtn, #offlineBtn { display: none !important; } }
 </style>
 <link rel="stylesheet" href="theme.css?v=9">
 
@@ -1361,7 +1364,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     </ul>
     <h3>Everywhere</h3>
     <ul class="about-quick">
-      <li><b>Layers</b> (top right of the map): clouds, smoke, wildfires, forest roads, 3D, offline maps and more.</li>
+      <li><b>Layers</b> (top right of the map): clouds, smoke, wildfires, forest roads, 3D and more. Offline maps is in the Ride tab on phones (in Layers on computers).</li>
       <li>On phones, use the tabs at the bottom: Map, Find, Ride, Saved, More.</li>
       <li>Trails come from OpenStreetMap, so check local rules and closures before you go.</li>
     </ul>
@@ -1371,13 +1374,13 @@ body.sport-alt #rideMapBtn { display: none !important; }
       <li><strong>Search:</strong> type a trail name, or pick an area (or tap Near me) and how new. <b>Any</b> lists every trail there, old or new, with when it was added; Month to 2 yr show the new trails. A trail is new when it was first added to OpenStreetMap in that time.</li>
       <li><strong>Prime loam now:</strong> trails whose dirt is damp right now (Loam index 40 to 59), the best riding.</li>
       <li><strong>Loam alerts:</strong> the 🔔 at the top tells you when a trail on your To ride list, or a new trail from the last month in the regions you picked, is in prime loam. Each one alerts once every time it turns damp. Each kind has its own switch in the 🔔 under Change regions.</li>
-      <li><strong>On phones</strong> the tabs at the bottom are <b>Map</b>, <b>Find</b> (search by name, new trails, near me, prime loam, from a photo), <b>Ride</b> (record a ride, plan a route, offline maps), <b>Saved</b> (To ride, Ridden, your folders, routes and rides) and <b>More</b> (sport, alerts, account). <b>← Back</b> at the top of a page, or your phone's back swipe, goes back one step.</li>
+      <li><strong>On phones</strong> the tabs at the bottom are <b>Map</b>, <b>Find</b> (search by name, new trails, near me, prime loam, from a photo), <b>Ride</b> (record a ride, plan a route, offline maps), <b>Saved</b> (To ride, Ridden, your folders, routes, your rides and trails you added) and <b>More</b> (sport, alerts, account). <b>← Back</b> at the top of a page, or your phone's back swipe, goes back one step.</li>
       <li><strong>Tap any trail</strong> on the map for its difficulty, weather, loam, how to get there and rider reports.</li>
-      <li><strong>Layers</strong> (top right of the map) turns on forest roads, wildfires, logging areas, elevation lines, your rides, the map style and offline maps. The ⛰ 3D button sits right under it.</li>
+      <li><strong>Layers</strong> (top right of the map) turns on forest roads, wildfires, logging areas, elevation lines, your rides, the map style and (on computers) offline maps. The ⛰ 3D button sits right under it.</li>
       <li><strong>▶ Ride</strong> (the Ride tab on phones) is for riding with the map: it follows you, points the arrow the way you're facing, keeps the screen on and records the ride. The strip at the bottom names the trail you're on, how much of it is left and which trails branch off at the next junction. The numbers on top are moving time (stops don't count), distance, climb and speed; <strong>Ⅱ Pause</strong> stops counting while you take a break. Stop, then Save ride, to give it a title and photos in My rides. Don't lock the phone: a locked phone stops the GPS for websites. Tap <strong>🔒 Pocket</strong> instead for a black screen that ignores touches (hold to unlock). If the GPS stops anyway, the missing stretch is filled in along the trails when it fits, and a ride cut off by the phone closing the page can be carried on when you open the map again.</li>
       <li><strong>▶ Ride this trail</strong> (in a trail's details) draws the trail in purple and follows it in Ride mode: it says how far away it is until you reach it, then how much is left. More than 40 m off it for 15 seconds, the phone buzzes (or beeps on iPhones) and the strip turns red. Riding a one-way trail the wrong way also buzzes. One-way trails have small arrows on the map from zoom 14.</li>
       <li><strong>✎ Plan a route</strong> (Layers, Tools; the Ride tab on phones) goes one step at a time: tap the trails you want to ride, in your order, then ▶ Ride it. Everything else is under ⋯ More: how to build it (picking trails or tapping points), Pedal or Shuttle, the start, Back to start, Share, GPX, Saved and Clear. <em>Tapping points</em>: tap where you start, then each next point, and the route takes the trails and forest roads that make sense on a bike between them: one-way trails only their way, climbs on roads and climbing trails, descents on the downhill trails. <em>Picking trails</em> (the default): tap the trails you want to ride (tap again to take one out) and the app builds the ride, in the order you tapped them, each in the direction that makes sense (climb the climbing trails, descend the downhill ones, follow one-way tags) and joining them with the easiest climbs. Where the next trail starts partway down the one before, the route leaves it there instead of riding to the bottom and climbing back. Your trails show as a list: use ▲ ▼ (or drag them) to ride one first, and the route follows your order; ↻ Best order finds the order with the least effort. It starts at the lowest end of your trails unless you use 📍 Set start, and comes back to the start unless you turn ↺ Back to start off. Both show the distance, climb and the trails used, with arrows for the way to ride. ⤓ GPX downloads it (with heights) and ▶ Ride it follows it in Ride mode. Where trails and forest roads don't connect, it joins them on streets, paths and bridges, and only the stretch with nothing mapped is a dashed straight line, as short as it can be. <em>🚲 Pedal</em> rides all of it. <em>🛻 Shuttle</em> has a 4x4 pickup drive you (on the highway too) up the forest roads as close to your trails as it can get, and you ride from there (and get picked up at the bottom): it drives roads in good, degraded or unknown condition (never heavily degraded, closed to vehicles or impassable; where one starts, the truck stops and you ride from there), and never past a locked gate, a barrier or a bridge that's out. With a locked gate near your start there's no shuttle (you're at the gates) and it says so. The drive shows as a dark line with its own distance. Tap ✕ on a shuttle to ride that part instead (one big run from one trail to the next); 🛻 Shuttle here puts it back. Road status is mapped data, not a live closure list: check the road safety notices before driving. Heights come from terrain tiles; without a connection the route goes by distance. The plan stays on this device until you clear it. The side panel stays open while you plan (🔍 Find trails on phones): open a trail and tap ✎ Add to my ride. 💾 Save keeps a ride under a name, and 📂 Saved (also Saved routes in More) opens, renames or deletes them; signed in, they follow you to any device.</li>
-      <li><strong>📷 Which trail is this?</strong> (the camera button next to Search; on phones, the 📷 next to the search box or Find) finds a trail from a photo, a screenshot of a post or a video of up to 5 seconds (longer or very big videos are turned away: trim them or add a screenshot). A photo or video that kept the spot where it was taken (most phone camera ones do) goes straight to the trail it was taken on. A screenshot or a video from online has no spot, so the app reads the words in it (trail names, places, hashtags, Strava or Trailforks labels, the caption) and lists the likely trails, best first. Paste the post's caption, or write what you see ("big granite wall behind", "Black Tusk in the back"), and pick the area to help it. Big mountains, rock walls and lakes it knows (the Chief, Black Tusk, Mount Currie, Ha Ling and more) list the trails that can actually see them. When the picture checker is set up, a small copy of the picture also goes to an AI (Google Gemini), which looks at the background, signs and overlays, and to Google's image search to find pages with the same picture. Google may keep pictures sent to its free AI. Each result has YouTube, Instagram, Trailforks and Photos links to compare with other riders' videos. After you open one it asks "Is this the trail?": Yes saves the match (with a small copy of the picture, kept private) so later searches with similar words find it faster. The ✕ on the picture clears it to try another. The first time, the word reader downloads about 7 MB.</li>
+      <li><strong>📷 Which trail is this?</strong> (the camera button next to Search; on phones, the 📷 next to Search trails on the map, or Which trail is this? in Find) finds a trail from a photo, a screenshot of a post or a video of up to 5 seconds (longer or very big videos are turned away: trim them or add a screenshot). A photo or video that kept the spot where it was taken (most phone camera ones do) goes straight to the trail it was taken on. A screenshot or a video from online has no spot, so the app reads the words in it (trail names, places, hashtags, Strava or Trailforks labels, the caption) and lists the likely trails, best first. Paste the post's caption, or write what you see ("big granite wall behind", "Black Tusk in the back"), and pick the area to help it. Big mountains, rock walls and lakes it knows (the Chief, Black Tusk, Mount Currie, Ha Ling and more) list the trails that can actually see them. When the picture checker is set up, a small copy of the picture also goes to an AI (Google Gemini), which looks at the background, signs and overlays, and to Google's image search to find pages with the same picture. Google may keep pictures sent to its free AI. Each result has YouTube, Instagram, Trailforks and Photos links to compare with other riders' videos. After you open one it asks "Is this the trail?": Yes saves the match (with a small copy of the picture, kept private) so later searches with similar words find it faster. The ✕ on the picture clears it to try another. The first time, the word reader downloads about 7 MB.</li>
       <li><strong>☁ Clouds</strong> (in Layers, in every sport) works like Windy. <em>Now</em> shows the real clouds from the GOES weather satellites (infrared, every 10 minutes): the whiter, the colder and higher the cloud. Move the slider at the bottom of the map (or ▶ play it) for the forecast over the next 3 days: soft white cloud over a slightly darker map, blue for rain, purple for snow. The line under the slider gives the cloud, rain or snow and where the mountains are in cloud at the map centre. On the 3D map, grey mist on the ground means it sits inside the cloud. 📈 opens an hour-by-hour chart of the cloud at each height above the map centre, with the freezing level (Skiing routes and huts show it for their top and bottom). Satellite from NASA GIBS, forecast from Open-Meteo.</li>
       <li><strong>🌫 Smoke</strong> (in Layers, in every sport) shows the wildfire smoke near the ground, now and for the next 3 days, from Environment Canada's FireWork smoke forecast: pale grey-blue for a little smoke, tan when it's smoky, red-brown when it's thick. The bar at the bottom says how smoky the map centre is (with the AQHI+ number Health Canada uses) and what it means for a hard ride; “Smoke here, next 3 days” draws the forecast for that spot. With ☁ Clouds on too, both follow the same slider. Shown on the 3D map as well. 🔥 Show the fires turns on the Wildfires layer, to see where the smoke comes from.</li>
       <li><strong>Old vs new photos</strong> (in Layers) puts an older satellite photo on the left and a newer one on the right. Drag the ⇆ handle across the map: a trail that appears as you pass over it was cut between the two photos.</li>
@@ -1452,7 +1455,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <p><b>Slope angle</b> (in Layers) colours the ground by how steep it is, any day, whatever the forecast: yellow 27-29°, orange 30-34°, red 35-39°, purple 40-44° and blue 45° and up. Most avalanches start on slopes from 30 to 45°. It shows from zoom 9 in.</p>
     <p><b>Snow stations</b> (teal pins) are the BC River Forecast Centre's automated snow weather stations, mostly high in the mountains. Every 2 hours the site reads each one's snow depth, how much it changed in the last 24 and 72 hours (a rise is new snow), the snow water, the air temperature with the last day's low and high, and the snow depth on each of the last 7 days. Tap a pin for the numbers. Data: Open Government Licence - British Columbia.</p>
     <p><b>✎ Plan a tour</b>: tap the button, then tap the map to drop points; the line follows your taps and the bar on the map shows the distance, climb and descent so far (↶ Undo takes the last point off). Slope angle turns on while you plan. Tap ✓ Done for the same details as any route: height profile, steepness, avalanche bands, steep slopes above, weather and GPX. Your plan stays on this device until you clear it. <b>▶ Record a tour</b> starts Ride's recorder in Skiing: the strip at the top shows your height and the slope where you stand, and turns orange on 30° or more. ▶ Follow this tour in a route's details does the same while showing how far you are from the route. Recorded tours are saved as ski tours in My rides.</p>
-    <p>Offline: in Skiing, “⤓ Offline maps” (in the Layers menu) also saves the ski routes, huts, avalanche forecast, snow stations and the terrain data for the area (for heights, the slope angle colours and the strip while you record), so they work with no signal.</p>
+    <p>Offline: in Skiing, “⤓ Offline maps” (in the Ride tab on phones, the Layers menu on computers) also saves the ski routes, huts, avalanche forecast, snow stations and the terrain data for the area (for heights, the slope angle colours and the strip while you record), so they work with no signal.</p>
     <p>Snowmobile trails (red dashes) are OpenStreetMap ways marked for snowmobiles (<code>piste:type=snowmobile</code>, <code>route=snowmobile</code>, or <code>snowmobile=yes</code> or <code>designated</code>, often forest roads that are sled trails in winter) and BC recreation trails that say snowmobile. The ❄ pins are the snowmobile clubs' staging areas: Powder Mountain (Brandywine), Black Tusk (Brohm Ridge), Pemberton Valley (Rutherford and the Hurley), Bridge River Valley (Gold Bridge) and Burke Mountain. “Snowmobile clubs and grooming” lists each club with its trail pass and its latest grooming report. Every 2 hours the site reads the reports that are on a public web page, when the page's robots.txt allows it. Clubs that only post on Facebook or Instagram get a link instead, because those sites don't allow others to copy their posts.</p>
     <p>“Ski heatmap” shows where people actually go in winter: every week the site counts the public GPS traces uploaded to OpenStreetMap from December to April, per 30 m square, leaving out roads, railways, ferries and lifts. Blue is one trace, then cyan, yellow and orange for the busiest lines. Few people upload traces here, so it's patchy. Strava's and Trailforks' heatmaps don't allow other sites to reuse them. “Your ski tours” draws the tours you imported or recorded with Ride (My rides): a ride counts as a ski tour when it was recorded in Skiing, its file says skiing or snowshoeing, its name says ski, skin, splitboard, snowshoe or powder, or it was in winter (November to May) and went above 1300 m. They stay on your device.</p>
     <p>“⚠ Avalanche risk” shades the mountains by Avalanche Canada's forecast, on the flat map and on the 3D map. Only slopes steeper than about 25° are coloured, since that's where avalanches start. Each slope gets the danger rating (Low green, Moderate yellow, Considerable orange, High red, Extreme black) of its elevation band, worked out from its height: below treeline under about 1500 m, alpine above about 1900 m on the coast (1700 m and 2200 m inland, 1900 m and 2400 m in the Rockies). Stripes and a stronger colour mark slopes whose direction (aspect) and elevation are named in the day's avalanche problems. The site checks the forecast every 2 hours. It's an estimate from the forecast and the shape of the terrain, not a terrain rating: always read the full forecast on avalanche.ca and travel with training and rescue gear.</p>
@@ -1461,7 +1464,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <p><b>Tap the map</b> to see that spot: its zone with a link to the regulations, the open seasons there by species (the ones open today marked ● Open, read each month from the BC regional synopses and the Alberta Guide to Hunting Regulations), the BC limited entry hunts in the unit with last year's first-choice odds (shaded when the spot is inside the hunt's zone) or Alberta's special licence draws with this year's tags, applicants and the priority needed, and any park, town, reserve, military land or closure with what it means for hunting (towns link to their firearm discharge bylaw). In BC it also says whether the land is private or Crown, the forest stand (species, age, height) and when it last burned, from DataBC; in Alberta, whether it's a grazing lease (contact the leaseholder), the forest fuel type, burns and wetlands from Alberta's map server.</p>
     <p>The wind card shows where the wind comes from and where your scent goes (the orange cone on the map, wider in light wind), gusts, temperature, cloud and the next 12 hours, from Open-Meteo. The light card has legal light (half an hour before sunrise to half an hour after sunset), sunrise, sunset, the moon and solunar feeding times, and ⏰ Alarms: tick legal light start, sunrise, sunset or legal light end, pick how early, and the app rings and shows a notice while it's open; “Add to my calendar” puts the next 14 days at that spot in your phone's calendar with alerts, so they ring with the app closed.</p>
     <p><b>Map layers</b> are grouped, and each one shows its own key when it's on; the <b>Key</b> button on the map shows the same key there. Only zones, parks and the scent cone are on at first, and every layer has its own colour. Boundaries: hunting zones, BC limited entry zones, and parks, towns and closures (red stripes no hunting, blue rules vary, green usually open, violet reserves, grey towns where shooting is banned by bylaw, black dots BC motor vehicle closures). Land: BC private parcels (ParcelMap BC, from zoom 11), Alberta grazing leases on public land and Alberta's Green Area (public forest). Habitat: forest types in five hunter classes (thick timber for bedding cover, open timber, aspen, birch and mixed forest, young forest and brush for browse, and meadows and grass; BC forest inventory, Alberta fuel types), old burns by age, and wetlands. Terrain: slope angle and aspect. Tools: the scent cone and 50 to 400 m range rings around the spot. Every layer works on the 3D map too.</p>
-    <p>“Hunting maps offline” saves the zones, parks, seasons and draw results, and the picture layers you have on for the area on screen (zoom 10 to 15), so they work with no signal; save the base map with Offline maps in the Layers menu.</p>
+    <p>“Hunting maps offline” saves the zones, parks, seasons and draw results, and the picture layers you have on for the area on screen (zoom 10 to 15), so they work with no signal; save the base map with Offline maps (in the Ride tab on phones, the Layers menu on computers).</p>
     <p>Your points: truck or parking, tree stands, blinds, sightings, tracks, rubs, scrapes, bedding and feeding areas, trail cameras, water, harvests and camps, each with a photo and notes, on the flat and 3D maps (signed in, they go to your account too). Open one to Share it or “Guide me here”. A 🎯 Harvest point takes the species, animal, date and zone (filled in from the map), and the <b>Hunting log</b> lists harvests by season (April to March) with a CSV download. A 📷 Trail camera point keeps its checks: each time you pull the card, add the best photo, the date and what it caught, and the log shows every camera's photos in order. This is a guide, not the law: always check the BC Hunting and Trapping Regulations Synopsis or the Alberta Guide to Hunting Regulations.</p>
     <p class="src">Hunting data: DataBC (Open Government Licence - British Columbia), Alberta Environment and Protected Areas (Open Government Licence - Alberta), Canada Lands Survey System (Open Government Licence - Canada), ParcelMap BC (LTSA), BC Vegetation Resources Inventory, BC Limited Entry Hunting Synopsis, Alberta Guide to Hunting Regulations and AlbertaRELM draw summaries, Alberta Wildfire fuel types and fire history, Alberta Merged Wetland Inventory. Weather: Open-Meteo. Terrain: Mapzen Terrain Tiles on AWS.</p>
     </details>
@@ -1473,12 +1476,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=378"></script>
-<script src="rotate.js?v=378"></script>
-<script src="official.js?v=378"></script>
-<script src="directions.js?v=378"></script>
-<script src="ratings.js?v=378"></script>
-<script src="ebike.js?v=378"></script>
+<script src="native.js?v=380"></script>
+<script src="rotate.js?v=380"></script>
+<script src="official.js?v=380"></script>
+<script src="directions.js?v=380"></script>
+<script src="ratings.js?v=380"></script>
+<script src="ebike.js?v=380"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3761,7 +3764,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=378").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=380").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -4779,7 +4782,9 @@ out body;`;
       const from = order.reduce((a, n) => (Math.abs(s[n] - drag.h0) < Math.abs(s[a] - drag.h0) ? n : a), "peek");
       name = order[Math.max(0, Math.min(2, order.indexOf(from) + (v > 0 ? -1 : 1)))];
     } else name = order.reduce((a, n) => (Math.abs(s[n] - sheet.h) < Math.abs(s[a] - sheet.h) ? n : a), "peek");
+    const fromPeek = drag.h0 <= s.peek + 2;
     drag = null;
+    if (fromPeek && name !== "peek" && peekToFind(name)) return;
     snapTo(name);
   };
   panelEl.addEventListener("touchend", endDrag);
@@ -4787,13 +4792,18 @@ out body;`;
   // tapping the handle steps up, and from full back down to peek
   $("sheetToggle").addEventListener("click", () => {
     if (!phoneMQ.matches) { panelEl.classList.toggle("expanded"); return; }
+    if (sheet.snap === "peek" && peekToFind("half")) return;
     snapTo(sheet.snap === "peek" ? "half" : sheet.snap === "half" ? "full" : "peek");
   });
   panelEl.addEventListener("scroll", () => panelEl.classList.toggle("sheet-scrolled", panelEl.scrollTop > 40), { passive: true });
   // the sheet opens up when you use it
   panelEl.querySelectorAll(".modes button").forEach((b) => b.addEventListener("click", () => growTo("half")));
   panelEl.addEventListener("focusin", (e) => { if (e.target.matches("input[type=search], input[type=text], input:not([type])")) snapTo("full"); });
-  panelEl.addEventListener("click", (e) => { if (sheet.snap === "peek" && !e.target.closest(".sheet-toggle")) growTo("half"); });
+  panelEl.addEventListener("click", (e) => {
+    if (sheet.snap !== "peek" || e.target.closest(".sheet-toggle")) return;
+    if (peekToFind("half", e.target.closest("button, a, input, select, label"))) return;
+    growTo("half");
+  });
   // after Find, show the results instead of the search form
   // (the results line moves as the search fills in, so it follows it until you touch the sheet)
   let showResultsUntil = 0;
@@ -4841,9 +4851,7 @@ out body;`;
       <p class="hub-note">Follows you, names the trail you're on and the next junction, records the ride.</p>
       ${mtb ? card("plan", "✎", "Plan a route", "Tap points, or pick the trails you want") : ""}
       ${mtb ? card("routes", "📂", "Ride a saved route", "Routes you planned and saved") : ""}
-      ${card("offline", "⤓", "Offline maps", "Save an area for riding with no signal")}
-      ${card("rides", "🚴", "My rides", "Your recorded and imported rides, and stats")}
-      ${mtb ? card("addtrail", "➕", "Add a trail", "One you know that isn't on the map, for every rider") : ""}`;
+      ${card("offline", "⤓", "Offline maps", "Save an area for riding with no signal")}`;   // My rides and Add a trail live in Saved
     if (page === "saved") return `<div class="hub-slot" data-slot="saved"></div>`;
     if (page === "more") {
       const sp = $("sport").value, acct = document.querySelector(".brand [data-account-slot] button");
@@ -4852,7 +4860,6 @@ out body;`;
       <div class="hub-seg" role="group" aria-label="Sport">${[...$("sport").options].map((o) => `<button type="button" data-sport="${o.value}" aria-pressed="${o.value === sp}">${esc(o.textContent)}</button>`).join("")}</div>
       <div class="hub-sec">Tools</div>
       ${document.querySelector(".brand .notify-btn") ? card("alerts", "🔔", "Loam alerts and notifications", "Prime loam and new trails in your regions") : ""}
-      ${card("offline", "⤓", "Offline maps", "Save an area for riding with no signal")}
       ${card("full", "⤢", "Full map", "Hide everything but the map")}
       <div class="hub-sec">You</div>
       ${acct ? card("account", "👤", signedIn ? "Account" : "Sign in", signedIn ? "Your saves follow you to every device" : "Keep your saves on every device") : ""}
@@ -4860,6 +4867,13 @@ out body;`;
       ${card("about", "?", "How it works", "")}`;
     }
     return "";
+  }
+  // Swiping up (or tapping) the small sheet on the map opens the Find page, not the old long search form
+  // (alex, 2026-10-24). Only from the plain map: a trail's details, results or another page grow as before.
+  function peekToFind(snap, onControl) {
+    if (!phoneMQ.matches || isAlt() || navStack.length || panelEl.classList.contains("detail-open")) return false;
+    if (!onControl) navTo("find", { root: true, snap });
+    return true;
   }
   function placeBorrowed() {
     const top = navTop();
@@ -4974,8 +4988,6 @@ out body;`;
     else if (act === "plan") { if (window.tfPlan) window.tfPlan.open(); }
     else if (act === "routes") { if (window.tfPlan) window.tfPlan.saved(); }
     else if (act === "offline") { lowerSheet(); $("offlineBtn").click(); }
-    else if (act === "rides") location.href = "ride.html#rides";
-    else if (act === "addtrail") { if (window.tfRiderTrails) window.tfRiderTrails.start(); }
     else if (act === "alerts") document.querySelector(".brand .notify-btn")?.click();
     else if (act === "full") $("fullBtn").click();
     else if (act === "account") document.querySelector(".brand [data-account-slot] button")?.click();
@@ -7037,44 +7049,44 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=378"></script>
-<script src="contours.js?v=378"></script>
-<script src="clouds.js?v=378"></script>
-<script src="smoke.js?v=378"></script>
-<script src="photo-slider.js?v=378"></script>
-<script src="ski-terrain.js?v=378"></script>
-<script src="winter.js?v=378"></script>
-<script src="hunting.js?v=378"></script>
-<script src="compass.js?v=378"></script>
-<script src="ski-points.js?v=378"></script>
-<script src="webcams.js?v=378"></script>
-<script src="rogers.js?v=378"></script>
-<script src="ski-areas.js?v=378"></script>
-<script src="offline.js?v=378"></script>
-<script src="ride-stats.js?v=378"></script>
-<script src="native-gps.js?v=378"></script>
-<script src="navigate.js?v=378"></script>
-<script src="planner.js?v=378"></script>
-<script src="loops.js?v=378"></script>
-<script src="ride-finds.js?v=378"></script>
-<script src="rides.js?v=378"></script>
-<script src="community.js?v=378"></script>
-<script src="ride-files.js?v=378"></script>
-<script src="rider-trails.js?v=378"></script>
-<script src="account.js?v=378"></script>
-<script src="strava.js?v=378"></script>
-<script src="reports.js?v=378"></script>
-<script src="grades.js?v=378"></script>
-<script src="trail-photos.js?v=378"></script>
-<script src="visitors.js?v=378"></script>
-<script src="notify.js?v=378"></script>
-<script src="closures.js?v=378"></script>
-<script src="status.js?v=378"></script>
-<script src="areas.js?v=378"></script>
-<script src="alpine.js?v=378"></script>
-<script src="bikeparks.js?v=378"></script>
-<script src="photo-find.js?v=378"></script>
-<script src="whats-new.js?v=378"></script>
+<script src="map3d.js?v=380"></script>
+<script src="contours.js?v=380"></script>
+<script src="clouds.js?v=380"></script>
+<script src="smoke.js?v=380"></script>
+<script src="photo-slider.js?v=380"></script>
+<script src="ski-terrain.js?v=380"></script>
+<script src="winter.js?v=380"></script>
+<script src="hunting.js?v=380"></script>
+<script src="compass.js?v=380"></script>
+<script src="ski-points.js?v=380"></script>
+<script src="webcams.js?v=380"></script>
+<script src="rogers.js?v=380"></script>
+<script src="ski-areas.js?v=380"></script>
+<script src="offline.js?v=380"></script>
+<script src="ride-stats.js?v=380"></script>
+<script src="native-gps.js?v=380"></script>
+<script src="navigate.js?v=380"></script>
+<script src="planner.js?v=380"></script>
+<script src="loops.js?v=380"></script>
+<script src="ride-finds.js?v=380"></script>
+<script src="rides.js?v=380"></script>
+<script src="community.js?v=380"></script>
+<script src="ride-files.js?v=380"></script>
+<script src="rider-trails.js?v=380"></script>
+<script src="account.js?v=380"></script>
+<script src="strava.js?v=380"></script>
+<script src="reports.js?v=380"></script>
+<script src="grades.js?v=380"></script>
+<script src="trail-photos.js?v=380"></script>
+<script src="visitors.js?v=380"></script>
+<script src="notify.js?v=380"></script>
+<script src="closures.js?v=380"></script>
+<script src="status.js?v=380"></script>
+<script src="areas.js?v=380"></script>
+<script src="alpine.js?v=380"></script>
+<script src="bikeparks.js?v=380"></script>
+<script src="photo-find.js?v=380"></script>
+<script src="whats-new.js?v=380"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
