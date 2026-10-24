@@ -167,7 +167,7 @@
 .strava .hint { margin: 8px 0 0; }`;
     document.head.appendChild(css);
     box = document.createElement("div");
-    box.className = "strava"; box.id = "stravaBox";
+    box.className = "strava"; box.id = "stravaBox"; box.hidden = true;
     box0.after(box);
     box.addEventListener("click", async (e) => {
       const b = e.target.closest("button[data-s]");
@@ -200,8 +200,22 @@
       b.disabled = false;
     });
   }
+  // Since June 2026 Strava lets only paying members make an API app, so the sync may never be switched on. Until the
+  // "strava" function answers, the box stays hidden (Import whole Strava archive, just above, is the free way in)
+  // rather than showing a Connect button that can only fail. Once seen answering, that's remembered on the device.
+  const READY = "tf:stravaReady";
+  let ready = lsGet(READY) === true || !!lsGet(KEY) || !!back;
+  async function probe() {
+    if (ready || !box) return;
+    try {   // a plain POST (no preflight); signed out, a set-up function answers 401 "sign in first"
+      const r = await fetch(`${acct.url}/functions/v1/${FN}`, { method: "POST", body: JSON.stringify({ action: "status" }) });
+      if (r.status !== 404 && /json/.test(r.headers.get("content-type") || "")) { ready = true; lsSet(READY, true); }
+    } catch { /* not set up (no CORS answer) or offline */ }
+    paint();
+  }
   function paint() {
     if (!box) return;
+    box.hidden = !ready;
     const m = me(), msg = note ? `<p class="hint${noteWarn ? " warn" : ""}" role="status">${esc(note)}</p>` : "";
     if (!acct.user) {
       box.innerHTML = `<p><b>Strava</b>: sign in to bring your Strava rides in on their own, on every device.</p><div class="btns"><button type="button" class="btn" data-s="in">Sign in</button></div>${msg}`;
@@ -238,6 +252,7 @@
     started = true;
     await acct.ready;
     paint();
+    if (!back) await probe();
     if (back) { await acct.load(); await finish(); }
     else auto();
   };
