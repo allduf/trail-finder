@@ -104,13 +104,16 @@ for (const [i, c] of cases.entries()) {
   const list = got ? got.rows : [];
   const rank = list.findIndex((r) => norm(r.name) === norm(c.trail_name)) + 1;   // 0 = not in the list
   const r = { id: c.id, trail: c.trail_name, zone: c.zone, method: c.method, rank, top: list.slice(0, 3).map((x) => x.name), s: Math.round((Date.now() - t0) / 1000),
-    ai: !!(got && got.diag && got.diag.ai), how: err || how(got && got.diag, c), broken: !got };
+    // The app called its first trail the "Best match": sure of it (right or wrong).
+    sure: !!(list[0] && list[0].conf === "Best match"), ai: !!(got && got.diag && got.diag.ai), how: err || how(got && got.diag, c), broken: !got };
   results.push(r);
-  console.log(`${r.rank === 1 ? "✓" : r.rank ? "~" : "✗"} ${r.trail} (${r.zone}): ${r.rank ? "#" + r.rank : "not listed"}, top: ${r.top.join(", ") || "nothing"} (${r.s} s)\n    ${r.how}`);
+  console.log(`${r.rank === 1 ? "✓" : r.rank ? "~" : "✗"} ${r.trail} (${r.zone}): ${r.rank ? "#" + r.rank : "not listed"}, top: ${topText(r)} (${r.s} s)\n    ${r.how}`);
   if (got && got.diag && got.diag.cmp && got.diag.cmp.detail) console.log(`    online check notes: ${got.diag.cmp.detail}`);
 }
 await browser.close();
 server.close();
+
+function topText(r) { return r.top.map((t, i) => (i === 0 && r.sure ? `${t} (Best match)` : t)).join(", ") || "nothing"; }
 
 // What each step found, for working out why a picture failed. Only counts, place and landmark names and distances: the
 // pictures' own words stay private (this repository and its logs are public).
@@ -132,7 +135,7 @@ function how(d, c) {
     const notes = d.cmp && d.cmp.detail ? ` [${d.cmp.detail.length > 220 ? d.cmp.detail.slice(0, 220) + "…" : d.cmp.detail}]` : "";
     out.push(`online check got ${d.before.length} trails${b ? `, this one ${b}${b === 1 ? "st" : b === 2 ? "nd" : b === 3 ? "rd" : "th"}` : ", not this one"}` +
       (d.cmp ? (d.cmp.ok ? ` → ${d.cmp.searched ? "searched" : "no search (" + d.cmp.noSearch + ")"}, ${d.cmp.photos} photos` +
-        (mine ? `, fit ${mine[1]} for this one` : "") + (top && (!mine || top[0] !== mine[0]) ? ` (best: ${top[0]} ${top[1]})` : "") +
+        (mine ? `, fit ${mine[1]}${mine[2] ? " with proof" : ""} for this one` : "") + (top && (!mine || top[0] !== mine[0]) ? ` (best: ${top[0]} ${top[1]}${top[2] ? " with proof" : ""})` : "") +
         `${d.cmp.close.length ? ", close: " + d.cmp.close.join(", ") : ""}` +
         // Trails further down the list that the AI says it knows the picture is from.
         `${(d.cmp.other || []).length ? ", knows it's: " + d.cmp.other.map(([t, f]) => `${t} ${f}`).join(", ") : ""}` : ` → skipped (${d.cmp.why || d.cmp.noSearch || "?"})`) + notes : ""));
@@ -143,14 +146,17 @@ function how(d, c) {
 // ---------- the report ----------
 const n = results.length, first = results.filter((r) => r.rank === 1).length, top3 = results.filter((r) => r.rank && r.rank <= 3).length;
 const listed = results.filter((r) => r.rank).length;
+// Sure but wrong: the app called another trail the "Best match". A wrong answer that says it isn't sure is less harm.
+const wrong = results.filter((r) => r.sure && r.rank !== 1).length;
 const day = new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC";
 const withAi = results.filter((r) => r.ai).length;
-const run = { at: day + (process.env.LABEL ? " (" + process.env.LABEL + ")" : ""), n, first, top3, listed, ai: withAi };
+const run = { at: day + (process.env.LABEL ? " (" + process.env.LABEL + ")" : ""), n, first, top3, listed, wrong, ai: withAi };
 const pct = (k) => `${Math.round((k / n) * 100)}%`;
 const esc = (s) => String(s).replace(/[|\\`*_[\]<>#]/g, "\\$&");
 const table = `| Trail | Area | Found at | App's top 3 | What happened | Time |\n|---|---|---|---|---|---|\n` + results.map((r) =>
-  `| ${esc(r.trail)} | ${esc(r.zone || "")} | ${r.rank === 1 ? "✅ 1st" : r.rank ? `🟡 ${r.rank}${r.rank === 2 ? "nd" : r.rank === 3 ? "rd" : "th"}` : "❌ not listed"} | ${esc(r.top.join(", ") || "nothing")} | ${esc(r.how)} | ${r.s} s |`).join("\n");
-const summary = `**${run.at}**: ${n} confirmed pictures. Right trail first: **${first} (${pct(first)})**, in the top 3: **${top3} (${pct(top3)})**, listed at all: ${listed} (${pct(listed)}).` +
+  `| ${esc(r.trail)} | ${esc(r.zone || "")} | ${r.rank === 1 ? "✅ 1st" : r.rank ? `🟡 ${r.rank}${r.rank === 2 ? "nd" : r.rank === 3 ? "rd" : "th"}` : "❌ not listed"} | ${esc(topText(r))} | ${esc(r.how)} | ${r.s} s |`).join("\n");
+const summary = `**${run.at}**: ${n} confirmed pictures. Right trail first: **${first} (${pct(first)})**, in the top 3: **${top3} (${pct(top3)})**, listed at all: ${listed} (${pct(listed)}). ` +
+  `Sure but wrong (another trail called "Best match"): **${wrong}**.` +
   (withAi < n ? ` The AI answered for ${withAi} of ${n} (the free AI was busy or used up for the others), so this run says less.` : "") + `\n\n${table}\n`;
 if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `## ${TITLE}\n\n${summary}`);
 
@@ -165,8 +171,8 @@ if (TOKEN && REPO) {
   let issue = open.find((i) => i.title === TITLE);
   const past = issue ? JSON.parse((issue.body || "").match(/<!-- runs:(.*?) -->/)?.[1] || "[]") : [];
   const runs = [...past, run].slice(-30);
-  const history = `| Run | Pictures | Right trail first | In the top 3 | Listed | AI answered |\n|---|---|---|---|---|---|\n` +
-    [...runs].reverse().map((x) => `| ${x.at} | ${x.n} | ${x.first} (${Math.round(x.first / x.n * 100)}%) | ${x.top3} (${Math.round(x.top3 / x.n * 100)}%) | ${x.listed} | ${x.ai ?? "?"} |`).join("\n");
+  const history = `| Run | Pictures | Right trail first | In the top 3 | Listed | Sure but wrong | AI answered |\n|---|---|---|---|---|---|---|\n` +
+    [...runs].reverse().map((x) => `| ${x.at} | ${x.n} | ${x.first} (${Math.round(x.first / x.n * 100)}%) | ${x.top3} (${Math.round(x.top3 / x.n * 100)}%) | ${x.listed} | ${x.wrong ?? "?"} | ${x.ai ?? "?"} |`).join("\n");
   const body = `How well "Which trail is this?" finds the trail in pictures riders confirmed (scripts/photo-find-test.mjs). ` +
     `Every "Yes, that's it" in the app adds a test picture.\n\n## Latest run\n\n${summary}\n## All runs\n\n${history}\n\n<!-- runs:${JSON.stringify(runs)} -->`;
   if (issue) await github(`/issues/${issue.number}`, "PATCH", { body });
