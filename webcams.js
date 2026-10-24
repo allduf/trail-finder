@@ -21,7 +21,6 @@
 .wc-pin.road { background: #5c677d; }
 .wc-pin.on { border-color: #ffe14d; box-shadow: 0 0 0 3px #ffe14d, 0 1px 4px #0008; }
 .wc-pin b { position: absolute; top: -7px; right: -9px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px; background: #e03131; color: #fff; font: 700 10px/16px system-ui, sans-serif; text-align: center; }
-.wc-gl { position: relative; }
 dialog.wc-dlg { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--fg); padding: 14px; width: min(720px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,.3); font: inherit; }
 dialog.wc-dlg::backdrop { background: rgba(0,0,0,.55); }
 dialog.wc-dlg h2 { margin: 0 34px 2px 0; font-family: var(--font-display); font-size: 1.25rem; overflow-wrap: anywhere; }
@@ -92,7 +91,8 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
       layer.addLayer(m);
       if (gl && window.maplibregl) {   // the 3D map doesn't show Leaflet markers, so add them there too
         const el = document.createElement("div");
-        el.className = "wc-gl"; el.title = tip; el.innerHTML = pinHtml(c, n);
+        el.className = "wc-gl"; el.title = tip;   // no position style here: it would beat MapLibre's own and stack the pins down the screen
+        el.innerHTML = pinHtml(c, n);
         el.addEventListener("click", (e) => { e.stopPropagation(); open(c); });
         glMarkers.push(new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([c.lon, c.lat]).addTo(gl));
       }

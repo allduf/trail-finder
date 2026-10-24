@@ -4,10 +4,10 @@
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-178";
+const VERSION = "tf-179";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=371", "reports.js?v=371", "grades.js?v=371", "trail-photos.js?v=371", "status.js?v=371", "visitors.js?v=371", "map3d.js?v=371", "ski-terrain.js?v=371", "winter.js?v=371", "clouds.js?v=371", "smoke.js?v=371", "ski-points.js?v=371", "webcams.js?v=371", "ski-areas.js?v=371", "rogers.js?v=371", "hunting.js?v=371", "compass.js?v=371", "offline.js?v=371", "native-gps.js?v=371", "native.js?v=371", "navigate.js?v=371", "ride-stats.js?v=371", "ride-finds.js?v=371", "rides.js?v=371", "planner.js?v=371", "rotate.js?v=371", "photo-find.js?v=371", "ebike.js?v=371", "closures.js?v=371", "loops.js?v=371", "strava.js?v=371", "share.js?v=371", "community.js?v=371", "ride-files.js?v=371", "rider-trails.js?v=371", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=372", "reports.js?v=372", "grades.js?v=372", "trail-photos.js?v=372", "status.js?v=372", "visitors.js?v=372", "map3d.js?v=372", "ski-terrain.js?v=372", "winter.js?v=372", "clouds.js?v=372", "smoke.js?v=372", "ski-points.js?v=372", "webcams.js?v=372", "ski-areas.js?v=372", "rogers.js?v=372", "hunting.js?v=372", "compass.js?v=372", "offline.js?v=372", "native-gps.js?v=372", "native.js?v=372", "navigate.js?v=372", "ride-stats.js?v=372", "ride-finds.js?v=372", "rides.js?v=372", "planner.js?v=372", "rotate.js?v=372", "photo-find.js?v=372", "ebike.js?v=372", "closures.js?v=372", "loops.js?v=372", "strava.js?v=372", "share.js?v=372", "community.js?v=372", "ride-files.js?v=372", "rider-trails.js?v=372", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "vendor/leaflet-1.9.4.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
