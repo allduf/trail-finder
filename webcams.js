@@ -94,7 +94,9 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
         el.className = "wc-gl"; el.title = tip;   // no position style here: it would beat MapLibre's own and stack the pins down the screen
         el.innerHTML = pinHtml(c, n);
         el.addEventListener("click", (e) => { e.stopPropagation(); open(c); });
-        glMarkers.push(new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([c.lon, c.lat]).addTo(gl));
+        // Always solid: MapLibre fades a pin it thinks a ridge hides, and on steep 3D slopes that was most of them
+        // (grey, hard to see on alex's phone, 2026-10-24).
+        glMarkers.push(new maplibregl.Marker({ element: el, anchor: "center", opacityWhenCovered: 1 }).setLngLat([c.lon, c.lat]).addTo(gl));
       }
     }
   }
