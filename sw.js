@@ -4,10 +4,10 @@
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-179";
+const VERSION = "tf-180";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=372", "reports.js?v=372", "grades.js?v=372", "trail-photos.js?v=372", "status.js?v=372", "visitors.js?v=372", "map3d.js?v=372", "ski-terrain.js?v=372", "winter.js?v=372", "clouds.js?v=372", "smoke.js?v=372", "ski-points.js?v=372", "webcams.js?v=372", "ski-areas.js?v=372", "rogers.js?v=372", "hunting.js?v=372", "compass.js?v=372", "offline.js?v=372", "native-gps.js?v=372", "native.js?v=372", "navigate.js?v=372", "ride-stats.js?v=372", "ride-finds.js?v=372", "rides.js?v=372", "planner.js?v=372", "rotate.js?v=372", "photo-find.js?v=372", "ebike.js?v=372", "closures.js?v=372", "loops.js?v=372", "strava.js?v=372", "share.js?v=372", "community.js?v=372", "ride-files.js?v=372", "rider-trails.js?v=372", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=373", "reports.js?v=373", "grades.js?v=373", "trail-photos.js?v=373", "status.js?v=373", "visitors.js?v=373", "map3d.js?v=373", "ski-terrain.js?v=373", "winter.js?v=373", "clouds.js?v=373", "smoke.js?v=373", "ski-points.js?v=373", "webcams.js?v=373", "ski-areas.js?v=373", "rogers.js?v=373", "hunting.js?v=373", "compass.js?v=373", "offline.js?v=373", "native-gps.js?v=373", "native.js?v=373", "navigate.js?v=373", "ride-stats.js?v=373", "ride-finds.js?v=373", "rides.js?v=373", "planner.js?v=373", "rotate.js?v=373", "photo-find.js?v=373", "ebike.js?v=373", "closures.js?v=373", "loops.js?v=373", "strava.js?v=373", "share.js?v=373", "community.js?v=373", "ride-files.js?v=373", "rider-trails.js?v=373", "alpine.js?v=373", "areas.js?v=373", "bikeparks.js?v=373", "contours.js?v=373", "directions.js?v=373", "notify.js?v=373", "official.js?v=373", "photo-slider.js?v=373", "ratings.js?v=373", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "vendor/leaflet-1.9.4.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
@@ -26,9 +26,12 @@ self.addEventListener("activate", (e) => {
 
 // Data files (data/*.json) on a slow connection: when the network takes longer than DATA_WAIT_MS and a saved copy is
 // there, the saved copy is used and the download carries on in the background for next time (alex, 2026-10-23: the
-// app took a long time to open; on weak phone signal every file waited for the network). Pages and scripts without
-// a ?v= always wait for the network, so a new page never runs with an old script.
-const DATA_WAIT_MS = 3000;
+// app took a long time to open; on weak phone signal every file waited for the network). The page itself gets
+// PAGE_WAIT_MS the same way (alex, 2026-10-24: "make the app faster"; on weak signal at a trailhead the app sat on a
+// blank screen for 5 s or more downloading a page it already had). A saved page only ever runs with the scripts saved
+// with it (the same cache), and a fresh deploy still shows on the next open with any signal. Other files without a
+// ?v= always wait for the network.
+const DATA_WAIT_MS = 1500, PAGE_WAIT_MS = 2000;
 async function networkFirst(req, e) {
   const cache = await caches.open(VERSION);
   try {
@@ -45,13 +48,15 @@ async function networkFirst(req, e) {
       }
       return res;
     });
-    if (/\/data\/[^?]*\.json$/.test(new URL(req.url).pathname)) {
-      const hit = await caches.match(req);
+    const page = req.mode === "navigate";
+    if (page || /\/data\/[^?]*\.json$/.test(new URL(req.url).pathname)) {
+      const home = page && /\/(index\.html)?$/.test(new URL(req.url).pathname);
+      const hit = page ? await caches.match(req, { ignoreSearch: true }) || (home ? await cache.match("index.html") : null) : await caches.match(req);
       if (hit) {
         e.waitUntil(net.catch(() => null));
         // The whole file, not just its first bytes: a big file can start quickly and then crawl.
         const whole = net.then(async (r) => (r.ok ? new Response(await r.blob(), { status: r.status, statusText: r.statusText, headers: r.headers }) : null)).catch(() => null);
-        const slow = new Promise((ok) => setTimeout(() => ok(null), DATA_WAIT_MS));
+        const slow = new Promise((ok) => setTimeout(() => ok(null), page ? PAGE_WAIT_MS : DATA_WAIT_MS));
         return (await Promise.race([whole, slow])) || hit;
       }
     }
