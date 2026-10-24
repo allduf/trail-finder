@@ -1499,6 +1499,12 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
   });
   const avyGrid = new AvyGrid({ pane: "avy", minZoom: 8, maxNativeZoom: 14, maxZoom: 20, attribution: 'Avalanche forecast: <a href="https://avalanche.ca">Avalanche Canada</a> · Terrain: <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>' });
 
+  // Adds a layer to the 3D map now, or once it's free. isStyleLoaded() is false for as long as any tile is still
+  // loading, and "styledata" only comes on a style change, so waiting on those (as before) could wait forever on a
+  // 3D map that keeps loading tiles: the shading and slope layers then never showed in 3D (alex, 2026-10-24).
+  function whenStyle(gl, apply) {
+    try { apply(); } catch { gl.once("idle", () => { try { apply(); } catch {} }); }
+  }
   // 3D map layer, through a tile protocol that paints the same tiles as PNGs.
   let ver = 0, protocol = false;
   function sync3d() {
@@ -1522,7 +1528,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
       else gl.addSource("avy", { type: "raster", tiles, tileSize: 256, minzoom: 8, maxzoom: 14, attribution: "Avalanche forecast: <a href=\"https://avalanche.ca\">Avalanche Canada</a>" });
       if (!has) gl.addLayer({ id: "avy", type: "raster", source: "avy", paint: { "raster-fade-duration": 0 } }, gl.getLayer("osm-roads") ? "osm-roads" : undefined);
     };
-    if (gl.isStyleLoaded()) apply(); else gl.once("styledata", apply);
+    whenStyle(gl, apply);
   }
   window.addEventListener("tf:map3d", sync3d);
 
@@ -1578,7 +1584,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
       if (!gl.getSource("skislope")) gl.addSource("skislope", { type: "raster", tiles: ["tfslope://{z}/{x}/{y}"], tileSize: 256, minzoom: 9, maxzoom: 14, attribution: "Slope angle: Mapzen Terrain Tiles" });
       if (!has) gl.addLayer({ id: "skislope", type: "raster", source: "skislope", paint: { "raster-fade-duration": 0 } }, gl.getLayer("avy") ? "avy" : gl.getLayer("osm-roads") ? "osm-roads" : undefined);
     };
-    if (gl.isStyleLoaded()) apply(); else gl.once("styledata", apply);
+    whenStyle(gl, apply);
   }
   window.addEventListener("tf:map3d", syncSlope3d);
   function refreshSlope() {
@@ -1622,7 +1628,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
         if (!gl.getSource(id)) gl.addSource(id, { type: "raster", tiles: [`tf${id}://{z}/{x}/{y}`], tileSize: 256, minzoom: o.minZoom, maxzoom: 14, attribution: "Terrain: Mapzen Terrain Tiles" });
         if (!has) gl.addLayer({ id, type: "raster", source: id, paint: { "raster-fade-duration": 0 } }, gl.getLayer("avy") ? "avy" : gl.getLayer("osm-roads") ? "osm-roads" : undefined);
       };
-      if (gl.isStyleLoaded()) apply(); else gl.once("styledata", apply);
+      whenStyle(gl, apply);
     }
     window.addEventListener("tf:map3d", sync3d);
     return (on) => {
@@ -1841,7 +1847,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
       else gl.addSource("skiheat", { type: "raster", tiles, tileSize: 256, minzoom: 7, maxzoom: 16, attribution: "Ski heatmap: OpenStreetMap public GPS traces" });
       if (!has) gl.addLayer({ id: "skiheat", type: "raster", source: "skiheat", paint: { "raster-fade-duration": 0, "raster-opacity": 0.85 } }, gl.getLayer("osm-roads") ? "osm-roads" : undefined);
     };
-    if (gl.isStyleLoaded()) apply(); else gl.once("styledata", apply);
+    whenStyle(gl, apply);
   }
   window.addEventListener("tf:map3d", syncHeat3d);
   function refreshHeat() {
