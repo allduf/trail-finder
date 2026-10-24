@@ -425,15 +425,60 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const allHunt = [zoneLayer, lehLayer, rulesLayer, labelLayer, windLayer, ringLayer, glassLayer, measureLayer, squareLayer];
   let zones = null, leh = null, areas = null;
 
+  // Only the outlines near the view are on the map, and fewer points when zoomed out (alex 2026-10-24: "the map is
+  // lagging in hunting mode too"). With every zone and park outline on, each zoom placed ~570,000 points again:
+  // about a second on a phone (measured), with the map stuck. [up to zoom, points closer than this many degrees skipped]
+  const THIN = [[6, 0.05], [7, 0.025], [8, 0.012], [9, 0.006], [10, 0.003], [11, 0.0015], [12, 0.0008], [13, 0.0004]];   // 2-3 pixels
+  const thin = (g, d) => g.map((r) => {
+    if (r.length <= 8) return r;
+    const out = [r[0], r[1]];
+    for (let i = 2; i < r.length - 2; i += 2) {
+      const a = out[out.length - 2], o = out[out.length - 1];
+      if (Math.abs(r[i] - a) > d || Math.abs(r[i + 1] - o) > d) out.push(r[i], r[i + 1]);
+    }
+    out.push(r[r.length - 2], r[r.length - 1]);
+    if (out.length >= 8) return out;
+    if (g.length > 1) return null;   // a piece too small to see at this zoom
+    const q = r.length / 2, pick = [0, Math.floor(q / 3), Math.floor((2 * q) / 3), q - 1];   // four of its points
+    return pick.flatMap((i) => [r[2 * i], r[2 * i + 1]]);
+  });
+  const culls = [];   // [layer group, [{ f, make, on: [polygons], lod }]]
+  function cullSet(group) { group.clearLayers(); const items = []; culls.push([group, items]); for (let i = culls.length - 2; i >= 0; i--) if (culls[i][0] === group) culls.splice(i, 1); return items; }
+  function cull() {
+    const v = map.getBounds().pad(1), s = v.getSouth(), w = v.getWest(), n = v.getNorth(), e = v.getEast(), z = map.getZoom();
+    const lod = THIN.findIndex(([m]) => z <= m);
+    const out = (b) => b[2] < s || b[0] > n || b[3] < w || b[1] > e;
+    for (const [group, items] of culls) for (const it of items) {
+      const f = it.f;
+      // Too small to see at this zoom (a reserve zoomed out to the province): left off.
+      const tiny = lod >= 0 && f.b[2] - f.b[0] < THIN[lod][1] * 2 && f.b[3] - f.b[1] < THIN[lod][1] * 2;
+      let key = tiny || out(f.b) ? "" : "all";
+      // An area made of many pieces (one park covers half of BC in 644 pieces): only its pieces near the view.
+      if (key && f.g.length > 8) {
+        f.rb = f.rb || f.g.map((r) => { const b = [90, 180, -90, -180]; for (let i = 0; i < r.length; i += 2) { b[0] = Math.min(b[0], r[i]); b[1] = Math.min(b[1], r[i + 1]); b[2] = Math.max(b[2], r[i]); b[3] = Math.max(b[3], r[i + 1]); } return b; });
+        key = f.rb.map((b, i) => (out(b) ? "" : i)).filter((i) => i !== "").join(",");
+      }
+      if (key && it.on && it.lod === lod && it.key === key) continue;
+      if (it.on) { for (const l of it.on) group.removeLayer(l); it.on = null; }
+      if (!key) continue;
+      let g = lod < 0 ? f.g : ((f.thin = f.thin || [])[lod] = f.thin[lod] || thin(f.g, THIN[lod][1]));
+      if (key !== "all") { const keep = new Set(key.split(",").map(Number)); g = g.filter((r, i) => keep.has(i)); }
+      g = g.filter(Boolean);
+      if (!g.length) continue;
+      it.on = it.make(ringsLL(g), lod); it.lod = lod; it.key = key;
+      for (const l of it.on) group.addLayer(l);
+    }
+  }
+  map.on("moveend", () => { if (isHunt()) cull(); });
+
   async function drawZones() {
-    zoneLayer.clearLayers();
+    const items = cullSet(zoneLayer);
     if (!shown.has("zones")) { labelLayer.clearLayers(); return; }
     try { zones = zones || (await load("zones")).zones; } catch { return; }
-    for (const z of zones) {
-      L.polygon(ringsLL(z.g), { renderer, interactive: false, color: "#fff", weight: 4.5, opacity: 0.55, fill: false }).addTo(zoneLayer);   // white edge: reads on photos and dark forest
-      L.polygon(ringsLL(z.g), { renderer, interactive: false, color: C.zone, weight: 2, opacity: 0.9, fill: false }).addTo(zoneLayer);
-    }
-    drawLabels(); sync3d();
+    for (const f of zones) items.push({ f, make: (ll, lod) => [
+      ...(lod >= 0 && lod <= 2 ? [] : [L.polygon(ll, { renderer, interactive: false, color: "#fff", weight: 4.5, opacity: 0.55, fill: false })]),   // white edge: reads on photos and dark forest (not needed zoomed out)
+      L.polygon(ll, { renderer, interactive: false, color: C.zone, weight: 2, opacity: 0.9, fill: false })] });
+    cull(); drawLabels(); sync3d();
   }
   // Labels only for the zones in view, so the map stays light.
   function drawLabels() {
@@ -448,10 +493,11 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     }
   }
   async function drawLeh() {
-    lehLayer.clearLayers();
+    const items = cullSet(lehLayer);
     if (!shown.has("leh")) return;
     try { leh = leh || (await load("leh")).zones; } catch { return; }
-    for (const z of leh) L.polygon(ringsLL(z.g), { renderer, interactive: false, color: C.leh, weight: 2, dashArray: "7 5", opacity: 0.85, fill: false }).addTo(lehLayer);
+    for (const f of leh) items.push({ f, make: (ll) => [L.polygon(ll, { renderer, interactive: false, color: C.leh, weight: 2, dashArray: "7 5", opacity: 0.85, fill: false })] });
+    cull();
   }
   // No-hunting areas are hatched (red stripes), so they never read as just another tint.
   const makeHatch = (n, w) => {   // n px square, w px stripes
@@ -465,7 +511,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const hatched = (k) => k.color === C.no;   // reserves are "no" too (ask first) but keep their own violet
   const fillOp = (id, k) => (hatched(k) ? 0.6 : id === "town" ? 0.2 : k.color === C.vary ? 0.16 : k.color === C.reserve ? 0.12 : 0.07);
   async function drawRules() {
-    rulesLayer.clearLayers();
+    const items = cullSet(rulesLayer);
     if (!shown.has("rules") && !shown.has("land")) return;
     try { areas = areas || (await load("areas")).areas; } catch { return; }
     for (const a of areas) {
@@ -473,10 +519,10 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       if (!k) continue;
       const want = a.k === "green" ? shown.has("land") : shown.has("rules");
       if (!want) continue;
-      L.polygon(ringsLL(a.g), { renderer, interactive: false, color: k.color, weight: k.line || k.color === C.vary || k.color === C.reserve ? 2 : hatched(k) || a.k === "town" ? 1.5 : 1, dashArray: k.dash || null, lineCap: k.dash ? "round" : "butt",
-        opacity: 0.85, fill: !k.line, fillColor: hatched(k) ? HATCH : k.color, fillOpacity: fillOp(a.k, k) }).addTo(rulesLayer);
+      items.push({ f: a, make: (ll) => [L.polygon(ll, { renderer, interactive: false, color: k.color, weight: k.line || k.color === C.vary || k.color === C.reserve ? 2 : hatched(k) || a.k === "town" ? 1.5 : 1, dashArray: k.dash || null, lineCap: k.dash ? "round" : "butt",
+        opacity: 0.85, fill: !k.line, fillColor: hatched(k) ? HATCH : k.color, fillOpacity: fillOp(a.k, k) })] });
     }
-    sync3d();
+    cull(); sync3d();
   }
 
   // Picture layers: map images for each 256 px tile, asked for by the tile's box in web mercator metres. Built as
@@ -1767,6 +1813,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     const on = isHunt();
     if (!on && meas) measStop();
     if (!on && sqMode) squareCancel();
+    if (on) cull();   // the outlines near the view now, before they go on the map
     for (const l of allHunt) { if (on && !map.hasLayer(l)) l.addTo(map); else if (!on && map.hasLayer(l)) map.removeLayer(l); }
     if (on && !keyCtl._map) keyCtl.addTo(map); else if (!on && keyCtl._map) keyCtl.remove();
     syncTiles(); sync3d();
