@@ -901,7 +901,33 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .tf-toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); z-index: 3000; max-width: calc(100vw - 32px);
   padding: 10px 16px; border-radius: 10px; background: var(--fg); color: var(--panel); font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
 .tf-toast.on { opacity: 1; transform: translate(-50%, 0); }
-.d-saves { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.d-saves { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0 4px; }
+.d-saves .want-btn { padding: 8px 4px; border-radius: 12px; font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.d-saves .share-btn { border-color: var(--line); color: var(--fg); }
+/* Trail details head (alex, 2026-10-24): name row, short chips, the 4 numbers, two big buttons */
+.d-top { justify-content: flex-start; }
+.d-top h2 { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.d-top .back { font-size: 1.4rem; line-height: 1; padding: 4px 8px 4px 0; text-decoration: none; }
+.d-head { margin-bottom: 4px; }
+.d-head .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.why-chip { font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; border: 1px solid var(--line); background: var(--chip, #fff); color: var(--fg); border-radius: 999px; }
+.why-chip::after, .d-head .diff.has-why::after { content: " ⓘ"; opacity: .6; font-style: normal; }
+.d-head .diff.has-why { cursor: pointer; }
+.why-chip.open, .d-head .diff.has-why.open { outline: 2px solid var(--accent); outline-offset: 1px; }
+.why-chip.ebike-no { color: #b42318; } .why-chip.ebike-class1, .why-chip.ebike-yes { color: #2f7d32; }
+.d-notes .why:not(.show) { display: none; }
+.d-notes .why { margin: 6px 0; padding: 8px 10px; border-radius: 10px; background: var(--chip, #f1f1ea); font-size: .85rem; }
+.d-facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0 0; }
+.d-facts button { font: inherit; cursor: pointer; border: 0; border-radius: 12px; background: var(--chip, #eef0e6); color: var(--muted); padding: 7px 2px; font-size: .72rem; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; }
+.d-facts b { color: var(--fg); font-size: 1rem; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+.d-facts span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.detail .go { margin-top: 10px; }
+.go-row { display: flex; gap: 8px; }
+.go-row > * { flex: 1; min-width: 0; margin: 0 !important; }
+.detail .go-row .follow-btn { width: auto; background: var(--cta, var(--accent)); color: var(--cta-fg, #fff); border: 0; border-radius: 14px; padding: 13px 8px; font-size: 1rem; }
+.detail .go-row a.go-btn { background: transparent; color: var(--fg); border: 1.5px solid var(--line); box-shadow: none; padding: 12px 8px; border-radius: 14px; }
+.go-row a.go-btn:only-child { background: var(--cta, var(--accent)); color: var(--cta-fg, #fff); border: 0; }
+#goNote { font-size: .78rem; }
 .ride-btn { border-color: #e0a800; color: #9a6b00; }
 .ride-btn[aria-pressed="true"] { background: #ffc61a; border-color: #e0a800; color: #2b1d00; }
 .ridden-btn { border-color: #6fae00; color: #4d7a00; }
@@ -1160,7 +1186,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
 /* the phone tab bar is styled in theme.css; hidden here so it never shows unstyled (e.g. with an older cached theme.css) */
 .tabbar { display: none; }
 </style>
-<link rel="stylesheet" href="theme.css?v=9">
+<link rel="stylesheet" href="theme.css?v=10">
 
 <div class="app">
   <div class="mapwrap">
@@ -1173,8 +1199,17 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <div class="map-tools">
       <button id="layersBtn" class="layers-btn" type="button" aria-expanded="false" aria-controls="layersMenu"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 3 2.5 8 12 13l9.5-5z M2.5 12 12 17l9.5-5 M2.5 16 12 21l9.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Layers</span><span class="layers-n" id="layersN"></span></button>
       <div class="layers-menu" id="layersMenu" role="group" aria-label="Map layers" hidden>
+        <div class="lm-top"><b>Layers</b><button type="button" id="lmClose" aria-label="Close layers">✕</button></div>
         <div class="lm-style"><div class="lm-head">Map style</div>
-        <select id="basemap" aria-label="Map style">
+        <!-- 4 styles to pick (alex, 2026-10-24: "do we actually need 10?"). The select stays, hidden: the other styles are
+             still the fallbacks when one doesn't load, and the vector map is what Offline maps shows with no signal. -->
+        <div class="lm-tiles" id="lmTiles" role="radiogroup" aria-label="Map style">
+        <button type="button" role="radio" data-base="osm" class="t-osm"><span>Map</span></button>
+        <button type="button" role="radio" data-base="topo" class="t-topo"><span>Topo</span></button>
+        <button type="button" role="radio" data-base="sat" class="t-sat"><span>Satellite</span></button>
+        <button type="button" role="radio" data-base="sathybrid" class="t-sathybrid"><span>Sat + names</span></button>
+        </div>
+        <select id="basemap" aria-label="Map style" hidden>
         <option value="osm">Standard</option>
         <option value="cyclosm">CyclOSM</option>
         <option value="hot">Humanitarian</option>
@@ -1765,6 +1800,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     baseLayer = next.addTo(map);
     $("basemap").value = use;
     satSync(use);
+    syncTiles(use);
     if (remember) store.set("basemap4", key);
     const note = $("mapNote");
     note.hidden = use === key;
@@ -1772,7 +1808,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
       ? "The official OpenStreetMap map only loads on a website, not in a file opened from your computer. Showing the closest copy that works."
       : "That map style didn't load here, so a similar one is shown.";
   }
-  setBasemap(store.get("basemap4", "osm"));
+  // The 4 styles riders pick from; a style saved from before (CyclOSM, Light streets…) opens as Map.
+  const PICKS = ["osm", "topo", "sat", "sathybrid"];
+  function syncTiles(k) {
+    const cur = PICKS.includes(k) ? k : "osm";
+    document.querySelectorAll("#lmTiles [data-base]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.base === cur)));
+  }
+  $("lmTiles").addEventListener("click", (e) => { const b = e.target.closest("[data-base]"); if (b) setBasemap(b.dataset.base, true); });
+  { const saved = store.get("basemap4", "osm"); setBasemap(PICKS.includes(saved) ? saved : "osm", !PICKS.includes(saved)); }
   $("basemap").addEventListener("change", (e) => setBasemap(e.target.value, true));
   // One tap to satellite photos and back to the last map style.
   function isSat(k) { return k === "sat" || k === "sathybrid"; }
@@ -1780,7 +1823,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
   $("satBtn").addEventListener("click", () => {
     const cur = $("basemap").value;
     if (!isSat(cur)) store.set("basemapPrev", cur);
-    setBasemap(isSat(cur) ? store.get("basemapPrev", "osm") : "sathybrid", true);
+    const prev = store.get("basemapPrev", "osm");
+    setBasemap(isSat(cur) ? (PICKS.includes(prev) ? prev : "osm") : "sathybrid", true);
   });
   window.tfSetBasemap = setBasemap;   // offline.js opens the saved vector map when there's no signal
 
@@ -2057,7 +2101,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     const r = ebikeRule(t.tags, llOf(t));
     if (!r) return "";
     const src = r.src.map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.name)}</a>`).join(" · ");
-    return `<p class="ebike-note ebike-${r.k}" id="ebikeNote"><b>🔋 ${esc(r.short)}.</b> ${esc(r.text)}${src ? ` <span class="muted">Source: ${src}.</span>` : ""}</p>`;
+    return `<p class="ebike-note why ebike-${r.k}" id="ebikeNote"><b>🔋 ${esc(r.short)}.</b> ${esc(r.text)}${src ? ` <span class="muted">Source: ${src}.</span>` : ""}</p>`;
   }
   const wanted = (cat, unoff, off) => (state.onlyUnoff ? !!unoff && unoffTypes().includes(cat) : state.onlyOff ? !!off && unoffTypes().includes(cat) : state.show[cat]);
 
@@ -3266,8 +3310,10 @@ out body;`;
         t.elev = { pts, stats: elevStats(pts) };
       }
       const el = box(); if (el) renderElevation(el, t);
+      paintFacts(t);
     } catch (e) {
       const el = box(); if (el) el.textContent = `Couldn't load the elevation (${e.message}).`;
+      if (dirOpen === t && $("fDown")) { $("fDown").textContent = "–"; $("fUp").textContent = "–"; }
     }
     if (box()) { setGoLink(t); renderAccess(t); }
   }
@@ -3540,6 +3586,7 @@ out body;`;
         }
       }
       const el = box(); if (el) renderWeather(el, t.wx.json, cellOf(t));
+      paintFacts(t);
     } catch (e) {
       const el = box(); if (el) el.textContent = `Couldn't load the weather (${e.message}).`;
     }
@@ -3930,13 +3977,61 @@ out body;`;
     const r = window.tfDir && !t.ghost ? window.tfDir.of(t.tags, t.geom, t.id) : null;
     if (!r) return "";
     const head = r.dir === "climb" ? "↗ Climbing trail: ridden up" : r.dir === "down" ? "↘ Descent: ridden down" : r.dir === "oneway" ? "→ One-way for bikes" : "⇅ Both ways";
-    return `<p class="dir-note" id="dirNote"><b>${head}.</b> <span class="muted">${esc(r.why)}</span></p>`;
+    return `<p class="dir-note why" id="dirNote"><b>${head}.</b> <span class="muted">${esc(r.why)}</span></p>`;
   }
-  if (window.tfDir) window.tfDir.onChange(() => { const el = $("dirNote"); if (el && dirOpen) el.outerHTML = dirNote(dirOpen); });
+  // The short chips in the details head; a tap opens the long note under them (alex: less text at the top).
+  function dirChip(t) {
+    const r = window.tfDir && !t.ghost ? window.tfDir.of(t.tags, t.geom, t.id) : null;
+    if (!r || r.dir === "both") return "";
+    const lbl = r.dir === "climb" ? "↗ Climb" : r.dir === "down" ? "↘ Downhill" : "→ One-way";
+    return `<button type="button" class="chip why-chip" id="dirChip" data-why="dirNote">${lbl}</button>`;
+  }
+  function ebikeChip(t) {
+    const r = ebikeRule(t.tags, llOf(t));
+    return r ? `<button type="button" class="chip why-chip ebike-${r.k}" id="ebikeChip" data-why="ebikeNote">🔋 ${esc(r.short)}</button>` : "";
+  }
+  // The numbers under the head: loam now (from the same loam cell as the lists), length, descent and climb.
+  function paintFacts(t) {
+    if (dirOpen !== t || !$("fLoam")) return;
+    const c = loamCells.get(cellOf(t));
+    if (c && c.lmi != null) {
+      const snowy = isSnowy(c.snow), k = LMI_LEVELS.indexOf(lmiLevel(c.lmi));
+      $("fLoam").innerHTML = snowy ? "❄" : `${lmiDot(c.lmi)}${c.lmi}`;
+      $("fLoamL").textContent = snowy ? "Snow" : (isPrimeLoam(c.lmi) ? "Prime loam" : LMI_RIDE[k][1]);
+    }
+    const s = t.elev && t.elev.stats;
+    if (s) { $("fDown").textContent = `↓${Math.round(s.loss)} m`; $("fUp").textContent = `↑${Math.round(s.gain)} m`; }
+  }
+  function wireFacts(t) {
+    paintFacts(t);
+    $("detail").querySelectorAll(".d-facts button").forEach((b) => b.addEventListener("click", () => { const el = $(b.dataset.to); if (el) panelScrollTo(el.previousElementSibling || el); }));
+    $("detail").querySelector(".d-head .chips").addEventListener("click", (e) => {
+      const c = e.target.closest(".why-chip, .diff.has-why");
+      if (!c) return;
+      const n = $(c.dataset.why || "diffNote");
+      if (!n) return;
+      const on = !n.classList.contains("show");
+      $("detail").querySelectorAll(".d-notes .why").forEach((x) => x.classList.remove("show"));
+      $("detail").querySelectorAll(".d-head .chips .open").forEach((x) => x.classList.remove("open"));
+      n.classList.toggle("show", on); c.classList.toggle("open", on);
+    });
+    markDiffWhy();
+  }
+  // The level badge gets an ⓘ when there's a note on where the level comes from (an estimate, riders' grades…).
+  function markDiffWhy() {
+    const n = $("diffNote"), c = document.querySelector("#detail .d-head .chips .diff");
+    if (c) c.classList.toggle("has-why", !!n && !n.hidden && !!n.textContent.trim());
+  }
+  if (window.tfDir) window.tfDir.onChange(() => {
+    const el = $("dirNote"); if (el && dirOpen) el.outerHTML = dirNote(dirOpen);
+    const ch = $("dirChip"); if (ch && dirOpen) ch.outerHTML = dirChip(dirOpen);
+  });
   // Alberta Parks' trail table came in (closures.js): its e-bike rule wins, in the details and the E-bikes OK chip.
   addEventListener("tf:closures", () => {
     const el = $("ebikeNote");
     if (el && dirOpen && !dirOpen.ghost) el.outerHTML = ebikeNote(dirOpen);
+    const ch = $("ebikeChip");
+    if (ch && dirOpen && !dirOpen.ghost) ch.outerHTML = ebikeChip(dirOpen);
     if (state.newPick.includes("ebike")) render();
   });
   function openDetail(t) {
@@ -3956,16 +4051,27 @@ out body;`;
     const tf = tfInfo({ ...(real ? allTfOf(t.id) : {}), ...t.tags });
     if (tf.tfName) t.tfName = tf.tfName;
     d.innerHTML = `
-      <div class="d-top"><button class="linkish back" id="detailBack" type="button">← Back</button>${real ? `<span class="d-saves"><button class="want-btn share-btn" id="shareTrail" type="button" aria-label="Share this trail" title="Send this trail to a friend: the link opens the app on it">↗</button><button class="want-btn ride-btn" id="rideBtn" type="button" aria-pressed="false"></button><button class="want-btn ridden-btn" id="riddenBtn" type="button" aria-pressed="false"></button><button class="want-btn" id="wantBtn" type="button" aria-pressed="false"></button></span>` : ""}</div>
-      ${real ? `<div class="save-pick" id="savePick" hidden></div><div class="ride-note" id="rideNote" hidden><label for="rideNoteIn">Your note</label><textarea id="rideNoteIn" rows="2" maxlength="500" placeholder="Why you want to ride it, who told you about it, where to park…"></textarea></div>` : ""}
+      <!-- Phone-first details (alex, 2026-10-24): name, short chips, the 4 numbers, Ride it / Go to trail and the save row fit
+           the half sheet above the map; the long explanations open from their chip (ⓘ), everything else is further down. -->
+      <div class="d-top"><button class="linkish back" id="detailBack" type="button" aria-label="Back" title="Back">←</button><h2>${esc(trailName(t))}</h2></div>
       <div class="d-head ${t.cat}">
         <span class="bar"${barStyle(t)}></span>
-        <div><h2>${esc(trailName(t))}</h2>
-        <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${diffBadge(t.tags)}${t.km ? `<span class="chip">↔ ${fmtLen(t.km)}</span>` : ""}${isUnoff(t) ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(t.official)}${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}${t.zone ? `<span class="chip">${esc(t.zone)}</span>` : ""}</div></div>
+        <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${diffBadge(t.tags)}${dirChip(t)}${t.ghost ? "" : ebikeChip(t)}${isUnoff(t) ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(t.official)}${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}</div>
       </div>
-      <p class="diff-note muted" id="diffNote"${t.tags["tf:diffwhy"] && difficulty(t.tags) === t.tags["tf:diff"] ? "" : " hidden"}>${esc(t.tags["tf:diffwhy"] || "")}</p>
-      ${real && window.tfGrades ? `<div class="rg-box" id="riderGrade"></div>` : ""}
-      ${dirNote(t)}
+      <div class="d-notes">
+        <p class="diff-note muted why" id="diffNote"${t.tags["tf:diffwhy"] && difficulty(t.tags) === t.tags["tf:diff"] ? "" : " hidden"}>${esc(t.tags["tf:diffwhy"] || "")}</p>
+        ${dirNote(t)}
+        ${t.ghost ? "" : ebikeNote(t)}
+      </div>
+      <div class="d-facts">
+        <button type="button" data-to="wx"><b id="fLoam">…</b><span id="fLoamL">Loam</span></button>
+        <button type="button" data-to="elev"><b>${t.km ? fmtLen(t.km) : "–"}</b><span>long</span></button>
+        <button type="button" data-to="elev"><b id="fDown">…</b><span>down</span></button>
+        <button type="button" data-to="elev"><b id="fUp">…</b><span>up</span></button>
+      </div>
+      <div class="go">${real && window.tfPlan && window.tfPlan.planning() ? `<button class="btn add-ride-btn" id="addRideBtn" type="button">✎ Add to my ride</button>` : ""}<div class="go-row">${window.tfRide ? `<button class="btn follow-btn" id="followBtn" type="button" title="The map follows you along it and buzzes if you go off it">▶ Ride it</button>` : ""}<a class="go-btn" id="goBtn" target="_blank" rel="noopener" aria-disabled="true">🚗 Go to trail</a></div><p class="muted" id="goNote">Finding the top of the trail…</p></div>
+      ${real ? `<div class="d-saves"><button class="want-btn ride-btn" id="rideBtn" type="button" aria-pressed="false"></button><button class="want-btn ridden-btn" id="riddenBtn" type="button" aria-pressed="false"></button><button class="want-btn" id="wantBtn" type="button" aria-pressed="false"></button><button class="want-btn share-btn" id="shareTrail" type="button" aria-label="Share this trail" title="Send this trail to a friend: the link opens the app on it">↗ Share</button></div>
+      <div class="save-pick" id="savePick" hidden></div><div class="ride-note" id="rideNote" hidden><label for="rideNoteIn">Your note</label><textarea id="rideNoteIn" rows="2" maxlength="500" placeholder="Why you want to ride it, who told you about it, where to park…"></textarea></div>` : ""}
       ${t.use ? `<div class="unoff-box use-box"><strong>${t.use === "moto" ? "Looks like a moto trail" : "Looks like a hiking-only trail"}</strong><ul>${t.useWhy.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">${t.use === "moto" ? "Dirt-bike, ATV and 4x4 trails" : "Hiking-only trails"} are left out of the new-trails list. This is a guess from the map tags.</p></div>` : ""}
       ${isUnoff(t) ? `<div class="unoff-box"><strong>Unofficial</strong><ul>${t.unoff.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
@@ -3974,11 +4080,10 @@ out body;`;
         <p>${tf.alpine.up >= 1000 ? (tf.alpine.up / 1000).toFixed(1) + " km" : Math.round(tf.alpine.up / 10) * 10 + " m"} of it is above the tree line (about ${tf.alpine.tl} m here), up to ${tf.alpine.hi} m.${tf.alpine.why ? ` From the map: ${esc(tf.alpine.why)}.` : ""}</p>
         <p class="muted">A guess from the map tags and terrain heights, not a bike rating. Expect rock, hike-a-bike and late snow, and check the area's rules: bikes may still be closed there.</p></div>` : ""}
       ${tf.park ? `<p class="park-note">In <a href="${parkUrl(tf.park)}" target="_blank" rel="noopener">${esc(tf.park)}</a>${PARK_RULES[tf.park] ? `: ${esc(PARK_RULES[tf.park])}` : ""}.</p>` : ""}
-      ${t.ghost ? "" : ebikeNote(t)}
       ${real && window.tfClosures ? `<div id="closures"></div>` : ""}
-      <div class="go">${real && window.tfPlan && window.tfPlan.planning() ? `<button class="btn add-ride-btn" id="addRideBtn" type="button">✎ Add to my ride</button>` : ""}<a class="go-btn" id="goBtn" target="_blank" rel="noopener" aria-disabled="true">Go to trail</a><p class="muted" id="goNote">Finding the top of the trail…</p>${window.tfRide ? `<button class="btn follow-btn" id="followBtn" type="button">▶ Ride this trail</button><p class="muted">The map follows you along it and buzzes if you go off it.</p>` : ""}</div>
       <h3>Weather and Loam moisture index</h3><div id="wx" class="muted">Loading weather…</div>
       ${real && window.tfReports ? `<h3>Trail conditions from riders</h3><div id="reports" class="muted">Loading reports…</div>` : ""}
+      ${real && window.tfGrades ? `<h3>How hard riders say it is</h3><div class="rg-box" id="riderGrade"></div>` : ""}
       ${real && window.tfTrailPhotos ? `<h3>Rider photos</h3><div id="trailPhotos" class="muted">Loading photos…</div>` : ""}
       <h3>Elevation</h3><div id="elev" class="muted">${real || t.elev ? "Loading elevation…" : ""}</div>
       ${real ? `<h3>About this trail</h3><div id="trailAbout" class="muted">Looking for a description and photos…</div>` : ""}
@@ -3991,6 +4096,7 @@ out body;`;
       </div>` : `<p class="muted">Example trail, not real data.</p>`}
       <details class="more"><summary>More info</summary><dl class="facts">
         <dt>Length</dt><dd>${fmtLen(t.km)}</dd>
+        ${t.zone ? `<dt>Area</dt><dd>${esc(t.zone)}</dd>` : ""}
         <dt>First mapped</dt><dd>${t.created ? `${fmtDate(t.created)} · ${ago(t.created)}` : "Unknown"}</dd>
         ${factRows(true)}
         <dt>Official?</dt><dd>${t.official ? `Yes: ${esc(t.official)}.` : isUnoff(t) ? "Possibly not (see above)." : `<span class="muted">Not known</span>`}</dd>
@@ -4014,11 +4120,12 @@ out body;`;
       <div id="shuttle"></div>`;
     if (!$("panel").classList.contains("detail-open")) detailFrom = panelScroller($("detail")).scrollTop;
     $("panel").classList.add("detail-open"); setTrailFocus(true); syncResultsCol();
-    growTo("half");   // phones: opening a trail shows its details. Only here: a class watcher re-grew the sheet after every drag down or map tap (alex)
+    snapTo("half");   // phones: the details open as a half sheet, the trail on the map above (also down from a full Find page). Only here: a class watcher re-grew the sheet after every drag down or map tap (alex)
     $("detail").hidden = false;
     panelScrollTo($("detail"));
     syncClear();
     $("detailBack").addEventListener("click", closeDetail);
+    wireFacts(t);
     if ($("shareTrail")) $("shareTrail").addEventListener("click", () => shareTrail(t));
     // While planning a route: add this trail to Pick trails (alex: "look for trail when im making a route").
     const addRide = $("addRideBtn"), rideIds = t.segIds && t.segIds.length ? t.segIds : [t.id];
@@ -4055,6 +4162,7 @@ out body;`;
       note.textContent = t.tags["tf:diffwhy"];
       const chip = document.querySelector("#detail .d-head .chips .chip");
       if (chip && !document.querySelector("#detail .d-head .chips .diff")) chip.insertAdjacentHTML("afterend", diffBadge(t.tags));
+      markDiffWhy();
       const bar = document.querySelector("#detail .d-head .bar");
       if (bar && state.colorBy === "diff") bar.style.background = diffColor(difficulty(t.tags));
     }).catch(() => { note.textContent = "Not rated on OpenStreetMap. The elevation needed for an estimate didn't load."; });
@@ -4069,6 +4177,7 @@ out body;`;
     if (old) old.outerHTML = badge; else if (badge) chips.querySelector(".chip").insertAdjacentHTML("afterend", badge);
     const note = $("diffNote"), why = t.tags["tf:diffwhy"] && difficulty(t.tags) === t.tags["tf:diff"] ? t.tags["tf:diffwhy"] : "";
     if (note) { note.hidden = !why; note.textContent = why; }
+    markDiffWhy();
     const bar = document.querySelector("#detail .d-head .bar");
     if (bar && state.colorBy === "diff") bar.style.background = diffColor(difficulty(t.tags));
   }, 250));
@@ -5955,11 +6064,13 @@ out body;`;
   function setLayersOpen(open) {
     if (open && phoneMQ.matches && sheet.snap !== "peek") snapTo("peek");   // phones: the menu gets the screen, not a sliver above the sheet
     layersMenu.hidden = !open;
+    document.body.classList.toggle("lm-open", open);   // phones: the panel steps aside while Layers fills the screen
     layersBtn.setAttribute("aria-expanded", String(open));
     layersBtn.classList.toggle("open", open);
     layersBtn.parentElement.classList.toggle("menu-open", open);
   }
   layersBtn.addEventListener("click", () => setLayersOpen(layersMenu.hidden));
+  $("lmClose").addEventListener("click", () => setLayersOpen(false));
   document.addEventListener("click", (e) => { if (!layersMenu.hidden && !layersMenu.contains(e.target) && !layersBtn.contains(e.target)) setLayersOpen(false); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !layersMenu.hidden) { setLayersOpen(false); layersBtn.focus(); } });
   $("offlineBtn").addEventListener("click", () => setLayersOpen(false));   // Offline maps opens its own view
