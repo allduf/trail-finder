@@ -8,6 +8,10 @@
 //  - newt: new trails mapped in its regions (data/new-trails.json), the same ones the 🔔 lists (MTB tagged or Looks
 //    like MTB, classified by the site's own classify(), read from index.html).
 // Each area or trail is sent once each time it turns prime, like the bell; again after it dries out or gets too wet.
+//  - avy: avalanche danger (Skiing), as the bell's "Avalanche danger" list: the Avalanche Canada forecast areas over its
+//    regions (data/avalanche.json) when their highest rating for today or tomorrow goes up to Considerable or more, and
+//    the ski tours it watches (tours: { k, n, c: top, lo, hi, cls }) when their trip planner light (ski-terrain.js, the
+//    Avaluator chart) goes to Extra caution or Not recommended. Sent each time it goes up; again after it comes down.
 import webpush from "web-push";
 import { readFileSync } from "node:fs";
 
@@ -19,6 +23,8 @@ const AREA_KM = 10;     // a region trail belongs to the nearest riding area wit
 if (!KEY) { console.log("No SUPABASE_SECRET_KEY secret yet: nothing to do."); process.exit(0); }
 
 const root = new URL("../", import.meta.url);
+await import(new URL("ski-terrain.js", root).href);
+const TT = globalThis.tfTerrain;
 const html = readFileSync(new URL("index.html", root), "utf8");
 const readJson = (p) => { try { return JSON.parse(readFileSync(new URL(p, root), "utf8")); } catch { return null; } };
 const ZONES = new Map([...html.matchAll(/\{ id: "(\w+)", name: "([^"]+)", box: \[([^\]]+)\] \}/g)].map((m) => [m[1], m[2]]));
@@ -46,7 +52,7 @@ webpush.setVapidDetails(SITE, keys.public_key, keys.private_key);
 const subs = await db("push_subs?select=id,sub,watch,sent,updated_at");
 console.log(`${subs.length} phone(s) signed up.`);
 // What each phone asked for (no addresses), so a quiet phone can be told apart from one with nothing picked.
-subs.forEach((s, i) => { const w = s.watch || {}; console.log(`  phone ${i + 1}: regions ${JSON.stringify(w.zones || [])}, prime loam ${w.loam ? "on" : "off"}, new trails ${w.newt ? "on" : "off"}, ${(w.ride || []).length} To ride trail(s), app v${w.v || "older than 257"}, ${Object.keys(s.sent || {}).length} already sent, saved ${s.updated_at}`); });
+subs.forEach((s, i) => { const w = s.watch || {}; console.log(`  phone ${i + 1}: regions ${JSON.stringify(w.zones || [])}, prime loam ${w.loam ? "on" : "off"}, new trails ${w.newt ? "on" : "off"}, avalanche ${w.avy ? `on, ${(w.tours || []).length} tour(s)` : "off"}, ${(w.ride || []).length} To ride trail(s), app v${w.v || "older than 257"}, ${Object.keys(s.sent || {}).length} already sent, saved ${s.updated_at}`); });
 if (!subs.length) process.exit(0);
 const zonesOf = (w) => ((w.zones || []).includes("all") ? [...ZONES.keys()] : (w.zones || []).filter((z) => ZONES.has(z)));
 
@@ -138,6 +144,23 @@ const feed = ((readJson("data/new-trails.json") || {}).items || []).filter((it) 
   return c && (c.cat === "mtb" || c.cat === "looks") && c.use !== "hike";
 });
 
+// ---------- avalanche danger: today and tomorrow in each forecast area ----------
+const avyData = readJson("data/avalanche.json");
+const DANGER = ["No rating", "Low", "Moderate", "Considerable", "High", "Extreme"];
+const BAND = { alp: "alpine", tln: "treeline", btl: "below treeline" };
+const avyToday = new Date().toLocaleDateString("en-CA", { timeZone: "America/Vancouver" });
+const avyLive = (f) => f && f.days && !(f.validUntil && new Date(f.validUntil) < new Date());
+const avySoon = (f) => f.days.filter((x) => x.date >= avyToday).slice(0, 2);
+const avyDay = (x) => (x.date === avyToday ? "today" : x.label || x.date);
+const avyAreas = ((avyData && avyData.areas) || []).filter((a) => avyLive(a.forecast)).map((a) => {
+  let s = 90, w = 180, n = -90, e = -180;
+  (a.rings || []).forEach((r) => { for (let i = 0; i < r.length; i += 2) { s = Math.min(s, r[i]); n = Math.max(n, r[i]); w = Math.min(w, r[i + 1]); e = Math.max(e, r[i + 1]); } });
+  let best = null;
+  for (const x of avySoon(a.forecast)) { const r = Math.max(x.alp || 0, x.tln || 0, x.btl || 0); if (!best || r > best.r) best = { r, x }; }
+  return { a, box: [s, w, n, e], best };
+});
+console.log(`Avalanche forecasts: ${avyAreas.length} live area(s), ${avyAreas.filter((x) => x.best && x.best.r >= 3).length} at Considerable or more today or tomorrow.`);
+
 // ---------- one notification per phone ----------
 const range = (vs) => { const lo = Math.min(...vs), hi = Math.max(...vs); return lo === hi ? `Loam ${lo}` : `Loam ${lo} to ${hi}`; };
 const list = (xs, n) => xs.slice(0, n).join(", ") + (xs.length > n ? ` and ${xs.length - n} more` : "");
@@ -217,10 +240,32 @@ for (const s of subs) {
     // Forget new trails that left the feed window, so the row doesn't grow forever.
     Object.keys(now).forEach((k) => { if (k.startsWith("n:") && Date.now() - now[k] > (NEW_DAYS + 1) * 86400e3) delete now[k]; });
   }
+  // Avalanche danger up in its regions, or on the tours it watches.
+  if (w.avy && avyAreas.length) {
+    const lines = [], names = [], keys = [];
+    const zb = zonesOf(w).map((z) => BOXES.find(([id]) => id === z)?.[1]).filter(Boolean);
+    for (const { a, box: b, best } of avyAreas) {
+      if (!best || best.r < 3 || !zb.some((z) => z[0] <= b[2] && z[2] >= b[0] && z[1] <= b[3] && z[3] >= b[1])) continue;
+      const key = "v:" + a.id;
+      now[key] = best.r;
+      if (best.r > (was[key] || 0)) { const nm = a.forecast.title || a.name; names.push(nm); lines.push(`${nm}: ${DANGER[best.r]} ${avyDay(best.x)}`); keys.push(key); }
+    }
+    for (const t of (w.tours || []).filter((t) => t && t.k && Array.isArray(t.c))) {
+      const a = TT.areaAt(avyAreas.map((x) => x.a), t.c[0], t.c[1]);
+      if (!a) continue;
+      let best = null;
+      for (const x of avySoon(a.forecast)) { const dg = TT.dangerIn(x, TT.bandsFor(a.name), t.lo, t.hi), l = TT.light(dg.r, t.cls); if (l >= 0 && (!best || l > best.l)) best = { l, x, dg }; }
+      if (!best || best.l < 1) continue;
+      const key = "t:" + t.k;
+      now[key] = best.l;
+      if (best.l > (was[key] || 0)) { names.unshift(t.n); lines.unshift(`${t.n}: ${TT.LIGHTS[best.l].label} ${avyDay(best.x)} (${DANGER[best.dg.r]} in the ${BAND[best.dg.band]})`); keys.push(key); }
+    }
+    if (lines.length) msgs.unshift({ title: `⚠ Avalanche danger up: ${list(names, 2)}`, body: lines.slice(0, 5).join("\n") + (lines.length > 5 ? `\nand ${lines.length - 5} more` : "") + "\nRead the full forecast before you go.", keys });
+  } else if (w.avy) Object.keys(was).forEach((k) => { if (/^[vt]:/.test(k)) now[k] = was[k]; });   // no forecasts read: leave them as they were
   let expired = false;
   for (const m of msgs) {
     try {
-      await webpush.sendNotification(s.sub, JSON.stringify({ title: m.title, body: m.body, url: "./#notify", tag: m.keys[0].startsWith("n:") ? "tf-new" : m.keys[0].startsWith("s:") ? "tf-loam-soon" : "tf-loam" }), { TTL: 6 * 3600, urgency: "normal" });
+      await webpush.sendNotification(s.sub, JSON.stringify({ title: m.title, body: m.body, url: "./#notify", tag: m.keys[0].startsWith("n:") ? "tf-new" : /^[vt]:/.test(m.keys[0]) ? "tf-avy" : m.keys[0].startsWith("s:") ? "tf-loam-soon" : "tf-loam" }), { TTL: 6 * 3600, urgency: "normal" });
       sent++;
     } catch (e) {
       if (e.statusCode === 404 || e.statusCode === 410) { expired = true; break; }   // turned off on the phone, or the address expired
