@@ -548,5 +548,5 @@
   document.addEventListener("visibilitychange", () => { if (on && document.visibilityState === "visible" && nowHour() !== baseT) { baseT = nowHour(); hourCache = null; refresh(); setHour(hour); } });
   apply();
 
-  window.tfClouds = { chart, isOn: () => on };
+  window.tfClouds = { chart, isOn: () => on, hour: () => hour, setHour: (h) => { if (on) setHour(h); } };   // smoke.js follows this slider
 })();
