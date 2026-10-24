@@ -2,6 +2,7 @@
 //   off   official open data that rates bike trails (Sépaq, City of Ottawa, Whistler, Columbia Shuswap, Utah, Pennsylvania state parks), matched by shape
 //   same  another piece of the same named trail is rated on OpenStreetMap (data/ratings/osm.json)
 //   hand  a rider who knows the trail rated it here (HAND below), for trails with no rating on OpenStreetMap
+//   riders  riders' own grades given in the app (grades.js), before same and est
 //   est   an estimate from the slope and a few map tags (data/ratings/osm.json for the region's all-trails lists, or
 //         worked out here from the AWS terrain tiles when a trail's details open). Never shown as a real rating.
 // window.tfRatings = { rate(id, geom, tags) -> { d, src, why } | null (sync, from what's loaded), hand(geom, tags) -> { mtb, off } | null, estimate(id, geom, tags) -> Promise,
@@ -459,7 +460,7 @@
     return { mtb: `${h.who}, who rides it, says it's a mountain bike trail`, off: h.off ? `${h.who}, who rides it, says it's an official trail` : null, unoff, named };
   }
 
-  // Best rating known now: a rider's own rating, official open data, then the same trail, then an estimate.
+  // Best rating known now: a rider's own rating, official open data, riders' grades in the app, then the same trail, then an estimate.
   function rate(id, geom, tags) {
     const h = handOf(geom, tags, id);
     const mapped = tags && (tags["mtb:scale:imba"] != null || tags["mtb:scale"] != null) ? " OpenStreetMap rates it differently." : " It has no rating on OpenStreetMap yet.";
@@ -467,6 +468,8 @@
       : `Rated ${LEVEL[h.d]} by ${h.src}.${mapped}` };
     const o = official(geom, tags && (tags.name || tags["tf:name"]));
     if (o) return o;
+    const g = window.tfGrades ? window.tfGrades.rating(id, mapped) : null;   // what riders say in the app (grades.js)
+    if (g) return g;
     const w = osm && id && osm[id];
     if (w && w[1] === "same") return { d: w[0], src: "same", why: `From the rated part of ${w[2] ? `“${w[2]}”` : "the same trail"} it joins on OpenStreetMap; this piece has no rating of its own.` };
     if (id && est.has(id)) return est.get(id);
@@ -474,5 +477,5 @@
     return null;
   }
 
-  window.tfRatings = { rate, hand, estimate, load, onChange: (fn) => listeners.push(fn) };
+  window.tfRatings = { rate, hand, estimate, load, onChange: (fn) => listeners.push(fn), changed: () => fire(null) };   // changed(): riders' grades arrived (grades.js)
 })();
