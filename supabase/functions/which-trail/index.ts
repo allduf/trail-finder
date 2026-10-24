@@ -271,7 +271,7 @@ function quota(msg: string): string {
 
 // ---------- compare: the app's likely trails against what's online about them ----------
 type Trail = { name: string; area: string; kind: string; c: [number, number] | null };
-type Compare = { trails?: unknown; scene?: string; description?: string; spot?: { lat?: unknown; lon?: unknown; km?: unknown; where?: unknown }; skip?: unknown };
+type Compare = { trails?: unknown; more?: unknown; scene?: string; description?: string; spot?: { lat?: unknown; lon?: unknown; km?: unknown; where?: unknown }; skip?: unknown };
 type Photo = { img: string; page: string; title: string; trail: string; data: string; mime: string; from: string; at?: [number, number]; near?: boolean };
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 const UA = { "user-agent": "TrailFinder/1.0 (https://allduf.github.io/trail-finder/)" };
@@ -482,6 +482,19 @@ const FINAL = {
         required: ["n", "close"],
       },
     },
+    other: {
+      type: "ARRAY",
+      description: "Trails from the other trails around there (not the list) that you know the rider's picture is from, if any",
+      items: {
+        type: "OBJECT",
+        properties: {
+          trail: { type: "STRING", description: "The name exactly as in the other trails" },
+          fit: { type: "NUMBER", description: "0 to 1, as for the list" },
+          why: { type: "STRING", description: "What you know of it that fits, in one short sentence" },
+        },
+        required: ["trail", "fit", "why"],
+      },
+    },
   },
   required: ["ranks"],
 };
@@ -500,6 +513,10 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
     return longest?.name || x.slice(0, 120);
   };
   const list = trails.map((t, i) => `${i + 1}. ${t.name} (${[t.kind, t.area].filter(Boolean).join(", ")})`).join("\n");
+  // The next trails around there, names only: the AI can say the picture is one of them from what it knows (a slab 5 km
+  // from where it placed the camera can be 180 trails down the site's list).
+  const more = [...new Set((Array.isArray(body.more) ? body.more : []).slice(0, 30).map((t: Record<string, unknown>) => String(t?.name || "").slice(0, 120).trim())
+    .filter((n) => n && !trails.some((t) => norm(t.name) === norm(n))))];
   // Where the AI placed the camera (the first look): photos from all around it, not only of the listed trails.
   const v = body.spot || {}, km = +(v.km as number);
   const spot: Spot | null = typeof v.lat === "number" && typeof v.lon === "number" && v.lat > 45 && v.lat < 62 && v.lon > -140 && v.lon < -108 && km > 0 && km <= 15
@@ -581,11 +598,16 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
     (web.length ? `What Google search found about them:\n${web.map((w) => `- ${w.trail}: ${w.looks} (fit ${w.fit}: ${w.why})`).join("\n")}\n`
       : `Google search wasn't available this time: use what you know about these trails too, if anything.\n`) +
     `Compare the rider's picture with each found photo: the same rock, slope, view, water, mountains or trail features means the same place. ` +
-    `A found photo can show a different part of the trail, so also weigh the descriptions. Give every trail a fit, and every found photo a closeness.` });
+    `A found photo can show a different part of the trail, so also weigh the descriptions. Give every trail a fit, and every found photo a closeness. ` +
+    `Rate a trail from its photos and what you really know of it, never from its name: "Slab" or "Rock" in a name doesn't make it this slab. ` +
+    `A trail with no photo here that you know nothing about gets 0.5.` +
+    (more.length ? `\nOther trails around there (not in the list): ${more.join("; ")}. If you know the picture is from one of these instead, ` +
+      `put it in "other".` : "") });
   const f = await gemini(key, parts, { schema: FINAL }, t0 + 75000);
   type Pic = { img: string; page: string; title: string };
   const pub = (p: Photo | undefined): Pic | null => p && p.from !== "confirmed" ? { img: p.img, page: p.page, title: p.title.slice(0, 100) } : null;
   let ranks: { trail: string; fit: number; why: string; photo: Pic | null; confirmed?: boolean }[] = [];
+  let other: { trail: string; fit: number; why: string }[] = [];
   // Photos from around the viewpoint that look close: their spot (or the trail their page is about) goes back to the
   // site, which adds the trails there to the list.
   let close: (Pic & { close: number; why: string; at: [number, number] | null; trail: string; confirmed?: boolean })[] = [];
@@ -595,6 +617,9 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
       const p = photos[Math.round(+x.photo || 0) - 1];
       return { trail: named(x.trail), fit: Math.max(0, Math.min(1, +x.fit || 0)), why: String(x.why || "").slice(0, 200), photo: pub(p), confirmed: p?.from === "confirmed" };
     });
+    other = (Array.isArray(o.other) ? o.other : []).filter((x) => x && typeof x.trail === "string").map((x) => ({
+      trail: more.find((n) => norm(n) === norm(String(x.trail).replace(/\s*\(.*$/, ""))) || "", fit: Math.max(0, Math.min(1, +x.fit || 0)), why: String(x.why || "").slice(0, 200),
+    })).filter((x) => x.trail).slice(0, 3);
     close = (Array.isArray(o.photos) ? o.photos : []).map((x) => ({ p: photos[Math.round(+x?.n || 0) - 1], c: Math.max(0, Math.min(1, +x?.close || 0)), why: String(x?.why || "").slice(0, 200) }))
       .filter((x) => x.p && (x.p.from === "area" || x.p.near) && (x.p.at || x.p.trail) && x.c >= 0.4).sort((a, b) => b.c - a.c).slice(0, 5)
       .map((x) => ({ ...(pub(x.p) || { img: "", page: "", title: "" }), close: x.c, why: x.why, at: x.p.at || null, trail: x.p.trail, ...(x.p.near ? { confirmed: true } : {}) }));
@@ -602,6 +627,6 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
     ranks = web.map((w) => ({ trail: w.trail, fit: w.fit, why: w.why, photo: null }));
     notes.push("compare: " + ("error" in f ? f.detail || f.error : "no answer"));
   }
-  return reply(200, { ok: ranks.length > 0 || close.length > 0, ms: Date.now() - t0, searched, noSearch, ranks, close, photos: photos.length,
+  return reply(200, { ok: ranks.length > 0 || close.length > 0, ms: Date.now() - t0, searched, noSearch, ranks, other, close, photos: photos.length,
     area: photos.filter((p) => p.from === "area" || p.near).length, sources, suggest, detail: notes.join(" | ") });
 }
