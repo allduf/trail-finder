@@ -47,7 +47,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   // that confirmed match (the test's own photo) is left out of every lookup, and each finished search is put in .result.
   const TEST = window.tfPhotoTest && Array.isArray(window.tfPhotoTest.skip) ? window.tfPhotoTest : null;
   const skipIds = TEST ? TEST.skip.filter((n) => Number.isSafeInteger(n)) : [];
-  const testDone = (rows) => { if (TEST) TEST.result = { rows: rows.map((r) => ({ name: r.name, zone: r.save ? r.save.zone : r.zone, conf: r.conf })), ai: $("pfAi").textContent, cmp: $("pfCmp").textContent, diag: TEST.diag || null }; };
+  const testDone = (rows) => { if (TEST) TEST.result = { rows: rows.map((r) => ({ name: r.name, zone: r.save ? r.save.zone : r.zone, conf: r.conf, s: Math.round(r.s * 100) / 100, why: r.meta })), ai: $("pfAi").textContent, cmp: $("pfCmp").textContent, diag: TEST.diag || null }; };
   const testEnd = (my) => { if (TEST && my === job) { testDone(shown); TEST.finished = Date.now(); } };
   const DEM = (z, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
 
@@ -522,7 +522,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const seen = file ? await askAI(my, $("pfRead").value) : null;
     if (my !== job) return;
     if (TEST) TEST.diag = { words: core(words($("pfRead").value)).length, why: aiWhy, detail: aiDetail,
-      ai: seen ? { places: seen.places, landmarks: seen.landmarks, guesses: seen.guesses.map((g) => g.trail), vp: seen.viewpoint || null,
+      ai: seen ? { model: seen.model || "", places: seen.places, landmarks: seen.landmarks, views: seen.views || [], terrain: seen.terrain || [], guesses: seen.guesses.map((g) => g.trail), vp: seen.viewpoint || null,
         rev: seen.online ? seen.online.error || `${(seen.online.pages || []).length} pages` : "off" } : null };
     // The pages that show the same picture online (reverse image search): their titles and addresses count like a caption.
     const on = seen && seen.online, pages = on && Array.isArray(on.pages) ? on.pages : [];
@@ -541,8 +541,10 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       $("pfAi").hidden = false;
     }
     // The AI's places and landmarks first, then the trail names it read or guessed (so a hit there says "AI named it").
-    const aiSaw = seen ? [...seen.places, ...seen.landmarks].join("\n") : "";
-    // Only names the AI read in the picture count as named: its own guesses just lift a trail already listed (below).
+    // Without the province or country ("British Columbia" isn't "Columbia Trail" in Golden).
+    const aiSaw = seen ? [...seen.places.map((p) => p.replace(/,?\s*\b(british columbia|b\.?c\.?|canada|alberta)\b\.?/gi, "").trim()), ...seen.landmarks].join("\n") : "";
+    // Only names the AI read in the picture count as named: its own guesses lift a trail, or add one by that name near
+    // where it places the photo (below).
     const aiNames = seen ? seen.trail_names.join("\n") : "";
     const own = [$("pfCaption").value, $("pfRead").value].join("\n"), text = [own, rev, aiSaw, aiNames].join("\n");
     // Saved with a confirmed match: the rider's and the picture's words, and what the AI saw (not its trail guesses).
@@ -571,8 +573,9 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   // like), photos from those pages, geotagged photos near them and pictures riders confirmed, and (when the AI placed
   // the photo) pages, videos and geotagged photos from all around that spot, compared with this picture. The list is
   // already up; it's reordered when the answer comes, and trails where a close-looking photo was taken join it.
-  // The AI's spot is often several km off (a slab 5 km from where it put the camera): look wide.
-  const vpRadius = (vp) => Math.min(15, Math.max(6, vp.km * 2.5)) * 1000;
+  // The AI's spot is often several km off (a slab 5 km from where it put the camera, In and Out Burger 6.7 km when it said
+  // 1 km): look wide.
+  const vpRadius = (vp) => Math.min(15, Math.max(8, vp.km * 2.5)) * 1000;
   async function compareOnline(my, rows, seen) {
     const acct = window.tfAccount, list = rows.filter((r) => r.save && r.name !== "Unnamed trail").slice(0, 8);
     const vp = seen.viewpoint && seen.viewpoint.km > 0 && seen.viewpoint.km <= 15 ? seen.viewpoint : null;
@@ -595,7 +598,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       if (my !== job) return;
       if (got && got.ok) { cmp = got; cmpKey = key; }
     }
-    if (TEST && TEST.diag) TEST.diag.cmp = got ? { ok: !!got.ok, searched: !!got.searched, noSearch: got.noSearch || "", photos: got.photos || 0, close: (got.close || []).map((c) => c.trail || "?"), why: got.why || "" } : { ok: false, why };
+    if (TEST && TEST.diag) TEST.diag.cmp = got ? { ok: !!got.ok, searched: !!got.searched, noSearch: got.noSearch || "", photos: got.photos || 0, close: (got.close || []).map((c) => c.trail || "?"), why: got.why || "", detail: got.detail || "",
+      ranks: (got.ranks || []).map((k) => [k.trail, k.fit]) } : { ok: false, why };
     if (!got || !got.ok) {
       out.hidden = false;
       out.textContent = `Online check skipped (${got ? got.why || got.noSearch || "found nothing" : why}).`;
@@ -651,6 +655,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   const SAME = { mt: "mount", mtn: "mountain", st: "saint", rd: "road", fsr: "road", n: "north", s: "south" };
   // One-word trail names that are everyday words (or app buttons in a screenshot) aren't counted on their own.
   const GENERIC = new Set(("upper lower main middle road access connector loop climb climbing descent downhill uphill bridge creek lake river mountain park view ridge summit peak " +
+    // landscape words in a place's name ("Callaghan Valley" isn't the Valley Trail)
+    "valley canyon meadow meadows pass basin glacier falls bluff bluffs bowl hill hills alpine island beach bay inlet sound range village town " +
     "north south east west home love life good best nice fun day time ride riding bike biking mtb enduro shred send follow following followers like likes liked comment comments reply " +
     "share save more view views search explore reels video photo story stories post posts message today yesterday week weeks year years ago km mile miles elevation gain moving " +
     "speed avg max time map maps segment segments strava trailforks kudos activity morning afternoon evening night lunch ride rides route routes forest woods dirt loam loamy " +
@@ -662,6 +668,9 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   const PART = new Set(["upper", "lower", "middle", "top", "bottom"]);
   const words = (s) => F.norm(s).split(" ").filter(Boolean).map((w) => SAME[w] || w);
   const core = (ws) => { const c = ws.filter((w) => !STOP.has(w)); return c.length ? c : ws; };
+  // A name with the little words and spaces gone: "In-N-Out Burger" and "In and Out Burger" are both "inoutburger".
+  const LOOSE = new Set([...STOP, "n", "a"]);
+  const loose = (s) => F.norm(s).split(" ").filter((w) => w && !LOOSE.has(w)).join("");
   const allowed = (len) => (len < 6 ? 0 : len <= 10 ? 1 : 2);
 
   const nameLists = new Map();      // zone id -> Promise of [{ name, key, ws, join, items, center, tags, zone, mtb }]
@@ -724,7 +733,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
 
   // Where a run of words (spaces ignored, like "half nelson" / "#halfnelson") matches, with the number of typos.
   function findIn(tokens, ws, joins) {
-    const target = ws.join(""), k = ws.length, tol = Math.min(allowed(target.length), 2);
+    // A number in a name isn't a typo: "Mount 7" isn't "Mount" (Garibaldi).
+    const target = ws.join(""), k = ws.length, tol = /\d/.test(target) ? 0 : Math.min(allowed(target.length), 2);
     let best = null;
     for (let i = 0; i < tokens.length; i++) {
       for (const n of [k, k - 1, k + 1]) {
@@ -821,11 +831,13 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       else if (hinted.size) s -= 0.15;             // it names other places
       else if (hereIds.has(g.zone.id)) s += 0.05;
       if (spots.some((p) => p.c.distanceTo(g.center) < 8000)) s += 0.1;
-      // The same words are also a place it names ("Alice Lake"): weaker as a trail.
-      if (found.some((p) => p.ws.join("") === t.ws.join(""))) s -= 0.2;
+      // The same words are also a place it names ("Alice Lake"): weaker as a trail; not a trail at all when only the AI
+      // named the place ("Sea to Sky" the region, not the Sea to Sky Trail).
+      const aiPlace = t.hit.at >= aiSawFrom && t.hit.at < aiFrom;
+      if (found.some((p) => p.ws.join("") === t.ws.join(""))) s -= aiPlace ? 9 : 0.2;
       const said = tokens.slice(t.hit.at, t.hit.at + t.hit.n).join(" ");
       why.unshift(t.hit.at >= aiFrom ? "AI named it" : t.hit.at >= aiSawFrom ? `AI saw “${said}”` : t.hit.at >= revFrom ? "named on a page with the same picture" : t.hit.how === "tag" || t.ws !== g.ws ? `“${said}” is in the words` : t.hit.d ? `read as “${said}”` : `“${g.name}” is in the words`);
-      return { g, s, why, said: said.replace(/ /g, "") };
+      return { g, s, why, said: said.replace(/ /g, ""), aiPlace };
     }).filter((h) => h.s >= 0.7);
     let hits = scored(raw);
     // Nothing sure in the areas looked at first (and no area picked): look through every region too.
@@ -862,7 +874,9 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const used = [...named.map((l) => ({ l, base: 0.8 })), ...looked.filter((x) => x.fit === looked[0].fit).slice(0, 2).map((x) => ({ l: x.l, base: 0.6 }))].slice(0, 3);
     // A trail named like a landmark it mentions ("The Chief") is weaker as a trail.
     // Same when only the landmark's name matched in a longer trail name ("Stawamus Chief / Sea to Summit").
-    hits.forEach((h) => { if (named.some((l) => [l.ws, ...l.akaWs].some((ws) => ws.join("") === h.g.ws.join("") || ws.join("") === h.said))) h.s -= 0.2; });
+    // When only the AI named the landmark, it's the landmark, not that trail (which can still join below as a trail near it).
+    hits.forEach((h) => { if (named.some((l) => [l.ws, ...l.akaWs].some((ws) => ws.join("") === h.g.ws.join("") || ws.join("") === h.said))) h.s -= h.aiPlace ? 9 : 0.2; });
+    hits = hits.filter((h) => h.s > 0);
     const keyOf = (g) => g.ws.join(" ") + "|" + g.zone.id;
     for (const { l, base } of used) {
       say(`Checking which trails can see ${l.name}…`, 0.98);
@@ -882,13 +896,25 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       // The AI's "how far off" is often too small: look a bit wider.
       const R = vpRadius(vp), spot = L.latLng(vp.lat, vp.lon);
       say("Looking at the trails where the AI places the photo…", 0.985);
-      const { list } = await trailsNear([spot], R);
+      const { list, b } = await trailsNear([spot], R);
       if (my !== job) return null;
-      for (const g of list.slice(0, 60)) {
-        const why = `where the AI places the photo${vp.where ? " (" + vp.where + ")" : ""}, ${(g.d / 1000).toFixed(1)} km`;
-        const have = hits.find((h) => keyOf(h.g) === keyOf(g)), near = 1 - g.d / R;
-        if (have) { have.s += 0.1 + 0.1 * near; have.why.push(why); }
-        else hits.push({ g, s: 0.7 + 0.15 * near, why: [why], lm: true });
+      // How high the AI thinks the camera is (valley floor, forest, alpine): trails that reach about that height go up,
+      // ones far above or below it down. Then the 60 best of them.
+      const alt = vp.alt > 0 ? vp.alt : 0;
+      if (alt) { await demLoad(b); if (my !== job) return null; }
+      const near = list.map((g) => {
+        let up = 0, h = null;
+        if (alt) {
+          const hs = g.pts.map((p) => elev(p[0], p[1])).filter((x) => x != null);
+          if (hs.length) { h = hs.reduce((m, x) => (Math.abs(x - alt) < Math.abs(m - alt) ? x : m)); const dz = Math.abs(h - alt); up = dz <= 300 ? 0.08 : dz > 700 ? -0.15 : 0; }
+        }
+        return { g, up, h, at: 1 - g.d / R };
+      }).sort((a, z) => (z.at * 0.15 + z.up) - (a.at * 0.15 + a.up)).slice(0, 60);
+      for (const { g, up, h, at } of near) {
+        const why = `where the AI places the photo${vp.where ? " (" + vp.where + ")" : ""}, ${(g.d / 1000).toFixed(1)} km` + (up > 0 ? `, about as high (${Math.round(h)} m)` : "");
+        const have = hits.find((x) => keyOf(x.g) === keyOf(g));
+        if (have) { have.s += 0.1 + 0.1 * at + up; have.why.push(why); }
+        else hits.push({ g, s: 0.7 + 0.15 * at + up, why: [why], lm: true });
       }
       // Pictures riders confirmed around there: their trails join the list (or go up), and the online check then
       // compares those pictures with this one.
@@ -912,16 +938,31 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         else hits.push({ g, s: 0.55 + 0.15 * (1 - g.d / AREA_M), why: [why], lm: true });
       }
     }
+    // The AI's own guesses (and the trail names it read): one already listed goes up a little; one that isn't joins the
+    // list when a trail by that name is near where it places the photo (or in the areas looked at), so the online check
+    // looks at it too. Names are compared loosely: "In-N-Out Burger" is "In and Out Burger".
+    if (aiSeen) {
+      const asked = [...new Set([...aiSeen.trail_names, ...aiSeen.guesses.map((g) => g.trail)].map(loose))].filter((k) => k.length >= 4 && !/^\d+$/.test(k));
+      const isGuess = (g) => { const k = loose(g.name); return asked.some((a) => a === k || (a.length >= 8 && Math.abs(a.length - k.length) <= 1 && F.editDist(a, k) <= 1)); };
+      hits.forEach((h) => { if (isGuess(h.g)) { h.guess = true; if (!h.why.includes("AI named it")) { h.s += 0.1; h.why.push("AI thinks so too"); } } });
+      if (asked.length) {
+        const spot = vp && vp.km > 0 && vp.km <= 15 ? L.latLng(vp.lat, vp.lon) : null;
+        const zs = [...new Set([...(spot ? F.zones.filter((z) => z.bounds.pad(0.25).contains(spot)) : []), ...first])].slice(0, 8);
+        for (const z of zs) for (const g of await zoneNames(z).catch(() => [])) {
+          if (!isGuess(g) || hits.some((h) => keyOf(h.g) === keyOf(g))) continue;
+          const d = spot ? spot.distanceTo(g.center) : null;
+          if (d != null && d > 25000) continue;     // far from where it places the photo: that guess doesn't fit
+          hits.push({ g, s: 0.8 + (d != null && d < vpRadius(vp) ? 0.1 : 0), guess: true,
+            why: [`the AI's guess${d != null ? ` (${(d / 1000).toFixed(1)} km from where it places the photo)` : ""}`] });
+        }
+        if (my !== job) return null;
+      }
+    }
     // Slabs or bare rock in the picture: trails mapped on bare rock go up.
     const rockSaid = /\b(slabs?|granite|bare rock|rock face|rock rolls?|rock slabs?)\b/i.test([$("pfCaption").value, $("pfRead").value, ...(aiSeen ? [...aiSeen.terrain, aiSeen.scene] : [])].join(" "));
     if (rockSaid) hits.forEach((h) => {
       if ([h.g.tags, ...h.g.items.map((i) => i.tags)].some((t) => t && /^(bare_)?rock$/.test(t.surface || ""))) { h.s += 0.15; h.why.push("mapped on bare rock"); }
     });
-    // The AI's own guesses go up a little.
-    if (aiSeen) {
-      const guess = new Set([...aiSeen.trail_names, ...aiSeen.guesses.map((g) => g.trail)].map((n) => core(words(n)).join(" ")));
-      hits.forEach((h) => { if (guess.has(h.g.ws.join(" ")) && !h.why.includes("AI named it")) { h.s += 0.1; h.why.push("AI thinks so too"); } });
-    }
     // Past confirmed matches with similar words (supabase/trail-matches.sql) lift their trail.
     const rare = new Set(tokens.filter((t) => t.length >= 4 && !GENERIC.has(t)));
     const placey = new Set([...found.flatMap((p) => p.ws), ...(await landmarkList()).flatMap((l) => [...l.ws, ...l.akaWs.flat()])]);
@@ -955,6 +996,16 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       if (seen.has(key)) continue;
       seen.add(key); rows.push(h);
       if (rows.length >= 8) break;
+    }
+    // Up to 2 of the AI's guesses that didn't make it take the last places, so the online check looks at them too.
+    for (const h of hits.filter((h) => h.guess)) {
+      const key = h.g.ws.join(" ") + "|" + h.g.zone.id;
+      if (seen.has(key) || rows.filter((r) => r.guess).length >= 2) continue;
+      seen.add(key);
+      let out = rows.length - 1;
+      while (out >= 0 && rows[out].guess) out--;
+      if (rows.length >= 8 && out >= 0) rows.splice(out, 1);
+      rows.push(h);
     }
     const top = rows.length ? rows[0].s : 0;
     return {

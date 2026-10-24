@@ -1412,11 +1412,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=324"></script>
-<script src="rotate.js?v=324"></script>
-<script src="official.js?v=324"></script>
-<script src="directions.js?v=324"></script>
-<script src="ratings.js?v=324"></script>
+<script src="native.js?v=325"></script>
+<script src="rotate.js?v=325"></script>
+<script src="official.js?v=325"></script>
+<script src="directions.js?v=325"></script>
+<script src="ratings.js?v=325"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1515,7 +1515,9 @@ body.sport-alt #rideMapBtn { display: none !important; }
   // ---------- Canada-wide trail data (scripts/build-canada.mjs, nightly from Geofabrik), loaded for what's on screen ----------
   // Outside the home zones above, 1 deg x 1.2 deg map chunks stand in for zones (ids "ca_<chunk>") with the same
   // trails / names / mtb data, so new trails, name search, All trails and Prime loam work anywhere in Canada online.
-  // Chunks that overlap a home zone are skipped: there the zone files and the live search work as before.
+  // A chunk that overlaps a home zone keeps only what lies outside the zones (zone files win inside them), and loads only
+  // when the map shows some of it outside the zones: trails just past a zone's edge (Nanaimo, Logan Lake, Quesnel, Kaslo,
+  // Elkford, Hope...) were missing from All trails and name search when such chunks were skipped whole.
   const caIndex = { data: null, zones: new Map() };
   let caLoad = null;
   function caIndexLoad() {
@@ -1529,7 +1531,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
         Object.keys(f.chunks).forEach((c) => {
           const [s, w] = c.split("_").map(Number), box = [s, w, s + f.chunkLat, +(w + f.chunkLon).toFixed(1)];
           const bounds = L.latLngBounds([box[0], box[1]], [box[2], box[3]]);
-          if (!ZONES.some((z) => overlaps(z.bounds, bounds))) caIndex.zones.set("ca_" + c, { id: "ca_" + c, chunk: c, name: prov.get(c) || "Canada", box, bounds });
+          const cover = ZONES.filter((z) => overlaps(z.bounds, bounds)).map((z) => z.bounds);
+          caIndex.zones.set("ca_" + c, { id: "ca_" + c, chunk: c, name: prov.get(c) || "Canada", box, bounds, cover });
         });
         caIndex.data = f;
         return caIndex;
@@ -1540,12 +1543,21 @@ body.sport-alt #rideMapBtn { display: none !important; }
   // riding (CA_SPAN degrees): a zoomed-out map or a whole region would load chunks far from where you're looking.
   // The chunks around the rider's home (caHomeZones below) are added at any zoom, like the home zones.
   const CA_MAX = 12, CA_SPAN = 2.5;
+  const inCover = (z, lat, lng) => z.cover.some((b) => lat >= b.getSouth() && lat <= b.getNorth() && lng >= b.getWest() && lng <= b.getEast());
+  // True when part of box b inside chunk z lies outside the home zones (checked on a 9 x 9 grid of points).
+  function caShows(z, b) {
+    if (!b.intersects(z.bounds)) return false;
+    if (!z.cover.length) return true;
+    const s = Math.max(b.getSouth(), z.box[0]), w = Math.max(b.getWest(), z.box[1]), n = Math.min(b.getNorth(), z.box[2]), e = Math.min(b.getEast(), z.box[3]);
+    for (let i = 0; i <= 8; i++) for (let j = 0; j <= 8; j++) if (!inCover(z, s + ((n - s) * i) / 8, w + ((e - w) * j) / 8)) return true;
+    return false;
+  }
   function caZonesIn(boxes) {
     const c = map.getCenter();
     const small = boxes.filter((b) => b.getNorth() - b.getSouth() <= CA_SPAN && b.getEast() - b.getWest() <= CA_SPAN * 1.5);
-    const near = [...caIndex.zones.values()].filter((z) => small.some((b) => b.intersects(z.bounds)))
+    const near = [...caIndex.zones.values()].filter((z) => small.some((b) => caShows(z, b)))
       .sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter())).slice(0, CA_MAX);
-    return near.concat(caHomeZones().filter((z) => !near.includes(z) && boxes.some((b) => b.intersects(z.bounds))));
+    return near.concat(caHomeZones().filter((z) => !near.includes(z) && boxes.some((b) => caShows(z, b))));
   }
   // ---------- Around you: for riders outside the home regions, the chunks around where they are stay loaded ----------
   // alex: "make the area around each person's location load automatically, the same way your home area does".
@@ -2381,8 +2393,16 @@ out body;`;
   function nightly(name) {
     if (!useNightly) return Promise.resolve(null);
     const ca = name.match(/^(trails|names|mtb)-ca_(.+)\.json$/);
-    if (ca) return caChunk(ca[2]).then((c) => (!c || c.v !== 1 ? null : ca[1] === "trails" ? c.trails
-      : ca[1] === "names" ? { v: 1, builtAt: c.builtAt, items: c.names } : { v: 1, builtAt: c.builtAt, ways: c.mtb.ways }));
+    if (ca) return caChunk(ca[2]).then((c) => {
+      if (!c || c.v !== 1) return null;
+      if (ca[1] === "trails") return c.trails;
+      // Inside a home zone the zone's own files have these, with the zone's extra rules: keep only the rest.
+      const z = caIndex.zones.get("ca_" + ca[2]), out = (p) => !z || !z.cover.length || !inCover(z, p[0], p[1]);
+      if (ca[1] === "names") return { v: 1, builtAt: c.builtAt, items: c.names.filter((it) => !it.c || out(it.c)) };
+      const ways = {};
+      Object.entries(c.mtb.ways).forEach(([id, w]) => { const i = (w.g.length >> 2) << 1; if (out([w.g[i], w.g[i + 1]])) ways[id] = w; });
+      return { v: 1, builtAt: c.builtAt, ways };
+    });
     if (/-ca_/.test(name)) return Promise.resolve(null);   // roads, access, GPS traces...: home zones only
     if (!nightlyFiles.has(name)) nightlyFiles.set(name, fetch("data/" + name, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null));
     return nightlyFiles.get(name);
@@ -3614,7 +3634,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=324").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=325").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -6830,30 +6850,30 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=324"></script>
-<script src="contours.js?v=324"></script>
-<script src="photo-slider.js?v=324"></script>
-<script src="winter.js?v=324"></script>
-<script src="hunting.js?v=324"></script>
-<script src="ski-points.js?v=324"></script>
-<script src="offline.js?v=324"></script>
-<script src="ride-stats.js?v=324"></script>
-<script src="native-gps.js?v=324"></script>
-<script src="navigate.js?v=324"></script>
-<script src="planner.js?v=324"></script>
-<script src="ride-finds.js?v=324"></script>
-<script src="rides.js?v=324"></script>
-<script src="account.js?v=324"></script>
-<script src="reports.js?v=324"></script>
-<script src="grades.js?v=324"></script>
-<script src="trail-photos.js?v=324"></script>
-<script src="visitors.js?v=324"></script>
-<script src="notify.js?v=324"></script>
-<script src="status.js?v=324"></script>
-<script src="areas.js?v=324"></script>
-<script src="alpine.js?v=324"></script>
-<script src="bikeparks.js?v=324"></script>
-<script src="photo-find.js?v=324"></script>
+<script src="map3d.js?v=325"></script>
+<script src="contours.js?v=325"></script>
+<script src="photo-slider.js?v=325"></script>
+<script src="winter.js?v=325"></script>
+<script src="hunting.js?v=325"></script>
+<script src="ski-points.js?v=325"></script>
+<script src="offline.js?v=325"></script>
+<script src="ride-stats.js?v=325"></script>
+<script src="native-gps.js?v=325"></script>
+<script src="navigate.js?v=325"></script>
+<script src="planner.js?v=325"></script>
+<script src="ride-finds.js?v=325"></script>
+<script src="rides.js?v=325"></script>
+<script src="account.js?v=325"></script>
+<script src="reports.js?v=325"></script>
+<script src="grades.js?v=325"></script>
+<script src="trail-photos.js?v=325"></script>
+<script src="visitors.js?v=325"></script>
+<script src="notify.js?v=325"></script>
+<script src="status.js?v=325"></script>
+<script src="areas.js?v=325"></script>
+<script src="alpine.js?v=325"></script>
+<script src="bikeparks.js?v=325"></script>
+<script src="photo-find.js?v=325"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
