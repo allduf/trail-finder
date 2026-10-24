@@ -4,10 +4,10 @@
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-166";
+const VERSION = "tf-167";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=359", "reports.js?v=359", "grades.js?v=359", "trail-photos.js?v=359", "status.js?v=359", "visitors.js?v=359", "map3d.js?v=359", "winter.js?v=359", "clouds.js?v=359", "smoke.js?v=359", "ski-points.js?v=359", "webcams.js?v=359", "hunting.js?v=359", "compass.js?v=359", "offline.js?v=359", "native-gps.js?v=359", "native.js?v=359", "navigate.js?v=359", "ride-stats.js?v=359", "ride-finds.js?v=359", "rides.js?v=359", "planner.js?v=359", "rotate.js?v=359", "photo-find.js?v=359", "ebike.js?v=359", "closures.js?v=359", "loops.js?v=359", "strava.js?v=359", "share.js?v=359", "community.js?v=359", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=9", "account.js?v=360", "reports.js?v=360", "grades.js?v=360", "trail-photos.js?v=360", "status.js?v=360", "visitors.js?v=360", "map3d.js?v=360", "winter.js?v=360", "clouds.js?v=360", "smoke.js?v=360", "ski-points.js?v=360", "webcams.js?v=360", "hunting.js?v=360", "compass.js?v=360", "offline.js?v=360", "native-gps.js?v=360", "native.js?v=360", "navigate.js?v=360", "ride-stats.js?v=360", "ride-finds.js?v=360", "rides.js?v=360", "planner.js?v=360", "rotate.js?v=360", "photo-find.js?v=360", "ebike.js?v=360", "closures.js?v=360", "loops.js?v=360", "strava.js?v=360", "share.js?v=360", "community.js?v=360", "ride-files.js?v=360", "rider-trails.js?v=360", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "vendor/leaflet-1.9.4.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
