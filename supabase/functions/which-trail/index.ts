@@ -18,7 +18,10 @@ const MAX_IMAGES = 3, MAX_B64 = 1_500_000, PER_HOUR = 30;
 const PER_DAY = { vision: 30, ai: 200, compare: 100 };
 // Tried in turn: a name Google retired (404), one that is too slow or one whose free allowance is used up (429) moves on
 // to the next. Each model has its own free allowance, so the later ones keep photo find working when the first runs out.
-const MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest", "gemini-2.5-flash-lite"];
+// Google's model list (ai.google.dev/gemini-api/docs/models, 2026-10): the Flash models first (they see scenery best), then
+// the Flash-Lite ones. Names Google stops serving are skipped.
+const MODELS = ["gemini-flash-latest", "gemini-3.6-flash", "gemini-3-flash-preview", "gemini-2.5-flash",
+  "gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash-lite"];
 // Ways to ask for little or no thinking (it answers in seconds instead of tens of seconds): Gemini 2.5 takes a budget,
 // Gemini 3 and later a level. A model that refuses one setting is asked with the next.
 const THINK = [{ thinkingLevel: "minimal" }, { thinkingBudget: 0 }, { thinkingLevel: "low" }, null];
