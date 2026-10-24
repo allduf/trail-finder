@@ -211,6 +211,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     <h2 id="rTitle"></h2>
     <p class="when" id="rWhen"></p>
     <div class="map" id="rideMap" role="application" aria-label="Map of this ride"></div>
+    <div class="finds" id="rFinds" aria-live="polite"></div>
     <dl class="stats" id="rStats"></dl>
     <div class="profile" id="rProfile"></div>
     <p class="hint warn" id="rGaps"></p>
@@ -225,12 +226,13 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
 </main>
 <div class="lightbox" id="lightbox" hidden><img id="lightImg" alt=""></div>
 
-<script src="native.js?v=317"></script>
-<script src="account.js?v=317"></script>
+<script src="native.js?v=318"></script>
+<script src="account.js?v=318"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-<script src="ride-files.js?v=317"></script>
-<script src="ride-stats.js?v=317"></script>
-<script src="native-gps.js?v=317"></script>
+<script src="ride-files.js?v=318"></script>
+<script src="ride-stats.js?v=318"></script>
+<script src="ride-finds.js?v=318"></script>
+<script src="native-gps.js?v=318"></script>
 <script>
 (() => {
   "use strict";
@@ -649,6 +651,8 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
       L.circleMarker(ll[ll.length - 1], { radius: 7, color: "#fff", weight: 2, fillColor: "#d92b2b", fillOpacity: 1 }).bindTooltip("Finish").addTo(rideLayer);
       rideMap.fitBounds(line.getBounds(), { padding: [20, 20], maxZoom: 17 });
     }
+    // Stretches with no trail on the map: offered as possible new trails (ride-finds.js).
+    if (window.tfRideFinds) window.tfRideFinds.mount($("rFinds"), r, rideMap); else $("rFinds").innerHTML = "";
   }
   $("backToRides").addEventListener("click", () => { location.hash = "#rides"; });
   $("editBtn").addEventListener("click", () => openSave(shown));
