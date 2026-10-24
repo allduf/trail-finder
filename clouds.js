@@ -411,6 +411,7 @@ onmessage = async (e) => {
     if (from !== "slider") slider.value = String(hour);
     whenEl.textContent = label(hour);
     draw();
+    if (!field) window.dispatchEvent(new CustomEvent("tf:cloudhour", { detail: hour }));   // smoke.js follows even while the clouds load
   }
   slider.addEventListener("input", () => setHour(+slider.value, "slider"));
   let playing = 0;
@@ -616,5 +617,5 @@ onmessage = async (e) => {
   document.addEventListener("visibilitychange", () => { if (on && document.visibilityState === "visible" && nowHour() !== baseT) { baseT = nowHour(); hourCache = null; refresh(); setHour(hour); } });
   apply();
 
-  window.tfClouds = { chart, isOn: () => on };
+  window.tfClouds = { chart, isOn: () => on, hour: () => hour, setHour: (h) => { if (on) setHour(h); } };   // smoke.js follows this slider
 })();

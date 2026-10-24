@@ -109,6 +109,16 @@ ol.rides { list-style: none; margin: 0; padding: 0; display: flex; flex-directio
 label.btn { position: relative; }
 label.btn input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 label.btn.busy { opacity: .6; cursor: progress; }
+.archive { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.archive p { margin: 0; }
+.archive progress { width: 100%; height: 10px; accent-color: var(--accent); }
+.archive ol { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 4px; }
+.archive a { color: var(--accent); }
+.tick { display: flex; gap: 8px; align-items: flex-start; font-size: .9rem; }
+.tick input { margin-top: 3px; }
+.howto { font-size: .9rem; }
+.howto summary { cursor: pointer; font-weight: 600; }
+.howto ol { margin: 6px 0 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 4px; }
 #viewRides.drop { outline: 2px dashed var(--accent); outline-offset: -6px; }
 label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; }
 .empty { text-align: center; color: var(--muted); padding: 32px 16px; }
@@ -205,11 +215,24 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
   <section class="view" id="viewRides" hidden>
     <div class="folder"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M3 6.5a2 2 0 0 1 2-2h4.2l2 2.2H19a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg><h2>My rides</h2></div>
     <p class="hint" id="totals"></p>
-    <div class="actions"><label class="btn" id="importBtn"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Import rides (GPX, FIT, TCX)<input type="file" id="importFiles" multiple accept=".gpx,.fit,.tcx,.gz,application/gpx+xml"></label></div>
+    <div class="actions"><label class="btn" id="importBtn"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Import rides (GPX, FIT, TCX)<input type="file" id="importFiles" multiple accept=".gpx,.fit,.tcx,.gz,.zip,application/gpx+xml,application/zip"></label><label class="btn" id="zipBtn"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 3h10l4 4v14H5zM10 3v2h2v2h-2v2h2v2h-2v3h2v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Import whole Strava archive (.zip)<input type="file" id="zipFile" accept=".zip,application/zip"></label></div>
+    <label class="tick"><input type="checkbox" id="zipBikes" checked> <span>Bike rides only (skip runs, hikes, walks and ski days)</span></label>
+    <label class="tick" id="zipAcctRow" hidden><input type="checkbox" id="zipAcct"> <span>Also save archive rides to my account (otherwise they stay on this device only)</span></label>
+    <details class="howto"><summary>How to get your Strava archive</summary><ol>
+      <li>On a computer or in your phone's browser, sign in at <a href="https://www.strava.com/account" target="_blank" rel="noopener">strava.com</a> (the Strava app can't do this step).</li>
+      <li>Tap your photo at the top right, then <strong>Settings</strong>.</li>
+      <li>Open <strong>My Account</strong> on the left.</li>
+      <li>Under <strong>Download or Delete Your Account</strong>, press <strong>Get Started</strong>.</li>
+      <li>In step 2, <strong>Download Request</strong>, press <strong>Request Your Archive</strong>. Don't touch the delete part.</li>
+      <li>Strava emails you a download link, usually within a few hours. Download the .zip file.</li>
+      <li>Come back here and press <strong>Import whole Strava archive</strong>, then pick that .zip. No need to unzip it.</li>
+    </ol></details>
+    <div class="archive" id="zipBox" hidden><p id="zipMsg" role="status"></p><progress id="zipBar" max="1" value="0"></progress><div class="actions"><button class="btn" id="zipStop" type="button">Stop</button></div></div>
     <p class="hint" id="importMsg" role="status" hidden></p>
+    <div class="archive" id="scanBox" hidden></div>
     <ol class="rides" id="rideList"></ol>
     <p class="hint">Rides are saved on this device, and in your account when you're signed in. Use <strong>Download GPX</strong> on a ride to keep a copy or upload it to Strava or Trailforks.</p>
-    <p class="hint">Without connecting Strava: open the activity, ⋯ menu, <strong>Export GPX</strong>, then <strong>Import rides</strong> here. For all of them at once, ask Strava for your data (Settings, My Account, Download or Delete Your Account), unzip it and pick the files in its <em>activities</em> folder. Garmin and Wahoo .fit files work too. Imported rides show on the main map with <strong>My rides</strong>, which marks the trails you've ridden.</p>
+    <p class="hint">Without connecting Strava: open the activity, ⋯ menu, <strong>Export GPX</strong>, then <strong>Import rides</strong> here. For all of them at once, use <strong>Import whole Strava archive</strong> (see how to get it above). Garmin and Wahoo .fit files work too. Imported rides show on the main map with <strong>My rides</strong>, which marks the trails you've ridden.</p>
   </section>
 
   <!-- One saved ride -->
@@ -233,14 +256,14 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
 </main>
 <div class="lightbox" id="lightbox" hidden><img id="lightImg" alt=""></div>
 
-<script src="native.js?v=343"></script>
-<script src="account.js?v=343"></script>
+<script src="native.js?v=345"></script>
+<script src="account.js?v=345"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-<script src="ride-files.js?v=343"></script>
-<script src="ride-stats.js?v=343"></script>
-<script src="strava.js?v=343"></script>
-<script src="ride-finds.js?v=343"></script>
-<script src="native-gps.js?v=343"></script>
+<script src="ride-files.js?v=345"></script>
+<script src="ride-stats.js?v=345"></script>
+<script src="strava.js?v=345"></script>
+<script src="ride-finds.js?v=345"></script>
+<script src="native-gps.js?v=345"></script>
 <script>
 (() => {
   "use strict";
@@ -709,9 +732,47 @@ ${pts}
 
   // ---------- import rides from other apps (files read by ride-files.js) ----------
   // Each file becomes a saved ride like a recorded one (marked imported). Points are thinned to Record ride's 5 m
-  // steps. A ride starting within a minute of one already in My rides is taken as the same ride and skipped.
+  // steps. The same ride already in My rides is skipped, by the same rule as Strava sync (strava.js): the same Strava
+  // activity, a start within a minute, or more than half of one overlapping the other in time.
+  function sameRide(have, start, end, stravaId) {
+    return have.some((r) => (stravaId && r.imported && r.imported.strava != null && String(r.imported.strava) === String(stravaId)) ||
+      Math.abs(r.start - start) < 60000 ||
+      (r.end > r.start && end > start && Math.min(r.end, end) - Math.max(r.start, start) > 0.5 * Math.min(r.end - r.start, end - start)));
+  }
+  // One file's track -> a ride saved in My rides, or null when it's already there.
+  async function addImported(got, fileName, have, extra) {
+    let t = got.points.find((p) => p[3] != null);
+    t = t ? t[3] : (extra && extra.lastModified) || Date.now();
+    const pts = [];
+    for (const p of got.points) {
+      if (p[3] == null) p[3] = t; else t = p[3];
+      if (!pts.length || metres(pts[pts.length - 1], p) >= MIN_STEP_M) pts.push(p);
+    }
+    const last = got.points[got.points.length - 1];
+    if (pts[pts.length - 1] !== last) pts.push(last);
+    const start = pts[0][3], end = pts[pts.length - 1][3];
+    const sid = extra && extra.strava;
+    if (sameRide(have, start, end, sid)) return null;
+    const base = fileName.replace(/^.*\//, "").replace(/(\.(gpx|fit|tcx))?(\.gz)?$/i, "");
+    const name = (extra && extra.name) || (got.name && !/^\d+$/.test(got.name) ? got.name : base);
+    const ride = {
+      id: "ride-" + start, start, end, points: pts, stats: statsOf(pts, start, end), saved: Date.now(),
+      title: (name && !/^\d+$/.test(name) ? name : defaultTitle(start)).slice(0, 120), description: "",
+      cover: null, photoCount: 0, imported: { file: fileName.replace(/^.*\//, ""), at: Date.now() },
+      sport: String((extra && extra.type) || got.sport || "").slice(0, 40),
+    };
+    if (sid) { ride.imported.strava = /^\d+$/.test(sid) ? Number(sid) : sid; ride.imported.archive = true; }
+    if (extra && extra.localOnly) ride.localOnly = true;     // kept off the account (Strava archive, unless asked)
+    if (ride.stats.climb == null) { try { const ud = await mapClimb(pts); ride.stats.climb = ud.up; ride.stats.descent = ud.down; ride.stats.climbFrom = "map"; } catch {} }
+    await dbPut("rides", ride);
+    have.push(ride);
+    if (!ride.localOnly) uploadSoon(ride.id);
+    return ride;
+  }
   async function importFiles(files) {
     files = [...files];
+    const zip = files.find((f) => /\.zip$/i.test(f.name) || f.type === "application/zip");
+    if (zip) { files = files.filter((f) => f !== zip); importArchive(zip); }
     if (!files.length || !window.tfRideFiles) return;
     const btn = $("importBtn"), msg = $("importMsg");
     btn.classList.add("busy");
@@ -721,27 +782,8 @@ ${pts}
       msg.textContent = `Reading ${file.name} (${n + 1} of ${files.length})…`;
       try {
         const got = await tfRideFiles.read(file);
-        let t = got.points.find((p) => p[3] != null);
-        t = t ? t[3] : file.lastModified || Date.now();
-        const pts = [];
-        for (const p of got.points) {
-          if (p[3] == null) p[3] = t; else t = p[3];
-          if (!pts.length || metres(pts[pts.length - 1], p) >= MIN_STEP_M) pts.push(p);
-        }
-        const last = got.points[got.points.length - 1];
-        if (pts[pts.length - 1] !== last) pts.push(last);
-        const start = pts[0][3], end = pts[pts.length - 1][3];
-        if (have.some((r) => Math.abs(r.start - start) < 60000)) { dupes.push(file.name); continue; }
-        const name = got.name && !/^\d+$/.test(got.name) ? got.name : file.name.replace(/(\.(gpx|fit|tcx))?(\.gz)?$/i, "");
-        const ride = {
-          id: "ride-" + start, start, end, points: pts, stats: statsOf(pts, start, end), saved: Date.now(),
-          title: (name && !/^\d+$/.test(name) ? name : defaultTitle(start)).slice(0, 120), description: "",
-          cover: null, photoCount: 0, imported: { file: file.name, at: Date.now() }, sport: String(got.sport || "").slice(0, 40),
-        };
-        if (ride.stats.climb == null) { try { const ud = await mapClimb(pts); ride.stats.climb = ud.up; ride.stats.descent = ud.down; ride.stats.climbFrom = "map"; } catch {} }
-        await dbPut("rides", ride);
-        have.push(ride); added.push(ride);
-        uploadSoon(ride.id);
+        const ride = await addImported(got, file.name, have, { lastModified: file.lastModified });
+        if (ride) added.push(ride); else dupes.push(file.name);
       } catch (e) { bad.push(`${file.name} (${e && e.message ? e.message : e})`); }
     }
     btn.classList.remove("busy");
@@ -756,6 +798,116 @@ ${pts}
     await countRides();
     if (added.length === 1 && files.length === 1) location.hash = "#ride/" + added[0].id;
     else if (location.hash === "#rides") renderRides(); else location.hash = "#rides";
+    if (added.length > 1) showScan(added.map((r) => r.id));
+  }
+
+  // ---------- the whole Strava archive (.zip from "Download or Delete Your Account") ----------
+  // Read straight from the zip on this device: its activities.csv gives each ride's name, type and Strava id, and the
+  // rides themselves are the files in activities/ (.gpx, .fit, .tcx, often .gz). Bike rides only unless the box is
+  // unticked. Nothing leaves the device: archive rides stay off the account unless "Also save to my account" is ticked.
+  let zipStop = false, zipBusy = false;
+  $("zipStop").addEventListener("click", () => { zipStop = true; $("zipStop").disabled = true; });
+  async function importArchive(file) {
+    if (zipBusy || !window.tfRideFiles || !tfRideFiles.openZip) return;
+    zipBusy = true; zipStop = false;
+    const box = $("zipBox"), msg = $("zipMsg"), bar = $("zipBar"), btn = $("zipBtn");
+    box.hidden = false; btn.classList.add("busy"); $("zipStop").disabled = false; $("zipStop").hidden = false;
+    msg.classList.remove("warn");
+    msg.textContent = `Opening ${file.name}…`; bar.removeAttribute("value");
+    const bikesOnly = $("zipBikes").checked, toAccount = !!acct.user && $("zipAcct").checked;
+    const added = [], s = (k) => (k === 1 ? "" : "s");
+    let dupes = 0, skipped = 0, noGps = 0, bad = 0, total = 0;
+    try {
+      const z = await tfRideFiles.openZip(file);
+      const csvEnt = z.entries.find((e) => /(^|\/)activities\.csv$/i.test(e.name));
+      const csv = csvEnt ? tfRideFiles.stravaCsv(new TextDecoder().decode(await z.bytes(csvEnt))) : new Map();
+      // the activity files, keyed as activities.csv names them ("activities/123.gpx.gz"), wherever the zip's root is
+      const acts = z.entries.filter((e) => /(^|\/)activities\/[^/]+\.(gpx|fit|tcx)(\.gz)?$/i.test(e.name));
+      if (!acts.length) throw new Error("there's no activities folder in it. Is it the archive from Strava?");
+      const infoOf = (e) => csv.get(e.name.replace(/^.*?(activities\/)/i, "$1")) || {};
+      const have = await dbAll("rides");
+      total = acts.length;
+      bar.max = total; bar.value = 0;
+      for (const [n, ent] of acts.entries()) {
+        if (zipStop) break;
+        bar.value = n;
+        msg.textContent = `Reading ride ${n + 1} of ${total}… ${added.length} imported${dupes ? `, ${dupes} already in My rides` : ""}${skipped ? `, ${skipped} not bike rides` : ""}.`;
+        const info = infoOf(ent);
+        if (bikesOnly && info.type && tfRideFiles.isBike(info.type) === false) { skipped++; continue; }
+        try {
+          const base = ent.name.replace(/^.*\//, "");
+          const got = await tfRideFiles.read(new File([await z.bytes(ent)], base));
+          if (bikesOnly && !info.type && tfRideFiles.isBike("", got.sport) === false) { skipped++; continue; }
+          const ride = await addImported(got, base, have, { name: info.name, type: info.type, strava: info.id || base.replace(/\..*$/, "").replace(/\D/g, "") || null, localOnly: !toAccount });
+          if (ride) added.push(ride); else dupes++;
+        } catch (e) { if (/no GPS track/.test(e && e.message)) noGps++; else { bad++; console.warn("Strava archive:", ent.name, e); } }
+      }
+      bar.value = total;
+      msg.textContent = [
+        `${zipStop ? "Stopped. " : ""}Imported ${added.length} ride${s(added.length)} from your Strava archive.`,
+        dupes ? `${dupes} ${dupes === 1 ? "was" : "were"} already in My rides.` : "",
+        skipped ? (skipped === 1 ? "1 wasn't a bike ride." : `${skipped} weren't bike rides.`) : "",
+        noGps ? `${noGps} had no GPS track (indoor or typed in).` : "",
+        bad ? `${bad} couldn't be read.` : "",
+        added.length ? (toAccount ? "They're on this device and in your account." : "They're saved on this device only.") : "",
+      ].filter(Boolean).join(" ");
+      msg.classList.toggle("warn", !!bad && !added.length);
+    } catch (e) {
+      msg.textContent = `Couldn't read the archive: ${e && e.message ? e.message : e}`;
+      msg.classList.add("warn");
+    }
+    $("zipStop").hidden = true; btn.classList.remove("busy"); zipBusy = false;
+    try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
+    await countRides();
+    if (location.hash === "#rides") renderRides(); else location.hash = "#rides";
+    if (added.length) showScan(added.map((r) => r.id));
+  }
+  $("zipFile").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) importArchive(f).finally(() => { e.target.value = ""; }); });
+
+  // ---------- possible new trails over many rides at once (ride-finds.js), after a big import ----------
+  // One ride at a time (each asks OpenStreetMap for the ways around it), with a pause between, so a few hundred rides
+  // take a while: it can be stopped and picks up where it left off. What it found per ride is kept on this device
+  // (tf:findsScan), and the rides with something show here with a link to look at them.
+  const scanGet = () => { try { return JSON.parse(localStorage.getItem("tf:findsScan")) || {}; } catch { return {}; } };
+  const scanSet = (v) => { try { localStorage.setItem("tf:findsScan", JSON.stringify(v)); } catch {} };
+  let scanRun = null, scanStop = false;
+  async function showScan(justAdded) {
+    const box = $("scanBox"), F = window.tfRideFinds;
+    if (!F || scanRun) return;
+    const rides = (await dbAll("rides")).filter((r) => r.points && r.points.length > 1).sort((a, b) => b.start - a.start);
+    const done = scanGet(), todo = rides.filter((r) => !(r.id in done)), hits = rides.filter((r) => done[r.id] > 0);
+    if (!todo.length && !hits.length) { box.hidden = true; return; }
+    box.hidden = false;
+    const list = hits.slice(0, 50).map((r) => `<li><a href="#ride/${encodeURIComponent(r.id)}">${esc(r.title)}</a>, ${fmtDay(r.start)}: ${done[r.id]} possible new trail${done[r.id] > 1 ? "s" : ""}</li>`).join("");
+    box.innerHTML = `<p><strong>🆕 Possible new trails in your rides</strong></p>
+${todo.length ? `<p>${justAdded && justAdded.length ? `Check the ${justAdded.length} rides you just imported` : `${todo.length} ride${todo.length > 1 ? "s" : ""} not checked yet`} for stretches that follow no trail on the map. It asks OpenStreetMap about one ride at a time, so it takes about ${Math.max(1, Math.round(todo.length * 6 / 60))} min; keep this page open.</p><div class="actions"><button class="btn primary" type="button" data-go>Check ${todo.length} ride${todo.length > 1 ? "s" : ""}</button></div>` : ""}
+${hits.length ? `<p>${hits.length} ride${hits.length > 1 ? "s have" : " has"} stretches that may be new trails. Open one to save or dismiss them:</p><ol>${list}</ol>` : ""}`;
+    const go = box.querySelector("[data-go]");
+    if (go) go.addEventListener("click", () => runScan(todo));
+  }
+  async function runScan(todo) {
+    const box = $("scanBox"), F = window.tfRideFinds;
+    scanStop = false;
+    box.innerHTML = `<p id="scanMsg" role="status">Checking…</p><progress max="${todo.length}" value="0"></progress><div class="actions"><button class="btn" type="button" data-stop>Stop</button></div>`;
+    box.querySelector("[data-stop]").addEventListener("click", (e) => { scanStop = true; e.target.disabled = true; });
+    const bar = box.querySelector("progress"), msg = $("scanMsg");
+    let found = 0, fails = 0;
+    scanRun = (async () => {
+      for (const [n, r] of todo.entries()) {
+        if (scanStop || fails >= 5) break;
+        bar.value = n;
+        msg.textContent = `Checking ride ${n + 1} of ${todo.length} (${r.title})… ${found} possible new trail${found === 1 ? "" : "s"} so far.`;
+        try {
+          const secs = await F.check(r);
+          const done = scanGet(); done[r.id] = secs.length; scanSet(done);
+          found += secs.length; fails = 0;
+        } catch (e) { fails++; console.warn("New-trail check:", r.id, e); }
+        await new Promise((ok) => setTimeout(ok, 1500));    // gentle on OpenStreetMap's servers
+      }
+    })();
+    await scanRun; scanRun = null;
+    showScan();
+    if (fails >= 5) { const p = document.createElement("p"); p.className = "hint warn"; p.textContent = "OpenStreetMap isn't answering right now; try again later. Rides already checked are kept."; $("scanBox").prepend(p); }
   }
   $("importFiles").addEventListener("change", (e) => { importFiles(e.target.files).finally(() => { e.target.value = ""; }); });
   const dropZone = $("viewRides");
@@ -857,7 +1009,7 @@ ${pts}
     if (!acct.user) return;
     (syncing || Promise.resolve()).then(async () => {
       const r = await dbGet("rides", id);
-      if (r) await uploadRide(r);
+      if (r && !(r.localOnly && !r.owner)) await uploadRide(r);
     }).catch((e) => console.warn("Ride saved on this device; it will go to your account next time:", e));
   }
   function syncRides() {
@@ -871,6 +1023,7 @@ ${pts}
     let changed = false;
     // Rides of an account that isn't signed in here (signed out, or someone else) leave this device.
     for (const r of local) if (r.owner && r.owner !== uid) { await dropLocal(r); changed = true; }
+    $("zipAcctRow").hidden = !uid;
     if (uid) {
       acct.setSyncNote("Syncing your rides…");
       try {
@@ -880,6 +1033,7 @@ ${pts}
         let up = 0;
         for (const r of local) {
           if (r.owner && r.owner !== uid) continue;
+          if (r.localOnly && !r.owner) continue;                         // kept on this device (Strava archive)
           const at = remote.get(r.id);
           remote.delete(r.id);
           if (at == null) {
@@ -929,6 +1083,7 @@ ${pts}
     } catch (e) { showGps("This browser won't let the page save rides (private window?). Rides can't be kept.", true); }
     countRides();
     route();
+    if (Object.keys(scanGet()).length) showScan();    // a check of many rides was started before: its results, or the rest
   })();
 })();
 </script>
