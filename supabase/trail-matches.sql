@@ -24,9 +24,24 @@ create index if not exists trail_matches_recent on public.trail_matches (created
 
 alter table public.trail_matches enable row level security;
 
+-- Caps for the whole app on what anyone can save without signing in, so nobody can fill the free database or the
+-- photo storage (1 GB) with made-up matches: 40 an hour and 150 a day, for the matches and for their pictures.
+create or replace function public.trail_match_room(p_kind text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select case when p_kind = 'photo' then
+      (select count(*) from storage.objects where bucket_id = 'trail-match-photos' and created_at > now() - interval '1 hour') < 40
+      and (select count(*) from storage.objects where bucket_id = 'trail-match-photos' and created_at > now() - interval '1 day') < 150
+    else
+      (select count(*) from public.trail_matches where created_at > now() - interval '1 hour') < 40
+      and (select count(*) from public.trail_matches where created_at > now() - interval '1 day') < 150
+    end
+$$;
+revoke all on function public.trail_match_room(text) from public;
+grant execute on function public.trail_match_room(text) to anon, authenticated;
+
 drop policy if exists "anyone saves a match" on public.trail_matches;
 create policy "anyone saves a match" on public.trail_matches for insert to anon, authenticated
-  with check ((user_id is null or user_id = auth.uid()) and created_at > now() - interval '5 minutes');
+  with check ((user_id is null or user_id = auth.uid()) and created_at > now() - interval '5 minutes' and public.trail_match_room('match'));
 
 drop policy if exists "anyone reads match words" on public.trail_matches;
 create policy "anyone reads match words" on public.trail_matches for select to anon, authenticated using (true);
@@ -42,4 +57,4 @@ on conflict (id) do update set public = false, file_size_limit = 600000, allowed
 
 drop policy if exists "anyone uploads a match photo" on storage.objects;
 create policy "anyone uploads a match photo" on storage.objects for insert to anon, authenticated
-  with check (bucket_id = 'trail-match-photos');
+  with check (bucket_id = 'trail-match-photos' and public.trail_match_room('photo'));

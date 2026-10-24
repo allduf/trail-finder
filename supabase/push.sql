@@ -35,6 +35,12 @@ begin
   if coalesce(left(p_sub->>'endpoint', 8), '') <> 'https://' or length(p_sub::text) > 4000 or length(p_watch::text) > 300000 then
     raise exception 'bad subscription';
   end if;
+  -- A new phone: caps for the whole app, so nobody can fill the free database with made-up phones.
+  if not exists (select 1 from public.push_subs where id = p_id) and (
+       (select count(*) from public.push_subs where created_at > now() - interval '1 hour') >= 50
+       or (select count(*) from public.push_subs) >= 1000) then
+    raise exception 'busy, try later';
+  end if;
   insert into public.push_subs (id, sub, watch, updated_at) values (p_id, p_sub, p_watch, now())
   on conflict (id) do update set sub = excluded.sub, watch = excluded.watch, updated_at = now();
 end

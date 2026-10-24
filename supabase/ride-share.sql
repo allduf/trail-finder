@@ -37,7 +37,10 @@ begin
   end loop;
   if n < 20 or n > 8000 then raise exception 'line too short or too long'; end if;
   if (select count(*) from public.shared_rides where contributor = who) >= 5000 then raise exception 'too many rides'; end if;
-  if (select count(*) from public.shared_rides where created_at > now() - interval '1 hour') >= 5000 then raise exception 'busy, try later'; end if;
+  -- Caps for the whole app, so nobody can fill the free database (500 MB) with made-up rides. A ride turned away here
+  -- isn't lost: the app tries it again on its next sync.
+  if (select count(*) from public.shared_rides where created_at > now() - interval '1 hour') >= 1000 then raise exception 'busy, try later'; end if;
+  if (select coalesce(sum(points), 0) from public.shared_rides where created_at > now() - interval '1 day') >= 1500000 then raise exception 'busy, try later'; end if;
   insert into public.shared_rides (contributor, ride, month, ebike, line, points)
   values (who, md5(p_key::text || p_ride), date_trunc('month', p_month)::date, coalesce(p_ebike, false), p_line, n)
   on conflict (contributor, ride) do update
