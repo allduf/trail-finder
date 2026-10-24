@@ -56,7 +56,6 @@
 .rp-pin.p { background: var(--c); }
 .rp-pin.run { border-radius: 11px; background: var(--c); }
 .rp-pin.on { outline: 3px solid #ffe14d; }
-.rp-gl { position: relative; }
 `;
   document.head.appendChild(css);
 
@@ -166,7 +165,7 @@
       if (gl) {
         const el = document.createElement("div"); el.className = "rp-gl"; el.title = tip; el.innerHTML = html;
         el.addEventListener("click", (e) => { e.stopPropagation(); pick(it); });
-        glMarkers.push(new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([lon, lat]).addTo(gl));
+        glMarkers.push(new maplibregl.Marker({ element: el, anchor: "center", opacityWhenCovered: 1 }).setLngLat([lon, lat]).addTo(gl));
       }
     };
     const z = map.getZoom();
@@ -370,11 +369,7 @@
   btn.textContent = "Rogers Pass permit areas";
   function placeBtn() {
     if (btn.isConnected) return true;
-    const extras = $("lmSkiExtras");
-    if (!extras) return false;
-    const list = document.createElement("div"); list.className = "lm-list"; list.appendChild(btn);
-    extras.after(list);
-    return true;
+    return !!window.tfSkiSlot && window.tfSkiSlot("places", btn, { label: "Rogers Pass permit areas", bg: "linear-gradient(135deg, #2f9e44 50%, #e03131 50%)" });
   }
   btn.addEventListener("click", () => { on = !on; try { localStorage.setItem("tf:skiRogers", String(on)); } catch {} sync(); });
   function sync() {

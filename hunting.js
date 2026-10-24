@@ -92,12 +92,28 @@
   const LEH_PAGE = "https://www2.gov.bc.ca/gov/content/sports-culture/recreation/fishing-hunting/hunting/limited-entry-hunting";
   const LEH_PDF = "https://www2.gov.bc.ca/assets/gov/sports-recreation-arts-and-culture/outdoor-recreation/fishing-and-hunting/hunting/limited-entry-hunting/leh-regulations-synopsis.pdf";
 
-  // Forest types: leading species of each stand (BC VRI SPECIES_CD_1 starts with these letters).
+  // Forest types, simplified for hunters (alex: "what the hunters really need"): what each stand gives game, not its
+  // tree species. Hunters read cover (where game beds and hides), feed (browse, grass, berries) and the edges between.
+  // BC VRI: BCLCS_LEVEL_4 = TC conifer, TB broadleaf, TM mixed, ST/SL shrubs, HE/HF/HG herbs and grass; CROWN_CLOSURE %
+  // (onX's thermal cover uses 70%+ canopy; 60% here keeps the class useful on BC's thinner interior stands); PROJ_AGE_1 years.
+  // [id, colour, name, why it matters]
   const FOREST = [
-    ["F", "Douglas-fir", "#1b5e20"], ["C", "Western redcedar", "#8e24aa"], ["Y", "Yellow-cedar", "#ce93d8"], ["H", "Hemlock", "#00897b"],
-    ["S", "Spruce", "#1e88e5"], ["B", "Balsam / true fir", "#7cb342"], ["P", "Pine", "#fbc02d"], ["L", "Larch", "#a0522d"],
-    ["A", "Aspen / cottonwood", "#ff7043"], ["E", "Birch", "#f06292"], ["D", "Alder", "#8d6e63"], ["M", "Maple", "#e53935"],
+    ["thick", "#0b5d1e", "Thick timber", "Bedding, shade, escape and winter cover. Game beds here by day, often near the edges."],
+    ["open", "#69db7c", "Open timber", "Thinner conifer forest: travel routes, some grass and shrubs underneath, easier to see through."],
+    ["leafy", "#ffd43b", "Aspen, birch and mixed", "Leafy forest with lots of browse: deer, elk, moose and grouse feed here."],
+    ["young", "#e64980", "Young forest and brush", "Regrowth under 25 years old and shrubs: the best browse and berries, thick enough to hide in."],
+    ["grass", "#a87b4f", "Meadow and grass", "Open feeding ground for elk, deer and sheep: glass it at first and last light."],
   ];
+  const FOREST_BY = Object.fromEntries(FOREST.map((f) => [f[0], f]));
+  // Which class a VRI stand is in (the same rules as the map tiles below).
+  const standClass = (s) => {
+    const l4 = String(s.BCLCS_LEVEL_4 || ""), age = s.PROJ_AGE_1;
+    if ((l4[0] === "T" && age != null && age < 25) || l4 === "ST" || l4 === "SL") return "young";
+    if (l4 === "TC") return s.CROWN_CLOSURE >= 60 ? "thick" : "open";
+    if (l4 === "TB" || l4 === "TM") return "leafy";
+    if (l4[0] === "H") return "grass";
+    return null;
+  };
   const SPECIES = {
     FD: "Douglas-fir", FDC: "Douglas-fir (coast)", FDI: "Douglas-fir (interior)", CW: "Western redcedar", YC: "Yellow-cedar", HW: "Western hemlock",
     HM: "Mountain hemlock", SX: "Hybrid spruce", SE: "Engelmann spruce", SW: "White spruce", SB: "Black spruce", SS: "Sitka spruce", PL: "Lodgepole pine",
@@ -107,10 +123,35 @@
   };
   const sld = (layer, rules) => `<StyledLayerDescriptor version="1.0.0"><NamedLayer><Name>${layer}</Name><UserStyle><FeatureTypeStyle>${rules.map(([filter, color]) =>
     `<Rule><Filter>${filter}</Filter>${color.startsWith("<PolygonSymbolizer") ? color : `<PolygonSymbolizer><Fill><CssParameter name="fill">${color}</CssParameter></Fill></PolygonSymbolizer>`}</Rule>`).join("")}</FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>`;
-  // One rule that picks the colour from the species code's first letter (Recode), so the style fits in a map tile's
-  // web address (12 rules made it too long for DataBC). Other species fall back to grey; stands with no species aren't painted.
-  const forestSld = () => sld(VRI, [[`<Not><PropertyIsNull><PropertyName>SPECIES_CD_1</PropertyName></PropertyIsNull></Not>`,
-    `<Function name="Recode"><Function name="strSubstring"><PropertyName>SPECIES_CD_1</PropertyName><Literal>0</Literal><Literal>1</Literal></Function>${FOREST.map(([c, , col]) => `<Literal>${c}</Literal><Literal>${col}</Literal>`).join("")}</Function>`]]);
+  // Five rules, kept short so the style fits in a map tile's web address (DataBC refuses ~4 KB): instead of "and not
+  // young" on every rule, later rules paint over earlier ones on the same stand (thick over open, young over everything).
+  const forestSld = () => {
+    const P = (n) => `<PropertyName>${n}</PropertyName>`, L = (v) => `<Literal>${v}</Literal>`;
+    const is = (n, v) => `<PropertyIsEqualTo>${P(n)}${L(v)}</PropertyIsEqualTo>`, any = (vs) => `<Or>${vs.map((v) => is("BCLCS_LEVEL_4", v)).join("")}</Or>`;
+    return sld(VRI, [
+      [is("BCLCS_LEVEL_4", "TC"), FOREST_BY.open[1]],
+      [`<And>${is("BCLCS_LEVEL_4", "TC")}<PropertyIsGreaterThanOrEqualTo>${P("CROWN_CLOSURE")}${L(60)}</PropertyIsGreaterThanOrEqualTo></And>`, FOREST_BY.thick[1]],
+      [any(["TB", "TM"]), FOREST_BY.leafy[1]],
+      [any(["HE", "HF", "HG"]), FOREST_BY.grass[1]],
+      [`<Or><And>${is("BCLCS_LEVEL_2", "T")}<PropertyIsLessThan>${P("PROJ_AGE_1")}${L(25)}</PropertyIsLessThan></And>${is("BCLCS_LEVEL_4", "ST")}${is("BCLCS_LEVEL_4", "SL")}</Or>`, FOREST_BY.young[1]],
+    ]);
+  };
+  // Alberta's fuel type map uses its own colours: each fuel type sorted into the same five classes for the key.
+  const fuelClass = (label) => {
+    const m = String(label).match(/^([A-Z])-(\d)/), code = m ? m[1] + m[2] : "";
+    if (code === "C2") return "thick";                                   // boreal spruce
+    if (code === "C4" || code === "C6" || m?.[1] === "S") return "young";  // young pine, plantations, logging slash
+    if (/^C[1357]$/.test(code)) return "open";                           // lichen woodland, mature pine, ponderosa / fir
+    if (m && /[DM]/.test(m[1])) return "leafy";                          // aspen and mixedwood
+    if (m?.[1] === "O" || /grass/i.test(label)) return "grass";
+    return null;
+  };
+  // The fuel map's own colours (its legend, 2023 grid), repainted on the phone in the five classes above, so both
+  // provinces read the same. A colour not listed (water, rock, a new legend) is left clear.
+  const FUEL_RGB = {
+    "226633": "thick", d1ff73: "open", "83c795": "open", dfb8e6: "open", "700cf2": "open", "70a800": "young", ac66ed: "young",
+    fbbeb9: "young", f768a1: "young", "897044": "leafy", ffd37f: "leafy", ffaa00: "leafy", ffffbe: "grass",
+  };
   const VRI = "pub:WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY", PMBC = "pub:WHSE_CADASTRE.PMBC_PARCEL_FABRIC_POLY_SVW";
   const FIRES = "pub:WHSE_LAND_AND_NATURAL_RESOURCE.PROT_HISTORICAL_FIRE_POLYS_SP", WETLANDS = "pub:WHSE_BASEMAPPING.FWA_WETLANDS_POLY";
   // Old burns by age: young burns green up into good feed (browse and berries) for several years.
@@ -146,7 +187,7 @@
     rules: { g: "Boundaries", label: "Parks, towns and closures", sub: "Where hunting is banned or has its own rules", on: true, sw: [C.no, "hatch"] },
     land: { g: "Land", label: "Private and public land", sub: "BC private parcels, Alberta Green Area and grazing leases", on: false, sw: [C.private, "fill"], minZoom: 9 },
     reach: { g: "Land", label: "Far from roads", sub: "Clear where you're over 1.5 km from any road: few hunters walk that far", on: false, sw: [REACH[1][1], "fill"], minZoom: 9 },
-    forest: { g: "Habitat", label: "Forest types", sub: "Leading tree species (BC), fuel types (Alberta)", on: false, sw: ["#1b5e20", "fill"], minZoom: 8 },
+    forest: { g: "Habitat", label: "Forest types", sub: "Thick timber, open timber, aspen, young forest and brush, meadows", on: false, sw: ["#1b5e20", "fill"], minZoom: 8 },
     burns: { g: "Habitat", label: "Old burns", sub: "Fire scars by age: young burns grow feed", on: false, sw: [BURN, "burn"], minZoom: 7 },
     cut: { g: "Habitat", label: "Cut blocks by age", sub: "Logged areas (BC): 5-20 year old ones are prime browse", on: false, sw: [CUTS[1][2], "cut"], minZoom: 10 },
     wet: { g: "Habitat", label: "Wetlands", sub: "Marshes, fens, bogs and swamps", on: false, sw: [C.wet, "fill"], minZoom: 10 },
@@ -384,15 +425,60 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const allHunt = [zoneLayer, lehLayer, rulesLayer, labelLayer, windLayer, ringLayer, glassLayer, measureLayer, squareLayer];
   let zones = null, leh = null, areas = null;
 
+  // Only the outlines near the view are on the map, and fewer points when zoomed out (alex 2026-10-24: "the map is
+  // lagging in hunting mode too"). With every zone and park outline on, each zoom placed ~570,000 points again:
+  // about a second on a phone (measured), with the map stuck. [up to zoom, points closer than this many degrees skipped]
+  const THIN = [[6, 0.05], [7, 0.025], [8, 0.012], [9, 0.006], [10, 0.003], [11, 0.0015], [12, 0.0008], [13, 0.0004]];   // 2-3 pixels
+  const thin = (g, d) => g.map((r) => {
+    if (r.length <= 8) return r;
+    const out = [r[0], r[1]];
+    for (let i = 2; i < r.length - 2; i += 2) {
+      const a = out[out.length - 2], o = out[out.length - 1];
+      if (Math.abs(r[i] - a) > d || Math.abs(r[i + 1] - o) > d) out.push(r[i], r[i + 1]);
+    }
+    out.push(r[r.length - 2], r[r.length - 1]);
+    if (out.length >= 8) return out;
+    if (g.length > 1) return null;   // a piece too small to see at this zoom
+    const q = r.length / 2, pick = [0, Math.floor(q / 3), Math.floor((2 * q) / 3), q - 1];   // four of its points
+    return pick.flatMap((i) => [r[2 * i], r[2 * i + 1]]);
+  });
+  const culls = [];   // [layer group, [{ f, make, on: [polygons], lod }]]
+  function cullSet(group) { group.clearLayers(); const items = []; culls.push([group, items]); for (let i = culls.length - 2; i >= 0; i--) if (culls[i][0] === group) culls.splice(i, 1); return items; }
+  function cull() {
+    const v = map.getBounds().pad(1), s = v.getSouth(), w = v.getWest(), n = v.getNorth(), e = v.getEast(), z = map.getZoom();
+    const lod = THIN.findIndex(([m]) => z <= m);
+    const out = (b) => b[2] < s || b[0] > n || b[3] < w || b[1] > e;
+    for (const [group, items] of culls) for (const it of items) {
+      const f = it.f;
+      // Too small to see at this zoom (a reserve zoomed out to the province): left off.
+      const tiny = lod >= 0 && f.b[2] - f.b[0] < THIN[lod][1] * 2 && f.b[3] - f.b[1] < THIN[lod][1] * 2;
+      let key = tiny || out(f.b) ? "" : "all";
+      // An area made of many pieces (one park covers half of BC in 644 pieces): only its pieces near the view.
+      if (key && f.g.length > 8) {
+        f.rb = f.rb || f.g.map((r) => { const b = [90, 180, -90, -180]; for (let i = 0; i < r.length; i += 2) { b[0] = Math.min(b[0], r[i]); b[1] = Math.min(b[1], r[i + 1]); b[2] = Math.max(b[2], r[i]); b[3] = Math.max(b[3], r[i + 1]); } return b; });
+        key = f.rb.map((b, i) => (out(b) ? "" : i)).filter((i) => i !== "").join(",");
+      }
+      if (key && it.on && it.lod === lod && it.key === key) continue;
+      if (it.on) { for (const l of it.on) group.removeLayer(l); it.on = null; }
+      if (!key) continue;
+      let g = lod < 0 ? f.g : ((f.thin = f.thin || [])[lod] = f.thin[lod] || thin(f.g, THIN[lod][1]));
+      if (key !== "all") { const keep = new Set(key.split(",").map(Number)); g = g.filter((r, i) => keep.has(i)); }
+      g = g.filter(Boolean);
+      if (!g.length) continue;
+      it.on = it.make(ringsLL(g), lod); it.lod = lod; it.key = key;
+      for (const l of it.on) group.addLayer(l);
+    }
+  }
+  map.on("moveend", () => { if (isHunt()) cull(); });
+
   async function drawZones() {
-    zoneLayer.clearLayers();
+    const items = cullSet(zoneLayer);
     if (!shown.has("zones")) { labelLayer.clearLayers(); return; }
     try { zones = zones || (await load("zones")).zones; } catch { return; }
-    for (const z of zones) {
-      L.polygon(ringsLL(z.g), { renderer, interactive: false, color: "#fff", weight: 4.5, opacity: 0.55, fill: false }).addTo(zoneLayer);   // white edge: reads on photos and dark forest
-      L.polygon(ringsLL(z.g), { renderer, interactive: false, color: C.zone, weight: 2, opacity: 0.9, fill: false }).addTo(zoneLayer);
-    }
-    drawLabels(); sync3d();
+    for (const f of zones) items.push({ f, make: (ll, lod) => [
+      ...(lod >= 0 && lod <= 2 ? [] : [L.polygon(ll, { renderer, interactive: false, color: "#fff", weight: 4.5, opacity: 0.55, fill: false })]),   // white edge: reads on photos and dark forest (not needed zoomed out)
+      L.polygon(ll, { renderer, interactive: false, color: C.zone, weight: 2, opacity: 0.9, fill: false })] });
+    cull(); drawLabels(); sync3d();
   }
   // Labels only for the zones in view, so the map stays light.
   function drawLabels() {
@@ -407,10 +493,11 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     }
   }
   async function drawLeh() {
-    lehLayer.clearLayers();
+    const items = cullSet(lehLayer);
     if (!shown.has("leh")) return;
     try { leh = leh || (await load("leh")).zones; } catch { return; }
-    for (const z of leh) L.polygon(ringsLL(z.g), { renderer, interactive: false, color: C.leh, weight: 2, dashArray: "7 5", opacity: 0.85, fill: false }).addTo(lehLayer);
+    for (const f of leh) items.push({ f, make: (ll) => [L.polygon(ll, { renderer, interactive: false, color: C.leh, weight: 2, dashArray: "7 5", opacity: 0.85, fill: false })] });
+    cull();
   }
   // No-hunting areas are hatched (red stripes), so they never read as just another tint.
   const makeHatch = (n, w) => {   // n px square, w px stripes
@@ -424,7 +511,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const hatched = (k) => k.color === C.no;   // reserves are "no" too (ask first) but keep their own violet
   const fillOp = (id, k) => (hatched(k) ? 0.6 : id === "town" ? 0.2 : k.color === C.vary ? 0.16 : k.color === C.reserve ? 0.12 : 0.07);
   async function drawRules() {
-    rulesLayer.clearLayers();
+    const items = cullSet(rulesLayer);
     if (!shown.has("rules") && !shown.has("land")) return;
     try { areas = areas || (await load("areas")).areas; } catch { return; }
     for (const a of areas) {
@@ -432,10 +519,10 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       if (!k) continue;
       const want = a.k === "green" ? shown.has("land") : shown.has("rules");
       if (!want) continue;
-      L.polygon(ringsLL(a.g), { renderer, interactive: false, color: k.color, weight: k.line || k.color === C.vary || k.color === C.reserve ? 2 : hatched(k) || a.k === "town" ? 1.5 : 1, dashArray: k.dash || null, lineCap: k.dash ? "round" : "butt",
-        opacity: 0.85, fill: !k.line, fillColor: hatched(k) ? HATCH : k.color, fillOpacity: fillOp(a.k, k) }).addTo(rulesLayer);
+      items.push({ f: a, make: (ll) => [L.polygon(ll, { renderer, interactive: false, color: k.color, weight: k.line || k.color === C.vary || k.color === C.reserve ? 2 : hatched(k) || a.k === "town" ? 1.5 : 1, dashArray: k.dash || null, lineCap: k.dash ? "round" : "butt",
+        opacity: 0.85, fill: !k.line, fillColor: hatched(k) ? HATCH : k.color, fillOpacity: fillOp(a.k, k) })] });
     }
-    sync3d();
+    cull(); sync3d();
   }
 
   // Picture layers: map images for each 256 px tile, asked for by the tile's box in web mercator metres. Built as
@@ -476,7 +563,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       min: 11, opacity: 0.4, attr: 'Land: <a href="https://ltsa.ca/property-owners/about-land-records/parcelmap-bc/">ParcelMap BC</a>, DataBC' },
     { id: "hn-graze", layer: "land", tmpl: arcgis(GRAZE_SVC, dyn([1], rgba(GRAZE_COLOR, 90), rgba("#b07d00", 255))), min: 9, opacity: 0.8, attr: "Leases: Alberta Recreational Access" },
     { id: "hn-forest", layer: "forest", tmpl: wms(VRI, forestSld()), min: 11, opacity: 0.5, attr: 'Forest: <a href="https://www2.gov.bc.ca/gov/content/industry/forestry/managing-our-forest-resources/forest-inventory">BC Vegetation Resources Inventory</a>' },
-    { id: "hn-fuel", layer: "forest", tmpl: arcgis(FUEL_SVC, "layers=show%3A1"), min: 8, opacity: 0.5, ab: true, attr: "Forest: Alberta Wildfire fuel types" },
+    { id: "hn-fuel", layer: "forest", tmpl: arcgis(FUEL_SVC, "layers=show%3A1"), recolor: FUEL_RGB, min: 8, opacity: 0.5, ab: true, attr: "Forest: Alberta Wildfire fuel types" },
     { id: "hn-burns", layer: "burns", tmpl: wms(FIRES, sld(FIRES, BURNS.map(([a, b, gap]) => [between("FIRE_YEAR", a, b), burnSym(gap)]))), min: 7, opacity: 1, attr: 'Burns: <a href="https://catalogue.data.gov.bc.ca/dataset/fire-perimeters-historical">BC Wildfire Service</a>' },
     { id: "hn-abburn1", layer: "burns", tmpl: arcgis(FIRE_SVC, dyn([11, 12, 13, 14, 15], rgba(BURN, 255), rgba(BURN, 255), "esriSFSDiagonalCross")), min: 7, opacity: 1, ab: true, attr: "Burns: Alberta Wildfire" },
     { id: "hn-abburn2", layer: "burns", tmpl: arcgis(FIRE_SVC, dyn([16, 17, 18, 19, 20], rgba(BURN, 255), rgba(BURN, 255), "esriSFSBackwardDiagonal")), min: 7, opacity: 1, ab: true, attr: "Burns: Alberta Wildfire" },
@@ -488,7 +575,37 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   ];
   // each province's layers only ask for tiles over that province
   const BOUNDS = { bc: [[48.2, -139.1], [60.01, -114.0]], ab: [[48.99, -120.01], [60.01, -109.99]] };
-  for (const p of PICS) p.tiles = new BoxTiles(p.tmpl, { pic: p, pane: "huntTiles", opacity: p.opacity, minZoom: p.min, maxZoom: 20, attribution: p.attr, bounds: BOUNDS[p.ab ? "ab" : "bc"] });
+  // "recolor" layers: the server's picture, each colour swapped for ours (the saved-offline copy is the server's picture too).
+  const CLASS_RGB = Object.fromEntries(FOREST.map(([id, c]) => [id, [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]]));
+  async function recolorTile(p, z, x, y) {
+    const r = await fetch(picUrl(p, z, x, y));
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const cv = document.createElement("canvas"); cv.width = cv.height = 256;
+    const cx = cv.getContext("2d", { willReadFrequently: true });
+    cx.drawImage(await createImageBitmap(await r.blob()), 0, 0, 256, 256);
+    const img = cx.getImageData(0, 0, 256, 256), d = img.data, hex = (n) => n.toString(16).padStart(2, "0");
+    const seen = new Map();   // a tile has a dozen colours at most
+    for (let i = 0; i < d.length; i += 4) {
+      if (!d[i + 3]) continue;
+      const k = (d[i] << 16) | (d[i + 1] << 8) | d[i + 2];
+      if (!seen.has(k)) seen.set(k, CLASS_RGB[p.recolor[hex(d[i]) + hex(d[i + 1]) + hex(d[i + 2])]] || null);
+      const c = seen.get(k);
+      if (c) { d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; } else d[i + 3] = 0;
+    }
+    return img;
+  }
+  const RecolorGrid = L.GridLayer.extend({
+    createTile(c, done) {
+      const cv = document.createElement("canvas");
+      cv.width = cv.height = 256;
+      recolorTile(this.options.pic, c.z, c.x, c.y).then((img) => { cv.getContext("2d").putImageData(img, 0, 0); done(null, cv); }, (e) => done(e, cv));
+      return cv;
+    },
+  });
+  for (const p of PICS) {
+    const opts = { pic: p, pane: "huntTiles", opacity: p.opacity, minZoom: p.min, maxZoom: 20, attribution: p.attr, bounds: BOUNDS[p.ab ? "ab" : "bc"] };
+    p.tiles = p.recolor ? new RecolorGrid(opts) : new BoxTiles(p.tmpl, opts);
+  }
 
   // Slope angle and aspect from the terrain tiles (Terrarium colour code, 256 px, up to zoom 14).
   const DEM = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/";
@@ -566,16 +683,6 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   }
 
   // ---------- layer list with built-in keys ----------
-  // Alberta's fuel type legend comes from its map server (the colours it paints with).
-  let fuelLegend = null;
-  function loadFuelLegend() {
-    if (fuelLegend) return;
-    fuelLegend = [];
-    fetch(`${AB}/${FUEL_SVC}/MapServer/legend?f=json`).then((r) => r.json()).then((j) => {
-      fuelLegend = (j.layers || []).flatMap((l) => l.legend || []).filter((x) => x.imageData && !/^(Water|Non-fuel)$/i.test(x.label)).map((x) => [x.label, `data:${x.contentType || "image/png"};base64,${x.imageData}`]);
-      renderLayers();
-    }).catch(() => { fuelLegend = null; });
-  }
   const hatchCss = (c) => `repeating-linear-gradient(135deg, ${c} 0 2px, transparent 2px 5px)`;
   const sw = (c, kind = "fill") => kind === "line" || kind === "dash" || kind === "dot" ? `<i style="border:2px ${kind === "line" ? "solid" : kind === "dash" ? "dashed" : "dotted"} ${c};background:transparent"></i>`
     : kind === "hatch" ? `<i style="border:1.5px solid ${c};background:${hatchCss(c)}"></i>`
@@ -587,8 +694,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     rules: () => [`<li>${sw(C.no, "hatch")}No hunting</li>`, `<li>${sw(C.vary, "soft")}Park: rules vary</li>`, `<li>${sw(C.open, "edge")}Usually open in season</li>`,
       `<li>${sw(C.reserve, "edge")}Reserve: ask first</li>`, `<li>${sw(C.town, "soft")}Town: no shooting</li>`, `<li>${sw(C.closure, "dot")}Vehicle closure</li>`],
     land: () => [`<li>${sw(C.private)}Private land (BC)</li>`, `<li>${sw(GRAZE_COLOR)}Grazing lease (AB): ask</li>`, `<li class="wide">${sw(C.green, "dash")}Alberta Green Area: public forest</li>`],
-    forest: () => [...FOREST.map(([, n, c]) => `<li>${sw(c)}${esc(n)}</li>`), `<li>${sw("#808080")}Other species</li>`,
-      ...(fuelLegend && fuelLegend.length ? [`<li class="wide"><b>Alberta fuel types</b></li>`, ...fuelLegend.map(([n, src]) => `<li><img alt="" src="${src}">${esc(n.replace(/^[A-Z]-\d(\/[A-Z]-\d)? \((.*)\)$/, "$2"))}</li>`)] : [])],
+    forest: () => [...FOREST.map(([, c, n]) => `<li class="wide">${sw(c)}${esc(n)}</li>`), `<li class="wide hn-tip">Game beds in thick timber and feeds in the rest: hunt the edges between them.</li>`],
     burns: () => [...BURNS.map(([, , gap, n]) => `<li><i style="${burnCss(gap)}"></i>${esc(n)}</li>`), `<li class="wide">Alberta: the last 10 years</li>`],
     reach: () => [...[...REACH].reverse().map(([, c, n]) => `<li class="wide"><i style="background:${c};opacity:.8"></i>${esc(n)}</li>`), `<li class="wide"><i style="background:#fff;border:1px solid #adb5bd"></i>Clear: over 1.5 km from any road</li>`],
     cut: () => [...CUTS.map(([, , c, , n]) => `<li class="wide"><i style="${cutCss(c)}"></i>${esc(n)}</li>`), `<li class="wide">Alberta: not on the map yet</li>`],
@@ -648,7 +754,6 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   });
   // Saves the switches and redraws the layers in "changed".
   function applyLayers(changed) {
-    if (shown.has("forest")) loadFuelLegend();
     store.set("huntLayers2", [...shown]);
     renderLayers(); renderMapKey(); syncTiles(); sync3d();
     const has = (...k) => k.some((x) => changed.includes(x));
@@ -1206,17 +1311,22 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     };
     const [parcel, stand, burn] = await Promise.all([
       q(PMBC, "SHAPE", "OWNER_TYPE,PARCEL_CLASS,MUNICIPALITY,PID_FORMATTED"),
-      q(VRI, "GEOMETRY", "SPECIES_CD_1,SPECIES_PCT_1,SPECIES_CD_2,SPECIES_PCT_2,PROJ_AGE_1,PROJ_HEIGHT_1,BCLCS_LEVEL_4,HARVEST_DATE"),
+      q(VRI, "GEOMETRY", "SPECIES_CD_1,SPECIES_PCT_1,SPECIES_CD_2,SPECIES_PCT_2,PROJ_AGE_1,PROJ_HEIGHT_1,BCLCS_LEVEL_4,CROWN_CLOSURE,HARVEST_DATE"),
       q(FIRES, "SHAPE", "FIRE_YEAR,FIRE_LABEL,FIRE_SIZE_HECTARES", "FIRE_YEAR D"),
     ]);
     if (parcel) {
       const own = String(parcel.OWNER_TYPE || "");
       out.push(`<li style="border-color:${/private/i.test(own) ? C.private : C.open}"><b>Land: ${esc(own || "parcel")}</b>${/private/i.test(own) ? "Private land: you need the owner's permission to hunt here." : /crown/i.test(own) ? "Crown land: usually open to hunting in season, unless a park, lease or closure says otherwise." : ""}${parcel.PID_FORMATTED ? ` <span class="hn-note">PID ${esc(parcel.PID_FORMATTED)}</span>` : ""}</li>`);
     } else if (parcel === null) out.push(`<li style="border-color:#2f9e44"><b>Land: no titled parcel mapped</b>Most likely Crown land, usually open to hunting in season, unless a park, reserve, lease or closure above says otherwise.</li>`);
-    if (stand && stand.SPECIES_CD_1) {
+    const fc = stand && FOREST_BY[standClass(stand)];
+    if (fc || (stand && stand.SPECIES_CD_1)) {
       const sp = (c, p) => (c ? `${esc(SPECIES[c] || c)}${p ? ` ${p}%` : ""}` : "");
       const age = stand.PROJ_AGE_1 != null ? Math.round(stand.PROJ_AGE_1) : null;
-      out.push(`<li style="border-color:${(FOREST.find((f) => stand.SPECIES_CD_1.startsWith(f[0])) || [, , "#868e96"])[2]}"><b>Forest: ${sp(stand.SPECIES_CD_1, stand.SPECIES_PCT_1)}${stand.SPECIES_CD_2 ? `, ${sp(stand.SPECIES_CD_2, stand.SPECIES_PCT_2)}` : ""}</b>${age != null ? `About ${age} years old` : ""}${stand.PROJ_HEIGHT_1 ? `, ${Math.round(stand.PROJ_HEIGHT_1)} m tall` : ""}${age != null && age < 25 ? ": young forest, often good browse for deer, elk and moose." : "."}${stand.HARVEST_DATE ? ` Logged ${esc(String(stand.HARVEST_DATE).slice(0, 4))}.` : ""}</li>`);
+      const facts = [stand.SPECIES_CD_1 && `${stand.BCLCS_LEVEL_4?.[0] === "T" ? "" : "Trees on record: "}${sp(stand.SPECIES_CD_1, stand.SPECIES_PCT_1)}${stand.SPECIES_CD_2 ? `, ${sp(stand.SPECIES_CD_2, stand.SPECIES_PCT_2)}` : ""}`,
+        age != null && `about ${age} years old`, stand.PROJ_HEIGHT_1 && `${Math.round(stand.PROJ_HEIGHT_1)} m tall`,
+        stand.CROWN_CLOSURE != null && stand.BCLCS_LEVEL_4?.[0] === "T" && `${Math.round(stand.CROWN_CLOSURE)}% canopy`,
+        stand.HARVEST_DATE && `logged ${esc(String(stand.HARVEST_DATE).slice(0, 4))}`].filter(Boolean);
+      out.push(`<li style="border-color:${fc ? fc[1] : "#868e96"}"><b>${fc ? esc(fc[2]) : "Forest"}</b>${fc ? esc(fc[3]) : ""}${facts.length ? ` <span class="hn-note">${facts.join(", ")}.</span>` : ""}</li>`);
     }
     if (burn && burn.FIRE_YEAR) out.push(burnItem(burn.FIRE_YEAR, burn.FIRE_LABEL, burn.FIRE_SIZE_HECTARES));
     const own = parcel && String(parcel.OWNER_TYPE || "");
@@ -1240,7 +1350,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     else if (graze) out.push(`<li style="border-color:#2f9e44"><b>Land: no grazing lease here</b>In the Green Area (public forest) you can usually hunt in season. In the White Area (farm country) most land is private: ask the landowner first.</li>`);
     const f = fuel && fuel.results && fuel.results[0] && fuel.results[0].attributes;
     const ft = f && (f["Raster.FUEL_TYPE_LONG"] || f.FUEL_TYPE_LONG);
-    if (ft && !/water|non-fuel/i.test(ft)) out.push(`<li style="border-color:#1b5e20"><b>Forest: ${esc(ft.replace(/^([A-Z]-\d(?:\/[A-Z]-\d)?) \((.*)\)$/, "$2 ($1)"))}</b>Alberta Wildfire's fuel type map, a guide to the forest cover.${/aspen|mixedwood|grass/i.test(ft) ? " Aspen, mixed forest and grass edges are good feed for deer, elk and moose." : ""}</li>`);
+    const afc = ft && FOREST_BY[fuelClass(ft)];
+    if (ft && !/water|non-fuel/i.test(ft)) out.push(`<li style="border-color:${afc ? afc[1] : "#868e96"}"><b>${afc ? esc(afc[2]) : "Forest"}</b>${afc ? esc(afc[3]) : ""} <span class="hn-note">${esc(ft.replace(/^([A-Z]-\d(?:\/[A-Z]-\d)?) \((.*)\)$/, "$2"))} (Alberta Wildfire fuel map).</span></li>`);
     const fr = fire && fire.results && fire.results.map((r) => r.attributes).sort((a, b) => (+b.YEAR || 0) - (+a.YEAR || 0))[0];
     if (fr && fr.YEAR) out.push(burnItem(+fr.YEAR, fr.FIRENUMBER || fr.FIRE_NUMBE, +fr.HECTARES_UTM));
     const w = wet && wet.features && wet.features[0] && wet.features[0].attributes;
@@ -1573,6 +1684,10 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       proto3 = true;
       maplibregl.addProtocol("tfhunt", async (params) => {
         const parts = params.url.replace("tfhunt://", "").split("?")[0].split("/");
+        if (parts[0] === "recolor") {   // a picture repainted on the phone (Alberta forest)
+          const p = PICS.find((q) => q.id === parts[1]);
+          return { data: await createImageBitmap(await recolorTile(p, +parts[2], +parts[3], +parts[4])) };
+        }
         if (parts[0] === "pic") {   // a picture layer whose address depends on the tile (Far from roads)
           const p = PICS.find((q) => q.id === parts[1]), r = await fetch(picUrl(p, +parts[2], +parts[3], +parts[4]));
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -1593,7 +1708,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
         if (on && !gl.getLayer(id)) gl.addLayer({ id, type: "raster", source: id, paint: { "raster-opacity": opacity, "raster-fade-duration": 0 } }, under);
         vis(id, on);
       };
-      for (const p of PICS) raster(p.id, want(p.layer), { type: "raster", tiles: [p.url ? `tfhunt://pic/${p.id}/{z}/{x}/{y}` : p.tmpl.replace("{bbox}", "{bbox-epsg-3857}")], tileSize: 256, minzoom: Math.max(0, p.min - 1), bounds: ((b) => [b[0][1], b[0][0], b[1][1], b[1][0]])(BOUNDS[p.ab ? "ab" : "bc"]), attribution: p.attr.replace(/<[^>]+>/g, "") }, p.opacity);
+      for (const p of PICS) raster(p.id, want(p.layer), { type: "raster", tiles: [p.recolor ? `tfhunt://recolor/${p.id}/{z}/{x}/{y}` : p.url ? `tfhunt://pic/${p.id}/{z}/{x}/{y}` : p.tmpl.replace("{bbox}", "{bbox-epsg-3857}")], tileSize: 256, minzoom: Math.max(0, p.min - 1), bounds: ((b) => [b[0][1], b[0][0], b[1][1], b[1][0]])(BOUNDS[p.ab ? "ab" : "bc"]), attribution: p.attr.replace(/<[^>]+>/g, "") }, p.opacity);
       raster("hn-slope", want("slope"), { type: "raster", tiles: ["tfhunt://slope/{z}/{x}/{y}"], tileSize: 256, minzoom: 8, maxzoom: 14 }, 1);
       raster("hn-aspect", want("aspect"), { type: "raster", tiles: ["tfhunt://aspect/{z}/{x}/{y}"], tileSize: 256, minzoom: 8, maxzoom: 14 }, 1);
       // Rules areas as fills (their outlines come over with the other lines).
@@ -1698,11 +1813,12 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     const on = isHunt();
     if (!on && meas) measStop();
     if (!on && sqMode) squareCancel();
+    if (on) cull();   // the outlines near the view now, before they go on the map
     for (const l of allHunt) { if (on && !map.hasLayer(l)) l.addTo(map); else if (!on && map.hasLayer(l)) map.removeLayer(l); }
     if (on && !keyCtl._map) keyCtl.addTo(map); else if (!on && keyCtl._map) keyCtl.remove();
     syncTiles(); sync3d();
     if (!on) return;
-    if (!started) { started = true; if (shown.has("forest")) loadFuelLegend(); renderLayers(); drawZones(); drawLeh(); drawRules(); }
+    if (!started) { started = true; renderLayers(); drawZones(); drawLeh(); drawRules(); }
     drawLabels();
     if (!spot) { const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); } else loadWeather();
     renderWx(); renderSky(); renderOffline();

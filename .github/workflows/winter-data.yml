@@ -6,6 +6,8 @@ name: Winter data
 #    and the last 2 weeks of Avalanche Canada Mountain Information Network reports -> data/avalanche-reports.json
 #    and the BC snow pillow stations' snow depth, new snow and temperature -> data/snow-stations.json
 #  - every night, backcountry ski routes, snowmobile trails and huts (OpenStreetMap + BC Recreation Sites and Trails) -> data/ski.json
+#    and the backcountry routes and huts in the rest of Canada (OpenStreetMap, camptocamp, BC, Sépaq, Parks Canada),
+#    one file per map square -> data/ski-canada/
 #    and each backcountry route's avalanche terrain class estimate (scripts/build-ski-terrain.mjs) -> data/ski-terrain.json
 # On a pull request that changes the script it only does a test run, without saving anything.
 on:
@@ -33,7 +35,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
@@ -43,7 +45,7 @@ jobs:
           node-version: 20
       - name: Collect winter data
         env:
-          ONLY: ${{ github.event.schedule == '23 */2 * * *' && 'avy,groom' || (github.event.schedule == '41 10 * * *' && 'ski' || '') }}
+          ONLY: ${{ github.event.schedule == '23 */2 * * *' && 'avy,groom' || (github.event.schedule == '41 10 * * *' && 'ski,canada' || '') }}
           PROBE: ${{ github.event_name == 'pull_request' && '1' || '' }}
         run: node scripts/build-winter.mjs
       - name: Avalanche terrain class of each ski route (with the ski routes; a failure keeps the last file)
@@ -55,10 +57,10 @@ jobs:
         if: github.event.schedule != '41 10 * * *'
         run: node scripts/build-snow-stations.mjs || echo "::warning::Snow stations failed; keeping the last file"
       - name: File sizes
-        run: ls -l data/ski.json data/ski-terrain.json data/avalanche.json data/avalanche-reports.json data/grooming.json data/snow-stations.json || true
+        run: du -sh data/ski-canada || true; ls -l data/ski.json data/ski-terrain.json data/avalanche.json data/avalanche-reports.json data/grooming.json data/snow-stations.json || true
       - name: Save the new data
         if: github.event_name != 'pull_request' && github.ref_name == 'main'
-        run: bash scripts/site-data.sh save "Winter data" data/ski.json data/ski-terrain.json data/avalanche.json data/avalanche-reports.json data/grooming.json data/snow-stations.json
+        run: bash scripts/site-data.sh save "Winter data" data/ski.json data/ski-canada data/ski-terrain.json data/avalanche.json data/avalanche-reports.json data/grooming.json data/snow-stations.json
       - name: Publish the website
         if: github.event_name != 'pull_request'
         env:

@@ -28,6 +28,12 @@
   let crashed = false;
   try { crashed = localStorage.getItem(OPEN) != null; } catch {}
   mark(false);
+  // Where the 3D map was looking, kept while it's open: after a crash the page opens there on the flat map, not on
+  // the whole area (alex 2026-10-24: "it lag and jump somewhere in the 2d map"). Not a synced setting either.
+  const VIEW = "tf:3dView";
+  const keepView = () => { if (!gl) return; const c = gl.getCenter(); try { localStorage.setItem(VIEW, JSON.stringify([c.lat, c.lng, gl.getZoom() + 1])); } catch {} };
+  let crashView = null;
+  try { crashView = crashed && JSON.parse(localStorage.getItem(VIEW)); } catch {}
 
   // Photo tiles drawn at 128 px: one zoom deeper, as sharp as the screen up close. Phones too (2026-10-23, alex:
   // "more realistic with a good resolution"): measured in a phone test, the photos are only ~15-60 MB of the
@@ -39,6 +45,7 @@
   let on = false, gl = null, box = null, libLoading = null;
   let hits = [];              // Leaflet layers that react to clicks, by index (the "id" of the 3D hit lines)
   let hitParts = [];          // their lines as [lng, lat] points, same index (nearestHit)
+  let hitDots = [];           // round markers that react to clicks (huts in Skiing...): { l, c: [lng, lat], r }
   let dashLayers = new Set(); // dashed line layers made so far, one per dash pattern
   let drawn = false;          // trails copied at least once
   let last2d = null;          // the flat map's view as the 3D map last set it
@@ -85,7 +92,7 @@
 
   function snapshot() {
     const lines = [], dots = [], hitLines = [];
-    hits = []; hitParts = [];
+    hits = []; hitParts = []; hitDots = [];
     let k = 0;
     // A trail's details are open: the other trail lines fade, as in 2D.
     const focus = map.getContainer().classList.contains("trail-focus");
@@ -105,6 +112,8 @@
       if (near) { const bb = l.getBounds ? l.getBounds() : L.latLngBounds([l.getLatLng()]); if (!bb.isValid() || !near.intersects(bb)) return; }
       const o = l.options, order = k++;
       if (l instanceof L.CircleMarker && !(l instanceof L.Circle)) {
+        // A dot that opens something when tapped in 2D (a hut in Skiing) opens it in 3D too (alex 2026-10-24).
+        if (o.interactive !== false && l.listens("click")) hitDots.push({ l, c: ll(l.getLatLng()), r: l.getRadius() + (o.weight || 0) });
         dots.push({ type: "Feature", geometry: { type: "Point", coordinates: ll(l.getLatLng()) },
           properties: { r: l.getRadius(), c: o.color, w: o.weight, f: o.fillColor || o.color, fo: o.fillOpacity, k: order } });
         return;
@@ -434,7 +443,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=364");
+      const w = new Worker("winter-hd.js?v=377");
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return;
@@ -463,6 +472,7 @@
   // toward the horizon that needed 14 leaves 14 (~470 MB) for the rest of the visit, the main thing that can run
   // an iPhone out of memory. Once the map is still, the spare ones are let go (they're made again if needed).
   // MapLibre internals (pinned 5.24.0): any surprise just skips it.
+  const PHONE_BUFFERS = 12;   // ~380 MB: enough for a view tilted to 70-75° (measured)
   function trimPaintBuffers() {
     try {
       const rtt = gl.painter.renderToTexture, pool = rtt && rtt.pool, terrain = gl.terrain;
@@ -582,7 +592,14 @@
     // Phones the same since 2026-10-23 (they had 4 levels and fewer far tiles, which made the distance blurry).
     const lod = () => ["sat", "fill", "winter", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
     gl.once("load", lod);
-    if (PHONE) gl.on("idle", trimPaintBuffers);
+    if (PHONE) {
+      gl.on("idle", trimPaintBuffers);
+      // At most PHONE_BUFFERS paint buffers, even while moving: with no limit (30) a long tilted ride across the
+      // mountains kept up to 16 (~510 MB, measured) until the map stopped, and the iPhone app ran out of memory and
+      // restarted on the flat map. A view that needs more paints its ground in turns: a little slower, never a crash.
+      gl.on("render", () => { const pool = gl.painter && gl.painter.renderToTexture && gl.painter.renderToTexture.pool; if (pool && pool._size !== PHONE_BUFFERS) pool._size = PHONE_BUFFERS; });
+    }
+    gl.on("moveend", keepView);
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
@@ -691,8 +708,22 @@
       });
       return best;
     }
+    // The closest tappable dot within pad px of its edge, placed at its height on the mountains. Dots win over
+    // lines: a hut sits on the routes that lead to it.
+    function nearestDot(p, pad) {
+      const v = gl.getBounds();
+      let best = null, bestD = Infinity;
+      for (const d of hitDots) {
+        if (!v.contains(d.c)) continue;
+        const q = gl.project(d.c), dd = Math.hypot(q.x - p.x, q.y - p.y);
+        if (dd <= d.r + pad && dd < bestD) { bestD = dd; best = d; }
+      }
+      return best;
+    }
     const toLL = (lngLat) => L.latLng(lngLat.lat, lngLat.lng);
     gl.on("click", (e) => {
+      const dot = nearestDot(e.point, TAP);
+      if (dot) { dot.l.fire("click", { latlng: dot.l.getLatLng(), originalEvent: e.originalEvent }); return; }
       const f = near(e.point, TAP)[0], latlng = toLL(e.lngLat);
       const layer = f ? hits[f.properties.i] : hits[nearestHit(e.point, TAP + 4)];
       if (layer) layer.fire("click", { latlng, originalEvent: e.originalEvent });
@@ -705,27 +736,36 @@
     gl.on("movestart", () => tip.remove());
     gl.on("mousemove", (e) => {
       if (gl.isMoving() || (e.originalEvent && e.originalEvent.buttons)) return;   // turning or tilting: no trail names under the mouse
-      const f = near(e.point, 6)[0], layer = f && hits[f.properties.i], t = layer && layer.getTooltip && layer.getTooltip();
-      gl.getCanvas().style.cursor = f ? "pointer" : "";
+      const dot = nearestDot(e.point, 2), f = !dot && near(e.point, 6)[0], layer = dot ? dot.l : f && hits[f.properties.i], t = layer && layer.getTooltip && layer.getTooltip();
+      gl.getCanvas().style.cursor = layer ? "pointer" : "";
       if (t) tip.setLngLat(e.lngLat).setHTML(String(t.getContent())).addTo(gl); else tip.remove();
     });
     gl.getCanvas().addEventListener("mouseleave", () => tip.remove());
   }
 
-  function set3d(want) {
-    if (want === on) return;
+  // Skiing opens on the 3D map (alex 2026-10-24: "when you enter in skiing mode make that the 3d map come up by
+  // default"). The saved "map3d" choice is MTB's (and Hunting's): Skiing doesn't change it, and leaving Skiing goes
+  // back to it. "▭ 2D map" tapped in Skiing keeps Skiing flat until the app is closed.
+  const inSki = () => document.body.classList.contains("sport-ski");
+  let skiFlat = false;
+  let want3d = null;   // last asked for, so a switch back to 2D while the 3D library loads isn't undone when it arrives
+  function set3d(want, auto) {
+    want3d = want;
+    if (want === on) { syncBtn(); return; }
     if (want && !window.maplibregl) {
       btn.textContent = "⛰ Loading 3D…";
-      loadLib().then(() => set3d(true), () => { btn.textContent = "⛰ 3D unavailable"; setTimeout(syncBtn, 3000); });
+      loadLib().then(() => { if (want3d) set3d(true, auto); }, () => { btn.textContent = "⛰ 3D unavailable"; setTimeout(syncBtn, 3000); });
       return;
     }
-    on = want; store.set("map3d", on); mark(on);
+    on = want; mark(on);
+    if (!inSki()) store.set("map3d", on);
+    else if (!auto) skiFlat = !on;
     map.getContainer().classList.toggle("is3d", on);
     map.getContainer().parentElement.classList.toggle("is3d", on);   // hides the 2D map style menu
     if (on) {
       if (!gl) build();
       else { box.hidden = false; gl.resize(); const c = map.getCenter(); syncing++; gl.jumpTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d() }); syncing--; }
-      syncData();
+      syncData(); keepView();
     } else if (box) box.hidden = true;
     syncBtn();
   }
@@ -737,10 +777,27 @@
   }
   btn.addEventListener("click", () => set3d(!on));
   syncBtn();
+  // The crash guard wins: if the page died in 3D, this visit opens Skiing flat too (the 3D button still works).
+  let sport = null;
+  window.addEventListener("tf:sport", (e) => {
+    const s = e.detail, was = sport;
+    sport = s;
+    if (s === was) return;
+    if (s === "ski") { if (!crashed && !skiFlat) set3d(true, true); }
+    else if (was === "ski") set3d(!crashed && store.get("map3d", false), true);
+  });
   // Hidden or closed normally: not a crash. Back on screen in 3D: watch again.
   document.addEventListener("visibilitychange", () => mark(on && document.visibilityState === "visible"));
   addEventListener("pagehide", () => mark(false));
   addEventListener("pageshow", () => mark(on));
-  if (crashed) store.set("map3d", false);
+  if (crashed) {
+    store.set("map3d", false);
+    // Back where the 3D map was, once the page has set its first view, and say what happened.
+    const back = () => {
+      if (Array.isArray(crashView) && crashView.every(Number.isFinite) && !/^#(trail|route|pin)=/.test(location.hash)) map.setView([crashView[0], crashView[1]], Math.round(crashView[2]), { animate: false });
+      if (window.tfToast) window.tfToast("3D ran out of memory: back on the flat map here. Tap ⛰ 3D to return.");
+    };
+    if (document.readyState === "complete") setTimeout(back, 0); else addEventListener("load", () => setTimeout(back, 0), { once: true });
+  }
   else if (store.get("map3d", false)) set3d(true);
 })();

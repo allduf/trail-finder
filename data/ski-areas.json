@@ -1,0 +1,3130 @@
+{
+ "note": "Backcountry ski areas across Canada, shown in Skiing (ski-areas.js). Hand-edited. Text is written for Trail Finder from the linked official and local sources (park agencies, avalanche centres, hut owners); open each link for the full, current rules. ates = officially published Avalanche Terrain Exposure Scale ratings for named trips in the area, copied by name with the class (1 Simple, 2 Challenging, 3 Complex) from atesSrc; Parks Canada's list is dated 2017-04-05; Kananaskis ratings are the examples Alberta Parks names on its ATES page (its full ratings are on its interactive map). forecast: who publishes the avalanche forecast here (ac Avalanche Canada, pc Parks Canada, kc Kananaskis Country, aq Avalanche Quebec, none = no public forecast); sub = the Avalanche Canada subregion when known. approx = spot is approximate. Checked 2026-10-24.",
+ "forecasters": {
+  "ac": {
+   "name": "Avalanche Canada",
+   "url": "https://avalanche.ca/map"
+  },
+  "pc": {
+   "name": "Parks Canada (on avalanche.ca)",
+   "url": "https://avalanche.ca/map"
+  },
+  "kc": {
+   "name": "Kananaskis Country, Alberta Parks (on avalanche.ca)",
+   "url": "https://avalanche.ca/map"
+  },
+  "aq": {
+   "name": "Avalanche Québec",
+   "url": "https://www.avalanchequebec.ca"
+  },
+  "none": {
+   "name": "No public avalanche forecast",
+   "url": ""
+  }
+ },
+ "atesSources": {
+  "pc": {
+   "name": "Parks Canada, Avalanche Terrain Ratings for backcountry touring in the Mountain National Parks (2017)",
+   "url": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+  },
+  "kc": {
+   "name": "Alberta Parks, Kananaskis Country Avalanche Terrain Ratings (ATES)",
+   "url": "https://albertaparks.ca/albertaparksca/advisories-public-safety/outdoor-safety/winter-safety/ates-disclaimer/kananaskis-country-avalanche-terrain-ratings-scale-ates/?park=kc"
+  }
+ },
+ "areas": [
+  {
+   "id": "seymour",
+   "name": "Mount Seymour backcountry",
+   "prov": "BC",
+   "region": "North Shore",
+   "lat": 49.3897,
+   "lon": -122.9425,
+   "about": "Vancouver's closest touring: Brockton Point, Pump Peak, Tim Jones Peak and Mount Seymour's summit past the ski area. Short days, but steep rolls and cliffy gullies (Elsay Lake side) catch people every year.",
+   "access": "Park at the top of Mount Seymour Road (ski area lots) and go up the Mount Seymour Trail along the ski area's edge.",
+   "rules": "Mount Seymour Provincial Park: free, no permit. Uphill only on the park trail, not on the runs.",
+   "forecast": "ac",
+   "sub": "North Shore",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/mount-seymour-park/"
+    }
+   ]
+  },
+  {
+   "id": "cypress",
+   "name": "Cypress, Hollyburn and Black Mountain",
+   "prov": "BC",
+   "region": "North Shore",
+   "lat": 49.4178,
+   "lon": -123.1981,
+   "about": "Mount Strachan, Black Mountain and Hollyburn Peak around Cypress Mountain: short tours with views of the city, deep coastal snow and steep gullies on Strachan's north side.",
+   "access": "Cypress Bowl Road to the ski area lots; follow Cypress's uphill and backcountry access routes.",
+   "rules": "Cypress Provincial Park. Check Cypress Mountain's uphill rules before skinning on the ski area.",
+   "forecast": "ac",
+   "sub": "North Shore",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/cypress-park/"
+    }
+   ]
+  },
+  {
+   "id": "skypilot",
+   "name": "Sky Pilot and Sea to Sky Gondola backcountry",
+   "prov": "BC",
+   "region": "Sea to Sky",
+   "lat": 49.66,
+   "lon": -123.13,
+   "about": "From the top of the Sea to Sky Gondola: Sky Pilot Valley, Mount Habrich and the Sky Pilot group. Big alpine terrain an hour from Vancouver.",
+   "access": "Ride the Sea to Sky Gondola in Squamish (ticket) and follow its backcountry access route past the marked boundary.",
+   "rules": "Follow the gondola's backcountry rules (some days the access closes). Beyond the boundary there is no patrol.",
+   "forecast": "ac",
+   "sub": "Garibaldi",
+   "links": [
+    {
+     "t": "Sea to Sky Gondola",
+     "u": "https://www.seatoskygondola.com"
+    }
+   ]
+  },
+  {
+   "id": "elfin",
+   "name": "Elfin Lakes and Diamond Head",
+   "prov": "BC",
+   "region": "Sea to Sky",
+   "lat": 49.7876,
+   "lon": -122.9879,
+   "about": "The classic first overnight tour: 11 km up Paul Ridge to the Elfin Lakes Shelter, then the Gargoyles, Columnar Peak and Mamquam Lake. Mostly gentle, with real avalanche slopes off the ridge.",
+   "access": "Diamond Head trailhead at the end of the Mamquam (Garibaldi Park) road from Squamish; winter tires or chains, the last part can need 4x4.",
+   "huts": [
+    {
+     "name": "Red Heather day shelter",
+     "note": "warm-up hut about 5 km in"
+    },
+    {
+     "name": "Elfin Lakes Shelter",
+     "note": "BC Parks, reservation and fee for nights"
+    }
+   ],
+   "rules": "Garibaldi Provincial Park: book the shelter or camping before you go; no snowmobiles in the park.",
+   "forecast": "ac",
+   "sub": "Garibaldi",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/garibaldi-park/"
+    }
+   ]
+  },
+  {
+   "id": "neve",
+   "name": "Garibaldi Névé Traverse",
+   "prov": "BC",
+   "region": "Sea to Sky",
+   "lat": 49.86,
+   "lon": -122.99,
+   "kind": "traverse",
+   "about": "Three days on glaciers from Elfin Lakes over the Garibaldi Névé, past Mount Garibaldi and the Sharkfin, down to Garibaldi Lake. Crevasses and whiteouts: glacier skills needed.",
+   "access": "Start at the Diamond Head trailhead (Elfin Lakes), finish at the Rubble Creek trailhead; arrange a car at each end.",
+   "huts": [
+    {
+     "name": "Elfin Lakes Shelter",
+     "note": "BC Parks, reservation"
+    },
+    {
+     "name": "Garibaldi Lake camping",
+     "note": "BC Parks, reservation"
+    }
+   ],
+   "rules": "Garibaldi Provincial Park: reserve the nights you'll spend in the park.",
+   "forecast": "ac",
+   "sub": "Garibaldi",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/garibaldi-park/"
+    }
+   ]
+  },
+  {
+   "id": "garibaldi-lake",
+   "name": "Garibaldi Lake, Sphinx and Black Tusk",
+   "prov": "BC",
+   "region": "Sea to Sky",
+   "lat": 49.933,
+   "lon": -123.03,
+   "about": "Long climb up the Rubble Creek switchbacks to Garibaldi Lake, then the Sphinx and Sentinel glaciers, Panorama Ridge and the Black Tusk. Don't cross the lake unless it's well frozen.",
+   "access": "Rubble Creek trailhead off Highway 99 south of Whistler (Garibaldi Lake parking).",
+   "rules": "Garibaldi Provincial Park: reservation and fee to camp.",
+   "forecast": "ac",
+   "sub": "Garibaldi",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/garibaldi-park/"
+    }
+   ]
+  },
+  {
+   "id": "brohm",
+   "name": "Brohm Ridge",
+   "prov": "BC",
+   "region": "Sea to Sky",
+   "lat": 49.8541,
+   "lon": -123.0403,
+   "about": "Open alpine ridge below Mount Garibaldi's west side and the Warren Glacier, shared with snowmobiles.",
+   "access": "Brohm Ridge forest road north of Squamish; 4x4 and chains, often reached by sled.",
+   "rules": "Shared with motorized users; part of the ridge is a snowmobile club area.",
+   "forecast": "ac",
+   "sub": "Garibaldi"
+  },
+  {
+   "id": "tantalus",
+   "name": "Tantalus Range and Lake Lovely Water",
+   "prov": "BC",
+   "region": "Sea to Sky",
+   "lat": 49.805,
+   "lon": -123.22,
+   "about": "Steep, glaciated peaks across the Squamish River (Alpha, Serratus, Tantalus). Remote and serious in winter.",
+   "access": "Cross the Squamish River by boat, then a very steep trail; or fly in by helicopter.",
+   "huts": [
+    {
+     "name": "Lake Lovely Water hut",
+     "by": "Alpine Club of Canada, Vancouver section",
+     "note": "booking"
+    },
+    {
+     "name": "Jim Haberl Hut",
+     "by": "ACC Vancouver section",
+     "note": "glacier hut, booking"
+    }
+   ],
+   "rules": "Tantalus Provincial Park.",
+   "forecast": "ac",
+   "sub": "Tantalus",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/tantalus-park/"
+    },
+    {
+     "t": "ACC Vancouver section huts",
+     "u": "https://accvancouver.ca"
+    }
+   ]
+  },
+  {
+   "id": "callaghan",
+   "name": "Callaghan Valley",
+   "prov": "BC",
+   "region": "Sea to Sky",
+   "lat": 50.1999,
+   "lon": -123.185,
+   "about": "Rolling alpine terrain around Callaghan Lake, Mount Callaghan and the Solitude Glacier, plus the lodge-based touring of Callaghan Country.",
+   "access": "Callaghan Valley Road (Whistler Olympic Park turn-off) off Highway 99; beyond the plowed road you ski or sled in.",
+   "huts": [
+    {
+     "name": "Journeyman Lodge",
+     "by": "Callaghan Country",
+     "note": "private ski-in lodge, booking"
+    }
+   ],
+   "rules": "Callaghan Lake Provincial Park. Callaghan Country trails need their trail pass.",
+   "forecast": "ac",
+   "sub": "Spearhead",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/callaghan-lake-park/"
+    },
+    {
+     "t": "Callaghan Country",
+     "u": "https://callaghancountry.com"
+    }
+   ]
+  },
+  {
+   "id": "brandywine",
+   "name": "Brandywine Meadows",
+   "prov": "BC",
+   "region": "Sea to Sky",
+   "lat": 50.1,
+   "lon": -123.2,
+   "about": "Big open meadows and bowls below Brandywine Mountain, popular with skiers and sledders.",
+   "access": "Brandywine forest road off Highway 99 between Squamish and Whistler; 4x4, or ski/sled the road.",
+   "rules": "Shared with snowmobiles.",
+   "forecast": "ac"
+  },
+  {
+   "id": "musical-bumps",
+   "name": "Musical Bumps, Singing Pass and Russet Lake",
+   "prov": "BC",
+   "region": "Sea to Sky",
+   "lat": 50.0217,
+   "lon": -122.8928,
+   "about": "From Whistler Peak over Piccolo, Flute and Oboe to Russet Lake, with tours to Fissile, Castle Towers and the Overlord Glacier. The Singing Pass valley is threaded by avalanche paths.",
+   "access": "Whistler Mountain lifts (backcountry/uphill ticket) to Whistler Peak, or skin the Singing Pass trail from Whistler Village (long).",
+   "huts": [
+    {
+     "name": "Kees and Claire Hut",
+     "by": "Spearhead Huts Society",
+     "note": "at Russet Lake, booking and fee"
+    }
+   ],
+   "rules": "Garibaldi Provincial Park beyond the ski area boundary.",
+   "forecast": "ac",
+   "sub": "Spearhead",
+   "links": [
+    {
+     "t": "Spearhead Huts Society",
+     "u": "https://spearheadhuts.org"
+    },
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/garibaldi-park/"
+    }
+   ]
+  },
+  {
+   "id": "spearhead",
+   "name": "Spearhead Traverse",
+   "prov": "BC",
+   "region": "Sea to Sky",
+   "lat": 50.0916,
+   "lon": -122.8478,
+   "kind": "traverse",
+   "about": "Canada's best-known one- or two-day ski traverse: about 34 km and 13 glaciers in a horseshoe from Blackcomb to Whistler. Crevasses, cornices and big exposure.",
+   "access": "Start from Blackcomb's Showcase T-bar or Blackcomb Glacier (lift ticket), finish down Whistler Mountain.",
+   "huts": [
+    {
+     "name": "Kees and Claire Hut",
+     "by": "Spearhead Huts Society",
+     "note": "near Russet Lake, booking"
+    }
+   ],
+   "rules": "Garibaldi Provincial Park; ski area rules apply until you leave the boundary.",
+   "forecast": "ac",
+   "sub": "Spearhead",
+   "links": [
+    {
+     "t": "Spearhead Huts Society",
+     "u": "https://spearheadhuts.org"
+    }
+   ]
+  },
+  {
+   "id": "wedgemount",
+   "name": "Wedgemount Lake and Wedge Mountain",
+   "prov": "BC",
+   "region": "Sea to Sky",
+   "lat": 50.1585,
+   "lon": -122.7975,
+   "about": "A steep 1,200 m climb to a glacier lake under Wedge Mountain, the highest peak in Garibaldi Park; spring couloirs and the Armchair Glacier.",
+   "access": "Wedgemount trailhead off Highway 99 north of Whistler (Wedge Creek road).",
+   "huts": [
+    {
+     "name": "Wedgemount Lake hut",
+     "note": "small hut at the lake; check BC Parks"
+    }
+   ],
+   "rules": "Garibaldi Provincial Park: reserve to camp.",
+   "forecast": "ac",
+   "sub": "Spearhead",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/garibaldi-park/"
+    }
+   ]
+  },
+  {
+   "id": "sproatt",
+   "name": "Rainbow and Sproatt",
+   "prov": "BC",
+   "region": "Sea to Sky",
+   "lat": 50.09,
+   "lon": -123.03,
+   "about": "Whistler's west-side touring: Sproatt's alpine bowls and Rainbow Mountain, both right above the valley.",
+   "access": "Alta Lake Road side of Whistler (Rainbow trailhead, or the Sproatt trails from Alta Vista).",
+   "rules": "Rainbow Lake is Whistler's water supply (21 Mile Creek watershed): no camping and no dogs there.",
+   "forecast": "ac",
+   "sub": "Spearhead"
+  },
+  {
+   "id": "joffre",
+   "name": "Joffre Lakes and Matier Glacier",
+   "prov": "BC",
+   "region": "Duffey Lake Road",
+   "lat": 50.35,
+   "lon": -122.495,
+   "about": "Steep glaciated peaks above the Joffre Lakes: Matier, Joffre, Slalok, the Twin Couloirs and Tszil. One of the Duffey's busiest zones.",
+   "access": "Joffre Lakes parking on Highway 99 (Duffey Lake Road) east of Pemberton.",
+   "rules": "Joffre Lakes Provincial Park (Pipi7íyekw); check BC Parks for passes and closures.",
+   "forecast": "ac",
+   "sub": "Duffey",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/joffre-lakes-park/"
+    }
+   ]
+  },
+  {
+   "id": "duffey",
+   "name": "Duffey Lake Road peaks",
+   "prov": "BC",
+   "region": "Duffey Lake Road",
+   "lat": 50.39,
+   "lon": -122.44,
+   "about": "Roadside alpine touring off Highway 99: Mount Rohr, Cayoosh, Chief Pascall, Vantage, Mount Brew. Drier inland snow than Whistler, often with buried weak layers.",
+   "access": "Pull-outs along Highway 99 between Joffre Lakes and Duffey Lake; Cayoosh Pass is the high point.",
+   "rules": "Park well off the highway; the road is plowed but not always open.",
+   "forecast": "ac",
+   "sub": "Duffey"
+  },
+  {
+   "id": "marriott",
+   "name": "Marriott Basin",
+   "prov": "BC",
+   "region": "Duffey Lake Road",
+   "lat": 50.4299,
+   "lon": -122.4745,
+   "about": "A sheltered basin of rolling alpine terrain north of the Duffey: Mount Marriott, Mount Rohr's north side and Cerise Creek's neighbours.",
+   "access": "From the Cayoosh Creek side of Highway 99, about 3 hours of skinning.",
+   "huts": [
+    {
+     "name": "Wendy Thompson Hut",
+     "by": "Alpine Club of Canada, Whistler section",
+     "note": "booking"
+    }
+   ],
+   "forecast": "ac",
+   "sub": "Duffey",
+   "links": [
+    {
+     "t": "ACC Whistler section (Wendy Thompson Hut)",
+     "u": "https://accwhistler.ca"
+    }
+   ]
+  },
+  {
+   "id": "cerise",
+   "name": "Cerise Creek and Keith's Hut",
+   "prov": "BC",
+   "region": "Duffey Lake Road",
+   "lat": 50.3467,
+   "lon": -122.4187,
+   "about": "Below the Anniversary Glacier and Mount Matier's east side: tree skiing, the Vantage col and Joffre's north side.",
+   "access": "Highway 99, Cerise Creek pull-out east of Joffre Lakes.",
+   "huts": [
+    {
+     "name": "Keith's Hut",
+     "note": "first come, first served; often full"
+    }
+   ],
+   "forecast": "ac",
+   "sub": "Duffey"
+  },
+  {
+   "id": "tenquille",
+   "name": "Tenquille Lake",
+   "prov": "BC",
+   "region": "Pemberton",
+   "lat": 50.53,
+   "lon": -122.93,
+   "about": "An alpine lake and cabin north of Pemberton with open ridges all around. Long winter approach, often by sled.",
+   "access": "Hurley forest road or the Tenquille Lake trail from the Birkenhead side; usually sled-assisted in winter.",
+   "huts": [
+    {
+     "name": "Tenquille Lake cabin",
+     "note": "public cabin, first come, first served"
+    }
+   ],
+   "forecast": "ac",
+   "sub": "Birkenhead"
+  },
+  {
+   "id": "coquihalla",
+   "name": "Coquihalla Summit",
+   "prov": "BC",
+   "region": "Coquihalla",
+   "lat": 49.6151,
+   "lon": -121.1243,
+   "about": "Roadside touring off Highway 5: Zupjok, Needle Peak, Yak, Thar and Zoa. Short days with steep faces; storms bring a lot of snow fast.",
+   "access": "Zopkios rest area (brake check) and the Falls Lake exit on the Coquihalla Highway.",
+   "rules": "Highway avalanche control: never ski slopes that run onto the highway, and obey closures when control work is on.",
+   "forecast": "ac",
+   "sub": "Coquihalla"
+  },
+  {
+   "id": "manning",
+   "name": "Manning Park backcountry",
+   "prov": "BC",
+   "region": "Manning",
+   "lat": 49.1,
+   "lon": -120.79,
+   "about": "The Three Brothers, Blackwall Peak and the Heather Trail ridges above Manning Park Resort; gentler terrain than the coast.",
+   "access": "Manning Park Resort (Gibson Pass) or the lodge on Highway 3.",
+   "rules": "E.C. Manning Provincial Park.",
+   "forecast": "ac",
+   "sub": "Manning",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/ec-manning-park/"
+    }
+   ]
+  },
+  {
+   "id": "tetrahedron",
+   "name": "Tetrahedron Park",
+   "prov": "BC",
+   "region": "Sunshine Coast",
+   "lat": 49.595,
+   "lon": -123.58,
+   "about": "Gentle subalpine touring and a hut-to-hut network on the Sunshine Coast, with Tetrahedron Peak and Mount Steele above.",
+   "access": "Ferry to Langdale, then the Gray Creek / Tetrahedron forest roads from Sechelt (4x4 or ski the road).",
+   "huts": [
+    {
+     "name": "Edwards, Bachelor, Mount Steele and McNair cabins",
+     "by": "Tetrahedron Outdoor Club with BC Parks",
+     "note": "small fee"
+    }
+   ],
+   "rules": "Tetrahedron Provincial Park, part of Chapman Creek watershed: no camping outside the cabins.",
+   "forecast": "ac",
+   "sub": "Tetrahedron",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/tetrahedron-park/"
+    }
+   ]
+  },
+  {
+   "id": "knuckleheads",
+   "name": "Knuckleheads",
+   "prov": "BC",
+   "region": "Powell River",
+   "approx": true,
+   "lat": 49.97,
+   "lon": -124.23,
+   "about": "Powell River's winter recreation area: open ridges, a cabin and treed slopes.",
+   "access": "Branch roads from Powell River; 4x4 or sled.",
+   "huts": [
+    {
+     "name": "Knuckleheads cabin",
+     "note": "public cabin"
+    }
+   ],
+   "forecast": "ac",
+   "sub": "Powell River"
+  },
+  {
+   "id": "forbidden",
+   "name": "Forbidden Plateau and Mount Albert Edward",
+   "prov": "BC",
+   "region": "Vancouver Island",
+   "lat": 49.7,
+   "lon": -125.37,
+   "about": "From Mount Washington into Strathcona Park: rolling plateau, Mount Albert Edward and Castlecrag. Weather moves in fast off the ocean.",
+   "access": "Paradise Meadows trailhead (Raven Lodge) at Mount Washington.",
+   "rules": "Strathcona Provincial Park. Stay off the groomed nordic trails unless you have a nordic pass.",
+   "forecast": "ac",
+   "sub": "East Island",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/strathcona-park/"
+    }
+   ]
+  },
+  {
+   "id": "mount-cain",
+   "name": "Mount Cain backcountry",
+   "prov": "BC",
+   "region": "Vancouver Island",
+   "lat": 50.23,
+   "lon": -126.35,
+   "about": "A small community ski hill on north Vancouver Island with easy access to steep bowls and couloirs around it.",
+   "access": "Mount Cain ski area road off Highway 19 (open on ski days).",
+   "forecast": "ac",
+   "sub": "North Island",
+   "links": [
+    {
+     "t": "Mount Cain",
+     "u": "https://mountcain.com"
+    }
+   ]
+  },
+  {
+   "id": "5040",
+   "name": "5040 Peak and Cobalt Lake",
+   "prov": "BC",
+   "region": "Vancouver Island",
+   "lat": 49.21,
+   "lon": -125.3,
+   "about": "Alpine bowls above Cobalt Lake near Port Alberni, with a hut and views to the ocean.",
+   "access": "Marion Creek forest road off Highway 4.",
+   "huts": [
+    {
+     "name": "5040 Peak hut",
+     "by": "Alpine Club of Canada, Vancouver Island section",
+     "note": "booking"
+    }
+   ],
+   "forecast": "ac",
+   "sub": "West Island",
+   "links": [
+    {
+     "t": "ACC Vancouver Island section",
+     "u": "https://accvi.ca"
+    }
+   ]
+  },
+  {
+   "id": "arrowsmith",
+   "name": "Mount Arrowsmith",
+   "prov": "BC",
+   "region": "Vancouver Island",
+   "lat": 49.224,
+   "lon": -124.6,
+   "about": "Gullies and open slopes on the old Mount Arrowsmith ski area and Cokely, above Port Alberni.",
+   "access": "Cameron Main / Pass Main logging roads from Highway 4; 4x4.",
+   "forecast": "ac",
+   "sub": "West Island"
+  },
+  {
+   "id": "kootenay-pass",
+   "name": "Kootenay Pass",
+   "prov": "BC",
+   "region": "Kootenays",
+   "lat": 49.0604,
+   "lon": -117.0402,
+   "about": "Highway 3's summit at 1,775 m: Ripple Ridge, Cornice Ridge and Lightning Strike, all close to the road. One of BC's most popular roadside tours.",
+   "access": "Summit parking at Bridal Lake (Stagleap Provincial Park) on Highway 3 between Salmo and Creston.",
+   "rules": "Highway avalanche control: never ski slopes that run onto the highway, and obey closures when control work is on. Some slopes above the highway are closed to skiing.",
+   "forecast": "ac",
+   "sub": "Kootenay Pass",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/stagleap-park/"
+    }
+   ]
+  },
+  {
+   "id": "whitewater",
+   "name": "Whitewater and Ymir backcountry",
+   "prov": "BC",
+   "region": "Kootenays",
+   "lat": 49.443,
+   "lon": -117.146,
+   "about": "Light, deep Kootenay snow around Whitewater ski area: Ymir Peak, Evening Ridge, the Hummingbird and Five Mile basins.",
+   "access": "Whitewater ski area road from Highway 6 near Nelson; backcountry access through the ski area's gates and uphill routes.",
+   "rules": "Follow Whitewater's uphill policy. Commercial cat and lodge tenures nearby (Ymir backcountry lodges).",
+   "forecast": "ac",
+   "sub": "Ymir",
+   "links": [
+    {
+     "t": "Whitewater",
+     "u": "https://skiwhitewater.com"
+    }
+   ]
+  },
+  {
+   "id": "kokanee",
+   "name": "Kokanee Glacier Park",
+   "prov": "BC",
+   "region": "Kootenays",
+   "lat": 49.7706,
+   "lon": -117.1938,
+   "about": "High alpine bowls around Kokanee Glacier, with a big hut. Mostly reached by helicopter for week-long stays.",
+   "access": "Winter access is mainly by helicopter; skiing in from Gibson Lake is long and serious.",
+   "huts": [
+    {
+     "name": "Kokanee Glacier Cabin",
+     "by": "Alpine Club of Canada with BC Parks",
+     "note": "winter weeks booked ahead"
+    }
+   ],
+   "rules": "Kokanee Glacier Provincial Park.",
+   "forecast": "ac",
+   "sub": "Kokanee",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/kokanee-glacier-park/"
+    },
+    {
+     "t": "Alpine Club of Canada huts (booking)",
+     "u": "https://www.alpineclubofcanada.ca/huts"
+    }
+   ]
+  },
+  {
+   "id": "bonnington",
+   "name": "Bonnington Range Traverse",
+   "prov": "BC",
+   "region": "Kootenays",
+   "lat": 49.3138,
+   "lon": -117.5528,
+   "kind": "traverse",
+   "about": "A multi-day hut-to-hut traverse between Nelson and Castlegar over rolling subalpine ridges.",
+   "access": "Usually from Bombi Summit (Highway 3) or the Erie Creek side; leave a car at the other end.",
+   "huts": [
+    {
+     "name": "Grassy, Steed, Copper and Huckleberry cabins",
+     "note": "public cabins along the way; check their state before you go"
+    }
+   ],
+   "forecast": "ac",
+   "sub": "Bonnington"
+  },
+  {
+   "id": "rossland",
+   "name": "Rossland Range",
+   "prov": "BC",
+   "region": "Kootenays",
+   "lat": 49.1498,
+   "lon": -117.9121,
+   "about": "Old Glory, Mount Plewman and the ridges north of Rossland, with a network of small day and overnight cabins.",
+   "access": "Nancy Greene Summit and other pull-outs on Highway 3B north of Rossland.",
+   "huts": [
+    {
+     "name": "Rossland Range cabins",
+     "by": "Friends of the Rossland Range",
+     "note": "public cabins, first come"
+    }
+   ],
+   "forecast": "ac",
+   "sub": "Rossland",
+   "links": [
+    {
+     "t": "Friends of the Rossland Range",
+     "u": "https://www.rosslandrange.org"
+    }
+   ]
+  },
+  {
+   "id": "valhallas",
+   "name": "Valhalla Range",
+   "prov": "BC",
+   "region": "Kootenays",
+   "lat": 49.87,
+   "lon": -117.6,
+   "about": "Granite peaks and glaciers west of Slocan Lake, mostly skied from lodges.",
+   "access": "Logging roads from the Slocan Valley; lodges fly or sled their guests in.",
+   "huts": [
+    {
+     "name": "Valhalla Mountain Touring and other lodges",
+     "note": "private, booking"
+    }
+   ],
+   "rules": "Valhalla Provincial Park.",
+   "forecast": "ac",
+   "sub": "Valhalla",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/valhalla-park/"
+    }
+   ]
+  },
+  {
+   "id": "fernie",
+   "name": "Fernie and the Lizard Range",
+   "prov": "BC",
+   "region": "Lizard Range",
+   "lat": 49.46,
+   "lon": -115.11,
+   "about": "The Lizard Range's huge snowfall: bowls and chutes beyond Fernie Alpine Resort and around Island Lake.",
+   "access": "Fernie Alpine Resort's backcountry gates, or the Island Lake and Hosmer roads.",
+   "rules": "Island Lake Lodge's cat-skiing tenure is next to the resort: respect its boundaries.",
+   "forecast": "ac",
+   "sub": "Lizard",
+   "links": [
+    {
+     "t": "Fernie Alpine Resort",
+     "u": "https://skifernie.com"
+    }
+   ]
+  },
+  {
+   "id": "castle",
+   "name": "Castle Mountain and Castle Wildland",
+   "prov": "AB",
+   "region": "Southern Rockies",
+   "lat": 49.32,
+   "lon": -114.41,
+   "about": "Steep ridges and chutes beyond Castle Mountain Resort in the Castle Provincial and Wildland Parks; also Crowsnest Pass tours nearby.",
+   "access": "Castle Mountain Resort (Highway 774 west of Pincher Creek).",
+   "forecast": "ac",
+   "sub": "Crowsnest South",
+   "links": [
+    {
+     "t": "Castle Mountain",
+     "u": "https://www.skicastle.ca"
+    }
+   ]
+  },
+  {
+   "id": "jumbo",
+   "name": "Jumbo Pass",
+   "prov": "BC",
+   "region": "Purcells",
+   "lat": 50.3629,
+   "lon": -116.593,
+   "about": "Purcell Mountains alpine above the Jumbo Valley, west of Invermere, with a hut at the pass.",
+   "access": "Jumbo Creek forest road from Invermere / Panorama, mostly sled-assisted in winter.",
+   "huts": [
+    {
+     "name": "Jumbo Pass Cabin",
+     "note": "booking"
+    }
+   ],
+   "forecast": "ac",
+   "sub": "East Purcell"
+  },
+  {
+   "id": "bugaboos",
+   "name": "Bugaboos",
+   "prov": "BC",
+   "region": "Purcells",
+   "lat": 50.74,
+   "lon": -116.78,
+   "about": "Granite spires and big glaciers. Spring ski mountaineering and the start of the Bugaboos to Rogers Pass traverse.",
+   "access": "The Bugaboo road isn't plowed in winter: a long ski or sled from Brisco; the area is also heli-skiing tenure.",
+   "huts": [
+    {
+     "name": "Conrad Kain Hut",
+     "by": "Alpine Club of Canada with BC Parks",
+     "note": "booking"
+    }
+   ],
+   "rules": "Bugaboo Provincial Park.",
+   "forecast": "ac",
+   "sub": "West Purcell",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/bugaboo-park/"
+    },
+    {
+     "t": "Alpine Club of Canada huts (booking)",
+     "u": "https://www.alpineclubofcanada.ca/huts"
+    }
+   ]
+  },
+  {
+   "id": "kicking-horse",
+   "name": "Kicking Horse backcountry",
+   "prov": "BC",
+   "region": "Golden",
+   "lat": 51.298,
+   "lon": -117.048,
+   "about": "Terminator, Ozone and the Dogtooth Range from the top of Kicking Horse resort.",
+   "access": "Kicking Horse Mountain Resort's backcountry gates (Golden).",
+   "forecast": "ac",
+   "sub": "Dogtooth",
+   "links": [
+    {
+     "t": "Kicking Horse",
+     "u": "https://kickinghorseresort.com"
+    }
+   ]
+  },
+  {
+   "id": "esplanade",
+   "name": "Esplanade Range lodges",
+   "prov": "BC",
+   "region": "Golden",
+   "lat": 51.5565,
+   "lon": -117.5782,
+   "about": "Hut-to-hut touring in the northern Selkirks north of Golden, between privately run lodges.",
+   "access": "Helicopter from Golden.",
+   "huts": [
+    {
+     "name": "Golden Alpine Holidays lodges",
+     "note": "private, booking"
+    }
+   ],
+   "forecast": "ac",
+   "sub": "Esplanade",
+   "links": [
+    {
+     "t": "Golden Alpine Holidays",
+     "u": "https://www.goldenalpineholidays.com"
+    }
+   ]
+  },
+  {
+   "id": "revelstoke",
+   "name": "Mount Mackenzie and Mount Cartier",
+   "prov": "BC",
+   "region": "Revelstoke",
+   "lat": 50.9138,
+   "lon": -118.0567,
+   "about": "Big Selkirks terrain right above Revelstoke: Mount Cartier from town and the backcountry past Revelstoke Mountain Resort.",
+   "access": "Revelstoke Mountain Resort's backcountry gates, or the Mount Cartier trail/road south of town.",
+   "rules": "Commercial heli and cat tenures surround Revelstoke.",
+   "forecast": "ac",
+   "links": [
+    {
+     "t": "Revelstoke Mountain Resort",
+     "u": "https://www.revelstokemountainresort.com"
+    }
+   ]
+  },
+  {
+   "id": "mt-revelstoke",
+   "name": "Mount Revelstoke National Park",
+   "prov": "BC",
+   "region": "Revelstoke",
+   "lat": 51.04,
+   "lon": -118.13,
+   "about": "Subalpine meadows and the Clachnacudainn Range above Revelstoke. The Meadows in the Sky Parkway is closed in winter, so you ski or snowshoe up it.",
+   "access": "Meadows in the Sky Parkway gate, just north of Revelstoke on Highway 1.",
+   "ates": [
+    [
+     "2km & 5km Loop trails",
+     1
+    ],
+    [
+     "Lindmark trail to Parkway Intersection",
+     1
+    ],
+    [
+     "Meadows in the Sky Parkway Summit Trail to 8 Mile Crossing",
+     1
+    ],
+    [
+     "Balsam Lake to Eva & Miller Lakes",
+     2
+    ],
+    [
+     "Balsam Lake to Mt Revelstoke Summit",
+     2
+    ],
+    [
+     "Lindmark Trail above Parkway Intersection",
+     2
+    ],
+    [
+     "Summit Trail above 8 Mile Crossing",
+     2
+    ],
+    [
+     "Woolsey Creek Road",
+     2
+    ],
+    [
+     "Clachnacudain Creek",
+     3
+    ],
+    [
+     "Mount Klotz above treeline",
+     3
+    ],
+    [
+     "Woolsey Glacier-Coursier Peak",
+     3
+    ],
+    [
+     "Clachnacudain Glacier-Inverness Peaks",
+     3
+    ],
+    [
+     "Hamilton Creek Upper Meadows",
+     3
+    ],
+    [
+     "Maunder Creek",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "forecast": "pc",
+   "rules": "Overnight in the park needs a Parks Canada wilderness pass (backcountry permit).",
+   "links": [
+    {
+     "t": "Parks Canada: Mount Revelstoke National Park",
+     "u": "https://parks.canada.ca/pn-np/bc/revelstoke"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "rogers-pass",
+   "name": "Rogers Pass (Glacier National Park)",
+   "prov": "BC",
+   "region": "Rogers Pass",
+   "lat": 51.3021,
+   "lon": -117.5205,
+   "about": "Canada's most famous touring centre: the Asulkan, Illecillewaet, Connaught and Bostock areas right off Highway 1. Huge avalanche paths over the highway.",
+   "access": "Highway 1 pull-outs and the Illecillewaet / Asulkan lot near the Rogers Pass Discovery Centre.",
+   "huts": [
+    {
+     "name": "Wheeler Hut, Asulkan Cabin, Glacier Circle Cabin",
+     "by": "Alpine Club of Canada",
+     "note": "booking"
+    }
+   ],
+   "rules": "Winter permit system: you need a Parks Canada winter permit and must check each day which areas are open; entering a closed area is illegal because of highway and railway avalanche control.",
+   "ates": [
+    [
+     "Beaver River",
+     1
+    ],
+    [
+     "Rogers Pass Ski Hill (forest cuts behind hotel)",
+     1
+    ],
+    [
+     "Wheeler Hut approach and vicinity",
+     1
+    ],
+    [
+     "Avalanche Crest - to treeline",
+     2
+    ],
+    [
+     "Cheops Glades",
+     2
+    ],
+    [
+     "Grizzly Shoulder",
+     2
+    ],
+    [
+     "Hermit Meadows",
+     2
+    ],
+    [
+     "McGill Shoulder",
+     2
+    ],
+    [
+     "Sifton Col",
+     2
+    ],
+    [
+     "The Hourglass",
+     2
+    ],
+    [
+     "Asulkan Pass",
+     3
+    ],
+    [
+     "Asulkan Hut/Tree Triangle",
+     3
+    ],
+    [
+     "Balu Pass",
+     3
+    ],
+    [
+     "Bruins Pass",
+     3
+    ],
+    [
+     "Illecillewaet Neve access",
+     3
+    ],
+    [
+     "Lookout Col",
+     3
+    ],
+    [
+     "Perley Rock",
+     3
+    ],
+    [
+     "Sapphire Col",
+     3
+    ],
+    [
+     "Video Peak",
+     3
+    ],
+    [
+     "8812 Bowl",
+     3
+    ],
+    [
+     "Grizzly/Little Sifton Traverse",
+     3
+    ],
+    [
+     "Youngs Pk via Illecillewaet",
+     3
+    ],
+    [
+     "NRC Gullies",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Glacier National Park",
+     "u": "https://parks.canada.ca/pn-np/bc/glacier"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "fairy-meadow",
+   "name": "Fairy Meadow (Adamant Range)",
+   "prov": "BC",
+   "region": "Northern Selkirks",
+   "lat": 51.77,
+   "lon": -117.87,
+   "about": "A legendary hut in the Adamant Range of the northern Selkirks: glaciers, deep snow and week-long stays.",
+   "access": "Helicopter from the Golden or Blaeberry side for week-long bookings.",
+   "huts": [
+    {
+     "name": "Bill Putnam Hut (Fairy Meadow)",
+     "by": "Alpine Club of Canada",
+     "note": "week bookings, often by lottery"
+    }
+   ],
+   "forecast": "ac",
+   "links": [
+    {
+     "t": "Alpine Club of Canada huts (booking)",
+     "u": "https://www.alpineclubofcanada.ca/huts"
+    }
+   ]
+  },
+  {
+   "id": "trophy",
+   "name": "Trophy Mountain (Wells Gray)",
+   "prov": "BC",
+   "region": "Cariboos",
+   "lat": 51.8,
+   "lon": -119.9,
+   "about": "Open meadows and rolling alpine terrain on the edge of Wells Gray Park, near Clearwater.",
+   "access": "Trophy Mountain road from Highway 5 north of Clearwater; sled-assisted when the road isn't plowed.",
+   "rules": "Wells Gray Provincial Park.",
+   "forecast": "ac",
+   "sub": "Clearwater",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/wells-gray-park/"
+    }
+   ]
+  },
+  {
+   "id": "pine-pass",
+   "name": "Pine Pass",
+   "prov": "BC",
+   "region": "Northern BC",
+   "lat": 55.3495,
+   "lon": -122.6146,
+   "about": "Highway 97's pass through the northern Rockies near Powder King: deep snow, short approaches and few people.",
+   "access": "Pull-outs on Highway 97 at Pine Pass and the Azouzetta Lake area.",
+   "rules": "Highway avalanche control: never ski slopes that run onto the highway, and obey closures when control work is on.",
+   "forecast": "ac",
+   "sub": "Pine Pass"
+  },
+  {
+   "id": "hudson-bay",
+   "name": "Hudson Bay Mountain",
+   "prov": "BC",
+   "region": "Smithers",
+   "lat": 54.8085,
+   "lon": -127.3386,
+   "about": "Glacier and bowls above Ski Smithers, plus the Prairie and Harvey Mountain tours nearby.",
+   "access": "Ski Smithers road; backcountry beyond the ski area boundary.",
+   "forecast": "ac",
+   "sub": "North Bulkley",
+   "links": [
+    {
+     "t": "Ski Smithers",
+     "u": "https://www.skismithers.com"
+    }
+   ]
+  },
+  {
+   "id": "babine",
+   "name": "Babine Mountains",
+   "prov": "BC",
+   "region": "Smithers",
+   "lat": 54.9298,
+   "lon": -126.9183,
+   "about": "Big, rolling alpine terrain north of Smithers with several public cabins.",
+   "access": "Driftwood or Harvey Mountain roads from Smithers; sled-shared areas have set routes.",
+   "huts": [
+    {
+     "name": "Public cabins (Joe L'Orsa Cabin in Silver King Basin and others)",
+     "note": "check BC Parks for fees"
+    }
+   ],
+   "rules": "Babine Mountains Provincial Park: snowmobiles only in set areas.",
+   "forecast": "ac",
+   "sub": "North Bulkley",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/babine-mountains-park/"
+    }
+   ]
+  },
+  {
+   "id": "shames",
+   "name": "Shames Mountain backcountry",
+   "prov": "BC",
+   "region": "Terrace",
+   "lat": 54.485,
+   "lon": -128.96,
+   "about": "Deep coastal snow next to the community co-op ski hill west of Terrace: bowls, glades and the Shames backcountry touring area.",
+   "access": "Shames Mountain road off Highway 16; sign out through the ski area's backcountry access.",
+   "forecast": "ac",
+   "sub": "Shames",
+   "links": [
+    {
+     "t": "Shames Mountain (My Mountain Co-op)",
+     "u": "https://www.mymountaincoop.ca"
+    }
+   ]
+  },
+  {
+   "id": "bear-pass",
+   "name": "Bear Pass (Stewart)",
+   "prov": "BC",
+   "region": "Northwest",
+   "lat": 56.112,
+   "lon": -129.6775,
+   "about": "Huge glaciated terrain along Highway 37A near Stewart, one of the snowiest roads in North America. Heli-skiing tenure all around.",
+   "access": "Pull-outs on Highway 37A between Meziadin Junction and Stewart.",
+   "rules": "Highway avalanche control: never ski slopes that run onto the highway, and obey closures when control work is on.",
+   "forecast": "ac",
+   "sub": "Stewart"
+  },
+  {
+   "id": "haines-pass",
+   "name": "Haines Pass (Chilkat Pass)",
+   "prov": "BC",
+   "region": "Haines Pass",
+   "lat": 59.6691,
+   "lon": -136.5573,
+   "about": "Treeless alpine terrain along the Haines Highway in the far northwest corner of BC, between Haines Junction (Yukon) and Haines (Alaska).",
+   "access": "Pull-outs on Highway 3 (Haines Road); border crossings at Dalton Cache on the Alaska side.",
+   "rules": "Bring a passport if you'll cross the Alaska border.",
+   "forecast": "ac",
+   "sub": "Haines Pass"
+  },
+  {
+   "id": "white-pass",
+   "name": "White Pass and Fraser",
+   "prov": "BC",
+   "region": "Yukon",
+   "lat": 59.715,
+   "lon": -135.05,
+   "about": "The Yukon's main ski touring area, around the Klondike Highway on the BC side of the Alaska border: wind-blown alpine terrain, from mellow to big lines.",
+   "access": "Pull-outs along Highway 2 between Log Cabin and the border; the Canadian customs post is at Fraser.",
+   "rules": "Slopes on the US side need you to clear customs; ski with a passport.",
+   "forecast": "ac",
+   "sub": "White Pass",
+   "links": [
+    {
+     "t": "Avalanche Canada",
+     "u": "https://avalanche.ca"
+    }
+   ]
+  },
+  {
+   "id": "wheaton",
+   "name": "Wheaton Valley and Mount Skukum",
+   "prov": "YT",
+   "region": "Yukon",
+   "lat": 60.19,
+   "lon": -135.47,
+   "about": "Alpine bowls south of Whitehorse along the Annie Lake road, forecasted together with White Pass.",
+   "access": "Annie Lake / Wheaton River road from the South Klondike Highway.",
+   "forecast": "ac",
+   "sub": "Wheaton"
+  },
+  {
+   "id": "montana-mountain",
+   "name": "Montana Mountain (Carcross)",
+   "prov": "YT",
+   "region": "Yukon",
+   "lat": 60.0582,
+   "lon": -134.6899,
+   "about": "The big mountain above Carcross, with old mining roads leading into the alpine.",
+   "access": "Montana Mountain road from Carcross.",
+   "forecast": "ac"
+  },
+  {
+   "id": "tombstone",
+   "name": "Tombstone Territorial Park",
+   "prov": "YT",
+   "region": "Yukon",
+   "lat": 64.5734,
+   "lon": -138.4138,
+   "about": "Spring touring among granite peaks off the Dempster Highway, under almost endless daylight in April.",
+   "access": "Dempster Highway, about 70 km north of the Klondike Highway junction (near Dawson City).",
+   "rules": "Remote, no cell service; no public avalanche forecast.",
+   "forecast": "none"
+  },
+  {
+   "id": "kluane",
+   "name": "Kluane icefields",
+   "prov": "YT",
+   "region": "Yukon",
+   "lat": 60.6364,
+   "lon": -139.2972,
+   "kind": "expedition",
+   "about": "The largest non-polar icefields on Earth, under Mount Logan and the Saint Elias Range. Expedition ski mountaineering.",
+   "access": "Ski plane from the Haines Junction area.",
+   "rules": "Parks Canada requires registration for icefield trips; no public avalanche forecast.",
+   "forecast": "none",
+   "links": [
+    {
+     "t": "Parks Canada: Kluane National Park",
+     "u": "https://parks.canada.ca/pn-np/yt/kluane"
+    }
+   ]
+  },
+  {
+   "id": "kings-throne",
+   "name": "King's Throne (Kluane front ranges)",
+   "prov": "YT",
+   "region": "Yukon",
+   "lat": 60.5469,
+   "lon": -137.2601,
+   "about": "A big cirque above Kathleen Lake, the classic spring ski in Kluane's front ranges.",
+   "access": "Kathleen Lake day-use area on the Haines Road, south of Haines Junction.",
+   "rules": "Kluane National Park; no public avalanche forecast.",
+   "forecast": "none",
+   "links": [
+    {
+     "t": "Parks Canada: Kluane National Park",
+     "u": "https://parks.canada.ca/pn-np/yt/kluane"
+    }
+   ]
+  },
+  {
+   "id": "wapta",
+   "name": "Wapta Icefield and huts",
+   "prov": "AB",
+   "region": "Icefields Parkway",
+   "lat": 51.638,
+   "lon": -116.491,
+   "kind": "traverse",
+   "about": "The Rockies' classic hut-to-hut glacier traverse between Peyto Lake and the Yoho Valley, with peaks like Mount Gordon, Olive and Rhondda from the huts.",
+   "access": "Bow Lake (Num-Ti-Jah lot) or Peyto Lake on the Icefields Parkway; exit via the Yoho Valley or Sherbrooke Lake to Highway 1.",
+   "huts": [
+    {
+     "name": "Bow Hut, Peyto Hut, Balfour Hut, Scott Duncan Hut",
+     "by": "Alpine Club of Canada",
+     "note": "booking"
+    }
+   ],
+   "rules": "Overnight in the park needs a Parks Canada wilderness pass (backcountry permit). Crevasses and whiteouts: glacier skills needed.",
+   "ates": [
+    [
+     "Peyto hut to Bow hut",
+     2
+    ],
+    [
+     "Bow hut to Balfour hut via Nic/Olive col",
+     2
+    ],
+    [
+     "Mt. Gordon (YNP)",
+     2
+    ],
+    [
+     "Mt. Olive",
+     2
+    ],
+    [
+     "Mt. Rhonda South",
+     2
+    ],
+    [
+     "Mt. Thompson",
+     2
+    ],
+    [
+     "Bow Hut approach",
+     3
+    ],
+    [
+     "Peyto Glacier approach",
+     3
+    ],
+    [
+     "Balfour to Scott Duncan Huts",
+     3
+    ],
+    [
+     "Hector Lake Wapta access",
+     3
+    ],
+    [
+     "Sherbrook Lake Wapta access",
+     3
+    ],
+    [
+     "Mt. Balfour",
+     3
+    ],
+    [
+     "Mt. Baker",
+     3
+    ],
+    [
+     "Mt. Rhonda North",
+     3
+    ],
+    [
+     "Yoho Traverse",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Banff National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/banff"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    },
+    {
+     "t": "Alpine Club of Canada huts (booking)",
+     "u": "https://www.alpineclubofcanada.ca/huts"
+    }
+   ]
+  },
+  {
+   "id": "bow-summit",
+   "name": "Bow Summit and Observation Peak",
+   "prov": "AB",
+   "region": "Icefields Parkway",
+   "lat": 51.71,
+   "lon": -116.49,
+   "about": "The highest point of the Icefields Parkway: easy-to-reach alpine terrain, Observation Peak's subpeaks and the slopes above Peyto Lake.",
+   "access": "Bow Summit (Peyto Lake) lot, or pull-outs on the Icefields Parkway.",
+   "ates": [
+    [
+     "Bow Summit area",
+     2
+    ],
+    [
+     "Observation subpeaks",
+     2
+    ],
+    [
+     "Observation Peak (summit)",
+     3
+    ],
+    [
+     "Mt. Jimmy Junior",
+     3
+    ],
+    [
+     "Mt. Jimmy Simpson",
+     3
+    ],
+    [
+     "Mt. Patterson",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Banff National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/banff"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "helen-lake",
+   "name": "Helen Lake, Cirque Peak and Dolomite",
+   "prov": "AB",
+   "region": "Icefields Parkway",
+   "lat": 51.67,
+   "lon": -116.41,
+   "about": "Popular tours across the Parkway from Crowfoot: the Katherine and Helen Lakes circuit, Cirque Peak and the long Dolomite Peak circuit.",
+   "access": "Helen Lake trailhead, across the Icefields Parkway from the Crowfoot Glacier viewpoint.",
+   "ates": [
+    [
+     "Katherine/Helen Lake circuit",
+     2
+    ],
+    [
+     "Cirque Peak",
+     2
+    ],
+    [
+     "Dolomite Peak circuit",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Banff National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/banff"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "crowfoot",
+   "name": "Crowfoot Glades and Crowfoot Pass",
+   "prov": "AB",
+   "region": "Icefields Parkway",
+   "lat": 51.63,
+   "lon": -116.43,
+   "about": "Tree skiing and a pass climb on Crowfoot Mountain's north side, right above Bow Lake.",
+   "access": "Pull-outs on the Icefields Parkway near Bow Lake.",
+   "ates": [
+    [
+     "Crowfoot Pass",
+     2
+    ],
+    [
+     "Crowfoot Mt.",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Banff National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/banff"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "mosquito",
+   "name": "Mosquito Creek and Mount Hector",
+   "prov": "AB",
+   "region": "Icefields Parkway",
+   "lat": 51.63,
+   "lon": -116.33,
+   "about": "Valley touring up Mosquito Creek to Molar Pass and North Molar, and Mount Hector's big glaciated ascent nearby.",
+   "access": "Mosquito Creek on the Icefields Parkway (hostel and lot); Mount Hector from the Parkway pull-out near Hector Lake.",
+   "huts": [
+    {
+     "name": "HI Mosquito Creek Wilderness Hostel",
+     "note": "booking"
+    }
+   ],
+   "ates": [
+    [
+     "Mosquito Creek to MO5",
+     1
+    ],
+    [
+     "Mt. Hector",
+     3
+    ],
+    [
+     "Pulpit Peak area",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Banff National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/banff"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "parker-ridge",
+   "name": "Parker Ridge and Hilda",
+   "prov": "AB",
+   "region": "Icefields Parkway",
+   "lat": 52.18,
+   "lon": -117.11,
+   "about": "Short climbs to big views over the Saskatchewan Glacier at the north end of Banff park: Parker Ridge, Hilda Ridge, and longer days to the Castleguard.",
+   "access": "Parker Ridge lot and Hilda Creek on the Icefields Parkway, south of the Columbia Icefield.",
+   "ates": [
+    [
+     "Parker Ridge",
+     2
+    ],
+    [
+     "Hilda Ridge",
+     2
+    ],
+    [
+     "Saskatchewan glacier",
+     2
+    ],
+    [
+     "Castlegard Mt.",
+     2
+    ],
+    [
+     "Cirrus Mountain",
+     3
+    ],
+    [
+     "Mt. Wilson",
+     3
+    ],
+    [
+     "Mt. Coleman",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Banff National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/banff"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "columbia-icefield",
+   "name": "Columbia Icefield",
+   "prov": "AB",
+   "region": "Icefields Parkway",
+   "lat": 52.19,
+   "lon": -117.25,
+   "about": "The Rockies' biggest icefield: Athabasca Glacier, Snow Dome, Mount Columbia, the Twins and Kitchener. Ski mountaineering with icefalls and crevasses.",
+   "access": "Athabasca Glacier toe lot off the Icefields Parkway; Wilcox Pass trailhead nearby.",
+   "ates": [
+    [
+     "Wilcox Pass",
+     2
+    ],
+    [
+     "Athabasca Glacier to first icefall",
+     2
+    ],
+    [
+     "Athabasca Glacier past first icefall",
+     3
+    ],
+    [
+     "Snow Dome",
+     3
+    ],
+    [
+     "Mt. Columbia",
+     3
+    ],
+    [
+     "North Twin",
+     3
+    ],
+    [
+     "South Twin",
+     3
+    ],
+    [
+     "Mt. Kitchener",
+     3
+    ],
+    [
+     "Stutfield Peak",
+     3
+    ],
+    [
+     "Diadem Creek",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "rules": "Overnight in the park needs a Parks Canada wilderness pass (backcountry permit). No huts on the icefield: you camp.",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Jasper National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/jasper"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "skoki",
+   "name": "Skoki and the Lake Louise backcountry",
+   "prov": "AB",
+   "region": "Lake Louise",
+   "lat": 51.541,
+   "lon": -116.06,
+   "about": "Behind the Lake Louise ski area: Boulder and Deception passes to historic Skoki Lodge, Fossil Mountain, Merlin Valley and the Hidden Bowl.",
+   "access": "Fish Creek parking at the Lake Louise ski area; ski the Temple road and up past the ski area.",
+   "huts": [
+    {
+     "name": "Skoki Lodge",
+     "note": "historic private lodge, booking"
+    }
+   ],
+   "ates": [
+    [
+     "Skoki via Boulder/Deception Passes",
+     1
+    ],
+    [
+     "Merlin Valley from Skoki",
+     1
+    ],
+    [
+     "Skoki via Pipestone River",
+     1
+    ],
+    [
+     "Hidden Bowl region",
+     2
+    ],
+    [
+     "Fossil Mountain loop",
+     2
+    ],
+    [
+     "Skoki Mountain loop",
+     2
+    ],
+    [
+     "Lake Louise resort backcountry accessed from ski area",
+     2
+    ],
+    [
+     "Packers Pass",
+     3
+    ],
+    [
+     "Ptarmigan Peak",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "rules": "Overnight in the park needs a Parks Canada wilderness pass (backcountry permit).",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Banff National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/banff"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    },
+    {
+     "t": "Skoki Lodge",
+     "u": "https://www.skoki.com"
+    }
+   ]
+  },
+  {
+   "id": "moraine-paradise",
+   "name": "Lake Louise, Paradise Valley and Moraine Lake road",
+   "prov": "AB",
+   "region": "Lake Louise",
+   "lat": 51.38,
+   "lon": -116.2,
+   "about": "Tours from Lake Louise: the Moraine Lake road (closed to cars in winter), Paradise Valley, Mount Fairview and the Plain of Six Glaciers, whose trail crosses big avalanche paths.",
+   "access": "Lake Louise lakeshore and the Moraine Lake road gate.",
+   "ates": [
+    [
+     "Moraine Lake road trackset",
+     1
+    ],
+    [
+     "Fairview loop",
+     1
+    ],
+    [
+     "Lake Louise shoreline trail",
+     1
+    ],
+    [
+     "Paradise Valley",
+     2
+    ],
+    [
+     "Mt. Fairview",
+     3
+    ],
+    [
+     "Plain of Six Glaciers trail",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Banff National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/banff"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "sunshine-healy",
+   "name": "Sunshine Village and Healy Pass",
+   "prov": "AB",
+   "region": "Banff",
+   "lat": 51.116,
+   "lon": -115.855,
+   "about": "High meadows around Sunshine Village: Healy Pass, the Monarch ramparts and the slopes past the ski area boundary.",
+   "access": "Sunshine Village parking (Healy Creek trail), or the ski area's backcountry exits.",
+   "ates": [
+    [
+     "Healy Creek - Sundance to SSV road",
+     1
+    ],
+    [
+     "Healy Creek – SSV to Healy Pass",
+     2
+    ],
+    [
+     "Sunshine to Healy Creek",
+     2
+    ],
+    [
+     "Sunshine Village backcountry accessed from ski area",
+     2
+    ]
+   ],
+   "atesSrc": "pc",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Banff National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/banff"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "egypt-lake",
+   "name": "Egypt Lake and Shadow Lake",
+   "prov": "AB",
+   "region": "Banff",
+   "lat": 51.1005,
+   "lon": -115.9045,
+   "about": "Overnight tours into the Egypt Lake basin (shelter) or Shadow Lake (lodge) under the Great Divide, with Haiduk Lake and Gibbon Pass between.",
+   "access": "Redearth Creek trailhead on Highway 1, or over Healy Pass from Sunshine.",
+   "huts": [
+    {
+     "name": "Egypt Lake Shelter",
+     "by": "Parks Canada",
+     "note": "reservation"
+    },
+    {
+     "name": "Shadow Lake Lodge",
+     "note": "private lodge, booking"
+    }
+   ],
+   "ates": [
+    [
+     "Twin Lakes from Hwy 1",
+     1
+    ],
+    [
+     "Redearth Creek",
+     2
+    ],
+    [
+     "Haiduk Lake via Shadow Lake",
+     2
+    ],
+    [
+     "Gibbon Pass",
+     2
+    ]
+   ],
+   "atesSrc": "pc",
+   "rules": "Overnight in the park needs a Parks Canada wilderness pass (backcountry permit).",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Banff National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/banff"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "assiniboine",
+   "name": "Mount Assiniboine",
+   "prov": "BC",
+   "region": "Banff",
+   "lat": 50.9008,
+   "lon": -115.6314,
+   "about": "The 'Matterhorn of the Rockies': rolling meadows and bowls around Lake Magog, with a historic lodge and public cabins.",
+   "access": "A long ski in from Mount Shark (Spray Lakes, Kananaskis) via Bryant Creek and Assiniboine Pass, or from Sunshine; or a helicopter from Mount Shark on set days.",
+   "huts": [
+    {
+     "name": "Assiniboine Lodge",
+     "note": "private lodge, booking"
+    },
+    {
+     "name": "Naiset Cabins",
+     "by": "BC Parks",
+     "note": "reservation"
+    },
+    {
+     "name": "R.C. Hind Hut",
+     "by": "Alpine Club of Canada"
+    }
+   ],
+   "ates": [
+    [
+     "Bryant Creek",
+     1
+    ],
+    [
+     "Sundance Pass",
+     1
+    ]
+   ],
+   "atesSrc": "pc",
+   "rules": "Mount Assiniboine Provincial Park (BC); the approach crosses Banff National Park (wilderness pass to camp there).",
+   "forecast": "ac",
+   "links": [
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/mount-assiniboine-park/"
+    },
+    {
+     "t": "Assiniboine Lodge",
+     "u": "https://assiniboinelodge.com"
+    }
+   ]
+  },
+  {
+   "id": "bow-valley",
+   "name": "Banff and Bow Valley tours",
+   "prov": "AB",
+   "region": "Banff",
+   "lat": 51.27,
+   "lon": -115.92,
+   "about": "Low-angle valley tours and big ascents near Banff and Castle Junction: Johnston Creek, Taylor Lake, Boom Lake, Castle Mountain and Mystic Pass.",
+   "access": "Trailheads along Highway 1 and the Bow Valley Parkway.",
+   "ates": [
+    [
+     "Johnston Creek to Inkpots",
+     1
+    ],
+    [
+     "Taylor Lake Trail",
+     1
+    ],
+    [
+     "Cascade Fire Road",
+     1
+    ],
+    [
+     "Boom Lake",
+     2
+    ],
+    [
+     "Elk Lake Summit",
+     2
+    ],
+    [
+     "Forty Mile Creek",
+     2
+    ],
+    [
+     "Castle Mt. - to summit",
+     3
+    ],
+    [
+     "Mystic Pass",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Banff National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/banff"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "kootenay-np",
+   "name": "Vermilion Pass, Stanley Glacier and Chickadee",
+   "prov": "BC",
+   "region": "Kootenay",
+   "lat": 51.22,
+   "lon": -116.05,
+   "about": "Steep terrain off Highway 93 South: Stanley Glacier's headwall, Storm Mountain, Chickadee Valley and Tokumm Creek. Quick access, serious slopes.",
+   "access": "Stanley Glacier and Chickadee Valley trailheads on Highway 93 South, just west of the Alberta border.",
+   "ates": [
+    [
+     "Chickadee Valley (valley bottom only)",
+     1
+    ],
+    [
+     "Dog Lake",
+     1
+    ],
+    [
+     "Chickadee Valley - above valley bottom",
+     3
+    ],
+    [
+     "Stanley Glacier Valley",
+     3
+    ],
+    [
+     "Storm Mt.",
+     3
+    ],
+    [
+     "Tokumm Creek",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Kootenay National Park",
+     "u": "https://parks.canada.ca/pn-np/bc/kootenay"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "little-yoho",
+   "name": "Little Yoho Valley",
+   "prov": "BC",
+   "region": "Yoho",
+   "lat": 51.53,
+   "lon": -116.56,
+   "about": "Big alpine bowls and peaks around the Stanley Mitchell Hut: President Pass, Kiwetinok Pass, Mount McArthur and Isolated Col. Has its own Parks Canada forecast.",
+   "access": "Ski the Yoho Valley Road (closed to cars in winter) from Highway 1 near Field, then up past Takakkaw Falls: a long first day.",
+   "huts": [
+    {
+     "name": "Stanley Mitchell Hut",
+     "by": "Alpine Club of Canada",
+     "note": "booking"
+    }
+   ],
+   "ates": [
+    [
+     "Yoho Valley Road trackset",
+     1
+    ],
+    [
+     "Kiwetinok Pass",
+     2
+    ],
+    [
+     "Little Yoho Valley approach",
+     3
+    ],
+    [
+     "President Pass",
+     3
+    ],
+    [
+     "Mt. McArthur",
+     3
+    ],
+    [
+     "Isolated Col",
+     3
+    ],
+    [
+     "Mt. Des Poilus",
+     3
+    ],
+    [
+     "Mt. Collie",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "rules": "Overnight in the park needs a Parks Canada wilderness pass (backcountry permit).",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Yoho National Park",
+     "u": "https://parks.canada.ca/pn-np/bc/yoho"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    },
+    {
+     "t": "Alpine Club of Canada huts (booking)",
+     "u": "https://www.alpineclubofcanada.ca/huts"
+    }
+   ]
+  },
+  {
+   "id": "lake-ohara",
+   "name": "Lake O'Hara",
+   "prov": "BC",
+   "region": "Yoho",
+   "lat": 51.356,
+   "lon": -116.34,
+   "about": "11 km up the closed Lake O'Hara road to a hut among some of the Rockies' finest peaks: Opabin and Odaray plateaus, Schaefer Basin, McArthur Pass.",
+   "access": "Lake O'Hara parking at Highway 1 (west of Kicking Horse Pass); ski the road.",
+   "huts": [
+    {
+     "name": "Elizabeth Parker Hut",
+     "by": "Alpine Club of Canada",
+     "note": "booking"
+    }
+   ],
+   "ates": [
+    [
+     "Lake O'Hara Road to Elizabeth Parker Hut",
+     1
+    ],
+    [
+     "Lake O'Hara Circuit (avoid the north shoreline)",
+     1
+    ],
+    [
+     "Opabin Plateau",
+     2
+    ],
+    [
+     "Odaray Plateau",
+     2
+    ],
+    [
+     "McArthur Pass",
+     2
+    ],
+    [
+     "Schaefer Basin",
+     3
+    ],
+    [
+     "Opabin/ Wenkchemna circuit",
+     3
+    ],
+    [
+     "Mt. Cathedral",
+     3
+    ],
+    [
+     "Popes Peak",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "rules": "Overnight in the park needs a Parks Canada wilderness pass (backcountry permit).",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Yoho National Park",
+     "u": "https://parks.canada.ca/pn-np/bc/yoho"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    },
+    {
+     "t": "Alpine Club of Canada huts (booking)",
+     "u": "https://www.alpineclubofcanada.ca/huts"
+    }
+   ]
+  },
+  {
+   "id": "emerald-field",
+   "name": "Emerald Lake and Field",
+   "prov": "BC",
+   "region": "Yoho",
+   "lat": 51.443,
+   "lon": -116.53,
+   "about": "Gentle nordic trails at Emerald Lake and big avalanche terrain right above it (Emerald Pass, the Emerald Peak slide path), plus Mount Field and Sherbrooke Lake.",
+   "access": "Emerald Lake road from Field, and the Sherbrooke Lake lot at West Louise Lodge on Highway 1.",
+   "ates": [
+    [
+     "Emerald Lake designated Nordic trails",
+     1
+    ],
+    [
+     "Field to Emerald Lake Nordic trail",
+     1
+    ],
+    [
+     "Sherbrooke Lake (to lake only)",
+     1
+    ],
+    [
+     "Amiskwi Fire Road",
+     2
+    ],
+    [
+     "Emerald Pass",
+     3
+    ],
+    [
+     "Emerald Peak/Slide Path",
+     3
+    ],
+    [
+     "Mt. Field",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Yoho National Park",
+     "u": "https://parks.canada.ca/pn-np/bc/yoho"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "tonquin",
+   "name": "Tonquin Valley",
+   "prov": "AB",
+   "region": "Jasper",
+   "lat": 52.7,
+   "lon": -118.28,
+   "about": "Amethyst Lakes below the Ramparts, with the Wates-Gibson Hut and Fraser Glacier.",
+   "access": "Astoria River (Edith Cavell road, closed to cars in winter) or Portal Creek (Marmot Basin road).",
+   "huts": [
+    {
+     "name": "Wates-Gibson Hut",
+     "by": "Alpine Club of Canada",
+     "note": "booking"
+    }
+   ],
+   "ates": [
+    [
+     "Astoria River to Tonquin/WG hut",
+     1
+    ],
+    [
+     "Edith Cavell road - to hostel",
+     1
+    ],
+    [
+     "Amethyst Lakes/Moat Lake",
+     2
+    ],
+    [
+     "Portal Creek to Tonquin",
+     2
+    ],
+    [
+     "Fraser Glacier",
+     2
+    ]
+   ],
+   "atesSrc": "pc",
+   "rules": "Caribou range: Parks Canada closes the Tonquin Valley to winter travel for much of the season (recently Nov 1 to May 15). Check Jasper's closures before planning.",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Jasper National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/jasper"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    },
+    {
+     "t": "Alpine Club of Canada huts (booking)",
+     "u": "https://www.alpineclubofcanada.ca/huts"
+    }
+   ]
+  },
+  {
+   "id": "maligne",
+   "name": "Maligne Lake and the Bald Hills",
+   "prov": "AB",
+   "region": "Jasper",
+   "lat": 52.6959,
+   "lon": -117.6836,
+   "about": "Open, rolling slopes of the Bald Hills above Maligne Lake, Little Shovel Pass and the Skyline.",
+   "access": "Maligne Lake at the end of the Maligne Lake Road from Jasper.",
+   "ates": [
+    [
+     "Bald Hills Lookout Trail – to hitching rail only",
+     1
+    ],
+    [
+     "Moose Lake trail",
+     1
+    ],
+    [
+     "Bald Hills area",
+     2
+    ],
+    [
+     "Little Shovel Pass",
+     2
+    ],
+    [
+     "Skyline Trail",
+     2
+    ],
+    [
+     "Maligne Pass",
+     2
+    ]
+   ],
+   "atesSrc": "pc",
+   "rules": "Jasper has had delayed winter access in caribou ranges; check current closures.",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Jasper National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/jasper"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "marmot",
+   "name": "Marmot Basin backcountry and Whistlers Creek",
+   "prov": "AB",
+   "region": "Jasper",
+   "lat": 52.8,
+   "lon": -118.09,
+   "about": "Bowls past Marmot Basin's boundary and Whistlers Creek, south of Jasper.",
+   "access": "Marmot Basin ski area road off Highway 93A.",
+   "ates": [
+    [
+     "Marmot Basin backcountry accessed from ski area",
+     2
+    ],
+    [
+     "Whistlers Creek",
+     2
+    ]
+   ],
+   "atesSrc": "pc",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Jasper National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/jasper"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    }
+   ]
+  },
+  {
+   "id": "fryatt",
+   "name": "Fryatt Valley",
+   "prov": "AB",
+   "region": "Jasper",
+   "lat": 52.5053,
+   "lon": -117.8819,
+   "about": "A long valley approach to a hut under Mount Fryatt, with alpine bowls above the headwall.",
+   "access": "Geraldine Lakes road from Highway 93A near Athabasca Falls, then the Fryatt Valley trail (long).",
+   "huts": [
+    {
+     "name": "Sydney Vallance Hut (Fryatt Hut)",
+     "by": "Alpine Club of Canada",
+     "note": "booking"
+    }
+   ],
+   "ates": [
+    [
+     "Fryatt Creek",
+     2
+    ]
+   ],
+   "atesSrc": "pc",
+   "rules": "Overnight in the park needs a Parks Canada wilderness pass (backcountry permit).",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Jasper National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/jasper"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    },
+    {
+     "t": "Alpine Club of Canada huts (booking)",
+     "u": "https://www.alpineclubofcanada.ca/huts"
+    }
+   ]
+  },
+  {
+   "id": "waterton",
+   "name": "Waterton Lakes",
+   "prov": "AB",
+   "region": "Waterton",
+   "lat": 49.017,
+   "lon": -114.048,
+   "about": "Where the prairies meet the mountains: Akamina Pass, Forum Lake and Ridge, Summit Lake, Rowe Lakes and Bertha Lake. Wild winds and wind slabs.",
+   "access": "Akamina Parkway toward Cameron Lake from Waterton townsite (check how far it's plowed).",
+   "ates": [
+    [
+     "Akamina Pass",
+     1
+    ],
+    [
+     "Akamina Pass to Forum Lake",
+     1
+    ],
+    [
+     "Cameron Lake trail to lake only",
+     1
+    ],
+    [
+     "Crandel Lake",
+     1
+    ],
+    [
+     "Akamina Pass to Wall Lake",
+     2
+    ],
+    [
+     "Forum Ridge",
+     2
+    ],
+    [
+     "Summit Lake",
+     2
+    ],
+    [
+     "Summit Knob to Cameron Lake",
+     2
+    ],
+    [
+     "Bertha Lake",
+     2
+    ],
+    [
+     "Rowe Lake",
+     3
+    ],
+    [
+     "Lineham Lake",
+     3
+    ],
+    [
+     "Alderson-Carthew",
+     3
+    ]
+   ],
+   "atesSrc": "pc",
+   "forecast": "pc",
+   "links": [
+    {
+     "t": "Parks Canada: Waterton Lakes National Park",
+     "u": "https://parks.canada.ca/pn-np/ab/waterton"
+    },
+    {
+     "t": "Parks Canada avalanche terrain ratings (ATES)",
+     "u": "https://parks.canada.ca/pn-np/mtn/securiteenmontagne-mountainsafety/avalanche/echelle-ratings/eeta-ates-2"
+    },
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/akamina-kishinena-park/"
+    }
+   ]
+  },
+  {
+   "id": "burstall",
+   "name": "Burstall Pass and Robertson Glacier",
+   "prov": "AB",
+   "region": "Kananaskis",
+   "lat": 50.76,
+   "lon": -115.35,
+   "about": "One of Kananaskis's most popular tours: flats past Burstall Lakes, then the pass, Snow Peak and the French, Haig and Robertson glaciers for the ski mountaineering traverse.",
+   "access": "Burstall Pass lot on the Smith-Dorrien / Spray Trail (Highway 742).",
+   "ates": [
+    [
+     "Burstall Pass (at treeline)",
+     2
+    ],
+    [
+     "Robertson Glacier",
+     3
+    ],
+    [
+     "Murray Moraines",
+     3
+    ]
+   ],
+   "atesSrc": "kc",
+   "rules": "Park in Kananaskis only with a Kananaskis Conservation Pass.",
+   "forecast": "kc",
+   "links": [
+    {
+     "t": "Alberta Parks: Kananaskis avalanche terrain ratings (ATES map)",
+     "u": "https://albertaparks.ca/albertaparksca/advisories-public-safety/outdoor-safety/winter-safety/ates-disclaimer/kananaskis-country-avalanche-terrain-ratings-scale-ates/?park=kc"
+    },
+    {
+     "t": "Kananaskis Conservation Pass",
+     "u": "https://www.alberta.ca/kananaskis-conservation-pass"
+    }
+   ]
+  },
+  {
+   "id": "chester",
+   "name": "Chester Lake and the Smith-Dorrien",
+   "prov": "AB",
+   "region": "Kananaskis",
+   "lat": 50.8,
+   "lon": -115.29,
+   "about": "Chester Lake, Rummel Lake, Tryst Lake and Tent Ridge along the Smith-Dorrien: from gentle forest tours to the steep Tent Ridge horseshoe.",
+   "access": "Chester Lake, Rummel Lake and Mount Shark lots on the Smith-Dorrien / Spray Trail.",
+   "ates": [
+    [
+     "Tent Ridge",
+     3
+    ]
+   ],
+   "atesSrc": "kc",
+   "rules": "Park in Kananaskis only with a Kananaskis Conservation Pass.",
+   "forecast": "kc",
+   "links": [
+    {
+     "t": "Alberta Parks: Kananaskis avalanche terrain ratings (ATES map)",
+     "u": "https://albertaparks.ca/albertaparksca/advisories-public-safety/outdoor-safety/winter-safety/ates-disclaimer/kananaskis-country-avalanche-terrain-ratings-scale-ates/?park=kc"
+    },
+    {
+     "t": "Kananaskis Conservation Pass",
+     "u": "https://www.alberta.ca/kananaskis-conservation-pass"
+    }
+   ]
+  },
+  {
+   "id": "commonwealth",
+   "name": "Commonwealth Ridge and Black Prince",
+   "prov": "AB",
+   "region": "Kananaskis",
+   "lat": 50.7903,
+   "lon": -115.3486,
+   "about": "Steep terrain near the Smith-Dorrien summit: Commonwealth Ridge, the Black Prince and Warspite bowls, Headwall Bowl, Purple Col.",
+   "access": "Commonwealth Creek, Black Prince and Headwall pull-outs on the Smith-Dorrien / Spray Trail.",
+   "ates": [
+    [
+     "Commonwealth Ridge",
+     3
+    ],
+    [
+     "Warspite Bowl",
+     3
+    ],
+    [
+     "Headwall Bowl",
+     3
+    ],
+    [
+     "Purple Col",
+     3
+    ]
+   ],
+   "atesSrc": "kc",
+   "rules": "Park in Kananaskis only with a Kananaskis Conservation Pass. Commonwealth Creek is a terrain trap.",
+   "forecast": "kc",
+   "links": [
+    {
+     "t": "Alberta Parks: Kananaskis avalanche terrain ratings (ATES map)",
+     "u": "https://albertaparks.ca/albertaparksca/advisories-public-safety/outdoor-safety/winter-safety/ates-disclaimer/kananaskis-country-avalanche-terrain-ratings-scale-ates/?park=kc"
+    },
+    {
+     "t": "Kananaskis Conservation Pass",
+     "u": "https://www.alberta.ca/kananaskis-conservation-pass"
+    }
+   ]
+  },
+  {
+   "id": "kananaskis-lakes",
+   "name": "Kananaskis Lakes, Elk Lakes and Aster Lake",
+   "prov": "AB",
+   "region": "Kananaskis",
+   "lat": 50.62,
+   "lon": -115.16,
+   "about": "Valley tours from the Kananaskis Lakes: Elk Pass to the Elk Lakes cabin in BC, Aster Lake and the glaciers of Mount Joffre.",
+   "access": "Elk Pass and Upper Kananaskis Lake lots in Peter Lougheed Provincial Park.",
+   "huts": [
+    {
+     "name": "Elk Lakes Cabin",
+     "by": "Alpine Club of Canada",
+     "note": "in Elk Lakes Provincial Park (BC), booking"
+    }
+   ],
+   "ates": [
+    [
+     "Aster Lake region",
+     1
+    ]
+   ],
+   "atesSrc": "kc",
+   "rules": "Park in Kananaskis only with a Kananaskis Conservation Pass.",
+   "forecast": "kc",
+   "links": [
+    {
+     "t": "Alberta Parks: Kananaskis avalanche terrain ratings (ATES map)",
+     "u": "https://albertaparks.ca/albertaparksca/advisories-public-safety/outdoor-safety/winter-safety/ates-disclaimer/kananaskis-country-avalanche-terrain-ratings-scale-ates/?park=kc"
+    },
+    {
+     "t": "Kananaskis Conservation Pass",
+     "u": "https://www.alberta.ca/kananaskis-conservation-pass"
+    },
+    {
+     "t": "BC Parks",
+     "u": "https://bcparks.ca/elk-lakes-park/"
+    },
+    {
+     "t": "Alpine Club of Canada huts (booking)",
+     "u": "https://www.alpineclubofcanada.ca/huts"
+    }
+   ]
+  },
+  {
+   "id": "highwood",
+   "name": "Highwood Pass",
+   "prov": "AB",
+   "region": "Kananaskis",
+   "lat": 50.59,
+   "lon": -114.99,
+   "about": "Canada's highest paved pass (2,206 m): Ptarmigan Cirque, Pocaterra Cirque and Mount Rae. Highway 40 is closed to cars over the pass from December 1 to mid-June, so it's a long ski in winter and a classic in June when the road opens.",
+   "access": "Winter gate at King Creek on Highway 40.",
+   "ates": [
+    [
+     "Highwood Pass",
+     3
+    ]
+   ],
+   "atesSrc": "kc",
+   "rules": "Park in Kananaskis only with a Kananaskis Conservation Pass.",
+   "forecast": "kc",
+   "links": [
+    {
+     "t": "Alberta Parks: Kananaskis avalanche terrain ratings (ATES map)",
+     "u": "https://albertaparks.ca/albertaparksca/advisories-public-safety/outdoor-safety/winter-safety/ates-disclaimer/kananaskis-country-avalanche-terrain-ratings-scale-ates/?park=kc"
+    },
+    {
+     "t": "Kananaskis Conservation Pass",
+     "u": "https://www.alberta.ca/kananaskis-conservation-pass"
+    }
+   ]
+  },
+  {
+   "id": "ernest-laforce",
+   "name": "Mont Ernest-Laforce",
+   "prov": "QC",
+   "region": "Chic-Chocs",
+   "lat": 48.9189,
+   "lon": -66.0814,
+   "about": "A public backcountry sector in Parc national de la Gaspésie, with open bowls and glades down to the road. One of the most popular in the Chic-Chocs.",
+   "access": "Route 299 through the park; park at the sector's lot and skin up (about an hour).",
+   "rules": "Parc national de la Gaspésie: park access fee (Sépaq). Ski only in the authorized sectors; the rest of the park's summits protect the caribou.",
+   "forecast": "aq",
+   "links": [
+    {
+     "t": "Sépaq: Parc national de la Gaspésie",
+     "u": "https://www.sepaq.com/pq/gas/"
+    },
+    {
+     "t": "Avalanche Québec (Chic-Chocs bulletin)",
+     "u": "https://www.avalanchequebec.ca"
+    },
+    {
+     "t": "Haute-Gaspésie backcountry ski sectors",
+     "u": "https://vacanceshaute-gaspesie.com/en/experiences/backcountry-skiing/"
+    }
+   ]
+  },
+  {
+   "id": "mont-albert",
+   "name": "Mont Albert authorized sectors",
+   "prov": "QC",
+   "region": "Chic-Chocs",
+   "lat": 48.925,
+   "lon": -66.165,
+   "about": "Steep, snowy terrain on the Mont Albert massif. A large part of the mountain is closed to skiing to protect the endangered caribou: ski only in the authorized sectors.",
+   "access": "From the Gîte du Mont-Albert area on Route 299.",
+   "rules": "Parc national de la Gaspésie: access fee, authorized sectors only (caribou protection).",
+   "forecast": "aq",
+   "links": [
+    {
+     "t": "Sépaq: Parc national de la Gaspésie",
+     "u": "https://www.sepaq.com/pq/gas/"
+    },
+    {
+     "t": "Avalanche Québec (Chic-Chocs bulletin)",
+     "u": "https://www.avalanchequebec.ca"
+    },
+    {
+     "t": "Haute-Gaspésie backcountry ski sectors",
+     "u": "https://vacanceshaute-gaspesie.com/en/experiences/backcountry-skiing/"
+    }
+   ]
+  },
+  {
+   "id": "mines-madeleine",
+   "name": "Mines Madeleine",
+   "prov": "QC",
+   "region": "Chic-Chocs",
+   "lat": 49.0007,
+   "lon": -66.0024,
+   "about": "A sector in the Réserve faunique des Chic-Chocs with bowls and gullies near the old Madeleine mine.",
+   "access": "Route 299 / Mines Madeleine road; guided options too.",
+   "rules": "Réserve faunique des Chic-Chocs (Sépaq): check access rules and fees.",
+   "forecast": "aq",
+   "links": [
+    {
+     "t": "Sépaq: Réserve faunique des Chic-Chocs",
+     "u": "https://sepaq.com/chicchocs"
+    },
+    {
+     "t": "Avalanche Québec (Chic-Chocs bulletin)",
+     "u": "https://www.avalanchequebec.ca"
+    },
+    {
+     "t": "Haute-Gaspésie backcountry ski sectors",
+     "u": "https://vacanceshaute-gaspesie.com/en/experiences/backcountry-skiing/"
+    }
+   ]
+  },
+  {
+   "id": "champ-de-mars",
+   "name": "Champ-de-Mars and Blanche-Lamontagne",
+   "prov": "QC",
+   "region": "Chic-Chocs",
+   "lat": 48.8648,
+   "lon": -66.0495,
+   "about": "Big open slopes in the Chic-Chocs wildlife reserve, among the steepest public terrain in eastern Canada.",
+   "access": "Reserve roads off Route 299.",
+   "rules": "Réserve faunique des Chic-Chocs: access has been restricted after caribou sightings; check the current status with Sépaq.",
+   "forecast": "aq",
+   "links": [
+    {
+     "t": "Sépaq: Réserve faunique des Chic-Chocs",
+     "u": "https://sepaq.com/chicchocs"
+    },
+    {
+     "t": "Avalanche Québec (Chic-Chocs bulletin)",
+     "u": "https://www.avalanchequebec.ca"
+    },
+    {
+     "t": "Haute-Gaspésie backcountry ski sectors",
+     "u": "https://vacanceshaute-gaspesie.com/en/experiences/backcountry-skiing/"
+    }
+   ]
+  },
+  {
+   "id": "hogs-back",
+   "name": "Mont Hog's Back",
+   "prov": "QC",
+   "region": "Chic-Chocs",
+   "lat": 48.861,
+   "lon": -66.1114,
+   "about": "A Chic-Chocs ridge with gullies and bowls on both sides, in the wildlife reserve.",
+   "access": "Off Route 299 in the Réserve faunique des Chic-Chocs.",
+   "rules": "Access has been restricted after caribou sightings; check with Sépaq before going.",
+   "forecast": "aq",
+   "links": [
+    {
+     "t": "Sépaq: Réserve faunique des Chic-Chocs",
+     "u": "https://sepaq.com/chicchocs"
+    },
+    {
+     "t": "Avalanche Québec (Chic-Chocs bulletin)",
+     "u": "https://www.avalanchequebec.ca"
+    },
+    {
+     "t": "Haute-Gaspésie backcountry ski sectors",
+     "u": "https://vacanceshaute-gaspesie.com/en/experiences/backcountry-skiing/"
+    }
+   ]
+  },
+  {
+   "id": "vallieres",
+   "name": "Mont Vallières-de-Saint-Réal",
+   "prov": "QC",
+   "region": "Chic-Chocs",
+   "lat": 48.8389,
+   "lon": -66.0234,
+   "about": "A public sector of the Chic-Chocs wildlife reserve west of Mont Albert.",
+   "access": "Reserve roads off Route 299.",
+   "rules": "Réserve faunique des Chic-Chocs (Sépaq).",
+   "forecast": "aq",
+   "links": [
+    {
+     "t": "Sépaq: Réserve faunique des Chic-Chocs",
+     "u": "https://sepaq.com/chicchocs"
+    },
+    {
+     "t": "Avalanche Québec (Chic-Chocs bulletin)",
+     "u": "https://www.avalanchequebec.ca"
+    },
+    {
+     "t": "Haute-Gaspésie backcountry ski sectors",
+     "u": "https://vacanceshaute-gaspesie.com/en/experiences/backcountry-skiing/"
+    }
+   ]
+  },
+  {
+   "id": "mont-lyall",
+   "name": "Mont Lyall",
+   "prov": "QC",
+   "region": "Chic-Chocs",
+   "lat": 48.8047,
+   "lon": -66.0632,
+   "about": "A 330 m vertical sector managed with the FQME, south of the park.",
+   "access": "Forest roads from Route 299 / Murdochville side.",
+   "rules": "FQME day or season membership (buy online) to ski here.",
+   "forecast": "aq",
+   "links": [
+    {
+     "t": "FQME (Quebec mountain federation): access and membership",
+     "u": "https://fqme.qc.ca"
+    },
+    {
+     "t": "Haute-Gaspésie backcountry ski sectors",
+     "u": "https://vacanceshaute-gaspesie.com/en/experiences/backcountry-skiing/"
+    }
+   ]
+  },
+  {
+   "id": "marsoui",
+   "name": "Marsoui",
+   "prov": "QC",
+   "region": "Gaspésie coast",
+   "lat": 49.21,
+   "lon": -66.07,
+   "about": "A community-run sector with seaside access on the north coast of the Gaspé.",
+   "access": "From Route 132 in Marsoui.",
+   "rules": "FQME day or season membership.",
+   "forecast": "aq",
+   "links": [
+    {
+     "t": "FQME (Quebec mountain federation): access and membership",
+     "u": "https://fqme.qc.ca"
+    },
+    {
+     "t": "Haute-Gaspésie backcountry ski sectors",
+     "u": "https://vacanceshaute-gaspesie.com/en/experiences/backcountry-skiing/"
+    }
+   ]
+  },
+  {
+   "id": "cap-castor",
+   "name": "Cap Castor",
+   "prov": "QC",
+   "region": "Gaspésie coast",
+   "approx": true,
+   "lat": 49.14,
+   "lon": -66.38,
+   "about": "A private backcountry domain with about 30 seaside runs east of Sainte-Anne-des-Monts, and a summit chalet.",
+   "access": "Route 132 east of Sainte-Anne-des-Monts.",
+   "rules": "Private: pay their access fee.",
+   "forecast": "aq",
+   "links": [
+    {
+     "t": "Haute-Gaspésie backcountry ski sectors",
+     "u": "https://vacanceshaute-gaspesie.com/en/experiences/backcountry-skiing/"
+    }
+   ]
+  },
+  {
+   "id": "riviere-a-claude",
+   "name": "Rivière-à-Claude valley (Coop RAC)",
+   "prov": "QC",
+   "region": "Gaspésie coast",
+   "lat": 49.2,
+   "lon": -65.86,
+   "about": "Community-run backcountry sectors in the Rivière-à-Claude valley, with snowmobile shuttles and lodging.",
+   "access": "Route 132 at Rivière-à-Claude; snowmobile-assisted.",
+   "rules": "Run by the Coopérative de plein air RAC: book with them.",
+   "forecast": "aq",
+   "links": [
+    {
+     "t": "Haute-Gaspésie backcountry ski sectors",
+     "u": "https://vacanceshaute-gaspesie.com/en/experiences/backcountry-skiing/"
+    }
+   ]
+  },
+  {
+   "id": "monts-valin",
+   "name": "Monts-Valin",
+   "prov": "QC",
+   "region": "Saguenay",
+   "lat": 48.6,
+   "lon": -70.83,
+   "about": "Deep, dry snow on the summits north of Saguenay (the 'Vallée des Fantômes' of snow-covered trees), with heated refuges. Mostly gentle terrain.",
+   "access": "Parc national des Monts-Valin entrance, north of Saint-Fulgence.",
+   "rules": "Sépaq park access fee; book the refuges.",
+   "forecast": "none",
+   "links": [
+    {
+     "t": "Sépaq: Parc national des Monts-Valin",
+     "u": "https://www.sepaq.com/pq/mva/"
+    }
+   ]
+  },
+  {
+   "id": "charlevoix",
+   "name": "Traversée de Charlevoix",
+   "prov": "QC",
+   "region": "Charlevoix",
+   "lat": 47.6,
+   "lon": -70.6,
+   "kind": "traverse",
+   "about": "A 100 km hut-to-hut backcountry ski traverse through the Charlevoix hills, with cabins and chalets each night.",
+   "access": "Starts near Saint-Urbain (Parc national des Grands-Jardins) and ends near Mont Grand-Fonds.",
+   "huts": [
+    {
+     "name": "Cabins and chalets along the route",
+     "by": "La Traversée de Charlevoix",
+     "note": "booking"
+    }
+   ],
+   "rules": "Book with La Traversée de Charlevoix.",
+   "forecast": "none",
+   "links": [
+    {
+     "t": "La Traversée de Charlevoix",
+     "u": "https://traverseedecharlevoix.qc.ca"
+    }
+   ]
+  },
+  {
+   "id": "hereford",
+   "name": "Mont Hereford glades",
+   "prov": "QC",
+   "region": "Eastern Townships",
+   "lat": 45.08,
+   "lon": -71.6,
+   "about": "Glade (sous-bois) skiing on a community forest mountain near the US border, among the best in southern Quebec.",
+   "access": "Forêt Hereford parking areas near East Hereford / Saint-Herménégilde.",
+   "rules": "Community forest: follow their access rules and fees.",
+   "forecast": "none"
+  },
+  {
+   "id": "gros-morne-long-range",
+   "name": "Gros Morne: Long Range Mountains",
+   "prov": "NL",
+   "region": "Newfoundland",
+   "lat": 49.65,
+   "lon": -57.78,
+   "about": "The highlands of the Long Range above the fjords, with the most reliable snow in the park (mid-January to late March). No marked routes: you plan your own.",
+   "access": "From Route 430; Bakers Brook Hut starts 5 km north of Rocky Harbour (Berry Hill campground road), 8.5 km to the hut.",
+   "huts": [
+    {
+     "name": "Bakers Brook Hut",
+     "by": "Gros Morne Cooperating Association with Parks Canada",
+     "note": "on Bakers Brook Pond, novice-intermediate approach"
+    }
+   ],
+   "rules": "Gros Morne National Park. Leave a trip plan; carry avalanche gear in the mountains.",
+   "forecast": "ac",
+   "sub": "Long Range",
+   "links": [
+    {
+     "t": "Parks Canada: Gros Morne backcountry skiing",
+     "u": "https://parks.canada.ca/pn-np/nl/grosmorne/activ/experiences/bc-ski-ap"
+    },
+    {
+     "t": "Parks Canada: Gros Morne ski huts",
+     "u": "https://parks.canada.ca/pn-np/nl/grosmorne/activ/experiences/bc-ski-ap/vi"
+    }
+   ]
+  },
+  {
+   "id": "tablelands",
+   "name": "Gros Morne: Tablelands and Southwest Gulch",
+   "prov": "NL",
+   "region": "Newfoundland",
+   "lat": 49.4462,
+   "lon": -57.994,
+   "about": "Bare orange mantle rock that holds snow in gullies and bowls: Southwest Gulch, The Bowl and Winterhouse Brook. Avalanches happen here.",
+   "access": "Tablelands trailhead on Route 431 toward Trout River.",
+   "huts": [
+    {
+     "name": "Southwest Gulch Hut",
+     "by": "Gros Morne Cooperating Association with Parks Canada"
+    }
+   ],
+   "rules": "Gros Morne National Park.",
+   "forecast": "ac",
+   "links": [
+    {
+     "t": "Parks Canada: Gros Morne backcountry skiing",
+     "u": "https://parks.canada.ca/pn-np/nl/grosmorne/activ/experiences/bc-ski-ap"
+    },
+    {
+     "t": "Parks Canada: Gros Morne ski huts",
+     "u": "https://parks.canada.ca/pn-np/nl/grosmorne/activ/experiences/bc-ski-ap/vi"
+    }
+   ]
+  },
+  {
+   "id": "bonne-bay",
+   "name": "Gros Morne: Bonne Bay and Southeast Hills",
+   "prov": "NL",
+   "region": "Newfoundland",
+   "lat": 49.4576,
+   "lon": -57.6552,
+   "about": "Slopes around Bonne Bay and the Southeast Hills, named by Parks Canada among the park's best snow areas, close to Route 430.",
+   "access": "Pull-outs along Route 430 near Wiltondale and Rocky Harbour.",
+   "rules": "Gros Morne National Park.",
+   "forecast": "ac",
+   "links": [
+    {
+     "t": "Parks Canada: Gros Morne backcountry skiing",
+     "u": "https://parks.canada.ca/pn-np/nl/grosmorne/activ/experiences/bc-ski-ap"
+    }
+   ]
+  },
+  {
+   "id": "blow-me-down",
+   "name": "Blow Me Down Mountains",
+   "prov": "NL",
+   "region": "Newfoundland",
+   "approx": true,
+   "lat": 49.08,
+   "lon": -58.25,
+   "about": "Steep coastal mountains on the Bay of Islands west of Corner Brook, skied from the road to Lark Harbour.",
+   "access": "Route 450 along the south shore of the Bay of Islands.",
+   "forecast": "ac"
+  },
+  {
+   "id": "torngats",
+   "name": "Torngat Mountains",
+   "prov": "NL",
+   "region": "Labrador",
+   "lat": 59.0,
+   "lon": -63.9,
+   "kind": "expedition",
+   "about": "The highest mountains east of the Rockies, at the northern tip of Labrador. Expedition ski touring in polar bear country.",
+   "access": "Charter flight or boat; guided trips via the park's base camp.",
+   "rules": "Parks Canada registration and orientation; polar bear safety plan (armed bear guards are strongly advised). No avalanche forecast.",
+   "forecast": "none",
+   "links": [
+    {
+     "t": "Parks Canada: Torngat Mountains National Park",
+     "u": "https://parks.canada.ca/pn-np/nl/torngats"
+    }
+   ]
+  },
+  {
+   "id": "mount-carleton",
+   "name": "Mount Carleton",
+   "prov": "NB",
+   "region": "New Brunswick",
+   "lat": 47.378,
+   "lon": -66.8759,
+   "about": "The Maritimes' highest peak, in a remote provincial park: winter tours over rolling, forested hills to a bald summit.",
+   "access": "Mount Carleton Provincial Park, Route 385 north of Plaster Rock (winter access is long).",
+   "forecast": "none"
+  },
+  {
+   "id": "cape-breton",
+   "name": "Cape Breton Highlands",
+   "prov": "NS",
+   "region": "Nova Scotia",
+   "lat": 46.75,
+   "lon": -60.65,
+   "about": "A windswept plateau with steep valley sides falling to the sea. Snow can be good after big storms; most touring is low-angle on the plateau.",
+   "access": "Cabot Trail trailheads; check which parts of the Cabot Trail are plowed.",
+   "rules": "Cape Breton Highlands National Park.",
+   "forecast": "none",
+   "links": [
+    {
+     "t": "Parks Canada: Cape Breton Highlands National Park",
+     "u": "https://parks.canada.ca/pn-np/ns/cbreton"
+    }
+   ]
+  },
+  {
+   "id": "auyuittuq",
+   "name": "Akshayuk Pass (Auyuittuq)",
+   "prov": "NU",
+   "region": "Nunavut",
+   "lat": 66.6393,
+   "lon": -65.1907,
+   "kind": "traverse",
+   "about": "A 97 km ski traverse through a glacier-carved pass on Baffin Island between Pangnirtung and Qikiqtarjuaq, usually 8 to 12 days, with emergency shelters about a day apart.",
+   "access": "Snowmobile shuttle from Pangnirtung or Qikiqtarjuaq to the park boundary.",
+   "rules": "Registration and an orientation with Parks Canada are mandatory before you enter and de-register when you leave (arrange it well ahead). Polar bears. No avalanche forecast.",
+   "forecast": "none",
+   "links": [
+    {
+     "t": "Parks Canada: Auyuittuq National Park",
+     "u": "https://parks.canada.ca/pn-np/nu/auyuittuq"
+    }
+   ]
+  }
+ ]
+}
