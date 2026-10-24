@@ -1,5 +1,5 @@
 // The avalanche terrain class of every backcountry ski route (Skiing mode): data/ski-terrain.json.
-// For each ski touring, ski access, snowshoe and other winter route in data/ski.json: an estimate of its terrain class
+// For each ski touring, ski access, snowshoe and other winter route in data/ski.json and data/ski-canada/: an estimate of its terrain class
 // (1 Simple, 2 Challenging, 3 Complex, like ATES), its lowest and highest points, and the numbers behind the class,
 // worked out by ski-terrain.js (the same file the site uses for a route's details) from the AWS terrain tiles.
 // The site uses it for the trip planner light in the route list (Avaluator chart: today's danger rating with the
@@ -20,6 +20,10 @@ const LIMIT_MIN = Number(process.env.LIMIT_MIN || 30);   // stop starting new ro
 const t0 = Date.now();
 
 const ski = JSON.parse(readFileSync(new URL("data/ski.json", root), "utf8"));
+// And the backcountry routes in the rest of Canada (data/ski-canada/, one file per map square), after the home region's.
+const canDir = new URL("data/ski-canada/", root);
+const canTiles = existsSync(new URL("index.json", canDir)) ? Object.keys(JSON.parse(readFileSync(new URL("index.json", canDir), "utf8")).tiles || {}) : [];
+const canada = canTiles.flatMap((k) => { try { return JSON.parse(readFileSync(new URL(k + ".json", canDir), "utf8")).routes || []; } catch { return []; } });
 const outPath = new URL("data/ski-terrain.json", root);
 const old = existsSync(outPath) ? JSON.parse(readFileSync(outPath, "utf8")) : null;
 const prev = old && old.v === V ? old.routes || {} : {};
@@ -75,11 +79,13 @@ function dem(z, x, y) {
 }
 
 // ---------- each route ----------
-const routes = (ski.routes || []).filter((r) => TYPES.has(r.type) && !r.area && r.g && r.g.length);
+const usable = (r) => TYPES.has(r.type) && !r.area && r.g && r.g.length;
+const home = (ski.routes || []).filter(usable);
 const hashOf = (r) => createHash("sha1").update(JSON.stringify(r.g)).digest("base64").slice(0, 10);
 // Routes near each other one after another, so their tiles are still in the cache.
 const cellOf = (r) => `${Math.floor(r.g[0][0] * 10)},${Math.floor(r.g[0][1] * 10)}`;
-routes.sort((a, b) => cellOf(a).localeCompare(cellOf(b)));
+home.sort((a, b) => cellOf(a).localeCompare(cellOf(b)));
+const routes = [...home, ...canada.filter(usable).sort((a, b) => cellOf(a).localeCompare(cellOf(b)))];
 const out = {};
 let kept = 0, done = 0, failed = 0, skipped = 0;
 const r1 = (v) => Math.round(v * 10) / 10;
