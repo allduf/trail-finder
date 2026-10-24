@@ -10,6 +10,7 @@
 //
 // Run: SUPABASE_SECRET_KEY=... node scripts/photo-find-test.mjs   (needs the playwright package and its Chromium)
 // Optional: CASES (how many pictures, 10), CHROMIUM (a browser to use), GITHUB_TOKEN + GITHUB_REPOSITORY (update the issue), OWNER (allduf).
+// Pictures found or taught by their spot run with their area picked ("area given"), as a rider would for a photo in the woods.
 // The page is served from this checkout on localhost (the function lets localhost in); files it doesn't have
 // (nightly data kept elsewhere) come from the live site.
 
@@ -96,6 +97,9 @@ for (const [i, c] of cases.entries()) {
     await page.goto(SITE, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await page.waitForFunction(() => window.tfPhotoFind && window.tfAccount, null, { timeout: 60_000 });
     await page.evaluate(() => window.tfPhotoFind.open());
+    // A picture found by its spot or taught with it has no spot left in its saved copy: like a rider with a photo from the
+    // woods, the test says which area it's from (often nothing in the picture would place it).
+    if (c.method === "gps" && c.zone) c.area = await page.selectOption("#pfArea", c.zone, { timeout: 3000 }).then((v) => v.length > 0, () => false);
     await page.setInputFiles("#pfFile", c.file);
     await page.waitForFunction(() => window.tfPhotoTest.finished, null, { timeout: WAIT_MS, polling: 1000 }).catch(() => { err = "didn't finish in time"; });
     got = await page.evaluate(() => window.tfPhotoTest.result || null);
@@ -105,7 +109,7 @@ for (const [i, c] of cases.entries()) {
   const rank = list.findIndex((r) => norm(r.name) === norm(c.trail_name)) + 1;   // 0 = not in the list
   const r = { id: c.id, trail: c.trail_name, zone: c.zone, method: c.method, rank, top: list.slice(0, 3).map((x) => x.name), s: Math.round((Date.now() - t0) / 1000),
     // The app called its first trail the "Best match": sure of it (right or wrong).
-    sure: !!(list[0] && list[0].conf === "Best match"), ai: !!(got && got.diag && got.diag.ai), how: err || how(got && got.diag, c), broken: !got };
+    sure: !!(list[0] && list[0].conf === "Best match"), ai: !!(got && got.diag && got.diag.ai), how: err || (c.area ? "area given · " : "") + how(got && got.diag, c), broken: !got };
   results.push(r);
   console.log(`${r.rank === 1 ? "✓" : r.rank ? "~" : "✗"} ${r.trail} (${r.zone}): ${r.rank ? "#" + r.rank : "not listed"}, top: ${topText(r)} (${r.s} s)\n    ${r.how}`);
   if (got && got.diag && got.diag.cmp && got.diag.cmp.detail) console.log(`    online check notes: ${got.diag.cmp.detail}`);

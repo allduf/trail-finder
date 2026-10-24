@@ -4,7 +4,9 @@
 // against its own trail lists. A second call ("compare") then takes the app's likely trails, searches Google (when on) for what
 // riders and sites say each one looks like, gathers photos of them (pictures on those pages, video thumbnails, geotagged
 // Wikimedia Commons photos near each trail) and compares them with the rider's picture: it rates a trail or photo above 0.6
-// only when it can say what lines up one for one (the same rock, tree, skyline), never for the same kind of country. Setup (once): Supabase dashboard → Edge Functions → deploy this file (it's deployed as
+// only when it can say what lines up one for one (the same rock, tree, skyline), never for the same kind of country. In the
+// woods (no view placed the picture, the rider picked the area) it compares with riders' pictures from all over that area,
+// one per trail: the ones riders confirmed and the ride photos they taught it. Setup (once): Supabase dashboard → Edge Functions → deploy this file (it's deployed as
 // "smooth-worker"; AI_FN in photo-find.js must match), turn "Verify JWT" off; then Edge Functions → Secrets → add
 // GEMINI_API_KEY (free from aistudio.google.com/apikey). Optional secret GEMINI_MODEL picks another model, and
 // GEMINI_SEARCH=on lets the online check search Google first (a free key doesn't get it).
@@ -59,7 +61,9 @@ const SCHEMA = {
       items: { type: "OBJECT", properties: { name: { type: "STRING" }, x: { type: "NUMBER" } }, required: ["name", "x"], propertyOrdering: ["name", "x"] },
     },
     places: list("Towns, riding areas or regions the pictures or text point to"),
-    terrain: list("Short plain words for what the trail and background look like: granite slabs, roots, loam, alpine, desert, cedar forest, lake below, ocean view..."),
+    terrain: list("Short plain words for what the trail and background look like, the trail's own features first (wooden bridge, ladder, skinny, boardwalk, " +
+      "rock roll, granite slab, drop, gap, jumps, berms, rock garden, roots, creek crossing, gravel road, sign), then the ground and forest (loam, moss, " +
+      "cedar forest, dry pine forest, alpine meadow, desert), then the view (lake below, ocean view...)"),
     scene: { type: "STRING", description: "One or two sentences on what is in the picture and where it might be" },
     viewpoint: {
       type: "OBJECT",
@@ -97,7 +101,7 @@ const SCHEMA = {
 
 type Viewpoint = { lat: number; lon: number; km: number; where: string; alt?: number } | null;
 type Out = { trail_names: string[]; landmarks: string[]; views: { name: string; x: number }[]; places: string[]; terrain: string[]; scene: string; viewpoint: Viewpoint;
-  guesses: { trail: string; area: string; why: string }[] };
+  alt: number; guesses: { trail: string; area: string; why: string }[] };
 const strs = (v: unknown) => (Array.isArray(v) ? v.filter((s) => typeof s === "string").map((s) => s.slice(0, 120)).slice(0, 12) : []);
 // Only a spot inside the app's area (British Columbia and Alberta) with a usable size counts.
 function spot(v: unknown): Viewpoint {
@@ -109,7 +113,10 @@ function spot(v: unknown): Viewpoint {
 }
 function clean(o: Record<string, unknown>): Out {
   const g = Array.isArray(o.guesses) ? o.guesses : [];
+  // How high the camera is, even when the AI can't place it (a picture in the woods): the site keeps trails at that height.
+  const a = (o.viewpoint as Record<string, unknown> | null)?.alt;
   return {
+    alt: typeof a === "number" && a > 0 && a < 5000 ? Math.round(a) : 0,
     trail_names: strs(o.trail_names), landmarks: strs(o.landmarks), places: strs(o.places), terrain: strs(o.terrain),
     // Where each landmark seen is across the picture (the site works out from where the picture can show them so).
     views: (Array.isArray(o.views) ? o.views : []).filter((v) => v && typeof v.name === "string" && typeof v.x === "number" && v.x >= 0 && v.x <= 1)
@@ -290,7 +297,8 @@ function quota(msg: string): string {
 
 // ---------- compare: the app's likely trails against what's online about them ----------
 type Trail = { name: string; area: string; kind: string; c: [number, number] | null };
-type Compare = { trails?: unknown; more?: unknown; scene?: string; description?: string; spot?: { lat?: unknown; lon?: unknown; km?: unknown; where?: unknown }; skip?: unknown };
+type Compare = { trails?: unknown; more?: unknown; scene?: string; description?: string; spot?: { lat?: unknown; lon?: unknown; km?: unknown; where?: unknown }; skip?: unknown;
+  woods?: unknown };
 type Photo = { img: string; page: string; title: string; trail: string; data: string; mime: string; from: string; at?: [number, number]; near?: boolean };
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 const UA = { "user-agent": "TrailFinder/1.0 (https://allduf.github.io/trail-finder/)" };
@@ -448,8 +456,10 @@ async function same(hash: unknown) {
 // Pictures riders confirmed ("Is this the trail?" Yes) for these trails, from the private bucket, and (with a spot)
 // confirmed pictures of other trails around where the AI placed this one: that's how each Yes teaches later searches.
 // Only ever sent to the AI to compare, never back to the site. skip: match ids left out (the accuracy test's own photo).
+// In the woods (the rider picked the area, nothing placed the picture): one picture of each listed trail, and more of
+// the others from all over the area, as those riders' pictures (taught ride photos too) are all there is to go on.
 type Spot = { c: [number, number]; r: number; where: string };
-async function confirmed(trails: Trail[], skip: number[], spot: Spot | null): Promise<Photo[]> {
+async function confirmed(trails: Trail[], skip: number[], spot: Spot | null, woods = false): Promise<Photo[]> {
   const names = trails.map((t) => '"' + t.name.replace(/["\\]/g, (c) => "\\" + c) + '"').join(",");
   const notSkip = skip.length ? `&id=not.in.(${skip.join(",")})` : "";
   const r = await db(`/rest/v1/trail_matches?select=trail_name,photo,hash:details->>hash&photo=not.is.null${notSkip}&trail_name=in.(${encodeURIComponent(names)})&order=created_at.desc&limit=30`);
@@ -460,7 +470,7 @@ async function confirmed(trails: Trail[], skip: number[], spot: Spot | null): Pr
     const per = new Map<string, { photo: string; hash: string | null }[]>();
     for (const x of rows) {
       const l = per.get(x.trail_name) || [];
-      if (l.length < 2 && !l.some((y) => y.photo === x.photo || samePic(y.hash, x.hash))) per.set(x.trail_name, [...l, x]);
+      if (l.length < (woods ? 1 : 2) && !l.some((y) => y.photo === x.photo || samePic(y.hash, x.hash))) per.set(x.trail_name, [...l, x]);
     }
     // Riders' own photos on these trails (supabase/trail-photos.sql) fill in where there's no confirmed match yet.
     const r2 = await db(`/rest/v1/trail_photos?select=trail_name,path&trail_name=in.(${encodeURIComponent(names)})&order=created_at.desc&limit=30`);
@@ -475,19 +485,19 @@ async function confirmed(trails: Trail[], skip: number[], spot: Spot | null): Pr
       } catch { /* no rider photos */ }
     }
     type Want = { trail: string; path: string; bucket: string; at?: [number, number] };
-    const want: Want[] = [...per.entries()].flatMap(([trail, ps]) => ps.map(({ photo }) => ({ trail, path: photo, bucket: "trail-match-photos" }))).concat(extra).slice(0, 4);
+    const want: Want[] = [...per.entries()].flatMap(([trail, ps]) => ps.map(({ photo }) => ({ trail, path: photo, bucket: "trail-match-photos" }))).concat(extra).slice(0, woods ? 8 : 4);
     // Around the spot: the newest confirmed picture of each other trail there, nearest first. Out to 10 km even when the
     // AI is sure of its spot: it placed a Cream Puff picture at Signal Hill, 5 km off on the other side of Pemberton.
     if (spot) {
-      const R = Math.max(spot.r, 10000), dLat = R / 111200, dLon = dLat / Math.cos(spot.c[0] * Math.PI / 180);
+      const R = woods ? spot.r : Math.max(spot.r, 10000), dLat = R / 111200, dLon = dLat / Math.cos(spot.c[0] * Math.PI / 180);
       const r3 = await db(`/rest/v1/trail_matches?select=trail_name,photo,lat,lon&photo=not.is.null${notSkip}` +
-        `&lat=gte.${spot.c[0] - dLat}&lat=lte.${spot.c[0] + dLat}&lon=gte.${spot.c[1] - dLon}&lon=lte.${spot.c[1] + dLon}&order=created_at.desc&limit=40`);
+        `&lat=gte.${spot.c[0] - dLat}&lat=lte.${spot.c[0] + dLat}&lon=gte.${spot.c[1] - dLon}&lon=lte.${spot.c[1] + dLon}&order=created_at.desc&limit=${woods ? 100 : 40}`);
       if (r3?.ok) {
         try {
           const listed = new Set(trails.map((t) => norm(t.name))), seen = new Set<string>();
           const near = ((await r3.json()) as { trail_name: string; photo: string; lat: number; lon: number }[])
             .map((x) => ({ ...x, d: kmApart(spot.c, [x.lat, x.lon]) * 1000 })).filter((x) => x.d <= R && !listed.has(norm(x.trail_name)))
-            .filter((x) => !seen.has(norm(x.trail_name)) && seen.add(norm(x.trail_name))).sort((a, b) => a.d - b.d).slice(0, 3);
+            .filter((x) => !seen.has(norm(x.trail_name)) && seen.add(norm(x.trail_name))).sort((a, b) => a.d - b.d).slice(0, woods ? 4 : 3);
           want.push(...near.map((x) => ({ trail: x.trail_name, path: x.photo, bucket: "trail-match-photos", at: [x.lat, x.lon] as [number, number] })));
         } catch { /* none near */ }
       }
@@ -593,14 +603,17 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
   // from where it placed the camera can be 180 trails down the site's list).
   const more = [...new Set((Array.isArray(body.more) ? body.more : []).slice(0, 30).map((t: Record<string, unknown>) => String(t?.name || "").slice(0, 120).trim())
     .filter((n) => n && !trails.some((t) => norm(t.name) === norm(n))))];
-  // Where the AI placed the camera (the first look): photos from all around it, not only of the listed trails.
+  // Where the AI placed the camera (the first look): photos from all around it, not only of the listed trails. In the
+  // woods: the middle and size of the area the rider picked.
+  const woods = body.woods === true;
   const v = body.spot || {}, km = +(v.km as number);
-  const spot: Spot | null = typeof v.lat === "number" && typeof v.lon === "number" && v.lat > 45 && v.lat < 62 && v.lon > -140 && v.lon < -108 && km > 0 && km <= 15
-    ? { c: [v.lat, v.lon] as [number, number], r: Math.max(3000, Math.min(10000, km * 1500)), where: String(v.where || "").slice(0, 100) || `${v.lat.toFixed(3)}, ${v.lon.toFixed(3)}` } : null;
+  const spot: Spot | null = typeof v.lat === "number" && typeof v.lon === "number" && v.lat > 45 && v.lat < 62 && v.lon > -140 && v.lon < -108 && km > 0 && km <= (woods ? 40 : 15)
+    ? { c: [v.lat, v.lon] as [number, number], r: woods ? Math.max(3000, Math.min(25000, km * 1000)) : Math.max(3000, Math.min(10000, km * 1500)),
+      where: String(v.where || "").slice(0, 100) || `${v.lat.toFixed(3)}, ${v.lon.toFixed(3)}` } : null;
   const said = [body.scene ? `What the picture shows: ${String(body.scene).slice(0, 600)}` : "", body.description ? `The rider says: """${String(body.description).slice(0, 800)}"""` : ""].filter(Boolean).join("\n");
 
   const skip = (Array.isArray(body.skip) ? body.skip : []).filter((n): n is number => Number.isSafeInteger(n) && n > 0).slice(0, 20);
-  const mine = confirmed(trails, skip, spot);
+  const mine = confirmed(trails, skip, spot, woods);
   // 1. Google: what each trail looks like, from riders' and sites' descriptions and videos.
   const searchAsk = `The picture is from a mountain bike trail. These are the trails it might be:\n${list}\n${said}\n` +
     `Search Google for each trail (Trailforks, Pinkbike, YouTube videos, Instagram, Strava, local riding club and blog pages) and find what it looks ` +
@@ -648,12 +661,12 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
   const [found, near, around] = await Promise.all([
     Promise.all(fromPages.map(async (p) => { const f = await pagePhoto(p.url); return f && { ...f, trail: p.trail || whose(f.title, f.page), from: p.from }; })),
     Promise.all(trails.slice(0, 4).map(async (t) => (t.c ? await commons(t.c, 1500, 2) : []).map((f) => ({ ...f, trail: t.name, from: "near" })))),
-    spot ? commons(spot.c, spot.r, 8).then((l) => l.map((f) => ({ ...f, trail: "", from: "area" }))) : [],
+    spot && !woods ? commons(spot.c, spot.r, 8).then((l) => l.map((f) => ({ ...f, trail: "", from: "area" }))) : [],
   ]);
   const pics = found.filter((f): f is NonNullable<typeof f> => !!f && (!!f.trail || f.from === "area"));
   // Each kind gets its share of the photos the AI looks at.
   const cands = [...pics.filter((f) => f.from === "web").slice(0, 5), ...near.flat().slice(0, 4), ...pics.filter((f) => f.from === "area").slice(0, 4), ...around];
-  const photos: Photo[] = (await mine).slice(0, 6);
+  const photos: Photo[] = (await mine).slice(0, woods ? 10 : 6);
   const seenImg = new Set<string>();
   for (const c of cands) { if (seenImg.has(c.img)) continue; seenImg.add(c.img); }
   const loaded = await Promise.all([...seenImg].slice(0, 20).map(async (u) => ({ u, p: await picture(u) })));
@@ -666,7 +679,8 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
   // photo looks.
   if (!photos.length && !web.length) return reply(200, { ok: false, searched, noSearch, sources, suggest, why: "found nothing online about these trails", detail: notes.join(" | ") });
   const km1 = kmApart;
-  const label = (p: Photo) => p.from === "confirmed" && p.near && p.at ? `a rider confirmed this picture is ${p.trail}, ${spot ? km1(p.at, spot.c).toFixed(1) + " km from" : "near"} where the picture seems taken`
+  const label = (p: Photo) => p.from === "confirmed" && p.near && p.at && woods ? `a rider confirmed this picture is ${p.trail}, in the same area`
+    : p.from === "confirmed" && p.near && p.at ? `a rider confirmed this picture is ${p.trail}, ${spot ? km1(p.at, spot.c).toFixed(1) + " km from" : "near"} where the picture seems taken`
     : p.from === "confirmed" ? `a rider confirmed this picture is ${p.trail}`
     : p.from === "near" ? `a photo taken within 1.5 km of ${p.trail} ("${p.title.slice(0, 100)}")`
     : p.from === "area" && p.at ? `a photo taken ${spot ? km1(p.at, spot.c).toFixed(1) + " km from" : "near"} where the picture seems taken ("${p.title.slice(0, 100)}")`
@@ -677,6 +691,8 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
   parts.push({ text: `Which of these mountain bike trails is the rider's picture from?\n${list}\n${said}\n` +
     (web.length ? `What Google search found about them:\n${web.map((w) => `- ${w.trail}: ${w.looks} (fit ${w.fit}: ${w.why})`).join("\n")}\n`
       : `Google search wasn't available this time: use what you know about these trails too, if anything.\n`) +
+    (woods ? `The rider's picture was taken in the woods somewhere around ${spot?.where || "there"}, with no view to go by: compare the trail itself, ` +
+      `the shapes of its rocks and roots, the trees and stumps, bridges, berms and signs.\n` : "") +
     `Compare the rider's picture with each found photo. The same place means individual things line up one for one: the same rock's shape and ` +
     `cracks, the same tree, stump or log, the same bridge or sign, the same skyline from about the same spot. The same kind of rock, slope, forest ` +
     `or view is not the same place: many trails around there look like this. A found photo can show a different part of the trail, so also weigh ` +

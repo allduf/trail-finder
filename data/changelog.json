@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-24", "text": "Photo find in the woods, and teach it with your ride photos"},
     {"date": "2026-10-24", "text": "Same four map buttons in every sport, with names: Sport, Layers, 3D and Me"},
     {"date": "2026-10-24", "text": "Phones: swipe up the map's search bar for the Find page, and each tool now has one place (Offline maps in Ride, My rides and Add a trail in Saved)"},
     {"date": "2026-10-24", "text": "Layers opens as a full panel on phones, with 4 map styles: Map, Topo, Satellite, Satellite + names"},
