@@ -4,6 +4,8 @@
 // Writes data/access-<zone>.json for each zone, from two open sources:
 //  - OpenStreetMap (Overpass): every highway=trailhead, and amenity=parking that the public can use (not private,
 //    customers only or a garage) within PARK_M of an MTB trail from data/mtb-<zone>.json, so town parking is left out.
+//    Also what riders look for along the way (alex: "water, toilets, bike repair stations and parking on the map"): drinking
+//    water, public toilets, bike repair stations and bike washes, and shelters, within NEED_M of an MTB trail.
 //  - BC Recreation Sites and Trails (DataBC layer WHSE_FOREST_TENURE.FTEN_REC_SITE_POINTS_SVW, Open Government Licence
 //    - British Columbia): recreation trails (their point is usually the trailhead), and sites within PARK_M of a trail.
 // The road that reaches each point and its condition are worked out on the site, from the forest roads files.
@@ -65,10 +67,17 @@ function osmQuery([s, w, n, e]) {
 (
   nwr["highway"="trailhead"](${bb});
   nwr["amenity"="parking"]["access"!~"^(private|no|customers|residents|permit|delivery|employees)$"]["parking"!~"^(underground|multi-storey|rooftop|garage_boxes|carports)$"](${bb});
+  nwr["amenity"="drinking_water"]["access"!~"^(private|no|customers)$"](${bb});
+  nwr["amenity"="toilets"]["access"!~"^(private|no|customers|permit|employees)$"](${bb});
+  nwr["amenity"~"^(bicycle_repair_station|bicycle_wash)$"](${bb});
+  nwr["amenity"="shelter"]["access"!~"^(private|no)$"](${bb});
 );
 out tags center qt;`;
 }
-const KEEP = /^(name|ref|highway|amenity|parking|access|fee|charge|surface|capacity|operator|opening_hours|maxstay|toilets|description|note|website|seasonal)$/;
+const KEEP = /^(name|ref|highway|amenity|parking|access|fee|charge|surface|capacity|operator|opening_hours|maxstay|toilets|description|note|website|seasonal|drinking_water|shelter_type|toilets:disposal|service:bicycle:(pump|tools|chain_tool|stand))$/;
+// Water, toilets, repair stations and shelters further than this from any MTB trail are left out (town ones mostly).
+const NEED_M = 600;
+const KIND = { drinking_water: "w", toilets: "wc", bicycle_repair_station: "fix", bicycle_wash: "fix", shelter: "sh" };
 async function overpass(query) {
   let lastErr;
   for (let attempt = 0; attempt < 6; attempt++) {
@@ -99,8 +108,9 @@ async function osmPoints(z, grid) {
   for (const el of els) {
     const c = el.type === "node" ? el : el.center, t = el.tags || {};
     if (!c) continue;
-    const k = t.highway === "trailhead" ? "th" : "p";
+    const k = t.highway === "trailhead" ? "th" : KIND[t.amenity] || "p";
     if (k === "p" && !nearTrail(grid, c.lat, c.lon)) continue;
+    if (k !== "p" && k !== "th" && !nearTrail(grid, c.lat, c.lon, NEED_M)) continue;
     out.push({ id: `${el.type[0]}${el.id}`, k, lat: round(c.lat), lon: round(c.lon), t: Object.fromEntries(Object.entries(t).filter(([key]) => KEEP.test(key))) });
   }
   return out;
@@ -195,7 +205,8 @@ for (const z of [...ZONES].sort((a, b) => lastDone(a) - lastDone(b))) {
   if (ONLY !== "rec") {
     try {
       file.osm = await osmPoints(z, grid); file.osmAt = builtAt; changed = true;
-      log(`${z.name}: ${file.osm.filter((p) => p.k === "th").length} trailheads, ${file.osm.filter((p) => p.k === "p").length} parking near trails`);
+      const n = (k) => file.osm.filter((p) => p.k === k).length;
+      log(`${z.name}: ${n("th")} trailheads, ${n("p")} parking, ${n("w")} water, ${n("wc")} toilets, ${n("fix")} repair stations, ${n("sh")} shelters near trails`);
     } catch (e) { failed++; log(`${z.name}: OpenStreetMap failed (${e.message}), keeping last good data`); }
   }
   if (ONLY !== "osm" && inBC(z)) {

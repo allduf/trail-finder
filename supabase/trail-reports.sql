@@ -10,7 +10,7 @@ create table if not exists public.trail_reports (
   trail_name text check (char_length(trail_name) <= 120),
   lat double precision not null check (lat between -90 and 90),
   lon double precision not null check (lon between -180 and 180),
-  condition text not null check (condition in ('dry', 'tacky', 'muddy', 'trees_down', 'snow')),
+  condition text not null check (condition in ('dry', 'tacky', 'muddy', 'trees_down', 'snow', 'closed')),
   note text check (char_length(note) <= 280),
   created_at timestamptz not null default now()
 );
