@@ -51,11 +51,23 @@ for (const r of await res.json()) {
 console.log(`${reports.length} dry, tacky or muddy report(s) to compare.`);
 
 // ---------- the Loam index at each report's spot and hour (lmiAt in index.html, before tuning) ----------
-function lmiAt(h, i) {
+// Each soil's own scale (soilScale and soilAt in index.html; data/loam-soil.json from scripts/build-loam-soil.py).
+const SOILS = { 3: [0.042, 0.196, 0.364], 4: [0.1, 0.26, 0.445], 5: [0.11, 0.34, 0.455], 6: [0.185, 0.37, 0.475], 7: [0.257, 0.463, 0.507], 8: [0.265, 0.763, 0.863] };
+function soilScale(v, soil) {
+  const [pwp, fc, full] = SOILS[soil] || SOILS[4], dry = pwp - 0.125 * (fc - pwp), wet = fc + 0.865 * (full - fc);
+  return v < fc ? (v - dry) / (fc - dry) * 53 : 53 + (v - fc) / (wet - fc) * 47;
+}
+const loamSoil = (() => { try { return JSON.parse(readFileSync(new URL("data/loam-soil.json", root), "utf8")); } catch { return null; } })();
+const soilAt = (key) => {
+  if (!loamSoil || loamSoil.v !== 1 || !key) return 4;
+  const [lat, lon] = key.split(",").map(Number), row = loamSoil.rows[Math.round((lat - loamSoil.lat0) / loamSoil.step)];
+  return (row && +row[Math.round((lon - loamSoil.lon0) / loamSoil.step)]) || 4;
+};
+function lmiAt(h, i, key) {
   const a = h.soil_moisture_0_to_1cm[i], b = h.soil_moisture_1_to_3cm[i], c = h.soil_moisture_3_to_9cm[i];
   if (a == null || b == null || c == null) return null;
   const v = 0.5 * a + 0.3 * b + 0.2 * c;
-  return Math.round(Math.max(0, Math.min(100, (v - 0.08) / (0.42 - 0.08) * 100)));
+  return Math.round(Math.max(0, Math.min(100, soilScale(v, soilAt(key)))));
 }
 const SOIL = "&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm&timezone=GMT";
 const byCell = new Map();
@@ -73,7 +85,7 @@ for (const [cell, list] of byCell) {
       const r = await fetch(url);
       if (!r.ok) throw new Error(`HTTP ${r.status} ${(await r.text()).slice(0, 120)}`);
       const h = (await r.json()).hourly, at = new Map(h.time.map((t, i) => [t, i]));
-      list.forEach((x) => { if (x.v == null && at.has(x.hour)) x.v = lmiAt(h, at.get(x.hour)); });
+      list.forEach((x) => { if (x.v == null && at.has(x.hour)) x.v = lmiAt(h, at.get(x.hour), cell); });
     } catch (e) { console.log(`Open-Meteo at ${cell}: ${e.message}`); }
     await new Promise((ok) => setTimeout(ok, 400));
   }
