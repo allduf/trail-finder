@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-25", "text": "Skiing: live lift status on the map, green open, orange standby, red closed. Tap a lift for its wait time and details"},
     {"date": "2026-10-25", "text": "Drawing a square is easy on the phone: drag its big corners, then tap Find trails here"},
     {"date": "2026-10-25", "text": "Loops in Where to ride today: pick the distance and time, get a different loop, or leave a trail out"},
     {"date": "2026-10-24", "text": "Photo find in the woods, and teach it with your ride photos"},
