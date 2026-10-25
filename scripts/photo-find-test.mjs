@@ -11,6 +11,8 @@
 // Run: SUPABASE_SECRET_KEY=... node scripts/photo-find-test.mjs   (needs the playwright package and its Chromium)
 // Optional: CASES (how many pictures, 10), CHROMIUM (a browser to use), GITHUB_TOKEN + GITHUB_REPOSITORY (update the issue), OWNER (allduf).
 // Pictures found or taught by their spot run with their area picked ("area given"), as a rider would for a photo in the woods.
+// Pictures taught from Instagram videos (details.from "instagram": 4 shots of the trail in one picture) are only
+// references, never test pictures: a rider never searches with one.
 // The page is served from this checkout on localhost (the function lets localhost in); files it doesn't have
 // (nightly data kept elsewhere) come from the live site.
 
@@ -40,11 +42,12 @@ async function supa(path) {
 const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
 // ---------- the test pictures ----------
-const rows = await (await supa("/rest/v1/trail_matches?select=id,trail_name,zone,lat,lon,method,photo,created_at,hash:details->>hash&photo=not.is.null&order=created_at.desc&limit=500")).json();
+const rows = await (await supa("/rest/v1/trail_matches?select=id,trail_name,zone,lat,lon,method,photo,created_at,hash:details->>hash,src:details->>from&photo=not.is.null&order=created_at.desc&limit=500")).json();
 // One picture per trail (same name within 5 km: older matches saved the area's name instead of its id).
 const km = (a, b) => Math.hypot(a.lat - b.lat, (a.lon - b.lon) * Math.cos(a.lat * Math.PI / 180)) * 111.2;
 const perTrail = [];
 for (const r of rows) {
+  if (r.src === "instagram") continue;
   const i = perTrail.findIndex((x) => norm(x.trail_name) === norm(r.trail_name) && (x.lat == null || r.lat == null || km(x, r) < 5));
   if (i < 0) perTrail.push(r);
   else if (perTrail[i].method === "gps" && r.method !== "gps") perTrail[i] = r;
