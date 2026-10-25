@@ -55,7 +55,7 @@
   };
   // The Skiing switches in the map's Layers menu, in groups like Hunting's (alex 2026-10-24: "i like how all the layers
   // in hunting or set. can we do the same for skiing"). A group's slot holds switches other files own (Avalanche risk,
-  // Webcams, Rogers Pass, Ski areas, Slackcountry: window.tfSkiSlot); "routes" groups are what the four panel buttons turn on.
+  // Webcams, Rogers Pass, Ski areas, Slackcountry, Lift status: window.tfSkiSlot); "routes" groups are what the four panel buttons turn on.
   const GROUPS = [
     { g: "Backcountry", keys: ["tour", "access", "other", "hut"], routes: true },
     { g: "Avalanche", slot: "avy", keys: ["slope", "aspect", "runout"] },
@@ -527,9 +527,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       + (shown.has("club") ? pin(CLUB.color, "❄", CLUB.label) : "")
       + (shown.has("snow") ? `<li><span class="sk-kic"><span class="sk-snow">❄</span></span>${esc(SNOW.label)}: snow depth</li>` : "")
       + (shown.has("mine") ? line(MINE) : "")
+      + (window.tfSkiKeyExtra || []).map((f) => { try { return f() || ""; } catch { return ""; } }).join("")   // other files' layers (lifts.js)
       || `<li>No ski layers on. Turn some on with the buttons in the panel.</li>`;
   }
   renderSkiKey();
+  window.tfSkiKeyRender = renderSkiKey;
   $("skViews").addEventListener("click", (e) => {
     const b = e.target.closest("[data-view]"); if (!b) return;
     const v = VIEWS[b.dataset.view].layers, on = v.some((k) => shown.has(k));
