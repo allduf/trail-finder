@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-25", "text": "Photo find no longer takes Google's picture tags (like \u201cHybrid bicycle\u201d) for trail names, so fewer wrong Best matches"},
     {"date": "2026-10-25", "text": "Loam index now reads each soil's own wetness, so sandy trails (around Quebec City and elsewhere) no longer show 0 every day. A moon at night in the weather"},
     {"date": "2026-10-25", "text": "Slackcountry at Revelstoke, Whitewater, RED, Fernie, Cypress, Seymour, Sun Peaks, Lake Louise and Shames: gates, lines and ways back in Skiing"},
     {"date": "2026-10-25", "text": "Skiing: Ski access is now Approach trails, and trailhead parking shows as blue P pins. Village and resort lots are gone"},
