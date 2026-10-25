@@ -55,13 +55,13 @@
   };
   // The Skiing switches in the map's Layers menu, in groups like Hunting's (alex 2026-10-24: "i like how all the layers
   // in hunting or set. can we do the same for skiing"). A group's slot holds switches other files own (Avalanche risk,
-  // Webcams, Rogers Pass, Ski areas: window.tfSkiSlot); "routes" groups are what the four panel buttons turn on.
+  // Webcams, Rogers Pass, Ski areas, Slackcountry: window.tfSkiSlot); "routes" groups are what the four panel buttons turn on.
   const GROUPS = [
     { g: "Backcountry", keys: ["tour", "access", "other", "hut"], routes: true },
     { g: "Avalanche", slot: "avy", keys: ["slope", "aspect", "runout"] },
     { g: "Snow and weather", keys: ["snow"], slot: "wx", slotAfter: true },
     { g: "Nordic and snowmobile", keys: ["nordic", "snowshoe", "snowmobile", "club"], routes: true },
-    { g: "Resorts", keys: ["resort", "offpiste"], routes: true },
+    { g: "Resorts", keys: ["resort", "offpiste"], routes: true, slot: "resort", slotAfter: true },
     { g: "Places and tracks", slot: "places", keys: ["heat", "mine"] },
   ];
   const SNOW = { label: "Snow stations", color: "#0b7285" };
@@ -2166,6 +2166,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // OFFLINE_DEM_Z (closer zooms are cut from those when offline, see dem()).
   const OFFLINE_DEM_Z = 12;
   window.tfSki = {
+    // slackcountry.js: today's danger at a line's top, for its go/caution light (null until the forecast is loaded).
+    dangerAt: (lat, lon, lo, hi) => { if (!avy && !example) loadAvy(); return dangerAt(lat, lon, lo, hi); },
     slopeAt: async (lat, lon) => { const p = [{ lat, lon }]; await T.heights(p, 0, dem); return { slope: p[0].slope, e: p[0].e }; },
     // The 🔔 (notify.js): open a watched tour (by its route id) or a spot (a forecast area) in Skiing.
     show: async (k, c) => {
