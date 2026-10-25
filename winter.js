@@ -55,7 +55,7 @@
   };
   // The Skiing switches in the map's Layers menu, in groups like Hunting's (alex 2026-10-24: "i like how all the layers
   // in hunting or set. can we do the same for skiing"). A group's slot holds switches other files own (Avalanche risk,
-  // Webcams, Rogers Pass, Ski areas, Lift status: window.tfSkiSlot); "routes" groups are what the four panel buttons turn on.
+  // Webcams, Rogers Pass, Ski areas, Slackcountry, Lift status: window.tfSkiSlot); "routes" groups are what the four panel buttons turn on.
   const GROUPS = [
     { g: "Backcountry", keys: ["tour", "access", "other", "hut"], routes: true },
     { g: "Avalanche", slot: "avy", keys: ["slope", "aspect", "runout"] },
@@ -1540,9 +1540,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const short = (where, msg, ex) => { card.innerHTML = `${top(where)}<p class="av-line">${msg}</p><div id="avWx">${cardWeather(c, wxAt())}</div>${ex ? `<div class="av-foot"><button type="button" class="av-pill" id="avEx">See an example</button></div>` : ""}`; bindEx(); };
     if (!data) return short("", avyErr ? "The forecast isn't on the site yet." : "Loading the forecast…", !!avyErr);
     if (!example && !hasForecasts()) return short("", "No forecast right now: Avalanche Canada's run from about late November to April.", true);
-    const area = (example ? null : areaAt(c.lat, c.lng)) || (data.areas.find((a) => a.polys.some((p) => inPoly(c.lat, c.lng, p))) || data.areas.find((a) => a.forecast?.days?.length));
+    // Only the area under the map centre (or a forecast with no outline): the Chic-Chocs used to show Glacier's forecast.
+    const area = (example ? null : areaAt(c.lat, c.lng)) || (data.areas.find((a) => a.polys.some((p) => inPoly(c.lat, c.lng, p))) || data.areas.find((a) => !a.polys.length && a.forecast?.days?.length));
     const f = area && area.forecast;
-    if (!area) return short("", "No forecast area here.");
+    if (!area) return short("", `No avalanche forecast covers this spot. Check <a href="https://avalanche.ca/map" target="_blank" rel="noopener">avalanche.ca</a> for the nearest one.`);
     if (!f || !f.days?.length) return short(esc(area.name), "No forecast for this area right now.");
     const d = dayOf(f), expired = !example && f.validUntil && new Date(f.validUntil) < new Date();
     const notes = Object.values(f.summaries || {}).filter(Boolean), rated = example || f.days.some((x) => x.alp || x.tln || x.btl);
@@ -2167,6 +2168,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // OFFLINE_DEM_Z (closer zooms are cut from those when offline, see dem()).
   const OFFLINE_DEM_Z = 12;
   window.tfSki = {
+    // slackcountry.js: today's danger at a line's top, for its go/caution light (null until the forecast is loaded).
+    dangerAt: (lat, lon, lo, hi) => { if (!avy && !example) loadAvy(); return dangerAt(lat, lon, lo, hi); },
     slopeAt: async (lat, lon) => { const p = [{ lat, lon }]; await T.heights(p, 0, dem); return { slope: p[0].slope, e: p[0].e }; },
     // The 🔔 (notify.js): open a watched tour (by its route id) or a spot (a forecast area) in Skiing.
     show: async (k, c) => {

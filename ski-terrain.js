@@ -195,8 +195,11 @@
 
   // ---------- Avalanche Canada's forecast areas (data/avalanche.json) ----------
   // Where treeline sits, roughly (m): wetter coast ranges lower than the drier inland ranges (Duffey, Lillooet), and
-  // highest in the Rockies (Kananaskis, Banff). lo = treeline starts, hi = alpine starts.
-  const bandsFor = (name) => /rock|kananaskis|banff|yoho|jasper|purcell/i.test(name || "") ? { lo: 1900, hi: 2400 }
+  // highest in the Rockies (Kananaskis, Banff); far lower in the east (Chic-Chocs about 1,000 m, Gros Morne about 600 m).
+  // lo = treeline starts, hi = alpine starts.
+  const bandsFor = (name) => /chic-chocs|gasp/i.test(name || "") ? { lo: 900, hi: 1100 }
+    : /gros morne|corner brook|newfoundland|labrador/i.test(name || "") ? { lo: 450, hi: 650 }
+    : /rock|kananaskis|klakes|bow valley|highwood|spray|banff|yoho|jasper|waterton|purcell/i.test(name || "") ? { lo: 1900, hi: 2400 }
     : /inland|duffey|lillooet|chilcotin|cariboo|interior|columbia|selkirk|monashee|kootenay|boundary|glacier|lizard|flathead|okanagan|shuswap|thompson/i.test(name || "")
       ? { lo: 1700, hi: 2200 } : { lo: 1500, hi: 1900 };
   const BAND_IDS = ["alp", "tln", "btl"];

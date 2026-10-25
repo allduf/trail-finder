@@ -1,0 +1,477 @@
+{
+ "about": "Slackcountry lines reached from ski lifts, for Skiing mode (slackcountry.js). Hand-kept: one entry per resort, with its backcountry gates and lines. Each line's g has ski (the descent), up (from the gate to the top) and out (the way back), as flat [lat, lon, ...]. After changing a line, run node scripts/build-slackcountry.mjs: it adds the steepness, aspects, drop and terrain class estimate (calc) from the terrain tiles. Sources: the resort's backcountry page and trail map, OpenStreetMap (osm = way ids), camptocamp and trip reports linked on each line. approx = drawn from the terrain model, not a GPS track.",
+ "resorts": [
+  {
+   "id": "wb",
+   "name": "Whistler Blackcomb",
+   "lat": 50.0745,
+   "lon": -122.915,
+   "box": [49.99,-123.06,50.14,-122.82],
+   "forecast": "Avalanche Canada, Sea-to-Sky",
+   "emergency": "Emergency outside the boundary: 911 (Whistler Search and Rescue). In the ski area: 604-935-5555.",
+   "rules": ["Ski patrol and avalanche control stop at the boundary. Outside it nobody checks the snow, closes slopes or comes to look for you.", "Everyone in the group needs an avalanche transceiver (and to know how to use it), a probe, a shovel, skins and a phone.", "Check the Terrain Status map before you go out and before you come back in, and respect closures. The gates close when the avalanche danger is high or when there is blasting.", "A backcountry ticket gets you up one set of lifts once, and you sign the Backcountry Access Agreement. Uphill travel inside the ski area only on the signed routes.", "The terrain past the gates is in Garibaldi Provincial Park."],
+   "links": [
+    {
+     "t": "Whistler Blackcomb: backcountry access, tickets and routes",
+     "u": "https://www.whistlerblackcomb.com/the-mountain/about-the-mountain/backcountry.aspx"
+    },
+    {
+     "t": "Whistler Blackcomb trail map 2025-26 (gates)",
+     "u": "https://www.whistlerblackcomb.com/-/aemasset/sitecore/whistler-blackcomb/maps/winter-2025-2026/20251023_WB_winter-trail_map_001.pdf"
+    },
+    {
+     "t": "Avalanche Canada forecast at Whistler",
+     "u": "https://avalanche.ca/map?lat=50.07&lng=-122.92"
+    },
+    {
+     "t": "BC Parks: Garibaldi Provincial Park",
+     "u": "https://bcparks.ca/garibaldi-park/"
+    }
+   ],
+   "gates": [
+    {
+     "id": "flute",
+     "name": "Flute gate",
+     "side": "Whistler",
+     "lat": 50.0402,
+     "lon": -122.9274,
+     "approx": true,
+     "note": "At the top of Flute Bowl. Get to Flute from the Symphony, Harmony 6 or Peak Express, then skin or bootpack up Flute Summit (about 15 minutes). Leads into Garibaldi Provincial Park: the Musical Bumps, Oboe and Singing Pass."
+    },
+    {
+     "id": "bcglacier",
+     "name": "Garibaldi Park gate (Blackcomb Glacier)",
+     "side": "Blackcomb",
+     "lat": 50.086,
+     "lon": -122.8697,
+     "approx": true,
+     "note": "On the Blackcomb Glacier, entered from the top of the Showcase T-Bar (experts also come in from Spanky's Ladder). Leads to the East Col and the Spearhead Range. Whistler Blackcomb asks you to recheck the East Col's status the morning of your trip and again just before you go."
+    },
+    {
+     "id": "seventh",
+     "name": "Backcountry gate by 7th Heaven",
+     "side": "Blackcomb",
+     "lat": 50.0786,
+     "lon": -122.8866,
+     "approx": true,
+     "note": "Marked on the resort's trail map beside Cloud Nine and Panorama, near the bottom of 7th Heaven. Where Body Bag Bowl and DOA come back into the ski area, and where tours up Disease Ridge start."
+    },
+    {
+     "id": "khyber",
+     "name": "No gate: Khyber's",
+     "side": "Whistler",
+     "lat": 50.0572,
+     "lon": -122.9772,
+     "approx": true,
+     "none": true,
+     "note": "There's no gate here. Skiers leave the boundary from Upper Peak to Creek, by the tiny Stu Inn shelter. The ski area doesn't recommend it, and it isn't controlled or patrolled."
+    }
+   ],
+   "lines": [
+    {
+     "id": "oboe",
+     "name": "Oboe, north side",
+     "short": "Oboe",
+     "gate": "flute",
+     "side": "Whistler",
+     "kind": "line",
+     "diff": "advanced",
+     "approx": true,
+     "about": "The classic first slackcountry run from Whistler: over Flute and Oboe, then down Oboe's north side, open slopes then trees, to the Singing Pass trail in the Fitzsimmons valley.",
+     "access": "Through the Flute gate, then east along the Musical Bumps ridge to Oboe Summit (1956 m), on skins or with a short bootpack.",
+     "exit": "The Singing Pass trail, down the south side of Fitzsimmons Creek to Whistler Village (about 7 km). It can be icy and hard to follow when there's little snow.",
+     "hazards": ["Open avalanche slopes above the trees.", "Hard to find the way on the ridge in a whiteout.", "Creek gullies near the bottom: a small slide piles up deep there."],
+     "src": [
+      {
+       "t": "Whistler Blackcomb: backcountry access",
+       "u": "https://www.whistlerblackcomb.com/the-mountain/about-the-mountain/backcountry.aspx"
+      },
+      {
+       "t": "UBC VOC: Singing Pass via the lifts",
+       "u": "https://wiki.ubc-voc.com/Singing_Pass_(Via_Lift)"
+      }
+     ],
+     "g": {
+      "up": [50.04023,-122.92755,50.04018,-122.92721,50.03994,-122.9267,50.03972,-122.92534,50.04004,-122.9239,50.0399,-122.92169,50.03938,-122.92017,50.03897,-122.91938,50.03816,-122.91854,50.03788,-122.91818,50.03777,-122.91784,50.03775,-122.91768,50.03785,-122.91761,50.03789,-122.91738,50.03779,-122.91702,50.03761,-122.91684,50.03736,-122.91578,50.03726,-122.91423,50.03676,-122.91295,50.03649,-122.9118,50.03633,-122.91023,50.03632,-122.9091,50.0364,-122.90864,50.03596,-122.90709,50.03571,-122.90697,50.03561,-122.90679,50.0372,-122.9035],
+      "ski": [50.0372,-122.9035,50.03757,-122.90373,50.03858,-122.90543,50.03963,-122.90673,50.03976,-122.90673,50.04127,-122.90811,50.04206,-122.90833,50.04256,-122.90867,50.0432,-122.90847,50.04325,-122.90828,50.04366,-122.90828,50.04366,-122.90807,50.04447,-122.90807,50.04462,-122.90772,50.04489,-122.90772,50.04492,-122.90792,50.0456,-122.90792,50.04569,-122.90777,50.04691,-122.90777,50.047,-122.90762,50.04753,-122.90762,50.04792,-122.90771,50.04813,-122.90795,50.04823,-122.9078,50.04832,-122.90794,50.0484,-122.90777,50.04921,-122.90777,50.04944,-122.90758,50.05281,-122.90758,50.05287,-122.90739,50.05295,-122.90756,50.05335,-122.90756,50.05347,-122.90767,50.05385,-122.90756,50.05424,-122.90771,50.05488,-122.9076,50.05521,-122.90734],
+      "out": [50.05547,-122.90715,50.05627,-122.90772,50.0577,-122.90697,50.05889,-122.90688,50.05999,-122.90722,50.06115,-122.90831,50.06148,-122.90897,50.06179,-122.91044,50.06185,-122.91166,50.06175,-122.91223,50.06196,-122.91364,50.06191,-122.91405,50.06199,-122.91412,50.06263,-122.91401,50.06308,-122.91317,50.06335,-122.91327,50.06404,-122.91302,50.06566,-122.91388,50.06683,-122.91374,50.06745,-122.9139,50.06825,-122.91439,50.0686,-122.91475,50.0692,-122.91545,50.06957,-122.91615,50.06981,-122.91602,50.07026,-122.91611,50.07081,-122.91644,50.07398,-122.91904,50.07421,-122.91938,50.07436,-122.91983,50.07481,-122.92001,50.075,-122.92043,50.07526,-122.92049,50.07576,-122.92091,50.07582,-122.92189,50.07642,-122.92165,50.07688,-122.92206,50.07711,-122.92258,50.07798,-122.92339,50.07849,-122.92426,50.07855,-122.92467,50.0788,-122.92459,50.07905,-122.92482,50.08008,-122.9262,50.08083,-122.92691,50.08235,-122.92772,50.08293,-122.92843,50.08462,-122.92952,50.08495,-122.92962,50.08562,-122.93072,50.08696,-122.93203,50.08757,-122.93233,50.0888,-122.93382,50.08991,-122.93464,50.09027,-122.93506,50.09288,-122.93641,50.09322,-122.93675,50.09335,-122.93742,50.09365,-122.93782,50.09456,-122.93865,50.09482,-122.93866,50.09568,-122.93953,50.0964,-122.93996,50.097,-122.94061,50.0971,-122.94069,50.09767,-122.94039,50.09791,-122.94039,50.09799,-122.94064,50.09791,-122.94116,50.09798,-122.9414,50.09852,-122.94192,50.09899,-122.94213,50.09931,-122.94312,50.09999,-122.94381,50.10029,-122.94393,50.10117,-122.94376,50.10169,-122.94388,50.10193,-122.94409,50.10232,-122.94463,50.10306,-122.94534,50.10417,-122.94706,50.10555,-122.94817,50.10642,-122.94913,50.10702,-122.9502,50.10748,-122.95181,50.10823,-122.95296,50.10894,-122.95316,50.1098,-122.95288,50.11077,-122.95231,50.11188,-122.95258,50.11277,-122.95245,50.11324,-122.95217]
+     },
+     "calc": {
+      "top": 1924,
+      "bottom": 1421,
+      "drop": 503,
+      "km": 2.2,
+      "maxSlope": 25,
+      "faces": [],
+      "k35": 0,
+      "tripKm": 12.2,
+      "climb": 1473,
+      "cls": 3,
+      "why": ["1.4 km on slopes of 35° or more", "9.1 km under steep slopes", "0.4 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "bumps",
+     "name": "Musical Bumps to Singing Pass",
+     "short": "Musical Bumps",
+     "gate": "flute",
+     "side": "Whistler",
+     "kind": "tour",
+     "diff": "intermediate",
+     "osm": ["w257052719"],
+     "about": "A ridge tour over Flute, Oboe and the Musical Bumps to Singing Pass: mostly gentle, with easy ways back toward the resort early on. Russet Lake and the Kees and Claire Hut are beyond the pass, and it's the west end of the Spearhead Traverse.",
+     "access": "Through the Flute gate at the top of Flute Bowl.",
+     "exit": "The Singing Pass trail down to Whistler Village, or skin back over the Bumps to the resort.",
+     "hazards": ["Avalanche hazard on every open slope along the ridge.", "Route finding is hard in a whiteout.", "About 8 km and 4 hours from the lifts to the pass, then the long trail out: start early."],
+     "src": [
+      {
+       "t": "Whistler Blackcomb: backcountry access",
+       "u": "https://www.whistlerblackcomb.com/the-mountain/about-the-mountain/backcountry.aspx"
+      },
+      {
+       "t": "UBC VOC: Singing Pass via the lifts",
+       "u": "https://wiki.ubc-voc.com/Singing_Pass_(Via_Lift)"
+      },
+      {
+       "t": "Backcountry BC: Musical Bumps trail",
+       "u": "https://backcountrybc.ca/category-list/288-backcountry-access-bc-trail-and-trip-database/bc-parks-trails/bc-parks-trails/garibaldi-provincial-park-trails/39-musical-bumps-trail"
+      }
+     ],
+     "g": {
+      "ski": [50.04023,-122.92755,50.04018,-122.92721,50.03994,-122.9267,50.03972,-122.92534,50.04004,-122.9239,50.03992,-122.9218,50.03938,-122.92017,50.03897,-122.91938,50.03816,-122.91854,50.03788,-122.91818,50.03777,-122.91784,50.03775,-122.91768,50.03785,-122.91761,50.03789,-122.91738,50.03779,-122.91702,50.03761,-122.91684,50.03736,-122.91578,50.03726,-122.91423,50.03676,-122.91295,50.03649,-122.9118,50.03633,-122.91023,50.03632,-122.9091,50.0364,-122.90864,50.03596,-122.90709,50.03571,-122.90697,50.03561,-122.90679,50.03565,-122.90658,50.03545,-122.90656,50.03521,-122.90616,50.03481,-122.90588,50.03395,-122.90355,50.03341,-122.90247,50.03339,-122.90208,50.03327,-122.90189,50.03332,-122.90179,50.03296,-122.90021,50.03243,-122.89909,50.03182,-122.89817,50.03173,-122.89777,50.03108,-122.89639,50.03084,-122.89605,50.03027,-122.89607,50.02996,-122.89581,50.02978,-122.89552,50.02968,-122.89481,50.0295,-122.89453,50.02905,-122.89441,50.02891,-122.89456,50.02873,-122.89446,50.02838,-122.89469,50.02821,-122.89442,50.02794,-122.89445,50.02779,-122.89431,50.02734,-122.89359,50.02717,-122.89288,50.02667,-122.89183,50.0267,-122.89154,50.02751,-122.89078,50.02775,-122.89083,50.0283,-122.89048,50.02855,-122.89047,50.02898,-122.88996,50.02932,-122.89007],
+      "out": [50.02932,-122.89007,50.02955,-122.89075,50.02986,-122.89098,50.03038,-122.89106,50.03083,-122.89091,50.03237,-122.89102,50.03404,-122.89163,50.03525,-122.89153,50.03606,-122.89202,50.0375,-122.89197,50.03907,-122.8921,50.04029,-122.89192,50.04213,-122.892,50.04328,-122.89177,50.04446,-122.89181,50.04605,-122.89222,50.04839,-122.89375,50.05151,-122.89643,50.0529,-122.89734,50.05401,-122.89833,50.05552,-122.9002,50.05588,-122.90117,50.05603,-122.9034,50.05564,-122.90478,50.05558,-122.90576,50.05549,-122.90599,50.05547,-122.90715,50.05627,-122.90772,50.0577,-122.90697,50.05922,-122.90694,50.05999,-122.90722,50.06115,-122.90831,50.06148,-122.90897,50.06171,-122.90984,50.06185,-122.91166,50.06175,-122.91223,50.06196,-122.91364,50.06191,-122.91405,50.06199,-122.91412,50.06263,-122.91401,50.06308,-122.91317,50.06335,-122.91327,50.06404,-122.91302,50.06566,-122.91388,50.06683,-122.91374,50.06745,-122.9139,50.06825,-122.91439,50.0686,-122.91475,50.0692,-122.91545,50.06957,-122.91615,50.06981,-122.91602,50.07026,-122.91611,50.07281,-122.91804,50.07398,-122.91904,50.07421,-122.91938,50.07436,-122.91983,50.07472,-122.91994,50.075,-122.92043,50.07526,-122.92049,50.0757,-122.92083,50.07582,-122.92189,50.07642,-122.92165,50.07688,-122.92206,50.07711,-122.92258,50.07798,-122.92339,50.07849,-122.92426,50.07855,-122.92467,50.0788,-122.92459,50.07905,-122.92482,50.08008,-122.9262,50.08083,-122.92691,50.08235,-122.92772,50.08293,-122.92843,50.08462,-122.92952,50.08495,-122.92962,50.08562,-122.93072,50.08696,-122.93203,50.08757,-122.93233,50.0888,-122.93382,50.08991,-122.93464,50.09027,-122.93506,50.09288,-122.93641,50.09322,-122.93675,50.09335,-122.93742,50.09365,-122.93782,50.09456,-122.93865,50.09482,-122.93866,50.09568,-122.93953,50.0964,-122.93996,50.097,-122.94061,50.0971,-122.94069,50.09767,-122.94039,50.09791,-122.94039,50.09799,-122.94064,50.09791,-122.94116,50.09798,-122.9414,50.09852,-122.94192,50.09899,-122.94213,50.09931,-122.94312,50.09999,-122.94381,50.10029,-122.94393,50.10117,-122.94376,50.10169,-122.94388,50.10193,-122.94409,50.10232,-122.94463,50.10306,-122.94534,50.10417,-122.94706,50.10555,-122.94817,50.10642,-122.94913,50.10702,-122.9502,50.10748,-122.95181,50.10823,-122.95296,50.10894,-122.95316,50.1098,-122.95288,50.11077,-122.95231,50.11188,-122.95258,50.11277,-122.95245,50.11324,-122.95217]
+     },
+     "calc": {
+      "top": 2010,
+      "bottom": 1723,
+      "drop": 287,
+      "km": 3.6,
+      "maxSlope": 18,
+      "faces": [],
+      "k35": 0,
+      "tripKm": 15.2,
+      "climb": 1486,
+      "cls": 3,
+      "why": ["1.5 km on slopes of 35° or more", "9.9 km under steep slopes", "0.2 km in gullies or creek beds (terrain traps)"]
+     },
+     "cls": 2,
+     "clsWhy": "Mostly a gentle ridge with ways around the steep slopes; the trail out does pass under avalanche paths."
+    },
+    {
+     "id": "cowboy",
+     "name": "Cowboy Ridge",
+     "short": "Cowboy Ridge",
+     "gate": "flute",
+     "side": "Whistler",
+     "kind": "line",
+     "diff": "advanced",
+     "osm": ["w1474054332"],
+     "about": "Open lines off Cowboy Ridge, past Singing Pass, above the upper Melody Creek. The line drawn is the skier's left one.",
+     "access": "Through the Flute gate, along the Musical Bumps to Singing Pass, then skin up Cowboy Ridge. It's far from the lifts: plan a full day.",
+     "exit": "Down to Melody Creek and the Singing Pass trail to Whistler Village, or skin back west over the Musical Bumps to the resort.",
+     "hazards": ["Open alpine slopes with few trees: wind slabs and cornices on the ridge.", "A long way from help, with a long exit."],
+     "src": [
+      {
+       "t": "Spearhead Traverse notes (Cowboy Ridge to Melody Creek)",
+       "u": "https://cspages.ucalgary.ca/~saul/wiki/uploads/Maps/SpearheadTraverse.pdf"
+      }
+     ],
+     "g": {
+      "up": [50.04023,-122.92755,50.04018,-122.92721,50.03994,-122.9267,50.03972,-122.92534,50.04004,-122.9239,50.03992,-122.9218,50.03938,-122.92017,50.03897,-122.91938,50.03816,-122.91854,50.03788,-122.91818,50.03777,-122.91784,50.03775,-122.91768,50.03785,-122.91761,50.03789,-122.91738,50.03779,-122.91702,50.03761,-122.91684,50.03736,-122.91578,50.03726,-122.91423,50.03676,-122.91295,50.03649,-122.9118,50.03633,-122.91023,50.03632,-122.9091,50.0364,-122.90864,50.03596,-122.90709,50.03571,-122.90697,50.03561,-122.90679,50.03565,-122.90658,50.03545,-122.90656,50.03521,-122.90616,50.03481,-122.90588,50.03395,-122.90355,50.03341,-122.90247,50.03339,-122.90208,50.03327,-122.90189,50.03332,-122.90179,50.03296,-122.90021,50.03243,-122.89909,50.03182,-122.89817,50.03173,-122.89777,50.03108,-122.89639,50.03084,-122.89605,50.03027,-122.89607,50.02996,-122.89581,50.02978,-122.89552,50.02968,-122.89481,50.0295,-122.89453,50.02905,-122.89441,50.02891,-122.89456,50.02873,-122.89446,50.02838,-122.89469,50.02821,-122.89442,50.02794,-122.89445,50.02779,-122.89431,50.02734,-122.89359,50.02717,-122.89288,50.02667,-122.89183,50.0267,-122.89154,50.02751,-122.89078,50.02775,-122.89083,50.0283,-122.89048,50.02855,-122.89047,50.02898,-122.88996,50.02932,-122.89007,50.03213,-122.87697],
+      "ski": [50.03213,-122.87697,50.03183,-122.88179,50.03207,-122.88737],
+      "out": [50.03237,-122.89102,50.03404,-122.89163,50.03525,-122.89153,50.03606,-122.89202,50.0375,-122.89197,50.03907,-122.8921,50.04029,-122.89192,50.04213,-122.892,50.04328,-122.89177,50.04446,-122.89181,50.04605,-122.89222,50.04839,-122.89375,50.05151,-122.89643,50.0529,-122.89734,50.05401,-122.89833,50.05552,-122.9002,50.05588,-122.90117,50.05603,-122.9034,50.05564,-122.90478,50.05558,-122.90576,50.05549,-122.90599,50.05547,-122.90715,50.05627,-122.90772,50.0577,-122.90697,50.05922,-122.90694,50.05999,-122.90722,50.06115,-122.90831,50.06148,-122.90897,50.06171,-122.90984,50.06185,-122.91166,50.06175,-122.91223,50.06196,-122.91364,50.06191,-122.91405,50.06199,-122.91412,50.06263,-122.91401,50.06308,-122.91317,50.06335,-122.91327,50.06404,-122.91302,50.06566,-122.91388,50.06683,-122.91374,50.06745,-122.9139,50.06825,-122.91439,50.0686,-122.91475,50.0692,-122.91545,50.06957,-122.91615,50.06981,-122.91602,50.07026,-122.91611,50.07281,-122.91804,50.07398,-122.91904,50.07421,-122.91938,50.07436,-122.91983,50.07472,-122.91994,50.075,-122.92043,50.07526,-122.92049,50.0757,-122.92083,50.07582,-122.92189,50.07642,-122.92165,50.07688,-122.92206,50.07711,-122.92258,50.07798,-122.92339,50.07849,-122.92426,50.07855,-122.92467,50.0788,-122.92459,50.07905,-122.92482,50.08008,-122.9262,50.08083,-122.92691,50.08235,-122.92772,50.08293,-122.92843,50.08462,-122.92952,50.08495,-122.92962,50.08562,-122.93072,50.08696,-122.93203,50.08757,-122.93233,50.0888,-122.93382,50.08991,-122.93464,50.09027,-122.93506,50.09288,-122.93641,50.09322,-122.93675,50.09335,-122.93742,50.09365,-122.93782,50.09456,-122.93865,50.09482,-122.93866,50.09568,-122.93953,50.0964,-122.93996,50.097,-122.94061,50.0971,-122.94069,50.09767,-122.94039,50.09791,-122.94039,50.09799,-122.94064,50.09791,-122.94116,50.09798,-122.9414,50.09852,-122.94192,50.09899,-122.94213,50.09931,-122.94312,50.09999,-122.94381,50.10029,-122.94393,50.10117,-122.94376,50.10169,-122.94388,50.10193,-122.94409,50.10232,-122.94463,50.10306,-122.94534,50.10417,-122.94706,50.10555,-122.94817,50.10642,-122.94913,50.10702,-122.9502,50.10748,-122.95181,50.10823,-122.95296,50.10894,-122.95316,50.1098,-122.95288,50.11077,-122.95231,50.11188,-122.95258,50.11277,-122.95245,50.11324,-122.95217]
+     },
+     "calc": {
+      "top": 1980,
+      "bottom": 1704,
+      "drop": 276,
+      "km": 0.7,
+      "maxSlope": 32,
+      "faces": ["w"],
+      "k35": 0,
+      "tripKm": 16.6,
+      "climb": 1750,
+      "cls": 3,
+      "why": ["1.5 km on slopes of 35° or more", "10.5 km under steep slopes", "0.3 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "khyber",
+     "name": "Khyber's (Khyber Ridge)",
+     "short": "Khyber's",
+     "gate": "khyber",
+     "side": "Whistler",
+     "kind": "line",
+     "diff": "expert",
+     "approx": true,
+     "about": "Off Whistler Peak, skier's left of Upper Peak to Creek: steep trees, gullies and cliffs off Khyber Ridge, down toward the Microwave Tower road. It has no gate and no control.",
+     "access": "Peak Express, then Upper Peak to Creek past Bagel Bowl. Right after an S bend, the trees on skier's left run past the boundary (the tiny Stu Inn shelter sits there).",
+     "exit": "The Microwave Tower Access Road back to Creekside: about 3 km past the microwave tower, keep right (north-north-east), or you end up at the bottom of Cheakamus Lake Road.",
+     "hazards": ["Don't go more than about 200 m skier's left (south): that drops into the Cheakamus Lake drainage, under very large avalanche paths, with cliff bands and a long, bushy way out.", "Very easy to get lost: the terrain confuses even experienced navigators.", "Cliffs and creek gullies (terrain traps)."],
+     "src": [
+      {
+       "t": "UBC VOC: Stu Inn and Khyber Ridge",
+       "u": "https://wiki.ubc-voc.com/Stu_Inn"
+      }
+     ],
+     "g": {
+      "up": [50.05865,-122.95744,50.05842,-122.95753,50.05831,-122.95775,50.05817,-122.95861,50.05821,-122.95906,50.05833,-122.95947,50.05875,-122.95995,50.05894,-122.96052,50.05929,-122.9611,50.05943,-122.96168,50.05934,-122.96203,50.05841,-122.96278,50.05824,-122.96318,50.05809,-122.96529,50.05811,-122.9678,50.05829,-122.96933,50.05849,-122.97025,50.05983,-122.97254,50.0572,-122.9775],
+      "ski": [50.0572,-122.9775,50.05734,-122.97937,50.05707,-122.98076,50.0572,-122.98076,50.05713,-122.98094,50.05726,-122.98094,50.05697,-122.98164,50.05657,-122.98364,50.05658,-122.98385,50.05671,-122.98385,50.05667,-122.98405,50.0568,-122.98405,50.05676,-122.98445,50.0569,-122.98445,50.05686,-122.98486,50.05726,-122.98486,50.05716,-122.98525,50.05725,-122.98584,50.05749,-122.98596,50.05951,-122.98596,50.05955,-122.98616,50.05996,-122.98616,50.06036,-122.98748,50.06103,-122.98851,50.06121,-122.98908,50.06134,-122.98908,50.06163,-122.99024,50.06243,-122.99136,50.06257,-122.99193,50.06266,-122.99209,50.06305,-122.99219,50.06358,-122.99278,50.06397,-122.99359,50.0641,-122.9936,50.06432,-122.99434,50.06489,-122.9947],
+      "out": [50.06523,-122.99493,50.06556,-122.99466,50.06578,-122.99466,50.06662,-122.99497,50.06711,-122.99547,50.06757,-122.99529,50.06809,-122.99481,50.06873,-122.99495,50.06917,-122.99469,50.06958,-122.99477,50.07015,-122.99537,50.0703,-122.99653,50.07069,-122.99704,50.07113,-122.99733,50.07321,-122.99803,50.0732,-122.99838,50.07302,-122.99872,50.07243,-122.99933,50.07245,-122.9996,50.07365,-122.99989,50.07441,-123.00045,50.07539,-123.00041,50.07586,-122.99992,50.07643,-122.99897,50.07671,-122.99752,50.07704,-122.99683,50.07735,-122.99645]
+     },
+     "calc": {
+      "top": 1794,
+      "bottom": 1216,
+      "drop": 578,
+      "km": 1.9,
+      "maxSlope": 36,
+      "faces": ["w", "nw"],
+      "k35": 0.1,
+      "tripKm": 5.6,
+      "climb": 1208,
+      "cls": 3,
+      "why": ["0.1 km on slopes of 35° or more", "2.8 km under steep slopes", "0.5 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "bodybag",
+     "name": "Body Bag Bowl",
+     "short": "Body Bag",
+     "gate": "bcglacier",
+     "side": "Blackcomb",
+     "kind": "line",
+     "diff": "advanced",
+     "osm": ["w472098498"],
+     "ret": "seventh",
+     "about": "A bowl on the south side of Blackcomb Peak, below the East Col and Disease Ridge, that comes back into the ski area near the bottom of 7th Heaven.",
+     "access": "The Garibaldi Park gate on the Blackcomb Glacier, up to the East Col, then south along the ridge to the top. Or tour up Disease Ridge from the gate near the bottom of 7th Heaven.",
+     "exit": "Trend skier's right (west) back into the ski area at Lakeside Bowl and ski to the bottom of 7th Heaven.",
+     "hazards": ["Cornices along the ridge at the top.", "Sun-warmed slopes in the afternoon: wet slides."],
+     "src": [
+      {
+       "t": "BCMC trip: Disease Ridge and Body Bag Bowl",
+       "u": "https://bcmc.ca/events/1643184993"
+      }
+     ],
+     "g": {
+      "up": [50.08907,-122.87689,50.08838,-122.87573,50.08768,-122.87422,50.08717,-122.87268,50.08701,-122.87181,50.08708,-122.87076,50.08693,-122.87051,50.08504,-122.86961,50.08429,-122.86905,50.08394,-122.86853,50.08361,-122.87002,50.0828,-122.86868,50.08269,-122.86948,50.08228,-122.86894,50.082,-122.86878,50.0805,-122.86901,50.07975,-122.86879,50.07906,-122.8682,50.07878,-122.8682],
+      "ski": [50.07878,-122.8682,50.07776,-122.87044,50.07736,-122.87165,50.07672,-122.87509,50.07671,-122.8767,50.07691,-122.87779,50.07726,-122.87882],
+      "out": [50.07726,-122.87882,50.0779,-122.884,50.0786,-122.8866,50.0784,-122.891,50.0785,-122.8957]
+     },
+     "calc": {
+      "top": 2263,
+      "bottom": 1958,
+      "drop": 305,
+      "km": 0.8,
+      "maxSlope": 37,
+      "faces": ["w", "sw"],
+      "k35": 0.1,
+      "tripKm": 3.7,
+      "climb": 755,
+      "cls": 3,
+      "why": ["0.1 km on slopes of 35° or more", "2.7 km under steep slopes", "0.4 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "doa",
+     "name": "DOA (Down, Over and Around)",
+     "short": "DOA",
+     "gate": "bcglacier",
+     "side": "Blackcomb",
+     "kind": "line",
+     "diff": "expert",
+     "osm": ["w292816606"],
+     "ret": "seventh",
+     "about": "An expert couloir on Blackcomb Peak: a ski-wide choke around a rock at the entrance, then about 220 m between rock walls, up to about 45°.",
+     "access": "The Garibaldi Park gate on the Blackcomb Glacier, about 150 m to the East Col, then a short climbing traverse south across the east side of Blackcomb Peak to the entry notch.",
+     "exit": "Where the couloir opens into the bowl, trend skier's right toward the ski area boundary and back to the bottom of 7th Heaven.",
+     "hazards": ["No-fall entrance: a slip in the choke is very serious.", "Sunny slope: crust, or wet snow when it warms up.", "Gets scraped and bumpy fast after a storm."],
+     "src": [
+      {
+       "t": "Outmap: DOA",
+       "u": "https://outmap.pro/route/doa-down-over-and-around-usw3aqVyeoFYzQAgiNdJUR"
+      }
+     ],
+     "g": {
+      "up": [50.08907,-122.87689,50.08838,-122.87573,50.08768,-122.87422,50.08717,-122.87268,50.08701,-122.87181,50.08708,-122.87076,50.08693,-122.87051,50.08504,-122.86961,50.08429,-122.86905,50.08394,-122.86853,50.08361,-122.87002,50.0828,-122.86868,50.08269,-122.86948,50.0815,-122.8698,50.08034,-122.87123],
+      "ski": [50.08034,-122.87123,50.07962,-122.87474,50.07963,-122.87527,50.07982,-122.87574,50.07998,-122.87651,50.08,-122.87841],
+      "out": [50.08,-122.87841,50.07995,-122.87979,50.07969,-122.88245,50.07917,-122.88547,50.07888,-122.88627,50.0785,-122.8957]
+     },
+     "calc": {
+      "top": 2389,
+      "bottom": 1971,
+      "drop": 418,
+      "km": 0.5,
+      "maxSlope": 48,
+      "faces": ["w", "sw"],
+      "k35": 0.5,
+      "tripKm": 3.3,
+      "climb": 792,
+      "cls": 3,
+      "why": ["0.6 km on slopes of 35° or more", "2.1 km under steep slopes", "0.3 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "husume",
+     "name": "Husume",
+     "short": "Husume",
+     "gate": "bcglacier",
+     "side": "Blackcomb",
+     "kind": "line",
+     "diff": "expert",
+     "osm": ["w399343498"],
+     "about": "A north-west facing couloir north of the Spearhead: about 250 m of skiing, up to 40°, down to the Blackcomb Glacier.",
+     "access": "The Garibaldi Park gate, the East Col, onto the Spearhead Glacier, then skin and bootpack to the notch at the top.",
+     "exit": "Down the Blackcomb Glacier to Glacier Road, then to the Crystal or Excelerator chairs, or down to the valley.",
+     "hazards": ["A slide in a narrow couloir piles up deep. Its bottom third has released in storms (a 2024 report found the run full of avalanche debris).", "Cornice at the notch.", "Glacier: crevasses on the way up."],
+     "src": [
+      {
+       "t": "Powder Project: Husume",
+       "u": "https://www.powderproject.com/trail/gpx/7000269"
+      },
+      {
+       "t": "Backcountry Skiing Canada: Husume",
+       "u": "https://backcountryskiingcanada.com/forum/bcs/category/whistlerblackcomb/topic/route-of-the-week-husume-whistlerblackcomb"
+      }
+     ],
+     "g": {
+      "up": [50.08907,-122.87689,50.08838,-122.87573,50.08768,-122.87422,50.08717,-122.87268,50.08701,-122.87181,50.08708,-122.87076,50.08693,-122.87051,50.08504,-122.86961,50.08429,-122.86905,50.08394,-122.86853,50.08361,-122.87002,50.0828,-122.86868,50.08274,-122.86904,50.08269,-122.86948,50.08374,-122.86941,50.0835,-122.869,50.08334,-122.86836,50.08333,-122.86786,50.08385,-122.86669,50.08407,-122.86577,50.08476,-122.86511,50.08492,-122.86386,50.08511,-122.86332,50.08514,-122.86255,50.08501,-122.86192,50.08504,-122.86125,50.0852,-122.86107,50.08543,-122.861,50.09104,-122.86337],
+      "ski": [50.09104,-122.86337,50.09134,-122.86339,50.09186,-122.86369,50.09243,-122.86427,50.09466,-122.86836,50.0952,-122.86902,50.09562,-122.86927],
+      "out": [50.09562,-122.86927,50.097,-122.86953,50.09826,-122.86992,50.10078,-122.87143,50.10131,-122.8719,50.10316,-122.87409,50.10672,-122.87685,50.10924,-122.87915,50.10976,-122.87977,50.11011,-122.88038,50.11037,-122.88052,50.11056,-122.88107,50.11062,-122.88163,50.1109,-122.88222,50.11255,-122.8844,50.11362,-122.88604,50.11414,-122.88663,50.1148,-122.88787,50.11537,-122.88856,50.1156,-122.88944,50.11547,-122.89065,50.11563,-122.89126,50.11555,-122.89184,50.1158,-122.89279,50.1161,-122.89334,50.11646,-122.89384,50.11675,-122.89396,50.11716,-122.89398,50.11769,-122.89369,50.11787,-122.89375,50.11839,-122.89435,50.11846,-122.89472]
+     },
+     "calc": {
+      "top": 2304,
+      "bottom": 1917,
+      "drop": 387,
+      "km": 0.7,
+      "maxSlope": 46,
+      "faces": ["nw", "n"],
+      "k35": 0.3,
+      "tripKm": 6.7,
+      "climb": 1152,
+      "cls": 3,
+      "why": ["0.8 km on slopes of 35° or more", "6.3 km under steep slopes", "1.3 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "corona",
+     "name": "Corona Bowl",
+     "short": "Corona Bowl",
+     "gate": "bcglacier",
+     "side": "Blackcomb",
+     "kind": "line",
+     "diff": "expert",
+     "osm": ["w460133634"],
+     "about": "A big bowl off the ridge north of the Spearhead, down to the Blackcomb Glacier valley, popular with experienced skiers. A group was caught by an avalanche here while getting ready to climb.",
+     "access": "The Garibaldi Park gate, the East Col and the Spearhead Glacier, then skin north to the top of the bowl.",
+     "exit": "Down to the Blackcomb Glacier and Glacier Road, then the Crystal or Excelerator chairs, or the valley.",
+     "hazards": ["Big open slope: a slide here can be large.", "Glacier: crevasses on the way up."],
+     "src": [
+      {
+       "t": "Globe and Mail: avalanche in Corona Bowl",
+       "u": "https://arc-dev.theglobeandmail.com/news/british-columbia/two-snowboarders-skier-rescued-after-hit-by-avalanche-in-whistler-area/article9963100"
+      }
+     ],
+     "g": {
+      "up": [50.08907,-122.87689,50.08838,-122.87573,50.08768,-122.87422,50.08717,-122.87268,50.08701,-122.87181,50.08708,-122.87076,50.08693,-122.87051,50.08504,-122.86961,50.08429,-122.86905,50.08394,-122.86853,50.08361,-122.87002,50.0828,-122.86868,50.08269,-122.86948,50.08374,-122.86941,50.0835,-122.869,50.08334,-122.86836,50.08333,-122.86786,50.08385,-122.86669,50.08407,-122.86577,50.08476,-122.86511,50.08492,-122.86386,50.08511,-122.86332,50.08514,-122.86255,50.08501,-122.86192,50.08504,-122.86125,50.0852,-122.86107,50.0905,-122.8605,50.09378,-122.86103],
+      "ski": [50.09378,-122.86103,50.09444,-122.86112,50.09692,-122.86306,50.09717,-122.8636,50.09729,-122.86433,50.09724,-122.86594,50.09745,-122.86784,50.0978,-122.86912,50.09826,-122.86992],
+      "out": [50.09826,-122.86992,50.09958,-122.87065,50.10105,-122.87165,50.10316,-122.87409,50.10672,-122.87685,50.10924,-122.87915,50.10976,-122.87977,50.11011,-122.88038,50.11037,-122.88052,50.11056,-122.88107,50.11062,-122.88163,50.1109,-122.88222,50.11255,-122.8844,50.11362,-122.88604,50.11414,-122.88663,50.1148,-122.88787,50.11543,-122.88869,50.1156,-122.88963,50.11547,-122.89065,50.11563,-122.89126,50.11555,-122.89184,50.11593,-122.89304,50.11625,-122.89359,50.11658,-122.89391,50.11703,-122.89399,50.11759,-122.89372,50.11787,-122.89375,50.11839,-122.89435,50.11846,-122.89472]
+     },
+     "calc": {
+      "top": 2299,
+      "bottom": 1869,
+      "drop": 430,
+      "km": 0.9,
+      "maxSlope": 47,
+      "faces": ["w", "nw", "sw"],
+      "k35": 0.2,
+      "tripKm": 6.9,
+      "climb": 1181,
+      "cls": 3,
+      "why": ["0.7 km on slopes of 35° or more", "6.5 km under steep slopes", "1.3 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "poop",
+     "name": "Poop Chutes",
+     "short": "Poop Chutes",
+     "gate": "bcglacier",
+     "side": "Blackcomb",
+     "kind": "line",
+     "diff": "expert",
+     "osm": ["w460133633"],
+     "about": "Long chutes from the ridge north of Corona Bowl (toward Phalanx Mountain) down to Glacier Road: about 700 m down.",
+     "access": "From the Spearhead Glacier, skin north past Corona Bowl to the top. The way up isn't well documented: go with someone who knows it.",
+     "exit": "The chutes end on Glacier Road: follow it to the Crystal or Excelerator chairs, or the valley.",
+     "hazards": ["In 2021 two size 3 avalanches here killed one person and injured at least two others.", "Long, narrow chutes that funnel any slide."],
+     "src": [
+      {
+       "t": "Global News: Blackcomb Glacier avalanche (2021)",
+       "u": "https://globalnews.ca/news/7638929/blackcomb-glacier-avalanche"
+      },
+      {
+       "t": "Pique: skiers escape avalanche near Whistler",
+       "u": "https://piquenewsmagazine.com/whistler-news/backcountry-skiers-escape-avalanche-near-whistler-2493271"
+      }
+     ],
+     "g": {
+      "up": [50.08907,-122.87689,50.08838,-122.87573,50.08768,-122.87422,50.08717,-122.87268,50.08701,-122.87181,50.08708,-122.87076,50.08693,-122.87051,50.08504,-122.86961,50.08429,-122.86905,50.08394,-122.86853,50.08361,-122.87002,50.0828,-122.86868,50.08269,-122.86948,50.08374,-122.86941,50.0835,-122.869,50.08334,-122.86836,50.08333,-122.86786,50.08385,-122.86669,50.08407,-122.86577,50.08476,-122.86511,50.08492,-122.86386,50.08511,-122.86332,50.08514,-122.86255,50.08501,-122.86192,50.08504,-122.86125,50.08543,-122.861,50.0905,-122.8605,50.0985,-122.859,50.1029,-122.86066],
+      "ski": [50.1029,-122.86066,50.10394,-122.86271,50.1055,-122.86499,50.1072,-122.86702,50.10938,-122.86907,50.10983,-122.8697,50.11019,-122.87053,50.11052,-122.87188,50.11051,-122.8725,50.10981,-122.87597,50.10969,-122.87702,50.10969,-122.87848,50.1098,-122.87982],
+      "out": [50.1098,-122.87982,50.11004,-122.88029,50.11045,-122.88067,50.11062,-122.88163,50.1109,-122.88222,50.11255,-122.8844,50.11362,-122.88604,50.11414,-122.88663,50.1148,-122.88787,50.11543,-122.88869,50.1156,-122.88963,50.11547,-122.89065,50.11563,-122.89126,50.11555,-122.89184,50.11593,-122.89304,50.11625,-122.89359,50.11658,-122.89391,50.11703,-122.89399,50.11759,-122.89372,50.11787,-122.89375,50.11839,-122.89435,50.11846,-122.89472]
+     },
+     "calc": {
+      "top": 2358,
+      "bottom": 1659,
+      "drop": 699,
+      "km": 1.8,
+      "maxSlope": 38,
+      "faces": ["w"],
+      "k35": 0.3,
+      "tripKm": 7.3,
+      "climb": 1336,
+      "cls": 3,
+      "why": ["1.0 km on slopes of 35° or more", "6.2 km under steep slopes", "0.5 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "decker",
+     "name": "Decker Mountain, north face",
+     "short": "Decker N face",
+     "gate": "bcglacier",
+     "side": "Blackcomb",
+     "kind": "line",
+     "diff": "expert",
+     "approx": true,
+     "about": "The steep north face of Decker Mountain, above the small lake north of it: a very steep start (over 50°) through the cornices, then about 350 m of open slope. Several ways in; the west end is extreme (60°, cliffs).",
+     "access": "The Garibaldi Park gate and the East Col, down toward the lake north of Decker, round the foot of the north face and up its easier north-east slope to the summit plateau.",
+     "exit": "Skin back up to the East Col, ski the Blackcomb Glacier, then Glacier Road.",
+     "hazards": ["Huge cornices: the weakest spot is the small break in the summit plateau next to the high point.", "Over 50° at the top.", "Glaciers on the way: crevasses."],
+     "src": [
+      {
+       "t": "camptocamp: Decker Mountain north face",
+       "u": "https://www.camptocamp.org/routes/53462"
+      }
+     ],
+     "g": {
+      "up": [50.08907,-122.87689,50.08838,-122.87573,50.08768,-122.87422,50.08717,-122.87268,50.08701,-122.87181,50.08708,-122.87076,50.08693,-122.87051,50.08504,-122.86961,50.08429,-122.86905,50.08394,-122.86853,50.08361,-122.87002,50.0828,-122.86868,50.08269,-122.86948,50.08228,-122.86894,50.082,-122.86878,50.08089,-122.86902,50.07975,-122.86879,50.07906,-122.8682,50.07863,-122.86753,50.07725,-122.86604,50.07659,-122.8649,50.07606,-122.86312,50.07612,-122.8622,50.07593,-122.86125,50.07625,-122.85922,50.07622,-122.85821,50.07602,-122.85692,50.07587,-122.85681,50.0754,-122.85686,50.07517,-122.85596,50.07484,-122.85578,50.07412,-122.85482,50.07392,-122.85406,50.07387,-122.85292,50.07335,-122.85107,50.0732,-122.85011,50.07312,-122.84999,50.07287,-122.85063,50.07271,-122.85027,50.07248,-122.85068,50.07207,-122.84952,50.07193,-122.85001,50.07157,-122.84931,50.07146,-122.84793,50.07137,-122.84795,50.07112,-122.847,50.07093,-122.84663,50.07069,-122.84695,50.07054,-122.84636,50.07028,-122.8467,50.07014,-122.84612,50.06981,-122.84651,50.06908,-122.84698,50.0688,-122.84696,50.06866,-122.84682,50.0693,-122.8555],
+      "ski": [50.0693,-122.8555,50.06984,-122.8555,50.07063,-122.85523,50.07142,-122.85546,50.07254,-122.85617,50.07334,-122.85729,50.07401,-122.85729,50.07388,-122.85729,50.07401,-122.85736,50.07375,-122.8574,50.07389,-122.85749,50.07375,-122.8575],
+      "out": [50.07375,-122.8575,50.07484,-122.85578,50.07524,-122.85607,50.0754,-122.85686,50.07587,-122.85681,50.07602,-122.85692,50.07622,-122.85821,50.07625,-122.85922,50.07593,-122.86125,50.07612,-122.8622,50.07606,-122.86312,50.07618,-122.86366,50.07659,-122.8649,50.07725,-122.86604,50.07863,-122.86753,50.07906,-122.8682,50.07975,-122.86879,50.08089,-122.86902,50.082,-122.86878,50.08228,-122.86894,50.08269,-122.86948,50.0869,-122.8705,50.09017,-122.87226,50.09047,-122.87132,50.09096,-122.87058,50.09221,-122.86978,50.09296,-122.86951,50.09425,-122.86929,50.09626,-122.86935,50.09826,-122.86992,50.09958,-122.87065,50.10105,-122.87165,50.10316,-122.87409,50.10672,-122.87685,50.10924,-122.87915,50.10976,-122.87977,50.11011,-122.88038,50.11037,-122.88052,50.11056,-122.88107,50.11062,-122.88163,50.1109,-122.88222,50.11255,-122.8844,50.11362,-122.88604,50.11414,-122.88663,50.1148,-122.88787,50.11543,-122.88869,50.1156,-122.88963,50.11547,-122.89065,50.11563,-122.89126,50.11555,-122.89184,50.11593,-122.89304,50.11625,-122.89359,50.11658,-122.89391,50.11703,-122.89399,50.11759,-122.89372,50.11787,-122.89375,50.11839,-122.89435,50.11846,-122.89472]
+     },
+     "calc": {
+      "top": 2409,
+      "bottom": 2148,
+      "drop": 261,
+      "km": 0.7,
+      "maxSlope": 40,
+      "faces": ["n", "nw"],
+      "k35": 0.1,
+      "tripKm": 12,
+      "climb": 1547,
+      "cls": 3,
+      "why": ["0.6 km on slopes of 35° or more", "8.9 km under steep slopes", "1.3 km in gullies or creek beds (terrain traps)"]
+     }
+    }
+   ]
+  }
+ ]
+}

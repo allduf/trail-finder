@@ -748,7 +748,11 @@ const ASPECTS = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
 const ASPECT = (s) => { s = val(s).toLowerCase().replace(/[^a-z]/g, ""); const short = { north: "n", northeast: "ne", east: "e", southeast: "se", south: "s", southwest: "sw", west: "w", northwest: "nw" }[s] || s; return ASPECTS.includes(short) ? short : ""; };
 
 // Out of season Avalanche Canada publishes one bulletin for the whole province, titled with every area's name.
-const shortTitle = (t) => (t.split("-").length > 8 ? "Avalanche Canada early season bulletin (all of BC)" : t);
+// A forecast that lists many areas in its title: Avalanche Canada's early season bulletin, or a Parks Canada park's
+// regions (Banff-East Side 93N-Field-Kootenay-...), which once all read "early season bulletin" (Banff in Skiing).
+const PARKS = { "parks-byk": "Banff, Yoho and Kootenay", "parks-jasper": "Jasper", "parks-glacier": "Glacier", "parks-waterton": "Waterton" };
+const shortTitle = (t, p) => (t.split("-").length <= 8 ? t : PARKS[val(p?.owner?.value)]
+  || (val(p?.owner?.value) === "avalanche-canada" || !p?.owner ? "Avalanche Canada early season bulletin (all of BC)" : `${text(p.owner.display) || "Avalanche"} forecast`));
 function normalizeForecast(p) {
   const r = p.report || p;
   const days = (r.dangerRatings || []).map((d) => {
@@ -766,7 +770,7 @@ function normalizeForecast(p) {
   });
   const summaries = Object.fromEntries((r.summaries || []).map((s) => [val(s.type).toLowerCase(), text(s.content).slice(0, 1500)]));
   return {
-    id: p.id || r.id || "", title: shortTitle(text(r.title) || text(p.area?.name)), url: p.url || (p.slug ? `https://avalanche.ca/forecasts/${p.slug}` : "https://avalanche.ca/map"),
+    id: p.id || r.id || "", title: shortTitle(text(r.title) || text(p.area?.name), p), url: p.url || (p.slug ? `https://avalanche.ca/forecasts/${p.slug}` : "https://avalanche.ca/map"),
     owner: text(p.owner) || "Avalanche Canada", issued: val(r.dateIssued), validUntil: val(r.validUntil), forecaster: text(r.forecaster),
     highlights: text(r.highlights).slice(0, 1500), confidence: text(r.confidence?.rating), summaries,
     advice: (r.terrainAndTravelAdvice || []).map(text).filter(Boolean).slice(0, 8),
@@ -775,10 +779,10 @@ function normalizeForecast(p) {
 }
 // The API sometimes gives an area's id as its name.
 const areaName = (v) => { const s = text(v); return /^[0-9a-f]{24,}$/i.test(s) ? "" : s; };
-// Area outlines: GeoJSON (Multi)Polygons -> rings of [lat, lon, ...] simplified to ~150 m.
-function areaRings(geom) {
+// Area outlines: GeoJSON (Multi)Polygons -> rings of [lat, lon, ...] simplified to ~150 m (~600 m outside the region).
+function areaRings(geom, tol = 150) {
   const polys = geom?.type === "MultiPolygon" ? geom.coordinates : geom?.type === "Polygon" ? [geom.coordinates] : [];
-  return polys.map((poly) => flat(poly[0].map(([x, y]) => ({ lat: y, lon: x })), 150)).filter((r) => r.length >= 8);
+  return polys.map((poly) => flat(poly[0].map(([x, y]) => ({ lat: y, lon: x })), tol)).filter((r) => r.length >= 8);
 }
 const touches = (rings) => rings.some((r) => { for (let i = 0; i < r.length; i += 2) if (REGIONS.some((b) => r[i] >= b[0] && r[i] <= b[2] && r[i + 1] >= b[1] && r[i + 1] <= b[3])) return true; return false; });
 const boxRing = ([w, s, e, n]) => [s, w, s, e, n, e, n, w, s, w].map(round);
@@ -809,10 +813,12 @@ async function buildAvalanche() {
     const fc = await getJson(`${AVCAN}/forecasts/en/areas`);
     const feats = fc.features || [];
     log(`  ${feats.length} forecast areas; first: id ${feats[0]?.id}, properties ${JSON.stringify(feats[0]?.properties || {}).slice(0, 300)}`);
-    areas = feats.map((f) => ({ id: String(f.id ?? f.properties?.id ?? ""), name: text(f.properties?.name), rings: areaRings(f.geometry) })).filter((a) => a.rings.length && touches(a.rings));
+    // Every area in Canada (the Chic-Chocs, Newfoundland, Jasper...), so Skiing anywhere shows its own forecast, not
+    // the nearest home region's; outlines away from the home region are kept coarser to keep the file small.
+    areas = feats.map((f) => { const rings = areaRings(f.geometry); return { id: String(f.id ?? f.properties?.id ?? ""), name: text(f.properties?.name), rings: touches(rings) ? rings : areaRings(f.geometry, 600) }; }).filter((a) => a.rings.length);
   } catch (e) { log(`  areas failed: ${e.message}`); }
 
-  // Join forecasts to the area outlines (by area id), keeping only areas that touch the region.
+  // Join forecasts to the area outlines (by area id).
   const byArea = new Map();
   for (const p of products) {
     if (!p || !(p.report || p.dangerRatings)) continue;
@@ -824,16 +830,15 @@ async function buildAvalanche() {
   const out = [];
   for (const a of areas) {
     const hit = byArea.get(a.id);
-    out.push({ id: a.id, name: areaName(a.name) || areaName(hit?.p.area?.name) || shortTitle(text(hit?.p.report?.title)), rings: a.rings, forecast: hit ? normalizeForecast(hit.p) : null });
+    out.push({ id: a.id, name: areaName(a.name) || areaName(hit?.p.area?.name) || shortTitle(text(hit?.p.report?.title), hit?.p), rings: a.rings, forecast: hit ? normalizeForecast(hit.p) : null });
     if (hit) byArea.delete(a.id);
   }
-  // Forecasts whose outline we didn't get: use their bounding box, if they are in the region.
+  // Forecasts whose outline we didn't get: use their bounding box.
   for (const { p, aid } of byArea.values()) {
     const bb = p.area?.bbox;
     const rings = Array.isArray(bb) && bb.length === 4 ? [boxRing(bb)] : [];
-    if (rings.length && !touches(rings)) continue;
     if (!rings.length && !p._point) continue;
-    out.push({ id: aid, name: areaName(p.area?.name) || shortTitle(text(p.report?.title)), rings, forecast: normalizeForecast(p) });
+    out.push({ id: aid, name: areaName(p.area?.name) || shortTitle(text(p.report?.title), p), rings, forecast: normalizeForecast(p) });
   }
   for (let i = out.length - 1; i >= 0; i--) if (!out[i].rings.length && !out[i].forecast?.days.length) out.splice(i, 1);   // nothing to draw
   const withForecast = out.filter((a) => a.forecast && a.forecast.days.length);
