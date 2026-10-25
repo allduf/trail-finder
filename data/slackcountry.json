@@ -4,6 +4,7 @@
   {
    "id": "wb",
    "name": "Whistler Blackcomb",
+   "short": "Whistler Blackcomb",
    "lat": 50.0745,
    "lon": -122.915,
    "box": [49.99,-123.06,50.14,-122.82],
@@ -472,6 +473,1218 @@
      }
     }
    ]
+  },
+  {
+   "id": "rmr",
+   "name": "Revelstoke Mountain Resort",
+   "short": "Revelstoke",
+   "lat": 50.9545,
+   "lon": -118.083,
+   "box": [50.935,-118.13,50.97,-118.06],
+   "forecast": "Avalanche Canada, South Columbia",
+   "emergency": "Emergency outside the boundary: 911 (Revelstoke Search and Rescue). Resort dispatch and patrol: 250-814-5055.",
+   "rules": ["Past the rope it's the backcountry: no ski patrol, no avalanche control, and a rescue can take a long time. Many spots have no phone signal.", "Everyone needs a transceiver, a probe, a shovel and skins, and Avalanche Skills Training 1 (AST 1) or the same.", "Coming back through the resort: be back inside the boundary by 3:45 pm. After that the groomers, some on winch cables, are on the runs.", "Tell someone your route and when you'll be back, and never go alone.", "Stay off the cat skiing tenure south of the resort."],
+   "links": [
+    {
+     "t": "Revelstoke Mountain Resort: boundary and backcountry safety",
+     "u": "https://www.revelstokemountainresort.com/safety-risk-awareness/winter/ski-resort-boundary-backcountry-safety/"
+    },
+    {
+     "t": "Avalanche Canada forecast at Revelstoke",
+     "u": "https://avalanche.ca/map?lat=50.95&lng=-118.08"
+    }
+   ],
+   "gates": [
+    {
+     "id": "south",
+     "name": "Sub Peak gate",
+     "side": "Sub Peak",
+     "lat": 50.9612,
+     "lon": -118.0977,
+     "approx": true,
+     "note": "Where the resort boundary rope meets the ridge south of Sub Peak. Get there from the top of the Stoke chair along the ridge (the Sub Peak hike). From here a skin track follows the ridge east toward Montana Peak, above South Bowl and Montana Bowl."
+    }
+   ],
+   "lines": [
+    {
+     "id": "rmr-southbowl",
+     "name": "South Bowl",
+     "short": "South Bowl",
+     "gate": "south",
+     "side": "Sub Peak",
+     "kind": "line",
+     "diff": "advanced",
+     "osm": ["w1317761519", "w1317761520"],
+     "about": "The closest slackcountry to the lifts: a short skin past the gate, then open slopes and trees facing south-west, back toward the resort's south side.",
+     "access": "Through the gate below Sub Peak, then a short skin east along the ridge to the top of the bowl.",
+     "exit": "Traverse west at the bottom of the bowl back inside the boundary, near the bottom of Jalapeno and the Ninja Traverse.",
+     "hazards": ["Sun-baked south-west slopes: wet slides in the afternoon and in spring.", "Cornices on the ridge above.", "Easy to drift too far down: stay high enough to traverse back."],
+     "src": [
+      {
+       "t": "Revelstoke Mountain Resort: boundary and backcountry safety",
+       "u": "https://www.revelstokemountainresort.com/safety-risk-awareness/winter/ski-resort-boundary-backcountry-safety/"
+      },
+      {
+       "t": "OpenStreetMap: the ski routes south of Sub Peak",
+       "u": "https://www.openstreetmap.org/way/1317761525"
+      }
+     ],
+     "g": {
+      "ski": [50.95891,-118.08961,50.95834,-118.0897,50.95801,-118.08961,50.95676,-118.09023,50.95575,-118.08946,50.95439,-118.08979,50.9534,-118.08968,50.95287,-118.08991,50.95215,-118.09052],
+      "up": [50.96079,-118.09548,50.9604,-118.09485,50.95971,-118.09323,50.95964,-118.09258,50.95976,-118.09177,50.95968,-118.09109,50.95953,-118.09076,50.95908,-118.09024,50.95891,-118.08961],
+      "out": [50.95215,-118.09052,50.9536,-118.095,50.9552,-118.0975]
+     },
+     "approx": false,
+     "calc": {
+      "top": 2167,
+      "bottom": 1906,
+      "drop": 261,
+      "km": 0.8,
+      "maxSlope": 37,
+      "faces": ["w", "sw", "s"],
+      "k35": 0.1,
+      "tripKm": 1.9,
+      "climb": 336,
+      "cls": 3,
+      "why": ["0.1 km on slopes of 35° or more", "1.7 km under steep slopes"]
+     }
+    },
+    {
+     "id": "rmr-montanaface",
+     "name": "Montana ridge, south faces",
+     "short": "Montana faces",
+     "gate": "south",
+     "side": "Montana Peak",
+     "kind": "line",
+     "diff": "advanced",
+     "osm": ["w1317761516", "w1317761525"],
+     "about": "Longer open lines off the ridge between Sub Peak and Montana Peak, south-west facing, ending in the trees above the traverse back to the resort.",
+     "access": "Through the gate below Sub Peak, then about 2 km east on the ridge skin track.",
+     "exit": "At the bottom, take the long traverse west (the way back on the map) to Devil's Club inside the resort. It's mostly downhill but long; skins help in deep snow.",
+     "hazards": ["Big open slopes above the trees: avalanche terrain, and slides run into the trees below.", "Wet slides on sunny afternoons.", "Cornices on the ridge."],
+     "src": [
+      {
+       "t": "Revelstoke Mountain Resort: boundary and backcountry safety",
+       "u": "https://www.revelstokemountainresort.com/safety-risk-awareness/winter/ski-resort-boundary-backcountry-safety/"
+      },
+      {
+       "t": "OpenStreetMap: the ski routes south of Sub Peak",
+       "u": "https://www.openstreetmap.org/way/1317761525"
+      }
+     ],
+     "g": {
+      "ski": [50.956,-118.07643,50.95482,-118.07514,50.9542,-118.07477,50.95359,-118.07482,50.95141,-118.07452,50.95041,-118.0755,50.9502,-118.07606,50.95019,-118.07676,50.95001,-118.07741,50.95003,-118.07808,50.95019,-118.07845,50.95017,-118.07886,50.94965,-118.0809,50.94955,-118.08181,50.94957,-118.08334,50.94907,-118.08448,50.94877,-118.08574,50.94881,-118.0863],
+      "up": [50.96122,-118.09773,50.96095,-118.09598,50.96079,-118.09548,50.96068,-118.09392,50.96048,-118.09303,50.96069,-118.09086,50.96065,-118.09002,50.96044,-118.08932,50.96048,-118.08838,50.95923,-118.08586,50.95896,-118.08512,50.95844,-118.08467,50.95834,-118.0843,50.95769,-118.08374,50.95761,-118.08352,50.95767,-118.08301,50.95761,-118.08273,50.9573,-118.0823,50.95685,-118.08119,50.95687,-118.08085,50.95658,-118.08025,50.95647,-118.07886,50.95658,-118.07809,50.95651,-118.07779,50.95621,-118.07731,50.956,-118.07643],
+      "out": [50.94881,-118.0863,50.94942,-118.08753,50.94905,-118.08935,50.94908,-118.08969,50.94942,-118.09054,50.94959,-118.09228,50.94971,-118.09281,50.9503,-118.09374,50.95044,-118.09467,50.94999,-118.09815,50.9499,-118.09914,50.94995,-118.09957,50.95011,-118.10031,50.95032,-118.10081,50.9506,-118.10107,50.95065,-118.10127,50.95065,-118.10199,50.95078,-118.10273,50.95136,-118.10454,50.95132,-118.10512,50.95148,-118.10648,50.95184,-118.10743,50.95201,-118.10809,50.95204,-118.10872,50.95229,-118.10936,50.95227,-118.11064,50.95218,-118.11106,50.95223,-118.11147,50.95211,-118.11235,50.95238,-118.11344,50.95214,-118.11516]
+     },
+     "approx": false,
+     "calc": {
+      "top": 2253,
+      "bottom": 1871,
+      "drop": 381,
+      "km": 1.5,
+      "maxSlope": 37,
+      "faces": ["s", "w", "nw"],
+      "k35": 0.1,
+      "tripKm": 5.4,
+      "climb": 797,
+      "cls": 3,
+      "why": ["0.2 km on slopes of 35° or more", "4.0 km under steep slopes", "0.7 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "rmr-montanabowl",
+     "name": "Montana Bowl",
+     "short": "Montana Bowl",
+     "gate": "south",
+     "side": "Montana Peak",
+     "kind": "line",
+     "diff": "expert",
+     "osm": ["w1317761515", "w1317761512"],
+     "about": "The big alpine bowl at the far end of the ridge, below Montana Peak. Steep at the top, then a long run out west under the ridge.",
+     "access": "Through the gate below Sub Peak, then all the way east on the ridge skin track (about 2.5 km, 20-40 minutes) to the top of the bowl.",
+     "exit": "Ski out west under the ridge to the long traverse back to Devil's Club inside the resort.",
+     "hazards": ["Steep alpine start with cornices: the most serious line here.", "Wind slabs on the lee slopes.", "A long way from the resort if something goes wrong."],
+     "src": [
+      {
+       "t": "Revelstoke Mountain Resort: boundary and backcountry safety",
+       "u": "https://www.revelstokemountainresort.com/safety-risk-awareness/winter/ski-resort-boundary-backcountry-safety/"
+      },
+      {
+       "t": "OpenStreetMap: the ski routes south of Sub Peak",
+       "u": "https://www.openstreetmap.org/way/1317761525"
+      }
+     ],
+     "g": {
+      "ski": [50.94768,-118.07127,50.94841,-118.07239,50.9491,-118.0741,50.94942,-118.0757,50.94958,-118.07673,50.94957,-118.07735,50.94884,-118.07892,50.94882,-118.07921,50.94891,-118.0799,50.94933,-118.08144,50.94955,-118.08181],
+      "up": [50.96122,-118.09773,50.96095,-118.09598,50.96079,-118.09548,50.96068,-118.09392,50.96048,-118.09303,50.96069,-118.09086,50.96065,-118.09002,50.96044,-118.08932,50.96048,-118.08838,50.95923,-118.08586,50.95896,-118.08512,50.95844,-118.08467,50.95834,-118.0843,50.95769,-118.08374,50.95761,-118.08352,50.95767,-118.08301,50.95761,-118.08273,50.9573,-118.0823,50.95685,-118.08119,50.95687,-118.08085,50.95658,-118.08025,50.95647,-118.07886,50.95658,-118.07809,50.95605,-118.07681,50.95578,-118.07506,50.95537,-118.07392,50.95352,-118.0708,50.94768,-118.07127],
+      "out": [50.94955,-118.08181,50.94942,-118.08753,50.94905,-118.08935,50.94908,-118.08969,50.94942,-118.09054,50.94959,-118.09228,50.94971,-118.09281,50.9503,-118.09374,50.95044,-118.09467,50.94999,-118.09815,50.9499,-118.09914,50.94995,-118.09957,50.95011,-118.10031,50.95032,-118.10081,50.9506,-118.10107,50.95065,-118.10127,50.95065,-118.10199,50.95078,-118.10273,50.95136,-118.10454,50.95132,-118.10512,50.95148,-118.10648,50.95184,-118.10743,50.95201,-118.10809,50.95204,-118.10872,50.95229,-118.10936,50.95227,-118.11064,50.95218,-118.11106,50.95223,-118.11147,50.95211,-118.11235,50.95238,-118.11344,50.95214,-118.11516]
+     },
+     "approx": false,
+     "calc": {
+      "top": 2264,
+      "bottom": 1952,
+      "drop": 312,
+      "km": 0.9,
+      "maxSlope": 46,
+      "faces": ["nw", "n"],
+      "k35": 0.3,
+      "tripKm": 6.2,
+      "climb": 971,
+      "cls": 3,
+      "why": ["0.9 km on slopes of 35° or more", "4.5 km under steep slopes", "0.8 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "rmr-montanatrees",
+     "name": "Montana Trees",
+     "short": "Montana Trees",
+     "gate": "south",
+     "side": "Montana Peak",
+     "kind": "line",
+     "diff": "advanced",
+     "osm": ["w1317761513", "w1317761524"],
+     "about": "Spaced trees below Montana Bowl, cut by an old cat skiing operation. Steady fall line down to about 1,750 m.",
+     "access": "Through the gate below Sub Peak, east along the ridge skin track, then down into the top of the trees below Montana Bowl.",
+     "exit": "Put skins on at the bottom and skin back up north-west (about 170 m up) to the resort side, near the bottom of Jalapeno.",
+     "hazards": ["The trees are below big avalanche paths: don't stop under open slopes.", "You must skin out: leave time to be back by 3:45 pm.", "Tree wells in deep snow."],
+     "src": [
+      {
+       "t": "Revelstoke Mountain Resort: boundary and backcountry safety",
+       "u": "https://www.revelstokemountainresort.com/safety-risk-awareness/winter/ski-resort-boundary-backcountry-safety/"
+      },
+      {
+       "t": "OpenStreetMap: the ski routes south of Sub Peak",
+       "u": "https://www.openstreetmap.org/way/1317761525"
+      }
+     ],
+     "g": {
+      "ski": [50.94753,-118.07578,50.94656,-118.07842,50.94595,-118.08063,50.94555,-118.08162,50.94533,-118.08489,50.94348,-118.09093,50.94329,-118.09208],
+      "up": [50.96122,-118.09773,50.96095,-118.09598,50.96079,-118.09548,50.96068,-118.09392,50.96048,-118.09303,50.96069,-118.09086,50.96065,-118.09002,50.96044,-118.08932,50.96048,-118.08838,50.95923,-118.08586,50.95896,-118.08512,50.95844,-118.08467,50.95834,-118.0843,50.95769,-118.08374,50.95761,-118.08352,50.95767,-118.08301,50.95761,-118.08273,50.9573,-118.0823,50.95685,-118.08119,50.95687,-118.08085,50.95658,-118.08025,50.95647,-118.07886,50.95658,-118.07809,50.95605,-118.07681,50.95578,-118.07506,50.95537,-118.07392,50.94753,-118.07578],
+      "out": [50.94329,-118.09208,50.94665,-118.09046,50.947,-118.08994,50.94743,-118.0881,50.94781,-118.08716,50.94852,-118.08635,50.94881,-118.0863,50.949,-118.08653,50.94942,-118.08753,50.94967,-118.08753,50.95011,-118.0872,50.95062,-118.08736,50.95081,-118.08748,50.95113,-118.0881,50.95145,-118.08842,50.95182,-118.08921,50.9519,-118.0901,50.95229,-118.09083,50.95226,-118.09164,50.95259,-118.09224,50.95287,-118.0937,50.9552,-118.0975]
+     },
+     "approx": false,
+     "calc": {
+      "top": 2172,
+      "bottom": 1746,
+      "drop": 426,
+      "km": 1.2,
+      "maxSlope": 36,
+      "faces": ["s", "sw"],
+      "k35": 0.1,
+      "tripKm": 6,
+      "climb": 745,
+      "cls": 3,
+      "why": ["0.2 km on slopes of 35° or more", "4.7 km under steep slopes", "0.6 km in gullies or creek beds (terrain traps)"]
+     }
+    }
+   ]
+  },
+  {
+   "id": "ww",
+   "name": "Whitewater",
+   "short": "Whitewater",
+   "lat": 49.44,
+   "lon": -117.14,
+   "box": [49.42,-117.185,49.46,-117.1],
+   "forecast": "Avalanche Canada, Kootenay Boundary",
+   "emergency": "Emergency outside the boundary: 911 (Nelson Search and Rescue). There's no phone signal on most of the mountain. Dispatch: 250-354-4944 ext. 136.",
+   "rules": ["Past the boundary there's no ski patrol and no avalanche control, and you pay for your own rescue.", "Check in with Whitewater's Snow Safety Patrol before you go out, with your route and return time.", "You sign the Backcountry Access Waiver with your lift ticket (single-ride tickets are sold for backcountry access).", "No skinning or hiking up inside the boundary, before, during or after hours. Uphill only on the signed ascent route outside the boundary.", "Everyone needs a transceiver, a probe and a shovel (they rent kits at the base) and avalanche training. There's a transceiver park near the day lodge."],
+   "links": [
+    {
+     "t": "Whitewater: backcountry, waiver and check-in",
+     "u": "https://whitewatermountainresort.com/ski-ride/mountain/backcountry"
+    },
+    {
+     "t": "Avalanche Canada forecast at Whitewater",
+     "u": "https://avalanche.ca/map?lat=49.44&lng=-117.14"
+    }
+   ],
+   "gates": [
+    {
+     "id": "silverking",
+     "name": "Silver King gate",
+     "side": "Silver King",
+     "lat": 49.4461,
+     "lon": -117.1343,
+     "approx": true,
+     "note": "At the top of the Silver King chair. Leads north to White Queen and east over the ridge to Five Mile Basin."
+    },
+    {
+     "id": "claim",
+     "name": "Claim Jumper gate",
+     "side": "Glory Ridge",
+     "lat": 49.4351,
+     "lon": -117.1555,
+     "approx": true,
+     "note": "At the top of Claim Jumper (Glory Ridge chair). A short hike up the ridge leads to the Trash Chutes; from the bottom you ski back to the Glory lift."
+    },
+    {
+     "id": "keg",
+     "name": "Powder Keg gate",
+     "side": "Summit",
+     "lat": 49.4329,
+     "lon": -117.152,
+     "approx": true,
+     "note": "In Powder Keg Bowl, near the top of the Summit chair. The skin track goes east to the Prospector and Hummingbird, and on to Ymir."
+    }
+   ],
+   "lines": [
+    {
+     "id": "ww-whitequeen",
+     "name": "White Queen",
+     "short": "White Queen",
+     "gate": "silverking",
+     "side": "Silver King",
+     "kind": "line",
+     "diff": "advanced",
+     "osm": ["w239611889"],
+     "about": "The classic Whitewater slackcountry lap: skin up White Queen from the Silver King gate and ski the trees and open slopes back down its south-west side to the resort.",
+     "access": "Through the Silver King gate, then about 45 minutes up the skin track along the ridge to the summit (2,180 m).",
+     "exit": "The run ends on the Silver King ski way: follow it back to the Silver King chair.",
+     "hazards": ["Open slopes near the top hold wind slabs.", "Gullies in the lower trees.", "Don't drop off the north side: it goes away from the resort."],
+     "src": [
+      {
+       "t": "Whitewater: backcountry, waiver and check-in",
+       "u": "https://whitewatermountainresort.com/ski-ride/mountain/backcountry"
+      },
+      {
+       "t": "Out There Outdoors: Whitewater's backcountry access points",
+       "u": "https://outthereoutdoors.com/the-ultimate-whitewater-ski-trip-resort-runs-backcountry-turns/"
+      },
+      {
+       "t": "OpenStreetMap: the route",
+       "u": "https://www.openstreetmap.org/way/239611889"
+      }
+     ],
+     "g": {
+      "ski": [49.458,-117.14672,49.45674,-117.15184,49.45253,-117.15673,49.45121,-117.15386,49.44704,-117.1502,49.44656,-117.15001],
+      "up": [49.44607,-117.13426,49.44693,-117.1361,49.44823,-117.13729,49.44881,-117.13835,49.44953,-117.1392,49.45033,-117.13979,49.45075,-117.13963,49.45121,-117.14001,49.45185,-117.14103,49.458,-117.14672],
+      "out": [49.44656,-117.15001,49.4484,-117.143,49.4428,-117.1449]
+     },
+     "approx": false,
+     "calc": {
+      "top": 2177,
+      "bottom": 1590,
+      "drop": 587,
+      "km": 1.8,
+      "maxSlope": 39,
+      "faces": ["sw"],
+      "k35": 0.2,
+      "tripKm": 4.6,
+      "climb": 800,
+      "cls": 3,
+      "why": ["0.4 km on slopes of 35° or more", "3.2 km under steep slopes", "0.1 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "ww-fivemile",
+     "name": "Five Mile Basin",
+     "short": "Five Mile",
+     "gate": "silverking",
+     "side": "Silver King",
+     "kind": "line",
+     "diff": "advanced",
+     "osm": ["w239612553"],
+     "about": "One drainage east of the resort: from the ridge above Half Dome, north-west facing slopes and trees down into Five Mile Basin, then skin back out.",
+     "access": "Through the Silver King gate, then the skin track east up the ridge toward Half Dome (about 300 m up).",
+     "exit": "Skin back up the zig-zag track to the ridge and return west to the Silver King gate. Don't follow the creek down: it goes away from the resort.",
+     "hazards": ["Slopes up to about 35°, open at the top.", "You have to skin out: leave time and energy.", "Avalanche paths come down from Half Dome and Ymir on the far side."],
+     "src": [
+      {
+       "t": "Whitewater: backcountry, waiver and check-in",
+       "u": "https://whitewatermountainresort.com/ski-ride/mountain/backcountry"
+      },
+      {
+       "t": "Out There Outdoors: Whitewater's backcountry access points",
+       "u": "https://outthereoutdoors.com/the-ultimate-whitewater-ski-trip-resort-runs-backcountry-turns/"
+      },
+      {
+       "t": "OpenStreetMap: the route",
+       "u": "https://www.openstreetmap.org/way/239612553"
+      },
+      {
+       "t": "Turns All Year: Five Mile Basin trip report",
+       "u": "https://turns-all-year.com/trip-reports/march-5-2006-mt-ymir-whitewater-bc"
+      }
+     ],
+     "g": {
+      "ski": [49.442,-117.118,49.44237,-117.11826,49.44346,-117.11978,49.44408,-117.12018,49.44559,-117.12153,49.44748,-117.12474,49.44869,-117.1256,49.44906,-117.1248],
+      "up": [49.44607,-117.13426,49.44612,-117.13417,49.44587,-117.13155,49.44593,-117.13146,49.44631,-117.13209,49.44645,-117.13208,49.44651,-117.13189,49.446,-117.13081,49.44503,-117.12961,49.44442,-117.12844,49.44414,-117.12836,49.44416,-117.1279,49.44388,-117.12774,49.44385,-117.12725,49.44373,-117.12723,49.4438,-117.127,49.44351,-117.12677,49.44352,-117.12655,49.44329,-117.12647,49.4428,-117.12525,49.44198,-117.12458,49.44141,-117.12279,49.44107,-117.12201,49.44121,-117.12115,49.44143,-117.12059,49.44149,-117.11979,49.44144,-117.11872,49.44169,-117.11776],
+      "out": [49.44906,-117.1248,49.4489,-117.12465,49.44852,-117.12462,49.44817,-117.12473,49.44815,-117.12413,49.44866,-117.12313,49.44806,-117.12311,49.44744,-117.12346,49.44771,-117.12231,49.44791,-117.12204,49.44766,-117.12199,49.44697,-117.12245,49.44686,-117.12238,49.44706,-117.122,49.44667,-117.12203,49.44639,-117.12234,49.44659,-117.12118,49.44688,-117.12074,49.44637,-117.12054,49.44572,-117.12095,49.44564,-117.12058,49.4458,-117.12001,49.44534,-117.12016,49.44467,-117.12074,49.44441,-117.12081,49.44443,-117.12032,49.44429,-117.12037,49.44435,-117.11979,49.44404,-117.12004,49.44377,-117.12054,49.44367,-117.12015,49.44382,-117.11916,49.4435,-117.11938,49.44275,-117.12045,49.44269,-117.12009,49.44257,-117.12034,49.44242,-117.12002,49.44241,-117.1194,49.44218,-117.11968,49.44209,-117.11999,49.44203,-117.11986,49.4419,-117.11993,49.44205,-117.11869,49.44174,-117.11865,49.44169,-117.11776,49.44144,-117.11872,49.44149,-117.11979,49.44143,-117.12059,49.44121,-117.12115,49.44107,-117.12201,49.44141,-117.12279,49.44198,-117.12458,49.4428,-117.12525,49.44329,-117.12647,49.44352,-117.12655,49.44351,-117.12677,49.4438,-117.127,49.44373,-117.12723,49.44385,-117.12725,49.44388,-117.12774,49.44413,-117.12785,49.44414,-117.12836,49.44442,-117.12844,49.44503,-117.12961,49.446,-117.13081,49.44651,-117.13189,49.44645,-117.13208,49.44631,-117.13209,49.44593,-117.13146,49.44587,-117.13155,49.44612,-117.13417,49.44607,-117.13426]
+     },
+     "approx": false,
+     "calc": {
+      "top": 2260,
+      "bottom": 1774,
+      "drop": 485,
+      "km": 1,
+      "maxSlope": 35,
+      "faces": ["nw"],
+      "k35": 0.1,
+      "tripKm": 6.4,
+      "climb": 824,
+      "cls": 3,
+      "why": ["0.5 km on slopes of 35° or more", "4.8 km under steep slopes", "0.6 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "ww-ymir",
+     "name": "Ymir Bowl, from Ymir Mountain",
+     "short": "Ymir Bowl",
+     "gate": "keg",
+     "side": "Summit",
+     "kind": "line",
+     "diff": "expert",
+     "osm": ["w239615023"],
+     "about": "From the top of Ymir Mountain (2,398 m), the big bowl on its north-west side back down toward the resort's east edge. Steep alpine skiing.",
+     "access": "Through the Powder Keg gate, then the skin track east past the Prospector and Hummingbird and up Ymir's west ridge (about 450 m up).",
+     "exit": "The bowl drains west to the creek on the resort's east side: follow it out to the Silver King chair.",
+     "hazards": ["Steep (up to about 45°), open and corniced at the top.", "Big avalanche terrain: one of the slopes most avalanche-prone here.", "Exposed to wind: hard to find the way in a whiteout."],
+     "src": [
+      {
+       "t": "Whitewater: backcountry, waiver and check-in",
+       "u": "https://whitewatermountainresort.com/ski-ride/mountain/backcountry"
+      },
+      {
+       "t": "Out There Outdoors: Whitewater's backcountry access points",
+       "u": "https://outthereoutdoors.com/the-ultimate-whitewater-ski-trip-resort-runs-backcountry-turns/"
+      },
+      {
+       "t": "OpenStreetMap: the route",
+       "u": "https://www.openstreetmap.org/way/239615023"
+      },
+      {
+       "t": "Wikipedia: Whitewater Ski Resort",
+       "u": "https://en.wikipedia.org/wiki/Whitewater_Ski_Resort"
+      }
+     ],
+     "g": {
+      "ski": [49.4358,-117.12,49.43617,-117.1206,49.43655,-117.12214,49.43708,-117.12307,49.43732,-117.12381,49.43743,-117.12462,49.43779,-117.12547,49.4382,-117.12889,49.43839,-117.12967,49.43892,-117.13059,49.43917,-117.13052,49.43936,-117.13107,49.43938,-117.13209,49.43889,-117.13305,49.43897,-117.13386,49.43911,-117.13386,49.43899,-117.13396,49.43912,-117.13396,49.439,-117.13405,49.43903,-117.13425,49.4391,-117.13443,49.43923,-117.13441,49.43914,-117.13456,49.43918,-117.13436,49.43917,-117.13457,49.43908,-117.13443,49.43921,-117.13441,49.4391,-117.13517,49.43923,-117.13515,49.43912,-117.13527,49.43925,-117.13521,49.43916,-117.13536,49.43928,-117.13528,49.43919,-117.13542,49.43932,-117.13539,49.43926,-117.13558,49.43934,-117.13574,49.43923,-117.13587,49.4393,-117.13604,49.43922,-117.13621,49.43936,-117.13615,49.43922,-117.13607,49.43936,-117.13607,49.4392,-117.13606,49.43934,-117.13609],
+      "up": [49.43289,-117.15202,49.43236,-117.15085,49.43194,-117.14939,49.432,-117.1474,49.43176,-117.14669,49.43165,-117.14668,49.43148,-117.14635,49.43162,-117.14565,49.43141,-117.14525,49.43143,-117.14464,49.43128,-117.14445,49.43076,-117.1426,49.43076,-117.14198,49.43085,-117.14193,49.43087,-117.14143,49.43101,-117.14091,49.43111,-117.14085,49.43105,-117.14066,49.43118,-117.14061,49.43124,-117.14042,49.4307,-117.13991,49.43139,-117.13876,49.43176,-117.13724,49.43213,-117.13623,49.43353,-117.13388,49.43408,-117.13327,49.43449,-117.13248,49.43459,-117.13203,49.43455,-117.13092,49.43418,-117.12976,49.43417,-117.129,49.43404,-117.12867,49.4335,-117.1255,49.4346,-117.1202],
+      "out": [49.43934,-117.13609,49.4428,-117.1449]
+     },
+     "approx": false,
+     "calc": {
+      "top": 2297,
+      "bottom": 1736,
+      "drop": 561,
+      "km": 1.7,
+      "maxSlope": 44,
+      "faces": ["nw", "w"],
+      "k35": 0.2,
+      "tripKm": 5,
+      "climb": 788,
+      "cls": 3,
+      "why": ["0.8 km on slopes of 35° or more", "3.8 km under steep slopes", "0.6 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "ww-prospector",
+     "name": "The Prospector, north side",
+     "short": "Prospector",
+     "gate": "keg",
+     "side": "Summit",
+     "kind": "line",
+     "diff": "advanced",
+     "osm": ["w239615023"],
+     "about": "A short climb from the Powder Keg gate to the Prospector (2,127 m), then its north side straight back down into the resort.",
+     "access": "Through the Powder Keg gate, then the Prospector skin track east (about 170 m up).",
+     "exit": "Ends back inside the resort: ski out to the Silver King chair.",
+     "hazards": ["Short but steep near the top (40°+ in places).", "Cliffs in the trees.", "Slides here run into the resort's runs below."],
+     "src": [
+      {
+       "t": "Whitewater: backcountry, waiver and check-in",
+       "u": "https://whitewatermountainresort.com/ski-ride/mountain/backcountry"
+      },
+      {
+       "t": "Out There Outdoors: Whitewater's backcountry access points",
+       "u": "https://outthereoutdoors.com/the-ultimate-whitewater-ski-trip-resort-runs-backcountry-turns/"
+      },
+      {
+       "t": "OpenStreetMap: the route",
+       "u": "https://www.openstreetmap.org/way/239615023"
+      }
+     ],
+     "g": {
+      "ski": [49.43225,-117.1393,49.43278,-117.13925,49.43351,-117.13874,49.43391,-117.13872,49.43401,-117.13886,49.43411,-117.13872,49.43517,-117.1387,49.43565,-117.13905,49.43645,-117.13907,49.43706,-117.13949,49.43746,-117.13949,49.43797,-117.13976,49.43836,-117.13964,49.43898,-117.14002,49.43939,-117.14002,49.44003,-117.14032,49.4403,-117.14032,49.4402,-117.14045,49.44033,-117.14045,49.44014,-117.14071,49.44014,-117.14172,49.44021,-117.14189,49.44047,-117.14195,49.44043,-117.14235,49.44056,-117.14235,49.44062,-117.14273,49.44065,-117.14253,49.44062,-117.14271],
+      "up": [49.43289,-117.15202,49.43236,-117.15085,49.43194,-117.14939,49.432,-117.1474,49.43176,-117.14669,49.43165,-117.14668,49.43148,-117.14635,49.43162,-117.14565,49.43141,-117.14525,49.43143,-117.14464,49.43128,-117.14445,49.43076,-117.1426,49.43076,-117.14198,49.43085,-117.14193,49.43087,-117.14143,49.43101,-117.14091,49.43111,-117.14085,49.43105,-117.14066,49.43118,-117.14061,49.43124,-117.14042,49.4307,-117.13991,49.43139,-117.13876],
+      "out": [49.44062,-117.14271,49.4428,-117.1449]
+     },
+     "approx": false,
+     "calc": {
+      "top": 2129,
+      "bottom": 1656,
+      "drop": 473,
+      "km": 1.2,
+      "maxSlope": 40,
+      "faces": ["n"],
+      "k35": 0.1,
+      "tripKm": 2.6,
+      "climb": 496,
+      "cls": 3,
+      "why": ["0.2 km on slopes of 35° or more", "2.0 km under steep slopes", "0.4 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "ww-trash",
+     "name": "Trash Chutes",
+     "short": "Trash Chutes",
+     "gate": "claim",
+     "side": "Glory Ridge",
+     "kind": "line",
+     "diff": "expert",
+     "osm": ["w239618380", "w239613419"],
+     "about": "Steep chutes, drops and pillows on the ridge south of Glory Ridge, skied back down toward the Glory side of the resort.",
+     "access": "Through the Claim Jumper gate, then a short hike south-west up the ridge.",
+     "exit": "From the bottom, ski back to the Glory Ridge chair.",
+     "hazards": ["Steep, rocky chutes: cliffs and drops.", "Terrain traps: small slides pile up deep in the gullies.", "Skills needed: easy to end up above a drop."],
+     "src": [
+      {
+       "t": "Whitewater: backcountry, waiver and check-in",
+       "u": "https://whitewatermountainresort.com/ski-ride/mountain/backcountry"
+      },
+      {
+       "t": "Out There Outdoors: Whitewater's backcountry access points",
+       "u": "https://outthereoutdoors.com/the-ultimate-whitewater-ski-trip-resort-runs-backcountry-turns/"
+      },
+      {
+       "t": "OpenStreetMap: the route",
+       "u": "https://www.openstreetmap.org/way/239618380"
+      }
+     ],
+     "g": {
+      "ski": [49.4298,-117.162,49.4306,-117.16307,49.43062,-117.16431,49.43076,-117.16431,49.43082,-117.16471,49.43109,-117.16471,49.4311,-117.16492,49.43141,-117.16512,49.43192,-117.16608,49.43298,-117.16626,49.43377,-117.16654,49.43458,-117.16654,49.43448,-117.16669,49.43462,-117.16669,49.43448,-117.16705,49.43529,-117.16705,49.43521,-117.16721,49.43534,-117.16721,49.43524,-117.16735,49.43537,-117.16735,49.4353,-117.16752,49.43611,-117.16752,49.43599,-117.16761,49.43614,-117.16771,49.43594,-117.16798,49.43621,-117.16798,49.43624,-117.16839,49.43651,-117.16839,49.43652,-117.1686,49.43685,-117.16877,49.43685,-117.16898,49.43699,-117.16898,49.4369,-117.16913,49.43703,-117.16913,49.43692,-117.16924,49.43705,-117.16924,49.43695,-117.16939,49.43709,-117.16939,49.43698,-117.16952,49.43712,-117.16952,49.43701,-117.16964,49.43715,-117.16964,49.43707,-117.16981,49.4372,-117.16981],
+      "up": [49.43507,-117.15485,49.43429,-117.15471,49.43389,-117.15536,49.43324,-117.15474,49.43273,-117.15499,49.4304,-117.15784,49.42995,-117.15895,49.42962,-117.16048,49.42906,-117.1614],
+      "out": [49.4372,-117.16981,49.438,-117.176,49.4407,-117.1825]
+     },
+     "approx": false,
+     "calc": {
+      "top": 1996,
+      "bottom": 1746,
+      "drop": 250,
+      "km": 1.5,
+      "maxSlope": 41,
+      "faces": ["nw"],
+      "k35": 0,
+      "tripKm": 3.4,
+      "climb": 699,
+      "cls": 3,
+      "why": ["0.1 km on slopes of 35° or more", "1.6 km under steep slopes", "0.1 km in gullies or creek beds (terrain traps)"]
+     }
+    }
+   ]
+  },
+  {
+   "id": "red",
+   "name": "RED Mountain",
+   "short": "RED",
+   "lat": 49.1,
+   "lon": -117.872,
+   "box": [49.08,-117.895,49.13,-117.84],
+   "forecast": "Avalanche Canada, Kootenay Boundary",
+   "emergency": "Emergency outside the boundary: 911 (Rossland Search and Rescue).",
+   "rules": ["Backcountry travelers are on their own: no ski patrol and no avalanche control outside the boundary.", "Only for experienced skiers and riders with avalanche training. Carry a transceiver, a probe and a shovel; a helmet and first aid kit are recommended.", "Most terrain past the gate leads AWAY from the resort, to Big Sheep Creek or the old Cascade Highway, many km from the base. Know your way back before you drop.", "Kirkup's cat skiing terrain is in-bounds and swept by ski patrol: it isn't part of this layer."],
+   "links": [
+    {
+     "t": "RED Mountain: backcountry information",
+     "u": "https://redresort.com/?p=568"
+    },
+    {
+     "t": "Backcountry Skiing Canada: Rossland",
+     "u": "https://www.backcountryskiingcanada.com/rossland"
+    },
+    {
+     "t": "Avalanche Canada forecast at Rossland",
+     "u": "https://avalanche.ca/map?lat=49.1&lng=-117.87"
+    }
+   ],
+   "gates": [
+    {
+     "id": "fork",
+     "name": "Silver Sheep gate",
+     "side": "Granite, back side",
+     "lat": 49.1053,
+     "lon": -117.8682,
+     "approx": false,
+     "note": "At the fork of Silver Sheep and Rino's Run, behind Granite Mountain. White Wolf Ridge is a short hike from the gate and Record Ridge is to the south-west (left)."
+    },
+    {
+     "id": "paradise",
+     "name": "From Silver Sheep, Paradise Basin (no gate)",
+     "side": "Paradise",
+     "lat": 49.0951,
+     "lon": -117.8656,
+     "approx": true,
+     "none": true,
+     "note": "RED says Mount Roberts is about a 45-minute hike from Silver Sheep in Paradise Basin."
+    }
+   ],
+   "lines": [
+    {
+     "id": "red-whitewolf",
+     "name": "White Wolf Ridge",
+     "short": "White Wolf",
+     "gate": "fork",
+     "side": "Granite, back side",
+     "kind": "line",
+     "diff": "intermediate",
+     "about": "Simple terrain: open trees from the ridge just above the gate, back down to Silver Sheep and Rino's Run.",
+     "access": "Through the gate, then a short hike north-west up the ridge.",
+     "exit": "The glades come back down to Silver Sheep and Rino's Run inside the resort.",
+     "hazards": ["Don't drop west: the west-facing side leads to Big Sheep Creek, about 40 km from the ski area.", "Simple terrain, but still not controlled."],
+     "src": [
+      {
+       "t": "RED Mountain: backcountry information",
+       "u": "https://redresort.com/?p=568"
+      }
+     ],
+     "g": {
+      "ski": [49.11109,-117.8744,49.11028,-117.87316,49.10705,-117.87069,49.10678,-117.87028,49.10624,-117.86863],
+      "up": [49.1053,-117.8682,49.108,-117.87,49.11112,-117.87457],
+      "out": [49.1062,-117.8688,49.1053,-117.8682]
+     },
+     "approx": false,
+     "calc": {
+      "top": 2011,
+      "bottom": 1885,
+      "drop": 126,
+      "km": 0.7,
+      "maxSlope": 31,
+      "faces": ["e", "ne"],
+      "k35": 0,
+      "tripKm": 1.6,
+      "climb": 157,
+      "cls": 2,
+      "why": ["0.2 km on slopes of 30° or more", "0.7 km under steep slopes"]
+     }
+    },
+    {
+     "id": "red-record",
+     "name": "Record Peak, east bowl",
+     "short": "Record",
+     "gate": "fork",
+     "side": "Granite, back side",
+     "kind": "line",
+     "diff": "expert",
+     "approx": true,
+     "about": "The east face of Record Peak (2,113 m) is a steep, open bowl. The north face is complex, steep and corniced.",
+     "access": "Through the gate, then south-west along Record Ridge to the summit (about 200 m up).",
+     "exit": "From the bottom of the bowl, skin back north-east up to the gate (about 200 m up). All the terrain beyond leads away from the resort, to Big Sheep Creek or the Cascade Highway: it's easy to get lost.",
+     "hazards": ["Steep, open bowl: avalanche terrain.", "Corniced north face.", "Easy to get lost: everything below leads away from RED."],
+     "src": [
+      {
+       "t": "RED Mountain: backcountry information",
+       "u": "https://redresort.com/?p=568"
+      }
+     ],
+     "g": {
+      "ski": [49.0978,-117.8808,49.09835,-117.87992,49.0991,-117.87944,49.09925,-117.87978,49.09937,-117.87969,49.09941,-117.87989,49.09954,-117.87982,49.09957,-117.88002,49.09982,-117.88017,49.09987,-117.88036,49.1,-117.88032,49.10002,-117.88052,49.10084,-117.88114,49.10086,-117.88135,49.10167,-117.88201,49.1026,-117.88345,49.10295,-117.88374,49.10322,-117.88373,49.10333,-117.88385,49.10385,-117.88476,49.10432,-117.88518,49.10447,-117.8855,49.10446,-117.88571,49.10453,-117.88552,49.10445,-117.8857,49.10454,-117.88552,49.10445,-117.8857,49.10454,-117.88552,49.10448,-117.88571],
+      "up": [49.1053,-117.8682,49.1035,-117.874,49.1,-117.879,49.097,-117.8823],
+      "out": [49.10448,-117.88571,49.105,-117.878,49.1053,-117.8682]
+     },
+     "calc": {
+      "top": 2009,
+      "bottom": 1686,
+      "drop": 323,
+      "km": 1.1,
+      "maxSlope": 39,
+      "faces": ["ne"],
+      "k35": 0.1,
+      "tripKm": 3.8,
+      "climb": 617,
+      "cls": 3,
+      "why": ["0.3 km on slopes of 35° or more", "2.0 km under steep slopes", "0.3 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "red-roberts",
+     "name": "Mount Roberts, north chutes",
+     "short": "Roberts",
+     "gate": "paradise",
+     "side": "Paradise",
+     "kind": "line",
+     "diff": "expert",
+     "approx": true,
+     "about": "Steep (about 50° at the summit), with several couloirs from the top of Mount Roberts (1,980 m). The north-facing chutes are complex, steep and corniced.",
+     "access": "About a 45-minute hike from Silver Sheep in Paradise Basin, south up to the summit.",
+     "exit": "The north side comes back down into the bottom of Paradise Basin: traverse to the Paradise chair. Some terrain leads down to the Cascade Highway, about 10 km from the ski area.",
+     "hazards": ["Very steep, corniced chutes.", "A fall in a couloir is serious.", "Lines to the south and east end at the Cascade Highway, far from RED."],
+     "src": [
+      {
+       "t": "RED Mountain: backcountry information",
+       "u": "https://redresort.com/?p=568"
+      }
+     ],
+     "g": {
+      "ski": [49.0882,-117.8598,49.08842,-117.85928,49.08859,-117.8585,49.08898,-117.85794,49.08965,-117.85728,49.09038,-117.85608,49.09105,-117.8548,49.09115,-117.8542,49.09151,-117.8536,49.09183,-117.85225,49.09161,-117.85206,49.0917,-117.85191,49.09158,-117.85182,49.09165,-117.85165,49.09153,-117.85172,49.09165,-117.85163,49.09151,-117.85165,49.0916,-117.8515,49.09148,-117.85143,49.09137,-117.85106,49.09124,-117.85112,49.09134,-117.85098,49.09115,-117.85071],
+      "up": [49.0951,-117.8656,49.0915,-117.864,49.0876,-117.8604],
+      "out": [49.09115,-117.85071,49.0926,-117.8571]
+     },
+     "calc": {
+      "top": 1932,
+      "bottom": 1478,
+      "drop": 453,
+      "km": 0.9,
+      "maxSlope": 45,
+      "faces": ["ne", "e"],
+      "k35": 0.2,
+      "tripKm": 2.4,
+      "climb": 511,
+      "cls": 3,
+      "why": ["0.7 km on slopes of 35° or more", "2.1 km under steep slopes", "0.8 km in gullies or creek beds (terrain traps)"]
+     }
+    }
+   ]
+  },
+  {
+   "id": "fernie",
+   "name": "Fernie Alpine Resort",
+   "short": "Fernie",
+   "lat": 49.456,
+   "lon": -115.115,
+   "box": [49.43,-115.16,49.48,-115.09],
+   "forecast": "Avalanche Canada, Lizard Range and Flathead",
+   "emergency": "Emergency outside the boundary: 911 (Fernie Search and Rescue). Resort dispatch: 250-423-2426.",
+   "rules": ["Ski tourers must leave the resort through one of the 4 backcountry access points: Mammoth Droppings and Lost Boys Pass (south), the top of Snake Ridge (north) and the Polar Peak saddle (west).", "An access point is only open when the lift or terrain leading to it is open. You need a valid lift ticket or pass.", "Uphill travel inside the resort is never allowed.", "There's no avalanche control and no ski patrol outside the boundary.", "Don't go out after the lifts close: cats, winches and avalanche control may be working. Coming back in, follow all resort signs."],
+   "links": [
+    {
+     "t": "Tourism Fernie: backcountry access at Fernie Alpine Resort",
+     "u": "https://elk.tourismfernie.com/activities/ski-touring/backcountry-access-at-fernie-alpine-resort"
+    },
+    {
+     "t": "Fernie trails: Thunder Meadows cabin access",
+     "u": "https://fernietrails.com/thunder-meadows-hut/thunder-meadows-access/"
+    },
+    {
+     "t": "Avalanche Canada forecast at Fernie",
+     "u": "https://avalanche.ca/map?lat=49.46&lng=-115.12"
+    }
+   ],
+   "gates": [
+    {
+     "id": "polar",
+     "name": "Polar Peak saddle access",
+     "side": "Polar Peak",
+     "lat": 49.455,
+     "lon": -115.1224,
+     "approx": true,
+     "note": "West boundary, on the ridge north of Polar Peak (Polar Peak chair; open only when the chair is). Leads to Polaris Bowl, with the backcountry transceiver gate."
+    },
+    {
+     "id": "snake",
+     "name": "Top of Snake Ridge access",
+     "side": "Cedar Bowl",
+     "lat": 49.4701,
+     "lon": -115.126,
+     "approx": true,
+     "note": "North boundary, at the end of the Cedar High Traverse on top of Snake Ridge. Leads to upper Fish Bowl."
+    },
+    {
+     "id": "lostboys",
+     "name": "Lost Boys Pass access",
+     "side": "Timber Bowl",
+     "lat": 49.4362,
+     "lon": -115.1056,
+     "approx": true,
+     "note": "South boundary. Leads to Mammoth Head and Lost Boys Pass. No line drawn yet: we couldn't find where the usual lines go. Locals warn Lost Boys Pass is aptly named: it's easy to end up in the wrong drainage."
+    },
+    {
+     "id": "mammoth",
+     "name": "Mammoth Droppings access",
+     "side": "Timber Bowl",
+     "lat": 49.4358,
+     "lon": -115.096,
+     "approx": true,
+     "note": "South boundary. Leads to Mongolia Ridge (and Siberia and Mongolia bowls, a short skin from Timber Bowl). No line drawn yet: we couldn't find a reliable description of the lines."
+    }
+   ],
+   "lines": [
+    {
+     "id": "fernie-polaris",
+     "name": "Polaris Bowl",
+     "short": "Polaris",
+     "gate": "polar",
+     "side": "Polar Peak",
+     "kind": "tour",
+     "diff": "expert",
+     "approx": true,
+     "about": "From the Polar Peak saddle, west down Polaris Bowl to the valley the Thunder Meadows cabin route calls Easy Street (about 800 m down). It's the start of a tour, not a lap: the valley is on the far side of the ridge from the resort.",
+     "access": "Ride the Polar Peak chair (it opens only on some days), ski to the saddle north of Polar Peak and go through the backcountry transceiver gate.",
+     "exit": "There's no easy way back to the resort: from the valley, skin up to the Thunder Meadows cabin (the usual plan), or skin all the way back up to the saddle. Plan it as a backcountry tour.",
+     "hazards": ["The route crosses many slide paths: a deathtrap when the avalanche danger is high.", "Steep, open slopes under the ridge.", "You end up far from the resort, on the wrong side of the ridge."],
+     "src": [
+      {
+       "t": "Tourism Fernie: backcountry access at Fernie Alpine Resort",
+       "u": "https://elk.tourismfernie.com/activities/ski-touring/backcountry-access-at-fernie-alpine-resort"
+      },
+      {
+       "t": "Fernie trails: Thunder Meadows access (route 1b)",
+       "u": "https://fernietrails.com/thunder-meadows-hut/thunder-meadows-access/"
+      }
+     ],
+     "g": {
+      "ski": [49.4549,-115.12332,49.4549,-115.12581,49.45544,-115.12747,49.45544,-115.1283,49.45624,-115.13079,49.45624,-115.1312,49.45597,-115.13203,49.45786,-115.13783,49.45759,-115.13866,49.45759,-115.14032,49.45247,-115.15608],
+      "up": [49.45106,-115.11923,49.45184,-115.11948,49.45325,-115.12054,49.45357,-115.12059,49.45499,-115.12236],
+      "out": []
+     },
+     "calc": {
+      "top": 1948,
+      "bottom": 1169,
+      "drop": 779,
+      "km": 2.6,
+      "maxSlope": 49,
+      "faces": ["sw", "ne"],
+      "k35": 0.8,
+      "tripKm": 3.1,
+      "climb": 966,
+      "cls": 3,
+      "why": ["1.0 km on slopes of 35° or more", "2.6 km under steep slopes", "0.1 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "fernie-fish",
+     "name": "Upper Fish Bowl",
+     "short": "Fish Bowl",
+     "gate": "snake",
+     "side": "Cedar Bowl",
+     "kind": "line",
+     "diff": "advanced",
+     "approx": true,
+     "about": "From the ridge above the top of Snake Ridge, north-east down the upper Fish Bowl to the old road that leads back into the resort.",
+     "access": "Through the access point at the top of Snake Ridge (end of the Cedar High Traverse), then skin west up the ridge (about 230 m).",
+     "exit": "At the bottom, follow Red Tree Road east back into the resort.",
+     "hazards": ["The traverse across Fish Bowl and 2000 Foot Ridge crosses steep avalanche terrain: ski patrol closes it when the danger is high.", "Steep (up to about 45°) near the top.", "Don't follow the creek past the road: it leads away from the resort."],
+     "src": [
+      {
+       "t": "Tourism Fernie: backcountry access at Fernie Alpine Resort",
+       "u": "https://elk.tourismfernie.com/activities/ski-touring/backcountry-access-at-fernie-alpine-resort"
+      },
+      {
+       "t": "Fernie trails: Thunder Meadows access (route 1a)",
+       "u": "https://fernietrails.com/thunder-meadows-hut/thunder-meadows-access/"
+      }
+     ],
+     "g": {
+      "ski": [49.4704,-115.1381,49.47046,-115.13673,49.47069,-115.13576,49.47102,-115.13486,49.47114,-115.1342,49.47231,-115.13126,49.47342,-115.13117,49.47417,-115.13041,49.47496,-115.12918,49.47541,-115.12799],
+      "up": [49.4701,-115.126,49.4698,-115.13,49.4702,-115.134,49.4704,-115.1381],
+      "out": [49.47541,-115.12799,49.47664,-115.12554,49.477,-115.12459,49.4776,-115.12371,49.47811,-115.12315,49.47814,-115.12266,49.47833,-115.12224,49.47751,-115.12177,49.47663,-115.12154,49.47583,-115.12091,49.47566,-115.12049,49.47573,-115.11932,49.47582,-115.11903,49.4763,-115.11832,49.47731,-115.11725,49.47741,-115.11689,49.47732,-115.11669,49.47687,-115.11668,49.47643,-115.11646,49.4757,-115.11633,49.47384,-115.11644,49.47359,-115.116,49.47383,-115.11381,49.47415,-115.11261,49.47463,-115.11176,49.47521,-115.11103,49.47534,-115.11065,49.47455,-115.10986,49.4744,-115.10959,49.47431,-115.10909]
+     },
+     "calc": {
+      "top": 1841,
+      "bottom": 1290,
+      "drop": 551,
+      "km": 1,
+      "maxSlope": 51,
+      "faces": ["ne", "e"],
+      "k35": 0.3,
+      "tripKm": 4.2,
+      "climb": 693,
+      "cls": 3,
+      "why": ["0.4 km on slopes of 35° or more", "3.0 km under steep slopes", "0.2 km in gullies or creek beds (terrain traps)"]
+     }
+    }
+   ]
+  },
+  {
+   "id": "cypress",
+   "name": "Cypress Mountain",
+   "short": "Cypress",
+   "lat": 49.404,
+   "lon": -123.201,
+   "box": [49.39,-123.215,49.42,-123.185],
+   "forecast": "Avalanche Canada, South Coast",
+   "emergency": "Emergency: 911 (North Shore Rescue).",
+   "rules": ["Cypress is inside a BC Park. From November 1 to May 31, backcountry users must go through the ski area on the Backcountry Access Corridor (BAC), marked by green round signs. The trails beyond are marked by red poles.", "Get a free backcountry access tag at the Brown Bag Room in Black Mountain Lodge before you go.", "BC Parks strongly discourages winter travel along the Howe Sound Crest Trail past Bowen Lookout. Both lines here are past it.", "Never duck the rope at the top of the Sky Chair: the west side drops into the Montizambert drainage, with cliffs and a waterfall.", "Everyone needs a transceiver, a probe and a shovel, and avalanche training. Tell someone your plan."],
+   "links": [
+    {
+     "t": "BC Parks: Cypress Park, Backcountry Access Corridor",
+     "u": "https://bcparks.ca/cypress-park/"
+    },
+    {
+     "t": "Avalanche Canada forecast at Cypress",
+     "u": "https://avalanche.ca/map?lat=49.41&lng=-123.2"
+    }
+   ],
+   "gates": [
+    {
+     "id": "bac",
+     "name": "Backcountry Access Corridor",
+     "side": "Mount Strachan",
+     "lat": 49.404,
+     "lon": -123.2058,
+     "approx": true,
+     "note": "The marked BC Parks route through the ski area, past Bowen Lookout to the Howe Sound Crest Trail and Mount Strachan. Get the free tag at Black Mountain Lodge first."
+    }
+   ],
+   "lines": [
+    {
+     "id": "cypress-christmas",
+     "name": "Christmas Gully",
+     "short": "Christmas Gully",
+     "gate": "bac",
+     "side": "Mount Strachan",
+     "kind": "line",
+     "diff": "expert",
+     "osm": ["w257049134", "w189013164"],
+     "about": "The gully between Mount Strachan's two summits, skied west down to Strachan Meadows on the Howe Sound Crest Trail. Short, steep and narrow.",
+     "access": "From the top of the Sky Chair area, up to the col between the summits of Mount Strachan (outside the ski area: follow the BAC and the red poles, never duck the rope).",
+     "exit": "From Strachan Meadows, follow the Howe Sound Crest Trail south back to Bowen Lookout and the ski area. It's mostly flat with short climbs.",
+     "hazards": ["A gully: a terrain trap where even a small slide piles up deep. A skier who triggered a slide here hit trees and broke a femur; the rescue took a helicopter.", "Steep at the top (40°+).", "Don't drift north or west of the gully: the slopes drop toward Montizambert Creek and cliffs."],
+     "src": [
+      {
+       "t": "BC Parks: Cypress Park, Backcountry Access Corridor",
+       "u": "https://bcparks.ca/cypress-park/"
+      },
+      {
+       "t": "North Shore Rescue: skier caught in a slide in Christmas Gully",
+       "u": "https://squamishchief.com/highlights/north-shore-rescue-saves-out-of-bounds-skier-caught-in-slide-6640269"
+      }
+     ],
+     "g": {
+      "ski": [49.412,-123.19354,49.41241,-123.19526,49.41262,-123.19559,49.41264,-123.19631,49.41312,-123.19701,49.41323,-123.19755,49.41348,-123.19796,49.41345,-123.19819,49.41358,-123.19878,49.41353,-123.20005,49.41343,-123.20019,49.41343,-123.2015,49.41357,-123.20282,49.41386,-123.20344,49.41372,-123.204],
+      "up": [49.4103,-123.196,49.412,-123.19354],
+      "out": [49.41373,-123.20401,49.41392,-123.2039,49.41365,-123.20399,49.41296,-123.20474,49.41244,-123.20504,49.41188,-123.20571,49.41134,-123.20605,49.41084,-123.20617,49.41074,-123.20647,49.40925,-123.20734,49.40891,-123.20736,49.40853,-123.20762,49.40781,-123.20784,49.4073,-123.20917,49.40697,-123.20882,49.40548,-123.20796,49.405,-123.20737,49.40448,-123.20711,49.40423,-123.20684,49.40322,-123.20507]
+     },
+     "approx": false,
+     "calc": {
+      "top": 1400,
+      "bottom": 1068,
+      "drop": 333,
+      "km": 0.8,
+      "maxSlope": 56,
+      "faces": ["w", "sw"],
+      "k35": 0.2,
+      "tripKm": 2.5,
+      "climb": 504,
+      "cls": 3,
+      "why": ["0.6 km on slopes of 35° or more", "2.2 km under steep slopes", "0.7 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "cypress-strachan",
+     "name": "Strachan south summit, west face",
+     "short": "Strachan face",
+     "gate": "bac",
+     "side": "Mount Strachan",
+     "kind": "line",
+     "diff": "expert",
+     "osm": ["w189013160"],
+     "about": "From the south summit of Mount Strachan, the open face skied north-west down to Strachan Meadows. OpenStreetMap marks it \"NOT IN BOUNDS\".",
+     "access": "Up the south summit of Mount Strachan, above the top of the Sky Chair, on the BAC route (never duck the rope).",
+     "exit": "From Strachan Meadows, follow the Howe Sound Crest Trail south back to Bowen Lookout and the ski area.",
+     "hazards": ["Open slope: avalanche terrain, with trees below.", "Two hikers caught in a slide were carried into the Christmas Gully area behind Mount Strachan.", "Coastal snow changes fast: rain crusts and wet slides."],
+     "src": [
+      {
+       "t": "BC Parks: Cypress Park, Backcountry Access Corridor",
+       "u": "https://bcparks.ca/cypress-park/"
+      },
+      {
+       "t": "North Shore Rescue: skier caught in a slide in Christmas Gully",
+       "u": "https://squamishchief.com/highlights/north-shore-rescue-saves-out-of-bounds-skier-caught-in-slide-6640269"
+      },
+      {
+       "t": "North Shore Rescue: rope-ducker found above a cliff in the Montizambert drainage",
+       "u": "https://www.nsnews.com/news/out-of-bounds-snowboarder-rescued-just-metres-from-west-vancouver-mountain-cliff-1.23190489"
+      }
+     ],
+     "g": {
+      "ski": [49.41029,-123.19647,49.41037,-123.19702,49.41304,-123.20212,49.4134,-123.20354,49.41345,-123.2042],
+      "up": [49.4103,-123.196,49.41029,-123.19647],
+      "out": [49.41373,-123.20401,49.41392,-123.2039,49.41365,-123.20399,49.41296,-123.20474,49.41244,-123.20504,49.41188,-123.20571,49.41134,-123.20605,49.41084,-123.20617,49.41074,-123.20647,49.40925,-123.20734,49.40891,-123.20736,49.40853,-123.20762,49.40781,-123.20784,49.4073,-123.20917,49.40697,-123.20882,49.40548,-123.20796,49.405,-123.20737,49.40448,-123.20711,49.40423,-123.20684,49.40322,-123.20507]
+     },
+     "approx": false,
+     "calc": {
+      "top": 1428,
+      "bottom": 1061,
+      "drop": 367,
+      "km": 0.7,
+      "maxSlope": 47,
+      "faces": ["nw", "n"],
+      "k35": 0.2,
+      "tripKm": 2.1,
+      "climb": 499,
+      "cls": 3,
+      "why": ["0.6 km on slopes of 35° or more", "2.0 km under steep slopes", "0.6 km in gullies or creek beds (terrain traps)"]
+     }
+    }
+   ]
+  },
+  {
+   "id": "seymour",
+   "name": "Mount Seymour",
+   "short": "Seymour",
+   "lat": 49.372,
+   "lon": -122.946,
+   "box": [49.36,-122.96,49.39,-122.93],
+   "forecast": "Avalanche Canada, South Coast",
+   "emergency": "Emergency: 911 (North Shore Rescue). Mt Seymour Resorts: 604-986-2261.",
+   "rules": ["There's no lift-served gate: BC Parks sets a ski-touring up-track each winter (mid-December to March 31) from the kiosk at the north end of parking lot P4, near the Mystery Peak chair.", "Navigate by the marker poles (orange bamboo, red plastic). Trail conditions and the avalanche rating are posted at the kiosk.", "Backcountry users park in P1 or lower P5. Post your plan and return time on your dashboard if you park overnight in P1.", "BC Parks: the backcountry here is extremely rugged and the weather changes suddenly. Check avalanche.ca and leave a trip plan."],
+   "links": [
+    {
+     "t": "BC Parks: Mount Seymour Park, winter backcountry routes",
+     "u": "https://bcparks.ca/mount-seymour-park/"
+    },
+    {
+     "t": "Avalanche Canada forecast at Mount Seymour",
+     "u": "https://avalanche.ca/map?lat=49.38&lng=-122.94"
+    }
+   ],
+   "gates": [
+    {
+     "id": "kiosk",
+     "name": "BC Parks kiosk, lot P4",
+     "side": "Mount Seymour Trail",
+     "lat": 49.3684,
+     "lon": -122.9491,
+     "approx": false,
+     "note": "Start of the Mount Seymour Backcountry Access Trail. 7 km return to the saddle between First and Second Pump; about 3 hours on skis."
+    }
+   ],
+   "lines": [
+    {
+     "id": "seymour-pump",
+     "name": "Mount Seymour Backcountry Access Trail to Pump Peak",
+     "short": "Pump Peak",
+     "gate": "kiosk",
+     "side": "Pump Peak",
+     "kind": "tour",
+     "diff": "intermediate",
+     "osm": ["w40172259", "w362010258"],
+     "about": "The BC Parks up-track along the west side of the ski area to the saddle between First and Second Pump (Pump Peak, 1,407 m), then back down the same way.",
+     "access": "From the kiosk at lot P4, skin up the marked trail (about 370 m up).",
+     "exit": "Come back down the same trail. Stay on the marked route: don't drop into the gullies on either side.",
+     "hazards": ["Past Pump Peak toward Tim Jones and Mount Seymour the ridge gets steep and corniced.", "The gullies off the sides lead into the Seymour River or Indian Arm drainages, far from the road.", "Fog is common: easy to lose the poles."],
+     "src": [
+      {
+       "t": "BC Parks: Mount Seymour Park, winter backcountry routes",
+       "u": "https://bcparks.ca/mount-seymour-park/"
+      }
+     ],
+     "g": {
+      "ski": [49.38757,-122.94092,49.38754,-122.94027,49.38745,-122.94007,49.3873,-122.93876,49.38733,-122.93774,49.38726,-122.93732,49.38693,-122.93702,49.38701,-122.9368,49.38692,-122.93676,49.38696,-122.93654,49.38658,-122.93611,49.38661,-122.936,49.38627,-122.93622,49.38605,-122.93614,49.38583,-122.93633,49.38559,-122.93703,49.38527,-122.93739,49.38499,-122.93809,49.38462,-122.93858,49.38424,-122.93887,49.38392,-122.9387,49.38372,-122.9387,49.38365,-122.93883,49.38367,-122.9408,49.38357,-122.9412,49.38297,-122.94107,49.38258,-122.94135,49.38231,-122.94171,49.3821,-122.94157,49.38146,-122.94169,49.38106,-122.94154,49.38172,-122.94166,49.38125,-122.94236,49.38112,-122.94288,49.3806,-122.94346,49.38039,-122.94393,49.38016,-122.94397,49.37995,-122.9442,49.37977,-122.94387,49.37955,-122.94372,49.37927,-122.9431,49.3779,-122.94392,49.37802,-122.94385,49.37776,-122.94486,49.37754,-122.94518,49.37703,-122.94563,49.37679,-122.94554,49.37609,-122.94701,49.37571,-122.94716,49.37518,-122.94792,49.37488,-122.94812,49.37441,-122.94911,49.37371,-122.94967,49.37312,-122.9498,49.37185,-122.94913,49.37122,-122.94898,49.36906,-122.94948,49.36844,-122.94914],
+      "up": [49.36844,-122.94914,49.36906,-122.94948,49.37122,-122.94898,49.37185,-122.94913,49.37312,-122.9498,49.37375,-122.94962,49.37439,-122.94914,49.37493,-122.94804,49.37518,-122.94792,49.3757,-122.94717,49.37607,-122.94702,49.37674,-122.94561,49.37683,-122.94554,49.37701,-122.94573,49.37704,-122.94557,49.37754,-122.94518,49.37778,-122.94478,49.37793,-122.94403,49.37808,-122.94381,49.37796,-122.9439,49.37927,-122.9431,49.37955,-122.94372,49.37977,-122.94387,49.37992,-122.94422,49.38016,-122.94397,49.38039,-122.94393,49.3806,-122.94346,49.38109,-122.94296,49.38125,-122.94236,49.38172,-122.94166,49.38106,-122.94154,49.38146,-122.94169,49.3821,-122.94157,49.38231,-122.94171,49.38276,-122.94118,49.38357,-122.9412,49.38367,-122.9408,49.3837,-122.9395,49.38362,-122.93911,49.3837,-122.93871,49.38424,-122.93887,49.38462,-122.93858,49.38501,-122.93805,49.38525,-122.93742,49.38559,-122.93703,49.38583,-122.93633,49.38605,-122.93614,49.38627,-122.93622,49.38655,-122.93601,49.38696,-122.93654,49.38692,-122.93676,49.387,-122.93679,49.38694,-122.93698,49.387,-122.9371,49.38726,-122.93732,49.38734,-122.93794,49.38729,-122.93873,49.38738,-122.93904,49.38744,-122.94013,49.38757,-122.94042,49.38756,-122.94082],
+      "out": []
+     },
+     "approx": false,
+     "calc": {
+      "top": 1388,
+      "bottom": 1020,
+      "drop": 368,
+      "km": 3.2,
+      "maxSlope": 33,
+      "faces": ["e", "se"],
+      "k35": 0,
+      "tripKm": 6.5,
+      "climb": 497,
+      "cls": 3,
+      "why": ["0.2 km on slopes of 30° or more", "1.3 km under steep slopes"]
+     }
+    }
+   ]
+  },
+  {
+   "id": "sunpeaks",
+   "name": "Sun Peaks",
+   "short": "Sun Peaks",
+   "lat": 50.91,
+   "lon": -119.928,
+   "box": [50.89,-119.96,50.93,-119.9],
+   "forecast": "Avalanche Canada, North Columbia / Thompson",
+   "emergency": "Ski Patrol emergency: 250-578-5521 (they do NOT help outside the boundary; call 911). Grooming (winch cat locations): 250-319-5028.",
+   "rules": ["There are two gated exits for prepared backcountry guests: at the end of First Saddle and at Second Saddle.", "Outside the boundary there's no patrol and no avalanche control. Phone signal is poor or none.", "No uphill travel (skinning, hiking, snowshoeing) inside the ski area boundary.", "Coming back through the resort: be inside by 3:45 pm, because winch cats run on the slopes.", "AST 1 or the same is highly recommended. Don't go alone, and tell someone where you're going and when you'll be back."],
+   "links": [
+    {
+     "t": "Sun Peaks: backcountry safety and gates",
+     "u": "https://sunpeaksresort.com/node/2548"
+    },
+    {
+     "t": "Avalanche Canada forecast at Sun Peaks",
+     "u": "https://avalanche.ca/map?lat=50.91&lng=-119.93"
+    }
+   ],
+   "gates": [
+    {
+     "id": "first",
+     "name": "First Saddle gate",
+     "side": "Mount Tod",
+     "lat": 50.914,
+     "lon": -119.9305,
+     "approx": true,
+     "note": "At the end of First Saddle, near the entrance to Main Face and Offset. Leads west onto the open slopes below Mount Tod's summit (2,131 m). No line drawn: we found no published description of the lines."
+    },
+    {
+     "id": "second",
+     "name": "Second Saddle gate",
+     "side": "West Bowl",
+     "lat": 50.9078,
+     "lon": -119.93,
+     "approx": true,
+     "note": "Between Skunk and the top of the old West Bowl T-bar. Leads west, outside the boundary. No line drawn: we found no published description of the lines."
+    }
+   ],
+   "lines": []
+  },
+  {
+   "id": "louise",
+   "name": "Lake Louise Ski Resort",
+   "short": "Lake Louise",
+   "lat": 51.45,
+   "lon": -116.105,
+   "box": [51.43,-116.12,51.47,-116.07],
+   "forecast": "Avalanche Canada, Banff Yoho Kootenay (Parks Canada)",
+   "emergency": "Emergency: 911 (Parks Canada visitor safety). There's no phone signal in most of the backcountry here.",
+   "rules": ["This is Banff National Park: outside the ski area there's no patrol and no avalanche control. Read the Parks Canada avalanche forecast first.", "Uphill travel inside the ski area is only allowed on the signed route from the Ski Out toward Temple and Skoki.", "Everyone needs a transceiver, a probe, a shovel and skins, plus avalanche training. Yamnuska runs guided tours into these bowls from the resort."],
+   "links": [
+    {
+     "t": "Lake Louise: backcountry tours (Yamnuska), the bowls past the boundary",
+     "u": "https://www.skilouise.com/tickets-passes/other-products/backcounrty-ski-tours/"
+    },
+    {
+     "t": "Parks Canada: Banff avalanche and backcountry safety",
+     "u": "https://parks.canada.ca/pn-np/ab/banff/activ/hiver-winter/avalanche"
+    },
+    {
+     "t": "Avalanche Canada forecast at Lake Louise",
+     "u": "https://avalanche.ca/map?lat=51.45&lng=-116.1"
+    }
+   ],
+   "gates": [
+    {
+     "id": "temple",
+     "name": "Temple exit (Skoki up-track)",
+     "side": "Temple",
+     "lat": 51.45,
+     "lon": -116.1115,
+     "approx": true,
+     "note": "By Temple Lodge, at the bottom of the Larch area. Skin tracks leave here east to Purple Bowl (Purple Mound route) and north up the Skoki ski route toward Boulder Pass and Redoubt."
+    }
+   ],
+   "lines": [
+    {
+     "id": "louise-purple",
+     "name": "Purple Bowl, from Purple Mound",
+     "short": "Purple Bowl",
+     "gate": "temple",
+     "side": "Purple Mound",
+     "kind": "line",
+     "diff": "advanced",
+     "approx": true,
+     "osm": ["w671128754"],
+     "about": "From the top of Purple Mound (2,622 m), north down Purple Bowl, the valley between Wolverine Ridge and Unity Peak, back to the up-track.",
+     "access": "From Temple, skin east around the north end of Wolverine Ridge into Purple Bowl, keep just right of the creek and climb the ramp at the end of the valley to the summit (about 600 m up, 2-3 hours). A shorter, steeper way goes up from the ski area through the col between Purple Mound and Wolverine Ridge.",
+     "exit": "Follow the up-track back west around Wolverine Ridge to Temple, then ride the lifts or take the Ski Out.",
+     "hazards": ["Slopes below the summit and the ramp are avalanche terrain.", "Sun-crust on south slopes in spring.", "Wind slabs on the lee side of Wolverine Ridge."],
+     "src": [
+      {
+       "t": "Lake Louise: backcountry tours (Yamnuska), the bowls past the boundary",
+       "u": "https://www.skilouise.com/tickets-passes/other-products/backcounrty-ski-tours/"
+      },
+      {
+       "t": "Trip report: Purple Mound and Lipalian from the ski resort",
+       "u": "https://explor8ion.com/trips/purple-mound-lipalian-mountain/"
+      }
+     ],
+     "g": {
+      "ski": [51.43203,-116.08381,51.43364,-116.08381,51.43472,-116.08467,51.43634,-116.08467,51.43688,-116.0851,51.43849,-116.0851,51.44712,-116.09202],
+      "up": [51.45135,-116.11036,51.45205,-116.10842,51.4523,-116.10679,51.45222,-116.10587,51.45235,-116.10443,51.45279,-116.10149,51.45251,-116.10075,51.45141,-116.09917,51.45085,-116.09784,51.44891,-116.09486,51.44825,-116.09439,51.44714,-116.09207,51.44598,-116.09001,51.44504,-116.08772,51.44405,-116.08774,51.44338,-116.08727,51.44329,-116.08578,51.44197,-116.0856,51.4393,-116.0856,51.4387,-116.08613,51.4376,-116.08798,51.4371,-116.08782,51.43566,-116.08667,51.43491,-116.08652,51.43396,-116.08612,51.43339,-116.0855,51.43285,-116.08512,51.43268,-116.08482],
+      "out": [51.44714,-116.09207,51.44825,-116.09439,51.44891,-116.09486,51.45085,-116.09784,51.45141,-116.09917,51.45251,-116.10075,51.45279,-116.10149,51.45235,-116.10443,51.45222,-116.10587,51.4523,-116.10679,51.45205,-116.10842,51.45135,-116.11036]
+     },
+     "calc": {
+      "top": 2631,
+      "bottom": 2241,
+      "drop": 390,
+      "km": 1.8,
+      "maxSlope": 25,
+      "faces": [],
+      "k35": 0,
+      "tripKm": 6.9,
+      "climb": 599,
+      "cls": 2,
+      "why": ["0.9 km under steep slopes"]
+     }
+    },
+    {
+     "id": "louise-redoubt",
+     "name": "Redoubt Bowl",
+     "short": "Redoubt Bowl",
+     "gate": "temple",
+     "side": "Redoubt Mountain",
+     "kind": "tour",
+     "diff": "expert",
+     "approx": true,
+     "osm": ["w264666969", "w362500804"],
+     "about": "The bowl on the west side of Redoubt Mountain (2,902 m), on the way to Boulder Pass. A popular ski descent; the line follows the summer route of the peak, so it's only a guide.",
+     "access": "From Temple, skin up the Skoki ski route north, then east up Redoubt's west side (about 800 m up).",
+     "exit": "Ski back down to the Skoki route and follow it south to Temple.",
+     "hazards": ["Big alpine terrain above the Skoki route: slides can reach the track below.", "Steep near the top, with cliffs.", "A full ski tour: plan a whole day."],
+     "src": [
+      {
+       "t": "Lake Louise: backcountry tours (Yamnuska), the bowls past the boundary",
+       "u": "https://www.skilouise.com/tickets-passes/other-products/backcounrty-ski-tours/"
+      },
+      {
+       "t": "Trip report: Purple Mound and Lipalian from the ski resort",
+       "u": "https://explor8ion.com/trips/purple-mound-lipalian-mountain/"
+      },
+      {
+       "t": "SummitPost: Redoubt Mountain",
+       "u": "https://www.summitpost.org/mountain/rock/213959/redoubt-mountain.html"
+      }
+     ],
+     "g": {
+      "ski": [51.46708,-116.08111,51.4667,-116.08116,51.46631,-116.08089,51.46622,-116.08119,51.46612,-116.08122,51.46595,-116.08197,51.46602,-116.08243,51.46595,-116.08322,51.46633,-116.08354,51.46618,-116.08396,51.46599,-116.0841,51.46588,-116.08437,51.46584,-116.08519,51.46601,-116.0861,51.4664,-116.08658,51.46668,-116.08748,51.46641,-116.08858,51.46618,-116.08886,51.46599,-116.08978,51.46577,-116.09032,51.4658,-116.09152,51.46569,-116.09225,51.46578,-116.09251,51.46571,-116.09278,51.46545,-116.09306,51.46531,-116.09281,51.4646,-116.09341,51.46434,-116.09418,51.46425,-116.09479,51.46399,-116.09532,51.46387,-116.09665,51.46374,-116.0971,51.46296,-116.09684,51.46266,-116.09751,51.46238,-116.09739,51.46215,-116.09753,51.462,-116.09745,51.46194,-116.09909,51.46206,-116.09991,51.46245,-116.10084,51.46288,-116.10257,51.46307,-116.10273,51.46309,-116.10309,51.46331,-116.10325,51.46329,-116.10342],
+      "up": [51.44934,-116.11221,51.44979,-116.11197,51.45196,-116.10979,51.45242,-116.10995,51.45263,-116.10988,51.45491,-116.10794,51.45643,-116.10704,51.45738,-116.10652,51.45952,-116.10596,51.46336,-116.10415,51.46333,-116.1033,51.46309,-116.10309,51.46312,-116.10277,51.46288,-116.10257,51.46245,-116.10084,51.46206,-116.09991,51.46194,-116.09909,51.462,-116.09745,51.46266,-116.09751,51.46296,-116.09684,51.46374,-116.0971,51.46387,-116.09665,51.46399,-116.09532,51.46425,-116.09479,51.46434,-116.09418,51.46457,-116.09347,51.46531,-116.09281,51.46545,-116.09306,51.46571,-116.09278,51.46578,-116.09251,51.46569,-116.09204,51.4658,-116.09152,51.46577,-116.09032,51.46599,-116.08978,51.46618,-116.08886,51.4664,-116.08864,51.46668,-116.08748,51.46642,-116.08662,51.46601,-116.0861,51.46584,-116.08519,51.46588,-116.08437,51.46599,-116.0841,51.46618,-116.08396,51.46633,-116.08354,51.46597,-116.08328,51.46602,-116.08243,51.46595,-116.08197,51.4661,-116.08129,51.46629,-116.08107,51.46631,-116.08089,51.4667,-116.08116,51.46708,-116.08111],
+      "out": [51.46336,-116.10415,51.45952,-116.10596,51.45738,-116.10652,51.45643,-116.10704,51.45491,-116.10794,51.45263,-116.10988,51.45242,-116.10995,51.45196,-116.10979,51.44979,-116.11197,51.44934,-116.11221]
+     },
+     "calc": {
+      "top": 2815,
+      "bottom": 2123,
+      "drop": 692,
+      "km": 2.2,
+      "maxSlope": 38,
+      "faces": ["sw"],
+      "k35": 0.4,
+      "tripKm": 7.7,
+      "climb": 803,
+      "cls": 3,
+      "why": ["0.7 km on slopes of 35° or more", "2.8 km under steep slopes"]
+     }
+    }
+   ]
+  },
+  {
+   "id": "shames",
+   "name": "Shames Mountain",
+   "short": "Shames",
+   "lat": 54.493,
+   "lon": -128.965,
+   "box": [54.48,-128.99,54.51,-128.94],
+   "forecast": "Avalanche Canada, Northwest Coastal",
+   "emergency": "Emergency outside the boundary: 911 (Terrace Search and Rescue). Shames Ski Patrol only looks after people inside the boundary.",
+   "rules": ["Shames' out-of-bounds terrain isn't patrolled: the ski patrol only covers the marked ski area.", "Use the beacon check gate before you leave, and carry a transceiver, a probe and a shovel (Shames rents them, plus touring gear).", "The resort recommends Avalanche Skills Training, up-to-date gear and the fitness to get yourself out, and reading the avalanche forecast before you leave the boundary.", "Shames sells single-ride tickets and an uphill season pass for backcountry users."],
+   "links": [
+    {
+     "t": "Stellar: Shames Mountain, the slackcountry off the T-bar",
+     "u": "https://stellarequipment.com/ca/interstellar/places/shames-mountain-canada"
+    },
+    {
+     "t": "Avalanche Canada forecast at Shames",
+     "u": "https://avalanche.ca/map?lat=54.49&lng=-128.97"
+    }
+   ],
+   "gates": [
+    {
+     "id": "tbar",
+     "name": "Beacon check gate, top of the Red T-Bar",
+     "side": "Top of the T-Bar",
+     "lat": 54.4992,
+     "lon": -128.9645,
+     "approx": true,
+     "note": "Going left from the top of the T-bar drops into the out-of-bounds glades, called some of the best slackcountry in North America. From the top of the ski area people also skin toward the Dome and North Bowl. No lines drawn yet: we found no reliable description of where they go."
+    }
+   ],
+   "lines": []
   }
  ]
 }

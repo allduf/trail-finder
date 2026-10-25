@@ -1,5 +1,5 @@
 // Slackcountry in Skiing (alex 2026-10-25: "find all the slack country line on whistler blackcomb and add a layer with
-// slack-country in resort"): the lines skied from the lifts that leave the ski area through a backcountry gate. On the
+// slack-country in resort", then "find all the slackcountry data that you can for every resort"): the lines skied from the lifts that leave the ski area through a backcountry gate. On the
 // flat map and the 3D map (map3d.js copies the lines; the gates and names are 3D markers too):
 //  - each descent as a solid red line on a white edge, the way up from the gate dashed, the way back dotted orange
 //  - the gates (red), and where a line leaves without a gate (grey)
@@ -7,7 +7,8 @@
 //    the way up, the descent (drop, steepest slope, which way it faces), the terrain class (estimated from the terrain,
 //    like ATES) with today's go/caution light when the avalanche forecast is loaded, the way back, what to watch for,
 //    and the sources
-//  - zoomed out, one pin per resort that opens its list of lines, by gate
+//  - zoomed out (zoom 8 to 11), one pin per resort in view that opens its list of lines, by gate (gates with no line
+//    drawn yet are listed too, with where they lead)
 // Data: data/slackcountry.json, hand-kept, one entry per resort, so other resorts are added there with no code change
 // (scripts/build-slackcountry.mjs adds the terrain numbers). A "Slackcountry" switch in the Resorts group of the Skiing
 // layers turns it on and off (tf:skiSlack).
@@ -25,7 +26,7 @@
   const CLS = { 1: { label: "Simple", color: "#2f9e44" }, 2: { label: "Challenging", color: "#1971c2" }, 3: { label: "Complex", color: "#1a1a1a" } };
   const DIFF = { intermediate: "■ Intermediate", advanced: "◆ Advanced", expert: "◆◆ Expert" };
   const FACE = { n: "north", ne: "north-east", e: "east", se: "south-east", s: "south", sw: "south-west", w: "west", nw: "north-west" };
-  const NAMES_Z = 13, LINES_Z = 12;   // names from zoom 13; the lines from 12 (below that, one pin per resort)
+  const NAMES_Z = 13, LINES_Z = 12, RESORT_Z = 8;   // names from zoom 13; the lines from 12 (below that, one pin per resort)
 
   const css = document.createElement("style");
   css.textContent = `
@@ -33,7 +34,7 @@
 .sc-pin.on { background: #ffe14d; color: #111; }
 .sc-gate { box-sizing: border-box; display: inline-flex; align-items: center; gap: 3px; padding: 3px 7px; border-radius: 6px; background: ${C.gate}; color: #fff; border: 2px solid #fff; box-shadow: 0 1px 4px #0008; font: 800 10px/1.2 system-ui, sans-serif; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; cursor: pointer; transform: translate(-50%, -50%); }
 .sc-gate.none { background: ${C.none}; }
-.sc-resort { box-sizing: border-box; display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: ${C.ski}; color: #fff; border: 2px solid #fff; box-shadow: 0 1px 4px #0008; font: 700 12px/1.2 system-ui, sans-serif; white-space: nowrap; cursor: pointer; transform: translate(-50%, -50%); }
+.sc-resort { box-sizing: border-box; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; background: ${C.ski}; color: #fff; border: 2px solid #fff; box-shadow: 0 1px 4px #0008; font: 700 11px/1.2 system-ui, sans-serif; white-space: nowrap; cursor: pointer; transform: translate(-50%, -50%); }
 #skiPane .sc-open { font: inherit; font-size: .88rem; font-weight: 700; padding: 10px 8px; border-radius: 12px; border: 1px solid ${C.ski}; background: color-mix(in srgb, ${C.ski} 10%, var(--chip)); color: var(--fg); cursor: pointer; width: 100%; }
 dialog.sc-dlg { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--fg); padding: 16px; width: min(620px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,.3); font: inherit; font-size: .92rem; box-sizing: border-box; }
 dialog.sc-dlg::backdrop { background: rgba(0,0,0,.55); }
@@ -94,11 +95,16 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
     return loading;
   }
   const resorts = () => (doc ? doc.resorts || [] : []);
-  const near = () => resorts().filter((rs) => map.getBounds().intersects(rs.bounds));
+  // The resorts in view, the one nearest the middle of the map first (the panel button opens its list).
+  const near = () => {
+    const c = map.getCenter();
+    return resorts().filter((rs) => map.getBounds().intersects(rs.bounds)).sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter()));
+  };
 
   // ---------- map ----------
   map.createPane("slack").style.zIndex = 425;   // over the ski routes (420), so the line that's tapped is this one
   const renderer = L.canvas({ pane: "slack", padding: 0.3, tolerance: L.Browser.touch ? 10 : 5 });
+  if (window.tfSkiTapThrough) window.tfSkiTapThrough(renderer);   // so the ski routes below still take taps (winter.js)
   const layer = L.layerGroup(), pins = L.layerGroup();
   let sel = null, glMarkers = [];
   const shown = () => on && isSki() && !!doc;
@@ -120,7 +126,9 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
     };
     for (const rs of resorts()) {
       if (z < LINES_Z) {
-        add(rs.lat, rs.lon, `<span class="sc-resort">⛷ Slackcountry · ${rs.lines.length} lines</span>`, `${rs.name}: slackcountry lines from the lifts`, () => openList(rs));
+        // One pin per resort, only once zoomed in to a region (zoomed out to Canada they'd pile up), and only in view.
+        if (z < RESORT_Z || !map.getBounds().pad(0.2).contains([rs.lat, rs.lon])) continue;
+        add(rs.lat, rs.lon, `<span class="sc-resort">⛷ ${esc(rs.short || rs.name)} · ${nLines(rs)}</span>`, `${rs.name}: slackcountry lines from the lifts`, () => openList(rs));
         continue;
       }
       if (!map.getBounds().pad(0.5).intersects(rs.bounds)) continue;
@@ -151,7 +159,7 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
     if (gl.style && (gl.style._loaded || gl.isStyleLoaded())) draw(); else { gl.once("style.load", draw); gl.once("load", draw); }
   });
   let zBand = 0;
-  const bandOf = (z) => (z < LINES_Z ? 0 : z < NAMES_Z ? 1 : 2);
+  const bandOf = (z) => (z < RESORT_Z ? -1 : z < LINES_Z ? 0 : z < NAMES_Z ? 1 : 2);
   map.on("zoomend", () => { const b = bandOf(map.getZoom()); if (b !== zBand) { zBand = b; if (shown()) draw(); } });
   let nearKey = "";
   map.on("moveend", () => {
@@ -226,7 +234,7 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
     const lines = rs.lines.filter((l) => l.gate === g.id || l.ret === g.id);
     dlg.innerHTML = `<button type="button" class="sc-x" aria-label="Close">✕</button>
       <h2>${esc(g.name)}</h2>
-      <p class="sc-sub">${esc(rs.name)}, ${esc(g.side)}${g.approx ? " · placed roughly from the trail map" : ""}</p>
+      <p class="sc-sub">${esc(rs.name)}, ${esc(g.side)}${g.approx ? " · placed roughly" : ""}</p>
       ${warnHtml(rs)}
       <p>${esc(g.note)}</p>
       <div class="sc-list">${lines.length ? `<h4>Lines from here</h4>${lines.map(rowHtml).join("")}` : ""}</div>
@@ -244,19 +252,22 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
   };
   const wireRows = (rs) => dlg.querySelectorAll("[data-line]").forEach((b) => (b.onclick = () => open(rs.lines.find((l) => l.id === b.dataset.line))));
 
+  function nLines(rs) { const n = rs.lines.length, g = rs.gates.length; return n ? `${n} line${n > 1 ? "s" : ""}` : `${g} gate${g > 1 ? "s" : ""}`; }
+
   // ---------- a resort's lines, by gate ----------
   function openList(rs) {
     dlg.innerHTML = `<button type="button" class="sc-x" aria-label="Close">✕</button>
       <h2>Slackcountry at ${esc(rs.name)}</h2>
-      <p class="sc-sub">${rs.lines.length} lines skied from the lifts through the backcountry gates. Tap one for its gate, way up, way back and avalanche terrain.</p>
+      <p class="sc-sub">${rs.lines.length ? `${nLines(rs)} skied from the lifts through the backcountry gates. Tap one for its gate, way up, way back and avalanche terrain.` : "The backcountry gates. No lines drawn yet: we found no reliable description of where they go."}</p>
       ${warnHtml(rs)}
       <div class="sc-list">${rs.gates.map((g) => {
         const ls = rs.lines.filter((l) => l.gate === g.id);
-        return ls.length ? `<h4>${esc(g.name)}</h4><p class="sc-small">${esc(g.note)}</p>${ls.map(rowHtml).join("")}` : "";
+        // A gate with no line drawn yet still shows, with where it leads.
+        return `<h4>${esc(g.name)}</h4><p class="sc-small">${esc(g.note)}</p>${ls.map(rowHtml).join("")}`;
       }).join("")}</div>
       <h3>Before you go</h3><ul>${(rs.rules || []).map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
       <h3>Links</h3><ul>${(rs.links || []).map((s) => `<li>${linkHtml(s)}</li>`).join("")}</ul>
-      <p class="sc-small">Terrain classes are estimated from the terrain (like ATES), not official ratings. Gate spots are placed roughly from the resort's trail map.</p>`;
+      <p class="sc-small">Terrain classes are estimated from the terrain (like ATES), not official ratings. Gate spots are placed roughly from the resort's maps and descriptions.</p>`;
     dlg.querySelector(".sc-x").onclick = () => dlg.close();
     wireRows(rs);
     if (!dlg.open) dlg.showModal();
@@ -314,7 +325,7 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
   function placeList() {
     const rs = on && isSki() ? near()[0] : null;
     listBtn.hidden = !rs;
-    if (rs) listBtn.textContent = `⛷ Slackcountry at ${rs.name} (${rs.lines.length} lines)`;
+    if (rs) listBtn.textContent = `⛷ Slackcountry at ${rs.name} (${nLines(rs)})`;
     if (!listBtn.isConnected) { const acts = document.querySelector("#skiPane .sk-acts"); if (acts) acts.after(listBtn); }
   }
   listBtn.addEventListener("click", () => { const rs = near()[0]; if (rs) openList(rs); });
