@@ -13,7 +13,7 @@
 // Pictures found or taught by their spot run with their area picked ("area given"), as a rider would for a photo in the woods.
 // When nothing places a picture and the app asks "Where was it taken?", the test answers with the picture's area like a
 // rider would ("asked where"), and the list after that answer is the result.
-// Pictures taught from Instagram videos (details.from "instagram": 4 shots of the trail in one picture) are only
+// Pictures taught from videos (details.from "instagram", "facebook"...: 4 shots of the trail in one picture) are only
 // references, never test pictures: a rider never searches with one.
 // The page is served from this checkout on localhost (the function lets localhost in); files it doesn't have
 // (nightly data kept elsewhere) come from the live site.
@@ -41,6 +41,8 @@ async function supa(path) {
   if (!r.ok) throw new Error(`Supabase ${path.split("?")[0]}: HTTP ${r.status} ${(await r.text()).slice(0, 200)}`);
   return r;
 }
+// Where pictures taught from a video link come from (details.from): references only, never test pictures.
+const REELS = new Set(["instagram", "facebook", "youtube", "tiktok"]);
 const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
 // ---------- the test pictures ----------
@@ -49,7 +51,7 @@ const rows = await (await supa("/rest/v1/trail_matches?select=id,trail_name,zone
 const km = (a, b) => Math.hypot(a.lat - b.lat, (a.lon - b.lon) * Math.cos(a.lat * Math.PI / 180)) * 111.2;
 const perTrail = [];
 for (const r of rows) {
-  if (r.src === "instagram") continue;
+  if (REELS.has(r.src)) continue;
   const i = perTrail.findIndex((x) => norm(x.trail_name) === norm(r.trail_name) && (x.lat == null || r.lat == null || km(x, r) < 5));
   if (i < 0) perTrail.push(r);
   else if (perTrail[i].method === "gps" && r.method !== "gps") perTrail[i] = r;
