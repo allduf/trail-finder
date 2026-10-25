@@ -111,7 +111,7 @@ for (const [i, c] of cases.entries()) {
       const t1 = await page.evaluate(() => window.tfPhotoTest.finished);
       const chip = page.locator(`#pfAreas [data-z="${c.zone}"]`);
       c.asked = (await chip.count()) ? await chip.click().then(() => true, () => false)
-        : await page.selectOption("#pfArea", c.zone, { timeout: 3000 }).then((v) => v.length > 0 && page.click("#pfGo").then(() => true), () => false);
+        : await page.selectOption("#pfArea", c.zone, { timeout: 3000 }).then((v) => v.length > 0 && page.click("#pfGo").then(() => true, () => false), () => false);
       if (c.asked) await page.waitForFunction((t) => window.tfPhotoTest.finished > t, t1, { timeout: WAIT_MS, polling: 1000 }).catch(() => { err = "didn't finish in time"; });
     }
     got = await page.evaluate(() => window.tfPhotoTest.result || null);
