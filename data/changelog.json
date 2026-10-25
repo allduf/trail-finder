@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-25", "text": "Fishing: tap a spot, pick how you fish (fly, lures, bait, trolling or ice) and see what to use for each fish there, matched to what they eat in that water this season"},
     {"date": "2026-10-25", "text": "Fishing is easier to read: each part of a spot is one short line you tap to open, and a new layer shows public fishing spots, piers and boat launches all over Canada"},
     {"date": "2026-10-25", "text": "The app reopens on the map you left it on: 3D or flat, and the same photos, in each sport"},
     {"date": "2026-10-25", "text": "Faster map: it now fills in while you pan instead of after you stop, satellite photos come in quicker, and 3D opens faster and tilts up to the mountains and sky"},
