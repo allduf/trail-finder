@@ -635,9 +635,11 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       ai: seen ? { model: seen.model || "", places: seen.places, landmarks: seen.landmarks, views: seen.views || [], terrain: seen.terrain || [], guesses: seen.guesses.map((g) => g.trail), vp: seen.viewpoint || null,
         rev: seen.online ? seen.online.error || `${(seen.online.pages || []).length} pages` : "off" } : null };
     // The pages that show the same picture online (reverse image search): their titles and addresses count like a caption.
+    // Not Google's tags for the picture (its best guess and the things it links to it): they say what it shows, not what
+    // it's called. 2026-10-25: "Hybrid bicycle" made Squamish's Hybrid the Best match for an Out There picture from
+    // Whistler, "Cross-country cycling" listed Cross, and "Mountain bike" Mountain Dyke and Burke Mountain.
     const on = seen && seen.online, pages = on && Array.isArray(on.pages) ? on.pages : [];
-    const rev = pages.map((p) => { let path = ""; try { const u = new URL(p.url); path = decodeURIComponent(u.pathname + " " + (u.searchParams.get("v") ? "" : u.search)); } catch {} return p.title + "\n" + path.replace(/[-_/.+=&?]+/g, " "); })
-      .concat(on ? [...(on.labels || []), ...(on.entities || [])] : []).join("\n");
+    const rev = pages.map((p) => { let path = ""; try { const u = new URL(p.url); path = decodeURIComponent(u.pathname + " " + (u.searchParams.get("v") ? "" : u.search)); } catch {} return p.title + "\n" + path.replace(/[-_/.+=&?]+/g, " "); }).join("\n");
     $("pfAi").hidden = !seen && !aiWhy;
     $("pfAi").textContent = seen && !seen.scene && pages.length ? "" : seen ? `The AI sees${seen.ms ? ` (${Math.round(seen.ms / 1000)} s)` : ""}: ` + seen.scene + (seen.landmarks.length ? ` Landmarks: ${seen.landmarks.join(", ")}.` : "") + (seen.viewpoint && seen.viewpoint.where ? ` Taken around: ${seen.viewpoint.where}.` : "")
       : aiWhy ? `AI check skipped (${aiWhy}): matching the words, your description and landmarks.` : "";
@@ -817,6 +819,16 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   const PART = new Set(["upper", "lower", "middle", "top", "bottom"]);
   const words = (s) => F.norm(s).split(" ").filter(Boolean).map((w) => SAME[w] || w);
   const core = (ws) => { const c = ws.filter((w) => !STOP.has(w)); return c.length ? c : ws; };
+  // A near miss holding an everyday word that isn't in the name is those words, not the name misread: "mountain bike" and
+  // #mountainbike aren't Mountain Dyke, "on mountain" isn't Fox Mountain ("sun peak" is still Sun Peaks, "mount curry"
+  // Mount Currie). run: the words found; ws: the name's.
+  const EVERYDAY = new Set([...GENERIC, ..."a an on in at to my me we us it is be by up so no or as if do go am are was were has had not but for you our out off all any can its his her him she he one two get got let now too yes".split(" ")]);
+  const otherWords = (run, ws) => {
+    let parts = run;
+    for (let i = 2; parts.length === 1 && i < run[0].length - 1; i++) if (EVERYDAY.has(run[0].slice(0, i)) && EVERYDAY.has(run[0].slice(i))) parts = [run[0].slice(0, i), run[0].slice(i)];
+    const same = (a, b) => a === b || a + "s" === b || a === b + "s";
+    return parts.some((w) => EVERYDAY.has(w) && !ws.some((x) => same(w, x)));
+  };
   // A name with the little words and spaces gone: "In-N-Out Burger" and "In and Out Burger" are both "inoutburger".
   const LOOSE = new Set([...STOP, "n", "a"]);
   const loose = (s) => F.norm(s).split(" ").filter((w) => w && !LOOSE.has(w)).join("");
@@ -934,9 +946,11 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     tokens.forEach((t, i) => { pre.push(pre[i] + t); });
     const joins = (i, n) => pre[i + n].slice(pre[i].length);
     const tokenSet = new Set(tokens);
+    // Where a name is in the words (not other everyday words that nearly spell it).
+    const nameIn = (ws) => { const h = findIn(tokens, ws, joins); return h && !(h.d && otherWords(tokens.slice(h.at, h.at + h.n), ws)) ? h : null; };
     // Places first: they say which areas to look in first, and lift trails there.
     const pl = await placeList();
-    let found = pl.map((p) => ({ ...p, hit: findIn(tokens, p.ws, joins) })).filter((p) => p.hit);
+    let found = pl.map((p) => ({ ...p, hit: nameIn(p.ws) })).filter((p) => p.hit);
     const pick = $("pfArea").value;
     const picked = pick ? zonesOf(pick) : [];
     const here = F.regionHere().zones;
@@ -961,7 +975,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         const join = ws.join("");
         if (join.length < 4 || /^\d+$/.test(join)) continue;
         if (ws.length === 1 && GENERIC.has(join)) continue;
-        const hit = findIn(tokens, ws, joins);
+        const hit = nameIn(ws);
         if (!hit) continue;
         let s;
         if (ws.length === 1) { if (hit.d) continue; s = join.length >= 8 ? 0.85 : 0.75; }    // one word: only exact
@@ -1045,7 +1059,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const areas = found.filter((p) => p.c), aiLm = new Set(aiSeen ? aiSeen.landmarks.map((n) => F.norm(n)) : []);
     (await landmarkList()).forEach((l) => {
       if (areas.some((p) => F.norm(p.label) === F.norm(l.name)) && !aiLm.has(F.norm(l.name))) return;
-      if ([l.ws, ...l.akaWs].some((ws) => findIn(tokens, ws, joins))) named.push(l);
+      if ([l.ws, ...l.akaWs].some((ws) => nameIn(ws))) named.push(l);
       else if (areaZones.size && l.zones.some((id) => areaZones.has(id))) {
         // Described, not named: the landmark whose description fits best ("big granite wall" beats "granite").
         const fit = l.looksWs.filter((ws) => findIn(tokens, ws, joins)).reduce((m, ws) => Math.max(m, ws.join("").length), 0);
