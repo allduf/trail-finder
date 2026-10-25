@@ -859,7 +859,25 @@ button.btn.box-btn { width: 100%; margin: 2px 0 8px; }
 .box-row-btns .box-draw { flex: 1; }
 button.btn.reset-btn { width: 100%; margin: 6px 0 0; }
 button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-.leaflet-container.drawing { cursor: crosshair; touch-action: none; }
+.box-head:has(.box-acts) { flex-wrap: wrap; }
+.box-head > div { flex: 1 1 14em; }
+.box-head .box-acts { display: flex; gap: 16px; margin-left: auto; }
+/* the square to frame trails: big corners to drag, the map moves under it, a bar to finish */
+.box-frame { position: absolute; inset: 0; z-index: 450; pointer-events: none; }
+.box-frame[hidden] { display: none; }
+.box-sq { position: absolute; border: 3px dashed var(--accent); border-radius: 4px; box-shadow: 0 0 0 9999px rgba(10, 20, 14, .28); }
+.box-sq.moving { border-style: solid; }
+.box-h { position: absolute; width: 56px; height: 56px; margin: -28px; padding: 0; border: 0; background: none; pointer-events: auto; touch-action: none; cursor: nwse-resize; display: grid; place-items: center; }
+.box-h[data-c="ne"], .box-h[data-c="sw"] { cursor: nesw-resize; }
+.box-h i { width: 26px; height: 26px; border-radius: 50%; background: #fff; border: 4px solid var(--accent); box-shadow: 0 2px 8px rgba(0, 0, 0, .35); }
+.box-h[data-c="nw"] { left: 0; top: 0; } .box-h[data-c="ne"] { left: 100%; top: 0; }
+.box-h[data-c="sw"] { left: 0; top: 100%; } .box-h[data-c="se"] { left: 100%; top: 100%; }
+.box-bar { position: absolute; left: 50%; transform: translateX(-50%); bottom: 24px; width: min(440px, calc(100% - 24px)); pointer-events: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; background: var(--panel); color: var(--fg); border-radius: 14px; box-shadow: 0 6px 24px rgba(0, 0, 0, .3); }
+.box-bar .box-tip { flex-basis: 100%; font-size: .9rem; color: var(--muted); text-align: center; }
+.box-bar .btn { flex: 1; min-height: 46px; font-size: 1rem; }
+.box-bar #boxGo { flex: 1.8; }
+body.box-on .map-actions, body.box-on .first-tip { display: none !important; }
+@media (max-width: 760px) { .box-bar { bottom: calc(var(--sheet-vis) + 10px); } }
 .status { padding: 10px 16px; font-size: .9rem; color: var(--muted); border-bottom: 1px solid var(--line); }
 .status.warn { background: var(--warn-bg); color: var(--warn-fg); }
 .debug { padding: 6px 16px; border-bottom: 1px solid var(--line); font-size: .85rem; color: var(--muted); }
@@ -1538,12 +1556,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=384"></script>
-<script src="rotate.js?v=384"></script>
-<script src="official.js?v=384"></script>
-<script src="directions.js?v=384"></script>
-<script src="ratings.js?v=384"></script>
-<script src="ebike.js?v=384"></script>
+<script src="native.js?v=386"></script>
+<script src="rotate.js?v=386"></script>
+<script src="official.js?v=386"></script>
+<script src="directions.js?v=386"></script>
+<script src="ratings.js?v=386"></script>
+<script src="ebike.js?v=386"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3838,7 +3856,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=384").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=386").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -4936,7 +4954,7 @@ out body;`;
   panelEl.querySelectorAll(".modes button").forEach((b) => b.addEventListener("click", () => growTo("half")));
   panelEl.addEventListener("focusin", (e) => { if (e.target.matches("input[type=search], input[type=text], input:not([type])")) snapTo("full"); });
   panelEl.addEventListener("click", (e) => {
-    if (sheet.snap !== "peek" || e.target.closest(".sheet-toggle")) return;
+    if (sheet.snap !== "peek" || e.target.closest(".sheet-toggle") || boxDraw.on) return;   // the square keeps the sheet low
     if (peekToFind("half", e.target.closest("button, a, input, select, label"))) return;
     growTo("half");
   });
@@ -4998,7 +5016,7 @@ out body;`;
       ${card("prime", '<span class="dot"></span>', "Prime loam now", "Damp dirt today (Loam 40 to 59)")}
       ${card("today", "☀", "Where to ride today", "The best areas for today's weather and dirt")}
       ${card("photo", "📷", "Which trail is this?", "From a photo, a screenshot or a short video")}
-      ${card("screen", "▭", "Every trail on screen", "Or drag a square on the map")}`;
+      ${card("screen", "▭", "Every trail on screen", "Zoomed far out, you get a square to frame them")}`;
     const w = words();
     if (page === "ride") return `<button type="button" class="hub-start" data-hub="start">${w.start}</button>
       <p class="hub-note">${w.note}</p>
@@ -5120,9 +5138,14 @@ out body;`;
     if (act === "search") { setMode("new"); navTo("search"); }
     else if (act === "near") { navTo("results", { snap: "half" }); $("nearBtn").click(); }
     else if (act === "prime") { navTo("results", { snap: "half" }); $("primeGo").click(); }
-    else if (act === "screen") { navTo("results", { snap: "half" }); $("screenBtn").click(); if (boxDraw.on) lowerSheet(); }   // zoomed far out: drag a square on the map
+    else if (act === "screen") { navTo("results", { snap: "half" }); $("screenBtn").click(); }   // zoomed far out: a square to frame the trails (it lowers the sheet)
     else if (act === "today") { if (window.tfTodayOpen) window.tfTodayOpen(); }
     else if (act === "photo") { if (window.tfPhotoFind) window.tfPhotoFind.open(); }
+  }
+  // The square's trails show on the Results page (not hidden under the Find page), with the map above them.
+  function showSquareResults() {
+    if (navTop() !== "results") { navStack.length = 0; navStack.push("find"); navTo("results", { snap: "half" }); }
+    else growTo("half");
   }
   $("peekQuick").addEventListener("click", (e) => {
     const b = e.target.closest("[data-q]"); if (!b) return;
@@ -6817,47 +6840,88 @@ out tags center qt;`;
   const boxRenderer = L.canvas({ pane: "boxTrails", padding: 0.3 });
   passThrough(boxRenderer, newRenderer);   // its canvas sits over the new-trail lines
   const boxLayer = L.layerGroup().addTo(map);
-  const boxDraw = { on: false, start: null, rect: null, done: false };
+  const boxDraw = { on: false, done: false };
   let boxToken = 0, boxGroups = [];
+  // The square (alex, 2026-10-25: "hard to draw the square on the phone"): no more dragging out a square with the
+  // map frozen. A square shows up on the screen at once, with big round corners to drag. One finger anywhere else
+  // still moves and zooms the map under it, and ✓ Find trails here lists what's inside.
+  const frame = document.createElement("div");
+  frame.className = "box-frame"; frame.hidden = true;
+  frame.innerHTML = `<div class="box-sq" id="boxSq">${["nw", "ne", "sw", "se"].map((c) => `<button type="button" class="box-h" data-c="${c}" aria-label="Drag this corner to change the square"><i></i></button>`).join("")}</div>
+    <div class="box-bar" role="group" aria-label="Square"><span class="box-tip">Move the map, or drag a corner</span><button type="button" class="btn" id="boxCancel">Cancel</button><button type="button" class="btn primary" id="boxGo">✓ Find trails here</button></div>`;
+  map.getContainer().parentElement.appendChild(frame);
+  const sq = frame.querySelector(".box-sq"), sqPos = { l: 0, t: 0, r: 0, b: 0 };
+  const placeSq = () => Object.assign(sq.style, { left: sqPos.l + "px", top: sqPos.t + "px", width: sqPos.r - sqPos.l + "px", height: sqPos.b - sqPos.t + "px" });
+  // the free part of the map: below the buttons at the top, above the bar (and on phones, the sheet)
+  function freeArea() {
+    const wrap = frame.getBoundingClientRect();
+    const tools = Math.max(...[".map-tools", ".leaflet-top.leaflet-left", ".leaflet-top.leaflet-right"].map((q) => document.querySelector(q)).filter((el) => el && el.offsetHeight).map((el) => el.getBoundingClientRect().bottom));
+    const bar = frame.querySelector(".box-bar").getBoundingClientRect();
+    const phone = matchMedia("(max-width: 760px)").matches;
+    const top = phone ? tools - wrap.top + 12 : 24;
+    const bottom = (bar.height ? bar.top : wrap.bottom - 90) - wrap.top - 16;
+    return { w: wrap.width, top, bottom: Math.max(top + 120, bottom) };
+  }
+  function startSq() {
+    const a = freeArea(), side = Math.min(a.w - 64, a.bottom - a.top - 24, 520);   // a square in the middle of the free part
+    const cx = a.w / 2, cy = (a.top + a.bottom) / 2;
+    Object.assign(sqPos, { l: cx - side / 2, r: cx + side / 2, t: cy - side / 2, b: cy + side / 2 });
+    placeSq();
+  }
   function setBoxMode(on) {
     boxDraw.on = on;
     $("boxBtn").setAttribute("aria-pressed", on);
-    $("boxBtn").textContent = on ? "✕ Cancel (drag on the map)" : "or draw a square";
-    map.getContainer().classList.toggle("drawing", on);
-    if (on) { map.dragging.disable(); pickNote(map.getCenter(), "Drag a square over the trails"); }
-    else map.dragging.enable();
+    $("boxBtn").textContent = on ? "✕ Cancel the square" : "or draw a square";
+    frame.hidden = !on;
+    document.body.classList.toggle("box-on", on);
+    if (on) {
+      pickLayer.clearLayers();
+      if (matchMedia("(max-width: 760px)").matches) lowerSheet();
+      requestAnimationFrame(() => requestAnimationFrame(startSq));   // once the sheet has moved down
+    }
   }
+  // corners: one finger drags the corner; the map doesn't move meanwhile
+  let cornerDrag = null;
+  frame.querySelectorAll(".box-h").forEach((h) => {
+    h.addEventListener("pointerdown", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      h.setPointerCapture(e.pointerId);
+      cornerDrag = { c: h.dataset.c, x0: e.clientX, y0: e.clientY, p0: { ...sqPos } };
+      sq.classList.add("moving");
+    });
+    h.addEventListener("pointermove", (e) => {
+      if (!cornerDrag) return;
+      const a = freeArea(), dx = e.clientX - cornerDrag.x0, dy = e.clientY - cornerDrag.y0, p = cornerDrag.p0, MIN = 70;
+      const minTop = Math.min(a.top, p.t) - 40;
+      if (cornerDrag.c[1] === "w") sqPos.l = Math.max(4, Math.min(p.r - MIN, p.l + dx)); else sqPos.r = Math.min(a.w - 4, Math.max(p.l + MIN, p.r + dx));
+      if (cornerDrag.c[0] === "n") sqPos.t = Math.max(minTop, Math.min(p.b - MIN, p.t + dy)); else sqPos.b = Math.min(Math.max(a.bottom - 4, p.b), Math.max(p.t + MIN, p.b + dy));
+      placeSq();
+    });
+    const end = () => { cornerDrag = null; sq.classList.remove("moving"); };
+    h.addEventListener("pointerup", end); h.addEventListener("pointercancel", end);
+    h.addEventListener("click", (e) => e.stopPropagation());
+  });
+  $("boxCancel").addEventListener("click", () => setBoxMode(false));
+  $("boxGo").addEventListener("click", () => {
+    const wrap = frame.getBoundingClientRect(), m = map.getContainer().getBoundingClientRect();
+    const ox = wrap.left - m.left, oy = wrap.top - m.top;
+    const b = L.latLngBounds([[sqPos.l, sqPos.t], [sqPos.r, sqPos.t], [sqPos.l, sqPos.b], [sqPos.r, sqPos.b]].map(([x, y]) => map.containerPointToLatLng([x + ox, y + oy])));
+    boxDraw.done = true; setTimeout(() => { boxDraw.done = false; }, 400);   // swallow a click that follows
+    setBoxMode(false);
+    if (matchMedia("(max-width: 760px)").matches) showSquareResults();
+    showBox(b);
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && boxDraw.on) setBoxMode(false); });
+  window.addEventListener("resize", () => { if (boxDraw.on) startSq(); });
   $("boxBtn").addEventListener("click", () => setBoxMode(!boxDraw.on));
   // One button for "what's here" (alex: three ways to search a spot was too many): the trails on screen, zoomed in
   // enough; zoomed out it asks for a square instead.
   const SCREEN_MIN_ZOOM = 11;
   $("screenBtn").addEventListener("click", () => {
     if (boxDraw.on) setBoxMode(false);
-    if (map.getZoom() < SCREEN_MIN_ZOOM) { setBoxMode(true); pickNote(map.getCenter(), "That's a big area: zoom in, or drag a square over the trails"); return; }
+    if (map.getZoom() < SCREEN_MIN_ZOOM) { setBoxMode(true); return; }
     showBox(map.getBounds().pad(-0.04), null, "on screen");
   });
-  const mapEl = map.getContainer();
-  mapEl.addEventListener("pointerdown", (e) => {
-    if (!boxDraw.on || e.button > 0 || e.target.closest(".leaflet-control")) return;
-    e.preventDefault(); e.stopPropagation();
-    mapEl.setPointerCapture(e.pointerId);
-    pickLayer.clearLayers();
-    boxDraw.start = map.mouseEventToLatLng(e);
-    boxDraw.rect = L.rectangle([boxDraw.start, boxDraw.start], { color: css("--accent"), weight: 2, dashArray: "6 6", fillOpacity: 0.06, interactive: false }).addTo(boxLayer);
-  }, true);
-  mapEl.addEventListener("pointermove", (e) => {
-    if (boxDraw.start) boxDraw.rect.setBounds(L.latLngBounds(boxDraw.start, map.mouseEventToLatLng(e)));
-  }, true);
-  mapEl.addEventListener("pointerup", (e) => {
-    if (!boxDraw.start) return;
-    const b = L.latLngBounds(boxDraw.start, map.mouseEventToLatLng(e));
-    boxDraw.start = null;
-    boxDraw.done = true; setTimeout(() => { boxDraw.done = false; }, 400);   // swallow the click that follows
-    setBoxMode(false);
-    const px = map.latLngToContainerPoint(b.getNorthWest()).distanceTo(map.latLngToContainerPoint(b.getSouthEast()));
-    if (px < 20) { boxLayer.removeLayer(boxDraw.rect); return; }               // a tap, not a square
-    showBox(b);
-  }, true);
   // The name pick in the square / area list: hide every other row, with a "Show all" button above them.
   function applyNamePick() {
     const box = $("boxRes");
@@ -7032,8 +7096,9 @@ out tags center qt;`;
       : unoffPick && !none ? `<p class="hint box-why">Unofficial trails: the ones mappers flagged come first, then trails with no bike tags (paths with no bike tags are grey). MTB tagged and official trails (club, park, ski or Recreation Sites and Trails BC) are left out.${lvlText ? " Most unofficial trails have no difficulty rating, so unrated ones are included with the levels you picked." : ""}</p>`
       : none && circle ? `<p class="hint box-why">No MTB trails are mapped within ${circle.km} km. Pick a bigger distance.</p>`
       : none ? `<p class="hint box-why">OpenStreetMap has no trails tagged for mountain biking here: the lines on the map are hiking trails or forest roads, or nothing is mapped yet. Try a bigger square, or tap a line to see what it is.</p>` : "";
-    $("boxRes").innerHTML = `<div class="box-head"><div><b>${none ? `No ${what} ${esc(inWhere)}` : `${boxGroups.length} ${one}${boxGroups.length === 1 ? "" : "s"} ${esc(inWhere)}`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed bit${unnamed === 1 ? "" : "s"} (on the map)</span>` : ""}</div><button class="linkish" id="boxClear" type="button">${diff || circle ? "Clear" : "Clear square"}</button></div>${why}${rows}`;
+    $("boxRes").innerHTML = `<div class="box-head"><div><b>${none ? `No ${what} ${esc(inWhere)}` : `${boxGroups.length} ${one}${boxGroups.length === 1 ? "" : "s"} ${esc(inWhere)}`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed bit${unnamed === 1 ? "" : "s"} (on the map)</span>` : ""}</div><span class="box-acts">${diff || circle ? "" : `<button class="linkish" id="boxRedo" type="button">${where ? "▢ Draw a square" : "▢ Change square"}</button>`}<button class="linkish" id="boxClear" type="button">${diff || circle ? "Clear" : "Clear square"}</button></span></div>${why}${rows}`;
     $("boxClear").addEventListener("click", clearBox);
+    if ($("boxRedo")) $("boxRedo").addEventListener("click", () => setBoxMode(true));
     $("boxRes").querySelectorAll(".box-row").forEach((r) => r.addEventListener("click", () => openBoxGroup(boxGroups[+r.dataset.i])));
     applyNamePick();
     panelScrollTo($("boxRes"), "nearest");
@@ -7205,44 +7270,44 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=384"></script>
-<script src="contours.js?v=384"></script>
-<script src="clouds.js?v=384"></script>
-<script src="smoke.js?v=384"></script>
-<script src="photo-slider.js?v=384"></script>
-<script src="ski-terrain.js?v=384"></script>
-<script src="winter.js?v=384"></script>
-<script src="hunting.js?v=384"></script>
-<script src="compass.js?v=384"></script>
-<script src="ski-points.js?v=384"></script>
-<script src="webcams.js?v=384"></script>
-<script src="rogers.js?v=384"></script>
-<script src="ski-areas.js?v=384"></script>
-<script src="offline.js?v=384"></script>
-<script src="ride-stats.js?v=384"></script>
-<script src="native-gps.js?v=384"></script>
-<script src="navigate.js?v=384"></script>
-<script src="planner.js?v=384"></script>
-<script src="loops.js?v=384"></script>
-<script src="ride-finds.js?v=384"></script>
-<script src="rides.js?v=384"></script>
-<script src="community.js?v=384"></script>
-<script src="ride-files.js?v=384"></script>
-<script src="rider-trails.js?v=384"></script>
-<script src="account.js?v=384"></script>
-<script src="strava.js?v=384"></script>
-<script src="reports.js?v=384"></script>
-<script src="grades.js?v=384"></script>
-<script src="trail-photos.js?v=384"></script>
-<script src="visitors.js?v=384"></script>
-<script src="notify.js?v=384"></script>
-<script src="closures.js?v=384"></script>
-<script src="status.js?v=384"></script>
-<script src="areas.js?v=384"></script>
-<script src="alpine.js?v=384"></script>
-<script src="bikeparks.js?v=384"></script>
-<script src="photo-find.js?v=384"></script>
-<script src="whats-new.js?v=384"></script>
+<script src="map3d.js?v=386"></script>
+<script src="contours.js?v=386"></script>
+<script src="clouds.js?v=386"></script>
+<script src="smoke.js?v=386"></script>
+<script src="photo-slider.js?v=386"></script>
+<script src="ski-terrain.js?v=386"></script>
+<script src="winter.js?v=386"></script>
+<script src="hunting.js?v=386"></script>
+<script src="compass.js?v=386"></script>
+<script src="ski-points.js?v=386"></script>
+<script src="webcams.js?v=386"></script>
+<script src="rogers.js?v=386"></script>
+<script src="ski-areas.js?v=386"></script>
+<script src="offline.js?v=386"></script>
+<script src="ride-stats.js?v=386"></script>
+<script src="native-gps.js?v=386"></script>
+<script src="navigate.js?v=386"></script>
+<script src="planner.js?v=386"></script>
+<script src="loops.js?v=386"></script>
+<script src="ride-finds.js?v=386"></script>
+<script src="rides.js?v=386"></script>
+<script src="community.js?v=386"></script>
+<script src="ride-files.js?v=386"></script>
+<script src="rider-trails.js?v=386"></script>
+<script src="account.js?v=386"></script>
+<script src="strava.js?v=386"></script>
+<script src="reports.js?v=386"></script>
+<script src="grades.js?v=386"></script>
+<script src="trail-photos.js?v=386"></script>
+<script src="visitors.js?v=386"></script>
+<script src="notify.js?v=386"></script>
+<script src="closures.js?v=386"></script>
+<script src="status.js?v=386"></script>
+<script src="areas.js?v=386"></script>
+<script src="alpine.js?v=386"></script>
+<script src="bikeparks.js?v=386"></script>
+<script src="photo-find.js?v=386"></script>
+<script src="whats-new.js?v=386"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
