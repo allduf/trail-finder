@@ -1556,12 +1556,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=386"></script>
-<script src="rotate.js?v=386"></script>
-<script src="official.js?v=386"></script>
-<script src="directions.js?v=386"></script>
-<script src="ratings.js?v=386"></script>
-<script src="ebike.js?v=386"></script>
+<script src="native.js?v=387"></script>
+<script src="rotate.js?v=387"></script>
+<script src="official.js?v=387"></script>
+<script src="directions.js?v=387"></script>
+<script src="ratings.js?v=387"></script>
+<script src="ebike.js?v=387"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3856,7 +3856,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=386").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=387").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5248,8 +5248,9 @@ out body;`;
   // Loam alerts (notify.js): a zone's named trails from the All trails list, one spot each: the middle of its longest
   // piece. scripts/push-loam.mjs picks the same spot for phone notifications, so both read the same Loam cell.
   // loadedOnly: only a zone the page already loaded (for "All regions", which would mean every zone's file).
+  // A Canada map chunk id ("ca_45_-73.2", outside the home zones) works too: Where to ride today and Loops in Quebec.
   window.tfZoneTrails = async (id, loadedOnly) => {
-    const z = ZONES.find((z) => z.id === id);
+    const z = ZONES.find((z) => z.id === id) || (/^ca_/.test(id) ? (await caIndexLoad()).zones.get(id) : null);
     if (!z || (loadedOnly && !allLoads.has(id))) return [];
     // A zone the map hasn't asked for waits for the ones it has, so the trails on screen are drawn first.
     if (!allLoads.has(id)) await Promise.allSettled([...allLoads.values()]);
@@ -7262,7 +7263,15 @@ out tags center qt;`;
     roadFeats: () => [...roadData.values()].filter(Boolean).flatMap((z) => z.feats || []),   // gates, barriers, bridges (Shuttle)
     load: () => { const v = map.getBounds(); ZONES.filter((z) => z.bounds.intersects(v)).forEach((z) => { loadZoneTrails(z); roadZone(z); }); caIndexLoad().then(() => caZonesIn([v]).forEach(loadZoneTrails)); } };
   // Where to ride today (status.js): the zones, nightly files, ridden trails and where you are.
-  window.tfToday = { zones: ZONES, nightly, firstMappedIn, nameKey, you: () => you.ll || null, center: () => map.getCenter(),
+  // zonesNear: the home zones within km of c, plus (outside the home regions) the Canada map chunks there.
+  const zoneKmTo = (b, c) => map.distance(c, [Math.max(b.getSouth(), Math.min(b.getNorth(), c[0])), Math.max(b.getWest(), Math.min(b.getEast(), c[1]))]) / 1000;
+  const zonesNear = async (c, km) => {
+    const zs = ZONES.filter((z) => zoneKmTo(z.bounds, c) <= km);
+    if (inRegions(L.latLng(c[0], c[1]))) return zs;
+    const ca = await caIndexLoad();
+    return zs.concat([...ca.zones.values()].filter((z) => zoneKmTo(z.bounds, c) <= km));
+  };
+  window.tfToday = { zones: ZONES, zonesNear, nightly, firstMappedIn, nameKey, you: () => you.ll || null, center: () => map.getCenter(),
     ridden: () => new Set(riddenTrails().map((w) => nameKey(w.name))) };
   window.tfTrails = () => ({ shown: state.merged ? [...state.merged.values()] : [], all: [...allData.values()].filter(Boolean), selected: state.selected });   // for My rides (rides.js)
   render();
@@ -7270,44 +7279,44 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=386"></script>
-<script src="contours.js?v=386"></script>
-<script src="clouds.js?v=386"></script>
-<script src="smoke.js?v=386"></script>
-<script src="photo-slider.js?v=386"></script>
-<script src="ski-terrain.js?v=386"></script>
-<script src="winter.js?v=386"></script>
-<script src="hunting.js?v=386"></script>
-<script src="compass.js?v=386"></script>
-<script src="ski-points.js?v=386"></script>
-<script src="webcams.js?v=386"></script>
-<script src="rogers.js?v=386"></script>
-<script src="ski-areas.js?v=386"></script>
-<script src="offline.js?v=386"></script>
-<script src="ride-stats.js?v=386"></script>
-<script src="native-gps.js?v=386"></script>
-<script src="navigate.js?v=386"></script>
-<script src="planner.js?v=386"></script>
-<script src="loops.js?v=386"></script>
-<script src="ride-finds.js?v=386"></script>
-<script src="rides.js?v=386"></script>
-<script src="community.js?v=386"></script>
-<script src="ride-files.js?v=386"></script>
-<script src="rider-trails.js?v=386"></script>
-<script src="account.js?v=386"></script>
-<script src="strava.js?v=386"></script>
-<script src="reports.js?v=386"></script>
-<script src="grades.js?v=386"></script>
-<script src="trail-photos.js?v=386"></script>
-<script src="visitors.js?v=386"></script>
-<script src="notify.js?v=386"></script>
-<script src="closures.js?v=386"></script>
-<script src="status.js?v=386"></script>
-<script src="areas.js?v=386"></script>
-<script src="alpine.js?v=386"></script>
-<script src="bikeparks.js?v=386"></script>
-<script src="photo-find.js?v=386"></script>
-<script src="whats-new.js?v=386"></script>
+<script src="map3d.js?v=387"></script>
+<script src="contours.js?v=387"></script>
+<script src="clouds.js?v=387"></script>
+<script src="smoke.js?v=387"></script>
+<script src="photo-slider.js?v=387"></script>
+<script src="ski-terrain.js?v=387"></script>
+<script src="winter.js?v=387"></script>
+<script src="hunting.js?v=387"></script>
+<script src="compass.js?v=387"></script>
+<script src="ski-points.js?v=387"></script>
+<script src="webcams.js?v=387"></script>
+<script src="rogers.js?v=387"></script>
+<script src="ski-areas.js?v=387"></script>
+<script src="offline.js?v=387"></script>
+<script src="ride-stats.js?v=387"></script>
+<script src="native-gps.js?v=387"></script>
+<script src="navigate.js?v=387"></script>
+<script src="planner.js?v=387"></script>
+<script src="loops.js?v=387"></script>
+<script src="ride-finds.js?v=387"></script>
+<script src="rides.js?v=387"></script>
+<script src="community.js?v=387"></script>
+<script src="ride-files.js?v=387"></script>
+<script src="rider-trails.js?v=387"></script>
+<script src="account.js?v=387"></script>
+<script src="strava.js?v=387"></script>
+<script src="reports.js?v=387"></script>
+<script src="grades.js?v=387"></script>
+<script src="trail-photos.js?v=387"></script>
+<script src="visitors.js?v=387"></script>
+<script src="notify.js?v=387"></script>
+<script src="closures.js?v=387"></script>
+<script src="status.js?v=387"></script>
+<script src="areas.js?v=387"></script>
+<script src="alpine.js?v=387"></script>
+<script src="bikeparks.js?v=387"></script>
+<script src="photo-find.js?v=387"></script>
+<script src="whats-new.js?v=387"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

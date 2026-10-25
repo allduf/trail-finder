@@ -411,7 +411,10 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   }
   const inBox = (b, lat, lon) => lat >= b[0] && lat <= b[2] && lon >= b[1] && lon <= b[3];
   const at = (list, lat, lon) => (list || []).filter((f) => inBox(f.b, lat, lon) && inside(f.g, lat, lon));
-  const inAlberta = (lat, lon) => lat > 49 && lat < 60 && (lon > -110 || (lon > -120 && lat > 49 && lon > -114.07 - (lat - 49) * 0.7 && lat < 53.8) || (lon > -120 && lat >= 53.8));
+  // Alberta: 49-60° N, from 110° W (Saskatchewan) to the Rockies' divide (120° W north of 53.8° N). Not Quebec or
+  // Saskatchewan, which an open east side used to count as Alberta.
+  const inAlberta = (lat, lon) => lat > 49 && lat < 60 && lon <= -110 && lon > -120 && (lat >= 53.8 || lon > -114.07 - (lat - 49) * 0.7);
+  const inBC = (lat, lon) => lat > 48.2 && lat < 60 && lon > -139.1 && lon < -114 && !inAlberta(lat, lon);
 
   // ---------- map layers ----------
   map.createPane("hunt").style.zIndex = 405;
@@ -1292,7 +1295,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     el.querySelector(".hn-x").addEventListener("click", () => { el.hidden = true; spotOpen = null; const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); });
     renderNow();
     if (z.some((u) => u.p === "ab") || (!z.length && inAlberta(lat, lon))) liveAlberta(lat, lon, seq);
-    else liveBC(lat, lon, seq);
+    else if (z.length || inBC(lat, lon)) liveBC(lat, lon, seq);
+    // Elsewhere (Quebec, Ontario, the east) there's no land owner layer: never guess Crown land on farmland.
+    else liveOut(seq, [`<li style="border-color:#868e96"><b>Land: owner not known here</b>The app has land owners for BC and Alberta only. In southern Quebec, Ontario and the Maritimes most land is private: ask the owner before you hunt.</li>`], ["Land owner not known", "#868e96"]);
   }
   // land: a chip for the summary line (Crown, private, lease).
   const liveOut = (seq, out, land) => {

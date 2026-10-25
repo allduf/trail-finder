@@ -95,10 +95,12 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
     $("tdAreas").innerHTML = `<li class="td-wait">Loading…</li>`;
     const from = await whereFrom();
     if (my !== token) return;
-    const zs = T.zones.filter((z) => zoneKm(z, from.c) <= NEAR_KM);
+    // Home zones, and anywhere else in Canada the map chunks around you (Bromont, Mont-Sainte-Anne...).
+    const zs = T.zonesNear ? await T.zonesNear(from.c, NEAR_KM) : T.zones.filter((z) => zoneKm(z, from.c) <= NEAR_KM);
+    if (my !== token) return;
     $("tdFrom").textContent = `${from.you ? "From where you are" : "From the middle of the map (location not shared)"}, within ${NEAR_KM} km.`;
     if (!zs.length) {
-      $("tdGo").innerHTML = `<li class="td-wait">No riding areas within ${NEAR_KM} km in the app's regions (Vancouver to Calgary). Move the map to a riding town and try again.</li>`;
+      $("tdGo").innerHTML = `<li class="td-wait">No trails within ${NEAR_KM} km. Move the map to a riding town and try again.</li>`;
       $("tdAreas").innerHTML = "";
       return;
     }

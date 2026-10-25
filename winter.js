@@ -1538,9 +1538,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const short = (where, msg, ex) => { card.innerHTML = `${top(where)}<p class="av-line">${msg}</p><div id="avWx">${cardWeather(c, wxAt())}</div>${ex ? `<div class="av-foot"><button type="button" class="av-pill" id="avEx">See an example</button></div>` : ""}`; bindEx(); };
     if (!data) return short("", avyErr ? "The forecast isn't on the site yet." : "Loading the forecast…", !!avyErr);
     if (!example && !hasForecasts()) return short("", "No forecast right now: Avalanche Canada's run from about late November to April.", true);
-    const area = (example ? null : areaAt(c.lat, c.lng)) || (data.areas.find((a) => a.polys.some((p) => inPoly(c.lat, c.lng, p))) || data.areas.find((a) => a.forecast?.days?.length));
+    // Only the area under the map centre (or a forecast with no outline): the Chic-Chocs used to show Glacier's forecast.
+    const area = (example ? null : areaAt(c.lat, c.lng)) || (data.areas.find((a) => a.polys.some((p) => inPoly(c.lat, c.lng, p))) || data.areas.find((a) => !a.polys.length && a.forecast?.days?.length));
     const f = area && area.forecast;
-    if (!area) return short("", "No forecast area here.");
+    if (!area) return short("", `No avalanche forecast covers this spot. Check <a href="https://avalanche.ca/map" target="_blank" rel="noopener">avalanche.ca</a> for the nearest one.`);
     if (!f || !f.days?.length) return short(esc(area.name), "No forecast for this area right now.");
     const d = dayOf(f), expired = !example && f.validUntil && new Date(f.validUntil) < new Date();
     const notes = Object.values(f.summaries || {}).filter(Boolean), rated = example || f.days.some((x) => x.alp || x.tln || x.btl);
