@@ -487,8 +487,26 @@
     } catch {}
   }
 
+  // ---------- pins on the 3D map ----------
+  // MapLibre fades a pin hidden behind a ridge by reading the ground's depth back from the graphics card, one or two
+  // read-backs per pin, every 100 ms while the map moves. Each one makes the phone wait for the graphics card to finish
+  // drawing. Skiing at Blackcomb has ~140 pins (slackcountry names and gates, resorts, webcams, parking...): ~37,000
+  // read-backs in four finger drags, and the map lagged then ran out of memory (alex, 2026-10-25). All our pins stay
+  // fully shown behind ridges anyway (opacityWhenCovered 1), so those skip the check. MapLibre internals (pinned
+  // 5.24.0): any surprise keeps its own check.
+  function quickPins() {
+    const M = maplibregl.Marker && maplibregl.Marker.prototype, check = M && M._updateOpacity;
+    if (!check || check.quick) return;
+    M._updateOpacity = function (force) {
+      if (this._opacityWhenCovered !== this._opacity || !this._element) return check.call(this, force);
+      if (this._element.style.opacity !== this._opacity) this._element.style.opacity = this._opacity;
+    };
+    M._updateOpacity.quick = true;
+  }
+
   // ---------- the 3D map ----------
   function build() {
+    quickPins();
     box = document.createElement("div");
     box.id = "map3d";
     map.getContainer().append(box);   // inside the Leaflet map, under its controls (map key, clear button)
