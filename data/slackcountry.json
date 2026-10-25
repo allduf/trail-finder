@@ -1652,6 +1652,39 @@
      }
     }
    ]
+  },
+  {
+   "id": "shames",
+   "name": "Shames Mountain",
+   "short": "Shames",
+   "lat": 54.493,
+   "lon": -128.965,
+   "box": [54.48,-128.99,54.51,-128.94],
+   "forecast": "Avalanche Canada, Northwest Coastal",
+   "emergency": "Emergency outside the boundary: 911 (Terrace Search and Rescue). Shames Ski Patrol only looks after people inside the boundary.",
+   "rules": ["Shames' out-of-bounds terrain isn't patrolled: the ski patrol only covers the marked ski area.", "Use the beacon check gate before you leave, and carry a transceiver, a probe and a shovel (Shames rents them, plus touring gear).", "The resort recommends Avalanche Skills Training, up-to-date gear and the fitness to get yourself out, and reading the avalanche forecast before you leave the boundary.", "Shames sells single-ride tickets and an uphill season pass for backcountry users."],
+   "links": [
+    {
+     "t": "Stellar: Shames Mountain, the slackcountry off the T-bar",
+     "u": "https://stellarequipment.com/ca/interstellar/places/shames-mountain-canada"
+    },
+    {
+     "t": "Avalanche Canada forecast at Shames",
+     "u": "https://avalanche.ca/map?lat=54.49&lng=-128.97"
+    }
+   ],
+   "gates": [
+    {
+     "id": "tbar",
+     "name": "Beacon check gate, top of the Red T-Bar",
+     "side": "Top of the T-Bar",
+     "lat": 54.4992,
+     "lon": -128.9645,
+     "approx": true,
+     "note": "Going left from the top of the T-bar drops into the out-of-bounds glades, called some of the best slackcountry in North America. From the top of the ski area people also skin toward the Dome and North Bowl. No lines drawn yet: we found no reliable description of where they go."
+    }
+   ],
+   "lines": []
   }
  ]
 }
