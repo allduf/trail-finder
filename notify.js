@@ -12,6 +12,8 @@
 // window.tfLoamAt (index.html, Open-Meteo).
 // Phone notifications (Web Push): a third switch saves this phone's push address and the settings above to Supabase
 // (push_save(), supabase/push.sql); scripts/push-loam.mjs sends the same alerts a few times a day. Device only: tf:pushId.
+// Fresh stocking (Fishing): tf:fishAlert = { c: [lat, lon], since } on, the lakes and rivers within FISH_KM of that spot
+// (where the map was when it was saved) stocked in the last FISH_DAYS days, from data/fishing/stocked.json (nightly).
 (() => {
   const APP_V = ((document.currentScript && document.currentScript.src.match(/[?&]v=(\d+)/)) || [])[1] || "?";   // the job logs it per phone
   const ZONES = window.tfZones, slot = document.querySelector("[data-notify-slot]");
@@ -91,6 +93,7 @@ dialog.notify details summary small { color: var(--muted); font-size: .8rem; }
 dialog.notify details summary::after { content: "▸"; position: absolute; right: 10px; top: 14px; color: var(--muted); }
 dialog.notify details[open] summary::after { content: "▾"; }
 dialog.notify .nt-avy li.unread button::before { background: #e8590c; }
+dialog.notify .nt-fish li.unread button::before { background: #0c8599; }
 dialog.notify .nt-avy .lv i { background: var(--c); }
 dialog.notify .nt-loam li.unread summary::before { content: ""; position: absolute; left: 6px; top: 16px; width: 8px; height: 8px; border-radius: 50%; background: var(--prime, #2f8f88); }
 dialog.notify details ol li button { padding-left: 34px; }
@@ -112,6 +115,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   <label class="nt-opt"><input type="checkbox" id="ntLoamArea">Tell me when trails in my regions or on my To ride list are in prime loam</label>
   <label class="nt-opt"><input type="checkbox" id="ntNewOn">Tell me when a new trail is mapped in my regions</label>
   <label class="nt-opt"><input type="checkbox" id="ntAvyOn">⚠ Tell me when the avalanche danger goes up in my regions or on ski tours I watch</label>
+  <label class="nt-opt"><input type="checkbox" id="ntFishOn">🎣 Tell me when a lake or river near me is stocked with fish <small id="ntFishWhere"></small></label>
   <div class="nt-push"><label class="nt-opt"><input type="checkbox" id="ntPushOn">📱 Also send them to this phone as notifications</label><p id="ntPushMsg"></p></div>
   <p class="nt-zhead">My regions:</p>
   <div class="nt-zones" id="ntZones"></div>
@@ -119,6 +123,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
 </div>
 <div id="ntList" hidden>
   <div id="ntAvy" class="nt-loam nt-avy" hidden><h3>Avalanche danger</h3><p id="ntAvyWhere"></p><ol id="ntAvyItems"></ol></div>
+  <div id="ntFish" class="nt-loam nt-fish" hidden><h3>Fresh stocking</h3><p id="ntFishText"></p><ol id="ntFishItems"></ol></div>
   <div id="ntLoam" class="nt-loam" hidden><h3>Prime loam, now and soon</h3><p id="ntLoamWhere"></p><ol id="ntLoamItems"></ol><h3 id="ntNewHead">New trails</h3></div>
   <p id="ntWhere"></p>
   <ol id="ntItems"></ol>
@@ -337,11 +342,59 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     }));
   }
 
+  // ---------- fresh stocking (Fishing) ----------
+  const FISH_KM = 50, FISH_DAYS = 21;
+  const fishPref = () => store.get("fishAlert", null), fishOn = () => !!(fishPref() && fishPref().c);
+  let fishState = (() => { try { return JSON.parse(localStorage.getItem("tf:fishAlerts") || "{}") || {}; } catch { return {}; } })();
+  const putFish = () => { try { localStorage.setItem("tf:fishAlerts", JSON.stringify(fishState)); } catch {} };
+  let fishList = [], fishAt = 0;
+  async function checkFish(force) {
+    if (!fishOn() || (!force && Date.now() - fishAt < LOAM_FRESH_MS)) return;
+    try {
+      const d = await fetch("data/fishing/stocked.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null));
+      if (!d || !d.waters) throw null;
+      const p = fishPref(), from = new Date(Math.max(Date.now() - FISH_DAYS * DAY, Date.parse(p.since || 0) - 14 * DAY)).toISOString().slice(0, 10), now = [], seen = new Set();
+      for (const w of d.waters) {
+        if (Math.abs(w.c[0] - p.c[0]) > 0.6 || Math.abs(w.c[1] - p.c[1]) > 1) continue;
+        const km = kmTo(p.c, w.c); if (km > FISH_KM) continue;
+        const fresh = w.r.filter((r) => /^\d{4}-\d\d-\d\d$/.test(r[0]) && r[0] >= from);
+        if (!fresh.length) continue;
+        const key = `k:${w.id || w.n}:${fresh[0][0]}`;
+        seen.add(key); if (!fishState[key]) fishState[key] = { r: 0 };
+        const fish = [...new Set(fresh.filter((r) => r[0] === fresh[0][0]).map((r) => `${r[2] ? r[2].toLocaleString() + " " : ""}${(d.sp[r[1]] || "fish").toLowerCase()}`))].join(", ");
+        now.push({ key, name: w.n, day: fresh[0][0], c: w.c, km, label: `${new Date(fresh[0][0] + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}: ${fish}` });
+      }
+      Object.keys(fishState).forEach((k) => { if (!seen.has(k)) delete fishState[k]; });
+      putFish();
+      fishList = now.sort((x, y) => fishState[x.key].r - fishState[y.key].r || y.day.localeCompare(x.day) || x.km - y.km);
+      fishAt = Date.now();
+    } catch {}
+    paint();
+  }
+  const fishUnread = () => (fishOn() ? fishList.filter((t) => fishState[t.key] && !fishState[t.key].r) : []);
+  function markFishRead(keys) { keys.forEach((k) => { if (fishState[k]) fishState[k].r = 1; }); putFish(); paint(); }
+  function paintFish() {
+    q("ntFish").hidden = !fishOn();
+    if (!fishOn()) return;
+    const fresh = new Set(fishUnread().map((t) => t.key));
+    q("ntFishText").textContent = `Lakes and rivers within ${FISH_KM} km of the spot you picked, stocked in the last 3 weeks (BC, Alberta and Ontario stocking reports).`;
+    q("ntFishItems").innerHTML = fishList.length ? fishList.map((t, i) => `<li class="${fresh.has(t.key) ? "unread" : ""}"><button type="button" data-f="${i}"><strong>${esc(t.name)}</strong>
+      <small>${esc(t.label)} · ${Math.round(t.km)} km away</small></button></li>`).join("")
+      : `<li><p>${fishAt ? "Nothing stocked near you in the last 3 weeks. You'll see it here the morning after the report comes out." : "Checking the stocking reports…"}</p></li>`;
+    q("ntFishItems").querySelectorAll("button[data-f]").forEach((b) => b.addEventListener("click", () => {
+      const t = fishList[+b.dataset.f];
+      markFishRead([t.key]);
+      box.close();
+      if (window.tfFish && window.tfFish.show) window.tfFish.show(t.c[0], t.c[1], t.name);
+    }));
+  }
+  const fishWhere = () => { const m = window.tfLeaflet; return m ? [Math.round(m.getCenter().lat * 100) / 100, Math.round(m.getCenter().lng * 100) / 100] : null; };
+
   // ---------- painting ----------
   function paint() {
-    const nNew = prefs() ? unread().length : 0, nLoam = loamUnread().length, nAvy = avyUnread().length, n = nNew + nLoam + nAvy;
+    const nNew = prefs() ? unread().length : 0, nLoam = loamUnread().length, nAvy = avyUnread().length, nFish = fishUnread().length, n = nNew + nLoam + nAvy + nFish;
     btn.innerHTML = `<span aria-hidden="true">🔔</span>${n ? `<span class="nt-count">${n > 99 ? "99+" : n}</span>` : ""}`;
-    const parts = [nAvy && `${nAvy} avalanche alert${nAvy > 1 ? "s" : ""}`, nNew && `${nNew} new trail${nNew > 1 ? "s" : ""}`, nLoam && `${nLoam} prime loam alert${nLoam > 1 ? "s" : ""}`].filter(Boolean);
+    const parts = [nFish && `${nFish} fresh stocking${nFish > 1 ? "s" : ""}`, nAvy && `${nAvy} avalanche alert${nAvy > 1 ? "s" : ""}`, nNew && `${nNew} new trail${nNew > 1 ? "s" : ""}`, nLoam && `${nLoam} prime loam alert${nLoam > 1 ? "s" : ""}`].filter(Boolean);
     btn.title = parts.length ? parts.join(", ") : prefs() ? "No new trails" : "Get notified about new trails and prime loam";
     btn.setAttribute("aria-label", btn.title);
     if (box.open && !q("ntList").hidden) paintList();
@@ -353,6 +406,8 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     q("ntLoamArea").checked = loamOn();
     q("ntNewOn").checked = newOn();
     q("ntAvyOn").checked = avyOn();
+    q("ntFishOn").checked = fishOn();
+    q("ntFishWhere").textContent = fishOn() ? `(within ${FISH_KM} km of the spot you picked; saving again moves it to where the map is now)` : `(within ${FISH_KM} km of where the map is now)`;
     q("ntPick").hidden = false; q("ntList").hidden = true;
     paintPush();
   }
@@ -367,15 +422,17 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     store.set("loamArea", q("ntLoamArea").checked);
     store.set("notifyNew", q("ntNewOn").checked);
     store.set("avyAlert", q("ntAvyOn").checked);
+    if (!q("ntFishOn").checked) store.set("fishAlert", null);
+    else { const c = fishWhere(), f = fishPref(); if (c) store.set("fishAlert", { c, since: f ? f.since : new Date().toISOString() }); }
     if (!zones.length) { try { localStorage.removeItem("tf:notify"); } catch {} window.dispatchEvent(new Event("tf:setting")); }
     else { const p = prefs(); store.set("notify", { zones, since: p ? p.since : new Date().toISOString() }); }
-    checkLoam(true); checkAvy(true);
+    checkLoam(true); checkAvy(true); checkFish(true);
     pushSync(0, true);   // right away (on iPhone the app is often put away straight after Save), even if nothing looks changed
-    if (zones.length || watching() || (avyOn() && skiWatch().length)) showList(); else box.close();
+    if (zones.length || watching() || (avyOn() && skiWatch().length) || fishOn()) showList(); else box.close();
     paint();
   });
   q("ntEdit").addEventListener("click", paintPick);
-  q("ntAll").addEventListener("click", () => { markAvyRead(avyUnread().map((t) => t.key)); markLoamRead(loamUnread().map((t) => t.key)); markRead(unread().map(keyOf)); });
+  q("ntAll").addEventListener("click", () => { markFishRead(fishUnread().map((t) => t.key)); markAvyRead(avyUnread().map((t) => t.key)); markLoamRead(loamUnread().map((t) => t.key)); markRead(unread().map(keyOf)); });
 
   function paintLoam() {
     q("ntLoam").hidden = !loamOn();
@@ -402,11 +459,12 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     }));
   }
   function paintList() {
+    paintFish();
     paintAvy();
     paintLoam();
     const p = prefs();
     q("ntEdit").textContent = p ? "Change regions" : "Pick regions";
-    q("ntAll").hidden = !unread().length && !loamUnread().length && !avyUnread().length;
+    q("ntAll").hidden = !unread().length && !loamUnread().length && !avyUnread().length && !fishUnread().length;
     if (!newOn()) {
       q("ntWhere").textContent = "New trail notifications are off.";
       q("ntItems").innerHTML = "";
@@ -437,9 +495,9 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     openBox();
   });
   function openBox() {
-    prefs() || (loamOn() && loamList.length) || (avyOn() && skiWatch().length) ? showList() : paintPick();
+    prefs() || (loamOn() && loamList.length) || (avyOn() && skiWatch().length) || fishOn() ? showList() : paintPick();
     if (!box.open) box.showModal();
-    checkLoam(); checkAvy();
+    checkLoam(); checkAvy(); checkFish();
   }
 
   paint();
@@ -448,15 +506,15 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) return;
     if (Date.now() - fetchedAt > 3 * 3600e3) load(); else checkLoam();
-    checkAvy();
+    checkAvy(); checkFish();
     pushSync();   // an iPhone app brought back from the background: send a change it didn't get to send before it was put away
   });
-  window.addEventListener("storage", (e) => { if (/^tf:(notify|notifyNew|avyAlert|skiWatch|loam(New|Ride|Alert|Area))$/.test(e.key || "")) paint(); });
+  window.addEventListener("storage", (e) => { if (/^tf:(notify|notifyNew|avyAlert|fishAlert|skiWatch|loam(New|Ride|Alert|Area))$/.test(e.key || "")) paint(); });
   // A trail added to (or taken off) the To ride list, or settings pulled from the account: check its loam soon.
   let watchKey = "";
   const rewatch = () => {
-    const k = loamOn() + "," + newOn() + "," + avyOn() + "|" + JSON.stringify(prefs()) + "|" + rideList().map((t) => t.key).join(";") + "|" + skiWatch().map((t) => t.k).join(";");
-    if (k !== watchKey) { watchKey = k; checkLoam(true); checkAvy(true); pushSync(); }
+    const k = loamOn() + "," + newOn() + "," + avyOn() + "|" + JSON.stringify(prefs()) + "|" + rideList().map((t) => t.key).join(";") + "|" + skiWatch().map((t) => t.k).join(";") + "|" + JSON.stringify(fishPref());
+    if (k !== watchKey) { watchKey = k; checkLoam(true); checkAvy(true); checkFish(true); pushSync(); }
   };
   window.addEventListener("tf:setting", () => setTimeout(rewatch, 300));
   window.addEventListener("tf:account", () => setTimeout(rewatch, 1500));
@@ -489,7 +547,8 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     const p = prefs();
     return { v: APP_V, zones: p ? p.zones : [], since: p ? p.since : null, loam: loamOn(), newt: newOn() && !!p,
       ride: rideList().filter((t) => t.c).map((t) => ({ k: t.key, n: t.name, c: [r5(t.c[0]), r5(t.c[1])] })),
-      avy: avyOn(), tours: avyOn() ? skiWatch().map((t) => ({ k: t.k, n: t.n, c: t.c, lo: t.lo, hi: t.hi, cls: t.cls })) : [] };
+      avy: avyOn(), tours: avyOn() ? skiWatch().map((t) => ({ k: t.k, n: t.n, c: t.c, lo: t.lo, hi: t.hi, cls: t.cls })) : [],
+      fish: fishOn() ? { c: fishPref().c, since: fishPref().since } : null };
   };
   const swReady = () => Promise.race([navigator.serviceWorker.ready, new Promise((_, no) => setTimeout(() => no(new Error("no service worker")), 8000))]);
   const lastSave = () => { try { return JSON.parse(lsGet("tf:pushSaved") || "{}") || {}; } catch { return {}; } };

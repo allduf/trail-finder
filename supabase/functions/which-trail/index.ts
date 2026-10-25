@@ -6,7 +6,8 @@
 // Wikimedia Commons photos near each trail) and compares them with the rider's picture: it rates a trail or photo above 0.6
 // only when it can say what lines up one for one (the same rock, tree, skyline), never for the same kind of country. In the
 // woods (no view placed the picture, the rider picked the area) it compares with riders' pictures from all over that area,
-// one per trail: the ones riders confirmed and the ride photos they taught it. Setup (once): Supabase dashboard → Edge Functions → deploy this file (it's deployed as
+// one per trail: the ones riders confirmed and the ride photos they taught it. Fishing uses it too: "fish" says which fish
+// is in a catch photo (no reverse search), and "fishcheck" tells the app this copy knows how. Setup (once): Supabase dashboard → Edge Functions → deploy this file (it's deployed as
 // "smooth-worker"; AI_FN in photo-find.js must match), turn "Verify JWT" off; then Edge Functions → Secrets → add
 // GEMINI_API_KEY (free from aistudio.google.com/apikey). Optional secret GEMINI_MODEL picks another model, and
 // GEMINI_SEARCH=on lets the online check search Google first (a free key doesn't get it).
@@ -142,6 +143,7 @@ Deno.serve(async (req) => {
   let body: { images?: string[]; text?: string; description?: string; area?: string; landmarks?: string[]; mode?: string; trails?: unknown; scene?: string; hash?: string; skip?: unknown };
   try { body = await req.json(); } catch { return reply(400, { error: "bad request" }); }
   if (body.mode === "same") return reply(200, { same: await same(body.hash) });   // no AI: not counted
+  if (body.mode === "fishcheck") return reply(200, { fish: true });   // Fishing asks once whether this copy knows fish ID
   const key = Deno.env.get("GEMINI_API_KEY");
   if (!key) return reply(503, { error: "GEMINI_API_KEY is not set" });
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "?";
@@ -155,6 +157,7 @@ Deno.serve(async (req) => {
   if (!(await takePerson(person, kind))) return reply(429, { error: "your daily limit is reached, try again tomorrow" });
   if (!(await take(kind))) return reply(429, { error: `the photo AI's daily limit is used up (${kind === "ai" ? "looks" : "online checks"}), try again tomorrow` });
   const clip = (s: unknown, n: number) => (typeof s === "string" ? s.slice(0, n) : "");
+  if (body.mode === "fish") return fishId(images, clip(body.area, 80), (body.landmarks || []).slice(0, 40).map((s) => clip(s, 40)), key, reply);
 
   const prompt = `These are ${images.length > 1 ? "frames from a mountain bike video" : "a mountain bike picture"} (often a screenshot of a social media post). ` +
     `Help find which trail it is. The app covers British Columbia (Vancouver to the Rockies) and Alberta riding areas.\n` +
@@ -178,6 +181,47 @@ Deno.serve(async (req) => {
   if (!r.text) return reply(200, { ok: !!online?.pages.length, ms: Date.now() - t0, ...empty, online });   // blocked, or nothing to say
   try { return reply(200, { ok: true, model: r.model, ms: Date.now() - t0, ...clean(JSON.parse(r.text)), online }); } catch { return reply(200, { ok: !!online?.pages.length, ...empty, online }); }
 });
+
+// Fish ID (Fishing's catch log): which fish is in the picture. No reverse search (it costs, and a fish photo online says
+// nothing). area: the province; landmarks: the species known in that water (stocked or surveyed), as hints only.
+const FISH = {
+  type: "OBJECT",
+  properties: {
+    fish: {
+      type: "ARRAY", description: "Up to 3 species it could be, most likely first; empty when there is no fish in the picture",
+      items: {
+        type: "OBJECT",
+        properties: {
+          name: { type: "STRING", description: "The common name used in Canada, like 'Rainbow trout' or 'Walleye'" },
+          latin: { type: "STRING", description: "The scientific name" },
+          sure: { type: "NUMBER", description: "How sure, 0 to 1" },
+          why: { type: "STRING", description: "The marks that tell it apart, in a few plain words" },
+        },
+        required: ["name", "latin", "sure", "why"], propertyOrdering: ["name", "latin", "sure", "why"],
+      },
+    },
+    length_cm: { type: "NUMBER", description: "Rough length in cm when something in the picture gives the scale (hands, a net, a ruler); 0 when you can't tell" },
+    note: { type: "STRING", description: "One short sentence: a look-alike that matters for the rules, or what would make it sure (a photo of the mouth, the tail...)" },
+  },
+  required: ["fish", "length_cm", "note"], propertyOrdering: ["fish", "length_cm", "note"],
+};
+async function fishId(images: string[], area: string, likely: string[], key: string, reply: (s: number, b: unknown) => Response): Promise<Response> {
+  const t0 = Date.now();
+  const prompt = `This is a picture of a fish an angler caught in Canada${area ? ` (${area})` : ""}. Say which species it is, looking at the shape, ` +
+    `fins, spots, colours, mouth and tail. Watch the look-alikes anglers get fined for: bull trout and Dolly Varden vs brook trout (no black spots ` +
+    `on the dorsal fin), cutthroat vs rainbow (red slashes under the jaw), lake trout vs splake, sauger vs walleye, the Pacific salmon (chinook: black ` +
+    `gums and spots on both tail lobes; coho: white gums, spots on the upper lobe), and steelhead vs resident rainbow. Say nothing rather than guess.\n` +
+    (likely.length ? `Fish known in that water (a hint, not a rule): ${likely.join("; ")}.\n` : "");
+  const r = await gemini(key, [...images.map((d) => img(d)), { text: prompt }], { schema: FISH }, t0 + 30000);
+  if ("error" in r) return reply(r.status, { error: r.error, detail: r.detail });
+  try {
+    const j = JSON.parse(r.text || "{}");
+    const fish = (Array.isArray(j.fish) ? j.fish : []).slice(0, 3).map((f: Record<string, unknown>) => ({
+      name: String(f.name || "").slice(0, 60), latin: String(f.latin || "").slice(0, 60), sure: Math.max(0, Math.min(1, +(f.sure as number) || 0)), why: String(f.why || "").slice(0, 200),
+    })).filter((f: { name: string }) => f.name);
+    return reply(200, { ok: true, model: r.model, ms: Date.now() - t0, fish, length_cm: Math.max(0, Math.min(300, +j.length_cm || 0)), note: String(j.note || "").slice(0, 240) });
+  } catch { return reply(200, { ok: true, fish: [] }); }
+}
 
 // Reverse image search (Google Cloud Vision web detection): the pages that show the same picture, and Google's best
 // guess and the things it links to the picture. A video's first frame only: each picture searched is billed past the

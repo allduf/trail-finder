@@ -1,0 +1,54 @@
+name: Fishing data
+
+# Collect the data files for Fishing (scripts/build-fishing.mjs) into data/fishing/*.json: stocked lakes and rivers
+# (BC, Alberta, Ontario), the areas fishing rules are written for, river gauges with their usual flow for each month,
+# tide stations and the Ontario and Quebec fish eating guides. The stocking every night (the 🔔's fresh stocking
+# alerts read it), everything on the 3rd of each month and when the script changes on main. On a pull request that
+# changes the script it only does a test run, without saving.
+on:
+  schedule:
+    - cron: "23 9 * * *"    # every night, about 2 am Pacific
+  workflow_dispatch:        # "Run workflow" button on the Actions tab
+  push:
+    branches: [main]
+    paths:
+      - scripts/build-fishing.mjs
+  pull_request:
+    paths:
+      - scripts/build-fishing.mjs
+      - .github/workflows/fishing-data.yml
+
+permissions:
+  contents: write   # save the data files (site-data branch)
+  pages: write      # ask GitHub Pages to publish them
+
+concurrency:
+  group: fishing-data-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
+        run: bash scripts/site-data.sh get
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Collect fishing data
+        run: |
+          # a nightly run outside the 3rd only updates the stocking
+          if [ "${{ github.event_name }}" = schedule ] && [ "$(date -u +%d)" != "03" ]; then export ONLY=stocked; fi
+          node scripts/build-fishing.mjs
+      - name: File sizes
+        run: ls -l data/fishing
+      - name: Save the new data
+        if: github.event_name != 'pull_request' && github.ref_name == 'main'
+        run: bash scripts/site-data.sh save "Fishing data" data/fishing
+      - name: Publish the website
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent || echo "Pages will publish on its own."
