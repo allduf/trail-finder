@@ -274,7 +274,7 @@
 .nav-route .x { float: right; font: inherit; font-size: .85rem; border: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; padding: 0 0 0 8px; }
 #navRideBtn { font-weight: 700; }
 @media (max-width: 760px) { #navRideBtn { display: none; } }
-body.sport-hunt #navRideBtn { display: none; }
+body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
 `;
   document.head.appendChild(css);
   const strip = document.createElement("div");

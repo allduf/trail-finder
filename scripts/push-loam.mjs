@@ -12,6 +12,8 @@
 //    regions (data/avalanche.json) when their highest rating for today or tomorrow goes up to Considerable or more, and
 //    the ski tours it watches (tours: { k, n, c: top, lo, hi, cls }) when their trip planner light (ski-terrain.js, the
 //    Avaluator chart) goes to Extra caution or Not recommended. Sent each time it goes up; again after it comes down.
+//  - fish: fresh stocking (Fishing), as the bell's list: lakes and rivers within 50 km of its spot (fish.c) stocked in
+//    the last 3 weeks (data/fishing/stocked.json, nightly), each stocking once.
 import webpush from "web-push";
 import { readFileSync } from "node:fs";
 
@@ -52,7 +54,7 @@ webpush.setVapidDetails(SITE, keys.public_key, keys.private_key);
 const subs = await db("push_subs?select=id,sub,watch,sent,updated_at");
 console.log(`${subs.length} phone(s) signed up.`);
 // What each phone asked for (no addresses), so a quiet phone can be told apart from one with nothing picked.
-subs.forEach((s, i) => { const w = s.watch || {}; console.log(`  phone ${i + 1}: regions ${JSON.stringify(w.zones || [])}, prime loam ${w.loam ? "on" : "off"}, new trails ${w.newt ? "on" : "off"}, avalanche ${w.avy ? `on, ${(w.tours || []).length} tour(s)` : "off"}, ${(w.ride || []).length} To ride trail(s), app v${w.v || "older than 257"}, ${Object.keys(s.sent || {}).length} already sent, saved ${s.updated_at}`); });
+subs.forEach((s, i) => { const w = s.watch || {}; console.log(`  phone ${i + 1}: regions ${JSON.stringify(w.zones || [])}, prime loam ${w.loam ? "on" : "off"}, new trails ${w.newt ? "on" : "off"}, avalanche ${w.avy ? `on, ${(w.tours || []).length} tour(s)` : "off"}, stocking ${w.fish ? "on" : "off"}, ${(w.ride || []).length} To ride trail(s), app v${w.v || "older than 257"}, ${Object.keys(s.sent || {}).length} already sent, saved ${s.updated_at}`); });
 if (!subs.length) process.exit(0);
 const zonesOf = (w) => ((w.zones || []).includes("all") ? [...ZONES.keys()] : (w.zones || []).filter((z) => ZONES.has(z)));
 
@@ -155,6 +157,10 @@ const feed = ((readJson("data/new-trails.json") || {}).items || []).filter((it) 
   const c = classify(it.tags || {}, it.routes || [], it.routes && it.routes.length ? ["mtb"] : []);
   return c && (c.cat === "mtb" || c.cat === "looks") && c.use !== "hike";
 });
+
+// ---------- fresh stocking (Fishing): data/fishing/stocked.json, nightly ----------
+const stocked = readJson("data/fishing/stocked.json");
+const kmApart = (a, b) => Math.hypot((a[1] - b[1]) * 111.32 * Math.cos(a[0] * Math.PI / 180), (a[0] - b[0]) * 110.57);
 
 // ---------- avalanche danger: today and tomorrow in each forecast area ----------
 const avyData = readJson("data/avalanche.json");
@@ -274,10 +280,26 @@ for (const s of subs) {
     }
     if (lines.length) msgs.unshift({ title: `⚠ Avalanche danger up: ${list(names, 2)}`, body: lines.slice(0, 5).join("\n") + (lines.length > 5 ? `\nand ${lines.length - 5} more` : "") + "\nRead the full forecast before you go.", keys });
   } else if (w.avy) Object.keys(was).forEach((k) => { if (/^[vt]:/.test(k)) now[k] = was[k]; });   // no forecasts read: leave them as they were
+  // Fresh stocking (Fishing): lakes and rivers near the spot it watches, stocked in the last 3 weeks, once each.
+  if (w.fish && Array.isArray(w.fish.c) && stocked) {
+    const c = w.fish.c, from = new Date(Math.max(Date.now() - 21 * 86400e3, Date.parse(w.fish.since || 0) - 14 * 86400e3)).toISOString().slice(0, 10), lines = [], names = [], keys = [];
+    for (const x of stocked.waters) {
+      if (Math.abs(x.c[0] - c[0]) > 0.6 || Math.abs(x.c[1] - c[1]) > 1 || kmApart(c, x.c) > 50) continue;
+      const fresh = x.r.filter((r) => /^\d{4}-\d\d-\d\d$/.test(r[0]) && r[0] >= from);
+      if (!fresh.length) continue;
+      const key = `k:${x.id || x.n}:${fresh[0][0]}`;
+      now[key] = 1;
+      if (was[key]) continue;
+      names.push(x.n);
+      lines.push(`${x.n}: ${[...new Set(fresh.filter((r) => r[0] === fresh[0][0]).map((r) => `${r[2] ? r[2].toLocaleString("en-CA") + " " : ""}${(stocked.sp[r[1]] || "fish").toLowerCase()}`))].join(", ")} (${fresh[0][0].slice(5)})`);
+      keys.push(key);
+    }
+    if (lines.length) msgs.push({ title: `🎣 Just stocked: ${list(names, 2)}`, body: lines.slice(0, 5).join("\n") + (lines.length > 5 ? `\nand ${lines.length - 5} more` : ""), keys });
+  } else if (w.fish) Object.keys(was).forEach((k) => { if (k.startsWith("k:")) now[k] = was[k]; });
   let expired = false;
   for (const m of msgs) {
     try {
-      await webpush.sendNotification(s.sub, JSON.stringify({ title: m.title, body: m.body, url: "./#notify", tag: m.keys[0].startsWith("n:") ? "tf-new" : /^[vt]:/.test(m.keys[0]) ? "tf-avy" : m.keys[0].startsWith("s:") ? "tf-loam-soon" : "tf-loam" }), { TTL: 6 * 3600, urgency: "normal" });
+      await webpush.sendNotification(s.sub, JSON.stringify({ title: m.title, body: m.body, url: "./#notify", tag: m.keys[0].startsWith("n:") ? "tf-new" : m.keys[0].startsWith("k:") ? "tf-fish" : /^[vt]:/.test(m.keys[0]) ? "tf-avy" : m.keys[0].startsWith("s:") ? "tf-loam-soon" : "tf-loam" }), { TTL: 6 * 3600, urgency: "normal" });
       sent++;
     } catch (e) {
       if (e.statusCode === 404 || e.statusCode === 410) { expired = true; break; }   // turned off on the phone, or the address expired

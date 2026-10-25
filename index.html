@@ -1313,7 +1313,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <h1>Trail <span>Finder</span></h1>
         <button type="button" class="peek-search" id="peekSearch"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Search trails</span></button>
         <button type="button" class="peek-photo" id="peekPhoto" aria-label="Which trail is this? Find a trail from a photo" title="Which trail is this? Find a trail from a photo">📷</button>
-        <span class="brand-links"><button class="linkish" id="aboutBtn" type="button">How it works</button><a class="linkish" id="myRidesLink" href="ride.html#rides" title="Your recorded and imported rides (GPX, Strava archive) and stats">🚴 My rides</a><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hunt">🦌 Hunting</option></select></span>
+        <span class="brand-links"><button class="linkish" id="aboutBtn" type="button">How it works</button><a class="linkish" id="myRidesLink" href="ride.html#rides" title="Your recorded and imported rides (GPX, Strava archive) and stats">🚴 My rides</a><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hunt">🦌 Hunting</option><option value="fish">🎣 Fishing</option></select></span>
       </div>
       <div class="peek-quick" id="peekQuick" role="group" aria-label="Quick searches">
         <button type="button" data-q="new">✨ New trails</button><button type="button" data-q="near">◎ Near me</button><button type="button" data-q="prime"><span class="dot" aria-hidden="true"></span>Prime loam</button><button type="button" data-q="today">☀ Today</button>
@@ -1412,6 +1412,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <button type="button" data-nav="new" class="mtb-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Find</span></button>
     <button type="button" data-nav="ski" class="ski-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 20 21 8 M6 21l2-6 M12 4a2 2 0 1 0 0 .1 M9 12l4-3 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Routes</span></button>
     <button type="button" data-nav="hunt" class="hunt-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Hunt</span></button>
+    <button type="button" data-nav="fish" class="fish-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M2.5 12c3-4.5 8.5-6 13-3.5L21 5v14l-5.5-3.5C11 18 5.5 16.5 2.5 12z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor"/></svg><span>Fish</span></button>
     <button type="button" data-nav="ride" title="Ride with the map: it follows you, shows the trail you're on and the next junction, and records the ride"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 8v8l6-4z" fill="#ff4d5e"/></svg><span>Ride</span></button>
     <button type="button" data-nav="saved"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 3.2l2.6 5.5 6 .7-4.4 4.1 1.1 5.9L12 16.5l-5.3 2.9 1.1-5.9-4.4-4.1 6-.7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Saved</span></button>
     <button type="button" data-nav="more"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg><span>More</span></button>
@@ -1421,7 +1422,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <div class="about" id="about" hidden>
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
     <h2 id="aboutTitle">How Trail Finder works</h2>
-    <p class="about-lead">Find mountain bike trails that are new to you, ride them when the dirt is just right, and switch to Skiing or Hunting in the sport menu at the top.</p>
+    <p class="about-lead">Find mountain bike trails that are new to you, ride them when the dirt is just right, and switch to Skiing, Hunting or Fishing in the sport menu at the top.</p>
     <h3>🚵 MTB</h3>
     <ul class="about-quick">
       <li><b>Search</b> a trail name, an area or Near me, and pick how new.</li>
@@ -1442,6 +1443,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <ul class="about-quick">
       <li>Hunting zones, open seasons and no-shooting areas (towns in red).</li>
       <li>Tap the map for the rules and wind there. Save your own spots.</li>
+    </ul>
+    <h3>🎣 Fishing</h3>
+    <ul class="about-quick">
+      <li>Where to fish today, stocked lakes, river flow compared to normal, tides and hatches, all over Canada.</li>
+      <li>Tap a lake, river or the sea for its rules, fish, stocking and (Ontario, Quebec) how much is safe to eat. Your catches stay private.</li>
     </ul>
     <h3>Everywhere</h3>
     <ul class="about-quick">
@@ -1548,6 +1554,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <p>“Hunting maps offline” saves the zones, parks, seasons and draw results, and the picture layers you have on for the area on screen (zoom 10 to 15), so they work with no signal; save the base map with Offline maps (in the Ride tab on phones, the Layers menu on computers).</p>
     <p>Your points: truck or parking, tree stands, blinds, sightings, tracks, rubs, scrapes, bedding and feeding areas, trail cameras, water, harvests and camps, each with a photo and notes, on the flat and 3D maps (signed in, they go to your account too). Open one to Share it or “Guide me here”. A 🎯 Harvest point takes the species, animal, date and zone (filled in from the map), and the <b>Hunting log</b> lists harvests by season (April to March) with a CSV download. A 📷 Trail camera point keeps its checks: each time you pull the card, add the best photo, the date and what it caught, and the log shows every camera's photos in order. This is a guide, not the law: always check the BC Hunting and Trapping Regulations Synopsis or the Alberta Guide to Hunting Regulations.</p>
     <p class="src">Hunting data: DataBC (Open Government Licence - British Columbia), Alberta Environment and Protected Areas (Open Government Licence - Alberta), Canada Lands Survey System (Open Government Licence - Canada), ParcelMap BC (LTSA), BC Vegetation Resources Inventory, BC Limited Entry Hunting Synopsis, Alberta Guide to Hunting Regulations and AlbertaRELM draw summaries, Alberta Wildfire fuel types and fire history, Alberta Merged Wetland Inventory. Weather: Open-Meteo. Terrain: Mapzen Terrain Tiles on AWS.</p>
+    <h3>Fishing</h3>
+    <p>Pick “🎣 Fishing” in the sport menu at the top. <b>Tap the map</b> on a lake, river or the sea to see that spot: the fishing rules for its area with links to your province's regulations and in-season changes (BC regions and tidal areas, Alberta's zones and each water's own rules, Ontario's zones, Quebec's zones and their latest news), the fish recorded there, when it was last stocked, the nearest river gauge and the next tides. In Ontario and Quebec it also shows how many meals a month of each fish are safe to eat, by size, from each province's fish eating guide.</p>
+    <p><b>Where to fish today</b> ranks the stocked waters and rivers near you by how fresh the stocking is and how good the flow is today. A river's light compares its flow now with its usual flow for this month (the middle of all its monthly means): very low, low and clear, normal, high or blown out. The conditions card has the wind, the pressure and which way it's going, the moon, sunrise and sunset, and a 1 to 5 bite forecast for the next 3 days; by the sea, the water temperature and waves. The hatch chart shows what's usually hatching this month in your part of the country.</p>
+    <p><b>Save a catch</b> where you caught it, with the fish, its length, the fly or lure, kept or released, and a photo; “Which fish is this?” asks the photo AI to name the fish. The weather, pressure, moon, light, river flow and tide are saved with it, and the Fishing log shows what works for you (your catches by pressure, time of day, moon, flow, tide and fly), with a CSV to keep. Catches and spots are only yours: there's no public catch map. Turn on 🎣 in the 🔔 to hear when a lake or river near you is stocked.</p>
+    <p class="src">Fishing data: Freshwater Fisheries Society of BC, DataBC (Open Government Licence - British Columbia), Alberta Environment and Protected Areas (Open Government Licence - Alberta), Ontario Ministry of Natural Resources and Ministry of the Environment (Open Government Licence - Ontario), Quebec Ministère de l'Environnement, de la Lutte contre les changements climatiques, de la Faune et des Parcs (Données Québec, CC-BY 4.0), Environment and Climate Change Canada hydrometric data and Fisheries and Oceans Canada tides (Open Government Licence - Canada), OpenStreetMap launches and access, Open-Meteo weather and marine forecasts.</p>
     </details>
     <p><button class="btn primary" id="aboutClose" type="button">Got it</button></p>
   </div>
@@ -1557,12 +1568,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=395"></script>
-<script src="rotate.js?v=395"></script>
-<script src="official.js?v=395"></script>
-<script src="directions.js?v=395"></script>
-<script src="ratings.js?v=395"></script>
-<script src="ebike.js?v=395"></script>
+<script src="native.js?v=396"></script>
+<script src="rotate.js?v=396"></script>
+<script src="official.js?v=396"></script>
+<script src="directions.js?v=396"></script>
+<script src="ratings.js?v=396"></script>
+<script src="ebike.js?v=396"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3876,7 +3887,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=395").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=396").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5001,15 +5012,15 @@ out body;`;
   // ← Back at the top, the phone's back swipe and the Android back button all close the newest thing first
   // (How it works, then a trail's details, then the page you came from), until you're back on the map.
   const isAlt = () => document.body.classList.contains("sport-alt");
-  const findTab = () => document.body.classList.contains("sport-ski") ? "ski" : document.body.classList.contains("sport-hunt") ? "hunt" : "new";
+  const findTab = () => document.body.classList.contains("sport-ski") ? "ski" : document.body.classList.contains("sport-hunt") ? "hunt" : document.body.classList.contains("sport-fish") ? "fish" : "new";
   const navStack = [];                 // pages over the map, oldest first: "find", "ride", "saved", "more", "search", "results"
   const navTop = () => navStack[navStack.length - 1] || "map";
-  const ROOTS = { find: "find", new: "find", ski: "find", hunt: "find", ride: "ride", saved: "saved", more: "more" };
+  const ROOTS = { find: "find", new: "find", ski: "find", hunt: "find", fish: "find", ride: "ride", saved: "saved", more: "more" };
   const TITLES = { find: "Find", get ride() { return words().tab; }, saved: "Saved", more: "More", search: "New trails", results: "Results" };
   // Words for each sport (alex, 2026-10-24): riding words in MTB only. Skiing and Hunting record a track, save
   // offline maps for skiing or hunting, and their bell is about avalanches or plain notifications, not loam.
   // function declarations: setSheetH runs syncTabbar before this part of the script has run
-  function sportOf() { return document.body.classList.contains("sport-ski") ? "ski" : document.body.classList.contains("sport-hunt") ? "hunt" : "mtb"; }
+  function sportOf() { return document.body.classList.contains("sport-ski") ? "ski" : document.body.classList.contains("sport-hunt") ? "hunt" : document.body.classList.contains("sport-fish") ? "fish" : "mtb"; }
   function words() { return {
     mtb: { tab: "Ride", start: "▶ Start riding", note: "Follows you, names the trail you're on and the next junction, records the ride.", offline: "Save an area for riding with no signal",
       alerts: ["Loam alerts and notifications", "Prime loam and new trails in your regions"] },
@@ -5017,6 +5028,8 @@ out body;`;
       alerts: ["Avalanche alerts and notifications", "Avalanche danger in your regions and on tours you watch"] },
     hunt: { tab: "Track", start: "▶ Start tracking", note: "Follows you on the map and records your track.", offline: "Save an area for hunting with no signal",
       alerts: ["Notifications", "Pick what the 🔔 tells you about"] },
+    fish: { tab: "Track", start: "▶ Start tracking", note: "Follows you on the map and records your track.", offline: "Save an area for fishing with no signal",
+      alerts: ["Stocking alerts and notifications", "Lakes near you just stocked, and what else the 🔔 tells you about"] },
   }[sportOf()]; }
   function syncSportWords() {
     const t = document.querySelector('#tabbar [data-nav="ride"]');
@@ -7299,46 +7312,47 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=395"></script>
-<script src="contours.js?v=395"></script>
-<script src="clouds.js?v=395"></script>
-<script src="smoke.js?v=395"></script>
-<script src="photo-slider.js?v=395"></script>
-<script src="ski-terrain.js?v=395"></script>
-<script src="winter.js?v=395"></script>
-<script src="hunting.js?v=395"></script>
-<script src="compass.js?v=395"></script>
-<script src="ski-points.js?v=395"></script>
-<script src="webcams.js?v=395"></script>
-<script src="lifts.js?v=395"></script>
-<script src="rogers.js?v=395"></script>
-<script src="slackcountry.js?v=395"></script>
-<script src="ski-areas.js?v=395"></script>
-<script src="offline.js?v=395"></script>
-<script src="ride-stats.js?v=395"></script>
-<script src="native-gps.js?v=395"></script>
-<script src="navigate.js?v=395"></script>
-<script src="planner.js?v=395"></script>
-<script src="loops.js?v=395"></script>
-<script src="ride-finds.js?v=395"></script>
-<script src="rides.js?v=395"></script>
-<script src="community.js?v=395"></script>
-<script src="ride-files.js?v=395"></script>
-<script src="rider-trails.js?v=395"></script>
-<script src="account.js?v=395"></script>
-<script src="strava.js?v=395"></script>
-<script src="reports.js?v=395"></script>
-<script src="grades.js?v=395"></script>
-<script src="trail-photos.js?v=395"></script>
-<script src="visitors.js?v=395"></script>
-<script src="notify.js?v=395"></script>
-<script src="closures.js?v=395"></script>
-<script src="status.js?v=395"></script>
-<script src="areas.js?v=395"></script>
-<script src="alpine.js?v=395"></script>
-<script src="bikeparks.js?v=395"></script>
-<script src="photo-find.js?v=395"></script>
-<script src="whats-new.js?v=395"></script>
+<script src="map3d.js?v=396"></script>
+<script src="contours.js?v=396"></script>
+<script src="clouds.js?v=396"></script>
+<script src="smoke.js?v=396"></script>
+<script src="photo-slider.js?v=396"></script>
+<script src="ski-terrain.js?v=396"></script>
+<script src="winter.js?v=396"></script>
+<script src="hunting.js?v=396"></script>
+<script src="fishing.js?v=396"></script>
+<script src="compass.js?v=396"></script>
+<script src="ski-points.js?v=396"></script>
+<script src="webcams.js?v=396"></script>
+<script src="lifts.js?v=396"></script>
+<script src="rogers.js?v=396"></script>
+<script src="slackcountry.js?v=396"></script>
+<script src="ski-areas.js?v=396"></script>
+<script src="offline.js?v=396"></script>
+<script src="ride-stats.js?v=396"></script>
+<script src="native-gps.js?v=396"></script>
+<script src="navigate.js?v=396"></script>
+<script src="planner.js?v=396"></script>
+<script src="loops.js?v=396"></script>
+<script src="ride-finds.js?v=396"></script>
+<script src="rides.js?v=396"></script>
+<script src="community.js?v=396"></script>
+<script src="ride-files.js?v=396"></script>
+<script src="rider-trails.js?v=396"></script>
+<script src="account.js?v=396"></script>
+<script src="strava.js?v=396"></script>
+<script src="reports.js?v=396"></script>
+<script src="grades.js?v=396"></script>
+<script src="trail-photos.js?v=396"></script>
+<script src="visitors.js?v=396"></script>
+<script src="notify.js?v=396"></script>
+<script src="closures.js?v=396"></script>
+<script src="status.js?v=396"></script>
+<script src="areas.js?v=396"></script>
+<script src="alpine.js?v=396"></script>
+<script src="bikeparks.js?v=396"></script>
+<script src="photo-find.js?v=396"></script>
+<script src="whats-new.js?v=396"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

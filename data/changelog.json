@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-25", "text": "New sport: 🎣 Fishing, all over Canada. Rules for the spot, stocked lakes, river flow vs normal, tides, hatches, safe to eat (ON, QC), a private catch log, fish ID from a photo and fresh stocking alerts"},
     {"date": "2026-10-25", "text": "Smoother 3D map in Skiing on phones: the pins (slackcountry, gates, webcams) no longer slow every move, which could crash the 3D map"},
     {"date": "2026-10-25", "text": "Photo find no longer takes Google's picture tags (like \u201cHybrid bicycle\u201d) for trail names, so fewer wrong Best matches"},
     {"date": "2026-10-25", "text": "Loam index now reads each soil's own wetness, so sandy trails (around Quebec City and elsewhere) no longer show 0 every day. A moon at night in the weather"},
