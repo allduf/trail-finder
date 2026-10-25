@@ -4,7 +4,31 @@
 // An OpenStreetMap trail counts as one of their trails when most of it runs along that trail's line.
 // window.tfOfficial = { load(bounds) -> Promise (loads the squares in view), match(geom, name) -> { s, src, why } | null,
 //   onChange(fn) (called with touches(geom) when new squares arrive: true for trails the new squares could change) }. s: 1 official + bikes allowed, 2 official, 3 official but not for bikes.
+
+// Shared with ratings.js: an answer per trail shape and name, kept until a square it reaches arrives. key: the points' sum.
+window.tfMemo = window.tfMemo || {
+  remember(memo, geom, name, fn) {
+    let x = 0, s = 90, n = -90, w = 180, e = -180;
+    for (const q of geom) {
+      const a = Array.isArray(q) ? q[0] : q.lat, o = Array.isArray(q) ? q[1] : q.lng;
+      x = (x * 31 + a * 1e5 + o * 3e5) % 1e15;
+      if (a < s) s = a; if (a > n) n = a; if (o < w) w = o; if (o > e) e = o;
+    }
+    const k = geom.length + "|" + x + "|" + (name || ""), hit = memo.get(k);
+    if (hit) return hit.r;
+    if (memo.size > 50000) memo.clear();
+    const r = fn(geom, name);
+    memo.set(k, { r, s, n, w, e });
+    return r;
+  },
+  // A new half-degree square ("lat_lon", its south-west corner): forget the answers for trails whose box reaches it.
+  forget(memo, key) {
+    const [a, o] = key.split("_").map(Number);
+    memo.forEach((m, k) => { if (m.s < a + 0.5 && m.n >= a && m.w < o + 0.5 && m.e >= o) memo.delete(k); });
+  },
+};
 (function () {
+  const { remember, forget } = window.tfMemo;
   const DIR = "data/official/";
   const CELL = 0.005;                 // index cells, degrees (~550 m north-south)
   const NEAR_M = 60, SHARE = 0.6;     // like the Recreation Sites and Trails BC match in scripts/build-mtb.mjs
@@ -45,7 +69,7 @@
         const k = la + "_" + lo;
         if (!ix.squares[k] || squares.has(k)) continue;
         const p = fetch(DIR + k + ".json").then((r) => (r.ok ? r.json() : null)).catch(() => null)
-          .then((f) => { squares.set(k, f && f.v === 2 ? prepare(f) : { lines: [], cells: new Map() }); });
+          .then((f) => { squares.set(k, f && f.v === 2 ? prepare(f) : { lines: [], cells: new Map() }); forget(memo, k); });
         p.key = k; squares.set(k, p); want.push(p);
       }
       if (!want.length) return;
@@ -96,8 +120,15 @@
   // Local lists (a town's or regional district's) beat the province's when both say bikes are allowed.
   const LOCAL = /^(wh|csrd|csrd2|ott)$/;
 
+  // The same trail is matched again and again (each search, each square of results, each list it's in): the answer only
+  // changes when new squares arrive, so it's kept until then (alex, 2026-10-25: "trail research used to be quicker";
+  // matching was over a third of a Find new trails on a phone).
+  const memo = new Map();
   function match(geom, name) {
     if (!geom || geom.length < 2 || !squares.size) return null;
+    return remember(memo, geom, name, matchNow);
+  }
+  function matchNow(geom, name) {
     const pts = samples(geom.map(pt));
     const hits = new Map();   // line -> [points within NEAR_M, points within NO_BIKE_M]
     const best = new Map(), skip = new Map();

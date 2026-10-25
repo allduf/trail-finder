@@ -49,7 +49,7 @@
         const k = la + "_" + lo;
         if (!ix.squares[k] || squares.has(k)) continue;
         const p = fetch(DIR + k + ".json").then((r) => (r.ok ? r.json() : null)).catch(() => null)
-          .then((f) => squares.set(k, f && f.v === 1 ? prepare(f) : new Map()));
+          .then((f) => { squares.set(k, f && f.v === 1 ? prepare(f) : new Map()); if (memo) memo.forget(offMemo, k); });
         p.key = k; squares.set(k, null); want.push(p);
       }
       if (!want.length) return;
@@ -95,14 +95,27 @@
     return w;
   };
   const sameName = (a, b) => { const A = words(a), B = words(b); return !A.size || !B.size || [...A].some((w) => B.has(w)); };
+  // Kept until new squares arrive, like official.js's match: the same trail is rated again on every search (alex,
+  // 2026-10-25: "trail research used to be quicker"; this was the biggest part of a Find new trails on a phone).
+  const offMemo = new Map(), memo = window.tfMemo;   // official.js (loaded first)
   function official(geom, name) {
     if (!squares.size || !geom || geom.length < 2) return null;
+    return memo ? memo.remember(offMemo, geom, name, officialNow) : officialNow(geom, name);
+  }
+  function officialNow(geom, name) {
     const pts = along(geom, 20), hits = new Map();
     for (const p of pts) {
       const cells = squares.get(`${sq(p[0])}_${sq(p[1])}`), list = cells && cells.get(Math.floor(p[0] / CELL) + "," + Math.floor(p[1] / CELL));
       if (!list) continue;
       const seen = new Set();
-      for (const [l, k] of list) if (!seen.has(l) && segDist(p, l.g[k], l.g[k + 1], l.g[k + 2], l.g[k + 3]) <= NEAR_M && !(name && NAMED.test(l.src) && !sameName(name, l.name.split(", ")[0]))) seen.add(l);
+      // A segment whose box is more than NEAR_M away north-south or east-west can't be near: skip the distance (as in official.js).
+      const la = p[0], lo = p[1], dLa = NEAR_M / 110540, dLo = NEAR_M / (Math.cos(la * Math.PI / 180) * 111320);
+      for (const [l, k] of list) {
+        if (seen.has(l)) continue;
+        const g = l.g, a0 = g[k], a1 = g[k + 1], b0 = g[k + 2], b1 = g[k + 3];
+        if ((a0 < b0 ? b0 : a0) < la - dLa || (a0 < b0 ? a0 : b0) > la + dLa || (a1 < b1 ? b1 : a1) < lo - dLo || (a1 < b1 ? a1 : b1) > lo + dLo) continue;
+        if (segDist(p, a0, a1, b0, b1) <= NEAR_M && !(name && NAMED.test(l.src) && !sameName(name, l.name.split(", ")[0]))) seen.add(l);
+      }
       seen.forEach((l) => { const key = l.src + "|" + l.name + "|" + l.d; hits.set(key, { l, n: ((hits.get(key) || {}).n || 0) + 1 }); });
     }
     let pick = null;
