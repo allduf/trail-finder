@@ -1568,12 +1568,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=396"></script>
-<script src="rotate.js?v=396"></script>
-<script src="official.js?v=396"></script>
-<script src="directions.js?v=396"></script>
-<script src="ratings.js?v=396"></script>
-<script src="ebike.js?v=396"></script>
+<script src="native.js?v=397"></script>
+<script src="rotate.js?v=397"></script>
+<script src="official.js?v=397"></script>
+<script src="directions.js?v=397"></script>
+<script src="ratings.js?v=397"></script>
+<script src="ebike.js?v=397"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1793,12 +1793,17 @@ body.sport-alt #rideMapBtn { display: none !important; }
     }
     return glLoading;
   }
+  // Load map pictures while a finger is still dragging or the map is still gliding, not only once it stops (Leaflet's
+  // phone default), and keep 3 screens of them around the view instead of 2: alex 2026-10-25 "I want the app go as
+  // quick as this" (Outmap, which fills the map as you pan). Without this, half of a fast pan showed grey holes.
+  const FAST_TILES = { updateWhenIdle: false, updateInterval: 100, keepBuffer: 3 };
   async function makeBase(key) {
-    const [url, opt] = BASEMAPS[key];
+    const [url, base] = BASEMAPS[key];
+    const opt = { ...base, ...FAST_TILES };
     if (key === "vector") { await loadVectorLib(); return L.maplibreGL({ style: url, attributionControl: { customAttribution: opt.attribution } }); }
     const layer = key === "sat" || key === "sathybrid" ? new EsriDeep(url, opt) : L.tileLayer(url, opt);
     if (key !== "sathybrid") return layer;
-    return L.layerGroup([layer, L.tileLayer(SAT_NAMES, { maxNativeZoom: 19, maxZoom: 22 })]);
+    return L.layerGroup([layer, L.tileLayer(SAT_NAMES, { maxNativeZoom: 19, maxZoom: 22, ...FAST_TILES })]);
   }
   // Esri photos stop at a different zoom in each place (22 over Squamish, 21 in Whistler, 18 at Duffey Lake)
   // and show a grey "Map data not yet available" tile past that. Esri's tile map says which tiles exist, so
@@ -1817,14 +1822,22 @@ body.sport-alt #rideMapBtn { display: none !important; }
       box.style.overflow = "hidden"; img.alt = ""; img.setAttribute("role", "presentation");
       box.append(img);
       const size = this.getTileSize().x;
-      (async () => {
-        let z = c.z, x = c.x, y = c.y;
-        while (z > 0 && z > c.z - 6 && !(await this.have(z, x, y))) { z--; x >>= 1; y >>= 1; }
+      const show = (z, x, y) => {
         const k = 2 ** (c.z - z), s = size * k;
         Object.assign(img.style, { position: "absolute", width: s + "px", height: s + "px", maxWidth: "none",
           left: -(c.x - x * k) * size + "px", top: -(c.y - y * k) * size + "px" });
-        img.onload = () => done(null, box); img.onerror = (e) => done(e, box);
         img.src = L.Util.template(this._url, { z, x, y });
+      };
+      (async () => {
+        let z = c.z, x = c.x, y = c.y;
+        // The photo starts downloading while Esri's tile map is asked whether it exists, not after: one wait instead of
+        // two for every new block of the map (alex 2026-10-25, "as quick as" Outmap). It only shows once both say yes.
+        const got = new Promise((ok) => { img.onload = () => ok(null); img.onerror = (e) => ok(e || new Error("tile")); });
+        show(z, x, y);
+        if (await this.have(z, x, y)) { done(await got, box); return; }
+        while (z > 0 && z > c.z - 6 && !(await this.have(z, x, y))) { z--; x >>= 1; y >>= 1; }
+        img.onload = () => done(null, box); img.onerror = (e) => done(e, box);
+        show(z, x, y);
       })();
       return box;
     },
@@ -3887,7 +3900,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=396").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=397").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -7312,47 +7325,47 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=396"></script>
-<script src="contours.js?v=396"></script>
-<script src="clouds.js?v=396"></script>
-<script src="smoke.js?v=396"></script>
-<script src="photo-slider.js?v=396"></script>
-<script src="ski-terrain.js?v=396"></script>
-<script src="winter.js?v=396"></script>
-<script src="hunting.js?v=396"></script>
-<script src="fishing.js?v=396"></script>
-<script src="compass.js?v=396"></script>
-<script src="ski-points.js?v=396"></script>
-<script src="webcams.js?v=396"></script>
-<script src="lifts.js?v=396"></script>
-<script src="rogers.js?v=396"></script>
-<script src="slackcountry.js?v=396"></script>
-<script src="ski-areas.js?v=396"></script>
-<script src="offline.js?v=396"></script>
-<script src="ride-stats.js?v=396"></script>
-<script src="native-gps.js?v=396"></script>
-<script src="navigate.js?v=396"></script>
-<script src="planner.js?v=396"></script>
-<script src="loops.js?v=396"></script>
-<script src="ride-finds.js?v=396"></script>
-<script src="rides.js?v=396"></script>
-<script src="community.js?v=396"></script>
-<script src="ride-files.js?v=396"></script>
-<script src="rider-trails.js?v=396"></script>
-<script src="account.js?v=396"></script>
-<script src="strava.js?v=396"></script>
-<script src="reports.js?v=396"></script>
-<script src="grades.js?v=396"></script>
-<script src="trail-photos.js?v=396"></script>
-<script src="visitors.js?v=396"></script>
-<script src="notify.js?v=396"></script>
-<script src="closures.js?v=396"></script>
-<script src="status.js?v=396"></script>
-<script src="areas.js?v=396"></script>
-<script src="alpine.js?v=396"></script>
-<script src="bikeparks.js?v=396"></script>
-<script src="photo-find.js?v=396"></script>
-<script src="whats-new.js?v=396"></script>
+<script src="map3d.js?v=397"></script>
+<script src="contours.js?v=397"></script>
+<script src="clouds.js?v=397"></script>
+<script src="smoke.js?v=397"></script>
+<script src="photo-slider.js?v=397"></script>
+<script src="ski-terrain.js?v=397"></script>
+<script src="winter.js?v=397"></script>
+<script src="hunting.js?v=397"></script>
+<script src="fishing.js?v=397"></script>
+<script src="compass.js?v=397"></script>
+<script src="ski-points.js?v=397"></script>
+<script src="webcams.js?v=397"></script>
+<script src="lifts.js?v=397"></script>
+<script src="rogers.js?v=397"></script>
+<script src="slackcountry.js?v=397"></script>
+<script src="ski-areas.js?v=397"></script>
+<script src="offline.js?v=397"></script>
+<script src="ride-stats.js?v=397"></script>
+<script src="native-gps.js?v=397"></script>
+<script src="navigate.js?v=397"></script>
+<script src="planner.js?v=397"></script>
+<script src="loops.js?v=397"></script>
+<script src="ride-finds.js?v=397"></script>
+<script src="rides.js?v=397"></script>
+<script src="community.js?v=397"></script>
+<script src="ride-files.js?v=397"></script>
+<script src="rider-trails.js?v=397"></script>
+<script src="account.js?v=397"></script>
+<script src="strava.js?v=397"></script>
+<script src="reports.js?v=397"></script>
+<script src="grades.js?v=397"></script>
+<script src="trail-photos.js?v=397"></script>
+<script src="visitors.js?v=397"></script>
+<script src="notify.js?v=397"></script>
+<script src="closures.js?v=397"></script>
+<script src="status.js?v=397"></script>
+<script src="areas.js?v=397"></script>
+<script src="alpine.js?v=397"></script>
+<script src="bikeparks.js?v=397"></script>
+<script src="photo-find.js?v=397"></script>
+<script src="whats-new.js?v=397"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

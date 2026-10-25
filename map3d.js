@@ -43,6 +43,12 @@
 
   const LINE_SCALE = 1.15;    // trails a little bolder than in 2D, so they read against the photos
   let on = false, gl = null, box = null, libLoading = null;
+  // Opening 3D starts looking straight down, like the flat map, and tilts up to the mountains and the sky (the way
+  // Outmap does it, alex 2026-10-25 "I really like the 3d map like that"): 70 degrees shows the horizon, it was 60.
+  // Coming back to 3D tilts to where it was left.
+  const TILT = 70, TILT_MS = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 900;
+  let tilt = TILT, tiltEnd = 0;
+  const tiltUp = () => { if (!gl) return; tiltEnd = Date.now() + TILT_MS + 100; gl.easeTo({ pitch: tilt, duration: TILT_MS, easing: (t) => 1 - (1 - t) ** 3 }); };
   let hits = [];              // Leaflet layers that react to clicks, by index (the "id" of the 3D hit lines)
   let hitParts = [];          // their lines as [lng, lat] points, same index (nearestHit)
   let hitDots = [];           // round markers that react to clicks (huts in Skiing...): { l, c: [lng, lat], r }
@@ -75,6 +81,11 @@
     });
     return libLoading;
   }
+  // The 3D library (about 1 MB) is downloaded, not run, once the app has settled, so the first ⛰ 3D tap doesn't wait
+  // on the network (alex 2026-10-25: "I want the app go as quick as this", Outmap's 3D comes up at once). The
+  // service worker and the browser keep it; running it waits for the tap.
+  const prefetch = () => { if (window.maplibregl || libLoading) return; [".js", ".css"].forEach((x) => fetch(LIB + x, { mode: "no-cors" }).catch(() => null)); };
+  addEventListener("load", () => setTimeout(() => (window.requestIdleCallback || setTimeout)(prefetch), 8000), { once: true });
 
   // ---------- copy what the 2D map shows ----------
   const ll = (p) => [p.lng, p.lat];
@@ -192,7 +203,8 @@
     if (last2d && map.getZoom() === last2d.zoom && Math.abs(bearing2d() - last2d.bearing) < 0.5 &&
         map.latLngToContainerPoint(c).distanceTo(map.latLngToContainerPoint(last2d.c)) < 2) { syncing--; return; }
     last2d = null;
-    gl.flyTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d(), duration: 1200 });
+    // (a move while it tilts up would stop the tilt halfway: this one finishes it)
+    gl.flyTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d(), duration: 1200, ...(Date.now() < tiltEnd ? { pitch: tilt } : {}) });
     setTimeout(() => syncing--, 1300);
   }
   function to2d() {
@@ -521,7 +533,7 @@
     const c = map.getCenter();
     gl = new maplibregl.Map({
       container: box, antialias: !PHONE, pixelRatio: PHONE ? Math.min(devicePixelRatio || 1, 2) : undefined,
-      maxTileCacheSize: PHONE ? 24 : null, center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 60, bearing: bearing2d(), maxPitch: 85,
+      maxTileCacheSize: PHONE ? 24 : null, center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 0, bearing: bearing2d(), maxPitch: 85,
       attributionControl: { compact: true },
       style: {
         version: 8,
@@ -610,6 +622,7 @@
     // Phones the same since 2026-10-23 (they had 4 levels and fewer far tiles, which made the distance blurry).
     const lod = () => ["sat", "fill", "winter", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
     gl.once("load", lod);
+    gl.once("load", tiltUp);
     if (PHONE) {
       gl.on("idle", trimPaintBuffers);
       // At most PHONE_BUFFERS paint buffers, even while moving: with no limit (30) a long tilted ride across the
@@ -782,9 +795,9 @@
     map.getContainer().parentElement.classList.toggle("is3d", on);   // hides the 2D map style menu
     if (on) {
       if (!gl) build();
-      else { box.hidden = false; gl.resize(); const c = map.getCenter(); syncing++; gl.jumpTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d() }); syncing--; }
+      else { box.hidden = false; gl.resize(); const c = map.getCenter(); syncing++; gl.jumpTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d(), pitch: 0 }); syncing--; tiltUp(); }
       syncData(); keepView();
-    } else if (box) box.hidden = true;
+    } else if (box) { if (gl) tilt = Math.max(gl.getPitch(), 30); box.hidden = true; }
     syncBtn();
   }
   function syncBtn() {
