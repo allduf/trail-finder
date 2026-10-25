@@ -144,6 +144,7 @@ dialog.lf-dlg .lf-foot a { color: var(--accent); font-weight: 600; }
   // The 3D map copies these lines and their taps from the flat map (map3d.js), so they're only drawn here.
   map.createPane("lifts").style.zIndex = 430;   // over the ski runs (420)
   const renderer = L.canvas({ pane: "lifts", padding: 0.3, tolerance: 12 });   // wide enough to tap a lift with a finger
+  if (window.tfSkiTapThrough) window.tfSkiTapThrough(renderer);   // so the ski runs and slackcountry lines below still take taps
   const layer = L.layerGroup();
   let selected = null;
   const colorOf = (l) => C[statusOf(l).s] || C.none;

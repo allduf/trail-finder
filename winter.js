@@ -327,6 +327,35 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   if (modes) modes.after(pane); else if (head) head.append(pane);
   const $ = (id) => document.getElementById(id);
 
+  // ---------- canvases over the ski routes (lifts.js, slackcountry.js) ----------
+  // Leaflet sends a tap only to the canvas on top, so a canvas over the ski routes' canvas would swallow the taps on the
+  // routes (and on any other canvas below it). Those canvases call tfSkiTapThrough(renderer): their canvas lets taps
+  // through (pointer-events: none), and a tap that lands on one of their own tappable lines is caught here first (the
+  // highest pane wins) and sent to that line as a click, as Leaflet would have.
+  const through = [];
+  window.tfSkiTapThrough = (renderer) => {
+    through.push(renderer);
+    const pane = renderer.options.pane;
+    document.head.insertAdjacentHTML("beforeend", `<style>.leaflet-${pane}-pane > canvas { pointer-events: none !important; }</style>`);
+  };
+  const hitOn = (r, lp) => {
+    let hit = null;
+    for (let o = r._drawFirst; o; o = o.next) { const l = o.layer; if (l.options.interactive && l._containsPoint && l._containsPoint(lp)) hit = l; }   // the last drawn is on top
+    return hit;
+  };
+  map.getContainer().addEventListener("click", (e) => {
+    if (!through.length || (map.dragging && map.dragging.moved())) return;
+    const cp = map.mouseEventToContainerPoint(e), lp = map.containerPointToLayerPoint(cp);
+    const rs = through.filter((r) => r._map && r._container).sort((a, b) => (+map.getPane(b.options.pane).style.zIndex || 0) - (+map.getPane(a.options.pane).style.zIndex || 0));
+    for (const r of rs) {
+      const l = hitOn(r, lp);
+      if (!l) continue;
+      e.stopPropagation(); e.preventDefault();
+      l.fire("click", { latlng: map.containerPointToLatLng(cp), layerPoint: lp, containerPoint: cp, originalEvent: e }, true);
+      return;
+    }
+  }, true);
+
   // ---------- ski routes ----------
   map.createPane("ski").style.zIndex = 420;
   const skiRenderer = L.canvas({ pane: "ski", padding: 0.3, tolerance: L.Browser.touch ? 10 : 5 });
