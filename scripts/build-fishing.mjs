@@ -15,6 +15,10 @@
 //    hydrometric network, api.weather.gc.ca) with its usual flow and water level for each month: the middle of all the
 //    monthly means on record, so the app can say if a river is low, normal or high for the time of year.
 //  - tides.json: every Canadian Hydrographic Service station with high and low tide predictions (IWLS API).
+//  - spots.json: every known public fishing spot in Canada (alex: "add a layer with all the fishing spots"): OpenStreetMap's
+//    fishing spots, fishing piers and boat launches (leisure=fishing, fishing=yes/designated, leisure=slipway, read with
+//    Overpass for all of Canada) and Ontario's fishing access points (LIO). [lat, lon, kind (0 spot, 1 pier or dock,
+//    2 launch), name, facts]. Anglers' own catches and spots are never in it.
 //  - eat.json: how many meals a month of each fish are safe, by size, for each lake and river in the provinces' fish
 //    eating guides: Ontario's Guide to Eating Ontario Fish (data.ontario.ca, for everyone and for the sensitive
 //    population: children under 15 and people who are or may become pregnant or are breastfeeding) and Quebec's Guide
@@ -23,7 +27,7 @@
 // Government Licence - Ontario. Quebec and DFO: Open Government Licence - Canada / Quebec. FFSBC stocking report: public
 // report, credited in the app. A source that fails keeps its last good data.
 //
-// Run: node scripts/build-fishing.mjs   (Node 18 or newer, no packages needed; ONLY=stocked|zones|tides|gauges|eat for one file)
+// Run: node scripts/build-fishing.mjs   (Node 18 or newer, no packages needed; ONLY=stocked|zones|tides|gauges|eat|spots for one file)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 
@@ -523,8 +527,73 @@ async function buildEat() {
   save("eat.json", { updated: iso(now), len: EAT_LEN, meals: EAT_MEALS, sp: EAT_SP, on: on ? on.waters : keep("on"), qc: qc ? qc.waters : keep("qc") });
 }
 
+// ---------- public fishing spots ----------
+const INDEX_HTML = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const OVERPASS = process.env.OVERPASS_URLS ? process.env.OVERPASS_URLS.split(",") : JSON.parse(INDEX_HTML.match(/const OVERPASS = (\[[^\]]+\]);/)[1]);
+async function overpass(q) {
+  let last;
+  for (let round = 0; round < 2; round++) for (const url of OVERPASS) {
+    try {
+      const r = await fetch(url, { method: "POST", headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded" }, body: "data=" + encodeURIComponent(q), signal: AbortSignal.timeout(660000) });
+      const t = await r.text();
+      if (!r.ok || !t.startsWith("{")) throw new Error(`HTTP ${r.status}: ${t.slice(0, 160).replace(/\s+/g, " ")}`);
+      const j = JSON.parse(t);
+      if (j.remark && /runtime error|timed out|out of memory/i.test(j.remark)) throw new Error(j.remark.slice(0, 160));
+      return j.elements || [];
+    } catch (e) { last = e; log(`    ${url}: ${String(e.message).slice(0, 140)}`); await sleep(20000); }
+  }
+  throw last;
+}
+async function buildSpots() {
+  log("Fishing spots");
+  const old = readOld("spots.json");
+  const out = new Map(), facts = (t) => [t.fee === "yes" ? "fee" : t.fee === "no" ? "free" : "", t.trailer === "yes" ? "trailers" : "", t.parking ? "parking" : "", t.surface && /concrete|asphalt|gravel|paved/.test(t.surface) ? t.surface : "", t.access === "private" || t.access === "customers" || t.access === "members" ? "private" : ""].filter(Boolean).join(", ");
+  let osmOk = false;
+  try {
+    // One kind at a time, for all of Canada (a big query is more likely to time out).
+    const parts = [['nwr["leisure"="fishing"]', 0], ['nwr["fishing"~"^(yes|designated)$"]["leisure"!="fishing"]', 0], ['nwr["leisure"="slipway"]', 2]];
+    for (const [sel, kind] of parts) {
+      const els = await overpass(`[out:json][timeout:600];area["ISO3166-1"="CA"][admin_level=2]->.ca;(${sel}(area.ca););out center tags;`);
+      for (const el of els) {
+        const lat = el.lat ?? el.center?.lat, lon = el.lon ?? el.center?.lon, t = el.tags || {};
+        if (lat == null || t.access === "no") continue;
+        const k = kind === 2 ? 2 : t.man_made === "pier" || /pier|dock|wharf/i.test(t.fishing || "") ? 1 : 0;
+        out.set(`o${el.type[0]}${el.id}`, [r4(lat), r4(lon), k, (t.name || "").slice(0, 60), facts(t)]);
+      }
+      log(`  OpenStreetMap ${sel}: ${els.length}`);
+    }
+    osmOk = true;
+  } catch (e) { log(`  OpenStreetMap: ${e.message}; keeping the last good spots`); }
+  if (!osmOk && old) for (const x of old.spots) if (x[5] !== "on") out.set(`old${x[0]},${x[1]}`, x.slice(0, 5));
+  try {
+    const LIO15 = "https://ws.lioservices.lrc.gov.on.ca/arcgis2/rest/services/LIO_OPEN_DATA/LIO_Open07/MapServer/15/query";
+    let n = 0;
+    for (let off = 0; ; off += 1000) {
+      const j = await get(`${LIO15}?${new URLSearchParams({ where: "1=1", outFields: "FISHING_ACCESS_POINT_TYPE,SITE_NAME,PARKING_PRESENCE_FLG,ACCESSIBILITY_FLG,USER_FEE_FLG", outSR: "4326", f: "json", resultOffset: String(off), resultRecordCount: "1000", orderByFields: "OBJECTID" })}`);
+      for (const f of j.features || []) {
+        const a = f.attributes, g = f.geometry; if (!g) continue;
+        const k = /launch/i.test(a.FISHING_ACCESS_POINT_TYPE || "") ? 2 : 0;
+        const fx = [a.FISHING_ACCESS_POINT_TYPE && !/launch/i.test(a.FISHING_ACCESS_POINT_TYPE) ? a.FISHING_ACCESS_POINT_TYPE.toLowerCase() : "", a.PARKING_PRESENCE_FLG === "Y" ? "parking" : "", a.ACCESSIBILITY_FLG === "Y" ? "accessible" : "", a.USER_FEE_FLG === "Y" ? "fee" : a.USER_FEE_FLG === "N" ? "free" : ""].filter(Boolean).join(", ");
+        // the same place in both: Ontario's says more
+        for (const [key, x] of out) if (x[2] === k && Math.abs(x[0] - g.y) < 0.0008 && Math.abs(x[1] - g.x) < 0.0011) out.delete(key);
+        out.set(`on${a.SITE_NAME}|${g.y.toFixed(4)}`, [r4(g.y), r4(g.x), k, String(a.SITE_NAME || "").slice(0, 60), fx, "on"]);
+        n++;
+      }
+      if (!j.exceededTransferLimit && (j.features || []).length < 1000) break;
+    }
+    log(`  Ontario access points: ${n}`);
+  } catch (e) {
+    log(`  Ontario: ${e.message}; keeping the last good access points`);
+    if (old) for (const x of old.spots) if (x[5] === "on") out.set(`old${x[0]},${x[1]}`, x);
+  }
+  if (!out.size) { log("  no spots: keeping the last good file"); return; }
+  const spots = [...out.values()].map((x) => { while (x.length > 3 && !x[x.length - 1]) x.pop(); return x; }).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  save("spots.json", { updated: iso(now), spots });
+}
+
 if (!ONLY || ONLY === "stocked") await buildStocked();
 if (!ONLY || ONLY === "zones") await buildZones();
 if (!ONLY || ONLY === "tides") await buildTides();
 if (!ONLY || ONLY === "gauges") await buildGauges();
 if (!ONLY || ONLY === "eat") await buildEat();
+if (!ONLY || ONLY === "spots") await buildSpots();
