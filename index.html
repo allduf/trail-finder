@@ -5248,8 +5248,9 @@ out body;`;
   // Loam alerts (notify.js): a zone's named trails from the All trails list, one spot each: the middle of its longest
   // piece. scripts/push-loam.mjs picks the same spot for phone notifications, so both read the same Loam cell.
   // loadedOnly: only a zone the page already loaded (for "All regions", which would mean every zone's file).
+  // A Canada map chunk id ("ca_45_-73.2", outside the home zones) works too: Where to ride today and Loops in Quebec.
   window.tfZoneTrails = async (id, loadedOnly) => {
-    const z = ZONES.find((z) => z.id === id);
+    const z = ZONES.find((z) => z.id === id) || (/^ca_/.test(id) ? (await caIndexLoad()).zones.get(id) : null);
     if (!z || (loadedOnly && !allLoads.has(id))) return [];
     // A zone the map hasn't asked for waits for the ones it has, so the trails on screen are drawn first.
     if (!allLoads.has(id)) await Promise.allSettled([...allLoads.values()]);
@@ -7262,7 +7263,15 @@ out tags center qt;`;
     roadFeats: () => [...roadData.values()].filter(Boolean).flatMap((z) => z.feats || []),   // gates, barriers, bridges (Shuttle)
     load: () => { const v = map.getBounds(); ZONES.filter((z) => z.bounds.intersects(v)).forEach((z) => { loadZoneTrails(z); roadZone(z); }); caIndexLoad().then(() => caZonesIn([v]).forEach(loadZoneTrails)); } };
   // Where to ride today (status.js): the zones, nightly files, ridden trails and where you are.
-  window.tfToday = { zones: ZONES, nightly, firstMappedIn, nameKey, you: () => you.ll || null, center: () => map.getCenter(),
+  // zonesNear: the home zones within km of c, plus (outside the home regions) the Canada map chunks there.
+  const zoneKmTo = (b, c) => map.distance(c, [Math.max(b.getSouth(), Math.min(b.getNorth(), c[0])), Math.max(b.getWest(), Math.min(b.getEast(), c[1]))]) / 1000;
+  const zonesNear = async (c, km) => {
+    const zs = ZONES.filter((z) => zoneKmTo(z.bounds, c) <= km);
+    if (inRegions(L.latLng(c[0], c[1]))) return zs;
+    const ca = await caIndexLoad();
+    return zs.concat([...ca.zones.values()].filter((z) => zoneKmTo(z.bounds, c) <= km));
+  };
+  window.tfToday = { zones: ZONES, zonesNear, nightly, firstMappedIn, nameKey, you: () => you.ll || null, center: () => map.getCenter(),
     ridden: () => new Set(riddenTrails().map((w) => nameKey(w.name))) };
   window.tfTrails = () => ({ shown: state.merged ? [...state.merged.values()] : [], all: [...allData.values()].filter(Boolean), selected: state.selected });   // for My rides (rides.js)
   render();
