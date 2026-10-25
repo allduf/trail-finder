@@ -128,7 +128,7 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
       if (z < LINES_Z) {
         // One pin per resort, only once zoomed in to a region (zoomed out to Canada they'd pile up), and only in view.
         if (z < RESORT_Z || !map.getBounds().pad(0.2).contains([rs.lat, rs.lon])) continue;
-        add(rs.lat, rs.lon, `<span class="sc-resort">⛷ ${esc(rs.short || rs.name)} · ${rs.lines.length} lines</span>`, `${rs.name}: slackcountry lines from the lifts`, () => openList(rs));
+        add(rs.lat, rs.lon, `<span class="sc-resort">⛷ ${esc(rs.short || rs.name)} · ${nLines(rs)}</span>`, `${rs.name}: slackcountry lines from the lifts`, () => openList(rs));
         continue;
       }
       if (!map.getBounds().pad(0.5).intersects(rs.bounds)) continue;
@@ -252,11 +252,13 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
   };
   const wireRows = (rs) => dlg.querySelectorAll("[data-line]").forEach((b) => (b.onclick = () => open(rs.lines.find((l) => l.id === b.dataset.line))));
 
+  function nLines(rs) { const n = rs.lines.length, g = rs.gates.length; return n ? `${n} line${n > 1 ? "s" : ""}` : `${g} gate${g > 1 ? "s" : ""}`; }
+
   // ---------- a resort's lines, by gate ----------
   function openList(rs) {
     dlg.innerHTML = `<button type="button" class="sc-x" aria-label="Close">✕</button>
       <h2>Slackcountry at ${esc(rs.name)}</h2>
-      <p class="sc-sub">${rs.lines.length} lines skied from the lifts through the backcountry gates. Tap one for its gate, way up, way back and avalanche terrain.</p>
+      <p class="sc-sub">${rs.lines.length ? `${nLines(rs)} skied from the lifts through the backcountry gates. Tap one for its gate, way up, way back and avalanche terrain.` : "The backcountry gates. No lines drawn yet: we found no reliable description of where they go."}</p>
       ${warnHtml(rs)}
       <div class="sc-list">${rs.gates.map((g) => {
         const ls = rs.lines.filter((l) => l.gate === g.id);
@@ -323,7 +325,7 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
   function placeList() {
     const rs = on && isSki() ? near()[0] : null;
     listBtn.hidden = !rs;
-    if (rs) listBtn.textContent = `⛷ Slackcountry at ${rs.name} (${rs.lines.length} lines)`;
+    if (rs) listBtn.textContent = `⛷ Slackcountry at ${rs.name} (${nLines(rs)})`;
     if (!listBtn.isConnected) { const acts = document.querySelector("#skiPane .sk-acts"); if (acts) acts.after(listBtn); }
   }
   listBtn.addEventListener("click", () => { const rs = near()[0]; if (rs) openList(rs); });

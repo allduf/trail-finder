@@ -1285,6 +1285,373 @@
      }
     }
    ]
+  },
+  {
+   "id": "cypress",
+   "name": "Cypress Mountain",
+   "short": "Cypress",
+   "lat": 49.404,
+   "lon": -123.201,
+   "box": [49.39,-123.215,49.42,-123.185],
+   "forecast": "Avalanche Canada, South Coast",
+   "emergency": "Emergency: 911 (North Shore Rescue).",
+   "rules": ["Cypress is inside a BC Park. From November 1 to May 31, backcountry users must go through the ski area on the Backcountry Access Corridor (BAC), marked by green round signs. The trails beyond are marked by red poles.", "Get a free backcountry access tag at the Brown Bag Room in Black Mountain Lodge before you go.", "BC Parks strongly discourages winter travel along the Howe Sound Crest Trail past Bowen Lookout. Both lines here are past it.", "Never duck the rope at the top of the Sky Chair: the west side drops into the Montizambert drainage, with cliffs and a waterfall.", "Everyone needs a transceiver, a probe and a shovel, and avalanche training. Tell someone your plan."],
+   "links": [
+    {
+     "t": "BC Parks: Cypress Park, Backcountry Access Corridor",
+     "u": "https://bcparks.ca/cypress-park/"
+    },
+    {
+     "t": "Avalanche Canada forecast at Cypress",
+     "u": "https://avalanche.ca/map?lat=49.41&lng=-123.2"
+    }
+   ],
+   "gates": [
+    {
+     "id": "bac",
+     "name": "Backcountry Access Corridor",
+     "side": "Mount Strachan",
+     "lat": 49.404,
+     "lon": -123.2058,
+     "approx": true,
+     "note": "The marked BC Parks route through the ski area, past Bowen Lookout to the Howe Sound Crest Trail and Mount Strachan. Get the free tag at Black Mountain Lodge first."
+    }
+   ],
+   "lines": [
+    {
+     "id": "cypress-christmas",
+     "name": "Christmas Gully",
+     "short": "Christmas Gully",
+     "gate": "bac",
+     "side": "Mount Strachan",
+     "kind": "line",
+     "diff": "expert",
+     "osm": ["w257049134", "w189013164"],
+     "about": "The gully between Mount Strachan's two summits, skied west down to Strachan Meadows on the Howe Sound Crest Trail. Short, steep and narrow.",
+     "access": "From the top of the Sky Chair area, up to the col between the summits of Mount Strachan (outside the ski area: follow the BAC and the red poles, never duck the rope).",
+     "exit": "From Strachan Meadows, follow the Howe Sound Crest Trail south back to Bowen Lookout and the ski area. It's mostly flat with short climbs.",
+     "hazards": ["A gully: a terrain trap where even a small slide piles up deep. A skier who triggered a slide here hit trees and broke a femur; the rescue took a helicopter.", "Steep at the top (40°+).", "Don't drift north or west of the gully: the slopes drop toward Montizambert Creek and cliffs."],
+     "src": [
+      {
+       "t": "BC Parks: Cypress Park, Backcountry Access Corridor",
+       "u": "https://bcparks.ca/cypress-park/"
+      },
+      {
+       "t": "North Shore Rescue: skier caught in a slide in Christmas Gully",
+       "u": "https://squamishchief.com/highlights/north-shore-rescue-saves-out-of-bounds-skier-caught-in-slide-6640269"
+      }
+     ],
+     "g": {
+      "ski": [49.412,-123.19354,49.41241,-123.19526,49.41262,-123.19559,49.41264,-123.19631,49.41312,-123.19701,49.41323,-123.19755,49.41348,-123.19796,49.41345,-123.19819,49.41358,-123.19878,49.41353,-123.20005,49.41343,-123.20019,49.41343,-123.2015,49.41357,-123.20282,49.41386,-123.20344,49.41372,-123.204],
+      "up": [49.4103,-123.196,49.412,-123.19354],
+      "out": [49.41373,-123.20401,49.41392,-123.2039,49.41365,-123.20399,49.41296,-123.20474,49.41244,-123.20504,49.41188,-123.20571,49.41134,-123.20605,49.41084,-123.20617,49.41074,-123.20647,49.40925,-123.20734,49.40891,-123.20736,49.40853,-123.20762,49.40781,-123.20784,49.4073,-123.20917,49.40697,-123.20882,49.40548,-123.20796,49.405,-123.20737,49.40448,-123.20711,49.40423,-123.20684,49.40322,-123.20507]
+     },
+     "approx": false,
+     "calc": {
+      "top": 1400,
+      "bottom": 1068,
+      "drop": 333,
+      "km": 0.8,
+      "maxSlope": 56,
+      "faces": ["w", "sw"],
+      "k35": 0.2,
+      "tripKm": 2.5,
+      "climb": 504,
+      "cls": 3,
+      "why": ["0.6 km on slopes of 35° or more", "2.2 km under steep slopes", "0.7 km in gullies or creek beds (terrain traps)"]
+     }
+    },
+    {
+     "id": "cypress-strachan",
+     "name": "Strachan south summit, west face",
+     "short": "Strachan face",
+     "gate": "bac",
+     "side": "Mount Strachan",
+     "kind": "line",
+     "diff": "expert",
+     "osm": ["w189013160"],
+     "about": "From the south summit of Mount Strachan, the open face skied north-west down to Strachan Meadows. OpenStreetMap marks it \"NOT IN BOUNDS\".",
+     "access": "Up the south summit of Mount Strachan, above the top of the Sky Chair, on the BAC route (never duck the rope).",
+     "exit": "From Strachan Meadows, follow the Howe Sound Crest Trail south back to Bowen Lookout and the ski area.",
+     "hazards": ["Open slope: avalanche terrain, with trees below.", "Two hikers caught in a slide were carried into the Christmas Gully area behind Mount Strachan.", "Coastal snow changes fast: rain crusts and wet slides."],
+     "src": [
+      {
+       "t": "BC Parks: Cypress Park, Backcountry Access Corridor",
+       "u": "https://bcparks.ca/cypress-park/"
+      },
+      {
+       "t": "North Shore Rescue: skier caught in a slide in Christmas Gully",
+       "u": "https://squamishchief.com/highlights/north-shore-rescue-saves-out-of-bounds-skier-caught-in-slide-6640269"
+      },
+      {
+       "t": "North Shore Rescue: rope-ducker found above a cliff in the Montizambert drainage",
+       "u": "https://www.nsnews.com/news/out-of-bounds-snowboarder-rescued-just-metres-from-west-vancouver-mountain-cliff-1.23190489"
+      }
+     ],
+     "g": {
+      "ski": [49.41029,-123.19647,49.41037,-123.19702,49.41304,-123.20212,49.4134,-123.20354,49.41345,-123.2042],
+      "up": [49.4103,-123.196,49.41029,-123.19647],
+      "out": [49.41373,-123.20401,49.41392,-123.2039,49.41365,-123.20399,49.41296,-123.20474,49.41244,-123.20504,49.41188,-123.20571,49.41134,-123.20605,49.41084,-123.20617,49.41074,-123.20647,49.40925,-123.20734,49.40891,-123.20736,49.40853,-123.20762,49.40781,-123.20784,49.4073,-123.20917,49.40697,-123.20882,49.40548,-123.20796,49.405,-123.20737,49.40448,-123.20711,49.40423,-123.20684,49.40322,-123.20507]
+     },
+     "approx": false,
+     "calc": {
+      "top": 1428,
+      "bottom": 1061,
+      "drop": 367,
+      "km": 0.7,
+      "maxSlope": 47,
+      "faces": ["nw", "n"],
+      "k35": 0.2,
+      "tripKm": 2.1,
+      "climb": 499,
+      "cls": 3,
+      "why": ["0.6 km on slopes of 35° or more", "2.0 km under steep slopes", "0.6 km in gullies or creek beds (terrain traps)"]
+     }
+    }
+   ]
+  },
+  {
+   "id": "seymour",
+   "name": "Mount Seymour",
+   "short": "Seymour",
+   "lat": 49.372,
+   "lon": -122.946,
+   "box": [49.36,-122.96,49.39,-122.93],
+   "forecast": "Avalanche Canada, South Coast",
+   "emergency": "Emergency: 911 (North Shore Rescue). Mt Seymour Resorts: 604-986-2261.",
+   "rules": ["There's no lift-served gate: BC Parks sets a ski-touring up-track each winter (mid-December to March 31) from the kiosk at the north end of parking lot P4, near the Mystery Peak chair.", "Navigate by the marker poles (orange bamboo, red plastic). Trail conditions and the avalanche rating are posted at the kiosk.", "Backcountry users park in P1 or lower P5. Post your plan and return time on your dashboard if you park overnight in P1.", "BC Parks: the backcountry here is extremely rugged and the weather changes suddenly. Check avalanche.ca and leave a trip plan."],
+   "links": [
+    {
+     "t": "BC Parks: Mount Seymour Park, winter backcountry routes",
+     "u": "https://bcparks.ca/mount-seymour-park/"
+    },
+    {
+     "t": "Avalanche Canada forecast at Mount Seymour",
+     "u": "https://avalanche.ca/map?lat=49.38&lng=-122.94"
+    }
+   ],
+   "gates": [
+    {
+     "id": "kiosk",
+     "name": "BC Parks kiosk, lot P4",
+     "side": "Mount Seymour Trail",
+     "lat": 49.3684,
+     "lon": -122.9491,
+     "approx": false,
+     "note": "Start of the Mount Seymour Backcountry Access Trail. 7 km return to the saddle between First and Second Pump; about 3 hours on skis."
+    }
+   ],
+   "lines": [
+    {
+     "id": "seymour-pump",
+     "name": "Mount Seymour Backcountry Access Trail to Pump Peak",
+     "short": "Pump Peak",
+     "gate": "kiosk",
+     "side": "Pump Peak",
+     "kind": "tour",
+     "diff": "intermediate",
+     "osm": ["w40172259", "w362010258"],
+     "about": "The BC Parks up-track along the west side of the ski area to the saddle between First and Second Pump (Pump Peak, 1,407 m), then back down the same way.",
+     "access": "From the kiosk at lot P4, skin up the marked trail (about 370 m up).",
+     "exit": "Come back down the same trail. Stay on the marked route: don't drop into the gullies on either side.",
+     "hazards": ["Past Pump Peak toward Tim Jones and Mount Seymour the ridge gets steep and corniced.", "The gullies off the sides lead into the Seymour River or Indian Arm drainages, far from the road.", "Fog is common: easy to lose the poles."],
+     "src": [
+      {
+       "t": "BC Parks: Mount Seymour Park, winter backcountry routes",
+       "u": "https://bcparks.ca/mount-seymour-park/"
+      }
+     ],
+     "g": {
+      "ski": [49.38757,-122.94092,49.38754,-122.94027,49.38745,-122.94007,49.3873,-122.93876,49.38733,-122.93774,49.38726,-122.93732,49.38693,-122.93702,49.38701,-122.9368,49.38692,-122.93676,49.38696,-122.93654,49.38658,-122.93611,49.38661,-122.936,49.38627,-122.93622,49.38605,-122.93614,49.38583,-122.93633,49.38559,-122.93703,49.38527,-122.93739,49.38499,-122.93809,49.38462,-122.93858,49.38424,-122.93887,49.38392,-122.9387,49.38372,-122.9387,49.38365,-122.93883,49.38367,-122.9408,49.38357,-122.9412,49.38297,-122.94107,49.38258,-122.94135,49.38231,-122.94171,49.3821,-122.94157,49.38146,-122.94169,49.38106,-122.94154,49.38172,-122.94166,49.38125,-122.94236,49.38112,-122.94288,49.3806,-122.94346,49.38039,-122.94393,49.38016,-122.94397,49.37995,-122.9442,49.37977,-122.94387,49.37955,-122.94372,49.37927,-122.9431,49.3779,-122.94392,49.37802,-122.94385,49.37776,-122.94486,49.37754,-122.94518,49.37703,-122.94563,49.37679,-122.94554,49.37609,-122.94701,49.37571,-122.94716,49.37518,-122.94792,49.37488,-122.94812,49.37441,-122.94911,49.37371,-122.94967,49.37312,-122.9498,49.37185,-122.94913,49.37122,-122.94898,49.36906,-122.94948,49.36844,-122.94914],
+      "up": [49.36844,-122.94914,49.36906,-122.94948,49.37122,-122.94898,49.37185,-122.94913,49.37312,-122.9498,49.37375,-122.94962,49.37439,-122.94914,49.37493,-122.94804,49.37518,-122.94792,49.3757,-122.94717,49.37607,-122.94702,49.37674,-122.94561,49.37683,-122.94554,49.37701,-122.94573,49.37704,-122.94557,49.37754,-122.94518,49.37778,-122.94478,49.37793,-122.94403,49.37808,-122.94381,49.37796,-122.9439,49.37927,-122.9431,49.37955,-122.94372,49.37977,-122.94387,49.37992,-122.94422,49.38016,-122.94397,49.38039,-122.94393,49.3806,-122.94346,49.38109,-122.94296,49.38125,-122.94236,49.38172,-122.94166,49.38106,-122.94154,49.38146,-122.94169,49.3821,-122.94157,49.38231,-122.94171,49.38276,-122.94118,49.38357,-122.9412,49.38367,-122.9408,49.3837,-122.9395,49.38362,-122.93911,49.3837,-122.93871,49.38424,-122.93887,49.38462,-122.93858,49.38501,-122.93805,49.38525,-122.93742,49.38559,-122.93703,49.38583,-122.93633,49.38605,-122.93614,49.38627,-122.93622,49.38655,-122.93601,49.38696,-122.93654,49.38692,-122.93676,49.387,-122.93679,49.38694,-122.93698,49.387,-122.9371,49.38726,-122.93732,49.38734,-122.93794,49.38729,-122.93873,49.38738,-122.93904,49.38744,-122.94013,49.38757,-122.94042,49.38756,-122.94082],
+      "out": []
+     },
+     "approx": false,
+     "calc": {
+      "top": 1388,
+      "bottom": 1020,
+      "drop": 368,
+      "km": 3.2,
+      "maxSlope": 33,
+      "faces": ["e", "se"],
+      "k35": 0,
+      "tripKm": 6.5,
+      "climb": 497,
+      "cls": 3,
+      "why": ["0.2 km on slopes of 30° or more", "1.3 km under steep slopes"]
+     }
+    }
+   ]
+  },
+  {
+   "id": "sunpeaks",
+   "name": "Sun Peaks",
+   "short": "Sun Peaks",
+   "lat": 50.91,
+   "lon": -119.928,
+   "box": [50.89,-119.96,50.93,-119.9],
+   "forecast": "Avalanche Canada, North Columbia / Thompson",
+   "emergency": "Ski Patrol emergency: 250-578-5521 (they do NOT help outside the boundary; call 911). Grooming (winch cat locations): 250-319-5028.",
+   "rules": ["There are two gated exits for prepared backcountry guests: at the end of First Saddle and at Second Saddle.", "Outside the boundary there's no patrol and no avalanche control. Phone signal is poor or none.", "No uphill travel (skinning, hiking, snowshoeing) inside the ski area boundary.", "Coming back through the resort: be inside by 3:45 pm, because winch cats run on the slopes.", "AST 1 or the same is highly recommended. Don't go alone, and tell someone where you're going and when you'll be back."],
+   "links": [
+    {
+     "t": "Sun Peaks: backcountry safety and gates",
+     "u": "https://sunpeaksresort.com/node/2548"
+    },
+    {
+     "t": "Avalanche Canada forecast at Sun Peaks",
+     "u": "https://avalanche.ca/map?lat=50.91&lng=-119.93"
+    }
+   ],
+   "gates": [
+    {
+     "id": "first",
+     "name": "First Saddle gate",
+     "side": "Mount Tod",
+     "lat": 50.914,
+     "lon": -119.9305,
+     "approx": true,
+     "note": "At the end of First Saddle, near the entrance to Main Face and Offset. Leads west onto the open slopes below Mount Tod's summit (2,131 m). No line drawn: we found no published description of the lines."
+    },
+    {
+     "id": "second",
+     "name": "Second Saddle gate",
+     "side": "West Bowl",
+     "lat": 50.9078,
+     "lon": -119.93,
+     "approx": true,
+     "note": "Between Skunk and the top of the old West Bowl T-bar. Leads west, outside the boundary. No line drawn: we found no published description of the lines."
+    }
+   ],
+   "lines": []
+  },
+  {
+   "id": "louise",
+   "name": "Lake Louise Ski Resort",
+   "short": "Lake Louise",
+   "lat": 51.45,
+   "lon": -116.105,
+   "box": [51.43,-116.12,51.47,-116.07],
+   "forecast": "Avalanche Canada, Banff Yoho Kootenay (Parks Canada)",
+   "emergency": "Emergency: 911 (Parks Canada visitor safety). There's no phone signal in most of the backcountry here.",
+   "rules": ["This is Banff National Park: outside the ski area there's no patrol and no avalanche control. Read the Parks Canada avalanche forecast first.", "Uphill travel inside the ski area is only allowed on the signed route from the Ski Out toward Temple and Skoki.", "Everyone needs a transceiver, a probe, a shovel and skins, plus avalanche training. Yamnuska runs guided tours into these bowls from the resort."],
+   "links": [
+    {
+     "t": "Lake Louise: backcountry tours (Yamnuska), the bowls past the boundary",
+     "u": "https://www.skilouise.com/tickets-passes/other-products/backcounrty-ski-tours/"
+    },
+    {
+     "t": "Parks Canada: Banff avalanche and backcountry safety",
+     "u": "https://parks.canada.ca/pn-np/ab/banff/activ/hiver-winter/avalanche"
+    },
+    {
+     "t": "Avalanche Canada forecast at Lake Louise",
+     "u": "https://avalanche.ca/map?lat=51.45&lng=-116.1"
+    }
+   ],
+   "gates": [
+    {
+     "id": "temple",
+     "name": "Temple exit (Skoki up-track)",
+     "side": "Temple",
+     "lat": 51.45,
+     "lon": -116.1115,
+     "approx": true,
+     "note": "By Temple Lodge, at the bottom of the Larch area. Skin tracks leave here east to Purple Bowl (Purple Mound route) and north up the Skoki ski route toward Boulder Pass and Redoubt."
+    }
+   ],
+   "lines": [
+    {
+     "id": "louise-purple",
+     "name": "Purple Bowl, from Purple Mound",
+     "short": "Purple Bowl",
+     "gate": "temple",
+     "side": "Purple Mound",
+     "kind": "line",
+     "diff": "advanced",
+     "approx": true,
+     "osm": ["w671128754"],
+     "about": "From the top of Purple Mound (2,622 m), north down Purple Bowl, the valley between Wolverine Ridge and Unity Peak, back to the up-track.",
+     "access": "From Temple, skin east around the north end of Wolverine Ridge into Purple Bowl, keep just right of the creek and climb the ramp at the end of the valley to the summit (about 600 m up, 2-3 hours). A shorter, steeper way goes up from the ski area through the col between Purple Mound and Wolverine Ridge.",
+     "exit": "Follow the up-track back west around Wolverine Ridge to Temple, then ride the lifts or take the Ski Out.",
+     "hazards": ["Slopes below the summit and the ramp are avalanche terrain.", "Sun-crust on south slopes in spring.", "Wind slabs on the lee side of Wolverine Ridge."],
+     "src": [
+      {
+       "t": "Lake Louise: backcountry tours (Yamnuska), the bowls past the boundary",
+       "u": "https://www.skilouise.com/tickets-passes/other-products/backcounrty-ski-tours/"
+      },
+      {
+       "t": "Trip report: Purple Mound and Lipalian from the ski resort",
+       "u": "https://explor8ion.com/trips/purple-mound-lipalian-mountain/"
+      }
+     ],
+     "g": {
+      "ski": [51.43203,-116.08381,51.43364,-116.08381,51.43472,-116.08467,51.43634,-116.08467,51.43688,-116.0851,51.43849,-116.0851,51.44712,-116.09202],
+      "up": [51.45135,-116.11036,51.45205,-116.10842,51.4523,-116.10679,51.45222,-116.10587,51.45235,-116.10443,51.45279,-116.10149,51.45251,-116.10075,51.45141,-116.09917,51.45085,-116.09784,51.44891,-116.09486,51.44825,-116.09439,51.44714,-116.09207,51.44598,-116.09001,51.44504,-116.08772,51.44405,-116.08774,51.44338,-116.08727,51.44329,-116.08578,51.44197,-116.0856,51.4393,-116.0856,51.4387,-116.08613,51.4376,-116.08798,51.4371,-116.08782,51.43566,-116.08667,51.43491,-116.08652,51.43396,-116.08612,51.43339,-116.0855,51.43285,-116.08512,51.43268,-116.08482],
+      "out": [51.44714,-116.09207,51.44825,-116.09439,51.44891,-116.09486,51.45085,-116.09784,51.45141,-116.09917,51.45251,-116.10075,51.45279,-116.10149,51.45235,-116.10443,51.45222,-116.10587,51.4523,-116.10679,51.45205,-116.10842,51.45135,-116.11036]
+     },
+     "calc": {
+      "top": 2631,
+      "bottom": 2241,
+      "drop": 390,
+      "km": 1.8,
+      "maxSlope": 25,
+      "faces": [],
+      "k35": 0,
+      "tripKm": 6.9,
+      "climb": 599,
+      "cls": 2,
+      "why": ["0.9 km under steep slopes"]
+     }
+    },
+    {
+     "id": "louise-redoubt",
+     "name": "Redoubt Bowl",
+     "short": "Redoubt Bowl",
+     "gate": "temple",
+     "side": "Redoubt Mountain",
+     "kind": "tour",
+     "diff": "expert",
+     "approx": true,
+     "osm": ["w264666969", "w362500804"],
+     "about": "The bowl on the west side of Redoubt Mountain (2,902 m), on the way to Boulder Pass. A popular ski descent; the line follows the summer route of the peak, so it's only a guide.",
+     "access": "From Temple, skin up the Skoki ski route north, then east up Redoubt's west side (about 800 m up).",
+     "exit": "Ski back down to the Skoki route and follow it south to Temple.",
+     "hazards": ["Big alpine terrain above the Skoki route: slides can reach the track below.", "Steep near the top, with cliffs.", "A full ski tour: plan a whole day."],
+     "src": [
+      {
+       "t": "Lake Louise: backcountry tours (Yamnuska), the bowls past the boundary",
+       "u": "https://www.skilouise.com/tickets-passes/other-products/backcounrty-ski-tours/"
+      },
+      {
+       "t": "Trip report: Purple Mound and Lipalian from the ski resort",
+       "u": "https://explor8ion.com/trips/purple-mound-lipalian-mountain/"
+      },
+      {
+       "t": "SummitPost: Redoubt Mountain",
+       "u": "https://www.summitpost.org/mountain/rock/213959/redoubt-mountain.html"
+      }
+     ],
+     "g": {
+      "ski": [51.46708,-116.08111,51.4667,-116.08116,51.46631,-116.08089,51.46622,-116.08119,51.46612,-116.08122,51.46595,-116.08197,51.46602,-116.08243,51.46595,-116.08322,51.46633,-116.08354,51.46618,-116.08396,51.46599,-116.0841,51.46588,-116.08437,51.46584,-116.08519,51.46601,-116.0861,51.4664,-116.08658,51.46668,-116.08748,51.46641,-116.08858,51.46618,-116.08886,51.46599,-116.08978,51.46577,-116.09032,51.4658,-116.09152,51.46569,-116.09225,51.46578,-116.09251,51.46571,-116.09278,51.46545,-116.09306,51.46531,-116.09281,51.4646,-116.09341,51.46434,-116.09418,51.46425,-116.09479,51.46399,-116.09532,51.46387,-116.09665,51.46374,-116.0971,51.46296,-116.09684,51.46266,-116.09751,51.46238,-116.09739,51.46215,-116.09753,51.462,-116.09745,51.46194,-116.09909,51.46206,-116.09991,51.46245,-116.10084,51.46288,-116.10257,51.46307,-116.10273,51.46309,-116.10309,51.46331,-116.10325,51.46329,-116.10342],
+      "up": [51.44934,-116.11221,51.44979,-116.11197,51.45196,-116.10979,51.45242,-116.10995,51.45263,-116.10988,51.45491,-116.10794,51.45643,-116.10704,51.45738,-116.10652,51.45952,-116.10596,51.46336,-116.10415,51.46333,-116.1033,51.46309,-116.10309,51.46312,-116.10277,51.46288,-116.10257,51.46245,-116.10084,51.46206,-116.09991,51.46194,-116.09909,51.462,-116.09745,51.46266,-116.09751,51.46296,-116.09684,51.46374,-116.0971,51.46387,-116.09665,51.46399,-116.09532,51.46425,-116.09479,51.46434,-116.09418,51.46457,-116.09347,51.46531,-116.09281,51.46545,-116.09306,51.46571,-116.09278,51.46578,-116.09251,51.46569,-116.09204,51.4658,-116.09152,51.46577,-116.09032,51.46599,-116.08978,51.46618,-116.08886,51.4664,-116.08864,51.46668,-116.08748,51.46642,-116.08662,51.46601,-116.0861,51.46584,-116.08519,51.46588,-116.08437,51.46599,-116.0841,51.46618,-116.08396,51.46633,-116.08354,51.46597,-116.08328,51.46602,-116.08243,51.46595,-116.08197,51.4661,-116.08129,51.46629,-116.08107,51.46631,-116.08089,51.4667,-116.08116,51.46708,-116.08111],
+      "out": [51.46336,-116.10415,51.45952,-116.10596,51.45738,-116.10652,51.45643,-116.10704,51.45491,-116.10794,51.45263,-116.10988,51.45242,-116.10995,51.45196,-116.10979,51.44979,-116.11197,51.44934,-116.11221]
+     },
+     "calc": {
+      "top": 2815,
+      "bottom": 2123,
+      "drop": 692,
+      "km": 2.2,
+      "maxSlope": 38,
+      "faces": ["sw"],
+      "k35": 0.4,
+      "tripKm": 7.7,
+      "climb": 803,
+      "cls": 3,
+      "why": ["0.7 km on slopes of 35° or more", "2.8 km under steep slopes"]
+     }
+    }
+   ]
   }
  ]
 }
