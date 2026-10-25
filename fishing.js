@@ -40,7 +40,7 @@
   const QC_EXC = "https://peche.faune.gouv.qc.ca/arcgiswa/rest/services/PRODC-E/PlansEauExceptions/MapServer/2";
   const ACC = "#0c8599";   // the Fishing accent (deep teal)
   const C = { vlow: "#f59f00", low: "#94d82d", ok: "#2f9e44", high: "#f76707", blown: "#e03131", none: "#868e96", stocked: "#1971c2", fresh: "#e64980",
-    access: "#7048e8", tide: "#0b7285", zone: "#1864ab" };
+    access: "#9775fa", launch: "#a0522d", tide: "#0b7285", zone: "#1864ab" };
   const timeout = (ms) => (AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined);
   const getJ = (url, ms = 12000) => fetch(url, { signal: timeout(ms) }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
   const km = (a, b, c, d) => map.distance([a, b], [c, d]) / 1000;
@@ -73,17 +73,19 @@
     gauges: { g: "Water", label: "River flow gauges", sub: "Live flow, coloured from too low to blown out", on: true, minZoom: 7, icon: [C.ok, "dot"] },
     stocked: { g: "Water", label: "Stocked lakes and rivers", sub: "Pink: stocked in the last 30 days", on: true, minZoom: 6, icon: [C.stocked, "dot"] },
     depth: { g: "Water", label: "Lake depth lines (BC)", sub: "About 2,600 surveyed lakes", minZoom: 12, icon: ["#1c7ed6", "line"] },
-    access: { g: "Access", label: "Fishing spots and boat launches", sub: "Public spots, piers and launches all over Canada", on: true, minZoom: 8, icon: ["#9775fa", "dot"] },
+    access: { g: "Access", label: "Fishing spots", sub: "Public spots, piers and docks all over Canada", on: true, minZoom: 8, icon: [C.access, "dot"] },
+    launch: { g: "Access", label: "Boat launches", sub: "Public ramps all over Canada", on: true, minZoom: 8, icon: [C.launch, "dot"] },
     tides: { g: "Ocean", label: "Tide stations", sub: "Tap one for the next high and low tides", on: true, minZoom: 6, icon: [C.tide, "dot"] },
     zones: { g: "Rules", label: "Fishing zones and regions", sub: "The areas the rules are written for", icon: [C.zone, "dash"] },
   };
   const GROUPS = ["Water", "Access", "Ocean", "Rules"];
   const VIEWS = {
-    river: { label: "Rivers", sub: "flow, spots", layers: ["gauges", "access", "zones"] },
-    lake: { label: "Lakes", sub: "stocked, depth", layers: ["stocked", "depth", "access"] },
-    ocean: { label: "Ocean", sub: "tides, areas", layers: ["tides", "access", "zones"] },
+    river: { label: "Rivers", sub: "flow, spots", layers: ["gauges", "access", "launch", "zones"] },
+    lake: { label: "Lakes", sub: "stocked, depth", layers: ["stocked", "depth", "access", "launch"] },
+    ocean: { label: "Ocean", sub: "tides, areas", layers: ["tides", "access", "launch", "zones"] },
   };
   let shown = new Set(store.get("fishLayers", Object.keys(LAYERS).filter((k) => LAYERS[k].on)));
+  if (shown.has("access") && !store.get("fishLaunch", false)) { shown.add("launch"); store.set("fishLaunch", true); }   // launches were part of "access" before they got their own switch
 
   // ---------- look ----------
   const css = document.createElement("style");
@@ -412,7 +414,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   // All of them for Canada in data/fishing/spots.json (scripts/build-fishing.mjs: OpenStreetMap and Ontario's access
   // points), loaded once when the layer first shows.
   async function loadAccess() {
-    if (!isFish() || !shown.has("access") || map.getZoom() < LAYERS.access.minZoom || accBusy || accTiles.size) return;
+    if (!isFish() || !(shown.has("access") || shown.has("launch")) || map.getZoom() < LAYERS.access.minZoom || accBusy || accTiles.size) return;
     accBusy = true;
     try {
       const j = await load("spots");
@@ -462,8 +464,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     if (shown.has("tides") && tides && z >= LAYERS.tides.minZoom) {
       for (const t of tides) if (b.contains([t[2], t[3]])) dot(t[2], t[3], C.tide, z >= 10 ? 7 : 5, () => openTide(t), `Tides: ${t[1]}`, "tide");
     }
-    if (shown.has("access") && z >= LAYERS.access.minZoom) {
-      for (const a of access.values()) if (b.contains([a.lat, a.lon])) dot(a.lat, a.lon, a.kind === "launch" ? C.access : "#9775fa", 6, () => openAccess(a), accessName(a), "access");
+    if ((shown.has("access") || shown.has("launch")) && z >= LAYERS.access.minZoom) {
+      for (const a of access.values()) if (shown.has(a.kind === "launch" ? "launch" : "access") && b.contains([a.lat, a.lon])) dot(a.lat, a.lon, a.kind === "launch" ? C.launch : C.access, 6, () => openAccess(a), accessName(a), "access");
     }
     sync3d();
   }
@@ -512,7 +514,38 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const b = e.target.closest("[data-view]"); if (!b) return;
     shown = new Set(VIEWS[b.dataset.view].layers);
     applyLayers();
+    if (hlKind === b.dataset.view) clearWater(); else highlightWater(b.dataset.view);
   });
+
+  // ---------- water highlight ----------
+  // Picking Rivers, Lakes or Ocean colours every river, lake or the sea on the map (alex 2026-10-25), from the same
+  // OpenFreeMap vector tiles as the Vector base map (OpenStreetMap water, all of Canada). A tap on the map clears it.
+  const OFM = { type: "vector", url: "https://tiles.openfreemap.org/planet" };
+  const WATER = {
+    river: [
+      { id: "riv-area", type: "fill", source: "w", "source-layer": "water", filter: ["==", ["get", "class"], "river"], paint: { "fill-color": "#15d1ff", "fill-opacity": 0.75 } },
+      { id: "riv-line", type: "line", source: "w", "source-layer": "waterway", filter: ["in", ["get", "class"], ["literal", ["river", "stream", "canal"]]], layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#15d1ff", "line-width": ["interpolate", ["linear"], ["zoom"], 6, ["match", ["get", "class"], "river", 1.6, 0.6], 10, ["match", ["get", "class"], "river", 3, 1.4], 14, ["match", ["get", "class"], "river", 5, 2.6]] } },
+    ],
+    lake: [
+      { id: "lake", type: "fill", source: "w", "source-layer": "water", filter: ["in", ["get", "class"], ["literal", ["lake", "pond"]]], paint: { "fill-color": "#12d6b4", "fill-opacity": 0.8 } },
+    ],
+    ocean: [
+      { id: "sea", type: "fill", source: "w", "source-layer": "water", filter: ["==", ["get", "class"], "ocean"], paint: { "fill-color": "#2f7bff", "fill-opacity": 0.7 } },
+    ],
+  };
+  let hl = null, hlKind = null;
+  if (!map.getPane("fishWater")) { map.createPane("fishWater").style.zIndex = 350; map.getPane("fishWater").style.pointerEvents = "none"; }
+  async function highlightWater(kind) {
+    clearWater();
+    hlKind = kind;
+    try { await window.tfLoadVectorLib(); } catch { hlKind = null; return; }
+    if (hlKind !== kind || !isFish()) return;
+    hl = L.maplibreGL({ pane: "fishWater", interactive: false, attributionControl: false,
+      style: { version: 8, sources: { w: OFM }, layers: WATER[kind] } }).addTo(map);
+  }
+  function clearWater() { hlKind = null; if (hl) { map.removeLayer(hl); hl = null; } }
+  map.on("click", () => { if (hlKind) clearWater(); });
   function applyLayers() {
     store.set("fishLayers", [...shown]);
     renderLayers(); renderKey(); syncTiles(); drawZones(); drawPoints(); loadReadings(); loadAccess();
@@ -532,7 +565,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const i = (c) => `<i style="background:${c}"></i>`;
     box.innerHTML = (shown.has("gauges") ? `<b>River gauges: flow for the month</b>${["vlow", "low", "ok", "high", "blown", "none"].map((k) => `<div>${i(LIGHTS[k][1])}${LIGHTS[k][0]}</div>`).join("")}` : "")
       + (shown.has("stocked") ? `<b>Stocked waters</b><div>${i(C.fresh)}Stocked in the last 30 days</div><div>${i(C.stocked)}Stocked in the last 3 years</div>` : "")
-      + (shown.has("access") ? `<b>Fishing spots</b><div>${i("#9775fa")}Fishing spot, pier or dock</div><div>${i(C.access)}Boat launch</div>` : "")
+      + (shown.has("access") || shown.has("launch") ? `<b>Access</b>${shown.has("access") ? `<div>${i(C.access)}Fishing spot, pier or dock</div>` : ""}${shown.has("launch") ? `<div>${i(C.launch)}Boat launch</div>` : ""}` : "")
       + (shown.has("tides") ? `<b>Ocean</b><div>${i(C.tide)}Tide station</div>` : "")
       + (shown.has("zones") ? `<b>Rules</b><div><i style="border:2px dashed ${C.zone};border-radius:2px"></i>Fishing zone or region</div><div><i style="border:2px dashed ${C.tide};border-radius:2px"></i>Pacific tidal area</div>` : "")
       || "<p>No layers on: turn some on in Layers.</p>";
@@ -827,7 +860,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   function accessHtml(lat, lon) {
     const list = near([...access.values()], lat, lon, 5, (a) => [a.lat, a.lon]).slice(0, 4);
     if (!list.length) return shown.has("access") && map.getZoom() < LAYERS.access.minZoom ? `<p class="fs-note">Zoom in to see fishing spots and launches near here.</p>` : "";
-    return `<h4>${svg(IC.boat, 14)}Fishing spots and launches</h4><ul class="fs-list">${list.map(([a, d]) => `<li style="--c:${a.kind === "launch" ? C.access : "#9775fa"}"><b>${esc(accessName(a))}</b><small>${fmtKm(d)} · ${esc(accessFacts(a))}</small></li>`).join("")}</ul>`;
+    return `<h4>${svg(IC.boat, 14)}Fishing spots and launches</h4><ul class="fs-list">${list.map(([a, d]) => `<li style="--c:${a.kind === "launch" ? C.launch : C.access}"><b>${esc(accessName(a))}</b><small>${fmtKm(d)} · ${esc(accessFacts(a))}</small></li>`).join("")}</ul>`;
   }
   const accessFacts = (a) => [a.kind === "launch" ? "boat launch" : a.kind === "pier" ? "pier or dock" : "fishing spot", a.facts, a.src].filter(Boolean).join(", ");
 
@@ -1221,7 +1254,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     for (const l of allFish) { if (on && !map.hasLayer(l)) l.addTo(map); else if (!on && map.hasLayer(l)) map.removeLayer(l); }
     if (on && !keyCtl._map) keyCtl.addTo(map); else if (!on && keyCtl._map) keyCtl.remove();
     syncTiles();
-    if (!on) { drawPoints(); return; }
+    if (!on) { drawPoints(); clearWater(); return; }
     if (!started) { started = true; renderLayers(); ready.then(() => { drawPoints(); renderToday(); }); }
     drawZones(); drawPoints(); loadReadings(); loadAccess();
     if (!spot) { const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); } else { loadWeather(); renderToday(); renderHatch(); }
