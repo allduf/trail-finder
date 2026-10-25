@@ -97,7 +97,7 @@ dialog.lf-dlg .lf-foot a { color: var(--accent); font-weight: 600; }
     if (!resorts[l.r] || !resorts[l.r].live) return { s: "none" };
     if (!v || !v.lifts) return { s: "none", wait: true };
     const st = norm(l.st || l.n), x = v.lifts.find((y) => norm(y.n) === st);
-    return x ? { ...x, t: v.t } : { s: "none", t: v.t };
+    return x ? { ...x, t: v.t } : { s: "none", t: v.t, empty: !v.lifts.length };
   }
   // Every lift of a resort closed and no update for 5 days: the resort is closed for the season.
   const season = (id) => { const v = live[id]; return !!(v && v.lifts && v.lifts.length && v.lifts.every((x) => x.s === "closed") && v.t && Date.now() - Date.parse(v.t) > 5 * 864e5); };
@@ -201,7 +201,7 @@ dialog.lf-dlg .lf-foot a { color: var(--accent); font-weight: 600; }
     const c = C[st.s] || C.none, waiting = st.s === "none" && st.wait && !liveErr;
     const wait = st.w != null && st.s === "open" ? (st.w > 0 ? `<span><strong>${st.w} min</strong>wait</span>` : `<span><strong>No wait</strong>walk on</span>`) : "";
     const hours = st.o || st.c ? `${st.o ? fmtT(st.o) : "?"} – ${st.c ? fmtT(st.c) : "?"}` : "";
-    const why = st.s !== "none" ? "" : !r.live ? `${esc(r.name || "This resort")} doesn't publish a lift status the app can read yet.` : liveErr ? esc(liveErr) + "." : waiting ? "Getting the live status…" : "This lift isn't in the resort's lift report.";
+    const why = st.s !== "none" ? "" : !r.live ? `${esc(r.name || "This resort")} doesn't publish a lift status the app can read yet.` : liveErr ? esc(liveErr) + "." : waiting ? "Getting the live status…" : st.empty ? `${esc(r.name || "The resort")} hasn't posted its lift status yet (it starts when the season opens).` : "This lift isn't in the resort's lift report.";
     const seasonNote = season(l.r) ? `<p class="lf-sub" style="margin:8px 0 0">Closed for the season: the resort's last lift report was ${esc(new Date(v.t).toLocaleDateString(undefined, { month: "short", day: "numeric" }))}.</p>` : "";
     const runs = (l.runs || []).map(([n, d]) => { const x = DIFF[d]; return `<li>${x ? `<i style="--d:${x[1]}" aria-label="${esc(d)}">${x[0]}</i>` : ""}${esc(n)}</li>`; }).join("");
     const rows = [
