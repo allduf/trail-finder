@@ -313,6 +313,13 @@
     { name: "Sage Trail", c: [50.679, -120.39], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
     { name: "Saskatoon", c: [50.667, -120.397], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
     { name: "West Vista", c: [50.674, -120.413], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
+    // Canmore benchlands (Cougar Creek to Harvie Heights): bike trails in the Alberta Parks trail reports, tagged only
+    // bicycle=yes in OpenStreetMap, so they were missing from All trails (2026-10-25). No level: the reports give none.
+    { name: "Montane Traverse", c: [51.1, -115.34], r: 2500, src: "Alberta Parks trail reports, Canmore and Area", url: "https://www.albertaparks.ca/parks/kananaskis/kananaskis-country/advisories-public-safety/trail-reports/canmore-and-area/" },
+    { name: "Montane Cutoff", c: [51.1, -115.34], r: 2500, src: "Alberta Parks trail reports, Canmore and Area", url: "https://www.albertaparks.ca/parks/kananaskis/kananaskis-country/advisories-public-safety/trail-reports/canmore-and-area/" },
+    { name: "Johnny's Trail", c: [51.1, -115.34], r: 2500, src: "Alberta Parks trail reports, Canmore and Area", url: "https://www.albertaparks.ca/parks/kananaskis/kananaskis-country/advisories-public-safety/trail-reports/canmore-and-area/" },
+    { name: "Douglas Fir Bench (Closed Dec 1 - May 15)", c: [51.1, -115.34], r: 2500, src: "Alberta Parks trail reports, Canmore and Area", url: "https://www.albertaparks.ca/parks/kananaskis/kananaskis-country/advisories-public-safety/trail-reports/canmore-and-area/" },
+    { name: "Benchlands", c: [51.1, -115.34], r: 2500, src: "Alberta Parks trail reports, Canmore and Area", url: "https://www.albertaparks.ca/parks/kananaskis/kananaskis-country/advisories-public-safety/trail-reports/canmore-and-area/" },
     // Canmore Nordic Centre
     { name: "Canmore Trail", c: [51.09, -115.376], r: 1500, d: "green", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
     { name: "Narnia", c: [51.088, -115.374], r: 1500, d: "green", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
