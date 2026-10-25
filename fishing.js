@@ -186,6 +186,14 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
 #fishPane ul.fs-top button.fs-go { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 8px; }
 #fishPane ul.fs-top button.fs-go small { grid-column: 1; }
 #fishPane ul.fs-top button.fs-go em { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-style: normal; font-size: .76rem; color: var(--muted); white-space: nowrap; }
+#fishPane .fs-style { margin-bottom: 8px; }
+#fishPane .fs-style button.fs-chip { cursor: pointer; font: inherit; font-size: .8rem; font-weight: 700; padding: 6px 12px; }
+#fishPane .fs-style button.fs-chip.on { background: #0c8599; border-color: #0c8599; color: #fff; }
+#fishPane ul.fs-bait { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 10px; }
+#fishPane ul.fs-bait li { border-left: 3px solid #0c8599; padding-left: 9px; }
+#fishPane ul.fs-bait b { display: block; }
+#fishPane ul.fs-bait span { display: block; font-size: .86rem; line-height: 1.35; }
+#fishPane ul.fs-bait small { display: block; color: var(--muted); font-size: .76rem; margin-top: 2px; }
 #fishPane .fs-mini { font-size: .74rem; font-weight: 700; color: #f59f00; }
 #fishPane .fs-safe { color: var(--muted); margin: 0; font-size: .76rem; line-height: 1.4; }
 .fs-mapkey .fs-keybtn { font: inherit; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; border-radius: 999px; border: 0; background: #fff; color: #212529; box-shadow: 0 1px 4px #0004; cursor: pointer; font-size: 12px; }
@@ -584,7 +592,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const el = $("fsSpot"), seq = ++spotSeq;
     el.hidden = false;
     el.innerHTML = `<header>${svg(IC.pin)}<h3 id="fsSpotName">${esc(title || "This spot")}</h3><button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header>
-      <div id="fsWater"><p class="fs-note fs-look">Looking up this spot…</p></div>
+      <div id="fsWater"><p class="fs-note fs-look">Looking up this spot…</p></div><div id="fsBait"></div>
       <div id="fsRules"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsAcc"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
     cardInView(el);
@@ -598,14 +606,23 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     flowHtml(lat, lon).then((h) => fill("fsFlow", secFlow(h)));
     tideHtml(lat, lon).then((h) => fill("fsTide", secTide(h)));
     fill("fsAcc", secAcc(accessHtml(lat, lon)));
+    // What to use: the fish the province lists here, plus what's stocked close by and what the eating guide lists.
+    const baitSp = new Set();
+    if (stocked) for (const [sw] of near(stocked.waters, lat, lon, 3, (x) => x.c).slice(0, 2)) for (const r of sw.r) if (stocked.sp[r[1]]) baitSp.add(stocked.sp[r[1]]);
+    let baitWater = "";
+    const bait = () => { if (seq === spotSeq && window.tfFishBait) window.tfFishBait.render($("fsBait"), { lat, lon, month: new Date().getMonth() + 1, region: hatchRegion(lat, lon), water: baitWater, species: [...baitSp], hatch: hatchNow(lat, lon) }, fold, IC.bug); };
     waterAt(lat, lon, prov).then((w) => {
       if (seq !== spotSeq) return;
+      if (w && w.sp) w.sp.forEach((x) => baitSp.add(x));
+      baitWater = w && w.kind ? (/lake/i.test(w.kind) ? "lake" : "river") : !w && nearestTide(lat, lon, 4) ? "ocean" : "";
+      bait();
       if (w && w.name && !title) $("fsSpotName").textContent = w.name;
       fill("fsWater", w ? secFish(w.html) : "");
       if (!w) $("fsSpot").classList.add("fs-nowater");
       if (w && w.rules) fill("fsRules", fold("rules", IC.rules, "Rules", "This water has its own rules", unhead(w.rules) + unhead(rulesHtml(lat, lon, here, prov)), true));
       if (prov === "on" || prov === "qc") eatHtml(lat, lon, prov, (w && w.name) || title).then((h) => {
         fill("fsEat", h.html);
+        if (h.sp && h.sp.length) { h.sp.forEach((x) => baitSp.add(x)); bait(); }
         if (seq === spotSeq && h.name && !title && !(w && w.name)) $("fsSpotName").textContent = h.name;   // Quebec's map often has no name for the water
       });
     });
@@ -639,7 +656,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     let e; try { e = await loadEat(); } catch { return { html: "" }; }
     const ws = eatWaters(e, prov, lat, lon, name);
     if (!ws.length) return { html: "" };
-    return { name: ws[0][1] < 1.5 ? ws[0][0].n : "", html: ws.map(([w, d]) => {
+    return { sp: [...new Set(ws.flatMap(([w]) => w.f.map((r) => e.sp[r[0]])))], name: ws[0][1] < 1.5 ? ws[0][0].n : "", html: ws.map(([w, d]) => {
       const rows = w.f.slice().sort((a, b) => e.sp[a[0]].localeCompare(e.sp[b[0]]));
       let body;
       if (prov === "on") body = `<table class="fs-eat"><thead><tr><th>Fish</th><th>Meals a month, by length</th></tr></thead><tbody>${rows.map(([sp, g, sn, why]) =>
@@ -688,7 +705,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     if (!name && !sp.length) return null;
     const depth = lake ? await wfs("WHSE_FISH.BATH_LAKE_BATHYMETRIC_SP", "DEPTH_CONTOUR", `INTERSECTS(GEOMETRY, ${pt})`, 1).then((a) => a.length).catch(() => 0) : 0;
     const facts = [kind, lake && lake.AREA_HA ? `${lake.AREA_HA >= 100 ? Math.round(lake.AREA_HA) : lake.AREA_HA.toFixed(1)} ha` : "", depth ? "depth map on the Lake depth layer" : ""].filter(Boolean);
-    return { name: name ? titleCase(name) : "", html: `${facts.length ? `<p class="fs-note">${esc(facts.join(" · "))}</p>` : ""}${speciesHtml(sp, "From BC's fish inventory (surveys and records), not a guarantee they're there now.")}` };
+    return { name: name ? titleCase(name) : "", kind, sp, html: `${facts.length ? `<p class="fs-note">${esc(facts.join(" · "))}</p>` : ""}${speciesHtml(sp, "From BC's fish inventory (surveys and records), not a guarantee they're there now.")}` };
   }
   async function waterAB(lat, lon) {
     const q = (layer, extra) => getJ(`${AB_REG}/${layer}/query?${new URLSearchParams({ geometry: `${lon},${lat}`, geometryType: "esriGeometryPoint", inSR: "4326", spatialRel: "esriSpatialRelIntersects", outFields: "WB_ID,Official_Name,Common_Name,FMZ", returnGeometry: "false", f: "json", ...extra })}`, 9000).then((j) => (j.features || []).map((f) => f.attributes));
@@ -719,7 +736,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     if (!a) return null;
     const sp = String(a.FISH_SPECIES_SUMMARY || "").split(",").map((s) => s.trim()).filter(Boolean);
     const facts = [a.SURFACE_AREA ? `${Math.round(a.SURFACE_AREA)} ha` : "", a.MAXIMUM_DEPTH ? `up to ${a.MAXIMUM_DEPTH} m deep (average ${a.MEAN_DEPTH || "?"} m)` : "", a.THERMAL_REGIME ? `${a.THERMAL_REGIME.toLowerCase()} water` : ""].filter(Boolean);
-    return { name: a.OFFICIAL_WATERBODY_NAME || "", html: `${facts.length ? `<p class="fs-note">${esc(facts.join(" · "))}</p>` : ""}${speciesHtml(sp, "From Ontario's aquatic resource inventory.")}` };
+    return { name: a.OFFICIAL_WATERBODY_NAME || "", kind: "Lake", sp, html: `${facts.length ? `<p class="fs-note">${esc(facts.join(" · "))}</p>` : ""}${speciesHtml(sp, "From Ontario's aquatic resource inventory.")}` };
   }
   async function waterQC(lat, lon) {
     const p = new URLSearchParams({ geometry: `${lon},${lat}`, geometryType: "esriGeometryPoint", inSR: "4326", spatialRel: "esriSpatialRelIntersects", outFields: "NM_ENDRO_FR,VA_TYPE_DESCR_FR", returnGeometry: "false", f: "json" });
@@ -1058,6 +1075,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     if (lon > -113.5 || (lon > -116 && lat > 54)) return "prairie";
     return "west";
   }
+  // Names of what's hatching this month at a spot (for the fly picks).
+  const hatchNow = (lat, lon) => { const m = new Date().getMonth() + 1; return HATCH[hatchRegion(lat, lon)].filter((h) => (h[1] <= h[2] ? m >= h[1] && m <= h[2] : m >= h[1] || m <= h[2])).map((h) => h[0]); };
   function renderHatch() {
     const el = $("fsHatch");
     if (!spot) { el.innerHTML = ""; return; }
