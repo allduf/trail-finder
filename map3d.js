@@ -13,6 +13,11 @@
       try { const s = JSON.stringify(v); if (localStorage.getItem("tf:" + k) === s) return; localStorage.setItem("tf:" + k, s); window.dispatchEvent(new Event("tf:setting")); } catch {}
     },
   };
+  // The app reopens on the map it was closed on, for each sport (alex 2026-10-25: "next time they open it, open with
+  // the map style they closed it at"): 3D or flat, and the 3D photos, kept per sport in "map3dBy" and "3dPhotosBy".
+  // The sport itself is saved by winter.js; before it has set the body class, the saved one is the sport.
+  const sportNow = () => ["mtb", "ski", "hunt", "fish"].find((s) => document.body.classList.contains("sport-" + s)) || store.get("sport", "mtb");
+  const bySport = (k, s, v) => { const o = store.get(k, null) || {}; if (v === undefined) return o[s]; if (o[s] !== v) store.set(k, { ...o, [s]: v }); };
 
   // Phones have far less memory for the 3D map than a computer, and iPhone Safari kills the whole page when it
   // runs out ("A problem repeatedly occurred", alex 2026-10-19). So on phones: no edge smoothing, the picture
@@ -657,7 +662,7 @@
       winBtn.title = "Real satellite photos from February and March 2026 (Sentinel-2, 10 m, so softer)";
       liveBtn.title = "Today's real snow (NASA satellite, 2 days old)";
       for (const [el, on] of [[sumBtn, !w], [winBtn, photos === "winter"], [liveBtn, photos === "live"]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; }
-      store.set(ski() ? "3dPhotosSki" : "3dPhotos", photos);
+      bySport("3dPhotosBy", sportNow(), photos);
       winterHere();
     };
     // Winter outside last winter's photos shows today's snow (NASA, as in Live): say so. Live where NASA sees no
@@ -684,8 +689,9 @@
     sumBtn.addEventListener("click", () => setPhotos("sharp"));
     winBtn.addEventListener("click", () => setPhotos("winter"));
     liveBtn.addEventListener("click", () => setPhotos("live"));
-    // MTB opens on Summer and Skiing on Winter, unless the person picked something else in that sport.
-    const pick = () => setPhotos(ski() ? store.get("3dPhotosSki", "winter") : store.get("3dPhotos", "sharp"));
+    // MTB opens on Summer and Skiing on Winter, unless the person picked something else in that sport (before
+    // 2026-10-25 Hunting and Fishing shared MTB's choice: that's where they start).
+    const pick = () => { const s = sportNow(), v = bySport("3dPhotosBy", s); setPhotos(v || (s === "ski" ? store.get("3dPhotosSki", "winter") : store.get("3dPhotos", "sharp"))); };
     new MutationObserver(pick).observe(document.body, { attributes: true, attributeFilter: ["class"] });
     gl.addControl({ onAdd() { const d = document.createElement("div"); d.className = "maplibregl-ctrl maplibregl-ctrl-group";
       d.style.cssText += ";display:flex;position:relative;overflow:visible"; d.append(sumBtn, winBtn, liveBtn, noWinter); return d; }, onRemove() {} }, "bottom-right");
@@ -774,11 +780,10 @@
     gl.getCanvas().addEventListener("mouseleave", () => tip.remove());
   }
 
-  // Skiing opens on the 3D map (alex 2026-10-24: "when you enter in skiing mode make that the 3d map come up by
-  // default"). The saved "map3d" choice is MTB's (and Hunting's): Skiing doesn't change it, and leaving Skiing goes
-  // back to it. "▭ 2D map" tapped in Skiing keeps Skiing flat until the app is closed.
-  const inSki = () => document.body.classList.contains("sport-ski");
-  let skiFlat = false;
+  // Each sport opens on the map it was last left on, 3D or flat, also after the app is closed. Skiing starts on 3D
+  // (alex 2026-10-24: "when you enter in skiing mode make that the 3d map come up by default"); the other sports start
+  // on the old shared "map3d" choice until they're switched once.
+  const saved3d = (s) => { const v = bySport("map3dBy", s); return typeof v === "boolean" ? v : s === "ski" ? true : store.get("map3d", false); };
   let want3d = null;   // last asked for, so a switch back to 2D while the 3D library loads isn't undone when it arrives
   function set3d(want, auto) {
     want3d = want;
@@ -789,8 +794,7 @@
       return;
     }
     on = want; mark(on);
-    if (!inSki()) store.set("map3d", on);
-    else if (!auto) skiFlat = !on;
+    if (!auto) { bySport("map3dBy", sportNow(), on); if (on) crashed = false; }
     map.getContainer().classList.toggle("is3d", on);
     map.getContainer().parentElement.classList.toggle("is3d", on);   // hides the 2D map style menu
     if (on) {
@@ -808,21 +812,20 @@
   }
   btn.addEventListener("click", () => set3d(!on));
   syncBtn();
-  // The crash guard wins: if the page died in 3D, this visit opens Skiing flat too (the 3D button still works).
+  // The crash guard wins: if the page died in 3D, this visit opens every sport flat until ⛰ 3D is tapped.
   let sport = null;
   window.addEventListener("tf:sport", (e) => {
     const s = e.detail, was = sport;
     sport = s;
     if (s === was) return;
-    if (s === "ski") { if (!crashed && !skiFlat) set3d(true, true); }
-    else if (was === "ski") set3d(!crashed && store.get("map3d", false), true);
+    set3d(!crashed && saved3d(s), true);
   });
   // Hidden or closed normally: not a crash. Back on screen in 3D: watch again.
   document.addEventListener("visibilitychange", () => mark(on && document.visibilityState === "visible"));
   addEventListener("pagehide", () => mark(false));
   addEventListener("pageshow", () => mark(on));
   if (crashed) {
-    store.set("map3d", false);
+    bySport("map3dBy", sportNow(), false);   // the sport it died in reopens flat next time too, until 3D is picked again
     // Back where the 3D map was, once the page has set its first view, and say what happened.
     const back = () => {
       if (Array.isArray(crashView) && crashView.every(Number.isFinite) && !/^#(trail|route|pin)=/.test(location.hash)) map.setView([crashView[0], crashView[1]], Math.round(crashView[2]), { animate: false });
@@ -830,5 +833,5 @@
     };
     if (document.readyState === "complete") setTimeout(back, 0); else addEventListener("load", () => setTimeout(back, 0), { once: true });
   }
-  else if (store.get("map3d", false)) set3d(true);
+  else if (saved3d(sportNow())) set3d(true, true);
 })();
