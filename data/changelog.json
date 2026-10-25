@@ -2,6 +2,7 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-10-25", "text": "Slackcountry at Revelstoke, Whitewater, RED and Fernie: gates, lines and ways back in Skiing"},
+    {"date": "2026-10-25", "text": "Skiing: Ski access is now Approach trails, and trailhead parking shows as blue P pins. Village and resort lots are gone"},
     {"date": "2026-10-25", "text": "Skiing: live lift status on the map, green open, orange standby, red closed. Tap a lift for its wait time and details"},
     {"date": "2026-10-25", "text": "Slackcountry at Whistler Blackcomb: gates, lines and ways back in Skiing"},
     {"date": "2026-10-25", "text": "Quebec and the rest of Canada: Where to ride today and Loops work there, with Quebec riding areas on the map, and the Chic-Chocs show their own avalanche forecast"},

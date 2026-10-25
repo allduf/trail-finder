@@ -3,7 +3,8 @@
 // Writes two files:
 //  - data/ski.json: backcountry ski routes and huts in the whole region, from every open source found:
 //      - osm: OpenStreetMap ski routes (piste:type=skitour, nordic, hike = snowshoe, downhill runs, sled/snowmobile),
-//        ski route relations (route=ski / route=piste), ways tagged ski=yes, and alpine / wilderness huts.
+//        ski route relations (route=ski / route=piste), ways tagged ski=yes (approach trails), and alpine / wilderness
+//        huts. Parking lots and trailheads near the start of a tour go in "parking" (resort and village lots left out).
 //      - bc: BC government Recreation Sites and Trails (DataBC layer WHSE_FOREST_TENURE.FTEN_RECREATION_LINES_SVW,
 //        Open Government Licence - British Columbia) whose name or description says ski, snowshoe or nordic.
 //      - c2c: camptocamp.org ski touring and snowshoe routes (CC BY-SA), from its public API (no key). Mostly the
@@ -129,6 +130,9 @@ const skiQuery = ([s, w, n, e]) => `[out:json][timeout:200][bbox:${s},${w},${n},
   way["snowmobile"~"^(yes|designated|permissive)$"]["highway"!~"^(motorway|trunk|primary|secondary|tertiary|residential|motorway_link|trunk_link|primary_link|secondary_link)$"];
   relation["route"="snowmobile"];
   wr["landuse"="winter_sports"];
+  nwr["amenity"="parking"]["ski"~"^(yes|designated|permissive)$"];
+  nwr["highway"="trailhead"];
+  nwr["amenity"="parking"]["name"~"trail ?head|backcountry|ski|snowshoe|sno-?park",i];
 );
 out tags geom qt;`;
 async function fetchOsm(box, depth = 0) {
@@ -226,24 +230,63 @@ async function buildOsm() {
   }
   return osmRoutes([...seen.values()]);
 }
-// OpenStreetMap elements (ways and relations with their geometry, huts) -> { routes, huts }.
+// Parking for ski tours (alex 2026-10-25: "all ski access that i see look like parking lot"): a parking lot or
+// trailhead, or a way tagged ski=yes with no path or piste tag drawn as a closed ring (Whistler's Lot 1, Diamond Head's
+// lot), is a place to leave the car, not an "access" route. Kept as "parking" points when it is tagged for skiing or is
+// within PARK_NEAR_M of the end of a ski tour, snowshoe or approach trail; left out within PARK_RESORT_M of a resort run
+// (village and resort lots) and when private.
+const PARK_NEAR_M = 1500, PARK_RESORT_M = 800;
+const closedRing = (geom) => geom && geom.length >= 4 && Math.hypot((geom[0].lat - geom.at(-1).lat) * 110540, (geom[0].lon - geom.at(-1).lon) * 71000) < 15;
+const isParking = (el, t) => t.amenity === "parking" || t.highway === "trailhead"
+  || (el.type === "way" && !t.highway && !t["piste:type"] && !!t.ski && closedRing(el.geometry));
+const lineM = (g) => { let m = 0; for (let i = 2; i < g.length; i += 2) m += Math.hypot((g[i] - g[i - 2]) * 110540, (g[i + 1] - g[i - 1]) * 71000); return m; };
+function parkingSpots(lots, routes) {
+  const ends = [], runs = [];
+  for (const r of routes) {
+    if (/^(tour|access|snowshoe)$/.test(r.type) && !r.area) for (const g of r.g) ends.push([g[0], g[1]], [g.at(-2), g.at(-1)]);
+    if (r.type === "resort" || r.type === "offpiste") for (const g of r.g) for (let i = 0; i < g.length; i += 2) runs.push([g[i], g[i + 1]]);
+  }
+  const within = (pts, lat, lon, m) => { const kx = Math.cos((lat * Math.PI) / 180) * 111320; return pts.some(([a, b]) => Math.hypot((b - lon) * kx, (a - lat) * 110540) < m); };
+  const out = [];
+  for (const el of lots) {
+    const t = el.tags || {};
+    if (/^(private|no|customers)$/.test(t.access || "")) continue;
+    let lat = el.lat, lon = el.lon;
+    const pts = (el.geometry || (el.members || []).flatMap((m) => m.geometry || [])).filter(Boolean);
+    if (lat == null && pts.length) { lat = pts.reduce((s, p) => s + p.lat, 0) / pts.length; lon = pts.reduce((s, p) => s + p.lon, 0) / pts.length; }
+    if (lat == null) continue;
+    if (!/^(yes|designated|permissive)$/.test(t.ski || "") && !within(ends, lat, lon, PARK_NEAR_M)) continue;
+    if (within(runs, lat, lon, PARK_RESORT_M)) continue;
+    // A trailhead point in a parking lot is the same place: keep one, the named one.
+    const twin = out.find((o) => Math.hypot((o.lon - lon) * 71000, (o.lat - lat) * 110540) < 100);
+    const kind = t.amenity === "parking" || !t.highway ? "parking" : "trailhead";
+    const name = t.name || (t.description || "").slice(0, 80);
+    if (twin) { if (!twin.name && name) twin.name = name; continue; }
+    out.push({ id: el.type[0] + el.id, src: "osm", kind, name, lat: round(lat), lon: round(lon), tags: keepTags(t) });
+  }
+  return out;
+}
+// OpenStreetMap elements (ways and relations with their geometry, huts) -> { routes, huts, parking }.
 function osmRoutes(els) {
   log(`  ${els.length} elements`);
-  const routes = [], huts = [], wayIds = new Set();
+  const routes = [], huts = [], lots = [], wayIds = new Set();
+  for (const el of els) if (isParking(el, el.tags || {})) lots.push(el);
   // Ways first, so relation members already drawn on their own aren't drawn twice.
   for (const el of els.filter((e) => e.type === "way" && e.geometry)) {
     const t = el.tags || {};
-    if (/hut|shelter/.test(t.tourism || t.amenity || "") || t.landuse === "winter_sports") continue;
+    if (/hut|shelter/.test(t.tourism || t.amenity || "") || t.landuse === "winter_sports" || isParking(el, t)) continue;
     const type = skiType(t);
     if (!type) continue;
     const g = flat(el.geometry.map((p) => ({ lat: p.lat, lon: p.lon })), 6);
     if (g.length < 4) continue;
+    // A private way, or a bit of trail under 100 m (a bridge, a mapping slip), isn't an approach trail.
+    if (type === "access" && (/^(private|no)$/.test(t.access || "") || lineM(g) < 100)) continue;
     wayIds.add(el.id);
     routes.push({ id: "w" + el.id, src: "osm", type, name: t.name || t["piste:name"] || t.ref || "", diff: t["piste:difficulty"] || "", g: [g], tags: keepTags(t) });
   }
   for (const el of els.filter((e) => e.type === "relation")) {
     const t = el.tags || {};
-    if (/hut|shelter/.test(t.tourism || t.amenity || "") || t.landuse === "winter_sports") continue;
+    if (/hut|shelter/.test(t.tourism || t.amenity || "") || t.landuse === "winter_sports" || isParking(el, t)) continue;
     const type = skiType(t) || "tour";
     const name = t.name || t["piste:name"] || t.ref || "";
     const parts = [], memberIds = [];
@@ -270,9 +313,10 @@ function osmRoutes(els) {
     huts.push({ id: el.type[0] + el.id, name: t.name || "", kind: t.tourism || "shelter", lat: round(lat), lon: round(lon), tags: keepTags(t) });
   }
   resortTerrain(routes, resortAreas(els));
+  const parking = parkingSpots(lots, routes);
   const count = (k) => routes.filter((r) => r.type === k).length;
-  log(`  routes: ${routes.length} (tour ${count("tour")}, off-piste ${count("offpiste")}, nordic ${count("nordic")}, snowshoe ${count("snowshoe")}, resort ${count("resort")}, sled ${count("sled")}, snowmobile ${count("snowmobile")}, access ${count("access")}, other ${count("other")}); huts: ${huts.length}`);
-  return { routes, huts };
+  log(`  routes: ${routes.length} (tour ${count("tour")}, off-piste ${count("offpiste")}, nordic ${count("nordic")}, snowshoe ${count("snowshoe")}, resort ${count("resort")}, sled ${count("sled")}, snowmobile ${count("snowmobile")}, access ${count("access")}, other ${count("other")}); huts: ${huts.length}; trailhead parking: ${parking.length}`);
+  return { routes, huts, parking };
 }
 
 // Named peaks, so an unnamed route can be called after the peak it goes up or passes ("Ski touring near Ipsoot Mountain").
@@ -1035,6 +1079,7 @@ if (runs("ski")) {
   const routes = [...(osm ? osm.routes : oldOf("osm")), ...(bc || oldOf("bc")), ...(c2c ? c2c.routes : oldOf("c2c"))];
   const starts = c2c ? c2c.starts : old.starts || [];
   const huts = osm ? osm.huts : old.huts || [];
+  const parking = osm ? osm.parking : old.parking || [];
   // Peaks come from Overpass too: when it just failed for the routes, don't spend the run's time limit on it again.
   let peaksOk = false;
   if (osm) try { nameNearPeaks(routes, await buildPeaks()); peaksOk = true; } catch (e) { log(`  Peaks failed: ${e.message}`); }
@@ -1047,9 +1092,9 @@ if (runs("ski")) {
     writeFileSync(new URL("ski.json", DATA), JSON.stringify({
       builtAt: osm || bc || c2c ? builtAt : old.builtAt, regions: REGIONS,
       sources: { osm: osm ? builtAt : old.sources?.osm || "", bc: bc ? builtAt : old.sources?.bc || "", c2c: c2c ? builtAt : old.sources?.c2c || "" },
-      routes, huts, starts,
+      routes, huts, starts, parking,
     }));
-    log(`data/ski.json: ${routes.length} routes, ${huts.length} huts`);
+    log(`data/ski.json: ${routes.length} routes, ${huts.length} huts, ${parking.length} trailhead parking`);
   }
 }
 

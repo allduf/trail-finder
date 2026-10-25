@@ -31,7 +31,8 @@
 
   const TYPES = {
     tour: { label: "Ski touring", color: "#1f5fe0", weight: 3.5 },
-    access: { label: "Ski access", color: "#1f5fe0", weight: 2.5, dashArray: "8 6" },
+    // Trails to the start of the skiing: OpenStreetMap ways tagged ski=yes with no piste type (Elfin Lakes Trail...).
+    access: { label: "Approach trails", color: "#1f5fe0", weight: 2.5, dashArray: "8 6" },
     nordic: { label: "Nordic / cross-country", color: "#0b9bb5", weight: 3 },
     snowshoe: { label: "Snowshoe", color: "#8b4fe0", weight: 3, dashArray: "6 5" },
     snowmobile: { label: "Snowmobile trails", color: "#c2255c", weight: 3, dashArray: "12 4" },
@@ -42,13 +43,16 @@
   };
   // Sledding and tubing hills (type "sled") aren't drawn: alex asked to take out what isn't needed.
   const HUT = { label: "Huts and cabins", color: "#7a2e10" };
+  // Where to leave the car for a tour: blue P pins (alex 2026-10-25: "all ski access that i see look like parking lot").
+  // Village and resort lots are left out (tidyAccess).
+  const PARK = { label: "Trailhead parking", color: "#1f5fe0" };
   const START = { label: "camptocamp route starts", color: "#d9480f" };   // drawn with Ski touring
   const HEAT = { label: "Ski heatmap", ramp: ["#2b59c3", "#00b4d8", "#ffd23f", "#ff6a1a"] };   // 1, 2, 3-5, 6+ traces
   const MINE = { label: "Your ski tours", color: "#e0218a" };
   const CLUB = { label: "Snowmobile clubs", color: "#c2255c" };
   // The four buttons at the top of the panel: each one turns its group of layers on or off (more than one can be on).
   const VIEWS = {
-    tour: { icon: "⛷", label: "Touring", sub: "backcountry", layers: ["tour", "access", "other", "hut", "snow"] },
+    tour: { icon: "⛷", label: "Touring", sub: "backcountry", layers: ["tour", "access", "park", "other", "hut", "snow"] },
     nordic: { icon: "🎿", label: "Nordic", sub: "and snowshoe", layers: ["nordic", "snowshoe"] },
     sled: { icon: "🛷", label: "Snowmobile", sub: "trails, clubs", layers: ["snowmobile", "club"] },
     resort: { icon: "🚡", label: "Resorts", sub: "runs, bowls", layers: ["resort", "offpiste"] },
@@ -57,7 +61,7 @@
   // in hunting or set. can we do the same for skiing"). A group's slot holds switches other files own (Avalanche risk,
   // Webcams, Rogers Pass, Ski areas, Slackcountry, Lift status: window.tfSkiSlot); "routes" groups are what the four panel buttons turn on.
   const GROUPS = [
-    { g: "Backcountry", keys: ["tour", "access", "other", "hut"], routes: true },
+    { g: "Backcountry", keys: ["tour", "access", "park", "other", "hut"], routes: true },
     { g: "Avalanche", slot: "avy", keys: ["slope", "aspect", "runout"] },
     { g: "Snow and weather", keys: ["snow"], slot: "wx", slotAfter: true },
     { g: "Nordic and snowmobile", keys: ["nordic", "snowshoe", "snowmobile", "club"], routes: true },
@@ -65,7 +69,7 @@
     { g: "Places and tracks", slot: "places", keys: ["heat", "mine"] },
   ];
   const SNOW = { label: "Snow stations", color: "#0b7285" };
-  const LABEL = (k) => (TYPES[k] || { hut: HUT, heat: HEAT, mine: MINE, club: CLUB, snow: SNOW, slope: { label: "Slope angle" }, aspect: { label: "Slope direction" }, runout: { label: "Runout zones and traps" } }[k]).label;
+  const LABEL = (k) => (TYPES[k] || { hut: HUT, park: PARK, heat: HEAT, mine: MINE, club: CLUB, snow: SNOW, slope: { label: "Slope angle" }, aspect: { label: "Slope direction" }, runout: { label: "Runout zones and traps" } }[k]).label;
   // Avalanche Canada's danger scale colours.
   const DANGER = [
     { label: "No rating", color: "#9aa3ad" }, { label: "1 Low", color: "#52ba4a" }, { label: "2 Moderate", color: "#fff300" },
@@ -233,6 +237,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 #skiPane details p { white-space: pre-line; }
 .sk-pin { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px #0006; color: #fff; font-size: 12px; line-height: 1; }
 .sk-pin.on { outline: 3px solid #ffe14d; }
+.sk-pin.park { border-radius: 6px; font-weight: 800; font-family: system-ui, sans-serif; }
 body.sport-ski details.legend.sk-key { display: block !important; }
 body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 .legend.sk-key .sk-kic { width: 34px; flex: none; display: flex; justify-content: center; }
@@ -365,6 +370,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // "skiLayers2": the simpler Skiing starts everyone again on Touring (and their own tours), the old 13 chips forgotten.
   let shown = new Set(store.get("skiLayers2", [...VIEWS.tour.layers, "mine"]));
   if (!store.get("skiSnowAdded", false)) { if (shown.has("tour")) shown.add("snow"); store.set("skiSnowAdded", true); store.set("skiLayers2", [...shown]); }
+  if (!store.get("skiParkAdded", false)) { if (shown.has("access")) shown.add("park"); store.set("skiParkAdded", true); store.set("skiLayers2", [...shown]); }
   let selected = null;   // route or hut object
   // A tour being planned: the points tapped on the map (kept on this device), drawn as an orange line.
   const plan = { on: false, pts: store.get("skiPlan", []), layer: L.layerGroup(), slopeWas: false, timer: 0 };
@@ -398,6 +404,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     skiLoading = fetch("data/ski.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((d) => {
         ski = d;
+        tidyAccess(d);
         (d.routes || []).forEach((r) => { r.lines = r.g.map(lineOf); r.bounds = L.latLngBounds(r.lines.flat()); });
         window.dispatchEvent(new CustomEvent("tf:ski-data", { detail: d }));   // rogers.js: official terrain classes (r.ates)
         drawSki(); renderSwitches(); renderList(); loadCanadaView();
@@ -422,6 +429,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return Promise.all(want.map(([k]) => {
       const p = fetch(`data/ski-canada/${k}.json`, { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }).then((t) => {
         const ids = new Set((ski.routes || []).map((r) => r.id));
+        tidyAccess(t);
         for (const r of t.routes || []) {
           if (ids.has(r.id)) continue;
           r.lines = r.g.map(lineOf); r.bounds = L.latLngBounds(r.lines.flat());
@@ -429,6 +437,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         }
         ski.huts = [...(ski.huts || []), ...(t.huts || [])];
         ski.starts = [...(ski.starts || []), ...(t.starts || [])];
+        ski.parking = [...(ski.parking || []), ...(t.parking || [])];
         clearTimeout(canRedraw);
         canRedraw = setTimeout(() => { if (sport === "ski") { drawSki(); renderList(); } }, 50);
       }).catch(() => canGot.delete(k));
@@ -441,6 +450,40 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     loadCanIdx().then(() => loadCanada(map.getBounds().pad(0.25)));
   }
   map.on("moveend", loadCanadaView);
+  // "Ski access" was every OpenStreetMap way tagged ski=yes with no piste type: some are trails to the skiing, but the
+  // closed rings with no path tag are parking lots (Whistler Village's Lots 1 to 3, Diamond Head's lot). The nightly
+  // job (scripts/build-winter.mjs) now sends those as d.parking points; files made before it are sorted out here the
+  // same way. Lots within 800 m of a resort run are village or resort parking, not a trailhead: left out. So are
+  // private ways and bits of trail under 100 m (a bridge, a mapping slip).
+  const RESORT_LOT_M = 800;
+  function tidyAccess(d) {
+    const lots = [...(d.parking || [])];
+    d.routes = (d.routes || []).filter((r) => {
+      if (r.type !== "access") return true;
+      const t = r.tags || {}, p = r.g[0];
+      if (/^(private|no)$/.test(t.access || "")) return false;
+      const closed = r.g.length === 1 && p.length >= 8 && Math.hypot((p[0] - p.at(-2)) * 110540, (p[1] - p.at(-1)) * 71000) < 15;
+      if (closed && !t.highway) {
+        let lat = 0, lon = 0;
+        for (let i = 0; i < p.length - 2; i += 2) { lat += p[i]; lon += p[i + 1]; }
+        const n = (p.length - 2) / 2;
+        lots.push({ id: r.id, src: r.src, kind: "parking", name: r.name || t.description || "", lat: +(lat / n).toFixed(5), lon: +(lon / n).toFixed(5), tags: t });
+        return false;
+      }
+      let m = 0;
+      for (const g of r.g) for (let i = 2; i < g.length; i += 2) m += Math.hypot((g[i] - g[i - 2]) * 110540, (g[i + 1] - g[i - 1]) * 71000);
+      return m >= 100;
+    });
+    const runs = (d.routes || []).filter((r) => r.type === "resort" || r.type === "offpiste");
+    d.parking = lots.filter((h) => {
+      const kx = Math.cos((h.lat * Math.PI) / 180) * 111320, lim = RESORT_LOT_M * RESORT_LOT_M;
+      for (const r of runs) for (const g of r.g) for (let i = 0; i < g.length; i += 2) {
+        const dx = (g[i + 1] - h.lon) * kx, dy = (g[i] - h.lat) * 110540;
+        if (dx * dx + dy * dy < lim) return false;
+      }
+      return true;
+    });
+  }
   // A tap on a route, hut or start: its details, or, while planning a tour, the next point of the plan.
   const tap = (e, it) => { L.DomEvent.stopPropagation(e); if (plan.on) planAdd(e.latlng); else select(it); };
   function drawSki() {
@@ -472,6 +515,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       m.on("click", (e) => tap(e, h));
       hutLayer.addLayer(m);
     }
+    drawParking();
     if (shown.has("tour")) for (const h of ski.starts || []) {
       const m = L.marker([h.lat, h.lon], { icon: L.divIcon({ className: "", html: `<span class="sk-pin${selected === h ? " on" : ""}" style="background:${START.color}">⛷</span>`, iconSize: [24, 24], iconAnchor: [12, 12] }) });
       m.bindTooltip(esc(h.name || "camptocamp route"));
@@ -479,6 +523,30 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       hutLayer.addLayer(m);
     }
   }
+  // Trailhead parking pins, on the 3D map too (it doesn't show Leaflet markers).
+  const parkLayer = L.layerGroup();
+  let parkGl = [];
+  const parkPin = (h) => `<span class="sk-pin park${selected === h ? " on" : ""}" style="background:${PARK.color}">P</span>`;
+  function drawParking() {
+    parkLayer.clearLayers();
+    parkGl.forEach((m) => m.remove()); parkGl = [];
+    if (sport !== "ski" || !ski || !shown.has("park")) return;
+    const gl = window.trailMap3d;
+    for (const h of ski.parking || []) {
+      const label = h.name || PARK.label;
+      const m = L.marker([h.lat, h.lon], { icon: L.divIcon({ className: "", html: parkPin(h), iconSize: [22, 22], iconAnchor: [11, 11] }), title: label });
+      m.bindTooltip(esc(label));
+      m.on("click", (e) => tap(e, h));
+      parkLayer.addLayer(m);
+      if (gl && window.maplibregl) {
+        const el = document.createElement("div");
+        el.title = label; el.innerHTML = parkPin(h);
+        el.addEventListener("click", (e) => { e.stopPropagation(); if (plan.on) planAdd(L.latLng(h.lat, h.lon)); else select(h); });
+        parkGl.push(new maplibregl.Marker({ element: el, anchor: "center", opacityWhenCovered: 1 }).setLngLat([h.lon, h.lat]).addTo(gl));
+      }
+    }
+  }
+  window.addEventListener("tf:map3d", () => setTimeout(drawParking, 0));
   // The four buttons in the panel, and the Skiing switches in the map's Layers menu (under Map style, like Hunting's).
   const lm = document.createElement("div");
   lm.className = "lm-ski";
@@ -500,6 +568,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // The colour icon of each row: what the layer looks like on the map.
   const SW_ICON = {
     hut: `background:${HUT.color};border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px #0004`,
+    park: `background:${PARK.color};border-radius:6px;color:#fff;font-weight:800;font-size:13px;display:grid;place-items:center`,
     club: `background:${CLUB.color};border-radius:50%`,
     snow: `background:${SNOW.color}`,
     slope: "background:linear-gradient(135deg, #f2e14c, #f59f00 35%, #e8392f 60%, #9c36b5 80%, #1c3faa)",
@@ -508,13 +577,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     heat: `background:linear-gradient(135deg, ${HEAT.ramp.join(", ")})`,
     mine: `border:3px solid ${MINE.color}`,
   };
-  const SW_SYM = { club: "❄", snow: "❄" };
+  const SW_SYM = { club: "❄", snow: "❄", park: "P" };
   const swIcon = (k) => {
     const t = TYPES[k];
     const st = t ? `border:3px ${t.dashArray ? "dashed" : "solid"} ${t.color}` : SW_ICON[k] || "";
     return `<span class="sk-lic" style="${st}" aria-hidden="true">${SW_SYM[k] || ""}</span>`;
   };
   const SW_TITLE = {
+    access: "Trails that lead to the skiing, like the Elfin Lakes Trail",
+    park: "Where to leave the car for a ski tour. Village and ski resort lots aren't shown",
     heat: "Public OpenStreetMap GPS traces from December to April, roads and lifts left out",
     mine: "Your tours from My rides (import or record them there)",
     slope: "Colours the slopes by steepness: 27° and up, where avalanches start",
@@ -552,6 +623,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const pin = (c, ic, label) => `<li><span class="sk-kic"><span class="sk-pin" style="background:${c}">${ic}</span></span>${esc(label)}</li>`;
     ul.innerHTML = Object.keys(TYPES).filter((k) => shown.has(k)).map((k) => line(TYPES[k])).join("")
       + (shown.has("hut") ? `<li><span class="sk-kic"><span class="sk-kdot" style="background:${HUT.color}"></span></span>Huts, cabins and shelters (brown dots)</li>` : "")
+      + (shown.has("park") ? `<li><span class="sk-kic"><span class="sk-pin park" style="background:${PARK.color}">P</span></span>Trailhead parking</li>` : "")
       + (shown.has("tour") ? pin(START.color, "⛷", "Start of a camptocamp ski route") : "")
       + (shown.has("club") ? pin(CLUB.color, "❄", CLUB.label) : "")
       + (shown.has("snow") ? `<li><span class="sk-kic"><span class="sk-snow">❄</span></span>${esc(SNOW.label)}: snow depth</li>` : "")
@@ -596,7 +668,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const ptAway = (lat, lon, h) => Math.hypot((h.lon - lon) * Math.cos((lat * Math.PI) / 180) * 111320, (h.lat - lat) * 110540);
   // camptocamp names are "Summit : way up": the summit is the title, the way up goes under it.
   const c2cName = (n) => { const i = (n || "").indexOf(" : "); return i > 0 ? [n.slice(0, i), n.slice(i + 3)] : [n || "camptocamp route", ""]; };
-  const KIND = { alpine_hut: "Alpine hut", wilderness_hut: "Backcountry cabin", shelter: "Shelter", basic_hut: "Hut", cabin: "Cabin" };
+  const KIND = { alpine_hut: "Alpine hut", wilderness_hut: "Backcountry cabin", shelter: "Shelter", basic_hut: "Hut", cabin: "Cabin", parking: "Trailhead parking", trailhead: "Trailhead" };
   // One plain line at the top of a hut's details: what the brown dot on the map is.
   const HUT_ABOUT = {
     alpine_hut: "A staffed or bookable mountain hut, for staying overnight on a ski tour.",
@@ -604,6 +676,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     shelter: "A small shelter from the weather, usually not for sleeping in.",
     basic_hut: "A simple backcountry hut you ski or hike to.",
     cabin: "A cabin in the backcountry. It may be private: check before using it.",
+    parking: "Where to leave the car to start a ski tour. Winter plowing isn't guaranteed: check the road before you drive up.",
+    trailhead: "Where a ski tour or approach trail starts. Check the road and parking before you drive up.",
   };
   // ---------- the trip planner light ----------
   // Avalanche Canada's Avaluator chart (ski-terrain.js): the day's danger rating in the bands a route goes through,
@@ -721,7 +795,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // ---------- route details: heights, slopes, avalanche forecast and reports, weather ----------
   // A short name for each kind of route, for unnamed routes: "Ski touring near Ipsoot Mountain" (data/ski.json "near"
   // is the named peak closest to the route, found by the nightly job).
-  const SHORT = { tour: "Ski touring", access: "Ski access", nordic: "Nordic trail", snowshoe: "Snowshoe trail", snowmobile: "Snowmobile trail", resort: "Ski run", offpiste: "Resort off-piste", other: "Winter route" };
+  const SHORT = { tour: "Ski touring", access: "Approach trail", nordic: "Nordic trail", snowshoe: "Snowshoe trail", snowmobile: "Snowmobile trail", resort: "Ski run", offpiste: "Resort off-piste", other: "Winter route" };
   const nameOf = (r) => r.name || (r.near ? `${SHORT[r.type] || "Route"} near ${r.near}` : "");
   const fmtM = (m) => Math.round(m).toLocaleString() + " m";
   // Heights, slopes, steep ground above and terrain traps along a route: ski-terrain.js, shared with the nightly job
@@ -979,13 +1053,13 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   function nearbyHtml(info) {
     if (!ski || !info) return "";
     const pts = info.pts, out = [];
-    for (const h of [...(ski.huts || []), ...(ski.starts || [])]) {
+    for (const h of [...(ski.huts || []), ...(ski.parking || []), ...(ski.starts || [])]) {
       const km = near(pts, h.lat, h.lon);
       if (km <= 2) out.push({ h, km });
     }
     if (!out.length) return "";
     out.sort((a, b) => a.km - b.km);
-    return `<dt>Nearby</dt><dd>${out.slice(0, 6).map(({ h, km }) => `<a href="#" class="sk-go" data-id="${esc(h.id)}">${esc(h.name || (h.src === "c2c" ? "camptocamp route" : "Hut"))}</a> <span class="sk-note">${h.src === "c2c" ? "camptocamp route, " : ""}${km < 0.1 ? "on the route" : km.toFixed(1) + " km"}</span>`).join("<br>")}</dd>`;
+    return `<dt>Nearby</dt><dd>${out.slice(0, 6).map(({ h, km }) => `<a href="#" class="sk-go" data-id="${esc(h.id)}">${esc(h.name || (h.src === "c2c" ? "camptocamp route" : KIND[h.kind] || "Hut"))}</a> <span class="sk-note">${h.src === "c2c" ? "camptocamp route, " : h.kind === "parking" && h.name ? "parking, " : ""}${km < 0.1 ? "on the route" : km.toFixed(1) + " km"}</span>`).join("<br>")}</dd>`;
   }
   // Photos of the route and its top: Wikimedia Commons pictures taken within PH_NEAR m of the line or PH_TOP m of
   // its high point, and the route's own photos on camptocamp.org. Open licences only, each credited.
@@ -1102,6 +1176,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ${isHut ? "" : r.area ? `<dt>Size</dt><dd>${hectares(r).toFixed(0)} ha: mapped as an area (a bowl or zone), not a line to follow</dd>`
         : `<dt>Length</dt><dd>${group.reduce((s, x) => s + km(x), 0).toFixed(1)} km${group.length > 1 ? ` (${group.length} pieces)` : ""}</dd>`}
       ${r.diff ? `<dt>Difficulty</dt><dd>${esc(DIFF[r.diff] || r.diff)}</dd>` : ""}
+      ${r.kind === "parking" || r.kind === "trailhead" ? `<dt>Drive</dt><dd><a href="https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lon}" target="_blank" rel="noopener">Directions to here</a></dd>` : ""}
       ${r.routes ? `<dt>Part of</dt><dd>${esc(r.routes.join(", "))}</dd>` : ""}
       ${club ? `<dt>Club</dt><dd><a href="#" class="sb-go">${esc(club.c.name)}</a> (${esc(club.a.name)}, ${club.km.toFixed(0)} km away): grooming report and trail pass</dd>` : ""}
       ${tags.plain}<span id="skNear"></span></dl>
@@ -1160,7 +1235,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         nb.outerHTML = nearbyHtml(info);
         d.querySelectorAll(".sk-go").forEach((a) => a.addEventListener("click", (e) => {
           e.preventDefault();
-          const h = [...(ski.huts || []), ...(ski.starts || [])].find((x) => x.id === a.dataset.id);
+          const h = [...(ski.huts || []), ...(ski.parking || []), ...(ski.starts || [])].find((x) => x.id === a.dataset.id);
           if (h) select(h, true);
         }));
       }
@@ -2231,11 +2306,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (sport === "mtb") mtb.forEach((l) => { if (!map.hasLayer(l)) l.addTo(map); });
     else mtb.forEach((l) => map.removeLayer(l));
     if (sport === "ski") {
-      skiLayer.addTo(map); hutLayer.addTo(map); mineLayer.addTo(map); clubLayer.addTo(map); snowLayer.addTo(map); aboveLayer.addTo(map);
+      skiLayer.addTo(map); hutLayer.addTo(map); parkLayer.addTo(map); mineLayer.addTo(map); clubLayer.addTo(map); snowLayer.addTo(map); aboveLayer.addTo(map);
       loadSki(); loadMine(); loadClubs(); if (shown.has("snow")) loadSnow(); renderSwitches(); renderList(); drawPlan(); renderPlan();
     } else {
       setPlanning(false);
-      [skiLayer, hutLayer, mineLayer, clubLayer, hoverLayer, snowLayer, aboveLayer, plan.layer].forEach((l) => map.removeLayer(l));
+      drawParking();
+      [skiLayer, hutLayer, parkLayer, mineLayer, clubLayer, hoverLayer, snowLayer, aboveLayer, plan.layer].forEach((l) => map.removeLayer(l));
     }
     // The map's ▶ Ride button records a ski tour in Skiing (navigate.js).
     const rideBtn = document.getElementById("navRideBtn");
