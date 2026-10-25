@@ -15,7 +15,7 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const isSki = () => document.body.classList.contains("sport-ski");
-  const FN = "lift-status";   // the Supabase function's name
+  const FN = "super-service";   // the Supabase function's name (supabase/functions/lift-status, the name Supabase gave it)
   const EVERY = 3 * 60e3;
   let on = true;
   try { on = localStorage.getItem("tf:skiLifts") !== "false"; } catch {}

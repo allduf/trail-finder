@@ -3,7 +3,7 @@
 // the resort publishes them. The browser can't read most resort sites itself (they don't allow other websites to), so
 // this function reads them and the app reads this function. Nothing is kept: every answer is fresh from the resorts,
 // at most once every 3 minutes per resort (answers are reused in between, so riders opening the map don't add load).
-// Setup (once): Supabase dashboard → Edge Functions → Deploy a new function → Via Editor, name it "lift-status"
+// Setup (once): Supabase dashboard → Edge Functions → Deploy a new function → Via Editor, name it "lift-status" (Supabase may give it another name: it is "super-service" on the live project)
 // (FN in lifts.js must match), paste this file, Deploy; then in its Details turn "Verify JWT" off (the app asks without
 // signing in). No secrets.
 // GET /functions/v1/lift-status → { t, resorts: { <id>: { name, page, t, src, lifts: [{ n, s, w?, o?, c?, k? }], err? } } }
