@@ -4,7 +4,8 @@ name: Photo find accuracy
 # often the right trail comes first or in the top 3 (issue "Photo find accuracy"). See scripts/photo-find-test.mjs.
 # Weekly, on pull requests that change photo find, and with the "Run workflow" button (not again when the change reaches
 # main: the free AI allows only so many asks a day, and the pull request already measured it).
-# Each picture uses one AI look, one online check and one reverse search from the function's daily limits.
+# Each picture uses one AI look, one online check (two when the app asks where it was taken) and one reverse search from
+# the function's daily limits.
 # Needs the repository secret SUPABASE_SECRET_KEY (the same one the loam alerts use).
 on:
   schedule:

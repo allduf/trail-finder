@@ -11,6 +11,8 @@
 // Run: SUPABASE_SECRET_KEY=... node scripts/photo-find-test.mjs   (needs the playwright package and its Chromium)
 // Optional: CASES (how many pictures, 10), CHROMIUM (a browser to use), GITHUB_TOKEN + GITHUB_REPOSITORY (update the issue), OWNER (allduf).
 // Pictures found or taught by their spot run with their area picked ("area given"), as a rider would for a photo in the woods.
+// When nothing places a picture and the app asks "Where was it taken?", the test answers with the picture's area like a
+// rider would ("asked where"), and the list after that answer is the result.
 // Pictures taught from Instagram videos (details.from "instagram": 4 shots of the trail in one picture) are only
 // references, never test pictures: a rider never searches with one.
 // The page is served from this checkout on localhost (the function lets localhost in); files it doesn't have
@@ -105,6 +107,13 @@ for (const [i, c] of cases.entries()) {
     if (c.method === "gps" && c.zone) c.area = await page.selectOption("#pfArea", c.zone, { timeout: 3000 }).then((v) => v.length > 0, () => false);
     await page.setInputFiles("#pfFile", c.file);
     await page.waitForFunction(() => window.tfPhotoTest.finished, null, { timeout: WAIT_MS, polling: 1000 }).catch(() => { err = "didn't finish in time"; });
+    if (!err && c.zone && await page.isVisible("#pfAreas")) {
+      const t1 = await page.evaluate(() => window.tfPhotoTest.finished);
+      const chip = page.locator(`#pfAreas [data-z="${c.zone}"]`);
+      c.asked = (await chip.count()) ? await chip.click().then(() => true, () => false)
+        : await page.selectOption("#pfArea", c.zone, { timeout: 3000 }).then((v) => v.length > 0 && page.click("#pfGo").then(() => true), () => false);
+      if (c.asked) await page.waitForFunction((t) => window.tfPhotoTest.finished > t, t1, { timeout: WAIT_MS, polling: 1000 }).catch(() => { err = "didn't finish in time"; });
+    }
     got = await page.evaluate(() => window.tfPhotoTest.result || null);
   } catch (e) { err = String(e.message || e).split("\n")[0].slice(0, 160); }
   await page.close();
@@ -112,7 +121,7 @@ for (const [i, c] of cases.entries()) {
   const rank = list.findIndex((r) => norm(r.name) === norm(c.trail_name)) + 1;   // 0 = not in the list
   const r = { id: c.id, trail: c.trail_name, zone: c.zone, method: c.method, rank, top: list.slice(0, 3).map((x) => x.name), s: Math.round((Date.now() - t0) / 1000),
     // The app called its first trail the "Best match": sure of it (right or wrong).
-    sure: !!(list[0] && list[0].conf === "Best match"), ai: !!(got && got.diag && got.diag.ai), how: err || (c.area ? "area given · " : "") + how(got && got.diag, c), broken: !got };
+    sure: !!(list[0] && list[0].conf === "Best match"), ai: !!(got && got.diag && got.diag.ai), how: err || (c.area ? "area given · " : c.asked ? "asked where, area given · " : "") + how(got && got.diag, c), broken: !got };
   results.push(r);
   console.log(`${r.rank === 1 ? "✓" : r.rank ? "~" : "✗"} ${r.trail} (${r.zone}): ${r.rank ? "#" + r.rank : "not listed"}, top: ${topText(r)} (${r.s} s)\n    ${r.how}`);
   if (got && got.diag && got.diag.cmp && got.diag.cmp.detail) console.log(`    online check notes: ${got.diag.cmp.detail}`);
