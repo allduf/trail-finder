@@ -7,12 +7,13 @@
 //    parks, towns and closures there, and what DataBC or Alberta's map server say about the land, forest, burns and water.
 //  - Conditions: wind and weather at the spot (Open-Meteo), the scent cone, and today's light, moon and feeding times,
 //    with alarms for legal light, sunrise and sunset (in the app, or added to the phone's calendar).
-//  - Map layers in groups, each with its own key when on: hunting zones (BC and Alberta WMUs, BC limited entry zones),
+//  - Map layers in groups, each with its own key when on: hunting zones (BC and Alberta WMUs, BC limited entry zones,
+//    and the other provinces' zones: Quebec zones, Ontario WMUs, Manitoba GHAs... loaded only near the map),
 //    parks, towns, reserves and closures, private and public land, forest types, old burns, wetlands, slope, aspect,
 //    the scent cone and range rings.
 //  - Offline: saves the hunting layers of the area on screen for use with no signal.
 // Zones, areas, seasons and draw results come from data/hunting/*.json, made monthly by .github/workflows/hunting-data.yml
-// (scripts/build-hunting.mjs). The picture layers are live map images from DataBC (BC) and Alberta's map server.
+// (scripts/build-hunting.mjs; the other provinces and territories: scripts/hunting-canada.mjs). The picture layers are live map images from DataBC (BC) and Alberta's map server.
 (() => {
   "use strict";
   const map = window.tfLeaflet, sel = document.getElementById("sport");
@@ -76,7 +77,32 @@
     town: { label: "Town or city", color: C.town, rule: "Shooting is banned inside most cities, towns and villages by bylaw, often with a no-shooting buffer around them (BC also has no-shooting areas in the regional synopses). Check the local firearm discharge bylaw before you hunt here." },
     mvpr: { label: "Motor vehicle closure", color: C.closure, line: true, dash: "2 5", rule: "Closed to motor vehicles under BC's Motor Vehicle Prohibition Regulation." },
     green: { label: "Green Area (Alberta public forest)", color: C.green, line: true, dash: "6 4", rule: "Alberta's Green Area: mostly public forest land, where you can usually hunt in season without asking a landowner (leases and dispositions still have rules)." },
+    // the other provinces and territories (data/hunting/areas-<pv>.json)
+    qcpark: { label: "Quebec national park", color: C.no, no: true, rule: "No hunting in Quebec's national parks (Sépaq)." },
+    qcclosed: { label: "Hunting not allowed", color: C.no, no: true, rule: "Quebec's wildlife ministry lists this as territory where hunting isn't allowed (or only some hunting is)." },
+    refuge: { label: "Wildlife refuge or preserve", color: C.no, no: true, rule: "Wildlife refuges, sanctuaries and game preserves: hunting isn't allowed, or only for some species or seasons. Check the province's rules for this one." },
+    preserve: { label: "Crown game preserve (Ontario)", color: C.no, no: true, rule: "No hunting or trapping in Ontario's Crown game preserves, except where the regulations allow it." },
+    closed: { label: "Closed to hunting (Manitoba)", color: C.no, no: true, rule: "Manitoba closes this land to hunting, or to some hunting, under the Wildlife Act." },
+    mbs: { label: "Migratory bird sanctuary", color: C.vary, rule: "No hunting of migratory birds in a migratory bird sanctuary (and often no firearms in season). Other hunting depends on the land's own rules." },
+    nwa: { label: "National wildlife area", color: C.vary, rule: "Hunting only where the area's notice allows it, often with a permit from the Canadian Wildlife Service." },
+    zec: { label: "ZEC (controlled harvesting zone)", color: C.open, rule: "Public land run by a local association: you can hunt in season, but you must register at the ZEC's entry station and pay the daily fee. Some ZECs have their own seasons (see Seasons)." },
+    qcwres: { label: "Wildlife reserve (Quebec)", color: C.vary, rule: "Big game hunting in wildlife reserves is mostly by Sépaq draw or hunting package; small game with a Sépaq day pass. Check the reserve's page on sepaq.com." },
+    outfit: { label: "Outfitter with exclusive rights", color: C.vary, rule: "An outfitter holds the hunting rights here: you can only hunt as the outfitter's client." },
+    afc: { label: "Community wildlife area (Quebec)", color: C.vary, rule: "Run by a local organisation, mostly for fishing: check its rules before you hunt." },
+    wmaopen: { label: "Wildlife management area", color: C.open, rule: "Public land kept for wildlife: hunting is usually allowed in season, but some areas have their own rules or closures." },
+    consres: { label: "Conservation reserve (Ontario)", color: C.open, rule: "Hunting is allowed in most of Ontario's conservation reserves, in season, with the usual licences." },
+    consarea: { label: "Conservation area", color: C.vary, rule: "Conservation authority land: hunting only where the authority allows it, often with a permit." },
+    wild: { label: "Wilderness area", color: C.open, rule: "Hunting is usually allowed in season in wilderness areas and biodiversity reserves (vehicles only on open roads)." },
+    pasture: { label: "Provincial pasture (Saskatchewan)", color: C.vary, rule: "Grazing land: ask the pasture manager before you hunt." },
+    rcgp: { label: "Road corridor game preserve (Saskatchewan)", color: C.vary, rule: "Big game hunting is limited along this road: check the Saskatchewan Hunters' and Trappers' Guide." },
   };
+  // The same kind of place reads differently outside BC and Alberta.
+  const RULE_PV = {
+    park: "Rules vary from park to park: many parks don't allow hunting, some allow it in season outside campgrounds and trails. Check the park's own rules.",
+    protected: "Hunting rules depend on the area's class: some ban it, many allow it in season. Check the province's rules for it.",
+    national: "No hunting in national parks (land claim beneficiaries may harvest in some northern parks).",
+  };
+  const ruleOf = (x, k) => (x.p && x.p !== "ab" && x.p !== "bc" && RULE_PV[x.k]) || k.rule;
   const BC_REGION_PDF = {
     "1": "region-1-vancouver-island", "2": "region-2-lower-mainland", "3": "region-3-thompson", "4": "region-4-kootenay", "5": "region-5-cariboo",
     "6": "region-6-skeena", "7A": "region-7a-omineca", "7B": "region-7b-peace", "8": "region-8-okanagan",
@@ -91,6 +117,38 @@
   const AB_DRAWS = "https://www.albertarelm.com/cust.drawsummary.page";
   const LEH_PAGE = "https://www2.gov.bc.ca/gov/content/sports-culture/recreation/fishing-hunting/hunting/limited-entry-hunting";
   const LEH_PDF = "https://www2.gov.bc.ca/assets/gov/sports-recreation-arts-and-culture/outdoor-recreation/fishing-and-hunting/hunting/limited-entry-hunting/leh-regulations-synopsis.pdf";
+  // The other provinces and territories (alex 2026-10-26: hunting everywhere in Canada): their files load only when
+  // the map or the spot is near them. box [s, w, n, e] (rough, may overlap a neighbour), unit: what a zone is called.
+  const QC_REGS = "https://www.quebec.ca/tourisme-loisirs-sport/activites-sportives-et-de-plein-air/chasse-sportive";
+  const PV = {
+    qc: { box: [44.9, -79.8, 62.7, -57.1], name: "Quebec", unit: "Zone", zones: 1, regs: QC_REGS, regsName: "Québec.ca: chasse sportive" },
+    on: { box: [41.6, -95.2, 56.9, -74.3], name: "Ontario", unit: "WMU", zones: 1, regs: "https://www.ontario.ca/document/ontario-hunting-regulations-summary", regsName: "Ontario Hunting Regulations Summary" },
+    mb: { box: [48.9, -102.1, 60.1, -88.9], name: "Manitoba", unit: "GHA", zones: 1, regs: "https://www.gov.mb.ca/nrnd/fish-wildlife/hunting/guide.html", regsName: "Manitoba Hunting Guide" },
+    sk: { box: [48.9, -110.1, 60.1, -101.3], name: "Saskatchewan", unit: "WMZ", zones: 1, regs: "https://www.saskatchewan.ca/hunting", regsName: "Saskatchewan Hunters' and Trappers' Guide" },
+    nb: { box: [44.5, -69.1, 48.1, -63.7], name: "New Brunswick", unit: "WMZ", zones: 1, regs: "https://www2.gnb.ca/content/gnb/en/services/services_renderer.201244.Hunting_and_Trapping_Guide.html", regsName: "New Brunswick Hunting and Trapping Guide" },
+    ns: { box: [43.3, -66.5, 47.1, -59.6], name: "Nova Scotia", unit: "Deer zone", zones: 1, regs: "https://novascotia.ca/natr/hunt/", regsName: "Nova Scotia Hunting and Trapping Guide" },
+    pe: { box: [45.9, -64.5, 47.1, -61.9], name: "Prince Edward Island", unit: "", regs: "https://www.princeedwardisland.ca/en/topic/hunting-angling-and-trapping", regsName: "PEI Hunting Summary" },
+    nl: { box: [46.6, -67.9, 60.5, -52.5], name: "Newfoundland and Labrador", unit: "Moose area", zones: 1, regs: "https://www.gov.nl.ca/hunting-trapping-guide/", regsName: "NL Hunting and Trapping Guide" },
+    yt: { box: [59.9, -141.1, 69.7, -123.7], name: "Yukon", unit: "GMA", zones: 1, regs: "https://yukon.ca/en/outdoor-recreation-and-wildlife/hunting-and-trapping", regsName: "Yukon Hunting Regulations Summary" },
+    nt: { box: [59.9, -136.5, 78.9, -101.9], name: "Northwest Territories", unit: "", regs: "https://www.gov.nt.ca/ecc/en/services/hunting", regsName: "NWT hunting regulations" },
+    nu: { box: [51.6, -121.1, 83.2, -61.1], name: "Nunavut", unit: "", regs: "https://www.gov.nu.ca/en/environment-and-wildlife/wildlife-regulations", regsName: "Nunavut Hunting Regulations" },
+  };
+  // A zone's name: short on the map ("WMU 65"), long in the spot card ("Ontario WMU 65").
+  const zoneName = (u, long) => {
+    if (u.p === "ab") return `${long ? "Alberta " : ""}WMU ${u.id}`;
+    if (u.p === "bc") return long ? `BC MU ${u.id}` : u.id;
+    const pv = PV[u.p] || {}, id = u.p === "qc" ? u.n : u.id;
+    // Quebec on the map: the official short code ("27O" = 27 ouest, "8N" = 8 nord), the full name under it zoomed in
+    if (u.p === "qc" && !long) return String(u.id).replace(/^0/, "").replace(/(Z|I|MR|SB)$/, "");
+    if (u.p === "on" && !long) return u.id;   // southern Ontario's WMUs are small: the number alone, like BC's
+    return `${long ? `${pv.name} ` : ""}${long ? pv.unit.toLowerCase().replace(/^(wmu|gha|wmz|gma)$/, (m) => m.toUpperCase()) : pv.unit} ${id}`.replace(/^ +/, "");
+  };
+  const zoneSub = (u) => (u.p === "ab" || u.p === "nl" ? u.n : u.p === "bc" ? u.zn : u.p === "qc" ? `Zone ${u.n}` : "") || "";
+  // Quebec's islands, Rigaud and Seigneurie de Beaupré pieces and CWD parts: no label of their own (their zone has one)
+  const labelled = (u) => u.c && !(u.p === "qc" && (u.isl || u.sp || u.cwd || /SB$/.test(u.id)));
+  // Quebec's zone maps (one PDF per zone, a few zones share one).
+  const QC_MAP = { 5: "carte-zone-chasse-05-06-en", 6: "carte-zone-chasse-05-06-en", 10: "10-11", 11: "10-11", 12: "12-13", 13: "12-13", 16: "16-17", 17: "16-17", 20: "20-21", 21: "20-21", 23: "23-24", 24: "23-24" };
+  const qcMap = (no) => { const m = QC_MAP[+no]; return /^carte/.test(m || "") ? `https://cdn-contenu.quebec.ca/cdn-contenu/chasse/Documents/${m}.pdf` : `https://cdn-contenu.quebec.ca/cdn-contenu/chasse/Documents/Anglais/CA_hunting-map-zone-${m || String(no).padStart(2, "0")}_MFFP.pdf`; };
 
   // Forest types, simplified for hunters (alex: "what the hunters really need"): what each stand gives game, not its
   // tree species. Hunters read cover (where game beds and hides), feed (browse, grass, berries) and the edges between.
@@ -182,9 +240,9 @@
   const cutCss = (c) => `background:#fff radial-gradient(${c} 1.6px, transparent 1.9px) 0 0 / 5px 5px;border:1.5px solid ${c}`;
 
   const LAYERS = {
-    zones: { g: "Boundaries", label: "Hunting zones", sub: "BC management units and Alberta WMUs", on: true, sw: [C.zone, "line"] },
+    zones: { g: "Boundaries", label: "Hunting zones", sub: "Management units and zones across Canada", on: true, sw: [C.zone, "line"] },
     leh: { g: "Boundaries", label: "Limited entry zones", sub: "BC draw-only hunts", on: false, sw: [C.leh, "dash"] },
-    rules: { g: "Boundaries", label: "Parks, towns and closures", sub: "Where hunting is banned or has its own rules", on: true, sw: [C.no, "hatch"] },
+    rules: { g: "Boundaries", label: "Parks, towns and closures", sub: "Where hunting is banned or has its own rules (ZECs and outfitters in Quebec)", on: true, sw: [C.no, "hatch"] },
     land: { g: "Land", label: "Private and public land", sub: "BC private parcels, Alberta Green Area and grazing leases", on: false, sw: [C.private, "fill"], minZoom: 9 },
     reach: { g: "Land", label: "Far from roads", sub: "Clear where you're over 1.5 km from any road: few hunters walk that far", on: false, sw: [REACH[1][1], "fill"], minZoom: 9 },
     forest: { g: "Habitat", label: "Forest types", sub: "Thick timber, open timber, aspen, young forest and brush, meadows", on: false, sw: ["#1b5e20", "fill"], minZoom: 8 },
@@ -372,7 +430,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       <div class="hn-row"><button type="button" class="hn-pill" id="hnAll">${svg(IC.layers, 16)}All hunting layers</button><button type="button" class="hn-pill" id="hnMeasure">${svg(IC.ruler, 16)}Measure</button><button type="button" class="hn-pill" id="hnCompass">${svg(IC.compass, 16)}Compass</button></div></div>
     <div class="hn-card" id="hnCond"><div id="hnWx"></div><div id="hnCast"></div><div id="hnSky"></div></div>
     <details class="hn-card" id="hnOffBox"><summary>${svg(IC.down, 16)} Hunting maps offline</summary><div id="hnOff"></div></details>
-    <details class="hn-safe"><summary>A guide, not the law</summary>Zones, parks, seasons and draw odds come from BC and Alberta open data and regulation booklets, read by the app each month, and can be out of date or simplified. Always check the <a href="${BC_SYNOPSIS}" target="_blank" rel="noopener">BC Hunting and Trapping Regulations Synopsis</a> or the <a href="${AB_REGS}" target="_blank" rel="noopener">Alberta Guide to Hunting Regulations</a>, and get permission before hunting private land or a lease.</details>`;
+    <details class="hn-safe"><summary>A guide, not the law</summary>Zones, parks, seasons and draw odds come from each province's open data and regulation pages (and the federal protected areas database), read by the app each month, and can be out of date or simplified. Always check the regulations where you hunt (the spot card links them: <a href="${BC_SYNOPSIS}" target="_blank" rel="noopener">BC</a>, <a href="${AB_REGS}" target="_blank" rel="noopener">Alberta</a>, <a href="${QC_REGS}" target="_blank" rel="noopener">Quebec</a>, <a href="${PV.on.regs}" target="_blank" rel="noopener">Ontario</a>...), and get permission before hunting private land, a lease or an outfitter's territory.</details>`;
   // Every hunting layer switch lives in the map's Layers menu (alex: "should we put that here?"), shown only in Hunting.
   const lmHunt = document.createElement("div");
   lmHunt.className = "lm-hunt";
@@ -427,6 +485,32 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const squareLayer = L.layerGroup();   // the square drawn for Hunting maps offline
   const allHunt = [zoneLayer, lehLayer, rulesLayer, labelLayer, windLayer, ringLayer, glassLayer, measureLayer, squareLayer];
   let zones = null, leh = null, areas = null;
+  // The other provinces' zones and areas, added as their files come in (pvZones/pvAreas), and all of them together.
+  const pvZones = [], pvAreas = [], pvGot = {};
+  let pvVer = 0;   // goes up when a province's files come in (the 3D map's fills and labels are made again)
+  const Z = () => (pvZones.length ? (zones || []).concat(pvZones) : zones || []), A = () => (pvAreas.length ? (areas || []).concat(pvAreas) : areas || []);
+  const boxHits = (b, s, w, n, e) => !(b[2] < s || b[0] > n || b[3] < w || b[1] > e);
+  // smallest box first: at a point, the first one is the likeliest province (PEI's box is inside Quebec's)
+  const pvArea = (k) => (PV[k].box[2] - PV[k].box[0]) * (PV[k].box[3] - PV[k].box[1]);
+  const pvsIn = (s, w, n, e) => Object.keys(PV).filter((k) => boxHits(PV[k].box, s, w, n, e)).sort((a, b) => pvArea(a) - pvArea(b));
+  // Loads the files of these provinces (once each); true when something new came in.
+  async function loadPv(list) {
+    const fresh = list.filter((k) => !pvGot[k]);
+    for (const k of fresh) pvGot[k] = Promise.all([PV[k].zones ? load(`zones-${k}`).then((j) => j.zones).catch(() => null) : [], load(`areas-${k}`).then((j) => j.areas).catch(() => null)])
+      .then(([z, a]) => { if (z) pvZones.push(...z); if (a) pvAreas.push(...a); if (z == null || a == null) delete pvGot[k]; if ((z && z.length) || (a && a.length)) pvVer++; return true; });
+    await Promise.all(list.map((k) => pvGot[k]));
+    return fresh.length > 0;
+  }
+  // The provinces in view (only the one under the centre when zoomed far out, so Canada isn't loaded at once).
+  const pvsView = () => {
+    if (map.getZoom() < 5) { const c = map.getCenter(); return pvsIn(c.lat, c.lng, c.lat, c.lng); }
+    const b = map.getBounds(); return pvsIn(b.getSouth(), b.getWest(), b.getNorth(), b.getEast());
+  };
+  async function viewPv() {
+    if (!isHunt()) return;
+    if (await loadPv(pvsView())) { if (shown.has("zones")) drawZones(); if (shown.has("rules") || shown.has("land")) drawRules(); }
+  }
+  map.on("moveend", () => { if (isHunt()) viewPv(); });
 
   // Only the outlines near the view are on the map, and fewer points when zoomed out (alex 2026-10-24: "the map is
   // lagging in hunting mode too"). With every zone and park outline on, each zoom placed ~570,000 points again:
@@ -477,8 +561,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   async function drawZones() {
     const items = cullSet(zoneLayer);
     if (!shown.has("zones")) { labelLayer.clearLayers(); return; }
-    try { zones = zones || (await load("zones")).zones; } catch { return; }
-    for (const f of zones) items.push({ f, make: (ll, lod) => [
+    try { zones = zones || (await load("zones")).zones; } catch {}
+    for (const f of Z()) items.push({ f, make: (ll, lod) => [
       ...(lod >= 0 && lod <= 2 ? [] : [L.polygon(ll, { renderer, interactive: false, color: "#fff", weight: 4.5, opacity: 0.55, fill: false })]),   // white edge: reads on photos and dark forest (not needed zoomed out)
       L.polygon(ll, { renderer, interactive: false, color: C.zone, weight: 2, opacity: 0.9, fill: false })] });
     cull(); drawLabels(); sync3d();
@@ -486,11 +570,11 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   // Labels only for the zones in view, so the map stays light.
   function drawLabels() {
     labelLayer.clearLayers();
-    if (!zones || !shown.has("zones") || !isHunt() || map.getZoom() < 6) return;
+    if (!Z().length || !shown.has("zones") || !isHunt() || map.getZoom() < 6) return;
     const b = map.getBounds().pad(0.2), z = map.getZoom();
-    for (const u of zones) {
-      if (!u.c || !b.contains(u.c)) continue;
-      const name = u.p === "ab" ? `WMU ${u.id}${z >= 9 && u.n ? ` <small>${esc(u.n)}</small>` : ""}` : `${esc(u.id)}${z >= 9 && u.zn ? ` <small>${esc(u.zn)}</small>` : ""}`;
+    for (const u of Z()) {
+      if (!labelled(u) || !b.contains(u.c)) continue;
+      const sub = zoneSub(u), name = `${esc(zoneName(u))}${z >= 9 && sub ? ` <small>${esc(sub)}</small>` : ""}`;
       L.marker(u.c, { pane: "huntLabels", interactive: false, keyboard: false,
         icon: L.divIcon({ className: "", html: `<div class="hn-label">${name}</div>`, iconSize: [0, 0] }) }).addTo(labelLayer);
     }
@@ -516,8 +600,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   async function drawRules() {
     const items = cullSet(rulesLayer);
     if (!shown.has("rules") && !shown.has("land")) return;
-    try { areas = areas || (await load("areas")).areas; } catch { return; }
-    for (const a of areas) {
+    try { areas = areas || (await load("areas")).areas; } catch {}
+    for (const a of A()) {
       const k = AREA_KINDS[a.k];
       if (!k) continue;
       const want = a.k === "green" ? shown.has("land") : shown.has("rules");
@@ -692,9 +776,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     : kind === "soft" ? `<i style="border:1.5px solid ${c};background:${c}33"></i>`
     : kind === "edge" ? `<i style="border:2px solid ${c};background:${c}14"></i>` : `<i style="background:${c}"></i>`;
   const KEYS = {
-    zones: () => [`<li class="wide">${sw(C.zone, "line")}Zone edge (BC MU, Alberta WMU)</li>`],
+    zones: () => [`<li class="wide">${sw(C.zone, "line")}Hunting zone edge (MU, WMU, zone, GHA...)</li>`],
     leh: () => [`<li>${sw(C.leh, "dash")}Limited entry zone</li>`],
-    rules: () => [`<li>${sw(C.no, "hatch")}No hunting</li>`, `<li>${sw(C.vary, "soft")}Park: rules vary</li>`, `<li>${sw(C.open, "edge")}Usually open in season</li>`,
+    rules: () => [`<li>${sw(C.no, "hatch")}No hunting</li>`, `<li>${sw(C.vary, "soft")}Park: rules vary</li>`, `<li>${sw(C.open, "edge")}Usually open in season (ZEC: register)</li>`,
       `<li>${sw(C.reserve, "edge")}Reserve: ask first</li>`, `<li>${sw(C.town, "soft")}Town: no shooting</li>`, `<li>${sw(C.closure, "dot")}Vehicle closure</li>`],
     land: () => [`<li>${sw(C.private)}Private land (BC)</li>`, `<li>${sw(GRAZE_COLOR)}Grazing lease (AB): ask</li>`, `<li class="wide">${sw(C.green, "dash")}Alberta Green Area: public forest</li>`],
     forest: () => [...FOREST.map(([, c, n]) => `<li class="wide">${sw(c)}${esc(n)}</li>`), `<li class="wide hn-tip">Game beds in thick timber and feeds in the rest: hunt the edges between them.</li>`],
@@ -860,7 +944,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     return `${h % 12 || 12}:${String(x.getUTCMinutes()).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
   };
   const span = (d, mins) => (d ? `${hm(new Date(d - mins * 60000))} to ${hm(new Date(d.valueOf() + mins * 60000))}` : "");
-  // Legal light: half an hour before sunrise to half an hour after sunset (BC and Alberta's usual hunting hours).
+  // Legal light: half an hour before sunrise to half an hour after sunset (the usual hunting hours in most provinces).
   const LIGHT_EVENTS = [["legalStart", "Legal light starts", (s) => s.rise && new Date(s.rise - 30 * 60000)], ["rise", "Sunrise", (s) => s.rise],
     ["set", "Sunset", (s) => s.set], ["legalEnd", "Legal light ends", (s) => s.set && new Date(s.set.valueOf() + 30 * 60000)]];
   function renderSky() {
@@ -879,7 +963,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
         <dt>Moon</dt><dd>${p[2]} ${p[1]}, ${Math.round(ph.fraction * 100)}% <small>· rises ${hm(s.moonRise)}, sets ${hm(s.moonSet)}</small></dd>
         <dt>Feeding times</dt><dd>${major || "none"}${minor ? ` <small>· minor ${minor}</small>` : ""}</dd>
       </dl>
-      <details><summary>What these times mean</summary><p class="hn-note">Legal light is half an hour before sunrise to half an hour after sunset, the usual hunting hours in BC and Alberta (some hunts differ). Feeding times are solunar: the moon overhead or underfoot (major) and moonrise or moonset (minor), a traditional guide. ${wx && wx.timezone_abbreviation ? `Local time at the spot (${esc(wx.timezone_abbreviation)}).` : "Times on this device's clock."}</p></details>
+      <details><summary>What these times mean</summary><p class="hn-note">Legal light is half an hour before sunrise to half an hour after sunset, the usual hunting hours in most provinces (some hunts and provinces differ). Feeding times are solunar: the moon overhead or underfoot (major) and moonrise or moonset (minor), a traditional guide. ${wx && wx.timezone_abbreviation ? `Local time at the spot (${esc(wx.timezone_abbreviation)}).` : "Times on this device's clock."}</p></details>
       <details id="hnAlarms"${al.open ? " open" : ""}><summary>⏰ Alarms${Object.values(al.on).some(Boolean) ? `: ${LIGHT_EVENTS.filter(([k]) => al.on[k]).map(([, n]) => n.toLowerCase()).join(", ")}` : ""}</summary>
         <div class="hn-checks">${LIGHT_EVENTS.map(([k, n]) => `<label><input type="checkbox" data-al="${k}"${al.on[k] ? " checked" : ""}>${n}</label>`).join("")}</div>
         <div class="hn-row" style="margin-top:8px"><label for="hnBefore" class="hn-note">Ring</label><select id="hnBefore">${[0, 5, 10, 15, 30, 45, 60].map((m) => `<option value="${m}"${al.before === m ? " selected" : ""}>${m ? `${m} min before` : "right on time"}</option>`).join("")}</select>
@@ -1184,15 +1268,29 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     }
     return any;
   }
-  function seasonsHtml(id, rows, ab, link) {
+  // foot: where the seasons were read from (the note under the list).
+  function seasonsHtml(label, rows, foot) {
     if (!rows || !rows.length) return "";
     const by = new Map();
     for (const r of rows) (by.get(r[0]) || by.set(r[0], []).get(r[0])).push(r);
     const now = [...by.keys()].filter((sp) => by.get(sp).some((r) => openNow(r[3])));
     const list = [...by.entries()].map(([sp, rs]) => `<li style="border-color:${rs.some((r) => openNow(r[3])) ? "#2f9e44" : "var(--line)"}"><b>${esc(sp)}</b>${rs.map((r) =>
       `${openNow(r[3]) ? '<span class="hn-open">● Open · </span>' : ""}${r[1] ? esc(r[1]) + ": " : ""}${r[2] ? esc(r[2]) + ", " : ""}${esc(r[3])}${r[4] ? " †" : ""}`).join("<br>")}</li>`).join("");
-    return `<details class="hn-seasons"><summary>Seasons in ${ab ? "WMU" : "MU"} ${esc(id)}: ${now.length ? `<span class="hn-open">${now.length} open now</span>` : "none open today"}</summary>
-      <ul class="hn-list">${list}</ul><p class="hn-note" style="margin-top:6px">${ab ? "Read by the app from the Alberta Guide to Hunting Regulations. “Special licence (draw)” seasons need a drawn licence. † has a footnote" : "General open seasons, read by the app from the BC Hunting and Trapping Regulations Synopsis (limited entry hunts are listed below). † has footnotes or applies to part of the unit only"}: always check <a href="${link}" target="_blank" rel="noopener">${ab ? "the guide" : "the region's synopsis"}</a> before you hunt.</p></details>`;
+    return `<details class="hn-seasons"><summary>Seasons in ${esc(label)}: ${now.length ? `<span class="hn-open">${now.length} open now</span>` : "none open today"}</summary>
+      <ul class="hn-list">${list}</ul><p class="hn-note" style="margin-top:6px">${foot}</p></details>`;
+  }
+  const seasonFoot = (u, link) => u.p === "ab" ? `Read by the app from the Alberta Guide to Hunting Regulations. “Special licence (draw)” seasons need a drawn licence. † has a footnote: always check <a href="${link}" target="_blank" rel="noopener">the guide</a> before you hunt.`
+    : u.p === "bc" ? `General open seasons, read by the app from the BC Hunting and Trapping Regulations Synopsis (limited entry hunts are listed below). † has footnotes or applies to part of the unit only: always check <a href="${link}" target="_blank" rel="noopener">the region's synopsis</a> before you hunt.`
+    : u.p === "qc" ? `Read by the app from the hunting periods on <a href="${link}" target="_blank" rel="noopener">Québec.ca</a> (this year's dates). † applies to part of the zone only or has an exception, and ZEC seasons can differ: always check the official periods and your zone's map before you hunt.`
+    : `Resident seasons, read by the app from the <a href="${link}" target="_blank" rel="noopener">Ontario Hunting Regulations Summary</a>. † applies to part of the WMU only: always check the summary (and your tags) before you hunt.`;
+  // Quebec: a zone part reads the whole zone's rows and its own ("8", "8 nord"; "19 sud" for 19 sud-est...).
+  const qcKeys = (u) => { const k = [u.no]; if (u.part) { k.push(`${u.no} ${u.part}`); if (/^sud-/.test(u.part)) k.push(`${u.no} sud`); if (u.isl) k.push(`${u.no} ${u.part} île`); if (u.sp) k.push(`${u.no} ${u.part} ${u.sp}`); } return k; };
+  // Manitoba's season table: licence types and season words per species, not dates.
+  function mbHtml(u, sm) {
+    const rows = sm && sm.gha[u.id];
+    if (!rows || !rows.length) return "";
+    return `<details class="hn-seasons"><summary>Seasons in GHA ${esc(u.id)}: ${rows.length} species</summary><ul class="hn-list">${rows.map(([sp, t]) => `<li><b>${esc(sp)}</b>${esc(t).replace(/\n/g, "<br>")}</li>`).join("")}</ul>
+      <p class="hn-note" style="margin-top:6px">From Manitoba's GHA Hunting Season Table. Dates and licences: <a href="${PV.mb.regs}" target="_blank" rel="noopener">Manitoba Hunting Guide</a>.</p></details>`;
   }
   // Harvest here (alex: "add it all"): how many hunters went, how many animals were taken and the share who got one.
   const BC_SPECIES = { DEMU: "Mule deer", DEWT: "White-tailed deer", MOOS: "Moose", ELK: "Elk", BEAB: "Black bear", BEAG: "Grizzly bear", CARI: "Caribou",
@@ -1250,43 +1348,68 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     el.hidden = false;
     el.innerHTML = `<header>${svg(IC.pin)}<h3>This spot</h3></header><p class="hn-note">Looking up this spot…</p>`;
     let z = [], l = [], a = [];
-    try { zones = zones || (await load("zones")).zones; z = at(zones, lat, lon); } catch {}
-    try { leh = leh || (await load("leh")).zones; l = at(leh, lat, lon); } catch {}
-    try { areas = areas || (await load("areas")).areas; a = at(areas, lat, lon); } catch {}
-    const [sbc, sab, draws] = await Promise.all([z.some((u) => u.p === "bc") ? load("seasons-bc").catch(() => null) : null,
-      z.some((u) => u.p === "ab") ? load("seasons-ab").catch(() => null) : null, z.length ? load("draws").catch(() => null) : null]);
-    const harvest = z.length ? await load("harvest").catch(() => null) : null;
+    const pvHere = pvsIn(lat, lon, lat, lon);
+    await loadPv(pvHere);
+    try { zones = zones || (await load("zones")).zones; } catch {}
+    z = at(Z(), lat, lon);
+    if (z.some((u) => u.p === "bc")) try { leh = leh || (await load("leh")).zones; l = at(leh, lat, lon); } catch {}
+    try { areas = areas || (await load("areas")).areas; } catch {}
+    a = at(A(), lat, lon);
+    const has = (p) => z.some((u) => u.p === p), bcab = z.some((u) => u.p === "bc" || u.p === "ab");
+    const [sbc, sab, draws, sqc, son, smb] = await Promise.all([has("bc") ? load("seasons-bc").catch(() => null) : null,
+      has("ab") ? load("seasons-ab").catch(() => null) : null, bcab ? load("draws").catch(() => null) : null,
+      has("qc") ? load("seasons-qc").catch(() => null) : null, has("on") ? load("seasons-on").catch(() => null) : null, has("mb") ? load("seasons-mb").catch(() => null) : null]);
+    const harvest = bcab ? await load("harvest").catch(() => null) : null;
     if (seq !== spotSeq) return;
     // Summary first (zone, land, what's open, warnings); the details fold below it.
     const open = new Set(), folds = [], rules = [], warn = [];
+    let known = false;   // season dates read for a zone here (not in every province yet)
+    const zecRows = (x) => sqc && sqc.zec && sqc.zec[String(x.n).replace(/^Zec\s+(?:de la |de l'|de l’|du |des |de )?/i, "")];
     for (const u of z) {
-      const rows = u.p === "ab" ? sab && sab.wmu[u.id] : sbc && sbc.mu[u.id];
+      let rows = null;
+      if (u.p === "ab") rows = sab && sab.wmu[u.id];
+      else if (u.p === "bc") rows = sbc && sbc.mu[u.id];
+      else if (u.p === "qc" && sqc) rows = [...qcKeys(u).flatMap((k) => sqc.zone[k] || []), ...a.filter((x) => x.k === "zec").flatMap((x) => (zecRows(x) || []).map((r) => [r[0], `ZEC ${x.n.replace(/^Zec\s+/i, "")}: ${r[1]}`, r[2], r[3], r[4]]))];
+      else if (u.p === "on" && son) rows = son.wmu[u.id] || son.wmu[String(u.id).replace(/-\d$/, "")];
       for (const r of rows || []) if (openNow(r[3])) open.add(r[0]);
-      folds.push(seasonsHtml(u.id, rows, u.p === "ab", u.p === "ab" ? AB_REGS : regionPdf(u)), drawsHtml(u, draws, l), harvestHtml(u, harvest));
+      if (rows && rows.length) known = true;
+      if (u.p === "ab" || u.p === "bc") folds.push(seasonsHtml(`${u.p === "ab" ? "WMU" : "MU"} ${u.id}`, rows, seasonFoot(u, u.p === "ab" ? AB_REGS : regionPdf(u))), drawsHtml(u, draws, l), harvestHtml(u, harvest));
+      else if (u.p === "qc" || u.p === "on") folds.push(seasonsHtml(zoneName(u), rows, seasonFoot(u, u.p === "qc" ? (sqc && sqc.url) || QC_REGS : PV.on.regs)));
+      else if (u.p === "mb") folds.push(mbHtml(u, smb));
+      const pv = PV[u.p];
       rules.push(u.p === "ab"
         ? `<li style="border-color:${C.zone}"><b>Alberta WMU ${esc(u.id)}</b>Licences, weapons and bag limits: <a href="${AB_REGS}" target="_blank" rel="noopener">Alberta Guide to Hunting Regulations</a>.</li>`
-        : `<li style="border-color:${C.zone}"><b>BC MU ${esc(u.id)}</b>Region ${esc(u.r)} ${esc(u.rn || "")}${u.z ? `, game management zone ${esc(u.z)}` : ""}. Bag limits and closures: <a href="${regionPdf(u)}" target="_blank" rel="noopener">Region ${esc(u.r)} synopsis (PDF)</a>.</li>`);
+        : u.p === "bc" ? `<li style="border-color:${C.zone}"><b>BC MU ${esc(u.id)}</b>Region ${esc(u.r)} ${esc(u.rn || "")}${u.z ? `, game management zone ${esc(u.z)}` : ""}. Bag limits and closures: <a href="${regionPdf(u)}" target="_blank" rel="noopener">Region ${esc(u.r)} synopsis (PDF)</a>.</li>`
+        : `<li style="border-color:${C.zone}"><b>${esc(zoneName(u, true))}${u.p !== "qc" && zoneSub(u) ? ` · ${esc(zoneSub(u))}` : ""}</b>${u.cwd ? "Chronic wasting disease surveillance: deer and moose taken here must be registered and tested, and some parts can't leave the zone. " : ""}Licences, weapons and bag limits: <a href="${pv.regs}" target="_blank" rel="noopener">${esc(pv.regsName)}</a>${u.p === "qc" ? ` · <a href="${qcMap(u.no)}" target="_blank" rel="noopener">zone ${esc(u.no)} map (PDF)</a>` : ""}.</li>`);
     }
+    // A province with no zones on the map (PEI, the NWT, Nunavut): its rules link.
+    for (const k of pvHere) if (!PV[k].zones && !z.length) rules.push(`<li style="border-color:${C.zone}"><b>${esc(PV[k].name)}</b>No hunting zone outlines on the map here: seasons, licences and areas are in the <a href="${PV[k].regs}" target="_blank" rel="noopener">${esc(PV[k].regsName)}</a>.</li>`);
     for (const x of l) rules.push(`<li style="border-color:${C.leh}"><b>Limited entry zone: ${esc(x.s)}</b>${esc(x.l || x.id)}${x.mu ? ` (MU ${esc(x.mu)})` : ""}. Hunting it needs an LEH draw: see the shaded hunts in Limited entry.</li>`);
     if (l.length) warn.push(`<span class="hn-chip" style="--c:${C.leh}">Draw only: ${esc([...new Set(l.map((x) => x.s))].join(", "))}</span>`);
     for (const x of a) {
       const k = AREA_KINDS[x.k]; if (!k) continue;
-      const link = ["park", "protected", "conservancy", "rec", "eco"].includes(x.k) && x.p !== "ab" ? ` <a href="https://bcparks.ca/find-a-park/?q=${encodeURIComponent(x.n)}" target="_blank" rel="noopener">BC Parks</a>`
+      const link = x.u ? ` <a href="${esc(x.u)}" target="_blank" rel="noopener">More</a>`
+        : x.k === "qcwres" || x.k === "qcpark" ? ` <a href="https://www.sepaq.com/" target="_blank" rel="noopener">Sépaq</a>`
+        : x.k === "zec" ? ` <a href="https://reseauzec.com/" target="_blank" rel="noopener">Réseau Zec</a>`
+        : x.p && PV[x.p] ? ""
+        : ["park", "protected", "conservancy", "rec", "eco"].includes(x.k) && x.p !== "ab" ? ` <a href="https://bcparks.ca/find-a-park/?q=${encodeURIComponent(x.n)}" target="_blank" rel="noopener">BC Parks</a>`
         : x.p === "ab" && ["park", "pra", "wildland", "natural", "rangeland", "wilderness", "eco"].includes(x.k) ? ` <a href="https://www.albertaparks.ca/" target="_blank" rel="noopener">Alberta Parks</a>`
         : x.k === "town" ? ` <a href="https://www.google.com/search?q=${encodeURIComponent(`${x.n} ${x.p === "ab" ? "Alberta" : "BC"} firearm discharge bylaw`)}" target="_blank" rel="noopener">Find ${esc(x.n)}'s firearm bylaw</a>` : "";
-      const extra = x.k === "mvpr" ? `${x.t ? esc(x.t) + ": " : ""}${esc(x.d || "")}${x.x ? ` Exempt: ${esc(x.x)}.` : ""}${x.mu ? ` (MU ${esc(x.mu)})` : ""}` : "";
-      rules.push(`<li style="border-color:${k.color}"><b>${esc(k.label)}: ${esc(x.n || "")}</b>${extra ? extra + " " : ""}${esc(k.rule)}${link}</li>`);
+      const extra = x.k === "mvpr" ? `${x.t ? esc(x.t) + ": " : ""}${esc(x.d || "")}${x.x ? ` Exempt: ${esc(x.x)}.` : ""}${x.mu ? ` (MU ${esc(x.mu)})` : ""}`
+        : x.k === "closed" || (x.k === "refuge" && x.d) ? esc(x.d || "") : x.k === "zec" && x.t ? `Rights: ${esc(/chasse et pêche/i.test(x.t) ? "hunting and fishing" : /^chasse/i.test(x.t) ? "hunting" : x.t)}.` : "";
+      rules.push(`<li style="border-color:${k.color}"><b>${esc(k.label)}: ${esc(x.n || "")}</b>${extra ? extra + " " : ""}${esc(ruleOf(x, k))}${link}</li>`);
       if (x.k === "green") continue;
-      const say = k.no ? `${x.k === "reserve" || x.k === "metis" ? "Ask first" : "No hunting"}: ${k.label}` : x.k === "town" ? `No shooting: ${x.n || "town"}` : x.k === "mvpr" ? "No motor vehicles" : k.label;
+      const say = k.no ? `${x.k === "reserve" || x.k === "metis" ? "Ask first" : "No hunting"}: ${k.label}` : x.k === "town" ? `No shooting: ${x.n || "town"}` : x.k === "mvpr" ? "No motor vehicles"
+        : x.k === "zec" ? `ZEC ${x.n.replace(/^Zec\s+/i, "")}: register` : x.k === "outfit" ? "Outfitter only" : k.label;
       warn.push(`<span class="hn-chip" style="--c:${k.color}">${esc(say)}</span>`);
     }
-    spotOpen = z.length ? [...open] : null;
-    const name = z.map((u) => (u.p === "ab" ? `Alberta WMU ${esc(u.id)}${u.n ? ` · ${esc(u.n)}` : ""}` : `BC MU ${esc(u.id)}${u.zn ? ` · ${esc(u.zn)}` : ""}`)).join(" / ");
+    spotOpen = known ? [...open] : null;
+    const name = z.map((u) => `${esc(zoneName(u, true))}${u.p !== "qc" && zoneSub(u) ? ` · ${esc(zoneSub(u))}` : ""}${u.cwd ? " · CWD surveillance zone" : ""}`).join(" / ");
     el.innerHTML = `<header>${svg(IC.pin)}<h3>This spot</h3><button type="button" class="hn-x" aria-label="Close">${svg(IC.x, 14)}</button></header>
-      <p class="hn-zone">${name || "Outside the BC and Alberta hunting zones"}</p>
-      <div class="hn-chips">${z.length ? `<span class="hn-chip" style="--c:${open.size ? "#2f9e44" : "var(--line)"}">${open.size ? `Open now: ${esc([...open].slice(0, 3).join(", "))}${open.size > 3 ? ` +${open.size - 3} more` : ""}` : "No general season open today"}</span>` : ""}<span id="hnLand"></span>${warn.join("")}</div>
+      <p class="hn-zone">${name || (pvHere.length ? `${esc(PV[pvHere[0]].name)}: no hunting zone here on the map` : "Outside the hunting zones on the map")}</p>
+      <div class="hn-chips">${known ? `<span class="hn-chip" style="--c:${open.size ? "#2f9e44" : "var(--line)"}">${open.size ? `Open now: ${esc([...open].slice(0, 3).join(", "))}${open.size > 3 ? ` +${open.size - 3} more` : ""}` : "No general season open today"}</span>` : ""}<span id="hnLand"></span>${warn.join("")}</div>
       ${folds.join("")}
-      <details${z.length ? "" : " open"}><summary>Rules here</summary><ul class="hn-list">${rules.join("") || "<li>Only BC and Alberta zones are on the map so far.</li>"}</ul></details>
+      <details${z.length ? "" : " open"}><summary>Rules here</summary><ul class="hn-list">${rules.join("") || "<li>No hunting zone found here: check the province's or territory's regulations.</li>"}</ul></details>
       <details id="hnLiveBox" hidden><summary>Land and forest</summary><div id="hnLive"></div></details>
       <div class="hn-row" id="hnGlass" data-at="${lat},${lon}">${glassRow(`${lat},${lon}`)}</div>
       <p class="hn-note" id="hnGlassNote"${glass && glass.at === `${lat},${lon}` ? "" : " hidden"}>${GLASS_NOTE}</p>
@@ -1295,9 +1418,14 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     el.querySelector(".hn-x").addEventListener("click", () => { el.hidden = true; spotOpen = null; const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); });
     renderNow();
     if (z.some((u) => u.p === "ab") || (!z.length && inAlberta(lat, lon))) liveAlberta(lat, lon, seq);
-    else if (z.length || inBC(lat, lon)) liveBC(lat, lon, seq);
+    else if (z.some((u) => u.p === "bc") || (!z.length && inBC(lat, lon))) liveBC(lat, lon, seq);
     // Elsewhere (Quebec, Ontario, the east) there's no land owner layer: never guess Crown land on farmland.
-    else liveOut(seq, [`<li style="border-color:#868e96"><b>Land: owner not known here</b>The app has land owners for BC and Alberta only. In southern Quebec, Ontario and the Maritimes most land is private: ask the owner before you hunt.</li>`], ["Land owner not known", "#868e96"]);
+    else {
+      // ZECs, wildlife reserves and wildlife management areas are public land (Crown land), whatever the province.
+      const pub = a.find((x) => ["zec", "qcwres", "outfit", "wmaopen", "consres", "wild", "afc"].includes(x.k));
+      if (pub) liveOut(seq, [`<li style="border-color:${C.open}"><b>Land: public (${esc(AREA_KINDS[pub.k].label)})</b>Crown land managed for wildlife: see its rules above before you hunt.</li>`], ["Public land", C.open]);
+      else liveOut(seq, [`<li style="border-color:#868e96"><b>Land: owner not known here</b>The app has land owners for BC and Alberta only. In southern Quebec, Ontario and the Maritimes most land is private: ask the owner before you hunt.</li>`], ["Land owner not known", "#868e96"]);
+    }
   }
   // land: a chip for the summary line (Crown, private, lease).
   const liveOut = (seq, out, land) => {
@@ -1520,7 +1648,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const tx = (lon, z) => Math.floor(((lon + 180) / 360) * 2 ** z);
   const ty = (lat, z) => { const r = (lat * Math.PI) / 180; return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z); };
   function offUrls(box, layers) {
-    const urls = DATA_FILES.map((n) => new URL(`data/hunting/${n}.json`, location.href).href);
+    const pvs = pvsIn(box[0], box[1], box[2], box[3]);
+    const urls = [...DATA_FILES, ...pvs.flatMap((k) => [...(PV[k].zones ? [`zones-${k}`] : []), `areas-${k}`]), ...pvs.filter((k) => ["qc", "on", "mb"].includes(k)).map((k) => `seasons-${k}`)]
+      .map((n) => new URL(`data/hunting/${n}.json`, location.href).href);
     const ab = box[3] > -120.1 && box[0] < 60, bc = box[1] < -114;
     for (let z = 10; z <= 15; z++) {
       const x0 = tx(box[1], z), x1 = tx(box[3], z), y0 = ty(box[2], z), y1 = ty(box[0], z);
@@ -1588,9 +1718,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
     let name = "";
     if (!stopped) {
-      const near = zones && zones.find((u) => u.c && inBox(u.b, (box[0] + box[2]) / 2, (box[1] + box[3]) / 2) && inside(u.g, (box[0] + box[2]) / 2, (box[1] + box[3]) / 2));
+      const near = Z().find((u) => u.c && inBox(u.b, (box[0] + box[2]) / 2, (box[1] + box[3]) / 2) && inside(u.g, (box[0] + box[2]) / 2, (box[1] + box[3]) / 2));
       const list = store.get(OFF_KEY, []);
-      name = near ? (near.p === "ab" ? `WMU ${near.id}${near.n ? ` ${near.n}` : ""}` : `MU ${near.id}${near.zn ? ` ${near.zn}` : ""}`) : `Area at ${fmtLL((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)}`;
+      name = near ? (near.p === "qc" ? zoneName(near, true) : `${near.p === "bc" ? "MU " : ""}${zoneName(near)}${zoneSub(near) ? ` ${zoneSub(near)}` : ""}`) : `Area at ${fmtLL((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)}`;
       list.unshift({ name, box, layers, n: urls.length - bad, missing: bad, at: Date.now() });
       store.set(OFF_KEY, list.slice(0, 20));
       if (!square) hint(bad ? `Saved, but ${bad} files didn't download: save it again with signal to finish.` : "Saved: these hunting layers now work with no signal.");
@@ -1717,28 +1847,34 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       raster("hn-slope", want("slope"), { type: "raster", tiles: ["tfhunt://slope/{z}/{x}/{y}"], tileSize: 256, minzoom: 8, maxzoom: 14 }, 1);
       raster("hn-aspect", want("aspect"), { type: "raster", tiles: ["tfhunt://aspect/{z}/{x}/{y}"], tileSize: 256, minzoom: 8, maxzoom: 14 }, 1);
       // Rules areas as fills (their outlines come over with the other lines).
-      if (want("rules") && areas && !fillsSet) {
-        fillsSet = true;
-        const feats = areas.filter((a) => AREA_KINDS[a.k] && !AREA_KINDS[a.k].line).map((a) => {
+      if (want("rules") && A().length && fillsSet !== `${pvVer}.${!!areas}`) {
+        fillsSet = `${pvVer}.${!!areas}`;
+        const feats = A().filter((a) => AREA_KINDS[a.k] && !AREA_KINDS[a.k].line).map((a) => {
           const k = AREA_KINDS[a.k];
           return { type: "Feature", properties: { c: k.color, o: Math.min(0.35, fillOp(a.k, k) * 2.5), h: hatched(k) },   // fills stronger over the photos than over the 2D map
             geometry: { type: "Polygon", coordinates: a.g.map((r) => { const out = []; for (let i = 0; i < r.length; i += 2) out.push([r[i + 1], r[i]]); return out; }) } };
         });
+        if (gl.getSource("hn-fill")) gl.getSource("hn-fill").setData({ type: "FeatureCollection", features: feats });
+        else {
         gl.addSource("hn-fill", { type: "geojson", data: { type: "FeatureCollection", features: feats } });
         gl.addLayer({ id: "hn-fill", type: "fill", source: "hn-fill", filter: ["!", ["get", "h"]], paint: { "fill-color": ["get", "c"], "fill-opacity": ["get", "o"] } }, under);
         if (!gl.hasImage("hn-hatch")) gl.addImage("hn-hatch", hatch3d.getContext("2d").getImageData(0, 0, 16, 16));
         gl.addLayer({ id: "hn-hatch", type: "fill", source: "hn-fill", filter: ["get", "h"], paint: { "fill-pattern": "hn-hatch", "fill-opacity": 1 } }, under);
+        }
       }
       vis("hn-fill", want("rules")); vis("hn-hatch", want("rules"));
       // Zone labels.
-      if (want("zones") && zones && !labelsSet) {
-        labelsSet = true;
-        const feats = zones.filter((u) => u.c).map((u) => ({ type: "Feature", geometry: { type: "Point", coordinates: [u.c[1], u.c[0]] },
-          properties: { t: u.p === "ab" ? `WMU ${u.id}` : u.id, n: (u.p === "ab" ? u.n : u.zn) || "", ab: u.p === "ab" } }));
-        gl.addSource("hn-labels", { type: "geojson", data: { type: "FeatureCollection", features: feats } });
-        gl.addLayer({ id: "hn-labels", type: "symbol", source: "hn-labels", minzoom: 5,
-          layout: { "text-field": ["step", ["zoom"], ["get", "t"], 8, ["concat", ["get", "t"], "\n", ["get", "n"]]], "text-font": ["Noto Sans Bold"], "text-size": 13, "text-allow-overlap": false },
-          paint: { "text-color": C.zone, "text-halo-color": "#fff", "text-halo-width": 2 } });
+      if (want("zones") && Z().length && labelsSet !== `${pvVer}.${!!zones}`) {
+        labelsSet = `${pvVer}.${!!zones}`;
+        const feats = Z().filter(labelled).map((u) => ({ type: "Feature", geometry: { type: "Point", coordinates: [u.c[1], u.c[0]] },
+          properties: { t: zoneName(u), n: zoneSub(u), ab: u.p === "ab" } }));
+        if (gl.getSource("hn-labels")) gl.getSource("hn-labels").setData({ type: "FeatureCollection", features: feats });
+        else {
+          gl.addSource("hn-labels", { type: "geojson", data: { type: "FeatureCollection", features: feats } });
+          gl.addLayer({ id: "hn-labels", type: "symbol", source: "hn-labels", minzoom: 5,
+            layout: { "text-field": ["step", ["zoom"], ["get", "t"], 8, ["concat", ["get", "t"], "\n", ["get", "n"]]], "text-font": ["Noto Sans Bold"], "text-size": 13, "text-allow-overlap": false },
+            paint: { "text-color": C.zone, "text-halo-color": "#fff", "text-halo-width": 2 } });
+        }
       }
       vis("hn-labels", want("zones"));
       // The glassing view (the ground hidden from the spot).
@@ -1790,9 +1926,10 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   // For ski-points.js: the hunting zone at a point, for the harvest log.
   window.tfHunt = {
     async zoneAt(lat, lon) {
-      try { zones = zones || (await load("zones")).zones; } catch { return ""; }
-      const u = at(zones, lat, lon)[0];
-      return u ? (u.p === "ab" ? `WMU ${u.id}` : `MU ${u.id}`) : "";
+      try { zones = zones || (await load("zones")).zones; } catch {}
+      await loadPv(pvsIn(lat, lon, lat, lon));
+      const u = at(Z(), lat, lon)[0];
+      return u ? (u.p === "bc" ? `MU ${u.id}` : u.p === "qc" ? `Zone ${u.n}` : zoneName(u)) : "";
     },
   };
 
@@ -1824,6 +1961,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     syncTiles(); sync3d();
     if (!on) return;
     if (!started) { started = true; renderLayers(); drawZones(); drawLeh(); drawRules(); }
+    viewPv();
     drawLabels();
     if (!spot) { const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); } else loadWeather();
     renderWx(); renderSky(); renderOffline();
