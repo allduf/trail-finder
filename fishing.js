@@ -42,7 +42,7 @@
   // Map dot colours (alex 2026-10-26: "more trendy and professional"): flow keeps its traffic-light order, each other
   // layer gets its own hue that reads on satellite and the flat map.
   const C = { vlow: "#f2b33d", low: "#a3c94f", ok: "#22b07d", high: "#f07b3f", blown: "#e5484d", none: "#8a94a6", stocked: "#2563eb", fresh: "#f43f5e",
-    access: "#8b5cf6", launch: "#1e293b", park: "#ae3ec9", zec: "#2b8a3e", fee: "#5f3dc4", tide: "#38bdf8", zone: "#1864ab", hidden: "#2dd4bf" };
+    access: "#8b5cf6", launch: "#1e293b", park: "#ae3ec9", zec: "#2b8a3e", fee: "#5f3dc4", tide: "#38bdf8", zone: "#1864ab", hidden: "#d946ef" };
   const timeout = (ms) => (AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined);
   const getJ = (url, ms = 12000) => fetch(url, { signal: timeout(ms) }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
   const km = (a, b, c, d) => map.distance([a, b], [c, d]) / 1000;
@@ -351,7 +351,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     if (np) rows.push(`<li style="--c:${C.park}"><b>Parks Canada fishing permit</b>Needed in ${esc(np.n)} instead of the provincial licence. <a href="${PC_PERMIT}" target="_blank" rel="noopener">Buy or check</a></li>`);
     rows.push(`<li style="--c:${C.zone}"><b>${esc(L[0])}</b><a href="${L[1]}" target="_blank" rel="noopener">Buy online</a>${np ? " (for waters outside the park)" : ""}</li>`);
     if (tidal) rows.push(`<li style="--c:${C.tide}"><b>BC tidal water licence</b>Saltwater needs its own licence from Fisheries and Oceans Canada (plus a salmon stamp to keep salmon). <a href="${BC_TIDAL}" target="_blank" rel="noopener">Buy online</a></li>`);
-    if (qt && QCT[qt.t]) rows.push(`<li style="--c:${qt.t === 16 ? C.zec : C.fee}"><b>${esc(qt.n)}</b>${QCT[qt.t][1]}</li>`);
+    if (qt && QCT[qt.t]) rows.push(`<li style="--c:${qt.t === 16 ? C.zec : C.fee}"><b>${esc(qt.n)}</b>${QCT[qt.t][0]} ${QCT[qt.t][1]}</li>`);
     return fold("lic", IC.rules, "Licence", np ? "Parks Canada permit" : tidal ? "Fresh and tidal" : "Buy online", `<ul class="fs-list">${rows.join("")}</ul><p class="fs-note">Licences are for the season you're in; kids and seniors often fish free or at a discount, so check the page.</p>`);
   }
 
@@ -373,7 +373,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       if (r[0] == null) return nm && r[3] === prov && (plain(r[4]) === nm || plain(r[5]) === nm);
       if (Math.abs(r[0] - lat) > 0.25 || Math.abs(r[1] - lon) > 0.4) return false;
       const d = km(lat, lon, r[0], r[1]);
-      return d <= 1.5 || (re && re.test(plain(r[4]) + " " + plain(r[5])));
+      return d <= 1.5 || (re && re.test(plain(r[4])));   // the water's own name, not its "where" note (Alpha Lake is "near Alta Lake")
     });
     // "That part of …" rules cover a bay or beach only, so they read "in parts" and come after whole-water rules.
     const part = (r) => (/\b(that part|those parts|parts? of|portion|an area|areas? of|within \d+ ?m|adjacent to|swimming area|beach)\b/i.test(r[4]) ? 1 : 0);
@@ -422,7 +422,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     if (r && r.h != null) return `Level ${r.h.toFixed(2)} m`;
     return "No reading in the last few hours";
   };
-  const fmtQ = (q) => `${q < 10 ? q.toFixed(1) : Math.round(q)} m³/s`;
+  const fmtQ = (q) => `${q < 0.1 ? q.toFixed(2) : q < 10 ? q.toFixed(1) : Math.round(q)} m³/s`;
   const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   let readBox = null, readBusy = false;
   async function loadReadings() {
@@ -820,7 +820,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     let e; try { e = await loadEat(); } catch { return { html: "" }; }
     const ws = eatWaters(e, prov, lat, lon, name);
     if (!ws.length) return { html: "" };
-    return { sp: [...new Set(ws.flatMap(([w]) => w.f.map((r) => e.sp[r[0]])))], name: ws[0][1] < 1.5 ? ws[0][0].n : "", html: ws.map(([w, d]) => {
+    const out = { sp: [...new Set(ws.flatMap(([w]) => w.f.map((r) => e.sp[r[0]])))], name: ws[0][1] < 1.5 ? ws[0][0].n : "" };
+    out.html = ws.map(([w, d]) => {
       const rows = w.f.slice().sort((a, b) => e.sp[a[0]].localeCompare(e.sp[b[0]]));
       let body;
       if (prov === "on") body = `<table class="fs-eat"><thead><tr><th>Fish</th><th>Meals a month, by length</th></tr></thead><tbody>${rows.map(([sp, g, sn, why]) =>
@@ -831,8 +832,12 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
         return `<tr><td><b>${esc(e.sp[sp])}</b></td><td>${sizes || "No advice"}${warn === 1 ? `<small>Planning a pregnancy, pregnant or breastfeeding: half as many meals.</small>` : warn === 2 ? `<small>Young children, planning a pregnancy, pregnant or breastfeeding: only now and then.</small>` : ""}${banned ? `<small>Fishing it isn't allowed here.</small>` : ""}</td></tr>`;
       }).join("")}</tbody></table>
         <p class="fs-note">A meal is 230 g of raw fish. From Quebec's Guide de consommation du poisson de pêche sportive en eau douce (Ministère de l'Environnement); <a href="https://geo.environnement.gouv.qc.ca/portail/apps/experiencebuilder/experience/?id=6eead579659d48f6bdcfc015ce55b733" target="_blank" rel="noopener">the guide</a>.</p>`;
-      return fold("eat", IC.fish, "Safe to eat", `${rows.length} fish`, `<p class="fs-note">${esc(w.n)}${w.d ? ` (${esc(w.d)})` : ""}${d > 0.5 ? `, ${fmtKm(d)} away` : ""}. Meals a month by size; fewer for children and pregnancy.</p>${body}`);
-    }).join("") };
+      return `<h4>${esc(w.n)}${w.d ? ` <small>(${esc(w.d)})</small>` : ""}${d > 0.5 ? ` <small>${fmtKm(d)} away</small>` : ""}</h4>${body}`;
+    });
+    // One "Safe to eat" line, with each sampled spot nearby inside it.
+    const nFish = new Set(ws.flatMap(([w]) => w.f.map((r) => r[0]))).size;
+    out.html = fold("eat", IC.fish, "Safe to eat", `${nFish} fish${ws.length > 1 ? ` · ${ws.length} places` : ""}`, `<p class="fs-note">Meals a month by size; fewer for children and pregnancy.</p>${out.html.join("")}`);
+    return out;
   }
 
   // The water at a spot from each province's own map server: name, fish found there, depth, and (Alberta) its rules.
@@ -867,8 +872,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const fish = await wfs("WHSE_FISH.FISS_FISH_OBSRVTN_PNT_SP", "SPECIES_NAME,GAZETTED_NAME", id ? `WATERBODY_IDENTIFIER='${id}'` : `DWITHIN(GEOMETRY, ${pt}, 400, meters)`, 500).catch(() => []);
     const sp = [...new Set(fish.map((f) => f.SPECIES_NAME).filter((s) => s && !/^(No Fish|Unidentified|Unknown)/i.test(s)))].sort();
     if (!name && !sp.length) return null;
-    const depth = lake ? await wfs("WHSE_FISH.BATH_LAKE_BATHYMETRIC_SP", "DEPTH_CONTOUR", `INTERSECTS(GEOMETRY, ${pt})`, 1).then((a) => a.length).catch(() => 0) : 0;
-    const facts = [kind, lake && lake.AREA_HA ? `${lake.AREA_HA >= 100 ? Math.round(lake.AREA_HA) : lake.AREA_HA.toFixed(1)} ha` : "", depth ? "depth map on the Lake depth layer" : ""].filter(Boolean);
+    const [bath] = lake ? await wfs("WHSE_FISH.BATH_LAKE_BATHYMETRIC_SP", "LAKE_MAX_DEPTH_M,LAKE_MEAN_DEPTH_M", `DWITHIN(SHAPE, ${pt}, 200, meters)`, 1).catch(() => []) : [];
+    const facts = [kind, lake && lake.AREA_HA ? `${lake.AREA_HA >= 100 ? Math.round(lake.AREA_HA) : lake.AREA_HA.toFixed(1)} ha` : "", bath && bath.LAKE_MAX_DEPTH_M ? `up to ${Math.round(bath.LAKE_MAX_DEPTH_M)} m deep${bath.LAKE_MEAN_DEPTH_M ? ` (average ${Math.round(bath.LAKE_MEAN_DEPTH_M)} m)` : ""}` : ""].filter(Boolean);
     return { name: name ? titleCase(name) : "", kind, sp, html: `${facts.length ? `<p class="fs-note">${esc(facts.join(" · "))}</p>` : ""}${speciesHtml(sp, "From BC's fish inventory (surveys and records), not a guarantee they're there now.")}` };
   }
   async function waterAB(lat, lon) {
@@ -993,7 +998,10 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       <p class="fs-note">Canadian Hydrographic Service. Not for navigation.</p>`;
   }
   function accessHtml(lat, lon) {
-    const list = near([...access.values()], lat, lon, 5, (a) => [a.lat, a.lon]).slice(0, 4);
+    // The same ramp mapped twice shows once; private launches and docks go last.
+    const list = near([...access.values()], lat, lon, 5, (a) => [a.lat, a.lon])
+      .filter(([a], i, all) => !all.slice(0, i).some(([b]) => b.kind === a.kind && Math.abs(b.lat - a.lat) < 0.0006 && Math.abs(b.lon - a.lon) < 0.0009))
+      .sort((x, y) => /private/.test(x[0].facts || "") - /private/.test(y[0].facts || "") || x[1] - y[1]).slice(0, 4);
     if (!list.length) return shown.has("access") && map.getZoom() < LAYERS.access.minZoom ? `<p class="fs-note">Zoom in to see fishing spots and launches near here.</p>` : "";
     return `<h4>${svg(IC.boat, 14)}Fishing spots and launches</h4><ul class="fs-list">${list.map(([a, d]) => `<li style="--c:${a.kind === "launch" ? C.launch : C.access}"><b>${esc(accessName(a))}</b><small>${fmtKm(d)} · ${esc(accessFacts(a))}</small></li>`).join("")}</ul>`;
   }
@@ -1148,7 +1156,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       const wind = avg(idx.map((i) => h.wind_speed_10m[i])), gust = Math.max(...idx.map((i) => h.wind_gusts_10m[i] || 0)), cloud = avg(idx.map((i) => h.cloud_cover[i])), rain = idx.reduce((s, i) => s + (h.precipitation[i] || 0), 0);
       const p0 = h.pressure_msl[idx[0] - 6] ?? h.pressure_msl[idx[0]], p1 = h.pressure_msl[idx[idx.length - 1]], dp = p1 - p0, tmax = Math.max(...idx.map((i) => h.temperature_2m[i]));
       const ph = moonPhase(new Date(date + "T12:00:00Z")).phase, moonNear = Math.min(Math.abs(ph - 0), Math.abs(ph - 0.5), Math.abs(ph - 1)) < 0.06;
-      let s = 3; const why = [];
+      let s = 2.5; const why = [];   // an ordinary day is a 3; it takes several good signs to make a 5
       if (dp <= -1.5) { s += 1; why.push("pressure falling"); } else if (dp >= 3) { s -= 1; why.push("pressure rising fast"); } else if (Math.abs(dp) < 1) why.push("steady pressure");
       if (wind >= 6 && wind <= 18) { s += 0.5; why.push("light chop"); } else if (wind > 28 || gust > 50) { s -= 1.5; why.push("windy"); } else if (wind < 4) why.push("calm (spooky fish)");
       if (cloud > 60) { s += 0.5; why.push("cloudy"); } else if (cloud < 20) { s -= 0.25; why.push("bright sun"); }

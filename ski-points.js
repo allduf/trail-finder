@@ -240,6 +240,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     setPins(true);
     picking = true;
     document.body.classList.add("sp-picking");
+    if (window.tfLowerSheet) window.tfLowerSheet();   // on a phone the sheet can cover the map you have to tap
     banner = document.createElement("div");
     banner.className = "sp-banner";
     banner.innerHTML = `<span>Tap the map where ${pickPreset && pickPreset.kind === "catch" ? "you caught it" : "the point goes"}</span><button type="button" data-a="me">◎ Use my location</button><button type="button" data-a="x">Cancel</button>`;
