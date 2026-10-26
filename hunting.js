@@ -1925,6 +1925,18 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
 
   // For ski-points.js: the hunting zone at a point, for the harvest log.
   window.tfHunt = {
+    // moto.js (Can I ride here): the parks, reserves, closures and other land at a point or in a box, the same
+    // outlines as the Hunting rules layer ({ k, n, p, b, g } with g as flat [lat, lon, ...] rings).
+    async areasAt(lat, lon) {
+      try { areas = areas || (await load("areas")).areas; } catch {}
+      await loadPv(pvsIn(lat, lon, lat, lon));
+      return at(A(), lat, lon);
+    },
+    async areasIn(s, w, n, e) {
+      try { areas = areas || (await load("areas")).areas; } catch {}
+      if (n - s < 12 && e - w < 20) await loadPv(pvsIn(s, w, n, e));
+      return A().filter((x) => boxHits(x.b, s, w, n, e));
+    },
     async zoneAt(lat, lon) {
       try { zones = zones || (await load("zones")).zones; } catch {}
       await loadPv(pvsIn(lat, lon, lat, lon));

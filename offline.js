@@ -35,12 +35,15 @@
     return out;
   }
   const countTiles = (rs) => rs.reduce((n, r) => n + (r.x1 - r.x0 + 1) * (r.y1 - r.y0 + 1), 0);
-  function* tileUrls(src, box) {
+  function* tileUrls(src, box, boxes) {
+    if (boxes) { const seen = new Set(); for (const b of boxes) for (const u of tileUrls(src, b)) if (!seen.has(u)) { seen.add(u); yield u; } return; }
     for (const r of tileRanges(box, src.minz, src.maxz))
       for (let x = r.x0; x <= r.x1; x++) for (let y = r.y0; y <= r.y1; y++) yield src.tmpl.replace("{z}", r.z).replace("{x}", x).replace("{y}", y);
   }
+  // A route's corridor (moto.js): small boxes along the line, the tiles they share counted once.
+  const corridorCount = (boxes) => { const seen = new Set(); for (const b of boxes) for (const r of tileRanges(b, 0, MAX_Z)) for (let x = r.x0; x <= r.x1; x++) for (let y = r.y0; y <= r.y1; y++) seen.add(r.z + "/" + x + "/" + y); return seen.size; };
   const zonesIn = (box) => (window.tfZones || []).filter((z) => z.box[0] < box[2] && z.box[2] > box[0] && z.box[1] < box[3] && z.box[3] > box[1]);
-  const dataUrls = (box) => [...zonesIn(box).flatMap((z) => DATA.map((d) => `data/${d}-${z.id}.json`)), "data/fires.json", "data/motor-closures.json"]
+  const dataUrls = (box) => [...zonesIn(box).flatMap((z) => DATA.map((d) => `data/${d}-${z.id}.json`)), "data/fires.json", "data/motor-closures.json", ...(window.tfMotoOffline ? window.tfMotoOffline() : [])]
     .map((u) => new URL(u, location.href).href);
   // Saved in Skiing: the ski data and the terrain tiles behind slope shading (winter.js, window.tfSkiOffline).
   const isSki = () => document.body.classList.contains("sport-ski");
@@ -161,7 +164,7 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
     const areas = load(), a = areas.find((x) => x.id === (b.dataset.show || b.dataset.del || b.dataset.finish));
     if (!a) return;
     if (b.dataset.show) map.fitBounds([[a.box[0], a.box[1]], [a.box[2], a.box[3]]]);
-    else if (b.dataset.finish) { map.fitBounds([[a.box[0], a.box[1]], [a.box[2], a.box[3]]]); saveArea(a.box, a.name, a.id); }
+    else if (b.dataset.finish) { map.fitBounds([[a.box[0], a.box[1]], [a.box[2], a.box[3]]]); saveArea(a.box, a.name, a.id, a.boxes); }
     else if (!busy && confirm(`Delete the saved map of ${a.name}?`)) { b.disabled = true; await remove(a, areas); renderList(); estimate(); }
   });
 
@@ -287,7 +290,7 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
   }, true);
   // Save (or finish saving) an area. Anything downloaded goes in the list, even when the save is stopped or some
   // files never come, so it can always be finished or deleted from there.
-  async function saveArea(box, name, id) {
+  async function saveArea(box, name, id, boxes) {
     if (busy) return;
     const bar = card.querySelector(".bar"), prog = $("[data-prog]");
     busy = { stop: false };
@@ -299,7 +302,7 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
     const record = () => {
       if (!sources) return;
       const areas = load(), old = areas.find((x) => x.id === id);
-      const entry = { id: id || Date.now().toString(36), name, box, sources, bytes, at: Date.now(), ski: withSki };
+      const entry = { id: id || Date.now().toString(36), name, box, sources, bytes, at: Date.now(), ski: withSki, ...(boxes ? { boxes } : {}) };
       if (failed.length || busy.stop) entry.missing = Math.max(1, failed.length + busy.left);
       if (old) Object.assign(old, entry); else areas.push(entry);
       id = entry.id;
@@ -309,7 +312,7 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
       const cache = await caches.open(CACHE);
       const parts = await styleParts(cache);
       sources = parts.sources;
-      const tiles = sources.flatMap((s) => [...tileUrls(s, box)]);
+      const tiles = sources.flatMap((s) => [...tileUrls(s, box, boxes)]);
       const data = [...dataUrls(box), ...ski.data];
       const total = tiles.length + data.length + parts.extra.length + LIBS.length + ski.tiles.length;
       let done = 0;
@@ -348,6 +351,37 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
       nm.value = name; nm.dataset.typed = "1";
       if (countTiles(tileRanges(b, 0, MAX_Z)) <= MAX_TILES && navigator.onLine) saveArea(b, name);
     },
+    // A route and the land either side of it (moto.js: a long ride, where a box around it would be far too big).
+    // line: [[lat, lon], ...]. Narrower when the corridor would pass the tile limit. Returns false when it's still too big.
+    saveCorridor(line, name) {
+      if (!line || line.length < 2) return false;
+      let boxes = null;
+      for (const km of [5, 3, 1.5]) {
+        boxes = [];
+        const dy = km / 111, step = km * 0.8;
+        let run = Infinity, prev = null;
+        for (const p of line) {
+          if (prev) run += map.distance(prev, p) / 1000;
+          prev = p;
+          if (run < step) continue;
+          run = 0;
+          const dx = km / (111 * Math.cos((p[0] * Math.PI) / 180));
+          boxes.push([p[0] - dy, p[1] - dx, p[0] + dy, p[1] + dx].map((v) => +v.toFixed(5)));
+        }
+        const e = line[line.length - 1], dx = km / (111 * Math.cos((e[0] * Math.PI) / 180));
+        boxes.push([e[0] - dy, e[1] - dx, e[0] + dy, e[1] + dx].map((v) => +v.toFixed(5)));
+        if (corridorCount(boxes) <= MAX_TILES) break;
+        boxes = null;
+      }
+      if (!boxes) return false;
+      const box = [Math.min(...boxes.map((b) => b[0])), Math.min(...boxes.map((b) => b[1])), Math.max(...boxes.map((b) => b[2])), Math.max(...boxes.map((b) => b[3]))];
+      if (card.hidden) open(true);
+      map.fitBounds([[box[0], box[1]], [box[2], box[3]]], { animate: false });
+      const nm = $("[data-name]");
+      nm.value = name; nm.dataset.typed = "1";
+      if (navigator.onLine) saveArea(box, name, undefined, boxes);
+      return true;
+    },
   };
 
   // Delete an area's tiles, except ones another saved area also covers. With no areas left, empty the cache.
@@ -355,7 +389,7 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
     const rest = areas.filter((x) => x !== a);
     save(rest);
     if (!rest.length) { await caches.delete(CACHE); return; }
-    const urlsOf = (x) => { const k = skiParts(x.box, x.ski); return [...x.sources.flatMap((s) => [...tileUrls(s, x.box)]), ...dataUrls(x.box), ...k.tiles]; };   // ski data files stay: they are small and shared
+    const urlsOf = (x) => { const k = skiParts(x.box, x.ski); return [...x.sources.flatMap((s) => [...tileUrls(s, x.box, x.boxes)]), ...dataUrls(x.box), ...k.tiles]; };   // ski data files stay: they are small and shared
     const keep = new Set(rest.flatMap(urlsOf));
     const cache = await caches.open(CACHE);
     const drop = urlsOf(a).filter((u) => !keep.has(u));

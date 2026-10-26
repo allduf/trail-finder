@@ -569,8 +569,8 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     if (a) { a.open = true; (window.tfPanelScrollTo || ((el) => el.scrollIntoView()))(a, "center", true); }
   });
   function sortOpts() {
-    const b = document.body.classList, sp = b.contains("sport-ski") ? "ski" : b.contains("sport-hunt") ? "hunt" : b.contains("sport-fish") ? "fish" : "mtb";
-    const MINE = { mtb: ["ntLoamArea", "ntNewOn"], ski: ["ntAvyOn"], hunt: [], fish: ["ntFishOn"] }[sp];
+    const b = document.body.classList, sp = b.contains("sport-ski") ? "ski" : b.contains("sport-hunt") ? "hunt" : b.contains("sport-fish") ? "fish" : b.contains("sport-moto") ? "moto" : "mtb";
+    const MINE = { mtb: ["ntLoamArea", "ntNewOn"], ski: ["ntAvyOn"], hunt: [], fish: ["ntFishOn"], moto: [] }[sp];
     const opts = ["ntLoamArea", "ntNewOn", "ntAvyOn", "ntFishOn"].map((id) => q(id).closest("label"));
     const pick = q("ntPick"), first = pick.querySelector(".nt-push");
     if (sp === "hunt") pick.insertBefore(huntRow, first); else huntRow.remove();
@@ -579,7 +579,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     pick.insertBefore(other, first);
     // The regions are for loam, new trails and avalanches: in Hunting and Fishing they go with the other sports' alerts.
     const zh = pick.querySelector(".nt-zhead"), zs = q("ntZones"), row = pick.querySelector(".nt-row");
-    if (sp === "hunt" || sp === "fish") other.append(zh, zs); else { pick.insertBefore(zh, row); pick.insertBefore(zs, row); }
+    if (sp === "hunt" || sp === "fish" || sp === "moto") other.append(zh, zs); else { pick.insertBefore(zh, row); pick.insertBefore(zs, row); }
   }
   function openBox() {
     sortOpts();

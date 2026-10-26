@@ -263,7 +263,7 @@ label.toggle.off { background: transparent; border: 1px dashed var(--line); box-
   .tabbar svg { width: 24px; height: 24px; padding: 3px 14px; border-radius: 999px; transition: background .15s; }
   .tabbar > [aria-current="true"] { color: var(--fg); }
   .tabbar > [aria-current="true"] svg { background: color-mix(in srgb, var(--cta) 70%, transparent); color: var(--cta-fg, #10230f); }
-  body.sport-alt .tabbar .mtb-only, body:not(.sport-ski) .tabbar .ski-only, body:not(.sport-hunt) .tabbar .hunt-only, body:not(.sport-fish) .tabbar .fish-only { display: none; }
+  body.sport-alt .tabbar .mtb-only, body:not(.sport-ski) .tabbar .ski-only, body:not(.sport-hunt) .tabbar .hunt-only, body:not(.sport-fish) .tabbar .fish-only, body:not(.sport-moto) .tabbar .moto-only { display: none; }
   .app.fullmap .tabbar { display: none; }
 }
 @media (min-width: 761px) { .tabbar { display: none !important; } }
