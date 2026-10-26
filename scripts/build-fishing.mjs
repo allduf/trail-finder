@@ -19,6 +19,8 @@
 //    fishing spots, fishing piers and boat launches (leisure=fishing, fishing=yes/designated, leisure=slipway, read with
 //    Overpass for all of Canada) and Ontario's fishing access points (LIO). [lat, lon, kind (0 spot, 1 pier or dock,
 //    2 launch), name, facts]. Anglers' own catches and spots are never in it.
+//  - walkin.json: stocked lakes in BC and Ontario with no road within 1 km of the shore (see buildWalkin), for the
+//    Hidden spots layer.
 //  - eat.json: how many meals a month of each fish are safe, by size, for each lake and river in the provinces' fish
 //    eating guides: Ontario's Guide to Eating Ontario Fish (data.ontario.ca, for everyone and for the sensitive
 //    population: children under 15 and people who are or may become pregnant or are breastfeeding) and Quebec's Guide
@@ -27,7 +29,7 @@
 // Government Licence - Ontario. Quebec and DFO: Open Government Licence - Canada / Quebec. FFSBC stocking report: public
 // report, credited in the app. A source that fails keeps its last good data.
 //
-// Run: node scripts/build-fishing.mjs   (Node 18 or newer, no packages needed; ONLY=stocked|zones|tides|gauges|eat|spots for one file)
+// Run: node scripts/build-fishing.mjs   (Node 18 or newer, no packages needed; ONLY=stocked|zones|tides|gauges|eat|spots|walkin for one file)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 
@@ -591,9 +593,95 @@ async function buildSpots() {
   save("spots.json", { updated: iso(now), spots });
 }
 
+// ---------- walk-in stocked lakes ----------
+// alex: "find all the hidden fishing spots". A lake that's stocked (so it has fish) but has no road near it sees few
+// anglers: you have to walk in. For BC and Ontario, each stocked lake or pond is checked against the official road
+// maps: BC's Digital Road Atlas (every public, resource and private road; not trails) and active forest road permits
+// (FTEN), Ontario's Road Network (ORN) and MNRF forest roads (not the ones marked impassable or with the roadbed gone).
+// The distance is measured from the shore (the lake's size as a circle, from the Freshwater Atlas or Ontario's
+// Hydro Network). Lakes bigger than 3 km² aren't counted: their centre is too far from the shore for a circle.
+// [lat, lon, name, province, km to the nearest road (1: more than 1 km, 2: more than 2 km, 4: more than 4 km), hectares]
+const WALK_KM = [1, 2, 4];
+async function pool(items, n, fn) { let i = 0; await Promise.all(Array.from({ length: n }, async () => { while (i < items.length) { const x = items[i++]; await fn(x); } })); }
+async function bcRoads(lat, lon, m) {
+  const pt = `SRID=4326;POINT(${lon} ${lat})`;
+  const hits = async (layer, where) => {
+    const p = new URLSearchParams({ service: "WFS", version: "2.0.0", request: "GetFeature", typeName: `pub:${layer}`, resultType: "hits", CQL_FILTER: `DWITHIN(GEOMETRY,${pt},${m},meters) AND ${where}` });
+    for (let t = 0; t < 4; t++) {
+      try {
+        const r = await fetch(`${WFS}?${p}`, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(60000) });
+        const n = (await r.text()).match(/numberMatched="(\d+)"/);
+        if (n) return +n[1];
+      } catch {}
+      await sleep(3000 * (t + 1));
+    }
+    throw new Error("DataBC roads didn't answer");
+  };
+  return (await hits("WHSE_BASEMAPPING.DRA_DGTL_ROAD_ATLAS_MPAR_SP", "ROAD_CLASS NOT IN ('trail','ferry','water','proposed','runway')"))
+    || hits("WHSE_FOREST_TENURE.FTEN_ROAD_SECTION_LINES_SVW", "LIFE_CYCLE_STATUS_CODE = 'ACTIVE' AND RETIREMENT_DATE IS NULL");
+}
+const LIO = "https://ws.lioservices.lrc.gov.on.ca/arcgis2/rest/services/LIO_OPEN_DATA/";
+async function lioQuery(path, params) {
+  return get(`${LIO}${path}/query?${new URLSearchParams({ geometryType: "esriGeometryPoint", inSR: "4326", spatialRel: "esriSpatialRelIntersects", units: "esriSRUnit_Meter", f: "json", ...params })}`);
+}
+async function onRoads(lat, lon, m) {
+  const q = (path, where) => lioQuery(path, { geometry: `${lon},${lat}`, distance: String(m), where, returnCountOnly: "true" }).then((j) => { if (j.count == null) throw new Error("Ontario roads didn't answer"); return j.count; });
+  return (await q("LIO_Open09/MapServer/0", "1=1"))
+    || q("LIO_Open09/MapServer/18", "(PASSABLE_IND IS NULL OR PASSABLE_IND <> 'N') AND (ROADBED_DESTROYED_IND IS NULL OR ROADBED_DESTROYED_IND <> 'Y')");
+}
+async function buildWalkin() {
+  log("Walk-in stocked lakes");
+  const st = readOld("stocked.json");
+  if (!st) { log("  no stocked.json yet"); return; }
+  const lakes = st.waters.filter((w) => (w.p === "bc" || w.p === "on") && !/\b(river|creek|brook|stream|canal|harbour|bay|slough)\b/i.test(w.n))
+    .filter((w) => !process.env.WALK_P || w.p === process.env.WALK_P).slice(0, +process.env.WALK_LIMIT || Infinity);   // WALK_P=bc WALK_LIMIT=50 for a quick test
+  // Each lake's size: BC from the Freshwater Atlas (by waterbody id), Ontario from the Hydro Network (the waterbody at
+  // the stocking point, the one with the same name when there are a few).
+  const ha = new Map();
+  const bcIds = [...new Set(lakes.filter((w) => w.p === "bc" && w.id).map((w) => w.id))];
+  for (let i = 0; i < bcIds.length; i += 60) {
+    const list = bcIds.slice(i, i + 60).map((s) => `'${s.replace(/'/g, "''")}'`).join(",");
+    try {
+      for (const f of await databc("WHSE_BASEMAPPING.FWA_LAKES_POLY", "WATERBODY_KEY_GROUP_CODE_50K,AREA_HA", `WATERBODY_KEY_GROUP_CODE_50K IN (${list})`)) {
+        const k = f.properties.WATERBODY_KEY_GROUP_CODE_50K; ha.set(`bc${k}`, Math.max(ha.get(`bc${k}`) || 0, f.properties.AREA_HA || 0));
+      }
+    } catch (e) { log(`    lake sizes: ${e.message}`); }
+  }
+  log(`  BC lake sizes: ${ha.size}`);
+  let failed = 0;
+  await pool(lakes.filter((w) => w.p === "on"), 4, async (w) => {
+    try {
+      const j = await lioQuery("LIO_Open01/MapServer/25", { geometry: `${w.c[1]},${w.c[0]}`, distance: "300", outFields: "OFFICIAL_NAME_LABEL,SYSTEM_CALCULATED_AREA", returnGeometry: "false" });
+      const fs = (j.features || []).map((f) => f.attributes), base = w.n.replace(/\s*\(.*\)$/, "").toLowerCase();
+      const f = fs.find((a) => a.OFFICIAL_NAME_LABEL && a.OFFICIAL_NAME_LABEL.toLowerCase() === base) || fs.sort((a, b) => b.SYSTEM_CALCULATED_AREA - a.SYSTEM_CALCULATED_AREA)[0];
+      if (f) ha.set(`on${w.n}|${w.c}`, f.SYSTEM_CALCULATED_AREA / 1e4);
+    } catch { failed++; }
+  });
+  log(`  lake sizes: ${ha.size}`);
+  const out = [];
+  let done = 0;
+  await pool(lakes, 6, async (w) => {
+    if (++done % 250 === 0) log(`    ${done} of ${lakes.length}`);
+    const a = w.p === "bc" ? ha.get(`bc${w.id}`) : ha.get(`on${w.n}|${w.c}`);
+    if (a == null || a > 300) return;   // unknown size, or too big to measure from the middle
+    const shore = Math.sqrt((a * 1e4) / Math.PI), roads = w.p === "bc" ? bcRoads : onRoads;
+    try {
+      let km = 0;
+      for (const k of WALK_KM) { if (await roads(w.c[0], w.c[1], Math.round(shore + k * 1000))) break; km = k; }
+      if (km) out.push([w.c[0], w.c[1], w.n, w.p, km, Math.round(a * 10) / 10]);
+    } catch { failed++; }
+  });
+  log(`  ${out.length} walk-in lakes of ${lakes.length} stocked lakes checked (${failed} failed)`);
+  const old = readOld("walkin.json");
+  if (failed > lakes.length / 4 && old) { log("  too many failed: keeping the last good file"); return; }
+  out.sort((x, y) => x[0] - y[0] || x[1] - y[1]);
+  save("walkin.json", { updated: iso(now), w: out });
+}
+
 if (!ONLY || ONLY === "stocked") await buildStocked();
 if (!ONLY || ONLY === "zones") await buildZones();
 if (!ONLY || ONLY === "tides") await buildTides();
 if (!ONLY || ONLY === "gauges") await buildGauges();
 if (!ONLY || ONLY === "eat") await buildEat();
 if (!ONLY || ONLY === "spots") await buildSpots();
+if (!ONLY || ONLY === "walkin") await buildWalkin();
