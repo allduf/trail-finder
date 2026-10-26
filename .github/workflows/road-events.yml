@@ -1,0 +1,38 @@
+name: Road events
+
+# Every 15 minutes, read the highway closures, washouts, bridges out, incidents and roadwork from the 511 sites of
+# Alberta, Saskatchewan, Manitoba, Ontario, New Brunswick, Nova Scotia, PEI, Newfoundland and Labrador and Yukon
+# (scripts/build-road-events.mjs) and put them in Supabase Storage (bucket "live", public), where Adventure moto's
+# Plan a route reads them. Nothing is committed and the website isn't republished: the file is live right away.
+# Needs the repository secret SUPABASE_SECRET_KEY (the same one the loam alerts use).
+# On a pull request that changes the script, it uploads a test copy (road-events-test.json) instead.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - scripts/build-road-events.mjs
+      - .github/workflows/road-events.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: road-events-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Read the 511 sites and upload
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          UPLOAD_AS: ${{ github.event_name == 'pull_request' && 'road-events-test.json' || '' }}
+        run: node scripts/build-road-events.mjs
