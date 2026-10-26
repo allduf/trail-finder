@@ -18,6 +18,8 @@ const LIDAR = (z, x, y) => `https://tiles.mapterhorn.com/${z}/${x}/${y}.webp`;
 const SUN = [Math.sin(160 / 57.3) * Math.cos(28 / 57.3), Math.cos(160 / 57.3) * Math.cos(28 / 57.3), Math.sin(28 / 57.3)];   // east, north, up
 const W = 256;
 const cancelled = new Set();
+// How many parent tiles to keep: fewer on phones (map3d.js passes ?cache=), where memory is tight.
+const KEEP = +new URLSearchParams(self.location.search).get("cache") || 160;
 
 // Parent tiles (winter z14, Esri z13, lidar z15) are shared by 4 to 16 close-up tiles: keep the recent ones.
 const cache = new Map();
@@ -25,7 +27,7 @@ function cached(key, make) {
   if (cache.has(key)) { const p = cache.get(key); cache.delete(key); cache.set(key, p); return p; }
   const p = make(); cache.set(key, p);
   p.catch(() => cache.delete(key));
-  if (cache.size > 160) cache.delete(cache.keys().next().value);
+  if (cache.size > KEEP) cache.delete(cache.keys().next().value);
   return p;
 }
 async function pixels(url) {

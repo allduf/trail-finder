@@ -538,10 +538,14 @@
   };
 
   // ---------- sharper Winter photos up close ----------
-  // tfwinterhd://z/x/y (zooms 15-16, computers only): last winter's 10 m Sentinel-2 photos with finer detail added
+  // tfwinterhd://z/x/y (zooms 15-16): last winter's 10 m Sentinel-2 photos with finer detail added
   // from Mapterhorn's 2 m lidar and Esri's sharp photo (see winter-hd.js). Drawn by workers, so the page stays free
   // to move the map and load its terrain, and drawn as a layer over the plain Winter photos, which show right away
   // and sharpen as these arrive (alex, 2026-10-19: "that map is long to load", "try to not compromize the resolution").
+  // Phones too since 2026-10-26 (alex liked how sharp FATMAP is up close), with less held in memory: 2 workers that
+  // keep fewer parent photos, and the close-up tiles drawn only once the map is still, so a drag across the
+  // mountains never piles them up (see PHONE_HD_CACHE).
+  const PHONE_HD_CACHE = 24;   // parent photos kept per worker on phones (computers 160); up to ~1 MB each
   let hdWorkers = null, hdNext = 0, hdId = 0;
   const hdWaiting = new Map();
   const terrainReady = () => new Promise((ok) => {
@@ -550,10 +554,14 @@
     if (gl) gl.on("sourcedata", done);
     done();
   });
+  const mapStill = () => new Promise((ok) => {
+    if (!PHONE || !gl || !gl.isMoving()) return ok();
+    gl.once("moveend", () => setTimeout(() => mapStill().then(ok), 150));   // a short pause, not between two flicks
+  });
   function addWinterHdProtocol() {
     if (hdWorkers) return;
-    hdWorkers = [...Array(Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=471");
+    hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
+      const w = new Worker("winter-hd.js?v=474" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return;
@@ -575,8 +583,9 @@
         w.postMessage({ cancel: id }); no(new DOMException("aborted", "AbortError"));
       });
       // The terrain first: these wait until the ground in view has its heights (at most 3 s), so they don't
-      // hold up the mountains, then sharpen the photos already showing.
-      terrainReady().then(() => { if (hdWaiting.has(id)) w.postMessage({ id, z, x, y, base: location.href }); });
+      // hold up the mountains, then sharpen the photos already showing. On phones they also wait for the map to
+      // stop moving: the ones scrolled past meanwhile are dropped without being drawn.
+      terrainReady().then(mapStill).then(() => { if (hdWaiting.has(id)) w.postMessage({ id, z, x, y, base: location.href }); });
     });
   }
 
@@ -652,7 +661,7 @@
     addWinterProtocol();
     addWinterPhotoProtocol();
     addSatProtocol();
-    if (!PHONE) addWinterHdProtocol();
+    addWinterHdProtocol();
     const c = map.getCenter();
     gl = new maplibregl.Map({
       container: box, antialias: !PHONE, pixelRatio: PHONE ? Math.min(devicePixelRatio || 1, 2) : undefined,
@@ -668,9 +677,8 @@
           // instead of the half-size zoom 12-13 ones (blurry and stretched on the slopes, alex 2026-10-19).
           winter: { type: "raster", tileSize: PHOTO_TILE, minzoom: 6, maxzoom: 14, bounds: WINTER_BOUNDS, tiles: ["tfwinterphoto://{z}/{x}/{y}"],
             attribution: "Winter: Copernicus Sentinel-2 data 2026 (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>" },
-          // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above). Not on phones,
-          // where the extra tiles would use the memory iPhone Safari runs out of.
-          ...(PHONE ? {} : { winterhd: { type: "raster", tileSize: 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] } }),
+          // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above).
+          winterhd: { type: "raster", tileSize: 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] },
           live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           // Under the Winter photos instead of the summer ones: today's snow wherever last winter's photos don't reach.
@@ -694,7 +702,7 @@
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
           { id: "fill", type: "raster", source: "fill", layout: { visibility: "none" } },
           { id: "winter", type: "raster", source: "winter", layout: { visibility: "none" } },
-          ...(PHONE ? [] : [{ id: "winterhd", type: "raster", source: "winterhd", layout: { visibility: "none" }, paint: { "raster-fade-duration": 200 } }]),
+          { id: "winterhd", type: "raster", source: "winterhd", layout: { visibility: "none" }, paint: { "raster-fade-duration": 200 } },
           { id: "live", type: "raster", source: "live", layout: { visibility: "none" } },
           // Soft sun and shadow on the slopes, so white mountains still read in winter.
           { id: "shade", type: "hillshade", source: "shade", layout: { visibility: "none" },
