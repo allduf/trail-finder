@@ -25,14 +25,18 @@
   const PHONE = matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) < 600;
   // A finger covers more of the screen than a mouse pointer: trail lines take taps from further away.
   const TOUCH = matchMedia("(pointer: coarse)").matches, TAP = TOUCH ? 18 : 8;
-  // Crash guard: "tf:3dOpen" is set while the 3D map is on screen and cleared when the page is hidden or closed
-  // normally. If it's still set when the page opens, the page died in 3D (out of memory), so it opens on the
-  // flat map instead of going straight back into 3D and crashing again. Not a synced setting.
-  const OPEN = "tf:3dOpen";
+  // Crash guard: "tf:3dOpen" holds the time, renewed every few seconds while the 3D map is on screen, and is cleared
+  // when the page is hidden or closed normally. If the page opens on screen less than a minute after it, the page
+  // died in 3D (out of memory) and was reloaded, so it opens on the flat map instead of going straight back into 3D
+  // and crashing again. An older time is iPhone closing the app in the background, where the clearing doesn't
+  // always reach the disk before the app is stopped (alex 2026-10-26: left on 3D, came back on the flat map), so
+  // that reopens in 3D as normal. Not a synced setting.
+  const OPEN = "tf:3dOpen", CRASH_MS = 60000;
   const mark = (v) => { try { v ? localStorage.setItem(OPEN, String(Date.now())) : localStorage.removeItem(OPEN); } catch {} };
   let crashed = false;
-  try { crashed = localStorage.getItem(OPEN) != null; } catch {}
+  try { const t = +localStorage.getItem(OPEN); crashed = t > 0 && Date.now() - t < CRASH_MS && document.visibilityState === "visible"; } catch {}
   mark(false);
+  setInterval(() => { if (on && document.visibilityState === "visible") mark(true); }, 5000);
   // Where the 3D map was looking, kept while it's open: after a crash the page opens there on the flat map, not on
   // the whole area (alex 2026-10-24: "it lag and jump somewhere in the 2d map"). Not a synced setting either.
   const VIEW = "tf:3dView";
