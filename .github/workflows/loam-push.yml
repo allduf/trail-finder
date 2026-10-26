@@ -24,6 +24,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
         run: bash scripts/site-data.sh get
+      - name: Get the Canada map chunks (canada-data branch), for phones outside the home zones
+        run: git fetch -q --depth=1 origin canada-data && git archive FETCH_HEAD ca | tar -x || echo "No Canada data"
       - uses: actions/setup-node@v4
         with:
           node-version: 20
