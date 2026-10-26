@@ -31,7 +31,7 @@
 // Government Licence - Ontario. Quebec and DFO: Open Government Licence - Canada / Quebec. FFSBC stocking report: public
 // report, credited in the app. A source that fails keeps its last good data.
 //
-// Run: node scripts/build-fishing.mjs   (Node 18 or newer, no packages needed; ONLY=stocked|zones|tides|gauges|eat|spots|walkin|boating|tidal for one file; the nightly ONLY=stocked also does tidal)
+// Run: node scripts/build-fishing.mjs   (Node 18 or newer, no packages needed; ONLY=stocked|zones|tides|gauges|eat|spots|walkin|boating|tidal|fishlist for one file; the nightly ONLY=stocked also does tidal)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 
@@ -769,6 +769,92 @@ async function buildBoating() {
   save("boating.json", { updated: iso(now), src: VORR, rules });
 }
 
+// fishlist.json: which fish have been recorded near each place where the province publishes no fish list for its waters
+// (alex: "fish lists for Alberta rivers and the Atlantic provinces"). Nova Scotia's Freshwater Fish Species Distribution
+// Records (data.novascotia.ca, a fish survey of each lake) as points [lat, lon, water, [species]]; and for Alberta, New
+// Brunswick, Nova Scotia, PEI and Newfoundland and Labrador every georeferenced fish record on GBIF.org (museum
+// collections, surveys and iNaturalist observations) within 3 km, gathered into 0.05° cells {"row_col": [species]}.
+// sp: [common name, scientific name, 1 if a sea fish]. The app shows the cells around a spot as "recorded nearby".
+const FISH_ORDERS = [1313, 548, 587, 1153, 708, 1103, 549, 588, 590, 538, 1068, 495, 1069, 550, 547, 1310, 494, 1167];   // GBIF backbone orders of ray-finned fish
+const FL_NAMES = { "Gasterosteus aculeatus": "Threespine Stickleback", "Pollachius virens": "Pollock", "Myoxocephalus scorpius": "Shorthorn Sculpin", "Salvelinus alpinus": "Arctic Char",
+  "Salvelinus namaycush": "Lake Trout", "Salvelinus fontinalis": "Brook Trout", "Tautoga onitis": "Tautog", "Morone saxatilis": "Striped Bass", "Oncorhynchus mykiss": "Rainbow Trout",
+  "Salvelinus confluentus": "Bull Trout", "Oncorhynchus clarkii": "Cutthroat Trout", "Prosopium williamsoni": "Mountain Whitefish", "Sander vitreus": "Walleye", "Esox lucius": "Northern Pike",
+  "Perca flavescens": "Yellow Perch", "Hiodon alosoides": "Goldeye", "Lota lota": "Burbot", "Coregonus clupeaformis": "Lake Whitefish", "Thymallus arcticus": "Arctic Grayling",
+  "Salmo salar": "Atlantic Salmon", "Salmo trutta": "Brown Trout", "Micropterus dolomieu": "Smallmouth Bass", "Esox niger": "Chain Pickerel", "Ameiurus nebulosus": "Brown Bullhead",
+  "Osmerus mordax": "Rainbow Smelt", "Microgadus tomcod": "Atlantic Tomcod", "Alosa pseudoharengus": "Alewife (Gaspereau)", "Carassius gibelio": "Prussian Carp", "Cyprinus carpio": "Common Carp",
+  "Gadus morhua": "Atlantic Cod", "Scomber scombrus": "Atlantic Mackerel", "Morone americana": "White Perch", "Catostomus commersonii": "White Sucker", "Semotilus corporalis": "Fallfish" };
+const FL_PROVS = ["Alberta", "New Brunswick", "Nova Scotia", "Prince Edward Island", "Newfoundland and Labrador"];
+// Nova Scotia's survey is in UTM zone 20 (NAD83): back to latitude and longitude.
+function utm20(e, n) {
+  const a = 6378137, f = 1 / 298.257222101, k0 = 0.9996, e2 = f * (2 - f), ep2 = e2 / (1 - e2), lon0 = -63 * Math.PI / 180;
+  const x = e - 500000, M = n / k0, mu = M / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 ** 3 / 256)), e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+  const p1 = mu + (3 * e1 / 2 - 27 * e1 ** 3 / 32) * Math.sin(2 * mu) + (21 * e1 * e1 / 16 - 55 * e1 ** 4 / 32) * Math.sin(4 * mu) + (151 * e1 ** 3 / 96) * Math.sin(6 * mu);
+  const C1 = ep2 * Math.cos(p1) ** 2, T1 = Math.tan(p1) ** 2, N1 = a / Math.sqrt(1 - e2 * Math.sin(p1) ** 2), R1 = a * (1 - e2) / (1 - e2 * Math.sin(p1) ** 2) ** 1.5, D = x / (N1 * k0);
+  const lat = p1 - (N1 * Math.tan(p1) / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * D ** 4 / 24 + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * D ** 6 / 720);
+  const lon = lon0 + (D - (1 + 2 * T1 + C1) * D ** 3 / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * D ** 5 / 120) / Math.cos(p1);
+  return [+(lat * 180 / Math.PI).toFixed(4), +(lon * 180 / Math.PI).toFixed(4)];
+}
+async function buildFishList() {
+  log("Fish lists (GBIF, Nova Scotia survey)");
+  const old = readOld("fishlist.json");
+  const sci = new Map();   // speciesKey -> scientific name
+  const cells = new Map();
+  const add = (lat, lon, key) => { const c = `${Math.floor(lat * 20)}_${Math.floor(lon * 20)}`; if (!cells.has(c)) cells.set(c, new Set()); cells.get(c).add(key); };
+  let n = 0;
+  for (const prov of FL_PROVS) {
+    for (let off = 0; off < 60000; off += 300) {
+      const q = new URLSearchParams({ country: "CA", stateProvince: prov, hasCoordinate: "true", hasGeospatialIssue: "false", occurrenceStatus: "PRESENT", limit: "300", offset: String(off) });
+      FISH_ORDERS.forEach((k) => q.append("taxonKey", k));
+      let j;
+      try { j = await get(`https://api.gbif.org/v1/occurrence/search?${q}`); } catch (e) { log(`  ${prov}: ${e.message}`); if (old) { log("  keeping the last good file"); return; } break; }
+      for (const r of j.results || []) {
+        if (!r.speciesKey || r.decimalLatitude == null || (r.coordinateUncertaintyInMeters || 0) > 3000 || /^(FOSSIL_SPECIMEN|LIVING_SPECIMEN|MATERIAL_SAMPLE)$/.test(r.basisOfRecord)) continue;
+        sci.set(r.speciesKey, r.species); add(r.decimalLatitude, r.decimalLongitude, r.speciesKey); n++;
+      }
+      if (j.endOfRecords || !(j.results || []).length) break;
+    }
+    log(`  ${prov}: ${n} records so far`);
+  }
+  // A species recorded in only one cell is most often a museum or market fish (an arapaima "in Calgary"): left out.
+  const seen = new Map(); for (const set of cells.values()) for (const k of set) seen.set(k, (seen.get(k) || 0) + 1);
+  for (const k of [...sci.keys()]) if (seen.get(k) < 2) sci.delete(k);
+  for (const set of cells.values()) for (const k of [...set]) if (!sci.has(k)) set.delete(k);
+  for (const [c, set] of cells) if (!set.size) cells.delete(c);
+  // Common names (Canada's usual name first, else GBIF's most used English one) and whether it's a sea fish, once per species.
+  const sp = [], idx = new Map();
+  const byName = new Map();
+  await pool([...sci.keys()], 4, async (k) => {
+    const [v, pr] = await Promise.all([get(`https://api.gbif.org/v1/species/${k}/vernacularNames?limit=100`).catch(() => null), get(`https://api.gbif.org/v1/species/${k}/speciesProfiles?limit=50`).catch(() => null)]);
+    const names = {}; for (const x of (v && v.results) || []) if (x.language === "eng" && x.vernacularName) { const t = x.vernacularName.trim().toLowerCase(); names[t] = (names[t] || 0) + 1; }
+    const best = Object.entries(names).sort((a, b) => b[1] - a[1])[0];
+    const prof = (pr && pr.results) || [];
+    const sea = prof.some((x) => x.marine === true) && !prof.some((x) => x.freshwater === true) ? 1 : 0;
+    const common = FL_NAMES[sci.get(k)] || (best ? best[0].replace(/(^|[\s-])([a-z])/g, (m, a, b) => a + b.toUpperCase()) : sci.get(k));
+    byName.set(k, [common, sci.get(k), sea]);
+  });
+  for (const k of [...sci.keys()].sort((a, b) => byName.get(a)[0].localeCompare(byName.get(b)[0]))) { idx.set(k, sp.length); sp.push(byName.get(k)); }
+  // Nova Scotia's lake survey: by water, with the species found there.
+  const ns = [];
+  try {
+    const rows = await get("https://data.novascotia.ca/resource/jgyj-d4fh.json?$limit=50000");
+    const norm = (t) => String(t).toLowerCase().replace(/\(.*?\)/g, "").replace(/[^a-z]/g, "").replace(/charr$/, "char");
+    const nameIdx = (common) => { let i = sp.findIndex((x) => norm(x[0]) === norm(common)); if (i < 0) { i = sp.length; sp.push([common.replace(/\s+/g, " "), "", 0]); } return i; };
+    const waters = new Map();
+    for (const r of rows) {
+      if (!r.easting || !r.northing || !r.species_common_name) continue;
+      const k = `${r.name}|${r.easting}|${r.northing}`;
+      if (!waters.has(k)) waters.set(k, { ll: utm20(+r.easting, +r.northing), name: r.name, s: new Set() });
+      waters.get(k).s.add(nameIdx(r.species_common_name.trim()));
+    }
+    for (const w of waters.values()) if (w.ll[0] > 43 && w.ll[0] < 47.2 && w.ll[1] > -66.6 && w.ll[1] < -59.5) ns.push([...w.ll, w.name, [...w.s]]);
+    log(`  Nova Scotia survey: ${ns.length} waters`);
+  } catch (e) { log(`  Nova Scotia survey: ${e.message}`); if (old) ns.push(...(old.ns || [])); }
+  if (n < 5000) { log(`  only ${n} records; keeping the last good file`); return; }
+  const out = {}; for (const [c, set] of cells) out[c] = [...set].map((k) => idx.get(k)).sort((a, b) => a - b);
+  log(`  ${sp.length} species, ${cells.size} cells`);
+  save("fishlist.json", { updated: iso(now), src: "GBIF.org occurrence data (CC0, CC BY, CC BY-NC) and Nova Scotia Freshwater Fish Species Distribution Records", sp, cells: out, ns });
+}
+
 // tidal.json: what you may keep in each of BC's tidal Pacific Fishery Management Areas, read from Fisheries and Oceans
 // Canada's area pages (the same pages anglers check): for each section (Salmon, Other finfish, Crab, Shrimp and prawns,
 // Bivalves…) the species rows [section, species, subareas, min size, gear, daily limit, status] and the restrictions
@@ -835,3 +921,4 @@ if (!ONLY || ONLY === "spots") await buildSpots();
 if (!ONLY || ONLY === "boating") await buildBoating();
 if (!ONLY || ONLY === "walkin") await buildWalkin();
 if (!ONLY || ONLY === "tidal" || ONLY === "stocked") await buildTidal();
+if (!ONLY || ONLY === "fishlist") await buildFishList();

@@ -781,7 +781,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     waterAt(lat, lon, prov).then((w) => {
       if (seq !== spotSeq) return;
       if (w && w.sp) w.sp.forEach((x) => baitSp.add(x));
-      baitWater = w && w.kind ? (/lake/i.test(w.kind) ? "lake" : "river") : !w && nearestTide(lat, lon, 4) ? "ocean" : "";
+      baitWater = w && w.kind ? (/lake/i.test(w.kind) ? "lake" : "river") : (!w || w.listOnly) && nearestTide(lat, lon, 4) ? "ocean" : "";
       bait();
       if (w && w.name && !title) $("fsSpotName").textContent = w.name;
       if (w && w.name) boatHtml(lat, lon, w.name, prov).then((h) => fill("fsBoat", h));
@@ -1003,11 +1003,51 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   async function waterAt(lat, lon, prov) {
     try {
       if (prov === "bc") return await waterBC(lat, lon);
-      if (prov === "ab") return await waterAB(lat, lon);
+      if (prov === "ab") return await withList(await waterAB(lat, lon).catch(() => null), lat, lon);
       if (prov === "on") return await waterON(lat, lon);
       if (prov === "qc") return await waterQC(lat, lon);
+      if (["nb", "ns", "pe", "nl"].includes(prov)) return await withList(null, lat, lon);
     } catch {}
     return null;
+  }
+  // Fish lists where the province's map has none (alex: "fish lists for Alberta rivers and the Atlantic provinces"):
+  // data/fishing/fishlist.json. Nova Scotia's lake surveys for the lake itself, else every fish recorded within about
+  // 5 km on GBIF.org (museum collections, government surveys, iNaturalist). Sea fish only near salt water. Alberta adds
+  // the fish its regulations name for this water.
+  // Big rivers whose fish are well known but thinly recorded online. [lat, lon, km, name, fish]
+  const FAMOUS = [
+    [46.95, -65.85, 45, "the Miramichi", ["Atlantic Salmon", "Brook Trout", "Striped Bass", "American Shad", "Alewife (Gaspereau)", "Rainbow Smelt"]],
+    [47.9, -66.9, 45, "the Restigouche", ["Atlantic Salmon", "Brook Trout"]],
+    [45.95, -66.5, 60, "the Saint John River", ["Smallmouth Bass", "Muskellunge", "Chain Pickerel", "Yellow Perch", "Striped Bass", "Brook Trout"]],
+    [46.35, -61.05, 20, "the Margaree", ["Atlantic Salmon", "Brook Trout"]],
+    [45.15, -61.95, 20, "St. Mary's River", ["Atlantic Salmon", "Brook Trout", "Smallmouth Bass"]],
+    [49.0, -57.7, 30, "the Humber", ["Atlantic Salmon", "Brook Trout"]],
+    [48.95, -54.65, 35, "the Gander", ["Atlantic Salmon", "Brook Trout"]],
+    [49.0, -55.7, 45, "the Exploits", ["Atlantic Salmon", "Brook Trout"]],
+    [53.54, -113.49, 35, "the North Saskatchewan", ["Walleye", "Sauger", "Northern Pike", "Goldeye", "Lake Sturgeon", "Mooneye"]],
+    [50.95, -113.95, 30, "the Bow below Calgary", ["Rainbow Trout", "Brown Trout", "Mountain Whitefish"]],
+  ];
+  let fishlist = null;
+  const loadFishlist = () => (fishlist ? Promise.resolve(fishlist) : load("fishlist").then((j) => (fishlist = j)));
+  async function withList(w, lat, lon) {
+    const j = await loadFishlist().catch(() => null);
+    const reg = (w && w.regSp) || [];
+    if (!j && !reg.length) return w;
+    const salt = !!nearestTide(lat, lon, 5), name = (i) => j.sp[i][0], ok = (i) => salt || !j.sp[i][2];
+    let lake = null, near = new Set();
+    if (j) {
+      lake = (j.ns || []).map((x) => [x, km(lat, lon, x[0], x[1])]).filter((x) => x[1] < 1.5).sort((a, b) => a[1] - b[1])[0];
+      const r = Math.floor(lat * 20), c = Math.floor(lon * 20);
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const i of j.cells[`${r + a}_${c + b}`] || []) if (ok(i)) near.add(name(i));
+    }
+    const surveyed = lake ? lake[0][3].map(name) : [], lakeName = lake ? titleCase(lake[0][2]) + (/lake|pond|river|brook/i.test(lake[0][2]) ? "" : " Lake") : "";
+    const river = FAMOUS.find((f) => km(lat, lon, f[0], f[1]) < f[2]);
+    const known = river ? river[4] : [];
+    const sp = [...new Set([...reg, ...known, ...surveyed, ...near])].sort();
+    if (!sp.length) return w;
+    const src = [reg.length && "Alberta's regulations for this water", river && `what ${river[3]} is known for`, lake && `Nova Scotia's survey of ${lakeName}`, near.size && "fish recorded within about 5 km (GBIF.org: museum collections, surveys and iNaturalist)"].filter(Boolean);
+    const html = speciesHtml(sp, `From ${src.join(", ")}. Not a guarantee they're there now.`);
+    return { ...(w || { listOnly: true }), name: (w && w.name) || lakeName, sp, html: `${(w && w.html) || ""}${html}` };
   }
   const wfs = (layer, props, filter, count = 1) => getJ(`${WFS}?${new URLSearchParams({ service: "WFS", version: "2.0.0", request: "GetFeature", typeName: layer, outputFormat: "application/json", count: String(count), propertyName: props, CQL_FILTER: filter })}`, 9000)
     .then((j) => (j.features || []).map((f) => f.properties));
@@ -1054,7 +1094,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       }).join("");
       rules = `<h4>${svg(IC.rules, 14)}Rules for ${esc(name || "this water")}</h4>${rules}<p class="fs-note">From Alberta's sportfishing regulations map (green: open today). Check the <a href="https://albertaregulations.ca/fishingregs/" target="_blank" rel="noopener">Alberta Guide to Sportfishing</a> for corrections.</p>`;
     }
-    return { name, html: `<p class="fs-note">${esc(w.FMZ ? `Fish Management Zone ${w.FMZ}` : "")}</p>`, rules };
+    const regSp = Array.isArray(regs) ? [...new Set(regs.flatMap((sec) => (sec.regulations || []).map((r) => titleCase(r.species || "")).filter((n) => n && !/^all\b|^other|sport ?fish|total/i.test(n))))] : [];
+    return { name, html: `<p class="fs-note">${esc(w.FMZ ? `Fish Management Zone ${w.FMZ}` : "")}</p>`, rules, regSp };
   }
   async function waterON(lat, lon) {
     const p = new URLSearchParams({ geometry: `${lon},${lat}`, geometryType: "esriGeometryPoint", inSR: "4326", spatialRel: "esriSpatialRelIntersects",
