@@ -1,0 +1,6 @@
+{
+ "about": "Boat launches missing from OpenStreetMap, added by hand (alex 2026-10-26: Green Lake had none). Edit by hand: [lat, lon, name, note]. The app adds them to the Boat launches layer with the ones in data/fishing/spots.json.",
+ "launches": [
+  [50.1600, -122.9249, "Green Lake Park boat launch", "Ramp, L-shaped pier and rentals off Highway 99 (Summer Lane), Whistler. Motor boats and float planes use the lake: 10 km/h in signed parts."]
+ ]
+}
