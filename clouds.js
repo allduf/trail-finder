@@ -1,12 +1,9 @@
-// Clouds for the trail finder, like Windy's cloud layer: "☁ Clouds" in Layers, in every sport, on the flat and 3D
-// maps. A slim slider at the bottom of the map moves through the next 3 days, hour by hour (▶ plays it).
+// Clouds for the trail finder, like Windy's cloud layer: "☁ Clouds" in Layers, in every sport, on the flat map
+// (not in 3D: alex 2026-10-26). A slim slider at the bottom of the map moves through the next 3 days, hour by hour (▶ plays it).
 // - Now: the real clouds from the GOES weather satellites (NASA GIBS, infrared, every 10 minutes): white where the
 //   cloud tops are cold. GOES-West over the west, GOES-East over the east.
 // - Later hours: the forecast as soft white clouds over a slightly dimmed map, with rain in blue and snow in
 //   purple, fading from one hour to the next (alex 2026-10-24: "i dont like the cloud layer", make it like Windy).
-// - 3D map: the ground that sits inside the cloud at that hour turns foggy white (no view up there), and the ground
-//   under cloud gets a soft shadow. Built from the model's cloud cover at heights from about 500 to 4,200 m and the
-//   real terrain heights, so "in cloud above 1,800 m" shows on the mountains themselves.
 // - "Clouds by height" (in the bar, and in Skiing route and hut details): an hour-by-hour chart of where the cloud
 //   sits against the height of the spot (or the route's top and bottom), with the freezing level, and each hour
 //   marked clear, under the clouds, in the clouds or above the clouds.
@@ -121,19 +118,16 @@
     if (err) throw err;
   }
   function viewBox() {
-    const in3d = !!(window.trailMap3d && map.getContainer().classList.contains("is3d"));
-    return map.getBounds().pad(in3d ? 1.5 : 0.4);   // a tilted 3D view sees far past the flat map's edges
+    return map.getBounds().pad(0.4);
   }
   // The grid on hand still covers what's on screen (with a margin) at the same spacing: keep it. Building a new
-  // one redraws every 3D tile, and the 3D map moves the flat map on every turn (alex 2026-10-24: "my computer was
-  // working hard").
+  // one redraws the whole picture (alex 2026-10-24: "my computer was working hard").
   const covers = (f, b) => f.i0 * f.step <= b.getSouth() && (f.i0 + f.nI - 1) * f.step >= b.getNorth()
     && f.j0 * f.step * LON_K <= b.getWest() && (f.j0 + f.nJ - 1) * f.step * LON_K >= b.getEast();
   function refresh() {
-    if (!on) return;
+    if (!on || is3d()) return;
     const g = pickGrid(viewBox());
-    const in3d = map.getContainer().classList.contains("is3d");
-    if (field && !loading && field.step === g.step && Date.now() - field.at < KEEP_MS && covers(field, map.getBounds().pad(in3d ? 0.6 : 0.1))) return;
+    if (field && !loading && field.step === g.step && Date.now() - field.at < KEEP_MS && covers(field, map.getBounds().pad(0.1))) return;
     const want = [];
     for (let i = g.i0; i < g.i0 + g.nI; i++) for (let j = g.j0; j < g.j0 + g.nJ; j++) {
       const key = keyOf(g.step, i, j), p = pts.get(key);
@@ -147,7 +141,7 @@
       draw();
     };
     if (!want.length) { if (!field || field.step !== g.step || field.i0 !== g.i0 || field.j0 !== g.j0 || field.nI !== g.nI || field.nJ !== g.nJ) build(); return; }
-    const mine = (loading = getPoints(want, () => { if (loading === mine && on && (!field || !map.getContainer().classList.contains("is3d"))) build(); }).then(() => { note = ""; }, (e) => { note = `Couldn't load all the clouds (${e.message}).`; }));
+    const mine = (loading = getPoints(want, () => { if (loading === mine && on) build(); }).then(() => { note = ""; }, (e) => { note = `Couldn't load all the clouds (${e.message}).`; }));
     setNote();
     mine.then(() => { if (loading !== mine) return; loading = null; if (on) build(); setNote(); });
   }
@@ -345,140 +339,15 @@
   const useSat = () => hour === 0 && !!(satTime.west || satTime.east);
   const satLabel = () => { const t = satTime.west || satTime.east; return t ? new Date(t).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" }).replace(/\s?([ap])\.?m\.?/i, " $1m") : ""; };
 
-  // ---------- 3D map: the ground inside the cloud ----------
-  // tfcloud://<field version>/<hour>/z/x/y: a see-through picture draped on the mountains, misty white where the
-  // ground is in the cloud and a faint shadow where there's cloud overhead (alex 2026-10-24: the first version was
-  // "really heavy"). Terrain heights from AWS Terrain Tiles (Mapzen). The source asks for 512 px tiles but gets
-  // 128 px pictures (mist doesn't need detail; the map smooths them) and stops at zoom 11: few, small tiles (phone
-  // memory). They're drawn in a background worker, so turning the map and playing the hours stay smooth.
-  function fogEngine() {
-    "use strict";
-    const SIZE = 128;
-    const AWS = (z, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
-    const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
-    const unmerc = (y) => (360 / Math.PI) * Math.atan(Math.exp((0.5 - y) * 2 * Math.PI)) - 90;
-    const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-    const sm = (t) => t * t * (3 - 2 * t);
-    const noise = (x, y) => { const ix = Math.floor(x), iy = Math.floor(y), fx = sm(x - ix), fy = sm(y - iy); return (hash(ix, iy) * (1 - fx) + hash(ix + 1, iy) * fx) * (1 - fy) + (hash(ix, iy + 1) * (1 - fx) + hash(ix + 1, iy + 1) * fx) * fy; };
-    const dems = new Map();
-    // Heights at SIZE x SIZE, every other pixel of the 256 px tile (no smoothing: it would scramble the colour code).
-    function dem(z, x, y) {
-      const key = `${z}/${x}/${y}`;
-      if (dems.has(key)) { const p = dems.get(key); dems.delete(key); dems.set(key, p); return p; }
-      const p = fetch(AWS(z, x, y)).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); }).then((b) => createImageBitmap(b)).then((bmp) => {
-        const cv = new OffscreenCanvas(256, 256), c = cv.getContext("2d", { willReadFrequently: true });
-        c.imageSmoothingEnabled = false;
-        c.drawImage(bmp, 0, 0, 256, 256); bmp.close && bmp.close();
-        const d = c.getImageData(0, 0, 256, 256).data, e = new Int16Array(SIZE * SIZE), k = 256 / SIZE;
-        for (let j = 0; j < SIZE; j++) for (let i = 0; i < SIZE; i++) {
-          const o = ((j * k) * 256 + i * k) * 4;
-          e[j * SIZE + i] = Math.max(-32768, Math.min(32767, Math.round(d[o] * 256 + d[o + 1] + d[o + 2] / 256 - 32768)));
-        }
-        return e;
-      });
-      p.catch(() => dems.delete(key));
-      dems.set(key, p);
-      if (dems.size > 60) dems.delete(dems.keys().next().value);
-      return p;
-    }
-    // g: { step, lonK, i0, j0, nI, nJ, cc: Float32Array, lev: [Float32Array], hts: [m] } for one hour.
-    return async function draw(g, z, x, y) {
-      const img = new ImageData(SIZE, SIZE), px = img.data, n = 2 ** z, L = g.lev.length, levs = new Array(L);
-      const e = await dem(z, x, y).catch(() => null);
-      for (let py = 0; py < SIZE; py++) {
-        const lat = unmerc((y + (py + 0.5) / SIZE) / n), fi = lat / g.step - g.i0;
-        if (fi < 0 || fi > g.nI - 1) continue;
-        for (let pq = 0; pq < SIZE; pq++) {
-          const lon = ((x + (pq + 0.5) / SIZE) / n) * 360 - 180, fj = lon / (g.step * g.lonK) - g.j0;
-          if (fj < 0 || fj > g.nJ - 1) continue;
-          const i = Math.max(0, Math.min(g.nI - 2, Math.floor(fi))), j = Math.max(0, Math.min(g.nJ - 2, Math.floor(fj)));
-          const u = g.nI > 1 ? fi - i : 0, w = g.nJ > 1 ? fj - j : 0;
-          const k00 = i * g.nJ + j, k01 = g.nJ > 1 ? k00 + 1 : k00, k10 = g.nI > 1 ? k00 + g.nJ : k00, k11 = g.nI > 1 ? k01 + g.nJ : k01;
-          const at = (a) => { const v = (a[k00] * (1 - w) + a[k01] * w) * (1 - u) + (a[k10] * (1 - w) + a[k11] * w) * u; return Number.isNaN(v) ? 0 : v; };
-          const fade = clamp01(Math.min(fi, g.nI - 1 - fi, fj, g.nJ - 1 - fj) / 0.6 + (g.nI < 3 || g.nJ < 3 ? 1 : 0));
-          const cc = clamp01(at(g.cc) / 100);
-          let a = 0.12 * cc, r = 40, gg = 50, b = 64;   // a faint shade from cloud overhead
-          if (e) {
-            for (let k = 0; k < L; k++) levs[k] = at(g.lev[k]);
-            const h = e[py * SIZE + pq];
-            let inC;
-            if (h <= g.hts[0]) inC = levs[0];
-            else if (h >= g.hts[L - 1]) inC = levs[L - 1] * Math.max(0, 1 - (h - g.hts[L - 1]) / 1500);
-            else for (let k = 1; k < L; k++) if (h <= g.hts[k]) { const t = (h - g.hts[k - 1]) / (g.hts[k] - g.hts[k - 1]); inC = levs[k - 1] * (1 - t) + levs[k] * t; break; }
-            // Grey mist, not a white sheet (white vanished on snow): at most about 60%, so the ridges still read under it. From 30% cover at that
-            // height, full from 60% (50% is already "in the cloud" for the chart and the line in the bar).
-            const f = clamp01((inC - 30) / 30) * 0.62 * (0.8 + 0.3 * noise(lon * 60, lat * 90));
-            if (f > 0) { const t = Math.min(1, f / Math.max(0.01, f + a * (1 - f))); r = r * (1 - t) + 196 * t; gg = gg * (1 - t) + 204 * t; b = b * (1 - t) + 216 * t; a = f + a * (1 - f); }
-          }
-          const o = (py * SIZE + pq) * 4;
-          px[o] = r; px[o + 1] = gg; px[o + 2] = b; px[o + 3] = Math.round(clamp01(a) * fade * 255);
-        }
-      }
-      return createImageBitmap(img);
-    };
-  }
-  // One worker draws the tiles; the hour's grid is sent to it once. Old browsers draw them here instead.
-  let fogWorker = null, fogLocal = null, fogNext = 0, sentKey = "";
-  const fogWait = new Map();
-  try {
-    if (window.Worker && window.OffscreenCanvas) {
-      const code = `${fogEngine.toString()}
-const draw = fogEngine(), grids = new Map();
-onmessage = async (e) => {
-  const m = e.data;
-  if (m.grid) { grids.set(m.key, m.grid); if (grids.size > 4) grids.delete(grids.keys().next().value); return; }
-  const g = grids.get(m.key);
-  let bmp = null;
-  try { if (g) bmp = await draw(g, m.z, m.x, m.y); } catch {}
-  postMessage({ id: m.id, bmp }, bmp ? [bmp] : []);
-};`;
-      fogWorker = new Worker(URL.createObjectURL(new Blob([code], { type: "text/javascript" })));
-      fogWorker.onmessage = (e) => { const r = fogWait.get(e.data.id); if (r) { fogWait.delete(e.data.id); r(e.data.bmp); } };
-    }
-  } catch { fogWorker = null; }
-  function hourGrid(h) {
-    const H = gridAt(h);
-    return H && { step: field.step, lonK: LON_K, i0: field.i0, j0: field.j0, nI: field.nI, nJ: field.nJ, cc: H.g[V.cc], lev: LEVELS.map((_, k) => H.g[V.lev + k]), hts: LEVELS.map(([, m]) => m) };
-  }
-  async function fogTile(h, z, x, y) {
-    const empty = () => createImageBitmap(new ImageData(1, 1));
-    if (!field) return empty();
-    const key = `${field.ver}/${h}`;
-    if (!fogWorker) { fogLocal = fogLocal || fogEngine(); const g = hourGrid(h); return g ? fogLocal(g, z, x, y) : empty(); }
-    if (sentKey !== key) { const g = hourGrid(h); if (!g) return empty(); fogWorker.postMessage({ grid: g, key }); sentKey = key; }
-    const id = fogNext++;
-    const bmp = await new Promise((ok) => { fogWait.set(id, ok); fogWorker.postMessage({ id, key, z, x, y }); });
-    return bmp || empty();
-  }
-  let protocol = false;
-  const tilesUrl = () => `tfcloud://${field ? field.ver : 0}/${hour}/{z}/{x}/{y}`;
-  function sync3d() {
-    const gl = window.trailMap3d;
-    if (!gl || !window.maplibregl) return;
-    if (!protocol) {
-      protocol = true;
-      maplibregl.addProtocol("tfcloud", async (params) => {
-        const [, h, z, x, y] = params.url.replace("tfcloud://", "").split("/").map(Number);
-        return { data: await fogTile(h, z, x, y) };
-      });
-    }
-    const apply = () => {
-      if (!on || !field) { if (gl.getLayer("clouds")) gl.removeLayer("clouds"); if (gl.getSource("clouds")) gl.removeSource("clouds"); return; }
-      const src = gl.getSource("clouds");
-      if (src) { if (src._clUrl !== tilesUrl()) { src._clUrl = tilesUrl(); src.setTiles([tilesUrl()]); } return; }
-      gl.addSource("clouds", { type: "raster", tiles: [tilesUrl()], tileSize: 512, maxzoom: 11, attribution: ATTR });
-      gl.getSource("clouds")._clUrl = tilesUrl();
-      // With the other pictures on the ground, before the road and trail lines (one set of paint buffers: phone memory).
-      const before = ["osm-roads", "lines"].find((id) => gl.getLayer(id));
-      gl.addLayer({ id: "clouds", type: "raster", source: "clouds", paint: { "raster-fade-duration": 0 } }, before);
-    };
-    try { apply(); } catch { gl.once("style.load", () => { try { apply(); } catch {} }); }
-  }
-  window.addEventListener("tf:map3d", () => setTimeout(() => { sync3d(); if (on) refresh(); }, 0));
-  if ($("btn3d")) $("btn3d").addEventListener("click", () => setTimeout(() => { if (on) { refresh(); draw(); } }, 50));
+  // ---------- not on the 3D map ----------
+  // The clouds are for the flat map only (alex 2026-10-26: "i dont want to see the interactif cloud in the 3d map").
+  // Until then the 3D map had misty ground inside the cloud (tfcloud:// tiles drawn in a worker). In 3D the bar
+  // hides and nothing loads; back on the flat map they show again if the layer is still on.
+  const is3d = () => map.getContainer().classList.contains("is3d");
+  new MutationObserver(() => { if (!on) return; stop(); bar.hidden = is3d(); if (!is3d()) { refresh(); draw(); } else show2d(); })
+    .observe(map.getContainer(), { attributes: true, attributeFilter: ["class"] });
 
   // ---------- drawing ----------
-  let draw3dTimer = 0;
   // Two pictures take turns, so one hour fades into the next instead of jumping.
   const cvs = [document.createElement("canvas"), document.createElement("canvas")], overlays = [null, null];
   let front = 0;
@@ -506,10 +375,6 @@ onmessage = async (e) => {
         front = k;
       }
     }
-    if (!field) { here(); return; }
-    // The 3D pictures are slower to make: wait until the slider rests a moment.
-    clearTimeout(draw3dTimer);
-    draw3dTimer = setTimeout(sync3d, playing ? 0 : 400);
     here();
     window.dispatchEvent(new CustomEvent("tf:cloudhour", { detail: hour }));
   }
@@ -545,8 +410,7 @@ onmessage = async (e) => {
     if (playing) return stop();
     if (hour >= HOURS) setHour(0);
     playBtn.textContent = "❚❚"; playBtn.setAttribute("aria-label", "Pause");
-    const in3d = map.getContainer().classList.contains("is3d");
-    playing = setInterval(() => { if (hour >= HOURS) stop(); else setHour(hour + 1); }, in3d ? 1400 : 600);
+    playing = setInterval(() => { if (hour >= HOURS) stop(); else setHour(hour + 1); }, 600);
   });
   $("clClose").addEventListener("click", () => btn.click());
 
@@ -554,8 +418,8 @@ onmessage = async (e) => {
   // One short line under the slider: what you're looking at, and the forecast at the map centre.
   function here() {
     const el = $("clHere");
-    const sat = useSat(), in3d = map.getContainer().classList.contains("is3d");
-    const lead = sat && !in3d ? `Satellite ${satLabel()}` : hour === 0 ? "Forecast now" : "Forecast";
+    const sat = useSat();
+    const lead = sat ? `Satellite ${satLabel()}` : hour === 0 ? "Forecast now" : "Forecast";
     const H = gridAt(hour), c = map.getCenter(), at = H && sampler(c.lat, c.lng);
     if (!at) { el.textContent = note || (loading ? `${lead} · loading…` : lead); return; }
     const cc = at(H.g[V.cc]), pr = at(H.g[V.pr]), sn = at(H.g[V.sn]);
@@ -563,7 +427,7 @@ onmessage = async (e) => {
     const base = LEVELS.find((_, k) => levs[k] >= IN_CLOUD);
     const bits = [lead, `${Math.round(cc)}% cloud`];
     if (pr >= 0.1) bits.push(sn > 0.05 && sn * 7 >= pr * 0.5 ? `snow ${sn.toFixed(1)} cm/h` : `rain ${pr.toFixed(1)} mm/h`);
-    if (base) bits.push(base[1] <= 600 ? "cloud down to the valleys" : `in cloud above ${fmtM(Math.round(base[1] / 100) * 100)}${in3d ? " (grey mist)" : ""}`);
+    if (base) bits.push(base[1] <= 600 ? "cloud down to the valleys" : `in cloud above ${fmtM(Math.round(base[1] / 100) * 100)}`);
     el.textContent = bits.join(" · ") + (note ? ". " + note : "");
     if (!$("clMore").hidden) chartHere();
   }
@@ -723,7 +587,7 @@ onmessage = async (e) => {
   // ---------- the button ----------
   const btn = document.createElement("button");
   btn.id = "cloudBtn"; btn.type = "button"; btn.setAttribute("aria-pressed", "false");
-  btn.title = "Clouds, rain and snow now and for the next 3 days, on the flat and 3D maps";
+  btn.title = "Clouds, rain and snow now and for the next 3 days, on the flat map";
   btn.textContent = "☁ Clouds";
   const list = document.querySelector("#layersMenu .lm-overlays");
   const after = $("firesBtn");
@@ -732,7 +596,7 @@ onmessage = async (e) => {
   function apply() {
     btn.classList.toggle("on", on);
     btn.setAttribute("aria-pressed", String(on));
-    bar.hidden = !on;
+    bar.hidden = !on || is3d();
     if (on) {
       if (!baseT || nowHour() !== baseT) { baseT = nowHour(); hourCache = null; }
       whenEl.textContent = label(hour);
@@ -742,7 +606,6 @@ onmessage = async (e) => {
     } else {
       stop();
       show2d();
-      sync3d();
     }
   }
   btn.addEventListener("click", () => { on = !on; store.set("clouds", on); apply(); });
