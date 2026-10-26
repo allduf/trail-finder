@@ -14,7 +14,7 @@
 set -euo pipefail
 BRANCH=site-data
 # Edited by hand (or by a script run by hand), so they stay in main and never go to the branch.
-KEEP=(data/fishing-hidden.json data/loam-soil.json data/trail-info.json data/riding-areas.json data/winter-scenes.json data/snowmobile-clubs.json data/landmarks.json data/rogers-pass.json data/slackcountry.json data/ski-lifts.json)
+KEEP=(data/fishing-hidden.json data/fishing-launches.json data/loam-soil.json data/trail-info.json data/riding-areas.json data/winter-scenes.json data/snowmobile-clubs.json data/landmarks.json data/rogers-pass.json data/slackcountry.json data/ski-lifts.json)
 LAST=refs/site-data/last   # the data the job started from (build-new-trails.mjs compares tonight's trails with it)
 
 export GIT_AUTHOR_NAME="github-actions[bot]" GIT_AUTHOR_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"

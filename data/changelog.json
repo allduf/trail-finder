@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-26", "text": "Fishing: the Green Lake boat launch is now in the right place, and more launches mapped as parks or piers show up"},
     {"date": "2026-10-26", "text": "New 🏍 Moto mode: dirt roads graded for your bike, mud, fuel range and route planner"},
     {"date": "2026-10-26", "text": "All of Canada: trail closures for every BC park, 26 national parks and Ontario Parks, e-bike rules outside BC and Alberta, Quebec logging areas, ski resort runs, groomed nordic and snowmobile trails everywhere, and snow stations outside BC"},
     {"date": "2026-10-26", "text": "Fishing: a Rules map like Hunting (regions, zones, national parks, Quebec zecs and reserves), a Buy a licence link for your province, boating limits on every restricted lake, and more boat launches"},

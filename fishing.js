@@ -506,7 +506,11 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       for (const [lat, lon, k, name, facts, src] of j.spots || []) access.set(`${lat},${lon},${k}`, { lat, lon, kind: KIND[k] || "fishing", name: name || "", facts: facts || "", src: src === "on" ? "Ontario" : src === "bc" ? "BC coastal launches" : "OpenStreetMap" });
       // Launches missing from OpenStreetMap, added by hand (data/fishing-launches.json).
       const hand = await fetch("data/fishing-launches.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : { launches: [] })).catch(() => ({ launches: [] }));
-      for (const [lat, lon, name, facts] of hand.launches || []) access.set(`${lat},${lon},2`, { lat, lon, kind: "launch", name, facts, src: "added by hand" });
+      // A hand-added launch replaces any launch from the data within about 200 m (it was checked on the map).
+      for (const [lat, lon, name, facts] of hand.launches || []) {
+        for (const [key, a] of access) if (a.kind === "launch" && Math.abs(a.lat - lat) < 0.002 && Math.abs(a.lon - lon) < 0.003) access.delete(key);
+        access.set(`${lat},${lon},2`, { lat, lon, kind: "launch", name, facts, src: "added by hand" });
+      }
       accTiles.add("all");
       drawPoints();
     } catch {} finally { accBusy = false; }
