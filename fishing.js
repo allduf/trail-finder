@@ -40,7 +40,7 @@
   const QC_EXC = "https://peche.faune.gouv.qc.ca/arcgiswa/rest/services/PRODC-E/PlansEauExceptions/MapServer/2";
   const ACC = "#0c8599";   // the Fishing accent (deep teal)
   const C = { vlow: "#f59f00", low: "#94d82d", ok: "#2f9e44", high: "#f76707", blown: "#e03131", none: "#868e96", stocked: "#1971c2", fresh: "#e64980",
-    access: "#7048e8", tide: "#0b7285", zone: "#1864ab" };
+    access: "#7048e8", tide: "#0b7285", zone: "#1864ab", hidden: "#0ca678" };
   const timeout = (ms) => (AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined);
   const getJ = (url, ms = 12000) => fetch(url, { signal: timeout(ms) }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
   const km = (a, b, c, d) => map.distance([a, b], [c, d]) / 1000;
@@ -73,17 +73,22 @@
     gauges: { g: "Water", label: "River flow gauges", sub: "Live flow, coloured from too low to blown out", on: true, minZoom: 7, icon: [C.ok, "dot"] },
     stocked: { g: "Water", label: "Stocked lakes and rivers", sub: "Pink: stocked in the last 30 days", on: true, minZoom: 6, icon: [C.stocked, "dot"] },
     depth: { g: "Water", label: "Lake depth lines (BC)", sub: "About 2,600 surveyed lakes", minZoom: 12, icon: ["#1c7ed6", "line"] },
+    hidden: { g: "Access", label: "Hidden spots", sub: "Walk-in stocked lakes and hike-in waters few people fish", on: true, minZoom: 6, icon: [C.hidden, "dot"] },
     access: { g: "Access", label: "Fishing spots and boat launches", sub: "Public spots, piers and launches all over Canada", on: true, minZoom: 8, icon: ["#9775fa", "dot"] },
     tides: { g: "Ocean", label: "Tide stations", sub: "Tap one for the next high and low tides", on: true, minZoom: 6, icon: [C.tide, "dot"] },
     zones: { g: "Rules", label: "Fishing zones and regions", sub: "The areas the rules are written for", icon: [C.zone, "dash"] },
   };
   const GROUPS = ["Water", "Access", "Ocean", "Rules"];
   const VIEWS = {
-    river: { label: "Rivers", sub: "flow, spots", layers: ["gauges", "access", "zones"] },
-    lake: { label: "Lakes", sub: "stocked, depth", layers: ["stocked", "depth", "access"] },
+    river: { label: "Rivers", sub: "flow, spots", layers: ["gauges", "access", "hidden", "zones"] },
+    lake: { label: "Lakes", sub: "stocked, depth", layers: ["stocked", "depth", "access", "hidden"] },
     ocean: { label: "Ocean", sub: "tides, areas", layers: ["tides", "access", "zones"] },
   };
   let shown = new Set(store.get("fishLayers", Object.keys(LAYERS).filter((k) => LAYERS[k].on)));
+  // A layer added since the last visit shows if it's on by default (the saved list only knows the old ones).
+  const knownLayers = store.get("fishLayersKnown", ["gauges", "stocked", "depth", "access", "tides", "zones"]);
+  for (const k of Object.keys(LAYERS)) if (LAYERS[k].on && !knownLayers.includes(k)) shown.add(k);
+  store.set("fishLayersKnown", Object.keys(LAYERS));
 
   // ---------- look ----------
   const css = document.createElement("style");
@@ -266,6 +271,13 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     load("gauges").then((j) => { gauges = j.gauges; }).catch(() => {}),
     load("tides").then((j) => { tides = j.stations; }).catch(() => {}),
   ]);
+  // Hidden spots: stocked lakes with no road near them (data/fishing/walkin.json, built by scripts/build-fishing.mjs)
+  // and waters picked by hand from park pages and regulations (data/fishing-hidden.json, edited by hand).
+  let hidden = [];
+  const hiddenReady = Promise.all([
+    load("walkin").then((j) => j.w.map(([lat, lon, n, p, km, ha]) => ({ lat, lon, n, p, km, ha, walk: true }))).catch(() => []),
+    fetch("data/fishing-hidden.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : { spots: [] })).then((j) => j.spots.map((x) => ({ ...x, lat: x.c[0], lon: x.c[1] }))).catch(() => []),
+  ]).then(([w, h]) => { hidden = [...h, ...w.filter((x) => !h.some((y) => Math.abs(y.lat - x.lat) < 0.01 && Math.abs(y.lon - x.lon) < 0.015))]; drawPoints(); });
   const loadZones = () => (zones ? Promise.resolve(zones) : load("zones").then((j) => (zones = j.zones)).catch(() => []));
 
   // The province for links when no zone file covers the spot (rough lines, only to pick which rules to point to).
@@ -452,6 +464,9 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
         dot(w.c[0], w.c[1], d != null && d <= 30 ? C.fresh : C.stocked, z >= 11 ? 7 : 5, () => openWater(w), `${w.n}${d != null ? ` · stocked ${d <= 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`}` : ""}`, "stocked");
       }
     }
+    if (shown.has("hidden") && z >= LAYERS.hidden.minZoom) {
+      for (const h of hidden) if (b.contains([h.lat, h.lon])) dot(h.lat, h.lon, C.hidden, z >= 11 ? 8 : 6, () => openHidden(h), `${h.n} · ${hiddenWhy(h)}`, "hidden");
+    }
     if (shown.has("gauges") && gauges && z >= LAYERS.gauges.minZoom) {
       for (const g of gauges) {
         if (!b.contains([g[2], g[3]])) continue;
@@ -532,6 +547,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const i = (c) => `<i style="background:${c}"></i>`;
     box.innerHTML = (shown.has("gauges") ? `<b>River gauges: flow for the month</b>${["vlow", "low", "ok", "high", "blown", "none"].map((k) => `<div>${i(LIGHTS[k][1])}${LIGHTS[k][0]}</div>`).join("")}` : "")
       + (shown.has("stocked") ? `<b>Stocked waters</b><div>${i(C.fresh)}Stocked in the last 30 days</div><div>${i(C.stocked)}Stocked in the last 3 years</div>` : "")
+      + (shown.has("hidden") ? `<b>Hidden spots</b><div>${i(C.hidden)}Walk-in or hike-in water</div>` : "")
       + (shown.has("access") ? `<b>Fishing spots</b><div>${i("#9775fa")}Fishing spot, pier or dock</div><div>${i(C.access)}Boat launch</div>` : "")
       + (shown.has("tides") ? `<b>Ocean</b><div>${i(C.tide)}Tide station</div>` : "")
       + (shown.has("zones") ? `<b>Rules</b><div><i style="border:2px dashed ${C.zone};border-radius:2px"></i>Fishing zone or region</div><div><i style="border:2px dashed ${C.tide};border-radius:2px"></i>Pacific tidal area</div>` : "")
@@ -592,7 +608,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const el = $("fsSpot"), seq = ++spotSeq;
     el.hidden = false;
     el.innerHTML = `<header>${svg(IC.pin)}<h3 id="fsSpotName">${esc(title || "This spot")}</h3><button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header>
-      <div id="fsWater"><p class="fs-note fs-look">Looking up this spot…</p></div><div id="fsBait"></div>
+      <div id="fsHidden"></div><div id="fsWater"><p class="fs-note fs-look">Looking up this spot…</p></div><div id="fsBait"></div>
       <div id="fsRules"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsAcc"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
     cardInView(el);
@@ -832,6 +848,21 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   const accessFacts = (a) => [a.kind === "launch" ? "boat launch" : a.kind === "pier" ? "pier or dock" : "fishing spot", a.facts, a.src].filter(Boolean).join(", ");
 
   // Opening one pin: the spot card for that place, titled with its name.
+  // A hidden spot: the usual spot card, with why it's quiet, how to get in and where the information comes from on top.
+  const hiddenWhy = (h) => (h.walk ? `stocked, no road within ${h.km} km` : h.tag || "hidden spot");
+  function openHidden(h) {
+    setSpot(h.lat, h.lon, "tap");
+    showSpot(h.lat, h.lon, h.n);
+    const el = $("fsHidden");
+    if (!el) return;
+    const body = h.walk
+      ? `<p>Stocked, and no road reaches it: the nearest mapped road is more than ${h.km} km from the shore (${h.p === "bc" ? "BC Digital Road Atlas and forest roads" : "Ontario Road Network and MNRF forest roads"}), so few anglers make the walk. Old trails and decommissioned roads may still get you close: check the map and Route there.</p>`
+        + `<p class="fs-note">${h.ha < 1 ? "A pond" : `About ${h.ha < 10 ? h.ha : Math.round(h.ha)} ha`}. The stocking is in the Stocked section below.</p>`
+      : `${h.fish ? `<p><b>Fish:</b> ${esc(h.fish)}</p>` : ""}${h.how ? `<p><b>Getting there:</b> ${esc(h.how)}</p>` : ""}${h.tip ? `<p>${esc(h.tip)}</p>` : ""}`
+        + `<p class="fs-note">From ${h.src.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`).join(", ")}. Check the rules below before you go.</p>`;
+    const qc = h.p === "qc" ? `<p class="fs-note">More quiet brook trout lakes: catch numbers for every lake in Quebec's zecs and wildlife reserves on <a href="https://www.geopratic.com/spoltf/" target="_blank" rel="noopener">SPOLTF</a>.</p>` : "";
+    el.innerHTML = fold("hidden", IC.star, "Hidden spot", esc(h.walk ? `no road within ${h.km} km` : [h.tag, h.fish && h.fish.split(/[,(]/)[0].toLowerCase()].filter(Boolean).join(", ")), body + qc, true);
+  }
   function openWater(w) { setSpot(w.c[0], w.c[1], "tap"); showSpot(w.c[0], w.c[1], w.n); }
   function openGauge(g) {
     setSpot(g[2], g[3], "tap");
