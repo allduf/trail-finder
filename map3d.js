@@ -288,7 +288,7 @@
   // photos: open ground, clearings and alpine go white, dark conifer forest keeps its trees with only a
   // dusting, and cliffs too steep to hold snow stay rock. The hillshade layer adds the relief.
   const ESRI_NOW = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-  let summerTiles = ESRI_NOW, summerNum = 0;   // Esri's newest photos, or an older summer one here (summerHere below)
+  let summerTiles = ESRI_NOW;   // Esri's newest photos, or an older summer one here (summerHere below)
   const ESRI = (z, x, y) => summerTiles.replace("{z}", z).replace("{y}", y).replace("{x}", x);
   const LIVE_DAY = new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10);   // NASA posts with a delay
   const NASA_SNOW = (z, x, y) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDSI_Snow_Cover/default/${LIVE_DAY}/GoogleMapsCompatible_Level8/${z}/${y}/${x}.png`;
@@ -312,7 +312,18 @@
   const smooth = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
   // The summer photo for a snow tile: the picked older summer photo, else (if Esri's archive won't send it) the newest
   // one, so a tile never comes back empty (that left holes in the 3D ground, alex 2026-10-24).
-  const getBytes = (url, sig) => fetch(url, { signal: sig }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); });
+  // A photo that fails to download (a dropped connection, or Esri saying "too many requests" while hundreds of tiles
+  // load at once) is asked again twice before giving up: a failed tile stays a blank square in the 3D ground.
+  const getBytes = async (url, sig) => {
+    for (let n = 0; ; n++) {
+      try {
+        const r = await fetch(url, { signal: sig });
+        if (r.ok) return await r.arrayBuffer();
+        if (r.status === 404 || n >= 2) throw new Error(`HTTP ${r.status}`);
+      } catch (e) { if (sig.aborted || n >= 2 || /^HTTP/.test(e.message)) throw e; }
+      await new Promise((ok) => setTimeout(ok, 600 * (n + 1) ** 2));
+    }
+  };
   const tileBytes = (z, x, y, sig) => getBytes(ESRI(z, x, y), sig).catch((e) => {
     if (sig.aborted || summerTiles === ESRI_NOW) throw e;
     return getBytes(ESRI_NOW.replace("{z}", z).replace("{y}", y).replace("{x}", x), sig);
@@ -422,7 +433,9 @@
   // Summer showed spring snow and looked just like Live (alex, 2026-10-24). Esri keeps its older photos (World
   // Imagery Wayback, as in Old vs new photos): where the newest photo here wasn't taken June to September, the
   // newest older one that was is used instead (else one from October, then May). Picked for the zoom-11 square
-  // (about 15 km) in the middle of the view; Live paints today's snow on the same photo.
+  // (about 15 km) in the middle of the view; Live paints today's snow on the same photo. A new pick only changes
+  // the tiles that load after it: swapping it into the whole map made every photo tile download again after each
+  // move (hundreds at once), and the ones that failed stayed blank (alex, 2026-10-26).
   const WAYBACK = "https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json";
   const WB_TILEMAP = "https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tilemap";
   let waybackList = null, liveTiles = 0, liveSnowy = 0;
@@ -467,10 +480,7 @@
   async function summerHere() {
     if (!gl) return;
     const c = gl.getCenter(), r = await summerAt(c.lng, c.lat), tiles = r ? r.tiles : ESRI_NOW;
-    if (!gl || tiles === summerTiles) return;
-    summerTiles = tiles; summerNum = r ? r.num : 0;
-    gl.getSource("sat")?.setTiles([`tfsat://{z}/{x}/{y}/${summerNum}`]);
-    for (const id of ["live", "fill"]) gl.getSource(id)?.setTiles([`tfwinter://${id}/{z}/{x}/{y}/${summerNum}`]);
+    if (gl) summerTiles = tiles;
   }
 
   // Last winter's photos cover the riding areas from the Sunshine Coast to the Rockies (scripts/winter-photos);
@@ -506,7 +516,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=456");
+      const w = new Worker("winter-hd.js?v=457");
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return;
@@ -600,13 +610,13 @@
           // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above). Not on phones,
           // where the extra tiles would use the memory iPhone Safari runs out of.
           ...(PHONE ? {} : { winterhd: { type: "raster", tileSize: 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] } }),
-          live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: [`tfwinter://live/{z}/{x}/{y}/${summerNum}`],
+          live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           // Under the Winter photos instead of the summer ones: today's snow wherever last winter's photos don't reach.
-          fill: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: [`tfwinter://fill/{z}/{x}/{y}/${summerNum}`],
+          fill: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://fill/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           shade: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: 14, tiles: ["tfdem://{z}/{x}/{y}"] },
-          sat: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: [`tfsat://{z}/{x}/{y}/${summerNum}`],
+          sat: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfsat://{z}/{x}/{y}"],
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
           // Sharp place, peak and lake names from OpenFreeMap (free, no key), instead of blurry label pictures.
           names: { type: "vector", url: "https://tiles.openfreemap.org/planet", attribution: "<a href=\"https://openfreemap.org\">OpenFreeMap</a>" },
@@ -740,6 +750,23 @@
     gl.on("idle", () => { if (photos === "live") winterHere(); });
     gl.on("moveend", summerHere);
     summerHere();
+    // A photo tile that still failed (see getBytes) is asked again once the map is still, up to 3 times, instead of
+    // staying a flat blue-grey square in the ground (alex, 2026-10-26: big empty squares zoomed out and at Sutton).
+    const tileTries = new Map();
+    gl.on("idle", () => {
+      for (const id of ["sat", "fill", "live"]) {
+        const m = gl.style?.tileManagers?.[id], tiles = m?._inViewTiles;
+        if (!tiles || typeof m._reloadTile !== "function") continue;
+        for (const t of tiles.getAllIds()) {
+          if (tiles.getTileById(t)?.state !== "errored") continue;
+          const k = id + t, n = tileTries.get(k) || 0;
+          if (n >= 3) continue;
+          if (tileTries.size > 2000) tileTries.clear();
+          tileTries.set(k, n + 1);
+          setTimeout(() => { try { if (tiles.getTileById(t)?.state === "errored") m._reloadTile(t, "expired"); } catch {} }, 1000 * (n + 1));
+        }
+      }
+    });
     sumBtn.addEventListener("click", () => setPhotos("sharp"));
     winBtn.addEventListener("click", () => setPhotos("winter"));
     liveBtn.addEventListener("click", () => setPhotos("live"));
