@@ -669,10 +669,16 @@
     } catch {}
   }
   (() => {
+    // A line layer that first appears while 3D is on sets itself up once (its lines need the area it covers).
     const pause = (P, name, also) => {
       const f = P && P[name];
       if (typeof f !== "function" || f.rests) return;
-      P[name] = function () { if (restFlat) { if (also) also.call(this); return; } return f.apply(this, arguments); };
+      P[name] = function () {
+        if (restFlat && (this._bounds || !(this instanceof L.Renderer))) { if (also) also.call(this); return; }
+        const r = f.apply(this, arguments);
+        if (restFlat && also) also.call(this);
+        return r;
+      };
       P[name].rests = true;
     };
     pause(L.Canvas && L.Canvas.prototype, "_update", function () { if (this._container && this._container.width > 1) this._container.width = this._container.height = 1; });
