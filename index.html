@@ -5628,7 +5628,14 @@ out body;`;
     unknown: { color: "#8a8f98", dashArray: "9 6" }, good: { color: "#2e9e5b" }, degraded: { color: "#f2b705" }, heavy: { color: "#d62828" },
     closed: { color: "#b5179e", dashArray: "12 6" }, impass: { color: "#111", dashArray: "4 5" },
   };
-  const roadStyle = (st) => ({ weight: 5, opacity: 1, ...ROAD_STYLE[st], color: ROAD_STYLE[st].color.startsWith("--") ? css(ROAD_STYLE[st].color) : ROAD_STYLE[st].color });
+  // Thin like a real road on the map (alex 2026-10-26: the thick bands looked heavy): 2.5 px zoomed out, up to 4.5 px close in.
+  // Dashes are drawn in the 5 px widths they were made for, scaled down with the line.
+  const roadWidth = (z = map.getZoom()) => Math.max(2.5, Math.min(4.5, (z - 6) / 2));
+  const roadStyle = (st, w = roadWidth()) => {
+    const s = ROAD_STYLE[st], k = w / 5;
+    return { weight: w, opacity: 0.95, color: s.color.startsWith("--") ? css(s.color) : s.color,
+      ...(s.dashArray ? { dashArray: s.dashArray.split(" ").map((n) => Math.max(2, Math.round(n * k * 1.4))).join(" ") } : {}) };
+  };
   map.createPane("roads").style.zIndex = 380;
   const roadRenderer = L.canvas({ pane: "roads", padding: 0.3 });
   const roadLayer = L.layerGroup().addTo(map);
@@ -5754,7 +5761,7 @@ out body;`;
   function drawRoads() {
     const zoomed = map.getZoom() >= ROAD_MIN_ZOOM, on = state.roads && zoomed;
     const loaded = [...roadData.values()].filter(Boolean);
-    const key = [state.roads, zoomed, loaded.length].join("/");
+    const w = roadWidth(), key = [state.roads, zoomed, loaded.length, w].join("/");
     drawRoadExtras();
     if (key === roadKey) return;
     roadKey = key;
@@ -5765,10 +5772,10 @@ out body;`;
     const line = (r, o) => roadLayer.addLayer(L.polyline(r.geom, { renderer: roadRenderer, interactive: false, lineCap: "butt", ...o }));
     // Button off: every forest road still shows, as a plain thin line with no status (alex), never as a trail.
     if (!on) { all.forEach((r) => line(r, { color: css("--road-plain"), weight: 2.5, opacity: 0.8 })); return; }
-    // A white edge under every road so it stands out from the base map, then the roads by status, the
+    // A faint thin white edge under every road so it stands out from the base map, then the roads by status, the
     // worst last: where the two sources overlap, a washout or gate wins over "good".
-    all.forEach((r) => line(r, { color: "#fff", weight: 8, opacity: 0.9 }));
-    Object.keys(ROAD_STYLE).forEach((st) => all.filter((r) => r.st === st).forEach((r) => line(r, roadStyle(st))));
+    all.forEach((r) => line(r, { color: "#fff", weight: w + 1.5, opacity: 0.5 }));
+    Object.keys(ROAD_STYLE).forEach((st) => all.filter((r) => r.st === st).forEach((r) => line(r, roadStyle(st, w))));
   }
   // ---------- Forest roads extras (gates, bridges, fords, hydro, cut blocks, closures) and the Wildfires button ----------
   // Points come from OpenStreetMap (nodes on the dirt roads, footbridges joining them, hydro plants), shown from
