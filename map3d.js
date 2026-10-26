@@ -308,10 +308,49 @@
   // The summer photo for a snow tile: the picked older summer photo, else (if Esri's archive won't send it) the newest
   // one, so a tile never comes back empty (that left holes in the 3D ground, alex 2026-10-24).
   const getBytes = (url, sig) => fetch(url, { signal: sig }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); });
-  const photoBytes = (z, x, y, sig) => getBytes(ESRI(z, x, y), sig).catch((e) => {
+  const tileBytes = (z, x, y, sig) => getBytes(ESRI(z, x, y), sig).catch((e) => {
     if (sig.aborted || summerTiles === ESRI_NOW) throw e;
     return getBytes(ESRI_NOW.replace("{z}", z).replace("{y}", y).replace("{x}", x), sig);
   });
+  // Esri's photos stop at a different zoom in each place (19 in town, 17-18 around Garibaldi Lake), and past that
+  // Esri sends a grey "Map data not yet available" picture: zoomed in, most of the 3D ground was grey there (alex
+  // 2026-10-26). Esri's tile map says which tiles exist (32 x 32 at a time, like EsriDeep on the flat map), so a
+  // missing tile is cut from the deepest real photo above it and enlarged. The photo downloads while the tile map is
+  // asked, so a tile that exists waits no longer than before.
+  const ESRI_HAVE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tilemap";
+  const haveBlocks = new Map();
+  const esriHas = (z, x, y) => {
+    const bx = x >> 5, by = y >> 5, k = `${z}/${bx}/${by}`;
+    if (!haveBlocks.has(k)) {
+      if (haveBlocks.size > 400) haveBlocks.delete(haveBlocks.keys().next().value);
+      haveBlocks.set(k, fetch(`${ESRI_HAVE}/${z}/${by * 32}/${bx * 32}/32/32`).then((r) => r.json())
+        .then((j) => j.valid === false || !j.data || j.location?.left !== bx * 32 || j.location?.top !== by * 32 ? null : j.data).catch(() => null));
+    }
+    return haveBlocks.get(k).then((d) => d ? d[(y - by * 32) * 32 + (x - bx * 32)] === 1 : z <= 19);
+  };
+  async function photoBytes(z, x, y, sig) {
+    const own = tileBytes(z, x, y, sig);
+    if (z <= 12 || await esriHas(z, x, y)) return own;
+    own.catch(() => null);
+    let d = z - 1;
+    while (d > 0 && d > z - 6 && !(await esriHas(d, x >> (z - d), y >> (z - d)))) d--;
+    const k = z - d, n = 1 << k, buf = await tileBytes(d, x >> k, y >> k, sig);
+    const big = await createImageBitmap(new Blob([buf]));
+    const size = big.width / n, cv = new OffscreenCanvas(256, 256), cx = cv.getContext("2d");
+    cx.imageSmoothingQuality = "high";
+    cx.drawImage(big, (x % n) * size, (y % n) * size, size, size, 0, 0, 256, 256);
+    big.close();
+    return (await cv.convertToBlob({ type: "image/jpeg", quality: 0.9 })).arrayBuffer();
+  }
+  let satProtocol = false;
+  function addSatProtocol() {
+    if (satProtocol) return;
+    satProtocol = true;
+    maplibregl.addProtocol("tfsat", async (params, abort) => {
+      const [z, x, y] = params.url.replace("tfsat://", "").split("/").map(Number);
+      return { data: await photoBytes(z, x, y, abort.signal) };
+    });
+  }
   let winterProtocol = false;
   function addWinterProtocol() {
     if (winterProtocol) return;
@@ -425,7 +464,7 @@
     const c = gl.getCenter(), r = await summerAt(c.lng, c.lat), tiles = r ? r.tiles : ESRI_NOW;
     if (!gl || tiles === summerTiles) return;
     summerTiles = tiles; summerNum = r ? r.num : 0;
-    gl.getSource("sat")?.setTiles([tiles]);
+    gl.getSource("sat")?.setTiles([`tfsat://{z}/{x}/{y}/${summerNum}`]);
     for (const id of ["live", "fill"]) gl.getSource(id)?.setTiles([`tfwinter://${id}/{z}/{x}/{y}/${summerNum}`]);
   }
 
@@ -534,6 +573,7 @@
 
     addDemProtocol();
     addWinterProtocol();
+    addSatProtocol();
     if (!PHONE) addWinterHdProtocol();
     const c = map.getCenter();
     gl = new maplibregl.Map({
@@ -559,7 +599,7 @@
           fill: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: [`tfwinter://fill/{z}/{x}/{y}/${summerNum}`],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           shade: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: 14, tiles: ["tfdem://{z}/{x}/{y}"] },
-          sat: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: [summerTiles],
+          sat: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: [`tfsat://{z}/{x}/{y}/${summerNum}`],
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
           // Sharp place, peak and lake names from OpenFreeMap (free, no key), instead of blurry label pictures.
           names: { type: "vector", url: "https://tiles.openfreemap.org/planet", attribution: "<a href=\"https://openfreemap.org\">OpenFreeMap</a>" },
