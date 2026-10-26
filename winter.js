@@ -569,7 +569,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
           continue;
         }
         skiLayer.addLayer(L.polyline(line, { renderer: skiRenderer, color: sel ? "#ffe14d" : "#fff", weight: t.weight + (sel ? 6 : 3), opacity: sel ? 1 : 0.8, interactive: false }));
-        const l = L.polyline(line, { renderer: skiRenderer, color: t.color, weight: t.weight + (sel ? 1.5 : 0), opacity: 1, dashArray: t.dashArray });
+        const l = L.polyline(line, { renderer: skiRenderer, color: t.color, weight: t.weight + (sel ? 1.5 : 0), opacity: 1, dashArray: t.dashArray, label: r.name || "" });
         l.bindTooltip(esc(nameOf(r) || t.label), { sticky: true });
         l.on("click", (e) => tap(e, r));
         skiLayer.addLayer(l);
