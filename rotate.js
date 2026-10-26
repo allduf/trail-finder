@@ -173,10 +173,11 @@
       // and rotate it lag"). A twist alone then never zooms, so letting go doesn't redo every trail line for a new zoom
       // (a second or more on a phone with the whole region's trails), and the map doesn't creep with the fingers.
       // It starts from where the fingers are then, so it doesn't jump.
-      if (this._zooming && !this._moved && map.options.touchZoom !== "center") {
+      // (Zooming on the middle, while the map follows you, waits for the same spread.)
+      if (this._zooming && !this._moved) {
         if (Math.abs(Math.log(dist / this._firstDist)) < PINCH_START) { L.DomEvent.preventDefault(e); return; }
         this._startDist = dist;
-        this._pinchStartLatLng = map.containerPointToLatLng(p1.add(p2)._divideBy(2));
+        if (map.options.touchZoom !== "center") this._pinchStartLatLng = map.containerPointToLatLng(p1.add(p2)._divideBy(2));
       }
       if (this._zooming) {
         const scale = dist / this._startDist;
