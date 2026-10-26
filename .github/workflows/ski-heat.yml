@@ -1,12 +1,13 @@
-name: Weekly ski heatmap
+name: Daily ski heatmap
 
-# Once a week, count the winter (December to April) OpenStreetMap public GPS traces per ~33 m cell and save
-# them in data/ski-heat.json for the "Ski heatmap" in the site's Skiing mode.
-# Squares are done in rotation (about 1500 trace pages per run), so the whole region refreshes over a few weeks.
+# Every day, count the winter OpenStreetMap public GPS traces per ~33 m cell in the backcountry squares across
+# Canada and save them in data/ski-heat.json for the "Ski heatmap" in the site's Skiing mode.
+# Squares are done in rotation (up to 1500 trace pages or 200 minutes a run, saved as it goes), so all ~650
+# squares are done over about a week, then refresh in turn.
 # On a pull request that changes the script it only does a short test run, without saving anything.
 on:
   schedule:
-    - cron: "17 12 * * 3"   # Wednesdays, 12:17 UTC (early morning in Vancouver)
+    - cron: "17 12 * * *"   # every day, 12:17 UTC (early morning in Vancouver)
   workflow_dispatch:         # "Run workflow" button on the Actions tab
   pull_request:
     paths:
@@ -35,12 +36,14 @@ jobs:
       - name: Count winter GPS traces
         env:
           PAGE_BUDGET: ${{ github.event_name == 'pull_request' && '40' || '1500' }}
+          MINUTES: ${{ github.event_name == 'pull_request' && '20' || '200' }}
         run: node scripts/build-ski-heat.mjs
       - name: File size
+        if: always()
         run: ls -l data/ski-heat.json || true
       - name: Save the new data
-        if: github.event_name != 'pull_request' && github.ref_name == 'main'
-        run: bash scripts/site-data.sh save "Weekly ski heatmap" data/ski-heat.json
+        if: always() && github.event_name != 'pull_request' && github.ref_name == 'main'
+        run: bash scripts/site-data.sh save "Daily ski heatmap" data/ski-heat.json
       - name: Publish the website
         if: github.event_name != 'pull_request'
         env:
