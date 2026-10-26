@@ -2592,7 +2592,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const cw = (co / 360) * n;
     // Close up (a cell 3 px wide or more), squares of colour look blocky (alex, 2026-10-24): paint smooth lines.
     if (cw >= 3) return paintHeatSmooth(out, z, x, y, top, bottom, left, right, cl, co);
-    const buf = new Uint16Array(65536);
+    const buf = new Uint16Array(65536), MIN_PX = z <= 10 ? 3 : 2.5;
     let any = false;
     for (const sq of heat.squares) {
       const [s, w, nn, e] = sq.box;
@@ -2601,9 +2601,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       for (let i = 0; i < c.length; i += 3) {
         const lat0 = s + c[i] * cl, lon0 = w + c[i + 1] * co;
         if (lat0 > top || lat0 + cl < bottom || lon0 > right || lon0 + co < left) continue;
-        const px0 = ((lon0 + 180) / 360) * n - x * 256, py1 = mercY(lat0) * n - y * 256, py0 = mercY(lat0 + cl) * n - y * 256;
-        const xa = Math.max(0, Math.floor(px0)), xb = Math.min(256, Math.max(xa + 1, Math.ceil(px0 + Math.max(1, cw))));
-        const ya = Math.max(0, Math.floor(py0)), yb = Math.min(256, Math.max(ya + 1, Math.ceil(py1)));
+        // Zoomed out a cell is under a pixel: each is drawn MIN_PX wide around its middle, so a single trace still
+        // shows as a line (alex 2026-10-26: "i dont see much on the map").
+        const pxc = ((lon0 + co / 2 + 180) / 360) * n - x * 256, pyc = mercY(lat0 + cl / 2) * n - y * 256;
+        const hw = Math.max(MIN_PX, cw) / 2, hh = Math.max(MIN_PX, mercY(lat0) * n - mercY(lat0 + cl) * n) / 2;
+        const xa = Math.max(0, Math.floor(pxc - hw)), xb = Math.min(256, Math.ceil(pxc + hw));
+        const ya = Math.max(0, Math.floor(pyc - hh)), yb = Math.min(256, Math.ceil(pyc + hh));
         const v = c[i + 2];
         for (let yy = ya; yy < yb; yy++) for (let xx = xa; xx < xb; xx++) { const j = yy * 256 + xx; if (buf[j] < v) buf[j] = v; }
         any = true;
