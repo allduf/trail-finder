@@ -9,36 +9,62 @@
 //
 // With no feed yet, it starts one from the trails first mapped in the last FRESH_DAYS.
 // Run: node scripts/build-new-trails.mjs   (Node 18 or newer, no packages needed)
+//
+// The rest of Canada: node scripts/build-new-trails.mjs ca, in the nightly Canada job (.github/workflows/canada-data.yml)
+// after build-canada.mjs finish. Same rules on the map chunks out/ca/c/<chunk>.json (their "trails" part), against last
+// night's chunks on the canada-data branch (fetched as refs/ca/last), into out/ca/new-trails.json; each item's z is its
+// chunk ("ca_<chunk>"), as the site names them. Chunks leave out what lies inside the home zones, so no trail is in both feeds.
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const root = new URL("../", import.meta.url);
-const DATA = new URL("data/", root);
+const CA = process.argv[2] === "ca";
+const DATA = new URL(CA ? "out/ca/" : "data/", root);
 const FEED = new URL("new-trails.json", DATA);
 const FRESH_DAYS = 7;        // first mapped this recently to count as a new trail (not an old one found late)
 const KEEP_DAYS = 90;        // items stay in the feed this long
 const MAX_ITEMS = 500;
 
 const html = readFileSync(new URL("index.html", root), "utf8");
-const ZONES = [...html.matchAll(/\{ id: "(\w+)", name: "([^"]+)", box: \[([^\]]+)\] \}/g)].map((m) => ({ id: m[1], name: m[2], box: m[3].split(",").map(Number) }));
-if (ZONES.length < 2) throw new Error("Couldn't read the zones from index.html");
+const ZONES = CA
+  ? readdirSync(new URL("c/", DATA)).filter((f) => f.endsWith(".json")).map((f) => {
+    const id = f.slice(0, -5), [s, w] = id.split("_").map(Number);
+    return { id: "ca_" + id, chunk: id, name: id, box: [s, w, s + 1, w + 1.2] };
+  })
+  : [...html.matchAll(/\{ id: "(\w+)", name: "([^"]+)", box: \[([^\]]+)\] \}/g)].map((m) => ({ id: m[1], name: m[2], box: m[3].split(",").map(Number) }));
+if (ZONES.length < 2) throw new Error(CA ? "No Canada chunks in out/ca/c/" : "Couldn't read the zones from index.html");
 
 const now = Date.now();
 const fresh = now - FRESH_DAYS * 864e5;
 const readJson = (url) => { try { return JSON.parse(readFileSync(url, "utf8")); } catch { return null; } };
 const gitJson = (rev, name) => {
-  try { return JSON.parse(execFileSync("git", ["show", `${rev}:data/${name}`], { cwd: root, encoding: "utf8", maxBuffer: 1 << 30, stdio: ["ignore", "pipe", "ignore"] })); }
+  try { return JSON.parse(execFileSync("git", ["show", `${rev}:${CA ? "ca/" : "data/"}${name}`], { cwd: root, encoding: "utf8", maxBuffer: 1 << 30, stdio: ["ignore", "pipe", "ignore"] })); }
   catch { return null; }
 };
 // The saved copy, before tonight's build overwrote it: the site-data branch's (scripts/site-data.sh get marks the
 // commit it got the files from), or main's when run by hand from a checkout that still has data/ committed.
-const lastNight = (name) => gitJson("refs/site-data/last", name) || gitJson("HEAD", name);
+const lastNight = (name) => (CA ? gitJson("refs/ca/last", name) : gitJson("refs/site-data/last", name) || gitJson("HEAD", name));
+// A zone's new-trail file and all-MTB file: data/trails-<zone>.json and data/mtb-<zone>.json, or a chunk's two parts.
+const chunkOf = (z) => (z.chunk ? readJson(new URL(`c/${z.chunk}.json`, DATA)) : null);
+const curOf = (z) => (CA ? (chunkOf(z) || {}).trails : readJson(new URL(`trails-${z.id}.json`, DATA)));
+const prevOf = (z) => (CA ? (lastNight(`c/${z.chunk}.json`) || {}).trails : lastNight(`trails-${z.id}.json`));
+const mtbOf = (z) => (CA ? (chunkOf(z) || {}).mtb : readJson(new URL(`mtb-${z.id}.json`, DATA)));
 const firstMapped = (w) => w.ft || (w.v === 1 ? w.t : null);
 const isFresh = (w) => { const t = Date.parse(firstMapped(w)); return t >= fresh; };
 const nameOf = (tags) => (tags.name || tags["mtb:name"] || "").trim();
 
-const old = readJson(FEED);
+// In the Canada job out/ca/ is built fresh each night: the feed so far is the one on the canada-data branch.
+const old = CA ? lastNight("new-trails.json") : readJson(FEED);
+// Canada-wide, most new paths are hiking ones: keep only what the 🔔 would list (MTB tagged or looks like MTB, not
+// hiking-only), with the site's own classify() as scripts/push-loam.mjs does, so the feed stays small for phones.
+const keep = (() => {
+  if (!CA) return () => true;
+  const a = html.indexOf("// ---------- classification ----------"), b = html.indexOf("// Difficulty as Trailforks colours it");
+  if (a < 0 || b < a) throw new Error("Couldn't find classify() in index.html");
+  const { classify } = new Function("state", "esc", html.slice(a, b) + "\nreturn { classify };")({}, (s) => s);
+  return (tags, routes) => { const c = classify(tags || {}, routes, routes.length ? ["mtb"] : []); return c && (c.cat === "mtb" || c.cat === "looks") && c.use !== "hike"; };
+})();
 const seeding = !old;
 const feed = old || { v: 1, items: [] };
 const inFeed = new Set(feed.items.flatMap((i) => i.ids));
@@ -46,22 +72,22 @@ const builtAt = new Date(now).toISOString().slice(0, 19) + "Z";
 let added = 0;
 
 for (const z of ZONES) {
-  const cur = readJson(new URL(`trails-${z.id}.json`, DATA));
+  const cur = curOf(z);
   if (!cur || !cur.ways) continue;
-  const prev = seeding ? { ways: {} } : lastNight(`trails-${z.id}.json`);
-  if (!prev || !prev.ways) { console.log(`${z.name}: no file from last night, skipping`); continue; }
+  const prev = seeding ? { ways: {} } : prevOf(z);
+  if (!prev || !prev.ways) { if (!CA) console.log(`${z.name}: no file from last night, skipping`); continue; }
 
   // Only squares last night's file already had: a zone that's still filling in (squares built for the first time)
   // would otherwise count every recent trail in those squares as new today.
   const seen = new Set(Object.entries(cur.tiles || {}).filter(([k]) => prev.tiles && prev.tiles[k]).flatMap(([, t]) => t.ways.map(String)));
   const newWays = Object.entries(cur.ways).filter(([id, w]) => (seeding || seen.has(id)) && !prev.ways[id] && !inFeed.has(+id) && isFresh(w));
-  if (!newWays.length) { console.log(`${z.name}: nothing new`); continue; }
+  if (!newWays.length) { if (!CA) console.log(`${z.name}: nothing new`); continue; }
   const freshIds = new Set(newWays.map(([id]) => id));
 
   // Names the map already had: older ways in the zone's new-trail file (2 years) or all-MTB file (any age).
   const known = new Set();
   Object.entries(cur.ways).forEach(([id, w]) => { if (!isFresh(w) && nameOf(w.tags)) known.add(nameOf(w.tags).toLowerCase()); });
-  const mtb = readJson(new URL(`mtb-${z.id}.json`, DATA));
+  const mtb = mtbOf(z);
   Object.entries((mtb && mtb.ways) || {}).forEach(([id, w]) => { if (!freshIds.has(id) && !cur.ways[id] && nameOf(w.tags || {})) known.add(nameOf(w.tags).toLowerCase()); });
 
   // MTB routes each way is in.
@@ -85,12 +111,14 @@ for (const z of ZONES) {
   for (const ways of groups.values()) {
     const name = nameOf(ways[0][1].tags);
     if (name && known.has(name.toLowerCase())) continue;   // more of a trail the map already had
+    const rs = [...new Set(ways.flatMap(([id]) => routes.get(+id) || []))];
+    if (!keep(ways.reduce((a, b) => (b[1].g.length > a[1].g.length ? b : a))[1].tags, rs)) continue;
     ways.sort((a, b) => b[1].g.length - a[1].g.length);    // longest first: its tags speak for the trail
     const [, main] = ways[0];
     const ft = ways.map(([, w]) => firstMapped(w)).sort()[0];
     const mid = Math.floor(main.g.length / 4) * 2, c = [main.g[mid], main.g[mid + 1]];
     // The data squares reach past the zone's edges, so a trail can turn up in two zones: it belongs where it lies.
-    const home = ZONES.find(({ box: [s, w, n, e] }) => c[0] >= s && c[0] <= n && c[1] >= w && c[1] <= e) || z;
+    const home = CA ? z : ZONES.find(({ box: [s, w, n, e] }) => c[0] >= s && c[0] <= n && c[1] >= w && c[1] <= e) || z;
     ways.forEach(([id]) => inFeed.add(+id));
     feed.items.push({
       ids: ways.map(([id]) => +id), z: home.id, at: seeding ? ft : builtAt, ft, u: main.fu || main.u || "", name,
@@ -106,4 +134,4 @@ const keepAfter = new Date(now - KEEP_DAYS * 864e5).toISOString();
 feed.items = feed.items.filter((i) => i.at >= keepAfter).sort((a, b) => (b.at > a.at ? 1 : b.at < a.at ? -1 : 0)).slice(0, MAX_ITEMS);
 feed.builtAt = builtAt;
 writeFileSync(FEED, JSON.stringify(feed));
-console.log(`${seeding ? "Started" : "Updated"} data/new-trails.json: ${added} new trails, ${feed.items.length} in the feed.`);
+console.log(`${seeding ? "Started" : "Updated"} ${CA ? "ca" : "data"}/new-trails.json: ${added} new trails, ${feed.items.length} in the feed.`);
