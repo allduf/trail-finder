@@ -807,11 +807,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // the list fills with what's near it (alex 2026-10-26: "add search an region"). While typing: the backcountry areas
   // whose name matches (ski-areas.js); Enter or "Search places" asks OpenStreetMap (place-search.js).
   let placeQ = "", placeFound = null, placeRows = [];
-  $("skFind").addEventListener("focus", () => { if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces); }, { once: true });
+  $("skFind").addEventListener("focus", () => {
+    if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
+    if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
+  }, { once: true });
   function renderPlaces() {
     const P = window.tfPlaceSearch, ul = $("skPlaces"), msg = $("skPlaceMsg"), q = findText.trim();
     if (!P || q.length < 2) { ul.innerHTML = ""; msg.textContent = ""; placeRows = []; return; }
-    const areas = window.tfSkiAreas && window.tfSkiAreas.match ? window.tfSkiAreas.match(q) : [];
+    const areas = [...(window.tfSkiAreas && window.tfSkiAreas.match ? window.tfSkiAreas.match(q) : []),
+      ...(window.tfHeliCat && window.tfHeliCat.match ? window.tfHeliCat.match(q) : [])];
     const asked = placeQ === q.toLowerCase();
     placeRows = [...areas.slice(0, asked ? 2 : 3), ...(asked && placeFound ? placeFound : [])];
     ul.innerHTML = placeRows.map(P.hitHtml).join("")
@@ -840,6 +844,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     renderPlaces();
     $("skPlaceMsg").textContent = `Near ${p.name}: nearest the middle of the map first.`;
     window.tfPlaceSearch.go(p, { maxZoom: 13 });
+    if (p.helicat && window.tfHeliCat) window.tfHeliCat.open(p.helicat);
     renderList();
     // The box at the top of the sheet, so the list of what's near the place shows under it.
     // (again once the avalanche card above has filled in for the new place).
