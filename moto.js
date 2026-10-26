@@ -91,57 +91,13 @@
   };
   const SKILL = { new: [-1, "New to dirt"], some: [0, "Some dirt"], expert: [1, "Lots of dirt"] };
   const TIRES = { street: [-1, "Street"], "5050": [0, "50/50"], knobby: [1, "Knobby"] };
-  // Common ADV and dual-sport bikes: [name, type, kg ready to ride (about), tank litres, litres per 100 km (about)].
-  // Approximate makers' numbers: the rider can change any of them for their own bike.
-  const MODELS = [
-    ["BMW R 1300 GS", "big", 237, 19, 4.8], ["BMW R 1300 GS Adventure", "big", 269, 30, 5.0], ["BMW R 1250 GS", "big", 249, 20, 4.9], ["BMW R 1250 GS Adventure", "big", 268, 30, 5.1],
-    ["BMW F 900 GS", "mid", 219, 14.5, 4.4], ["BMW F 900 GS Adventure", "big", 227, 23, 4.5], ["BMW F 850 GS", "big", 229, 15, 4.6], ["BMW F 800 GS", "mid", 214, 16, 4.3], ["BMW G 310 GS", "light", 175, 11, 3.3],
-    ["KTM 1290 Super Adventure R", "big", 240, 23, 6.0], ["KTM 890 Adventure R", "mid", 210, 20, 4.6], ["KTM 890 Adventure", "mid", 211, 20, 4.6], ["KTM 790 Adventure", "mid", 209, 20, 4.5],
-    ["KTM 390 Adventure", "light", 172, 14.5, 3.4], ["KTM 690 Enduro R", "light", 160, 13.5, 4.2], ["KTM 500 EXC-F (plated)", "enduro", 115, 8.5, 4.5], ["KTM 350 EXC-F (plated)", "enduro", 112, 8.5, 4.3],
-    ["Husqvarna Norden 901", "mid", 204, 19, 4.5], ["Husqvarna 701 Enduro", "light", 160, 13, 4.2], ["Husqvarna FE 501s", "enduro", 115, 8.5, 4.5],
-    ["Honda Africa Twin CRF1100L", "big", 226, 18.8, 5.0], ["Honda Africa Twin Adventure Sports", "big", 250, 24.8, 5.1], ["Honda Transalp XL750", "mid", 208, 16.9, 4.3],
-    ["Honda XR650L", "light", 157, 10.5, 5.0], ["Honda CRF300L", "light", 140, 7.8, 2.9], ["Honda CRF300L Rally", "light", 153, 12.8, 2.9], ["Honda CB500X / NX500", "mid", 196, 17.7, 3.6],
-    ["Yamaha Ténéré 700", "mid", 204, 16, 4.3], ["Yamaha Ténéré 700 World Raid", "mid", 220, 23, 4.4], ["Yamaha WR250R", "light", 134, 7.6, 3.2], ["Yamaha XT250", "light", 131, 9.8, 2.6],
-    ["Suzuki DR650S", "light", 166, 13, 4.5], ["Suzuki DR-Z400S", "light", 144, 10, 4.0], ["Suzuki V-Strom 650XT", "mid", 216, 20, 4.4], ["Suzuki V-Strom 800DE", "big", 230, 20, 4.5], ["Suzuki V-Strom 1050DE", "big", 252, 20, 5.3],
-    ["Kawasaki KLR650", "mid", 209, 23, 4.6], ["Kawasaki KLX300", "light", 136, 7.6, 3.0], ["Kawasaki Versys-X 300", "light", 175, 17, 3.4],
-    ["Triumph Tiger 900 Rally Pro", "big", 228, 20, 5.0], ["Triumph Tiger 1200 Rally Explorer", "big", 261, 30, 5.6], ["Triumph Scrambler 1200 X", "big", 228, 15, 5.0],
-    ["Ducati DesertX", "big", 223, 21, 5.6], ["Ducati Multistrada V4 Rally", "big", 260, 30, 6.4],
-    ["Royal Enfield Himalayan 450", "mid", 196, 17, 3.4], ["Royal Enfield Himalayan 411", "mid", 199, 15, 3.3], ["Aprilia Tuareg 660", "mid", 204, 18, 4.5],
-    ["Harley-Davidson Pan America 1250", "big", 258, 21.2, 5.8], ["CFMoto 450MT", "mid", 190, 17.5, 3.8], ["CFMoto 800MT", "big", 231, 19, 4.9], ["Moto Guzzi Stelvio", "big", 246, 21, 5.3],
-    ["Beta 500 RR-S (plated)", "enduro", 118, 8, 4.5], ["Sherco 500 SEF Factory (plated)", "enduro", 112, 9.7, 4.5], ["GasGas ES 700", "light", 158, 13.5, 4.2],
-  ];
-  // Year, make and model (alex 2026-10-26: "make the search by year, mark, model"): every motorcycle sold in North
-  // America since 1981, from NHTSA's free vehicle database (vPIC, open to browsers). It has names only, so the numbers
-  // come from MODELS above when the bike is one of them, else from the kind of bike its name says (ADV words, dual
-  // sport and enduro names, the cc in the name), and the rider checks them.
-  const VPIC = "https://vpic.nhtsa.dot.gov/api/vehicles";
-  const MAKES = ["Aprilia", "Benelli", "Beta", "BMW", "Buell", "Can-Am", "CFMoto", "Ducati", "Fantic", "GasGas", "Harley-Davidson", "Honda", "Husaberg", "Husqvarna", "Hyosung", "Indian",
-    "Kawasaki", "Kove", "KTM", "Kymco", "Moto Guzzi", "MV Agusta", "Piaggio", "Rieju", "Royal Enfield", "Sherco", "Suzuki", "SWM", "Triumph", "Ural", "Vespa", "Victory", "Voge", "Yamaha", "Zero"];
-  const NOT_BIKE = /\b(raptor|grizzly|kodiak|wolverine|viking|yxz|yfz|rhino|teryx|brute force|kfx|mule|pioneer|talon|rancher|foreman|trx|rubicon|sportsman|outlander|renegade|maverick|commander|defender|spyder|ryker|rzr|ranger|cforce|zforce|uforce|atv|utv|side by side|quad)\b/i;
-  const MODEL_CACHE = new Map();
-  const modelsFor = (make, year) => {
-    const k = `${make}|${year}`;
-    if (!MODEL_CACHE.has(k)) MODEL_CACHE.set(k, getJ(`${VPIC}/GetModelsForMakeYear/make/${encodeURIComponent(make)}/modelyear/${year}/vehicletype/motorcycle?format=json`, 15000)
-      .then((j) => [...new Set((j.Results || []).map((x) => String(x.Model_Name || "").trim()).filter((n) => n && !NOT_BIKE.test(n)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })))
-      .catch(() => { MODEL_CACHE.delete(k); return null; }));
-    return MODEL_CACHE.get(k);
-  };
-  const norm = (t) => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
+  // Year, make and model (alex 2026-10-26: "make the search by year, mark, model", then "put every model of every
+  // mark"): data/moto-models.json, made by scripts/build-moto-models.py, lists every common model line by make with the
+  // model years it was sold and about the maker's numbers. Each row: [model, first year, last year (0 = still made),
+  // kind, kg, tank litres, L/100 km, range km for electric bikes]. The rider checks the numbers for their own bike.
+  let modelsLoading = null;
+  const loadModels = () => modelsLoading || (modelsLoading = getJ("data/moto-models.json", 20000).then((j) => j.makes || {}).catch(() => { modelsLoading = null; return null; }));
   const SPEC = { street: [230, 18, 5.5], big: [245, 21, 5.4], mid: [205, 17, 4.5], light: [150, 10, 3.6], enduro: [115, 8.5, 4.4] };
-  // [type, kg, tank, l100, known] for a make and model name.
-  function specsOf(make, model) {
-    const full = norm(`${make} ${model}`), m = norm(model);
-    const hit = MODELS.filter((x) => { const n = norm(x[0]); return n === full || (m.length >= 3 && n.includes(m)) || full.includes(n); }).sort((a, b) => (norm(b[0]) === full) - (norm(a[0]) === full) || norm(a[0]).length - norm(b[0]).length)[0];
-    if (hit) return [hit[1], hit[2], hit[3], hit[4], true];
-    const t = `${make} ${model}`, cc = +((t.match(/(\d{3,4})/) || [])[1] || 0);
-    let type = "street";
-    if (/\b(exc|xc-?w|fe ?\d|te ?\d|rr-?s|sef|ser|wr ?\d{3}f|yz ?\d{3}fx?|crf ?\d{3}(rx|x)\b|kx ?\d|rm-?z|mc ?\d|ec ?\d)/i.test(t)) type = "enduro";
-    else if (/\b(klr|klx|dr-?z?\s?\d|xr\s?\d|crf\s?\d+\s?l|wr\s?\d+r|xt\s?\d|tw\s?200|dual|enduro|690|701|sxt|ttr|tt-r|super ?sherpa|serow|xchallenge|scrambler 400)/i.test(t)) type = cc >= 600 && /klr/i.test(t) ? "mid" : "light";
-    else if (/(adventure|\bgs\b|gs\b|tenere|ténéré|tiger|africa|transalp|v-?strom|versys|multistrada|norden|desert ?x|tuareg|pan america|stelvio|himalayan|\bmt\b|tracer|scrambler|rally|\bx\b|nx\s?\d|cb ?500 ?x|g ?310 ?gs)/i.test(t)) type = cc >= 1000 ? "big" : cc && cc < 450 ? "light" : "mid";
-    const [kg, tank, l100] = SPEC[type];
-    const kgCc = type === "street" && cc ? Math.round(Math.min(380, Math.max(110, 120 + cc * 0.1))) : kg;
-    return [type, kgCc, tank, l100, false];
-  }
   const typeOfKg = (kg) => (kg > 220 ? "big" : kg >= 170 ? "mid" : kg >= 130 ? "light" : "enduro");
   let bikes = store.get("motoBikes", []);
   let bikeId = store.get("motoBike", bikes[0] && bikes[0].id);
@@ -439,7 +395,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const kgShow = (kg) => (lb() ? Math.round(kg * KG_LB) : Math.round(kg));
     dlg.innerHTML = `<form method="dialog"><h2>${b ? "Edit your bike" : "Your bike"} <button type="button" class="mt-xb" data-x aria-label="Close">✕</button></h2>
       <div class="mt-3 mt-ymm"><label>Year<select id="mtYear">${Array.from({ length: new Date().getFullYear() + 2 - 1981 }, (_, i) => new Date().getFullYear() + 1 - i).map((y) => `<option value="${y}"${y === (edit.year || new Date().getFullYear()) ? " selected" : ""}>${y}</option>`).join("")}</select></label>
-        <label>Make<select id="mtMake"><option value="">Pick…</option>${MAKES.map((m) => `<option${m === edit.make ? " selected" : ""}>${esc(m)}</option>`).join("")}<option value="other">Another make</option></select></label>
+        <label>Make<select id="mtMake" disabled><option value="">Loading…</option></select></label>
         <label>Model<select id="mtModel" disabled><option value="">Pick the make</option></select></label></div>
       <p class="mt-note" id="mtSpecNote">Pick your bike to fill in its numbers.</p>
       <label>Name<input id="mtName" maxlength="40" placeholder="My Ténéré" value="${esc(edit.name)}" autocomplete="off"></label>
@@ -462,17 +418,15 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       q("#mtSum").innerHTML = `<b>Rides well:</b> up to grade ${cap}, ${esc(GRADES[cap][0].toLowerCase())}${cap < 5 ? `; grade ${cap + 1} is hard, more is too hard` : ""}.<br><b>Range:</b> about ${rangeOf(edit).toLocaleString()} km a tank; routes warn when gas is more than ${usable(edit).toLocaleString()} km apart.`;
     };
     q("[data-x]").onclick = () => dlg.close();
-    const fillModels = async () => {
+    let makes = {};
+    const rowsFor = (make, year) => (makes[make] || []).filter((r) => r[1] <= year && (!r[2] || r[2] >= year));
+    const fillModels = () => {
       const make = q("#mtMake").value, year = +q("#mtYear").value, sel = q("#mtModel");
       edit.year = year;
       if (!make || make === "other") { sel.disabled = true; sel.innerHTML = `<option value="">${make ? "Type it in Name" : "Pick the make"}</option>`; if (make === "other") q("#mtName").focus(); return; }
       edit.make = make;
-      sel.disabled = true; sel.innerHTML = `<option value="">Loading…</option>`;
-      const list = await modelsFor(make, year);
-      if (q("#mtMake").value !== make || +q("#mtYear").value !== year) return;
-      const known = MODELS.filter((x) => norm(x[0]).startsWith(norm(make))).map((x) => x[0].slice(x[0].indexOf(" ") + 1));
-      const names = list && list.length ? list : known;
-      sel.innerHTML = `<option value="">${list ? `${names.length} models…` : "Offline: our list…"}</option>${names.map((n) => `<option${n === edit.model ? " selected" : ""}>${esc(n)}</option>`).join("")}<option value="other">Not listed: I'll type it</option>`;
+      const rows = rowsFor(make, year);
+      sel.innerHTML = `<option value="">${rows.length ? `${rows.length} models…` : `None listed for ${year}`}</option>${rows.map((r) => `<option${r[0] === edit.model ? " selected" : ""}>${esc(r[0])}</option>`).join("")}<option value="other">Not listed: I'll type it</option>`;
       sel.disabled = false;
     };
     q("#mtYear").onchange = fillModels;
@@ -481,14 +435,25 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       const model = e.target.value, make = q("#mtMake").value;
       if (!model) return;
       if (model === "other") { q("#mtName").focus(); return; }
-      const [type, kg, tank, l100, known] = specsOf(make, model);
-      edit.model = model; edit.type = type; edit.kg = kg; edit.tank = tank; edit.l100 = l100; delete edit.range;
+      const r = rowsFor(make, +q("#mtYear").value).find((x) => x[0] === model);
+      if (!r) return;
+      const [, , , type, kg, tank, l100, km] = r, el = !tank;
+      edit.model = model; edit.type = type; edit.kg = kg;
+      edit.tank = el ? SPEC[type][1] : tank; edit.l100 = el ? +(SPEC[type][1] / km * 100).toFixed(1) : l100;
+      if (el) edit.range = km; else delete edit.range;
       edit.name = `${q("#mtYear").value} ${make} ${model}`;
-      q("#mtName").value = edit.name; q("#mtKg").value = kgShow(kg); q("#mtTank").value = tank; q("#mtL100").value = l100; q("#mtRange").value = "";
-      q("#mtSpecNote").textContent = known ? "Numbers filled in from the maker's specs (about): change them for your bike." : `We don't have this one's specs: these are typical for a ${TYPES[type].label.toLowerCase()} bike. Check your manual and fix them.`;
+      q("#mtName").value = edit.name; q("#mtKg").value = kgShow(kg); q("#mtTank").value = edit.tank; q("#mtL100").value = edit.l100; q("#mtRange").value = edit.range || "";
+      q("#mtSpecNote").textContent = el ? `Electric: about ${km} km on a charge (less on dirt and in the cold). Change it to your range.` : "Numbers filled in from the maker's specs (about): change them for your bike.";
       sync();
     };
-    if (edit.make) fillModels();
+    loadModels().then((m) => {
+      if (!dlg.open || !q("#mtMake")) return;
+      makes = m || {};
+      const names = Object.keys(makes), sel = q("#mtMake");
+      sel.innerHTML = `<option value="">${m ? "Pick…" : "Offline: type it"}</option>${names.map((n) => `<option${n === edit.make ? " selected" : ""}>${esc(n)}</option>`).join("")}<option value="other">Another make</option>`;
+      sel.disabled = false;
+      if (edit.make) fillModels();
+    });
     q("#mtName").oninput = (e) => { edit.name = e.target.value.trim(); };
     const unitSync = () => dlg.querySelectorAll("[data-u]").forEach((x) => x.classList.toggle("on", (x.dataset.u === "lb") === lb()));
     unitSync();
@@ -1868,7 +1833,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     },
   };
   // Offline maps (offline.js) saved in Moto keep the gas, camping and hot spring lists too.
-  window.tfMotoOffline = () => (isMoto() ? [...["fuel", "camp", "hot", "ferry"].map((k) => `ca/moto/${k}.json`), "data/moto-cell.json", "data/moto-routes.json"] : []);
+  window.tfMotoOffline = () => (isMoto() ? [...["fuel", "camp", "hot", "ferry"].map((k) => `ca/moto/${k}.json`), "data/moto-cell.json", "data/moto-routes.json", "data/moto-models.json"] : []);
 
   // ---------- map taps and switching sport ----------
   map.on("click", (e) => {

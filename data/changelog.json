@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-26", "text": "Moto: Your bike now lists every model of 39 makes by year, with real model names and their weight, tank and fuel use."},
     {"date": "2026-10-26", "text": "Fishing: Route now sticks to the trails from the trailhead parking and only walks through the forest for the last bit where no trail goes"},
     {"date": "2026-10-26", "text": "Fishing: cleaner, more modern colours for the map dots"},
     {"date": "2026-10-26", "text": "Moto: pick your bike by year, make and model, ADV routes, ride log, check-in alarm, cell signal, snow on passes, 3D fly-through"},
