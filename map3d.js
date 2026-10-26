@@ -474,10 +474,12 @@
   }
 
   // Last winter's photos cover the riding areas from the Sunshine Coast to the Rockies (scripts/winter-photos);
-  // data/winter/blocks.json lists the zoom-11 squares that have them.
+  // blocks.json lists the zoom-11 squares that have them. They're their own site (allduf/trail-finder-winter, same
+  // address, so no CORS) since 2026-10-26: at ~590 MB they were most of this site's 1 GB Pages limit.
+  const WINTER = "../trail-finder-winter/";
   const WINTER_BOUNDS = [-125, 48.8, -114.25, 52.4];
   let winterBlocks = null;
-  const loadWinterBlocks = () => winterBlocks || (winterBlocks = fetch("data/winter/blocks.json").then((r) => r.json())
+  const loadWinterBlocks = () => winterBlocks || (winterBlocks = fetch(WINTER + "blocks.json").then((r) => r.json())
     .then((a) => new Set(a.map(([x, y]) => x + "/" + y))).catch(() => { winterBlocks = null; return null; }));
   // Is tile z/x/y all inside the zoom-11 squares that have winter photos?
   const covered = (have, z, x, y) => {
@@ -593,7 +595,7 @@
           // Feb-Mar 2026, clouds removed). Live: the sharp photos with today's snow drawn in (tfwinter).
           // tileSize 128 like the other photos: one zoom deeper, so the 10 m photos are at full detail up close
           // instead of the half-size zoom 12-13 ones (blurry and stretched on the slopes, alex 2026-10-19).
-          winter: { type: "raster", tileSize: PHOTO_TILE, minzoom: 6, maxzoom: 14, bounds: WINTER_BOUNDS, tiles: ["data/winter/{z}/{x}/{y}.webp"],
+          winter: { type: "raster", tileSize: PHOTO_TILE, minzoom: 6, maxzoom: 14, bounds: WINTER_BOUNDS, tiles: [WINTER + "{z}/{x}/{y}.webp"],
             attribution: "Winter: Copernicus Sentinel-2 data 2026 (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>" },
           // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above). Not on phones,
           // where the extra tiles would use the memory iPhone Safari runs out of.
