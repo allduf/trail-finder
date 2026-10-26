@@ -2,6 +2,7 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-10-26", "text": "3D map on phones uses much less memory: the flat map underneath rests while 3D is on, so 3D stays open longer and moves more smoothly."},
+    {"date": "2026-10-26", "text": "Trail and route names now show along the lines on the 3D map too."},
     {"date": "2026-10-26", "text": "Loops now start and finish at the parking lot closest to their trails, and never use bike park trails (those are lift access only)."},
     {"date": "2026-10-26", "text": "Skiing 3D on phones is lighter and smoother, so it stops jumping back to the flat map at Whistler and Blackcomb."},
     {"date": "2026-10-26", "text": "Skiing 3D on phones: the Winter photos get sharper close up, with real bumps, gullies and trees, once you stop moving the map."},

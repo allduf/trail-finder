@@ -1578,13 +1578,13 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=481"></script>
-<script src="keyboard.js?v=481"></script>
-<script src="rotate.js?v=481"></script>
-<script src="official.js?v=481"></script>
-<script src="directions.js?v=481"></script>
-<script src="ratings.js?v=481"></script>
-<script src="ebike.js?v=481"></script>
+<script src="native.js?v=483"></script>
+<script src="keyboard.js?v=483"></script>
+<script src="rotate.js?v=483"></script>
+<script src="official.js?v=483"></script>
+<script src="directions.js?v=483"></script>
+<script src="ratings.js?v=483"></script>
+<script src="ebike.js?v=483"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3113,6 +3113,8 @@ out body;`;
   // BC Parks' rules for bikes in a park, from the park's own trail map.
   const PARK_RULES = { "South Chilcotin Mountains Park": "bikes stay on the designated trails, and e-bikes aren't allowed in the park (BC Parks trail map)" };
   const parkUrl = (name) => `https://bcparks.ca/${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}/`;
+  // The name drawn along the line on the 3D map (map3d.js reads the "label" option); none for unnamed trails.
+  const labelOf = (t) => (t.ghost ? "" : (t.tags.name || t.tags["mtb:name"] || t.tfName || "").trim());
   function trailName(t) { if (t.ghost) return "Possible unmapped trail"; return t.tags.name || t.tags["mtb:name"] || t.tfName || "Unnamed " + t.tags.highway; }
   const CAT_LABEL = { mtb: "MTB tagged", looks: "Likely MTB", other: "Other new path", ghost: "Possible unmapped trail" };
 
@@ -3167,7 +3169,7 @@ out body;`;
         t._edge = edged(t) ? L.polyline(shape, { renderer: newRenderer, color: "#fff", lineCap: "round", interactive: false, ...edgeStyle(sel) }) : null;
         if (t._edge) trailLayer.addLayer(t._edge);
         const id = t.id;
-        const line = L.polyline(shape, { renderer: newRenderer, lineCap: "round", ...lineStyle(lk, sel) })
+        const line = L.polyline(shape, { renderer: newRenderer, lineCap: "round", label: labelOf(t), ...lineStyle(lk, sel) })
           .bindTooltip(esc(trailName(t)), { sticky: true, direction: "top", offset: [0, -8] });
         line.on("click", (e) => { L.DomEvent.stopPropagation(e); select(id, false); });
         t._line = line;
@@ -3925,7 +3927,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=481").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=483").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5463,7 +5465,7 @@ out body;`;
         const d = difficulty(w.tags);
         const color = byDiff ? diffColor(d) : byLoam ? loamColor(w) : w.c.cat === "mtb" ? css("--mtb") : css("--looks");
         allShown.push({ w, color });
-        group.addLayer(L.polyline(w.geom, { renderer: allRenderer, color, weight: off ? 4.5 : unoff ? 3.5 : 2.5, opacity: off ? 1 : 0.75, dashArray: unoff ? UNOFF_DASH : byDiff && isEst(w.tags) ? EST_DASH : null, lineCap: "round", interactive: false }));
+        group.addLayer(L.polyline(w.geom, { renderer: allRenderer, color, weight: off ? 4.5 : unoff ? 3.5 : 2.5, opacity: off ? 1 : 0.75, dashArray: unoff ? UNOFF_DASH : byDiff && isEst(w.tags) ? EST_DASH : null, lineCap: "round", interactive: false, label: labelOf(w) }));
       });
       if (nearView(list)) allLayer.addLayer(group);
     }
@@ -6913,7 +6915,7 @@ out tags center qt;`;
     t.segments.forEach((s) => {
       foundLayer.addLayer(L.polyline(s, { color: PICK_GLOW, weight: 24, opacity: 0.6, lineCap: "round", interactive: false }));   // highlighter so the picked trail stands out
       foundLayer.addLayer(L.polyline(s, { color: "#ffffff", weight: 12, opacity: 0.9, lineCap: "round", interactive: false }));
-      foundLayer.addLayer(L.polyline(s, { color, weight: 6, opacity: 1, lineCap: "round", dashArray: isUnoff(t) ? UNOFF_DASH : null })
+      foundLayer.addLayer(L.polyline(s, { color, weight: 6, opacity: 1, lineCap: "round", dashArray: isUnoff(t) ? UNOFF_DASH : null, label: labelOf(t) })
         .bindTooltip(esc(trailName(t)), { sticky: true, direction: "top", offset: [0, -8] })
         .on("click", (e) => { L.DomEvent.stopPropagation(e); openDetail(t); }));
     });
@@ -7232,7 +7234,7 @@ out tags center qt;`;
       const color = w.c.cat === "path" ? UNRATED : byDiff ? diffColor(d) : state.colorBy === "loam" ? loamColor(w) : w.c.cat === "mtb" ? css("--mtb") : css("--looks");
       const name = (w.tags.name || w.tags["mtb:name"] || "").trim();
       boxLayer.addLayer(L.polyline(w.geom, { renderer: boxRenderer, color: "#fff", weight: 8, opacity: 0.9, interactive: false }));
-      const line = L.polyline(w.geom, { renderer: boxRenderer, color, weight: 4.5, opacity: 1, dashArray: unoff || unoffPick ? UNOFF_DASH : byDiff && isEst(w.tags) ? EST_DASH : null, lineCap: "round" });
+      const line = L.polyline(w.geom, { renderer: boxRenderer, color, weight: 4.5, opacity: 1, dashArray: unoff || unoffPick ? UNOFF_DASH : byDiff && isEst(w.tags) ? EST_DASH : null, lineCap: "round", label: name });
       boxLayer.addLayer(line);
       if (!name && !diff && !circle) { loose.push({ w, line }); return; }   // listed below as "Unnamed trail", joined where the pieces meet
       if (!name) { unnamed++; line.on("click", (e) => { L.DomEvent.stopPropagation(e); pickTrailAt(e.latlng); }); return; }
@@ -7473,53 +7475,53 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=481"></script>
-<script src="contours.js?v=481"></script>
-<script src="clouds.js?v=481"></script>
-<script src="smoke.js?v=481"></script>
-<script src="photo-slider.js?v=481"></script>
-<script src="ski-terrain.js?v=481"></script>
-<script src="place-search.js?v=481"></script>
-<script src="winter.js?v=481"></script>
-<script src="hunting.js?v=481"></script>
-<script src="fish-bait.js?v=481"></script>
-<script src="fish-route.js?v=481"></script>
-<script src="fishing.js?v=481"></script>
-<script src="compass.js?v=481"></script>
-<script src="hunts.js?v=481"></script>
-<script src="ski-points.js?v=481"></script>
-<script src="webcams.js?v=481"></script>
-<script src="lifts.js?v=481"></script>
-<script src="rogers.js?v=481"></script>
-<script src="slackcountry.js?v=481"></script>
-<script src="ski-areas.js?v=481"></script>
-<script src="helicat.js?v=481"></script>
-<script src="offline.js?v=481"></script>
-<script src="ride-stats.js?v=481"></script>
-<script src="native-gps.js?v=481"></script>
-<script src="navigate.js?v=481"></script>
-<script src="planner.js?v=481"></script>
-<script src="loops.js?v=481"></script>
-<script src="ride-finds.js?v=481"></script>
-<script src="rides.js?v=481"></script>
-<script src="community.js?v=481"></script>
-<script src="ride-files.js?v=481"></script>
-<script src="rider-trails.js?v=481"></script>
-<script src="account.js?v=481"></script>
-<script src="strava.js?v=481"></script>
-<script src="reports.js?v=481"></script>
-<script src="grades.js?v=481"></script>
-<script src="trail-photos.js?v=481"></script>
-<script src="visitors.js?v=481"></script>
-<script src="usage.js?v=481"></script>
-<script src="notify.js?v=481"></script>
-<script src="closures.js?v=481"></script>
-<script src="status.js?v=481"></script>
-<script src="areas.js?v=481"></script>
-<script src="alpine.js?v=481"></script>
-<script src="bikeparks.js?v=481"></script>
-<script src="photo-find.js?v=481"></script>
-<script src="whats-new.js?v=481"></script>
+<script src="map3d.js?v=483"></script>
+<script src="contours.js?v=483"></script>
+<script src="clouds.js?v=483"></script>
+<script src="smoke.js?v=483"></script>
+<script src="photo-slider.js?v=483"></script>
+<script src="ski-terrain.js?v=483"></script>
+<script src="place-search.js?v=483"></script>
+<script src="winter.js?v=483"></script>
+<script src="hunting.js?v=483"></script>
+<script src="fish-bait.js?v=483"></script>
+<script src="fish-route.js?v=483"></script>
+<script src="fishing.js?v=483"></script>
+<script src="compass.js?v=483"></script>
+<script src="hunts.js?v=483"></script>
+<script src="ski-points.js?v=483"></script>
+<script src="webcams.js?v=483"></script>
+<script src="lifts.js?v=483"></script>
+<script src="rogers.js?v=483"></script>
+<script src="slackcountry.js?v=483"></script>
+<script src="ski-areas.js?v=483"></script>
+<script src="helicat.js?v=483"></script>
+<script src="offline.js?v=483"></script>
+<script src="ride-stats.js?v=483"></script>
+<script src="native-gps.js?v=483"></script>
+<script src="navigate.js?v=483"></script>
+<script src="planner.js?v=483"></script>
+<script src="loops.js?v=483"></script>
+<script src="ride-finds.js?v=483"></script>
+<script src="rides.js?v=483"></script>
+<script src="community.js?v=483"></script>
+<script src="ride-files.js?v=483"></script>
+<script src="rider-trails.js?v=483"></script>
+<script src="account.js?v=483"></script>
+<script src="strava.js?v=483"></script>
+<script src="reports.js?v=483"></script>
+<script src="grades.js?v=483"></script>
+<script src="trail-photos.js?v=483"></script>
+<script src="visitors.js?v=483"></script>
+<script src="usage.js?v=483"></script>
+<script src="notify.js?v=483"></script>
+<script src="closures.js?v=483"></script>
+<script src="status.js?v=483"></script>
+<script src="areas.js?v=483"></script>
+<script src="alpine.js?v=483"></script>
+<script src="bikeparks.js?v=483"></script>
+<script src="photo-find.js?v=483"></script>
+<script src="whats-new.js?v=483"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
