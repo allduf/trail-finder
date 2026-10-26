@@ -5,6 +5,7 @@ name: Winter data
 #    snowmobile clubs' grooming reports (data/snowmobile-clubs.json) -> data/grooming.json
 #    and the last 2 weeks of Avalanche Canada Mountain Information Network reports -> data/avalanche-reports.json
 #    and the BC snow pillow stations' snow depth, new snow and temperature -> data/snow-stations.json
+#    plus Environment Canada snow depth stations outside BC
 #  - every night, backcountry ski routes, snowmobile trails and huts (OpenStreetMap + BC Recreation Sites and Trails) -> data/ski.json
 #    and the backcountry routes and huts in the rest of Canada (OpenStreetMap, camptocamp, BC, Sépaq, Parks Canada),
 #    one file per map square -> data/ski-canada/

@@ -83,6 +83,54 @@ for (const f of fc.features || []) {
   });
 }
 if (stations.length < 20) throw new Error(`Only ${stations.length} stations: keeping the last file`);
+
+// The rest of Canada (alex 2026-10-26: "if their is other things only available in a region make it available
+// everywhere"): Environment Canada's automatic weather stations that measure snow depth (MSC SWOB real-time
+// observations, api.weather.gc.ca, Environment and Climate Change Canada Data Servers End-use Licence), outside BC
+// (BC has the snow pillows above). One snapshot per time asked for (the top of the hour), so a few small queries
+// give now, 24 and 72 hours ago, the last 7 days and the day's low and high. No swe (they don't weigh the snow).
+const SWOB = "https://api.weather.gc.ca/collections/swob-realtime/items?f=json&limit=10000&properties=stn_nam-value,snw_dpth,air_temp,clim_id-value,msc_id-value&datetime=";
+async function swobAt(t) {
+  const d = await get(SWOB + new Date(t).toISOString().slice(0, 19) + "Z", "json"), out = new Map();
+  for (const f of d.features || []) {
+    const p = f.properties || {}, clim = String(p["clim_id-value"] || ""), id = p["msc_id-value"] || clim;
+    if (!id || clim[0] === "1" || /-bc-/.test(f.id || "")) continue;   // BC: its snow pillows are above
+    const sd = p.snw_dpth, ta = p.air_temp;
+    const row = out.get(id) || { id, name: p["stn_nam-value"], lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], ele: f.geometry.coordinates[2] };
+    if (sd != null && sd > LIMITS.SD[0] && sd < LIMITS.SD[1]) row.sd = sd;
+    if (ta != null && ta > LIMITS.TA[0] && ta < LIMITS.TA[1]) row.ta = ta;
+    out.set(id, row);
+  }
+  return out;
+}
+try {
+  const top = Math.floor(Date.now() / HOUR) * HOUR;
+  let now = null, t = top;
+  for (const back of [1, 2, 3]) { t = top - back * HOUR; now = await swobAt(t); if ([...now.values()].filter((x) => x.sd != null).length > 50) break; }
+  const ago = {};
+  for (const h of [6, 12, 18, 24, 48, 72, 96, 120, 144]) { try { ago[h] = await swobAt(t - h * HOUR); } catch { ago[h] = new Map(); } }
+  let n = 0;
+  for (const x of now.values()) {
+    if (x.sd == null) continue;   // no snow depth sensor
+    const sdAt = (h) => (h ? ago[h].get(x.id)?.sd : x.sd) ?? null, temps = [x.ta, ...[6, 12, 18, 24].map((h) => ago[h].get(x.id)?.ta)].filter((v) => v != null);
+    const week = [144, 120, 96, 72, 48, 24, 0].map(sdAt);
+    if (x.sd > 0 && week.every((v) => v === x.sd)) continue;   // the same depth to the cm all week: a stuck sensor
+    // Hundreds of valley and airport stations: only the ones with snow this week, so a snow-free autumn map isn't
+    // covered in "0 cm" pins. A few cm below zero is the sensor reading bare ground: 0.
+    if (!week.some((v) => v > 0)) continue;
+    for (let i = 0; i < week.length; i++) if (week[i] != null && week[i] < 0) week[i] = 0;
+    if (x.sd < 0) x.sd = 0;
+    stations.push({
+      id: "msc:" + x.id, name: x.name.replace(/\b([A-Z])([A-Z']+)/g, (_, a, b) => a + b.toLowerCase()), lat: +x.lat.toFixed(5), lon: +x.lon.toFixed(5),
+      ele: x.ele != null ? Math.round(x.ele) : null, at: new Date(t).toISOString(),
+      sd: r1(x.sd), sd24: sdAt(24) != null ? r1(x.sd - sdAt(24)) : null, sd72: sdAt(72) != null ? r1(x.sd - sdAt(72)) : null,
+      days: week.map(r1), swe: null, ta: r1(x.ta ?? null),
+      lo24: temps.length ? r1(Math.min(...temps)) : null, hi24: temps.length ? r1(Math.max(...temps)) : null, src: "msc",
+    });
+    n++;
+  }
+  console.log(`${n} Environment Canada snow depth stations outside BC`);
+} catch (e) { console.log(`::warning::Environment Canada stations failed (${e.message}); BC only this time`); }
 mkdirSync(new URL("../data/", import.meta.url), { recursive: true });
-writeFileSync(OUT, JSON.stringify({ builtAt: new Date().toISOString(), source: "BC River Forecast Centre, Automated Snow Weather Stations", stations }));
+writeFileSync(OUT, JSON.stringify({ builtAt: new Date().toISOString(), source: "BC River Forecast Centre, Automated Snow Weather Stations; Environment and Climate Change Canada (outside BC)", stations }));
 console.log(`${stations.length} snow stations, ${stations.filter((s) => s.sd > 0).length} with snow`);
