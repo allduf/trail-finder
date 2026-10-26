@@ -4810,7 +4810,9 @@ out body;`;
     const top = cover ? 56 : 0;              // the chip row along the top
     const shift = (cover - top) / 2;
     const c = shift ? map.containerPointToLatLng(map.latLngToContainerPoint(ll).add([0, shift])) : ll;
-    if (map.getCenter().distanceTo(c) < 0.5) return;
+    // Standing still, the GPS wobbles a few metres: a pan for each wobble redid everything that follows a map move
+    // (trail lists, the 3D camera) every second, which made the map feel sluggish. Under 4 px it waits.
+    if (map.latLngToContainerPoint(map.getCenter()).distanceTo(map.latLngToContainerPoint(c)) < 4) return;
     if (animate) map.panTo(c, { animate: true, duration: 0.6, easeLinearity: 1, noMoveStart: true });
     else map.panTo(c, { animate: false });
   }
@@ -4818,18 +4820,34 @@ out body;`;
   // (Not touchGestures._moved: leaflet-rotate leaves it true after a pinch ends, which would stop following for good.)
   function busy() {
     const g = map.touchGestures || map.touchZoom || {};
-    return !!(map._animatingZoom || g._zooming || g._rotating || L.Draggable._dragging);
+    return !!(map._animatingZoom || g._zooming || g._rotating || L.Draggable._dragging || map._tfHeld3d);
   }
   // Other parts (Hunting: the spot, scent cone and range rings) can move with you while the map follows you.
   const tellYou = () => { if (you.ll) window.dispatchEvent(new CustomEvent("tf:you", { detail: { lat: you.ll.lat, lon: you.ll.lng, follow: you.follow, acc: you.ring ? Math.round(you.ring.getRadius()) : 0 } })); };
+  // While it follows you, a pinch, a double tap or the mouse wheel zooms on the middle of the map (you), as in
+  // Apple and Google Maps. Zooming round the fingers moved the map off you, and the next fix threw it back.
+  function zoomOnYou(on) {
+    const c = on ? "center" : true;
+    map.options.touchZoom = map.options.touchZoom ? c : false;
+    map.options.doubleClickZoom = c; map.options.scrollWheelZoom = c;
+  }
+  function pauseFollow() { if (you.follow) { you.follow = false; you.lost = true; zoomOnYou(false); syncLocate(); tellYou(); } }
   function setFollow(on) {
-    you.follow = on; you.lost = false;
+    you.follow = on; you.lost = false; zoomOnYou(on);
     if (on && you.ll) keepOnYou(you.ll, true);
     syncLocate(); tellYou();
   }
-  // You moved the map yourself (a drag, not a zoom): stop following until "Recenter".
-  map.on("dragstart", () => { if (you.follow) { you.follow = false; you.lost = true; syncLocate(); } });
-  map.on("zoomend", () => { if (you.follow && you.ll) keepOnYou(you.ll, false); });
+  // You moved the map yourself (a drag, not a zoom): stop following until "Recenter". The 3D map too: a drag there
+  // never reached this map, so it kept following and every fix flew the 3D map back to you (a tester, 2026-10-26:
+  // "ça revient à mon point de géolocalisation random"). Mid-gesture on the 3D map, a fix waits (busy()).
+  map.on("dragstart", pauseFollow);
+  window.addEventListener("tf:map3d", (e) => {
+    const g = e.detail;
+    g.on("dragstart", (ev) => { if (ev.originalEvent) pauseFollow(); });
+    g.on("movestart", (ev) => { if (ev.originalEvent) map._tfHeld3d = true; });
+    g.on("moveend", () => { map._tfHeld3d = false; });
+  });
+  map.on("zoomend", () => { if (you.follow && you.ll) keepOnYou(you.ll, true); });   // a short slide back onto you, not a jump
   // The dot slides from where it is to the new fix, so it moves smoothly instead of hopping every second.
   function moveDot(ll, acc) {
     cancelAnimationFrame(you.anim);
@@ -4877,7 +4895,7 @@ out body;`;
     if (you.watch != null) navigator.geolocation.clearWatch(you.watch);
     cancelAnimationFrame(you.anim);
     Object.assign(you, { watch: null, ll: null, dot: null, ring: null, onFirst: null, follow: false, lost: false, shown: null, t: 0 });
-    youLayer.clearLayers();
+    youLayer.clearLayers(); zoomOnYou(false);
     syncLocate();
   }
   // Back from another app or the lock screen: the phone may have paused the GPS, so jump straight to the newest fix.
