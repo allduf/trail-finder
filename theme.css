@@ -463,8 +463,9 @@ body.sport-alt .layers-menu .lm-looks, body.sport-alt .layers-menu .lm-looks-hea
   .hub-start { min-height: 60px; font: inherit; font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; color: var(--cta-fg); background: var(--cta); border: 0; border-radius: 16px; cursor: pointer; }
   .hub-note { margin: -4px 0 2px; text-align: center; color: var(--muted); font-size: .85rem; }
   .hub-seg { display: flex; padding: 4px; gap: 4px; border-radius: 12px; background: var(--chip); }
-  .hub-seg button { flex: 1 1 0; min-height: 44px; font: inherit; font-weight: 700; color: var(--fg); background: none; border: 0; border-radius: 9px; cursor: pointer; }
+  .hub-seg button { flex: 1 1 auto; min-width: 0; padding: 4px 2px; min-height: 44px; font: inherit; font-weight: 700; color: var(--fg); background: none; border: 0; border-radius: 9px; cursor: pointer; }
   .hub-seg [aria-pressed="true"] { background: var(--panel); box-shadow: var(--shadow-sm); }
+  @media (max-width: 380px) { .hub-seg button { font-size: .86em; } }
   .hub-slot:empty { display: none; }
   .hub .wantlist { margin: 0; }
   body.sport-alt .hub .wantlist > details.folder { display: none; }

@@ -1208,7 +1208,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
    in the Find page's list; Offline maps sits in the Ride tab. Computers keep them by Search and in Layers. */
 @media (max-width: 760px) { #photoFindBtn, #offlineBtn { display: none !important; } }
 </style>
-<link rel="stylesheet" href="theme.css?v=10">
+<link rel="stylesheet" href="theme.css?v=11">
 <style>
 /* Phone map buttons (alex, 2026-10-24): the same four labelled buttons in every sport, Sport, Layers and 3D on the
    left, Me on the right. Satellite is a map style in Layers; Save a point, Compass and Measure live in each sport's
@@ -1313,7 +1313,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <h1>Trail <span>Finder</span></h1>
         <button type="button" class="peek-search" id="peekSearch"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Search trails</span></button>
         <button type="button" class="peek-photo" id="peekPhoto" aria-label="Which trail is this? Find a trail from a photo" title="Which trail is this? Find a trail from a photo">📷</button>
-        <span class="brand-links"><button class="linkish" id="aboutBtn" type="button">How it works</button><a class="linkish" id="myRidesLink" href="ride.html#rides" title="Your recorded and imported rides (GPX, Strava archive) and stats">🚴 My rides</a><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hunt">🦌 Hunting</option><option value="fish">🎣 Fishing</option><option value="moto">🏍 Moto</option></select></span>
+        <span class="brand-links"><button class="linkish" id="aboutBtn" type="button">How it works</button><a class="linkish" id="myRidesLink" href="ride.html#rides" title="Your recorded and imported rides (GPX, Strava archive) and stats">🚴 My rides</a><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hunt">🦌 Hunting</option><option value="fish">🎣 Fishing</option><option value="moto" data-short="🏍 Adventure">🏍 Adventure moto</option></select></span>
       </div>
       <div class="peek-quick" id="peekQuick" role="group" aria-label="Quick searches">
         <button type="button" data-q="new">✨ New trails</button><button type="button" data-q="near">◎ Near me</button><button type="button" data-q="prime"><span class="dot" aria-hidden="true"></span>Prime loam</button><button type="button" data-q="today">☀ Today</button>
@@ -5144,7 +5144,7 @@ out body;`;
       const sp = $("sport").value, acct = document.querySelector(".brand [data-account-slot] button");
       const signedIn = acct && /Account$/.test(acct.textContent.trim());
       return `<div class="hub-sec">Sport</div>
-      <div class="hub-seg" role="group" aria-label="Sport">${[...$("sport").options].map((o) => `<button type="button" data-sport="${o.value}" aria-pressed="${o.value === sp}">${esc(o.textContent)}</button>`).join("")}</div>
+      <div class="hub-seg" role="group" aria-label="Sport">${[...$("sport").options].map((o) => `<button type="button" data-sport="${o.value}" aria-pressed="${o.value === sp}">${esc(o.dataset.short || o.textContent)}</button>`).join("")}</div>
       <div class="hub-sec">Tools</div>
       ${document.querySelector(".brand .notify-btn") ? card("alerts", "🔔", w.alerts[0], w.alerts[1]) : ""}
       ${card("full", "⤢", "Full map", "Hide everything but the map")}

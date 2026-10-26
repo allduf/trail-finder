@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-26", "text": "Adventure moto is called Adventure in the sport picker under More too, the same as the map button"},
     {"date": "2026-10-26", "text": "Fishing: ecological reserves (no fishing allowed) show in red on the map in BC and Quebec; wildlife reserves and parks, where you can fish with an access fee, keep their own colours"},
     {"date": "2026-10-26", "text": "Fishing: Rules starts with the main rules in short (closures open or closed today, hooks and bait, daily limits) for BC, Quebec and Ontario"},
     {"date": "2026-10-26", "text": "Fishing: the Fishing zones and regions layer starts off (turn it on in Layers or with the Rules view)"},
