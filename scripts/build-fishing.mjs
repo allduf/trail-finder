@@ -29,7 +29,7 @@
 // Government Licence - Ontario. Quebec and DFO: Open Government Licence - Canada / Quebec. FFSBC stocking report: public
 // report, credited in the app. A source that fails keeps its last good data.
 //
-// Run: node scripts/build-fishing.mjs   (Node 18 or newer, no packages needed; ONLY=stocked|zones|tides|gauges|eat|spots|walkin for one file)
+// Run: node scripts/build-fishing.mjs   (Node 18 or newer, no packages needed; ONLY=stocked|zones|tides|gauges|eat|spots|walkin|boating for one file)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 
@@ -378,6 +378,31 @@ async function buildZones() {
     }
     log(`  Quebec zones: ${z.length}`);
   } catch (e) { log(`  Quebec zones: ${e.message}`); keep("qc"); }
+  // Places with their own fishing rules, drawn on the Rules view: national parks (a Parks Canada permit, not the
+  // provincial licence) and Quebec's zecs, wildlife reserves and parks (access fees and their own quotas).
+  const title = (t) => String(t || "").toLowerCase().replace(/(^|[\s\-'(])([a-zà-ÿ])/g, (m, a, b) => a + b.toUpperCase()).replace(/\b(Of|The|And|De|Du|La|Le|Des)\b/g, (w) => w.toLowerCase()).replace(/ of Canada$/i, "").replace(/^./, (c) => c.toUpperCase());
+  try {
+    const np = await arcgis("https://proxyinternet.nrcan-rncan.gc.ca/arcgis/rest/services/CLSS-SATC/CLSS_Administrative_Boundaries/MapServer/1", ["adminAreaId", "adminAreaNameEng", "jurisdiction"], "1=1", 0.003);
+    for (const f of np) push("np", f.properties.adminAreaId, title(f.properties.adminAreaNameEng), f.geometry, 0.003, { p: String(f.properties.jurisdiction || "").toLowerCase() });
+    log(`  National parks: ${np.length}`);
+  } catch (e) { log(`  National parks: ${e.message}`); keep("np"); }
+  try {
+    const QT = "https://peche.faune.gouv.qc.ca/arcgiswa/rest/services/PRODC-E/TerritoiresRecreatifsExceptions/MapServer/0";
+    const ids = (await get(`${QT}/query?where=1%3D1&returnIdsOnly=true&f=json`)).objectIds || [];
+    let n = 0;
+    // Ten at a time with light outlines (one at a time with fine ones took half a minute each).
+    const feats = [];
+    for (let i = 0; i < ids.length; i += 10) {
+      const p = new URLSearchParams({ objectIds: ids.slice(i, i + 10).join(","), outFields: "ID_ENDRO,NM_ENDRO_FR,VA_TYPE_DESCR_FR,ID_TYPE_ENDRO", outSR: "4326", f: "geojson", maxAllowableOffset: "0.004", geometryPrecision: "4" });
+      feats.push(...((await get(`${QT}/query?${p}`)).features || []));
+    }
+    for (const f of feats) {
+      const a = f.properties, name = String(a.NM_ENDRO_FR || "").replace(/\s*\(voir.*?\)|\s*-\s*$/g, "").trim();
+      push("qct", a.ID_ENDRO, `${a.VA_TYPE_DESCR_FR || ""} ${name}`.trim(), f.geometry, 0.002, { t: a.ID_TYPE_ENDRO });
+      n++;
+    }
+    log(`  Quebec zecs, reserves and parks: ${n}`);
+  } catch (e) { log(`  Quebec zecs, reserves and parks: ${e.message}`); keep("qct"); }
   save("zones.json", { updated: iso(now), zones: out });
 }
 
@@ -588,6 +613,23 @@ async function buildSpots() {
     log(`  Ontario: ${e.message}; keeping the last good access points`);
     if (old) for (const x of old.spots) if (x[5] === "on") out.set(`old${x[0]},${x[1]}`, x);
   }
+  // BC's coastal boat launches (an older provincial list): adds the saltwater ramps OpenStreetMap is missing.
+  try {
+    const bl = await databc("WHSE_ENVIRONMENTAL_MONITORING.CHRA_BOAT_LAUNCHES_POINT", "", "");
+    let n = 0;
+    for (const f of bl) {
+      const c = f.geometry && f.geometry.coordinates; if (!c) continue;
+      const [x, y] = c;
+      if ([...out.values()].some((o) => o[2] === 2 && Math.abs(o[0] - y) < 0.003 && Math.abs(o[1] - x) < 0.004)) continue;
+      const p = f.properties || {}, name = p.LAUNCH_NAME || p.NAME || p.SITE_NAME || p.FACILITY_NAME || "";
+      out.set(`bcl${y.toFixed(4)},${x.toFixed(4)}`, [r4(y), r4(x), 2, String(name).slice(0, 60), "", "bc"]);
+      n++;
+    }
+    log(`  BC coastal launches added: ${n} of ${bl.length}`);
+  } catch (e) {
+    log(`  BC coastal launches: ${e.message}`);
+    if (old) for (const x of old.spots) if (x[5] === "bc") out.set(`old${x[0]},${x[1]}`, x);
+  }
   if (!out.size) { log("  no spots: keeping the last good file"); return; }
   const spots = [...out.values()].map((x) => { while (x.length > 3 && !x[x.length - 1]) x.pop(); return x; }).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   save("spots.json", { updated: iso(now), spots });
@@ -678,10 +720,47 @@ async function buildWalkin() {
   save("walkin.json", { updated: iso(now), w: out });
 }
 
+// ---------- boating rules ----------
+// Transport Canada's Vessel Operation Restriction Regulations: the schedules list every water with a boating rule
+// (no boats, no motors, 7.5 kW electric only, a horsepower or speed limit, no towing or wake surfing at some hours).
+// The web edition is one long page of tables with each water's name and position; Alberta's give a land survey
+// reference instead, so those are matched by name in the app. boating.json: { rules: [[lat|null, lon|null, schedule,
+// province, name, local name or place, limit]] }
+const VORR = "https://tc.canada.ca/en/marine-transportation/marine-safety/boating-safety/schedules-vessel-operation-restriction-regulations-2nd-edition-april-2026";
+async function buildBoating() {
+  log("Boating rules");
+  let page;
+  try { page = String(await get(VORR, { json: false })); } catch (e) { log(`  ${e.message}; keeping the last good file`); return; }
+  const text = (h) => String(h).replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/g, " ").replace(/&amp;/g, "&").replace(/&#39;|&rsquo;/g, "'").replace(/\s+/g, " ").trim();
+  const PROVS = { "british columbia": "bc", alberta: "ab", saskatchewan: "sk", manitoba: "mb", ontario: "on", quebec: "qc", "new brunswick": "nb", "nova scotia": "ns", "prince edward island": "pe", "newfoundland": "nl", yukon: "yt", "northwest territories": "nt", nunavut: "nu" };
+  const dms = (t) => [...t.matchAll(/(\d{1,3})°\s*(\d{1,2})[′']\s*(?:(\d{1,2}(?:\.\d+)?)[″"])?/g)].map((m) => +m[1] + +m[2] / 60 + (+m[3] || 0) / 3600);
+  const rules = [];
+  let sched = 0, prov = "";
+  // Walk the page in order: schedule headings, province headings, then table rows.
+  for (const m of page.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>|<h[3-6][^>]*>([\s\S]*?)<\/h[3-6]>|<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
+    if (m[1] != null) { const n = text(m[1]).match(/^Schedule (\d)/); sched = n ? +n[1] : 0; continue; }
+    if (m[2] != null) { const h = text(m[2]).toLowerCase(); for (const [k, v] of Object.entries(PROVS)) if (h.includes(k)) prov = v; continue; }
+    if (!sched || !prov) continue;
+    const cells = [...m[3].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((c) => text(c[1]));
+    if (cells.length < 3 || !/^\d/.test(cells[0])) continue;
+    const name = cells[1], all = cells.join(" "), d = dms(all);
+    const lat = d.length >= 2 ? +d[0].toFixed(4) : null, lon = d.length >= 2 ? -d[1].toFixed(4) : null;
+    const last = cells[cells.length - 1];
+    const limit = sched === 4 || sched === 5 ? (last.match(/^\d+(\.\d+)?$/) || [""])[0] : sched === 6 || sched === 7 ? (/\d\s*(h|:)|sunrise|sunset|lever|coucher/i.test(cells[2] || "") ? cells[2] : "") : "";
+    const where = cells.slice(2, cells.length - (limit && (sched === 4 || sched === 5) ? 1 : 0)).filter((c) => !/°/.test(c) && !/^(NE|NW|SE|SW|N|S|E|W)?\s*\d+-\d+-\d+/.test(c)).join(", ");
+    if (!name) continue;
+    rules.push([lat, lon, sched, prov, name, where.replace(/^[,\s]+|[,\s]+$/g, "").slice(0, 120), limit]);
+  }
+  if (rules.length < 500) { log(`  only ${rules.length} rows read; keeping the last good file`); return; }
+  log(`  ${rules.length} waters`);
+  save("boating.json", { updated: iso(now), src: VORR, rules });
+}
+
 if (!ONLY || ONLY === "stocked") await buildStocked();
 if (!ONLY || ONLY === "zones") await buildZones();
 if (!ONLY || ONLY === "tides") await buildTides();
 if (!ONLY || ONLY === "gauges") await buildGauges();
 if (!ONLY || ONLY === "eat") await buildEat();
 if (!ONLY || ONLY === "spots") await buildSpots();
+if (!ONLY || ONLY === "boating") await buildBoating();
 if (!ONLY || ONLY === "walkin") await buildWalkin();
