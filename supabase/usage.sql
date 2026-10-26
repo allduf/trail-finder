@@ -34,13 +34,14 @@ alter table public.tf_admins enable row level security;
 -- The app sends a batch of events (at most 200 per call).
 create or replace function public.tf_use(device text, os text, screen text, events jsonb) returns void
 language plpgsql security definer set search_path = public as $$
+#variable_conflict use_column
 begin
   insert into tf_use_devices (device, os, screen) values (tf_use.device, left(tf_use.os, 40), left(tf_use.screen, 20))
   on conflict (device) do update set os = excluded.os, screen = excluded.screen, last_seen = now();
   insert into tf_use_events (device, session, at, page, kind, what, ms)
   select tf_use.device, left(e->>'s', 40), least(coalesce((e->>'t')::timestamptz, now()), now()), left(e->>'p', 20),
          e->>'k', left(e->>'w', 120), least(greatest((e->>'ms')::int, 0), 86400000)
-  from jsonb_array_elements(case when jsonb_typeof(events) = 'array' then events else '[]'::jsonb end)
+  from jsonb_array_elements(case when jsonb_typeof(tf_use.events) = 'array' then tf_use.events else '[]'::jsonb end)
        with ordinality as x(e, i)
   where x.i <= 200 and e->>'k' in ('open', 'tap', 'sport', 'error', 'end') and coalesce(e->>'s', '') <> '';
 end $$;
