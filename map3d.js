@@ -113,7 +113,6 @@
 
   function snapshot() {
     const lines = [], dots = [], hitLines = [], names = [];
-    nameSeen.clear();
     hits = []; hitParts = []; hitDots = [];
     let k = 0;
     // A trail's details are open: the other trail lines fade, as in 2D.
@@ -165,27 +164,41 @@
     return { lines, dots, hitLines, names };
   }
 
-  // Trail names (layer "trail-names"): a point every NAME_EVERY metres along each named line, at least
-  // NAME_GAP metres from another point of the same name, and one in the middle of a shorter line. Names written
-  // along the lines themselves (MapLibre line labels) were mostly left out: a twisty trail, or a short piece of
-  // one, has no stretch straight and long enough to hold the name (alex 2026-10-26, Cheakamus: 2 names in 3D, 12 in 2D).
-  const NAME_EVERY = 700, NAME_GAP = 450, nameSeen = new Map();
+  // Trail names (layer "trail-names"), each name once on the screen, as on the flat map (alex 2026-10-26: "I want
+  // to see the names just ones by trail"). Every named line gives spots every NAME_STEP metres (one in the middle
+  // of a shorter line); after each move the spot nearest the middle of the screen is kept for each name.
+  // Names written along the lines themselves (MapLibre line labels) were mostly left out: a twisty trail, or a
+  // short piece of one, has no stretch straight and long enough to hold the name (Cheakamus: 1 name in 3D, 12 in 2D).
+  const NAME_STEP = 250;
+  let nameCands = [];
   function nameSpots(n, parts, c, o, out) {
-    const seen = nameSeen.get(n) || nameSeen.set(n, []).get(n), kx = Math.cos((parts[0][0][1] * Math.PI) / 180) * 111320;
-    const far = (p) => seen.every((q) => ((p[0] - q[0]) * kx) ** 2 + ((p[1] - q[1]) * 110540) ** 2 > NAME_GAP * NAME_GAP);
-    const add = (p, len) => { if (!far(p)) return; seen.push(p); out.push({ type: "Feature", geometry: { type: "Point", coordinates: p }, properties: { n, c, o, s: -len } }); };
+    const kx = Math.cos((parts[0][0][1] * Math.PI) / 180) * 111320;
     for (const pts of parts) {
       const d = [0];
       for (let i = 1; i < pts.length; i++) d.push(d[i - 1] + Math.hypot((pts[i][0] - pts[i - 1][0]) * kx, (pts[i][1] - pts[i - 1][1]) * 110540));
       const len = d[d.length - 1], at = [];
-      if (len < NAME_EVERY) at.push(len / 2); else for (let m = NAME_EVERY / 2; m < len; m += NAME_EVERY) at.push(m);
+      if (len < NAME_STEP) at.push(len / 2); else for (let m = NAME_STEP / 2; m < len; m += NAME_STEP) at.push(m);
       let i = 1;
       for (const m of at) {
         while (i < d.length - 1 && d[i] < m) i++;
         const t = d[i] > d[i - 1] ? (m - d[i - 1]) / (d[i] - d[i - 1]) : 0;
-        add([pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t], len);
+        out.push({ n, c, o, s: -len, p: [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t] });
       }
     }
+  }
+  function placeNames() {
+    const src = gl && gl.getSource("trailNames");
+    if (!src) return;
+    const cv = gl.getCanvas(), w = cv.clientWidth, h = cv.clientHeight, m = 0.06, box = gl.getBounds(), best = new Map();
+    if (gl.getZoom() >= 12) for (const k of nameCands) {
+      if (!box.contains(k.p)) continue;
+      const q = gl.project(k.p);
+      if (!(q.x > w * m && q.x < w * (1 - m) && q.y > h * m && q.y < h * (1 - m))) continue;
+      const dd = (q.x - w / 2) ** 2 + (q.y - h / 2) ** 2, b = best.get(k.n);
+      if (!b || dd < b.dd) best.set(k.n, { k, dd });
+    }
+    src.setData({ type: "FeatureCollection", features: [...best.values()].map(({ k }) =>
+      ({ type: "Feature", geometry: { type: "Point", coordinates: k.p }, properties: { n: k.n, c: k.c, o: k.o, s: k.s } })) });
   }
 
   function ensureDashLayer(d) {
@@ -216,7 +229,7 @@
     gl.getSource("lines").setData({ type: "FeatureCollection", features: s.lines });
     gl.getSource("dots").setData({ type: "FeatureCollection", features: s.dots });
     gl.getSource("hits").setData({ type: "FeatureCollection", features: s.hitLines });
-    gl.getSource("trailNames").setData({ type: "FeatureCollection", features: s.names });
+    nameCands = s.names; placeNames();
     drawn = true;
   }
   // Only lines and dots are copied: names and pins coming and going (the trail names redraw after every move) don't
@@ -806,7 +819,7 @@
           // see the name like that on the 3d map"), from the same zoom (flat 13 = 3D 12). The lines' "label" option
           // (index.html, winter.js, rider-trails.js; slackcountry lines have their own name pins) is the name. One symbol layer on the lines already
           // copied: MapLibre places them on the ground and leaves out names that would overlap, no HTML markers.
-          // Points along the lines (nameSpots), longest trails first; a name that doesn't fit above its point
+          // One point per name in view (placeNames), longest trails first; a name that doesn't fit above its point
           // tries below, left and right before it's left out.
           { id: "trail-names", type: "symbol", source: "trailNames", minzoom: 12,
             layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "symbol-sort-key": ["get", "s"],
@@ -858,6 +871,7 @@
       gl.on("render", phoneBuffers);
     }
     gl.on("moveend", keepView);
+    gl.on("moveend", placeNames);
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
