@@ -381,7 +381,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     const c = pos.coords, t = pos.timestamp || Date.now(), p = [c.latitude, c.longitude];
     lastFix = { c, t };
     drawYou();
-    const g = map.touchGestures || map.touchZoom || {}, busy = map._animatingZoom || g._zooming || g._rotating || L.Draggable._dragging;
+    const g = map.touchGestures || map.touchZoom || {}, busy = map._animatingZoom || g._zooming || g._rotating || L.Draggable._dragging || map._tfHeld3d;
     if (following && !busy) {                     // a short slide, not a jump, while the zoom stays put; never mid-pinch
       const z = Math.max(map.getZoom(), RIDE_ZOOM), glide = z === map.getZoom() && !document.hidden;
       map.setView(z === map.getZoom() ? aboveStrip(p) : p, z, glide ? { animate: true, pan: { duration: 0.6, easeLinearity: 1, noMoveStart: true } } : { animate: false });
@@ -1070,6 +1070,10 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     if (canTurn) { syncCompass(); if (faceWay) map.turnTo(0); }
   }
   map.on("dragstart", () => { if (rec) { following = false; $("navFollow").hidden = false; } });
+  // A drag on the 3D map stops following too (it never reached the flat map, so every fix flew it back to you).
+  const grab3d = (g) => g.on("dragstart", (ev) => { if (rec && ev.originalEvent) { following = false; $("navFollow").hidden = false; } });
+  if (window.trailMap3d) grab3d(window.trailMap3d);
+  window.addEventListener("tf:map3d", (e) => grab3d(e.detail));
   $("navFollow").addEventListener("click", () => {
     following = true; $("navFollow").hidden = true;
     if (lastFix) { const p = [lastFix.c.latitude, lastFix.c.longitude]; map.setView(map.getZoom() >= RIDE_ZOOM ? aboveStrip(p) : p, Math.max(map.getZoom(), RIDE_ZOOM)); }

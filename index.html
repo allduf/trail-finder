@@ -1565,9 +1565,10 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <p>Pick “🏍 Moto” in the sport menu at the top. First tell it about <b>your bike</b>: pick your model (or type it in), its kind (street, big adventure, middleweight, light dual sport or enduro), the tank, fuel use, tires and how much dirt you've ridden. You can keep several bikes. Everything after that is for that bike: roads are coloured <b style="color:#2f9e44">green</b> fine for it, <b style="color:#f08c00">orange</b> hard, <b style="color:#e03131">red</b> not for it, graded from Paved and Good gravel to Rough two-track and Very rough.</p>
     <p><b>Tap a road</b> to see what it is: its surface, grade, how steep, whether it's a BC forest service road and who maintains it, whether you can ride there (parks, reserves and closures from the same areas as Hunting, with each province's off-road rules), today's and tomorrow's mud, and the nearest gas and camping.</p>
     <p><b>Plan a route</b>: tap the map to add stops (Loop comes back to the start) and pick Most dirt, Mix or Paved. It shows the dirt km, the longest dirt stretch, the km of each grade, the hard parts for your bike, the gas stations on the way and any stretch longer than your range (with a 20% reserve), ferries, and camping near the end. <b>Ride it</b> speaks each turn early, shows the road, the next gas and your tank left since you last filled up. Save routes, share a GPX, and save the route's map offline along its whole length.</p>
+    <p><b>Closures</b>: your route points show numbered on the map, flat or 3D (drag one to move it; the route card lists them to reorder or remove). Each route is checked against forest road status (closed to vehicles, impassable or heavily degraded, from BC and Alberta government roads and OpenStreetMap), locked gates, barriers and bridges out, BC motor vehicle closures, ecological reserves and wilderness areas, wildfire area closures, evacuation orders and fire perimeters, and DriveBC events. The route goes around the ones that close a road, and the rest come with a Go around button. A public highway through a park or fire area still counts as open (DriveBC says when it closes). Gates and washouts change faster than any map: check before you go.</p>
     <p><b>Mud</b> shades the map from the last three days of rain, the ground's wetness and snow (Open-Meteo): good, dusty, slick, muddy, snow. <b>Fuel & camp</b> shows gas, campsites and huts, BC recreation sites, hot springs, moto shops and ferry landings, and your range ring. <b>Rules</b> colours parks, reserves and closures. It is a guide, not the law: check the signs and the land manager.</p>
-    <p>Pick <b>your bike</b> by year, make and model (every motorcycle sold in North America since 1981); its weight (kg or lb), tank and fuel use fill in, or are estimated from the kind of bike, and you can change them. <b>ADV routes</b> lists adventure routes across Canada, nearest first, the ones that suit your bike on top; Plan it makes one your route. A planned route also shows its <b>high points</b> with snow on the ground or coming and frost, the <b>km with no cell signal</b>, ferries with links to the sailings, and the province's road conditions site; <b>Fly it in 3D</b> rides the camera along it. <b>My moto rides</b> lists your rides with km, km of dirt and the weather. <b>Check-in alarm</b>: while you record a ride, if you haven't moved for the minutes you pick, the phone rings; with no answer in 2 minutes a text to your contact opens with where you are (keep the app open on screen; for a crash far from signal, use your phone's Crash Detection or a satellite messenger). <b>Send my location</b> shares a map link.</p>
-    <p class="src">Moto data: OpenStreetMap contributors (ODbL) through OpenFreeMap vector tiles, Valhalla routing (FOSSGIS), Nominatim, DataBC forest service roads and recreation sites (Open Government Licence - British Columbia), Open-Meteo weather and soil moisture (CC BY 4.0), ISED National Broadband Data for cell signal on roads (Open Government Licence - Canada), a hand-made list of motorcycle makes and models, and the park and closure sources listed under Hunting. Bike tank and fuel numbers are approximate makers' figures: change them to yours.</p>
+    <p>Pick <b>your bike</b> by year, make and model (every common model of 39 makes, by the years it was sold); its weight (kg or lb), tank and fuel use fill in, and you can change them. <b>ADV routes</b> lists adventure routes across Canada, nearest first, the ones that suit your bike on top; Plan it makes one your route. A planned route also shows its <b>high points</b> with snow on the ground or coming and frost, the <b>km with no cell signal</b>, ferries with links to the sailings, and the province's road conditions site; <b>Fly it in 3D</b> rides the camera along it. <b>My moto rides</b> lists your rides with km, km of dirt and the weather. <b>Check-in alarm</b>: while you record a ride, if you haven't moved for the minutes you pick, the phone rings; with no answer in 2 minutes a text to your contact opens with where you are (keep the app open on screen; for a crash far from signal, use your phone's Crash Detection or a satellite messenger). <b>Send my location</b> shares a map link.</p>
+    <p class="src">Moto data: OpenStreetMap contributors (ODbL) through OpenFreeMap vector tiles, Valhalla routing (FOSSGIS), Nominatim, DataBC forest service roads and recreation sites (Open Government Licence - British Columbia), Open-Meteo weather and soil moisture (CC BY 4.0), DriveBC road events (Open511, Open Government Licence - British Columbia), the app's wildfire and forest road data, ISED National Broadband Data for cell signal on roads (Open Government Licence - Canada), a hand-made list of motorcycle makes and models, and the park and closure sources listed under Hunting. Bike tank and fuel numbers are approximate makers' figures: change them to yours.</p>
     </details>
     <p><button class="btn primary" id="aboutClose" type="button">Got it</button></p>
   </div>
@@ -1577,12 +1578,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=428"></script>
-<script src="rotate.js?v=428"></script>
-<script src="official.js?v=428"></script>
-<script src="directions.js?v=428"></script>
-<script src="ratings.js?v=428"></script>
-<script src="ebike.js?v=428"></script>
+<script src="native.js?v=431"></script>
+<script src="rotate.js?v=431"></script>
+<script src="official.js?v=431"></script>
+<script src="directions.js?v=431"></script>
+<script src="ratings.js?v=431"></script>
+<script src="ebike.js?v=431"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3923,7 +3924,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=428").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=431").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -4809,7 +4810,9 @@ out body;`;
     const top = cover ? 56 : 0;              // the chip row along the top
     const shift = (cover - top) / 2;
     const c = shift ? map.containerPointToLatLng(map.latLngToContainerPoint(ll).add([0, shift])) : ll;
-    if (map.getCenter().distanceTo(c) < 0.5) return;
+    // Standing still, the GPS wobbles a few metres: a pan for each wobble redid everything that follows a map move
+    // (trail lists, the 3D camera) every second, which made the map feel sluggish. Under 4 px it waits.
+    if (map.latLngToContainerPoint(map.getCenter()).distanceTo(map.latLngToContainerPoint(c)) < 4) return;
     if (animate) map.panTo(c, { animate: true, duration: 0.6, easeLinearity: 1, noMoveStart: true });
     else map.panTo(c, { animate: false });
   }
@@ -4817,18 +4820,34 @@ out body;`;
   // (Not touchGestures._moved: leaflet-rotate leaves it true after a pinch ends, which would stop following for good.)
   function busy() {
     const g = map.touchGestures || map.touchZoom || {};
-    return !!(map._animatingZoom || g._zooming || g._rotating || L.Draggable._dragging);
+    return !!(map._animatingZoom || g._zooming || g._rotating || L.Draggable._dragging || map._tfHeld3d);
   }
   // Other parts (Hunting: the spot, scent cone and range rings) can move with you while the map follows you.
   const tellYou = () => { if (you.ll) window.dispatchEvent(new CustomEvent("tf:you", { detail: { lat: you.ll.lat, lon: you.ll.lng, follow: you.follow, acc: you.ring ? Math.round(you.ring.getRadius()) : 0 } })); };
+  // While it follows you, a pinch, a double tap or the mouse wheel zooms on the middle of the map (you), as in
+  // Apple and Google Maps. Zooming round the fingers moved the map off you, and the next fix threw it back.
+  function zoomOnYou(on) {
+    const c = on ? "center" : true;
+    map.options.touchZoom = map.options.touchZoom ? c : false;
+    map.options.doubleClickZoom = c; map.options.scrollWheelZoom = c;
+  }
+  function pauseFollow() { if (you.follow) { you.follow = false; you.lost = true; zoomOnYou(false); syncLocate(); tellYou(); } }
   function setFollow(on) {
-    you.follow = on; you.lost = false;
+    you.follow = on; you.lost = false; zoomOnYou(on);
     if (on && you.ll) keepOnYou(you.ll, true);
     syncLocate(); tellYou();
   }
-  // You moved the map yourself (a drag, not a zoom): stop following until "Recenter".
-  map.on("dragstart", () => { if (you.follow) { you.follow = false; you.lost = true; syncLocate(); } });
-  map.on("zoomend", () => { if (you.follow && you.ll) keepOnYou(you.ll, false); });
+  // You moved the map yourself (a drag, not a zoom): stop following until "Recenter". The 3D map too: a drag there
+  // never reached this map, so it kept following and every fix flew the 3D map back to you (a tester, 2026-10-26:
+  // "ça revient à mon point de géolocalisation random"). Mid-gesture on the 3D map, a fix waits (busy()).
+  map.on("dragstart", pauseFollow);
+  window.addEventListener("tf:map3d", (e) => {
+    const g = e.detail;
+    g.on("dragstart", (ev) => { if (ev.originalEvent) pauseFollow(); });
+    g.on("movestart", (ev) => { if (ev.originalEvent) map._tfHeld3d = true; });
+    g.on("moveend", () => { map._tfHeld3d = false; });
+  });
+  map.on("zoomend", () => { if (you.follow && you.ll) keepOnYou(you.ll, true); });   // a short slide back onto you, not a jump
   // The dot slides from where it is to the new fix, so it moves smoothly instead of hopping every second.
   function moveDot(ll, acc) {
     cancelAnimationFrame(you.anim);
@@ -4876,7 +4895,7 @@ out body;`;
     if (you.watch != null) navigator.geolocation.clearWatch(you.watch);
     cancelAnimationFrame(you.anim);
     Object.assign(you, { watch: null, ll: null, dot: null, ring: null, onFirst: null, follow: false, lost: false, shown: null, t: 0 });
-    youLayer.clearLayers();
+    youLayer.clearLayers(); zoomOnYou(false);
     syncLocate();
   }
   // Back from another app or the lock screen: the phone may have paused the GPS, so jump straight to the newest fix.
@@ -7388,6 +7407,16 @@ out tags center qt;`;
     ways: () => [...allData.values()].filter(Boolean).flat(),
     roads: () => [...roadData.values()].filter(Boolean).flatMap((z) => z.list),   // forest roads, for Plan a route (planner.js)
     roadFeats: () => [...roadData.values()].filter(Boolean).flatMap((z) => z.feats || []),   // gates, barriers, bridges (Shuttle)
+    // For Moto's route check (moto.js): the forest roads, gates and motor vehicle closures along a route (small boxes
+    // along it, at most 10 zones), and the wildfire closures (both fire files, read whether or not Wildfires is on).
+    roadsAlong: (boxes) => caIndexLoad().then(() => {
+      const zs = ZONES.filter((z) => boxes.some((b) => z.bounds.intersects(b)));
+      caZonesIn(boxes).forEach((z) => { if (!zs.includes(z)) zs.push(z); });
+      return Promise.all(zs.slice(0, 10).map(roadZone));
+    }).then((l) => l.filter(Boolean)),
+    firesNow: () => Promise.all([nightly("fires.json"), nightly("fires-ca.json")]).then((fs) => fs.filter((f) => f && f.v === 1).flatMap((f) =>
+      [...withRings(f.restr).map((a) => ({ ...a, what: a.kind === "ohv" || a.kind === "ban" || a.kind === "frestr" ? a.kind : "restr" })), ...withRings(f.evac).map((a) => ({ ...a, what: a.kind === "alert" ? "alert" : "order" })),
+        ...withRings(f.perims).map((a) => ({ ...a, what: a.src === "m3" ? "m3" : "perim" }))].map((a) => ({ ...a, label: FIRE_STYLE[a.what].label })))),
     load: () => { const v = map.getBounds(); ZONES.filter((z) => z.bounds.intersects(v)).forEach((z) => { loadZoneTrails(z); roadZone(z); }); caIndexLoad().then(() => caZonesIn([v]).forEach((z) => { loadZoneTrails(z); roadZone(z); })); } };
   // Where to ride today (status.js): the zones, nightly files, ridden trails and where you are.
   // zonesNear: the home zones within km of c, plus (outside the home regions) the Canada map chunks there.
@@ -7406,51 +7435,51 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=428"></script>
-<script src="contours.js?v=428"></script>
-<script src="clouds.js?v=428"></script>
-<script src="smoke.js?v=428"></script>
-<script src="photo-slider.js?v=428"></script>
-<script src="ski-terrain.js?v=428"></script>
-<script src="winter.js?v=428"></script>
-<script src="hunting.js?v=428"></script>
-<script src="fish-bait.js?v=428"></script>
-<script src="fish-route.js?v=428"></script>
-<script src="fishing.js?v=428"></script>
-<script src="compass.js?v=428"></script>
-<script src="hunts.js?v=428"></script>
-<script src="ski-points.js?v=428"></script>
-<script src="webcams.js?v=428"></script>
-<script src="lifts.js?v=428"></script>
-<script src="rogers.js?v=428"></script>
-<script src="slackcountry.js?v=428"></script>
-<script src="ski-areas.js?v=428"></script>
-<script src="offline.js?v=428"></script>
-<script src="ride-stats.js?v=428"></script>
-<script src="native-gps.js?v=428"></script>
-<script src="navigate.js?v=428"></script>
-<script src="planner.js?v=428"></script>
-<script src="loops.js?v=428"></script>
-<script src="ride-finds.js?v=428"></script>
-<script src="rides.js?v=428"></script>
-<script src="community.js?v=428"></script>
-<script src="ride-files.js?v=428"></script>
-<script src="rider-trails.js?v=428"></script>
-<script src="account.js?v=428"></script>
-<script src="strava.js?v=428"></script>
-<script src="reports.js?v=428"></script>
-<script src="grades.js?v=428"></script>
-<script src="trail-photos.js?v=428"></script>
-<script src="visitors.js?v=428"></script>
-<script src="usage.js?v=428"></script>
-<script src="notify.js?v=428"></script>
-<script src="closures.js?v=428"></script>
-<script src="status.js?v=428"></script>
-<script src="areas.js?v=428"></script>
-<script src="alpine.js?v=428"></script>
-<script src="bikeparks.js?v=428"></script>
-<script src="photo-find.js?v=428"></script>
-<script src="whats-new.js?v=428"></script>
+<script src="map3d.js?v=431"></script>
+<script src="contours.js?v=431"></script>
+<script src="clouds.js?v=431"></script>
+<script src="smoke.js?v=431"></script>
+<script src="photo-slider.js?v=431"></script>
+<script src="ski-terrain.js?v=431"></script>
+<script src="winter.js?v=431"></script>
+<script src="hunting.js?v=431"></script>
+<script src="fish-bait.js?v=431"></script>
+<script src="fish-route.js?v=431"></script>
+<script src="fishing.js?v=431"></script>
+<script src="compass.js?v=431"></script>
+<script src="hunts.js?v=431"></script>
+<script src="ski-points.js?v=431"></script>
+<script src="webcams.js?v=431"></script>
+<script src="lifts.js?v=431"></script>
+<script src="rogers.js?v=431"></script>
+<script src="slackcountry.js?v=431"></script>
+<script src="ski-areas.js?v=431"></script>
+<script src="offline.js?v=431"></script>
+<script src="ride-stats.js?v=431"></script>
+<script src="native-gps.js?v=431"></script>
+<script src="navigate.js?v=431"></script>
+<script src="planner.js?v=431"></script>
+<script src="loops.js?v=431"></script>
+<script src="ride-finds.js?v=431"></script>
+<script src="rides.js?v=431"></script>
+<script src="community.js?v=431"></script>
+<script src="ride-files.js?v=431"></script>
+<script src="rider-trails.js?v=431"></script>
+<script src="account.js?v=431"></script>
+<script src="strava.js?v=431"></script>
+<script src="reports.js?v=431"></script>
+<script src="grades.js?v=431"></script>
+<script src="trail-photos.js?v=431"></script>
+<script src="visitors.js?v=431"></script>
+<script src="usage.js?v=431"></script>
+<script src="notify.js?v=431"></script>
+<script src="closures.js?v=431"></script>
+<script src="status.js?v=431"></script>
+<script src="areas.js?v=431"></script>
+<script src="alpine.js?v=431"></script>
+<script src="bikeparks.js?v=431"></script>
+<script src="photo-find.js?v=431"></script>
+<script src="whats-new.js?v=431"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
