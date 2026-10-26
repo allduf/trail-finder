@@ -589,6 +589,17 @@ async function buildSpots() {
       }
       log(`  OpenStreetMap ${sel}: ${els.length}`);
     }
+    // Launches mapped only as a named park or pier ("Green Lake Launch" in Whistler has no slipway tag).
+    const named = await overpass(`[out:json][timeout:600];area["ISO3166-1"="CA"][admin_level=2]->.ca;(nwr["name"~"(boat|^|[ -])launch$|boat ramp|mise à l'eau",i]["highway"!~"."]["leisure"!="slipway"](area.ca););out center tags;`);
+    let nn = 0;
+    for (const el of named) {
+      const lat = el.lat ?? el.center?.lat, lon = el.lon ?? el.center?.lon, t = el.tags || {};
+      if (lat == null || t.access === "no" || t.access === "private") continue;
+      if ([...out.values()].some((o) => o[2] === 2 && Math.abs(o[0] - lat) < 0.0015 && Math.abs(o[1] - lon) < 0.002)) continue;
+      out.set(`o${el.type[0]}${el.id}`, [r4(lat), r4(lon), 2, (t.name || "").slice(0, 60), facts(t)]);
+      nn++;
+    }
+    log(`  OpenStreetMap named launches: ${nn}`);
     osmOk = true;
   } catch (e) { log(`  OpenStreetMap: ${e.message}; keeping the last good spots`); }
   if (!osmOk && old) for (const x of old.spots) if (x[5] !== "on") out.set(`old${x[0]},${x[1]}`, x.slice(0, 5));
