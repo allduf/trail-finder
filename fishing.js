@@ -98,15 +98,18 @@
   const GROUPS = ["Water", "Access", "Ocean", "Rules"];
   const VIEWS = {
     rules: { label: "Rules", sub: "where to fish", layers: ["zones", "areas", "access", "launch"] },
-    river: { label: "Rivers", sub: "flow, spots", layers: ["gauges", "access", "launch", "hidden", "zones"] },
+    river: { label: "Rivers", sub: "flow, spots", layers: ["gauges", "access", "launch", "hidden"] },
     lake: { label: "Lakes", sub: "stocked, depth", layers: ["stocked", "depth", "access", "launch", "hidden"] },
-    ocean: { label: "Ocean", sub: "tides, areas", layers: ["tides", "access", "launch", "zones"] },
+    ocean: { label: "Ocean", sub: "tides, areas", layers: ["tides", "access", "launch"] },
   };
   let shown = new Set(store.get("fishLayers", Object.keys(LAYERS).filter((k) => LAYERS[k].on)));
   // A layer added since the last visit shows if it's on by default (the saved list only knows the old ones).
   const knownLayers = store.get("fishLayersKnown", ["gauges", "stocked", "depth", "access", "tides", "zones"]);
   for (const k of Object.keys(LAYERS)) if (LAYERS[k].on && !knownLayers.includes(k)) shown.add(k);
   store.set("fishLayersKnown", Object.keys(LAYERS));
+  // Zones and regions start off (alex 2026-10-26): turned off once for everyone who had it on; the Rules view or the
+  // switch in Layers turns it back on.
+  if (!store.get("fishZonesOff", false)) { shown.delete("zones"); store.set("fishLayers", [...shown]); store.set("fishZonesOff", true); }
 
   // ---------- look ----------
   const css = document.createElement("style");
@@ -184,6 +187,11 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
 #fishPane ul.fs-list li small { color: var(--muted); }
 #fishPane .fs-st { font-style: normal; font-size: .7rem; font-weight: 700; padding: 1px 7px; margin-left: 4px; border-radius: 999px; background: color-mix(in srgb, var(--c) 16%, var(--panel)); color: color-mix(in srgb, var(--c) 70%, var(--fg)); white-space: nowrap; }
 #fishPane .fs-sea-p { display: block; }
+#fishPane .fs-short { margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, ${ACC} 9%, var(--panel)); }
+#fishPane .fs-short h4 { margin: 0 0 4px; }
+#fishPane .fs-short ul { margin: 0; padding-left: 18px; }
+#fishPane .fs-short li { margin: 3px 0; font-size: .84rem; line-height: 1.35; }
+#fishPane .fs-short .fs-note { margin: 6px 0 0; }
 #fishPane .fs-sea-p i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
 #fishPane ul.fs-list button.fs-go { font: inherit; text-align: left; width: 100%; border: 0; background: none; color: inherit; padding: 0; cursor: pointer; }
 #fishPane .fs-tbl { width: 100%; border-collapse: collapse; font-size: .76rem; }
@@ -378,7 +386,21 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     4: (x) => `Motors up to ${x} kW (${Math.round(x * 1.341)} hp)`, 5: (x) => `Speed limit ${x} km/h`, 6: (x) => `No waterskiing or towing${x ? ` except ${x}` : ""}`,
     7: (x) => `No wake surfing${x ? ` except ${x}` : ""}`, 8: () => "No races or events without a permit" };
   const BOAT_SHORT = { 1: () => "No boats", 2: () => "No motors", 3: () => "Electric only", 4: (x) => `${Math.round(x * 1.341)} hp max`, 5: (x) => `${x} km/h`, 6: () => "No towing", 7: () => "No wake surf", 8: () => "No events" };
-  async function boatHtml(lat, lon, name, prov) {
+  // Motor and speed limits written elsewhere (a hidden spot's notes, the lake's fishing rules): alex 2026-10-26, Callaghan
+  // Lake said "motors under 10 hp" in its notes while Boating said "No special limits". Each clause that names one is
+  // shown in Boating with where it comes from.
+  const BOAT_RE = /\b\d+(?:\.\d+)?\s?(?:hp|horsepower|kw)\b|electric (?:motors?|only|outboards?)|\bno (?:motors?|motori[sz]ed|power ?boats?|gas(?:oline)? motors?|boats?)\b|non-?motori[sz]ed|motors? (?:under|up to|prohibited|not (?:permitted|allowed))|engine power|speed (?:restriction|limit)|\d+\s?km\/h|paddl(?:e|ing) only|moteurs? (?:électrique|interdit)/i;
+  const boatBits = (text) => String(text || "").split(/[.;]\s+|\.$/).flatMap((x) => x.split(/,\s+/)).map((x) => x.trim().replace(/[.;,]+$/, "")).filter((x) => BOAT_RE.test(x));
+  function boatShort(t) {
+    let m;
+    if ((m = t.match(/(\d+(?:\.\d+)?)\s?(?:hp|horsepower)\b/i))) return `${m[1]} hp max`;
+    if ((m = t.match(/(\d+(?:\.\d+)?)\s?kw\b/i))) return `${Math.round(m[1] * 1.341)} hp max`;
+    if (/electric|électrique/i.test(t)) return "Electric only";
+    if (/\bno (?:motors?|motori|power|gas)|non-?motori|motors? (?:prohibited|not)|paddl|moteurs? interdit/i.test(t)) return "No motors";
+    if ((m = t.match(/(\d+)\s?km\/h/i))) return `${m[1]} km/h`;
+    return "Has limits";
+  }
+  async function boatHtml(lat, lon, name, prov, extra = []) {
     const b = await loadBoating();
     if (!b) return "";
     const nm = plain(name);
@@ -397,10 +419,16 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const clean = (t) => { t = String(t || "").split(/,? (?:between the shore|bounded by|from a point|at coordinates|enclosed by|lying (?:north|south|east|west)|described as)| Note:|\s\d{1,3}°/i)[0].replace(/(?:[\s,;(]+|\b(?:at|of|to|from|and|a|the|point|line|beginning|located|upstream|delineated by|by|[A-Z])\b)+$/, "").trim(); return t.length > 140 ? t.slice(0, 137).replace(/\s+\S*$/, "") + "…" : t; };
     const seen = new Set(), rules = hit.filter((r) => { const k = `${r[2]}|${r[6]}|${part(r)}`; if (seen.has(k)) return false; seen.add(k); return true; }).sort((a, b) => part(a) - part(b) || a[2] - b[2]);
     const general = `<p class="fs-note">Everywhere: a Pleasure Craft Operator Card to drive anything with a motor, and a life jacket for each person. In Ontario, Quebec, Manitoba, New Brunswick and Nova Scotia, 10 km/h within 30 m of shore unless signs say otherwise. <a href="${esc(b.src)}" target="_blank" rel="noopener">Transport Canada's list of restricted waters</a></p>`;
+    const xs = [], xSeen = new Set();
+    const tcShort = new Set(rules.map((r) => BOAT_SHORT[r[2]](r[6])));   // already said by Transport Canada's list
+    for (const x of extra) for (const t of boatBits(x.t)) { const k = t.toLowerCase(); if (!xSeen.has(k) && !tcShort.has(boatShort(t))) { xSeen.add(k); xs.push({ ...x, t }); } }
+    const xli = xs.map((x) => `<li style="--c:${/no motors|electric/i.test(boatShort(x.t)) ? "#e03131" : "#f08c00"}"><b>${esc(x.t[0].toUpperCase() + x.t.slice(1))}</b><small>From ${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.src)}</a>` : esc(x.src)}</small></li>`).join("");
+    const xSum = [...new Set(xs.map((x) => boatShort(x.t)))].slice(0, 2).join(", ");
+    if (!rules.length && xs.length) return fold("boat", IC.boat, "Boating", esc(xSum), `<ul class="fs-list">${xli}</ul><p class="fs-note">${esc(name || "This water")} isn't on Transport Canada's list of restricted waters, but the sources above give these limits: follow any signs at the launch.</p>${general}`);
     if (!rules.length) return nm || nearestTide(lat, lon, 3) ? fold("boat", IC.boat, "Boating", "No special limits", `<p class="fs-note">${esc(name || "This water")} isn't on Transport Canada's list of restricted waters.</p>${general}`) : "";
     const li = rules.map((r) => `<li style="--c:${r[2] <= 3 ? "#e03131" : "#f08c00"}"><b>${esc(BOAT[r[2]](r[6]))}${part(r) ? " (part of the water)" : ""}</b>${esc(clean(r[4]))}${r[5] ? ` (${esc(clean(r[5]))})` : ""}</li>`).join("");
     const whole = rules.filter((r) => !part(r)), sum = [...new Set((whole.length ? whole : rules).map((r) => BOAT_SHORT[r[2]](r[6])))].slice(0, 2).join(", ");
-    return fold("boat", IC.boat, "Boating", esc(whole.length ? sum : `${sum} in parts`), `<ul class="fs-list">${li}</ul>${general}`);
+    return fold("boat", IC.boat, "Boating", esc(whole.length ? sum : `${sum} in parts`), `<ul class="fs-list">${li}${xli}</ul>${general}`);
   }
   const BC_PDF = "https://www2.gov.bc.ca/assets/gov/sports-recreation-arts-and-culture/outdoor-recreation/fishing-and-hunting/freshwater-fishing/";
   const BC_REGION = { 1: ["1", "region_1_vancouver_island"], 2: ["2", "region_2_lower_mainland"], 3: ["3", "region_3_thompson"], 4: ["4", "region_4_kootenay"], 5: ["5", "region_5_cariboo"],
@@ -796,7 +824,14 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     fill("fsRules", secRules(rulesHtml(lat, lon, here, prov)));
     fill("fsLic", licHtml(lat, lon, here, prov));
     seaHtml(lat, lon, zs, here, prov).then((h) => fill("fsSea", h));
-    boatHtml(lat, lon, title, prov).then((h) => fill("fsBoat", h));
+    // Boating: Transport Canada's list, plus limits a hidden spot's notes or the lake's rules give.
+    const boat = { name: title, extra: [], n: 0 };
+    const renderBoat = () => { const n = ++boat.n; boatHtml(lat, lon, boat.name, prov, boat.extra).then((h) => { if (n === boat.n) fill("fsBoat", h); }); };
+    await hiddenReady;
+    const hs = hidden.filter((h) => !h.walk && km(lat, lon, h.lat, h.lon) < 1.5);
+    for (const h of hs) boat.extra.push({ t: [h.how, h.tip].filter(Boolean).join(". "), src: `Hidden spot notes (${h.src[0][0]})`, url: h.src[0][1] });
+    if (seq !== spotSeq) return;
+    renderBoat();
     fill("fsStock", stockHtml(lat, lon));
     flowHtml(lat, lon).then((h) => fill("fsFlow", secFlow(h)));
     tideHtml(lat, lon).then((h) => fill("fsTide", secTide(h)));
@@ -812,11 +847,14 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       baitWater = w && w.kind ? (/lake/i.test(w.kind) ? "lake" : "river") : (!w || w.listOnly) && nearestTide(lat, lon, 4) ? "ocean" : "";
       bait();
       if (w && w.name && !title) $("fsSpotName").textContent = w.name;
-      if (w && w.name) boatHtml(lat, lon, w.name, prov).then((h) => fill("fsBoat", h));
+      if (w && w.name) boat.name = w.name;
       fill("fsWater", w ? secFish(w.html) : "");
       if (!w) $("fsSpot").classList.add("fs-nowater");
       if (w && w.rules) fill("fsRules", fold("rules", IC.rules, "Rules", "This water has its own rules", unhead(w.rules) + unhead(rulesHtml(lat, lon, here, prov)), true));
-      seasonHtml(here, prov, w).then((h) => fill("fsSeason", h));
+      if (w && w.rules) boat.extra.push({ t: w.rules.replace(/<[^>]+>/g, ". ").replace(/&amp;/g, "&"), src: "the water's fishing rules" });
+      rulesShort(here, prov, w).then((h) => { const b = seq === spotSeq && document.querySelector("#fsRules .fs-secb"); if (!b || !h) return; b.querySelector(".fs-short")?.remove(); b.insertAdjacentHTML("afterbegin", h); }).catch(() => {});
+      const bx = [];
+      seasonHtml(here, prov, w, bx).then((h) => { fill("fsSeason", h); boat.extra.push(...bx); renderBoat(); });
       if (prov === "on" || prov === "qc") eatHtml(lat, lon, prov, (w && w.name) || title).then((h) => {
         fill("fsEat", h.html);
         if (h.sp && h.sp.length) { h.sp.forEach((x) => baitSp.add(x)); bait(); }
@@ -1030,13 +1068,88 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   const sameWater = (a, b) => { const p = plain(b); return !!p && nameParts(a).includes(p); };
   const files2 = {};
   const loadOnce = (n) => files2[n] || (files2[n] = load(n).catch(() => { delete files2[n]; return null; }));
-  async function seasonHtml(here, prov, w) {
+  // ---------- rules in short (alex 2026-10-26: "can you do a small summary of the rules here") ----------
+  // A few lines at the top of Rules: the water's own rules when they're known, then the zone's or region's main ones.
+  // BC's regional rules (the "Regional Regulations" page of each region's 2025-2027 synopsis PDF), written by hand
+  // like the Atlantic SEA rules: [text, closure dates or ""]; s: streams only. Check them when the next synopsis comes out.
+  const BC_GEN = {
+    1: { s: [["Single barbless hook in all streams, all year", ""], ["Bait ban in streams, all year (some exceptions)", ""], ["Release wild trout and char; keep hatchery trout only", ""], ["No fishing in streams of MU 1-1 to 1-6", "Jul 15 to Aug 31"]],
+      q: "Trout 4 a day (1 over 50 cm, 2 from streams), kokanee 5, bass and perch unlimited; release all wild steelhead" },
+    2: { s: [["Single barbless hook in all streams, all year", ""], ["Release wild trout and char", ""]],
+      q: "Trout/char 4 a day (1 over 50 cm, 2 hatchery from streams, 1 char 60 cm+), kokanee 5, bass 20; release all wild steelhead" },
+    3: { s: [["No fishing in streams", "Jan 1 to Jun 30"], ["Single barbless hook in all streams, all year", ""]],
+      q: "Trout/char 5 a day (4 from streams, 1 over 50 cm), kokanee 5, burbot 2; release all steelhead; bass and perch closed" },
+    4: { s: [["No fishing in streams", "Apr 1 to Jun 14"], ["Trout and char catch and release in streams", "Nov 1 to Mar 31"], ["Single barbless hook in all streams, all year", ""]],
+      q: "Trout/char 5 a day (2 from streams, 1 over 50 cm, 1 bull trout), kokanee 15; bass, pike, walleye, perch and sturgeon closed" },
+    5: { s: [["No fishing in streams of the Fraser watershed (not the Fraser itself)", "Apr 1 to Jun 30"], ["Single barbless hook in all streams, all year", ""]],
+      q: "Trout/char 5 a day (2 from streams, 1 over 50 cm, 2 lake trout), kokanee 5, burbot 5; release all steelhead; bass closed" },
+    6: { s: [["Single barbless hook in all streams, all year", ""], ["Bait ban in the Skeena and Nass and their tributaries, all year", ""], ["No fishing in streams for steelhead (main rivers excepted)", "May 15 to Jun 15"], ["No fishing in streams of the upper Skeena (above Cedarvale) and upper Nass", "Jan 1 to Jun 15"]],
+      q: "Trout/char 5 a day (1 trout from streams, 1 over 50 cm, 3 Dolly Varden/bull trout), kokanee 10, pike 5, grayling 3; release wild steelhead" },
+    7: { s: [["No fishing in streams", "Apr 1 to Jun 30"], ["Single barbless hook and bait ban in all streams, all year", ""]],
+      q: "Trout/char 5 a day (2 from streams, 1 over 50 cm, 3 lake trout, 1 bull trout from lakes only), kokanee 10, burbot 5; grayling catch and release" },
+    9: { s: [["Single barbless hook and bait ban in all streams, all year", ""], ["Rainbow trout catch and release", "May 1 to Jun 15"]],
+      q: "Trout/char 5 a day (2 from streams, 1 over 50 cm, 2 lake trout, 1 bull trout), grayling 2 (none under 30 cm)" },
+    8: { s: [["No fishing in streams", "Apr 1 to Jun 30"], ["Single barbless hook in all streams, all year", ""]],
+      q: "Trout/char 5 a day (4 from streams, only 2 over 30 cm, 1 over 50 cm), kokanee 5, walleye 8, burbot 2; bass and perch closed" },
+  };
+  const MAIN_SP = /walleye|dor[ée]|brook trout|omble de fontaine|rainbow|lake trout|touladi|pike|brochet|bass|achigan|perch|perchaude|muskellunge|maskinong|salmon|saumon|trout/i;
+  async function rulesShort(here, prov, w) {
+    const out = [];   // [text, chip html]
+    const name = (w && w.name) || "", river = w && w.kind ? !/lake/i.test(w.kind) : null;
+    const shut = (range) => { const o = openToday(range); return o == null ? "" : `<em class="fs-st" style="--c:${o ? C.blown : C.none}">${o ? "Closed now" : "Not now"}</em>`; };
+    if (prov === "bc") {
+      const z = here.find((x) => x.k === "bc"), g = z && BC_GEN[z.id];
+      if (name && z) {
+        const j = await loadOnce("bcregs"), rows = j && j.regions[z.id];
+        const mine = rows ? rows.filter((r) => sameWater(r[0], name) && !/TRIBUTARIES/i.test(r[0])) : [];
+        for (const t of mine.flatMap((r) => r[2]).slice(0, 3)) {
+          const m = t.match(/^No Fishing\s+(?:from\s+)?([A-Z][a-z]{2,}\.? \d{1,2})\s*[-–]\s*([A-Z][a-z]{2,}\.? \d{1,2})$/);
+          out.push([`${esc(titleCase(mine[0][0]))}: ${esc(t.length > 120 ? t.slice(0, 117).replace(/\s\S*$/, "") + "…" : t)}`, m ? shut(`${m[1]} to ${m[2]}`) : ""]);
+        }
+      }
+      if (g) {
+        if (river !== false) for (const [t, d] of g.s) out.push([`${river ? esc(t) : `Streams: ${esc(t.replace(/ in (?:all )?streams\b/, "").replace(/^./, (c) => c.toLowerCase()))}`}${d ? ` (${esc(d.replace(" to ", "-"))})` : ""}`, d ? shut(d) : ""]);
+        out.push([esc(g.q), ""]);
+      }
+    } else if (prov === "qc") {
+      const j = await loadOnce("qcrules"), z = here.find((x) => x.k === "qc");
+      const own = j && w && w.qcId && j.waters[w.qcId], zone = (j && z && j.zones[z.id] ? j.zones[z.id] : []).filter((r) => !/prohibited/i.test(r[2]) && MAIN_SP.test(r[1]) && !/smelt|[ée]perlan/i.test(r[1])).sort((a, b) => gameRank(a[1]) - gameRank(b[1]));
+      // One line per fish: of a fish's rows (walleye has one per season), the one open today.
+      const key = (r) => r[1].toLowerCase().split(/[ (,]/)[0];
+      const byKey = new Map();
+      for (const r of zone) { const k = key(r), o = byKey.get(k); if (!o || (!openToday(o[0]) && openToday(r[0]))) byKey.set(k, r); }
+      const rows = (own || []).filter((r) => !/^Other species$/i.test(r[1])).concat([...byKey.values()]);
+      const seen = new Set();
+      for (const r of rows) {
+        if (seen.has(key(r)) || (!MAIN_SP.test(r[1]) && !own) || out.length >= 5) continue;
+        seen.add(key(r));
+        const no = /prohibited/i.test(r[2]), o = no ? false : openToday(r[0]), len = String(r[3] || "").replace(/\s*Sauger:.*$/i, "").replace(/^Walleye:\s*/i, "").replace(/ inclusively/i, "");
+        out.push([`${esc(r[1])}: ${esc(no ? "no fishing" : [r[2] && `${r[2]}${/^\d+$/.test(r[2]) ? " a day" : ""}`, len].filter(Boolean).join(", ") || "see the rules")}`, chipOf(o)]);
+      }
+    } else if (prov === "on") {
+      const j = await loadOnce("onrules"), z = here.find((x) => x.k === "on"), zr = j && z && j.zones[z.id];
+      if (zr) {
+        const lim = (t) => String(t || "").replace(/\s*(?:and|;|,)?\s*C-\d+.*$/, "").replace(/\bS-(\d+)/g, "$1").trim();
+        const spx = name ? zr.spx.filter((x) => sameWater(x[3].split(/\s[-–]\s/)[0], name)) : [];
+        for (const x of spx.slice(0, 2)) out.push([`${esc(name)}: ${esc(x[0])}${x[2] ? `, ${esc(lim(x[2]))} a day` : ""}`, chipOf(openToday(x[1]))]);
+        if (name && zr.sanct.some((x) => sameWater(x[1].split(/\s[-–]\s/)[0], name))) out.push(["A fish sanctuary on part of this water: see Seasons and limits", ""]);
+        for (const r of zr.wide.slice().sort((a, b) => gameRank(a[0]) - gameRank(b[0]))) {
+          if (out.length >= 5) break;
+          if (!MAIN_SP.test(r[0]) || /aggregate/i.test(r[0]) || out.some((o) => o[0].includes(esc(r[0])))) continue;
+          out.push([`${esc(r[0])}${r[2] ? `: ${esc(lim(r[2]))} a day` : ""}`, chipOf(r[1] ? openToday(r[1]) : null)]);
+        }
+      }
+    }
+    return out.length ? `<div class="fs-short"><h4>In short</h4><ul>${out.map(([t, c]) => `<li>${t}${c ? ` ${c}` : ""}</li>`).join("")}</ul><p class="fs-note">The main rules only: the full rules below decide.</p></div>` : "";
+  }
+  async function seasonHtml(here, prov, w, boatOut = []) {
     const name = (w && w.name) || "";
     if (prov === "qc") {
       const j = await loadOnce("qcrules"), z = here.find((x) => x.k === "qc");
       if (!j) return "";
       const own = w && w.qcId && j.waters[w.qcId], zr = z && j.zones[z.id], nm = name.replace(/\s*\(\d.*?\)\s*$/, "");
       if (!own && !zr) return "";
+      if (own) for (const r of own) boatOut.push({ t: [r[4], r[5]].filter(Boolean).join(". "), src: "Quebec's fishing regulations" });
       const ownOpen = own && own.filter((r) => !/^Other species$/i.test(r[1])).map((r) => (/prohibited/i.test(r[2]) ? false : openToday(r[0])));
       const body = `${own ? `<h4>${esc(nm || "This water")}: its own rules</h4><ul class="fs-list">${own.map(qcRow).join("")}</ul>` : ""}
         ${zr ? (own ? `<details class="fs-more"><summary>Rest of ${esc(z.n)}</summary><ul class="fs-list">${zr.map(qcRow).join("")}</ul></details>` : `<p class="fs-note">${esc(nm || "This water")} follows the rules of ${esc(z.n)}.</p><ul class="fs-list">${zr.map(qcRow).join("")}</ul>`) : ""}
@@ -1049,6 +1162,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       const wx = name ? zr.wx.filter((x) => sameWater(x[0], name)) : [];
       const spx = name ? zr.spx.filter((x) => sameWater(x[3].split(/\s[-–]\s/)[0], name)) : [];
       const sanct = name ? zr.sanct.filter((x) => sameWater(x[1].split(/\s[-–]\s/)[0], name)) : [];
+      for (const x of wx) boatOut.push({ t: [x[1], ...x[2]].join(". "), src: "Ontario's fishing regulations" });
       const lim = (t) => String(t).replace(/\bS-(\d+)/g, "$1 with a sport licence").replace(/\bC-(\d+)/g, "$1 with a conservation licence");
       const own = [
         ...wx.map((x) => `<li style="--c:${C.high}"><b>${esc(x[0].replace(/\s*\([^)]*$/, ""))}</b><small>${x[1] && !/^[A-Z]\W/.test(x[1]) ? `${esc(x[1].length > 110 ? x[1].slice(0, 110).replace(/\s\S*$/, "") + "…" : x[1])}<br>` : ""}${x[2].map((r) => { const [sp, ...rest] = r.split(/\s[-–]\s/), t = rest.join(" - "), o = /open|closed|no fishing/i.test(t) ? openToday(t.replace(/^(open|no fishing)( from)?\s*/i, "")) : null;
@@ -1067,6 +1181,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       const j = await loadOnce("bcregs"), z = here.find((x) => x.k === "bc"), rows = j && z && j.regions[z.id];
       if (!rows || !name) return "";
       const mine = rows.filter((r) => sameWater(r[0], name) && !/TRIBUTARIES/i.test(r[0]));
+      for (const r of mine) boatOut.push({ t: r[2].join("; "), src: "BC Freshwater Fishing Regulations Synopsis" });
       const li = mine.flatMap((r) => r[2].map((t) => { const m = t.match(/^No Fishing\s+(?:from\s+)?([A-Z][a-z]{2,}\.? \d{1,2})\s*[-–]\s*([A-Z][a-z]{2,}\.? \d{1,2})$/); const o = m ? openToday(`${m[1]} to ${m[2]}`) : null;
         const head = t.length > 60 ? t.split(/[;:,]/)[0] : t, rest = t.slice(head.length).replace(/^[;:,]\s*/, "");
         return `<li style="--c:${/^No Fishing/i.test(t) ? C.blown : C.high}"><b>${esc(head)}${m ? ` <em class="fs-st" style="--c:${o ? C.blown : C.none}">${o ? "Closed now" : "Not now"}</em>` : ""}</b>${rest ? `<small>${esc(rest)}</small>` : ""}</li>`; }));
