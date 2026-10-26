@@ -1045,7 +1045,11 @@
     // Yellow under your trails: just the part ridden once the ride is built (a trail can be left where the next starts).
     pickCase.setLatLngs(mode !== "pick" ? [] : legs.length ? legs.filter((l) => l.pick >= 0).map((l) => l.pts) : picks.flatMap((p) => p.ways.map((w) => w.geom)));
     dots.clearLayers();
-    const mk = (ll, icon) => dots.addLayer(L.marker(ll, { interactive: false, keyboard: false, icon }));
+    // Each stop also gets a dot under its number, which the 3D map copies (it draws lines and dots, not HTML pins).
+    const mk = (ll, icon) => {
+      dots.addLayer(L.circleMarker(ll, { radius: 8, weight: 2, color: "#fff", fillColor: /pick/.test(icon.options.className) ? "#ffd43b" : "#7b2ff7", fillOpacity: 1, interactive: false }));
+      dots.addLayer(L.marker(ll, { interactive: false, keyboard: false, icon }));
+    };
     if (mode === "tap") stops.forEach((s, i) => mk(s.ll, stopIcon(i === 0 ? "S" : i)));
     else {
       legs.forEach((l) => { if (l.pick >= 0) mk(l.pts[0], stopIcon(l.pick + 1, "pick")); });
@@ -1447,7 +1451,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
     e.stopPropagation();
     onTap(map.mouseEventToLatLng(e));
   }, true);
-  map.on("click", (e) => { if (planning && !e.originalEvent) onTap(e.latlng); });   // a click fired from code
+  map.on("click", (e) => { if (planning && (!e.originalEvent || e.from3d)) onTap(e.latlng); });   // a click fired from code, or a tap on the 3D map (map3d.js)
   map.on("moveend", () => { if (planning) { nav.load(); drawArrows(); loadAhead(); } });
   bar.querySelectorAll(".plan-modes button[data-mode]").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
   bar.querySelectorAll(".plan-how button").forEach((b) => b.addEventListener("click", () => setHow(b.dataset.how)));

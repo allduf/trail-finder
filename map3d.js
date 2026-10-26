@@ -202,6 +202,10 @@
   // Selecting a trail restyles lines without adding or removing any.
   const setStyle = L.Path.prototype.setStyle;
   L.Path.prototype.setStyle = function (style) { const r = setStyle.call(this, style); scheduleSync(); return r; };
+  // And redraws a line on the map with new points (Plan a route's lines after you change the route: alex, 2026-10-26, a
+  // trail taken out stayed on the 3D map). Only lines already on the map: their points before they're added don't matter.
+  const setLatLngs = L.Polyline.prototype.setLatLngs;
+  L.Polyline.prototype.setLatLngs = function (lls) { const r = setLatLngs.call(this, lls); if (this._map) scheduleSync(); return r; };
 
   // ---------- keep the two cameras together ----------
   // MapLibre zoom levels are one less than Leaflet's (512 px tiles against 256 px).
@@ -964,6 +968,13 @@
     }
     const toLL = (lngLat) => L.latLng(lngLat.lat, lngLat.lng);
     gl.on("click", (e) => {
+      // Planning a route: every tap is for the planner (a trail to pick or take out, or where you start), as in 2D.
+      if (window.tfPlan && window.tfPlan.planning && window.tfPlan.planning()) {
+        const latlng = toLL(e.lngLat);
+        to2d();
+        map.fire("click", { latlng, layerPoint: map.latLngToLayerPoint(latlng), containerPoint: map.latLngToContainerPoint(latlng), originalEvent: e.originalEvent, from3d: true });
+        return;
+      }
       const dot = nearestDot(e.point, TAP);
       if (dot) { dot.l.fire("click", { latlng: dot.l.getLatLng(), originalEvent: e.originalEvent }); return; }
       const f = near(e.point, TAP)[0], latlng = toLL(e.lngLat);
