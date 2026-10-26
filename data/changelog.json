@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-26", "text": "Fishing: each lake's own seasons and limits on the spot card (BC, Quebec and Ontario), with open or closed today"},
     {"date": "2026-10-26", "text": "Fishing: every layer has its own colour and picture (hook for fishing spots, boat for launches, mountain for hidden spots, tree for parks), in Layers and on the map"},
     {"date": "2026-10-26", "text": "Fishing: fish lists for Alberta rivers and the Atlantic provinces (Nova Scotia lake surveys, fish recorded nearby, the big salmon rivers)"},
     {"date": "2026-10-26", "text": "Fixed: leaving the iPhone app on the 3D map now brings you back to 3D, not the flat map"},
