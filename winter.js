@@ -418,16 +418,25 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // shows are loaded, then added to ski.routes / huts / starts like the home region's, so the list, search, details,
   // 3D map and alerts all work the same. Zoomed out further than CAN_MIN_Z nothing more is loaded (a phone would
   // otherwise load the whole country).
+  // Resort runs, groomed nordic and snowmobile trails outside the home region come the same way, from the nightly Canada
+  // job (ca/w/, scripts/build-canada-winter.mjs; alex 2026-10-26: everything everywhere). Squares are keyed "<dir><square>".
   const CAN_MIN_Z = 5;
+  const CAN_DIRS = ["data/ski-canada/", "ca/w/"];
   let canIdx = null, canIdxLoading = null, canRedraw = 0;
   const canGot = new Map();   // square -> its loading promise
-  const loadCanIdx = () => canIdx ? Promise.resolve(canIdx) : canIdxLoading || (canIdxLoading = fetch("data/ski-canada/index.json", { cache: "no-cache" })
-    .then((r) => (r.ok ? r.json() : null)).then((d) => (canIdx = d || { tiles: {} })).catch(() => { canIdxLoading = null; return null; }));
+  const loadCanIdx = () => canIdx ? Promise.resolve(canIdx) : canIdxLoading || (canIdxLoading = Promise.all(CAN_DIRS.map((dir) => fetch(dir + "index.json", { cache: "no-cache" })
+    .then((r) => (r.ok ? r.json() : null)).catch(() => null)))
+    .then(([bc, w]) => {
+      if (!bc && !w) { canIdxLoading = null; return null; }
+      const tiles = {};
+      CAN_DIRS.forEach((dir, i) => Object.entries([bc, w][i]?.tiles || {}).forEach(([k, t]) => { tiles[dir + k] = t; }));
+      return (canIdx = { ...(bc || {}), tiles });
+    }));
   function loadCanada(bounds) {
     if (!ski || !canIdx) return Promise.resolve();
     const want = Object.entries(canIdx.tiles || {}).filter(([k, t]) => !canGot.has(k) && bounds.intersects(L.latLngBounds([t.box[0], t.box[1]], [t.box[2], t.box[3]])));
     return Promise.all(want.map(([k]) => {
-      const p = fetch(`data/ski-canada/${k}.json`, { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }).then((t) => {
+      const p = fetch(`${k}.json`, { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }).then((t) => {
         const ids = new Set((ski.routes || []).map((r) => r.id));
         tidyAccess(t);
         for (const r of t.routes || []) {
@@ -589,7 +598,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     heat: "Public OpenStreetMap GPS traces from December to April, roads and lifts left out",
     mine: "Your tours from My rides (import or record them there)",
     slope: "Colours the slopes by steepness: 27° and up, where avalanches start",
-    snow: "BC snow pillow stations: snow depth, new snow and temperature, every 2 hours",
+    snow: "Snow stations (BC snow pillows, Environment Canada elsewhere): snow depth, new snow and temperature, every 2 hours",
     aspect: "Colours the slopes of 25° and more by the way they face, to match the forecast's problem aspects",
     runout: "Where avalanches from steep slopes above can reach, and the gullies and creek beds where snow piles up deep",
   };
@@ -1493,7 +1502,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (el.dataset.lat !== "undefined") map.setView([+el.dataset.lat, +el.dataset.lon], Math.max(map.getZoom(), 11));
     }));
   }
-  // ---------- snow stations (data/snow-stations.json, BC's automated snow pillows, read every 2 hours) ----------
+  // ---------- snow stations (data/snow-stations.json, BC's automated snow pillows and Environment Canada's snow depth stations elsewhere, read every 2 hours) ----------
   // Measured snow depth, new snow and temperature high in the mountains, as pins showing the depth.
   const snowLayer = L.layerGroup();
   let snow = null, snowErr = "", snowOn = null;
@@ -1524,7 +1533,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <p class="sk-hint">Snow station at ${st.ele.toLocaleString()} m · read ${esc(when(st.at))}</p>
       <div class="sk-stats"><div><b>${cm(st.sd)}</b><span>snow</span></div><div><b>${plus(st.sd24)}</b><span>24 h</span></div><div><b>${plus(st.sd72)}</b><span>3 days</span></div><div><b>${st.ta == null ? "–" : Math.round(st.ta) + "°C"}</b><span>air now</span></div></div>
       ${st.days.length && st.days.some((v) => v) ? `<div class="sk-spark" aria-label="Snow depth over the last 7 days">${st.days.map((v) => `<span style="height:${v == null ? 0 : Math.max(2, (v / max) * 100)}%" title="${cm(v)}"></span>`).join("")}</div><div class="sk-days">${st.days.map((_, i) => `<span>${day(i)}</span>`).join("")}</div>` : ""}
-      <p class="sk-note">${st.lo24 != null ? `Last 24 h: low ${Math.round(st.lo24)}°C, high ${Math.round(st.hi24)}°C. ` : ""}${st.swe != null ? `Water in the snow: ${Math.round(st.swe)} mm. ` : ""}Measured by BC's River Forecast Centre. The snow on the slopes around can be quite different.</p>`;
+      <p class="sk-note">${st.lo24 != null ? `Last 24 h: low ${Math.round(st.lo24)}°C, high ${Math.round(st.hi24)}°C. ` : ""}${st.swe != null ? `Water in the snow: ${Math.round(st.swe)} mm. ` : ""}Measured by ${st.src === "msc" ? "Environment Canada, at the station (often a valley or airport, not the mountain)" : "BC's River Forecast Centre"}. The snow on the slopes around can be quite different.</p>`;
   }
   function showStation(st) {
     snowOn = st;
@@ -2289,8 +2298,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const ty = (lat, z) => { const r = (lat * Math.PI) / 180; return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z); };
     const tiles = [];
     for (let z = 10; z <= OFFLINE_DEM_Z; z++) for (let x = tx(box[1], z); x <= tx(box[3], z); x++) for (let y = ty(box[2], z); y <= ty(box[0], z); y++) tiles.push(DEM(z, x, y));
-    const can = Object.entries(canIdx?.tiles || {}).filter(([, t]) => t.box[0] <= box[2] && t.box[2] >= box[0] && t.box[1] <= box[3] && t.box[3] >= box[1]).map(([k]) => "ski-canada/" + k);
-    const data = ["ski", "ski-terrain", "avalanche", "avalanche-reports", "snow-stations", "snowmobile-clubs", "grooming", "ski-heat", "rogers-pass", "rogers-status", "ski-canada/index", ...can].map((n) => new URL(`data/${n}.json`, location.href).href);
+    const can = Object.entries(canIdx?.tiles || {}).filter(([, t]) => t.box[0] <= box[2] && t.box[2] >= box[0] && t.box[1] <= box[3] && t.box[3] >= box[1]).map(([k]) => k);
+    const data = [...["ski", "ski-terrain", "avalanche", "avalanche-reports", "snow-stations", "snowmobile-clubs", "grooming", "ski-heat", "rogers-pass", "rogers-status"].map((n) => "data/" + n), ...CAN_DIRS.map((d) => d + "index"), ...can].map((n) => new URL(`${n}.json`, location.href).href);
     return { data, tiles };
   };
 

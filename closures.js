@@ -23,6 +23,19 @@
   // Each national park's middle (for its pin on the map).
   const PC_PIN = { "Banff National Park": [51.178, -115.571], "Yoho National Park": [51.396, -116.49], "Kootenay National Park": [50.65, -116.04],
     "Mount Revelstoke National Park": [51.05, -118.15], "Glacier National Park": [51.30, -117.52] };
+  // Every national park with bulletins: the pins above, or the park's middle saved with its bulletins (the parks from
+  // Pacific Rim to Gros Morne, scripts/build-closures.mjs).
+  const pcPins = () => { const m = new Map(Object.entries(PC_PIN)); ((data && data.pc) || []).forEach((b) => { if (!m.has(b.park) && b.c) m.set(b.park, b.c); }); return [...m]; };
+  // The national park a spot is in: from the park outlines (ebike.js), else the nearest park middle within 20 km.
+  const pcParkAt = (ll) => {
+    const p = window.tfEbike && window.tfEbike.areaAt(ll[0], ll[1]);
+    if (p && /National/.test(p)) return p;
+    let best = null, d = 20;
+    pcPins().forEach(([park, c]) => { const k = kmTo(c, ll); if (k < d) { d = k; best = park; } });
+    return best || p;
+  };
+  // Ontario Parks alerts (data.on), grouped by park.
+  const onParks = () => { const m = new Map(); ((data && data.on) || []).forEach((a) => { if (!m.has(a.park)) m.set(a.park, { c: a.c, list: [] }); m.get(a.park).list.push(a); }); return m; };
   const ago = (d) => { if (!d) return ""; const n = Math.round((Date.now() - Date.parse(d)) / 864e5); return n < 1 ? "today" : n === 1 ? "yesterday" : n < 60 ? `${n} days ago` : new Date(d).toLocaleDateString(undefined, { month: "short", year: "numeric" }); };
 
   const css = document.createElement("style");
@@ -131,7 +144,7 @@
         const adv = (data.bc || []).filter((a) => nameIn(name, a.title + " " + a.desc) || a.parks.some((p) => kmTo(p.c, ll) <= 3) || (a.c && kmTo(a.c, ll) <= 2)).slice(0, 4);
         if (adv.length) parts.push({ cls: adv.some((a) => a.closed || /closure|closed/i.test(a.type + a.title)) ? "bad" : "warn", html: `<h4>BC Parks advisories nearby</h4><ul>${adv.map((a) =>
           `<li><b>${esc(a.title)}</b> <span class="muted">${esc(a.type)} · ${esc(a.parks[0].name)}${a.date ? ` · ${esc(ago(a.date))}` : ""}</span>${a.desc && a.desc !== a.title ? `<br>${esc(a.desc.slice(0, 220))}${a.desc.length > 220 ? "…" : ""}` : ""} <a href="${esc(a.parks[0].url)}" target="_blank" rel="noopener">Park page</a></li>`).join("")}</ul>` });
-        const park = window.tfEbike && window.tfEbike.areaAt(ll[0], ll[1]);
+        const park = pcParkAt(ll);
         const bul = park ? (data.pc || []).filter((b) => b.park === park) : [];
         if (bul.length) {
           const named = bul.filter((b) => nameIn(name, b.title)), rest = bul.filter((b) => !named.includes(b));
@@ -139,6 +152,15 @@
           parts.push({ cls: named.length ? "bad" : "", html: `<h4>Parks Canada: ${esc(park)}</h4>${named.length ? `<ul>${named.map(li).join("")}</ul>` : ""}
             <details${named.length ? "" : " open"}><summary>${rest.length} closure${rest.length === 1 ? "" : "s"} and warning${rest.length === 1 ? "" : "s"} in the park</summary><ul>${rest.map(li).join("")}</ul></details>` });
         }
+      }
+    }
+    if (data && ll) {
+      // Ontario Parks: the alerts of a park within 8 km (its spot is the park's middle), the ones naming the trail first.
+      const on = [...onParks()].filter(([, p]) => kmTo(p.c, ll) <= 8).flatMap(([, p]) => p.list);
+      if (on.length) {
+        const named = on.filter((a) => nameIn(name, a.title + " " + a.desc)), list = named.length ? named : on;
+        parts.push({ cls: named.length && named.some((a) => a.closed) ? "bad" : "warn", html: `<h4>Ontario Parks alerts: ${esc(on[0].park)}</h4><ul>${list.slice(0, 5).map((a) =>
+          `<li>${esc(a.title)}${a.desc ? `<br><span class="muted">${esc(a.desc.slice(0, 200))}</span>` : ""}</li>`).join("")}</ul><p class="src"><a href="https://www.ontarioparks.ca/alerts" target="_blank" rel="noopener">Ontario Parks alerts</a></p>` });
       }
     }
     const el = box();
@@ -157,7 +179,8 @@
         .forEach((r) => out.push({ bad: true, text: `${r.n}: ${r.st}${r.warn ? ` (${r.warn.split("\n")[0].slice(0, 80)})` : ""}`, url: r.url || a.url, src: "Alberta Parks" }));
     });
     (data.bc || []).forEach((a) => { if (a.parks.some((p) => kmTo(p.c, c) <= km) && /trail|bridge|wildlife|hazard|flood|wildfire|closure|access/i.test(a.type)) out.push({ bad: a.closed || /closure/i.test(a.type), text: `${a.title} (${a.parks[0].name})`, url: a.parks[0].url, src: "BC Parks" }); });
-    Object.entries(PC_PIN).forEach(([park, p]) => { if (kmTo(p, c) <= km + 15) (data.pc || []).filter((b) => b.park === park && /closure|closed|warning/i.test(b.title)).forEach((b) => out.push({ text: b.title, url: b.url, src: "Parks Canada" })); });
+    pcPins().forEach(([park, p]) => { if (kmTo(p, c) <= km + 15) (data.pc || []).filter((b) => b.park === park && /closure|closed|warning/i.test(b.title)).forEach((b) => out.push({ text: b.title, url: b.url, src: "Parks Canada" })); });
+    onParks().forEach((p, park) => { if (kmTo(p.c, c) <= km + 8) p.list.forEach((a) => out.push({ bad: a.closed, text: `${a.title} (${park})`, url: a.url, src: "Ontario Parks" })); });
     return out;
   }
 
@@ -193,7 +216,9 @@
       add(`bc:${p.name}`, p.c, bad ? "bad" : "", "⚠", `BC Parks: ${p.name}`, `<h4>${esc(p.name)} (BC Parks)</h4><ul>${list.slice(0, 8).map((a) => `<li><b>${esc(a.title)}</b> <span class="muted">${esc(a.type)}${a.date ? ` · ${esc(ago(a.date))}` : ""}</span></li>`).join("")}</ul>
         <p class="src"><a href="${esc(p.url)}" target="_blank" rel="noopener">Park page and advisories</a></p>`);
     });
-    Object.entries(PC_PIN).forEach(([park, ll]) => {
+    onParks().forEach((p, park) => add(`on:${park}`, p.c, p.list.some((a) => a.closed) ? "bad" : "", "⚠", `Ontario Parks: ${park}`, `<h4>${esc(park)} (Ontario Parks)</h4><ul>${p.list.slice(0, 8).map((a) =>
+      `<li>${esc(a.title)}</li>`).join("")}</ul><p class="src"><a href="https://www.ontarioparks.ca/alerts" target="_blank" rel="noopener">Ontario Parks alerts</a></p>`));
+    pcPins().forEach(([park, ll]) => {
       const list = (data.pc || []).filter((b) => b.park === park);
       if (list.length) add(`pc:${park}`, ll, "", "⚠", `Parks Canada: ${park}`, `<h4>${esc(park)}</h4><ul>${list.map((b) => `<li><a href="${esc(b.url)}" target="_blank" rel="noopener">${esc(b.title)}</a></li>`).join("")}</ul><p class="src">Parks Canada bulletins</p>`);
     });
@@ -222,7 +247,7 @@
   function sync() {
     btn.setAttribute("aria-pressed", String(on));
     btn.classList.toggle("on", on);
-    btn.title = on ? "Hide the closures and warnings" : "Show closures and warnings from Alberta Parks, BC Parks, Parks Canada and riders";
+    btn.title = on ? "Hide the closures and warnings" : "Show closures and warnings from Alberta Parks, BC Parks, Ontario Parks, Parks Canada and riders";
   }
   btn.addEventListener("click", () => {
     on = !on;
