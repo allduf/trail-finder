@@ -62,7 +62,7 @@
       const box = el.closest(LISTS);
       return `list:${box.id ? "#" + box.id : box.tagName.toLowerCase()}`;
     }
-    const text = (el.getAttribute("aria-label") || el.title || el.textContent || "").replace(/\s+/g, " ").replace(/\d+/g, "#").trim();
+    const text = (el.getAttribute("aria-label") || el.title || el.innerText || el.textContent || "").replace(/\s+/g, " ").replace(/\d+/g, "#").trim();
     if (!text) return null;
     const holder = el.closest("[id]");
     return `${text.slice(0, 40)}${holder ? ` (in #${holder.id})` : ""}`;
