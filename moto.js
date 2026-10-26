@@ -245,6 +245,8 @@ body.sport-moto .leaflet-ridesPane-pane { display: none; }
 #motoPane .mt-warn { border-left: 4px solid #e03131; background: color-mix(in srgb, #e03131 8%, var(--panel)); padding: 6px 9px; border-radius: 0 8px 8px 0; font-size: .82rem; }
 #motoPane .mt-warn.hard { border-left-color: #f08c00; background: color-mix(in srgb, #f08c00 9%, var(--panel)); }
 #motoPane .mt-warn.ok { border-left-color: #2f9e44; background: color-mix(in srgb, #2f9e44 8%, var(--panel)); }
+#motoPane .mt-leave { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .82rem; }
+#motoPane .mt-leave input { font: inherit; font-size: 16px; padding: 4px 6px; border: 1px solid var(--line, #ccc); border-radius: 8px; background: var(--panel); color: inherit; max-width: 100%; }
 #motoPane .mt-warn button { font: inherit; border: 0; background: none; color: var(--accent); text-decoration: underline; padding: 0; cursor: pointer; }
 #motoPane details.mt-fold { border-top: 1px solid var(--line); padding-top: 6px; }
 #motoPane details.mt-fold summary { cursor: pointer; font-weight: 700; font-size: .82rem; }
@@ -1056,9 +1058,34 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     planBar.hidden = !on;
     document.body.classList.toggle("mt-planning", on);
     pane.querySelector('[data-act="plan"]').classList.toggle("on", on || !!route);
-    if (on) { if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); tip(); }
+    if (on) { if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); tip(); prefetchLive(); }
     renderRoute(); drawWaypoints();
   }
+  // The road events load in the background as soon as you plan (alex: "it can run in the background"), and every 10
+  // minutes the open route is checked again: a new closure on it re-plans around it (not while you ride it: then it
+  // says so).
+  function prefetchLive() {
+    const pts = planPts.length ? planPts : [[map.getCenter().lat, map.getCenter().lng]];
+    roadLive(L.latLngBounds(pts).pad(0.3)).catch(() => {});
+  }
+  let liveNote = "";
+  setInterval(async () => {
+    if (!route || route.checking || document.hidden || !navigator.onLine || !document.body.classList.contains("sport-moto")) return;
+    const r = route, before = r.closures;
+    liveCache.clear();
+    const c = await closuresOf(r, r.pts).catch(() => null);
+    if (!c || route !== r) return;
+    const had = (x) => before && before.items.some((y) => y.label === x.label);
+    const fresh = c.items.filter((x) => x.stop && !x.atPoint && !had(x));
+    r.closures = c;
+    if (fresh.length && !(window.tfRide && window.tfRide.riding && window.tfRide.riding())) {
+      liveNote = `${fresh.map((x) => x.label).join("; ")}. Planned again around it.`;
+      buildRoute();
+    } else {
+      if (fresh.length) r.liveNote = `${fresh.map((x) => x.label).join("; ")}. Plan again when you can stop.`;
+      renderRoute();
+    }
+  }, 10 * 60000);
   const tip = () => { $("mtPlanTip").textContent = !planPts.length ? "Tap the map where you start" : planPts.length === 1 ? "Now tap where you want to go" : `${planPts.length} points · tap to add more`; };
   function addPoint(ll) {
     planPts.push([+ll[0].toFixed(5), +ll[1].toFixed(5)]);
@@ -1067,6 +1094,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   }
   function planChanged() {
     store.set("motoPlan", planPts);
+    if (planPts.length) prefetchLive();
     drawWaypoints(); tip();
     clearTimeout(planChanged.t);
     planChanged.t = setTimeout(buildRoute, 250);
@@ -1151,9 +1179,9 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   };
   // One ask to the router, then the surfaces along it. excl: points whose roads it must not use (Valhalla's
   // exclude_locations: the road a point sits on is left out).
-  async function routeOnce(locs, excl) {
+  async function routeOnce(locs, excl, cx) {
     const body = { locations: locs.map((p, i) => ({ lat: p[0], lon: p[1], type: i === 0 || i === locs.length - 1 ? "break" : "through" })),
-      costing: "motorcycle", costing_options: { motorcycle: costing() }, directions_options: { units: "kilometers", language: "en-US" } };
+      costing: "motorcycle", costing_options: { motorcycle: { ...costing(), ...cx } }, directions_options: { units: "kilometers", language: "en-US" } };
     if (excl.length) body.exclude_locations = excl.map((p) => ({ lat: p[0], lon: p[1] }));
     const r = await postJ(`${VALHALLA}/route`, body, 40000);
     const legs = r.trip.legs, line = [], parts = [], legAt = [];
@@ -1175,7 +1203,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   // The surfaces along a line, leg by leg. Valhalla's exact walk fails on some routes (a turn back at a point on the
   // way), which left the surfaces "reading" for good: then the leg is matched to the map instead, and its matched
   // line replaces it. Returns { edges, line } (edges index into line).
-  const TRACE_ATTR = { attributes: ["edge.length", "edge.surface", "edge.unpaved", "edge.use", "edge.road_class", "edge.names", "edge.max_upward_grade", "edge.begin_shape_index", "edge.end_shape_index"], action: "include" };
+  const TRACE_ATTR = { attributes: ["edge.length", "edge.surface", "edge.unpaved", "edge.use", "edge.road_class", "edge.names", "edge.max_upward_grade", "edge.begin_shape_index", "edge.end_shape_index", "edge.density", "edge.speed"], action: "include" };
   // After the line is replaced: each turn's a and b, as the nearest points of the new line, in order.
   function reindexParts(parts, line) {
     let k = 0;
@@ -1211,10 +1239,12 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     if (locs.length < 2) { route = null; drawRoute(); renderRoute(); return; }
     $("mtRoute").hidden = false;
     renderRoute(true);
-    let excl = avoidMine.map((a) => [a[0], a[1]]), r, best = null, lastAdd = [];
-    const avoided = [];
+    let excl = avoidMine.map((a) => [a[0], a[1]]), r, best = null, lastAdd = [], cx = null, win = null;
+    const avoided = [], note = liveNote;
+    liveNote = "";
+    roadLive(L.latLngBounds(locs));   // the road events start loading while the router works
     for (let round = 0; round < 4; round++) {
-      try { r = await routeOnce(locs, excl); }
+      try { r = await routeOnce(locs, excl, cx); }
       catch (e) {
         if (my !== routeSeq) return;
         if (best) { best.noWay = true; break; }   // no way around: keep the last route and say so
@@ -1224,7 +1254,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       if (my !== routeSeq) return;
       // A gate or barrier is one point a mapper put on the map, and can be wrong: when going around it alone is a long
       // way round (alex: 581 km instead of about 120), keep the shorter route and say what's on it.
-      if (best && lastAdd.every((x) => x.type === "feat") && r.km > best.km * 1.4 + 20) { best.longWay = Math.round(r.km - best.km); best.noWay = true; avoided.splice(avoided.length - lastAdd.length); break; }
+      if (best && lastAdd.every((x) => x.type === "feat" || x.type === "cond") && r.km > best.km * 1.4 + 20) { best.longWay = Math.round(r.km - best.km); best.noWay = true; avoided.splice(avoided.length - lastAdd.length); break; }
       r.avoided = avoided.slice();
       r.checking = true;
       if (!best) { route = r; drawRoute(); renderRoute(); drawRange(); }
@@ -1232,6 +1262,28 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       if (ed.line !== r.line) { reindexParts(r.parts, ed.line); r.line = ed.line; }
       r.edges = ed.edges;
       if (my !== routeSeq) return;
+      // City traffic at the hour you'll be there (alex: "if you enter a city consider the traffic"): when it costs 8 min
+      // or more, ask the router once more with the opposite taste for highways (the way around the city, or off the
+      // jammed freeway) and keep the one that's faster at that hour, if it keeps the dirt.
+      if (round === 0 && r.edges) {
+        const t0 = trafficOf(r);
+        if (t0 && t0.delay >= 480) {
+          const c2 = { use_highways: costing().use_highways < 0.5 ? 1 : 0 };
+          try {
+            const alt = await routeOnce(locs, excl, c2), ae = await edgesOf(alt.line, alt.legAt);
+            if (ae.line !== alt.line) { reindexParts(alt.parts, ae.line); alt.line = ae.line; }
+            alt.edges = ae.edges;
+            const t1 = alt.edges && trafficOf(alt), tot = (x, t) => x.time + t.delay;
+            if (my !== routeSeq) return;
+            if (t1 && (planStyle === "paved" || routeStats(alt).dirt >= routeStats(r).dirt * 0.85) && tot(alt, t1) < tot(r, t0) - 300) {
+              win = { min: Math.round((tot(r, t0) - tot(alt, t1)) / 60), city: t0.city };
+              cx = c2; r = alt;
+            }
+          } catch (e) { /* keep the first route */ }
+          if (my !== routeSeq) return;
+        }
+      }
+      r.trafficWin = win;
       r.closures = await closuresOf(r, locs).catch(() => null);
       if (my !== routeSeq) return;
       r.checking = false;
@@ -1243,6 +1295,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     }
     route = best;
     route.checking = false;
+    route.liveNote = note;
     nameRoute(route, my);
     drawRoute(); renderRoute(); drawRange();
     if (gl3) sync3d();
@@ -1311,17 +1364,107 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const boxes = [];
     let from = 0;
     for (let i = 1; i < r.line.length; i++) if (kmBetween(r.line[from], r.line[i]) > 25 || i === r.line.length - 1) { boxes.push(L.latLngBounds(r.line.slice(from, i + 1)).pad(0.1)); from = i; }
-    const nav = window.tfNav, bc = r.line.some((p) => inBCbox(p[0], p[1]) && !inAlberta(p[0], p[1]));
+    const nav = window.tfNav;
     const done = (x) => x.then((v) => ({ ok: true, v }), () => ({ ok: false, v: null }));
     const p = Promise.all([
       done(nav && nav.roadsAlong ? nav.roadsAlong(boxes) : Promise.reject()),
       done(window.tfHunt && window.tfHunt.areasIn ? window.tfHunt.areasIn(b.getSouth(), b.getWest(), b.getNorth(), b.getEast()) : Promise.reject()),
       done(nav && nav.firesNow ? nav.firesNow() : Promise.reject()),
-      bc ? done(getJ(`https://api.open511.gov.bc.ca/events?${new URLSearchParams({ format: "json", status: "ACTIVE", limit: "500", bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((v) => v.toFixed(3)).join(",") })}`, 15000)) : Promise.resolve(null),
-    ]).then(([roads, areas, fires, d511]) => ({ roads, areas, fires, d511 }));
+    ]).then(([roads, areas, fires]) => ({ roads, areas, fires }));
     closureCache.set(key, p);
-    p.then((d) => { if (!d.roads.ok || !d.fires.ok || (d.d511 && !d.d511.ok)) setTimeout(() => closureCache.delete(key), 60000); });
+    p.then((d) => { if (!d.roads.ok || !d.fires.ok) setTimeout(() => closureCache.delete(key), 60000); });
     return p;
+  }
+
+  // ---------- live road events (alex 2026-10-26: "add all the road status, it can run in the background, and use it
+  // to make the most accurate route") ----------
+  // Highway closures, washouts, bridges out, incidents, roadwork and winter road conditions, from each province's
+  // own 511: DriveBC (Open511) and Québec 511 (the ministry's WFS) straight from the browser; the others (Alberta,
+  // Saskatchewan, Manitoba, Ontario, the Maritimes, Newfoundland and Labrador, Yukon) through the road events job
+  // (scripts/build-road-events.mjs), which reads their 511 sites every 15 minutes. They load in the background as
+  // soon as you plan, are kept 5 minutes, and are read again every 10 minutes while a route is open.
+  const ROAD_EVENTS = "https://fohdmserpbkurcvcrbbb.supabase.co/storage/v1/object/public/live/road-events.json";
+  const QC_WFS = "https://ws.mapserver.transports.gouv.qc.ca/swtq";
+  const liveCache = new Map();
+  function liveGet(key, fn) {
+    const c = liveCache.get(key);
+    if (c && Date.now() - c.t < 5 * 60000) return c.p;
+    const p = fn();
+    liveCache.set(key, { t: Date.now(), p });
+    p.catch(() => liveCache.delete(key));
+    return p;
+  }
+  const cell = (b) => [Math.floor(b.getSouth()), Math.floor(b.getWest()), Math.ceil(b.getNorth()), Math.ceil(b.getEast())];   // whole degrees, so a box is asked once
+  const inQC = (b) => b.getNorth() > 45 && b.getSouth() < 62.6 && b.getEast() > -79.8 && b.getWest() < -57.1;
+  const inBC = (b) => b.getNorth() > 48.2 && b.getSouth() < 60 && b.getEast() > -139.1 && b.getWest() < -114;
+  const geoPts = (g) => !g ? [] : g.type === "Point" ? [g.coordinates] : g.type === "LineString" ? g.coordinates : g.type === "MultiLineString" ? g.coordinates.flat() : g.type === "MultiPoint" ? g.coordinates : [];
+  const shifted = (t) => /shifted|cross ?over|counterflow|contraflow|lanes? (will be |are )?closed|lane closure|single lane|alternating|one lane/i.test(t)
+    && !/(road|highway|bridge|route) (is |will be |remains )?closed|fully closed|full closure|closed (in )?both directions|no access/i.test(t);
+  const ROAD_SRC = { ab: "511 Alberta", sk: "SK Highway Hotline", mb: "Manitoba 511", on: "Ontario 511", nb: "New Brunswick 511", ns: "511 Nova Scotia", pe: "PEI 511", nl: "511 NL", yt: "511 Yukon" };
+  // Every event near the box as { pts: [[lat, lon]...], src, closed (1 closed, 3 closed at set times, 0 open), cond
+  // (a winter road condition: 2 snow or ice, 1 partly), road, text }. Returns { list, failed: [source names] }.
+  async function roadLive(b) {
+    b = b.pad(0.05);
+    const [s, w, n, e] = cell(b), out = [], failed = [];
+    const jobs = [liveGet("ca", () => getJ(ROAD_EVENTS, 15000)).then((j) => {
+      (j.ev || []).forEach(([la, lo, prov, kind, closed, road, text]) => {
+        if (la < s || la > n || lo < w || lo > e || closed === 2) return;   // 2: a ramp or exit only
+        if (!closed && kind === "work" && !/gravel|rough|delay|pilot|alternat|single lane|one lane|flag|lane closed|detour|bridge|washout/i.test(text)) return;
+        out.push({ pts: [[la, lo]], src: ROAD_SRC[prov] || "511", closed, cond: 0, road, text });
+      });
+    }).catch(() => failed.push("the other provinces' 511"))];
+    if (inBC(b)) jobs.push(liveGet(`bc:${s},${w},${n},${e}`, () => getJ(`https://api.open511.gov.bc.ca/events?${new URLSearchParams({ format: "json", status: "ACTIVE", limit: "500", bbox: [w, s, e, n].join(",") })}`, 15000)).then((j) => {
+      (j.events || []).forEach((ev) => {
+        // DriveBC says CLOSED for "existing eastbound lanes closed, traffic shifted to the other side" too: that's open.
+        const desc = String(ev.description || ""), roads = ev.roads || [];
+        const closed = roads.some((x) => /CLOSED/i.test(x.state || "")) && !roads.some((x) => /SINGLE|ALTERNAT|REDUCED/i.test(x.state || "")) && !shifted(desc);
+        const cond = /ROAD_CONDITION|WEATHER_CONDITION/.test(ev.event_type || "");
+        if (!closed && !cond && !/MAJOR/i.test(ev.severity || "")) return;
+        out.push({ pts: geoPts(ev.geography).map((c) => [c[1], c[0]]), src: "DriveBC", closed: closed ? 1 : 0, cond: cond ? (/snow|\bice\b|icy|slush|compact/i.test(ev.description || "") ? 2 : 1) : 0,
+          road: (roads[0] && roads[0].name) || "", text: `${ev.headline && !cond ? titleCase(String(ev.headline).toLowerCase()) + ": " : ""}${String(ev.description || "").replace(/\s*Last update:.*$/i, "")}` });
+      });
+    }).catch(() => failed.push("DriveBC")));
+    if (inQC(b)) {
+      const qc = (layer, extra = "") => liveGet(`qc:${layer}:${s},${w},${n},${e}`, () => getJ(`${QC_WFS}?service=wfs&version=2.0.0&request=GetFeature&outputFormat=geojson&srsName=EPSG:4326&typeNames=ms:${layer}${extra || `&bbox=${s},${w},${n},${e},urn:ogc:def:crs:EPSG::4326`}`, 20000));
+      const lines = (f) => geoPts(f.geometry).map((c) => [c[1], c[0]]);
+      jobs.push(qc("evenements").then((j) => (j.features || []).forEach((f) => {
+        const x = f.properties || {}, ent = String(x.entrave || "").trim();
+        if (!ent || ent.length > 60) return;   // ferry timetables
+        out.push({ pts: lines(f), src: "Québec 511", closed: /^(fermeture|route fermée|pont fermé|autoroute fermée)$/i.test(ent) ? 1 : 0, cond: 0, road: x.numeroRoute ? `route ${x.numeroRoute}` : "",
+          text: `${ent}: ${x.localisation || ""}${x.municipalite ? ` (${x.municipalite})` : ""}${x.cause ? `. ${x.cause}` : ""}` });
+      })).catch(() => failed.push("Québec 511")));
+      jobs.push(qc("chantiers_mtmdet").then((j) => (j.features || []).forEach((f) => {
+        const x = f.properties || {}, ent = String(x.entrave || "");
+        if (/^accès fermé/i.test(ent)) return;   // a ramp only
+        const shut = /(route|pont|autoroute|chaussée) fermée/i.test(ent) && !/contresens/i.test(ent);
+        const always = /en tout temps/i.test(ent) || !/(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|\d\s*h)/i.test(ent);
+        out.push({ pts: lines(f), src: "Québec 511 roadwork", closed: shut ? (always ? 1 : 3) : 0, cond: 0, road: x.routeAutoroute ? `route ${x.routeAutoroute}` : "",
+          text: String(x.descriptionAnglais || x.descriptionFrancais || ent).replace(/\n+/g, ". ") });
+      })).catch(() => failed.push("Québec 511 roadwork")));
+      const m = new Date().getMonth();
+      if (m >= 9 || m <= 4) {   // winter road conditions, October to May: only the roads that aren't bare
+        const filter = `<Filter xmlns="http://www.opengis.net/fes/2.0" xmlns:gml="http://www.opengis.net/gml/3.2"><And><Not><PropertyIsLike wildCard="*" singleChar="." escapeChar="!"><ValueReference>DescriptionEtatChausseeEN</ValueReference><Literal>Bare*</Literal></PropertyIsLike></Not><BBOX><ValueReference>msGeometry</ValueReference><gml:Envelope srsName="urn:ogc:def:crs:EPSG::4326"><gml:lowerCorner>${s} ${w}</gml:lowerCorner><gml:upperCorner>${n} ${e}</gml:upperCorner></gml:Envelope></BBOX></And></Filter>`;
+        jobs.push(qc("conditions_routieres", `&FILTER=${encodeURIComponent(filter)}`).then((j) => (j.features || []).forEach((f) => {
+          const x = f.properties || {}, st = String(x.DescriptionEtatChausseeEN || "");
+          out.push({ pts: lines(f), src: "Québec 511", closed: 0, cond: /partly|partially|patches|sections/i.test(st) ? 1 : 2, road: x.NomRoute || "",
+            text: `${st}${x.LocalisationDebutEN ? ` from ${x.LocalisationDebutEN} to ${x.LocalisationFinEN}` : ""}${x.DescriptionVisibiliteEN && !/good/i.test(x.DescriptionVisibiliteEN) ? `, visibility ${x.DescriptionVisibiliteEN.toLowerCase()}` : ""}` });
+        })).catch(() => failed.push("Québec 511 road conditions")));
+      }
+    }
+    await Promise.all(jobs);
+    return { list: out, failed };
+  }
+  // Does the event's road look like the route's road there? "HWY-1 Westbound" and "Trans-Canada Highway, 1": the
+  // number; "Beersville Back Rd" and "Beersville Back Road": the first real word. Unknown either side: yes.
+  const ROAD_WORDS = /^(old|new|north|south|east|west|the|chemin|rue|route|road|rd|ch|rang|boul|boulevard|avenue|ave|st|saint|sainte|lake|river|highway|hwy|autoroute|rte|trans|canada|de|du|des|la|le|les)$/;
+  const plain = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  function roadLike(road, names) {
+    const r = plain(road);
+    if (!r || !names.length) return true;
+    const ns = names.map(plain), num = r.match(/(?:^|[^a-z0-9])(\d{1,4}[a-z]?)(?![0-9])/);
+    if (num) return ns.some((n) => new RegExp(`(^|[^0-9])${num[1]}([^0-9]|$)`).test(n));
+    const w = r.split(/[^a-z0-9]+/).find((x) => x.length >= 3 && !ROAD_WORDS.test(x));
+    return !w || ns.some((n) => n.includes(w));
   }
   // Metres from p to a line, or false past max.
   const nearLine = (p, g, max) => { for (let i = 1; i < g.length; i++) if (segM(p, g[i - 1], g[i]) <= max) return true; return false; };
@@ -1343,6 +1486,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     return out;
   }
   async function closuresOf(r, locs) {
+    const liveP = roadLive(L.latLngBounds(r.line)).catch(() => ({ list: [], failed: ["road events"] }));
     const d = await closureData(r), S = samplesOf(r), items = [], cap = capOf(cur());
     const nearPoint = (p) => locs.some((q) => kmBetween(q, p) < 0.3);
     const add = (x) => { x.atPoint = !!x.p && nearPoint(x.p); items.push(x); };
@@ -1411,23 +1555,91 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
         add({ type: "fire", stop: !!FIRE_STOP[a.what] && dirt, label: `${a.label}${a.n ? `: ${a.n}` : ""}${!dirt && FIRE_STOP[a.what] ? " (the highway through it may stay open: check DriveBC)" : ""}`, p: q.p, a: s.i, b: q.i });
       });
     });
-    // DriveBC events within 60 m of the route: full closures are gone around, the rest are warnings.
-    const ev = d.d511 && d.d511.ok && d.d511.v ? d.d511.v.events || [] : [];
-    if (ev.length) {
-      const near = segGrid(S.slice(1).map((s, k) => ({ geom: [S[k].p, s.p], s })));
-      ev.forEach((e) => {
-        const g = e.geography || {}, pts = g.type === "Point" ? [g.coordinates] : g.type === "LineString" ? g.coordinates : g.type === "MultiLineString" ? g.coordinates.flat() : [];
-        let hit = null, at = null;
-        for (const c of pts) { const h = near([c[1], c[0]], 60); if (h) { hit = h; at = [c[1], c[0]]; break; } }
+    // Road events within 60 m of the route (alex: "add all the road status ... to make the most accurate route"): a full
+    // closure is gone around, snow or ice on the road too unless that's a long way round (a bike on snow is a crash),
+    // the rest are warnings. A closure whose road isn't the route's road there (a crossing road) is only a warning.
+    const live = await liveP;
+    if (live.list.length) {
+      const near = segGrid(S.slice(1).map((s, k) => ({ geom: [S[k].p, s.p], s, k: k + 1 })));
+      const edgeAt = new Int32Array(r.line.length).fill(-1);
+      (r.edges || []).forEach((e, k) => { for (let i = e.begin_shape_index; i <= e.end_shape_index && i < edgeAt.length; i++) edgeAt[i] = k; });
+      const namesAt = (i, w = 1) => { const k = edgeAt[i], out = []; for (let j = Math.max(0, k - w); k >= 0 && j <= k + w && j < r.edges.length; j++) out.push(...(r.edges[j].names || [])); return out; };
+      const seen = new Set();
+      live.list.forEach((ev) => {
+        let hit = null;
+        for (const c of ev.pts) { const h = near(c, 60); if (h) { hit = h; break; } }
         if (!hit) return;
-        const closed = (e.roads || []).some((x) => /CLOSED/i.test(x.state || "")) && !(e.roads || []).some((x) => /SINGLE|ALTERNAT|REDUCED/i.test(x.state || ""));
-        if (!closed && !/MAJOR/i.test(e.severity || "")) return;
-        add({ type: "511", stop: closed, label: `DriveBC: ${e.headline ? titleCase(String(e.headline).toLowerCase()) + ": " : ""}${String(e.description || "").slice(0, 160)}`, p: at, a: hit.s.i, b: hit.s.i });
+        const key = ev.src + ev.text.slice(0, 80);
+        if (seen.has(key)) return;
+        seen.add(key);
+        let same = roadLike(ev.road, namesAt(hit.s.i));
+        if (!same && ev.closed !== 1) return;
+        // A closure given as one spot ("from Shell River to Highway 366") may be where the route only turns: it counts
+        // when the route is on that road on both sides of the spot, else it's a warning.
+        const end = ev.pts.length === 1 && same && ev.road && r.edges && ![-3, 3].every((o) => roadLike(ev.road, namesAt(S[Math.max(0, Math.min(S.length - 1, hit.k + o))].i, 0)));
+        if (end) same = false;
+        const last = ev.pts.length > 1 ? ev.pts.reduce((m, c) => { const h = near(c, 60); return h && h.s.i > m ? h.s.i : m; }, hit.s.i) : hit.s.i;
+        const head = ev.cond ? `${ev.src}, road conditions` : ev.closed === 3 ? `${ev.src}, closed at set times` : ev.src;
+        add({ type: ev.cond === 2 && same ? "cond" : "511", stop: same && (ev.closed === 1 || ev.cond === 2), label: `${head}: ${ev.road && !ev.text.toLowerCase().includes(ev.road.toLowerCase()) ? ev.road + ", " : ""}${ev.text.length > 200 ? ev.text.slice(0, 200).replace(/\s+\S*$/, "") + "…" : ev.text.replace(/[.\s]+$/, "")}${same ? "" : end ? " (your route only crosses or turns where it is: check)" : " (on a road beside yours: check it isn't your road)"}`,
+          p: hit.s.p, a: Math.min(hit.s.i, last), b: Math.max(hit.s.i, last) });   // the route's own point: going around leaves out the route's road, not a side road the event's spot is nearer
       });
     }
     items.sort((x, y) => x.a - y.a);
-    return { items, failed: [!d.roads.ok && "forest roads", !d.areas.ok && "parks and closures", !d.fires.ok && "wildfires", d.d511 && !d.d511.ok && "DriveBC"].filter(Boolean), bc: !!d.d511 };
+    return { items, failed: [!d.roads.ok && "forest roads", !d.areas.ok && "parks and closures", !d.fires.ok && "wildfires", ...live.failed].filter(Boolean), at: Date.now() };
   }
+  // ---------- city traffic ----------
+  // No live traffic speeds are free and open in Canada (the 511 sites draw theirs as pictures, Google, HERE and TomTom
+  // need a paid key), so this is the usual traffic at that hour: in the big cities only, on the busy roads (Valhalla's
+  // density, 0 to 15), more at rush hour on a weekday, less at night than the router's average speeds. Each road gets
+  // the hour you'll be on it, counted from when you leave.
+  const METRO = [["Vancouver", 49.25, -122.98, 32, 1.25], ["Toronto", 43.72, -79.42, 48, 1.3], ["Montréal", 45.53, -73.65, 32, 1.25], ["Calgary", 51.04, -114.07, 22, 1.1],
+    ["Edmonton", 53.54, -113.5, 22, 1.05], ["Ottawa", 45.38, -75.7, 22, 1.1], ["Québec", 46.8, -71.27, 18, 1], ["Winnipeg", 49.88, -97.14, 16, 1], ["Hamilton", 43.24, -79.86, 15, 1.05],
+    ["Kitchener-Waterloo", 43.45, -80.49, 13, 1], ["Halifax", 44.67, -63.6, 15, 1], ["Victoria", 48.45, -123.4, 14, 1.05], ["London", 42.98, -81.25, 12, 1], ["Kelowna", 49.88, -119.47, 12, 1],
+    ["Saskatoon", 52.13, -106.67, 11, 0.95], ["Regina", 50.45, -104.61, 10, 0.95], ["Gatineau", 45.48, -75.7, 12, 1], ["Oshawa", 43.9, -78.87, 12, 1], ["St. Catharines", 43.16, -79.24, 12, 0.95],
+    ["Sherbrooke", 45.4, -71.9, 9, 0.9], ["Saint John", 45.27, -66.06, 8, 0.9], ["St. John's", 47.56, -52.73, 9, 0.9], ["Nanaimo", 49.17, -123.95, 9, 0.9], ["Abbotsford", 49.05, -122.3, 10, 0.95]];
+  const metroAt = (p) => METRO.find((m) => kmBetween(p, [m[1], m[2]]) < m[3]);
+  let planLeave = null;   // when you leave (ms), null = now
+  const leaveAt = () => (planLeave && planLeave > Date.now() - 3600000 ? planLeave : Date.now());
+  function rushOf(d) {
+    const h = d.getHours() + d.getMinutes() / 60, wd = d.getDay() >= 1 && d.getDay() <= 5;
+    if (!wd) return h >= 11 && h < 18 ? 1.2 : h >= 8 && h < 21 ? 1.05 : 0.9;
+    return h >= 7 && h < 9.5 ? 1.65 : h >= 15 && h < 18.5 ? 1.75 : h >= 9.5 && h < 15 ? 1.15 : h >= 6 && h < 7 || h >= 18.5 && h < 20 ? 1.2 : h >= 20 && h < 22 ? 1 : 0.9;
+  }
+  function trafficOf(r, leave = leaveAt()) {
+    if (!r.edges || !r.edges.length) return null;
+    let raw = 0;
+    r.edges.forEach((e) => { raw += (e.length || 0) / Math.max(5, e.speed || 50); });
+    const scale = raw > 0 ? r.time / (raw * 3600) : 1;   // the router's own time, shared over its roads
+    let clock = leave, delay = 0, km = 0, first = null;
+    const byCity = new Map();
+    for (const e of r.edges) {
+      const t = ((e.length || 0) / Math.max(5, e.speed || 50)) * 3600 * scale, p = r.line[Math.min(r.line.length - 1, e.begin_shape_index || 0)], m = p && metroAt(p);
+      let f = 1;
+      if (m && e.use !== "ferry") {
+        const w = Math.max(0, Math.min(1, ((e.density || 0) - 4) / 6)), k = /motorway|trunk/.test(e.road_class) ? 1 : /primary/.test(e.road_class) ? 0.9 : /secondary|tertiary/.test(e.road_class) ? 0.7 : 0.4;
+        const rush = rushOf(new Date(clock));
+        f = 1 + (rush - 1) * w * k * (rush > 1 ? m[4] : 1);
+        if (w > 0) { km += e.length || 0; byCity.set(m[0], (byCity.get(m[0]) || 0) + t * (f - 1)); if (!first) first = { city: m[0], at: clock }; }
+      }
+      delay += t * (f - 1);
+      clock += t * f * 1000;
+    }
+    if (!first) return { delay: 0, km: 0 };
+    const city = [...byCity].sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0][0];
+    return { delay, km, city, at: first.at, cities: [...byCity.keys()] };
+  }
+  function trafficHtml(r) {
+    const t = r.edges && trafficOf(r);
+    const d = new Date(leaveAt()), pad = (x) => String(x).padStart(2, "0");
+    const val = planLeave ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}` : "";
+    const when = `<div class="mt-leave"><label>Leaving <input type="datetime-local" data-leave value="${val}" aria-label="When you leave"></label>${planLeave ? `<button type="button" class="mt-link" data-leave-now>Now</button>` : `<span class="mt-note">now</span>`}</div>`;
+    if (!t || !t.km) return when;
+    const m = Math.round(t.delay / 60), hr = new Date(t.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    const where = t.cities.length > 1 ? `${t.cities.slice(0, -1).join(", ")} and ${t.cities[t.cities.length - 1]}` : t.city;
+    const say = m >= 3 ? `<b>City traffic: about +${m} min</b> through ${esc(where)} (there around ${hr}).` : m <= -3 ? `Little city traffic through ${esc(where)} at that hour (there around ${hr}): about ${-m} min faster than usual.` : `Normal city traffic through ${esc(where)} (there around ${hr}).`;
+    return `${when}<div class="mt-warn ${m >= 10 ? "hard" : "ok"}">${say}${r.trafficWin ? ` Picked the way through ${esc(r.trafficWin.city)} that's ${r.trafficWin.min} min faster at that hour.` : ""} <span class="mt-note">Usual traffic for the day and hour: there's no free live traffic feed in Canada.</span></div>`;
+  }
+  const dot = (t) => (/[.…!?]$/.test(t) ? t : t + ".");
   function closuresHtml(r) {
     if (!r.avoided) return "";
     if (r.checking) return `<p class="mt-note">Checking closures, gates and forest road status along it…</p>`;
@@ -1435,13 +1647,13 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     if (!c) return `<div class="mt-warn hard">Couldn't check the closures on this route. Check the province's road reports before you go.</div>`;
     const show = (x) => `<button type="button" data-show="${x.a},${Math.max(x.a + 1, x.b)}">Show</button>`;
     const stops = c.items.filter((x) => x.stop), warns = c.items.filter((x) => !x.stop);
-    let h = "";
-    if (r.avoided.length) h += `<div class="mt-warn ok"><b>Went around ${r.avoided.length === 1 ? "a closure" : `${r.avoided.length} closures`}:</b> ${r.avoided.map((x) => esc(x.label)).join("; ")}.</div>`;
-    h += stops.map((x) => `<div class="mt-warn"><b>Closed on this route:</b> ${esc(x.label)}. ${x.atPoint ? "One of your points is right there: move it to go around." : r.longWay && x.type === "feat" ? `Going around it adds ${r.longWay} km, so the route goes through: check it before you go.` : r.noWay ? "No way around it was found for this style." : ""} ${show(x)}</div>`).join("");
-    h += warns.slice(0, 6).map((x) => `<div class="mt-warn hard">${esc(x.label)}. ${show(x)}${x.p && !x.atPoint ? ` <button type="button" data-avoid="${x.p[0].toFixed(5)},${x.p[1].toFixed(5)}">Go around</button>` : ""}</div>`).join("");
+    let h = r.liveNote ? `<div class="mt-warn hard"><b>Changed since you planned it:</b> ${esc(r.liveNote)}</div>` : "";
+    if (r.avoided.length) h += `<div class="mt-warn ok"><b>Went around ${r.avoided.length === 1 ? "a closure" : `${r.avoided.length} closures`}:</b> ${r.avoided.map((x) => esc(x.label)).join("; ").replace(/([^.…])$/, "$1.")}</div>`;
+    h += stops.map((x) => `<div class="mt-warn"><b>Closed on this route:</b> ${esc(dot(x.label))} ${x.atPoint ? "One of your points is right there: move it to go around." : r.longWay && (x.type === "feat" || x.type === "cond") ? `Going around it adds ${r.longWay} km, so the route goes through: check it before you go.` : r.noWay ? "No way around it was found for this style." : ""} ${show(x)}</div>`).join("");
+    h += warns.slice(0, 6).map((x) => `<div class="mt-warn hard">${esc(dot(x.label))} ${show(x)}${x.p && !x.atPoint ? ` <button type="button" data-avoid="${x.p[0].toFixed(5)},${x.p[1].toFixed(5)}">Go around</button>` : ""}</div>`).join("");
     if (!stops.length && !warns.length) h += `<div class="mt-warn ok">No ${r.avoided.length ? "other " : ""}closures, locked gates, washouts, bad forest roads or fire closures mapped on this route.</div>`;
     if (avoidMine.length) h += `<p class="mt-note">You chose to go around ${avoidMine.length} spot${avoidMine.length === 1 ? "" : "s"}. <button type="button" class="mt-link" data-r="unavoid">Stop going around them</button></p>`;
-    h += `<p class="mt-note">Checked: forest road status and gates (BC and Alberta from the government and OpenStreetMap, the rest of Canada from OpenStreetMap), motor vehicle closures, reserves, wildfire closures and evacuations${c.bc ? ", DriveBC events" : ""}.${c.failed.length ? ` <b>Couldn't load ${esc(c.failed.join(", "))}</b>: try again with signal.` : ""} Gates and washouts change faster than any map.</p>`;
+    h += `<p class="mt-note">Checked: forest road status and gates (BC and Alberta from the government and OpenStreetMap, the rest of Canada from OpenStreetMap), motor vehicle closures, reserves, wildfire closures and evacuations, and every province's 511 (highway closures, washouts, bridges out, incidents, roadwork, winter road conditions), checked again every 10 minutes while this route is open${c.at ? ` (last ${new Date(c.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })})` : ""}.${c.failed.length ? ` <b>Couldn't load ${esc(c.failed.join(", "))}</b>: try again with signal.` : ""} Gates and washouts change faster than any map.</p>`;
     return h;
   }
   function encode6(pts) {
@@ -1554,7 +1766,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     else if (routeErr) body = `<div class="mt-warn">${esc(routeErr)}</div>`;
     else if (!r) body = `<p class="mt-note">${planPts.length ? "Tap where you want to go, or type it above." : "Tap the map where you start, type a place above, or use From where I am."} Points can be dragged; tap one to remove it.</p>`;
     else {
-      const st = routeStats(r), fp = fuelPlan(r), cap = capOf(b), dirtPct = r.edges ? Math.round((100 * st.dirt) / Math.max(0.1, r.km)) : null;
+      const st = routeStats(r), fp = fuelPlan(r), cap = capOf(b), tr = r.edges && trafficOf(r), dirtPct = r.edges ? Math.round((100 * st.dirt) / Math.max(0.1, r.km)) : null;
       const bar = r.edges ? `<div class="mt-bar" aria-label="Surfaces along the route">${[1, 2, 3, 4, 5].map((g) => st.byG[g] > 0 ? `<i style="width:${(100 * st.byG[g]) / r.km}%;background:${g === 1 ? "#495057" : FIT[fitOf(g, cap)][1]}" title="Grade ${g}: ${fmtKm(st.byG[g])}"></i>` : "").join("")}</div>
         <p class="mt-note">${[1, 2, 3, 4, 5].filter((g) => st.byG[g] >= 0.1).map((g) => `${esc(GRADES[g][0])} ${fmtKm(st.byG[g])}`).join(" · ")}</p>` : `<p class="mt-note">Reading the surfaces…</p>`;
       const hard = st.hard.length ? st.hard.slice(0, 4).map((h) => `<div class="mt-warn ${h.f === "no" ? "" : "hard"}"><b>${esc(FIT[h.f][0])}:</b> ${fmtKm(h.km)} of ${esc(GRADES[h.g][0].toLowerCase())}${h.name ? ` on ${esc(h.name)}` : ""}. <button type="button" data-show="${h.a},${h.b}">Show</button></div>`).join("")
@@ -1568,8 +1780,8 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       }
       const end = r.line[r.line.length - 1], camps = nearest([...listOf("camp"), ...recList()], end[0], end[1], 3, 25);
       body = `<p><b>${esc(r.name || "Your route")}</b></p>
-        <div class="mt-stats"><div><b>${fmtKm(r.km)}</b><span>distance</span></div><div><b>${fmtH(r.time)}</b><span>riding</span></div><div><b>${dirtPct == null ? "…" : dirtPct + "%"}</b><span>dirt</span></div><div><b>${r.edges ? fmtKm(st.longest) : "…"}</b><span>longest dirt</span></div></div>
-        ${bar}${hard}${closuresHtml(r)}${fuel}${highHtml(r)}${ferryHtml(r)}${roadsHtml(r)}${cellHtml(r)}
+        <div class="mt-stats"><div><b>${fmtKm(r.km)}</b><span>distance</span></div><div><b>${fmtH(r.time + (tr ? tr.delay : 0))}</b><span>riding</span></div><div><b>${dirtPct == null ? "…" : dirtPct + "%"}</b><span>dirt</span></div><div><b>${r.edges ? fmtKm(st.longest) : "…"}</b><span>longest dirt</span></div></div>
+        ${bar}${hard}${trafficHtml(r)}${closuresHtml(r)}${fuel}${highHtml(r)}${ferryHtml(r)}${roadsHtml(r)}${cellHtml(r)}
         ${camps.length ? `<details class="mt-fold"><summary>${svg(IC.camp, 14)} Camping near the end (${camps.length})</summary><ul class="mt-list">${camps.map(([d, p]) => `<li style="--c:${PT.camp.c}"><b>${esc(p[2] || "Campsite")}</b><small>${p[3] ? esc(p[3]) + " · " : ""}${fmtKm(d)} from the end</small></li>`).join("")}</ul></details>` : ""}
         <details class="mt-fold"><summary>Turns (${r.parts.length})</summary><ol class="mt-note" style="margin:0;padding-left:18px">${r.parts.map((x) => `<li>${esc(x.text)}${x.km >= 0.1 ? ` <i>${fmtKm(x.km)}</i>` : ""}</li>`).join("")}</ol></details>
         <div class="mt-row"><button type="button" class="mt-pill go" data-r="ride">${svg(IC.ride, 16)}Ride it</button><button type="button" class="mt-pill" data-r="save">${svg(IC.save, 16)}Save</button><button type="button" class="mt-pill" data-r="gpx">${svg(IC.dl, 16)}GPX</button><button type="button" class="mt-pill" data-r="offline">${svg(IC.dl, 16)}Save offline</button><button type="button" class="mt-pill" data-r="fly">${svg(IC.fly, 16)}Fly it in 3D</button></div>`;
@@ -1582,6 +1794,8 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     el.querySelectorAll("[data-style]").forEach((x) => (x.onclick = () => { planStyle = x.dataset.style; store.set("motoStyle", planStyle); renderRoute(); buildRoute(); }));
     el.querySelectorAll("[data-show]").forEach((x) => (x.onclick = () => { const [a, z] = x.dataset.show.split(",").map(Number); const seg = route.line.slice(a, z + 1); if (seg.length) { if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); const bb = L.latLngBounds(seg).pad(0.6); map.fitBounds(bb, { maxZoom: 15 }); if (in3d()) gl3.fitBounds([[bb.getWest(), bb.getSouth()], [bb.getEast(), bb.getNorth()]], { maxZoom: 15, padding: 40 }); } }));
     el.querySelectorAll("[data-r]").forEach((x) => (x.onclick = () => routeAct(x.dataset.r, x)));
+    el.querySelectorAll("[data-leave]").forEach((x) => (x.onchange = () => { const t = x.value ? new Date(x.value).getTime() : NaN; planLeave = isFinite(t) ? t : null; renderRoute(); buildRoute(); }));
+    el.querySelectorAll("[data-leave-now]").forEach((x) => (x.onclick = () => { planLeave = null; renderRoute(); buildRoute(); }));
     el.querySelectorAll("[data-avoid]").forEach((x) => (x.onclick = () => { const [la, lo] = x.dataset.avoid.split(",").map(Number); avoidMine.push([la, lo]); store.set("motoAvoid", avoidMine); buildRoute(); }));
     el.querySelectorAll("[data-wp]").forEach((x) => (x.onclick = () => {
       const [act, k] = x.dataset.wp.split(":"), i = +k;
