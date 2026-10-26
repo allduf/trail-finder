@@ -144,8 +144,11 @@
 
   // Ground classes: [name for the steps, how much slower than a path (x), shown colour]
   const G = { unk: 0, forest: 1, grass: 2, brush: 3, wet: 4, rock: 5, scree: 6, ice: 7, sand: 8, field: 9, built: 10, water: 11 };
-  const GROUND = [["the bush", 2.2], ["forest", 2.0], ["open grass", 1.35], ["brush", 3.0], ["wetland", 5.0], ["rock", 1.8], ["scree", 3.0], ["snow and ice", 4.0],
-    ["sand", 1.5], ["fields", 1.6], ["a built-up area", 1.6], ["water", Infinity]];
+  // alex (2026-10-26, Lesser Garibaldi Lake): take the trails over walking in the forest. Off trail is several times
+  // slower than a path (a BC bushwhack is about 1 km/h), so a long trail from the trailhead beats a short cut through
+  // the trees, and the route leaves the trail only for the last bit where no trail goes.
+  const GROUND = [["the bush", 6], ["forest", 6], ["open grass", 3], ["brush", 10], ["wetland", 15], ["rock", 4], ["scree", 8], ["snow and ice", 10],
+    ["sand", 3], ["fields", 4], ["a built-up area", 3], ["water", Infinity]];
   // Lines: 1 street, 2 track or forest road, 3 path, 4 steps, 5 main road, 6 motorway
   const L_STREET = 1, L_TRACK = 2, L_PATH = 3, L_STEPS = 4, L_MAIN = 5, L_MOTOR = 6;
   const LINE_X = [0, 1.0, 1.05, 1.1, 1.6, 1.15, 25];
@@ -187,7 +190,7 @@
     let cs = CELL_M / mPer, W = Math.ceil((box[2] - box[0]) / cs), H = Math.ceil((box[3] - box[1]) / cs);
     if (W * H > MAX_CELLS) { const k = Math.sqrt((W * H) / MAX_CELLS); cs *= k; W = Math.ceil((box[2] - box[0]) / cs); H = Math.ceil((box[3] - box[1]) / cs); }
     const N = W * H, g = { W, H, cs, x0: box[0], y0: box[1], cellM: cs * mPer,
-      ground: new Uint8Array(N), line: new Uint8Array(N), flag: new Uint8Array(N), name: new Uint16Array(N), names: [""], h: new Float32Array(N), grad: new Float32Array(N), hasH: false };
+      ground: new Uint8Array(N), line: new Uint8Array(N), flag: new Uint8Array(N), name: new Uint16Array(N), names: [""], parks: [], h: new Float32Array(N), grad: new Float32Array(N), hasH: false };
     // Vector tiles over the box.
     const n = 2 ** TZ, tx0 = Math.floor(box[0] * n), tx1 = Math.floor(box[2] * n), ty0 = Math.floor(box[1] * n), ty1 = Math.floor(box[3] * n);
     const jobs = [];
@@ -268,7 +271,9 @@
       }
       for (const f of t.poi || []) {   // parking lots: a good place to leave the car
         if (f.type !== 1 || f.tags.class !== "parking") continue;
-        for (const r of f.geom) for (const p of r) { const [c, rr] = toCell(x, y, p).map(Math.floor); if (c >= 0 && rr >= 0 && c < W && rr < H) g.flag[rr * W + c] |= F_PARK; }
+        for (const r of f.geom) for (const p of r) { const [c0, r0] = toCell(x, y, p).map(Math.floor), k = Math.max(1, Math.round(25 / g.cellM));   // the lot, not one point
+          if (f.tags.name) g.parks.push([c0, r0, f.tags.name]);
+          for (let rr = r0 - k; rr <= r0 + k; rr++) for (let c = c0 - k; c <= c0 + k; c++) if (c >= 0 && rr >= 0 && c < W && rr < H) g.flag[rr * W + c] |= F_PARK; }
       }
     }
     // BC forest roads (index.html's Forest roads files) when they've loaded: many aren't in OpenStreetMap.
@@ -351,7 +356,9 @@
   }
   const cellAt = (g, lat, lon) => { const c = Math.floor((mx(lon) - g.x0) / g.cs), r = Math.floor((my(lat) - g.y0) / g.cs); return c >= 0 && r >= 0 && c < g.W && r < g.H ? r * g.W + c : -1; };
   const cellLL = (g, i) => [uny(g.y0 + (Math.floor(i / g.W) + 0.5) * g.cs), unx(g.x0 + ((i % g.W) + 0.5) * g.cs)];
-  const drivable = (g, i) => (g.flag[i] & F_PARK ? 0 : g.line[i] === L_STREET || g.line[i] === L_MAIN ? 0 : g.line[i] === L_TRACK ? 240 : -1);   // extra seconds for leaving the car here
+  // Where to leave the car, and what it costs (seconds): a parking lot (trailheads have one) first, then a street, then a
+  // 4x4 track (often an old logging road that isn't drivable any more).
+  const drivable = (g, i) => (g.flag[i] & F_PARK ? 0 : g.line[i] === L_STREET || g.line[i] === L_MAIN ? 300 : g.line[i] === L_TRACK ? 1200 : -1);
 
   // The search runs back from the spot, so one search finds the best start of many (roads) as well as one (you).
   // Spot on water: it starts from the shores around it (searched through the water up to SHORE_M), each one costing
@@ -505,7 +512,9 @@
       if (res && res.water) return { g, res, fail: "water" };
       if (res && res.cells) {
         const i = res.cells[0];
-        got = { g, res, from: "road", park: !!(g.flag[i] & F_PARK), track: g.line[i] === L_TRACK, roadName: g.names[g.name[i]] || "" };
+        const park = !!(g.flag[i] & F_PARK), r0 = Math.floor(i / g.W), c0 = i % g.W;
+        const lot = park && g.parks.filter((p) => Math.abs(p[0] - c0) <= 4 && Math.abs(p[1] - r0) <= 4)[0];
+        got = { g, res, from: "road", park, parkName: lot ? lot[2] : "", track: g.line[i] === L_TRACK, roadName: g.names[g.name[i]] || "" };
         if (!res.edge) break;
       }
     }
@@ -608,7 +617,7 @@
     catch { out = { fail: "net" }; }
     if (token !== seq) return;
     if (out.fail) { failed(box, out.fail, from, you, spotLL, name); return; }
-    cur = { spot: spotLL, name, from, you, d: describe(out.g, out.res), park: out.park, track: out.track, roadName: out.roadName, shore: out.res.shore, far: you && !near };
+    cur = { spot: spotLL, name, from, you, d: describe(out.g, out.res), park: out.park, parkName: out.parkName, track: out.track, roadName: out.roadName, shore: out.res.shore, far: you && !near };
     draw(cur);
     render(box);
   }
@@ -629,6 +638,7 @@
     const roadWord = (r) => (r.name ? esc(r.name) : r.kind === "road" ? "the road" : "the trail");
     d.runs.forEach((r, i) => {
       if (r.m < 25 && d.runs.length > 1) return;
+      if (r.kind !== "off" && !r.name && r.m < 150 && d.runs.length > 2) return;   // short unnamed links between named trails
       const ud = [r.up >= 10 ? `up ${r.up} m` : "", r.down >= 10 ? `down ${r.down} m` : ""].filter(Boolean).join(", ");
       if (r.kind === "off") {
         const g = GROUND[r.ground] ? GROUND[r.ground][0] : "the bush";
@@ -641,7 +651,7 @@
   function render(box) {
     const c = cur, d = c.d, onM = d.total - d.offM;
     const offWhat = [...d.offBy].filter(([, m]) => m >= 20).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => (GROUND[k] ? GROUND[k][0] : "")).filter(Boolean);
-    const startTxt = c.from === "you" ? "From your location" : c.park ? `Park at the parking lot${c.roadName ? ` on ${esc(c.roadName)}` : ""}` : `Park on ${c.roadName ? esc(c.roadName) : c.track ? "the track" : "the road"}`;
+    const startTxt = c.from === "you" ? "From your location" : c.park ? (c.parkName ? `Park at ${/parking|trailhead|lot\b|stationnement/i.test(c.parkName) ? "" : "the parking for "}${esc(c.parkName)}` : `Park at the parking lot${c.roadName ? ` on ${esc(c.roadName)}` : ""}`) : `Park on ${c.roadName ? esc(c.roadName) : c.track ? "the track" : "the road"}`;
     const a = d.runs[0].pts[0];
     const ios = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) && "ontouchend" in document;
     const drive = ios ? `https://maps.apple.com/?daddr=${a[0].toFixed(5)},${a[1].toFixed(5)}&dirflg=d` : `https://www.google.com/maps/dir/?api=1&destination=${a[0].toFixed(5)},${a[1].toFixed(5)}&travelmode=driving`;
