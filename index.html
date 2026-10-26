@@ -1578,12 +1578,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=454"></script>
-<script src="rotate.js?v=454"></script>
-<script src="official.js?v=454"></script>
-<script src="directions.js?v=454"></script>
-<script src="ratings.js?v=454"></script>
-<script src="ebike.js?v=454"></script>
+<script src="native.js?v=455"></script>
+<script src="rotate.js?v=455"></script>
+<script src="official.js?v=455"></script>
+<script src="directions.js?v=455"></script>
+<script src="ratings.js?v=455"></script>
+<script src="ebike.js?v=455"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3924,7 +3924,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=454").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=455").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5628,7 +5628,14 @@ out body;`;
     unknown: { color: "#8a8f98", dashArray: "9 6" }, good: { color: "#2e9e5b" }, degraded: { color: "#f2b705" }, heavy: { color: "#d62828" },
     closed: { color: "#b5179e", dashArray: "12 6" }, impass: { color: "#111", dashArray: "4 5" },
   };
-  const roadStyle = (st) => ({ weight: 5, opacity: 1, ...ROAD_STYLE[st], color: ROAD_STYLE[st].color.startsWith("--") ? css(ROAD_STYLE[st].color) : ROAD_STYLE[st].color });
+  // Thin like a real road on the map (alex 2026-10-26: the thick bands looked heavy): 2.5 px zoomed out, up to 4.5 px close in.
+  // Dashes are drawn in the 5 px widths they were made for, scaled down with the line.
+  const roadWidth = (z = map.getZoom()) => Math.max(2.5, Math.min(4.5, (z - 6) / 2));
+  const roadStyle = (st, w = roadWidth()) => {
+    const s = ROAD_STYLE[st], k = w / 5;
+    return { weight: w, opacity: 0.95, color: s.color.startsWith("--") ? css(s.color) : s.color,
+      ...(s.dashArray ? { dashArray: s.dashArray.split(" ").map((n) => Math.max(2, Math.round(n * k * 1.4))).join(" ") } : {}) };
+  };
   map.createPane("roads").style.zIndex = 380;
   const roadRenderer = L.canvas({ pane: "roads", padding: 0.3 });
   const roadLayer = L.layerGroup().addTo(map);
@@ -5754,7 +5761,7 @@ out body;`;
   function drawRoads() {
     const zoomed = map.getZoom() >= ROAD_MIN_ZOOM, on = state.roads && zoomed;
     const loaded = [...roadData.values()].filter(Boolean);
-    const key = [state.roads, zoomed, loaded.length].join("/");
+    const w = roadWidth(), key = [state.roads, zoomed, loaded.length, w].join("/");
     drawRoadExtras();
     if (key === roadKey) return;
     roadKey = key;
@@ -5765,10 +5772,10 @@ out body;`;
     const line = (r, o) => roadLayer.addLayer(L.polyline(r.geom, { renderer: roadRenderer, interactive: false, lineCap: "butt", ...o }));
     // Button off: every forest road still shows, as a plain thin line with no status (alex), never as a trail.
     if (!on) { all.forEach((r) => line(r, { color: css("--road-plain"), weight: 2.5, opacity: 0.8 })); return; }
-    // A white edge under every road so it stands out from the base map, then the roads by status, the
+    // A faint thin white edge under every road so it stands out from the base map, then the roads by status, the
     // worst last: where the two sources overlap, a washout or gate wins over "good".
-    all.forEach((r) => line(r, { color: "#fff", weight: 8, opacity: 0.9 }));
-    Object.keys(ROAD_STYLE).forEach((st) => all.filter((r) => r.st === st).forEach((r) => line(r, roadStyle(st))));
+    all.forEach((r) => line(r, { color: "#fff", weight: w + 1.5, opacity: 0.5 }));
+    Object.keys(ROAD_STYLE).forEach((st) => all.filter((r) => r.st === st).forEach((r) => line(r, roadStyle(st, w))));
   }
   // ---------- Forest roads extras (gates, bridges, fords, hydro, cut blocks, closures) and the Wildfires button ----------
   // Points come from OpenStreetMap (nodes on the dirt roads, footbridges joining them, hydro plants), shown from
@@ -7436,51 +7443,51 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=454"></script>
-<script src="contours.js?v=454"></script>
-<script src="clouds.js?v=454"></script>
-<script src="smoke.js?v=454"></script>
-<script src="photo-slider.js?v=454"></script>
-<script src="ski-terrain.js?v=454"></script>
-<script src="winter.js?v=454"></script>
-<script src="hunting.js?v=454"></script>
-<script src="fish-bait.js?v=454"></script>
-<script src="fish-route.js?v=454"></script>
-<script src="fishing.js?v=454"></script>
-<script src="compass.js?v=454"></script>
-<script src="hunts.js?v=454"></script>
-<script src="ski-points.js?v=454"></script>
-<script src="webcams.js?v=454"></script>
-<script src="lifts.js?v=454"></script>
-<script src="rogers.js?v=454"></script>
-<script src="slackcountry.js?v=454"></script>
-<script src="ski-areas.js?v=454"></script>
-<script src="offline.js?v=454"></script>
-<script src="ride-stats.js?v=454"></script>
-<script src="native-gps.js?v=454"></script>
-<script src="navigate.js?v=454"></script>
-<script src="planner.js?v=454"></script>
-<script src="loops.js?v=454"></script>
-<script src="ride-finds.js?v=454"></script>
-<script src="rides.js?v=454"></script>
-<script src="community.js?v=454"></script>
-<script src="ride-files.js?v=454"></script>
-<script src="rider-trails.js?v=454"></script>
-<script src="account.js?v=454"></script>
-<script src="strava.js?v=454"></script>
-<script src="reports.js?v=454"></script>
-<script src="grades.js?v=454"></script>
-<script src="trail-photos.js?v=454"></script>
-<script src="visitors.js?v=454"></script>
-<script src="usage.js?v=454"></script>
-<script src="notify.js?v=454"></script>
-<script src="closures.js?v=454"></script>
-<script src="status.js?v=454"></script>
-<script src="areas.js?v=454"></script>
-<script src="alpine.js?v=454"></script>
-<script src="bikeparks.js?v=454"></script>
-<script src="photo-find.js?v=454"></script>
-<script src="whats-new.js?v=454"></script>
+<script src="map3d.js?v=455"></script>
+<script src="contours.js?v=455"></script>
+<script src="clouds.js?v=455"></script>
+<script src="smoke.js?v=455"></script>
+<script src="photo-slider.js?v=455"></script>
+<script src="ski-terrain.js?v=455"></script>
+<script src="winter.js?v=455"></script>
+<script src="hunting.js?v=455"></script>
+<script src="fish-bait.js?v=455"></script>
+<script src="fish-route.js?v=455"></script>
+<script src="fishing.js?v=455"></script>
+<script src="compass.js?v=455"></script>
+<script src="hunts.js?v=455"></script>
+<script src="ski-points.js?v=455"></script>
+<script src="webcams.js?v=455"></script>
+<script src="lifts.js?v=455"></script>
+<script src="rogers.js?v=455"></script>
+<script src="slackcountry.js?v=455"></script>
+<script src="ski-areas.js?v=455"></script>
+<script src="offline.js?v=455"></script>
+<script src="ride-stats.js?v=455"></script>
+<script src="native-gps.js?v=455"></script>
+<script src="navigate.js?v=455"></script>
+<script src="planner.js?v=455"></script>
+<script src="loops.js?v=455"></script>
+<script src="ride-finds.js?v=455"></script>
+<script src="rides.js?v=455"></script>
+<script src="community.js?v=455"></script>
+<script src="ride-files.js?v=455"></script>
+<script src="rider-trails.js?v=455"></script>
+<script src="account.js?v=455"></script>
+<script src="strava.js?v=455"></script>
+<script src="reports.js?v=455"></script>
+<script src="grades.js?v=455"></script>
+<script src="trail-photos.js?v=455"></script>
+<script src="visitors.js?v=455"></script>
+<script src="usage.js?v=455"></script>
+<script src="notify.js?v=455"></script>
+<script src="closures.js?v=455"></script>
+<script src="status.js?v=455"></script>
+<script src="areas.js?v=455"></script>
+<script src="alpine.js?v=455"></script>
+<script src="bikeparks.js?v=455"></script>
+<script src="photo-find.js?v=455"></script>
+<script src="whats-new.js?v=455"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
