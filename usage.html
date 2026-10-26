@@ -47,6 +47,9 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 720px) { .cols { grid-template-columns: 1fr; } }
 .err { color: var(--err); }
+.who { margin: 14px 0 0; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.me { font-size: .75rem; font-weight: 600; color: var(--accent); }
+.card h3 button { font: inherit; font-size: .8rem; padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--fg); cursor: pointer; }
 .raw { color: var(--muted); font-size: .8rem; }
 #msg { margin-top: 16px; }
 </style>
@@ -64,6 +67,10 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
   </div>
   <div id="msg" class="muted">Loading…</div>
   <div id="out" hidden>
+    <div class="who days" role="group" aria-label="Whose use">
+      <button type="button" data-who="others">Everyone but me</button><button type="button" data-who="all">Everyone</button><button type="button" data-who="me">Only me</button>
+      <span class="muted" id="whoHint"></span>
+    </div>
     <div class="stats" id="stats"></div>
     <h2>Most used</h2>
     <p class="muted">Each tap, and how many testers used it. Things near the bottom, or missing, are the ones people don't find or don't need.</p>
@@ -78,10 +85,11 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
     <h2>Each tester</h2>
     <div id="people"></div>
     <h2>Errors</h2>
+    <p class="muted">The same error is counted once, with how many times it happened.</p>
     <div class="card"><table id="errors"></table></div>
   </div>
 </main>
-<script src="account.js?v=418"></script>
+<script src="account.js?v=461"></script>
 <script>
 (() => {
   // Plain names for the app's main buttons (ids in index.html and ride.html). Anything else shows as tapped.
@@ -101,17 +109,41 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
     "#dirChip": "Direction chip", "#alpChip": "Alpine chip", "#onlyUnoff": "Unofficial only", "#onlyOff": "Official only",
     "#nameNearBtn": "Trails near a name", "#savePick": "Save", "#resetBtn": "Reset", "#screenBtn": "Screen", "#hub": "Hub",
     "#ridden": "Ridden", "#accessBtn": "Access", "#allBtn": "All trails",
+    "#lmClose": "Close the Layers menu", "#sportMapBtn": "Sport button (on the map)", "list:ul": "An item in a list",
+    "view=river": "Fishing view: River", "view=ocean": "Fishing view: Ocean", "view=lake": "Fishing view: Lake",
     "sport=mtb": "Sport: MTB", "sport=ski": "Sport: Skiing", "sport=hunt": "Sport: Hunting", "sport=fish": "Sport: Fishing",
   };
   const MAIN = Object.keys(NAMES).filter((k) => k.startsWith("#"));
   const SPORTS = { mtb: "🚵 MTB", ski: "⛷ Skiing", hunt: "🦌 Hunting", fish: "🎣 Fishing" };
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const nice = (w) => NAMES[w] || w;
+  // Where a tap happened, in plain words ("River flow gauges (in #fsLayerList)" → "River flow gauges · Fishing layers").
+  const PLACES = {
+    fsLayerList: "Fishing layers", fsSpot: "Fishing spot card", fsBoat: "Fishing spot: boating", fsRules: "Fishing spot: rules",
+    fsLic: "Fishing spot: licence", fsAcc: "Fishing spot: access", fsStock: "Fishing spot: stocking", fsEat: "Fishing spot: safe to eat",
+    fsFlow: "Fishing spot: river flow", fsTide: "Fishing spot: tides", fsSeason: "Fishing spot: season", fsSea: "Fishing spot: sea",
+    map3d: "3D map", hub: "Hub", results: "Results", detail: "Trail card",
+  };
+  const place = (id) => PLACES[id] || id.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+  const nice = (w) => {
+    if (NAMES[w]) return NAMES[w];
+    const m = /^(.*) \(in #([\w-]+)\)$/.exec(w || "");
+    if (m) return `${m[1]} · ${place(m[2])}`;
+    if (/^list:#/.test(w || "")) return `An item in ${place(w.slice(6))}`;
+    return w;
+  };
+  const isMe = (d) => /^me$/i.test((d.label || "").trim());
   const mins = (ms) => { const m = Math.round(ms / 60e3); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
   const ago = (d) => { const h = (Date.now() - new Date(d)) / 36e5; return h < 1 ? "just now" : h < 24 ? `${Math.round(h)} h ago` : `${Math.round(h / 24)} days ago`; };
   const bar = (n, max) => `<div class="bar" style="width:${Math.max(2, Math.round(100 * n / (max || 1)))}%"></div>`;
-  let days = 30, rows = [];
+  let days = 30, rows = [], who = null;
+  try { who = localStorage.getItem("tf:usageWho"); } catch {}
+
+  document.querySelectorAll("[data-who]").forEach((b) => b.addEventListener("click", () => {
+    who = b.dataset.who;
+    try { localStorage.setItem("tf:usageWho", who); } catch {}
+    paint();
+  }));
 
   document.querySelectorAll("[data-days]").forEach((b) => b.addEventListener("click", () => {
     days = Number(b.dataset.days);
@@ -147,8 +179,14 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
   window.addEventListener("tf:account", () => load());
 
   function paint() {
+    // alex's own phone is the one named "Me". Once one is, the page starts on "Everyone but me".
+    const meSet = new Set(rows.filter(isMe).map((r) => r.device));
+    const view = who || (meSet.size ? "others" : "all");
+    document.querySelectorAll("[data-who]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.who === view)));
+    $("whoHint").textContent = meSet.size ? "" : "Tap “This is me” on your own phone below to hide it.";
+    const shown = rows.filter((r) => view === "all" || (view === "me") === meSet.has(r.device));
     const devices = new Map(), sessions = new Map();
-    for (const r of rows) {
+    for (const r of shown) {
       if (!devices.has(r.device)) devices.set(r.device, { ...r, taps: new Map(), sport: new Map(), sessions: new Set(), ms: 0, errors: 0, last: r.at });
       const d = devices.get(r.device);
       d.last = r.at; d.sessions.add(r.session);
@@ -161,11 +199,11 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
       if (r.kind === "error") d.errors++;
     }
 
-    const taps = rows.filter((r) => r.kind === "tap");
+    const taps = shown.filter((r) => r.kind === "tap");
     const totalMs = [...devices.values()].reduce((a, d) => a + d.ms, 0);
     $("stats").innerHTML = [
       [devices.size, "testers"], [sessions.size, "visits"], [mins(totalMs), "time in the app"],
-      [taps.length, "taps"], [rows.filter((r) => r.kind === "error").length, "errors"],
+      [taps.length, "taps"], [shown.filter((r) => r.kind === "error").length, "errors"],
     ].map(([n, l]) => `<div class="stat"><b>${esc(n)}</b>${esc(l)}</div>`).join("");
 
     const feat = new Map();
@@ -173,7 +211,7 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
     const fl = [...feat.entries()].sort((a, b) => b[1].who.size - a[1].who.size || b[1].n - a[1].n);
     const fmax = fl.length ? fl[0][1].n : 1;
     $("features").innerHTML = `<tr><th>What</th><th class="n">Testers</th><th class="n">Taps</th><th style="width:30%"></th></tr>` +
-      fl.slice(0, 80).map(([w, f]) => `<tr><td>${esc(nice(w))}${NAMES[w] ? "" : ""}</td><td class="n">${f.who.size} of ${devices.size}</td><td class="n">${f.n}</td><td>${bar(f.n, fmax)}</td></tr>`).join("");
+      (fl.slice(0, 80).map(([w, f]) => `<tr><td>${esc(nice(w))}</td><td class="n">${f.who.size} of ${devices.size}</td><td class="n">${f.n}</td><td>${bar(f.n, fmax)}</td></tr>`).join("") || `<tr><td class="muted" colspan="4">No taps from ${view === "me" ? "you" : "other testers"} yet</td></tr>`);
 
     const firsts = new Map();
     for (const s of sessions.values()) if (s.first) firsts.set(s.first, (firsts.get(s.first) || 0) + 1);
@@ -194,20 +232,33 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
       const top = [...d.taps.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
       const sports = [...d.sport.entries()].sort((a, b) => b[1] - a[1]).map(([k, ms]) => `${SPORTS[k] || k} ${mins(ms)}`).join(" · ");
       return `<div class="card">
-        <h3><input value="${esc(d.label || "")}" placeholder="Name this phone" data-device="${esc(d.device)}" aria-label="Name"> <span class="muted">${esc(d.os || "")} · screen ${esc(d.screen || "?")}</span></h3>
+        <h3><input value="${esc(d.label || "")}" placeholder="Name this phone" data-device="${esc(d.device)}" aria-label="Name">${isMe(d) ? `<span class="me">Your phone</span>` : `<button type="button" data-me="${esc(d.device)}">This is me</button>`} <span class="muted">${esc(d.os || "")} · screen ${esc(d.screen || "?")}</span></h3>
         <p class="muted">${d.sessions.size} visits · ${mins(d.ms)} in the app · last seen ${ago(d.last)}${d.errors ? ` · <span class="err">${d.errors} errors</span>` : ""}${sports ? `<br>${esc(sports)}` : ""}</p>
         <table>${top.map(([w, n]) => `<tr><td>${esc(nice(w))}</td><td class="n">${n}</td></tr>`).join("") || `<tr><td class="muted">No taps yet</td></tr>`}</table>
       </div>`;
     }).join("");
+    const setLabel = async (device, label) => {
+      const { error } = await window.tfAccount.client.rpc("tf_use_label", { device, label });
+      if (!error) rows.forEach((r) => { if (r.device === device) r.label = label; });
+      return error;
+    };
     document.querySelectorAll("input[data-device]").forEach((inp) => inp.addEventListener("change", async () => {
-      const { error } = await window.tfAccount.client.rpc("tf_use_label", { device: inp.dataset.device, label: inp.value });
+      const error = await setLabel(inp.dataset.device, inp.value);
       inp.style.borderColor = error ? "var(--err)" : "var(--accent)";
-      if (!error) rows.forEach((r) => { if (r.device === inp.dataset.device) r.label = inp.value; });
+      if (!error) paint();
+    }));
+    document.querySelectorAll("button[data-me]").forEach((b) => b.addEventListener("click", async () => {
+      if (!(await setLabel(b.dataset.me, "Me"))) { who = null; try { localStorage.removeItem("tf:usageWho"); } catch {} paint(); }
     }));
 
-    const errs = rows.filter((r) => r.kind === "error").slice(-25).reverse();
-    $("errors").innerHTML = errs.length
-      ? `<tr><th>When</th><th>Tester</th><th>Error</th></tr>` + errs.map((r) => `<tr><td class="n">${ago(r.at)}</td><td>${esc(r.label || r.device.slice(0, 6))}</td><td class="raw">${esc(r.page)}: ${esc(r.what)}</td></tr>`).join("")
+    const eg = new Map();
+    for (const r of shown) if (r.kind === "error") {
+      const k = `${r.page}: ${r.what}`, g = eg.get(k) || { n: 0, who: new Set(), last: r.at };
+      g.n++; g.who.add(r.label || r.device.slice(0, 6)); g.last = r.at; eg.set(k, g);
+    }
+    const el = [...eg.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 30);
+    $("errors").innerHTML = el.length
+      ? `<tr><th>Error</th><th class="n">Times</th><th>Who</th><th class="n">Last</th></tr>` + el.map(([k, g]) => `<tr><td class="raw">${esc(k)}</td><td class="n">${g.n}</td><td>${esc([...g.who].join(", "))}</td><td class="n">${ago(g.last)}</td></tr>`).join("")
       : `<tr><td class="muted">No errors 🎉</td></tr>`;
   }
 
