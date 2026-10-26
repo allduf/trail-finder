@@ -76,11 +76,11 @@ async function databc(layer, props, where = "") {
   return out;
 }
 // A whole ArcGIS layer as GeoJSON in WGS84, simplified on the server (offset in degrees).
-async function arcgis(layer, fields, where = "1=1", offset = 0.0005, box = null) {
+async function arcgis(layer, fields, where = "1=1", offset = 0.0005, box = null, orderBy = "OBJECTID") {
   const out = [];
   for (let start = 0; ; start += 500) {
     const p = new URLSearchParams({ where, outFields: fields.join(","), outSR: "4326", f: "geojson", resultOffset: String(start), resultRecordCount: "500",
-      maxAllowableOffset: String(offset), orderByFields: "OBJECTID" });
+      maxAllowableOffset: String(offset), orderByFields: orderBy });
     if (box) { p.set("geometry", [box[1], box[0], box[3], box[2]].join(",")); p.set("geometryType", "esriGeometryEnvelope"); p.set("inSR", "4326"); p.set("spatialRel", "esriSpatialRelIntersects"); }
     const fc = await getJson(`${layer}/query?${p}`);
     out.push(...(fc.features || []));
@@ -350,7 +350,8 @@ async function part(name, fn) {
   catch (e) { log(`  ${name} failed: ${e.message}`); return null; }
 }
 const now = new Date().toISOString();
-const ONLY = process.env.ONLY || "";   // ONLY=seasons reads just the season tables and draws, ONLY=draws skips BC's season tables too
+const ONLY = process.env.ONLY || "";   // ONLY=seasons reads just the season tables and draws, ONLY=draws skips BC's season tables too, ONLY=canada only the other provinces
+const write = (name, obj) => { for (const f of obj.zones || obj.areas) f.g = encode(f.g); const s = JSON.stringify(obj); writeFileSync(new URL(name, OUT), s); log(`  ${name}: ${(s.length / 1e6).toFixed(2)} MB`); };
 if (!ONLY) {
 log("Hunting zones");
 const old = { zones: readOld("zones.json"), leh: readOld("leh.json"), areas: readOld("areas.json") };
@@ -359,13 +360,12 @@ const zones = [...(bcZ || (old.zones?.zones || []).filter((z) => z.p === "bc")),
 const leh = (await part("LEH zones", lehZones)) || old.leh?.zones || [];
 const bcA = await part("BC areas", bcAreas), abA = await part("Alberta areas", abAreas);
 const areas = [...(bcA || (old.areas?.areas || []).filter((a) => a.p !== "ab")), ...(abA || (old.areas?.areas || []).filter((a) => a.p === "ab"))];
-const write = (name, obj) => { for (const f of obj.zones || obj.areas) f.g = encode(f.g); const s = JSON.stringify(obj); writeFileSync(new URL(name, OUT), s); log(`  ${name}: ${(s.length / 1e6).toFixed(2)} MB`); };
 if (zones.length) write("zones.json", { updated: now, zones });
 if (leh.length) write("leh.json", { updated: now, zones: leh });
 if (areas.length) write("areas.json", { updated: now, areas });
 }
 let seasons = null;
-if (ONLY !== "draws") try { seasons = await bcSeasons(); log(`  BC seasons: ${Object.keys(seasons).length} units`); } catch (e) { log(`  BC seasons failed: ${e.message}`); }
+if (ONLY !== "draws" && ONLY !== "canada") try { seasons = await bcSeasons(); log(`  BC seasons: ${Object.keys(seasons).length} units`); } catch (e) { log(`  BC seasons failed: ${e.message}`); }
 if (seasons) writeFileSync(new URL("seasons-bc.json", OUT), JSON.stringify({ updated: now, src: "BC Hunting and Trapping Regulations Synopsis", mu: seasons }));
 
 // ---------- Alberta seasons, BC limited entry odds, Alberta draw results ----------
@@ -386,6 +386,14 @@ function curl(url, file, tries = 4) {
   throw new Error(`couldn't download ${url}`);
 }
 const pdfText = (url, name) => { curl(url, `${tmp}/${name}.pdf`); execFileSync("pdftotext", ["-layout", `${tmp}/${name}.pdf`, `${tmp}/${name}.txt`]); execFileSync("sleep", ["5"]); return readFileSync(`${tmp}/${name}.txt`, "utf8"); };
+// ---------- the other provinces and territories (scripts/hunting-canada.mjs) ----------
+if (!ONLY || ONLY === "canada") {
+  const { canada } = await import("./hunting-canada.mjs");
+  const curlText = (url, name) => { const f = curl(url, `${tmp}/${name}`); execFileSync("sleep", ["3"]); return readFileSync(f, "utf8"); };
+  const s = await canada({ log, arcgis, getJson, rings, bbox, labelPoint, title, write, readOld, now, curlText });
+  for (const [pv, v] of Object.entries(s)) { writeFileSync(new URL(`seasons-${pv}.json`, OUT), JSON.stringify({ updated: now, ...v })); log(`  seasons-${pv}.json`); }
+}
+if (ONLY === "canada") process.exit(0);
 const ABR = "https://www.albertaregulations.ca/pdfs/hunting-regs/";
 try {
   const wmu = abSeasons(pdfText(`${ABR}Big-Game-Seasons.pdf`, "ab-big-game"), pdfText(`${ABR}Game-Bird-Seasons.pdf`, "ab-birds"));
