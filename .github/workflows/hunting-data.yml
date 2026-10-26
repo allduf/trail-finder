@@ -1,6 +1,7 @@
 name: Hunting data
 
-# Once a month, collect the map layers for Hunting (scripts/build-hunting.mjs): BC and Alberta Wildlife Management
+# Once a month, collect the map layers for Hunting (scripts/build-hunting.mjs, and scripts/hunting-canada.mjs for the
+# other provinces and territories: zones, parks and seasons across Canada): BC and Alberta Wildlife Management
 # Units, BC Limited Entry Hunting zones, and the parks, reserves, towns, closures and public land with their own hunting
 # rules, BC's open seasons per unit from the regulations synopsis PDFs, draw odds and harvest stats, into data/hunting/*.json. On a pull request that changes the script it only does a test run, without saving.
 on:
@@ -10,6 +11,7 @@ on:
   pull_request:
     paths:
       - scripts/build-hunting.mjs
+      - scripts/hunting-canada.mjs
       - .github/workflows/hunting-data.yml
 
 permissions:

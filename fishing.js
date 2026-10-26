@@ -40,7 +40,7 @@
   const QC_EXC = "https://peche.faune.gouv.qc.ca/arcgiswa/rest/services/PRODC-E/PlansEauExceptions/MapServer/2";
   const ACC = "#0c8599";   // the Fishing accent (deep teal)
   const C = { vlow: "#f59f00", low: "#94d82d", ok: "#2f9e44", high: "#f76707", blown: "#e03131", none: "#868e96", stocked: "#1971c2", fresh: "#e64980",
-    access: "#9775fa", launch: "#a0522d", tide: "#0b7285", zone: "#1864ab", hidden: "#0ca678" };
+    access: "#9775fa", launch: "#a0522d", park: "#e8590c", zec: "#2b8a3e", fee: "#f08c00", tide: "#0b7285", zone: "#1864ab", hidden: "#0ca678" };
   const timeout = (ms) => (AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined);
   const getJ = (url, ms = 12000) => fetch(url, { signal: timeout(ms) }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
   const km = (a, b, c, d) => map.distance([a, b], [c, d]) / 1000;
@@ -77,10 +77,12 @@
     access: { g: "Access", label: "Fishing spots", sub: "Public spots, piers and docks all over Canada", on: true, minZoom: 8, icon: [C.access, "dot"] },
     launch: { g: "Access", label: "Boat launches", sub: "Public ramps all over Canada", on: true, minZoom: 8, icon: [C.launch, "dot"] },
     tides: { g: "Ocean", label: "Tide stations", sub: "Tap one for the next high and low tides", on: true, minZoom: 6, icon: [C.tide, "dot"] },
-    zones: { g: "Rules", label: "Fishing zones and regions", sub: "The areas the rules are written for", icon: [C.zone, "dash"] },
+    zones: { g: "Rules", label: "Fishing zones and regions", sub: "The areas the rules are written for, tap one for its rules", icon: [C.zone, "dash"] },
+    areas: { g: "Rules", label: "Parks, zecs and reserves", sub: "National parks (Parks Canada permit) and Quebec zecs, wildlife reserves and parks (access fees, own rules)", on: true, minZoom: 5, icon: [C.park, "dot"] },
   };
   const GROUPS = ["Water", "Access", "Ocean", "Rules"];
   const VIEWS = {
+    rules: { label: "Rules", sub: "where to fish", layers: ["zones", "areas", "access", "launch"] },
     river: { label: "Rivers", sub: "flow, spots", layers: ["gauges", "access", "launch", "hidden", "zones"] },
     lake: { label: "Lakes", sub: "stocked, depth", layers: ["stocked", "depth", "access", "launch", "hidden"] },
     ocean: { label: "Ocean", sub: "tides, areas", layers: ["tides", "access", "launch", "zones"] },
@@ -151,7 +153,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
 #fishPane .fs-card h4 svg { color: ${ACC}; }
 #fishPane .fs-card p { margin: 0; font-size: .84rem; }
 #fishPane .fs-x { font: inherit; border: 0; background: var(--chip); color: var(--muted); cursor: pointer; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex: none; }
-#fishPane .fs-views { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.fs-zlabel span { display: inline-block; transform: translate(-50%, -50%); white-space: nowrap; font: 800 11px/1.2 system-ui, sans-serif; color: var(--c); text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 2px #fff; letter-spacing: .02em; }
+#fishPane .fs-views { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 #fishPane .fs-view { font: inherit; font-size: .8rem; font-weight: 700; padding: 8px 4px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; }
 #fishPane .fs-view small { font-weight: 500; font-size: .68rem; color: var(--muted); }
 #fishPane .fs-view.on { background: ${ACC}; border-color: ${ACC}; color: #fff; }
@@ -311,6 +314,76 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     nt: ["Northwest Territories", "https://www.gov.nt.ca/ecc/en/services/fishing"],
     nu: ["Nunavut", "https://www.gov.nu.ca/en/environment-and-climate-change/sport-fishing"],
   };
+  // Where to buy a licence, by province (alex 2026-10-26: "add a link to buy the appropriate licence for the region").
+  const LIC = {
+    bc: ["BC freshwater fishing licence", "https://www.fishing.gov.bc.ca/"],
+    ab: ["Alberta sportfishing licence (AlbertaRELM)", "https://www.albertarelm.com/"],
+    sk: ["Saskatchewan angling licence (HAL)", "https://www.saskatchewanhal.ca/"],
+    mb: ["Manitoba angling licence", "https://www.manitobaelicensing.ca/"],
+    on: ["Ontario Outdoors Card and fishing licence", "https://www.huntandfishontario.com/"],
+    qc: ["Quebec fishing licence (Mon dossier chasse et pêche)", "https://www.quebec.ca/tourisme-loisirs-sport/activites-sportives-et-de-plein-air/mon-dossier-chasse-peche"],
+    nb: ["New Brunswick angling licence", "https://www2.gnb.ca/content/gnb/en/services/services_renderer.201035.Fishing_Licence.html"],
+    ns: ["Nova Scotia general fishing licence", "https://sportfishing.novascotia.ca/"],
+    pe: ["PEI angling licence", "https://www.princeedwardisland.ca/en/service/buy-an-angling-licence-online"],
+    nl: ["Newfoundland and Labrador licences", "https://www.gov.nl.ca/ffa/licensing/"],
+    yt: ["Yukon fishing licence", "https://yukon.ca/en/buy-fishing-licence"],
+    nt: ["NWT sport fishing licence", "https://www.gov.nt.ca/ecc/en/services/get-fishing-licence"],
+    nu: ["Nunavut sport fishing licence (sold at Environment offices, lodges and stores)", "https://www.gov.nu.ca/en/environment-and-climate-change/sport-fishing"],
+  };
+  const PC_PERMIT = "https://parks.canada.ca/voyage-travel/admission";
+  const BC_TIDAL = "https://www.pac.dfo-mpo.gc.ca/fm-gp/rec/licence-permis/index-eng.html";
+  // Quebec's zecs, wildlife reserves and parks (ID_TYPE_ENDRO): what they are and what you pay or book.
+  const QCT = {
+    16: ["A zec: open to everyone,", "but you register and pay the zec's daily fishing fee at its entrance, and it has its own quotas."],
+    15: ["A wildlife reserve (Sépaq):", "fishing is by reservation and right of access with Sépaq, with its own quotas. <a href=\"https://www.sepaq.com/rf/\" target=\"_blank\" rel=\"noopener\">Sépaq wildlife reserves</a>"],
+    14: ["A Quebec national park (Sépaq):", "fishing only in some lakes, with a Sépaq right of access and the park's rules. <a href=\"https://www.sepaq.com/pq/\" target=\"_blank\" rel=\"noopener\">Sépaq parks</a>"],
+    5: ["A community wildlife area:", "pay its access fee and follow its own rules."],
+    0: ["Its own fishing rules:", "check the zone's exceptions before you fish."],
+  };
+  function licHtml(lat, lon, here, prov) {
+    const L = LIC[prov];
+    if (!L) return "";
+    const np = here.find((z) => z.k === "np"), qt = here.find((z) => z.k === "qct");
+    const tidal = here.some((z) => z.k === "pfma") || (prov === "bc" && nearestTide(lat, lon, 3));
+    const rows = [];
+    if (np) rows.push(`<li style="--c:${C.park}"><b>Parks Canada fishing permit</b>Needed in ${esc(np.n)} instead of the provincial licence. <a href="${PC_PERMIT}" target="_blank" rel="noopener">Buy or check</a></li>`);
+    rows.push(`<li style="--c:${C.zone}"><b>${esc(L[0])}</b><a href="${L[1]}" target="_blank" rel="noopener">Buy online</a>${np ? " (for waters outside the park)" : ""}</li>`);
+    if (tidal) rows.push(`<li style="--c:${C.tide}"><b>BC tidal water licence</b>Saltwater needs its own licence from Fisheries and Oceans Canada (plus a salmon stamp to keep salmon). <a href="${BC_TIDAL}" target="_blank" rel="noopener">Buy online</a></li>`);
+    if (qt && QCT[qt.t]) rows.push(`<li style="--c:${qt.t === 16 ? C.zec : C.fee}"><b>${esc(qt.n)}</b>${QCT[qt.t][1]}</li>`);
+    return fold("lic", IC.rules, "Licence", np ? "Parks Canada permit" : tidal ? "Fresh and tidal" : "Buy online", `<ul class="fs-list">${rows.join("")}</ul><p class="fs-note">Licences are for the season you're in; kids and seniors often fish free or at a discount, so check the page.</p>`);
+  }
+
+  // ---------- boating rules (data/fishing/boating.json, Transport Canada's Vessel Operation Restriction Regulations) ----------
+  let boating = null;
+  const loadBoating = () => (boating ? Promise.resolve(boating) : load("boating").then((j) => (boating = j)).catch(() => null));
+  const BOAT = { 1: () => "No boats at all", 2: () => "No motors (paddle and row only)", 3: () => "Electric motors only, up to 7.5 kW (10 hp)",
+    4: (x) => `Motors up to ${x} kW (${Math.round(x * 1.341)} hp)`, 5: (x) => `Speed limit ${x} km/h`, 6: (x) => `No waterskiing or towing${x ? ` except ${x}` : ""}`,
+    7: (x) => `No wake surfing${x ? ` except ${x}` : ""}`, 8: () => "No races or events without a permit" };
+  const BOAT_SHORT = { 1: () => "No boats", 2: () => "No motors", 3: () => "Electric only", 4: (x) => `${Math.round(x * 1.341)} hp max`, 5: (x) => `${x} km/h`, 6: () => "No towing", 7: () => "No wake surf", 8: () => "No events" };
+  async function boatHtml(lat, lon, name, prov) {
+    const b = await loadBoating();
+    if (!b) return "";
+    const nm = plain(name);
+    // A water's rule is listed at its middle: the same name within 25 km, or anything listed within 1.5 km of the spot.
+    // Alberta's are listed by name only.
+    const re = nm ? new RegExp(`(^| )${nm.replace(/[^a-z0-9 ]/g, "")}( |$)`) : null;
+    const hit = b.rules.filter((r) => {
+      if (r[0] == null) return nm && r[3] === prov && (plain(r[4]) === nm || plain(r[5]) === nm);
+      if (Math.abs(r[0] - lat) > 0.25 || Math.abs(r[1] - lon) > 0.4) return false;
+      const d = km(lat, lon, r[0], r[1]);
+      return d <= 1.5 || (re && re.test(plain(r[4]) + " " + plain(r[5])));
+    });
+    // "That part of …" rules cover a bay or beach only, so they read "in parts" and come after whole-water rules.
+    const part = (r) => (/\b(that part|those parts|parts? of|portion|an area|areas? of|within \d+ ?m|adjacent to|swimming area|beach)\b/i.test(r[4]) ? 1 : 0);
+    // The schedules describe each part with long coordinate lines; keep the plain-words start ("…, adjacent to Centennial Beach").
+    const clean = (t) => { t = String(t || "").split(/,? (?:between the shore|bounded by|from a point|at coordinates|enclosed by|lying (?:north|south|east|west)|described as)| Note:|\s\d{1,3}°/i)[0].replace(/(?:[\s,;(]+|\b(?:at|of|to|from|and|a|the|point|line|beginning|located|upstream|delineated by|by|[A-Z])\b)+$/, "").trim(); return t.length > 140 ? t.slice(0, 137).replace(/\s+\S*$/, "") + "…" : t; };
+    const seen = new Set(), rules = hit.filter((r) => { const k = `${r[2]}|${r[6]}|${part(r)}`; if (seen.has(k)) return false; seen.add(k); return true; }).sort((a, b) => part(a) - part(b) || a[2] - b[2]);
+    const general = `<p class="fs-note">Everywhere: a Pleasure Craft Operator Card to drive anything with a motor, and a life jacket for each person. In Ontario, Quebec, Manitoba, New Brunswick and Nova Scotia, 10 km/h within 30 m of shore unless signs say otherwise. <a href="${esc(b.src)}" target="_blank" rel="noopener">Transport Canada's list of restricted waters</a></p>`;
+    if (!rules.length) return nm || nearestTide(lat, lon, 3) ? fold("boat", IC.boat, "Boating", "No special limits", `<p class="fs-note">${esc(name || "This water")} isn't on Transport Canada's list of restricted waters.</p>${general}`) : "";
+    const li = rules.map((r) => `<li style="--c:${r[2] <= 3 ? "#e03131" : "#f08c00"}"><b>${esc(BOAT[r[2]](r[6]))}${part(r) ? " (part of the water)" : ""}</b>${esc(clean(r[4]))}${r[5] ? ` (${esc(clean(r[5]))})` : ""}</li>`).join("");
+    const whole = rules.filter((r) => !part(r)), sum = [...new Set((whole.length ? whole : rules).map((r) => BOAT_SHORT[r[2]](r[6])))].slice(0, 2).join(", ");
+    return fold("boat", IC.boat, "Boating", esc(whole.length ? sum : `${sum} in parts`), `<ul class="fs-list">${li}</ul>${general}`);
+  }
   const BC_PDF = "https://www2.gov.bc.ca/assets/gov/sports-recreation-arts-and-culture/outdoor-recreation/fishing-and-hunting/freshwater-fishing/";
   const BC_REGION = { 1: ["1", "region_1_vancouver_island"], 2: ["2", "region_2_lower_mainland"], 3: ["3", "region_3_thompson"], 4: ["4", "region_4_kootenay"], 5: ["5", "region_5_cariboo"],
     6: ["6", "region_6_skeena"], 7: ["7A", "region_7a_omineca"], 9: ["7B", "region_7b_peace"], 8: ["8", "region_8_okanagan"] };
@@ -430,7 +503,10 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     try {
       const j = await load("spots");
       const KIND = ["fishing", "pier", "launch"];
-      for (const [lat, lon, k, name, facts, src] of j.spots || []) access.set(`${lat},${lon},${k}`, { lat, lon, kind: KIND[k] || "fishing", name: name || "", facts: facts || "", src: src === "on" ? "Ontario" : "OpenStreetMap" });
+      for (const [lat, lon, k, name, facts, src] of j.spots || []) access.set(`${lat},${lon},${k}`, { lat, lon, kind: KIND[k] || "fishing", name: name || "", facts: facts || "", src: src === "on" ? "Ontario" : src === "bc" ? "BC coastal launches" : "OpenStreetMap" });
+      // Launches missing from OpenStreetMap, added by hand (data/fishing-launches.json).
+      const hand = await fetch("data/fishing-launches.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : { launches: [] })).catch(() => ({ launches: [] }));
+      for (const [lat, lon, name, facts] of hand.launches || []) access.set(`${lat},${lon},2`, { lat, lon, kind: "launch", name, facts, src: "added by hand" });
       accTiles.add("all");
       drawPoints();
     } catch {} finally { accBusy = false; }
@@ -484,19 +560,41 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     sync3d();
   }
   const accessName = (a) => a.name || (a.kind === "launch" ? "Boat launch" : a.kind === "pier" ? "Fishing pier" : "Fishing spot");
+  // Zones and regions, Hunting style (alex 2026-10-26: "more like the hunting one, all the different regions"): each
+  // zone a soft colour with its name on it; parks, zecs and reserves coloured by what they need. A tap anywhere on the
+  // map opens the spot card with that place's rules and licence.
+  if (!map.getPane("fishLabels")) { map.createPane("fishLabels").style.zIndex = 640; map.getPane("fishLabels").style.pointerEvents = "none"; }
+  const labelLayer = L.layerGroup();
+  allFish.push(labelLayer);
+  const ZONE_TINT = ["#4dabf7", "#69db7c", "#ffd43b", "#da77f2", "#ff8787", "#38d9a9", "#ffa94d", "#748ffc"];
+  const AREA_COLOR = (z) => (z.k === "np" ? C.park : z.t === 16 ? C.zec : C.fee);
+  const ll = (z) => z.g.map((r) => { const o = []; for (let i = 0; i < r.length; i += 2) o.push([r[i], r[i + 1]]); return o; });
   function drawZones() {
-    zoneLayer.clearLayers();
-    if (!isFish() || !shown.has("zones")) return;
+    zoneLayer.clearLayers(); labelLayer.clearLayers();
+    const zOn = shown.has("zones"), aOn = shown.has("areas") && map.getZoom() >= LAYERS.areas.minZoom;
+    if (!isFish() || (!zOn && !aOn)) return;
     loadZones().then((zs) => {
-      if (!isFish() || !shown.has("zones")) return;
-      zoneLayer.clearLayers();
-      for (const z of zs) {
-        const ll = z.g.map((r) => { const o = []; for (let i = 0; i < r.length; i += 2) o.push([r[i], r[i + 1]]); return o; });
-        L.polygon(ll, { pane: "fishLines", color: z.k === "pfma" ? C.tide : C.zone, weight: 1.6, opacity: 0.75, dashArray: "6 5", fill: false, interactive: false, smoothFactor: 1.5 }).addTo(zoneLayer);
-      }
+      if (!isFish()) return;
+      zoneLayer.clearLayers(); labelLayer.clearLayers();
+      const z0 = map.getZoom(), view = map.getBounds().pad(0.5);
+      zs.forEach((z, i) => {
+        const area = z.k === "np" || z.k === "qct";
+        if (area ? !aOn : !zOn) return;
+        if (!view.intersects([[z.b[0], z.b[1]], [z.b[2], z.b[3]]])) return;
+        const c = area ? AREA_COLOR(z) : z.k === "pfma" ? C.tide : ZONE_TINT[i % ZONE_TINT.length];
+        L.polygon(ll(z), { pane: "fishLines", color: area ? c : z.k === "pfma" ? C.tide : C.zone, weight: area ? 2 : 1.6, opacity: 0.8, dashArray: area ? null : "6 5",
+          fill: true, fillColor: c, fillOpacity: area ? 0.22 : z.k === "pfma" ? 0.04 : 0.1, interactive: false, smoothFactor: 1.5 }).addTo(zoneLayer);
+        // Names: zones from zoom 5, parks and zecs once they're big enough on screen, Pacific areas from zoom 9.
+        const big = (z.b[2] - z.b[0]) * 2 ** z0 > 6;
+        if ((z.k === "pfma" && z0 < 9) || (area && !big)) return;
+        const name = z.k === "qc" ? `Zone ${z.id}` : z.k === "bc" ? `Region ${z.id}` : z.k === "ab" ? z.n : z.n;
+        L.marker([(z.b[0] + z.b[2]) / 2, (z.b[1] + z.b[3]) / 2], { pane: "fishLabels", interactive: false, keyboard: false,
+          icon: L.divIcon({ className: "fs-zlabel", html: `<span style="--c:${area ? c : C.zone}">${esc(name)}</span>`, iconSize: null }) }).addTo(labelLayer);
+      });
       sync3d();
     });
   }
+  map.on("moveend", () => { if (isFish() && (shown.has("zones") || shown.has("areas"))) drawZones(); });
   function syncTiles() {
     const want = isFish() && shown.has("depth");
     if (want && !map.hasLayer(depthTiles)) depthTiles.addTo(map); else if (!want && map.hasLayer(depthTiles)) map.removeLayer(depthTiles);
@@ -509,7 +607,10 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const z = map.getZoom();
     $("fsLayerList").innerHTML = GROUPS.map((g) => `<h4 class="fs-group">${g}</h4>` + Object.entries(LAYERS).filter(([, l]) => l.g === g).map(([k, l]) => {
       const on = shown.has(k), far = on && l.minZoom && z < l.minZoom;
-      return `<label class="fs-layer">${icon(l.icon)}<span><b>${esc(l.label)}</b><small${far ? ' class="z"' : ""}>${far ? "Zoom in closer to see it" : esc(l.sub)}</small></span><input type="checkbox" class="fs-sw" role="switch" data-k="${k}"${on ? " checked" : ""} aria-label="${esc(l.label)}"></label>`;
+      // Gauges are only on bigger rivers, so say how many are in view (alex 2026-10-26: "is that supposed to do anything?").
+      let sub = l.sub;
+      if (k === "gauges" && on && !far && gauges) { const b = map.getBounds(), n = gauges.filter((g) => b.contains([g[2], g[3]])).length; sub = n ? `${n} in view: tap one for its live flow and what it means for fishing` : "None in view: government gauges are only on bigger rivers"; }
+      return `<label class="fs-layer">${icon(l.icon)}<span><b>${esc(l.label)}</b><small${far ? ' class="z"' : ""}>${far ? "Zoom in closer to see it" : esc(sub)}</small></span><input type="checkbox" class="fs-sw" role="switch" data-k="${k}"${on ? " checked" : ""} aria-label="${esc(l.label)}"></label>`;
     }).join("")).join("");
     pane.querySelectorAll("[data-view]").forEach((b) => { const v = VIEWS[b.dataset.view].layers; b.classList.toggle("on", v.length === shown.size && v.every((k) => shown.has(k))); });
   }
@@ -528,7 +629,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const b = e.target.closest("[data-view]"); if (!b) return;
     shown = new Set(VIEWS[b.dataset.view].layers);
     applyLayers();
-    if (hlKind === b.dataset.view) clearWater(); else highlightWater(b.dataset.view);
+    if (hlKind === b.dataset.view || !WATER[b.dataset.view]) clearWater(); else highlightWater(b.dataset.view);
   });
 
   // ---------- water highlight ----------
@@ -644,7 +745,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     el.hidden = false;
     el.innerHTML = `<header>${svg(IC.pin)}<h3 id="fsSpotName">${esc(title || "This spot")}</h3>${routeBtn(lat, lon)}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div>
       <div id="fsHidden"></div><div id="fsWater"><p class="fs-note fs-look">Looking up this spot…</p></div><div id="fsBait"></div>
-      <div id="fsRules"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsAcc"></div>`;
+      <div id="fsRules"></div><div id="fsLic"></div><div id="fsBoat"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsAcc"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
     cardInView(el);
     await ready;
@@ -653,6 +754,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const here = zonesAt(zs, lat, lon), prov = provinceAt(lat, lon, here);
     const fill = (id, html) => { if (seq === spotSeq && $(id)) $(id).innerHTML = html; };
     fill("fsRules", secRules(rulesHtml(lat, lon, here, prov)));
+    fill("fsLic", licHtml(lat, lon, here, prov));
+    boatHtml(lat, lon, title, prov).then((h) => fill("fsBoat", h));
     fill("fsStock", stockHtml(lat, lon));
     flowHtml(lat, lon).then((h) => fill("fsFlow", secFlow(h)));
     tideHtml(lat, lon).then((h) => fill("fsTide", secTide(h)));
@@ -668,6 +771,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       baitWater = w && w.kind ? (/lake/i.test(w.kind) ? "lake" : "river") : !w && nearestTide(lat, lon, 4) ? "ocean" : "";
       bait();
       if (w && w.name && !title) $("fsSpotName").textContent = w.name;
+      if (w && w.name) boatHtml(lat, lon, w.name, prov).then((h) => fill("fsBoat", h));
       fill("fsWater", w ? secFish(w.html) : "");
       if (!w) $("fsSpot").classList.add("fs-nowater");
       if (w && w.rules) fill("fsRules", fold("rules", IC.rules, "Rules", "This water has its own rules", unhead(w.rules) + unhead(rulesHtml(lat, lon, here, prov)), true));
@@ -818,7 +922,11 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
         items.push(`<li style="--c:${C.zone}"><b>Quebec fishing ${esc(z.n)}</b>${z.u ? `<a href="${esc(z.u)}" target="_blank" rel="noopener">Seasons, limits and exceptions</a>` : ""}${z.map ? ` · <a href="${esc(z.map)}" target="_blank" rel="noopener">Zone map (PDF)</a>` : ""} · <a href="https://peche.faune.gouv.qc.ca/regpec/carteinteractive/" target="_blank" rel="noopener">Interactive map</a>${news}${z.nw ? `<details><summary>What's new in this zone</summary><p class="fs-note">${esc(z.nw).replace(/\n+/g, "<br>")}</p></details>` : ""}</li>`);
       }
     }
-    if (!here.some((z) => z.k !== "pfma") && PROV[prov]) items.push(`<li style="--c:${C.zone}"><b>${esc(PROV[prov][0])}</b><a href="${PROV[prov][1]}" target="_blank" rel="noopener">${esc(PROV[prov][0])} fishing regulations</a></li>`);
+    for (const z of here) {
+      if (z.k === "np") items.unshift(`<li style="--c:${C.park}"><b>${esc(z.n)}</b>A national park: fishing needs a <b>Parks Canada fishing permit</b> (the ${esc((PROV[prov] || ["provincial"])[0])} licence isn't valid here), and the park has its own seasons, limits and closed waters. Most parks ban lead tackle and live bait. <a href="${PC_PERMIT}" target="_blank" rel="noopener">Parks Canada permits</a></li>`);
+      if (z.k === "qct") { const [what, how] = QCT[z.t] || QCT[0]; items.unshift(`<li style="--c:${z.t === 16 ? C.zec : C.fee}"><b>${esc(z.n)}</b>${what} ${how}</li>`); }
+    }
+    if (!here.some((z) => z.k !== "pfma" && z.k !== "np" && z.k !== "qct") && PROV[prov]) items.push(`<li style="--c:${C.zone}"><b>${esc(PROV[prov][0])}</b><a href="${PROV[prov][1]}" target="_blank" rel="noopener">${esc(PROV[prov][0])} fishing regulations</a></li>`);
     if (!here.some((z) => z.k === "pfma") && nearestTide(lat, lon, 15) && !["bc"].includes(prov)) items.push(`<li style="--c:${C.tide}"><b>Near tidal water</b><a href="https://www.dfo-mpo.gc.ca/fisheries-peches/recreational-recreative/index-eng.html" target="_blank" rel="noopener">Fisheries and Oceans Canada recreational fishing rules</a> for the ocean and salmon rivers.</li>`);
     return items.length ? `<h4>${svg(IC.rules, 14)}Rules</h4><ul class="fs-list">${items.join("")}</ul>` : "";
   }
@@ -1280,7 +1388,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       if (!spot || spot.how === "centre") { const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); }
     }, 600);
   });
-  map.on("zoomend", () => { if (isFish()) renderLayers(); });
+  map.on("zoomend moveend", () => { if (isFish()) renderLayers(); });
   let started = false;
   function sync() {
     const on = isFish();
