@@ -431,6 +431,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     <div class="hn-card" id="hnCond"><div id="hnWx"></div><div id="hnCast"></div><div id="hnSky"></div></div>
     <details class="hn-card" id="hnOffBox"><summary>${svg(IC.down, 16)} Hunting maps offline</summary><div id="hnOff"></div></details>
     <details class="hn-safe"><summary>A guide, not the law</summary>Zones, parks, seasons and draw odds come from each province's open data and regulation pages (and the federal protected areas database), read by the app each month, and can be out of date or simplified. Always check the regulations where you hunt (the spot card links them: <a href="${BC_SYNOPSIS}" target="_blank" rel="noopener">BC</a>, <a href="${AB_REGS}" target="_blank" rel="noopener">Alberta</a>, <a href="${QC_REGS}" target="_blank" rel="noopener">Quebec</a>, <a href="${PV.on.regs}" target="_blank" rel="noopener">Ontario</a>...), and get permission before hunting private land, a lease or an outfitter's territory.</details>`;
+  // Go to a place (place-search.js): a town, mountain, lake or region, and the map jumps there (alex 2026-10-26).
+  if (window.tfPlaceSearch) pane.querySelector(".hn-actions").after(window.tfPlaceSearch.box({ placeholder: "Go to a town, mountain, lake or region" }));
   // Every hunting layer switch lives in the map's Layers menu (alex: "should we put that here?"), shown only in Hunting.
   const lmHunt = document.createElement("div");
   lmHunt.className = "lm-hunt";
