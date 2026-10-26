@@ -112,7 +112,8 @@
   const dotKey = (d, w) => { const n = String(d).trim().split(/[\s,]+/).map(Number); return n.length === 2 && n[0] <= 1 ? "dot:" + (n[0] + n[1]) + ":" + w : ""; };
 
   function snapshot() {
-    const lines = [], dots = [], hitLines = [];
+    const lines = [], dots = [], hitLines = [], names = [];
+    nameSeen.clear();
     hits = []; hitParts = []; hitDots = [];
     let k = 0;
     // A trail's details are open: the other trail lines fade, as in 2D.
@@ -158,9 +159,33 @@
       }
       if (!o.stroke || !(o.opacity > 0)) return;
       lines.push({ type: "Feature", geometry, properties: { c: o.color, w: o.weight * LINE_SCALE, o: faded(o) ? o.opacity * 0.6 : o.opacity, k: order, d: o.dashArray ? (o.lineCap === "round" && dotKey(o.dashArray, o.weight)) || dashKey(o.dashArray, o.weight) : "",
-        ...(o.label ? { n: o.label } : {}) } });   // the trail's name, written along it (layer "line-names")
+      } });
+      if (o.label) nameSpots(o.label, parts, o.color, faded(o) ? o.opacity * 0.6 : o.opacity, names);
     });
-    return { lines, dots, hitLines };
+    return { lines, dots, hitLines, names };
+  }
+
+  // Trail names (layer "trail-names"): a point every NAME_EVERY metres along each named line, at least
+  // NAME_GAP metres from another point of the same name, and one in the middle of a shorter line. Names written
+  // along the lines themselves (MapLibre line labels) were mostly left out: a twisty trail, or a short piece of
+  // one, has no stretch straight and long enough to hold the name (alex 2026-10-26, Cheakamus: 2 names in 3D, 12 in 2D).
+  const NAME_EVERY = 700, NAME_GAP = 450, nameSeen = new Map();
+  function nameSpots(n, parts, c, o, out) {
+    const seen = nameSeen.get(n) || nameSeen.set(n, []).get(n), kx = Math.cos((parts[0][0][1] * Math.PI) / 180) * 111320;
+    const far = (p) => seen.every((q) => ((p[0] - q[0]) * kx) ** 2 + ((p[1] - q[1]) * 110540) ** 2 > NAME_GAP * NAME_GAP);
+    const add = (p, len) => { if (!far(p)) return; seen.push(p); out.push({ type: "Feature", geometry: { type: "Point", coordinates: p }, properties: { n, c, o, s: -len } }); };
+    for (const pts of parts) {
+      const d = [0];
+      for (let i = 1; i < pts.length; i++) d.push(d[i - 1] + Math.hypot((pts[i][0] - pts[i - 1][0]) * kx, (pts[i][1] - pts[i - 1][1]) * 110540));
+      const len = d[d.length - 1], at = [];
+      if (len < NAME_EVERY) at.push(len / 2); else for (let m = NAME_EVERY / 2; m < len; m += NAME_EVERY) at.push(m);
+      let i = 1;
+      for (const m of at) {
+        while (i < d.length - 1 && d[i] < m) i++;
+        const t = d[i] > d[i - 1] ? (m - d[i - 1]) / (d[i] - d[i - 1]) : 0;
+        add([pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t], len);
+      }
+    }
   }
 
   function ensureDashLayer(d) {
@@ -191,6 +216,7 @@
     gl.getSource("lines").setData({ type: "FeatureCollection", features: s.lines });
     gl.getSource("dots").setData({ type: "FeatureCollection", features: s.dots });
     gl.getSource("hits").setData({ type: "FeatureCollection", features: s.hitLines });
+    gl.getSource("trailNames").setData({ type: "FeatureCollection", features: s.names });
     drawn = true;
   }
   // Only lines and dots are copied: names and pins coming and going (the trail names redraw after every move) don't
@@ -742,6 +768,7 @@
           lines: { type: "geojson", data: { type: "FeatureCollection", features: [] }, attribution: "Trails © <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors" },
           dots: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
           hits: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
+          trailNames: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
         },
         layers: [
           { id: "sat", type: "raster", source: "sat", paint: { "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
@@ -775,10 +802,13 @@
           // see the name like that on the 3d map"), from the same zoom (flat 13 = 3D 12). The lines' "label" option
           // (index.html, winter.js, rider-trails.js; slackcountry lines have their own name pins) is the name. One symbol layer on the lines already
           // copied: MapLibre places them on the ground and leaves out names that would overlap, no HTML markers.
-          { id: "line-names", type: "symbol", source: "lines", minzoom: 12, filter: ["has", "n"],
-            layout: { "symbol-placement": "line", "symbol-spacing": 500, "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"],
-              "text-size": ["interpolate", ["linear"], ["zoom"], 12, 11.5, 15, 13.5], "text-padding": 6,
-              "text-rotation-alignment": "viewport", "text-pitch-alignment": "viewport", "text-offset": [0, -0.9] },
+          // Points along the lines (nameSpots), longest trails first; a name that doesn't fit above its point
+          // tries below, left and right before it's left out.
+          { id: "trail-names", type: "symbol", source: "trailNames", minzoom: 12,
+            layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "symbol-sort-key": ["get", "s"],
+              "text-size": ["interpolate", ["linear"], ["zoom"], 12, 11.5, 15, 13.5], "text-padding": 2, "text-max-width": 16,
+              "text-variable-anchor": ["bottom", "top", "left", "right"], "text-radial-offset": 0.4,
+              "text-rotation-alignment": "viewport", "text-pitch-alignment": "viewport" },
             paint: { "text-color": ["get", "c"], "text-opacity": ["get", "o"], "text-halo-color": "#fff", "text-halo-width": 1.8, "text-halo-blur": 0.3 } },
           { id: "water-names", type: "symbol", source: "names", "source-layer": "water_name", minzoom: 10,
             layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Italic"], "text-size": 12 },
