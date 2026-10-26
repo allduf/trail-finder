@@ -292,9 +292,9 @@
   const ESRI = (z, x, y) => summerTiles.replace("{z}", z).replace("{y}", y).replace("{x}", x);
   const LIVE_DAY = new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10);   // NASA posts with a delay
   const NASA_SNOW = (z, x, y) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDSI_Snow_Cover/default/${LIVE_DAY}/GoogleMapsCompatible_Level8/${z}/${y}/${x}.png`;
-  const cache = new Map();   // a few recent height / snow-map tiles, shared by neighbouring photo tiles
+  const cache = new Map();   // a few recent height / snow-map tiles, shared by neighbouring photo tiles (16 on phones: up to ~1 MB each)
   function cached(key, make) {
-    if (!cache.has(key)) { const p = make(); cache.set(key, p); p.catch(() => cache.delete(key)); if (cache.size > 48) cache.delete(cache.keys().next().value); }
+    if (!cache.has(key)) { const p = make(); cache.set(key, p); p.catch(() => cache.delete(key)); if (cache.size > (PHONE ? 16 : 48)) cache.delete(cache.keys().next().value); }
     return cache.get(key);
   }
   const pixels = (img) => { const cv = new OffscreenCanvas(img.width, img.height), cx = cv.getContext("2d", { willReadFrequently: true });
@@ -542,9 +542,10 @@
   // from Mapterhorn's 2 m lidar and Esri's sharp photo (see winter-hd.js). Drawn by workers, so the page stays free
   // to move the map and load its terrain, and drawn as a layer over the plain Winter photos, which show right away
   // and sharpen as these arrive (alex, 2026-10-19: "that map is long to load", "try to not compromize the resolution").
-  // Phones too since 2026-10-26 (alex liked how sharp FATMAP is up close), with less held in memory: 2 workers that
-  // keep fewer parent photos, and the close-up tiles drawn only once the map is still, so a drag across the
-  // mountains never piles them up (see PHONE_HD_CACHE).
+  // Computers only. Phones had them for an hour on 2026-10-26 (2 workers, fewer parent photos, drawn once the map
+  // was still): Skiing 3D at Blackcomb still ran the iPhone out of memory, and in a phone test the mountains' heights
+  // took over 12 s to arrive with them, against a few seconds without (alex's recording: "it keep doing that,
+  // jumping back to 2d map"). PHONE_HD_CACHE stays for a later, lighter try.
   const PHONE_HD_CACHE = 24;   // parent photos kept per worker on phones (computers 160); up to ~1 MB each
   let hdWorkers = null, hdNext = 0, hdId = 0;
   const hdWaiting = new Map();
@@ -596,11 +597,11 @@
   // an iPhone out of memory. Once the map is still, the spare ones are let go (they're made again if needed).
   // MapLibre internals (pinned 5.24.0): any surprise just skips it.
   const PHONE_BUFFERS = 12;   // enough for a view tilted to 70-75° (measured)
-  // Each buffer is 1536 px on phones instead of 2048: ~18 MB instead of ~32, so 12 are ~220 MB instead of ~380. Still
-  // about one photo pixel per screen pixel on the near slopes (the photos are drawn at 128 px), a little softer only
-  // where the ground is right under the camera. The 2048 px ones still ran an iPhone out of memory opening Skiing 3D
-  // at Whistler (alex 2026-10-26 recording).
-  const PHONE_RTT = 1536;
+  // Each buffer is 1024 px on phones instead of 2048: ~8 MB instead of ~32, so 12 are ~100 MB instead of ~380, and
+  // the map draws about twice as many frames while moving (phone test at Blackcomb). A little softer right under the
+  // camera, the same further off. 2048 and then 1536 px still ran an iPhone out of memory in Skiing 3D at Whistler and
+  // Blackcomb (alex's recordings, 2026-10-26).
+  const PHONE_RTT = 1024;
   function phoneBuffers() {
     try {
       const pool = gl.painter.renderToTexture && gl.painter.renderToTexture.pool;
@@ -661,11 +662,12 @@
     addWinterProtocol();
     addWinterPhotoProtocol();
     addSatProtocol();
-    addWinterHdProtocol();
+    if (!PHONE) addWinterHdProtocol();
     const c = map.getCenter();
     gl = new maplibregl.Map({
       container: box, antialias: !PHONE, pixelRatio: PHONE ? Math.min(devicePixelRatio || 1, 2) : undefined,
-      maxTileCacheSize: PHONE ? 24 : null, center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 0, bearing: bearing2d(), maxPitch: 85,
+      maxTileCacheSize: PHONE ? 12 : null,   // tiles kept per source after they leave the view (24 before 2026-10-26)
+      center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 0, bearing: bearing2d(), maxPitch: 85,
       attributionControl: { compact: true },
       style: {
         version: 8,
@@ -677,8 +679,8 @@
           // instead of the half-size zoom 12-13 ones (blurry and stretched on the slopes, alex 2026-10-19).
           winter: { type: "raster", tileSize: PHOTO_TILE, minzoom: 6, maxzoom: 14, bounds: WINTER_BOUNDS, tiles: ["tfwinterphoto://{z}/{x}/{y}"],
             attribution: "Winter: Copernicus Sentinel-2 data 2026 (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>" },
-          // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above).
-          winterhd: { type: "raster", tileSize: 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] },
+          // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above). Not on phones.
+          ...(PHONE ? {} : { winterhd: { type: "raster", tileSize: 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] } }),
           live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           // Under the Winter photos instead of the summer ones: today's snow wherever last winter's photos don't reach.
@@ -702,7 +704,7 @@
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
           { id: "fill", type: "raster", source: "fill", layout: { visibility: "none" } },
           { id: "winter", type: "raster", source: "winter", layout: { visibility: "none" } },
-          { id: "winterhd", type: "raster", source: "winterhd", layout: { visibility: "none" }, paint: { "raster-fade-duration": 200 } },
+          ...(PHONE ? [] : [{ id: "winterhd", type: "raster", source: "winterhd", layout: { visibility: "none" }, paint: { "raster-fade-duration": 200 } }]),
           { id: "live", type: "raster", source: "live", layout: { visibility: "none" } },
           // Soft sun and shadow on the slopes, so white mountains still read in winter.
           { id: "shade", type: "hillshade", source: "shade", layout: { visibility: "none" },
