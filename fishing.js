@@ -42,7 +42,20 @@
   // Map dot colours (alex 2026-10-26: "more trendy and professional"): flow keeps its traffic-light order, each other
   // layer gets its own hue that reads on satellite and the flat map.
   const C = { vlow: "#f2b33d", low: "#a3c94f", ok: "#22b07d", high: "#f07b3f", blown: "#e5484d", none: "#8a94a6", stocked: "#2563eb", fresh: "#f43f5e",
-    access: "#8b5cf6", launch: "#1e293b", park: "#ae3ec9", zec: "#2b8a3e", fee: "#5f3dc4", tide: "#38bdf8", zone: "#1864ab", hidden: "#d946ef" };
+    access: "#f97316", launch: "#7c3aed", park: "#2f9e44", zec: "#0ca678", fee: "#d6336c", tide: "#0ea5e9", zone: "#3b82f6", hidden: "#eab308", depth: "#1e40af" };
+  // Each layer's own picture (alex 2026-10-26: the spot layers were "almost same colour", "make it more attractive for a
+  // fisherman"): drawn white on the layer's colour, in the Layers list, the map key and inside the dots on the map.
+  const GLYPH = {
+    stocked: "M5 12c3-4 6-6 10-6 3 0 5 3 6 6-1 3-3 6-6 6-4 0-7-2-10-6zM5 12 2 8M5 12l-3 4M16 11h.01",
+    hidden: "M2 20 9 7l4 6 3-4 6 11zM9 7l2 4",
+    access: "M14 3.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM14 7.5V15a5 5 0 0 1-10 0v-3l3 2.5",
+    launch: "M3 15h18l-3 5H6zM12 4v11M12 4l6 8h-6",
+    tides: "M2 9c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2M2 15c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2",
+    gauges: "M4 20h16M7 20V11M12 20V5M17 20v-6",
+    areas: "M12 2.5 18 11h-3l4 6H5l4-6H6zM12 17v4.5",
+    depth: "M12 4a8 8 0 1 1 0 16 8 8 0 0 1 0-16zM12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z",
+    zones: "M4 4h4M12 4h4M20 4v4M20 12v4M20 20h-4M12 20H8M4 20v-4M4 12V8",
+  };
   const timeout = (ms) => (AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined);
   const getJ = (url, ms = 12000) => fetch(url, { signal: timeout(ms) }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
   const km = (a, b, c, d) => map.distance([a, b], [c, d]) / 1000;
@@ -74,7 +87,7 @@
   const LAYERS = {
     gauges: { g: "Water", label: "River flow gauges", sub: "Live flow, coloured from too low to blown out", on: true, minZoom: 7, icon: [C.ok, "dot"] },
     stocked: { g: "Water", label: "Stocked lakes and rivers", sub: "Pink: stocked in the last 30 days", on: true, minZoom: 6, icon: [C.stocked, "dot"] },
-    depth: { g: "Water", label: "Lake depth lines (BC)", sub: "About 2,600 surveyed lakes", minZoom: 12, icon: ["#1c7ed6", "line"] },
+    depth: { g: "Water", label: "Lake depth lines (BC)", sub: "About 2,600 surveyed lakes", minZoom: 12, icon: [C.depth, "line"] },
     hidden: { g: "Access", label: "Hidden spots", sub: "Walk-in stocked lakes and hike-in waters few people fish", on: true, minZoom: 6, icon: [C.hidden, "dot"] },
     access: { g: "Access", label: "Fishing spots", sub: "Public spots, piers and docks all over Canada", on: true, minZoom: 8, icon: [C.access, "dot"] },
     launch: { g: "Access", label: "Boat launches", sub: "Public ramps all over Canada", on: true, minZoom: 8, icon: [C.launch, "dot"] },
@@ -103,11 +116,11 @@ body.sport-fish .leaflet-allTrails-pane, body.sport-fish .leaflet-boxTrails-pane
 body.sport-fish .leaflet-ridesPane-pane { display: none; }
 .lm-fish { display: flex; flex-direction: column; }
 .lm-fish .fs-group { margin: 0; font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-top: 6px; }
-:is(#fishPane, .lm-fish) .fs-layer { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 5px 0; cursor: pointer; }
+:is(#fishPane, .lm-fish) .fs-layer { display: grid; grid-template-columns: 30px 1fr auto; gap: 12px; align-items: center; padding: 5px 0; cursor: pointer; }
 :is(#fishPane, .lm-fish) .fs-layer b { display: block; font-size: .86rem; }
 :is(#fishPane, .lm-fish) .fs-layer small { display: block; color: var(--muted); font-size: .74rem; line-height: 1.25; }
-:is(#fishPane, .lm-fish) .fs-layer small.z { color: ${ACC}; }
-:is(#fishPane, .lm-fish) .fs-ic { width: 22px; height: 22px; border-radius: 6px; display: block; box-sizing: border-box; }
+:is(#fishPane, .lm-fish) .fs-layer small.z { color: var(--muted); font-style: italic; }
+:is(#fishPane, .lm-fish) .fs-ic { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; box-sizing: border-box; box-shadow: inset 0 0 0 1px #ffffff2e, 0 1px 3px #0003; }
 :is(#fishPane, .lm-fish) .fs-sw { appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; margin: 0; flex: none; transition: background .15s; }
 :is(#fishPane, .lm-fish) .fs-sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0004; transition: left .15s; }
 :is(#fishPane, .lm-fish) .fs-sw:checked { background: ${ACC}; }
@@ -214,7 +227,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
 .fs-mapkey .fs-keybtn svg { color: ${ACC}; }
 .fs-mapkey .fs-keybox { margin-top: 6px; background: #fff; color: #212529; border-radius: 12px; padding: 8px 10px; box-shadow: 0 2px 10px #0004; width: min(240px, calc(100vw - 40px)); max-height: 45vh; overflow: auto; font: 500 11px/1.35 var(--font-body, system-ui); }
 .fs-mapkey .fs-keybox b { display: block; margin: 4px 0 2px; font-size: 11px; }
-.fs-mapkey .fs-keybox i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.fs-mapkey .fs-keybox i { display: inline-grid; place-items: center; width: 13px; height: 13px; border-radius: 50%; margin-right: 6px; vertical-align: -2px; }
 .mapwrap.is3d .fs-mapkey { margin-bottom: 46px; }
 .fs-spot { width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; border: 3px solid ${ACC}; background: #fff6; box-shadow: 0 0 0 2px #fff; }
 .fs-spot::after { content: ""; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px; border-radius: 50%; background: ${ACC}; box-shadow: 0 0 0 1.5px #fff; }
@@ -532,15 +545,29 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     pane: "fishTiles", minZoom: 12, maxZoom: 19, opacity: 0.85, attribution: "Lake depth: DataBC (OGL-BC)" });
   const allFish = [ptLayer, zoneLayer, spotLayer];
   const pts3d = [];   // the same points for the 3D map
+  // A dot with its layer's picture inside (once it's big enough to read), drawn on the same canvas as the plain dots.
+  const glyphPaths = {};
+  const GlyphDot = L.CircleMarker.extend({
+    _updatePath() {
+      L.CircleMarker.prototype._updatePath.call(this);
+      const g = this.options.glyph, ctx = this._renderer._ctx, p = this._point;
+      if (!g || !ctx || !p || this._radius < 7 || this._empty()) return;
+      const s = (this._radius * 1.25) / 24;
+      ctx.save(); ctx.translate(p.x - 12 * s, p.y - 12 * s); ctx.scale(s, s);
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.6; ctx.lineCap = ctx.lineJoin = "round";
+      ctx.stroke(glyphPaths[g] || (glyphPaths[g] = new Path2D(GLYPH[g])));
+      ctx.restore();
+    },
+  });
   const freshDays = (w) => { const d = w.r.find((r) => /^\d{4}-\d\d-\d\d$/.test(r[0])); return d ? daysAgo(d[0]) : null; };
   function drawPoints() {
     ptLayer.clearLayers(); pts3d.length = 0;
     if (!isFish()) { sync3d(); return; }   // empty the 3D dots too, or they stay on the 3D map in other sports
     const z = map.getZoom(), b = map.getBounds().pad(0.4);
-    const dot = (lat, lon, color, r, open, label, kind) => {
+    const dot = (lat, lon, color, r, open, label, kind, glyph) => {
       // A soft shadow under each dot lifts it off busy satellite pictures.
       ptLayer.addLayer(L.circleMarker([lat, lon], { renderer, radius: r + 2.5, stroke: false, fillColor: "#0b1220", fillOpacity: 0.28, interactive: false }));
-      const m = L.circleMarker([lat, lon], { renderer, radius: r, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1, bubblingMouseEvents: false }).on("click", (e) => { L.DomEvent.stop(e); open(); });
+      const m = new GlyphDot([lat, lon], { renderer, radius: r, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1, bubblingMouseEvents: false, glyph }).on("click", (e) => { L.DomEvent.stop(e); open(); });
       if (label) m.bindTooltip(label, { direction: "top", offset: [0, -r], opacity: 0.95 });
       ptLayer.addLayer(m);
       pts3d.push({ lat, lon, color, r, open, label, kind });
@@ -549,11 +576,11 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       for (const w of stocked.waters) {
         if (!b.contains([w.c[0], w.c[1]])) continue;
         const d = freshDays(w);
-        dot(w.c[0], w.c[1], d != null && d <= 30 ? C.fresh : C.stocked, z >= 11 ? 7 : 5, () => openWater(w), `${w.n}${d != null ? ` · stocked ${d <= 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`}` : ""}`, "stocked");
+        dot(w.c[0], w.c[1], d != null && d <= 30 ? C.fresh : C.stocked, z >= 11 ? 7 : 5, () => openWater(w), `${w.n}${d != null ? ` · stocked ${d <= 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`}` : ""}`, "stocked", z >= 11 && "stocked");
       }
     }
     if (shown.has("hidden") && z >= LAYERS.hidden.minZoom) {
-      for (const h of hidden) if (b.contains([h.lat, h.lon])) dot(h.lat, h.lon, C.hidden, z >= 11 ? 8 : 6, () => openHidden(h), `${h.n} · ${hiddenWhy(h)}`, "hidden");
+      for (const h of hidden) if (b.contains([h.lat, h.lon])) dot(h.lat, h.lon, C.hidden, z >= 10 ? 10 : 7, () => openHidden(h), `${h.n} · ${hiddenWhy(h)}`, "hidden", "hidden");
     }
     if (shown.has("gauges") && gauges && z >= LAYERS.gauges.minZoom) {
       for (const g of gauges) {
@@ -563,10 +590,10 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       }
     }
     if (shown.has("tides") && tides && z >= LAYERS.tides.minZoom) {
-      for (const t of tides) if (b.contains([t[2], t[3]])) dot(t[2], t[3], C.tide, z >= 10 ? 7 : 5, () => openTide(t), `Tides: ${t[1]}`, "tide");
+      for (const t of tides) if (b.contains([t[2], t[3]])) dot(t[2], t[3], C.tide, z >= 10 ? 9 : 7.5, () => openTide(t), `Tides: ${t[1]}`, "tide", "tides");
     }
     if ((shown.has("access") || shown.has("launch")) && z >= LAYERS.access.minZoom) {
-      for (const a of access.values()) if (shown.has(a.kind === "launch" ? "launch" : "access") && b.contains([a.lat, a.lon])) dot(a.lat, a.lon, a.kind === "launch" ? C.launch : C.access, 6, () => openAccess(a), accessName(a), "access");
+      for (const a of access.values()) if (shown.has(a.kind === "launch" ? "launch" : "access") && b.contains([a.lat, a.lon])) dot(a.lat, a.lon, a.kind === "launch" ? C.launch : C.access, z >= 11 ? 9 : 7.5, () => openAccess(a), accessName(a), "access", a.kind === "launch" ? "launch" : "access");
     }
     sync3d();
   }
@@ -612,8 +639,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   }
 
   // ---------- layer list ----------
-  const icon = ([c, kind]) => kind === "line" ? `<span class="fs-ic" style="border:3px solid ${c};border-radius:50%"></span>` : kind === "dash" ? `<span class="fs-ic" style="border:3px dashed ${c}"></span>`
-    : `<span class="fs-ic" style="background:radial-gradient(circle, ${c} 0 45%, transparent 47%)"></span>`;
+  const badge = (k, size = 16) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${GLYPH[k]}"/></svg>`;
+  const icon = (k, [c]) => `<span class="fs-ic" style="background:${c}">${badge(k)}</span>`;
   function renderLayers() {
     const z = map.getZoom();
     $("fsLayerList").innerHTML = GROUPS.map((g) => `<h4 class="fs-group">${g}</h4>` + Object.entries(LAYERS).filter(([, l]) => l.g === g).map(([k, l]) => {
@@ -622,7 +649,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       let sub = l.sub;
       if (k === "gauges" && on && !far && gauges) { const b = map.getBounds(), n = gauges.filter((g) => b.contains([g[2], g[3]])).length; sub = n ? `${n} in view. Green: good flow, light green: low, orange: very low or high, red: blown out, grey: no reading. Tap one for more` : "None in view: government gauges are only on bigger rivers"; }
       if (k === "areas" && on && !far && zones) { const b = map.getBounds(), n = zones.filter((q) => (q.k === "np" || q.k === "qct") && b.intersects([[q.b[0], q.b[1]], [q.b[2], q.b[3]]])).length; sub = n ? `${n} in view: tap inside one for its rules and fees` : "None in view: this shows national parks, and Quebec zecs, wildlife reserves and parks"; }
-      return `<label class="fs-layer">${icon(l.icon)}<span><b>${esc(l.label)}</b><small${far ? ' class="z"' : ""}>${far ? "Zoom in closer to see it" : esc(sub)}</small></span><input type="checkbox" class="fs-sw" role="switch" data-k="${k}"${on ? " checked" : ""} aria-label="${esc(l.label)}"></label>`;
+      return `<label class="fs-layer">${icon(k, l.icon)}<span><b>${esc(l.label)}</b><small${far ? ' class="z"' : ""}>${far ? "Zoom in closer to see it" : esc(sub)}</small></span><input type="checkbox" class="fs-sw" role="switch" data-k="${k}"${on ? " checked" : ""} aria-label="${esc(l.label)}"></label>`;
     }).join("")).join("");
     pane.querySelectorAll("[data-view]").forEach((b) => { const v = VIEWS[b.dataset.view].layers; b.classList.toggle("on", v.length === shown.size && v.every((k) => shown.has(k))); });
   }
@@ -689,13 +716,14 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   function renderKey() {
     const box = document.querySelector(".fs-mapkey .fs-keybox");
     if (!box || box.hidden) return;
-    const i = (c) => `<i style="background:${c}"></i>`;
+    const i = (c, g) => `<i style="background:${c}">${g ? badge(g, 9) : ""}</i>`;
     box.innerHTML = (shown.has("gauges") ? `<b>River gauges: flow for the month</b>${["vlow", "low", "ok", "high", "blown", "none"].map((k) => `<div>${i(LIGHTS[k][1])}${LIGHTS[k][0]}</div>`).join("")}` : "")
       + (shown.has("stocked") ? `<b>Stocked waters</b><div>${i(C.fresh)}Stocked in the last 30 days</div><div>${i(C.stocked)}Stocked in the last 3 years</div>` : "")
-      + (shown.has("hidden") ? `<b>Hidden spots</b><div>${i(C.hidden)}Walk-in or hike-in water</div>` : "")
-      + (shown.has("access") || shown.has("launch") ? `<b>Access</b>${shown.has("access") ? `<div>${i(C.access)}Fishing spot, pier or dock</div>` : ""}${shown.has("launch") ? `<div>${i(C.launch)}Boat launch</div>` : ""}` : "")
-      + (shown.has("tides") ? `<b>Ocean</b><div>${i(C.tide)}Tide station</div>` : "")
+      + (shown.has("hidden") ? `<b>Hidden spots</b><div>${i(C.hidden, "hidden")}Walk-in or hike-in water</div>` : "")
+      + (shown.has("access") || shown.has("launch") ? `<b>Access</b>${shown.has("access") ? `<div>${i(C.access, "access")}Fishing spot, pier or dock</div>` : ""}${shown.has("launch") ? `<div>${i(C.launch, "launch")}Boat launch</div>` : ""}` : "")
+      + (shown.has("tides") ? `<b>Ocean</b><div>${i(C.tide, "tides")}Tide station</div>` : "")
       + (shown.has("zones") ? `<b>Rules</b><div><i style="border:2px dashed ${C.zone};border-radius:2px"></i>Fishing zone or region</div><div><i style="border:2px dashed ${C.tide};border-radius:2px"></i>Pacific tidal area</div>` : "")
+      + (shown.has("areas") ? `<b>Parks and reserves</b><div>${i(C.park, "areas")}National park: Parks Canada permit</div><div>${i(C.zec)}Quebec zec</div><div>${i(C.fee)}Wildlife reserve or park: access fee</div>` : "")
       || "<p>No layers on: turn some on in Layers.</p>";
   }
 
