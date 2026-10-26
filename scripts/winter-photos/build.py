@@ -3,6 +3,10 @@
 tiles.py writes data/winter (not kept on main): copy it to winter/ on the winter-photos branch, as a single commit
 pushed over the old one, then run "Publish winter photos" in allduf/trail-finder-winter (it serves them at
 allduf.github.io/trail-finder-winter/, outside this site's 1 GB; it also runs daily).
+New places: list their zoom-11 blocks in a JSON file, run scenes.py on it (adds their passes to winter-scenes.json),
+then build.py <block-dir> --list <file> and tiles.py with the winter-photos branch's winter/ as data/winter, so
+the new tiles join the old ones (2026-10-26: 582 blocks around ski hills, ski tours and backcountry areas across
+Canada; the site went from ~640 to ~935 MB of its 1 GB).
 Draws 2048 px blocks (one zoom-11 tile each, = 8 x 8 zoom-14 tiles, about 10 m a pixel like the photos) of the
 region straight from the Sentinel-2 passes in data/winter-scenes.json (free, open data on AWS). Needs rasterio
 (pip install rasterio). Optional: python3 build.py <block-dir> 325 691  draws just that block.
@@ -96,7 +100,11 @@ def picture(rgb, n):
 
 if __name__ == "__main__":
     os.makedirs(out, exist_ok=True)
-    todo = [(int(sys.argv[2]), int(sys.argv[3]))] if len(sys.argv) > 3 else \
+    # python3 build.py <block-dir> --list blocks.json   draws a list of zoom-11 [x, y] blocks (e.g. around ski hills).
+    if len(sys.argv) > 3 and sys.argv[2] == "--list":
+        todo = [tuple(b) for b in json.load(open(sys.argv[3]))
+                if not os.path.exists(f"{out}/{b[0]}_{b[1]}.png") and not os.path.exists(f"{out}/{b[0]}_{b[1]}.empty")]
+    else: todo = [(int(sys.argv[2]), int(sys.argv[3]))] if len(sys.argv) > 3 else \
         [(x, y) for x in range(X0, X1 + 1) for y in range(Y0, Y1 + 1)
          if not os.path.exists(f"{out}/{x}_{y}.png") and not os.path.exists(f"{out}/{x}_{y}.empty")]
     print("blocks", len(todo))
