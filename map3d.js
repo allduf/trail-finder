@@ -483,14 +483,39 @@
     if (gl) summerTiles = tiles;
   }
 
-  // Last winter's photos cover the riding areas from the Sunshine Coast to the Rockies (scripts/winter-photos);
-  // blocks.json lists the zoom-11 squares that have them. They're their own site (allduf/trail-finder-winter, same
-  // address, so no CORS) since 2026-10-26: at ~590 MB they were most of this site's 1 GB Pages limit.
+  // Last winter's photos cover the riding areas from the Sunshine Coast to the Rockies, and since 2026-10-26 the
+  // ski hills, ski tours and backcountry areas across Canada (alex: "fix winter map all over canada"; the whole
+  // country at 10 m would be ~20 GB). blocks.json lists the zoom-11 squares that have them. They're their own site
+  // (allduf/trail-finder-winter, same address, so no CORS): at ~590 MB they were most of this site's 1 GB Pages limit.
   const WINTER = "../trail-finder-winter/";
-  const WINTER_BOUNDS = [-125, 48.8, -114.25, 52.4];
+  const WINTER_BOUNDS = [-141, 41.6, -52.6, 70];
   let winterBlocks = null;
   const loadWinterBlocks = () => winterBlocks || (winterBlocks = fetch(WINTER + "blocks.json").then((r) => r.json())
-    .then((a) => new Set(a.map(([x, y]) => x + "/" + y))).catch(() => { winterBlocks = null; return null; }));
+    .then((a) => {
+      // Also every zoom 6-10 tile with any of them inside, so tiles with no photos are never asked for.
+      const have = new Set(a.map(([x, y]) => x + "/" + y));
+      have.some = new Set();
+      for (const [x, y] of a) for (let z = 6; z < 11; z++) have.some.add(`${z}/${x >> (11 - z)}/${y >> (11 - z)}`);
+      return have;
+    }).catch(() => { winterBlocks = null; return null; }));
+  // Does tile z/x/y have any winter photo?
+  const anyWinter = (have, z, x, y) => !!have && (z >= 11 ? have.has((x >> (z - 11)) + "/" + (y >> (z - 11))) : have.some.has(`${z}/${x}/${y}`));
+  // A see-through tile, for places without winter photos: no download, and no 404 for each one.
+  const noTile = () => { const c = new OffscreenCanvas(1, 1); c.getContext("2d"); return { data: c.transferToImageBitmap() }; };
+  let winterPhotoProtocol = false;
+  function addWinterPhotoProtocol() {
+    if (winterPhotoProtocol) return;
+    winterPhotoProtocol = true;
+    maplibregl.addProtocol("tfwinterphoto", async (params, abort) => {
+      const [z, x, y] = params.url.replace("tfwinterphoto://", "").split("/").map(Number);
+      if (!anyWinter(await loadWinterBlocks(), z, x, y)) return noTile();
+      const r = await fetch(`${WINTER}${z}/${x}/${y}.webp`, { signal: abort.signal }).catch((e) => { if (abort.signal.aborted) return null; throw e; });
+      if (!r) return noTile();   // scrolled away before it came
+      if (r.status === 404) return noTile();   // a square's edge where the photo is all cloud or outside the passes
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return { data: await r.arrayBuffer() };
+    });
+  }
   // Is tile z/x/y all inside the zoom-11 squares that have winter photos?
   const covered = (have, z, x, y) => {
     if (!have) return false;
@@ -516,7 +541,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=470");
+      const w = new Worker("winter-hd.js?v=471");
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return;
@@ -525,8 +550,12 @@
       };
       return w;
     });
-    maplibregl.addProtocol("tfwinterhd", (params, abort) => new Promise((ok, no) => {
-      const [z, x, y] = params.url.replace("tfwinterhd://", "").split("/").map(Number), id = ++hdId;
+    maplibregl.addProtocol("tfwinterhd", async (params, abort) => {
+      const [z, x, y] = params.url.replace("tfwinterhd://", "").split("/").map(Number);
+      return anyWinter(await loadWinterBlocks(), z, x, y) ? hdTile(z, x, y, abort) : noTile();
+    });
+    const hdTile = (z, x, y, abort) => new Promise((ok, no) => {
+      const id = ++hdId;
       const w = hdWorkers[hdNext++ % hdWorkers.length];
       hdWaiting.set(id, { ok, no });
       abort.signal.addEventListener("abort", () => {   // scrolled away before it was drawn
@@ -536,7 +565,7 @@
       // The terrain first: these wait until the ground in view has its heights (at most 3 s), so they don't
       // hold up the mountains, then sharpen the photos already showing.
       terrainReady().then(() => { if (hdWaiting.has(id)) w.postMessage({ id, z, x, y, base: location.href }); });
-    }));
+    });
   }
 
   // ---------- phone memory ----------
@@ -590,6 +619,7 @@
 
     addDemProtocol();
     addWinterProtocol();
+    addWinterPhotoProtocol();
     addSatProtocol();
     if (!PHONE) addWinterHdProtocol();
     const c = map.getCenter();
@@ -605,7 +635,7 @@
           // Feb-Mar 2026, clouds removed). Live: the sharp photos with today's snow drawn in (tfwinter).
           // tileSize 128 like the other photos: one zoom deeper, so the 10 m photos are at full detail up close
           // instead of the half-size zoom 12-13 ones (blurry and stretched on the slopes, alex 2026-10-19).
-          winter: { type: "raster", tileSize: PHOTO_TILE, minzoom: 6, maxzoom: 14, bounds: WINTER_BOUNDS, tiles: [WINTER + "{z}/{x}/{y}.webp"],
+          winter: { type: "raster", tileSize: PHOTO_TILE, minzoom: 6, maxzoom: 14, bounds: WINTER_BOUNDS, tiles: ["tfwinterphoto://{z}/{x}/{y}"],
             attribution: "Winter: Copernicus Sentinel-2 data 2026 (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>" },
           // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above). Not on phones,
           // where the extra tiles would use the memory iPhone Safari runs out of.
