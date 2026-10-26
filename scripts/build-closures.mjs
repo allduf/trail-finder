@@ -7,11 +7,14 @@
 //    date, conditions, closures) and its table of trails, with each trail's status (Open, Closed, Caution...), warning,
 //    length and permitted activities (bikes, e-bikes). albertaparks.ca, scraped from the report pages.
 //  - BC Parks advisories (bcparks.ca's public API): trail closures, wildlife, hazards, washouts, bridges, road closures...
-//    for the parks in or near the app's zones, with the park's centre (BC Parks gives no spot for an advisory).
-//  - Parks Canada bulletins (Banff, Yoho, Kootenay, Mount Revelstoke, Glacier): area closures, bear warnings and trail
-//    restrictions (the lists on parks.canada.ca; camping, fishing and boating ones are left out).
+//    for every BC park (all of BC since 2026-10-26, alex: "make it available everywhere"), with the park's centre (BC
+//    Parks gives no spot for an advisory).
+//  - Parks Canada bulletins (the national parks with trails, from Pacific Rim to Gros Morne): area closures, bear warnings
+//    and trail restrictions (the lists on parks.canada.ca; camping, fishing and boating ones are left out), with the park's middle.
+//  - Ontario Parks alerts (ontarioparks.ca/alerts): trail and bridge closures, washouts and wildlife warnings, placed at
+//    the park (its spot looked up once on OpenStreetMap's Nominatim and kept in the file).
 //
-// Run: node scripts/build-closures.mjs   (Node 18 or newer, no packages needed; ONLY=ab|bc|pc runs one part)
+// Run: node scripts/build-closures.mjs   (Node 18 or newer, no packages needed; ONLY=ab|bc|pc|on runs one part)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 
@@ -111,7 +114,6 @@ async function albertaParks() {
 const BCP = "https://bcparks.api.gov.bc.ca/api";
 // Event types that don't matter on a bike (camping, water, parking...).
 const BCP_SKIP = /^(boil water advisory|drinking water|parking|reservations|campfires|pets|cultural|volunteer|thieves|noise|hours of operation|campground|camping|facilities unavailable|facility|boundary adjustment|off-road vehicles|water quality|marine|fishing|swimming|beach|boat launch|anchorage|dock|feedback|regulations|park policy|park management|ecosystem restoration|mooring)/i;
-const near = (lat, lon, pad = 0.3) => ZONES.some((z) => lat >= z.box[0] - pad && lat <= z.box[2] + pad && lon >= z.box[1] - pad && lon <= z.box[3] + pad);
 async function pages(path) {
   const out = [];
   for (let p = 1; p <= 30; p++) {
@@ -125,8 +127,8 @@ async function pages(path) {
 }
 async function bcParks() {
   const parks = new Map();
-  for (const p of await pages("protected-areas")) if (p.latitude && p.longitude && near(p.latitude, p.longitude)) parks.set(p.orcs, { name: p.protectedAreaName, c: [+p.latitude.toFixed(4), +p.longitude.toFixed(4)], url: p.url });
-  log(`  BC Parks: ${parks.size} parks in or near the zones`);
+  for (const p of await pages("protected-areas")) if (p.latitude && p.longitude) parks.set(p.orcs, { name: p.protectedAreaName, c: [+p.latitude.toFixed(4), +p.longitude.toFixed(4)], url: p.url });
+  log(`  BC Parks: ${parks.size} parks`);
   const out = [];
   for (const a of await pages("public-advisories")) {
     const type = (a.eventType && a.eventType.eventType) || "";
@@ -146,20 +148,35 @@ async function bcParks() {
 }
 
 // ---------- Parks Canada bulletins ----------
-const PC = { "Banff National Park": "ab/banff", "Yoho National Park": "bc/yoho", "Kootenay National Park": "bc/kootenay", "Mount Revelstoke National Park": "bc/revelstoke", "Glacier National Park": "bc/glacier" };
+// Each park: its page on parks.canada.ca, where its bulletins list is under it, and its middle (for its pin on the map).
+const PC = {
+  "Banff National Park": ["ab/banff", "bulletins", 51.178, -115.571], "Yoho National Park": ["bc/yoho", "bulletins", 51.396, -116.49],
+  "Kootenay National Park": ["bc/kootenay", "bulletins", 50.65, -116.04], "Mount Revelstoke National Park": ["bc/revelstoke", "bulletins", 51.05, -118.15],
+  "Glacier National Park": ["bc/glacier", "bulletins", 51.30, -117.52], "Jasper National Park": ["ab/jasper", "bulletins", 52.873, -118.082],
+  "Waterton Lakes National Park": ["ab/waterton", "bulletins", 49.05, -113.91], "Elk Island National Park": ["ab/elkisland", "securite-safety/bulletins", 53.61, -112.86],
+  "Pacific Rim National Park Reserve": ["bc/pacificrim", "bulletins", 49.04, -125.70], "Gulf Islands National Park Reserve": ["bc/gulf", "bulletins", 48.77, -123.20],
+  "Kluane National Park and Reserve": ["yt/kluane", "securite-safety/bulletins", 60.75, -137.51], "Riding Mountain National Park": ["mb/riding", "securite-safety/bulletins", 50.66, -99.97],
+  "Prince Albert National Park": ["sk/princealbert", "securite-safety/bulletins", 53.92, -106.06], "Grasslands National Park": ["sk/grasslands", "securite-safety/bulletins", 49.17, -107.43],
+  "Bruce Peninsula National Park": ["on/bruce", "securite-safety/bulletins", 45.23, -81.60], "Pukaskwa National Park": ["on/pukaskwa", "securite-safety/bulletins", 48.59, -86.29],
+  "Georgian Bay Islands National Park": ["on/georg", "securite-safety/bulletins", 44.88, -79.87], "Point Pelee National Park": ["on/pelee", "securite-safety/bulletins", 41.96, -82.52],
+  "Thousand Islands National Park": ["on/1000", "securite-safety/bulletins", 44.45, -75.86], "Rouge National Urban Park": ["on/rouge", "securite-safety/bulletins", 43.82, -79.17],
+  "La Mauricie National Park": ["qc/mauricie", "securite-safety/bulletins", 46.73, -72.97], "Fundy National Park": ["nb/fundy", "securite-safety/bulletins", 45.60, -65.03],
+  "Kouchibouguac National Park": ["nb/kouchibouguac", "bulletin", 46.81, -64.97], "Cape Breton Highlands National Park": ["ns/cbreton", "bulletins", 46.73, -60.65],
+  "Kejimkujik National Park": ["ns/kejimkujik", "securite-safety/bulletins", 44.38, -65.22], "Gros Morne National Park": ["nl/grosmorne", "bulletins", 49.59, -57.80],
+};
 const PC_KEEP = /closure|closed|warning|bear|wildlife|cougar|wolf|bicycl|bike|cycling|trail|hazard|washout|flood|fire/i;
 const PC_SKIP = /campground|camping|paddl|angling|fishing|watercraft|scuba|cannabis|smok|vaping|alcohol|generator|quiet hours|firearm|base jump|paraglid|hang glid|horse|equine|equestrian|e-bikes|electric bicycles|no stopping|drone|swimming|motor vehicles is restricted/i;
 async function parksCanada() {
   const out = [];
-  for (const [park, path] of Object.entries(PC)) {
+  for (const [park, [path, list, lat, lon]] of Object.entries(PC)) {
     try {
-      const page = await get(`https://parks.canada.ca/pn-np/${path}/bulletins`);
+      const page = await get(`https://parks.canada.ca/pn-np/${path}/${list}`);
       const seen = new Set();
-      for (const m of page.matchAll(/<a[^>]+href="([^"]*\/bulletins\/[0-9A-Fa-f-]{36})"[^>]*>([\s\S]*?)<\/a>/g)) {
+      for (const m of page.matchAll(/<a[^>]+href="([^"]*\/bulletins?\/[0-9A-Fa-f-]{36})"[^>]*>([\s\S]*?)<\/a>/g)) {
         const title = text(m[2]).replace(/\s+/g, " ");
         if (!title || seen.has(title) || !PC_KEEP.test(title) || PC_SKIP.test(title)) continue;
         seen.add(title);
-        out.push({ park, title: clip(title, 200), url: new URL(m[1], "https://parks.canada.ca").href });
+        out.push({ park, c: [lat, lon], title: clip(title, 200), url: new URL(m[1], "https://parks.canada.ca").href });
       }
       log(`  Parks Canada ${park}: ${out.filter((b) => b.park === park).length} bulletins kept`);
     } catch (e) { log(`  Parks Canada ${park}: ${e.message}`); }
@@ -169,15 +186,47 @@ async function parksCanada() {
   return out;
 }
 
+// ---------- Ontario Parks alerts ----------
+// One page lists every park's alerts: "<strong>Park name - Kind</strong></p><div ...>text</div>". Kept: the lines about
+// trails, bridges, washouts, closures and wildlife; campground, beach, water and fee notices are not.
+const ON_KEEP = /trail|bridge|washout|wash-out|boardwalk|portage|bear|wildlife|hazard|flood|storm damage|blowdown/i;
+const ON_SKIP = /^(campground|beach|water|fees?|reservation|comfort station|boat launch|sanitation)/i;
+async function ontarioParks() {
+  const page = await get("https://www.ontarioparks.ca/alerts");
+  const pins = new Map(((old.on || []).filter((a) => a.c)).map((a) => [a.park, a.c]));
+  const out = [];
+  for (const m of page.matchAll(/<strong>([^<]+?)\s+-\s+([^<]+?)<\/strong>\s*<\/p>\s*<div[^>]*>([\s\S]*?)<\/div>/g)) {
+    const park = text(m[1]).replace(/\s+/g, " "), kind = text(m[2]).replace(/\s+/g, " "), body = text(m[3]);
+    if (!/park/i.test(park) || ON_SKIP.test(kind)) continue;
+    // A park notice often lists several things: keep only its lines about trails and the like.
+    const lines = body.split("\n").map((l) => l.replace(/^[-•\s]+/, "").trim())
+      .filter((l) => l.length > 12 && ON_KEEP.test(l) && !/campsite|campground|trailer|sanitation|comfort station|reservation|beach|office|pool|cabin|yurt|store|visitor cent/i.test(l));
+    if (!lines.length) continue;
+    if (!pins.has(park)) {
+      await sleep(1100);   // Nominatim: one request a second
+      try {
+        const r = await get(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ca&q=${encodeURIComponent(park + ", Ontario")}`, "json");
+        pins.set(park, r[0] ? [+(+r[0].lat).toFixed(4), +(+r[0].lon).toFixed(4)] : null);
+      } catch { pins.set(park, null); }
+    }
+    if (!pins.get(park)) continue;
+    out.push({ park, c: pins.get(park), kind, title: clip(lines[0], 200), desc: clip(lines.slice(1).join(" "), 360),
+      closed: lines.some((l) => /closed|closure/i.test(l)), url: "https://www.ontarioparks.ca/alerts" });
+  }
+  log(`  Ontario Parks: ${out.length} alerts that matter on a trail, in ${new Set(out.map((a) => a.park)).size} parks`);
+  if (!out.length) throw new Error("no alerts read");
+  return out;
+}
+
 const builtAt = new Date().toISOString().slice(0, 19) + "Z";
-const file = { v: 1, builtAt, ab: old.ab || [], abAt: old.abAt || null, bc: old.bc || [], bcAt: old.bcAt || null, pc: old.pc || [], pcAt: old.pcAt || null };
+const file = { v: 1, builtAt, ab: old.ab || [], abAt: old.abAt || null, bc: old.bc || [], bcAt: old.bcAt || null, pc: old.pc || [], pcAt: old.pcAt || null, on: old.on || [], onAt: old.onAt || null };
 let failed = 0;
-for (const [key, fn] of [["ab", albertaParks], ["bc", bcParks], ["pc", parksCanada]]) {
+for (const [key, fn] of [["ab", albertaParks], ["bc", bcParks], ["pc", parksCanada], ["on", ontarioParks]]) {
   if (ONLY && ONLY !== key) continue;
   log(`${key}:`);
   try { file[key] = await fn(); file[key + "At"] = builtAt; }
   catch (e) { failed++; log(`  failed (${e.message}), keeping the last good data`); }
 }
 writeFileSync(OUT, JSON.stringify(file));
-log(`Wrote data/closures.json: ${file.ab.length} Alberta Parks areas, ${file.bc.length} BC Parks advisories, ${file.pc.length} Parks Canada bulletins${failed ? `; ${failed} source(s) failed` : ""}.`);
-if (failed === 3) process.exit(1);
+log(`Wrote data/closures.json: ${file.ab.length} Alberta Parks areas, ${file.bc.length} BC Parks advisories, ${file.pc.length} Parks Canada bulletins, ${file.on.length} Ontario Parks alerts${failed ? `; ${failed} source(s) failed` : ""}.`);
+if (failed === 4) process.exit(1);

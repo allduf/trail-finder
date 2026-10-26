@@ -25,6 +25,11 @@
     mv: { name: "Metro Vancouver Regional Parks Bylaw 1420 (2025)", url: "https://metrovancouver.org/boards/Bylaws/MVRD_Bylaw_1420_Consolidated_2.pdf" },
     yyc: { name: "City of Calgary, parks and pathways bylaw", url: "https://www.calgary.ca/bylaws/parks-pathways.html" },
     scmp: { name: "BC Parks, South Chilcotin Mountains Park trail map", url: "https://bcparks.ca/south-chilcotin-mountains-park/" },
+    msa: { name: "Sépaq, Parc du Mont-Sainte-Anne", url: "https://www.sepaq.com/destinations/parc-mont-sainte-anne/" },
+    sepaq: { name: "Sépaq, bike trails in the national parks", url: "https://www.sepaq.com/activites/sentiers_bicyclette/" },
+    tor: { name: "City of Toronto, e-bikes", url: "https://www.toronto.ca/services-payments/streets-parking-transportation/cycling-in-toronto/cycling-and-the-law/electric-bicycles-e-bikes-e-scooters/" },
+    kej: { name: "Parks Canada, Kejimkujik cycling restriction (2025)", url: "https://parks.canada.ca/pn-np/ns/kejimkujik/securite-safety/bulletins" },
+    pc: { name: "Parks Canada, the park's bulletins", url: "https://parks.canada.ca/voyage-travel/securite-safety/bulletins" },
   };
   // k: "yes" (any e-bike the tags allow), "class1" (pedal-assist e-bikes), "no", "check" (no rule found).
   const r = (k, short, text, src) => ({ k, short, text, src: src ? [].concat(src).map((x) => SRC[x] || x) : [] });
@@ -57,8 +62,14 @@
   // Mount Revelstoke and Glacier: the few trails open to bikes (and pedal-assist e-bikes) in Parks Canada's yearly restriction.
   const REV_OK = /\b(soren sorensen|23 connector|mount revelstoke trail|mt\.? revelstoke trail|nels nelsen|beaver valley)\b/i;
   const OPEN = /^(yes|designated|permissive)$/;
+  // Outside BC and Alberta (alex 2026-10-26: everything everywhere): places with a rule found, as boxes.
+  const MSA = [47.04, -71.02, 47.16, -70.85];          // Mont-Sainte-Anne (Sépaq): pedal-assist allowed on its trails
+  const TORONTO = [43.58, -79.64, 43.86, -79.11];      // City of Toronto parks
+  const KEJI = [44.20, -65.45, 44.50, -64.95];         // Kejimkujik National Park
+  const PROV = { qc: "Quebec", on: "Ontario", ns: "Nova Scotia", nb: "New Brunswick", pe: "Prince Edward Island", nl: "Newfoundland and Labrador",
+    mb: "Manitoba", sk: "Saskatchewan", yt: "Yukon", nt: "the Northwest Territories", nu: "Nunavut" };
 
-  // tags: the trail's map tags; ll: [lat, lon] of its middle; prov: "bc", "ab" or null (outside the app's regions);
+  // tags: the trail's map tags; ll: [lat, lon] of its middle; prov: "bc", "ab", another province's code ("qc", "on"...) or null;
   // opts.zone: the app's zone id ("yyc" is Calgary).
   function of(tags, ll, prov, opts = {}) {
     tags = tags || {};
@@ -99,6 +110,18 @@
       return r("class1", "Class 1 OK", `BC: Class 1 e-bikes may ride where bikes may (BC Parks, Recreation Sites and Trails BC, towns like Whistler), unless a sign says no. ${CLASS1} Class 2 and 3 count as motor vehicles.`, opts.zone === "wh" ? ["bc", "rmow"] : "bc");
     if (prov === "ab" && opts.zone === "yyc")
       return r("check", "Check the park", "Calgary: pedal-assist e-bikes are allowed on city pathways; the bylaw doesn't say for natural trails in city parks. Fish Creek and other provincial parks follow Alberta Parks: pedal-assist OK on designated trails.", ["yyc", "ab"]);
+    if (inBox(lat, lon, MSA))
+      return r("class1", "Pedal-assist OK", "Mont-Sainte-Anne (Sépaq): pedal-assist e-bikes may ride the trails; throttle e-bikes may not.", "msa");
+    if (inBox(lat, lon, KEJI))
+      return r("check", "Check the park", "Kejimkujik National Park: bikes and pedal-assist e-bikes are banned on a list of trails (and at Kejimkujik Seaside) since 2025; check the park's bulletin for this one.", "kej");
+    if (inBox(lat, lon, TORONTO))
+      return r("check", "Check the size", "Toronto: e-bikes over 40 kg or that don't need pedalling are not allowed on park trails or multi-use paths; light pedal-assist e-bikes aren't named in that ban.", "tor");
+    if (prov === "qc")
+      return r("check", "Check local rules", "Quebec has no province-wide e-bike rule for trails: each Sépaq park, regional park and bike centre sets its own (Mont-Sainte-Anne allows pedal-assist e-bikes, for one). Look for the trail network's rules or ask at the entrance.", "sepaq");
+    if (prov === "abx")
+      return r("check", "Check local rules", "Alberta: in Alberta Parks, pedal-assist e-bikes may ride the designated trails open to bikes; towns, counties and clubs set their own rules for their trails.", "ab");
+    if (prov && PROV[prov])
+      return r("check", "Check local rules", `${PROV[prov]} has no province-wide e-bike rule for trails: the park, town or club that runs the trails sets its own. National parks set theirs park by park (bulletins on parks.canada.ca).`, "pc");
     if (prov === "ab")
       return r("class1", "Pedal-assist OK", "Alberta Parks (Kananaskis, Bragg Creek, Canmore): pedal-assist e-bikes (no throttle, up to 500 W, assist stops at 32 km/h) may ride every designated trail where bikes are allowed.", "ab");
     return r("check", "Check local rules", "No e-bike rule found for this area: check the land manager's signs.");
