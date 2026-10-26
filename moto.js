@@ -1209,7 +1209,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     if (locs.length < 2) { route = null; drawRoute(); renderRoute(); return; }
     $("mtRoute").hidden = false;
     renderRoute(true);
-    let excl = avoidMine.map((a) => [a[0], a[1]]), r, best = null;
+    let excl = avoidMine.map((a) => [a[0], a[1]]), r, best = null, lastAdd = [];
     const avoided = [];
     for (let round = 0; round < 4; round++) {
       try { r = await routeOnce(locs, excl); }
@@ -1220,6 +1220,9 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
         route = null; drawRoute(); renderRoute(); return;
       }
       if (my !== routeSeq) return;
+      // A gate or barrier is one point a mapper put on the map, and can be wrong: when going around it alone is a long
+      // way round (alex: 581 km instead of about 120), keep the shorter route and say what's on it.
+      if (best && lastAdd.every((x) => x.type === "feat") && r.km > best.km * 1.4 + 20) { best.longWay = Math.round(r.km - best.km); best.noWay = true; avoided.splice(avoided.length - lastAdd.length); break; }
       r.avoided = avoided.slice();
       r.checking = true;
       if (!best) { route = r; drawRoute(); renderRoute(); drawRange(); }
@@ -1233,6 +1236,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       best = r;
       const add = r.closures ? r.closures.items.filter((x) => x.stop && x.p && !x.atPoint && !excl.some((q) => kmBetween(q, x.p) < 0.05)) : [];
       if (!add.length || round === 3) break;
+      lastAdd = add;
       add.forEach((x) => { excl.push(x.p); avoided.push(x); });
     }
     route = best;
@@ -1317,6 +1321,25 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     p.then((d) => { if (!d.roads.ok || !d.fires.ok || (d.d511 && !d.d511.ok)) setTimeout(() => closureCache.delete(key), 60000); });
     return p;
   }
+  // Metres from p to a line, or false past max.
+  const nearLine = (p, g, max) => { for (let i = 1; i < g.length; i++) if (segM(p, g[i - 1], g[i]) <= max) return true; return false; };
+  // Dirt roads that close with snow (months 0-11): stop = snowed in, warn = may be. Matched by the route's road names.
+  const SEASONAL = [
+    { re: /hurley/i, name: "Hurley River FSR (Pemberton to Gold Bridge)", stop: [11, 0, 1, 2, 3], warn: [9, 10, 4, 5],
+      why: "it isn't plowed, so snow closes it from about November to June; Highway 99 by Duffey Lake and Highway 40 by Lillooet stay open" },
+  ];
+  function seasonalOn(r) {
+    const m = new Date().getMonth(), out = [];
+    SEASONAL.forEach((x) => {
+      const on = x.stop.includes(m) ? "stop" : x.warn.includes(m) ? "warn" : "";
+      if (!on || !r.edges) return;
+      const es = r.edges.filter((e) => (e.names || []).some((n) => x.re.test(n)));
+      if (!es.length) return;
+      const a = es[0].begin_shape_index, b = es[es.length - 1].end_shape_index, mid = r.line[Math.min(r.line.length - 1, Math.round((a + b) / 2))];
+      out.push({ type: "season", stop: on === "stop", label: `${x.name}: ${on === "stop" ? "snowed in" : "may be snowed in"} (${x.why})`, p: mid, a, b });
+    });
+    return out;
+  }
   async function closuresOf(r, locs) {
     const d = await closureData(r), S = samplesOf(r), items = [], cap = capOf(cur());
     const nearPoint = (p) => locs.some((q) => kmBetween(q, p) < 0.3);
@@ -1335,13 +1358,29 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       }
       close();
     }
-    // Gates, barriers and bridges out within 20 m of the route.
+    // Gates, barriers and bridges out on the route's dirt. They come from the dirt road files, so they sit on a side
+    // road: one 15 m off a highway is on the track beside it, not across the highway (alex 2026-10-26: Whistler to
+    // the Bridge River went round by Hope, 581 km, for bollards and blocks on pull-outs along Highway 99). So it only
+    // counts where the route is on dirt and follows the road the gate is on for 40 m or more on each side.
     const feats = zones.flatMap((z) => (z.feats || []).filter((f) => FEAT_STOP[f.kind]));
     if (feats.length) {
-      const near = segGrid(S.slice(1).map((s, k) => ({ geom: [S[k].p, s.p], s })));
+      const near = segGrid(S.slice(1).map((s, k) => ({ geom: [S[k].p, s.p], s, k: k + 1 })));
+      const roadNear = segGrid(zones.flatMap((z) => z.list));
       const seen = new Set();
-      feats.forEach((f) => { const hit = near([f.lat, f.lon], 20); if (hit && !seen.has(f.id)) { seen.add(f.id); const n = (f.tags && (f.tags.name || f.tags.description || f.tags.note)) || ""; add({ type: "feat", stop: true, label: `${FEAT_STOP[f.kind]}${n ? `: ${n.slice(0, 80)}` : ""}`, p: [f.lat, f.lon], a: hit.s.i, b: hit.s.i }); } });
+      const follows = (w, k) => [-2, -1, 1, 2].every((o) => { const s = S[Math.max(0, Math.min(S.length - 1, k + o))]; return nearLine(s.p, w.geom, 25); });
+      feats.forEach((f) => {
+        const p = [f.lat, f.lon], hit = near(p, 12);
+        if (!hit || seen.has(f.id) || !hit.s.dirt) return;
+        const w = roadNear(p, 15);
+        if (w && !follows(w, hit.k)) return;
+        seen.add(f.id);
+        const n = (f.tags && (f.tags.name || f.tags.description || f.tags.note)) || "";
+        add({ type: "feat", stop: true, label: `${FEAT_STOP[f.kind]}${n ? `: ${n.slice(0, 80)}` : ""}`, p, a: hit.s.i, b: hit.s.i });
+      });
     }
+    // Roads that snow closes for months (they aren't plowed): gone around in the deep of winter, a warning either side.
+    const seasonal = seasonalOn(r);
+    seasonal.forEach((x) => add(x));
     // Areas: where the route's dirt goes in, the first point 120 m inside.
     const areaHit = (rings, box, mk) => {
       let inRun = 0;
@@ -1396,7 +1435,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const stops = c.items.filter((x) => x.stop), warns = c.items.filter((x) => !x.stop);
     let h = "";
     if (r.avoided.length) h += `<div class="mt-warn ok"><b>Went around ${r.avoided.length === 1 ? "a closure" : `${r.avoided.length} closures`}:</b> ${r.avoided.map((x) => esc(x.label)).join("; ")}.</div>`;
-    h += stops.map((x) => `<div class="mt-warn"><b>Closed on this route:</b> ${esc(x.label)}. ${x.atPoint ? "One of your points is right there: move it to go around." : r.noWay ? "No way around it was found for this style." : ""} ${show(x)}</div>`).join("");
+    h += stops.map((x) => `<div class="mt-warn"><b>Closed on this route:</b> ${esc(x.label)}. ${x.atPoint ? "One of your points is right there: move it to go around." : r.longWay && x.type === "feat" ? `Going around it adds ${r.longWay} km, so the route goes through: check it before you go.` : r.noWay ? "No way around it was found for this style." : ""} ${show(x)}</div>`).join("");
     h += warns.slice(0, 6).map((x) => `<div class="mt-warn hard">${esc(x.label)}. ${show(x)}${x.p && !x.atPoint ? ` <button type="button" data-avoid="${x.p[0].toFixed(5)},${x.p[1].toFixed(5)}">Go around</button>` : ""}</div>`).join("");
     if (!stops.length && !warns.length) h += `<div class="mt-warn ok">No ${r.avoided.length ? "other " : ""}closures, locked gates, washouts, bad forest roads or fire closures mapped on this route.</div>`;
     if (avoidMine.length) h += `<p class="mt-note">You chose to go around ${avoidMine.length} spot${avoidMine.length === 1 ? "" : "s"}. <button type="button" class="mt-link" data-r="unavoid">Stop going around them</button></p>`;
