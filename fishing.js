@@ -98,15 +98,18 @@
   const GROUPS = ["Water", "Access", "Ocean", "Rules"];
   const VIEWS = {
     rules: { label: "Rules", sub: "where to fish", layers: ["zones", "areas", "access", "launch"] },
-    river: { label: "Rivers", sub: "flow, spots", layers: ["gauges", "access", "launch", "hidden", "zones"] },
+    river: { label: "Rivers", sub: "flow, spots", layers: ["gauges", "access", "launch", "hidden"] },
     lake: { label: "Lakes", sub: "stocked, depth", layers: ["stocked", "depth", "access", "launch", "hidden"] },
-    ocean: { label: "Ocean", sub: "tides, areas", layers: ["tides", "access", "launch", "zones"] },
+    ocean: { label: "Ocean", sub: "tides, areas", layers: ["tides", "access", "launch"] },
   };
   let shown = new Set(store.get("fishLayers", Object.keys(LAYERS).filter((k) => LAYERS[k].on)));
   // A layer added since the last visit shows if it's on by default (the saved list only knows the old ones).
   const knownLayers = store.get("fishLayersKnown", ["gauges", "stocked", "depth", "access", "tides", "zones"]);
   for (const k of Object.keys(LAYERS)) if (LAYERS[k].on && !knownLayers.includes(k)) shown.add(k);
   store.set("fishLayersKnown", Object.keys(LAYERS));
+  // Zones and regions start off (alex 2026-10-26): turned off once for everyone who had it on; the Rules view or the
+  // switch in Layers turns it back on.
+  if (!store.get("fishZonesOff", false)) { shown.delete("zones"); store.set("fishLayers", [...shown]); store.set("fishZonesOff", true); }
 
   // ---------- look ----------
   const css = document.createElement("style");
