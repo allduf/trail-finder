@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-26", "text": "The 3D map now shows every trail name, like the flat map."},
     {"date": "2026-10-26", "text": "Plan a route on the 3D map: moving the start and taking a trail out now update the route on the map."},
     {"date": "2026-10-26", "text": "3D map on phones uses much less memory: the flat map underneath rests while 3D is on, so 3D stays open longer and moves more smoothly."},
     {"date": "2026-10-26", "text": "Trail and route names now show along the lines on the 3D map too."},
