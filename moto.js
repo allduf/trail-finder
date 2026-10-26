@@ -353,7 +353,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       <button type="button" class="mt-act" data-act="plan">${svg(IC.plan)}Plan a route</button>
       <button type="button" class="mt-act" data-act="stops">${svg(IC.fuel)}Fuel &amp; camp</button>
       <button type="button" class="mt-act" data-act="mud">${svg(IC.drop)}Mud today</button>
-      <button type="button" class="mt-act" data-act="ride">${svg(IC.ride)}Ride</button>
+      <button type="button" class="mt-act" data-act="trips">${svg(IC.trips)}ADV routes</button>
     </div>
     <button type="button" class="mt-bike" id="mtBike"></button>
     <div class="mt-now" id="mtNow" role="status"><span>Checking today's dirt…</span></div>
@@ -366,7 +366,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     <div class="mt-card" id="mtMap"><header>${svg(IC.layers)}<h3>Map</h3></header>
       <div class="mt-views" role="group" aria-label="Map views">${Object.entries(VIEWS).map(([k, v]) => `<button type="button" class="mt-view" data-view="${k}">${esc(v.label)}<small>${esc(v.sub)}</small></button>`).join("")}</div>
       <p class="mt-note" id="mtZoomNote"></p>
-      <div class="mt-row"><button type="button" class="mt-pill" id="mtAll">${svg(IC.layers, 16)}All layers</button><button type="button" class="mt-pill" id="mtRoutesBtn">${svg(IC.save, 16)}Saved routes</button><button type="button" class="mt-pill" id="mtTripsBtn">${svg(IC.trips, 16)}ADV routes</button><button type="button" class="mt-pill" id="mtLogBtn">${svg(IC.log, 16)}My adventure rides</button></div></div>
+      <div class="mt-row"><button type="button" class="mt-pill" id="mtAll">${svg(IC.layers, 16)}All layers</button><button type="button" class="mt-pill" id="mtRoutesBtn">${svg(IC.save, 16)}Saved routes</button><button type="button" class="mt-pill" id="mtLogBtn">${svg(IC.log, 16)}My adventure rides</button></div></div>
     <details class="mt-safe"><summary>A guide, not the law</summary>Road surfaces and grades come from OpenStreetMap and can be out of date: a road can wash out or be deactivated any day. Closures, parks and land rules come from the provinces' and Canada's open data and are simplified. Check posted signs, BC's resource road notices, Alberta's Public Land Use Zones, your province's off-highway vehicle rules, and ride to the conditions.</details>`;
   const lmMoto = document.createElement("div");
   lmMoto.className = "lm-moto";
@@ -1568,7 +1568,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     if (act === "plan") { if (planning) setPlanning(false); else { setPlanning(true); if (route) renderRoute(); } }
     else if (act === "stops") { setView("stops"); renderStops(); }
     else if (act === "mud") { setView("mud"); renderNow(); showCard($("mtNow")); }
-    else if (act === "ride") { if (route) rideRoute(); else if (window.tfRide) window.tfRide.start(); }
+    else if (act === "trips") openTrips();
   });
   function renderStops() {
     const el = $("mtNear"), at = you ? [you.lat, you.lon] : (() => { const c = map.getCenter(); return [c.lat, c.lng]; })();
@@ -1626,7 +1626,6 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     if (b && $("layersMenu").hidden) b.click();
   });
   $("mtRoutesBtn").addEventListener("click", openSaved);
-  $("mtTripsBtn").addEventListener("click", openTrips);
   $("mtLogBtn").addEventListener("click", openLog);
   function applyLayers() {
     store.set("motoLayers", [...shown]);
