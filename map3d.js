@@ -373,8 +373,20 @@
     winterProtocol = true;
     maplibregl.addProtocol("tfwinter", async (params, abort) => {
       const [mode, zs, xs, ys] = params.url.replace("tfwinter://", "").split("/"), z = +zs, x = +xs, y = +ys, sig = abort.signal;
-      if (mode === "fill" && covered(await loadWinterBlocks(), z, x, y))   // last winter's photos cover it: the plain photo will do
-        return { data: await photoBytes(z, x, y, sig) };
+      // Last winter's photos cover it: the plain photo will do. It only shows through their see-through edges, so up
+      // close it's a small copy cut from the zoom-13 photo, not a full sharp one: in Skiing at Whistler these hidden
+      // photos were ~100 downloads and ~40 MB of the phone's graphics memory for nothing (alex 2026-10-26 recording:
+      // ground missing while it loaded, then out of memory).
+      if (mode === "fill" && covered(await loadWinterBlocks(), z, x, y)) {
+        if (z <= 13) return { data: await photoBytes(z, x, y, sig) };
+        const [img, sx, sy, size] = await under(13, z, x, y, (a, b, c) => cached(`p${a}/${b}/${c}`,
+          () => photoBytes(a, b, c, new AbortController().signal).then((buf) => createImageBitmap(new Blob([buf])))));
+        if (sig.aborted) throw new DOMException("aborted", "AbortError");
+        const cv = new OffscreenCanvas(64, 64), cx = cv.getContext("2d");
+        cx.imageSmoothingQuality = "high";
+        cx.drawImage(img, sx, sy, size, size, 0, 0, 64, 64);
+        return { data: cv.transferToImageBitmap() };
+      }
       const [raw, live] = await Promise.all([
         photoBytes(z, x, y, sig),
         under(Math.min(z, 8), z, x, y, (a, b, c) => cached(`s${a}/${b}/${c}`, () => image(NASA_SNOW(a, b, c), new AbortController().signal).then(pixels))).catch(() => null)]);
@@ -574,7 +586,26 @@
   // toward the horizon that needed 14 leaves 14 (~470 MB) for the rest of the visit, the main thing that can run
   // an iPhone out of memory. Once the map is still, the spare ones are let go (they're made again if needed).
   // MapLibre internals (pinned 5.24.0): any surprise just skips it.
-  const PHONE_BUFFERS = 12;   // ~380 MB: enough for a view tilted to 70-75° (measured)
+  const PHONE_BUFFERS = 12;   // enough for a view tilted to 70-75° (measured)
+  // Each buffer is 1536 px on phones instead of 2048: ~18 MB instead of ~32, so 12 are ~220 MB instead of ~380. Still
+  // about one photo pixel per screen pixel on the near slopes (the photos are drawn at 128 px), a little softer only
+  // where the ground is right under the camera. The 2048 px ones still ran an iPhone out of memory opening Skiing 3D
+  // at Whistler (alex 2026-10-26 recording).
+  const PHONE_RTT = 1536;
+  function phoneBuffers() {
+    try {
+      const pool = gl.painter.renderToTexture && gl.painter.renderToTexture.pool;
+      if (!pool) return;
+      if (pool._size !== PHONE_BUFFERS) pool._size = PHONE_BUFFERS;
+      if (pool._tileSize === PHONE_RTT) return;
+      if (gl.terrain) gl.terrain.tileManager.freeRtt();   // every piece of ground paints again, into the smaller buffers
+      pool.freeAllObjects();
+      for (const o of pool._objects) o.fbo.destroy();   // the colour buffer and depth buffer
+      pool._objects = []; pool._recentlyUsed = [];
+      pool._tileSize = PHONE_RTT;
+      gl.triggerRepaint();
+    } catch {}
+  }
   function trimPaintBuffers() {
     try {
       const rtt = gl.painter.renderToTexture, pool = rtt && rtt.pool, terrain = gl.terrain;
@@ -727,7 +758,7 @@
       // At most PHONE_BUFFERS paint buffers, even while moving: with no limit (30) a long tilted ride across the
       // mountains kept up to 16 (~510 MB, measured) until the map stopped, and the iPhone app ran out of memory and
       // restarted on the flat map. A view that needs more paints its ground in turns: a little slower, never a crash.
-      gl.on("render", () => { const pool = gl.painter && gl.painter.renderToTexture && gl.painter.renderToTexture.pool; if (pool && pool._size !== PHONE_BUFFERS) pool._size = PHONE_BUFFERS; });
+      gl.on("render", phoneBuffers);
     }
     gl.on("moveend", keepView);
     window.trailMap3d = gl;   // handy for debugging in the browser console
