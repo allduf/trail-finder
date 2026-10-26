@@ -302,7 +302,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   document.head.append(css);
 
   // ---------- the sport menu ----------
-  const SPORTS = ["mtb", "ski", "hunt", "fish"];   // an old saved "hike" (Hiking, never built) opens MTB
+  const SPORTS = ["mtb", "ski", "hunt", "fish", "moto"];   // an old saved "hike" (Hiking, never built) opens MTB
   let sport = SPORTS.includes(store.get("sport", "mtb")) ? store.get("sport", "mtb") : "mtb";
   let avyOn = store.get("avy", false);
 
@@ -2248,7 +2248,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // A ski tour: the file says so, the name says so, or it was in winter and went high (bike parks and alpine trails are under snow).
   const SKI_SPORT = /ski|snow|board/i, SKI_NAME = /\b(ski\w*|skin\w*|splitboard\w*|snowshoe\w*|backcountry|pow(der)?)\b/i;
   function isSkiTour(r) {
-    if (!r || !Array.isArray(r.points) || r.points.length < 2 || r.sport === "hunt" || r.sport === "fish") return false;
+    if (!r || !Array.isArray(r.points) || r.points.length < 2 || r.sport === "hunt" || r.sport === "fish" || r.sport === "moto") return false;
     if (SKI_SPORT.test(r.sport || "") || SKI_NAME.test(r.title || "")) return true;
     const m = new Date(r.start).getMonth();
     if (!(m >= 10 || m <= 4)) return false;
@@ -2304,8 +2304,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   };
 
   // ---------- switching sport ----------
+  // Moto adventure (moto.js) loads only the first time Moto is picked, so the app stays as light for everyone else
+  // (same ?v= as this script, for the same cache rule).
+  const motoSrc = "moto.js" + ((document.currentScript && new URL(document.currentScript.src).search) || "");
+  let motoLoad = null;
+  const loadMoto = () => motoLoad || (motoLoad = new Promise((ok, no) => {
+    const el = document.createElement("script"); el.src = motoSrc; el.onload = ok; el.onerror = () => { motoLoad = null; no(new Error("moto.js")); };
+    document.body.append(el);
+  }));
+  window.tfLoadMoto = loadMoto;
   function setSport(s) {
     sport = SPORTS.includes(s) ? s : "mtb";
+    if (sport === "moto") loadMoto().catch(() => {});
     store.set("sport", sport);
     sel.value = sport;
     for (const s of SPORTS) document.body.classList.toggle(`sport-${s}`, sport === s);
@@ -2334,7 +2344,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // ---------- the sport button on the map (alex: "make the sport mode easier to access, put an icon on the map") ----------
   // Shows the current sport's icon; one tap opens the three sports, a second tap switches. On phones it is the first
   // chip of the map's chip row, on wide screens it sits at the top of the map tools; the same on the 3D map.
-  const SPORT_UI = { mtb: ["🚵", "MTB"], ski: ["⛷", "Skiing"], hunt: ["🦌", "Hunting"], fish: ["🎣", "Fishing"] };
+  const SPORT_UI = { mtb: ["🚵", "MTB"], ski: ["⛷", "Skiing"], hunt: ["🦌", "Hunting"], fish: ["🎣", "Fishing"], moto: ["🏍", "Moto"] };
   const tools = document.querySelector(".map-tools");
   let sportBtn = null, sportMenu = null;
   if (tools) {

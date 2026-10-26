@@ -12,7 +12,7 @@
   const map = window.tfLeaflet;
   if (!map || !window.L) return;
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const sportNow = () => (document.body.classList.contains("sport-ski") ? "ski" : document.body.classList.contains("sport-hunt") ? "hunt" : document.body.classList.contains("sport-fish") ? "fish" : "mtb");
+  const sportNow = () => (document.body.classList.contains("sport-ski") ? "ski" : document.body.classList.contains("sport-hunt") ? "hunt" : document.body.classList.contains("sport-fish") ? "fish" : document.body.classList.contains("sport-moto") ? "moto" : "mtb");
   const phone = () => matchMedia("(max-width: 760px)").matches;
   const COLOR = "#a34f00";
   const SEEN = ["sighting", "sign", "rub", "scrape", "bed", "harvest"];   // points that mean you found animals or their sign
@@ -236,6 +236,7 @@ body.sport-hunt dialog.sp-log .sp-bars i { background: ${COLOR}; }
     ski: ["⛷ My tours", "Your recorded and imported ski tours"],
     hunt: ["🦌 My hunts", "Your hunts (where you walked, the weather, what you saw), harvests and trail cameras"],
     fish: ["🎣 Fishing log", "Your catches and what works for you"],
+    moto: ["🏍 My moto rides", "Your moto rides: where you went, km of dirt, the weather"],
   };
   function syncLink() {
     if (!link) return;
@@ -244,6 +245,7 @@ body.sport-hunt dialog.sp-log .sp-bars i { background: ${COLOR}; }
   }
   if (link) link.addEventListener("click", (e) => {
     const sp = sportNow();
+    if (sp === "moto" && window.tfMoto) { e.preventDefault(); window.tfMoto.openLog(); return; }
     if ((sp === "hunt" || sp === "fish") && window.tfPoints) { e.preventDefault(); window.tfPoints.openLog(sp === "hunt" ? "hunts" : undefined); }
   });
   syncLink();

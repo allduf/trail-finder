@@ -457,7 +457,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   }
   function fillGap(a, b, dt) {
     let got = null;
-    try { if (!document.body.classList.contains("sport-ski")) got = trailPath(a, b, dt); } catch {}   // ski tours don't follow bike trails
+    try { if (!document.body.classList.contains("sport-ski") && !document.body.classList.contains("sport-moto")) got = trailPath(a, b, dt); } catch {}   // ski tours and moto rides don't follow bike trails
     const min = Math.round(dt / 60), when = min >= 1 ? `${min} min` : `${Math.round(dt)} s`;
     if (got && got.path.length > 1) {
       // points along the trail at an even pace, between the two real fixes; heights unknown
@@ -507,8 +507,17 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
       $("navSub").innerHTML = `${Math.round(e).toLocaleString()} m high · slope here ${Math.round(slope)}°${steep ? ` · <b>avalanche terrain</b>` : ""}`;
     }).catch(() => { $("navSub").textContent = "Heights not available here"; });
   }
+  // A moto ride (moto.js): the road you're on, how it rides for your bike, and the next fuel.
+  function updateMoto(p) {
+    ride.on = null; onGlow.setLatLngs([]); layer.removeLayer(jDot); $("navNext").hidden = true;
+    const M = window.tfMoto, info = M && M.rideInfo ? M.rideInfo(p, speedNow()) : null;
+    $("navName").textContent = info && info.name ? info.name : route ? `Following ${route.name}` : "Recording your ride";
+    $("navSub").innerHTML = info ? info.sub : "";
+    $("navBar").style.background = (info && info.color) || "#1f5fe0";
+  }
   function updateTrail(p, acc) {
     if (document.body.classList.contains("sport-ski")) { updateSki(p); return; }
+    if (document.body.classList.contains("sport-moto")) { updateMoto(p); return; }
     const found = findTrail(p, acc);
     if (!found.w) {
       ride.on = null; onGlow.setLatLngs([]); layer.removeLayer(jDot); voice.trail = "";
@@ -768,6 +777,8 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   }
   function turnText(n, pre) {
     const x = route.parts[n];
+    // A moto route (moto.js) brings its own words for each turn, from the router.
+    if (x.say) return pre ? `In ${sayM(pre)}, ${x.say[0].toLowerCase() + x.say.slice(1)}` : x.say;
     const what = x.kind === "drive" ? "the shuttle" : x.kind === "gap" ? "a stretch off the mapped trails" : null;
     const w = what ? "" : turnWord(n);
     if (w === "Continue" && route.parts[n - 1].name === x.name) return "";    // the same trail carries on: nothing to say
@@ -781,13 +792,15 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     if (document.hidden && voice.cues) return;     // the phone is locked: the app says the turns
     const all = route.parts, pos = route.pos, cur = partAt(pos);
     const picked = all.filter((x) => x.kind === "pick").length || all.length;
-    if (!voice.said.has("start")) say(pos < 150 ? `Starting your ride: ${picked > 1 ? `${picked} trails, ` : ""}${sayM(route.total)}. First, ${spokenPart(all[0])}.` : `On ${spokenPart(all[cur])}.`, "start");
-    if (route.total - pos < 30) { say("End of the route. Nice ride!", "end"); return; }
+    const moto = all[0].kind === "moto";   // a moto route: roads, faster, so the turns are said further ahead
+    if (!voice.said.has("start")) say(moto ? `Starting your route: ${sayM(route.total)}. ${all[0].say || ""}` : pos < 150 ? `Starting your ride: ${picked > 1 ? `${picked} trails, ` : ""}${sayM(route.total)}. First, ${spokenPart(all[0])}.` : `On ${spokenPart(all[cur])}.`, "start");
+    if (route.total - pos < (moto ? 60 : 30)) { say(moto ? "You have arrived. Nice ride!" : "End of the route. Nice ride!", "end"); return; }
+    const preMin = moto ? 250 : PRE_MIN, preMax = moto ? 900 : PRE_MAX, atM = moto ? 70 : AT_M;
     for (let n = Math.max(1, cur); n < all.length && n <= cur + 2; n++) {
       const d = all[n].from - pos;
-      if (d > PRE_MAX) break;
-      if (d >= PRE_MIN) { if (all[n].from - all[n - 1].from > PRE_MAX + 100) say(turnText(n, d), "pre" + n); }
-      else if (d <= AT_M && d > -15) say(turnText(n), "at" + n);
+      if (d > preMax) break;
+      if (d >= preMin) { if (all[n].from - all[n - 1].from > preMax + 100) say(turnText(n, d), "pre" + n); }
+      else if (d <= atM && d > -15) say(turnText(n), "at" + n);
     }
   }
   // The planned ride's turns from where you are on, for the app to say with the phone locked (it says them in order).
@@ -1018,7 +1031,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
       await delCurrent();
     }
     rec = cur && !cur.end ? cur : { id: "current", start: Date.now(), points: [], from: "ride" };
-    if (!rec.points.length) { const b = document.body.classList; const sp = b.contains("sport-ski") ? "ski" : b.contains("sport-hunt") ? "hunt" : b.contains("sport-fish") ? "fish" : ""; if (sp) rec.sport = sp; }   // a ski tour, a hunt (My hunts) or a day fishing
+    if (!rec.points.length) { const b = document.body.classList; const sp = b.contains("sport-ski") ? "ski" : b.contains("sport-hunt") ? "hunt" : b.contains("sport-fish") ? "fish" : b.contains("sport-moto") ? "moto" : ""; if (sp) rec.sport = sp; }   // a ski tour, a hunt (My hunts), a day fishing or a moto ride
     rec.from = "ride";             // ride.html's Keep riding sends it back here
     resumeBox.hidden = true;
     drawTrack();

@@ -297,7 +297,7 @@ body.sport-alt #ridesBtn { display: none !important; }
   });
 
   async function refresh() {
-    rides = (await loadRides()).filter((r) => r.points && r.points.length > 1 && r.sport !== "hunt" && r.sport !== "fish");   // a hunt or a day fishing rides no trail
+    rides = (await loadRides()).filter((r) => r.points && r.points.length > 1 && r.sport !== "hunt" && r.sport !== "fish" && r.sport !== "moto");   // a hunt, a day fishing or a moto ride rides no MTB trail
     buildGrid();
     // The first time this browser has a saved ride, turn My rides on and bring the ride into view.
     const first = rides.length && !store.get("ridesSeen", false);
