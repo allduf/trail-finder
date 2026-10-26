@@ -439,7 +439,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   const freshDays = (w) => { const d = w.r.find((r) => /^\d{4}-\d\d-\d\d$/.test(r[0])); return d ? daysAgo(d[0]) : null; };
   function drawPoints() {
     ptLayer.clearLayers(); pts3d.length = 0;
-    if (!isFish()) return;
+    if (!isFish()) { sync3d(); return; }   // empty the 3D dots too, or they stay on the 3D map in other sports
     const z = map.getZoom(), b = map.getBounds().pad(0.4);
     const dot = (lat, lon, color, r, open, label, kind) => {
       const m = L.circleMarker([lat, lon], { renderer, radius: r, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1, bubblingMouseEvents: false }).on("click", (e) => { L.DomEvent.stop(e); open(); });
