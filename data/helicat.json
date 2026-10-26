@@ -1,0 +1,1718 @@
+{
+ "note": "Heli-skiing and cat skiing operations across Canada, shown in Skiing (helicat.js). Hand-edited from: the HeliCat Canada member lists (helicat.org), the catskiing.ca directory, each operator's own website and the linked articles (checked 2026-10-26). Prices: what the source showed, with its season; 'older' = an undated directory listing, check the operator for today's price. areas = BC Crown land tenure file numbers in helicat-areas.json that belong to this operator (matched by lodge location and tenure name). approx = the pin is placed roughly (town or lodge area). check = couldn't confirm it still operates.",
+ "checked": "2026-10-26",
+ "ops": [
+  {
+   "id": "whistler-heli",
+   "name": "Whistler Heli-Skiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Coast Mountains, Whistler",
+   "base": "Whistler Village",
+   "lat": 50.115,
+   "lon": -122.9486,
+   "about": "Classic day heli-skiing straight from Whistler Village, run with Whistler Blackcomb, operating for about 40 seasons.",
+   "access": "In Whistler Village, about 1 h 15 min drive north of Vancouver.",
+   "terrain": "432,000 acres, 173 glaciers",
+   "trips": [
+    "Day trips (3, 4 or 6 runs)",
+    "Private helicopter"
+   ],
+   "group": "Small groups",
+   "level": "Advanced and expert skiers",
+   "web": "https://www.whistlerblackcomb.com/explore-the-resort/activities-and-events/whistler-heli-skiing/whistler-heli-skiing.aspx",
+   "helicat": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/helicopter-members"
+   ]
+  },
+  {
+   "id": "coast-range",
+   "name": "Coast Range Heli-Skiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Coast Mountains, Whistler and Pemberton",
+   "base": "Whistler (meeting point)",
+   "lat": 50.317,
+   "lon": -122.803,
+   "approx": true,
+   "about": "Small-group and private day heli-skiing in the Coast Mountains around Whistler, with longer days and more runs.",
+   "access": "Highway 99, north of Vancouver (Whistler and Pemberton).",
+   "trips": [
+    "Day trips",
+    "Private group of 4 (shared heli)",
+    "Private helicopter",
+    "Single seat (min. 3 guests)"
+   ],
+   "group": "4-5 guests per guide",
+   "level": "Intermediate to expert skiers and boarders",
+   "price": {
+    "t": "Single seat CAD $2,195 per person; private group of 4 CAD $7,260; own helicopter CAD $14,300 (per day)",
+    "src": "coastrangeheliskiing.com",
+    "yr": "2026"
+   },
+   "web": "https://www.coastrangeheliskiing.com",
+   "helicat": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.coastrangeheliskiing.com"
+   ]
+  },
+  {
+   "id": "powder-mountain",
+   "name": "Powder Mountain Cat and Heli Skiing",
+   "type": "both",
+   "prov": "BC",
+   "region": "Coast Mountains, Whistler",
+   "base": "Whistler Village office",
+   "lat": 50.1163,
+   "lon": -122.9574,
+   "about": "Whistler's only cat skiing, plus heli days. When helicopters can't fly the cats still go, and the area gets much more snow than Whistler Blackcomb.",
+   "access": "Office in Whistler Village, a few minutes from the Whistler Gondola; the cat terrain is about 20 minutes south of Whistler.",
+   "terrain": "Cat: 4,300 acres. Heli: 240,000+ acres",
+   "season": "December 17, 2026 to March 30, 2027",
+   "trips": [
+    "Day cat skiing (6 runs guaranteed, unlimited vertical)",
+    "Day heli-skiing"
+   ],
+   "group": "Cat: 12 guests + 2 guides per cat. Heli: 4 guests + 1 guide",
+   "level": "Intermediate to expert (trips by level)",
+   "price": {
+    "t": "Cat from CAD $780 + GST; heli from CAD $2,000 + GST (per person per day)",
+    "src": "powdermountaincatskiing.com",
+    "yr": "2026-27"
+   },
+   "web": "https://powdermountaincatskiing.com",
+   "helicat": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.helicat.org/snowcat-members",
+    "https://powdermountaincatskiing.com"
+   ]
+  },
+  {
+   "id": "phantom",
+   "name": "Phantom Heli Skiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Coast Mountains, Sea to Sky",
+   "base": "Squamish",
+   "lat": 49.7016,
+   "lon": -123.1558,
+   "approx": true,
+   "about": "Small-group day heli-skiing run by local mountain guides across the Sea to Sky corridor.",
+   "access": "Departures from Whistler, Squamish and downtown Vancouver. Flies with Black Tusk Helicopter, the tenure holder.",
+   "terrain": "247,000 acres",
+   "trips": [
+    "Day trips from Whistler, Squamish or downtown Vancouver"
+   ],
+   "group": "4 guests + 1 guide (A-Star)",
+   "level": "Strong intermediate and up",
+   "web": "https://www.exploresquamish.com/business/phantom-heli",
+   "forecast": "ac",
+   "src": [
+    "https://www.powderhounds.com/Canada/Heli-Skiing/Phantom-Heli-Skiing.aspx"
+   ]
+  },
+  {
+   "id": "backcountry-snowcats",
+   "name": "Backcountry Snowcats (Hurley Mountain Lodge)",
+   "type": "cat",
+   "prov": "BC",
+   "region": "South Chilcotin Mountains, Hurley Pass",
+   "base": "Pemberton (meeting point)",
+   "lat": 50.3191,
+   "lon": -122.8054,
+   "about": "Cozy remote lodge, about 10 m of cold dry snow a year: colder and drier than Whistler but the same storms.",
+   "access": "Meet in Pemberton, about 2 h from Vancouver; snowmobile ride in to the lodge near Hurley Pass, 1 h north of Whistler.",
+   "terrain": "15,000 acres",
+   "trips": [
+    "Multi-day lodge trips at Hurley Mountain Lodge"
+   ],
+   "group": "Small group cat (1 snowcat)",
+   "level": "All levels",
+   "price": {
+    "t": "About CAD $650 to $775 per day (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "web": "https://snowcats.ca",
+   "helicat": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://catskiing.ca/cat-skiing-directory/item/backcountry-snowcats"
+   ]
+  },
+  {
+   "id": "tyax",
+   "name": "Tyax Heliskiing (TLH)",
+   "type": "heli",
+   "prov": "BC",
+   "region": "South Chilcotin Mountains",
+   "base": "Tyax Lodge, Tyaughton Lake",
+   "lat": 50.9518,
+   "lon": -122.771,
+   "about": "Lakeside lodge plus two private chalets. Cold Chilcotin air meets Pacific storms, giving dry snow.",
+   "access": "About 3 h from Vancouver airport, transfers included. Lodge on Tyaughton Lake near Gold Bridge.",
+   "terrain": "About 830,000 acres (3,360 km²)",
+   "trips": [
+    "Multi-day lodge packages",
+    "Single group per helicopter, unlimited vertical"
+   ],
+   "group": "One group per helicopter",
+   "level": "Intermediate to advanced skiers",
+   "web": "https://tyax.com/heliskiing-canada/",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "3403700"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://tyax.com/heliskiing-canada/"
+   ]
+  },
+  {
+   "id": "bella-coola",
+   "name": "Bella Coola Heli Sports",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Coast Mountains, Bella Coola Valley",
+   "base": "Eagle Lodge, Bella Coola Valley",
+   "lat": 52.389,
+   "lon": -126.537,
+   "approx": true,
+   "about": "One of the biggest heli-ski areas in the world, coast range peaks right above the valley.",
+   "access": "About a 70-minute flight from Vancouver, included.",
+   "lodge": "Eagle Lodge, Tweedsmuir Park Lodge, or the MV Cascadia boat",
+   "terrain": "3.55 million acres",
+   "trips": [
+    "Small group",
+    "Private helicopter and lodge",
+    "Family",
+    "Expert group"
+   ],
+   "group": "Small groups",
+   "level": "Strong intermediate to expert",
+   "web": "https://www.bellacoolaheliskiing.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "5406548"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.bellacoolaheliskiing.com"
+   ]
+  },
+  {
+   "id": "great-bear",
+   "name": "Great Bear Heli Skiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Central Coast Mountains, Great Bear Rainforest",
+   "base": "Great Bear Lodge, Lower Dean River",
+   "lat": 52.64,
+   "lon": -126.35,
+   "approx": true,
+   "about": "Family-run boutique lodge on the Lower Dean River, between the snowy coast and the drier Chilcotin.",
+   "access": "Private charter flight from Vancouver and a helicopter transfer to the lodge, organized for you.",
+   "trips": [
+    "Week-long lodge trips",
+    "Private and semi-private groups"
+   ],
+   "group": "Small private groups",
+   "level": "Intermediate to expert",
+   "web": "https://www.greatbearheliskiing.com",
+   "helicat": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.greatbearheliskiing.com"
+   ]
+  },
+  {
+   "id": "northern-escape",
+   "name": "Northern Escape Heli-Skiing",
+   "type": "both",
+   "prov": "BC",
+   "region": "Coast and Skeena Mountains, Terrace",
+   "base": "Terrace (lodges near Terrace)",
+   "lat": 54.5164,
+   "lon": -128.5996,
+   "approx": true,
+   "about": "About 100 ft of snow a year. Snowcats take you into sheltered trees when the helicopters can't fly. Named World's Best Heli-Ski Operator 2022 to 2025 (World Ski Awards).",
+   "access": "Minutes from Terrace airport (30 min shuttle or heli).",
+   "season": "December to April",
+   "trips": [
+    "Small group classic",
+    "Elite",
+    "Private lodge"
+   ],
+   "group": "Small groups, unlimited vertical",
+   "level": "Intermediate to expert",
+   "web": "https://www.neheliskiing.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "6408184"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.neheliskiing.com"
+   ]
+  },
+  {
+   "id": "white-wilderness",
+   "name": "White Wilderness Heli Skiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Nass and Hazelton Mountains, Terrace",
+   "base": "Skeena River Lodge",
+   "lat": 54.63,
+   "lon": -128.43,
+   "approx": true,
+   "about": "Small-group heli skiing from a riverside lodge with refined lodging and meals.",
+   "access": "Fly Vancouver or Calgary to Terrace (about 1 h 45 min); the lodge is about 20-30 min away by road.",
+   "terrain": "About 3,200 km²",
+   "trips": [
+    "Small group weeks",
+    "Private"
+   ],
+   "group": "Small groups",
+   "level": "Intermediate to expert",
+   "web": "https://www.wwheliski.com",
+   "helicat": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.powderhounds.com/Canada/Heli-Skiing/WhiteWilderness.aspx"
+   ]
+  },
+  {
+   "id": "skeena-heli",
+   "name": "Skeena Heliskiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Skeena Mountains, Kispiox Valley",
+   "base": "Bear Claw Lodge, Kispiox River",
+   "lat": 55.6116,
+   "lon": -128.1242,
+   "about": "Big varied terrain, from high alpine steeps to glades, from a 15,000 sq ft timber lodge on the Kispiox River.",
+   "access": "About 1 h 40 min drive north of Smithers airport (1.5 h from Smithers).",
+   "trips": [
+    "Week packages, unlimited vertical"
+   ],
+   "group": "Max 12 guests per week, small groups, 2 helicopters",
+   "level": "All levels",
+   "web": "https://www.skeenaheliskiing.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "6407505"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.skeenaheliskiing.com"
+   ]
+  },
+  {
+   "id": "skeena-cat",
+   "name": "Skeena Cat Skiing",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Babine Range, Skeena Mountains",
+   "base": "Base Camp at tree line",
+   "lat": 55.49,
+   "lon": -127.24,
+   "about": "Northern BC's only dedicated cat operation, cold snow at about 55.5°N.",
+   "access": "Fly to Terrace or Smithers, then a short helicopter flight to Base Camp, about 80 km north of Smithers.",
+   "terrain": "30,184 ha (about 74,600 acres)",
+   "vert": "Runs up to 1,200 vertical metres, up to 15 runs a day",
+   "trips": [
+    "3 and 4 day trips from Base Camp"
+   ],
+   "group": "8 guests per group, 16 guests total",
+   "level": "Advanced to expert",
+   "price": {
+    "t": "About CAD $800 to $1,200 per day (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "web": "https://skeenacatskiing.ca",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "6409020"
+   ],
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://skeenacatskiing.ca"
+   ]
+  },
+  {
+   "id": "last-frontier-bell2",
+   "name": "Last Frontier Heliskiing (Bell 2 Lodge)",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Skeena and Coast Mountains",
+   "base": "Bell 2 Lodge, Highway 37",
+   "lat": 56.746,
+   "lon": -129.793,
+   "about": "Remote wilderness lodge on the Stewart-Cassiar Highway, huge variety: open bowls, glaciers and trees.",
+   "access": "About 4 h north of Terrace on Highway 37.",
+   "lodge": "Bell 2 Lodge, up to 36 guests",
+   "terrain": "10,100 km² shared with Ripley Creek (largest single heli-ski area)",
+   "trips": [
+    "4, 5 and 7 day trips"
+   ],
+   "group": "4 guests per guide",
+   "level": "Intermediate to advanced",
+   "web": "https://www.lastfrontierheli.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "6406136"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.lastfrontierheli.com"
+   ]
+  },
+  {
+   "id": "last-frontier-ripley",
+   "name": "Last Frontier Heliskiing (Ripley Creek, Stewart)",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Coast Mountains, Stewart",
+   "base": "Ripley Creek Inn, Stewart",
+   "lat": 55.937,
+   "lon": -129.993,
+   "about": "Town-based lodge into the steep Coast Mountains right on the Alaska border.",
+   "access": "In Stewart, on the Alaska border at the end of Highway 37A.",
+   "lodge": "Ripley Creek, up to 24 guests",
+   "terrain": "10,100 km² shared with Bell 2",
+   "trips": [
+    "4, 5 and 7 day trips"
+   ],
+   "group": "4 guests per guide",
+   "level": "Intermediate to advanced",
+   "web": "https://www.lastfrontierheli.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "6406136"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.lastfrontierheli.com"
+   ]
+  },
+  {
+   "id": "gold-rush",
+   "name": "Gold Rush Heli Skiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Coast Mountains, Atlin and the Juneau Icefield",
+   "base": "Atlin",
+   "lat": 59.578,
+   "lon": -133.689,
+   "about": "New operation (from 2026) in BC's far northwest, cabins and a lodge looking over Atlin Lake.",
+   "access": "Met in Whitehorse, Yukon, then transfer to Atlin (about 2.5 h). First season 2026.",
+   "terrain": "648,000 acres (Willison and Llewellyn Glaciers, Juneau Icefield)",
+   "vert": "Open bowls up to about 4,500 ft",
+   "trips": [
+    "Week-long lodge trips"
+   ],
+   "group": "Max 8 guests, groups of 4, 2 A-Star helicopters",
+   "level": "Intermediate to expert",
+   "web": "https://www.goldrushheliskiing.com",
+   "forecast": "ac",
+   "areas": [
+    "6408558"
+   ],
+   "src": [
+    "https://www.goldrushheliskiing.com",
+    "https://unofficialnetworks.com/2025/11/04/new-heli-skiing-operator-opening-up-in-british-columbia-648000-acre-tenure/"
+   ]
+  },
+  {
+   "id": "yukon-heliski",
+   "name": "Yukon Heliski",
+   "type": "heli",
+   "prov": "BC",
+   "region": "White Pass (BC, by the Yukon and Alaska borders)",
+   "base": "\"Tiny Town\" base, White Pass",
+   "lat": 59.71,
+   "lon": -135.05,
+   "approx": true,
+   "about": "Spring heli-skiing in the far north with long days: cabins, saloon and sauna at base.",
+   "access": "Transfer from Whitehorse airport (Yukon) to the base in the White Pass.",
+   "terrain": "3,600 km²",
+   "season": "March to April",
+   "trips": [
+    "One-day and multi-day tours",
+    "Private groups"
+   ],
+   "group": "Up to 8 guests, A-Star helicopters",
+   "level": "Intermediate to expert",
+   "web": "https://yukonheliski.com",
+   "forecast": "ac",
+   "areas": [
+    "6408427"
+   ],
+   "src": [
+    "https://yukonheliski.com",
+    "https://www.travelyukon.com/fr/node/12789"
+   ]
+  },
+  {
+   "id": "bear-paw",
+   "name": "Bearpaw Heli-Skiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Northern Rockies, McGregor and Dezaiko ranges",
+   "base": "Binchi Lodge, near Sinclair Mills",
+   "lat": 54.027,
+   "lon": -121.683,
+   "approx": true,
+   "about": "Low-key small lodge with private rooms, mostly open gladed tree skiing.",
+   "access": "Fly to Prince George (about 1 h from Vancouver), then about 1 h drive east.",
+   "terrain": "1.2 million acres",
+   "trips": [
+    "Small group weeks"
+   ],
+   "group": "8 guests, 3 guides, 2 helicopters",
+   "level": "Intermediate to strong skiers",
+   "web": "https://www.bearpawheliskiing.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "7408128"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.bearpawheliskiing.com",
+    "https://theskijournal.com/blogs/10-2-issue-features/bearpaw-heli-skiing"
+   ]
+  },
+  {
+   "id": "crescent-spur",
+   "name": "Crescent Spur Heli-Skiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Rocky and Cariboo Mountains",
+   "base": "Crescent Spur lodge",
+   "lat": 53.58,
+   "lon": -120.69,
+   "about": "Ranch-style lodge with big open bowls and glaciers above and gladed forest below.",
+   "access": "About 2 h drive east of Prince George.",
+   "trips": [
+    "Private and semi-private 5-6 day packages",
+    "Ski touring base camp"
+   ],
+   "group": "Small groups",
+   "level": "Avid skiers, not necessarily extreme",
+   "web": "https://www.crescentspurheliskiing.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "7405593"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members"
+   ]
+  },
+  {
+   "id": "silvertip",
+   "name": "Silvertip Lodge Heli-Skiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Cariboo Mountains, Quesnel Lake",
+   "base": "Silvertip Lodge, Quesnel Lake",
+   "lat": 52.6187,
+   "lon": -120.3763,
+   "about": "Remote lodge on the shore of Quesnel Lake; glaciated alpine, open terrain and natural trees.",
+   "access": "About a 45-minute helicopter ride from Williams Lake.",
+   "trips": [
+    "Small group",
+    "Private heli tours"
+   ],
+   "group": "Small groups",
+   "level": "Intermediate to advanced",
+   "web": "https://silvertipheliskiing.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "5406390"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://silvertipheliskiing.com"
+   ]
+  },
+  {
+   "id": "wiegele",
+   "name": "Mike Wiegele Helicopter Skiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Cariboo, Monashee and Rocky Mountains",
+   "base": "Heli Village, Blue River",
+   "lat": 52.1138,
+   "lon": -119.3005,
+   "about": "Running since 1970, one of the largest operations, with its own year-round village.",
+   "access": "About 2.5 h drive north of Kamloops on Highway 5.",
+   "lodge": "Heli Village of log chalets and estate houses, plus Albreda Lodge",
+   "terrain": "Over 1.5 million acres",
+   "trips": [
+    "3, 5 and 7 day trips",
+    "Multi-group and private"
+   ],
+   "group": "Groups of various sizes, private options",
+   "level": "Intermediate to expert skiers and boarders",
+   "web": "https://www.wiegele.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "3402400"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.wiegele.com"
+   ]
+  },
+  {
+   "id": "cmh-cariboos",
+   "name": "CMH Cariboos",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Cariboo Mountains",
+   "base": "CMH Cariboo Lodge",
+   "lat": 52.45,
+   "lon": -119.6,
+   "approx": true,
+   "about": "CMH's Cariboos lodge, deep in the Cariboo Mountains near Valemount.",
+   "access": "Near Valemount; coach from Kelowna or Calgary airports, then helicopter to the lodge.",
+   "trips": [
+    "Multi-day lodge trips"
+   ],
+   "group": "Small groups (CMH)",
+   "level": "Strong intermediate and up",
+   "web": "https://www.cmhheli.com",
+   "helicat": true,
+   "cmh": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.cmhheli.com/our-lodges/"
+   ]
+  },
+  {
+   "id": "cmh-valemount",
+   "name": "CMH Valemount",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Cariboo, Monashee and Rocky Mountains",
+   "base": "Valemount",
+   "lat": 52.831,
+   "lon": -119.265,
+   "about": "CMH's road-access lodge in Valemount.",
+   "access": "In Valemount on Highway 5, about 1.5 h west of Jasper.",
+   "trips": [
+    "Multi-day trips from a town lodge"
+   ],
+   "group": "Small groups (CMH)",
+   "level": "Intermediate and up",
+   "web": "https://www.cmhheli.com",
+   "helicat": true,
+   "cmh": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.cmhheli.com/our-lodges/"
+   ]
+  },
+  {
+   "id": "cariboo-cat",
+   "name": "Cariboo Snowcat Skiing",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Cariboo Mountains, Robson Valley",
+   "base": "Valemount",
+   "lat": 52.835,
+   "lon": -119.26,
+   "approx": true,
+   "about": "Day cat skiing on Mica Mountain in the Cariboos.",
+   "access": "Near Valemount, about 1 h drive west of Jasper, AB.",
+   "terrain": "About 4,000 acres",
+   "vert": "Usually 10,000 to 15,000 vertical feet a day",
+   "trips": [
+    "Full day cat skiing",
+    "Private group"
+   ],
+   "group": "Cat groups (2 snowcats)",
+   "level": "All levels, customized",
+   "price": {
+    "t": "About CAD $675 to $775 per day (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "web": "https://cariboocatskiing.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "7407488"
+   ],
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://catskiing.ca/cat-skiing-directory/item/cariboo-snowcat-skiing"
+   ]
+  },
+  {
+   "id": "cmh-monashees",
+   "name": "CMH Monashees",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Monashee Mountains",
+   "base": "CMH Monashee Lodge",
+   "lat": 52.0192,
+   "lon": -118.5733,
+   "about": "CMH's Monashees lodge: steep tree skiing in the northern Monashees.",
+   "access": "Near Blue River; coach and helicopter transfer.",
+   "trips": [
+    "Multi-day lodge trips"
+   ],
+   "group": "Small groups (CMH)",
+   "level": "Strong intermediate and up",
+   "web": "https://www.cmhheli.com",
+   "helicat": true,
+   "cmh": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.cmhheli.com/our-lodges/"
+   ]
+  },
+  {
+   "id": "mica",
+   "name": "Mica Heliskiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Selkirk, Monashee and Rocky Mountains, Kinbasket Lake",
+   "base": "Mica lodge, Mica Creek",
+   "lat": 52.05,
+   "lon": -118.57,
+   "about": "Luxury lakeside lodge; pillow lines, fall-line tree skiing and open alpine.",
+   "access": "About 2 h drive north of Revelstoke.",
+   "trips": [
+    "Small group weeks",
+    "Private lodge buyout"
+   ],
+   "group": "4 guests + 1 guide per group, 16 guests total",
+   "level": "Intermediate to strong skiers",
+   "web": "https://www.micaheli.com",
+   "helicat": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.micaheli.com"
+   ]
+  },
+  {
+   "id": "chatter-creek",
+   "name": "Chatter Creek",
+   "type": "both",
+   "prov": "BC",
+   "region": "Rocky Mountains, Golden (north)",
+   "base": "Chatter Creek lodge",
+   "lat": 51.8588,
+   "lon": -117.6012,
+   "about": "Big Rockies tenure looking at the Columbia Icefield: tree skiing, alpine bowls and glaciers, from a 20,000 sq ft timber lodge.",
+   "access": "About 3 h drive from Calgary to Golden, then a helicopter flight to the lodge.",
+   "terrain": "58,000 acres (238 km²), 1,500 to almost 3,000 m",
+   "trips": [
+    "3 and 4 day cat packages",
+    "Cat-assisted freeride camps"
+   ],
+   "group": "Groups of 6 (small group)",
+   "level": "Intermediate to advanced",
+   "price": {
+    "t": "About CAD $615 to $935 per day (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "web": "https://chattercreek.ca",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "4403178",
+    "4404188"
+   ],
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://catskiing.ca/cat-skiing-directory/item/chatter-creek",
+    "https://chattercreek.ca"
+   ]
+  },
+  {
+   "id": "cmh-adamants",
+   "name": "CMH Adamants",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Selkirk Mountains, Adamant Range",
+   "base": "CMH Adamants Lodge",
+   "lat": 51.632,
+   "lon": -118.1691,
+   "about": "CMH's Adamants lodge with big glaciated terrain.",
+   "access": "North of Revelstoke; helicopter to the lodge.",
+   "trips": [
+    "Multi-day lodge trips"
+   ],
+   "group": "Small groups (CMH)",
+   "level": "Strong intermediate and up",
+   "web": "https://www.cmhheli.com",
+   "helicat": true,
+   "cmh": true,
+   "forecast": "ac",
+   "areas": [
+    "4401957"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.cmhheli.com/our-lodges/"
+   ]
+  },
+  {
+   "id": "cmh-gothics",
+   "name": "CMH Gothics",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Selkirk and Monashee Mountains",
+   "base": "CMH Gothics Lodge",
+   "lat": 51.6405,
+   "lon": -118.4887,
+   "about": "CMH's Gothics lodge north of Revelstoke.",
+   "access": "North of Revelstoke; helicopter to the lodge.",
+   "trips": [
+    "Multi-day lodge trips"
+   ],
+   "group": "Small groups (CMH)",
+   "level": "Strong intermediate and up",
+   "web": "https://www.cmhheli.com",
+   "helicat": true,
+   "cmh": true,
+   "forecast": "ac",
+   "areas": [
+    "4400690"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.cmhheli.com/our-lodges/"
+   ]
+  },
+  {
+   "id": "cmh-revelstoke",
+   "name": "CMH Revelstoke",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Monashee and Selkirk Mountains",
+   "base": "Revelstoke",
+   "lat": 50.998,
+   "lon": -118.196,
+   "about": "CMH's Revelstoke base, skiing the Monashees and Selkirks around town.",
+   "access": "In Revelstoke on the Trans-Canada Highway.",
+   "trips": [
+    "Multi-day trips from a town lodge",
+    "Day heli"
+   ],
+   "group": "Small groups (CMH)",
+   "level": "Intermediate and up",
+   "web": "https://www.cmhheli.com",
+   "helicat": true,
+   "cmh": true,
+   "forecast": "ac",
+   "areas": [
+    "4496100"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.cmhheli.com/our-lodges/"
+   ]
+  },
+  {
+   "id": "selkirk-tangiers",
+   "name": "Selkirk Tangiers Heli Skiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Selkirk and Monashee Mountains, Revelstoke",
+   "base": "Revelstoke",
+   "lat": 50.99,
+   "lon": -118.17,
+   "about": "40+ years in Revelstoke, deep powder, old-growth forest and alpine bowls on both sides of town.",
+   "access": "In Revelstoke, about 2 h 15 min from Kelowna.",
+   "terrain": "500,000 acres, 400+ runs (largest tenure in Revelstoke)",
+   "trips": [
+    "Single-day",
+    "Multi-day and lodge packages"
+   ],
+   "group": "Small groups (A-Star small group option)",
+   "level": "Strong intermediate to advanced",
+   "web": "https://selkirk-tangiers.com",
+   "helicat": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://selkirk-tangiers.com"
+   ]
+  },
+  {
+   "id": "eagle-pass",
+   "name": "Eagle Pass Heliskiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Monashee Mountains, Revelstoke",
+   "base": "Eagle Pass Lodge, Revelstoke",
+   "lat": 51.001,
+   "lon": -118.201,
+   "approx": true,
+   "about": "Small groups of 4 in the Monashees: alpine bowls, long chutes and glades.",
+   "access": "Revelstoke, about 1.5 h drive from Kelowna airport.",
+   "season": "December 1 to March 31",
+   "trips": [
+    "Day heli",
+    "Lodge packages",
+    "Heli-assisted ski touring"
+   ],
+   "group": "Groups of 4",
+   "level": "Expert skiers and snowboarders",
+   "price": {
+    "t": "Day heli CAD $1,660 (early and late season) to $2,600 (peak), per person",
+    "src": "eaglepassheliskiing.com",
+    "yr": "2026-27"
+   },
+   "web": "https://www.eaglepassheliskiing.com",
+   "helicat": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.eaglepassheliskiing.com/day-heli"
+   ]
+  },
+  {
+   "id": "eleven-revelstoke",
+   "name": "Eleven Revelstoke Lodge Heli-Skiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Monashee (Gold and Pinnacle ranges) and Valhalla Range",
+   "base": "Eleven Revelstoke Lodge (downtown)",
+   "lat": 50.9985,
+   "lon": -118.1955,
+   "approx": true,
+   "about": "Private-format heli-skiing with unlimited vertical, on the old Kingfisher terrain.",
+   "access": "Revelstoke; airport access through Kelowna.",
+   "lodge": "12-room historic lodge in downtown Revelstoke",
+   "terrain": "300,000 acres (former Kingfisher terrain)",
+   "trips": [
+    "Small group",
+    "Private helicopter"
+   ],
+   "group": "Private helicopter formats, small groups",
+   "level": "Intermediate to expert",
+   "web": "https://www.elevenexperience.com/revelstoke-lodge",
+   "helicat": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://kingfisherheli.com"
+   ]
+  },
+  {
+   "id": "great-canadian",
+   "name": "Great Canadian Heli-Skiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Selkirk Mountains, Rogers Pass",
+   "base": "Heather Mountain Lodge",
+   "lat": 51.4792,
+   "lon": -117.4822,
+   "about": "Lodge right by the runs, about two down days a season on average; generous vertical with no extra charges.",
+   "access": "On the Trans-Canada Highway halfway between Golden and Revelstoke.",
+   "trips": [
+    "2-7 day packages",
+    "Private lodge",
+    "Private helicopter"
+   ],
+   "group": "4 guests per guide",
+   "level": "Intermediate to advanced",
+   "web": "https://canadianheli-skiing.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "4410686"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://canadianheli-skiing.com"
+   ]
+  },
+  {
+   "id": "mustang",
+   "name": "Mustang Powder",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Monashee Mountains, north-west of Revelstoke",
+   "base": "Mustang Lodge (1,740 m)",
+   "lat": 51.1748,
+   "lon": -118.7146,
+   "about": "High remote timber lodge in a very snowy part of the Monashees. Owned by Heli (also owns Great Canadian) since 2025.",
+   "access": "About 2 h drive north of Kelowna to the meeting point, then into the lodge.",
+   "terrain": "Over 30,000 acres, 443 km of cat roads",
+   "trips": [
+    "Small group cat",
+    "Steep chutes",
+    "Private cat"
+   ],
+   "group": "Small groups, 4 snowcats",
+   "level": "Strong, skilled powder skiers",
+   "price": {
+    "t": "About CAD $1,250 to $2,100 per day (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "web": "https://www.mustangpowder.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "3409623",
+    "3410066"
+   ],
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://catskiing.ca/cat-skiing-directory/item/mustang-powder"
+   ]
+  },
+  {
+   "id": "k3",
+   "name": "K3 Cat Ski",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Monashee Mountains, Three Valley",
+   "base": "Farside and Southpark lodges",
+   "lat": 50.95,
+   "lon": -118.55,
+   "approx": true,
+   "about": "Deep powder, spaced trees and open bowls (Billy Goat Ridge, South Park, the Dark Side).",
+   "access": "Between Revelstoke and Sicamous.",
+   "terrain": "33,000 acres",
+   "trips": [
+    "Day cat skiing",
+    "Boutique lodge packages"
+   ],
+   "group": "Small groups, 1-3 snowcats",
+   "level": "People who love powder",
+   "price": {
+    "t": "About CAD $640 to $740 per day (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "web": "https://www.k3catski.com",
+   "helicat": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://catskiing.ca/cat-skiing-directory/item/k3-catskiing"
+   ]
+  },
+  {
+   "id": "cmh-purcell",
+   "name": "CMH Purcell (day heli)",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Purcell Mountains, Golden",
+   "base": "Golden heli base",
+   "lat": 51.298,
+   "lon": -116.965,
+   "about": "The old Purcell Helicopter Skiing, now run by CMH: day heli-skiing out of Golden.",
+   "access": "Day lodge in Golden, about 2 h from Banff (no overnight lodge).",
+   "terrain": "Nearly half a million acres, 250+ runs",
+   "trips": [
+    "1, 2 and 3 day trips",
+    "Unlimited vertical"
+   ],
+   "group": "2 small groups, 2 guides per group",
+   "level": "Intermediate and up",
+   "price": {
+    "t": "From about CAD $2,115 per person for one day",
+    "src": "matadornetwork.com",
+    "yr": "2025"
+   },
+   "web": "https://www.cmhheli.com/heli-skiing/day-heli-skiing",
+   "helicat": true,
+   "cmh": true,
+   "forecast": "ac",
+   "areas": [
+    "4492098"
+   ],
+   "src": [
+    "https://www.cmhheli.com/heli-skiing/day-heli-skiing",
+    "https://matadornetwork.com/read/how-plan-heli-ski-trip/"
+   ]
+  },
+  {
+   "id": "cmh-bobbie-burns",
+   "name": "CMH Bobbie Burns",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Purcell and Selkirk Mountains",
+   "base": "CMH Bobbie Burns Lodge",
+   "lat": 50.9488,
+   "lon": -116.9304,
+   "about": "CMH lodge known for its tree skiing.",
+   "access": "About 2 h south of Golden; helicopter to the lodge.",
+   "trips": [
+    "Multi-day lodge trips"
+   ],
+   "group": "Small groups (CMH)",
+   "level": "Strong intermediate and up",
+   "web": "https://www.cmhheli.com",
+   "helicat": true,
+   "cmh": true,
+   "forecast": "ac",
+   "areas": [
+    "4492084"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.cmhheli.com/our-lodges/"
+   ]
+  },
+  {
+   "id": "cmh-bugaboos",
+   "name": "CMH Bugaboos",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Purcell Mountains, Bugaboos",
+   "base": "CMH Bugaboo Lodge",
+   "lat": 50.753,
+   "lon": -116.7065,
+   "about": "Where commercial heli-skiing began in 1965, under the Bugaboo spires.",
+   "access": "West of Invermere; most guests fly into Calgary and take a short heli flight from near Radium Hot Springs.",
+   "trips": [
+    "Multi-day lodge trips"
+   ],
+   "group": "Small groups (CMH)",
+   "level": "Strong intermediate and up",
+   "web": "https://www.cmhheli.com",
+   "helicat": true,
+   "cmh": true,
+   "forecast": "ac",
+   "areas": [
+    "4492085"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://stories.cmhheli.com/heli-skiing/signature-trips-at-cmh-a-comparison-guide/"
+   ]
+  },
+  {
+   "id": "rk-heliski",
+   "name": "RK Heliski",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Purcell Mountains, Jumbo Valley",
+   "base": "Panorama Mountain Resort",
+   "lat": 50.442,
+   "lon": -116.2124,
+   "about": "Running since 1970; gladed trees in the Jumbo Valley and high glaciated bowls.",
+   "access": "Resort based at Panorama, about 3 h from Calgary.",
+   "terrain": "1,500 km², up to 3,000 m (some of the highest heli-skiing anywhere)",
+   "trips": [
+    "Day trips from the resort",
+    "Semi-private and private groups"
+   ],
+   "group": "Small groups",
+   "level": "Strong intermediate and expert",
+   "web": "https://www.rkheliski.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "4492087"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.rkheliski.com"
+   ]
+  },
+  {
+   "id": "cmh-galena",
+   "name": "CMH Galena",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Selkirk Mountains, Trout Lake",
+   "base": "CMH Galena Lodge",
+   "lat": 50.7,
+   "lon": -117.45,
+   "approx": true,
+   "about": "CMH's Galena lodge in the snowy Selkirks.",
+   "access": "South-east of Revelstoke near Trout Lake; helicopter to the lodge.",
+   "trips": [
+    "Multi-day lodge trips"
+   ],
+   "group": "Small groups (CMH)",
+   "level": "Strong intermediate and up",
+   "web": "https://www.cmhheli.com",
+   "helicat": true,
+   "cmh": true,
+   "forecast": "ac",
+   "areas": [
+    "4401094"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.cmhheli.com/our-lodges/"
+   ]
+  },
+  {
+   "id": "cmh-kootenay",
+   "name": "CMH Kootenay",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Selkirk and Monashee Mountains, Nakusp",
+   "base": "CMH Kootenay Lodge, Nakusp",
+   "lat": 50.24,
+   "lon": -117.8,
+   "approx": true,
+   "about": "CMH's Kootenay lodge, known for tree skiing.",
+   "access": "Nakusp, on Upper Arrow Lake.",
+   "trips": [
+    "Multi-day lodge trips"
+   ],
+   "group": "Small groups (CMH)",
+   "level": "Intermediate and up",
+   "web": "https://www.cmhheli.com",
+   "helicat": true,
+   "cmh": true,
+   "forecast": "ac",
+   "areas": [
+    "4496112"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.firsttracksonline.com/2002/08/05/hootin-and-hollerin-in-the-kootenay/"
+   ]
+  },
+  {
+   "id": "great-northern",
+   "name": "Great Northern Snow-Cat Skiing",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Selkirk Mountains, Badshot Range",
+   "base": "Great Northern lodge, Trout Lake",
+   "lat": 50.64,
+   "lon": -117.53,
+   "approx": true,
+   "about": "The world's longest running owner-operated cat skiing (since 1979), about 1,500 cm of snow a year.",
+   "access": "About 1.5 h south of Revelstoke; drive to the lodge.",
+   "terrain": "19,200 acres",
+   "season": "Mid December to late March",
+   "trips": [
+    "3 and 4 day lodge trips"
+   ],
+   "group": "Small group cat",
+   "level": "All skiers looking for bucket-list days",
+   "price": {
+    "t": "3 days from CAD $2,951 to 4 days about $4,427 per person, all-inclusive",
+    "src": "greatnorthernsnowcat.com",
+    "yr": "2026-27"
+   },
+   "web": "https://www.greatnorthernsnowcat.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "4400655"
+   ],
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://www.greatnorthernsnowcat.com"
+   ]
+  },
+  {
+   "id": "stellar",
+   "name": "Stellar Heliskiing",
+   "type": "heli",
+   "prov": "BC",
+   "region": "Selkirk and Purcell Mountains, Kaslo",
+   "base": "Kaslo",
+   "lat": 49.913,
+   "lon": -116.912,
+   "about": "Small-group heli with a small-town Kootenay vibe.",
+   "access": "Based in Kaslo, on Kootenay Lake.",
+   "terrain": "Over 125,000 acres",
+   "trips": [
+    "Single day",
+    "Multi-day"
+   ],
+   "group": "4 guests + 1 guide per A-Star",
+   "level": "Advanced riders",
+   "web": "https://stellarheliskiing.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "4404298"
+   ],
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://stellarheliskiing.com"
+   ]
+  },
+  {
+   "id": "retallack",
+   "name": "Retallack",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Selkirk Mountains, between New Denver and Kaslo",
+   "base": "Retallack Lodge",
+   "lat": 50.0423,
+   "lon": -117.148,
+   "about": "Up to 14+ m of snow a year, 10,000 sq ft lodge.",
+   "access": "On Highway 31A, between New Denver and Kaslo; about 5 h drive from Kelowna or Spokane.",
+   "terrain": "9,500 acres (older listing)",
+   "trips": [
+    "2, 3 and 4 day small groups",
+    "Privates"
+   ],
+   "group": "Small groups, 2 snowcats",
+   "level": "Advanced to expert",
+   "price": {
+    "t": "About CAD $648 to $928 per day (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "web": "https://www.retallack.com/catskiing/",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "4402411"
+   ],
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://catskiing.ca/cat-skiing-directory/item/retallack-catskiing"
+   ]
+  },
+  {
+   "id": "selkirk-snowcat",
+   "name": "Selkirk Snowcat Skiing",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Selkirk Mountains, Meadow Creek",
+   "base": "Selkirk lodge (1,280 m)",
+   "lat": 50.237,
+   "lon": -116.988,
+   "approx": true,
+   "about": "The original cat skiing operation, since 1975.",
+   "access": "Meadow Creek, about 1.5 h drive from Nelson; snowcat ride to the lodge.",
+   "terrain": "19,200 acres",
+   "trips": [
+    "3 and 5 day lodge trips"
+   ],
+   "group": "24 guests a week, 2 snowcats",
+   "level": "Intermediate to advanced",
+   "price": {
+    "t": "About CAD $1,040 per day (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "web": "https://selkirksnowcatskiing.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "4496107"
+   ],
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://catskiing.ca/cat-skiing-directory/item/selkirk-snowcat-skiing"
+   ]
+  },
+  {
+   "id": "white-grizzly",
+   "name": "White Grizzly Cat Skiing",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Selkirk Mountains, Meadow Creek",
+   "base": "White Grizzly Lodge",
+   "lat": 50.242,
+   "lon": -116.993,
+   "approx": true,
+   "about": "Family-run, cozy log lodge and consistently challenging terrain, 20+ years.",
+   "access": "Meadow Creek, about 90 minutes from Nelson by road.",
+   "terrain": "About 7,000 acres",
+   "trips": [
+    "2, 3 and 4 day small groups",
+    "Privates"
+   ],
+   "group": "12 guests max",
+   "level": "Advanced to expert",
+   "price": {
+    "t": "From about CAD $3,600 for a 3 day trip (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "web": "https://whitegrizzly.com",
+   "helicat": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://whitegrizzly.com"
+   ]
+  },
+  {
+   "id": "baldface",
+   "name": "Baldface Lodge",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Selkirk Mountains, Nelson",
+   "base": "Baldface Lodge",
+   "lat": 49.68,
+   "lon": -116.98,
+   "approx": true,
+   "about": "Big famous cat lodge above Kootenay Lake, every kind of terrain from cruisers to steeps.",
+   "access": "Meet at Nelson airport, 10-minute helicopter flight to the lodge.",
+   "terrain": "32,000 acres (largest cat area in the world, says Baldface)",
+   "trips": [
+    "3 and 4 day lodge trips"
+   ],
+   "group": "4 snowcats",
+   "level": "Intermediate/advanced powder skills required",
+   "price": {
+    "t": "About CAD $875 to $1,420 per day (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "web": "https://baldface.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "4405287"
+   ],
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://catskiing.ca/cat-skiing-directory/item/baldface-lodge"
+   ]
+  },
+  {
+   "id": "baldface-valhalla",
+   "name": "Baldface Valhalla",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Valhalla Range, Selkirk Mountains",
+   "base": "Nelson (stay in town, free shuttle)",
+   "lat": 49.493,
+   "lon": -117.295,
+   "approx": true,
+   "about": "Baldface's day-trip tenure: high alpine, chutes, cliffs and consistent fall lines.",
+   "access": "Stay in Nelson and take the free shuttle to the tenure.",
+   "terrain": "25,000 acres",
+   "trips": [
+    "Single or multi-day day trips"
+   ],
+   "group": "2 snowcats",
+   "level": "Strong skiers (big-mountain features)",
+   "web": "https://baldface.com/valhalla/",
+   "helicat": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://catskiing.ca/cat-skiing-directory/item/baldface-valhalla"
+   ]
+  },
+  {
+   "id": "snowwater",
+   "name": "Snowwater Heli Skiing",
+   "type": "both",
+   "prov": "BC",
+   "region": "Bonnington Range, Selkirk Mountains",
+   "base": "Snowwater Lodge (1,640 m)",
+   "lat": 49.38,
+   "lon": -117.49,
+   "approx": true,
+   "about": "Over 32 ft of Kootenay snow a year; cats when the heli can't fly. Sister of Valhalla Powdercats.",
+   "access": "Base office between Castlegar and Nelson (Highways 3A and 6); about 1 h by truck and snowcat to the lodge, about 24 km south-west of Nelson.",
+   "terrain": "150,000 acres",
+   "trips": [
+    "Small group heli with snowcat backup",
+    "Unlimited vertical"
+   ],
+   "group": "Small groups",
+   "level": "All levels",
+   "web": "https://snowwater.com",
+   "helicat": true,
+   "forecast": "ac",
+   "src": [
+    "https://www.helicat.org/helicopter-members",
+    "https://www.snowwater.com/pre-trip"
+   ]
+  },
+  {
+   "id": "big-red",
+   "name": "Big Red Cats",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Monashee Mountains, Rossland",
+   "base": "Rossland (RED Mountain)",
+   "lat": 49.1056,
+   "lon": -117.8463,
+   "about": "Glade and tree skiing on 8 peaks; stay at RED or in town.",
+   "access": "Near RED Mountain Resort, Rossland; about 2.5 h north of Spokane airport.",
+   "terrain": "20,000 acres on 8 peaks",
+   "trips": [
+    "1 to 7 day packages",
+    "Trips by level: intermediate, advanced, expert, pro"
+   ],
+   "group": "5 snowcats, groups by ability",
+   "level": "Intermediate to expert",
+   "price": {
+    "t": "About CAD $649 to $719 per day (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "web": "https://www.bigredcatskiing.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "4404290"
+   ],
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://www.bigredcatskiing.com"
+   ]
+  },
+  {
+   "id": "island-lake",
+   "name": "Island Lake Catskiing",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Lizard Range, Fernie",
+   "base": "Island Lake Lodge",
+   "lat": 49.5095,
+   "lon": -115.1753,
+   "about": "About 12 m of snow a year, runs to the lodge door, spa and wine.",
+   "access": "About 15 km from Fernie, by snowcat only; about 3.5 h drive from Calgary.",
+   "lodge": "Tamarack, Cedar and Red Eagle lodges",
+   "terrain": "Over 7,000 acres",
+   "trips": [
+    "2, 3 and 4 day tours"
+   ],
+   "group": "3 snowcats",
+   "level": "Advanced to expert powder skiers",
+   "price": {
+    "t": "About CAD $730 to $987 per day (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "web": "https://www.islandlakelodge.com/catskiing",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "4403510"
+   ],
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://www.islandlakelodge.com/catskiing"
+   ]
+  },
+  {
+   "id": "fernie-wilderness",
+   "name": "Fernie Wilderness Adventures",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Lizard Range, Fernie",
+   "base": "FWA base (20 min from Fernie)",
+   "lat": 49.58,
+   "lon": -115.1,
+   "approx": true,
+   "about": "Mostly single-day cat skiing since 1986: glades and chutes, plus natural jumps.",
+   "access": "About 20 minutes from Fernie; shuttle through Tunnel 49.",
+   "terrain": "About 3,000 to 5,000 acres, top drop at 2,170 m",
+   "trips": [
+    "Single-day cat tours",
+    "Multi-day with rustic lodge (ask)"
+   ],
+   "group": "12 per cat",
+   "level": "Advanced and expert (gladed trees, chutes)",
+   "price": {
+    "t": "About CAD $700 + tax per person per day",
+    "src": "voyagesgendron.com",
+    "yr": "2023-24"
+   },
+   "web": "https://www.fernieadventures.com",
+   "forecast": "ac",
+   "src": [
+    "https://catskiing.ca/cat-skiing-directory/item/fernie-wilderness-adventures",
+    "https://tourismfernie.com/activities/catskiing/fernie-wilderness-catskiing"
+   ]
+  },
+  {
+   "id": "monashee-powder",
+   "name": "Monashee Powder Snowcats",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Monashee Mountains, Tsuius Mountain",
+   "base": "Tsuius Lodge (1,600 m)",
+   "lat": 50.7057,
+   "lon": -118.4256,
+   "about": "About 60 ft of snow a year; first tracks 10-15 min from the lodge.",
+   "access": "Meet at River Ridge Golf Course on Highway 6 (about 2 h north of Kelowna); bus then cat to the lodge.",
+   "terrain": "17,000 acres",
+   "trips": [
+    "Lodge multi-day trips"
+   ],
+   "group": "24 guests, 2 snowcats",
+   "level": "Intermediate to advanced",
+   "price": {
+    "t": "About CAD $500 to $850 per day (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "web": "https://www.monasheepowder.com",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "3409430"
+   ],
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://www.monasheepowder.com"
+   ]
+  },
+  {
+   "id": "keefer-lake",
+   "name": "Gostlin Keefer Lake Lodge",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Monashee Mountains, Cherryville",
+   "base": "Keefer Lake Lodge",
+   "lat": 50.1279,
+   "lon": -118.3537,
+   "about": "Steep deep trees, chutes and drops in dry interior snow.",
+   "access": "Near Cherryville, an easy drive from Kelowna airport.",
+   "terrain": "86,500 acres, up to 7,000 ft",
+   "trips": [
+    "3 and 4 day cat tours with lodging"
+   ],
+   "group": "2 snowcats",
+   "level": "Advanced to expert",
+   "price": {
+    "t": "About CAD $1,440 to $1,610 per day (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "web": "https://keeferlakelodge.com/winter/catskiing",
+   "helicat": true,
+   "forecast": "ac",
+   "areas": [
+    "3409602"
+   ],
+   "src": [
+    "https://www.helicat.org/snowcat-members",
+    "https://keeferlakelodge.com/winter/catskiing"
+   ]
+  },
+  {
+   "id": "flowline",
+   "name": "Flowline Lodge",
+   "type": "cat",
+   "prov": "BC",
+   "region": "Southern Monashees, Christian Valley",
+   "base": "Flowline Lodge (1,951 m)",
+   "lat": 49.58,
+   "lon": -118.66,
+   "approx": true,
+   "about": "Started by pro snowboarder Bjorn Leines and friends: open alpine, steep fall lines and old-growth glades.",
+   "access": "About 2.5 h to the meeting point; lodge at 6,400 ft.",
+   "terrain": "16,000 acres",
+   "season": "Late December to early April",
+   "trips": [
+    "3 and 4 day sessions"
+   ],
+   "group": "12 guests max, one crew",
+   "level": "Strong skiers and riders",
+   "price": {
+    "t": "About CAD $1,295 per day",
+    "src": "catskiing.ca",
+    "yr": "recent"
+   },
+   "web": "https://flowlinemountain.com",
+   "forecast": "ac",
+   "areas": [
+    "4406148"
+   ],
+   "src": [
+    "https://catskiing.ca/cat-skiing-directory/item/flowline-mountain-catskiing",
+    "https://flowlinemountain.com"
+   ]
+  },
+  {
+   "id": "chic-chac",
+   "name": "Chic-Chac",
+   "type": "cat",
+   "prov": "QC",
+   "region": "Chic-Chocs, Gaspésie",
+   "base": "Chic-Chac (old church), Murdochville",
+   "lat": 48.959,
+   "lon": -65.5,
+   "about": "Eastern Canada's cat skiing: about 7 m of snow a year in the middle of the Chic-Chocs, started in 2012 by Guillaume Molaison.",
+   "access": "Murdochville, Gaspésie, about 600 km north-east of Québec City. Avalanche gear included.",
+   "terrain": "2 cat zones: Mont York (backcountry, 45 min cat ride) and Mont Porphyre (closer, mellower)",
+   "trips": [
+    "Day cat skiing",
+    "Multi-day with the hostel"
+   ],
+   "group": "Cats for 12 to 14 guests; min. 4 guests",
+   "level": "Intermediate and up",
+   "price": {
+    "t": "About CAD $200 to $400 per day (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "web": "https://chic-chac.com",
+   "forecast": "aq",
+   "src": [
+    "https://catskiing.ca/cat-skiing-directory/item/chic-chac-catskiing",
+    "https://www.powderhounds.com/Canada/Cat-Skiing/Chic-Chac.aspx"
+   ]
+  },
+  {
+   "id": "blomidon",
+   "name": "Blomidon Cat Skiing",
+   "type": "cat",
+   "prov": "NL",
+   "region": "Blow Me Down / Blomidon Mountains",
+   "base": "Benoit's Cove",
+   "lat": 49.01,
+   "lon": -58.13,
+   "approx": true,
+   "about": "Above-treeline powder on Newfoundland's west coast. We couldn't confirm it still runs: call before planning.",
+   "access": "Meet in Benoit's Cove, 20 minutes from Corner Brook. Phone (709) 783-2712.",
+   "terrain": "About 7,000 acres",
+   "trips": [
+    "Single or multi-day trips (lodging not included)"
+   ],
+   "group": "1 snowcat, up to 8 guests + 2 guides",
+   "level": "Intermediate and up",
+   "price": {
+    "t": "About CAD $245 to $275 per day (older listing)",
+    "src": "catskiing.ca",
+    "yr": "older"
+   },
+   "check": true,
+   "forecast": "none",
+   "src": [
+    "https://catskiing.ca/component/zoo/item/blomidon-cat-skiing"
+   ]
+  }
+ ]
+}
