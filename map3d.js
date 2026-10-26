@@ -112,7 +112,7 @@
   const dotKey = (d, w) => { const n = String(d).trim().split(/[\s,]+/).map(Number); return n.length === 2 && n[0] <= 1 ? "dot:" + (n[0] + n[1]) + ":" + w : ""; };
 
   function snapshot() {
-    const lines = [], dots = [], hitLines = [];
+    const lines = [], dots = [], hitLines = [], names = [];
     hits = []; hitParts = []; hitDots = [];
     let k = 0;
     // A trail's details are open: the other trail lines fade, as in 2D.
@@ -158,9 +158,47 @@
       }
       if (!o.stroke || !(o.opacity > 0)) return;
       lines.push({ type: "Feature", geometry, properties: { c: o.color, w: o.weight * LINE_SCALE, o: faded(o) ? o.opacity * 0.6 : o.opacity, k: order, d: o.dashArray ? (o.lineCap === "round" && dotKey(o.dashArray, o.weight)) || dashKey(o.dashArray, o.weight) : "",
-        ...(o.label ? { n: o.label } : {}) } });   // the trail's name, written along it (layer "line-names")
+      } });
+      if (o.label) nameSpots(o.label, parts, o.color, faded(o) ? o.opacity * 0.6 : o.opacity, names);
     });
-    return { lines, dots, hitLines };
+    return { lines, dots, hitLines, names };
+  }
+
+  // Trail names (layer "trail-names"), each name once on the screen, as on the flat map (alex 2026-10-26: "I want
+  // to see the names just ones by trail"). Every named line gives spots every NAME_STEP metres (one in the middle
+  // of a shorter line); after each move the spot nearest the middle of the screen is kept for each name.
+  // Names written along the lines themselves (MapLibre line labels) were mostly left out: a twisty trail, or a
+  // short piece of one, has no stretch straight and long enough to hold the name (Cheakamus: 1 name in 3D, 12 in 2D).
+  const NAME_STEP = 250;
+  let nameCands = [];
+  function nameSpots(n, parts, c, o, out) {
+    const kx = Math.cos((parts[0][0][1] * Math.PI) / 180) * 111320;
+    for (const pts of parts) {
+      const d = [0];
+      for (let i = 1; i < pts.length; i++) d.push(d[i - 1] + Math.hypot((pts[i][0] - pts[i - 1][0]) * kx, (pts[i][1] - pts[i - 1][1]) * 110540));
+      const len = d[d.length - 1], at = [];
+      if (len < NAME_STEP) at.push(len / 2); else for (let m = NAME_STEP / 2; m < len; m += NAME_STEP) at.push(m);
+      let i = 1;
+      for (const m of at) {
+        while (i < d.length - 1 && d[i] < m) i++;
+        const t = d[i] > d[i - 1] ? (m - d[i - 1]) / (d[i] - d[i - 1]) : 0;
+        out.push({ n, c, o, s: -len, p: [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t] });
+      }
+    }
+  }
+  function placeNames() {
+    const src = gl && gl.getSource("trailNames");
+    if (!src) return;
+    const cv = gl.getCanvas(), w = cv.clientWidth, h = cv.clientHeight, m = 0.06, box = gl.getBounds(), best = new Map();
+    if (gl.getZoom() >= 12) for (const k of nameCands) {
+      if (!box.contains(k.p)) continue;
+      const q = gl.project(k.p);
+      if (!(q.x > w * m && q.x < w * (1 - m) && q.y > h * m && q.y < h * (1 - m))) continue;
+      const dd = (q.x - w / 2) ** 2 + (q.y - h / 2) ** 2, b = best.get(k.n);
+      if (!b || dd < b.dd) best.set(k.n, { k, dd });
+    }
+    src.setData({ type: "FeatureCollection", features: [...best.values()].map(({ k }) =>
+      ({ type: "Feature", geometry: { type: "Point", coordinates: k.p }, properties: { n: k.n, c: k.c, o: k.o, s: k.s } })) });
   }
 
   function ensureDashLayer(d) {
@@ -191,6 +229,7 @@
     gl.getSource("lines").setData({ type: "FeatureCollection", features: s.lines });
     gl.getSource("dots").setData({ type: "FeatureCollection", features: s.dots });
     gl.getSource("hits").setData({ type: "FeatureCollection", features: s.hitLines });
+    nameCands = s.names; placeNames();
     drawn = true;
   }
   // Only lines and dots are copied: names and pins coming and going (the trail names redraw after every move) don't
@@ -202,6 +241,10 @@
   // Selecting a trail restyles lines without adding or removing any.
   const setStyle = L.Path.prototype.setStyle;
   L.Path.prototype.setStyle = function (style) { const r = setStyle.call(this, style); scheduleSync(); return r; };
+  // And redraws a line on the map with new points (Plan a route's lines after you change the route: alex, 2026-10-26, a
+  // trail taken out stayed on the 3D map). Only lines already on the map: their points before they're added don't matter.
+  const setLatLngs = L.Polyline.prototype.setLatLngs;
+  L.Polyline.prototype.setLatLngs = function (lls) { const r = setLatLngs.call(this, lls); if (this._map) scheduleSync(); return r; };
 
   // ---------- keep the two cameras together ----------
   // MapLibre zoom levels are one less than Leaflet's (512 px tiles against 256 px).
@@ -742,6 +785,7 @@
           lines: { type: "geojson", data: { type: "FeatureCollection", features: [] }, attribution: "Trails © <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors" },
           dots: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
           hits: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
+          trailNames: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
         },
         layers: [
           { id: "sat", type: "raster", source: "sat", paint: { "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
@@ -775,10 +819,13 @@
           // see the name like that on the 3d map"), from the same zoom (flat 13 = 3D 12). The lines' "label" option
           // (index.html, winter.js, rider-trails.js; slackcountry lines have their own name pins) is the name. One symbol layer on the lines already
           // copied: MapLibre places them on the ground and leaves out names that would overlap, no HTML markers.
-          { id: "line-names", type: "symbol", source: "lines", minzoom: 12, filter: ["has", "n"],
-            layout: { "symbol-placement": "line", "symbol-spacing": 500, "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"],
-              "text-size": ["interpolate", ["linear"], ["zoom"], 12, 11.5, 15, 13.5], "text-padding": 6,
-              "text-rotation-alignment": "viewport", "text-pitch-alignment": "viewport", "text-offset": [0, -0.9] },
+          // One point per name in view (placeNames), longest trails first; a name that doesn't fit above its point
+          // tries below, left and right before it's left out.
+          { id: "trail-names", type: "symbol", source: "trailNames", minzoom: 12,
+            layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "symbol-sort-key": ["get", "s"],
+              "text-size": ["interpolate", ["linear"], ["zoom"], 12, 11.5, 15, 13.5], "text-padding": 2, "text-max-width": 16,
+              "text-variable-anchor": ["bottom", "top", "left", "right"], "text-radial-offset": 0.4,
+              "text-rotation-alignment": "viewport", "text-pitch-alignment": "viewport" },
             paint: { "text-color": ["get", "c"], "text-opacity": ["get", "o"], "text-halo-color": "#fff", "text-halo-width": 1.8, "text-halo-blur": 0.3 } },
           { id: "water-names", type: "symbol", source: "names", "source-layer": "water_name", minzoom: 10,
             layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Italic"], "text-size": 12 },
@@ -824,6 +871,7 @@
       gl.on("render", phoneBuffers);
     }
     gl.on("moveend", keepView);
+    gl.on("moveend", placeNames);
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
@@ -964,6 +1012,13 @@
     }
     const toLL = (lngLat) => L.latLng(lngLat.lat, lngLat.lng);
     gl.on("click", (e) => {
+      // Planning a route: every tap is for the planner (a trail to pick or take out, or where you start), as in 2D.
+      if (window.tfPlan && window.tfPlan.planning && window.tfPlan.planning()) {
+        const latlng = toLL(e.lngLat);
+        to2d();
+        map.fire("click", { latlng, layerPoint: map.latLngToLayerPoint(latlng), containerPoint: map.latLngToContainerPoint(latlng), originalEvent: e.originalEvent, from3d: true });
+        return;
+      }
       const dot = nearestDot(e.point, TAP);
       if (dot) { dot.l.fire("click", { latlng: dot.l.getLatLng(), originalEvent: e.originalEvent }); return; }
       const f = near(e.point, TAP)[0], latlng = toLL(e.lngLat);
