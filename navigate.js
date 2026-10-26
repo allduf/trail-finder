@@ -1018,7 +1018,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
       await delCurrent();
     }
     rec = cur && !cur.end ? cur : { id: "current", start: Date.now(), points: [], from: "ride" };
-    if (!rec.points.length && document.body.classList.contains("sport-ski")) rec.sport = "ski";   // a ski tour: My rides and Skiing's "Your ski tours" know it
+    if (!rec.points.length) { const b = document.body.classList; const sp = b.contains("sport-ski") ? "ski" : b.contains("sport-hunt") ? "hunt" : b.contains("sport-fish") ? "fish" : ""; if (sp) rec.sport = sp; }   // a ski tour, a hunt (My hunts) or a day fishing
     rec.from = "ride";             // ride.html's Keep riding sends it back here
     resumeBox.hidden = true;
     drawTrack();

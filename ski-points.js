@@ -675,7 +675,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   const logDlg = document.createElement("dialog");
   logDlg.className = "sp-dlg sp-log";
   document.body.append(logDlg);
-  let logTab = "harvest", logUrls = [];
+  let logTab = window.tfHunts ? "hunts" : "harvest", logUrls = [], hunts = [];
   logDlg.addEventListener("close", () => { logUrls.forEach((u) => URL.revokeObjectURL(u)); logUrls = []; });
   logDlg.addEventListener("click", (e) => { if (e.target === logDlg) logDlg.close(); });
   const logUrl = (b) => { if (!b) return ""; const u = URL.createObjectURL(b); logUrls.push(u); return u; };
@@ -686,8 +686,11 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   function renderLog() {
     logUrls.forEach((u) => URL.revokeObjectURL(u)); logUrls = [];
     const hv = harvestRows(), cams = all.filter((p) => sportOf(p) === "hunt" && p.kind === "cam").sort((a, b) => pointAt(b) - pointAt(a));
+    const H = window.tfHunts, huntPts = all.filter((p) => sportOf(p) === "hunt");
     let body;
-    if (logTab === "harvest") {
+    if (H && logTab === "hunts") body = H.huntsHtml(hunts, huntPts, HUNT_KINDS);
+    else if (H && logTab === "works") body = H.worksHtml(hunts, huntPts);
+    else if (logTab === "harvest") {
       if (!hv.length) body = `<p class="sp-empty">No harvests yet. Save a point with “What's here: 🎯 Harvest” where you took an animal, with the species, date and a photo; the zone fills in from the map.</p>`;
       else {
         const by = new Map();
@@ -709,10 +712,11 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
           ${list.length ? `<div class="sp-shots">${list.map((c) => `<figure>${c.thumb || c.photo ? `<img alt="" src="${logUrl(c.thumb || c.photo)}">` : `<span class="ph">📷</span>`}<figcaption>${esc(fmtDay(localDay(new Date(c.at))))}${c.count ? ` · ${c.count}` : ""}${c.note ? `<br>${esc(c.note)}` : ""}</figcaption></figure>`).join("")}</div>` : ""}</section>`;
       }).join("");
     }
-    logDlg.innerHTML = `<h2>Hunting log</h2><div class="sp-tabs" role="tablist"><button type="button" role="tab" data-tab="harvest" aria-selected="${logTab === "harvest"}">🎯 Harvests (${hv.length})</button><button type="button" role="tab" data-tab="cam" aria-selected="${logTab === "cam"}">📷 Trail cameras (${cams.length})</button></div>
+    logDlg.innerHTML = `<h2>My hunts</h2><div class="sp-tabs" role="tablist">${H ? `<button type="button" role="tab" data-tab="hunts" aria-selected="${logTab === "hunts"}">🥾 Hunts (${hunts.length})</button><button type="button" role="tab" data-tab="works" aria-selected="${logTab === "works"}">📈 What works</button>` : ""}<button type="button" role="tab" data-tab="harvest" aria-selected="${logTab === "harvest"}">🎯 Harvests (${hv.length})</button><button type="button" role="tab" data-tab="cam" aria-selected="${logTab === "cam"}">📷 Cameras (${cams.length})</button></div>
       ${body}<div class="sp-row" style="margin-top:12px"><button type="button" class="go" data-a="close">Close</button></div>`;
     logDlg.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { logTab = b.dataset.tab; renderLog(); }));
     logDlg.querySelector('[data-a="close"]').addEventListener("click", () => logDlg.close());
+    if (H) H.wire(logDlg, hunts, huntPts, HUNT_KINDS, () => logDlg.close());
     logDlg.querySelectorAll("tr[data-id]").forEach((r) => r.addEventListener("click", () => { logDlg.close(); showPoint(r.dataset.id); }));
     logDlg.querySelectorAll("[data-cam]").forEach((b) => b.addEventListener("click", () => addCheck(b.dataset.cam)));
     logDlg.querySelectorAll("[data-show]").forEach((b) => b.addEventListener("click", () => { logDlg.close(); showPoint(b.dataset.show); }));
@@ -798,8 +802,11 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     if (isFish()) { await reload(); renderFishLog(); if (!logDlg.open) logDlg.showModal(); return; }
     if (tab) logTab = tab;
     await reload();
+    if (window.tfHunts) hunts = await window.tfHunts.load();
     renderLog();
     if (!logDlg.open) logDlg.showModal();
+    // The weather on each hunt comes in after: draw again when it does, if the hunts are still showing.
+    if (window.tfHunts) window.tfHunts.fill(hunts).then((got) => { if (got && logDlg.open && !isFish() && (logTab === "hunts" || logTab === "works")) renderLog(); });
   }
   // Compass mode (compass.js): a new point at a place it worked out (the rangefinder's target), and the point being guided to.
   const addAt = (lat, lon, preset) => { stopPick(); setPins(true); edit(null, { lat, lon }, preset); };

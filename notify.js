@@ -99,6 +99,10 @@ dialog.notify .nt-loam li.unread summary::before { content: ""; position: absolu
 dialog.notify details ol li button { padding-left: 34px; }
 dialog.notify .nt-x { position: absolute; top: 8px; right: 8px; width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: var(--muted); font-size: 1.1rem; }
 dialog.notify h2 { padding-right: 36px; }
+dialog.notify .nt-hunt { display: block; cursor: default; }
+dialog.notify .nt-other { margin: 4px 0 8px; }
+dialog.notify .nt-other summary { cursor: pointer; font-size: .86rem; font-weight: 700; color: var(--muted); padding: 6px 0; }
+dialog.notify .nt-hunt .nt-link { font: inherit; font-weight: 700; padding: 0; border: 0; background: none; color: var(--accent, #2f8f88); text-decoration: underline; cursor: pointer; }
 /* Save / Done stay in reach under the long region list */
 dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10px -18px -18px; padding: 10px 18px 18px; background: var(--panel); box-shadow: 0 -1px 0 var(--line); }`;
   document.head.appendChild(css);
@@ -494,7 +498,33 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   btn.addEventListener("click", () => {
     openBox();
   });
+  // Each sport's own alerts first, the other sports' folded under them (alex, 2026-10-26: every mode its own features).
+  const other = document.createElement("details");
+  other.className = "nt-other";
+  other.innerHTML = "<summary>Alerts for other sports</summary>";
+  const huntRow = document.createElement("p");
+  huntRow.className = "nt-opt nt-hunt";
+  huntRow.innerHTML = `⏰ Legal light alarms (shooting light starts and ends): tick them in <button type="button" class="nt-link">Light and moon</button> on the Hunting panel.`;
+  huntRow.querySelector("button").addEventListener("click", () => {
+    box.close();
+    const a = document.getElementById("hnAlarms");
+    if (a) { a.open = true; (window.tfPanelScrollTo || ((el) => el.scrollIntoView()))(a, "center", true); }
+  });
+  function sortOpts() {
+    const b = document.body.classList, sp = b.contains("sport-ski") ? "ski" : b.contains("sport-hunt") ? "hunt" : b.contains("sport-fish") ? "fish" : "mtb";
+    const MINE = { mtb: ["ntLoamArea", "ntNewOn"], ski: ["ntAvyOn"], hunt: [], fish: ["ntFishOn"] }[sp];
+    const opts = ["ntLoamArea", "ntNewOn", "ntAvyOn", "ntFishOn"].map((id) => q(id).closest("label"));
+    const pick = q("ntPick"), first = pick.querySelector(".nt-push");
+    if (sp === "hunt") pick.insertBefore(huntRow, first); else huntRow.remove();
+    opts.filter((l) => MINE.includes(l.querySelector("input").id)).forEach((l) => pick.insertBefore(l, sp === "hunt" ? huntRow : first));
+    opts.filter((l) => !MINE.includes(l.querySelector("input").id)).forEach((l) => other.append(l));
+    pick.insertBefore(other, first);
+    // The regions are for loam, new trails and avalanches: in Hunting and Fishing they go with the other sports' alerts.
+    const zh = pick.querySelector(".nt-zhead"), zs = q("ntZones"), row = pick.querySelector(".nt-row");
+    if (sp === "hunt" || sp === "fish") other.append(zh, zs); else { pick.insertBefore(zh, row); pick.insertBefore(zs, row); }
+  }
   function openBox() {
+    sortOpts();
     prefs() || (loamOn() && loamList.length) || (avyOn() && skiWatch().length) || fishOn() ? showList() : paintPick();
     if (!box.open) box.showModal();
     checkLoam(); checkAvy(); checkFish();
