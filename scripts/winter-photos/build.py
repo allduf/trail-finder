@@ -1,7 +1,8 @@
 """Builds the 3D map's Winter photos once (they're last winter's, so they don't change):
     python3 scripts/winter-photos/build.py <block-dir>     then   python3 scripts/winter-photos/tiles.py <block-dir>
 tiles.py writes data/winter (not kept on main): copy it to winter/ on the winter-photos branch, as a single commit
-pushed over the old one, and the "Publish website" workflow adds it to the site.
+pushed over the old one, then run "Publish winter photos" in allduf/trail-finder-winter (it serves them at
+allduf.github.io/trail-finder-winter/, outside this site's 1 GB; it also runs daily).
 Draws 2048 px blocks (one zoom-11 tile each, = 8 x 8 zoom-14 tiles, about 10 m a pixel like the photos) of the
 region straight from the Sentinel-2 passes in data/winter-scenes.json (free, open data on AWS). Needs rasterio
 (pip install rasterio). Optional: python3 build.py <block-dir> 325 691  draws just that block.

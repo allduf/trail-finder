@@ -1,6 +1,6 @@
 // Worker for map3d.js: draws the sharper close-up Winter tiles (zooms 15-16) off the page's main thread, so the
 // 3D map keeps moving and loading its terrain while they're drawn (alex, 2026-10-19: "that map is long to load").
-// Message in: { id, z, x, y, base } (base = the page address, for data/winter). Out: { id, data } (a WebP or PNG
+// Message in: { id, z, x, y, base } (base = the page address, for the Winter photos at ../trail-finder-winter/). Out: { id, data } (a WebP or PNG
 // tile) or { id, err }. { cancel: id } drops a tile the map no longer needs.
 //
 // The colours come from last winter's Sentinel-2 photo (data/winter zoom 14, 10 m a pixel). Two real sources add
@@ -53,7 +53,7 @@ async function draw({ id, z, x, y, base }) {
   const keep = (p) => p.catch(() => null);
   const dz = Math.min(z - 1, 15);
   const [win, sharp, soft, dem] = await Promise.all([
-    under(14, z, x, y, (a, b, c) => new URL(`data/winter/${a}/${b}/${c}.webp`, base).href, "w"),
+    under(14, z, x, y, (a, b, c) => new URL(`../trail-finder-winter/${a}/${b}/${c}.webp`, base).href, "w"),
     keep(pixels(ESRI(z, x, y))),
     keep(under(13, z, x, y, ESRI, "e")),
     keep(under(dz, z, x, y, LIDAR, "d"))]);
