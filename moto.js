@@ -304,6 +304,19 @@ dialog.mt-dlg .mt-xb { font: inherit; border: 0; background: var(--chip); color:
 #motoPane .mt-wps li > .mt-wp { margin: 0 0 0 3px; padding: 0; border: 0; cursor: pointer; }
 #motoPane .mt-wps li > button:not(.mt-wp) { width: 34px; height: 34px; padding: 0; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: inherit; font-size: 1rem; }
 #motoPane .mt-wps li > button:disabled { opacity: .35; }
+#motoPane details.mt-reg summary small { font-weight: 500; color: var(--muted); margin-left: 4px; }
+#motoPane details.mt-reg summary svg { vertical-align: -2px; }
+#motoPane .mt-tphoto { margin: 0 0 4px; border-radius: 10px; overflow: hidden; background: var(--line); }
+#motoPane .mt-tphoto img { display: block; width: 100%; height: 180px; object-fit: cover; }
+#motoPane .mt-tphoto figcaption { font-size: .7rem; padding: 3px 8px; text-align: right; }
+#motoPane .mt-tphoto figcaption a { color: var(--muted); }
+#motoPane .mt-tsec { font-size: .84rem; }
+#motoPane .mt-tsec > b { display: block; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-top: 2px; }
+#motoPane .mt-tsec p, #motoPane .mt-tsec ul { margin: 1px 0 0; }
+#motoPane .mt-tsec ul { padding-left: 18px; }
+#motoPane ul.mt-stops { margin: 0; padding-left: 4px; list-style: none; font-size: .82rem; display: grid; gap: 2px; }
+#motoPane ul.mt-stops i { font-style: normal; color: var(--muted); display: inline-block; min-width: 54px; }
+#motoPane ul.mt-stops li.far b { color: #e03131; }
 #motoPane .mt-link { border: 0; background: none; padding: 0; color: ${ACC}; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .mt-mud { font: 800 10px/1.1 system-ui, sans-serif; color: #fff; text-shadow: 0 0 3px #000, 0 0 2px #000; white-space: nowrap; transform: translate(-50%, -50%); pointer-events: none; }
 .mt-planbar { position: absolute; z-index: 1000; left: 50%; top: 12px; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; white-space: nowrap;
@@ -2034,9 +2047,11 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
   // A list of known adventure routes in every province and territory (data/moto-routes.json, gathered from the
   // riders' route guides, traced on OpenStreetMap roads), sorted by distance from you, with the ones that suit your
   // bike first. One opens on the map; "Plan it" makes it your route, with turns, surfaces and gas for your bike.
-  let trips = null, tripsLoading = null, tripProv = "", tripFit = true, tripOpen = null;
+  // In region folders (alex: "grouped in region folders, with all the info for each"): regions:[{id, n}] in display
+  // order, and on each route its region, desc, hi[], hard, water, ferries[], permits, best, stops[], camps[], photo, links[].
+  let trips = null, tripsLoading = null, tripRegions = [], tripFit = true, tripOpen = null, tripFolders = null;
   const tripLayer = L.layerGroup(); allMoto.push(tripLayer);
-  const loadTrips = () => tripsLoading || (tripsLoading = getJ("data/moto-routes.json", 20000).then((j) => (trips = (j.routes || []).filter((t) => t && t.n && t.start))).catch(() => { tripsLoading = null; trips = null; return null; }));
+  const loadTrips = () => tripsLoading || (tripsLoading = getJ("data/moto-routes.json", 20000).then((j) => { tripRegions = j.regions || []; return (trips = (j.routes || []).filter((t) => t && t.n && t.start)); }).catch(() => { tripsLoading = null; trips = null; return null; }));
   const tripFits = (t, b) => (t.grade || 2) <= capOf(b) && (!t.bikes || !t.bikes.length || t.bikes.includes(b.type) || (t.grade || 2) <= capOf(b) - 1);
   const tripLine = (t) => (typeof t.line === "string" ? decode6(t.line) : Array.isArray(t.line) ? t.line : [t.start, t.end].filter(Boolean));
   async function openTrips() {
@@ -2055,28 +2070,53 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     if (el.hidden) return;
     if (!trips) { el.innerHTML = `<header>${svg(IC.trips)}<h3>ADV routes</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header><p class="mt-note">The route list isn't here yet: it comes with the next update.</p>`; el.querySelector(".mt-x").onclick = closeTrips; return; }
     const at = you ? [you.lat, you.lon] : (() => { const c = map.getCenter(); return [c.lat, c.lng]; })();
-    const provs = [...new Set(trips.map((t) => (t.prov || "").toUpperCase()).filter(Boolean))].sort();
-    let list = trips.map((t) => ({ t, d: kmBetween(at, t.start), fit: tripFits(t, b) })).filter((x) => !tripProv || (x.t.prov || "").toUpperCase() === tripProv);
+    let list = trips.map((t) => ({ t, d: kmBetween(at, t.start), fit: tripFits(t, b) }));
     if (tripFit) list = list.filter((x) => x.fit);
     list.sort((x, y) => x.d - y.d);
     const g = (t) => { const f = fitOf(t.grade || 2, capOf(b)); return `<span class="mt-g" style="--c:${(t.grade || 2) === 1 ? "#495057" : FIT[f][1]}">${t.grade || 2}</span>`; };
     const open = tripOpen && trips.find((t) => t.id === tripOpen);
+    // Folders in the file's order, then any region it doesn't name; the one with the route nearest you opens first.
+    const regs = [...tripRegions, ...[...new Set(trips.map((t) => t.region || ""))].filter((id) => !tripRegions.some((r) => r.id === id)).map((id) => ({ id, n: id ? id.replace(/-/g, " ") : "Other routes" }))];
+    const byReg = regs.map((r) => ({ r, l: list.filter((x) => (x.t.region || "") === r.id) })).filter((x) => x.l.length);
+    if (!tripFolders && byReg.length) tripFolders = new Set([byReg.slice().sort((x, y) => x.l[0].d - y.l[0].d)[0].r.id]);
+    const row = ({ t, d }) => `<li style="--c:${FIT[fitOf(t.grade || 2, capOf(b))][1]}"><button type="button" class="mt-go" data-trip="${esc(t.id)}"><b>${g(t)}${esc(t.n)}</b><small>${esc((t.prov || "").toUpperCase())} · ${fmtKm(t.km || 0)}${t.dirtPct != null ? ` · ${t.dirtPct}% dirt` : ""}${t.best || t.season ? ` · ${esc(t.best || t.season)}` : ""}</small><em>${fmtKm(d)}</em></button></li>`;
     el.innerHTML = `<header>${svg(IC.trips)}<h3>ADV routes</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>
-      ${open ? (() => { const f = fitOf(open.grade || 2, capOf(b)), gap = open.fuelGap; return `<p><b>${esc(open.n)}</b></p>
-        <div class="mt-stats"><div><b>${fmtKm(open.km || 0)}</b><span>${open.loop ? "loop" : "distance"}</span></div><div><b>${open.dirtPct != null ? open.dirtPct + "%" : "…"}</b><span>dirt</span></div><div><b style="color:${(open.grade || 2) === 1 ? "#495057" : FIT[f][1]}">${open.grade || 2} of 5</b><span>grade</span></div><div><b>${gap ? fmtKm(gap) : "…"}</b><span>longest no gas</span></div></div>
-        <div class="mt-warn ${f === "ok" ? "ok" : f === "hard" ? "hard" : ""}"><b>${esc(FIT[f][0])}</b> (${esc(GRADES[open.grade || 2][0].toLowerCase())}).${gap && gap > usable(b) ? ` <b>${fmtKm(gap)} with no gas</b> is more than your ${usable(b)} km: carry fuel.` : ""}${open.season ? ` Season: ${esc(open.season)}.` : ""}${open.ferry ? " It takes a ferry." : ""}</div>
-        ${open.notes ? `<p class="mt-note" style="font-size:.82rem;color:var(--fg)">${esc(open.notes)}</p>` : ""}
-        <div class="mt-row"><button type="button" class="mt-pill go" data-t="plan">${svg(IC.plan, 16)}Plan it for my bike</button><button type="button" class="mt-pill" data-t="back">All routes</button>${open.src ? `<a class="mt-pill" href="${esc(open.src)}" target="_blank" rel="noopener">Source</a>` : ""}</div>`; })()
-      : `<div class="mt-chips"><button type="button" data-fit class="${tripFit ? "on" : ""}">Fits my bike</button><button type="button" data-prov="" class="${!tripProv ? "on" : ""}">All of Canada</button>${provs.map((p) => `<button type="button" data-prov="${p}" class="${tripProv === p ? "on" : ""}">${p}</button>`).join("")}</div>
-        ${list.length ? `<ul class="mt-list">${list.slice(0, 40).map(({ t, d }) => `<li style="--c:${FIT[fitOf(t.grade || 2, capOf(b))][1]}"><button type="button" class="mt-go" data-trip="${esc(t.id)}"><b>${g(t)}${esc(t.n)}</b><small>${esc((t.prov || "").toUpperCase())} · ${fmtKm(t.km || 0)}${t.dirtPct != null ? ` · ${t.dirtPct}% dirt` : ""}${t.season ? ` · ${esc(t.season)}` : ""}</small><em>${fmtKm(d)}</em></button></li>`).join("")}</ul>`
-        : `<p class="mt-note">${tripFit ? "None here fit your bike: turn off Fits my bike to see them all." : "No routes here."}</p>`}
+      ${open ? tripHtml(open, b)
+      : `<div class="mt-chips"><button type="button" data-fit class="${tripFit ? "on" : ""}">Fits my bike</button><span class="mt-note" style="align-self:center">${list.length} of ${trips.length} routes</span></div>
+        ${byReg.length ? byReg.map(({ r, l }) => `<details class="mt-fold mt-reg" data-reg="${esc(r.id)}"${tripFolders.has(r.id) ? " open" : ""}><summary>${svg(IC.trips, 14)} ${esc(r.n)} <small>${l.length} · ${fmtKm(l[0].d)} away</small></summary><ul class="mt-list">${l.map(row).join("")}</ul></details>`).join("")
+        : `<p class="mt-note">${tripFit ? "None fit your bike: turn off Fits my bike to see them all." : "No routes here."}</p>`}
         <p class="mt-note">The grade is for the roughest part, coloured for your ${esc(b.name || TYPES[b.type].label)}. Distance is from ${you ? "you" : "the map's centre"} to the start.</p>`}`;
+    el.querySelectorAll("details[data-reg]").forEach((x) => x.addEventListener("toggle", () => { if (x.open) tripFolders.add(x.dataset.reg); else tripFolders.delete(x.dataset.reg); }));
     el.querySelector(".mt-x").onclick = closeTrips;
-    el.querySelectorAll("[data-prov]").forEach((x) => (x.onclick = () => { tripProv = x.dataset.prov; renderTrips(); }));
     const fb = el.querySelector("[data-fit]"); if (fb) fb.onclick = () => { tripFit = !tripFit; renderTrips(); };
     el.querySelectorAll("[data-trip]").forEach((x) => (x.onclick = () => showTrip(x.dataset.trip)));
     const pb = el.querySelector('[data-t="plan"]'); if (pb) pb.onclick = () => planTrip(open);
     const bb = el.querySelector('[data-t="back"]'); if (bb) bb.onclick = () => { tripOpen = null; tripLayer.clearLayers(); renderTrips(); };
+  }
+  // One route with all it has: photo, what it is, highlights, the hardest part, water, ferries, permits, best months,
+  // gas stops (gaps longer than your range in red) and camps along it, trip reports.
+  function tripHtml(t, b) {
+    const f = fitOf(t.grade || 2, capOf(b)), gap = t.fuelGap, use = usable(b);
+    const sec = (title, body) => (body ? `<div class="mt-tsec"><b>${title}</b>${body}</div>` : "");
+    const ul = (items) => (items && items.length ? `<ul>${items.map((x) => `<li>${x}</li>`).join("")}</ul>` : "");
+    const stops = (t.stops || []).slice().sort((x, y) => x.km - y.km);
+    const stopRows = stops.map((s, i) => { const gp = i ? s.km - stops[i - 1].km : 0; return `<li${gp > use ? ' class="far"' : ""}><i>km ${Math.round(s.km)}</i> ${esc(s.n || "Gas")}${s.at ? ` · ${esc(s.at)}` : ""}${s.c > 1 ? ` · ${s.c} stations` : ""}${gp > use ? ` <b>${fmtKm(gp)} since the last gas</b>` : ""}</li>`; });
+    const photo = t.photo && t.photo.img ? `<figure class="mt-tphoto"><img src="${esc(t.photo.img)}" alt="${esc(t.n)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()">${t.photo.page ? `<figcaption><a href="${esc(t.photo.page)}" target="_blank" rel="noopener">Photo: Wikimedia Commons</a></figcaption>` : ""}</figure>` : "";
+    return `${photo}<p><b>${esc(t.n)}</b></p>
+      <div class="mt-stats"><div><b>${fmtKm(t.km || 0)}</b><span>${t.loop ? "loop" : "distance"}</span></div><div><b>${t.dirtPct != null ? t.dirtPct + "%" : "…"}</b><span>dirt</span></div><div><b style="color:${(t.grade || 2) === 1 ? "#495057" : FIT[f][1]}">${t.grade || 2} of 5</b><span>grade</span></div><div><b>${gap ? fmtKm(gap) : "…"}</b><span>longest no gas</span></div></div>
+      <div class="mt-warn ${f === "ok" ? "ok" : f === "hard" ? "hard" : ""}"><b>${esc(FIT[f][0])}</b> (${esc(GRADES[t.grade || 2][0].toLowerCase())}).${gap && gap > use ? ` <b>${fmtKm(gap)} with no gas</b> is more than your ${use} km: carry fuel.` : ""}</div>
+      ${t.desc ? `<p style="font-size:.86rem;margin:2px 0">${esc(t.desc)}</p>` : ""}
+      ${sec("Best months", t.best || t.season ? `<p>${esc(t.best || t.season)}${t.season && t.best && t.season !== t.best ? ` (open ${esc(t.season)})` : ""}</p>` : "")}
+      ${sec("Highlights", ul((t.hi || []).map(esc)))}
+      ${sec("Hardest part", t.hard ? `<p>${esc(t.hard)}</p>` : "")}
+      ${sec("Water crossings", `<p>${t.water ? esc(t.water) : "None known."}</p>`)}
+      ${sec("Ferries", t.ferries && t.ferries.length ? ul(t.ferries.map(esc)) : t.ferry ? "<p>It takes a ferry.</p>" : "<p>None.</p>")}
+      ${sec("Permits and passes", t.permits ? `<p>${esc(t.permits)}</p>` : "")}
+      ${t.notes ? sec("Road notes", `<p>${esc(t.notes)}</p>`) : ""}
+      ${stops.length ? `<details class="mt-fold"><summary>${svg(IC.fuel, 14)} Gas on the way (${stops.length})</summary><ul class="mt-stops">${stopRows.join("")}</ul></details>` : ""}
+      ${t.camps && t.camps.length ? `<details class="mt-fold"><summary>${svg(IC.camp, 14)} Camping on the way (${t.camps.length})</summary><ul class="mt-stops">${t.camps.slice().sort((x, y) => x.km - y.km).map((c) => `<li><i>km ${Math.round(c.km)}</i> ${esc(c.n)}</li>`).join("")}</ul></details>` : ""}
+      ${t.links && t.links.length ? sec("Trip reports and guides", ul(t.links.filter((l) => /^https?:/.test(l.u || "")).map((l) => `<a href="${esc(l.u)}" target="_blank" rel="noopener">${esc(l.t || l.u)}</a>`))) : ""}
+      <div class="mt-row"><button type="button" class="mt-pill go" data-t="plan">${svg(IC.plan, 16)}Plan it for my bike</button><button type="button" class="mt-pill" data-t="back">All routes</button>${t.src ? `<a class="mt-pill" href="${esc(t.src)}" target="_blank" rel="noopener">Source</a>` : ""}</div>`;
   }
   function showTrip(id) {
     const t = trips && trips.find((x) => x.id === id); if (!t) return;
