@@ -2239,7 +2239,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // A ski tour: the file says so, the name says so, or it was in winter and went high (bike parks and alpine trails are under snow).
   const SKI_SPORT = /ski|snow|board/i, SKI_NAME = /\b(ski\w*|skin\w*|splitboard\w*|snowshoe\w*|backcountry|pow(der)?)\b/i;
   function isSkiTour(r) {
-    if (!r || !Array.isArray(r.points) || r.points.length < 2) return false;
+    if (!r || !Array.isArray(r.points) || r.points.length < 2 || r.sport === "hunt" || r.sport === "fish") return false;
     if (SKI_SPORT.test(r.sport || "") || SKI_NAME.test(r.title || "")) return true;
     const m = new Date(r.start).getMonth();
     if (!(m >= 10 || m <= 4)) return false;

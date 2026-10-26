@@ -8,6 +8,9 @@
 //  - newt: new trails mapped in its regions (data/new-trails.json), the same ones the 🔔 lists (MTB tagged or Looks
 //    like MTB, classified by the site's own classify(), read from index.html).
 // Each area or trail is sent once each time it turns prime, like the bell; again after it dries out or gets too wet.
+// Across Canada: a phone outside the home zones picks "Around you" in the 🔔, which saves the Canada map chunks there
+// ("ca_<chunk>") in its zones, named by its ca groups ({ n, ids }). Their trails are the chunks' MTB trails
+// (ca/c/<chunk>.json, the canada-data branch, which the workflow unpacks into ca/) and their new trails ca/new-trails.json.
 //  - avy: avalanche danger (Skiing), as the bell's "Avalanche danger" list: the Avalanche Canada forecast areas over its
 //    regions (data/avalanche.json) when their highest rating for today or tomorrow goes up to Considerable or more, and
 //    the ski tours it watches (tours: { k, n, c: top, lo, hi, cls }) when their trip planner light (ski-terrain.js, the
@@ -56,7 +59,13 @@ console.log(`${subs.length} phone(s) signed up.`);
 // What each phone asked for (no addresses), so a quiet phone can be told apart from one with nothing picked.
 subs.forEach((s, i) => { const w = s.watch || {}; console.log(`  phone ${i + 1}: regions ${JSON.stringify(w.zones || [])}, prime loam ${w.loam ? "on" : "off"}, new trails ${w.newt ? "on" : "off"}, avalanche ${w.avy ? `on, ${(w.tours || []).length} tour(s)` : "off"}, stocking ${w.fish ? "on" : "off"}, ${(w.ride || []).length} To ride trail(s), app v${w.v || "older than 257"}, ${Object.keys(s.sent || {}).length} already sent, saved ${s.updated_at}`); });
 if (!subs.length) process.exit(0);
-const zonesOf = (w) => ((w.zones || []).includes("all") ? [...ZONES.keys()] : (w.zones || []).filter((z) => ZONES.has(z)));
+const isCa = (z) => /^ca_-?\d+_-?\d+(\.\d)?$/.test(z);
+const zonesOf = (w) => ((w.zones || []).includes("all") ? [...ZONES.keys()] : (w.zones || []).filter((z) => ZONES.has(z))).concat((w.zones || []).filter(isCa));
+// A Canada chunk's name: the group the phone picked it in ("Around Bromont").
+const caName = new Map();
+subs.forEach(({ watch: w = {} }) => (Array.isArray(w.ca) ? w.ca : []).forEach((g) => (g && Array.isArray(g.ids) ? g.ids : []).forEach((id) => { if (!caName.has(id)) caName.set(id, String(g.n || "").slice(0, 60)); })));
+const zoneName = (z) => ZONES.get(z) || caName.get(z) || "your area";
+const caBox = (z) => { const [s, w] = z.slice(3).split("_").map(Number); return [s, w, s + 1, w + 1.2]; };
 
 // ---------- region trails: named MTB trails per zone, one spot each (as tfZoneTrails in index.html) ----------
 const areas = (readJson("data/riding-areas.json") || { areas: [] }).areas;
@@ -64,12 +73,12 @@ const km = (a, b) => { const dx = (a[1] - b[1]) * 111.32 * Math.cos(a[0] * Math.
 function areaOf(c, zone) {
   let best = null, d = AREA_KM;
   areas.forEach((a) => { const k = km(c, a.c); if (k < d) { d = k; best = a.name; } });
-  return best || `Other trails in ${ZONES.get(zone)}`;
+  return best || (isCa(zone) ? `Other trails ${zoneName(zone).replace(/^Around/, "around")}` : `Other trails in ${zoneName(zone)}`);
 }
 const zoneTrails = new Map();
 function trailsOf(zone) {
   if (zoneTrails.has(zone)) return zoneTrails.get(zone);
-  const f = readJson(`data/mtb-${zone}.json`), by = new Map();
+  const f = isCa(zone) ? (readJson(`ca/c/${zone.slice(3)}.json`) || {}).mtb : readJson(`data/mtb-${zone}.json`), by = new Map();
   Object.entries((f && f.ways) || {}).forEach(([id, w]) => {
     const name = w.tags.name || w.tags["tf:name"];
     if (!name || w.g.length < 4) return;
@@ -152,7 +161,7 @@ console.log(`Loam read at ${lmi.size} of ${cellList.length} spots.`);
 const a = html.indexOf("// ---------- classification ----------"), b = html.indexOf("// Difficulty as Trailforks colours it");
 if (a < 0 || b < a) throw new Error("Couldn't find classify() in index.html");
 const { classify } = new Function("state", "esc", html.slice(a, b) + "\nreturn { classify };")({}, (s) => s);
-const feed = ((readJson("data/new-trails.json") || {}).items || []).filter((it) => {
+const feed = [...((readJson("data/new-trails.json") || {}).items || []), ...((readJson("ca/new-trails.json") || {}).items || [])].filter((it) => {
   if (Date.now() - Date.parse(it.at) > NEW_DAYS * 86400e3) return false;
   const c = classify(it.tags || {}, it.routes || [], it.routes && it.routes.length ? ["mtb"] : []);
   return c && (c.cat === "mtb" || c.cat === "looks") && c.use !== "hike";
@@ -247,12 +256,12 @@ for (const s of subs) {
     if (fresh.length) {
       // Named trails first, then the unnamed ones counted per region.
       const unnamed = (xs) => {
-        const named = xs.filter((it) => it.name).map((it) => `${it.name} (${ZONES.get(it.z)})`), per = new Map();
+        const named = xs.filter((it) => it.name).map((it) => `${it.name} (${zoneName(it.z)})`), per = new Map();
         xs.filter((it) => !it.name).forEach((it) => per.set(it.z, (per.get(it.z) || 0) + 1));
-        return [list(named, 4), ...[...per].map(([z, n]) => `${n} unnamed in ${ZONES.get(z)}`)].filter(Boolean).join("; ");
+        return [list(named, 4), ...[...per].map(([z, n]) => `${n} unnamed in ${zoneName(z)}`)].filter(Boolean).join("; ");
       };
       msgs.push({ title: fresh.length === 1 ? `New trail: ${fresh[0].name || "Unnamed trail"}` : `${fresh.length} new trails`,
-        body: fresh.length === 1 ? `Just mapped in ${ZONES.get(fresh[0].z)}${fresh[0].u ? ` by ${fresh[0].u}` : ""}.` : unnamed(fresh),
+        body: fresh.length === 1 ? `Just mapped in ${zoneName(fresh[0].z)}${fresh[0].u ? ` by ${fresh[0].u}` : ""}.` : unnamed(fresh),
         keys: fresh.map((it) => "n:" + it.ids[0]) });
     }
     // Forget new trails that left the feed window, so the row doesn't grow forever.
@@ -261,7 +270,7 @@ for (const s of subs) {
   // Avalanche danger up in its regions, or on the tours it watches.
   if (w.avy && avyAreas.length) {
     const lines = [], names = [], keys = [];
-    const zb = zonesOf(w).map((z) => BOXES.find(([id]) => id === z)?.[1]).filter(Boolean);
+    const zb = zonesOf(w).map((z) => (isCa(z) ? caBox(z) : BOXES.find(([id]) => id === z)?.[1])).filter(Boolean);
     for (const { a, box: b, best } of avyAreas) {
       if (!best || best.r < 3 || !zb.some((z) => z[0] <= b[2] && z[2] >= b[0] && z[1] <= b[3] && z[3] >= b[1])) continue;
       const key = "v:" + a.id;

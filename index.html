@@ -1525,11 +1525,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <p>Purple dotted lines are guesses, not mapped trails. Once a week the site looks at the public GPS traces people upload to OpenStreetMap. Where 2 or more different traces run together for 100 m or more, more than 20 m from any mapped road, path, lift or ski run, it's listed. Only lines most traces ride at bike speed (faster than walking, slower than a car) are shown. The date is the first GPS trace on it. Each one links to the Strava and Trailforks heatmaps so you can compare, and to OpenStreetMap so you can map it if it's real. It may be private land, closed, or a GPS glitch: check before riding.</p>
     <h3>Forest roads</h3>
     <p>Forest Service Roads and other dirt roads have a white edge and a colour for their status (turn them off with “Forest roads”). Once a week the site collects them from two open sources: the BC government's Forest Tenure roads (DataBC, Open Government Licence - British Columbia), which list every Forest Service Road and road permit with its tenure status, and OpenStreetMap dirt roads with their gate, access and deactivation tags. The colour is the road's condition, like on a backroad map. Green is good condition (an active Forest Service tenure, or mapped as smooth or solid). Yellow is degraded (mapped as bad or partly soft). Red is heavily degraded: very rough, 4x4 only, or a retired tenure that's no longer maintained and often deactivated. Black dashes are impassable: deactivated, washed out or abandoned. Grey dashes mean the condition isn't known. Pink dashes mean closed to public vehicles: gated, private or industrial use only. Each road is one line: where both sources map the same road, what a mapper saw on the ground (OpenStreetMap) wins, and the tenure decides only when OpenStreetMap has no condition for it. Tap a road to see both sources. This is mapped data, not a live closure list: check the <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p>
+    <p>Outside Vancouver-to-Calgary, the rest of Canada gets the OpenStreetMap part every night: the dirt and forest roads within 2 km of a mountain bike trail, and the trailheads, parking, drinking water, toilets, bike repair stations and shelters near the trails.</p>
     <p>With “Forest roads” on, the map also shows, once you zoom in: gates (open, locked or not known), barriers, bridges and bridges out, foot bridges, fords and hydro plants, from OpenStreetMap. Tap any of them for details. The “Logging areas” button shows cut blocks (pending, active or recently logged, and retired in the last 15 years) and areas closed to motor vehicles, from the BC government, on their own. With the button off, the roads stay on the map as plain grey-brown lines.</p>
     <h3>Wildfires</h3>
     <p>The “Wildfires” button shows active wildfires across Canada (fires that are out are left off). In BC they come from the BC Wildfire Service, with their perimeters, areas closed because of fire (area restriction orders), and evacuation orders and alerts. In Alberta they come from Alberta Wildfire, with Alberta's fire control orders (forest area closures, fire bans, fire restrictions and off-highway vehicle bans; the milder fire advisories are left off) and wildfire evacuations from Alberta Emergency Alert. Everywhere else they come from the agencies' reports gathered by the Canadian Wildland Fire Information System, with rough fire areas seen by satellite next to them. It's refreshed every 3 hours, so always check the <a href="https://wildfiresituation.nrs.gov.bc.ca/map" target="_blank" rel="noopener">BC Wildfire map</a> and <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a>, <a href="https://www.alberta.ca/wildfire-status" target="_blank" rel="noopener">Alberta wildfire status</a> and <a href="https://www.albertafirebans.ca/" target="_blank" rel="noopener">Alberta fire bans</a>, or the <a href="https://cwfis.cfs.nrcan.gc.ca/interactive-map" target="_blank" rel="noopener">CWFIS fire map</a> and the local fire agency before heading out.</p>
     <p class="src">Fires outside BC and Alberta: Canadian Forest Service, Canadian Wildland Fire Information System (CWFIS), Natural Resources Canada, Canadian Forest Service, Northern Forestry Centre, Edmonton, Alberta (Open Government Licence – Canada). Alberta: contains information licensed under the Open Government Licence – Alberta.</p>
-    <h3>Skiing</h3>
+    <h3 id="aboutSki">Skiing</h3>
     <p>Pick “⛷ Skiing” in the sport menu at the top. The map then shows backcountry ski routes and huts instead of the bike trails. Under the map buttons, a short Avalanche card and a list of what's in view: Routes and Huts, nearest the middle of the map first, each with how far it is, how long and how hard. Type a name in the search box to find a route or hut anywhere. Every night the site collects them from OpenStreetMap (ski touring, nordic, snowshoe and snowmobile routes, ski route relations, and alpine and wilderness huts; resort runs are there too but off by default) from BC Recreation Sites and Trails (trails whose name or description says ski, nordic, snowshoe or snowmobile), and from camptocamp.org (ski touring and snowshoe routes that have a drawn line). Tap a route or hut for its details.</p>
     <p>Four buttons at the top of the panel pick what's on the map: <b>⛷ Touring</b> (ski touring routes, approach trails to the skiing (dashed blue), trailhead parking (blue P pins; village and ski resort lots aren't shown), other winter routes, huts, camptocamp route starts and snow stations, with the Avalanche card), <b>🎿 Nordic</b> (nordic and snowshoe trails), <b>🛷 Snowmobile</b> (snowmobile trails and the clubs with their grooming reports) and <b>🚡 Resorts</b> (runs, and in-bounds off-piste and bowls). More than one can be on. The Avalanche card shows the day's ratings for the middle of the map (Alpine, Treeline and Below treeline), with the problems, the forecaster's notes and riders' reports one tap away under “Problems, notes and riders' reports”. In <b>Layers</b> on the map, the Skiing part has ⚠ Avalanche risk, Slope angle, Snow stations, the Ski heatmap, Your ski tours, and every single layer under “Single layers”, and 📷 Webcams: live ski resort and backcountry webcams pinned where each camera is (about 100 cams at 21 BC and Alberta resorts, Whistler Peak first; backcountry cams at Kees and Claire Hut, Mount Abbott and Mount Fidelity at Rogers Pass, Boulder Cabin and Sol Mountain Lodge in teal; DriveBC highway cams at the passes where tours start, like Rogers Pass, the Duffey, the Coquihalla and Kootenay Pass, in grey). Tap a pin for the live feed, shown from the owner's own player, with a link to their webcam page. Sledding and tubing hills aren't shown.</p>
     <p><b>Rogers Pass</b> (Glacier National Park): with the map there, a “Rogers Pass today” card shows which Winter Restricted Areas and parking lots Parks Canada has posted open for the day (artillery avalanche control closes the rest; read from Parks Canada's live map every 15 minutes on winter mornings), the Winter Permit rules, the ACC huts and Parks Canada's official terrain class (ATES) for 50 named runs. The map colours the permit areas: green open today, red closed today, amber not posted yet, blue Unrestricted (a permit is still needed), purple striped Prohibited all winter. Routes there get their official class and which area they go through in their details. Switch it off with “Rogers Pass permit areas” in Layers. Parks Canada's posted order always wins over the map.</p>
@@ -1546,15 +1547,15 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <p>Snowmobile trails (red dashes) are OpenStreetMap ways marked for snowmobiles (<code>piste:type=snowmobile</code>, <code>route=snowmobile</code>, or <code>snowmobile=yes</code> or <code>designated</code>, often forest roads that are sled trails in winter) and BC recreation trails that say snowmobile. The ❄ pins are the snowmobile clubs' staging areas: Powder Mountain (Brandywine), Black Tusk (Brohm Ridge), Pemberton Valley (Rutherford and the Hurley), Bridge River Valley (Gold Bridge) and Burke Mountain. “Snowmobile clubs and grooming” lists each club with its trail pass and its latest grooming report. Every 2 hours the site reads the reports that are on a public web page, when the page's robots.txt allows it. Clubs that only post on Facebook or Instagram get a link instead, because those sites don't allow others to copy their posts.</p>
     <p>“Ski heatmap” shows where people actually go in winter: every week the site counts the public GPS traces uploaded to OpenStreetMap from December to April, per 30 m square, leaving out roads, railways, ferries and lifts. Blue is one trace, then cyan, yellow and orange for the busiest lines. Few people upload traces here, so it's patchy. Strava's and Trailforks' heatmaps don't allow other sites to reuse them. “Your ski tours” draws the tours you imported or recorded with Ride (My rides): a ride counts as a ski tour when it was recorded in Skiing, its file says skiing or snowshoeing, its name says ski, skin, splitboard, snowshoe or powder, or it was in winter (November to May) and went above 1300 m. They stay on your device.</p>
     <p>“⚠ Avalanche risk” shades the mountains by Avalanche Canada's forecast, on the flat map and on the 3D map. Only slopes steeper than about 25° are coloured, since that's where avalanches start. Each slope gets the danger rating (Low green, Moderate yellow, Considerable orange, High red, Extreme black) of its elevation band, worked out from its height: below treeline under about 1500 m, alpine above about 1900 m on the coast (1700 m and 2200 m inland, 1900 m and 2400 m in the Rockies). Stripes and a stronger colour mark slopes whose direction (aspect) and elevation are named in the day's avalanche problems. The site checks the forecast every 2 hours. It's an estimate from the forecast and the shape of the terrain, not a terrain rating: always read the full forecast on avalanche.ca and travel with training and rescue gear.</p>
-    <h3>Hunting</h3>
-    <p>Pick “🦌 Hunting” in the sport menu at the top. The bike trails make way for every hunting zone in BC (management units, labelled with the number and, closer in, the game management zone) and Alberta (WMUs with number and name), all drawn as dark lines with a white edge. The buttons at the top of the panel do the main jobs in one tap: <b>My spot</b> (your location), <b>Save a point</b>, <b>Hunting log</b>, <b>Mark my truck</b>, <b>Back to truck</b> (a line from you to the truck with its distance and direction, updated as you walk) and <b>Record walk</b> (saved in My rides, shareable as GPX).</p>
+    <h3 id="aboutHunt">Hunting</h3>
+    <p>Pick “🦌 Hunting” in the sport menu at the top. The bike trails make way for every hunting zone in BC (management units, labelled with the number and, closer in, the game management zone) and Alberta (WMUs with number and name), all drawn as dark lines with a white edge. The buttons at the top of the panel do the main jobs in one tap: <b>My spot</b> (your location), <b>Save a point</b>, <b>My hunts</b>, <b>Mark my truck</b> and <b>Back to truck</b> (a line from you to the truck with its distance and direction, updated as you walk). <b>Track</b> (Start tracking) records your walk.</p>
     <p><b>Tap the map</b> to see that spot: its zone with a link to the regulations, the open seasons there by species (the ones open today marked ● Open, read each month from the BC regional synopses and the Alberta Guide to Hunting Regulations), the BC limited entry hunts in the unit with last year's first-choice odds (shaded when the spot is inside the hunt's zone) or Alberta's special licence draws with this year's tags, applicants and the priority needed, and any park, town, reserve, military land or closure with what it means for hunting (towns link to their firearm discharge bylaw). In BC it also says whether the land is private or Crown, the forest stand (species, age, height) and when it last burned, from DataBC; in Alberta, whether it's a grazing lease (contact the leaseholder), the forest fuel type, burns and wetlands from Alberta's map server.</p>
     <p>The wind card shows where the wind comes from and where your scent goes (the orange cone on the map, wider in light wind), gusts, temperature, cloud and the next 12 hours, from Open-Meteo. The light card has legal light (half an hour before sunrise to half an hour after sunset), sunrise, sunset, the moon and solunar feeding times, and ⏰ Alarms: tick legal light start, sunrise, sunset or legal light end, pick how early, and the app rings and shows a notice while it's open; “Add to my calendar” puts the next 14 days at that spot in your phone's calendar with alerts, so they ring with the app closed.</p>
     <p><b>Map layers</b> are grouped, and each one shows its own key when it's on; the <b>Key</b> button on the map shows the same key there. Only zones, parks and the scent cone are on at first, and every layer has its own colour. Boundaries: hunting zones, BC limited entry zones, and parks, towns and closures (red stripes no hunting, blue rules vary, green usually open, violet reserves, grey towns where shooting is banned by bylaw, black dots BC motor vehicle closures). Land: BC private parcels (ParcelMap BC, from zoom 11), Alberta grazing leases on public land and Alberta's Green Area (public forest). Habitat: forest types in five hunter classes (thick timber for bedding cover, open timber, aspen, birch and mixed forest, young forest and brush for browse, and meadows and grass; BC forest inventory, Alberta fuel types), old burns by age, and wetlands. Terrain: slope angle and aspect. Tools: the scent cone and 50 to 400 m range rings around the spot. Every layer works on the 3D map too.</p>
     <p>“Hunting maps offline” saves the zones, parks, seasons and draw results, and the picture layers you have on for the area on screen (zoom 10 to 15), so they work with no signal; save the base map with Offline maps (in the Ride tab on phones, the Layers menu on computers).</p>
-    <p>Your points: truck or parking, tree stands, blinds, sightings, tracks, rubs, scrapes, bedding and feeding areas, trail cameras, water, harvests and camps, each with a photo and notes, on the flat and 3D maps (signed in, they go to your account too). Open one to Share it or “Guide me here”. A 🎯 Harvest point takes the species, animal, date and zone (filled in from the map), and the <b>Hunting log</b> lists harvests by season (April to March) with a CSV download. A 📷 Trail camera point keeps its checks: each time you pull the card, add the best photo, the date and what it caught, and the log shows every camera's photos in order. This is a guide, not the law: always check the BC Hunting and Trapping Regulations Synopsis or the Alberta Guide to Hunting Regulations.</p>
+    <p>Your points: truck or parking, tree stands, blinds, sightings, tracks, rubs, scrapes, bedding and feeding areas, trail cameras, water, harvests and camps, each with a photo and notes, on the flat and 3D maps (signed in, they go to your account too). Open one to Share it or “Guide me here”. A 🎯 Harvest point takes the species, animal, date and zone (filled in from the map), and <b>My hunts</b> lists harvests by season (April to March) with a CSV download. My hunts also keeps every hunt you tracked: the day, the time you were out, how far you walked and climbed, a small map of the walk, what you saved on the way and the wind, temperature, pressure and moon when you set out (tap one to see the walk on the map). With 3 hunts or more, <b>What works</b> shows on which wind, pressure, moon and time of day you found animals. A 📷 Trail camera point keeps its checks: each time you pull the card, add the best photo, the date and what it caught, and the log shows every camera's photos in order. This is a guide, not the law: always check the BC Hunting and Trapping Regulations Synopsis or the Alberta Guide to Hunting Regulations.</p>
     <p class="src">Hunting data: DataBC (Open Government Licence - British Columbia), Alberta Environment and Protected Areas (Open Government Licence - Alberta), Canada Lands Survey System (Open Government Licence - Canada), ParcelMap BC (LTSA), BC Vegetation Resources Inventory, BC Limited Entry Hunting Synopsis, Alberta Guide to Hunting Regulations and AlbertaRELM draw summaries, Alberta Wildfire fuel types and fire history, Alberta Merged Wetland Inventory. Weather: Open-Meteo. Terrain: Mapzen Terrain Tiles on AWS.</p>
-    <h3>Fishing</h3>
+    <h3 id="aboutFish">Fishing</h3>
     <p>Pick “🎣 Fishing” in the sport menu at the top. <b>Tap the map</b> on a lake, river or the sea to see that spot: the fishing rules for its area with links to your province's regulations and in-season changes (BC regions and tidal areas, Alberta's zones and each water's own rules, Ontario's zones, Quebec's zones and their latest news), the fish recorded there, when it was last stocked, the nearest river gauge and the next tides. In Ontario and Quebec it also shows how many meals a month of each fish are safe to eat, by size, from each province's fish eating guide.</p>
     <p><b>Where to fish today</b> ranks the stocked waters and rivers near you by how fresh the stocking is and how good the flow is today. A river's light compares its flow now with its usual flow for this month (the middle of all its monthly means): very low, low and clear, normal, high or blown out. The conditions card has the wind, the pressure and which way it's going, the moon, sunrise and sunset, and a 1 to 5 bite forecast for the next 3 days; by the sea, the water temperature and waves. The hatch chart shows what's usually hatching this month in your part of the country.</p>
     <p><b>Save a catch</b> where you caught it, with the fish, its length, the fly or lure, kept or released, and a photo; “Which fish is this?” asks the photo AI to name the fish. The weather, pressure, moon, light, river flow and tide are saved with it, and the Fishing log shows what works for you (your catches by pressure, time of day, moon, flow, tide and fly), with a CSV to keep. Catches and spots are only yours: there's no public catch map. Turn on 🎣 in the 🔔 to hear when a lake or river near you is stocked.</p>
@@ -1568,12 +1569,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=408"></script>
-<script src="rotate.js?v=408"></script>
-<script src="official.js?v=408"></script>
-<script src="directions.js?v=408"></script>
-<script src="ratings.js?v=408"></script>
-<script src="ebike.js?v=408"></script>
+<script src="native.js?v=412"></script>
+<script src="rotate.js?v=412"></script>
+<script src="official.js?v=412"></script>
+<script src="directions.js?v=412"></script>
+<script src="ratings.js?v=412"></script>
+<script src="ebike.js?v=412"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1744,6 +1745,15 @@ body.sport-alt #rideMapBtn { display: none !important; }
     try { localStorage.setItem("tf:caHome", JSON.stringify(caHome)); } catch {}
     return true;
   }
+  // For the 🔔 alerts (notify.js): the Canada map chunks within the "Around you" distance of a spot outside the home
+  // regions (null inside them, where the zones are picked instead), and the rider's home spot when it is outside them.
+  window.tfCaAround = async (ll) => {
+    if (!ll || inRegions(L.latLng(ll))) return null;
+    const b = L.latLngBounds([ll[0] - HOME_LAT, ll[1] - HOME_LON], [ll[0] + HOME_LAT, ll[1] + HOME_LON]);
+    const ids = [...(await caIndexLoad()).zones.values()].filter((z) => b.intersects(z.bounds)).map((z) => z.id);
+    return ids.length ? { c: [+(+ll[0]).toFixed(3), +(+ll[1]).toFixed(3)], ids } : null;
+  };
+  window.tfCaHomeLL = () => (homeBox() ? caHome.ll : null);
   if (store.get("zone", null) == null && homeBox()) state.zone = "home";   // no area picked yet: open where they ride
   else if (state.zone === "home" && !homeBox()) state.zone = "all";
   const caChunks = new Map();   // chunk id -> Promise(chunk or null), fetched once per visit
@@ -1793,6 +1803,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     }
     return glLoading;
   }
+  window.tfLoadVectorLib = loadVectorLib;   // fishing.js draws its water highlight with it
   // Load map pictures while a finger is still dragging or the map is still gliding, not only once it stops (Leaflet's
   // phone default), and keep 3 screens of them around the view instead of 2: alex 2026-10-25 "I want the app go as
   // quick as this" (Outmap, which fills the map as you pan). Without this, half of a fast pan showed grey holes.
@@ -3900,7 +3911,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=408").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=412").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -4474,11 +4485,13 @@ out body;`;
     const more = document.createElement("div");
     more.className = "wl-more";
     const finds = window.tfRideFinds ? window.tfRideFinds.saved().length : 0;   // possible new trails saved from rides (ride-finds.js)
-    more.innerHTML = `<button type="button" data-wl="routes">📂 Saved routes <small>(${routes})</small></button><button type="button" data-wl="rides">🚴 My rides</button>${finds ? `<button type="button" data-wl="finds">🆕 Possible new trails from my rides <small>(${finds})</small></button>` : ""}`;
+    const sp = document.body.classList.contains("sport-hunt") ? "hunt" : document.body.classList.contains("sport-fish") ? "fish" : "";
+    more.innerHTML = `<button type="button" data-wl="routes">📂 Saved routes <small>(${routes})</small></button><button type="button" data-wl="rides">${window.tfHunts ? esc(window.tfHunts.linkText()) : "🚴 My rides"}</button>${finds ? `<button type="button" data-wl="finds">🆕 Possible new trails from my rides <small>(${finds})</small></button>` : ""}`;
     more.addEventListener("click", (e) => {
       const b = e.target.closest("[data-wl]"); if (!b) return;
       if (b.dataset.wl === "routes") { if (window.tfPlan) window.tfPlan.saved(); }
       else if (b.dataset.wl === "finds") { const fb = window.tfShowFinds && window.tfShowFinds(); if (fb) setTimeout(() => { snapTo("peek"); focusTrail(fb, true); }, 0); }
+      else if (sp && window.tfPoints) window.tfPoints.openLog(sp === "hunt" ? "hunts" : undefined);   // My hunts, the Fishing log
       else location.href = "ride.html#rides";
     });
     box.appendChild(more);
@@ -4897,7 +4910,15 @@ out body;`;
     else auto();
   }
 
-  $("aboutBtn").addEventListener("click", () => { $("about").hidden = false; $("aboutClose").focus(); });
+  // In Skiing, Hunting or Fishing it opens on that sport's part (every mode its own, alex 2026-10-26).
+  $("aboutBtn").addEventListener("click", () => {
+    $("about").hidden = false; $("aboutClose").focus({ preventScroll: true });
+    const b = document.body.classList, h = $(b.contains("sport-ski") ? "aboutSki" : b.contains("sport-hunt") ? "aboutHunt" : b.contains("sport-fish") ? "aboutFish" : "aboutTitle");
+    $("aboutTitle").textContent = h.id === "aboutTitle" ? "How Trail Finder works" : `How ${h.textContent} works`;
+    const card = $("about").querySelector(".card"), more = h.closest("details");
+    if (more && h.id !== "aboutTitle") more.open = true;
+    requestAnimationFrame(() => { card.scrollTop = h.id === "aboutTitle" ? 0 : h.getBoundingClientRect().top - card.getBoundingClientRect().top + card.scrollTop - 12; });
+  });
   $("aboutClose").addEventListener("click", () => { $("about").hidden = true; });
   $("about").addEventListener("click", (e) => { if (e.target.id === "about") $("about").hidden = true; });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!$("about").hidden) $("about").hidden = true; else if (state.selected) closeDetail(); } });
@@ -5069,6 +5090,18 @@ out body;`;
       ${mtb ? card("plan", "✎", "Plan a route", "Tap points, or pick the trails you want") : ""}
       ${mtb ? card("routes", "📂", "Ride a saved route", "Routes you planned and saved") : ""}
       ${card("offline", "⤓", "Offline maps", w.offline)}`;   // My rides and Add a trail live in Saved
+    // Saved in each sport is that sport's own (alex, 2026-10-26: "every mode should have its own feature"): no bike
+    // folders or routes in Skiing, Hunting or Fishing, but their log and the points saved in them (ski-points.js #spBox).
+    if (page === "saved" && !mtb) {
+      const sp = sportOf();
+      return (sp === "hunt" ? card("log-hunts", "🦌", "My hunts", "Each hunt you tracked: where you walked, the weather, what you saw")
+          + card("log-works", "📈", "What works", "The wind, pressure and moon when you find animals")
+          + card("log-harvest", "🎯", "Harvests", "By season, with a CSV")
+          + card("log-cam", "📷", "Trail cameras", "Every check, in order")
+        : sp === "fish" ? card("log", "🎣", "Fishing log", "Your catches and what works for you")
+        : card("tours", "⛷", "My tours", "Ski tours you recorded or imported"))
+        + `<div class="hub-slot" data-slot="points"></div>`;
+    }
     if (page === "saved") return `<div class="hub-slot" data-slot="saved"></div>`;
     if (page === "more") {
       const sp = $("sport").value, acct = document.querySelector(".brand [data-account-slot] button");
@@ -5092,8 +5125,11 @@ out body;`;
     if (!onControl) navTo("find", { root: true, snap });
     return true;
   }
+  let ptsHome = null;   // where the points list (#spBox) lives while the Saved page of Skiing, Hunting or Fishing borrows it
   function placeBorrowed() {
-    const top = navTop();
+    const top = navTop(), pts = $("spBox"), slot = !hubEl.hidden && hubEl.querySelector('[data-slot="points"]');
+    if (pts && slot && top === "saved") { if (pts.parentElement !== slot) { ptsHome = { home: pts.parentElement, next: pts.nextSibling }; slot.appendChild(pts); } }
+    else if (pts && ptsHome && pts.closest("#hub")) { ptsHome.home.insertBefore(pts, ptsHome.next && ptsHome.next.parentNode === ptsHome.home ? ptsHome.next : null); ptsHome = null; }
     borrowed.forEach((b) => {
       const slot = !hubEl.hidden && hubEl.querySelector(`[data-slot="${b.page}"]`);
       if (slot && top === b.page) { if (b.el.parentElement !== slot) slot.appendChild(b.el); }
@@ -5108,7 +5144,7 @@ out body;`;
     if (!hubEl.hidden) hubEl.innerHTML = hubHtml(top);
     hubEl.dataset.page = page ? top : "";
     placeBorrowed();
-    if (top === "saved" && phone) renderFolders();
+    if (top === "saved" && phone && !isAlt()) renderFolders();
     panelEl.classList.toggle("hub-on", phone && page);
     panelEl.classList.toggle("nav-search", phone && top === "search");
     panelEl.classList.toggle("nav-results", phone && top === "results");
@@ -5216,6 +5252,8 @@ out body;`;
     else if (act === "account") document.querySelector(".brand [data-account-slot] button")?.click();
     else if (act === "about") $("aboutBtn").click();
     else if (act === "news") window.tfWhatsNew.open();
+    else if (act.startsWith("log") && window.tfPoints) window.tfPoints.openLog(act.slice(4) || undefined);   // My hunts' tabs, the Fishing log
+    else if (act === "tours") location.href = "ride.html#rides";
   });
   ["tabNew", "tabName"].forEach((id) => $(id).addEventListener("click", () => setTimeout(syncTabbar)));
   $("sport").addEventListener("change", () => setTimeout(() => { if (navTop() === "more") showNav("keep"); else if (navStack.length && navStack[0] !== "more") { navStack.length = 0; showNav("peek"); } else syncTabbar(); }));
@@ -5566,14 +5604,20 @@ out body;`;
     if (phoneMQ.matches && !state.roads && !state.areas) return;
     const view = map.getBounds();
     ZONES.filter((z) => z.bounds.intersects(view)).forEach(roadZone);
+    caIndexLoad().then(() => { if (map.getZoom() >= ROAD_MIN_ZOOM) caZonesIn([map.getBounds()]).forEach(roadZone); });
   }
+  // Outside the home zones: the Canada map chunks' roads (ca/r/<chunk>.json, OpenStreetMap roads near MTB trails,
+  // scripts/build-canada-roads.mjs), for the chunks ca/r/index.json lists.
+  let caRoadIdx = null;
+  const caRoads = (chunk) => (caRoadIdx || (caRoadIdx = fetch("ca/r/index.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((f) => new Set((f && f.chunks) || [])).catch(() => new Set())))
+    .then((have) => (have.has(chunk) ? fetch(`ca/r/${chunk}.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null) : null));
   // One zone's roads, loaded once (also for "Getting there", which may need a zone the map hasn't shown yet).
   const roadLoads = new Map();
   function roadZone(z) {
     if (!roadLoads.has(z.id)) {
       roadData.set(z.id, null);
       // Sorted after the trails in view (they matter more when the app opens), a slice at a time.
-      roadLoads.set(z.id, Promise.all([nightly(`roads-${z.id}.json`), sortReady().then(() => Promise.allSettled([...allLoads.values()]))]).then(async ([f]) => {
+      roadLoads.set(z.id, Promise.all([z.chunk ? caRoads(z.chunk) : nightly(`roads-${z.id}.json`), sortReady().then(() => Promise.allSettled([...allLoads.values()]))]).then(async ([f]) => {
         const list = [];
         if (f && f.v === 1) {
           await breather();
@@ -5991,8 +6035,15 @@ out body;`;
   const NEED_KINDS = ["w", "wc", "fix", "sh"];
   const ACCESS_NEAR_M = 5000, ROAD_NEAR_M = 300, END_ROAD_M = 400;
   const accessLoads = new Map();   // zone id -> Promise([{ id, k, lat, lon, t, z }])
+  // Outside the home zones: the Canada map chunks' files (ca/a/<chunk>.json, scripts/build-canada-access.mjs), only for
+  // the chunks ca/a/index.json lists (most of the north has none).
+  let caAccessIdx = null;
+  const caAccess = (chunk) => (caAccessIdx || (caAccessIdx = fetch("ca/a/index.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((f) => new Set((f && f.chunks) || [])).catch(() => new Set())))
+    .then((have) => (have.has(chunk) ? fetch(`ca/a/${chunk}.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null) : null));
+  // The home zones in a box, plus the Canada chunks there (once the Canada index is in).
+  const accessZonesIn = (b) => caIndexLoad().then(() => ZONES.filter((z) => z.bounds.intersects(b)).concat(caZonesIn([b])));
   function accessZone(z) {
-    if (!accessLoads.has(z.id)) accessLoads.set(z.id, nightly(`access-${z.id}.json`).then((f) => (f && f.v === 1 ? [...(f.osm || []), ...(f.rec || [])].map((x) => ({ ...x, z: z.id })) : [])));
+    if (!accessLoads.has(z.id)) accessLoads.set(z.id, (z.chunk ? caAccess(z.chunk) : nightly(`access-${z.id}.json`)).then((f) => (f && f.v === 1 ? [...(f.osm || []), ...(f.rec || [])].map((x) => ({ ...x, z: z.id })) : [])));
     return accessLoads.get(z.id);
   }
   // Metres from point ll to the segment a-b, on a local flat projection.
@@ -6045,7 +6096,7 @@ out body;`;
     const box = () => (state.selected === t.id ? $("access") : null);
     if (!box() || !t.geom || !t.geom.length) return;
     const b = L.latLngBounds(t.geom), area = L.latLngBounds([b.getSouth() - 0.05, b.getWest() - 0.07], [b.getNorth() + 0.05, b.getEast() + 0.07]);
-    const zs = ZONES.filter((z) => z.bounds.intersects(area));
+    const zs = await accessZonesIn(area);
     const [pts, roads] = await Promise.all([Promise.all(zs.map(accessZone)).then((l) => l.flat()), Promise.all(zs.map(roadZone))]);
     const el = box();
     if (!el) return;
@@ -6081,7 +6132,7 @@ out body;`;
     if (!state.access || map.getZoom() < FEAT_MIN_ZOOM) { accessLayer.clearLayers(); accessPins.clear(); return; }
     const view = map.getBounds().pad(0.2);
     accessPins.forEach((m, id) => { if (!view.contains(m.getLatLng()) && !m.isPopupOpen()) { accessLayer.removeLayer(m); accessPins.delete(id); } });
-    ZONES.filter((z) => z.bounds.intersects(view)).forEach((z) => accessZone(z).then((pts) => {
+    accessZonesIn(view).then((zs) => zs.forEach((z) => accessZone(z).then((pts) => {
       if (!state.access || map.getZoom() < FEAT_MIN_ZOOM) return;
       const now = map.getBounds().pad(0.2);
       pts.forEach((x) => {
@@ -6094,7 +6145,7 @@ out body;`;
         }, { maxWidth: 280 }));
         accessLayer.addLayer(accessPins.get(x.id));
       });
-    }));
+    })));
   }
   map.on("moveend", drawAccess);
   function syncAccessBtn() {
@@ -7307,7 +7358,7 @@ out tags center qt;`;
     ways: () => [...allData.values()].filter(Boolean).flat(),
     roads: () => [...roadData.values()].filter(Boolean).flatMap((z) => z.list),   // forest roads, for Plan a route (planner.js)
     roadFeats: () => [...roadData.values()].filter(Boolean).flatMap((z) => z.feats || []),   // gates, barriers, bridges (Shuttle)
-    load: () => { const v = map.getBounds(); ZONES.filter((z) => z.bounds.intersects(v)).forEach((z) => { loadZoneTrails(z); roadZone(z); }); caIndexLoad().then(() => caZonesIn([v]).forEach(loadZoneTrails)); } };
+    load: () => { const v = map.getBounds(); ZONES.filter((z) => z.bounds.intersects(v)).forEach((z) => { loadZoneTrails(z); roadZone(z); }); caIndexLoad().then(() => caZonesIn([v]).forEach((z) => { loadZoneTrails(z); roadZone(z); })); } };
   // Where to ride today (status.js): the zones, nightly files, ridden trails and where you are.
   // zonesNear: the home zones within km of c, plus (outside the home regions) the Canada map chunks there.
   const zoneKmTo = (b, c) => map.distance(c, [Math.max(b.getSouth(), Math.min(b.getNorth(), c[0])), Math.max(b.getWest(), Math.min(b.getEast(), c[1]))]) / 1000;
@@ -7325,49 +7376,50 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=408"></script>
-<script src="contours.js?v=408"></script>
-<script src="clouds.js?v=408"></script>
-<script src="smoke.js?v=408"></script>
-<script src="photo-slider.js?v=408"></script>
-<script src="ski-terrain.js?v=408"></script>
-<script src="winter.js?v=408"></script>
-<script src="hunting.js?v=408"></script>
-<script src="fish-bait.js?v=408"></script>
-<script src="fish-route.js?v=408"></script>
-<script src="fishing.js?v=408"></script>
-<script src="compass.js?v=408"></script>
-<script src="ski-points.js?v=408"></script>
-<script src="webcams.js?v=408"></script>
-<script src="lifts.js?v=408"></script>
-<script src="rogers.js?v=408"></script>
-<script src="slackcountry.js?v=408"></script>
-<script src="ski-areas.js?v=408"></script>
-<script src="offline.js?v=408"></script>
-<script src="ride-stats.js?v=408"></script>
-<script src="native-gps.js?v=408"></script>
-<script src="navigate.js?v=408"></script>
-<script src="planner.js?v=408"></script>
-<script src="loops.js?v=408"></script>
-<script src="ride-finds.js?v=408"></script>
-<script src="rides.js?v=408"></script>
-<script src="community.js?v=408"></script>
-<script src="ride-files.js?v=408"></script>
-<script src="rider-trails.js?v=408"></script>
-<script src="account.js?v=408"></script>
-<script src="strava.js?v=408"></script>
-<script src="reports.js?v=408"></script>
-<script src="grades.js?v=408"></script>
-<script src="trail-photos.js?v=408"></script>
-<script src="visitors.js?v=408"></script>
-<script src="notify.js?v=408"></script>
-<script src="closures.js?v=408"></script>
-<script src="status.js?v=408"></script>
-<script src="areas.js?v=408"></script>
-<script src="alpine.js?v=408"></script>
-<script src="bikeparks.js?v=408"></script>
-<script src="photo-find.js?v=408"></script>
-<script src="whats-new.js?v=408"></script>
+<script src="map3d.js?v=412"></script>
+<script src="contours.js?v=412"></script>
+<script src="clouds.js?v=412"></script>
+<script src="smoke.js?v=412"></script>
+<script src="photo-slider.js?v=412"></script>
+<script src="ski-terrain.js?v=412"></script>
+<script src="winter.js?v=412"></script>
+<script src="hunting.js?v=412"></script>
+<script src="fish-bait.js?v=412"></script>
+<script src="fish-route.js?v=412"></script>
+<script src="fishing.js?v=412"></script>
+<script src="compass.js?v=412"></script>
+<script src="hunts.js?v=412"></script>
+<script src="ski-points.js?v=412"></script>
+<script src="webcams.js?v=412"></script>
+<script src="lifts.js?v=412"></script>
+<script src="rogers.js?v=412"></script>
+<script src="slackcountry.js?v=412"></script>
+<script src="ski-areas.js?v=412"></script>
+<script src="offline.js?v=412"></script>
+<script src="ride-stats.js?v=412"></script>
+<script src="native-gps.js?v=412"></script>
+<script src="navigate.js?v=412"></script>
+<script src="planner.js?v=412"></script>
+<script src="loops.js?v=412"></script>
+<script src="ride-finds.js?v=412"></script>
+<script src="rides.js?v=412"></script>
+<script src="community.js?v=412"></script>
+<script src="ride-files.js?v=412"></script>
+<script src="rider-trails.js?v=412"></script>
+<script src="account.js?v=412"></script>
+<script src="strava.js?v=412"></script>
+<script src="reports.js?v=412"></script>
+<script src="grades.js?v=412"></script>
+<script src="trail-photos.js?v=412"></script>
+<script src="visitors.js?v=412"></script>
+<script src="notify.js?v=412"></script>
+<script src="closures.js?v=412"></script>
+<script src="status.js?v=412"></script>
+<script src="areas.js?v=412"></script>
+<script src="alpine.js?v=412"></script>
+<script src="bikeparks.js?v=412"></script>
+<script src="photo-find.js?v=412"></script>
+<script src="whats-new.js?v=412"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

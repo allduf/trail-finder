@@ -12,6 +12,10 @@
 // window.tfLoamAt (index.html, Open-Meteo).
 // Phone notifications (Web Push): a third switch saves this phone's push address and the settings above to Supabase
 // (push_save(), supabase/push.sql); scripts/push-loam.mjs sends the same alerts a few times a day. Device only: tf:pushId.
+// Across Canada (alex 2026-10-26: "make it available everywhere"): outside the home zones, "Around you" (and "Around
+// where the map is") pick the Canada map chunks there (window.tfCaAround, ids "ca_<chunk>", the same ~130 km as the Area
+// list's "Around you"). They go in tf:notify's zones like a zone, with ca: [{ n: name, c: spot, ids }] naming each group.
+// New trails there come from ca/new-trails.json (scripts/build-new-trails.mjs ca, nightly with the Canada data).
 // Fresh stocking (Fishing): tf:fishAlert = { c: [lat, lon], since } on, the lakes and rivers within FISH_KM of that spot
 // (where the map was when it was saved) stocked in the last FISH_DAYS days, from data/fishing/stocked.json (nightly).
 (() => {
@@ -27,11 +31,25 @@
     get(k, d) { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) { try { localStorage.setItem("tf:" + k, JSON.stringify(v)); window.dispatchEvent(new Event("tf:setting")); } catch {} },
   };
-  // { zones: ["all"] or zone ids, since: ISO date the rider turned it on }; null until they pick
+  // { zones: ["all"] or zone ids (and Canada chunk ids), since: ISO date the rider turned it on, ca: [groups] }; null until they pick
   const prefs = () => store.get("notify", null);
   const readSet = () => new Set(store.get("notifyRead", []));
   const keyOf = (it) => String(it.ids[0]);
-  const zoneName = (id) => { const z = ZONES.find((z) => z.id === id); return z ? z.name : ""; };
+  const isCa = (id) => /^ca_/.test(id);
+  const caGroups = (p) => (p && Array.isArray(p.ca) ? p.ca.filter((g) => g && Array.isArray(g.ids) && g.ids.length) : []);
+  const zoneName = (id) => {
+    const z = ZONES.find((z) => z.id === id);
+    if (z) return z.name;
+    const g = isCa(id) && caGroups(prefs()).find((g) => g.ids.includes(id));
+    return g ? g.n : "";
+  };
+  // A Canada chunk's box from its id ("ca_45_-73.2": 1° x 1.2° from that south-west corner), as zones have.
+  const caBox = (id) => { const [s, w] = id.slice(3).split("_").map(Number); return [s, w, s + 1, +(w + 1.2).toFixed(1)]; };
+  // The picked zones, Canada chunks too, each with its box.
+  const pickedZones = (p) => !p ? [] : (p.zones.includes("all") ? ZONES : ZONES.filter((z) => p.zones.includes(z.id)))
+    .concat(p.zones.filter(isCa).map((id) => ({ id, box: caBox(id) })));
+  // Names the regions picked: "All regions", the zones and the Canada groups.
+  const regionsText = (p) => [...(p.zones.includes("all") ? ["All regions"] : p.zones.filter((id) => !isCa(id)).map(zoneName)), ...caGroups(p).map((g) => g.n)].join(", ");
   // The bell lists only trails that appeared since the rider's last visit (alex): older ones never show.
   // tf:notifyVisit = { at: last time the app was open, prev: when the visit before that ended }. Kept on this device
   // only: saving it to the account on every visit would make each device's settings look newest.
@@ -99,6 +117,10 @@ dialog.notify .nt-loam li.unread summary::before { content: ""; position: absolu
 dialog.notify details ol li button { padding-left: 34px; }
 dialog.notify .nt-x { position: absolute; top: 8px; right: 8px; width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: var(--muted); font-size: 1.1rem; }
 dialog.notify h2 { padding-right: 36px; }
+dialog.notify .nt-hunt { display: block; cursor: default; }
+dialog.notify .nt-other { margin: 4px 0 8px; }
+dialog.notify .nt-other summary { cursor: pointer; font-size: .86rem; font-weight: 700; color: var(--muted); padding: 6px 0; }
+dialog.notify .nt-hunt .nt-link { font: inherit; font-weight: 700; padding: 0; border: 0; background: none; color: var(--accent, #2f8f88); text-decoration: underline; cursor: pointer; }
 /* Save / Done stay in reach under the long region list */
 dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10px -18px -18px; padding: 10px 18px 18px; background: var(--panel); box-shadow: 0 -1px 0 var(--line); }`;
   document.head.appendChild(css);
@@ -140,11 +162,13 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   async function load() {
     if (!/^https?:$/.test(location.protocol)) return;
     try {
-      const r = await fetch("data/new-trails.json", { cache: "no-cache" });
-      const f = r.ok ? await r.json() : null;
-      if (!f || f.v !== 1) return;
+      // The home zones' feed and the rest of Canada's (both nightly).
+      const get = (u) => fetch(u, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const [f, ca] = await Promise.all([get("data/new-trails.json"), get("ca/new-trails.json")]);
+      if ((!f || f.v !== 1) && (!ca || ca.v !== 1)) return;
+      const items = [...(f && f.v === 1 ? f.items : []), ...(ca && ca.v === 1 ? ca.items : [])].sort((a, b) => (b.at > a.at ? 1 : b.at < a.at ? -1 : 0));
       // Only trails the map would show: MTB tagged or looks like MTB, not hiking-only (scripts/push-loam.mjs does the same).
-      feed = f.items.map((it) => ({ ...it, c: window.tfClassify(it.tags || {}, it.routes || [], it.routes && it.routes.length ? ["mtb"] : []) }))
+      feed = items.map((it) => ({ ...it, c: window.tfClassify(it.tags || {}, it.routes || [], it.routes && it.routes.length ? ["mtb"] : []) }))
         .filter((it) => it.c && LABEL[it.c.cat] && it.c.use !== "hike");
       fetchedAt = Date.now();
       paint();
@@ -153,7 +177,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   function mine() {
     const p = prefs(); if (!p) return [];
     const all = p.zones.includes("all"), from = cutoff(p);
-    return feed.filter((it) => it.at > from && (all || p.zones.includes(it.z)));
+    return feed.filter((it) => it.at > from && ((all && !isCa(it.z)) || p.zones.includes(it.z)));
   }
   function unread() {
     const p = prefs(); if (!p || !newOn()) return [];
@@ -181,7 +205,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   let loamList = [], loamAt = 0, loamBusy = false, loamAgain = false;   // in prime loam now: To ride trails { key, name, type, ids, kind, c, v, why } and areas { key, name, area: true, trails, why }
   const rideList = () => (window.tfToRideList && loamOn() ? window.tfToRideList() : []).map((t) => ({ ...t, why: "On your To ride list" }));
   // The picked regions' zones. "All regions" means every zone's file, so only zones the page has already loaded.
-  const regionZones = () => { const p = prefs(); return !p || !loamOn() ? [] : p.zones.includes("all") ? ZONES.map((z) => ({ id: z.id, loaded: true })) : p.zones.map((id) => ({ id })); };
+  const regionZones = () => { const p = prefs(); return !p || !loamOn() ? [] : p.zones.includes("all") ? ZONES.map((z) => ({ id: z.id, loaded: true })).concat(p.zones.filter(isCa).map((id) => ({ id }))) : p.zones.map((id) => ({ id })); };
   let areasP = null;
   const ridingAreas = () => areasP || (areasP = fetch("data/riding-areas.json").then((r) => r.json()).then((f) => f.areas || []).catch(() => { areasP = null; return []; }));
   const kmTo = (a, b) => Math.hypot((a[1] - b[1]) * 111.32 * Math.cos(a[0] * Math.PI / 180), (a[0] - b[0]) * 110.57);
@@ -192,7 +216,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     return lists.flatMap((ts, i) => ts.map((t) => {
       let best = null, d = AREA_KM;
       areas.forEach((a) => { const k = kmTo(t.c, a.c); if (k < d) { d = k; best = a.name; } });
-      return { ...t, area: best || `Other trails in ${zoneName(zs[i].id)}` };
+      return { ...t, area: best || (isCa(zs[i].id) ? `Other trails ${zoneName(zs[i].id).replace(/^Around/, "around")}` : `Other trails in ${zoneName(zs[i].id)}`) };
     }));
   }
   // Something to watch at all: To ride trails, or regions picked.
@@ -296,7 +320,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
       const soon = (f) => f.days.filter((x) => x.date >= today).slice(0, 2);   // today and tomorrow
       const dayWord = (x) => (x.date === today ? "today" : x.label || x.date);
       const mark = (key, lv) => { seen.add(key); const was = avyState[key]; if (!was || lv > was.lv) avyState[key] = { lv, r: 0 }; else was.lv = lv; };
-      const p = prefs(), zones = !p ? [] : p.zones.includes("all") ? ZONES : ZONES.filter((z) => p.zones.includes(z.id));
+      const zones = pickedZones(prefs());
       for (const a of d.areas) {
         const f = a.forecast, b = ringBox(a);
         if (!live(f) || !zones.some((z) => z.box[0] <= b[2] && z.box[2] >= b[0] && z.box[1] <= b[3] && z.box[3] >= b[1])) continue;
@@ -399,10 +423,45 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     btn.setAttribute("aria-label", btn.title);
     if (box.open && !q("ntList").hidden) paintList();
   }
+  // Canada groups the picker offers: the ones picked, then "Around you" and "Around where the map is" (outside the home
+  // regions only, and not when a picked group already covers that spot). Filled in by paintPick, read by Save.
+  let caOffer = [], caReady = false;
+  const near = (g, c) => kmTo(g.c, c) < 40;
+  async function caChoices(p) {
+    const picked = caGroups(p).map((g) => ({ ...g, on: true }));
+    if (!window.tfCaAround) return picked;
+    const m = window.tfLeaflet && window.tfLeaflet.getCenter(), spots = [];
+    const home = window.tfCaHomeLL && window.tfCaHomeLL();
+    if (home) spots.push(["Around you", home]);
+    if (m) spots.push(["Around where the map is", [m.lat, m.lng]]);
+    const areas = await ridingAreas();
+    for (const [label, ll] of spots) {
+      if ([...picked, ...caOffer].some((g) => near(g, ll))) continue;
+      const g = await window.tfCaAround(ll).catch(() => null);
+      if (!g) continue;
+      // Named after the nearest riding area (data/riding-areas.json) within 40 km, so a saved group still reads right later.
+      let best = null, d = 40;
+      areas.forEach((a) => { const k = kmTo(ll, a.c); if (k < d) { d = k; best = a.name; } });
+      const n = best ? `Around ${best}` : label;
+      if (!picked.concat(caOffer).some((x) => x.n === n)) caOffer.push({ ...g, n, label: best ? `${label} (${best})` : label });
+    }
+    return picked.concat(caOffer);
+  }
+  async function paintCa() {
+    caOffer = []; caReady = false;
+    const p = prefs(), groups = await caChoices(p);
+    caOffer = groups; caReady = true;
+    q("ntZones").querySelectorAll("label.nt-ca").forEach((l) => l.remove());
+    // Nothing picked yet and living outside the home regions: "Around you" instead of All regions.
+    const first = !p && groups[0] && /^Around you/.test(groups[0].label || "");
+    if (first) { groups[0].on = true; const all = q("ntZones").querySelector('input[value="all"]'); if (all) all.checked = false; }
+    q("ntZones").insertAdjacentHTML("afterbegin", groups.map((g, i) => `<label class="nt-ca"><input type="checkbox" value="ca:${i}"${g.on ? " checked" : ""}>${esc(g.label || g.n)}</label>`).join(""));
+  }
   function paintPick() {
     const p = prefs(), on = new Set(p ? p.zones : ["all"]);
     q("ntZones").innerHTML = [["all", "All regions"], ...ZONES.map((z) => [z.id, z.name])]
       .map(([id, name]) => `<label><input type="checkbox" value="${id}"${on.has(id) ? " checked" : ""}>${esc(name)}</label>`).join("");
+    paintCa();
     q("ntLoamArea").checked = loamOn();
     q("ntNewOn").checked = newOn();
     q("ntAvyOn").checked = avyOn();
@@ -414,18 +473,21 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   // "All regions" and single regions don't mix.
   q("ntZones").addEventListener("change", (e) => {
     const all = q("ntZones").querySelector('input[value="all"]');
-    if (e.target === all && all.checked) q("ntZones").querySelectorAll("input:not([value=all])").forEach((i) => { i.checked = false; });
-    else if (e.target !== all && e.target.checked) all.checked = false;
+    if (e.target === all && all.checked) q("ntZones").querySelectorAll('input:not([value=all]):not([value^="ca:"])').forEach((i) => { i.checked = false; });
+    else if (e.target !== all && e.target.checked && !/^ca:/.test(e.target.value)) all.checked = false;   // a Canada area adds to All regions
   });
   q("ntSave").addEventListener("click", () => {
-    const zones = [...q("ntZones").querySelectorAll("input:checked")].map((i) => i.value);
+    const picks = [...q("ntZones").querySelectorAll("input:checked")].map((i) => i.value);
+    // Saved before the Canada choices showed up: keep the groups picked before.
+    const ca = !caReady ? caGroups(prefs()) : picks.filter((v) => /^ca:/.test(v)).map((v) => caOffer[+v.slice(3)]).filter(Boolean).map(({ n, c, ids }) => ({ n, c, ids }));
+    const zones = [...new Set(picks.filter((v) => !/^ca:/.test(v)).concat(ca.flatMap((g) => g.ids)))];
     store.set("loamArea", q("ntLoamArea").checked);
     store.set("notifyNew", q("ntNewOn").checked);
     store.set("avyAlert", q("ntAvyOn").checked);
     if (!q("ntFishOn").checked) store.set("fishAlert", null);
     else { const c = fishWhere(), f = fishPref(); if (c) store.set("fishAlert", { c, since: f ? f.since : new Date().toISOString() }); }
     if (!zones.length) { try { localStorage.removeItem("tf:notify"); } catch {} window.dispatchEvent(new Event("tf:setting")); }
-    else { const p = prefs(); store.set("notify", { zones, since: p ? p.since : new Date().toISOString() }); }
+    else { const p = prefs(); store.set("notify", { zones, since: p ? p.since : new Date().toISOString(), ...(ca.length ? { ca } : {}) }); }
     checkLoam(true); checkAvy(true); checkFish(true);
     pushSync(0, true);   // right away (on iPhone the app is often put away straight after Save), even if nothing looks changed
     if (zones.length || watching() || (avyOn() && skiWatch().length) || fishOn()) showList(); else box.close();
@@ -477,7 +539,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     }
     const items = mine(), fresh = new Set(unread().map(keyOf));
     const from = new Date(cutoff(p)).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    q("ntWhere").textContent = `${p.zones.includes("all") ? "All regions" : p.zones.map(zoneName).join(", ")} · new since ${visit && visit > p.since ? "your last visit" : "you turned this on"} (${from})`;
+    q("ntWhere").textContent = `${regionsText(p)} · new since ${visit && visit > p.since ? "your last visit" : "you turned this on"} (${from})`;
     q("ntItems").innerHTML = items.length ? items.map((it, i) => `<li class="${fresh.has(keyOf(it)) ? "unread" : ""}"><button type="button" data-i="${i}">
       <strong>${esc(it.name || "Unnamed trail")}</strong>
       <small>${esc(LABEL[it.c.cat])} · ${esc(zoneName(it.z))} · mapped ${ago(it.ft || it.at)}${it.u ? ` by ${esc(it.u)}` : ""}</small></button></li>`).join("")
@@ -494,7 +556,33 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   btn.addEventListener("click", () => {
     openBox();
   });
+  // Each sport's own alerts first, the other sports' folded under them (alex, 2026-10-26: every mode its own features).
+  const other = document.createElement("details");
+  other.className = "nt-other";
+  other.innerHTML = "<summary>Alerts for other sports</summary>";
+  const huntRow = document.createElement("p");
+  huntRow.className = "nt-opt nt-hunt";
+  huntRow.innerHTML = `⏰ Legal light alarms (shooting light starts and ends): tick them in <button type="button" class="nt-link">Light and moon</button> on the Hunting panel.`;
+  huntRow.querySelector("button").addEventListener("click", () => {
+    box.close();
+    const a = document.getElementById("hnAlarms");
+    if (a) { a.open = true; (window.tfPanelScrollTo || ((el) => el.scrollIntoView()))(a, "center", true); }
+  });
+  function sortOpts() {
+    const b = document.body.classList, sp = b.contains("sport-ski") ? "ski" : b.contains("sport-hunt") ? "hunt" : b.contains("sport-fish") ? "fish" : "mtb";
+    const MINE = { mtb: ["ntLoamArea", "ntNewOn"], ski: ["ntAvyOn"], hunt: [], fish: ["ntFishOn"] }[sp];
+    const opts = ["ntLoamArea", "ntNewOn", "ntAvyOn", "ntFishOn"].map((id) => q(id).closest("label"));
+    const pick = q("ntPick"), first = pick.querySelector(".nt-push");
+    if (sp === "hunt") pick.insertBefore(huntRow, first); else huntRow.remove();
+    opts.filter((l) => MINE.includes(l.querySelector("input").id)).forEach((l) => pick.insertBefore(l, sp === "hunt" ? huntRow : first));
+    opts.filter((l) => !MINE.includes(l.querySelector("input").id)).forEach((l) => other.append(l));
+    pick.insertBefore(other, first);
+    // The regions are for loam, new trails and avalanches: in Hunting and Fishing they go with the other sports' alerts.
+    const zh = pick.querySelector(".nt-zhead"), zs = q("ntZones"), row = pick.querySelector(".nt-row");
+    if (sp === "hunt" || sp === "fish") other.append(zh, zs); else { pick.insertBefore(zh, row); pick.insertBefore(zs, row); }
+  }
   function openBox() {
+    sortOpts();
     prefs() || (loamOn() && loamList.length) || (avyOn() && skiWatch().length) || fishOn() ? showList() : paintPick();
     if (!box.open) box.showModal();
     checkLoam(); checkAvy(); checkFish();
@@ -545,7 +633,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   // What this phone wants, for the job: the same switches and regions as the 🔔, and the To ride trails' spots.
   const pushWatch = () => {
     const p = prefs();
-    return { v: APP_V, zones: p ? p.zones : [], since: p ? p.since : null, loam: loamOn(), newt: newOn() && !!p,
+    return { v: APP_V, zones: p ? p.zones : [], ca: caGroups(p).map((g) => ({ n: g.n, ids: g.ids })), since: p ? p.since : null, loam: loamOn(), newt: newOn() && !!p,
       ride: rideList().filter((t) => t.c).map((t) => ({ k: t.key, n: t.name, c: [r5(t.c[0]), r5(t.c[1])] })),
       avy: avyOn(), tours: avyOn() ? skiWatch().map((t) => ({ k: t.k, n: t.n, c: t.c, lo: t.lo, hi: t.hi, cls: t.cls })) : [],
       fish: fishOn() ? { c: fishPref().c, since: fishPref().since } : null };
@@ -582,7 +670,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   // What the job will check for this phone, so a phone with nothing picked (the Home Screen app keeps its own
   // settings, apart from Safari's) says so instead of staying quiet.
   function watchingText() {
-    const p = prefs(), n = p ? (p.zones.includes("all") ? ZONES.length : p.zones.length) : 0, r = loamOn() ? rideList().length : 0, st = avyOn() ? skiWatch().length : 0;
+    const p = prefs(), n = p ? (p.zones.includes("all") ? ZONES.length : p.zones.filter((id) => !isCa(id)).length) + caGroups(p).length : 0, r = loamOn() ? rideList().length : 0, st = avyOn() ? skiWatch().length : 0;
     if (!n && !r && !st) return "It's watching nothing yet: pick your regions below and tap Save, or sign in to bring them over.";
     const parts = [n && (p.zones.includes("all") ? "all regions" : `${n} region${n > 1 ? "s" : ""}`), r && `${r} To ride trail${r > 1 ? "s" : ""}`, st && `${st} ski tour${st > 1 ? "s" : ""}`].filter(Boolean);
     const what = [loamOn() && "prime loam", newOn() && n && "new trails", avyOn() && "avalanche danger"].filter(Boolean);
