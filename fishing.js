@@ -40,7 +40,7 @@
   const QC_EXC = "https://peche.faune.gouv.qc.ca/arcgiswa/rest/services/PRODC-E/PlansEauExceptions/MapServer/2";
   const ACC = "#0c8599";   // the Fishing accent (deep teal)
   const C = { vlow: "#f59f00", low: "#94d82d", ok: "#2f9e44", high: "#f76707", blown: "#e03131", none: "#868e96", stocked: "#1971c2", fresh: "#e64980",
-    access: "#9775fa", launch: "#a0522d", park: "#e8590c", zec: "#2b8a3e", fee: "#f08c00", tide: "#0b7285", zone: "#1864ab", hidden: "#0ca678" };
+    access: "#9775fa", launch: "#a0522d", park: "#ae3ec9", zec: "#2b8a3e", fee: "#5f3dc4", tide: "#0b7285", zone: "#1864ab", hidden: "#0ca678" };
   const timeout = (ms) => (AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined);
   const getJ = (url, ms = 12000) => fetch(url, { signal: timeout(ms) }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
   const km = (a, b, c, d) => map.distance([a, b], [c, d]) / 1000;
@@ -595,7 +595,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
         L.marker([(z.b[0] + z.b[2]) / 2, (z.b[1] + z.b[3]) / 2], { pane: "fishLabels", interactive: false, keyboard: false,
           icon: L.divIcon({ className: "fs-zlabel", html: `<span style="--c:${area ? c : C.zone}">${esc(name)}</span>`, iconSize: null }) }).addTo(labelLayer);
       });
-      sync3d();
+      sync3d(); renderLayers();
     });
   }
   map.on("moveend", () => { if (isFish() && (shown.has("zones") || shown.has("areas"))) drawZones(); });
@@ -613,7 +613,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       const on = shown.has(k), far = on && l.minZoom && z < l.minZoom;
       // Gauges are only on bigger rivers, so say how many are in view (alex 2026-10-26: "is that supposed to do anything?").
       let sub = l.sub;
-      if (k === "gauges" && on && !far && gauges) { const b = map.getBounds(), n = gauges.filter((g) => b.contains([g[2], g[3]])).length; sub = n ? `${n} in view: tap one for its live flow and what it means for fishing` : "None in view: government gauges are only on bigger rivers"; }
+      if (k === "gauges" && on && !far && gauges) { const b = map.getBounds(), n = gauges.filter((g) => b.contains([g[2], g[3]])).length; sub = n ? `${n} in view. Green: good flow, light green: low, orange: very low or high, red: blown out, grey: no reading. Tap one for more` : "None in view: government gauges are only on bigger rivers"; }
+      if (k === "areas" && on && !far && zones) { const b = map.getBounds(), n = zones.filter((q) => (q.k === "np" || q.k === "qct") && b.intersects([[q.b[0], q.b[1]], [q.b[2], q.b[3]]])).length; sub = n ? `${n} in view: tap inside one for its rules and fees` : "None in view: this shows national parks, and Quebec zecs, wildlife reserves and parks"; }
       return `<label class="fs-layer">${icon(l.icon)}<span><b>${esc(l.label)}</b><small${far ? ' class="z"' : ""}>${far ? "Zoom in closer to see it" : esc(sub)}</small></span><input type="checkbox" class="fs-sw" role="switch" data-k="${k}"${on ? " checked" : ""} aria-label="${esc(l.label)}"></label>`;
     }).join("")).join("");
     pane.querySelectorAll("[data-view]").forEach((b) => { const v = VIEWS[b.dataset.view].layers; b.classList.toggle("on", v.length === shown.size && v.every((k) => shown.has(k))); });
@@ -1351,6 +1352,21 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
         gl.addSource("fs-pts", { type: "geojson", data });
         gl.addLayer({ id: "fs-pts", type: "circle", source: "fs-pts", paint: { "circle-color": ["get", "c"], "circle-radius": ["get", "r"], "circle-stroke-color": "#fff", "circle-stroke-width": 2, "circle-pitch-alignment": "viewport" } });
       } else gl.getSource("fs-pts").setData(data);
+      // Zone and park fills and names (map3d.js brings over only their outlines), from what drawZones put on the flat map.
+      const fills = [], names = [];
+      if (isFish()) {
+        zoneLayer.eachLayer((l) => fills.push({ type: "Feature", properties: { c: l.options.fillColor, o: Math.min(0.35, l.options.fillOpacity * 1.6) },
+          geometry: { type: "MultiPolygon", coordinates: ((r) => (Array.isArray(r[0]) ? r : [r]))(l.getLatLngs()).filter((r) => r.length > 2).map((r) => [[...r, r[0]].map((q) => [q.lng, q.lat])]) } }));
+        labelLayer.eachLayer((m) => { const sp = m.options.icon.options.html.match(/--c:([^"]+)">([^<]*)</); if (sp) names.push({ type: "Feature", properties: { c: sp[1], t: sp[2].replace(/&amp;/g, "&") }, geometry: { type: "Point", coordinates: [m.getLatLng().lng, m.getLatLng().lat] } }); });
+      }
+      const under = gl.getLayer("osm-roads") ? "osm-roads" : undefined;
+      if (!gl.getSource("fs-fill")) {
+        gl.addSource("fs-fill", { type: "geojson", data: { type: "FeatureCollection", features: fills } });
+        gl.addLayer({ id: "fs-fill", type: "fill", source: "fs-fill", paint: { "fill-color": ["get", "c"], "fill-opacity": ["get", "o"] } }, under);
+        gl.addSource("fs-names", { type: "geojson", data: { type: "FeatureCollection", features: names } });
+        gl.addLayer({ id: "fs-names", type: "symbol", source: "fs-names", layout: { "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 13 },
+          paint: { "text-color": ["get", "c"], "text-halo-color": "#fff", "text-halo-width": 2 } });
+      } else { gl.getSource("fs-fill").setData({ type: "FeatureCollection", features: fills }); gl.getSource("fs-names").setData({ type: "FeatureCollection", features: names }); }
       if (isFish() && spot && spot.how !== "centre") {
         if (!spot3) { const el = document.createElement("div"); el.className = "fs-spot"; el.style.margin = "0"; spot3 = new maplibregl.Marker({ element: el }); }
         spot3.setLngLat([spot.lon, spot.lat]).addTo(gl);
