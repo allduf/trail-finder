@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6f4a">
+<title>App Usage · Trail Finder</title>
+<style>
+/* Private page for alex: what testers do in the iPhone app (usage.js, supabase/usage.sql). Not linked from the app. */
+:root {
+  --bg: #f3f5f2; --panel: #ffffff; --fg: #1d2420; --muted: #5c6862; --line: #d9dfda; --chip: #e8ece8;
+  --accent: #1f6f4a; --accent-fg: #ffffff; --bar: #8cc7a6; --err: #c0392b;
+  --font-display: "Arial Narrow", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --chip: #252d28;
+    --accent: #5cc98f; --accent-fg: #0d1a12; --bar: #2f6b4a; --err: #ff6b5e; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --chip: #252d28;
+  --accent: #5cc98f; --accent-fg: #0d1a12; --bar: #2f6b4a; --err: #ff6b5e; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 1.5rem; margin: 4px 0 2px; }
+h2 { font-size: 1.1rem; margin: 26px 0 8px; }
+p.lead, .muted { color: var(--muted); }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.days { display: flex; gap: 6px; }
+.days button, .btn { font: inherit; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
+.days button[aria-pressed="true"], .btn.go { background: var(--accent); color: var(--accent-fg); border-color: transparent; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 14px; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.stat b { display: block; font-size: 1.5rem; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; overflow-x: auto; }
+.card h3 { margin: 0; font-size: 1.05rem; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.card h3 input { font: inherit; font-weight: 600; padding: 3px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); width: 200px; max-width: 100%; }
+table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; }
+td.n { text-align: right; white-space: nowrap; width: 1%; }
+.bar { height: 8px; background: var(--bar); border-radius: 4px; min-width: 2px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 720px) { .cols { grid-template-columns: 1fr; } }
+.err { color: var(--err); }
+.raw { color: var(--muted); font-size: .8rem; }
+#msg { margin-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div>
+      <h1>App usage</h1>
+      <p class="lead">What testers do in the iPhone app. Only you can see this. Each phone is an anonymous code; give it a name below.</p>
+    </div>
+    <div class="days" role="group" aria-label="Period">
+      <button type="button" data-days="7">7 days</button><button type="button" data-days="30" aria-pressed="true">30 days</button><button type="button" data-days="90">90 days</button>
+    </div>
+  </div>
+  <div id="msg" class="muted">Loading…</div>
+  <div id="out" hidden>
+    <div class="stats" id="stats"></div>
+    <h2>Most used</h2>
+    <p class="muted">Each tap, and how many testers used it. Things near the bottom, or missing, are the ones people don't find or don't need.</p>
+    <div class="card"><table id="features"></table></div>
+    <div class="cols">
+      <div><h2>First tap of a visit</h2><div class="card"><table id="firsts"></table></div></div>
+      <div><h2>Time in each sport</h2><div class="card"><table id="sports"></table></div></div>
+    </div>
+    <h2>Never tapped</h2>
+    <p class="muted">Main buttons nobody used in this period.</p>
+    <div class="card" id="never"></div>
+    <h2>Each tester</h2>
+    <div id="people"></div>
+    <h2>Errors</h2>
+    <div class="card"><table id="errors"></table></div>
+  </div>
+</main>
+<script src="account.js?v=410"></script>
+<script>
+(() => {
+  // Plain names for the app's main buttons (ids in index.html and ride.html). Anything else shows as tapped.
+  const NAMES = {
+    "#findBtn": "Find a trail", "#tabName": "Tab: Trail name", "#tabNew": "Tab: New trails", "#goBtn": "Find trails (Go)",
+    "#nearBtn": "Near me", "#boxBtn": "Draw a square", "#boxGo": "Find trails in the square", "#searchArea": "Search this area",
+    "#trailQ": "Trail name box", "#tsearch": "Search", "#peekSearch": "Search (bottom sheet)", "#peekQuick": "Quick search",
+    "#peekPhoto": "Photo find (bottom sheet)", "#photoFindBtn": "Which trail is this? (photo)",
+    "#layersBtn": "Layers", "#satBtn": "Satellite", "#btn3d": "3D map", "#contourBtn": "Elevation lines", "#roadsBtn": "Forest roads",
+    "#firesBtn": "Wildfires", "#avyBtn": "Avalanche", "#parkBtn": "Bike parks", "#areasBtn": "Riding areas", "#riddenBtn": "Ridden layer",
+    "#offlineBtn": "Offline maps", "#locate": "My location", "#followBtn": "Follow me", "#fullBtn": "Full screen",
+    "#rideBtn": "Record a ride", "#navRideBtn": "Ride this trail", "#trailGo": "Go to trail", "#planMapBtn": "Plan a route",
+    "#wantBtn": "To ride", "#shareTrail": "Share trail", "#trailPhotos": "Trail photos", "#trailAbout": "About this trail",
+    "#reports": "Trail reports", "#closures": "Closures", "#detailBack": "Back from trail", "#addRideBtn": "Add a ride",
+    "#myRidesLink": "My rides", "#aboutBtn": "How it works", "#sport": "Sport menu", "#sheetToggle": "Sheet up/down",
+    "#newFolderBtn": "New folder", "#primeGo": "Prime loam", "#fLoam": "Loam filter", "#ebikeChip": "E-bike chip",
+    "#dirChip": "Direction chip", "#alpChip": "Alpine chip", "#onlyUnoff": "Unofficial only", "#onlyOff": "Official only",
+    "#nameNearBtn": "Trails near a name", "#savePick": "Save", "#resetBtn": "Reset", "#screenBtn": "Screen", "#hub": "Hub",
+    "#ridden": "Ridden", "#accessBtn": "Access", "#allBtn": "All trails",
+    "sport=mtb": "Sport: MTB", "sport=ski": "Sport: Skiing", "sport=hunt": "Sport: Hunting", "sport=fish": "Sport: Fishing",
+  };
+  const MAIN = Object.keys(NAMES).filter((k) => k.startsWith("#"));
+  const SPORTS = { mtb: "🚵 MTB", ski: "⛷ Skiing", hunt: "🦌 Hunting", fish: "🎣 Fishing" };
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const nice = (w) => NAMES[w] || w;
+  const mins = (ms) => { const m = Math.round(ms / 60e3); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
+  const ago = (d) => { const h = (Date.now() - new Date(d)) / 36e5; return h < 1 ? "just now" : h < 24 ? `${Math.round(h)} h ago` : `${Math.round(h / 24)} days ago`; };
+  const bar = (n, max) => `<div class="bar" style="width:${Math.max(2, Math.round(100 * n / (max || 1)))}%"></div>`;
+  let days = 30, rows = [];
+
+  document.querySelectorAll("[data-days]").forEach((b) => b.addEventListener("click", () => {
+    days = Number(b.dataset.days);
+    document.querySelectorAll("[data-days]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    load();
+  }));
+
+  async function load() {
+    $("msg").hidden = false; $("msg").textContent = "Loading…";
+    const acct = window.tfAccount;
+    if (!acct || !acct.enabled) { $("msg").textContent = "Sign-in isn't available."; return; }
+    const user = await acct.load();
+    if (!user) {
+      $("msg").innerHTML = `Sign in with your Trail Finder account to see this page. <button class="btn go" type="button" id="signIn">Sign in</button>`;
+      $("signIn").onclick = () => acct.open();
+      return;
+    }
+    const { data, error } = await acct.client.rpc("tf_use_report", { days });
+    if (error) {
+      $("msg").innerHTML = /not allowed/.test(error.message)
+        ? "This account isn't allowed to see usage yet. Run the last line of <b>supabase/usage.sql</b> in the Supabase SQL Editor with your email."
+        : /does not exist|Could not find/.test(error.message)
+          ? "The usage tables aren't set up yet. Paste <b>supabase/usage.sql</b> into the Supabase SQL Editor and run it."
+          : `Couldn't load: ${esc(error.message)}`;
+      return;
+    }
+    rows = data || [];
+    $("msg").hidden = !!rows.length;
+    if (!rows.length) { $("msg").textContent = "Nothing yet in this period. Data comes in as testers use the new app build."; $("out").hidden = true; return; }
+    $("out").hidden = false;
+    paint();
+  }
+  window.addEventListener("tf:account", () => load());
+
+  function paint() {
+    const devices = new Map(), sessions = new Map();
+    for (const r of rows) {
+      if (!devices.has(r.device)) devices.set(r.device, { ...r, taps: new Map(), sport: new Map(), sessions: new Set(), ms: 0, errors: 0, last: r.at });
+      const d = devices.get(r.device);
+      d.last = r.at; d.sessions.add(r.session);
+      if (!sessions.has(r.session)) sessions.set(r.session, { device: r.device, sport: null, first: null, ms: 0 });
+      const s = sessions.get(r.session);
+      if (r.kind === "open" && r.what && !s.sport) s.sport = r.what;
+      if (r.kind === "sport") s.sport = r.what;
+      if (r.kind === "tap") { d.taps.set(r.what, (d.taps.get(r.what) || 0) + 1); if (!s.first) s.first = r.what; }
+      if (r.kind === "end" && r.ms) { d.ms += r.ms; s.ms += r.ms; const sp = s.sport || "mtb"; d.sport.set(sp, (d.sport.get(sp) || 0) + r.ms); }
+      if (r.kind === "error") d.errors++;
+    }
+
+    const taps = rows.filter((r) => r.kind === "tap");
+    const totalMs = [...devices.values()].reduce((a, d) => a + d.ms, 0);
+    $("stats").innerHTML = [
+      [devices.size, "testers"], [sessions.size, "visits"], [mins(totalMs), "time in the app"],
+      [taps.length, "taps"], [rows.filter((r) => r.kind === "error").length, "errors"],
+    ].map(([n, l]) => `<div class="stat"><b>${esc(n)}</b>${esc(l)}</div>`).join("");
+
+    const feat = new Map();
+    for (const r of taps) { const f = feat.get(r.what) || { n: 0, who: new Set() }; f.n++; f.who.add(r.device); feat.set(r.what, f); }
+    const fl = [...feat.entries()].sort((a, b) => b[1].who.size - a[1].who.size || b[1].n - a[1].n);
+    const fmax = fl.length ? fl[0][1].n : 1;
+    $("features").innerHTML = `<tr><th>What</th><th class="n">Testers</th><th class="n">Taps</th><th style="width:30%"></th></tr>` +
+      fl.slice(0, 80).map(([w, f]) => `<tr><td>${esc(nice(w))}${NAMES[w] ? "" : ""}</td><td class="n">${f.who.size} of ${devices.size}</td><td class="n">${f.n}</td><td>${bar(f.n, fmax)}</td></tr>`).join("");
+
+    const firsts = new Map();
+    for (const s of sessions.values()) if (s.first) firsts.set(s.first, (firsts.get(s.first) || 0) + 1);
+    const fs = [...firsts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);
+    $("firsts").innerHTML = `<tr><th>First tap</th><th class="n">Visits</th></tr>` + (fs.map(([w, n]) => `<tr><td>${esc(nice(w))}</td><td class="n">${n}</td></tr>`).join("") || `<tr><td class="muted">None yet</td><td></td></tr>`);
+
+    const sp = new Map();
+    for (const d of devices.values()) for (const [k, ms] of d.sport) sp.set(k, (sp.get(k) || 0) + ms);
+    const spl = [...sp.entries()].sort((a, b) => b[1] - a[1]);
+    $("sports").innerHTML = `<tr><th>Sport</th><th class="n">Time</th><th style="width:40%"></th></tr>` +
+      (spl.map(([k, ms]) => `<tr><td>${esc(SPORTS[k] || k)}</td><td class="n">${mins(ms)}</td><td>${bar(ms, spl[0][1])}</td></tr>`).join("") || `<tr><td class="muted">No finished visits yet</td><td></td><td></td></tr>`);
+
+    const never = MAIN.filter((k) => !feat.has(k));
+    $("never").innerHTML = never.length ? never.map((k) => esc(NAMES[k])).join(" · ") : "Every main button was used.";
+
+    const people = [...devices.values()].sort((a, b) => b.ms - a.ms);
+    $("people").innerHTML = people.map((d) => {
+      const top = [...d.taps.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
+      const sports = [...d.sport.entries()].sort((a, b) => b[1] - a[1]).map(([k, ms]) => `${SPORTS[k] || k} ${mins(ms)}`).join(" · ");
+      return `<div class="card">
+        <h3><input value="${esc(d.label || "")}" placeholder="Name this phone" data-device="${esc(d.device)}" aria-label="Name"> <span class="muted">${esc(d.os || "")} · screen ${esc(d.screen || "?")}</span></h3>
+        <p class="muted">${d.sessions.size} visits · ${mins(d.ms)} in the app · last seen ${ago(d.last)}${d.errors ? ` · <span class="err">${d.errors} errors</span>` : ""}${sports ? `<br>${esc(sports)}` : ""}</p>
+        <table>${top.map(([w, n]) => `<tr><td>${esc(nice(w))}</td><td class="n">${n}</td></tr>`).join("") || `<tr><td class="muted">No taps yet</td></tr>`}</table>
+      </div>`;
+    }).join("");
+    document.querySelectorAll("input[data-device]").forEach((inp) => inp.addEventListener("change", async () => {
+      const { error } = await window.tfAccount.client.rpc("tf_use_label", { device: inp.dataset.device, label: inp.value });
+      inp.style.borderColor = error ? "var(--err)" : "var(--accent)";
+      if (!error) rows.forEach((r) => { if (r.device === inp.dataset.device) r.label = inp.value; });
+    }));
+
+    const errs = rows.filter((r) => r.kind === "error").slice(-25).reverse();
+    $("errors").innerHTML = errs.length
+      ? `<tr><th>When</th><th>Tester</th><th>Error</th></tr>` + errs.map((r) => `<tr><td class="n">${ago(r.at)}</td><td>${esc(r.label || r.device.slice(0, 6))}</td><td class="raw">${esc(r.page)}: ${esc(r.what)}</td></tr>`).join("")
+      : `<tr><td class="muted">No errors 🎉</td></tr>`;
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>
