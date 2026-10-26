@@ -294,7 +294,14 @@ dialog.mt-dlg .mt-xb { font: inherit; border: 0; background: var(--chip); color:
 .mt-mapkey .mt-keybox i { display: inline-block; width: 14px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
 .mt-mapkey .mt-keybox i.d { width: 10px; border-radius: 50%; }
 .mapwrap.is3d .mt-mapkey { margin-bottom: 46px; }
-.mt-pin { width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; display: grid; place-items: center; color: #fff; font: 800 11px/1 system-ui, sans-serif; box-shadow: 0 0 0 2px #fff, 0 1px 4px #0006; }
+.mt-pin { position: relative; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; display: grid; place-items: center; color: #fff; font: 800 11px/1 system-ui, sans-serif; box-shadow: 0 0 0 2px #fff, 0 1px 4px #0006; }
+.mt-pin::before { content: ""; position: absolute; inset: -9px; border-radius: 50%; }
+#motoPane .mt-facts { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 5px; }
+#motoPane .mt-facts li { font-size: .78rem; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: color-mix(in srgb, var(--c, #2b8a3e) 12%, var(--panel)); color: var(--ink, inherit); }
+#motoPane .mt-facts li.no { background: color-mix(in srgb, #e03131 10%, var(--panel)); }
+#motoPane .mt-dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 6px 0; font-size: .82rem; }
+#motoPane .mt-dl dt { font-weight: 700; opacity: .75; }
+#motoPane .mt-dl dd { margin: 0; overflow-wrap: anywhere; }
 .mt-wp { width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: ${ACC}; color: #fff; display: grid; place-items: center; font: 800 12px/1 system-ui, sans-serif; box-shadow: 0 0 0 2.5px #fff, 0 1px 5px #0007; }
 .mt-wp.end { background: #212529; }
 .mt-wp.mt-wp3 { margin: 0; cursor: grab; }
@@ -606,7 +613,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       if (la2 == null) continue;
       const k = t.amenity === "fuel" ? "fuel" : t.tourism ? "camp" : t.natural === "hot_spring" ? "hot" : t.shop ? "shop" : t.amenity === "ferry_terminal" ? "ferry" : null;
       const key = `${Math.floor(la2 * 2) / 2},${Math.floor(lo2 * 2) / 2}`;
-      if (k && kinds.includes(k) && live[k].has(key)) live[k].get(key).push([la2, lo2, t.name || t.brand || "", k === "camp" && t.fee === "no" ? "free" : k === "fuel" && t.brand ? t.brand : ""]);
+      if (k && kinds.includes(k) && live[k].has(key)) live[k].get(key).push([la2, lo2, t.name || t.brand || "", k === "camp" && t.fee === "no" ? "free" : k === "fuel" && t.brand ? t.brand : "", `${el.type[0]}${el.id.toString(36)}`]);
     }
     zoomNote(); drawPoints(); drawRange(); renderNear();
   }
@@ -625,7 +632,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       const j = await getJ(`${WFS}?${p}`, 15000).catch(() => null);
       if (!j) { recCells.delete(`${la},${lo}`); continue; }
       recCells.set(`${la},${lo}`, (j.features || []).filter((f) => f.geometry && f.properties.NUM_CAMP_SITES > 0)
-        .map((f) => [f.geometry.coordinates[1], f.geometry.coordinates[0], titleCase(f.properties.PROJECT_NAME || "Rec site"), `${f.properties.NUM_CAMP_SITES} sites`, f.properties.FOREST_FILE_ID]));
+        .map((f) => Object.assign([f.geometry.coordinates[1], f.geometry.coordinates[0], titleCase(f.properties.PROJECT_NAME || "Rec site"), `${f.properties.NUM_CAMP_SITES} sites`, f.properties.FOREST_FILE_ID, f.properties.MAINTAIN_STD_DESC || ""], { rec: 1 })));
     }
     drawPoints();
   }
@@ -662,9 +669,16 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     if (shown.has("camp") && z >= 8) for (const p of recList()) put("rec", p);
     sync3d();
   }
+  // A tap on a dot: its card. On a phone the sheet comes up to half if it was down, with the card at its top, so the
+  // tap visibly does something (it only filled a card under the closed sheet before).
   function openPoint(k, p) {
     setSpot(p[0], p[1], "pin", { k, p });
     toPanel();
+    // after this tap's copy on the flat map (in 3D), which lowers the sheet
+    if (phone() && window.tfSnapTo) setTimeout(() => {
+      if (document.querySelector(".panel.sheet-peek")) window.tfSnapTo("half");
+      setTimeout(() => showCard($("mtSpot")), 350);
+    }, 50);
   }
 
   // ---------- fuel range ----------
@@ -842,15 +856,94 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     }
     return out.sort((a, b) => a[0] - b[0]).slice(0, n);
   }
+  // What a dot is, in words: "Campground · free", "RV park", "Hut or cabin", "Gas station · Shell 24/7"...
+  const CAMP_KIND = { camp: "Campground", basic: "Basic campsite", rv: "RV park", hut: "Hut or cabin" };
+  function kindLine(k, p) {
+    const x = String(p[3] || "");
+    if (k === "camp") {
+      const [kind, fee] = x.split(" ");
+      return [CAMP_KIND[kind] || PT.camp.name, fee === "free" ? "free" : fee === "fee" ? "fee" : ""].filter(Boolean).join(" · ");
+    }
+    if (k === "rec") return ["BC rec site", x].filter(Boolean).join(" · ");
+    if (k === "shop") return x === "repair" ? "Moto shop · repairs" : PT.shop.name;
+    return [PT[k].name, x].filter(Boolean).join(" · ");
+  }
+  // The top of a dot's card: what it is, and how far it is from you (and, for gas, whether a tank gets you there).
+  function pinHead(k, p) {
+    const d = you ? kmBetween([you.lat, you.lon], [p[0], p[1]]) : null, b = cur();
+    const far = d == null ? "" : `${fmtKm(d)} from you as the crow flies${k === "fuel" && b ? (d > usable(b) ? `: <b style="color:#e03131">past your ${usable(b)} km range</b>` : `, within your ${usable(b)} km range`) : ""}`;
+    return `<p><b style="color:${PT[k].c}">${PT[k].t} ${esc(kindLine(k, p))}</b>${far ? `<br><span class="mt-note">${far}</span>` : ""}</p>`;
+  }
+  // The rest from OpenStreetMap (the id is in the nightly file: "n", "w" or "r" and the number in base 36) and the
+  // height from Open-Meteo, or BC's rec site record. Kept so a second tap is instant.
+  const pinCache = new Map();
+  const OSM_TYPE = { n: "node", w: "way", r: "relation" };
+  const yes = (v) => v != null && v !== "no" && v !== "none";
+  const urlOk = (u) => (/^https?:\/\//i.test(u) ? u : /^[\w.-]+\.[a-z]{2,}(\/|$)/i.test(u) ? "https://" + u : "");
+  async function pinDetails(k, p) {
+    const id = k === "rec" ? "" : String(p[4] || ""), key = id || `${p[0]},${p[1]}`;
+    if (pinCache.has(key)) return pinCache.get(key);
+    const [osm, ele] = await Promise.all([
+      /^[nwr][0-9a-z]+$/.test(id) ? getJ(`https://api.openstreetmap.org/api/0.6/${OSM_TYPE[id[0]]}/${parseInt(id.slice(1), 36)}.json`, 10000).catch(() => null) : null,
+      getJ(`https://api.open-meteo.com/v1/elevation?latitude=${p[0].toFixed(4)}&longitude=${p[1].toFixed(4)}`, 8000).then((j) => j.elevation && j.elevation[0]).catch(() => null)]);
+    const el = osm && osm.elements && osm.elements[0], t = (el && el.tags) || {};
+    const facts = [], rows = [];
+    const fact = (txt, no) => facts.push(`<li${no ? ' class="no"' : ""}>${esc(txt)}</li>`);
+    const row = (dt, dd) => dd && rows.push(`<dt>${esc(dt)}</dt><dd>${dd}</dd>`);
+    if (t.fee === "no") fact("Free"); else if (yes(t.fee)) fact(t.charge ? `Fee: ${t.charge}` : "Fee");
+    if (t.reservation === "required") fact("Booking required"); else if (/^(yes|recommended)$/.test(t.reservation || "")) fact("Can book");
+    if (t.capacity) fact(`${t.capacity} sites`);
+    if (t.drinking_water === "yes" || t.water_point === "yes") fact("Drinking water"); else if (t.drinking_water === "no") fact("No drinking water", 1);
+    if (yes(t.toilets)) fact(t["toilets:disposal"] === "flush" ? "Flush toilets" : /pitlatrine|chemical/.test(t["toilets:disposal"] || "") ? "Pit toilets" : "Toilets"); else if (t.toilets === "no") fact("No toilets", 1);
+    if (yes(t.shower)) fact("Showers");
+    if (yes(t.power_supply)) fact("Power");
+    if (yes(t.sanitary_dump_station)) fact("Dump station");
+    if (yes(t.fireplace) || yes(t.openfire) || yes(t.bbq)) fact("Fire pits"); else if (t.openfire === "no") fact("No fires", 1);
+    if (yes(t.picnic_table)) fact("Picnic tables");
+    if (t.tents === "no") fact("No tents", 1);
+    if (yes(t.internet_access)) fact("Wi-Fi");
+    if (k === "fuel") {
+      if (t["fuel:diesel"] === "yes") fact("Diesel");
+      if (yes(t["fuel:octane_91"]) || yes(t["fuel:octane_94"]) || yes(t["fuel:octane_95"]) || yes(t["fuel:octane_98"])) fact("Premium");
+      if (t["fuel:octane_87"] === "yes" || t["fuel:octane_89"] === "yes") fact("Regular");
+      if (yes(t.compressed_air)) fact("Air");
+      if (t.self_service === "yes") fact("Self serve");
+      if (t["payment:cash"] === "no") fact("No cash", 1);
+    }
+    if (k === "shop") {
+      if (t.shop === "motorcycle_repair" || yes(t["service:vehicle:motorcycle_repair"]) || yes(t.repair)) fact("Repairs");
+      if (yes(t["service:vehicle:tyres"]) || t.shop === "tyres") fact("Tires");
+      if (t.second_hand === "yes" || t.shop === "motorcycle") fact("Sales");
+    }
+    if (t.seasonal && t.seasonal !== "no") fact(t.seasonal === "yes" ? "Seasonal" : `Open ${t.seasonal}`);
+    if (k === "rec") { if (p[5]) row("Upkeep", esc(p[5])); row("More", `<a href="https://www.sitesandtrailsbc.ca/search/search-result.aspx?site=${encodeURIComponent(p[4] || "")}" target="_blank" rel="noopener">BC rec site page</a> (fees, access, closures)`); }
+    if (t.brand && t.brand !== p[2]) row("Brand", esc(t.brand));
+    if (t.operator && t.operator !== p[2]) row("Run by", esc(t.operator));
+    if (t.opening_hours) row("Hours", esc(t.opening_hours === "24/7" ? "Open 24 hours" : t.opening_hours));
+    if (t.maxstay) row("Max stay", esc(t.maxstay));
+    const ph = t.phone || t["contact:phone"];
+    if (ph) row("Phone", `<a href="tel:${esc(ph.split(";")[0].replace(/[^\d+]/g, ""))}">${esc(ph.split(";")[0])}</a>`);
+    const web = urlOk(t.website || t["contact:website"] || t.url || "");
+    if (web) row("Website", `<a href="${esc(web)}" target="_blank" rel="noopener">${esc(web.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "").slice(0, 40))}</a>`);
+    const h = t.ele ? Math.round(parseFloat(t.ele)) : ele != null ? Math.round(ele) : null;
+    if (h != null && isFinite(h)) row("Height", `${h.toLocaleString()} m above sea level`);
+    if (t.description) row("Notes", esc(t.description.slice(0, 300)));
+    if (t.note && !t.description && !/fixme|todo/i.test(t.note)) row("Notes", esc(t.note.slice(0, 300)));
+    const src = el ? `<p class="mt-note">From OpenStreetMap, as mapped by riders and locals: <a href="https://www.openstreetmap.org/${OSM_TYPE[id[0]]}/${parseInt(id.slice(1), 36)}" target="_blank" rel="noopener">see it or fix it</a>.</p>` : "";
+    const out = (facts.length ? `<ul class="mt-facts" style="--c:${PT[k].c}">${facts.join("")}</ul>` : "") + (rows.length ? `<dl class="mt-dl">${rows.join("")}</dl>` : "")
+      + (src || (facts.length || rows.length ? "" : `<p class="mt-note">No more details mapped for it.</p>`));
+    if (el || k === "rec") pinCache.set(key, out);
+    return out;
+  }
   const goLink = (lat, lon) => `https://www.google.com/maps/dir/?api=1&destination=${lat.toFixed(5)},${lon.toFixed(5)}`;
   async function renderSpot() {
     const el = $("mtSpot"), s = spot;
     if (!s || s.how === "centre") { el.hidden = true; return; }
     const my = ++spotSeq, b = cur(), cap = capOf(b);
     el.hidden = false;
-    const title = s.pin ? (s.pin.p[2] || PT[s.pin.k].name) : s.road ? (s.road.name || (s.road.class === "track" ? "Unnamed track" : "Unnamed gravel road")) : "This spot";
+    const title = s.pin ? (s.pin.p[2] || kindLine(s.pin.k, s.pin.p).split(" · ")[0]) : s.road ? (s.road.name || (s.road.class === "track" ? "Unnamed track" : "Unnamed gravel road")) : "This spot";
     const head = `<header>${svg(s.pin ? IC.camp : IC.road)}<h3>${esc(title)}</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>`;
-    const pinLine = s.pin ? `<p>${esc(PT[s.pin.k].name)}${s.pin.p[3] ? ` · ${esc(s.pin.p[3])}` : ""}${s.pin.k === "rec" ? ` · <a href="https://www.sitesandtrailsbc.ca/search/search-result.aspx?site=${encodeURIComponent(s.pin.p[4] || "")}" target="_blank" rel="noopener">BC rec site page</a>` : ""}</p>
+    const pinLine = s.pin ? `${pinHead(s.pin.k, s.pin.p)}<div data-pin><p class="mt-note">Looking up its details…</p></div>
       <div class="mt-row"><a class="mt-pill" href="${goLink(s.lat, s.lon)}" target="_blank" rel="noopener">${svg(IC.ride, 16)}Directions</a>${planning || route ? `<button type="button" class="mt-pill" data-addpt>${svg(IC.plan, 16)}Add to my route</button>` : ""}</div>` : "";
     let gradeHtml = "";
     if (s.road) {
@@ -861,6 +954,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     el.querySelector(".mt-x").onclick = () => { el.hidden = true; spot = null; spotLayer.removeLayer(spotMarker); spotSeq++; renderNear(); };
     const ap = el.querySelector("[data-addpt]");
     if (ap) ap.onclick = () => addPoint([s.lat, s.lon]);
+    if (s.pin) pinDetails(s.pin.k, s.pin.p).then((h) => { const box = my === spotSeq && el.querySelector("[data-pin]"); if (box) box.innerHTML = h; });
     // The road's own tags (OpenStreetMap), through the router's map: the way's id, then its tags.
     if (s.road) roadDetails(s.lat, s.lon).then((d) => {
       if (my !== spotSeq) return;
@@ -919,8 +1013,8 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   function renderSpotNear(box, s) {
     if (!box) return;
     const f = nearest(listOf("fuel"), s.lat, s.lon, 2), c = nearest([...listOf("camp"), ...recList()], s.lat, s.lon, 2, 60);
-    box.innerHTML = (f.length || c.length) ? `<h4>Nearest</h4><ul class="mt-list">${[...f.map((x) => ["fuel", x]), ...c.map((x) => [x[1].length > 4 ? "rec" : "camp", x])].map(([k, [d, p]]) =>
-      `<li style="--c:${PT[k].c}"><button type="button" class="mt-go" data-ll="${p[0]},${p[1]}"><b>${PT[k].t} ${esc(p[2] || PT[k].name)}</b><small>${esc(PT[k].name)}${p[3] ? ` · ${esc(p[3])}` : ""}</small><em>${fmtKm(d)}</em></button></li>`).join("")}</ul>
+    box.innerHTML = (f.length || c.length) ? `<h4>Nearest</h4><ul class="mt-list">${[...f.map((x) => ["fuel", x]), ...c.map((x) => [x[1].rec ? "rec" : "camp", x])].map(([k, [d, p]]) =>
+      `<li style="--c:${PT[k].c}"><button type="button" class="mt-go" data-ll="${p[0]},${p[1]}"><b>${PT[k].t} ${esc(p[2] || PT[k].name)}</b><small>${esc(kindLine(k, p))}</small><em>${fmtKm(d)}</em></button></li>`).join("")}</ul>
       <p class="mt-note">As the crow flies.</p>` : "";
     box.querySelectorAll("[data-ll]").forEach((x) => (x.onclick = () => { const [la, lo] = x.dataset.ll.split(",").map(Number); map.setView([la, lo], Math.max(map.getZoom(), 12)); }));
   }
@@ -935,8 +1029,8 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     el.hidden = false;
     el.innerHTML = `<header>${svg(IC.fuel)}<h3>Near you</h3></header>
       ${f.length ? `<p>${f[0][0] > usable(cur()) ? `<b style="color:#e03131">The nearest gas is ${fmtKm(f[0][0])} away: past your range.</b>` : `Nearest gas ${fmtKm(f[0][0])} away. A tank takes you about ${usable(cur())} km with 20% left.`}</p>` : `<p class="mt-note">Gas stations are loading…</p>`}
-      <ul class="mt-list">${[...f.map((x) => ["fuel", x]), ...c.map((x) => [x[1].length > 4 ? "rec" : "camp", x])].map(([k, [d, p]]) =>
-        `<li style="--c:${PT[k].c}"><button type="button" class="mt-go" data-ll="${p[0]},${p[1]}"><b>${PT[k].t} ${esc(p[2] || PT[k].name)}</b><small>${esc(PT[k].name)}${p[3] ? ` · ${esc(p[3])}` : ""}</small><em>${fmtKm(d)}</em></button></li>`).join("")}</ul>`;
+      <ul class="mt-list">${[...f.map((x) => ["fuel", x]), ...c.map((x) => [x[1].rec ? "rec" : "camp", x])].map(([k, [d, p]]) =>
+        `<li style="--c:${PT[k].c}"><button type="button" class="mt-go" data-ll="${p[0]},${p[1]}"><b>${PT[k].t} ${esc(p[2] || PT[k].name)}</b><small>${esc(kindLine(k, p))}</small><em>${fmtKm(d)}</em></button></li>`).join("")}</ul>`;
     el.querySelectorAll("[data-ll]").forEach((x) => (x.onclick = () => { const [la, lo] = x.dataset.ll.split(",").map(Number); map.setView([la, lo], Math.max(map.getZoom(), 12)); }));
   }
 
@@ -1577,8 +1671,8 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     el.innerHTML = `<header>${svg(IC.fuel)}<h3>Fuel &amp; camp ${you ? "near you" : "here"}</h3></header>
       <div class="mt-row"><button type="button" class="mt-pill" data-fill>${svg(IC.fuel, 16)}I just filled up</button><span class="mt-note">${fill ? `${Math.round(fill.km)} km since the last fill-up` : "Counts down your tank as you ride"}</span></div>
       ${!listOf("fuel").length ? `<p class="mt-note">${liveMode && map.getZoom() < 8 ? "Zoom in to load the gas stations." : "Gas stations are loading…"}</p>` : ""}
-      <ul class="mt-list">${[...f.map((x) => ["fuel", x]), ...c.map((x) => [x[1].length > 4 ? "rec" : "camp", x]), ...h.map((x) => ["hot", x])].map(([k, [d, p]]) =>
-        `<li style="--c:${PT[k].c}"><button type="button" class="mt-go" data-ll="${p[0]},${p[1]}"><b>${PT[k].t} ${esc(p[2] || PT[k].name)}</b><small>${esc(PT[k].name)}${p[3] ? ` · ${esc(p[3])}` : ""}</small><em>${fmtKm(d)}</em></button></li>`).join("")}</ul>
+      <ul class="mt-list">${[...f.map((x) => ["fuel", x]), ...c.map((x) => [x[1].rec ? "rec" : "camp", x]), ...h.map((x) => ["hot", x])].map(([k, [d, p]]) =>
+        `<li style="--c:${PT[k].c}"><button type="button" class="mt-go" data-ll="${p[0]},${p[1]}"><b>${PT[k].t} ${esc(p[2] || PT[k].name)}</b><small>${esc(kindLine(k, p))}</small><em>${fmtKm(d)}</em></button></li>`).join("")}</ul>
       <details class="mt-fold"><summary>Camping rules</summary><p>BC: free camping on most Crown land up to 14 days; rec sites are first come, some have fees. Alberta: random camping on public land, with a Public Lands Camping Pass on the eastern slopes. Ontario: free on Crown land for Canadians, up to 21 days in one spot. Quebec: in ZECs and wildlife reserves, ask at the gate. Parks: campgrounds only.</p></details>`;
     el.querySelector("[data-fill]").onclick = () => { filledUp(); renderStops(); };
     el.querySelectorAll("[data-ll]").forEach((x) => (x.onclick = () => { const [la, lo] = x.dataset.ll.split(",").map(Number); if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); map.setView([la, lo], Math.max(map.getZoom(), 12)); }));
@@ -1702,8 +1796,9 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     if (!g || g === gl3) return;
     gl3 = g;
     gl3.on("click", (ev) => {
-      if (!isMoto() || document.querySelector(".app.riding")) return;
-      const hit = gl3.getLayer("mt-pts") && gl3.queryRenderedFeatures([[ev.point.x - 8, ev.point.y - 8], [ev.point.x + 8, ev.point.y + 8]], { layers: ["mt-pts"] })[0];
+      if (!isMoto() || document.querySelector(".app.riding") || document.body.classList.contains("sp-picking") || document.body.classList.contains("cp-on")) return;
+      const r = L.Browser.touch ? 18 : 10, near = (f) => { const q = gl3.project(f.geometry.coordinates); return Math.hypot(q.x - ev.point.x, q.y - ev.point.y); };
+      const hit = gl3.getLayer("mt-pts") && gl3.queryRenderedFeatures([[ev.point.x - r, ev.point.y - r], [ev.point.x + r, ev.point.y + r]], { layers: ["mt-pts"] }).sort((a, b) => near(a) - near(b))[0];
       if (hit) { const x = pts3d[hit.properties.n]; if (x) openPoint(x.k, x.p); return; }
       if (ev.originalEvent && ev.originalEvent.target && ev.originalEvent.target.closest && ev.originalEvent.target.closest(".mt-wp3")) return;
       if (planning) { addPoint([ev.lngLat.lat, ev.lngLat.lng]); return; }
@@ -1711,6 +1806,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
       spot = null;
       setSpot(ev.lngLat.lat, ev.lngLat.lng, "tap");
       if (rd) { spot.road = { ...rd.properties }; renderSpot(); }
+      toPanel();
     });
     if (window.tfLoadVectorLib) sync3d();
     drawWaypoints();
@@ -2162,6 +2258,9 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
   // ---------- map taps and switching sport ----------
   map.on("click", (e) => {
     if (!isMoto() || document.querySelector(".app.riding") || document.body.classList.contains("sp-picking") || document.body.classList.contains("cp-on")) return;
+    // In 3D the tap is handled by the 3D map's own click above (dots first): the flat map gets a copy of it, which
+    // used to come last and put "This spot" over the dot's card (alex 2026-10-26: "i want to click on the dots").
+    if (in3d()) return;
     if (planning) { addPoint([e.latlng.lat, e.latlng.lng]); return; }
     setSpot(e.latlng.lat, e.latlng.lng, "tap");
     toPanel();

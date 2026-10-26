@@ -4,7 +4,7 @@
 // Runs inside the nightly Canada job (.github/workflows/canada-data.yml), on each province's Geofabrik extract:
 //   node scripts/build-moto.mjs ingest <prov> <moto.geojsonseq>   once per province
 //   node scripts/build-moto.mjs finish                            once at the end
-// and writes out/ca/moto/<kind>.json for each kind ({ v: 1, built, list: [[lat, lon, name, extra], ...] }), published
+// and writes out/ca/moto/<kind>.json for each kind ({ v: 1, built, list: [[lat, lon, name, extra, id], ...] }), published
 // with the website under ca/moto/. Small enough to load whole (fuel ~0.5 MB): range checks need every station, not
 // only the ones on screen.
 //
@@ -64,7 +64,10 @@ async function ingest(prov, file) {
     const [lat, lon] = centreOf(f.geometry);
     if (!isFinite(lat) || !isFinite(lon)) continue;
     const name = String(t.name || t.brand || t.operator || "").slice(0, 60), extra = extraOf(k, t);
-    (out[k] || (out[k] = [])).push(extra ? [round(lat), round(lon), name, extra] : [round(lat), round(lon), name]);
+    // The OpenStreetMap id ("n", "w" or "r" and the number in base 36), so a tap on the map can fetch all its tags
+    // (fee, water, toilets, hours, website...) without making the file bigger with them.
+    const osm = t["@id"] ? `${String(t["@type"] || "n")[0]}${Number(t["@id"]).toString(36)}` : "";
+    (out[k] || (out[k] = [])).push(osm ? [round(lat), round(lon), name, extra, osm] : extra ? [round(lat), round(lon), name, extra] : [round(lat), round(lon), name]);
   }
   mkdirSync(PART, { recursive: true });
   writeFileSync(new URL(`${prov}.json`, PART), JSON.stringify(out));
