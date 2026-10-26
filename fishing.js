@@ -39,8 +39,10 @@
   const LIO = "https://ws.lioservices.lrc.gov.on.ca/arcgis2/rest/services/LIO_OPEN_DATA/LIO_Open07/MapServer";
   const QC_EXC = "https://peche.faune.gouv.qc.ca/arcgiswa/rest/services/PRODC-E/PlansEauExceptions/MapServer/2";
   const ACC = "#0c8599";   // the Fishing accent (deep teal)
-  const C = { vlow: "#f59f00", low: "#94d82d", ok: "#2f9e44", high: "#f76707", blown: "#e03131", none: "#868e96", stocked: "#1971c2", fresh: "#e64980",
-    access: "#9775fa", launch: "#a0522d", park: "#ae3ec9", zec: "#2b8a3e", fee: "#5f3dc4", tide: "#0b7285", zone: "#1864ab", hidden: "#0ca678" };
+  // Map dot colours (alex 2026-10-26: "more trendy and professional"): flow keeps its traffic-light order, each other
+  // layer gets its own hue that reads on satellite and the flat map.
+  const C = { vlow: "#f2b33d", low: "#a3c94f", ok: "#22b07d", high: "#f07b3f", blown: "#e5484d", none: "#8a94a6", stocked: "#2563eb", fresh: "#f43f5e",
+    access: "#8b5cf6", launch: "#1e293b", park: "#ae3ec9", zec: "#2b8a3e", fee: "#5f3dc4", tide: "#38bdf8", zone: "#1864ab", hidden: "#2dd4bf" };
   const timeout = (ms) => (AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined);
   const getJ = (url, ms = 12000) => fetch(url, { signal: timeout(ms) }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
   const km = (a, b, c, d) => map.distance([a, b], [c, d]) / 1000;
@@ -533,7 +535,9 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     if (!isFish()) { sync3d(); return; }   // empty the 3D dots too, or they stay on the 3D map in other sports
     const z = map.getZoom(), b = map.getBounds().pad(0.4);
     const dot = (lat, lon, color, r, open, label, kind) => {
-      const m = L.circleMarker([lat, lon], { renderer, radius: r, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1, bubblingMouseEvents: false }).on("click", (e) => { L.DomEvent.stop(e); open(); });
+      // A soft shadow under each dot lifts it off busy satellite pictures.
+      ptLayer.addLayer(L.circleMarker([lat, lon], { renderer, radius: r + 2.5, stroke: false, fillColor: "#0b1220", fillOpacity: 0.28, interactive: false }));
+      const m = L.circleMarker([lat, lon], { renderer, radius: r, color: "#fff", weight: 2.5, fillColor: color, fillOpacity: 1, bubblingMouseEvents: false }).on("click", (e) => { L.DomEvent.stop(e); open(); });
       if (label) m.bindTooltip(label, { direction: "top", offset: [0, -r], opacity: 0.95 });
       ptLayer.addLayer(m);
       pts3d.push({ lat, lon, color, r, open, label, kind });
@@ -1350,7 +1354,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       const data = { type: "FeatureCollection", features: isFish() ? pts3d.map((p, i) => ({ type: "Feature", properties: { i, c: p.color, r: p.r, n: p.label || "" }, geometry: { type: "Point", coordinates: [p.lon, p.lat] } })) : [] };
       if (!gl.getSource("fs-pts")) {
         gl.addSource("fs-pts", { type: "geojson", data });
-        gl.addLayer({ id: "fs-pts", type: "circle", source: "fs-pts", paint: { "circle-color": ["get", "c"], "circle-radius": ["get", "r"], "circle-stroke-color": "#fff", "circle-stroke-width": 2, "circle-pitch-alignment": "viewport" } });
+        gl.addLayer({ id: "fs-pts-sh", type: "circle", source: "fs-pts", paint: { "circle-color": "#0b1220", "circle-opacity": 0.3, "circle-blur": 0.5, "circle-radius": ["+", ["get", "r"], 4], "circle-pitch-alignment": "viewport" } });
+        gl.addLayer({ id: "fs-pts", type: "circle", source: "fs-pts", paint: { "circle-color": ["get", "c"], "circle-radius": ["get", "r"], "circle-stroke-color": "#fff", "circle-stroke-width": 2.5, "circle-pitch-alignment": "viewport" } });
       } else gl.getSource("fs-pts").setData(data);
       // Zone and park fills and names (map3d.js brings over only their outlines), from what drawZones put on the flat map.
       const fills = [], names = [];
