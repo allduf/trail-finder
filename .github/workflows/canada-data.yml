@@ -5,7 +5,7 @@ name: Canada trail data
 # the canada-data branch (one commit, replaced each night, so the repo doesn't grow) and published with the
 # website by pages.yml. They are never committed to main. The same run lists Canada's bike parks, pump tracks and
 # MTB centres (scripts/build-bike-parks.mjs -> ca/bike-parks.json), the trailheads and parking near the trails
-# (scripts/build-canada-access.mjs -> ca/a/), the forest roads near them (scripts/build-canada-roads.mjs -> ca/r/) and the new trails for the 🔔 (scripts/build-new-trails.mjs ca -> ca/new-trails.json).
+# (scripts/build-canada-access.mjs -> ca/a/), the forest roads near them (scripts/build-canada-roads.mjs -> ca/r/) and the new trails for the 🔔 (scripts/build-new-trails.mjs ca -> ca/new-trails.json) and the ski resort runs, groomed nordic and snowmobile trails (scripts/build-canada-winter.mjs -> ca/w/).
 on:
   schedule:
     - cron: "17 8 * * *"    # 08:17 UTC; Geofabrik's daily extracts are out by then
@@ -59,7 +59,13 @@ jobs:
             # Forest and dirt roads (scripts/build-canada-roads.mjs keeps the ones near MTB trails).
             osmium tags-filter --overwrite -o /tmp/osm/rd.pbf /tmp/osm/p.pbf \
               w/highway=track,unclassified,service,road w/disused:highway w/abandoned:highway
+            # Ski resort runs, groomed nordic and snowmobile trails (scripts/build-canada-winter.mjs); relation members come along.
+            osmium tags-filter --overwrite -o /tmp/osm/s.pbf /tmp/osm/p.pbf \
+              w/piste:type w/snowmobile=yes,designated,permissive w/ski:nordic=yes,designated r/route=ski,piste,snowmobile r/piste:type
             rm /tmp/osm/p.pbf
+            osmium export --overwrite -c /tmp/export.json -n --geometry-types=linestring -f geojsonseq -o /tmp/osm/s.geojsonseq /tmp/osm/s.pbf
+            osmium cat --overwrite -t relation -f opl -o /tmp/osm/s.opl /tmp/osm/s.pbf
+            node scripts/build-canada-winter.mjs ingest "$p" /tmp/osm/s.geojsonseq /tmp/osm/s.opl || echo "::warning::Winter trails failed for $p"
             osmium export --overwrite -c /tmp/export.json -f geojsonseq -o /tmp/osm/rd.geojsonseq /tmp/osm/rd.pbf
             osmium export --overwrite -a type,id -f geojsonseq -o /tmp/osm/a.geojsonseq /tmp/osm/a.pbf
             node scripts/build-canada-access.mjs ingest "$p" /tmp/osm/a.geojsonseq || echo "::warning::Trailheads failed for $p"
@@ -74,10 +80,11 @@ jobs:
           done
       - name: Build the chunks
         run: node scripts/build-canada.mjs finish
-      - name: Trailheads, parking and forest roads across Canada
+      - name: Trailheads, parking, forest roads and winter trails across Canada
         run: |
           node scripts/build-canada-access.mjs finish || echo "::warning::Trailheads and parking failed"
           node scripts/build-canada-roads.mjs finish || echo "::warning::Forest roads failed"
+          node scripts/build-canada-winter.mjs finish || echo "::warning::Winter trails failed"
       - name: New trails across Canada (for the 🔔 alerts)
         run: |
           # Last night's chunks and feed, to compare with (scripts/build-new-trails.mjs ca). The first night starts the feed.

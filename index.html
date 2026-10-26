@@ -1281,7 +1281,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
         <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
         <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire">🔥 Wildfires</button>
-        <button id="closeBtn" type="button" aria-pressed="false" title="Show closures and warnings from Alberta Parks, BC Parks, Parks Canada and riders">🚧 Closures and warnings</button>
+        <button id="closeBtn" type="button" aria-pressed="false" title="Show closures and warnings from Alberta Parks, BC Parks, Ontario Parks, Parks Canada and riders">🚧 Closures and warnings</button>
         <button id="accessBtn" type="button" aria-pressed="false" title="Show trailheads, parking, drinking water, toilets, bike repair stations, shelters and BC recreation sites">Ⓟ Trailheads, parking, water, toilets</button>
         <button id="parkBtn" type="button" aria-pressed="true" title="Show bike parks, pump tracks and MTB centres across Canada">🚵 Bike parks</button>
         <button id="avyBtn" type="button" aria-pressed="false" hidden>⚠ Avalanche risk</button>
@@ -1526,7 +1526,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <h3>Forest roads</h3>
     <p>Forest Service Roads and other dirt roads have a white edge and a colour for their status (turn them off with “Forest roads”). Once a week the site collects them from two open sources: the BC government's Forest Tenure roads (DataBC, Open Government Licence - British Columbia), which list every Forest Service Road and road permit with its tenure status, and OpenStreetMap dirt roads with their gate, access and deactivation tags. The colour is the road's condition, like on a backroad map. Green is good condition (an active Forest Service tenure, or mapped as smooth or solid). Yellow is degraded (mapped as bad or partly soft). Red is heavily degraded: very rough, 4x4 only, or a retired tenure that's no longer maintained and often deactivated. Black dashes are impassable: deactivated, washed out or abandoned. Grey dashes mean the condition isn't known. Pink dashes mean closed to public vehicles: gated, private or industrial use only. Each road is one line: where both sources map the same road, what a mapper saw on the ground (OpenStreetMap) wins, and the tenure decides only when OpenStreetMap has no condition for it. Tap a road to see both sources. This is mapped data, not a live closure list: check the <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p>
     <p>Outside Vancouver-to-Calgary, the rest of Canada gets the OpenStreetMap part every night: the dirt and forest roads within 2 km of a mountain bike trail, and the trailheads, parking, drinking water, toilets, bike repair stations and shelters near the trails.</p>
-    <p>With “Forest roads” on, the map also shows, once you zoom in: gates (open, locked or not known), barriers, bridges and bridges out, foot bridges, fords and hydro plants, from OpenStreetMap. Tap any of them for details. The “Logging areas” button shows cut blocks (pending, active or recently logged, and retired in the last 15 years) and areas closed to motor vehicles, from the BC government, on their own. With the button off, the roads stay on the map as plain grey-brown lines.</p>
+    <p>With “Forest roads” on, the map also shows, once you zoom in: gates (open, locked or not known), barriers, bridges and bridges out, foot bridges, fords and hydro plants, from OpenStreetMap. Tap any of them for details. The “Logging areas” button shows cut blocks (pending, active or recently logged, and retired in the last 15 years) and areas closed to motor vehicles, from the BC government, on their own. In Quebec it shows the cuts authorized in the current forest plan and the areas logged since 2022, from the Québec government (Données Québec, CC BY 4.0). With the button off, the roads stay on the map as plain grey-brown lines.</p>
     <h3>Wildfires</h3>
     <p>The “Wildfires” button shows active wildfires across Canada (fires that are out are left off). In BC they come from the BC Wildfire Service, with their perimeters, areas closed because of fire (area restriction orders), and evacuation orders and alerts. In Alberta they come from Alberta Wildfire, with Alberta's fire control orders (forest area closures, fire bans, fire restrictions and off-highway vehicle bans; the milder fire advisories are left off) and wildfire evacuations from Alberta Emergency Alert. Everywhere else they come from the agencies' reports gathered by the Canadian Wildland Fire Information System, with rough fire areas seen by satellite next to them. It's refreshed every 3 hours, so always check the <a href="https://wildfiresituation.nrs.gov.bc.ca/map" target="_blank" rel="noopener">BC Wildfire map</a> and <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a>, <a href="https://www.alberta.ca/wildfire-status" target="_blank" rel="noopener">Alberta wildfire status</a> and <a href="https://www.albertafirebans.ca/" target="_blank" rel="noopener">Alberta fire bans</a>, or the <a href="https://cwfis.cfs.nrcan.gc.ca/interactive-map" target="_blank" rel="noopener">CWFIS fire map</a> and the local fire agency before heading out.</p>
     <p class="src">Fires outside BC and Alberta: Canadian Forest Service, Canadian Wildland Fire Information System (CWFIS), Natural Resources Canada, Canadian Forest Service, Northern Forestry Centre, Edmonton, Alberta (Open Government Licence – Canada). Alberta: contains information licensed under the Open Government Licence – Alberta.</p>
@@ -1569,12 +1569,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=415"></script>
-<script src="rotate.js?v=415"></script>
-<script src="official.js?v=415"></script>
-<script src="directions.js?v=415"></script>
-<script src="ratings.js?v=415"></script>
-<script src="ebike.js?v=415"></script>
+<script src="native.js?v=416"></script>
+<script src="rotate.js?v=416"></script>
+<script src="official.js?v=416"></script>
+<script src="directions.js?v=416"></script>
+<script src="ratings.js?v=416"></script>
+<script src="ebike.js?v=416"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -2175,7 +2175,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
   function ebikeRule(tags, ll) {
     if (!window.tfEbike || !ll) return null;
     const z = ZONES.find((x) => ll[0] >= x.box[0] && ll[0] <= x.box[2] && ll[1] >= x.box[1] && ll[1] <= x.box[3]);
-    const prov = z ? (ALBERTA_ZONES.includes(z.id) ? "ab" : "bc") : ll[1] < -120 && ll[0] > 48.3 && ll[0] < 60 ? "bc" : null;
+    // Outside the zones: the province of the Canada map chunk there (abx: Alberta outside Kananaskis and Calgary).
+    const caProv = () => { const c = caIndex.zones.get(`ca_${Math.floor(ll[0])}_${(Math.floor(ll[1] / 1.2) * 1.2).toFixed(1)}`), n = c && c.name;
+      return n === "Alberta" ? "abx" : n === "British Columbia" ? "bc" : { Quebec: "qc", Ontario: "on", "Nova Scotia": "ns", "New Brunswick": "nb", "Prince Edward Island": "pe",
+        "Newfoundland and Labrador": "nl", Manitoba: "mb", Saskatchewan: "sk", Yukon: "yt", "Northwest Territories": "nt", Nunavut: "nu" }[n] || null; };
+    const prov = z ? (ALBERTA_ZONES.includes(z.id) ? "ab" : "bc") : ll[1] < -120 && ll[0] > 48.3 && ll[0] < 60 ? "bc" : caProv();
     // Alberta Parks' trail table (closures.js, once loaded) says which of its trails allow e-bikes.
     const ap = window.tfClosures && window.tfClosures.apRow(tags.name || tags["mtb:name"], ll);
     return window.tfEbike.of(tags, ll, prov, { zone: z && z.id, ap: ap && { ...ap.row, area: ap.area.name, url: ap.row.url || ap.area.url } });
@@ -3911,7 +3915,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=415").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=416").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5813,6 +5817,15 @@ out body;`;
   map.createPane("roadAreas").style.zIndex = 370;
   const areaRenderer = L.canvas({ pane: "roadAreas", padding: 0.3 });
   const areaLayer = L.layerGroup().addTo(map);
+  // Quebec has no Forest Tenure files: its logging areas come as map pictures from the Québec government's forest WMS
+  // (CC BY 4.0, Données Québec "PRANA" and "Interventions forestières"): authorized cuts of the current plan and the areas
+  // logged in the last years. Only inside Quebec, with the button on and zoomed in (alex 2026-10-26: everything everywhere).
+  const QC_LOG_YEARS = [2022, 2023, 2024];
+  const qcLogging = L.tileLayer.wms("https://geoegl.msp.gouv.qc.ca/ws/mffpecofor.fcgi", {
+    layers: ["prana_sec_int", ...QC_LOG_YEARS.map((y) => `ca_interv_fores_${y}`)].join(","), format: "image/png", transparent: true,
+    opacity: 0.7, minZoom: ROAD_MIN_ZOOM, bounds: L.latLngBounds([44.99, -79.8], [62.6, -57.1]), pane: "roadAreas",
+    attribution: "Logging: © Gouvernement du Québec (CC BY 4.0)",
+  });
   let fires = null, areaKey = "";
   const rings = (gs) => gs.map(roadGeom);
   map.createPane("fireAreas").style.zIndex = 375;
@@ -5883,6 +5896,8 @@ out body;`;
     const on = state.roads && map.getZoom() >= ROAD_MIN_ZOOM, areasOn = state.areas && map.getZoom() >= ROAD_MIN_ZOOM;
     const loaded = [...roadData.values()].filter(Boolean);
     const key = [areasOn, loaded.length].join("/");
+    const qcOn = state.areas && map.getZoom() >= ROAD_MIN_ZOOM && map.getBounds().intersects(qcLogging.options.bounds);
+    if (qcOn !== map.hasLayer(qcLogging)) { qcOn ? qcLogging.addTo(map) : map.removeLayer(qcLogging); renderKey(); }
     if (key !== areaKey) {
       areaKey = key;
       areaLayer.clearLayers();
@@ -6211,7 +6226,8 @@ out body;`;
       }).join(""))
       + section("Road features (zoom in)", Object.values(FEAT).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join(""));
     else html += section("Forest roads", sw("background: var(--road-plain)", "Forest road (turn on Forest roads in Layers for status)"));
-    if (state.areas) html += section("Logging areas", Object.values(AREA_STYLE).map(areaSw).join(""));
+    if (state.areas) html += section("Logging areas", Object.values(AREA_STYLE).map(areaSw).join("")
+      + (map.hasLayer(qcLogging) ? sw("background: #d4e3b5; border: 2px solid #d4a017", "Quebec: authorized cut (CR = clear cut)") + sw("background: #ffd6ec; border: 2px solid #f0509c", `Quebec: logged ${QC_LOG_YEARS[0]} to ${QC_LOG_YEARS.at(-1)}`) : ""));
     if (state.fires) {
       // The satellite fire areas and Alberta's fire orders only get a key line when some are on the map.
       const has = (k) => fires && (k === "m3" ? fires.perims.some((p) => p.src === "m3") : fires.restr.some((a) => a.kind === k));
@@ -7376,50 +7392,50 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=415"></script>
-<script src="contours.js?v=415"></script>
-<script src="clouds.js?v=415"></script>
-<script src="smoke.js?v=415"></script>
-<script src="photo-slider.js?v=415"></script>
-<script src="ski-terrain.js?v=415"></script>
-<script src="winter.js?v=415"></script>
-<script src="hunting.js?v=415"></script>
-<script src="fish-bait.js?v=415"></script>
-<script src="fish-route.js?v=415"></script>
-<script src="fishing.js?v=415"></script>
-<script src="compass.js?v=415"></script>
-<script src="hunts.js?v=415"></script>
-<script src="ski-points.js?v=415"></script>
-<script src="webcams.js?v=415"></script>
-<script src="lifts.js?v=415"></script>
-<script src="rogers.js?v=415"></script>
-<script src="slackcountry.js?v=415"></script>
-<script src="ski-areas.js?v=415"></script>
-<script src="offline.js?v=415"></script>
-<script src="ride-stats.js?v=415"></script>
-<script src="native-gps.js?v=415"></script>
-<script src="navigate.js?v=415"></script>
-<script src="planner.js?v=415"></script>
-<script src="loops.js?v=415"></script>
-<script src="ride-finds.js?v=415"></script>
-<script src="rides.js?v=415"></script>
-<script src="community.js?v=415"></script>
-<script src="ride-files.js?v=415"></script>
-<script src="rider-trails.js?v=415"></script>
-<script src="account.js?v=415"></script>
-<script src="strava.js?v=415"></script>
-<script src="reports.js?v=415"></script>
-<script src="grades.js?v=415"></script>
-<script src="trail-photos.js?v=415"></script>
-<script src="visitors.js?v=415"></script>
-<script src="notify.js?v=415"></script>
-<script src="closures.js?v=415"></script>
-<script src="status.js?v=415"></script>
-<script src="areas.js?v=415"></script>
-<script src="alpine.js?v=415"></script>
-<script src="bikeparks.js?v=415"></script>
-<script src="photo-find.js?v=415"></script>
-<script src="whats-new.js?v=415"></script>
+<script src="map3d.js?v=416"></script>
+<script src="contours.js?v=416"></script>
+<script src="clouds.js?v=416"></script>
+<script src="smoke.js?v=416"></script>
+<script src="photo-slider.js?v=416"></script>
+<script src="ski-terrain.js?v=416"></script>
+<script src="winter.js?v=416"></script>
+<script src="hunting.js?v=416"></script>
+<script src="fish-bait.js?v=416"></script>
+<script src="fish-route.js?v=416"></script>
+<script src="fishing.js?v=416"></script>
+<script src="compass.js?v=416"></script>
+<script src="hunts.js?v=416"></script>
+<script src="ski-points.js?v=416"></script>
+<script src="webcams.js?v=416"></script>
+<script src="lifts.js?v=416"></script>
+<script src="rogers.js?v=416"></script>
+<script src="slackcountry.js?v=416"></script>
+<script src="ski-areas.js?v=416"></script>
+<script src="offline.js?v=416"></script>
+<script src="ride-stats.js?v=416"></script>
+<script src="native-gps.js?v=416"></script>
+<script src="navigate.js?v=416"></script>
+<script src="planner.js?v=416"></script>
+<script src="loops.js?v=416"></script>
+<script src="ride-finds.js?v=416"></script>
+<script src="rides.js?v=416"></script>
+<script src="community.js?v=416"></script>
+<script src="ride-files.js?v=416"></script>
+<script src="rider-trails.js?v=416"></script>
+<script src="account.js?v=416"></script>
+<script src="strava.js?v=416"></script>
+<script src="reports.js?v=416"></script>
+<script src="grades.js?v=416"></script>
+<script src="trail-photos.js?v=416"></script>
+<script src="visitors.js?v=416"></script>
+<script src="notify.js?v=416"></script>
+<script src="closures.js?v=416"></script>
+<script src="status.js?v=416"></script>
+<script src="areas.js?v=416"></script>
+<script src="alpine.js?v=416"></script>
+<script src="bikeparks.js?v=416"></script>
+<script src="photo-find.js?v=416"></script>
+<script src="whats-new.js?v=416"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
