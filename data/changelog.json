@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-26", "text": "3D map: a photo that fails to download is asked for again, so the ground no longer stays blank in big squares"},
     {"date": "2026-10-26", "text": "Forest roads are now thin lines that look like roads, not thick bands, in every sport and in 3D"},
     {"date": "2026-10-26", "text": "Adventure moto: Plan a route no longer makes huge detours for gates and posts beside the highway. Hurley warns when snowed in"},
     {"date": "2026-10-26", "text": "Clouds show on the flat map only: the 3D map no longer has the cloud mist and slider"},
