@@ -275,7 +275,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   const decode = (g) => g.map((r) => { const out = []; let a = 0, o = 0; for (let i = 0; i < r.length; i += 2) { a += r[i]; o += r[i + 1]; out.push(a / 1e4, o / 1e4); } return out; });
   function load(name) {
     if (!files[name]) files[name] = fetch(`data/fishing/${name}.json`, { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((j) => { for (const z of j.zones || []) z.g = decode(z.g); return j; })
+      .then((j) => { if (Array.isArray(j.zones)) for (const z of j.zones) z.g = decode(z.g); return j; })
       .catch((e) => { delete files[name]; throw e; });
     return files[name];
   }
@@ -785,7 +785,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     el.hidden = false;
     el.innerHTML = `<header>${svg(IC.pin)}<h3 id="fsSpotName">${esc(title || "This spot")}</h3>${routeBtn(lat, lon)}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div>
       <div id="fsHidden"></div><div id="fsWater"><p class="fs-note fs-look">Looking up this spot…</p></div><div id="fsBait"></div>
-      <div id="fsSea"></div><div id="fsRules"></div><div id="fsLic"></div><div id="fsBoat"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsAcc"></div>`;
+      <div id="fsSea"></div><div id="fsSeason"></div><div id="fsRules"></div><div id="fsLic"></div><div id="fsBoat"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsAcc"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
     cardInView(el);
     await ready;
@@ -816,6 +816,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       fill("fsWater", w ? secFish(w.html) : "");
       if (!w) $("fsSpot").classList.add("fs-nowater");
       if (w && w.rules) fill("fsRules", fold("rules", IC.rules, "Rules", "This water has its own rules", unhead(w.rules) + unhead(rulesHtml(lat, lon, here, prov)), true));
+      seasonHtml(here, prov, w).then((h) => fill("fsSeason", h));
       if (prov === "on" || prov === "qc") eatHtml(lat, lon, prov, (w && w.name) || title).then((h) => {
         fill("fsEat", h.html);
         if (h.sp && h.sp.length) { h.sp.forEach((x) => baitSp.add(x)); bait(); }
@@ -979,6 +980,104 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       ["Lake trout and grayling", "Check limits", "In the rivers and lakes near the coast, under the territory's guide."]] },
   };
 
+  // ---------- seasons and limits for the water itself (alex: "the season and limits for each lake on the spot card") ----------
+  // Quebec: data/fishing/qcrules.json (its regulations site: each zone's rules and every water with an exception, by the
+  // exceptions map's id). Ontario: onrules.json (the zone pages of the regulations summary; a lake's own lines found by
+  // name). BC: bcregs.json (the water-specific tables of each region's synopsis, by name). Alberta has its own table per
+  // water in the Rules part already. Each line says if it's open or closed today where the dates can be read.
+  const MONTHS_LC = MONTHS.map((m) => m.toLowerCase()), MON3 = MONTHS_LC.map((m) => m.slice(0, 3));
+  const NTH = { first: 0, second: 1, third: 2, fourth: 3, last: -1 };
+  const WDAY = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  // One date in the year from words: "April 23rd, 2026", "Dec 1", "fourth Saturday in April", "Friday before the second Saturday in May".
+  function dayOf(t, y) {
+    t = String(t).toLowerCase().replace(/(\d)(st|nd|rd|th)\b/g, "$1").trim();
+    let m = t.match(/^(friday|saturday|sunday) (before|after) (?:the )?(.+)$/);
+    if (m) { const d = dayOf(m[3], y); if (!d) return null; const w = WDAY.indexOf(m[1]); const r = new Date(d); do r.setDate(r.getDate() + (m[2] === "before" ? -1 : 1)); while (r.getDay() !== w); return r; }
+    m = t.match(/^(first|second|third|fourth|last) (\w+day) (?:in|of) (\w+)/);
+    if (m) {
+      const mo = MONTHS_LC.indexOf(m[3]), w = WDAY.indexOf(m[2]); if (mo < 0 || w < 0) return null;
+      if (NTH[m[1]] < 0) { const r = new Date(y, mo + 1, 0); while (r.getDay() !== w) r.setDate(r.getDate() - 1); return r; }
+      const r = new Date(y, mo, 1); while (r.getDay() !== w) r.setDate(r.getDate() + 1); r.setDate(r.getDate() + 7 * NTH[m[1]]); return r;
+    }
+    m = t.match(/^([a-z]+)\.? (\d{1,2})(?:,? (\d{4}))?/);
+    if (m) { const mo = MON3.indexOf(m[1].slice(0, 3)); if (mo < 0) return null; return new Date(m[3] ? +m[3] : y, mo, +m[2]); }
+    return null;
+  }
+  // Open today? true, false, or null when the words can't be read. "A to B and C to D", "open all year", "closed all year".
+  function openToday(text) {
+    const t = String(text || "").toLowerCase().replace(/^from /, "").replace(/\(.*?\)/g, "").trim();
+    if (/closed all year|fishing prohibited/.test(t)) return false;
+    if (/^open all year|^all year/.test(t)) return true;
+    const now = new Date(); now.setHours(12, 0, 0, 0);
+    let any = false;
+    for (const part of t.split(/\band\b(?= (?:from )?(?:[a-z]+ \d|\w+ \w+day|friday|saturday))/)) {
+      const m = part.replace(/^\s*(?:from|open from|open)\s+/, "").match(/^(.+?)\s+to\s+(.+?)(?:\s*-.*)?$/);
+      if (!m) continue;
+      const y = now.getFullYear();
+      let a = dayOf(m[1], y), b = dayOf(m[2], y);
+      if (!a || !b) continue;
+      any = true;
+      if (b < a && !/\d{4}/.test(m[2])) { if (now >= a || now <= b) return true; continue; }   // over new year: Dec 1 to Mar 31
+      b.setHours(23, 59);
+      if (now >= a && now <= b) return true;
+    }
+    return any ? false : null;
+  }
+  const chipOf = (open) => (open == null ? "" : `<em class="fs-st" style="--c:${open ? C.ok : C.blown}">${open ? "Open now" : "Closed now"}</em>`);
+  const qcRow = (r) => { const shut = /prohibited/i.test(r[2]), open = shut ? false : /same as the zone/i.test(r[0]) ? null : openToday(r[0]);
+    return `<li style="--c:${open == null ? C.zone : open ? C.ok : C.blown}"><b>${esc(r[1])} ${chipOf(open)}</b><small>${esc([shut ? "No fishing" : r[2] && `${r[2]}${/^\d+$/.test(r[2]) ? " a day" : ""}`, r[3], r[4]].filter(Boolean).join(" · "))}${!shut && r[0] && !/^same/i.test(r[0]) ? `<br>${esc(r[0].replace(/^From /, "").replace(/-\s*Other species$/, ""))}` : ""}${r[5] ? `<br>${esc(r[5])}` : ""}</small></li>`; };
+  const nameParts = (n) => String(n || "").replace(/\(.*?\)/g, " ").split(/\s*\/\s*|\s+and\s+|\s+et\s+|,\s*/i).map((x) => plain(x)).filter(Boolean);
+  const sameWater = (a, b) => { const p = plain(b); return !!p && nameParts(a).includes(p); };
+  const files2 = {};
+  const loadOnce = (n) => files2[n] || (files2[n] = load(n).catch(() => { delete files2[n]; return null; }));
+  async function seasonHtml(here, prov, w) {
+    const name = (w && w.name) || "";
+    if (prov === "qc") {
+      const j = await loadOnce("qcrules"), z = here.find((x) => x.k === "qc");
+      if (!j) return "";
+      const own = w && w.qcId && j.waters[w.qcId], zr = z && j.zones[z.id], nm = name.replace(/\s*\(\d.*?\)\s*$/, "");
+      if (!own && !zr) return "";
+      const ownOpen = own && own.filter((r) => !/^Other species$/i.test(r[1])).map((r) => (/prohibited/i.test(r[2]) ? false : openToday(r[0])));
+      const body = `${own ? `<h4>${esc(nm || "This water")}: its own rules</h4><ul class="fs-list">${own.map(qcRow).join("")}</ul>` : ""}
+        ${zr ? (own ? `<details class="fs-more"><summary>Rest of ${esc(z.n)}</summary><ul class="fs-list">${zr.map(qcRow).join("")}</ul></details>` : `<p class="fs-note">${esc(nm || "This water")} follows the rules of ${esc(z.n)}.</p><ul class="fs-list">${zr.map(qcRow).join("")}</ul>`) : ""}
+        <p class="fs-note">From Quebec's fishing regulations (${esc(j.updated)}). <a href="https://peche.faune.gouv.qc.ca/regpec/en/Info/Reglements?id_zone=${esc(z ? z.id : "")}" target="_blank" rel="noopener">Check the official rules</a>.</p>`;
+      return fold("season", IC.sun, "Seasons and limits", own ? (ownOpen.some((x) => x) ? "Own rules · open now" : ownOpen.some((x) => x === false) ? "Own rules · closed now" : "Own rules") : esc(z.n), body);
+    }
+    if (prov === "on") {
+      const j = await loadOnce("onrules"), z = here.find((x) => x.k === "on"), zr = j && z && j.zones[z.id];
+      if (!zr) return "";
+      const wx = name ? zr.wx.filter((x) => sameWater(x[0], name)) : [];
+      const spx = name ? zr.spx.filter((x) => sameWater(x[3].split(/\s[-–]\s/)[0], name)) : [];
+      const sanct = name ? zr.sanct.filter((x) => sameWater(x[1].split(/\s[-–]\s/)[0], name)) : [];
+      const lim = (t) => String(t).replace(/\bS-(\d+)/g, "$1 with a sport licence").replace(/\bC-(\d+)/g, "$1 with a conservation licence");
+      const own = [
+        ...wx.map((x) => `<li style="--c:${C.high}"><b>${esc(x[0].replace(/\s*\([^)]*$/, ""))}</b><small>${x[1] && !/^[A-Z]\W/.test(x[1]) ? `${esc(x[1].length > 110 ? x[1].slice(0, 110).replace(/\s\S*$/, "") + "…" : x[1])}<br>` : ""}${x[2].map((r) => { const [sp, ...rest] = r.split(/\s[-–]\s/), t = rest.join(" - "), o = /open|closed|no fishing/i.test(t) ? openToday(t.replace(/^(open|no fishing)( from)?\s*/i, "")) : null;
+          return `<span class="fs-sea-p"><b>${esc(sp)}</b>${t ? `: ${esc(lim(t))}` : ""} ${/no fishing|sanctuary/i.test(r) && o != null ? chipOf(!o) : chipOf(/closed all year/i.test(t) ? false : o)}</span>`; }).join("")}</small></li>`),
+        ...spx.map((x) => { const o = openToday(x[1]); return `<li style="--c:${o == null ? C.high : o ? C.ok : C.blown}"><b>${esc(x[0])} ${chipOf(o)}</b><small>${esc(x[1])}${x[2] ? ` · ${esc(lim(x[2]))}` : ""}<br>${esc(x[3])}</small></li>`; }),
+        ...sanct.map((x) => `<li style="--c:${C.blown}"><b>Fish sanctuary</b><small>${esc(x[0])}<br>${esc(x[1])}</small></li>`),
+      ];
+      const wide = zr.wide.map((r) => { const o = r[1] ? openToday(r[1]) : null; return `<li style="--c:${o == null ? C.zone : o ? C.ok : C.blown}"><b>${esc(r[0])} ${chipOf(o)}</b><small>${esc([r[1], lim(r[2])].filter(Boolean).join(" · "))}</small></li>`; }).join("");
+      const opens = zr.wide.filter((r) => r[1] && openToday(r[1])).map((r) => r[0]).filter((n) => /walleye|bass|trout|pike|perch|musk/i.test(n));
+      const body = `${own.length ? `<h4>${esc(name)}: its own rules</h4><ul class="fs-list">${own.join("")}</ul>` : `<p class="fs-note">${esc(name || "This water")} has no exception in Zone ${esc(z.id)}: the zone's seasons and limits apply.</p>`}
+        ${own.length ? `<details class="fs-more"><summary>Zone ${esc(z.id)} seasons and limits</summary><ul class="fs-list">${wide}</ul></details>` : `<ul class="fs-list">${wide}</ul>`}
+        <p class="fs-note">From Ontario's fishing regulations summary (${esc(j.updated)}). <a href="https://www.ontario.ca/document/ontario-fishing-regulations-summary/fisheries-management-zone-${esc(z.id)}" target="_blank" rel="noopener">Check the official rules</a>.</p>`;
+      return fold("season", IC.sun, "Seasons and limits", own.length ? "This lake has its own rules" : opens.length ? `${esc(opens.slice(0, 2).map((n) => n.replace(/ (combined|and sauger combined)$/i, "")).join(", "))} open` : `Zone ${esc(z.id)}`, body);
+    }
+    if (prov === "bc") {
+      const j = await loadOnce("bcregs"), z = here.find((x) => x.k === "bc"), rows = j && z && j.regions[z.id];
+      if (!rows || !name) return "";
+      const mine = rows.filter((r) => sameWater(r[0], name) && !/TRIBUTARIES/i.test(r[0]));
+      const li = mine.flatMap((r) => r[2].map((t) => { const m = t.match(/^No Fishing\s+(?:from\s+)?([A-Z][a-z]{2,}\.? \d{1,2})\s*[-–]\s*([A-Z][a-z]{2,}\.? \d{1,2})$/); const o = m ? openToday(`${m[1]} to ${m[2]}`) : null;
+        const head = t.length > 60 ? t.split(/[;:,]/)[0] : t, rest = t.slice(head.length).replace(/^[;:,]\s*/, "");
+        return `<li style="--c:${/^No Fishing/i.test(t) ? C.blown : C.high}"><b>${esc(head)}${m ? ` <em class="fs-st" style="--c:${o ? C.blown : C.none}">${o ? "Closed now" : "Not now"}</em>` : ""}</b>${rest ? `<small>${esc(rest)}</small>` : ""}</li>`; }));
+      const body = mine.length ? `<p class="fs-note">${esc(titleCase(mine[0][0]))}${mine.length > 1 ? ` (${mine.length} waters with this name: management units ${esc(mine.map((r) => r[1]).join(", "))})` : ` · management unit ${esc(mine[0][1])}`}: exceptions to Region ${esc((BC_REGION[z.id] || [z.id])[0])}'s rules.</p><ul class="fs-list">${li.join("")}</ul>`
+        : `<p class="fs-note">${esc(name)} isn't in Region ${esc((BC_REGION[z.id] || [z.id])[0])}'s list of exceptions: the region's general seasons and quotas apply.</p>`;
+      const closed = mine.some((r) => r[2].some((t) => /^No Fishing$/i.test(t)));
+      return fold("season", IC.sun, "Seasons and limits", mine.length ? (closed ? "No fishing" : "Own rules") : "Region's rules", `${body}<p class="fs-note">From the BC Freshwater Fishing Regulations Synopsis (${esc(j.updated)}). <a href="${BC_PDF}${(BC_REGION[z.id] || [])[1]}.pdf" target="_blank" rel="noopener">Region PDF</a> · <a href="${PROV.bc[1]}#In-Season-changes" target="_blank" rel="noopener">In-season changes</a></p>`);
+    }
+    return "";
+  }
+
   // ---------- safe to eat (Ontario and Quebec fish eating guides, data/fishing/eat.json) ----------
   // The guide's water for a spot: the same name within 40 km (a big lake's middle can be far from the shore you're on),
   // else the nearest guide spot within 3 km.
@@ -1136,12 +1235,12 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     return { name: a.OFFICIAL_WATERBODY_NAME || "", kind: "Lake", sp, html: `${facts.length ? `<p class="fs-note">${esc(facts.join(" · "))}</p>` : ""}${speciesHtml(sp, "From Ontario's aquatic resource inventory.")}` };
   }
   async function waterQC(lat, lon) {
-    const p = new URLSearchParams({ geometry: `${lon},${lat}`, geometryType: "esriGeometryPoint", inSR: "4326", spatialRel: "esriSpatialRelIntersects", outFields: "NM_ENDRO_FR,VA_TYPE_DESCR_FR", returnGeometry: "false", f: "json" });
+    const p = new URLSearchParams({ geometry: `${lon},${lat}`, geometryType: "esriGeometryPoint", inSR: "4326", spatialRel: "esriSpatialRelIntersects", outFields: "ID_ENDRO,NM_ENDRO_FR,VA_TYPE_DESCR_FR", returnGeometry: "false", f: "json" });
     const j = await getJ(`${QC_EXC}/query?${p}`, 9000);
     const a = j.features && j.features[0] && j.features[0].attributes;
     if (!a) return null;
-    const name = `${a.VA_TYPE_DESCR_FR ? a.VA_TYPE_DESCR_FR + " " : ""}${a.NM_ENDRO_FR || ""}`.trim();
-    return { name, html: `<ul class="fs-list"><li style="--c:${C.high}"><b>This water has its own rules</b>Quebec lists an exception here (season, limits or gear differ from the zone): open the zone's rules below and look for ${esc(name || "this water")}.</li></ul>` };
+    const name = `${a.VA_TYPE_DESCR_FR ? a.VA_TYPE_DESCR_FR + " " : ""}${a.NM_ENDRO_FR || ""}`.replace(/\s*\(\d[^)]*\)\s*$/, "").trim();
+    return { name, qcId: a.ID_ENDRO, html: `<ul class="fs-list"><li style="--c:${C.high}"><b>This water has its own rules</b>Quebec lists an exception here (season, limits or gear differ from the zone): see Seasons and limits.</li></ul>` };
   }
   const titleCase = (s) => String(s || "").toLowerCase().replace(/(^|[\s\-'(/])([a-zà-ÿ])/g, (m, a, b) => a + b.toUpperCase()).replace(/\b(Of|The|And|De|Du|La|Le|Des)\b/g, (w) => w.toLowerCase()).replace(/^./, (c) => c.toUpperCase());
 

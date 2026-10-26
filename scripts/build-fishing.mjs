@@ -31,7 +31,7 @@
 // Government Licence - Ontario. Quebec and DFO: Open Government Licence - Canada / Quebec. FFSBC stocking report: public
 // report, credited in the app. A source that fails keeps its last good data.
 //
-// Run: node scripts/build-fishing.mjs   (Node 18 or newer, no packages needed; ONLY=stocked|zones|tides|gauges|eat|spots|walkin|boating|tidal|fishlist for one file; the nightly ONLY=stocked also does tidal)
+// Run: node scripts/build-fishing.mjs   (Node 18 or newer, no packages needed; ONLY=stocked|zones|tides|gauges|eat|spots|walkin|boating|tidal|fishlist|qcrules|onrules for one file; the nightly ONLY=stocked also does tidal)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 
@@ -855,6 +855,90 @@ async function buildFishList() {
   save("fishlist.json", { updated: iso(now), src: "GBIF.org occurrence data (CC0, CC BY, CC BY-NC) and Nova Scotia Freshwater Fish Species Distribution Records", sp, cells: out, ns });
 }
 
+// qcrules.json: Quebec's seasons and limits, from its own regulations site (peche.faune.gouv.qc.ca/RegPec, the tables
+// behind "Fishing periods, limits and exceptions"): each zone's general rules and the rules of every body of water with
+// an exception (the ID_ENDRO of the exceptions map layer the app already reads at a spot). Rows are
+// [period, species, catch limit, length limit, fishing device, note].
+const REGPEC = "https://peche.faune.gouv.qc.ca/RegPec/en/Info";
+async function buildQcRules() {
+  log("Quebec seasons and limits");
+  const old = readOld("qcrules.json");
+  const txt = (h) => String(h).replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/g, " ").replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&#233;/g, "é").replace(/&quot;/g, '"').replace(/\s+/g, " ").trim();
+  const grid = (h) => {
+    h = String(h).replace(/<script[\s\S]*?<\/script>/g, "");
+    const rows = []; let period = "";
+    for (const m of h.matchAll(/<tr[^>]*class="(dxgv(?:GroupRow|DataRow))[^"]*"[^>]*>([\s\S]*?)<\/tr>/g)) {
+      const c = [...m[2].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((x) => txt(x[1])).filter((x, i, a) => !(x === "" && i < 2 && m[1] === "dxgvDataRow"));
+      if (m[1] === "dxgvGroupRow") { const p = c.filter(Boolean).pop() || ""; if (/^Period/i.test(p)) period = p.replace(/^Period\s*/i, ""); continue; }
+      const d = c.filter((x, i) => i >= c.length - 5);
+      if (d[0]) rows.push([period, ...d]);
+    }
+    return rows;
+  };
+  // This year's season id, from zone 1's page.
+  let saisn;
+  try { saisn = String(await get(`${REGPEC}/Reglements?id_zone=1`, { json: false })).match(/id="id_saisn_VI"[^>]*value="(\d+)"/)[1]; } catch (e) { log(`  ${e.message}; keeping the last good file`); return; }
+  const zones = {}, waters = {};
+  await pool(Array.from({ length: 29 }, (_, i) => i + 1), 3, async (z) => {
+    try { zones[z] = grid(await get(`${REGPEC}/PartialGrilleReglementsZone?id_zone=${z}&id_saisn=${saisn}&courantes=False`, { json: false, tries: 3 })); } catch (e) { log(`  zone ${z}: ${e.message}`); if (old && old.zones[z]) zones[z] = old.zones[z]; }
+  });
+  // Every water with an exception, from the exceptions map layer.
+  const ids = [];
+  for (let off = 0; off < 10000; off += 1000) {
+    const j = await get(`https://peche.faune.gouv.qc.ca/arcgiswa/rest/services/PRODC-E/PlansEauExceptions/MapServer/2/query?${new URLSearchParams({ where: "1=1", outFields: "ID_ENDRO,ID_ZONE", returnGeometry: "false", resultOffset: String(off), resultRecordCount: "1000", f: "json" })}`).catch(() => null);
+    const f = (j && j.features) || []; f.forEach((x) => ids.push([x.attributes.ID_ENDRO, x.attributes.ID_ZONE]));
+    if (f.length < 1000) break;
+  }
+  const seen = new Set(), todo = ids.filter(([id]) => !seen.has(id) && seen.add(id));
+  let ok = 0;
+  await pool(todo, 4, async ([id, z]) => {
+    try { const r = grid(await get(`${REGPEC}/PartialGrilleReglementsPlanEau?id_zone=${z}&id_saisn=${saisn}&courantes=False&id_endro=${id}`, { json: false, tries: 2 })); if (r.length) { waters[id] = r; ok++; } }
+    catch { if (old && old.waters[id]) waters[id] = old.waters[id]; }
+  });
+  log(`  ${Object.keys(zones).length} zones, ${ok} of ${todo.length} waters read`);
+  if (Object.keys(zones).length < 20 || ok < todo.length / 2) { log("  too few; keeping the last good file"); return; }
+  save("qcrules.json", { updated: iso(now), src: `${REGPEC}/Reglements`, zones, waters });
+}
+
+// onrules.json: Ontario's seasons and limits for each Fisheries Management Zone, from the zone pages of the Ontario
+// Fishing Regulations Summary (ontario.ca): zone-wide [species, season, limits], species exceptions [species, season,
+// limits, water], waterbody exceptions [water, where, [rules]] and fish sanctuaries [when closed, water]. The app finds a
+// lake's own lines by its name.
+async function buildOnRules() {
+  log("Ontario seasons and limits");
+  const old = readOld("onrules.json");
+  const txt = (h) => String(h).replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, "").replace(/&nbsp;|&#160;/g, " ").replace(/&amp;/g, "&").replace(/&#39;|&rsquo;|’/g, "'").replace(/\s+/g, " ").trim();
+  const zones = {};
+  await pool(Array.from({ length: 20 }, (_, i) => i + 1), 3, async (z) => {
+    let h;
+    try { h = String(await get(`https://www.ontario.ca/document/ontario-fishing-regulations-summary/fisheries-management-zone-${z}`, { json: false, tries: 3 })); }
+    catch (e) { log(`  zone ${z}: ${e.message}`); if (old && old.zones[z]) zones[z] = old.zones[z]; return; }
+    const sec = (title) => { const i = h.search(new RegExp(`<h2[^>]*>\\s*${title}`)); if (i < 0) return ""; const j = h.indexOf("<h2", i + 5); return h.slice(i, j < 0 ? undefined : j); };
+    const sl = (p) => { const S = (p.match(/<strong>Season<\/strong>:?([\s\S]*?)(<br|<\/p>)/) || [])[1], Lm = (p.match(/<strong>Limits<\/strong>:?([\s\S]*?)<\/p>/) || [])[1]; return [txt(S || "").replace(/^:\s*/, ""), txt(Lm || "").replace(/^:\s*/, "")]; };
+    const wide = [];
+    for (const m of sec("Zone-wide seasons").matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>\s*(<p>[\s\S]*?<\/p>)/g)) wide.push([txt(m[1]), ...sl(m[2])]);
+    const spx = [];
+    for (const m of sec("Species exceptions").matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>([\s\S]*?)(?=<h3|$)/g)) {
+      for (const b of m[2].matchAll(/(<p>(?:(?!<\/p>)[\s\S])*?<strong>Season[\s\S]*?<\/p>)\s*<ul>([\s\S]*?)<\/ul>/g)) {
+        const [season, limits] = sl(b[1]);
+        for (const li of b[2].matchAll(/<li>([\s\S]*?)<\/li>/g)) spx.push([txt(m[1]), season, limits, txt(li[1]).slice(0, 300)]);
+      }
+    }
+    const wx = [];
+    for (const m of sec("Waterbody exceptions").matchAll(/<p>\s*<strong>([\s\S]*?)<\/strong>([\s\S]*?)<\/p>\s*<ul>([\s\S]*?)<\/ul>/g))
+      wx.push([txt(m[1]), txt(m[2]).replace(/^[-–\s]+/, "").slice(0, 300), [...m[3].matchAll(/<li>([\s\S]*?)(?=<li>|<\/ul>|$)/g)].map((x) => txt(x[1]).slice(0, 400)).filter(Boolean)]);
+    const sanct = [];
+    for (const m of sec("Fish sanctuaries").matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>([\s\S]*?)(?=<h3|$)/g))
+      for (const li of m[2].matchAll(/<li>([\s\S]*?)<\/li>/g)) sanct.push([txt(m[1]), txt(li[1]).slice(0, 300)]);
+    if (wide.length < 3) { log(`  zone ${z}: only ${wide.length} species read`); if (old && old.zones[z]) zones[z] = old.zones[z]; return; }
+    zones[z] = { wide, spx, wx, sanct };
+  });
+  const n = Object.keys(zones).length;
+  log(`  ${n} zones, ${Object.values(zones).reduce((a, z) => a + z.wx.length, 0)} waterbody exceptions`);
+  if (n < 15) { log("  too few; keeping the last good file"); return; }
+  save("onrules.json", { updated: iso(now), src: "https://www.ontario.ca/document/ontario-fishing-regulations-summary", zones });
+}
+
 // tidal.json: what you may keep in each of BC's tidal Pacific Fishery Management Areas, read from Fisheries and Oceans
 // Canada's area pages (the same pages anglers check): for each section (Salmon, Other finfish, Crab, Shrimp and prawns,
 // Bivalves…) the species rows [section, species, subareas, min size, gear, daily limit, status] and the restrictions
@@ -922,3 +1006,5 @@ if (!ONLY || ONLY === "boating") await buildBoating();
 if (!ONLY || ONLY === "walkin") await buildWalkin();
 if (!ONLY || ONLY === "tidal" || ONLY === "stocked") await buildTidal();
 if (!ONLY || ONLY === "fishlist") await buildFishList();
+if (!ONLY || ONLY === "qcrules") await buildQcRules();
+if (!ONLY || ONLY === "onrules") await buildOnRules();

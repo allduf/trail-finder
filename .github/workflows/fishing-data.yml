@@ -2,7 +2,8 @@ name: Fishing data
 
 # Collect the data files for Fishing (scripts/build-fishing.mjs) into data/fishing/*.json: stocked lakes and rivers
 # (BC, Alberta, Ontario), the areas fishing rules are written for, river gauges with their usual flow for each month,
-# tide stations, the Ontario and Quebec fish eating guides and what you may keep in each BC tidal area. The stocking
+# tide stations, the Ontario and Quebec fish eating guides, what you may keep in each BC tidal area, fish lists and
+# each lake's own seasons and limits (Quebec, Ontario, and BC with scripts/build-bc-regs.py). The stocking
 # and the BC tidal areas every night (the 🔔's fresh stocking
 # alerts read it), everything on the 3rd of each month and when the script changes on main. On a pull request that
 # changes the script it only does a test run, without saving.
@@ -14,9 +15,11 @@ on:
     branches: [main]
     paths:
       - scripts/build-fishing.mjs
+      - scripts/build-bc-regs.py
   pull_request:
     paths:
       - scripts/build-fishing.mjs
+      - scripts/build-bc-regs.py
       - .github/workflows/fishing-data.yml
 
 permissions:
@@ -43,6 +46,11 @@ jobs:
           # a nightly run outside the 3rd only updates the stocking and the BC tidal areas (ONLY=stocked does both)
           if [ "${{ github.event_name }}" = schedule ] && [ "$(date -u +%d)" != "03" ]; then export ONLY=stocked; fi
           node scripts/build-fishing.mjs
+      - name: BC water-specific rules (with the monthly full run)
+        run: |
+          if [ "${{ github.event_name }}" = schedule ] && [ "$(date -u +%d)" != "03" ]; then exit 0; fi
+          pip install --quiet pdfplumber
+          python3 scripts/build-bc-regs.py
       - name: File sizes
         run: ls -l data/fishing
       - name: Save the new data
