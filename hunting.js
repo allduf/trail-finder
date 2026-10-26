@@ -923,12 +923,19 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     const off = tzOff(), start = new Date(Math.floor((Date.now() + off) / dayMs) * dayMs - off + ahead * dayMs);
     const step = 5 * 60000, out = { day: start, rise: null, set: null, moonRise: null, moonSet: null, transit: null, under: null };
     let ps = sunAlt(start, lat, lon), pm = moon ? moonAlt(start, lat, lon) : 0, maxM = -99, minM = 99;
-    for (let t = start.valueOf() + step; t <= start.valueOf() + dayMs; t += step) {
-      const dt = new Date(t), s = sunAlt(dt, lat, lon), m = moon ? moonAlt(dt, lat, lon) : 0;
+    // The sunset is the one after the sunrise: when the day is counted on a clock far from the spot's (the weather
+    // didn't answer and the phone is in another time zone), the sun is already up at the start and the first sunset
+    // found was the evening before, so in the morning it said "Legal light over for today" (2026-10-26). So the
+    // search goes up to 12 h past the day for that sunset; everything else stays inside the day.
+    const end = start.valueOf() + dayMs;
+    for (let t = start.valueOf() + step; t <= end + 12 * 3600000; t += step) {
+      const inDay = t <= end;
+      if (!inDay && (out.set || !out.rise)) break;
+      const dt = new Date(t), s = sunAlt(dt, lat, lon), m = moon && inDay ? moonAlt(dt, lat, lon) : 0;
       const cross = (a, b, h) => new Date(t - step + (step * (h - a)) / (b - a));
-      if (ps < -0.833 && s >= -0.833 && !out.rise) out.rise = cross(ps, s, -0.833);
-      if (ps >= -0.833 && s < -0.833 && !out.set) out.set = cross(ps, s, -0.833);
-      if (moon) {
+      if (inDay && ps < -0.833 && s >= -0.833 && !out.rise) out.rise = cross(ps, s, -0.833);
+      if (out.rise && ps >= -0.833 && s < -0.833 && !out.set) out.set = cross(ps, s, -0.833);
+      if (moon && inDay) {
         if (pm < 0.133 && m >= 0.133 && !out.moonRise) out.moonRise = cross(pm, m, 0.133);
         if (pm >= 0.133 && m < 0.133 && !out.moonSet) out.moonSet = cross(pm, m, 0.133);
         if (m > maxM) { maxM = m; out.transit = dt; }

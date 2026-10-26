@@ -74,6 +74,7 @@
 .map-tools #btn3d.on { background: var(--fg); border-color: var(--fg); color: var(--panel); }
 #map3d .maplibregl-popup-content { background: var(--panel); color: var(--fg); font: 600 .85rem var(--font-body, system-ui); padding: 4px 8px; border-radius: 6px; }
 #map3d .maplibregl-popup-tip { display: none; }
+#map3d .g3-wait { position: absolute; left: 50%; top: 38%; transform: translateX(-50%); z-index: 2; pointer-events: none; padding: 8px 14px; border-radius: 999px; background: rgba(15,30,25,.78); color: #fff; font: 600 .9rem var(--font-body, system-ui); white-space: nowrap; }
 #map3d .maplibregl-ctrl-bottom-right { margin-bottom: 6px; }`;
   document.head.append(css);
 
@@ -672,6 +673,13 @@
     const lod = () => ["sat", "fill", "winter", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
     gl.once("load", lod);
     gl.once("load", tiltUp);
+    // Until the ground first draws the 3D map is only sky (several seconds on a phone with weak signal), which
+    // looked broken: say it's coming. Gone at the first full draw, or after 20 s if some imagery never answers.
+    const wait = document.createElement("div");
+    wait.className = "g3-wait"; wait.setAttribute("role", "status"); wait.textContent = "Loading the mountains…";
+    box.append(wait);
+    const waited = () => wait.remove();
+    gl.once("load", waited); gl.once("idle", waited); setTimeout(waited, 20000);
     if (PHONE) {
       gl.on("idle", trimPaintBuffers);
       // At most PHONE_BUFFERS paint buffers, even while moving: with no limit (30) a long tilted ride across the
