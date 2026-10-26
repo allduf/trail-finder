@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-26", "text": "Clouds show on the flat map only: the 3D map no longer has the cloud mist and slider"},
     {"date": "2026-10-26", "text": "Adventure moto: tap a campsite, gas, hot spring or shop dot (also in 3D) to see what it is, how far it is, fee, water, toilets, hours, website and height."},
     {"date": "2026-10-26", "text": "Adventure: ADV routes now has its own button at the top (it replaces Ride, which is the Ride tab). 3D says \"Loading the mountains…\" until the ground shows. Hunting: legal light times stay right when the weather can't load"},
     {"date": "2026-10-26", "text": "Adventure moto is called Adventure in the sport picker under More too, the same as the map button"},
