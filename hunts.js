@@ -236,7 +236,7 @@ body.sport-hunt dialog.sp-log .sp-bars i { background: ${COLOR}; }
     ski: ["⛷ My tours", "Your recorded and imported ski tours"],
     hunt: ["🦌 My hunts", "Your hunts (where you walked, the weather, what you saw), harvests and trail cameras"],
     fish: ["🎣 Fishing log", "Your catches and what works for you"],
-    moto: ["🏍 My moto rides", "Your moto rides: where you went, km of dirt, the weather"],
+    moto: ["🏍 My adventure rides", "Your adventure moto rides: where you went, km of dirt, the weather"],
   };
   function syncLink() {
     if (!link) return;

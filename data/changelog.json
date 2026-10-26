@@ -2,6 +2,7 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-10-26", "text": "Fishing: fixes from a full test (right boating limits, honest bite score, lake depths, one Safe to eat list, no doubled launches)"},
+    {"date": "2026-10-26", "text": "Moto is now called Adventure moto."},
     {"date": "2026-10-26", "text": "3D map: no more grey \u201cMap data not yet available\u201d squares when you zoom in where the photos stop sooner (Garibaldi Lake): the nearest real photo is shown instead"},
     {"date": "2026-10-26", "text": "Moving the map yourself (2D or 3D) stops it following you, so it no longer jumps back to your location; tap Me to follow again."},
     {"date": "2026-10-26", "text": "Moto: Plan a route shows your numbered points on the 2D and 3D maps, lists them to reorder, and goes around closed forest roads, locked gates, washouts, motor vehicle closures and fire closures."},
