@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-26", "text": "Fishing: cleaner, more modern colours for the map dots"},
     {"date": "2026-10-26", "text": "Moto: pick your bike by year, make and model, ADV routes, ride log, check-in alarm, cell signal, snow on passes, 3D fly-through"},
     {"date": "2026-10-26", "text": "Fishing: Green Lake boat launch in the right place, more launches, and zones and parks now show on the 3D map"},
     {"date": "2026-10-26", "text": "New 🏍 Moto mode: dirt roads graded for your bike, mud, fuel range and route planner"},
