@@ -1,0 +1,705 @@
+{
+ "about": "Hidden fishing spots picked by hand from public sources (park pages, regulations, published trip reports): hike-in, canoe-in or rough-road waters most anglers never reach. Edit by hand (tag: a few words on why it's quiet, shown on the map); the app shows them in the Hidden spots layer with the walk-in stocked lakes from data/fishing/walkin.json.",
+ "spots": [
+  {
+   "n": "Cirque Lake",
+   "c": [
+    50.2198,
+    -123.213
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Trout and char",
+   "how": "Hike from the north end of Callaghan Lake; the road in needs a high-clearance vehicle (deep cross-ditches) and is snowed in about November to early June.",
+   "tip": "An alpine tarn at about 1,500 m, the biggest of several in the cirque. No dogs in the Cirque Lake basin (grizzly habitat).",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/callaghan-lake-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Callaghan Lake",
+   "c": [
+    50.1972,
+    -123.1889
+   ],
+   "p": "bc",
+   "tag": "rough road",
+   "fish": "Trout and char",
+   "how": "8 km of rough forest road (high-clearance only) past the Callaghan Valley Road; shore or small boat, motors under 10 hp.",
+   "tip": "Subalpine lake at 1,200 m that most Whistler visitors drive past.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/callaghan-lake-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Garibaldi Lake",
+   "c": [
+    49.9369,
+    -123.0256
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Rainbow trout (wild since the 1920s)",
+   "how": "About 9 km of trail from the Rubble Creek trailhead.",
+   "tip": "Stocked by hand in 1928-29 and never since; the trout are about 30 cm but plentiful. Fly fishing does well.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/garibaldi-park/"
+    ],
+    [
+     "Whistler Museum",
+     "https://whistlermuseum.org/2026/07/06/fishing-with-questions-part-2/"
+    ]
+   ]
+  },
+  {
+   "n": "Lesser Garibaldi Lake",
+   "c": [
+    49.9436,
+    -123.0744
+   ],
+   "p": "bc",
+   "tag": "off-trail",
+   "fish": "Rainbow trout",
+   "how": "Off-trail beyond Garibaldi Lake.",
+   "tip": "Hikers report even better fishing than the big lake.",
+   "src": [
+    [
+     "MSR trip report",
+     "https://www.msrgear.com/blog/backpacking-british-columbias-garibaldi-lake/"
+    ]
+   ]
+  },
+  {
+   "n": "Cheakamus Lake",
+   "c": [
+    50.0111,
+    -122.9194
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Trout",
+   "how": "About 3 km of easy trail from the end of Cheakamus Lake Road, south of Whistler.",
+   "tip": "One of the fishing lakes BC Parks names in Garibaldi Park.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/garibaldi-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Mamquam Lake",
+   "c": [
+    49.8208,
+    -122.9267
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Trout",
+   "how": "A long backcountry trip past Elfin Lakes (Diamond Head trailhead, Squamish).",
+   "tip": "One of the fishing lakes BC Parks names in Garibaldi Park; very few people get this far.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/garibaldi-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Ladyslipper Lake",
+   "c": [
+    49.0472,
+    -120.195
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Rainbow and cutthroat trout (wild)",
+   "how": "Hike-in only (no vehicles on the Lakeview road; check the road after the 2023 Crater Creek fire).",
+   "tip": "BC Parks: the best fishing in Cathedral Park. Fish are small (15-25 cm) but plentiful. Not stocked.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/cathedral-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Pyramid Lake",
+   "c": [
+    49.0558,
+    -120.1897
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Rainbow and cutthroat trout (wild)",
+   "how": "Hike-in only, Cathedral Park core area.",
+   "tip": "Spawning trout show up at the outlet footbridge in the fall.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/cathedral-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Lake of the Woods",
+   "c": [
+    49.0611,
+    -120.1858
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Rainbow and cutthroat trout (wild)",
+   "how": "Hike-in only, Cathedral Park core area.",
+   "tip": "Healthy wild trout; spawning fish at the outlet in the fall.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/cathedral-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Quiniscoe Lake",
+   "c": [
+    49.0644,
+    -120.2011
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Rainbow and cutthroat trout (wild)",
+   "how": "Hike-in only, Cathedral Park core area.",
+   "tip": "Core-area lake with wild trout, not stocked.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/cathedral-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Fish Lake (Top of the World)",
+   "c": [
+    49.8467,
+    -115.4436
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Cutthroat trout (about 20 cm), Dolly Varden (about 30 cm)",
+   "how": "6 km easy trail from the Nicol Creek trailhead, about 52 km up the White Swan and Lussier forest roads from Kimberley.",
+   "tip": "Bait ban, flies and lures only. Gently release dark-coloured trout from early June to July 15 (spawning).",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/top-of-the-world-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Lower Elk Lake",
+   "c": [
+    50.5506,
+    -115.0889
+   ],
+   "p": "bc",
+   "tag": "short walk, long road",
+   "fish": "Bull trout, cutthroat trout, whitefish",
+   "how": "About 1 km walk from the Elk Lakes parking lot, at the end of a long forest road.",
+   "tip": "Best right after break-up and from September to freeze-up; poor in July-August run-off. No ice fishing.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/elk-lakes-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Upper Elk Lake",
+   "c": [
+    50.5525,
+    -115.1083
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Bull trout, cutthroat trout, whitefish",
+   "how": "Developed trail past Lower Elk Lake.",
+   "tip": "Best right after break-up and in the fall. No ice fishing.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/elk-lakes-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Cadorna Lake",
+   "c": [
+    50.5006,
+    -115.1156
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Bull trout, cutthroat trout",
+   "how": "Rough, less developed trail from the Cadorna Creek trailhead.",
+   "tip": "Few people make the trip.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/elk-lakes-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Abruzzi Lake",
+   "c": [
+    50.4489,
+    -115.0817
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Bull trout, cutthroat trout",
+   "how": "Rough, less developed trail.",
+   "tip": "Few people make the trip.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/elk-lakes-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Kokanee Lake",
+   "c": [
+    49.7478,
+    -117.175
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Rainbow and cutthroat trout",
+   "how": "Hike from Gibson Lake (16 km of rough road up Kokanee Creek from Hwy 3A).",
+   "tip": "Alpine lake, 1.2 km long. No campfires in the park.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/kokanee-glacier-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Kaslo Lake",
+   "c": [
+    49.7683,
+    -117.1953
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Rainbow and cutthroat trout",
+   "how": "Hike past Kokanee Lake toward the Kokanee Glacier cabin.",
+   "tip": "One of the park's fishing lakes.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/kokanee-glacier-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Tanal Lake",
+   "c": [
+    49.7808,
+    -117.2092
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Rainbow and cutthroat trout",
+   "how": "Backcountry, Kokanee Glacier Park.",
+   "tip": "One of the park's fishing lakes.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/kokanee-glacier-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Spectrum Lake",
+   "c": [
+    50.5033,
+    -118.2917
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Rainbow trout",
+   "how": "6 km easy trail (about 2 h) from the Spectrum Creek parking lot, 16 km up a logging road.",
+   "tip": "Bigger fish than Peters Lake.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/monashee-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Peters Lake",
+   "c": [
+    50.5022,
+    -118.2328
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Rainbow trout",
+   "how": "5 to 9 km of difficult trail past Spectrum Lake.",
+   "tip": "Lots of fish, smaller than Spectrum's.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/monashee-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Whale Lake",
+   "c": [
+    51.9092,
+    -120.5728
+   ],
+   "p": "bc",
+   "tag": "hike-in",
+   "fish": "Trout",
+   "how": "4 km trail (about 90 minutes) near Mahood Lake, Wells Gray Park.",
+   "tip": "BC Parks: good fishing at the end of the trail.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/wells-gray-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Azure Lake",
+   "c": [
+    52.3711,
+    -120.1075
+   ],
+   "p": "bc",
+   "tag": "paddle and portage",
+   "fish": "Rainbow trout",
+   "how": "Paddle up Clearwater Lake (no launch on Azure), then a 0.5 km portage.",
+   "tip": "Try the lake ends and the creek mouths.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/wells-gray-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Isaac Lake (Bowron canoe circuit)",
+   "c": [
+    53.2286,
+    -120.955
+   ],
+   "p": "bc",
+   "tag": "canoe-in",
+   "fish": "Rainbow, lake and bull trout, kokanee, whitefish",
+   "how": "Bowron Lake canoe circuit only (reservation needed, no motors).",
+   "tip": "Best in June and September; bring a mix of flies and lures.",
+   "src": [
+    [
+     "BC Parks",
+     "https://bcparks.ca/bowron-lake-park/"
+    ]
+   ]
+  },
+  {
+   "n": "Picklejar Lakes",
+   "c": [
+    50.5203,
+    -114.7769
+   ],
+   "p": "ab",
+   "tag": "hike-in",
+   "fish": "Cutthroat trout",
+   "how": "Steep trail from the Lantern Creek parking on Highway 40.",
+   "tip": "Four alpine lakes joined by small streams. Catch and release, bait ban, flies and lures only, open July 1 to October 31.",
+   "src": [
+    [
+     "Explore Kananaskis",
+     "https://explorekananaskis.com/the-best-fishing-in-kananaskis-top-5-spots/"
+    ],
+    [
+     "The Canadian Rockies: Kananaskis fishing",
+     "https://thecanadianrockies.com/kananaskis-country-fishing/"
+    ]
+   ]
+  },
+  {
+   "n": "Rawson Lake",
+   "c": [
+    50.5919,
+    -115.1533
+   ],
+   "p": "ab",
+   "tag": "hike-in",
+   "fish": "Cutthroat trout",
+   "how": "About 4 km of trail from Upper Kananaskis Lake.",
+   "tip": "A hike-in lake anglers head to instead of the busy Kananaskis Lakes.",
+   "src": [
+    [
+     "The Canadian Rockies: Kananaskis fishing",
+     "https://thecanadianrockies.com/kananaskis-country-fishing/"
+    ]
+   ]
+  },
+  {
+   "n": "Chester Lake",
+   "c": [
+    50.8117,
+    -115.2747
+   ],
+   "p": "ab",
+   "tag": "hike-in",
+   "fish": "Cutthroat trout",
+   "how": "About 5 km of trail off the Smith-Dorrien road.",
+   "tip": "A hike-in lake; the highest lakes hold the cutthroat.",
+   "src": [
+    [
+     "The Canadian Rockies: Kananaskis fishing",
+     "https://thecanadianrockies.com/kananaskis-country-fishing/"
+    ]
+   ]
+  },
+  {
+   "n": "Running Rain Lake",
+   "c": [
+    50.5069,
+    -114.9472
+   ],
+   "p": "ab",
+   "tag": "hike-in",
+   "fish": "Cutthroat trout",
+   "how": "Hike in off Highway 40.",
+   "tip": "A hike-in lake few people fish.",
+   "src": [
+    [
+     "The Canadian Rockies: Kananaskis fishing",
+     "https://thecanadianrockies.com/kananaskis-country-fishing/"
+    ]
+   ]
+  },
+  {
+   "n": "Alderson Lake",
+   "c": [
+    49.0297,
+    -113.9761
+   ],
+   "p": "ab",
+   "tag": "hike-in",
+   "fish": "Cutthroat trout",
+   "how": "About 7 km of trail from Cameron Lake or Waterton townsite.",
+   "tip": "One of the few Waterton lakes where you may keep cutthroat (2 a day). National park fishing permit; open July 1 to October 31.",
+   "src": [
+    [
+     "Parks Canada, Waterton fishing rules 2025",
+     "https://parks.canada.ca/pn-np/ab/waterton/activ/peche-fishing"
+    ]
+   ]
+  },
+  {
+   "n": "Carthew Lakes",
+   "c": [
+    49.0275,
+    -113.9925
+   ],
+   "p": "ab",
+   "tag": "hike-in",
+   "fish": "Cutthroat trout",
+   "how": "High on the Carthew-Alderson trail, past Alderson Lake.",
+   "tip": "Native, colourful cutthroat; limit 2 a day. National park permit; July 1 to October 31.",
+   "src": [
+    [
+     "Parks Canada, Waterton fishing rules 2025",
+     "https://parks.canada.ca/pn-np/ab/waterton/activ/peche-fishing"
+    ],
+    [
+     "Fishwest trip report",
+     "https://blog.fishwest.com/canadian-high-mountain-lakes-gorgeous-views-guaranteed-epic-fishing-a-possibility/"
+    ]
+   ]
+  },
+  {
+   "n": "Bertha Lake",
+   "c": [
+    49.0242,
+    -113.9411
+   ],
+   "p": "ab",
+   "tag": "hike-in",
+   "fish": "Cutthroat trout",
+   "how": "About 5.5 km of steep trail from Waterton townsite.",
+   "tip": "Cutthroat limit 2 a day. National park permit; July 1 to October 31.",
+   "src": [
+    [
+     "Parks Canada, Waterton fishing rules 2025",
+     "https://parks.canada.ca/pn-np/ab/waterton/activ/peche-fishing"
+    ]
+   ]
+  },
+  {
+   "n": "Crypt Lake",
+   "c": [
+    49.0014,
+    -113.8411
+   ],
+   "p": "ab",
+   "tag": "boat and hike",
+   "fish": "Cutthroat trout",
+   "how": "Boat shuttle across Waterton Lake, then about 9 km of trail (with a tunnel and a cable).",
+   "tip": "Cutthroat limit 2 a day. National park permit; July 1 to October 31.",
+   "src": [
+    [
+     "Parks Canada, Waterton fishing rules 2025",
+     "https://parks.canada.ca/pn-np/ab/waterton/activ/peche-fishing"
+    ]
+   ]
+  },
+  {
+   "n": "Lineham Lakes",
+   "c": [
+    49.0767,
+    -114.0681
+   ],
+   "p": "ab",
+   "tag": "off-trail",
+   "fish": "Cutthroat trout",
+   "how": "Off-trail route above Lineham Creek: experienced hikers only.",
+   "tip": "Cutthroat limit 2 a day. National park permit; July 1 to October 31.",
+   "src": [
+    [
+     "Parks Canada, Waterton fishing rules 2025",
+     "https://parks.canada.ca/pn-np/ab/waterton/activ/peche-fishing"
+    ]
+   ]
+  },
+  {
+   "n": "Lone Lake",
+   "c": [
+    49.0886,
+    -114.1311
+   ],
+   "p": "ab",
+   "tag": "hike-in",
+   "fish": "Cutthroat trout",
+   "how": "Backcountry, on the Tamarack trail.",
+   "tip": "Cutthroat limit 2 a day. National park permit; July 1 to October 31.",
+   "src": [
+    [
+     "Parks Canada, Waterton fishing rules 2025",
+     "https://parks.canada.ca/pn-np/ab/waterton/activ/peche-fishing"
+    ]
+   ]
+  },
+  {
+   "n": "Crandell Lake",
+   "c": [
+    49.0867,
+    -113.9669
+   ],
+   "p": "ab",
+   "tag": "short walk",
+   "fish": "Trout",
+   "how": "About 1.2 km easy trail off the Akamina Parkway.",
+   "tip": "A short walk that keeps the crowds away. Open May 17 to September 1; National park permit.",
+   "src": [
+    [
+     "Parks Canada, Waterton fishing rules 2025",
+     "https://parks.canada.ca/pn-np/ab/waterton/activ/peche-fishing"
+    ]
+   ]
+  },
+  {
+   "n": "Lac Nouvel",
+   "c": [
+    47.4284,
+    -71.2752
+   ],
+   "p": "qc",
+   "tag": "hike-in",
+   "fish": "Brook trout (omble de fontaine)",
+   "how": "45-minute trail rated very difficult; no ATVs. Sépaq boat on the lake.",
+   "tip": "Sépaq day fishing, book ahead; limit 10 brook trout.",
+   "src": [
+    [
+     "Sépaq: Lac Nouvel",
+     "https://www.sepaq.com/fr/reservation/peche-journee/parc-national-de-la-jacques-cartier/ensemble-du-parc/lac-nouvel"
+    ]
+   ]
+  },
+  {
+   "n": "Lac Saint-Bernard",
+   "c": [
+    46.5654,
+    -73.2945
+   ],
+   "p": "qc",
+   "tag": "hike-in",
+   "fish": "Brook trout (omble de fontaine)",
+   "how": "90-minute walk from road 36 in the Mastigouche reserve (or 4x4); you can't bring your own boat.",
+   "tip": "Sépaq day fishing, book ahead.",
+   "src": [
+    [
+     "Sépaq: Mastigouche",
+     "https://www.sepaq.com/fr/reservation/camping/reserve-faunique-mastigouche/lac-bouteille/lac-bouteille-8"
+    ]
+   ]
+  },
+  {
+   "n": "Lac Greslon Rond",
+   "c": [
+    46.747,
+    -74.4876
+   ],
+   "p": "qc",
+   "tag": "ATV trail",
+   "fish": "Brook trout (omble de fontaine)",
+   "how": "1.7 km trail (ATV needed) in the Rouge-Matawin reserve.",
+   "tip": "Sépaq day fishing, book ahead.",
+   "src": [
+    [
+     "Sépaq: Greslon Rond",
+     "https://www.sepaq.com/fr/reservation/peche-journee/reserve-faunique-rouge-matawin/ensemble-de-la-reserve/greslon-rond-lac"
+    ]
+   ]
+  },
+  {
+   "n": "Booth Lake",
+   "c": [
+    45.6564,
+    -78.1951
+   ],
+   "p": "on",
+   "tag": "canoe-in",
+   "fish": "Lake trout and brook trout",
+   "how": "Canoe-in from the Shall Lake access point, Algonquin Park (portages).",
+   "tip": "Productive in spring for both trouts; over a dozen interior campsites. No live bait fish anywhere in Algonquin.",
+   "src": [
+    [
+     "Algonquin Bound",
+     "https://algonquinbound.com/discover-algonquin-park/fishing/lakes/"
+    ],
+    [
+     "Ontario Parks",
+     "https://ontarioparks.ca/park/algonquin/backcountry/activities"
+    ]
+   ]
+  }
+ ]
+}
