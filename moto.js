@@ -334,9 +334,9 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   // ---------- panel ----------
   const pane = document.createElement("section");
   pane.id = "motoPane";
-  pane.setAttribute("aria-label", "Moto");
+  pane.setAttribute("aria-label", "Adventure moto");
   pane.innerHTML = `
-    <div class="mt-actions" role="toolbar" aria-label="Moto tools">
+    <div class="mt-actions" role="toolbar" aria-label="Adventure moto tools">
       <button type="button" class="mt-act" data-act="plan">${svg(IC.plan)}Plan a route</button>
       <button type="button" class="mt-act" data-act="stops">${svg(IC.fuel)}Fuel &amp; camp</button>
       <button type="button" class="mt-act" data-act="mud">${svg(IC.drop)}Mud today</button>
@@ -353,11 +353,11 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     <div class="mt-card" id="mtMap"><header>${svg(IC.layers)}<h3>Map</h3></header>
       <div class="mt-views" role="group" aria-label="Map views">${Object.entries(VIEWS).map(([k, v]) => `<button type="button" class="mt-view" data-view="${k}">${esc(v.label)}<small>${esc(v.sub)}</small></button>`).join("")}</div>
       <p class="mt-note" id="mtZoomNote"></p>
-      <div class="mt-row"><button type="button" class="mt-pill" id="mtAll">${svg(IC.layers, 16)}All moto layers</button><button type="button" class="mt-pill" id="mtRoutesBtn">${svg(IC.save, 16)}Saved routes</button><button type="button" class="mt-pill" id="mtTripsBtn">${svg(IC.trips, 16)}ADV routes</button><button type="button" class="mt-pill" id="mtLogBtn">${svg(IC.log, 16)}My moto rides</button></div></div>
+      <div class="mt-row"><button type="button" class="mt-pill" id="mtAll">${svg(IC.layers, 16)}All layers</button><button type="button" class="mt-pill" id="mtRoutesBtn">${svg(IC.save, 16)}Saved routes</button><button type="button" class="mt-pill" id="mtTripsBtn">${svg(IC.trips, 16)}ADV routes</button><button type="button" class="mt-pill" id="mtLogBtn">${svg(IC.log, 16)}My adventure rides</button></div></div>
     <details class="mt-safe"><summary>A guide, not the law</summary>Road surfaces and grades come from OpenStreetMap and can be out of date: a road can wash out or be deactivated any day. Closures, parks and land rules come from the provinces' and Canada's open data and are simplified. Check posted signs, BC's resource road notices, Alberta's Public Land Use Zones, your province's off-highway vehicle rules, and ride to the conditions.</details>`;
   const lmMoto = document.createElement("div");
   lmMoto.className = "lm-moto";
-  lmMoto.innerHTML = `<div class="lm-head">Moto layers</div><p class="mt-note" id="mtLayerNote" style="margin:0;font-size:.74rem;color:var(--muted)"></p><div id="mtLayerList"></div>`;
+  lmMoto.innerHTML = `<div class="lm-head">Adventure moto layers</div><p class="mt-note" id="mtLayerNote" style="margin:0;font-size:.74rem;color:var(--muted)"></p><div id="mtLayerList"></div>`;
   const lmStyle = document.querySelector("#layersMenu .lm-style");
   if (lmStyle) lmStyle.after(lmMoto); else pane.append(lmMoto);
   const head = document.querySelector(".panel-head");
@@ -1308,7 +1308,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const town = (p) => getJ(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&lat=${p[0]}&lon=${p[1]}`, 8000).then((j) => (j.address && (j.address.town || j.address.city || j.address.village || j.address.hamlet || j.address.county)) || "").catch(() => "");
     const a = await town(r.pts[0]), b = planLoop ? "" : await town(r.pts[r.pts.length - 1]);
     if (my !== routeSeq || route !== r || r.name) return;
-    r.name = a && b && a !== b ? `${a} to ${b}` : a ? `${planLoop ? "Loop from " : "Around "}${a}` : "My moto route";
+    r.name = a && b && a !== b ? `${a} to ${b}` : a ? `${planLoop ? "Loop from " : "Around "}${a}` : "My adventure route";
     renderRoute();
   }
   // What the route asks of the bike: km of dirt, the hard and too hard stretches, the gas on the way.
@@ -1433,7 +1433,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     else if (a === "gpx") gpx(btn);
     else if (a === "offline") {
       if (!window.tfOffline || !window.tfOffline.saveCorridor) { hint("Offline maps aren't available in this browser."); return; }
-      if (!window.tfOffline.saveCorridor(route.line, route.name || "My moto route")) hint("This route is too long to save in one go: save it in two halves (plan each half).");
+      if (!window.tfOffline.saveCorridor(route.line, route.name || "My adventure route")) hint("This route is too long to save in one go: save it in two halves (plan each half).");
     }
   }
   function rideRoute() {
@@ -1446,9 +1446,9 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   let saved = store.get("motoRoutes", []);
   function saveRoute() {
     if (!route) return;
-    const name = prompt("Name this route", route.name || "My moto route");
+    const name = prompt("Name this route", route.name || "My adventure route");
     if (name == null) return;
-    const entry = { id: Date.now().toString(36), name: name.trim() || route.name || "My moto route", pts: planPts.slice(), loop: planLoop, style: planStyle, km: Math.round(route.km), at: Date.now(),
+    const entry = { id: Date.now().toString(36), name: name.trim() || route.name || "My adventure route", pts: planPts.slice(), loop: planLoop, style: planStyle, km: Math.round(route.km), at: Date.now(),
       line: encode6(route.line), parts: route.parts.map((x) => [x.name, x.say, x.text, x.a, x.b, +(x.km || 0).toFixed(2)]), time: route.time };
     saved = [entry, ...saved.filter((x) => x.name !== entry.name)].slice(0, 40);
     try { store.set("motoRoutes", saved); } catch {}
@@ -1490,7 +1490,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   async function gpx(btn) {
     if (!route) return;
     const fp = fuelPlan(route), x = (s) => esc(s).replace(/&#39;/g, "&apos;");
-    const name = route.name || "My moto route";
+    const name = route.name || "My adventure route";
     const body = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1">
 <metadata><name>${x(name)}</name></metadata>
@@ -1926,18 +1926,18 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     const el = $("mtLog");
     toPanel();
     el.hidden = false;
-    el.innerHTML = `<header>${svg(IC.log)}<h3>My moto rides</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header><p class="mt-note">Loading…</p>`;
+    el.innerHTML = `<header>${svg(IC.log)}<h3>My adventure rides</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header><p class="mt-note">Loading…</p>`;
     el.querySelector(".mt-x").onclick = () => { el.hidden = true; rideLayer.clearLayers(); };
     showCard(el);
     const rides = await loadMotoRides();
     const fill = () => {
       const year = new Date().getFullYear(), yr = rides.filter((x) => new Date(x.start).getFullYear() === year);
       const tot = yr.reduce((s, x) => s + rideKm(x), 0), dirt = yr.reduce((s, x) => s + (rideDirt[x.id] || 0), 0);
-      el.innerHTML = `<header>${svg(IC.log)}<h3>My moto rides</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>
+      el.innerHTML = `<header>${svg(IC.log)}<h3>My adventure rides</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>
         ${rides.length ? `<div class="mt-stats"><div><b>${yr.length}</b><span>rides ${year}</span></div><div><b>${fmtKm(tot)}</b><span>ridden</span></div><div><b>${fmtKm(dirt)}</b><span>of dirt</span></div><div><b>${tot ? Math.round((100 * dirt) / tot) : 0}%</b><span>dirt</span></div></div>
         <ul class="mt-list">${rides.slice(0, 60).map((x) => { const km = rideKm(x), d = rideDirt[x.id], w = rideWx[x.id];
           return `<li style="--c:${ACC}"><button type="button" class="mt-go" data-ride="${esc(x.id)}"><b>${esc(x.title || new Date(x.start).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }))}</b><small>${new Date(x.start).toLocaleDateString()} · ${fmtH(rideSecs(x))}${d != null ? ` · ${fmtKm(d)} dirt` : ""}${w ? ` · ${w[0]}°C${w[1] >= 0.5 ? `, ${w[1]} mm rain` : ""}` : ""}</small><em>${fmtKm(km)}</em></button></li>`; }).join("")}</ul>`
-        : `<p class="mt-note">No moto rides yet. Tap Ride (or Ride it on a route) to record one; it lands here with its km of dirt and the weather.</p>`}
+        : `<p class="mt-note">No adventure rides yet. Tap Ride (or Ride it on a route) to record one; it lands here with its km of dirt and the weather.</p>`}
         <p class="mt-note"><a href="ride.html#rides">All rides, GPX files and photos</a></p>`;
       el.querySelector(".mt-x").onclick = () => { el.hidden = true; rideLayer.clearLayers(); };
       el.querySelectorAll("[data-ride]").forEach((b) => (b.onclick = () => {
@@ -1969,7 +1969,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
   }
   function openSafe() {
     dlg.innerHTML = `<form method="dialog"><h2>Check-in alarm <button type="button" class="mt-xb" data-x aria-label="Close">✕</button></h2>
-      <p class="mt-note">While you record a ride in Moto: if you haven't moved for this long, the phone rings and asks if you're OK. No answer in 2 minutes and it opens a text to your contact with where you are, ready to send.</p>
+      <p class="mt-note">While you record a ride in Adventure moto: if you haven't moved for this long, the phone rings and asks if you're OK. No answer in 2 minutes and it opens a text to your contact with where you are, ready to send.</p>
       <label>Ring after<select id="mtSafeMins">${[15, 30, 45, 60, 90].map((m) => `<option value="${m}"${m === safe.mins ? " selected" : ""}>${m} minutes without moving</option>`).join("")}</select></label>
       <label>Contact's name<input id="mtSafeName" maxlength="40" value="${esc(safe.name)}" placeholder="Sam" autocomplete="off"></label>
       <label>Their phone<input id="mtSafePhone" type="tel" inputmode="tel" maxlength="20" value="${esc(safe.phone)}" placeholder="+1 604 555 0123"></label>
