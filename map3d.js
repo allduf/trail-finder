@@ -157,7 +157,8 @@
         hitLines.push({ type: "Feature", geometry, properties: { i: hits.length - 1, w: Math.max(o.weight || 3, TOUCH ? 24 : 14) } });
       }
       if (!o.stroke || !(o.opacity > 0)) return;
-      lines.push({ type: "Feature", geometry, properties: { c: o.color, w: o.weight * LINE_SCALE, o: faded(o) ? o.opacity * 0.6 : o.opacity, k: order, d: o.dashArray ? (o.lineCap === "round" && dotKey(o.dashArray, o.weight)) || dashKey(o.dashArray, o.weight) : "" } });
+      lines.push({ type: "Feature", geometry, properties: { c: o.color, w: o.weight * LINE_SCALE, o: faded(o) ? o.opacity * 0.6 : o.opacity, k: order, d: o.dashArray ? (o.lineCap === "round" && dotKey(o.dashArray, o.weight)) || dashKey(o.dashArray, o.weight) : "",
+        ...(o.label ? { n: o.label } : {}) } });   // the trail's name, written along it (layer "line-names")
     });
     return { lines, dots, hitLines };
   }
@@ -727,6 +728,15 @@
           { id: "hits", type: "line", source: "hits", paint: { "line-color": "#000", "line-opacity": 0, "line-width": ["get", "w"] } },
           { id: "dots", type: "circle", source: "dots",
             paint: { "circle-radius": ["get", "r"], "circle-color": ["get", "f"], "circle-opacity": ["get", "fo"], "circle-stroke-color": ["get", "c"], "circle-stroke-width": ["get", "w"], "circle-pitch-alignment": "viewport" } },
+          // Trail and route names along their lines, in the line's colour, as on the flat map (alex 2026-10-26: "can we
+          // see the name like that on the 3d map"), from the same zoom (flat 13 = 3D 12). The lines' "label" option
+          // (index.html, winter.js, rider-trails.js; slackcountry lines have their own name pins) is the name. One symbol layer on the lines already
+          // copied: MapLibre places them on the ground and leaves out names that would overlap, no HTML markers.
+          { id: "line-names", type: "symbol", source: "lines", minzoom: 12, filter: ["has", "n"],
+            layout: { "symbol-placement": "line", "symbol-spacing": 500, "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"],
+              "text-size": ["interpolate", ["linear"], ["zoom"], 12, 11.5, 15, 13.5], "text-padding": 6,
+              "text-rotation-alignment": "viewport", "text-pitch-alignment": "viewport", "text-offset": [0, -0.9] },
+            paint: { "text-color": ["get", "c"], "text-opacity": ["get", "o"], "text-halo-color": "#fff", "text-halo-width": 1.8, "text-halo-blur": 0.3 } },
           { id: "water-names", type: "symbol", source: "names", "source-layer": "water_name", minzoom: 10,
             layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Italic"], "text-size": 12 },
             paint: { "text-color": "#d4ecff", "text-halo-color": "rgba(10,30,50,.8)", "text-halo-width": 1.2 } },

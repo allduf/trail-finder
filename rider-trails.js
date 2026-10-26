@@ -190,7 +190,7 @@ body.rt-drawing:has(.app:not(.fullmap)) .rt-bar { left: 396px; }
     everyTrail().forEach((t) => {
       const c = levelColor(t.level);
       L.polyline(t.line, { renderer, pane: "riderTrails", color: EDGE, weight: 10, opacity: 0.9, lineCap: "round", lineJoin: "round", interactive: false }).addTo(layer);
-      const line = L.polyline(t.line, { renderer, pane: "riderTrails", color: c, weight: 5, opacity: 1, lineCap: "round", lineJoin: "round", dashArray: t.level === "unknown" ? "8 6" : null }).addTo(layer);
+      const line = L.polyline(t.line, { renderer, pane: "riderTrails", color: c, weight: 5, opacity: 1, lineCap: "round", lineJoin: "round", dashArray: t.level === "unknown" ? "8 6" : null, label: t.name }).addTo(layer);
       // A wider see-through line on top: an easy target for a finger.
       const hit = L.polyline(t.line, { renderer, pane: "riderTrails", color: "#000", weight: 22, opacity: 0.001 }).addTo(layer);
       const tip = `➕ ${esc(t.name)} · ${fmtM(t.length_m)} · added by a rider`;
