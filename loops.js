@@ -7,6 +7,9 @@
 // tiles (as the planner reads them), climbed back up at about 7 %, timed like the planner (ride-stats.js).
 // Distance and Time (alex, 2026-10-25) grow each loop to the length you want, keeping its level; ↻ Different loop
 // starts it from another trail, and ✕ on a trail leaves it out of the area's loops (rebuilt around your length).
+// alex (2026-10-26): "when proposing a loop. always start from a parking lot close to those trail. and dont include
+// bikepark trail in it. bikepark trails are only accessible by the lifts": each loop starts and ends at the parking lot
+// nearest its trails (tfParkingFor, index.html), and bike park trails (tfLiftOnly) are never in one.
 // Used by Where to ride today (status.js: tfLoops.show(el, area)).
 (() => {
   "use strict";
@@ -28,6 +31,7 @@
 .lp-list li { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 0 0 8px; }
 .lp-list li button.lp-open { border: 0; background: none; padding: 8px 10px 4px; border-radius: 10px 10px 0 0; }
 .lp-short { color: #b45309; }
+.lp-lot { margin: 0; padding: 0 10px 4px; font-size: .82rem; color: var(--muted); } .lp-lot b { color: var(--fg); font-weight: 600; }
 .lp-trails { display: flex; flex-wrap: wrap; gap: 5px; padding: 2px 10px 0; }
 .lp-t { display: inline-flex; align-items: center; gap: 2px; font-size: .82rem; padding: 2px 2px 2px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip, #fff); }
 .lp-t button { flex: none; width: 30px; font: inherit; border: 0; background: none; color: var(--muted); cursor: pointer; min-width: 30px; min-height: 30px; padding: 0; font-size: .85rem; }
@@ -41,12 +45,12 @@
 .lp-skip { margin: 8px 0 0; font-size: .8rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }`;
   document.head.append(css);
 
-  // The trails a loop can be made of: named, rated (not a pro line), 300 m or more, not a road, connector or climbing
-  // trail. A name can have pieces all around the area: the loop takes the ones joined to the longest piece, as a tap on
+  // The trails a loop can be made of: named, rated (not a pro line), 300 m or more, not a road, connector, climbing
+  // trail or bike park trail (lift access only). A name can have pieces all around the area: the loop takes the ones joined to the longest piece, as a tap on
   // it in Pick trails would (pick, len: their ids and length).
-  function candidates(area, trails) {
+  function candidates(area, trails, withLift) {
     const R = (area.r ? area.r / 1000 : 4) + 1;
-    return trails.filter((t) => t.c && kmTo(t.c, area.c) <= R && t.lvl && t.lvl !== "pro" && t.m >= 300 && !ROADISH.test(t.name))
+    return trails.filter((t) => t.c && kmTo(t.c, area.c) <= R && t.lvl && t.lvl !== "pro" && t.m >= 300 && !ROADISH.test(t.name) && (withLift || !t.lift))
       .map((t) => { const g = t.id != null && window.tfPlan.groupOf ? window.tfPlan.groupOf(t.id, t.ids) : null; return { ...t, pick: g ? g.ids : t.ids, len: g ? g.m : lineM(t.geom) }; })
       .filter((t) => t.len >= 300
       && !(window.tfDir && t.tags && (window.tfDir.of(t.tags, t.geom, t.ids[0]) || {}).dir === "climb"))
@@ -78,9 +82,10 @@
   }
   // Distance, climb and time, estimated: each trail's drop, climbed back at GRADE (about 8 % of a trail's length when
   // the tiles didn't answer).
-  function estOf(set) {
+  // lot: the parking lot, ridden to the trails and back.
+  function estOf(set, lot) {
     const up = Math.round(set.reduce((s, t) => s + Math.max(20, t.drop != null ? t.drop : t.len * 0.08), 0) / 10) * 10;
-    const m = set.reduce((s, t) => s + t.len, 0) + up / GRADE;
+    const m = set.reduce((s, t) => s + t.len, 0) + up / GRADE + (lot ? 2 * lot.d : 0);
     const rs = window.tfRideStats, h = rs && rs.timeFor ? rs.timeFor(m, up).h : null;
     return { km: m / 1000, up, h, time: h != null && rs.fmtHours ? rs.fmtHours(h) : null, known: set.some((t) => t.drop != null) };
   }
@@ -128,12 +133,32 @@
     { k: "tech", name: "Technical loop", keep: (t) => t.lvl === "black" || t.lvl === "dbl", n: 3, spread: 2.5 },
     { k: "big", name: "Big day", keep: (t) => t.lvl !== "dbl", n: 5, spread: 4 },
   ];
+  // Where a loop starts and ends: the parking lot nearest its trails, within 3 km, else 8 km (null: none mapped).
+  const lots = new Map();
+  function lotFor(set) {
+    const k = sigOf(set);
+    if (!lots.has(k)) {
+      const lines = set.map((t) => t.geom), find = window.tfParkingFor;
+      // A lot with no name on the map is named after the loop trail it's at.
+      const named = (o) => {
+        if (!o || o.name !== "Parking lot") return o;
+        const at = set.map((t) => ({ t, d: Math.min(...t.geom.map((q) => kmTo(q, o.ll))) })).sort((a, b) => a.d - b.d)[0];
+        return { ...o, name: `Parking lot by ${at.t.name}` };
+      };
+      lots.set(k, !find ? Promise.resolve(null) : find(lines, 3000).then((o) => o || find(lines, 8000)).then(named).catch(() => null));
+    }
+    return lots.get(k);
+  }
   // The area's loops: one per level (the Big day becomes a Mixed loop once you set a length). shift[k] is how many
   // times you asked for a different one at that level.
   async function build(area, shift = {}) {
     const trails = await window.tfZoneTrails(area.zone).catch(() => []);
     const skip = skipOf(area);
-    const cand = candidates(area, trails).filter((t) => !skip.has(t.name)).slice(0, 80);
+    // A riding area that is mostly a bike park (Whistler Bike Park) gets no loop: its trails are lift access only.
+    // (named one, or most rated trails within 2 km of its middle are bike park trails).
+    const all = candidates(area, trails, true), core = all.filter((t) => kmTo(t.c, area.c) <= 2);
+    const park = /\bbike ?park\b/i.test(area.name) || (core.length > 0 && core.filter((t) => t.lift).length * 2 > core.length);
+    const cand = park ? [] : all.filter((t) => !t.lift && !skip.has(t.name)).slice(0, 80);
     await withDrops(cand);
     const seen = new Set(), out = [];
     for (const K of KINDS) {
@@ -141,19 +166,22 @@
       if (!opts.length) continue;
       const i = (shift[K.k] || 0) % opts.length, set = opts[i];
       seen.add(sigOf(set));
-      out.push({ ...K, name: K.k === "big" && hasWant() ? "Mixed loop" : K.name, trails: set, est: estOf(set), alt: opts.length, at: i });
+      out.push({ ...K, name: K.k === "big" && hasWant() ? "Mixed loop" : K.name, trails: set, alt: opts.length, at: i });
     }
+    await Promise.all(out.map(async (l) => { l.lot = await lotFor(l.trails); l.est = estOf(l.trails, l.lot); }));
+    out.lift = park;
     return out;
   }
   // Kept for other callers: the estimate of a loop built here.
-  async function estimate(loop) { await withDrops(loop.trails); const e = estOf(loop.trails); return e.known ? e : null; }
+  async function estimate(loop) { await withDrops(loop.trails); const e = estOf(loop.trails, loop.lot); return e.known ? e : null; }
   function entryOf(area, loop) {
-    const pts = loop.trails.flatMap((t) => t.geom), lat = pts.map((p) => p[0]), lon = pts.map((p) => p[1]);
+    const pts = loop.trails.flatMap((t) => t.geom).concat(loop.lot ? [loop.lot.ll] : []), lat = pts.map((p) => p[0]), lon = pts.map((p) => p[1]);
     return { name: `${area.name}: ${loop.name}`, mode: "pick", how: "pedal",
       box: [Math.min(...lat), Math.min(...lon), Math.max(...lat), Math.max(...lon)].map((x) => +x.toFixed(5)),
-      pick: { picks: loop.trails.map((t) => ({ name: t.name, ids: t.pick, pedal: false })), start: null, back: true, order: "auto", homePedal: false } };
+      pick: { picks: loop.trails.map((t) => ({ name: t.name, ids: t.pick, pedal: false })), start: loop.lot ? loop.lot.ll : null, startName: loop.lot ? loop.lot.name : null, back: true, order: "auto", homePedal: false } };
   }
   const lvl = (k) => (LV[k] ? `<span class="lp-lv" style="color:${LV[k][1]}" title="${LV[k][2]}">${LV[k][0]}</span>` : "");
+  const fmtM = (m) => (m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`);
   const hrs = (h) => (h % 1 ? `${Math.floor(h)} h 30` : `${h} h`);
   const chips = (kind, vals, cur, fmt) => `<button type="button" data-${kind}="" aria-pressed="${cur == null}">Any</button>` +
     vals.map((v) => `<button type="button" data-${kind}="${v}" aria-pressed="${cur === v}">${fmt(v)}</button>`).join("");
@@ -168,17 +196,19 @@
       box.innerHTML = `<p class="lp-note">Building loops…</p>`;
       const loops = await build(area, shift);
       if (my !== gen) return;
-      const skip = skipOf(area);
+      const skip = skipOf(area), wantEl = el.querySelector(".lp-want");
+      if (wantEl) wantEl.hidden = !!loops.lift;   // no length to pick in a bike park
       const skipped = skip.size ? `<p class="lp-skip">Left out: ${[...skip].map((n) => `<button type="button" data-back="${esc(n)}" title="Put it back in the loops">${esc(n)} ↺</button>`).join(" ")}</p>` : "";
-      if (!loops.length) { box.innerHTML = `<p class="lp-note">Not enough rated trails mapped around ${esc(area.name)} to build a loop${skip.size ? " without the ones you left out" : ""}.</p>${skipped}`; wire(box, loops); return; }
+      if (!loops.length) { box.innerHTML = `<p class="lp-note">${loops.lift ? `${esc(area.name)} is a bike park: its trails are only reached by the lifts, so no pedal loop here.` : `Not enough rated trails mapped around ${esc(area.name)} to build a loop${skip.size ? " without the ones you left out" : ""}.`}</p>${skipped}`; wire(box, loops); return; }
       box.innerHTML = `<ol class="lp-list">${loops.map((l, i) => {
         const e = l.est, short = hasWant() && fill(e) < 0.8;
         return `<li><button type="button" class="lp-open" data-l="${i}"><b>🔁 ${esc(l.name)}</b>
         <small class="lp-est">${e.known ? "About" : "Roughly"} ${e.km.toFixed(e.km < 10 ? 1 : 0)} km · ↑ ${e.up} m${e.time ? ` · ⏱ ${e.time}` : ""}${short ? ` · <span class="lp-short">shorter than you asked: no more trails of this level close by</span>` : ""}</small></button>
+        <p class="lp-lot">${l.lot ? `🅿 Start and finish: <b>${esc(l.lot.name)}</b>${l.lot.d > 150 ? ` · ${fmtM(l.lot.d)} from the trails` : ""}` : "🅿 No parking lot mapped near these trails: starts at their lowest end"}</p>
         <div class="lp-trails">${l.trails.map((t) => `<span class="lp-t">${lvl(t.lvl)}${esc(t.name)}<button type="button" data-skip="${esc(t.name)}" aria-label="Leave out ${esc(t.name)}" title="Leave this trail out: the loops are rebuilt without it">✕</button></span>`).join("")}</div>
         <div class="lp-row"><button type="button" class="lp-other" data-other="${l.k}"${l.alt < 2 ? ` disabled title="No other ${esc(l.name.toLowerCase())} here"` : ""}>↻ Different loop${l.alt > 1 ? ` <small>${l.at + 1} of ${l.alt}</small>` : ""}</button></div></li>`;
       }).join("")}</ol>${skipped}
-      <p class="lp-note">Estimates. ✕ leaves a trail out and rebuilds the loop around your length. Tap a loop for the real ride: the climbs, the order, the exact distance and climb, GPX and ▶ Ride it.</p>`;
+      <p class="lp-note">Estimates. Each loop starts and ends at the parking lot nearest its trails and leaves out bike park trails (lift access only). ✕ leaves a trail out and rebuilds the loop around your length. Tap a loop for the real ride: the climbs, the order, the exact distance and climb, GPX and ▶ Ride it.</p>`;
       wire(box, loops);
     };
     const wire = (box, loops) => {

@@ -1578,13 +1578,13 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=476"></script>
-<script src="keyboard.js?v=476"></script>
-<script src="rotate.js?v=476"></script>
-<script src="official.js?v=476"></script>
-<script src="directions.js?v=476"></script>
-<script src="ratings.js?v=476"></script>
-<script src="ebike.js?v=476"></script>
+<script src="native.js?v=480"></script>
+<script src="keyboard.js?v=480"></script>
+<script src="rotate.js?v=480"></script>
+<script src="official.js?v=480"></script>
+<script src="directions.js?v=480"></script>
+<script src="ratings.js?v=480"></script>
+<script src="ebike.js?v=480"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3925,7 +3925,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=476").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=480").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5383,14 +5383,19 @@ out body;`;
       if (!name) return;
       let len = 0;
       for (let i = 1; i < w.geom.length; i++) len += Math.abs(w.geom[i][0] - w.geom[i - 1][0]) + Math.abs(w.geom[i][1] - w.geom[i - 1][1]);
-      const g = by.get(name), km = lengthKm(w.geom);
-      if (!g) by.set(name, { name, len, w, ids: [w.id], km });
-      else { g.ids.push(w.id); g.km += km; if (len > g.len) { g.len = len; g.w = w; } }
+      const g = by.get(name), km = lengthKm(w.geom), lift = window.tfLiftOnly(w.tags);
+      if (!g) by.set(name, { name, len, w, ids: [w.id], km, lift });
+      else { g.ids.push(w.id); g.km += km; g.lift = g.lift || lift; if (len > g.len) { g.len = len; g.w = w; } }
     });
-    // id, tags and geom: the longest piece's; m: all pieces together; lvl: the difficulty key (or null); off: official.
+    // id, tags and geom: the longest piece's; m: all pieces together; lvl: the difficulty key (or null); off: official;
+    // lift: a bike park trail (any piece), only reached by the lifts.
     return [...by.values()].map((g) => ({ name: g.name, id: g.w.id, ids: g.ids, kind: CAT_LABEL[g.w.c.cat] || "", c: g.w.geom[Math.floor(g.w.geom.length / 2)],
-      tags: g.w.tags, geom: g.w.geom, m: Math.round(g.km * 1000), lvl: difficulty(g.w.tags) || null, off: !!g.w.c.official, cat: g.w.c.cat }));
+      tags: g.w.tags, geom: g.w.geom, m: Math.round(g.km * 1000), lvl: difficulty(g.w.tags) || null, off: !!g.w.c.official, cat: g.w.c.cat, lift: g.lift }));
   };
+  // A bike park trail: inside a lift-served bike park (tf:lift, scripts/build-mtb.mjs) or for the park's paying riders
+  // (bicycle=customers, like Whistler's and Grouse's). alex (2026-10-26): "bikepark trails are only accessible by the
+  // lifts", so loops (loops.js) and the climbs and links of Plan a route (planner.js) never use them.
+  window.tfLiftOnly = (tags) => !!(tags && (tags["tf:lift"] || tags.bicycle === "customers"));
   // The same-name pieces of a trail from the all-trails lists, for a tap when the area's name list isn't loaded:
   // pieces whose ends meet (within 100 m) or whose middles are within 3 km, as the name search groups them.
   function allGroupOf(way, ll, geom) {
@@ -6103,6 +6108,30 @@ out body;`;
     if (!accessLoads.has(z.id)) accessLoads.set(z.id, (z.chunk ? caAccess(z.chunk) : nightly(`access-${z.id}.json`)).then((f) => (f && f.v === 1 ? [...(f.osm || []), ...(f.rec || [])].map((x) => ({ ...x, z: z.id })) : [])));
     return accessLoads.get(z.id);
   }
+  // The parking lot to start and end a loop at (alex, 2026-10-26: "always start from a parking lot close to those
+  // trail"): of the public parking lots (and, with none, the trailheads) within maxM of the trails' lines, the nearest
+  // to them; a named one or one next to a trailhead wins a near tie. lines: arrays of [lat, lon]. Resolves to
+  // { ll, name, d (metres to the nearest line) } or null.
+  const NO_PARK = /^(private|no|customers|permit|delivery)$/;
+  window.tfParkingFor = async (lines, maxM = 3000) => {
+    const pts = lines.flat();
+    if (!pts.length) return null;
+    const b = L.latLngBounds(pts), pad = maxM / 111000;
+    const area = L.latLngBounds([b.getSouth() - pad, b.getWest() - pad * 1.6], [b.getNorth() + pad, b.getEast() + pad * 1.6]);
+    const all = (await Promise.all((await accessZonesIn(area)).map(accessZone))).flat().filter((x) => area.contains([x.lat, x.lon]));
+    const th = all.filter((x) => x.k === "th");
+    const near = (x) => Math.min(...lines.map((g) => lineM([x.lat, x.lon], g)));
+    const pick = (list, bonus) => list.map((x) => ({ x, d: near(x) })).filter((o) => o.d <= maxM)
+      .map((o) => ({ ...o, s: o.d - bonus(o.x) })).sort((a, c) => a.s - c.s)[0];
+    const lots = all.filter((x) => x.k === "p" && !NO_PARK.test((x.t && x.t.access) || ""));
+    const thNear = (x) => th.some((h) => L.latLng(h.lat, h.lon).distanceTo([x.lat, x.lon]) < 250);
+    const o = pick(lots, (x) => (x.t && x.t.name ? 100 : 0) + (thNear(x) ? 150 : 0)) || pick(th, () => 0);
+    if (!o) return null;
+    // An unnamed lot next to a named trailhead takes the trailhead's name.
+    const head = th.find((h) => h.t && h.t.name && L.latLng(h.lat, h.lon).distanceTo([o.x.lat, o.x.lon]) < 250);
+    const name = (o.x.t && o.x.t.name) || (head && `${head.t.name} parking`) || (o.x.k === "th" ? "Trailhead" : "Parking lot");
+    return { ll: [o.x.lat, o.x.lon], name, d: Math.round(o.d), k: o.x.k };
+  };
   // Metres from point ll to the segment a-b, on a local flat projection.
   function segM(ll, a, b) {
     const k = Math.cos((ll[0] * Math.PI) / 180) * 111320;
@@ -7444,53 +7473,53 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=476"></script>
-<script src="contours.js?v=476"></script>
-<script src="clouds.js?v=476"></script>
-<script src="smoke.js?v=476"></script>
-<script src="photo-slider.js?v=476"></script>
-<script src="ski-terrain.js?v=476"></script>
-<script src="place-search.js?v=476"></script>
-<script src="winter.js?v=476"></script>
-<script src="hunting.js?v=476"></script>
-<script src="fish-bait.js?v=476"></script>
-<script src="fish-route.js?v=476"></script>
-<script src="fishing.js?v=476"></script>
-<script src="compass.js?v=476"></script>
-<script src="hunts.js?v=476"></script>
-<script src="ski-points.js?v=476"></script>
-<script src="webcams.js?v=476"></script>
-<script src="lifts.js?v=476"></script>
-<script src="rogers.js?v=476"></script>
-<script src="slackcountry.js?v=476"></script>
-<script src="ski-areas.js?v=476"></script>
-<script src="helicat.js?v=476"></script>
-<script src="offline.js?v=476"></script>
-<script src="ride-stats.js?v=476"></script>
-<script src="native-gps.js?v=476"></script>
-<script src="navigate.js?v=476"></script>
-<script src="planner.js?v=476"></script>
-<script src="loops.js?v=476"></script>
-<script src="ride-finds.js?v=476"></script>
-<script src="rides.js?v=476"></script>
-<script src="community.js?v=476"></script>
-<script src="ride-files.js?v=476"></script>
-<script src="rider-trails.js?v=476"></script>
-<script src="account.js?v=476"></script>
-<script src="strava.js?v=476"></script>
-<script src="reports.js?v=476"></script>
-<script src="grades.js?v=476"></script>
-<script src="trail-photos.js?v=476"></script>
-<script src="visitors.js?v=476"></script>
-<script src="usage.js?v=476"></script>
-<script src="notify.js?v=476"></script>
-<script src="closures.js?v=476"></script>
-<script src="status.js?v=476"></script>
-<script src="areas.js?v=476"></script>
-<script src="alpine.js?v=476"></script>
-<script src="bikeparks.js?v=476"></script>
-<script src="photo-find.js?v=476"></script>
-<script src="whats-new.js?v=476"></script>
+<script src="map3d.js?v=480"></script>
+<script src="contours.js?v=480"></script>
+<script src="clouds.js?v=480"></script>
+<script src="smoke.js?v=480"></script>
+<script src="photo-slider.js?v=480"></script>
+<script src="ski-terrain.js?v=480"></script>
+<script src="place-search.js?v=480"></script>
+<script src="winter.js?v=480"></script>
+<script src="hunting.js?v=480"></script>
+<script src="fish-bait.js?v=480"></script>
+<script src="fish-route.js?v=480"></script>
+<script src="fishing.js?v=480"></script>
+<script src="compass.js?v=480"></script>
+<script src="hunts.js?v=480"></script>
+<script src="ski-points.js?v=480"></script>
+<script src="webcams.js?v=480"></script>
+<script src="lifts.js?v=480"></script>
+<script src="rogers.js?v=480"></script>
+<script src="slackcountry.js?v=480"></script>
+<script src="ski-areas.js?v=480"></script>
+<script src="helicat.js?v=480"></script>
+<script src="offline.js?v=480"></script>
+<script src="ride-stats.js?v=480"></script>
+<script src="native-gps.js?v=480"></script>
+<script src="navigate.js?v=480"></script>
+<script src="planner.js?v=480"></script>
+<script src="loops.js?v=480"></script>
+<script src="ride-finds.js?v=480"></script>
+<script src="rides.js?v=480"></script>
+<script src="community.js?v=480"></script>
+<script src="ride-files.js?v=480"></script>
+<script src="rider-trails.js?v=480"></script>
+<script src="account.js?v=480"></script>
+<script src="strava.js?v=480"></script>
+<script src="reports.js?v=480"></script>
+<script src="grades.js?v=480"></script>
+<script src="trail-photos.js?v=480"></script>
+<script src="visitors.js?v=480"></script>
+<script src="usage.js?v=480"></script>
+<script src="notify.js?v=480"></script>
+<script src="closures.js?v=480"></script>
+<script src="status.js?v=480"></script>
+<script src="areas.js?v=480"></script>
+<script src="alpine.js?v=480"></script>
+<script src="bikeparks.js?v=480"></script>
+<script src="photo-find.js?v=480"></script>
+<script src="whats-new.js?v=480"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

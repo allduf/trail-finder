@@ -634,7 +634,7 @@
   // Pick trails: picks [{ name, ways }], start (a spot or null: the lowest trail end), back (end at the start);
   //   legs alternate links and the picked trails.
   // A leg: { pts, ways, gap (no trail, straight line), pick (index of the picked trail it rides, or -1), up, down }.
-  let planning = false, mode = "pick", stops = [], legs = [], elev = null, picks = [], pickStart = null, pickBack = true, pickManual = true, pickHomePedal = false, settingStart = false;
+  let planning = false, mode = "pick", stops = [], legs = [], elev = null, picks = [], pickStart = null, pickStartName = null, autoLot = null, pickBack = true, pickManual = true, pickHomePedal = false, settingStart = false;
   let busy = 0, joining = 0, gen = 0, rootGen = 0, note = "", noteWarn = true;
   const layer = L.layerGroup();
   const pickCase = L.polyline([], { color: "#ffd43b", weight: 13, opacity: 0.85, lineCap: "round", lineJoin: "round", interactive: false });
@@ -699,7 +699,7 @@
   }
   function clear() {
     readyGpx = null;
-    if (mode === "pick") { picks = []; pickStart = null; pickManual = true; pickHomePedal = false; changedPicks(); return; }
+    if (mode === "pick") { picks = []; pickStart = null; pickStartName = null; pickManual = true; pickHomePedal = false; changedPicks(); return; }
     later(() => { stops = []; legs = []; elev = null; draw(); save(); });
   }
   function closeLoop() {
@@ -763,20 +763,31 @@
   // and (if asked) back to it. Exact (Held-Karp) for up to 12 trails.
   async function buildRide(retried) {
     const my = ++gen;
-    if (!picks.length) { legs = []; elev = null; draw(); return; }
+    if (!picks.length) { legs = []; elev = null; autoLot = null; draw(); return; }
     busy++; render();
     const c0 = connN;
     if (!retried) rootGen = my;   // rebuilds for streets that came in keep to this list of trails
     const root = rootGen;
     try {
       const T = picks.map(through);
+      // With no start set, a loop starts and ends at the parking lot nearest its trails (alex, 2026-10-26: "always
+      // start from a parking lot close to those trail"; tfParkingFor, index.html), else at the lowest trail end.
+      if (!pickStart && pickBack && window.tfParkingFor) {
+        const lot = await window.tfParkingFor(T.map((t) => t.pts)).catch(() => null);
+        if (my !== gen) return;
+        autoLot = lot;
+      } else autoLot = null;
+      const start = pickStart || (autoLot && autoLot.ll);
       // The streets around the trail ends and the start start loading now (a dash usually ends there); the build
       // below doesn't wait for them, and the loads after it join these.
-      if (!retried) loadConnectors([...T.flatMap((t) => [[t.pts[0], t.pts[0]], [t.pts[t.pts.length - 1], t.pts[t.pts.length - 1]]]), ...(pickStart ? [[pickStart, pickStart]] : [])]);
-      const box = boxOf([...T.flatMap((t) => t.pts), ...(pickStart ? [pickStart] : [])], 0.05);   // room for a climb that goes around (about 5 km)
+      if (!retried) loadConnectors([...T.flatMap((t) => [[t.pts[0], t.pts[0]], [t.pts[t.pts.length - 1], t.pts[t.pts.length - 1]]]), ...(start ? [[start, start]] : [])]);
+      const box = boxOf([...T.flatMap((t) => t.pts), ...(start ? [start] : [])], 0.05);   // room for a climb that goes around (about 5 km)
       const ht = await terrainOr(box);
       if (my !== gen) return;
-      const G = graph(allWays().filter((w) => inBox(w, box)), ht);
+      // Bike park trails are only reached by the lifts (alex): never a climb or a link between your trails, only
+      // ridden when you pick one.
+      const mine = new Set(picks.flatMap((p) => p.ways.map((w) => w.id)));
+      const G = graph(allWays().filter((w) => inBox(w, box) && (mine.has(w.id) || !window.tfLiftOnly || !window.tfLiftOnly(w.tags))), ht);
       // How each trail can be ridden: o = 0 from a to b, 1 from b to a. Infinity: not that way.
       const tc = T.map((t, j) => {
         let len = 0; const byKind = {};
@@ -803,9 +814,9 @@
       const entry = (j, o) => (o ? T[j].b : T[j].a), exit = (j, o) => (o ? T[j].a : T[j].b);
       // The start: a spot you set, else the lowest end you can start a trail from (park at the bottom, ride up).
       let S = "S", sKey = null;
-      if (pickStart) {
-        const sn = snap(pickStart, 300);
-        if (sn) addPoint(G, "S", sn); else { G.pos.set("S", pickStart); G.h.set("S", ht(pickStart)); }
+      if (start) {
+        const sn = snap(start, 300);
+        if (sn) addPoint(G, "S", sn); else { G.pos.set("S", start); G.h.set("S", ht(start)); }
       } else {
         let low = Infinity;
         T.forEach((t) => [[t.a, t.pts[0]], [t.b, t.pts[t.pts.length - 1]]].forEach(([k, p]) => {
@@ -843,7 +854,7 @@
         }
         return bridges.get(id);
       };
-      G.carFrom = posOf(S); G.carStrict = !!pickStart;
+      G.carFrom = posOf(S); G.carStrict = !!start;
       const C = (k1, k2, car) => {
         if (k1 === k2) return 0;
         const d = from(k1, car).dist.get(k2);
@@ -1037,9 +1048,11 @@
     const mk = (ll, icon) => dots.addLayer(L.marker(ll, { interactive: false, keyboard: false, icon }));
     if (mode === "tap") stops.forEach((s, i) => mk(s.ll, stopIcon(i === 0 ? "S" : i)));
     else {
-      if (legs.length) mk(legs[0].pts[0], stopIcon("S"));
-      else if (pickStart) mk(pickStart, stopIcon("S"));
       legs.forEach((l) => { if (l.pick >= 0) mk(l.pts[0], stopIcon(l.pick + 1, "pick")); });
+      // The start on top (a parking lot often sits where the first trail begins): the spot you set, or the lot.
+      const s0 = pickStart || (autoLot && autoLot.ll);
+      if (s0) mk(s0, stopIcon("S"));
+      else if (legs.length) mk(legs[0].pts[0], stopIcon("S"));
     }
     drawArrows();
     render();
@@ -1140,7 +1153,7 @@
         ? `In the order you tapped. <button type="button" class="ps-auto" data-act="auto">↻ Best order</button>`
         : "The app chose the best order. ▲ ▼ to change it.";
       $("planSteps").innerHTML = !picks.length ? "" : !legs.length ? picks.map((p, i) => pickRow(i, chip({ name: p.name, ...levelOf(p.ways[0]) }))).join("")
-        : `<li class="ps-start"><span class="ps-n">S</span><span><b>Start</b>${pickStart ? "" : " at the lowest end of your trails"}</span></li>`
+        : `<li class="ps-start"><span class="ps-n">S</span><span><b>Start</b>${pickStart ? (pickStartName ? `: 🅿 ${esc(pickStartName)}` : "") : autoLot ? `: 🅿 ${esc(autoLot.name)}` : " at the lowest end of your trails"}</span></li>`
           + legs.map(stepHtml).join("") + (pickBack ? `<li class="ps-start"><span class="ps-n">S</span><span><b>Back at the start</b></span></li>` : "");
     }
     const has = mode === "tap" ? stops.length : picks.length, ready = mode === "tap" ? stops.length >= 2 : legs.length > 0;
@@ -1174,7 +1187,7 @@
   function save() { try { localStorage.setItem("tf:plan", JSON.stringify(stops.map((s) => s.ll))); } catch {} }
   function savePicks() {
     if (pending) return;   // still waiting for the saved picks' trails to load
-    try { localStorage.setItem("tf:planPicks", JSON.stringify({ picks: picks.map((p) => ({ name: p.name, ids: p.ways.map((w) => w.id), pedal: !!p.pedal })), start: pickStart, back: pickBack, order: pickManual ? "tap" : "auto", homePedal: pickHomePedal })); } catch {}
+    try { localStorage.setItem("tf:planPicks", JSON.stringify({ picks: picks.map((p) => ({ name: p.name, ids: p.ways.map((w) => w.id), pedal: !!p.pedal })), start: pickStart, startName: pickStart ? pickStartName : null, back: pickBack, order: pickManual ? "tap" : "auto", homePedal: pickHomePedal })); } catch {}
   }
   function restore() {
     let saved = [];
@@ -1217,7 +1230,7 @@
   // Saved picks come back once their trail files have loaded (tried for a little while after opening).
   let pending = null, pendingTries = 0;
   function restorePicks() {
-    try { const s = JSON.parse(localStorage.getItem("tf:planPicks") || "null"); if (s) { pending = s.picks || []; pickStart = s.start || null; pickBack = s.back !== false; pickManual = s.order !== "auto"; pickHomePedal = !!s.homePedal; } } catch {}
+    try { const s = JSON.parse(localStorage.getItem("tf:planPicks") || "null"); if (s) { pending = s.picks || []; pickStart = s.start || null; pickStartName = s.startName || null; pickBack = s.back !== false; pickManual = s.order !== "auto"; pickHomePedal = !!s.homePedal; } } catch {}
     pendingTries = 0; resolvePicks();
   }
   function resolvePicks() {
@@ -1423,7 +1436,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
   function onTap(latlng) {
     const ll = [latlng.lat, latlng.lng];
     if (mode === "tap") addStop(ll);
-    else if (settingStart) { settingStart = false; pickStart = ll; changedPicks(); }
+    else if (settingStart) { settingStart = false; pickStart = ll; pickStartName = null; changedPicks(); }
     else togglePick(ll);
   }
   // Taps on the map come here before any map layer sees them: search results, Near me and New trails lines open
@@ -1551,7 +1564,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
     const pts = allPts(), b = L.latLngBounds(pts), car = driven().reduce((a, r) => a + lengthOf(r.pts), 0);
     const e = { id: Date.now().toString(36), name, at: new Date().toISOString(), mode, how,
       box: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((x) => +x.toFixed(5)), km: +((total() - car) / 1000).toFixed(1), up: elev ? elev.up : null, drive: car ? +(car / 1000).toFixed(1) : 0 };
-    if (mode === "pick") e.pick = { picks: picks.map((p) => ({ name: p.name, ids: p.ways.map((w) => w.id), pedal: !!p.pedal })), start: pickStart, back: pickBack, order: pickManual ? "tap" : "auto", homePedal: pickHomePedal };
+    if (mode === "pick") e.pick = { picks: picks.map((p) => ({ name: p.name, ids: p.ways.map((w) => w.id), pedal: !!p.pedal })), start: pickStart, startName: pickStart ? pickStartName : null, back: pickBack, order: pickManual ? "tap" : "auto", homePedal: pickHomePedal };
     else e.stops = stops.map((st) => st.tap || st.ll);
     return e;
   }
