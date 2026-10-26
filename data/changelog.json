@@ -2,6 +2,8 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-10-26", "text": "Skiing 3D: last winter's real snow photos now cover ski hills, ski tours and backcountry areas across Canada, not just BC and Alberta"},
+    {"date": "2026-10-26", "text": "Typing on a phone: the box you type in now moves up above the keyboard everywhere in the app (search boxes, notes, forms, sign-in), so you always see what you type"},
+    {"date": "2026-10-26", "text": "Adventure moto routes now use every province's 511 (closures, washouts, bridges out, roadwork, snow and ice), checked in the background every 10 minutes, and count city traffic for the hour you'll be there. Pick when you leave under the route"},
     {"date": "2026-10-26", "text": "Search a place: type a region, range, mountain or town (like Chic-Chocs or Rogers Pass) in Skiing, Hunting, Fishing and Adventure moto and the map goes there. In Plan a route you can type where you start and where you want to go"},
     {"date": "2026-10-26", "text": "3D map: a photo that fails to download is asked for again, so the ground no longer stays blank in big squares"},
     {"date": "2026-10-26", "text": "Forest roads are now thin lines that look like roads, not thick bands, in every sport and in 3D"},
