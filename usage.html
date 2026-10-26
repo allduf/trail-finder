@@ -89,7 +89,7 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
     <div class="card"><table id="errors"></table></div>
   </div>
 </main>
-<script src="account.js?v=465"></script>
+<script src="account.js?v=468"></script>
 <script>
 (() => {
   // Plain names for the app's main buttons (ids in index.html and ride.html). Anything else shows as tapped.
@@ -178,13 +178,15 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
   }
   window.addEventListener("tf:account", () => load());
 
+  // Cancelled downloads were logged as errors before usage.js skipped them; they aren't faults.
+  const realError = (r) => r.kind !== "error" || !/aborted|AbortError/i.test(r.what || "");
   function paint() {
     // alex's own phone is the one named "Me". Once one is, the page starts on "Everyone but me".
     const meSet = new Set(rows.filter(isMe).map((r) => r.device));
     const view = who || (meSet.size ? "others" : "all");
     document.querySelectorAll("[data-who]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.who === view)));
     $("whoHint").textContent = meSet.size ? "" : "Tap “This is me” on your own phone below to hide it.";
-    const shown = rows.filter((r) => view === "all" || (view === "me") === meSet.has(r.device));
+    const shown = rows.filter((r) => realError(r) && (view === "all" || (view === "me") === meSet.has(r.device)));
     const devices = new Map(), sessions = new Map();
     for (const r of shown) {
       if (!devices.has(r.device)) devices.set(r.device, { ...r, taps: new Map(), sport: new Map(), sessions: new Set(), ms: 0, errors: 0, last: r.at });

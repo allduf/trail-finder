@@ -78,7 +78,11 @@
   if (sport) sport.addEventListener("change", () => add("sport", sport.value));
 
   addEventListener("error", (e) => add("error", `${e.message || "error"} @${(e.filename || "").split("/").pop()}:${e.lineno || 0}`));
-  addEventListener("unhandledrejection", (e) => add("error", `promise: ${(e.reason && (e.reason.message || e.reason)) || "rejected"}`));
+  // A cancelled download (AbortError, "Fetch is aborted") is the app stopping work it no longer needs, not a fault.
+  addEventListener("unhandledrejection", (e) => {
+    if (e.reason && e.reason.name === "AbortError") return;
+    add("error", `promise: ${(e.reason && (e.reason.message || e.reason)) || "rejected"}`);
+  });
 
   // A visit's length counts only time on screen.
   let shownAt = Date.now();
