@@ -537,7 +537,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const dot = (lat, lon, color, r, open, label, kind) => {
       // A soft shadow under each dot lifts it off busy satellite pictures.
       ptLayer.addLayer(L.circleMarker([lat, lon], { renderer, radius: r + 2.5, stroke: false, fillColor: "#0b1220", fillOpacity: 0.28, interactive: false }));
-      const m = L.circleMarker([lat, lon], { renderer, radius: r, color: "#fff", weight: 2.5, fillColor: color, fillOpacity: 1, bubblingMouseEvents: false }).on("click", (e) => { L.DomEvent.stop(e); open(); });
+      const m = L.circleMarker([lat, lon], { renderer, radius: r, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1, bubblingMouseEvents: false }).on("click", (e) => { L.DomEvent.stop(e); open(); });
       if (label) m.bindTooltip(label, { direction: "top", offset: [0, -r], opacity: 0.95 });
       ptLayer.addLayer(m);
       pts3d.push({ lat, lon, color, r, open, label, kind });
@@ -1354,8 +1354,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       const data = { type: "FeatureCollection", features: isFish() ? pts3d.map((p, i) => ({ type: "Feature", properties: { i, c: p.color, r: p.r, n: p.label || "" }, geometry: { type: "Point", coordinates: [p.lon, p.lat] } })) : [] };
       if (!gl.getSource("fs-pts")) {
         gl.addSource("fs-pts", { type: "geojson", data });
-        gl.addLayer({ id: "fs-pts-sh", type: "circle", source: "fs-pts", paint: { "circle-color": "#0b1220", "circle-opacity": 0.3, "circle-blur": 0.5, "circle-radius": ["+", ["get", "r"], 4], "circle-pitch-alignment": "viewport" } });
-        gl.addLayer({ id: "fs-pts", type: "circle", source: "fs-pts", paint: { "circle-color": ["get", "c"], "circle-radius": ["get", "r"], "circle-stroke-color": "#fff", "circle-stroke-width": 2.5, "circle-pitch-alignment": "viewport" } });
+        gl.addLayer({ id: "fs-pts", type: "circle", source: "fs-pts", paint: { "circle-color": ["get", "c"], "circle-radius": ["get", "r"], "circle-stroke-color": "#fff", "circle-stroke-width": 2, "circle-pitch-alignment": "viewport" } });
       } else gl.getSource("fs-pts").setData(data);
       // Zone and park fills and names (map3d.js brings over only their outlines), from what drawZones put on the flat map.
       const fills = [], names = [];

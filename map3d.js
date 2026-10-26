@@ -131,7 +131,7 @@
         // A dot that opens something when tapped in 2D (a hut in Skiing) opens it in 3D too (alex 2026-10-24).
         if (o.interactive !== false && l.listens("click")) hitDots.push({ l, c: ll(l.getLatLng()), r: l.getRadius() + (o.weight || 0) });
         dots.push({ type: "Feature", geometry: { type: "Point", coordinates: ll(l.getLatLng()) },
-          properties: { r: l.getRadius(), c: o.color, w: o.weight, f: o.fillColor || o.color, fo: o.fillOpacity, k: order } });
+          properties: { r: l.getRadius(), c: o.color, w: o.stroke === false ? 0 : o.weight,   /* no outline on a shadow dot */ f: o.fillColor || o.color, fo: o.fillOpacity, k: order } });
         return;
       }
       let parts;
