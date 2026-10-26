@@ -169,6 +169,9 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
 #fishPane ul.fs-list li { border-left: 4px solid var(--c, var(--line)); padding-left: 9px; font-size: .84rem; }
 #fishPane ul.fs-list li > b, #fishPane ul.fs-list button.fs-go > b { display: block; }
 #fishPane ul.fs-list li small { color: var(--muted); }
+#fishPane .fs-st { font-style: normal; font-size: .7rem; font-weight: 700; padding: 1px 7px; margin-left: 4px; border-radius: 999px; background: color-mix(in srgb, var(--c) 16%, var(--panel)); color: color-mix(in srgb, var(--c) 70%, var(--fg)); white-space: nowrap; }
+#fishPane .fs-sea-p { display: block; }
+#fishPane .fs-sea-p i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
 #fishPane ul.fs-list button.fs-go { font: inherit; text-align: left; width: 100%; border: 0; background: none; color: inherit; padding: 0; cursor: pointer; }
 #fishPane .fs-tbl { width: 100%; border-collapse: collapse; font-size: .76rem; }
 #fishPane .fs-tbl td, #fishPane .fs-tbl th { padding: 4px 4px 4px 0; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
@@ -754,7 +757,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     el.hidden = false;
     el.innerHTML = `<header>${svg(IC.pin)}<h3 id="fsSpotName">${esc(title || "This spot")}</h3>${routeBtn(lat, lon)}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div>
       <div id="fsHidden"></div><div id="fsWater"><p class="fs-note fs-look">Looking up this spot…</p></div><div id="fsBait"></div>
-      <div id="fsRules"></div><div id="fsLic"></div><div id="fsBoat"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsAcc"></div>`;
+      <div id="fsSea"></div><div id="fsRules"></div><div id="fsLic"></div><div id="fsBoat"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsAcc"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
     cardInView(el);
     await ready;
@@ -764,6 +767,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const fill = (id, html) => { if (seq === spotSeq && $(id)) $(id).innerHTML = html; };
     fill("fsRules", secRules(rulesHtml(lat, lon, here, prov)));
     fill("fsLic", licHtml(lat, lon, here, prov));
+    seaHtml(lat, lon, zs, here, prov).then((h) => fill("fsSea", h));
     boatHtml(lat, lon, title, prov).then((h) => fill("fsBoat", h));
     fill("fsStock", stockHtml(lat, lon));
     flowHtml(lat, lon).then((h) => fill("fsFlow", secFlow(h)));
@@ -791,6 +795,161 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       });
     });
   }
+
+  // ---------- in the sea here (alex: "ocean spots: the fish you can catch and the openings and closures by area") ----------
+  // BC: data/fishing/tidal.json, read every night from Fisheries and Oceans Canada's page for each Pacific Fishery
+  // Management Area: each species' status (open, release only, closed), daily limit, size and gear for each subarea,
+  // the area's closures and special rules, and the shellfish safety closures. Atlantic and the Arctic: the seasons and
+  // limits DFO publishes for each coast (SEA below, read by hand from DFO's pages; dated ones say their year).
+  let tidal = null;
+  const loadTidal = () => (tidal ? Promise.resolve(tidal) : load("tidal").then((j) => (tidal = j)));
+  const ST = { open: [C.ok, "Open"], "non retention": [C.vlow, "Release only"], closed: [C.blown, "Closed"] };
+  let bivShut = false;   // every subarea of the area closed to clams, oysters and mussels for toxins
+  const stOf = (r) => { const t = String(r[6] || "").toLowerCase(); return ST[t] || (r[0].startsWith("Bivalve") ? (/^0\b/.test(r[5]) ? ST.closed : bivShut ? [C.blown, "Closed: toxins"] : ST.open) : [C.none, r[6] || ""]); };
+  // The species people come for, by group; the rest fold into "Other species".
+  const SEA_GROUPS = [
+    ["Salmon", /salmon/i],
+    ["Bottom fish", /^(halibut|lingcod|rockfish|greenling|codfish|sole|sablefish|surfperch|spiny dogfish|tuna - albacore|white sturgeon|trout)/i],
+    ["Crab", /^crab - (dungeness|red rock|king|box)$|^crab - dungeness and red rock/i],
+    ["Prawns, shrimp and squid", /^(shrimp including prawn|squid - opal|octopus|sea cucumber|sea urchin)/i],
+    ["Clams, oysters and mussels", /^(clam - (butter|littleneck|manila|razor)|oyster - all|mussels - all|cockles|geoduck)/i],
+  ];
+  const PRI = [/chinook/i, /coho/i, /pink/i, /chum/i, /sockeye/i, /halibut/i, /lingcod/i, /rockfish/i, /dungeness$/i, /red rock$/i, /prawn/i, /squid/i, /manila/i, /littleneck/i, /butter/i, /oyster/i];
+  const pri = (n) => { const i = PRI.findIndex((re) => re.test(n)); return i < 0 ? 99 : i; };
+  const NAMES = [[/^Shrimp including prawn$/i, "Prawns and shrimp"], [/^Oyster - all species except Olympia$/i, "Oysters (not Olympia)"], [/^Mussels - all species combined$/i, "Mussels, all kinds together"],
+    [/^Clams? - all species combined( except Cockles)?$/i, (m, x) => `Clams, all kinds together${x ? " (not cockles)" : ""}`], [/^(\w+) - all other species$/i, (m, x) => `Other ${x.toLowerCase()}`], [/^Rockfish - all species except Yelloweye$/i, "Rockfish (not yelloweye)"]];
+  const spName = (n) => NAMES.reduce((t, [re, to]) => t.replace(re, to), String(n)).replace(/\s*\(hatchery and wild combined\)/i, "").replace(/^(Crab|Clam|Oyster|Mussels?|Rockfish|Shrimp|Squid|Tuna|Scallop|Shark) - (.+)$/i, (m, a, b) => `${b} ${a.toLowerCase()}`)
+    .replace(/^(.+) combined (\w+)$/i, "$1 $2 together").replace(/^(.)/, (c) => c.toUpperCase());
+  const limText = (r) => {
+    const l = String(r[5] || "").replace(/\s*Combined Total/i, "").trim(), m = l.match(/^(\d+)\D.*?(\d+) - Hatchery.*?(\d+) - Wild/i);
+    if (m) return +m[3] === 0 ? `${m[1]} a day, hatchery only (clipped fin)` : `${m[1]} a day, up to ${m[3]} wild`;
+    return /^0(kg)?$/.test(l) ? "none to keep" : l ? `${l} a day` : "";
+  };
+  // A PFMA for a spot on the water, or for one on the shore: the nearest area within about 2 km.
+  function pfmaNear(zs, lat, lon, here) {
+    const z = here.find((x) => x.k === "pfma");
+    if (z) return z;
+    for (const d of [0.006, 0.012, 0.02]) for (const [a, b] of [[1, 0], [-1, 0], [0, 1.5], [0, -1.5], [0.7, 1], [0.7, -1], [-0.7, 1], [-0.7, -1]]) {
+      const f = zonesAt(zs, lat + a * d, lon + b * d).find((x) => x.k === "pfma");
+      if (f) return f;
+    }
+    return null;
+  }
+  function seaRow(rows, id) {
+    const r0 = rows[0], st = stOf(r0), whole = rows.length === 1 && (r0[2] === String(id) || !/\d+-\d/.test(r0[2]));
+    const facts = (r) => [limText(r), r[3] && `min ${r[3]}`].filter(Boolean).join(" · ");
+    const parts = whole ? `<small>${esc(facts(r0))}${r0[4] ? `<br>${esc(r0[4])}` : ""}</small>`
+      : `<small>${rows.map((r) => `<span class="fs-sea-p"><i style="background:${stOf(r)[0]}"></i>${esc(r[2])}: ${esc(stOf(r)[1].toLowerCase())}${facts(r) ? `, ${esc(facts(r))}` : ""}</span>`).join("")}</small>`;
+    const mixed = !whole && rows.some((r) => stOf(r)[1] !== st[1]);
+    const c = mixed ? C.vlow : st[0];
+    return `<li style="--c:${c}"><b>${esc(spName(r0[1]))} <em class="fs-st" style="--c:${c}">${mixed ? "In parts" : esc(st[1])}</em></b>${parts}</li>`;
+  }
+  async function seaHtml(lat, lon, zs, here, prov) {
+    const z = pfmaNear(zs, lat, lon, here);
+    if (z) {
+      const j = await loadTidal().catch(() => null), a = j && j.areas[z.id];
+      const page = `https://www.pac.dfo-mpo.gc.ca/fm-gp/rec/tidal-maree/a-s${esc(z.id)}-eng.html`;
+      if (!a) return fold("sea", IC.wave, "In the sea here", `Area ${esc(z.id)}`, `<p class="fs-note"><a href="${page}" target="_blank" rel="noopener">Area ${esc(z.id)} limits, openings and closures</a> (Fisheries and Oceans Canada)</p>`);
+      bivShut = !!(a.b && a.b.length) && a.b.every((x) => /closed to all/i.test(x[1]));
+      const bySp = new Map();
+      for (const r of a.s) { const k = `${r[0]}|${r[1]}`; if (!bySp.has(k)) bySp.set(k, []); bySp.get(k).push(r); }
+      const used = new Set(), groups = [];
+      for (const [g, re] of SEA_GROUPS) {
+        const li = [...bySp].filter(([k, rows]) => !used.has(k) && re.test(rows[0][1]) && (g !== "Salmon" || rows[0][0] === "Salmon"))
+          .sort((x, y) => pri(x[1][0][1]) - pri(y[1][0][1])).map(([k, rows]) => { used.add(k); return seaRow(rows, z.id); });
+        if (li.length) groups.push(`<h4>${esc(g)}</h4><ul class="fs-list">${li.join("")}</ul>`);
+      }
+      const rest = [...bySp].filter(([k]) => !used.has(k));
+      const key = (re) => { const rows = [...bySp.values()].find((x) => re.test(x[0][1])); return rows ? [rows, stOf(rows[0])] : null; };
+      // The one-line answer: which of the big ones you can keep today ("Chinook, crab open").
+      const open = [[/^chinook/i, "Chinook"], [/^coho/i, "coho"], [/^crab - dungeness$/i, "crab"], [/^shrimp including prawn/i, "prawns"], [/^halibut/i, "halibut"], [/^lingcod/i, "lingcod"]]
+        .filter(([re]) => { const k = key(re); return k && k[0].some((r) => stOf(r)[1] === "Open"); }).map(([, n]) => n);
+      const sum = open.length ? [`${open.slice(0, 2).join(", ")} open`] : ["Mostly closed"];
+      const restr = a.r;
+      const restrLi = restr.map((r) => `<li style="--c:${/closed/i.test(r[3]) ? C.blown : C.tide}"><b>${esc(r[2] === String(z.id) ? `All of area ${z.id}` : /^\d+-/.test(r[2]) ? `Subareas ${r[2].replace(/,(?=\S)/g, ", ")}` : r[2])}</b><small>${esc(r[1])} · ${esc(r[3].toLowerCase())}: ${esc(r[4])}</small></li>`).join("");
+      const biv = (a.b || []).filter((x) => x[1] || x[2]);
+      const bivLi = biv.map((x) => `<li style="--c:${/closed to all/i.test(x[1]) ? C.blown : C.vlow}"><b>${esc(x[0])}</b><small>${esc(x[1] || "")}${x[2] ? `${x[1] ? "<br>" : ""}Closed: ${esc(x[2])}` : ""}</small></li>`).join("");
+      const old = a.u && (Date.now() - new Date(a.u + "T12:00:00")) / 864e5 > 10;
+      const body = `<p class="fs-note">Area ${esc(z.id)}${a.t ? `: ${esc(a.t)}` : ""}. Fisheries and Oceans Canada${a.u ? `, updated ${esc(a.u)}` : ""}${old ? " (may be out of date)" : ""}. Where a row names subareas, see the <a href="${page}#map" target="_blank" rel="noopener">area map</a>.</p>
+        ${groups.join("")}
+        ${rest.length ? `<details class="fs-more"><summary>Other species (${rest.length})</summary><ul class="fs-list">${rest.map(([, rows]) => seaRow(rows, z.id)).join("")}</ul></details>` : ""}
+        ${restrLi ? `<details class="fs-more"><summary>Closures and special rules (${restr.length})</summary><ul class="fs-list">${restrLi}</ul></details>` : ""}
+        ${bivLi ? `<details class="fs-more"><summary>Shellfish safety closures (${biv.length} subareas)</summary><p class="fs-note">Toxins and pollution can make clams, oysters and mussels deadly. Check the <a href="https://www.dfo-mpo.gc.ca/shellfish-mollusques/cssp-map-eng.htm" target="_blank" rel="noopener">live shellfish map</a> before you dig.</p><ul class="fs-list">${bivLi}</ul></details>` : ""}
+        <p class="fs-note"><a href="${page}" target="_blank" rel="noopener">Area ${esc(z.id)} page</a> · <a href="https://notices.dfo-mpo.gc.ca/fns-sap/index-eng.cfm" target="_blank" rel="noopener">Fishery notices</a> (openings can change any day). Salmon: 4 a day of all species together, tidal and fresh water.</p>`;
+      return fold("sea", IC.wave, "In the sea here", esc(sum[0]), body);
+    }
+    const reg = seaRegion(lat, lon, prov);
+    if (!reg || !nearestTide(lat, lon, 6)) return "";
+    const R = SEA[reg], dated = R.yr && new Date().getFullYear() > R.yr;
+    // Seasons with dates say whether they're open today (the season stays on the line under it).
+    const d = new Date(), md = (d.getMonth() + 1) * 100 + d.getDate();
+    const openNow = (w) => !w || w.some(([m1, d1, m2, d2]) => md >= m1 * 100 + d1 && md <= m2 * 100 + d2);
+    const nowOpen = [];
+    const li = R.fish.map(([n, st, t, w]) => {
+      const shut = /closed/i.test(st) || (w && !dated && !openNow(w)), chip = w && !dated ? (shut ? "Closed now" : "Open now") : dated && /20\d\d/.test(st) ? "Check this year's dates" : st;
+      const c = shut ? C.blown : /release/i.test(st) ? C.vlow : /check/i.test(chip) ? C.none : C.ok;
+      if (w && !shut && !dated) nowOpen.push(n.split(/[ ,]/)[0]);
+      return `<li style="--c:${c}"><b>${esc(n)} <em class="fs-st" style="--c:${c}">${esc(chip)}</em></b><small>${w && !dated ? `${esc(st)}. ` : ""}${esc(t)}</small></li>`; }).join("");
+    const sum = R.fish.some((f) => f[3]) && !dated ? (nowOpen.length ? `${nowOpen.slice(0, 2).join(", ")} open` : "Groundfish closed now") : R.sum;
+    return fold("sea", IC.wave, "In the sea here", esc(sum), `<p class="fs-note">${esc(R.n)}. From Fisheries and Oceans Canada${R.yr ? ` (${R.yr})` : ""}.</p><ul class="fs-list">${li}</ul>
+      <p class="fs-note">${R.links.map(([t, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(t)}</a>`).join(" · ")}. Openings and limits can change during the season.</p>`);
+  }
+  // The coasts DFO manages separately. Lines are rough: they only pick which coast's rules to show.
+  function seaRegion(lat, lon, prov) {
+    if (prov === "nl") return lat > 51.6 || lon > -56.4 && !(lat < 47.65 && lon < -53.55) ? "nlNE" : "nlSW";
+    if (prov === "pe" || (prov === "nb" && lat > 46.0) || (prov === "ns" && ((lat > 45.55 && lon > -64.05 && lon < -61.3) || (lat > 45.9 && lon < -60.95 && lon > -61.7)))) return "gulf";
+    if (prov === "ns" || prov === "nb") return lon < -63.45 ? "marW" : "marE";
+    if (prov === "qc") return "qc";
+    if (["nu", "nt", "yt", "mb", "on"].includes(prov) && lat > 51) return "arctic";
+    return "";
+  }
+  const MAR = "https://www.dfo-mpo.gc.ca/fisheries-peches/recreational-recreative/maritimes/";
+  const MAR_FISH = (gf) => [
+    ...gf,
+    ["Halibut, northern and spotted wolffish", "Closed", "Release them all year. Striped (Atlantic) wolffish counts in the groundfish limit."],
+    ["Mackerel", "Apr 1 to Dec 31", "20 a day, any size, one line with up to 3 hooks. No licence.", [[4, 1, 12, 31]]],
+    ["Striped bass", "All year in salt water", "1 a day, 68 to 150 cm, angling only. Spring exceptions on the Annapolis, Shubenacadie and Stewiacke rivers."],
+    ["Smelt", "Angling Aug 1 to May 31", "60 a day by angling (Nova Scotia dip net 30). No licence in salt water.", [[8, 1, 12, 31], [1, 1, 5, 31]]],
+    ["Eel", "All year (angling)", "10 a day, 35 cm or more."],
+    ["Atlantic salmon", "Closed", "Except catch and release with single barbless flies on the Middle, Baddeck and North rivers in Cape Breton."],
+    ["Sharks and bluefin tuna", "Release only", "Sharks need a DFO licence; bluefin only on licensed charters, from Jul 15."],
+  ];
+  const MAR_LINKS = [["Maritimes sport fishing", `${MAR}index-eng.html`], ["Orders registry (openings and closures)", "https://www.inter.dfo-mpo.gc.ca/Maritimes/Orders-Registry"]];
+  const NL_GF = "https://www.dfo-mpo.gc.ca/fisheries-peches/decisions/fm-2026-gp/atl-21-eng.html";
+  const NL_REST = [
+    ["Halibut, spotted and northern wolffish, sharks", "Closed", "Release them. Sculpins and cunners may be released; other groundfish you catch must be kept and count in the 5."],
+    ["Marine protected areas", "Closed", "No groundfish fishing in Eastport, Gilbert Bay and the Laurentian Channel."],
+    ["Atlantic salmon and sea-run trout", "Check river", "Rivers have their own seasons and tag limits: see Newfoundland and Labrador angling."],
+  ];
+  const SEA = {
+    marW: { n: "Nova Scotia's Atlantic coast from Halifax Harbour west, and the Bay of Fundy", sum: "Mackerel open, cod in summer", links: MAR_LINKS, fish: MAR_FISH([
+      ["Haddock, pollock, flounder, hake, dogfish", "Feb 1 to Dec 31", "10 groundfish a day in total, handline or rod. No licence.", [[2, 1, 12, 31]]],
+      ["Cod", "3rd Sat of June to Labour Day", "Up to 5 a day within the 10. Not kept the rest of the year.", [[6, 15, 9, 7]]]]) },
+    marE: { n: "Nova Scotia's Atlantic coast from Hartlen Point east to Cape North, with the Bras d'Or Lakes", sum: "Mackerel open, groundfish in summer", links: MAR_LINKS, fish: MAR_FISH([
+      ["Cod, haddock, pollock, flounder, hake", "3rd Sat of June to Labour Day", "5 groundfish a day in total, handline or rod. No licence.", [[6, 15, 9, 7]]]]) },
+    gulf: { n: "The southern Gulf of St. Lawrence: PEI, New Brunswick's east coast and Nova Scotia's Northumberland Strait shore", sum: "Mackerel, striped bass", links: [["Southern Gulf sport fishing", "https://www.glf.dfo-mpo.gc.ca/en/recreational-fisheries"], ["DFO sport fishing", "https://www.dfo-mpo.gc.ca/fisheries-peches/recreational-recreative/index-eng.html"]], fish: [
+      ["Mackerel", "Check season", "Rod or handline from wharves and boats in summer; the daily limit is set each year."],
+      ["Striped bass", "Check season", "The southern Gulf stock has its own retention days, slot size and daily limit, set each year."],
+      ["Smelt", "Check season", "Fall and winter through the ice in bays and estuaries."],
+      ["Sea-run brook trout", "Check river", "Estuaries in spring; provincial licence above the tide."],
+      ["Atlantic salmon", "Check river", "Rivers have their own seasons, often catch and release."],
+      ["Clams, oysters and mussels", "Check closures", "Beaches close for pollution and toxins: check the shellfish map before you dig."]] },
+    qc: { n: "Quebec's St. Lawrence estuary and Gulf, Gaspésie, the North Shore and the Magdalen Islands", sum: "Mackerel, cod, striped bass", links: [["DFO Quebec sport fishing", "https://www.dfo-mpo.gc.ca/fisheries-peches/recreational-recreative/index-eng.html"], ["Quebec fishing rules", "https://www.quebec.ca/en/tourism-and-recreation/sporting-and-outdoor-activities/sport-fishing/regulations"]], fish: [
+      ["Mackerel", "Check season", "Summer from wharves and boats in Gaspésie and the Magdalen Islands."],
+      ["Cod and other groundfish", "Check season", "A short recreational season is set each year."],
+      ["Striped bass", "Check season", "The St. Lawrence population is managed by Quebec: retention is limited and some areas are release only."],
+      ["Capelin and smelt", "Check season", "Capelin roll on beaches in early summer; smelt in fall and winter."],
+      ["Atlantic salmon", "Check river", "Salmon rivers are managed by Quebec, with their own seasons and quotas."]] },
+    nlNE: { n: "Newfoundland's north and east coasts and Labrador (NAFO 2GHJ3KL)", yr: 2026, sum: "Cod Jul 1 to Sep 7", links: [["Recreational groundfish", NL_GF], ["DFO sport fishing", "https://www.dfo-mpo.gc.ca/fisheries-peches/recreational-recreative/index-eng.html"]], fish: [
+      ["Cod and other groundfish", "Jul 1 to Sep 7 and Sep 19 to 27, 2026", "5 a day per person, cod included. Rod or handline with up to 3 hooks; from an hour before sunrise to an hour after sunset. No licence.", [[7, 1, 9, 7], [9, 19, 9, 27]]],
+      ...NL_REST] },
+    nlSW: { n: "Newfoundland's south and west coasts (NAFO 3Ps and 3Pn4R)", yr: 2026, sum: "Cod on summer weekends", links: [["Recreational groundfish", NL_GF], ["DFO sport fishing", "https://www.dfo-mpo.gc.ca/fisheries-peches/recreational-recreative/index-eng.html"]], fish: [
+      ["Cod and other groundfish", "Sat to Mon, Jul 4 to Sep 7, and Sep 19 to 27, 2026", "Open each weekend Saturday to Monday. 5 a day per person, cod included. Rod or handline with up to 3 hooks; from an hour before sunrise to an hour after sunset. No licence.", [[7, 4, 9, 7], [9, 19, 9, 27]]],
+      ...NL_REST] },
+    arctic: { n: "Hudson Bay and the Arctic coast", sum: "Arctic char", links: [["Arctic sport fishing", "https://www.dfo-mpo.gc.ca/fisheries-peches/recreational-recreative/arctic-arctique/index-eng.html"]], fish: [
+      ["Arctic char", "Check limits", "Sea-run char run up the rivers in late summer. The territory's sport fishing licence and limits apply."],
+      ["Lake trout and grayling", "Check limits", "In the rivers and lakes near the coast, under the territory's guide."]] },
+  };
 
   // ---------- safe to eat (Ontario and Quebec fish eating guides, data/fishing/eat.json) ----------
   // The guide's water for a spot: the same name within 40 km (a big lake's middle can be far from the shore you're on),
@@ -1038,11 +1197,12 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     setSpot(t[2], t[3], "tap");
     const el = $("fsSpot"), seq = ++spotSeq;
     el.hidden = false;
-    el.innerHTML = `<header>${svg(IC.wave)}<h3>Tides: ${esc(t[1])}</h3>${routeBtn(t[2], t[3])}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div><div id="fsTide"><p class="fs-note">Getting the tides…</p></div><div id="fsRules"></div>`;
+    el.innerHTML = `<header>${svg(IC.wave)}<h3>Tides: ${esc(t[1])}</h3>${routeBtn(t[2], t[3])}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div><div id="fsTide"><p class="fs-note">Getting the tides…</p></div><div id="fsSea"></div><div id="fsRules"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
     cardInView(el);
     tideHtml(t[2], t[3], t).then((h) => { if (seq === spotSeq) $("fsTide").innerHTML = h; });
-    loadZones().then((zs) => { if (seq !== spotSeq) return; const here = zonesAt(zs, t[2], t[3]); $("fsRules").innerHTML = secRules(rulesHtml(t[2], t[3], here, provinceAt(t[2], t[3], here))); });
+    loadZones().then((zs) => { if (seq !== spotSeq) return; const here = zonesAt(zs, t[2], t[3]), prov = provinceAt(t[2], t[3], here); $("fsRules").innerHTML = secRules(rulesHtml(t[2], t[3], here, prov));
+      seaHtml(t[2], t[3], zs, here, prov).then((h) => { if (seq === spotSeq && $("fsSea")) $("fsSea").innerHTML = h; }); });
   }
   function openAccess(a) {
     setSpot(a.lat, a.lon, "tap");

@@ -21,6 +21,8 @@
 //    2 launch), name, facts]. Anglers' own catches and spots are never in it.
 //  - walkin.json: stocked lakes in BC and Ontario with no road within 1 km of the shore (see buildWalkin), for the
 //    Hidden spots layer.
+//  - tidal.json: what you may keep in each BC tidal Pacific Fishery Management Area, read every night from Fisheries and
+//    Oceans Canada's area pages (see buildTidal).
 //  - eat.json: how many meals a month of each fish are safe, by size, for each lake and river in the provinces' fish
 //    eating guides: Ontario's Guide to Eating Ontario Fish (data.ontario.ca, for everyone and for the sensitive
 //    population: children under 15 and people who are or may become pregnant or are breastfeeding) and Quebec's Guide
@@ -29,7 +31,7 @@
 // Government Licence - Ontario. Quebec and DFO: Open Government Licence - Canada / Quebec. FFSBC stocking report: public
 // report, credited in the app. A source that fails keeps its last good data.
 //
-// Run: node scripts/build-fishing.mjs   (Node 18 or newer, no packages needed; ONLY=stocked|zones|tides|gauges|eat|spots|walkin|boating for one file)
+// Run: node scripts/build-fishing.mjs   (Node 18 or newer, no packages needed; ONLY=stocked|zones|tides|gauges|eat|spots|walkin|boating|tidal for one file; the nightly ONLY=stocked also does tidal)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 
@@ -767,6 +769,63 @@ async function buildBoating() {
   save("boating.json", { updated: iso(now), src: VORR, rules });
 }
 
+// tidal.json: what you may keep in each of BC's tidal Pacific Fishery Management Areas, read from Fisheries and Oceans
+// Canada's area pages (the same pages anglers check): for each section (Salmon, Other finfish, Crab, Shrimp and prawns,
+// Bivalves…) the species rows [section, species, subareas, min size, gear, daily limit, status] and the restrictions
+// [section, species, where, type, details], and the bivalve shellfish closures for each subarea [subarea, biotoxin
+// update, sanitary closures]. A row with no species continues the one above (another subarea). The pages
+// change during the season (openings, closures), so this runs every night with the stocking.
+const TIDAL = (n) => `https://www.pac.dfo-mpo.gc.ca/fm-gp/rec/tidal-maree/a-s${n}-eng.html`;
+const TIDAL_AREAS = [...Array.from({ length: 29 }, (_, i) => i + 1).filter((n) => n !== 22), 121];
+async function buildTidal() {
+  log("Pacific tidal areas");
+  const text = (h) => String(h).replace(/<li[^>]*>/gi, "; ").replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/g, " ").replace(/&amp;/g, "&").replace(/&#39;|&rsquo;|&#8217;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ").replace(/\s+([,.;)])/g, "$1").replace(/\(\s+/g, "(").replace(/:\s*;\s*/g, ": ").replace(/^[;\s]+|[;\s]+$/g, "").trim();
+  const old = readOld("tidal.json"), areas = {};
+  const coast = new Map();   // "Coastwide" restrictions are the same on every page: kept once
+  await pool(TIDAL_AREAS, 3, async (n) => {
+    let page;
+    try { page = String(await get(TIDAL(n), { json: false, tries: 3 })); } catch (e) { log(`  area ${n}: ${e.message}`); if (old && old.areas[n]) areas[n] = old.areas[n]; return; }
+    const title = text((page.match(/<h1[^>]*>([\s\S]*?)<\/h1>/) || [])[1] || "").replace(/^BC tidal area \d+\s*[-:]?\s*/i, "").replace(/:?\s*(Recreational|Sport) fishing limits, openings and closures$/i, "");
+    const upd = (page.match(/Last updated:\s*(\d{4}-\d\d-\d\d)/) || [])[1] || "";
+    const s = [], r = [], b = [];
+    for (const d of page.matchAll(/<details[^>]*>([\s\S]*?)<\/details>/g)) {
+      const sec = text((d[1].match(/<summary[^>]*>([\s\S]*?)<\/summary>/) || [])[1] || "");
+      if (!sec || /map|protected/i.test(sec)) continue;
+      // Each table belongs to the heading before it: Species regulations or Restrictions.
+      let kind = "";
+      for (const t of d[1].matchAll(/<h3[^>]*>([\s\S]*?)<\/h3>|<table[^>]*>([\s\S]*?)<\/table>/g)) {
+        if (t[1] != null) { const h = text(t[1]); kind = /contamination/i.test(h) ? "b" : /restrict/i.test(h) ? "r" : /species/i.test(h) ? "s" : ""; continue; }
+        if (!kind) continue;
+        const head = [...t[2].matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((c) => text(c[1]).toLowerCase());
+        const col = (re) => head.findIndex((h) => re.test(h));
+        const ci = { sp: col(/species/), ar: col(/area/), min: col(/min/), gear: col(/gear/), lim: col(/limit/), st: col(/status/), ty: col(/type/), de: col(/detail/) };
+        let last = "";
+        for (const tr of t[2].matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
+          const c = [...tr[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((x) => text(x[1]));
+          if (!c.length) continue;
+          const v = (k) => (ci[k] >= 0 ? c[ci[k]] || "" : "");
+          if (kind === "b") { if (/^\d/.test(c[0])) b.push([c[0], c[1] || "", (c[2] || "").slice(0, 300)]); continue; }
+          const sp = v("sp") || last; last = sp;
+          if (kind === "s") s.push([sec, sp, v("ar"), v("min").replace(/(\d)\s*(cm|mm)/, "$1 $2"), v("gear"), v("lim").replace(/\s*\*\s*Consisting of no more than:\s*/i, ": ").replace(/\s*;\s*/g, ", ").replace(/:\s*,\s*/, ": "), v("st")]);
+          else {
+            const det = v("de").replace(/^You are not allowed to (harvest|fish) using the following gears and methods:\s*/i, "Not allowed: ").replace(/\(\s*year round\s*\)/gi, "(year round)").slice(0, 260);
+            const row = [sec, sp, v("ar"), v("ty"), det];
+            if (/^coastwide$/i.test(v("ar"))) coast.set(row.join("|"), [sec, sp, v("ty"), det]); else r.push(row);
+          }
+        }
+      }
+    }
+    if (s.length < 5) { log(`  area ${n}: only ${s.length} species rows; keeping the last good copy`); if (old && old.areas[n]) areas[n] = old.areas[n]; return; }
+    const uniq = (a) => [...new Map(a.map((x) => [x.join("|"), x])).values()];
+    areas[n] = { t: title, u: upd, s: uniq(s), r: uniq(r), b };
+  });
+  const got = Object.keys(areas).length;
+  if (got < 20) { log(`  only ${got} areas read; keeping the last good file`); return; }
+  log(`  ${got} areas, ${Object.values(areas).reduce((a, x) => a + x.s.length, 0)} species rows, ${coast.size} coastwide rules`);
+  save("tidal.json", { updated: iso(now), src: TIDAL("{n}"), areas, coast: [...coast.values()].length ? [...coast.values()] : (old && old.coast) || [] });
+}
+
 if (!ONLY || ONLY === "stocked") await buildStocked();
 if (!ONLY || ONLY === "zones") await buildZones();
 if (!ONLY || ONLY === "tides") await buildTides();
@@ -775,3 +834,4 @@ if (!ONLY || ONLY === "eat") await buildEat();
 if (!ONLY || ONLY === "spots") await buildSpots();
 if (!ONLY || ONLY === "boating") await buildBoating();
 if (!ONLY || ONLY === "walkin") await buildWalkin();
+if (!ONLY || ONLY === "tidal" || ONLY === "stocked") await buildTidal();
