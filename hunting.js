@@ -363,7 +363,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       <button type="button" class="hn-act" data-act="me">${svg(IC.me)}My spot</button>
       <button type="button" class="hn-act" data-act="point">${svg(IC.pin)}Save a point</button>
       <button type="button" class="hn-act" data-act="truck">${svg(IC.truck)}Truck</button>
-      <button type="button" class="hn-act" data-act="log">${svg(IC.log)}Hunting log</button>
+      <button type="button" class="hn-act" data-act="log">${svg(IC.log)}My hunts</button>
     </div>
     <button type="button" class="hn-now" id="hnNow" hidden></button>
     <div class="hn-card" id="hnSpot" hidden></div>

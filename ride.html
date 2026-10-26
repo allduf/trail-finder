@@ -79,7 +79,7 @@ button.btn.danger { color: var(--rec); border-color: color-mix(in srgb, var(--re
 button.btn:disabled { opacity: .6; cursor: progress; }
 h2 { font-family: var(--font-display); font-size: 1.5rem; text-transform: uppercase; letter-spacing: .02em; margin: 0; line-height: 1.1; overflow-wrap: anywhere; }
 .label { font-family: var(--font-display); font-weight: 600; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
-.field input[type=text], .field textarea { width: 100%; font: inherit; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); }
+.field input[type=text], .field textarea, .field select { width: 100%; font: inherit; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); }
 .field textarea { min-height: 96px; resize: vertical; }
 .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
 .photos .ph { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--chip); border: 1px solid var(--line); }
@@ -158,7 +158,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
 <body>
 <header class="top">
   <a class="back" href="./">← Trail Finder</a>
-  <h1>Record <span>ride</span></h1>
+  <h1>Record <span id="h1Noun">ride</span></h1>
   <span data-account-slot></span>
 </header>
 <nav class="tabs" role="tablist" aria-label="Ride pages">
@@ -196,6 +196,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     <div class="profile" id="saveProfile"></div>
     <p class="hint warn" id="saveGaps"></p>
     <div class="field"><label class="label" for="fTitle">Title</label><input type="text" id="fTitle" maxlength="120" autocomplete="off"></div>
+    <div class="field"><label class="label" for="fSport">What was it</label><select id="fSport"><option value="">🚵 Ride</option><option value="ski">⛷ Ski tour</option><option value="hunt">🦌 Hunt</option><option value="fish">🎣 Fishing</option></select></div>
     <div class="field"><label class="label" for="fDesc">Description</label><textarea id="fDesc" maxlength="5000" placeholder="How was it? Trails ridden, conditions, who you rode with…"></textarea></div>
     <div class="field">
       <span class="label">Photos</span>
@@ -257,15 +258,15 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
 </main>
 <div class="lightbox" id="lightbox" hidden><img id="lightImg" alt=""></div>
 
-<script src="native.js?v=408"></script>
-<script src="account.js?v=408"></script>
+<script src="native.js?v=409"></script>
+<script src="account.js?v=409"></script>
 <script src="vendor/leaflet-1.9.4.js"></script>
-<script src="ride-files.js?v=408"></script>
-<script src="ride-stats.js?v=408"></script>
-<script src="strava.js?v=408"></script>
-<script src="ride-finds.js?v=408"></script>
-<script src="share.js?v=408"></script>
-<script src="native-gps.js?v=408"></script>
+<script src="ride-files.js?v=409"></script>
+<script src="ride-stats.js?v=409"></script>
+<script src="strava.js?v=409"></script>
+<script src="ride-finds.js?v=409"></script>
+<script src="share.js?v=409"></script>
+<script src="native-gps.js?v=409"></script>
 <script>
 (() => {
   "use strict";
@@ -334,7 +335,19 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
   function defaultTitle(t, sport) {
     const h = new Date(t).getHours();
     const part = h < 5 ? "Night" : h < 12 ? "Morning" : h < 17 ? "Afternoon" : h < 21 ? "Evening" : "Night";
-    return `${part} ${sport === "ski" ? "ski tour" : "ride"}`;
+    return `${part} ${NOUN[sport] || "ride"}`;
+  }
+  // A hunt or a day fishing tracked in Hunting or Fishing (navigate.js) is saved with its own words, and can be changed
+  // on the form (older hunts were saved as rides): a hunt shows in the map's My hunts, not as a ride.
+  const NOUN = { ski: "ski tour", hunt: "hunt", fish: "fishing" };
+  const ICON = { ski: "⛷ ", hunt: "🦌 ", fish: "🎣 " };
+  function sayWords(sport, ride) {
+    const n = NOUN[sport] || "ride";
+    $("saveHead").textContent = ride ? `Edit ${n}` : `Save your ${n}`;
+    $("discardBtn").textContent = `Discard ${n}`;
+    if (!ride) $("h1Noun").textContent = n === "fishing" ? "track" : n;   // the page's name follows the sport it was recorded in
+    if (!ride) $("saveLabel").textContent = sport === "hunt" ? "Save to My hunts" : "Save to My rides";
+    $("fDesc").placeholder = sport === "hunt" ? "What did you see? Wind, sign, animals, who you hunted with…" : sport === "fish" ? "Where, what was biting, on what…" : "How was it? Trails ridden, conditions, who you rode with…";
   }
 
   // Rides saved before descent was counted: work it out from the points.
@@ -509,9 +522,11 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     $("saveProfile").innerHTML = profileSvg(pts, brks);
     $("saveGaps").innerHTML = gapsNote(pts, brks);
     $("fTitle").value = ride ? ride.title : (rec.title || `${defaultTitle(rec.start, rec.sport)}`);
+    $("fSport").value = (ride ? ride.sport : rec.sport) in NOUN ? (ride ? ride.sport : rec.sport) : "";
+    sayWords($("fSport").value, ride);
     $("fDesc").value = ride ? ride.description : (rec.description || "");
     $("resumeBtn").hidden = !!ride; $("discardBtn").hidden = !!ride; $("cancelEdit").hidden = !ride;
-    $("saveLabel").textContent = ride ? "Save changes" : "Save to My rides";
+    if (ride) $("saveLabel").textContent = "Save changes";
     if (ride) (await photosOf(ride.id)).sort((a, b) => a.order - b.order).forEach((p) => formPhotos.push({ id: p.id, blob: p.thumb || p.blob, full: p.blob, keep: true }));
     renderFormPhotos();
     show("save");
@@ -557,6 +572,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     const json = await res.json();
     return upDown(json.elevation || []);
   }
+  $("fSport").addEventListener("change", () => sayWords($("fSport").value, editing));
   $("saveBtn").addEventListener("click", async () => {
     const btn = $("saveBtn"); btn.disabled = true; $("saveLabel").textContent = "Saving…";
     try {
@@ -566,9 +582,12 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
         const end = rec.end || Date.now();
         ride = { id: "ride-" + rec.start, start: rec.start, end, points: rec.points, stats: statsOf(rec.points, rec.start, end, rec.breaks), saved: Date.now() };
         if (rec.breaks && rec.breaks.length) ride.breaks = rec.breaks;
-        if (rec.sport) ride.sport = rec.sport;   // "ski": recorded in Skiing (navigate.js)
         if (ride.stats.climb == null && rec.points.length > 1) { try { const ud = await mapClimb(rec.points); ride.stats.climb = ud.up; ride.stats.descent = ud.down; ride.stats.climbFrom = "map"; } catch {} }
       }
+      const was = ride.sport || "";
+      if ($("fSport").value) ride.sport = $("fSport").value; else if (ride.sport in NOUN) delete ride.sport;   // "ski", "hunt", "fish"
+      // A title the app gave ("Morning ride") follows a change of kind
+      if (was !== (ride.sport || "") && $("fTitle").value.trim() === defaultTitle(ride.start, was)) $("fTitle").value = "";
       ride.title = $("fTitle").value.trim() || defaultTitle(ride.start, ride.sport);
       ride.description = $("fDesc").value.trim();
       // photos: drop removed ones, add new ones (shrunk), keep the order shown
@@ -596,6 +615,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
       if (!editing) { await dbDel("current", "current"); rec = null; recLine.setLatLngs([]); renderLive(); showGps("Ride saved. Press Start for the next one."); }
       try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
       await countRides();
+      if (!editing && ride.sport === "hunt") { location.href = "index.html#myhunts"; return; }   // straight to My hunts on the map
       if (location.hash === "#ride/" + ride.id) openRide(ride.id); else location.hash = "#ride/" + ride.id;
     } catch (e) {
       alert("Couldn't save the ride: " + (e && e.message ? e.message : e) + ". Your ride is still kept on this page.");
@@ -656,7 +676,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     }
     [...fromStrava, ...here].forEach((r) => {
       const li = document.createElement("li");
-      li.innerHTML = `<button class="ride" type="button"><span class="th">${r.cover ? '<img alt="">' : trackSvg(r.points)}</span><span><span class="rt">${esc(r.title)}</span><br><span class="rm">${fmtDay(r.start)} · ${km(r.stats.dist)} km · ${hms(r.stats.moving, false)}${r.stats.climb != null ? ` · ${Math.round(r.stats.climb)} m up` : ""}${r.photoCount ? ` · ${r.photoCount} photo${r.photoCount > 1 ? "s" : ""}` : ""}</span></span></button>`;
+      li.innerHTML = `<button class="ride" type="button"><span class="th">${r.cover ? '<img alt="">' : trackSvg(r.points)}</span><span><span class="rt">${ICON[r.sport] || ""}${esc(r.title)}</span><br><span class="rm">${fmtDay(r.start)} · ${km(r.stats.dist)} km · ${hms(r.stats.moving, false)}${r.stats.climb != null ? ` · ${Math.round(r.stats.climb)} m up` : ""}${r.photoCount ? ` · ${r.photoCount} photo${r.photoCount > 1 ? "s" : ""}` : ""}</span></span></button>`;
       if (r.cover) li.querySelector("img").src = objUrl(r.cover);
       li.querySelector("button").addEventListener("click", () => { location.hash = "#ride/" + r.id; });
       (r.imported && r.imported.strava ? into : list).appendChild(li);
