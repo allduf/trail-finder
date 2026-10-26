@@ -183,6 +183,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 #skiPane .sk-tabs button[aria-selected="true"] { background: var(--panel); color: var(--fg); box-shadow: 0 1px 3px #0002; }
 #skiPane .sk-find { font: inherit; font-size: .9rem; width: 100%; box-sizing: border-box; padding: 9px 12px 9px 34px; border: 1px solid var(--line); border-radius: 12px; color: var(--fg);
   background: var(--panel) no-repeat 11px 50% / 16px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m15.5 15.5 5 5'/%3E%3C/svg%3E"); }
+#skiPane .sk-findform { margin: 0; }
 #skiPane .sk-count { margin: 0; color: var(--muted); font-size: .78rem; }
 #skiPane .sk-count:empty { display: none; }
 #skiPane ul.sk-list { list-style: none; margin: 0 -4px; padding: 0; display: flex; flex-direction: column; }
@@ -322,7 +323,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     <details class="sk-card" id="sbCard" hidden><summary id="sbSum">Snowmobile clubs and grooming</summary><div id="sbBody"></div></details>
     <div class="sk-listwrap">
       <div class="sk-tabs" id="skTabs" role="tablist" aria-label="List"><button type="button" role="tab" data-tab="routes">Routes</button><button type="button" role="tab" data-tab="huts">Huts</button></div>
-      <input type="search" class="sk-find" id="skFind" placeholder="Find a route or hut by name" aria-label="Find a route or hut by name" autocomplete="off" enterkeyhint="search">
+      <form class="sk-findform" id="skFindForm" role="search"><input type="search" class="sk-find" id="skFind" placeholder="Find a route, hut or place" aria-label="Find a route or hut by name, or a place to go to" autocomplete="off" enterkeyhint="search"></form>
+      <p class="ps-msg" id="skPlaceMsg" role="status"></p><ul class="ps-hits" id="skPlaces" aria-label="Places"></ul>
       <div class="sk-countrow"><p class="sk-count" id="skCount">Routes in view</p><button type="button" class="sk-sort" id="skSort" hidden></button></div>
       <ul class="sk-list" id="skList"></ul>
     </div>
@@ -800,7 +802,55 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const t = e.target.closest("[data-tab]"); if (!t) return;
     listTab = t.dataset.tab; store.set("skiTab", listTab); renderList();
   });
-  $("skFind").addEventListener("input", (e) => { findText = e.target.value; renderList(); });
+  $("skFind").addEventListener("input", (e) => { findText = e.target.value; renderList(); renderPlaces(); });
+  // Places too: a region, range, town or mountain ("Chic-Chocs", "Gaspésie", "Rogers Pass") jumps the map there and
+  // the list fills with what's near it (alex 2026-10-26: "add search an region"). While typing: the backcountry areas
+  // whose name matches (ski-areas.js); Enter or "Search places" asks OpenStreetMap (place-search.js).
+  let placeQ = "", placeFound = null, placeRows = [];
+  $("skFind").addEventListener("focus", () => { if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces); }, { once: true });
+  function renderPlaces() {
+    const P = window.tfPlaceSearch, ul = $("skPlaces"), msg = $("skPlaceMsg"), q = findText.trim();
+    if (!P || q.length < 2) { ul.innerHTML = ""; msg.textContent = ""; placeRows = []; return; }
+    const areas = window.tfSkiAreas && window.tfSkiAreas.match ? window.tfSkiAreas.match(q) : [];
+    const asked = placeQ === q.toLowerCase();
+    placeRows = [...areas.slice(0, asked ? 2 : 3), ...(asked && placeFound ? placeFound : [])];
+    ul.innerHTML = placeRows.map(P.hitHtml).join("")
+      + (asked ? "" : `<li><button type="button" data-more><span class="ps-ic" aria-hidden="true">🔍</span><span class="ps-tx"><span class="ps-more">Search places named “${esc(q)}”</span><small>A region, range, mountain or town: the map goes there</small></span></button></li>`);
+  }
+  async function askPlaces() {
+    const P = window.tfPlaceSearch, q = findText.trim();
+    if (!P || !q) return;
+    const msg = $("skPlaceMsg");
+    msg.textContent = `Finding ${q}…`;
+    try {
+      const found = await P.search(q);
+      if (findText.trim() !== q) return;
+      placeQ = q.toLowerCase(); placeFound = found;
+      msg.textContent = found.length ? "Tap a place to go there." : `No place named “${q}”.`;
+      $("skFind").blur();   // the phone keyboard out of the way of the list
+      renderPlaces();
+    } catch { msg.textContent = "Couldn't reach the place search. Check your signal, or move the map yourself."; }
+  }
+  $("skFindForm").addEventListener("submit", (e) => { e.preventDefault(); askPlaces(); });
+  $("skPlaces").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.hasAttribute("data-more")) { askPlaces(); return; }
+    const p = placeRows[+b.dataset.i]; if (!p) return;
+    findText = ""; $("skFind").value = ""; $("skFind").blur();
+    renderPlaces();
+    $("skPlaceMsg").textContent = `Near ${p.name}: nearest the middle of the map first.`;
+    window.tfPlaceSearch.go(p, { maxZoom: 13 });
+    renderList();
+    // The box at the top of the sheet, so the list of what's near the place shows under it.
+    // (again once the avalanche card above has filled in for the new place).
+    const top = () => {
+      if (!window.tfPanelScrollTo || sport !== "ski") return;
+      const el = $("skTabs").hidden ? $("skFind") : $("skTabs"), sc = window.tfPanelScroller && window.tfPanelScroller(el);
+      window.tfPanelScrollTo(el);
+      if (sc) sc.scrollTop = Math.max(0, sc.scrollTop - 16);   // clear of the sheet's handle
+    };
+    setTimeout(top, 400); setTimeout(top, 1800);
+  });
   // ---------- route details: heights, slopes, avalanche forecast and reports, weather ----------
   // A short name for each kind of route, for unnamed routes: "Ski touring near Ipsoot Mountain" (data/ski.json "near"
   // is the named peak closest to the route, found by the nightly job).

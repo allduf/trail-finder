@@ -262,6 +262,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     <div class="fs-card" id="fsCond"></div>
     <div class="fs-card" id="fsHatch"></div>
     <details class="fs-safe"><summary>A guide, not the law</summary>Rules, zones, stocking and river flows come from each province's and Canada's open data and can be late or simplified. Always check your province's fishing regulations and any in-season changes before you fish, and buy the licence you need (a tidal licence for the ocean).</details>`;
+  // Go to a place (place-search.js): a town, mountain, lake or region, and the map jumps there (alex 2026-10-26).
+  if (window.tfPlaceSearch) pane.querySelector(".fs-actions").after(window.tfPlaceSearch.box({ placeholder: "Go to a lake, river, town or region" }));
   const lmFish = document.createElement("div");
   lmFish.className = "lm-fish";
   lmFish.innerHTML = `<div class="lm-head">Fishing layers</div><div id="fsLayerList"></div>`;

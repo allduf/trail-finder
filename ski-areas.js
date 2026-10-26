@@ -199,6 +199,14 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
   new MutationObserver(() => { if (isSki() !== lastSki) { lastSki = isSki(); sync(); } }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   // The Layers menu's Skiing part is rebuilt by winter.js; put the switch back if it goes missing.
   new MutationObserver(() => { if (!btn.isConnected) place(); }).observe($("layersMenu") || document.body, { childList: true, subtree: true });
-  window.tfSkiAreas = { open: (id) => load().then(() => { const a = areas.find((x) => x.id === id); if (a) open(a); }), list: () => load().then(openList) };
+  // Skiing's find box (winter.js) shows the areas whose name, region or huts match what's typed, as places to go to.
+  const match = (q) => {
+    q = String(q || "").trim().toLowerCase();
+    if (!q) return [];
+    return areas.filter((a) => [a.name, a.region, PROV[a.prov], ...(a.huts || []).map((h) => h.name)].join(" ").toLowerCase().includes(q))
+      .sort((x, y) => !x.name.toLowerCase().includes(q) - !y.name.toLowerCase().includes(q))
+      .map((a) => ({ name: a.name, sub: ["Backcountry area", a.region, PROV[a.prov]].filter(Boolean).join(" · "), ic: "⛰", lat: a.lat, lon: a.lon, bb: null, zoom: a.kind === "expedition" ? 9 : 12, area: a.id }));
+  };
+  window.tfSkiAreas = { open: (id) => load().then(() => { const a = areas.find((x) => x.id === id); if (a) open(a); }), list: () => load().then(openList), load, match };
   sync();
 })();

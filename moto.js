@@ -375,6 +375,8 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       <p class="mt-note" id="mtZoomNote"></p>
       <div class="mt-row"><button type="button" class="mt-pill" id="mtAll">${svg(IC.layers, 16)}All layers</button><button type="button" class="mt-pill" id="mtRoutesBtn">${svg(IC.save, 16)}Saved routes</button><button type="button" class="mt-pill" id="mtLogBtn">${svg(IC.log, 16)}My adventure rides</button></div></div>
     <details class="mt-safe"><summary>A guide, not the law</summary>Road surfaces and grades come from OpenStreetMap and can be out of date: a road can wash out or be deactivated any day. Closures, parks and land rules come from the provinces' and Canada's open data and are simplified. Check posted signs, BC's resource road notices, Alberta's Public Land Use Zones, your province's off-highway vehicle rules, and ride to the conditions.</details>`;
+  // Go to a place (place-search.js): a town, mountain, lake or region, and the map jumps there (alex 2026-10-26).
+  if (window.tfPlaceSearch) pane.querySelector(".mt-actions").after(window.tfPlaceSearch.box({ placeholder: "Go to a town, region or mountain" }));
   const lmMoto = document.createElement("div");
   lmMoto.className = "lm-moto";
   lmMoto.innerHTML = `<div class="lm-head">Adventure moto layers</div><p class="mt-note" id="mtLayerNote" style="margin:0;font-size:.74rem;color:var(--muted)"></p><div id="mtLayerList"></div>`;
@@ -1514,8 +1516,34 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     if (fp) fp.stops.forEach((s) => routeLayer.addLayer(L.circleMarker([s.p[0], s.p[1]], { renderer: lineRenderer, radius: 7, color: "#fff", weight: 2.5, fillColor: PT.fuel.c, fillOpacity: 1, interactive: false })));
     sync3d();
   }
+  // Type where you start or want to go (alex 2026-10-26: "add it in plan a route too so we can type where we want to
+  // go"): a town, mountain or region from place-search.js becomes the next route point. One box kept for the visit, so
+  // the card redrawing (a point's name arriving, the route coming back) doesn't wipe what's being typed: while the box
+  // has the keyboard, the card waits.
+  let planBox = null, renderLater = false;
+  function planPlaceBox() {
+    if (!window.tfPlaceSearch) return null;
+    if (!planBox) {
+      planBox = window.tfPlaceSearch.box({ button: "Add", label: "Type a place to add to the route", onPick: addPlace });
+      planBox.classList.add("mt-place");
+      planBox.addEventListener("focusout", () => setTimeout(() => { if (renderLater && !planBox.contains(document.activeElement)) { renderLater = false; renderRoute(); } }, 300));
+    }
+    planBox.tfInput.placeholder = planPts.length ? "Type where you want to go" : "Type where you start";
+    return planBox;
+  }
+  function addPlace(p) {
+    const pt = [+p.lat.toFixed(5), +p.lon.toFixed(5)];
+    wpNames.set(wpKey(pt), p.name);
+    planPts.push(pt);
+    if (!planning) setPlanning(true);
+    planChanged();
+    if (planPts.length === 1) window.tfPlaceSearch.go(p, { maxZoom: 12, sheet: false });
+    else map.fitBounds(L.latLngBounds(planPts).pad(0.15));
+    renderRoute();
+  }
   function renderRoute(loading) {
     const el = $("mtRoute");
+    if (planBox && planBox.contains(document.activeElement)) { renderLater = true; return; }
     if (!planning && !route && !routeErr) { el.hidden = true; return; }
     el.hidden = false;
     const r = route, b = cur();
@@ -1524,7 +1552,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     let body = "";
     if (loading && !r) body = `<p class="mt-note">Finding the roads…</p>`;
     else if (routeErr) body = `<div class="mt-warn">${esc(routeErr)}</div>`;
-    else if (!r) body = `<p class="mt-note">${planPts.length ? "Tap where you want to go." : "Tap the map where you start, or use From where I am."} Points can be dragged; tap one to remove it.</p>`;
+    else if (!r) body = `<p class="mt-note">${planPts.length ? "Tap where you want to go, or type it above." : "Tap the map where you start, type a place above, or use From where I am."} Points can be dragged; tap one to remove it.</p>`;
     else {
       const st = routeStats(r), fp = fuelPlan(r), cap = capOf(b), dirtPct = r.edges ? Math.round((100 * st.dirt) / Math.max(0.1, r.km)) : null;
       const bar = r.edges ? `<div class="mt-bar" aria-label="Surfaces along the route">${[1, 2, 3, 4, 5].map((g) => st.byG[g] > 0 ? `<i style="width:${(100 * st.byG[g]) / r.km}%;background:${g === 1 ? "#495057" : FIT[fitOf(g, cap)][1]}" title="Grade ${g}: ${fmtKm(st.byG[g])}"></i>` : "").join("")}</div>
@@ -1546,8 +1574,10 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
         <details class="mt-fold"><summary>Turns (${r.parts.length})</summary><ol class="mt-note" style="margin:0;padding-left:18px">${r.parts.map((x) => `<li>${esc(x.text)}${x.km >= 0.1 ? ` <i>${fmtKm(x.km)}</i>` : ""}</li>`).join("")}</ol></details>
         <div class="mt-row"><button type="button" class="mt-pill go" data-r="ride">${svg(IC.ride, 16)}Ride it</button><button type="button" class="mt-pill" data-r="save">${svg(IC.save, 16)}Save</button><button type="button" class="mt-pill" data-r="gpx">${svg(IC.dl, 16)}GPX</button><button type="button" class="mt-pill" data-r="offline">${svg(IC.dl, 16)}Save offline</button><button type="button" class="mt-pill" data-r="fly">${svg(IC.fly, 16)}Fly it in 3D</button></div>`;
     }
-    el.innerHTML = `<header>${svg(IC.plan)}<h3>Plan a route</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>${styles}${tools}${wpListHtml()}${body}
+    el.innerHTML = `<header>${svg(IC.plan)}<h3>Plan a route</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>${styles}${tools}<div class="mt-placeslot"></div>${wpListHtml()}${body}
       <p class="mt-note">For your ${esc(b.name || TYPES[b.type].label)} (rides grade ${capOf(b)} well). Routes by Valhalla on OpenStreetMap roads.</p>`;
+    const slot = el.querySelector(".mt-placeslot"), pb = planPlaceBox();
+    if (pb) slot.replaceWith(pb); else slot.remove();
     el.querySelector(".mt-x").onclick = () => { setPlanning(false); route = null; routeErr = ""; drawRoute(); renderRoute(); drawRange(); pane.querySelector('[data-act="plan"]').classList.remove("on"); };
     el.querySelectorAll("[data-style]").forEach((x) => (x.onclick = () => { planStyle = x.dataset.style; store.set("motoStyle", planStyle); renderRoute(); buildRoute(); }));
     el.querySelectorAll("[data-show]").forEach((x) => (x.onclick = () => { const [a, z] = x.dataset.show.split(",").map(Number); const seg = route.line.slice(a, z + 1); if (seg.length) { if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); const bb = L.latLngBounds(seg).pad(0.6); map.fitBounds(bb, { maxZoom: 15 }); if (in3d()) gl3.fitBounds([[bb.getWest(), bb.getSouth()], [bb.getEast(), bb.getNorth()]], { maxZoom: 15, padding: 40 }); } }));
