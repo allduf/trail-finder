@@ -602,12 +602,15 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   const secTide = (h) => { const m = String(h).match(/Next: <b>([^<]+)<\/b>/); return fold("tide", IC.wave, "Tides", m ? m[1].replace(/^./, (c) => c.toUpperCase()) : "", h); };
   const secAcc = (h) => { const n = (String(h).match(/<li/g) || []).length; return h && n ? fold("acc", IC.boat, "Fishing spots", `${n} nearby`, unhead(h)) : h; };
 
+  // Route: the walk to the spot (fish-route.js), from the button on each card's header. A new card clears the last route.
+  const routeBtn = (lat, lon) => { if (window.tfFishRoute) window.tfFishRoute.clear(); return window.tfFishRoute ? window.tfFishRoute.button(lat, lon) : ""; };
+
   // What's at a spot: everything the app knows within reach, each part filled in as it comes.
   let spotSeq = 0;
   async function showSpot(lat, lon, title) {
     const el = $("fsSpot"), seq = ++spotSeq;
     el.hidden = false;
-    el.innerHTML = `<header>${svg(IC.pin)}<h3 id="fsSpotName">${esc(title || "This spot")}</h3><button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header>
+    el.innerHTML = `<header>${svg(IC.pin)}<h3 id="fsSpotName">${esc(title || "This spot")}</h3>${routeBtn(lat, lon)}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div>
       <div id="fsHidden"></div><div id="fsWater"><p class="fs-note fs-look">Looking up this spot…</p></div><div id="fsBait"></div>
       <div id="fsRules"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsAcc"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
@@ -868,7 +871,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     setSpot(g[2], g[3], "tap");
     const el = $("fsSpot"), seq = ++spotSeq;
     el.hidden = false;
-    el.innerHTML = `<header>${svg(IC.gauge)}<h3>${esc(g[1])}</h3><button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsFlow"><p class="fs-note">Getting the last 7 days…</p></div><div id="fsRules"></div><div id="fsAcc"></div>`;
+    el.innerHTML = `<header>${svg(IC.gauge)}<h3>${esc(g[1])}</h3>${routeBtn(g[2], g[3])}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div><div id="fsFlow"><p class="fs-note">Getting the last 7 days…</p></div><div id="fsRules"></div><div id="fsAcc"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
     cardInView(el);
     flowHtml(g[2], g[3], g).then((h) => { if (seq === spotSeq) { $("fsFlow").innerHTML = h; drawPoints(); } });
@@ -878,7 +881,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     setSpot(t[2], t[3], "tap");
     const el = $("fsSpot"), seq = ++spotSeq;
     el.hidden = false;
-    el.innerHTML = `<header>${svg(IC.wave)}<h3>Tides: ${esc(t[1])}</h3><button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsTide"><p class="fs-note">Getting the tides…</p></div><div id="fsRules"></div>`;
+    el.innerHTML = `<header>${svg(IC.wave)}<h3>Tides: ${esc(t[1])}</h3>${routeBtn(t[2], t[3])}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div><div id="fsTide"><p class="fs-note">Getting the tides…</p></div><div id="fsRules"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
     cardInView(el);
     tideHtml(t[2], t[3], t).then((h) => { if (seq === spotSeq) $("fsTide").innerHTML = h; });

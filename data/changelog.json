@@ -2,6 +2,7 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-10-26", "text": "Fishing: a new Hidden spots layer with stocked lakes no road reaches and hike-in waters most anglers never get to, with how to get there and what bites"},
+    {"date": "2026-10-25", "text": "Fishing: tap Route on a spot for the best way to walk there, on trails and roads first, then across the easiest ground (slope, forest, wetland, creeks)"},
     {"date": "2026-10-25", "text": "Fishing: tap a spot, pick how you fish (fly, lures, bait, trolling or ice) and see what to use for each fish there, matched to what they eat in that water this season"},
     {"date": "2026-10-25", "text": "Fishing is easier to read: each part of a spot is one short line you tap to open, and a new layer shows public fishing spots, piers and boat launches all over Canada"},
     {"date": "2026-10-25", "text": "The app reopens on the map you left it on: 3D or flat, and the same photos, in each sport"},
