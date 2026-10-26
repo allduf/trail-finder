@@ -1578,12 +1578,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="native.js?v=427"></script>
-<script src="rotate.js?v=427"></script>
-<script src="official.js?v=427"></script>
-<script src="directions.js?v=427"></script>
-<script src="ratings.js?v=427"></script>
-<script src="ebike.js?v=427"></script>
+<script src="native.js?v=429"></script>
+<script src="rotate.js?v=429"></script>
+<script src="official.js?v=429"></script>
+<script src="directions.js?v=429"></script>
+<script src="ratings.js?v=429"></script>
+<script src="ebike.js?v=429"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3924,7 +3924,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=427").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=429").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -4810,7 +4810,9 @@ out body;`;
     const top = cover ? 56 : 0;              // the chip row along the top
     const shift = (cover - top) / 2;
     const c = shift ? map.containerPointToLatLng(map.latLngToContainerPoint(ll).add([0, shift])) : ll;
-    if (map.getCenter().distanceTo(c) < 0.5) return;
+    // Standing still, the GPS wobbles a few metres: a pan for each wobble redid everything that follows a map move
+    // (trail lists, the 3D camera) every second, which made the map feel sluggish. Under 4 px it waits.
+    if (map.latLngToContainerPoint(map.getCenter()).distanceTo(map.latLngToContainerPoint(c)) < 4) return;
     if (animate) map.panTo(c, { animate: true, duration: 0.6, easeLinearity: 1, noMoveStart: true });
     else map.panTo(c, { animate: false });
   }
@@ -4818,18 +4820,34 @@ out body;`;
   // (Not touchGestures._moved: leaflet-rotate leaves it true after a pinch ends, which would stop following for good.)
   function busy() {
     const g = map.touchGestures || map.touchZoom || {};
-    return !!(map._animatingZoom || g._zooming || g._rotating || L.Draggable._dragging);
+    return !!(map._animatingZoom || g._zooming || g._rotating || L.Draggable._dragging || map._tfHeld3d);
   }
   // Other parts (Hunting: the spot, scent cone and range rings) can move with you while the map follows you.
   const tellYou = () => { if (you.ll) window.dispatchEvent(new CustomEvent("tf:you", { detail: { lat: you.ll.lat, lon: you.ll.lng, follow: you.follow, acc: you.ring ? Math.round(you.ring.getRadius()) : 0 } })); };
+  // While it follows you, a pinch, a double tap or the mouse wheel zooms on the middle of the map (you), as in
+  // Apple and Google Maps. Zooming round the fingers moved the map off you, and the next fix threw it back.
+  function zoomOnYou(on) {
+    const c = on ? "center" : true;
+    map.options.touchZoom = map.options.touchZoom ? c : false;
+    map.options.doubleClickZoom = c; map.options.scrollWheelZoom = c;
+  }
+  function pauseFollow() { if (you.follow) { you.follow = false; you.lost = true; zoomOnYou(false); syncLocate(); tellYou(); } }
   function setFollow(on) {
-    you.follow = on; you.lost = false;
+    you.follow = on; you.lost = false; zoomOnYou(on);
     if (on && you.ll) keepOnYou(you.ll, true);
     syncLocate(); tellYou();
   }
-  // You moved the map yourself (a drag, not a zoom): stop following until "Recenter".
-  map.on("dragstart", () => { if (you.follow) { you.follow = false; you.lost = true; syncLocate(); } });
-  map.on("zoomend", () => { if (you.follow && you.ll) keepOnYou(you.ll, false); });
+  // You moved the map yourself (a drag, not a zoom): stop following until "Recenter". The 3D map too: a drag there
+  // never reached this map, so it kept following and every fix flew the 3D map back to you (a tester, 2026-10-26:
+  // "ça revient à mon point de géolocalisation random"). Mid-gesture on the 3D map, a fix waits (busy()).
+  map.on("dragstart", pauseFollow);
+  window.addEventListener("tf:map3d", (e) => {
+    const g = e.detail;
+    g.on("dragstart", (ev) => { if (ev.originalEvent) pauseFollow(); });
+    g.on("movestart", (ev) => { if (ev.originalEvent) map._tfHeld3d = true; });
+    g.on("moveend", () => { map._tfHeld3d = false; });
+  });
+  map.on("zoomend", () => { if (you.follow && you.ll) keepOnYou(you.ll, true); });   // a short slide back onto you, not a jump
   // The dot slides from where it is to the new fix, so it moves smoothly instead of hopping every second.
   function moveDot(ll, acc) {
     cancelAnimationFrame(you.anim);
@@ -4877,7 +4895,7 @@ out body;`;
     if (you.watch != null) navigator.geolocation.clearWatch(you.watch);
     cancelAnimationFrame(you.anim);
     Object.assign(you, { watch: null, ll: null, dot: null, ring: null, onFirst: null, follow: false, lost: false, shown: null, t: 0 });
-    youLayer.clearLayers();
+    youLayer.clearLayers(); zoomOnYou(false);
     syncLocate();
   }
   // Back from another app or the lock screen: the phone may have paused the GPS, so jump straight to the newest fix.
@@ -7417,51 +7435,51 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=427"></script>
-<script src="contours.js?v=427"></script>
-<script src="clouds.js?v=427"></script>
-<script src="smoke.js?v=427"></script>
-<script src="photo-slider.js?v=427"></script>
-<script src="ski-terrain.js?v=427"></script>
-<script src="winter.js?v=427"></script>
-<script src="hunting.js?v=427"></script>
-<script src="fish-bait.js?v=427"></script>
-<script src="fish-route.js?v=427"></script>
-<script src="fishing.js?v=427"></script>
-<script src="compass.js?v=427"></script>
-<script src="hunts.js?v=427"></script>
-<script src="ski-points.js?v=427"></script>
-<script src="webcams.js?v=427"></script>
-<script src="lifts.js?v=427"></script>
-<script src="rogers.js?v=427"></script>
-<script src="slackcountry.js?v=427"></script>
-<script src="ski-areas.js?v=427"></script>
-<script src="offline.js?v=427"></script>
-<script src="ride-stats.js?v=427"></script>
-<script src="native-gps.js?v=427"></script>
-<script src="navigate.js?v=427"></script>
-<script src="planner.js?v=427"></script>
-<script src="loops.js?v=427"></script>
-<script src="ride-finds.js?v=427"></script>
-<script src="rides.js?v=427"></script>
-<script src="community.js?v=427"></script>
-<script src="ride-files.js?v=427"></script>
-<script src="rider-trails.js?v=427"></script>
-<script src="account.js?v=427"></script>
-<script src="strava.js?v=427"></script>
-<script src="reports.js?v=427"></script>
-<script src="grades.js?v=427"></script>
-<script src="trail-photos.js?v=427"></script>
-<script src="visitors.js?v=427"></script>
-<script src="usage.js?v=427"></script>
-<script src="notify.js?v=427"></script>
-<script src="closures.js?v=427"></script>
-<script src="status.js?v=427"></script>
-<script src="areas.js?v=427"></script>
-<script src="alpine.js?v=427"></script>
-<script src="bikeparks.js?v=427"></script>
-<script src="photo-find.js?v=427"></script>
-<script src="whats-new.js?v=427"></script>
+<script src="map3d.js?v=429"></script>
+<script src="contours.js?v=429"></script>
+<script src="clouds.js?v=429"></script>
+<script src="smoke.js?v=429"></script>
+<script src="photo-slider.js?v=429"></script>
+<script src="ski-terrain.js?v=429"></script>
+<script src="winter.js?v=429"></script>
+<script src="hunting.js?v=429"></script>
+<script src="fish-bait.js?v=429"></script>
+<script src="fish-route.js?v=429"></script>
+<script src="fishing.js?v=429"></script>
+<script src="compass.js?v=429"></script>
+<script src="hunts.js?v=429"></script>
+<script src="ski-points.js?v=429"></script>
+<script src="webcams.js?v=429"></script>
+<script src="lifts.js?v=429"></script>
+<script src="rogers.js?v=429"></script>
+<script src="slackcountry.js?v=429"></script>
+<script src="ski-areas.js?v=429"></script>
+<script src="offline.js?v=429"></script>
+<script src="ride-stats.js?v=429"></script>
+<script src="native-gps.js?v=429"></script>
+<script src="navigate.js?v=429"></script>
+<script src="planner.js?v=429"></script>
+<script src="loops.js?v=429"></script>
+<script src="ride-finds.js?v=429"></script>
+<script src="rides.js?v=429"></script>
+<script src="community.js?v=429"></script>
+<script src="ride-files.js?v=429"></script>
+<script src="rider-trails.js?v=429"></script>
+<script src="account.js?v=429"></script>
+<script src="strava.js?v=429"></script>
+<script src="reports.js?v=429"></script>
+<script src="grades.js?v=429"></script>
+<script src="trail-photos.js?v=429"></script>
+<script src="visitors.js?v=429"></script>
+<script src="usage.js?v=429"></script>
+<script src="notify.js?v=429"></script>
+<script src="closures.js?v=429"></script>
+<script src="status.js?v=429"></script>
+<script src="areas.js?v=429"></script>
+<script src="alpine.js?v=429"></script>
+<script src="bikeparks.js?v=429"></script>
+<script src="photo-find.js?v=429"></script>
+<script src="whats-new.js?v=429"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
