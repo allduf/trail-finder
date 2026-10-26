@@ -30,9 +30,11 @@
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   const TYPES = {
-    tour: { label: "Ski touring", color: "#1f5fe0", weight: 3.5 },
+    // Light blue on a white edge, as FATMAP drew tours (alex 2026-10-26: "add everything" from the FATMAP look): it
+    // stands out on white snow and on dark forest alike.
+    tour: { label: "Ski touring", color: "#1c9be6", weight: 4 },
     // Trails to the start of the skiing: OpenStreetMap ways tagged ski=yes with no piste type (Elfin Lakes Trail...).
-    access: { label: "Approach trails", color: "#1f5fe0", weight: 2.5, dashArray: "8 6" },
+    access: { label: "Approach trails", color: "#1c9be6", weight: 2.5, dashArray: "8 6" },
     nordic: { label: "Nordic / cross-country", color: "#0b9bb5", weight: 3 },
     snowshoe: { label: "Snowshoe", color: "#8b4fe0", weight: 3, dashArray: "6 5" },
     snowmobile: { label: "Snowmobile trails", color: "#c2255c", weight: 3, dashArray: "12 4" },
@@ -62,14 +64,16 @@
   // Webcams, Rogers Pass, Ski areas, Slackcountry, Lift status: window.tfSkiSlot); "routes" groups are what the four panel buttons turn on.
   const GROUPS = [
     { g: "Backcountry", keys: ["tour", "access", "park", "other", "hut"], routes: true },
-    { g: "Avalanche", slot: "avy", keys: ["slope", "aspect", "runout"] },
-    { g: "Snow and weather", keys: ["snow"], slot: "wx", slotAfter: true },
+    // Picture tiles, 3 to a row, like FATMAP's terrain layers: what each one looks like on the mountains.
+    { g: "Avalanche and terrain", slot: "avy", keys: ["slope", "aspect", "runout", "flats", "elev"], tiles: true },
+    { g: "Snow and weather", keys: ["snow", "fresh", "snowfc"], slot: "wx", slotAfter: true },
     { g: "Nordic and snowmobile", keys: ["nordic", "snowshoe", "snowmobile", "club"], routes: true },
     { g: "Resorts", keys: ["resort", "offpiste"], routes: true, slot: "resort", slotAfter: true },
     { g: "Places and tracks", slot: "places", keys: ["heat", "mine"] },
   ];
   const SNOW = { label: "Snow stations", color: "#0b7285" };
-  const LABEL = (k) => (TYPES[k] || { hut: HUT, park: PARK, heat: HEAT, mine: MINE, club: CLUB, snow: SNOW, slope: { label: "Slope angle" }, aspect: { label: "Slope direction" }, runout: { label: "Runout zones and traps" } }[k]).label;
+  const LABEL = (k) => (TYPES[k] || { hut: HUT, park: PARK, heat: HEAT, mine: MINE, club: CLUB, snow: SNOW, slope: { label: "Slope angle" }, aspect: { label: "Slope direction" }, runout: { label: "Runout zones and traps" },
+    flats: { label: "Flats" }, elev: { label: "Elevation bands" }, fresh: { label: "New snow (24 h)" }, snowfc: { label: "Snow forecast (3 days)" } }[k]).label;
   // Avalanche Canada's danger scale colours.
   const DANGER = [
     { label: "No rating", color: "#9aa3ad" }, { label: "1 Low", color: "#52ba4a" }, { label: "2 Moderate", color: "#fff300" },
@@ -299,7 +303,57 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 #skiPane ul.sk-signs li.ok { border-left-color: #2f9e44; }
 #skiPane .sk-watch[aria-pressed="true"] { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
 #skiPane .sk-keyrow { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: .78rem; }
-#skiPane .sk-keyrow i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }`;
+#skiPane .sk-keyrow i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+/* Avalanche and terrain layers as picture tiles, 3 to a row (FATMAP's layer menu) */
+.lm-ski .sk-tilegrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px; padding: 6px 0 4px; }
+.lm-ski .sk-tilegrid .sk-slot, .lm-ski .sk-tilegrid .sk-rows { display: contents; }
+.lm-ski .sk-tile, .map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot button { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 0; margin: 0;
+  cursor: pointer; background: none; border: 0; border-radius: 0; font: inherit; color: var(--fg); min-height: 0; min-width: 0; width: auto; box-shadow: none; text-align: center; }
+.lm-ski .sk-thumb, .map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot .sk-lic { position: relative; display: grid; place-items: center; width: 100%; height: auto; aspect-ratio: 1; border-radius: 12px;
+  box-sizing: border-box; border: 2px solid var(--line); background-size: cover; background-position: center; font-size: 22px; color: #fff; text-shadow: 0 1px 3px #0008; }
+.lm-ski .sk-tcap, .map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot button b { display: block; font-size: .74rem; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+.lm-ski .sk-tile .sk-sw { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot button::after { display: none; }
+.lm-ski .sk-tile:has(.sk-sw:checked) .sk-thumb, .map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot button[aria-pressed="true"] .sk-lic { border-color: #1f5fe0; box-shadow: 0 0 0 2px #1f5fe0; }
+.lm-ski .sk-tile:has(.sk-sw:checked) .sk-thumb::after, .map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot button[aria-pressed="true"] .sk-lic::after { content: "✓"; position: absolute; top: 4px; right: 4px;
+  width: 18px; height: 18px; border-radius: 50%; background: #1f5fe0; color: #fff; font: 800 11px/18px system-ui, sans-serif; text-align: center; text-shadow: none; }
+.lm-ski .sk-tile:has(.sk-sw:focus-visible) .sk-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lm-ski .sk-palrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: .76rem; color: var(--muted); padding: 2px 0 4px; }
+.lm-ski .sk-palrow[hidden] { display: none; }
+.map-tools .layers-menu .lm-ski .sk-palrow button { font: inherit; font-weight: 700; font-size: .76rem; padding: 4px 10px; min-height: 0; width: auto; border-radius: 999px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); box-shadow: none; cursor: pointer; }
+.map-tools .layers-menu .lm-ski .sk-palrow button[aria-pressed="true"] { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
+/* The colour key of the shaded layers, on the map under Map key, on the flat and the 3D map (FATMAP's key bar) */
+.leaflet-control.sk-bars { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; pointer-events: auto; }
+.leaflet-control.sk-bars[hidden] { display: none; }
+.sk-bar { all: unset; box-sizing: border-box; display: block; width: 188px; max-width: calc(100vw - 150px); cursor: pointer; border-radius: 8px; overflow: hidden; background: rgba(18, 26, 34, .82);
+  box-shadow: 0 1px 4px #0005; color: #fff; font: 700 10px/1 system-ui, sans-serif; }
+.sk-bar .bt { display: block; padding: 3px 6px 2px; font-size: 9.5px; letter-spacing: .04em; text-transform: uppercase; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-bar .bc { display: flex; height: 8px; }
+.sk-bar .bc i { flex: 1; }
+.sk-bar .bl { display: flex; padding: 2px 0 3px; }
+.sk-bar .bl span { flex: 1; text-align: center; white-space: nowrap; font-size: 9.5px; }
+.sk-bar:focus-visible { outline: 2px solid #ffe14d; }
+/* A route's short card at the top of its details (FATMAP's route card) */
+#skiPane .sk-rc { display: flex; flex-direction: column; gap: 8px; }
+#skiPane .sk-rc-ph { display: block; width: 100%; aspect-ratio: 16 / 7; object-fit: cover; border-radius: 10px; background: var(--chip); }
+#skiPane .sk-rc-ph[hidden] { display: none; }
+#skiPane .sk-rc-tag { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: .82rem; }
+#skiPane .sk-rc-word { font-weight: 800; color: var(--c); }
+#skiPane .sk-rc-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .9rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+#skiPane .sk-rc-stats span { white-space: nowrap; }
+#skiPane .sk-rc-stats small { font-weight: 500; color: var(--muted); font-size: .72rem; margin-left: 2px; }
+#skiPane .sk-rc-btns { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+#skiPane .sk-rc-btns button { font: inherit; font-size: .78rem; font-weight: 700; padding: 8px 2px; border-radius: 12px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+#skiPane .sk-rc-btns button .ic { font-size: 1.1rem; line-height: 1.1; }
+#skiPane .sk-rc-btns button.go { background: #1c9be6; border-color: #1c9be6; color: #fff; }
+#skiPane .sk-rc-btns button[aria-pressed="true"] { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
+#skiPane .sk-more-btn { font: inherit; font-size: .85rem; font-weight: 700; padding: 8px; border-radius: 10px; border: 1px dashed var(--line); background: none; color: #1f5fe0; cursor: pointer; }
+.sk-fly { position: absolute; z-index: 1002; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: flex; gap: 8px; align-items: center;
+  background: rgba(18, 26, 34, .88); color: #fff; border-radius: 999px; padding: 6px 6px 6px 14px; font: 600 .85rem system-ui, sans-serif; box-shadow: 0 4px 14px #0006; max-width: calc(100% - 24px); box-sizing: border-box; }
+.sk-fly span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-fly button { font: inherit; font-weight: 700; border: 0; border-radius: 999px; background: #fff; color: #15211a; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
+@media (max-width: 760px) { .sk-fly { bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 74px); left: auto; right: 10px; transform: none; max-width: calc(100% - 130px); } }`;
   document.head.append(css);
 
   // ---------- the sport menu ----------
@@ -377,6 +431,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // A tour being planned: the points tapped on the map (kept on this device), drawn as an orange line.
   const plan = { on: false, pts: store.get("skiPlan", []), layer: L.layerGroup(), slopeWas: false, timer: 0 };
   const aboveLayer = L.layerGroup();   // drawAbove()
+  const pinLayer = L.layerGroup();     // drawPins(): the opened tour's start and top
   const lineOf = (flat) => { const out = []; for (let i = 0; i < flat.length; i += 2) out.push([flat[i], flat[i + 1]]); return out; };
   const km = (r) => {
     if (r.km != null) return r.km;
@@ -563,7 +618,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   lm.className = "lm-ski";
   lm.innerHTML = `<div class="lm-head">Skiing layers</div>` + GROUPS.map((x, i) => {
     const slot = x.slot ? `<div class="sk-slot" id="lmSkiSlot-${x.slot}"></div>` : "";
-    return `<h4 class="sk-group">${esc(x.g)}</h4>${x.slotAfter ? "" : slot}<div class="sk-rows${x.routes ? " sk-routes" : ""}" data-g="${i}"></div>${x.slotAfter ? slot : ""}`;
+    const rows = `<div class="sk-rows${x.routes ? " sk-routes" : ""}${x.tiles ? " sk-tiles" : ""}" data-g="${i}"></div>`;
+    if (x.tiles) return `<h4 class="sk-group">${esc(x.g)}</h4><div class="sk-tilegrid">${slot}${rows}</div><div class="sk-palrow" id="skPalRow" hidden></div>`;
+    return `<h4 class="sk-group">${esc(x.g)}</h4>${x.slotAfter ? "" : slot}${rows}${x.slotAfter ? slot : ""}`;
   }).join("") + `<p class="sk-note">What the lines and dots mean: tap Map key on the map.</p>`;
   const lmStyle = document.querySelector("#layersMenu .lm-style");
   if (lmStyle) lmStyle.after(lm); else if (avyBtn) avyBtn.before(lm);
@@ -585,10 +642,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     slope: "background:linear-gradient(135deg, #f2e14c, #f59f00 35%, #e8392f 60%, #9c36b5 80%, #1c3faa)",
     aspect: "background:conic-gradient(#1c7ed6, #0ca678, #74b816, #fab005, #f76707, #e03131, #ae3ec9, #5c5fd6, #1c7ed6)",
     runout: "background:repeating-linear-gradient(135deg, #8c28a0 0 3px, #d6336c99 3px 7px)",
+    flats: "background:#38d9a9",
+    elev: "background:linear-gradient(180deg, #9775fa, #ffd43b 50%, #51cf66)",
+    fresh: "background:linear-gradient(135deg, #d0ebff, #748ffc 50%, #e64980)",
+    snowfc: "background:linear-gradient(135deg, #d0ebff, #748ffc 50%, #e64980)",
     heat: `background:linear-gradient(135deg, ${HEAT.ramp.join(", ")})`,
     mine: `border:3px solid ${MINE.color}`,
   };
-  const SW_SYM = { club: "❄", snow: "❄", park: "P" };
+  const SW_SYM = { club: "❄", snow: "❄", park: "P", fresh: "❄", snowfc: "🌨" };
   const swIcon = (k) => {
     const t = TYPES[k];
     const st = t ? `border:3px ${t.dashArray ? "dashed" : "solid"} ${t.color}` : SW_ICON[k] || "";
@@ -603,19 +664,32 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     snow: "Snow stations (BC snow pillows, Environment Canada elsewhere): snow depth, new snow and temperature, every 2 hours",
     aspect: "Colours the slopes of 25° and more by the way they face, to match the forecast's problem aspects",
     runout: "Where avalanches from steep slopes above can reach, and the gullies and creek beds where snow piles up deep",
+    flats: "Nearly flat ground (under 5°): where you'll have to skate, pole or skin out, and where a splitboard has to switch to walk mode",
+    elev: "The three heights of the avalanche forecast: below treeline, treeline and alpine, at the heights used for that area",
+    fresh: "Snow that fell in the last 24 hours, in centimetres (Open-Meteo weather model)",
+    snowfc: "Snow coming in the next 3 days, in centimetres (Open-Meteo weather model)",
   };
+  const thumbs = {};   // picture tiles' pictures (makeThumbs)
   function renderSwitches() {
+    const al = avyBtn && thumbs.avy && avyBtn.querySelector(".sk-lic");
+    if (al) { al.style.background = `url(${thumbs.avy}) center / cover`; al.textContent = ""; }
     $("skViews").innerHTML = Object.entries(VIEWS).map(([k, v]) => `<button type="button" class="sk-view" data-view="${k}" aria-pressed="${v.layers.some((x) => shown.has(x))}"><span class="ic" aria-hidden="true">${v.icon}</span>${esc(v.label)}<small>${esc(v.sub)}</small></button>`).join("");
     const row = (k) => {
       const on = shown.has(k), extra = k === "heat" && !heat ? (heatErr ? "Not ready yet" : "") : k === "snow" && snowErr ? "Not ready yet" : k === "mine" && !mine.length ? "None yet: record or import them in My rides" : "";
       return `<label class="sk-layer"${SW_TITLE[k] ? ` title="${esc(SW_TITLE[k])}"` : ""}>${swIcon(k)}<span><b>${esc(LABEL(k))}</b>${extra ? `<small>${esc(extra)}</small>` : ""}</span><input type="checkbox" class="sk-sw" role="switch" data-k="${k}"${on ? " checked" : ""} aria-label="${esc(LABEL(k))}"></label>`;
     };
-    lm.querySelectorAll(".sk-rows").forEach((el) => { el.innerHTML = GROUPS[el.dataset.g].keys.map(row).join(""); });
+    // A picture tile: a small painted piece of real mountain showing the layer (thumbs, painted once the menu opens).
+    const tile = (k) => {
+      const on = shown.has(k), bg = thumbs[k] ? `background:url(${thumbs[k]}) center / cover` : (SW_ICON[k] || "");
+      return `<label class="sk-tile"${SW_TITLE[k] ? ` title="${esc(SW_TITLE[k])}"` : ""}><span class="sk-thumb" style="${bg}" aria-hidden="true"></span><span class="sk-tcap">${esc(LABEL(k))}</span><input type="checkbox" class="sk-sw" role="switch" data-k="${k}"${on ? " checked" : ""} aria-label="${esc(LABEL(k))}"></label>`;
+    };
+    lm.querySelectorAll(".sk-rows").forEach((el) => { const g = GROUPS[el.dataset.g]; el.innerHTML = g.keys.map(g.tiles ? tile : row).join(""); });
+    renderPalRow();
   }
   function applySwitches() {
     store.set("skiLayers2", [...shown]);
     if (shown.has("snow")) loadSnow();
-    renderSwitches(); drawSki(); renderList(); refreshHeat(); refreshSlope(); refreshTerrainLayers(); drawMine(); drawClubs(); drawSnow(); renderClubs(); renderForecast(); renderSkiKey();
+    renderSwitches(); drawSki(); renderList(); refreshHeat(); refreshSlope(); refreshTerrainLayers(); refreshMoreLayers(); drawMine(); drawClubs(); drawSnow(); renderClubs(); renderForecast(); renderSkiKey();
   }
   // The map key in Skiing: what each line, dot and pin on the map is, for the layers that are on (alex 2026-10-24:
   // "What are those?" about the brown hut dots). Folded by default, like the MTB trail colours key.
@@ -639,6 +713,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       + (shown.has("club") ? pin(CLUB.color, "❄", CLUB.label) : "")
       + (shown.has("snow") ? `<li><span class="sk-kic"><span class="sk-snow">❄</span></span>${esc(SNOW.label)}: snow depth</li>` : "")
       + (shown.has("mine") ? line(MINE) : "")
+      + (pinLayer.getLayers().length ? `<li><span class="sk-kic"><span class="sk-kdot" style="background:#2f9e44"></span><span class="sk-kdot" style="background:#e03131;margin-left:3px"></span></span>Start and top of the tour you opened</li>` : "")
       + (window.tfSkiKeyExtra || []).map((f) => { try { return f() || ""; } catch { return ""; } }).join("")   // other files' layers (lifts.js)
       || `<li>No ski layers on. Turn some on with the buttons in the panel.</li>`;
   }
@@ -1192,17 +1267,102 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   }
 
+  // ---------- the route card: stats, start and top pins, flyover ----------
+  let moreOpen = store.get("skiMore", false) === true;
+  // Time for a ski tour, the Munter way the avalanche courses teach: 4 "units" an hour on the way up (1 unit = 1 km
+  // or 100 m of climb), 10 on the way down. Up and down split by where the top is.
+  function tourHours(info) {
+    const ti = info.pts.indexOf(info.top), upKm = (ti >= 0 ? info.pts[ti].d : info.total / 2) / 1000, downKm = info.total / 1000 - upKm;
+    return (upKm + info.up / 100) / 4 + (downKm + info.down / 100) / 10;
+  }
+  const fmtHours = (h) => (h < 0.75 ? `${Math.max(15, Math.round((h * 60) / 15) * 15)} min` : `${Math.round(h * 2) / 2} h`);
+  function fillCard(info) {
+    const el = $("skRcStats");
+    if (!el) return;
+    el.innerHTML = `<span>${(info.total / 1000).toFixed(1)}<small>km</small></span><span>↗ ${fmtM(info.up)}</span><span>↘ ${fmtM(info.down)}</span><span title="Munter estimate: 4 km or 400 m of climb an hour up, 10 km or 1000 m an hour down">⏱ ${fmtHours(tourHours(info))}</span><span>▲ ${fmtM(info.max)}</span>`;
+  }
+  // The selected tour's start (its lower end, where you put the skins on) and top, as FATMAP pinned them.
+  function drawPins(info) {
+    pinLayer.clearLayers();
+    const a = info.pts[0], b = info.pts[info.pts.length - 1], start = a.e <= b.e ? a : b, top = info.top;
+    const pin = (p, fill, label) => L.circleMarker([p.lat, p.lon], { pane: "ski", radius: 8, color: "#fff", weight: 3, fillColor: fill, fillOpacity: 1, interactive: false }).bindTooltip(label);
+    pinLayer.addLayer(pin(start, "#2f9e44", `Start, ${fmtM(start.e)}`));
+    if (Math.hypot(top.lat - start.lat, (top.lon - start.lon) * 0.65) > 0.0008) pinLayer.addLayer(pin(top, "#e03131", `Top, ${fmtM(top.e)}`));
+    renderSkiKey();
+  }
+  // Flyover: the 3D camera flies the tour from its start to its top and on to its end, like FATMAP's. Any touch on
+  // the map or Stop ends it. Not too close (zoom 13 in 3D), so the phone doesn't load more ground than it can hold.
+  let flying = null;
+  function stopFly() {
+    if (!flying) return;
+    cancelAnimationFrame(flying.raf); flying.pill.remove();
+    flying.off();
+    flying = null;
+    const b = $("skFly"); if (b) b.innerHTML = `<span class="ic" aria-hidden="true">✈</span>Flyover`;
+  }
+  async function flyover(info, title) {
+    stopFly();
+    const mapEl = map.getContainer();
+    if (!mapEl.classList.contains("is3d")) document.getElementById("btn3d")?.click();
+    let gl = null;
+    for (let n = 0; n < 150; n++) { gl = window.trailMap3d; if (gl && gl.getStyle() && mapEl.classList.contains("is3d")) break; await new Promise((ok) => setTimeout(ok, 100)); }
+    if (!gl || !mapEl.classList.contains("is3d")) { if (window.tfToast) window.tfToast("The 3D map isn't ready, so no flyover. Try again in a moment."); return; }
+    let pts = info.pts.slice();
+    if (pts[0].e > pts[pts.length - 1].e) pts.reverse();
+    // Distance along the way it's flown (pts[].d runs the other way when reversed).
+    const along = [0];
+    for (let i = 1; i < pts.length; i++) along.push(along[i - 1] + map.distance([pts[i - 1].lat, pts[i - 1].lon], [pts[i].lat, pts[i].lon]));
+    const total = along[along.length - 1] || 1, dur = Math.max(15000, Math.min(50000, (total / 1000) * 5000));
+    const at = (m) => {
+      m = Math.max(0, Math.min(total, m));
+      let i = 1;
+      while (i < along.length - 1 && along[i] < m) i++;
+      const t = (m - along[i - 1]) / ((along[i] - along[i - 1]) || 1), p = pts[i - 1], q = pts[i];
+      return [p.lon + (q.lon - p.lon) * t, p.lat + (q.lat - p.lat) * t];
+    };
+    const bear = (a, b) => (Math.atan2((b[0] - a[0]) * Math.cos((a[1] * Math.PI) / 180), b[1] - a[1]) * 180) / Math.PI;
+    const pill = document.createElement("div");
+    pill.className = "sk-fly"; pill.setAttribute("role", "status");
+    pill.innerHTML = `<span>✈ Flyover: ${esc(title)}</span><button type="button">Stop</button>`;
+    pill.querySelector("button").addEventListener("click", stopFly);
+    L.DomEvent.disableClickPropagation(pill);
+    mapEl.append(pill);
+    if (window.tfLowerSheet) window.tfLowerSheet();   // phones: the whole map for the flight
+    const box = document.getElementById("map3d"), touch = () => stopFly();
+    box && box.addEventListener("pointerdown", touch);
+    const onSport = () => stopFly();
+    window.addEventListener("tf:sport", onSport);
+    const b = $("skFly"); if (b) b.innerHTML = `<span class="ic" aria-hidden="true">■</span>Stop`;
+    let heading = bear(at(0), at(400)), t0 = 0;
+    const zoom = PHONE_UI() ? 13 : 13.5;
+    flying = { raf: 0, pill, off: () => { box && box.removeEventListener("pointerdown", touch); window.removeEventListener("tf:sport", onSport); } };
+    const step = (now) => {
+      if (!flying) return;
+      if (!t0) t0 = now;
+      const f = Math.min(1, (now - t0) / dur), m = f * total, here = at(m);
+      // Look 400 m ahead, and turn smoothly so a zigzag skin track doesn't shake the camera.
+      let want = bear(here, at(m + 400)), diff = ((want - heading + 540) % 360) - 180;
+      heading += diff * 0.04;
+      gl.jumpTo({ center: here, zoom, pitch: 68, bearing: heading });
+      if (f >= 1) { stopFly(); return; }
+      flying.raf = requestAnimationFrame(step);
+    };
+    gl.jumpTo({ center: at(0), zoom, pitch: 68, bearing: heading });
+    flying.raf = requestAnimationFrame(step);
+  }
+  const PHONE_UI = () => matchMedia("(max-width: 760px)").matches;
+
   let selToken = 0;
   // Close the details and drop the highlight: the ✕, or a tap on the map away from any route (alex 2026-10-24).
   function unselect() {
     if (!selected) return;
-    selected = null; selToken++; $("skDetail").hidden = true; hoverLayer.clearLayers(); aboveLayer.clearLayers();
-    drawSki(); renderList(); renderForecast();
+    selected = null; selToken++; $("skDetail").hidden = true; hoverLayer.clearLayers(); aboveLayer.clearLayers(); pinLayer.clearLayers(); stopFly();
+    drawSki(); renderList(); renderForecast(); renderSkiKey();
   }
   function select(it, fly) {
     const group = Array.isArray(it) ? it : [it];
     const r = group[0];
-    if (selected !== r) { hoverLayer.clearLayers(); aboveLayer.clearLayers(); }
+    if (selected !== r) { hoverLayer.clearLayers(); aboveLayer.clearLayers(); pinLayer.clearLayers(); stopFly(); }
     selGroup = group;
     selected = r;
     drawSki(); renderList();
@@ -1234,7 +1394,24 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const title = isHut ? r.name || (isStart ? "camptocamp route" : KIND[r.kind] || "Hut") : nameOf(r) || "Unnamed route";
     const pt = isHut ? [r.lat, r.lon] : r.lines[0][0];
     d.hidden = false;
-    d.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>
+    // A route to follow gets FATMAP's short card first (photo, how risky today, km / climb / time, Flyover, Watch,
+    // GPX, Go); the rest is under "More details", which stays open once opened.
+    const isRoute = !isHut && !r.area;
+    const len = group.reduce((s, x) => s + km(x), 0);
+    const card = isRoute ? `<div class="sk-rc">
+        <img class="sk-rc-ph" id="skRcPh" alt="" hidden referrerpolicy="no-referrer">
+        <div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>
+        <div class="sk-rc-tag" id="skRcTag">${[esc(t.label), diffPill(r.diff)].filter(Boolean).join(" · ")}</div>
+        <div class="sk-rc-stats" id="skRcStats"><span>${len.toFixed(1)}<small>km</small></span></div>
+        <div class="sk-rc-btns">
+          <button type="button" id="skFly" title="Fly along the route on the 3D map"><span class="ic" aria-hidden="true">✈</span>Flyover</button>
+          ${mine ? "" : `<button type="button" id="skRcWatch" aria-pressed="false" disabled title="Alerts in the 🔔 when this tour turns risky"><span class="ic" aria-hidden="true">🔔</span>Watch</button>`}
+          <button type="button" id="skGpx" title="Download the route as a GPX file"><span class="ic" aria-hidden="true">⬇</span>GPX</button>
+          ${window.tfRide ? `<button type="button" class="go" id="skFollow" title="Follow this tour with your location"><span class="ic" aria-hidden="true">▶</span>Go</button>` : ""}
+        </div>
+        <button type="button" class="sk-more-btn" id="skMoreBtn" aria-expanded="${moreOpen}" aria-controls="skMore">${moreOpen ? "Fewer details ▴" : "More details: avalanche check, profile, forecast, weather ▾"}</button>
+      </div>` : `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>`;
+    d.innerHTML = `${card}<div id="skMore"${isRoute && !moreOpen ? " hidden" : ""} class="sk-morebox">
       ${isHut && !isStart ? `<p class="sk-hint">${esc(HUT_ABOUT[r.kind] || HUT_ABOUT.basic_hut)}</p>` : ""}
       <dl><dt>Type</dt><dd>${esc(isStart ? t.label + " (start point only; see camptocamp for the route)" : isHut ? KIND[r.kind] || (r.kind || "hut").replace(/_/g, " ") : t.label)}</dd>
       ${isHut ? "" : r.area ? `<dt>Size</dt><dd>${hectares(r).toFixed(0)} ha: mapped as an area (a bowl or zone), not a line to follow</dd>`
@@ -1250,9 +1427,24 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <div class="sk-sec" id="skAvy"></div>
       <div class="sk-sec" id="skWx"><h4>Weather</h4><p class="sk-note">Loading the forecast…</p></div>
       <div class="sk-sec" id="skSnowNear" hidden></div>
-      ${isHut || r.area ? "" : `<div class="sk-row">${window.tfRide ? `<button type="button" class="btn primary" id="skFollow">▶ Follow this tour</button>` : ""}<button type="button" class="btn" id="skGpx">⬇ GPX</button></div>`}
       ${mine ? "" : `<div class="sk-sec" id="skPh"><h4>Photos</h4><p class="sk-note">Looking for photos…</p></div>
-      <p class="sk-note">From ${src}</p>`}`;
+      <p class="sk-note">From ${src}</p>`}</div>`;
+    const moreBtn = $("skMoreBtn");
+    if (moreBtn) moreBtn.addEventListener("click", () => {
+      moreOpen = $("skMore").hidden; store.set("skiMore", moreOpen);
+      $("skMore").hidden = !moreOpen;
+      moreBtn.setAttribute("aria-expanded", String(moreOpen));
+      moreBtn.textContent = moreOpen ? "Fewer details ▴" : "More details: avalanche check, profile, forecast, weather ▾";
+    });
+    const rcw = $("skRcWatch");
+    if (rcw) rcw.addEventListener("click", () => { const w = $("skWatch"); if (w) w.click(); });
+    const flyBtn = $("skFly");
+    if (flyBtn) flyBtn.addEventListener("click", () => {
+      if (flying) { stopFly(); return; }
+      flyBtn.disabled = true;
+      routeInfo(group).then((info) => { if (live()) flyover(info, title); }, () => window.tfToast && window.tfToast("Couldn't load the route's heights for the flyover."))
+        .finally(() => { flyBtn.disabled = false; });
+    });
     window.dispatchEvent(new CustomEvent("tf:ski-select", { detail: { item: r, el: $("skLocal") } }));   // rogers.js: permit areas, huts
     d.querySelector(".sk-x").addEventListener("click", unselect);
     const fol = $("skFollow");
@@ -1285,7 +1477,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       .catch((e) => { if (live()) $("skWx").innerHTML = `<h4>Weather</h4><p class="sk-note">Couldn't load the weather (${esc(e.message)}).</p>`; });
     showAvy(r.info || null);
     if (!minData && !minErr) loadMin().then(() => showAvy(r.info || null));
-    const showPh = (info) => mine ? null : routePhotos(r, info).then((ph) => { const el = $("skPh"); if (!live() || !el) return; el.innerHTML = photosHtml(ph, isHut); bindPhotos(el, ph.list); });
+    const showPh = (info) => mine ? null : routePhotos(r, info).then((ph) => {
+      const el = $("skPh"); if (!live() || !el) return; el.innerHTML = photosHtml(ph, isHut); bindPhotos(el, ph.list);
+      const img = $("skRcPh"), p0 = ph.list[0];   // the card's photo: the route's own, else the closest
+      if (img && p0) { img.src = p0.big || p0.thumb; img.alt = p0.title || ""; img.hidden = false; img.onclick = () => window.tfPhotos.open(ph.list, 0); img.onerror = () => { img.hidden = true; }; }
+    });
     if (isHut) { showWx(r.lat, r.lon, parseFloat(r.tags?.ele) || null); showPh(null); return; }
     routeInfo(group).then((info) => {
       if (!live()) return;
@@ -1293,6 +1489,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       showWx(info.top.lat, info.top.lon, info.max, info.min);
       showPh(info);
       drawAbove(info);
+      if (isRoute) { fillCard(info); drawPins(info); }
       if (mine) renderPlan();
       const nb = $("skNear");
       if (nb) {
@@ -1357,6 +1554,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       store.set("skiWatch", list.slice(0, 40));
       showCheck();
     });
+    // The card at the top: today's light (or the terrain class) as its coloured word, and Watch.
+    const tg = $("skRcTag");
+    if (tg) {
+      const L1 = days.length ? T.LIGHTS[T.light((days.find((x) => x.j === Math.min(day, f.days.length - 1)) || days[0]).r, cls.c)] : null;
+      tg.innerHTML = [L1 ? `<span class="sk-rc-word" style="--c:${L1.color}">● ${esc(L1.label)}</span>` : "", classPill(cls.c, official ? "Official ATES rating" : ""),
+        esc((TYPES[r.type] || TYPES.other).label), diffPill(r.diff)].filter(Boolean).join(" · ");
+    }
+    const cw = $("skRcWatch");
+    if (cw) { cw.disabled = false; cw.setAttribute("aria-pressed", String(on)); cw.innerHTML = `<span class="ic" aria-hidden="true">🔔</span>${on ? "Watching" : "Watch"}`; }
   }
 
   // The closest snow stations, under a route's or a hut's details.
@@ -1881,10 +2087,26 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // ---------- slope angle: any day, with or without a forecast ----------
   // The usual avalanche-terrain colours (as on CalTopo, onX and FATMAP): 27° is about where slabs start to slide,
   // 30-45° is where most avalanches start.
-  const SLOPE = [[27, "27-29°", "#f2e14c"], [30, "30-34°", "#f59f00"], [35, "35-39°", "#e8392f"], [40, "40-44°", "#9c36b5"], [45, "45°+", "#1c3faa"]];
-  const SLOPE_RGB = SLOPE.map((x) => rgb(x[2]));
+  // Or FATMAP's (alex 2026-10-26): from 25°, cream to crimson. The Canadian colours stay the default: they're the ones
+  // Avalanche Canada's courses and CalTopo use.
+  const PALETTES = {
+    ca: { label: "Canadian", bands: [[27, "27-29°", "#f2e14c", "27°"], [30, "30-34°", "#f59f00", "30°"], [35, "35-39°", "#e8392f", "35°"], [40, "40-44°", "#9c36b5", "40°"], [45, "45°+", "#1c3faa", "45°+"]], alpha: 150 },
+    fatmap: { label: "FATMAP", bands: [[25, "25-29°", "#fff3a8", "25°"], [30, "30-34°", "#fdc55d", "30°"], [35, "35-39°", "#f98e3d", "35°"], [40, "40-44°", "#e8402f", "40°"], [45, "45°+", "#c2185b", "45°+"]], alpha: 165 },
+  };
+  let slopePal = store.get("slopePal", "ca") === "fatmap" ? "fatmap" : "ca";
+  let SLOPE = PALETTES[slopePal].bands, SLOPE_RGB = SLOPE.map((x) => rgb(x[2]));
+  function setSlopePal(k) {
+    slopePal = PALETTES[k] ? k : "ca"; store.set("slopePal", slopePal);
+    SLOPE = PALETTES[slopePal].bands; SLOPE_RGB = SLOPE.map((x) => rgb(x[2]));
+    $("skSlopeKey").innerHTML = "";
+    delete thumbs.slope; thumbSlope();
+    if (map.hasLayer(slopeGrid)) slopeGrid.redraw();
+    const gl = window.trailMap3d;
+    if (gl && gl.getSource && gl.getSource("skislope")) gl.getSource("skislope").setTiles([`tfslope://{z}/{x}/{y}?p=${slopePal}`]);
+    renderSwitches(); refreshSlope(); renderBars();
+  }
   async function paintSlope(z, x, y) {
-    const out = new ImageData(256, 256), E = await dem(z, x, y), o = out.data, k = 25 / minSlope(E.z);
+    const out = new ImageData(256, 256), E = await dem(z, x, y), o = out.data, k = 25 / minSlope(E.z), a = PALETTES[slopePal].alpha;
     for (let py = 0; py < 256; py++) {
       const lat = tileLat(y + (py + 0.5) / 256, z), m = (40075016.686 * Math.cos((lat * Math.PI) / 180)) / (256 * 2 ** z);
       const y0 = py > 0 ? py - 1 : py, y1 = py < 255 ? py + 1 : py;
@@ -1894,9 +2116,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         const x0 = px > 0 ? px - 1 : px, x1 = px < 255 ? px + 1 : px;
         const dzdx = (E[py * 256 + x1] - E[py * 256 + x0]) / ((x1 - x0) * m), dzdy = (E[y1 * 256 + px] - E[y0 * 256 + px]) / ((y1 - y0) * m);
         const slope = ((Math.atan(Math.hypot(dzdx, dzdy)) * 180) / Math.PI) * k;
-        if (slope < 27) continue;
+        if (slope < SLOPE[0][0]) continue;
         const c = SLOPE_RGB[slope >= 45 ? 4 : slope >= 40 ? 3 : slope >= 35 ? 2 : slope >= 30 ? 1 : 0], j = i * 4;
-        o[j] = c[0]; o[j + 1] = c[1]; o[j + 2] = c[2]; o[j + 3] = 150;
+        o[j] = c[0]; o[j + 1] = c[1]; o[j + 2] = c[2]; o[j + 3] = a;
       }
     }
     return out;
@@ -1927,7 +2149,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (!gl.getStyle()) return;
       const has = !!gl.getLayer("skislope");
       if (!want) { if (has) gl.removeLayer("skislope"); if (gl.getSource("skislope")) gl.removeSource("skislope"); return; }
-      if (!gl.getSource("skislope")) gl.addSource("skislope", { type: "raster", tiles: ["tfslope://{z}/{x}/{y}"], tileSize: 256, minzoom: 9, maxzoom: 14, attribution: "Slope angle: Mapzen Terrain Tiles" });
+      if (!gl.getSource("skislope")) gl.addSource("skislope", { type: "raster", tiles: [`tfslope://{z}/{x}/{y}?p=${slopePal}`], tileSize: 256, minzoom: 9, maxzoom: 14, attribution: "Slope angle: Mapzen Terrain Tiles" });
       if (!has) gl.addLayer({ id: "skislope", type: "raster", source: "skislope", paint: { "raster-fade-duration": 0 } }, gl.getLayer("avy") ? "avy" : gl.getLayer("osm-roads") ? "osm-roads" : undefined);
     };
     whenStyle(gl, apply);
@@ -1955,8 +2177,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         return cv;
       },
     });
-    const grid = new Grid({ pane: id, minZoom: o.minZoom, maxNativeZoom: 14, maxZoom: 20, attribution: o.attribution });
+    const grid = new Grid({ pane: id, minZoom: o.minZoom, maxNativeZoom: o.maxNative || 14, maxZoom: 20, opacity: o.opacity || 1, attribution: o.attribution });
     let proto = false, want = false;
+    const url = () => `tf${id}://{z}/{x}/{y}?v=${o.ver ? o.ver() : 0}`;
     function sync3d() {
       const gl = window.trailMap3d;
       if (!gl || !window.maplibregl) return;
@@ -1971,18 +2194,22 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         if (!gl.getStyle()) return;
         const has = !!gl.getLayer(id);
         if (!want) { if (has) gl.removeLayer(id); if (gl.getSource(id)) gl.removeSource(id); return; }
-        if (!gl.getSource(id)) gl.addSource(id, { type: "raster", tiles: [`tf${id}://{z}/{x}/{y}`], tileSize: 256, minzoom: o.minZoom, maxzoom: 14, attribution: "Terrain: Mapzen Terrain Tiles" });
-        if (!has) gl.addLayer({ id, type: "raster", source: id, paint: { "raster-fade-duration": 0 } }, gl.getLayer("avy") ? "avy" : gl.getLayer("osm-roads") ? "osm-roads" : undefined);
+        const src = gl.getSource(id);
+        if (!src) gl.addSource(id, { type: "raster", tiles: [url()], tileSize: 256, minzoom: o.minZoom, maxzoom: o.maxNative || 14, attribution: o.attribution3d || "Terrain: Mapzen Terrain Tiles" });
+        else if (src.tiles && src.tiles[0] !== url()) src.setTiles([url()]);
+        if (!has) gl.addLayer({ id, type: "raster", source: id, paint: { "raster-fade-duration": 0, "raster-opacity": o.opacity || 1 } }, gl.getLayer("avy") ? "avy" : gl.getLayer("osm-roads") ? "osm-roads" : undefined);
       };
       whenStyle(gl, apply);
     }
     window.addEventListener("tf:map3d", sync3d);
-    return (on) => {
+    const set = (on) => {
       want = on;
       if (on && !map.hasLayer(grid)) grid.addTo(map);
       else if (!on && map.hasLayer(grid)) map.removeLayer(grid);
       sync3d();
     };
+    set.redraw = () => { if (map.hasLayer(grid)) grid.redraw(); sync3d(); };   // after o.ver() changed
+    return set;
   }
   // Slope direction (as CalTopo and onX shade it): slopes of 25° and more coloured by the way they face, so the
   // forecast's problem aspects (its rose) can be found on the map.
@@ -2091,6 +2318,231 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   map.on("zoomend", () => { if (sport === "ski" && shown.has("runout")) refreshTerrainLayers(); });
 
+  // ---------- flats and elevation bands (FATMAP's Flats and Elevation layers) ----------
+  // Flats: ground under 5°, where you skate, pole or skin out (and a splitboard goes back to walk mode).
+  const FLAT_DEG = 5, FLAT_RGB = rgb("#20c997");
+  async function paintFlats(z, x, y) {
+    const out = new ImageData(256, 256), E = await dem(z, x, y), o = out.data, k = 25 / minSlope(E.z);
+    for (let py = 0; py < 256; py++) {
+      const lat = tileLat(y + (py + 0.5) / 256, z), m = (40075016.686 * Math.cos((lat * Math.PI) / 180)) / (256 * 2 ** z);
+      const y0 = py > 0 ? py - 1 : py, y1 = py < 255 ? py + 1 : py;
+      for (let px = 0; px < 256; px++) {
+        const i = py * 256 + px;
+        if (E[i] < 0) continue;   // the sea
+        const x0 = px > 0 ? px - 1 : px, x1 = px < 255 ? px + 1 : px;
+        const dzdx = (E[py * 256 + x1] - E[py * 256 + x0]) / ((x1 - x0) * m), dzdy = (E[y1 * 256 + px] - E[y0 * 256 + px]) / ((y1 - y0) * m);
+        if (((Math.atan(Math.hypot(dzdx, dzdy)) * 180) / Math.PI) * k >= FLAT_DEG) continue;
+        const j = i * 4;
+        o[j] = FLAT_RGB[0]; o[j + 1] = FLAT_RGB[1]; o[j + 2] = FLAT_RGB[2]; o[j + 3] = 115;
+      }
+    }
+    return out;
+  }
+  // Elevation bands: the forecast's below treeline, treeline and alpine, at the heights used for the forecast area
+  // there (ski-terrain.js bandsFor), with a dark line where one band meets the next.
+  const ELEV = [["btl", "Below treeline", "#40c057", 55], ["tln", "Treeline", "#fcc419", 75], ["alp", "Alpine", "#9775fa", 85]];
+  const ELEV_RGB = ELEV.map((x) => rgb(x[2]));
+  async function paintElev(z, x, y) {
+    if (!avy && !avyErr) await (loadAvy() || Promise.resolve()).catch(() => {});
+    const out = new ImageData(256, 256), E = await dem(z, x, y), o = out.data;
+    const B = 16, bands = new Array(B * B);
+    for (let by = 0; by < B; by++) for (let bx = 0; bx < B; bx++) {
+      const a = avy ? areaAt(tileLat(y + (by + 0.5) / B, z), tileLon(x + (bx + 0.5) / B, z)) : null;
+      bands[by * B + bx] = a ? a.bands : DEFAULT_BANDS;
+    }
+    const bandIx = (i, b) => (E[i] >= b.hi ? 2 : E[i] >= b.lo ? 1 : 0);
+    for (let py = 0; py < 256; py++) for (let px = 0; px < 256; px++) {
+      const i = py * 256 + px;
+      if (E[i] < 0) continue;
+      const b = bands[(py >> 4) * B + (px >> 4)], v = bandIx(i, b), j = i * 4;
+      const edge = (px < 255 && bandIx(i + 1, b) !== v) || (py < 255 && bandIx(i + 256, b) !== v);
+      if (edge) { o[j] = 33; o[j + 1] = 37; o[j + 2] = 41; o[j + 3] = 210; continue; }
+      const c = ELEV_RGB[v];
+      o[j] = c[0]; o[j + 1] = c[1]; o[j + 2] = c[2]; o[j + 3] = ELEV[v][3];
+    }
+    return out;
+  }
+  const flatsLayer = paintedLayer("skiflats", paintFlats, { z: 354, minZoom: 11, attribution: 'Flats: <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>' });
+  let elevVer = 0;
+  const elevLayer = paintedLayer("skielev", paintElev, { z: 353, minZoom: 9, ver: () => elevVer, attribution: 'Elevation bands: Avalanche Canada areas, <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>' });
+
+  // ---------- snow on the map: new snow and the snow forecast (FATMAP's Live snow) ----------
+  // Open-Meteo's weather model (free, no key) on a grid of points, a tenth of a degree apart close up (coarser zoomed
+  // out), asked 100 points at a time; each map tile blends the 4 grid points around each pixel. Kept for an hour.
+  const SNOW_CM = [[1, "#d0ebff"], [5, "#91a7ff"], [10, "#748ffc"], [20, "#9775fa"], [30, "#da77f2"], [50, "#f783ac"], [80, "#e64980"]];
+  const SNOW_RGB = SNOW_CM.map(([v, c]) => [v, ...rgb(c)]);
+  const snowStep = (z) => (z >= 10 ? 0.1 : z >= 8 ? 0.25 : 0.5);
+  const snowGrid = new Map();   // "step|i|j" -> { f: cm in the last 24 h, n: cm in the next 3 days, at } or { err, at }
+  const snowAsk = new Map();    // waiting to be asked: key -> { lat, lon, done: [resolve] }
+  let snowTimer = 0, snowVer = 0;
+  function snowFlush() {
+    snowTimer = 0;
+    const all = [...snowAsk.entries()];
+    snowAsk.clear();
+    for (let s = 0; s < all.length; s += 100) {
+      const part = all.slice(s, s + 100);
+      fetch(`${WX}?latitude=${part.map(([, p]) => p.lat.toFixed(3)).join(",")}&longitude=${part.map(([, p]) => p.lon.toFixed(3)).join(",")}&hourly=snowfall&past_hours=24&forecast_hours=72&timezone=GMT`)
+        .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then((j) => {
+          const list = Array.isArray(j) ? j : [j];
+          part.forEach(([k, p], i) => {
+            const h = list[i] && list[i].hourly, sf = (h && h.snowfall) || [];
+            let f = 0, n = 0;
+            sf.forEach((v, q) => { if (q < 24) f += v || 0; else n += v || 0; });
+            snowGrid.set(k, h ? { f, n, at: Date.now() } : { err: true, at: Date.now() });
+            p.done.forEach((d) => d());
+          });
+        })
+        .catch(() => part.forEach(([k, p]) => { snowGrid.set(k, { err: true, at: Date.now() - 50 * 60000 }); p.done.forEach((d) => d()); }));   // asked again in 10 min
+    }
+  }
+  function snowPoint(step, i, j) {
+    const k = `${step}|${i}|${j}`, v = snowGrid.get(k);
+    if (v && Date.now() - v.at < 3600000) return Promise.resolve(v);
+    return new Promise((ok) => {
+      const w = snowAsk.get(k) || { lat: i * step, lon: j * step, done: [] };
+      w.done.push(() => ok(snowGrid.get(k)));
+      snowAsk.set(k, w);
+      if (!snowTimer) snowTimer = setTimeout(snowFlush, 120);
+    });
+  }
+  const snowColor = (cm) => {
+    if (cm < SNOW_RGB[0][0]) return null;
+    for (let q = SNOW_RGB.length - 1; q >= 0; q--) if (cm >= SNOW_RGB[q][0]) {
+      const a = SNOW_RGB[q], b = SNOW_RGB[q + 1];
+      if (!b) return a.slice(1);
+      const t = (cm - a[0]) / (b[0] - a[0]);
+      return [a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t];
+    }
+    return null;
+  };
+  const paintSnowBy = (field) => async (z, x, y) => {
+    const out = new ImageData(256, 256), o = out.data, s = snowStep(z);
+    const top = tileLat(y, z), bottom = tileLat(y + 1, z), left = tileLon(x, z), right = tileLon(x + 1, z);
+    const i0 = Math.floor(bottom / s), i1 = Math.ceil(top / s), j0 = Math.floor(left / s), j1 = Math.ceil(right / s);
+    const C = j1 - j0 + 1, vals = new Float32Array((i1 - i0 + 1) * C).fill(NaN), jobs = [];
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) jobs.push(snowPoint(s, i, j).then((v) => { if (v && !v.err) vals[(i - i0) * C + (j - j0)] = v[field]; }));
+    await Promise.all(jobs);
+    for (let py = 0; py < 256; py++) {
+      const fi = tileLat(y + (py + 0.5) / 256, z) / s - i0, ia = Math.floor(fi), ty = fi - ia;
+      for (let px = 0; px < 256; px++) {
+        const fj = tileLon(x + (px + 0.5) / 256, z) / s - j0, ja = Math.floor(fj), tx = fj - ja;
+        const a = vals[ia * C + ja], b = vals[ia * C + ja + 1], c = vals[(ia + 1) * C + ja], d = vals[(ia + 1) * C + ja + 1];
+        if (Number.isNaN(a) || Number.isNaN(b) || Number.isNaN(c) || Number.isNaN(d)) continue;
+        const col = snowColor((a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty);
+        if (!col) continue;
+        const k = (py * 256 + px) * 4;
+        o[k] = col[0]; o[k + 1] = col[1]; o[k + 2] = col[2]; o[k + 3] = 150;
+      }
+    }
+    return out;
+  };
+  const snowAttr = 'Snow: <a href="https://open-meteo.com/">Open-Meteo</a> weather model';
+  const freshLayer = paintedLayer("skifresh", paintSnowBy("f"), { z: 352, minZoom: 6, maxNative: 11, ver: () => snowVer, attribution: snowAttr, attribution3d: "Snow: Open-Meteo" });
+  const snowfcLayer = paintedLayer("skisnowfc", paintSnowBy("n"), { z: 351, minZoom: 6, maxNative: 11, ver: () => snowVer, attribution: snowAttr, attribution3d: "Snow: Open-Meteo" });
+  // New numbers every hour: repaint the tiles then.
+  setInterval(() => { if (sport === "ski" && (shown.has("fresh") || shown.has("snowfc"))) { snowVer++; freshLayer.redraw(); snowfcLayer.redraw(); } }, 3600000);
+  function refreshMoreLayers() {
+    const on = (k) => sport === "ski" && shown.has(k);
+    flatsLayer(on("flats")); elevLayer(on("elev")); freshLayer(on("fresh")); snowfcLayer(on("snowfc"));
+    renderBars();
+  }
+
+  // ---------- the colour keys on the map ----------
+  // FATMAP showed a thin key across the top of the map for each shaded layer; here they sit under Map key, on the flat
+  // and the 3D map. A tap opens the Layers menu (where the slope colours can be changed).
+  const bars = L.control({ position: "topleft" });
+  bars.onAdd = () => {
+    const el = L.DomUtil.create("div", "sk-bars");
+    el.id = "skBars"; el.hidden = true;
+    L.DomEvent.disableClickPropagation(el); L.DomEvent.disableScrollPropagation(el);
+    el.addEventListener("click", (e) => {
+      if (!e.target.closest(".sk-bar")) return;
+      const lb = document.getElementById("layersBtn");
+      if (lb && lb.getAttribute("aria-expanded") !== "true") lb.click();
+    });
+    return el;
+  };
+  bars.addTo(map);
+  function renderBars() {
+    const el = $("skBars");
+    if (!el) return;
+    const bar = (title, cells) => `<button type="button" class="sk-bar" title="Tap to change the layers"><span class="bt">${esc(title)}</span><span class="bc">${cells.map((c) => `<i style="background:${c[0]}"></i>`).join("")}</span><span class="bl">${cells.map((c) => `<span>${esc(c[1])}</span>`).join("")}</span></button>`;
+    const out = [];
+    if (sport === "ski") {
+      if (avyOn) out.push(bar("Avalanche danger, slopes 25°+", DANGER.slice(1).map((d) => [d.color, d.label.replace(/^\d /, "").replace("Considerable", "Consid.")])));
+      if (shown.has("slope")) out.push(bar(slopePal === "fatmap" ? "Slope angle (FATMAP)" : "Slope angle", SLOPE.map((s) => [s[2], s[3]])));
+      if (shown.has("aspect")) out.push(bar("Slope direction, 25°+", ASPECTS.map((s, i) => [ASPECT_COLORS[i], s.toUpperCase()])));
+      if (shown.has("runout")) out.push(bar(map.getZoom() < RZ ? "Runout zones: zoom in" : "Runout zones", [["rgba(214,51,108,.6)", "can reach"], ["repeating-linear-gradient(135deg,#8c28a0 0 3px,#58186e 3px 6px)", "trap"]]));
+      if (shown.has("flats")) out.push(bar(map.getZoom() < 11 ? "Flats: zoom in" : "Flats", [[`rgba(${FLAT_RGB.join(",")},.6)`, `under ${FLAT_DEG}°`]]));
+      if (shown.has("elev")) out.push(bar("Elevation bands", ELEV.map((e) => [e[2], e[1].replace("Below treeline", "Below TL")])));
+      const cm = SNOW_CM.slice(0, 6).map(([v, c], i) => [c, i === 5 ? `${v}+` : String(v)]);
+      if (shown.has("fresh")) out.push(bar("New snow, last 24 h (cm)", cm));
+      if (shown.has("snowfc")) out.push(bar("Snow coming, next 3 days (cm)", cm));
+    }
+    el.innerHTML = out.join("");
+    el.hidden = !out.length;
+  }
+  map.on("zoomend", () => { if (sport === "ski") renderBars(); });
+
+  // The slope colours choice, in the Layers menu under the tiles while Slope angle is on.
+  function renderPalRow() {
+    const row = $("skPalRow");
+    if (!row) return;
+    row.hidden = !shown.has("slope");
+    row.innerHTML = `Slope colours:${Object.entries(PALETTES).map(([k, p]) => `<button type="button" data-pal="${k}" aria-pressed="${k === slopePal}">${esc(p.label)}</button>`).join("")}`;
+  }
+  lm.addEventListener("click", (e) => { const b = e.target.closest("[data-pal]"); if (b) { e.preventDefault(); setSlopePal(b.dataset.pal); } });
+
+  // ---------- picture tiles: small painted pieces of real mountain (Blackcomb and Spearhead) ----------
+  const THUMB_AT = [50.075, -122.87], THUMB_Z = 12;
+  let thumbsOn = false;
+  const thumbXY = () => { const n = 2 ** THUMB_Z, r = (THUMB_AT[0] * Math.PI) / 180; return [Math.floor(((THUMB_AT[1] + 180) / 360) * n), Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n)]; };
+  // Light on the snow from the north-west, a little blue in the shadows, like FATMAP's winter map.
+  function snowBase(E, y) {
+    const img = new ImageData(256, 256), o = img.data, lat = tileLat(y + 0.5, THUMB_Z), m = (40075016.686 * Math.cos((lat * Math.PI) / 180)) / (256 * 2 ** THUMB_Z);
+    for (let py = 0; py < 256; py++) for (let px = 0; px < 256; px++) {
+      const i = py * 256 + px, x0 = Math.max(0, px - 1), x1 = Math.min(255, px + 1), y0 = Math.max(0, py - 1), y1 = Math.min(255, py + 1);
+      const dx = (E[py * 256 + x1] - E[py * 256 + x0]) / ((x1 - x0) * m), dy = (E[y1 * 256 + px] - E[y0 * 256 + px]) / ((y1 - y0) * m);
+      const len = Math.hypot(dx, dy, 1), lit = Math.max(0, (dx * -0.5 + dy * 0.5 + 0.7) / len);   // light from the north-west, 45° up
+      const v = 0.45 + 0.55 * Math.min(1, lit), j = i * 4;
+      o[j] = 205 * v + 30; o[j + 1] = 215 * v + 30; o[j + 2] = 225 * v + 30; o[j + 3] = 255;
+    }
+    return img;
+  }
+  // Avalanche risk needs a forecast: the tile shows a made-up day (low below treeline, moderate at treeline,
+  // considerable in the alpine), the way the layer looks in winter.
+  function avyThumb(E, y) {
+    const img = new ImageData(256, 256), o = img.data, lat = tileLat(y + 0.5, THUMB_Z), m = (40075016.686 * Math.cos((lat * Math.PI) / 180)) / (256 * 2 ** THUMB_Z), k = 25 / minSlope(E.z);
+    for (let py = 1; py < 255; py++) for (let px = 1; px < 255; px++) {
+      const i = py * 256 + px, dx = (E[i + 1] - E[i - 1]) / (2 * m), dy = (E[i + 256] - E[i - 256]) / (2 * m);
+      if (((Math.atan(Math.hypot(dx, dy)) * 180) / Math.PI) * k < 25) continue;
+      const c = COLORS[E[i] >= DEFAULT_BANDS.hi ? 3 : E[i] >= DEFAULT_BANDS.lo ? 2 : 1], j = i * 4;
+      o[j] = c[0]; o[j + 1] = c[1]; o[j + 2] = c[2]; o[j + 3] = 150;
+    }
+    return img;
+  }
+  let thumbBase = null;
+  async function thumbOf(k, paintFn) {
+    const [x, y] = thumbXY(), E = await dem(THUMB_Z, x, y);
+    if (!thumbBase) { thumbBase = document.createElement("canvas"); thumbBase.width = thumbBase.height = 256; thumbBase.getContext("2d").putImageData(snowBase(E, y), 0, 0); }
+    const over = document.createElement("canvas"); over.width = over.height = 256;
+    over.getContext("2d").putImageData(await paintFn(E, x, y), 0, 0);
+    const cv = document.createElement("canvas"); cv.width = cv.height = 112;
+    const cx = cv.getContext("2d");
+    cx.drawImage(thumbBase, 0, 0, 112, 112); cx.drawImage(over, 0, 0, 112, 112);
+    thumbs[k] = cv.toDataURL("image/jpeg", 0.82);
+  }
+  const thumbSlope = () => thumbsOn && thumbOf("slope", (E, x, y) => paintSlope(THUMB_Z, x, y)).then(renderSwitches, () => {});
+  function makeThumbs() {
+    if (thumbsOn) return;
+    thumbsOn = true;
+    const jobs = [["avy", (E, x, y) => avyThumb(E, y)], ["slope", (E, x, y) => paintSlope(THUMB_Z, x, y)], ["aspect", (E, x, y) => paintAspect(THUMB_Z, x, y)],
+      ["runout", (E, x, y) => paintRunout(THUMB_Z, x, y)], ["flats", (E, x, y) => paintFlats(THUMB_Z, x, y)], ["elev", (E, x, y) => paintElev(THUMB_Z, x, y)]];
+    jobs.reduce((p, [k, f]) => p.then(() => thumbOf(k, f)).then(renderSwitches, () => {}), Promise.resolve());   // one at a time, each shown when ready
+  }
+  document.getElementById("layersBtn")?.addEventListener("click", () => { if (sport === "ski") makeThumbs(); });
+
   function refreshAvy() {
     ver++;
     const want = sport === "ski" && avyOn;
@@ -2103,6 +2555,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (selected && sport === "ski") { const d = $("skDetail"); if (!d.hidden) select(selected); }
     avyBtn.classList.toggle("on", avyOn);
     avyBtn.setAttribute("aria-pressed", String(avyOn));
+    renderBars();
   }
   avyBtn.hidden = false;
   avyBtn.title = "Shade the slopes by the avalanche forecast (Avalanche Canada)";
@@ -2380,17 +2833,17 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (sport === "mtb") mtb.forEach((l) => { if (!map.hasLayer(l)) l.addTo(map); });
     else mtb.forEach((l) => map.removeLayer(l));
     if (sport === "ski") {
-      skiLayer.addTo(map); hutLayer.addTo(map); parkLayer.addTo(map); mineLayer.addTo(map); clubLayer.addTo(map); snowLayer.addTo(map); aboveLayer.addTo(map);
+      skiLayer.addTo(map); hutLayer.addTo(map); pinLayer.addTo(map); parkLayer.addTo(map); mineLayer.addTo(map); clubLayer.addTo(map); snowLayer.addTo(map); aboveLayer.addTo(map);
       loadSki(); loadMine(); loadClubs(); if (shown.has("snow")) loadSnow(); renderSwitches(); renderList(); drawPlan(); renderPlan();
     } else {
       setPlanning(false);
       drawParking();
-      [skiLayer, hutLayer, parkLayer, mineLayer, clubLayer, hoverLayer, snowLayer, aboveLayer, plan.layer].forEach((l) => map.removeLayer(l));
+      [skiLayer, hutLayer, pinLayer, parkLayer, mineLayer, clubLayer, hoverLayer, snowLayer, aboveLayer, plan.layer].forEach((l) => map.removeLayer(l));
     }
     // The map's ▶ Ride button records a ski tour in Skiing (navigate.js).
     const rideBtn = document.getElementById("navRideBtn");
     if (rideBtn) rideBtn.textContent = sport === "ski" ? "▶ Record" : "▶ Ride";
-    refreshAvy(); refreshHeat(); refreshSlope(); refreshTerrainLayers();
+    refreshAvy(); refreshHeat(); refreshSlope(); refreshTerrainLayers(); refreshMoreLayers();
     map.invalidateSize({ pan: false });   // the map is wider in Skiing and Hunting on a wide desktop (no results column)
     window.dispatchEvent(new CustomEvent("tf:sport", { detail: sport }));
   }
