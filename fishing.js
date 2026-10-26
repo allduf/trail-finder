@@ -42,7 +42,7 @@
   // Map dot colours (alex 2026-10-26: "more trendy and professional"): flow keeps its traffic-light order, each other
   // layer gets its own hue that reads on satellite and the flat map.
   const C = { vlow: "#f2b33d", low: "#a3c94f", ok: "#22b07d", high: "#f07b3f", blown: "#e5484d", none: "#8a94a6", stocked: "#2563eb", fresh: "#f43f5e",
-    access: "#f97316", launch: "#7c3aed", park: "#2f9e44", zec: "#0ca678", fee: "#d6336c", tide: "#0ea5e9", zone: "#3b82f6", hidden: "#eab308", depth: "#1e40af" };
+    access: "#f97316", launch: "#7c3aed", park: "#2f9e44", zec: "#0ca678", fee: "#4263eb", nofish: "#e03131", tide: "#0ea5e9", zone: "#3b82f6", hidden: "#eab308", depth: "#1e40af" };
   // Each layer's own picture (alex 2026-10-26: the spot layers were "almost same colour", "make it more attractive for a
   // fisherman"): drawn white on the layer's colour, in the Layers list, the map key and inside the dots on the map.
   const GLYPH = {
@@ -93,7 +93,7 @@
     launch: { g: "Access", label: "Boat launches", sub: "Public ramps all over Canada", on: true, minZoom: 8, icon: [C.launch, "dot"] },
     tides: { g: "Ocean", label: "Tide stations", sub: "Tap one for the next high and low tides", on: true, minZoom: 6, icon: [C.tide, "dot"] },
     zones: { g: "Rules", label: "Fishing zones and regions", sub: "The areas the rules are written for, tap one for its rules", icon: [C.zone, "dash"] },
-    areas: { g: "Rules", label: "Parks, zecs and reserves", sub: "National parks (Parks Canada permit) and Quebec zecs, wildlife reserves and parks (access fees, own rules)", on: true, minZoom: 5, icon: [C.park, "dot"] },
+    areas: { g: "Rules", label: "Parks, zecs and reserves", sub: "Red: ecological reserves, no fishing. National parks (Parks Canada permit), Quebec zecs, wildlife reserves and parks (fishing allowed with an access fee)", on: true, minZoom: 5, icon: [C.park, "dot"] },
   };
   const GROUPS = ["Water", "Access", "Ocean", "Rules"];
   const VIEWS = {
@@ -633,7 +633,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   const labelLayer = L.layerGroup();
   allFish.push(labelLayer);
   const ZONE_TINT = ["#4dabf7", "#69db7c", "#ffd43b", "#da77f2", "#ff8787", "#38d9a9", "#ffa94d", "#748ffc"];
-  const AREA_COLOR = (z) => (z.k === "np" ? C.park : z.t === 16 ? C.zec : C.fee);
+  const AREA_COLOR = (z) => (z.k === "noer" ? C.nofish : z.k === "np" ? C.park : z.t === 16 ? C.zec : C.fee);
+  const isArea = (z) => z.k === "np" || z.k === "qct" || z.k === "noer";
   const ll = (z) => z.g.map((r) => { const o = []; for (let i = 0; i < r.length; i += 2) o.push([r[i], r[i + 1]]); return o; });
   function drawZones() {
     zoneLayer.clearLayers(); labelLayer.clearLayers();
@@ -644,16 +645,16 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       zoneLayer.clearLayers(); labelLayer.clearLayers();
       const z0 = map.getZoom(), view = map.getBounds().pad(0.5);
       zs.forEach((z, i) => {
-        const area = z.k === "np" || z.k === "qct";
+        const area = isArea(z);
         if (area ? !aOn : !zOn) return;
         if (!view.intersects([[z.b[0], z.b[1]], [z.b[2], z.b[3]]])) return;
         const c = area ? AREA_COLOR(z) : z.k === "pfma" ? C.tide : ZONE_TINT[i % ZONE_TINT.length];
-        L.polygon(ll(z), { pane: "fishLines", color: area ? c : z.k === "pfma" ? C.tide : C.zone, weight: area ? 2 : 1.6, opacity: 0.8, dashArray: area ? null : "6 5",
-          fill: true, fillColor: c, fillOpacity: area ? 0.22 : z.k === "pfma" ? 0.04 : 0.1, interactive: false, smoothFactor: 1.5 }).addTo(zoneLayer);
+        L.polygon(ll(z), { pane: "fishLines", color: area ? c : z.k === "pfma" ? C.tide : C.zone, weight: z.k === "noer" ? 3 : area ? 2 : 1.6, opacity: 0.8, dashArray: area ? null : "6 5",
+          fill: true, fillColor: c, fillOpacity: z.k === "noer" ? 0.38 : area ? 0.22 : z.k === "pfma" ? 0.04 : 0.1, interactive: false, smoothFactor: 1.5 }).addTo(zoneLayer);
         // Names: zones from zoom 5, parks and zecs once they're big enough on screen, Pacific areas from zoom 9.
         const big = (z.b[2] - z.b[0]) * 2 ** z0 > 6;
         if ((z.k === "pfma" && z0 < 9) || (area && !big)) return;
-        const name = z.k === "qc" ? `Zone ${z.id}` : z.k === "bc" ? `Region ${z.id}` : z.k === "ab" ? z.n : z.n;
+        const name = z.k === "noer" ? `No fishing: ${z.n.replace(/^R[ée]serve [ée]cologique (?:de la |des |du |de l'|de |d')?| Ecological Reserve$/gi, "")}` : z.k === "qc" ? `Zone ${z.id}` : z.k === "bc" ? `Region ${z.id}` : z.k === "ab" ? z.n : z.n;
         L.marker([(z.b[0] + z.b[2]) / 2, (z.b[1] + z.b[3]) / 2], { pane: "fishLabels", interactive: false, keyboard: false,
           icon: L.divIcon({ className: "fs-zlabel", html: `<span style="--c:${area ? c : C.zone}">${esc(name)}</span>`, iconSize: null }) }).addTo(labelLayer);
       });
@@ -676,7 +677,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       // Gauges are only on bigger rivers, so say how many are in view (alex 2026-10-26: "is that supposed to do anything?").
       let sub = l.sub;
       if (k === "gauges" && on && !far && gauges) { const b = map.getBounds(), n = gauges.filter((g) => b.contains([g[2], g[3]])).length; sub = n ? `${n} in view. Green: good flow, light green: low, orange: very low or high, red: blown out, grey: no reading. Tap one for more` : "None in view: government gauges are only on bigger rivers"; }
-      if (k === "areas" && on && !far && zones) { const b = map.getBounds(), n = zones.filter((q) => (q.k === "np" || q.k === "qct") && b.intersects([[q.b[0], q.b[1]], [q.b[2], q.b[3]]])).length; sub = n ? `${n} in view: tap inside one for its rules and fees` : "None in view: this shows national parks, and Quebec zecs, wildlife reserves and parks"; }
+      if (k === "areas" && on && !far && zones) { const b = map.getBounds(), n = zones.filter((q) => isArea(q) && b.intersects([[q.b[0], q.b[1]], [q.b[2], q.b[3]]])).length; sub = n ? `${n} in view: tap inside one for its rules and fees` : "None in view: this shows national parks, Quebec zecs, wildlife reserves and parks, and ecological reserves (no fishing, in red)"; }
       return `<label class="fs-layer">${icon(k, l.icon)}<span><b>${esc(l.label)}</b><small${far ? ' class="z"' : ""}>${far ? "Zoom in closer to see it" : esc(sub)}</small></span><input type="checkbox" class="fs-sw" role="switch" data-k="${k}"${on ? " checked" : ""} aria-label="${esc(l.label)}"></label>`;
     }).join("")).join("");
     pane.querySelectorAll("[data-view]").forEach((b) => { const v = VIEWS[b.dataset.view].layers; b.classList.toggle("on", v.length === shown.size && v.every((k) => shown.has(k))); });
@@ -751,7 +752,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       + (shown.has("access") || shown.has("launch") ? `<b>Access</b>${shown.has("access") ? `<div>${i(C.access, "access")}Fishing spot, pier or dock</div>` : ""}${shown.has("launch") ? `<div>${i(C.launch, "launch")}Boat launch</div>` : ""}` : "")
       + (shown.has("tides") ? `<b>Ocean</b><div>${i(C.tide, "tides")}Tide station</div>` : "")
       + (shown.has("zones") ? `<b>Rules</b><div><i style="border:2px dashed ${C.zone};border-radius:2px"></i>Fishing zone or region</div><div><i style="border:2px dashed ${C.tide};border-radius:2px"></i>Pacific tidal area</div>` : "")
-      + (shown.has("areas") ? `<b>Parks and reserves</b><div>${i(C.park, "areas")}National park: Parks Canada permit</div><div>${i(C.zec)}Quebec zec</div><div>${i(C.fee)}Wildlife reserve or park: access fee</div>` : "")
+      + (shown.has("areas") ? `<b>Parks and reserves</b><div>${i(C.nofish)}Ecological reserve: no fishing</div><div>${i(C.park, "areas")}National park: Parks Canada permit</div><div>${i(C.zec)}Quebec zec: daily fee</div><div>${i(C.fee)}Wildlife reserve or Quebec park: access fee</div>` : "")
       || "<p>No layers on: turn some on in Layers.</p>";
   }
 
@@ -1094,7 +1095,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   };
   const MAIN_SP = /walleye|dor[ée]|brook trout|omble de fontaine|rainbow|lake trout|touladi|pike|brochet|bass|achigan|perch|perchaude|muskellunge|maskinong|salmon|saumon|trout/i;
   async function rulesShort(here, prov, w) {
-    const out = [];   // [text, chip html]
+    const out = here.filter((z) => z.k === "noer").map((z) => [`<b>No fishing here</b>: ${esc(z.n)} is an ecological reserve`, `<em class="fs-st" style="--c:${C.nofish}">Closed</em>`]);   // [text, chip html]
+    if (out.length) return `<div class="fs-short"><h4>In short</h4><ul>${out.map(([t, c]) => `<li>${t} ${c}</li>`).join("")}</ul></div>`;
     const name = (w && w.name) || "", river = w && w.kind ? !/lake/i.test(w.kind) : null;
     const shut = (range) => { const o = openToday(range); return o == null ? "" : `<em class="fs-st" style="--c:${o ? C.blown : C.none}">${o ? "Closed now" : "Not now"}</em>`; };
     if (prov === "bc") {
@@ -1382,7 +1384,11 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       if (z.k === "np") items.unshift(`<li style="--c:${C.park}"><b>${esc(z.n)}</b>A national park: fishing needs a <b>Parks Canada fishing permit</b> (the ${esc((PROV[prov] || ["provincial"])[0])} licence isn't valid here), and the park has its own seasons, limits and closed waters. Most parks ban lead tackle and live bait. <a href="${PC_PERMIT}" target="_blank" rel="noopener">Parks Canada permits</a></li>`);
       if (z.k === "qct") { const [what, how] = QCT[z.t] || QCT[0]; items.unshift(`<li style="--c:${z.t === 16 ? C.zec : C.fee}"><b>${esc(z.n)}</b>${what} ${how}</li>`); }
     }
-    if (!here.some((z) => z.k !== "pfma" && z.k !== "np" && z.k !== "qct") && PROV[prov]) items.push(`<li style="--c:${C.zone}"><b>${esc(PROV[prov][0])}</b><a href="${PROV[prov][1]}" target="_blank" rel="noopener">${esc(PROV[prov][0])} fishing regulations</a></li>`);
+    // Ecological reserves go first: no fishing at all, whatever the zone allows.
+    for (const z of here) if (z.k === "noer") items.unshift(`<li style="--c:${C.nofish}"><b>No fishing: ${esc(z.n)}</b>${z.p === "bc"
+      ? `An ecological reserve: BC's Ecological Reserve Regulation bans catching fish here unless you hold a permit. <a href="https://bcparks.ca/about/types-parks-protected-areas/" target="_blank" rel="noopener">BC Parks</a>`
+      : `An ecological reserve: Quebec's Natural Heritage Conservation Act bans hunting, trapping and fishing, and you need the ministry's permission even to go in. <a href="https://www.environnement.gouv.qc.ca/biodiversite/reserves/" target="_blank" rel="noopener">Quebec ecological reserves</a>`}</li>`);
+    if (!here.some((z) => z.k !== "pfma" && !isArea(z)) && PROV[prov]) items.push(`<li style="--c:${C.zone}"><b>${esc(PROV[prov][0])}</b><a href="${PROV[prov][1]}" target="_blank" rel="noopener">${esc(PROV[prov][0])} fishing regulations</a></li>`);
     if (!here.some((z) => z.k === "pfma") && nearestTide(lat, lon, 15) && !["bc"].includes(prov)) items.push(`<li style="--c:${C.tide}"><b>Near tidal water</b><a href="https://www.dfo-mpo.gc.ca/fisheries-peches/recreational-recreative/index-eng.html" target="_blank" rel="noopener">Fisheries and Oceans Canada recreational fishing rules</a> for the ocean and salmon rivers.</li>`);
     return items.length ? `<h4>${svg(IC.rules, 14)}Rules</h4><ul class="fs-list">${items.join("")}</ul>` : "";
   }
