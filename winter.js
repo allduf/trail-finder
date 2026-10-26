@@ -2344,7 +2344,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // ---------- the sport button on the map (alex: "make the sport mode easier to access, put an icon on the map") ----------
   // Shows the current sport's icon; one tap opens the three sports, a second tap switches. On phones it is the first
   // chip of the map's chip row, on wide screens it sits at the top of the map tools; the same on the 3D map.
-  const SPORT_UI = { mtb: ["🚵", "MTB"], ski: ["⛷", "Skiing"], hunt: ["🦌", "Hunting"], fish: ["🎣", "Fishing"], moto: ["🏍", "Moto"] };
+  // [icon, name, short name for the map button when the name is too long for it]
+  const SPORT_UI = { mtb: ["🚵", "MTB"], ski: ["⛷", "Skiing"], hunt: ["🦌", "Hunting"], fish: ["🎣", "Fishing"], moto: ["🏍", "Adventure moto", "Adventure"] };
   const tools = document.querySelector(".map-tools");
   let sportBtn = null, sportMenu = null;
   if (tools) {
@@ -2380,8 +2381,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   const syncSportBtn = () => {
     if (!sportBtn) return;
-    const [icon, name] = SPORT_UI[sport];
-    sportBtn.innerHTML = `<span class="spb-i" aria-hidden="true">${icon}</span><span class="spb-l" aria-hidden="true">${name}</span><span class="spb-c" aria-hidden="true">▾</span>`;
+    const [icon, name, short] = SPORT_UI[sport];
+    sportBtn.innerHTML = `<span class="spb-i" aria-hidden="true">${icon}</span><span class="spb-l" aria-hidden="true">${short || name}</span><span class="spb-c" aria-hidden="true">▾</span>`;
     sportBtn.setAttribute("aria-label", `Sport: ${name}. Change sport`);
     sportBtn.title = `Sport: ${name} (tap to change)`;
     sportMenu.querySelectorAll("button[data-sport]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.sport === sport)));
