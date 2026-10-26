@@ -341,7 +341,7 @@ async function buildZones() {
   log("Rules zones");
   const old = readOld("zones.json");
   const out = [];
-  const keep = (k) => { const z = (old?.zones || []).filter((x) => x.k === k); log(`  ${k}: keeping ${z.length} from last time`); out.push(...z); };
+  const keep = (k, p) => { const z = (old?.zones || []).filter((x) => x.k === k && (!p || x.p === p)); log(`  ${k}: keeping ${z.length} from last time`); out.push(...z); };
   const push = (k, id, name, geom, tol, extra = {}) => {
     const g = rings(geom, tol, tol * tol * 4);
     if (!g.length) return;
@@ -405,7 +405,35 @@ async function buildZones() {
     }
     log(`  Quebec zecs, reserves and parks: ${n}`);
   } catch (e) { log(`  Quebec zecs, reserves and parks: ${e.message}`); keep("qct"); }
+  await addNoFishing(push, keep);
   save("zones.json", { updated: iso(now), zones: out });
+}
+// Where fishing isn't allowed at all (alex 2026-10-26: "highlight the reserve in red"): ecological reserves. Quebec's
+// Natural Heritage Conservation Act bans fishing in them (s. 46), and BC's Ecological Reserve Regulation bans it
+// unless the reserve's own order allows it. Wildlife reserves, zecs and parks are NOT these: they allow fishing.
+async function addNoFishing(push, keep) {
+  const title = (t) => String(t || "").toLowerCase().replace(/(^|[\s\-'(])([a-zà-ÿ])/g, (m, a, b) => a + b.toUpperCase()).replace(/\b(Of|The|And|De|Du|La|Le|Des)\b/g, (w) => w.toLowerCase()).replace(/^./, (c) => c.toUpperCase());
+  try {
+    const er = await arcgis("https://geo.environnement.gouv.qc.ca/donnees/rest/services/Biodiversite/Aires_protegees/MapServer/10", ["TOPONYME", "LIEN"], "1=1", 0.0015);
+    for (const [i, f] of er.entries()) push("noer", `qc${i}`, String(f.properties.TOPONYME || "Réserve écologique").replace(/^(?!R[ée]serve)/, "Réserve écologique "), f.geometry, 0.0015, { p: "qc" });
+    log(`  Quebec ecological reserves: ${er.length}`);
+  } catch (e) { log(`  Quebec ecological reserves: ${e.message}`); keep("noer", "qc"); }
+  try {
+    const er = await databc("WHSE_TANTALIS.TA_PARK_ECORES_PA_SVW", "PROTECTED_LANDS_NAME,PROTECTED_LANDS_DESIGNATION,SHAPE", "PROTECTED_LANDS_DESIGNATION='ECOLOGICAL RESERVE'");
+    for (const [i, f] of er.entries()) push("noer", `bc${i}`, title(f.properties.PROTECTED_LANDS_NAME), f.geometry, 0.0015, { p: "bc" });
+    log(`  BC ecological reserves: ${er.length}`);
+  } catch (e) { log(`  BC ecological reserves: ${e.message}`); keep("noer", "bc"); }
+}
+// ONLY=nofish: just the no-fishing places, put into the last zones.json.
+async function buildNoFishing() {
+  log("No-fishing places");
+  const old = readOld("zones.json");
+  if (!old) { log("  no zones.json yet: run ONLY=zones"); return; }
+  const out = old.zones.filter((z) => z.k !== "noer");
+  const push = (k, id, name, geom, tol, extra = {}) => { const g = rings(geom, tol, tol * tol * 4); if (g.length) out.push({ k, id: String(id), n: name, b: bbox(g), g: encode(g), ...extra }); };
+  const keep = (k, p) => out.push(...old.zones.filter((z) => z.k === k && z.p === p));
+  await addNoFishing(push, keep);
+  save("zones.json", { ...old, zones: out });
 }
 
 // ---------- river gauges ----------
@@ -998,6 +1026,7 @@ async function buildTidal() {
 
 if (!ONLY || ONLY === "stocked") await buildStocked();
 if (!ONLY || ONLY === "zones") await buildZones();
+if (ONLY === "nofish") await buildNoFishing();
 if (!ONLY || ONLY === "tides") await buildTides();
 if (!ONLY || ONLY === "gauges") await buildGauges();
 if (!ONLY || ONLY === "eat") await buildEat();
