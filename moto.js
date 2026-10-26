@@ -70,6 +70,13 @@
     undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
     loop: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>',
     me: '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/>',
+    safe: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/>',
+    pin: '<path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/>',
+    peak: '<path d="m3 20 6-11 4 6 2-3 6 8z"/><path d="m8 11 1.5 1.5L11 11"/>',
+    log: '<path d="M5 3h14v18H5z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+    trips: '<path d="M4 19c3-6 6 2 9-4s5-6 7-10"/><circle cx="4" cy="19" r="1.6"/><circle cx="20" cy="5" r="1.6"/>',
+    cell: '<path d="M5 20v-3M9 20v-6M13 20v-9M17 20V8M21 20V4"/>',
+    fly: '<path d="M2 16 22 6l-6 14-3-6z"/><path d="m13 14 9-8"/>',
   };
 
   // ---------- bikes ----------
@@ -103,6 +110,38 @@
     ["Harley-Davidson Pan America 1250", "big", 258, 21.2, 5.8], ["CFMoto 450MT", "mid", 190, 17.5, 3.8], ["CFMoto 800MT", "big", 231, 19, 4.9], ["Moto Guzzi Stelvio", "big", 246, 21, 5.3],
     ["Beta 500 RR-S (plated)", "enduro", 118, 8, 4.5], ["Sherco 500 SEF Factory (plated)", "enduro", 112, 9.7, 4.5], ["GasGas ES 700", "light", 158, 13.5, 4.2],
   ];
+  // Year, make and model (alex 2026-10-26: "make the search by year, mark, model"): every motorcycle sold in North
+  // America since 1981, from NHTSA's free vehicle database (vPIC, open to browsers). It has names only, so the numbers
+  // come from MODELS above when the bike is one of them, else from the kind of bike its name says (ADV words, dual
+  // sport and enduro names, the cc in the name), and the rider checks them.
+  const VPIC = "https://vpic.nhtsa.dot.gov/api/vehicles";
+  const MAKES = ["Aprilia", "Benelli", "Beta", "BMW", "Buell", "Can-Am", "CFMoto", "Ducati", "Fantic", "GasGas", "Harley-Davidson", "Honda", "Husaberg", "Husqvarna", "Hyosung", "Indian",
+    "Kawasaki", "Kove", "KTM", "Kymco", "Moto Guzzi", "MV Agusta", "Piaggio", "Rieju", "Royal Enfield", "Sherco", "Suzuki", "SWM", "Triumph", "Ural", "Vespa", "Victory", "Voge", "Yamaha", "Zero"];
+  const NOT_BIKE = /\b(raptor|grizzly|kodiak|wolverine|viking|yxz|yfz|rhino|teryx|brute force|kfx|mule|pioneer|talon|rancher|foreman|trx|rubicon|sportsman|outlander|renegade|maverick|commander|defender|spyder|ryker|rzr|ranger|cforce|zforce|uforce|atv|utv|side by side|quad)\b/i;
+  const MODEL_CACHE = new Map();
+  const modelsFor = (make, year) => {
+    const k = `${make}|${year}`;
+    if (!MODEL_CACHE.has(k)) MODEL_CACHE.set(k, getJ(`${VPIC}/GetModelsForMakeYear/make/${encodeURIComponent(make)}/modelyear/${year}/vehicletype/motorcycle?format=json`, 15000)
+      .then((j) => [...new Set((j.Results || []).map((x) => String(x.Model_Name || "").trim()).filter((n) => n && !NOT_BIKE.test(n)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })))
+      .catch(() => { MODEL_CACHE.delete(k); return null; }));
+    return MODEL_CACHE.get(k);
+  };
+  const norm = (t) => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
+  const SPEC = { street: [230, 18, 5.5], big: [245, 21, 5.4], mid: [205, 17, 4.5], light: [150, 10, 3.6], enduro: [115, 8.5, 4.4] };
+  // [type, kg, tank, l100, known] for a make and model name.
+  function specsOf(make, model) {
+    const full = norm(`${make} ${model}`), m = norm(model);
+    const hit = MODELS.filter((x) => { const n = norm(x[0]); return n === full || (m.length >= 3 && n.includes(m)) || full.includes(n); }).sort((a, b) => (norm(b[0]) === full) - (norm(a[0]) === full) || norm(a[0]).length - norm(b[0]).length)[0];
+    if (hit) return [hit[1], hit[2], hit[3], hit[4], true];
+    const t = `${make} ${model}`, cc = +((t.match(/(\d{3,4})/) || [])[1] || 0);
+    let type = "street";
+    if (/\b(exc|xc-?w|fe ?\d|te ?\d|rr-?s|sef|ser|wr ?\d{3}f|yz ?\d{3}fx?|crf ?\d{3}(rx|x)\b|kx ?\d|rm-?z|mc ?\d|ec ?\d)/i.test(t)) type = "enduro";
+    else if (/\b(klr|klx|dr-?z?\s?\d|xr\s?\d|crf\s?\d+\s?l|wr\s?\d+r|xt\s?\d|tw\s?200|dual|enduro|690|701|sxt|ttr|tt-r|super ?sherpa|serow|xchallenge|scrambler 400)/i.test(t)) type = cc >= 600 && /klr/i.test(t) ? "mid" : "light";
+    else if (/(adventure|\bgs\b|gs\b|tenere|ténéré|tiger|africa|transalp|v-?strom|versys|multistrada|norden|desert ?x|tuareg|pan america|stelvio|himalayan|\bmt\b|tracer|scrambler|rally|\bx\b|nx\s?\d|cb ?500 ?x|g ?310 ?gs)/i.test(t)) type = cc >= 1000 ? "big" : cc && cc < 450 ? "light" : "mid";
+    const [kg, tank, l100] = SPEC[type];
+    const kgCc = type === "street" && cc ? Math.round(Math.min(380, Math.max(110, 120 + cc * 0.1))) : kg;
+    return [type, kgCc, tank, l100, false];
+  }
   const typeOfKg = (kg) => (kg > 220 ? "big" : kg >= 170 ? "mid" : kg >= 130 ? "light" : "enduro");
   let bikes = store.get("motoBikes", []);
   let bikeId = store.get("motoBike", bikes[0] && bikes[0].id);
@@ -165,8 +204,9 @@
     hot: { g: "Stops", label: "Hot springs", sub: "", on: true, minZoom: 7, icon: ["#e64980", "dot"] },
     shop: { g: "Stops", label: "Moto shops", sub: "Dealers and repair", minZoom: 8, icon: ["#5f3dc4", "dot"] },
     ferry: { g: "Stops", label: "Ferries", sub: "Landings, inland ferries too", on: true, minZoom: 7, icon: ["#0b7285", "dot"] },
+    cell: { g: "Safety", label: "Cell signal on roads", sub: "LTE or 5G from any carrier (ISED). No shading: likely no signal", minZoom: 8, icon: ["#4c6ef5", "box"] },
   };
-  const GROUPS = ["Roads", "Stops"];
+  const GROUPS = ["Roads", "Stops", "Safety"];
   const VIEWS = {
     roads: { label: "Roads", sub: "for my bike", layers: ["roads", "rules", "fuel", "ferry"] },
     mud: { label: "Mud", sub: "today", layers: ["roads", "mud"] },
@@ -266,6 +306,11 @@ dialog.mt-dlg form { display: flex; flex-direction: column; gap: 10px; padding: 
 dialog.mt-dlg h2 { margin: 0; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center; }
 dialog.mt-dlg label { display: flex; flex-direction: column; gap: 3px; font-weight: 700; font-size: .8rem; }
 dialog.mt-dlg input, dialog.mt-dlg select { font: inherit; font-weight: 500; font-size: 1rem; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--fg); min-width: 0; }
+dialog.mt-dlg .mt-unit { display: inline-flex; margin-left: 4px; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; vertical-align: middle; }
+dialog.mt-dlg .mt-unit button { font: inherit; font-size: .7rem; font-weight: 700; border: 0; background: var(--panel); color: var(--muted); padding: 1px 7px; cursor: pointer; }
+dialog.mt-dlg .mt-unit button.on { background: ${ACC}; color: #fff; }
+dialog.mt-dlg .mt-ymm { grid-template-columns: 76px minmax(0, 1fr) minmax(0, 1.4fr); }
+dialog.mt-dlg .mt-ymm select { padding: 9px 4px; font-size: .9rem; }
 dialog.mt-dlg .mt-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 dialog.mt-dlg .mt-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 dialog.mt-dlg .mt-seg button { font: inherit; font-size: .82rem; font-weight: 700; padding: 9px 4px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
@@ -302,7 +347,24 @@ dialog.mt-dlg .mt-xb { font: inherit; border: 0; background: var(--chip); color:
 .mt-planbar button { font: inherit; border: 1px solid var(--line); border-radius: 999px; background: var(--chip); color: var(--fg); padding: 6px 12px; cursor: pointer; }
 .mt-planbar button.go { background: ${ACC}; border-color: ${ACC}; color: #fff; }
 @media (max-width: 760px) { .mt-planbar { top: calc(env(safe-area-inset-top, 0px) + 84px); left: 12px; right: 12px; transform: none; justify-content: space-between; white-space: normal; } }
-body.sport-moto .nav-strip button { min-height: 48px; }`;
+body.sport-moto .nav-strip button { min-height: 48px; }
+#motoPane .mt-saferow .mt-pill { flex: 1; justify-content: center; }
+#motoPane .mt-saferow .mt-pill.armed { border-color: #2f9e44; color: #2b8a3e; }
+#motoPane .mt-saferow .mt-pill.armed svg { color: #2f9e44; }
+#motoPane .mt-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+#motoPane .mt-chips button { font: inherit; font-size: .76rem; font-weight: 700; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; white-space: nowrap; }
+#motoPane .mt-chips button.on { background: ${ACC}; border-color: ${ACC}; color: #fff; }
+#motoPane .mt-g { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 6px; color: #fff; font-weight: 800; font-size: .72rem; text-align: center; background: var(--c); margin-right: 4px; }
+.mt-alarm { position: fixed; inset: 0; z-index: 4000; background: #c92a2a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; text-align: center; font: 600 1rem/1.4 var(--font-body, system-ui); }
+.mt-alarm h2 { margin: 0; font-size: 2rem; }
+.mt-alarm .big { font: inherit; font-size: 1.4rem; font-weight: 800; padding: 18px 40px; border-radius: 999px; border: 0; background: #fff; color: #c92a2a; cursor: pointer; }
+.mt-alarm a, .mt-alarm button.sec { font: inherit; color: #fff; background: #0003; border: 2px solid #fff; border-radius: 999px; padding: 10px 18px; text-decoration: none; cursor: pointer; }
+.mt-alarm .count { font-size: 3rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.mt-flybar { position: absolute; z-index: 1000; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; background: var(--panel); color: var(--fg); border: 2px solid ${ACC}; border-radius: 999px; padding: 6px 6px 6px 14px; font-size: .86rem; font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.25); white-space: nowrap; }
+.mt-flybar button { font: inherit; border: 1px solid var(--line); border-radius: 999px; background: var(--chip); color: var(--fg); padding: 6px 12px; cursor: pointer; }
+.mt-flybar button.go { background: ${ACC}; border-color: ${ACC}; color: #fff; }
+body:not(.sport-moto) .mt-flybar { display: none !important; }
+@media (max-width: 760px) { .mt-flybar { bottom: calc(var(--sheet-peek, 140px) + 12px); } }`;
   document.head.append(css);
 
   // ---------- panel ----------
@@ -318,17 +380,20 @@ body.sport-moto .nav-strip button { min-height: 48px; }`;
     </div>
     <button type="button" class="mt-bike" id="mtBike"></button>
     <div class="mt-now" id="mtNow" role="status"><span>Checking today's dirt…</span></div>
+    <div class="mt-row mt-saferow" id="mtSafeRow"></div>
+    <div class="mt-card" id="mtTrips" hidden></div>
+    <div class="mt-card" id="mtLog" hidden></div>
     <div class="mt-card" id="mtRoute" hidden></div>
     <div class="mt-card" id="mtSpot" hidden></div>
     <div class="mt-card" id="mtNear" hidden></div>
     <div class="mt-card" id="mtMap"><header>${svg(IC.layers)}<h3>Map</h3></header>
       <div class="mt-views" role="group" aria-label="Map views">${Object.entries(VIEWS).map(([k, v]) => `<button type="button" class="mt-view" data-view="${k}">${esc(v.label)}<small>${esc(v.sub)}</small></button>`).join("")}</div>
       <p class="mt-note" id="mtZoomNote"></p>
-      <div class="mt-row"><button type="button" class="mt-pill" id="mtAll">${svg(IC.layers, 16)}All moto layers</button><button type="button" class="mt-pill" id="mtRoutesBtn">${svg(IC.save, 16)}Saved routes</button></div></div>
+      <div class="mt-row"><button type="button" class="mt-pill" id="mtAll">${svg(IC.layers, 16)}All moto layers</button><button type="button" class="mt-pill" id="mtRoutesBtn">${svg(IC.save, 16)}Saved routes</button><button type="button" class="mt-pill" id="mtTripsBtn">${svg(IC.trips, 16)}ADV routes</button><button type="button" class="mt-pill" id="mtLogBtn">${svg(IC.log, 16)}My moto rides</button></div></div>
     <details class="mt-safe"><summary>A guide, not the law</summary>Road surfaces and grades come from OpenStreetMap and can be out of date: a road can wash out or be deactivated any day. Closures, parks and land rules come from the provinces' and Canada's open data and are simplified. Check posted signs, BC's resource road notices, Alberta's Public Land Use Zones, your province's off-highway vehicle rules, and ride to the conditions.</details>`;
   const lmMoto = document.createElement("div");
   lmMoto.className = "lm-moto";
-  lmMoto.innerHTML = `<div class="lm-head">Moto layers</div><div id="mtLayerList"></div>`;
+  lmMoto.innerHTML = `<div class="lm-head">Moto layers</div><p class="mt-note" id="mtLayerNote" style="margin:0;font-size:.74rem;color:var(--muted)"></p><div id="mtLayerList"></div>`;
   const lmStyle = document.querySelector("#layersMenu .lm-style");
   if (lmStyle) lmStyle.after(lmMoto); else pane.append(lmMoto);
   const head = document.querySelector(".panel-head");
@@ -370,12 +435,16 @@ body.sport-moto .nav-strip button { min-height: 48px; }`;
   }
   function editBike(b) {
     edit = b ? { ...b } : { ...DEFAULT, id: Date.now().toString(36), name: "" };
-    const opts = Object.keys(TYPES).map((t) => `<optgroup label="${esc(TYPES[t].label)}">${MODELS.map((m, i) => (m[1] === t ? `<option value="${i}">${esc(m[0])}</option>` : "")).join("")}</optgroup>`).join("");
+    const lb = () => store.get("motoLb", false), KG_LB = 2.20462;
+    const kgShow = (kg) => (lb() ? Math.round(kg * KG_LB) : Math.round(kg));
     dlg.innerHTML = `<form method="dialog"><h2>${b ? "Edit your bike" : "Your bike"} <button type="button" class="mt-xb" data-x aria-label="Close">✕</button></h2>
-      <label>Model<select id="mtModel"><option value="">Pick yours to fill in the numbers…</option>${opts}<option value="other">Another bike: I'll type it</option></select></label>
+      <div class="mt-3 mt-ymm"><label>Year<select id="mtYear">${Array.from({ length: new Date().getFullYear() + 2 - 1981 }, (_, i) => new Date().getFullYear() + 1 - i).map((y) => `<option value="${y}"${y === (edit.year || new Date().getFullYear()) ? " selected" : ""}>${y}</option>`).join("")}</select></label>
+        <label>Make<select id="mtMake"><option value="">Pick…</option>${MAKES.map((m) => `<option${m === edit.make ? " selected" : ""}>${esc(m)}</option>`).join("")}<option value="other">Another make</option></select></label>
+        <label>Model<select id="mtModel" disabled><option value="">Pick the make</option></select></label></div>
+      <p class="mt-note" id="mtSpecNote">Pick your bike to fill in its numbers.</p>
       <label>Name<input id="mtName" maxlength="40" placeholder="My Ténéré" value="${esc(edit.name)}" autocomplete="off"></label>
       <div><b style="font-size:.8rem">Kind of bike</b><div class="mt-types" id="mtTypes">${Object.entries(TYPES).map(([k, t]) => `<button type="button" data-type="${k}"><b>${esc(t.label)}</b><small>${esc(t.sub)}</small></button>`).join("")}</div></div>
-      <div class="mt-3"><label>Weight (kg)<input id="mtKg" type="number" inputmode="decimal" min="60" max="450" value="${edit.kg}"></label>
+      <div class="mt-3"><label><span>Weight <span class="mt-unit" id="mtUnit"><button type="button" data-u="kg">kg</button><button type="button" data-u="lb">lb</button></span></span><input id="mtKg" type="number" inputmode="decimal" min="60" max="1000" value="${kgShow(edit.kg)}"></label>
         <label>Tank (litres)<input id="mtTank" type="number" inputmode="decimal" min="3" max="45" step="0.1" value="${edit.tank}"></label>
         <label>L / 100 km<input id="mtL100" type="number" inputmode="decimal" min="1.5" max="12" step="0.1" value="${edit.l100}"></label></div>
       <label>Range on a tank (km, optional: if you know it)<input id="mtRange" type="number" inputmode="numeric" min="40" max="1200" value="${edit.range || ""}" placeholder="Worked out from the tank"></label>
@@ -393,15 +462,38 @@ body.sport-moto .nav-strip button { min-height: 48px; }`;
       q("#mtSum").innerHTML = `<b>Rides well:</b> up to grade ${cap}, ${esc(GRADES[cap][0].toLowerCase())}${cap < 5 ? `; grade ${cap + 1} is hard, more is too hard` : ""}.<br><b>Range:</b> about ${rangeOf(edit).toLocaleString()} km a tank; routes warn when gas is more than ${usable(edit).toLocaleString()} km apart.`;
     };
     q("[data-x]").onclick = () => dlg.close();
+    const fillModels = async () => {
+      const make = q("#mtMake").value, year = +q("#mtYear").value, sel = q("#mtModel");
+      edit.year = year;
+      if (!make || make === "other") { sel.disabled = true; sel.innerHTML = `<option value="">${make ? "Type it in Name" : "Pick the make"}</option>`; if (make === "other") q("#mtName").focus(); return; }
+      edit.make = make;
+      sel.disabled = true; sel.innerHTML = `<option value="">Loading…</option>`;
+      const list = await modelsFor(make, year);
+      if (q("#mtMake").value !== make || +q("#mtYear").value !== year) return;
+      const known = MODELS.filter((x) => norm(x[0]).startsWith(norm(make))).map((x) => x[0].slice(x[0].indexOf(" ") + 1));
+      const names = list && list.length ? list : known;
+      sel.innerHTML = `<option value="">${list ? `${names.length} models…` : "Offline: our list…"}</option>${names.map((n) => `<option${n === edit.model ? " selected" : ""}>${esc(n)}</option>`).join("")}<option value="other">Not listed: I'll type it</option>`;
+      sel.disabled = false;
+    };
+    q("#mtYear").onchange = fillModels;
+    q("#mtMake").onchange = () => { edit.model = ""; fillModels(); };
     q("#mtModel").onchange = (e) => {
-      const m = MODELS[+e.target.value];
-      if (!m) { if (e.target.value === "other") q("#mtName").focus(); return; }
-      edit.name = m[0]; edit.type = m[1]; edit.kg = m[2]; edit.tank = m[3]; edit.l100 = m[4]; delete edit.range;
-      q("#mtName").value = m[0]; q("#mtKg").value = m[2]; q("#mtTank").value = m[3]; q("#mtL100").value = m[4]; q("#mtRange").value = "";
+      const model = e.target.value, make = q("#mtMake").value;
+      if (!model) return;
+      if (model === "other") { q("#mtName").focus(); return; }
+      const [type, kg, tank, l100, known] = specsOf(make, model);
+      edit.model = model; edit.type = type; edit.kg = kg; edit.tank = tank; edit.l100 = l100; delete edit.range;
+      edit.name = `${q("#mtYear").value} ${make} ${model}`;
+      q("#mtName").value = edit.name; q("#mtKg").value = kgShow(kg); q("#mtTank").value = tank; q("#mtL100").value = l100; q("#mtRange").value = "";
+      q("#mtSpecNote").textContent = known ? "Numbers filled in from the maker's specs (about): change them for your bike." : `We don't have this one's specs: these are typical for a ${TYPES[type].label.toLowerCase()} bike. Check your manual and fix them.`;
       sync();
     };
+    if (edit.make) fillModels();
     q("#mtName").oninput = (e) => { edit.name = e.target.value.trim(); };
-    q("#mtKg").oninput = (e) => { const kg = +e.target.value; if (kg > 50) { edit.kg = kg; if (edit.type !== "street") edit.type = typeOfKg(kg); sync(); } };
+    const unitSync = () => dlg.querySelectorAll("[data-u]").forEach((x) => x.classList.toggle("on", (x.dataset.u === "lb") === lb()));
+    unitSync();
+    q("#mtUnit").onclick = (e) => { const x = e.target.closest("[data-u]"); if (!x) return; store.set("motoLb", x.dataset.u === "lb"); q("#mtKg").value = kgShow(edit.kg); unitSync(); };
+    q("#mtKg").oninput = (e) => { const kg = +e.target.value / (lb() ? KG_LB : 1); if (kg > 50) { edit.kg = kg; if (edit.type !== "street") edit.type = typeOfKg(kg); sync(); } };
     q("#mtTank").oninput = (e) => { edit.tank = +e.target.value || edit.tank; sync(); };
     q("#mtL100").oninput = (e) => { edit.l100 = +e.target.value || edit.l100; sync(); };
     q("#mtRange").oninput = (e) => { const r = +e.target.value; if (r >= 40) edit.range = r; else delete edit.range; sync(); };
@@ -425,7 +517,7 @@ body.sport-moto .nav-strip button { min-height: 48px; }`;
   }
   $("mtBike").addEventListener("click", openBikes);
   function bikeChanged() {
-    renderBike(); paintRoads(); drawRange(); renderKey();
+    renderBike(); paintRoads(); drawRange(); renderKey(); renderTrips();
     if (route) renderRoute();
     if (spot) renderSpot();
   }
@@ -468,6 +560,7 @@ body.sport-moto .nav-strip button { min-height: 48px; }`;
   const ftenLayer = L.tileLayer.wms("https://openmaps.gov.bc.ca/geo/pub/wms", { layers: FTEN, styles: "", format: "image/png", transparent: true, SLD_BODY: ftenSld(), minZoom: 9, maxZoom: 19, pane: "motoGL", bounds: L.latLngBounds([48.2, -139.1], [60, -114]), attribution: "DataBC" });
   function paintRoads() {
     if (ftenLayer._map) ftenLayer.setParams({ SLD_BODY: ftenSld() });
+    if (gl3 && gl3.getSource && gl3.getSource("mt-ften") && gl3.__mtSld !== ftenSld()) sync3d();
     const g = gl && gl.getMaplibreMap && gl.getMaplibreMap(), paint = roadPaint();
     for (const m of [g, gl3]) {
       if (!m || !m.getLayer) continue;
@@ -501,33 +594,35 @@ body.sport-moto .nav-strip button { min-height: 48px; }`;
     fuel: 'nwr["amenity"="fuel"]', camp: 'nwr["tourism"~"^(camp_site|wilderness_hut|alpine_hut)$"]', hot: 'nwr["natural"="hot_spring"]',
     shop: 'nwr["shop"~"^(motorcycle|motorcycle_repair)$"]', ferry: 'nwr["amenity"="ferry_terminal"]',
   };
-  let liveBusy = false;
+  // One ask for the view (up to about 130 km across, kept by 0.5° cell), to the main Overpass server first and, if it
+  // hasn't answered in 2.5 s, the other one too: the first answer wins (same as planner.js).
+  let liveBusy = false, liveState = "";   // "", "loading", "fail"
   async function loadLive() {
     if (!liveMode || liveBusy || !isMoto() || map.getZoom() < 8) return;
-    const b = map.getBounds(), want = [];
-    for (let la = Math.floor(b.getSouth() * 2) / 2; la < b.getNorth(); la += 0.5) for (let lo = Math.floor(b.getWest() * 2) / 2; lo < b.getEast(); lo += 0.5) want.push([la, lo]);
+    const c = map.getCenter(), b = map.getBounds();
+    const s = Math.max(b.getSouth(), c.lat - 0.6), n = Math.min(b.getNorth(), c.lat + 0.6), w = Math.max(b.getWest(), c.lng - 0.9), e = Math.min(b.getEast(), c.lng + 0.9);
+    const cells = [];
+    for (let la = Math.floor(s * 2) / 2; la < n; la += 0.5) for (let lo = Math.floor(w * 2) / 2; lo < e; lo += 0.5) cells.push(`${la},${lo}`);
     const kinds = Object.keys(OP_Q).filter((k) => pts[k] == null && (shown.has(k) || k === "fuel"));
-    const todo = want.filter(([la, lo]) => kinds.some((k) => !live[k].has(`${la},${lo}`))).slice(0, 6);
-    if (!todo.length) return;
-    liveBusy = true;
-    try {
-      for (const [la, lo] of todo) {
-        const bb = `${la},${lo},${la + 0.5},${lo + 0.5}`;
-        const q = `[out:json][timeout:25];(${kinds.map((k) => `${OP_Q[k]}(${bb});`).join("")});out center tags;`;
-        let j = null;
-        for (const u of OVERPASS) { try { j = await getJ(u, 25000, { method: "POST", body: "data=" + encodeURIComponent(q) }); break; } catch {} }
-        if (!j) break;
-        const got = Object.fromEntries(kinds.map((k) => [k, []]));
-        for (const e of j.elements || []) {
-          const t = e.tags || {}, la2 = e.lat ?? (e.center && e.center.lat), lo2 = e.lon ?? (e.center && e.center.lon);
-          if (la2 == null) continue;
-          const k = t.amenity === "fuel" ? "fuel" : t.tourism ? "camp" : t.natural === "hot_spring" ? "hot" : t.shop ? "shop" : t.amenity === "ferry_terminal" ? "ferry" : null;
-          if (k && got[k]) got[k].push([la2, lo2, t.name || t.brand || "", k === "camp" && t.fee === "no" ? "free" : ""]);
-        }
-        for (const k of kinds) live[k].set(`${la},${lo}`, got[k]);
-      }
-    } finally { liveBusy = false; }
-    drawPoints(); drawRange();
+    if (!kinds.length || cells.every((key) => kinds.every((k) => live[k].has(key)))) return;
+    const S = Math.floor(s * 2) / 2, W = Math.floor(w * 2) / 2, N = Math.ceil(n * 2) / 2, E = Math.ceil(e * 2) / 2;
+    const q = `[out:json][timeout:25];(${kinds.map((k) => `${OP_Q[k]}(${S},${W},${N},${E});`).join("")});out center tags;`;
+    const ask = (u) => getJ(u, 30000, { method: "POST", body: "data=" + encodeURIComponent(q) });
+    liveBusy = true; liveState = "loading"; zoomNote();
+    let j = null;
+    try { j = await Promise.any([ask(OVERPASS[0]), new Promise((ok) => setTimeout(ok, 2500)).then(() => ask(OVERPASS[1]))]); } catch {}
+    liveBusy = false;
+    if (!j) { liveState = "fail"; zoomNote(); return; }
+    liveState = "";
+    for (let la = S; la < N; la += 0.5) for (let lo = W; lo < E; lo += 0.5) for (const k of kinds) live[k].set(`${la},${lo}`, []);
+    for (const el of j.elements || []) {
+      const t = el.tags || {}, la2 = el.lat ?? (el.center && el.center.lat), lo2 = el.lon ?? (el.center && el.center.lon);
+      if (la2 == null) continue;
+      const k = t.amenity === "fuel" ? "fuel" : t.tourism ? "camp" : t.natural === "hot_spring" ? "hot" : t.shop ? "shop" : t.amenity === "ferry_terminal" ? "ferry" : null;
+      const key = `${Math.floor(la2 * 2) / 2},${Math.floor(lo2 * 2) / 2}`;
+      if (k && kinds.includes(k) && live[k].has(key)) live[k].get(key).push([la2, lo2, t.name || t.brand || "", k === "camp" && t.fee === "no" ? "free" : k === "fuel" && t.brand ? t.brand : ""]);
+    }
+    zoomNote(); drawPoints(); drawRange(); renderNear();
   }
   const listOf = (k) => pts[k] || [...live[k].values()].flat();
   // BC rec sites (DataBC), asked for the view: many are free campsites on forest roads.
@@ -642,7 +737,10 @@ body.sport-moto .nav-strip button { min-height: 48px; }`;
     if (!isMoto() || !shown.has("mud")) return;
     const z = map.getZoom();
     if (z < 7) { zoomNote(); return; }
-    const step = z >= 11 ? 0.05 : z >= 9 ? 0.1 : 0.25, b = map.getBounds(), cells = [];
+    const b = map.getBounds(), cells = [];
+    // About 36 squares a screen at most: each is one place for Open-Meteo, and its free limit counts places.
+    let step = z >= 11 ? 0.05 : z >= 9 ? 0.1 : 0.25;
+    while (((b.getNorth() - b.getSouth()) / step) * ((b.getEast() - b.getWest()) / step) > 36) step *= 2;
     for (let la = Math.floor(b.getSouth() / step) * step; la < b.getNorth(); la += step) for (let lo = Math.floor(b.getWest() / step) * step; lo < b.getEast(); lo += step) cells.push([+(la + step / 2).toFixed(3), +(lo + step / 2).toFixed(3)]);
     if (cells.length > 80) return;
     const my = ++mudSeq, ws = await weatherAt(cells);
@@ -804,6 +902,9 @@ body.sport-moto .nav-strip button { min-height: 48px; }`;
     can.innerHTML = `<h4>Can I ride here?</h4>
       ${rs.length ? rs.map(({ a, r }) => `<div class="mt-warn ${r.g === "no" ? "" : r.g === "open" ? "ok" : "hard"}"><b>${esc(a.n || r.label)}</b><br>${esc(r.text)}</div>`).join("") : `<div class="mt-warn ok">No park, reserve or closure mapped here.</div>`}
       <details class="mt-fold"><summary>${esc(P ? P[0] : PROV_NAME[pv] || "Canada")}: riding rules</summary><p>${esc(P ? P[1] : PROV_OTHER)}</p>${P && P[2].length ? `<p>${P[2].map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(n)}</a>`).join(" · ")}</p>` : ""}</details>`;
+    const c = await loadCell();
+    if (my !== spotSeq) return;
+    if (c) can.insertAdjacentHTML("afterend", `<p class="mt-note">${svg(IC.cell, 14)} ${cellNear(s.lat, s.lon) ? "Cell signal likely on the roads here (LTE or 5G)." : "<b>Likely no cell signal</b> on the roads here: tell someone your plan."}</p>`);
     renderSpotNear(el.querySelector("[data-near]"), s);
   }
   // The road under a tap: the router's map gives the OpenStreetMap way, its slopes and who may drive it, then its tags.
@@ -972,7 +1073,7 @@ body.sport-moto .nav-strip button { min-height: 48px; }`;
     if (r.name) return;
     const town = (p) => getJ(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&lat=${p[0]}&lon=${p[1]}`, 8000).then((j) => (j.address && (j.address.town || j.address.city || j.address.village || j.address.hamlet || j.address.county)) || "").catch(() => "");
     const a = await town(r.pts[0]), b = planLoop ? "" : await town(r.pts[r.pts.length - 1]);
-    if (my !== routeSeq || route !== r) return;
+    if (my !== routeSeq || route !== r || r.name) return;
     r.name = a && b && a !== b ? `${a} to ${b}` : a ? `${planLoop ? "Loop from " : "Around "}${a}` : "My moto route";
     renderRoute();
   }
@@ -1060,10 +1161,10 @@ body.sport-moto .nav-strip button { min-height: 48px; }`;
       const end = r.line[r.line.length - 1], camps = nearest([...listOf("camp"), ...recList()], end[0], end[1], 3, 25);
       body = `<p><b>${esc(r.name || "Your route")}</b></p>
         <div class="mt-stats"><div><b>${fmtKm(r.km)}</b><span>distance</span></div><div><b>${fmtH(r.time)}</b><span>riding</span></div><div><b>${dirtPct == null ? "…" : dirtPct + "%"}</b><span>dirt</span></div><div><b>${r.edges ? fmtKm(st.longest) : "…"}</b><span>longest dirt</span></div></div>
-        ${bar}${hard}${fuel}${r.ferry ? `<p class="mt-note">⛴ It takes a ferry: check the sailings.</p>` : ""}
+        ${bar}${hard}${fuel}${highHtml(r)}${ferryHtml(r)}${roadsHtml(r)}${cellHtml(r)}
         ${camps.length ? `<details class="mt-fold"><summary>${svg(IC.camp, 14)} Camping near the end (${camps.length})</summary><ul class="mt-list">${camps.map(([d, p]) => `<li style="--c:${PT.camp.c}"><b>${esc(p[2] || "Campsite")}</b><small>${p[3] ? esc(p[3]) + " · " : ""}${fmtKm(d)} from the end</small></li>`).join("")}</ul></details>` : ""}
         <details class="mt-fold"><summary>Turns (${r.parts.length})</summary><ol class="mt-note" style="margin:0;padding-left:18px">${r.parts.map((x) => `<li>${esc(x.text)}${x.km >= 0.1 ? ` <i>${fmtKm(x.km)}</i>` : ""}</li>`).join("")}</ol></details>
-        <div class="mt-row"><button type="button" class="mt-pill go" data-r="ride">${svg(IC.ride, 16)}Ride it</button><button type="button" class="mt-pill" data-r="save">${svg(IC.save, 16)}Save</button><button type="button" class="mt-pill" data-r="gpx">${svg(IC.dl, 16)}GPX</button><button type="button" class="mt-pill" data-r="offline">${svg(IC.dl, 16)}Save offline</button></div>`;
+        <div class="mt-row"><button type="button" class="mt-pill go" data-r="ride">${svg(IC.ride, 16)}Ride it</button><button type="button" class="mt-pill" data-r="save">${svg(IC.save, 16)}Save</button><button type="button" class="mt-pill" data-r="gpx">${svg(IC.dl, 16)}GPX</button><button type="button" class="mt-pill" data-r="offline">${svg(IC.dl, 16)}Save offline</button><button type="button" class="mt-pill" data-r="fly">${svg(IC.fly, 16)}Fly it in 3D</button></div>`;
     }
     el.innerHTML = `<header>${svg(IC.plan)}<h3>Plan a route</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>${styles}${tools}${body}
       <p class="mt-note">For your ${esc(b.name || TYPES[b.type].label)} (rides grade ${capOf(b)} well). Routes by Valhalla on OpenStreetMap roads.</p>`;
@@ -1071,6 +1172,7 @@ body.sport-moto .nav-strip button { min-height: 48px; }`;
     el.querySelectorAll("[data-style]").forEach((x) => (x.onclick = () => { planStyle = x.dataset.style; store.set("motoStyle", planStyle); renderRoute(); buildRoute(); }));
     el.querySelectorAll("[data-show]").forEach((x) => (x.onclick = () => { const [a, z] = x.dataset.show.split(",").map(Number); const seg = route.line.slice(a, z + 1); if (seg.length) { if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); map.fitBounds(L.latLngBounds(seg).pad(0.6), { maxZoom: 15 }); } }));
     el.querySelectorAll("[data-r]").forEach((x) => (x.onclick = () => routeAct(x.dataset.r, x)));
+    el.querySelectorAll("[data-ll]").forEach((x) => (x.onclick = () => { const [la, lo] = x.dataset.ll.split(",").map(Number); if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); map.setView([la, lo], Math.max(map.getZoom(), 12)); }));
   }
   function routeAct(a, btn) {
     if (a === "loop") { planLoop = !planLoop; store.set("motoLoop", planLoop); drawWaypoints(); buildRoute(); renderRoute(); }
@@ -1082,6 +1184,7 @@ body.sport-moto .nav-strip button { min-height: 48px; }`;
       if (!planning) setPlanning(true);
       planChanged();
     } else if (a === "ride") rideRoute();
+    else if (a === "fly") flyRoute();
     else if (a === "save") saveRoute();
     else if (a === "gpx") gpx(btn);
     else if (a === "offline") {
@@ -1170,6 +1273,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
   function rideInfo(p, speed) {
     const b = cur();
     if (lastP && fill) { const d = kmBetween(lastP, p); if (d < 5) fill.km += d; }
+    noteMove(p);
     lastP = p;
     if (fill && Date.now() - (rideInfo.saved || 0) > 30000) { store.set("motoFill", fill); rideInfo.saved = Date.now(); }
     if (Date.now() - rideRoad.at > 4000) {
@@ -1236,8 +1340,17 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     zoomNote();
   }
   function zoomNote() {
+    zoomNote2();
+    const a = $("mtZoomNote"), b = $("mtLayerNote");
+    if (a && b) b.textContent = a.textContent;
+  }
+  function zoomNote2() {
     const z = map.getZoom(), el = $("mtZoomNote");
     if (!el) return;
+    const stops = ["fuel", "camp", "hot", "shop", "ferry"].some((k) => shown.has(k));
+    if (stops && liveMode && liveState === "loading") { el.textContent = "Loading gas, camping and shops from OpenStreetMap…"; return; }
+    if (stops && liveMode && liveState === "fail") { el.textContent = "Couldn't reach OpenStreetMap for gas and camping: move the map to try again."; return; }
+    if (stops && liveMode && z < 8) { el.textContent = "Zoom in to see gas stations, camping and shops."; return; }
     el.textContent = shown.has("roads") && z < (inBCbox(map.getCenter().lat, map.getCenter().lng) ? 9 : 13) ? (inBCbox(map.getCenter().lat, map.getCenter().lng) ? "Zoom in to see the forest roads." : "Zoom in to see the dirt roads.") : shown.has("mud") && z < 7 ? "Zoom in to see the mud and dust." : "";
   }
   $("mtLayerList").addEventListener("change", (e) => {
@@ -1252,12 +1365,14 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     if (b && $("layersMenu").hidden) b.click();
   });
   $("mtRoutesBtn").addEventListener("click", openSaved);
+  $("mtTripsBtn").addEventListener("click", openTrips);
+  $("mtLogBtn").addEventListener("click", openLog);
   function applyLayers() {
     store.set("motoLayers", [...shown]);
     renderLayers(); renderKey();
     showRoads(isMoto() && shown.has("roads"));
     if (isMoto() && shown.has("roads")) { if (!ftenLayer._map) ftenLayer.addTo(map); } else if (ftenLayer._map) map.removeLayer(ftenLayer);
-    drawPoints(); drawRange(); drawMud(); drawRules();
+    drawPoints(); drawRange(); drawMud(); drawRules(); drawCell();
     if (shown.has("camp")) loadRec();
     loadLive();
   }
@@ -1291,6 +1406,16 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     const apply = () => {
       if (!g.getStyle()) return;
       const on = isMoto();
+      // BC forest roads as map images, under the vector roads (the same DataBC layer as the flat map).
+      const sld = ftenSld();
+      if (g.getSource("mt-ften") && g.__mtSld !== sld) { if (g.getLayer("mt-ften")) g.removeLayer("mt-ften"); g.removeSource("mt-ften"); }
+      if (!g.getSource("mt-ften")) {
+        g.__mtSld = sld;
+        g.addSource("mt-ften", { type: "raster", tileSize: 256, minzoom: 8, maxzoom: 17, bounds: [-139.1, 48.2, -114, 60],
+          tiles: [`https://openmaps.gov.bc.ca/geo/pub/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${encodeURIComponent(FTEN)}&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&SRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&SLD_BODY=${encodeURIComponent(sld)}&BBOX={bbox-epsg-3857}`] });
+        g.addLayer({ id: "mt-ften", type: "raster", source: "mt-ften", minzoom: 8, paint: { "raster-opacity": 0.9 } });
+      }
+      g.setLayoutProperty("mt-ften", "visibility", on && shown.has("roads") ? "visible" : "none");
       if (!g.getSource("mt-ofm")) g.addSource("mt-ofm", OFM);
       for (const l of roadLayers("mt-ofm", "mt-")) {
         if (!g.getLayer(l.id)) g.addLayer(l);
@@ -1312,8 +1437,10 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     if (g.style && (g.style._loaded || g.isStyleLoaded())) apply();
     else if (!wait3d) { wait3d = true; const go = () => { if (!wait3d) return; wait3d = false; apply(); }; g.once("style.load", go); g.once("load", go); g.once("idle", go); }
   }
-  window.addEventListener("tf:map3d", (e) => {
-    gl3 = e.detail;
+  // moto.js loads only when Moto is picked, often after the 3D map was built: take the one already there too.
+  function on3d(g) {
+    if (!g || g === gl3) return;
+    gl3 = g;
     gl3.on("click", (ev) => {
       if (!isMoto() || document.querySelector(".app.riding")) return;
       const hit = gl3.getLayer("mt-pts") && gl3.queryRenderedFeatures([[ev.point.x - 8, ev.point.y - 8], [ev.point.x + 8, ev.point.y + 8]], { layers: ["mt-pts"] })[0];
@@ -1325,21 +1452,423 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
       if (rd) { spot.road = { ...rd.properties }; renderSpot(); }
     });
     if (window.tfLoadVectorLib) sync3d();
-  });
+  }
+  window.addEventListener("tf:map3d", (e) => on3d(e.detail));
+  if (window.trailMap3d) on3d(window.trailMap3d);
+
+  // ---------- high points: snow and frost where the route climbs ----------
+  // Valhalla's elevation along the line, then the highest points (1,000 m and up, 25 km apart) get Open-Meteo's
+  // snow on the ground, the snow coming and the coldest hour in the next day at their own height. Riders on the
+  // forums: "the pass still had snow in June" is the classic surprise.
+  async function lookHigh(r) {
+    r.high = "loading";
+    try {
+      const step = Math.max(250, Math.round((r.km * 1000) / 1500));
+      const h = await postJ(`${VALHALLA}/height`, { encoded_polyline: encode6(r.line), resample_distance: step }, 30000);
+      const sh = h.shape ? h.shape.map((p) => [p.lat, p.lon]) : h.encoded_polyline ? decode6(h.encoded_polyline) : [], hh = h.height || [];
+      const pts = sh.map((p, i) => ({ p, m: hh[i], km: (i * step) / 1000 })).filter((x) => x.m != null);
+      const top = [];
+      for (const x of [...pts].sort((a, b) => b.m - a.m)) {
+        if (x.m < 1000 || top.length >= 3) break;
+        if (top.every((t) => Math.abs(t.km - x.km) > 25)) top.push(x);
+      }
+      if (!top.length) { r.high = pts.length ? { max: Math.max(...pts.map((x) => x.m)), top: [] } : null; renderRoute(); return; }
+      const q = new URLSearchParams({ latitude: top.map((t) => t.p[0].toFixed(3)).join(","), longitude: top.map((t) => t.p[1].toFixed(3)).join(","), elevation: top.map((t) => Math.round(t.m)).join(","),
+        hourly: "snow_depth,snowfall,temperature_2m", forecast_days: "2", timezone: "GMT" });
+      const j = await getJ(`https://api.open-meteo.com/v1/forecast?${q}`, 15000);
+      const arr = Array.isArray(j) ? j : [j], now = Date.now();
+      top.forEach((t, n) => {
+        const w = arr[n] && arr[n].hourly; if (!w) return;
+        let i = w.time.findIndex((x) => new Date(x + "Z").getTime() > now) - 1; if (i < 0) i = 0;
+        t.snow = w.snow_depth[i] || 0;
+        t.fall = w.snowfall.slice(i, i + 24).reduce((a, b) => a + (b || 0), 0);
+        t.low = Math.min(...w.temperature_2m.slice(i, i + 24).filter((x) => x != null));
+      });
+      r.high = { max: top[0].m, top: top.sort((a, b) => a.km - b.km) };
+    } catch { r.high = null; }
+    if (route === r) renderRoute();
+  }
+  function highHtml(r) {
+    if (!r.edges && !r.high) return "";
+    if (r.high === undefined && navigator.onLine) { lookHigh(r); return ""; }
+    if (!r.high || r.high === "loading") return "";
+    if (!r.high.top.length) return `<p class="mt-note">${svg(IC.peak, 14)} Highest point about ${Math.round(r.high.max).toLocaleString()} m: no high passes.</p>`;
+    const rows = r.high.top.map((t) => {
+      const bad = t.snow >= 0.03 || t.fall >= 1, cold = t.low <= 0;
+      const say = t.snow >= 0.03 ? `snow on the ground (${Math.round(t.snow * 100)} cm)` : t.fall >= 1 ? `${Math.round(t.fall)} cm of snow coming` : cold ? `no snow, but ${Math.round(t.low)}°C: ice in the shade` : t.low != null && isFinite(t.low) ? `no snow, low ${Math.round(t.low)}°C` : "no weather";
+      return `<div class="mt-warn ${bad ? "" : cold ? "hard" : "ok"}">${svg(IC.peak, 14)} <b>${Math.round(t.m).toLocaleString()} m</b> at km ${Math.round(t.km)}: ${esc(say)}. <button type="button" data-ll="${t.p[0]},${t.p[1]}">Show</button></div>`;
+    }).join("");
+    return `<h4>High points</h4>${rows}`;
+  }
+  // Road conditions and ferries: the province's own sites (511 and friends), for each province the route crosses.
+  const ROAD511 = { bc: ["DriveBC", "https://www.drivebc.ca/"], ab: ["511 Alberta", "https://511.alberta.ca/"], sk: ["SK Highway Hotline", "https://hotline.gov.sk.ca/"], mb: ["Manitoba 511", "https://www.manitoba511.ca/"],
+    on: ["Ontario 511", "https://511on.ca/"], qc: ["Québec 511", "https://www.quebec511.info/"], nb: ["New Brunswick 511", "https://511.gnb.ca/"], ns: ["511 Nova Scotia", "https://511.novascotia.ca/"],
+    pe: ["PEI 511", "https://511.gov.pe.ca/"], nl: ["511 NL", "https://511nl.ca/"], yt: ["511 Yukon", "https://511yukon.ca/"], nt: ["Drive NWT", "https://drivenwt.ca/"] };
+  const FERRY = { bc: [["BC Ferries (coast)", "https://www.bcferries.com/"], ["BC inland ferries", "https://www2.gov.bc.ca/gov/content/transportation/passenger-travel/water-travel/inland-ferries"]],
+    qc: [["Société des traversiers du Québec", "https://www.traversiers.com/"]], on: [["Ontario ferries", "https://www.ontarioferries.com/"]], ns: [["Northumberland and Bay ferries", "https://www.ferries.ca/"], ["Marine Atlantic", "https://www.marineatlantic.ca/"]],
+    pe: [["Northumberland Ferries", "https://www.ferries.ca/"]], nb: [["Bay Ferries", "https://www.ferries.ca/"]], nl: [["NL ferry services", "https://www.gov.nl.ca/ti/ferryservices/"], ["Marine Atlantic", "https://www.marineatlantic.ca/"]],
+    yt: [["511 Yukon (ferry)", "https://511yukon.ca/"]], nt: [["Drive NWT (ferry status)", "https://drivenwt.ca/"]] };
+  function provsOf(r) {
+    const out = [];
+    for (let i = 0; i < r.line.length; i += Math.max(1, Math.floor(r.line.length / 40))) { const p = provOf(r.line[i][0], r.line[i][1]); if (p && !out.includes(p)) out.push(p); }
+    const e = r.line[r.line.length - 1], pe = provOf(e[0], e[1]); if (pe && !out.includes(pe)) out.push(pe);
+    return out;
+  }
+  function ferryHtml(r) {
+    const names = r.edges ? [...new Set(r.edges.filter((e) => e.use === "ferry").map((e) => (e.names && e.names[0]) || ""))] : [];
+    if (!r.ferry && !names.length) return "";
+    const links = provsOf(r).flatMap((p) => FERRY[p] || []).filter((x, i, a) => a.findIndex((y) => y[1] === x[1]) === i);
+    return `<div class="mt-warn hard">⛴ <b>It takes a ferry</b>${names.filter(Boolean).length ? `: ${esc(names.filter(Boolean).join(", "))}` : ""}. Check the sailings and if bikes need a booking.${links.length ? ` ${links.map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(n)}</a>`).join(" · ")}` : ""}</div>`;
+  }
+  function roadsHtml(r) {
+    const ps = provsOf(r).filter((p) => ROAD511[p]);
+    return ps.length ? `<p class="mt-note">Road closures and conditions: ${ps.map((p) => `<a href="${ROAD511[p][1]}" target="_blank" rel="noopener">${esc(ROAD511[p][0])}</a>`).join(" · ")}</p>` : "";
+  }
+
+  // ---------- cell signal on roads ----------
+  // ISED's National Broadband Data: the road pieces with LTE or 5G from at least one carrier, as 2 km squares
+  // (data/moto-cell.json, built once from ISED's open data; see scripts/build-moto-cell.py). A route lists the km with no
+  // signal, and the layer shades the squares that have it.
+  let cellRows = null, cellLoading = null;
+  const loadCell = () => cellLoading || (cellLoading = getJ("data/moto-cell.json", 20000).then((j) => {
+    const step = j.step || 0.02, rows = new Map();
+    for (const [a, runs] of Object.entries(j.rows || {})) { const set = []; for (let i = 0; i < runs.length; i += 2) set.push([runs[i], runs[i] + runs[i + 1] - 1]); rows.set(+a, set); }
+    cellRows = { step, rows }; return cellRows;
+  }).catch(() => { cellLoading = null; return null; }));
+  function hasCell(lat, lon) {
+    if (!cellRows) return null;
+    const runs = cellRows.rows.get(Math.floor(lat / cellRows.step));
+    if (!runs) return false;
+    const b = Math.floor(lon / cellRows.step);
+    let lo = 0, hi = runs.length - 1;
+    while (lo <= hi) { const m = (lo + hi) >> 1; if (b < runs[m][0]) hi = m - 1; else if (b > runs[m][1]) lo = m + 1; else return true; }
+    return false;
+  }
+  // Squares next to a covered one count as covered: towers reach a little past the road pieces ISED lists.
+  const cellNear = (lat, lon) => { const s = cellRows.step; for (const d of [[0, 0], [s, 0], [-s, 0], [0, s], [0, -s]]) if (hasCell(lat + d[0], lon + d[1])) return true; return false; };
+  function cellStats(r) {
+    if (!cellRows) return null;
+    let none = 0, run = 0, longest = 0, from = 0, at = 0;
+    for (let i = 1; i < r.line.length; i++) {
+      const d = kmBetween(r.line[i - 1], r.line[i]);
+      if (!cellNear(r.line[i][0], r.line[i][1])) { none += d; run += d; if (run > longest) { longest = run; at = from; } } else { run = 0; from = i; }
+    }
+    return { none, longest, at };
+  }
+  function cellHtml(r) {
+    if (!cellRows) { loadCell().then((c) => { if (c && route === r) renderRoute(); }); return ""; }
+    const c = cellStats(r);
+    if (!c) return "";
+    if (c.none < 2) return `<p class="mt-note">${svg(IC.cell, 14)} Cell signal on about all of it (LTE or 5G, ISED's coverage data).</p>`;
+    return `<div class="mt-warn ${c.longest > 40 ? "" : "hard"}">${svg(IC.cell, 14)} <b>About ${fmtKm(c.none)} with no cell signal</b>, the longest ${fmtKm(c.longest)}. Tell someone your plan; a satellite messenger works there. <button type="button" data-ll="${r.line[c.at][0]},${r.line[c.at][1]}">Show</button></div>`;
+  }
+  const cellLayer = L.layerGroup();
+  allMoto.push(cellLayer);
+  function drawCell() {
+    cellLayer.clearLayers();
+    if (!isMoto() || !shown.has("cell")) return;
+    if (!cellRows) { loadCell().then((c) => { if (c) drawCell(); }); return; }
+    if (map.getZoom() < 8) return;
+    const b = map.getBounds(), s = cellRows.step;
+    for (let a = Math.floor(b.getSouth() / s); a <= Math.floor(b.getNorth() / s); a++) {
+      const runs = cellRows.rows.get(a); if (!runs) continue;
+      const w = Math.floor(b.getWest() / s), e = Math.floor(b.getEast() / s);
+      for (const [x0, x1] of runs) {
+        if (x1 < w || x0 > e) continue;
+        cellLayer.addLayer(L.rectangle([[a * s, Math.max(x0, w) * s], [(a + 1) * s, (Math.min(x1, e) + 1) * s]], { renderer: rulesRenderer, weight: 0, fillColor: "#4c6ef5", fillOpacity: 0.22, interactive: false }));
+      }
+    }
+  }
+
+  // ---------- 3D fly-through ----------
+  // The camera rides the route on the 3D map, looking ahead, so you see the climbs and the valleys before the day.
+  let fly = null;
+  const flyBar = document.createElement("div");
+  flyBar.className = "mt-flybar"; flyBar.hidden = true;
+  flyBar.innerHTML = `<span id="mtFlyKm"></span><button type="button" id="mtFlyPause">Pause</button><button type="button" class="go" id="mtFlyStop">Stop</button>`;
+  map.getContainer().parentElement.append(flyBar);
+  const stopFly = () => { if (fly) { cancelAnimationFrame(fly.raf); fly = null; } flyBar.hidden = true; };
+  $("mtFlyStop").onclick = stopFly;
+  $("mtFlyPause").onclick = () => { if (!fly) return; fly.paused = !fly.paused; $("mtFlyPause").textContent = fly.paused ? "Go" : "Pause"; if (!fly.paused) fly.last = performance.now(); };
+  async function flyRoute() {
+    if (!route) return;
+    const r = route;
+    if (!map.getContainer().classList.contains("is3d")) { const b = $("btn3d"); if (b) b.click(); }
+    const ready = () => { try { return gl3 && gl3.getStyle() && map.getContainer().classList.contains("is3d"); } catch { return false; } };
+    for (let i = 0; i < 80 && !ready(); i++) await new Promise((ok) => setTimeout(ok, 250));
+    if (!gl3 || !map.getContainer().classList.contains("is3d")) { hint("The 3D map isn't available here."); return; }
+    if (route !== r) return;
+    if (phone() && window.tfSnapTo) window.tfSnapTo("peek");
+    stopFly();
+    const line = r.line, cum = [0];
+    for (let i = 1; i < line.length; i++) cum.push(cum[i - 1] + kmBetween(line[i - 1], line[i]));
+    const total = cum[cum.length - 1], secs = Math.min(240, 30 + total * 0.5), speed = total / secs;   // km a second
+    const at = (d) => { let i = fly.i; while (i < cum.length - 2 && cum[i + 1] < d) i++; fly.i = i; const t = (d - cum[i]) / Math.max(1e-6, cum[i + 1] - cum[i]); return [line[i][0] + (line[i + 1][0] - line[i][0]) * t, line[i][1] + (line[i + 1][1] - line[i][1]) * t]; };
+    const ahead = (d) => { let i = fly.i; while (i < cum.length - 1 && cum[i] < d) i++; return line[Math.min(i, line.length - 1)]; };
+    const brg = (a, b) => { const y = Math.sin((b[1] - a[1]) * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180), x = Math.cos(a[0] * Math.PI / 180) * Math.sin(b[0] * Math.PI / 180) - Math.sin(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) * Math.cos((b[1] - a[1]) * Math.PI / 180); return (Math.atan2(y, x) * 180) / Math.PI; };
+    fly = { d: 0, i: 0, last: performance.now(), paused: false, bearing: 0 };
+    fly.bearing = brg(line[0], ahead(1.5));
+    flyBar.hidden = false; $("mtFlyPause").textContent = "Pause";
+    const stopOnTouch = () => stopFly();
+    gl3.once("mousedown", stopOnTouch); gl3.once("touchstart", stopOnTouch);
+    const step = (now) => {
+      if (!fly) return;
+      if (!fly.paused) { fly.d = Math.min(total, fly.d + ((now - fly.last) / 1000) * speed); }
+      fly.last = now;
+      const p = at(fly.d), want = brg(p, ahead(fly.d + 1.5));
+      let diff = ((want - fly.bearing + 540) % 360) - 180;
+      fly.bearing += diff * 0.04;
+      gl3.jumpTo({ center: [p[1], p[0]], bearing: fly.bearing, pitch: 62, zoom: 12.6 });
+      $("mtFlyKm").textContent = `${fmtKm(fly.d)} of ${fmtKm(total)}`;
+      if (fly.d >= total) { stopFly(); return; }
+      fly.raf = requestAnimationFrame(step);
+    };
+    fly.raf = requestAnimationFrame(step);
+  }
+
+  // ---------- my moto rides ----------
+  // The rides recorded in Moto (navigate.js saves them with sport "moto" next to My rides): the day, km, time, the km
+  // of dirt (Valhalla matches the track to the roads once, kept in tf:motoRideDirt), the weather when it started
+  // (Open-Meteo, kept in tf:motoRideWx), and this year's totals. A tap shows the ride on the map.
+  const rideLayer = L.layerGroup(); allMoto.push(rideLayer);
+  let rideDirt = store.get("motoRideDirt", {}), rideWx = store.get("motoRideWx", {});
+  function loadMotoRides() {
+    return new Promise((resolve) => {
+      let r;
+      try { r = indexedDB.open("trail-finder-rides", 1); } catch { resolve([]); return; }
+      r.onupgradeneeded = () => { const db = r.result; db.createObjectStore("rides", { keyPath: "id" }); db.createObjectStore("photos", { keyPath: "id" }).createIndex("rideId", "rideId"); db.createObjectStore("current", { keyPath: "id" }); };
+      r.onerror = () => resolve([]);
+      r.onsuccess = () => {
+        const db = r.result;
+        try {
+          const q = db.transaction("rides").objectStore("rides").getAll();
+          q.onsuccess = () => { db.close(); resolve((q.result || []).filter((x) => x.sport === "moto" && x.points && x.points.length > 1).sort((a, b) => b.start - a.start)); };
+          q.onerror = () => { db.close(); resolve([]); };
+        } catch { db.close(); resolve([]); }
+      };
+    });
+  }
+  const rideKm = (x) => { let k = 0; for (let i = 1; i < x.points.length; i++) { const d = kmBetween(x.points[i - 1], x.points[i]); if (d < 5) k += d; } return k; };
+  const rideSecs = (x) => { const a = x.points[0][3] || x.start, b = x.points[x.points.length - 1][3] || x.end || x.start; return Math.max(0, (b - a) / 1000); };
+  async function lookRide(x) {
+    const km = rideKm(x);
+    if (rideDirt[x.id] == null) {
+      const pts = [], gap = Math.max(0.05, km / 1500);
+      let acc = 0; pts.push(x.points[0]);
+      for (let i = 1; i < x.points.length; i++) { acc += kmBetween(x.points[i - 1], x.points[i]); if (acc >= gap) { pts.push(x.points[i]); acc = 0; } }
+      try {
+        const at = await postJ(`${VALHALLA}/trace_attributes`, { encoded_polyline: encode6(pts.map((p) => [p[0], p[1]])), shape_match: "map_snap", costing: "motorcycle", filters: { attributes: ["edge.length", "edge.surface", "edge.unpaved", "edge.use", "edge.road_class"], action: "include" } }, 40000);
+        rideDirt[x.id] = +(at.edges || []).reduce((s, e) => s + (e.unpaved || gradeOfEdge(e) >= 2 ? e.length || 0 : 0), 0).toFixed(1);
+        store.set("motoRideDirt", rideDirt);
+      } catch {}
+    }
+    if (!rideWx[x.id]) {
+      const [lat, lon] = x.points[0], old = Date.now() - x.start > 80 * 864e5, day = new Date(x.start).toISOString().slice(0, 10);
+      const url = `https://${old ? "archive-api" : "api"}.open-meteo.com/v1/${old ? "archive" : "forecast"}?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&hourly=temperature_2m,precipitation&timeformat=unixtime&timezone=GMT&start_date=${day}&end_date=${day}`;
+      try {
+        const j = await getJ(url, 15000), h = j.hourly, i = Math.max(0, h.time.findIndex((t) => t * 1000 > x.start) - 1);
+        rideWx[x.id] = [Math.round(h.temperature_2m[i]), +h.precipitation.reduce((a, b) => a + (b || 0), 0).toFixed(1)];
+        store.set("motoRideWx", rideWx);
+      } catch {}
+    }
+  }
+  async function openLog() {
+    const el = $("mtLog");
+    toPanel();
+    el.hidden = false;
+    el.innerHTML = `<header>${svg(IC.log)}<h3>My moto rides</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header><p class="mt-note">Loading…</p>`;
+    el.querySelector(".mt-x").onclick = () => { el.hidden = true; rideLayer.clearLayers(); };
+    showCard(el);
+    const rides = await loadMotoRides();
+    const fill = () => {
+      const year = new Date().getFullYear(), yr = rides.filter((x) => new Date(x.start).getFullYear() === year);
+      const tot = yr.reduce((s, x) => s + rideKm(x), 0), dirt = yr.reduce((s, x) => s + (rideDirt[x.id] || 0), 0);
+      el.innerHTML = `<header>${svg(IC.log)}<h3>My moto rides</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>
+        ${rides.length ? `<div class="mt-stats"><div><b>${yr.length}</b><span>rides ${year}</span></div><div><b>${fmtKm(tot)}</b><span>ridden</span></div><div><b>${fmtKm(dirt)}</b><span>of dirt</span></div><div><b>${tot ? Math.round((100 * dirt) / tot) : 0}%</b><span>dirt</span></div></div>
+        <ul class="mt-list">${rides.slice(0, 60).map((x) => { const km = rideKm(x), d = rideDirt[x.id], w = rideWx[x.id];
+          return `<li style="--c:${ACC}"><button type="button" class="mt-go" data-ride="${esc(x.id)}"><b>${esc(x.title || new Date(x.start).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }))}</b><small>${new Date(x.start).toLocaleDateString()} · ${fmtH(rideSecs(x))}${d != null ? ` · ${fmtKm(d)} dirt` : ""}${w ? ` · ${w[0]}°C${w[1] >= 0.5 ? `, ${w[1]} mm rain` : ""}` : ""}</small><em>${fmtKm(km)}</em></button></li>`; }).join("")}</ul>`
+        : `<p class="mt-note">No moto rides yet. Tap Ride (or Ride it on a route) to record one; it lands here with its km of dirt and the weather.</p>`}
+        <p class="mt-note"><a href="ride.html#rides">All rides, GPX files and photos</a></p>`;
+      el.querySelector(".mt-x").onclick = () => { el.hidden = true; rideLayer.clearLayers(); };
+      el.querySelectorAll("[data-ride]").forEach((b) => (b.onclick = () => {
+        const x = rides.find((y) => String(y.id) === b.dataset.ride); if (!x) return;
+        rideLayer.clearLayers();
+        const ll = x.points.map((p) => [p[0], p[1]]);
+        rideLayer.addLayer(L.polyline(ll, { renderer: lineRenderer, color: "#fff", weight: 8, interactive: false }));
+        rideLayer.addLayer(L.polyline(ll, { renderer: lineRenderer, color: ACC, weight: 4.5, interactive: false }));
+        if (phone() && window.tfSnapTo) window.tfSnapTo("peek");
+        map.fitBounds(L.latLngBounds(ll).pad(0.15));
+      }));
+    };
+    fill();
+    for (const x of rides.slice(0, 30)) if (rideDirt[x.id] == null || !rideWx[x.id]) { await lookRide(x); if (!el.hidden) fill(); }
+  }
+
+  // ---------- ride safe: check-in alarm and send my location ----------
+  // Riding alone off the pavement, ADV riders' first worry. While a ride records in Moto, if you haven't moved for the
+  // minutes you set, the phone rings and asks "Are you OK?"; with no answer in 2 minutes it opens a text to your
+  // contact with where you are. A web app can't send the text by itself, and phones pause it when the screen locks:
+  // the card says so, and points to Crash Detection and satellite messengers for the real thing.
+  let safe = store.get("motoSafe", { on: false, mins: 30, name: "", phone: "" });
+  let moveAt = Date.now(), moveP = null, alarm = null, safeTimer = 0;
+  function renderSafe() {
+    const el = $("mtSafeRow"); if (!el) return;
+    el.innerHTML = `<button type="button" class="mt-pill${safe.on ? " armed" : ""}" data-s="set">${svg(IC.safe, 16)}${safe.on ? `Check-in: ${safe.mins} min` : "Check-in alarm"}</button><button type="button" class="mt-pill" data-s="send">${svg(IC.pin, 16)}Send my location</button>`;
+    el.querySelector('[data-s="set"]').onclick = openSafe;
+    el.querySelector('[data-s="send"]').onclick = () => sendWhere(false);
+  }
+  function openSafe() {
+    dlg.innerHTML = `<form method="dialog"><h2>Check-in alarm <button type="button" class="mt-xb" data-x aria-label="Close">✕</button></h2>
+      <p class="mt-note">While you record a ride in Moto: if you haven't moved for this long, the phone rings and asks if you're OK. No answer in 2 minutes and it opens a text to your contact with where you are, ready to send.</p>
+      <label>Ring after<select id="mtSafeMins">${[15, 30, 45, 60, 90].map((m) => `<option value="${m}"${m === safe.mins ? " selected" : ""}>${m} minutes without moving</option>`).join("")}</select></label>
+      <label>Contact's name<input id="mtSafeName" maxlength="40" value="${esc(safe.name)}" placeholder="Sam" autocomplete="off"></label>
+      <label>Their phone<input id="mtSafePhone" type="tel" inputmode="tel" maxlength="20" value="${esc(safe.phone)}" placeholder="+1 604 555 0123"></label>
+      <p class="mt-note">Keep Trail Finder open on the screen: phones pause web apps when they lock. For a crash far from signal, use your phone's Crash Detection or Emergency SOS via satellite, or a satellite messenger (inReach, ZOLEO, SPOT).</p>
+      <div class="mt-btns"><button type="button" class="go" data-on>${safe.on ? "Save" : "Turn on"}</button>${safe.on ? `<button type="button" data-off>Turn off</button>` : ""}</div></form>`;
+    const q = (s) => dlg.querySelector(s);
+    q("[data-x]").onclick = () => dlg.close();
+    const read = () => ({ mins: +q("#mtSafeMins").value, name: q("#mtSafeName").value.trim(), phone: q("#mtSafePhone").value.replace(/[^\d+]/g, "") });
+    q("[data-on]").onclick = () => { const v = read(); if (!v.phone) { q("#mtSafePhone").focus(); return; } safe = { ...v, on: true }; store.set("motoSafe", safe); dlg.close(); renderSafe(); watchSafe(); hint(`Check-in alarm on: ${safe.mins} minutes without moving while you ride.`); };
+    const off = q("[data-off]"); if (off) off.onclick = () => { safe = { ...read(), on: false }; store.set("motoSafe", safe); dlg.close(); renderSafe(); watchSafe(); };
+    if (!dlg.open) dlg.showModal();
+  }
+  const whereText = () => {
+    const p = moveP || (you ? [you.lat, you.lon] : null);
+    if (!p) return null;
+    return `My location (Trail Finder, ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}): https://maps.google.com/?q=${p[0].toFixed(5)},${p[1].toFixed(5)}`;
+  };
+  const smsHref = (to, body) => `sms:${to}${/iPhone|iPad|Mac/.test(navigator.userAgent) ? "&" : "?"}body=${encodeURIComponent(body)}`;
+  async function sendWhere(help) {
+    const t = whereText();
+    if (!t) { hint("Turn on your location (◎ on the map) first."); return; }
+    const body = help ? `I may need help: I haven't moved for ${safe.mins} minutes on my moto ride. ${t}` : t;
+    if (help && safe.phone) { location.href = smsHref(safe.phone, body); return; }
+    if (navigator.share) { try { await navigator.share({ text: body }); return; } catch (e) { if (e.name === "AbortError") return; } }
+    if (safe.phone) location.href = smsHref(safe.phone, body);
+    else { try { await navigator.clipboard.writeText(body); hint("Copied your location: paste it in a message."); } catch { hint(body); } }
+  }
+  function noteMove(p) {
+    if (!moveP || kmBetween(moveP, p) > 0.08) { moveP = p; moveAt = Date.now(); }
+    else moveP = moveP || p;
+  }
+  function watchSafe() {
+    clearInterval(safeTimer); safeTimer = 0;
+    if (!safe.on || !isMoto()) return;
+    safeTimer = setInterval(() => {
+      const riding = window.tfRide && window.tfRide.riding();
+      if (!riding) { moveAt = Date.now(); return; }
+      if (!alarm && Date.now() - moveAt > safe.mins * 60e3) ring();
+    }, 15000);
+  }
+  function ring() {
+    let left = 120, ctx = null, beep = 0;
+    const el = document.createElement("div");
+    el.className = "mt-alarm"; el.setAttribute("role", "alertdialog");
+    el.innerHTML = `<h2>Are you OK?</h2><p>You haven't moved for ${safe.mins} minutes.</p><div class="count" id="mtAlarmLeft">2:00</div>
+      <button type="button" class="big" data-ok>I'm OK</button><p>No answer and a text to ${esc(safe.name || "your contact")} opens with where you are.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center"><button type="button" class="sec" data-help>Text now</button><a href="tel:911">Call 911</a></div>`;
+    document.body.append(el);
+    try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch {}
+    const tone = () => { if (navigator.vibrate) navigator.vibrate([400, 200, 400]); if (!ctx) return; const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 880; g.gain.value = 0.25; o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.35); };
+    const end = () => { clearInterval(alarm); alarm = null; clearInterval(beep); el.remove(); try { ctx && ctx.close(); } catch {} moveAt = Date.now(); };
+    beep = setInterval(tone, 1500); tone();
+    alarm = setInterval(() => {
+      left--; const m = el.querySelector("#mtAlarmLeft"); if (m) m.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+      if (left <= 0) { end(); sendWhere(true); }
+    }, 1000);
+    el.querySelector("[data-ok]").onclick = end;
+    el.querySelector("[data-help]").onclick = () => { end(); sendWhere(true); };
+  }
+
+  // ---------- ADV routes across Canada ----------
+  // A list of known adventure routes in every province and territory (data/moto-routes.json, gathered from the
+  // riders' route guides, traced on OpenStreetMap roads), sorted by distance from you, with the ones that suit your
+  // bike first. One opens on the map; "Plan it" makes it your route, with turns, surfaces and gas for your bike.
+  let trips = null, tripsLoading = null, tripProv = "", tripFit = true, tripOpen = null;
+  const tripLayer = L.layerGroup(); allMoto.push(tripLayer);
+  const loadTrips = () => tripsLoading || (tripsLoading = getJ("data/moto-routes.json", 20000).then((j) => (trips = (j.routes || []).filter((t) => t && t.n && t.start))).catch(() => { tripsLoading = null; trips = null; return null; }));
+  const tripFits = (t, b) => (t.grade || 2) <= capOf(b) && (!t.bikes || !t.bikes.length || t.bikes.includes(b.type) || (t.grade || 2) <= capOf(b) - 1);
+  const tripLine = (t) => (typeof t.line === "string" ? decode6(t.line) : Array.isArray(t.line) ? t.line : [t.start, t.end].filter(Boolean));
+  async function openTrips() {
+    const el = $("mtTrips");
+    toPanel();
+    el.hidden = false;
+    el.innerHTML = `<header>${svg(IC.trips)}<h3>ADV routes</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header><p class="mt-note">Loading…</p>`;
+    el.querySelector(".mt-x").onclick = closeTrips;
+    showCard(el);
+    await loadTrips();
+    renderTrips();
+  }
+  function closeTrips() { $("mtTrips").hidden = true; tripOpen = null; tripLayer.clearLayers(); }
+  function renderTrips() {
+    const el = $("mtTrips"), b = cur();
+    if (el.hidden) return;
+    if (!trips) { el.innerHTML = `<header>${svg(IC.trips)}<h3>ADV routes</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header><p class="mt-note">The route list isn't here yet: it comes with the next update.</p>`; el.querySelector(".mt-x").onclick = closeTrips; return; }
+    const at = you ? [you.lat, you.lon] : (() => { const c = map.getCenter(); return [c.lat, c.lng]; })();
+    const provs = [...new Set(trips.map((t) => (t.prov || "").toUpperCase()).filter(Boolean))].sort();
+    let list = trips.map((t) => ({ t, d: kmBetween(at, t.start), fit: tripFits(t, b) })).filter((x) => !tripProv || (x.t.prov || "").toUpperCase() === tripProv);
+    if (tripFit) list = list.filter((x) => x.fit);
+    list.sort((x, y) => x.d - y.d);
+    const g = (t) => { const f = fitOf(t.grade || 2, capOf(b)); return `<span class="mt-g" style="--c:${(t.grade || 2) === 1 ? "#495057" : FIT[f][1]}">${t.grade || 2}</span>`; };
+    const open = tripOpen && trips.find((t) => t.id === tripOpen);
+    el.innerHTML = `<header>${svg(IC.trips)}<h3>ADV routes</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>
+      ${open ? (() => { const f = fitOf(open.grade || 2, capOf(b)), gap = open.fuelGap; return `<p><b>${esc(open.n)}</b></p>
+        <div class="mt-stats"><div><b>${fmtKm(open.km || 0)}</b><span>${open.loop ? "loop" : "distance"}</span></div><div><b>${open.dirtPct != null ? open.dirtPct + "%" : "…"}</b><span>dirt</span></div><div><b style="color:${(open.grade || 2) === 1 ? "#495057" : FIT[f][1]}">${open.grade || 2} of 5</b><span>grade</span></div><div><b>${gap ? fmtKm(gap) : "…"}</b><span>longest no gas</span></div></div>
+        <div class="mt-warn ${f === "ok" ? "ok" : f === "hard" ? "hard" : ""}"><b>${esc(FIT[f][0])}</b> (${esc(GRADES[open.grade || 2][0].toLowerCase())}).${gap && gap > usable(b) ? ` <b>${fmtKm(gap)} with no gas</b> is more than your ${usable(b)} km: carry fuel.` : ""}${open.season ? ` Season: ${esc(open.season)}.` : ""}${open.ferry ? " It takes a ferry." : ""}</div>
+        ${open.notes ? `<p class="mt-note" style="font-size:.82rem;color:var(--fg)">${esc(open.notes)}</p>` : ""}
+        <div class="mt-row"><button type="button" class="mt-pill go" data-t="plan">${svg(IC.plan, 16)}Plan it for my bike</button><button type="button" class="mt-pill" data-t="back">All routes</button>${open.src ? `<a class="mt-pill" href="${esc(open.src)}" target="_blank" rel="noopener">Source</a>` : ""}</div>`; })()
+      : `<div class="mt-chips"><button type="button" data-fit class="${tripFit ? "on" : ""}">Fits my bike</button><button type="button" data-prov="" class="${!tripProv ? "on" : ""}">All of Canada</button>${provs.map((p) => `<button type="button" data-prov="${p}" class="${tripProv === p ? "on" : ""}">${p}</button>`).join("")}</div>
+        ${list.length ? `<ul class="mt-list">${list.slice(0, 40).map(({ t, d }) => `<li style="--c:${FIT[fitOf(t.grade || 2, capOf(b))][1]}"><button type="button" class="mt-go" data-trip="${esc(t.id)}"><b>${g(t)}${esc(t.n)}</b><small>${esc((t.prov || "").toUpperCase())} · ${fmtKm(t.km || 0)}${t.dirtPct != null ? ` · ${t.dirtPct}% dirt` : ""}${t.season ? ` · ${esc(t.season)}` : ""}</small><em>${fmtKm(d)}</em></button></li>`).join("")}</ul>`
+        : `<p class="mt-note">${tripFit ? "None here fit your bike: turn off Fits my bike to see them all." : "No routes here."}</p>`}
+        <p class="mt-note">The grade is for the roughest part, coloured for your ${esc(b.name || TYPES[b.type].label)}. Distance is from ${you ? "you" : "the map's centre"} to the start.</p>`}`;
+    el.querySelector(".mt-x").onclick = closeTrips;
+    el.querySelectorAll("[data-prov]").forEach((x) => (x.onclick = () => { tripProv = x.dataset.prov; renderTrips(); }));
+    const fb = el.querySelector("[data-fit]"); if (fb) fb.onclick = () => { tripFit = !tripFit; renderTrips(); };
+    el.querySelectorAll("[data-trip]").forEach((x) => (x.onclick = () => showTrip(x.dataset.trip)));
+    const pb = el.querySelector('[data-t="plan"]'); if (pb) pb.onclick = () => planTrip(open);
+    const bb = el.querySelector('[data-t="back"]'); if (bb) bb.onclick = () => { tripOpen = null; tripLayer.clearLayers(); renderTrips(); };
+  }
+  function showTrip(id) {
+    const t = trips && trips.find((x) => x.id === id); if (!t) return;
+    tripOpen = id; tripLayer.clearLayers();
+    const ll = tripLine(t);
+    if (ll.length > 1) {
+      tripLayer.addLayer(L.polyline(ll, { renderer: lineRenderer, color: "#fff", weight: 8, interactive: false }));
+      tripLayer.addLayer(L.polyline(ll, { renderer: lineRenderer, color: "#7048e8", weight: 4.5, dashArray: "10 6", interactive: false }));
+      map.fitBounds(L.latLngBounds(ll).pad(0.1));
+    } else map.setView(t.start, 10);
+    renderTrips(); showCard($("mtTrips"));
+  }
+  // The route's own line, as up to 14 stops along it, so the router follows it and adds turns, surfaces and gas.
+  function planTrip(t) {
+    if (!t) return;
+    const ll = tripLine(t);
+    if (ll.length < 2) return;
+    const cum = [0]; for (let i = 1; i < ll.length; i++) cum.push(cum[i - 1] + kmBetween(ll[i - 1], ll[i]));
+    const total = cum[cum.length - 1], n = Math.min(14, Math.max(2, Math.round(total / 40) + 1)), pts = [];
+    for (let k = 0; k < n; k++) { const want = (total * k) / (n - 1); let i = cum.findIndex((c) => c >= want); if (i < 0) i = ll.length - 1; pts.push([+ll[i][0].toFixed(5), +ll[i][1].toFixed(5)]); }
+    planPts = t.loop ? pts.slice(0, -1) : pts; planLoop = !!t.loop; planStyle = "dirt";
+    store.set("motoPlan", planPts); store.set("motoLoop", planLoop); store.set("motoStyle", planStyle);
+    route = null; routeErr = "";
+    closeTrips();
+    drawWaypoints(); renderRoute(true); buildRoute().then(() => { if (route) route.name = t.n; renderRoute(); });
+    showCard($("mtRoute"));
+  }
 
   // ---------- for other scripts ----------
   window.tfMoto = {
     rideInfo,
-    openLog() { location.href = "ride.html#rides"; },
+    openLog,
     hub(what) {   // index.html's phone pages: Plan a moto route, saved routes, my bikes, my rides
       if (what === "plan") { const t = document.querySelector('#tabbar [data-nav="moto"]'); if (t) t.click(); setPlanning(true); }
       else if (what === "routes") { const t = document.querySelector('#tabbar [data-nav="moto"]'); if (t) t.click(); openSaved(); }
       else if (what === "bike") openBikes();
-      else if (what === "log") this.openLog();
+      else if (what === "log") openLog();
+      else if (what === "trips") openTrips();
     },
   };
   // Offline maps (offline.js) saved in Moto keep the gas, camping and hot spring lists too.
-  window.tfMotoOffline = () => (isMoto() ? ["fuel", "camp", "hot", "ferry"].map((k) => `ca/moto/${k}.json`) : []);
+  window.tfMotoOffline = () => (isMoto() ? [...["fuel", "camp", "hot", "ferry"].map((k) => `ca/moto/${k}.json`), "data/moto-cell.json", "data/moto-routes.json"] : []);
 
   // ---------- map taps and switching sport ----------
   map.on("click", (e) => {
@@ -1353,7 +1882,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     if (!isMoto()) return;
     drawPoints(); zoomNote();
     clearTimeout(moveTimer);
-    moveTimer = setTimeout(() => { drawMud(); drawRules(); loadRec(); loadLive(); if (!spot) renderNow(); }, 500);
+    moveTimer = setTimeout(() => { drawMud(); drawRules(); drawCell(); loadRec(); loadLive(); if (!spot) renderNow(); }, 500);
   });
   map.on("zoomend", () => { if (isMoto()) renderLayers(); });
   let started = false;
@@ -1361,9 +1890,9 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     const on = isMoto();
     for (const l of allMoto) { if (on && !map.hasLayer(l)) l.addTo(map); else if (!on && map.hasLayer(l)) map.removeLayer(l); }
     if (on && !keyCtl._map) keyCtl.addTo(map); else if (!on && keyCtl._map) keyCtl.remove();
-    if (!on) { if (planning) setPlanning(false); showRoads(false); drawPoints(); sync3d(); return; }
+    if (!on) { if (planning) setPlanning(false); showRoads(false); drawPoints(); stopFly(); watchSafe(); sync3d(); return; }
     if (!started) { started = true; ["fuel", "camp", "hot", "shop", "ferry"].forEach(loadPts); }
-    renderBike(); renderLayers(); applyLayers(); drawWaypoints(); drawRoute(); renderRoute(); renderNow(); renderNear();
+    renderBike(); renderLayers(); applyLayers(); drawWaypoints(); drawRoute(); renderRoute(); renderNow(); renderNear(); renderSafe(); watchSafe(); renderTrips();
     if (planPts.length >= 2 && !route) buildRoute();
   }
   window.addEventListener("tf:sport", sync);
