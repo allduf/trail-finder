@@ -297,6 +297,14 @@ dialog.mt-dlg .mt-xb { font: inherit; border: 0; background: var(--chip); color:
 .mt-pin { width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; display: grid; place-items: center; color: #fff; font: 800 11px/1 system-ui, sans-serif; box-shadow: 0 0 0 2px #fff, 0 1px 4px #0006; }
 .mt-wp { width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: ${ACC}; color: #fff; display: grid; place-items: center; font: 800 12px/1 system-ui, sans-serif; box-shadow: 0 0 0 2.5px #fff, 0 1px 5px #0007; }
 .mt-wp.end { background: #212529; }
+.mt-wp.mt-wp3 { margin: 0; cursor: grab; }
+#motoPane .mt-wps ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+#motoPane .mt-wps li { display: grid; grid-template-columns: 30px minmax(0, 1fr) repeat(3, 34px); align-items: center; gap: 5px; font-size: .84rem; }
+#motoPane .mt-wps li > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#motoPane .mt-wps li > .mt-wp { margin: 0 0 0 3px; padding: 0; border: 0; cursor: pointer; }
+#motoPane .mt-wps li > button:not(.mt-wp) { width: 34px; height: 34px; padding: 0; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: inherit; font-size: 1rem; }
+#motoPane .mt-wps li > button:disabled { opacity: .35; }
+#motoPane .mt-link { border: 0; background: none; padding: 0; color: ${ACC}; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .mt-mud { font: 800 10px/1.1 system-ui, sans-serif; color: #fff; text-shadow: 0 0 3px #000, 0 0 2px #000; white-space: nowrap; transform: translate(-50%, -50%); pointer-events: none; }
 .mt-planbar { position: absolute; z-index: 1000; left: 50%; top: 12px; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; white-space: nowrap;
   background: var(--panel); color: var(--fg); border: 2px solid ${ACC}; border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.25); padding: 6px 6px 6px 14px; font-size: .86rem; font-weight: 700; }
@@ -954,16 +962,62 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     clearTimeout(planChanged.t);
     planChanged.t = setTimeout(buildRoute, 250);
   }
+  // The route points: S, 1, 2... and E, on the flat map and the 3D map (alex: "can we see the point we add in the
+  // route?"). Drag one to move it; tap one while planning to remove it; the route card lists them to reorder.
+  const in3d = () => !!gl3 && !!document.querySelector(".mapwrap.is3d, #map.is3d");
+  const goTo = (p) => {
+    map.setView(p, Math.max(map.getZoom(), 13));
+    if (in3d()) gl3.easeTo({ center: [p[1], p[0]], zoom: Math.max(gl3.getZoom(), 13) });
+  };
+  const wpLabel = (i) => (i === 0 ? "S" : i === planPts.length - 1 && !planLoop ? "E" : String(i));
+  let wp3d = [];
   function drawWaypoints() {
     wpLayer.clearLayers();
+    wp3d.forEach((m) => m.remove()); wp3d = [];
     if (!isMoto()) return;
+    const dropAt = (i, lat, lon) => { planPts[i] = [+lat.toFixed(5), +lon.toFixed(5)]; planChanged(); renderRoute(); };
+    const remove = (i) => { if (planning && confirm(`Remove point ${wpLabel(i)}?`)) { planPts.splice(i, 1); planChanged(); renderRoute(); } };
     planPts.forEach((p, i) => {
-      const end = i === planPts.length - 1 && i > 0;
-      const m = L.marker(p, { pane: "moto", draggable: true, keyboard: false, icon: L.divIcon({ className: "", html: `<div class="mt-wp${end ? " end" : ""}">${i === 0 ? "S" : end && !planLoop ? "E" : i}</div>`, iconSize: [0, 0] }) });
-      m.on("dragend", () => { const q = m.getLatLng(); planPts[i] = [+q.lat.toFixed(5), +q.lng.toFixed(5)]; planChanged(); });
-      m.on("click", (e) => { L.DomEvent.stopPropagation(e); if (planning && confirm(`Remove point ${i === 0 ? "S" : i}?`)) { planPts.splice(i, 1); planChanged(); } });
+      const cls = `mt-wp${i === planPts.length - 1 && i > 0 ? " end" : ""}`;
+      const m = L.marker(p, { pane: "moto", draggable: true, keyboard: false, zIndexOffset: 1000, icon: L.divIcon({ className: "", html: `<div class="${cls}">${wpLabel(i)}</div>`, iconSize: [0, 0] }) });
+      m.on("dragend", () => { const q = m.getLatLng(); dropAt(i, q.lat, q.lng); });
+      m.on("click", (e) => { L.DomEvent.stopPropagation(e); remove(i); });
       wpLayer.addLayer(m);
+      if (gl3 && window.maplibregl) {
+        const el = document.createElement("div");
+        el.className = cls + " mt-wp3"; el.textContent = wpLabel(i);
+        el.addEventListener("click", (e) => { e.stopPropagation(); remove(i); });
+        const mk = new window.maplibregl.Marker({ element: el, draggable: true }).setLngLat([p[1], p[0]]).addTo(gl3);
+        mk.on("dragend", () => { const q = mk.getLngLat(); dropAt(i, q.lat, q.lng); });
+        wp3d.push(mk);
+      }
     });
+  }
+  // Names for the points (Nominatim, one ask a second, kept for the visit).
+  const wpNames = new Map(), wpQ = [];
+  const wpKey = (p) => p[0].toFixed(3) + "," + p[1].toFixed(3);
+  function wpName(p) {
+    const k = wpKey(p);
+    if (wpNames.has(k)) return wpNames.get(k);
+    wpNames.set(k, "");
+    wpQ.push(p);
+    if (wpQ.length === 1) (async () => {
+      while (wpQ.length) {
+        const q = wpQ[0];
+        const j = await getJ(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&lat=${q[0]}&lon=${q[1]}`, 8000).catch(() => null);
+        const a = (j && j.address) || {};
+        wpNames.set(wpKey(q), a.road || a.hamlet || a.village || a.town || a.city || a.locality || a.county || "");
+        wpQ.shift();
+        if (route || planning) renderRoute();
+        if (wpQ.length) await new Promise((r) => setTimeout(r, 1100));
+      }
+    })();
+    return "";
+  }
+  function wpListHtml() {
+    if (!planPts.length) return "";
+    const btn = (act, i, t, lbl, off) => `<button type="button" data-wp="${act}:${i}" aria-label="${lbl}"${off ? " disabled" : ""}>${t}</button>`;
+    return `<details class="mt-fold mt-wps"${planning || planPts.length <= 4 ? " open" : ""}><summary>Route points (${planPts.length})</summary><ol>${planPts.map((p, i) => `<li><button type="button" class="${i === planPts.length - 1 && i > 0 ? "mt-wp end" : "mt-wp"}" data-wp="go:${i}" aria-label="Show point ${wpLabel(i)}">${wpLabel(i)}</button><span>${esc(wpName(p) || `${p[0].toFixed(4)}, ${p[1].toFixed(4)}`)}</span>${btn("up", i, "↑", "Move up", i === 0)}${btn("down", i, "↓", "Move down", i === planPts.length - 1)}${btn("del", i, "✕", "Remove")}</li>`).join("")}</ol></details>`;
   }
   // Router settings for the style and the bike: use_trails is Valhalla's taste for unpaved roads and tracks (0 to 1).
   function costing() {
@@ -986,28 +1040,19 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     }
     return out;
   };
-  async function buildRoute() {
-    const locs = planLoop && planPts.length >= 2 ? [...planPts, planPts[0]] : planPts;
-    const my = ++routeSeq;
-    routeErr = "";
-    if (locs.length < 2) { route = null; drawRoute(); renderRoute(); return; }
-    $("mtRoute").hidden = false;
-    renderRoute(true);
+  // One ask to the router, then the surfaces along it. excl: points whose roads it must not use (Valhalla's
+  // exclude_locations: the road a point sits on is left out).
+  async function routeOnce(locs, excl) {
     const body = { locations: locs.map((p, i) => ({ lat: p[0], lon: p[1], type: i === 0 || i === locs.length - 1 ? "break" : "through" })),
       costing: "motorcycle", costing_options: { motorcycle: costing() }, directions_options: { units: "kilometers", language: "en-US" } };
-    let r;
-    try { r = await postJ(`${VALHALLA}/route`, body, 40000); }
-    catch (e) {
-      if (my !== routeSeq) return;
-      routeErr = /HTTP 4/.test(e.message) ? "No road found between those points for this style: move a point onto a road, or try another style." : "The route server didn't answer. Check your signal and try again.";
-      route = null; drawRoute(); renderRoute(); return;
-    }
-    if (my !== routeSeq) return;
-    const legs = r.trip.legs, line = [], parts = [];
+    if (excl.length) body.exclude_locations = excl.map((p) => ({ lat: p[0], lon: p[1] }));
+    const r = await postJ(`${VALHALLA}/route`, body, 40000);
+    const legs = r.trip.legs, line = [], parts = [], legAt = [];
     for (const leg of legs) {
       const shape = decode6(leg.shape), base = line.length ? line.length - 1 : 0;
       if (line.length) line.pop();
       line.push(...shape);
+      legAt.push([base, shape.length]);
       for (const m of leg.maneuvers) {
         if (m.type === 4 && leg !== legs[legs.length - 1]) continue;   // "you have arrived" at a point on the way
         parts.push({ name: (m.street_names && m.street_names[0]) || "the road", kind: "moto", lvl: null, color: ACC, say: m.verbal_transition_alert_instruction || m.instruction,
@@ -1015,17 +1060,241 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       }
     }
     parts.forEach((x) => { x.pts = line.slice(x.a, Math.max(x.a + 2, x.b + 1)); });
-    route = { pts: locs, line, parts: parts.filter((x) => x.pts.length > 1), km: r.trip.summary.length, time: r.trip.summary.time, ferry: r.trip.summary.has_ferry, style: planStyle, edges: null, name: "" };
-    drawRoute(); renderRoute(); drawRange();
-    // Surfaces along it, for km of dirt, the hard bits and the colours.
-    const enc = encode6(line);
-    const at = await postJ(`${VALHALLA}/trace_attributes`, { encoded_polyline: enc, shape_match: "edge_walk", costing: "motorcycle",
-      filters: { attributes: ["edge.length", "edge.surface", "edge.unpaved", "edge.use", "edge.road_class", "edge.names", "edge.max_upward_grade", "edge.begin_shape_index", "edge.end_shape_index"], action: "include" } }, 40000).catch(() => null);
-    if (my !== routeSeq || !route) return;
-    route.edges = at && at.edges ? at.edges : null;
+    return { pts: locs, line, parts: parts.filter((x) => x.pts.length > 1), km: r.trip.summary.length, time: r.trip.summary.time, ferry: r.trip.summary.has_ferry, style: planStyle, edges: null, name: "",
+      closures: null, avoided: [], excl: excl.slice(), legAt };
+  }
+  // The surfaces along a line, leg by leg. Valhalla's exact walk fails on some routes (a turn back at a point on the
+  // way), which left the surfaces "reading" for good: then the leg is matched to the map instead, and its matched
+  // line replaces it. Returns { edges, line } (edges index into line).
+  const TRACE_ATTR = { attributes: ["edge.length", "edge.surface", "edge.unpaved", "edge.use", "edge.road_class", "edge.names", "edge.max_upward_grade", "edge.begin_shape_index", "edge.end_shape_index"], action: "include" };
+  // After the line is replaced: each turn's a and b, as the nearest points of the new line, in order.
+  function reindexParts(parts, line) {
+    let k = 0;
+    const near = (p) => { let best = k, bd = Infinity; for (let i = k; i < Math.min(line.length, k + 4000); i++) { const d = Math.abs(line[i][0] - p[0]) + Math.abs(line[i][1] - p[1]); if (d < bd) { bd = d; best = i; } } return (k = best); };
+    parts.forEach((x) => { x.a = near(x.pts[0]); x.b = near(x.pts[x.pts.length - 1]); });
+  }
+  async function edgesOf(line, legAt = [[0, line.length]]) {
+    const trace = (pts, how) => postJ(`${VALHALLA}/trace_attributes`, { encoded_polyline: encode6(pts), shape_match: how, costing: "motorcycle",
+      filters: how === "map_snap" ? { ...TRACE_ATTR, attributes: [...TRACE_ATTR.attributes, "shape"] } : TRACE_ATTR }, 40000);
+    const legs = await Promise.all(legAt.map(async ([base, n]) => {
+      const pts = line.slice(base, base + n);
+      try { const at = await trace(pts, "edge_walk"); if (at && at.edges) return { pts, edges: at.edges }; } catch (e) { /* matched below */ }
+      try { const at = await trace(pts, "map_snap"); if (at && at.edges && at.shape) return { pts: decode6(at.shape), edges: at.edges }; } catch (e) { /* no surfaces for this leg */ }
+      return { pts, edges: [] };
+    }));
+    if (!legs.some((l) => l.edges.length)) return { edges: null, line };
+    const out = [], edges = [];
+    for (const l of legs) {
+      const base = out.length ? out.length - 1 : 0;
+      if (out.length) out.pop();
+      out.push(...l.pts);
+      l.edges.forEach((e) => edges.push({ ...e, begin_shape_index: e.begin_shape_index + base, end_shape_index: e.end_shape_index + base }));
+    }
+    return { edges, line: out };
+  }
+  // Plan, then check the closures along it and plan again around the ones it can go around (alex: "are you
+  // considering all the closure and fsr status? i want to have the most accurate route planner possible"). Up to 3
+  // more tries; each try leaves out the roads with the closures found so far.
+  async function buildRoute() {
+    const locs = planLoop && planPts.length >= 2 ? [...planPts, planPts[0]] : planPts;
+    const my = ++routeSeq;
+    routeErr = "";
+    if (locs.length < 2) { route = null; drawRoute(); renderRoute(); return; }
+    $("mtRoute").hidden = false;
+    renderRoute(true);
+    let excl = avoidMine.map((a) => [a[0], a[1]]), r, best = null;
+    const avoided = [];
+    for (let round = 0; round < 4; round++) {
+      try { r = await routeOnce(locs, excl); }
+      catch (e) {
+        if (my !== routeSeq) return;
+        if (best) { best.noWay = true; break; }   // no way around: keep the last route and say so
+        routeErr = /HTTP 4/.test(e.message) ? "No road found between those points for this style: move a point onto a road, or try another style." : "The route server didn't answer. Check your signal and try again.";
+        route = null; drawRoute(); renderRoute(); return;
+      }
+      if (my !== routeSeq) return;
+      r.avoided = avoided.slice();
+      r.checking = true;
+      if (!best) { route = r; drawRoute(); renderRoute(); drawRange(); }
+      const ed = await edgesOf(r.line, r.legAt);
+      if (ed.line !== r.line) { reindexParts(r.parts, ed.line); r.line = ed.line; }
+      r.edges = ed.edges;
+      if (my !== routeSeq) return;
+      r.closures = await closuresOf(r, locs).catch(() => null);
+      if (my !== routeSeq) return;
+      r.checking = false;
+      best = r;
+      const add = r.closures ? r.closures.items.filter((x) => x.stop && x.p && !x.atPoint && !excl.some((q) => kmBetween(q, x.p) < 0.05)) : [];
+      if (!add.length || round === 3) break;
+      add.forEach((x) => { excl.push(x.p); avoided.push(x); });
+    }
+    route = best;
+    route.checking = false;
     nameRoute(route, my);
-    drawRoute(); renderRoute();
+    drawRoute(); renderRoute(); drawRange();
     if (gl3) sync3d();
+  }
+
+  // ---------- closures along a route ----------
+  // What can close a road to a plated bike, from the app's own data: BC and Alberta forest road status (DataBC Forest
+  // Tenure and OpenStreetMap: closed to vehicles, impassable, heavily degraded), locked gates, barriers and bridges
+  // out, BC motor vehicle closures, ecological reserves, wilderness and military land, wildfire area closures,
+  // evacuation orders and fire perimeters; and DriveBC's road events. The ones that close the road ("stop") are gone
+  // around; the rest are warnings with a Go around button. Parks, reserves and fire areas only count on dirt: public
+  // highways through them stay open (DriveBC says when they close).
+  const ROAD_ST = { closed: "closed to vehicles", impass: "impassable (washed out, deactivated or abandoned)", heavy: "heavily degraded" };
+  const FEAT_STOP = { gate_locked: "Locked gate", impasse: "Barrier across the road", bridge_out: "Bridge out" };
+  const AREA_STOP = { mvpr: "Closed to motor vehicles", eco: "Ecological reserve: no motor vehicles", wilderness: "Wilderness area: no motor vehicles", military: "Military land: closed" };
+  const FIRE_STOP = { perim: true, restr: true, order: true };
+  let avoidMine = store.get("motoAvoid", []);   // [lat, lon, label]: what the rider chose to go around
+  const inRing = (p, ring) => {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const a = ring[i], b = ring[j];
+      if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < ((b[0] - a[0]) * (p[1] - a[1])) / (b[1] - a[1]) + a[0]) inside = !inside;
+    }
+    return inside;
+  };
+  const inRings = (p, rings) => rings.length && inRing(p, rings[0]) && !rings.slice(1).some((h) => inRing(p, h));
+  // Metres from p to the segment a-b.
+  const segM = (p, a, b) => {
+    const kx = Math.cos((p[0] * Math.PI) / 180) * 111320, ky = 110540;
+    const ax = (a[1] - p[1]) * kx, ay = (a[0] - p[0]) * ky, bx = (b[1] - p[1]) * kx, by = (b[0] - p[0]) * ky, dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+    const t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
+    return Math.hypot(ax + t * dx, ay + t * dy);
+  };
+  // Points every 40 m along the route: { p, i (line index), dirt }.
+  function samplesOf(r) {
+    const dirtAt = new Uint8Array(r.line.length);
+    (r.edges || []).forEach((e) => { if (e.unpaved || gradeOfEdge(e) >= 2) for (let i = e.begin_shape_index; i <= e.end_shape_index && i < dirtAt.length; i++) dirtAt[i] = 1; });
+    const out = [];
+    for (let i = 1; i < r.line.length; i++) {
+      const a = r.line[i - 1], b = r.line[i], n = Math.max(1, Math.ceil(kmBetween(a, b) / 0.04));
+      for (let j = 0; j < n; j++) out.push({ p: [a[0] + ((b[0] - a[0]) * j) / n, a[1] + ((b[1] - a[1]) * j) / n], i: i - 1, dirt: !r.edges || (dirtAt[i - 1] && dirtAt[i]) });
+    }
+    out.push({ p: r.line[r.line.length - 1], i: r.line.length - 1, dirt: false });
+    return out;
+  }
+  // A 0.005° grid of line segments, for the nearest one to a point.
+  function segGrid(items) {
+    const g = new Map(), C = 0.005;
+    items.forEach((it) => { for (let i = 1; i < it.geom.length; i++) {
+      const a = it.geom[i - 1], b = it.geom[i];
+      for (let x = Math.floor(Math.min(a[0], b[0]) / C); x <= Math.floor(Math.max(a[0], b[0]) / C); x++)
+        for (let y = Math.floor(Math.min(a[1], b[1]) / C); y <= Math.floor(Math.max(a[1], b[1]) / C); y++) { const k = x + ":" + y; if (!g.has(k)) g.set(k, []); g.get(k).push([it, a, b]); }
+    } });
+    return (p, max) => {
+      let best = null, bd = max;
+      const x = Math.floor(p[0] / C), y = Math.floor(p[1] / C);
+      for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) (g.get(x + i + ":" + (y + j)) || []).forEach(([it, a, b]) => { const d = segM(p, a, b); if (d < bd) { bd = d; best = it; } });
+      return best;
+    };
+  }
+  const closureCache = new Map();   // the data for a box of the map, kept for the visit
+  function closureData(r) {
+    const b = L.latLngBounds(r.line).pad(0.05), key = b.toBBoxString();
+    if (closureCache.has(key)) return closureCache.get(key);
+    // Small boxes along the route, for the road files (they come by zone).
+    const boxes = [];
+    let from = 0;
+    for (let i = 1; i < r.line.length; i++) if (kmBetween(r.line[from], r.line[i]) > 25 || i === r.line.length - 1) { boxes.push(L.latLngBounds(r.line.slice(from, i + 1)).pad(0.1)); from = i; }
+    const nav = window.tfNav, bc = r.line.some((p) => inBCbox(p[0], p[1]) && !inAlberta(p[0], p[1]));
+    const done = (x) => x.then((v) => ({ ok: true, v }), () => ({ ok: false, v: null }));
+    const p = Promise.all([
+      done(nav && nav.roadsAlong ? nav.roadsAlong(boxes) : Promise.reject()),
+      done(window.tfHunt && window.tfHunt.areasIn ? window.tfHunt.areasIn(b.getSouth(), b.getWest(), b.getNorth(), b.getEast()) : Promise.reject()),
+      done(nav && nav.firesNow ? nav.firesNow() : Promise.reject()),
+      bc ? done(getJ(`https://api.open511.gov.bc.ca/events?${new URLSearchParams({ format: "json", status: "ACTIVE", limit: "500", bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((v) => v.toFixed(3)).join(",") })}`, 15000)) : Promise.resolve(null),
+    ]).then(([roads, areas, fires, d511]) => ({ roads, areas, fires, d511 }));
+    closureCache.set(key, p);
+    p.then((d) => { if (!d.roads.ok || !d.fires.ok || (d.d511 && !d.d511.ok)) setTimeout(() => closureCache.delete(key), 60000); });
+    return p;
+  }
+  async function closuresOf(r, locs) {
+    const d = await closureData(r), S = samplesOf(r), items = [], cap = capOf(cur());
+    const nearPoint = (p) => locs.some((q) => kmBetween(q, p) < 0.3);
+    const add = (x) => { x.atPoint = !!x.p && nearPoint(x.p); items.push(x); };
+    const zones = d.roads.ok ? d.roads.v : [];
+    // Forest roads with a bad status, in runs of 120 m or more on the route's dirt (a crossing is not a run).
+    const bad = zones.flatMap((z) => z.list.filter((w) => ROAD_ST[w.st]));
+    if (bad.length) {
+      const near = segGrid(bad);
+      let run = null;
+      const close = () => { if (run && run.n >= 3) { const mid = run.s[Math.floor(run.s.length / 2)]; add({ type: "road", stop: run.w.st !== "heavy" || cap <= 1, label: `${run.w.name ? titleCase(run.w.name).replace(/\b(Fsr|Fs|Rd)\b/g, (m) => ({ Fsr: "FSR", Fs: "FS", Rd: "Rd" })[m]) : "A forest road"}: ${ROAD_ST[run.w.st]}`, why: run.w.why, p: mid.p, a: run.s[0].i, b: run.s[run.s.length - 1].i, km: run.n * 0.04 }); } run = null; };
+      for (const s of S) {
+        const w = s.dirt ? near(s.p, 20) : null;
+        if (w && run && run.w === w) { run.n++; run.s.push(s); }
+        else { close(); if (w) run = { w, n: 1, s: [s] }; }
+      }
+      close();
+    }
+    // Gates, barriers and bridges out within 20 m of the route.
+    const feats = zones.flatMap((z) => (z.feats || []).filter((f) => FEAT_STOP[f.kind]));
+    if (feats.length) {
+      const near = segGrid(S.slice(1).map((s, k) => ({ geom: [S[k].p, s.p], s })));
+      const seen = new Set();
+      feats.forEach((f) => { const hit = near([f.lat, f.lon], 20); if (hit && !seen.has(f.id)) { seen.add(f.id); const n = (f.tags && (f.tags.name || f.tags.description || f.tags.note)) || ""; add({ type: "feat", stop: true, label: `${FEAT_STOP[f.kind]}${n ? `: ${n.slice(0, 80)}` : ""}`, p: [f.lat, f.lon], a: hit.s.i, b: hit.s.i }); } });
+    }
+    // Areas: where the route's dirt goes in, the first point 120 m inside.
+    const areaHit = (rings, box, mk) => {
+      let inRun = 0;
+      for (let k = 0; k < S.length; k++) {
+        const s = S[k];
+        const ins = box.contains(s.p) && inRings(s.p, rings);
+        if (!ins) { inRun = 0; continue; }
+        if (++inRun === 1) { const q = S[Math.min(S.length - 1, k + 3)]; mk(s, q); return; }
+      }
+    };
+    const areaList = [];
+    (d.areas.ok ? d.areas.v || [] : []).forEach((a) => { if (AREA_STOP[a.k]) { const rings = a.g.map((g) => { const o = []; for (let i = 0; i < g.length; i += 2) o.push([g[i], g[i + 1]]); return o; }); areaList.push({ rings, n: a.n, label: AREA_STOP[a.k] }); } });
+    zones.forEach((z) => (z.areas || []).filter((a) => a.type === "mv").forEach((a) => areaList.push({ rings: a.rings, n: (a.m && (a.m.n || a.m.name)) || "", label: AREA_STOP.mvpr })));
+    areaList.forEach((a) => {
+      const box = L.latLngBounds(a.rings[0]);
+      if (!box.intersects(L.latLngBounds(r.line))) return;
+      areaHit(a.rings, box, (s, q) => { if (!s.dirt && !q.dirt) return; add({ type: "area", stop: true, label: `${a.label}${a.n ? `: ${a.n}` : ""}`, p: q.p, a: s.i, b: q.i }); });
+    });
+    // Wildfires.
+    (d.fires.ok ? d.fires.v || [] : []).forEach((a) => {
+      if (!a.rings || !a.rings.length) return;
+      const box = L.latLngBounds(a.rings[0]);
+      if (!box.intersects(L.latLngBounds(r.line))) return;
+      areaHit(a.rings, box, (s, q) => {
+        const dirt = s.dirt || q.dirt;
+        add({ type: "fire", stop: !!FIRE_STOP[a.what] && dirt, label: `${a.label}${a.n ? `: ${a.n}` : ""}${!dirt && FIRE_STOP[a.what] ? " (the highway through it may stay open: check DriveBC)" : ""}`, p: q.p, a: s.i, b: q.i });
+      });
+    });
+    // DriveBC events within 60 m of the route: full closures are gone around, the rest are warnings.
+    const ev = d.d511 && d.d511.ok && d.d511.v ? d.d511.v.events || [] : [];
+    if (ev.length) {
+      const near = segGrid(S.slice(1).map((s, k) => ({ geom: [S[k].p, s.p], s })));
+      ev.forEach((e) => {
+        const g = e.geography || {}, pts = g.type === "Point" ? [g.coordinates] : g.type === "LineString" ? g.coordinates : g.type === "MultiLineString" ? g.coordinates.flat() : [];
+        let hit = null, at = null;
+        for (const c of pts) { const h = near([c[1], c[0]], 60); if (h) { hit = h; at = [c[1], c[0]]; break; } }
+        if (!hit) return;
+        const closed = (e.roads || []).some((x) => /CLOSED/i.test(x.state || "")) && !(e.roads || []).some((x) => /SINGLE|ALTERNAT|REDUCED/i.test(x.state || ""));
+        if (!closed && !/MAJOR/i.test(e.severity || "")) return;
+        add({ type: "511", stop: closed, label: `DriveBC: ${e.headline ? titleCase(String(e.headline).toLowerCase()) + ": " : ""}${String(e.description || "").slice(0, 160)}`, p: at, a: hit.s.i, b: hit.s.i });
+      });
+    }
+    items.sort((x, y) => x.a - y.a);
+    return { items, failed: [!d.roads.ok && "forest roads", !d.areas.ok && "parks and closures", !d.fires.ok && "wildfires", d.d511 && !d.d511.ok && "DriveBC"].filter(Boolean), bc: !!d.d511 };
+  }
+  function closuresHtml(r) {
+    if (!r.avoided) return "";
+    if (r.checking) return `<p class="mt-note">Checking closures, gates and forest road status along it…</p>`;
+    const c = r.closures;
+    if (!c) return `<div class="mt-warn hard">Couldn't check the closures on this route. Check the province's road reports before you go.</div>`;
+    const show = (x) => `<button type="button" data-show="${x.a},${Math.max(x.a + 1, x.b)}">Show</button>`;
+    const stops = c.items.filter((x) => x.stop), warns = c.items.filter((x) => !x.stop);
+    let h = "";
+    if (r.avoided.length) h += `<div class="mt-warn ok"><b>Went around ${r.avoided.length === 1 ? "a closure" : `${r.avoided.length} closures`}:</b> ${r.avoided.map((x) => esc(x.label)).join("; ")}.</div>`;
+    h += stops.map((x) => `<div class="mt-warn"><b>Closed on this route:</b> ${esc(x.label)}. ${x.atPoint ? "One of your points is right there: move it to go around." : r.noWay ? "No way around it was found for this style." : ""} ${show(x)}</div>`).join("");
+    h += warns.slice(0, 6).map((x) => `<div class="mt-warn hard">${esc(x.label)}. ${show(x)}${x.p && !x.atPoint ? ` <button type="button" data-avoid="${x.p[0].toFixed(5)},${x.p[1].toFixed(5)}">Go around</button>` : ""}</div>`).join("");
+    if (!stops.length && !warns.length) h += `<div class="mt-warn ok">No ${r.avoided.length ? "other " : ""}closures, locked gates, washouts, bad forest roads or fire closures mapped on this route.</div>`;
+    if (avoidMine.length) h += `<p class="mt-note">You chose to go around ${avoidMine.length} spot${avoidMine.length === 1 ? "" : "s"}. <button type="button" class="mt-link" data-r="unavoid">Stop going around them</button></p>`;
+    h += `<p class="mt-note">Checked: forest road status and gates (BC and Alberta from the government and OpenStreetMap, the rest of Canada from OpenStreetMap), motor vehicle closures, reserves, wildfire closures and evacuations${c.bc ? ", DriveBC events" : ""}.${c.failed.length ? ` <b>Couldn't load ${esc(c.failed.join(", "))}</b>: try again with signal.` : ""} Gates and washouts change faster than any map.</p>`;
+    return h;
   }
   function encode6(pts) {
     let out = "", la = 0, lo = 0;
@@ -1126,23 +1395,33 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       const end = r.line[r.line.length - 1], camps = nearest([...listOf("camp"), ...recList()], end[0], end[1], 3, 25);
       body = `<p><b>${esc(r.name || "Your route")}</b></p>
         <div class="mt-stats"><div><b>${fmtKm(r.km)}</b><span>distance</span></div><div><b>${fmtH(r.time)}</b><span>riding</span></div><div><b>${dirtPct == null ? "…" : dirtPct + "%"}</b><span>dirt</span></div><div><b>${r.edges ? fmtKm(st.longest) : "…"}</b><span>longest dirt</span></div></div>
-        ${bar}${hard}${fuel}${highHtml(r)}${ferryHtml(r)}${roadsHtml(r)}${cellHtml(r)}
+        ${bar}${hard}${closuresHtml(r)}${fuel}${highHtml(r)}${ferryHtml(r)}${roadsHtml(r)}${cellHtml(r)}
         ${camps.length ? `<details class="mt-fold"><summary>${svg(IC.camp, 14)} Camping near the end (${camps.length})</summary><ul class="mt-list">${camps.map(([d, p]) => `<li style="--c:${PT.camp.c}"><b>${esc(p[2] || "Campsite")}</b><small>${p[3] ? esc(p[3]) + " · " : ""}${fmtKm(d)} from the end</small></li>`).join("")}</ul></details>` : ""}
         <details class="mt-fold"><summary>Turns (${r.parts.length})</summary><ol class="mt-note" style="margin:0;padding-left:18px">${r.parts.map((x) => `<li>${esc(x.text)}${x.km >= 0.1 ? ` <i>${fmtKm(x.km)}</i>` : ""}</li>`).join("")}</ol></details>
         <div class="mt-row"><button type="button" class="mt-pill go" data-r="ride">${svg(IC.ride, 16)}Ride it</button><button type="button" class="mt-pill" data-r="save">${svg(IC.save, 16)}Save</button><button type="button" class="mt-pill" data-r="gpx">${svg(IC.dl, 16)}GPX</button><button type="button" class="mt-pill" data-r="offline">${svg(IC.dl, 16)}Save offline</button><button type="button" class="mt-pill" data-r="fly">${svg(IC.fly, 16)}Fly it in 3D</button></div>`;
     }
-    el.innerHTML = `<header>${svg(IC.plan)}<h3>Plan a route</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>${styles}${tools}${body}
+    el.innerHTML = `<header>${svg(IC.plan)}<h3>Plan a route</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>${styles}${tools}${wpListHtml()}${body}
       <p class="mt-note">For your ${esc(b.name || TYPES[b.type].label)} (rides grade ${capOf(b)} well). Routes by Valhalla on OpenStreetMap roads.</p>`;
     el.querySelector(".mt-x").onclick = () => { setPlanning(false); route = null; routeErr = ""; drawRoute(); renderRoute(); drawRange(); pane.querySelector('[data-act="plan"]').classList.remove("on"); };
     el.querySelectorAll("[data-style]").forEach((x) => (x.onclick = () => { planStyle = x.dataset.style; store.set("motoStyle", planStyle); renderRoute(); buildRoute(); }));
-    el.querySelectorAll("[data-show]").forEach((x) => (x.onclick = () => { const [a, z] = x.dataset.show.split(",").map(Number); const seg = route.line.slice(a, z + 1); if (seg.length) { if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); map.fitBounds(L.latLngBounds(seg).pad(0.6), { maxZoom: 15 }); } }));
+    el.querySelectorAll("[data-show]").forEach((x) => (x.onclick = () => { const [a, z] = x.dataset.show.split(",").map(Number); const seg = route.line.slice(a, z + 1); if (seg.length) { if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); const bb = L.latLngBounds(seg).pad(0.6); map.fitBounds(bb, { maxZoom: 15 }); if (in3d()) gl3.fitBounds([[bb.getWest(), bb.getSouth()], [bb.getEast(), bb.getNorth()]], { maxZoom: 15, padding: 40 }); } }));
     el.querySelectorAll("[data-r]").forEach((x) => (x.onclick = () => routeAct(x.dataset.r, x)));
+    el.querySelectorAll("[data-avoid]").forEach((x) => (x.onclick = () => { const [la, lo] = x.dataset.avoid.split(",").map(Number); avoidMine.push([la, lo]); store.set("motoAvoid", avoidMine); buildRoute(); }));
+    el.querySelectorAll("[data-wp]").forEach((x) => (x.onclick = () => {
+      const [act, k] = x.dataset.wp.split(":"), i = +k;
+      if (act === "up" && i > 0) [planPts[i - 1], planPts[i]] = [planPts[i], planPts[i - 1]];
+      else if (act === "down" && i < planPts.length - 1) [planPts[i + 1], planPts[i]] = [planPts[i], planPts[i + 1]];
+      else if (act === "del") planPts.splice(i, 1);
+      else if (act === "go") { if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); goTo(planPts[i]); return; }
+      planChanged(); renderRoute();
+    }));
     el.querySelectorAll("[data-ll]").forEach((x) => (x.onclick = () => { const [la, lo] = x.dataset.ll.split(",").map(Number); if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); map.setView([la, lo], Math.max(map.getZoom(), 12)); }));
   }
   function routeAct(a, btn) {
     if (a === "loop") { planLoop = !planLoop; store.set("motoLoop", planLoop); drawWaypoints(); buildRoute(); renderRoute(); }
     else if (a === "edit") setPlanning(true);
-    else if (a === "clear") { planPts = []; route = null; routeErr = ""; store.set("motoPlan", planPts); drawWaypoints(); drawRoute(); drawRange(); if (!planning) setPlanning(true); else { tip(); renderRoute(); } }
+    else if (a === "unavoid") { avoidMine = []; store.set("motoAvoid", avoidMine); buildRoute(); }
+    else if (a === "clear") { planPts = []; avoidMine = []; store.set("motoAvoid", avoidMine); route = null; routeErr = ""; store.set("motoPlan", planPts); drawWaypoints(); drawRoute(); drawRange(); if (!planning) setPlanning(true); else { tip(); renderRoute(); } }
     else if (a === "me") {
       if (!you) { hint("Turn on your location (◎ on the map) first."); return; }
       planPts.unshift([+you.lat.toFixed(5), +you.lon.toFixed(5)]);
@@ -1192,15 +1471,19 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     planPts = r.pts.slice(); planLoop = !!r.loop; planStyle = r.style || "dirt";
     store.set("motoPlan", planPts); store.set("motoLoop", planLoop); store.set("motoStyle", planStyle);
     const line = decode6(r.line);
-    route = { pts: planLoop ? [...planPts, planPts[0]] : planPts, line, km: r.km, time: r.time || 0, style: planStyle, edges: null, name: r.name,
+    route = { pts: planLoop ? [...planPts, planPts[0]] : planPts, line, km: r.km, time: r.time || 0, style: planStyle, edges: null, name: r.name, closures: null, avoided: [], checking: navigator.onLine,
       parts: r.parts.map(([name, say, text, a, b, km]) => ({ name, say, text, a, b, km, kind: "moto", color: ACC, pts: line.slice(a, Math.max(a + 2, b + 1)) })).filter((x) => x.pts.length > 1) };
     drawWaypoints(); drawRoute(); renderRoute(); drawRange();
     map.fitBounds(L.latLngBounds(line).pad(0.1));
     if (navigator.onLine) {   // the surfaces again (they aren't saved): km of dirt and the hard bits for the bike you have now
       const my = ++routeSeq, rr = route;
-      postJ(`${VALHALLA}/trace_attributes`, { encoded_polyline: r.line, shape_match: "edge_walk", costing: "motorcycle",
-        filters: { attributes: ["edge.length", "edge.surface", "edge.unpaved", "edge.use", "edge.road_class", "edge.names", "edge.max_upward_grade", "edge.begin_shape_index", "edge.end_shape_index"], action: "include" } }, 40000)
-        .then((at) => { if (my === routeSeq && route === rr) { rr.edges = at.edges || null; drawRoute(); renderRoute(); } }).catch(() => {});
+      edgesOf(line).then(async (at) => {
+          if (my !== routeSeq || route !== rr) return;
+          if (at.line !== rr.line) { reindexParts(rr.parts, at.line); rr.line = at.line; }
+          rr.edges = at.edges; drawRoute(); renderRoute();
+          rr.closures = await closuresOf(rr, rr.pts).catch(() => null);   // closures change: check them again for today
+          if (my === routeSeq && route === rr) { rr.checking = false; renderRoute(); }
+        }).catch(() => { rr.checking = false; if (route === rr) renderRoute(); });
     }
   }
   // GPX: the route as a track and the gas stops as waypoints. Phones share the file (downloads don't work in the app).
@@ -1410,6 +1693,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
       if (!isMoto() || document.querySelector(".app.riding")) return;
       const hit = gl3.getLayer("mt-pts") && gl3.queryRenderedFeatures([[ev.point.x - 8, ev.point.y - 8], [ev.point.x + 8, ev.point.y + 8]], { layers: ["mt-pts"] })[0];
       if (hit) { const x = pts3d[hit.properties.n]; if (x) openPoint(x.k, x.p); return; }
+      if (ev.originalEvent && ev.originalEvent.target && ev.originalEvent.target.closest && ev.originalEvent.target.closest(".mt-wp3")) return;
       if (planning) { addPoint([ev.lngLat.lat, ev.lngLat.lng]); return; }
       const rd = gl3.getLayer("mt-road") && gl3.queryRenderedFeatures([[ev.point.x - 10, ev.point.y - 10], [ev.point.x + 10, ev.point.y + 10]], { layers: ["mt-road", "mt-track"] })[0];
       spot = null;
@@ -1417,6 +1701,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
       if (rd) { spot.road = { ...rd.properties }; renderSpot(); }
     });
     if (window.tfLoadVectorLib) sync3d();
+    drawWaypoints();
   }
   window.addEventListener("tf:map3d", (e) => on3d(e.detail));
   if (window.trailMap3d) on3d(window.trailMap3d);
