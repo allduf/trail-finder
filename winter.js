@@ -80,6 +80,14 @@
     { label: "3 Considerable", color: "#f79218" }, { label: "4 High", color: "#ef1c29" }, { label: "5 Extreme", color: "#1a1a1a" },
   ];
   const BANDS = [["alp", "Alpine"], ["tln", "Treeline"], ["btl", "Below treeline"]];
+  // Avalanche Canada's likelihood codes ("veryLikely_likely") in words, lower end first: "likely to very likely".
+  const LIKELY = ["unlikely", "possible", "likely", "veryLikely", "certain"];
+  const likely = (v) => {
+    const parts = String(v || "").split("_").filter(Boolean);
+    if (!parts.length || !parts.every((x) => LIKELY.includes(x))) return String(v || "");
+    const w = [...new Set(parts)].sort((a, b) => LIKELY.indexOf(a) - LIKELY.indexOf(b)).map((x) => (x === "veryLikely" ? "very likely" : x)).join(" to ");
+    return w[0].toUpperCase() + w.slice(1);
+  };
   const ASPECTS = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
   const bandsFor = (area) => T.bandsFor(area.name);   // where treeline and alpine start, roughly (ski-terrain.js)
 
@@ -301,6 +309,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 #skiPane ul.sk-signs li { border-left: 4px solid #f2b705; padding: 1px 0 1px 8px; }
 #skiPane ul.sk-signs li.hi { border-left-color: #e03131; }
 #skiPane ul.sk-signs li.ok { border-left-color: #2f9e44; }
+#skiPane .sk-spot h4 { margin: 6px 0 2px; font-size: .92rem; }
+#skiPane .sk-spot h5 { margin: 4px 0 0; font-size: .82rem; }
+#skiPane .sk-spot .sk-stats .sk-spotslope { background: color-mix(in srgb, var(--c) 45%, var(--panel)); box-shadow: inset 0 -4px 0 var(--c); }
+#skiPane .sk-spot .sk-stats .sk-ates { align-self: center; margin: 1px 0 2px; }
+#skiPane .sk-spotdays { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 6px; text-align: center; font-size: .74rem; color: var(--muted); }
+#skiPane .sk-spotdays div { display: flex; flex-direction: column; gap: 2px; }
+#skiPane .sk-spotdays .av-chip { min-width: 0; font-size: .72rem; padding: 3px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#skiPane .sk-spot .sk-fold summary { cursor: pointer; font-weight: 700; font-size: .85rem; padding: 4px 0; }
+#skiPane .sk-spot .sk-spotacts { margin-top: 4px; }
 #skiPane .sk-watch[aria-pressed="true"] { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
 #skiPane .sk-keyrow { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: .78rem; }
 #skiPane .sk-keyrow i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
@@ -371,6 +388,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     <div class="sk-slopekey" id="skSlopeKey" hidden></div>
     <div class="sk-slopekey" id="skLayerKey" hidden></div>
     <div class="sk-card sk-plan" id="skPlan" hidden></div>
+    <div class="sk-card sk-spot" id="skSpot" hidden></div>
     <div class="sk-card" id="skStation" hidden></div>
     <div class="sk-card" id="skDetail" hidden></div>
     <div class="av-card sk-card" id="avCard" hidden></div>
@@ -1072,7 +1090,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         const where = !bandsOn ? `${esc(p.aspects.map((s) => s.toUpperCase()).join(" "))} · ${names(p.elevations)}`
           : !bHit.length ? `not in the bands this route goes through (${names(p.elevations)})`
           : `on this route: ${names(bHit)}${aHit.length ? `, on its ${aHit.map((s) => s.toUpperCase()).join(", ")} slopes` : info.faces.length ? `, but its steep slopes face other ways (problem on ${p.aspects.map((s) => s.toUpperCase()).join(" ")})` : ""}`;
-        return `<div class="av-prob${bandsOn && !bHit.length ? " off" : ""}">${rose(p)}<div><b>${esc(p.type)}</b><p>${where}</p><p>${p.likelihood ? "Likelihood: " + esc(p.likelihood) : ""}${p.size ? ` · size ${esc(p.size)}` : ""}</p></div></div>`;
+        return `<div class="av-prob${bandsOn && !bHit.length ? " off" : ""}">${rose(p)}<div><b>${esc(p.type)}</b><p>${where}</p><p>${p.likelihood ? "Likelihood: " + esc(likely(p.likelihood)) : ""}${p.size ? ` · size ${esc(p.size)}` : ""}</p></div></div>`;
       }).join("");
       const sum = f.summaries?.["avalanche-summary"] || f.summaries?.["avalanche summary"];
       if (sum) html += `<h5>Recent avalanches (forecaster)</h5><p class="sk-pre">${esc(sum.slice(0, 900))}${sum.length > 900 ? "…" : ""}</p>`;
@@ -1127,16 +1145,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     const fzNow = h.freezing_level_height[i0], fzMax = Math.max(...h.freezing_level_height.slice(i0, i0 + 25).filter((v) => v != null));
     const signs = [], at = fmtM(ele);
+    let lee = null;
     if (snow24 >= 25 || snow72 >= 40) signs.push(["hi", `❄ Heavy new snow: ${Math.round(snow24)} cm in the last day, ${Math.round(snow72)} cm in 3 days. New slabs are touchy until they settle.`]);
     else if (snow24 >= 10 || snow72 >= 20) signs.push(["", `❄ New snow: ${Math.round(snow24)} cm in the last day, ${Math.round(snow72)} cm in 3 days. Watch for new slabs.`]);
     if (next24 >= 15) signs.push([next24 >= 30 ? "hi" : "", `🌨 Storm coming: about ${Math.round(next24)} cm of snow in the next day.`]);
     if (windy >= 3 && (snow72 >= 5 || next24 >= 5)) {
-      const from = Math.round((((Math.atan2(wx, wy) * 180) / Math.PI + 360) % 360) / 45) % 8, lee = [(from + 3) % 8, (from + 4) % 8, (from + 5) % 8];
+      const from = Math.round((((Math.atan2(wx, wy) * 180) / Math.PI + 360) % 360) / 45) % 8;
+      lee = [(from + 3) % 8, (from + 4) % 8, (from + 5) % 8];
       signs.push([maxW >= 50 ? "hi" : "", `💨 Wind loading: ${COMPASS[from]} wind up to ${Math.round(maxW)} km/h with snow to move. Slopes facing ${lee.map((x) => COMPASS[x]).join(", ")} (and below ridges) get wind slabs.`]);
     }
     if (rain >= 2 && fzMax > ele) signs.push(["hi", `🌧 Rain on snow: about ${Math.round(rain)} mm of rain at ${at}. Wet slides, and a crust after.`]);
     if (warm >= 3) signs.push([warm >= 6 ? "hi" : "", `☀ Warming: up to ${Math.round(warm)}°C at ${at} in the next day. Wet avalanches and falling cornices: off sunny and steep slopes early.`]);
-    return { signs, fzNow, fzMax, snow24, snow72 };
+    return { signs, fzNow, fzMax, snow24, snow72, next24, lee, maxW };
   }
   function signsHtml(a, ele) {
     if (!a) return "";
@@ -1365,6 +1385,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     drawSki(); renderList(); renderForecast(); renderSkiKey();
   }
   function select(it, fly) {
+    if (spot) closeSpot();
     const group = Array.isArray(it) ? it : [it];
     const r = group[0];
     if (selected !== r) { hoverLayer.clearLayers(); aboveLayer.clearLayers(); pinLayer.clearLayers(); stopFly(); }
@@ -1659,15 +1680,198 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     drawPlan(); renderPlan();
     if (!on && selected && selected.src === "plan" && window.tfPanelScrollTo) window.tfPanelScrollTo($("skPlan"));
   }
+  // ---------- this spot: a tap on the map away from everything ----------
+  // alex 2026-10-27: "click anywhere on the map and see information about that terrain, avalanche risk, slope angle,
+  // last snow". The ground there (slope, the way it faces, height, steep slopes above, gullies) from the same terrain
+  // tiles as the slope shading; the avalanche forecast for that band and area; new snow, wind and warming from
+  // Open-Meteo at that height (one ask per tap, kept 30 min for the same spot); the closest route, hut and snow
+  // station. Pins and lines keep their own cards (their taps stop before the map).
+  const spotLayer = L.layerGroup();
+  let spotSeq = 0, spot = null;
+  const SPOT_RING = 60;   // m: the steepest ground this close is shown too (the terrain tiles are ~15 m a pixel)
+  const ASPECT_NAME = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"];
+  const slopeCol = (deg) => { let c = "var(--chip)"; for (const b of SLOPE) if (deg >= b[0]) c = b[2]; return c; };
+  function closeSpot() {
+    spotSeq++; spot = null;
+    $("skSpot").hidden = true;
+    spotLayer.clearLayers();
+    if (map.hasLayer(spotLayer)) map.removeLayer(spotLayer);
+  }
+  async function spotGround(lat, lon) {
+    const dLat = SPOT_RING / 111320, dLon = dLat / Math.cos((lat * Math.PI) / 180);
+    const pts = [{ lat, lon }];
+    for (let a = 0; a < 8; a++) pts.push({ lat: lat + Math.cos((a * Math.PI) / 4) * dLat, lon: lon + Math.sin((a * Math.PI) / 4) * dLon });
+    await T.heights(pts, 0, dem);
+    const p = pts[0], steep = pts.reduce((b, x) => (x.slope > b.slope ? x : b), p);
+    const c = [{ lat, lon, e: p.e, d: 0 }];
+    const oh = await T.overhead(c, 0, dem).catch(() => null);
+    return { e: p.e, slope: p.slope, asp: p.asp, max: steep.slope, above: oh ? c[0].above : null, trap: oh ? c[0].trap : null };
+  }
+  // The ground in avalanche terms, and an ATES-style class for this one spot (an estimate from the terrain only).
+  function spotTerrain(g) {
+    const s = g.slope, why = [];
+    const c = s >= 35 || (g.above && g.trap) ? 3 : s >= 30 || g.max >= 30 || g.above || g.trap ? 2 : 1;
+    if (s < 5) why.push(["ok", "Flat ground: no avalanche can start here."]);
+    else if (s < 25) why.push(["ok", `${Math.round(s)}°: too gentle for most slab avalanches to start.`]);
+    else if (s < 30) why.push(["", `${Math.round(s)}°: low-angle avalanche terrain. It can slide when the snow is unstable.`]);
+    else if (s <= 45) why.push(["hi", `${Math.round(s)}°: prime avalanche angle (30° to 45°, where most slab avalanches start).`]);
+    else why.push(["hi", `${Math.round(s)}°: very steep. Sluffs run often and a fall here is serious.`]);
+    if (g.max >= 30 && g.max - s >= 4) why.push([g.max >= 35 ? "hi" : "", `Steeper ground close by: up to ${Math.round(g.max)}° within ${SPOT_RING} m.`]);
+    if (g.above) why.push(["hi", "Steep slopes above: ground of 30° or more within 350 m uphill could slide down onto this spot."]);
+    else if (g.above === false && s < 30) why.push(["ok", "No steep slopes above that could slide onto this spot."]);
+    if (g.trap) why.push(["hi", "Terrain trap: a gully or creek bed. Even a small slide piles up deep here."]);
+    return { c, ...T.CLASSES[c], why };
+  }
+  function spotAvyHtml(lat, lon, g, cls) {
+    const data = example ? exampleData() : avy;
+    const link = `<a href="https://avalanche.ca/map" target="_blank" rel="noopener">Avalanche Canada map</a>`;
+    if (!data) return `<h4>Avalanche danger</h4><p class="sk-note">${avyErr ? `The avalanche forecast isn't on the site yet. ${link}` : "Loading the avalanche forecast…"}</p>`;
+    const a = areaAt(lat, lon), f = a && a.forecast, bands = a ? a.bands : DEFAULT_BANDS, band = bandOf(g.e, bands);
+    const bandN = BANDS.find((x) => x[0] === band)[1];
+    const where = `${bandN} here (${band === "alp" ? `above ~${fmtM(bands.hi)}` : band === "tln" ? `~${fmtM(bands.lo)} to ${fmtM(bands.hi)}` : `below ~${fmtM(bands.lo)}`})`;
+    let html = `<h4>Avalanche danger${f ? `: ${esc(f.title || a.name)}` : ""}</h4>`;
+    if (example) html += `<div class="av-warn">EXAMPLE, not a real forecast.</div>`;
+    const expired = f && !example && f.validUntil && new Date(f.validUntil) < new Date();
+    if (!f || !f.days || !f.days.length || expired) return html + `<p class="sk-note">${where}.</p><p>No avalanche forecast here right now${expired ? " (the last one has expired)" : ""}. Avalanche Canada's daily forecasts run from about late November to April. ${link}</p>`;
+    const d = dayOf(f), r = (d && d[band]) || 0, li = r ? T.light(r, cls.c) : -1;
+    if (li >= 0) {
+      const L0 = T.LIGHTS[li];
+      html += `<div class="sk-check" style="--c:${L0.color}"><b>${L0.label}</b><span>${esc(d.label || d.date || "")}: ${esc(DANGER[r].label.replace(/^\d /, ""))} in the ${bandN.toLowerCase()} × ${cls.label} terrain (estimate)</span></div>`;
+    }
+    html += `<p class="sk-note">${where}</p>
+      <div class="sk-spotdays">${f.days.map((x) => { const v = x[band] || 0; return `<div><span>${esc((x.label || x.date || "").slice(0, 3))}</span><span class="av-chip" style="background:${DANGER[v].color};color:${v >= 4 ? "#fff" : "#1a1a1a"}">${esc(DANGER[v].label)}</span></div>`; }).join("")}</div>`;
+    const asp = ASPECTS[g.asp], probs = (f.problems || []).filter((p) => (p.elevations || []).includes(band));
+    if (probs.length) html += probs.map((p) => {
+      const on = g.slope >= 20 && (p.aspects || []).includes(asp);
+      return `<div class="av-prob${on ? "" : " off"}">${rose(p)}<div><b>${esc(p.type)}</b><p>${on ? `<b>On this slope:</b> ${esc(ASPECT_NAME[g.asp])}-facing in the ${bandN.toLowerCase()}` : g.slope < 20 ? "Gentle ground here, but on the slopes around it" : `On other aspects (${esc(p.aspects.map((s) => s.toUpperCase()).join(" "))}), not this ${esc(ASPECT_NAME[g.asp])}-facing slope`}</p><p>${p.likelihood ? "Likelihood: " + esc(likely(p.likelihood)) : ""}${p.size ? ` · size ${esc(p.size)}` : ""}</p></div></div>`;
+    }).join("");
+    else if ((f.problems || []).length) html += `<p class="sk-note">None of today's avalanche problems are in the ${bandN.toLowerCase()}.</p>`;
+    if (f.highlights) html += `<p><strong>${esc(f.highlights)}</strong></p>`;
+    return html + `<p><a href="${esc(f.url || "https://avalanche.ca/map")}" target="_blank" rel="noopener">Full forecast on avalanche.ca</a></p>`;
+  }
+  function spotSnowHtml(w, g) {
+    const aw = avyWeather(w, g.e), h = w.hourly;
+    if (!aw) return `<h4>Snow and weather</h4>${wxHtml(w, null)}`;
+    let i0 = h.time.findIndex((t) => t > w.current.time) - 1;
+    if (i0 < 0) i0 = h.time.length - 1;
+    let next72 = 0;
+    for (let i = i0 + 1; i <= Math.min(h.time.length - 1, i0 + 72); i++) next72 += h.snowfall[i] || 0;
+    const n = (v) => (v >= 0.5 ? `${Math.round(v)} cm` : "0");
+    const wind = h.wind_speed_10m[i0], wdir = COMPASS[Math.round((h.wind_direction_10m[i0] || 0) / 45) % 8];
+    let html = `<h4>Snow and weather at ${fmtM(g.e)}</h4>
+      <div class="sk-stats"><div><b>${n(aw.snow24)}</b><span>last 24 h</span></div><div><b>${n(aw.snow72)}</b><span>last 3 days</span></div>
+        <div><b>${n(aw.next24)}</b><span>next 24 h</span></div><div><b>${n(next72)}</b><span>next 3 days</span></div></div>
+      <p class="sk-note">Now ${Math.round(w.current.temperature_2m)}°C · wind ${Math.round(wind || 0)} km/h from the ${wdir}</p>`;
+    if (aw.lee && g.slope >= 20 && aw.lee.includes(g.asp)) html += `<div class="sk-warn"><b>⚠ Wind loaded:</b> this slope faces ${ASPECT_NAME[g.asp]}, downwind of the ${Math.round(aw.maxW)} km/h wind with snow to move. Expect wind slabs.</div>`;
+    html += `<h5>Avalanche weather</h5>${signsHtml(aw, g.e)}`;
+    return html + `<details class="sk-fold"><summary>Next 4 days</summary>${wxHtml(w, null).replace(/<h4>[^<]*<\/h4>\s*<p>[^]*?<\/p>/, "")}</details>`;
+  }
+  // The closest route on the map (within 3 km), hut (within 10 km) and snow station (within 30 km).
+  function spotNearHtml(lat, lon) {
+    const out = [], here = L.latLng(lat, lon), box = here.toBounds(6000);
+    if (ski) {
+      let best = null, bestKm = 3;
+      for (const r of ski.routes || []) {
+        if (!shown.has(r.type) || !r.bounds || !r.bounds.intersects(box)) continue;
+        for (const line of r.lines) for (let i = 0; i < line.length; i += 3) {
+          const km = map.distance(line[i], here) / 1000;
+          if (km < bestKm) { bestKm = km; best = r; }
+        }
+      }
+      if (best) out.push(`<dt>Route</dt><dd><a href="#" class="sk-go" data-rid="${esc(best.id)}">${esc(nameOf(best) || (TYPES[best.type] || TYPES.other).label)}</a> <span class="sk-note">${bestKm < 0.05 ? "here" : `${bestKm.toFixed(1)} km`}</span></dd>`);
+      const hut = (ski.huts || []).map((x) => ({ x, km: map.distance([x.lat, x.lon], here) / 1000 })).filter((x) => x.km <= 10).sort((a, b) => a.km - b.km)[0];
+      if (hut) out.push(`<dt>Hut</dt><dd><a href="#" class="sk-go" data-hid="${esc(hut.x.id)}">${esc(hut.x.name || "Hut")}</a> <span class="sk-note">${hut.km.toFixed(1)} km</span></dd>`);
+    }
+    const st = nearSnow(lat, lon)[0];
+    if (st) out.push(`<dt>Snow station</dt><dd><a href="#" class="sk-go" data-st="${esc(st.st.id)}">${esc(st.st.name)}</a> <span class="sk-note">${st.km.toFixed(0)} km, ${st.st.ele.toLocaleString()} m</span>${st.st.sd != null ? `<br>Snow <b>${cm(st.st.sd)}</b> · 24 h ${plus(st.st.sd24)} · 3 days ${plus(st.st.sd72)}` : ""}</dd>`);
+    return out.length ? `<h4>Nearby</h4><dl>${out.join("")}</dl>` : "";
+  }
+  // Phones: the sheet up to half, and the spot moved into the map part still showing (2D or 3D).
+  function spotInView(lat, lon) {
+    if (!PHONE_UI()) { if (window.tfPanelScrollTo) window.tfPanelScrollTo($("skSpot")); return; }
+    if (window.tfSnapTo) { const p = document.querySelector(".panel"); if (p && !p.classList.contains("sheet-half")) window.tfSnapTo("half"); }
+    setTimeout(() => {
+      if (window.tfPanelScrollTo) window.tfPanelScrollTo($("skSpot"));
+      const sc = window.tfPanelScroller && window.tfPanelScroller($("skSpot"));
+      if (sc) sc.scrollTop = Math.max(0, sc.scrollTop - 16);   // a little room above the card, clear of the sheet's handle
+      const panel = document.querySelector(".panel"), box = map.getContainer().getBoundingClientRect();
+      if (!panel) return;
+      const top = panel.getBoundingClientRect().top, gl = map.getContainer().classList.contains("is3d") && window.trailMap3d;
+      const y = box.top + (gl ? gl.project([lon, lat]).y : map.latLngToContainerPoint([lat, lon]).y);
+      if (y < top - 60 && y > box.top + 80) return;
+      const dy = y - (box.top + (top - box.top) * 0.5);
+      if (gl) gl.panBy([0, dy], { duration: 300 }); else map.panBy([0, dy]);
+    }, 320);
+  }
+  async function showSpot(lat, lon) {
+    const seq = ++spotSeq, el = $("skSpot");
+    spot = { lat, lon, g: null, cls: null };
+    spotLayer.clearLayers();
+    spotLayer.addLayer(L.circleMarker([lat, lon], { radius: 9, color: "#fff", weight: 3, fillColor: "#e8590c", fillOpacity: 1, interactive: false }));
+    if (!map.hasLayer(spotLayer)) spotLayer.addTo(map);
+    el.hidden = false;
+    el.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>📍 This spot</h3></div>
+      <p class="sk-hint">${lat.toFixed(4)}, ${lon.toFixed(4)}</p>
+      <div id="skSpotGround"><p class="sk-note">Reading the terrain…</p></div><div id="skSpotAvy"></div><div id="skSpotSnow"></div><div id="skSpotNear"></div><div id="skSpotMin"></div>
+      <div class="sk-acts sk-spotacts"><button type="button" class="sk-act" data-act="plan">✎ Plan a tour from here</button>${shown.has("slope") ? "" : `<button type="button" class="sk-act" data-act="slope">Show slope angles</button>`}</div>`;
+    el.querySelector(".sk-x").addEventListener("click", closeSpot);
+    el.querySelector("[data-act=plan]").addEventListener("click", () => { closeSpot(); setPlanning(true); planAdd(L.latLng(lat, lon)); });
+    const sb = el.querySelector("[data-act=slope]");
+    if (sb) sb.addEventListener("click", () => { shown.add("slope"); applySwitches(); sb.remove(); });
+    spotInView(lat, lon);
+    const live = () => seq === spotSeq;
+    const fill = (id, html) => { if (live() && $(id)) $(id).innerHTML = html; };
+    if (!avy && !example) loadAvy();
+    if (!snow && !snowErr) loadSnow();
+    let g;
+    try { g = await spotGround(lat, lon); } catch { fill("skSpotGround", `<p class="sk-note">Couldn't read the terrain here (no connection?).</p>`); return; }
+    if (!live()) return;
+    const cls = spotTerrain(g);
+    Object.assign(spot, { g, cls });
+    const flat = g.slope < 5;
+    fill("skSpotGround", `<div class="sk-stats"><div class="sk-spotslope" style="--c:${slopeCol(g.slope)}"><b>${Math.round(g.slope)}°</b><span>slope</span></div>
+        <div><b>${flat ? "flat" : ASPECTS[g.asp].toUpperCase()}</b><span>faces</span></div><div><b>${fmtM(g.e)}</b><span>height</span></div>
+        <div><span class="sk-ates" style="--c:${cls.color}">${cls.label}</span><span>terrain</span></div></div>
+      <ul class="sk-signs">${cls.why.map(([c, t]) => `<li class="${c}">${esc(t)}</li>`).join("")}</ul>
+      <p class="sk-note">${esc(cls.what)} Terrain class is an estimate from the terrain map (ATES-style), not an official rating.</p>`);
+    fillSpotAvy();
+    const near = () => { if (!live()) return; fill("skSpotNear", spotNearHtml(lat, lon)); bindSpotNear(); };
+    near();
+    if (snow && !snow.stations.length) setTimeout(near, 1500);   // the stations file is still loading
+    if (!minData) await loadMin();
+    if (live()) fill("skSpotMin", `<details class="sk-fold"><summary>Avalanches reported by riders nearby</summary>${minHtml([{ lat, lon }])}</details>`);
+    fill("skSpotSnow", `<p class="sk-note">Loading snow and weather…</p>`);
+    // Rapid taps around the map ask Open-Meteo once, for the spot they stop on.
+    await new Promise((ok) => setTimeout(ok, 400));
+    if (!live()) return;
+    weather(lat, lon, g.e).then((w) => fill("skSpotSnow", spotSnowHtml(w, g)), (e) => fill("skSpotSnow", `<p class="sk-note">Couldn't load the weather here: ${esc(e.message)}.</p>`));
+  }
+  function fillSpotAvy() {
+    if (!spot || !spot.g || $("skSpot").hidden) return;
+    $("skSpotAvy").innerHTML = spotAvyHtml(spot.lat, spot.lon, spot.g, spot.cls);
+  }
+  function bindSpotNear() {
+    $("skSpotNear").querySelectorAll(".sk-go").forEach((a) => a.addEventListener("click", (e) => {
+      e.preventDefault();
+      const d = a.dataset;
+      if (d.rid) { const r = (ski?.routes || []).find((x) => x.id === d.rid); if (r) select(r, true); }
+      else if (d.hid) { const h = (ski?.huts || []).find((x) => x.id === d.hid); if (h) select(h, true); }
+      else if (d.st) { const st = snow?.stations.find((x) => x.id === d.st); if (st) { if (!shown.has("snow")) { shown.add("snow"); applySwitches(); } showStation(st); } }
+    }));
+  }
+  window.addEventListener("tf:sport", () => { if (!document.body.classList.contains("sport-ski") && spot) closeSpot(); });
+
   // Taps on routes, huts, pins, webcams and stations stop here (they open their own details), so a click that reaches
-  // the map landed beside them. In 3D, map3d.js sends taps that miss every line to this same click.
+  // the map landed beside them: it closes an open route and shows what's at that spot. In 3D, map3d.js sends taps
+  // that miss every line to this same click.
   let offTimer = 0;
   map.on("click", (e) => {
     if (sport !== "ski") return;
     if (plan.on) { planAdd(e.latlng); return; }
-    if (!selected || document.body.classList.contains("sp-picking")) return;   // placing a saved point (ski-points.js)
+    if (document.body.classList.contains("sp-picking") || document.querySelector(".app.riding")) return;   // placing a saved point (ski-points.js), recording
     clearTimeout(offTimer);
-    offTimer = setTimeout(unselect, 260);            // a double-click zooms instead
+    const ll = e.latlng;
+    offTimer = setTimeout(() => { unselect(); showSpot(ll.lat, ll.lng); }, 260);   // a double-click zooms instead
   });
   map.on("dblclick", () => clearTimeout(offTimer));
   let dbl3d = null;
@@ -1936,7 +2140,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <div id="avWx">${cardWeather(c, area.bands.hi)}</div>
       <details id="avMore"${avMore ? " open" : ""}><summary>${rated ? "Problems, notes and riders' reports" : "Read the bulletin"}</summary>
         ${f.highlights ? `<p><strong>${esc(f.highlights)}</strong></p>` : ""}
-        ${(f.problems || []).map((p) => `<div class="av-prob">${rose(p)}<div><b>${esc(p.type)}</b><p>${esc(p.aspects.map((s) => s.toUpperCase()).join(" "))} · ${esc(p.elevations.map((b) => BANDS.find((x) => x[0] === b)[1]).join(", "))}</p><p>${p.likelihood ? "Likelihood: " + esc(p.likelihood) : ""}${p.size ? " · Size " + esc(p.size) : ""}</p>${p.comment ? `<details><summary>More</summary><p>${esc(p.comment)}</p></details>` : ""}</div></div>`).join("")}
+        ${(f.problems || []).map((p) => `<div class="av-prob">${rose(p)}<div><b>${esc(p.type)}</b><p>${esc(p.aspects.map((s) => s.toUpperCase()).join(" "))} · ${esc(p.elevations.map((b) => BANDS.find((x) => x[0] === b)[1]).join(", "))}</p><p>${p.likelihood ? "Likelihood: " + esc(likely(p.likelihood)) : ""}${p.size ? " · Size " + esc(p.size) : ""}</p>${p.comment ? `<details><summary>More</summary><p>${esc(p.comment)}</p></details>` : ""}</div></div>`).join("")}
         ${notes.length ? `<h5>Forecaster's notes</h5>${notes.map((s) => `<p>${esc(s)}</p>`).join("")}` : ""}
         ${minHtml([{ lat: c.lat, lon: c.lng }])}
         ${avyOn ? `<h5>Slope colours</h5><ul class="av-legend">${DANGER.slice(1).map((x) => `<li><i style="background:${x.color}"></i>${x.label}</li>`).join("")}<li><i style="background:repeating-linear-gradient(135deg,#f79218 0 3px,#7a4a0c 3px 5px)"></i>Problem aspect</li></ul>
@@ -2556,6 +2760,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     else if (map.hasLayer(avyGrid)) map.removeLayer(avyGrid);
     sync3d();
     renderForecast();
+    fillSpotAvy();
     if (sport === "ski") renderList();   // the trip planner lights follow the forecast and the day picked
     if (selected && sport === "ski") { const d = $("skDetail"); if (!d.hidden) select(selected); }
     avyBtn.classList.toggle("on", avyOn);
