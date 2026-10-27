@@ -1974,6 +1974,11 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       if (n - s < 12 && e - w < 20) await loadPv(pvsIn(s, w, n, e));
       return A().filter((x) => boxHits(x.b, s, w, n, e));
     },
+    // Ask in plain words (ask.js): this spot's card (zone, what's open, rules) at a place.
+    openAt(lat, lon) {
+      map.setView([lat, lon], Math.max(map.getZoom(), 11));
+      setSpot(lat, lon, "tap"); showSpot(lat, lon);
+    },
     async zoneAt(lat, lon) {
       try { zones = zones || (await load("zones")).zones; } catch {}
       await loadPv(pvsIn(lat, lon, lat, lon));

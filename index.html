@@ -1580,14 +1580,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=594"></script>
-<script src="native.js?v=594"></script>
-<script src="keyboard.js?v=594"></script>
-<script src="rotate.js?v=594"></script>
-<script src="official.js?v=594"></script>
-<script src="directions.js?v=594"></script>
-<script src="ratings.js?v=594"></script>
-<script src="ebike.js?v=594"></script>
+<script src="welcome.js?v=602"></script>
+<script src="native.js?v=602"></script>
+<script src="keyboard.js?v=602"></script>
+<script src="rotate.js?v=602"></script>
+<script src="official.js?v=602"></script>
+<script src="directions.js?v=602"></script>
+<script src="ratings.js?v=602"></script>
+<script src="ebike.js?v=602"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1785,7 +1785,46 @@ body.sport-alt #rideMapBtn { display: none !important; }
   map.fitBounds(zoneBounds(state.zone));
   const OSM_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
   const ESRI_SAT = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-  const SAT_ATTR = 'Imagery &copy; Esri, Maxar, Earthstar Geographics, Eagleview, District of Squamish, Village of Pemberton, Sunshine Coast, qathet';
+  const SAT_ATTR = 'Imagery &copy; Esri, Maxar, Earthstar Geographics, Eagleview, District of Squamish, Village of Pemberton, Sunshine Coast, qathet, Gouvernement du Qu&eacute;bec, GeoNB';
+  // Free provincial air photos, 15-20 cm, used where Esri has no air photo of its own (its photos stop before zoom 20 there):
+  // Tremblant, the Gaspésie, Sugarloaf... were 8 times blurrier than Whistler (coverage check, alex 2026-10-27 "can we
+  // fix that?"). Quebec's Imagerie continue (WMTS, whole province) and GeoNB's imagery (drawn on request, Mercator).
+  // Outside their province both send one flat colour, under 3 KB: then it's Esri's photo after all.
+  // window.tfLocalPhoto(z, x, y, signal) -> Promise of the JPEG bytes, or null (map3d.js uses it too).
+  const mercBox = (z, x, y) => { const R = 20037508.342789244, n = 2 ** z; return [x / n * 2 * R - R, R - (y + 1) / n * 2 * R, (x + 1) / n * 2 * R - R, R - y / n * 2 * R]; };
+  const LOCAL_PHOTOS = [
+    { box: [44.55, -69.1, 48.1, -63.75], url: (z, x, y) => `https://geonb.snb.ca/arcgis/rest/services/GeoNB_Basemap_Imagery/MapServer/export?bbox=${mercBox(z, x, y).map((v) => v.toFixed(2))}&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&f=image` },
+    { box: [44.99, -79.8, 62.6, -57.1], url: (z, x, y) => `https://servicesmatriciels.mern.gouv.qc.ca/erdas-iws/ogc/wmts/Imagerie_Continue/Imagerie_GQ/default/GoogleMapsCompatibleExt2:epsg:3857/${z}/${y}/${x}.jpg` },
+  ];
+  const LOCAL_Z = 15, ESRI_AERIAL_Z = 20;   // Esri with a zoom-20 photo has an air photo itself (Bromont: the same one)
+  const esriAerial = new Map();   // "blockX/blockY" at zoom 19 -> Promise of Esri's 32x32 tile map there, or null
+  const hasEsriAerial = (z, x, y) => {
+    const k = ESRI_AERIAL_Z - z, cx = (x << k) + (1 << k >> 1), cy = (y << k) + (1 << k >> 1), bx = cx >> 5, by = cy >> 5, key = bx + "/" + by;
+    if (!esriAerial.has(key)) {
+      if (esriAerial.size > 300) esriAerial.delete(esriAerial.keys().next().value);
+      esriAerial.set(key, fetch(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tilemap/${ESRI_AERIAL_Z}/${by * 32}/${bx * 32}/32/32`)
+        .then((r) => r.json()).then((j) => j.valid === false || !j.data || j.location?.left !== bx * 32 || j.location?.top !== by * 32 ? null : j.data).catch(() => null));
+    }
+    return esriAerial.get(key).then((d) => !!d && d[(cy - by * 32) * 32 + (cx - bx * 32)] === 1);
+  };
+  const localNone = new Set();   // tiles that came back flat (outside the province, or open water)
+  window.tfLocalPhoto = async (z, x, y, signal) => {
+    if (z < LOCAL_Z || z > 22) return null;
+    const n = 2 ** z, lon = ((x + 0.5) / n) * 360 - 180, lat = (Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 0.5)) / n))) * 180) / Math.PI;
+    const srcs = LOCAL_PHOTOS.filter((p) => lat >= p.box[0] && lat <= p.box[2] && lon >= p.box[1] && lon <= p.box[3]);
+    if (!srcs.length || await hasEsriAerial(z, x, y)) return null;
+    for (const p of srcs) {
+      const key = `${LOCAL_PHOTOS.indexOf(p)}/${z}/${x}/${y}`;
+      if (localNone.has(key)) continue;
+      try {
+        const r = await fetch(p.url(Math.min(z, 21), z > 21 ? x >> 1 : x, z > 21 ? y >> 1 : y), { signal });
+        const b = r.ok ? await r.arrayBuffer() : null;
+        if (b && b.byteLength > 3000) return b;
+        localNone.add(key);
+      } catch (e) { if (signal && signal.aborted) throw e; }
+    }
+    return null;
+  };
   const BASEMAPS = {
     osm: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: OSM_ATTR }],
     osmde: ["https://tile.openstreetmap.de/{z}/{x}/{y}.png", { maxZoom: 18, attribution: OSM_ATTR + ' | tiles <a href="https://www.openstreetmap.de">openstreetmap.de</a>' }],
@@ -1854,6 +1893,15 @@ body.sport-alt #rideMapBtn { display: none !important; }
       };
       (async () => {
         let z = c.z, x = c.x, y = c.y;
+        // A sharper provincial air photo here (tfLocalPhoto above)?
+        const local = z >= LOCAL_Z ? await window.tfLocalPhoto(z, x, y).catch(() => null) : null;
+        if (local) {
+          const url = URL.createObjectURL(new Blob([local], { type: "image/jpeg" }));
+          Object.assign(img.style, { position: "absolute", width: size + "px", height: size + "px", maxWidth: "none", left: 0, top: 0 });
+          img.onload = () => { URL.revokeObjectURL(url); done(null, box); }; img.onerror = (e) => { URL.revokeObjectURL(url); done(e, box); };
+          img.src = url;
+          return;
+        }
         // The photo starts downloading while Esri's tile map is asked whether it exists, not after: one wait instead of
         // two for every new block of the map (alex 2026-10-25, "as quick as" Outmap). It only shows once both say yes.
         const got = new Promise((ok) => { img.onload = () => ok(null); img.onerror = (e) => ok(e || new Error("tile")); });
@@ -3664,6 +3712,20 @@ out body;`;
   };
   window.tfSnowCm = SNOW_CM;
   // Loam forecast (notify.js): the first coming day in prime loam at each [lat, lon], { d, day, v } or null.
+  // Ask in plain words (ask.js): the reading on one day ("YYYY-MM-DD", today or the forecast days) at each [lat, lon]:
+  // { v, snow, days } (v null: not known that day; days: how many forecast days there are).
+  window.tfLoamDay = async (pts, d) => {
+    const keys = pts.map((p) => cellOf({ center: L.latLng(p[0], p[1]) }));
+    const need = staleCells(keys);
+    if (need.length) await fetchLoamCells(need);
+    return keys.map((k) => {
+      const c = loamCells.get(k);
+      if (!c) return { v: null, snow: null, days: 0 };
+      if (!d || d <= c.today) return { v: c.lmi, snow: c.snow, days: (c.days || []).length };
+      const x = (c.days || []).find((y) => y.d === d);
+      return { v: x ? x.v : null, snow: x ? x.s : null, days: (c.days || []).length };
+    });
+  };
   window.tfLoamSoon = async (pts) => {
     const keys = pts.map((p) => cellOf({ center: L.latLng(p[0], p[1]) }));
     const need = staleCells(keys);
@@ -3930,7 +3992,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=594").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=602").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5134,7 +5196,7 @@ out body;`;
     const mtb = !isAlt();
     // The same order as every sport's own tab (alex picked "one home for every sport", 2026-10-27): search, Today,
     // 4 big buttons, a list, then what's on the map.
-    if (page === "find") return `<div class="hub-slot" data-slot="find"></div>
+    if (page === "find") return `<div class="hub-slot" data-slot="find"></div>${window.tfAsk ? window.tfAsk.html("mtb") : ""}
       <button type="button" class="hub-now" id="mtbNow"${mtbNowHtml ? "" : " hidden"}>${mtbNowHtml}</button>
       <div class="hub-tiles">${tile("search", "✨", "New trails", "how new you pick")}${tile("near", "◎", "Near me", `within ${$("nearKm").value} km`)}${tile("prime", '<span class="dot"></span>', "Prime loam", "damp dirt now")}${tile("photo", "📷", "Which trail?", "from a photo")}</div>
       <div class="hub-sec">What are you looking for?</div>
@@ -7573,56 +7635,57 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=594"></script>
-<script src="contours.js?v=594"></script>
-<script src="clouds.js?v=594"></script>
-<script src="smoke.js?v=594"></script>
-<script src="radar.js?v=594"></script>
-<script src="photo-slider.js?v=594"></script>
-<script src="ski-terrain.js?v=594"></script>
-<script src="place-search.js?v=594"></script>
-<script src="winter.js?v=594"></script>
-<script src="crownland.js?v=594"></script>
-<script src="hunting.js?v=594"></script>
-<script src="fish-bait.js?v=594"></script>
-<script src="fish-route.js?v=594"></script>
-<script src="fishing.js?v=594"></script>
-<script src="compass.js?v=594"></script>
-<script src="hunts.js?v=594"></script>
-<script src="ski-points.js?v=594"></script>
-<script src="webcams.js?v=594"></script>
-<script src="lifts.js?v=594"></script>
-<script src="rogers.js?v=594"></script>
-<script src="slackcountry.js?v=594"></script>
-<script src="ski-areas.js?v=594"></script>
-<script src="helicat.js?v=594"></script>
-<script src="offline.js?v=594"></script>
-<script src="ride-stats.js?v=594"></script>
-<script src="native-gps.js?v=594"></script>
-<script src="navigate.js?v=594"></script>
-<script src="planner.js?v=594"></script>
-<script src="loops.js?v=594"></script>
-<script src="ride-finds.js?v=594"></script>
-<script src="rides.js?v=594"></script>
-<script src="community.js?v=594"></script>
-<script src="ride-files.js?v=594"></script>
-<script src="rider-trails.js?v=594"></script>
-<script src="account.js?v=594"></script>
-<script src="live.js?v=594"></script>
-<script src="strava.js?v=594"></script>
-<script src="reports.js?v=594"></script>
-<script src="grades.js?v=594"></script>
-<script src="trail-photos.js?v=594"></script>
-<script src="visitors.js?v=594"></script>
-<script src="usage.js?v=594"></script>
-<script src="notify.js?v=594"></script>
-<script src="closures.js?v=594"></script>
-<script src="status.js?v=594"></script>
-<script src="areas.js?v=594"></script>
-<script src="alpine.js?v=594"></script>
-<script src="bikeparks.js?v=594"></script>
-<script src="photo-find.js?v=594"></script>
-<script src="whats-new.js?v=594"></script>
+<script src="map3d.js?v=602"></script>
+<script src="contours.js?v=602"></script>
+<script src="clouds.js?v=602"></script>
+<script src="smoke.js?v=602"></script>
+<script src="radar.js?v=602"></script>
+<script src="photo-slider.js?v=602"></script>
+<script src="ski-terrain.js?v=602"></script>
+<script src="place-search.js?v=602"></script>
+<script src="winter.js?v=602"></script>
+<script src="crownland.js?v=602"></script>
+<script src="hunting.js?v=602"></script>
+<script src="fish-bait.js?v=602"></script>
+<script src="fish-route.js?v=602"></script>
+<script src="fishing.js?v=602"></script>
+<script src="compass.js?v=602"></script>
+<script src="hunts.js?v=602"></script>
+<script src="ski-points.js?v=602"></script>
+<script src="webcams.js?v=602"></script>
+<script src="lifts.js?v=602"></script>
+<script src="rogers.js?v=602"></script>
+<script src="slackcountry.js?v=602"></script>
+<script src="ski-areas.js?v=602"></script>
+<script src="helicat.js?v=602"></script>
+<script src="offline.js?v=602"></script>
+<script src="ride-stats.js?v=602"></script>
+<script src="native-gps.js?v=602"></script>
+<script src="navigate.js?v=602"></script>
+<script src="planner.js?v=602"></script>
+<script src="loops.js?v=602"></script>
+<script src="ride-finds.js?v=602"></script>
+<script src="rides.js?v=602"></script>
+<script src="community.js?v=602"></script>
+<script src="ride-files.js?v=602"></script>
+<script src="rider-trails.js?v=602"></script>
+<script src="account.js?v=602"></script>
+<script src="live.js?v=602"></script>
+<script src="strava.js?v=602"></script>
+<script src="reports.js?v=602"></script>
+<script src="grades.js?v=602"></script>
+<script src="trail-photos.js?v=602"></script>
+<script src="visitors.js?v=602"></script>
+<script src="usage.js?v=602"></script>
+<script src="notify.js?v=602"></script>
+<script src="closures.js?v=602"></script>
+<script src="status.js?v=602"></script>
+<script src="ask.js?v=602"></script>
+<script src="areas.js?v=602"></script>
+<script src="alpine.js?v=602"></script>
+<script src="bikeparks.js?v=602"></script>
+<script src="photo-find.js?v=602"></script>
+<script src="whats-new.js?v=602"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

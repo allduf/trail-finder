@@ -242,5 +242,8 @@
   {"name": "Saint-Jérôme", "zone": "ca_45_-74.4", "c": [45.7717, -74.0417], "tier": 2},
   {"name": "Salmo", "zone": "ca_49_-117.6", "c": [49.2093, -117.3282], "tier": 2},
   {"name": "Buffalo Pound", "zone": "ca_50_-105.6", "c": [50.5799, -105.3964], "tier": 2},
-  {"name": "Kollock Creek (Kouchibouguac)", "zone": "ca_46_-66.0", "c": [46.7998, -64.9451], "tier": 2}
+  {"name": "Kollock Creek (Kouchibouguac)", "zone": "ca_46_-66.0", "c": [46.7998, -64.9451], "tier": 2},
+  {"name": "Smithers Bluff", "zone": "ca_54_-127.2", "c": [54.7705, -127.184], "tier": 1},
+  {"name": "Tyee Mountain (Telkwa)", "zone": "ca_54_-127.2", "c": [54.734, -126.948], "tier": 2},
+  {"name": "Sugarloaf (Campbellton)", "zone": "ca_47_-67.2", "c": [47.9785, -66.6858], "tier": 1}
 ]}

@@ -396,6 +396,8 @@
     return haveBlocks.get(k).then((d) => d ? d[(y - by * 32) * 32 + (x - bx * 32)] === 1 : z <= 19);
   };
   async function photoBytes(z, x, y, sig) {
+    // Quebec's and New Brunswick's own air photos where Esri has only satellite (index.html, tfLocalPhoto).
+    if (z >= 15 && window.tfLocalPhoto) { const local = await window.tfLocalPhoto(z, x, y, sig).catch((e) => { if (sig.aborted) throw e; return null; }); if (local) return local; }
     const own = tileBytes(z, x, y, sig);
     if (z <= 12 || await esriHas(z, x, y)) return own;
     own.catch(() => null);
@@ -590,7 +592,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=594");
+      const w = new Worker("winter-fill.js?v=602");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return; fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });

@@ -1,0 +1,45 @@
+name: Coverage check
+
+# Each day: is every feature as good across Canada as around Whistler? scripts/coverage-check.mjs scores ~20 sample
+# spots (Squamish to Newfoundland) on trails, ratings, loam, photo and 3D sharpness, winter photos and holes, ski runs,
+# lifts, webcams, avalanche, hunting and fishing rules... against Whistler, from the live site and the map servers.
+# The result is data/coverage.json on the site-data branch (the scorecard). Anything that got worse since yesterday
+# is written on the issue "Coverage check", mentioning alex. On a pull request that changes it: table only.
+on:
+  schedule:
+    - cron: "41 13 * * *"   # 13:41 UTC, after the night's data jobs (Canada chunks 08:17, winter 11:00)
+  pull_request:
+    paths: ["scripts/coverage-check.mjs", ".github/workflows/coverage-check.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # data/coverage.json on the site-data branch
+  issues: write     # the "Coverage check" issue
+
+concurrency:
+  group: coverage-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Yesterday's result
+        run: |
+          bash scripts/site-data.sh get
+          if [ -f data/coverage.json ]; then cp data/coverage.json /tmp/coverage-prev.json; fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Score every spot against Whistler
+        env:
+          PREV: /tmp/coverage-prev.json
+          GITHUB_TOKEN: ${{ github.token }}
+          OWNER: allduf
+          DRY: ${{ github.event_name == 'pull_request' && '1' || '' }}
+        run: node scripts/coverage-check.mjs
+      - name: Save the scorecard
+        if: github.event_name != 'pull_request'
+        run: bash scripts/site-data.sh save "Coverage check $(date -u +%F)" data/coverage.json
