@@ -883,10 +883,11 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
       if (now - route.offSince >= OFF_MS && !route.alerted) {
         route.alerted = true; alarm();
         const dirs = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"];
-        say(`Off route. The route is ${sayM(best.d)} away${aim ? `, to the ${dirs[Math.round(bearing(p, aim) / 45) % 8]}` : ""}.`);
+        say(`Off route. The route is ${sayM(best.d)} away${aim ? `, to the ${dirs[Math.round(bearing(p, aim) / 45) % 8]}` : ""}.${route.reroute ? " Finding a new route." : ""}`);
       }
+      if (route.alerted && route.reroute) reroute(p);
       box.classList.toggle("off", route.alerted);
-      box.innerHTML = `${x}${route.alerted ? "Off route" : "Leaving the route?"}: ${fmtM(best.d)} from <b>${esc(route.name)}</b>`;
+      box.innerHTML = `${x}${route.alerted ? (route.rerouting ? "Off route, finding a new way" : "Off route") : "Leaving the route?"}: ${fmtM(best.d)} from <b>${esc(route.name)}</b>`;
     }
     box.hidden = false;
     $("navUnfollow").addEventListener("click", clearRoute);
@@ -897,13 +898,32 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     const a = g[pr.i], b = g[Math.min(pr.i + 1, g.length - 1)];
     return [a[0] + pr.t * (b[0] - a[0]), a[1] + pr.t * (b[1] - a[1])];
   }
+  // Off route on a ride that can plan again (opts.reroute(p, pos) from moto.js: from here to the rest of the route,
+  // online or from the saved offline maps): every 30 s at most, until you're back on a route.
+  function reroute(p) {
+    const r = route, now = Date.now();
+    if (r.rerouting || now - (r.rerouteAt || 0) < 30000) return;
+    r.rerouting = true; r.rerouteAt = now;
+    Promise.resolve(r.reroute(p, r.pos || 0)).then((n) => {
+      r.rerouting = false;
+      if (route !== r || !n || !n.lines || !n.lines.length) return;
+      setRoute(n.lines, n.name || r.name, n.parts);
+      route.reroute = r.reroute; route.rerouteAt = Date.now();
+      [...voice.said.keys()].forEach((k) => { if (/^(pre|at)\d/.test(k)) voice.said.delete(k); });
+      say("New route.");
+      if (lastFix) updateRoute([lastFix.c.latitude, lastFix.c.longitude], lastFix.c.accuracy);
+      sendCues();
+    }, () => { r.rerouting = false; });
+  }
   // parts (optional, from Plan a route): the ride's trails in order, [{ name, color, lvl, kind, pts }].
-  async function follow(lines, name, parts) {
+  // opts.reroute (optional): plan again when you leave the route, see reroute().
+  async function follow(lines, name, parts, opts) {
     if (!lines || !lines.length) return;
     if (!rec) { await start(); if (!rec) return; }
     try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch {}   // from the tap, so iPhones allow the beep later
     primeVoice();
     setRoute(lines, name || "this trail", parts);
+    if (opts && opts.reroute) route.reroute = opts.reroute;
     [...voice.said.keys()].forEach((k) => { if (/^(pre|at)\d/.test(k)) voice.said.delete(k); });
     const here = lastFix && [lastFix.c.latitude, lastFix.c.longitude];
     if (!here || Math.min(...lines.map((g) => project(g, here).d)) > 300) {   // far from it: show the whole trail and you
