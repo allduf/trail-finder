@@ -1,6 +1,8 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-27", "text": "Share your live location: friends and family follow you on a map from a link, with a \"back by\" time (Ride or Track page, and More)."},
+    {"date": "2026-10-27", "text": "New 🌧 Radar layer: see rain or snow falling now and the last 3 hours, all over southern Canada."},
     {"date": "2026-10-27", "text": "Skiing 3D: the ground is always whole now. Cloudy spots in last winter's photo are filled with a snowy photo before they show, and the map lags less."},
     {"date": "2026-10-27", "text": "MTB now opens on the flat map the first time. After that, each sport opens on the map you last left it on (3D or flat, map style and layers)."},
     {"date": "2026-10-27", "text": "Skiing 3D: no more blue holes and broken-looking mountains where last winter's photo was cloudy (Grouse, Seymour, Kicking Horse and others). Those spots now show the snowy photo instead."},
