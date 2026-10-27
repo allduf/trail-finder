@@ -45,6 +45,13 @@
   const fmtH = (s) => { const m = Math.round(s / 60); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}`; };
   const ACC = "#d9480f";   // the Moto accent (burnt orange)
   const VALHALLA = "https://valhalla1.openstreetmap.de";
+  // Routes with no signal (moto-roads.js) from the roads in the saved offline maps, loaded the first time they're needed.
+  const ROADS_SRC = "moto-roads.js" + ((document.currentScript && new URL(document.currentScript.src).search) || "");
+  let roadsLoad = null;
+  const loadRoads = () => window.tfMotoRoads ? Promise.resolve(window.tfMotoRoads) : roadsLoad || (roadsLoad = new Promise((ok, no) => {
+    const el = document.createElement("script"); el.src = ROADS_SRC; el.onload = () => ok(window.tfMotoRoads); el.onerror = () => { roadsLoad = null; no(new Error("moto-roads.js")); };
+    document.head.append(el);
+  }));
   const OFM = { type: "vector", url: "https://tiles.openfreemap.org/planet" };
   const WFS = "https://openmaps.gov.bc.ca/geo/pub/wfs";
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -154,6 +161,7 @@
     roads: { g: "Roads", label: "Dirt roads for my bike", sub: "Gravel roads and tracks coloured for your bike (zoom in)", on: true, icon: ["#2f9e44", "line"] },
     mud: { g: "Roads", label: "Mud and dust today", sub: "Rain, soil moisture and snow, in squares", icon: ["#8b5a2b", "box"] },
     rules: { g: "Roads", label: "Where you can't ride", sub: "Parks, reserves and motor vehicle closures", on: true, minZoom: 7, icon: ["#e03131", "box"] },
+    crown: { g: "Roads", label: "Crown land", sub: "Public land: green, private: yellow (ON, QC, NB, NS, SK, NL; zoom in)", minZoom: 9, icon: ["#2f9e44", "box"] },
     fuel: { g: "Stops", label: "Gas stations", sub: "All of Canada", on: true, minZoom: 7, icon: ["#1971c2", "dot"] },
     range: { g: "Stops", label: "My fuel range", sub: "How far a tank takes you from here (with 20% left)", on: true, icon: ["#1971c2", "ring"] },
     camp: { g: "Stops", label: "Campsites, huts and rec sites", sub: "Free BC rec sites marked", on: true, minZoom: 8, icon: ["#2b8a3e", "dot"] },
@@ -166,8 +174,8 @@
   const VIEWS = {
     roads: { label: "Roads", sub: "for my bike", layers: ["roads", "rules", "fuel", "ferry"] },
     mud: { label: "Mud", sub: "today", layers: ["roads", "mud"] },
-    stops: { label: "Fuel & camp", sub: "range, sleep", layers: ["roads", "fuel", "range", "camp", "hot", "ferry"] },
-    rules: { label: "Rules", sub: "can I ride", layers: ["roads", "rules"] },
+    stops: { label: "Fuel & camp", sub: "range, sleep", layers: ["roads", "fuel", "range", "camp", "hot", "ferry", "crown"] },
+    rules: { label: "Rules", sub: "can I ride", layers: ["roads", "rules", "crown"] },
   };
   let shown = new Set(store.get("motoLayers", Object.keys(LAYERS).filter((k) => LAYERS[k].on)));
 
@@ -796,6 +804,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       rangeland: "Grazing land: ask the leaseholder.", pasture: "Provincial pasture: ask the pasture manager.",
     } },
     open: { color: "#2f9e44", label: "Public land", kinds: {
+      provforest: "Manitoba provincial forest: Crown forest land. Public roads and trails open to vehicles.",
       green: "Alberta Green Area: public forest land. Roads and designated trails; random camping is allowed (a Public Lands Camping Pass on the eastern slopes).",
       wmaopen: "Wildlife management area: public roads open, gates may close for the season.", wild: "Wilderness area or biodiversity reserve: vehicles only on open roads.",
     } },
@@ -986,6 +995,9 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     can.innerHTML = `<h4>Can I ride here?</h4>
       ${rs.length ? rs.map(({ a, r }) => `<div class="mt-warn ${r.g === "no" ? "" : r.g === "open" ? "ok" : "hard"}"><b>${esc(a.n || r.label)}</b><br>${esc(r.text)}</div>`).join("") : `<div class="mt-warn ok">No park, reserve or closure mapped here.</div>`}
       <details class="mt-fold"><summary>${esc(P ? P[0] : PROV_NAME[pv] || "Canada")}: riding rules</summary><p>${esc(P ? P[1] : PROV_OTHER)}</p>${P && P[2].length ? `<p>${P[2].map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(n)}</a>`).join(" · ")}</p>` : ""}</details>`;
+    const land = await crownHtml(s.lat, s.lon, pv);
+    if (my !== spotSeq) return;
+    if (land) can.querySelector("h4").insertAdjacentHTML("afterend", land);
     const c = await loadCell();
     if (my !== spotSeq) return;
     if (c) can.insertAdjacentHTML("afterend", `<p class="mt-note">${svg(IC.cell, 14)} ${cellNear(s.lat, s.lon) ? "Cell signal likely on the roads here (LTE or 5G)." : "<b>Likely no cell signal</b> on the roads here: tell someone your plan."}</p>`);
@@ -1200,6 +1212,33 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     return { pts: locs, line, parts: parts.filter((x) => x.pts.length > 1), km: r.trip.summary.length, time: r.trip.summary.time, ferry: r.trip.summary.has_ferry, style: planStyle, edges: null, name: "",
       closures: null, avoided: [], excl: excl.slice(), legAt };
   }
+  // The route server, or with no signal (or no answer from it) the roads of the saved offline maps (moto-roads.js,
+  // alex 2026-10-27: plan and re-route with no signal). Errors: "far" (a point isn't near a saved road this bike can
+  // ride), "nomap" (a point is outside the saved maps), "big", "none", "noway", or the server's own.
+  let offProg = "";
+  async function routeAny(locs, excl, cx, onProg) {
+    let netErr = null;
+    const saved = () => loadRoads().then((R) => (locs.every((p) => R.covered(p)) ? R : null), () => null);
+    if (navigator.onLine) {
+      // One bar of signal says "online" and then nothing comes: inside the saved maps, wait 12 s for the server at most.
+      const on = routeOnce(locs, excl, cx).then((r) => ({ r }), (e) => ({ e }));
+      const R0 = await saved();
+      const got = R0 ? await Promise.race([on, new Promise((ok) => setTimeout(() => ok(null), 12000))]) : await on;
+      if (got && got.r) return got.r;
+      if (got && /HTTP 4/.test(got.e.message)) throw got.e;
+      netErr = got ? got.e : new Error("slow");
+    }
+    const R = await saved();
+    if (!R) throw netErr || new Error("nomap");
+    const b = cur(), r = await R.route(locs, { style: planStyle, cap: capOf(b), street: b.type === "street", excl, color: ACC, onProg });
+    return { ...r, style: planStyle, name: "", closures: null, avoided: [], excl: excl.slice() };
+  }
+  const offErr = (e) => e.message === "nomap" ? "No signal, and a point is outside your saved offline maps. Save the area in Offline maps (with Adventure moto on) before you ride out of signal, then plan inside it."
+    : e.message === "far" ? `No signal: point ${(e.point || 0) + 1} isn't near a road your bike can ride in your saved maps. Move it onto a road.`
+    : e.message === "big" ? "No signal: too much saved map around these points to plan in one go. Plan it in shorter pieces."
+    : e.message === "none" ? "No signal, and the saved map tiles here couldn't be read. Save the area again in Offline maps when you have signal."
+    : e.message === "noway" ? "No signal: no road joins those points in your saved maps for this style and bike. Try another style or move a point."
+    : "";
   // The surfaces along a line, leg by leg. Valhalla's exact walk fails on some routes (a turn back at a point on the
   // way), which left the surfaces "reading" for good: then the leg is matched to the map instead, and its matched
   // line replaces it. Returns { edges, line } (edges index into line).
@@ -1244,13 +1283,15 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     liveNote = "";
     roadLive(L.latLngBounds(locs));   // the road events start loading while the router works
     for (let round = 0; round < 4; round++) {
-      try { r = await routeOnce(locs, excl, cx); }
+      try { r = await routeAny(locs, excl, cx, (n, of) => { if (my === routeSeq && !best) { offProg = `Reading your saved maps: ${Math.round((100 * n) / of)}%`; renderRoute(true); } }); }
       catch (e) {
+        offProg = "";
         if (my !== routeSeq) return;
         if (best) { best.noWay = true; break; }   // no way around: keep the last route and say so
-        routeErr = /HTTP 4/.test(e.message) ? "No road found between those points for this style: move a point onto a road, or try another style." : "The route server didn't answer. Check your signal and try again.";
+        routeErr = /HTTP 4/.test(e.message) ? "No road found between those points for this style: move a point onto a road, or try another style." : offErr(e) || "The route server didn't answer. Check your signal and try again.";
         route = null; drawRoute(); renderRoute(); return;
       }
+      offProg = "";
       if (my !== routeSeq) return;
       // A gate or barrier is one point a mapper put on the map, and can be wrong: when going around it alone is a long
       // way round (alex: 581 km instead of about 120), keep the shorter route and say what's on it.
@@ -1258,14 +1299,16 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       r.avoided = avoided.slice();
       r.checking = true;
       if (!best) { route = r; drawRoute(); renderRoute(); drawRange(); }
-      const ed = await edgesOf(r.line, r.legAt);
-      if (ed.line !== r.line) { reindexParts(r.parts, ed.line); r.line = ed.line; }
-      r.edges = ed.edges;
+      if (!r.offline) {   // the saved maps' route already knows its surfaces
+        const ed = await edgesOf(r.line, r.legAt);
+        if (ed.line !== r.line) { reindexParts(r.parts, ed.line); r.line = ed.line; }
+        r.edges = ed.edges;
+      }
       if (my !== routeSeq) return;
       // City traffic at the hour you'll be there (alex: "if you enter a city consider the traffic"): when it costs 8 min
       // or more, ask the router once more with the opposite taste for highways (the way around the city, or off the
       // jammed freeway) and keep the one that's faster at that hour, if it keeps the dirt.
-      if (round === 0 && r.edges) {
+      if (round === 0 && r.edges && !r.offline) {
         const t0 = trafficOf(r);
         if (t0 && t0.delay >= 480) {
           const c2 = { use_highways: costing().use_highways < 0.5 ? 1 : 0 };
@@ -1653,7 +1696,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     h += warns.slice(0, 6).map((x) => `<div class="mt-warn hard">${esc(dot(x.label))} ${show(x)}${x.p && !x.atPoint ? ` <button type="button" data-avoid="${x.p[0].toFixed(5)},${x.p[1].toFixed(5)}">Go around</button>` : ""}</div>`).join("");
     if (!stops.length && !warns.length) h += `<div class="mt-warn ok">No ${r.avoided.length ? "other " : ""}closures, locked gates, washouts, bad forest roads or fire closures mapped on this route.</div>`;
     if (avoidMine.length) h += `<p class="mt-note">You chose to go around ${avoidMine.length} spot${avoidMine.length === 1 ? "" : "s"}. <button type="button" class="mt-link" data-r="unavoid">Stop going around them</button></p>`;
-    h += `<p class="mt-note">Checked: forest road status and gates (BC and Alberta from the government and OpenStreetMap, the rest of Canada from OpenStreetMap), motor vehicle closures, reserves, wildfire closures and evacuations, and every province's 511 (highway closures, washouts, bridges out, incidents, roadwork, winter road conditions), checked again every 10 minutes while this route is open${c.at ? ` (last ${new Date(c.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })})` : ""}.${c.failed.length ? ` <b>Couldn't load ${esc(c.failed.join(", "))}</b>: try again with signal.` : ""} Gates and washouts change faster than any map.</p>`;
+    h += `<p class="mt-note">${r.offline ? "Checked with what is saved on this phone (no signal)" : "Checked"}: forest road status and gates (BC and Alberta from the government and OpenStreetMap, the rest of Canada from OpenStreetMap), motor vehicle closures, reserves, wildfire closures and evacuations, and every province's 511 (highway closures, washouts, bridges out, incidents, roadwork, winter road conditions), checked again every 10 minutes while this route is open${c.at ? ` (last ${new Date(c.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })})` : ""}.${c.failed.length ? ` <b>Couldn't load ${esc(c.failed.join(", "))}</b>: try again with signal.` : ""} Gates and washouts change faster than any map.</p>`;
     return h;
   }
   function encode6(pts) {
@@ -1762,7 +1805,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const styles = `<div class="mt-seg" role="group" aria-label="Route style">${Object.entries(STYLES).map(([k, s]) => `<button type="button" data-style="${k}" class="${k === planStyle ? "on" : ""}">${esc(s.label)}<small>${esc(s.sub)}</small></button>`).join("")}</div>`;
     const tools = `<div class="mt-row"><button type="button" class="mt-pill${planLoop ? " on" : ""}" data-r="loop">${svg(IC.loop, 16)}Back to start</button>${!planning ? `<button type="button" class="mt-pill" data-r="edit">${svg(IC.plan, 16)}Change it</button>` : ""}<button type="button" class="mt-pill" data-r="me">${svg(IC.me, 16)}From where I am</button><button type="button" class="mt-pill" data-r="clear">${svg(IC.x, 16)}Clear</button></div>`;
     let body = "";
-    if (loading && !r) body = `<p class="mt-note">Finding the roads…</p>`;
+    if (loading && !r) body = `<p class="mt-note">${esc(offProg || "Finding the roads…")}</p>`;
     else if (routeErr) body = `<div class="mt-warn">${esc(routeErr)}</div>`;
     else if (!r) body = `<p class="mt-note">${planPts.length ? "Tap where you want to go, or type it above." : "Tap the map where you start, type a place above, or use From where I am."} Points can be dragged; tap one to remove it.</p>`;
     else {
@@ -1781,6 +1824,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       const end = r.line[r.line.length - 1], camps = nearest([...listOf("camp"), ...recList()], end[0], end[1], 3, 25);
       body = `<p><b>${esc(r.name || "Your route")}</b></p>
         <div class="mt-stats"><div><b>${fmtKm(r.km)}</b><span>distance</span></div><div><b>${fmtH(r.time + (tr ? tr.delay : 0))}</b><span>riding</span></div><div><b>${dirtPct == null ? "…" : dirtPct + "%"}</b><span>dirt</span></div><div><b>${r.edges ? fmtKm(st.longest) : "…"}</b><span>longest dirt</span></div></div>
+        ${r.offline ? `<div class="mt-warn ok">${svg(IC.cell, 14)} Planned with no signal, from the roads in your saved offline maps. Closures and road reports from today weren't checked: plan again when you have signal.</div>` : ""}
         ${bar}${hard}${trafficHtml(r)}${closuresHtml(r)}${fuel}${highHtml(r)}${ferryHtml(r)}${roadsHtml(r)}${cellHtml(r)}
         ${camps.length ? `<details class="mt-fold"><summary>${svg(IC.camp, 14)} Camping near the end (${camps.length})</summary><ul class="mt-list">${camps.map(([d, p]) => `<li style="--c:${PT.camp.c}"><b>${esc(p[2] || "Campsite")}</b><small>${p[3] ? esc(p[3]) + " · " : ""}${fmtKm(d)} from the end</small></li>`).join("")}</ul></details>` : ""}
         <details class="mt-fold"><summary>Turns (${r.parts.length})</summary><ol class="mt-note" style="margin:0;padding-left:18px">${r.parts.map((x) => `<li>${esc(x.text)}${x.km >= 0.1 ? ` <i>${fmtKm(x.km)}</i>` : ""}</li>`).join("")}</ol></details>
@@ -1829,7 +1873,25 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   function rideRoute() {
     if (!route || !window.tfRide) return;
     setPlanning(false);
-    window.tfRide.follow([route.line], route.name || "your route", route.parts.map((x) => ({ ...x })));
+    window.tfRide.follow([route.line], route.name || "your route", route.parts.map((x) => ({ ...x })), { reroute: rerouteFrom });
+  }
+  // Off the route while riding it (navigate.js asks): from where you are to the planned points still ahead, with the
+  // server or, with no signal, the saved offline maps (alex 2026-10-27: re-route with no signal).
+  async function rerouteFrom(p, pos) {
+    const r = route;
+    if (!r || !r.line || r.line.length < 2) return null;
+    const cum = [0];
+    for (let i = 1; i < r.line.length; i++) cum.push(cum[i - 1] + map.distance(r.line[i - 1], r.line[i]));
+    const ends = (r.legAt && r.legAt.length ? r.legAt.map(([b, n]) => b + n - 1) : [r.line.length - 1]).filter((i) => cum[Math.min(i, cum.length - 1)] > pos + 50);
+    if (!ends.length) return null;
+    const locs = [[+p[0].toFixed(5), +p[1].toFixed(5)], ...ends.map((i) => r.line[Math.min(i, r.line.length - 1)])];
+    const nr = await routeAny(locs, r.excl || [], null).catch(() => null);
+    if (!nr || route !== r) return null;
+    nr.name = r.name; nr.checking = false;
+    route = nr;
+    drawRoute(); renderRoute();
+    if (!nr.offline) edgesOf(nr.line, nr.legAt).then((ed) => { if (route === nr && ed.line === nr.line) { nr.edges = ed.edges; renderRoute(); } }, () => {});
+    return { lines: [nr.line], name: nr.name || "your route", parts: nr.parts.map((x) => ({ ...x })) };
   }
 
   // ---------- saved routes ----------
@@ -2009,7 +2071,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     renderLayers(); renderKey();
     showRoads(isMoto() && shown.has("roads"));
     if (isMoto() && shown.has("roads")) { if (!ftenLayer._map) ftenLayer.addTo(map); } else if (ftenLayer._map) map.removeLayer(ftenLayer);
-    drawPoints(); drawRange(); drawMud(); drawRules(); drawCell();
+    drawPoints(); drawRange(); drawMud(); drawRules(); drawCell(); drawCrown();
     if (shown.has("camp")) loadRec();
     loadLive();
   }
@@ -2029,6 +2091,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     box.innerHTML = (shown.has("roads") ? `<b>Dirt roads for your ${esc(cur().name || TYPES[cur().type].label)}</b>${Object.entries(FIT).map(([, [l, c]]) => `<div>${i(c)}${esc(l)}</div>`).join("")}<div style="color:#666">Dashed: a track (two-track). Solid: a gravel road. Your bike rides grade ${cap} well.</div>` : "")
       + (shown.has("mud") ? `<b>Dirt today</b>${Object.values(MUD).map(([l, c]) => `<div>${i(c)}${esc(l)}</div>`).join("")}` : "")
       + (shown.has("rules") ? `<b>Land</b>${["no", "roads", "fee", "ask"].map((k) => `<div>${i(RULES[k].color)}${esc(RULES[k].label)}</div>`).join("")}` : "")
+      + (shown.has("crown") && window.tfCrown ? `<b>Crown land</b><div>${i(window.tfCrown.COL.crown)}Crown land: public</div><div>${i(window.tfCrown.COL.private)}Private land</div><div>${i(window.tfCrown.COL.lease)}Crown lease (SK farm land)</div>` : "")
       + (["fuel", "camp", "hot", "shop", "ferry"].some((k) => shown.has(k)) ? `<b>Stops</b>${["fuel", "camp", "hot", "shop", "ferry"].filter((k) => shown.has(k)).map((k) => `<div>${i(PT[k].c, 1)}${esc(PT[k].name)}</div>`).join("")}` : "")
       + (route ? `<b>Your route</b><div>${i("#495057")}Paved</div><div>Dirt in the colours above</div>` : "")
       || "<p>No layers on: turn some on in Layers.</p>";
@@ -2203,6 +2266,25 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     if (c.none < 2) return `<p class="mt-note">${svg(IC.cell, 14)} Cell signal on about all of it (LTE or 5G, ISED's coverage data).</p>`;
     return `<div class="mt-warn ${c.longest > 40 ? "" : "hard"}">${svg(IC.cell, 14)} <b>About ${fmtKm(c.none)} with no cell signal</b>, the longest ${fmtKm(c.longest)}. Tell someone your plan; a satellite messenger works there. <button type="button" data-ll="${r.line[c.at][0]},${r.line[c.at][1]}">Show</button></div>`;
   }
+  // ---------- Crown land ----------
+  // Each province's own Crown land map (crownland.js), as pictures under the roads.
+  const crownLayer = window.tfCrown ? window.tfCrown.leaflet("motoRules", 0.28) : null;
+  function drawCrown() {
+    if (!crownLayer) return;
+    const want = isMoto() && shown.has("crown");
+    if (want && !map.hasLayer(crownLayer)) crownLayer.addTo(map); else if (!want && map.hasLayer(crownLayer)) map.removeLayer(crownLayer);
+  }
+  // The land at the spot, for a motorcycle.
+  const CROWN_SAY = {
+    crown: "Public land: ride the existing roads and trails open to vehicles, and random camping is usually allowed (each province limits how long).",
+    private: "Private land: stay on the public road, and ask the owner before you ride or camp off it.",
+    lease: "Someone leases this Crown land: stay on the road and ask the leaseholder before you camp.",
+  };
+  async function crownHtml(lat, lon, pv) {
+    const x = window.tfCrown && window.tfCrown.has(pv) ? await window.tfCrown.at(lat, lon, pv).catch(() => null) : null;
+    return x ? `<div class="mt-warn ${x.k === "crown" ? "ok" : x.k === "private" || x.k === "lease" ? "hard" : ""}"><b>${esc(x.t)}</b><br>${esc(CROWN_SAY[x.k] || x.d)}</div>` : "";
+  }
+
   const cellLayer = L.layerGroup();
   allMoto.push(cellLayer);
   function drawCell() {
@@ -2527,6 +2609,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
   window.tfMoto = {
     rideInfo,
     openLog,
+    openTrip: async (id) => { await openTrips(); showTrip(id); },   // Ask in plain words (ask.js): one ADV route
     hub(what) {   // index.html's phone pages: Plan a moto route, saved routes, my bikes, my rides
       if (what === "plan") { const t = document.querySelector('#tabbar [data-nav="moto"]'); if (t) t.click(); setPlanning(true); }
       else if (what === "routes") { const t = document.querySelector('#tabbar [data-nav="moto"]'); if (t) t.click(); openSaved(); }
@@ -2561,7 +2644,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     const on = isMoto();
     for (const l of allMoto) { if (on && !map.hasLayer(l)) l.addTo(map); else if (!on && map.hasLayer(l)) map.removeLayer(l); }
     if (on && !keyCtl._map) keyCtl.addTo(map); else if (!on && keyCtl._map) keyCtl.remove();
-    if (!on) { if (planning) setPlanning(false); showRoads(false); drawPoints(); stopFly(); watchSafe(); sync3d(); return; }
+    if (!on) { if (planning) setPlanning(false); showRoads(false); drawPoints(); drawCrown(); stopFly(); watchSafe(); sync3d(); return; }
     if (!started) { started = true; ["fuel", "camp", "hot", "shop", "ferry"].forEach(loadPts); }
     renderBike(); renderLayers(); applyLayers(); drawWaypoints(); drawRoute(); renderRoute(); renderNow(); renderNear(); renderSafe(); watchSafe(); renderTrips();
     if (planPts.length >= 2 && !route) buildRoute();

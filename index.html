@@ -3664,6 +3664,20 @@ out body;`;
   };
   window.tfSnowCm = SNOW_CM;
   // Loam forecast (notify.js): the first coming day in prime loam at each [lat, lon], { d, day, v } or null.
+  // Ask in plain words (ask.js): the reading on one day ("YYYY-MM-DD", today or the forecast days) at each [lat, lon]:
+  // { v, snow, days } (v null: not known that day; days: how many forecast days there are).
+  window.tfLoamDay = async (pts, d) => {
+    const keys = pts.map((p) => cellOf({ center: L.latLng(p[0], p[1]) }));
+    const need = staleCells(keys);
+    if (need.length) await fetchLoamCells(need);
+    return keys.map((k) => {
+      const c = loamCells.get(k);
+      if (!c) return { v: null, snow: null, days: 0 };
+      if (!d || d <= c.today) return { v: c.lmi, snow: c.snow, days: (c.days || []).length };
+      const x = (c.days || []).find((y) => y.d === d);
+      return { v: x ? x.v : null, snow: x ? x.s : null, days: (c.days || []).length };
+    });
+  };
   window.tfLoamSoon = async (pts) => {
     const keys = pts.map((p) => cellOf({ center: L.latLng(p[0], p[1]) }));
     const need = staleCells(keys);
@@ -5134,7 +5148,7 @@ out body;`;
     const mtb = !isAlt();
     // The same order as every sport's own tab (alex picked "one home for every sport", 2026-10-27): search, Today,
     // 4 big buttons, a list, then what's on the map.
-    if (page === "find") return `<div class="hub-slot" data-slot="find"></div>
+    if (page === "find") return `<div class="hub-slot" data-slot="find"></div>${window.tfAsk ? window.tfAsk.html("mtb") : ""}
       <button type="button" class="hub-now" id="mtbNow"${mtbNowHtml ? "" : " hidden"}>${mtbNowHtml}</button>
       <div class="hub-tiles">${tile("search", "✨", "New trails", "how new you pick")}${tile("near", "◎", "Near me", `within ${$("nearKm").value} km`)}${tile("prime", '<span class="dot"></span>', "Prime loam", "damp dirt now")}${tile("photo", "📷", "Which trail?", "from a photo")}</div>
       <div class="hub-sec">What are you looking for?</div>
@@ -5148,7 +5162,8 @@ out body;`;
       ${mtb ? card("plan", "✎", "Plan a route", "Tap points, or pick the trails you want") : ""}
       ${mtb ? card("routes", "📂", "Ride a saved route", "Routes you planned and saved") : ""}
       ${sportOf() === "moto" ? card("moto-plan", "✎", "Plan a moto route", "Most dirt, a mix, or curvy paved roads, for your bike") + card("moto-routes", "📂", "Ride a saved moto route", "Routes you planned and saved") : ""}
-      ${card("offline", "⤓", "Offline maps", w.offline)}`;   // My rides and Add a trail live in Saved
+      ${card("offline", "⤓", "Offline maps", w.offline)}
+      ${window.tfLive ? card("live", "📡", "Share my live location", window.tfLive.sharing() ? "On now: tap to send the link or stop" : "Friends and family see where you are") : ""}`;   // My rides and Add a trail live in Saved
     // Saved in each sport is that sport's own (alex, 2026-10-26: "every mode should have its own feature"): no bike
     // folders or routes in Skiing, Hunting or Fishing, but their log and the points saved in them (ski-points.js #spBox).
     if (page === "saved" && !mtb) {
@@ -5171,6 +5186,7 @@ out body;`;
       <div class="hub-sec">Tools</div>
       ${document.querySelector(".brand .notify-btn") ? card("alerts", "🔔", w.alerts[0], w.alerts[1]) : ""}
       ${card("full", "⤢", "Full map", "Hide everything but the map")}
+      ${window.tfLive ? card("live", "📡", "Live location", window.tfLive.sharing() ? "On now: tap to send the link or stop" : "Share where you are, or see friends who share") : ""}
       <div class="hub-sec">You</div>
       ${acct ? card("account", "👤", signedIn ? "Account" : "Sign in", signedIn ? "Your saves follow you to every device" : "Keep your saves on every device") : ""}
       ${window.tfWhatsNew ? card("news", "🆕", "What's new", "The latest changes to the app") : ""}
@@ -5380,6 +5396,7 @@ out body;`;
     else if (act === "plan") { if (window.tfPlan) window.tfPlan.open(); }
     else if (act === "routes") { if (window.tfPlan) window.tfPlan.saved(); }
     else if (act === "offline") { lowerSheet(); $("offlineBtn").click(); }
+    else if (act === "live") { if (window.tfLive) window.tfLive.open(); }
     else if (act === "alerts") document.querySelector(".brand .notify-btn")?.click();
     else if (act === "full") $("fullBtn").click();
     else if (act === "account") document.querySelector(".brand [data-account-slot] button")?.click();
@@ -7574,10 +7591,12 @@ out tags center qt;`;
 <script src="contours.js?v=600"></script>
 <script src="clouds.js?v=600"></script>
 <script src="smoke.js?v=600"></script>
+<script src="radar.js?v=600"></script>
 <script src="photo-slider.js?v=600"></script>
 <script src="ski-terrain.js?v=600"></script>
 <script src="place-search.js?v=600"></script>
 <script src="winter.js?v=600"></script>
+<script src="crownland.js?v=600"></script>
 <script src="hunting.js?v=600"></script>
 <script src="fish-bait.js?v=600"></script>
 <script src="fish-route.js?v=600"></script>
@@ -7603,6 +7622,7 @@ out tags center qt;`;
 <script src="ride-files.js?v=600"></script>
 <script src="rider-trails.js?v=600"></script>
 <script src="account.js?v=600"></script>
+<script src="live.js?v=600"></script>
 <script src="strava.js?v=600"></script>
 <script src="reports.js?v=600"></script>
 <script src="grades.js?v=600"></script>
@@ -7612,6 +7632,7 @@ out tags center qt;`;
 <script src="notify.js?v=600"></script>
 <script src="closures.js?v=600"></script>
 <script src="status.js?v=600"></script>
+<script src="ask.js?v=600"></script>
 <script src="areas.js?v=600"></script>
 <script src="alpine.js?v=600"></script>
 <script src="bikeparks.js?v=600"></script>

@@ -54,6 +54,21 @@ const TRAIL_ROUTES = /^(mtb|bicycle|hiking|foot|horse|motorcycle|atv)$/, NAMED_R
 // "All trails" (like build-mtb.mjs): any mtb* tag, bike park paths, and ways of MTB routes that aren't long-distance rides.
 const isMtb = (t) => Object.keys(t).some((k) => k.startsWith("mtb")) || t.bicycle === "customers";
 const longRide = (r) => /^(ncn|rcn|icn)$/.test(r.tags.network || "") || r.ways.length > 400;
+// Riding areas outside the home zones (data/riding-areas.json, zone "ca_<chunk>"), as in build-mtb.mjs: around an area with
+// few MTB-tagged trails (under SPARSE within AREA_M), or a backcountry area with its own radius r, the named paths count as
+// MTB trails too. Smithers' Bluff trails (Anti Flow, Meanstreak, Huckin' Eh...) are plain paths on the map, so the app showed
+// one trail there (coverage check, 2026-10-27).
+const AREA_M = 3000, SPARSE = 20;
+const AREAS = JSON.parse(readFileSync(new URL("data/riding-areas.json", root), "utf8")).areas.filter((a) => /^ca_/.test(a.zone || ""));
+const metres = (a, b) => Math.hypot((a[0] - b[0]) * 110540, (a[1] - b[1]) * 111320 * Math.cos((a[0] * Math.PI) / 180));
+const bikeOk = (t) => !/^(no|private)$/.test(t.access || "") && !/^(no|dismount|use_sidepath)$/.test(t.bicycle || "") && t.snowmobile !== "designated"
+  && !(t["piste:type"] && !/^(yes|designated|permissive|customers)$/.test(t.bicycle || ""));
+const MOTO_OK = /^(yes|designated|permissive|destination)$/;
+const motor = (t) => !/^(designated|customers)$/.test(t.bicycle || "") && (parseFloat(t.width) >= 2 || ["motorcycle", "motor_vehicle", "atv", "ohv", "orv"].some((k) => MOTO_OK.test(t[k] || "")));
+const NOT_BIKE_NAME = /\b(pedestrian|boardwalk|interpretive|nature walk|stairs?|steps|suspension bridge|crag|snowshoe|skin track|hiking trail|beach access|road|rd|rail trail|passerelle)\b/i;
+// The area a named path (not tagged for bikes) is near, if its path could be a bike trail.
+const areaOf = (tags, mid) => /^(path|bridleway)$/.test(tags.highway || "") && bikeOk(tags) && !motor(tags) && !NOT_BIKE_NAME.test(tags.name || "")
+  && /^(hiking)?$/.test(tags.sac_scale || "") ? AREAS.find((a) => metres(mid, a.c) <= (a.r || AREA_M)) : null;
 
 // Douglas-Peucker on a local flat projection, keeping points more than tol metres off the line (as in build-mtb.mjs).
 function simplify(pts, tol = 2) {
@@ -151,7 +166,9 @@ async function finish() {
     const mine = (provChunks[p.prov] = new Set());
     const box = (provBox[p.prov] = [90, 180, -90, -180]);
     const inRoute = new Set(Object.values(p.rels).flatMap((r) => r.ways));
-    const wayChunks = new Map(), routeWays = new Map();
+    const wayChunks = new Map(), routeWays = new Map(), maybe = [];
+    // Ways of hiking routes (the Sentier national, rail trails...) stay out of the riding areas' named paths.
+    const walkRoute = new Set(Object.values(p.rels).filter((r) => /^(hiking|foot|horse)$/.test(r.tags.route || "")).flatMap((r) => r.ways));
     for await (const line of createInterface({ input: createReadStream(new URL(`${p.prov}.ways`, PART)) })) {
       if (!line) continue;
       const [id, v, t, k, tags, pts] = JSON.parse(line);
@@ -175,6 +192,7 @@ async function finish() {
           }
         }
         if (k & 4) c.mtb.ways[id] = { tags, g };
+        else if ((k & 1) && tags.name && !walkRoute.has(id)) { const a = areaOf(tags, pts[Math.floor(pts.length / 2)]); if (a) maybe.push({ c, a, id, tags, g }); }
         if ((k & 2) && !c._names.has("w" + id)) { c._names.add("w" + id); c.names.push({ t: "w", id, c: pts[Math.floor(pts.length / 2)], tags }); }
       }
     }
@@ -190,7 +208,16 @@ async function finish() {
         }
       }
     }
-    log(`${PROVINCES[p.prov]}: ${mine.size} chunks so far.`);
+    // Named paths around sparse riding areas (above).
+    const tagged = new Map();
+    for (const { c, a } of maybe) if (!tagged.has(a)) {
+      let n = 0;
+      for (const w of Object.values(c.mtb.ways)) if (metres([w.g[Math.floor(w.g.length / 4) * 2], w.g[Math.floor(w.g.length / 4) * 2 + 1]], a.c) <= AREA_M) n++;
+      tagged.set(a, n);
+    }
+    let fromAreas = 0;
+    for (const { c, a, id, tags, g } of maybe) if ((a.r || tagged.get(a) < SPARSE) && !c.mtb.ways[id]) { c.mtb.ways[id] = { tags: { ...tags, "tf:area": a.name }, g }; fromAreas++; }
+    log(`${PROVINCES[p.prov]}: ${mine.size} chunks so far, ${fromAreas} named paths around riding areas.`);
   }
   // Every map square of a chunk gets an entry, even an empty one, so the site knows the square was checked tonight.
   rmSync(new URL("c/", OUT), { recursive: true, force: true });
