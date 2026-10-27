@@ -1,4 +1,5 @@
 // Signs in to the App Store Connect API with the GitHub secrets and says in plain words what's wrong, if anything.
+// Also registers the lock screen extension's bundle ID if it isn't yet, and turns on Push Notifications for the app (see the end).
 // Usage: node check-key.mjs <path to AuthKey.p8>   (ASC_KEY_ID, ASC_ISSUER_ID, APPLE_TEAM_ID from the environment)
 import { createPrivateKey, sign } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -38,3 +39,42 @@ if (!apps.length) {
   process.exit(1);
 }
 console.log(`Key works; found the app "${apps[0].attributes?.name}" in App Store Connect.`);
+
+// The lock screen ride (RideActivity extension) has its own bundle ID. Signing makes its profile, but the ID itself
+// must be registered first: do it here once, so the export below finds it.
+const EXT = "com.allduf.trailfinder.RideActivity";
+const auth = { Authorization: `Bearer ${head}.${body}.${sig}` };
+const ids = await fetch(`https://api.appstoreconnect.apple.com/v1/bundleIds?filter[identifier]=${EXT}`, { headers: auth }).then((r) => r.json()).catch(() => ({}));
+if ((ids.data || []).some((d) => d.attributes?.identifier === EXT)) console.log(`Bundle ID ${EXT} is registered.`);
+else {
+  const made = await fetch("https://api.appstoreconnect.apple.com/v1/bundleIds", {
+    method: "POST",
+    headers: { ...auth, "Content-Type": "application/json" },
+    body: JSON.stringify({ data: { type: "bundleIds", attributes: { identifier: EXT, name: "Trail Finder lock screen ride", platform: "IOS" } } }),
+  });
+  if (made.ok) console.log(`Registered bundle ID ${EXT}.`);
+  else {
+    const e = ((await made.json().catch(() => ({}))).errors || [])[0] || {};
+    console.log(`::warning::Couldn't register ${EXT} (${made.status}: ${e.title || ""} ${e.detail || ""}). The export may still create it.`);
+  }
+}
+
+// Phone notifications need the Push Notifications capability on the app's bundle ID, or the export can't sign the
+// app with its aps-environment entitlement (App.entitlements). Turn it on here if it's off.
+const APP = "com.allduf.trailfinder";
+const appId = await fetch(`https://api.appstoreconnect.apple.com/v1/bundleIds?filter[identifier]=${APP}&include=bundleIdCapabilities`, { headers: auth }).then((r) => r.json()).catch(() => ({}));
+const appRow = (appId.data || []).find((d) => d.attributes?.identifier === APP);
+if (!appRow) console.log(`::warning::Couldn't find bundle ID ${APP} to check Push Notifications.`);
+else if ((appId.included || []).some((c) => c.type === "bundleIdCapabilities" && c.attributes?.capabilityType === "PUSH_NOTIFICATIONS")) console.log("Push Notifications is on for the app.");
+else {
+  const on = await fetch("https://api.appstoreconnect.apple.com/v1/bundleIdCapabilities", {
+    method: "POST",
+    headers: { ...auth, "Content-Type": "application/json" },
+    body: JSON.stringify({ data: { type: "bundleIdCapabilities", attributes: { capabilityType: "PUSH_NOTIFICATIONS" }, relationships: { bundleId: { data: { type: "bundleIds", id: appRow.id } } } } }),
+  });
+  if (on.ok) console.log("Turned on Push Notifications for the app.");
+  else {
+    const e = ((await on.json().catch(() => ({}))).errors || [])[0] || {};
+    console.log(`::warning::Couldn't turn on Push Notifications (${on.status}: ${e.title || ""} ${e.detail || ""}). Tick it under Identifiers > ${APP} on developer.apple.com.`);
+  }
+}

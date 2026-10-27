@@ -737,6 +737,27 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   const CAP = window.Capacitor;
   const NATIVE_VOICE = !!(IN_APP && CAP && CAP.nativePromise &&
     (CAP.PluginHeaders || []).some((h) => h.name === "TrailGps" && (h.methods || []).some((x) => x.name === "speak")));   // builds before 12 can't
+  // The ride on the iPhone's lock screen and Dynamic Island (TrailGps activity, builds with the RideActivity extension):
+  // the clock counts by itself; km, climb and the trail you're on are sent every 10 s while the page is awake, and
+  // the app's GPS keeps adding up km and climb with the phone locked.
+  const LOCK_SCREEN = !!(IN_APP && CAP && CAP.nativePromise &&
+    (CAP.PluginHeaders || []).some((h) => h.name === "TrailGps" && (h.methods || []).some((x) => x.name === "activity")));
+  let lockSent = 0;
+  function lockScreen(action, st) {
+    if (!LOCK_SCREEN || !rec) return;
+    const args = { action };
+    if (action === "start") {
+      const sp = rec.sport || "mtb";
+      Object.assign(args, { sport: sp, start: rec.start, title: { ski: "Ski tour", hunt: "Hunting", fish: "Fishing", moto: "Moto ride" }[sp] || "Riding" });
+    }
+    if (st) {
+      const next = $("navNext").hidden ? "" : $("navNext").textContent.trim(), name = $("navName").textContent.trim();
+      Object.assign(args, { km: +(st.dist / 1000).toFixed(2), climb: st.climb == null ? 0 : Math.round(st.climb), paused: !!rec.paused,
+        pausedText: rec.paused ? `${mins(st.moving)} · paused` : "", line: next || (/^Finding you/.test(name) ? "" : name) });
+    }
+    lockSent = Date.now();
+    CAP.nativePromise("TrailGps", "activity", args).catch(() => {});
+  }
   const PRE_MIN = 100, PRE_MAX = 260, PRE_M = 200, AT_M = 40, JUNC_MIN = 25, JUNC_MAX = 80, SUM_M = 5000, NAME_AGAIN_MS = 180000, JUNC_AGAIN_MS = 600000;
   const voice = { said: new Map(), trail: "", km: null };
   const voiceOn = () => { try { return localStorage.getItem("tf:navVoice") !== "0"; } catch { return true; } };
@@ -958,6 +979,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     $("navDist").textContent = (st.dist / 1000).toFixed(2);
     $("navClimb").textContent = st.climb == null ? "–" : Math.round(st.climb);
     $("navSpeed").textContent = (v * 3.6).toFixed(1);
+    if (Date.now() - lockSent > 10000 && document.visibilityState === "visible") lockScreen("update", st);
     const k = Math.floor(st.dist / SUM_M);
     if (voice.km == null || k < voice.km) voice.km = k;
     else if (k > voice.km) { voice.km = k; say(`${k * SUM_M / 1000} kilometres. ${st.climb == null ? "" : `${Math.round(st.climb)} metres of climbing. `}${sayTime(st.moving)} riding.`); }
@@ -975,6 +997,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     $("navPause").textContent = on ? "▶ Resume" : "Ⅱ Pause";
     $("navPause").classList.toggle("on", on);
     lastStats = null; tick();
+    lockScreen("update", lastStats);
     putCurrent(rec);
   }
   $("navPause").addEventListener("click", () => setPaused(!rec.paused));
@@ -1070,10 +1093,12 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     if (map.getZoom() < RIDE_ZOOM) map.setZoom(RIDE_ZOOM);
     gps = GPS.watch(onFix, onGpsError, { after: rec.points.length ? rec.points[rec.points.length - 1][3] : rec.start });
     keepAwake();
+    lockScreen("start", STATS.statsOf(rec.points, rec.start, Date.now(), rec.breaks));
     ticker = setInterval(tick, 1000); tick();
     putCurrent(rec);
   }
   function stopWatching() {
+    lockScreen("end");
     if (gps) gps.stop();
     gps = null; clearInterval(ticker); ticker = 0; letSleep(); stopCompass();
   }

@@ -17,8 +17,12 @@
 //    Avaluator chart) goes to Extra caution or Not recommended. Sent each time it goes up; again after it comes down.
 //  - fish: fresh stocking (Fishing), as the bell's list: lakes and rivers within 50 km of its spot (fish.c) stocked in
 //    the last 3 weeks (data/fishing/stocked.json, nightly), each stocking once.
+// Phones in the iPhone app saved Apple's device token instead of a web push address (sub.apns): those go through
+// Apple's push service (APNs) with the APNS_KEY_ID / APNS_KEY_P8 / APPLE_TEAM_ID secrets, the same messages.
 import webpush from "web-push";
 import { readFileSync } from "node:fs";
+import { connect } from "node:http2";
+import { createPrivateKey, sign } from "node:crypto";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://fohdmserpbkurcvcrbbb.supabase.co";
 const KEY = process.env.SUPABASE_SECRET_KEY;
@@ -53,6 +57,45 @@ if (!keys) {
   console.log("Made the site's push keys.");
 }
 webpush.setVapidDetails(SITE, keys.public_key, keys.private_key);
+
+// ---------- Apple's push service, for phones in the iPhone app ----------
+const APP_ID = "com.allduf.trailfinder";
+const apnsKey = (() => {
+  const id = (process.env.APNS_KEY_ID || "").trim(), team = (process.env.APPLE_TEAM_ID || "").trim(), p8 = process.env.APNS_KEY_P8 || "";
+  if (!id || !team || !p8) return null;
+  // Rebuilt from just the key text, so a paste with lost line breaks or extra spaces still works (as ios-app.yml).
+  const b = p8.replace(/-----(BEGIN|END) PRIVATE KEY-----/g, "").replace(/\s+/g, "");
+  try { return { id, team, key: createPrivateKey(`-----BEGIN PRIVATE KEY-----\n${b.match(/.{1,64}/g).join("\n")}\n-----END PRIVATE KEY-----\n`) }; }
+  catch (e) { console.log(`APNS_KEY_P8 isn't a valid key (${e.message}): app phones are skipped.`); return null; }
+})();
+let apnsJwt = "", apnsAt = 0, apnsConn = null;
+function apnsAuth() {
+  if (Date.now() - apnsAt > 40 * 60e3) {   // Apple wants a fresh token at most every hour
+    const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
+    const unsigned = `${b64({ alg: "ES256", kid: apnsKey.id })}.${b64({ iss: apnsKey.team, iat: Math.floor(Date.now() / 1000) })}`;
+    apnsJwt = `${unsigned}.${sign("sha256", Buffer.from(unsigned), { key: apnsKey.key, dsaEncoding: "ieee-p1363" }).toString("base64url")}`;
+    apnsAt = Date.now();
+  }
+  return apnsJwt;
+}
+// Resolves { status, reason }: 200 sent; 410 (or 400 BadDeviceToken) means the app was removed or notifications turned off.
+function apnsSend(token, msg) {
+  if (!apnsConn || apnsConn.closed || apnsConn.destroyed) { apnsConn = connect("https://api.push.apple.com"); apnsConn.on("error", () => {}); }
+  return new Promise((ok, no) => {
+    const req = apnsConn.request({
+      ":method": "POST", ":path": `/3/device/${token}`, authorization: `bearer ${apnsAuth()}`,
+      "apns-topic": APP_ID, "apns-push-type": "alert", "apns-priority": "5", "apns-collapse-id": msg.tag,
+      "apns-expiration": String(Math.floor(Date.now() / 1000) + 6 * 3600), "content-type": "application/json",
+    });
+    let status = 0, body = "";
+    req.on("response", (h) => { status = h[":status"]; });
+    req.on("data", (d) => { body += d; });
+    req.on("end", () => { let reason = ""; try { reason = JSON.parse(body).reason || ""; } catch {} ok({ status, reason }); });
+    req.on("error", no);
+    req.setTimeout(20000, () => { req.close(); no(new Error("APNs timeout")); });
+    req.end(JSON.stringify({ aps: { alert: { title: msg.title, body: msg.body }, sound: "default", "thread-id": msg.tag }, url: msg.url }));
+  });
+}
 
 const subs = await db("push_subs?select=id,sub,watch,sent,updated_at");
 console.log(`${subs.length} phone(s) signed up.`);
@@ -307,8 +350,18 @@ for (const s of subs) {
   } else if (w.fish) Object.keys(was).forEach((k) => { if (k.startsWith("k:")) now[k] = was[k]; });
   let expired = false;
   for (const m of msgs) {
+    const msg = { title: m.title, body: m.body, url: "./#notify", tag: m.keys[0].startsWith("n:") ? "tf-new" : m.keys[0].startsWith("k:") ? "tf-fish" : /^[vt]:/.test(m.keys[0]) ? "tf-avy" : m.keys[0].startsWith("s:") ? "tf-loam-soon" : "tf-loam" };
+    if (s.sub && s.sub.apns) {   // a phone in the iPhone app
+      if (!apnsKey) { console.log("An app phone is waiting for the APNS_KEY_ID / APNS_KEY_P8 secrets."); m.keys.forEach((k) => { delete now[k]; }); continue; }
+      const r = await apnsSend(s.sub.apns, msg).catch((e) => ({ status: 0, reason: e.message }));
+      if (r.status === 200) { sent++; continue; }
+      if (r.status === 410 || r.reason === "BadDeviceToken" || r.reason === "Unregistered") { expired = true; break; }
+      console.log(`Apple push failed (HTTP ${r.status || "?"}): ${r.reason}`);
+      m.keys.forEach((k) => { delete now[k]; });
+      continue;
+    }
     try {
-      await webpush.sendNotification(s.sub, JSON.stringify({ title: m.title, body: m.body, url: "./#notify", tag: m.keys[0].startsWith("n:") ? "tf-new" : m.keys[0].startsWith("k:") ? "tf-fish" : /^[vt]:/.test(m.keys[0]) ? "tf-avy" : m.keys[0].startsWith("s:") ? "tf-loam-soon" : "tf-loam" }), { TTL: 6 * 3600, urgency: "normal" });
+      await webpush.sendNotification(s.sub, JSON.stringify(msg), { TTL: 6 * 3600, urgency: "normal" });
       sent++;
     } catch (e) {
       if (e.statusCode === 404 || e.statusCode === 410) { expired = true; break; }   // turned off on the phone, or the address expired
@@ -320,3 +373,4 @@ for (const s of subs) {
   if (JSON.stringify(now) !== JSON.stringify(was)) await db(`push_subs?id=eq.${s.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ sent: now }) });
 }
 console.log(`Sent ${sent} notification(s); removed ${gone} expired phone(s).`);
+if (apnsConn) apnsConn.close();

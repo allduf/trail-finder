@@ -611,8 +611,30 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   // ---------- phone notifications (Web Push) ----------
   // Sent by scripts/push-loam.mjs (.github/workflows/loam-push.yml) from what push_save() stored for this phone.
   // On iPhone, web pages can't get them: only the site added to the Home Screen can (iOS 16.4 or newer).
+  // Inside the iPhone app (ios-app) there's no web push at all: the app's own notifications (PushNotifications plugin)
+  // give Apple's device token instead, saved as a subscription whose endpoint is Apple's push address ({ apns }),
+  // and the job sends those through Apple (APNs) with the same messages.
   const PUSH_TIMES = "about 7 am, 10 am, 1 pm, 4 pm and 7 pm";
-  const pushOk = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && window.isSecureContext;
+  const CAP = window.Capacitor;
+  const NATIVE = !!(CAP && CAP.isNativePlatform && CAP.isNativePlatform() && (CAP.PluginHeaders || []).some((h) => h.name === "PushNotifications"));
+  const NP = NATIVE ? (CAP.registerPlugin ? CAP.registerPlugin("PushNotifications") : (CAP.Plugins || {}).PushNotifications) : null;
+  const pushOk = NATIVE || ("serviceWorker" in navigator && "PushManager" in window && "Notification" in window && window.isSecureContext);
+  let nativePerm = "prompt";
+  const perm = () => (NATIVE ? nativePerm : Notification.permission);
+  const tokenWaits = [];
+  if (NP) {
+    NP.addListener("registration", (t) => tokenWaits.splice(0).forEach((w) => w.ok(t.value)));
+    NP.addListener("registrationError", (e) => tokenWaits.splice(0).forEach((w) => w.no(new Error((e && e.error) || "Apple didn't give a push address"))));
+    NP.addListener("pushNotificationActionPerformed", () => openBox());   // a tapped notification opens the 🔔 box
+    NP.checkPermissions().then((p) => { nativePerm = p.receive; }, () => {});
+  }
+  // Apple's device token for this phone (asks iOS each time; it's the same unless iOS changed it).
+  const nativeToken = () => new Promise((ok, no) => {
+    tokenWaits.push({ ok, no });
+    setTimeout(() => no(new Error("no answer from Apple")), 20000);
+    NP.register().catch(no);
+  });
+  const nativeSub = (tok) => ({ endpoint: `https://api.push.apple.com/3/device/${tok}`, toJSON: () => ({ endpoint: `https://api.push.apple.com/3/device/${tok}`, apns: tok }) });
   const iPhone = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
   const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
@@ -655,11 +677,18 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     clearTimeout(syncT);
     syncT = setTimeout(async () => {
       try {
-        if (Notification.permission !== "granted") throw new Error("notifications not allowed");
-        const reg = await swReady();
-        let sub = await reg.pushManager.getSubscription();
-        if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(await getKey()) })
-          .catch(() => { throw new Error("the phone dropped its push address: turn 📱 off and on again"); });
+        let sub;
+        if (NATIVE) {
+          nativePerm = (await NP.checkPermissions()).receive;
+          if (nativePerm !== "granted") throw new Error("notifications not allowed");
+          sub = nativeSub(await nativeToken());
+        } else {
+          if (Notification.permission !== "granted") throw new Error("notifications not allowed");
+          const reg = await swReady();
+          sub = await reg.pushManager.getSubscription();
+          if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(await getKey()) })
+            .catch(() => { throw new Error("the phone dropped its push address: turn 📱 off and on again"); });
+        }
         await pushSave(sub, force);
         pushErr = "";
       } catch (e) { pushErr = (e && e.message) || String(e); }
@@ -679,24 +708,35 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   function pushMsg(text) { q("ntPushMsg").textContent = text; }
   function paintPush() {
     const on = q("ntPushOn");
-    on.checked = !!pushId() && pushOk && Notification.permission === "granted";
+    on.checked = !!pushId() && pushOk && perm() === "granted";
     on.disabled = !pushOk;
-    if (!pushOk) return pushMsg(iPhone && !navigator.standalone
+    if (!pushOk) return pushMsg(CAP && CAP.isNativePlatform && CAP.isNativePlatform() ? "Update Trail Finder in TestFlight to get notifications in the app."
+      : iPhone && !navigator.standalone
       ? "On iPhone, this works from the Home Screen: in Safari tap Share, then Add to Home Screen. Open Trail Finder from that icon and turn this on there."
       : iPhone ? "Phone notifications need iOS 16.4 or newer." : "This browser can't show notifications.");
-    if (Notification.permission === "denied") return pushMsg("Notifications are blocked for Trail Finder. Allow them in your phone's settings, then turn this on.");
+    if (perm() === "denied") return pushMsg("Notifications are blocked for Trail Finder. Allow them in your phone's settings, then turn this on.");
     const at = lastSave().at, ago = at && Math.round((Date.now() - at) / 60000);
     const sent = !at ? "" : ago < 2 ? " Sent to Trail Finder just now." : ago < 120 ? ` Sent to Trail Finder ${ago} min ago.`
       : ` Last sent to Trail Finder ${new Date(at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.`;
     pushMsg(!on.checked ? "" : pushErr ? `On for this phone, but your latest changes didn't reach Trail Finder (${pushErr}). Tap Save to try again.`
       : `On for this phone. ${watchingText()}${sent} Checked at ${PUSH_TIMES}.`);
-    getKey().catch(() => {});
+    if (!NATIVE) getKey().catch(() => {});
   }
   q("ntPushOn").addEventListener("change", async (e) => {
     const on = e.target;
     on.disabled = true;
     try {
-      if (on.checked) {
+      if (on.checked && NATIVE) {
+        // The app: iOS asks once (Allow / Don't Allow), then Apple gives this phone's push address.
+        let p = (await NP.checkPermissions()).receive;
+        if (p !== "granted") p = (await NP.requestPermissions()).receive;
+        nativePerm = p;
+        if (p !== "granted") throw new Error(p === "denied" ? "blocked" : "not allowed");
+        const sub = nativeSub(await nativeToken());
+        if (!pushId()) lsSet("tf:pushId", crypto.randomUUID());
+        lsSet("tf:pushSaved", null);
+        await pushSave(sub);
+      } else if (on.checked) {
         // Ask first, straight from the tap (iPhone requires it), then subscribe.
         const perm = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
         if (perm !== "granted") throw new Error(perm === "denied" ? "blocked" : "not allowed");
@@ -712,7 +752,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
         const id = pushId();
         lsSet("tf:pushId", null); lsSet("tf:pushSaved", null);
         if (id) await rpc("push_delete", { p_id: id }).catch(() => {});
-        const reg = await swReady().catch(() => null), sub = reg && await reg.pushManager.getSubscription();
+        const reg = !NATIVE && await swReady().catch(() => null), sub = reg && await reg.pushManager.getSubscription();
         if (sub) await sub.unsubscribe().catch(() => {});
       }
       on.disabled = false;
@@ -727,6 +767,6 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     }
   });
   // Tapping a notification opens this box: in this window (sw.js sends a message) or a new one (#notify).
-  if (pushOk) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.tf === "loam") openBox(); });
+  if (pushOk && !NATIVE) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.tf === "loam") openBox(); });
   if (location.hash === "#notify" || location.hash === "#loam") { history.replaceState(null, "", location.pathname + location.search); setTimeout(openBox, 600); }
 })();

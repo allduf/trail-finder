@@ -34,4 +34,8 @@ jobs:
       - name: Send loam alerts
         env:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          # Phones in the iPhone app go through Apple's push service (scripts/push-loam.mjs).
+          APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
+          APNS_KEY_P8: ${{ secrets.APNS_KEY_P8 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: node scripts/push-loam.mjs

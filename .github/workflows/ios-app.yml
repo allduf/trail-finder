@@ -126,6 +126,13 @@ jobs:
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             archive | tail -40
           test -d "$RUNNER_TEMP/App.xcarchive"
+          # An unsigned archive carries no entitlements, so the export below would sign the app without
+          # aps-environment and phone notifications could never register. A throwaway ad-hoc signature with
+          # App.entitlements puts them in; the export replaces it with the real one and keeps them.
+          app="$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app"
+          find "$app/Frameworks" "$app/PlugIns" -maxdepth 1 \( -name '*.framework' -o -name '*.dylib' -o -name '*.appex' \) -exec codesign --force --sign - {} \; 2>/dev/null || true
+          codesign --force --sign - --entitlements ios/App/App/App.entitlements "$app" \
+            || echo "::warning::Couldn't add the entitlements to the archive; phone notifications may not register in this build."
       - name: Send to TestFlight
         if: steps.keys.outputs.ok == 'true'
         run: |
@@ -135,6 +142,16 @@ jobs:
             -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey.p8" \
             -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
           echo "::notice::Build ${{ github.run_number }} sent to TestFlight. Apple takes about 10-30 minutes to process it."
+          # Say so if the signed app lost the push entitlement (notifications would silently never register).
+          ipa=$(ls "$RUNNER_TEMP"/export/*.ipa 2>/dev/null | head -1)
+          if [ -n "$ipa" ]; then
+            rm -rf "$RUNNER_TEMP/ipa" && mkdir -p "$RUNNER_TEMP/ipa" && unzip -q "$ipa" -d "$RUNNER_TEMP/ipa"
+            if codesign -d --entitlements - "$RUNNER_TEMP/ipa/Payload/App.app" 2>/dev/null | grep -q aps-environment; then
+              echo "Push entitlement (aps-environment) is in the signed app."
+            else
+              echo "::warning::The signed app has no aps-environment entitlement: phone notifications won't register in this build."
+            fi
+          fi
       - name: Remove the key
         if: always()
         working-directory: .
