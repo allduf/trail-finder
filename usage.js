@@ -1,11 +1,13 @@
 // How testers use the iPhone app, so alex can see what people really do and make the app more practical.
 // Inside the app only (Capacitor); on the website this file does nothing. Sends, in batches: page opens, the sport,
-// taps on buttons (their id, or a short button label), errors, and how long each visit lasted. Each phone is the
-// random device code from visitors.js (tf:device): no name, email, location, typed text or photo is sent.
+// taps on buttons (their id, or a short button label), errors, how long each visit lasted, what is typed in the search
+// boxes and Ask (and how many results came back), how long the page, map and 3D take to load, restarts after a
+// crash, and the named area the map shows (a zone like "Whistler" or a province, never a point). Each phone is the
+// random device code from visitors.js (tf:device): no name, email, location, photo or other typed text is sent.
 // Read on usage.html by accounts listed in tf_admins. See supabase/usage.sql.
 (() => {
   const C = window.Capacitor, acct = window.tfAccount;
-  if (!C || !C.isNativePlatform || !C.isNativePlatform() || !acct || !acct.enabled) return;
+  if (!C || !C.isNativePlatform || !C.isNativePlatform() || !acct || !acct.enabled) { window.tfUse = () => {}; window.tfUseQ = []; return; }
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
   const rid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now());
@@ -40,6 +42,33 @@
     lsSet(QKEY, JSON.stringify(queue));
     seen();
   };
+
+  // What the app itself reports (window.tfUse below): searches, results, picks, trail cards, load times, crashes, area.
+  // A search is sent once the person stops typing (2.5 s), so "whis", "whistl", "whistler" count once; a pick in the
+  // same box sends it at once. Typed GPS points are never sent, only "GPS point".
+  const KINDS = new Set(["search", "result", "pick", "view", "speed", "crash", "area"]);
+  const typing = new Map();   // box -> { q, n, timer }
+  const boxOf = (w) => String(w).split(":")[0];
+  const sendSearch = (box) => { const t = typing.get(box); if (!t) return; clearTimeout(t.timer); typing.delete(box); add("search", t.q, t.n); };
+  let lastArea = null;
+  window.tfUse = (kind, what, n) => {
+    if (!KINDS.has(kind)) return;
+    if (kind === "search") {
+      const box = boxOf(what);
+      let q = String(what).slice(box.length + 1).replace(/\s+/g, " ").trim();
+      if (q.length < 2) return;
+      if (/-?\d{1,3}[.,]\d+/.test(q)) q = "GPS point";
+      const t = typing.get(box) || {};
+      clearTimeout(t.timer);
+      typing.set(box, { q: `${box}: ${q.slice(0, 60)}`, n: n == null ? null : Math.max(0, Math.round(n)), timer: setTimeout(() => sendSearch(box), 2500) });
+      return;
+    }
+    if (kind === "pick") sendSearch(boxOf(what));
+    if (kind === "area") { if (!what || what === lastArea) return; lastArea = what; }
+    add(kind, what, n == null ? null : Math.max(0, Math.round(n)));
+  };
+  (window.tfUseQ || []).forEach((a) => window.tfUse(...a));
+  window.tfUseQ = [];
 
   let sending = false;
   function flush(leaving) {
@@ -91,16 +120,28 @@
     add("error", `promise: ${(e.reason && (e.reason.message || e.reason)) || "rejected"}`);
   });
 
+  // Crash restarts: "tf:useAlive" is renewed every few seconds while the app is on screen and cleared when it is hidden
+  // or left normally (also going to ride.html). If the page opens on screen less than a minute after it, the app died
+  // and iOS reloaded it. map3d.js reports the same thing as "3d" when it happened in the 3D map.
+  const ALIVE = "tf:useAlive";
+  { const t = Number(lsGet(ALIVE) || 0); if (t && Date.now() - t < 60e3 && document.visibilityState === "visible") add("crash", "app"); }
+  const alive = (v) => { try { v ? localStorage.setItem(ALIVE, String(Date.now())) : localStorage.removeItem(ALIVE); } catch {} };
+  setInterval(() => { if (document.visibilityState === "visible") alive(true); }, 5000);
+  alive(true);
+  // How long the page took to be ready, from the start of loading.
+  const timePage = () => add("speed", "page", Math.round(performance.now()));
+  if (document.readyState === "complete") timePage(); else addEventListener("load", timePage);
+
   // A visit's length counts only time on screen.
   let shownAt = Date.now();
   const opened = () => { shownAt = Date.now(); add("open", sport ? sport.value : null); flush(); };
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") { add("end", null, Date.now() - shownAt); flush(true); }
+    if (document.visibilityState === "hidden") { typing.forEach((_, b) => sendSearch(b)); alive(false); add("end", null, Date.now() - shownAt); flush(true); }
     else {
       if (Date.now() - Number(lsGet("tf:useSeen") || 0) > SESSION_GAP) { session = rid().slice(0, 12); lsSet("tf:useSession", session); }
-      opened();
+      alive(true); opened();
     }
   });
-  addEventListener("pagehide", () => { if (document.visibilityState !== "hidden") { add("end", null, Date.now() - shownAt); flush(true); } });
+  addEventListener("pagehide", () => { typing.forEach((_, b) => sendSearch(b)); alive(false); if (document.visibilityState !== "hidden") { add("end", null, Date.now() - shownAt); flush(true); } });
   if (document.readyState === "complete") opened(); else addEventListener("load", opened);
 })();
