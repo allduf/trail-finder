@@ -409,11 +409,25 @@
     big.close();
     return (await cv.convertToBlob({ type: "image/jpeg", quality: 0.9 })).arrayBuffer();
   }
+  // The photo tiles (summer, Live snow, Winter, Winter close-ups) arrive as pictures that MapLibre copies to the
+  // graphics card and then forgets: each decoded picture (~0.25 MB) stays in memory until the browser cleans up,
+  // which an iPhone may not do before it runs out. These ones are freed right after the copy instead (closeUploaded,
+  // set up by fixDemLeak). Always a fresh picture here, never a shared one, so closing it can't blank another tile.
+  const uploadOnce = new WeakSet();
+  function photoProtocol(name, fn) {
+    maplibregl.addProtocol(name, async (params, abort) => {
+      const r = await fn(params, abort);
+      let d = r && r.data;
+      if (d instanceof ArrayBuffer) { if (!d.byteLength) return r; d = await createImageBitmap(new Blob([d])); return { ...r, data: once(d) }; }
+      return typeof ImageBitmap !== "undefined" && d instanceof ImageBitmap ? { ...r, data: once(d) } : r;
+    });
+  }
+  const once = (bmp) => { uploadOnce.add(bmp); return bmp; };
   let satProtocol = false;
   function addSatProtocol() {
     if (satProtocol) return;
     satProtocol = true;
-    maplibregl.addProtocol("tfsat", async (params, abort) => {
+    photoProtocol("tfsat", async (params, abort) => {
       const [z, x, y] = params.url.replace("tfsat://", "").split("/").map(Number);
       return { data: await photoBytes(z, x, y, abort.signal) };
     });
@@ -422,7 +436,7 @@
   function addWinterProtocol() {
     if (winterProtocol) return;
     winterProtocol = true;
-    maplibregl.addProtocol("tfwinter", async (params, abort) => {
+    photoProtocol("tfwinter", async (params, abort) => {
       const [mode, zs, xs, ys] = params.url.replace("tfwinter://", "").split("/"), z = +zs, x = +xs, y = +ys, sig = abort.signal;
       // Last winter's photos cover it: far out, the plain photo will do (it only shows through their see-through edges).
       if (mode === "fill" && covered(await loadWinterBlocks(), z, x, y)) {
@@ -564,7 +578,7 @@
   function addWinterPhotoProtocol() {
     if (winterPhotoProtocol) return;
     winterPhotoProtocol = true;
-    maplibregl.addProtocol("tfwinterphoto", async (params, abort) => {
+    photoProtocol("tfwinterphoto", async (params, abort) => {
       const [z, x, y] = params.url.replace("tfwinterphoto://", "").split("/").map(Number);
       if (!anyWinter(await loadWinterBlocks(), z, x, y)) return noTile();
       // Inside the squares, a missing tile comes from the one above it, enlarged.
@@ -672,7 +686,7 @@
       };
       return w;
     });
-    maplibregl.addProtocol("tfwinterhd", async (params, abort) => {
+    photoProtocol("tfwinterhd", async (params, abort) => {
       const [z, x, y] = params.url.replace("tfwinterhd://", "").split("/").map(Number);
       return anyWinter(await loadWinterBlocks(), z, x, y) ? hdTile(z, x, y, abort) : noTile();
     });
@@ -745,6 +759,49 @@
       while (pool._objects.length > need) pool._objects.pop().fbo.destroy();   // the colour buffer and depth buffer
       pool._recentlyUsed = pool._recentlyUsed.filter((id) => id < pool._objects.length);
       gl.triggerRepaint();
+    } catch {}
+  }
+
+  // Mountain heights leak in MapLibre 5.24.0: when a neighbouring height tile arrives, the edges of the tiles
+  // already drawn are filled in and each gets a NEW 1 MB picture on the graphics card, the old one never freed.
+  // A 10-minute Blackcomb session piled up ~110 of them and the graphics memory kept climbing (120 -> 435 MB)
+  // until the iPhone app restarted (phone test, 2026-10-27). So the new heights go into the tile's own picture.
+  // MapLibre internals: any surprise just skips it.
+  let demFixed = false;
+  function fixDemLeak() {
+    if (demFixed || !gl.terrain) return;
+    demFixed = true;
+    try {
+      const proto = Object.getPrototypeOf(gl.terrain), orig = proto.getTerrainData;
+      if (typeof orig !== "function") return;
+      proto.getTerrainData = function (tileID) {
+        try {
+          const t = this.tileManager.getSourceTile(tileID, true);
+          if (t && t.dem && t.demTexture && t.needsTerrainPrepare) {
+            const gl2 = this.painter.context.gl;
+            t.demTexture.update(t.dem.getPixels(), { premultiply: false });
+            t.demTexture.bind(gl2.NEAREST, gl2.CLAMP_TO_EDGE);
+            t.needsTerrainPrepare = false;
+          }
+        } catch {}
+        const out = orig.apply(this, arguments);
+        if (!texFixed && this._emptyDemTexture) closeUploaded(Object.getPrototypeOf(this._emptyDemTexture));
+        return out;
+      };
+    } catch {}
+  }
+  // MapLibre's picture-on-the-graphics-card class isn't exported: found from the terrain's own empty one.
+  let texFixed = false;
+  function closeUploaded(proto) {
+    texFixed = true;
+    try {
+      const up = proto.update;
+      if (typeof up !== "function") return;
+      proto.update = function (image) {
+        const out = up.apply(this, arguments);
+        if (uploadOnce.has(image)) { uploadOnce.delete(image); try { image.close(); } catch {} }
+        return out;
+      };
     } catch {}
   }
 
@@ -955,6 +1012,8 @@
       // restarted on the flat map. A view that needs more paints its ground in turns: a little slower, never a crash.
       gl.on("render", phoneBuffers);
     }
+    const demFix = () => { fixDemLeak(); if (demFixed) gl.off("render", demFix); };
+    gl.on("render", demFix);
     gl.on("moveend", keepView);
     gl.on("moveend", placeNames);
     window.trailMap3d = gl;   // handy for debugging in the browser console
