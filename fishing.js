@@ -55,6 +55,7 @@
     areas: "M12 2.5 18 11h-3l4 6H5l4-6H6zM12 17v4.5",
     depth: "M12 4a8 8 0 1 1 0 16 8 8 0 0 1 0-16zM12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z",
     zones: "M4 4h4M12 4h4M20 4v4M20 12v4M20 20h-4M12 20H8M4 20v-4M4 12V8",
+    crown: "M3 20h18M6 20l4-9 3 5 2-3 3 7M15 4v6M15 4h4l-1 1.5 1 1.5h-4",
   };
   const timeout = (ms) => (AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined);
   const getJ = (url, ms = 12000) => fetch(url, { signal: timeout(ms) }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
@@ -91,13 +92,14 @@
     hidden: { g: "Access", label: "Hidden spots", sub: "Walk-in stocked lakes and hike-in waters few people fish", on: true, minZoom: 6, icon: [C.hidden, "dot"] },
     access: { g: "Access", label: "Fishing spots", sub: "Public spots, piers and docks all over Canada", on: true, minZoom: 8, icon: [C.access, "dot"] },
     launch: { g: "Access", label: "Boat launches", sub: "Public ramps all over Canada", on: true, minZoom: 8, icon: [C.launch, "dot"] },
+    crown: { g: "Access", label: "Crown land", sub: "Public land you can walk to the water on: green; private: yellow (ON, QC, NB, NS, SK, NL; zoom in)", minZoom: 9, icon: ["#2f9e44", "box"] },
     tides: { g: "Ocean", label: "Tide stations", sub: "Tap one for the next high and low tides", on: true, minZoom: 6, icon: [C.tide, "dot"] },
     zones: { g: "Rules", label: "Fishing zones and regions", sub: "The areas the rules are written for, tap one for its rules", icon: [C.zone, "dash"] },
     areas: { g: "Rules", label: "Parks, zecs and reserves", sub: "Red: ecological reserves, no fishing. National parks (Parks Canada permit), Quebec zecs, wildlife reserves and parks (fishing allowed with an access fee)", on: true, minZoom: 5, icon: [C.park, "dot"] },
   };
   const GROUPS = ["Water", "Access", "Ocean", "Rules"];
   const VIEWS = {
-    rules: { label: "Rules", sub: "where to fish", layers: ["zones", "areas", "access", "launch"] },
+    rules: { label: "Rules", sub: "where to fish", layers: ["zones", "areas", "access", "launch", "crown"] },
     river: { label: "Rivers", sub: "flow, spots", layers: ["gauges", "access", "launch", "hidden"] },
     lake: { label: "Lakes", sub: "stocked, depth", layers: ["stocked", "depth", "access", "launch", "hidden"] },
     ocean: { label: "Ocean", sub: "tides, areas", layers: ["tides", "access", "launch"] },
@@ -676,9 +678,23 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     });
   }
   map.on("moveend", () => { if (isFish() && (shown.has("zones") || shown.has("areas"))) drawZones(); });
+  // Crown land: each province's own map (crownland.js), under the water colours.
+  const crownTiles = window.tfCrown ? window.tfCrown.leaflet("fishTiles", 0.26) : null;
   function syncTiles() {
     const want = isFish() && shown.has("depth");
     if (want && !map.hasLayer(depthTiles)) depthTiles.addTo(map); else if (!want && map.hasLayer(depthTiles)) map.removeLayer(depthTiles);
+    const crown = isFish() && shown.has("crown") && crownTiles;
+    if (crown && !map.hasLayer(crownTiles)) crownTiles.addTo(map); else if (!crown && crownTiles && map.hasLayer(crownTiles)) map.removeLayer(crownTiles);
+  }
+  // The land at the spot, for getting to the water.
+  const CROWN_SAY = {
+    crown: "Public land: you can usually walk in to the shore and fish from it.",
+    private: "Private land: ask the owner before you cross it to the water, or use a public access or a boat.",
+    lease: "Leased Crown land: keep clear of camps and ask the leaseholder before you cross it.",
+  };
+  async function landHtml(lat, lon, prov) {
+    const x = window.tfCrown && window.tfCrown.has(prov) ? await window.tfCrown.at(lat, lon, prov).catch(() => null) : null;
+    return x ? `<p class="fs-note fs-land" style="border-left:4px solid ${x.c};padding-left:8px"><b>Land: ${esc(x.t)}</b><br>${esc(CROWN_SAY[x.k] || x.d)}</p>` : "";
   }
 
   // ---------- layer list ----------
@@ -764,6 +780,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       + (shown.has("stocked") ? `<b>Stocked waters</b><div>${i(C.fresh)}Stocked in the last 30 days</div><div>${i(C.stocked)}Stocked in the last 3 years</div>` : "")
       + (shown.has("hidden") ? `<b>Hidden spots</b><div>${i(C.hidden, "hidden")}Walk-in or hike-in water</div>` : "")
       + (shown.has("access") || shown.has("launch") ? `<b>Access</b>${shown.has("access") ? `<div>${i(C.access, "access")}Fishing spot, pier or dock</div>` : ""}${shown.has("launch") ? `<div>${i(C.launch, "launch")}Boat launch</div>` : ""}` : "")
+      + (shown.has("crown") && window.tfCrown ? `<b>Crown land</b><div>${i(window.tfCrown.COL.crown)}Crown land: public</div><div>${i(window.tfCrown.COL.private)}Private land</div>` : "")
       + (shown.has("tides") ? `<b>Ocean</b><div>${i(C.tide, "tides")}Tide station</div>` : "")
       + (shown.has("zones") ? `<b>Rules</b><div><i style="border:2px dashed ${C.zone};border-radius:2px"></i>Fishing zone or region</div><div><i style="border:2px dashed ${C.tide};border-radius:2px"></i>Pacific tidal area</div>` : "")
       + (shown.has("areas") ? `<b>Parks and reserves</b><div>${i(C.nofish)}Ecological reserve: no fishing</div><div>${i(C.park, "areas")}National park: Parks Canada permit</div><div>${i(C.zec)}Quebec zec: daily fee</div><div>${i(C.fee)}Wildlife reserve or Quebec park: access fee</div>` : "")
@@ -828,7 +845,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     el.hidden = false;
     el.innerHTML = `<header>${svg(IC.pin)}<h3 id="fsSpotName">${esc(title || "This spot")}</h3>${routeBtn(lat, lon)}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div>
       <div id="fsHidden"></div><div id="fsWater"><p class="fs-note fs-look">Looking up this spot…</p></div><div id="fsBait"></div>
-      <div id="fsSea"></div><div id="fsSeason"></div><div id="fsRules"></div><div id="fsLic"></div><div id="fsBoat"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsAcc"></div>`;
+      <div id="fsSea"></div><div id="fsSeason"></div><div id="fsRules"></div><div id="fsLic"></div><div id="fsBoat"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsLand"></div><div id="fsAcc"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
     cardInView(el);
     await ready;
@@ -851,6 +868,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     flowHtml(lat, lon).then((h) => fill("fsFlow", secFlow(h)));
     tideHtml(lat, lon).then((h) => fill("fsTide", secTide(h)));
     fill("fsAcc", secAcc(accessHtml(lat, lon)));
+    landHtml(lat, lon, prov).then((h) => fill("fsLand", h));
     // What to use: the fish the province lists here, plus what's stocked close by and what the eating guide lists.
     const baitSp = new Set();
     if (stocked) for (const [sw] of near(stocked.waters, lat, lon, 3, (x) => x.c).slice(0, 2)) for (const r of sw.r) if (stocked.sp[r[1]]) baitSp.add(stocked.sp[r[1]]);
