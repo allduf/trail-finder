@@ -2,6 +2,7 @@
 -- The iPhone app (usage.js, never the website) sends what testers open and tap, so alex can see what people really
 -- do and make the app more practical. Each phone is a random device code: no name, email, location or photo.
 -- Nobody can read the tables directly. Only accounts listed in tf_admins can read the report (usage.html).
+-- Then run usage-more.sql too (searches, load times, crashes, the full tester list).
 
 create table if not exists public.tf_use_devices (
   device text primary key check (char_length(device) between 8 and 64),

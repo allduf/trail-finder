@@ -11,6 +11,8 @@
   const map = window.tfLeaflet;
   if (!map || !window.L || window.tfPlaceSearch) return;
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  // For alex's usage page (usage.js): what is asked or searched, and how many answers came back.
+  const logUse = (...a) => (window.tfUse ? window.tfUse(...a) : (window.tfUseQ = window.tfUseQ || []).push(a));
 
   const css = document.createElement("style");
   css.textContent = `
@@ -151,6 +153,7 @@ ul.ps-hits:empty { display: none; }
       msg.textContent = note || "";
     };
     const pick = (p) => {
+      logUse("pick", "Place");
       input.value = ""; input.blur(); show([]);
       if (o.onPick) o.onPick(p); else go(p);
     };
@@ -170,6 +173,7 @@ ul.ps-hits:empty { display: none; }
         const found = await search(q);
         if (input.value.trim() !== q) return;
         const all = [...loc.slice(0, 3), ...found];
+        logUse("search", "Place:" + q, all.length);
         if (!all.length) { show([], `Couldn't find “${q}”. Try a town or mountain name.`); return; }
         if (all.length === 1) { pick(all[0]); return; }
         input.blur();   // the phone keyboard out of the way of the list

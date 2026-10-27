@@ -15,6 +15,8 @@
   const map = window.tfLeaflet;
   if (!map || !window.L || window.tfAsk) return;
   const AI_FN = "smooth-worker";
+  // For alex's usage page (usage.js): what is asked or searched, and how many answers came back.
+  const logUse = (...a) => (window.tfUse ? window.tfUse(...a) : (window.tfUseQ = window.tfUseQ || []).push(a));
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const kmTo = (a, b) => Math.hypot((a[1] - b[1]) * 111.32 * Math.cos(a[0] * Math.PI / 180), (a[0] - b[0]) * 110.57);
@@ -121,6 +123,7 @@ ol.ask-list b { font-size: .96rem; } ol.ask-list small { color: var(--muted); fo
   document.body.append(dlg);
   dlg.querySelector("h2 button").addEventListener("click", () => dlg.close());
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });   // a tap outside the sheet
+  dlg.querySelector(".ask-out").addEventListener("click", (e) => { if (e.target.closest("button") && !e.target.closest(".ask-ex")) logUse("pick", "Ask"); });
   const close = () => { if (dlg.open) dlg.close(); };
 
   let token = 0;
@@ -148,10 +151,10 @@ ol.ask-list b { font-size: .96rem; } ol.ask-list small { color: var(--muted); fo
     out.innerHTML = `<p class="ask-wait">Finding the place…</p>`;
     const at = await whereOf(p);
     if (my !== token) return;
-    if (!at) { out.innerHTML = `<p class="ask-note ask-warn">Couldn't find “${esc(p.place)}” on the map. Try the town's name, or move the map there and ask “near here”.</p>`; return; }
+    if (!at) { logUse("search", "Ask:" + q, 0); out.innerHTML = `<p class="ask-note ask-warn">Couldn't find “${esc(p.place)}” on the map. Try the town's name, or move the map there and ask “near here”.</p>`; return; }
     out.innerHTML = `<p class="ask-wait">Looking ${at.you ? "around you" : at.mid ? "around the middle of the map" : "near " + esc(at.name)}…</p>`;
-    try { await ANSWER[sp](p, at, out, () => my !== token); }
-    catch (e) { if (my === token) out.innerHTML = `<p class="ask-note ask-warn">Something went wrong (${esc(e.message || e)}). Try again.</p>`; }
+    try { await ANSWER[sp](p, at, out, () => my !== token); if (my === token) logUse("search", "Ask:" + q, out.querySelectorAll("button").length); }
+    catch (e) { if (my === token) { logUse("search", "Ask:" + q, 0); out.innerHTML = `<p class="ask-note ask-warn">Something went wrong (${esc(e.message || e)}). Try again.</p>`; } }
   }
 
   // ---------- reading the question ----------
