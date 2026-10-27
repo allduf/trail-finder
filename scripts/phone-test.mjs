@@ -36,7 +36,7 @@ const PHONE = {
   serviceWorkers: "block",
 };
 // A failed download of something cut off on purpose, not a fault of the app.
-const NETWORK = /Load failed|Failed to fetch|NetworkError|network error|aborted|AbortError|ERR_FAILED|access control checks|Importing a module script failed|Could not connect/i;
+const NETWORK = /Load failed|Failed to fetch|NetworkError|network error|aborted|AbortError|ERR_FAILED|access control checks|Access-Control-Allow-Origin|Status code: \d{3}|Importing a module script failed|Could not connect/i;
 
 // ---------- the site, on localhost ----------
 const root = fileURLToPath(new URL("../", import.meta.url));
