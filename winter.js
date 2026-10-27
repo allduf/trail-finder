@@ -3210,6 +3210,35 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // OFFLINE_DEM_Z (closer zooms are cut from those when offline, see dem()).
   const OFFLINE_DEM_Z = 12;
   window.tfSki = {
+    // Ask in plain words (ask.js): the named routes of these types (all when null) and the huts within maxKm of c
+    // ([lat, lon]), nearest first, the way the list shows them (same-name pieces as one) with their risk light.
+    near: async (c, maxKm, types) => {
+      await loadSki();
+      if (!ski) return { routes: [], huts: [] };
+      const b = L.latLng(c[0], c[1]).toBounds(maxKm * 2000), lim = maxKm * 1000;
+      await loadCanIdx(); await loadCanada(b);
+      const groups = new Map();
+      for (const r of ski.routes || []) {
+        if (!r.name || (types && !types.includes(r.type)) || !r.bounds || !b.intersects(r.bounds)) continue;
+        const k = r.type + "|" + r.name.toLowerCase();
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k).push(r);
+      }
+      const routes = [...groups.values()].map((g) => {
+        const r = g[0], risk = riskOf(g);
+        return { id: r.id, name: nameOf(r), type: r.type, label: (TYPES[r.type] || TYPES.other).label, km: g.reduce((s, y) => s + km(y), 0), d: awayM(c[0], c[1], g),
+          cls: risk ? risk.c : 0, diff: r.diff || "", pill: [riskPill(risk), diffPill(r.diff)].filter(Boolean).join(" "), c: [r.lines[0][0][0], r.lines[0][0][1]] };
+      }).filter((x) => x.d <= lim).sort((x, y) => x.d - y.d);
+      const huts = (ski.huts || []).map((h) => ({ name: h.name || "Hut", kind: KIND[h.kind] || "Hut", lat: h.lat, lon: h.lon, d: ptAway(c[0], c[1], h) }))
+        .filter((h) => h.d <= lim).sort((x, y) => x.d - y.d);
+      return { routes, huts };
+    },
+    showHut: async (lat, lon) => {
+      if (sport !== "ski") setSport("ski");
+      await loadSki();
+      const h = (ski?.huts || []).find((x) => Math.abs(x.lat - lat) < 1e-5 && Math.abs(x.lon - lon) < 1e-5);
+      if (h) select(h, true); else map.setView([lat, lon], 14);
+    },
     // slackcountry.js: today's danger at a line's top, for its go/caution light (null until the forecast is loaded).
     dangerAt: (lat, lon, lo, hi) => { if (!avy && !example) loadAvy(); return dangerAt(lat, lon, lo, hi); },
     slopeAt: async (lat, lon) => { const p = [{ lat, lon }]; await T.heights(p, 0, dem); return { slope: p[0].slope, e: p[0].e }; },

@@ -2527,6 +2527,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
   window.tfMoto = {
     rideInfo,
     openLog,
+    openTrip: async (id) => { await openTrips(); showTrip(id); },   // Ask in plain words (ask.js): one ADV route
     hub(what) {   // index.html's phone pages: Plan a moto route, saved routes, my bikes, my rides
       if (what === "plan") { const t = document.querySelector('#tabbar [data-nav="moto"]'); if (t) t.click(); setPlanning(true); }
       else if (what === "routes") { const t = document.querySelector('#tabbar [data-nav="moto"]'); if (t) t.click(); openSaved(); }

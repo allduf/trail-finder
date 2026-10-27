@@ -236,5 +236,7 @@
     });
     draw();
   }
-  window.tfLoops = { build, show, estimate, entryOf };
+  // Ask in plain words (ask.js): "a 2-hour loop" sets the same length as the Distance and Time chips.
+  const setWant = (o) => { want.km = o.km || null; want.h = o.h || null; store(WANT_KEY, want); };
+  window.tfLoops = { build, show, estimate, entryOf, setWant, want: () => ({ ...want }) };
 })();
