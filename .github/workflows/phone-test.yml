@@ -1,0 +1,44 @@
+name: Phone test
+
+# Before a change goes live: opens the app at iPhone size in WebKit (Safari's engine, the same as the iPhone app) and
+# goes through every sport like a rider: Sport button, each tab of the bottom bar, Layers, the 3D map, then My rides.
+# The check fails on a script error, a tap that breaks, or a page wider than the phone. Screenshots of every step are
+# in the run's "phone-test-screenshots" download. Outside the app's own files only code libraries and map pictures
+# are fetched (see scripts/phone-test.mjs): no resort or club sites, no weather, no Supabase.
+on:
+  pull_request:
+    paths-ignore: ["data/**", "ios-app/**", "supabase/**", "**.md"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phone-test-${{ github.ref }}
+  cancel-in-progress: true   # a newer push has everything an older one has
+
+jobs:
+  phone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add the data jobs' files
+        run: bash scripts/site-data.sh get
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install the test browser
+        run: |
+          npm install --no-save --no-package-lock playwright@1.48.2
+          npx playwright install --with-deps webkit
+      - name: Test every sport at iPhone size
+        run: node scripts/phone-test.mjs
+        env:
+          OUT: phone-test-shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phone-test-screenshots
+          path: phone-test-shots
+          retention-days: 14
