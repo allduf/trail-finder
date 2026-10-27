@@ -365,6 +365,25 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 #skiPane .sk-rc-btns button .ic { font-size: 1.1rem; line-height: 1.1; }
 #skiPane .sk-rc-btns button.go { background: #1c9be6; border-color: #1c9be6; color: #fff; }
 #skiPane .sk-rc-btns button[aria-pressed="true"] { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
+#skiPane .sk-cond { display: flex; flex-direction: column; gap: 6px; }
+#skiPane .sk-cond-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+#skiPane .sk-cond-head h4 { margin: 0; font-size: .92rem; }
+#skiPane .sk-cond-days { display: flex; gap: 3px; }
+#skiPane .sk-cond-days button { font: inherit; font-size: .74rem; font-weight: 700; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
+#skiPane .sk-cond-days button[aria-pressed="true"] { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
+#skiPane .sk-cond-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+#skiPane .sk-ct { font: inherit; text-align: left; display: flex; flex-direction: column; gap: 1px; min-width: 0; padding: 7px 9px 8px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--line); border-top: 5px solid var(--c, var(--line)); background: color-mix(in srgb, var(--c, transparent) 12%, var(--panel)); color: var(--fg); }
+#skiPane .sk-ct > small { font-size: .66rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+#skiPane .sk-ct > b { font-size: 1.02rem; line-height: 1.2; }
+#skiPane .sk-ct > span { font-size: .76rem; line-height: 1.3; }
+#skiPane .sk-ct > span.m { color: var(--muted); }
+#skiPane .sk-ct .sk-strip { display: flex; gap: 1px; height: 7px; margin: 3px 0 1px; border-radius: 3px; overflow: hidden; }
+#skiPane .sk-ct .sk-strip i { flex: 1; }
+#skiPane .sk-cond-signs { display: flex; flex-wrap: wrap; gap: 4px; }
+#skiPane .sk-cond-signs button { font: inherit; font-size: .74rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid #f2b705; background: color-mix(in srgb, #f2b705 15%, var(--panel)); color: var(--fg); cursor: pointer; }
+#skiPane .sk-cond-signs button.hi { border-color: #e03131; background: color-mix(in srgb, #e03131 14%, var(--panel)); }
+#skiPane .sk-cond .sk-note { margin: 0; }
 #skiPane .sk-more-btn { font: inherit; font-size: .85rem; font-weight: 700; padding: 8px; border-radius: 10px; border: 1px dashed var(--line); background: none; color: #1f5fe0; cursor: pointer; }
 .sk-fly { position: absolute; z-index: 1002; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: flex; gap: 8px; align-items: center;
   background: rgba(18, 26, 34, .88); color: #fff; border-radius: 999px; padding: 6px 6px 6px 14px; font: 600 .85rem system-ui, sans-serif; box-shadow: 0 4px 14px #0006; max-width: calc(100% - 24px); box-sizing: border-box; }
@@ -1307,6 +1326,162 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!el) return;
     el.innerHTML = `<span>${(info.total / 1000).toFixed(1)}<small>km</small></span><span>↗ ${fmtM(info.up)}</span><span>↘ ${fmtM(info.down)}</span><span title="Munter estimate: 4 km or 400 m of climb an hour up, 10 km or 1000 m an hour down">⏱ ${fmtHours(tourHours(info))}</span><span>▲ ${fmtM(info.max)}</span>`;
   }
+  // ---------- conditions on the route card ----------
+  // alex 2026-10-27: "when i click on a ski route i would like to see all the weather information necessary for
+  // backcountry skiing: weather, avalanche risk, visibility, snow condition. make it user friendly." Four boxes on the
+  // card, for today or one of the next two days: weather at the top and the bottom, the avalanche danger in the bands
+  // the route goes through, the visibility at the top (clouds by height, clouds.js) and the snow (new snow, a guess at
+  // the surface from the last 3 days, the closest snow station). Each box opens its part of More details. Everything
+  // comes from what the details already load (the same Open-Meteo asks, cached), plus one ask at the bottom's height.
+  let condDay = 0, cond = null;
+  const CHIGH = "#e03131", CMID = "#f08c00", COK = "#2f9e44", CINFO = "#1c7ed6", CGREY = "#868e96";
+  const localDate = (d) => d.toLocaleDateString("en-CA");
+  function condStart(r, group, live) {
+    cond = { r, live, info: null, top: null, bot: null, hrs: null, err: "" };
+    if (r.info) showCond(r.info);
+  }
+  function showCond(info) {
+    const c = cond;
+    if (!c || !c.live() || c.info === info) return;
+    c.info = info;
+    const bot = info.pts.reduce((b, p) => (p.e < b.e ? p : b), info.pts[0]);
+    const got = (k) => (v) => { if (cond === c && c.live()) { c[k] = v; renderCond(); } };
+    weather(info.top.lat, info.top.lon, info.max).then(got("top"), (e) => { if (cond === c) { c.err = e.message; renderCond(); } });
+    weather(bot.lat, bot.lon, info.min).then(got("bot"), () => got("bot")(null));
+    if (window.tfClouds && window.tfClouds.hours) window.tfClouds.hours(info.top.lat, info.top.lon, info.min, info.max).then(got("hrs"), () => got("hrs")([]));
+    renderCond();
+  }
+  function renderCond() {
+    const el = $("skCond");
+    if (!el || !cond || !cond.live()) return;
+    el.innerHTML = condHtml(cond);
+    el.querySelectorAll(".sk-cond-days button").forEach((b) => b.addEventListener("click", () => { condDay = +b.dataset.d; renderCond(); }));
+    el.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => openMore(b.dataset.go)));
+  }
+  // Opens More details (it stays open, as with its button) at one section.
+  function openMore(id) {
+    const box = $("skMore"), btn = $("skMoreBtn");
+    if (box && box.hidden && btn) btn.click();
+    const sec = $(id) && !$(id).hidden ? $(id) : box;
+    if (!sec) return;
+    if (window.tfPanelScrollTo) window.tfPanelScrollTo(sec); else sec.scrollIntoView({ block: "start" });
+  }
+  // The hours of one day (8 am to 4 pm, when people are out: the hours from 8 to 15 o'clock) in an Open-Meteo answer.
+  const dayHours = (w, date, h0 = 8, h1 = 15) => w.hourly.time.map((t, i) => (t.startsWith(date) && +t.slice(11, 13) >= h0 && +t.slice(11, 13) <= h1 ? i : -1)).filter((i) => i >= 0);
+  const avg = (arr, idx) => { const v = idx.map((i) => arr[i]).filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  const hmax = (arr, idx) => { const v = idx.map((i) => arr[i]).filter((x) => x != null); return v.length ? Math.max(...v) : null; };
+  const deg = (v) => (v == null ? "–" : `${Math.round(v) === 0 ? 0 : Math.round(v)}°`);
+  const hourWord = (t) => new Date(t * 1000).toLocaleTimeString("en-CA", { hour: "numeric" }).replace(/\s?([ap])\.?m\.?/i, " $1m");
+  function condHtml(c) {
+    const head = (days) => `<div class="sk-cond-head"><h4>Conditions</h4>${days.length > 1 ? `<div class="sk-cond-days" role="group" aria-label="Day">${days.map((d, i) => `<button type="button" data-d="${i}" aria-pressed="${i === condDay}">${esc(d.label)}</button>`).join("")}</div>` : ""}</div>`;
+    const tile = (go, col, label, big, lines, extra = "") => `<button type="button" class="sk-ct" data-go="${go}" style="--c:${col}"><small>${label}</small><b>${big}</b>${extra}${lines.filter(Boolean).map((l) => `<span${l.m ? ' class="m"' : ""}>${l.m || l}</span>`).join("")}</button>`;
+    if (!c || !c.info) return `${head([])}<p class="sk-note">Working out the route's heights for the forecast…</p>`;
+    const w = c.top, info = c.info;
+    if (!w) return `${head([])}<p class="sk-note">${c.err ? `Couldn't load the weather (${esc(c.err)}).` : "Loading the weather at the top and the bottom…"}</p>`;
+    const dd = w.daily, today = localDate(new Date());
+    let t0 = dd.time.indexOf(today);
+    if (t0 < 0) t0 = 3;
+    const days = dd.time.slice(t0, t0 + 3).map((date, j) => ({ date, i: t0 + j, label: j === 0 ? "Today" : new Date(date + "T12:00").toLocaleDateString("en-CA", { weekday: "short" }) }));
+    if (condDay >= days.length) condDay = 0;
+    const D = days[condDay], hrsTop = dayHours(w, D.date), b = c.bot, hrsBot = b ? dayHours(b, D.date) : [];
+
+    // Weather: the day's temperature at the top and the bottom, the strongest wind up there, rain or snow, freezing level.
+    const tTop = avg(w.hourly.temperature_2m, hrsTop), tBot = b ? avg(b.hourly.temperature_2m, hrsBot) : null;
+    const wind = hmax(w.hourly.wind_speed_10m, hrsTop), gust = dd.wind_gusts_10m_max[D.i], from = COMPASS[Math.round((dd.wind_direction_10m_dominant[D.i] || 0) / 45) % 8];
+    const fz = hmax(w.hourly.freezing_level_height, hrsTop);
+    const snowDay = dd.snowfall_sum[D.i] || 0, rainBot = b ? b.daily.precipitation_sum[D.i] - (b.daily.snowfall_sum[D.i] || 0) / 0.7 : 0;
+    const wet = (dd.precipitation_sum[D.i] || 0) - snowDay / 0.7;   // Open-Meteo counts 0.7 cm of snow for each mm of water; the rest fell as rain
+    const precip = snowDay >= 0.5 ? `❄ ${Math.round(snowDay)} cm of snow up high` : wet >= 1 ? `🌧 ${Math.round(wet)} mm of rain at the top` : rainBot >= 1 ? `🌧 ${Math.round(rainBot)} mm of rain low down` : "Dry";
+    const windWord = wind >= 50 || gust >= 80 ? "Very windy" : wind >= 30 || gust >= 55 ? "Windy" : wind >= 15 ? "Breezy" : "Light wind";
+    const wCol = wind >= 50 || gust >= 80 ? CHIGH : wind >= 30 || gust >= 55 || wet >= 2 ? CMID : CINFO;
+    const wxTile = tile("skWx", wCol, "Weather", `${WICON[dd.weather_code[D.i]] || ""} ${deg(tTop)} / ${deg(tBot)}`, [
+      { m: `at the top (${fmtM(info.max)}) / bottom` }, `💨 ${windWord}: ${Math.round(wind || 0)} km/h ${from}, gusts ${Math.round(gust || 0)}`, precip,
+      fz != null ? (fz > info.max ? `Freezing level ${fmtM(fz)}: above the top, thawing all the way up` : `Freezing level ${fmtM(fz)}`) : "",
+    ]);
+
+    // Avalanche: the highest rating in the bands the route goes through that day, the light, the problems there.
+    let avTile;
+    const dgList = (avy || example) ? (areaAt(info.top.lat, info.top.lon)?.forecast?.days || []) : [];
+    const fIdx = dgList.findIndex((x) => x.date === D.date);
+    const dg = fIdx >= 0 || (condDay === 0 && dgList.length) ? dangerAt(info.top.lat, info.top.lon, info.min, info.max, fIdx >= 0 ? fIdx : 0) : null;
+    if (!avy && !example && !avyErr) avTile = tile("skAvy", CGREY, "Avalanche", "Loading…", []);
+    else if (!dg || !dg.r) {
+      const none = !dgList.length ? "No forecast here today" : fIdx < 0 ? "Not forecast yet" : "No rating yet";
+      avTile = tile("skAvy", CGREY, "Avalanche", none, [{ m: !dgList.length ? "Avalanche Canada's daily forecasts run from about late November to April." : "Check avalanche.ca before you go." }]);
+    } else {
+      const g = selGroup || [cond.r], pre = cond.r.src === "plan" ? null : groupTerrain(g);
+      const official = g.find((x) => x.ates && x.ates.cls >= 1 && x.ates.cls <= 3)?.ates;
+      const cls = official ? official.cls : Math.max(T.terrainClass(info).c, pre ? pre.c : 0);
+      const L1 = T.LIGHTS[T.light(dg.r, cls)];
+      const on = bandKm(info, dg.area.bands), bandsOn = BANDS.filter(([k]) => on[k] >= 0.05).map(([k]) => k);
+      const probs = (dg.area.forecast.problems || []).filter((p) => p.elevations.some((e) => bandsOn.includes(e))).map((p) => p.type);
+      const bandName = (BANDS.find((x) => x[0] === dg.band) || ["", ""])[1].toLowerCase();
+      avTile = tile("skAvy", DANGER[dg.r].color, "Avalanche", esc(DANGER[dg.r].label.replace(/^\d /, "")) + (example ? " (example)" : ""), [
+        `in the ${bandName} on this route`,
+        `<span class="sk-rc-word" style="--c:${L1.color}">● ${esc(L1.label)}</span> · ${esc(T.CLASSES[cls].label)} terrain`,
+        probs.length ? `⚠ ${esc([...new Set(probs)].slice(0, 3).join(", "))}` : { m: "No avalanche problems listed for its bands" },
+      ]);
+    }
+
+    // Visibility at the top in daylight: in the cloud, under it (flat light), clear or above a cloud sea.
+    let visTile;
+    if (!c.hrs) visTile = tile("skClouds", CGREY, "Visibility", "Loading…", []);
+    else {
+      const hs = c.hrs.filter((x) => x.day && localDate(new Date(x.t * 1000)) === D.date && new Date(x.t * 1000).getHours() >= 8 && new Date(x.t * 1000).getHours() <= 15);
+      const S = window.tfClouds.STATES, fogCode = dd.weather_code[D.i] === 45 || dd.weather_code[D.i] === 48;
+      if (!hs.length) visTile = tile("skClouds", fogCode ? CHIGH : CGREY, "Visibility", fogCode ? "Fog" : "Daylight is over", [{ m: condDay === 0 ? "Pick a day above for its forecast." : "No forecast for that day yet." }]);
+      else {
+        const n = (st) => hs.filter((x) => x.top === st).length, inside = n("inside"), under = n("under"), good = n("clear") + n("above");
+        const run = (st) => { let best = null, cur = null; hs.forEach((x, i) => { if (x.top === st) { cur = cur && cur.e === i - 1 ? { ...cur, e: i } : { s: i, e: i }; if (!best || cur.e - cur.s > best.e - best.s) best = cur; } else cur = null; }); return best; };
+        const span = (r) => (r.s === 0 && r.e === hs.length - 1 ? "all day" : `${hourWord(hs[r.s].t)} to ${hourWord(hs[r.e].t + 3600)}`);
+        let big, col, line;
+        if (inside >= hs.length / 2) { big = "Poor: in the cloud"; col = CHIGH; line = `The top is in the cloud ${span(run("inside"))}. Hard to see the slope and the way.`; }
+        else if (good >= hs.length / 2) {
+          const above = n("above") > n("clear");
+          big = above ? "Good: above the clouds" : "Good"; col = COK;
+          line = `${above ? "Over a cloud sea" : "Clear at the top"} ${span(run(above ? "above" : "clear") || { s: 0, e: hs.length - 1 })}${c.hrs.length && hs.some((x) => x.bottom === "inside") ? ", cloud lower down" : ""}.`;
+        } else { big = "Flat light"; col = CMID; line = `Under the clouds ${under ? span(run("under")) : "part of the day"}: bumps and drops are hard to see.`; }
+        const strip = `<span class="sk-strip" aria-hidden="true">${hs.map((x) => `<i style="background:${S[x.top][0]}"></i>`).join("")}</span>`;
+        visTile = tile("skClouds", col, "Visibility", big, [line, { m: `${hourWord(hs[0].t)} to ${hourWord(hs.at(-1).t + 3600)} at the top` }], strip);
+      }
+    }
+
+    // Snow: new snow (or the day's snowfall for a day ahead), a guess at the surface, the closest snow station.
+    const h = w.hourly, nowIdx = Math.max(0, h.time.findIndex((t) => t > w.current.time) - 1);
+    const ref = condDay === 0 ? nowIdx : Math.max(0, h.time.indexOf(D.date + "T08:00"));
+    const sumH = (arr, a, z) => { let t = 0; for (let i = Math.max(0, a); i <= Math.min(arr.length - 1, z); i++) t += arr[i] || 0; return t; };
+    const snow24 = sumH(h.snowfall, ref - 23, ref), snow72 = sumH(h.snowfall, ref - 71, ref);
+    let lastWarm = -1, rainTop = 0, windy = 0;
+    for (let i = Math.max(0, ref - 71); i <= ref; i++) {
+      const t = h.temperature_2m[i] ?? -99;
+      if (t > 0.5) { lastWarm = i; rainTop += Math.max(0, (h.precipitation[i] || 0) - (h.snowfall[i] || 0) / 0.7); }
+      if (i > ref - 24 && (h.wind_speed_10m[i] || 0) >= 35) windy++;
+    }
+    const since = lastWarm < 0 ? snow72 : sumH(h.snowfall, lastWarm + 1, ref);
+    let surf, sCol;
+    if (since >= 10) { surf = windy >= 3 ? "Wind-blown new snow: soft in places, slabs on lee slopes" : `Fresh powder: ${Math.round(since)} cm since it last thawed`; sCol = windy >= 3 ? CMID : COK; }
+    else if (rainTop >= 2) { surf = "Rain crust likely: hard and icy until new snow covers it"; sCol = CMID; }
+    else if (lastWarm >= 0) { surf = "Melt-freeze crust likely: hard in the morning, softer in the sun"; sCol = CINFO; }
+    else if (snow72 >= 3) { surf = "A little new snow on older snow"; sCol = CINFO; }
+    else { surf = "Older settled snow, wind-packed in open places"; sCol = CINFO; }
+    const bNow = b && b.current ? b.current.temperature_2m : null;
+    const lowWet = b && (bNow > 1 || avg(b.hourly.temperature_2m, hrsBot) > 1);
+    const next24 = condDay === 0 ? sumH(h.snowfall, ref + 1, ref + 24) : 0;
+    const st = (() => { if (!snow && !snowErr) loadSnow(); const x = nearSnow(info.top.lat, info.top.lon)[0]; return x && x.st.sd != null ? x : null; })();
+    const big = condDay === 0 ? (snow24 >= 0.5 ? `${Math.round(snow24)} cm new` : snow72 >= 0.5 ? `${Math.round(snow72)} cm in 3 days` : "No new snow") : snowDay >= 0.5 ? `${Math.round(snowDay)} cm that day` : "No snow that day";
+    const snowTile = tile("skSnowNear", sCol, "Snow", big, [
+      condDay === 0 ? { m: [snow24 >= 0.5 ? `last 24 h at the top, ${Math.round(snow72)} cm in 3 days` : snow72 >= 0.5 ? "at the top, none in the last day" : "", next24 >= 1 ? `${Math.round(next24)} cm more in the next day` : ""].filter(Boolean).join(" · ") || "at the top" } : { m: `${Math.round(snow72)} cm in the 3 days before` },
+      `${surf}${lowWet ? "; wet or crusty low down" : ""}`,
+      st ? { m: `Station ${esc(st.st.name)}, ${st.st.ele.toLocaleString()} m: ${cm(st.st.sd)} (${plus(st.st.sd24)} in 24 h)` } : "",
+    ]);
+
+    // The weather's avalanche warning signs (today only), as short words that open the full text.
+    const aw = condDay === 0 ? avyWeather(w, info.max) : null;
+    const signs = aw && aw.signs.length ? `<div class="sk-cond-signs">${aw.signs.map(([cl, t]) => `<button type="button" class="${cl}" data-go="skWx" title="${esc(t)}">${esc(t.split(":")[0])}</button>`).join("")}</div>` : "";
+    return `${head(days)}<div class="sk-cond-grid">${wxTile}${avTile}${visTile}${snowTile}</div>${signs}
+      <p class="sk-note">${condDay === 0 ? "Today" : esc(D.label)}, 8 am to 4 pm. Model forecasts (Open-Meteo) and Avalanche Canada; the snow surface is a guess from the last 3 days' weather. Tap a box for the details.</p>`;
+  }
+
   // The selected tour's start (its lower end, where you put the skins on) and top, as FATMAP pinned them.
   function drawPins(info) {
     pinLayer.clearLayers();
@@ -1430,6 +1605,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         <div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>
         <div class="sk-rc-tag" id="skRcTag">${[esc(t.label), diffPill(r.diff)].filter(Boolean).join(" · ")}</div>
         <div class="sk-rc-stats" id="skRcStats"><span>${len.toFixed(1)}<small>km</small></span></div>
+        <div class="sk-cond" id="skCond">${condHtml()}</div>
         <div class="sk-rc-btns">
           <button type="button" id="skFly" title="Fly along the route on the 3D map"><span class="ic" aria-hidden="true">✈</span>Flyover</button>
           ${mine ? "" : `<button type="button" id="skRcWatch" aria-pressed="false" disabled title="Alerts in the 🔔 when this tour turns risky"><span class="ic" aria-hidden="true">🔔</span>Watch</button>`}
@@ -1504,6 +1680,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       .catch((e) => { if (live()) $("skWx").innerHTML = `<h4>Weather</h4><p class="sk-note">Couldn't load the weather (${esc(e.message)}).</p>`; });
     showAvy(r.info || null);
     if (!minData && !minErr) loadMin().then(() => showAvy(r.info || null));
+    if (isRoute) condStart(r, group, live);
     const showPh = (info) => mine ? null : routePhotos(r, info).then((ph) => {
       const el = $("skPh"); if (!live() || !el) return; el.innerHTML = photosHtml(ph, isHut); bindPhotos(el, ph.list);
       const img = $("skRcPh"), p0 = ph.list[0];   // the card's photo: the route's own, else the closest
@@ -1516,7 +1693,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       showWx(info.top.lat, info.top.lon, info.max, info.min);
       showPh(info);
       drawAbove(info);
-      if (isRoute) { fillCard(info); drawPins(info); }
+      if (isRoute) { fillCard(info); drawPins(info); showCond(info); }
       if (mine) renderPlan();
       const nb = $("skNear");
       if (nb) {
@@ -1588,6 +1765,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       tg.innerHTML = [L1 ? `<span class="sk-rc-word" style="--c:${L1.color}">● ${esc(L1.label)}</span>` : "", classPill(cls.c, official ? "Official ATES rating" : ""),
         esc((TYPES[r.type] || TYPES.other).label), diffPill(r.diff)].filter(Boolean).join(" · ");
     }
+    renderCond();
     const cw = $("skRcWatch");
     if (cw) { cw.disabled = false; cw.setAttribute("aria-pressed", String(on)); cw.innerHTML = `<span class="ic" aria-hidden="true">🔔</span>${on ? "Watching" : "Watch"}`; }
   }

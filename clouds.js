@@ -621,5 +621,14 @@
   }, 10 * 60000);
   apply();
 
-  window.tfClouds = { chart, isOn: () => on, hour: () => hour, setHour: (h) => { if (on) setHour(h); } };   // smoke.js follows this slider
+  // Where a route's top and bottom are, hour by hour (clear, under, in or above the clouds) and whether it's daylight,
+  // for the short conditions on a ski route's card (winter.js). Same model and rule as the chart.
+  async function hours(lat, lon, lo, hi) {
+    const d = await profile(lat, lon), h = d.hourly;
+    return (h.time || []).map((t, j) => {
+      const levCov = CH_LEVELS.map(([q]) => (h[`cloud_cover_${q}hPa`] || [])[j] || 0);
+      return { t, top: stateAt(levCov, hi, lo), bottom: stateAt(levCov, lo, lo), day: !h.is_day || h.is_day[j] !== 0 };
+    });
+  }
+  window.tfClouds = { chart, hours, STATES, isOn: () => on, hour: () => hour, setHour: (h) => { if (on) setHour(h); } };   // smoke.js follows this slider
 })();
