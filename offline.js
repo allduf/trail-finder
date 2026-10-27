@@ -59,7 +59,7 @@
     ski: "the map, ski routes, huts, the avalanche forecast, snow stations and slope angles",
     hunt: "the map, hunting zones, seasons, draws and the hunting layers you have on",
     fish: "the map, the lakes and rivers with their fish, rules, stocking, boat launches and hidden spots",
-    moto: "the map, roads and tracks, gas, camping and hot springs",
+    moto: "the map, roads and tracks (to plan and re-route a ride with no signal), gas, camping and hot springs",
   };
   const none = { data: [], tiles: [] };
   async function extras(box, sport, d3, huntLayers) {
