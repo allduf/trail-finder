@@ -1196,9 +1196,10 @@
   }
 
   // Each sport opens on the map it was last left on, 3D or flat, also after the app is closed. Skiing starts on 3D
-  // (alex 2026-10-24: "when you enter in skiing mode make that the 3d map come up by default"); the other sports start
-  // on the old shared "map3d" choice until they're switched once.
-  const saved3d = (s) => { const v = bySport("map3dBy", s); return typeof v === "boolean" ? v : s === "ski" ? true : store.get("map3d", false); };
+  // (alex 2026-10-24: "when you enter in skiing mode make that the 3d map come up by default"); MTB starts flat (alex
+  // 2026-10-27: "make the 2d map by default for the mtb mode"); the other sports start on the old shared "map3d" choice
+  // until they're switched once.
+  const saved3d = (s) => { const v = bySport("map3dBy", s); return typeof v === "boolean" ? v : s === "ski" ? true : s === "mtb" ? false : store.get("map3d", false); };
   let want3d = null;   // last asked for, so a switch back to 2D while the 3D library loads isn't undone when it arrives
   function set3d(want, auto) {
     want3d = want;
