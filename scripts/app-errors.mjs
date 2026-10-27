@@ -41,8 +41,8 @@ const ago = (h) => new Date(Date.now() - h * 3600e3).toISOString();
 const inList = (xs) => `(${xs.map((x) => `"${String(x).replace(/["\\]/g, "")}"`).join(",")})`;
 // Cancelled downloads aren't faults (usage.html leaves them out too).
 const real = (e) => !/aborted|AbortError/i.test(e.what || "");
-// The same error after a change moves its line number: compare without them.
-const key = (w) => String(w || "error").replace(/:\d+(:\d+)?\b/g, "").replace(/\s+/g, " ").trim();
+// The same error after a change moves its line number and script version (?v=): compare without them.
+const key = (w) => String(w || "error").replace(/\?v=\d+/g, "").replace(/:\d+(:\d+)?\b/g, "").replace(/\s+/g, " ").trim();
 
 const since = ago(HOURS);
 const errors = (await rows(`tf_use_events?select=device,session,at,what&kind=eq.error&at=gte.${since}&order=at`)).filter(real);

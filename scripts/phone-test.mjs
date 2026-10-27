@@ -32,6 +32,8 @@ const PHONE = {
   userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
   geolocation: { latitude: 50.1163, longitude: -122.9574 },   // Whistler village
   permissions: ["geolocation"], locale: "en-CA", timezoneId: "America/Vancouver",
+  // The app's offline helper (sw.js) would fetch outside on its own, past the cut-off below (in WebKit).
+  serviceWorkers: "block",
 };
 // A failed download of something cut off on purpose, not a fault of the app.
 const NETWORK = /Load failed|Failed to fetch|NetworkError|network error|aborted|AbortError|ERR_FAILED|access control checks|Importing a module script failed|Could not connect/i;
