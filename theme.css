@@ -478,3 +478,96 @@ html dialog:modal {
   top: env(safe-area-inset-top, 0px); bottom: env(safe-area-inset-bottom, 0px);
   max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
 }
+
+/* Same look in every sport (alex picked option B, 2026-10-27: "one home for every sport"). On phones every sport has
+   the same map sheet (search box, the sport's quick buttons, a Today line) and its tab has the same order: title bar
+   with the bell, search, Today, 4 big buttons, a list, what's on the map, then the sport's own cards. One accent colour
+   (forest) for what's on; map colours are data and don't change. "html body" beats the CSS the sport files add later. */
+.tf-phone, .nav-bell, .peek-today { display: none; }
+html body :is(#huntPane, #fishPane) .tf-phone { display: none; }
+.legend > summary svg { vertical-align: -3px; margin-right: 5px; color: var(--accent); }
+.legend:not([open]) { padding: 7px 12px; border-radius: 999px; }
+.legend > summary { font-weight: 800; }
+.legend:not([open]) > summary::after { content: ""; }
+.mapwrap.is3d details.legend { margin-bottom: 46px; }
+.sk-now:not([hidden]) { font: inherit; display: flex; flex-wrap: wrap; gap: 3px 12px; width: 100%; text-align: left; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); font-size: .82rem; cursor: pointer; }   /* clear of the 3D map's credits line, like the other sports' Key */
+@media (max-width: 760px) {
+  html body :is(#huntPane, #fishPane) .tf-phone { display: flex; }
+  details.legend[open] { max-height: 45vh; overflow: auto; }
+  /* the map's sheet: the same in every sport */
+  .brand h1 { flex: none; font-size: 0; gap: 0; }
+  body.sport-alt .peek-search { display: inline-flex; }
+  body.sport-alt .peek-quick { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px 4px; }
+  .peek-today:not([hidden]) { margin-top: 8px; }
+  .peek-today > span:nth-of-type(n+4) { display: none !important; }   /* the map's sheet stays short: 3 facts at most */
+  .panel:is(.hub-on, .nav-search, .nav-results, .nav-alt) .brand,
+  .panel:is(.hub-on, .nav-search, .nav-results, .nav-alt) .peek-quick,
+  .panel:is(.hub-on, .nav-search, .nav-results, .nav-alt) .peek-today,
+  .panel.detail-open .peek-today { display: none !important; }
+  /* the tab's title bar, with the bell */
+  .nav-bell:not([hidden]) { display: grid; place-items: center; margin-left: auto; width: 40px; height: 40px; font-size: 1.05rem; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .12); cursor: pointer; }
+  /* Today: one line, the same everywhere */
+  html body :is(#skNow, #hnNow, #fsNow, #mtNow, .hub-now, .peek-today):not([hidden]) {
+    font: inherit; display: flex; flex-wrap: wrap; gap: 3px 12px; align-items: center; width: 100%; box-sizing: border-box; text-align: left;
+    padding: 9px 12px 10px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font-size: .86rem; line-height: 1.3; cursor: pointer;
+  }
+  html body :is(#skNow, #hnNow, #fsNow, #mtNow, .hub-now, .peek-today):not([hidden])::before {
+    content: "Today"; flex-basis: 100%; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  }
+  html body :is(#skNow, #hnNow, #fsNow, #mtNow, .hub-now, .peek-today) span { display: inline-flex; align-items: center; gap: 5px; }
+  html body :is(#skNow, #hnNow, #fsNow, #mtNow, .hub-now, .peek-today) svg { color: var(--accent); flex: none; }
+  /* the 4 big buttons */
+  .hub-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+  html body :is(#huntPane .hn-actions, #fishPane .fs-actions, #motoPane .mt-actions, #skiPane .sk-views) { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+  html body :is(.hub-tile, #huntPane .hn-act, #fishPane .fs-act, #motoPane .mt-act, #skiPane .sk-view) {
+    font: inherit; font-size: .78rem; font-weight: 700; line-height: 1.15; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; text-align: center;
+    min-height: 68px; min-width: 0; padding: 8px 3px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); box-shadow: none; cursor: pointer;
+  }
+  html body :is(.hub-tile, #huntPane .hn-act, #fishPane .fs-act, #motoPane .mt-act, #skiPane .sk-view) :is(svg, .ic) { color: var(--accent); font-size: 1.3rem; line-height: 1; }
+  html body :is(.hub-tile, #skiPane .sk-view) small { font-weight: 500; font-size: .68rem; color: var(--muted); }
+  html body :is(#huntPane .hn-act.on, #fishPane .fs-act.on, #motoPane .mt-act.on, #skiPane .sk-view[aria-pressed="true"]) { background: var(--accent); border-color: var(--accent); color: #fff; }
+  html body :is(#huntPane .hn-act.on, #fishPane .fs-act.on, #motoPane .mt-act.on, #skiPane .sk-view[aria-pressed="true"]) :is(svg, small, .ic) { color: #fff; }
+  .hub .dot { margin: 3px 0; }
+  /* what's on the map: chips and views, one style */
+  .hub-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  html body :is(.hub-chips button, #huntPane .hn-pill, #fishPane .fs-pill, #motoPane .mt-pill) {
+    font: inherit; font-size: .84rem; font-weight: 600; min-height: 36px; padding: 0 13px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  }
+  html body :is(#huntPane .hn-pill, #fishPane .fs-pill, #motoPane .mt-pill) svg { color: var(--accent); }
+  .hub-chips button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  html body :is(#huntPane .hn-view, #fishPane .fs-view, #motoPane .mt-view) { border-radius: 12px; background: var(--bg); }
+  html body :is(#huntPane .hn-view.on, #fishPane .fs-view.on, #motoPane .mt-view.on) { background: var(--accent); border-color: var(--accent); color: #fff; }
+  html body :is(#huntPane .hn-card, #fishPane .fs-card, #motoPane .mt-card) header svg { color: var(--accent); }
+  /* the list: rows like Find's, with › */
+  html body :is(#skiPane #skPlanBtn, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtSafeRow .mt-pill) {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; box-sizing: border-box; margin: 0; padding: 10px 14px; text-align: left;
+    font: inherit; font-size: .95rem; font-weight: 700; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 14px; cursor: pointer;
+  }
+  html body :is(#skiPane #skPlanBtn, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtSafeRow .mt-pill)::after { content: "›"; margin-left: auto; color: var(--muted); font-size: 1.4rem; line-height: 1; font-weight: 400; }
+  html body #motoPane #mtSafeRow { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  html body #motoPane #mtSafeRow .mt-pill svg { color: var(--accent); }
+  html body #motoPane .mt-bike, html body #motoPane .mt-bike.setup { border: 1px solid var(--line); border-radius: 14px; background: var(--bg); min-height: 52px; }
+  html body #motoPane .mt-bike :is(svg, em) { color: var(--accent); }
+  html body #skiPane .sk-acts { display: block; }
+  /* the order: search, Today, a card you tapped, 4 buttons, the list, what's on the map, the sport's own cards, the small print */
+  html body :is(#skiPane, #huntPane, #fishPane, #motoPane) { display: flex; flex-direction: column; gap: 10px; }
+  html body :is(#skiPane, #huntPane, #fishPane, #motoPane) > *, html body #skiPane .sk-listwrap > * { order: 7; margin-top: 0; margin-bottom: 0; }
+  html body :is(#skiPane, #huntPane, #fishPane, #motoPane) > [hidden], html body #skiPane .sk-listwrap > [hidden] { display: none; }
+  html body #skiPane .sk-listwrap { display: contents; }
+  html body :is(#huntPane, #fishPane, #motoPane) > .ps-box, html body #skiPane #skFindForm, html body #skiPane #skPlaceMsg, html body #skiPane #skPlaces { order: 1; }
+  html body :is(#skNow, #hnNow, #fsNow, #mtNow, #hnSpot, #fsSpot, #skSpot, #skPlan, #skDetail, #skStation) { order: 2; }
+  html body :is(#huntPane .hn-actions, #fishPane .fs-actions, #motoPane .mt-actions, #skiPane .sk-views, #hnTruck, #fsTruck, #hnHint, #fsHint, #mtHint) { order: 3; }
+  html body :is(#skiPane .sk-acts, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtBike, #motoPane #mtSafeRow, #fishPane #fsToday) { order: 4; }
+  html body :is(#hnLayers, #fsMap, #mtMap) { order: 5; }
+  html body #skiPane #avCard { order: 6; }
+  html body #huntPane #hnOffBox { order: 8; }
+  html body :is(#huntPane .hn-safe, #fishPane .fs-safe, #motoPane .mt-safe, #skiPane .sk-safe) { order: 9; }
+  /* one home for each tool: Record a tour is the Track tab; Save a point, My hunts and the Fishing log are in Saved */
+  html body :is(#skiPane #skRecBtn, #skiPane #skSaveBtn, #huntPane .hn-act[data-act="point"], #huntPane .hn-act[data-act="log"], #fishPane .fs-act[data-act="log"], #huntPane #hnMeasure, #huntPane #hnCompass, #huntPane #spBox, #fishPane #spBox, #skiPane #spBox) { display: none !important; }
+  html body.sport-hunt .hub #spBox .sp-new { display: inline-block; }
+  html body .hub-now { margin: 0; }
+  /* the sheet grown over the map (a spot you tapped): the map's own search and Today line sit on top, not twice */
+  html body .panel:not(.nav-alt) :is(#huntPane > .ps-box, #fishPane > .ps-box, #motoPane > .ps-box, #skFindForm, #skNow, #hnNow, #fsNow, #mtNow) { display: none; }
+  .peek-today .dot, .hub-now .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+  html body :is(.hn-keybtn, .fs-keybtn, .mt-keybtn) svg { color: var(--accent); }
+}

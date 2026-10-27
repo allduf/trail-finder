@@ -422,10 +422,12 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       <button type="button" class="hn-act" data-act="point">${svg(IC.pin)}Save a point</button>
       <button type="button" class="hn-act" data-act="truck">${svg(IC.truck)}Truck</button>
       <button type="button" class="hn-act" data-act="log">${svg(IC.log)}My hunts</button>
+      <button type="button" class="hn-act tf-phone" data-act="measure">${svg(IC.ruler)}Measure</button>
+      <button type="button" class="hn-act tf-phone" data-act="compass">${svg(IC.compass)}Compass</button>
     </div>
     <button type="button" class="hn-now" id="hnNow" hidden></button>
     <div class="hn-card" id="hnSpot" hidden></div>
-    <div class="hn-card" id="hnLayers"><header>${svg(IC.layers)}<h3>Map</h3></header>
+    <div class="hn-card" id="hnLayers"><header>${svg(IC.layers)}<h3>On the map</h3></header>
       <div class="hn-views" role="group" aria-label="Map views">${Object.entries(VIEWS).map(([k, v]) => `<button type="button" class="hn-view" data-view="${k}">${esc(v.label)}<small>${esc(v.sub)}</small></button>`).join("")}</div>
       <div class="hn-row"><button type="button" class="hn-pill" id="hnAll">${svg(IC.layers, 16)}All hunting layers</button><button type="button" class="hn-pill" id="hnMeasure">${svg(IC.ruler, 16)}Measure</button><button type="button" class="hn-pill" id="hnCompass">${svg(IC.compass, 16)}Compass</button></div></div>
     <div class="hn-card" id="hnCond"><div id="hnWx"></div><div id="hnCast"></div><div id="hnSky"></div></div>
@@ -1622,6 +1624,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   // Compass mode lives in compass.js (also the Compass button on the map).
   $("hnCompass").addEventListener("click", () => { if (meas) measStop(); if (window.tfCompass) window.tfCompass.on() ? window.tfCompass.stop() : window.tfCompass.start(); });
   $("hnMeasure").setAttribute("aria-pressed", "false");
+  new MutationObserver(() => pane.querySelector('[data-act="measure"]').classList.toggle("on", $("hnMeasure").getAttribute("aria-pressed") === "true"))
+    .observe($("hnMeasure"), { attributes: true, attributeFilter: ["aria-pressed"] });
   document.addEventListener("keydown", (e) => { if (meas && e.key === "Escape") measStop(); });
 
   // ---------- quick actions ----------
@@ -1629,6 +1633,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     const b = e.target.closest("[data-act]"); if (!b) return;
     const act = b.dataset.act, P = window.tfPoints;
     if (act === "me") locate(b);
+    else if (act === "measure" || act === "compass") $(act === "measure" ? "hnMeasure" : "hnCompass").click();   // phones: tiles (Save a point and My hunts live in Saved)
     else if (!P) hint("Points aren't available in this browser.");
     else if (act === "point") P.add();
     else if (act === "truck") truckMenu(b);

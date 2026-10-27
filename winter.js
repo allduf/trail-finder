@@ -339,7 +339,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 .lm-ski .sk-palrow[hidden] { display: none; }
 .map-tools .layers-menu .lm-ski .sk-palrow button { font: inherit; font-weight: 700; font-size: .76rem; padding: 4px 10px; min-height: 0; width: auto; border-radius: 999px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); box-shadow: none; cursor: pointer; }
 .map-tools .layers-menu .lm-ski .sk-palrow button[aria-pressed="true"] { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
-/* The colour key of the shaded layers, on the map under Map key, on the flat and the 3D map (FATMAP's key bar) */
+/* The colour key of the shaded layers, top left of the map, on the flat and the 3D map (FATMAP's key bar) */
 .leaflet-control.sk-bars { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; pointer-events: auto; }
 .leaflet-control.sk-bars[hidden] { display: none; }
 .sk-bar { all: unset; box-sizing: border-box; display: block; width: 188px; max-width: calc(100vw - 150px); cursor: pointer; border-radius: 8px; overflow: hidden; background: rgba(18, 26, 34, .82);
@@ -403,6 +403,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   pane.setAttribute("aria-label", "Skiing");
   pane.innerHTML = `
     <div class="sk-views" id="skViews" role="group" aria-label="Show these routes"></div>
+    <button type="button" class="sk-now" id="skNow" hidden></button>
     <div class="sk-acts"><button type="button" class="sk-act" id="skPlanBtn">✎ Plan a tour</button><button type="button" class="sk-act" id="skRecBtn">▶ Record a tour</button><button type="button" class="sk-act" id="skSaveBtn" title="Save a point on the map with a name, a description and a photo">📍 Save a point</button></div>
     <div class="sk-slopekey" id="skSlopeKey" hidden></div>
     <div class="sk-slopekey" id="skLayerKey" hidden></div>
@@ -664,7 +665,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const rows = `<div class="sk-rows${x.routes ? " sk-routes" : ""}${x.tiles ? " sk-tiles" : ""}" data-g="${i}"></div>`;
     if (x.tiles) return `<h4 class="sk-group">${esc(x.g)}</h4><div class="sk-tilegrid">${slot}${rows}</div><div class="sk-palrow" id="skPalRow" hidden></div>`;
     return `<h4 class="sk-group">${esc(x.g)}</h4>${x.slotAfter ? "" : slot}${rows}${x.slotAfter ? slot : ""}`;
-  }).join("") + `<p class="sk-note">What the lines and dots mean: tap Map key on the map.</p>`;
+  }).join("") + `<p class="sk-note">What the lines and dots mean: tap Key on the map.</p>`;
   const lmStyle = document.querySelector("#layersMenu .lm-style");
   if (lmStyle) lmStyle.after(lm); else if (avyBtn) avyBtn.before(lm);
   // Puts another file's switch in a group, drawn as a row like the others: icon (a symbol on a colour), label, switch.
@@ -736,10 +737,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   // The map key in Skiing: what each line, dot and pin on the map is, for the layers that are on (alex 2026-10-24:
   // "What are those?" about the brown hut dots). Folded by default, like the MTB trail colours key.
-  const skiKey = L.control({ position: "topleft" });
+  const skiKey = L.control({ position: "bottomleft" });   // "Key", bottom left, like every sport
   skiKey.onAdd = () => {
     const el = L.DomUtil.create("details", "legend sk-key");
-    el.innerHTML = `<summary>Map key</summary><ul id="skKeyList"></ul><p class="lg-note">Tap any line, dot or pin on the map to see what it is.</p>`;
+    el.innerHTML = `<summary><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5z M2 13l10 5 10-5 M2 17.5l10 5 10-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Key</summary><ul id="skKeyList"></ul><p class="lg-note">Tap any line, dot or pin on the map to see what it is.</p>`;
     L.DomEvent.disableClickPropagation(el); L.DomEvent.disableScrollPropagation(el);
     return el;
   };
@@ -2331,6 +2332,19 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const off = $("avExOff"); if (off) off.addEventListener("click", () => { example = false; refreshAvy(); });
     bindEx();
   }
+  // Today's line at the top of the Routes tab (and on the map's sheet): the avalanche card in one line, a tap opens it.
+  function syncNow() {
+    const card = $("avCard"), b = $("skNow");
+    if (!b) return;
+    const bands = [...card.querySelectorAll(".av-band")].map((x) => [x.querySelector("b")?.textContent || "", x.querySelector("span")?.textContent || ""]);
+    const line = card.querySelector(".av-line");
+    const html = card.hidden ? "" : bands.length ? `<span>⚠ <b>Avalanche: ${esc(bands[0][0])}</b> ${esc(bands[0][1].toLowerCase())}</span>${bands.slice(1).map(([r, n]) => `<span>${esc(r)} ${esc(n.toLowerCase())}</span>`).join("")}`
+      : line ? `<span>⚠ <b>Avalanche:</b> ${esc(line.textContent.replace(/\.$/, ""))}</span>` : "";
+    if (b.innerHTML !== html) b.innerHTML = html;
+    b.hidden = !html;
+  }
+  new MutationObserver(syncNow).observe($("avCard"), { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
+  $("skNow").addEventListener("click", () => { const c = $("avCard"); if (!c.hidden && window.tfPanelScrollTo) window.tfPanelScrollTo(c); });
   function bindEx() {
     const b = $("avEx"); if (b) b.addEventListener("click", () => { example = true; refreshAvy(); });
     const sh = $("avShade"); if (sh) sh.addEventListener("click", () => avyBtn.click());
@@ -2836,7 +2850,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
 
   // ---------- the colour keys on the map ----------
-  // FATMAP showed a thin key across the top of the map for each shaded layer; here they sit under Map key, on the flat
+  // FATMAP showed a thin key across the top of the map for each shaded layer; here they sit at the top left, on the flat
   // and the 3D map. A tap opens the Layers menu (where the slope colours can be changed).
   const bars = L.control({ position: "topleft" });
   bars.onAdd = () => {
