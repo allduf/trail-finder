@@ -417,19 +417,14 @@
     winterProtocol = true;
     maplibregl.addProtocol("tfwinter", async (params, abort) => {
       const [mode, zs, xs, ys] = params.url.replace("tfwinter://", "").split("/"), z = +zs, x = +xs, y = +ys, sig = abort.signal;
-      // Last winter's photos cover it: the plain photo will do. It only shows through their see-through edges, so up
-      // close it's a small copy cut from the zoom-13 photo, not a full sharp one: in Skiing at Whistler these hidden
-      // photos were ~100 downloads and ~40 MB of the phone's graphics memory for nothing (alex 2026-10-26 recording:
-      // ground missing while it loaded, then out of memory).
+      // Last winter's photos cover it: far out, the plain photo will do (it only shows through their see-through edges).
       if (mode === "fill" && covered(await loadWinterBlocks(), z, x, y)) {
-        if (z <= 13) return { data: await photoBytes(z, x, y, sig) };
-        const [img, sx, sy, size] = await under(13, z, x, y, (a, b, c) => cached(`p${a}/${b}/${c}`,
-          () => photoBytes(a, b, c, new AbortController().signal).then((buf) => createImageBitmap(new Blob([buf])))));
-        if (sig.aborted) throw new DOMException("aborted", "AbortError");
-        const cv = new OffscreenCanvas(64, 64), cx = cv.getContext("2d");
-        cx.imageSmoothingQuality = "high";
-        cx.drawImage(img, sx, sy, size, size, 0, 0, 64, 64);
-        return { data: cv.transferToImageBitmap() };
+        // Inside the squares Winter has a full photo at every zoom from 11 (missing ones are enlarged from the one
+        // above), so nothing under it shows: no download at all. In Skiing at Whistler these were ~210 tiles a view,
+        // twice the Winter photos, queued in the same line, so after a move only ~20% of the Winter photos had
+        // arrived 3 s later (phone test, 2026-10-27).
+        if (z >= 11) return noTile();
+        return { data: await photoBytes(z, x, y, sig) };
       }
       const [raw, live] = await Promise.all([
         photoBytes(z, x, y, sig),
@@ -565,12 +560,43 @@
     maplibregl.addProtocol("tfwinterphoto", async (params, abort) => {
       const [z, x, y] = params.url.replace("tfwinterphoto://", "").split("/").map(Number);
       if (!anyWinter(await loadWinterBlocks(), z, x, y)) return noTile();
+      // Inside the squares, a missing tile comes from the one above it, enlarged.
+      if (z > 11 && no14(z, x, y)) return winterUp(z, x, y, abort.signal);
       const r = await fetch(`${WINTER}${z}/${x}/${y}.webp`, { signal: abort.signal }).catch((e) => { if (abort.signal.aborted) return null; throw e; });
       if (!r) return noTile();   // scrolled away before it came
-      if (r.status === 404) return noTile();   // a square's edge where the photo is all cloud or outside the passes
+      if (r.status === 404) {
+        if (z === 14) { const b = (x >> 3) + "/" + (y >> 3); missing14.set(b, (missing14.get(b) || 0) + 1); }
+        return z > 11 ? winterUp(z, x, y, abort.signal) : noTile();
+      }
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return { data: await r.arrayBuffer() };
     });
+  }
+  // Since 2026-10-26 the newer squares (ski hills and tours across Canada) stop at zoom 13 to fit the site, and a few
+  // tiles are missing where every pass was cloudy. Those came back see-through, so up close the hidden layer under
+  // Winter showed instead: a blurry summer photo, or nothing while it loaded (alex's recording 2026-10-27). Now the
+  // tile above is cut and enlarged, like the ground heights. After three missing zoom-14 tiles in a square, the
+  // rest of that square isn't asked for.
+  const missing14 = new Map();
+  const no14 = (z, x, y) => z === 14 && (missing14.get((x >> 3) + "/" + (y >> 3)) || 0) >= 3;
+  const winterPic = (z, x, y) => cached(`w${z}/${x}/${y}`, async () => {
+    const r = await fetch(`${WINTER}${z}/${x}/${y}.webp`);
+    if (r.ok) return createImageBitmap(await r.blob());
+    if (r.status !== 404 || z <= 11) throw new Error(`HTTP ${r.status}`);
+    const [img, sx, sy, size] = await under(z - 1, z, x, y, winterPic);
+    const cv = new OffscreenCanvas(256, 256), cx = cv.getContext("2d");
+    cx.imageSmoothingQuality = "high";
+    cx.drawImage(img, sx, sy, size, size, 0, 0, 256, 256);
+    return cv.transferToImageBitmap();
+  });
+  async function winterUp(z, x, y, signal) {
+    const [img, sx, sy, size] = await under(z - 1, z, x, y, winterPic).catch(() => [null]);
+    if (signal.aborted) throw new DOMException("aborted", "AbortError");
+    if (!img) return noTile();
+    const cv = new OffscreenCanvas(256, 256), cx = cv.getContext("2d");
+    cx.imageSmoothingQuality = "high";
+    cx.drawImage(img, sx, sy, size, size, 0, 0, 256, 256);
+    return { data: cv.transferToImageBitmap() };
   }
   // Is tile z/x/y all inside the zoom-11 squares that have winter photos?
   const covered = (have, z, x, y) => {
@@ -750,6 +776,9 @@
     addWinterPhotoProtocol();
     addSatProtocol();
     if (!PHONE) addWinterHdProtocol();
+    // Photo tiles downloaded at once: 16 by default. Ours come from several sites over HTTP/2 and each is small, so
+    // 32 at once fills the ground after a move about twice as fast (phone test, 2026-10-27).
+    try { maplibregl.setMaxParallelImageRequests(32); } catch {}
     const c = map.getCenter();
     gl = new maplibregl.Map({
       container: box, antialias: !PHONE, pixelRatio: PHONE ? Math.min(devicePixelRatio || 1, 2) : undefined,
@@ -764,7 +793,9 @@
           // Feb-Mar 2026, clouds removed). Live: the sharp photos with today's snow drawn in (tfwinter).
           // tileSize 128 like the other photos: one zoom deeper, so the 10 m photos are at full detail up close
           // instead of the half-size zoom 12-13 ones (blurry and stretched on the slopes, alex 2026-10-19).
-          winter: { type: "raster", tileSize: PHOTO_TILE, minzoom: 6, maxzoom: 14, bounds: WINTER_BOUNDS, tiles: ["tfwinterphoto://{z}/{x}/{y}"],
+          // Phones: 256 px, half as many tiles a view (~55 instead of ~105 at Whistler) and they arrive about twice as
+          // fast; the same zoom-14 photo right up close, so it looks the same (side-by-side phone test, 2026-10-27).
+          winter: { type: "raster", tileSize: PHONE ? 256 : PHOTO_TILE, minzoom: 6, maxzoom: 14, bounds: WINTER_BOUNDS, tiles: ["tfwinterphoto://{z}/{x}/{y}"],
             attribution: "Winter: Copernicus Sentinel-2 data 2026 (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>" },
           // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above). Not on phones.
           ...(PHONE ? {} : { winterhd: { type: "raster", tileSize: 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] } }),
