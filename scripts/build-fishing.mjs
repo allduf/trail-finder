@@ -369,10 +369,17 @@ async function buildZones() {
   } catch (e) { log(`  Ontario zones: ${e.message}`); keep("on"); }
   try {
     const QC = "https://peche.faune.gouv.qc.ca/arcgiswa/rest/services/PRODC-E/ZonesPeche/MapServer/0";
-    // This server fails a query for many outlines at once: one zone per request.
-    const ids = (await get(`${QC}/query?where=1%3D1&returnIdsOnly=true&f=json`)).objectIds || [];
+    // This server fails a query for many outlines at once: one zone per request. By name, not object id: its ids are
+    // numbered afresh for each request, so asking for ids 1 to 33 gave some zones twice and left out ten (zones 3, 5, 7,
+    // 13, 14, 19, 21, 24, 26, 27, with Bromont and Mont-Sainte-Anne), found by the coverage check 2026-10-27.
+    const names = [...new Set(((await get(`${QC}/query?where=1%3D1&outFields=NM_ENDRO_FR&returnGeometry=false&f=json`)).features || []).map((f) => f.attributes.NM_ENDRO_FR).filter(Boolean))];
     const z = [];
-    for (const id of ids) z.push(...await arcgis(QC, ["NM_ENDRO_EN", "NM_ENDRO_FR", "VA_HYPRL_REGLE_EN", "VA_DESCR_NOUVT_EN", "VA_DOCMN_EN", ...[1, 2, 3, 4, 5].flatMap((i) => [`VA_ACTUA_${i}`, `VA_DESCR_ACTUA_${i}`, `VA_HYPRL_ACTUA_${i}`])], "1=1", 0.005, id));
+    const fields = ["NM_ENDRO_EN", "NM_ENDRO_FR", "VA_HYPRL_REGLE_EN", "VA_DESCR_NOUVT_EN", "VA_DOCMN_EN", ...[1, 2, 3, 4, 5].flatMap((i) => [`VA_ACTUA_${i}`, `VA_DESCR_ACTUA_${i}`, `VA_HYPRL_ACTUA_${i}`])];
+    for (const n of names) {   // no paging parameters either: with them it answers "Failed to execute query"
+      const p = new URLSearchParams({ where: `NM_ENDRO_FR='${n.replace(/'/g, "''")}'`, outFields: fields.join(","), outSR: "4326", f: "geojson", returnGeometry: "true", maxAllowableOffset: "0.005", geometryPrecision: "4" });
+      z.push(...((await get(`${QC}/query?${p}`)).features || []));
+    }
+    if (names.length < 25 || z.length < names.length) throw new Error(`only ${z.length} of ${names.length} zones`);
     for (const f of z) {
       const a = f.properties, id = String(a.NM_ENDRO_FR || "").replace(/^Zone\s*/i, "");
       const news = [1, 2, 3, 4, 5].map((i) => a[`VA_ACTUA_${i}`] && a[`VA_DESCR_ACTUA_${i}`] ? [a[`VA_ACTUA_${i}`], a[`VA_DESCR_ACTUA_${i}`], a[`VA_HYPRL_ACTUA_${i}`] || ""] : null).filter(Boolean);

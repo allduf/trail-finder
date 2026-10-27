@@ -130,6 +130,41 @@
    "name": "DriveBC",
    "page": "https://www.drivebc.ca/",
    "credit": "DriveBC, Province of British Columbia"
+  },
+  "tremblant": {
+   "name": "Tremblant",
+   "page": "https://www.tremblant.ca/mountain-village/mountain-report/webcams",
+   "credit": "Tremblant"
+  },
+  "msa": {
+   "name": "Mont-Sainte-Anne",
+   "page": "https://mont-sainte-anne.com/en/webcams/",
+   "credit": "Mont-Sainte-Anne"
+  },
+  "bromont": {
+   "name": "Bromont, montagne d'expériences",
+   "page": "https://www.bromontmontagne.com/en/webcams/",
+   "credit": "Bromont, montagne d'expériences"
+  },
+  "owlshead": {
+   "name": "Owl's Head",
+   "page": "https://www.owlshead.com/en/webcams",
+   "credit": "Owl's Head"
+  },
+  "bluemtn": {
+   "name": "Blue Mountain Resort",
+   "page": "https://www.bluemountain.ca/mountain/webcams",
+   "credit": "Blue Mountain Resort"
+  },
+  "wentworth": {
+   "name": "Ski Wentworth",
+   "page": "https://www.novascotiawebcams.com/webcams/ski-wentworth",
+   "credit": "Ski Wentworth, streamed by Nova Scotia Webcams"
+  },
+  "marble": {
+   "name": "Marble Mountain Resort",
+   "page": "https://skimarble.com/live-web-cam/",
+   "credit": "Marble Mountain Resort"
   }
  },
  "cams": [
@@ -1611,6 +1646,83 @@
    "ele": 1539,
    "img": "https://www.drivebc.ca/images/1159.jpg",
    "page": "https://www.drivebc.ca/cameras/1159"
+  },
+  {
+   "id": "tremblant-cams",
+   "owner": "tremblant",
+   "resort": "Tremblant",
+   "kind": "resort",
+   "name": "Tremblant webcams",
+   "view": "The resort's live cameras (on its own page)",
+   "lat": 46.2097,
+   "lon": -74.585,
+   "where": "Resort base, approximate spot"
+  },
+  {
+   "id": "msa-cams",
+   "owner": "msa",
+   "resort": "Mont-Sainte-Anne",
+   "kind": "resort",
+   "name": "Mont-Sainte-Anne webcams",
+   "view": "The resort's live cameras (on its own page)",
+   "lat": 47.0753,
+   "lon": -70.9047,
+   "where": "Resort base, approximate spot"
+  },
+  {
+   "id": "bromont-cams",
+   "owner": "bromont",
+   "resort": "Bromont",
+   "kind": "resort",
+   "name": "Bromont webcams",
+   "view": "The resort's live cameras (on its own page)",
+   "lat": 45.3165,
+   "lon": -72.651,
+   "where": "Resort base, approximate spot"
+  },
+  {
+   "id": "owlshead-cams",
+   "owner": "owlshead",
+   "resort": "Owl's Head",
+   "kind": "resort",
+   "name": "Owl's Head webcams",
+   "view": "The resort's live cameras (on its own page)",
+   "lat": 45.0604,
+   "lon": -72.3131,
+   "where": "Resort base, approximate spot"
+  },
+  {
+   "id": "bluemtn-cams",
+   "owner": "bluemtn",
+   "resort": "Blue Mountain",
+   "kind": "resort",
+   "name": "Blue Mountain webcams",
+   "view": "The resort's live cameras (on its own page)",
+   "lat": 44.5015,
+   "lon": -80.311,
+   "where": "Resort base, approximate spot"
+  },
+  {
+   "id": "wentworth-cams",
+   "owner": "wentworth",
+   "resort": "Ski Wentworth",
+   "kind": "resort",
+   "name": "Ski Wentworth webcams",
+   "view": "The resort's live cameras (on its own page)",
+   "lat": 45.632,
+   "lon": -63.555,
+   "where": "Resort base, approximate spot"
+  },
+  {
+   "id": "marble-cams",
+   "owner": "marble",
+   "resort": "Marble Mountain",
+   "kind": "resort",
+   "name": "Marble Mountain webcams",
+   "view": "The resort's live cameras (on its own page)",
+   "lat": 48.9677,
+   "lon": -57.8266,
+   "where": "Resort base, approximate spot"
   }
  ]
 }
