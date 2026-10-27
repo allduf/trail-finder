@@ -154,6 +154,7 @@
     roads: { g: "Roads", label: "Dirt roads for my bike", sub: "Gravel roads and tracks coloured for your bike (zoom in)", on: true, icon: ["#2f9e44", "line"] },
     mud: { g: "Roads", label: "Mud and dust today", sub: "Rain, soil moisture and snow, in squares", icon: ["#8b5a2b", "box"] },
     rules: { g: "Roads", label: "Where you can't ride", sub: "Parks, reserves and motor vehicle closures", on: true, minZoom: 7, icon: ["#e03131", "box"] },
+    crown: { g: "Roads", label: "Crown land", sub: "Public land: green, private: yellow (ON, QC, NB, NS, SK, NL; zoom in)", minZoom: 9, icon: ["#2f9e44", "box"] },
     fuel: { g: "Stops", label: "Gas stations", sub: "All of Canada", on: true, minZoom: 7, icon: ["#1971c2", "dot"] },
     range: { g: "Stops", label: "My fuel range", sub: "How far a tank takes you from here (with 20% left)", on: true, icon: ["#1971c2", "ring"] },
     camp: { g: "Stops", label: "Campsites, huts and rec sites", sub: "Free BC rec sites marked", on: true, minZoom: 8, icon: ["#2b8a3e", "dot"] },
@@ -166,8 +167,8 @@
   const VIEWS = {
     roads: { label: "Roads", sub: "for my bike", layers: ["roads", "rules", "fuel", "ferry"] },
     mud: { label: "Mud", sub: "today", layers: ["roads", "mud"] },
-    stops: { label: "Fuel & camp", sub: "range, sleep", layers: ["roads", "fuel", "range", "camp", "hot", "ferry"] },
-    rules: { label: "Rules", sub: "can I ride", layers: ["roads", "rules"] },
+    stops: { label: "Fuel & camp", sub: "range, sleep", layers: ["roads", "fuel", "range", "camp", "hot", "ferry", "crown"] },
+    rules: { label: "Rules", sub: "can I ride", layers: ["roads", "rules", "crown"] },
   };
   let shown = new Set(store.get("motoLayers", Object.keys(LAYERS).filter((k) => LAYERS[k].on)));
 
@@ -796,6 +797,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       rangeland: "Grazing land: ask the leaseholder.", pasture: "Provincial pasture: ask the pasture manager.",
     } },
     open: { color: "#2f9e44", label: "Public land", kinds: {
+      provforest: "Manitoba provincial forest: Crown forest land. Public roads and trails open to vehicles.",
       green: "Alberta Green Area: public forest land. Roads and designated trails; random camping is allowed (a Public Lands Camping Pass on the eastern slopes).",
       wmaopen: "Wildlife management area: public roads open, gates may close for the season.", wild: "Wilderness area or biodiversity reserve: vehicles only on open roads.",
     } },
@@ -986,6 +988,9 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     can.innerHTML = `<h4>Can I ride here?</h4>
       ${rs.length ? rs.map(({ a, r }) => `<div class="mt-warn ${r.g === "no" ? "" : r.g === "open" ? "ok" : "hard"}"><b>${esc(a.n || r.label)}</b><br>${esc(r.text)}</div>`).join("") : `<div class="mt-warn ok">No park, reserve or closure mapped here.</div>`}
       <details class="mt-fold"><summary>${esc(P ? P[0] : PROV_NAME[pv] || "Canada")}: riding rules</summary><p>${esc(P ? P[1] : PROV_OTHER)}</p>${P && P[2].length ? `<p>${P[2].map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(n)}</a>`).join(" · ")}</p>` : ""}</details>`;
+    const land = await crownHtml(s.lat, s.lon, pv);
+    if (my !== spotSeq) return;
+    if (land) can.querySelector("h4").insertAdjacentHTML("afterend", land);
     const c = await loadCell();
     if (my !== spotSeq) return;
     if (c) can.insertAdjacentHTML("afterend", `<p class="mt-note">${svg(IC.cell, 14)} ${cellNear(s.lat, s.lon) ? "Cell signal likely on the roads here (LTE or 5G)." : "<b>Likely no cell signal</b> on the roads here: tell someone your plan."}</p>`);
@@ -2009,7 +2014,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     renderLayers(); renderKey();
     showRoads(isMoto() && shown.has("roads"));
     if (isMoto() && shown.has("roads")) { if (!ftenLayer._map) ftenLayer.addTo(map); } else if (ftenLayer._map) map.removeLayer(ftenLayer);
-    drawPoints(); drawRange(); drawMud(); drawRules(); drawCell();
+    drawPoints(); drawRange(); drawMud(); drawRules(); drawCell(); drawCrown();
     if (shown.has("camp")) loadRec();
     loadLive();
   }
@@ -2029,6 +2034,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     box.innerHTML = (shown.has("roads") ? `<b>Dirt roads for your ${esc(cur().name || TYPES[cur().type].label)}</b>${Object.entries(FIT).map(([, [l, c]]) => `<div>${i(c)}${esc(l)}</div>`).join("")}<div style="color:#666">Dashed: a track (two-track). Solid: a gravel road. Your bike rides grade ${cap} well.</div>` : "")
       + (shown.has("mud") ? `<b>Dirt today</b>${Object.values(MUD).map(([l, c]) => `<div>${i(c)}${esc(l)}</div>`).join("")}` : "")
       + (shown.has("rules") ? `<b>Land</b>${["no", "roads", "fee", "ask"].map((k) => `<div>${i(RULES[k].color)}${esc(RULES[k].label)}</div>`).join("")}` : "")
+      + (shown.has("crown") && window.tfCrown ? `<b>Crown land</b><div>${i(window.tfCrown.COL.crown)}Crown land: public</div><div>${i(window.tfCrown.COL.private)}Private land</div><div>${i(window.tfCrown.COL.lease)}Crown lease (SK farm land)</div>` : "")
       + (["fuel", "camp", "hot", "shop", "ferry"].some((k) => shown.has(k)) ? `<b>Stops</b>${["fuel", "camp", "hot", "shop", "ferry"].filter((k) => shown.has(k)).map((k) => `<div>${i(PT[k].c, 1)}${esc(PT[k].name)}</div>`).join("")}` : "")
       + (route ? `<b>Your route</b><div>${i("#495057")}Paved</div><div>Dirt in the colours above</div>` : "")
       || "<p>No layers on: turn some on in Layers.</p>";
@@ -2203,6 +2209,25 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     if (c.none < 2) return `<p class="mt-note">${svg(IC.cell, 14)} Cell signal on about all of it (LTE or 5G, ISED's coverage data).</p>`;
     return `<div class="mt-warn ${c.longest > 40 ? "" : "hard"}">${svg(IC.cell, 14)} <b>About ${fmtKm(c.none)} with no cell signal</b>, the longest ${fmtKm(c.longest)}. Tell someone your plan; a satellite messenger works there. <button type="button" data-ll="${r.line[c.at][0]},${r.line[c.at][1]}">Show</button></div>`;
   }
+  // ---------- Crown land ----------
+  // Each province's own Crown land map (crownland.js), as pictures under the roads.
+  const crownLayer = window.tfCrown ? window.tfCrown.leaflet("motoRules", 0.28) : null;
+  function drawCrown() {
+    if (!crownLayer) return;
+    const want = isMoto() && shown.has("crown");
+    if (want && !map.hasLayer(crownLayer)) crownLayer.addTo(map); else if (!want && map.hasLayer(crownLayer)) map.removeLayer(crownLayer);
+  }
+  // The land at the spot, for a motorcycle.
+  const CROWN_SAY = {
+    crown: "Public land: ride the existing roads and trails open to vehicles, and random camping is usually allowed (each province limits how long).",
+    private: "Private land: stay on the public road, and ask the owner before you ride or camp off it.",
+    lease: "Someone leases this Crown land: stay on the road and ask the leaseholder before you camp.",
+  };
+  async function crownHtml(lat, lon, pv) {
+    const x = window.tfCrown && window.tfCrown.has(pv) ? await window.tfCrown.at(lat, lon, pv).catch(() => null) : null;
+    return x ? `<div class="mt-warn ${x.k === "crown" ? "ok" : x.k === "private" || x.k === "lease" ? "hard" : ""}"><b>${esc(x.t)}</b><br>${esc(CROWN_SAY[x.k] || x.d)}</div>` : "";
+  }
+
   const cellLayer = L.layerGroup();
   allMoto.push(cellLayer);
   function drawCell() {
@@ -2561,7 +2586,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     const on = isMoto();
     for (const l of allMoto) { if (on && !map.hasLayer(l)) l.addTo(map); else if (!on && map.hasLayer(l)) map.removeLayer(l); }
     if (on && !keyCtl._map) keyCtl.addTo(map); else if (!on && keyCtl._map) keyCtl.remove();
-    if (!on) { if (planning) setPlanning(false); showRoads(false); drawPoints(); stopFly(); watchSafe(); sync3d(); return; }
+    if (!on) { if (planning) setPlanning(false); showRoads(false); drawPoints(); drawCrown(); stopFly(); watchSafe(); sync3d(); return; }
     if (!started) { started = true; ["fuel", "camp", "hot", "shop", "ferry"].forEach(loadPts); }
     renderBike(); renderLayers(); applyLayers(); drawWaypoints(); drawRoute(); renderRoute(); renderNow(); renderNear(); renderSafe(); watchSafe(); renderTrips();
     if (planPts.length >= 2 && !route) buildRoute();
