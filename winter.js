@@ -440,6 +440,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const lineOf = (flat) => { const out = []; for (let i = 0; i < flat.length; i += 2) out.push([flat[i], flat[i + 1]]); return out; };
   const km = (r) => {
     if (r.km != null) return r.km;
+    if (!r.g) return 0;   // huts, starts and other points have no line (a tapped hut threw here on the 3D map)
     let m = 0;
     for (const part of r.g) for (let i = 2; i < part.length; i += 2) m += map.distance([part[i - 2], part[i - 1]], [part[i], part[i + 1]]);
     return (r.km = m / 1000);
@@ -1402,7 +1403,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // A route to follow gets FATMAP's short card first (photo, how risky today, km / climb / time, Flyover, Watch,
     // GPX, Go); the rest is under "More details", which stays open once opened.
     const isRoute = !isHut && !r.area;
-    const len = group.reduce((s, x) => s + km(x), 0);
+    const len = isRoute ? group.reduce((s, x) => s + km(x), 0) : 0;
     const card = isRoute ? `<div class="sk-rc">
         <img class="sk-rc-ph" id="skRcPh" alt="" hidden referrerpolicy="no-referrer">
         <div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>
