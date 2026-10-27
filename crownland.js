@@ -77,7 +77,7 @@
   }));
 
   // ---------- what land is at a point ----------
-  const get = (u) => fetch(u, { signal: AbortSignal.timeout(9000) }).then((r) => (r.ok ? r.json() : null)).then((j) => (j && !j.error ? j : null)).catch(() => null);
+  const get = (u) => fetch(u, { signal: AbortSignal.timeout(15000) }).then((r) => (r.ok ? r.json() : null)).then((j) => (j && !j.error ? j : null)).catch(() => null);
   // the first shape's fields (null: nothing there, undefined: no answer)
   const q = async (layerUrl, lat, lon, fields = "*") => {
     const j = await get(`${layerUrl}/query?geometry=${lon},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=${fields}&returnGeometry=false&resultRecordCount=1&f=json`);

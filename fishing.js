@@ -55,6 +55,7 @@
     areas: "M12 2.5 18 11h-3l4 6H5l4-6H6zM12 17v4.5",
     depth: "M12 4a8 8 0 1 1 0 16 8 8 0 0 1 0-16zM12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z",
     zones: "M4 4h4M12 4h4M20 4v4M20 12v4M20 20h-4M12 20H8M4 20v-4M4 12V8",
+    crown: "M3 20h18M6 20l4-9 3 5 2-3 3 7M15 4v6M15 4h4l-1 1.5 1 1.5h-4",
   };
   const timeout = (ms) => (AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined);
   const getJ = (url, ms = 12000) => fetch(url, { signal: timeout(ms) }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
