@@ -470,3 +470,11 @@ body.sport-alt .layers-menu .lm-looks, body.sport-alt .layers-menu .lm-looks-hea
   .hub .wantlist { margin: 0; }
   body.sport-alt .hub .wantlist > details.folder { display: none; }
 }
+
+/* iPhone app: the page runs under the status bar (viewport-fit=cover), so every
+   pop-up card is centred between the status bar and the home bar and never taller
+   than that space; otherwise a long card's ✕ sits under the clock and can't be pressed. */
+html dialog:modal {
+  top: env(safe-area-inset-top, 0px); bottom: env(safe-area-inset-bottom, 0px);
+  max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
