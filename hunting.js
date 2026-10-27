@@ -1670,6 +1670,14 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     }
     return [...new Set(urls)];
   }
+  // Offline maps (offline.js) saved in Hunting take the same files with the map: the data, and the tiles of the layers
+  // on (kept with the saved area, so deleting it later drops the same tiles). tfHuntOfflineUrls: what this card's own
+  // saves use, which Offline maps keeps when it deletes one of its areas.
+  window.tfHuntOffline = (box, layers = offLayers()) => {
+    const u = offUrls(box, layers), isData = (x) => /\/data\/hunting\//.test(x);
+    return { data: u.filter(isData), tiles: u.filter((x) => !isData(x)), layers, label: layers.length ? layers.map((k) => LAYERS[k].label.toLowerCase()) : [] };
+  };
+  window.tfHuntOfflineUrls = () => store.get(OFF_KEY, []).flatMap((o) => offUrls(o.box, o.layers));
   const viewBox = () => { const b = map.getBounds(); return [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((v) => +v.toFixed(4)); };
   const offLayers = () => [...shown].filter((k) => PICS.some((p) => p.layer === k) || k === "slope" || k === "aspect");
   const offSize = (n) => (n > OFF_MAX ? "" : `About ${Math.max(1, Math.round(n * 0.03))} MB`);
@@ -1677,7 +1685,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   function renderOffline() {
     const el = $("hnOff"), saved = store.get(OFF_KEY, []), layers = offLayers();
     const n = offUrls(offSquare || viewBox(), layers).length;
-    el.innerHTML = `<p class="hn-note" style="margin-top:6px">Zones, seasons, draws${layers.length ? ` and ${esc(layers.map((k) => LAYERS[k].label.toLowerCase()).join(", "))}` : ""} for ${offSquare ? "the square you drew" : "the area on screen, or a square you draw"}, for no signal. The base map is saved with Offline maps in the Layers menu.</p>
+    el.innerHTML = `<p class="hn-note" style="margin-top:6px">Zones, seasons, draws${layers.length ? ` and ${esc(layers.map((k) => LAYERS[k].label.toLowerCase()).join(", "))}` : ""} for ${offSquare ? "the square you drew" : "the area on screen, or a square you draw"}, for no signal. Offline maps (${matchMedia("(max-width: 760px)").matches ? "Track tab" : "Layers menu"}) saves them with the base map and the 3D map in one go.</p>
       ${offBusy ? `<div class="hn-bar"><i style="width:${Math.round(offBusy.pct)}%"></i></div><p class="hn-note">${esc(offBusy.msg)}</p><div class="hn-row"><button type="button" class="hn-btn ghost" id="hnOffStop">Stop</button></div>`
         : `<div class="hn-row"><button type="button" class="hn-btn" id="hnOffSave"${n > OFF_MAX ? " disabled" : ""}>${offSquare ? "Save this square" : "Save this area"}</button>${offSquare
           ? `<button type="button" class="hn-pill" id="hnOffClear">${svg(IC.x, 14)}Clear the square</button>` : `<button type="button" class="hn-pill" id="hnOffDraw">${svg(IC.square, 16)}Draw a square</button>`}<span class="hn-note">${n > OFF_MAX ? (offSquare ? "Too big: draw a smaller square" : "Too big: zoom in or draw a square") : offSize(n)}</span></div>`}
@@ -1692,7 +1700,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       const list = store.get(OFF_KEY, []), s = list.splice(+b.dataset.offdel, 1)[0];
       store.set(OFF_KEY, list);
       if (s) {   // keep files another saved area still uses
-        const keep = new Set(list.flatMap((o) => offUrls(o.box, o.layers)));
+        const keep = new Set([...list.flatMap((o) => offUrls(o.box, o.layers)), ...(window.tfOfflineUrls ? await window.tfOfflineUrls() : [])]);
         const c = await caches.open(OFF_CACHE);
         await Promise.all(offUrls(s.box, s.layers).filter((u) => !keep.has(u) && !/\/data\/hunting\//.test(u)).map((u) => c.delete(u)));
       }

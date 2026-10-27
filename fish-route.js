@@ -196,7 +196,7 @@
     const jobs = [];
     for (let x = tx0; x <= tx1; x++) for (let y = ty0; y <= ty1; y++) jobs.push(vtile(x, y).then((t) => ({ x, y, t })));
     // Heights: zoom 14 if that's few enough tiles, else 13 or 12.
-    let dz = 14;
+    let dz = navigator.onLine ? 14 : 12;   // offline: the zoom Offline maps saves (fishing.js tfFishOffline)
     for (; dz > 11; dz--) { const m = 2 ** dz; if ((Math.floor(box[2] * m) - Math.floor(box[0] * m) + 1) * (Math.floor(box[3] * m) - Math.floor(box[1] * m) + 1) <= 30) break; }
     const dm = 2 ** dz, djobs = [];
     for (let x = Math.floor(box[0] * dm); x <= Math.floor(box[2] * dm); x++) for (let y = Math.floor(box[1] * dm); y <= Math.floor(box[3] * dm); y++) djobs.push(demTile(dz, x, y));

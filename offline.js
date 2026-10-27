@@ -45,10 +45,37 @@
   const zonesIn = (box) => (window.tfZones || []).filter((z) => z.box[0] < box[2] && z.box[2] > box[0] && z.box[1] < box[3] && z.box[3] > box[1]);
   const dataUrls = (box) => [...zonesIn(box).flatMap((z) => DATA.map((d) => `data/${d}-${z.id}.json`)), "data/fires.json", "data/motor-closures.json", ...(window.tfMotoOffline ? window.tfMotoOffline() : [])]
     .map((u) => new URL(u, location.href).href);
-  // Saved in Skiing: the ski data and the terrain tiles behind slope shading (winter.js, window.tfSkiOffline).
-  const isSki = () => document.body.classList.contains("sport-ski");
-  const skiParts = (box, on) => (on && window.tfSkiOffline ? window.tfSkiOffline(box) : { data: [], tiles: [] });
-  const DEM_KB = 130;          // one terrain tile
+  // What each sport adds to a saved area (alex 2026-10-27: offline maps for every sport, 3D too): Skiing's routes,
+  // forecast and slope terrain (winter.js), Hunting's zones, seasons and the picture layers that are on (hunting.js),
+  // Fishing's waters, rules and stocking (fishing.js), Moto's gas and camping lists (dataUrls above), and with "3D map"
+  // ticked the 3D map's heights, plus last winter's photos in Skiing (map3d.js). An area remembers its sport, 3D and
+  // hunting layers, so Finish and Delete work on the same files whatever sport is on later.
+  const SPORTS = ["ski", "hunt", "fish", "moto"];
+  const sportNow = () => SPORTS.find((s) => document.body.classList.contains("sport-" + s)) || "mtb";
+  const sportOf = (a) => a.sport || (a.ski ? "ski" : "mtb");   // areas saved before 2026-10-27 only had "ski"
+  const ICON = { mtb: "🚵", ski: "⛷", hunt: "🦌", fish: "🎣", moto: "🏍" };
+  const WHAT = {
+    mtb: "the map, trails and forest roads",
+    ski: "the map, ski routes, huts, the avalanche forecast, snow stations and slope angles",
+    hunt: "the map, hunting zones, seasons, draws and the hunting layers you have on",
+    fish: "the map, the lakes and rivers with their fish, rules, stocking, boat launches and hidden spots",
+    moto: "the map, roads and tracks, gas, camping and hot springs",
+  };
+  const none = { data: [], tiles: [] };
+  async function extras(box, sport, d3, huntLayers) {
+    const parts = [];
+    if (sport === "ski" && window.tfSkiOffline) parts.push(window.tfSkiOffline(box));
+    if (sport === "hunt" && window.tfHuntOffline) parts.push(window.tfHuntOffline(box, huntLayers));
+    if (sport === "fish" && window.tfFishOffline) parts.push(window.tfFishOffline(box));
+    const d = d3 && window.tf3dOffline ? await window.tf3dOffline(box, sport).catch(() => null) : null;
+    if (d) parts.push(d);
+    return { data: [...new Set(parts.flatMap((p) => p.data))], tiles: [...new Set(parts.flatMap((p) => p.tiles))],
+      hunt: parts.find((p) => p.layers) || null, d3: d };
+  }
+  // Rough sizes for the estimate: one tile of each kind.
+  const tileKB = (u) => (/mapterhorn/.test(u) ? 100 : /elevation-tiles/.test(u) ? 60 : /trail-finder-winter/.test(u) ? 7 : 30);
+  const D3_KEY = "tf-offline-3d";
+  const want3d = () => { try { return localStorage.getItem(D3_KEY) !== "0"; } catch { return true; } };
   const viewBox = () => { const b = map.getBounds().pad(0.1);   // a margin, as the vector map draws a little past the screen
     return [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((v) => +v.toFixed(5)); };
   let drawn = null;   // [south, west, north, east] of a square drawn on the map, saved instead of the screen
@@ -75,6 +102,8 @@
 .offline-card li .warn { display: block; color: #b45309; font-size: .8rem; }
 .offline-card li button.del { color: #b42318; }
 .offline-card li button { font: inherit; font-size: .8rem; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
+.offline-card label.d3 { display: flex; gap: 8px; align-items: center; margin: 0 0 4px; cursor: pointer; }
+.offline-card label.d3 input { width: auto; margin: 0; accent-color: var(--accent); }
 .offline-card .linkish { font: inherit; border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; }
 .offline-draw-tip { position: absolute; z-index: 1001; left: 50%; top: 12px; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; white-space: nowrap;
   background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.2); padding: 8px 8px 8px 14px; font-size: .88rem; }
@@ -85,8 +114,9 @@
   card.className = "offline-card";
   card.hidden = true;
   card.innerHTML = `<h2>Offline maps <button type="button" data-x aria-label="Close">✕</button></h2>
-<p class="muted">Save the area on screen, or draw a square on the map, to use the map, trails and forest roads with no signal (in Skiing: ski routes, the avalanche forecast, snow stations and slope angles too). Saved maps use the Sharp outdoor style, which the map switches to when you're offline.</p>
-<div data-new><input data-name maxlength="60" aria-label="Name for this area"><p data-est></p>
+<p class="muted" data-what></p>
+<div data-new><input data-name maxlength="60" aria-label="Name for this area">
+<label class="d3"><input type="checkbox" data-3d> <span data-3d-label>3D map too</span></label><p data-est></p>
 <div class="row"><button class="btn primary" type="button" data-save>Save this area</button><button class="btn" type="button" data-draw>▭ Draw a square</button><button class="btn" type="button" data-stop hidden>Stop</button></div>
 <p class="muted" data-drawn hidden>Saving the square you drew. <button type="button" class="linkish" data-undraw>Use the screen instead</button></p>
 <div class="bar" hidden><i></i></div><p class="muted" data-prog></p></div>
@@ -103,10 +133,19 @@
     card.hidden = !on;
     btn.classList.toggle("on", on);
     btn.setAttribute("aria-pressed", on);
-    if (on) { outlines.addTo(map); drawnLayer.addTo(map); $("[data-name]").value = suggestName(); renderList(); estimate(); }
+    if (on) { outlines.addTo(map); drawnLayer.addTo(map); $("[data-name]").value = suggestName(); sportText(); renderList(); estimate(); }
     else { outlines.remove(); drawnLayer.remove(); setDrawn(null); drawMode(false); }
   }
   btn.addEventListener("click", () => open(card.hidden));
+  // The card's words follow the sport, so no bike words in Skiing, Hunting or Fishing.
+  function sportText() {
+    const s = sportNow();
+    $("[data-what]").textContent = `Save the area on screen, or draw a square on the map, to use ${WHAT[s]} with no signal. Saved maps use the Sharp outdoor style, which the map switches to when you're offline.`;
+    $("[data-3d-label]").textContent = s === "ski" ? "3D map too (the mountains' shape and last winter's photos)" : "3D map too (the mountains' shape, with the saved map on them)";
+    $("[data-3d]").checked = want3d();
+  }
+  $("[data-3d]").addEventListener("change", (e) => { try { localStorage.setItem(D3_KEY, e.target.checked ? "1" : "0"); } catch {} estimate(); });
+  new MutationObserver(() => { if (!card.hidden) { sportText(); estimate(); } }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   $("[data-x]").addEventListener("click", () => open(false));
 
   function suggestName() {
@@ -133,12 +172,17 @@
     save.disabled = !navigator.onLine;
     const zones = zonesIn(box);
     est.textContent = `${tiles.toLocaleString()} map tiles${zones.length ? " plus trails and roads for " + zones.map((z) => z.name).join(", ") : ""}…`;
-    const data = (await Promise.all(dataUrls(box).map(headSize))).reduce((a, b) => a + b, 0);
+    const sport = sportNow(), x = await extras(box, sport, $("[data-3d]").checked);
+    const data = (await Promise.all([...dataUrls(box), ...x.data].map(headSize))).reduce((a, b) => a + b, 0);
     if (my !== estToken) return;
-    const ski = skiParts(box, isSki());
-    est.textContent = `About ${mb(tiles * TILE_KB * 1e3 + data + ski.tiles.length * DEM_KB * 1e3)}: ${tiles.toLocaleString()} map tiles` +
-      (zones.length ? ` plus trails and forest roads for ${zones.map((z) => z.name).join(", ")}.` : ". This area is outside the trail data region, so only the map is saved.") +
-      (ski.tiles.length ? ` Skiing: ski routes, the avalanche forecast, snow stations and the terrain for slope angles (${ski.tiles.length.toLocaleString()} tiles).` : "") +
+    const more = x.tiles.reduce((n, u) => n + tileKB(u), 0) * 1e3, d = x.d3;
+    const kind = { ski: " Skiing: ski routes, the avalanche forecast, snow stations and the terrain for slope angles.",
+      hunt: ` Hunting: zones, seasons and draws${x.hunt && x.hunt.label.length ? ` and ${x.hunt.label.join(", ")}` : " (turn on a hunting layer to save it too)"}.`,
+      fish: " Fishing: the waters, fish, rules, stocking, launches and hidden spots, and the terrain for Route to a spot.",
+      moto: " Moto: gas, camping, hot springs and ferries." }[sport] || "";
+    est.textContent = `About ${mb(tiles * TILE_KB * 1e3 + data + more)}: ${tiles.toLocaleString()} map tiles` +
+      (zones.length ? ` plus ${sport === "mtb" ? "trails and forest roads" : "trails, roads and tracks"} for ${zones.map((z) => z.name).join(", ")}.` : ". This area is outside the trail data region, so only the map is saved.") + kind +
+      (d ? ` 3D: ${d.heights.toLocaleString()} terrain tiles${d.photos ? ` and ${d.photos.toLocaleString()} winter photos` : ""} (about ${mb(d.tiles.reduce((n, u) => n + tileKB(u), 0) * 1e3)}).` : "") +
       (navigator.onLine ? "" : " You're offline: connect to save it.");
   }
   map.on("moveend", () => { if (!card.hidden && !busy) { estimate(); if (!$("[data-name]").dataset.typed) $("[data-name]").value = suggestName(); } });
@@ -149,7 +193,7 @@
     outlines.clearLayers();
     areas.forEach((a) => L.rectangle([[a.box[0], a.box[1]], [a.box[2], a.box[3]]], { color: "#1f6f4a", weight: 2, dashArray: "6 5", fill: false, interactive: false }).addTo(outlines));
     $("[data-saved-h]").hidden = !areas.length;
-    $("[data-list]").innerHTML = areas.map((a) => `<li><div><b>${esc(a.name)}</b><span class="muted">${mb(a.bytes)} · saved ${new Date(a.at).toLocaleDateString()}</span>${a.missing ? `<span class="warn">Not finished: ${a.missing.toLocaleString()} file${a.missing > 1 ? "s" : ""} missing</span>` : ""}</div>
+    $("[data-list]").innerHTML = areas.map((a) => `<li><div><b>${ICON[sportOf(a)]} ${esc(a.name)}</b><span class="muted">${a.d3 ? "3D · " : ""}${mb(a.bytes)} · saved ${new Date(a.at).toLocaleDateString()}</span>${a.missing ? `<span class="warn">Not finished: ${a.missing.toLocaleString()} file${a.missing > 1 ? "s" : ""} missing</span>` : ""}</div>
 ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""}<button type="button" data-show="${a.id}">Show</button><button type="button" class="del" data-del="${a.id}">Delete</button></li>`).join("");
     const use = $("[data-use]");
     use.textContent = "";
@@ -201,15 +245,16 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
     async function worker() {
       while (i < urls.length && !busy.stop) {
         const u = urls[i++];
-        let res = await cache.match(u);
+        let res = await cache.match(u), gone = false;
         if (!res) {
           for (let tries = 0; tries < 3 && !res; tries++) {
-            try { const r = await fetch(u); if (r.ok) { await cache.put(u, r.clone()); res = r; continue; } if (r.status === 404) break; }
+            try { const r = await fetch(u); if (r.ok) { await cache.put(u, r.clone()); res = r; continue; } if (r.status === 404) { gone = true; break; } }
             catch {}
             await wait(800 * (tries + 1));   // dropped connection or a busy server (429, 5xx): give it a moment
           }
         }
-        if (res) bytes += (await res.blob()).size; else if (!optional) failed.push(u);
+        // A tile that doesn't exist (404: no winter photo or no fine heights there) is fine for the 3D files.
+        if (res) bytes += (await res.blob()).size; else if (!optional && !(gone && /mapterhorn|trail-finder-winter/.test(u))) failed.push(u);
         if (onDone) onDone();
       }
     }
@@ -298,11 +343,12 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
     prog.textContent = "Getting the map style…";
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     let sources = null, bytes = 0, failed = [];
-    const old0 = id && load().find((x) => x.id === id), withSki = old0 ? !!old0.ski : isSki(), ski = skiParts(box, withSki);
+    const old0 = id && load().find((x) => x.id === id), sport = old0 ? sportOf(old0) : sportNow(), d3 = old0 ? !!old0.d3 : $("[data-3d]").checked;
+    const ext = await extras(box, sport, d3, old0 ? old0.huntLayers : undefined), huntLayers = ext.hunt ? ext.hunt.layers : undefined;
     const record = () => {
       if (!sources) return;
       const areas = load(), old = areas.find((x) => x.id === id);
-      const entry = { id: id || Date.now().toString(36), name, box, sources, bytes, at: Date.now(), ski: withSki, ...(boxes ? { boxes } : {}) };
+      const entry = { id: id || Date.now().toString(36), name, box, sources, bytes, at: Date.now(), sport, ski: sport === "ski", d3, ...(huntLayers ? { huntLayers } : {}), ...(boxes ? { boxes } : {}) };
       if (failed.length || busy.stop) entry.missing = Math.max(1, failed.length + busy.left);
       if (old) Object.assign(old, entry); else areas.push(entry);
       id = entry.id;
@@ -313,12 +359,12 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
       const parts = await styleParts(cache);
       sources = parts.sources;
       const tiles = sources.flatMap((s) => [...tileUrls(s, box, boxes)]);
-      const data = [...dataUrls(box), ...ski.data];
-      const total = tiles.length + data.length + parts.extra.length + LIBS.length + ski.tiles.length;
+      const data = [...dataUrls(box), ...ext.data];
+      const total = tiles.length + data.length + parts.extra.length + LIBS.length + ext.tiles.length;
       let done = 0;
       busy.left = total;
       const tick = () => { done++; busy.left = total - done; bar.firstChild.style.width = (100 * done) / total + "%"; prog.textContent = `${done.toLocaleString()} of ${total.toLocaleString()} files`; };
-      for (const [urls, optional] of [[[...LIBS, ...parts.extra]], [data, true], [tiles], [ski.tiles]]) {   // a zone may not have every kind of file
+      for (const [urls, optional] of [[[...LIBS, ...parts.extra]], [data, true], [tiles], [ext.tiles]]) {   // a zone may not have every kind of file
         const got = await fetchAll(cache, urls, tick, optional);
         bytes += got.bytes; failed.push(...got.failed);
       }
@@ -388,13 +434,21 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
   async function remove(a, areas) {
     const rest = areas.filter((x) => x !== a);
     save(rest);
-    if (!rest.length) { await caches.delete(CACHE); return; }
-    const urlsOf = (x) => { const k = skiParts(x.box, x.ski); return [...x.sources.flatMap((s) => [...tileUrls(s, x.box, x.boxes)]), ...dataUrls(x.box), ...k.tiles]; };   // ski data files stay: they are small and shared
-    const keep = new Set(rest.flatMap(urlsOf));
+    const hunts = window.tfHuntOfflineUrls ? window.tfHuntOfflineUrls() : [];   // Hunting's own saved layers share the cache
+    if (!rest.length && !hunts.length) { await caches.delete(CACHE); return; }
+    const keep = new Set([...(await Promise.all(rest.map(urlsOf))).flat(), ...hunts]);
     const cache = await caches.open(CACHE);
-    const drop = urlsOf(a).filter((u) => !keep.has(u));
+    const drop = (await urlsOf(a)).filter((u) => !keep.has(u));
     for (let i = 0; i < drop.length; i += 50) await Promise.all(drop.slice(i, i + 50).map((u) => cache.delete(u)));
   }
+
+  // Every file an area saved, except the sports' data files (small and shared by every area).
+  async function urlsOf(x) {
+    const k = await extras(x.box, sportOf(x), x.d3, x.huntLayers);
+    return [...x.sources.flatMap((s) => [...tileUrls(s, x.box, x.boxes)]), ...dataUrls(x.box), ...k.tiles];
+  }
+  // hunting.js keeps these when it deletes one of its own saves.
+  window.tfOfflineUrls = async () => (await Promise.all(load().map(urlsOf))).flat();
 
   // ---------- with no connection ----------
   // Open on the saved map style when there's no signal and an area is saved.

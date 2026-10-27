@@ -52,6 +52,9 @@
 
   const LINE_SCALE = 1.15;    // trails a little bolder than in 2D, so they read against the photos
   let on = false, gl = null, box = null, libLoading = null;
+  let netChange = null;   // the open 3D map's switch between photos and the saved map (offGround)
+  window.addEventListener("online", () => netChange && netChange());
+  window.addEventListener("offline", () => netChange && netChange());
   // Opening 3D starts looking straight down, like the flat map, and tilts up to the mountains and the sky (the way
   // Outmap does it, alex 2026-10-25 "I really like the 3d map like that"): 70 degrees shows the horizon, it was 60.
   // Coming back to 3D tilts to where it was left.
@@ -283,19 +286,23 @@
   const AWS = (z, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
   const missing = new Set();    // Mapterhorn tiles that don't exist; their children don't either
   const isMissing = (z, x, y) => { for (; z >= 0; z--, x >>= 1, y >>= 1) if (missing.has(`${z}/${x}/${y}`)) return true; return false; };
+  // Offline maps (offline.js, "3D map" ticked) keep Mapterhorn's heights down to zoom 12 (SAVED_DEM_Z). With no signal a
+  // closer tile is cut from those straight away instead of trying sites that can't answer.
+  const SAVED_DEM_Z = 12;
+  const offDeep = (z) => !navigator.onLine && z > SAVED_DEM_Z;
   async function image(url, signal) {
     const r = await fetch(url, { signal });
     if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { status: r.status });
     return createImageBitmap(await r.blob());
   }
   async function demTile(z, x, y, signal) {
-    if (!isMissing(z, x, y)) {
+    if (!isMissing(z, x, y) && !offDeep(z)) {
       try { return await image(MAPTERHORN(z, x, y), signal); }
       catch (e) { if (signal.aborted) throw e; if (e.status === 404 || e.status === 204) missing.add(`${z}/${x}/${y}`); }
     }
     const cv = new OffscreenCanvas(512, 512), cx = cv.getContext("2d");
     cx.imageSmoothingEnabled = false;   // blending pixels would scramble the colour-coded heights
-    if (z + 1 <= 15) {
+    if (z + 1 <= 15 && navigator.onLine) {
       try {
         const parts = await Promise.all([[0, 0], [1, 0], [0, 1], [1, 1]].map(([dx, dy]) => image(AWS(z + 1, 2 * x + dx, 2 * y + dy), signal)));
         parts.forEach((b, i) => cx.drawImage(b, (i % 2) * 256, (i >> 1) * 256));
@@ -313,7 +320,7 @@
     demProtocol = true;
     maplibregl.addProtocol("tfdem", async (params, abort) => {
       const [z, x, y] = params.url.replace("tfdem://", "").split("/").map(Number);
-      if (!isMissing(z, x, y)) {   // the usual case: Mapterhorn's own tile, passed on as it is
+      if (!isMissing(z, x, y) && !offDeep(z)) {   // the usual case: Mapterhorn's own tile, passed on as it is
         const r = await fetch(MAPTERHORN(z, x, y), { signal: abort.signal }).catch((e) => { if (abort.signal.aborted) throw e; return null; });
         if (r && r.ok) return { data: await r.arrayBuffer() };
         if (r && (r.status === 404 || r.status === 204)) missing.add(`${z}/${x}/${y}`);
@@ -589,6 +596,25 @@
     cx.drawImage(img, sx, sy, size, size, 0, 0, 256, 256);
     return cv.transferToImageBitmap();
   });
+  // Offline maps (offline.js) with "3D map" ticked: the heights for a box (Mapterhorn, zoom 6 to SAVED_DEM_Z, ~100 KB
+  // a tile) and, in Skiing, last winter's photos there (zoom 6 to 14, only where they exist, ~6 KB a tile). sw.js
+  // answers both from the saved copy. Esri's photos (Summer, Live) can't be saved: offline the ground is the saved map.
+  const tileX = (lon, z) => Math.floor(((lon + 180) / 360) * 2 ** z);
+  const tileY = (lat, z) => Math.floor(((1 - Math.asinh(Math.tan((lat * Math.PI) / 180)) / Math.PI) / 2) * 2 ** z);
+  window.tf3dOffline = async (b, sport) => {
+    const tiles = [], data = [];
+    const each = (z0, z1, fn) => { for (let z = z0; z <= z1; z++) for (let x = tileX(b[1], z); x <= tileX(b[3], z); x++) for (let y = tileY(b[2], z); y <= tileY(b[0], z); y++) fn(z, x, y); };
+    each(6, SAVED_DEM_Z, (z, x, y) => tiles.push(MAPTERHORN(z, x, y)));
+    let photos = 0;
+    if (sport === "ski") {
+      const have = await loadWinterBlocks();
+      if (have) {
+        data.push(new URL(WINTER + "blocks.json", location.href).href);
+        each(6, 14, (z, x, y) => { if (anyWinter(have, z, x, y)) { tiles.push(new URL(`${WINTER}${z}/${x}/${y}.webp`, location.href).href); photos++; } });
+      }
+    }
+    return { data, tiles, heights: tiles.length - photos, photos };
+  };
   async function winterUp(z, x, y, signal) {
     const [img, sx, sy, size] = await under(z - 1, z, x, y, winterPic).catch(() => [null]);
     if (signal.aborted) throw new DOMException("aborted", "AbortError");
@@ -841,6 +867,12 @@
           trailNames: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
         },
         layers: [
+          // No signal: the ground from the saved map (offline.js saves OpenFreeMap's tiles) under the trails, as
+          // woods, open ground, rock, ice and water with the hills shaded, where the photos can't come (offGround).
+          { id: "off-bg", type: "background", layout: { visibility: "none" }, paint: { "background-color": "#dfe5d2" } },
+          { id: "off-land", type: "fill", source: "names", "source-layer": "landcover", layout: { visibility: "none" },
+            paint: { "fill-color": ["match", ["get", "class"], "wood", "#a7c496", "grass", "#d4e3b5", "rock", "#d3cfc6", "ice", "#f3f7fa", "sand", "#ece2c3", "wetland", "#c2dacb", "farmland", "#e3e6c3", "#d6e0c4"] } },
+          { id: "off-water", type: "fill", source: "names", "source-layer": "water", layout: { visibility: "none" }, paint: { "fill-color": "#98c0e4" } },
           { id: "sat", type: "raster", source: "sat", paint: { "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
           { id: "fill", type: "raster", source: "fill", layout: { visibility: "none" } },
@@ -952,14 +984,24 @@
       liveBtn.title = "Today's real snow (NASA satellite, 2 days old)";
       for (const [el, on] of [[sumBtn, !w], [winBtn, photos === "winter"], [liveBtn, photos === "live"]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; }
       bySport("3dPhotosBy", sportNow(), photos);
+      offGround();
       winterHere();
     };
+    // No signal (alex 2026-10-27, offline maps for every sport): the photos can't come, so the ground is the saved map
+    // with the hills shaded; Skiing's Winter photos saved with the area stay on top of it. Back online, the photos return.
+    const offGround = () => {
+      const off = !navigator.onLine;
+      for (const id of ["off-bg", "off-land", "off-water", "shade"]) gl.setLayoutProperty(id, "visibility", off ? "visible" : "none");
+      if (off) for (const id of ["sat", "fill", "live"]) gl.setLayoutProperty(id, "visibility", "none");
+    };
+    netChange = () => { if (gl && gl.getLayer("off-bg")) setPhotos(photos); };
     // Winter outside last winter's photos shows today's snow (NASA, as in Live): say so. Live where NASA sees no
     // snow today is the Summer photo as it is: say that too, so it doesn't look like the button did nothing.
     const noWinter = document.createElement("div");
     noWinter.textContent = "No winter photos here yet: today's snow";
     noWinter.style.cssText = "display:none;position:absolute;right:0;bottom:100%;margin-bottom:4px;white-space:nowrap;padding:3px 8px;border-radius:6px;background:rgba(20,30,25,.85);color:#fff;font:600 12px var(--font-body, system-ui)";
     const winterHere = async () => {
+      if (!navigator.onLine) { noWinter.textContent = "No signal: the saved map"; noWinter.style.display = ""; return; }
       if (photos === "live") {
         if (liveTiles) { noWinter.textContent = "No snow here today: same as Summer"; noWinter.style.display = liveSnowy ? "none" : ""; }
         return;
@@ -979,6 +1021,7 @@
     // staying a flat blue-grey square in the ground (alex, 2026-10-26: big empty squares zoomed out and at Sutton).
     const tileTries = new Map();
     gl.on("idle", () => {
+      if (!navigator.onLine) return;
       for (const id of ["sat", "fill", "live"]) {
         const m = gl.style?.tileManagers?.[id], tiles = m?._inViewTiles;
         if (!tiles || typeof m._reloadTile !== "function") continue;
