@@ -592,7 +592,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=602");
+      const w = new Worker("winter-fill.js?v=608");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return; fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
