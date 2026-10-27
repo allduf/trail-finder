@@ -83,7 +83,7 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
     <p class="muted">Main buttons nobody used in this period.</p>
     <div class="card" id="never"></div>
     <h2>Each tester</h2>
-    <p class="muted">To know who is who, find the same phone and iOS in TestFlight's tester list and type the name. Only you see it. Phones show their model after they update to build 16.</p>
+    <p class="muted">To know who is who, find the same phone and iOS in TestFlight's tester list and type the name. Only you see it. Phones show their model after they update to build 17.</p>
     <div id="people"></div>
     <h2>Errors</h2>
     <p class="muted">The same error is counted once, with how many times it happened.</p>
@@ -134,7 +134,7 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
     return w;
   };
   const isMe = (d) => /^me$/i.test((d.label || "").trim());
-  // The model code the app sends (build 16 and up) as the name TestFlight shows in its tester list, so each phone
+  // The model code the app sends (build 17 and up) as the name TestFlight shows in its tester list, so each phone
   // can be matched to a tester by model and iOS version. Older builds only send the frozen user-agent iOS (18.7).
   const MODELS = {
     "iPhone12,1": "iPhone 11", "iPhone12,3": "iPhone 11 Pro", "iPhone12,5": "iPhone 11 Pro Max", "iPhone12,8": "iPhone SE (2nd gen)",
