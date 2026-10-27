@@ -203,6 +203,10 @@ export async function canada(h) {
         }
         log(`    ${svc} (${k}): ${f.length}`);
       }
+      // Provincial forests: Crown forest land, shown with the "Private and public land" layer (crownland.js has the rest).
+      const pf = await arcgis(`${MB}/Manitoba_Provincial_Forests___Version_6/FeatureServer/1`, ["PROV_FOREST_NAME", "OBJECTID"], "1=1", 0.0005).catch((e) => { log(`    provincial forests: ${e.message}`); return []; });
+      for (const x of pf) { const a = area("mb", "provforest", title(x.properties.PROV_FOREST_NAME || "Provincial forest"), x.geometry, 0.001); if (a) out.push(a); }
+      log(`    provincial forests (provforest): ${pf.length}`);
       out.push(...await cpcad("mb", (k) => ["park", "wmaopen", "refuge"].includes(k)));
       out.push(...await reserves("mb"));
       return out;

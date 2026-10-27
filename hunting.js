@@ -77,6 +77,7 @@
     town: { label: "Town or city", color: C.town, rule: "Shooting is banned inside most cities, towns and villages by bylaw, often with a no-shooting buffer around them (BC also has no-shooting areas in the regional synopses). Check the local firearm discharge bylaw before you hunt here." },
     mvpr: { label: "Motor vehicle closure", color: C.closure, line: true, dash: "2 5", rule: "Closed to motor vehicles under BC's Motor Vehicle Prohibition Regulation." },
     green: { label: "Green Area (Alberta public forest)", color: C.green, line: true, dash: "6 4", rule: "Alberta's Green Area: mostly public forest land, where you can usually hunt in season without asking a landowner (leases and dispositions still have rules)." },
+    provforest: { label: "Provincial forest (Manitoba)", color: C.green, line: true, dash: "6 4", rule: "Crown forest land: usually open to hunting in season without asking a landowner (cottage lots, leases and closures still have rules)." },
     // the other provinces and territories (data/hunting/areas-<pv>.json)
     qcpark: { label: "Quebec national park", color: C.no, no: true, rule: "No hunting in Quebec's national parks (Sépaq)." },
     qcclosed: { label: "Hunting not allowed", color: C.no, no: true, rule: "Quebec's wildlife ministry lists this as territory where hunting isn't allowed (or only some hunting is)." },
@@ -243,7 +244,7 @@
     zones: { g: "Boundaries", label: "Hunting zones", sub: "Management units and zones across Canada", on: true, sw: [C.zone, "line"] },
     leh: { g: "Boundaries", label: "Limited entry zones", sub: "BC draw-only hunts", on: false, sw: [C.leh, "dash"] },
     rules: { g: "Boundaries", label: "Parks, towns and closures", sub: "Where hunting is banned or has its own rules (ZECs and outfitters in Quebec)", on: true, sw: [C.no, "hatch"] },
-    land: { g: "Land", label: "Private and public land", sub: "BC private parcels, Alberta Green Area and grazing leases", on: false, sw: [C.private, "fill"], minZoom: 9 },
+    land: { g: "Land", label: "Private and public land", sub: "Crown land and private land from each province's map (BC private parcels, Alberta Green Area)", on: false, sw: [C.open, "fill"], minZoom: 9 },
     reach: { g: "Land", label: "Far from roads", sub: "Clear where you're over 1.5 km from any road: few hunters walk that far", on: false, sw: [REACH[1][1], "fill"], minZoom: 9 },
     forest: { g: "Habitat", label: "Forest types", sub: "Thick timber, open timber, aspen, young forest and brush, meadows", on: false, sw: ["#1b5e20", "fill"], minZoom: 8 },
     burns: { g: "Habitat", label: "Old burns", sub: "Fire scars by age: young burns grow feed", on: false, sw: [BURN, "burn"], minZoom: 7 },
@@ -608,7 +609,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     for (const a of A()) {
       const k = AREA_KINDS[a.k];
       if (!k) continue;
-      const want = a.k === "green" ? shown.has("land") : shown.has("rules");
+      const want = a.k === "green" || a.k === "provforest" ? shown.has("land") : shown.has("rules");
       if (!want) continue;
       items.push({ f: a, make: (ll) => [L.polygon(ll, { renderer, interactive: false, color: k.color, weight: k.line || k.color === C.vary || k.color === C.reserve ? 2 : hatched(k) || a.k === "town" ? 1.5 : 1, dashArray: k.dash || null, lineCap: k.dash ? "round" : "butt",
         opacity: 0.85, fill: !k.line, fillColor: hatched(k) ? HATCH : k.color, fillOpacity: fillOp(a.k, k) })] });
@@ -663,12 +664,17 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     { id: "hn-cut", layer: "cut", tmpl: wms(CUTBLOCKS, sld(CUTBLOCKS, CUTS.map(([a, b, c, size]) => [between("HARVEST_MID_YEAR_CALENDAR", YEAR - b, YEAR - a), cutSym(c, size)]))), min: 10, opacity: 1, attr: 'Cut blocks: <a href="https://catalogue.data.gov.bc.ca/dataset/harvested-areas-of-bc-consolidated-cutblocks-">BC consolidated cut blocks</a>' },
     { id: "hn-wet", layer: "wet", tmpl: wms(WETLANDS, sld(WETLANDS, [[`<Not><PropertyIsNull><PropertyName>WATERBODY_TYPE</PropertyName></PropertyIsNull></Not>`, C.wet]])), min: 10, opacity: 0.55, attr: 'Wetlands: <a href="https://www2.gov.bc.ca/gov/content/data/geographic-data-services/topographic-data/freshwater">BC Freshwater Atlas</a>' },
     { id: "hn-abwet", layer: "wet", tmpl: arcgis(WET_SVC, "layers=show%3A3"), min: 13, opacity: 0.6, ab: true, attr: "Wetlands: Alberta Merged Wetland Inventory" },
+    // Crown and private land in the other provinces (crownland.js: each province's own map server)
+    ...(window.tfCrown ? window.tfCrown.SRC.map((s) => ({ id: `hn-cl-${s.id}`, layer: "land", src: s, url: (z, x, y) => window.tfCrown.url(s, z, x, y), min: s.min,
+      opacity: s.kind === "private" ? 0.4 : 0.3, attr: s.attr })) : []),
   ];
   // each province's layers only ask for tiles over that province
   const BOUNDS = { bc: [[48.2, -139.1], [60.01, -114.0]], ab: [[48.99, -120.01], [60.01, -109.99]] };
+  const picBounds = (p) => (p.src ? window.tfCrown.bounds(p.src) : BOUNDS[p.ab ? "ab" : "bc"]);
   // "recolor" layers: the server's picture, each colour swapped for ours (the saved-offline copy is the server's picture too).
   const CLASS_RGB = Object.fromEntries(FOREST.map(([id, c]) => [id, [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]]));
   async function recolorTile(p, z, x, y) {
+    if (p.src) return window.tfCrown.tint(p.src, z, x, y);   // Quebec's public land: one colour
     const r = await fetch(picUrl(p, z, x, y));
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const cv = document.createElement("canvas"); cv.width = cv.height = 256;
@@ -694,7 +700,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     },
   });
   for (const p of PICS) {
-    const opts = { pic: p, pane: "huntTiles", opacity: p.opacity, minZoom: p.min, maxZoom: 20, attribution: p.attr, bounds: BOUNDS[p.ab ? "ab" : "bc"] };
+    if (p.src && p.src.tint) p.recolor = true;
+    const opts = { pic: p, pane: "huntTiles", opacity: p.opacity, minZoom: p.min, maxZoom: 20, attribution: p.attr, bounds: picBounds(p) };
     p.tiles = p.recolor ? new RecolorGrid(opts) : new BoxTiles(p.tmpl, opts);
   }
 
@@ -784,7 +791,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     leh: () => [`<li>${sw(C.leh, "dash")}Limited entry zone</li>`],
     rules: () => [`<li>${sw(C.no, "hatch")}No hunting</li>`, `<li>${sw(C.vary, "soft")}Park: rules vary</li>`, `<li>${sw(C.open, "edge")}Usually open in season (ZEC: register)</li>`,
       `<li>${sw(C.reserve, "edge")}Reserve: ask first</li>`, `<li>${sw(C.town, "soft")}Town: no shooting</li>`, `<li>${sw(C.closure, "dot")}Vehicle closure</li>`],
-    land: () => [`<li>${sw(C.private)}Private land (BC)</li>`, `<li>${sw(GRAZE_COLOR)}Grazing lease (AB): ask</li>`, `<li class="wide">${sw(C.green, "dash")}Alberta Green Area: public forest</li>`],
+    land: () => [`<li>${sw(C.open)}Crown land: public</li>`, `<li>${sw(C.private)}Private land: ask</li>`, `<li>${sw(GRAZE_COLOR)}Grazing lease: ask</li>`, `<li class="wide">${sw(C.green, "dash")}Alberta Green Area: public forest</li>`,
+      `<li class="wide hn-tip">BC and Newfoundland: private land shaded, the rest is mostly Crown. Manitoba: provincial forests only. PEI and the territories: not mapped.</li>`],
     forest: () => [...FOREST.map(([, c, n]) => `<li class="wide">${sw(c)}${esc(n)}</li>`), `<li class="wide hn-tip">Game beds in thick timber and feeds in the rest: hunt the edges between them.</li>`],
     burns: () => [...BURNS.map(([, , gap, n]) => `<li><i style="${burnCss(gap)}"></i>${esc(n)}</li>`), `<li class="wide">Alberta: the last 10 years</li>`],
     reach: () => [...[...REACH].reverse().map(([, c, n]) => `<li class="wide"><i style="background:${c};opacity:.8"></i>${esc(n)}</li>`), `<li class="wide"><i style="background:#fff;border:1px solid #adb5bd"></i>Clear: over 1.5 km from any road</li>`],
@@ -1409,7 +1417,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       const extra = x.k === "mvpr" ? `${x.t ? esc(x.t) + ": " : ""}${esc(x.d || "")}${x.x ? ` Exempt: ${esc(x.x)}.` : ""}${x.mu ? ` (MU ${esc(x.mu)})` : ""}`
         : x.k === "closed" || (x.k === "refuge" && x.d) ? esc(x.d || "") : x.k === "zec" && x.t ? `Rights: ${esc(/chasse et pêche/i.test(x.t) ? "hunting and fishing" : /^chasse/i.test(x.t) ? "hunting" : x.t)}.` : "";
       rules.push(`<li style="border-color:${k.color}"><b>${esc(k.label)}: ${esc(x.n || "")}</b>${extra ? extra + " " : ""}${esc(ruleOf(x, k))}${link}</li>`);
-      if (x.k === "green") continue;
+      if (x.k === "green" || x.k === "provforest") continue;
       const say = k.no ? `${x.k === "reserve" || x.k === "metis" ? "Ask first" : "No hunting"}: ${k.label}` : x.k === "town" ? `No shooting: ${x.n || "town"}` : x.k === "mvpr" ? "No motor vehicles"
         : x.k === "zec" ? `ZEC ${x.n.replace(/^Zec\s+/i, "")}: register` : x.k === "outfit" ? "Outfitter only" : k.label;
       warn.push(`<span class="hn-chip" style="--c:${k.color}">${esc(say)}</span>`);
@@ -1430,13 +1438,19 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     renderNow();
     if (z.some((u) => u.p === "ab") || (!z.length && inAlberta(lat, lon))) liveAlberta(lat, lon, seq);
     else if (z.some((u) => u.p === "bc") || (!z.length && inBC(lat, lon))) liveBC(lat, lon, seq);
-    // Elsewhere (Quebec, Ontario, the east) there's no land owner layer: never guess Crown land on farmland.
+    // Elsewhere: the province's own Crown land map (crownland.js), never a guess of Crown land on farmland.
     else {
       // ZECs, wildlife reserves and wildlife management areas are public land (Crown land), whatever the province.
       const pub = a.find((x) => ["zec", "qcwres", "outfit", "wmaopen", "consres", "wild", "afc"].includes(x.k));
       if (pub) liveOut(seq, [`<li style="border-color:${C.open}"><b>Land: public (${esc(AREA_KINDS[pub.k].label)})</b>Crown land managed for wildlife: see its rules above before you hunt.</li>`], ["Public land", C.open]);
-      else liveOut(seq, [`<li style="border-color:#868e96"><b>Land: owner not known here</b>The app has land owners for BC and Alberta only. In southern Quebec, Ontario and the Maritimes most land is private: ask the owner before you hunt.</li>`], ["Land owner not known", "#868e96"]);
+      else liveCrown(lat, lon, z.find((u) => window.tfCrown && window.tfCrown.has(u.p))?.p || pvHere.find((k) => window.tfCrown && window.tfCrown.has(k)), seq);
     }
+  }
+  const LAND_CHIP = { crown: "Crown land", private: "Private land: ask", lease: "Lease: ask first", public: "Government land" };
+  async function liveCrown(lat, lon, pv, seq) {
+    const x = pv && window.tfCrown ? await window.tfCrown.at(lat, lon, pv).catch(() => null) : null;
+    if (x) liveOut(seq, [`<li style="border-color:${x.c}"><b>Land: ${esc(x.t)}</b>${esc(x.d)}</li>`], LAND_CHIP[x.k] ? [LAND_CHIP[x.k], x.c] : ["Land owner not mapped", x.c]);
+    else liveOut(seq, [`<li style="border-color:#868e96"><b>Land: owner not known here</b>${pv ? "The province's land map didn't answer: try again with signal. " : ""}Where most land is farmland, most of it is private: ask the owner before you hunt.</li>`], ["Land owner not known", "#868e96"]);
   }
   // land: a chip for the summary line (Crown, private, lease).
   const liveOut = (seq, out, land) => {
@@ -1666,10 +1680,11 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     const urls = [...DATA_FILES, ...pvs.flatMap((k) => [...(PV[k].zones ? [`zones-${k}`] : []), `areas-${k}`]), ...pvs.filter((k) => ["qc", "on", "mb"].includes(k)).map((k) => `seasons-${k}`)]
       .map((n) => new URL(`data/hunting/${n}.json`, location.href).href);
     const ab = box[3] > -120.1 && box[0] < 60, bc = box[1] < -114;
+    const boxIn = (b) => box[0] <= b[1][0] && box[2] >= b[0][0] && box[1] <= b[1][1] && box[3] >= b[0][1];
     for (let z = 10; z <= 15; z++) {
       const x0 = tx(box[1], z), x1 = tx(box[3], z), y0 = ty(box[2], z), y1 = ty(box[0], z);
       for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
-        for (const p of PICS) if (layers.includes(p.layer) && z >= p.min && (p.ab ? ab : bc)) urls.push(picUrl(p, z, x, y));
+        for (const p of PICS) if (layers.includes(p.layer) && z >= p.min && (p.src ? boxIn(picBounds(p)) : p.ab ? ab : bc)) urls.push(picUrl(p, z, x, y));
         if ((layers.includes("slope") || layers.includes("aspect")) && z <= 14) urls.push(`${DEM}${z}/${x}/${y}.png`);
       }
     }
@@ -1865,7 +1880,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
         if (on && !gl.getLayer(id)) gl.addLayer({ id, type: "raster", source: id, paint: { "raster-opacity": opacity, "raster-fade-duration": 0 } }, under);
         vis(id, on);
       };
-      for (const p of PICS) raster(p.id, want(p.layer), { type: "raster", tiles: [p.recolor ? `tfhunt://recolor/${p.id}/{z}/{x}/{y}` : p.url ? `tfhunt://pic/${p.id}/{z}/{x}/{y}` : p.tmpl.replace("{bbox}", "{bbox-epsg-3857}")], tileSize: 256, minzoom: Math.max(0, p.min - 1), bounds: ((b) => [b[0][1], b[0][0], b[1][1], b[1][0]])(BOUNDS[p.ab ? "ab" : "bc"]), attribution: p.attr.replace(/<[^>]+>/g, "") }, p.opacity);
+      for (const p of PICS) raster(p.id, want(p.layer), { type: "raster", tiles: [p.recolor ? `tfhunt://recolor/${p.id}/{z}/{x}/{y}` : p.url ? `tfhunt://pic/${p.id}/{z}/{x}/{y}` : p.tmpl.replace("{bbox}", "{bbox-epsg-3857}")], tileSize: 256, minzoom: Math.max(0, p.min - 1), bounds: ((b) => [b[0][1], b[0][0], b[1][1], b[1][0]])(picBounds(p)), attribution: p.attr.replace(/<[^>]+>/g, "") }, p.opacity);
       raster("hn-slope", want("slope"), { type: "raster", tiles: ["tfhunt://slope/{z}/{x}/{y}"], tileSize: 256, minzoom: 8, maxzoom: 14 }, 1);
       raster("hn-aspect", want("aspect"), { type: "raster", tiles: ["tfhunt://aspect/{z}/{x}/{y}"], tileSize: 256, minzoom: 8, maxzoom: 14 }, 1);
       // Rules areas as fills (their outlines come over with the other lines).
