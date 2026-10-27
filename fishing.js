@@ -16,7 +16,7 @@
 //    feeding times, and a 1 to 5 fishing forecast for today and the next two days.
 //  - Hatch chart: what's likely hatching this month in this part of Canada, and flies that match.
 //  - Map layers (in the Layers menu): river gauges, stocked waters, public fishing spots and launches (all of Canada), tide stations, lake depth
-//    (BC), fishing zones.
+//    lines (BC, Ontario, Quebec, Manitoba, New Brunswick soundings), fishing zones.
 // Built data comes from data/fishing/*.json (scripts/build-fishing.mjs, monthly .github/workflows/fishing-data.yml);
 // river readings, tides, weather, Alberta rules and the water at a spot are asked live.
 (() => {
@@ -81,13 +81,14 @@
     pin: '<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
     boat: '<path d="M3 15h18l-3 5H6z"/><path d="M12 4v11M12 4l6 8h-6"/>',
     x: '<path d="M6 6l12 12M18 6 6 18"/>',
+    depth: '<path d="M3 6c3 0 3-2 6-2s3 2 6 2 3-2 6-2"/><path d="M12 9v11M8 16l4 4 4-4"/>',
   };
 
   // ---------- map layers ----------
   const LAYERS = {
     gauges: { g: "Water", label: "River flow gauges", sub: "Live flow, coloured from too low to blown out", on: true, minZoom: 7, icon: [C.ok, "dot"] },
     stocked: { g: "Water", label: "Stocked lakes and rivers", sub: "Pink: stocked in the last 30 days", on: true, minZoom: 6, icon: [C.stocked, "dot"] },
-    depth: { g: "Water", label: "Lake depth lines (BC)", sub: "About 2,600 surveyed lakes", minZoom: 12, icon: [C.depth, "line"] },
+    depth: { g: "Water", label: "Lake depth lines", sub: "Over 8,000 surveyed lakes in BC, Ontario, Quebec and Manitoba, soundings in New Brunswick: zoom in on a lake", minZoom: 12, icon: [C.depth, "line"] },
     hidden: { g: "Access", label: "Hidden spots", sub: "Walk-in stocked lakes and hike-in waters few people fish", on: true, minZoom: 6, icon: [C.hidden, "dot"] },
     access: { g: "Access", label: "Fishing spots", sub: "Public spots, piers and docks all over Canada", on: true, minZoom: 8, icon: [C.access, "dot"] },
     launch: { g: "Access", label: "Boat launches", sub: "Public ramps all over Canada", on: true, minZoom: 8, icon: [C.launch, "dot"] },
@@ -317,12 +318,20 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   // spots, gauges, tides; ~5 MB for all of Canada) and the heights the Route to a spot uses (zoom 12, fish-route.js).
   window.tfFishOffline = (box) => {
     const data = [...["boating", "eat", "fishlist", "gauges", "spots", "stocked", "tidal", "tides", "walkin", "zones", "qcrules", "onrules"].map((n) => `data/fishing/${n}.json`),
-      "data/fishing-hidden.json", "data/fishing-launches.json"].map((u) => new URL(u, location.href).href);
+      "data/fishing-hidden.json", "data/fishing-launches.json", "data/fishing/depth/i.json", ...depthOffline(box)].map((u) => new URL(u, location.href).href);
     const tx = (lon) => Math.floor(((lon + 180) / 360) * 4096), ty = (lat) => Math.floor(((1 - Math.asinh(Math.tan((lat * Math.PI) / 180)) / Math.PI) / 2) * 4096);
     const tiles = [];
     for (let x = tx(box[1]); x <= tx(box[3]); x++) for (let y = ty(box[2]); y <= ty(box[0]); y++) tiles.push(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/12/${x}/${y}.png`);
     return { data, tiles };
   };
+
+  // The lake depth squares in the box (when the depth index is loaded, i.e. the layer was used or a spot card opened).
+  function depthOffline(box) {
+    if (!depthIdx) return [];
+    const out = [];
+    for (let r = Math.floor(box[0] * 4); r <= Math.floor(box[2] * 4); r++) for (let c = Math.floor(box[1] * 4); c <= Math.floor(box[3] * 4); c++) if (depthIdx.t.has(`${r}_${c}`)) out.push(`data/fishing/depth/${r}_${c}.json`);
+    return out.slice(0, 400);
+  }
 
   // The province for links when no zone file covers the spot (rough lines, only to pick which rules to point to).
   function provinceAt(lat, lon, zs) {
@@ -584,7 +593,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   const renderer = L.canvas({ pane: "fish", padding: 0.2 });
   const ptLayer = L.layerGroup(), zoneLayer = L.layerGroup(), spotLayer = L.layerGroup();
   const depthTiles = L.tileLayer.wms(WMS, { layers: "pub:WHSE_FISH.BATH_LAKE_BATHYMETRIC_SP", styles: "", format: "image/png", transparent: true, version: "1.1.1",
-    pane: "fishTiles", minZoom: 12, maxZoom: 19, opacity: 0.85, attribution: "Lake depth: DataBC (OGL-BC)" });
+    pane: "fishTiles", minZoom: 12, maxZoom: 19, opacity: 0.85, bounds: L.latLngBounds([48.2, -139.1], [60, -114]), attribution: "Lake depth: DataBC (OGL-BC)" });
   const allFish = [ptLayer, zoneLayer, spotLayer];
   const pts3d = [];   // the same points for the 3D map
   // A dot with its layer's picture inside (once it's big enough to read), drawn on the same canvas as the plain dots.
@@ -677,9 +686,98 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   }
   map.on("moveend", () => { if (isFish() && (shown.has("zones") || shown.has("areas"))) drawZones(); });
   function syncTiles() {
-    const want = isFish() && shown.has("depth");
+    const want = isFish() && shown.has("depth") && map.getBounds().intersects(depthTiles.options.bounds);   // BC only
     if (want && !map.hasLayer(depthTiles)) depthTiles.addTo(map); else if (!want && map.hasLayer(depthTiles)) map.removeLayer(depthTiles);
+    syncDepth();
   }
+
+  // ---------- lake depth lines outside BC ----------
+  // alex 2026-10-27 "add lake depths across Canada". BC draws from its own map server (depthTiles above). Ontario and
+  // Quebec lines and New Brunswick soundings come from data/fishing/depth/ (scripts/build-lake-depth.py: Ontario's map
+  // server takes a minute per question, Quebec only offers files), one file per 0.25 degree square; Manitoba from the
+  // province's own vector tiles. All drawn by MapLibre (the vector map's library) so the depths can sit along the lines,
+  // in one map made only while the layer is on and you're zoomed in on a place that has some (phones: one GL map less).
+  const MB_DEPTH = "https://tiles.arcgis.com/tiles/mMUesHYPkXjaFGfS/arcgis/rest/services/Manitoba_Waterbody_Contours_VectorTile/VectorTileServer";
+  const MB_BOX = [48.99, -102.1, 60, -88.9];
+  const DEPTH_ZOOM = 12;
+  const DEPTH_ATTR = "Lake depth: Ontario MNR (OGL-Ontario), Québec MELCCFP (CC-BY 4.0), Manitoba, New Brunswick DNRED";
+  let depthIdx = null, depthGL = null, depthMaking = false, depthSeq = 0;
+  const depthSq = new Map();   // square -> features (the last 48 kept)
+  const loadDepthIdx = () => (depthIdx ? Promise.resolve(depthIdx) : load("depth/i").then((j) => {
+    const pre = j.pre || {};
+    for (const x of j.lakes) x[5] = x[5].map((u) => (/^https?:/.test(u) ? u : (pre[x[6]] || "") + u));
+    return (depthIdx = { t: new Set(j.t), lakes: j.lakes });
+  }));
+  const DEPTH_COL = ["interpolate", ["linear"], ["get", "d"], 0, "#5fc4f0", 5, "#2b8fd6", 15, "#1d5fb8", 40, "#173a8a"];
+  const depthStyle = () => ({
+    version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+    sources: {
+      q: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
+      mb: { type: "vector", tiles: [`${MB_DEPTH}/tile/{z}/{y}/{x}.pbf`], minzoom: 0, maxzoom: 16, bounds: [MB_BOX[1], MB_BOX[0], MB_BOX[3], MB_BOX[2]],
+        attribution: "Lake depth: Government of Manitoba" },
+    },
+    layers: [
+      { id: "mb-line", type: "line", source: "mb", "source-layer": "Contours", paint: { "line-color": C.depth, "line-width": 1.1, "line-opacity": 0.85 } },
+      { id: "mb-label", type: "symbol", source: "mb", "source-layer": "Contours/label", filter: ["==", "$type", "Point"],
+        layout: { "text-field": ["concat", ["to-string", ["abs", ["to-number", ["get", "_name"], 0]]], " m"], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-optional": true }, paint: { "text-color": C.depth, "text-halo-color": "#fff", "text-halo-width": 1.6 } },
+      { id: "q-line", type: "line", source: "q", filter: ["==", ["geometry-type"], "LineString"], layout: { "line-join": "round", "line-cap": "round" },
+        paint: { "line-color": DEPTH_COL, "line-width": ["interpolate", ["linear"], ["zoom"], 12, 0.9, 16, 1.6], "line-opacity": 0.9 } },
+      { id: "q-label", type: "symbol", source: "q", filter: ["all", ["==", ["geometry-type"], "LineString"], [">", ["get", "d"], 0]], minzoom: 13,
+        layout: { "symbol-placement": "line", "symbol-spacing": 280, "text-field": ["concat", ["to-string", ["get", "d"]], " m"], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-max-angle": 30 },
+        paint: { "text-color": "#173a8a", "text-halo-color": "#fff", "text-halo-width": 1.6 } },
+      { id: "q-pt", type: "circle", source: "q", filter: ["==", ["geometry-type"], "Point"], minzoom: 13, paint: { "circle-radius": 1.6, "circle-color": DEPTH_COL } },
+      { id: "q-ptlabel", type: "symbol", source: "q", filter: ["==", ["geometry-type"], "Point"], minzoom: 14,
+        layout: { "text-field": ["to-string", ["get", "d"]], "text-font": ["Noto Sans Bold"], "text-size": 10, "text-offset": [0, -0.8], "text-padding": 1 },
+        paint: { "text-color": "#173a8a", "text-halo-color": "#fff", "text-halo-width": 1.4 } },
+    ],
+  });
+  function depthSquares() {
+    const b = map.getBounds(), out = [];
+    for (let r = Math.floor(b.getSouth() * 4); r <= Math.floor(b.getNorth() * 4); r++) for (let c = Math.floor(b.getWest() * 4); c <= Math.floor(b.getEast() * 4); c++) out.push(`${r}_${c}`);
+    return out.length > 40 ? [] : out;
+  }
+  function decodeSquare(j) {
+    const f = [];
+    for (const [d, g] of j.l || []) {   // Google's encoded polyline, lon then lat (scripts/build-lake-depth.py)
+      const co = [];
+      let x = 0, y = 0, i = 0;
+      const num = () => { let r = 0, sh = 0, b; do { b = g.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32); return r & 1 ? ~(r >> 1) : r >> 1; };
+      while (i < g.length) { x += num(); y += num(); co.push([x / 1e5, y / 1e5]); }
+      f.push({ type: "Feature", properties: { d }, geometry: { type: "LineString", coordinates: co } });
+    }
+    for (const [d, x, y] of j.p || []) f.push({ type: "Feature", properties: { d }, geometry: { type: "Point", coordinates: [x / 1e5, y / 1e5] } });
+    return f;
+  }
+  const getSquare = (k) => {
+    if (depthSq.has(k)) { const v = depthSq.get(k); depthSq.delete(k); depthSq.set(k, v); return v; }
+    const p = fetch(`data/fishing/depth/${k}.json`).then((r) => (r.ok ? r.json() : {})).then(decodeSquare).catch(() => { depthSq.delete(k); return []; });
+    depthSq.set(k, p);
+    while (depthSq.size > 48) depthSq.delete(depthSq.keys().next().value);
+    return p;
+  };
+  async function syncDepth() {
+    const seq = ++depthSeq;
+    const on = isFish() && shown.has("depth") && map.getZoom() >= DEPTH_ZOOM;
+    const idx = on ? await loadDepthIdx().catch(() => null) : null;
+    if (seq !== depthSeq) return;
+    const sq = idx ? depthSquares().filter((k) => idx.t.has(k)) : [];
+    const b = map.getBounds(), mb = b.getNorth() > MB_BOX[0] && b.getSouth() < MB_BOX[2] && b.getEast() > MB_BOX[1] && b.getWest() < MB_BOX[3];
+    if (!on || (!sq.length && !mb)) { if (depthGL) { map.removeLayer(depthGL); depthGL = null; map.attributionControl?.removeAttribution(DEPTH_ATTR); } return; }
+    if (!depthGL) {
+      if (depthMaking) return;
+      depthMaking = true;
+      try { await window.tfLoadVectorLib(); } catch { return; } finally { depthMaking = false; }
+      if (seq !== depthSeq || depthGL) return syncDepth();
+      depthGL = L.maplibreGL({ pane: "fishTiles", interactive: false, attributionControl: false, style: depthStyle() }).addTo(map);
+      map.attributionControl?.addAttribution(DEPTH_ATTR);
+    }
+    const feats = (await Promise.all(sq.map(getSquare))).flat();
+    if (seq !== depthSeq || !depthGL) return;
+    const gl = depthGL.getMaplibreMap && depthGL.getMaplibreMap();
+    const put = () => { const s = gl && gl.getSource("q"); if (s) s.setData({ type: "FeatureCollection", features: feats }); };
+    if (gl && gl.isStyleLoaded()) put(); else if (gl) gl.once("load", put);
+  }
+  map.on("moveend", () => { if (isFish() && shown.has("depth")) syncTiles(); });
 
   // ---------- layer list ----------
   const badge = (k, size = 16) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${GLYPH[k]}"/></svg>`;
@@ -827,7 +925,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const el = $("fsSpot"), seq = ++spotSeq;
     el.hidden = false;
     el.innerHTML = `<header>${svg(IC.pin)}<h3 id="fsSpotName">${esc(title || "This spot")}</h3>${routeBtn(lat, lon)}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div>
-      <div id="fsHidden"></div><div id="fsWater"><p class="fs-note fs-look">Looking up this spot…</p></div><div id="fsBait"></div>
+      <div id="fsHidden"></div><div id="fsWater"><p class="fs-note fs-look">Looking up this spot…</p></div><div id="fsDepth"></div><div id="fsBait"></div>
       <div id="fsSea"></div><div id="fsSeason"></div><div id="fsRules"></div><div id="fsLic"></div><div id="fsBoat"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsAcc"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
     cardInView(el);
@@ -864,6 +962,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       if (w && w.name && !title) $("fsSpotName").textContent = w.name;
       if (w && w.name) boat.name = w.name;
       fill("fsWater", w ? secFish(w.html) : "");
+      depthHtml(lat, lon, w).then((h) => fill("fsDepth", h)).catch(() => {});
       if (!w) $("fsSpot").classList.add("fs-nowater");
       if (w && w.rules) fill("fsRules", fold("rules", IC.rules, "Rules", "This water has its own rules", unhead(w.rules) + unhead(rulesHtml(lat, lon, here, prov)), true));
       if (w && w.rules) boat.extra.push({ t: w.rules.replace(/<[^>]+>/g, ". ").replace(/&amp;/g, "&"), src: "the water's fishing rules" });
@@ -877,6 +976,27 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       });
     });
   }
+
+  // ---------- depth chart (alex 2026-10-27 "add lake depths across Canada") ----------
+  // The lake's own depth map where the province publishes one: Quebec's PDF maps (with the deepest point surveyed),
+  // Ontario's scanned historic charts and Saskatchewan's scanned maps (data/fishing/depth/i.json), and a button that
+  // turns on the depth lines for this lake.
+  const PROV_DEPTH = { qc: "Quebec's lake bathymetry geobase (Ministère de l'Environnement)", on: "Ontario's historic bathymetry maps (MNR)", sk: "Saskatchewan's bathymetric maps (Fisheries Branch)" };
+  async function depthHtml(lat, lon, w) {
+    const idx = await loadDepthIdx().catch(() => null);
+    const lake = idx && idx.lakes.map((x) => [x, km(lat, lon, x[0], x[1])]).filter(([x, d]) => d < x[2] + 0.2).sort((a, b) => a[1] - b[1])[0];
+    const lines = shown.has("depth") ? "" : `<p><button type="button" class="fs-depthon" data-ll="${lat},${lon}">${svg(IC.layers, 14)}Show depth lines on the map</button></p>`;
+    if (!lake) return lines && w && /lake/i.test(w.kind || "lake") && !w.listOnly ? fold("depth", IC.depth, "Depth", "Depth lines", `${lines}<p class="fs-note">Lines show where a province surveyed the lake (BC, Ontario, Quebec, Manitoba; New Brunswick soundings).</p>`) : "";
+    const [[, , , name, deep, links, prov]] = lake;
+    const a = links.map((u, i) => `<a href="${esc(u)}" target="_blank" rel="noopener">${/\.pdf$/i.test(u) ? "Depth map (PDF)" : `Depth chart${links.length > 1 ? ` ${i + 1}` : ""} (scan)`}</a>`).join(" · ");
+    const sum = [deep != null ? `up to ${deep} m` : "", links.length ? "depth map" : ""].filter(Boolean).join(" · ");
+    return fold("depth", IC.depth, "Depth", esc(sum), `<p><b>${esc(name || "This lake")}</b>${deep != null ? `: deepest point surveyed ${esc(deep)} m` : ""}</p>${a ? `<p>${a}</p>` : ""}${lines}<p class="fs-note">From ${esc(PROV_DEPTH[prov] || "the province")}. Old surveys: water levels and shorelines may have changed. Not for navigation.</p>`);
+  }
+  $("fsSpot").addEventListener("click", (e) => {
+    const b = e.target.closest(".fs-depthon"); if (!b) return;
+    shown.add("depth"); applyLayers(); b.remove();
+    if (map.getZoom() < 14) map.setView(b.dataset.ll.split(",").map(Number), 14);
+  });
 
   // ---------- in the sea here (alex: "ocean spots: the fish you can catch and the openings and closures by area") ----------
   // BC: data/fishing/tidal.json, read every night from Fisheries and Oceans Canada's page for each Pacific Fishery
