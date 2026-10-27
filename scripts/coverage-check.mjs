@@ -52,6 +52,12 @@ export const SPOTS = [
 // Which provinces the app has each thing for (from the code, not data files): logging areas (index.html: BC and Alberta
 // open data, Quebec's MFFP WMS), hunting seasons (hunting.js seasons-<pv>), fishing rules by zone (fishing.js zones + rules).
 const LOGGING = new Set(["bc", "ab", "qc"]);
+// The provincial air photos the app uses where Esri has none (index.html LOCAL_PHOTOS), by province.
+const mercBox = (z, x, y) => { const R = 20037508.342789244, n = 2 ** z; return [x / n * 2 * R - R, R - (y + 1) / n * 2 * R, (x + 1) / n * 2 * R - R, R - y / n * 2 * R]; };
+const LOCAL_PHOTOS = {
+  qc: (z, x, y) => `https://servicesmatriciels.mern.gouv.qc.ca/erdas-iws/ogc/wmts/Imagerie_Continue/Imagerie_GQ/default/GoogleMapsCompatibleExt2:epsg:3857/${z}/${y}/${x}.jpg`,
+  nb: (z, x, y) => `https://geonb.snb.ca/arcgis/rest/services/GeoNB_Basemap_Imagery/MapServer/export?bbox=${mercBox(z, x, y).map((v) => v.toFixed(2))}&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&f=image`,
+};
 const HUNT_SEASONS = new Set(["bc", "ab", "qc", "on", "mb"]);
 const FISH_RULES = new Set(["bc", "ab", "qc", "on"]);
 
@@ -202,6 +208,11 @@ const CHECKS = [
     for (let z = 22; z >= 12 && !deep; z--) {
       const j = await get(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tilemap/${z}/${tileY(s.lat, z)}/${tileX(s.lon, z)}/1/1`);
       if (j && j.data && j.data[0]) deep = z;
+    }
+    // Where Esri has no air photo (zoom 20), the app shows Quebec's or New Brunswick's own (index.html, tfLocalPhoto).
+    if (deep < 20 && LOCAL_PHOTOS[s.pv]) {
+      const z = 20, buf = await get(LOCAL_PHOTOS[s.pv](z, tileX(s.lon, z), tileY(s.lat, z)), "bytes");
+      if (buf && buf.byteLength > 3000) deep = Math.max(deep, base || 21);
     }
     const m = Math.round(40075000 * Math.cos((s.lat * Math.PI) / 180) / 2 ** (deep + 8) * 100) / 100;
     return vsBase(deep, base, 1, `zoom (${m} m a pixel)`, "no photo");
