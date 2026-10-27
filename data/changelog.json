@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-27", "text": "Skiing: tapping a 📷 webcam pin opens the live camera again, on the flat and 3D map, even where it sits on a lift."},
     {"date": "2026-10-27", "text": "Skiing 3D on phones: the Winter photos fill in about twice as fast after you move, and close-ups at the newer ski areas across Canada now show the winter photo instead of a blurry summer one."},
     {"date": "2026-10-26", "text": "iPhone: pop-up cards no longer hide their ✕ under the clock."},
     {"date": "2026-10-26", "text": "Ski heatmap now covers the backcountry across Canada (about 650 touring areas), leaves out the resorts, and counts November and May tours in the alpine."},
