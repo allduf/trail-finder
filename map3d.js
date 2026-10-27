@@ -612,16 +612,21 @@
   // from Mapterhorn's 2 m lidar and Esri's sharp photo (see winter-hd.js). Drawn by workers, so the page stays free
   // to move the map and load its terrain, and drawn as a layer over the plain Winter photos, which show right away
   // and sharpen as these arrive (alex, 2026-10-19: "that map is long to load", "try to not compromize the resolution").
-  // Computers only. Phones had them for an hour on 2026-10-26 (2 workers, fewer parent photos, drawn once the map
-  // was still): Skiing 3D at Blackcomb still ran the iPhone out of memory, and in a phone test the mountains' heights
-  // took over 12 s to arrive with them, against a few seconds without (alex's recording: "it keep doing that,
-  // jumping back to 2d map"). PHONE_HD_CACHE stays for a later, lighter try.
+  // Phones too since 2026-10-27 (alex picked "summer photos made wintry" from the side-by-side). A first try on
+  // 2026-10-26 ran the iPhone out of memory at Blackcomb and held the mountains' heights back over 12 s; since then
+  // the flat map rests under 3D (~290 MB back) and the hidden fill layer stopped downloading. On phones they're
+  // also gentler: 2 workers with few parent photos, 256 px tiles (a quarter as many; the 1024 px phone buffers
+  // couldn't show more detail anyway), only once the heights in view are all in and the map is still, and at most
+  // PHONE_HD_SLOTS drawn at once, newest first, so they never crowd the terrain and Winter downloads.
   const PHONE_HD_CACHE = 24;   // parent photos kept per worker on phones (computers 160); up to ~1 MB each
+  const PHONE_HD_SLOTS = 4;    // close-ups being drawn at once on phones (each downloads 1-4 photos)
+  const hdBusy = new Set();     // ids of the close-ups being drawn (phones)
+  const hdQueue = [];
   let hdWorkers = null, hdNext = 0, hdId = 0;
   const hdWaiting = new Map();
   const terrainReady = () => new Promise((ok) => {
     const done = () => { if (!gl || !gl.getSource("dem") || gl.isSourceLoaded("dem")) { clearTimeout(t); if (gl) gl.off("sourcedata", done); ok(); } };
-    const t = setTimeout(() => { if (gl) gl.off("sourcedata", done); ok(); }, 3000);
+    const t = setTimeout(() => { if (gl) gl.off("sourcedata", done); ok(); }, PHONE ? 15000 : 3000);
     if (gl) gl.on("sourcedata", done);
     done();
   });
@@ -651,13 +656,30 @@
       hdWaiting.set(id, { ok, no });
       abort.signal.addEventListener("abort", () => {   // scrolled away before it was drawn
         if (!hdWaiting.delete(id)) return;
+        hdFree(id);
         w.postMessage({ cancel: id }); no(new DOMException("aborted", "AbortError"));
       });
-      // The terrain first: these wait until the ground in view has its heights (at most 3 s), so they don't
+      // The terrain first: these wait until the ground in view has its heights (at most 3 s, 15 on phones), so they don't
       // hold up the mountains, then sharpen the photos already showing. On phones they also wait for the map to
       // stop moving: the ones scrolled past meanwhile are dropped without being drawn.
-      terrainReady().then(mapStill).then(() => { if (hdWaiting.has(id)) w.postMessage({ id, z, x, y, base: location.href }); });
+      const send = () => { if (hdWaiting.has(id)) w.postMessage({ id, z, x, y, base: location.href }); };
+      if (!PHONE) return terrainReady().then(send);
+      if (hdQueue.length > 64) hdQueue.splice(0, hdQueue.length, ...hdQueue.filter((j) => hdWaiting.has(j.id)));
+      hdQueue.push({ id, go: () => terrainReady().then(mapStill).then(() => hdWaiting.has(id) ? (send(), true) : false) });
+      hdPump();
     });
+    // Phones: start the newest waiting close-ups (the view now) while fewer than PHONE_HD_SLOTS are being drawn.
+    const hdPump = () => {
+      while (hdBusy.size < PHONE_HD_SLOTS && hdQueue.length) {
+        const job = hdQueue.pop();
+        if (!hdWaiting.has(job.id)) continue;   // scrolled away while waiting
+        hdBusy.add(job.id);
+        const job0 = hdWaiting.get(job.id);
+        hdWaiting.set(job.id, { ok: (v) => { hdFree(job.id); job0.ok(v); }, no: (e) => { hdFree(job.id); job0.no(e); } });
+        job.go().then((sent) => { if (!sent) hdFree(job.id); });
+      }
+    };
+    const hdFree = (id) => { if (hdBusy.delete(id)) hdPump(); };
   }
 
   // ---------- phone memory ----------
@@ -775,7 +797,7 @@
     addWinterProtocol();
     addWinterPhotoProtocol();
     addSatProtocol();
-    if (!PHONE) addWinterHdProtocol();
+    addWinterHdProtocol();
     // Photo tiles downloaded at once: 16 by default. Ours come from several sites over HTTP/2 and each is small, so
     // 32 at once fills the ground after a move about twice as fast (phone test, 2026-10-27).
     try { maplibregl.setMaxParallelImageRequests(32); } catch {}
@@ -797,8 +819,8 @@
           // fast; the same zoom-14 photo right up close, so it looks the same (side-by-side phone test, 2026-10-27).
           winter: { type: "raster", tileSize: PHONE ? 256 : PHOTO_TILE, minzoom: 6, maxzoom: 14, bounds: WINTER_BOUNDS, tiles: ["tfwinterphoto://{z}/{x}/{y}"],
             attribution: "Winter: Copernicus Sentinel-2 data 2026 (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>" },
-          // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above). Not on phones.
-          ...(PHONE ? {} : { winterhd: { type: "raster", tileSize: 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] } }),
+          // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above).
+          winterhd: { type: "raster", tileSize: PHONE ? 256 : 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] },
           live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           // Under the Winter photos instead of the summer ones: today's snow wherever last winter's photos don't reach.
@@ -823,7 +845,7 @@
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
           { id: "fill", type: "raster", source: "fill", layout: { visibility: "none" } },
           { id: "winter", type: "raster", source: "winter", layout: { visibility: "none" } },
-          ...(PHONE ? [] : [{ id: "winterhd", type: "raster", source: "winterhd", layout: { visibility: "none" }, paint: { "raster-fade-duration": 200 } }]),
+          { id: "winterhd", type: "raster", source: "winterhd", layout: { visibility: "none" }, paint: { "raster-fade-duration": 200 } },
           { id: "live", type: "raster", source: "live", layout: { visibility: "none" } },
           // Soft sun and shadow on the slopes, so white mountains still read in winter.
           { id: "shade", type: "hillshade", source: "shade", layout: { visibility: "none" },
