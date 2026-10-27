@@ -438,18 +438,11 @@
     winterProtocol = true;
     photoProtocol("tfwinter", async (params, abort) => {
       const [mode, zs, xs, ys] = params.url.replace("tfwinter://", "").split("/"), z = +zs, x = +xs, y = +ys, sig = abort.signal;
-      // Last winter's photos cover it: far out, the plain photo will do (it only shows through their see-through edges).
-      if (mode === "fill" && covered(await loadWinterBlocks(), z, x, y)) {
-        // Inside the squares Winter has a full photo at every zoom from 11 (missing ones are enlarged from the one
-        // above), so nothing under it shows: no download at all. In Skiing at Whistler these were ~210 tiles a view,
-        // twice the Winter photos, queued in the same line, so after a move only ~20% of the Winter photos had
-        // arrived 3 s later (phone test, 2026-10-27).
-        // Except where last winter's photo has holes: pixels cloudy on every pass are see-through, and with nothing
-        // under them the ground showed the blue sky through jagged holes, like broken mountains (alex at Grouse,
-        // 2026-10-27; about 1 Winter tile in 6 has some, most around Vancouver, Revelstoke and Kicking Horse).
-        if (z < 11 || await winterHoles(z, x, y)) return { data: await photoBytes(z, x, y, sig) };
-        return noTile();
-      }
+      // Inside last winter's photos nothing under them shows: no download at all. They come with their cloudy holes
+      // already filled (winter-fill.js), so the ground is whole. Under the Winter photos these were ~210 tiles a view
+      // at Whistler, twice the Winter photos, in the same download line, and each was painted with snow on the page:
+      // the Winter photos arrived late and the map lagged (phone tests and alex, 2026-10-27).
+      if (mode === "fill" && covered(await loadWinterBlocks(), z, x, y)) return noTile();
       const [raw, live] = await Promise.all([
         photoBytes(z, x, y, sig),
         under(Math.min(z, 8), z, x, y, (a, b, c) => cached(`s${a}/${b}/${c}`, () => image(NASA_SNOW(a, b, c), new AbortController().signal).then(pixels))).catch(() => null)]);
@@ -583,19 +576,32 @@
     winterPhotoProtocol = true;
     photoProtocol("tfwinterphoto", async (params, abort) => {
       const [z, x, y] = params.url.replace("tfwinterphoto://", "").split("/").map(Number);
-      if (!anyWinter(await loadWinterBlocks(), z, x, y)) return noTile();
-      // Inside the squares, a missing tile comes from the one above it, enlarged.
-      if (z > 11 && no14(z, x, y)) return winterUp(z, x, y, abort.signal);
-      const r = await fetch(`${WINTER}${z}/${x}/${y}.webp`, { signal: abort.signal }).catch((e) => { if (abort.signal.aborted) return null; throw e; });
-      if (!r) return noTile();   // scrolled away before it came
-      if (r.status === 404) {
-        if (z === 14) { const b = (x >> 3) + "/" + (y >> 3); missing14.set(b, (missing14.get(b) || 0) + 1); }
-        return z > 11 ? winterUp(z, x, y, abort.signal) : noTile();
-      }
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return { data: await r.arrayBuffer() };
+      const have = await loadWinterBlocks();
+      if (!anyWinter(have, z, x, y)) return noTile();
+      const m = await fillTile(z, x, y, covered(have, z, x, y), abort).catch((e) => { if (abort.signal.aborted) throw e; return { none: true }; });
+      if (m.miss14) { const b = (x >> 3) + "/" + (y >> 3); missing14.set(b, (missing14.get(b) || 0) + 1); }
+      if (m.data) return { data: m.data };
+      // No winter photo here after all, or it couldn't be read: the summer photo rather than a hole to the sky.
+      return covered(have, z, x, y) ? { data: await photoBytes(z, x, y, abort.signal) } : noTile();
     });
   }
+  // Workers that fetch the Winter photos and fill their cloudy holes (winter-fill.js), off the page.
+  let fillWorkers = null, fillNext = 0, fillId = 0;
+  const fillWaiting = new Map();
+  const fillTile = (z, x, y, whole, abort) => new Promise((ok, no) => {
+    if (!fillWorkers) fillWorkers = [0, 1].map(() => {
+      const w = new Worker("winter-fill.js?v=535");
+      w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return; fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
+      return w;
+    });
+    const id = ++fillId, w = fillWorkers[fillNext++ % fillWorkers.length];
+    fillWaiting.set(id, { ok, no });
+    abort.signal.addEventListener("abort", () => {   // scrolled away before it came
+      if (!fillWaiting.delete(id)) return;
+      w.postMessage({ cancel: id }); no(new DOMException("aborted", "AbortError"));
+    });
+    w.postMessage({ id, z, x, y, base: location.href, skip: no14(z, x, y), whole });
+  });
   // Since 2026-10-26 the newer squares (ski hills and tours across Canada) stop at zoom 13 to fit the site, and a few
   // tiles are missing where every pass was cloudy. Those came back see-through, so up close the hidden layer under
   // Winter showed instead: a blurry summer photo, or nothing while it loaded (alex's recording 2026-10-27). Now the
@@ -603,16 +609,6 @@
   // rest of that square isn't asked for.
   const missing14 = new Map();
   const no14 = (z, x, y) => z === 14 && (missing14.get((x >> 3) + "/" + (y >> 3)) || 0) >= 3;
-  const winterPic = (z, x, y) => cached(`w${z}/${x}/${y}`, async () => {
-    const r = await fetch(`${WINTER}${z}/${x}/${y}.webp`);
-    if (r.ok) return createImageBitmap(await r.blob());
-    if (r.status !== 404 || z <= 11) throw new Error(`HTTP ${r.status}`);
-    const [img, sx, sy, size] = await under(z - 1, z, x, y, winterPic);
-    const cv = new OffscreenCanvas(256, 256), cx = cv.getContext("2d");
-    cx.imageSmoothingQuality = "high";
-    cx.drawImage(img, sx, sy, size, size, 0, 0, 256, 256);
-    return cv.transferToImageBitmap();
-  });
   // Offline maps (offline.js) with "3D map" ticked: the heights for a box (Mapterhorn, zoom 6 to SAVED_DEM_Z, ~100 KB
   // a tile) and, in Skiing, last winter's photos there (zoom 6 to 14, only where they exist, ~6 KB a tile). sw.js
   // answers both from the saved copy. Esri's photos (Summer, Live) can't be saved: offline the ground is the saved map.
@@ -631,46 +627,6 @@
       }
     }
     return { data, tiles, heights: tiles.length - photos, photos };
-  };
-  async function winterUp(z, x, y, signal) {
-    const [img, sx, sy, size] = await under(z - 1, z, x, y, winterPic).catch(() => [null]);
-    if (signal.aborted) throw new DOMException("aborted", "AbortError");
-    if (!img) return noTile();
-    const cv = new OffscreenCanvas(256, 256), cx = cv.getContext("2d");
-    cx.imageSmoothingQuality = "high";
-    cx.drawImage(img, sx, sy, size, size, 0, 0, 256, 256);
-    return { data: cv.transferToImageBitmap() };
-  }
-  // Does the Winter photo over tile z/x/y have see-through pixels there? Asked of the Winter tile the map shows at
-  // the same spot (one zoom less on phones, where Winter tiles are 256 px), which is usually downloaded already;
-  // a missing one is answered by the tile above it, like winterUp. Only the yes / no is kept, per fill tile.
-  const holes = new Map();
-  const winterHoles = (z, x, y) => {
-    const wz = Math.min(14, PHONE ? z - 1 : z), key = `${z}/${x}/${y}`;
-    const part = (pz, run) => { const n = 1 << (z - pz), s = 256 / n; return run(pz, x >> (z - pz), y >> (z - pz), (x % n) * s, (y % n) * s, s); };
-    if (!holes.has(key)) {
-      if (holes.size > 3000) holes.delete(holes.keys().next().value);
-      const look = async (pz) => {
-        const r = await fetch(`${WINTER}${pz}/${x >> (z - pz)}/${y >> (z - pz)}.webp`);
-        if (r.status === 404 && pz > 11) return look(pz - 1);
-        if (!r.ok) return null;   // can't tell: the photo under is drawn, so no hole either way
-        const img = await createImageBitmap(await r.blob()), px = pixels(img);
-        img.close();
-        return [pz, px];
-      };
-      holes.set(key, look(wz).then((got) => {
-        if (!got) return true;
-        const [pz, px] = got, W = px.width, D = px.data;
-        return part(pz, (a, b, c, l, t, s) => {
-          // Whole pixels of this part of the tile, one more around it (the photo is smoothed when drawn).
-          const f = W / 256, x0 = Math.max(0, Math.floor(l * f) - 1), y0 = Math.max(0, Math.floor(t * f) - 1);
-          const x1 = Math.min(W, Math.ceil((l + s) * f) + 1), y1 = Math.min(px.height, Math.ceil((t + s) * f) + 1);
-          for (let j = y0; j < y1; j++) for (let i = x0; i < x1; i++) if (D[(j * W + i) * 4 + 3] < 250) return true;
-          return false;
-        });
-      }).catch(() => { holes.delete(key); return true; }));
-    }
-    return holes.get(key);
   };
   // Is tile z/x/y all inside the zoom-11 squares that have winter photos?
   const covered = (have, z, x, y) => {
@@ -960,6 +916,9 @@
         layers: [
           // No signal: the ground from the saved map (offline.js saves OpenFreeMap's tiles) under the trails, as
           // woods, open ground, rock, ice and water with the hills shaded, where the photos can't come (offGround).
+          // Winter: plain snow-grey ground under the photos, so a spot whose photo is still on its way looks like
+          // snow, not a hole to the blue sky (alex, 2026-10-27).
+          { id: "ground", type: "background", layout: { visibility: "none" }, paint: { "background-color": "#cdd5dc" } },
           { id: "off-bg", type: "background", layout: { visibility: "none" }, paint: { "background-color": "#dfe5d2" } },
           { id: "off-land", type: "fill", source: "names", "source-layer": "landcover", layout: { visibility: "none" },
             paint: { "fill-color": ["match", ["get", "class"], "wood", "#a7c496", "grass", "#d4e3b5", "rock", "#d3cfc6", "ice", "#f3f7fa", "sand", "#ece2c3", "wetland", "#c2dacb", "farmland", "#e3e6c3", "#d6e0c4"] } },
@@ -1070,6 +1029,7 @@
       const w = photos === "winter" || photos === "live";
       gl.setLayoutProperty("sat", "visibility", photos === "sharp" ? "visible" : "none");
       gl.setLayoutProperty("fill", "visibility", photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
+      gl.setLayoutProperty("ground", "visibility", photos === "winter" ? "visible" : "none");
       for (const id of ["winter", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
       gl.setLayoutProperty("live", "visibility", photos === "live" ? "visible" : "none");
       sumBtn.title = "Sharp photos, taken in summer where Esri has one";
@@ -1115,7 +1075,7 @@
     const tileTries = new Map();
     gl.on("idle", () => {
       if (!navigator.onLine) return;
-      for (const id of ["sat", "fill", "live"]) {
+      for (const id of ["sat", "fill", "winter", "live"]) {
         const m = gl.style?.tileManagers?.[id], tiles = m?._inViewTiles;
         if (!tiles || typeof m._reloadTile !== "function") continue;
         for (const t of tiles.getAllIds()) {
