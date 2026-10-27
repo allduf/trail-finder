@@ -51,7 +51,8 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream" }).end(body);
   } catch {
     try {
-      const r = await fetch(LIVE + path);
+      // Last winter's photos (Skiing 3D) are their own site, next to this one.
+      const r = await fetch(path.startsWith("trail-finder-winter/") ? new URL("../" + path, LIVE) : LIVE + path);
       res.writeHead(r.status, { "content-type": r.headers.get("content-type") || "application/octet-stream" }).end(Buffer.from(await r.arrayBuffer()));
     } catch { res.writeHead(502).end(); }
   }
@@ -156,9 +157,34 @@ for (const sport of SPORTS) {
     await step(p, sport, on ? "3D map off" : "3D map", () => tap(page, "#btn3d"), on ? 3000 : 8000);
     await step(p, sport, on ? "3D map back on" : "3D map off", () => tap(page, "#btn3d"), on ? 8000 : 3000);
   } else results.push({ sport, step: "3D button", ok: false, note: "the 3D button isn't showing", shot: "" });
+  if (sport === "ski") await groundWhole(p);
 
   console.log(`    (cut off, as planned: ${[...p.blocked].sort().join(", ") || "nothing"})`);
   await p.ctx.close();
+}
+
+// Skiing 3D, Winter, at Kicking Horse's base, where last winter's photos have big cloudy holes (83% of one tile): the
+// ground must be whole, never the blue sky showing through (alex's "broken mountains", 2026-10-27). Counts the
+// screen pixels of the 3D map's sky colour (#9fb3c8) below the horizon.
+async function groundWhole(p) {
+  const { page } = p;
+  await step(p, "ski", "3D ground has no holes (Kicking Horse)", async () => {
+    const ok = await page.evaluate(() => !!(window.trailMap3d && document.querySelector("#btn3d.on")));
+    if (!ok) throw new Error("the 3D map isn't on");
+    await page.evaluate(() => window.trailMap3d.jumpTo({ center: [-117.06, 51.295], zoom: 13.5, pitch: 60, bearing: 260 }));
+    await wait(25_000);
+    const shot = (await page.screenshot()).toString("base64");
+    const sky = await page.evaluate(async (b64) => {
+      const img = await createImageBitmap(await (await fetch("data:image/png;base64," + b64)).blob());
+      const cv = new OffscreenCanvas(img.width, img.height), cx = cv.getContext("2d");
+      cx.drawImage(img, 0, 0);
+      const y0 = Math.round(img.height * 0.3), y1 = Math.round(img.height * 0.65), d = cx.getImageData(0, y0, img.width, y1 - y0).data;
+      let n = 0;
+      for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 159) < 9 && Math.abs(d[i + 1] - 179) < 9 && Math.abs(d[i + 2] - 200) < 9) n++;
+      return n / (d.length / 4);
+    }, shot);
+    if (sky > 0.015) throw new Error(`${Math.round(sky * 100)}% of the ground shows the sky through holes`);
+  }, 0);
 }
 
 // The ride page (My rides, recording) on its own.
