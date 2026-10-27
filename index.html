@@ -1580,14 +1580,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=527"></script>
-<script src="native.js?v=527"></script>
-<script src="keyboard.js?v=527"></script>
-<script src="rotate.js?v=527"></script>
-<script src="official.js?v=527"></script>
-<script src="directions.js?v=527"></script>
-<script src="ratings.js?v=527"></script>
-<script src="ebike.js?v=527"></script>
+<script src="welcome.js?v=529"></script>
+<script src="native.js?v=529"></script>
+<script src="keyboard.js?v=529"></script>
+<script src="rotate.js?v=529"></script>
+<script src="official.js?v=529"></script>
+<script src="directions.js?v=529"></script>
+<script src="ratings.js?v=529"></script>
+<script src="ebike.js?v=529"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3930,7 +3930,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=527").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=529").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -4965,7 +4965,7 @@ out body;`;
   // On phones the map fills the screen and the panel is a sheet over it. Drag the handle or the
   // header (or the list, when it's scrolled to the top) between peek, half and full height.
   const phoneMQ = matchMedia("(max-width: 760px)");
-  const sheet = { h: 0, snap: "peek" };
+  const sheet = { h: 0, snap: "peek", mini: false };   // mini: the map's sheet slid down to just its search bar
   const appEl = document.querySelector(".app"), panelEl = $("panel");
   const safeTop = () => parseFloat(getComputedStyle(document.querySelector(".map-tools")).top) || 10;
   const navH = () => $("tabbar").offsetHeight;
@@ -4975,7 +4975,9 @@ out body;`;
     const peek = brand ? Math.round(brand.offsetTop + brand.offsetHeight) : 130;
     const full = Math.round(window.innerHeight - navH() - safeTop() - 52);     // the map chip row stays visible
     const half = Math.round(Math.min(full, Math.max(peek + 120, (window.innerHeight - navH()) * 0.5)));
-    return { peek: Math.min(peek, half), half, full };
+    // slid down: only the handle and the search bar (alex, 2026-10-27)
+    const b = panelEl.querySelector(".brand"), mini = Math.min(peek, b && b.offsetHeight ? Math.round(b.offsetTop + b.offsetHeight) : peek);
+    return { peek: Math.min(sheet.mini && canMini() ? mini : peek, half), peekFull: Math.min(peek, half), mini, half, full };
   }
   function setSheetH(h, snap) {
     sheet.h = h;
@@ -4987,8 +4989,11 @@ out body;`;
     $("sheetToggle").setAttribute("aria-label", sheet.snap === "full" ? "Shrink the panel" : "Expand the panel");
     syncTabbar();
   }
+  // only the plain map's sheet slides down past its peek (a page or a trail's details keep their title in view)
+  const canMini = () => !navStack.length && !panelEl.classList.contains("detail-open");
   function snapTo(name) {
     if (!phoneMQ.matches) return;
+    if (name !== "peek") sheet.mini = false;
     if (name === "peek") panelEl.scrollTop = 0;
     setSheetH(snapHeights()[name], name);
   }
@@ -5028,7 +5033,7 @@ out body;`;
     if (drag.mode !== "drag") return;
     e.preventDefault();
     const s = snapHeights();
-    setSheetH(Math.round(Math.max(s.peek * 0.7, Math.min(s.full, drag.h0 - dy))));
+    setSheetH(Math.round(Math.max((canMini() ? s.mini : s.peek) * 0.7, Math.min(s.full, drag.h0 - dy))));
     drag.last.push([e.timeStamp, y]); if (drag.last.length > 5) drag.last.shift();
   }, { passive: false });
   const endDrag = () => {
@@ -5041,8 +5046,13 @@ out body;`;
       const from = order.reduce((a, n) => (Math.abs(s[n] - drag.h0) < Math.abs(s[a] - drag.h0) ? n : a), "peek");
       name = order[Math.max(0, Math.min(2, order.indexOf(from) + (v > 0 ? -1 : 1)))];
     } else name = order.reduce((a, n) => (Math.abs(s[n] - sheet.h) < Math.abs(s[a] - sheet.h) ? n : a), "peek");
-    const fromPeek = drag.h0 <= s.peek + 2;
+    const fromPeek = drag.h0 <= s.peek + 2, up = Math.abs(v) > 0.4 ? v < 0 : sheet.h > drag.h0 + 20;
     drag = null;
+    if (sheet.mini && canMini()) {                   // slid down: up brings the sheet back, anything else stays down
+      if (up) sheet.mini = false;
+      snapTo("peek"); return;
+    }
+    if (fromPeek && name === "peek" && canMini() && (v > 0.4 || sheet.h < (s.mini + s.peekFull) / 2)) { sheet.mini = true; snapTo("peek"); return; }
     if (fromPeek && name !== "peek" && peekToFind(name)) return;
     snapTo(name);
   };
@@ -5051,6 +5061,7 @@ out body;`;
   // tapping the handle steps up, and from full back down to peek
   $("sheetToggle").addEventListener("click", () => {
     if (!phoneMQ.matches) { panelEl.classList.toggle("expanded"); return; }
+    if (sheet.mini && canMini()) { sheet.mini = false; snapTo("peek"); return; }
     if (sheet.snap === "peek" && peekToFind("half")) return;
     snapTo(sheet.snap === "peek" ? "half" : sheet.snap === "half" ? "full" : "peek");
   });
@@ -7559,53 +7570,53 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=527"></script>
-<script src="contours.js?v=527"></script>
-<script src="clouds.js?v=527"></script>
-<script src="smoke.js?v=527"></script>
-<script src="photo-slider.js?v=527"></script>
-<script src="ski-terrain.js?v=527"></script>
-<script src="place-search.js?v=527"></script>
-<script src="winter.js?v=527"></script>
-<script src="hunting.js?v=527"></script>
-<script src="fish-bait.js?v=527"></script>
-<script src="fish-route.js?v=527"></script>
-<script src="fishing.js?v=527"></script>
-<script src="compass.js?v=527"></script>
-<script src="hunts.js?v=527"></script>
-<script src="ski-points.js?v=527"></script>
-<script src="webcams.js?v=527"></script>
-<script src="lifts.js?v=527"></script>
-<script src="rogers.js?v=527"></script>
-<script src="slackcountry.js?v=527"></script>
-<script src="ski-areas.js?v=527"></script>
-<script src="helicat.js?v=527"></script>
-<script src="offline.js?v=527"></script>
-<script src="ride-stats.js?v=527"></script>
-<script src="native-gps.js?v=527"></script>
-<script src="navigate.js?v=527"></script>
-<script src="planner.js?v=527"></script>
-<script src="loops.js?v=527"></script>
-<script src="ride-finds.js?v=527"></script>
-<script src="rides.js?v=527"></script>
-<script src="community.js?v=527"></script>
-<script src="ride-files.js?v=527"></script>
-<script src="rider-trails.js?v=527"></script>
-<script src="account.js?v=527"></script>
-<script src="strava.js?v=527"></script>
-<script src="reports.js?v=527"></script>
-<script src="grades.js?v=527"></script>
-<script src="trail-photos.js?v=527"></script>
-<script src="visitors.js?v=527"></script>
-<script src="usage.js?v=527"></script>
-<script src="notify.js?v=527"></script>
-<script src="closures.js?v=527"></script>
-<script src="status.js?v=527"></script>
-<script src="areas.js?v=527"></script>
-<script src="alpine.js?v=527"></script>
-<script src="bikeparks.js?v=527"></script>
-<script src="photo-find.js?v=527"></script>
-<script src="whats-new.js?v=527"></script>
+<script src="map3d.js?v=529"></script>
+<script src="contours.js?v=529"></script>
+<script src="clouds.js?v=529"></script>
+<script src="smoke.js?v=529"></script>
+<script src="photo-slider.js?v=529"></script>
+<script src="ski-terrain.js?v=529"></script>
+<script src="place-search.js?v=529"></script>
+<script src="winter.js?v=529"></script>
+<script src="hunting.js?v=529"></script>
+<script src="fish-bait.js?v=529"></script>
+<script src="fish-route.js?v=529"></script>
+<script src="fishing.js?v=529"></script>
+<script src="compass.js?v=529"></script>
+<script src="hunts.js?v=529"></script>
+<script src="ski-points.js?v=529"></script>
+<script src="webcams.js?v=529"></script>
+<script src="lifts.js?v=529"></script>
+<script src="rogers.js?v=529"></script>
+<script src="slackcountry.js?v=529"></script>
+<script src="ski-areas.js?v=529"></script>
+<script src="helicat.js?v=529"></script>
+<script src="offline.js?v=529"></script>
+<script src="ride-stats.js?v=529"></script>
+<script src="native-gps.js?v=529"></script>
+<script src="navigate.js?v=529"></script>
+<script src="planner.js?v=529"></script>
+<script src="loops.js?v=529"></script>
+<script src="ride-finds.js?v=529"></script>
+<script src="rides.js?v=529"></script>
+<script src="community.js?v=529"></script>
+<script src="ride-files.js?v=529"></script>
+<script src="rider-trails.js?v=529"></script>
+<script src="account.js?v=529"></script>
+<script src="strava.js?v=529"></script>
+<script src="reports.js?v=529"></script>
+<script src="grades.js?v=529"></script>
+<script src="trail-photos.js?v=529"></script>
+<script src="visitors.js?v=529"></script>
+<script src="usage.js?v=529"></script>
+<script src="notify.js?v=529"></script>
+<script src="closures.js?v=529"></script>
+<script src="status.js?v=529"></script>
+<script src="areas.js?v=529"></script>
+<script src="alpine.js?v=529"></script>
+<script src="bikeparks.js?v=529"></script>
+<script src="photo-find.js?v=529"></script>
+<script src="whats-new.js?v=529"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
