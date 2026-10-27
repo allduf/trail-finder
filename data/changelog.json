@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-26", "text": "iPhone: pop-up cards no longer hide their ✕ under the clock."},
     {"date": "2026-10-26", "text": "Ski heatmap now covers the backcountry across Canada (about 650 touring areas), leaves out the resorts, and counts November and May tours in the alpine."},
     {"date": "2026-10-26", "text": "3D map: each trail name now shows once, near the middle of the screen."},
     {"date": "2026-10-26", "text": "The 3D map now shows every trail name, like the flat map."},

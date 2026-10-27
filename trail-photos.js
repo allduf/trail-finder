@@ -18,9 +18,9 @@
 .tp-grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .tp-add { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-weight: 600; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
 .tp-add input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-dialog.tp-view { border: 0; padding: 0; background: #000; max-width: min(96vw, 1200px); max-height: 92dvh; border-radius: 12px; overflow: hidden; }
+dialog.tp-view { border: 0; padding: 0; background: #000; max-width: min(96vw, 1200px); max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); border-radius: 12px; overflow: hidden; }
 dialog.tp-view::backdrop { background: rgba(0,0,0,.8); }
-dialog.tp-view img { display: block; max-width: min(96vw, 1200px); max-height: calc(92dvh - 52px); object-fit: contain; margin: 0 auto; }
+dialog.tp-view img { display: block; max-width: min(96vw, 1200px); max-height: calc(100dvh - 76px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); object-fit: contain; margin: 0 auto; }
 dialog.tp-view footer { display: flex; gap: 8px; align-items: center; padding: 8px 10px; color: #fff; font-size: .85rem; }
 dialog.tp-view footer span { flex: 1; }
 dialog.tp-view footer button { font: inherit; font-weight: 600; padding: 6px 12px; border-radius: 8px; border: 1px solid #fff4; background: #ffffff1a; color: #fff; cursor: pointer; }`;
