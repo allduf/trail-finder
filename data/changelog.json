@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-27", "text": "Fishing: lake depth lines now cover Ontario, Quebec and Manitoba too (plus New Brunswick soundings), and a lake's card links its depth map where the province has one."},
     {"date": "2026-10-27", "text": "Sharper Summer photos in Quebec and New Brunswick: the provinces' own air photos (15-20 cm) where the satellite photo was blurry, in 2D and 3D."},
     {"date": "2026-10-27", "text": "Better outside Whistler: all of Quebec's fishing zones, Smithers, Nanaimo, Medicine Hat and other riding areas show their bike trails, and webcam links for 7 eastern ski hills."},
     {"date": "2026-10-27", "text": "New: Ask in plain words, in every sport. Type \"2-hour loop in prime loam near Squamish tomorrow\" on the Find page and the app answers from its own trails, loam, tours and maps."},
