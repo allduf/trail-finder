@@ -2,6 +2,8 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-10-27", "text": "Offline maps now work in every sport: Hunting saves its zones and layers, Fishing its waters and rules, and you can save the 3D map too (in Skiing with last winter's photos)."},
+    {"date": "2026-10-27", "text": "First-time visitors now get a short welcome: pick a sport, allow location, the basics."},
+    {"date": "2026-10-27", "text": "New Help and support and Privacy pages in More, and you can now delete your account in Account → Settings."},
     {"date": "2026-10-27", "text": "Skiing: the Winter 3D map gets sharper up close on phones too (trees, rocks and snow bumps show as you zoom in)."},
     {"date": "2026-10-27", "text": "Skiing: tapping a spot keeps the map where it is (it no longer zooms out on the 3D map)."},
     {"date": "2026-10-27", "text": "Skiing: tap a route to see its conditions at a glance: weather at the top and bottom, avalanche danger on the route, visibility (in or above the clouds) and the snow, for today or the next two days."},

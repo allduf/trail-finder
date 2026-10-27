@@ -1571,6 +1571,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <p class="src">Adventure moto data: OpenStreetMap contributors (ODbL) through OpenFreeMap vector tiles, Valhalla routing (FOSSGIS), Nominatim, DataBC forest service roads and recreation sites (Open Government Licence - British Columbia), Open-Meteo weather and soil moisture (CC BY 4.0), DriveBC road events (Open511, Open Government Licence - British Columbia), the app's wildfire and forest road data, ISED National Broadband Data for cell signal on roads (Open Government Licence - Canada), a hand-made list of motorcycle makes and models, and the park and closure sources listed under Hunting. Bike tank and fuel numbers are approximate makers' figures: change them to yours.</p>
     </details>
     <p><button class="btn primary" id="aboutClose" type="button">Got it</button></p>
+    <p class="muted"><a href="support.html">Help and support</a> · <a href="privacy.html">Privacy</a></p>
   </div>
 </div>
 
@@ -1578,6 +1579,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
+<script src="welcome.js?v=525"></script>
 <script src="native.js?v=525"></script>
 <script src="keyboard.js?v=525"></script>
 <script src="rotate.js?v=525"></script>
@@ -4939,7 +4941,8 @@ out body;`;
   let touched = false;
   ["pointerdown", "wheel", "keydown"].forEach((ev) => document.addEventListener(ev, () => { touched = true; }, { capture: true, once: true }));
   const openHere = (ll) => { if (!touched && !state.selected) map.setView(ll, Math.max(map.getZoom(), 12)); };
-  if (navigator.geolocation && store.get("track", true)) {
+  // A brand-new device asks in the welcome's step 2 instead (welcome.js), not the moment the app opens.
+  if (navigator.geolocation && store.get("track", true) && !(window.tfWelcome && window.tfWelcome.pending)) {
     const auto = () => startTracking(openHere);
     if (navigator.permissions && navigator.permissions.query) navigator.permissions.query({ name: "geolocation" }).then((q) => { if (q.state !== "denied") auto(); }, auto);
     else auto();
@@ -5154,7 +5157,9 @@ out body;`;
       <div class="hub-sec">You</div>
       ${acct ? card("account", "👤", signedIn ? "Account" : "Sign in", signedIn ? "Your saves follow you to every device" : "Keep your saves on every device") : ""}
       ${window.tfWhatsNew ? card("news", "🆕", "What's new", "The latest changes to the app") : ""}
-      ${card("about", "?", "How it works", "")}`;
+      ${card("about", "?", "How it works", "")}
+      ${card("support", "✉", "Help and support", "Questions, problems, ideas")}
+      ${card("privacy", "🔒", "Privacy", "What the app keeps and how to delete it")}`;
     }
     return "";
   }
@@ -5291,6 +5296,7 @@ out body;`;
     else if (act === "full") $("fullBtn").click();
     else if (act === "account") document.querySelector(".brand [data-account-slot] button")?.click();
     else if (act === "about") $("aboutBtn").click();
+    else if (act === "support" || act === "privacy") location.href = act + ".html";
     else if (act === "news") window.tfWhatsNew.open();
     else if (act.startsWith("log") && window.tfPoints) window.tfPoints.openLog(act.slice(4) || undefined);   // My hunts' tabs, the Fishing log
     else if (act === "tours") location.href = "ride.html#rides";
@@ -6375,7 +6381,7 @@ out body;`;
   syncLooks();
 
   // ---------- First visit: one short tip, until it's dismissed or the rider gets going ----------
-  if (!store.get("tipSeen", false)) {
+  if (!store.get("tipSeen", false) && !(window.tfWelcome && window.tfWelcome.pending)) {
     $("firstTip").hidden = false;
     const done = () => { $("firstTip").hidden = true; store.set("tipSeen", true); };
     $("firstTipOk").addEventListener("click", done);

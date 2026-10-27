@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6f4a">
+<title>Support · Trail Finder</title>
+<style>
+/* Support page: linked from More and the App Store listing (Apple needs a support address). */
+:root {
+  --bg: #f3f5f2; --panel: #ffffff; --fg: #1d2420; --muted: #5c6862; --line: #d9dfda; --accent: #1f6f4a;
+  --font-display: "Arial Narrow", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --accent: #5cc98f; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --accent: #5cc98f; color-scheme: dark; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 720px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 32px); }
+.back { display: inline-block; color: var(--accent); font-weight: 600; text-decoration: none; padding: 8px 0; }
+h1 { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .02em; font-size: 1.7rem; margin: 8px 0 2px; }
+h2 { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .03em; font-size: 1.15rem; margin: 26px 0 6px; }
+p, li { max-width: 65ch; }
+.muted { color: var(--muted); font-size: .9rem; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin: 12px 0; }
+a { color: var(--accent); }
+ul { padding-left: 20px; }
+li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="./">← Back to the map</a>
+<h1>Support</h1>
+<p>Something not working, a trail that's wrong, or an idea? We'd like to hear it.</p>
+
+<div class="card">
+  <h2 style="margin-top:0">Write to us</h2>
+  <p id="mail">In the iPhone app: take a screenshot and tap <b>Share Beta Feedback</b>, or open TestFlight → Trail Finder → <b>Send Beta Feedback</b>.</p>
+  <p>You can also open an issue on <a href="https://github.com/allduf/trail-finder/issues">GitHub</a>.</p>
+</div>
+
+<h2>Quick answers</h2>
+<ul>
+  <li><b>The map is blank or stuck:</b> close the app fully and open it again. It loads the newest version each time.</li>
+  <li><b>No GPS dot:</b> allow Location for Trail Finder in your phone's Settings → Privacy → Location Services.</li>
+  <li><b>No alerts:</b> turn on Notifications for Trail Finder in Settings, then the 🔔 in the app.</li>
+  <li><b>Saves missing on another device:</b> sign in with the same account on both, then open Saved.</li>
+  <li><b>A trail is wrong or missing:</b> trails come from OpenStreetMap. Tap the trail and send a report, or tell us.</li>
+  <li><b>Delete my account:</b> More → Account → Settings → Delete my account. See <a href="privacy.html">Privacy</a>.</li>
+</ul>
+<p class="muted">Trails, closures and avalanche ratings come from public data and can be out of date. Always check local rules and conditions before you go.</p>
+</main>
+</body>
+</html>

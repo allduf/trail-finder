@@ -1,0 +1,33 @@
+name: Daily app errors
+
+# Each morning: the errors the iPhone app sent the day before (usage report, supabase/usage.sql), counted once each,
+# with the sport and what the tester tapped just before, written on the GitHub issue "App errors". New errors mention
+# alex (GitHub emails them). See scripts/app-errors.mjs. On a pull request that changes it: summary only, no comment.
+# Needs the repository secret SUPABASE_SECRET_KEY (the same one the loam alerts use).
+on:
+  schedule:
+    - cron: "17 15 * * *"   # 15:17 UTC, 8:17 am in BC (summer time)
+  pull_request:
+    paths: ["scripts/app-errors.mjs", ".github/workflows/app-errors.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write   # the "App errors" issue
+
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Sum up yesterday's errors
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          OWNER: allduf
+          DRY: ${{ github.event_name == 'pull_request' && '1' || '' }}
+        run: node scripts/app-errors.mjs
