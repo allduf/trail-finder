@@ -1580,14 +1580,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=592"></script>
-<script src="native.js?v=592"></script>
-<script src="keyboard.js?v=592"></script>
-<script src="rotate.js?v=592"></script>
-<script src="official.js?v=592"></script>
-<script src="directions.js?v=592"></script>
-<script src="ratings.js?v=592"></script>
-<script src="ebike.js?v=592"></script>
+<script src="welcome.js?v=593"></script>
+<script src="native.js?v=593"></script>
+<script src="keyboard.js?v=593"></script>
+<script src="rotate.js?v=593"></script>
+<script src="official.js?v=593"></script>
+<script src="directions.js?v=593"></script>
+<script src="ratings.js?v=593"></script>
+<script src="ebike.js?v=593"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3664,6 +3664,20 @@ out body;`;
   };
   window.tfSnowCm = SNOW_CM;
   // Loam forecast (notify.js): the first coming day in prime loam at each [lat, lon], { d, day, v } or null.
+  // Ask in plain words (ask.js): the reading on one day ("YYYY-MM-DD", today or the forecast days) at each [lat, lon]:
+  // { v, snow, days } (v null: not known that day; days: how many forecast days there are).
+  window.tfLoamDay = async (pts, d) => {
+    const keys = pts.map((p) => cellOf({ center: L.latLng(p[0], p[1]) }));
+    const need = staleCells(keys);
+    if (need.length) await fetchLoamCells(need);
+    return keys.map((k) => {
+      const c = loamCells.get(k);
+      if (!c) return { v: null, snow: null, days: 0 };
+      if (!d || d <= c.today) return { v: c.lmi, snow: c.snow, days: (c.days || []).length };
+      const x = (c.days || []).find((y) => y.d === d);
+      return { v: x ? x.v : null, snow: x ? x.s : null, days: (c.days || []).length };
+    });
+  };
   window.tfLoamSoon = async (pts) => {
     const keys = pts.map((p) => cellOf({ center: L.latLng(p[0], p[1]) }));
     const need = staleCells(keys);
@@ -3930,7 +3944,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=592").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=593").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5134,7 +5148,7 @@ out body;`;
     const mtb = !isAlt();
     // The same order as every sport's own tab (alex picked "one home for every sport", 2026-10-27): search, Today,
     // 4 big buttons, a list, then what's on the map.
-    if (page === "find") return `<div class="hub-slot" data-slot="find"></div>
+    if (page === "find") return `<div class="hub-slot" data-slot="find"></div>${window.tfAsk ? window.tfAsk.html("mtb") : ""}
       <button type="button" class="hub-now" id="mtbNow"${mtbNowHtml ? "" : " hidden"}>${mtbNowHtml}</button>
       <div class="hub-tiles">${tile("search", "✨", "New trails", "how new you pick")}${tile("near", "◎", "Near me", `within ${$("nearKm").value} km`)}${tile("prime", '<span class="dot"></span>', "Prime loam", "damp dirt now")}${tile("photo", "📷", "Which trail?", "from a photo")}</div>
       <div class="hub-sec">What are you looking for?</div>
@@ -7573,56 +7587,57 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=592"></script>
-<script src="contours.js?v=592"></script>
-<script src="clouds.js?v=592"></script>
-<script src="smoke.js?v=592"></script>
-<script src="radar.js?v=592"></script>
-<script src="photo-slider.js?v=592"></script>
-<script src="ski-terrain.js?v=592"></script>
-<script src="place-search.js?v=592"></script>
-<script src="winter.js?v=592"></script>
-<script src="crownland.js?v=592"></script>
-<script src="hunting.js?v=592"></script>
-<script src="fish-bait.js?v=592"></script>
-<script src="fish-route.js?v=592"></script>
-<script src="fishing.js?v=592"></script>
-<script src="compass.js?v=592"></script>
-<script src="hunts.js?v=592"></script>
-<script src="ski-points.js?v=592"></script>
-<script src="webcams.js?v=592"></script>
-<script src="lifts.js?v=592"></script>
-<script src="rogers.js?v=592"></script>
-<script src="slackcountry.js?v=592"></script>
-<script src="ski-areas.js?v=592"></script>
-<script src="helicat.js?v=592"></script>
-<script src="offline.js?v=592"></script>
-<script src="ride-stats.js?v=592"></script>
-<script src="native-gps.js?v=592"></script>
-<script src="navigate.js?v=592"></script>
-<script src="planner.js?v=592"></script>
-<script src="loops.js?v=592"></script>
-<script src="ride-finds.js?v=592"></script>
-<script src="rides.js?v=592"></script>
-<script src="community.js?v=592"></script>
-<script src="ride-files.js?v=592"></script>
-<script src="rider-trails.js?v=592"></script>
-<script src="account.js?v=592"></script>
-<script src="live.js?v=592"></script>
-<script src="strava.js?v=592"></script>
-<script src="reports.js?v=592"></script>
-<script src="grades.js?v=592"></script>
-<script src="trail-photos.js?v=592"></script>
-<script src="visitors.js?v=592"></script>
-<script src="usage.js?v=592"></script>
-<script src="notify.js?v=592"></script>
-<script src="closures.js?v=592"></script>
-<script src="status.js?v=592"></script>
-<script src="areas.js?v=592"></script>
-<script src="alpine.js?v=592"></script>
-<script src="bikeparks.js?v=592"></script>
-<script src="photo-find.js?v=592"></script>
-<script src="whats-new.js?v=592"></script>
+<script src="map3d.js?v=593"></script>
+<script src="contours.js?v=593"></script>
+<script src="clouds.js?v=593"></script>
+<script src="smoke.js?v=593"></script>
+<script src="radar.js?v=593"></script>
+<script src="photo-slider.js?v=593"></script>
+<script src="ski-terrain.js?v=593"></script>
+<script src="place-search.js?v=593"></script>
+<script src="winter.js?v=593"></script>
+<script src="crownland.js?v=593"></script>
+<script src="hunting.js?v=593"></script>
+<script src="fish-bait.js?v=593"></script>
+<script src="fish-route.js?v=593"></script>
+<script src="fishing.js?v=593"></script>
+<script src="compass.js?v=593"></script>
+<script src="hunts.js?v=593"></script>
+<script src="ski-points.js?v=593"></script>
+<script src="webcams.js?v=593"></script>
+<script src="lifts.js?v=593"></script>
+<script src="rogers.js?v=593"></script>
+<script src="slackcountry.js?v=593"></script>
+<script src="ski-areas.js?v=593"></script>
+<script src="helicat.js?v=593"></script>
+<script src="offline.js?v=593"></script>
+<script src="ride-stats.js?v=593"></script>
+<script src="native-gps.js?v=593"></script>
+<script src="navigate.js?v=593"></script>
+<script src="planner.js?v=593"></script>
+<script src="loops.js?v=593"></script>
+<script src="ride-finds.js?v=593"></script>
+<script src="rides.js?v=593"></script>
+<script src="community.js?v=593"></script>
+<script src="ride-files.js?v=593"></script>
+<script src="rider-trails.js?v=593"></script>
+<script src="account.js?v=593"></script>
+<script src="live.js?v=593"></script>
+<script src="strava.js?v=593"></script>
+<script src="reports.js?v=593"></script>
+<script src="grades.js?v=593"></script>
+<script src="trail-photos.js?v=593"></script>
+<script src="visitors.js?v=593"></script>
+<script src="usage.js?v=593"></script>
+<script src="notify.js?v=593"></script>
+<script src="closures.js?v=593"></script>
+<script src="status.js?v=593"></script>
+<script src="ask.js?v=593"></script>
+<script src="areas.js?v=593"></script>
+<script src="alpine.js?v=593"></script>
+<script src="bikeparks.js?v=593"></script>
+<script src="photo-find.js?v=593"></script>
+<script src="whats-new.js?v=593"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

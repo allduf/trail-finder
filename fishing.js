@@ -1825,6 +1825,13 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       map.setView([lat, lon], Math.max(map.getZoom(), 12));
       setSpot(lat, lon, "tap"); showSpot(lat, lon, name);
     },
+    // Ask in plain words (ask.js): stocked waters within maxKm, nearest first, with what was put in them and when last.
+    async stockedNear(lat, lon, maxKm) {
+      await ready;
+      if (!stocked) return [];
+      return near(stocked.waters, lat, lon, maxKm, (w) => w.c).map(([w, d]) => ({ n: w.n, c: w.c, d, last: w.r[0] && w.r[0][0],
+        sp: [...new Set(w.r.map((r) => stocked.sp[r[1]]).filter(Boolean))] }));
+    },
     species(lat, lon) {   // likely species for the catch form: stocked here, then the usual list
       const list = [];
       if (stocked) for (const [w] of near(stocked.waters, lat, lon, 3, (x) => x.c)) for (const r of w.r) list.push(stocked.sp[r[1]]);
