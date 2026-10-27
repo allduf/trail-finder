@@ -1208,7 +1208,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
    in the Find page's list; Offline maps sits in the Ride tab. Computers keep them by Search and in Layers. */
 @media (max-width: 760px) { #photoFindBtn, #offlineBtn { display: none !important; } }
 </style>
-<link rel="stylesheet" href="theme.css?v=12">
+<link rel="stylesheet" href="theme.css?v=13">
 <style>
 /* Phone map buttons (alex, 2026-10-24): the same four labelled buttons in every sport, Sport, Layers and 3D on the
    left, Me on the right. Satellite is a map style in Layers; Save a point, Compass and Measure live in each sport's
@@ -1306,7 +1306,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <div class="first-tip" id="firstTip" role="note" hidden><strong>New here?</strong> <span class="tip-wide">Search a trail by name, or pick an area and how new.</span><span class="tip-phone">Tap <b>Find</b> below, or the search box, to find trails, new or old.</span> Tap any trail on the map for its details, weather and loam. <button type="button" class="linkish" id="firstTipOk">Got it</button></div>
   </div>
   <aside class="panel" id="panel">
-    <div class="sheet-nav" id="navBar" hidden><button type="button" class="nav-back" id="navBack" hidden>← <span>Back</span></button><h2 id="navTitle"></h2></div>
+    <div class="sheet-nav" id="navBar" hidden><button type="button" class="nav-back" id="navBack" hidden>← <span>Back</span></button><h2 id="navTitle"></h2><button type="button" class="nav-bell" id="navBell" hidden aria-label="Notifications">🔔</button></div>
     <div class="panel-head">
       <button class="sheet-toggle" id="sheetToggle" aria-label="Expand trail list"></button>
       <div class="brand">
@@ -1318,6 +1318,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
       <div class="peek-quick" id="peekQuick" role="group" aria-label="Quick searches">
         <button type="button" data-q="new">✨ New trails</button><button type="button" data-q="near">◎ Near me</button><button type="button" data-q="prime"><span class="dot" aria-hidden="true"></span>Prime loam</button><button type="button" data-q="today">☀ Today</button>
       </div>
+      <button type="button" class="peek-today" id="peekToday" hidden></button>
       <section class="hub" id="hub" hidden></section>
       <div class="modes" role="tablist" aria-label="What do you want to find?" hidden>
         <button type="button" role="tab" id="tabName" aria-controls="paneName" aria-selected="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Find a trail</span></button>
@@ -1511,7 +1512,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <p>MTB trail networks: many bike trails have no bike tags at all. A plain path with no bike tags that runs within 400 m of two or more other MTB-tagged trails (with different names) also counts as Likely MTB, unless it's graded for hiking (<code>sac_scale</code>), signed for walkers (<code>foot=designated</code>), a ski, golf or lit park path, gravel or boardwalk, open to motor vehicles, or its note says it's for hiking, climbing or motorbikes. This is checked again every time trails or trail lists load, so it keeps up as mappers add trails.</p>
     <p>Skipped: tracks (most are forest roads or ATV, moto and 4x4 tracks), paths 2 m wide or more, paths open to motorbikes, ATVs or other motor vehicles, paved surfaces, <code>bicycle=dismount</code>, and alpine hiking routes (<code>sac_scale</code> alpine).</p>
 <h3>Difficulty colours</h3>
-    <p>Trails are coloured like Trailforks: green, blue, black, double black (red) and pro line (orange). The colour comes from <code>mtb:scale:imba</code> (0-1 green, 2 blue, 3 black, 4 double black, 5 pro line), or else from <code>mtb:scale</code>, which mappers here use the same way (S0-S1 green, S2 blue, S3 black, S4 double black, S5-S6 pro line). When a trail has no rating on the map, the app looks for one elsewhere: official open data that rates bike trails (the Resort Municipality of Whistler, the Columbia Shuswap Regional District around Golden, Revelstoke and the Shuswap, Sépaq, the City of Ottawa, Utah and Pennsylvania state parks), then a rated piece of the same trail. Failing that, it estimates the level from the slope and draws it dashed, with an “Est.” badge: slope can't see rocks, roots or drops, so the guess is the right level about half the time and within one level 96% of the time. Trailforks ratings can't be copied. Grey means no source and no estimate. The “Trail colours” key on the map switches back to colours by trail type.</p>
+    <p>Trails are coloured like Trailforks: green, blue, black, double black (red) and pro line (orange). The colour comes from <code>mtb:scale:imba</code> (0-1 green, 2 blue, 3 black, 4 double black, 5 pro line), or else from <code>mtb:scale</code>, which mappers here use the same way (S0-S1 green, S2 blue, S3 black, S4 double black, S5-S6 pro line). When a trail has no rating on the map, the app looks for one elsewhere: official open data that rates bike trails (the Resort Municipality of Whistler, the Columbia Shuswap Regional District around Golden, Revelstoke and the Shuswap, Sépaq, the City of Ottawa, Utah and Pennsylvania state parks), then a rated piece of the same trail. Failing that, it estimates the level from the slope and draws it dashed, with an “Est.” badge: slope can't see rocks, roots or drops, so the guess is the right level about half the time and within one level 96% of the time. Trailforks ratings can't be copied. Grey means no source and no estimate. The “Key” button on the map shows what the colours mean and switches back to colours by trail type.</p>
     <h3>All trails</h3>
     <p>“All trails” (on by default) draws every MTB trail in view, old and new: every way with an MTB tag, bike park trails and the trails of MTB routes. Official trails (see below) are bold and always shown, even with no option ticked; trails whose status isn't known are thin, and unofficial trails are left out, as before (tick “Unofficial only” to see them). A list of them is collected from OpenStreetMap every day. The trails in the list (new trails, or prime loam) are drawn thicker on top, with a white edge.</p>
     <h3>Draw a square</h3>
@@ -1579,14 +1580,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=525"></script>
-<script src="native.js?v=525"></script>
-<script src="keyboard.js?v=525"></script>
-<script src="rotate.js?v=525"></script>
-<script src="official.js?v=525"></script>
-<script src="directions.js?v=525"></script>
-<script src="ratings.js?v=525"></script>
-<script src="ebike.js?v=525"></script>
+<script src="welcome.js?v=526"></script>
+<script src="native.js?v=526"></script>
+<script src="keyboard.js?v=526"></script>
+<script src="rotate.js?v=526"></script>
+<script src="official.js?v=526"></script>
+<script src="directions.js?v=526"></script>
+<script src="ratings.js?v=526"></script>
+<script src="ebike.js?v=526"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3929,7 +3930,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=525").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=526").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -4970,7 +4971,7 @@ out body;`;
   const navH = () => $("tabbar").offsetHeight;
   function snapHeights() {
     // just the top: the page title, or the search box and quick buttons, or the title bar (or the trail name)
-    const brand = [$("navBar"), $("peekQuick"), panelEl.querySelector(".brand")].find((el) => el.offsetHeight);
+    const brand = [$("navBar"), $("peekToday"), $("peekQuick"), panelEl.querySelector(".brand")].find((el) => el.offsetHeight);
     const peek = brand ? Math.round(brand.offsetTop + brand.offsetHeight) : 130;
     const full = Math.round(window.innerHeight - navH() - safeTop() - 52);     // the map chip row stays visible
     const half = Math.round(Math.min(full, Math.max(peek + 120, (window.innerHeight - navH()) * 0.5)));
@@ -5089,24 +5090,25 @@ out body;`;
   const navStack = [];                 // pages over the map, oldest first: "find", "ride", "saved", "more", "search", "results"
   const navTop = () => navStack[navStack.length - 1] || "map";
   const ROOTS = { find: "find", new: "find", ski: "find", hunt: "find", fish: "find", moto: "find", ride: "ride", saved: "saved", more: "more" };
-  const TITLES = { find: "Find", get ride() { return words().tab; }, saved: "Saved", more: "More", search: "New trails", results: "Results" };
+  const TITLES = { get find() { return words().find; }, get ride() { return words().tab; }, saved: "Saved", more: "More", search: "New trails", results: "Results" };
   // Words for each sport (alex, 2026-10-24): riding words in MTB only. Skiing and Hunting record a track, save
   // offline maps for skiing or hunting, and their bell is about avalanches or plain notifications, not loam.
   // function declarations: setSheetH runs syncTabbar before this part of the script has run
   function sportOf() { return document.body.classList.contains("sport-ski") ? "ski" : document.body.classList.contains("sport-hunt") ? "hunt" : document.body.classList.contains("sport-fish") ? "fish" : document.body.classList.contains("sport-moto") ? "moto" : "mtb"; }
   function words() { return {
-    mtb: { tab: "Ride", start: "▶ Start riding", note: "Follows you, names the trail you're on and the next junction, records the ride.", offline: "Save an area for riding with no signal",
+    mtb: { find: "Find", search: "Search trails", tab: "Ride", start: "▶ Start riding", note: "Follows you, names the trail you're on and the next junction, records the ride.", offline: "Save an area for riding with no signal",
       alerts: ["Loam alerts and notifications", "Prime loam and new trails in your regions"] },
-    ski: { tab: "Track", start: "▶ Start tracking", note: "Follows you on the map and records your track.", offline: "Save an area for skiing with no signal",
+    ski: { find: "Routes", search: "Search routes, huts, places", tab: "Track", start: "▶ Start tracking", note: "Follows you on the map and records your track.", offline: "Save an area for skiing with no signal",
       alerts: ["Avalanche alerts and notifications", "Avalanche danger in your regions and on tours you watch"] },
-    hunt: { tab: "Track", start: "▶ Start tracking", note: "Follows you on the map and records your track.", offline: "Save an area for hunting with no signal",
+    hunt: { find: "Hunt", search: "Search towns, mountains, lakes", tab: "Track", start: "▶ Start tracking", note: "Follows you on the map and records your track.", offline: "Save an area for hunting with no signal",
       alerts: ["Notifications", "Pick what the 🔔 tells you about"] },
-    fish: { tab: "Track", start: "▶ Start tracking", note: "Follows you on the map and records your track.", offline: "Save an area for fishing with no signal",
+    fish: { find: "Fish", search: "Search lakes, rivers, towns", tab: "Track", start: "▶ Start tracking", note: "Follows you on the map and records your track.", offline: "Save an area for fishing with no signal",
       alerts: ["Stocking alerts and notifications", "Lakes near you just stocked, and what else the 🔔 tells you about"] },
-    moto: { tab: "Ride", start: "▶ Start riding", note: "Follows you, says the turns of your moto route, records the ride.", offline: "Save an area for riding with no signal (or save a route from its card)",
+    moto: { find: "Roads", search: "Search towns, regions, mountains", tab: "Ride", start: "▶ Start riding", note: "Follows you, says the turns of your moto route, records the ride.", offline: "Save an area for riding with no signal (or save a route from its card)",
       alerts: ["Notifications", "Pick what the 🔔 tells you about"] },
   }[sportOf()]; }
   function syncSportWords() {
+    if (typeof syncPeek === "function") try { syncPeek(); } catch {}
     const t = document.querySelector('#tabbar [data-nav="ride"]');
     if (t) { t.querySelector("span").textContent = words().tab; t.title = sportOf() === "moto" ? "Ride with the map: it follows you, says the turns of your moto route and records the ride" : sportOf() === "mtb" ? "Ride with the map: it follows you, shows the trail you're on and the next junction, and records the ride" : "Record your track: the map follows you"; }
   }
@@ -5115,16 +5117,20 @@ out body;`;
   const borrowed = [[$("tsearch").parentElement, "find"], [$("wantList"), "saved"]].map(([el, page]) => ({ el, page, home: el.parentElement, next: el.nextSibling }));
   const card = (act, ic, title, sub, extra = "") =>
     `<button type="button" class="hub-card" data-hub="${act}"${extra}><span class="ic" aria-hidden="true">${ic}</span><span class="tx"><b>${title}</b>${sub ? `<small>${sub}</small>` : ""}</span><span class="go" aria-hidden="true">›</span></button>`;
+  const tile = (act, ic, title, sub) => `<button type="button" class="hub-tile" data-hub="${act}"><span class="ic" aria-hidden="true">${ic}</span><b>${title}</b><small>${sub}</small></button>`;
+  const HUB_LAYERS = ["allBtn", "parkBtn", "closeBtn", "accessBtn", "roadsBtn"];   // MTB's main map layers, as chips on Find
   function hubHtml(page) {
     const mtb = !isAlt();
+    // The same order as every sport's own tab (alex picked "one home for every sport", 2026-10-27): search, Today,
+    // 4 big buttons, a list, then what's on the map.
     if (page === "find") return `<div class="hub-slot" data-slot="find"></div>
+      <button type="button" class="hub-now" id="mtbNow"${mtbNowHtml ? "" : " hidden"}>${mtbNowHtml}</button>
+      <div class="hub-tiles">${tile("search", "✨", "New trails", "how new you pick")}${tile("near", "◎", "Near me", `within ${$("nearKm").value} km`)}${tile("prime", '<span class="dot"></span>', "Prime loam", "damp dirt now")}${tile("photo", "📷", "Which trail?", "from a photo")}</div>
       <div class="hub-sec">What are you looking for?</div>
-      ${card("search", "✨", "New trails", "Added in the last month, 6 months, year or 2 years")}
-      ${card("near", "◎", "Trails near me", `Every trail within ${$("nearKm").value} km, nearest first`)}
-      ${card("prime", '<span class="dot"></span>', "Prime loam now", "Damp dirt today (Loam 40 to 59)")}
       ${card("today", "☀", "Where to ride today", "The best areas for today's weather and dirt")}
-      ${card("photo", "📷", "Which trail is this?", "From a photo, a screenshot or a short video")}
-      ${card("screen", "▭", "Every trail on screen", "Zoomed far out, you get a square to frame them")}`;
+      ${card("screen", "▭", "Every trail on screen", "Zoomed far out, you get a square to frame them")}
+      <div class="hub-sec">On the map</div>
+      <div class="hub-chips">${HUB_LAYERS.map((id) => { const b = $(id); return b ? `<button type="button" data-hub="layer" data-id="${id}" aria-pressed="${b.getAttribute("aria-pressed") === "true"}">${esc(b.textContent.trim().replace(/, water, toilets$/, ""))}</button>` : ""; }).join("")}<button type="button" data-hub="layers">+ All layers</button></div>`;
     const w = words();
     if (page === "ride") return `<button type="button" class="hub-start" data-hub="start">${w.start}</button>
       <p class="hub-note">${w.note}</p>
@@ -5166,8 +5172,8 @@ out body;`;
   // Swiping up (or tapping) the small sheet on the map opens the Find page, not the old long search form
   // (alex, 2026-10-24). Only from the plain map: a trail's details, results or another page grow as before.
   function peekToFind(snap, onControl) {
-    if (!phoneMQ.matches || isAlt() || navStack.length || panelEl.classList.contains("detail-open")) return false;
-    if (!onControl) navTo("find", { root: true, snap });
+    if (!phoneMQ.matches || navStack.length || panelEl.classList.contains("detail-open")) return false;
+    if (!onControl) navTo("find", { root: true, snap: isAlt() ? "half" : snap });
     return true;
   }
   let ptsHome = null;   // where the points list (#spBox) lives while the Saved page of Skiing, Hunting or Fishing borrows it
@@ -5183,6 +5189,7 @@ out body;`;
   }
   // Show the page on top of the stack (or the plain map when the stack is empty).
   function showNav(snap) {
+    try { syncPeekToday(); } catch {}   // a sport's Today line can appear after the sport was picked (its file makes it)
     const top = navTop(), page = ["find", "ride", "saved", "more"].includes(top) && !(top === "find" && isAlt());
     const phone = phoneMQ.matches;
     hubEl.hidden = !(phone && page);
@@ -5194,8 +5201,9 @@ out body;`;
     panelEl.classList.toggle("nav-search", phone && top === "search");
     panelEl.classList.toggle("nav-results", phone && top === "results");
     panelEl.classList.toggle("nav-alt", phone && top === "find" && isAlt());
-    const bar = phone && top !== "map" && !(top === "find" && isAlt());
+    const bar = phone && top !== "map";
     $("navBar").hidden = !bar;
+    $("navBell").hidden = !(bar && top === "find" && navStack.length === 1 && document.querySelector(".brand .notify-btn"));
     if (bar) {
       $("navTitle").textContent = TITLES[top] || "";
       const below = navStack[navStack.length - 2];
@@ -5258,9 +5266,68 @@ out body;`;
   $("peekSearch").addEventListener("click", (e) => {
     e.stopPropagation();
     navTo("find", { root: true });
-    $("trailQ").focus();   // in the same tap, or iPhones don't open the keyboard
+    // in the same tap, or iPhones don't open the keyboard; the other sports' tabs search places (and Skiing routes)
+    const box = isAlt() ? document.querySelector(`#${{ ski: "skiPane #skFind", hunt: "huntPane .ps-box input", fish: "fishPane .ps-box input", moto: "motoPane .ps-box input" }[sportOf()]}`) : $("trailQ");
+    if (box) box.focus();
   });
   $("peekPhoto").addEventListener("click", (e) => { e.stopPropagation(); if (window.tfPhotoFind) window.tfPhotoFind.open(); });
+  // Same look in every sport (alex picked option B, 2026-10-27): the map's sheet has the same search box, a row of the
+  // sport's own quick buttons and a Today line in every sport; its sport tab has the same title bar with the bell.
+  $("navBell").addEventListener("click", (e) => { e.stopPropagation(); document.querySelector(".brand .notify-btn")?.click(); });
+  const mtbQuick = $("peekQuick").innerHTML;
+  const PEEKQ = {   // [label, selector of the button it presses, open the sport's tab first]
+    ski: [["⚠ Avalanche", "#skNow", true], ["⛷ Touring", '#skViews [data-view="tour"]'], ["🚡 Resorts", '#skViews [data-view="resort"]'], ["✎ Plan a tour", "#skPlanBtn"]],
+    hunt: [["◎ My spot", '#huntPane [data-act="me"]', true], ["📜 Rules", '#huntPane [data-view="rules"]'], ["🛻 Truck", '#huntPane [data-act="truck"]', true], ["🧭 Compass", "#hnCompass", true]],
+    fish: [["◎ My spot", '#fishPane [data-act="me"]', true], ["🐟 Save a catch", '#fishPane [data-act="catch"]', true], ["📜 Rules", '#fishPane [data-view="rules"]'], ["🛻 Truck", '#fishPane [data-act="truck"]', true]],
+    moto: [["➚ Plan a route", '#motoPane [data-act="plan"]'], ["⛽ Fuel & camp", '#motoPane [data-act="stops"]'], ["💧 Mud today", '#motoPane [data-act="mud"]'], ["🗺 ADV routes", '#motoPane [data-act="trips"]', true]],
+  };
+  const NOW_ID = { ski: "skNow", hunt: "hnNow", fish: "fsNow", moto: "mtNow" };   // each sport's Today line (its own file fills it)
+  let peekFor = "";
+  function syncPeek() {
+    const sp = sportOf();
+    if (peekFor === sp) return;
+    peekFor = sp;
+    $("peekSearch").querySelector("span").textContent = words().search;
+    $("peekQuick").innerHTML = sp === "mtb" ? mtbQuick : PEEKQ[sp].map(([t], i) => `<button type="button" data-pq="${i}">${esc(t)}</button>`).join("");
+    syncPeekToday();
+  }
+  // The Today line on the map's sheet repeats the sport tab's own (MTB: the loam at the middle of the map).
+  const nowSeen = new WeakSet();
+  function syncPeekToday() {
+    const sp = sportOf(), el = sp === "mtb" ? null : $(NOW_ID[sp]), pt = $("peekToday");
+    if (el && !nowSeen.has(el)) { nowSeen.add(el); new MutationObserver(() => syncPeekToday()).observe(el, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden"] }); }
+    const html = sp === "mtb" ? mtbNowHtml : el && !el.hidden ? el.innerHTML : "", was = pt.hidden;
+    if (pt.innerHTML !== html) pt.innerHTML = html;
+    pt.hidden = !html;
+    if (phoneMQ.matches && sheet.snap === "peek" && !navStack.length && (was !== pt.hidden || Math.abs(snapHeights().peek - sheet.h) > 2)) setSheetH(snapHeights().peek);   // the peek fits it
+    const m = $("mtbNow"); if (m && m.innerHTML !== mtbNowHtml) { m.innerHTML = mtbNowHtml; m.hidden = !mtbNowHtml; }
+  }
+  let mtbNowHtml = "", mtbNowT = 0;
+  async function mtbNow() {
+    if (!phoneMQ.matches || isAlt()) return;
+    const c = map.getCenter(), k = `${(Math.round(c.lat * 50) / 50).toFixed(2)},${(Math.round(c.lng * 50) / 50).toFixed(2)}`;
+    if (staleCells([k]).length) { try { await fetchLoamCells([k]); } catch {} }
+    const cell = loamCells.get(k), v = cell && cell.lmi;
+    if (isAlt()) return;
+    if (v == null) mtbNowHtml = "";
+    else {
+      const lv = lmiLevel(v), col = LMI_RIDE[LMI_LEVELS.indexOf(lv)][0];
+      mtbNowHtml = isSnowy(cell.snow) ? `<span>❄ <b>Snow on the trails</b> here, ${Math.round(cell.snow)} cm</span>`
+        : `<span><span class="dot" style="background:${col}"></span><b>Loam here: ${esc(lv[1])}</b> (${v})</span><span>☀ Where to ride today ›</span>`;
+    }
+    syncPeekToday();
+  }
+  map.on("moveend", () => { clearTimeout(mtbNowT); mtbNowT = setTimeout(mtbNow, 1500); });
+  setTimeout(mtbNow, 2500);
+  syncPeek();
+  $("peekToday").addEventListener("click", (e) => {
+    e.stopPropagation();
+    const sp = sportOf();
+    if (sp === "mtb") { if (window.tfTodayOpen) window.tfTodayOpen(); return; }
+    navTo("find", { root: true, snap: "half" });
+    $(NOW_ID[sp])?.click();
+  });
+  hubEl.addEventListener("click", (e) => { if (e.target.closest("#mtbNow")) { e.stopPropagation(); if (window.tfTodayOpen) window.tfTodayOpen(); } });
   function quick(act) {
     if (act === "search") { setMode("new"); navTo("search"); }
     else if (act === "near") { navTo("results", { snap: "half" }); $("nearBtn").click(); }
@@ -5275,6 +5342,14 @@ out body;`;
     else growTo("half");
   }
   $("peekQuick").addEventListener("click", (e) => {
+    const p = e.target.closest("[data-pq]");
+    if (p) {
+      e.stopPropagation();
+      const [, sel, open] = PEEKQ[sportOf()][+p.dataset.pq];
+      if (open) navTo("find", { root: true, snap: "half" });
+      document.querySelector(sel)?.click();
+      return;
+    }
     const b = e.target.closest("[data-q]"); if (!b) return;
     e.stopPropagation();
     if (b.dataset.q === "today") { quick("today"); return; }
@@ -5288,6 +5363,8 @@ out body;`;
     const b = e.target.closest("[data-hub]"); if (!b) return;
     const act = b.dataset.hub;
     if (["search", "near", "prime", "screen", "today", "photo"].includes(act)) quick(act);
+    else if (act === "layer") { $(b.dataset.id)?.click(); hubEl.querySelectorAll('[data-hub="layer"]').forEach((c) => c.setAttribute("aria-pressed", String($(c.dataset.id)?.getAttribute("aria-pressed") === "true"))); }
+    else if (act === "layers") { lowerSheet(); $("layersBtn").click(); }
     else if (act === "start") { if (window.tfRide) window.tfRide.start(); }
     else if (act === "plan") { if (window.tfPlan) window.tfPlan.open(); }
     else if (act === "routes") { if (window.tfPlan) window.tfPlan.saved(); }
@@ -6257,11 +6334,12 @@ out body;`;
   drawAccess();
 
   // The map key: what the colours mean, and a switch between difficulty and trail-type colours.
-  const keyCtl = L.control({ position: "topleft" });
+  // "Key", bottom left, the same button in every sport (alex 2026-10-27, "same look in every sport").
+  const keyCtl = L.control({ position: "bottomleft" });
   keyCtl.onAdd = () => {
     const el = L.DomUtil.create("details", "legend");
     el.open = false;   // starts folded to just its title; tap it to see the colours (alex)
-    el.innerHTML = `<summary>Trail colours</summary><div class="lg-mode" role="group" aria-label="Colour the trails by">
+    el.innerHTML = `<summary><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5z M2 13l10 5 10-5 M2 17.5l10 5 10-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Key</summary><div class="lg-mode" role="group" aria-label="Colour the trails by">
       <button type="button" data-c="diff">Difficulty</button><button type="button" data-c="type">Type</button><button type="button" data-c="loam">Loam</button></div><ul id="keyList"></ul><p class="lg-note" id="keyNote"></p>`;
     L.DomEvent.disableClickPropagation(el); L.DomEvent.disableScrollPropagation(el);
     el.querySelectorAll(".lg-mode button").forEach((b) => b.addEventListener("click", () => {
@@ -7481,53 +7559,53 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=525"></script>
-<script src="contours.js?v=525"></script>
-<script src="clouds.js?v=525"></script>
-<script src="smoke.js?v=525"></script>
-<script src="photo-slider.js?v=525"></script>
-<script src="ski-terrain.js?v=525"></script>
-<script src="place-search.js?v=525"></script>
-<script src="winter.js?v=525"></script>
-<script src="hunting.js?v=525"></script>
-<script src="fish-bait.js?v=525"></script>
-<script src="fish-route.js?v=525"></script>
-<script src="fishing.js?v=525"></script>
-<script src="compass.js?v=525"></script>
-<script src="hunts.js?v=525"></script>
-<script src="ski-points.js?v=525"></script>
-<script src="webcams.js?v=525"></script>
-<script src="lifts.js?v=525"></script>
-<script src="rogers.js?v=525"></script>
-<script src="slackcountry.js?v=525"></script>
-<script src="ski-areas.js?v=525"></script>
-<script src="helicat.js?v=525"></script>
-<script src="offline.js?v=525"></script>
-<script src="ride-stats.js?v=525"></script>
-<script src="native-gps.js?v=525"></script>
-<script src="navigate.js?v=525"></script>
-<script src="planner.js?v=525"></script>
-<script src="loops.js?v=525"></script>
-<script src="ride-finds.js?v=525"></script>
-<script src="rides.js?v=525"></script>
-<script src="community.js?v=525"></script>
-<script src="ride-files.js?v=525"></script>
-<script src="rider-trails.js?v=525"></script>
-<script src="account.js?v=525"></script>
-<script src="strava.js?v=525"></script>
-<script src="reports.js?v=525"></script>
-<script src="grades.js?v=525"></script>
-<script src="trail-photos.js?v=525"></script>
-<script src="visitors.js?v=525"></script>
-<script src="usage.js?v=525"></script>
-<script src="notify.js?v=525"></script>
-<script src="closures.js?v=525"></script>
-<script src="status.js?v=525"></script>
-<script src="areas.js?v=525"></script>
-<script src="alpine.js?v=525"></script>
-<script src="bikeparks.js?v=525"></script>
-<script src="photo-find.js?v=525"></script>
-<script src="whats-new.js?v=525"></script>
+<script src="map3d.js?v=526"></script>
+<script src="contours.js?v=526"></script>
+<script src="clouds.js?v=526"></script>
+<script src="smoke.js?v=526"></script>
+<script src="photo-slider.js?v=526"></script>
+<script src="ski-terrain.js?v=526"></script>
+<script src="place-search.js?v=526"></script>
+<script src="winter.js?v=526"></script>
+<script src="hunting.js?v=526"></script>
+<script src="fish-bait.js?v=526"></script>
+<script src="fish-route.js?v=526"></script>
+<script src="fishing.js?v=526"></script>
+<script src="compass.js?v=526"></script>
+<script src="hunts.js?v=526"></script>
+<script src="ski-points.js?v=526"></script>
+<script src="webcams.js?v=526"></script>
+<script src="lifts.js?v=526"></script>
+<script src="rogers.js?v=526"></script>
+<script src="slackcountry.js?v=526"></script>
+<script src="ski-areas.js?v=526"></script>
+<script src="helicat.js?v=526"></script>
+<script src="offline.js?v=526"></script>
+<script src="ride-stats.js?v=526"></script>
+<script src="native-gps.js?v=526"></script>
+<script src="navigate.js?v=526"></script>
+<script src="planner.js?v=526"></script>
+<script src="loops.js?v=526"></script>
+<script src="ride-finds.js?v=526"></script>
+<script src="rides.js?v=526"></script>
+<script src="community.js?v=526"></script>
+<script src="ride-files.js?v=526"></script>
+<script src="rider-trails.js?v=526"></script>
+<script src="account.js?v=526"></script>
+<script src="strava.js?v=526"></script>
+<script src="reports.js?v=526"></script>
+<script src="grades.js?v=526"></script>
+<script src="trail-photos.js?v=526"></script>
+<script src="visitors.js?v=526"></script>
+<script src="usage.js?v=526"></script>
+<script src="notify.js?v=526"></script>
+<script src="closures.js?v=526"></script>
+<script src="status.js?v=526"></script>
+<script src="areas.js?v=526"></script>
+<script src="alpine.js?v=526"></script>
+<script src="bikeparks.js?v=526"></script>
+<script src="photo-find.js?v=526"></script>
+<script src="whats-new.js?v=526"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

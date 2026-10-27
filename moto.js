@@ -372,7 +372,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     <div class="mt-card" id="mtRoute" hidden></div>
     <div class="mt-card" id="mtSpot" hidden></div>
     <div class="mt-card" id="mtNear" hidden></div>
-    <div class="mt-card" id="mtMap"><header>${svg(IC.layers)}<h3>Map</h3></header>
+    <div class="mt-card" id="mtMap"><header>${svg(IC.layers)}<h3>On the map</h3></header>
       <div class="mt-views" role="group" aria-label="Map views">${Object.entries(VIEWS).map(([k, v]) => `<button type="button" class="mt-view" data-view="${k}">${esc(v.label)}<small>${esc(v.sub)}</small></button>`).join("")}</div>
       <p class="mt-note" id="mtZoomNote"></p>
       <div class="mt-row"><button type="button" class="mt-pill" id="mtAll">${svg(IC.layers, 16)}All layers</button><button type="button" class="mt-pill" id="mtRoutesBtn">${svg(IC.save, 16)}Saved routes</button><button type="button" class="mt-pill" id="mtLogBtn">${svg(IC.log, 16)}My adventure rides</button></div></div>

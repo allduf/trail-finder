@@ -252,11 +252,12 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       <button type="button" class="fs-act" data-act="catch">${svg(IC.fish)}Save a catch</button>
       <button type="button" class="fs-act" data-act="truck">${svg(IC.truck)}Truck</button>
       <button type="button" class="fs-act" data-act="log">${svg(IC.log)}Fishing log</button>
+      <button type="button" class="fs-act tf-phone" data-act="bait">${svg(IC.bug)}Bait</button>
     </div>
     <button type="button" class="fs-now" id="fsNow" hidden></button>
     <div class="fs-card" id="fsSpot" hidden></div>
     <div class="fs-card" id="fsToday"></div>
-    <div class="fs-card" id="fsMap"><header>${svg(IC.layers)}<h3>Map</h3></header>
+    <div class="fs-card" id="fsMap"><header>${svg(IC.layers)}<h3>On the map</h3></header>
       <div class="fs-views" role="group" aria-label="Map views">${Object.entries(VIEWS).map(([k, v]) => `<button type="button" class="fs-view" data-view="${k}">${esc(v.label)}<small>${esc(v.sub)}</small></button>`).join("")}</div>
       <button type="button" class="fs-pill" id="fsAll">${svg(IC.layers, 16)}All fishing layers</button></div>
     <div class="fs-card" id="fsCond"></div>
@@ -1749,6 +1750,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const b = e.target.closest("[data-act]"); if (!b) return;
     const act = b.dataset.act, P = window.tfPoints;
     if (act === "me") locate(b);
+    else if (act === "bait") { const h = $("fsHatch"); if (h) { h.querySelectorAll("details").forEach((d) => { d.open = true; }); if (window.tfPanelScrollTo) window.tfPanelScrollTo(h); } }   // phones (the log lives in Saved)
     else if (!P) hint("Points aren't available in this browser.");
     else if (act === "catch") { if (P.addCatch) P.addCatch(); else P.add(); }
     else if (act === "truck") truckMenu(b);
