@@ -21,7 +21,14 @@
   seen();
 
   const page = (location.pathname.split("/").pop() || "index.html").replace(/\.html$/, "") || "index";
-  const os = ((navigator.userAgent.match(/OS (\d+[_\d]*) like Mac/) || [])[1] || "").replace(/_/g, ".");
+  // The iOS in the user agent is frozen (it reads 18.7 on iOS 26), so builds with the Device plugin send the real
+  // version and the model code (e.g. "iOS 26.5 · iPhone17,1"): alex matches them to the TestFlight tester list.
+  const uaOs = ((navigator.userAgent.match(/OS (\d+[_\d]*) like Mac/) || [])[1] || "").replace(/_/g, ".");
+  let os = uaOs ? `iOS ${uaOs}` : "iOS";
+  try {
+    const Device = C.registerPlugin ? C.registerPlugin("Device") : (C.Plugins || {}).Device;
+    if (Device) Device.getInfo().then((i) => { if (i && i.osVersion) os = `iOS ${i.osVersion}${i.model ? ` · ${i.model}` : ""}`; }).catch(() => {});
+  } catch {}
   const screenSize = `${Math.min(screen.width, screen.height)}x${Math.max(screen.width, screen.height)}`;
 
   const QKEY = "tf:useQueue", MAX_QUEUE = 400;
@@ -42,7 +49,7 @@
     fetch(`${acct.url}/rest/v1/rpc/tf_use`, {
       method: "POST", keepalive: !!leaving,
       headers: { "Content-Type": "application/json", apikey: acct.key, Authorization: `Bearer ${acct.key}` },
-      body: JSON.stringify({ device, os: os ? `iOS ${os}` : "iOS", screen: screenSize, events: batch }),
+      body: JSON.stringify({ device, os, screen: screenSize, events: batch }),
     }).then((res) => {
       if (!res.ok) return;
       queue = queue.slice(batch.length);

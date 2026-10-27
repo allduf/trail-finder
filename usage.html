@@ -83,6 +83,7 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
     <p class="muted">Main buttons nobody used in this period.</p>
     <div class="card" id="never"></div>
     <h2>Each tester</h2>
+    <p class="muted">To know who is who, find the same phone and iOS in TestFlight's tester list and type the name. Only you see it. Phones show their model after they update to build 16.</p>
     <div id="people"></div>
     <h2>Errors</h2>
     <p class="muted">The same error is counted once, with how many times it happened.</p>
@@ -133,6 +134,22 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
     return w;
   };
   const isMe = (d) => /^me$/i.test((d.label || "").trim());
+  // The model code the app sends (build 16 and up) as the name TestFlight shows in its tester list, so each phone
+  // can be matched to a tester by model and iOS version. Older builds only send the frozen user-agent iOS (18.7).
+  const MODELS = {
+    "iPhone12,1": "iPhone 11", "iPhone12,3": "iPhone 11 Pro", "iPhone12,5": "iPhone 11 Pro Max", "iPhone12,8": "iPhone SE (2nd gen)",
+    "iPhone13,1": "iPhone 12 mini", "iPhone13,2": "iPhone 12", "iPhone13,3": "iPhone 12 Pro", "iPhone13,4": "iPhone 12 Pro Max",
+    "iPhone14,4": "iPhone 13 mini", "iPhone14,5": "iPhone 13", "iPhone14,2": "iPhone 13 Pro", "iPhone14,3": "iPhone 13 Pro Max", "iPhone14,6": "iPhone SE (3rd gen)",
+    "iPhone14,7": "iPhone 14", "iPhone14,8": "iPhone 14 Plus", "iPhone15,2": "iPhone 14 Pro", "iPhone15,3": "iPhone 14 Pro Max",
+    "iPhone15,4": "iPhone 15", "iPhone15,5": "iPhone 15 Plus", "iPhone16,1": "iPhone 15 Pro", "iPhone16,2": "iPhone 15 Pro Max",
+    "iPhone17,3": "iPhone 16", "iPhone17,4": "iPhone 16 Plus", "iPhone17,1": "iPhone 16 Pro", "iPhone17,2": "iPhone 16 Pro Max", "iPhone17,5": "iPhone 16e",
+    "iPhone18,3": "iPhone 17", "iPhone18,1": "iPhone 17 Pro", "iPhone18,2": "iPhone 17 Pro Max", "iPhone18,4": "iPhone Air",
+  };
+  const phoneOf = (d) => {
+    const m = /^iOS ([\d.]+) · (.+)$/.exec(d.os || "");
+    if (m) return `${MODELS[m[2]] || m[2]} · iOS ${m[1]}`;
+    return `iOS not known yet (old app build) · screen ${d.screen || "?"}`;
+  };
   const mins = (ms) => { const m = Math.round(ms / 60e3); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
   const ago = (d) => { const h = (Date.now() - new Date(d)) / 36e5; return h < 1 ? "just now" : h < 24 ? `${Math.round(h)} h ago` : `${Math.round(h / 24)} days ago`; };
   const bar = (n, max) => `<div class="bar" style="width:${Math.max(2, Math.round(100 * n / (max || 1)))}%"></div>`;
@@ -234,7 +251,7 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
       const top = [...d.taps.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
       const sports = [...d.sport.entries()].sort((a, b) => b[1] - a[1]).map(([k, ms]) => `${SPORTS[k] || k} ${mins(ms)}`).join(" · ");
       return `<div class="card">
-        <h3><input value="${esc(d.label || "")}" placeholder="Name this phone" data-device="${esc(d.device)}" aria-label="Name">${isMe(d) ? `<span class="me">Your phone</span>` : `<button type="button" data-me="${esc(d.device)}">This is me</button>`} <span class="muted">${esc(d.os || "")} · screen ${esc(d.screen || "?")}</span></h3>
+        <h3><input value="${esc(d.label || "")}" placeholder="Name this phone" data-device="${esc(d.device)}" aria-label="Name">${isMe(d) ? `<span class="me">Your phone</span>` : `<button type="button" data-me="${esc(d.device)}">This is me</button>`} <span class="muted">${esc(phoneOf(d))}</span></h3>
         <p class="muted">${d.sessions.size} visits · ${mins(d.ms)} in the app · last seen ${ago(d.last)}${d.errors ? ` · <span class="err">${d.errors} errors</span>` : ""}${sports ? `<br>${esc(sports)}` : ""}</p>
         <table>${top.map(([w, n]) => `<tr><td>${esc(nice(w))}</td><td class="n">${n}</td></tr>`).join("") || `<tr><td class="muted">No taps yet</td></tr>`}</table>
       </div>`;
