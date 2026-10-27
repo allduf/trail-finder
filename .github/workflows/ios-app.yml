@@ -31,7 +31,8 @@ concurrency:
 jobs:
   build-check:
     if: github.event_name == 'pull_request'
-    runs-on: macos-15
+    # Intel Macs: the arm64 ones were out of capacity on 2026-10-27 (jobs never got a runner, cancelled after 15 min).
+    runs-on: macos-15-intel
     timeout-minutes: 30
     defaults:
       run:
@@ -56,7 +57,8 @@ jobs:
 
   testflight:
     if: github.event_name != 'pull_request'
-    runs-on: macos-15
+    # Intel Macs: the arm64 ones were out of capacity on 2026-10-27 (jobs never got a runner, cancelled after 15 min).
+    runs-on: macos-15-intel
     timeout-minutes: 45
     defaults:
       run:
