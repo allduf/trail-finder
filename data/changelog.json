@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-27", "text": "iPhone app: loam, avalanche and stocking alerts now arrive as real iPhone notifications."},
     {"date": "2026-10-27", "text": "iPhone app: while you record, your time, km, climb and the trail you're on show on the lock screen and in the Dynamic Island."},
     {"date": "2026-10-27", "text": "iPhone app: a popup tells you when a newer version is ready in TestFlight."},
     {"date": "2026-10-27", "text": "Fishing: lake depth lines now cover Ontario, Quebec and Manitoba too (plus New Brunswick soundings), and a lake's card links its depth map where the province has one."},
