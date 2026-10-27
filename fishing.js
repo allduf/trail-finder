@@ -312,6 +312,17 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   ]).then(([w, h]) => { hidden = [...h, ...w.filter((x) => !h.some((y) => Math.abs(y.lat - x.lat) < 0.01 && Math.abs(y.lon - x.lon) < 0.015))]; drawPoints(); });
   const loadZones = () => (zones ? Promise.resolve(zones) : load("zones").then((j) => (zones = j.zones)).catch(() => []));
 
+  // Offline maps (offline.js) saved in Fishing: every fishing file (fish per water, stocking, rules, launches, hidden
+  // spots, gauges, tides; ~5 MB for all of Canada) and the heights the Route to a spot uses (zoom 12, fish-route.js).
+  window.tfFishOffline = (box) => {
+    const data = [...["boating", "eat", "fishlist", "gauges", "spots", "stocked", "tidal", "tides", "walkin", "zones", "qcrules", "onrules"].map((n) => `data/fishing/${n}.json`),
+      "data/fishing-hidden.json", "data/fishing-launches.json"].map((u) => new URL(u, location.href).href);
+    const tx = (lon) => Math.floor(((lon + 180) / 360) * 4096), ty = (lat) => Math.floor(((1 - Math.asinh(Math.tan((lat * Math.PI) / 180)) / Math.PI) / 2) * 4096);
+    const tiles = [];
+    for (let x = tx(box[1]); x <= tx(box[3]); x++) for (let y = ty(box[2]); y <= ty(box[0]); y++) tiles.push(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/12/${x}/${y}.png`);
+    return { data, tiles };
+  };
+
   // The province for links when no zone file covers the spot (rough lines, only to pick which rules to point to).
   function provinceAt(lat, lon, zs) {
     const k = zs.find((z) => ["bc", "ab", "on", "qc"].includes(z.k));
