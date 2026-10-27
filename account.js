@@ -42,6 +42,9 @@ dialog.acct .acct-alt button { background: none; border: 0; padding: 2px 0; colo
 dialog.acct .acct-menu { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
 dialog.acct .acct-menu button { text-align: left; padding: 12px 14px; font-size: 1rem; }
 dialog.acct .acct-menu small { display: block; font-weight: 400; color: var(--muted); font-size: .82rem; margin-top: 2px; }
+dialog.acct button.danger { background: #c0392b; color: #fff; border-color: transparent; }
+dialog.acct .acct-alt a { color: var(--accent); font-weight: 600; padding: 2px 0; }
+dialog.acct .acct-alt button.acct-del { color: #c0392b; }
 dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: 3px; }`;
   document.head.appendChild(css);
 
@@ -80,6 +83,14 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     <input type="password" id="acctNewPass" autocomplete="new-password" minlength="6" placeholder="At least 6 characters">
     <div class="acct-row" style="margin-bottom:12px"><button type="button" id="acctSetPass">Save password</button></div>
     <div class="acct-row"><button type="button" id="acctBack">← Back</button><button type="button" id="acctSignOut">Sign out</button></div>
+    <div class="acct-alt"><a href="privacy.html">Privacy</a><button type="button" id="acctDel" class="acct-del">Delete my account</button></div>
+  </div>
+  <div id="acctDelBox" hidden>
+    <h2>Delete account?</h2>
+    <p>This deletes your account and everything saved to it: settings, rides and their photos, saved routes, spots, trail reports, grades, photos and trails you added. It can't be undone.</p>
+    <p>Things saved only on this phone stay until you delete the app. You can make a new account any time.</p>
+    <p class="acct-msg" id="acctDelMsg" role="status"></p>
+    <div class="acct-row"><button type="button" id="acctDelNo">Keep my account</button><button type="button" class="danger" id="acctDelYes">Delete everything</button></div>
   </div>
 </div>`;
   document.body.appendChild(box);
@@ -109,7 +120,7 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     if (!box.open) box.showModal();
   }
   function showSettings(on) {
-    q("acctMenu").hidden = on; q("acctSettings").hidden = !on;
+    q("acctMenu").hidden = on; q("acctSettings").hidden = !on; q("acctDelBox").hidden = true;
     if (on) { q("acctNewEmail").value = api.user.email || ""; q("acctSetMsg").textContent = ""; }
   }
   q("acctGoSettings").addEventListener("click", () => showSettings(true));
@@ -211,6 +222,58 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     window.dispatchEvent(new CustomEvent("tf:signing-out", { detail: api.user }));
     await api.client.auth.signOut();
     box.close();
+  });
+
+  // Delete my account (Apple rule 5.1.1): the rider's own photo files go first through Storage (folders named by the
+  // user id), then delete_my_account() (supabase/delete-account.sql) removes the sign-in and every row tied to it.
+  // Anonymous ride sharing has no account link, so its rides are taken back with the rider's share key.
+  q("acctDel").addEventListener("click", () => {
+    q("acctSettings").hidden = true; q("acctDelBox").hidden = false;
+    q("acctDelMsg").textContent = ""; q("acctDelMsg").className = "acct-msg"; q("acctDelYes").disabled = false;
+  });
+  q("acctDelNo").addEventListener("click", () => showSettings(true));
+  async function listFiles(bucket, dir, depth = 0) {
+    const { data, error } = await api.client.storage.from(bucket).list(dir, { limit: 1000 });
+    if (error || !data) return [];
+    const out = [];
+    for (const f of data) {
+      if (f.id) out.push(`${dir}/${f.name}`);
+      else if (depth < 2) out.push(...await listFiles(bucket, `${dir}/${f.name}`, depth + 1));   // a folder (rides: <user>/<ride>/)
+    }
+    return out;
+  }
+  async function removeMyFiles(uid) {
+    const c = api.client;
+    for (const bucket of ["ride-photos", "point-photos"]) {
+      const files = await listFiles(bucket, uid).catch(() => []);
+      for (let i = 0; i < files.length; i += 100) await c.storage.from(bucket).remove(files.slice(i, i + 100)).catch(() => {});
+    }
+    // Trail photos are a public bucket with no list rule: their paths are in the table.
+    const { data } = await c.from("trail_photos").select("path").eq("user_id", uid).then((r) => r, () => ({ data: null }));
+    const paths = (data || []).map((r) => r.path).filter(Boolean);
+    if (paths.length) await c.storage.from("trail-photos").remove(paths).catch(() => {});
+  }
+  q("acctDelYes").addEventListener("click", async () => {
+    const msg = q("acctDelMsg"), yes = q("acctDelYes");
+    yes.disabled = true; msg.className = "acct-msg"; msg.textContent = "Deleting…";
+    try {
+      const uid = api.user && api.user.id;
+      if (!uid) throw new Error("Not signed in");
+      await removeMyFiles(uid);
+      const key = jparse(lsGet("tf:shareKey"), null);   // share.js keeps it as JSON
+      if (key) await api.client.rpc("unshare_all", { p_key: key }).then(() => {}, () => {});
+      const { error } = await api.client.rpc("delete_my_account");
+      if (error) throw error;
+      ["tf:shareKey", "tf:shareOn", STAMP, KEYAT].forEach((k) => lsSet(k, null));
+      window.dispatchEvent(new CustomEvent("tf:signing-out", { detail: api.user }));
+      await api.client.auth.signOut({ scope: "local" }).catch(() => {});
+      setUser(null);
+      msg.textContent = "Your account is deleted.";
+      setTimeout(() => box.close(), 1800);
+    } catch (e) {
+      yes.disabled = false; msg.className = "acct-msg err";
+      msg.textContent = "Couldn't delete the account: " + ((e && e.message) || e) + ". Try again, or write to us from the Support page.";
+    }
   });
 
   // ---------- settings ----------
