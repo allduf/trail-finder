@@ -1965,7 +1965,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (st) out.push(`<dt>Snow station</dt><dd><a href="#" class="sk-go" data-st="${esc(st.st.id)}">${esc(st.st.name)}</a> <span class="sk-note">${st.km.toFixed(0)} km, ${st.st.ele.toLocaleString()} m</span>${st.st.sd != null ? `<br>Snow <b>${cm(st.st.sd)}</b> · 24 h ${plus(st.st.sd24)} · 3 days ${plus(st.st.sd72)}` : ""}</dd>`);
     return out.length ? `<h4>Nearby</h4><dl>${out.join("")}</dl>` : "";
   }
-  // Phones: the sheet up to half, and the spot moved into the map part still showing (2D or 3D).
+  // Phones: the sheet up to half. The camera stays where it is (alex 2026-10-27: a tap that zoomed the 3D map out was
+  // unwelcome); only on the flat map, a spot the sheet now covers slides up above it, at the same zoom.
   function spotInView(lat, lon) {
     if (!PHONE_UI()) { if (window.tfPanelScrollTo) window.tfPanelScrollTo($("skSpot")); return; }
     if (window.tfSnapTo) { const p = document.querySelector(".panel"); if (p && !p.classList.contains("sheet-half")) window.tfSnapTo("half"); }
@@ -1974,12 +1975,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const sc = window.tfPanelScroller && window.tfPanelScroller($("skSpot"));
       if (sc) sc.scrollTop = Math.max(0, sc.scrollTop - 16);   // a little room above the card, clear of the sheet's handle
       const panel = document.querySelector(".panel"), box = map.getContainer().getBoundingClientRect();
-      if (!panel) return;
-      const top = panel.getBoundingClientRect().top, gl = map.getContainer().classList.contains("is3d") && window.trailMap3d;
-      const y = box.top + (gl ? gl.project([lon, lat]).y : map.latLngToContainerPoint([lat, lon]).y);
-      if (y < top - 60 && y > box.top + 80) return;
-      const dy = y - (box.top + (top - box.top) * 0.5);
-      if (gl) gl.panBy([0, dy], { duration: 300 }); else map.panBy([0, dy]);
+      if (!panel || map.getContainer().closest(".is3d")) return;   // 3D: the class is on the map's wrapper
+      const top = panel.getBoundingClientRect().top, y = box.top + map.latLngToContainerPoint([lat, lon]).y;
+      if (y < top - 40) return;
+      map.panBy([0, y - (box.top + (top - box.top) * 0.6)]);
     }, 320);
   }
   async function showSpot(lat, lon) {
