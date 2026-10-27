@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-27", "text": "iPhone app: while you record, your time, km, climb and the trail you're on show on the lock screen and in the Dynamic Island."},
     {"date": "2026-10-27", "text": "Crown land across Canada: public land in green and private land in yellow from each province's own map (Ontario, Quebec, the Maritimes, Saskatchewan, Newfoundland, Manitoba forests). In Hunting, Moto and Fishing, and tap a spot to see who owns the land."},
     {"date": "2026-10-27", "text": "Share your live location: friends and family follow you on a map from a link, with a \"back by\" time (Ride or Track page, and More)."},
     {"date": "2026-10-27", "text": "New 🌧 Radar layer: see rain or snow falling now and the last 3 hours, all over southern Canada."},

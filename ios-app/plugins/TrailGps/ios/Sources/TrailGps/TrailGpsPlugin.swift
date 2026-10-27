@@ -1,3 +1,6 @@
+#if canImport(ActivityKit)
+import ActivityKit
+#endif
 import AVFoundation
 import Capacitor
 import CoreLocation
@@ -16,6 +19,25 @@ import UIKit
 // Live location (live.js): live(config) sends where the phone is to the live location server every 20 s, from here,
 // so it keeps going with the phone locked, ride or no ride. live({ grp: "" }) stops it. While only sharing (not
 // recording a ride) the GPS asks for less (10 m), to save battery.
+// Lock screen (navigate.js): activity({ action: "start" | "update" | "end", ... }) shows the ride on the lock screen
+// and in the Dynamic Island (iOS 16.2+, the RideActivity extension in ios-app/ios/App draws it). The page sends the
+// km, climb and the trail you're on while it's awake; with the phone locked, the km and climb carry on from the fixes here.
+#if canImport(ActivityKit)
+// The same as RideAttributes in ios-app/ios/App/RideActivity/RideActivity.swift (the lock screen matches them by name).
+struct RideAttributes: ActivityAttributes {
+    public struct ContentState: Codable, Hashable {
+        var km: Double
+        var climb: Int
+        var line: String
+        var paused: Bool
+        var pausedText: String
+    }
+    var sport: String
+    var title: String
+    var start: Date
+}
+#endif
+
 @objc(TrailGpsPlugin)
 public class TrailGpsPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate, AVSpeechSynthesizerDelegate {
     public let identifier = "TrailGpsPlugin"
@@ -26,7 +48,8 @@ public class TrailGpsPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         CAPPluginMethod(name: "fixes", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "speak", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cues", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "live", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "live", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "activity", returnType: CAPPluginReturnPromise)
     ]
 
     private static let keepMs: Double = 12 * 3600 * 1000   // older fixes left in the file are from a ride long over
@@ -43,6 +66,18 @@ public class TrailGpsPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     private var liveCfg: [String: Any]?                     // live location: where and as whom to send, or nil
     private var liveSent: Double = 0                        // when the last one went (ms)
     private var liveBusy = false
+    // The lock screen ride: what it shows, and the last fix it counted from
+    private var actOn = false
+    private var actKm: Double = 0
+    private var actClimb: Double = 0
+    private var actLine = ""
+    private var actPaused = false
+    private var actPausedText = ""
+    private var actLast: CLLocation?
+    private var actAltBase: Double?
+    private var actPushed: Double = 0                       // when the lock screen was last updated (ms)
+    private var actFromPage: Double = 0                     // when the page last sent numbers (ms)
+    private var actRef: Any?                                // Activity<RideAttributes> (iOS 16.2+)
 
     private var fileURL: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -84,6 +119,7 @@ public class TrailGpsPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     @objc func stop(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             self.recording = false
+            self.endActivity()
             if self.liveCfg == nil { self.halt() } else { self.cueList = []; self.cueNext = 0; self.tune() }
             self.saved = []
             try? self.file?.close()
@@ -158,6 +194,98 @@ public class TrailGpsPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
                 call.resolve(["live": true])
             }
         }
+    }
+
+    @objc func activity(_ call: CAPPluginCall) {
+        let action = call.getString("action") ?? ""
+        let km = call.getDouble("km"), climb = call.getDouble("climb"), line = call.getString("line")
+        let paused = call.getBool("paused"), pausedText = call.getString("pausedText")
+        let sport = call.getString("sport") ?? "mtb", title = call.getString("title") ?? "Riding"
+        let start = call.getDouble("start") ?? Date().timeIntervalSince1970 * 1000
+        DispatchQueue.main.async {
+            if let km = km { self.actKm = km }
+            if let climb = climb { self.actClimb = climb }
+            if let line = line { self.actLine = String(line.prefix(80)) }
+            if let paused = paused { self.actPaused = paused }
+            if let pausedText = pausedText { self.actPausedText = pausedText }
+            self.actFromPage = Date().timeIntervalSince1970 * 1000
+            switch action {
+            case "start":
+                self.actLast = nil
+                self.actAltBase = nil
+                self.startActivity(sport: sport, title: title, start: Date(timeIntervalSince1970: start / 1000))
+            case "end":
+                self.endActivity()
+            default:
+                self.pushActivity()
+            }
+            call.resolve(["on": self.actOn])
+        }
+    }
+
+    private func startActivity(sport: String, title: String, start: Date) {
+        #if canImport(ActivityKit)
+        guard #available(iOS 16.2, *) else { return }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        for a in Activity<RideAttributes>.activities { Task { await a.end(nil, dismissalPolicy: .immediate) } }
+        let attrs = RideAttributes(sport: sport, title: title, start: start)
+        do {
+            actRef = try Activity.request(attributes: attrs, content: ActivityContent(state: actState(), staleDate: nil), pushType: nil)
+            actOn = true
+            actPushed = Date().timeIntervalSince1970 * 1000
+        } catch {
+            actOn = false
+        }
+        #endif
+    }
+
+    #if canImport(ActivityKit)
+    @available(iOS 16.2, *)
+    private func actState() -> RideAttributes.ContentState {
+        RideAttributes.ContentState(km: actKm, climb: Int(actClimb.rounded()), line: actLine, paused: actPaused, pausedText: actPausedText)
+    }
+    #endif
+
+    private func pushActivity() {
+        #if canImport(ActivityKit)
+        guard #available(iOS 16.2, *), actOn, let a = actRef as? Activity<RideAttributes> else { return }
+        actPushed = Date().timeIntervalSince1970 * 1000
+        let content = ActivityContent(state: actState(), staleDate: nil)
+        Task { await a.update(content) }
+        #endif
+    }
+
+    private func endActivity() {
+        #if canImport(ActivityKit)
+        guard #available(iOS 16.2, *) else { return }
+        actOn = false
+        actRef = nil
+        for a in Activity<RideAttributes>.activities { Task { await a.end(nil, dismissalPolicy: .immediate) } }
+        #endif
+    }
+
+    // With the phone locked the page sleeps: add up the km and climb here and refresh the lock screen every 15 s.
+    private func countActivity(_ l: CLLocation) {
+        guard actOn, recording, !actPaused else { actLast = nil; return }
+        let now = Date().timeIntervalSince1970 * 1000
+        let pageAwake = now - actFromPage < 20000
+        if l.horizontalAccuracy <= 30 {
+            if let last = actLast {
+                let d = l.distance(from: last)
+                if d >= 5 {
+                    if !pageAwake { actKm += d / 1000 }
+                    actLast = l
+                }
+            } else { actLast = l }
+        }
+        if l.verticalAccuracy >= 0 && l.verticalAccuracy <= 15 {
+            let alt = l.altitude
+            if let base = actAltBase {
+                if alt > base + 4 { if !pageAwake { actClimb += alt - base }; actAltBase = alt }
+                else if alt < base - 4 { actAltBase = alt }
+            } else { actAltBase = alt }
+        }
+        if !pageAwake && now - actPushed >= 15000 { pushActivity() }
     }
 
     // Full accuracy while recording; 10 m steps while only sharing.
@@ -306,7 +434,7 @@ public class TrailGpsPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
             if l.verticalAccuracy >= 0 { fix["alt"] = l.altitude }
             if l.speed >= 0 { fix["speed"] = l.speed }
             if l.course >= 0 { fix["heading"] = l.course }
-            if recording { keep(fix) }
+            if recording { keep(fix); countActivity(l) }
             notifyListeners("fix", data: fix)
             cueAt(l)
         }
