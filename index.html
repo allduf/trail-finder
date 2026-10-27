@@ -1785,7 +1785,46 @@ body.sport-alt #rideMapBtn { display: none !important; }
   map.fitBounds(zoneBounds(state.zone));
   const OSM_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
   const ESRI_SAT = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-  const SAT_ATTR = 'Imagery &copy; Esri, Maxar, Earthstar Geographics, Eagleview, District of Squamish, Village of Pemberton, Sunshine Coast, qathet';
+  const SAT_ATTR = 'Imagery &copy; Esri, Maxar, Earthstar Geographics, Eagleview, District of Squamish, Village of Pemberton, Sunshine Coast, qathet, Gouvernement du Qu&eacute;bec, GeoNB';
+  // Free provincial air photos, 15-20 cm, used where Esri has no air photo of its own (its photos stop before zoom 20 there):
+  // Tremblant, the Gaspésie, Sugarloaf... were 8 times blurrier than Whistler (coverage check, alex 2026-10-27 "can we
+  // fix that?"). Quebec's Imagerie continue (WMTS, whole province) and GeoNB's imagery (drawn on request, Mercator).
+  // Outside their province both send one flat colour, under 3 KB: then it's Esri's photo after all.
+  // window.tfLocalPhoto(z, x, y, signal) -> Promise of the JPEG bytes, or null (map3d.js uses it too).
+  const mercBox = (z, x, y) => { const R = 20037508.342789244, n = 2 ** z; return [x / n * 2 * R - R, R - (y + 1) / n * 2 * R, (x + 1) / n * 2 * R - R, R - y / n * 2 * R]; };
+  const LOCAL_PHOTOS = [
+    { box: [44.55, -69.1, 48.1, -63.75], url: (z, x, y) => `https://geonb.snb.ca/arcgis/rest/services/GeoNB_Basemap_Imagery/MapServer/export?bbox=${mercBox(z, x, y).map((v) => v.toFixed(2))}&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&f=image` },
+    { box: [44.99, -79.8, 62.6, -57.1], url: (z, x, y) => `https://servicesmatriciels.mern.gouv.qc.ca/erdas-iws/ogc/wmts/Imagerie_Continue/Imagerie_GQ/default/GoogleMapsCompatibleExt2:epsg:3857/${z}/${y}/${x}.jpg` },
+  ];
+  const LOCAL_Z = 15, ESRI_AERIAL_Z = 20;   // Esri with a zoom-20 photo has an air photo itself (Bromont: the same one)
+  const esriAerial = new Map();   // "blockX/blockY" at zoom 19 -> Promise of Esri's 32x32 tile map there, or null
+  const hasEsriAerial = (z, x, y) => {
+    const k = ESRI_AERIAL_Z - z, cx = (x << k) + (1 << k >> 1), cy = (y << k) + (1 << k >> 1), bx = cx >> 5, by = cy >> 5, key = bx + "/" + by;
+    if (!esriAerial.has(key)) {
+      if (esriAerial.size > 300) esriAerial.delete(esriAerial.keys().next().value);
+      esriAerial.set(key, fetch(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tilemap/${ESRI_AERIAL_Z}/${by * 32}/${bx * 32}/32/32`)
+        .then((r) => r.json()).then((j) => j.valid === false || !j.data || j.location?.left !== bx * 32 || j.location?.top !== by * 32 ? null : j.data).catch(() => null));
+    }
+    return esriAerial.get(key).then((d) => !!d && d[(cy - by * 32) * 32 + (cx - bx * 32)] === 1);
+  };
+  const localNone = new Set();   // tiles that came back flat (outside the province, or open water)
+  window.tfLocalPhoto = async (z, x, y, signal) => {
+    if (z < LOCAL_Z || z > 22) return null;
+    const n = 2 ** z, lon = ((x + 0.5) / n) * 360 - 180, lat = (Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 0.5)) / n))) * 180) / Math.PI;
+    const srcs = LOCAL_PHOTOS.filter((p) => lat >= p.box[0] && lat <= p.box[2] && lon >= p.box[1] && lon <= p.box[3]);
+    if (!srcs.length || await hasEsriAerial(z, x, y)) return null;
+    for (const p of srcs) {
+      const key = `${LOCAL_PHOTOS.indexOf(p)}/${z}/${x}/${y}`;
+      if (localNone.has(key)) continue;
+      try {
+        const r = await fetch(p.url(Math.min(z, 21), z > 21 ? x >> 1 : x, z > 21 ? y >> 1 : y), { signal });
+        const b = r.ok ? await r.arrayBuffer() : null;
+        if (b && b.byteLength > 3000) return b;
+        localNone.add(key);
+      } catch (e) { if (signal && signal.aborted) throw e; }
+    }
+    return null;
+  };
   const BASEMAPS = {
     osm: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: OSM_ATTR }],
     osmde: ["https://tile.openstreetmap.de/{z}/{x}/{y}.png", { maxZoom: 18, attribution: OSM_ATTR + ' | tiles <a href="https://www.openstreetmap.de">openstreetmap.de</a>' }],
@@ -1854,6 +1893,15 @@ body.sport-alt #rideMapBtn { display: none !important; }
       };
       (async () => {
         let z = c.z, x = c.x, y = c.y;
+        // A sharper provincial air photo here (tfLocalPhoto above)?
+        const local = z >= LOCAL_Z ? await window.tfLocalPhoto(z, x, y).catch(() => null) : null;
+        if (local) {
+          const url = URL.createObjectURL(new Blob([local], { type: "image/jpeg" }));
+          Object.assign(img.style, { position: "absolute", width: size + "px", height: size + "px", maxWidth: "none", left: 0, top: 0 });
+          img.onload = () => { URL.revokeObjectURL(url); done(null, box); }; img.onerror = (e) => { URL.revokeObjectURL(url); done(e, box); };
+          img.src = url;
+          return;
+        }
         // The photo starts downloading while Esri's tile map is asked whether it exists, not after: one wait instead of
         // two for every new block of the map (alex 2026-10-25, "as quick as" Outmap). It only shows once both say yes.
         const got = new Promise((ok) => { img.onload = () => ok(null); img.onerror = (e) => ok(e || new Error("tile")); });

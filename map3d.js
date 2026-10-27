@@ -396,6 +396,8 @@
     return haveBlocks.get(k).then((d) => d ? d[(y - by * 32) * 32 + (x - bx * 32)] === 1 : z <= 19);
   };
   async function photoBytes(z, x, y, sig) {
+    // Quebec's and New Brunswick's own air photos where Esri has only satellite (index.html, tfLocalPhoto).
+    if (z >= 15 && window.tfLocalPhoto) { const local = await window.tfLocalPhoto(z, x, y, sig).catch((e) => { if (sig.aborted) throw e; return null; }); if (local) return local; }
     const own = tileBytes(z, x, y, sig);
     if (z <= 12 || await esriHas(z, x, y)) return own;
     own.catch(() => null);
