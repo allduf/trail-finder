@@ -1914,6 +1914,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const expired = f && !example && f.validUntil && new Date(f.validUntil) < new Date();
     if (!f || !f.days || !f.days.length || expired) return html + `<p class="sk-note">${where}.</p><p>No avalanche forecast here right now${expired ? " (the last one has expired)" : ""}. Avalanche Canada's daily forecasts run from about late November to April. ${link}</p>`;
     const d = dayOf(f), r = (d && d[band]) || 0, li = r ? T.light(r, cls.c) : -1;
+    if (r && g.slope >= 25) {
+      const mask = a ? a.mask[band] : 0, hit = mask & (1 << g.asp), lv = slopeLevel(r, hit, mask, g.slope);
+      html += `<p>On the map, this slope is <span class="av-chip" style="background:${DANGER[lv].color};color:${lv >= 4 ? "#fff" : "#1a1a1a"}">${esc(DANGER[lv].label)}</span>: ${Math.round(g.slope)}° ${esc(ASPECT_NAME[g.asp])}-facing, ${hit ? "on an aspect in today's problems" : mask ? "away from today's problems" : "no problems listed in this band"}.</p>`;
+    }
     if (li >= 0) {
       const L0 = T.LIGHTS[li];
       html += `<div class="sk-check" style="--c:${L0.color}"><b>${L0.label}</b><span>${esc(d.label || d.date || "")}: ${esc(DANGER[r].label.replace(/^\d /, ""))} in the ${bandN.toLowerCase()} × ${cls.label} terrain (estimate)</span></div>`;
@@ -2323,7 +2327,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         ${notes.length ? `<h5>Forecaster's notes</h5>${notes.map((s) => `<p>${esc(s)}</p>`).join("")}` : ""}
         ${minHtml([{ lat: c.lat, lon: c.lng }])}
         ${avyOn ? `<h5>Slope colours</h5><ul class="av-legend">${DANGER.slice(1).map((x) => `<li><i style="background:${x.color}"></i>${x.label}</li>`).join("")}<li><i style="background:repeating-linear-gradient(135deg,#f79218 0 3px,#7a4a0c 3px 5px)"></i>Problem aspect</li></ul>
-        <p class="sk-note">Slopes of 25° and more, coloured by their band's rating (treeline about ${area.bands.lo}-${area.bands.hi} m here). An estimate, not a terrain rating.</p>` : ""}
+        <p class="sk-note">Slopes of 25° and more, coloured by their band's rating (treeline about ${area.bands.lo}-${area.bands.hi} m here), then one level less where a slope faces away from today's problems or is under 30°, and one more at 40°+ on a problem aspect. An estimate, not a terrain rating.</p>` : ""}
         <p class="sk-note">${f.issued ? "Issued " + esc(new Date(f.issued).toLocaleDateString()) + ", for" : "For"} the middle of the map.</p>
       </details>
       <div class="av-foot">${shade}${example ? `<button type="button" class="av-pill" id="avExOff">Hide example</button>` : rated ? "" : `<button type="button" class="av-pill" id="avEx">Example</button>`}<a class="av-pill" href="${esc(f.url || "https://avalanche.ca/map")}" target="_blank" rel="noopener">avalanche.ca ↗</a></div>`;
@@ -2396,6 +2400,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const COLORS = DANGER.map((d) => rgb(d.color));
   // Pixels at low zoom are hundreds of metres wide, which flattens slopes: ask for less steepness there.
   const minSlope = (z) => (z >= 12 ? 25 : z === 11 ? 21 : z === 10 ? 17 : z === 9 ? 13 : 10);
+  // The danger on one slope, from its band's rating moved by its direction and steepness (alex 2026-10-27: "the red
+  // zone based on slope aspect and angle too, not just the alpine"): one level less where the slope faces away from
+  // today's avalanche problems in its band (only when there are problems there) and one less under 30°; one more at
+  // 40° and steeper on a problem aspect, where most accidents happen. Never past Extreme or below Low.
+  function slopeLevel(r, hit, probs, slope) {
+    if (!r) return 0;
+    let lv = r;
+    if (probs && !hit) lv--;
+    if (slope < 30) lv--;
+    else if (hit && slope >= 40) lv++;
+    return Math.max(1, Math.min(5, lv));
+  }
   async function paint(z, x, y) {
     const data = example ? exampleData() : avy;
     const out = new ImageData(256, 256);
@@ -2429,9 +2445,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         if (!r) continue;
         // Downhill direction: east = -dz/dx, north = +dz/dy (pixel rows run south).
         const asp = ((Math.atan2(-dzdx, dzdy) * 180) / Math.PI + 360) % 360, sector = Math.round(asp / 45) % 8;
-        const hit = a.mask[band] & (1 << sector);
+        const hit = a.mask[band] & (1 << sector), lv = slopeLevel(r, hit, a.mask[band], slope);
         let alpha = slope < 30 ? 0.3 : slope < 45 ? 0.55 : 0.42;
-        let [cr, cg, cb] = COLORS[r];
+        let [cr, cg, cb] = COLORS[lv];
         if (hit) { alpha = Math.min(0.85, alpha + 0.22); if ((px + py) % 7 < 2) { cr *= 0.45; cg *= 0.45; cb *= 0.45; } }
         const j = i * 4;
         o[j] = cr; o[j + 1] = cg; o[j + 2] = cb; o[j + 3] = alpha * 255;
