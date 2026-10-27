@@ -444,8 +444,11 @@
         // above), so nothing under it shows: no download at all. In Skiing at Whistler these were ~210 tiles a view,
         // twice the Winter photos, queued in the same line, so after a move only ~20% of the Winter photos had
         // arrived 3 s later (phone test, 2026-10-27).
-        if (z >= 11) return noTile();
-        return { data: await photoBytes(z, x, y, sig) };
+        // Except where last winter's photo has holes: pixels cloudy on every pass are see-through, and with nothing
+        // under them the ground showed the blue sky through jagged holes, like broken mountains (alex at Grouse,
+        // 2026-10-27; about 1 Winter tile in 6 has some, most around Vancouver, Revelstoke and Kicking Horse).
+        if (z < 11 || await winterHoles(z, x, y)) return { data: await photoBytes(z, x, y, sig) };
+        return noTile();
       }
       const [raw, live] = await Promise.all([
         photoBytes(z, x, y, sig),
@@ -638,6 +641,37 @@
     cx.drawImage(img, sx, sy, size, size, 0, 0, 256, 256);
     return { data: cv.transferToImageBitmap() };
   }
+  // Does the Winter photo over tile z/x/y have see-through pixels there? Asked of the Winter tile the map shows at
+  // the same spot (one zoom less on phones, where Winter tiles are 256 px), which is usually downloaded already;
+  // a missing one is answered by the tile above it, like winterUp. Only the yes / no is kept, per fill tile.
+  const holes = new Map();
+  const winterHoles = (z, x, y) => {
+    const wz = Math.min(14, PHONE ? z - 1 : z), key = `${z}/${x}/${y}`;
+    const part = (pz, run) => { const n = 1 << (z - pz), s = 256 / n; return run(pz, x >> (z - pz), y >> (z - pz), (x % n) * s, (y % n) * s, s); };
+    if (!holes.has(key)) {
+      if (holes.size > 3000) holes.delete(holes.keys().next().value);
+      const look = async (pz) => {
+        const r = await fetch(`${WINTER}${pz}/${x >> (z - pz)}/${y >> (z - pz)}.webp`);
+        if (r.status === 404 && pz > 11) return look(pz - 1);
+        if (!r.ok) return null;   // can't tell: the photo under is drawn, so no hole either way
+        const img = await createImageBitmap(await r.blob()), px = pixels(img);
+        img.close();
+        return [pz, px];
+      };
+      holes.set(key, look(wz).then((got) => {
+        if (!got) return true;
+        const [pz, px] = got, W = px.width, D = px.data;
+        return part(pz, (a, b, c, l, t, s) => {
+          // Whole pixels of this part of the tile, one more around it (the photo is smoothed when drawn).
+          const f = W / 256, x0 = Math.max(0, Math.floor(l * f) - 1), y0 = Math.max(0, Math.floor(t * f) - 1);
+          const x1 = Math.min(W, Math.ceil((l + s) * f) + 1), y1 = Math.min(px.height, Math.ceil((t + s) * f) + 1);
+          for (let j = y0; j < y1; j++) for (let i = x0; i < x1; i++) if (D[(j * W + i) * 4 + 3] < 250) return true;
+          return false;
+        });
+      }).catch(() => { holes.delete(key); return true; }));
+    }
+    return holes.get(key);
+  };
   // Is tile z/x/y all inside the zoom-11 squares that have winter photos?
   const covered = (have, z, x, y) => {
     if (!have) return false;
