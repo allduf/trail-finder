@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-27", "text": "MTB now opens on the flat map the first time. After that, each sport opens on the map you last left it on (3D or flat, map style and layers)."},
     {"date": "2026-10-27", "text": "Skiing 3D: no more blue holes and broken-looking mountains where last winter's photo was cloudy (Grouse, Seymour, Kicking Horse and others). Those spots now show the snowy photo instead."},
     {"date": "2026-10-27", "text": "Skiing: the avalanche colours now change slope by slope. Steep slopes facing today's avalanche problems turn a level hotter (red can show at treeline too), gentle or sheltered slopes a level cooler. Tap a slope to see why."},
     {"date": "2026-10-27", "text": "The 3D map no longer slowly fills the phone's memory as you move around, so long Skiing sessions shouldn't restart the app any more."},
