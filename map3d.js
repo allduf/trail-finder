@@ -35,6 +35,9 @@
   const mark = (v) => { try { v ? localStorage.setItem(OPEN, String(Date.now())) : localStorage.removeItem(OPEN); } catch {} };
   let crashed = false;
   try { const t = +localStorage.getItem(OPEN); crashed = t > 0 && Date.now() - t < CRASH_MS && document.visibilityState === "visible"; } catch {}
+  // For alex's usage page (usage.js): 3D restarts after a crash and how long the mountains take to first draw.
+  const logUse = (...a) => (window.tfUse ? window.tfUse(...a) : (window.tfUseQ = window.tfUseQ || []).push(a));
+  if (crashed) logUse("crash", "3d");
   mark(false);
   setInterval(() => { if (on && document.visibilityState === "visible") mark(true); }, 5000);
   // Where the 3D map was looking, kept while it's open: after a crash the page opens there on the flat map, not on
@@ -592,7 +595,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=605");
+      const w = new Worker("winter-fill.js?v=607");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return; fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1000,6 +1003,11 @@
     box.append(wait);
     const waited = () => wait.remove();
     gl.once("load", waited); gl.once("idle", waited); setTimeout(waited, 20000);
+    // Time to the first full draw of the ground; 30 s or more is counted as 30 s.
+    const t3d = performance.now();
+    let timed = false;
+    const timeIt = () => { if (!timed) { timed = true; logUse("speed", "3d", Math.min(performance.now() - t3d, 30000)); } };
+    gl.once("idle", timeIt); setTimeout(timeIt, 30000);
     if (PHONE) {
       gl.on("idle", trimPaintBuffers);
       // At most PHONE_BUFFERS paint buffers, even while moving: with no limit (30) a long tilted ride across the

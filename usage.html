@@ -38,7 +38,7 @@ p.lead, .muted { color: var(--muted); }
 .stat b { display: block; font-size: 1.5rem; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; overflow-x: auto; }
 .card h3 { margin: 0; font-size: 1.05rem; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.card h3 input { font: inherit; font-weight: 600; padding: 3px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); width: 200px; max-width: 100%; }
+#quiet input, .card h3 input { font: inherit; font-weight: 600; padding: 3px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); width: 200px; max-width: 100%; }
 table { width: 100%; border-collapse: collapse; font-size: .92rem; }
 th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--muted); font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; }
@@ -52,6 +52,16 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
 .card h3 button { font: inherit; font-size: .8rem; padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--fg); cursor: pointer; }
 .raw { color: var(--muted); font-size: .8rem; }
 #msg { margin-top: 16px; }
+.note { background: var(--panel); border: 1px solid var(--accent); border-radius: 12px; padding: 10px 14px; margin-top: 14px; }
+.stat small { display: block; color: var(--muted); font-size: .8rem; }
+.tag { display: inline-block; font-size: .78rem; padding: 1px 8px; border-radius: 999px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+.tag.bad { color: var(--err); }
+.tag.good { color: var(--accent); }
+td .q { word-break: break-word; }
+textarea { width: 100%; min-height: 120px; font: inherit; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+.list { margin: 0; padding-left: 18px; }
+.funnel td:first-child { width: 45%; }
+details > summary { cursor: pointer; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -59,38 +69,81 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
   <div class="top">
     <div>
       <h1>App usage</h1>
-      <p class="lead">What testers do in the iPhone app. Only you can see this. Each phone is an anonymous code; give it a name below.</p>
+      <p class="lead">What testers do in the iPhone app: what they look for, where they get stuck, and how fast it is. Only you can see this. Each phone is an anonymous code; give it a name below.</p>
     </div>
     <div class="days" role="group" aria-label="Period">
       <button type="button" data-days="7">7 days</button><button type="button" data-days="30" aria-pressed="true">30 days</button><button type="button" data-days="90">90 days</button>
     </div>
   </div>
   <div id="msg" class="muted">Loading…</div>
+  <div id="setup" class="note" hidden>One step left to see searches, speed, crashes and every tester: paste <b>supabase/usage-more.sql</b> into the Supabase SQL Editor and run it. Until then the app can't send them.</div>
   <div id="out" hidden>
     <div class="who days" role="group" aria-label="Whose use">
       <button type="button" data-who="others">Everyone but me</button><button type="button" data-who="all">Everyone</button><button type="button" data-who="me">Only me</button>
       <span class="muted" id="whoHint"></span>
     </div>
     <div class="stats" id="stats"></div>
+
+    <h2>What people search for</h2>
+    <p class="muted">Everything typed in a search box or in Ask, once the person stopped typing. “Nothing found” and “Didn't pick one” are the places the app let them down.</p>
+    <div class="card"><table id="searches"></table></div>
+
+    <h2>Find results</h2>
+    <p class="muted">Lists people asked for with Find a trail (new trails, near me, by level, in a square), and how often the list came back empty.</p>
+    <div class="card"><table id="results"></table></div>
+
+    <h2>From finding to riding</h2>
+    <p class="muted">Out of all visits, how many got to each step. A big drop shows where people stop.</p>
+    <div class="card"><table id="funnel" class="funnel"></table></div>
+
+    <div class="cols">
+      <div><h2>Where visits end</h2><p class="muted">The last thing done before leaving the app.</p><div class="card"><table id="ends"></table></div></div>
+      <div><h2>Where people look</h2><p class="muted">The area on the map (a zone or a province, never a spot).</p><div class="card"><table id="areas"></table></div></div>
+    </div>
+
+    <h2>Speed</h2>
+    <p class="muted">How long people wait. “Most” is the usual wait (half are faster); “Slow ones” is what 1 visit in 10 waits or longer.</p>
+    <div class="card"><table id="speed"></table></div>
+
+    <h2>Crashes</h2>
+    <p class="muted">Times the app died and iOS opened it again (usually out of memory).</p>
+    <div class="card"><table id="crashes"></table></div>
+
+    <h2>Coming back</h2>
+    <p class="muted">Testers who used the app each week, and how many of them were there in an earlier week too.</p>
+    <div class="card"><table id="weeks"></table></div>
+
     <h2>Most used</h2>
     <p class="muted">Each tap, and how many testers used it. Things near the bottom, or missing, are the ones people don't find or don't need.</p>
     <div class="card"><table id="features"></table></div>
     <div class="cols">
       <div><h2>First tap of a visit</h2><div class="card"><table id="firsts"></table></div></div>
-      <div><h2>Time in each sport</h2><div class="card"><table id="sports"></table></div></div>
+      <div><h2>Time in each sport</h2><div class="card"><table id="sports"></table></div><h2>Sport switches</h2><div class="card"><table id="switches"></table></div></div>
     </div>
     <h2>Never tapped</h2>
     <p class="muted">Main buttons nobody used in this period.</p>
     <div class="card" id="never"></div>
+
     <h2>Each tester</h2>
     <p class="muted">To know who is who, find the same phone and iOS in TestFlight's tester list and type the name. Only you see it. Phones show their model after they update to build 17.</p>
     <div id="people"></div>
+    <div id="quiet"></div>
+    <div class="card">
+      <details id="rosterBox">
+        <summary>Your TestFlight testers</summary>
+        <p class="muted">Paste the names from TestFlight, one per line, and name each phone above with the same name. Names with no phone are testers who haven't opened the app since usage started.</p>
+        <textarea id="roster" aria-label="TestFlight tester names, one per line"></textarea>
+        <p><button class="btn go" type="button" id="rosterSave">Save names</button> <span class="muted" id="rosterMsg"></span></p>
+      </details>
+      <div id="rosterOut"></div>
+    </div>
+
     <h2>Errors</h2>
     <p class="muted">The same error is counted once, with how many times it happened.</p>
     <div class="card"><table id="errors"></table></div>
   </div>
 </main>
-<script src="account.js?v=470"></script>
+<script src="account.js?v=607"></script>
 <script>
 (() => {
   // Plain names for the app's main buttons (ids in index.html and ride.html). Anything else shows as tapped.
@@ -109,28 +162,53 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
     "#newFolderBtn": "New folder", "#primeGo": "Prime loam", "#fLoam": "Loam filter", "#ebikeChip": "E-bike chip",
     "#dirChip": "Direction chip", "#alpChip": "Alpine chip", "#onlyUnoff": "Unofficial only", "#onlyOff": "Official only",
     "#nameNearBtn": "Trails near a name", "#savePick": "Save", "#resetBtn": "Reset", "#screenBtn": "Screen", "#hub": "Hub",
-    "#ridden": "Ridden", "#accessBtn": "Access", "#allBtn": "All trails",
+    "#ridden": "Ridden", "#accessBtn": "Access", "#allBtn": "All trails", "#firstTipOk": "Got it (first-open tip)", "#aboutClose": "Got it (How it works)",
     "#lmClose": "Close the Layers menu", "#sportMapBtn": "Sport button (on the map)", "list:ul": "An item in a list",
     "view=river": "Fishing view: River", "view=ocean": "Fishing view: Ocean", "view=lake": "Fishing view: Lake",
-    "sport=mtb": "Sport: MTB", "sport=ski": "Sport: Skiing", "sport=hunt": "Sport: Hunting", "sport=fish": "Sport: Fishing",
+    "sport=mtb": "Sport: MTB", "sport=ski": "Sport: Skiing", "sport=hunt": "Sport: Hunting", "sport=fish": "Sport: Fishing", "sport=moto": "Sport: Adventure moto",
+    "Got it": "Got it (closes What's new or a tip)", "Close": "Close (a card or sheet)",
+  };
+  // The home screen's cards and tiles (data-hub in index.html).
+  const HUB = {
+    about: "How it works", full: "Full map", live: "Live location", log: "Fishing log", "log-cam": "Trail cameras", "log-harvest": "Harvests",
+    "log-hunts": "My hunts", "log-works": "What works", "moto-bike": "My bikes", "moto-log": "My adventure rides", "moto-plan": "Plan a moto route",
+    "moto-routes": "Saved adventure routes", news: "What's new", offline: "Offline maps", plan: "Plan a route", privacy: "Privacy",
+    routes: "Ride a saved route", screen: "Every trail on screen", support: "Help and support", today: "Where to ride today", tours: "My tours",
+    near: "Near me", photo: "Which trail? (photo)", search: "New trails", start: "Start", layer: "A layer chip", layers: "All layers",
   };
   const MAIN = Object.keys(NAMES).filter((k) => k.startsWith("#"));
-  const SPORTS = { mtb: "🚵 MTB", ski: "⛷ Skiing", hunt: "🦌 Hunting", fish: "🎣 Fishing" };
+  const SPORTS = { mtb: "🚵 MTB", ski: "⛷ Skiing", hunt: "🦌 Hunting", fish: "🎣 Fishing", moto: "🏍 Adventure moto" };
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  // Where a tap happened, in plain words ("River flow gauges (in #fsLayerList)" → "River flow gauges · Fishing layers").
+  // Where a tap happened, in plain words ("Close (in #mtSpot)" → "Adventure moto spot › Close").
   const PLACES = {
     fsLayerList: "Fishing layers", fsSpot: "Fishing spot card", fsBoat: "Fishing spot: boating", fsRules: "Fishing spot: rules",
     fsLic: "Fishing spot: licence", fsAcc: "Fishing spot: access", fsStock: "Fishing spot: stocking", fsEat: "Fishing spot: safe to eat",
     fsFlow: "Fishing spot: river flow", fsTide: "Fishing spot: tides", fsSeason: "Fishing spot: season", fsSea: "Fishing spot: sea",
-    map3d: "3D map", hub: "Hub", results: "Results", detail: "Trail card",
+    map3d: "3D map", hub: "Home", results: "Results", detail: "Trail card", tabbar: "Tab bar", map: "Map",
+    mtSpot: "Adventure moto spot card", mtNear: "Adventure moto: near me", mtRoute: "Adventure moto route card", mtLog: "My adventure rides", mtTrips: "Adventure trips",
   };
-  const place = (id) => PLACES[id] || id.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+  const PREFIX = { mt: "Adventure moto", fs: "Fishing", sk: "Skiing", hn: "Hunting", pf: "Photo find", nt: "Alerts", cp: "Compass", lm: "Layers" };
+  const place = (id) => {
+    if (PLACES[id]) return PLACES[id];
+    const m = /^([a-z]{2})([A-Z].*)$/.exec(id);
+    const words = (s) => s.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+    if (m && PREFIX[m[1]]) return `${PREFIX[m[1]]} ${words(m[2])}`;
+    const w = words(id);
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  };
   const nice = (w) => {
     if (NAMES[w]) return NAMES[w];
     const m = /^(.*) \(in #([\w-]+)\)$/.exec(w || "");
-    if (m) return `${m[1]} · ${place(m[2])}`;
+    if (m) return `${place(m[2])} › ${m[1]}`;
     if (/^list:#/.test(w || "")) return `An item in ${place(w.slice(6))}`;
+    const d = /^(\w+)=(.*)$/.exec(w || "");
+    if (d) {
+      if (d[1] === "hub") return `Home › ${HUB[d[2]] || d[2]}`;
+      if (d[1] === "sport") return `Sport: ${(SPORTS[d[2]] || d[2]).replace(/^\S+ /, "")}`;
+      const kinds = { layer: "Layer", tab: "Tab", mode: "Mode", act: "Action", action: "Action", view: "View", sheet: "Sheet" };
+      return `${kinds[d[1]] || d[1]}: ${d[2].replace(/[-_]/g, " ")}`;
+    }
     return w;
   };
   const isMe = (d) => /^me$/i.test((d.label || "").trim());
@@ -151,9 +229,16 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
     return `iOS not known yet (old app build) · screen ${d.screen || "?"}`;
   };
   const mins = (ms) => { const m = Math.round(ms / 60e3); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
+  const secs = (ms) => (ms == null ? "–" : ms < 10e3 ? `${(ms / 1000).toFixed(1)} s` : `${Math.round(ms / 1000)} s`);
   const ago = (d) => { const h = (Date.now() - new Date(d)) / 36e5; return h < 1 ? "just now" : h < 24 ? `${Math.round(h)} h ago` : `${Math.round(h / 24)} days ago`; };
   const bar = (n, max) => `<div class="bar" style="width:${Math.max(2, Math.round(100 * n / (max || 1)))}%"></div>`;
-  let days = 30, rows = [], who = null;
+  const pct = (n, of) => (of ? `${Math.round((100 * n) / of)}%` : "–");
+  const quantile = (list, q) => { if (!list.length) return null; const s = list.slice().sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(q * s.length))]; };
+  const none = (cols, text) => `<tr><td class="muted" colspan="${cols}">${esc(text)}</td></tr>`;
+  // Monday of the event's week, as "Oct 27".
+  const weekOf = (at) => { const d = new Date(at); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
+  const weekName = (k) => new Date(k + "T12:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  let days = 30, rows = [], all = null, roster = null, who = null;
   try { who = localStorage.getItem("tf:usageWho"); } catch {}
 
   document.querySelectorAll("[data-who]").forEach((b) => b.addEventListener("click", () => {
@@ -178,7 +263,10 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
       $("signIn").onclick = () => acct.open();
       return;
     }
-    const { data, error } = await acct.client.rpc("tf_use_report", { days });
+    const [rep, dev, ros] = await Promise.all([
+      acct.client.rpc("tf_use_report", { days }), acct.client.rpc("tf_use_devices_all"), acct.client.rpc("tf_use_roster_get"),
+    ]);
+    const { data, error } = rep;
     if (error) {
       $("msg").innerHTML = /not allowed/.test(error.message)
         ? "This account isn't allowed to see usage yet. Run the last line of <b>supabase/usage.sql</b> in the Supabase SQL Editor with your email."
@@ -187,61 +275,189 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
           : `Couldn't load: ${esc(error.message)}`;
       return;
     }
+    // usage-more.sql not run yet: the page still shows what usage.sql gives.
+    all = dev.error ? null : dev.data || [];
+    roster = ros.error ? null : (ros.data || []).map((r) => (typeof r === "string" ? r : Object.values(r)[0]));
+    $("setup").hidden = !!all;
+    if (roster && document.activeElement !== $("roster")) $("roster").value = roster.join("\n");
     rows = data || [];
     $("msg").hidden = !!rows.length;
-    if (!rows.length) { $("msg").textContent = "Nothing yet in this period. Data comes in as testers use the new app build."; $("out").hidden = true; return; }
+    if (!rows.length) { $("msg").textContent = "Nothing yet in this period. Data comes in as testers use the app."; $("out").hidden = true; return; }
     $("out").hidden = false;
     paint();
   }
   window.addEventListener("tf:account", () => load());
 
+  $("rosterSave").addEventListener("click", async () => {
+    const names = $("roster").value.split("\n").map((x) => x.trim()).filter(Boolean);
+    const { error } = await window.tfAccount.client.rpc("tf_use_roster_set", { names });
+    $("rosterMsg").textContent = error ? (/does not exist|Could not find/.test(error.message) ? "Run usage-more.sql first." : `Couldn't save: ${error.message}`) : "Saved.";
+    if (!error) { roster = names; paint(); }
+  });
+
   // Cancelled downloads were logged as errors before usage.js skipped them; they aren't faults.
   const realError = (r) => r.kind !== "error" || !/aborted|AbortError/i.test(r.what || "");
+  // Taps that save a trail, and taps that go ride it (MTB).
+  const SAVE = new Set(["#wantBtn", "#savePick", "#ridden"]);
+  const RIDE = new Set(["#navRideBtn", "#trailGo", "#rideBtn", "#planMapBtn", "Ride (in #tabbar)"]);
+  const BOX = { "Trail name": "🔎 Trail name", Place: "📍 Place", Ask: "💬 Ask" };
+  const SPEED = [["page", "App ready"], ["map", "Map pictures"], ["trails", "Trails on the map"], ["3d", "3D mountains"]];
   function paint() {
     // alex's own phone is the one named "Me". Once one is, the page starts on "Everyone but me".
-    const meSet = new Set(rows.filter(isMe).map((r) => r.device));
+    const labels = new Map((all || []).map((d) => [d.device, d.label]));
+    rows.forEach((r) => { if (labels.has(r.device)) r.label = labels.get(r.device); });
+    const meSet = new Set([...rows, ...(all || [])].filter(isMe).map((r) => r.device));
     const view = who || (meSet.size ? "others" : "all");
+    const keep = (device) => view === "all" || (view === "me") === meSet.has(device);
     document.querySelectorAll("[data-who]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.who === view)));
     $("whoHint").textContent = meSet.size ? "" : "Tap “This is me” on your own phone below to hide it.";
-    const shown = rows.filter((r) => realError(r) && (view === "all" || (view === "me") === meSet.has(r.device)));
+    const shown = rows.filter((r) => realError(r) && keep(r.device));
     const devices = new Map(), sessions = new Map();
     for (const r of shown) {
-      if (!devices.has(r.device)) devices.set(r.device, { ...r, taps: new Map(), sport: new Map(), sessions: new Set(), ms: 0, errors: 0, last: r.at });
+      if (!devices.has(r.device)) devices.set(r.device, { ...r, taps: new Map(), sport: new Map(), sessions: new Set(), days: new Set(), ms: 0, errors: 0, crashes: 0, maps: [], last: r.at, first: r.at });
       const d = devices.get(r.device);
-      d.last = r.at; d.sessions.add(r.session);
-      if (!sessions.has(r.session)) sessions.set(r.session, { device: r.device, sport: null, first: null, ms: 0 });
+      d.last = r.at; d.sessions.add(r.session); d.days.add(String(r.at).slice(0, 10));
+      if (!sessions.has(r.session)) sessions.set(r.session, { device: r.device, sport: null, first: null, ms: 0, ev: [] });
       const s = sessions.get(r.session);
+      s.ev.push(r);
       if (r.kind === "open" && r.what && !s.sport) s.sport = r.what;
       if (r.kind === "sport") s.sport = r.what;
       if (r.kind === "tap") { d.taps.set(r.what, (d.taps.get(r.what) || 0) + 1); if (!s.first) s.first = r.what; }
       if (r.kind === "end" && r.ms) { d.ms += r.ms; s.ms += r.ms; const sp = s.sport || "mtb"; d.sport.set(sp, (d.sport.get(sp) || 0) + r.ms); }
       if (r.kind === "error") d.errors++;
+      if (r.kind === "speed" && r.what === "map") d.maps.push(r.ms);
     }
+    // One crash per visit: the 3D map and the app both notice the same restart.
+    const crashes = [];
+    for (const s of sessions.values()) {
+      const c = s.ev.filter((r) => r.kind === "crash");
+      for (let i = 0; i < c.length; i++) {
+        const twin = c.find((o, j) => j !== i && Math.abs(new Date(o.at) - new Date(c[i].at)) < 60e3);
+        if (twin && c[i].what === "app" && twin.what === "3d") continue;
+        crashes.push(c[i]); devices.get(c[i].device).crashes++;
+      }
+    }
+
+    // ---- searches: did the person pick an answer (within 3 minutes, same visit)?
+    const searches = [];
+    for (const s of sessions.values()) s.ev.forEach((r, i) => {
+      if (r.kind !== "search") return;
+      const box = String(r.what).split(":")[0], q = String(r.what).slice(box.length + 1).trim();
+      const t = new Date(r.at);
+      const picked = s.ev.slice(i + 1).some((o) => o.kind === "pick" && o.what === box && new Date(o.at) - t < 180e3);
+      searches.push({ box, q, n: r.ms, picked, device: r.device });
+    });
+    const empty = searches.filter((x) => x.n === 0).length, noPick = searches.filter((x) => x.n > 0 && !x.picked).length;
 
     const taps = shown.filter((r) => r.kind === "tap");
     const totalMs = [...devices.values()].reduce((a, d) => a + d.ms, 0);
+    const back = [...devices.values()].filter((d) => d.days.size > 1).length;
+    const mapMid = quantile(shown.filter((r) => r.kind === "speed" && r.what === "map").map((r) => r.ms), 0.5);
+    const allShown = all ? all.filter((d) => keep(d.device)).length : null;
     $("stats").innerHTML = [
-      [devices.size, "testers"], [sessions.size, "visits"], [mins(totalMs), "time in the app"],
-      [taps.length, "taps"], [shown.filter((r) => r.kind === "error").length, "errors"],
-    ].map(([n, l]) => `<div class="stat"><b>${esc(n)}</b>${esc(l)}</div>`).join("");
+      [devices.size, "testers", allShown != null ? `of ${allShown} phones ever seen` : ""], [sessions.size, "visits", mins(totalMs) + " in all"],
+      [back, "came back", "used it on 2 or more days"], [searches.length, "searches", searches.length ? `${pct(empty, searches.length)} found nothing` : ""],
+      [crashes.length, "crashes", ""], [secs(mapMid), "map load", "usual wait"],
+      [taps.length, "taps", ""], [shown.filter((r) => r.kind === "error").length, "errors", ""],
+    ].map(([n, l, sub]) => `<div class="stat"><b>${esc(n)}</b>${esc(l)}${sub ? `<small>${esc(sub)}</small>` : ""}</div>`).join("");
+
+    const sg = new Map();
+    for (const x of searches) {
+      const k = `${x.box}|${x.q.toLowerCase()}`, g = sg.get(k) || { box: x.box, q: x.q, n: 0, who: new Set(), empty: 0, picked: 0, last: x.n };
+      g.n++; g.who.add(x.device); if (x.n === 0) g.empty++; if (x.picked) g.picked++; g.last = x.n; sg.set(k, g);
+    }
+    const sl = [...sg.values()].sort((a, b) => b.n - a.n || b.empty - a.empty).slice(0, 60);
+    $("searches").innerHTML = (searches.length ? `<caption class="muted" style="text-align:left;padding-bottom:6px">${searches.length} searches: ${empty} found nothing, ${noPick} got answers but no pick.</caption>` : "") +
+      `<tr><th>Searched for</th><th>What happened</th></tr>` +
+      (sl.map((g) => `<tr><td><span class="q">${esc(g.q)}</span><br><span class="muted">${esc(BOX[g.box] || g.box)} · ${g.n === 1 ? "once" : `${g.n} times`}${g.who.size > 1 ? ` by ${g.who.size} testers` : ""}${g.last == null ? "" : ` · ${g.last} result${g.last === 1 ? "" : "s"}`}</span></td>
+        <td style="width:1%">${g.empty === g.n ? `<span class="tag bad">Nothing found</span>` : g.picked ? `<span class="tag good">Picked one${g.picked < g.n ? ` (${g.picked} of ${g.n})` : ""}</span>` : `<span class="tag bad">Didn't pick one</span>`}</td></tr>`).join("") || none(2, all ? "No searches yet" : "Searches show here once usage-more.sql is run"));
+
+    const rg = new Map();
+    for (const r of shown) if (r.kind === "result") { const g = rg.get(r.what) || { n: 0, empty: 0, counts: [] }; g.n++; if (!r.ms) g.empty++; g.counts.push(r.ms || 0); rg.set(r.what, g); }
+    const rl = [...rg.entries()].sort((a, b) => b[1].n - a[1].n);
+    $("results").innerHTML = `<tr><th>List</th><th class="n">Times</th><th class="n">Empty</th><th class="n">Usual size</th></tr>` +
+      (rl.map(([w, g]) => `<tr><td>${esc(w)}</td><td class="n">${g.n}</td><td class="n">${g.empty ? `<span class="err">${g.empty}</span>` : 0}</td><td class="n">${quantile(g.counts, 0.5)} trails</td></tr>`).join("") || none(4, "None yet"));
+
+    // ---- funnel, per visit
+    const steps = [["Opened the app", () => true],
+      ["Searched or used Find", (s) => s.ev.some((r) => r.kind === "search" || r.kind === "result")],
+      ["Opened a trail card", (s) => s.ev.some((r) => r.kind === "view")],
+      ["Saved a trail (To ride, folder, Ridden)", (s) => s.ev.some((r) => r.kind === "tap" && SAVE.has(r.what))],
+      ["Went to ride (Ride, Go to trail, Plan a route)", (s) => s.ev.some((r) => r.kind === "tap" && RIDE.has(r.what))]];
+    const sv = [...sessions.values()];
+    const fc = steps.map(([, f]) => sv.filter(f).length);
+    $("funnel").innerHTML = `<tr><th>Step</th><th class="n">Visits</th><th class="n"></th><th style="width:30%"></th></tr>` +
+      steps.map(([l], i) => `<tr><td>${esc(l)}</td><td class="n">${fc[i]}</td><td class="n">${pct(fc[i], fc[0])}</td><td>${bar(fc[i], fc[0])}</td></tr>`).join("");
+
+    // ---- where visits end: the last thing done, and visits under 30 seconds
+    const ends = new Map();
+    let quick = 0;
+    for (const s of sv) {
+      const lastDone = s.ev.filter((r) => ["tap", "view", "search", "pick", "result"].includes(r.kind)).pop();
+      const k = !lastDone ? "Nothing (only looked at the map)" : lastDone.kind === "tap" ? nice(lastDone.what) : lastDone.kind === "view" ? "Looked at a trail card"
+        : lastDone.kind === "search" ? `Searched (${lastDone.ms === 0 ? "nothing found" : "no pick"})` : lastDone.kind === "pick" ? `Picked a ${lastDone.what} answer` : `Got a list: ${lastDone.what}`;
+      ends.set(k, (ends.get(k) || 0) + 1);
+      if (s.ms && s.ms < 30e3) quick++;
+    }
+    const el0 = [...ends.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);
+    $("ends").innerHTML = `<tr><th>Last thing done</th><th class="n">Visits</th></tr>` + el0.map(([w, n]) => `<tr><td>${esc(w)}</td><td class="n">${n}</td></tr>`).join("") +
+      `<tr><td class="muted">Visits shorter than 30 seconds</td><td class="n">${quick}</td></tr>`;
+
+    const ag = new Map();
+    for (const r of shown) if (r.kind === "area") { const g = ag.get(r.what) || { n: 0, who: new Set() }; g.n++; g.who.add(r.device); ag.set(r.what, g); }
+    const al = [...ag.entries()].sort((a, b) => b[1].who.size - a[1].who.size || b[1].n - a[1].n).slice(0, 20);
+    $("areas").innerHTML = `<tr><th>Area</th><th class="n">Testers</th></tr>` + (al.map(([w, g]) => `<tr><td>${esc(w)}</td><td class="n">${g.who.size}</td></tr>`).join("") || none(2, "None yet"));
+
+    $("speed").innerHTML = `<tr><th>Wait</th><th class="n">Most</th><th class="n">Slow ones</th><th class="n">Times</th></tr>` + SPEED.map(([k, l]) => {
+      const v = shown.filter((r) => r.kind === "speed" && r.what === k).map((r) => r.ms);
+      return `<tr><td>${l}</td><td class="n">${secs(quantile(v, 0.5))}</td><td class="n">${secs(quantile(v, 0.9))}</td><td class="n">${v.length}</td></tr>`;
+    }).join("");
+
+    const cg = new Map();
+    for (const c of crashes) { const k = c.what === "3d" ? "In the 3D map" : "Somewhere else"; const g = cg.get(k) || { n: 0, who: new Set() }; g.n++; g.who.add(c.label || c.device.slice(0, 6)); cg.set(k, g); }
+    $("crashes").innerHTML = cg.size ? `<tr><th>Where</th><th class="n">Times</th><th>Who</th></tr>` + [...cg.entries()].map(([k, g]) => `<tr><td>${k}</td><td class="n">${g.n}</td><td>${esc([...g.who].join(", "))}</td></tr>`).join("")
+      : none(3, "No crashes 🎉");
+
+    // ---- weeks: testers each week, and how many had used it in an earlier week
+    const firstWeek = new Map();
+    for (const d of all || []) firstWeek.set(d.device, weekOf(d.first_seen));
+    for (const r of shown) if (!firstWeek.has(r.device) || firstWeek.get(r.device) > weekOf(r.at)) firstWeek.set(r.device, weekOf(r.at));
+    const wk = new Map();
+    for (const r of shown) { const k = weekOf(r.at); if (!wk.has(k)) wk.set(k, new Set()); wk.get(k).add(r.device); }
+    const wl = [...wk.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
+    $("weeks").innerHTML = `<tr><th>Week of</th><th class="n">Testers</th><th class="n">New</th><th class="n">Came back</th></tr>` + wl.map(([k, set]) => {
+      const fresh = [...set].filter((d) => firstWeek.get(d) === k).length;
+      return `<tr><td>${esc(weekName(k))}</td><td class="n">${set.size}</td><td class="n">${fresh}</td><td class="n">${set.size - fresh}</td></tr>`;
+    }).join("");
 
     const feat = new Map();
     for (const r of taps) { const f = feat.get(r.what) || { n: 0, who: new Set() }; f.n++; f.who.add(r.device); feat.set(r.what, f); }
-    const fl = [...feat.entries()].sort((a, b) => b[1].who.size - a[1].who.size || b[1].n - a[1].n);
-    const fmax = fl.length ? fl[0][1].n : 1;
+    // The same plain name once ("Close" in two places of the same card).
+    const fn = new Map();
+    for (const [w, f] of feat) { const k = nice(w), g = fn.get(k) || { n: 0, who: new Set() }; g.n += f.n; f.who.forEach((x) => g.who.add(x)); fn.set(k, g); }
+    const fl = [...fn.entries()].sort((a, b) => b[1].who.size - a[1].who.size || b[1].n - a[1].n);
+    const fmax = fl.length ? Math.max(...fl.map(([, f]) => f.n)) : 1;
     $("features").innerHTML = `<tr><th>What</th><th class="n">Testers</th><th class="n">Taps</th><th style="width:30%"></th></tr>` +
-      (fl.slice(0, 80).map(([w, f]) => `<tr><td>${esc(nice(w))}</td><td class="n">${f.who.size} of ${devices.size}</td><td class="n">${f.n}</td><td>${bar(f.n, fmax)}</td></tr>`).join("") || `<tr><td class="muted" colspan="4">No taps from ${view === "me" ? "you" : "other testers"} yet</td></tr>`);
+      (fl.slice(0, 80).map(([w, f]) => `<tr><td>${esc(w)}</td><td class="n">${f.who.size} of ${devices.size}</td><td class="n">${f.n}</td><td>${bar(f.n, fmax)}</td></tr>`).join("") || none(4, `No taps from ${view === "me" ? "you" : "other testers"} yet`));
 
     const firsts = new Map();
-    for (const s of sessions.values()) if (s.first) firsts.set(s.first, (firsts.get(s.first) || 0) + 1);
+    for (const s of sv) if (s.first) firsts.set(nice(s.first), (firsts.get(nice(s.first)) || 0) + 1);
     const fs = [...firsts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);
-    $("firsts").innerHTML = `<tr><th>First tap</th><th class="n">Visits</th></tr>` + (fs.map(([w, n]) => `<tr><td>${esc(nice(w))}</td><td class="n">${n}</td></tr>`).join("") || `<tr><td class="muted">None yet</td><td></td></tr>`);
+    $("firsts").innerHTML = `<tr><th>First tap</th><th class="n">Visits</th></tr>` + (fs.map(([w, n]) => `<tr><td>${esc(w)}</td><td class="n">${n}</td></tr>`).join("") || none(2, "None yet"));
 
     const sp = new Map();
     for (const d of devices.values()) for (const [k, ms] of d.sport) sp.set(k, (sp.get(k) || 0) + ms);
     const spl = [...sp.entries()].sort((a, b) => b[1] - a[1]);
     $("sports").innerHTML = `<tr><th>Sport</th><th class="n">Time</th><th style="width:40%"></th></tr>` +
-      (spl.map(([k, ms]) => `<tr><td>${esc(SPORTS[k] || k)}</td><td class="n">${mins(ms)}</td><td>${bar(ms, spl[0][1])}</td></tr>`).join("") || `<tr><td class="muted">No finished visits yet</td><td></td><td></td></tr>`);
+      (spl.map(([k, ms]) => `<tr><td>${esc(SPORTS[k] || k)}</td><td class="n">${mins(ms)}</td><td>${bar(ms, spl[0][1])}</td></tr>`).join("") || none(3, "No finished visits yet"));
+
+    const sw = new Map();
+    for (const s of sv) {
+      let cur = (s.ev.find((r) => r.kind === "open" && r.what) || {}).what || null;
+      for (const r of s.ev) if (r.kind === "sport") { if (cur && cur !== r.what) { const k = `${SPORTS[cur] || cur} → ${SPORTS[r.what] || r.what}`; sw.set(k, (sw.get(k) || 0) + 1); } cur = r.what; }
+    }
+    const swl = [...sw.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
+    $("switches").innerHTML = `<tr><th>From → to</th><th class="n">Times</th></tr>` + (swl.map(([k, n]) => `<tr><td>${esc(k)}</td><td class="n">${n}</td></tr>`).join("") || none(2, "Nobody switched sport"));
 
     const never = MAIN.filter((k) => !feat.has(k));
     $("never").innerHTML = never.length ? never.map((k) => esc(NAMES[k])).join(" · ") : "Every main button was used.";
@@ -250,15 +466,27 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
     $("people").innerHTML = people.map((d) => {
       const top = [...d.taps.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
       const sports = [...d.sport.entries()].sort((a, b) => b[1] - a[1]).map(([k, ms]) => `${SPORTS[k] || k} ${mins(ms)}`).join(" · ");
+      const map = quantile(d.maps, 0.5);
       return `<div class="card">
         <h3><input value="${esc(d.label || "")}" placeholder="Name this phone" data-device="${esc(d.device)}" aria-label="Name">${isMe(d) ? `<span class="me">Your phone</span>` : `<button type="button" data-me="${esc(d.device)}">This is me</button>`} <span class="muted">${esc(phoneOf(d))}</span></h3>
-        <p class="muted">${d.sessions.size} visits · ${mins(d.ms)} in the app · last seen ${ago(d.last)}${d.errors ? ` · <span class="err">${d.errors} errors</span>` : ""}${sports ? `<br>${esc(sports)}` : ""}</p>
+        <p class="muted">${d.sessions.size} visit${d.sessions.size === 1 ? "" : "s"} on ${d.days.size} day${d.days.size === 1 ? "" : "s"} · ${mins(d.ms)} in the app · last seen ${ago(d.last)}${map != null ? ` · map loads in ${secs(map)}` : ""}${d.crashes ? ` · <span class="err">${d.crashes} crash${d.crashes === 1 ? "" : "es"}</span>` : ""}${d.errors ? ` · <span class="err">${d.errors} errors</span>` : ""}${sports ? `<br>${esc(sports)}` : ""}</p>
         <table>${top.map(([w, n]) => `<tr><td>${esc(nice(w))}</td><td class="n">${n}</td></tr>`).join("") || `<tr><td class="muted">No taps yet</td></tr>`}</table>
       </div>`;
     }).join("");
+    // Phones seen before but not in this period: they stopped using the app (or haven't opened it lately).
+    const quiet = (all || []).filter((d) => keep(d.device) && !devices.has(d.device));
+    $("quiet").innerHTML = quiet.length ? `<div class="card"><h3>Not seen in the last ${days} days (${quiet.length})</h3><table>${quiet.map((d) => `<tr><td><input value="${esc(d.label || "")}" placeholder="Name this phone" data-device="${esc(d.device)}" aria-label="Name" style="width:160px"> <span class="muted">${esc(phoneOf(d))}</span></td><td class="n">${ago(d.last_seen)}</td></tr>`).join("")}</table></div>` : "";
+    // TestFlight names with no phone named the same.
+    if (roster && roster.length) {
+      const named = new Set([...(all || []), ...rows].map((d) => (d.label || "").trim().toLowerCase()).filter(Boolean));
+      const missing = roster.filter((n) => !named.has(n.trim().toLowerCase()));
+      $("rosterOut").innerHTML = `<p>${roster.length - missing.length} of ${roster.length} testers matched to a phone.</p>` +
+        (missing.length ? `<p class="muted">No phone yet (never opened the app since usage started, or the phone isn't named):</p><ul class="list">${missing.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : "");
+    } else $("rosterOut").innerHTML = roster ? "" : `<p class="muted">Saving names needs usage-more.sql.</p>`;
+
     const setLabel = async (device, label) => {
       const { error } = await window.tfAccount.client.rpc("tf_use_label", { device, label });
-      if (!error) rows.forEach((r) => { if (r.device === device) r.label = label; });
+      if (!error) { rows.forEach((r) => { if (r.device === device) r.label = label; }); (all || []).forEach((r) => { if (r.device === device) r.label = label; }); }
       return error;
     };
     document.querySelectorAll("input[data-device]").forEach((inp) => inp.addEventListener("change", async () => {
@@ -278,7 +506,7 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
     const el = [...eg.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 30);
     $("errors").innerHTML = el.length
       ? `<tr><th>Error</th><th class="n">Times</th><th>Who</th><th class="n">Last</th></tr>` + el.map(([k, g]) => `<tr><td class="raw">${esc(k)}</td><td class="n">${g.n}</td><td>${esc([...g.who].join(", "))}</td><td class="n">${ago(g.last)}</td></tr>`).join("")
-      : `<tr><td class="muted">No errors 🎉</td></tr>`;
+      : none(1, "No errors 🎉");
   }
 
   load();
