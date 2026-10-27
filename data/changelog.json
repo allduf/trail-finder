@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-27", "text": "First-time visitors now get a short welcome: pick a sport, allow location, the basics."},
     {"date": "2026-10-27", "text": "New Help and support and Privacy pages in More, and you can now delete your account in Account → Settings."},
     {"date": "2026-10-27", "text": "Skiing: the Winter 3D map gets sharper up close on phones too (trees, rocks and snow bumps show as you zoom in)."},
     {"date": "2026-10-27", "text": "Skiing: tapping a spot keeps the map where it is (it no longer zooms out on the 3D map)."},
