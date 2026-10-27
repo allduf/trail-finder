@@ -4,7 +4,7 @@
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-300";
+const VERSION = "tf-301";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
   "./", "index.html", "ride.html", "theme.css?v=12", "account.js?v=492", "reports.js?v=492", "grades.js?v=492", "trail-photos.js?v=492", "status.js?v=492", "visitors.js?v=492", "usage.js?v=492", "map3d.js?v=492", "ski-terrain.js?v=492", "winter.js?v=492", "place-search.js?v=492", "clouds.js?v=492", "smoke.js?v=492", "ski-points.js?v=492", "hunts.js?v=492", "webcams.js?v=492", "lifts.js?v=492", "ski-areas.js?v=492", "helicat.js?v=492", "rogers.js?v=492", "slackcountry.js?v=492", "hunting.js?v=492", "fish-bait.js?v=492", "fish-route.js?v=492", "fishing.js?v=492", "moto.js?v=492", "compass.js?v=492", "offline.js?v=492", "native-gps.js?v=492", "native.js?v=492", "keyboard.js?v=492", "navigate.js?v=492", "ride-stats.js?v=492", "ride-finds.js?v=492", "rides.js?v=492", "planner.js?v=492", "rotate.js?v=492", "photo-find.js?v=492", "ebike.js?v=492", "closures.js?v=492", "loops.js?v=492", "strava.js?v=492", "share.js?v=492", "community.js?v=492", "ride-files.js?v=492", "rider-trails.js?v=492", "alpine.js?v=492", "areas.js?v=492", "bikeparks.js?v=492", "contours.js?v=492", "directions.js?v=492", "notify.js?v=492", "official.js?v=492", "photo-slider.js?v=492", "ratings.js?v=492", "whats-new.js?v=492", "manifest.webmanifest",

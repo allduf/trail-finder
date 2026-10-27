@@ -404,8 +404,13 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     for (let o = r._drawFirst; o; o = o.next) { const l = o.layer; if (l.options.interactive && l._containsPoint && l._containsPoint(lp)) hit = l; }   // the last drawn is on top
     return hit;
   };
+  // A pin (webcam, gate, parking, resort...) or a map button keeps its own tap: webcams sit at lift stations, so the
+  // lift line under them took the tap and the camera never opened (alex's iPhone, 2026-10-27). Taps on the 3D map are
+  // map3d.js's (it finds the lines itself); the flat map hidden under it lines up with the 3D ground only from straight above.
+  const ownTap = ".leaflet-marker-icon, .leaflet-control, .leaflet-popup, .leaflet-tooltip, #map3d";
   map.getContainer().addEventListener("click", (e) => {
     if (!through.length || (map.dragging && map.dragging.moved())) return;
+    if (e.target && e.target.closest && e.target.closest(ownTap)) return;
     const cp = map.mouseEventToContainerPoint(e), lp = map.containerPointToLayerPoint(cp);
     const rs = through.filter((r) => r._map && r._container).sort((a, b) => (+map.getPane(b.options.pane).style.zIndex || 0) - (+map.getPane(a.options.pane).style.zIndex || 0));
     for (const r of rs) {
