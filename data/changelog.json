@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-27", "text": "On the phone, swipe the map's bottom card down to shrink it to just the search bar and see more map. Swipe it up (or tap the handle) to bring it back."},
     {"date": "2026-10-27", "text": "Every sport now looks the same on the phone: a search box and a Today line on the map, and each sport's tab in the same order (search, Today, 4 big buttons, a list, what's on the map). The map key is one Key button, bottom left."},
     {"date": "2026-10-27", "text": "Offline maps now work in every sport: Hunting saves its zones and layers, Fishing its waters and rules, and you can save the 3D map too (in Skiing with last winter's photos)."},
     {"date": "2026-10-27", "text": "First-time visitors now get a short welcome: pick a sport, allow location, the basics."},
