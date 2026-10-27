@@ -4,6 +4,7 @@
   "description": "The Trail Finder iPhone app: the website in a Capacitor shell, built and sent to TestFlight by .github/workflows/ios-app.yml.",
   "dependencies": {
     "@capacitor-community/keep-awake": "8.0.1",
+    "@capacitor/app": "8.1.1",
     "@capacitor/cli": "8.5.3",
     "@capacitor/core": "8.5.3",
     "@capacitor/device": "8.0.3",
