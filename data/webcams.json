@@ -1,5 +1,5 @@
 {
- "note": "Live webcams shown in Skiing (webcams.js). Hand-edited. Feeds are never copied: 'embed' is the owner's own embeddable player (iframe), 'img' is the owner's live picture shown from their server, and 'page' is the owner's webcam page. Spots are the camera's real location, from OpenStreetMap lift stations, lodges and peaks; 'approximate spot' in where means the page doesn't say exactly where the camera is. kind: resort, backcountry (huts, lodges, remote park cameras) or road (DriveBC cameras at the passes where tours start).",
+ "note": "Live webcams shown in Skiing (webcams.js). Hand-edited. Feeds are never copied: 'embed' is the owner's own embeddable player (iframe), 'img' is the owner's live picture shown from their server, and 'page' is the owner's webcam page. Spots are the camera's real location, from OpenStreetMap lift stations, lodges and peaks; 'approximate spot' in where means the page doesn't say exactly where the camera is. kind: resort, backcountry (huts, lodges, remote park cameras) or road (provincial highway cameras: DriveBC, 511 Yukon, NB, NS, Ontario and NL).",
  "owners": {
   "wb": {
    "name": "Whistler Blackcomb",
@@ -165,6 +165,31 @@
    "name": "Marble Mountain Resort",
    "page": "https://skimarble.com/live-web-cam/",
    "credit": "Marble Mountain Resort"
+  },
+  "yukon511": {
+   "name": "511 Yukon",
+   "page": "https://511yukon.ca/",
+   "credit": "511 Yukon, Government of Yukon"
+  },
+  "nb511": {
+   "name": "511 New Brunswick",
+   "page": "https://511.gnb.ca/",
+   "credit": "511 New Brunswick, Government of New Brunswick"
+  },
+  "ns511": {
+   "name": "511 Nova Scotia",
+   "page": "https://511.novascotia.ca/",
+   "credit": "511 Nova Scotia, Province of Nova Scotia"
+  },
+  "on511": {
+   "name": "Ontario 511",
+   "page": "https://511on.ca/",
+   "credit": "Ontario 511, Ministry of Transportation"
+  },
+  "nlti": {
+   "name": "Newfoundland and Labrador highway cameras",
+   "page": "https://www.gov.nl.ca/ti/roads/cameras/",
+   "credit": "Government of Newfoundland and Labrador"
   }
  },
  "cams": [
@@ -1659,17 +1684,6 @@
    "where": "Resort base, approximate spot"
   },
   {
-   "id": "msa-cams",
-   "owner": "msa",
-   "resort": "Mont-Sainte-Anne",
-   "kind": "resort",
-   "name": "Mont-Sainte-Anne webcams",
-   "view": "The resort's live cameras (on its own page)",
-   "lat": 47.0753,
-   "lon": -70.9047,
-   "where": "Resort base, approximate spot"
-  },
-  {
    "id": "bromont-cams",
    "owner": "bromont",
    "resort": "Bromont",
@@ -1723,6 +1737,200 @@
    "lat": 48.9677,
    "lon": -57.8266,
    "where": "Resort base, approximate spot"
+  },
+  {
+   "id": "dbc-703",
+   "owner": "drivebc",
+   "resort": "Smithers",
+   "kind": "road",
+   "name": "Smithers, looking west",
+   "view": "Highway 16 at Main Street in Smithers, looking west toward Hudson Bay Mountain.",
+   "lat": 54.781926,
+   "lon": -127.16654,
+   "ele": 497,
+   "img": "https://www.drivebc.ca/images/703.jpg",
+   "page": "https://www.drivebc.ca/cameras/703"
+  },
+  {
+   "id": "dbc-779",
+   "owner": "drivebc",
+   "resort": "Smithers",
+   "kind": "road",
+   "name": "Telkwa, looking north",
+   "view": "Highway 16 at Hankin Road in Telkwa, looking north.",
+   "lat": 54.69676,
+   "lon": -127.050592,
+   "ele": 508,
+   "img": "https://www.drivebc.ca/images/779.jpg",
+   "page": "https://www.drivebc.ca/cameras/779"
+  },
+  {
+   "id": "yt-6",
+   "owner": "yukon511",
+   "resort": "Whitehorse",
+   "kind": "road",
+   "name": "Alaska Highway at Fox Farm Road",
+   "view": "Alaska Highway at Fox Farm Road, south of Whitehorse.",
+   "lat": 60.627603,
+   "lon": -134.990529,
+   "img": "https://511yukon.ca/map/Cctv/6"
+  },
+  {
+   "id": "yt-10",
+   "owner": "yukon511",
+   "resort": "Whitehorse",
+   "kind": "road",
+   "name": "Alaska Highway at Fish Lake Road",
+   "view": "Alaska Highway at Fish Lake Road, the road up to Fish Lake.",
+   "lat": 60.7455056,
+   "lon": -135.1396561,
+   "img": "https://511yukon.ca/map/Cctv/10"
+  },
+  {
+   "id": "nb-5",
+   "owner": "nb511",
+   "resort": "Sugarloaf",
+   "kind": "road",
+   "name": "Glenwood, Route 17",
+   "view": "Route 17 at Glenwood, west of Campbellton.",
+   "lat": 47.8507667,
+   "lon": -67.0063833,
+   "img": "https://511.gnb.ca/map/Cctv/5"
+  },
+  {
+   "id": "nb-26",
+   "owner": "nb511",
+   "resort": "Sugarloaf",
+   "kind": "road",
+   "name": "Blackland, Route 11",
+   "view": "Route 11 at Blackland, east of Campbellton.",
+   "lat": 47.9575167,
+   "lon": -66.2425,
+   "img": "https://511.gnb.ca/map/Cctv/26"
+  },
+  {
+   "id": "ns-28",
+   "owner": "ns511",
+   "resort": "Ski Wentworth",
+   "kind": "road",
+   "name": "Cobequid Pass, Westchester",
+   "view": "Highway 104 at Westchester on the Cobequid Pass.",
+   "lat": 45.5604,
+   "lon": -63.7135,
+   "img": "https://511.novascotia.ca/map/Cctv/28"
+  },
+  {
+   "id": "ns-19",
+   "owner": "ns511",
+   "resort": "Ski Wentworth",
+   "kind": "road",
+   "name": "Cobequid Pass, Lornevale",
+   "view": "Highway 104 at Lornevale on the Cobequid Pass.",
+   "lat": 45.4713,
+   "lon": -63.6485,
+   "img": "https://511.novascotia.ca/map/Cctv/19"
+  },
+  {
+   "id": "on-300",
+   "owner": "on511",
+   "resort": "Blue Mountain",
+   "kind": "road",
+   "name": "Highway 26 at Collingwood Road",
+   "view": "Highway 26 at Collingwood Road, looking east, below Blue Mountain.",
+   "lat": 44.525534,
+   "lon": -80.325055,
+   "img": "https://511on.ca/map/Cctv/300"
+  },
+  {
+   "id": "nl-cornerbrook",
+   "owner": "nlti",
+   "resort": "Marble Mountain",
+   "kind": "road",
+   "name": "Corner Brook",
+   "view": "Trans-Canada Highway at Corner Brook, near Marble Mountain.",
+   "lat": 48.95,
+   "lon": -57.93,
+   "where": "approximate spot",
+   "img": "https://www.gov.nl.ca/ti/highway-cams/cameras/sites/cornerbrook_amec/current.jpg",
+   "page": "https://www.gov.nl.ca/ti/roads/cameras/cornerbrook/"
+  },
+  {
+   "id": "msa-msacam1",
+   "owner": "msa",
+   "resort": "Mont-Sainte-Anne",
+   "kind": "resort",
+   "name": "Pente école",
+   "view": "Beginner area at the base",
+   "lat": 47.0753,
+   "lon": -70.9047,
+   "ele": 175,
+   "where": "Resort base, approximate spot",
+   "img": "https://secure.skircr.com/cams/msacam1/image.jpg"
+  },
+  {
+   "id": "msa-msacam2",
+   "owner": "msa",
+   "resort": "Mont-Sainte-Anne",
+   "kind": "resort",
+   "name": "Base versant sud",
+   "view": "Base of the south side",
+   "lat": 47.0753,
+   "lon": -70.9047,
+   "ele": 175,
+   "where": "Resort base, approximate spot",
+   "img": "https://secure.skircr.com/cams/msacam2/image.jpg"
+  },
+  {
+   "id": "msa-msacam3",
+   "owner": "msa",
+   "resort": "Mont-Sainte-Anne",
+   "kind": "resort",
+   "name": "Sommet versant sud",
+   "view": "Top of the south side",
+   "lat": 47.0765,
+   "lon": -70.912,
+   "ele": 800,
+   "where": "Summit, approximate spot",
+   "img": "https://secure.skircr.com/cams/msacam3/image.jpg"
+  },
+  {
+   "id": "msa-msacam4",
+   "owner": "msa",
+   "resort": "Mont-Sainte-Anne",
+   "kind": "resort",
+   "name": "Sommet versant nord",
+   "view": "Top of the north side",
+   "lat": 47.0765,
+   "lon": -70.912,
+   "ele": 800,
+   "where": "Summit, approximate spot",
+   "img": "https://secure.skircr.com/cams/msacam4/image.jpg"
+  },
+  {
+   "id": "msa-msacam5",
+   "owner": "msa",
+   "resort": "Mont-Sainte-Anne",
+   "kind": "resort",
+   "name": "Secteur expert",
+   "view": "Expert area",
+   "lat": 47.0753,
+   "lon": -70.9047,
+   "ele": 175,
+   "where": "Resort base, approximate spot",
+   "img": "https://secure.skircr.com/cams/msacam5/image.jpg"
+  },
+  {
+   "id": "msa-msacam6",
+   "owner": "msa",
+   "resort": "Mont-Sainte-Anne",
+   "kind": "resort",
+   "name": "Grand Vallon",
+   "view": "Grand Vallon",
+   "lat": 47.0753,
+   "lon": -70.9047,
+   "ele": 175,
+   "where": "Resort base, approximate spot",
+   "img": "https://secure.skircr.com/cams/msacam6/image.jpg"
   }
  ]
 }

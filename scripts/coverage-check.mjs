@@ -36,12 +36,12 @@ export const SPOTS = [
   { id: "princegeorge", name: "Prince George", pv: "bc", lat: 53.91, lon: -122.78 },
   { id: "smithers", name: "Smithers", pv: "bc", lat: 54.79, lon: -127.2, mtn: 1, ski: 1 },
   { id: "canmore", name: "Canmore", pv: "ab", lat: 51.08, lon: -115.36, mtn: 1 },
-  { id: "lakelouise", name: "Lake Louise", pv: "ab", lat: 51.44, lon: -116.16, mtn: 1, ski: 1 },
+  { id: "lakelouise", name: "Lake Louise", pv: "ab", lat: 51.44, lon: -116.16, mtn: 1, ski: 1, park: 1 },
   { id: "whitehorse", name: "Whitehorse", pv: "yt", lat: 60.72, lon: -135.07, mtn: 1 },
   { id: "bromont", name: "Bromont", pv: "qc", lat: 45.3, lon: -72.65, ski: 1 },
   { id: "tremblant", name: "Mont-Tremblant", pv: "qc", lat: 46.2, lon: -74.58, ski: 1 },
   { id: "msa", name: "Mont-Sainte-Anne", pv: "qc", lat: 47.08, lon: -70.9, ski: 1 },
-  { id: "chicchocs", name: "Chic-Chocs (Gaspésie)", pv: "qc", lat: 48.95, lon: -66.0, mtn: 1 },
+  { id: "chicchocs", name: "Chic-Chocs (Gaspésie)", pv: "qc", lat: 48.95, lon: -66.0, mtn: 1, park: 1 },
   { id: "hardwood", name: "Hardwood Hills (Ontario)", pv: "on", lat: 44.53, lon: -79.55 },
   { id: "bluemtn", name: "Blue Mountain (Ontario)", pv: "on", lat: 44.5, lon: -80.31, ski: 1 },
   { id: "wentworth", name: "Wentworth (Nova Scotia)", pv: "ns", lat: 45.63, lon: -63.56, ski: 1 },
@@ -183,7 +183,7 @@ const CHECKS = [
         n += Object.values((j && j.osm) || {}).filter((r) => anyNear(s, r.g)).length;
       }
     }
-    if (!n) return none("no forest roads layer");
+    if (!n) return s.park ? na("inside a park: no forest roads") : none("no forest roads layer");
     return src === "home" || s.pv === "ab" ? ok(n, `${n} roads`) : less(n, `${n} roads (OpenStreetMap only: no BC road permits or status)`);
   }],
   ["areas", "Riding area names", "Riding", async (s) => {
