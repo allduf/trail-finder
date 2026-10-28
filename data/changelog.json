@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-28", "text": "Logging areas now work everywhere in Canada: outside BC, Alberta and Quebec they show forest cut or burned since 2010, seen from space."},
     {"date": "2026-10-28", "text": "Skiing: live lift status at Tremblant, Blue Mountain and Bromont."},
     {"date": "2026-10-28", "text": "Skiing webcams: live highway cameras near Smithers, Whitehorse, Sugarloaf, Wentworth, Blue Mountain and Marble, and Mont-Sainte-Anne's 6 cameras in the app."},
     {"date": "2026-10-28", "text": "Fishing: Layers has picture tiles to highlight all rivers, all lakes, creeks, the ocean, lake depths and Crown land, on the flat and 3D map."},
