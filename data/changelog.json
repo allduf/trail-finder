@@ -2,6 +2,7 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-10-28", "text": "The app opens faster: Skiing, Hunting, Fishing and Moto now load only when you pick them."},
+    {"date": "2026-10-28", "text": "Trail heights now load even when the weather service is busy, and shuttle routes warn you about gates to check (🚧)."},
     {"date": "2026-10-28", "text": "New trails now shows the list right away, the app finds you even if you skip the welcome, and Prime loam tells you which day the dirt turns prime when nothing is prime today."},
     {"date": "2026-10-28", "text": "3D winter photos now cover Cumberland, Prince George, Whitehorse and Hardwood too."},
     {"date": "2026-10-28", "text": "Ski heatmap: much more around Whistler, the Spearhead and the Callaghan. Slackcountry past the resort gates is no longer cut out, and tours recorded with fewer GPS points now count."},

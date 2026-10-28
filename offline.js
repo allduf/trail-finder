@@ -12,7 +12,7 @@
   const MAX_Z = 14;            // OpenFreeMap's deepest tiles; closer zooms are drawn from them
   const MAX_TILES = 6000;      // about 150 MB: a big valley, not the whole Sea to Sky
   const TILE_KB = 25;          // rough average vector tile in the mountains, for the estimate
-  const DATA = ["trails", "names", "mtb", "roads", "unmapped"];
+  const DATA = ["trails", "names", "mtb", "heights", "roads", "unmapped"];
   const LIBS = [
     "https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js",
     "https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css",
