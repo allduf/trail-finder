@@ -1591,14 +1591,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=625"></script>
-<script src="native.js?v=625"></script>
-<script src="keyboard.js?v=625"></script>
-<script src="rotate.js?v=625"></script>
-<script src="official.js?v=625"></script>
-<script src="directions.js?v=625"></script>
-<script src="ratings.js?v=625"></script>
-<script src="ebike.js?v=625"></script>
+<script src="welcome.js?v=626"></script>
+<script src="native.js?v=626"></script>
+<script src="keyboard.js?v=626"></script>
+<script src="rotate.js?v=626"></script>
+<script src="official.js?v=626"></script>
+<script src="directions.js?v=626"></script>
+<script src="ratings.js?v=626"></script>
+<script src="ebike.js?v=626"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1804,16 +1804,106 @@ body.sport-alt #rideMapBtn { display: none !important; }
   map.fitBounds(zoneBounds(state.zone));
   const OSM_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
   const ESRI_SAT = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-  const SAT_ATTR = 'Imagery &copy; Esri, Maxar, Earthstar Geographics, Eagleview, District of Squamish, Village of Pemberton, Sunshine Coast, qathet, Gouvernement du Qu&eacute;bec, GeoNB';
+  const SAT_ATTR = 'Imagery &copy; Esri, Maxar, Earthstar Geographics, Eagleview, District of Squamish, Village of Pemberton, Sunshine Coast, qathet, Gouvernement du Qu&eacute;bec, GeoNB, Ontario, Parks Canada';
   // Free provincial air photos, 15-20 cm, used where Esri has no air photo of its own (its photos stop before zoom 20 there):
   // Tremblant, the Gaspésie, Sugarloaf... were 8 times blurrier than Whistler (coverage check, alex 2026-10-27 "can we
-  // fix that?"). Quebec's Imagerie continue (WMTS, whole province) and GeoNB's imagery (drawn on request, Mercator).
-  // Outside their province both send one flat colour, under 3 KB: then it's Esri's photo after all.
+  // fix that?"). Quebec's Imagerie continue (WMTS, whole province), GeoNB's and Ontario's imagery (drawn on request,
+  // Mercator) and Banff National Park's (below).
+  // Outside their province they send one flat colour, under 3 KB: then it's Esri's photo after all.
   // window.tfLocalPhoto(z, x, y, signal) -> Promise of the JPEG bytes, or null (map3d.js uses it too).
   const mercBox = (z, x, y) => { const R = 20037508.342789244, n = 2 ** z; return [x / n * 2 * R - R, R - (y + 1) / n * 2 * R, (x + 1) / n * 2 * R - R, R - y / n * 2 * R]; };
+  // Banff National Park's own 2025 air photo, 15 cm (Parks Canada, open): one 150 GB cloud-optimised GeoTIFF in UTM 11N.
+  // Lake Louise, Sunshine and Norquay had only Esri's satellite (coverage check). It's read straight from the file, a
+  // 512 px piece at a time, with our own header reader: geotiff.js would first load 74 MB of lists of where pieces are.
+  const BANFF_TIF = "https://aerial-imagery-canada.s3.ca-central-1.amazonaws.com/national-parks/banff-national-park/Banff-national-park-2025-15cm-RGBN-mosaic.tif";
+  const BANFF_X0 = 477000, BANFF_Y0 = 5793000, BANFF_RES = 0.15;
+  const cogGet = (o, n, signal) => fetch(BANFF_TIF, { headers: { Range: `bytes=${o}-${o + n - 1}` }, signal })
+    .then((r) => { if (r.status !== 206) throw new Error("no range " + r.status); return r.arrayBuffer(); });
+  let cogHead = null, jpegLib = null;
+  const cogPieces = new Map();   // "level/col/row" -> Promise of 512x512 RGBN pixels, or null (no photo there)
+  const cogOpen = () => cogHead || (cogHead = cogGet(0, 16384).then((buf) => {
+    const d = new DataView(buf), big = (o) => Number(d.getBigUint64(o, true)), levels = [];
+    for (let off = big(8); off && off < buf.byteLength - 8;) {
+      const n = big(off), t = {};
+      for (let k = 0; k < n; k++) {
+        const b = off + 8 + k * 20, type = d.getUint16(b + 2, true), count = big(b + 4), size = { 1: 1, 2: 1, 3: 2, 4: 4, 7: 1, 16: 8 }[type] || 8;
+        const at = size * count <= 8 ? b + 12 : big(b + 12);
+        t[d.getUint16(b, true)] = { size, count, at, v: type === 3 ? d.getUint16(b + 12, true) : type === 16 ? big(b + 12) : d.getUint32(b + 12, true), inline: at === b + 12 };
+      }
+      // the pictures (full size, then each overview half the size), not the transparency masks after them
+      if (t[262].v === 2) levels.push({ w: t[256].v, h: t[257].v, offs: t[324], counts: t[325], tables: new Uint8Array(buf.slice(t[347].at, t[347].at + t[347].count)) });
+      off = big(off + 8 + n * 20);
+    }
+    return levels;
+  }).catch((e) => { cogHead = null; throw e; }));
+  const cogPiece = (levels, L, col, row) => {
+    const key = `${L}/${col}/${row}`;
+    if (!cogPieces.has(key)) {
+      if (cogPieces.size > 8) cogPieces.delete(cogPieces.keys().next().value);   // 1 MB each: phones' memory is tight
+      cogPieces.set(key, (async () => {
+        const lv = levels[L], i = row * Math.ceil(lv.w / 512) + col;
+        const num = async (f) => { if (f.inline) return f.v; const v = new DataView(await cogGet(f.at + i * f.size, f.size)); return f.size === 8 ? Number(v.getBigUint64(0, true)) : v.getUint32(0, true); };
+        const [o, n] = await Promise.all([num(lv.offs), num(lv.counts)]);
+        if (!n) return null;
+        if (!jpegLib) jpegLib = import("https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-module/compression/jpeg.js").catch((e) => { jpegLib = null; throw e; });
+        const [lib, bytes] = await Promise.all([jpegLib, cogGet(o, n)]);
+        return new Uint8Array(new lib.default({ JPEGTables: lv.tables }).decodeBlock(bytes));
+      })().catch((e) => { cogPieces.delete(key); throw e; }));
+    }
+    return cogPieces.get(key);
+  };
+  const utm11 = (lat, lon) => {   // GRS80 transverse Mercator, zone 11 (central meridian 117° W)
+    const e2 = 0.0066943800229, ep = e2 / (1 - e2), k0 = 0.9996, a = 6378137, p = lat * Math.PI / 180, s = Math.sin(p), c = Math.cos(p), t = s / c;
+    const N = a / Math.sqrt(1 - e2 * s * s), T = t * t, C = ep * c * c, A = c * (lon + 117) * Math.PI / 180;
+    const M = a * ((1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 ** 3 / 256) * p - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * e2 ** 3 / 1024) * Math.sin(2 * p) + (15 * e2 * e2 / 256 + 45 * e2 ** 3 / 1024) * Math.sin(4 * p) - 35 * e2 ** 3 / 3072 * Math.sin(6 * p));
+    return [500000 + k0 * N * (A + (1 - T + C) * A ** 3 / 6 + (5 - 18 * T + T * T + 72 * C - 58 * ep) * A ** 5 / 120),
+      k0 * (M + N * t * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * A ** 4 / 24 + (61 - 58 * T + T * T + 600 * C - 330 * ep) * A ** 6 / 720))];
+  };
+  // One 256 px map tile, as JPEG bytes: each of its pixels looked up in the UTM photo (a 17x17 grid of exact points, in
+  // between straight lines), at the overview just sharper than the tile. null where the photo stops (edge of the park).
+  async function banffTile(z, x, y) {
+    const n = 2 ** z, G = 16, lat0 = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 0.5) / n))) * 180 / Math.PI;
+    const ground = 40075016.686 * Math.cos(lat0 * Math.PI / 180) / 256 / n;
+    const levels = await cogOpen();
+    const L = Math.max(0, Math.min(levels.length - 1, Math.floor(Math.log2(ground / BANFF_RES))));
+    const lv = levels[L], k = levels[0].w / lv.w, grid = [];
+    for (let j = 0; j <= G; j++) {
+      const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + j / G) / n))) * 180 / Math.PI;
+      for (let i = 0; i <= G; i++) { const [ux, uy] = utm11(lat, (x + i / G) / n * 360 - 180); grid.push((ux - BANFF_X0) / BANFF_RES / k, (BANFF_Y0 - uy) / BANFF_RES / k); }
+    }
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = 0; i < grid.length; i += 2) { x0 = Math.min(x0, grid[i]); x1 = Math.max(x1, grid[i]); y0 = Math.min(y0, grid[i + 1]); y1 = Math.max(y1, grid[i + 1]); }
+    if (x0 < 0 || y0 < 0 || x1 >= lv.w - 1 || y1 >= lv.h - 1) return null;
+    const c0 = Math.floor(x0 / 512), c1 = Math.floor((x1 + 1) / 512), r0 = Math.floor(y0 / 512), r1 = Math.floor((y1 + 1) / 512), pieces = [];
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) pieces.push(cogPiece(levels, L, c, r));
+    const got = await Promise.all(pieces), cols = c1 - c0 + 1;
+    if (got.some((p) => !p)) return null;
+    const out = new ImageData(256, 256), px = out.data;
+    const at = (sx, sy, b) => { const c = (sx >> 9) - c0, r = (sy >> 9) - r0, p = got[r * cols + c]; return p[(((sy & 511) << 9) + (sx & 511)) * 4 + b]; };
+    let dark = 0;
+    for (let py = 0; py < 256; py++) for (let pxl = 0; pxl < 256; pxl++) {
+      const gx = pxl / 256 * G, gy = py / 256 * G, i = Math.min(G - 1, gx | 0), j = Math.min(G - 1, gy | 0), fx = gx - i, fy = gy - j, q = (j * (G + 1) + i) * 2, r = q + (G + 1) * 2;
+      const sx = (grid[q] * (1 - fx) + grid[q + 2] * fx) * (1 - fy) + (grid[r] * (1 - fx) + grid[r + 2] * fx) * fy;
+      const sy = (grid[q + 1] * (1 - fx) + grid[q + 3] * fx) * (1 - fy) + (grid[r + 1] * (1 - fx) + grid[r + 3] * fx) * fy;
+      const ax = sx | 0, ay = sy | 0, wx = sx - ax, wy = sy - ay, o = (py * 256 + pxl) * 4;
+      for (let b = 0; b < 3; b++) px[o + b] = (at(ax, ay, b) * (1 - wx) + at(ax + 1, ay, b) * wx) * (1 - wy) + (at(ax, ay + 1, b) * (1 - wx) + at(ax + 1, ay + 1, b) * wx) * wy;
+      px[o + 3] = 255;
+      if (px[o] + px[o + 1] + px[o + 2] < 6) dark++;
+    }
+    if (dark > 2000) return null;   // outside the photo inside a piece: black, so Esri's photo instead
+    const cv = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(256, 256) : Object.assign(document.createElement("canvas"), { width: 256, height: 256 });
+    cv.getContext("2d").putImageData(out, 0, 0);
+    const blob = cv.convertToBlob ? await cv.convertToBlob({ type: "image/jpeg", quality: 0.85 }) : await new Promise((ok) => cv.toBlob(ok, "image/jpeg", 0.85));
+    return blob.arrayBuffer();
+  }
+  const onPhoto = (years) => (z, x, y) => `https://ws.geoservices.lrc.gov.on.ca/arcgis5/rest/services/AerialImagery/GEO_Imagery_Data_Service_${years}/ImageServer/exportImage?bbox=${mercBox(z, x, y).map((v) => v.toFixed(2))}&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&f=image`;
   const LOCAL_PHOTOS = [
     { box: [44.55, -69.1, 48.1, -63.75], url: (z, x, y) => `https://geonb.snb.ca/arcgis/rest/services/GeoNB_Basemap_Imagery/MapServer/export?bbox=${mercBox(z, x, y).map((v) => v.toFixed(2))}&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&f=image` },
     { box: [44.99, -79.8, 62.6, -57.1], url: (z, x, y) => `https://servicesmatriciels.mern.gouv.qc.ca/erdas-iws/ogc/wmts/Imagerie_Continue/Imagerie_GQ/default/GoogleMapsCompatibleExt2:epsg:3857/${z}/${y}/${x}.jpg` },
+    // Ontario's open air photos (GEOspatial Ontario, 16-20 cm): the latest round first (south so far), then 2018-2022
+    { box: [41.6, -95.2, 56.9, -74.3], url: onPhoto("2023to2027") },
+    { box: [41.6, -95.2, 56.9, -74.3], url: onPhoto("2018to2022") },
+    { box: [50.65, -116.7, 52.3, -114.8], get: banffTile },
   ];
   const LOCAL_Z = 15, ESRI_AERIAL_Z = 20;   // Esri with a zoom-20 photo has an air photo itself (Bromont: the same one)
   const esriAerial = new Map();   // "blockX/blockY" at zoom 19 -> Promise of Esri's 32x32 tile map there, or null
@@ -1836,8 +1926,9 @@ body.sport-alt #rideMapBtn { display: none !important; }
       const key = `${LOCAL_PHOTOS.indexOf(p)}/${z}/${x}/${y}`;
       if (localNone.has(key)) continue;
       try {
-        const r = await fetch(p.url(Math.min(z, 21), z > 21 ? x >> 1 : x, z > 21 ? y >> 1 : y), { signal });
-        const b = r.ok ? await r.arrayBuffer() : null;
+        const zz = Math.min(z, 21), xx = z > 21 ? x >> 1 : x, yy = z > 21 ? y >> 1 : y;
+        const r = p.get ? null : await fetch(p.url(zz, xx, yy), { signal });
+        const b = p.get ? await p.get(zz, xx, yy) : r.ok ? await r.arrayBuffer() : null;
         if (b && b.byteLength > 3000) return b;
         localNone.add(key);
       } catch (e) { if (signal && signal.aborted) throw e; }
@@ -4016,7 +4107,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=625").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=626").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -7728,58 +7819,58 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=625"></script>
-<script src="contours.js?v=625"></script>
-<script src="clouds.js?v=625"></script>
-<script src="smoke.js?v=625"></script>
-<script src="radar.js?v=625"></script>
-<script src="photo-slider.js?v=625"></script>
-<script src="ski-terrain.js?v=625"></script>
-<script src="place-search.js?v=625"></script>
-<script src="winter.js?v=625"></script>
-<script src="crownland.js?v=625"></script>
-<script src="hunting.js?v=625"></script>
-<script src="fish-bait.js?v=625"></script>
-<script src="fish-route.js?v=625"></script>
-<script src="fishing.js?v=625"></script>
-<script src="compass.js?v=625"></script>
-<script src="hunts.js?v=625"></script>
-<script src="ski-points.js?v=625"></script>
-<script src="webcams.js?v=625"></script>
-<script src="lifts.js?v=625"></script>
-<script src="rogers.js?v=625"></script>
-<script src="slackcountry.js?v=625"></script>
-<script src="ski-areas.js?v=625"></script>
-<script src="helicat.js?v=625"></script>
-<script src="offline.js?v=625"></script>
-<script src="ride-stats.js?v=625"></script>
-<script src="native-gps.js?v=625"></script>
-<script src="navigate.js?v=625"></script>
-<script src="planner.js?v=625"></script>
-<script src="loops.js?v=625"></script>
-<script src="ride-finds.js?v=625"></script>
-<script src="rides.js?v=625"></script>
-<script src="community.js?v=625"></script>
-<script src="ride-files.js?v=625"></script>
-<script src="rider-trails.js?v=625"></script>
-<script src="account.js?v=625"></script>
-<script src="live.js?v=625"></script>
-<script src="strava.js?v=625"></script>
-<script src="reports.js?v=625"></script>
-<script src="grades.js?v=625"></script>
-<script src="trail-photos.js?v=625"></script>
-<script src="visitors.js?v=625"></script>
-<script src="usage.js?v=625"></script>
-<script src="notify.js?v=625"></script>
-<script src="closures.js?v=625"></script>
-<script src="status.js?v=625"></script>
-<script src="ask.js?v=625"></script>
-<script src="areas.js?v=625"></script>
-<script src="alpine.js?v=625"></script>
-<script src="bikeparks.js?v=625"></script>
-<script src="photo-find.js?v=625"></script>
-<script src="whats-new.js?v=625"></script>
-<script src="app-update.js?v=625"></script>
+<script src="map3d.js?v=626"></script>
+<script src="contours.js?v=626"></script>
+<script src="clouds.js?v=626"></script>
+<script src="smoke.js?v=626"></script>
+<script src="radar.js?v=626"></script>
+<script src="photo-slider.js?v=626"></script>
+<script src="ski-terrain.js?v=626"></script>
+<script src="place-search.js?v=626"></script>
+<script src="winter.js?v=626"></script>
+<script src="crownland.js?v=626"></script>
+<script src="hunting.js?v=626"></script>
+<script src="fish-bait.js?v=626"></script>
+<script src="fish-route.js?v=626"></script>
+<script src="fishing.js?v=626"></script>
+<script src="compass.js?v=626"></script>
+<script src="hunts.js?v=626"></script>
+<script src="ski-points.js?v=626"></script>
+<script src="webcams.js?v=626"></script>
+<script src="lifts.js?v=626"></script>
+<script src="rogers.js?v=626"></script>
+<script src="slackcountry.js?v=626"></script>
+<script src="ski-areas.js?v=626"></script>
+<script src="helicat.js?v=626"></script>
+<script src="offline.js?v=626"></script>
+<script src="ride-stats.js?v=626"></script>
+<script src="native-gps.js?v=626"></script>
+<script src="navigate.js?v=626"></script>
+<script src="planner.js?v=626"></script>
+<script src="loops.js?v=626"></script>
+<script src="ride-finds.js?v=626"></script>
+<script src="rides.js?v=626"></script>
+<script src="community.js?v=626"></script>
+<script src="ride-files.js?v=626"></script>
+<script src="rider-trails.js?v=626"></script>
+<script src="account.js?v=626"></script>
+<script src="live.js?v=626"></script>
+<script src="strava.js?v=626"></script>
+<script src="reports.js?v=626"></script>
+<script src="grades.js?v=626"></script>
+<script src="trail-photos.js?v=626"></script>
+<script src="visitors.js?v=626"></script>
+<script src="usage.js?v=626"></script>
+<script src="notify.js?v=626"></script>
+<script src="closures.js?v=626"></script>
+<script src="status.js?v=626"></script>
+<script src="ask.js?v=626"></script>
+<script src="areas.js?v=626"></script>
+<script src="alpine.js?v=626"></script>
+<script src="bikeparks.js?v=626"></script>
+<script src="photo-find.js?v=626"></script>
+<script src="whats-new.js?v=626"></script>
+<script src="app-update.js?v=626"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
