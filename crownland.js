@@ -11,6 +11,10 @@
 //    (Open Government Licence - Saskatchewan).
 //  - Manitoba: provincial forests (Manitoba Open Data Licence); the rest of Manitoba's Crown land isn't open data.
 //  - Newfoundland and Labrador: Crown titles (land the Crown granted away, so private), from the Land Use Atlas.
+//  - British Columbia: private parcels from ParcelMap BC (DataBC); about 94% of BC is Crown land, mostly not parcelled,
+//    so only private land is shaded (Hunting draws BC's parcels itself, hunting.js PICS).
+//  - Alberta: the Green Area (public forest land, Alberta Environment and Protected Areas); the White Area is mostly
+//    private farmland (Hunting draws the Green Area as a line from its own data).
 // No open data for PEI (about 90% private) or the territories: the tap answer says what's usual there.
 (() => {
   "use strict";
@@ -23,8 +27,10 @@
   const SK = "https://gis.saskatchewan.ca/arcgis/rest/services";
   const MB_PF = "https://services.arcgis.com/mMUesHYPkXjaFGfS/arcgis/rest/services/Manitoba_Provincial_Forests___Version_6/FeatureServer/1";
   const NL = "https://www.gov.nl.ca/landuseatlasmaps/rest/services/LandUseDetails/MapServer";
+  const ABG = "https://geospatial.alberta.ca/mimas/rest/services/boundaries/land_green_white_area_public/MapServer";
+  const BCW = "https://openmaps.gov.bc.ca/geo/pub", PMBC = "pub:WHSE_CADASTRE.PMBC_PARCEL_FABRIC_POLY_SVW";
   // [s, w, n, e], rough (neighbours overlap; each server only has its own province)
-  const BOX = { on: [41.6, -95.2, 56.9, -74.3], qc: [44.9, -79.8, 62.7, -57.1], nb: [44.5, -69.1, 48.1, -63.7], ns: [43.3, -66.5, 47.1, -59.6],
+  const BOX = { bc: [48.2, -139.1, 60.01, -114.0], ab: [48.99, -120.01, 60.01, -109.99], on: [41.6, -95.2, 56.9, -74.3], qc: [44.9, -79.8, 62.7, -57.1], nb: [44.5, -69.1, 48.1, -63.7], ns: [43.3, -66.5, 47.1, -59.6],
     sk: [48.9, -110.1, 60.1, -101.3], mb: [48.9, -102.1, 60.1, -88.9], nl: [46.6, -67.9, 60.5, -52.5], pe: [45.9, -64.5, 47.1, -61.9] };
   // Map pictures. kind: the colour. layer: the server's layer id; where: only some of its shapes; tint: a server
   // that can't take our colours (Quebec), so every painted pixel is repainted ours on the phone.
@@ -37,6 +43,8 @@
     { id: "skpf", pv: "sk", kind: "crown", svc: `${SK}/Forestry/MapServer`, layer: 0, min: 7, attr: 'Crown land: <a href="https://gis.saskatchewan.ca/">Saskatchewan</a> provincial forests' },
     { id: "skfw", pv: "sk", kind: "crown", svc: `${SK}/Planning/MapServer`, layer: 7, min: 9, attr: "Fish and Wildlife Development Fund land: Saskatchewan" },
     { id: "skag", pv: "sk", kind: "lease", svc: `${SK}/Agriculture/CrownLand_AG/MapServer`, layer: 2, min: 10, attr: "Agricultural Crown land: Saskatchewan Lands Branch" },
+    { id: "bc", pv: "bc", kind: "private", wms: PMBC, where: "OWNER_TYPE", is: "Private", min: 9, attr: 'Private land: <a href="https://ltsa.ca/property-owners/about-land-records/parcelmap-bc/">ParcelMap BC</a>, DataBC' },
+    { id: "ab", pv: "ab", kind: "crown", svc: ABG, layer: 0, where: "GWA_CODE='GLC_G'", min: 7, attr: 'Crown land: <a href="https://www.alberta.ca/green-and-white-areas">Alberta Green Area</a>' },
     { id: "nl", pv: "nl", kind: "private", svc: NL, layer: 3, min: 13, attr: 'Crown titles: <a href="https://www.gov.nl.ca/landuseatlas/">NL Land Use Atlas</a>' },
   ];
   const R = 20037508.342789244;
@@ -44,6 +52,9 @@
   const rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   // The picture's address for one 256 px tile (web mercator), solid colour (the map layer sets how see-through).
   const url = (s, z, x, y) => {
+    // DataBC's map server (GeoServer): our colour in a style sent with the request
+    if (s.wms) return `${BCW}/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${encodeURIComponent(s.wms)}&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&SRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&SLD_BODY=${encodeURIComponent(
+      `<StyledLayerDescriptor version="1.0.0"><NamedLayer><Name>${s.wms}</Name><UserStyle><FeatureTypeStyle><Rule><Filter><PropertyIsEqualTo><PropertyName>${s.where}</PropertyName><Literal>${s.is}</Literal></PropertyIsEqualTo></Filter><PolygonSymbolizer><Fill><CssParameter name="fill">${COL[s.kind]}</CssParameter></Fill></PolygonSymbolizer></Rule></FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>`)}&bbox=${tileBox(z, x, y)}`;
     const c = rgb(COL[s.kind]);
     const draw = s.tint ? `layers=show%3A${s.layer}` : `dynamicLayers=${encodeURIComponent(JSON.stringify([{ id: s.layer, source: { type: "mapLayer", mapLayerId: s.layer }, ...(s.where ? { definitionExpression: s.where } : {}),
       drawingInfo: { renderer: { type: "simple", symbol: { type: "esriSFS", style: "esriSFSSolid", color: [...c, 255], outline: { type: "esriSLS", style: "esriSLSSolid", color: [...c, 255], width: 0.75 } } } } }]))}`;
@@ -89,6 +100,22 @@
   const priv = (t, d = ASK) => ({ k: "private", t, d });
   const unknown = (t, d) => ({ k: "unknown", t, d });
   const AT = {
+    async bc(lat, lon) {
+      const p = new URLSearchParams({ service: "WFS", version: "2.0.0", request: "GetFeature", typeName: PMBC, outputFormat: "application/json", count: "1",
+        propertyName: "OWNER_TYPE", CQL_FILTER: `INTERSECTS(SHAPE, SRID=4326;POINT(${lon} ${lat}))` });
+      const j = await get(`${BCW}/wfs?${p}`);
+      if (!j) return null;
+      const own = j.features?.[0]?.properties?.OWNER_TYPE || "";
+      if (/private/i.test(own)) return priv("Private land");
+      if (/municipal|federal|first nation/i.test(own)) return { k: "public", t: `${own} land`, d: "Owned by a town, Canada or a First Nation, not general Crown land: its own rules apply (reserves need permission)." };
+      return crown(own ? "Crown land (BC)" : "Most likely Crown land", own ? OPEN : "No private parcel here, and about 94% of BC is Crown land. Parks, reserves and leases still have their own rules: watch for signs.");
+    },
+    async ab(lat, lon) {
+      const a = await q(`${ABG}/0`, lat, lon, "GWA_CODE");
+      if (a === undefined) return null;
+      if (a && a.GWA_CODE === "GLC_G") return crown("Crown land (Alberta Green Area)", `${OPEN} Leases and dispositions in the Green Area have their own rules.`);
+      return unknown("White Area: mostly private", "Alberta's settled farm country: most land is private, so ask the owner first. Public land here (grazing leases, parks) has its own rules.");
+    },
     async on(lat, lon) {
       const [c, l, p] = await Promise.all([q(`${LIO}/34`, lat, lon, "OBJECTID"), q(`${LIO}/33`, lat, lon, "PURPOSE_OF_DISPOSITION,LEASE_TYPE,LICENCE_OF_OCCUPATION_TYPE,CLASS_SUBTYPE"), q(`${LIO}/35`, lat, lon, "TITLE_HOLDER_TYPE")]);
       if (l) return { k: "lease", t: "Crown land with a lease or permit", d: `${l.PURPOSE_OF_DISPOSITION ? `${cap(l.PURPOSE_OF_DISPOSITION)}. ` : ""}Someone holds rights here (a camp, cottage, trapline cabin or works): keep clear of buildings and ask before you set up.` };

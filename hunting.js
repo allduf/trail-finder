@@ -665,7 +665,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     { id: "hn-wet", layer: "wet", tmpl: wms(WETLANDS, sld(WETLANDS, [[`<Not><PropertyIsNull><PropertyName>WATERBODY_TYPE</PropertyName></PropertyIsNull></Not>`, C.wet]])), min: 10, opacity: 0.55, attr: 'Wetlands: <a href="https://www2.gov.bc.ca/gov/content/data/geographic-data-services/topographic-data/freshwater">BC Freshwater Atlas</a>' },
     { id: "hn-abwet", layer: "wet", tmpl: arcgis(WET_SVC, "layers=show%3A3"), min: 13, opacity: 0.6, ab: true, attr: "Wetlands: Alberta Merged Wetland Inventory" },
     // Crown and private land in the other provinces (crownland.js: each province's own map server)
-    ...(window.tfCrown ? window.tfCrown.SRC.map((s) => ({ id: `hn-cl-${s.id}`, layer: "land", src: s, url: (z, x, y) => window.tfCrown.url(s, z, x, y), min: s.min,
+    ...(window.tfCrown ? window.tfCrown.SRC.filter((s) => s.pv !== "bc" && s.pv !== "ab").map((s) => ({ id: `hn-cl-${s.id}`, layer: "land", src: s, url: (z, x, y) => window.tfCrown.url(s, z, x, y), min: s.min,
       opacity: s.kind === "private" ? 0.4 : 0.3, attr: s.attr })) : []),
   ];
   // each province's layers only ask for tiles over that province
