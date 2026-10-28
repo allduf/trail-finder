@@ -245,6 +245,7 @@
     leh: { g: "Boundaries", label: "Limited entry zones", sub: "BC draw-only hunts", on: false, sw: [C.leh, "dash"] },
     rules: { g: "Boundaries", label: "Parks, towns and closures", sub: "Where hunting is banned or has its own rules (ZECs and outfitters in Quebec)", on: true, sw: [C.no, "hatch"] },
     land: { g: "Land", label: "Private and public land", sub: "Crown land and private land from each province's map (BC private parcels, Alberta Green Area)", on: false, sw: [C.open, "fill"], minZoom: 9 },
+    lots: { g: "Land", label: "Property lines", sub: "Lot lines from each province's land registry (lot numbers, never owner names)", on: false, sw: ["#e64980", "lot"], minZoom: 13 },
     reach: { g: "Land", label: "Far from roads", sub: "Clear where you're over 1.5 km from any road: few hunters walk that far", on: false, sw: [REACH[1][1], "fill"], minZoom: 9 },
     forest: { g: "Habitat", label: "Forest types", sub: "Thick timber, open timber, aspen, young forest and brush, meadows", on: false, sw: ["#1b5e20", "fill"], minZoom: 8 },
     burns: { g: "Habitat", label: "Old burns", sub: "Fire scars by age: young burns grow feed", on: false, sw: [BURN, "burn"], minZoom: 7 },
@@ -258,7 +259,7 @@
   const GROUPS = ["Boundaries", "Land", "Habitat", "Terrain", "Tools"];
   // Map views (alex: "make it more simple"): one tap sets the layers for a job; All layers still has every switch.
   const VIEWS = {
-    rules: { label: "Rules", sub: "where to hunt", layers: ["zones", "rules", "land"] },
+    rules: { label: "Rules", sub: "where to hunt", layers: ["zones", "rules", "land", "lots"] },
     scout: { label: "Scouting", sub: "feed, far from roads", layers: ["zones", "burns", "cut", "reach"] },
     hunt: { label: "On the hunt", sub: "wind and range", layers: ["zones", "wind", "rings"] },
   };
@@ -281,6 +282,9 @@ body:not(.sport-hunt) #huntPane, body:not(.sport-hunt) .lm-hunt { display: none 
 #huntPane #hnAll { align-self: flex-start; }
 #huntPane { display: flex; flex-direction: column; gap: 12px; font-size: .9rem; }
 #huntPane .hn-note { color: var(--muted); font-size: .76rem; margin: 0; }
+#huntPane .hn-lot { display: flex; gap: 8px; align-items: flex-start; font-size: .8rem; margin: 6px 0 2px; color: var(--muted); }
+#huntPane .hn-lot b { color: var(--text, inherit); }
+#huntPane .hn-lot i { flex: 0 0 14px; height: 10px; margin-top: 3px; border-radius: 2px; }
 #huntPane .hn-safe { color: var(--muted); margin: 0; font-size: .76rem; line-height: 1.4; }
 #huntPane .hn-safe summary { font-size: .78rem; }
 #huntPane #hnOffBox { display: block; }
@@ -667,6 +671,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     // Crown and private land in the other provinces (crownland.js: each province's own map server)
     ...(window.tfCrown ? window.tfCrown.SRC.filter((s) => s.pv !== "bc" && s.pv !== "ab").map((s) => ({ id: `hn-cl-${s.id}`, layer: "land", src: s, url: (z, x, y) => window.tfCrown.url(s, z, x, y), min: s.min,
       opacity: s.kind === "private" ? 0.4 : 0.3, attr: s.attr })) : []),
+    // Property lines: the lines between lots from each province's land registry (crownland.js LOTS)
+    ...(window.tfCrown && window.tfCrown.LOTS ? window.tfCrown.LOTS.map((s) => ({ id: `hn-lot-${s.pv}`, layer: "lots", src: { pv: s.pv }, url: (z, x, y) => window.tfCrown.lotUrl(s, z, x, y), min: s.min,
+      opacity: 0.9, attr: s.attr })) : []),
   ];
   // each province's layers only ask for tiles over that province
   const BOUNDS = { bc: [[48.2, -139.1], [60.01, -114.0]], ab: [[48.99, -120.01], [60.01, -109.99]] };
@@ -793,6 +800,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       `<li>${sw(C.reserve, "edge")}Reserve: ask first</li>`, `<li>${sw(C.town, "soft")}Town: no shooting</li>`, `<li>${sw(C.closure, "dot")}Vehicle closure</li>`],
     land: () => [`<li>${sw(C.open)}Crown land: public</li>`, `<li>${sw(C.private)}Private land: ask</li>`, `<li>${sw(GRAZE_COLOR)}Grazing lease: ask</li>`, `<li class="wide">${sw(C.green, "dash")}Alberta Green Area: public forest</li>`,
       `<li class="wide hn-tip">BC and Newfoundland: private land shaded, the rest is mostly Crown. Manitoba: provincial forests only. PEI and the territories: not mapped.</li>`],
+    lots: () => [`<li class="wide">${lotSw}Property line (lot edge)</li>`,
+      `<li class="wide hn-tip">Quebec (cadastre), BC, New Brunswick and Nova Scotia: every lot. Ontario: original survey lots and concessions. Alberta: section grid. Lines are approximate: signs and fences on the ground rule. Tap a spot for the lot number.</li>`,
+      `<li class="wide hn-tip">Not mapped yet: Saskatchewan, Manitoba, PEI, Newfoundland and Labrador, the territories.</li>`],
     forest: () => [...FOREST.map(([, c, n]) => `<li class="wide">${sw(c)}${esc(n)}</li>`), `<li class="wide hn-tip">Game beds in thick timber and feeds in the rest: hunt the edges between them.</li>`],
     burns: () => [...BURNS.map(([, , gap, n]) => `<li><i style="${burnCss(gap)}"></i>${esc(n)}</li>`), `<li class="wide">Alberta: the last 10 years</li>`],
     reach: () => [...[...REACH].reverse().map(([, c, n]) => `<li class="wide"><i style="background:${c};opacity:.8"></i>${esc(n)}</li>`), `<li class="wide"><i style="background:#fff;border:1px solid #adb5bd"></i>Clear: over 1.5 km from any road</li>`],
@@ -803,7 +813,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     wind: () => [`<li class="wide">${sw(ORANGE)}Downwind of the spot: game there can smell you</li>`],
     rings: () => [`<li class="wide">${sw(C.rings, "dash")}${RINGS.join(", ")} m</li>`],
   };
-  const icon = ([c, kind]) => kind === "cut" ? `<span class="hn-ic" style="${cutCss(c)}"></span>` : kind === "burn" ? `<span class="hn-ic" style="${burnCss(9)}"></span>` : kind === "hatch" ? `<span class="hn-ic" style="border:2px solid ${c};background:${hatchCss(c)}"></span>` : kind === "line" ? `<span class="hn-ic" style="border:3px solid ${c}"></span>` : kind === "dash" ? `<span class="hn-ic" style="border:3px dashed ${c}"></span>`
+  const lotSw = `<i style="border:2px solid #e64980;outline:1px solid #fff;background:transparent"></i>`;
+  const icon = ([c, kind]) => kind === "lot" ? `<span class="hn-ic" style="border:3px solid #e64980;background:transparent"></span>` : kind === "cut" ? `<span class="hn-ic" style="${cutCss(c)}"></span>` : kind === "burn" ? `<span class="hn-ic" style="${burnCss(9)}"></span>` : kind === "hatch" ? `<span class="hn-ic" style="border:2px solid ${c};background:${hatchCss(c)}"></span>` : kind === "line" ? `<span class="hn-ic" style="border:3px solid ${c}"></span>` : kind === "dash" ? `<span class="hn-ic" style="border:3px dashed ${c}"></span>`
     : kind === "cone" ? `<span class="hn-ic" style="background:conic-from 0deg, transparent;background:linear-gradient(135deg, ${c}55, ${c})"></span>` : kind === "ring" ? `<span class="hn-ic" style="border:2px dashed ${c};border-radius:50%"></span>`
     : `<span class="hn-ic" style="background:${c};opacity:.85"></span>`;
   function renderLayers() {
@@ -1440,6 +1451,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     el.innerHTML = `<header>${svg(IC.pin)}<h3>This spot</h3><button type="button" class="hn-x" aria-label="Close">${svg(IC.x, 14)}</button></header>
       <p class="hn-zone">${name || (pvHere.length ? `${esc(PV[pvHere[0]].name)}: no hunting zone here on the map` : "Outside the hunting zones on the map")}</p>
       <div class="hn-chips">${known ? `<span class="hn-chip" style="--c:${open.size ? "#2f9e44" : "var(--line)"}">${open.size ? `Open now: ${esc([...open].slice(0, 3).join(", "))}${open.size > 3 ? ` +${open.size - 3} more` : ""}` : "No general season open today"}</span>` : ""}<span id="hnLand"></span>${warn.join("")}</div>
+      <p class="hn-lot" id="hnLot" hidden></p>
       ${folds.join("")}
       <details${z.length ? "" : " open"}><summary>Rules here</summary><ul class="hn-list">${rules.join("") || "<li>No hunting zone found here: check the province's or territory's regulations.</li>"}</ul></details>
       <details id="hnLiveBox" hidden><summary>Land and forest</summary><div id="hnLive"></div></details>
@@ -1449,6 +1461,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     $("hnGlass").addEventListener("click", (e) => { const b = e.target.closest("[data-glass]"); if (b) glassDo(b.dataset.glass, lat, lon, b); });
     el.querySelector(".hn-x").addEventListener("click", () => { el.hidden = true; spotOpen = null; const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); });
     renderNow();
+    if (shown.has("lots")) liveLot(lat, lon, z.find((u) => window.tfCrown && window.tfCrown.has(u.p))?.p || pvHere.find((k) => window.tfCrown && window.tfCrown.has(k)), seq);
     if (z.some((u) => u.p === "ab") || (!z.length && inAlberta(lat, lon))) liveAlberta(lat, lon, seq);
     else if (z.some((u) => u.p === "bc") || (!z.length && inBC(lat, lon))) liveBC(lat, lon, seq);
     // Elsewhere: the province's own Crown land map (crownland.js), never a guess of Crown land on farmland.
@@ -1458,6 +1471,14 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       if (pub) liveOut(seq, [`<li style="border-color:${C.open}"><b>Land: public (${esc(AREA_KINDS[pub.k].label)})</b>Crown land managed for wildlife: see its rules above before you hunt.</li>`], ["Public land", C.open]);
       else liveCrown(lat, lon, z.find((u) => window.tfCrown && window.tfCrown.has(u.p))?.p || pvHere.find((k) => window.tfCrown && window.tfCrown.has(k)), seq);
     }
+  }
+  // Property lines on: the lot under the spot (lot number or survey description, never an owner).
+  async function liveLot(lat, lon, pv, seq) {
+    const x = pv && window.tfCrown && window.tfCrown.lotAt ? await window.tfCrown.lotAt(lat, lon, pv).catch(() => null) : null;
+    const el = $("hnLot");
+    if (!x || seq !== spotSeq || !el) return;
+    el.innerHTML = `${lotSw}<span><b>${esc(x.t)}</b> ${esc(x.d)}</span>`;
+    el.hidden = false;
   }
   const LAND_CHIP = { crown: "Crown land", private: "Private land: ask", lease: "Lease: ask first", public: "Government land" };
   async function liveCrown(lat, lon, pv, seq) {

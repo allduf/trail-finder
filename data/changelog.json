@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-28", "text": "Hunting: new Property lines layer shows the lines between lots (Quebec cadastre, BC, New Brunswick, Nova Scotia; Ontario lots and concessions, Alberta sections). Zoom in close and tap a spot for the lot number."},
     {"date": "2026-10-28", "text": "Fishing: creeks and streams now show from a whole-valley zoom, Crown land works in BC (private land in yellow), and tapping a BC lake gives its scanned depth map."},
     {"date": "2026-10-28", "text": "Yukon: hunting seasons for every game management subzone (tap the map in Hunting), and fishing limits for each Yukon lake and river with its own rules, like Fish Lake, Lake Laberge and the Yukon River at Whitehorse."},
     {"date": "2026-10-28", "text": "Photo find asks where a picture was taken when only the AI guessed the place, then compares it with riders' pictures of every trail there."},
