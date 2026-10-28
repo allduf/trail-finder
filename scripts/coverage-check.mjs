@@ -18,7 +18,7 @@
 import { writeFile, readFile } from "node:fs/promises";
 
 const SITE = (process.env.SITE || "https://allduf.github.io/trail-finder/").replace(/\/?$/, "/");
-const WINTER = new URL("../trail-finder-winter/", SITE).href;
+const WINTERS = ["../trail-finder-winter/", "../trail-finder-winter2/"].map((w) => new URL(w, SITE).href);   // the 3D map's Winter photo sites
 const OUT = process.env.OUT || "data/coverage.json";
 const R = 15;   // km around each spot for trails, runs, trailheads
 
@@ -233,9 +233,11 @@ const CHECKS = [
     return vsBase(deep, base, 1, `zoom (~${m} m heights)`, "no terrain heights");
   }],
   ["winter", "Winter photos", "Maps", async (s, base) => {
-    const blocks = await get(WINTER + "blocks.json");
-    const have = new Set((blocks || []).map(([x, y]) => x + "/" + y));
-    if (!have.has(tileX(s.lon, 11) + "/" + tileY(s.lat, 11))) return none("no winter photos (summer photo tinted white)");
+    // The square's site (map3d.js winterSite): the first one that lists it.
+    const lists = await Promise.all(WINTERS.map((w) => get(w + "blocks.json")));
+    const site = lists.findIndex((b) => (b || []).some(([x, y]) => x === tileX(s.lon, 11) && y === tileY(s.lat, 11)));
+    if (site < 0) return none("no winter photos (summer photo tinted white)");
+    const WINTER = WINTERS[site], have = new Set((lists[site] || []).map(([x, y]) => x + "/" + y));
     // The deepest zoom with a photo at the spot, and how many of the 5x5 tiles around it are there (holes).
     let deep = 0;
     for (const z of [14, 13, 12]) if (!deep && (await get(`${WINTER}${z}/${tileX(s.lon, z)}/${tileY(s.lat, z)}.webp`, "status")) === 200) deep = z;

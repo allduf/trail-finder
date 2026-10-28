@@ -6,7 +6,7 @@
 // forest keeps its trees with a dusting, like Live), or if that can't come, from the photo around the hole (blended
 // in from coarser and coarser averages, "push-pull"). Some valleys were cloudy all winter: at Kicking Horse's base
 // 83% of a zoom-14 tile is a hole, too much to smear over.
-// Message in: { id, z, x, y, base, skip, whole } (base = the page address, for ../trail-finder-winter/; skip = don't
+// Message in: { id, z, x, y, base, skip, whole } (base = the Winter photo site with this tile, trail-finder-winter or -winter2; skip = don't
 // ask for this zoom-14 tile, it's known to be missing; whole = the tile is all inside the photo squares, so every
 // see-through pixel is a hole: tiles across a square's edge keep their see-through outside part).
 // Out: { id, data: ImageBitmap, miss14 } or { id, none: true } (no photo here at all) or { id, err }. { cancel: id } drops one.
@@ -91,7 +91,7 @@ const decode = async (blob) => {
 // from the one above it and enlarged (the newer squares stop at zoom 13, and a few tiles were cloudy every pass).
 async function tile(z, x, y, base, skip, whole, out) {
   if (!skip) {
-    const r = await fetch(new URL(`../trail-finder-winter/${z}/${x}/${y}.webp`, base).href);
+    const r = await fetch(new URL(`${z}/${x}/${y}.webp`, base).href);
     if (r.ok) { const px = await decode(await r.blob()); return whole && !(await fillHoles(px.data, z, x, y)) ? null : px; }
     if (r.status !== 404) throw new Error(`HTTP ${r.status}`);
     if (z === 14) out.miss14 = true;

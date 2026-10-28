@@ -52,7 +52,7 @@ const server = createServer(async (req, res) => {
   } catch {
     try {
       // Last winter's photos (Skiing 3D) are their own site, next to this one.
-      const r = await fetch(path.startsWith("trail-finder-winter/") ? new URL("../" + path, LIVE) : LIVE + path);
+      const r = await fetch(/^trail-finder-winter2?\//.test(path) ? new URL("../" + path, LIVE) : LIVE + path);
       res.writeHead(r.status, { "content-type": r.headers.get("content-type") || "application/octet-stream" }).end(Buffer.from(await r.arrayBuffer()));
     } catch { res.writeHead(502).end(); }
   }
