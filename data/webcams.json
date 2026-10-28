@@ -1,5 +1,5 @@
 {
- "note": "Live webcams shown in Skiing (webcams.js). Hand-edited. Feeds are never copied: 'embed' is the owner's own embeddable player (iframe), 'img' is the owner's live picture shown from their server, and 'page' is the owner's webcam page. Spots are the camera's real location, from OpenStreetMap lift stations, lodges and peaks; 'approximate spot' in where means the page doesn't say exactly where the camera is. kind: resort, backcountry (huts, lodges, remote park cameras) or road (provincial highway cameras: DriveBC, 511 Yukon, NB, NS, Ontario and NL).",
+ "note": "Live webcams shown in Skiing (webcams.js). Hand-edited. Feeds are never copied: 'embed' is the owner's own embeddable player (iframe), 'img' is the owner's live picture shown from their server, 'feed' finds the newest picture when a cam's picture gets a new name each time (pmsc:<cam> or viu:<station>, see webcams.js), and 'page' is the owner's webcam page. Spots are the camera's real location, from OpenStreetMap lift stations, lodges and peaks; 'approximate spot' in where means the page doesn't say exactly where the camera is. kind: resort, backcountry (huts, lodges, remote park cameras) or road (provincial highway cameras: DriveBC, 511 Yukon, NB, NS, Ontario and NL).",
  "owners": {
   "wb": {
    "name": "Whistler Blackcomb",
@@ -190,6 +190,21 @@
    "name": "Newfoundland and Labrador highway cameras",
    "page": "https://www.gov.nl.ca/ti/roads/cameras/",
    "credit": "Government of Newfoundland and Labrador"
+  },
+  "pmsc": {
+   "name": "Powder Mountain Snowmobile Club",
+   "page": "https://pmsccams.com/Home/Index",
+   "credit": "Powder Mountain Snowmobile Club (Whistler)"
+  },
+  "coqsnow": {
+   "name": "Coquihalla Summit Snowmobile Club",
+   "page": "https://coqsnow.com/",
+   "credit": "Coquihalla Summit Snowmobile Club (coqsnow.com)"
+  },
+  "viu": {
+   "name": "VIU Coastal Hydrology Research Lab",
+   "page": "https://www.viu-hydromet-wx.ca/webcam-viewer/",
+   "credit": "Vancouver Island University's Coastal Hydrology Research Lab (alpine weather stations)"
   }
  },
  "cams": [
@@ -1411,6 +1426,125 @@
    "ele": 1964,
    "embed": "https://webcams-preview.shs.matzerpiez.com/webcams/kees-and-claire-hut-southwest.html",
    "where": "Kees and Claire Hut, Spearhead Traverse"
+  },
+  {
+   "id": "pmsc-brandywine-bowl",
+   "owner": "pmsc",
+   "resort": "Brandywine",
+   "kind": "backcountry",
+   "name": "Brandywine Bowl",
+   "view": "Looks up at the Brandywine Meadows and bowls from the club's rescue cache. A new picture every 30 minutes in daylight",
+   "lat": 50.0964,
+   "lon": -123.1917,
+   "ele": 1500,
+   "where": "Brandywine Meadows, Powder Mountain Snowmobile Club (approximate spot)",
+   "feed": "pmsc:BB1",
+   "season": "Runs in winter; the club turns it off in summer."
+  },
+  {
+   "id": "pmsc-parking-lot",
+   "owner": "pmsc",
+   "resort": "Brandywine",
+   "kind": "backcountry",
+   "name": "Brandywine sled parking lot",
+   "view": "The club's parking lot and trailhead. A new picture every 30 minutes in daylight",
+   "lat": 50.0622,
+   "lon": -123.1105,
+   "ele": 525,
+   "where": "Brandywine snowmobile trailhead, Callaghan Valley turn-off on Highway 99 (approximate spot)",
+   "feed": "pmsc:PL1",
+   "season": "Runs in winter; the club turns it off in summer."
+  },
+  {
+   "id": "coqsnow-0k-parking",
+   "owner": "coqsnow",
+   "resort": "Coquihalla sled area",
+   "kind": "backcountry",
+   "name": "0-K Parking Lot",
+   "view": "The sled club's parking lot and snow board",
+   "lat": 49.6695,
+   "lon": -121.0014,
+   "ele": 1110,
+   "where": "Coquihalla Summit Snowmobile Club trailhead (approximate spot)",
+   "img": "https://coqsnow.com/resources/0-K/camera.jpg"
+  },
+  {
+   "id": "coqsnow-henning-spearing",
+   "owner": "coqsnow",
+   "resort": "Coquihalla sled area",
+   "kind": "backcountry",
+   "name": "Henning, Spearing Bowl",
+   "view": "Spearing Bowl above the Mount Henning warming hut",
+   "lat": 49.6385,
+   "lon": -120.9626,
+   "ele": 1800,
+   "where": "Mount Henning warming hut (approximate spot)",
+   "img": "https://coqsnow.com/resources/Henning/camera.jpg"
+  },
+  {
+   "id": "coqsnow-peanut-bowl",
+   "owner": "coqsnow",
+   "resort": "Coquihalla sled area",
+   "kind": "backcountry",
+   "name": "Peanut Bowl",
+   "view": "Peanut Bowl, up the sled trail from Henning",
+   "lat": 49.6319,
+   "lon": -120.9727,
+   "ele": 1690,
+   "where": "Mount Henning area sled trails (approximate spot)",
+   "img": "https://coqsnow.com/resources/Peanut-Bowl/camera.jpg"
+  },
+  {
+   "id": "coqsnow-10k-cabin",
+   "owner": "coqsnow",
+   "resort": "Coquihalla sled area",
+   "kind": "backcountry",
+   "name": "10-K Cabin",
+   "view": "The 10-K cabin, about 14 km from the parking lot",
+   "lat": 49.5813,
+   "lon": -120.8922,
+   "ele": 1820,
+   "where": "End of the Mount Henning and 10K snowmobile trail (approximate spot)",
+   "img": "https://coqsnow.com/resources/10-K/camera.jpg"
+  },
+  {
+   "id": "viu-plummer-hut",
+   "owner": "viu",
+   "resort": "Plummer Hut",
+   "kind": "backcountry",
+   "name": "Plummer Hut",
+   "view": "Alpine weather station at Plummer Hut, Waddington Range, a few pictures a day",
+   "lat": 51.37333,
+   "lon": -125.165,
+   "ele": 2680,
+   "where": "Plummer Hut, Mount Waddington area",
+   "feed": "viu:plummer"
+  },
+  {
+   "id": "viu-klinaklini",
+   "owner": "viu",
+   "resort": "Klinaklini",
+   "kind": "backcountry",
+   "name": "Klinaklini Glacier station",
+   "view": "Alpine weather station near the Klinaklini Glacier, a few pictures a day",
+   "lat": 51.38,
+   "lon": -125.77,
+   "ele": 1532,
+   "where": "Klinaklini, Coast Mountains",
+   "feed": "viu:klinaklini"
+  },
+  {
+   "id": "viu-upper-cruickshank",
+   "owner": "viu",
+   "resort": "Upper Cruickshank",
+   "kind": "backcountry",
+   "name": "Upper Cruickshank",
+   "view": "Alpine weather station in the Cruickshank valley below the Comox Glacier, a few pictures a day",
+   "lat": 49.66891,
+   "lon": -125.36099,
+   "ele": 1348,
+   "where": "Upper Cruickshank, Strathcona backcountry",
+   "feed": "viu:cruickshank"
   },
   {
    "id": "parks-mount-abbott",
