@@ -61,8 +61,8 @@ const LOCAL_PHOTOS = {
 };
 // Banff National Park's own 15 cm photo (index.html banffTile), read from this one file: its box, roughly.
 const BANFF = { box: [50.7, -116.6, 52.25, -114.95], tif: "https://aerial-imagery-canada.s3.ca-central-1.amazonaws.com/national-parks/banff-national-park/Banff-national-park-2025-15cm-RGBN-mosaic.tif" };
-const HUNT_SEASONS = new Set(["bc", "ab", "qc", "on", "mb"]);
-const FISH_RULES = new Set(["bc", "ab", "qc", "on"]);
+const HUNT_SEASONS = new Set(["bc", "ab", "qc", "on", "mb", "nb", "ns", "nl"]);
+const FISH_RULES = new Set(["bc", "ab", "qc", "on", "nb", "ns", "nl"]);
 
 // ---------- helpers ----------
 const cache = new Map();

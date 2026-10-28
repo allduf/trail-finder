@@ -5,8 +5,9 @@
 //    Yukon game management areas), each with a label point.
 //  - areas-<pv>.json: places with their own hunting rules (parks, reserves, refuges, preserves, ZECs, wildlife
 //    reserves, outfitters with exclusive rights, wildlife management areas, First Nation reserves).
-//  - seasons-qc.json, seasons-on.json: open seasons per zone, read from the regulation pages on quebec.ca and
-//    ontario.ca; seasons-mb.json: Manitoba's season table per GHA.
+//  - seasons-qc.json, seasons-on.json, seasons-nl.json: open seasons per zone, read from the regulation pages on
+//    quebec.ca, ontario.ca and gov.nl.ca; seasons-mb.json: Manitoba's season table per GHA; seasons-nb.json and
+//    seasons-ns.json: typed in from the provinces' PDF summaries (NB_SEASONS, NS_SEASONS).
 // Sources (all free official data):
 //  Quebec: the wildlife ministry's public map server (servicesvecto3.mern.gouv.qc.ca SmartFaunePub: hunting zones and
 //    "hunting not allowed" areas, MFFP licence) and the Territoires récréatifs du Québec layer (MRNF, CC BY 4.0).
@@ -266,7 +267,100 @@ export async function canada(h) {
     seasons.mb = { src: "Manitoba GHA Hunting Season Table", gha };
     log(`  Manitoba seasons: ${Object.keys(gha).length} GHAs`);
   } catch (e) { log(`  Manitoba seasons failed: ${e.message}`); }
+  if (!ONLY_PV.length || ONLY_PV.includes("nl")) try { seasons.nl = nlSeasons(curlText); } catch (e) { log(`  Newfoundland and Labrador seasons failed: ${e.message}`); }
+  // New Brunswick and Nova Scotia publish their seasons only in PDFs: typed in from this year's summaries (below).
+  if (!ONLY_PV.length || ONLY_PV.includes("nb")) seasons.nb = handSeasons(NB_SEASONS, 27);
+  if (!ONLY_PV.length || ONLY_PV.includes("ns")) seasons.ns = handSeasons(NS_SEASONS, 112, 101);
   return seasons;
+}
+
+// Newfoundland and Labrador: the 2026-27 Hunting and Trapping Guide's pages (gov.nl.ca), one table per species. Moose
+// seasons and licences per moose management area (the zones on the map), and black bear seasons, which the island
+// gives per group of moose areas and Labrador as one area.
+const NL_GUIDE = "https://www.gov.nl.ca/hunting-trapping-guide/2026-27/hunting-seasons-and-zones/";
+const nlDates = (t) => String(t).replace(/\b(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,?\s*/g, "").replace(/\s+to\s+/g, " - ").replace(/(\d)\.(?=\s)/g, "$1").replace(/\b([A-Z][a-z]{2,4})\./g, "$1").replace(/\s*[–-]\s*/g, " - ").replace(/\s+/g, " ").trim();
+const isDate = (t) => /\b(Jan|Feb|Mar|Apr|May|June?|July?|Aug|Sept?|Oct|Nov|Dec)[a-z]*\.?\s*\d/.test(t);
+function nlSeasons(curlText) {
+  const wmu = {}, add = (id, row) => (wmu[id] = wmu[id] || []).push(row);
+  for (const part of ["island", "labrador"]) {
+    const html = curlText(`${NL_GUIDE}${part}/moose/`, `nl-${part}-moose.html`), bow = (unhtml(html).match(/Bow hunting (?:season )?begins (\w+ \d{1,2}), (\d{4})/i) || []);
+    let n = 0;
+    for (const { rows } of tables(html)) for (const r of rows) {
+      const m = String(r[0] || "").match(/^(\d{1,3}[A-Z]?)\s+\S/);
+      if (!m || !isDate(r[1] || "")) continue;
+      const nums = r.slice(2).map((c) => c.replace(/,/g, "")), lic = part === "island"
+        ? [nums[0] && +nums[0] ? `${nums[0]} either-sex` : "", nums[1] && +nums[1] ? `${nums[1]} male-only` : ""].filter(Boolean).join(" and ")
+        : nums[0] && +nums[0] ? `${nums[0]} either-sex` : "";
+      const success = part === "island" && /^\d+(\.\d+)?$/.test(nums[5] || "") ? `, ${Math.round(+nums[5])}% success in 2024` : "";
+      add(m[1], ["Moose", "Licence by draw", `${lic ? `${lic} resident licences` : ""}${success}`.replace(/^, /, ""), nlDates(r[1]), 0]);
+      const start = nlDates(r[1]).match(/^([A-Z][a-z]+) (\d{1,2})\b/), mon = start && EN_MON.findIndex((x) => x.slice(0, 3) === start[1].slice(0, 3));
+      if (bow[1] && start && mon >= 0) { const d = new Date(Date.UTC(2026, mon, +start[2] - 1)); add(m[1], ["Moose", "Bow only (no crossbows)", "", `${bow[1].slice(0, 3)} ${bow[1].replace(/\D+/, "")} - ${EN_MON[d.getUTCMonth()]} ${d.getUTCDate()}`, 0]); }
+      n++;
+    }
+    if (n < (part === "island" ? 30 : 10)) throw new Error(`only ${n} ${part} moose areas`);
+  }
+  // Island black bear: a row per moose area, the group's dates on its first row; closed areas have their own.
+  const html = curlText(`${NL_GUIDE}island/black-bear/`, "nl-island-bear.html");
+  let cur = null, n = 0;
+  for (const { rows } of tables(html)) for (const r of rows) {
+    const dates = r.filter((c) => isDate(c) || /^closed$/i.test(c));
+    if (/^20\d\s*[–-]/.test(r[0] || "")) cur = dates;
+    const own = dates.length ? dates : cur;
+    for (let i = 0; i < r.length; i++) {
+      if (!/^\d{1,2}[A-Z]?$/.test(r[i]) || !/[A-Z]/.test(r[i + 1] || "") || !own || own.length < 2) continue;
+      const shut = own.every((d) => /closed/i.test(d));
+      if (shut) add(r[i], ["Black bear", "", "", "Closed", 0]);
+      else { add(r[i], ["Black bear", "Spring", "", nlDates(own[0]), 0]); add(r[i], ["Black bear", "Fall", "", nlDates(own[1]), 0]); }
+      n++;
+    }
+  }
+  if (n < 30) throw new Error(`only ${n} island bear areas`);
+  const lab = tables(curlText(`${NL_GUIDE}labrador/black-bear/`, "nl-labrador-bear.html")).flatMap((t) => t.rows).find((r) => /^200\b/.test(r[0] || ""));
+  if (lab) for (const id of Object.keys(wmu)) if (+id >= 48 && +id < 100) {
+    add(id, ["Black bear", "Spring", "", nlDates(lab[1]).replace(/ to /, " - "), 0]);
+    add(id, ["Black bear", "Fall", "", nlDates(lab[2]).replace(/ to /, " - "), 0]);
+  }
+  log(`  Newfoundland and Labrador seasons: ${Object.keys(wmu).length} moose areas`);
+  return { src: "Newfoundland and Labrador Hunting and Trapping Guide 2026-27", url: NL_GUIDE, wmu };
+}
+
+// Typed in from the provinces' 2026-27 summaries (PDF only): [species, how, note, dates, zones] with zones a list of
+// zone numbers, or null for every zone. Check them each spring against the new summary and change the year.
+const NB_SEASONS = { year: "2026-27", src: "New Brunswick Hunt & Trap Regulations Summary 2026-2027", url: "https://www2.gnb.ca/content/dam/gnb/Departments/nr-rn/pdf/en/Wildlife/HuntTrap.pdf", rows: [
+  ["White-tailed deer", "", "no deer hunting in WMZ 4, 5 and 9", "Closed", [4, 5, 9]],
+  ["White-tailed deer", "Archery only", "antlered only", "Oct 5 - Oct 25", [1, 2, 3]],
+  ["White-tailed deer", "Firearm", "antlered only", "Oct 26 - Nov 8", [1, 2, 3]],
+  ["White-tailed deer", "Archery only", "antlerless needs a drawn authorization", "Oct 5 - Oct 25", [6, 7, 8, ...range(10, 27)]],
+  ["White-tailed deer", "Firearm", "antlerless needs a drawn authorization", "Oct 26 - Nov 22", [6, 7, 8, ...range(10, 27)]],
+  ["White-tailed deer", "Muzzleloader", "authorization needed, unfilled deer tag", "Nov 23 - Nov 29", [6, 10, ...range(15, 27)]],
+  ["Moose", "Licence by draw", "for the one WMZ on the licence (not every WMZ has licences)", "Sept 22 - Sept 26", null],
+  ["Black bear", "Spring", "", "Apr 20 - June 30", range(1, 25)],
+  ["Black bear", "Fall", "bow or crossbow only Sept 21 - 26", "Sept 1 - Nov 22", range(1, 25)],
+  ["Black bear", "", "no bear hunting in WMZ 26 and 27", "Closed", [26, 27]],
+  ["Ruffed and spruce grouse", "", "6 a day, 12 in possession", "Oct 1 - Dec 31", null],
+  ["Varying hare", "", "10 a day, 20 in possession", "Oct 1, 2026 - Feb 27, 2027", null],
+  ["Ring-necked pheasant", "", "2 males a day", "Oct 26 - Nov 8", null],
+  ["Coyote", "", "no limit", "Sept 1 - Sept 19, Oct 1, 2026 - Feb 27, 2027", null],
+  ["Wild turkey", "Licence", "1 bearded turkey", "May 3, 2027 - May 22, 2027", null],
+] };
+const NS_ANTLERLESS = [103, 104, 106, 108, 110, 111, 112];
+const NS_SEASONS = { year: "2026", src: "Nova Scotia Hunting and Furharvesting Summary of Regulations 2026", url: "https://novascotia.ca/natr/hunt/pdf/hunting-and-furharvesting-summary-of-regulations.pdf", rows: [
+  ["White-tailed deer", "Archery and muzzleloader", "bow only Sept 14 - 26", "Sept 14 - Dec 12", null],
+  ["White-tailed deer", "Youth (12-17)", "", "Oct 16 - Oct 24", null],
+  ["White-tailed deer", "General", "either sex: no antlerless stamp needed in this zone", "Oct 30 - Dec 12", range(101, 112).filter((z) => !NS_ANTLERLESS.includes(z))],
+  ["White-tailed deer", "General", "antlered only, unless you drew an antlerless stamp for this zone", "Oct 30 - Dec 12", NS_ANTLERLESS],
+  ["Moose", "", "Cape Breton's moose hunt is suspended in 2026", "Closed", [111, 112]],
+  ["Black bear", "Hunting", "", "Sept 14 - Dec 5", null],
+  ["Black bear", "Snaring", "residents with a bear snaring stamp", "Oct 1 - Dec 5", null],
+  ["Ruffed grouse", "", "5 a day", "Oct 1 - Dec 31", null],
+  ["Snowshoe hare", "", "no dogs Nov 1 - 15", "Nov 1, 2026 - Feb 27, 2027", null],
+  ["Ring-necked pheasant", "", "males, 2 a day: from Nov 1 in Annapolis, Kings and Hants", "Oct 1 - Dec 15", null],
+] };
+function range(a, b) { return Array.from({ length: b - a + 1 }, (_, i) => a + i); }
+function handSeasons(h, last, first = 1) {
+  const wmu = {};
+  for (let id = first; id <= last; id++) wmu[id] = h.rows.filter((r) => !r[4] || r[4].includes(id)).map((r) => [r[0], r[1], r[2], r[3], 0]);
+  return { src: h.src, url: h.url, year: h.year, wmu };
 }
 
 // ---------- season tables on quebec.ca and ontario.ca ----------
