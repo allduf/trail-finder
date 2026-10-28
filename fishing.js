@@ -96,10 +96,10 @@
     // Skiing's Avalanche and terrain tiles). Pictures: icons/fish/<key>.jpg, made by scripts/make-fish-tiles.mjs.
     rivers: { g: "Highlight on the map", tile: true, label: "All rivers", sub: "Every river in bright blue, all over Canada" },
     lakes: { g: "Highlight on the map", tile: true, label: "All lakes", sub: "Every lake and pond in green, all over Canada" },
-    creeks: { g: "Highlight on the map", tile: true, label: "Creeks and streams", sub: "Small creeks in light blue, dashed when they dry up in summer", minZoom: 13 },
+    creeks: { g: "Highlight on the map", tile: true, label: "Creeks and streams", sub: "Small creeks in light blue, dashed when they dry up in summer", minZoom: 11 },
     ocean: { g: "Highlight on the map", tile: true, label: "Ocean and bays", sub: "Salt water in blue, where you need a tidal licence" },
-    depth: { g: "Highlight on the map", tile: true, label: "Lake depth lines", sub: "Over 8,000 surveyed lakes in BC, Ontario, Quebec and Manitoba, soundings in New Brunswick: zoom in on a lake", minZoom: 12, icon: [C.depth, "line"] },
-    crown: { g: "Highlight on the map", tile: true, label: "Crown land", sub: "Public land you can walk to the water on: green; private: yellow (ON, QC, NB, NS, SK, NL; zoom in)", minZoom: 9, icon: ["#2f9e44", "box"] },
+    depth: { g: "Highlight on the map", tile: true, label: "Lake depth lines", sub: "Over 8,000 surveyed lakes in Ontario, Quebec and Manitoba, a few in BC, soundings in New Brunswick: zoom in on a lake. BC: tap a lake for its depth map", minZoom: 12, icon: [C.depth, "line"] },
+    crown: { g: "Highlight on the map", tile: true, label: "Crown land", sub: "Public land you can walk to the water on: green; private: yellow (BC, AB, ON, QC, NB, NS, SK, NL; zoom in)", minZoom: 9, icon: ["#2f9e44", "box"] },
     tides: { g: "Ocean", label: "Tide stations", sub: "Tap one for the next high and low tides", on: true, minZoom: 6, icon: [C.tide, "dot"] },
     zones: { g: "Rules", label: "Fishing zones and regions", sub: "The areas the rules are written for, tap one for its rules", icon: [C.zone, "dash"] },
     areas: { g: "Rules", label: "Parks, zecs and reserves", sub: "Red: ecological reserves, no fishing. National parks (Parks Canada permit), Quebec zecs, wildlife reserves and parks (fishing allowed with an access fee)", on: true, minZoom: 5, icon: [C.park, "dot"] },
@@ -825,6 +825,12 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       const ls = Object.entries(LAYERS).filter(([, l]) => l.g === g);
       // what an on tile needs to show: zoom in (creeks, depth lines, Crown land)
       const far = ls.filter(([k, l]) => shown.has(k) && l.minZoom && z < l.minZoom).map(([, l]) => `${l.label}: zoom in closer to see ${l === LAYERS.creeks ? "them" : "it"}.`);
+      // BC has drawn depth lines for only a few lakes, and only its private land is mapped: say so, or it looks broken
+      const c = map.getCenter(), inBC = c.lat > 48.2 && c.lat < 60 && c.lng > -139.1 && c.lng < -114.05 - Math.max(0, c.lat - 49) * 1.24;   // the Rockies line, roughly
+      if (g === "Highlight on the map" && inBC) {
+        if (shown.has("depth") && z >= LAYERS.depth.minZoom) far.push("Lake depth lines: BC has drawn them for only a few lakes. Tap a lake for its scanned depth map.");
+        if (shown.has("crown") && z >= LAYERS.crown.minZoom) far.push("Crown land in BC: private land is yellow, most of the rest is Crown land.");
+      }
       return `<h4 class="fs-group">${g}</h4><div class="fs-tilegrid">${ls.map(tile).join("")}</div>${far.length ? `<p class="fs-tilenote">${esc(far.join(" "))}</p>` : ""}`;
     };
     $("fsLayerList").innerHTML = GROUPS.map((g) => (g === "Highlight on the map" ? tiles(g) : `<h4 class="fs-group">${g}</h4>` + Object.entries(LAYERS).filter(([, l]) => l.g === g).map(([k, l]) => {
@@ -866,14 +872,18 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     { k: "rivers", id: "riv-area", type: "fill", source: "w", "source-layer": "water", filter: ["==", ["get", "class"], "river"], paint: { "fill-color": "#15d1ff", "fill-opacity": 0.75 } },
     { k: "rivers", id: "riv-line", type: "line", source: "w", "source-layer": "waterway", filter: ["in", ["get", "class"], ["literal", ["river", "canal"]]], layout: { "line-cap": "round", "line-join": "round" },
       paint: { "line-color": "#15d1ff", "line-width": ["interpolate", ["linear"], ["zoom"], 6, 1.6, 10, 3, 14, 5] } },
-    // OpenFreeMap has the small creeks from zoom 13; dashed when they dry up (intermittent)
-    { k: "creeks", id: "creek", type: "line", source: "w", "source-layer": "waterway", filter: ["==", ["get", "class"], "stream"], layout: { "line-cap": "round", "line-join": "round" },
+    // OpenFreeMap has the small creeks from zoom 13; further out the app reads them itself (farCreeks below).
+    // Dashed when they dry up (intermittent), thinner when zoomed out.
+    { k: "creeks", id: "creek", type: "line", source: "w", "source-layer": "waterway", minzoom: 13, filter: ["==", ["get", "class"], "stream"], layout: { "line-cap": "round", "line-join": "round" },
       paint: { "line-color": "#8cf0ff", "line-width": ["interpolate", ["linear"], ["zoom"], 13, 1.6, 16, 3], "line-dasharray": ["case", ["==", ["get", "intermittent"], 1], ["literal", [2, 1.5]], ["literal", [1, 0]]] } },
+    { k: "creeks", id: "creek-far", type: "line", source: "cf", maxzoom: 13, layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": "#8cf0ff", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1, 13, 1.6], "line-opacity": ["interpolate", ["linear"], ["zoom"], 10, 0.85, 12, 1],
+        "line-dasharray": ["case", ["==", ["get", "i"], 1], ["literal", [2, 1.5]], ["literal", [1, 0]]] } },
     { k: "lakes", id: "lake", type: "fill", source: "w", "source-layer": "water", filter: ["in", ["get", "class"], ["literal", ["lake", "pond"]]], paint: { "fill-color": "#12d6b4", "fill-opacity": 0.75 } },
     { k: "lakes", id: "lake-edge", type: "line", source: "w", "source-layer": "water", filter: ["in", ["get", "class"], ["literal", ["lake", "pond"]]], paint: { "line-color": "#d9fff7", "line-width": 0.8 } },
     { k: "ocean", id: "sea", type: "fill", source: "w", "source-layer": "water", filter: ["==", ["get", "class"], "ocean"], paint: { "fill-color": "#2f7bff", "fill-opacity": 0.6 } },
   ];
-  const glLayer = ({ k, ...l }, on, pre = "", src) => ({ ...l, id: pre + l.id, ...(src ? { source: src } : {}), layout: { ...(l.layout || {}), visibility: on ? "visible" : "none" } });
+  const glLayer = ({ k, ...l }, on, pre = "", src) => ({ ...l, id: pre + l.id, ...(src && src[l.source] ? { source: src[l.source] } : {}), layout: { ...(l.layout || {}), visibility: on ? "visible" : "none" } });
   let hl = null, hlMaking = false;
   // under the depth lines and Crown land (fishTiles)
   if (!map.getPane("fishWater")) { map.createPane("fishWater").style.zIndex = 345; map.getPane("fishWater").style.pointerEvents = "none"; }
@@ -887,12 +897,108 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       if (hl) return;
       if (!isFish() || !HL.some((k) => shown.has(k))) return;
       hl = L.maplibreGL({ pane: "fishWater", interactive: false, attributionControl: false,
-        style: { version: 8, sources: { w: OFM }, layers: WATER.map((l) => glLayer(l, shown.has(l.k))) } }).addTo(map);
+        style: { version: 8, sources: { w: OFM, cf: { type: "geojson", data: { type: "FeatureCollection", features: farFeats } } }, layers: WATER.map((l) => glLayer(l, shown.has(l.k))) } }).addTo(map);
+      syncFarCreeks();
       return;
     }
+    syncFarCreeks();
     const gl = hl.getMaplibreMap && hl.getMaplibreMap();
     if (gl && gl.getStyle()) for (const l of WATER) if (gl.getLayer(l.id)) gl.setLayoutProperty(l.id, "visibility", shown.has(l.k) ? "visible" : "none");
   }
+  // Creeks from further away (alex 2026-10-28: "can we see the creek from further away?"). OpenFreeMap only puts the
+  // small creeks in its zoom 13 tiles, so from Leaflet zoom 11 to 13 (a whole valley) the app fetches those tiles itself,
+  // keeps only the creek lines (a few points dropped) and draws them as one GeoJSON, in 2D and 3D. The browser keeps
+  // the tiles, so panning back costs nothing; past FAR.cap tiles (zoomed out further) nothing is fetched.
+  const FAR = { min: 11, max: 14, z: 13, cap: 170 };   // a phone at zoom 11 needs 130 to 160
+  const farTiles = new Map();   // "x/y" -> Promise of features, the last 240
+  let farFeats = [], farSeq = 0, farKey = "", ofmTiles = null;
+  // The creek lines in one vector tile: just enough of Mapbox Vector Tile decoding for the waterway layer.
+  function creekLines(buf, tx, ty) {
+    const b = new Uint8Array(buf), n = 2 ** FAR.z, out = [];
+    let pos = 0;
+    const vint = () => { let v = 0, sh = 0, c; do { c = b[pos++]; v += (c & 0x7f) * 2 ** sh; sh += 7; } while (c >= 0x80); return v; };
+    const skip = (w) => { if (w === 0) vint(); else if (w === 1) pos += 8; else if (w === 2) { const l = vint(); pos += l; } else if (w === 5) pos += 4; };
+    const str = (end) => new TextDecoder().decode(b.subarray(pos, (pos = end)));
+    const packed = () => { const end = vint() + pos, a = []; while (pos < end) a.push(vint()); return a; };
+    while (pos < b.length) {
+      const t = vint();
+      if (t >> 3 !== 3 || (t & 7) !== 2) { skip(t & 7); continue; }
+      const lend = vint() + pos;
+      let name = "", extent = 4096;
+      const keys = [], vals = [], feats = [];
+      while (pos < lend) {
+        const f = vint(), fn = f >> 3;
+        if (fn === 1) { const l = vint(); name = str(pos + l); }
+        else if (fn === 2) { const l = vint(); feats.push([pos, pos + l]); pos += l; }
+        else if (fn === 3) { const l = vint(); keys.push(str(pos + l)); }
+        else if (fn === 4) {   // a value: only strings and numbers matter here
+          const vend = vint() + pos; let v = null;
+          while (pos < vend) { const g = vint(); if (g >> 3 === 1) { const l = vint(); v = str(pos + l); } else if ((g & 7) === 0) v = vint(); else skip(g & 7); }
+          vals.push(v);
+        } else if (fn === 5) extent = vint();
+        else skip(f & 7);
+      }
+      if (name !== "waterway") { pos = lend; continue; }
+      const ck = keys.indexOf("class"), ik = keys.indexOf("intermittent");
+      for (const [fs, fe] of feats) {
+        pos = fs;
+        let tags = [], geom = [];
+        while (pos < fe) { const f = vint(), fn = f >> 3; if (fn === 2 && (f & 7) === 2) tags = packed(); else if (fn === 4 && (f & 7) === 2) geom = packed(); else skip(f & 7); }
+        let cls = null, inter = 0;
+        for (let i = 0; i < tags.length; i += 2) { if (tags[i] === ck) cls = vals[tags[i + 1]]; else if (tags[i] === ik) inter = +vals[tags[i + 1]] || 0; }
+        if (cls !== "stream") continue;
+        let x = 0, y = 0, line = null, lx = 1e9, ly = 1e9;
+        const ll = () => [+(((tx + x / extent) / n) * 360 - 180).toFixed(5), +((Math.atan(Math.sinh(Math.PI * (1 - (2 * (ty + y / extent)) / n))) * 180) / Math.PI).toFixed(5)];
+        for (let i = 0; i < geom.length; ) {
+          const c = geom[i++], cmd = c & 7, cnt = c >> 3;
+          if (cmd === 7) continue;
+          for (let j = 0; j < cnt; j++) {
+            const dx = geom[i++], dy = geom[i++];
+            x += (dx >>> 1) ^ -(dx & 1); y += (dy >>> 1) ^ -(dy & 1);
+            if (cmd === 1) { if (line && line.length > 1) out.push([line, inter]); line = [ll()]; lx = x; ly = y; }
+            else if (Math.abs(x - lx) + Math.abs(y - ly) > 24 || (j === cnt - 1)) { line.push(ll()); lx = x; ly = y; }   // ~25 m apart is plenty this far out
+          }
+        }
+        if (line && line.length > 1) out.push([line, inter]);
+      }
+      pos = lend;
+    }
+    return out.map(([c, i]) => ({ type: "Feature", properties: { i }, geometry: { type: "LineString", coordinates: c } }));
+  }
+  async function syncFarCreeks() {
+    const z = map.getZoom(), seq = ++farSeq;
+    const want = isFish() && shown.has("creeks") && z >= FAR.min && z < FAR.max;
+    const b = map.getBounds().pad(0.02), n = 2 ** FAR.z;
+    const tx = (lon) => Math.floor(((lon + 180) / 360) * n), ty = (lat) => Math.floor(((1 - Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / Math.PI) / 2) * n);
+    const x0 = tx(b.getWest()), x1 = tx(b.getEast()), y0 = ty(b.getNorth()), y1 = ty(b.getSouth());
+    const keys = [];
+    if (want && (x1 - x0 + 1) * (y1 - y0 + 1) <= FAR.cap) for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) keys.push(`${x}/${y}`);
+    const key = keys.join(",");
+    if (key === farKey) return;
+    if (keys.length) {
+      if (!ofmTiles) ofmTiles = fetch(OFM.url).then((r) => r.json()).then((j) => j.tiles[0]).catch(() => { ofmTiles = null; return null; });
+      const tmpl = await ofmTiles;
+      if (!tmpl || seq !== farSeq) return;
+      const lists = await Promise.all(keys.map((k) => {
+        if (farTiles.has(k)) { const v = farTiles.get(k); farTiles.delete(k); farTiles.set(k, v); return v; }
+        const [x, y] = k.split("/").map(Number);
+        const v = fetch(tmpl.replace("{z}", FAR.z).replace("{x}", x).replace("{y}", y)).then((r) => (r.ok ? r.arrayBuffer() : null)).then((a) => (a ? creekLines(a, x, y) : []))
+          .catch(() => { farTiles.delete(k); return []; });
+        farTiles.set(k, v);
+        while (farTiles.size > 240) farTiles.delete(farTiles.keys().next().value);
+        return v;
+      }));
+      if (seq !== farSeq) return;
+      farFeats = lists.flat();
+    } else farFeats = [];
+    farKey = key;
+    const data = { type: "FeatureCollection", features: farFeats };
+    const gl = hl && hl.getMaplibreMap && hl.getMaplibreMap();
+    const put = () => { const s = gl && gl.getSource("cf"); if (s) s.setData(data); };
+    if (gl && gl.isStyleLoaded()) put(); else if (gl) gl.once("load", put);
+    if (gl3 && gl3.getSource("fs3-cf")) gl3.getSource("fs3-cf").setData(data);
+  }
+  map.on("moveend", () => { if (isFish() && shown.has("creeks")) syncFarCreeks(); });
   function applyLayers() {
     store.set("fishLayers", [...shown]);
     renderLayers(); renderKey(); syncTiles(); syncWater(); drawZones(); drawPoints(); loadReadings(); loadAccess();
@@ -1017,7 +1123,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       if (w && w.name && !title) $("fsSpotName").textContent = w.name;
       if (w && w.name) boat.name = w.name;
       fill("fsWater", w && w.html ? secFish(w.html) : "");
-      depthHtml(lat, lon, w).then((h) => fill("fsDepth", h)).catch(() => {});
+      depthHtml(lat, lon, w, prov).then((h) => fill("fsDepth", h)).catch(() => {});
       if (!w) $("fsSpot").classList.add("fs-nowater");
       if (w && w.rules) fill("fsRules", fold("rules", IC.rules, "Rules", "This water has its own rules", unhead(w.rules) + unhead(rulesHtml(lat, lon, here, prov)), true));
       if (w && w.rules) boat.extra.push({ t: w.rules.replace(/<[^>]+>/g, ". ").replace(/&amp;/g, "&"), src: "the water's fishing rules" });
@@ -1038,10 +1144,24 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   // inventory maps (data/fishing/depth/i.json), and a button that
   // turns on the depth lines for this lake.
   const PROV_DEPTH = { qc: "Quebec's lake bathymetry geobase (Ministère de l'Environnement)", on: "Ontario's historic bathymetry maps (MNR)", sk: "Saskatchewan's bathymetric maps (Fisheries Branch)", ab: "the Alberta Geological Survey's lake bathymetry", ns: "Nova Scotia's lake inventory maps (Department of Fisheries)" };
-  async function depthHtml(lat, lon, w) {
+  // BC: DataBC has depth lines for only 26 lakes, but scanned depth maps (PDF) for about 2,500: the sheets for the
+  // lake at the spot, newest survey first (WHSE_FISH.BATH_SURVEY_MAP_SHEETS_SVW, asked live).
+  async function bcDepthMaps(lat, lon) {
+    const d = 0.004, p = new URLSearchParams({ service: "WFS", version: "2.0.0", request: "GetFeature", typeName: "pub:WHSE_FISH.BATH_SURVEY_MAP_SHEETS_SVW", outputFormat: "application/json", count: "12",
+      propertyName: "LAKE_ID,GAZETTED_NAME,DRAFT_DATE,SHEET_NO,PDF_FILE_URL", CQL_FILTER: `BBOX(GEOMETRY,${lon - d},${lat - d},${lon + d},${lat + d},'EPSG:4326')` });
+    const j = await fetch(`${WFS}?${p}`, { signal: AbortSignal.timeout(10000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const f = (j?.features || []).map((x) => x.properties).filter((x) => x.PDF_FILE_URL);
+    if (!f.length) return null;
+    const lake = f.filter((x) => x.LAKE_ID === f[0].LAKE_ID).sort((a, b) => String(b.DRAFT_DATE || "").localeCompare(String(a.DRAFT_DATE || "")) || a.SHEET_NO - b.SHEET_NO);
+    const name = String(lake[0].GAZETTED_NAME || "").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+    return { name, links: lake.slice(0, 6).map((x) => [x.PDF_FILE_URL.replace(/^http:/, "https:"), `${x.DRAFT_DATE ? x.DRAFT_DATE.slice(0, 4) + " " : ""}map${lake.length > 1 ? ` ${x.SHEET_NO}` : ""}`]) };
+  }
+  async function depthHtml(lat, lon, w, pv) {
     const idx = await loadDepthIdx().catch(() => null);
     const lake = idx && idx.lakes.map((x) => [x, km(lat, lon, x[0], x[1])]).filter(([x, d]) => d < x[2] + 0.2).sort((a, b) => a[1] - b[1])[0];
     const lines = shown.has("depth") ? "" : `<p><button type="button" class="fs-depthon" data-ll="${lat},${lon}">${svg(IC.layers, 14)}Show depth lines on the map</button></p>`;
+    const bc = !lake && pv === "bc" && (!w || /lake/i.test(w.kind || "lake")) ? await bcDepthMaps(lat, lon) : null;
+    if (bc) return fold("depth", IC.depth, "Depth", "Depth map (PDF)", `<p><b>${esc(bc.name || "This lake")}</b>: depth map scanned by BC Fisheries</p><p>${bc.links.map(([u, t]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} (PDF)</a>`).join(" · ")}</p>${lines}<p class="fs-note">From BC's lake bathymetric maps (Ministry of Environment, Fisheries). Old surveys: water levels and shorelines may have changed. Not for navigation. Depth lines on the map are only for the few BC lakes the province has drawn.</p>`);
     if (!lake) return lines && w && /lake/i.test(w.kind || "lake") && !w.listOnly ? fold("depth", IC.depth, "Depth", "Depth lines", `${lines}<p class="fs-note">Lines show where a province surveyed the lake (BC, Alberta, Ontario, Quebec, Manitoba; New Brunswick soundings).</p>`) : "";
     const [[, , , name, deep, links, prov]] = lake;
     const a = links.map((u, i) => `<a href="${esc(u)}" target="_blank" rel="noopener">${/\.pdf$/i.test(u) ? "Depth map (PDF)" : `Depth chart${links.length > 1 ? ` ${i + 1}` : ""} (scan)`}</a>`).join(" · ");
@@ -2178,7 +2298,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     if (fish && HL.some((k) => shown.has(k)) && !gl.getLayer("fs3-" + WATER[0].id)) {
       const src = gl.getSource("names") ? "names" : "fs3-w";   // map3d.js's place names come from the same OpenFreeMap tiles
       if (!gl.getSource(src)) gl.addSource(src, OFM);
-      for (const l of WATER) gl.addLayer(glLayer(l, false, "fs3-", src), before);
+      if (!gl.getSource("fs3-cf")) gl.addSource("fs3-cf", { type: "geojson", data: { type: "FeatureCollection", features: farFeats } });
+      for (const l of WATER) gl.addLayer(glLayer(l, false, "fs3-", { w: src, cf: "fs3-cf" }), before);
     }
     for (const l of WATER) vis("fs3-" + l.id, fish && shown.has(l.k));
     const dOn = fish && shown.has("depth");
@@ -2187,6 +2308,14 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       gl.addSource("fs3-q", st.sources.q); gl.addSource("fs3-mb", st.sources.mb); depth3Ver = -1;
       for (const l of st.layers) gl.addLayer({ ...l, id: "fs3-" + l.id, source: "fs3-" + l.source }, before);
     }
+    // BC's few drawn lakes (depthTiles on the flat map)
+    if (dOn && !gl.getSource("fs3-bcd")) {
+      const b = depthTiles.options.bounds;
+      gl.addSource("fs3-bcd", { type: "raster", tileSize: 256, minzoom: 11, maxzoom: 20, bounds: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()],
+        tiles: [`${WMS}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=pub%3AWHSE_FISH.BATH_LAKE_BATHYMETRIC_SP&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&SRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&BBOX={bbox-epsg-3857}`] });
+      gl.addLayer({ id: "fs3-bcd", type: "raster", source: "fs3-bcd", minzoom: 11, paint: { "raster-opacity": 0.85 } }, before);
+    }
+    vis("fs3-bcd", dOn);
     if (gl.getSource("fs3-q")) {
       if (dOn && depth3Ver !== depthVer) { depth3Ver = depthVer; gl.getSource("fs3-q").setData({ type: "FeatureCollection", features: depthFeats }); }
       for (const l of depthStyle().layers) vis("fs3-" + l.id, dOn && map.getZoom() >= DEPTH_ZOOM - 1);
