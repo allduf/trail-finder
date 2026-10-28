@@ -32,6 +32,8 @@ dialog.wc-dlg .wc-feed p { position: absolute; inset: 0; margin: 0; display: gri
 dialog.wc-dlg .wc-more { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
 dialog.wc-dlg .wc-more button { font: inherit; font-size: .82rem; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
 dialog.wc-dlg .wc-more button[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+dialog.wc-dlg .wc-at { margin: 6px 0 0; font-size: .8rem; color: var(--muted); }
+dialog.wc-dlg .wc-at:empty { display: none; }
 dialog.wc-dlg .wc-foot { margin: 10px 0 0; font-size: .8rem; color: var(--muted); }
 dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
 `;
@@ -39,7 +41,7 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
 
   // ---------- data ----------
   let data = null, cams = [], owners = {};
-  const load = () => (data = data || fetch("data/webcams.json?v=353").then((r) => r.json()).then((d) => {
+  const load = () => (data = data || fetch("data/webcams.json?v=630").then((r) => r.json()).then((d) => {
     owners = d.owners || {};
     cams = (d.cams || []).filter((c) => isFinite(c.lat) && isFinite(c.lon));
     return d;
@@ -122,7 +124,49 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
   function feedHtml(c) {
     if (c.embed) return `<iframe src="${esc(c.embed)}" title="${esc(c.name)} live webcam" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="origin" loading="eager"></iframe>`;
     if (c.img) return `<img alt="${esc(c.name)}, latest picture" referrerpolicy="no-referrer" src="${esc(c.img + (c.img.includes("?") ? "&" : "?") + "t=" + Date.now())}">`;
+    if (c.feed) return `<p>Finding the latest picture…</p>`;
     return `<p>This camera's picture can only be seen on its own page.<br><a href="${esc(pageOf(c))}" target="_blank" rel="noopener" style="color:#fff">Open the live webcam ↗</a></p>`;
+  }
+  // Cams whose latest picture has a new name each time (alex 2026-10-28: the Brandywine cam), found when the cam opens.
+  // "pmsc:<cam>": Powder Mountain Snowmobile Club, one picture every 30 minutes in daylight, named by Whistler time
+  // (BB1_20260601120000.jpg); try the newest slots, going back one day at most. "viu:<station>": VIU's alpine weather
+  // stations, whose own list of pictures (open to other sites) ends with the newest one.
+  const PT = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Vancouver", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  const pacific = (d) => Object.fromEntries(PT.formatToParts(d).map((x) => [x.type, x.value]));
+  const tryImg = (u) => new Promise((ok) => { const im = new Image(); im.referrerPolicy = "no-referrer"; im.onload = () => ok(true); im.onerror = () => ok(false); im.src = u; });
+  const when = (d) => d.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  async function latestOf(c) {
+    const [kind, id] = c.feed.split(":");
+    if (kind === "viu") {
+      const list = await fetch(`https://www.viu-hydromet-wx.ca/webcam_images/get-images-variable.php?stnName=${encodeURIComponent(id)}`).then((r) => r.json());
+      const last = [...list].reverse().find((f) => /\d{14}\.jpg$/.test(f));
+      if (!last) return null;
+      const t = last.match(/(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)\.jpg$/);   // UTC
+      return { src: "https://www.viu-hydromet-wx.ca/webcam_images/" + last, at: new Date(Date.UTC(+t[1], t[2] - 1, +t[3], +t[4], +t[5])) };
+    }
+    if (kind === "pmsc") {
+      let d = new Date(Date.now() - 2 * 60000);
+      d.setUTCMinutes(d.getUTCMinutes() < 30 ? 0 : 30, 0, 0);   // Whistler is a whole number of hours from UTC
+      for (let tries = 0; tries < 26 && d > Date.now() - 36 * 3600000; d = new Date(d - 1800000)) {
+        const p = pacific(d), h = +p.hour;
+        if (h < 8 || h > 19) continue;   // no pictures at night
+        tries++;
+        const src = `https://pmsccams.com/Images/${id}/${id}_${p.year}${p.month}${p.day}${p.hour}${p.minute}00.jpg`;
+        if (await tryImg(src)) return { src, at: d };
+      }
+    }
+    return null;
+  }
+  async function showLatest(c) {
+    const box = dlg.querySelector(".wc-feed");
+    let got = null;
+    try { got = await latestOf(c); } catch {}
+    if (selected !== c || !box.isConnected) return;   // another cam opened meanwhile
+    const page = pageOf(c);
+    box.innerHTML = got ? `<img alt="${esc(c.name)}, latest picture" referrerpolicy="no-referrer" src="${esc(got.src)}">`
+      : `<p>No new picture in the last day.${c.season ? ` ${esc(c.season)}` : ""}${page ? `<br><a href="${esc(page)}" target="_blank" rel="noopener" style="color:#fff">Open their webcam page ↗</a>` : ""}</p>`;
+    const at = dlg.querySelector(".wc-at");
+    if (at && got) at.textContent = `Picture from ${when(got.at)}`;
   }
   function open(c) {
     selected = c;
@@ -134,11 +178,13 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
       <h2>${esc(c.name)}</h2>
       <p class="wc-sub">${sub}</p>
       <div class="wc-feed">${feedHtml(c)}</div>
+      ${c.feed && !c.embed && !c.img ? `<p class="wc-at"></p>` : ""}
       ${same.length > 1 ? `<div class="wc-more" role="group" aria-label="Other webcams at ${esc(groupOf(c))}">${same.map((x) => `<button type="button" data-id="${esc(x.id)}" aria-current="${x === c}">${esc(x.name.replace(/,\s*(Whistler|Blackcomb) Mountain$/, ""))}</button>`).join("")}</div>` : ""}
       <p class="wc-foot">Live from ${esc(o.credit || o.name || c.resort || "the camera's owner")}, shown from their own feed.${page ? ` <a href="${esc(page)}" target="_blank" rel="noopener">Open their webcam page ↗</a>` : ""}</p>`;
     dlg.querySelector(".wc-x").onclick = () => dlg.close();
     dlg.querySelectorAll(".wc-more [data-id]").forEach((b) => (b.onclick = () => { const x = cams.find((k) => k.id === b.dataset.id); if (x) open(x); }));
     if (c.img && !c.embed) refresh = setInterval(() => { const im = dlg.querySelector(".wc-feed img"); if (im) im.src = c.img + (c.img.includes("?") ? "&" : "?") + "t=" + Date.now(); }, 60000);
+    if (c.feed && !c.embed && !c.img) showLatest(c);
     if (!dlg.open) dlg.showModal();
     draw();
   }
