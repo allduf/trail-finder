@@ -4,10 +4,10 @@
 // (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-439";
+const VERSION = "tf-441";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=13", "account.js?v=631", "reports.js?v=631", "grades.js?v=631", "trail-photos.js?v=631", "status.js?v=631", "ask.js?v=631", "visitors.js?v=631", "usage.js?v=631", "map3d.js?v=631", "ski-terrain.js?v=631", "winter.js?v=631", "place-search.js?v=631", "clouds.js?v=631", "smoke.js?v=631", "radar.js?v=631", "live.js?v=631", "ski-points.js?v=631", "hunts.js?v=631", "webcams.js?v=631", "lifts.js?v=631", "ski-areas.js?v=631", "helicat.js?v=631", "rogers.js?v=631", "slackcountry.js?v=631", "crownland.js?v=631", "hunting.js?v=631", "fish-bait.js?v=631", "fish-route.js?v=631", "fishing.js?v=631", "moto.js?v=631", "moto-roads.js?v=631", "compass.js?v=631", "offline.js?v=631", "native-gps.js?v=631", "native.js?v=631", "keyboard.js?v=631", "navigate.js?v=631", "ride-stats.js?v=631", "ride-finds.js?v=631", "rides.js?v=631", "planner.js?v=631", "rotate.js?v=631", "photo-find.js?v=631", "ebike.js?v=631", "closures.js?v=631", "loops.js?v=631", "strava.js?v=631", "share.js?v=631", "community.js?v=631", "ride-files.js?v=631", "rider-trails.js?v=631", "alpine.js?v=631", "areas.js?v=631", "bikeparks.js?v=631", "contours.js?v=631", "directions.js?v=631", "notify.js?v=631", "official.js?v=631", "photo-slider.js?v=631", "ratings.js?v=631", "whats-new.js?v=631", "app-update.js?v=631", "welcome.js?v=631", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=13", "account.js?v=633", "reports.js?v=633", "grades.js?v=633", "trail-photos.js?v=633", "status.js?v=633", "ask.js?v=633", "visitors.js?v=633", "usage.js?v=633", "map3d.js?v=633", "ski-terrain.js?v=633", "winter.js?v=633", "place-search.js?v=633", "clouds.js?v=633", "smoke.js?v=633", "radar.js?v=633", "live.js?v=633", "ski-points.js?v=633", "hunts.js?v=633", "webcams.js?v=633", "lifts.js?v=633", "ski-areas.js?v=633", "helicat.js?v=633", "rogers.js?v=633", "slackcountry.js?v=633", "crownland.js?v=633", "hunting.js?v=633", "fish-bait.js?v=633", "fish-route.js?v=633", "fishing.js?v=633", "moto.js?v=633", "moto-roads.js?v=633", "compass.js?v=633", "offline.js?v=633", "native-gps.js?v=633", "native.js?v=633", "keyboard.js?v=633", "navigate.js?v=633", "ride-stats.js?v=633", "ride-finds.js?v=633", "rides.js?v=633", "planner.js?v=633", "rotate.js?v=633", "photo-find.js?v=633", "ebike.js?v=633", "closures.js?v=633", "loops.js?v=633", "strava.js?v=633", "share.js?v=633", "community.js?v=633", "ride-files.js?v=633", "rider-trails.js?v=633", "alpine.js?v=633", "areas.js?v=633", "bikeparks.js?v=633", "contours.js?v=633", "directions.js?v=633", "notify.js?v=633", "official.js?v=633", "photo-slider.js?v=633", "ratings.js?v=633", "whats-new.js?v=633", "app-update.js?v=633", "welcome.js?v=633", "manifest.webmanifest",
   "privacy.html", "support.html",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "vendor/leaflet-1.9.4.js",
@@ -92,7 +92,7 @@ async function openFreeMap(req) {
 }
 
 // Hunting layers (DataBC and Alberta map images, terrain tiles) and the 3D map's heights (Mapterhorn) and Winter photos
-// (the trail-finder-winter site) saved with an area: the saved copy when there is one, else the network. The Winter
+// (the trail-finder-winter and -winter2 sites) saved with an area: the saved copy when there is one, else the network. The Winter
 // photos are never put in the site's own cache (they used to be, as any same-site file: thousands of them).
 const HUNT_HOSTS = ["openmaps.gov.bc.ca", "geospatial.alberta.ca", "s3.amazonaws.com", "tiles.mapterhorn.com"];
 async function savedFirst(req) {
@@ -108,7 +108,7 @@ self.addEventListener("fetch", (e) => {
   // address, so the saved copy is served first. alex, 2026-10-24 ("it lag", blank map, empty Area list): right after
   // a deploy the page sat waiting on the network for scripts it already had.
   if (url.origin === self.location.origin && (url.searchParams.has("v") || url.pathname.includes("/vendor/"))) e.respondWith(cacheFirst(req));
-  else if (url.origin === self.location.origin && url.pathname.includes("/trail-finder-winter/") && !url.pathname.endsWith(".json")) e.respondWith(savedFirst(req));
+  else if (url.origin === self.location.origin && /\/trail-finder-winter2?\//.test(url.pathname) && !url.pathname.endsWith(".json")) e.respondWith(savedFirst(req));
   else if (url.origin === self.location.origin) e.respondWith(networkFirst(req, e));
   else if (STATIC_HOSTS.includes(url.hostname)) e.respondWith(cacheFirst(req));
   else if (url.hostname === "tiles.openfreemap.org") e.respondWith(openFreeMap(req));

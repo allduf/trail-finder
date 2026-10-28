@@ -560,17 +560,32 @@
   // ski hills, ski tours and backcountry areas across Canada (alex: "fix winter map all over canada"; the whole
   // country at 10 m would be ~20 GB). blocks.json lists the zoom-11 squares that have them. They're their own site
   // (allduf/trail-finder-winter, same address, so no CORS): at ~590 MB they were most of this site's 1 GB Pages limit.
-  const WINTER = "../trail-finder-winter/";
+  // That one filled up (935 MB), so newer squares (Cumberland, Prince George, Whitehorse, Hardwood Hills: coverage
+  // check, alex 2026-10-28) are on a third site, allduf/trail-finder-winter2, with its own blocks.json and tiles.
+  const WINTER = "../trail-finder-winter/", WINTERS = [WINTER, "../trail-finder-winter2/"];
   const WINTER_BOUNDS = [-141, 41.6, -52.6, 70];
   let winterBlocks = null;
-  const loadWinterBlocks = () => winterBlocks || (winterBlocks = fetch(WINTER + "blocks.json").then((r) => r.json())
-    .then((a) => {
-      // Also every zoom 6-10 tile with any of them inside, so tiles with no photos are never asked for.
-      const have = new Set(a.map(([x, y]) => x + "/" + y));
-      have.some = new Set();
-      for (const [x, y] of a) for (let z = 6; z < 11; z++) have.some.add(`${z}/${x >> (11 - z)}/${y >> (11 - z)}`);
+  const loadWinterBlocks = () => winterBlocks || (winterBlocks = Promise.all(WINTERS.map((w, i) => fetch(w + "blocks.json").then((r) => r.json())
+    .catch((e) => { if (!i) throw e; return []; })))   // the first site is needed; a missing second one only hides its squares
+    .then((lists) => {
+      // Each square and the site it's on, and every zoom 6-10 tile with any of them inside (how many on each site),
+      // so tiles with no photos are never asked for.
+      const have = new Map(), some = new Map();
+      lists.forEach((a, i) => { for (const [x, y] of a) if (!have.has(x + "/" + y)) {
+        have.set(x + "/" + y, i);
+        for (let z = 6; z < 11; z++) { const k = `${z}/${x >> (11 - z)}/${y >> (11 - z)}`, n = some.get(k) || [0, 0]; n[i]++; some.set(k, n); }
+      } });
+      have.some = some;
       return have;
     }).catch(() => { winterBlocks = null; return null; }));
+  // Which site has tile z/x/y: the square's own, or for a wider tile the site with most squares under it (each site
+  // draws its own zooms 6-10 from its squares only).
+  const winterSite = (have, z, x, y) => {
+    if (!have) return WINTER;
+    if (z >= 11) return WINTERS[have.get((x >> (z - 11)) + "/" + (y >> (z - 11))) || 0];
+    const n = have.some.get(`${z}/${x}/${y}`);
+    return WINTERS[n && n[1] > n[0] ? 1 : 0];
+  };
   // Does tile z/x/y have any winter photo?
   const anyWinter = (have, z, x, y) => !!have && (z >= 11 ? have.has((x >> (z - 11)) + "/" + (y >> (z - 11))) : have.some.has(`${z}/${x}/${y}`));
   // A see-through tile, for places without winter photos: no download, and no 404 for each one.
@@ -583,7 +598,7 @@
       const [z, x, y] = params.url.replace("tfwinterphoto://", "").split("/").map(Number);
       const have = await loadWinterBlocks();
       if (!anyWinter(have, z, x, y)) return noTile();
-      const m = await fillTile(z, x, y, covered(have, z, x, y), abort).catch((e) => { if (abort.signal.aborted) throw e; return { none: true }; });
+      const m = await fillTile(z, x, y, covered(have, z, x, y), abort, winterSite(have, z, x, y)).catch((e) => { if (abort.signal.aborted) throw e; return { none: true }; });
       if (m.miss14) { const b = (x >> 3) + "/" + (y >> 3); missing14.set(b, (missing14.get(b) || 0) + 1); }
       if (m.data) return { data: m.data };
       // No winter photo here after all, or it couldn't be read: the summer photo rather than a hole to the sky.
@@ -593,9 +608,9 @@
   // Workers that fetch the Winter photos and fill their cloudy holes (winter-fill.js), off the page.
   let fillWorkers = null, fillNext = 0, fillId = 0;
   const fillWaiting = new Map();
-  const fillTile = (z, x, y, whole, abort) => new Promise((ok, no) => {
+  const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=631");
+      const w = new Worker("winter-fill.js?v=633");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return; fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -605,7 +620,7 @@
       if (!fillWaiting.delete(id)) return;
       w.postMessage({ cancel: id }); no(new DOMException("aborted", "AbortError"));
     });
-    w.postMessage({ id, z, x, y, base: location.href, skip: no14(z, x, y), whole });
+    w.postMessage({ id, z, x, y, base: new URL(site, location.href).href, skip: no14(z, x, y), whole });
   });
   // Since 2026-10-26 the newer squares (ski hills and tours across Canada) stop at zoom 13 to fit the site, and a few
   // tiles are missing where every pass was cloudy. Those came back see-through, so up close the hidden layer under
@@ -627,8 +642,8 @@
     if (sport === "ski") {
       const have = await loadWinterBlocks();
       if (have) {
-        data.push(new URL(WINTER + "blocks.json", location.href).href);
-        each(6, 14, (z, x, y) => { if (anyWinter(have, z, x, y)) { tiles.push(new URL(`${WINTER}${z}/${x}/${y}.webp`, location.href).href); photos++; } });
+        data.push(...WINTERS.map((w) => new URL(w + "blocks.json", location.href).href));
+        each(6, 14, (z, x, y) => { if (anyWinter(have, z, x, y)) { tiles.push(new URL(`${winterSite(have, z, x, y)}${z}/${x}/${y}.webp`, location.href).href); photos++; } });
       }
     }
     return { data, tiles, heights: tiles.length - photos, photos };
@@ -672,7 +687,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=474" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=633" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return;
@@ -683,9 +698,10 @@
     });
     photoProtocol("tfwinterhd", async (params, abort) => {
       const [z, x, y] = params.url.replace("tfwinterhd://", "").split("/").map(Number);
-      return anyWinter(await loadWinterBlocks(), z, x, y) ? hdTile(z, x, y, abort) : noTile();
+      const have = await loadWinterBlocks();
+      return anyWinter(have, z, x, y) ? hdTile(z, x, y, abort, winterSite(have, z, x, y)) : noTile();
     });
-    const hdTile = (z, x, y, abort) => new Promise((ok, no) => {
+    const hdTile = (z, x, y, abort, site) => new Promise((ok, no) => {
       const id = ++hdId;
       const w = hdWorkers[hdNext++ % hdWorkers.length];
       hdWaiting.set(id, { ok, no });
@@ -697,7 +713,7 @@
       // The terrain first: these wait until the ground in view has its heights (at most 3 s, 15 on phones), so they don't
       // hold up the mountains, then sharpen the photos already showing. On phones they also wait for the map to
       // stop moving: the ones scrolled past meanwhile are dropped without being drawn.
-      const send = () => { if (hdWaiting.has(id)) w.postMessage({ id, z, x, y, base: location.href }); };
+      const send = () => { if (hdWaiting.has(id)) w.postMessage({ id, z, x, y, base: location.href, site }); };
       if (!PHONE) return terrainReady().then(send);
       if (hdQueue.length > 64) hdQueue.splice(0, hdQueue.length, ...hdQueue.filter((j) => hdWaiting.has(j.id)));
       hdQueue.push({ id, go: () => terrainReady().then(mapStill).then(() => hdWaiting.has(id) ? (send(), true) : false) });
