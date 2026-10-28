@@ -674,7 +674,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     }
     say("Matching the words with the trail names…", 0.95);
     let res;
-    try { res = await match(text, my, seen, core(words([own, rev, aiSaw].join("\n"))).length, core(words(own + "\n" + rev)).length, rev.trim() ? core(words(own)).length : Infinity); } catch (e) { if (my === job) say(`Couldn't load the trail names (${e.message}).`); return; }
+    try { res = await match(text, my, seen, core(words([own, rev, aiSaw].join("\n"))).length, core(words(own + "\n" + rev)).length, rev.trim() ? core(words(own)).length : Infinity,
+      words($("pfCaption").value).filter((w) => !STOP.has(w)).length); } catch (e) { if (my === job) say(`Couldn't load the trail names (${e.message}).`); return; }
     if (!res || my !== job) return;
     const n = res.rows.length;
     const sure = n && res.rows[0].conf !== "Possible";
@@ -959,7 +960,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       water: ts.some((t) => t.ford === "yes" || bridge(t)),
     };
   }
-  async function match(text, my, aiSeen, aiFrom = Infinity, aiSawFrom = Infinity, revFrom = Infinity) {   // first trail-name word / first word from the AI / first word from pages with the same picture
+  async function match(text, my, aiSeen, aiFrom = Infinity, aiSawFrom = Infinity, revFrom = Infinity, typedTo = Infinity) {   // first trail-name word / first word from the AI / first word from pages with the same picture / first word not typed by the rider
     const tokens = core(words(text));
     const pre = [""];  // pre[i] = tokens[0..i) joined, for quick runs
     tokens.forEach((t, i) => { pre.push(pre[i] + t); });
@@ -1039,6 +1040,11 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       // A trail's name among the AI's places or landmarks is its guess, not a name read in the picture (2026-10-27: "Lord
       // of the Squirrels" among its places kept that trail above Top of the World, the one in the picture).
       const aiPlace = t.hit.at >= aiSawFrom && t.hit.at < aiFrom;
+      // A short one-word name read in the picture or on a page with the same picture, not typed by the rider, is often just
+      // an everyday word there. It's listed, but it doesn't make the trail sure, so the rider is still asked where it was
+      // (2026-10-28: Echo in Pemberton listed for a Hidden Peak picture, and Mine, Spirit Trail and Game first for a Gouranga
+      // Rock Ride one, kept the question away).
+      const weak = t.ws.join("").length < 8 && t.ws.length === 1 && t.hit.at >= typedTo && t.hit.at < aiSawFrom;
       let s = aiPlace ? Math.min(t.s, 0.8) : t.s;
       if (g.mtb) s += 0.1;
       if (pickedIds.has(g.zone.id)) s += 0.25;
@@ -1054,7 +1060,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       // Named: the trail's own name is in the words, read in the picture or on a page with the same picture. Only that
       // (or a past confirmed match, or the online check's proof) makes a "Best match": being near the right landmarks or
       // where the AI places the photo fits a whole valley of trails.
-      return { g, s, why, said: said.replace(/ /g, ""), aiPlace, named: !aiPlace };
+      return { g, s, why, said: said.replace(/ /g, ""), aiPlace, weak, named: !aiPlace && !weak };
     }).filter((h) => h.s >= 0.7);
     let hits = scored(raw);
     // Nothing sure in the areas looked at first (and no area picked): look through every region too.
@@ -1069,7 +1075,9 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         hinted = new Set(found.flatMap((p) => p.zones.map((z) => z.id)));
         spots = found.filter((p) => p.c);
       }
-      hits = scored(raw);
+      // A short word that's only a trail name somewhere else in Canada is a coincidence, not that trail.
+      const firstIds = new Set(first.map((z) => z.id));
+      hits = scored(raw).filter((h) => !h.weak || firstIds.has(h.g.zone.id));
     }
     // Landmarks named in the words (or by the AI), or described ("granite wall") in an area it points to: the trails
     // that can see them. A trail found by name and also seeing the landmark goes up; one only seeing it is "Possible".
@@ -1167,7 +1175,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     // first by what the picture shows that the trail lists know about each one, the ones riders taught with pictures a bit
     // higher: the online check then compares this picture with riders' pictures of them.
     let woods = null;
-    if (!placed && told.length && !hits.some((h) => h.s >= STRONG)) {
+    if (!placed && told.length && !hits.some((h) => h.named && h.s >= STRONG)) {
       const said = [$("pfCaption").value, ...(aiSeen ? [...aiSeen.terrain, aiSeen.scene] : [])].join(" ").toLowerCase();
       const shows = Object.keys(LOOKS).filter((k) => LOOKS[k].re.test(said));
       const b = told.reduce((a, z) => a.extend(z.bounds), L.latLngBounds(told[0].bounds.getSouthWest(), told[0].bounds.getNorthEast()));
@@ -1303,7 +1311,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       spot: placed ? vp : null,
       // Nothing places it, or only the AI's guess, and no area picked or named: the rider is asked where it was (then it's
       // looked at as in the woods).
-      askArea: !told.length && (!placed || !seenFrom) && !hits.some((h) => (h.named || h.past) && h.s >= 0.85) ? (placed ? "guess" : "none") : "",
+      askArea: !told.length && (!placed || !seenFrom) && !hits.some((h) => (h.named || h.past) && h.s >= STRONG) ? (placed ? "guess" : "none") : "",
       places: [...new Set(found.map((p) => p.label))],
       more: more.map((h) => ({ ...rowOf(h, h.lm && !h.woods ? "landmark" : aiSeen ? "mixed" : "words"), sure: !!(h.named || h.past), conf: "Possible", taught: !!h.taught })),
       rows: rows.map((h, i) => {
