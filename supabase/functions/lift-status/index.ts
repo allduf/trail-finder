@@ -15,9 +15,10 @@ const UA = "Mozilla/5.0 (compatible; TrailFinder lift status; +https://allduf.gi
 
 type Lift = { n: string; s: string; w?: number; o?: string; c?: string; k?: string };
 type Result = { lifts: Lift[]; t?: string };
-type Source = { name: string; page: string; url: string; kind: "vail" | "rcr" | "whitewater" | "sunpeaks" | "bigwhite" | "norquay" | "mtnpowder" | "bromont" };
+type Source = { name: string; page: string; url: string; kind: "vail" | "rcr" | "whitewater" | "sunpeaks" | "bigwhite" | "norquay" | "mtnpowder" | "bromont" | "revelstoke" | "louise" | "red" | "msa" };
 
-// The resorts whose lift status could be read (checked 2026-10-25). The id is the resort's id in data/ski-lifts.json.
+// The resorts whose lift status could be read (checked 2026-10-25, more 2026-10-28; Mount Washington and Marble Mountain
+// turn away readers from data centres, so they stay links; Hudson Bay Mountain's lifts aren't in OpenStreetMap yet). The id is the resort's id in data/ski-lifts.json.
 export const SOURCES: Record<string, Source> = {
   wb: { name: "Whistler Blackcomb", kind: "vail", page: "https://www.whistlerblackcomb.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx", url: "https://www.whistlerblackcomb.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx" },
   fernie: { name: "Fernie Alpine Resort", kind: "rcr", page: "https://skifernie.com/conditions/snow-report/", url: "https://skifernie.com/wp-content/themes/kallyas-child/reportData/liftReport.json" },
@@ -32,6 +33,12 @@ export const SOURCES: Record<string, Source> = {
   tremblant: { name: "Tremblant", kind: "mtnpowder", page: "https://www.tremblant.ca/mountain-village/mountain-report", url: "https://mtnpowder.com/feed?resortId=4" },
   bluemtn: { name: "Blue Mountain", kind: "mtnpowder", page: "https://www.bluemountain.ca/mountain/mountain-report", url: "https://mtnpowder.com/feed?resortId=3" },
   bromont: { name: "Bromont, montagne d'expériences", kind: "bromont", page: "https://www.bromontmontagne.com/conditions-detaillees/", url: "https://www.bromontmontagne.com/conditions-detaillees/" },
+  // Added 2026-10-28.
+  revelstoke: { name: "Revelstoke Mountain Resort", kind: "revelstoke", page: "https://www.revelstokemountainresort.com/mountain/conditions/lifts-grooming/", url: "https://www.revelstokemountainresort.com/mountain/conditions/lifts-grooming/" },
+  // Lake Louise's own Run Status page (linked from skilouise.com) reads this report.
+  louise: { name: "Lake Louise", kind: "louise", page: "https://www.skilouise.com/explore-winter/winter-ski-ride/lift-runs-parks-status/", url: "https://ski-louise-status-page.vercel.app/api/ski-data" },
+  red: { name: "RED Mountain", kind: "red", page: "https://www.redresort.com/report/", url: "https://api.redresort.com/report/full" },
+  msa: { name: "Mont-Sainte-Anne", kind: "msa", page: "https://mont-sainte-anne.com/conditions-de-neige-ski-alpin/", url: "https://mont-sainte-anne.com/refresh/refresh.php?lang=fr" },
 };
 
 // Any resort's words for a lift's state, as one of ours.
@@ -44,6 +51,12 @@ export function stateOf(x: unknown): string {
   return "unknown";
 }
 const text = (s: string) => s.replace(/<[^>]*>/g, " ").replace(/&amp;/g, "&").replace(/&#0?39;|&rsquo;|&#8217;|’/g, "'").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+// "2026-10-28 10:48" read as local time in a time zone (daylight time included), as an ISO time.
+const zoned = (s: string, tz: string) => {
+  const guess = Date.parse(s.replace(" ", "T") + "Z");
+  const there = Date.parse(new Date(guess).toLocaleString("sv-SE", { timeZone: tz }).replace(" ", "T") + "Z");
+  return new Date(guess - (there - guess)).toISOString();
+};
 const hhmm = (s?: string | null) => (s && /\d/.test(s) ? s.trim() : undefined);
 
 // Vail Resorts sites (Whistler Blackcomb): the page has FR.TerrainStatusFeed = {...}; with GroomingAreas[].Lifts[]
@@ -142,7 +155,52 @@ function bromont(html: string): Result {
   }
   return { lifts };
 }
-export const PARSE: Record<Source["kind"], (body: string) => Result> = { vail, rcr, whitewater, sunpeaks, bigwhite, norquay, mtnpowder, bromont };
+// Revelstoke: <h2>Stoke Chair</h2> <span class="lift-status lift-status--closed">, the time in .lifts-runs__timestamp.
+function revelstoke(html: string): Result {
+  const lifts: Lift[] = [];
+  for (const m of html.matchAll(/<h2>([^<]+)<\/h2>\s*<span class="lift-status lift-status--([a-z-]+)"/g)) lifts.push({ n: text(m[1]), s: stateOf(m[2]) });
+  const t = /lifts-runs__timestamp[\s\S]{0,120}?(\d{4}-\d\d-\d\d \d\d:\d\d(?::\d\d)?)/.exec(html);
+  return { lifts, t: t ? zoned(t[1], "America/Vancouver") : undefined };
+}
+// Lake Louise: an XML mountain report, <report updated="..."> ... <lift id name status realtime type/>.
+function louise(xml: string): Result {
+  const lifts: Lift[] = [], seen = new Set<string>();
+  const attr = (tag: string, k: string) => (new RegExp(`\\b${k}="([^"]*)"`).exec(tag) || [])[1];
+  for (const m of xml.matchAll(/<lift\b[^>]*>/g)) {
+    const n = attr(m[0], "name");
+    if (!n || seen.has(n)) continue;
+    seen.add(n);
+    lifts.push({ n: text(n), s: stateOf(attr(m[0], "realtime") || attr(m[0], "status")) });
+  }
+  const u = /<report\b[^>]*\bupdated="([^"]+)"/.exec(xml);
+  return { lifts, t: u && !isNaN(Date.parse(u[1])) ? new Date(u[1]).toISOString() : undefined };
+}
+// RED Mountain: { MountainReport: { Lifts: [{ Name, Status, Hours: "9:00 AM - 3:30 pm" }] } }. Off season Status is "".
+function red(json: string): Result {
+  const d = JSON.parse(json), lifts: Lift[] = [];
+  for (const l of (d.MountainReport && d.MountainReport.Lifts) || []) {
+    if (!l || !l.Name) continue;
+    const [o, c] = String(l.Hours || "").split(/\s+-\s+/);
+    lifts.push({ n: text(l.Name), s: l.Status ? stateOf(l.Status) : "closed", ...(hhmm(o) && hhmm(c) ? { o, c } : {}) });
+  }
+  return { lifts };
+}
+// Mont-Sainte-Anne: refresh.php fills the conditions page; the day lifts are in 'lifts-day-element-msa' as
+// <div class="lift-name-element">Name</div><div class="lift-open-element"><img src=".../conditions/closed.svg">.
+function msa(html: string): Result {
+  const lifts: Lift[] = [], seen = new Set<string>();
+  const i = html.indexOf("'lifts-day-element-msa').innerHTML"), part = i < 0 ? "" : html.slice(i, html.indexOf("\n", i));
+  for (const m of part.matchAll(/lift-name-element">([^<]+)<\/div><div class="lift-open-element">\s*<img[^>]*src="[^"]*\/([a-z_-]+)\.(?:svg|png)"[\s\S]*?lift-time-element2">([^<]*)</g)) {
+    const n = text(m[1].replace(/\\'/g, "'"));
+    if (seen.has(n)) continue;
+    seen.add(n);
+    const [o, c] = m[3].split(/\s*[-–à]\s*/);
+    lifts.push({ n, s: stateOf(m[2]), ...(hhmm(o) && hhmm(c) ? { o, c } : {}) });
+  }
+  const d = /'applicationDate'\)\.innerHTML= '(\d{4}-\d\d-\d\d \d\d:\d\d)/.exec(html);
+  return { lifts, t: d ? zoned(d[1], "America/Toronto") : undefined };
+}
+export const PARSE: Record<Source["kind"], (body: string) => Result> = { vail, rcr, whitewater, sunpeaks, bigwhite, norquay, mtnpowder, bromont, revelstoke, louise, red, msa };
 
 const cache = new Map<string, { at: number; v: Record<string, unknown> }>();
 export async function read(id: string): Promise<Record<string, unknown>> {

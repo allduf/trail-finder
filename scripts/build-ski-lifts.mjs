@@ -37,6 +37,7 @@ const RESORTS = [
   ["tremblant", "Tremblant", 46.212, -74.585, 0.03, 0.05],
   ["bluemtn", "Blue Mountain", 44.503, -80.312, 0.02, 0.03],
   ["bromont", "Bromont, montagne d'expériences", 45.305, -72.648, 0.02, 0.03],
+  ["msa", "Mont-Sainte-Anne", 47.075, -70.905, 0.025, 0.035],
 ];
 // ONLY=id,id rebuilds just those resorts and keeps the others as they are in data/ski-lifts.json (off season most
 // resorts' status lists are empty, so a full rebuild then would lose their matched status names).

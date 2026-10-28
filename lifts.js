@@ -54,7 +54,7 @@ dialog.lf-dlg .lf-foot a { color: var(--accent); font-weight: 600; }
 
   // ---------- data ----------
   let data = null, lifts = [], resorts = {};
-  const load = () => (data = data || fetch("data/ski-lifts.json?v=621").then((r) => r.json()).then((d) => {
+  const load = () => (data = data || fetch("data/ski-lifts.json?v=690").then((r) => r.json()).then((d) => {
     resorts = d.resorts || {}; lifts = d.lifts || [];
     return d;
   }).catch(() => { data = null; return null; }));
@@ -115,7 +115,7 @@ dialog.lf-dlg .lf-foot a { color: var(--accent); font-weight: 600; }
   function noteText() {
     if (!on) return "";
     if (liveErr) return liveErr;
-    return gotAt ? `Updated ${ago(gotAt)}` : near().length ? "Getting the live status…" : "Live for 9 resorts";
+    return gotAt ? `Updated ${ago(gotAt)}` : near().length ? "Getting the live status…" : `Live for ${Object.values(resorts).filter((r) => r.live).length} resorts`;
   }
   function setNote() {
     const b = btn.querySelector("b"); if (!b) return;
