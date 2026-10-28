@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-28", "text": "Live lift status at Revelstoke, Lake Louise, RED Mountain and Mont-Sainte-Anne, lake depths in Alberta (169 lakes) and Nova Scotia (634 lake maps), and backcountry ski cards for Fish Lake near Whitehorse and the Tablelands in Gros Morne."},
     {"date": "2026-10-28", "text": "The app opens faster: Skiing, Hunting, Fishing and Moto now load only when you pick them."},
     {"date": "2026-10-28", "text": "Real trail ratings for Fernie, the Cranbrook Community Forest and Penticton's Three Blind Mice, from the local trail clubs' and regional district's own maps."},
     {"date": "2026-10-28", "text": "Search finds towns and trails anywhere in Canada: type Bromont and the map goes there."},
