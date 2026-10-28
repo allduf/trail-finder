@@ -482,7 +482,8 @@ details > summary { cursor: pointer; font-weight: 600; }
     const never = MAIN.filter((k) => !feat.has(k));
     $("never").innerHTML = never.length ? never.map((k) => esc(NAMES[k])).join(" · ") : "Every main button was used.";
 
-    const people = [...devices.values()].sort((a, b) => b.ms - a.ms);
+    // Most recent visit first.
+    const people = [...devices.values()].sort((a, b) => new Date(b.last) - new Date(a.last));
     $("people").innerHTML = people.map((d) => {
       const top = [...d.taps.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
       const sports = [...d.sport.entries()].sort((a, b) => b[1] - a[1]).map(([k, ms]) => `${SPORTS[k] || k} ${mins(ms)}`).join(" · ");
@@ -494,7 +495,7 @@ details > summary { cursor: pointer; font-weight: 600; }
       </div>`;
     }).join("");
     // Phones seen before but not in this period: they stopped using the app (or haven't opened it lately).
-    const quiet = (all || []).filter((d) => keep(d.device) && !devices.has(d.device));
+    const quiet = (all || []).filter((d) => keep(d.device) && !devices.has(d.device)).sort((a, b) => new Date(b.last_seen) - new Date(a.last_seen));
     $("quiet").innerHTML = quiet.length ? `<div class="card"><h3>Not seen in the last ${days} days (${quiet.length})</h3><table>${quiet.map((d) => `<tr><td><input value="${esc(d.label || "")}" placeholder="Name this phone" data-device="${esc(d.device)}" aria-label="Name" style="width:160px"> <span class="muted">${esc(phoneOf(d))}</span></td><td class="n">${ago(d.last_seen)}</td></tr>`).join("")}</table></div>` : "";
     // TestFlight names with no phone named the same.
     if (roster && roster.length) {
