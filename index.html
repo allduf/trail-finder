@@ -1539,7 +1539,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <h3>Forest roads</h3>
     <p>Forest Service Roads and other dirt roads have a white edge and a colour for their status (turn them off with “Forest roads”). Once a week the site collects them from two open sources: the BC government's Forest Tenure roads (DataBC, Open Government Licence - British Columbia), which list every Forest Service Road and road permit with its tenure status, and OpenStreetMap dirt roads with their gate, access and deactivation tags. The colour is the road's condition, like on a backroad map. Green is good condition (an active Forest Service tenure, or mapped as smooth or solid). Yellow is degraded (mapped as bad or partly soft). Red is heavily degraded: very rough, 4x4 only, or a retired tenure that's no longer maintained and often deactivated. Black dashes are impassable: deactivated, washed out or abandoned. Grey dashes mean the condition isn't known. Pink dashes mean closed to public vehicles: gated, private or industrial use only. Each road is one line: where both sources map the same road, what a mapper saw on the ground (OpenStreetMap) wins, and the tenure decides only when OpenStreetMap has no condition for it. Tap a road to see both sources. This is mapped data, not a live closure list: check the <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p>
     <p>Outside Vancouver-to-Calgary, the rest of Canada gets the OpenStreetMap part every night: the dirt and forest roads within 2 km of a mountain bike trail, and the trailheads, parking, drinking water, toilets, bike repair stations and shelters near the trails.</p>
-    <p>With “Forest roads” on, the map also shows, once you zoom in: gates (open, locked or not known), barriers, bridges and bridges out, foot bridges, fords and hydro plants, from OpenStreetMap. Tap any of them for details. The “Logging areas” button shows cut blocks (pending, active or recently logged, and retired in the last 15 years) and areas closed to motor vehicles, from the BC government, on their own. In Quebec it shows the cuts authorized in the current forest plan and the areas logged since 2022, from the Québec government (Données Québec, CC BY 4.0). With the button off, the roads stay on the map as plain grey-brown lines.</p>
+    <p>With “Forest roads” on, the map also shows, once you zoom in: gates (open, locked or not known), barriers, bridges and bridges out, foot bridges, fords and hydro plants, from OpenStreetMap. Tap any of them for details. The “Logging areas” button shows cut blocks (pending, active or recently logged, and retired in the last 15 years) and areas closed to motor vehicles, from the BC government, on their own. In Quebec it shows the cuts authorized in the current forest plan and the areas logged since 2022, from the Québec government (Données Québec, CC BY 4.0). Everywhere else in Canada it shows forest cut or burned since 2010, seen from space (Global Forest Watch, 30 m). With the button off, the roads stay on the map as plain grey-brown lines.</p>
     <h3>Wildfires</h3>
     <p>The “Wildfires” button shows active wildfires across Canada (fires that are out are left off). In BC they come from the BC Wildfire Service, with their perimeters, areas closed because of fire (area restriction orders), and evacuation orders and alerts. In Alberta they come from Alberta Wildfire, with Alberta's fire control orders (forest area closures, fire bans, fire restrictions and off-highway vehicle bans; the milder fire advisories are left off) and wildfire evacuations from Alberta Emergency Alert. Everywhere else they come from the agencies' reports gathered by the Canadian Wildland Fire Information System, with rough fire areas seen by satellite next to them. It's refreshed every 3 hours, so always check the <a href="https://wildfiresituation.nrs.gov.bc.ca/map" target="_blank" rel="noopener">BC Wildfire map</a> and <a href="https://www.emergencyinfobc.gov.bc.ca/" target="_blank" rel="noopener">EmergencyInfoBC</a>, <a href="https://www.alberta.ca/wildfire-status" target="_blank" rel="noopener">Alberta wildfire status</a> and <a href="https://www.albertafirebans.ca/" target="_blank" rel="noopener">Alberta fire bans</a>, or the <a href="https://cwfis.cfs.nrcan.gc.ca/interactive-map" target="_blank" rel="noopener">CWFIS fire map</a> and the local fire agency before heading out.</p>
     <p class="src">Fires outside BC and Alberta: Canadian Forest Service, Canadian Wildland Fire Information System (CWFIS), Natural Resources Canada, Canadian Forest Service, Northern Forestry Centre, Edmonton, Alberta (Open Government Licence – Canada). Alberta: contains information licensed under the Open Government Licence – Alberta.</p>
@@ -1591,14 +1591,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=621"></script>
-<script src="native.js?v=621"></script>
-<script src="keyboard.js?v=621"></script>
-<script src="rotate.js?v=621"></script>
-<script src="official.js?v=621"></script>
-<script src="directions.js?v=621"></script>
-<script src="ratings.js?v=621"></script>
-<script src="ebike.js?v=621"></script>
+<script src="welcome.js?v=625"></script>
+<script src="native.js?v=625"></script>
+<script src="keyboard.js?v=625"></script>
+<script src="rotate.js?v=625"></script>
+<script src="official.js?v=625"></script>
+<script src="directions.js?v=625"></script>
+<script src="ratings.js?v=625"></script>
+<script src="ebike.js?v=625"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -4016,7 +4016,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=621").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=625").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -6060,6 +6060,40 @@ out body;`;
     opacity: 0.7, minZoom: ROAD_MIN_ZOOM, bounds: L.latLngBounds([44.99, -79.8], [62.6, -57.1]), pane: "roadAreas",
     attribution: "Logging: © Gouvernement du Québec (CC BY 4.0)",
   });
+  // Everywhere else (outside the home zones, where BC and Alberta cut blocks come with the road files, and Quebec): forest
+  // lost since 2010 as seen from space, Global Forest Watch's tree cover loss (Hansen/UMD, 30 m, CC BY 4.0): mostly
+  // logging, also fires and storms (alex 2026-10-28: logging layers everywhere). Its tiles hold the amount in red and the
+  // year after 2000 in blue, so each one is redrawn: 2020 and later pink like Quebec's recent cuts, 2010-2019 purple.
+  const LOSS_FROM = 2010, LOSS_Z = 12;
+  const lossSkip = (lat, lon) => ZONES.some((z) => lat >= z.box[0] && lat <= z.box[2] && lon >= z.box[1] && lon <= z.box[3])
+    || (caIndex.zones.get(`ca_${Math.floor(lat)}_${(Math.floor(lon / 1.2) * 1.2).toFixed(1)}`) || {}).name === "Quebec";
+  const lossLayer = new (L.GridLayer.extend({
+    createTile(c, done) {
+      const t = L.DomUtil.create("canvas"), size = this.getTileSize();
+      t.width = size.x; t.height = size.y;
+      const mid = map.unproject(c.scaleBy(size).add(size.divideBy(2)), c.z);
+      if (lossSkip(mid.lat, mid.lng)) { setTimeout(() => done(null, t)); return t; }
+      const z = Math.min(c.z, LOSS_Z), k = 2 ** (c.z - z), px = Math.floor(c.x / k), py = Math.floor(c.y / k);
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const g = t.getContext("2d", { willReadFrequently: true }), s = img.width / k;
+        g.imageSmoothingEnabled = false;
+        g.drawImage(img, (c.x - px * k) * s, (c.y - py * k) * s, s, s, 0, 0, size.x, size.y);
+        const d = g.getImageData(0, 0, size.x, size.y), a = d.data;
+        for (let i = 0; i < a.length; i += 4) {
+          const y = 2000 + a[i + 2];
+          if (!a[i + 3] || !a[i] || y < LOSS_FROM) { a[i + 3] = 0; continue; }
+          [a[i], a[i + 1], a[i + 2], a[i + 3]] = y >= 2020 ? [240, 80, 156, 210] : [123, 44, 191, 190];
+        }
+        g.putImageData(d, 0, 0);
+        done(null, t);
+      };
+      img.onerror = () => done(null, t);
+      img.src = `https://tiles.globalforestwatch.org/umd_tree_cover_loss/v1.12/dynamic/${z}/${px}/${py}.png`;
+      return t;
+    },
+  }))({ minZoom: ROAD_MIN_ZOOM, opacity: 0.7, pane: "roadAreas", attribution: "Forest loss: Hansen/UMD/Google/USGS/NASA, Global Forest Watch (CC BY 4.0)" });
   let fires = null, areaKey = "";
   const rings = (gs) => gs.map(roadGeom);
   map.createPane("fireAreas").style.zIndex = 375;
@@ -6132,6 +6166,7 @@ out body;`;
     const key = [areasOn, loaded.length].join("/");
     const qcOn = state.areas && map.getZoom() >= ROAD_MIN_ZOOM && map.getBounds().intersects(qcLogging.options.bounds);
     if (qcOn !== map.hasLayer(qcLogging)) { qcOn ? qcLogging.addTo(map) : map.removeLayer(qcLogging); renderKey(); }
+    if (areasOn !== map.hasLayer(lossLayer)) { areasOn ? lossLayer.addTo(map) : map.removeLayer(lossLayer); renderKey(); }
     if (key !== areaKey) {
       areaKey = key;
       areaLayer.clearLayers();
@@ -6486,7 +6521,8 @@ out body;`;
       + section("Road features (zoom in)", Object.values(FEAT).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join(""));
     else html += section("Forest roads", sw("background: var(--road-plain)", "Forest road (turn on Forest roads in Layers for status)"));
     if (state.areas) html += section("Logging areas", Object.values(AREA_STYLE).map(areaSw).join("")
-      + (map.hasLayer(qcLogging) ? sw("background: #d4e3b5; border: 2px solid #d4a017", "Quebec: authorized cut (CR = clear cut)") + sw("background: #ffd6ec; border: 2px solid #f0509c", `Quebec: logged ${QC_LOG_YEARS[0]} to ${QC_LOG_YEARS.at(-1)}`) : ""));
+      + (map.hasLayer(qcLogging) ? sw("background: #d4e3b5; border: 2px solid #d4a017", "Quebec: authorized cut (CR = clear cut)") + sw("background: #ffd6ec; border: 2px solid #f0509c", `Quebec: logged ${QC_LOG_YEARS[0]} to ${QC_LOG_YEARS.at(-1)}`) : "")
+      + (map.hasLayer(lossLayer) && lossSkip(map.getCenter().lat, map.getCenter().lng) === false ? sw("background: #f050a0", "Forest cut or burned 2020 and later (from space)") + sw("background: #7b2cbf", "Forest cut or burned 2010 to 2019") : ""));
     if (state.fires) {
       // The satellite fire areas and Alberta's fire orders only get a key line when some are on the map.
       const has = (k) => fires && (k === "m3" ? fires.perims.some((p) => p.src === "m3") : fires.restr.some((a) => a.kind === k));
@@ -7692,58 +7728,58 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=621"></script>
-<script src="contours.js?v=621"></script>
-<script src="clouds.js?v=621"></script>
-<script src="smoke.js?v=621"></script>
-<script src="radar.js?v=621"></script>
-<script src="photo-slider.js?v=621"></script>
-<script src="ski-terrain.js?v=621"></script>
-<script src="place-search.js?v=621"></script>
-<script src="winter.js?v=621"></script>
-<script src="crownland.js?v=621"></script>
-<script src="hunting.js?v=621"></script>
-<script src="fish-bait.js?v=621"></script>
-<script src="fish-route.js?v=621"></script>
-<script src="fishing.js?v=621"></script>
-<script src="compass.js?v=621"></script>
-<script src="hunts.js?v=621"></script>
-<script src="ski-points.js?v=621"></script>
-<script src="webcams.js?v=621"></script>
-<script src="lifts.js?v=621"></script>
-<script src="rogers.js?v=621"></script>
-<script src="slackcountry.js?v=621"></script>
-<script src="ski-areas.js?v=621"></script>
-<script src="helicat.js?v=621"></script>
-<script src="offline.js?v=621"></script>
-<script src="ride-stats.js?v=621"></script>
-<script src="native-gps.js?v=621"></script>
-<script src="navigate.js?v=621"></script>
-<script src="planner.js?v=621"></script>
-<script src="loops.js?v=621"></script>
-<script src="ride-finds.js?v=621"></script>
-<script src="rides.js?v=621"></script>
-<script src="community.js?v=621"></script>
-<script src="ride-files.js?v=621"></script>
-<script src="rider-trails.js?v=621"></script>
-<script src="account.js?v=621"></script>
-<script src="live.js?v=621"></script>
-<script src="strava.js?v=621"></script>
-<script src="reports.js?v=621"></script>
-<script src="grades.js?v=621"></script>
-<script src="trail-photos.js?v=621"></script>
-<script src="visitors.js?v=621"></script>
-<script src="usage.js?v=621"></script>
-<script src="notify.js?v=621"></script>
-<script src="closures.js?v=621"></script>
-<script src="status.js?v=621"></script>
-<script src="ask.js?v=621"></script>
-<script src="areas.js?v=621"></script>
-<script src="alpine.js?v=621"></script>
-<script src="bikeparks.js?v=621"></script>
-<script src="photo-find.js?v=621"></script>
-<script src="whats-new.js?v=621"></script>
-<script src="app-update.js?v=621"></script>
+<script src="map3d.js?v=625"></script>
+<script src="contours.js?v=625"></script>
+<script src="clouds.js?v=625"></script>
+<script src="smoke.js?v=625"></script>
+<script src="radar.js?v=625"></script>
+<script src="photo-slider.js?v=625"></script>
+<script src="ski-terrain.js?v=625"></script>
+<script src="place-search.js?v=625"></script>
+<script src="winter.js?v=625"></script>
+<script src="crownland.js?v=625"></script>
+<script src="hunting.js?v=625"></script>
+<script src="fish-bait.js?v=625"></script>
+<script src="fish-route.js?v=625"></script>
+<script src="fishing.js?v=625"></script>
+<script src="compass.js?v=625"></script>
+<script src="hunts.js?v=625"></script>
+<script src="ski-points.js?v=625"></script>
+<script src="webcams.js?v=625"></script>
+<script src="lifts.js?v=625"></script>
+<script src="rogers.js?v=625"></script>
+<script src="slackcountry.js?v=625"></script>
+<script src="ski-areas.js?v=625"></script>
+<script src="helicat.js?v=625"></script>
+<script src="offline.js?v=625"></script>
+<script src="ride-stats.js?v=625"></script>
+<script src="native-gps.js?v=625"></script>
+<script src="navigate.js?v=625"></script>
+<script src="planner.js?v=625"></script>
+<script src="loops.js?v=625"></script>
+<script src="ride-finds.js?v=625"></script>
+<script src="rides.js?v=625"></script>
+<script src="community.js?v=625"></script>
+<script src="ride-files.js?v=625"></script>
+<script src="rider-trails.js?v=625"></script>
+<script src="account.js?v=625"></script>
+<script src="live.js?v=625"></script>
+<script src="strava.js?v=625"></script>
+<script src="reports.js?v=625"></script>
+<script src="grades.js?v=625"></script>
+<script src="trail-photos.js?v=625"></script>
+<script src="visitors.js?v=625"></script>
+<script src="usage.js?v=625"></script>
+<script src="notify.js?v=625"></script>
+<script src="closures.js?v=625"></script>
+<script src="status.js?v=625"></script>
+<script src="ask.js?v=625"></script>
+<script src="areas.js?v=625"></script>
+<script src="alpine.js?v=625"></script>
+<script src="bikeparks.js?v=625"></script>
+<script src="photo-find.js?v=625"></script>
+<script src="whats-new.js?v=625"></script>
+<script src="app-update.js?v=625"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

@@ -315,7 +315,8 @@ const CHECKS = [
     if (FISH_RULES.has(s.pv)) return none("no fishing zone here (the province has zones)");
     return less(0, "province rules link only, no zone rules");
   }],
-  ["logging", "Logging areas", "Riding", async (s) => LOGGING.has(s.pv) ? ok(1, "cut blocks layer") : none("no logging layer in this province")],
+  // Outside BC, Alberta and Quebec the app shows Global Forest Watch's forest loss since 2010 (index.html lossLayer).
+  ["logging", "Logging areas", "Riding", async (s) => LOGGING.has(s.pv) ? ok(1, "cut blocks layer") : ok(1, "forest cut or burned since 2010, from space (30 m)")],
 ];
 
 // ---------- run ----------
