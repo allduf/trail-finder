@@ -7,7 +7,8 @@
 //    reserves, outfitters with exclusive rights, wildlife management areas, First Nation reserves).
 //  - seasons-qc.json, seasons-on.json, seasons-nl.json: open seasons per zone, read from the regulation pages on
 //    quebec.ca, ontario.ca and gov.nl.ca; seasons-mb.json: Manitoba's season table per GHA; seasons-nb.json and
-//    seasons-ns.json: typed in from the provinces' PDF summaries (NB_SEASONS, NS_SEASONS).
+//    seasons-ns.json: typed in from the provinces' PDF summaries (NB_SEASONS, NS_SEASONS); seasons-yt.json the same
+//    from the Yukon Hunting Regulations Summary, per game management subzone (YT_SEASONS).
 // Sources (all free official data):
 //  Quebec: the wildlife ministry's public map server (servicesvecto3.mern.gouv.qc.ca SmartFaunePub: hunting zones and
 //    "hunting not allowed" areas, MFFP licence) and the Territoires récréatifs du Québec layer (MRNF, CC BY 4.0).
@@ -267,10 +268,11 @@ export async function canada(h) {
     seasons.mb = { src: "Manitoba GHA Hunting Season Table", gha };
     log(`  Manitoba seasons: ${Object.keys(gha).length} GHAs`);
   } catch (e) { log(`  Manitoba seasons failed: ${e.message}`); }
-  if (!ONLY_PV.length || ONLY_PV.includes("nl")) try { seasons.nl = nlSeasons(curlText); } catch (e) { log(`  Newfoundland and Labrador seasons failed: ${e.message}`); }
+  if (!ONLY_PV.length || ONLY_PV.includes("nl")) try { seasons.nl = nlSeasons(curlText, log); } catch (e) { log(`  Newfoundland and Labrador seasons failed: ${e.message}`); }
   // New Brunswick and Nova Scotia publish their seasons only in PDFs: typed in from this year's summaries (below).
   if (!ONLY_PV.length || ONLY_PV.includes("nb")) seasons.nb = handSeasons(NB_SEASONS, 27);
   if (!ONLY_PV.length || ONLY_PV.includes("ns")) seasons.ns = handSeasons(NS_SEASONS, 112, 101);
+  if (!ONLY_PV.length || ONLY_PV.includes("yt")) seasons.yt = ytSeasons(log);
   return seasons;
 }
 
@@ -280,7 +282,7 @@ export async function canada(h) {
 const NL_GUIDE = "https://www.gov.nl.ca/hunting-trapping-guide/2026-27/hunting-seasons-and-zones/";
 const nlDates = (t) => String(t).replace(/\b(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,?\s*/g, "").replace(/\s+to\s+/g, " - ").replace(/(\d)\.(?=\s)/g, "$1").replace(/\b([A-Z][a-z]{2,4})\./g, "$1").replace(/\s*[–-]\s*/g, " - ").replace(/\s+/g, " ").trim();
 const isDate = (t) => /\b(Jan|Feb|Mar|Apr|May|June?|July?|Aug|Sept?|Oct|Nov|Dec)[a-z]*\.?\s*\d/.test(t);
-function nlSeasons(curlText) {
+function nlSeasons(curlText, log) {
   const wmu = {}, add = (id, row) => (wmu[id] = wmu[id] || []).push(row);
   for (const part of ["island", "labrador"]) {
     const html = curlText(`${NL_GUIDE}${part}/moose/`, `nl-${part}-moose.html`), bow = (unhtml(html).match(/Bow hunting (?:season )?begins (\w+ \d{1,2}), (\d{4})/i) || []);
@@ -356,6 +358,151 @@ const NS_SEASONS = { year: "2026", src: "Nova Scotia Hunting and Furharvesting S
   ["Snowshoe hare", "", "no dogs Nov 1 - 15", "Nov 1, 2026 - Feb 27, 2027", null],
   ["Ring-necked pheasant", "", "males, 2 a day: from Nov 1 in Annapolis, Kings and Hants", "Oct 1 - Dec 15", null],
 ] };
+// Yukon: the 2026-27 Hunting Regulations Summary's "Season dates and bag limits" pages, one table per game management
+// zone, by subzone. Rows are [species, how, note, dates, subzones]: subzones like "4-01 4-02 4-04..50" (a range within a
+// zone), "5" for the whole zone, "*" for all of the Yukon; "~5-44" is part of a subzone only (shown with a †), "!6" leaves
+// out a zone or subzone. Bag limits are for the whole territory, not per zone.
+const YT_MAX = { 1: 72, 2: 93, 3: 20, 4: 52, 5: 51, 6: 13, 7: 36, 8: 27, 9: 11, 10: 32, 11: 46 };   // highest subzone of each zone
+const YT_LOTTERY = "Permit by lottery (PHA)", YT_PERMIT = "Permit needed", YT_BLACK = "2 a year in total, spring and fall", YT_GRIZ = "1 every 3 years in total";
+// Bears, wolverine, wolf and coyote: the same in most zones (open is where they're open, shut where they're closed).
+const ytCommon = (open, shut) => [
+  ["Black bear", "Spring", YT_BLACK, "Apr 15 - June 21", open], ["Black bear", "Fall", YT_BLACK, "Aug 1 - Nov 15", open],
+  ["Grizzly bear", "Spring", YT_GRIZ, "Apr 15 - June 21", open], ["Grizzly bear", "Fall", YT_GRIZ, "Aug 1 - Nov 15", open],
+  ["Wolverine", "", "1", "Aug 1 - Oct 31", open], ["Wolf", "", "7", "Aug 1 - Mar 31", open], ["Coyote", "", "no limit", "Aug 1 - Mar 31", open],
+  ...(shut ? ["Black bear", "Grizzly bear", "Wolverine", "Wolf", "Coyote"].map((sp) => [sp, "", "", "Closed", shut]) : []),
+];
+const YT_1 = "1-04 1-05 1-12..15 1-17..19 1-21..72", YT_1G = "1-15 1-17..19 1-21..38 1-40..52 1-55..72", YT_1W = "1-15 1-17..19 1-21..72";
+const YT_4 = "4-01 4-02 4-04..50 4-52";
+const YT_SEASONS = { year: "2026-27", src: "Yukon Hunting Regulations Summary 2026-27", url: "https://yukon.ca/hunting-regulations", rows: [
+  // Small game and game birds: everywhere but Zone 6 (Kluane Game Sanctuary) and 4-03 (Ddhaw Ghro).
+  ["Snowshoe hare, ground squirrel, porcupine", "", "no limit", "Apr 1 - Mar 31", "* !6 !4-03"],
+  ["Spruce and ruffed grouse", "", "10 a day, 30 in possession", "Sept 1 - Nov 30", "* !6 !4-03"],
+  ["Dusky (blue) grouse", "", "5 a day, 15 in possession", "Sept 1 - Nov 30", "* !6 !4-03"],
+  ["Sharp-tailed grouse", "", "5 a day, 15 in possession", "Sept 1 - Nov 30", "* !5 !6 !4-03"],
+  ["Sharp-tailed grouse", "", "2 a day, 6 in possession", "Sept 1 - Nov 30", "5"],
+  ["Ptarmigan", "", "10 a day, 30 in possession", "Sept 1 - Mar 15", "* !6 !4-03"],
+  // Zone 1 (North Slope and the Dempster corridor)
+  ["Moose", "", "males, 1", "Aug 1 - Oct 31", YT_1], ["Moose", "", "", "Closed", "1-01"],
+  ["Caribou", "", "males, 2 (area limits apply)", "Aug 1 - Jan 31", YT_1], ["Caribou", "", "", "Closed", "1-01"],
+  ["Wood bison", "", "", "Closed", "1"], ["Muskox", "", "", "Closed", "1"],
+  ["Sheep", YT_LOTTERY, "males, 1", "Aug 1 - Sept 15", "~1-25 1-28"], ["Sheep", "", "", "Closed", "1-01 1-04 1-05 1-12..15 1-17..19 1-21..24 1-26 1-27 1-29..72"],
+  ["Deer", YT_LOTTERY, "males, 1", "Aug 1 - Nov 30", "1-15 1-17..19 1-21..72"], ["Deer", "", "", "Closed", "1-01..14"],
+  ["Elk", YT_PERMIT, "1", "Apr 1 - Mar 31", "1 !1-01"],
+  ["Black bear", "Spring", YT_BLACK, "Apr 15 - June 21", YT_1], ["Black bear", "Fall", YT_BLACK, "Aug 1 - Nov 15", YT_1], ["Black bear", "", "", "Closed", "1-01"],
+  ["Grizzly bear", "Spring", YT_GRIZ, "Apr 15 - June 21", YT_1G], ["Grizzly bear", "Fall", YT_GRIZ, "Aug 1 - Nov 15", YT_1G], ["Grizzly bear", "", "", "Closed", "1-01 1-04 1-05 1-12..14 1-39 1-53 1-54"],
+  ["Wolverine", "", "1", "Aug 1 - Oct 31", YT_1W], ["Wolf", "", "7", "Aug 1 - Mar 31", YT_1W], ["Coyote", "", "no limit", "Aug 1 - Mar 31", YT_1W],
+  ...["Wolverine", "Wolf", "Coyote"].map((sp) => [sp, "", "", "Closed", "1-01 1-04 1-05 1-12..14"]),
+  // Zone 2 (Dawson, Mayo, the Dempster)
+  ["Moose", "", "males, 1", "Aug 1 - Oct 31", "2-01..55 2-57 2-60 2-61 2-64..93"],
+  ["Moose", "Mayo threshold hunt", "males, 1: closes early once enough are taken", "Sept 1 - Oct 31", "2-56 2-58 2-59 2-62 2-63"],
+  ["Caribou", "Woodland caribou", "males, 1", "Aug 1 - Oct 31", "2-45 2-52..59 2-62..65 2-70..93"],
+  ["Caribou", "Hart River herd", "males, 1", "Aug 1 - Oct 31", "2-16 2-23 2-25 2-27..29 2-39..41 2-46..51 2-60 2-61"],
+  ["Caribou", "Porcupine herd", "males, 2", "Aug 1 - Jan 31", "2-01..15 2-17 2-18 2-22 2-26 2-30..38 2-42..44 2-66..69"],
+  ["Caribou", "Porcupine herd", "only if the herd is in the area", "Nov 1 - Jan 31", "2-16 2-23 2-27 2-28 2-39"],
+  ["Caribou", "Fortymile herd (threshold hunt)", "males, 1: closes early once enough are taken", "Dec 1 - Mar 31", "2-19..21 2-24"],
+  ["Wood bison", "", "", "Closed", "2"], ["Sheep", "", "males, 1", "Aug 1 - Oct 31", "2"],
+  ["Deer", YT_LOTTERY, "males, 1", "Aug 1 - Nov 30", "2"], ["Elk", YT_PERMIT, "1", "Apr 1 - Mar 31", "2"],
+  ...ytCommon("2", null).filter((r) => r[0] !== "Grizzly bear"),
+  ["Grizzly bear", "Spring", YT_GRIZ, "Apr 15 - June 21", "2 !2-26 !2-27 !2-28"], ["Grizzly bear", "Fall", YT_GRIZ, "Aug 1 - Nov 15", "2 !2-26 !2-27 !2-28"], ["Grizzly bear", "", "", "Closed", "2-26..28"],
+  // Zone 3 (west of Dawson, the Fortymile)
+  ["Moose", "", "males, 1", "Aug 1 - Oct 31", "3"],
+  ["Caribou", "Fortymile herd, summer (permit)", "males, 1: closes early once enough are taken", "Aug 1 - Sept 9", "3-01 3-04 ~3-02"],
+  ["Caribou", "Fortymile herd, winter", "males, 1: closes early once enough are taken", "Dec 1 - Mar 31", "3-01..04 3-06 ~3-07 ~3-10 ~3-12"],
+  ["Caribou", "", "", "Closed", "3-05 3-08 3-09 3-11 3-13..20"],
+  ["Wood bison", YT_PERMIT, "1", "Sept 1 - Mar 24", "3"], ["Sheep", "", "", "Closed", "3"],
+  ["Deer", YT_LOTTERY, "males, 1", "Aug 1 - Nov 30", "3"], ["Elk", YT_PERMIT, "1", "Apr 1 - Mar 31", "3"],
+  ...ytCommon("3", null),
+  // Zone 4 (Mayo, Faro, Pelly; Ddhaw Ghro 4-03 and 4-51 are closed to big game)
+  ["Moose", "", "males, 1", "Aug 1 - Oct 31", "4-01 4-02 4-07..43 4-47..50 4-52"],
+  ["Moose", "Mayo threshold hunt", "males, 1: closes early once enough are taken", "Sept 1 - Oct 31", "4-04..06"],
+  ["Moose", "Faro threshold hunt", "males, 1: closes early once enough are taken", "Aug 1 - Oct 31", "4-44..46"],
+  ["Caribou", "", "males, 1 (please leave the Ethel Lake herd, 4-01 to 4-04, 4-09, 4-10)", "Aug 1 - Oct 31", YT_4],
+  ["Wood bison", YT_PERMIT, "1", "Sept 1 - Mar 24", YT_4],
+  ["Sheep", "", "males, 1", "Aug 1 - Oct 31", "4-01 4-02 4-04..45 4-48..50"], ["Sheep", "", "", "Closed", "4-46 4-47 4-52"],
+  ["Goat", "", "", "Closed", "4"], ["Deer", YT_LOTTERY, "males, 1", "Aug 1 - Nov 30", YT_4], ["Elk", YT_PERMIT, "1", "Apr 1 - Mar 31", YT_4],
+  ...ytCommon(YT_4, null),
+  ["All hunting", "", "Ddhaw Ghro Habitat Protection Area: closed to all hunting", "Closed", "4-03"], ["All big game", "", "closed to all big game hunting", "Closed", "4-51"],
+  // Zone 5 (Whitehorse north and west, Haines Junction, Kluane east)
+  ["Moose", "", "males, 1", "Aug 1 - Oct 31", "5-01..21 5-25 5-27 5-29 5-43 5-44 5-51"],
+  ["Moose", YT_LOTTERY, "males, 1", "Aug 1 - Oct 31", "5-28 5-30..42 5-45..50"], ["Moose", "", "", "Closed", "5-22..24 5-26"],
+  ["Caribou", "Nelchina herd", "males, 1: until closed by public notice", "Dec 1 - Mar 31", "5-04 5-05 ~5-06"],
+  ["Caribou", YT_LOTTERY, "males, 1", "Aug 1 - Oct 31", "5-11 5-13 5-22..27 5-29..48"],
+  ["Caribou", "", "", "Closed", "5-01..03 ~5-06 5-07..10 5-12 5-14..21 5-28 5-49..51"],
+  ["Wood bison", YT_PERMIT, "1", "Sept 1 - Mar 24", "5-01 5-04..07"],
+  ["Wood bison", "Fall corridors (permit)", "along the Alaska Hwy (Whitehorse to Slims River) and North Klondike Hwy (Whitehorse to Braeburn)", "Sept 1 - Oct 31", "~5-02 ~5-03 ~5-08..51"],
+  ["Wood bison", YT_PERMIT, "1", "Nov 1 - Mar 24", "5-02 5-03 5-08..51"],
+  ["Sheep", "", "males, 1", "Aug 1 - Oct 31", "5-01..16 5-18..49 5-51"], ["Sheep", YT_LOTTERY, "males, 1", "Aug 1 - Oct 31", "5-50"],
+  ["Sheep", "", "Donjek sheep closure until Oct 31, 2026", "Closed", "5-17"], ["Sheep", "", "between Slims River Bridge and Congdon Creek", "Closed", "~5-21"],
+  ["Goat", "", "", "Closed", "5"], ["Deer", YT_LOTTERY, "males, 1", "Aug 1 - Nov 30", "5"],
+  ["Elk", YT_PERMIT, "1", "Apr 1 - Mar 31", "5-01..43 ~5-44 ~5-45 5-46 5-51"], ["Elk", YT_LOTTERY, "1: dates on the permit", "See permit", "~5-44 ~5-45 5-47 5-48 5-50"],
+  ...ytCommon("5", null),
+  // Zone 6: Kluane Game Sanctuary, closed to licensed hunters.
+  ["All hunting", "", "Kluane Game Sanctuary: closed to licensed hunters", "Closed", "6"],
+  // Zone 7 (Whitehorse south, Carcross, the Southern Lakes)
+  ["Moose", YT_LOTTERY, "males, 1", "Aug 1 - Oct 31", "7"], ["Caribou", "", "", "Closed", "7"], ["Wood bison", YT_PERMIT, "1", "Sept 1 - Mar 24", "7"],
+  ["Sheep", "", "males, 1", "Aug 1 - Oct 31", "7-01..12 7-28 7-29 7-33"], ["Sheep", YT_LOTTERY, "males, 1", "Aug 1 - Oct 31", "7-13 7-14 7-16 7-17 7-20..27 7-30..32"],
+  ["Sheep", "", "", "Closed", "7-15 7-18 7-19 7-34..36"],
+  ["Goat", YT_LOTTERY, "1", "Aug 1 - Oct 31", "7-34 7-35"], ["Goat", "", "", "Closed", "7-01..33 7-36"],
+  ["Deer", YT_LOTTERY, "males, 1", "Aug 1 - Nov 30", "7"],
+  ["Elk", YT_PERMIT, "1", "Apr 1 - Mar 31", "7-01 ~7-02 ~7-03 ~7-04 7-06..12 7-16 7-17 7-19..36"], ["Elk", YT_LOTTERY, "1: dates on the permit", "See permit", "~7-04 ~7-05 ~7-13 ~7-14 ~7-15 ~7-18"],
+  ...ytCommon("7", null),
+  // Zone 8 (Teslin River, Big Salmon Range, Johnsons Crossing)
+  ["Moose", "", "males, 1", "Aug 1 - Oct 31", "8-01..18 8-21 8-23..27"], ["Moose", YT_LOTTERY, "males, 1", "Aug 1 - Oct 31", "8-19 8-20 8-22"],
+  ["Caribou", "", "males, 1", "Aug 1 - Oct 31", "8-01..11 8-18..25"], ["Caribou", "", "", "Closed", "8-12..17 8-26 8-27"],
+  ["Wood bison", YT_PERMIT, "1", "Sept 1 - Mar 24", "8"], ["Sheep", "", "males, 1", "Aug 1 - Oct 31", "8"], ["Goat", "", "", "Closed", "8"],
+  ["Deer", YT_LOTTERY, "males, 1", "Aug 1 - Nov 30", "8"],
+  ["Elk", YT_PERMIT, "1", "Apr 1 - Mar 31", "~8-01 8-02 8-03 ~8-04 8-05..27"], ["Elk", YT_LOTTERY, "1: dates on the permit", "See permit", "~8-01 ~8-04"],
+  ...ytCommon("8", null),
+  // Zone 9 (Mount Lorne, Carcross west, Annie Lake)
+  ["Moose", YT_LOTTERY, "males, 1", "Aug 1 - Oct 31", "9-01..07"], ["Moose", "", "males, 1", "Aug 1 - Oct 31", "9-08..11"],
+  ["Caribou", "", "", "Closed", "9"], ["Wood bison", YT_PERMIT, "1", "Sept 1 - Mar 24", "9"],
+  ["Sheep", "Bow only, permit by lottery (PHA)", "males, 1", "Aug 1 - Oct 31", "9-03"], ["Sheep", "", "", "Closed", "9 !9-03"],
+  ["Goat", "", "", "Closed", "9"], ["Deer", YT_LOTTERY, "males, 1", "Aug 1 - Nov 30", "9"], ["Elk", YT_PERMIT, "1", "Apr 1 - Mar 31", "9"],
+  ...ytCommon("9", null),
+  // Zone 10 (Teslin, Nisutlin)
+  ["Moose", "", "males, 1", "Aug 1 - Oct 31", "10-04..32"], ["Moose", YT_LOTTERY, "males, 1", "Aug 1 - Oct 31", "10-01..03"],
+  ["Caribou", "", "males, 1", "Aug 1 - Oct 31", "10-01..04 10-10..16 10-20..32"], ["Caribou", "", "lottery only, no permits this year", "Closed", "10-05..09 10-17..19"],
+  ["Wood bison", "", "", "Closed", "10"], ["Sheep", "", "males, 1", "Aug 1 - Oct 31", "10 !10-22 !10-28"], ["Sheep", "", "", "Closed", "10-22 10-28"],
+  ["Goat", "", "", "Closed", "10"], ["Deer", YT_LOTTERY, "males, 1", "Aug 1 - Nov 30", "10"], ["Elk", "", "", "Closed", "10"],
+  ...ytCommon("10", null),
+  // Zone 11 (Watson Lake, the Liard)
+  ["Moose", "", "males, 1", "Aug 1 - Oct 31", "11"],
+  ["Caribou", "", "males, 1", "Aug 1 - Oct 31", "11-01 11-19 11-24..46"], ["Caribou", "", "lottery only, no permits this year", "Closed", "11-02..18 11-20..23"],
+  ["Wood bison", "", "", "Closed", "11"], ["Sheep", "", "males, 1", "Aug 1 - Oct 31", "11"],
+  ["Goat", "", "1", "Aug 1 - Oct 31", "11-04..24 11-26..46"], ["Goat", "", "", "Closed", "11-01..03 11-25"],
+  ["Deer", YT_LOTTERY, "males, 1", "Aug 1 - Nov 30", "11"], ["Elk", "", "", "Closed", "11"],
+  ...ytCommon("11", null),
+] };
+// "4-01 4-04..50 ~5-44 !6": the subzone ids ("4-01") a row is for, and which of them only in part.
+function ytZones(spec) {
+  const id = (z, n) => `${z}-${String(n).padStart(2, "0")}`, all = new Map(), out = [];
+  const each = (t, f) => {
+    if (t === "*") { for (const z of Object.keys(YT_MAX)) for (let n = 1; n <= YT_MAX[z]; n++) f(id(z, n)); return; }
+    const m = t.match(/^(\d+)(?:-(\d+)(?:\.\.(?:\d+-)?(\d+))?)?$/);
+    if (!m || !YT_MAX[m[1]]) throw new Error(`Yukon season subzones: can't read "${t}"`);
+    const [a, b] = m[2] ? [+m[2], m[3] ? +m[3] : +m[2]] : [1, YT_MAX[m[1]]];
+    for (let n = a; n <= b; n++) f(id(m[1], n));
+  };
+  for (const t of spec.split(/\s+/).filter(Boolean)) {
+    if (t[0] === "!") each(t.slice(1), (k) => all.delete(k));
+    else each(t.replace(/^~/, ""), (k) => all.set(k, t[0] === "~" ? 1 : all.get(k) || 0));
+  }
+  for (const [k, part] of all) out.push([k, part]);
+  return out;
+}
+// Most subzones share most rows, so the file lists each row once (rows) and each subzone its row numbers (wmu), a
+// negative number for a row that applies to part of the subzone only. hunting.js turns them back into rows.
+function ytSeasons(log) {
+  const wmu = {}, rows = [], at = new Map();
+  for (const r of YT_SEASONS.rows) {
+    const key = JSON.stringify(r.slice(0, 4));
+    if (!at.has(key)) at.set(key, rows.push(r.slice(0, 4)) - 1);
+    const i = at.get(key);
+    for (const [k, part] of ytZones(r[4])) (wmu[k] = wmu[k] || []).push(part ? -i - 1 : i);
+  }
+  log(`  Yukon seasons: ${Object.keys(wmu).length} subzones`);
+  return { src: YT_SEASONS.src, url: YT_SEASONS.url, year: YT_SEASONS.year, rows, wmu };
+}
 function range(a, b) { return Array.from({ length: b - a + 1 }, (_, i) => a + i); }
 function handSeasons(h, last, first = 1) {
   const wmu = {};
