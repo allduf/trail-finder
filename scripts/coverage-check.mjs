@@ -61,7 +61,7 @@ const LOCAL_PHOTOS = {
 };
 // Banff National Park's own 15 cm photo (index.html banffTile), read from this one file: its box, roughly.
 const BANFF = { box: [50.7, -116.6, 52.25, -114.95], tif: "https://aerial-imagery-canada.s3.ca-central-1.amazonaws.com/national-parks/banff-national-park/Banff-national-park-2025-15cm-RGBN-mosaic.tif" };
-const HUNT_SEASONS = new Set(["bc", "ab", "qc", "on", "mb", "nb", "ns", "nl"]);
+const HUNT_SEASONS = new Set(["bc", "ab", "qc", "on", "mb", "nb", "ns", "nl", "yt"]);
 const FISH_RULES = new Set(["bc", "ab", "qc", "on", "nb", "ns", "nl"]);
 
 // ---------- helpers ----------
@@ -328,6 +328,8 @@ const CHECKS = [
     if (z && FISH_RULES.has(s.pv)) return ok(1, `zone ${z.id} ${z.n || ""}`.trim());
     const np = ((j && j.zones) || []).find((x) => x.k === "np" && inShape(s, x));
     if (np) return ok(1, `${np.n}: national park rules`);
+    // Yukon has no fishing zones: territory-wide General Waters limits plus listed special waters (fishing.js YT_GEN, PR #518).
+    if (s.pv === "yt") return ok(1, "Yukon General Waters limits + special waters");
     if (FISH_RULES.has(s.pv)) return none("no fishing zone here (the province has zones)");
     return less(0, "province rules link only, no zone rules");
   }],
