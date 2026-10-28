@@ -6,8 +6,10 @@
 //
 // Backcountry only, across Canada (alex, 2026-10-26: "i dont care of the heat map in the resorts. i want all the
 // data in the backcountry"). The squares done are the ones with a ski touring or off-piste route, an alpine hut
-// (data/ski.json, data/ski-canada/) or a backcountry area around them (data/ski-areas.json); ski areas
-// (landuse=winter_sports), their runs and lifts are left out.
+// (data/ski.json, data/ski-canada/) or a backcountry area around them (data/ski-areas.json); resort runs and
+// lifts are left out, but not the slackcountry lines (data/slackcountry.json) or freeride runs.
+// Ski area outlines (landuse=winter_sports) are NOT used: they are too rough (Whistler Blackcomb's takes in the
+// Spearhead and the slackcountry beyond the gates; alex 2026-10-28: "a lot of missing data" there).
 //
 // Why only OpenStreetMap's GPS traces: Strava's and Trailforks' heatmaps don't allow copying or deriving data
 // from them. OpenStreetMap's public traces can be used (ODbL, "© OpenStreetMap contributors").
@@ -16,8 +18,8 @@
 //   1. Download the square's public GPS traces (newest uploads first) from the OpenStreetMap API.
 //   2. Keep the points recorded from December to April, and in November and May the ones above the snow line
 //      (1400 m, from the Terrarium elevation tiles), cut where the recording jumps or pauses.
-//   3. Leave out roads, railways, ferries, lifts and ski areas (Overpass), so driving to the trailhead and the
-//      resort runs don't show up, and anything faster than 90 km/h (a plane, a GPS glitch).
+//   3. Leave out roads, railways, ferries, lifts and resort runs (Overpass), so driving to the trailhead and the
+//      groomers don't show up, and anything faster than 90 km/h (a plane, a GPS glitch).
 //   4. Count, per cell, the different traces that pass through it.
 //
 // Squares are done in rotation within a page and time budget, never-done and oldest first (the ones with the most
@@ -44,9 +46,12 @@ const [, TILE_LAT, TILE_LON] = grab(/const TILE_LAT = ([\d.]+), TILE_LON = ([\d.
 
 // ---------- settings ----------
 const CELL_LAT = 0.0003, CELL_LON = 0.00045;   // ~33 m x 32 m at 50° N; the site reads these from the file
-const ROAD_BUFFER = 25;      // m around roads, railways, ferries and lifts
-const MAX_JUMP = 250;        // m between two GPS points: further apart is a gap in the recording
-const MAX_GAP_S = 90;        // s between two GPS points: longer is a gap in the recording
+const ROAD_BUFFER = 25;      // m around roads, railways, ferries, lifts and runs
+const SLACK_KEEP = 40;       // m around slackcountry lines kept even when on a run or road
+// Watches and phone apps save fewer points while skinning slowly ("smart recording"), so gaps of a few minutes
+// and a few hundred metres are kept and drawn straight; the speed check below still applies.
+const MAX_JUMP = 600;        // m between two GPS points: further apart is a gap in the recording
+const MAX_GAP_S = 300;       // s between two GPS points: longer is a gap in the recording
 const MAX_KMH = 90;          // faster than this is a plane, a car on an unmapped road, or a GPS glitch
 // December to April anywhere; November and May only above the snow line (most touring there is in the alpine).
 const SNOW_LINE = 1400;      // m
@@ -157,7 +162,7 @@ async function heightsFor([s, w, n, e]) {
   };
 }
 
-// ---------- 2. roads, railways, ferries, lifts and ski areas ----------
+// ---------- 2. roads, railways, ferries, lifts and runs ----------
 const ROADS = "motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|living_street|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link";
 async function overpass(query) {
   let lastErr;
@@ -174,58 +179,27 @@ async function overpass(query) {
   }
   throw lastErr;
 }
-// Testing only (Overpass can't be reached from everywhere): the OSM API "map" call, for a small box. Ski area
-// relations are left out.
+// Testing only (Overpass can't be reached from everywhere): the OSM API "map" call, for a small box.
 async function mapCall([s, w, n, e]) {
   const xml = await (await get(`${OSM_API}/map?bbox=${w},${s},${e},${n}`)).text();
   const nodes = new Map([...xml.matchAll(/<node id="(\d+)"[^>]*lat="([-\d.]+)" lon="([-\d.]+)"/g)].map((m) => [m[1], [+m[2], +m[3]]]));
-  const re = new RegExp(`k="highway" v="(${ROADS})"|k="railway" v="rail"|k="route" v="ferry"|k="aerialway"|k="piste:type" v="downhill"`);
+  const re = new RegExp(`k="highway" v="(${ROADS})"|k="railway" v="rail"|k="route" v="ferry"|k="aerialway"|k="piste:type" v="downhill"`), freeride = /k="piste:difficulty" v="(freeride|extreme)"/;
   const ways = [...xml.matchAll(/<way [^>]*>([\s\S]*?)<\/way>/g)], line = (m) => [...m[1].matchAll(/<nd ref="(\d+)"/g)].map((x) => nodes.get(x[1])).filter(Boolean);
-  return { lines: ways.filter((m) => re.test(m[1])).map(line), areas: ways.filter((m) => /k="landuse" v="winter_sports"/.test(m[1])).map(line) };
+  return ways.filter((m) => re.test(m[1]) && !freeride.test(m[1])).map(line);
 }
-// Lines to leave out (roads, railways, ferries, lifts, downhill runs) and ski area outlines.
+// Lines to leave out: roads, railways, ferries, lifts and downhill runs (not freeride ones).
 async function roadLines([s, w, n, e]) {
   if (process.env.MAPPED_FROM === "api") {   // in 8 x 8 pieces, under the API's node limit
-    const out = { lines: [], areas: [] }, K = 8;
+    const out = [], K = 8;
     for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) {
       const ss = s + ((n - s) * i) / K, ww = w + ((e - w) * j) / K;
-      const x = await mapCall([ss, ww, ss + (n - s) / K, ww + (e - w) / K]);
-      out.lines.push(...x.lines); out.areas.push(...x.areas);
+      out.push(...(await mapCall([ss, ww, ss + (n - s) / K, ww + (e - w) / K])));
     }
     return out;
   }
   const b = `${s},${w},${n},${e}`;
-  const els = await overpass(`[out:json][timeout:200];(way[highway~"^(${ROADS})$"](${b});way[railway=rail](${b});way[route=ferry](${b});way[aerialway](${b});way["piste:type"=downhill](${b}););out tags geom;(way[landuse=winter_sports](${b});relation[landuse=winter_sports](${b}););out tags geom;`);
-  const pts = (g) => g.filter(Boolean).map((p) => [p.lat, p.lon]);
-  const lines = [], areas = [];
-  for (const x of els) {
-    if (x.tags?.landuse === "winter_sports") {
-      if (x.geometry) areas.push(pts(x.geometry));
-      else areas.push(...joinRings((x.members || []).filter((m) => m.role !== "inner" && m.geometry).map((m) => pts(m.geometry))));
-    } else if (x.geometry) lines.push(pts(x.geometry));
-  }
-  return { lines, areas };
-}
-
-// A multipolygon's outer ways joined end to end into rings.
-function joinRings(pieces) {
-  const same = (a, b) => a[0] === b[0] && a[1] === b[1], rings = [];
-  let left = pieces.filter((p) => p.length > 1);
-  while (left.length) {
-    let ring = left.shift();
-    for (let grew = true; grew && !same(ring[0], ring[ring.length - 1]);) {
-      grew = false;
-      for (let i = 0; i < left.length; i++) {
-        const p = left[i], end = ring[ring.length - 1];
-        if (same(end, p[0])) ring = ring.concat(p.slice(1));
-        else if (same(end, p[p.length - 1])) ring = ring.concat(p.slice(0, -1).reverse());
-        else continue;
-        left.splice(i, 1); grew = true; break;
-      }
-    }
-    rings.push(ring);
-  }
-  return rings;
+  const els = await overpass(`[out:json][timeout:200];(way[highway~"^(${ROADS})$"](${b});way[railway=rail](${b});way[route=ferry](${b});way[aerialway](${b});way["piste:type"=downhill]["piste:difficulty"!~"^(freeride|extreme)$"](${b}););out tags geom;`);
+  return els.filter((x) => x.geometry).map((x) => x.geometry.filter(Boolean).map((p) => [p.lat, p.lon]));
 }
 
 // Is this trace piece worth fetching heights and roads for: any point in the square in the season?
@@ -241,7 +215,7 @@ const anyInSeason = ([s, w, n, e], traces) => {
 };
 
 // ---------- 3 and 4. count traces per cell ----------
-function heatSquare([s, w, n, e], traces, { lines: roads, areas }, heightAt) {
+function heatSquare([s, w, n, e], traces, roads, keep, heightAt) {
   const rows = Math.round((n - s) / CELL_LAT), cols = Math.round((e - w) / CELL_LON);
   const my = 110540, mx = 111320 * Math.cos(((s + n) / 2) * Math.PI / 180);
   const cellOf = (lat, lon) => { const r = Math.floor((lat - s) / CELL_LAT), c = Math.floor((lon - w) / CELL_LON); return r < 0 || c < 0 || r >= rows || c >= cols ? -1 : r * cols + c; };
@@ -264,21 +238,15 @@ function heatSquare([s, w, n, e], traces, { lines: roads, areas }, heightAt) {
       if (r >= 0 && c >= 0 && r < fr && c < fc) road[r * fc + c] = 1;
     }
   });
-  // Ski areas filled in, row by row (even-odd rule).
-  for (const ring of areas) {
-    if (ring.length < 3) continue;
-    const P = ring.map(([lat, lon]) => [(lat - s) * my / F, (lon - w) * mx / F]);
-    for (let r = Math.max(0, Math.floor(Math.min(...P.map((p) => p[0])))); r < Math.min(fr, Math.ceil(Math.max(...P.map((p) => p[0])))); r++) {
-      const y = r + 0.5, xs = [];
-      for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
-        const [y0, x0] = P[j], [y1, x1] = P[i];
-        if ((y0 <= y) !== (y1 <= y)) xs.push(x0 + ((y - y0) / (y1 - y0)) * (x1 - x0));
-      }
-      xs.sort((a, b) => a - b);
-      for (let k = 0; k + 1 < xs.length; k += 2)
-        for (let c = Math.max(0, Math.ceil(xs[k] - 0.5)); c < Math.min(fc, Math.floor(xs[k + 1] - 0.5) + 1); c++) road[r * fc + c] = 1;
+  // Slackcountry lines are never left out, even where they start on a run or cross a cat track.
+  const K = Math.ceil(SLACK_KEEP / F);
+  for (const l of keep) walk(l, F / 2, (lat, lon) => {
+    const r0 = Math.floor((lat - s) * my / F), c0 = Math.floor((lon - w) * mx / F);
+    for (let dr = -K; dr <= K; dr++) for (let dc = -K; dc <= K; dc++) {
+      const r = r0 + dr, c = c0 + dc;
+      if (dr * dr + dc * dc <= K * K && r >= 0 && c >= 0 && r < fr && c < fc) road[r * fc + c] = 0;
     }
-  }
+  });
   const onRoad = (lat, lon) => { const r = Math.floor((lat - s) * my / F), c = Math.floor((lon - w) * mx / F); return r >= 0 && c >= 0 && r < fr && c < fc && road[r * fc + c] === 1; };
 
   const count = new Uint16Array(rows * cols), stamp = new Int32Array(rows * cols).fill(-1);
@@ -347,14 +315,20 @@ function backcountrySquares() {
   return out;
 }
 
+// Slackcountry lines (ways down, up and out) touching a square.
+const SLACK = (readJson("slackcountry.json")?.resorts || []).flatMap((r) => r.lines || []).flatMap((l) => ["ski", "up", "out"].map((k) => l.g?.[k]).filter((g) => g && g.length > 3))
+  .map((g) => { const pts = []; for (let i = 0; i < g.length; i += 2) pts.push([g[i], g[i + 1]]); return pts; });
+const slackIn = ([s, w, n, e]) => SLACK.filter((l) => l.some(([lat, lon]) => lat > s - 0.01 && lat < n + 0.01 && lon > w - 0.01 && lon < e + 0.01));
+
 // ---------- run ----------
 if (!existsSync(DATA)) mkdirSync(DATA);
 const builtAt = new Date().toISOString().slice(0, 19) + "Z";
 const before = readJson("ski-heat.json");
 const allSquares = backcountrySquares();
 if (!allSquares.size) throw new Error("No ski touring data found (data/ski.json, data/ski-canada/): run scripts/site-data.sh get first");
-// Squares made before resorts were left out count as never done, so they are redone first.
-const doneAt = (key) => (before?.resorts && before.tiles?.[key] ? Date.parse(before.tiles[key].at) : 0);
+// Squares made with an older way of leaving resorts out count as never done, so they are redone first.
+const RESORTS = "runs and lifts left out, slackcountry kept";
+const doneAt = (key) => (before?.resorts === RESORTS && before.tiles?.[key] ? Date.parse(before.tiles[key].at) : 0);
 let order = [...allSquares.values()].sort((a, b) => doneAt(a.key) - doneAt(b.key) || b.weight - a.weight);
 if (process.env.SQUARES) { const want = process.env.SQUARES.split(";"); order = want.map((k) => allSquares.get(k) || (([s, w]) => ({ key: k, box: [s, w, s + TILE_LAT, w + TILE_LON] }))(k.split(",").map(Number))); }
 const TEST_BOX = process.env.TEST_BOX && process.env.TEST_BOX.split(",").map(Number);
@@ -364,7 +338,7 @@ log(`Ski heatmap: ${allSquares.size} backcountry squares across Canada, ${order.
 const results = new Map();
 const file = TEST_BOX ? process.env.TEST_OUT || "ski-heat-test.json" : new URL("ski-heat.json", DATA);
 function save() {
-  const out = { v: 1, builtAt, cell: [CELL_LAT, CELL_LON], months: "Dec-Apr, Nov and May above 1400 m", resorts: "left out", tiles: {} };
+  const out = { v: 1, builtAt, cell: [CELL_LAT, CELL_LON], months: "Dec-Apr, Nov and May above 1400 m", resorts: RESORTS, tiles: {} };
   if (TEST_BOX) out.tiles.test = results.get("test") || null;
   else for (const key of new Set([...allSquares.keys(), ...results.keys()])) {
     const r = results.get(key) || before?.tiles?.[key];
@@ -381,10 +355,10 @@ for (const sq of order) {
     const tr = await fetchTraces(sq.box);
     const kind = anyInSeason(sq.box, tr.traces);
     const heightAt = kind ? await heightsFor(sq.box) : null;
-    const mask = kind ? await roadLines(sq.box) : { lines: [], areas: [] };
-    const h = kind ? heatSquare(sq.box, tr.traces, mask, heightAt) : { c: [], traces: 0 };
+    const roads = kind ? await roadLines(sq.box) : [];
+    const h = kind ? heatSquare(sq.box, tr.traces, roads, slackIn(sq.box), heightAt) : { c: [], traces: 0 };
     results.set(sq.key, { at: builtAt, box: sq.box, n: h.traces, c: h.c });
-    log(`  ${sq.key}: ${tr.pages} pages, ${tr.traces.length} traces, ${h.traces} in the season, ${mask.lines.length} roads/lifts/runs, ${mask.areas.length} ski areas, ${h.c.length / 3} cells. ${Math.round((Date.now() - t0) / 1000)} s`);
+    log(`  ${sq.key}: ${tr.pages} pages, ${tr.traces.length} traces, ${h.traces} in the season, ${roads.length} roads/lifts/runs, ${h.c.length / 3} cells. ${Math.round((Date.now() - t0) / 1000)} s`);
     save();
   } catch (e) { log(`  ${sq.key}: failed (${e.message}), keeping last good data`); }
 }
