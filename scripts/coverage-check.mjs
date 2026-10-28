@@ -267,8 +267,13 @@ const CHECKS = [
     let n = 0;
     const ski = await data("data/ski.json");
     if (ski && ski.regions.some((b) => inBox(s, b))) n += ski.routes.filter((r) => r.type === "tour" && r.g.some((g) => anyNear(s, g, 30))).length;
-    const j = await data(`data/ski-canada/${Math.floor(s.lat / 3) * 3}_${Math.floor(s.lon / 6) * 6}.json`);
-    n += ((j && j.routes) || []).filter((r) => r.type === "tour" && r.g.some((g) => anyNear(s, g, 30))).length;
+    // The Canada files are 3 x 6 degree boxes: a spot near an edge (Chic-Chocs at -66) has its tours in the next one.
+    const keys = new Set();
+    for (const dl of [-0.3, 0, 0.3]) for (const dn of [-0.5, 0, 0.5]) keys.add(`${Math.floor((s.lat + dl) / 3) * 3}_${Math.floor((s.lon + dn) / 6) * 6}`);
+    for (const k of keys) {
+      const j = await data(`data/ski-canada/${k}.json`);
+      n += ((j && j.routes) || []).filter((r) => r.type === "tour" && r.g.some((g) => anyNear(s, g, 30))).length;
+    }
     return n ? ok(n, `${n} tour lines within 30 km`) : none("no ski tours");
   }],
   ["lifts", "Lift status", "Skiing", async (s) => {

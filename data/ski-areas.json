@@ -1247,6 +1247,18 @@
    ]
   },
   {
+   "id": "fish-lake",
+   "name": "Fish Lake (Whitehorse)",
+   "prov": "YT",
+   "region": "Yukon",
+   "lat": 60.6011,
+   "lon": -135.235,
+   "about": "The closest touring to Whitehorse: short runs on the open slopes and trees above Fish Lake, about 15 km from town. The snowpack is often thin with weak sugary snow near the ground, so riders keep to mellow slopes.",
+   "access": "Fish Lake Road from the Alaska Highway, west of Whitehorse.",
+   "rules": "No public avalanche forecast here; Avalanche Canada's Yukon forecast covers White Pass and Wheaton, to the south.",
+   "forecast": "none"
+  },
+  {
    "id": "wheaton",
    "name": "Wheaton Valley and Mount Skukum",
    "prov": "YT",
@@ -3104,6 +3116,25 @@
     {
      "t": "Parks Canada: Cape Breton Highlands National Park",
      "u": "https://parks.canada.ca/pn-np/ns/cbreton"
+    }
+   ]
+  },
+  {
+   "id": "tablelands",
+   "name": "Tablelands (Gros Morne)",
+   "prov": "NL",
+   "region": "Newfoundland",
+   "lat": 49.4377,
+   "lon": -57.9864,
+   "about": "A bare, flat-topped plateau of orange rock above Bonne Bay in Gros Morne National Park, with bowls and gullies off its edges: the best-known backcountry skiing in Newfoundland, about an hour north of Marble Mountain.",
+   "access": "Route 431 from Wiltondale toward Trout River; park at the Tablelands trailhead.",
+   "rules": "Gros Morne National Park: a park pass is needed. Avalanche terrain on the plateau's edges.",
+   "forecast": "ac",
+   "sub": "Corner Brook-Gros Morne-Northern Peninsula",
+   "links": [
+    {
+     "t": "Parks Canada: Gros Morne National Park",
+     "u": "https://parks.canada.ca/pn-np/nl/grosmorne"
     }
    ]
   },

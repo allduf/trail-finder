@@ -17,12 +17,16 @@
 #    (scanned depth charts for about 11,000 lakes).
 #  - New Brunswick: Lake Depth Bathymetry Points (DNRED open data), drawn as soundings.
 #  - Saskatchewan: the Fisheries Branch bathymetric map index (945 scanned maps).
+#  - Alberta: Alberta Geological Survey lake bathymetry (DIG_2008 series, about 169 lakes, Open Government Licence -
+#    Alberta): contour shapefiles in 10TM, found through Alberta's open data catalogue and each item's metadata.
+#  - Nova Scotia: the Department of Fisheries' lake inventory maps (about 1,100 PDF depth maps), placed with the
+#    Canadian Geographical Names Database (the lake's name in its county).
 # Manitoba draws live from the province's own vector tiles (in fishing.js), nothing to build.
 # Needs: pip install pyproj shapely ijson. Monthly (with the full fishing run) and when this script changes.
-import collections, csv, io, json, math, os, re, shutil, sys, tempfile, time, urllib.parse, urllib.request, zipfile
+import collections, csv, io, json, math, os, re, shutil, struct, sys, tempfile, time, urllib.parse, urllib.request, zipfile
 
 import ijson
-from pyproj import Transformer
+from pyproj import CRS, Transformer
 from shapely.geometry import LineString
 
 OUT = "data/fishing/depth"
@@ -32,6 +36,11 @@ ON_HIST = "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Hi
 NB_PTS = "https://gis-erd-der.gnb.ca/server/rest/services/OpenData/Lake_Depth_Bathymetry_Points/MapServer/0/query"
 SK_IDX = "https://gis.saskatchewan.ca/arcgis/rest/services/Bathymetric/MapServer/0/query"
 SK_MAPS = "https://gisappl.saskatchewan.ca/BathyMaps/"
+AB_CAT = "https://open.alberta.ca/api/3/action/package_search"
+AB_ZIP = "https://static.ags.aer.ca/files/document/DIG/"
+NS_PAGE = "https://novascotia.ca/fish/sportfishing/our-lakes/lake-inventory/"
+NS_MAPS = "https://novascotia.ca/fish/documents/lake-inventory-maps/"
+GEONAMES = "https://geogratis.gc.ca/services/geoname/en/geonames.json"
 TOL = float(os.environ.get("DEPTH_TOL", 6))   # metres: lines are simplified this much (still smooth at zoom 16; 3 m doubles the size)
 
 tmp = tempfile.mkdtemp(prefix="depth-")
@@ -244,7 +253,128 @@ def saskatchewan():
         count["sk lakes"] += 1
 
 
-for step in (quebec, ontario, new_brunswick, saskatchewan):
+# ---------- Alberta ----------
+def shp_lines(shp):
+    """Polylines (types 3 and 13) of a shapefile, as lists of parts of (x, y)."""
+    b, out, i = open(shp, "rb").read(), [], 100
+    while i + 8 <= len(b):
+        n = struct.unpack(">i", b[i + 4:i + 8])[0] * 2
+        rec = b[i + 8:i + 8 + n]
+        i += 8 + n
+        if len(rec) < 44 or struct.unpack("<i", rec[:4])[0] not in (3, 13, 23):
+            out.append([])
+            continue
+        np_, npt = struct.unpack("<ii", rec[36:44])
+        starts = list(struct.unpack(f"<{np_}i", rec[44:44 + 4 * np_])) + [npt]
+        pts = struct.unpack(f"<{2 * npt}d", rec[44 + 4 * np_:44 + 4 * np_ + 16 * npt])
+        out.append([[(pts[2 * k], pts[2 * k + 1]) for k in range(starts[j], starts[j + 1])] for j in range(np_)])
+    return out
+
+
+def dbf_rows(dbf):
+    b = open(dbf, "rb").read()
+    n, hl, rl = struct.unpack("<IHH", b[4:12])
+    fields, i = [], 32
+    while b[i] != 0x0D:
+        fields.append((b[i:i + 11].split(b"\0")[0].decode(), b[i + 16]))
+        i += 32
+    rows = []
+    for r in range(n):
+        rec, o, row = b[hl + r * rl + 1:hl + (r + 1) * rl], 0, {}
+        for name, ln in fields:
+            row[name] = rec[o:o + ln].decode("latin-1").strip()
+            o += ln
+        rows.append(row)
+    return rows
+
+
+def alberta():
+    items, start = [], 0
+    while True:
+        q = urllib.parse.urlencode({"q": '"Bathymetry (GIS data, line features)"', "rows": 200, "start": start})
+        r = json.loads(get(f"{AB_CAT}?{q}"))["result"]
+        items += [p for p in r["results"] if p["title"].endswith("Bathymetry (GIS data, line features)")]
+        start += 200
+        if start >= r["count"]:
+            break
+    print(f"Alberta: {len(items)} lakes")
+    for p in items:
+        try:
+            meta = next((x["url"] for x in p.get("resources", []) if x.get("format") == "XML"), None)
+            dig = meta and re.search(r"DIG_\d{4}_\d{4}", get(meta).decode("utf-8", "replace"))
+            if not dig:
+                continue
+            z = zipfile.ZipFile(get(f"{AB_ZIP}{dig.group(0)}.zip", f"{tmp}/{dig.group(0)}.zip"))
+            shp = next(n for n in z.namelist() if n.lower().endswith(".shp"))
+            z.extractall(f"{tmp}/{dig.group(0)}")
+            base = f"{tmp}/{dig.group(0)}/{shp[:-4]}"
+            prj = open(base + ".prj").read() if os.path.exists(base + ".prj") else ""
+            tr = Transformer.from_crs(CRS.from_wkt(prj) if prj else CRS.from_proj4("+proj=tmerc +lat_0=0 +lon_0=-115 +k=0.9992 +x_0=500000 +y_0=0 +datum=NAD83"), 4326, always_xy=True)
+            rows, deep, pts = dbf_rows(base + ".dbf"), 0, []
+            for row, parts in zip(rows, shp_lines(base + ".shp")):
+                d = row.get("CALC_DEP_M")
+                if not d or not parts:
+                    continue
+                d = depth_num(d)
+                deep = max(deep, d)
+                for c in parts:
+                    if len(c) < 2:
+                        continue
+                    ls = LineString(c).simplify(TOL)
+                    xs, ys = zip(*ls.coords)
+                    lon, lat = tr.transform(xs, ys)
+                    pts += zip(lon, lat)
+                    add_line(d, list(zip(lon, lat)))
+                    count["ab lines"] += 1
+            b = bbox_lake(pts)
+            if b:
+                lakes.append([*b, p["title"].split(",")[0].strip(), deep or None, [], "ab"])
+                count["ab lakes"] += 1
+        except Exception as e:
+            print(f"  {p['title'][:60]}: {e}", file=sys.stderr)
+
+
+# ---------- Nova Scotia ----------
+NS_COUNTY = {"1": {"CB": "Cape Breton", "IN": "Inverness", "R": "Richmond", "V": "Victoria"}, "2": {"A": "Antigonish", "G": "Guysborough", "P": "Pictou"},
+             "3": {"H": "Halifax", "L": "Lunenburg"}, "4": {"D": "Digby", "Q": "Queens", "S": "Shelburne", "Y": "Yarmouth"},
+             "5": {"A": "Annapolis", "H": "Hants", "K": "Kings"}, "6": {"Co": "Colchester", "Cu": "Cumberland"}}
+
+
+def nova_scotia():
+    html = get(NS_PAGE).decode("utf-8", "replace")
+    files = sorted(set(re.findall(r'href="/fish/documents/lake-inventory-maps/([^"]+\.pdf)"', html)))
+    print(f"Nova Scotia: {len(files)} lake maps")
+    found = {}
+    # "kearney", "Lake-Ainslie", "Kearney-Lake": compared without the lake words, so all three are Kearney / Ainslie.
+    core = lambda n: re.sub(r"lakes?|ponds?|lac|[^a-z]", "", n.lower())
+    for f in files:
+        m = re.match(r"^(\d)-([A-Za-z]{1,2})-(.+?)(?:-\d)?\.pdf$", f)
+        county = m and NS_COUNTY.get(m.group(1), {}).get(m.group(2))
+        if not county:
+            count["ns unplaced"] += 1
+            continue
+        name = m.group(3).replace("-", " ").replace(".", "").strip()
+        if name not in found:
+            found[name] = []
+            for qn in [name] + ([name + " Lake"] if not re.search(r"\b(lake|pond|lac)\b", name, re.I) else []):
+                try:
+                    found[name] += json.loads(get(f"{GEONAMES}?{urllib.parse.urlencode({'q': qn, 'province': 12})}")).get("items", [])
+                except Exception:
+                    pass
+                time.sleep(0.2)
+        want = core(name)
+        same = [i for i in found[name] if core(i["name"]) == want and re.search(r"\b(lake|pond|lac)\b", i["name"], re.I)]
+        hits = [i for i in same if county in (i.get("location") or "").split("; ")] or [i for i in same if not i.get("location")]
+        # The same lake is often listed twice; two lakes of that name in the county (the map's "-2" can't tell which)
+        # are left out.
+        if not hits or any(abs(i["latitude"] - hits[0]["latitude"]) + abs(i["longitude"] - hits[0]["longitude"]) > 0.03 for i in hits):
+            count["ns unplaced"] += 1
+            continue
+        lakes.append([round(hits[0]["latitude"], 5), round(hits[0]["longitude"], 5), 0.8, hits[0]["name"], None, [NS_MAPS + f], "ns"])
+        count["ns lakes"] += 1
+
+
+for step in (quebec, ontario, new_brunswick, saskatchewan, alberta, nova_scotia):
     try:
         step()
     except Exception as e:   # one province failing keeps the others (and last month's files for it are lost: warn loudly)
@@ -261,7 +391,7 @@ for k, v in squares.items():
         f.write(s)
     total += len(s)
 lakes.sort(key=lambda x: (x[0], x[1]))
-PRE = {"qc": QC.replace("/DQ/", "/PDF/"), "on": "https://www.publicdocs.mnr.gov.on.ca/mirb/Bathymetry/", "sk": SK_MAPS}
+PRE = {"qc": QC.replace("/DQ/", "/PDF/"), "on": "https://www.publicdocs.mnr.gov.on.ca/mirb/Bathymetry/", "sk": SK_MAPS, "ab": "", "ns": NS_MAPS}
 for x in lakes:
     x[5] = [u[len(PRE[x[6]]):] if u.startswith(PRE[x[6]]) else u for u in x[5]]
 with open(f"{OUT}/i.json", "w") as f:

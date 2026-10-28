@@ -1034,14 +1034,15 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
 
   // ---------- depth chart (alex 2026-10-27 "add lake depths across Canada") ----------
   // The lake's own depth map where the province publishes one: Quebec's PDF maps (with the deepest point surveyed),
-  // Ontario's scanned historic charts and Saskatchewan's scanned maps (data/fishing/depth/i.json), and a button that
+  // Ontario's scanned historic charts, Saskatchewan's scanned maps, Alberta's surveyed lakes and Nova Scotia's lake
+  // inventory maps (data/fishing/depth/i.json), and a button that
   // turns on the depth lines for this lake.
-  const PROV_DEPTH = { qc: "Quebec's lake bathymetry geobase (Ministère de l'Environnement)", on: "Ontario's historic bathymetry maps (MNR)", sk: "Saskatchewan's bathymetric maps (Fisheries Branch)" };
+  const PROV_DEPTH = { qc: "Quebec's lake bathymetry geobase (Ministère de l'Environnement)", on: "Ontario's historic bathymetry maps (MNR)", sk: "Saskatchewan's bathymetric maps (Fisheries Branch)", ab: "the Alberta Geological Survey's lake bathymetry", ns: "Nova Scotia's lake inventory maps (Department of Fisheries)" };
   async function depthHtml(lat, lon, w) {
     const idx = await loadDepthIdx().catch(() => null);
     const lake = idx && idx.lakes.map((x) => [x, km(lat, lon, x[0], x[1])]).filter(([x, d]) => d < x[2] + 0.2).sort((a, b) => a[1] - b[1])[0];
     const lines = shown.has("depth") ? "" : `<p><button type="button" class="fs-depthon" data-ll="${lat},${lon}">${svg(IC.layers, 14)}Show depth lines on the map</button></p>`;
-    if (!lake) return lines && w && /lake/i.test(w.kind || "lake") && !w.listOnly ? fold("depth", IC.depth, "Depth", "Depth lines", `${lines}<p class="fs-note">Lines show where a province surveyed the lake (BC, Ontario, Quebec, Manitoba; New Brunswick soundings).</p>`) : "";
+    if (!lake) return lines && w && /lake/i.test(w.kind || "lake") && !w.listOnly ? fold("depth", IC.depth, "Depth", "Depth lines", `${lines}<p class="fs-note">Lines show where a province surveyed the lake (BC, Alberta, Ontario, Quebec, Manitoba; New Brunswick soundings).</p>`) : "";
     const [[, , , name, deep, links, prov]] = lake;
     const a = links.map((u, i) => `<a href="${esc(u)}" target="_blank" rel="noopener">${/\.pdf$/i.test(u) ? "Depth map (PDF)" : `Depth chart${links.length > 1 ? ` ${i + 1}` : ""} (scan)`}</a>`).join(" · ");
     const sum = [deep != null ? `up to ${deep} m` : "", links.length ? "depth map" : ""].filter(Boolean).join(" · ");
