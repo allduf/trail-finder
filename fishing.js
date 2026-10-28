@@ -909,7 +909,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   // small creeks in its zoom 13 tiles, so from Leaflet zoom 11 to 13 (a whole valley) the app fetches those tiles itself,
   // keeps only the creek lines (a few points dropped) and draws them as one GeoJSON, in 2D and 3D. The browser keeps
   // the tiles, so panning back costs nothing; past FAR.cap tiles (zoomed out further) nothing is fetched.
-  const FAR = { min: 11, max: 14, z: 13, cap: 140 };   // a phone at zoom 11 needs about 110
+  const FAR = { min: 11, max: 14, z: 13, cap: 170 };   // a phone at zoom 11 needs 130 to 160
   const farTiles = new Map();   // "x/y" -> Promise of features, the last 240
   let farFeats = [], farSeq = 0, farKey = "", ofmTiles = null;
   // The creek lines in one vector tile: just enough of Mapbox Vector Tile decoding for the waterway layer.
@@ -968,7 +968,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   async function syncFarCreeks() {
     const z = map.getZoom(), seq = ++farSeq;
     const want = isFish() && shown.has("creeks") && z >= FAR.min && z < FAR.max;
-    const b = map.getBounds().pad(0.04), n = 2 ** FAR.z;
+    const b = map.getBounds().pad(0.02), n = 2 ** FAR.z;
     const tx = (lon) => Math.floor(((lon + 180) / 360) * n), ty = (lat) => Math.floor(((1 - Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / Math.PI) / 2) * n);
     const x0 = tx(b.getWest()), x1 = tx(b.getEast()), y0 = ty(b.getNorth()), y1 = ty(b.getSouth());
     const keys = [];
