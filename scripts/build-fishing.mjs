@@ -109,6 +109,34 @@ function simplify(pts, tol) {
   }
   return pts.filter((_, i) => keep[i]);
 }
+// Join polygons that share borders into one outline (Nova Scotia's counties into its fishing areas): every edge two of
+// them share, either way round, is an inside border and goes; the edges left are joined end to end into rings. Rings
+// that don't close, or that come in matching pairs (an enclave drawn both as a hole and as its own piece, with slightly
+// different points), and slivers, are inside borders too.
+function dissolve(polys) {
+  const key = (p) => `${p[0].toFixed(6)},${p[1].toFixed(6)}`, edges = new Map(), from = new Map(), out = [];
+  for (const poly of polys) for (const r of poly) for (let i = 0; i + 1 < r.length; i++) {
+    const a = key(r[i]), b = key(r[i + 1]);
+    if (a === b) continue;
+    if (edges.has(b + "|" + a)) edges.delete(b + "|" + a); else edges.set(a + "|" + b, [r[i], r[i + 1]]);
+  }
+  for (const [k, e] of edges) { const a = k.split("|")[0]; if (!from.has(a)) from.set(a, []); from.get(a).push(e); }
+  for (const [start, list] of from) while (list.length) {
+    const ring = [list[0][0]];
+    for (let e = list.shift(); e;) {
+      ring.push(e[1]);
+      const k = key(e[1]);
+      if (k === start) break;
+      e = (from.get(k) || []).shift();
+    }
+    if (ring.length > 3 && key(ring[0]) === key(ring[ring.length - 1])) out.push(ring);
+  }
+  const area = (r) => { let a = 0; for (let i = 0; i + 1 < r.length; i++) a += r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1]; return Math.abs(a / 2); };
+  const len = (r) => { let l = 0; for (let i = 0; i + 1 < r.length; i++) l += Math.hypot(r[i + 1][0] - r[i][0], r[i + 1][1] - r[i][1]); return l; };
+  // tiny rings and thin slivers between two borders that almost match (a real island is far rounder)
+  const sized = out.map((r) => [r, area(r)]).filter(([r, a]) => a > 1e-5 && 4 * Math.PI * a / len(r) ** 2 > 0.002);
+  return { type: "Polygon", coordinates: sized.filter(([, a], i) => !sized.some(([, b], j) => j !== i && Math.abs(a - b) < a * 0.01)).map(([r]) => r) };
+}
 const r4 = (n) => Math.round(n * 1e4) / 1e4;
 function rings(geom, tol, minArea = 0) {
   if (!geom) return [];
@@ -387,6 +415,48 @@ async function buildZones() {
     }
     log(`  Quebec zones: ${z.length}`);
   } catch (e) { log(`  Quebec zones: ${e.message}`); keep("qc"); }
+  // New Brunswick's Recreational Fishing Areas (GeoNB's fishing regulations map), each with its own season tables.
+  try {
+    const rfa = await arcgis("https://gis-erd-der.gnb.ca/gisserver/rest/services/Fishing_Regs_Site/BaseMap_Service/MapServer/16", ["RFA_NO", "RFA_ENAME"], "1=1", 0.004);
+    for (const f of rfa) push("nb", f.properties.RFA_NO, f.properties.RFA_ENAME, f.geometry, 0.004);
+    if (rfa.length < 8) throw new Error(`only ${rfa.length} areas`);
+    log(`  New Brunswick areas: ${rfa.length}`);
+  } catch (e) { log(`  New Brunswick areas: ${e.message}`); keep("nb"); }
+  // Nova Scotia's six Recreational Fishing Areas are groups of counties (Anglers' Handbook): the province's community
+  // boundaries joined by county code, one county at a time (the server fails a query for them all).
+  try {
+    const NS = "https://nsgiwa.novascotia.ca/arcgis/rest/services/BND/BND_NS_Community_Bndys_WM84/MapServer/0/query";
+    const RFA = { 1: ["CB", "IN", "RI", "VI", "Cape Breton, Inverness, Richmond and Victoria Counties"], 2: ["AT", "GU", "PI", "Antigonish, Guysborough and Pictou Counties"],
+      3: ["HX", "LU", "Halifax and Lunenburg Counties"], 4: ["DI", "QU", "SH", "YA", "Digby, Queens, Shelburne and Yarmouth Counties"],
+      5: ["AP", "HN", "KI", "Annapolis, Hants and Kings Counties"], 6: ["CO", "CU", "Colchester and Cumberland Counties"] };
+    let n = 0;
+    for (const [id, codes] of Object.entries(RFA)) {
+      const polys = [];
+      for (const c of codes.slice(0, -1)) {
+        const j = await get(`${NS}?${new URLSearchParams({ where: `CO_CODE='${c}'`, outFields: "CO_CODE", outSR: "4326", f: "json" })}`);
+        if (!(j.features || []).length) throw new Error(`no communities in county ${c}`);
+        for (const f of j.features) if (f.geometry) polys.push(f.geometry.rings);
+      }
+      push("ns", id, codes[codes.length - 1], dissolve(polys), 0.004);
+      n++;
+    }
+    log(`  Nova Scotia areas: ${n}`);
+  } catch (e) { log(`  Nova Scotia areas: ${e.message}`); keep("ns"); }
+  // Newfoundland and Labrador: trout zone 1 is the island; Labrador has zones 2 to 6 (no map of them is published), so
+  // it's one area here. Both outlines come from the Wildlife Division's moose management areas, joined.
+  try {
+    const mma = await arcgis("https://services8.arcgis.com/aCyQID5qQcyrJMm2/ArcGIS/rest/services/WLD_BigGameManagementArea/FeatureServer/0", ["mmu"], "1=1", 0);
+    const lab = (m) => ["MMNP", "TMNP", "7777"].includes(m) || (+m >= 48 && +m < 100), parts = { 1: [], lab: [] };
+    for (const f of mma) {
+      const m = String(f.properties.mmu || ""), g = f.geometry;
+      if (!g || m === "NT" || m === "9998") continue;   // Nunavut's islands
+      parts[lab(m) ? "lab" : 1].push(...(g.type === "Polygon" ? [g.coordinates] : g.coordinates));
+    }
+    if (parts[1].length < 40 || parts.lab.length < 20) throw new Error(`only ${parts[1].length} + ${parts.lab.length} areas`);
+    push("nl", "1", "Island of Newfoundland", dissolve(parts[1]), 0.004);
+    push("nl", "lab", "Labrador", dissolve(parts.lab), 0.006);
+    log("  Newfoundland and Labrador zones: 2");
+  } catch (e) { log(`  Newfoundland and Labrador zones: ${e.message}`); keep("nl"); }
   // Places with their own fishing rules, drawn on the Rules view: national parks (a Parks Canada permit, not the
   // provincial licence) and Quebec's zecs, wildlife reserves and parks (access fees and their own quotas).
   const title = (t) => String(t || "").toLowerCase().replace(/(^|[\s\-'(])([a-zà-ÿ])/g, (m, a, b) => a + b.toUpperCase()).replace(/\b(Of|The|And|De|Du|La|Le|Des)\b/g, (w) => w.toLowerCase()).replace(/ of Canada$/i, "").replace(/^./, (c) => c.toUpperCase());

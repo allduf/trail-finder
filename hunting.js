@@ -1298,11 +1298,13 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     return `<details class="hn-seasons"><summary>Seasons in ${esc(label)}: ${now.length ? `<span class="hn-open">${now.length} open now</span>` : "none open today"}</summary>
       <ul class="hn-list">${list}</ul><p class="hn-note" style="margin-top:6px">${foot}</p></details>`;
   }
-  const seasonFoot = (u, link) => u.p === "ab" ? `Read by the app from the Alberta Guide to Hunting Regulations. “Special licence (draw)” seasons need a drawn licence. † has a footnote: always check <a href="${link}" target="_blank" rel="noopener">the guide</a> before you hunt.`
+  const seasonFoot = (u, link, sf) => sf ? `${u.p === "nl" ? "Read by the app from" : "Typed in from"} the <a href="${esc(link)}" target="_blank" rel="noopener">${esc(sf.src)}</a>. Licences, tags and the exact rules are in the summary: always check it before you hunt.`
+    : u.p === "ab" ? `Read by the app from the Alberta Guide to Hunting Regulations. “Special licence (draw)” seasons need a drawn licence. † has a footnote: always check <a href="${link}" target="_blank" rel="noopener">the guide</a> before you hunt.`
     : u.p === "bc" ? `General open seasons, read by the app from the BC Hunting and Trapping Regulations Synopsis (limited entry hunts are listed below). † has footnotes or applies to part of the unit only: always check <a href="${link}" target="_blank" rel="noopener">the region's synopsis</a> before you hunt.`
     : u.p === "qc" ? `Read by the app from the hunting periods on <a href="${link}" target="_blank" rel="noopener">Québec.ca</a> (this year's dates). † applies to part of the zone only or has an exception, and ZEC seasons can differ: always check the official periods and your zone's map before you hunt.`
     : `Resident seasons, read by the app from the <a href="${link}" target="_blank" rel="noopener">Ontario Hunting Regulations Summary</a>. † applies to part of the WMU only: always check the summary (and your tags) before you hunt.`;
   // Quebec: a zone part reads the whole zone's rows and its own ("8", "8 nord"; "19 sud" for 19 sud-est...).
+  const EAST = ["nb", "ns", "nl"];   // season tables like Ontario's: seasons-nb.json, seasons-ns.json, seasons-nl.json
   const qcKeys = (u) => { const k = [u.no]; if (u.part) { k.push(`${u.no} ${u.part}`); if (/^sud-/.test(u.part)) k.push(`${u.no} sud`); if (u.isl) k.push(`${u.no} ${u.part} île`); if (u.sp) k.push(`${u.no} ${u.part} ${u.sp}`); } return k; };
   // Manitoba's season table: licence types and season words per species, not dates.
   function mbHtml(u, sm) {
@@ -1375,9 +1377,11 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     try { areas = areas || (await load("areas")).areas; } catch {}
     a = at(A(), lat, lon);
     const has = (p) => z.some((u) => u.p === p), bcab = z.some((u) => u.p === "bc" || u.p === "ab");
-    const [sbc, sab, draws, sqc, son, smb] = await Promise.all([has("bc") ? load("seasons-bc").catch(() => null) : null,
+    const [sbc, sab, draws, sqc, son, smb, ...sEast] = await Promise.all([has("bc") ? load("seasons-bc").catch(() => null) : null,
       has("ab") ? load("seasons-ab").catch(() => null) : null, bcab ? load("draws").catch(() => null) : null,
-      has("qc") ? load("seasons-qc").catch(() => null) : null, has("on") ? load("seasons-on").catch(() => null) : null, has("mb") ? load("seasons-mb").catch(() => null) : null]);
+      has("qc") ? load("seasons-qc").catch(() => null) : null, has("on") ? load("seasons-on").catch(() => null) : null, has("mb") ? load("seasons-mb").catch(() => null) : null,
+      ...EAST.map((k) => has(k) ? load(`seasons-${k}`).catch(() => null) : null)]);
+    const sx = Object.fromEntries(EAST.map((k, i) => [k, sEast[i]]));
     const harvest = bcab ? await load("harvest").catch(() => null) : null;
     if (seq !== spotSeq) return;
     // Summary first (zone, land, what's open, warnings); the details fold below it.
@@ -1390,11 +1394,13 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       else if (u.p === "bc") rows = sbc && sbc.mu[u.id];
       else if (u.p === "qc" && sqc) rows = [...qcKeys(u).flatMap((k) => sqc.zone[k] || []), ...a.filter((x) => x.k === "zec").flatMap((x) => (zecRows(x) || []).map((r) => [r[0], `ZEC ${x.n.replace(/^Zec\s+/i, "")}: ${r[1]}`, r[2], r[3], r[4]]))];
       else if (u.p === "on" && son) rows = son.wmu[u.id] || son.wmu[String(u.id).replace(/-\d$/, "")];
+      else if (sx[u.p]) rows = sx[u.p].wmu[u.id];
       for (const r of rows || []) if (openNow(r[3])) open.add(r[0]);
       if (rows && rows.length) known = true;
       if (u.p === "ab" || u.p === "bc") folds.push(seasonsHtml(`${u.p === "ab" ? "WMU" : "MU"} ${u.id}`, rows, seasonFoot(u, u.p === "ab" ? AB_REGS : regionPdf(u))), drawsHtml(u, draws, l), harvestHtml(u, harvest));
       else if (u.p === "qc" || u.p === "on") folds.push(seasonsHtml(zoneName(u), rows, seasonFoot(u, u.p === "qc" ? (sqc && sqc.url) || QC_REGS : PV.on.regs)));
       else if (u.p === "mb") folds.push(mbHtml(u, smb));
+      else if (sx[u.p]) folds.push(seasonsHtml(zoneName(u), rows, seasonFoot(u, sx[u.p].url, sx[u.p])));
       const pv = PV[u.p];
       rules.push(u.p === "ab"
         ? `<li style="border-color:${C.zone}"><b>Alberta WMU ${esc(u.id)}</b>Licences, weapons and bag limits: <a href="${AB_REGS}" target="_blank" rel="noopener">Alberta Guide to Hunting Regulations</a>.</li>`
@@ -1677,7 +1683,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const ty = (lat, z) => { const r = (lat * Math.PI) / 180; return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z); };
   function offUrls(box, layers) {
     const pvs = pvsIn(box[0], box[1], box[2], box[3]);
-    const urls = [...DATA_FILES, ...pvs.flatMap((k) => [...(PV[k].zones ? [`zones-${k}`] : []), `areas-${k}`]), ...pvs.filter((k) => ["qc", "on", "mb"].includes(k)).map((k) => `seasons-${k}`)]
+    const urls = [...DATA_FILES, ...pvs.flatMap((k) => [...(PV[k].zones ? [`zones-${k}`] : []), `areas-${k}`]), ...pvs.filter((k) => ["qc", "on", "mb", ...EAST].includes(k)).map((k) => `seasons-${k}`)]
       .map((n) => new URL(`data/hunting/${n}.json`, location.href).href);
     const ab = box[3] > -120.1 && box[0] < 60, bc = box[1] < -114;
     const boxIn = (b) => box[0] <= b[1][0] && box[2] >= b[0][0] && box[1] <= b[1][1] && box[3] >= b[0][1];

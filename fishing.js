@@ -355,7 +355,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
 
   // The province for links when no zone file covers the spot (rough lines, only to pick which rules to point to).
   function provinceAt(lat, lon, zs) {
-    const k = zs.find((z) => ["bc", "ab", "on", "qc"].includes(z.k));
+    const k = zs.find((z) => ["bc", "ab", "on", "qc", "nb", "ns", "nl"].includes(z.k));
     if (k) return k.k;
     if (lat > 60) return lon < -124 ? "yt" : lon < -102 ? "nt" : "nu";
     if (lat > 45.9 && lat < 47.1 && lon > -64.5 && lon < -61.9) return "pe";
@@ -383,6 +383,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     nt: ["Northwest Territories", "https://www.gov.nt.ca/ecc/en/services/fishing"],
     nu: ["Nunavut", "https://www.gov.nu.ca/en/environment-and-climate-change/sport-fishing"],
   };
+  const NS_HANDBOOK = "https://beta.novascotia.ca/sites/default/files/documents/1-2412/anglers-handbook-en.pdf";   // 2026, a page per area
   // Where to buy a licence, by province (alex 2026-10-26: "add a link to buy the appropriate licence for the region").
   const LIC = {
     bc: ["BC freshwater fishing licence", "https://www.fishing.gov.bc.ca/"],
@@ -697,7 +698,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
         // Names: zones from zoom 5, parks and zecs once they're big enough on screen, Pacific areas from zoom 9.
         const big = (z.b[2] - z.b[0]) * 2 ** z0 > 6;
         if ((z.k === "pfma" && z0 < 9) || (area && !big)) return;
-        const name = z.k === "noer" ? `No fishing: ${z.n.replace(/^R[ée]serve [ée]cologique (?:de la |des |du |de l'|de |d')?| Ecological Reserve$/gi, "")}` : z.k === "qc" ? `Zone ${z.id}` : z.k === "bc" ? `Region ${z.id}` : z.k === "ab" ? z.n : z.n;
+        const name = z.k === "noer" ? `No fishing: ${z.n.replace(/^R[ée]serve [ée]cologique (?:de la |des |du |de l'|de |d')?| Ecological Reserve$/gi, "")}` : z.k === "qc" ? `Zone ${z.id}` : z.k === "bc" ? `Region ${z.id}` : z.k === "ns" ? `Area ${z.id}` : z.k === "nb" ? `${z.id} ${z.n}` : z.n;
         L.marker([(z.b[0] + z.b[2]) / 2, (z.b[1] + z.b[3]) / 2], { pane: "fishLabels", interactive: false, keyboard: false,
           icon: L.divIcon({ className: "fs-zlabel", html: `<span style="--c:${area ? c : C.zone}">${esc(name)}</span>`, iconSize: null }) }).addTo(labelLayer);
       });
@@ -1020,7 +1021,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       if (!w) $("fsSpot").classList.add("fs-nowater");
       if (w && w.rules) fill("fsRules", fold("rules", IC.rules, "Rules", "This water has its own rules", unhead(w.rules) + unhead(rulesHtml(lat, lon, here, prov)), true));
       if (w && w.rules) boat.extra.push({ t: w.rules.replace(/<[^>]+>/g, ". ").replace(/&amp;/g, "&"), src: "the water's fishing rules" });
-      rulesShort(here, prov, w).then((h) => { const b = seq === spotSeq && document.querySelector("#fsRules .fs-secb"); if (!b || !h) return; b.querySelector(".fs-short")?.remove(); b.insertAdjacentHTML("afterbegin", h); }).catch(() => {});
+      rulesShort(here, prov, w, lat, lon).then((h) => { const b = seq === spotSeq && document.querySelector("#fsRules .fs-secb"); if (!b || !h) return; b.querySelector(".fs-short")?.remove(); b.insertAdjacentHTML("afterbegin", h); }).catch(() => {});
       const bx = [];
       seasonHtml(here, prov, w, bx).then((h) => { fill("fsSeason", h); boat.extra.push(...bx); renderBoat(); });
       if (prov === "on" || prov === "qc") eatHtml(lat, lon, prov, (w && w.name) || title).then((h) => {
@@ -1282,7 +1283,34 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       q: "Trout/char 5 a day (4 from streams, only 2 over 30 cm, 1 over 50 cm), kokanee 5, walleye 8, burbot 2; bass and perch closed" },
   };
   const MAIN_SP = /walleye|dor[ée]|brook trout|omble de fontaine|rainbow|lake trout|touladi|pike|brochet|bass|achigan|perch|perchaude|muskellunge|maskinong|salmon|saumon|trout/i;
-  async function rulesShort(here, prov, w) {
+  // New Brunswick's map of its waters (GeoNB's fishing regulations site, CORS open): what kind of water the spot is on
+  // (salmon, trout, bass) and its own rules there: closed, crown reserve or lease, guide needed, restricted gear.
+  const NB_REGS = "https://gis-erd-der.gnb.ca/gisserver/rest/services/Fishing_Regs_Site";
+  const NB_KIND = [[/Atlantic Salmon/, "Atlantic salmon water: salmon have their own season, tags and hook-and-release rules"], [/LandLocked Salmon/, "Landlocked salmon water"],
+    [/Smallmouth Bass/, "Smallmouth bass water"], [/Trout/, "Trout water"]];
+  const NB_RULE = [[/Closed to Angling/, "Closed to angling", false], [/Pool Closure/, "A pool closed during warm water", null], [/Crown Reserve/, "Crown reserve water: only with a Crown reserve licence (by draw)", null],
+    [/Crown Angling Lease/, "Crown angling lease: only with the leaseholder's permission", null], [/Guide Required/, "Non-residents need a licensed guide here", null],
+    [/Restricted Gear/, "Restricted gear water: check which flies, lures and bait are allowed", null], [/Tidal/, "Tidal water: Fisheries and Oceans Canada's rules", null]];
+  async function nbWater(lat, lon) {
+    const q = (svc) => fetch(`${NB_REGS}/${svc}/MapServer/identify?${new URLSearchParams({ geometry: `${lon},${lat}`, geometryType: "esriGeometryPoint", sr: "4326", layers: "all", tolerance: "8",
+      mapExtent: `${lon - 0.002},${lat - 0.0015},${lon + 0.002},${lat + 0.0015}`, imageDisplay: "100,100,96", returnGeometry: "false", f: "json" })}`).then((r) => r.json()).then((j) => j.results || []).catch(() => []);
+    const [kinds, rules] = await Promise.all([q("Rivers_Lakes"), q("Closed_Rivers_Lakes")]);
+    const val = (a, k) => (a[k] && a[k] !== "Null" ? String(a[k]) : ""), out = [], seen = new Set();
+    for (const r of kinds) {
+      const k = NB_KIND.find(([re]) => re.test(r.layerName)), nm = val(r.attributes, "WATER_NAME");
+      if (!k || seen.has(k[1])) continue;
+      seen.add(k[1]);
+      out.push([`${nm ? `${esc(nm)}: ` : ""}${esc(k[1])}`, val(r.attributes, "IS_OPEN") === "No" ? chipOf(false) : ""]);
+    }
+    for (const r of rules) {
+      const k = NB_RULE.find(([re]) => re.test(r.layerName)), d = val(r.attributes, "SECT_DESC");
+      if (!k || seen.has(k[1])) continue;
+      seen.add(k[1]);
+      out.push([`<b>${esc(k[1])}</b>${d ? `<br><small>${esc(d.length > 160 ? d.slice(0, 157).replace(/\s\S*$/, "") + "…" : d)}</small>` : ""}`, k[2] === false ? chipOf(false) : ""]);
+    }
+    return out.slice(0, 6);
+  }
+  async function rulesShort(here, prov, w, lat, lon) {
     const out = here.filter((z) => z.k === "noer").map((z) => [`<b>No fishing here</b>: ${esc(z.n)} is an ecological reserve`, `<em class="fs-st" style="--c:${C.nofish}">Closed</em>`]);   // [text, chip html]
     if (out.length) return `<div class="fs-short"><h4>In short</h4><ul>${out.map(([t, c]) => `<li>${t} ${c}</li>`).join("")}</ul></div>`;
     const name = (w && w.name) || "", river = w && w.kind ? !/lake/i.test(w.kind) : null;
@@ -1329,6 +1357,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
           out.push([`${esc(r[0])}${r[2] ? `: ${esc(lim(r[2]))} a day` : ""}`, chipOf(r[1] ? openToday(r[1]) : null)]);
         }
       }
+    } else if (prov === "nb" && lat != null) {
+      out.push(...await nbWater(lat, lon));
     }
     return out.length ? `<div class="fs-short"><h4>In short</h4><ul>${out.map(([t, c]) => `<li>${t}${c ? ` ${c}` : ""}</li>`).join("")}</ul><p class="fs-note">The main rules only: the full rules below decide.</p></div>` : "";
   }
@@ -1563,6 +1593,13 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
         items.push(`<li style="--c:${C.zone}"><b>Alberta Fish Management Zone ${esc(z.id)}</b><a href="https://albertaregulations.ca/fishingregs/${esc(z.id.toLowerCase())}.html" target="_blank" rel="noopener">Zone ${esc(z.id)} regulations</a> · <a href="https://geospatial.alberta.ca/afr/" target="_blank" rel="noopener">Alberta regulations map</a></li>`);
       } else if (z.k === "on") {
         items.push(`<li style="--c:${C.zone}"><b>Ontario Fisheries Management Zone ${esc(z.id)}</b><a href="https://www.ontario.ca/document/ontario-fishing-regulations-summary/fisheries-management-zone-${esc(z.id)}" target="_blank" rel="noopener">Zone ${esc(z.id)} seasons and limits</a> · <a href="https://www.lioapplications.lrc.gov.on.ca/fishonline/Index.html?viewer=FishONLine.FishONLine&locale=en-CA" target="_blank" rel="noopener">Fish ON-Line</a> (lake exceptions)</li>`);
+      } else if (z.k === "nb") {
+        items.push(`<li style="--c:${C.zone}"><b>New Brunswick Recreational Fishing Area ${esc(z.id)}: ${esc(z.n)}</b><a href="https://www.gnb.ca/content/dam/GNB3/c/fishnb---pechenb/doc/Fish.pdf" target="_blank" rel="noopener">Fish regulations summary (PDF)</a> · <a href="${PROV.nb[1]}" target="_blank" rel="noopener">Fish 2026-27</a><br><small>Find this area's season tables and the water by name; salmon rivers also follow Fisheries and Oceans Canada's notices.</small></li>`);
+      } else if (z.k === "ns") {
+        const pg = { 1: 24, 2: 30, 3: 38, 4: 44, 5: 46, 6: 49 }[z.id] || 22;
+        items.push(`<li style="--c:${C.zone}"><b>Nova Scotia Recreational Fishing Area ${esc(z.id)}</b>${esc(z.n)}: <a href="${NS_HANDBOOK}#page=${pg}" target="_blank" rel="noopener">Area ${esc(z.id)} seasons, limits and exceptions</a> (Anglers' Handbook, page ${pg})</li>`);
+      } else if (z.k === "nl") {
+        items.push(`<li style="--c:${C.zone}"><b>${z.id === "1" ? "Newfoundland trout zone 1: the island" : "Labrador: trout zones 2 to 6"}</b><a href="${PROV.nl[1]}" target="_blank" rel="noopener">Angler's guide</a> (Fisheries and Oceans Canada)<br><small>${z.id === "1" ? "Salmon rivers are scheduled waters with their own seasons, tags and closures." : "Each Labrador zone has its own trout season: find this spot on the guide's zone map."}</small></li>`);
       } else if (z.k === "qc") {
         const news = (z.news || []).slice(0, 3).map(([d, t, u]) => `<br><small>${esc(d)}: ${u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>` : esc(t)}</small>`).join("");
         items.push(`<li style="--c:${C.zone}"><b>Quebec fishing ${esc(z.n)}</b>${z.u ? `<a href="${esc(z.u)}" target="_blank" rel="noopener">Seasons, limits and exceptions</a>` : ""}${z.map ? ` · <a href="${esc(z.map)}" target="_blank" rel="noopener">Zone map (PDF)</a>` : ""} · <a href="https://peche.faune.gouv.qc.ca/regpec/carteinteractive/" target="_blank" rel="noopener">Interactive map</a>${news}${z.nw ? `<details><summary>What's new in this zone</summary><p class="fs-note">${esc(z.nw).replace(/\n+/g, "<br>")}</p></details>` : ""}</li>`);

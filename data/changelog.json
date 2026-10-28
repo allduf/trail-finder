@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-28", "text": "Fishing and Hunting in New Brunswick, Nova Scotia and Newfoundland and Labrador: fishing areas with their rules, and hunting seasons for each zone."},
     {"date": "2026-10-28", "text": "Skiing webcams: the Brandywine Bowl sled cam near Whistler, four Coquihalla sled cams (parking lot to the 10-K cabin), and alpine station cams at Plummer Hut, Klinaklini and the Cruickshank valley."},
     {"date": "2026-10-28", "text": "Sharper satellite map in Ontario and around Lake Louise, Sunshine and Banff: the province's and the park's own air photos."},
     {"date": "2026-10-28", "text": "Logging areas now work everywhere in Canada: outside BC, Alberta and Quebec they show forest cut or burned since 2010, seen from space."},
