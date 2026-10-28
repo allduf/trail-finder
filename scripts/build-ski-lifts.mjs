@@ -34,7 +34,14 @@ const RESORTS = [
   ["sunshine", "Sunshine Village", 51.08, -115.77, 0.03, 0.04],
   ["norquay", "Mt Norquay", 51.2, -115.605, 0.02, 0.025],
   ["castle", "Castle Mountain", 49.31, -114.42, 0.02, 0.03],
+  ["tremblant", "Tremblant", 46.212, -74.585, 0.03, 0.05],
+  ["bluemtn", "Blue Mountain", 44.503, -80.312, 0.02, 0.03],
+  ["bromont", "Bromont, montagne d'expériences", 45.305, -72.648, 0.02, 0.03],
 ];
+// ONLY=id,id rebuilds just those resorts and keeps the others as they are in data/ski-lifts.json (off season most
+// resorts' status lists are empty, so a full rebuild then would lose their matched status names).
+const ONLY = process.env.ONLY ? new Set(process.env.ONLY.split(",")) : null;
+const OLD = ONLY ? JSON.parse(fs.readFileSync(new URL("../data/ski-lifts.json", import.meta.url), "utf8")) : null;
 const SKIP = /^(station|pylon|goods|zip_line|canopy)$/;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function json(url, tries = 3) {
@@ -51,6 +58,7 @@ const dist = (a, b) => 2 * R * Math.asin(Math.sqrt(Math.sin(rad(b[0] - a[0]) / 2
 
 const ways = new Map(), nodes = new Map();
 for (const [id, , la, lo, hla, hlo] of RESORTS) {
+  if (ONLY && !ONLY.has(id)) continue;
   const S = 0.04;
   for (let y = la - hla; y < la + hla; y += S) for (let x = lo - hlo; x < lo + hlo; x += S) {
     const bb = [x, y, Math.min(x + S, lo + hlo), Math.min(y + S, la + hla)].map((v) => v.toFixed(5)).join(",");
@@ -123,13 +131,16 @@ const WB_NAMES = ["Creekside Gondola", "Whistler Village Gondola Lower", "Fitzsi
   "Big Red Express", "Franz's Chair", "Emerald 6 Express", "Peak 2 Peak Gondola", "Harmony 6 Express", "Peak Express", "Symphony Express", "T-Bars",
   "Excalibur Gondola Lower", "Blackcomb Gondola Lower", "Magic Chair", "Excalibur Gondola Upper", "Excelerator Express", "Blackcomb Gondola Upper",
   "Catskinner Express", "Jersey Cream Express", "Crystal Ridge Express", "Glacier Express", "7th Heaven Express", "Showcase T-Bar"];
-const DROP = /\b(express|high speed|detachable|chair ?lift|chair|lift|quad|triple|double|six|6|pack|8|the|free access|#\d+)\b/g;
-const words = (s) => new Set(String(s).toLowerCase().replace(/['’]/g, "").replace(/\(.*?\)/g, " ").replace(/t[- ]?bar/g, "tbar").replace(/peak 2 peak|p2p/g, "peak2peak").replace(/whistler village/g, "whistler").replace(DROP, " ").split(/[^a-z0-9]+/).filter(Boolean));
+const DROP = /\b(express|high speed|detachable|chair ?lift|chair|lift|quad|triple|double|six|6|pack|8|the|free access|#\d+|telesiege|telecabine|quadruple|hybride|tapis magique|versant|de|du|des|la|le|l)\b/g;
+// Accents off first ("Télésiège" and "Equilibre" match), French lift words dropped like the English ones.
+const norm = (s, drop) => String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^[0-9a-z]{1,3} \((.+)\)$/i, "$1").toLowerCase().replace(/['’]/g, "").replace(/\(.*?\)/g, " ").replace(/t[- ]?bar/g, "tbar").replace(/peak 2 peak|p2p/g, "peak2peak").replace(/whistler village/g, "whistler").replace(/\bii\b/g, "2").replace(/\bi\b/g, "1").replace(drop ? DROP : /$^/g, " ").split(/[^a-z0-9]+/).filter(Boolean);
+// A name that is only lift words ("Télécabine Express") keeps them.
+const words = (s) => { const w = norm(s, true); return new Set(w.length ? w : norm(s, false)); };
 // Shared words over the longer name's; a name whose words are all in the other ("Stairway" for "Stairway to Heaven") counts.
 const score = (a, b) => { const A = words(a), B = words(b); if (!A.size || !B.size) return 0; let n = 0; for (const x of A) if (B.has(x)) n++; return n === Math.min(A.size, B.size) ? Math.max(0.6, n / Math.max(A.size, B.size)) : n / Math.max(A.size, B.size); };
 const unmatched = {};
 for (const [id] of RESORTS) {
-  if (!SOURCES[id]) continue;
+  if (!SOURCES[id] || (ONLY && !ONLY.has(id))) continue;
   const v = await read(id);
   const names = id === "wb" && !v.lifts.length ? WB_NAMES : v.lifts.map((x) => x.n);
   const mine = lifts.filter((l) => l.r === id);
@@ -149,7 +160,7 @@ const out = {
   note: "Ski lifts of the resorts in the app, for the live lift status in Skiing (lifts.js). Built by scripts/build-ski-lifts.mjs from OpenStreetMap (ODbL) with heights from Open-Meteo; st is the resort's own name for the lift in its lift status. Hand-run, kept in main.",
   builtAt: new Date().toISOString(),
   resorts: Object.fromEntries(RESORTS.map(([id, name, la, lo]) => [id, { name, lat: la, lon: lo, live: !!SOURCES[id], ...(SOURCES[id] ? { page: SOURCES[id].page } : {}) }])),
-  lifts: lifts.sort((a, b) => a.r.localeCompare(b.r) || a.n.localeCompare(b.n)),
+  lifts: [...(OLD ? OLD.lifts.filter((l) => !ONLY.has(l.r)) : []), ...lifts].sort((a, b) => a.r.localeCompare(b.r) || a.n.localeCompare(b.n)),
 };
 fs.writeFileSync(new URL("../data/ski-lifts.json", import.meta.url), JSON.stringify(out));
 console.log("wrote data/ski-lifts.json", lifts.length, "lifts", (JSON.stringify(out).length / 1024).toFixed(0), "KB");

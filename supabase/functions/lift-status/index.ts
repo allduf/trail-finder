@@ -15,7 +15,7 @@ const UA = "Mozilla/5.0 (compatible; TrailFinder lift status; +https://allduf.gi
 
 type Lift = { n: string; s: string; w?: number; o?: string; c?: string; k?: string };
 type Result = { lifts: Lift[]; t?: string };
-type Source = { name: string; page: string; url: string; kind: "vail" | "rcr" | "whitewater" | "sunpeaks" | "bigwhite" | "norquay" };
+type Source = { name: string; page: string; url: string; kind: "vail" | "rcr" | "whitewater" | "sunpeaks" | "bigwhite" | "norquay" | "mtnpowder" | "bromont" };
 
 // The resorts whose lift status could be read (checked 2026-10-25). The id is the resort's id in data/ski-lifts.json.
 export const SOURCES: Record<string, Source> = {
@@ -28,15 +28,19 @@ export const SOURCES: Record<string, Source> = {
   sunpeaks: { name: "Sun Peaks", kind: "sunpeaks", page: "https://www.sunpeaksresort.com/ski-ride/weather-conditions-cams/lifts-trail-status", url: "https://www.sunpeaksresort.com/ski-ride/weather-conditions-cams/lifts-trail-status" },
   bigwhite: { name: "Big White", kind: "bigwhite", page: "https://www.bigwhite.com/mountain-conditions/lift-status-hours", url: "https://www.bigwhite.com/mountain-conditions/lift-status-hours" },
   norquay: { name: "Mt Norquay", kind: "norquay", page: "https://banffnorquay.com/conditions/", url: "https://banffnorquay.com/conditions/" },
+  // Alterra's resorts publish their full mountain report on MtnPowder (resortId); its partner resorts there have weather only.
+  tremblant: { name: "Tremblant", kind: "mtnpowder", page: "https://www.tremblant.ca/mountain-village/mountain-report", url: "https://mtnpowder.com/feed?resortId=4" },
+  bluemtn: { name: "Blue Mountain", kind: "mtnpowder", page: "https://www.bluemountain.ca/mountain/mountain-report", url: "https://mtnpowder.com/feed?resortId=3" },
+  bromont: { name: "Bromont, montagne d'expériences", kind: "bromont", page: "https://www.bromontmontagne.com/conditions-detaillees/", url: "https://www.bromontmontagne.com/conditions-detaillees/" },
 };
 
 // Any resort's words for a lift's state, as one of ours.
 export function stateOf(x: unknown): string {
   const v = String(x ?? "").toLowerCase();
-  if (/hold|standby|stand-by|slow|delay|pause|stopped|wind|weather|mechanical/.test(v)) return "hold";
-  if (/schedul|expected|anticipated|opening (soon|later)|later today/.test(v)) return "scheduled";
-  if (/clos|cross|x-|icon-x/.test(v)) return "closed";
-  if (/open|check|tick|running|operat/.test(v)) return "open";
+  if (/hold|standby|stand-by|slow|delay|pause|stopped|wind|weather|mechanical|suspendu|attente|arrêt/.test(v)) return "hold";
+  if (/schedul|expected|anticipated|opening (soon|later)|later today|prévu/.test(v)) return "scheduled";
+  if (/clos|cross|x-|icon-x|ferm/.test(v)) return "closed";
+  if (/open|check|tick|running|operat|ouvert/.test(v)) return "open";
   return "unknown";
 }
 const text = (s: string) => s.replace(/<[^>]*>/g, " ").replace(/&amp;/g, "&").replace(/&#0?39;|&rsquo;|&#8217;|’/g, "'").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
@@ -112,7 +116,33 @@ function norquay(html: string): Result {
   for (const m of html.matchAll(/jet-toggle__label-text">([^<]+)<span class="lift-status ([^"]*)">([^<]*)<\/span>/g)) lifts.push({ n: text(m[1]), s: stateOf(m[3] || m[2]) });
   return { lifts };
 }
-export const PARSE: Record<Source["kind"], (body: string) => Result> = { vail, rcr, whitewater, sunpeaks, bigwhite, norquay };
+// MtnPowder (Tremblant, Blue Mountain): { LastUpdate, MountainAreas: [{ Lifts: [{ Name, StatusEnglish, LiftType,
+// WaitTime, Hours: { Monday: { Open, Close } } }] }] }. Both resorts are on Eastern time, so "today" is Eastern.
+function mtnpowder(json: string): Result {
+  const d = JSON.parse(json), lifts: Lift[] = [], seen = new Set<string>();
+  const day = new Date().toLocaleDateString("en-US", { weekday: "long", timeZone: "America/Toronto" });
+  for (const a of d.MountainAreas || []) for (const l of a.Lifts || []) {
+    if (!l || !l.Name || seen.has(l.Name)) continue;
+    seen.add(l.Name);
+    const h = (l.Hours && l.Hours[day]) || {}, w = parseInt(l.WaitTime, 10);
+    lifts.push({ n: l.Name, s: stateOf(String(l.StatusEnglish || l.Status).replace(/_/g, " ")), ...(Number.isFinite(w) ? { w } : {}), ...(hhmm(h.Open) ? { o: h.Open } : {}), ...(hhmm(h.Close) ? { c: h.Close } : {}), ...(l.LiftType ? { k: String(l.LiftType) } : {}) });
+  }
+  const t = d.LastUpdate ? new Date(String(d.LastUpdate).replace(/([+-]\d\d)(\d\d)$/, "$1:$2")) : null;
+  return { lifts, t: t && !isNaN(+t) ? t.toISOString() : undefined };
+}
+// Bromont: <span class="nom">#3 Télésiège quadruple - La Directe </span> ... <span class="jour ...">Fermé</span>, the
+// same rows as its trails, so only names that are lifts ("Balade en télécabine" is a sightseeing ride, not a lift).
+function bromont(html: string): Result {
+  const lifts: Lift[] = [], seen = new Set<string>();
+  for (const m of html.matchAll(/<span class="nom">([^<]+)<\/span>[\s\S]{0,600}?<span class="jour[^"]*">([^<]*)<\/span>/g)) {
+    const n = text(m[1]).replace(/^#\d+\s*/, "");
+    if (!/télésiège|télécabine|tapis|téléski|remontée|t-bar|chairlift/i.test(n) || /^balade/i.test(n) || seen.has(n)) continue;
+    seen.add(n);
+    lifts.push({ n, s: stateOf(text(m[2])) });
+  }
+  return { lifts };
+}
+export const PARSE: Record<Source["kind"], (body: string) => Result> = { vail, rcr, whitewater, sunpeaks, bigwhite, norquay, mtnpowder, bromont };
 
 const cache = new Map<string, { at: number; v: Record<string, unknown> }>();
 export async function read(id: string): Promise<Record<string, unknown>> {
