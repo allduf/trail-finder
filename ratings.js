@@ -84,7 +84,8 @@
     }
     return out;
   }
-  const SRC = { qc: "Sépaq", ott: "the City of Ottawa", ut: "Utah's trail data (UGRC)", pa: "Pennsylvania state parks", wh: "the Resort Municipality of Whistler", csrd: "the Columbia Shuswap Regional District" };
+  const SRC = { qc: "Sépaq", ott: "the City of Ottawa", ut: "Utah's trail data (UGRC)", pa: "Pennsylvania state parks", wh: "the Resort Municipality of Whistler", csrd: "the Columbia Shuswap Regional District",
+    fta: "the Fernie Trails Alliance", rdos: "the Regional District of Okanagan-Similkameen", ccf: "the Cranbrook Community Forest Society trail map" };
   // Towns' own trail lists name each trail: a line with another trail's name is a different trail on the same spot.
   // Words are kept per name: the same few names are checked against every point of every trail (a freeze of a second
   // or more on a phone when a new part of the map loaded, alex 2026-10-23).

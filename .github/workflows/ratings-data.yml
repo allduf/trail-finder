@@ -12,9 +12,11 @@ on:
     branches: [main]
     paths:
       - scripts/build-ratings.mjs
+      - scripts/map-ratings.json
   pull_request:
     paths:
       - scripts/build-ratings.mjs
+      - scripts/map-ratings.json
       - .github/workflows/ratings-data.yml
 
 permissions:
