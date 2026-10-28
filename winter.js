@@ -926,10 +926,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // the list fills with what's near it (alex 2026-10-26: "add search an region"). While typing: the backcountry areas
   // whose name matches (ski-areas.js); Enter or "Search places" asks OpenStreetMap (place-search.js).
   let placeQ = "", placeFound = null, placeRows = [];
-  $("skFind").addEventListener("focus", () => {
+  $("skFind").addEventListener("focus", () => window.tfLoadSport("ski").then(() => {   // ski-areas.js and helicat.js come with Skiing
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
-  }, { once: true });
+  }).catch(() => {}), { once: true });
   function renderPlaces() {
     const P = window.tfPlaceSearch, ul = $("skPlaces"), msg = $("skPlaceMsg"), q = findText.trim();
     if (!P || q.length < 2) { ul.innerHTML = ""; msg.textContent = ""; placeRows = []; return; }
@@ -3262,18 +3262,37 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   };
 
   // ---------- switching sport ----------
-  // Moto adventure (moto.js) loads only the first time Moto is picked, so the app stays as light for everyone else
-  // (same ?v= as this script, for the same cache rule).
-  const motoSrc = "moto.js" + ((document.currentScript && new URL(document.currentScript.src).search) || "");
-  let motoLoad = null;
-  const loadMoto = () => motoLoad || (motoLoad = new Promise((ok, no) => {
-    const el = document.createElement("script"); el.src = motoSrc; el.onload = ok; el.onerror = () => { motoLoad = null; no(new Error("moto.js")); };
-    document.body.append(el);
-  }));
-  window.tfLoadMoto = loadMoto;
+  // Each sport's own scripts load only the first time that sport is picked (alex's fix list 2026-10-28: the first open
+  // was 2.4 MB of scripts for every sport), so MTB opens without Hunting, Fishing, Skiing's extras or Moto. They run
+  // in this order (the order they used to have in index.html), after the page's own scripts, and each one draws
+  // itself for the sport that's on when it arrives. Same ?v= as this script, for the same cache rule.
+  const jsVer = (document.currentScript && new URL(document.currentScript.src).search) || "";
+  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "moto"];
+  const NEEDS = {
+    hunt: ["crownland", "hunting", "compass"],
+    fish: ["crownland", "fish-bait", "fish-route", "fishing"],
+    ski: ["webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat"],
+    moto: ["crownland", "hunting", "moto"],   // Moto's "Can I ride here" reads Hunting's parks and closures (window.tfHunt)
+  };
+  const jsLoads = {};
+  const pageReady = new Promise((ok) => (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", ok, { once: true }) : ok()));
+  function loadJs(n) {
+    if (jsLoads[n]) return jsLoads[n];
+    const src = `${n}.js${jsVer}`;
+    const pre = document.createElement("link"); pre.rel = "preload"; pre.as = "script"; pre.href = src;   // downloads now, runs below
+    document.head.append(pre);
+    return (jsLoads[n] = pageReady.then(() => new Promise((ok, no) => {
+      const el = document.createElement("script"); el.src = src; el.async = false;   // in the order asked
+      el.onload = ok; el.onerror = () => { delete jsLoads[n]; no(new Error(src)); };
+      document.body.append(el);
+    })));
+  }
+  const loadSport = (s) => Promise.all(SPORT_JS.filter((n) => (NEEDS[s] || []).includes(n)).map(loadJs));
+  window.tfLoadSport = loadSport;
+  window.tfLoadMoto = () => loadSport("moto");
   function setSport(s) {
     sport = SPORTS.includes(s) ? s : "mtb";
-    if (sport === "moto") loadMoto().catch(() => {});
+    loadSport(sport).catch(() => {});
     store.set("sport", sport);
     sel.value = sport;
     for (const s of SPORTS) document.body.classList.toggle(`sport-${s}`, sport === s);

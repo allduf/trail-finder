@@ -64,6 +64,8 @@
   const none = { data: [], tiles: [] };
   async function extras(box, sport, d3, huntLayers) {
     const parts = [];
+    // Hunting's and Fishing's files load with their sport (winter.js): an area saved there, deleted from MTB, needs them.
+    if ((sport === "hunt" || sport === "fish") && window.tfLoadSport) await window.tfLoadSport(sport).catch(() => {});
     if (sport === "ski" && window.tfSkiOffline) parts.push(window.tfSkiOffline(box));
     if (sport === "hunt" && window.tfHuntOffline) parts.push(window.tfHuntOffline(box, huntLayers));
     if (sport === "fish" && window.tfFishOffline) parts.push(window.tfFishOffline(box));
@@ -434,6 +436,7 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
   async function remove(a, areas) {
     const rest = areas.filter((x) => x !== a);
     save(rest);
+    if (window.tfLoadSport) await window.tfLoadSport("hunt").catch(() => {});
     const hunts = window.tfHuntOfflineUrls ? window.tfHuntOfflineUrls() : [];   // Hunting's own saved layers share the cache
     if (!rest.length && !hunts.length) { await caches.delete(CACHE); return; }
     const keep = new Set([...(await Promise.all(rest.map(urlsOf))).flat(), ...hunts]);

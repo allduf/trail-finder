@@ -409,7 +409,8 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
       const t = fishList[+b.dataset.f];
       markFishRead([t.key]);
       box.close();
-      if (window.tfFish && window.tfFish.show) window.tfFish.show(t.c[0], t.c[1], t.name);
+      // fishing.js loads with Fishing (winter.js): from another sport, it comes first.
+      (window.tfLoadSport ? window.tfLoadSport("fish") : Promise.resolve()).catch(() => {}).then(() => { if (window.tfFish && window.tfFish.show) window.tfFish.show(t.c[0], t.c[1], t.name); });
     }));
   }
   const fishWhere = () => { const m = window.tfLeaflet; return m ? [Math.round(m.getCenter().lat * 100) / 100, Math.round(m.getCenter().lng * 100) / 100] : null; };
