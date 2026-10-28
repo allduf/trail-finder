@@ -145,7 +145,6 @@
   {"name": "Mont Béchervaise (Gaspé)", "zone": "ca_48_-64.8", "c": [48.8428, -64.5464], "tier": 2},
   {"name": "Carleton-sur-Mer", "zone": "ca_48_-67.2", "c": [48.137, -66.1248], "tier": 2},
   {"name": "Rouyn-Noranda", "zone": "ca_48_-79.2", "c": [48.2617, -79.0503], "tier": 2},
-  {"name": "Sugarloaf (Campbellton)", "zone": "ca_47_-67.2", "c": [47.9785, -66.6858], "tier": 2},
   {"name": "Cumberland", "zone": "ca_49_-126.0", "c": [49.6004, -125.0337], "tier": 1},
   {"name": "Jasper", "zone": "ca_52_-118.8", "c": [52.8961, -118.079], "tier": 1},
   {"name": "Valemount", "zone": "ca_52_-120.0", "c": [52.8557, -119.2569], "tier": 1},
@@ -245,5 +244,7 @@
   {"name": "Kollock Creek (Kouchibouguac)", "zone": "ca_46_-66.0", "c": [46.7998, -64.9451], "tier": 2},
   {"name": "Smithers Bluff", "zone": "ca_54_-127.2", "c": [54.7705, -127.184], "tier": 1},
   {"name": "Tyee Mountain (Telkwa)", "zone": "ca_54_-127.2", "c": [54.734, -126.948], "tier": 2},
-  {"name": "Sugarloaf (Campbellton)", "zone": "ca_47_-67.2", "c": [47.9785, -66.6858], "tier": 1}
+  {"name": "Sugarloaf (Campbellton)", "zone": "ca_47_-67.2", "c": [47.9785, -66.6858], "tier": 1},
+  {"name": "Blue Mountain (Collingwood)", "zone": "ca_44_-80.4", "c": [44.497, -80.309], "tier": 1},
+  {"name": "Ski Wentworth", "zone": "ca_45_-63.6", "c": [45.63, -63.559], "tier": 1}
 ]}
