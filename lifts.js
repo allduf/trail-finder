@@ -54,7 +54,7 @@ dialog.lf-dlg .lf-foot a { color: var(--accent); font-weight: 600; }
 
   // ---------- data ----------
   let data = null, lifts = [], resorts = {};
-  const load = () => (data = data || fetch("data/ski-lifts.json?v=620").then((r) => r.json()).then((d) => {
+  const load = () => (data = data || fetch("data/ski-lifts.json?v=621").then((r) => r.json()).then((d) => {
     resorts = d.resorts || {}; lifts = d.lifts || [];
     return d;
   }).catch(() => { data = null; return null; }));
