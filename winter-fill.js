@@ -82,17 +82,25 @@ function pushPull(d) {
   return true;
 }
 
+// One canvas for reading pixels and one for handing tiles over, kept for the worker's life: a new canvas per tile
+// (three a tile before) stays in memory until the browser gets round to cleaning up, which an iPhone may not do
+// before the 3D map runs it out of memory (alex's recording, 2026-10-28). Each use is done in one go (no waiting in
+// between), so tiles being made at the same time can't mix.
+const readCv = new OffscreenCanvas(W, W), readCx = readCv.getContext("2d", { willReadFrequently: true });
+const outCv = new OffscreenCanvas(W, W), outCx = outCv.getContext("2d");
 const decode = async (blob) => {
-  const img = await createImageBitmap(blob), cv = new OffscreenCanvas(W, W), cx = cv.getContext("2d", { willReadFrequently: true });
-  cx.drawImage(img, 0, 0, W, W); img.close();
-  return cx.getImageData(0, 0, W, W);
+  const img = await createImageBitmap(blob);
+  readCx.clearRect(0, 0, W, W); readCx.drawImage(img, 0, 0, W, W); img.close();
+  return readCx.getImageData(0, 0, W, W);
 };
 // Tile z/x/y's pixels (holes filled if whole), or null where there's no photo. A missing tile past zoom 11 is cut
 // from the one above it and enlarged (the newer squares stop at zoom 13, and a few tiles were cloudy every pass).
-async function tile(z, x, y, base, skip, whole, out) {
+// A tile scrolled away meanwhile (id cancelled) stops before decoding and filling: those were done for nothing.
+async function tile(z, x, y, base, skip, whole, out, id) {
   if (!skip) {
     const r = await fetch(new URL(`${z}/${x}/${y}.webp`, base).href);
-    if (r.ok) { const px = await decode(await r.blob()); return whole && !(await fillHoles(px.data, z, x, y)) ? null : px; }
+    if (cancelled.has(id)) return null;
+    if (r.ok) { const px = await decode(await r.blob()); return whole && !cancelled.has(id) && !(await fillHoles(px.data, z, x, y)) ? null : px; }
     if (r.status !== 404) throw new Error(`HTTP ${r.status}`);
     if (z === 14) out.miss14 = true;
   }
@@ -100,28 +108,27 @@ async function tile(z, x, y, base, skip, whole, out) {
   const pk = `${z - 1}/${x >> 1}/${y >> 1}`;
   const up = await (parents.get(pk) || keep(pk, tile(z - 1, x >> 1, y >> 1, base, false, whole, {})));
   if (!up) return null;
-  const src = new OffscreenCanvas(W, W);
-  src.getContext("2d").putImageData(up, 0, 0);
-  const cv = new OffscreenCanvas(W, W), cx = cv.getContext("2d", { willReadFrequently: true });
-  cx.imageSmoothingQuality = "high";
-  cx.drawImage(src, (x % 2) * W / 2, (y % 2) * W / 2, W / 2, W / 2, 0, 0, W, W);
-  return cx.getImageData(0, 0, W, W);
+  outCx.putImageData(up, 0, 0);
+  readCx.clearRect(0, 0, W, W); readCx.imageSmoothingQuality = "high";
+  readCx.drawImage(outCv, (x % 2) * W / 2, (y % 2) * W / 2, W / 2, W / 2, 0, 0, W, W);
+  return readCx.getImageData(0, 0, W, W);
 }
 
+const busy = new Set();   // tiles being made: a cancel for one already sent is dropped, not kept for ever
 self.onmessage = async ({ data: m }) => {
-  if (m.cancel) { cancelled.add(m.cancel); return; }
+  if (m.cancel) { if (busy.has(m.cancel)) cancelled.add(m.cancel); return; }
   const out = { id: m.id };
+  busy.add(m.id);
   try {
-    const px = await tile(m.z, m.x, m.y, m.base, m.skip, m.whole, out);
-    if (cancelled.delete(m.id)) return;
+    const px = await tile(m.z, m.x, m.y, m.base, m.skip, m.whole, out, m.id);
+    if (cancelled.has(m.id)) return;
     if (!px) { out.none = true; self.postMessage(out); return; }
-    const cv = new OffscreenCanvas(W, W);
-    cv.getContext("2d").putImageData(px, 0, 0);
-    out.data = cv.transferToImageBitmap();
+    outCx.putImageData(px, 0, 0);
+    out.data = outCv.transferToImageBitmap();
     self.postMessage(out, [out.data]);
   } catch (e) {
-    if (cancelled.delete(m.id)) return;
+    if (cancelled.has(m.id)) return;
     out.err = String(e.message || e);
     self.postMessage(out);
-  }
+  } finally { busy.delete(m.id); cancelled.delete(m.id); }
 };

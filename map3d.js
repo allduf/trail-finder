@@ -588,8 +588,12 @@
   };
   // Does tile z/x/y have any winter photo?
   const anyWinter = (have, z, x, y) => !!have && (z >= 11 ? have.has((x >> (z - 11)) + "/" + (y >> (z - 11))) : have.some.has(`${z}/${x}/${y}`));
-  // A see-through tile, for places without winter photos: no download, and no 404 for each one.
-  const noTile = () => { const c = new OffscreenCanvas(1, 1); c.getContext("2d"); return { data: c.transferToImageBitmap() }; };
+  // A see-through tile, for places without winter photos: no download, and no 404 for each one. Made from one shared
+  // 1-pixel picture, not a new canvas each time (~130 of them per move under Winter).
+  const EMPTY = new ImageData(1, 1);
+  const noTile = async () => ({ data: await createImageBitmap(EMPTY) });
+  // A tile a worker finished after the map stopped wanting it (scrolled away): its picture is let go right away.
+  const drop = (d) => { try { if (d && d.close) d.close(); } catch {} };
   let winterPhotoProtocol = false;
   function addWinterPhotoProtocol() {
     if (winterPhotoProtocol) return;
@@ -610,8 +614,8 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=633");
-      w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return; fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
+      const w = new Worker("winter-fill.js?v=690");
+      w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
     const id = ++fillId, w = fillWorkers[fillNext++ % fillWorkers.length];
@@ -668,7 +672,7 @@
   // also gentler: 2 workers with few parent photos, 256 px tiles (a quarter as many; the 1024 px phone buffers
   // couldn't show more detail anyway), only once the heights in view are all in and the map is still, and at most
   // PHONE_HD_SLOTS drawn at once, newest first, so they never crowd the terrain and Winter downloads.
-  const PHONE_HD_CACHE = 24;   // parent photos kept per worker on phones (computers 160); up to ~1 MB each
+  const PHONE_HD_CACHE = 12;   // parent photos kept per worker on phones (computers 160); up to ~1 MB each (24 before 2026-10-28)
   const PHONE_HD_SLOTS = 4;    // close-ups being drawn at once on phones (each downloads 1-4 photos)
   const hdBusy = new Set();     // ids of the close-ups being drawn (phones)
   const hdQueue = [];
@@ -687,10 +691,10 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=633" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=690" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
-        if (!job) return;
+        if (!job) return drop(m.data);
         hdWaiting.delete(m.id);
         if (m.data) job.ok({ data: m.data }); else job.no(new Error(m.err || "no tile"));
       };
@@ -1010,20 +1014,38 @@
     // moving. Now about 150 to 380 tiles in a tilted view, against 500 to 900.
     // Phones the same since 2026-10-23 (they had 4 levels and fewer far tiles, which made the distance blurry).
     const lod = () => ["sat", "fill", "winter", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
-    gl.once("load", lod);
-    gl.once("load", tiltUp);
+    // Set as soon as the style is in, so the very first tiles already come at that setting.
+    gl.once("style.load", lod); gl.once("load", lod);
+    // The tilt starts as soon as the height under the first (flat) view's centre is in.
+    // It waited for "load" before: every first tile of every source (photos, names, roads, the hidden ones) at the
+    // flat view, which a phone loaded for 8-10 s with "Loading the mountains…" up, then loaded the tilted view all
+    // over again (alex's recording, 2026-10-28). The height right under the centre must be known: the camera's
+    // height is set from it when the tilt starts and kept until the map is next moved by hand (MapLibre), and from
+    // 0 m it sat inside the mountains up close (phone test at Whistler).
+    let tilted = false;
+    // At sea level (height 0) it waits for "load", as before.
+    const tiltNow = () => { if (tilted || !gl) return; tilted = true; gl.off("render", demIn); tiltUp(); };
+    const demIn = () => { if (gl.queryTerrainElevation(gl.getCenter())) tiltNow(); };
+    gl.on("render", demIn);
+    gl.once("load", tiltNow);
     // Until the ground first draws the 3D map is only sky (several seconds on a phone with weak signal), which
-    // looked broken: say it's coming. Gone at the first full draw, or after 20 s if some imagery never answers.
+    // looked broken: say it's coming. Gone once the tilted view has its heights and its photos (not every source:
+    // names and the layers under the photos can come after), or after 20 s if some imagery never answers.
     const wait = document.createElement("div");
     wait.className = "g3-wait"; wait.setAttribute("role", "status"); wait.textContent = "Loading the mountains…";
     box.append(wait);
-    const waited = () => wait.remove();
-    gl.once("load", waited); gl.once("idle", waited); setTimeout(waited, 20000);
-    // Time to the first full draw of the ground; 30 s or more is counted as 30 s.
+    // Time to the first draw of the ground; 30 s or more is counted as 30 s (usage page).
     const t3d = performance.now();
     let timed = false;
     const timeIt = () => { if (!timed) { timed = true; logUse("speed", "3d", Math.min(performance.now() - t3d, 30000)); } };
-    gl.once("idle", timeIt); setTimeout(timeIt, 30000);
+    const photoSource = () => ["winter", "live", "sat"].find((id) => gl.getLayer(id) && gl.getLayoutProperty(id, "visibility") !== "none") || "sat";
+    const groundIn = () => {
+      if (!tilted || gl.isMoving() || !["dem", photoSource()].every((id) => gl.isSourceLoaded(id))) return;
+      waited(); timeIt();
+    };
+    const waited = () => { wait.remove(); gl.off("sourcedata", groundIn); gl.off("idle", groundIn); gl.off("moveend", groundIn); };
+    gl.on("sourcedata", groundIn); gl.on("idle", groundIn); gl.on("moveend", groundIn);
+    setTimeout(waited, 20000); setTimeout(timeIt, 30000);
     if (PHONE) {
       gl.on("idle", trimPaintBuffers);
       // At most PHONE_BUFFERS paint buffers, even while moving: with no limit (30) a long tilted ride across the

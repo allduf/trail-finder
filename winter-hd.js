@@ -1,6 +1,6 @@
 // Worker for map3d.js: draws the sharper close-up Winter tiles (zooms 15-16) off the page's main thread, so the
 // 3D map keeps moving and loading its terrain while they're drawn (alex, 2026-10-19: "that map is long to load").
-// Message in: { id, z, x, y, base, site } (base = the page address, site = where its Winter photos are: ../trail-finder-winter/ or ../trail-finder-winter2/). Out: { id, data } (a WebP or PNG
+// Message in: { id, z, x, y, base, site } (base = the page address, site = where its Winter photos are: ../trail-finder-winter/ or ../trail-finder-winter2/). Out: { id, data } (an ImageBitmap
 // tile) or { id, err }. { cancel: id } drops a tile the map no longer needs.
 //
 // The colours come from last winter's Sentinel-2 photo (data/winter zoom 14, 10 m a pixel). Two real sources add
@@ -30,12 +30,17 @@ function cached(key, make) {
   if (cache.size > KEEP) cache.delete(cache.keys().next().value);
   return p;
 }
+// One canvas per picture size for reading pixels, kept for the worker's life: a new one per picture stayed in memory
+// until the browser cleaned up, which an iPhone may not do before the 3D map runs it out of memory (2026-10-28).
+const readers = new Map();
 async function pixels(url) {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  const img = await createImageBitmap(await r.blob()), cv = new OffscreenCanvas(img.width, img.height), cx = cv.getContext("2d", { willReadFrequently: true });
-  cx.drawImage(img, 0, 0); img.close();
-  return cx.getImageData(0, 0, cv.width, cv.height);
+  const img = await createImageBitmap(await r.blob()), w = img.width, h = img.height, k = w + "x" + h;
+  if (!readers.has(k)) { const cv = new OffscreenCanvas(w, h); readers.set(k, cv.getContext("2d", { willReadFrequently: true })); }
+  const cx = readers.get(k);
+  cx.clearRect(0, 0, w, h); cx.drawImage(img, 0, 0); img.close();
+  return cx.getImageData(0, 0, w, h);
 }
 // The part of an ancestor tile (zoom pz) that lies under tile z/x/y, as [pixels, left, top, size].
 async function under(pz, z, x, y, url, tag) {
@@ -97,16 +102,20 @@ async function draw({ id, z, x, y, base, site = "../trail-finder-winter/" }) {
     }
     O[i] = r * f; O[i + 1] = g * f; O[i + 2] = b * f; O[i + 3] = a;
   }
-  const cv = new OffscreenCanvas(W, W);
-  cv.getContext("2d").putImageData(out, 0, 0);
-  return (await cv.convertToBlob({ type: "image/webp", quality: 0.9 })).arrayBuffer();   // PNG where WebP can't be made
+  // Handed over as a picture, ready for the graphics card: it was a WebP before, encoded here and decoded again on
+  // the page, two more copies of every tile in memory for a moment.
+  outCx.putImageData(out, 0, 0);
+  return outCv.transferToImageBitmap();
 }
+const outCv = new OffscreenCanvas(W, W), outCx = outCv.getContext("2d");
 
+const busy = new Set();   // tiles being drawn: a cancel for one already sent is dropped, not kept for ever
 self.onmessage = async ({ data: m }) => {
-  if (m.cancel != null) { cancelled.add(m.cancel); return; }
+  if (m.cancel != null) { if (busy.has(m.cancel)) cancelled.add(m.cancel); return; }
+  busy.add(m.id);
   try {
     const data = await draw(m);
-    cancelled.delete(m.id);
     if (data) self.postMessage({ id: m.id, data }, [data]); else self.postMessage({ id: m.id, err: "cancelled" });
-  } catch (e) { cancelled.delete(m.id); self.postMessage({ id: m.id, err: String(e && e.message || e) }); }
+  } catch (e) { self.postMessage({ id: m.id, err: String(e && e.message || e) }); }
+  finally { busy.delete(m.id); cancelled.delete(m.id); }
 };
