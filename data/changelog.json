@@ -2,6 +2,7 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-10-28", "text": "Live lift status at Revelstoke, Lake Louise, RED Mountain and Mont-Sainte-Anne, and lake depths in Alberta (169 lakes) and Nova Scotia (634 lake maps)."},
+    {"date": "2026-10-28", "text": "Search finds towns and trails anywhere in Canada: type Bromont and the map goes there."},
     {"date": "2026-10-28", "text": "Trail heights now load even when the weather service is busy, and shuttle routes warn you about gates to check (🚧)."},
     {"date": "2026-10-28", "text": "New trails now shows the list right away, the app finds you even if you skip the welcome, and Prime loam tells you which day the dirt turns prime when nothing is prime today."},
     {"date": "2026-10-28", "text": "3D winter photos now cover Cumberland, Prince George, Whitehorse and Hardwood too."},
