@@ -18,7 +18,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 40   # build-mtb.mjs stops asking Overpass after 25 minutes
+    timeout-minutes: 50   # build-mtb.mjs stops asking Overpass after 25 minutes, build-heights.mjs after 20
     steps:
       - uses: actions/checkout@v4
       - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
@@ -28,11 +28,14 @@ jobs:
           node-version: 20
       - name: Collect all MTB trails
         run: node scripts/build-mtb.mjs
+      - name: Trail heights (so the trail card doesn't need Open-Meteo for them)
+        run: node scripts/build-heights.mjs   # data/heights-<zone>.json, from the trail lists and AWS Terrain Tiles
+        continue-on-error: true               # a terrain tile outage keeps yesterday's heights, never the trail lists
       - name: Split trails where they cross a road
         run: node scripts/build-road-splits.mjs   # data/road-splits.json, from the trail lists and data/roads-<zone>.json
       - name: Save the new data
         if: github.ref_name == 'main'
-        run: bash scripts/site-data.sh save "All trails data" 'data/mtb-*.json' data/road-splits.json
+        run: bash scripts/site-data.sh save "All trails data" 'data/mtb-*.json' 'data/heights-*.json' data/road-splits.json
       - name: Publish the website
         env:
           GH_TOKEN: ${{ github.token }}

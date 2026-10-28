@@ -11,7 +11,7 @@
 //   ratings      a zone where most named MTB trails have no real rating (only the slope estimate, or nothing)
 //   official     a zone with many MTB trails and none known to be official; trails flagged closed but listed as official
 //   network      named paths among MTB trails that the network rule leaves out (and why)       } need the OpenStreetMap
-//   gaps         a trail end 20-50 m from the nearest line: Plan a route can't join it          } extract (below)
+//   gaps         a trail end 20-50 m from the nearest line (Plan a route bridges it)       } extract (below)
 //   trailheads   a trailhead or parking spot with no road within 100 m                          }
 //   gates        gates of unknown status on the forest roads near trails (Shuttle can't tell if it's open)
 //
@@ -316,7 +316,9 @@ async function audit() {
         detail: `Left out of the trail list: ${why.join("; ")}. Way ${p.id}, ${Math.round(p.len)} m.` });
     }
 
-    // ---- gaps: trail ends Plan a route can't join ----
+    // ---- gaps: trail ends that stop short of the next line ----
+    // Plan a route bridges a trail end up to GAP_M (planner.js FAR_M) from another line as a costlier unmapped link,
+    // so these no longer break routes; they're listed for information (mapping the join in OpenStreetMap is better).
     const all = segGrid();
     for (const [id, w] of Object.entries(osm.ways)) all.add(+id, pairs(w.g), w.tags.name || w.tags.highway);
     pieces.forEach((p) => { if (!osm.ways[p.id]) all.add(p.id, p.geom, p.name || "trail"); });
@@ -331,8 +333,8 @@ async function audit() {
         // A loop's own other end, or the trail's own other piece: fine.
         if (metres(q, end === "start" ? p.geom[p.geom.length - 1] : p.geom[0]) <= BRIDGE_M) continue;
         gaps++;
-        add({ check: "gaps", zone: z.id, sev: "fix", key: `gap:${p.id}:${end}`, where: at(q), title: `${p.name || "Unnamed trail " + p.id}: ${end} is ${Math.round(near.d)} m from ${near.info}`,
-          detail: `Plan a route joins lines within ${BRIDGE_M} m, so a route can't go from this trail to ${near.info} (way ${near.id}).`, gap: { way: p.id, end, d: Math.round(near.d), to: near.id } });
+        add({ check: "gaps", zone: z.id, sev: "info", key: `gap:${p.id}:${end}`, where: at(q), title: `${p.name || "Unnamed trail " + p.id}: ${end} is ${Math.round(near.d)} m from ${near.info}`,
+          detail: `Plan a route bridges this as an unmapped link to ${near.info} (way ${near.id}); joining them in OpenStreetMap would make it a real connection.`, gap: { way: p.id, end, d: Math.round(near.d), to: near.id } });
       }
     }
     zs.gaps = gaps;
