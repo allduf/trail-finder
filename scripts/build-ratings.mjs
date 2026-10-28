@@ -14,6 +14,13 @@
 //      csrd Columbia Shuswap Regional District trails (OGL-CSRD; Golden, Revelstoke, Shuswap): Difficulty Easiest/Easy,
 //          More Difficult, Most Difficult, Expert, only on bike trails (in a system the district lists for mountain biking,
 //          or Cycling "Yes"), not on ski, snowshoe or hiking-only trails
+//      fta Fernie Trails Alliance's own trail data (their "FTA Trail Network" layer in Tourism Fernie's public trail web map):
+//          difficulty 1-2 green (1 is the town pathways), 3 blue, 4 black, 5 double black, 6 (pro lines) double black.
+//          Checked against trails rated elsewhere: Red Sonja 4 (black), Old Goat and Dem Bones 3 (blue), Dirt Diggler 5.
+//      rdos Regional District of Okanagan-Similkameen hiking and biking trails (their trail map, "Trails_RDOS"): Difficulty
+//          Beginner, Intermediate, Advanced on bike and multi-use trails (Three Blind Mice trail by trail, Apex, the KVR...)
+//      ccf ... and other clubs' georeferenced PDF maps, read colour by colour by scripts/map-ratings.py (run by hand) into
+//          scripts/map-ratings.json: Cranbrook Community Forest Society (Easy, Moderate, Difficult, Very Difficult)
 //    The province of BC and Alberta have no open data with an MTB difficulty (Recreation Sites and Trails BC only has a few
 //    descriptions in free text); towns can (Whistler). scripts/find-sources.mjs looks for more.
 // 2. For the unrated ways of the all-trails lists (data/mtb-<zone>.json), data/ratings/osm.json:
@@ -222,7 +229,11 @@ const SOURCES = {
   pa: { name: "Pennsylvania DCNR state parks", licence: "Public", url: "https://gis.dcnr.pa.gov/" },
   csrd: { name: "Columbia Shuswap Regional District", licence: "Open Government Licence – Columbia Shuswap Regional District", url: "https://www.csrd.bc.ca/" },
   wh: { name: "Resort Municipality of Whistler", licence: "Open Government Licence – Resort Municipality of Whistler", url: "https://portal-rmow.opendata.arcgis.com/" },
+  rdos: { name: "Regional District of Okanagan-Similkameen", licence: "Published in the district's Hiking and Biking Trails map", url: "https://rdos.maps.arcgis.com/" },
+  fta: { name: "Fernie Trails Alliance", licence: "Published in Tourism Fernie's public trail map", url: "https://www.fernietrailsalliance.com/" },
 };
+const MAP_RATINGS = (() => { try { return JSON.parse(readFileSync("scripts/map-ratings.json", "utf8")); } catch { return { maps: {}, lines: [] }; } })();
+for (const [k, m] of Object.entries(MAP_RATINGS.maps)) SOURCES[k] = { name: m.name, licence: "The club's own trail map, read by scripts/map-ratings.py", url: m.url };
 async function arcgis(layer, fields, where = "1=1", geometry = true) {
   const out = [];
   for (let offset = 0; ; ) {
@@ -322,6 +333,23 @@ async function buildLines() {
         if (!t.mtb && !(t.bike === "Yes" && !t.winter)) continue;
         t.paths.forEach((p) => add(levelOfWords(t.difficulty), "csrd", t.system && t.system !== t.name ? `${t.name}, ${t.system}` : t.name, t.difficulty, lonlat(p)));
       }
+    },
+    async fta() {
+      const LEVEL = { 1: "green", 2: "green", 3: "blue", 4: "black", 5: "dbl", 6: "dbl" };
+      const fs = await arcgis("https://services3.arcgis.com/wTur6nX2hsVkJrqG/arcgis/rest/services/Tourism_Fernie_Phase_1_Webmap_REV5_WFL1/FeatureServer/201",
+        "OBJECTID,name,difficulty");
+      for (const { a, paths } of fs) paths.forEach((p) => add(LEVEL[a.difficulty], "fta", a.name, "", lonlat(p)));
+    },
+    async rdos() {
+      const fs = await arcgis("https://services.arcgis.com/U7kxTIxKEKeXs30y/arcgis/rest/services/Trails_RDOS/FeatureServer/0",
+        "OBJECTID,NetworkName,SubName,Activity1,Activity2,Difficulty,TrailUse");
+      for (const { a, paths } of fs) {
+        if (!/bik/i.test(`${a.Activity1} ${a.Activity2} ${a.TrailUse}`) || /special event|road/i.test(`${a.TrailUse} ${a.Activity1}`)) continue;
+        paths.forEach((p) => add(levelOfWords(a.Difficulty), "rdos", a.SubName || a.NetworkName, a.Difficulty, lonlat(p)));
+      }
+    },
+    async maps() {   // from the file, so it never fails; each map is its own source
+      for (const [d, src, name, note, pts] of MAP_RATINGS.lines) add(d, src, name, note, pts);
     },
   };
   const failed = [];

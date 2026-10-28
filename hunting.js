@@ -1953,7 +1953,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       gl.once("style.load", go); gl.once("load", go); gl.once("idle", go);
     }
   }
-  window.addEventListener("tf:map3d", (e) => {
+  // This file loads the first time Hunting is picked (winter.js), often after the 3D map was built: take that one too.
+  const on3d = (e) => {
     gl3 = e.detail;
     fillsSet = labelsSet = false;
     gl3.on("click", (ev) => {
@@ -1964,7 +1965,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       showSpot(ev.lngLat.lat, ev.lngLat.lng);
     });
     sync3d();
-  });
+  };
+  window.addEventListener("tf:map3d", on3d);
 
   // For ski-points.js: the hunting zone at a point, for the harvest log.
   window.tfHunt = {
@@ -2028,4 +2030,5 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   }
   window.addEventListener("tf:sport", sync);
   sync();
+  if (window.trailMap3d) on3d({ detail: window.trailMap3d });
 })();

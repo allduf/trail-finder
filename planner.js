@@ -350,6 +350,51 @@
     }
     return false;
   }
+  // Gates the truck drives through that aren't mapped as locked (fix list 2026-10-28: about 140 gates near trails have no
+  // status, and the shuttle drove through them as if open): open ones, and ones whose status isn't known, with what the
+  // road says about them (likely, hint: index.html gateGuess). They don't stop the shuttle, but the route says to check.
+  // A gate that's probably locked (a road through it is closed to public vehicles) guards that road, which the truck never
+  // drives, so it's one the route only passes by (or stops at): left out.
+  let warnFeatN = -1, warnGrid = new Map();
+  function gatesOn(pts) {
+    const feats = nav.roadFeats ? nav.roadFeats() : [];
+    if (feats.length !== warnFeatN) {
+      warnFeatN = feats.length; warnGrid = new Map();
+      feats.filter((f) => /^gate_(maybe|open)$/.test(f.kind) && f.likely !== "locked").forEach((f) => {
+        const c = cellKey(f.lat, f.lon);
+        if (!warnGrid.has(c)) warnGrid.set(c, []);
+        warnGrid.get(c).push(f);
+      });
+    }
+    const out = new Map();
+    if (!warnGrid.size) return [];
+    for (let k = 1; k < pts.length; k++) {
+      const p1 = pts[k - 1], p2 = pts[k], cells = new Set();
+      [p1, p2, [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2]].forEach((q) => {
+        const ci = Math.floor(q[0] / 0.002), cj = Math.floor(q[1] / 0.002);
+        for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) cells.add(i + ":" + j);
+      });
+      cells.forEach((c) => (warnGrid.get(c) || []).forEach((f) => {
+        if (out.has(f.id)) return;
+        const kx = Math.cos(f.lat * RAD) * R * RAD, ky = R * RAD;
+        const ax = (p1[1] - f.lon) * kx, ay = (p1[0] - f.lat) * ky, dx = (p2[1] - p1[1]) * kx, dy = (p2[0] - p1[0]) * ky, l2 = dx * dx + dy * dy;
+        const t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
+        if (Math.hypot(ax + t * dx, ay + t * dy) < 10) out.set(f.id, f);
+      }));
+    }
+    return [...out.values()];
+  }
+  const runGates = (r) => { const n = nav.roadFeats ? nav.roadFeats().length : 0; if (r.gatesN !== n) { r.gates = gatesOn(r.pts); r.gatesN = n; } return r.gates; };
+  // The note under a shuttle: "Drives through 2 gates on Cypress Creek FSR (open or locked not known). Check they're open before you go."
+  function gateNote(gs) {
+    if (!gs.length) return "";
+    const n = gs.length, what = (g) => (g.kind === "gate_open" ? "mapped as open" : g.likely === "open" ? "probably open" : "not known");
+    const roads = [...new Set(gs.map((g) => g.road).filter(Boolean))].slice(0, 2), on = roads.length ? ` on ${roads.map(esc).join(", ")}` : "";
+    const dunno = gs.filter((g) => what(g) === "not known").length, all = gs.every((g) => what(g) === what(gs[0]));
+    const why = !all ? `${dunno} not known if open or locked` : what(gs[0]) === "not known" ? "open or locked not known"
+      : what(gs[0]) === "probably open" ? `probably open: ${esc(gs[0].hint)}` : "mapped as open";
+    return ` <span class="gap-note plan-gate">🚧 Drives through ${n === 1 ? "a gate" : n + " gates"}${on} (${why}). Check ${n === 1 ? "it's" : "they're"} open before you go.</span>`;
+  }
   // Can the shuttle drive this stretch of graph G? A short join between two drivable lines counts too.
   function carOk(G, k1, k2, w, d) {
     if (!G.car) G.car = new Map();
@@ -643,8 +688,8 @@
   const line = L.polyline([], { color: "#7b2ff7", weight: 6, opacity: 0.95, lineCap: "round", lineJoin: "round", interactive: false });
   const gapLine = L.polyline([], { color: "#7b2ff7", weight: 4, opacity: 0.9, dashArray: "6 8", interactive: false });
   const driveLine = L.polyline([], { color: "#37474f", weight: 6, opacity: 0.95, dashArray: "12 6", lineCap: "butt", interactive: false });   // shuttle
-  const arrows = L.layerGroup(), dots = L.layerGroup();
-  [pickCase, caseLine, linkLine, line, driveLine, gapLine, arrows, dots].forEach((l) => l.addTo(layer));
+  const arrows = L.layerGroup(), dots = L.layerGroup(), gateDots = L.layerGroup();
+  [pickCase, caseLine, linkLine, line, driveLine, gapLine, arrows, gateDots, dots].forEach((l) => l.addTo(layer));
   const allPts = () => legs.flatMap((l, i) => (i ? l.pts.slice(1) : l.pts));
   const lengthOf = (pts) => pts.reduce((a, q, i) => a + (i ? metres(pts[i - 1], q) : 0), 0);
   const total = () => legs.reduce((s, l) => s + lengthOf(l.pts), 0);
@@ -1042,6 +1087,11 @@
     linkLine.setLatLngs(mode === "pick" ? real.filter((l) => l.pick < 0).map((l) => l.pts) : []);
     gapLine.setLatLngs(legs.filter((l) => l.gap).map((l) => l.pts));
     driveLine.setLatLngs(driven().map((r) => r.pts));
+    gateDots.clearLayers();   // the gates the shuttle drives through, to check
+    driven().flatMap(runGates).forEach((g) => {
+      gateDots.addLayer(L.circleMarker([g.lat, g.lon], { radius: 7, weight: 2, color: "#fff", fillColor: "#f08c00", fillOpacity: 1, interactive: false }));
+      gateDots.addLayer(L.marker([g.lat, g.lon], { interactive: false, keyboard: false, icon: stopIcon("🚧", "gate") }));
+    });
     // Yellow under your trails: just the part ridden once the ride is built (a trail can be left where the next starts).
     pickCase.setLatLngs(mode !== "pick" ? [] : legs.length ? legs.filter((l) => l.pick >= 0).map((l) => l.pts) : picks.flatMap((p) => p.ways.map((w) => w.geom)));
     dots.clearLayers();
@@ -1110,7 +1160,7 @@
     if (l.drive) {
       const names = mainNames(l);
       const x = l.into != null ? `<span class="ps-ctl"><button type="button" data-act="nocar" data-i="${l.into}" title="No shuttle here: ride it, one big run" aria-label="Take out this shuttle">✕</button></span>` : "";
-      return `<li class="ps-link ps-drive"><span class="ps-n">🛻</span><span class="ps-body"><b>${up > down ? "Shuttle up" : "Shuttle"}</b>${names.length ? " via " + names.map(esc).join(", ") : ""} ${m}</span>${x}</li>`;
+      return `<li class="ps-link ps-drive"><span class="ps-n">🛻</span><span class="ps-body"><b>${up > down ? "Shuttle up" : "Shuttle"}</b>${names.length ? " via " + names.map(esc).join(", ") : ""} ${m}${gateNote(runGates(l))}</span>${x}</li>`;
     }
     if (l.gap) return `<li class="ps-link"><span class="ps-n">↝</span><span><b>Cross</b> <span class="gap-note">off mapped trails</span> ${m}</span></li>`;
     const names = mainNames(l), picked = new Set(picks.map((p) => p.name));
@@ -1132,7 +1182,8 @@
     const ride = (s) => (car ? `<b>Ride ${s}</b>` : `<b>${s}</b>`);
     // Shuttle with nothing driven (and not because you took every shuttle out): say why.
     const gate = legs.map((l) => l.gate).find(Boolean), wanted = mode === "tap" || picks.some((p) => !p.pedal);
-    const drive = car ? ` · 🛻 Drive ${fmtM(car)}` : how === "shuttle" && wanted && legs.length && !busy && !joining
+    const gates = car ? driven().flatMap(runGates).filter((g, i, a) => a.findIndex((h) => h.id === g.id) === i) : [];
+    const drive = car ? ` · 🛻 Drive ${fmtM(car)}${gates.length ? ` · <span class="gap-note">🚧 ${gates.length} gate${gates.length > 1 ? "s" : ""} to check</span>` : ""}` : how === "shuttle" && wanted && legs.length && !busy && !joining
       ? ` · <span class="gap-note">No shuttle from your start${gate ? `: locked gate ${gate === "the road" ? "near it" : "on " + esc(gate)}` : ": no road a truck can take goes up"}, so you ride it all</span>` : "";
     document.querySelectorAll(".plan-how button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.how === how)));
     document.querySelectorAll(".plan-modes button[data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
@@ -1367,6 +1418,7 @@ body.planning:has(.app:not(.fullmap)) .plan-bar { left: 396px; }
 .plan-stop, .plan-arrow { background: none; border: 0; }
 .plan-stop span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #7b2ff7; color: #fff; font: 700 12px/1 system-ui, sans-serif; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); box-sizing: border-box; }
 .plan-stop.pick span { background: #ffd43b; color: #2b2100; }
+.plan-stop.gate span { background: #f08c00; font-size: 12px; }
 .plan-arrow span { display: block; width: 16px; height: 16px; color: #fff; font: 700 11px/16px system-ui, sans-serif; text-align: center; text-shadow: 0 0 2px #4b1aa0, 0 0 2px #4b1aa0; }
 body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .app.planning #planMapBtn { display: none; }
 #planMapBtn { font-weight: 700; }

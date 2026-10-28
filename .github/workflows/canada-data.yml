@@ -5,7 +5,7 @@ name: Canada trail data
 # the canada-data branch (one commit, replaced each night, so the repo doesn't grow) and published with the
 # website by pages.yml. They are never committed to main. The same run lists Canada's bike parks, pump tracks and
 # MTB centres (scripts/build-bike-parks.mjs -> ca/bike-parks.json), the trailheads and parking near the trails
-# (scripts/build-canada-access.mjs -> ca/a/), the forest roads near them (scripts/build-canada-roads.mjs -> ca/r/), the gas stations, campsites and hot springs for Moto mode (scripts/build-moto.mjs -> ca/moto/), the new trails for the 🔔 (scripts/build-new-trails.mjs ca -> ca/new-trails.json) and the ski resort runs, groomed nordic and snowmobile trails (scripts/build-canada-winter.mjs -> ca/w/).
+# (scripts/build-canada-access.mjs -> ca/a/), the forest roads near them (scripts/build-canada-roads.mjs -> ca/r/), the gas stations, campsites and hot springs for Moto mode (scripts/build-moto.mjs -> ca/moto/), every trail name for the name box (scripts/build-name-index.mjs -> ca/names.json), the new trails for the 🔔 (scripts/build-new-trails.mjs ca -> ca/new-trails.json) and the ski resort runs, groomed nordic and snowmobile trails (scripts/build-canada-winter.mjs -> ca/w/).
 on:
   schedule:
     - cron: "17 8 * * *"    # 08:17 UTC; Geofabrik's daily extracts are out by then
@@ -86,6 +86,8 @@ jobs:
           done
       - name: Build the chunks
         run: node scripts/build-canada.mjs finish
+      - name: Every trail name in Canada, for the name box (scripts/build-name-index.mjs -> ca/names.json)
+        run: node scripts/build-name-index.mjs || echo "::warning::Trail name list failed"
       - name: Trailheads, parking, forest roads and winter trails across Canada
         run: |
           node scripts/build-canada-access.mjs finish || echo "::warning::Trailheads and parking failed"
