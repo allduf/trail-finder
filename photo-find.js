@@ -68,7 +68,10 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
 .pf h2 { font-family: var(--font-display); text-transform: uppercase; margin: 0 0 6px; font-size: 1.35rem; display: flex; align-items: center; gap: 8px; }
 .pf h2 .pf-x { margin-left: auto; font: inherit; font-size: 1.1rem; line-height: 1; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; }
 .pf .pf-hint { color: var(--muted); font-size: .88rem; margin: 0 0 12px; }
-.pf.has-file .pf-hint { display: none; }
+.pf.has-file .pf-hint, .pf.has-file .pf-how { display: none; }
+.pf .pf-how { color: var(--muted); font-size: .84rem; margin: 8px 0 4px; }
+.pf .pf-how summary { cursor: pointer; }
+.pf .pf-how p { margin: 6px 0 0; }
 .pf .pf-drop { border: 2px dashed var(--line); border-radius: 12px; padding: 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; text-align: center; }
 .pf .pf-drop.over { border-color: var(--accent); background: var(--chip); }
 .pf .pf-drop .pf-or { color: var(--muted); font-size: .82rem; flex-basis: 100%; }
@@ -139,13 +142,14 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   box.className = "pf"; box.id = "photoFind"; box.hidden = true;
   box.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="pfTitle">
   <h2 id="pfTitle">📷 Which trail is this? <button type="button" class="pf-x" id="pfClose" aria-label="Close">✕</button></h2>
-  <p class="pf-hint">A photo, a screenshot of a post or a video of up to ${VIDEO_MAX_S} seconds. With the spot where it was taken, you get that trail. Without it, the app reads the words in it (trail names, places, hashtags, Strava or Trailforks labels) and lists the likely trails. The words are read on your device; to place the picture, a copy goes to Google's AI (Gemini) and Google's image search, which may keep it. “Yes, that's it” saves a small copy for Trail Finder to learn from (never shown in the app).</p>
+  <p class="pf-hint">A photo, a screenshot of a post or a video of up to ${VIDEO_MAX_S} seconds.</p>
   <div class="pf-drop" id="pfDrop">
     <button type="button" class="btn primary" id="pfPick">Choose a photo or short video</button>
     <button type="button" class="btn" id="pfPaste" hidden>📋 Paste a screenshot</button>
     <span class="pf-or">or drop one here${matchMedia("(pointer: fine)").matches ? ", or press Ctrl+V / ⌘V" : ""}</span>
     <input type="file" id="pfFile" accept="image/*,video/*" hidden>
   </div>
+  <details class="pf-how"><summary>A copy goes to Google to place it · How it works</summary><p>With the spot where it was taken, you get that trail. Without it, the app reads the words in it (trail names, places, hashtags, Strava or Trailforks labels) and lists the likely trails. The words are read on your device; to place the picture, a copy goes to Google's AI (Gemini) and Google's image search, which may keep it. “Yes, that's it” saves a small copy for Trail Finder to learn from (never shown in the app).</p></details>
   <div class="pf-prev" id="pfPrev" hidden><span class="pf-tw"><span id="pfThumb"></span><button type="button" class="pf-rm" id="pfRemove" aria-label="Remove this picture to add another" title="Remove this picture" hidden>✕</button></span><div style="flex:1;min-width:0"><div class="pf-status" id="pfStatus" role="status"></div><div class="pf-bar" id="pfBar" hidden><span></span></div>
     <div class="pf-here"><button type="button" class="btn" id="pfHere" hidden>📍 I took it here, just now</button><span id="pfTip" hidden>No location in this photo. If it's yours, choose it again with its location: in the photo picker tap Options, turn on Location, then pick it. The spot finds the exact trail.</span></div></div></div>
   <ul class="pf-res" id="pfRes" role="list"></ul>

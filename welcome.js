@@ -124,6 +124,7 @@ dialog.welc .welc-later { display: block; width: 100%; margin-top: 6px; font: in
     const tip = document.getElementById("firstTip"); if (tip) tip.hidden = true;
     window.tfWelcome.pending = false;
     if (dlg && dlg.open) dlg.close();
+    if (window.tfLocateAfterWelcome) window.tfLocateAfterWelcome();   // Skip: still open on the rider, not all of BC
   }
   function render() {
     const n = steps(), at = step === 2 && n === 2 ? 1 : step;
@@ -160,7 +161,13 @@ dialog.welc .welc-later { display: block; width: 100%; margin-top: 6px; font: in
       dlg.addEventListener("click", (e) => {
         const b = e.target.closest("button");
         if (!b) return;
-        if (b.dataset.skip != null || b.dataset.done != null) { close(); return; }
+        if (b.dataset.skip != null) { close(); return; }
+        if (b.dataset.done != null) {
+          close();
+          // MTB's button says "Find new trails": show them (the New trails chip runs the search and shows the list).
+          if (sport === "mtb") setTimeout(() => document.querySelector('#peekQuick [data-q="new"]')?.click(), 400);
+          return;
+        }
         if (b.dataset.sport) { pickSport(b.dataset.sport); step = canLocate() ? 1 : 2; render(); return; }
         if (b.dataset.loc != null) { set("tf:track", true); document.getElementById("locate").click(); step = 2; render(); return; }
         if (b.dataset.next != null) { set("tf:track", false); step = 2; render(); }
