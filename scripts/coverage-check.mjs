@@ -57,7 +57,10 @@ const mercBox = (z, x, y) => { const R = 20037508.342789244, n = 2 ** z; return 
 const LOCAL_PHOTOS = {
   qc: (z, x, y) => `https://servicesmatriciels.mern.gouv.qc.ca/erdas-iws/ogc/wmts/Imagerie_Continue/Imagerie_GQ/default/GoogleMapsCompatibleExt2:epsg:3857/${z}/${y}/${x}.jpg`,
   nb: (z, x, y) => `https://geonb.snb.ca/arcgis/rest/services/GeoNB_Basemap_Imagery/MapServer/export?bbox=${mercBox(z, x, y).map((v) => v.toFixed(2))}&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&f=image`,
+  on: ["2023to2027", "2018to2022"].map((years) => (z, x, y) => `https://ws.geoservices.lrc.gov.on.ca/arcgis5/rest/services/AerialImagery/GEO_Imagery_Data_Service_${years}/ImageServer/exportImage?bbox=${mercBox(z, x, y).map((v) => v.toFixed(2))}&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&f=image`),
 };
+// Banff National Park's own 15 cm photo (index.html banffTile), read from this one file: its box, roughly.
+const BANFF = { box: [50.7, -116.6, 52.25, -114.95], tif: "https://aerial-imagery-canada.s3.ca-central-1.amazonaws.com/national-parks/banff-national-park/Banff-national-park-2025-15cm-RGBN-mosaic.tif" };
 const HUNT_SEASONS = new Set(["bc", "ab", "qc", "on", "mb"]);
 const FISH_RULES = new Set(["bc", "ab", "qc", "on"]);
 
@@ -209,10 +212,16 @@ const CHECKS = [
       const j = await get(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tilemap/${z}/${tileY(s.lat, z)}/${tileX(s.lon, z)}/1/1`);
       if (j && j.data && j.data[0]) deep = z;
     }
-    // Where Esri has no air photo (zoom 20), the app shows Quebec's or New Brunswick's own (index.html, tfLocalPhoto).
-    if (deep < 20 && LOCAL_PHOTOS[s.pv]) {
-      const z = 20, buf = await get(LOCAL_PHOTOS[s.pv](z, tileX(s.lon, z), tileY(s.lat, z)), "bytes");
+    // Where Esri has no air photo (zoom 20), the app shows the province's own (index.html, tfLocalPhoto).
+    for (const url of [LOCAL_PHOTOS[s.pv] || []].flat()) {
+      if (deep >= 20) break;
+      const z = 20, buf = await get(url(z, tileX(s.lon, z), tileY(s.lat, z)), "bytes");
       if (buf && buf.byteLength > 3000) deep = Math.max(deep, base || 21);
+    }
+    const [b0, b1, b2, b3] = BANFF.box;
+    if (deep < 20 && s.lat > b0 && s.lat < b2 && s.lon > b1 && s.lon < b3) {
+      const r = await fetch(BANFF.tif, { headers: { Range: "bytes=0-15" } }).catch(() => null);
+      if (r && r.status === 206) deep = Math.max(deep, base || 21);
     }
     const m = Math.round(40075000 * Math.cos((s.lat * Math.PI) / 180) / 2 ** (deep + 8) * 100) / 100;
     return vsBase(deep, base, 1, `zoom (${m} m a pixel)`, "no photo");
