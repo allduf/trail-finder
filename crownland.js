@@ -174,5 +174,67 @@
     return a && { ...a, p: k, c: a.k === "crown" ? COL.crown : a.k === "private" ? COL.private : a.k === "lease" ? COL.lease : "#868e96" };
   }
   const has = (pv) => !!AT[pv];
-  window.tfCrown = { SRC, COL, BOX, url, tint, bounds, leaflet, at, has };
+
+  // ---------- property lines ----------
+  // alex 2026-10-28: "les registres fonciers pour avoir les délimitations de terrain" in Hunting. The lines between
+  // lots, live from each province's own land registry map (nothing stored on the site). Lot numbers only: no owner
+  // names anywhere (none of these servers has them). Where a province's parcels aren't open data, its public survey
+  // grid stands in (Ontario's original lots and concessions, Alberta's sections), said so on the map key and tap.
+  //  - Quebec: cadastre rénové (MRNF, served by the Environment ministry; every lot, updated every two months).
+  //  - British Columbia: ParcelMap BC (LTSA, via DataBC), every titled and Crown parcel.
+  //  - New Brunswick: Service New Brunswick property parcels (PID).
+  //  - Nova Scotia: Service Nova Scotia property records (NSPRD) boundaries (PID).
+  //  - Ontario: original township lots and concessions (LIO Lot Fabric); today's parcels (Teranet) aren't open data.
+  //  - Alberta: Alberta Township System legal subdivisions (LSD, 16 to a section); AltaLIS parcels aren't free.
+  // Not mapped: Saskatchewan and Manitoba (ISC / TPR parcels are paid), PEI, Newfoundland and Labrador, the territories.
+  const LOT = { line: "#e64980", edge: "#ffffff" };
+  const LOTS = [
+    { pv: "qc", svc: "https://geo.environnement.gouv.qc.ca/donnees/rest/services/Reference/Cadastre_allege/MapServer", layer: 0, scale: 30000, min: 13,
+      ask: "NO_LOT", say: (a) => a.NO_LOT && { t: `Lot ${a.NO_LOT}`, d: "Cadastre du Québec (indicative: only a surveyor's plan fixes the real line)." },
+      attr: 'Lots: <a href="https://www.quebec.ca/habitation-territoire/information-fonciere/cadastre">Cadastre du Québec</a> (MRNF)' },
+    { pv: "bc", wms: PMBC, min: 13, attr: 'Lots: <a href="https://ltsa.ca/property-owners/about-land-records/parcelmap-bc/">ParcelMap BC</a>, DataBC' },
+    { pv: "nb", svc: "https://geonb.snb.ca/arcgis/rest/services/GeoNB_SNB_Parcels/MapServer", layer: 0, scale: 40000, min: 13,
+      ask: "PID", say: (a) => a.PID && { t: `Property PID ${a.PID}`, d: "Service New Brunswick property map (approximate lines)." },
+      attr: 'Lots: <a href="https://www.snb.ca/geonb1/e/DC/propmap.asp">Service New Brunswick</a>' },
+    { pv: "ns", svc: "https://nsgiwa2.novascotia.ca/arcgis/rest/services/PLAN/PLAN_NSPRD_UT83/MapServer", layer: 0, scale: 25000, min: 13,
+      ask: "PID", say: (a) => a.PID && +a.PID ? { t: `Property PID ${a.PID}`, d: "Nova Scotia Property Records (approximate lines)." } : null,
+      attr: 'Lots: <a href="https://novascotia.ca/sns/">Service Nova Scotia</a> property records' },
+    { pv: "on", svc: "https://ws.lioservices.lrc.gov.on.ca/arcgis2/rest/services/LIO_OPEN_DATA/LIO_Open06/MapServer", layer: 2, min: 13, grid: true,
+      ask: "LOT_IDENT,CONCESSION_IDENT,GEOGRAPHIC_TOWNSHIP_NAME", say: (a) => a.LOT_IDENT && { t: [cap(a.LOT_IDENT), a.CONCESSION_IDENT && cap(a.CONCESSION_IDENT), a.GEOGRAPHIC_TOWNSHIP_NAME && `${String(a.GEOGRAPHIC_TOWNSHIP_NAME).toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())} Township`].filter(Boolean).join(", "),
+        d: "Ontario's original survey lot: today's properties are often parts of it (Ontario's parcel map isn't open data)." },
+      attr: 'Lots: <a href="https://geohub.lio.gov.on.ca/">Land Information Ontario</a> lot fabric' },
+    { pv: "ab", svc: "https://geospatial.alberta.ca/titan/rest/services/cadastre/ct_seamless_legal_subdivision_grid/MapServer", layer: 0, min: 14, grid: true,
+      ask: "MER,RGE,TWP,SEC,QTR,LSD", say: (a) => a.SEC && { t: `${a.QTR ? `${a.QTR} ` : ""}${a.SEC}-${a.TWP}-${a.RGE}-W${a.MER}${a.LSD ? ` (LSD ${a.LSD})` : ""}`,
+        d: "Alberta legal land description (quarter-section-township-range-meridian): the grid farms and leases follow, not each property line." },
+      attr: 'Lots: <a href="https://geospatial.alberta.ca/">Alberta Township System</a> grid' },
+  ];
+  // Line widths in pixels: thin when zoomed out; a pink line (no other layer's colour) on a white edge, so it reads on
+  // the topo map and on photos.
+  const lotPx = (z) => (z >= 16 ? [4, 2] : z >= 15 ? [3.4, 1.6] : [3, 1.3]);
+  const lotUrl = (s, z, x, y) => {
+    const [ew, lw] = lotPx(z);
+    if (s.wms) {
+      const st = (c, w, o) => `<FeatureTypeStyle><Rule><LineSymbolizer><Stroke><CssParameter name="stroke">${c}</CssParameter><CssParameter name="stroke-opacity">${o}</CssParameter><CssParameter name="stroke-width">${w}</CssParameter></Stroke></LineSymbolizer></Rule></FeatureTypeStyle>`;
+      return `${BCW}/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${encodeURIComponent(s.wms)}&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&SRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&SLD_BODY=${encodeURIComponent(
+        `<StyledLayerDescriptor version="1.0.0"><NamedLayer><Name>${s.wms}</Name><UserStyle>${st(LOT.edge, ew, 0.75)}${st(LOT.line, lw, 1)}</UserStyle></NamedLayer></StyledLayerDescriptor>`)}&bbox=${tileBox(z, x, y)}`;
+    }
+    // Servers that hide their lots when zoomed out (scale): a lower dpi makes the same tile read as a closer scale.
+    const res = (2 * R) / 2 ** z / 256, dpi = s.scale ? Math.max(12, Math.min(96, Math.floor((0.9 * s.scale * 0.0254) / res))) : 96, pt = 72 / dpi;
+    const line = (id, c, w) => ({ id, source: { type: "mapLayer", mapLayerId: s.layer },
+      drawingInfo: { renderer: { type: "simple", symbol: { type: "esriSFS", style: "esriSFSNull", color: [0, 0, 0, 0], outline: { type: "esriSLS", style: "esriSLSSolid", color: c, width: +(w * pt).toFixed(2) } } } } });
+    // the first one is drawn on top
+    const dl = [line(901, [...rgb(LOT.line), 255], lw), line(902, [...rgb(LOT.edge), 190], ew)];
+    return `${s.svc}/export?bboxSR=3857&imageSR=3857&size=256%2C256&dpi=${dpi}&format=png32&transparent=true&f=image&dynamicLayers=${encodeURIComponent(JSON.stringify(dl))}&bbox=${tileBox(z, x, y)}`;
+  };
+  // The lot at a point: { t: lot number or survey description, d: what it is, p: province, grid } or null.
+  async function lotAt(lat, lon, pv) {
+    const s = LOTS.find((l) => l.pv === pv && l.ask);
+    if (!s) return null;
+    // (no resultRecordCount: Nova Scotia's and Ontario's lot servers answer nothing with it)
+    const j = await get(`${s.svc}/${s.layer}/query?geometry=${lon},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=${s.ask}&returnGeometry=false&f=json`);
+    const a = j && j.features?.[0]?.attributes;
+    const x = a && s.say(a);
+    return x ? { ...x, p: pv, grid: !!s.grid } : null;
+  }
+  window.tfCrown = { SRC, COL, BOX, url, tint, bounds, leaflet, at, has, LOTS, LOT, lotUrl, lotAt };
 })();
