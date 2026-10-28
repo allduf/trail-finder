@@ -89,21 +89,28 @@
   const LAYERS = {
     gauges: { g: "Water", label: "River flow gauges", sub: "Live flow, coloured from too low to blown out", on: true, minZoom: 7, icon: [C.ok, "dot"] },
     stocked: { g: "Water", label: "Stocked lakes and rivers", sub: "Pink: stocked in the last 30 days", on: true, minZoom: 6, icon: [C.stocked, "dot"] },
-    depth: { g: "Water", label: "Lake depth lines", sub: "Over 8,000 surveyed lakes in BC, Ontario, Quebec and Manitoba, soundings in New Brunswick: zoom in on a lake", minZoom: 12, icon: [C.depth, "line"] },
     hidden: { g: "Access", label: "Hidden spots", sub: "Walk-in stocked lakes and hike-in waters few people fish", on: true, minZoom: 6, icon: [C.hidden, "dot"] },
     access: { g: "Access", label: "Fishing spots", sub: "Public spots, piers and docks all over Canada", on: true, minZoom: 8, icon: [C.access, "dot"] },
     launch: { g: "Access", label: "Boat launches", sub: "Public ramps all over Canada", on: true, minZoom: 8, icon: [C.launch, "dot"] },
-    crown: { g: "Access", label: "Crown land", sub: "Public land you can walk to the water on: green; private: yellow (ON, QC, NB, NS, SK, NL; zoom in)", minZoom: 9, icon: ["#2f9e44", "box"] },
+    // Picture tiles (alex 2026-10-28: "all the rivers highlighted, another one all the lakes... in the same style" as
+    // Skiing's Avalanche and terrain tiles). Pictures: icons/fish/<key>.jpg, made by scripts/make-fish-tiles.mjs.
+    rivers: { g: "Highlight on the map", tile: true, label: "All rivers", sub: "Every river in bright blue, all over Canada" },
+    lakes: { g: "Highlight on the map", tile: true, label: "All lakes", sub: "Every lake and pond in green, all over Canada" },
+    creeks: { g: "Highlight on the map", tile: true, label: "Creeks and streams", sub: "Small creeks in light blue, dashed when they dry up in summer", minZoom: 13 },
+    ocean: { g: "Highlight on the map", tile: true, label: "Ocean and bays", sub: "Salt water in blue, where you need a tidal licence" },
+    depth: { g: "Highlight on the map", tile: true, label: "Lake depth lines", sub: "Over 8,000 surveyed lakes in BC, Ontario, Quebec and Manitoba, soundings in New Brunswick: zoom in on a lake", minZoom: 12, icon: [C.depth, "line"] },
+    crown: { g: "Highlight on the map", tile: true, label: "Crown land", sub: "Public land you can walk to the water on: green; private: yellow (ON, QC, NB, NS, SK, NL; zoom in)", minZoom: 9, icon: ["#2f9e44", "box"] },
     tides: { g: "Ocean", label: "Tide stations", sub: "Tap one for the next high and low tides", on: true, minZoom: 6, icon: [C.tide, "dot"] },
     zones: { g: "Rules", label: "Fishing zones and regions", sub: "The areas the rules are written for, tap one for its rules", icon: [C.zone, "dash"] },
     areas: { g: "Rules", label: "Parks, zecs and reserves", sub: "Red: ecological reserves, no fishing. National parks (Parks Canada permit), Quebec zecs, wildlife reserves and parks (fishing allowed with an access fee)", on: true, minZoom: 5, icon: [C.park, "dot"] },
   };
-  const GROUPS = ["Water", "Access", "Ocean", "Rules"];
+  const GROUPS = ["Water", "Highlight on the map", "Access", "Ocean", "Rules"];
+  const HL = ["rivers", "lakes", "creeks", "ocean"];   // the water colours (WATER below)
   const VIEWS = {
     rules: { label: "Rules", sub: "where to fish", layers: ["zones", "areas", "access", "launch", "crown"] },
-    river: { label: "Rivers", sub: "flow, spots", layers: ["gauges", "access", "launch", "hidden"] },
-    lake: { label: "Lakes", sub: "stocked, depth", layers: ["stocked", "depth", "access", "launch", "hidden"] },
-    ocean: { label: "Ocean", sub: "tides, areas", layers: ["tides", "access", "launch"] },
+    river: { label: "Rivers", sub: "flow, spots", layers: ["gauges", "access", "launch", "hidden", "rivers", "creeks"] },
+    lake: { label: "Lakes", sub: "stocked, depth", layers: ["stocked", "depth", "access", "launch", "hidden", "lakes"] },
+    ocean: { label: "Ocean", sub: "tides, areas", layers: ["tides", "access", "launch", "ocean"] },
   };
   let shown = new Set(store.get("fishLayers", Object.keys(LAYERS).filter((k) => LAYERS[k].on)));
   // A layer added since the last visit shows if it's on by default (the saved list only knows the old ones).
@@ -131,6 +138,17 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
 :is(#fishPane, .lm-fish) .fs-sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0004; transition: left .15s; }
 :is(#fishPane, .lm-fish) .fs-sw:checked { background: ${ACC}; }
 :is(#fishPane, .lm-fish) .fs-sw:checked::after { left: 19px; }
+/* Highlight on the map: picture tiles, 3 to a row, like Skiing's Avalanche and terrain */
+.lm-fish .fs-tilegrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px; padding: 6px 0 4px; }
+.lm-fish .fs-tile { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 4px; cursor: pointer; text-align: center; min-width: 0; }
+.lm-fish .fs-thumb { position: relative; display: block; width: 100%; aspect-ratio: 1; border-radius: 12px; box-sizing: border-box; border: 2px solid var(--line); background: #1d2b24 center / cover; }
+.lm-fish .fs-tcap { display: block; font-size: .74rem; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+:is(#fishPane, .lm-fish) .fs-tile .fs-sw { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.lm-fish .fs-tile:has(.fs-sw:checked) .fs-thumb { border-color: ${ACC}; box-shadow: 0 0 0 2px ${ACC}; }
+.lm-fish .fs-tile:has(.fs-sw:checked) .fs-thumb::after { content: "✓"; position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; border-radius: 50%; background: ${ACC}; color: #fff;
+  font: 800 11px/18px system-ui, sans-serif; text-align: center; }
+.lm-fish .fs-tile:has(.fs-sw:focus-visible) .fs-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lm-fish .fs-tilenote { margin: 0; font-size: .74rem; color: var(--muted); font-style: italic; }
 #fishPane { display: flex; flex-direction: column; gap: 12px; font-size: .9rem; }
 #fishPane a { color: var(--accent); }
 #fishPane .fs-note { color: var(--muted); font-size: .76rem; margin: 0; }
@@ -717,7 +735,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   const MB_BOX = [48.99, -102.1, 60, -88.9];
   const DEPTH_ZOOM = 12;
   const DEPTH_ATTR = "Lake depth: Ontario MNR (OGL-Ontario), Québec MELCCFP (CC-BY 4.0), Manitoba, New Brunswick DNRED";
-  let depthIdx = null, depthGL = null, depthMaking = false, depthSeq = 0;
+  let depthIdx = null, depthGL = null, depthMaking = false, depthSeq = 0, depthFeats = [], depthVer = 0;   // depthFeats: for the 3D map
   const depthSq = new Map();   // square -> features (the last 48 kept)
   const loadDepthIdx = () => (depthIdx ? Promise.resolve(depthIdx) : load("depth/i").then((j) => {
     const pre = j.pre || {};
@@ -789,6 +807,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     }
     const feats = (await Promise.all(sq.map(getSquare))).flat();
     if (seq !== depthSeq || !depthGL) return;
+    if (feats.length !== depthFeats.length || feats[0] !== depthFeats[0]) { depthFeats = feats; depthVer++; sync3d(); }
     const gl = depthGL.getMaplibreMap && depthGL.getMaplibreMap();
     const put = () => { const s = gl && gl.getSource("q"); if (s) s.setData({ type: "FeatureCollection", features: feats }); };
     if (gl && gl.isStyleLoaded()) put(); else if (gl) gl.once("load", put);
@@ -800,14 +819,21 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   const icon = (k, [c]) => `<span class="fs-ic" style="background:${c}">${badge(k)}</span>`;
   function renderLayers() {
     const z = map.getZoom();
-    $("fsLayerList").innerHTML = GROUPS.map((g) => `<h4 class="fs-group">${g}</h4>` + Object.entries(LAYERS).filter(([, l]) => l.g === g).map(([k, l]) => {
+    const tile = ([k, l]) => `<label class="fs-tile" title="${esc(l.sub)}"><span class="fs-thumb" style="background-image:url(icons/fish/${k}.jpg)" aria-hidden="true"></span><span class="fs-tcap">${esc(l.label)}</span><input type="checkbox" class="fs-sw" role="switch" data-k="${k}"${shown.has(k) ? " checked" : ""} aria-label="${esc(l.label)}"></label>`;
+    const tiles = (g) => {
+      const ls = Object.entries(LAYERS).filter(([, l]) => l.g === g);
+      // what an on tile needs to show: zoom in (creeks, depth lines, Crown land)
+      const far = ls.filter(([k, l]) => shown.has(k) && l.minZoom && z < l.minZoom).map(([, l]) => `${l.label}: zoom in closer to see ${l === LAYERS.creeks ? "them" : "it"}.`);
+      return `<h4 class="fs-group">${g}</h4><div class="fs-tilegrid">${ls.map(tile).join("")}</div>${far.length ? `<p class="fs-tilenote">${esc(far.join(" "))}</p>` : ""}`;
+    };
+    $("fsLayerList").innerHTML = GROUPS.map((g) => (g === "Highlight on the map" ? tiles(g) : `<h4 class="fs-group">${g}</h4>` + Object.entries(LAYERS).filter(([, l]) => l.g === g).map(([k, l]) => {
       const on = shown.has(k), far = on && l.minZoom && z < l.minZoom;
       // Gauges are only on bigger rivers, so say how many are in view (alex 2026-10-26: "is that supposed to do anything?").
       let sub = l.sub;
       if (k === "gauges" && on && !far && gauges) { const b = map.getBounds(), n = gauges.filter((g) => b.contains([g[2], g[3]])).length; sub = n ? `${n} in view. Green: good flow, light green: low, orange: very low or high, red: blown out, grey: no reading. Tap one for more` : "None in view: government gauges are only on bigger rivers"; }
       if (k === "areas" && on && !far && zones) { const b = map.getBounds(), n = zones.filter((q) => isArea(q) && b.intersects([[q.b[0], q.b[1]], [q.b[2], q.b[3]]])).length; sub = n ? `${n} in view: tap inside one for its rules and fees` : "None in view: this shows national parks, Quebec zecs, wildlife reserves and parks, and ecological reserves (no fishing, in red)"; }
       return `<label class="fs-layer">${icon(k, l.icon)}<span><b>${esc(l.label)}</b><small${far ? ' class="z"' : ""}>${far ? "Zoom in closer to see it" : esc(sub)}</small></span><input type="checkbox" class="fs-sw" role="switch" data-k="${k}"${on ? " checked" : ""} aria-label="${esc(l.label)}"></label>`;
-    }).join("")).join("");
+    }).join(""))).join("");
     pane.querySelectorAll("[data-view]").forEach((b) => { const v = VIEWS[b.dataset.view].layers; b.classList.toggle("on", v.length === shown.size && v.every((k) => shown.has(k))); });
   }
   $("fsLayerList").addEventListener("change", (e) => {
@@ -823,43 +849,52 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   });
   pane.querySelector(".fs-views").addEventListener("click", (e) => {
     const b = e.target.closest("[data-view]"); if (!b) return;
-    shown = new Set(VIEWS[b.dataset.view].layers);
+    // A second tap on the view that's on takes its water colours off again.
+    const again = b.classList.contains("on");
+    shown = new Set(VIEWS[b.dataset.view].layers.filter((k) => !(again && HL.includes(k))));
     applyLayers();
-    if (hlKind === b.dataset.view || !WATER[b.dataset.view]) clearWater(); else highlightWater(b.dataset.view);
   });
 
   // ---------- water highlight ----------
-  // Picking Rivers, Lakes or Ocean colours every river, lake or the sea on the map (alex 2026-10-25), from the same
-  // OpenFreeMap vector tiles as the Vector base map (OpenStreetMap water, all of Canada). A tap on the map clears it.
+  // All rivers, All lakes, Creeks and streams, Ocean and bays (the picture tiles in Layers; the Rivers, Lakes and Ocean
+  // views turn theirs on): every river, lake or the sea coloured on the map, from the same OpenFreeMap vector tiles
+  // as the Vector base map (OpenStreetMap water, all of Canada). One MapLibre map for all four, made only while one
+  // is on (phones: one GL map less); the 3D map gets the same layers (sync3d).
   const OFM = { type: "vector", url: "https://tiles.openfreemap.org/planet" };
-  const WATER = {
-    river: [
-      { id: "riv-area", type: "fill", source: "w", "source-layer": "water", filter: ["==", ["get", "class"], "river"], paint: { "fill-color": "#15d1ff", "fill-opacity": 0.75 } },
-      { id: "riv-line", type: "line", source: "w", "source-layer": "waterway", filter: ["in", ["get", "class"], ["literal", ["river", "stream", "canal"]]], layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#15d1ff", "line-width": ["interpolate", ["linear"], ["zoom"], 6, ["match", ["get", "class"], "river", 1.6, 0.6], 10, ["match", ["get", "class"], "river", 3, 1.4], 14, ["match", ["get", "class"], "river", 5, 2.6]] } },
-    ],
-    lake: [
-      { id: "lake", type: "fill", source: "w", "source-layer": "water", filter: ["in", ["get", "class"], ["literal", ["lake", "pond"]]], paint: { "fill-color": "#12d6b4", "fill-opacity": 0.8 } },
-    ],
-    ocean: [
-      { id: "sea", type: "fill", source: "w", "source-layer": "water", filter: ["==", ["get", "class"], "ocean"], paint: { "fill-color": "#2f7bff", "fill-opacity": 0.7 } },
-    ],
-  };
-  let hl = null, hlKind = null;
-  if (!map.getPane("fishWater")) { map.createPane("fishWater").style.zIndex = 350; map.getPane("fishWater").style.pointerEvents = "none"; }
-  async function highlightWater(kind) {
-    clearWater();
-    hlKind = kind;
-    try { await window.tfLoadVectorLib(); } catch { hlKind = null; return; }
-    if (hlKind !== kind || !isFish()) return;
-    hl = L.maplibreGL({ pane: "fishWater", interactive: false, attributionControl: false,
-      style: { version: 8, sources: { w: OFM }, layers: WATER[kind] } }).addTo(map);
+  const WATER = [
+    { k: "rivers", id: "riv-area", type: "fill", source: "w", "source-layer": "water", filter: ["==", ["get", "class"], "river"], paint: { "fill-color": "#15d1ff", "fill-opacity": 0.75 } },
+    { k: "rivers", id: "riv-line", type: "line", source: "w", "source-layer": "waterway", filter: ["in", ["get", "class"], ["literal", ["river", "canal"]]], layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": "#15d1ff", "line-width": ["interpolate", ["linear"], ["zoom"], 6, 1.6, 10, 3, 14, 5] } },
+    // OpenFreeMap has the small creeks from zoom 13; dashed when they dry up (intermittent)
+    { k: "creeks", id: "creek", type: "line", source: "w", "source-layer": "waterway", filter: ["==", ["get", "class"], "stream"], layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": "#8cf0ff", "line-width": ["interpolate", ["linear"], ["zoom"], 13, 1.6, 16, 3], "line-dasharray": ["case", ["==", ["get", "intermittent"], 1], ["literal", [2, 1.5]], ["literal", [1, 0]]] } },
+    { k: "lakes", id: "lake", type: "fill", source: "w", "source-layer": "water", filter: ["in", ["get", "class"], ["literal", ["lake", "pond"]]], paint: { "fill-color": "#12d6b4", "fill-opacity": 0.75 } },
+    { k: "lakes", id: "lake-edge", type: "line", source: "w", "source-layer": "water", filter: ["in", ["get", "class"], ["literal", ["lake", "pond"]]], paint: { "line-color": "#d9fff7", "line-width": 0.8 } },
+    { k: "ocean", id: "sea", type: "fill", source: "w", "source-layer": "water", filter: ["==", ["get", "class"], "ocean"], paint: { "fill-color": "#2f7bff", "fill-opacity": 0.6 } },
+  ];
+  const glLayer = ({ k, ...l }, on, pre = "", src) => ({ ...l, id: pre + l.id, ...(src ? { source: src } : {}), layout: { ...(l.layout || {}), visibility: on ? "visible" : "none" } });
+  let hl = null, hlMaking = false;
+  // under the depth lines and Crown land (fishTiles)
+  if (!map.getPane("fishWater")) { map.createPane("fishWater").style.zIndex = 345; map.getPane("fishWater").style.pointerEvents = "none"; }
+  async function syncWater() {
+    const on = isFish() && HL.some((k) => shown.has(k));
+    if (!on) { if (hl) { map.removeLayer(hl); hl = null; } return; }
+    if (!hl) {
+      if (hlMaking) return;
+      hlMaking = true;
+      try { await window.tfLoadVectorLib(); } catch { return; } finally { hlMaking = false; }
+      if (hl) return;
+      if (!isFish() || !HL.some((k) => shown.has(k))) return;
+      hl = L.maplibreGL({ pane: "fishWater", interactive: false, attributionControl: false,
+        style: { version: 8, sources: { w: OFM }, layers: WATER.map((l) => glLayer(l, shown.has(l.k))) } }).addTo(map);
+      return;
+    }
+    const gl = hl.getMaplibreMap && hl.getMaplibreMap();
+    if (gl && gl.getStyle()) for (const l of WATER) if (gl.getLayer(l.id)) gl.setLayoutProperty(l.id, "visibility", shown.has(l.k) ? "visible" : "none");
   }
-  function clearWater() { hlKind = null; if (hl) { map.removeLayer(hl); hl = null; } }
-  map.on("click", () => { if (hlKind) clearWater(); });
   function applyLayers() {
     store.set("fishLayers", [...shown]);
-    renderLayers(); renderKey(); syncTiles(); drawZones(); drawPoints(); loadReadings(); loadAccess();
+    renderLayers(); renderKey(); syncTiles(); syncWater(); drawZones(); drawPoints(); loadReadings(); loadAccess();
   }
   // Map key: what the dot colours mean.
   const keyCtl = L.control({ position: "bottomleft" });
@@ -875,6 +910,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     if (!box || box.hidden) return;
     const i = (c, g) => `<i style="background:${c}">${g ? badge(g, 9) : ""}</i>`;
     box.innerHTML = (shown.has("gauges") ? `<b>River gauges: flow for the month</b>${["vlow", "low", "ok", "high", "blown", "none"].map((k) => `<div>${i(LIGHTS[k][1])}${LIGHTS[k][0]}</div>`).join("")}` : "")
+      + (HL.some((k) => shown.has(k)) ? `<b>Water</b>${shown.has("rivers") ? `<div>${i("#15d1ff")}River</div>` : ""}${shown.has("creeks") ? `<div>${i("#8cf0ff")}Creek or stream</div>` : ""}${shown.has("lakes") ? `<div>${i("#12d6b4")}Lake or pond</div>` : ""}${shown.has("ocean") ? `<div>${i("#2f7bff")}Ocean: tidal licence</div>` : ""}` : "")
       + (shown.has("stocked") ? `<b>Stocked waters</b><div>${i(C.fresh)}Stocked in the last 30 days</div><div>${i(C.stocked)}Stocked in the last 3 years</div>` : "")
       + (shown.has("hidden") ? `<b>Hidden spots</b><div>${i(C.hidden, "hidden")}Walk-in or hike-in water</div>` : "")
       + (shown.has("access") || shown.has("launch") ? `<b>Access</b>${shown.has("access") ? `<div>${i(C.access, "access")}Fishing spot, pier or dock</div>` : ""}${shown.has("launch") ? `<div>${i(C.launch, "launch")}Boat launch</div>` : ""}` : "")
@@ -1988,6 +2024,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
         gl.addLayer({ id: "fs-names", type: "symbol", source: "fs-names", layout: { "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 13 },
           paint: { "text-color": ["get", "c"], "text-halo-color": "#fff", "text-halo-width": 2 } });
       } else { gl.getSource("fs-fill").setData({ type: "FeatureCollection", features: fills }); gl.getSource("fs-names").setData({ type: "FeatureCollection", features: names }); }
+      overlays3d(gl, gl.getLayer("fs-fill") ? "fs-fill" : under);
       if (isFish() && spot && spot.how !== "centre") {
         if (!spot3) { const el = document.createElement("div"); el.className = "fs-spot"; el.style.margin = "0"; spot3 = new maplibregl.Marker({ element: el }); }
         spot3.setLngLat([spot.lon, spot.lat]).addTo(gl);
@@ -1999,6 +2036,50 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       const go = () => { if (!applyWait) return; applyWait = false; apply(); };
       gl.once("style.load", go); gl.once("load", go); gl.once("idle", go);
     }
+  }
+  // The water colours, lake depth lines and Crown land on the 3D map: the flat map draws them in MapLibre maps and
+  // tiles of its own, which the 3D map doesn't copy. Under the zone fills and the dots.
+  let depth3Ver = -1, crownProto = false;
+  function overlays3d(gl, before) {
+    const fish = isFish();
+    const vis = (id, on) => { if (gl.getLayer(id) && gl.getLayoutProperty(id, "visibility") !== (on ? "visible" : "none")) gl.setLayoutProperty(id, "visibility", on ? "visible" : "none"); };
+    if (fish && HL.some((k) => shown.has(k)) && !gl.getLayer("fs3-" + WATER[0].id)) {
+      const src = gl.getSource("names") ? "names" : "fs3-w";   // map3d.js's place names come from the same OpenFreeMap tiles
+      if (!gl.getSource(src)) gl.addSource(src, OFM);
+      for (const l of WATER) gl.addLayer(glLayer(l, false, "fs3-", src), before);
+    }
+    for (const l of WATER) vis("fs3-" + l.id, fish && shown.has(l.k));
+    const dOn = fish && shown.has("depth");
+    if (dOn && !gl.getSource("fs3-q")) {
+      const st = depthStyle();
+      gl.addSource("fs3-q", st.sources.q); gl.addSource("fs3-mb", st.sources.mb); depth3Ver = -1;
+      for (const l of st.layers) gl.addLayer({ ...l, id: "fs3-" + l.id, source: "fs3-" + l.source }, before);
+    }
+    if (gl.getSource("fs3-q")) {
+      if (dOn && depth3Ver !== depthVer) { depth3Ver = depthVer; gl.getSource("fs3-q").setData({ type: "FeatureCollection", features: depthFeats }); }
+      for (const l of depthStyle().layers) vis("fs3-" + l.id, dOn && map.getZoom() >= DEPTH_ZOOM - 1);
+    }
+    const T = window.tfCrown, cOn = fish && shown.has("crown") && T;
+    if (cOn && !gl.getSource("fs3-cl-" + T.SRC[0].id)) {
+      // Quebec's server can't take our colours: its pictures are repainted ours (tfCrown.tint) through a made-up address.
+      if (!crownProto && window.maplibregl.addProtocol) {
+        crownProto = true;
+        window.maplibregl.addProtocol("fscrown", async (p) => {
+          const [, id, z, x, y] = p.url.match(/^fscrown:\/\/(\w+)\/(\d+)\/(\d+)\/(\d+)/);
+          const img = await T.tint(T.SRC.find((q) => q.id === id), +z, +x, +y);
+          const cv = new OffscreenCanvas(256, 256); cv.getContext("2d").putImageData(img, 0, 0);
+          return { data: await (await cv.convertToBlob()).arrayBuffer() };
+        });
+      }
+      for (const q of T.SRC) {
+        if (q.tint && !crownProto) continue;
+        const [[s0, w0], [n0, e0]] = T.bounds(q);
+        const tiles = [q.tint ? `fscrown://${q.id}/{z}/{x}/{y}` : T.url(q, 0, 0, 0).replace(/bbox=[^&]*/, "bbox={bbox-epsg-3857}")];
+        gl.addSource("fs3-cl-" + q.id, { type: "raster", tiles, tileSize: 256, minzoom: q.min, maxzoom: 20, bounds: [w0, s0, e0, n0] });
+        gl.addLayer({ id: "fs3-cl-" + q.id, type: "raster", source: "fs3-cl-" + q.id, minzoom: q.min, paint: { "raster-opacity": q.kind === "private" ? 0.36 : 0.26 } }, before);
+      }
+    }
+    if (T) for (const q of T.SRC) vis("fs3-cl-" + q.id, cOn);
   }
   window.addEventListener("tf:map3d", (e) => {
     gl3 = e.detail;
@@ -2035,8 +2116,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const on = isFish();
     for (const l of allFish) { if (on && !map.hasLayer(l)) l.addTo(map); else if (!on && map.hasLayer(l)) map.removeLayer(l); }
     if (on && !keyCtl._map) keyCtl.addTo(map); else if (!on && keyCtl._map) keyCtl.remove();
-    syncTiles();
-    if (!on) { drawPoints(); clearWater(); return; }
+    syncTiles(); syncWater();
+    if (!on) { drawPoints(); return; }
     if (!started) { started = true; renderLayers(); ready.then(() => { drawPoints(); renderToday(); }); }
     drawZones(); drawPoints(); loadReadings(); loadAccess();
     if (!spot) { const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); } else { loadWeather(); renderToday(); renderHatch(); }
