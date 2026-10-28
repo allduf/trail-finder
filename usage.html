@@ -84,6 +84,10 @@ details > summary { cursor: pointer; font-weight: 600; }
     </div>
     <div class="stats" id="stats"></div>
 
+    <h2>App or website</h2>
+    <p class="muted">Everyone who opened Trail Finder, also people using the website link instead of the app. Each phone or computer counts once a day. Tablets count as phones.</p>
+    <div class="card"><table id="kinds"></table></div>
+
     <h2>What people search for</h2>
     <p class="muted">Everything typed in a search box or in Ask, once the person stopped typing. “Nothing found” and “Didn't pick one” are the places the app let them down.</p>
     <div class="card"><table id="searches"></table></div>
@@ -143,7 +147,7 @@ details > summary { cursor: pointer; font-weight: 600; }
     <div class="card"><table id="errors"></table></div>
   </div>
 </main>
-<script src="account.js?v=613"></script>
+<script src="account.js?v=614"></script>
 <script>
 (() => {
   // Plain names for the app's main buttons (ids in index.html and ride.html). Anything else shows as tapped.
@@ -231,6 +235,7 @@ details > summary { cursor: pointer; font-weight: 600; }
   const mins = (ms) => { const m = Math.round(ms / 60e3); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
   const secs = (ms) => (ms == null ? "–" : ms < 10e3 ? `${(ms / 1000).toFixed(1)} s` : `${Math.round(ms / 1000)} s`);
   const ago = (d) => { const h = (Date.now() - new Date(d)) / 36e5; return h < 1 ? "just now" : h < 24 ? `${Math.round(h)} h ago` : `${Math.round(h / 24)} days ago`; };
+  const dayAgo = (day) => { const n = Math.round((Date.parse(new Date().toISOString().slice(0, 10)) - Date.parse(day)) / 864e5); return n <= 0 ? "today" : n === 1 ? "yesterday" : `${n} days ago`; };
   const bar = (n, max) => `<div class="bar" style="width:${Math.max(2, Math.round(100 * n / (max || 1)))}%"></div>`;
   const pct = (n, of) => (of ? `${Math.round((100 * n) / of)}%` : "–");
   const quantile = (list, q) => { if (!list.length) return null; const s = list.slice().sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(q * s.length))]; };
@@ -238,7 +243,7 @@ details > summary { cursor: pointer; font-weight: 600; }
   // Monday of the event's week, as "Oct 27".
   const weekOf = (at) => { const d = new Date(at); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
   const weekName = (k) => new Date(k + "T12:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  let days = 30, rows = [], all = null, roster = null, who = null;
+  let days = 30, rows = [], all = null, roster = null, who = null, kinds = null;
   try { who = localStorage.getItem("tf:usageWho"); } catch {}
 
   document.querySelectorAll("[data-who]").forEach((b) => b.addEventListener("click", () => {
@@ -263,8 +268,9 @@ details > summary { cursor: pointer; font-weight: 600; }
       $("signIn").onclick = () => acct.open();
       return;
     }
-    const [rep, dev, ros] = await Promise.all([
+    const [rep, dev, ros, kin] = await Promise.all([
       acct.client.rpc("tf_use_report", { days }), acct.client.rpc("tf_use_devices_all"), acct.client.rpc("tf_use_roster_get"),
+      acct.client.rpc("tf_visits_by_kind", { days }),
     ]);
     const { data, error } = rep;
     if (error) {
@@ -280,6 +286,7 @@ details > summary { cursor: pointer; font-weight: 600; }
     roster = ros.error ? null : (ros.data || []).map((r) => (typeof r === "string" ? r : Object.values(r)[0]));
     $("setup").hidden = !!all;
     if (roster && document.activeElement !== $("roster")) $("roster").value = roster.join("\n");
+    kinds = kin.error ? null : kin.data || [];   // null until visitors-kind.sql is run
     rows = data || [];
     $("msg").hidden = !!rows.length;
     if (!rows.length) { $("msg").textContent = "Nothing yet in this period. Data comes in as testers use the app."; $("out").hidden = true; return; }
@@ -360,6 +367,19 @@ details > summary { cursor: pointer; font-weight: 600; }
       [crashes.length, "crashes", ""], [secs(mapMid), "map load", "usual wait"],
       [taps.length, "taps", ""], [shown.filter((r) => r.kind === "error").length, "errors", ""],
     ].map(([n, l, sub]) => `<div class="stat"><b>${esc(n)}</b>${esc(l)}${sub ? `<small>${esc(sub)}</small>` : ""}</div>`).join("");
+
+    // ---- app or website (visitors.js): people and days used, for each way of opening Trail Finder.
+    const KIND = [["app", "📱 iPhone app"], ["phone", "🌐 Website, phone"], ["computer", "💻 Website, computer"]];
+    const kg = new Map(KIND.map(([k]) => [k, { people: 0, days: 0, last: null }]));
+    for (const v of kinds || []) {
+      const g = kg.get(v.kind);
+      if (!g || !keep(v.device)) continue;
+      g.people++; g.days += v.days_used; if (!g.last || v.last_day > g.last) g.last = v.last_day;
+    }
+    $("kinds").innerHTML = kinds == null ? none(1, "One step left: paste supabase/visitors-kind.sql into the Supabase SQL Editor and run it.")
+      : !kinds.length ? none(1, "Counting started; the first visits show here within a day.")
+      : `<tr><th>How</th><th class="n">People</th><th class="n">Days used</th><th class="n">Last</th></tr>` +
+        KIND.map(([k, name]) => { const g = kg.get(k); return `<tr><td>${name}</td><td class="n">${g.people}</td><td class="n">${g.days}</td><td class="n">${g.last ? dayAgo(g.last) : "–"}</td></tr>`; }).join("");
 
     const sg = new Map();
     for (const x of searches) {
