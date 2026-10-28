@@ -1016,7 +1016,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       bait();
       if (w && w.name && !title) $("fsSpotName").textContent = w.name;
       if (w && w.name) boat.name = w.name;
-      fill("fsWater", w ? secFish(w.html) : "");
+      fill("fsWater", w && w.html ? secFish(w.html) : "");
       depthHtml(lat, lon, w).then((h) => fill("fsDepth", h)).catch(() => {});
       if (!w) $("fsSpot").classList.add("fs-nowater");
       if (w && w.rules) fill("fsRules", fold("rules", IC.rules, "Rules", "This water has its own rules", unhead(w.rules) + unhead(rulesHtml(lat, lon, here, prov)), true));
@@ -1311,6 +1311,96 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     }
     return out.slice(0, 6);
   }
+  // Yukon (alex 2026-10-28, from the 2026-27 Fishing Regulations Summary PDF, typed in like BC_GEN): most waters are
+  // General Waters, open all year; the summary lists the waters with special limits by group. Check each spring.
+  const YT_PDF = "https://yukon.ca/fishing-regulations";
+  const YT_GEN = [["Lake trout", "3 a day, only 1 over 65 cm"], ["Arctic grayling", "5 a day, only 1 over 40 cm"], ["Northern pike", "5 a day, only 1 over 75 cm"],
+    ["Bull trout", "2 a day, only 1 over 50 cm"], ["Rainbow trout", "5 a day"], ["Kokanee", "5 a day"], ["Arctic char", "2 a day"], ["Dolly Varden", "5 a day"], ["Whitefish", "5 a day"],
+    ["Inconnu (sheefish)", "1 a day"], ["Cisco", "5 a day"], ["Burbot", "3 a day (10 in waters over 2,500 ha)"], ["Salmon (chinook, sockeye, coho, chum)", "2 a day together, with a Salmon Conservation Catch Card"], ["Other fish", "5 a day"]];
+  const YT_CONS = [["Lake trout", "2 a day: release all 65-100 cm, only 1 over 100 cm"], ["Arctic grayling", "4 a day: release all 40-48 cm, only 1 over 48 cm"],
+    ["Northern pike", "4 a day: release all 75-105 cm, only 1 over 105 cm"], ["Burbot", "3 a day (10 in waters over 2,500 ha)"]];
+  const YT_SMALL = [["Lake trout", "1 a day, release all over 65 cm"], ["Arctic grayling", "2 a day, release all over 40 cm"], ["Northern pike", "4 a day, release all over 75 cm"]];
+  // [group, hook rule, waters, limits [fish, limit, waters it's for or all] (the rest are General Waters'), notes [text, dates "Jul 1 to Nov 30" or "", waters it's for or all]].
+  // A water is [name, lat, lon] when the name is common (Long Lake): it's that one within 40 km only.
+  const YT_WATERS = [
+    ["Conservation Water", "Barbless hooks only", ["Aishihik Lake", "Alligator Lake", "Bennett Lake", "Big Salmon Lake", "Big Salmon River", "Sandy Lake", "Blind Lakes", "Chain Lakes", "Claire Lake",
+      "Coghlan Lake", "Drury Lake", "Poison Lake", "Ethel Lake", "Fire Lake", "Frances Lake", "Frank Lake", "Frederick Lake", "Glenlyon Lake", "Grass Lakes", "Jo-Jo Lake", "Kluane Lake", "Kusawa Lake",
+      "Lake Laberge", "Little Wolverine Lake", ["Long Lake", 61.35, -137.1], "Marsh Lake", "Mayo Lake", "McEvoy Lake", "Morley Lake", "Morris Lake", "Nares Lake", "Nares River", "North Lakes",
+      "Wolverine Lake", "Pleasant Lake", "Quiet Lake", "Sekulmun Lake", "Sekulmun River", "Tagish Lake", "Windy Arm", "Tay Lake", "Tchawsahmon Lake", "Jim Cook Lake", "Tele Lake", "Ten Mile Lake",
+      "Tincup Lake", "Whitefish Lakes", "Wolf Lake"], YT_CONS, [["Kluane Lake: barbless hooks recommended, not required", "", ["Kluane Lake"]], ["A Yukon-BC water: in BC waters BC's licence and rules apply", "", ["Bennett Lake", "Tagish Lake"]]]],
+    ["Special Management Water (A)", "", ["Laidlaw Lake", "Atlin Lake", "Rancheria River", "Swift River"], [["Arctic grayling", "3 a day"], ["Burbot", "10 a day", ["Atlin Lake"]]], [["A Yukon-BC water: in BC waters BC's licence and rules apply", ""]]],
+    ["Special Management Water (B)", "Single-pointed barbless hooks only", ["Dezadeash Lake"], [...YT_CONS.slice(0, 3), ["Burbot", "3 a day"]], [["No fishing in Tower Bay (Gokhtaheen)", "Jul 1 to Aug 15"]]],
+    ["Special Management Water (C)", "Barbless hooks only", ["Braeburn Lake", "Caribou Lake", "Chadburn Lake", "Duo Lake", "Ladue Lake", "Little Atlin Lake", "Little Fox Lakes", "Little Fox Lake", "Louise Lake", "Jackson Lake",
+      "Minto Lake", "Watson Lake", "Wellesley Lake"], [...YT_SMALL, ["Burbot", "10 a day", ["Little Atlin Lake", "Wellesley Lake"]]],
+      [["Lake trout: release all", "Jul 1 to Nov 30", ["Little Atlin Lake"]], ["Single-pointed barbless hooks; keep lake trout 58.5-65 cm only", "", ["Little Atlin Lake"]], ["An extra sport fishing licence is needed here", "", ["Wellesley Lake"]]]],
+    ["Special Management Water (D)", "Single-pointed barbless hooks only", ["Kathleen River", "Kathleen Lake", "Lower Kathleen Lake", "Granite Lake", "Granite Creek", "Rainbow Lake", "Crescent Lake", "Quill Creek", "Lubbock River"],
+      [...YT_SMALL, ["Rainbow trout", "release all"]], [["Quill Creek: outside Kluane National Park only (Parks Canada's rules inside)", "", ["Quill Creek"]]]],
+    ["Special Management Water (E)", "Single-pointed barbless hooks only", ["Aishihik River", "Otter Pond", "McLean Lakes", "McLean Lake"], [["Rainbow trout", "release all"]], [["East Aishihik River: barbless hooks recommended", "", ["Aishihik River"]]]],
+    ["Special Management Water (F)", "Barbless hooks only", ["Mandanna Lake"], [["Lake trout", "release all"], ...YT_CONS.slice(1, 3)], []],
+    ["Special Management Water (G)", "Barbless hooks only", ["Fish Lake", "Fox Lake", "Little Salmon Lake", "Six Mile River", "Tagish River", "Teslin Lake"],
+      [["Lake trout", "1 a day, release all over 65 cm", ["Fish Lake", "Fox Lake", "Little Salmon Lake", "Six Mile River", "Tagish River"]], ["Lake trout", "1 a day: release all 65-100 cm, only 1 over 100 cm", ["Teslin Lake"]],
+        ...YT_CONS.slice(1, 3), ["Burbot", "10 a day", ["Little Salmon Lake", "Teslin Lake"]]],
+      [["At Tagish Bridge: keep the first lake trout you catch, no size limit", "", ["Six Mile River", "Tagish River"]], ["A Yukon-BC water: in BC waters BC's licence and rules apply", "", ["Teslin Lake"]]]],
+    ["Special Management Water (H)", "", ["Tatlmain Lake"], [["Burbot", "20 in possession"]], [["Stop fishing after 5 fish a day, even if you released them", ""], ["An extra sport fishing licence is needed here", ""]]],
+    ["Special Management Water (I)", "", ["Tatshenshini River", "Blanchard River", "Klukshu River", "Klukshu Lake", "Nesketahin Lake", "Takhanne River", "Village Creek"], [],
+      [["No fishing", "Jun 15 to Nov 30", ["Klukshu River", "Nesketahin Lake", "Village Creek"]], ["Single-pointed barbless hooks, gap under 20 mm", "Jun 1 to Jun 15", ["Klukshu River", "Village Creek"]],
+       ["Single-pointed barbless hooks, gap under 20 mm", "Jun 1 to Nov 30", ["Takhanne River", "Blanchard River", "Tatshenshini River"]], ["Below Million Dollar Falls: artificial flies only, all year", "", ["Takhanne River"]],
+       ["Salmon have their own limits and closures here: check the summary and DFO's fishery notices", ""]]],
+    ["Special Management Water (J)", "", ["Yukon River", "Blind Creek", "Klondike River", "Lapie River", "Morley River", "Smart River", "Takhini River", "Tatchun River", "Tatchun Creek", "Teslin River"], [],
+      [["No fishing (also the Yukon River at its mouth)", "Aug 1 to Sep 30", ["Tatchun River", "Tatchun Creek"]], ["Single-pointed barbless hooks, gap under 20 mm", "Jul 1 to Oct 15"],
+       ["Artificial flies only", "Aug 20 to Sep 15", ["Takhini River"]], ["Whitehorse dam to the Robert Campbell Bridge: artificial flies only", "Jul 15 to Sep 30", ["Yukon River"]],
+       ["No fishing within 23 m downstream of the Whitehorse Rapids Fish Ladder", "", ["Yukon River"]], ["Chinook salmon: no fishing 2024 to 2030 (Canada-Alaska agreement)", ""]]],
+    ["Special Management Water (K)", "Barbless hooks only", ["Frenchman Lake", "Pine Lake", "Snafu Lakes", "Snafu Lake", "Tarfu Lakes", "Tarfu Lake", "Twin Lakes"], [["Lake trout", "release all"], ...YT_SMALL.slice(1)], []],
+    ["Stocked lake", "", ["Cantlie Lake", "Chadden Lake", "Coffee Lake", "Fisheye Lake", "Gloria Lake", "Haldane Lake", "Hidden Lakes", "Hidden Lake", "Hour Lake", "Judas Lake", ["Long Lake", 60.75, -135.0], "Lucky Lake",
+      "Pocket Lake", "Rantin Lake", "Salmo Lake", "Scout Lake", "Veronica Lake", "Whiskers Lake", "Wrong Lake"], [["Rainbow trout", "5 a day"], ["Arctic char", "5 a day"], ["Kokanee", "5 a day"]], []],
+  ];
+  const ytKey = (n) => String(n || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\(.*?\)/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
+  const ytName = (x) => (Array.isArray(x) ? x[0] : x);
+  // The group a water is in (Yukon's map name), with its notes for this water only.
+  function ytWater(name, lat, lon) {
+    const k = ytKey(name);
+    if (!k) return null;
+    for (const [g, hook, ws, lim, notes] of YT_WATERS) {
+      const hit = ws.find((x) => ytKey(ytName(x)) === k && (!Array.isArray(x) || lat == null || km(lat, lon, x[1], x[2]) < 40));
+      const mine = (r) => !r[2] || r[2].some((x) => ytKey(x) === k);
+      if (hit) return { g, hook, lim: lim.filter(mine), name: ytName(hit), notes: notes.filter(mine) };
+    }
+    return null;
+  }
+  // The water at a spot on Yukon's own base map (GeoYukon: CanVec 1:50,000 lakes and wide rivers, then streams within 150 m).
+  const YT_MAP = "https://mapservices.gov.yk.ca/arcgis/rest/services/GeoYukon/GY_Basemap/MapServer";
+  async function waterYT(lat, lon) {
+    const q = (layer, extra = {}) => getJ(`${YT_MAP}/${layer}/query?${new URLSearchParams({ geometry: `${lon},${lat}`, geometryType: "esriGeometryPoint", inSR: "4326", spatialRel: "esriSpatialRelIntersects",
+      outFields: "NAME_EN,WATER_DEFINITION", returnGeometry: "false", f: "json", ...extra })}`, 9000).then((j) => (j.features || []).map((f) => f.attributes)).catch(() => []);
+    let a = (await q(38)).find((x) => x.NAME_EN), river = a && a.WATER_DEFINITION !== 83;
+    if (!a) { a = (await q(29, { distance: "150", units: "esriSRUnit_Meter" })).find((x) => x.NAME_EN); river = true; }
+    if (!a) return null;
+    const own = ytWater(a.NAME_EN, lat, lon);
+    return { name: a.NAME_EN, kind: river ? "River" : "Lake", yt: own, html: "" };   // its rules go in Rules and Seasons and limits
+  }
+  function ytShort(w) {
+    const own = w && w.yt, out = [];
+    const shut = (d) => { const o = openToday(d); return o == null ? "" : `<em class="fs-st" style="--c:${o ? C.blown : C.none}">${o ? "Now" : "Not now"}</em>`; };
+    if (own) {
+      out.push([`<b>${esc(own.name)}</b>: a ${esc(own.g)}${own.hook ? `. ${esc(own.hook)}` : ""}`, ""]);
+      for (const [t, d] of own.notes) if (out.length < 4) out.push([`${esc(t)}${d ? ` (${esc(d.replace(" to ", "-"))})` : ""}`, d ? shut(d) : ""]);
+      if (own.lim.length) out.push([esc(own.lim.slice(0, 3).map(([sp, l]) => `${sp} ${l.replace(/^(\d+) a day/, "$1")}`).join("; ")), ""]);
+    } else {
+      out.push(["General Waters: open all year, no special rules listed for this water", ""]);
+      out.push([esc(YT_GEN.slice(0, 3).map(([sp, l]) => `${sp} ${l.replace(/ a day/, "")}`).join("; ")), ""]);
+    }
+    return out;
+  }
+  function ytSeason(w) {
+    const own = w && w.yt, mine = new Map((own ? own.lim : []).map((r) => [r[0], r[1]]));
+    const rows = [...(own ? own.lim.filter((r) => !YT_GEN.some((g) => g[0] === r[0])) : []), ...YT_GEN].map(([sp]) => [sp, mine.get(sp) || YT_GEN.find((g) => g[0] === sp)[1], mine.has(sp)]);
+    const notes = own ? own.notes.map(([t, d]) => { const o = d ? openToday(d) : null; return `<li style="--c:${/^No fishing/.test(t) ? C.blown : C.high}"><b>${esc(t)}${o != null ? ` <em class="fs-st" style="--c:${o ? C.blown : C.none}">${o ? "Now" : "Not now"}</em>` : ""}</b>${d ? `<small>${esc(d)}</small>` : ""}</li>`; }).join("") : "";
+    const body = `<p class="fs-note">${own ? `${esc(own.name)} is a ${esc(own.g)}${own.hook ? `: ${esc(own.hook.toLowerCase())}` : ""}. Its own limits are marked; the rest are General Waters' limits.` : `${esc((w && w.name) || "This water")} isn't in Yukon's list of waters with special rules: General Waters' limits apply, and it's open all year.`}</p>
+      ${notes ? `<ul class="fs-list">${notes}</ul>` : ""}
+      <ul class="fs-list">${rows.map(([sp, l, m]) => `<li style="--c:${m ? C.high : C.zone}"><b>${esc(sp)}</b><small>${esc(l)}</small></li>`).join("")}</ul>
+      <p class="fs-note">The possession limit is twice the daily limit in General Waters (the same as the daily limit for trout, grayling and pike in Conservation Waters). Ice fishing: 2 lines, 1 hook each. Typed in from the <a href="${YT_PDF}" target="_blank" rel="noopener">Yukon Fishing Regulations Summary 2026-27</a>: check it, and DFO's salmon notices, before you fish.</p>`;
+    return fold("season", IC.sun, "Seasons and limits", own ? esc(own.g) : "General Waters", body);
+  }
   async function rulesShort(here, prov, w, lat, lon) {
     const out = here.filter((z) => z.k === "noer").map((z) => [`<b>No fishing here</b>: ${esc(z.n)} is an ecological reserve`, `<em class="fs-st" style="--c:${C.nofish}">Closed</em>`]);   // [text, chip html]
     if (out.length) return `<div class="fs-short"><h4>In short</h4><ul>${out.map(([t, c]) => `<li>${t} ${c}</li>`).join("")}</ul></div>`;
@@ -1360,11 +1450,14 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       }
     } else if (prov === "nb" && lat != null) {
       out.push(...await nbWater(lat, lon));
+    } else if (prov === "yt") {
+      out.push(...ytShort(w));
     }
     return out.length ? `<div class="fs-short"><h4>In short</h4><ul>${out.map(([t, c]) => `<li>${t}${c ? ` ${c}` : ""}</li>`).join("")}</ul><p class="fs-note">The main rules only: the full rules below decide.</p></div>` : "";
   }
   async function seasonHtml(here, prov, w, boatOut = []) {
     const name = (w && w.name) || "";
+    if (prov === "yt") return ytSeason(w);
     if (prov === "qc") {
       const j = await loadOnce("qcrules"), z = here.find((x) => x.k === "qc");
       if (!j) return "";
@@ -1470,6 +1563,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       if (prov === "on") return await waterON(lat, lon);
       if (prov === "qc") return await waterQC(lat, lon);
       if (["nb", "ns", "pe", "nl"].includes(prov)) return await withList(null, lat, lon);
+      if (prov === "yt") return await waterYT(lat, lon);
     } catch {}
     return null;
   }

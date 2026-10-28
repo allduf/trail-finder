@@ -1592,14 +1592,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=700"></script>
-<script src="native.js?v=700"></script>
-<script src="keyboard.js?v=700"></script>
-<script src="rotate.js?v=700"></script>
-<script src="official.js?v=700"></script>
-<script src="directions.js?v=700"></script>
-<script src="ratings.js?v=700"></script>
-<script src="ebike.js?v=700"></script>
+<script src="welcome.js?v=710"></script>
+<script src="native.js?v=710"></script>
+<script src="keyboard.js?v=710"></script>
+<script src="rotate.js?v=710"></script>
+<script src="official.js?v=710"></script>
+<script src="directions.js?v=710"></script>
+<script src="ratings.js?v=710"></script>
+<script src="ebike.js?v=710"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -4188,7 +4188,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=700").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=710").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -8068,46 +8068,46 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=700"></script>
-<script src="contours.js?v=700"></script>
-<script src="clouds.js?v=700"></script>
-<script src="smoke.js?v=700"></script>
-<script src="radar.js?v=700"></script>
-<script src="photo-slider.js?v=700"></script>
-<script src="ski-terrain.js?v=700"></script>
-<script src="place-search.js?v=700"></script>
-<script src="winter.js?v=700"></script>
-<script src="hunts.js?v=700"></script>
-<script src="ski-points.js?v=700"></script>
-<script src="offline.js?v=700"></script>
-<script src="ride-stats.js?v=700"></script>
-<script src="native-gps.js?v=700"></script>
-<script src="navigate.js?v=700"></script>
-<script src="planner.js?v=700"></script>
-<script src="loops.js?v=700"></script>
-<script src="ride-finds.js?v=700"></script>
-<script src="rides.js?v=700"></script>
-<script src="community.js?v=700"></script>
-<script src="ride-files.js?v=700"></script>
-<script src="rider-trails.js?v=700"></script>
-<script src="account.js?v=700"></script>
-<script src="live.js?v=700"></script>
-<script src="strava.js?v=700"></script>
-<script src="reports.js?v=700"></script>
-<script src="grades.js?v=700"></script>
-<script src="trail-photos.js?v=700"></script>
-<script src="visitors.js?v=700"></script>
-<script src="usage.js?v=700"></script>
-<script src="notify.js?v=700"></script>
-<script src="closures.js?v=700"></script>
-<script src="status.js?v=700"></script>
-<script src="ask.js?v=700"></script>
-<script src="areas.js?v=700"></script>
-<script src="alpine.js?v=700"></script>
-<script src="bikeparks.js?v=700"></script>
-<script src="photo-find.js?v=700"></script>
-<script src="whats-new.js?v=700"></script>
-<script src="app-update.js?v=700"></script>
+<script src="map3d.js?v=710"></script>
+<script src="contours.js?v=710"></script>
+<script src="clouds.js?v=710"></script>
+<script src="smoke.js?v=710"></script>
+<script src="radar.js?v=710"></script>
+<script src="photo-slider.js?v=710"></script>
+<script src="ski-terrain.js?v=710"></script>
+<script src="place-search.js?v=710"></script>
+<script src="winter.js?v=710"></script>
+<script src="hunts.js?v=710"></script>
+<script src="ski-points.js?v=710"></script>
+<script src="offline.js?v=710"></script>
+<script src="ride-stats.js?v=710"></script>
+<script src="native-gps.js?v=710"></script>
+<script src="navigate.js?v=710"></script>
+<script src="planner.js?v=710"></script>
+<script src="loops.js?v=710"></script>
+<script src="ride-finds.js?v=710"></script>
+<script src="rides.js?v=710"></script>
+<script src="community.js?v=710"></script>
+<script src="ride-files.js?v=710"></script>
+<script src="rider-trails.js?v=710"></script>
+<script src="account.js?v=710"></script>
+<script src="live.js?v=710"></script>
+<script src="strava.js?v=710"></script>
+<script src="reports.js?v=710"></script>
+<script src="grades.js?v=710"></script>
+<script src="trail-photos.js?v=710"></script>
+<script src="visitors.js?v=710"></script>
+<script src="usage.js?v=710"></script>
+<script src="notify.js?v=710"></script>
+<script src="closures.js?v=710"></script>
+<script src="status.js?v=710"></script>
+<script src="ask.js?v=710"></script>
+<script src="areas.js?v=710"></script>
+<script src="alpine.js?v=710"></script>
+<script src="bikeparks.js?v=710"></script>
+<script src="photo-find.js?v=710"></script>
+<script src="whats-new.js?v=710"></script>
+<script src="app-update.js?v=710"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

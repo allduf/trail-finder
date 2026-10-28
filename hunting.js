@@ -130,7 +130,7 @@
     ns: { box: [43.3, -66.5, 47.1, -59.6], name: "Nova Scotia", unit: "Deer zone", zones: 1, regs: "https://novascotia.ca/natr/hunt/", regsName: "Nova Scotia Hunting and Trapping Guide" },
     pe: { box: [45.9, -64.5, 47.1, -61.9], name: "Prince Edward Island", unit: "", regs: "https://www.princeedwardisland.ca/en/topic/hunting-angling-and-trapping", regsName: "PEI Hunting Summary" },
     nl: { box: [46.6, -67.9, 60.5, -52.5], name: "Newfoundland and Labrador", unit: "Moose area", zones: 1, regs: "https://www.gov.nl.ca/hunting-trapping-guide/", regsName: "NL Hunting and Trapping Guide" },
-    yt: { box: [59.9, -141.1, 69.7, -123.7], name: "Yukon", unit: "GMA", zones: 1, regs: "https://yukon.ca/en/outdoor-recreation-and-wildlife/hunting-and-trapping", regsName: "Yukon Hunting Regulations Summary" },
+    yt: { box: [59.9, -141.1, 69.7, -123.7], name: "Yukon", unit: "GMS", zones: 1, regs: "https://yukon.ca/en/outdoor-recreation-and-wildlife/hunting-and-trapping", regsName: "Yukon Hunting Regulations Summary" },
     nt: { box: [59.9, -136.5, 78.9, -101.9], name: "Northwest Territories", unit: "", regs: "https://www.gov.nt.ca/ecc/en/services/hunting", regsName: "NWT hunting regulations" },
     nu: { box: [51.6, -121.1, 83.2, -61.1], name: "Nunavut", unit: "", regs: "https://www.gov.nu.ca/en/environment-and-wildlife/wildlife-regulations", regsName: "Nunavut Hunting Regulations" },
   };
@@ -142,7 +142,7 @@
     // Quebec on the map: the official short code ("27O" = 27 ouest, "8N" = 8 nord), the full name under it zoomed in
     if (u.p === "qc" && !long) return String(u.id).replace(/^0/, "").replace(/(Z|I|MR|SB)$/, "");
     if (u.p === "on" && !long) return u.id;   // southern Ontario's WMUs are small: the number alone, like BC's
-    return `${long ? `${pv.name} ` : ""}${long ? pv.unit.toLowerCase().replace(/^(wmu|gha|wmz|gma)$/, (m) => m.toUpperCase()) : pv.unit} ${id}`.replace(/^ +/, "");
+    return `${long ? `${pv.name} ` : ""}${long ? pv.unit.toLowerCase().replace(/^(wmu|gha|wmz|gma|gms)$/, (m) => m.toUpperCase()) : pv.unit} ${id}`.replace(/^ +/, "");
   };
   const zoneSub = (u) => (u.p === "ab" || u.p === "nl" ? u.n : u.p === "bc" ? u.zn : u.p === "qc" ? `Zone ${u.n}` : "") || "";
   // Quebec's islands, Rigaud and Seigneurie de Beaupré pieces and CWD parts: no label of their own (their zone has one)
@@ -1298,14 +1298,21 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     return `<details class="hn-seasons"><summary>Seasons in ${esc(label)}: ${now.length ? `<span class="hn-open">${now.length} open now</span>` : "none open today"}</summary>
       <ul class="hn-list">${list}</ul><p class="hn-note" style="margin-top:6px">${foot}</p></details>`;
   }
-  const seasonFoot = (u, link, sf) => sf ? `${u.p === "nl" ? "Read by the app from" : "Typed in from"} the <a href="${esc(link)}" target="_blank" rel="noopener">${esc(sf.src)}</a>. Licences, tags and the exact rules are in the summary: always check it before you hunt.`
+  const seasonFoot = (u, link, sf) => sf ? `${u.p === "nl" ? "Read by the app from" : "Typed in from"} the <a href="${esc(link)}" target="_blank" rel="noopener">${esc(sf.src)}</a>. ${u.p === "yt" ? " Bag limits are for the whole Yukon, not per subzone. † part of the subzone only." : ""} Licences, tags and the exact rules are in the summary: always check it before you hunt.`
     : u.p === "ab" ? `Read by the app from the Alberta Guide to Hunting Regulations. “Special licence (draw)” seasons need a drawn licence. † has a footnote: always check <a href="${link}" target="_blank" rel="noopener">the guide</a> before you hunt.`
     : u.p === "bc" ? `General open seasons, read by the app from the BC Hunting and Trapping Regulations Synopsis (limited entry hunts are listed below). † has footnotes or applies to part of the unit only: always check <a href="${link}" target="_blank" rel="noopener">the region's synopsis</a> before you hunt.`
     : u.p === "qc" ? `Read by the app from the hunting periods on <a href="${link}" target="_blank" rel="noopener">Québec.ca</a> (this year's dates). † applies to part of the zone only or has an exception, and ZEC seasons can differ: always check the official periods and your zone's map before you hunt.`
     : `Resident seasons, read by the app from the <a href="${link}" target="_blank" rel="noopener">Ontario Hunting Regulations Summary</a>. † applies to part of the WMU only: always check the summary (and your tags) before you hunt.`;
   // Quebec: a zone part reads the whole zone's rows and its own ("8", "8 nord"; "19 sud" for 19 sud-est...).
-  const EAST = ["nb", "ns", "nl"];   // season tables like Ontario's: seasons-nb.json, seasons-ns.json, seasons-nl.json
+  const EAST = ["nb", "ns", "nl", "yt"];   // season tables like Ontario's: seasons-nb.json, seasons-ns.json, seasons-nl.json, seasons-yt.json
   const qcKeys = (u) => { const k = [u.no]; if (u.part) { k.push(`${u.no} ${u.part}`); if (/^sud-/.test(u.part)) k.push(`${u.no} sud`); if (u.isl) k.push(`${u.no} ${u.part} île`); if (u.sp) k.push(`${u.no} ${u.part} ${u.sp}`); } return k; };
+  // seasons-yt.json lists each row once (rows) and each subzone its row numbers, negative for part of the subzone only.
+  const ytRows = (j) => {
+    if (!j || !j.rows || j.wmuRows) return j;
+    j.wmuRows = 1;
+    for (const k in j.wmu) j.wmu[k] = j.wmu[k].map((i) => (i < 0 ? [...j.rows[-i - 1], 1] : [...j.rows[i], 0]));
+    return j;
+  };
   // Manitoba's season table: licence types and season words per species, not dates.
   function mbHtml(u, sm) {
     const rows = sm && sm.gha[u.id];
@@ -1381,7 +1388,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       has("ab") ? load("seasons-ab").catch(() => null) : null, bcab ? load("draws").catch(() => null) : null,
       has("qc") ? load("seasons-qc").catch(() => null) : null, has("on") ? load("seasons-on").catch(() => null) : null, has("mb") ? load("seasons-mb").catch(() => null) : null,
       ...EAST.map((k) => has(k) ? load(`seasons-${k}`).catch(() => null) : null)]);
-    const sx = Object.fromEntries(EAST.map((k, i) => [k, sEast[i]]));
+    const sx = Object.fromEntries(EAST.map((k, i) => [k, ytRows(sEast[i])]));
     const harvest = bcab ? await load("harvest").catch(() => null) : null;
     if (seq !== spotSeq) return;
     // Summary first (zone, land, what's open, warnings); the details fold below it.
