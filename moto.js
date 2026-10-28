@@ -888,17 +888,21 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     return `<p><b style="color:${PT[k].c}">${PT[k].t} ${esc(kindLine(k, p))}</b>${far ? `<br><span class="mt-note">${far}</span>` : ""}</p>`;
   }
   // The rest from OpenStreetMap (the id is in the nightly file: "n", "w" or "r" and the number in base 36) and the
-  // height from Open-Meteo, or BC's rec site record. Kept so a second tap is instant.
+  // height from the free terrain tiles (as Plan a route), else Open-Meteo, or BC's rec site record. Kept so a second tap is instant.
   const pinCache = new Map();
   const OSM_TYPE = { n: "node", w: "way", r: "relation" };
   const yes = (v) => v != null && v !== "no" && v !== "none";
   const urlOk = (u) => (/^https?:\/\//i.test(u) ? u : /^[\w.-]+\.[a-z]{2,}(\/|$)/i.test(u) ? "https://" + u : "");
+  async function heightOf(p) {
+    try { const [h] = window.tfPlan && window.tfPlan.heights ? await window.tfPlan.heights([[p[0], p[1]]]) : []; if (h != null) return h; } catch {}
+    return getJ(`https://api.open-meteo.com/v1/elevation?latitude=${p[0].toFixed(4)}&longitude=${p[1].toFixed(4)}`, 8000).then((j) => j.elevation && j.elevation[0]).catch(() => null);
+  }
   async function pinDetails(k, p) {
     const id = k === "rec" ? "" : String(p[4] || ""), key = id || `${p[0]},${p[1]}`;
     if (pinCache.has(key)) return pinCache.get(key);
     const [osm, ele] = await Promise.all([
       /^[nwr][0-9a-z]+$/.test(id) ? getJ(`https://api.openstreetmap.org/api/0.6/${OSM_TYPE[id[0]]}/${parseInt(id.slice(1), 36)}.json`, 10000).catch(() => null) : null,
-      getJ(`https://api.open-meteo.com/v1/elevation?latitude=${p[0].toFixed(4)}&longitude=${p[1].toFixed(4)}`, 8000).then((j) => j.elevation && j.elevation[0]).catch(() => null)]);
+      heightOf(p)]);
     const el = osm && osm.elements && osm.elements[0], t = (el && el.tags) || {};
     const facts = [], rows = [];
     const fact = (txt, no) => facts.push(`<li${no ? ' class="no"' : ""}>${esc(txt)}</li>`);
