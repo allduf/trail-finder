@@ -1591,14 +1591,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=633"></script>
-<script src="native.js?v=633"></script>
-<script src="keyboard.js?v=633"></script>
-<script src="rotate.js?v=633"></script>
-<script src="official.js?v=633"></script>
-<script src="directions.js?v=633"></script>
-<script src="ratings.js?v=633"></script>
-<script src="ebike.js?v=633"></script>
+<script src="welcome.js?v=640"></script>
+<script src="native.js?v=640"></script>
+<script src="keyboard.js?v=640"></script>
+<script src="rotate.js?v=640"></script>
+<script src="official.js?v=640"></script>
+<script src="directions.js?v=640"></script>
+<script src="ratings.js?v=640"></script>
+<script src="ebike.js?v=640"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3376,7 +3376,11 @@ out body;`;
 
     const list = $("list");
     if (!shown.length) { list.innerHTML = state.trails.length || state.searchedBounds.length ? "" : `<div class="empty">Results appear here after a search.</div>`; return; }
-    const rows = namePick ? shown.filter((t) => namePicked(trailName(t), t.segIds || [t.id])) : shown;
+    // Short unofficial lines (under 500 m) go after the real new trails, still newest first in each group (app review
+    // 2026-10-28: near Whistler the list opened on 100-450 m "Est. double black? Unofficial" lines).
+    const shortLine = (t) => isUnoff(t) && t.km < 0.5;
+    const ranked = shown.filter((t) => !shortLine(t)).concat(shown.filter(shortLine));
+    const rows = namePick ? ranked.filter((t) => namePicked(trailName(t), t.segIds || [t.id])) : ranked;
     list.innerHTML = (namePick ? namePickBar(rows.length, shown.length) : "") + "<ol>" + rows.map((t) => {
       return `<li class="trail ${t.cat}${state.selected === t.id ? " sel" : ""}" data-id="${t.id}" tabindex="0">
         <span class="bar"${barStyle(t)}></span>
@@ -3432,6 +3436,14 @@ out body;`;
     const prime = pool.filter(isPrime);
     const vals = typed.map(loamOf).filter((v) => v != null);
     state.primeRange = vals.length ? [Math.min(...vals), Math.max(...vals)] : null;
+    // Nothing prime now: the first coming day the forecast has prime loam on these trails, so the answer isn't a dead end.
+    state.primeSoon = null;
+    if (!prime.length) typed.forEach((e) => {
+      const c = loamCells.get(cellOf(e)), x = c && c.days && c.days.find((y) => y.d > c.today && primeDay(y));
+      if (!x) return;
+      if (!state.primeSoon || x.d < state.primeSoon.d) state.primeSoon = { d: x.d, day: dayName(x.d, c.today), n: 0 };
+      if (state.primeSoon.d === x.d) state.primeSoon.n++;
+    });
     $("nMtb").textContent = prime.filter((e) => e.cat === "mtb").length; $("nLooks").textContent = prime.filter((e) => e.cat === "looks").length; $("nGhost").textContent = "–";
     $("nUnoff").textContent = prime.filter((e) => e.unoff.length && unoffTypes().includes(e.cat)).length;
     $("nOff").textContent = prime.filter((e) => e.official && unoffTypes().includes(e.cat)).length;
@@ -3505,7 +3517,9 @@ out body;`;
       const what = only + "trail";
       setStatus(n ? `${n} ${what}${n === 1 ? "" : "s"} in ${where} ${n === 1 ? "is" : "are"} in prime loam right now.${busy ? " " + busy : ""}`
         : busy || (noType ? "Tick a trail type above to see the trails." : only ? `No ${only}trails in ${where} are in prime loam right now. Turn off ${onlyOff} to see the others.`
-          : `No trails in ${where} are in prime loam right now (Loam index 40 to 59).${loamNow()} Pick Month, Year… to see new trails instead.`));
+          : `No trails in ${where} are in prime loam right now (Loam index 40 to 59).${loamNow()}${state.primeSoon
+            ? ` Forecast: ${state.primeSoon.n} trail${state.primeSoon.n === 1 ? "" : "s"} here turn${state.primeSoon.n === 1 ? "s" : ""} prime ${state.primeSoon.day === "tomorrow" ? "tomorrow" : "on " + state.primeSoon.day}. The 🔔 can tell you when.`
+            : " None look prime in the next few days either."} Pick Month, Year… to see new trails instead.`));
       return;
     }
     $("findBtn").disabled = !!state.loading;
@@ -4107,7 +4121,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=633").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=640").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5127,6 +5141,14 @@ out body;`;
     if (navigator.permissions && navigator.permissions.query) navigator.permissions.query({ name: "geolocation" }).then((q) => { if (q.state !== "denied") auto(); }, auto);
     else auto();
   }
+  // Welcome closed with Skip or Done without the location step (welcome.js): still centre the map on the rider once,
+  // so a new rider doesn't start on all of southern BC. Taps on the welcome itself don't count as using the map.
+  window.tfLocateAfterWelcome = () => {
+    if (!navigator.geolocation || !store.get("track", true) || you.watch != null) return;
+    touched = false;
+    ["pointerdown", "wheel", "keydown"].forEach((ev) => document.addEventListener(ev, () => { touched = true; }, { capture: true, once: true }));
+    startTracking(openHere);
+  };
 
   // In Skiing, Hunting or Fishing it opens on that sport's part (every mode its own, alex 2026-10-26).
   $("aboutBtn").addEventListener("click", () => {
@@ -5546,7 +5568,8 @@ out body;`;
     e.stopPropagation();
     if (b.dataset.q === "today") { quick("today"); return; }
     navStack.length = 0; navStack.push("find");
-    quick(b.dataset.q === "new" ? "search" : b.dataset.q);
+    if (b.dataset.q === "new") { quick("search"); $("findBtn").click(); return; }   // the list right away; the form stays above it to change
+    quick(b.dataset.q);
   });
   hubEl.addEventListener("click", (e) => {
     if (e.target.closest("[data-sport], [data-hub]")) e.stopPropagation();   // the page decides the sheet's height
@@ -7819,58 +7842,58 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=633"></script>
-<script src="contours.js?v=633"></script>
-<script src="clouds.js?v=633"></script>
-<script src="smoke.js?v=633"></script>
-<script src="radar.js?v=633"></script>
-<script src="photo-slider.js?v=633"></script>
-<script src="ski-terrain.js?v=633"></script>
-<script src="place-search.js?v=633"></script>
-<script src="winter.js?v=633"></script>
-<script src="crownland.js?v=633"></script>
-<script src="hunting.js?v=633"></script>
-<script src="fish-bait.js?v=633"></script>
-<script src="fish-route.js?v=633"></script>
-<script src="fishing.js?v=633"></script>
-<script src="compass.js?v=633"></script>
-<script src="hunts.js?v=633"></script>
-<script src="ski-points.js?v=633"></script>
-<script src="webcams.js?v=633"></script>
-<script src="lifts.js?v=633"></script>
-<script src="rogers.js?v=633"></script>
-<script src="slackcountry.js?v=633"></script>
-<script src="ski-areas.js?v=633"></script>
-<script src="helicat.js?v=633"></script>
-<script src="offline.js?v=633"></script>
-<script src="ride-stats.js?v=633"></script>
-<script src="native-gps.js?v=633"></script>
-<script src="navigate.js?v=633"></script>
-<script src="planner.js?v=633"></script>
-<script src="loops.js?v=633"></script>
-<script src="ride-finds.js?v=633"></script>
-<script src="rides.js?v=633"></script>
-<script src="community.js?v=633"></script>
-<script src="ride-files.js?v=633"></script>
-<script src="rider-trails.js?v=633"></script>
-<script src="account.js?v=633"></script>
-<script src="live.js?v=633"></script>
-<script src="strava.js?v=633"></script>
-<script src="reports.js?v=633"></script>
-<script src="grades.js?v=633"></script>
-<script src="trail-photos.js?v=633"></script>
-<script src="visitors.js?v=633"></script>
-<script src="usage.js?v=633"></script>
-<script src="notify.js?v=633"></script>
-<script src="closures.js?v=633"></script>
-<script src="status.js?v=633"></script>
-<script src="ask.js?v=633"></script>
-<script src="areas.js?v=633"></script>
-<script src="alpine.js?v=633"></script>
-<script src="bikeparks.js?v=633"></script>
-<script src="photo-find.js?v=633"></script>
-<script src="whats-new.js?v=633"></script>
-<script src="app-update.js?v=633"></script>
+<script src="map3d.js?v=640"></script>
+<script src="contours.js?v=640"></script>
+<script src="clouds.js?v=640"></script>
+<script src="smoke.js?v=640"></script>
+<script src="radar.js?v=640"></script>
+<script src="photo-slider.js?v=640"></script>
+<script src="ski-terrain.js?v=640"></script>
+<script src="place-search.js?v=640"></script>
+<script src="winter.js?v=640"></script>
+<script src="crownland.js?v=640"></script>
+<script src="hunting.js?v=640"></script>
+<script src="fish-bait.js?v=640"></script>
+<script src="fish-route.js?v=640"></script>
+<script src="fishing.js?v=640"></script>
+<script src="compass.js?v=640"></script>
+<script src="hunts.js?v=640"></script>
+<script src="ski-points.js?v=640"></script>
+<script src="webcams.js?v=640"></script>
+<script src="lifts.js?v=640"></script>
+<script src="rogers.js?v=640"></script>
+<script src="slackcountry.js?v=640"></script>
+<script src="ski-areas.js?v=640"></script>
+<script src="helicat.js?v=640"></script>
+<script src="offline.js?v=640"></script>
+<script src="ride-stats.js?v=640"></script>
+<script src="native-gps.js?v=640"></script>
+<script src="navigate.js?v=640"></script>
+<script src="planner.js?v=640"></script>
+<script src="loops.js?v=640"></script>
+<script src="ride-finds.js?v=640"></script>
+<script src="rides.js?v=640"></script>
+<script src="community.js?v=640"></script>
+<script src="ride-files.js?v=640"></script>
+<script src="rider-trails.js?v=640"></script>
+<script src="account.js?v=640"></script>
+<script src="live.js?v=640"></script>
+<script src="strava.js?v=640"></script>
+<script src="reports.js?v=640"></script>
+<script src="grades.js?v=640"></script>
+<script src="trail-photos.js?v=640"></script>
+<script src="visitors.js?v=640"></script>
+<script src="usage.js?v=640"></script>
+<script src="notify.js?v=640"></script>
+<script src="closures.js?v=640"></script>
+<script src="status.js?v=640"></script>
+<script src="ask.js?v=640"></script>
+<script src="areas.js?v=640"></script>
+<script src="alpine.js?v=640"></script>
+<script src="bikeparks.js?v=640"></script>
+<script src="photo-find.js?v=640"></script>
+<script src="whats-new.js?v=640"></script>
+<script src="app-update.js?v=640"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
