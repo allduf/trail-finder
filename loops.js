@@ -186,6 +186,17 @@
   const chips = (kind, vals, cur, fmt) => `<button type="button" data-${kind}="" aria-pressed="${cur == null}">Any</button>` +
     vals.map((v) => `<button type="button" data-${kind}="${v}" aria-pressed="${cur === v}">${fmt(v)}</button>`).join("");
 
+  // "← Loops" on the planner: the dialog the list sits in opens again as it was left (same area, chips and scroll).
+  function backTo(b) {
+    const dlg = b.closest("dialog");
+    if (!dlg) return null;
+    const kept = [];
+    for (let x = b.parentElement; x; x = x.parentElement) if (x.scrollTop) kept.push([x, x.scrollTop]);
+    return () => {
+      if (!dlg.open) { try { dlg.showModal(); } catch { dlg.setAttribute("open", ""); } }
+      kept.forEach(([x, top]) => { x.scrollTop = top; });
+    };
+  }
   // Fills el with the area's loops. onOpen runs before the planner opens (status.js closes its dialog).
   async function show(el, area, onOpen) {
     const shift = {};
@@ -208,13 +219,14 @@
         <div class="lp-trails">${l.trails.map((t) => `<span class="lp-t">${lvl(t.lvl)}${esc(t.name)}<button type="button" data-skip="${esc(t.name)}" aria-label="Leave out ${esc(t.name)}" title="Leave this trail out: the loops are rebuilt without it">✕</button></span>`).join("")}</div>
         <div class="lp-row"><button type="button" class="lp-other" data-other="${l.k}"${l.alt < 2 ? ` disabled title="No other ${esc(l.name.toLowerCase())} here"` : ""}>↻ Different loop${l.alt > 1 ? ` <small>${l.at + 1} of ${l.alt}</small>` : ""}</button></div></li>`;
       }).join("")}</ol>${skipped}
-      <p class="lp-note">Estimates. Each loop starts and ends at the parking lot nearest its trails and leaves out bike park trails (lift access only). ✕ leaves a trail out and rebuilds the loop around your length. Tap a loop for the real ride: the climbs, the order, the exact distance and climb, GPX and ▶ Ride it.</p>`;
+      <p class="lp-note">Estimates. Each loop starts and ends at the parking lot nearest its trails and leaves out bike park trails (lift access only). ✕ leaves a trail out and rebuilds the loop around your length. Tap a loop for the real ride: the climbs, the order, the exact distance and climb, GPX and ▶ Ride it; ← Loops on it brings you back here.</p>`;
       wire(box, loops);
     };
     const wire = (box, loops) => {
       box.querySelectorAll("[data-l]").forEach((b) => b.addEventListener("click", () => {
+        const back = backTo(b);
         if (onOpen) onOpen();
-        window.tfPlan.openRoute(entryOf(area, loops[+b.dataset.l]));
+        window.tfPlan.openRoute(entryOf(area, loops[+b.dataset.l]), false, back);
       }));
       box.querySelectorAll("[data-other]").forEach((b) => b.addEventListener("click", () => { shift[b.dataset.other] = (shift[b.dataset.other] || 0) + 1; draw(); }));
       box.querySelectorAll("[data-skip]").forEach((b) => b.addEventListener("click", () => { const s = skipOf(area); s.add(b.dataset.skip); setSkip(area, s); draw(); }));

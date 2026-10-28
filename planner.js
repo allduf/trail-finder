@@ -1308,6 +1308,7 @@ body.planning:has(.app:not(.fullmap)) .plan-bar { left: 396px; }
 .plan-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
 .plan-head h3 { margin: 0; font-size: 1.05rem; }
 .plan-tag { font-size: .8rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #37474f; color: #fff; }
+.plan-toloops { font: inherit; font-weight: 700; min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--accent, #1e6b45); background: var(--bg, #f4f5f0); color: var(--accent, #1e6b45); cursor: pointer; }
 .plan-x { margin-left: auto; font: inherit; font-size: 1.05rem; font-weight: 700; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line, #d6dad3); background: var(--bg, #f4f5f0); color: inherit; cursor: pointer; }
 .plan-more { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line, #d6dad3); }
 .plan-more[hidden] { display: none; }
@@ -1377,7 +1378,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
   // One step at a time (alex found it hard to use with 11 buttons and two switches up front): the bar shows what to do
   // next and only the buttons that work now. How the route is made (Pick trails / Tap points), Pedal or Shuttle, the
   // start and the rest wait under ⋯ More.
-  bar.innerHTML = `<div class="plan-head"><h3>Plan a route</h3><span class="plan-tag" id="planTag" hidden></span>
+  bar.innerHTML = `<div class="plan-head"><button type="button" class="plan-toloops" id="planToLoops" hidden title="Back to the loop list, as you left it, to pick another">← Loops</button><h3>Plan a route</h3><span class="plan-tag" id="planTag" hidden></span>
       <button type="button" class="plan-x" id="planDone" title="Close the planner (your route stays until you clear it)" aria-label="Close">✕</button></div>
     <div class="plan-stats" id="planStats" aria-live="polite"></div><div class="plan-trails" id="planTrails"></div><ol class="plan-steps" id="planSteps"></ol>
     <div class="plan-btns plan-main"><button type="button" id="planUndo" title="Undo" aria-label="Undo">↶</button><button type="button" id="planSavedTop" aria-pressed="false" title="Your saved routes">📂 Saved</button>
@@ -1434,7 +1435,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
       const pts = allPts().length ? allPts() : mode === "tap" ? stops.map((s) => s.ll) : picks.flatMap((p) => p.ways.flatMap((w) => w.geom));
       if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 });
       else if (map.getZoom() < 13) map.setZoom(13);
-    } else { map.removeLayer(layer); settingStart = false; setFind(false); }
+    } else { map.removeLayer(layer); settingStart = false; setFind(false); setToList(null); }
     const b = $("planBtn"); if (b) b.setAttribute("aria-pressed", String(on));
   }
   function onTap(latlng) {
@@ -1580,7 +1581,11 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
     setSaved([e, ...savedList()]);
     flash(`Saved "${e.name}". 📂 Saved opens it again.`, false);
   }
-  function openSaved(e) {
+  // A loop opened from a loop list (loops.js) keeps a way back to that list, so another loop is one tap away.
+  let toList = null;
+  function setToList(fn) { toList = fn || null; $("planToLoops").hidden = !toList; }
+  function openSaved(e, back) {
+    setToList(back);
     try {
       localStorage.setItem("tf:planMode", e.mode); localStorage.setItem("tf:planHow", e.how);
       if (e.mode === "pick") localStorage.setItem("tf:planPicks", JSON.stringify(e.pick)); else localStorage.setItem("tf:plan", JSON.stringify(e.stops || []));
@@ -1649,6 +1654,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
   back.addEventListener("click", () => setFind(false));
   $("planSavedBtn").addEventListener("click", () => showSaved(!savedOpen));
   $("planSavedTop").addEventListener("click", () => showSaved(!savedOpen));
+  $("planToLoops").addEventListener("click", () => { if (toList) toList(); });
   $("planSaved").addEventListener("click", (ev) => {
     const b = ev.target.closest("[data-sv]");
     if (!b) return;
@@ -1698,7 +1704,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
       const g = joined(w0, ids.map((x) => cache.byId.get(x)).filter((w) => w && w !== w0));
       return { ids: g.map((w) => w.id), m: g.reduce((s, w) => s + lengthOf(w.geom), 0) };
     },
-    openRoute: (e, keep) => { if (keep) setSaved([{ ...e, id: Date.now().toString(36), at: new Date().toISOString() }, ...savedList()]); openSaved(e); },
+    openRoute: (e, keep, back) => { if (keep) setSaved([{ ...e, id: Date.now().toString(36), at: new Date().toISOString() }, ...savedList()]); openSaved(e, back); },
     // Terrain heights at points (m, or null where the tiles have none), from the same tiles as the routes.
     heights: async (pts) => { if (!pts.length) return []; const ht = await terrainOr(boxOf(pts, 0.005)); return pts.map((p) => { const h = ht(p); return h == null ? null : Math.round(h); }); } };
 })();
