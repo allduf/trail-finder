@@ -127,6 +127,11 @@ for (const sport of SPORTS) {
     await page.goto(SITE + "index.html", { waitUntil: "domcontentloaded", timeout: 60_000 });
     await page.waitForSelector("#sportMapBtn", { timeout: 30_000 });
   }, 4000);
+  // Each sport's own scripts load only when it's picked (winter.js): MTB opens without them.
+  if (sport === "mtb") {
+    const extra = await page.evaluate(() => ["tfHunt", "tfFish", "tfWebcams", "tfMoto"].filter((k) => window[k]));
+    results.push({ sport, step: "Opens without the other sports' scripts", ok: !extra.length, note: extra.length ? `loaded anyway: ${extra.join(", ")}` : "", shot: "" });
+  }
   // Anything the app shows on a first open (What's new, tips) is closed like a rider would.
   await page.keyboard.press("Escape").catch(() => {});
 
@@ -135,6 +140,10 @@ for (const sport of SPORTS) {
     await tap(page, `#sportMenu [data-sport=${sport}]`);
     await page.waitForFunction((s) => (document.getElementById("sport") || {}).value === s, sport, { timeout: 8000 });
   }, sport === "ski" ? 8000 : 4000);   // Skiing opens on the 3D map
+  {
+    const want = { ski: "tfWebcams", hunt: "tfHunt", fish: "tfFish", moto: "tfMoto" }[sport];
+    if (want) { const ok = await page.evaluate((k) => !!window[k], want); results.push({ sport, step: "Its own scripts loaded", ok, note: ok ? "" : `${want} missing after picking it`, shot: "" }); }
+  }
 
   // The bottom bar's tabs this sport shows (Map, the sport's own Find/Routes/Hunt/Fish/Roads, Ride, Saved, More).
   const tabs = await page.$$eval("#tabbar button[data-nav]", (bs) => bs.filter((b) => b.offsetParent && getComputedStyle(b).display !== "none")

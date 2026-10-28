@@ -466,7 +466,8 @@ body.cp-ranging { user-select: none; -webkit-user-select: none; }
   map.on("rotate", () => { if (S.on && S.manual) soon(); });
   map.on("zoomend", () => { if (S.on && !is3d()) draw(true); });
   map.on("moveend", () => { if (S.on && !is3d() && S.free) draw(); });
-  window.addEventListener("tf:map3d", (e) => {
+  // This file loads the first time Hunting is picked (winter.js), often after the 3D map was built: take that one too.
+  const on3d = (e) => {
     const g = e.detail;
     g.on("dragstart", (ev) => { if (S.on && ev.originalEvent && !S.free) { S.free = true; render(); } });
     g.on("rotate", (ev) => { if (S.on && S.manual && ev.originalEvent) soon(); });
@@ -474,7 +475,8 @@ body.cp-ranging { user-select: none; -webkit-user-select: none; }
     g.on("moveend", (ev) => { if (S.on && ev.originalEvent && S.free) draw(); });
     g.on("style.load", () => { if (S.on && is3d()) draw(); });
     g.on("click", (ev) => { if (S.on && is3d() && S.range == null) setTarget(ev.lngLat.lat, ev.lngLat.lng); });
-  });
+  };
+  window.addEventListener("tf:map3d", on3d);
   // The 2D or 3D button: draw on the other map.
   const b3 = $("btn3d");
   if (b3) b3.addEventListener("click", () => setTimeout(() => S.on && draw(true), 400));
@@ -519,4 +521,5 @@ body.cp-ranging { user-select: none; -webkit-user-select: none; }
   }
 
   window.tfCompass = { start, stop, on: () => S.on, state: () => S };
+  if (window.trailMap3d) on3d({ detail: window.trailMap3d });
 })();

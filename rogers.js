@@ -208,11 +208,13 @@
       }
     } catch (e) { /* the style is changing: drawn again on the next tf:map3d */ }
   }
-  window.addEventListener("tf:map3d", () => {
+  // Skiing's files load when Skiing is picked (winter.js), often after the 3D map was built: draw on that one too.
+  const on3d = () => {
     const gl = window.trailMap3d; if (!gl) return;
     const go = () => draw();
     if (gl.style && (gl.style._loaded || gl.isStyleLoaded())) go(); else { gl.once("style.load", go); gl.once("load", go); }
-  });
+  };
+  window.addEventListener("tf:map3d", on3d);
   let zBand = map.getZoom() >= 13;
   map.on("zoomend", () => { const b = map.getZoom() >= 13; if (b !== zBand) { zBand = b; if (shown()) draw(); } });
   // Panning only redraws the card when it comes into or goes out of view (a redraw would close its open sections).
@@ -385,4 +387,5 @@
   new MutationObserver(() => { if (!btn.isConnected) placeBtn(); }).observe($("layersMenu") || document.body, { childList: true, subtree: true });
   window.tfRogers = { areaAt: (lat, lon) => (status ? areaAt(lat, lon).map((a) => ({ name: a.name, group: a.group, open: isOpen(a) })) : null), load };
   sync();
+  on3d();
 })();

@@ -154,10 +154,12 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
       }
     }
   }
-  window.addEventListener("tf:map3d", () => {
+  // Skiing's files load when Skiing is picked (winter.js), often after the 3D map was built: draw on that one too.
+  const on3d = () => {
     const gl = window.trailMap3d; if (!gl) return;
     if (gl.style && (gl.style._loaded || gl.isStyleLoaded())) draw(); else { gl.once("style.load", draw); gl.once("load", draw); }
-  });
+  };
+  window.addEventListener("tf:map3d", on3d);
   let zBand = 0;
   const bandOf = (z) => (z < RESORT_Z ? -1 : z < LINES_Z ? 0 : z < NAMES_Z ? 1 : 2);
   map.on("zoomend", () => { const b = bandOf(map.getZoom()); if (b !== zBand) { zBand = b; if (shown()) draw(); } });
@@ -347,4 +349,5 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
   map.on("click", () => { if (sel) { sel = null; draw(); } });
   window.tfSlack = { load, open: (id) => { const l = resorts().flatMap((r) => r.lines).find((x) => x.id === id); if (l) open(l); }, list: (id) => { const rs = resorts().find((r) => r.id === id) || resorts()[0]; if (rs) openList(rs); } };
   sync();
+  on3d();
 })();

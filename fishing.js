@@ -2119,7 +2119,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     }
     if (T) for (const q of T.SRC) vis("fs3-cl-" + q.id, cOn);
   }
-  window.addEventListener("tf:map3d", (e) => {
+  // This file loads the first time Fishing is picked (winter.js), often after the 3D map was built: take that one too.
+  const on3d = (e) => {
     gl3 = e.detail;
     gl3.on("click", (ev) => {
       if (!isFish() || document.querySelector(".app.riding, .app.planning") || document.body.classList.contains("sp-picking")) return;
@@ -2130,7 +2131,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       showSpot(ev.lngLat.lat, ev.lngLat.lng);
     });
     sync3d();
-  });
+  };
+  window.addEventListener("tf:map3d", on3d);
 
   // ---------- switching sport ----------
   map.on("click", (e) => {
@@ -2163,4 +2165,5 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   window.addEventListener("tf:sport", sync);
   sync();
 
+  if (window.trailMap3d) on3d({ detail: window.trailMap3d });
 })();

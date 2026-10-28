@@ -26,6 +26,8 @@ const KNOWN = {
   "https://services3.arcgis.com/UIDEa9S9iqq5orpE/": "a student project in Banff, hiking times",
   "https://services1.arcgis.com/z1AfLrJFnIYaaSv3/": "Grand Forks area trail plan, no licence, mostly not rated",
   "https://services1.arcgis.com/mg5xPlZs10O6tWPP/": "Bellingham, outside the zones",
+  "https://services3.arcgis.com/wTur6nX2hsVkJrqG/": "used: Fernie Trails Alliance trail network in Tourism Fernie's map (build-ratings fta)",
+  "https://services.arcgis.com/U7kxTIxKEKeXs30y/": "used: Regional District of Okanagan-Similkameen trails (build-ratings rdos)",
   "https://services2.arcgis.com/wCOMu5IS7YdSyPNx/": "Parks Canada: hiking classification (already in build-official.mjs)",
 };
 const LEVEL_WORD = /\b(easiest|easy|beginner|green|intermediate|moderate|more difficult|blue|difficult|most difficult|advanced|black|expert|double black)\b/i;
