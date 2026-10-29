@@ -576,14 +576,21 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       L.polygon(ll, { renderer, interactive: false, color: C.zone, weight: 2, opacity: 0.9, fill: false })] });
     cull(); drawLabels(); sync3d();
   }
-  // Labels only for the zones in view, so the map stays light.
+  // Labels only for the zones in view, so the map stays light; zoomed out, a label that would cover another one is left
+  // out (alex 2026-10-28: "when you zoom out, you don't have to see every little text").
   function drawLabels() {
     labelLayer.clearLayers();
     if (!Z().length || !shown.has("zones") || !isHunt() || map.getZoom() < 6) return;
-    const b = map.getBounds().pad(0.2), z = map.getZoom();
-    for (const u of Z()) {
-      if (!labelled(u) || !b.contains(u.c)) continue;
-      const sub = zoneSub(u), name = `${esc(zoneName(u))}${z >= 9 && sub ? ` <small>${esc(sub)}</small>` : ""}`;
+    const b = map.getBounds().pad(0.2), z = map.getZoom(), taken = [];
+    const big = (u) => (u.b ? (u.b[2] - u.b[0]) * (u.b[3] - u.b[1]) : 0);   // bigger zones keep their label first
+    for (const u of Z().filter((u) => labelled(u) && b.contains(u.c)).sort((a, c) => big(c) - big(a))) {
+      const sub = zoneSub(u), text = `${zoneName(u)}${z >= 9 && sub ? ` ${sub}` : ""}`;
+      // the label's box on screen (about 6.5 px a letter at 11 px bold), with a gap around it
+      const pt = map.latLngToContainerPoint(u.c), w = text.length * 6.5 + 16, h = z >= 9 && sub ? 30 : 22;
+      const r = [pt.x - w / 2, pt.y - h / 2, pt.x + w / 2, pt.y + h / 2];
+      if (taken.some((t) => r[0] < t[2] && r[2] > t[0] && r[1] < t[3] && r[3] > t[1])) continue;
+      taken.push(r);
+      const name = `${esc(zoneName(u))}${z >= 9 && sub ? ` <small>${esc(sub)}</small>` : ""}`;
       L.marker(u.c, { pane: "huntLabels", interactive: false, keyboard: false,
         icon: L.divIcon({ className: "", html: `<div class="hn-label">${name}</div>`, iconSize: [0, 0] }) }).addTo(labelLayer);
     }
@@ -1709,7 +1716,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const OFF_CACHE = "tf-offline-1", OFF_KEY = "huntOffline", OFF_MAX = 4000;
   const tx = (lon, z) => Math.floor(((lon + 180) / 360) * 2 ** z);
   const ty = (lat, z) => { const r = (lat * Math.PI) / 180; return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z); };
-  function offUrls(box, layers) {
+  // cap: stop once there are more than this many (the card only needs to know it's too big; counting every tile of a
+  // province-wide view at zoom 15 froze the map on phones after each move, 2026-10-28).
+  function offUrls(box, layers, cap = Infinity) {
     const pvs = pvsIn(box[0], box[1], box[2], box[3]);
     const urls = [...DATA_FILES, ...pvs.flatMap((k) => [...(PV[k].zones ? [`zones-${k}`] : []), `areas-${k}`]), ...pvs.filter((k) => ["qc", "on", "mb", ...EAST].includes(k)).map((k) => `seasons-${k}`)]
       .map((n) => new URL(`data/hunting/${n}.json`, location.href).href);
@@ -1717,6 +1726,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     const boxIn = (b) => box[0] <= b[1][0] && box[2] >= b[0][0] && box[1] <= b[1][1] && box[3] >= b[0][1];
     for (let z = 10; z <= 15; z++) {
       const x0 = tx(box[1], z), x1 = tx(box[3], z), y0 = ty(box[2], z), y1 = ty(box[0], z);
+      if (urls.length + (x1 - x0 + 1) * (y1 - y0 + 1) > cap && (PICS.some((p) => layers.includes(p.layer) && z >= p.min) || ((layers.includes("slope") || layers.includes("aspect")) && z <= 14))) return new Array(cap + 1);
       for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
         for (const p of PICS) if (layers.includes(p.layer) && z >= p.min && (p.src ? boxIn(picBounds(p)) : p.ab ? ab : bc)) urls.push(picUrl(p, z, x, y));
         if ((layers.includes("slope") || layers.includes("aspect")) && z <= 14) urls.push(`${DEM}${z}/${x}/${y}.png`);
@@ -1738,7 +1748,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   let offBusy = null;
   function renderOffline() {
     const el = $("hnOff"), saved = store.get(OFF_KEY, []), layers = offLayers();
-    const n = offUrls(offSquare || viewBox(), layers).length;
+    const n = offUrls(offSquare || viewBox(), layers, OFF_MAX).length;
     el.innerHTML = `<p class="hn-note" style="margin-top:6px">Zones, seasons, draws${layers.length ? ` and ${esc(layers.map((k) => LAYERS[k].label.toLowerCase()).join(", "))}` : ""} for ${offSquare ? "the square you drew" : "the area on screen, or a square you draw"}, for no signal. Offline maps (${matchMedia("(max-width: 760px)").matches ? "Track tab" : "Layers menu"}) saves them with the base map and the 3D map in one go.</p>
       ${offBusy ? `<div class="hn-bar"><i style="width:${Math.round(offBusy.pct)}%"></i></div><p class="hn-note">${esc(offBusy.msg)}</p><div class="hn-row"><button type="button" class="hn-btn ghost" id="hnOffStop">Stop</button></div>`
         : `<div class="hn-row"><button type="button" class="hn-btn" id="hnOffSave"${n > OFF_MAX ? " disabled" : ""}>${offSquare ? "Save this square" : "Save this area"}</button>${offSquare
@@ -1811,7 +1821,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   map.getContainer().append(sqBar);
   function squareBar(mode, info = {}) {
     sqMode = mode;
-    const n = offSquare ? offUrls(offSquare, offLayers()).length : 0;
+    const n = offSquare ? offUrls(offSquare, offLayers(), OFF_MAX).length : 0;
     const [text, acts] = mode === "draw" ? ["Drag a square over the area to save", [["cancel", "Cancel"]]]
       : mode === "ready" ? (n > OFF_MAX ? ["Too big: draw a smaller square", [["redraw", "Redraw"], ["cancel", "Cancel"]]]
         : [`Hunting layers for this square, ${offSize(n).replace("About", "about")}`, [["save", "Save"], ["redraw", "Redraw"], ["cancel", "Cancel"]]])
