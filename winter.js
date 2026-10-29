@@ -328,6 +328,16 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 #skiPane .sk-spotdays { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 6px; text-align: center; font-size: .74rem; color: var(--muted); }
 #skiPane .sk-spotdays div { display: flex; flex-direction: column; gap: 2px; }
 #skiPane .sk-spotdays .av-chip { min-width: 0; font-size: .72rem; padding: 3px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#skiPane .sk-stats.sk-stats3 { grid-template-columns: repeat(3, 1fr); }
+#skiPane .sk-spot .sk-snowlbl { margin: 4px 0 0; font-size: .78rem; font-weight: 700; color: var(--muted); }
+#skiPane .sk-daysx { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+#skiPane table.sk-days { border-collapse: collapse; width: 100%; font-size: .74rem; text-align: center; }
+#skiPane .sk-days th, #skiPane .sk-days td { padding: 2px 1px; white-space: nowrap; line-height: 1.25; }
+#skiPane .sk-days th { text-align: left; color: var(--muted); font-weight: 600; padding-right: 4px; }
+#skiPane .sk-days tr:first-child td { font-size: .72rem; }
+#skiPane .sk-days tr + tr td { border-top: 1px solid var(--line); }
+#skiPane .sk-days small { color: var(--muted); font-size: .66rem; }
+#skiPane .sk-days .sk-dsnow { display: inline-block; min-width: 1.8em; border-radius: 4px; padding: 0 2px; }
 #skiPane .sk-spot .sk-fold summary { cursor: pointer; font-weight: 700; font-size: .85rem; padding: 4px 0; }
 #skiPane .sk-spot .sk-spotacts { margin-top: 4px; }
 #skiPane .sk-watch[aria-pressed="true"] { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
@@ -1155,9 +1165,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   function weather(lat, lon, ele) {
     const key = `${lat.toFixed(2)},${lon.toFixed(2)},${Math.round(ele / 50) * 50}`, c = wxCache.get(key);
     if (c && Date.now() - c.at < 30 * 60000) return c.p;
-    const p = fetch(`${WX}?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}${ele != null ? `&elevation=${Math.round(ele)}` : ""}&timezone=auto&past_days=3&forecast_days=4`
+    const p = fetch(`${WX}?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}${ele != null ? `&elevation=${Math.round(ele)}` : ""}&timezone=auto&past_days=7&forecast_days=8`
       + "&daily=weather_code,temperature_2m_max,temperature_2m_min,snowfall_sum,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant"
-      + "&hourly=freezing_level_height,temperature_2m,precipitation,snowfall,wind_speed_10m,wind_direction_10m&current=temperature_2m")
+      + "&hourly=freezing_level_height,temperature_2m,precipitation,snowfall,wind_speed_10m,wind_direction_10m&current=temperature_2m,weather_code")
       .then((r) => { if (!r.ok) throw new Error(r.status === 429 ? "too many requests today, try later" : `HTTP ${r.status}`); return r.json(); });
     p.catch(() => wxCache.delete(key));
     wxCache.set(key, { at: Date.now(), p });
@@ -1213,7 +1223,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   function wxHtml(w, ele) {
     const dd = w.daily, today = dd.time.indexOf(new Date().toLocaleDateString("en-CA", { timeZone: w.timezone }));
-    const t0 = today >= 0 ? today : 3;
+    const t0 = today >= 0 ? today : 7;
     const past = dd.snowfall_sum.slice(Math.max(0, t0 - 3), t0).reduce((s, x) => s + (x || 0), 0);
     const fz = (date) => { const v = w.hourly.time.map((t, i) => (t.startsWith(date) ? w.hourly.freezing_level_height[i] : null)).filter((x) => x != null); return v.length ? Math.max(...v) : null; };
     const rows = dd.time.slice(t0, t0 + 4).map((date, j) => {
@@ -1407,7 +1417,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!w) return `${head([])}<p class="sk-note">${c.err ? `Couldn't load the weather (${esc(c.err)}).` : "Loading the weather at the top and the bottom…"}</p>`;
     const dd = w.daily, today = localDate(new Date());
     let t0 = dd.time.indexOf(today);
-    if (t0 < 0) t0 = 3;
+    if (t0 < 0) t0 = 7;
     const days = dd.time.slice(t0, t0 + 3).map((date, j) => ({ date, i: t0 + j, label: j === 0 ? "Today" : new Date(date + "T12:00").toLocaleDateString("en-CA", { weekday: "short" }) }));
     if (condDay >= days.length) condDay = 0;
     const D = days[condDay], hrsTop = dayHours(w, D.date), b = c.bot, hrsBot = b ? dayHours(b, D.date) : [];
@@ -1965,22 +1975,66 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (f.highlights) html += `<p><strong>${esc(f.highlights)}</strong></p>`;
     return html + `<p><a href="${esc(f.url || "https://avalanche.ca/map")}" target="_blank" rel="noopener">Full forecast on avalanche.ca</a></p>`;
   }
+  // Snow that fell (last 24 h, 3 days, week) and snow coming (next 24 h, 3 days, week) at the spot's height, each box
+  // tinted with the New snow / Snow forecast map colours, then the weather day by day: the last 7 days and the next 7.
   function spotSnowHtml(w, g) {
-    const aw = avyWeather(w, g.e), h = w.hourly;
+    const aw = avyWeather(w, g.e), h = w.hourly, dd = w.daily;
     if (!aw) return `<h4>Snow and weather</h4>${wxHtml(w, null)}`;
     let i0 = h.time.findIndex((t) => t > w.current.time) - 1;
     if (i0 < 0) i0 = h.time.length - 1;
-    let next72 = 0;
-    for (let i = i0 + 1; i <= Math.min(h.time.length - 1, i0 + 72); i++) next72 += h.snowfall[i] || 0;
+    const sum = (arr, a, b) => { let t = 0; for (let i = Math.max(0, a); i <= Math.min(arr.length - 1, b); i++) t += arr[i] || 0; return t; };
+    const past = [aw.snow24, aw.snow72, sum(h.snowfall, i0 - 167, i0)], next = [aw.next24, sum(h.snowfall, i0 + 1, i0 + 72), sum(h.snowfall, i0 + 1, i0 + 168)];
     const n = (v) => (v >= 0.5 ? `${Math.round(v)} cm` : "0");
+    const box = (v, label) => { const c = snowColor(v); return `<div${c ? ` style="background:rgba(${c.map(Math.round).join(",")},.55)"` : ""}><b>${n(v)}</b><span>${label}</span></div>`; };
+    const LBL = ["24 h", "3 days", "7 days"];
     const wind = h.wind_speed_10m[i0], wdir = COMPASS[Math.round((h.wind_direction_10m[i0] || 0) / 45) % 8];
-    let html = `<h4>Snow and weather at ${fmtM(g.e)}</h4>
-      <div class="sk-stats"><div><b>${n(aw.snow24)}</b><span>last 24 h</span></div><div><b>${n(aw.snow72)}</b><span>last 3 days</span></div>
-        <div><b>${n(aw.next24)}</b><span>next 24 h</span></div><div><b>${n(next72)}</b><span>next 3 days</span></div></div>
-      <p class="sk-note">Now ${Math.round(w.current.temperature_2m)}°C · wind ${Math.round(wind || 0)} km/h from the ${wdir}</p>`;
+    let html = `<h4>Snow at ${fmtM(g.e)}</h4>
+      <p class="sk-snowlbl">❄ Fell in the last</p><div class="sk-stats sk-stats3">${past.map((v, k) => box(v, LBL[k])).join("")}</div>
+      <p class="sk-snowlbl">🌨 Forecast, next</p><div class="sk-stats sk-stats3">${next.map((v, k) => box(v, LBL[k])).join("")}</div>
+      <p class="sk-note" id="skSpotLayer"></p>`;
     if (aw.lee && g.slope >= 20 && aw.lee.includes(g.asp)) html += `<div class="sk-warn"><b>⚠ Wind loaded:</b> this slope faces ${ASPECT_NAME[g.asp]}, downwind of the ${Math.round(aw.maxW)} km/h wind with snow to move. Expect wind slabs.</div>`;
+    // Day by day: snow, rain, high / low and wind, the 7 days before today and today plus the 6 after.
+    let t0 = dd.time.indexOf(new Date().toLocaleDateString("en-CA", { timeZone: w.timezone }));
+    if (t0 < 0) t0 = 7;
+    const strip = (title, a, b) => {
+      const idx = [];
+      for (let i = Math.max(0, a); i < Math.min(dd.time.length, b); i++) idx.push(i);
+      if (!idx.length) return "";
+      const day = (i) => (i === t0 ? "Today" : i === t0 - 1 ? "Yest." : new Date(dd.time[i] + "T12:00").toLocaleDateString("en-CA", { weekday: "short" }));
+      const rain = (i) => (dd.precipitation_sum[i] || 0) - (dd.snowfall_sum[i] || 0) / 0.7;   // Open-Meteo counts 0.7 cm of snow for each mm of water
+      const row = (head, f) => `<tr><th>${head}</th>${idx.map((i) => `<td>${f(i)}</td>`).join("")}</tr>`;
+      return `<h5>${title}</h5><div class="sk-daysx"><table class="sk-days">
+        ${row("", (i) => `<b>${day(i)}</b><br>${WICON[dd.weather_code[i]] || ""}`)}
+        ${row("Snow", (i) => { const v = dd.snowfall_sum[i] || 0, c = snowColor(v); return v >= 0.5 ? `<b class="sk-dsnow"${c ? ` style="background:rgba(${c.map(Math.round).join(",")},.6)"` : ""}>${Math.round(v)}</b>` : "–"; })}
+        ${row("Rain", (i) => (rain(i) >= 1 ? `${Math.round(rain(i))}` : "–"))}
+        ${row("High", (i) => deg(dd.temperature_2m_max[i]))}
+        ${row("Low", (i) => deg(dd.temperature_2m_min[i]))}
+        ${row("Wind", (i) => `${Math.round(dd.wind_speed_10m_max[i] || 0)}<br><small>${COMPASS[Math.round((dd.wind_direction_10m_dominant[i] || 0) / 45) % 8]}</small>`)}
+      </table></div>`;
+    };
+    html += `<h4>Weather at ${fmtM(g.e)}</h4>
+      <p>Now <b>${WICON[w.current.weather_code ?? dd.weather_code[t0]] || ""} ${Math.round(w.current.temperature_2m)}°C</b> · wind ${Math.round(wind || 0)} km/h from the ${wdir}</p>
+      ${strip("Next 7 days", t0, t0 + 7)}${strip("Last 7 days", t0 - 7, t0)}
+      <p class="sk-note">Snow in cm, rain in mm, wind in km/h (strongest of the day, and where it comes from). Weather model from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>, at this spot's height.</p>`;
     html += `<h5>Avalanche weather</h5>${signsHtml(aw, g.e)}`;
-    return html + `<details class="sk-fold"><summary>Next 4 days</summary>${wxHtml(w, null).replace(/<h4>[^<]*<\/h4>\s*<p>[^]*?<\/p>/, "")}</details>`;
+    return html;
+  }
+  // What the New snow and Snow forecast map layers show at this spot (same grid and blend as their tiles), so the card
+  // can say why its numbers differ when they do: the card is worked out for the spot's own height.
+  async function spotLayerNote(lat, lon, w, g) {
+    const s = snowStep(11), fi = lat / s, fj = lon / s, i = Math.floor(fi), j = Math.floor(fj), ty = fi - i, tx = fj - j;
+    const v = await Promise.all([[i, j], [i, j + 1], [i + 1, j], [i + 1, j + 1]].map(([a, b]) => snowPoint(s, a, b)));
+    if (v.some((x) => !x || x.err)) return "";
+    const mix = (k) => (v[0][k] * (1 - tx) + v[1][k] * tx) * (1 - ty) + (v[2][k] * (1 - tx) + v[3][k] * tx) * ty;
+    const aw = avyWeather(w, g.e), h = w.hourly;
+    if (!aw) return "";
+    let i0 = h.time.findIndex((t) => t > w.current.time) - 1;
+    if (i0 < 0) i0 = h.time.length - 1;
+    let n72 = 0;
+    for (let q = i0 + 1; q <= Math.min(h.time.length - 1, i0 + 72); q++) n72 += h.snowfall[q] || 0;
+    const f = mix("f"), nx = mix("n");
+    if (Math.abs(f - aw.snow24) < 3 && Math.abs(nx - n72) < 3) return "";
+    return `The map's New snow and Snow forecast colours here: ${Math.round(f)} cm in the last 24 h, ${Math.round(nx)} cm in the next 3 days. They use the weather model's smoothed ground, this card the spot's own height (${fmtM(g.e)}).`;
   }
   // The closest route on the map (within 3 km), hut (within 10 km) and snow station (within 30 km).
   function spotNearHtml(lat, lon) {
@@ -2059,7 +2113,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // Rapid taps around the map ask Open-Meteo once, for the spot they stop on.
     await new Promise((ok) => setTimeout(ok, 400));
     if (!live()) return;
-    weather(lat, lon, g.e).then((w) => fill("skSpotSnow", spotSnowHtml(w, g)), (e) => fill("skSpotSnow", `<p class="sk-note">Couldn't load the weather here: ${esc(e.message)}.</p>`));
+    weather(lat, lon, g.e).then((w) => {
+      fill("skSpotSnow", spotSnowHtml(w, g));
+      spotLayerNote(lat, lon, w, g).then((t) => { if (t) fill("skSpotLayer", t); }, () => {});
+    }, (e) => fill("skSpotSnow", `<p class="sk-note">Couldn't load the weather here: ${esc(e.message)}.</p>`));
   }
   function fillSpotAvy() {
     if (!spot || !spot.g || $("skSpot").hidden) return;
