@@ -292,7 +292,17 @@ body:not(.sport-hunt) #huntPane, body:not(.sport-hunt) .lm-hunt { display: none 
 #huntPane #hnOffBox > summary svg { color: ${ORANGE}; }
 #huntPane #hnOff { display: flex; flex-direction: column; gap: 8px; }
 #huntPane a { color: var(--accent); }
-#huntPane .hn-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+#huntPane .hn-actions { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+#huntPane .hn-pins { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--line); border-radius: 14px; padding: 10px; background: var(--panel); box-shadow: var(--shadow-sm); }
+#huntPane .hn-pins header { display: flex; align-items: center; gap: 8px; }
+#huntPane .hn-pins header b { flex: 1; font-size: .95rem; font-weight: 800; }
+#huntPane .hn-pins header svg { color: ${ORANGE}; flex: none; }
+#huntPane .hn-pins button { font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); }
+#huntPane .hn-pins header button { font-size: .82rem; font-weight: 700; padding: 6px 12px; min-height: 34px; background: ${ORANGE}; border-color: ${ORANGE}; color: #fff; }
+#huntPane .hn-pinq { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+#huntPane .hn-pinq button { border-radius: 12px; font-size: .74rem; font-weight: 700; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 7px 2px; min-height: 54px; line-height: 1.1; }
+#huntPane .hn-pinq button span { font-size: 1.2rem; line-height: 1; }
+#huntPane .hn-pinq button:active { transform: scale(.97); }
 #huntPane .hn-now { font: inherit; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; text-align: left; width: 100%; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; font-size: .82rem; }
 #huntPane .hn-now b { font-weight: 800; }
 #huntPane .hn-now span { display: inline-flex; align-items: center; gap: 5px; }
@@ -417,6 +427,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
 .hn-ring button { margin-left: auto; font: inherit; font-weight: 800; border: 0; border-radius: 10px; padding: 8px 12px; background: #fff; color: ${ORANGE}; cursor: pointer; }`;
   document.head.append(css);
 
+  // alex's four (a saline is a salt lick, a cache a blind); the rest of the tags are in the pin's form.
+  const PIN_QUICK = [["cam", "📷", "Trail cam"], ["sign", "🐾", "Tracks"], ["lick", "🧂", "Saline"], ["blind", "⛺", "Cache"]];
   // ---------- panel ----------
   const pane = document.createElement("section");
   pane.id = "huntPane";
@@ -424,11 +436,14 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   pane.innerHTML = `
     <div class="hn-actions" role="toolbar" aria-label="Hunting tools">
       <button type="button" class="hn-act" data-act="me">${svg(IC.me)}My spot</button>
-      <button type="button" class="hn-act" data-act="point">${svg(IC.pin)}Save a point</button>
       <button type="button" class="hn-act" data-act="truck">${svg(IC.truck)}Truck</button>
       <button type="button" class="hn-act" data-act="log">${svg(IC.log)}My hunts</button>
       <button type="button" class="hn-act tf-phone" data-act="measure">${svg(IC.ruler)}Measure</button>
       <button type="button" class="hn-act tf-phone" data-act="compass">${svg(IC.compass)}Compass</button>
+    </div>
+    <div class="hn-pins" id="hnPins" role="group" aria-label="Drop a pin">
+      <header>${svg(IC.pin)}<b>Drop a pin</b><button type="button" data-pin="">All tags</button></header>
+      <div class="hn-pinq">${PIN_QUICK.map(([k, e, n]) => `<button type="button" data-pin="${k}"><span>${e}</span>${esc(n)}</button>`).join("")}</div>
     </div>
     <button type="button" class="hn-now" id="hnNow" hidden></button>
     <div class="hn-card" id="hnSpot" hidden></div>
@@ -1683,6 +1698,12 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     .observe($("hnMeasure"), { attributes: true, attributeFilter: ["aria-pressed"] });
   document.addEventListener("keydown", (e) => { if (meas && e.key === "Escape") measStop(); });
 
+  // Drop a pin with its tag already picked (tap the map, then Save); "All tags" opens the full list.
+  $("hnPins").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-pin]"), P = window.tfPoints; if (!b) return;
+    if (!P) { hint("Points aren't available in this browser."); return; }
+    if (b.dataset.pin && P.addKind) P.addKind(b.dataset.pin); else P.add();
+  });
   // ---------- quick actions ----------
   pane.querySelector(".hn-actions").addEventListener("click", (e) => {
     const b = e.target.closest("[data-act]"); if (!b) return;

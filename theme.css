@@ -556,7 +556,7 @@ html body :is(#huntPane, #fishPane) .tf-phone { display: none; }
   html body #skiPane .sk-listwrap { display: contents; }
   html body :is(#huntPane, #fishPane, #motoPane) > .ps-box, html body #skiPane #skFindForm, html body #skiPane #skPlaceMsg, html body #skiPane #skPlaces { order: 1; }
   html body :is(#skNow, #hnNow, #fsNow, #mtNow, #hnSpot, #fsSpot, #skSpot, #skPlan, #skDetail, #skStation) { order: 2; }
-  html body :is(#huntPane .hn-actions, #fishPane .fs-actions, #motoPane .mt-actions, #skiPane .sk-views, #hnTruck, #fsTruck, #hnHint, #fsHint, #mtHint) { order: 3; }
+  html body :is(#huntPane .hn-actions, #huntPane #hnPins, #fishPane .fs-actions, #motoPane .mt-actions, #skiPane .sk-views, #hnTruck, #fsTruck, #hnHint, #fsHint, #mtHint) { order: 3; }
   html body :is(#skiPane .sk-acts, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtBike, #motoPane #mtSafeRow, #fishPane #fsToday) { order: 4; }
   html body :is(#hnLayers, #fsMap, #mtMap) { order: 5; }
   html body #skiPane #avCard { order: 6; }
