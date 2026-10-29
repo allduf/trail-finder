@@ -614,7 +614,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=860");
+      const w = new Worker("winter-fill.js?v=880");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -691,7 +691,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=860" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=880" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -827,10 +827,27 @@
   // read-backs in four finger drags, and the map lagged then ran out of memory (alex, 2026-10-25). All our pins stay
   // fully shown behind ridges anyway (opacityWhenCovered 1), so those skip the check. MapLibre internals (pinned
   // 5.24.0): any surprise keeps its own check.
+  //
+  // Pins past the end of the 3D ground float in the sky: MapLibre stops drawing the ground a bit short of the true
+  // horizon (85%), and a far pin is lifted by its own height, so webcams, huts and lifts 50+ km away hung above the
+  // mountains (alex, Skiing 3D looking east over Chilliwack, 2026-10-29). A pin whose spot on flat ground is beyond
+  // the drawn ground, or in the last misty strip just before it, is hidden (and can't be tapped). Pins on slopes you
+  // can see stay as they are. Cheap: one flat projection per pin, no read-back.
+  function pinInSky(mk) {
+    try {
+      const tr = mk._map && mk._map.transform;
+      if (!tr || !(mk._map.getPitch() > 45) || !maplibregl.Point) return false;
+      const p = tr.locationToScreenPoint(mk._lngLat), mist = Math.max(8, tr.height * 0.04);
+      return isFinite(p.y) && !tr.isPointOnMapSurface(new maplibregl.Point(p.x, p.y - mist));
+    } catch { return false; }
+  }
   function quickPins() {
     const M = maplibregl.Marker && maplibregl.Marker.prototype, check = M && M._updateOpacity;
     if (!check || check.quick) return;
     M._updateOpacity = function (force) {
+      const el = this._element, sky = !!el && pinInSky(this);
+      if (el && (el.style.visibility === "hidden") !== sky) el.style.visibility = sky ? "hidden" : "";
+      if (sky) return;
       if (this._opacityWhenCovered !== this._opacity || !this._element) return check.call(this, force);
       if (this._element.style.opacity !== this._opacity) this._element.style.opacity = this._opacity;
     };
