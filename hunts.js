@@ -15,7 +15,7 @@
   const sportNow = () => (document.body.classList.contains("sport-ski") ? "ski" : document.body.classList.contains("sport-hunt") ? "hunt" : document.body.classList.contains("sport-fish") ? "fish" : document.body.classList.contains("sport-moto") ? "moto" : "mtb");
   const phone = () => matchMedia("(max-width: 760px)").matches;
   const COLOR = "#a34f00";
-  const SEEN = ["sighting", "sign", "rub", "scrape", "bed", "harvest"];   // points that mean you found animals or their sign
+  const SEEN = ["sighting", "sign", "rub", "scrape", "bed", "trail", "shed", "harvest"];   // points that mean you found animals or their sign
 
   // ---------- the hunts (same database and stores as ride.html) ----------
   function loadHunts() {
@@ -122,8 +122,9 @@
   const kindsLine = (seen, kinds) => {
     const by = {};
     for (const p of seen) by[p.kind] = (by[p.kind] || 0) + 1;
-    return Object.entries(by).map(([k, n]) => { const d = kinds.find((x) => x[0] === k) || [k, k, "📍"]; return `${d[2]} ${n > 1 ? `${n} ` : ""}${esc(d[1].toLowerCase())}${n > 1 && !/s$/.test(d[1]) ? "s" : ""}`; }).join(", ");
+    return Object.entries(by).map(([k, n]) => { const d = kinds.find((x) => x[0] === k) || [k, k, "📍"]; const nm = d[1].toLowerCase().replace(/ \(.*\)$/, ""); return `${d[2]} ${n > 1 ? `${n} ` : ""}${esc(nm)}${n > 1 && !/s$/.test(nm) ? "s" : ""}`; }).join(", ");
   };
+  const sawAnimal = (p) => (p.tags && p.tags.length ? p.tags : [p.kind]).some((k) => SEEN.includes(k));   // a pin can carry several tags
 
   function huntsHtml(hunts, pts, kinds) {
     if (!hunts.length) return `<p class="sp-empty">No hunts yet. When you head out, tap <b>${phone() ? "Track" : "Start tracking"}</b> and the app records your walk. Save it at the end and it shows here with the time you were out, how far you walked, a map of where you went, what you saved on the way (sightings, sign, harvests) and the wind and weather when you started.</p>
@@ -132,7 +133,7 @@
     for (const h of hunts) { const k = seasonOf(h.start); (by.get(k) || by.set(k, []).get(k)).push(h); }
     return [...by.entries()].map(([season, hs]) => {
       const dist = hs.reduce((n, h) => n + ((h.stats && h.stats.dist) || 0), 0), time = hs.reduce((n, h) => n + (endOf(h) - h.start), 0);
-      const saw = hs.filter((h) => pointsOf(h, pts).some((p) => SEEN.includes(p.kind))).length;
+      const saw = hs.filter((h) => pointsOf(h, pts).some(sawAnimal)).length;
       return `<div class="sp-season"><h3>${season} season</h3><span class="sp-meta">${hs.length} hunt${hs.length > 1 ? "s" : ""} · ${km(dist)} · ${dur(time)} out${saw ? ` · animals on ${saw}` : ""}</span></div>
         <ul class="hh-list">${hs.map((h) => {
           const mine = pointsOf(h, pts), seen = mine.filter((p) => p.kind !== "truck"), c = conds[h.id], st = h.stats || {};
@@ -157,14 +158,14 @@
     const add = (g, k, saw) => { if (!k) return; const r = groups[g][k] || (groups[g][k] = { n: 0, saw: 0 }); r.n++; if (saw) r.saw++; };
     let withC = 0;
     for (const h of hunts) {
-      const saw = pointsOf(h, pts).some((p) => SEEN.includes(p.kind)), c = conds[h.id];
+      const saw = pointsOf(h, pts).some(sawAnimal), c = conds[h.id];
       add("moon", moonName(h.start), saw); add("time", timeWord(h.start), saw);
       if (!c) continue;
       withC++;
       add("wind", c.wind && (c.kmh < 5 ? "Calm" : `From ${c.wind}`), saw); add("trend", c.trend && `${c.trend} pressure`, saw);
       add("temp", c.temp == null ? "" : c.temp <= -10 ? "Below -10°" : c.temp <= 0 ? "-10° to 0°" : c.temp <= 10 ? "0° to 10°" : "Above 10°", saw);
     }
-    const all = hunts.filter((h) => pointsOf(h, pts).some((p) => SEEN.includes(p.kind))).length;
+    const all = hunts.filter((h) => pointsOf(h, pts).some(sawAnimal)).length;
     const best = (g) => { const e = Object.entries(groups[g]).filter(([, r]) => r.n >= 2).sort((a, b) => b[1].saw / b[1].n - a[1].saw / a[1].n)[0]; return e && e[1].saw ? e[0] : ""; };
     const tops = [best("wind") && `wind ${best("wind").toLowerCase()}`, best("trend").toLowerCase(), best("time").toLowerCase(), best("moon").toLowerCase()].filter(Boolean);
     return `<p class="sp-best"><b>You found animals on ${all} of ${hunts.length} hunts.</b>${tops.length ? ` Best so far: ${esc(tops.join(", "))}.` : ""}</p>
