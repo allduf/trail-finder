@@ -2560,8 +2560,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // Adds a layer to the 3D map now, or once it's free. isStyleLoaded() is false for as long as any tile is still
   // loading, and "styledata" only comes on a style change, so waiting on those (as before) could wait forever on a
   // 3D map that keeps loading tiles: the shading and slope layers then never showed in 3D (alex, 2026-10-24).
+  // Each apply throws while the style isn't ready (getStyle() is empty then: it used to return quietly, so the layer was
+  // never added until something else redrew it; Snow forecast stayed off a wide 3D view for minutes, alex 2026-10-29),
+  // and is tried again on the next style change or idle, whichever comes first.
   function whenStyle(gl, apply) {
-    try { apply(); } catch { gl.once("idle", () => { try { apply(); } catch {} }); }
+    try { apply(); } catch {
+      const again = () => { try { apply(); } catch { return; } gl.off("styledata", again); gl.off("idle", again); };
+      gl.on("styledata", again); gl.on("idle", again);
+    }
   }
   // 3D map layer, through a tile protocol that paints the same tiles as PNGs.
   let ver = 0, protocol = false;
@@ -2578,7 +2584,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     const want = sport === "ski" && avyOn;
     const apply = () => {
-      if (!gl.getStyle()) return;
+      if (!gl.getStyle()) throw new Error("3D style not ready");
       const has = !!gl.getLayer("avy");
       if (!want) { if (has) gl.removeLayer("avy"); if (gl.getSource("avy")) gl.removeSource("avy"); return; }
       const tiles = [`tfavy://{z}/{x}/{y}?v=${ver}`];
@@ -2652,7 +2658,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     const want = sport === "ski" && shown.has("slope");
     const apply = () => {
-      if (!gl.getStyle()) return;
+      if (!gl.getStyle()) throw new Error("3D style not ready");
       const has = !!gl.getLayer("skislope");
       if (!want) { if (has) gl.removeLayer("skislope"); if (gl.getSource("skislope")) gl.removeSource("skislope"); return; }
       if (!gl.getSource("skislope")) gl.addSource("skislope", { type: "raster", tiles: [`tfslope://{z}/{x}/{y}?p=${slopePal}`], tileSize: 256, minzoom: 9, maxzoom: 14, attribution: "Slope angle: Mapzen Terrain Tiles" });
@@ -2697,7 +2703,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         });
       }
       const apply = () => {
-        if (!gl.getStyle()) return;
+        if (!gl.getStyle()) throw new Error("3D style not ready");
         const has = !!gl.getLayer(id);
         if (!want) { if (has) gl.removeLayer(id); if (gl.getSource(id)) gl.removeSource(id); return; }
         const src = gl.getSource(id);
@@ -2875,18 +2881,32 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // ---------- snow on the map: new snow and the snow forecast (FATMAP's Live snow) ----------
   // Open-Meteo's weather model (free, no key) on a grid of points, a tenth of a degree apart close up (coarser zoomed
   // out), asked 100 points at a time; each map tile blends the 4 grid points around each pixel. Kept for an hour.
+  // Open-Meteo allows 600 places a minute from one phone or computer (loam, weather cards and this share it). The 3D map
+  // asks for far more tiles than the flat one (out to Vancouver Island from Squamish: ~700 places in a few seconds), so
+  // the last requests were refused and their squares stayed bare for an hour: dark patches and a dark far distance in the
+  // pale snow tint, which looked like the map never loaded (alex, 2026-10-29). Now at most SNOW_PER_MIN places a minute
+  // are asked, a refused or failed request is asked again (after the minute, up to 4 times), and a tile drawn before all
+  // its points came is drawn again once they're in.
   const SNOW_CM = [[1, "#d0ebff"], [5, "#91a7ff"], [10, "#748ffc"], [20, "#9775fa"], [30, "#da77f2"], [50, "#f783ac"], [80, "#e64980"]];
   const SNOW_RGB = SNOW_CM.map(([v, c]) => [v, ...rgb(c)]);
-  const snowStep = (z) => (z >= 10 ? 0.1 : z >= 8 ? 0.25 : 0.5);
+  const snowStep = (z) => (z >= 10 ? 0.1 : z >= 9 ? 0.25 : 0.5);   // zoom 8 at 0.25: ~35 places a tile, most of a wide 3D view's
   const snowGrid = new Map();   // "step|i|j" -> { f: cm in the last 24 h, n: cm in the next 3 days, at } or { err, at }
-  const snowAsk = new Map();    // waiting to be asked: key -> { lat, lon, done: [resolve] }
-  let snowTimer = 0, snowVer = 0;
+  const snowAsk = new Map();    // waiting to be asked: key -> { lat, lon, done: [resolve], tries }
+  const SNOW_PER_MIN = 250, SNOW_TRIES = 4, SNOW_WAIT_MS = 3000;
+  let snowTimer = 0, snowVer = 0, snowSent = [], snowPause = 0;   // snowSent: [time, places] in the last minute
+  const snowLater = (ms) => { if (!snowTimer) snowTimer = setTimeout(snowFlush, ms); };
   function snowFlush() {
     snowTimer = 0;
-    const all = [...snowAsk.entries()];
-    snowAsk.clear();
+    const now = Date.now();
+    if (now < snowPause) return snowLater(snowPause - now);
+    snowSent = snowSent.filter((x) => now - x[0] < 60000);
+    const room = SNOW_PER_MIN - snowSent.reduce((a, x) => a + x[1], 0);
+    const all = [...snowAsk.entries()].slice(0, Math.max(0, room));
+    for (const [k] of all) snowAsk.delete(k);
+    if (snowAsk.size) snowLater(snowSent.length ? Math.max(1000, snowSent[0][0] + 60000 - now) : 1000);
     for (let s = 0; s < all.length; s += 100) {
       const part = all.slice(s, s + 100);
+      snowSent.push([now, part.length]);
       fetch(`${WX}?latitude=${part.map(([, p]) => p.lat.toFixed(3)).join(",")}&longitude=${part.map(([, p]) => p.lon.toFixed(3)).join(",")}&hourly=snowfall&past_hours=24&forecast_hours=72&timezone=GMT`)
         .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
         .then((j) => {
@@ -2899,19 +2919,32 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
             p.done.forEach((d) => d());
           });
         })
-        .catch(() => part.forEach(([k, p]) => { snowGrid.set(k, { err: true, at: Date.now() - 50 * 60000 }); p.done.forEach((d) => d()); }));   // asked again in 10 min
+        .catch(() => {
+          // Refused (too many this minute; the answer can't even be read then) or no signal: asked again after the minute.
+          snowPause = Math.max(snowPause, Date.now() + 65000);
+          part.forEach(([k, p]) => {
+            if (++p.tries < SNOW_TRIES) { const w = snowAsk.get(k); if (w) w.done.push(...p.done); else snowAsk.set(k, p); return; }
+            snowGrid.set(k, { err: true, at: Date.now() - 50 * 60000 }); p.done.forEach((d) => d());   // asked again in 10 min
+          });
+          snowLater(snowPause - Date.now());
+        });
     }
   }
   function snowPoint(step, i, j) {
     const k = `${step}|${i}|${j}`, v = snowGrid.get(k);
     if (v && Date.now() - v.at < 3600000) return Promise.resolve(v);
     return new Promise((ok) => {
-      const w = snowAsk.get(k) || { lat: i * step, lon: j * step, done: [] };
+      const w = snowAsk.get(k) || { lat: i * step, lon: j * step, done: [], tries: 0 };
       w.done.push(() => ok(snowGrid.get(k)));
       snowAsk.set(k, w);
-      if (!snowTimer) snowTimer = setTimeout(snowFlush, 120);
+      snowLater(120);
     });
   }
+  // Tiles drawn with points still missing are drawn again when those come (all of them at once, a few seconds later).
+  // A tile doesn't wait longer than SNOW_WAIT_MS: a waiting tile holds one of the map's download places, which the
+  // Winter photos need too.
+  let snowAgain = 0;
+  const snowRedraw = () => { if (!snowAgain) snowAgain = setTimeout(() => { snowAgain = 0; snowVer++; freshLayer.redraw(); snowfcLayer.redraw(); }, 2000); };
   const snowColor = (cm) => {
     if (cm < SNOW_RGB[0][0]) return null;
     for (let q = SNOW_RGB.length - 1; q >= 0; q--) if (cm >= SNOW_RGB[q][0]) {
@@ -2928,7 +2961,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const i0 = Math.floor(bottom / s), i1 = Math.ceil(top / s), j0 = Math.floor(left / s), j1 = Math.ceil(right / s);
     const C = j1 - j0 + 1, vals = new Float32Array((i1 - i0 + 1) * C).fill(NaN), jobs = [];
     for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) jobs.push(snowPoint(s, i, j).then((v) => { if (v && !v.err) vals[(i - i0) * C + (j - j0)] = v[field]; }));
-    await Promise.all(jobs);
+    const all = Promise.all(jobs);
+    let partial = false;
+    await Promise.race([all, new Promise((ok) => setTimeout(() => { partial = true; ok(); }, SNOW_WAIT_MS))]);
+    if (partial) all.then(snowRedraw);
     for (let py = 0; py < 256; py++) {
       const fi = tileLat(y + (py + 0.5) / 256, z) / s - i0, ia = Math.floor(fi), ty = fi - ia;
       for (let px = 0; px < 256; px++) {
@@ -3221,7 +3257,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     const want = sport === "ski" && shown.has("heat") && !!heat;
     const apply = () => {
-      if (!gl.getStyle()) return;
+      if (!gl.getStyle()) throw new Error("3D style not ready");
       const has = !!gl.getLayer("skiheat");
       if (!want) { if (has) gl.removeLayer("skiheat"); if (gl.getSource("skiheat")) gl.removeSource("skiheat"); return; }
       const tiles = [`tfheat://{z}/{x}/{y}?v=${heatVer}`];
