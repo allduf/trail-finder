@@ -234,6 +234,19 @@
    "embed": "https://player.brownrice.com/embed/whistlerroundhouse"
   },
   {
+   "id": "wb-snowstake",
+   "owner": "wb",
+   "resort": "Whistler Blackcomb",
+   "kind": "resort",
+   "name": "Snow stake, Whistler Mountain",
+   "view": "Snow ruler: new snow since the stake was cleared",
+   "lat": 50.07650,
+   "lon": -122.94780,
+   "ele": 1650,
+   "where": "Pig Alley, below the Roundhouse",
+   "img": "https://common.snow.com/mtncams/wbsnowstake.jpg"
+  },
+  {
    "id": "wb-7th",
    "owner": "wb",
    "resort": "Whistler Blackcomb",
