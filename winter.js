@@ -85,7 +85,7 @@
   ];
   const SNOW = { label: "Snow stations", color: "#0b7285" };
   const LABEL = (k) => (TYPES[k] || { hut: HUT, park: PARK, heat: HEAT, mine: MINE, club: CLUB, snow: SNOW, slope: { label: "Slope angle" }, aspect: { label: "Slope direction" }, runout: { label: "Runout zones and traps" },
-    flats: { label: "Flats" }, elev: { label: "Elevation bands" }, fresh: { label: "New snow (24 h)" }, snowfc: { label: "Snow forecast (3 days)" } }[k]).label;
+    flats: { label: "Flats" }, elev: { label: "Elevation bands" }, fresh: { label: "New snow and rain (24 h)" }, snowfc: { label: "Snow and rain forecast (3 days)" } }[k]).label;
   // Avalanche Canada's danger scale colours.
   const DANGER = [
     { label: "No rating", color: "#9aa3ad" }, { label: "1 Low", color: "#52ba4a" }, { label: "2 Moderate", color: "#fff300" },
@@ -744,8 +744,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     runout: "Where avalanches from steep slopes above can reach, and the gullies and creek beds where snow piles up deep",
     flats: "Nearly flat ground (under 5°): where you'll have to skate, pole or skin out, and where a splitboard has to switch to walk mode",
     elev: "The three heights of the avalanche forecast: below treeline, treeline and alpine, at the heights used for that area",
-    fresh: "Snow that fell in the last 24 hours, in centimetres (Open-Meteo weather model)",
-    snowfc: "Snow coming in the next 3 days, in centimetres (Open-Meteo weather model)",
+    fresh: "Snow that fell in the last 24 hours, in centimetres; where it rained instead, the rain in millimetres in greens (Open-Meteo weather model)",
+    snowfc: "Snow coming in the next 3 days, in centimetres; where rain comes instead, the rain in millimetres in greens (Open-Meteo weather model)",
   };
   const thumbs = {};   // picture tiles' pictures (makeThumbs)
   function renderSwitches() {
@@ -2880,64 +2880,110 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 
   // ---------- snow on the map: new snow and the snow forecast (FATMAP's Live snow) ----------
   // Open-Meteo's weather model (free, no key) on a grid of points, a tenth of a degree apart close up (coarser zoomed
-  // out), asked 100 points at a time; each map tile blends the 4 grid points around each pixel. Kept for an hour.
+  // out), asked 100 points at a time; each map tile blends the 4 grid points around each pixel. Kept for 2 hours.
   // Open-Meteo allows 600 places a minute from one phone or computer (loam, weather cards and this share it). The 3D map
   // asks for far more tiles than the flat one (out to Vancouver Island from Squamish: ~700 places in a few seconds), so
   // the last requests were refused and their squares stayed bare for an hour: dark patches and a dark far distance in the
   // pale snow tint, which looked like the map never loaded (alex, 2026-10-29). Now at most SNOW_PER_MIN places a minute
   // are asked, a refused or failed request is asked again (after the minute, up to 4 times), and a tile drawn before all
   // its points came is drawn again once they're in.
+  // Open-Meteo also stops answering for the rest of the hour after 5,000 places (and the day after 10,000), shared with
+  // loam and the weather cards; a refused request can't even be read, so the app can't tell which limit it was. A few
+  // hours of panning the 3D map got there and Whistler stayed dark inside a pale tint (alex 2026-10-29: "it lag"). So
+  // the grid is kept on the phone for 2 hours (opening the app again asks nothing), at most SNOW_PER_HOUR places an
+  // hour are asked, refusals in a row wait longer each time (1, 10, then 30 minutes), and a square whose points are
+  // missing is coloured from the points around it instead of left bare.
   const SNOW_CM = [[1, "#d0ebff"], [5, "#91a7ff"], [10, "#748ffc"], [20, "#9775fa"], [30, "#da77f2"], [50, "#f783ac"], [80, "#e64980"]];
   const SNOW_RGB = SNOW_CM.map(([v, c]) => [v, ...rgb(c)]);
-  const snowStep = (z) => (z >= 10 ? 0.1 : z >= 9 ? 0.25 : 0.5);   // zoom 8 at 0.25: ~35 places a tile, most of a wide 3D view's
-  const snowGrid = new Map();   // "step|i|j" -> { f: cm in the last 24 h, n: cm in the next 3 days, at } or { err, at }
+  // Rain in the same layers, in greens (alex 2026-10-29: "if it is rain in the valley you can show it in the same layer
+  // as snow"): where less than 1 cm of snow comes, the rain (mm) is coloured instead, so the valleys aren't left bare.
+  const RAIN_MM = [[1, "#d3f9d8"], [5, "#8ce99a"], [10, "#51cf66"], [25, "#2f9e44"], [50, "#1b6e30"]];
+  const RAIN_RGB = RAIN_MM.map(([v, c]) => [v, ...rgb(c)]);
+  // Tiles stop at zoom 10 (maxNative): the grid is 7-11 km between points, so closer tiles only drew the same colours
+  // with 4x as many pieces, and every piece arriving repaints the 3D ground under it (half the 3D map's lag with Snow
+  // forecast on, measured over Whistler).
+  // Far away (the 3D map's horizon) a point every half degree is plenty, and every degree at zoom 7 and out.
+  const snowStep = (z) => (z >= 9 ? 0.1 : z >= 8 ? 0.5 : 1);
+  const SNOW_KEEP_MS = 2 * 3600000, SNOW_SAVE = "tf:snowGrid", SNOW_USE = "tf:snowUse";   // not synced settings
+  // "step|i|j" -> { f: snow cm in the last 24 h, n: snow cm in the next 3 days, rf / rn: rain mm the same, at } or { err, at }
+  const snowGrid = new Map();
   const snowAsk = new Map();    // waiting to be asked: key -> { lat, lon, done: [resolve], tries }
-  const SNOW_PER_MIN = 250, SNOW_TRIES = 4, SNOW_WAIT_MS = 3000;
-  let snowTimer = 0, snowVer = 0, snowSent = [], snowPause = 0;   // snowSent: [time, places] in the last minute
+  const SNOW_PER_MIN = 250, SNOW_PER_HOUR = 2000, SNOW_TRIES = 4, SNOW_WAIT_MS = 3000;
+  let snowTimer = 0, snowVer = 0, snowPause = 0, snowRefused = 0, snowSaveT = 0;
+  let snowSent = [];   // [time, places] in the last hour, kept on the phone so opening the app again counts them
+  try {
+    const now = Date.now();
+    snowSent = (JSON.parse(localStorage.getItem(SNOW_USE)) || []).filter((x) => now - x[0] < 3600000);
+    for (const [k, f, n, rf, rn, at] of JSON.parse(localStorage.getItem(SNOW_SAVE)) || []) if (now - at < SNOW_KEEP_MS) snowGrid.set(k, { f, n, rf, rn, at });
+  } catch {}
+  const snowSave = () => {
+    if (snowSaveT) return;
+    snowSaveT = setTimeout(() => {
+      snowSaveT = 0;
+      const now = Date.now(), keep = [];
+      const r1 = (x) => Math.round(x * 10) / 10;
+      for (const [k, v] of snowGrid) if (!v.err && now - v.at < SNOW_KEEP_MS) keep.push([k, r1(v.f), r1(v.n), r1(v.rf), r1(v.rn), v.at]);
+      try { localStorage.setItem(SNOW_SAVE, JSON.stringify(keep.slice(-4000))); localStorage.setItem(SNOW_USE, JSON.stringify(snowSent)); } catch {}
+    }, 3000);
+  };
   const snowLater = (ms) => { if (!snowTimer) snowTimer = setTimeout(snowFlush, ms); };
   function snowFlush() {
     snowTimer = 0;
     const now = Date.now();
     if (now < snowPause) return snowLater(snowPause - now);
-    snowSent = snowSent.filter((x) => now - x[0] < 60000);
-    const room = SNOW_PER_MIN - snowSent.reduce((a, x) => a + x[1], 0);
-    const all = [...snowAsk.entries()].slice(0, Math.max(0, room));
+    snowSent = snowSent.filter((x) => now - x[0] < 3600000);
+    const used = (ms) => snowSent.reduce((a, x) => a + (now - x[0] < ms ? x[1] : 0), 0);
+    const room = Math.min(SNOW_PER_MIN - used(60000), SNOW_PER_HOUR - used(3600000));
+    // Close-up points first: a wide 3D view asks hundreds of far-away ones first, which used up the minute's places
+    // before the mountains in front were asked (Whistler stayed bare for 2 minutes in a test).
+    const all = [...snowAsk.entries()].sort((a, b) => parseFloat(a[0]) - parseFloat(b[0])).slice(0, Math.max(0, room));
     for (const [k] of all) snowAsk.delete(k);
-    if (snowAsk.size) snowLater(snowSent.length ? Math.max(1000, snowSent[0][0] + 60000 - now) : 1000);
+    if (snowAsk.size) {
+      // The next time some room frees up: a minute after the oldest of this minute's, or of this hour's when that's full.
+      const full = SNOW_PER_HOUR - used(3600000) <= 0, from = snowSent.find((x) => now - x[0] < (full ? 3600000 : 60000));
+      snowLater(from ? Math.max(1000, from[0] + (full ? 3600000 : 60000) - now) : 1000);
+    }
     for (let s = 0; s < all.length; s += 100) {
       const part = all.slice(s, s + 100);
       snowSent.push([now, part.length]);
-      fetch(`${WX}?latitude=${part.map(([, p]) => p.lat.toFixed(3)).join(",")}&longitude=${part.map(([, p]) => p.lon.toFixed(3)).join(",")}&hourly=snowfall&past_hours=24&forecast_hours=72&timezone=GMT`)
+      fetch(`${WX}?latitude=${part.map(([, p]) => p.lat.toFixed(3)).join(",")}&longitude=${part.map(([, p]) => p.lon.toFixed(3)).join(",")}&hourly=snowfall,rain&past_hours=24&forecast_hours=72&timezone=GMT`)
         .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
         .then((j) => {
+          snowRefused = 0;
           const list = Array.isArray(j) ? j : [j];
           part.forEach(([k, p], i) => {
-            const h = list[i] && list[i].hourly, sf = (h && h.snowfall) || [];
-            let f = 0, n = 0;
+            const h = list[i] && list[i].hourly, sf = (h && h.snowfall) || [], ra = (h && h.rain) || [];
+            let f = 0, n = 0, rf = 0, rn = 0;
             sf.forEach((v, q) => { if (q < 24) f += v || 0; else n += v || 0; });
-            snowGrid.set(k, h ? { f, n, at: Date.now() } : { err: true, at: Date.now() });
+            ra.forEach((v, q) => { if (q < 24) rf += v || 0; else rn += v || 0; });
+            snowGrid.set(k, h ? { f, n, rf, rn, at: Date.now() } : { err: true, at: Date.now() });
             p.done.forEach((d) => d());
           });
+          snowSave();
         })
         .catch(() => {
-          // Refused (too many this minute; the answer can't even be read then) or no signal: asked again after the minute.
-          snowPause = Math.max(snowPause, Date.now() + 65000);
+          // Refused (too many this minute, hour or day) or no signal: asked again later, waiting longer after each
+          // refusal in a row. The tiles already drew what they had (missing squares filled from around them).
+          const wait = [65000, 600000, 1800000][Math.min(2, snowRefused++)];
+          snowPause = Math.max(snowPause, Date.now() + wait);
           part.forEach(([k, p]) => {
             if (++p.tries < SNOW_TRIES) { const w = snowAsk.get(k); if (w) w.done.push(...p.done); else snowAsk.set(k, p); return; }
-            snowGrid.set(k, { err: true, at: Date.now() - 50 * 60000 }); p.done.forEach((d) => d());   // asked again in 10 min
+            snowGrid.set(k, { err: true, at: Date.now() - SNOW_KEEP_MS + 10 * 60000 }); p.done.forEach((d) => d());   // asked again in 10 min
           });
+          snowSave();
           snowLater(snowPause - Date.now());
         });
     }
+    snowSave();
   }
   function snowPoint(step, i, j) {
     const k = `${step}|${i}|${j}`, v = snowGrid.get(k);
-    if (v && Date.now() - v.at < 3600000) return Promise.resolve(v);
+    if (v && Date.now() - v.at < SNOW_KEEP_MS) return Promise.resolve(v);
     return new Promise((ok) => {
       const w = snowAsk.get(k) || { lat: i * step, lon: j * step, done: [], tries: 0 };
       w.done.push(() => ok(snowGrid.get(k)));
       snowAsk.set(k, w);
-      snowLater(120);
+      snowLater(400);   // the tiles of one view come in over a few hundred ms: all of them, so the close ones go first
     });
   }
   // Tiles drawn with points still missing are drawn again when those come (all of them at once, a few seconds later).
@@ -2945,33 +2991,79 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // Winter photos need too.
   let snowAgain = 0;
   const snowRedraw = () => { if (!snowAgain) snowAgain = setTimeout(() => { snowAgain = 0; snowVer++; freshLayer.redraw(); snowfcLayer.redraw(); }, 2000); };
-  const snowColor = (cm) => {
-    if (cm < SNOW_RGB[0][0]) return null;
-    for (let q = SNOW_RGB.length - 1; q >= 0; q--) if (cm >= SNOW_RGB[q][0]) {
-      const a = SNOW_RGB[q], b = SNOW_RGB[q + 1];
+  // The half-degree (then one-degree) grid's blend at a spot, from the points already in, or null.
+  function snowCoarse(lat, lon) {
+    for (const st of [0.5, 1]) {
+      const fi = lat / st, fj = lon / st, i = Math.floor(fi), j = Math.floor(fj), ty = fi - i, tx = fj - j;
+      const p = [[i, j], [i, j + 1], [i + 1, j], [i + 1, j + 1]].map(([a, b]) => snowGrid.get(`${st}|${a}|${b}`));
+      if (p.some((v) => !v || v.err || Date.now() - v.at >= SNOW_KEEP_MS)) continue;
+      const mix = (k) => ((p[0][k] || 0) * (1 - tx) + (p[1][k] || 0) * tx) * (1 - ty) + ((p[2][k] || 0) * (1 - tx) + (p[3][k] || 0) * tx) * ty;
+      return { f: mix("f"), n: mix("n"), rf: mix("rf"), rn: mix("rn") };
+    }
+    return null;
+  }
+  // Missing points (not answered yet, or refused) take the average of the points next to them, a few rounds out, so a
+  // missing point leaves no bare square in the tint.
+  function snowFill(vals, R, C) {
+    for (let round = 0; round < 4; round++) {
+      const miss = [];
+      for (let q = 0; q < vals.length; q++) if (Number.isNaN(vals[q])) miss.push(q);
+      if (!miss.length || miss.length === vals.length) return;
+      const next = miss.map((q) => {
+        const r = (q / C) | 0, c = q % C;
+        let t = 0, n = 0;
+        for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+          const rr = r + dr, cc = c + dc;
+          if (rr < 0 || cc < 0 || rr >= R || cc >= C) continue;
+          const v = vals[rr * C + cc];
+          if (!Number.isNaN(v)) { t += v; n++; }
+        }
+        return n ? t / n : NaN;
+      });
+      miss.forEach((q, m) => { vals[q] = next[m]; });
+    }
+  }
+  const snowColor = (cm, scale = SNOW_RGB) => {
+    if (!(cm >= scale[0][0])) return null;
+    for (let q = scale.length - 1; q >= 0; q--) if (cm >= scale[q][0]) {
+      const a = scale[q], b = scale[q + 1];
       if (!b) return a.slice(1);
       const t = (cm - a[0]) / (b[0] - a[0]);
       return [a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t];
     }
     return null;
   };
-  const paintSnowBy = (field) => async (z, x, y) => {
+  const paintSnowBy = (field, rainField) => async (z, x, y) => {
     const out = new ImageData(256, 256), o = out.data, s = snowStep(z);
     const top = tileLat(y, z), bottom = tileLat(y + 1, z), left = tileLon(x, z), right = tileLon(x + 1, z);
     const i0 = Math.floor(bottom / s), i1 = Math.ceil(top / s), j0 = Math.floor(left / s), j1 = Math.ceil(right / s);
-    const C = j1 - j0 + 1, vals = new Float32Array((i1 - i0 + 1) * C).fill(NaN), jobs = [];
-    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) jobs.push(snowPoint(s, i, j).then((v) => { if (v && !v.err) vals[(i - i0) * C + (j - j0)] = v[field]; }));
+    const R = i1 - i0 + 1, C = j1 - j0 + 1, vals = new Float32Array(R * C).fill(NaN), rain = new Float32Array(R * C).fill(NaN), jobs = [];
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) jobs.push(snowPoint(s, i, j).then((v) => {
+      if (v && !v.err) { vals[(i - i0) * C + (j - j0)] = v[field]; rain[(i - i0) * C + (j - j0)] = v[rainField] || 0; }
+    }));
     const all = Promise.all(jobs);
     let partial = false;
     await Promise.race([all, new Promise((ok) => setTimeout(() => { partial = true; ok(); }, SNOW_WAIT_MS))]);
-    if (partial) all.then(snowRedraw);
+    // Drawn again as each missing point comes, not only once all of them have: after a refusal the last ones can take
+    // half an hour, and the ones already in should show.
+    if (partial) jobs.forEach((j) => j.then(snowRedraw));
+    // A close-up point still missing takes the far-away grid's value there when that's in (asked first after opening).
+    if (s < 0.5) for (let q = 0; q < vals.length; q++) if (Number.isNaN(vals[q])) {
+      const v = snowCoarse((i0 + ((q / C) | 0)) * s, (j0 + (q % C)) * s);
+      if (v) { vals[q] = v[field]; rain[q] = v[rainField] || 0; }
+    }
+    snowFill(vals, R, C); snowFill(rain, R, C);
+    const blend = (g, ia, ja, tx, ty) => {
+      const a = g[ia * C + ja], b = g[ia * C + ja + 1], c = g[(ia + 1) * C + ja], d = g[(ia + 1) * C + ja + 1];
+      return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;   // NaN when a point is missing
+    };
     for (let py = 0; py < 256; py++) {
       const fi = tileLat(y + (py + 0.5) / 256, z) / s - i0, ia = Math.floor(fi), ty = fi - ia;
       for (let px = 0; px < 256; px++) {
         const fj = tileLon(x + (px + 0.5) / 256, z) / s - j0, ja = Math.floor(fj), tx = fj - ja;
-        const a = vals[ia * C + ja], b = vals[ia * C + ja + 1], c = vals[(ia + 1) * C + ja], d = vals[(ia + 1) * C + ja + 1];
-        if (Number.isNaN(a) || Number.isNaN(b) || Number.isNaN(c) || Number.isNaN(d)) continue;
-        const col = snowColor((a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty);
+        const sn = blend(vals, ia, ja, tx, ty);
+        if (Number.isNaN(sn)) continue;
+        const col = snowColor(sn) || snowColor(blend(rain, ia, ja, tx, ty), RAIN_RGB);
         if (!col) continue;
         const k = (py * 256 + px) * 4;
         o[k] = col[0]; o[k + 1] = col[1]; o[k + 2] = col[2]; o[k + 3] = 150;
@@ -2980,8 +3072,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return out;
   };
   const snowAttr = 'Snow: <a href="https://open-meteo.com/">Open-Meteo</a> weather model';
-  const freshLayer = paintedLayer("skifresh", paintSnowBy("f"), { z: 352, minZoom: 6, maxNative: 11, ver: () => snowVer, attribution: snowAttr, attribution3d: "Snow: Open-Meteo" });
-  const snowfcLayer = paintedLayer("skisnowfc", paintSnowBy("n"), { z: 351, minZoom: 6, maxNative: 11, ver: () => snowVer, attribution: snowAttr, attribution3d: "Snow: Open-Meteo" });
+  const freshLayer = paintedLayer("skifresh", paintSnowBy("f", "rf"), { z: 352, minZoom: 6, maxNative: 10, ver: () => snowVer, attribution: snowAttr, attribution3d: "Snow: Open-Meteo" });
+  const snowfcLayer = paintedLayer("skisnowfc", paintSnowBy("n", "rn"), { z: 351, minZoom: 6, maxNative: 10, ver: () => snowVer, attribution: snowAttr, attribution3d: "Snow: Open-Meteo" });
   // New numbers every hour: repaint the tiles then.
   setInterval(() => { if (sport === "ski" && (shown.has("fresh") || shown.has("snowfc"))) { snowVer++; freshLayer.redraw(); snowfcLayer.redraw(); } }, 3600000);
   function refreshMoreLayers() {
@@ -3019,8 +3111,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (shown.has("flats")) out.push(bar(map.getZoom() < 11 ? "Flats: zoom in" : "Flats", [[`rgba(${FLAT_RGB.join(",")},.6)`, `under ${FLAT_DEG}°`]]));
       if (shown.has("elev")) out.push(bar("Elevation bands", ELEV.map((e) => [e[2], e[1].replace("Below treeline", "Below TL")])));
       const cm = SNOW_CM.slice(0, 6).map(([v, c], i) => [c, i === 5 ? `${v}+` : String(v)]);
-      if (shown.has("fresh")) out.push(bar("New snow, last 24 h (cm)", cm));
-      if (shown.has("snowfc")) out.push(bar("Snow coming, next 3 days (cm)", cm));
+      const mm = RAIN_MM.map(([v, c], i) => [c, i === RAIN_MM.length - 1 ? `${v}+` : String(v)]);
+      if (shown.has("fresh")) out.push(bar("New snow, last 24 h (cm)", cm), bar("Rain instead, last 24 h (mm)", mm));
+      if (shown.has("snowfc")) out.push(bar("Snow coming, next 3 days (cm)", cm), bar("Rain instead, next 3 days (mm)", mm));
     }
     el.innerHTML = out.join("");
     el.hidden = !out.length;
