@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-29", "text": "3D map: pins for far-away places (webcams, huts, lifts, ski areas, parking) no longer float in the sky above the mountains. Pins on slopes you can see stay put."},
     {"date": "2026-10-29", "text": "Layers that colour the whole ground (Avalanche risk, Slope angle, New snow, Snow forecast, Forest types, Mud and more) now show one at a time: turning one on turns the other off, so the map stays readable and lighter on your phone."},
     {"date": "2026-10-29", "text": "Skiing: tap anywhere and the This spot card now shows the snow that fell in the last 24 h, 3 days and 7 days, the snow forecast for the next 24 h, 3 days and 7 days, and the weather day by day for the past week and the week ahead. New snow and Snow forecast now turn each other off, so only one shows at a time."},
     {"date": "2026-10-29", "text": "Skiing: the Whistler snow stake cam is on the map with the other Whistler Blackcomb webcams, so you can see how much new snow fell."},
