@@ -29,15 +29,27 @@
   const isHunt = () => sportNow() === "hunt";
   const isFish = () => sportNow() === "fish";
   const COLOR = "#0a7d6e", HUNT_COLOR = "#a34f00", FISH_COLOR = "#0c8599";
-  const HUNT_KINDS = [["truck", "Truck or parking", "🛻"], ["stand", "Tree stand", "🪜"], ["blind", "Ground blind", "⛺"], ["sighting", "Sighting", "👀"],
-    ["sign", "Tracks or droppings", "🐾"], ["rub", "Rub", "🌲"], ["scrape", "Scrape", "🍂"], ["bed", "Bedding area", "🛏"], ["cam", "Trail camera", "📷"],
-    ["water", "Water", "💧"], ["food", "Feeding area", "🌾"], ["harvest", "Harvest", "🎯"], ["camp", "Camp", "🏕"], ["other", "Other", "📍"]];
+  // alex hunts in Quebec and tags in French too: a saline is a salt or mineral lick, a cache is a blind.
+  const HUNT_KINDS = [["cam", "Trail camera", "📷"], ["sign", "Tracks", "🐾"], ["lick", "Saline (salt lick)", "🧂"], ["blind", "Cache (blind)", "⛺"],
+    ["stand", "Tree stand", "🪜"], ["sighting", "Sighting", "👀"], ["rub", "Rub", "🌲"], ["scrape", "Scrape", "🍂"], ["bed", "Bedding area", "🛏"],
+    ["trail", "Game trail", "👣"], ["water", "Water", "💧"], ["food", "Feeding area", "🌾"], ["bait", "Bait site", "🍎"], ["shed", "Shed antlers", "🦌"],
+    ["harvest", "Harvest (kill site)", "🎯"], ["truck", "Truck or parking", "🛻"], ["camp", "Camp", "🏕"], ["other", "Other", "📍"]];
   const FISH_KINDS = [["catch", "Catch", "🐟"], ["spot", "Fishing spot", "🎣"], ["access", "Way to the water", "🚶"], ["launch", "Boat launch", "🛶"],
     ["truck", "Truck or parking", "🛻"], ["hatch", "Hatch or bugs", "🦟"], ["camp", "Camp", "🏕"], ["other", "Other", "📍"]];
   const KINDS_OF = { hunt: HUNT_KINDS, fish: FISH_KINDS };
   const hasKinds = (sp) => !!KINDS_OF[sp];
   const kindOf = (p, sp = sportOf(p)) => (KINDS_OF[sp] || []).find((k) => k[0] === p.kind) || null;
   const iconOf = (p) => (kindOf(p) ? kindOf(p)[2] : "📍");
+  // A point can carry several tags (a trail camera on a saline, tracks at a cache); p.kind is the main one, the pin's icon.
+  const tagsOf = (p) => (p.tags && p.tags.length ? p.tags : p.kind ? [p.kind] : []);
+  const MAIN_FIRST = ["harvest", "catch", "cam", "truck"];   // these have their own logs, so they win the icon
+  const mainOf = (tags, sp) => MAIN_FIRST.find((k) => tags.includes(k)) || tags[0] || (sp === "fish" ? "spot" : "other");
+  // Show only the pins with one tag (Hunting and Fishing), remembered per sport.
+  const filtKey = () => `tf:pinFilter:${sportNow()}`;
+  let filt = "";
+  const readFilt = () => { try { filt = localStorage.getItem(filtKey()) || ""; } catch { filt = ""; } };
+  readFilt();
+  const visible = () => (filt && hasKinds(sportNow()) ? points.filter((p) => tagsOf(p).includes(filt)) : points);
   // The map's "📍 Save point" button is also the on/off switch for the pins: on shows them, off hides them.
   let pinsOn = false;
   try { pinsOn = localStorage.getItem("tf:skiPoints") === "true"; } catch {}
@@ -122,9 +134,28 @@ dialog.sp-log .sp-shots img, dialog.sp-log .sp-shots .ph { width: 100%; aspect-r
 dialog.sp-log .sp-empty { color: var(--muted); font-size: .88rem; }
 dialog.sp-dlg select { width: 100%; font: inherit; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--fg); margin-bottom: 10px; }
 .sp-guide { font-variant-numeric: tabular-nums; }
+dialog.sp-dlg .sp-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 6px; }
+dialog.sp-dlg .sp-tags button { padding: 7px 11px; border-radius: 999px; font-size: .86rem; font-weight: 600; min-height: 38px; }
+dialog.sp-dlg .sp-tags button[aria-pressed="true"] { background: ${HUNT_COLOR}; border-color: ${HUNT_COLOR}; color: #fff; }
+body.sport-fish dialog.sp-dlg .sp-tags button[aria-pressed="true"] { background: ${FISH_COLOR}; border-color: ${FISH_COLOR}; }
+dialog.sp-dlg .sp-taghint { margin: 0 0 10px; font-size: .78rem; color: var(--muted); }
+dialog.sp-dlg .sp-tagline { display: flex; flex-wrap: wrap; gap: 5px; margin: -4px 0 10px; }
+dialog.sp-dlg .sp-tagline span, #spBox .sp-filt button { font-size: .78rem; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--chip); border: 1px solid var(--line); color: var(--fg); }
+#spBox .sp-filt { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 1px 0 3px; }
+#spBox .sp-filt::-webkit-scrollbar { display: none; }
+#spBox .sp-filt button { flex: none; font: inherit; font-size: .8rem; font-weight: 600; padding: 6px 11px; min-height: 34px; cursor: pointer; }
+#spBox .sp-filt button[aria-pressed="true"] { background: ${HUNT_COLOR}; border-color: ${HUNT_COLOR}; color: #fff; }
+body.sport-fish #spBox .sp-filt button[aria-pressed="true"] { background: ${FISH_COLOR}; border-color: ${FISH_COLOR}; }
+.sp-pin > i { position: absolute; right: 1px; top: 1px; transform: rotate(45deg); font: 800 9px/13px system-ui, sans-serif; font-style: normal; min-width: 13px; height: 13px; border-radius: 7px; background: #fff; color: #222; text-align: center; }
 .map-tools #spAdd.on { background: ${COLOR}; border-color: ${COLOR}; color: #fff; }
 #spBox { display: flex; flex-direction: column; gap: 6px; }
 #spBox .sp-list { list-style: none; margin: 0; padding: 0; }
+/* the list also shows outside the Skiing panel (Hunting, Fishing, a phone's Saved page), so it brings its own rows */
+#spBox .sp-list li + li { border-top: 1px solid var(--line); }
+#spBox .sp-list li button { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-radius: 10px; cursor: pointer; }
+#spBox .sp-list li button:hover, #spBox .sp-list li button[aria-current="true"] { background: var(--chip); }
+#spBox .sp-list .nm { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#spBox .sp-list .meta { flex: none; font-size: .78rem; color: var(--muted); }
 #spBox .sk-hint { color: var(--muted); font-size: .86rem; }
 #spBox .sp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 #spBox .sp-new { font: inherit; font-size: .82rem; font-weight: 700; padding: 6px 12px; border-radius: 999px; border: 0; background: ${COLOR}; color: #fff; cursor: pointer; }
@@ -164,6 +195,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   const box = document.createElement("div");
   box.id = "spBox";
   box.innerHTML = `<div class="sp-head"><div class="label" id="spCount">Your points</div><button type="button" class="sp-new" id="spNew">📍 Save a point</button></div>
+    <div class="sp-filt" id="spFilt" role="group" aria-label="Show only" hidden></div>
     <ul class="sk-list sp-list" id="spList"></ul>`;
   const skiPane = document.getElementById("skiPane");
   // The list sits under the chips of whichever sport is on (Skiing's or Hunting's panel).
@@ -184,7 +216,8 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   const layer = L.layerGroup();
   const thumbUrl = (p) => { const b = p.thumb || p.photo; if (!b) return ""; const u = URL.createObjectURL(b); urls.push(u); return u; };
   function pinHtml(p, url) {
-    return `<div class="sp-pin${selected === p.id ? " on" : ""}"><span${url ? ` style="background-image:url('${url}')"` : ""}>${url ? "" : iconOf(p)}</span></div>`;
+    const more = hasKinds(sportOf(p)) ? tagsOf(p).length - 1 : 0;
+    return `<div class="sp-pin${selected === p.id ? " on" : ""}"><span${url ? ` style="background-image:url('${url}')"` : ""}>${url ? "" : iconOf(p)}</span>${more > 0 ? `<i>+${more}</i>` : ""}</div>`;
   }
   let glMarkers = [];
   function draw() {
@@ -192,7 +225,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     layer.clearLayers();
     glMarkers.forEach((m) => m.remove()); glMarkers = [];
     const gl = window.trailMap3d;
-    for (const p of points) {
+    for (const p of visible()) {
       const url = thumbUrl(p);
       const m = L.marker([p.lat, p.lon], { icon: L.divIcon({ className: "", html: pinHtml(p, url), iconSize: [34, 34], iconAnchor: [17, 41] }), keyboard: true, title: p.name, zIndexOffset: 500 });
       m.bindTooltip(esc(p.name), { direction: "top", offset: [0, -40] });
@@ -213,8 +246,9 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     const list = $("spList");
     $("spCount").textContent = isMtb() ? (points.length ? `📍 Your spots (${points.length})` : "📍 Your spots") : $("spCount").textContent;
     $("spNew").textContent = isMtb() ? "📍 Save a spot" : "📍 Save a point";
-    if (!points.length) { list.innerHTML = isMtb() ? `<li class="sk-hint">Save a spot you found: a jump, water, a hidden entrance, where to park. Long-press the map (right-click on a computer) or tap 📍 Save a spot.</li>` : isHunt() ? `<li class="sk-hint">Save your stands, blinds, sightings, rubs, scrapes, trail cameras and where you parked, with a photo and notes. Tap 📍 Save a point, or long-press the map.</li>` : isFish() ? `<li class="sk-hint">Save your catches and spots: the holes that fish, the way down to the water, launches, where you parked. Only you see them. Tap Save a catch, 📍 Save a point, or long-press the map.</li>` : `<li class="sk-hint">Save a spot you want to remember: a skin track start, a good line, a hazard. Tap 📍 Save a point, or long-press the map.</li>`; return; }
-    const sorted = [...points].sort((a, b) => b.created - a.created);
+    paintFilt();
+    if (!points.length) { list.innerHTML = isMtb() ? `<li class="sk-hint">Save a spot you found: a jump, water, a hidden entrance, where to park. Long-press the map (right-click on a computer) or tap 📍 Save a spot.</li>` : isHunt() ? `<li class="sk-hint">Pin your trail cameras, tracks, salines, caches, stands, sightings and where you parked, with a photo and notes. Only you see them. Tap 📍 Save a point, or long-press the map.</li>` : isFish() ? `<li class="sk-hint">Save your catches and spots: the holes that fish, the way down to the water, launches, where you parked. Only you see them. Tap Save a catch, 📍 Save a point, or long-press the map.</li>` : `<li class="sk-hint">Save a spot you want to remember: a skin track start, a good line, a hazard. Tap 📍 Save a point, or long-press the map.</li>`; return; }
+    const sorted = [...visible()].sort((a, b) => b.created - a.created);
     list.innerHTML = sorted.map((p, i) => {
       const u = p.thumb || p.photo ? thumbUrl(p) : "";
       return `<li><button type="button" data-i="${i}"${selected === p.id ? ' aria-current="true"' : ""}>${u ? `<img class="sp-th" alt="" src="${u}">` : `<span class="sp-th">${iconOf(p)}</span>`}<span class="nm">${esc(p.name)}</span><span class="meta">${esc(new Date(p.created).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }))}</span></button></li>`;
@@ -226,6 +260,24 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
       view(p.id);
     }));
   }
+  // Filter chips: one per tag the sport's pins have, with how many; tapping one shows only those on the map and the list.
+  function paintFilt() {
+    const el = $("spFilt"), kinds = KINDS_OF[sportNow()];
+    const n = {};
+    if (kinds) for (const p of points) for (const k of tagsOf(p)) n[k] = (n[k] || 0) + 1;
+    if (filt && !n[filt]) { filt = ""; try { localStorage.removeItem(filtKey()); } catch {} }
+    const have = kinds ? kinds.filter((k) => n[k[0]]) : [];
+    el.hidden = have.length < 2 && !filt;
+    if (el.hidden) { el.innerHTML = ""; return; }
+    el.innerHTML = `<button type="button" data-f="" aria-pressed="${!filt}">All ${points.length}</button>`
+      + have.map(([k, nm, e]) => `<button type="button" data-f="${k}" aria-pressed="${filt === k}">${e} ${esc(nm.replace(/ \(.*\)$/, ""))} ${n[k]}</button>`).join("");
+  }
+  $("spFilt").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-f]"); if (!b) return;
+    filt = b.dataset.f === filt ? "" : b.dataset.f;
+    try { filt ? localStorage.setItem(filtKey(), filt) : localStorage.removeItem(filtKey()); } catch {}
+    draw();
+  });
   async function reload() {
     try { all = await dbAll(); } catch { all = []; }
     points = all.filter((p) => sportOf(p) === sportNow());
@@ -243,7 +295,8 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     if (window.tfLowerSheet) window.tfLowerSheet();   // on a phone the sheet can cover the map you have to tap
     banner = document.createElement("div");
     banner.className = "sp-banner";
-    banner.innerHTML = `<span>Tap the map where ${pickPreset && pickPreset.kind === "catch" ? "you caught it" : "the point goes"}</span><button type="button" data-a="me">◎ Use my location</button><button type="button" data-a="x">Cancel</button>`;
+    const pk = pickPreset && kindOf({ kind: pickPreset.kind }, sportNow());
+    banner.innerHTML = `<span>Tap the map where ${pickPreset && pickPreset.kind === "catch" ? "you caught it" : pk ? `the ${pk[2]} ${esc(pk[1].replace(/ \(.*\)$/, "").toLowerCase())} goes` : "the point goes"}</span><button type="button" data-a="me">◎ Use my location</button><button type="button" data-a="x">Cancel</button>`;
     L.DomEvent.disableClickPropagation(banner);
     map.getContainer().append(banner);
     banner.querySelector('[data-a="x"]').addEventListener("click", stopPick);
@@ -290,7 +343,8 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   form.innerHTML = `<form method="dialog">
     <h2 id="spfTitle">New point</h2>
     <div id="spfPhoto"></div>
-    <div class="sp-kind"><label for="spfKind">What's here</label><select id="spfKind"></select></div>
+    <div class="sp-kind"><label id="spfKindL">What's here</label><select id="spfKind" hidden aria-hidden="true" tabindex="-1"></select>
+      <div class="sp-tags" id="spfTags" role="group" aria-labelledby="spfKindL"></div><p class="sp-taghint" id="spfTagHint"></p></div>
     <div class="sp-catch" id="spfCatch" hidden>
       <div class="sp-id" id="spfId" hidden></div>
       <div class="sp-grid2"><div><label for="spfFish">Fish</label><input type="text" id="spfFish" maxlength="40" list="spfFishList" placeholder="Rainbow trout"></div>
@@ -335,8 +389,10 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     editing = p; where = p ? { lat: p.lat, lon: p.lon } : at;
     const sp = p ? sportOf(p) : sportNow(), kinds = KINDS_OF[sp] || HUNT_KINDS;
     $("spfKind").innerHTML = kinds.map(([k, n, e]) => `<option value="${k}">${e} ${n}</option>`).join("");
-    const want = (p && p.kind) || (preset && preset.kind);
-    $("spfKind").value = kinds.some((k) => k[0] === want) ? want : sp === "fish" ? "spot" : "sighting";
+    tagSport = sp;
+    tags = (p ? tagsOf(p) : preset && preset.kind ? [preset.kind] : []).filter((k) => kinds.some((x) => x[0] === k));
+    $("spfTags").innerHTML = kinds.map(([k, n, e]) => `<button type="button" data-k="${k}" aria-pressed="false">${e} ${esc(n)}</button>`).join("");
+    paintTags();
     draftPhoto = undefined;
     idFor = null; $("spfId").hidden = true; $("spfId").innerHTML = "";
     const mtb = p ? sportOf(p) === "mtb" : isMtb();
@@ -361,6 +417,22 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     if (!form.open) form.showModal();
     if (!p) $("spfName").focus();
   }
+  let tags = [], tagSport = "hunt";
+  // Tap every tag that fits (tap again to take it off); the main one sets the pin's icon and, for a harvest or a catch,
+  // the extra fields.
+  function paintTags() {
+    $("spfKind").value = mainOf(tags, tagSport);
+    $("spfTags").querySelectorAll("button[data-k]").forEach((b) => b.setAttribute("aria-pressed", String(tags.includes(b.dataset.k))));
+    const k = kindOf({ kind: $("spfKind").value }, tagSport);
+    $("spfTagHint").textContent = !tags.length ? `Tap one or more. Saved as “${k ? k[1] : "Other"}” if none.` : tags.length > 1 && k ? `Pin shows ${k[2]} ${k[1].replace(/ \(.*\)$/, "")}, with +${tags.length - 1}.` : "Tap more if they're here too.";
+  }
+  $("spfTags").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-k]"); if (!b) return;
+    const k = b.dataset.k;
+    tags = tags.includes(k) ? tags.filter((x) => x !== k) : [...tags, k];
+    paintTags();
+    $("spfKind").dispatchEvent(new Event("change"));
+  });
   const localDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const showHarvest = () => {
     $("spfHarvest").hidden = !(isHunt() && $("spfKind").value === "harvest");
@@ -386,7 +458,10 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     try {
       const now = Date.now();
       const p = editing ? { ...editing, edited: now } : { id: `p${now.toString(36)}${Math.random().toString(36).slice(2, 6)}`, created: now, lat: where.lat, lon: where.lon, photo: null, thumb: null, sport: sportNow() || "ski" };
-      if (hasKinds(sportOf(p))) p.kind = $("spfKind").value;
+      if (hasKinds(sportOf(p))) {
+        p.kind = $("spfKind").value;
+        if (tags.length > 1) p.tags = [p.kind, ...tags.filter((k) => k !== p.kind)]; else delete p.tags;
+      }
       if (p.kind === "catch" && sportOf(p) === "fish") {
         const c = { species: $("spfFish").value.trim().slice(0, 40), len: Math.max(0, Math.min(300, +$("spfLen").value || 0)) || null, fly: $("spfFly").value.trim().slice(0, 60),
           kept: $("spfKept").value, date: $("spfCDate").value || localDay(new Date()), time: $("spfTime").value || "" };
@@ -566,7 +641,8 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     const when = new Date(p.created).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
     viewer.innerHTML = `${viewUrl ? `<div class="sp-photo"><img alt="${esc(p.name)}" src="${viewUrl}"></div>` : ""}
       <h2>${hasKinds(sportOf(p)) ? iconOf(p) + " " : ""}${esc(p.name)}</h2>
-      ${hasKinds(sportOf(p)) && kindOf(p) ? `<p class="sp-meta">${esc(kindOf(p)[1])}</p>` : ""}
+      ${hasKinds(sportOf(p)) && tagsOf(p).length > 1 ? `<div class="sp-tagline">${tagsOf(p).map((k) => kindOf({ kind: k }, sportOf(p))).filter(Boolean).map((d) => `<span>${d[2]} ${esc(d[1])}</span>`).join("")}</div>`
+        : hasKinds(sportOf(p)) && kindOf(p) ? `<p class="sp-meta">${esc(kindOf(p)[1])}</p>` : ""}
       ${p.kind === "catch" && p.catch ? catchFacts(p.catch) : ""}
       ${p.kind === "harvest" && p.harvest ? `<dl class="sp-facts">${p.harvest.species ? `<dt>Species</dt><dd>${esc(p.harvest.species)}</dd>` : ""}${p.harvest.sex ? `<dt>Animal</dt><dd>${esc(p.harvest.sex)}</dd>` : ""}${p.harvest.date ? `<dt>Date</dt><dd>${esc(fmtDay(p.harvest.date))}</dd>` : ""}${p.harvest.zone ? `<dt>Zone</dt><dd>${esc(p.harvest.zone)}</dd>` : ""}</dl>` : ""}
       ${p.note ? `<p class="sp-desc">${esc(p.note)}</p>` : ""}
@@ -812,7 +888,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   // Compass mode (compass.js): a new point at a place it worked out (the rangefinder's target), and the point being guided to.
   const addAt = (lat, lon, preset) => { stopPick(); setPins(true); edit(null, { lat, lon }, preset); };
   const guiding = () => (guideTo ? { lat: guideTo.lat, lon: guideTo.lon, name: guideTo.name } : null);
-  window.tfPoints = { add: () => startPick(), addCatch: () => startPick({ kind: "catch" }), addAt, guiding, markTruck, backToTruck, openLog,
+  window.tfPoints = { add: () => startPick(), addCatch: () => startPick({ kind: "catch" }), addKind: (kind) => startPick({ kind }), addAt, guiding, markTruck, backToTruck, openLog,
     hasTruck: () => all.some((p) => sportOf(p) === (isFish() ? "fish" : "hunt") && p.kind === "truck") };
 
   // ---------- sharing ----------
@@ -973,7 +1049,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     draw();
   }
   let lastSport = sportNow();   // winter.js sets body.sport-ski / sport-hunt when the sport menu changes
-  new MutationObserver(() => { if (sportNow() !== lastSport) { lastSport = sportNow(); placeBox(); points = all.filter((p) => sportOf(p) === sportNow()); if (!isSki()) stopGuide(); onSport(); } })
+  new MutationObserver(() => { if (sportNow() !== lastSport) { lastSport = sportNow(); readFilt(); placeBox(); points = all.filter((p) => sportOf(p) === sportNow()); if (!isSki()) stopGuide(); onSport(); } })
     .observe(document.body, { attributes: true, attributeFilter: ["class"] });
   reload().then(() => { onSport(); openShared(); });
 })();

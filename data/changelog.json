@@ -2,6 +2,7 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-10-29", "text": "Skiing: the Whistler snow stake cam is on the map with the other Whistler Blackcomb webcams, so you can see how much new snow fell."},
+    {"date": "2026-10-29", "text": "Hunting: drop pins and tag them: trail cam, tracks, saline, cache, stand, rub, scrape, bait, kill site, parking, other and more. A pin can have several tags, and Saved filters your pins by tag."},
     {"date": "2026-10-28", "text": "Hunting: the map no longer freezes when you zoom out over a whole province, and zone names no longer pile on top of each other."},
     {"date": "2026-10-28", "text": "Hunting: new Property lines layer shows the lines between lots (Quebec cadastre, BC, New Brunswick, Nova Scotia; Ontario lots and concessions, Alberta sections). Zoom in close and tap a spot for the lot number."},
     {"date": "2026-10-28", "text": "Fishing: creeks and streams now show from a whole-valley zoom, Crown land works in BC (private land in yellow), and tapping a BC lake gives its scanned depth map."},
