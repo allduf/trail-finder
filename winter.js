@@ -28,6 +28,18 @@
     },
   };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // Layers that paint colour over the whole ground can't be read on top of each other (alex 2026-10-29: "i dont want
+  // them to be open at the same time"), and each one is a painted tile layer more for the phone: in every sport only
+  // one of them is on at a time (Skiing below, hunting.js, moto.js). tfOneGround(shown, k, keys): k was just turned
+  // on, so the others in keys go off. With k null (a list saved before this rule), the first one in keys stays.
+  // Returns the keys it turned off.
+  window.tfOneGround = (shown, k, keys) => {
+    if (k != null && (!keys.includes(k) || !shown.has(k))) return [];
+    const keep = k != null ? k : keys.find((x) => shown.has(x));
+    const off = keys.filter((x) => x !== keep && shown.has(x));
+    off.forEach((x) => shown.delete(x));
+    return off;
+  };
 
   const TYPES = {
     // Light blue on a white edge, as FATMAP drew tours (alex 2026-10-26: "add everything" from the FATMAP look): it
@@ -479,12 +491,22 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // "skiLayers2": the simpler Skiing starts everyone again on Touring (and their own tours), the old 13 chips forgotten.
   let shown = new Set(store.get("skiLayers2", [...VIEWS.tour.layers, "mine"]));
   if (!store.get("skiSnowAdded", false)) { if (shown.has("tour")) shown.add("snow"); store.set("skiSnowAdded", true); store.set("skiLayers2", [...shown]); }
-  const SNOW_PAIR = { fresh: "snowfc", snowfc: "fresh" };
-  if (shown.has("fresh") && shown.has("snowfc")) shown.delete("fresh");   // saved from before they became one at a time
   if (!store.get("skiParkAdded", false)) { if (shown.has("access")) shown.add("park"); store.set("skiParkAdded", true); store.set("skiLayers2", [...shown]); }
+  // The ground colours (Avalanche risk and the shaded terrain and snow layers): one at a time (window.tfOneGround).
+  const GROUND = ["avy", "slope", "aspect", "runout", "flats", "elev", "fresh", "snowfc"];
+  // k just went on: the other ground colours go off. Returns the keys turned off (the caller redraws them).
+  function oneGround(k) {
+    const s = new Set(shown);
+    if (avyOn) s.add("avy");
+    const off = window.tfOneGround(s, k, GROUND);
+    off.forEach((x) => shown.delete(x));
+    if (off.includes("avy")) { avyOn = false; store.set("avy", false); }
+    return off;
+  }
+  if (oneGround(null).length) store.set("skiLayers2", [...shown]);
   let selected = null;   // route or hut object
   // A tour being planned: the points tapped on the map (kept on this device), drawn as an orange line.
-  const plan = { on: false, pts: store.get("skiPlan", []), layer: L.layerGroup(), slopeWas: false, timer: 0 };
+  const plan = { on: false, pts: store.get("skiPlan", []), layer: L.layerGroup(), slopeWas: false, groundWas: [], timer: 0 };
   const aboveLayer = L.layerGroup();   // drawAbove()
   const pinLayer = L.layerGroup();     // drawPins(): the opened tour's start and top
   const lineOf = (flat) => { const out = []; for (let i = 0; i < flat.length; i += 2) out.push([flat[i], flat[i + 1]]); return out; };
@@ -786,10 +808,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const b = e.target.closest("[data-k]"); if (!b) return;
     const k = b.dataset.k;
     if (b.checked) shown.add(k); else shown.delete(k);
-    // New snow and Snow forecast paint the same colours over the same ground: one at a time (alex 2026-10-29).
-    if (b.checked && SNOW_PAIR[k]) shown.delete(SNOW_PAIR[k]);
+    const off = b.checked ? oneGround(k) : [];
     if (k === "club" && b.checked) loadClubs();
     applySwitches();
+    if (off.includes("avy")) refreshAvy();
   });
   // The list under the map: Routes or Huts, nearest the middle of the map first, each with how far it is, how long it
   // is and how hard (alex 2026-10-24: "make it user friendly, nice to use"). Typing a name searches everything shown,
@@ -1865,8 +1887,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (plan.on === on) return;
     plan.on = on;
     // Slope angles while planning (CalTopo-style), back to how they were after.
-    if (on) { plan.slopeWas = shown.has("slope"); if (!plan.slopeWas) { shown.add("slope"); applySwitches(); } }
-    else if (!plan.slopeWas && shown.has("slope")) { shown.delete("slope"); applySwitches(); }
+    // The ground colour that was on goes off meanwhile (one at a time) and comes back after.
+    if (on) { plan.slopeWas = shown.has("slope"); plan.groundWas = []; if (!plan.slopeWas) { shown.add("slope"); plan.groundWas = oneGround("slope"); applySwitches(); if (plan.groundWas.includes("avy")) refreshAvy(); } }
+    else if (!plan.slopeWas && shown.has("slope")) {
+      shown.delete("slope");
+      const back = plan.groundWas || [];
+      back.forEach((x) => (x === "avy" ? (avyOn = true, store.set("avy", true)) : shown.add(x)));
+      applySwitches(); if (back.includes("avy")) refreshAvy();
+    }
     map.getContainer().classList.toggle("sk-planning", on);
     if (on && map.getZoom() < 12) map.setZoom(13);
     // After the tap's own click reaches the panel (which raises a lowered sheet).
@@ -2058,7 +2086,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     el.querySelector(".sk-x").addEventListener("click", closeSpot);
     el.querySelector("[data-act=plan]").addEventListener("click", () => { closeSpot(); setPlanning(true); planAdd(L.latLng(lat, lon)); });
     const sb = el.querySelector("[data-act=slope]");
-    if (sb) sb.addEventListener("click", () => { shown.add("slope"); applySwitches(); sb.remove(); });
+    if (sb) sb.addEventListener("click", () => { shown.add("slope"); const off = oneGround("slope"); applySwitches(); if (off.includes("avy")) refreshAvy(); sb.remove(); });
     spotInView(lat, lon);
     const live = () => seq === spotSeq;
     const fill = (id, html) => { if (live() && $(id)) $(id).innerHTML = html; };
@@ -3040,6 +3068,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   avyBtn.title = "Shade the slopes by the avalanche forecast (Avalanche Canada)";
   avyBtn.addEventListener("click", () => {
     avyOn = !avyOn; store.set("avy", avyOn);
+    if (avyOn && oneGround("avy").length) applySwitches();
     if (avyOn && map.getZoom() < 9) map.setZoom(10);
     refreshAvy();
   });

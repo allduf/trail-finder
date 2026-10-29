@@ -266,6 +266,10 @@
   const RINGS = [50, 100, 200, 300, 400];   // metres around the spot
   // "huntLayers2": the first version turned on more layers at first; everyone starts again from the lighter set.
   let shown = new Set(store.get("huntLayers2", Object.keys(LAYERS).filter((k) => LAYERS[k].on)));
+  // The layers that colour the whole ground: one at a time (window.tfOneGround, winter.js). Land and property lines
+  // stay with them: where you may hunt goes with any of these.
+  const GROUND = ["forest", "reach", "slope", "aspect"];
+  if (window.tfOneGround(shown, null, GROUND).length) store.set("huntLayers2", [...shown]);
   let glass = null;   // the glassing view on the map: { at: "lat,lon", url, box: [w, s, e, n] }
   let meas = null;    // the measure tool's points while it's on
   // Glassing: the ground within GLASS_M you can see from a spot. Dark is hidden; trees aren't in the terrain tiles.
@@ -868,9 +872,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     const b = e.target.closest("[data-k]"); if (!b) return;
     const k = b.dataset.k;
     if (b.checked) shown.add(k); else shown.delete(k);
-    if (k === "slope" && shown.has("slope")) shown.delete("aspect");   // one terrain shading at a time
-    if (k === "aspect" && shown.has("aspect")) shown.delete("slope");
-    applyLayers([k]);
+    applyLayers([k, ...(b.checked ? window.tfOneGround(shown, k, GROUND) : [])]);   // one ground colour at a time
   });
   $("hnAll").addEventListener("click", (e) => {
     e.stopPropagation();   // or the page's click-outside closes the menu again at once
