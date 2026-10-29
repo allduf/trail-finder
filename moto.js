@@ -178,6 +178,9 @@
     rules: { label: "Rules", sub: "can I ride", layers: ["roads", "rules", "crown"] },
   };
   let shown = new Set(store.get("motoLayers", Object.keys(LAYERS).filter((k) => LAYERS[k].on)));
+  // The layers that colour the whole ground: one at a time (window.tfOneGround, winter.js).
+  const GROUND = ["mud", "crown", "cell"];
+  if (window.tfOneGround(shown, null, GROUND).length) store.set("motoLayers", [...shown]);
 
   // ---------- look ----------
   const css = document.createElement("style");
@@ -2060,6 +2063,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
   $("mtLayerList").addEventListener("change", (e) => {
     const k = e.target.dataset.layer; if (!k) return;
     if (e.target.checked) shown.add(k); else shown.delete(k);
+    if (e.target.checked) window.tfOneGround(shown, k, GROUND);   // one ground colour at a time
     view = ""; applyLayers();
   });
   pane.querySelector(".mt-views").addEventListener("click", (e) => { const b = e.target.closest("[data-view]"); if (b) setView(b.dataset.view); });
