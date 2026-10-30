@@ -1932,8 +1932,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <p class="sk-note">${on ? "The 🔔 tells you when this tour turns to Extra caution or Not recommended (and your phone, if 📱 is on there). " : ""}The terrain class is worked out from the shape of the ground, like ATES (simple, challenging, complex): forest, cornices, glaciers and small features aren't seen. Where an area has an official rating, it's on <a href="https://avalanche.ca/planning/trip-planner" target="_blank" rel="noopener">Avalanche Canada's trip planner</a>. The light follows Avalanche Canada's Avaluator chart: it's for planning, not a decision on the day.</p>`;
     $("skWatch").addEventListener("click", () => {
       const list = watchList().filter((w) => w.k !== k);
+      if (on && window.tfAccount && window.tfAccount.gone) window.tfAccount.gone("skiWatch", k);   // so the account doesn't bring it back
       if (!on) {
-        list.unshift({ k, n: r.src === "plan" ? "Your planned tour" : r.src === "trip" ? r.name : nameOf(r) || "Unnamed tour", c: [Math.round(top.lat * 1e5) / 1e5, Math.round(top.lon * 1e5) / 1e5], lo: Math.round(lo), hi: Math.round(hi), cls: cls.c });
+        list.unshift({ k, at: Date.now(), n: r.src === "plan" ? "Your planned tour" : r.src === "trip" ? r.name : nameOf(r) || "Unnamed tour", c: [Math.round(top.lat * 1e5) / 1e5, Math.round(top.lon * 1e5) / 1e5], lo: Math.round(lo), hi: Math.round(hi), cls: cls.c });
         if (store.get("avyAlert", null) !== true) store.set("avyAlert", true);   // watching a tour means wanting its alerts
       }
       store.set("skiWatch", list.slice(0, 40));
