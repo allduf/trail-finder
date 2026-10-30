@@ -60,7 +60,7 @@ td.n { text-align: right; white-space: nowrap; width: 1%; }
 td .q { word-break: break-word; }
 textarea { width: 100%; min-height: 120px; font: inherit; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
 .list { margin: 0; padding-left: 18px; }
-.funnel td:first-child { width: 45%; }
+.funnel td:first-child { width: 34%; }
 details > summary { cursor: pointer; font-weight: 600; }
 </style>
 </head>
@@ -84,21 +84,43 @@ details > summary { cursor: pointer; font-weight: 600; }
     </div>
     <div class="stats" id="stats"></div>
 
-    <h2>App or website</h2>
-    <p class="muted">Everyone who opened Trail Finder, also people using the website link instead of the app. Each phone or computer counts once a day. Tablets count as phones.</p>
-    <div class="card"><table id="kinds"></table></div>
+    <h2>Crashes</h2>
+    <p class="muted">Times the app died and iOS opened it again (usually out of memory).</p>
+    <div class="card"><table id="crashes"></table></div>
 
     <h2>What people search for</h2>
     <p class="muted">Everything typed in a search box or in Ask, once the person stopped typing. “Nothing found” and “Didn't pick one” are the places the app let them down.</p>
     <div class="card"><table id="searches"></table></div>
 
+    <h2>Each tester</h2>
+    <p class="muted">To know who is who, find the same phone and iOS in TestFlight's tester list and type the name. Only you see it.</p>
+    <div id="people"></div>
+    <div id="quiet"></div>
+    <div class="card">
+      <details id="rosterBox">
+        <summary>Your TestFlight testers</summary>
+        <p class="muted">Paste the names from TestFlight, one per line, and name each phone above with the same name. Names with no phone are testers who haven't opened the app since usage started.</p>
+        <textarea id="roster" aria-label="TestFlight tester names, one per line"></textarea>
+        <p><button class="btn go" type="button" id="rosterSave">Save names</button> <span class="muted" id="rosterMsg"></span></p>
+      </details>
+      <div id="rosterOut"></div>
+    </div>
+
+    <h2>App or website</h2>
+    <p class="muted">Everyone who opened Trail Finder, also people using the website link instead of the app. Each phone or computer counts once a day. Tablets count as phones.</p>
+    <div class="card"><table id="kinds"></table></div>
+
+    <h2>Costs and limits</h2>
+    <p class="muted">The free allowances that could run out or cost money. Photo find and Ask stop for the day at their limit (UTC days), so they can't run up a bill.</p>
+    <div class="card"><table id="limits"></table></div>
+
     <h2>Find results</h2>
     <p class="muted">Lists people asked for with Find a trail (new trails, near me, by level, in a square), and how often the list came back empty.</p>
     <div class="card"><table id="results"></table></div>
 
-    <h2>From finding to riding</h2>
-    <p class="muted">Out of all visits, how many got to each step. A big drop shows where people stop.</p>
-    <div class="card"><table id="funnel" class="funnel"></table></div>
+    <h2>From finding to going out</h2>
+    <p class="muted">Out of the visits in each sport, how many got to each step. A big drop shows where people stop. A visit that used two sports counts in both. A card is a trail, spot, route or hut card; saved is a trail, route, point, pin or catch; went out is ride, record, follow, plan or go.</p>
+    <div class="card" style="overflow-x:auto"><table id="funnel" class="funnel"></table></div>
 
     <div class="cols">
       <div><h2>Where visits end</h2><p class="muted">The last thing done before leaving the app.</p><div class="card"><table id="ends"></table></div></div>
@@ -108,10 +130,6 @@ details > summary { cursor: pointer; font-weight: 600; }
     <h2>Speed</h2>
     <p class="muted">How long people wait. “Most” is the usual wait (half are faster); “Slow ones” is what 1 visit in 10 waits or longer.</p>
     <div class="card"><table id="speed"></table></div>
-
-    <h2>Crashes</h2>
-    <p class="muted">Times the app died and iOS opened it again (usually out of memory).</p>
-    <div class="card"><table id="crashes"></table></div>
 
     <h2>Coming back</h2>
     <p class="muted">Testers who used the app each week, and how many of them were there in an earlier week too.</p>
@@ -127,20 +145,6 @@ details > summary { cursor: pointer; font-weight: 600; }
     <h2>Never tapped</h2>
     <p class="muted">Main buttons nobody used in this period.</p>
     <div class="card" id="never"></div>
-
-    <h2>Each tester</h2>
-    <p class="muted">To know who is who, find the same phone and iOS in TestFlight's tester list and type the name. Only you see it. Phones show their model after they update to build 17.</p>
-    <div id="people"></div>
-    <div id="quiet"></div>
-    <div class="card">
-      <details id="rosterBox">
-        <summary>Your TestFlight testers</summary>
-        <p class="muted">Paste the names from TestFlight, one per line, and name each phone above with the same name. Names with no phone are testers who haven't opened the app since usage started.</p>
-        <textarea id="roster" aria-label="TestFlight tester names, one per line"></textarea>
-        <p><button class="btn go" type="button" id="rosterSave">Save names</button> <span class="muted" id="rosterMsg"></span></p>
-      </details>
-      <div id="rosterOut"></div>
-    </div>
 
     <h2>Errors</h2>
     <p class="muted">The same error is counted once, with how many times it happened.</p>
@@ -243,7 +247,7 @@ details > summary { cursor: pointer; font-weight: 600; }
   // Monday of the event's week, as "Oct 27".
   const weekOf = (at) => { const d = new Date(at); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
   const weekName = (k) => new Date(k + "T12:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  let days = 30, rows = [], all = null, roster = null, who = null, kinds = null;
+  let days = 30, rows = [], all = null, roster = null, who = null, kinds = null, limits = null;
   try { who = localStorage.getItem("tf:usageWho"); } catch {}
 
   document.querySelectorAll("[data-who]").forEach((b) => b.addEventListener("click", () => {
@@ -268,10 +272,25 @@ details > summary { cursor: pointer; font-weight: 600; }
       $("signIn").onclick = () => acct.open();
       return;
     }
-    const [rep, dev, ros, kin] = await Promise.all([
-      acct.client.rpc("tf_use_report", { days }), acct.client.rpc("tf_use_devices_all"), acct.client.rpc("tf_use_roster_get"),
-      acct.client.rpc("tf_visits_by_kind", { days }),
+    // Supabase hands back at most 1,000 rows per call, so the events come 1,000 at a time (oldest first) until a short page.
+    const want = days;
+    const report = async () => {
+      const got = [];
+      for (let from = 0; from < 500000; from += 1000) {
+        const { data, error } = await acct.client.rpc("tf_use_report", { days: want }).range(from, from + 999);
+        if (error) return { data: null, error };
+        got.push(...(data || []));
+        if (from) $("msg").textContent = `Loading… ${got.length.toLocaleString()} events`;
+        if (!data || data.length < 1000) break;
+      }
+      return { data: got, error: null };
+    };
+    const [rep, dev, ros, kin, lim] = await Promise.all([
+      report(), acct.client.rpc("tf_use_devices_all"), acct.client.rpc("tf_use_roster_get"),
+      acct.client.rpc("tf_visits_by_kind", { days }), acct.client.rpc("tf_use_limits"),
     ]);
+    if (want !== days) return;   // another period was picked while this one loaded
+    limits = lim.error ? null : lim.data;   // null until usage-limits.sql is run
     const { data, error } = rep;
     if (error) {
       $("msg").innerHTML = /not allowed/.test(error.message)
@@ -304,9 +323,14 @@ details > summary { cursor: pointer; font-weight: 600; }
 
   // Cancelled downloads were logged as errors before usage.js skipped them; they aren't faults.
   const realError = (r) => r.kind !== "error" || !/aborted|AbortError/i.test(r.what || "");
-  // Taps that save a trail, and taps that go ride it (MTB).
-  const SAVE = new Set(["#wantBtn", "#savePick", "#ridden"]);
-  const RIDE = new Set(["#navRideBtn", "#trailGo", "#rideBtn", "#planMapBtn", "Ride (in #tabbar)"]);
+  // Taps that save something, and taps that go out with it, in every sport: known button ids, or a button's own words.
+  const SAVE = new Set(["#wantBtn", "#savePick", "#ridden", "#spfSave", "#spcSave", "#skSaveBtn", "#rtSave", "#navSave", "#planSave", "#viewSave"]);
+  const SAVE_TEXT = /^(💾 )?(save|saved|to ride|log (a |this )?(catch|harvest|hunt)|add (a )?(pin|catch|harvest)|drop (a )?pin)\b/i;
+  const RIDE = new Set(["#navRideBtn", "#trailGo", "#rideBtn", "#planMapBtn", "Ride (in #tabbar)", "#skRecBtn", "#skFollow", "#skPlanBtn",
+    "#navFollow", "#viewRecord", "#tdGo", "#cpGo", "#resumeGo", "#navResumeGo", "#tabRecord"]);
+  const RIDE_TEXT = /^(▶ )?(record|follow|go|start|navigate|ride|track|plan a (route|tour|moto route))\b/i;
+  // A spot, route or hut card being opened (other sports don't send "view" like the MTB trail card does).
+  const CARD = /^(#(fsSpot|mtSpot|mtRoute)|list:#(results|list|trailHits|wantList))|\(in #(fsSpot|mtSpot|mtRoute|detail)\)$/;
   const BOX = { "Trail name": "🔎 Trail name", Place: "📍 Place", Ask: "💬 Ask" };
   const SPEED = [["html", "Page arrived"], ["dcl", "Scripts started"], ["page", "App ready"], ["map", "Map pictures"], ["trails", "Trails on the map"], ["3d", "3D mountains"]];
   function paint() {
@@ -381,6 +405,24 @@ details > summary { cursor: pointer; font-weight: 600; }
       : `<tr><th>How</th><th class="n">People</th><th class="n">Days used</th><th class="n">Last</th></tr>` +
         KIND.map(([k, name]) => { const g = kg.get(k); return `<tr><td>${name}</td><td class="n">${g.people}</td><td class="n">${g.days}</td><td class="n">${g.last ? dayAgo(g.last) : "–"}</td></tr>`; }).join("");
 
+    // ---- costs and limits (usage-limits.sql): photo find and Ask against their daily limits, and the free database.
+    const CAPS = [["vision", "📷 Photo find: Google reverse searches", 30, "1,000 a month free, then Google bills"], ["ai", "📷 Photo find: Gemini looks", 200, "free Gemini allowance"],
+      ["compare", "📷 Photo find: Gemini online checks", 100, "free Gemini allowance"], ["ask", "💬 Ask in plain words", 300, "free Gemini allowance"]];
+    const mb = (b) => `${(b / 1048576).toFixed(b < 10485760 ? 1 : 0)} MB`;
+    if (!limits) $("limits").innerHTML = none(1, "One step left: paste supabase/usage-limits.sql into the Supabase SQL Editor and run it.");
+    else {
+      const today = new Date().toISOString().slice(0, 10), use = limits.photo || [];
+      const lim = CAPS.map(([k, l, cap, why]) => {
+        const days7 = use.filter((u) => u.kind === k), now = (days7.find((u) => u.day === today) || {}).n || 0;
+        const top = Math.max(0, ...days7.map((u) => u.n)), full = days7.filter((u) => u.n >= cap).length;
+        return `<tr><td>${l}<br><span class="muted">${esc(why)}</span>${bar(now, cap)}</td><td class="n">${now} of ${cap}<br><span class="muted">busiest ${top}</span>${full ? `<br><span class="err">full ${full} day${full === 1 ? "" : "s"}</span>` : ""}</td></tr>`;
+      });
+      const db = Number(limits.db_bytes) || 0, FREE = 500 * 1048576;
+      lim.push(`<tr><td>🗄 Supabase database<br><span class="muted">500 MB free; usage events ${esc(Number(limits.events || 0).toLocaleString())} (${mb(Number(limits.events_bytes) || 0)}), older than a year are cleared</span>${bar(db, FREE)}</td><td class="n">${mb(db)}<br><span class="muted">${pct(db, FREE)} of 500 MB</span></td></tr>`);
+      lim.push(`<tr><td colspan="2" class="muted">Open-Meteo (loam, snow, weather) is asked straight from each phone, so its free limit (10,000 a day per phone) can't be counted here.</td></tr>`);
+      $("limits").innerHTML = `<tr><th>What</th><th class="n">Today</th></tr>` + lim.join("");
+    }
+
     const sg = new Map();
     for (const x of searches) {
       const k = `${x.box}|${x.q.toLowerCase()}`, g = sg.get(k) || { box: x.box, q: x.q, n: 0, who: new Set(), empty: 0, picked: 0, last: x.n };
@@ -398,16 +440,23 @@ details > summary { cursor: pointer; font-weight: 600; }
     $("results").innerHTML = `<tr><th>List</th><th class="n">Times</th><th class="n">Empty</th><th class="n">Usual size</th></tr>` +
       (rl.map(([w, g]) => `<tr><td>${esc(w)}</td><td class="n">${g.n}</td><td class="n">${g.empty ? `<span class="err">${g.empty}</span>` : 0}</td><td class="n">${quantile(g.counts, 0.5)} trails</td></tr>`).join("") || none(4, "None yet"));
 
-    // ---- funnel, per visit
+    // ---- funnel, per visit, for each sport the visit used
+    const tapped = (s, set, text) => s.ev.some((r) => r.kind === "tap" && (set.has(r.what) || text.test(String(r.what).replace(/ \(in #[\w-]+\)$/, ""))));
     const steps = [["Opened the app", () => true],
-      ["Searched or used Find", (s) => s.ev.some((r) => r.kind === "search" || r.kind === "result")],
-      ["Opened a trail card", (s) => s.ev.some((r) => r.kind === "view")],
-      ["Saved a trail (To ride, folder, Ridden)", (s) => s.ev.some((r) => r.kind === "tap" && SAVE.has(r.what))],
-      ["Went to ride (Ride, Go to trail, Plan a route)", (s) => s.ev.some((r) => r.kind === "tap" && RIDE.has(r.what))]];
+      ["Searched or Find", (s) => s.ev.some((r) => r.kind === "search" || r.kind === "result")],
+      ["Opened a card", (s) => s.ev.some((r) => r.kind === "view" || (r.kind === "tap" && CARD.test(String(r.what))))],
+      ["Saved something", (s) => tapped(s, SAVE, SAVE_TEXT)],
+      ["Went out", (s) => tapped(s, RIDE, RIDE_TEXT)]];
     const sv = [...sessions.values()];
-    const fc = steps.map(([, f]) => sv.filter(f).length);
-    $("funnel").innerHTML = `<tr><th>Step</th><th class="n">Visits</th><th class="n"></th><th style="width:30%"></th></tr>` +
-      steps.map(([l], i) => `<tr><td>${esc(l)}</td><td class="n">${fc[i]}</td><td class="n">${pct(fc[i], fc[0])}</td><td>${bar(fc[i], fc[0])}</td></tr>`).join("");
+    const bySport = new Map();
+    for (const s of sv) {
+      const used = new Set(s.ev.filter((r) => (r.kind === "open" || r.kind === "sport") && r.what).map((r) => r.what));
+      if (!used.size) used.add("mtb");
+      for (const k of used) { if (!bySport.has(k)) bySport.set(k, []); bySport.get(k).push(s); }
+    }
+    const fsp = [...bySport.entries()].sort((a, b) => b[1].length - a[1].length);
+    $("funnel").innerHTML = `<tr><th>Step</th>${fsp.map(([k]) => `<th class="n">${esc((SPORTS[k] || k).replace(" ", "<br>")).replace("&lt;br&gt;", "<br>")}</th>`).join("")}</tr>` +
+      steps.map(([l, f]) => `<tr><td>${esc(l)}</td>${fsp.map(([, list]) => { const n = list.filter(f).length; return `<td class="n">${n}${l === steps[0][0] ? "" : `<br><span class="muted">${pct(n, list.length)}</span>`}</td>`; }).join("")}</tr>`).join("");
 
     // ---- where visits end: the last thing done, and visits under 30 seconds
     const ends = new Map();
