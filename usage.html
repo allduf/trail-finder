@@ -347,30 +347,57 @@ details > summary { cursor: pointer; font-weight: 600; }
   const rosterLine = (t) => { if (t.me) t = { ...t, name: "Me" }; const tail = [t.model, t.ios ? `iOS ${t.ios}` : null].filter(Boolean).join(" · "); return tail ? `${t.name.slice(0, 58 - tail.length)} · ${tail}` : t.name.slice(0, 60); };
   const rosterName = (line) => String(line).split(/\s*·\s*/)[0];
   const phoneKey = (model, ios) => `${model} · iOS ${ios}`.toLowerCase();
-  let clashes = [];
   // Names every unnamed phone whose model and iOS match exactly one tester (and only one unnamed phone has them).
+  // Screen size (points) of each iPhone model, to guess phones whose app hasn't sent its model yet.
+  const SCREENS = {
+    "375x667": ["iPhone SE (2nd gen)", "iPhone SE (3rd gen)"], "375x812": ["iPhone 11 Pro", "iPhone 12 mini", "iPhone 13 mini"],
+    "390x844": ["iPhone 12", "iPhone 12 Pro", "iPhone 13", "iPhone 13 Pro", "iPhone 14", "iPhone 16e"],
+    "428x926": ["iPhone 12 Pro Max", "iPhone 13 Pro Max", "iPhone 14 Plus"],
+    "393x852": ["iPhone 14 Pro", "iPhone 15", "iPhone 15 Pro", "iPhone 16"], "430x932": ["iPhone 14 Pro Max", "iPhone 15 Plus", "iPhone 15 Pro Max", "iPhone 16 Plus"],
+    "402x874": ["iPhone 16 Pro", "iPhone 17", "iPhone 17 Pro"], "440x956": ["iPhone 16 Pro Max", "iPhone 17 Pro Max"], "420x912": ["iPhone Air"],
+    "414x896": ["iPhone 11", "iPhone 11 Pro Max"],
+  };
+  const modelOf = (d) => { const m = /^iOS [\d.]+ · (.+)$/.exec(d.os || ""); return m ? (MODELS[m[1]] || m[1]) : null; };
+  let clashes = [], guesses = [];
+  // Names every unnamed phone that matches exactly one tester: first by model and iOS, then (for testers who updated
+  // iOS since TestFlight saw them) by model alone. Phones that never sent their model get guesses by screen size.
   async function autoName() {
-    clashes = [];
+    clashes = []; guesses = [];
     if (!roster || !roster.length) return;
-    const testers = parseRoster(roster.join("\n")).filter((t) => t.model && t.ios);
+    const testers = parseRoster(roster.join("\n")).filter((t) => t.model);
     const phones = new Map();
     for (const d of [...(all || []), ...rows]) if (!phones.has(d.device)) phones.set(d.device, d);
     const labelled = new Set([...phones.values()].map((d) => rosterName(d.label || "").trim().toLowerCase()).filter(Boolean));
-    const byKey = new Map();
-    for (const t of testers) { const k = phoneKey(t.model, t.ios); if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(t); }
+    const isOpen = (t) => !labelled.has((t.me ? "me" : t.name).toLowerCase());
+    const isFree = (d) => !(d.label || "").trim();
     const jobs = [];
-    for (const [k, ts] of byKey) {
-      const open = ts.filter((t) => !labelled.has((t.me ? "me" : t.name).toLowerCase()));
-      if (!open.length) continue;
-      const free = [...phones.values()].filter((d) => !(d.label || "").trim() && phoneOf(d).toLowerCase() === k);
-      if (!free.length) continue;
-      if (open.length > 1 || free.length > 1) { clashes.push({ phone: phoneOf(free[0]), names: open.map((t) => t.name), phones: free.length }); continue; }
-      const label = open[0].me ? "Me" : open[0].name.slice(0, 60), device = free[0].device;
+    const name = (t, d) => {
+      const label = t.me ? "Me" : t.name.slice(0, 60), device = d.device;
+      d.label = label; labelled.add(label.toLowerCase());
       jobs.push(window.tfAccount.client.rpc("tf_use_label", { device, label }).then(({ error }) => {
         if (error) return;
         rows.forEach((r) => { if (r.device === device) r.label = label; });
         (all || []).forEach((r) => { if (r.device === device) r.label = label; });
       }));
+    };
+    const pass = (keyT, keyD, clash) => {
+      const byKey = new Map();
+      for (const t of testers) { const k = keyT(t); if (!k || !isOpen(t)) continue; if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(t); }
+      for (const [k, open] of byKey) {
+        const free = [...phones.values()].filter((d) => isFree(d) && keyD(d) === k);
+        if (!free.length) continue;
+        if (open.length > 1 || free.length > 1) { if (clash) clashes.push({ phone: phoneOf(free[0]), names: open.map((t) => t.name), phones: free.length }); continue; }
+        name(open[0], free[0]);
+      }
+    };
+    pass((t) => (t.ios ? phoneKey(t.model, t.ios) : null), (d) => phoneOf(d).toLowerCase(), false);
+    pass((t) => t.model.toLowerCase(), (d) => (modelOf(d) || "").toLowerCase() || null, true);
+    // Still unnamed and no model: who could it be, by screen size?
+    for (const d of phones.values()) {
+      if (!isFree(d) || modelOf(d)) continue;
+      const fits = SCREENS[d.screen] || [];
+      const who = testers.filter((t) => isOpen(t) && fits.includes(t.model)).map((t) => t.name);
+      if (who.length) guesses.push({ d, who });
     }
     await Promise.all(jobs);
   }
@@ -607,7 +634,8 @@ details > summary { cursor: pointer; font-weight: 600; }
       const missing = ts.filter((t) => !named.has((t.me ? "me" : t.name).toLowerCase()));
       const same = new Set(clashes.flatMap((c) => c.names));
       $("rosterOut").innerHTML = `<p>${ts.length - missing.length} of ${ts.length} testers matched to a phone.</p>` +
-        (clashes.length ? `<p class="muted">Same phone and iOS, so name these by hand (look at when each was last seen, or ask them):</p><ul class="list">${clashes.map((c) => `<li>${esc(c.phone)}: ${esc(c.names.join(", "))}${c.phones > 1 ? ` (${c.phones} phones)` : ""}</li>`).join("")}</ul>` : "") +
+        (clashes.length ? `<p class="muted">Same phone model, so name these by hand (look at when each was last seen, or ask them):</p><ul class="list">${clashes.map((c) => `<li>${esc(c.phone)}: ${esc(c.names.join(", "))}${c.phones > 1 ? ` (${c.phones} phones)` : ""}</li>`).join("")}</ul>` : "") +
+        (guesses.length ? `<p class="muted">Phones that haven't sent their model yet (old build, or a visit under a minute). By screen size, each could be:</p><ul class="list">${guesses.map((g) => `<li>${esc(g.d.screen)} phone, last seen ${ago(g.d.last_seen || g.d.at)}: ${esc(g.who.join(", "))}</li>`).join("")}</ul>` : "") +
         (missing.length ? `<p class="muted">No phone yet (hasn't opened the app since usage started, has updated iOS since TestFlight saw it, or has an old build that doesn't send its model):</p><ul class="list">${missing.filter((t) => !same.has(t.name)).map((t) => `<li>${esc(t.name)}${t.model ? ` <span class="muted">${esc(t.model)}${t.ios ? ` · iOS ${esc(t.ios)}` : ""}</span>` : ""}</li>`).join("")}</ul>` : "");
     } else $("rosterOut").innerHTML = roster ? "" : `<p class="muted">Saving names needs usage-more.sql.</p>`;
 
