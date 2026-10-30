@@ -1410,7 +1410,8 @@
     "Translate (Google)":"Traduire (Google)",
     "Translate the name":"Traduire le nom",
     "Emergency numbers":"Numéros d'urgence",
-    "Talk with AirPods (Apple Live Translation)":"Parler avec les AirPods (Traduction en direct d'Apple)"};
+    "Talk with AirPods (Apple Live Translation)":"Parler avec les AirPods (Traduction en direct d'Apple)",
+    "3D map: town, peak and lake names in Japan (and anywhere not written in our letters) now show in English.":"Carte 3D : les noms de villes, de sommets et de lacs au Japon (et partout où ils ne sont pas écrits dans notre alphabet) s'affichent maintenant en français ou en anglais."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
