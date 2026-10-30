@@ -59,7 +59,7 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
 
   // ---------- data ----------
   let loading = null, doc = {}, areas = [];
-  const load = () => (loading = loading || fetch("data/ski-areas.json?v=1370").then((r) => r.json()).then((d) => {
+  const load = () => (loading = loading || fetch("data/ski-areas.json?v=1380").then((r) => r.json()).then((d) => {
     doc = d;
     areas = (d.areas || []).filter((a) => isFinite(a.lat) && isFinite(a.lon));
     return d;
@@ -73,6 +73,9 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
   const listBtn = document.createElement("button");
   listBtn.type = "button"; listBtn.className = "sa-open";
   listBtn.textContent = "⛰ Backcountry areas across Canada";
+  // In Japan the list is Japan's areas (alex 2026-10-30: it said "across Canada" on the map at Hakuba).
+  const listLabel = () => { listBtn.textContent = inJapanNow() ? "⛰ Backcountry areas in Japan" : "⛰ Backcountry areas across Canada"; };
+  map.on("moveend", listLabel); listLabel();
   function place() {
     if (!btn.isConnected && window.tfSkiSlot) window.tfSkiSlot("places", btn, { label: "Ski areas", sym: "⛰", bg: "#5f3dc4" });
     const acts = document.querySelector("#skiPane .sk-acts");
@@ -171,16 +174,17 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
   let query = "";
   function openList() {
     selected = null;
+    const jp = inJapanNow(), shown = areas.filter((a) => (a.prov === "JP") === jp);
     dlg.innerHTML = `<button type="button" class="sa-x" aria-label="Close">✕</button>
-      <h2>Backcountry areas across Canada</h2>
-      <p class="sa-sub">${areas.length} touring areas, traverses and expeditions. Tap one for access, huts, rules and avalanche info.</p>
+      <h2>${jp ? "Backcountry areas in Japan" : "Backcountry areas across Canada"}</h2>
+      <p class="sa-sub">${shown.length} touring areas, traverses and expeditions. Tap one for access, huts, rules and avalanche info.</p>
       <input type="search" class="sa-find" placeholder="Search an area, park, hut or region" aria-label="Search the areas" value="${esc(query)}">
       <div class="sa-list"></div>`;
     dlg.querySelector(".sa-x").onclick = () => dlg.close();
     const box = dlg.querySelector(".sa-find"), list = dlg.querySelector(".sa-list");
     const fill = () => {
       const q = query.trim().toLowerCase();
-      const hit = (a) => (a.prov !== "JP" || inJapanNow()) && (!q || [a.name, a.region, PROV[a.prov], a.about, ...(a.huts || []).map((h) => h.name)].join(" ").toLowerCase().includes(q));
+      const hit = (a) => (a.prov === "JP") === jp && (!q || [a.name, a.region, PROV[a.prov], a.about, ...(a.huts || []).map((h) => h.name)].join(" ").toLowerCase().includes(q));
       const c = map.getCenter();
       const away = (a) => Math.round(map.distance([a.lat, a.lon], c) / 1000);
       let html = "";

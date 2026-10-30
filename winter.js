@@ -2598,7 +2598,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const bands = [...card.querySelectorAll(".av-band")].map((x) => [x.querySelector("b")?.textContent || "", x.querySelector("span")?.textContent || ""]);
     const line = card.querySelector(".av-line");
     const html = card.hidden ? "" : bands.length ? `<span>⚠ <b>Avalanche: ${esc(bands[0][0])}</b> ${esc(bands[0][1].toLowerCase())}</span>${bands.slice(1).map(([r, n]) => `<span>${esc(r)} ${esc(n.toLowerCase())}</span>`).join("")}`
-      : line ? `<span>⚠ <b>Avalanche:</b> ${esc(line.textContent.replace(/\.$/, ""))}</span>` : "";
+      : line ? `<span>⚠ <b>Avalanche:</b> ${esc(line.textContent.split(/\.\s/)[0].replace(/\.$/, ""))}</span>` : "";   // first sentence: the card under it has the rest
     if (b.innerHTML !== html) b.innerHTML = html;
     b.hidden = !html;
   }

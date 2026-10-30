@@ -1411,7 +1411,14 @@
     "Translate the name":"Traduire le nom",
     "Emergency numbers":"Numéros d'urgence",
     "Talk with AirPods (Apple Live Translation)":"Parler avec les AirPods (Traduction en direct d'Apple)",
-    "3D map: town, peak and lake names in Japan (and anywhere not written in our letters) now show in English.":"Carte 3D : les noms de villes, de sommets et de lacs au Japon (et partout où ils ne sont pas écrits dans notre alphabet) s'affichent maintenant en français ou en anglais."};
+    "3D map: town, peak and lake names in Japan (and anywhere not written in our letters) now show in English.":"Carte 3D : les noms de villes, de sommets et de lacs au Japon (et partout où ils ne sont pas écrits dans notre alphabet) s'affichent maintenant en français ou en anglais.",
+    "Backcountry areas in Japan":"Secteurs hors-piste au Japon",
+    "Say it":"Le dire",
+    "Say it in Japanese":"Le dire en japonais",
+    "This device can't speak out loud: show the phrase instead.":"Cet appareil ne peut pas parler à voix haute : montrez plutôt la phrase.",
+    "No Japanese voice found: on iPhone, Settings → Accessibility → Spoken Content → Voices → Japanese.":"Aucune voix japonaise trouvée : sur iPhone, Réglages → Accessibilité → Contenu énoncé → Voix → Japonais.",
+    "Tap a phrase to show it big, or 🔊 to have the phone say it in Japanese. These work with no signal. For the best voice on iPhone: Settings → Accessibility → Spoken Content → Voices → Japanese, and download one (Kyoko or O-ren, Enhanced).":"Touchez une phrase pour l'afficher en grand, ou 🔊 pour que le téléphone la dise en japonais. Fonctionne sans réseau. Pour la meilleure voix sur iPhone : Réglages → Accessibilité → Contenu énoncé → Voix → Japonais, et téléchargez-en une (Kyoko ou O-ren, Améliorée).",
+    "Japan: 🔊 on each Japanese phrase says it out loud, and winter satellite photos for Hakuba, Myoko, Nozawa, Hokkaido and Hakkoda in the 3D map.":"Japon : 🔊 sur chaque phrase japonaise la dit à voix haute, et photos satellite d'hiver pour Hakuba, Myoko, Nozawa, Hokkaido et Hakkoda dans la carte 3D."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

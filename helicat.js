@@ -101,6 +101,10 @@ dialog.hc-dlg .hc-near button { font: inherit; font-size: .84rem; font-weight: 7
       if (after) after.after(listBtn);
     }
   }
+  // Canada's operators only: hidden while the map is in Japan (alex 2026-10-30).
+  const inJapan = () => { const c = map.getCenter(); return c.lat > 24 && c.lat < 46.5 && c.lng > 122 && c.lng < 146.5; };
+  const hideInJapan = () => { const jp = inJapan(); listBtn.hidden = jp; btn.hidden = jp; };
+  map.on("moveend", hideInJapan); hideInJapan();
   function setBtn() { btn.setAttribute("aria-pressed", String(on)); btn.classList.toggle("on", on); }
   btn.addEventListener("click", () => {
     on = !on;
