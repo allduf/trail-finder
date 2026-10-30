@@ -231,6 +231,13 @@ dialog.lf-dlg .lf-foot a { color: var(--accent); font-weight: 600; }
   let lastSki = isSki();
   new MutationObserver(() => { if (isSki() !== lastSki) { lastSki = isSki(); sync(); } }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   new MutationObserver(() => { if (!btn.isConnected) placeBtn(); }).observe($("layersMenu") || document.body, { childList: true, subtree: true });
-  window.tfLifts = { open: (name) => load().then(() => { const l = lifts.find((x) => x.n === name); if (l) open(l); }), poll: () => poll(true), _l: (name) => lifts.find((x) => x.n === name) };
+  // More lifts from a loaded square (Japan: jp/w/ squares, scripts/build-japan.mjs), with their resorts (no live status).
+  const add = (t) => load().then(() => {
+    const have = new Set(lifts.map((l) => l.id));
+    lifts.push(...(t.lifts || []).filter((l) => !have.has(l.id)));
+    Object.assign(resorts, t.resorts || {});
+    sync();
+  });
+  window.tfLifts = { add, open: (name) => load().then(() => { const l = lifts.find((x) => x.n === name); if (l) open(l); }), poll: () => poll(true), _l: (name) => lifts.find((x) => x.n === name) };
   sync();
 })();

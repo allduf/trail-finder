@@ -1,0 +1,84 @@
+name: Japan ski data
+
+# Japan, for Skiing only (alex 2026-10-30: a winter camper van trip to Hakuba and Hokkaido, other regions "just in case",
+# nothing for the other sports). Every week, reads Geofabrik's Japan region files and keeps only the ski runs, tours,
+# lifts, huts and tour parking (out/jp/w/) and the camper van stops and winter road closures (out/jp/c/), with
+# scripts/build-japan.mjs. They are kept on the japan-data branch (one commit, replaced each run, so the repo doesn't
+# grow) and published with the website under jp/ by pages.yml. The Japan Avalanche Network's bulletins are read with
+# the avalanche forecasts every 2 hours (winter-data.yml, scripts/japan-avalanche.mjs).
+on:
+  schedule:
+    - cron: "37 9 * * 1"    # Mondays 09:37 UTC
+  push:
+    branches: [main]
+    paths: [scripts/build-japan.mjs, .github/workflows/japan-data.yml]
+  workflow_dispatch:
+    inputs:
+      regions:
+        description: "Regions to build (blank = all): hokkaido tohoku kanto chubu kansai chugoku shikoku kyushu"
+        required: false
+
+permissions:
+  contents: write   # push the japan-data branch
+
+concurrency:
+  group: japan-data
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      REGIONS: ${{ github.event.inputs.regions || 'hokkaido tohoku kanto chubu kansai chugoku shikoku kyushu' }}
+      NODE_OPTIONS: --max-old-space-size=8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install osmium
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool
+      - name: Download and filter each region
+        run: |
+          echo '{"attributes":{"type":true,"id":true},"linear_tags":true,"area_tags":false}' > /tmp/lines.json
+          mkdir -p /tmp/osm
+          for r in $REGIONS; do
+            echo "::group::$r"
+            curl -sSfL --retry 3 -o /tmp/osm/p.pbf "https://download.geofabrik.de/asia/japan/${r}-latest.osm.pbf"
+            ls -lh /tmp/osm/p.pbf
+            # Ski runs, tours, nordic, snowmobile trails and lifts; relation members come along.
+            osmium tags-filter --overwrite -o /tmp/osm/s.pbf /tmp/osm/p.pbf \
+              w/piste:type w/aerialway w/snowmobile=yes,designated,permissive w/ski:nordic=yes,designated w/ski=yes,designated \
+              r/route=ski,piste,snowmobile r/piste:type
+            osmium export --overwrite -c /tmp/lines.json -n --geometry-types=linestring -f geojsonseq -o /tmp/osm/s.geojsonseq /tmp/osm/s.pbf
+            osmium cat --overwrite -t relation -f opl -o /tmp/osm/s.opl /tmp/osm/s.pbf
+            # Ski resort boundaries.
+            osmium tags-filter --overwrite -o /tmp/osm/a.pbf /tmp/osm/p.pbf nwr/landuse=winter_sports
+            osmium export --overwrite -a type,id --geometry-types=polygon -f geojsonseq -o /tmp/osm/a.geojsonseq /tmp/osm/a.pbf
+            # Huts, parking and trailheads (tours), and the camper van stops.
+            osmium tags-filter --overwrite -o /tmp/osm/pt.pbf /tmp/osm/p.pbf \
+              nwr/tourism=alpine_hut,wilderness_hut,caravan_site,camp_site nwr/amenity=shelter,parking,public_bath,fuel,sanitary_dump_station,ferry_terminal \
+              nwr/highway=trailhead,services,rest_area nwr/shop=laundry "nwr/name=*道の駅"
+            osmium export --overwrite -a type,id -f geojsonseq -o /tmp/osm/pt.geojsonseq /tmp/osm/pt.pbf
+            # Roads mapped as closed in winter.
+            osmium tags-filter --overwrite -o /tmp/osm/rd.pbf /tmp/osm/p.pbf \
+              w/access:conditional w/motor_vehicle:conditional w/vehicle:conditional w/motorcar:conditional w/seasonal w/winter_service w/winter_road
+            osmium export --overwrite -c /tmp/lines.json --geometry-types=linestring -f geojsonseq -o /tmp/osm/rd.geojsonseq /tmp/osm/rd.pbf
+            node scripts/build-japan.mjs ingest "$r" /tmp/osm/s.geojsonseq /tmp/osm/s.opl /tmp/osm/a.geojsonseq /tmp/osm/pt.geojsonseq /tmp/osm/rd.geojsonseq
+            rm /tmp/osm/*
+            echo "::endgroup::"
+          done
+      - name: Build the squares
+        run: node scripts/build-japan.mjs finish
+      - name: Replace the japan-data branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd out
+          git init -q -b japan-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add jp
+          git commit -q -m "Japan ski data"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:japan-data

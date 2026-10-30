@@ -197,7 +197,12 @@
   // Where treeline sits, roughly (m): wetter coast ranges lower than the drier inland ranges (Duffey, Lillooet), and
   // highest in the Rockies (Kananaskis, Banff); far lower in the east (Chic-Chocs about 1,000 m, Gros Morne about 600 m).
   // lo = treeline starts, hi = alpine starts.
-  const bandsFor = (name) => /chic-chocs|gasp/i.test(name || "") ? { lo: 900, hi: 1100 }
+  // Japan (Japan Avalanche Network areas, names end "(Japan)"): JAN gives no heights, so these are estimates from where the
+  // forest ends on each range: Hakuba's main ridge, Myoko, the low windy Tanigawa ridge, Tateyama, Daisetsuzan, Niseko-Yotei.
+  const JP_BANDS = [[/hakuba/i, 1700, 2100], [/myoko/i, 1600, 2000], [/kagura|tanigawa/i, 1400, 1700], [/tateyama/i, 2200, 2500],
+    [/central hokkaido/i, 1200, 1500], [/sw hokkaido/i, 900, 1100]];
+  const bandsFor = (name) => /\(japan\)/i.test(name || "") ? ((b) => ({ lo: b ? b[1] : 1500, hi: b ? b[2] : 1900 }))(JP_BANDS.find(([re]) => re.test(name)))
+    : /chic-chocs|gasp/i.test(name || "") ? { lo: 900, hi: 1100 }
     : /gros morne|corner brook|newfoundland|labrador/i.test(name || "") ? { lo: 450, hi: 650 }
     : /rock|kananaskis|klakes|bow valley|highwood|spray|banff|yoho|jasper|waterton|purcell/i.test(name || "") ? { lo: 1900, hi: 2400 }
     : /inland|duffey|lillooet|chilcotin|cariboo|interior|columbia|selkirk|monashee|kootenay|boundary|glacier|lizard|flathead|okanagan|shuswap|thompson/i.test(name || "")

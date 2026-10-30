@@ -28,6 +28,7 @@
 // Run: node scripts/build-winter.mjs   (Node 18 or newer, no packages; ONLY=ski, avy or groom runs one part; ONLY=avy,groom two)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from "node:fs";
+import { buildJapanAvalanche } from "./japan-avalanche.mjs";
 
 const root = new URL("../", import.meta.url);
 const html = readFileSync(new URL("index.html", root), "utf8");
@@ -1117,6 +1118,10 @@ if (runs("avy")) {
     const old = readJson("avalanche.json");
     // Nothing back at all (API down): keep the last file rather than saying there's no forecast.
     if (!areas.length && !products && old) throw new Error("no answer from Avalanche Canada");
+    // Japan (Skiing only; alex 2026-10-30, a winter trip to Hakuba and Hokkaido): the Japan Avalanche Network's bulletins.
+    log("Japan Avalanche Network bulletins");
+    try { areas.push(...await buildJapanAvalanche({ log })); }
+    catch (e) { log(`  Japan failed: ${e.message}`); areas.push(...(old?.areas || []).filter((a) => /^jan-/.test(a.id)).map((a) => ({ ...a, forecast: null }))); }
     writeFileSync(new URL("avalanche.json", DATA), JSON.stringify({
       builtAt, source: "Avalanche Canada (avalanche.ca)",
       season: areas.some((a) => a.forecast && a.forecast.days.length) ? "on" : "off",

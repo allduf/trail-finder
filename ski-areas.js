@@ -1,5 +1,6 @@
 // Backcountry ski areas across Canada in Skiing: about a hundred touring areas, hut-to-hut traverses and expeditions
-// (BC, the Rockies and Kananaskis, Yukon, the Chic-Chocs and the rest of Quebec, Newfoundland, the Maritimes and Nunavut),
+// (BC, the Rockies and Kananaskis, Yukon, the Chic-Chocs and the rest of Quebec, Newfoundland, the Maritimes and Nunavut;
+// and Hakuba, Myoko, Kagura and Hokkaido in Japan for alex's 2026-27 winter trip),
 // pinned on the flat map and the 3D map. Tapping a pin opens the area: what it is, how to get there, huts, rules and
 // permits, who forecasts avalanches there (with a link to today's forecast at that spot), the officially published
 // avalanche terrain ratings (ATES) of its named trips, and the sources. "⛰ Backcountry areas across Canada" in the
@@ -17,7 +18,7 @@
   try { on = localStorage.getItem("tf:skiAreas") !== "false"; } catch {}
 
   const ATES = { 1: { label: "Simple", color: "#2f9e44" }, 2: { label: "Challenging", color: "#1f5fe0" }, 3: { label: "Complex", color: "#1a1a1a" } };
-  const PROV = { BC: "British Columbia", AB: "Alberta", YT: "Yukon", QC: "Quebec", NL: "Newfoundland and Labrador", NB: "New Brunswick", NS: "Nova Scotia", NU: "Nunavut" };
+  const PROV = { BC: "British Columbia", AB: "Alberta", YT: "Yukon", QC: "Quebec", NL: "Newfoundland and Labrador", NB: "New Brunswick", NS: "Nova Scotia", NU: "Nunavut", JP: "Japan" };
   const KIND = { traverse: "Traverse", expedition: "Expedition" };
 
   const css = document.createElement("style");
@@ -56,7 +57,7 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
 
   // ---------- data ----------
   let loading = null, doc = {}, areas = [];
-  const load = () => (loading = loading || fetch("data/ski-areas.json?v=365").then((r) => r.json()).then((d) => {
+  const load = () => (loading = loading || fetch("data/ski-areas.json?v=1340").then((r) => r.json()).then((d) => {
     doc = d;
     areas = (d.areas || []).filter((a) => isFinite(a.lat) && isFinite(a.lon));
     return d;
@@ -65,7 +66,7 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
   // ---------- Layers switch and the panel button ----------
   const btn = document.createElement("button");
   btn.type = "button"; btn.id = "skiAreasBtn";
-  btn.title = "Backcountry ski areas across Canada: access, huts, rules, avalanche forecast and terrain ratings";
+  btn.title = "Backcountry ski areas across Canada and in Japan: access, huts, rules, avalanche forecast and terrain ratings";
   btn.textContent = "⛰ Ski areas";
   const listBtn = document.createElement("button");
   listBtn.type = "button"; listBtn.className = "sa-open";
@@ -124,8 +125,9 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
   const linkHtml = (l) => `<a href="${esc(l.u)}" target="_blank" rel="noopener">${esc(l.t)} ↗</a>`;
   function forecastHtml(a) {
     const f = (doc.forecasters || {})[a.forecast] || {};
+    if (a.forecast === "jpnone") return `<p><b>No public avalanche bulletin here.</b> The nearest Japan Avalanche Network bulletins are for Niseko (SW Hokkaido) and Central Hokkaido: use them only as a rough guide, and go with a local guide if you can.</p>`;
     if (a.forecast === "none") return `<p><b>No public avalanche forecast here.</b> You have to judge the snowpack yourself: go with someone trained (Avalanche Skills Training 2 or more), or hire a guide.</p>`;
-    const url = a.forecast === "aq" ? f.url : `https://avalanche.ca/map?lat=${a.lat.toFixed(4)}&lng=${a.lon.toFixed(4)}`;
+    const url = /^(ac|pc|kc)$/.test(a.forecast) ? `https://avalanche.ca/map?lat=${a.lat.toFixed(4)}&lng=${a.lon.toFixed(4)}` : f.url;
     return `<p>${esc(f.name || "Avalanche Canada")}${a.sub ? ` · ${esc(a.sub)}` : ""}. <a href="${esc(url)}" target="_blank" rel="noopener">Today's forecast here ↗</a></p>`;
   }
   function atesHtml(a) {

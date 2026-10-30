@@ -1386,7 +1386,24 @@
     "Elk":"Wapiti",
     "Bighorn sheep":"Mouflon d'Amérique",
     "Pheasant":"Faisan",
-    "Woodcock":"Bécasse"};
+    "Woodcock":"Bécasse",
+    "Camper stops (Japan)":"Arrêts camping-car (Japon)",
+    "Michi-no-eki (roadside station)":"Michi-no-eki (halte routière)",
+    "Expressway service or parking area":"Aire de service ou de repos d'autoroute",
+    "Campsite":"Camping",
+    "Onsen or public bath":"Onsen ou bain public",
+    "Coin laundry":"Buanderie",
+    "Dump station":"Station de vidange",
+    "Ferry terminal":"Terminal de traversier",
+    "Road closed in winter":"Route fermée l'hiver",
+    "Closed in winter":"Fermé l'hiver",
+    "Drive here (Google Maps)":"Y aller en voiture (Google Maps)",
+    "Apple Maps":"Plans Apple",
+    "Japanese name":"Nom japonais",
+    "Car ferries between Hokkaido and Honshu":"Traversiers entre Hokkaido et Honshu",
+    "Japan":"Japon",
+    "Japan Avalanche Network":"Japan Avalanche Network (Japon)",
+    "Outdoor bath":"Bain extérieur"};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
