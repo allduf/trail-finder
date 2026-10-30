@@ -262,6 +262,17 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 #skiPane details p { white-space: pre-line; }
 .sk-pin { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px #0006; color: #fff; font-size: 12px; line-height: 1; }
 .sk-pin.on { outline: 3px solid #ffe14d; }
+/* Hut pins (zoomed in): a brown house above the spot, drawn over webcams so a hut with a camera beside it still shows. */
+.sk-hutpin { position: relative; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: #7a2e10; border: 2px solid #fff; box-shadow: 0 1px 4px #0008; cursor: pointer; box-sizing: border-box; }
+.sk-hutpin:after { content: ""; position: absolute; left: 50%; bottom: -7px; margin-left: -5px; border: 5px solid transparent; border-top: 6px solid #fff; border-bottom: 0; }
+.sk-hutpin svg { width: 16px; height: 16px; fill: #fff; }
+.sk-hutpin.book b { position: absolute; top: -8px; right: -10px; padding: 0 4px; border-radius: 7px; background: #0b7a3e; color: #fff; font: 800 9px/14px system-ui, sans-serif; border: 1.5px solid #fff; }
+.sk-hutpin.on { box-shadow: 0 0 0 3px #ffe14d, 0 1px 4px #0008; }
+.sk-hutgl { z-index: 3; }
+.sk-book { display: grid; gap: 4px; margin: 8px 0 4px; padding: 10px 12px; border-radius: 10px; background: #f6efe9; border: 1px solid #e3d3c6; color: #3b1d0d; }
+.sk-book.must { background: #fff4e0; border-color: #f0b85a; }
+.sk-book b { font-size: 15px; }
+.sk-book .sk-bookbtn { justify-self: start; margin-top: 2px; padding: 8px 16px; border-radius: 999px; background: #0b7a3e; color: #fff; font-weight: 700; text-decoration: none; }
 .leaflet-tooltip.sk-hutname { background: none; border: 0; box-shadow: none; padding: 0; color: #7a2e10; font: 700 12px/1.2 system-ui, sans-serif; text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff; }
 .leaflet-tooltip.sk-hutname:before { display: none; }
 .sk-pin.park { border-radius: 6px; font-weight: 800; font-family: system-ui, sans-serif; }
@@ -538,10 +549,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   function loadSki() {
     loadTerrain();
     if (ski || skiLoading) return skiLoading;
-    skiLoading = fetch("data/ski.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((d) => {
+    skiLoading = Promise.all([fetch("data/ski.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }), loadHutInfo()])
+      .then(([d]) => {
         ski = d;
         tidyAccess(d);
+        d.huts = hutFacts(d.huts || [], true);
         (d.routes || []).forEach((r) => { r.lines = r.g.map(lineOf); r.bounds = L.latLngBounds(r.lines.flat()); });
         window.dispatchEvent(new CustomEvent("tf:ski-data", { detail: d }));   // rogers.js: official terrain classes (r.ates)
         drawSki(); renderSwitches(); renderList(); loadCanadaView();
@@ -550,6 +562,67 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       .finally(() => { skiLoading = null; });
     return skiLoading;
   }
+  // Hut facts from the clubs and parks that run them (data/huts.json; alex 2026-10-30: "There is huts missing! Look
+  // for more and keep it updated. If you need to book it tell it and add the link to book"): booking, the link to
+  // book, price, beds, heat, water, toilets. Each entry's tags go on the OpenStreetMap hut with the same name within
+  // 5 km (or any hut within 250 m); an entry with no hut on the map is added as its own hut. Huts of a club or park
+  // with no entry get the club's own rules (operators). The cabin trip planner reads the same tags off each hut.
+  let hutInfo = null, hutInfoLoading = null;
+  const loadHutInfo = () => hutInfo ? Promise.resolve(hutInfo) : hutInfoLoading || (hutInfoLoading = fetch("data/huts.json", { cache: "no-cache" })
+    .then((r) => (r.ok ? r.json() : null)).catch(() => null)
+    .then((d) => {
+      hutInfo = { huts: (d && d.huts) || [], checked: d && d.checked, ops: ((d && d.operators) || []).map((o) => ({ ...o, re: new RegExp(o.op, "i") })) };
+      hutInfo.huts.forEach((e) => { e.keys = [e.name, ...(e.aka || [])].map(hutKey).filter(Boolean); });
+      return hutInfo;
+    }));
+  // "Kees & Claire Hut", "Kees and Claire Memorial Hut" -> "keesclaire", "keesclairememorial"
+  const hutKey = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\b(the|and|hut|huts|cabin|lodge|shelter|refuge|chalet)\b/g, "").replace(/[^a-z0-9]+/g, "");
+  const hutM = (a, b) => Math.hypot((a.lat - b.lat) * 110540, (a.lon - b.lon) * 111320 * Math.cos((a.lat * Math.PI) / 180));
+  function hutEntry(h) {
+    const k = hutKey(h.name);
+    let best = null, bestM = Infinity;
+    for (const e of hutInfo.huts) {
+      if (e.lat == null) continue;
+      const m = hutM(h, e);
+      const named = k && m < 5000 && e.keys.some((n) => n === k || (n.length >= 5 && k.length >= 5 && (n.includes(k) || k.includes(n))));
+      if ((named || m < 250) && m < bestM) { best = e; bestM = m; }
+    }
+    return best;
+  }
+  const opRule = (h) => hutInfo.ops.find((o) => o.re.test((h.tags && h.tags.operator) || ""));
+  function withFacts(h, e) {
+    if (e) { h.tags = { ...(h.tags || {}), ...e.tags }; h.facts = e; if (!h.name) h.name = e.name; }
+    else if (h.facts && h.facts.keys) { h.tags = { ...h.tags, ...h.facts.tags }; }   // added again with the map's tags
+    const o = opRule(h);
+    if (o) { h.tags = { ...o.tags, ...h.tags }; if (!h.facts) h.facts = o; }
+    // The ACC's old hut pages (alpineclubofcanada.ca/web/ACCMember/...), still on many map huts, are gone.
+    if (/alpineclubofcanada\.ca\/web\//i.test((h.tags && h.tags.website) || "")) h.tags = { ...h.tags, website: "https://alpineclubofcanada.ca/huts/" };
+    return h;
+  }
+  // The home file (first) adds the entries no map hut matched; the Canada squares loaded later leave out a hut
+  // already added that way (its map tags join the added one).
+  function hutFacts(list, first) {
+    if (!hutInfo) return list;
+    const out = [];
+    for (const h of list) {
+      const e = hutEntry(h);
+      if (e && e.added) {
+        const a = e.added;
+        if (a.src === "club") Object.assign(a, { id: h.id, src: h.src, kind: h.kind || a.kind, pv: h.pv });
+        a.tags = { ...(h.tags || {}), ...a.tags }; withFacts(a); continue;
+      }
+      if (e) e.found = true;
+      out.push(withFacts(h, e));
+    }
+    if (first) hutInfo.huts.forEach((e, i) => {
+      if (e.found || e.added || e.lat == null) return;
+      e.added = withFacts({ id: "club" + i, src: "club", name: e.name, kind: e.kind || "alpine_hut", lat: e.lat, lon: e.lon, tags: {} }, e);
+      out.push(e.added);
+    });
+    return out;
+  }
+
   // The rest of Canada (alex: "add all the backcountry route that you can find"): backcountry routes and huts outside
   // the home region, in squares of 3° by 6° (data/ski-canada/, scripts/build-winter.mjs). Only the squares the map
   // shows are loaded, then added to ski.routes / huts / starts like the home region's, so the list, search, details,
@@ -581,7 +654,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
           r.lines = r.g.map(lineOf); r.bounds = L.latLngBounds(r.lines.flat());
           ski.routes.push(r);
         }
-        ski.huts = [...(ski.huts || []), ...(t.huts || [])];
+        ski.huts = [...(ski.huts || []), ...hutFacts(t.huts || [])];
         ski.starts = [...(ski.starts || []), ...(t.starts || [])];
         ski.parking = [...(ski.parking || []), ...(t.parking || [])];
         clearTimeout(canRedraw);
@@ -663,6 +736,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       hutLayer.addLayer(m);
     }
     drawHutNames();
+    drawHutPins();
     drawParking();
     if (shown.has("tour")) for (const h of ski.starts || []) {
       const m = L.marker([h.lat, h.lon], { icon: L.divIcon({ className: "", html: `<span class="sk-pin${selected === h ? " on" : ""}" style="background:${START.color}">⛷</span>`, iconSize: [24, 24], iconAnchor: [12, 12] }) });
@@ -683,7 +757,37 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       hutNames.addLayer(L.tooltip({ permanent: true, direction: "right", offset: [8, 0], className: "sk-hutname", interactive: false }).setLatLng([h.lat, h.lon]).setContent(esc(h.name)));
     }
   }
-  map.on("moveend", () => { if (sport === "ski") drawHutNames(); });
+  map.on("moveend", () => { if (sport === "ski") { drawHutNames(); drawHutPins(); } });
+  // Zoomed in, each hut in view is also a brown house pin (a "Book" tag when it must be booked), on the 3D map too and
+  // over the webcam pins: Kees and Claire Hut's small dot was hidden under the Russet Lake webcam (alex 2026-10-30,
+  // "There is huts missing!"). The dots stay under them (3D names and taps, and zoomed out).
+  const HUT_PIN_ZOOM = 10, HUT_PIN_MAX = 80;
+  const hutPins = L.layerGroup();
+  let hutGl = [];
+  const HOUSE = `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5 1 7.6l1 1.2 1-.9V14.5h4v-4h2v4h4V7.9l1 .9 1-1.2z"/></svg>`;
+  const mustBook = (h) => /^(required|members_only)$/.test((h.tags && h.tags.reservation) || "");
+  const hutPin = (h) => `<span class="sk-hutpin${mustBook(h) ? " book" : ""}${selected === h ? " on" : ""}">${HOUSE}${mustBook(h) ? "<b>Book</b>" : ""}</span>`;
+  function drawHutPins() {
+    hutPins.clearLayers();
+    hutGl.forEach((m) => m.remove()); hutGl = [];
+    if (sport !== "ski" || !ski || !shown.has("hut") || map.getZoom() < HUT_PIN_ZOOM) return;
+    const c = map.getCenter(), box = map.getBounds().pad(0.2), gl = window.trailMap3d;
+    const near = (ski.huts || []).filter((h) => box.contains([h.lat, h.lon]))
+      .map((h) => ({ h, d: map.distance(c, [h.lat, h.lon]) })).sort((a, b) => a.d - b.d).slice(0, HUT_PIN_MAX);
+    for (const { h } of near) {
+      const label = h.name || KIND[h.kind] || "Hut";
+      const m = L.marker([h.lat, h.lon], { icon: L.divIcon({ className: "", html: hutPin(h), iconSize: [26, 32], iconAnchor: [13, 32] }), title: label, zIndexOffset: 1000 });
+      m.on("click", (e) => tap(e, h));
+      hutPins.addLayer(m);
+      if (gl && window.maplibregl) {
+        const el = document.createElement("div");
+        el.className = "sk-hutgl"; el.title = label; el.innerHTML = hutPin(h);
+        el.addEventListener("click", (e) => { e.stopPropagation(); if (plan.on) planAdd(L.latLng(h.lat, h.lon)); else { select(h); cardInView($("skDetail"), h.lat, h.lon); } });
+        hutGl.push(new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, -4], opacityWhenCovered: 1 }).setLngLat([h.lon, h.lat]).addTo(gl));
+      }
+    }
+  }
+  window.addEventListener("tf:map3d", () => setTimeout(drawHutPins, 0));
   // Trailhead parking pins, on the 3D map too (it doesn't show Leaflet markers).
   const parkLayer = L.layerGroup();
   let parkGl = [];
@@ -802,7 +906,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const line = (t) => `<li><span class="sk-kic"><i style="background:${t.dashArray ? `repeating-linear-gradient(90deg, ${t.color} 0 6px, transparent 6px 10px)` : t.color}"></i></span>${esc(t.label)}</li>`;
     const pin = (c, ic, label) => `<li><span class="sk-kic"><span class="sk-pin" style="background:${c}">${ic}</span></span>${esc(label)}</li>`;
     ul.innerHTML = Object.keys(TYPES).filter((k) => shown.has(k)).map((k) => line(TYPES[k])).join("")
-      + (shown.has("hut") ? `<li><span class="sk-kic"><span class="sk-kdot" style="background:${HUT.color}"></span></span>Huts, cabins and shelters (brown dots)</li>` : "")
+      + (shown.has("hut") ? `<li><span class="sk-kic"><span class="sk-kdot" style="background:${HUT.color}"></span></span>Huts, cabins and shelters (brown dots; brown house pins when zoomed in, “Book” when they must be booked ahead)</li>` : "")
       + (shown.has("park") ? `<li><span class="sk-kic"><span class="sk-pin park" style="background:${PARK.color}">P</span></span>Trailhead parking</li>` : "")
       + (shown.has("tour") ? pin(START.color, "⛷", "Start of a camptocamp ski route") : "")
       + (shown.has("club") ? pin(CLUB.color, "❄", CLUB.label) : "")
@@ -962,7 +1066,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         const ele = x.h.tags?.ele && parseFloat(x.h.tags.ele);
         ic = `<span class="sk-ic"><span class="sk-dot" style="background:${HUT.color}"></span></span>`;
         nm = esc(x.h.name || "Hut");
-        sub = [esc(KIND[x.h.kind] || "Hut"), ele ? Math.round(ele).toLocaleString() + " m high" : ""].filter(Boolean).join(" · ");
+        sub = [esc(KIND[x.h.kind] || "Hut"), ele ? Math.round(ele).toLocaleString() + " m high" : "", x.h.tags?.capacity ? `sleeps ${esc(x.h.tags.capacity)}` : "",
+          mustBook(x.h) ? "<b>book ahead</b>" : x.h.tags?.reservation === "no" ? "no booking" : ""].filter(Boolean).join(" · ");
       }
       return `<li><button type="button" data-i="${i}"${cur ? ' aria-current="true"' : ""}>${ic}<span class="sk-tx"><span class="nm">${nm}</span><span class="sub">${sub}</span></span>${away(x.d)}</button></li>`;
     }).join("")
@@ -1264,10 +1369,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const yesNo = (v) => ({ yes: "allowed", designated: "allowed (signed for it)", permissive: "allowed", no: "not allowed", private: "private" }[v] || v);
   const PLAIN = {
     "piste:grooming": (v) => ["Grooming", GROOM[v] || v], "piste:difficulty": null, highway: (v) => ON[v] && ["Follows", ON[v]],
-    description: (v) => ["Description", v], note: (v) => ["Note", v], operator: (v) => ["Run by", v], fee: (v) => ["Fee", v === "yes" ? "yes, a fee to use it" : v === "no" ? "free" : v],
+    description: (v) => ["Description", v], note: (v) => ["Note", v], operator: (v) => ["Run by", v], fee: (v, t) => !t.charge && ["Fee", v === "yes" ? "yes, a fee to use it" : v === "no" ? "free" : v],
     access: (v) => ["Access", yesNo(v)], ski: (v) => ["Skiing", yesNo(v)], snowmobile: (v) => ["Snowmobiles", yesNo(v)], "snowmobile:conditional": (v) => ["Snowmobiles when", v],
     seasonal: (v) => ["Seasonal", v], opening_hours: (v) => ["Open", v], ref: (v) => ["Number", v], ele: (v) => ["Height", v + " m"],
-    capacity: (v) => ["Sleeps", v], reservation: (v) => ["Booking", v === "required" ? "required" : v], website: (v) => ["Website", v], url: (v) => ["Website", v],
+    capacity: null, reservation: null, "reservation:website": null, "booking:note": null, charge: null, website: (v) => ["Website", v], url: (v) => ["Website", v],
+    // Hut facts (data/huts.json): booking, price and beds are in the box at the top of the card (bookHtml).
+    heating: (v) => ["Heat", { wood: "Wood stove", propane: "Propane heater", gas: "Gas heater", electric: "Electric", no: "None", none: "None" }[v] || v],
+    drinking_water: (v, t) => ["Water", [{ yes: "Drinking water", no: "No drinking water" }[v] || v, t["drinking_water:note"]].filter(Boolean).join(": ")],
+    "drinking_water:note": null, toilets: (v, t) => ["Toilet", [{ yes: "Yes", no: "None" }[v] || v, t["toilets:note"]].filter(Boolean).join(": ")], "toilets:note": null,
+    season: (v) => ["Open", v],
     "piste:type": null, name: null, "piste:name": null,
     // Sépaq and Parks Canada trails (data/ski-canada/)
     park: (v) => ["Park", v], sector: (v) => ["Sector", v], difficulty: (v) => ["Difficulty", FR_DIFF[v] || v], "winter difficulty": (v) => ["Difficulty in winter", v],
@@ -1282,10 +1392,25 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     for (const [k, v] of Object.entries(r.tags || {})) {
       const f = PLAIN[k];
       if (f === null) continue;
-      const out = f ? f(v) : r.src === "c2c" ? [k[0].toUpperCase() + k.slice(1), v] : null;
+      const out = f ? f(v, r.tags) : r.src === "c2c" ? [k[0].toUpperCase() + k.slice(1), v] : null;
       if (out) plain.push(out);
     }
     return { plain: plain.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${val2(v)}</dd>`).join("") };
+  }
+  // The top of a hut's card: must it be booked, the Book button, price and beds (alex 2026-10-30: "If you need to book
+  // it tell it and add the link to book").
+  const BOOK = { required: "Must be booked ahead", yes: "Booking recommended", recommended: "Booking recommended", members_only: "Club members only", no: "No booking: first come, first served" };
+  function bookHtml(h) {
+    const t = h.tags || {}, how = BOOK[t.reservation];
+    const link = t["reservation:website"] || (t.reservation && t.reservation !== "no" ? t.website : "");
+    if (!how && !t.charge && !t.capacity && !link) return "";
+    const facts = [t.charge || (t.fee === "no" ? "Free" : ""), t.capacity ? `Sleeps ${t.capacity}` : ""].filter(Boolean);
+    const from = h.facts && h.facts.src ? `<a href="${esc(h.facts.src)}" target="_blank" rel="noopener">${esc(h.facts.src.replace(/^https?:\/\/(www\.)?/, "").split("/")[0])}</a>` : "";
+    return `<div class="sk-book${t.reservation === "required" || t.reservation === "members_only" ? " must" : ""}">
+      ${how ? `<b>${esc(how)}</b>` : ""}${facts.length ? `<span>${facts.map(esc).join(" · ")}</span>` : ""}
+      ${t["booking:note"] ? `<span class="sk-note">${esc(t["booking:note"])}</span>` : ""}
+      ${link ? `<a class="sk-bookbtn" href="${esc(link)}" target="_blank" rel="noopener">${t.reservation === "no" ? "Hut page ↗" : "Book ↗"}</a>` : ""}
+      ${from ? `<span class="sk-note">From ${from}${hutInfo && hutInfo.checked && h.facts.keys ? `, checked ${esc(hutInfo.checked)}` : ""}</span>` : ""}</div>`;
   }
   // Huts and camptocamp routes within 2 km of the route.
   function nearbyHtml(info) {
@@ -1642,6 +1767,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ? `<a href="https://www.camptocamp.org/routes/${esc(r.id.slice(3))}" target="_blank" rel="noopener">camptocamp.org</a> (CC BY-SA)`
       : r.src === "sepaq"
       ? `Sépaq winter trails (<a href="https://www.donneesquebec.ca/recherche/dataset/sentiers-hivernaux" target="_blank" rel="noopener">Données Québec</a>, CC BY 4.0)`
+      : r.src === "club"
+      ? `${r.facts && r.facts.src ? `<a href="${esc(r.facts.src)}" target="_blank" rel="noopener">${esc(r.tags.operator || "the hut's club")}</a>` : esc(r.tags.operator || "the hut's club")} (not on OpenStreetMap yet)`
       : r.src === "pc"
       ? `Parks Canada trails (<a href="https://open.canada.ca/data/en/dataset/64a90e8d-5bc0-4027-8645-b5881b4068d4" target="_blank" rel="noopener">open.canada.ca</a>, Open Government Licence)`
       : `<a href="https://www.openstreetmap.org/${osmType}/${r.id.slice(1)}" target="_blank" rel="noopener">OpenStreetMap</a>`;
@@ -1667,7 +1794,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
           ${window.tfRide ? `<button type="button" class="go" id="skFollow" title="Follow this tour with your location"><span class="ic" aria-hidden="true">▶</span>Go</button>` : ""}
         </div>
         <button type="button" class="sk-more-btn" id="skMoreBtn" aria-expanded="${moreOpen}" aria-controls="skMore">${moreOpen ? "Fewer details ▴" : "More details: avalanche check, profile, forecast, weather ▾"}</button>
-      </div>` : `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>`;
+      </div>` : `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>${isHut && !isStart ? bookHtml(r) : ""}`;
     d.innerHTML = `${card}<div id="skMore"${isRoute && !moreOpen ? " hidden" : ""} class="sk-morebox">
       ${isHut && !isStart ? `<p class="sk-hint">${esc(HUT_ABOUT[r.kind] || HUT_ABOUT.basic_hut)}</p>` : ""}
       <dl><dt>Type</dt><dd>${esc(isStart ? t.label + " (start point only; see camptocamp for the route)" : isHut ? KIND[r.kind] || (r.kind || "hut").replace(/_/g, " ") : t.label)}</dd>
@@ -3578,12 +3705,13 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (sport === "mtb") mtb.forEach((l) => { if (!map.hasLayer(l)) l.addTo(map); });
     else mtb.forEach((l) => map.removeLayer(l));
     if (sport === "ski") {
-      skiLayer.addTo(map); hutLayer.addTo(map); hutNames.addTo(map); pinLayer.addTo(map); parkLayer.addTo(map); mineLayer.addTo(map); clubLayer.addTo(map); snowLayer.addTo(map); aboveLayer.addTo(map);
+      skiLayer.addTo(map); hutLayer.addTo(map); hutNames.addTo(map); hutPins.addTo(map); pinLayer.addTo(map); parkLayer.addTo(map); mineLayer.addTo(map); clubLayer.addTo(map); snowLayer.addTo(map); aboveLayer.addTo(map);
       loadSki(); loadMine(); loadClubs(); if (shown.has("snow")) loadSnow(); renderSwitches(); renderList(); drawPlan(); renderPlan();
     } else {
       setPlanning(false);
       drawParking();
-      [skiLayer, hutLayer, hutNames, pinLayer, parkLayer, mineLayer, clubLayer, hoverLayer, snowLayer, aboveLayer, plan.layer].forEach((l) => map.removeLayer(l));
+      drawHutPins();
+      [skiLayer, hutLayer, hutNames, hutPins, pinLayer, parkLayer, mineLayer, clubLayer, hoverLayer, snowLayer, aboveLayer, plan.layer].forEach((l) => map.removeLayer(l));
     }
     // The map's ▶ Ride button records a ski tour in Skiing (navigate.js).
     const rideBtn = document.getElementById("navRideBtn");
