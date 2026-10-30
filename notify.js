@@ -598,6 +598,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     checkAvy(); checkFish();
     pushSync();   // an iPhone app brought back from the background: send a change it didn't get to send before it was put away
   });
+  window.addEventListener("tf:settings-synced", (e) => { if (e.detail.some((k) => /^(avyAlert|fishAlert|skiWatch)$/.test(k))) { paint(); setTimeout(rewatch, 300); } });   // from another device: this phone's notifications follow
   window.addEventListener("storage", (e) => { if (/^tf:(notify|notifyNew|avyAlert|fishAlert|skiWatch|loam(New|Ride|Alert|Area))$/.test(e.key || "")) paint(); });
   // A trail added to (or taken off) the To ride list, or settings pulled from the account: check its loam soon.
   let watchKey = "";

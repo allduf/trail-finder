@@ -14,7 +14,7 @@
 //    and wind in the 3 days before you go in.
 //  - Save offline: the map, ski data and terrain around the cabin and the way in (offline.js), and the forecast as it
 //    is now is kept with the trip and shown when there's no signal.
-// Trips stay on this device (tf:skiTrips).
+// Trips are kept in tf:skiTrips, saved to the rider's account when signed in (account.js merges both devices' trips).
 (() => {
   "use strict";
   const map = window.tfLeaflet, S = window.tfSki && window.tfSki.trip, T = window.tfTerrain;
@@ -24,7 +24,9 @@
   const isSki = () => document.body.classList.contains("sport-ski");
   const store = {
     get(k, d) { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-    set(k, v) { try { localStorage.setItem("tf:" + k, JSON.stringify(v)); } catch {} },
+    set(k, v) {   // "tf:setting" tells account.js to save the trips to the rider's account
+      try { const s = JSON.stringify(v); if (localStorage.getItem("tf:" + k) === s) return; localStorage.setItem("tf:" + k, s); window.dispatchEvent(new Event("tf:setting")); } catch {}
+    },
   };
   const COL = "#7048e8";   // the way in on the map and the trip card's colour
   const localDate = (d) => d.toLocaleDateString("en-CA");
@@ -87,7 +89,8 @@
   const layer = L.layerGroup();
 
   const trips = () => store.get("skiTrips", []);
-  const putTrip = (t) => {   // without what's only for now (the way in's heights are big: worked out again when needed)
+  const putTrip = (t, snapOnly) => {   // without what's only for now (the way in's heights are big: worked out again when needed)
+    if (!snapOnly) t.ed = Date.now();   // the newer edit wins when two devices' trips merge (account.js); a new forecast isn't an edit
     const { wayWait, ...keep } = t, l = trips().filter((x) => x.id !== t.id);
     l.unshift(keep); store.set("skiTrips", l.slice(0, 20));
   };
@@ -228,7 +231,7 @@
     const end = dd.time.at(-1);
     view = { at: Date.now(), rows, before, end, ele: Math.round(ele || w.elevation || 0), example: S.example() };
     t.snap = view;
-    putTrip(t);
+    putTrip(t, true);
     renderDays();
   }
 
@@ -351,6 +354,7 @@
       S.loadSki().then((ski) => { const h = (ski?.huts || []).find((x) => x.id === t.hut.id) || t.hut; S.selectHut(h); setTimeout(() => window.tfPanelScrollTo && window.tfPanelScrollTo($("skDetail")), 80); });
     } else if (k === "del") {
       if (!confirm(`Delete your trip to ${hutName(t)}?`)) return;
+      if (window.tfAccount && window.tfAccount.gone) window.tfAccount.gone("skiTrips", t.id);   // so the account doesn't bring it back
       store.set("skiTrips", trips().filter((x) => x.id !== t.id)); close();
     } else if (k === "off" && t.way) {
       if (!window.tfOffline || !window.tfOffline.saveBox) { if (window.tfToast) window.tfToast("Offline maps aren't available in this browser."); return; }
@@ -362,7 +366,7 @@
   });
 
   // The trips list (the 🏕 Cabin trip button): your trips, and the cabins near the middle of the map to start one.
-  async function showList() {
+  async function showList(quiet) {
     close();
     card.hidden = false; btn.setAttribute("aria-pressed", "true");
     const mine = trips();
@@ -370,7 +374,7 @@
       ${mine.length ? `<ul class="tp-list">${mine.map((t) => `<li><button type="button" data-trip="${esc(t.id)}"><span>${esc(t.hut.name || "Cabin")}</span><small>${esc(dayWord(t.date))} · ${t.nights} night${t.nights > 1 ? "s" : ""}</small></button></li>`).join("")}</ul>` : ""}
       <p class="sk-note">Tap a cabin (the brown dots) on the map, then <b>🏕 Plan a cabin trip here</b>, or pick one near you:</p>
       <ul class="tp-list" id="tpNear"><li><p class="tp-wait">Finding cabins…</p></li></ul>`;
-    scrollTo();
+    if (!quiet) scrollTo();
     const c = map.getCenter(), ski = await S.loadSki();
     const near = (ski?.huts || []).filter((h) => h.kind !== "shelter" && h.name).map((h) => ({ h, d: map.distance(c, [h.lat, h.lon]) })).sort((a, b) => a.d - b.d).slice(0, 6);
     const el = $("tpNear");
@@ -398,5 +402,13 @@
     if (head) head.after(row); else d.prepend(row);
   });
   window.addEventListener("tf:sport", () => { if (!isSki()) close(); });
+  // Trips from the rider's other devices (account.js): the list shows them, and an open trip changed or deleted there follows.
+  window.addEventListener("tf:settings-synced", (e) => {
+    if (!e.detail.includes("skiTrips") || card.hidden) return;
+    if (!cur) { showList(true); return; }
+    const t = trips().find((x) => x.id === cur.id);
+    if (!t) close();
+    else if ((t.ed || 0) > (cur.ed || 0)) { cur = t; view = null; render(); drawWay(); loadDays(t); }
+  });
   window.tfCabinTrip = { open, list: showList, close };
 })();
