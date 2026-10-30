@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-30", "text": "Eastern Canada: live lift status at 7 more hills (Stoneham, Le Massif, Sutton, Orford, Val Saint-Côme, Le Relais, Mount St. Louis), lift lines at 25 eastern hills, 60 road cams near eastern hills, and Ontario and New Brunswick forest roads with gates."},
     {"date": "2026-10-30", "text": "Skiing cabin trips: day tours from the cabin, a packing list made for your trip, and a trip plan to send a friend with a late alert for their calendar."},
     {"date": "2026-10-30", "text": "Signed in: cabin trips, watched tours, moto routes and bikes now follow you to every device."},
     {"date": "2026-10-30", "text": "Tap or drag anywhere on the map (2D or 3D) and it stops following you. Tap Recenter (or Follow while riding) to follow again."},
