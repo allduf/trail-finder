@@ -1,0 +1,27 @@
+[
+ {
+  "name": "Open app",
+  "actMs": 2348,
+  "tapToPaint": 0,
+  "longTasks": 879,
+  "longest": 212,
+  "hot": [
+   "66ms (anon) index.html:5732",
+   "48ms classifyTrail index.html:2458",
+   "46ms _update leaflet-1.9.4.js:5",
+   "40ms search index.html:2866",
+   "37ms (anon) index.html:6783",
+   "35ms open welcome.js:154",
+   "33ms project leaflet-1.9.4.js:5",
+   "26ms syncResultsCol index.html:2136"
+  ]
+ },
+ {
+  "open": {
+   "dcl": 1408,
+   "load": 1821,
+   "res": 98,
+   "kb": 10357
+  }
+ }
+]

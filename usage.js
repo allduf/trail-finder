@@ -129,7 +129,13 @@
   setInterval(() => { if (document.visibilityState === "visible") alive(true); }, 5000);
   alive(true);
   // How long the page took to be ready, from the start of loading.
-  const timePage = () => add("speed", "page", Math.round(performance.now()));
+  // Also where that time went (alex's Speed card, 2026-10-29: 4.5 s): the page itself arriving, then its scripts running.
+  const timePage = () => {
+    add("speed", "page", Math.round(performance.now()));
+    const n = performance.getEntriesByType && performance.getEntriesByType("navigation")[0];
+    if (n && n.responseEnd > 0) add("speed", "html", Math.round(n.responseEnd));
+    if (n && n.domContentLoadedEventEnd > 0) add("speed", "dcl", Math.round(n.domContentLoadedEventEnd));
+  };
   if (document.readyState === "complete") timePage(); else addEventListener("load", timePage);
 
   // A visit's length counts only time on screen.
