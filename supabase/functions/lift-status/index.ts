@@ -15,7 +15,8 @@ const UA = "Mozilla/5.0 (compatible; TrailFinder lift status; +https://allduf.gi
 
 type Lift = { n: string; s: string; w?: number; o?: string; c?: string; k?: string };
 type Result = { lifts: Lift[]; t?: string };
-type Source = { name: string; page: string; url: string; kind: "vail" | "rcr" | "whitewater" | "sunpeaks" | "bigwhite" | "norquay" | "mtnpowder" | "bromont" | "revelstoke" | "louise" | "red" | "msa" };
+type Source = { name: string; page: string; url: string; kind: "vail" | "rcr" | "whitewater" | "sunpeaks" | "bigwhite" | "norquay" | "mtnpowder" | "bromont" | "revelstoke" | "louise" | "red" | "msa"
+  | "stoneham" | "sutton" | "massif" | "orford" | "vsc" | "msl" | "relais" };
 
 // The resorts whose lift status could be read (checked 2026-10-25, more 2026-10-28; Mount Washington and Marble Mountain
 // turn away readers from data centres, so they stay links; Hudson Bay Mountain's lifts aren't in OpenStreetMap yet). The id is the resort's id in data/ski-lifts.json.
@@ -39,6 +40,14 @@ export const SOURCES: Record<string, Source> = {
   louise: { name: "Lake Louise", kind: "louise", page: "https://www.skilouise.com/explore-winter/winter-ski-ride/lift-runs-parks-status/", url: "https://ski-louise-status-page.vercel.app/api/ski-data" },
   red: { name: "RED Mountain", kind: "red", page: "https://www.redresort.com/report/", url: "https://api.redresort.com/report/full" },
   msa: { name: "Mont-Sainte-Anne", kind: "msa", page: "https://mont-sainte-anne.com/conditions-de-neige-ski-alpin/", url: "https://mont-sainte-anne.com/refresh/refresh.php?lang=fr" },
+  // Added 2026-10-30 (eastern Canada up to Whistler level): each resort's own conditions page.
+  stoneham: { name: "Stoneham", kind: "stoneham", page: "https://ski-stoneham.com/", url: "https://ski-stoneham.com/refresh/refresh.php?lang=fr" },
+  massif: { name: "Le Massif de Charlevoix", kind: "massif", page: "https://www.lemassif.com/fr/montagne/hiver/remontees-pistes-et-damage", url: "https://www.lemassif.com/fr/montagne/hiver/remontees-pistes-et-damage" },
+  sutton: { name: "Mont Sutton", kind: "sutton", page: "https://montsutton.com/la-montagne/conditions-de-ski-2/domaine-skiable-ouvert/", url: "https://montsutton.com/la-montagne/conditions-de-ski-2/domaine-skiable-ouvert/" },
+  orford: { name: "Mont Orford", kind: "orford", page: "https://montorford.com/fr-ca/hiver/conditions-ski/", url: "https://montorford.com/fr-ca/hiver/conditions-ski/" },
+  vsc: { name: "Val Saint-Côme", kind: "vsc", page: "https://www.valsaintcome.com/conditions-et-horaire", url: "https://www.valsaintcome.com/conditions-et-horaire" },
+  relais: { name: "Le Relais", kind: "relais", page: "https://www.skirelais.com/hiver/pistes-conditions-de-neige/", url: "https://www.skirelais.com/hiver/pistes-conditions-de-neige/" },
+  msl: { name: "Mount St. Louis Moonstone", kind: "msl", page: "https://www.mountstlouis.com/status/", url: "https://www.mountstlouis.com/status/" },
 };
 
 // Any resort's words for a lift's state, as one of ours.
@@ -200,7 +209,75 @@ function msa(html: string): Result {
   const d = /'applicationDate'\)\.innerHTML= '(\d{4}-\d\d-\d\d \d\d:\d\d)/.exec(html);
   return { lifts, t: d ? zoned(d[1], "America/Toronto") : undefined };
 }
-export const PARSE: Record<Source["kind"], (body: string) => Result> = { vail, rcr, whitewater, sunpeaks, bigwhite, norquay, mtnpowder, bromont, revelstoke, louise, red, msa };
+// Stoneham (same owner as Mont-Sainte-Anne, older page): 'lifts-day-element' as <div class="lift-name">Name</div>
+// <div class="lift-open"><span class="largecheck|largex|largeminus">; minus (off season) is closed.
+const iconState = (c: string) => (/minus|\bx\b|largex|close|ferm/.test(c) ? "closed" : stateOf(c));
+function stoneham(html: string): Result {
+  const lifts: Lift[] = [], seen = new Set<string>();
+  const i = html.indexOf("'lifts-day-element').innerHTML"), part = i < 0 ? "" : html.slice(i, html.indexOf("\n", i));
+  for (const m of part.matchAll(/lift-name">([^<]+)<\/div><div class="lift-open">\s*<span class="([^"]*)"/g)) {
+    const n = text(m[1].replace(/\\'/g, "'"));
+    if (!n || seen.has(n)) continue;
+    seen.add(n);
+    lifts.push({ n, s: iconState(m[2]) });
+  }
+  const d = /drop_date">(\d{4}-\d\d-\d\d) (\d{1,2}):(\d\d)/.exec(part);
+  return { lifts, t: d ? zoned(`${d[1]} ${d[2].padStart(2, "0")}:${d[3]}`, "America/Toronto") : undefined };
+}
+// Rows of a table: [name cell, state cell]; the state is the cell's words, else its class.
+function rows(part: string, re: RegExp, nameAt = 1, stateAt = 2): Lift[] {
+  const lifts: Lift[] = [], seen = new Set<string>();
+  for (const m of part.matchAll(re)) {
+    const n = text(m[nameAt]);
+    if (!n || seen.has(n)) continue;
+    seen.add(n);
+    lifts.push({ n, s: iconState(text(m[stateAt]) || m[stateAt + 1] || "") });
+  }
+  return lifts;
+}
+const between = (html: string, a: string, b: string) => { const i = html.indexOf(a); return i < 0 ? "" : html.slice(i, html.indexOf(b, i + a.length) >>> 0); };
+// Mont Sutton: <div id="lifts"> table, rows <td>II</td> <td> quadruple détachable </td> <td class="ferme">Fermé</td>.
+function sutton(html: string): Result {
+  return { lifts: rows(between(html, 'id="lifts"', "</table>"), /<tr>\s*<td>([^<]+)<\/td>\s*<td>[^<]*<\/td>\s*<td class="([^"]*)">([^<]*)<\/td>/g, 1, 3).map((l) => ({ ...l, n: "Télésiège " + l.n })) };
+}
+// Le Massif: <article class="node--type-lift"> letter + name in .cell.title, state in the .status icon's title.
+function massif(html: string): Result {
+  const lifts: Lift[] = [];
+  for (const m of html.matchAll(/<article[^>]*node--type-lift[\s\S]*?<\/article>/g)) {
+    const a = m[0], n = /<div class="m-t-0">([^<]+)<\/div>/.exec(a), st = /status ([a-z-]*)">\s*<div class="icon" title="([^"]*)"/.exec(a);
+    if (n && st) lifts.push({ n: text(n[1]), s: iconState(st[2] || st[1]) });
+  }
+  return { lifts };
+}
+// Mont Orford: in the Remontées part, each lift is an icon (red #ec1d24 closed, green open, orange on hold) and <span class="name">.
+function orford(html: string): Result {
+  const lifts: Lift[] = [], seen = new Set<string>(), bits = between(html, "-chairlifts", "Besoin d").split('<span class="name">');
+  for (let i = 1; i < bits.length; i++) {
+    const n = text(bits[i].slice(0, bits[i].indexOf("<"))), icon = bits[i - 1].slice(bits[i - 1].lastIndexOf("icon status"));
+    const c = /fill:#([0-9a-f]{6})/i.exec(icon);
+    if (!n || !c || seen.has(n)) continue;
+    seen.add(n);
+    const [r, g] = [parseInt(c[1].slice(0, 2), 16), parseInt(c[1].slice(2, 4), 16)];
+    lifts.push({ n, s: g > r + 40 ? "open" : r > 200 && g > 120 ? "hold" : "closed" });
+  }
+  return { lifts };
+}
+// Val Saint-Côme: "Remontées mécaniques" list, <p class="... text-gray-800"> Name </p> ... <span ...> Fermé </span>.
+function vsc(html: string): Result {
+  return { lifts: rows(between(html, "Remontées mécaniques", "Pistes</"), /<p class="[^"]*text-gray-800">([^<]+)<\/p>\s*<\/div>\s*<span[^>]*>([^<]*)<\/span>/g) };
+}
+// Le Relais: <table class="lifts-list">, rows <td>Name</td> then the day cell <span class="element-status open|close">.
+function relais(html: string): Result {
+  return { lifts: rows(between(html, 'class="align-middle lifts-list"', "</table>"), /<td>([^<]+)<\/td>\s*<td[^>]*><span class="element-status ([a-z]+)/g, 1, 2) };
+}
+// Mount St. Louis Moonstone: a table under each "... Lifts" heading (Moonstone's says Run in the table head), rows
+// <td class="title">Name</td> <td class="status">Closed</td>; the runs tables look the same.
+function msl(html: string): Result {
+  const part = html.split("<table").filter((t, i, all) => i && /Lifts\s*(<[^>]*>\s*)*$/.test(all[i - 1].slice(-300).replace(/<\/?(div|span|h\d)[^>]*>/g, " ").trimEnd() + " ")).join("");
+  return { lifts: rows(part, /<td class\s*=\s*"title">([^<]+)<\/td>\s*<td[^>]*class\s*=\s*"status">([^<]*)<\/td>/g) };
+}
+export const PARSE: Record<Source["kind"], (body: string) => Result> = { vail, rcr, whitewater, sunpeaks, bigwhite, norquay, mtnpowder, bromont, revelstoke, louise, red, msa,
+  stoneham, sutton, massif, orford, vsc, relais, msl };
 
 const cache = new Map<string, { at: number; v: Record<string, unknown> }>();
 export async function read(id: string): Promise<Record<string, unknown>> {
