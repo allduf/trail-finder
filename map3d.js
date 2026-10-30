@@ -7,6 +7,13 @@
   const map = window.tfLeaflet, btn = document.getElementById("btn3d");
   if (!map || !btn || !window.L) return;
   const LIB = "https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl";
+  // Town, peak and lake names in letters the user can read (alex 2026-10-30, in Japan: "Can we have the map in
+  // English"): a name written in another script (Japanese, Korean, Russian...) shows its English name, or the
+  // Latin-letter one from OpenMapTiles; French users get the French name first. Names already in Latin letters stay as
+  // written, so Canada's maps don't change (Montréal, Chute-aux-Outardes).
+  const PLACE_NAME = ["case", ["has", "name:nonlatin"],
+    ["coalesce", ...(window.tfLang && window.tfLang.lang === "fr" ? [["get", "name:fr"]] : []), ["get", "name:en"], ["get", "name:latin"], ["get", "name"]],
+    ["get", "name"]];
   const store = {
     get(k, d) { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) {   // "tf:setting" tells account.js (optional sign-in) to save settings to the rider's account
@@ -643,7 +650,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1360");
+      const w = new Worker("winter-fill.js?v=1370");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -720,7 +727,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1360" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1370" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1080,14 +1087,14 @@
               "text-rotation-alignment": "viewport", "text-pitch-alignment": "viewport" },
             paint: { "text-color": ["get", "c"], "text-opacity": ["get", "o"], "text-halo-color": "#fff", "text-halo-width": 1.8, "text-halo-blur": 0.3 } },
           { id: "water-names", type: "symbol", source: "names", "source-layer": "water_name", minzoom: 10,
-            layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Italic"], "text-size": 12 },
+            layout: { "text-field": PLACE_NAME, "text-font": ["Noto Sans Italic"], "text-size": 12 },
             paint: { "text-color": "#d4ecff", "text-halo-color": "rgba(10,30,50,.8)", "text-halo-width": 1.2 } },
           { id: "peaks", type: "symbol", source: "names", "source-layer": "mountain_peak", minzoom: 10.5, filter: ["has", "name"],
-            layout: { "text-field": ["case", ["has", "ele"], ["concat", "▲ ", ["get", "name"], "\n", ["to-string", ["get", "ele"]], " m"], ["concat", "▲ ", ["get", "name"]]],
+            layout: { "text-field": ["case", ["has", "ele"], ["concat", "▲ ", PLACE_NAME, "\n", ["to-string", ["get", "ele"]], " m"], ["concat", "▲ ", PLACE_NAME]],
               "text-font": ["Noto Sans Regular"], "text-size": 11.5, "text-anchor": "bottom", "symbol-sort-key": ["-", 0, ["coalesce", ["get", "ele"], 0]] },
             paint: { "text-color": "#fff", "text-halo-color": "rgba(0,0,0,.75)", "text-halo-width": 1.3 } },
           { id: "towns", type: "symbol", source: "names", "source-layer": "place", filter: ["in", ["get", "class"], ["literal", ["city", "town", "village", "hamlet", "suburb", "locality"]]],
-            layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Bold"],
+            layout: { "text-field": PLACE_NAME, "text-font": ["Noto Sans Bold"],
               "text-size": ["match", ["get", "class"], "city", 17, "town", 15, "village", 13, 11.5], "symbol-sort-key": ["match", ["get", "class"], "city", 0, "town", 1, "village", 2, 3] },
             paint: { "text-color": "#fff", "text-halo-color": "rgba(0,0,0,.8)", "text-halo-width": 1.5 } },
         ],

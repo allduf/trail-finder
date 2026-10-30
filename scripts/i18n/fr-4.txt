@@ -26,3 +26,4 @@ Translate the name ||| Traduire le nom
 Emergency numbers ||| Numéros d'urgence
 Talk with AirPods (Apple Live Translation) ||| Parler avec les AirPods (Traduction en direct d'Apple)
 Done ||| Terminé
+3D map: town, peak and lake names in Japan (and anywhere not written in our letters) now show in English. ||| Carte 3D : les noms de villes, de sommets et de lacs au Japon (et partout où ils ne sont pas écrits dans notre alphabet) s'affichent maintenant en français ou en anglais.
