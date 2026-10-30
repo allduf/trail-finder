@@ -102,6 +102,18 @@
   };
   const ASPECTS = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
   const bandsFor = (area) => T.bandsFor(area.name);   // where treeline and alpine start, roughly (ski-terrain.js)
+  // Who forecasts avalanches at a spot. Japan (Skiing only; alex 2026-10-30, a winter trip to Hakuba and Hokkaido): the
+  // Japan Avalanche Network's bulletins, read into data/avalanche.json as "jan-" areas by scripts/japan-avalanche.mjs.
+  const inJapan = (lat, lon) => lat > 24 && lat < 46.5 && lon > 122 && lon < 146.5;
+  const AVY_SITE = {
+    ca: { name: "Avalanche Canada map", host: "avalanche.ca", url: "https://avalanche.ca/map", season: "Avalanche Canada's daily forecasts run from about late November to April." },
+    jp: { name: "Japan Avalanche Network", host: "nadare.jp", url: "https://data.nadare.jp/avalanche_informations?locale=en",
+      season: "The Japan Avalanche Network posts bulletins for Hakuba, Myoko, Kagura-Tanigawa-Hotaka, Tateyama and Central and SW Hokkaido, from about December to April. Elsewhere in Japan there's none: judge the snowpack yourself or hire a guide." },
+  };
+  const avySite = (lat, lon) => AVY_SITE[lat != null && inJapan(lat, lon) ? "jp" : "ca"];
+  const siteLink = (x) => `<a href="${x.url}" target="_blank" rel="noopener">${x.name}</a>`;
+  // JAN rates the conditions this morning, not a forecast: said on every card that shows one.
+  const janNote = (f) => f && /^jan-/.test(f.id || "") ? `<p class="sk-note">Japan Avalanche Network: today's conditions as of the morning (not a forecast). Elevation bands here are estimates.</p>` : "";
 
   const css = document.createElement("style");
   css.textContent = `
@@ -631,16 +643,17 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // Resort runs, groomed nordic and snowmobile trails outside the home region come the same way, from the nightly Canada
   // job (ca/w/, scripts/build-canada-winter.mjs; alex 2026-10-26: everything everywhere). Squares are keyed "<dir><square>".
   const CAN_MIN_Z = 5;
-  const CAN_DIRS = ["data/ski-canada/", "ca/w/"];
+  // Japan (jp/w/, scripts/build-japan.mjs, weekly; alex 2026-10-30, Skiing only) comes the same way, with its ski lifts.
+  const CAN_DIRS = ["data/ski-canada/", "ca/w/", "jp/w/"];
   let canIdx = null, canIdxLoading = null, canRedraw = 0;
   const canGot = new Map();   // square -> its loading promise
   const loadCanIdx = () => canIdx ? Promise.resolve(canIdx) : canIdxLoading || (canIdxLoading = Promise.all(CAN_DIRS.map((dir) => fetch(dir + "index.json", { cache: "no-cache" })
     .then((r) => (r.ok ? r.json() : null)).catch(() => null)))
-    .then(([bc, w]) => {
-      if (!bc && !w) { canIdxLoading = null; return null; }
+    .then((idx) => {
+      if (!idx.some(Boolean)) { canIdxLoading = null; return null; }
       const tiles = {};
-      CAN_DIRS.forEach((dir, i) => Object.entries([bc, w][i]?.tiles || {}).forEach(([k, t]) => { tiles[dir + k] = t; }));
-      return (canIdx = { ...(bc || {}), tiles });
+      CAN_DIRS.forEach((dir, i) => Object.entries(idx[i]?.tiles || {}).forEach(([k, t]) => { tiles[dir + k] = t; }));
+      return (canIdx = { ...(idx[0] || {}), tiles });
     }));
   function loadCanada(bounds) {
     if (!ski || !canIdx) return Promise.resolve();
@@ -657,6 +670,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         ski.huts = [...(ski.huts || []), ...hutFacts(t.huts || [])];
         ski.starts = [...(ski.starts || []), ...(t.starts || [])];
         ski.parking = [...(ski.parking || []), ...(t.parking || [])];
+        if (t.lifts && t.lifts.length && window.tfLifts) window.tfLifts.add(t);
         clearTimeout(canRedraw);
         canRedraw = setTimeout(() => { if (sport === "ski") { drawSki(); renderList(); } }, 50);
       }).catch(() => canGot.delete(k));
@@ -1242,19 +1256,20 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   function avyHtml(area, info, pt) {
     const data = example ? exampleData() : avy;
-    const link = `<a href="https://avalanche.ca/map" target="_blank" rel="noopener">Avalanche Canada map</a>`;
+    const at = pt || (info && info.pts && info.pts[0] ? [info.pts[0].lat, info.pts[0].lon] : null), site = at ? avySite(at[0], at[1]) : AVY_SITE.ca;
+    const link = siteLink(site);
     if (!data) return `<h4>Avalanche</h4><p class="sk-note">${avyErr ? `The avalanche forecast isn't on the site yet. ${link}` : "Loading the avalanche forecast…"}</p>`;
     const f = area && area.forecast, d = f && dayOf(f);
     const rated = f && f.days?.some((x) => x.alp || x.tln || x.btl);
     let html = `<h4>Avalanche${f ? `: ${esc(f.title || area.name)}` : ""}</h4>`;
     if (example) html += `<div class="av-warn">EXAMPLE, not a real forecast.</div>`;
-    if (!f || !d) html += `<p>No avalanche forecast here right now. Avalanche Canada's daily forecasts run from about late November to April. ${link}</p>`;
+    if (!f || !d) html += `<p>No avalanche forecast here right now. ${site.season} ${link}</p>`;
     else {
       const expired = !example && f.validUntil && new Date(f.validUntil) < new Date();
       const on = info ? bandKm(info, area.bands) : null;
       // Today in words, later days as the number only, so three days fit across a phone.
       const chip = (r, short) => `<span class="av-chip" title="${DANGER[r].label}" style="background:${DANGER[r].color};color:${r >= 4 ? "#fff" : "#1a1a1a"}">${short ? r || "–" : DANGER[r].label}</span>`;
-      if (expired) html += `<div class="av-warn">This forecast has expired. Check avalanche.ca for the latest.</div>`;
+      if (expired) html += `<div class="av-warn">This forecast has expired. Check ${site.host} for the latest.</div>`;
       if (rated) {
         html += `<table class="sk-avt"><tr><th></th>${f.days.map((x) => `<th>${esc((x.label || x.date || "").slice(0, 3))}</th>`).join("")}</tr>
           ${BANDS.map(([b, n]) => `<tr class="${on && on[b] < 0.05 ? "off" : ""}"><th>${n}${on ? `<span class="sk-note">${on[b] >= 0.05 ? `${on[b].toFixed(1)} km of the route` : "not on the route"}</span>` : ""}</th>${f.days.map((x, j) => `<td>${chip(x[b], j > 0)}</td>`).join("")}</tr>`).join("")}</table>`;
@@ -1273,7 +1288,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       }).join("");
       const sum = f.summaries?.["avalanche-summary"] || f.summaries?.["avalanche summary"];
       if (sum) html += `<h5>Recent avalanches (forecaster)</h5><p class="sk-pre">${esc(sum.slice(0, 900))}${sum.length > 900 ? "…" : ""}</p>`;
-      html += `<p><a href="${esc(f.url || "https://avalanche.ca/map")}" target="_blank" rel="noopener">Full forecast on avalanche.ca</a></p>`;
+      html += `${janNote(f)}<p><a href="${esc(f.url || site.url)}" target="_blank" rel="noopener">Full ${/^jan-/.test(f.id || "") ? "bulletin" : "forecast"} on ${site.host}</a></p>`;
     }
     html += minHtml(info ? info.pts : [{ lat: pt[0], lon: pt[1] }]);
     return html;
@@ -1371,6 +1386,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     "piste:grooming": (v) => ["Grooming", GROOM[v] || v], "piste:difficulty": null, highway: (v) => ON[v] && ["Follows", ON[v]],
     description: (v) => ["Description", v], "winter:access": (v) => ["Winter access", v.replace(/^Winter: /, "")], note: (v) => ["Note", v], operator: (v) => ["Run by", v], fee: (v, t) => !t.charge && ["Fee", v === "yes" ? "yes, a fee to use it" : v === "no" ? "free" : v],
     access: (v) => ["Access", yesNo(v)], ski: (v) => ["Skiing", yesNo(v)], snowmobile: (v) => ["Snowmobiles", yesNo(v)], "snowmobile:conditional": (v) => ["Snowmobiles when", v],
+    "name:ja": (v) => ["Japanese name", v], "description:en": (v) => ["Description", v],
     seasonal: (v) => ["Seasonal", v], opening_hours: (v) => ["Open", v], ref: (v) => ["Number", v], ele: (v) => ["Height", v + " m"],
     capacity: null, reservation: null, "reservation:website": null, "booking:note": null, charge: null, website: (v) => ["Website", v], url: (v) => ["Website", v],
     // Hut facts (data/huts.json): booking, price and beds are in the box at the top of the card (bookHtml).
@@ -1586,7 +1602,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!avy && !example && !avyErr) avTile = tile("skAvy", CGREY, "Avalanche", "Loading…", []);
     else if (!dg || !dg.r) {
       const none = !dgList.length ? "No forecast here today" : fIdx < 0 ? "Not forecast yet" : "No rating yet";
-      avTile = tile("skAvy", CGREY, "Avalanche", none, [{ m: !dgList.length ? "Avalanche Canada's daily forecasts run from about late November to April." : "Check avalanche.ca before you go." }]);
+      const site = avySite(info.top.lat, info.top.lon);
+      avTile = tile("skAvy", CGREY, "Avalanche", none, [{ m: !dgList.length ? site.season : `Check ${site.host} before you go.` }]);
     } else {
       const g = selGroup || [cond.r], pre = cond.r.src === "plan" || cond.r.src === "trip" ? null : groupTerrain(g);
       const official = g.find((x) => x.ates && x.ates.cls >= 1 && x.ates.cls <= 3)?.ates;
@@ -1922,7 +1939,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         <p class="sk-note">${esc(L0.what)}</p>
         ${days.length > 1 ? `<ul class="sk-checkdays">${days.filter((x) => x !== now).map((x) => `<li>${esc(dayName(x.d, x.j))}: ${lightPill(T.light(x.r, cls.c))} <span class="sk-note">${esc(DANGER[x.r].label.replace(/^\d /, ""))}, ${bandName(x.band)}</span></li>`).join("")}</ul>` : ""}`;
     } else {
-      head = `<div class="sk-check" style="--c:${cls.color}"><b>${cls.label} terrain</b><span>No danger rating ${f && !expired ? "yet" : "here today"}, so no trip planner light. Check <a href="https://avalanche.ca/map" target="_blank" rel="noopener">avalanche.ca</a> before you go.</span></div>`;
+      head = `<div class="sk-check" style="--c:${cls.color}"><b>${cls.label} terrain</b><span>No danger rating ${f && !expired ? "yet" : "here today"}, so no trip planner light. Check ${siteLink(avySite(top.lat, top.lon))} before you go.</span></div>`;
     }
     const k = watchKeyOf(r, top), on = watchList().some((w) => w.k === k);
     el.innerHTML = `<h4>Avalanche check${example ? " (example forecast)" : ""}</h4>${head}
@@ -2092,7 +2109,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   function spotAvyHtml(lat, lon, g, cls) {
     const data = example ? exampleData() : avy;
-    const link = `<a href="https://avalanche.ca/map" target="_blank" rel="noopener">Avalanche Canada map</a>`;
+    const site = avySite(lat, lon), link = siteLink(site);
     if (!data) return `<h4>Avalanche danger</h4><p class="sk-note">${avyErr ? `The avalanche forecast isn't on the site yet. ${link}` : "Loading the avalanche forecast…"}</p>`;
     const a = areaAt(lat, lon), f = a && a.forecast, bands = a ? a.bands : DEFAULT_BANDS, band = bandOf(g.e, bands);
     const bandN = BANDS.find((x) => x[0] === band)[1];
@@ -2100,7 +2117,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     let html = `<h4>Avalanche danger${f ? `: ${esc(f.title || a.name)}` : ""}</h4>`;
     if (example) html += `<div class="av-warn">EXAMPLE, not a real forecast.</div>`;
     const expired = f && !example && f.validUntil && new Date(f.validUntil) < new Date();
-    if (!f || !f.days || !f.days.length || expired) return html + `<p class="sk-note">${where}.</p><p>No avalanche forecast here right now${expired ? " (the last one has expired)" : ""}. Avalanche Canada's daily forecasts run from about late November to April. ${link}</p>`;
+    if (!f || !f.days || !f.days.length || expired) return html + `<p class="sk-note">${where}.</p><p>No avalanche forecast here right now${expired ? " (the last one has expired)" : ""}. ${site.season} ${link}</p>`;
     const d = dayOf(f), r = (d && d[band]) || 0, li = r ? T.light(r, cls.c) : -1;
     if (r && g.slope >= 25) {
       const mask = a ? a.mask[band] : 0, hit = mask & (1 << g.asp), lv = slopeLevel(r, hit, mask, g.slope);
@@ -2119,7 +2136,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }).join("");
     else if ((f.problems || []).length) html += `<p class="sk-note">None of today's avalanche problems are in the ${bandN.toLowerCase()}.</p>`;
     if (f.highlights) html += `<p><strong>${esc(f.highlights)}</strong></p>`;
-    return html + `<p><a href="${esc(f.url || "https://avalanche.ca/map")}" target="_blank" rel="noopener">Full forecast on avalanche.ca</a></p>`;
+    return html + `${janNote(f)}<p><a href="${esc(f.url || site.url)}" target="_blank" rel="noopener">Full ${/^jan-/.test(f.id || "") ? "bulletin" : "forecast"} on ${site.host}</a></p>`;
   }
   // Snow that fell (last 24 h, 3 days, week) and snow coming (next 24 h, 3 days, week) at the spot's height, each box
   // tinted with the New snow / Snow forecast map colours, then the weather day by day: the last 7 days and the next 7.
@@ -2540,20 +2557,20 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // Short: the day's three ratings and one line of what to do, with everything else one tap away (alex 2026-10-24).
     const shade = `<button type="button" class="av-pill" id="avShade" aria-pressed="${avyOn}"><i class="av-sw" aria-hidden="true"></i>${avyOn ? "Slopes shaded" : "Shade slopes"}</button>`;
     const top = (where) => `<div class="av-top"><h3>⚠ Avalanche</h3>${where ? `<span class="av-where">${where}</span>` : ""}</div>`;
-    const c = map.getCenter(), wxAt = () => ((avy || example) && areaAt(c.lat, c.lng)?.bands || DEFAULT_BANDS).hi;
+    const c = map.getCenter(), site = avySite(c.lat, c.lng), wxAt = () => ((avy || example) && areaAt(c.lat, c.lng)?.bands || DEFAULT_BANDS).hi;
     const short = (where, msg, ex) => { card.innerHTML = `${top(where)}<p class="av-line">${msg}</p><div id="avWx">${cardWeather(c, wxAt())}</div>${ex ? `<div class="av-foot"><button type="button" class="av-pill" id="avEx">See an example</button></div>` : ""}`; bindEx(); };
     if (!data) return short("", avyErr ? "The forecast isn't on the site yet." : "Loading the forecast…", !!avyErr);
-    if (!example && !hasForecasts()) return short("", "No forecast right now: Avalanche Canada's run from about late November to April.", true);
+    if (!example && !hasForecasts()) return short("", `No forecast right now. ${site.season}`, true);
     // Only the area under the map centre (or a forecast with no outline): the Chic-Chocs used to show Glacier's forecast.
     const area = (example ? null : areaAt(c.lat, c.lng)) || (data.areas.find((a) => a.polys.some((p) => inPoly(c.lat, c.lng, p))) || data.areas.find((a) => !a.polys.length && a.forecast?.days?.length));
     const f = area && area.forecast;
-    if (!area) return short("", `No avalanche forecast covers this spot. Check <a href="https://avalanche.ca/map" target="_blank" rel="noopener">avalanche.ca</a> for the nearest one.`);
+    if (!area) return short("", site === AVY_SITE.jp ? `No avalanche bulletin covers this spot. ${site.season} ${siteLink(site)}` : `No avalanche forecast covers this spot. Check <a href="https://avalanche.ca/map" target="_blank" rel="noopener">avalanche.ca</a> for the nearest one.`);
     if (!f || !f.days?.length) return short(esc(area.name), "No forecast for this area right now.");
     const d = dayOf(f), expired = !example && f.validUntil && new Date(f.validUntil) < new Date();
     const notes = Object.values(f.summaries || {}).filter(Boolean), rated = example || f.days.some((x) => x.alp || x.tln || x.btl);
     const band = (b, n) => { const r = d[b] || 0, x = DANGER[r]; return `<div class="av-band" style="--c:${x.color};--t:${r >= 4 ? "#fff" : "#1a1a1a"}"><b>${esc(x.label.replace(/^\d /, ""))}</b><span>${n}</span></div>`; };
     card.innerHTML = `${example ? `<div class="av-warn">EXAMPLE, not a real forecast.</div>` : ""}
-      ${expired ? `<div class="av-warn">This forecast has expired. Check avalanche.ca.</div>` : ""}
+      ${expired ? `<div class="av-warn">This forecast has expired. Check ${site.host}.</div>` : ""}
       ${top(esc(f.title || area.name))}
       ${rated ? `${f.days.length > 1 ? `<div class="av-days" role="group" aria-label="Day">${f.days.map((x, i) => `<button type="button" data-d="${i}" aria-pressed="${x === d}">${esc(x.label || x.date)}</button>`).join("")}</div>` : ""}
       <div class="av-bands">${BANDS.map(([b, n]) => band(b, n)).join("")}</div>`
@@ -2566,9 +2583,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         ${minHtml([{ lat: c.lat, lon: c.lng }])}
         ${avyOn ? `<h5>Slope colours</h5><ul class="av-legend">${DANGER.slice(1).map((x) => `<li><i style="background:${x.color}"></i>${x.label}</li>`).join("")}<li><i style="background:repeating-linear-gradient(135deg,#f79218 0 3px,#7a4a0c 3px 5px)"></i>Problem aspect</li></ul>
         <p class="sk-note">Slopes of 25° and more, coloured by their band's rating (treeline about ${area.bands.lo}-${area.bands.hi} m here), then one level less where a slope faces away from today's problems or is under 30°, and one more at 40°+ on a problem aspect. An estimate, not a terrain rating.</p>` : ""}
-        <p class="sk-note">${f.issued ? "Issued " + esc(new Date(f.issued).toLocaleDateString()) + ", for" : "For"} the middle of the map.</p>
+        ${janNote(f)}<p class="sk-note">${f.issued ? "Issued " + esc(new Date(f.issued).toLocaleDateString()) + ", for" : "For"} the middle of the map.</p>
       </details>
-      <div class="av-foot">${shade}${example ? `<button type="button" class="av-pill" id="avExOff">Hide example</button>` : rated ? "" : `<button type="button" class="av-pill" id="avEx">Example</button>`}<a class="av-pill" href="${esc(f.url || "https://avalanche.ca/map")}" target="_blank" rel="noopener">avalanche.ca ↗</a></div>`;
+      <div class="av-foot">${shade}${example ? `<button type="button" class="av-pill" id="avExOff">Hide example</button>` : rated ? "" : `<button type="button" class="av-pill" id="avEx">Example</button>`}<a class="av-pill" href="${esc(f.url || site.url)}" target="_blank" rel="noopener">${site.host} ↗</a></div>`;
     card.querySelectorAll(".av-days button").forEach((b) => b.addEventListener("click", () => { day = +b.dataset.d; refreshAvy(); }));
     $("avMore").addEventListener("toggle", (e) => { avMore = e.currentTarget.open; });
     const off = $("avExOff"); if (off) off.addEventListener("click", () => { example = false; refreshAvy(); });
@@ -3671,11 +3688,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // in this order (the order they used to have in index.html), after the page's own scripts, and each one draws
   // itself for the sport that's on when it arrives. Same ?v= as this script, for the same cache rule.
   const jsVer = (document.currentScript && new URL(document.currentScript.src).search) || "";
-  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "moto"];
+  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "moto"];
   const NEEDS = {
     hunt: ["crownland", "hunting", "compass"],
     fish: ["crownland", "fish-bait", "fish-route", "fishing"],
-    ski: ["webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip"],
+    ski: ["webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "camper", "japanese"],
     moto: ["crownland", "hunting", "moto"],   // Moto's "Can I ride here" reads Hunting's parks and closures (window.tfHunt)
   };
   const jsLoads = {};
