@@ -262,6 +262,8 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 #skiPane details p { white-space: pre-line; }
 .sk-pin { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px #0006; color: #fff; font-size: 12px; line-height: 1; }
 .sk-pin.on { outline: 3px solid #ffe14d; }
+.leaflet-tooltip.sk-hutname { background: none; border: 0; box-shadow: none; padding: 0; color: #7a2e10; font: 700 12px/1.2 system-ui, sans-serif; text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff; }
+.leaflet-tooltip.sk-hutname:before { display: none; }
 .sk-pin.park { border-radius: 6px; font-weight: 800; font-family: system-ui, sans-serif; }
 body.sport-ski details.legend.sk-key { display: block !important; }
 body:not(.sport-ski) details.legend.sk-key { display: none !important; }
@@ -629,7 +631,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     });
   }
   // A tap on a route, hut or start: its details, or, while planning a tour, the next point of the plan.
-  const tap = (e, it) => { L.DomEvent.stopPropagation(e); if (plan.on) planAdd(e.latlng); else select(it); };
+  // A tap on the map opens the card and brings it up on phones, as a tap on an empty spot does (alex 2026-10-30).
+  const tap = (e, it) => { L.DomEvent.stopPropagation(e); if (plan.on) planAdd(e.latlng); else { select(it); cardInView($("skDetail"), it.lat, it.lon); } };
   function drawSki() {
     skiLayer.clearLayers(); hutLayer.clearLayers();
     if (!ski) return;
@@ -654,11 +657,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       }
     }
     if (shown.has("hut")) for (const h of ski.huts || []) {
-      const m = L.circleMarker([h.lat, h.lon], { renderer: skiRenderer, radius: selected === h ? 9 : 6, color: "#fff", weight: 2, fillColor: HUT.color, fillOpacity: 1 });
+      const m = L.circleMarker([h.lat, h.lon], { renderer: skiRenderer, radius: selected === h ? 9 : 6, color: "#fff", weight: 2, fillColor: HUT.color, fillOpacity: 1, label: h.name || "", labelZoom: 12.5 });
       m.bindTooltip(esc(h.name || "Hut"));
       m.on("click", (e) => tap(e, h));
       hutLayer.addLayer(m);
     }
+    drawHutNames();
     drawParking();
     if (shown.has("tour")) for (const h of ski.starts || []) {
       const m = L.marker([h.lat, h.lon], { icon: L.divIcon({ className: "", html: `<span class="sk-pin${selected === h ? " on" : ""}" style="background:${START.color}">⛷</span>`, iconSize: [24, 24], iconAnchor: [12, 12] }) });
@@ -667,6 +671,19 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       hutLayer.addLayer(m);
     }
   }
+  // Hut names beside the brown dots once zoomed in close (alex 2026-10-30); the 3D map writes them from the dots' label.
+  const HUT_NAME_ZOOM = 13;
+  const hutNames = L.layerGroup();
+  function drawHutNames() {
+    hutNames.clearLayers();
+    if (sport !== "ski" || !ski || !shown.has("hut") || map.getZoom() < HUT_NAME_ZOOM) return;
+    const box = map.getBounds().pad(0.3);
+    for (const h of ski.huts || []) {
+      if (!h.name || !box.contains([h.lat, h.lon])) continue;
+      hutNames.addLayer(L.tooltip({ permanent: true, direction: "right", offset: [8, 0], className: "sk-hutname", interactive: false }).setLatLng([h.lat, h.lon]).setContent(esc(h.name)));
+    }
+  }
+  map.on("moveend", () => { if (sport === "ski") drawHutNames(); });
   // Trailhead parking pins, on the 3D map too (it doesn't show Leaflet markers).
   const parkLayer = L.layerGroup();
   let parkGl = [];
@@ -685,7 +702,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (gl && window.maplibregl) {
         const el = document.createElement("div");
         el.title = label; el.innerHTML = parkPin(h);
-        el.addEventListener("click", (e) => { e.stopPropagation(); if (plan.on) planAdd(L.latLng(h.lat, h.lon)); else select(h); });
+        el.addEventListener("click", (e) => { e.stopPropagation(); if (plan.on) planAdd(L.latLng(h.lat, h.lon)); else { select(h); cardInView($("skDetail"), h.lat, h.lon); } });
         parkGl.push(new maplibregl.Marker({ element: el, anchor: "center", opacityWhenCovered: 1 }).setLngLat([h.lon, h.lat]).addTo(gl));
       }
     }
@@ -2058,15 +2075,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   // Phones: the sheet up to half. The camera stays where it is (alex 2026-10-27: a tap that zoomed the 3D map out was
   // unwelcome); only on the flat map, a spot the sheet now covers slides up above it, at the same zoom.
-  function spotInView(lat, lon) {
-    if (!PHONE_UI()) { if (window.tfPanelScrollTo) window.tfPanelScrollTo($("skSpot")); return; }
-    if (window.tfSnapTo) { const p = document.querySelector(".panel"); if (p && !p.classList.contains("sheet-half")) window.tfSnapTo("half"); }
+  const spotInView = (lat, lon) => cardInView($("skSpot"), lat, lon);
+  // Phones: the sheet up to half with the card at its top, and the tapped point slid clear of the sheet (flat map only).
+  function cardInView(el, lat, lon) {
+    if (!el || el.hidden) return;
+    if (!PHONE_UI()) { if (window.tfPanelScrollTo) window.tfPanelScrollTo(el); return; }
+    if (window.tfSnapTo) { const p = document.querySelector(".panel"); if (!p || p.classList.contains("sheet-peek")) window.tfSnapTo("half"); }   // only grows the sheet
     setTimeout(() => {
-      if (window.tfPanelScrollTo) window.tfPanelScrollTo($("skSpot"));
-      const sc = window.tfPanelScroller && window.tfPanelScroller($("skSpot"));
+      if (window.tfPanelScrollTo) window.tfPanelScrollTo(el);
+      const sc = window.tfPanelScroller && window.tfPanelScroller(el);
       if (sc) sc.scrollTop = Math.max(0, sc.scrollTop - 16);   // a little room above the card, clear of the sheet's handle
       const panel = document.querySelector(".panel"), box = map.getContainer().getBoundingClientRect();
-      if (!panel || map.getContainer().closest(".is3d")) return;   // 3D: the class is on the map's wrapper
+      if (lat == null || !panel || map.getContainer().closest(".is3d")) return;   // 3D: the class is on the map's wrapper
       const top = panel.getBoundingClientRect().top, y = box.top + map.latLngToContainerPoint([lat, lon]).y;
       if (y < top - 40) return;
       map.panBy([0, y - (box.top + (top - box.top) * 0.6)]);
@@ -3522,12 +3542,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (sport === "mtb") mtb.forEach((l) => { if (!map.hasLayer(l)) l.addTo(map); });
     else mtb.forEach((l) => map.removeLayer(l));
     if (sport === "ski") {
-      skiLayer.addTo(map); hutLayer.addTo(map); pinLayer.addTo(map); parkLayer.addTo(map); mineLayer.addTo(map); clubLayer.addTo(map); snowLayer.addTo(map); aboveLayer.addTo(map);
+      skiLayer.addTo(map); hutLayer.addTo(map); hutNames.addTo(map); pinLayer.addTo(map); parkLayer.addTo(map); mineLayer.addTo(map); clubLayer.addTo(map); snowLayer.addTo(map); aboveLayer.addTo(map);
       loadSki(); loadMine(); loadClubs(); if (shown.has("snow")) loadSnow(); renderSwitches(); renderList(); drawPlan(); renderPlan();
     } else {
       setPlanning(false);
       drawParking();
-      [skiLayer, hutLayer, pinLayer, parkLayer, mineLayer, clubLayer, hoverLayer, snowLayer, aboveLayer, plan.layer].forEach((l) => map.removeLayer(l));
+      [skiLayer, hutLayer, hutNames, pinLayer, parkLayer, mineLayer, clubLayer, hoverLayer, snowLayer, aboveLayer, plan.layer].forEach((l) => map.removeLayer(l));
     }
     // The map's ▶ Ride button records a ski tour in Skiing (navigate.js).
     const rideBtn = document.getElementById("navRideBtn");
