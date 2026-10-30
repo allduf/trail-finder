@@ -198,6 +198,8 @@ const CHECKS = [
     }
     if (src === "home" || s.pv === "ab") return ok(n, `${n} roads`);
     if (gov) return ok(n + gov, `${n} roads + ${gov} government road lines with their status`);
+    // New Brunswick's forest road map (no status published) is drawn as the province's own map picture (EAST_ROADS).
+    if (s.pv === "nb") return ok(n, `${n} roads + New Brunswick's forest road map`);
     return asked.length ? ok(n, `${n} roads (the ${asked[0].toUpperCase()} government road map has none here)`) : less(n, `${n} roads (OpenStreetMap only: no government road status)`);
   }],
   ["areas", "Riding area names", "Riding", async (s) => {

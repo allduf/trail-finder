@@ -13,7 +13,9 @@
 //   on  Ontario MNRF Road Segment (LIO open data): open / restricted / closed, maintenance level, gates, owner
 //   qc  Québec AQréseau+ multi-use and forest roads: drivable (carrossable) or not, manager
 //   ns  Nova Scotia Topographic Database roads: resource access roads, tracks, dry-weather and abandoned roads, owner
-//   nb  New Brunswick ForestRoads: forest roads not maintained by the province (no other details published)
+// New Brunswick's forest road map has no details (no status, no names): the app already draws it as the province's own
+// map picture (EAST_ROADS in index.html), so it isn't copied here. Ontario's is drawn there too, but only as grey dashes;
+// these lines add each road's status on top.
 // Government maps change slowly: a chunk keeps last night's answer (refs/ca/last, the previous canada-data branch) for
 // a week, and at most GOV_MINUTES (default 30) of asking is done a night, oldest chunks first.
 //
@@ -138,12 +140,6 @@ const SOURCES = {
         : /^TRACK/i.test(d) ? ["unknown", "track"] : ["unknown", "resource access road"];
       return { n: str(a.STREET), t: d.replace(/^ROAD - /, "").toLowerCase(), s: "", p: str(a.OWNER_DESC), f: str(a.ROADSEGID), d: "", k, w };
     },
-  },
-  nb: {
-    box: [44.5, -69.1, 48.1, -63.7], label: "New Brunswick forest roads",
-    url: "https://gis-erd-der.gnb.ca/server/rest/services/OpenData/ForestRoads/MapServer/0",
-    where: "1=1", fields: "OBJECTID",
-    road() { return { n: "", t: "forest road", s: "", p: "", f: "", d: "", k: "unknown", w: "forest road, not maintained by the province" }; },
   },
 };
 

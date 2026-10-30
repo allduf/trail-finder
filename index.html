@@ -1516,14 +1516,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=1250"></script>
-<script src="native.js?v=1250"></script>
-<script src="keyboard.js?v=1250"></script>
-<script src="rotate.js?v=1250"></script>
-<script src="official.js?v=1250"></script>
-<script src="directions.js?v=1250"></script>
-<script src="ratings.js?v=1250"></script>
-<script src="ebike.js?v=1250"></script>
+<script src="welcome.js?v=1290"></script>
+<script src="native.js?v=1290"></script>
+<script src="keyboard.js?v=1290"></script>
+<script src="rotate.js?v=1290"></script>
+<script src="official.js?v=1290"></script>
+<script src="directions.js?v=1290"></script>
+<script src="ratings.js?v=1290"></script>
+<script src="ebike.js?v=1290"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -4118,7 +4118,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=1250").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=1290").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5935,9 +5935,9 @@ out body;`;
       return ["good", sm ? `smoothness=${sm}` : tt ? `tracktype=${tt} (solid)` : `surface=${t.surface}`];
     return ["unknown", "no condition mapped"];
   }
-  // Outside the home zones the chunk files also carry other provinces' government road maps (src yt, on, qc, ns, nb;
+  // Outside the home zones the chunk files also carry other provinces' government road maps (src yt, on, qc, ns;
   // scripts/build-gov-roads.mjs), each with its state already worked out (k) and why (w).
-  const GOV_ROADS = { yt: "Yukon forest resource roads", on: "Ontario MNRF roads", qc: "Québec AQréseau+ roads", ns: "Nova Scotia topographic roads", nb: "New Brunswick forest roads" };
+  const GOV_ROADS = { yt: "Yukon forest resource roads", on: "Ontario MNRF roads", qc: "Québec AQréseau+ roads", ns: "Nova Scotia topographic roads" };
   function ftenRoadStatus(r) {
     if (r.k && ROAD_STATUS[r.k]) return [r.k, r.w || ""];
     if (r.s === "RETIRED") return ["heavy", `tenure retired${r.d ? " " + r.d : ""}: no longer maintained, often deactivated`];
@@ -6188,6 +6188,28 @@ out body;`;
     opacity: 0.7, minZoom: ROAD_MIN_ZOOM, bounds: L.latLngBounds([44.99, -79.8], [62.6, -57.1]), pane: "roadAreas",
     attribution: "Logging: © Gouvernement du Québec (CC BY 4.0)",
   });
+  // Ontario and New Brunswick publish their forest (resource) roads: the provinces' own map pictures (ArcGIS export),
+  // drawn like our roads of unknown condition (grey dashes), Ontario's impassable ones like ours (black dashes) and its
+  // road barriers and gates as red squares. Only inside each province, with Forest roads on and zoomed in (alex
+  // 2026-10-30: eastern Canada up to Whistler level). Nova Scotia's road file is only a map-sheet index, so not used.
+  const esriLine = (c, st = "esriSLSDash") => ({ type: "esriSLS", style: st, color: c, width: 1.6 });
+  const EAST_ROADS = [
+    { url: "https://ws.lioservices.lrc.gov.on.ca/arcgis2/rest/services/LIO_OPEN_DATA/LIO_Open09/MapServer", bounds: [[41.6, -95.2], [56.9, -74.3]],
+      attribution: "Forest roads: Ontario MNRF, Land Information Ontario (OGL-Ontario)", key: "Ontario: forest road (MNRF), red square = gate or barrier",
+      layers: [{ id: 18, source: { type: "mapLayer", mapLayerId: 18 }, drawingInfo: { renderer: { type: "uniqueValue", field1: "PASSABLE_IND",
+        defaultSymbol: esriLine([138, 143, 152, 255]), uniqueValueInfos: [{ value: "N", symbol: esriLine([17, 17, 17, 255]) }] } } },
+      { id: 22, source: { type: "mapLayer", mapLayerId: 22 }, drawingInfo: { renderer: { type: "simple",
+        symbol: { type: "esriSMS", style: "esriSMSSquare", color: [214, 40, 40, 255], size: 6, outline: { color: [255, 255, 255, 255], width: 1 } } } } }] },
+    { url: "https://gis-erd-der.gnb.ca/server/rest/services/OpenData/ForestRoads/MapServer", bounds: [[44.5, -69.1], [48.1, -63.7]],
+      attribution: "Forest roads: New Brunswick Department of Natural Resources and Energy Development", key: "New Brunswick: forest road (NRED)",
+      layers: [{ id: 0, source: { type: "mapLayer", mapLayerId: 0 }, drawingInfo: { renderer: { type: "simple", symbol: esriLine([138, 143, 152, 255]) } } }] },
+  ].map((r) => ({ ...r, layer: new (L.TileLayer.extend({
+    getTileUrl(c) {
+      const S = 20037508.342789244, w = (2 * S) / 2 ** c.z, sz = this.getTileSize().x;
+      const bbox = [-S + c.x * w, S - (c.y + 1) * w, -S + (c.x + 1) * w, S - c.y * w].join(",");
+      return `${r.url}/export?bbox=${bbox}&bboxSR=3857&imageSR=3857&size=${sz},${sz}&format=png32&transparent=true&f=image&dynamicLayers=${encodeURIComponent(JSON.stringify(r.layers))}`;
+    },
+  }))("", { minZoom: ROAD_MIN_ZOOM, bounds: L.latLngBounds(r.bounds), pane: "roadAreas", attribution: r.attribution }) }));
   // Everywhere else (outside the home zones, where BC and Alberta cut blocks come with the road files, and Quebec): forest
   // lost since 2010 as seen from space, Global Forest Watch's tree cover loss (Hansen/UMD, 30 m, CC BY 4.0): mostly
   // logging, also fires and storms (alex 2026-10-28: logging layers everywhere). Its tiles hold the amount in red and the
@@ -6310,6 +6332,7 @@ out body;`;
     const qcOn = state.areas && map.getZoom() >= ROAD_MIN_ZOOM && map.getBounds().intersects(qcLogging.options.bounds);
     if (qcOn !== map.hasLayer(qcLogging)) { qcOn ? qcLogging.addTo(map) : map.removeLayer(qcLogging); renderKey(); }
     if (areasOn !== map.hasLayer(lossLayer)) { areasOn ? lossLayer.addTo(map) : map.removeLayer(lossLayer); renderKey(); }
+    EAST_ROADS.forEach((r) => { const v = on && map.getBounds().intersects(r.layer.options.bounds); if (v !== map.hasLayer(r.layer)) { v ? r.layer.addTo(map) : map.removeLayer(r.layer); renderKey(); } });
     if (key !== areaKey) {
       areaKey = key;
       areaLayer.clearLayers();
@@ -6671,7 +6694,7 @@ out body;`;
     if (state.roads) html += section("Forest roads", ["good", "degraded", "heavy", "impass", "unknown", "closed"].map((st) => {
         const c = roadStyle(st).color;
         return sw(ROAD_STYLE[st].dashArray ? `background: repeating-linear-gradient(90deg, ${c} 0 6px, #fff 6px 10px)` : `background: ${c}`, ROAD_STATUS[st].label);
-      }).join(""))
+      }).join("") + EAST_ROADS.filter((r) => map.hasLayer(r.layer)).map((r) => sw("background: repeating-linear-gradient(90deg, #8a8f98 0 6px, #fff 6px 10px)", r.key)).join(""))
       + section("Road features (zoom in)", Object.values(FEAT).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join(""));
     else html += section("Forest roads", sw("background: var(--road-plain)", "Forest road (turn on Forest roads in Layers for status)"));
     if (state.areas) html += section("Logging areas", Object.values(AREA_STYLE).map(areaSw).join("")
@@ -8037,46 +8060,47 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=1250"></script>
-<script src="contours.js?v=1250"></script>
-<script src="clouds.js?v=1250"></script>
-<script src="smoke.js?v=1250"></script>
-<script src="radar.js?v=1250"></script>
-<script src="photo-slider.js?v=1250"></script>
-<script src="ski-terrain.js?v=1250"></script>
-<script src="place-search.js?v=1250"></script>
-<script src="winter.js?v=1250"></script>
-<script src="hunts.js?v=1250"></script>
-<script src="ski-points.js?v=1250"></script>
-<script src="offline.js?v=1250"></script>
-<script src="ride-stats.js?v=1250"></script>
-<script src="native-gps.js?v=1250"></script>
-<script src="navigate.js?v=1250"></script>
-<script src="planner.js?v=1250"></script>
-<script src="loops.js?v=1250"></script>
-<script src="ride-finds.js?v=1250"></script>
-<script src="rides.js?v=1250"></script>
-<script src="community.js?v=1250"></script>
-<script src="ride-files.js?v=1250"></script>
-<script src="rider-trails.js?v=1250"></script>
-<script src="account.js?v=1250"></script>
-<script src="live.js?v=1250"></script>
-<script src="strava.js?v=1250"></script>
-<script src="reports.js?v=1250"></script>
-<script src="grades.js?v=1250"></script>
-<script src="trail-photos.js?v=1250"></script>
-<script src="visitors.js?v=1250"></script>
-<script src="usage.js?v=1250"></script>
-<script src="notify.js?v=1250"></script>
-<script src="closures.js?v=1250"></script>
-<script src="status.js?v=1250"></script>
-<script src="ask.js?v=1250"></script>
-<script src="areas.js?v=1250"></script>
-<script src="alpine.js?v=1250"></script>
-<script src="bikeparks.js?v=1250"></script>
-<script src="photo-find.js?v=1250"></script>
-<script src="whats-new.js?v=1250"></script>
-<script src="app-update.js?v=1250"></script>
+<script src="map3d.js?v=1290"></script>
+<script src="native-map.js?v=1290"></script>
+<script src="contours.js?v=1290"></script>
+<script src="clouds.js?v=1290"></script>
+<script src="smoke.js?v=1290"></script>
+<script src="radar.js?v=1290"></script>
+<script src="photo-slider.js?v=1290"></script>
+<script src="ski-terrain.js?v=1290"></script>
+<script src="place-search.js?v=1290"></script>
+<script src="winter.js?v=1290"></script>
+<script src="hunts.js?v=1290"></script>
+<script src="ski-points.js?v=1290"></script>
+<script src="offline.js?v=1290"></script>
+<script src="ride-stats.js?v=1290"></script>
+<script src="native-gps.js?v=1290"></script>
+<script src="navigate.js?v=1290"></script>
+<script src="planner.js?v=1290"></script>
+<script src="loops.js?v=1290"></script>
+<script src="ride-finds.js?v=1290"></script>
+<script src="rides.js?v=1290"></script>
+<script src="community.js?v=1290"></script>
+<script src="ride-files.js?v=1290"></script>
+<script src="rider-trails.js?v=1290"></script>
+<script src="account.js?v=1290"></script>
+<script src="live.js?v=1290"></script>
+<script src="strava.js?v=1290"></script>
+<script src="reports.js?v=1290"></script>
+<script src="grades.js?v=1290"></script>
+<script src="trail-photos.js?v=1290"></script>
+<script src="visitors.js?v=1290"></script>
+<script src="usage.js?v=1290"></script>
+<script src="notify.js?v=1290"></script>
+<script src="closures.js?v=1290"></script>
+<script src="status.js?v=1290"></script>
+<script src="ask.js?v=1290"></script>
+<script src="areas.js?v=1290"></script>
+<script src="alpine.js?v=1290"></script>
+<script src="bikeparks.js?v=1290"></script>
+<script src="photo-find.js?v=1290"></script>
+<script src="whats-new.js?v=1290"></script>
+<script src="app-update.js?v=1290"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
