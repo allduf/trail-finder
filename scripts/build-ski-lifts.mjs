@@ -38,6 +38,32 @@ const RESORTS = [
   ["bluemtn", "Blue Mountain", 44.503, -80.312, 0.02, 0.03],
   ["bromont", "Bromont, montagne d'expériences", 45.305, -72.648, 0.02, 0.03],
   ["msa", "Mont-Sainte-Anne", 47.075, -70.905, 0.025, 0.035],
+  // Eastern Canada up to Whistler level (2026-10-30): every bigger hill east of the Rockies, live where its page can be read.
+  ["stoneham", "Stoneham", 47.03, -71.39, 0.02, 0.03],
+  ["massif", "Le Massif de Charlevoix", 47.29, -70.58, 0.03, 0.04],
+  ["sutton", "Mont Sutton", 45.1, -72.55, 0.025, 0.03],
+  ["orford", "Mont Orford", 45.31, -72.24, 0.03, 0.045],
+  ["vsc", "Val Saint-Côme", 46.265, -73.865, 0.025, 0.035],
+  ["relais", "Le Relais", 46.938, -71.297, 0.015, 0.02],
+  ["msl", "Mount St. Louis Moonstone", 44.624, -79.667, 0.015, 0.025],
+  ["sommets", "Sommet Saint-Sauveur", 45.885, -74.15, 0.02, 0.03],
+  ["owlshead", "Owl's Head", 45.065, -72.3, 0.02, 0.03],
+  ["montblanc", "Mont Blanc", 46.115, -74.48, 0.02, 0.03],
+  ["campfortune", "Camp Fortune", 45.511, -75.844, 0.015, 0.02],
+  ["edelweiss", "Sommet Edelweiss", 45.642, -75.85, 0.015, 0.02],
+  ["msm", "Mont Sainte-Marie", 45.93, -75.86, 0.02, 0.03],
+  ["calabogie", "Calabogie Peaks", 45.269, -76.787, 0.015, 0.025],
+  ["horseshoe", "Horseshoe Resort", 44.549, -79.674, 0.012, 0.02],
+  ["massifdusud", "Massif du Sud", 46.62, -70.48, 0.02, 0.03],
+  ["vallee", "Vallée du Parc", 46.615, -72.8, 0.015, 0.02],
+  ["searchmont", "Searchmont", 46.775, -84.06, 0.025, 0.04],
+  ["lochlomond", "Loch Lomond", 48.294, -89.347, 0.015, 0.02],
+  ["sugarloaf", "Sugarloaf", 47.975, -66.68, 0.015, 0.02],
+  ["crabbe", "Crabbe Mountain", 46.12, -67.11, 0.015, 0.025],
+  ["wentworth", "Ski Wentworth", 45.608, -63.552, 0.015, 0.025],
+  ["martock", "Ski Martock", 44.936, -64.171, 0.012, 0.02],
+  ["beneoin", "Ski Ben Eoin", 45.96, -60.43, 0.015, 0.025],
+  ["marble", "Marble Mountain", 48.94, -57.83, 0.02, 0.03],
 ];
 // ONLY=id,id rebuilds just those resorts and keeps the others as they are in data/ski-lifts.json (off season most
 // resorts' status lists are empty, so a full rebuild then would lose their matched status names).
@@ -51,7 +77,7 @@ async function json(url, tries = 3) {
       const r = await fetch(url, { headers: { "User-Agent": "TrailFinder ski lifts (allduf.github.io/trail-finder)" } });
       if (!r.ok) throw new Error(`${r.status} ${url}`);
       return await r.json();
-    } catch (e) { if (i >= tries) throw e; await sleep(2000 * (i + 1)); }
+    } catch (e) { if (i >= tries + (/^429/.test(e.message) ? 4 : 0)) throw e; await sleep((/^429/.test(e.message) ? 20000 : 2000) * (i + 1)); }
   }
 }
 const R = 6371e3, rad = (d) => (d * Math.PI) / 180;
@@ -139,13 +165,25 @@ const norm = (s, drop) => String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,
 const words = (s) => { const w = norm(s, true); return new Set(w.length ? w : norm(s, false)); };
 // Shared words over the longer name's; a name whose words are all in the other ("Stairway" for "Stairway to Heaven") counts.
 const score = (a, b) => { const A = words(a), B = words(b); if (!A.size || !B.size) return 0; let n = 0; for (const x of A) if (B.has(x)) n++; return n === Math.min(A.size, B.size) ? Math.max(0.6, n / Math.max(A.size, B.size)) : n / Math.max(A.size, B.size); };
+// Names the word match can't pair (numbers in front, "OW" for Ouest, another name on the map), checked by hand 2026-10-30:
+// the resort's status name -> the lift's name in OpenStreetMap.
+const HAND = {
+  stoneham: { "E - Éclipse": "L'Eclipse" },
+  massif: { "Tapis magique base": "Tapis Magique", "Téléski secteur débutant base": "Téléski secteur débutant base" },
+  sutton: { "Télésiège I Ouest": "I OW", "Télésiège II Ouest": "II (OW)", "Télésiège IV Ouest": "IV OW" },
+  orford: { "Télécabine hybride": "3-Gondole Hybride", "Alfred-Desrochers": "5-Quad Alfred D.", "Quad Giroux Est": "1-Quad Giroux Est", "Quad Giroux Nord": "2-Quad Giroux Nord", Rapido: "4-Triple Rapido" },
+  relais: { "L'Hexago : télésiège sextuple débrayable": "A. Télésiège septuple débrayable", "Tapis bout'chou": "tapis Bout' chou", "Tapis magique": "G-Tapis magique" },
+  msl: { "Summit Express": "Summit6 Express", "Adventure 8": "Adventure8 Express", "Promenade Express": "Promenade6 Express", "Kinder B": "Kinder Carpet" },
+};
 const unmatched = {};
 for (const [id] of RESORTS) {
   if (!SOURCES[id] || (ONLY && !ONLY.has(id))) continue;
   const v = await read(id);
   const names = id === "wb" && !v.lifts.length ? WB_NAMES : v.lifts.map((x) => x.n);
   const mine = lifts.filter((l) => l.r === id);
+  for (const [n, osm] of Object.entries(HAND[id] || {})) { const l = mine.find((x) => x.n === osm && !x.st); if (l && names.includes(n)) l.st = n; }
   for (const n of names) {
+    if (mine.some((l) => l.st === n)) continue;
     // One status line for several lifts ("T-Bars"): every T-bar of the resort.
     if (/^t-bars$/i.test(n)) { const tb = mine.filter((l) => l.k === "t-bar" && !l.st); tb.forEach((l) => (l.st = n)); if (tb.length) continue; }
     const best = mine.map((l) => [l, score(n, l.n)]).sort((a, b) => b[1] - a[1])[0];

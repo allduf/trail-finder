@@ -6189,6 +6189,28 @@ out body;`;
     opacity: 0.7, minZoom: ROAD_MIN_ZOOM, bounds: L.latLngBounds([44.99, -79.8], [62.6, -57.1]), pane: "roadAreas",
     attribution: "Logging: © Gouvernement du Québec (CC BY 4.0)",
   });
+  // Ontario and New Brunswick publish their forest (resource) roads: the provinces' own map pictures (ArcGIS export),
+  // drawn like our roads of unknown condition (grey dashes), Ontario's impassable ones like ours (black dashes) and its
+  // road barriers and gates as red squares. Only inside each province, with Forest roads on and zoomed in (alex
+  // 2026-10-30: eastern Canada up to Whistler level). Nova Scotia's road file is only a map-sheet index, so not used.
+  const esriLine = (c, st = "esriSLSDash") => ({ type: "esriSLS", style: st, color: c, width: 1.6 });
+  const EAST_ROADS = [
+    { url: "https://ws.lioservices.lrc.gov.on.ca/arcgis2/rest/services/LIO_OPEN_DATA/LIO_Open09/MapServer", bounds: [[41.6, -95.2], [56.9, -74.3]],
+      attribution: "Forest roads: Ontario MNRF, Land Information Ontario (OGL-Ontario)", key: "Ontario: forest road (MNRF), red square = gate or barrier",
+      layers: [{ id: 18, source: { type: "mapLayer", mapLayerId: 18 }, drawingInfo: { renderer: { type: "uniqueValue", field1: "PASSABLE_IND",
+        defaultSymbol: esriLine([138, 143, 152, 255]), uniqueValueInfos: [{ value: "N", symbol: esriLine([17, 17, 17, 255]) }] } } },
+      { id: 22, source: { type: "mapLayer", mapLayerId: 22 }, drawingInfo: { renderer: { type: "simple",
+        symbol: { type: "esriSMS", style: "esriSMSSquare", color: [214, 40, 40, 255], size: 6, outline: { color: [255, 255, 255, 255], width: 1 } } } } }] },
+    { url: "https://gis-erd-der.gnb.ca/server/rest/services/OpenData/ForestRoads/MapServer", bounds: [[44.5, -69.1], [48.1, -63.7]],
+      attribution: "Forest roads: New Brunswick Department of Natural Resources and Energy Development", key: "New Brunswick: forest road (NRED)",
+      layers: [{ id: 0, source: { type: "mapLayer", mapLayerId: 0 }, drawingInfo: { renderer: { type: "simple", symbol: esriLine([138, 143, 152, 255]) } } }] },
+  ].map((r) => ({ ...r, layer: new (L.TileLayer.extend({
+    getTileUrl(c) {
+      const S = 20037508.342789244, w = (2 * S) / 2 ** c.z, sz = this.getTileSize().x;
+      const bbox = [-S + c.x * w, S - (c.y + 1) * w, -S + (c.x + 1) * w, S - c.y * w].join(",");
+      return `${r.url}/export?bbox=${bbox}&bboxSR=3857&imageSR=3857&size=${sz},${sz}&format=png32&transparent=true&f=image&dynamicLayers=${encodeURIComponent(JSON.stringify(r.layers))}`;
+    },
+  }))("", { minZoom: ROAD_MIN_ZOOM, bounds: L.latLngBounds(r.bounds), pane: "roadAreas", attribution: r.attribution }) }));
   // Everywhere else (outside the home zones, where BC and Alberta cut blocks come with the road files, and Quebec): forest
   // lost since 2010 as seen from space, Global Forest Watch's tree cover loss (Hansen/UMD, 30 m, CC BY 4.0): mostly
   // logging, also fires and storms (alex 2026-10-28: logging layers everywhere). Its tiles hold the amount in red and the
@@ -6311,6 +6333,7 @@ out body;`;
     const qcOn = state.areas && map.getZoom() >= ROAD_MIN_ZOOM && map.getBounds().intersects(qcLogging.options.bounds);
     if (qcOn !== map.hasLayer(qcLogging)) { qcOn ? qcLogging.addTo(map) : map.removeLayer(qcLogging); renderKey(); }
     if (areasOn !== map.hasLayer(lossLayer)) { areasOn ? lossLayer.addTo(map) : map.removeLayer(lossLayer); renderKey(); }
+    EAST_ROADS.forEach((r) => { const v = on && map.getBounds().intersects(r.layer.options.bounds); if (v !== map.hasLayer(r.layer)) { v ? r.layer.addTo(map) : map.removeLayer(r.layer); renderKey(); } });
     if (key !== areaKey) {
       areaKey = key;
       areaLayer.clearLayers();
@@ -6662,7 +6685,7 @@ out body;`;
     if (state.roads) html += section("Forest roads", ["good", "degraded", "heavy", "impass", "unknown", "closed"].map((st) => {
         const c = roadStyle(st).color;
         return sw(ROAD_STYLE[st].dashArray ? `background: repeating-linear-gradient(90deg, ${c} 0 6px, #fff 6px 10px)` : `background: ${c}`, ROAD_STATUS[st].label);
-      }).join(""))
+      }).join("") + EAST_ROADS.filter((r) => map.hasLayer(r.layer)).map((r) => sw("background: repeating-linear-gradient(90deg, #8a8f98 0 6px, #fff 6px 10px)", r.key)).join(""))
       + section("Road features (zoom in)", Object.values(FEAT).map((k) => `<li>${pinHtml(k, "lg-ico")}${k.label}</li>`).join(""));
     else html += section("Forest roads", sw("background: var(--road-plain)", "Forest road (turn on Forest roads in Layers for status)"));
     if (state.areas) html += section("Logging areas", Object.values(AREA_STYLE).map(areaSw).join("")
@@ -8029,6 +8052,7 @@ out tags center qt;`;
 </script>
 
 <script src="map3d.js?v=1300"></script>
+<script src="native-map.js?v=1300"></script>
 <script src="contours.js?v=1300"></script>
 <script src="clouds.js?v=1300"></script>
 <script src="smoke.js?v=1300"></script>

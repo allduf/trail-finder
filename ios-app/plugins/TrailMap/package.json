@@ -1,0 +1,11 @@
+{
+  "name": "trail-map",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A trail map drawn by the iPhone itself (MapLibre Native), to try against the web map in MTB. Used by native-map.js on the website.",
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  }
+}
