@@ -59,7 +59,9 @@ const longRide = (r) => /^(ncn|rcn|icn)$/.test(r.tags.network || "") || r.ways.l
 // MTB trails too. Smithers' Bluff trails (Anti Flow, Meanstreak, Huckin' Eh...) are plain paths on the map, so the app showed
 // one trail there (coverage check, 2026-10-27).
 const AREA_M = 3000, SPARSE = 20;
-const AREAS = JSON.parse(readFileSync(new URL("data/riding-areas.json", root), "utf8")).areas.filter((a) => /^ca_/.test(a.zone || "") && a.paths !== false);
+// An area marked label only names the map: its named paths are its hiking trails (Blue Mountain, Collingwood: The Grind,
+// Cagey, Apple Bowl Lookout... on the resort's summer hiking map; the coverage check's rated share fell from 100% to 42%).
+const AREAS = JSON.parse(readFileSync(new URL("data/riding-areas.json", root), "utf8")).areas.filter((a) => /^ca_/.test(a.zone || "") && !a.label);
 const metres = (a, b) => Math.hypot((a[0] - b[0]) * 110540, (a[1] - b[1]) * 111320 * Math.cos((a[0] * Math.PI) / 180));
 const bikeOk = (t) => !/^(no|private)$/.test(t.access || "") && !/^(no|dismount|use_sidepath)$/.test(t.bicycle || "") && t.snowmobile !== "designated"
   && !(t["piste:type"] && !/^(yes|designated|permissive|customers)$/.test(t.bicycle || ""));

@@ -1,4 +1,4 @@
-{"v":1,"note":"Hand-picked riding area names for the map labels (areas.js). c is the middle of the area's MTB trails in data/mtb-<zone>.json (zone ca_<chunk>: a Canada map chunk outside the home zones, ca/c/<chunk>.json, e.g. Quebec). tier 1 shows from zoom 8, tier 2 from zoom 10; all hide from zoom 13. r (metres, optional) marks a backcountry area where every named path within r is a bike trail, however it is tagged (scripts/build-mtb.mjs). park (optional) adds every named path inside that provincial park too (zones in REC_ZONES only). all (optional, with r) counts unnamed paths within r too. official (optional) marks those named paths official on the map, with that text as the reason (paths named like roads excepted). paths: false (zone ca_ only) keeps the named paths around it out (a national park where only the trails in ratings.js HAND allow bikes).","areas":[
+{"v":1,"note":"Hand-picked riding area names for the map labels (areas.js). c is the middle of the area's MTB trails in data/mtb-<zone>.json (zone ca_<chunk>: a Canada map chunk outside the home zones, ca/c/<chunk>.json, e.g. Quebec). tier 1 shows from zoom 8, tier 2 from zoom 10; all hide from zoom 13. r (metres, optional) marks a backcountry area where every named path within r is a bike trail, however it is tagged (scripts/build-mtb.mjs). park (optional) adds every named path inside that provincial park too (zones in REC_ZONES only). all (optional, with r) counts unnamed paths within r too. official (optional) marks those named paths official on the map, with that text as the reason (paths named like roads excepted). label (optional, true) only names the area on the map: its plain named paths are never counted as bike trails (a resort whose named paths are its hiking trails, e.g. Blue Mountain in Collingwood).","areas":[
   {"name": "Mount Fromme", "zone": "van", "c": [49.3608, -123.0595], "tier": 1},
   {"name": "Mount Seymour", "zone": "van", "c": [49.3427, -122.9707], "tier": 1},
   {"name": "Cypress Mountain", "zone": "van", "c": [49.3598, -123.2086], "tier": 1},
@@ -245,7 +245,7 @@
   {"name": "Smithers Bluff", "zone": "ca_54_-127.2", "c": [54.7705, -127.184], "tier": 1},
   {"name": "Tyee Mountain (Telkwa)", "zone": "ca_54_-127.2", "c": [54.734, -126.948], "tier": 2},
   {"name": "Sugarloaf (Campbellton)", "zone": "ca_47_-67.2", "c": [47.9785, -66.6858], "tier": 1},
-  {"name": "Blue Mountain (Collingwood)", "zone": "ca_44_-80.4", "c": [44.497, -80.309], "tier": 1},
+  {"name": "Blue Mountain (Collingwood)", "zone": "ca_44_-80.4", "c": [44.497, -80.309], "tier": 1, "label": true},
   {"name": "Ski Wentworth", "zone": "ca_45_-63.6", "c": [45.63, -63.559], "tier": 1},
-  {"name": "Lake Louise", "zone": "ca_51_-116.4", "c": [51.425, -116.19], "tier": 1, "paths": false}
+  {"name": "Lake Louise", "zone": "ca_51_-116.4", "c": [51.425, -116.19], "tier": 1, "label": true}
 ]}
