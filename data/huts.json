@@ -1,5 +1,5 @@
 {
-  "about": "Backcountry huts and cabins: booking, price, beds and what's inside, from the clubs and parks that run them (alex 2026-10-30: \"There is huts missing! Look for more and keep it updated. If you need to book it tell it and add the link to book\"). winter.js puts these tags on the matching OpenStreetMap hut (same name within 5 km, or any hut within 250 m), and adds the hut to the map when OpenStreetMap doesn't have it. 'operators' fill in huts of a club or park with no entry of their own. Keys are OpenStreetMap's (capacity, fee, charge, reservation, reservation:website, website, operator, description, heating, drinking_water, toilets), plus drinking_water:note, toilets:note, season and booking:note. Prices in CAD. 'todo': huts found but not yet placed (no exact spot), for the monthly hut check (scripts/check-huts.mjs).",
+  "about": "Backcountry huts and cabins: booking, price, beds and what's inside, from the clubs and parks that run them (alex 2026-10-30: \"There is huts missing! Look for more and keep it updated. If you need to book it tell it and add the link to book\"). winter.js puts these tags on the matching OpenStreetMap hut (same name within 5 km, or any hut within 250 m), and adds the hut to the map when OpenStreetMap doesn't have it. 'operators' fill in huts of a club or park with no entry of their own. Keys are OpenStreetMap's (capacity, fee, charge, reservation, reservation:website, website, operator, description, heating, drinking_water, toilets), plus drinking_water:note, toilets:note, season, booking:note and winter:access (where to park in winter and what's skied). Prices in CAD. 'todo': huts found but not yet placed (no exact spot), for the monthly hut check (scripts/check-huts.mjs).",
   "checked": "2026-10-30",
   "operators": [
     { "op": "^(The )?Alpine Club of Canada$", "src": "https://alpineclubofcanada.ca/huts/",
@@ -32,7 +32,7 @@
         "description": "Russet Lake, on the Spearhead Traverse. 38 bunks in 6 rooms with mattresses (bring a sleeping bag, rooms are 8-10°C), propane cooktops, pots and dishes. No personal stoves inside.",
         "booking:note": "Opens 60 days ahead (90 days for club members). Up to 6 beds a booking." } },
     { "name": "Wendy Thompson Hut", "lat": 50.42993, "lon": -122.47454, "kind": "alpine_hut", "src": "https://accwhistler.ca/WendyThompson.html",
-      "tags": { "operator": "Alpine Club of Canada, Whistler Section", "website": "https://accwhistler.ca/WendyThompson.html", "reservation": "required", "reservation:website": "https://booking.accwhistler.ca/book.html",
+      "tags": { "winter:access": "Winter: park in the plowed lot on Highway 99 across from the highways salt shed, by the Cayoosh Creek FSR. The FSR isn't plowed: ski it (drive part of it only with chains and a shovel). No marked winter route; about 2 to 3 hours in (ACC Whistler, Rise and Alpine).", "operator": "Alpine Club of Canada, Whistler Section", "website": "https://accwhistler.ca/WendyThompson.html", "reservation": "required", "reservation:website": "https://booking.accwhistler.ca/book.html",
         "fee": "yes", "charge": "$25 a person a night ($20 for ACC Whistler, Squamish and Vancouver members; kids 14 and under 20% off)", "capacity": "16",
         "heating": "wood", "drinking_water": "no", "drinking_water:note": "From the creek, with buckets", "toilets": "yes", "toilets:note": "Outhouse",
         "description": "Marriott Basin, 3-4 hours on skis from the trailhead (about an hour's drive from Whistler). Challenging terrain, unmarked winter route, no cell service.",
@@ -74,7 +74,7 @@
         "description": "Long Lake, Phelix Creek (Birkenhead Lake Park area).",
         "booking:note": "No booking: first come, first served. Register your trip for free on the VOC hut page." } },
     { "name": "Keith's Hut", "aka": ["Keith Flavelle Memorial Hut"], "lat": 50.34667, "lon": -122.41874, "kind": "wilderness_hut", "src": "https://outmap.pro/waypoint/keiths-hut-wuqnQx45bbG3MZgasKnygY",
-      "tags": { "website": "http://www.keithshut.ca/", "reservation": "no", "fee": "yes", "charge": "Suggested donation $25 a person a night", "capacity": "14",
+      "tags": { "winter:access": "Winter: park in a safe pullout on Highway 99 about 4 km past the salt shed parking, then skin up the Cerise Creek FSR (not plowed) to the winter route. BC Parks has closed the Cerise Creek area at times since 2019: check its alerts before you go (UBC VOC, Rise and Alpine).", "website": "http://www.keithshut.ca/", "reservation": "no", "fee": "yes", "charge": "Suggested donation $25 a person a night", "capacity": "14",
         "heating": "wood", "drinking_water": "no", "drinking_water:note": "Melt snow or the small source 200 m west; treat all water", "toilets": "yes", "toilets:note": "Outhouse",
         "description": "Cerise Creek, below Joffre and Matier (Duffey Lake Road).",
         "booking:note": "No booking: first come, first served." } },

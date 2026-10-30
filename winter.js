@@ -1369,7 +1369,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const yesNo = (v) => ({ yes: "allowed", designated: "allowed (signed for it)", permissive: "allowed", no: "not allowed", private: "private" }[v] || v);
   const PLAIN = {
     "piste:grooming": (v) => ["Grooming", GROOM[v] || v], "piste:difficulty": null, highway: (v) => ON[v] && ["Follows", ON[v]],
-    description: (v) => ["Description", v], note: (v) => ["Note", v], operator: (v) => ["Run by", v], fee: (v, t) => !t.charge && ["Fee", v === "yes" ? "yes, a fee to use it" : v === "no" ? "free" : v],
+    description: (v) => ["Description", v], "winter:access": (v) => ["Winter access", v.replace(/^Winter: /, "")], note: (v) => ["Note", v], operator: (v) => ["Run by", v], fee: (v, t) => !t.charge && ["Fee", v === "yes" ? "yes, a fee to use it" : v === "no" ? "free" : v],
     access: (v) => ["Access", yesNo(v)], ski: (v) => ["Skiing", yesNo(v)], snowmobile: (v) => ["Snowmobiles", yesNo(v)], "snowmobile:conditional": (v) => ["Snowmobiles when", v],
     seasonal: (v) => ["Seasonal", v], opening_hours: (v) => ["Open", v], ref: (v) => ["Number", v], ele: (v) => ["Height", v + " m"],
     capacity: null, reservation: null, "reservation:website": null, "booking:note": null, charge: null, website: (v) => ["Website", v], url: (v) => ["Website", v],
