@@ -168,7 +168,7 @@ if (!existsSync(DATA)) mkdirSync(DATA);
 
 const builtAt = new Date().toISOString().slice(0, 19) + "Z";
 const lastBuilt = (z) => Date.parse((readJson(`mtb-${z.id}.json`) || {}).builtAt) || 0;
-const areasOf = (z) => AREAS.filter((a) => a.zone === z.id);
+const areasOf = (z) => AREAS.filter((a) => a.zone === z.id && !a.label);   // label: names the map only (data/riding-areas.json)
 const inBox = (c, [s, w, n, e]) => c[0] >= s && c[0] <= n && c[1] >= w && c[1] <= e;
 const handNames = (z) => HAND.filter((h) => inBox(h.c, z.box)).map((h) => (h.name || h.ids.join(",")) + (h.named ? "=" + h.named : ""));   // editing the list rebuilds the zone
 const zoneRules = (z) => (REC_ZONES[z.id] ? [["rec", REC_M, REC_SHARE].concat(REC_ZONES[z.id] === "all" ? [] : [REC_ZONES[z.id]])] : []).concat(OFFICIAL_ZONES[z.id] ? [["official", OFFICIAL_ZONES[z.id]]] : [])
