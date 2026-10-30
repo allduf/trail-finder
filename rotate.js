@@ -135,6 +135,10 @@
     return Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
   };
   L.Map.TouchGestures.include({
+    // The middle that keeps the pinched spot (or your dot) under the same screen point at that zoom. It projects at
+    // that zoom, as Leaflet's own pinch does: at the old zoom the spot crept off the fingers as the zoom changed.
+    _centerAt(zoom) { const map = this._map; return map.unproject(map.project(this._pinchStartLatLng, zoom).subtract(this._delta), zoom); },
+    _mid(p1, p2) { return this._anchor ? this._anchor.clone() : p1.add(p2)._divideBy(2); },
     _onTouchStart(e) {
       const map = this._map;
       if (e.touches && e.touches.length > 1) L.DomEvent.preventDefault(e);   // never the browser's own page zoom (see below)
@@ -144,7 +148,10 @@
       this._startLatLng = map.containerPointToLatLng(this._centerPoint);
       this._zooming = !!this.zoom;
       if (this._zooming) {
-        if (map.options.touchZoom !== "center") this._pinchStartLatLng = map.containerPointToLatLng(p1.add(p2)._divideBy(2));
+        // Zooming "on the middle" while the map follows you holds the spot where your dot sits instead (map._tfZoomAt):
+        // on a phone that's above the bottom sheet, not the map's middle, so a pinch round the middle slid the dot away.
+        this._anchor = map.options.touchZoom === "center" && map._tfZoomAt ? map._tfZoomAt() : null;
+        if (map.options.touchZoom !== "center" || this._anchor) this._pinchStartLatLng = map.containerPointToLatLng(this._mid(p1, p2));
         this._startDist = this._firstDist = p1.distanceTo(p2);
         this._startZoom = map.getZoom();
       }
@@ -177,16 +184,16 @@
       if (this._zooming && !this._moved) {
         if (Math.abs(Math.log(dist / this._firstDist)) < PINCH_START) { L.DomEvent.preventDefault(e); return; }
         this._startDist = dist;
-        if (map.options.touchZoom !== "center") this._pinchStartLatLng = map.containerPointToLatLng(p1.add(p2)._divideBy(2));
+        if (map.options.touchZoom !== "center" || this._anchor) this._pinchStartLatLng = map.containerPointToLatLng(this._mid(p1, p2));
       }
       if (this._zooming) {
         const scale = dist / this._startDist;
         this._zoom = map.getScaleZoom(scale, this._startZoom);
         if (!map.options.bounceAtZoomLimits && ((this._zoom < map.getMinZoom() && scale < 1) || (this._zoom > map.getMaxZoom() && scale > 1))) this._zoom = map._limitZoom(this._zoom);
-        if (map.options.touchZoom === "center") this._center = this._startLatLng;
+        if (map.options.touchZoom === "center" && !this._anchor) this._center = this._startLatLng;
         else {
-          const delta = p1._add(p2)._divideBy(2)._subtract(this._centerPoint);
-          this._center = map.unproject(map.project(this._pinchStartLatLng).subtract(delta.rotate(-map.getBearing() * L.DomUtil.DEG_TO_RAD)));
+          this._delta = this._mid(p1, p2)._subtract(this._centerPoint).rotate(-map.getBearing() * L.DomUtil.DEG_TO_RAD);
+          this._center = this._centerAt(this._zoom);
         }
         if (!this._moved) { map._moveStart(true, false); this._moved = true; }
         L.Util.cancelAnimFrame(this._animRequest);
@@ -201,8 +208,10 @@
       if (this._twist) map.fire("rotateend", { user: true });
       this._zooming = this._rotating = this._moved = false; this._twist = 0;
       if (!moved || !zooming) return;
-      if (map.options.zoomAnimation) map._animateZoom(this._center, map._limitZoom(this._zoom), true, map.options.zoomSnap);
-      else map._resetView(this._center, map._limitZoom(this._zoom));
+      // Letting go snaps to a whole zoom: the middle is worked out again for it, so the spot stays put through the snap.
+      const zoom = map._limitZoom(this._zoom), center = this._delta && (map.options.touchZoom !== "center" || this._anchor) ? this._centerAt(zoom) : this._center;
+      if (map.options.zoomAnimation) map._animateZoom(center, zoom, true, map.options.zoomSnap);
+      else map._resetView(center, zoom);
     },
   });
 
