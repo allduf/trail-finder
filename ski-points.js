@@ -209,7 +209,9 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   addBtn.title = "Save a point on the map with a name, a description and a photo";
   const tools = document.querySelector(".map-tools"), locate = document.getElementById("locate");
   if (tools) tools.insertBefore(addBtn, locate && locate.parentNode === tools ? locate : null);
-  const $ = (id) => document.getElementById(id);
+  // The list's own parts are looked up in the box itself: it's out of the page for a moment while a sport's panel is
+  // drawn again, and "Your points" then threw (usage page errors, 2026-10-30).
+  const $ = (id) => box.querySelector("#" + id) || document.getElementById(id);
 
   // ---------- pins ----------
   let all = [], points = [], selected = null, urls = [];
