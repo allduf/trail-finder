@@ -1,13 +1,13 @@
 // Trail Finder service worker: makes the site installable and lets it open with no signal.
 // Pages, scripts and data/*.json are network first, so a fresh deploy and each nightly data build show up as soon
-// as there is a connection; the cached copy is used only when the network fails. Map tiles and outside APIs
-// (OpenStreetMap, Open-Meteo, Supabase) are not touched, except the OpenFreeMap map and data files saved in
+// as there is a connection; the cached copy is used only when the network fails. Outside APIs (Open-Meteo, Supabase)
+// are not touched; map tiles only as TILES says (OpenStreetMap, heights, Winter photos), and the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-1058";
+const VERSION = "tf-1078";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=14", "account.js?v=1250", "reports.js?v=1250", "grades.js?v=1250", "trail-photos.js?v=1250", "status.js?v=1250", "ask.js?v=1250", "visitors.js?v=1250", "usage.js?v=1250", "map3d.js?v=1250", "ski-terrain.js?v=1250", "winter.js?v=1250", "place-search.js?v=1250", "clouds.js?v=1250", "smoke.js?v=1250", "radar.js?v=1250", "live.js?v=1250", "ski-points.js?v=1250", "hunts.js?v=1250", "webcams.js?v=1250", "lifts.js?v=1250", "ski-areas.js?v=1250", "helicat.js?v=1250", "cabin-trip.js?v=1250", "rogers.js?v=1250", "slackcountry.js?v=1250", "crownland.js?v=1250", "hunting.js?v=1250", "fish-bait.js?v=1250", "fish-route.js?v=1250", "fishing.js?v=1250", "moto.js?v=1250", "moto-roads.js?v=1250", "compass.js?v=1250", "offline.js?v=1250", "native-gps.js?v=1250", "native.js?v=1250", "native-map.js?v=1250", "keyboard.js?v=1250", "navigate.js?v=1250", "ride-stats.js?v=1250", "ride-finds.js?v=1250", "rides.js?v=1250", "planner.js?v=1250", "rotate.js?v=1250", "photo-find.js?v=1250", "ebike.js?v=1250", "closures.js?v=1250", "loops.js?v=1250", "strava.js?v=1250", "share.js?v=1250", "community.js?v=1250", "ride-files.js?v=1250", "rider-trails.js?v=1250", "alpine.js?v=1250", "areas.js?v=1250", "bikeparks.js?v=1250", "contours.js?v=1250", "directions.js?v=1250", "notify.js?v=1250", "official.js?v=1250", "photo-slider.js?v=1250", "ratings.js?v=1250", "whats-new.js?v=1250", "app-update.js?v=1250", "welcome.js?v=1250", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=14", "account.js?v=1270", "reports.js?v=1270", "grades.js?v=1270", "trail-photos.js?v=1270", "status.js?v=1270", "ask.js?v=1270", "visitors.js?v=1270", "usage.js?v=1270", "map3d.js?v=1270", "ski-terrain.js?v=1270", "winter.js?v=1270", "place-search.js?v=1270", "clouds.js?v=1270", "smoke.js?v=1270", "radar.js?v=1270", "live.js?v=1270", "ski-points.js?v=1270", "hunts.js?v=1270", "webcams.js?v=1270", "lifts.js?v=1270", "ski-areas.js?v=1270", "helicat.js?v=1270", "cabin-trip.js?v=1270", "rogers.js?v=1270", "slackcountry.js?v=1270", "crownland.js?v=1270", "hunting.js?v=1270", "fish-bait.js?v=1270", "fish-route.js?v=1270", "fishing.js?v=1270", "moto.js?v=1270", "moto-roads.js?v=1270", "compass.js?v=1270", "offline.js?v=1270", "native-gps.js?v=1270", "native.js?v=1270", "native-map.js?v=1270", "keyboard.js?v=1270", "navigate.js?v=1270", "ride-stats.js?v=1270", "ride-finds.js?v=1270", "rides.js?v=1270", "planner.js?v=1270", "rotate.js?v=1270", "photo-find.js?v=1270", "ebike.js?v=1270", "closures.js?v=1270", "loops.js?v=1270", "strava.js?v=1270", "share.js?v=1270", "community.js?v=1270", "ride-files.js?v=1270", "rider-trails.js?v=1270", "alpine.js?v=1270", "areas.js?v=1270", "bikeparks.js?v=1270", "contours.js?v=1270", "directions.js?v=1270", "notify.js?v=1270", "official.js?v=1270", "photo-slider.js?v=1270", "ratings.js?v=1270", "whats-new.js?v=1270", "app-update.js?v=1270", "welcome.js?v=1270", "manifest.webmanifest",
   "privacy.html", "support.html",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "vendor/leaflet-1.9.4.js",
@@ -22,7 +22,7 @@ self.addEventListener("install", (e) => {
 });
 
 self.addEventListener("activate", (e) => {
-  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== OFFLINE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== OFFLINE && !TILES.some((t) => t.name === k)).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
 // Data files (data/*.json) on a slow connection: when the network takes longer than DATA_WAIT_MS and a saved copy is
@@ -72,7 +72,10 @@ async function networkFirst(req, e) {
 
 async function cacheFirst(req) {
   const hit = await caches.match(req);
-  if (hit) return hit;
+  // A copy saved from a <script> or <link> tag is opaque, which a script's own download (CORS) can't use: the browser
+  // makes that a failed download. Offline maps' 3D files (MapLibre from unpkg) stayed "Not finished" for good because
+  // of it (phone-size test, 2026-10-30): those get the network, as a normal download.
+  if (hit && !(hit.type === "opaque" && req.mode === "cors")) return hit;
   const res = await fetch(req);
   if (res.ok || res.type === "opaque") (await caches.open(VERSION)).put(req, res.clone());
   return res;
@@ -100,6 +103,48 @@ async function savedFirst(req) {
   return hit || fetch(req);
 }
 
+// Map pictures kept on the phone after they're seen, so the map is there at once when the app opens again and the 3D
+// ground isn't blank or blurry for 1-3 s while tiles just seen come again (alex 2026-10-30). Each kind has its own
+// cache with a size limit, kept across new versions of the site; the oldest go first. Esri's photos aren't kept
+// (their terms), nor anything the app saves for no signal (offline.js, OFFLINE above, used first).
+//  - photos: last winter's photos (our own trail-finder-winter sites; rebuilt only now and then), ~7 KB each
+//  - heights: Mapterhorn's (it says keep 7 days), ~200 KB each
+//  - osm: OpenStreetMap's map; shown from here at once and fetched again in the background when over a day old,
+//    as OpenStreetMap asks apps to keep its tiles rather than download them on every open
+const TILES = [
+  { name: "tf-tiles-photos", max: 4000, days: 30, test: (u) => u.origin === self.location.origin && /\/trail-finder-winter2?\/\d+\/\d+\/\d+\.webp$/.test(u.pathname) },
+  { name: "tf-tiles-heights", max: 200, days: 7, test: (u) => u.hostname === "tiles.mapterhorn.com" },
+  { name: "tf-tiles-osm", max: 2000, days: 7, fresh: 1, test: (u) => u.hostname === "tile.openstreetmap.org" },
+];
+const DAY_MS = 864e5;
+const puts = {};
+async function keepTile(kind, url, res) {
+  const c = await caches.open(kind.name);
+  // When it was saved, for days/fresh above (the server's own date header can't be read on every answer).
+  const body = await res.blob();
+  await c.put(url, new Response(body, { status: 200, headers: { "content-type": res.headers.get("content-type") || "", "x-tf-saved": String(Date.now()) } }));
+  if ((puts[kind.name] = (puts[kind.name] || 0) + 1) % 100) return;
+  const keys = await c.keys();   // oldest first
+  await Promise.all(keys.slice(0, Math.max(0, keys.length - kind.max)).map((k) => c.delete(k)));
+}
+async function tileFirst(req, kind, e) {
+  const url = req.url, off = await (await caches.open(OFFLINE)).match(url, { ignoreVary: true });
+  if (off) return off;
+  const hit = await (await caches.open(kind.name)).match(url);
+  const age = hit ? Date.now() - Number(hit.headers.get("x-tf-saved") || 0) : Infinity;
+  // Asked again as a normal download (with CORS), not the picture's own no-cors one: a no-cors answer can't be read,
+  // and browsers count each one as megabytes of storage.
+  const get = () => fetch(url, { mode: "cors", credentials: "omit", signal: hit ? undefined : req.signal }).then((res) => {
+    if (res.ok) { const p = keepTile(kind, url, res.clone()).catch(() => {}); try { e.waitUntil(p); } catch {} }
+    return res;
+  });
+  if (hit && (!kind.days || age < kind.days * DAY_MS)) {
+    if (kind.fresh && age > kind.fresh * DAY_MS) { const p = get().catch(() => {}); try { e.waitUntil(p); } catch {} }
+    return hit;
+  }
+  try { return await get(); } catch (err) { if (hit) return hit; throw err; }
+}
+
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
@@ -107,7 +152,9 @@ self.addEventListener("fetch", (e) => {
   // A script with ?v= (bumped on every change) or a file in vendor/ (version in its name) never changes at the same
   // address, so the saved copy is served first. alex, 2026-10-24 ("it lag", blank map, empty Area list): right after
   // a deploy the page sat waiting on the network for scripts it already had.
-  if (url.origin === self.location.origin && (url.searchParams.has("v") || url.pathname.includes("/vendor/"))) e.respondWith(cacheFirst(req));
+  const tile = TILES.find((t) => t.test(url));
+  if (tile) e.respondWith(tileFirst(req, tile, e).catch(() => fetch(req)));
+  else if (url.origin === self.location.origin && (url.searchParams.has("v") || url.pathname.includes("/vendor/"))) e.respondWith(cacheFirst(req));
   else if (url.origin === self.location.origin && /\/trail-finder-winter2?\//.test(url.pathname) && !url.pathname.endsWith(".json")) e.respondWith(savedFirst(req));
   else if (url.origin === self.location.origin) e.respondWith(networkFirst(req, e));
   else if (STATIC_HOSTS.includes(url.hostname)) e.respondWith(cacheFirst(req));

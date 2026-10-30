@@ -169,6 +169,9 @@ function skiType(t) {
 }
 const OSM_KEEP = ["name", "ref", "piste:name", "piste:difficulty", "piste:grooming", "piste:type", "description", "note", "website", "operator", "access", "ski", "ele", "fee", "capacity", "reservation", "url", "seasonal", "opening_hours", "snowmobile", "snowmobile:conditional", "highway", "surface"];
 const keepTags = (t) => Object.fromEntries(OSM_KEEP.filter((k) => t[k]).map((k) => [k, String(t[k]).slice(0, 300)]));
+// A route's tags as written to ski.json (see where it's written). DataBC's are all office fields.
+const slimTags = (r) => r.src === "bc" ? {} : Object.fromEntries(Object.entries(r.tags).filter(([k, v]) =>
+  !["piste:difficulty", "piste:type"].includes(k) && !(["name", "piste:name"].includes(k) && v === r.name)));
 
 // Ski resort boundaries (landuse=winter_sports ways and multipolygons): every outer edge as one list of segments,
 // [lat1, lon1, lat2, lon2, ...] per resort with its box, for an even-odd point-in-area test.
@@ -1088,6 +1091,10 @@ if (runs("ski")) {
     const was = new Map((old.routes || []).filter((r) => r.near).map((r) => [r.id, r.near]));
     for (const r of routes) if (!r.name && !r.near && was.has(r.id)) r.near = was.get(r.id);
   }
+  // Phones download and read all of ski.json when Skiing opens (5.3 MB, 2026-10-30), so a route keeps only the tags
+  // its card shows (winter.js tagsHtml): not the difficulty, type and name it already has as its own fields, nor
+  // DataBC's office fields (file numbers, map codes...), which no card shows. About a quarter of the file.
+  for (const r of routes) if (r.tags) r.tags = slimTags(r);
   if (routes.length || huts.length) {
     writeFileSync(new URL("ski.json", DATA), JSON.stringify({
       builtAt: osm || bc || c2c ? builtAt : old.builtAt, regions: REGIONS,
