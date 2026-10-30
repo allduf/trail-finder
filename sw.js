@@ -72,7 +72,10 @@ async function networkFirst(req, e) {
 
 async function cacheFirst(req) {
   const hit = await caches.match(req);
-  if (hit) return hit;
+  // A copy saved from a <script> or <link> tag is opaque, which a script's own download (CORS) can't use: the browser
+  // makes that a failed download. Offline maps' 3D files (MapLibre from unpkg) stayed "Not finished" for good because
+  // of it (phone-size test, 2026-10-30): those get the network, as a normal download.
+  if (hit && !(hit.type === "opaque" && req.mode === "cors")) return hit;
   const res = await fetch(req);
   if (res.ok || res.type === "opaque") (await caches.open(VERSION)).put(req, res.clone());
   return res;
