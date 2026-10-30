@@ -116,6 +116,7 @@
     render();
     drawWay();
     scrollTo();
+    if (t.way && t.way.src === "auto" && t.way.v !== WAY_V) { t.way = null; t.wayFail = ""; }
     if (!t.way && !/^(noroad|water)$/.test(t.wayFail || "")) findWay(t);
     loadDays(t);
   }
@@ -123,7 +124,11 @@
 
   // ---------- the way in ----------
   // The search from fish-route.js, back from the cabin to the best place to leave the car within 2, 5 or 9 km, with
-  // the ski routes as trails. Its line runs from the start to the cabin.
+  // the ski routes as trails. Its line runs from the start to the cabin. In winter the car stays on a plowed road
+  // (alex 2026-10-30, Tom's Hut: "most fsr are not plowed during winter so you have to backcountry ski on the fsr"):
+  // a paved road or a lot beside one; logging roads and tracks are part of the ski in. A hut's known winter parking
+  // (data/huts.json "winter:parking", from the club or a trip report) wins: the way in starts there.
+  const WAY_V = 2;   // ways worked out before the winter rule are worked out again
   async function findWay(t) {
     const my = ++wayRun.n;
     t.wayWait = "Looking for the easiest way in from a parking lot…"; render();
@@ -134,16 +139,17 @@
       if (!FR || !FR._build) throw new Error("no route finder");
       const routes = await S.near([t.hut.lat, t.hut.lon], 10);
       const lines = routes.flatMap((r) => r.lines.map((pts) => ({ pts, name: r.name || "" })));
-      const out = await FR._build([t.hut.lat, t.hut.lon], { lines, radii: [2000, 5000, 9000], track: 2400 },
+      const wp = String(t.hut.tags["winter:parking"] || "").split(",").map(Number), known = wp.length === 2 && wp.every(isFinite) ? wp : null;
+      const out = await FR._build([t.hut.lat, t.hut.lon], known ? { you: known, lines } : { lines, radii: [2000, 5000, 9000], winter: true },
         (s) => say(s === "terrain" ? "Reading the terrain, trails and roads around the cabin…" : "Working out the easiest way in…"));
       if (wayRun.n !== my) return;
       if (out.fail) { t.wayFail = out.fail === "water" ? "water" : "noroad"; t.wayWait = ""; putTrip(t); if (cur === t) { render(); drawWay(); } return; }
       const d = FR._describe(out.g, out.res);
       const line = [];
       for (const r of d.runs) for (const p of r.pts) { const q = [+p[0].toFixed(5), +p[1].toFixed(5)], l = line[line.length - 1]; if (!l || l[0] !== q[0] || l[1] !== q[1]) line.push(q); }
-      const from = out.park ? (out.parkName ? `Park at ${/parking|trailhead|lot\b|stationnement/i.test(out.parkName) ? "" : "the parking for "}${out.parkName}` : `Park at the parking lot${out.roadName ? ` on ${out.roadName}` : ""}`)
-        : `Park on ${out.roadName || (out.track ? "the logging road" : "the road")}`;
-      await setWay(t, line, { src: "auto", from, track: !!out.track, offM: Math.round(d.offM), names: [...new Set(d.runs.filter((r) => r.name && r.m >= 300).map((r) => r.name))].slice(0, 4) });
+      const from = known ? `Park at ${t.hut.tags["winter:parking:name"] || "the winter parking"}` : out.park ? (out.parkName ? `Park at ${/parking|trailhead|lot\b|stationnement/i.test(out.parkName) ? "" : "the parking for "}${out.parkName}` : `Park at the parking lot${out.roadName ? ` by ${out.roadName}` : ""}`)
+        : `Park beside ${out.roadName || "the plowed road"}`;
+      await setWay(t, line, { src: "auto", v: WAY_V, from, known: !!known, unplowed: Math.round(out.unplowed || 0), offM: Math.round(d.offM), names: [...new Set(d.runs.filter((r) => r.name && r.m >= 300).map((r) => r.name))].slice(0, 4) });
     } catch (e) {
       if (wayRun.n !== my) return;
       t.wayFail = "net"; t.wayWait = "";
@@ -260,7 +266,9 @@
       <div class="tp-stats"><span>${fmtM(w.park)} at the car → ${fmtM(w.hut)} at the cabin</span><span>steepest ${w.steep}°</span></div>
       <p><span class="sk-ates" style="--c:${C.color}">${C.label}</span> <span class="sk-note">avalanche terrain, estimated: ${esc((w.why || []).join("; "))}</span></p>
       ${w.offM >= 50 ? `<p class="sk-note">${fmtM(w.offM)} of it isn't on a mapped trail or road: it follows the terrain.</p>` : ""}
-      ${w.track ? `<p class="sk-note">It starts on a logging road: check it's plowed, or plan to ski or sled up it.</p>` : w.src === "auto" ? `<p class="sk-note">Check the road to the start is plowed and the parking open in winter.</p>` : ""}
+      ${w.unplowed >= 200 ? `<p class="sk-note"><b>${(w.unplowed / 1000).toFixed(1)} km of it is on gravel or logging roads</b>: not plowed in winter, so you ski it (counted in the km, climb and time).</p>` : ""}
+      ${t.hut.tags["winter:access"] ? `<p class="sk-note">${esc(t.hut.tags["winter:access"])}</p>` : ""}
+      ${w.src === "auto" && !w.known ? `<p class="sk-note">Starts where the plowed road is: check the pullout is plowed, and the road report, before you drive.</p>` : ""}
       <div class="tp-btns"><button type="button" class="go" data-tp="show">Show the way in + conditions</button><a href="${drive}" target="_blank" rel="noopener">🚗 Drive</a><button type="button" data-tp="draw">✎ Draw my own</button></div>`;
   }
   function daysHtml() {

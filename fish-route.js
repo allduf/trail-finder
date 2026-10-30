@@ -152,7 +152,7 @@
   // Lines: 1 street, 2 track or forest road, 3 path, 4 steps, 5 main road, 6 motorway
   const L_STREET = 1, L_TRACK = 2, L_PATH = 3, L_STEPS = 4, L_MAIN = 5, L_MOTOR = 6;
   const LINE_X = [0, 1.0, 1.05, 1.1, 1.6, 1.15, 25];
-  const F_STREAM = 1, F_RIVER = 2, F_BRIDGE = 4, F_PARK = 8;
+  const F_STREAM = 1, F_RIVER = 2, F_BRIDGE = 4, F_PARK = 8, F_PAVED = 16;
 
   function groundOf(layer, t) {
     const c = t.class || "", s = t.subclass || "";
@@ -261,7 +261,13 @@
       if (!t || !t.transportation) continue;
       for (const f of t.transportation) {
         const v = f.type === 2 ? lineOf(f.tags) : 0;
-        if (v) for (const r of f.geom) strokeLine(r.map((p) => toCell(x, y, p)), putLine(v, f.tags.brunnel === "bridge", 0));
+        if (!v) continue;
+        // A paved road (not a motorway): in winter, where a plowed road can be. Highways and bigger roads count when no
+        // surface is given; smaller ones when tagged paved, or in town (logging roads are gravel, or tracks).
+        const c = f.tags.class, sf = f.tags.surface, paved = c !== "motorway" && sf !== "unpaved" && (sf === "paved" || /^(trunk|primary|secondary|tertiary)$/.test(c));
+        const town = !paved && !sf && /^(minor|service)$/.test(c);
+        const put = putLine(v, f.tags.brunnel === "bridge", 0), mark = paved ? (i) => { put(i); g.flag[i] |= F_PAVED; } : town ? (i) => { put(i); if (g.ground[i] === G.built) g.flag[i] |= F_PAVED; } : put;
+        for (const r of f.geom) strokeLine(r.map((p) => toCell(x, y, p)), mark);
       }
     }
     for (const { x, y, t } of tiles) {   // names along the lines (the name layer holds the same lines, with names)
@@ -361,14 +367,28 @@
   const cellLL = (g, i) => [uny(g.y0 + (Math.floor(i / g.W) + 0.5) * g.cs), unx(g.x0 + ((i % g.W) + 0.5) * g.cs)];
   // Where to leave the car, and what it costs (seconds): a parking lot (trailheads have one) first, then a street, then a
   // 4x4 track (often an old logging road that isn't drivable any more).
-  // goal.track: what starting on a track costs instead (Skiing: logging roads aren't plowed in winter).
-  const drivable = (g, i, goal) => (g.flag[i] & F_PARK ? 0 : g.line[i] === L_STREET || g.line[i] === L_MAIN ? 300 : g.line[i] === L_TRACK ? (goal && goal.track) || 1200 : -1);
+  // goal.winter (Skiing's cabin trips; alex 2026-10-30: "most fsr are not plowed during winter so you have to
+  // backcountry ski on the fsr"): only a paved road can be plowed, so the car stays on one, or in a lot beside one
+  // (g.nearPaved); gravel roads and tracks are skied like trails.
+  const drivable = (g, i, goal) => (goal && goal.winter ? (g.flag[i] & F_PARK && g.nearPaved[i] ? 0 : g.flag[i] & F_PAVED && g.line[i] ? 300 : -1)
+    : g.flag[i] & F_PARK ? 0 : g.line[i] === L_STREET || g.line[i] === L_MAIN ? 300 : g.line[i] === L_TRACK ? 1200 : -1);
+  // Cells within PAVED_M of a paved road (a box around each, done in rows then columns).
+  const PAVED_M = 120;
+  function markNearPaved(g) {
+    const { W, H } = g, k = Math.max(1, Math.round(PAVED_M / g.cellM)), row = new Uint8Array(W * H), out = new Uint8Array(W * H);
+    for (let r = 0; r < H; r++) { let last = -1e9; for (let c = 0; c < W; c++) { if (g.flag[r * W + c] & F_PAVED) last = c; if (c - last <= k) row[r * W + c] = 1; }
+      last = 1e9; for (let c = W - 1; c >= 0; c--) { if (g.flag[r * W + c] & F_PAVED) last = c; if (last - c <= k) row[r * W + c] = 1; } }
+    for (let c = 0; c < W; c++) { let last = -1e9; for (let r = 0; r < H; r++) { if (row[r * W + c]) last = r; if (r - last <= k) out[r * W + c] = 1; }
+      last = 1e9; for (let r = H - 1; r >= 0; r--) { if (row[r * W + c]) last = r; if (last - r <= k) out[r * W + c] = 1; } }
+    g.nearPaved = out;
+  }
 
   // The search runs back from the spot, so one search finds the best start of many (roads) as well as one (you).
   // Spot on water: it starts from the shores around it (searched through the water up to SHORE_M), each one costing
   // a little for its distance from the spot, so the easy shore wins over the closest.
   const SHORE_M = 2000;
   function search(g, spotLL, goal) {
+    if (goal.winter && !g.nearPaved) markNearPaved(g);
     const N = g.W * g.H, cost = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1), heap = Heap();
     const s0 = cellAt(g, spotLL[0], spotLL[1]);
     if (s0 < 0) return null;
@@ -496,7 +516,10 @@
   // A route that reached the grid's edge for less than it cost might do better outside it (a trail that loops out), so
   // the grid grows and it's worked out again: from you, padded more; from the road, 1.5 km round the spot, then 4, then 7
   // (alex's Cheakamus Lake: the trail from the trailhead is 6 km, while a ski-hill road 2 km away sits 1000 m above).
-  // from.radii and from.lines (cabin-trip.js): other sizes for the road search, and more lines to walk on.
+  // from.radii, from.lines and from.winter (cabin-trip.js): other sizes for the road search, more lines to walk on, and
+  // only plowed roads to start from.
+  // Metres of a route on roads that aren't paved (gravel and logging roads, tracks): skied in winter.
+  const unplowedM = (g, res) => res.cells.reduce((m, c, k) => m + (k && g.line[c] && !(g.flag[c] & F_PAVED) && g.line[c] !== L_PATH && g.line[c] !== L_STEPS ? g.cellM : 0), 0);
   async function build(spotLL, from, onStep) {
     let got = null;
     if (from.you) {
@@ -505,7 +528,7 @@
         const g = await buildGrid(boxAround([spotLL, from.you], pad), onStep, from.lines);
         onStep && onStep("route");
         const res = search(g, spotLL, from);
-        if (res && res.cells) { got = { g, res, from: "you" }; if (!res.edge) break; }
+        if (res && res.cells) { got = { g, res, from: "you", unplowed: unplowedM(g, res) }; if (!res.edge) break; }
         else if (res && res.water) return { g, res, fail: "water" };
       }
       return got || { fail: "noway" };
@@ -513,13 +536,14 @@
     for (const r of from.radii || [1500, 4000, 7000]) {
       const g = await buildGrid(boxAround([spotLL], r), onStep, from.lines);
       onStep && onStep("route");
-      const res = search(g, spotLL, { track: from.track });
+      const res = search(g, spotLL, { winter: from.winter });
       if (res && res.water) return { g, res, fail: "water" };
       if (res && res.cells) {
         const i = res.cells[0];
         const park = !!(g.flag[i] & F_PARK), r0 = Math.floor(i / g.W), c0 = i % g.W;
         const lot = park && g.parks.filter((p) => Math.abs(p[0] - c0) <= 4 && Math.abs(p[1] - r0) <= 4)[0];
-        got = { g, res, from: "road", park, parkName: lot ? lot[2] : "", track: g.line[i] === L_TRACK, roadName: g.names[g.name[i]] || "" };
+        got = { g, res, from: "road", park, parkName: lot ? lot[2] : "", track: g.line[i] === L_TRACK, roadName: g.names[g.name[i]] || "",
+          unplowed: from.winter ? unplowedM(g, res) : 0 };
         if (!res.edge) break;
       }
     }
