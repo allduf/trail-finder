@@ -81,6 +81,7 @@
 #map3d .maplibregl-popup-content { background: var(--panel); color: var(--fg); font: 600 .85rem var(--font-body, system-ui); padding: 4px 8px; border-radius: 6px; }
 #map3d .maplibregl-popup-tip { display: none; }
 #map3d .g3-wait { position: absolute; left: 50%; top: 38%; transform: translateX(-50%); z-index: 2; pointer-events: none; padding: 8px 14px; border-radius: 999px; background: rgba(15,30,25,.78); color: #fff; font: 600 .9rem var(--font-body, system-ui); white-space: nowrap; }
+#map3d .maplibregl-marker.tf-crowd { visibility: hidden !important; pointer-events: none; }
 #map3d .maplibregl-ctrl-bottom-right { margin-bottom: 6px; }`;
   document.head.append(css);
 
@@ -642,7 +643,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1090");
+      const w = new Worker("winter-fill.js?v=1100");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -719,7 +720,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1090" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1100" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1111,8 +1112,46 @@
     // others (12 on phones): they're few and small (256 px, ~16 MB for 64), and zooming back out or panning back over
     // ground already seen then shows them at once instead of a blank for 1-3 s while they come again (alex's
     // recordings, 2026-10-29: a zoom-out over Pemberton). MapLibre internals: any surprise just skips it.
-    const keepLo = () => { for (const id of ["winterlo", "satlo"]) try { const m = gl.style.tileManagers[id]; if (m && "_maxTileCacheSize" in m) m._maxTileCacheSize = 64; } catch {} };
+    // The sharp ground photos and the heights keep more too on phones (12 for the rest): panning back or zooming back in
+    // over ground just seen showed it blank or blurry for 1-3 s while the same tiles came again (alex's recordings,
+    // 2026-10-29/30). 12 was set when phones kept running out of memory in 3D (2026-10-26); those were leaks, fixed
+    // since (#478, #539). ~6 MB more photos and ~30 MB more heights, at most.
+    const KEEP = PHONE ? { winterlo: 64, satlo: 64, sat: 40, winter: 40, winterhd: 24, dem: 24 } : { winterlo: 64, satlo: 64 };
+    const keepLo = () => { for (const [id, n] of Object.entries(KEEP)) try { const m = gl.style.tileManagers[id]; if (m && "_maxTileCacheSize" in m) m._maxTileCacheSize = n; } catch {} };
     gl.once("style.load", keepLo); gl.once("load", keepLo);
+    // Pins that would sit on top of each other are left out until zoomed in, like the names: at Whistler village in
+    // Skiing 3D the webcams, heli pins, two parking P's and the Gate tag were a pile over the peak names (review
+    // 2026-10-30). Bigger kinds win (your own spots, then huts, gates, slackcountry lines...), then the nearer pin
+    // (lower on the screen). A tapped pin (.on) is always shown; pins of other kinds are not touched.
+    const PIN_RANK = [[".on", 99], [".sp-gl", 90], [".sk-hutgl", 60], [".sc-gate", 50], [".sc-pin", 45], [".sc-resort", 44], [".rp-pin", 40],
+      [".sk-pin.park", 30], [".wc-gl", 20], [".hc-pin", 20]];
+    const pinRank = (el) => { for (const [q, n] of PIN_RANK) if (el.matches(q) || el.querySelector(q)) return n; return 0; };
+    let unclutterAt = 0, unclutterT = 0;
+    const unclutter = () => {
+      unclutterT = 0; unclutterAt = performance.now();
+      const pins = [];
+      for (const el of box.querySelectorAll(".maplibregl-marker")) {
+        const n = pinRank(el);
+        if (!n) continue;
+        // A pin in the sky (pinInSky) is hidden already and keeps no room.
+        if (el.style.visibility === "hidden") { el.classList.remove("tf-crowd"); continue; }
+        const r = el.getBoundingClientRect();
+        if (r.width) pins.push({ el, n, r });
+      }
+      pins.sort((a, b) => b.n - a.n || b.r.bottom - a.r.bottom);
+      const kept = [], gap = 3;
+      for (const p of pins) {
+        const hit = p.n < 99 && kept.some((k) => p.r.left + gap < k.r.right && k.r.left + gap < p.r.right && p.r.top + gap < k.r.bottom && k.r.top + gap < p.r.bottom);
+        p.el.classList.toggle("tf-crowd", hit);
+        if (!hit) kept.push(p);
+      }
+    };
+    // While the map moves, about 4 times a second (pins move with it); once more when it stops.
+    gl.on("render", () => { if (!unclutterT) unclutterT = setTimeout(unclutter, Math.max(0, 250 - (performance.now() - unclutterAt))); });
+    gl.on("idle", () => { clearTimeout(unclutterT); unclutter(); });
+    const later = () => { if (!unclutterT) unclutterT = setTimeout(unclutter, 120); };   // pins added or taken away
+    new MutationObserver((list) => { if (list.some((m) => [...m.addedNodes].some((n) => n.classList && n.classList.contains("maplibregl-marker")))) later(); })
+      .observe(box, { childList: true, subtree: true });
     // The tilt starts as soon as the height under the first (flat) view's centre is in.
     // It waited for "load" before: every first tile of every source (photos, names, roads, the hidden ones) at the
     // flat view, which a phone loaded for 8-10 s with "Loading the mountains…" up, then loaded the tilted view all
