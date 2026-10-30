@@ -1,0 +1,370 @@
+# Skiing
+Gate ||| Barrière
+No gate ||| Sans barrière
+Book ||| Réserver
+Lift open ||| Remontée ouverte
+Lift on standby / on hold ||| Remontée en attente / suspendue
+Lift closed ||| Remontée fermée
+Lift, no live status ||| Remontée, sans état en direct
+Lift status live status isn't available yet, from each resort's own lift report ||| L'état des remontées en direct n'est pas encore disponible, selon le rapport de chaque station
+Heli-skiing operation ||| Entreprise d'héliski
+Cat skiing operation ||| Entreprise de ski en chenillette
+Heli-ski terrain (BC tenure) ||| Terrain d'héliski (tenure de la C.-B.)
+Cat-ski terrain (BC tenure) ||| Terrain de ski en chenillette (tenure de la C.-B.)
+Applied for, not granted yet ||| Demandé, pas encore accordé
+Slackcountry descent (outside ski patrol) ||| Descente slackcountry (hors patrouille)
+Way up from the backcountry gate ||| Montée depuis la barrière hors-piste
+Way back to the lifts or the valley ||| Retour aux remontées ou à la vallée
+Backcountry gate (grey: leaves with no gate) ||| Barrière hors-piste (gris : sortie sans barrière)
+Summer ||| Été
+Winter ||| Hiver
+Live ||| En direct
+No winter photos here yet: today's snow ||| Pas encore de photos d'hiver ici : la neige du jour
+Snow cover ||| Couverture de neige
+Terrain ||| Terrain
+Loading the mountains… ||| Chargement des montagnes…
+Huts and cabins ||| Refuges et chalets
+Slope direction ||| Orientation des pentes
+Runout zones and traps ||| Zones d'écoulement et pièges
+Flats ||| Plats
+Elevation bands ||| Étages d'altitude
+Slope colours ||| Couleurs des pentes
+Canadian ||| Canadien
+Snow stations ||| Stations de neige
+New snow and rain (24 h) ||| Neige et pluie récentes (24 h)
+Snow and rain forecast (3 days) ||| Prévision de neige et pluie (3 jours)
+Webcams ||| Webcams
+Nordic / cross-country ||| Ski de fond
+Snowshoe ||| Raquette
+Snowmobile trails ||| Sentiers de motoneige
+Snowmobile clubs ||| Clubs de motoneige
+Ski resort runs ||| Pistes des stations
+Resort off-piste and bowls ||| Hors-piste et cuvettes des stations
+Lift status ||| État des remontées
+Live status isn't available yet ||| L'état en direct n'est pas encore disponible
+Slackcountry (gates out of the resort) ||| Slackcountry (barrières vers l'extérieur de la station)
+Rogers Pass permit areas ||| Secteurs à permis du col Rogers
+Ski areas ||| Domaines skiables
+Ski heatmap ||| Carte de chaleur du ski
+None yet: record or import them in My rides ||| Aucune pour l'instant : enregistrez-les ou importez-les dans Mes sorties
+Record ||| Enregistrer
+2D map ||| Carte 2D
+Search routes, huts, places ||| Chercher itinéraires, refuges, lieux
+My tours ||| Mes sorties de ski
+Avalanche ||| Avalanche
+Touring ||| Randonnée
+Cabin trip ||| Séjour en refuge
+No danger ratings yet: it's early season ||| Pas encore de cotes de danger : c'est le début de saison
+No danger ratings yet: it's early season. ||| Pas encore de cotes de danger : c'est le début de saison.
+backcountry ||| hors-piste
+Nordic ||| Fond
+and snowshoe ||| et raquette
+Snowmobile ||| Motoneige
+trails, clubs ||| sentiers, clubs
+runs, bowls ||| pistes, cuvettes
+Backcountry areas across Canada ||| Secteurs hors-piste partout au Canada
+Heli and cat skiing across Canada ||| Héliski et ski en chenillette partout au Canada
+Avalanche Canada early season bulletin (all of BC) ||| Bulletin de début de saison d'Avalanche Canada (toute la C.-B.)
+Read the bulletin ||| Lire le bulletin
+Forecaster's notes ||| Notes du prévisionniste
+Reported by riders within 15 km, last 14 days ||| Signalées par des skieurs à moins de 15 km, 14 derniers jours
+None near here (few people post, so that doesn't mean no avalanches). ||| Aucune près d'ici (peu de gens publient, ça ne veut pas dire qu'il n'y a pas d'avalanches).
+Shade slopes ||| Ombrer les pentes
+Example ||| Exemple
+Nearest the middle of the map first. Tap one for its details. ||| Les plus proches du centre de la carte d'abord. Touchez-en un pour ses détails.
+Sort: nearest ⇅ ||| Tri : plus proche ⇅
+Complex ||| Complexe
+Simple ||| Simple
+Challenging ||| Exigeant
+Easy ||| Facile
+Intermediate ||| Intermédiaire
+Advanced ||| Avancé
+Expert ||| Expert
+Difficult ||| Difficile
+Winter route ||| Itinéraire d'hiver
+away ||| de distance
+Unnamed ski touring ||| Ski de randonnée sans nom
+Your points ||| Vos points
+Save a spot you want to remember: a skin track start, a good line, a hazard. Tap 📍 Save a point, or long-press the map. ||| Enregistrez un endroit à retenir : un début de trace de montée, une bonne ligne, un danger. Touchez 📍 Enregistrer un point, ou appuyez longuement sur la carte.
+Track ||| Trace
+Map marker ||| Repère sur la carte
+Sharp photos, taken in summer where Esri has one ||| Photos nettes, prises l'été là où Esri en a
+Real satellite photos from February and March 2026 (Sentinel-2, 10 m, so softer) ||| Vraies photos satellite de février et mars 2026 (Sentinel-2, 10 m, donc plus floues)
+Today's real snow (NASA satellite, 2 days old) ||| La vraie neige du jour (satellite de la NASA, 2 jours de retard)
+Drag to rotate map, click to reset north ||| Glissez pour tourner la carte, cliquez pour revenir au nord
+Toggle attribution ||| Afficher les crédits
+Trails that lead to the skiing, like the Elfin Lakes Trail ||| Sentiers qui mènent au ski, comme le sentier Elfin Lakes
+Where to leave the car for a ski tour. Village and ski resort lots aren't shown ||| Où laisser l'auto pour une sortie de ski. Les stationnements de village et de station ne sont pas montrés
+Colours the slopes by steepness: 27° and up, where avalanches start ||| Colore les pentes selon leur inclinaison : 27° et plus, là où les avalanches partent
+Colours the slopes of 25° and more by the way they face, to match the forecast's problem aspects ||| Colore les pentes de 25° et plus selon leur orientation, pour les comparer aux orientations à problème du bulletin
+Where avalanches from steep slopes above can reach, and the gullies and creek beds where snow piles up deep ||| Où les avalanches des pentes raides au-dessus peuvent se rendre, et les ravins et lits de ruisseaux où la neige s'accumule
+Nearly flat ground (under 5°): where you'll have to skate, pole or skin out, and where a splitboard has to switch to walk mode ||| Terrain presque plat (moins de 5°) : où il faudra patiner, pousser ou remettre les peaux, et où une planche fractionnée doit passer en mode marche
+The three heights of the avalanche forecast: below treeline, treeline and alpine, at the heights used for that area ||| Les trois étages du bulletin d'avalanche : sous la limite des arbres, limite des arbres et alpin, aux altitudes utilisées pour ce secteur
+Snow stations (BC snow pillows, Environment Canada elsewhere): snow depth, new snow and temperature, every 2 hours ||| Stations de neige (coussins à neige de la C.-B., Environnement Canada ailleurs) : épaisseur, neige récente et température, aux 2 heures
+Snow that fell in the last 24 hours, in centimetres; where it rained instead, the rain in millimetres in greens (Open-Meteo weather model) ||| Neige tombée dans les 24 dernières heures, en centimètres; là où il a plu, la pluie en millimètres en verts (modèle météo Open-Meteo)
+Snow coming in the next 3 days, in centimetres; where rain comes instead, the rain in millimetres in greens (Open-Meteo weather model) ||| Neige prévue dans les 3 prochains jours, en centimètres; là où il pleuvra, la pluie en millimètres en verts (modèle météo Open-Meteo)
+Live webcams from ski resorts and the backcountry, where each camera is. Tap a pin for the live feed ||| Webcams en direct des stations et de l'arrière-pays, à l'endroit de chaque caméra. Touchez une épingle pour l'image en direct
+Every lift at the ski resorts, coloured by the resort's live lift status: green open, orange standby, red closed. Tap a lift for its wait time and details ||| Toutes les remontées des stations, colorées selon leur état en direct : vert ouvert, orange en attente, rouge fermé. Touchez une remontée pour l'attente et les détails
+Lines skied from the lifts through the backcountry gates (outside ski patrol): gate, way up, way back, avalanche terrain ||| Lignes skiées depuis les remontées par les barrières hors-piste (hors patrouille) : barrière, montée, retour, terrain avalancheux
+Heli-skiing and cat skiing operations across Canada, and their terrain in BC ||| Entreprises d'héliski et de ski en chenillette partout au Canada, et leur terrain en C.-B.
+Rogers Pass Winter Permit areas, open or closed today (Parks Canada), with parking, huts and official terrain classes ||| Secteurs à permis d'hiver du col Rogers, ouverts ou fermés aujourd'hui (Parcs Canada), avec stationnements, refuges et classes de terrain officielles
+Backcountry ski areas across Canada: access, huts, rules, avalanche forecast and terrain ratings ||| Secteurs de ski hors-piste partout au Canada : accès, refuges, règles, bulletin d'avalanche et cotes de terrain
+Public OpenStreetMap GPS traces from December to April, roads and lifts left out ||| Traces GPS publiques d'OpenStreetMap de décembre à avril, sans les routes ni les remontées
+Your tours from My rides (import or record them there) ||| Vos sorties de Mes sorties (importez-les ou enregistrez-les là)
+Back to the flat map ||| Retour à la carte plate
+Your recorded and imported ski tours ||| Vos sorties de ski enregistrées et importées
+Plan a trip to a backcountry cabin: the way in, the forecast for each day, offline ||| Planifier un séjour dans un refuge : le chemin d'accès, la prévision de chaque jour, hors ligne
+Lowest avalanche risk first: the trip planner light, or the terrain class when there's no rating ||| Risque d'avalanche le plus bas d'abord : le feu du planificateur, ou la classe de terrain s'il n'y a pas de cote
+Avalanche terrain, estimated ||| Terrain avalancheux, estimé
+Record your track: the map follows you ||| Enregistrer votre trace : la carte vous suit
+Live webcam ||| Webcam en direct
+Lift details ||| Détails de la remontée
+Slackcountry line ||| Ligne slackcountry
+Backcountry ski area ||| Secteur de ski hors-piste
+Start tracking ||| Commencer la trace
+Follows you on the map and records your track. ||| Vous suit sur la carte et enregistre votre trace.
+Save an area for skiing with no signal ||| Enregistrer une zone pour skier sans réseau
+Ski tours you recorded or imported ||| Sorties de ski enregistrées ou importées
+Avalanche alerts and notifications ||| Alertes avalanche et notifications
+Avalanche danger in your regions and on tours you watch ||| Danger d'avalanche dans vos régions et sur les sorties que vous suivez
+Normal caution ||| Prudence normale
+Extra caution ||| Prudence accrue
+Not recommended ||| Non recommandé
+Below treeline ||| Sous la limite des arbres
+Treeline ||| Limite des arbres
+Alpine ||| Alpin
+Low ||| Faible
+Moderate ||| Modéré
+Considerable ||| Marqué
+Extreme ||| Extrême
+No rating ||| Sans cote
+Avalanche weather at 1,900 m ||| Météo avalanche à 1 900 m
+# My rides (ride.html)
+Trail Finder ||| Trail Finder
+Record ride ||| Enregistrer une sortie
+Keep recording ||| Continuer l'enregistrement
+Stop and save ||| Arrêter et enregistrer
+Distance ||| Distance
+Climb ||| Montée
+Speed ||| Vitesse
+Avg speed ||| Vitesse moy.
+Max speed ||| Vitesse max.
+Press Start when you're ready to ride. ||| Appuyez sur Départ quand vous êtes prêt à rouler.
+Keep this page open while you ride. Your phone's screen stays on while recording if the browser allows it. If the page is closed, the ride so far is kept and you can carry on. ||| Gardez cette page ouverte pendant que vous roulez. L'écran reste allumé pendant l'enregistrement si le navigateur le permet. Si la page se ferme, la sortie jusque-là est gardée et vous pouvez continuer.
+Save your ride ||| Enregistrer votre sortie
+Title ||| Titre
+What was it ||| C'était quoi
+Ski tour ||| Sortie de ski
+Adventure ride ||| Sortie d'aventure
+Photos ||| Photos
+Save to My rides ||| Enregistrer dans Mes sorties
+Discard ride ||| Jeter la sortie
+Import rides (GPX, FIT, TCX) ||| Importer des sorties (GPX, FIT, TCX)
+Import whole Strava archive (.zip) ||| Importer toute l'archive Strava (.zip)
+Bike rides only (skip runs, hikes, walks and ski days) ||| Sorties de vélo seulement (sans course, randonnée, marche et ski)
+Also save archive rides to my account (otherwise they stay on this device only) ||| Enregistrer aussi les sorties de l'archive dans mon compte (sinon elles restent seulement sur cet appareil)
+How to get your Strava archive ||| Comment obtenir votre archive Strava
+On a computer or in your phone's browser, sign in at ||| Sur un ordinateur ou dans le navigateur de votre téléphone, connectez-vous sur
+(the Strava app can't do this step). ||| (l'appli Strava ne peut pas faire cette étape).
+Tap your photo at the top right, then ||| Touchez votre photo en haut à droite, puis
+on the left. ||| à gauche.
+Under ||| Sous
+, press ||| , appuyez sur
+In step 2, ||| À l'étape 2,
+. Don't touch the delete part. ||| . Ne touchez pas à la partie suppression.
+Strava emails you a download link, usually within a few hours. Download the .zip file. ||| Strava vous envoie un lien de téléchargement par courriel, en général en quelques heures. Téléchargez le fichier .zip.
+Come back here and press ||| Revenez ici et appuyez sur
+, then pick that .zip. No need to unzip it. ||| , puis choisissez ce .zip. Pas besoin de le décompresser.
+: sign in to bring your Strava rides in on their own, on every device. ||| : connectez-vous pour ajouter vos sorties Strava toutes seules, sur tous vos appareils.
+Help improve Trail Finder ||| Aidez à améliorer Trail Finder
+Off. Turn it on to share your ride lines, without your name, to help find new trails and see which way trails are ridden. ||| Désactivé. Activez-le pour partager vos tracés, sans votre nom, pour aider à trouver de nouveaux sentiers et voir dans quel sens ils sont roulés.
+No rides yet. Go to ||| Pas encore de sorties. Allez à
+and press Start, or import rides from Strava or your GPS. ||| et appuyez sur Départ, ou importez des sorties de Strava ou de votre GPS.
+Rides are saved on this device, and in your account when you're signed in. Use ||| Les sorties sont enregistrées sur cet appareil, et dans votre compte quand vous êtes connecté. Utilisez
+Download GPX ||| Télécharger le GPX
+on a ride to keep a copy or upload it to Strava or Trailforks. ||| sur une sortie pour en garder une copie ou la téléverser sur Strava ou Trailforks.
+Without connecting Strava: open the activity, ⋯ menu, ||| Sans connecter Strava : ouvrez l'activité, menu ⋯,
+, then ||| , puis
+Import rides ||| Importer des sorties
+here. For all of them at once, use ||| ici. Pour toutes à la fois, utilisez
+(see how to get it above). Garmin and Wahoo .fit files work too. Imported rides show on the main map with ||| (voir comment l'obtenir plus haut). Les fichiers .fit de Garmin et Wahoo fonctionnent aussi. Les sorties importées s'affichent sur la carte principale avec
+, which marks the trails you've ridden. ||| , qui marque les sentiers que vous avez roulés.
+Edit title, description, photos ||| Modifier le titre, la description, les photos
+Delete ride ||| Supprimer la sortie
+Ride pages ||| Pages de sortie
+Map of your ride ||| Carte de votre sortie
+Start recording ||| Commencer l'enregistrement
+How was it? Trails ridden, conditions, who you rode with… ||| C'était comment? Sentiers roulés, conditions, avec qui vous avez roulé…
+Map of this ride ||| Carte de cette sortie
+Import whole Strava archive ||| Importer toute l'archive Strava
+ride ||| sortie
+Moving time ||| Temps en mouvement
+# General words
+Yes ||| Oui
+No ||| Non
+OK ||| OK
+Loading ||| Chargement
+Show ||| Afficher
+Hide ||| Cacher
+Edit ||| Modifier
+Remove ||| Retirer
+Rename ||| Renommer
+Copy ||| Copier
+Copied ||| Copié
+Send ||| Envoyer
+Try again ||| Réessayer
+Details ||| Détails
+Open the app ||| Ouvrir l'appli
+Off ||| Désactivé
+Total ||| Total
+Notes ||| Notes
+Photo ||| Photo
+Add a photo ||| Ajouter une photo
+Saved! ||| Enregistré!
+Saved ||| Enregistrés
+Français : the app is now in French on phones set to French (Quebec). Switch it any time in More, Language / Langue. ||| Français : l'appli est maintenant en français sur les téléphones réglés en français (Québec). Changez de langue n'importe quand dans Plus, Langue / Language.
+# More (second pass)
+Loading trails… ||| Chargement des sentiers…
+Weather at this spot ||| Météo à cet endroit
+New snow in the last 3 days ||| Neige récente des 3 derniers jours
+Model forecast from ||| Prévision du modèle de
+Loading clouds by height… ||| Chargement des nuages par altitude…
+Odds are last year's first-choice odds from the ||| Les chances sont celles du premier choix de l'an dernier, selon le
+(shaded rows: this spot is in the hunt's zone). Apply through ||| (lignes ombrées : cet endroit est dans la zone de la chasse). Inscrivez-vous par
+Hunters and animals taken a year, averaged over 2020-2024, residents and non-residents, from BC's ||| Chasseurs et animaux abattus par an, moyenne 2020-2024, résidents et non-résidents, selon les
+(hunter survey estimates). Success: the share of hunters who took one. ||| (estimations des sondages de chasseurs). Succès : la part des chasseurs qui en ont abattu un.
+General open seasons, read by the app from the BC Hunting and Trapping Regulations Synopsis (limited entry hunts are listed below). † has footnotes or applies to part of the unit only: always check ||| Saisons générales, lues par l'appli dans le résumé des règlements de chasse et piégeage de la C.-B. (les chasses à tirage sont plus bas). † a des notes ou ne vaut que pour une partie de l'unité : vérifiez toujours
+Shooting is banned inside most cities, towns and villages by bylaw, often with a no-shooting buffer around them (BC also has no-shooting areas in the regional synopses). Check the local firearm discharge bylaw before you hunt here. ||| Le tir est interdit par règlement dans la plupart des villes et villages, souvent avec une zone tampon autour (la C.-B. a aussi des zones interdites dans les résumés régionaux). Vérifiez le règlement municipal sur les armes à feu avant de chasser ici.
+Name of cabin is what I've heard locals call it but may not be the actual name. ||| Le nom du refuge est celui que les gens du coin utilisent, mais ce n'est peut-être pas le vrai nom.
+From BC's lake bathymetric maps (Ministry of Environment, Fisheries). Old surveys: water levels and shorelines may have changed. Not for navigation. Depth lines on the map are only for the few BC lakes the province has drawn. ||| Selon les cartes bathymétriques des lacs de la C.-B. (ministère de l'Environnement, Pêches). Vieux relevés : le niveau de l'eau et les rives ont pu changer. Pas pour la navigation. Les courbes sur la carte existent seulement pour les quelques lacs de la C.-B. que la province a tracés.
+More details can be found in the Mountain Weather Forecast. ||| Plus de détails dans la prévision météo de montagne.
+Midges and chironomids ||| Moucherons et chironomes
+Salmon eggs and flesh ||| Œufs et chair de saumon
+Coho and pinks ||| Coho et roses
+Blue-winged olives ||| Baetis (olives à ailes bleues)
+Sea to Sky + Sunshine Coast ||| Sea to Sky + Sunshine Coast
+Me ||| Moi
+# Quebec cards (third pass)
+Following you ||| On vous suit
+The map follows you as you move. Tap to stop following ||| La carte vous suit quand vous bougez. Touchez pour arrêter de suivre
+Click Find new trails to search this part of the map. ||| Appuyez sur Trouver de nouveaux sentiers pour chercher dans cette partie de la carte.
+No avalanche forecast covers this spot. Check avalanche.ca for the nearest one ||| Aucun bulletin d'avalanche ne couvre cet endroit. Consultez avalanche.ca pour le plus proche
+No avalanche forecast covers this spot. Check ||| Aucun bulletin d'avalanche ne couvre cet endroit. Consultez
+for the nearest one. ||| pour le plus proche.
+Flat ground: no avalanche can start here. ||| Terrain plat : aucune avalanche ne peut partir d'ici.
+No steep slopes above that could slide onto this spot. ||| Aucune pente raide au-dessus qui pourrait glisser jusqu'ici.
+Gentle ground or open slopes with little avalanche terrain above or under the route. Terrain class is an estimate from the terrain map (ATES-style), not an official rating. ||| Terrain doux ou pentes ouvertes avec peu de terrain avalancheux au-dessus ou sous l'itinéraire. La classe de terrain est une estimation selon la carte du relief (style ATES), pas une cote officielle.
+No avalanche forecast here right now. Avalanche Canada's daily forecasts run from about late November to April. ||| Pas de bulletin d'avalanche ici en ce moment. Les bulletins quotidiens d'Avalanche Canada vont d'environ fin novembre à avril.
+Avalanche Canada map ||| Carte d'Avalanche Canada
+Loading snow and weather… ||| Chargement de la neige et de la météo…
+Avalanches reported by riders nearby ||| Avalanches signalées par des skieurs à proximité
+Plan a tour from here ||| Planifier une sortie d'ici
+Show slope angles ||| Afficher l'angle des pentes
+Centre the map on you again and follow you ||| Recentrer la carte sur vous et vous suivre
+Crossbow and bow ||| Arbalète et arc
+Firearms, crossbow and bow ||| Armes à feu, arbalète et arc
+Shotgun, muzzleloader, crossbow and bow ||| Fusil de chasse, arme à chargement par la bouche, arbalète et arc
+Firearms, air guns, crossbow and bow ||| Armes à feu, armes à air comprimé, arbalète et arc
+Muzzleloader, crossbow and bow ||| Arme à chargement par la bouche, arbalète et arc
+.22 rimfire at night, with dogs ||| .22 à percussion annulaire la nuit, avec chiens
+Youth and new hunters ||| Jeunes et nouveaux chasseurs
+Antlered moose ||| Orignal mâle (avec bois)
+Antlerless moose ||| Orignal sans bois
+Calf ||| Veau
+Bearded ||| Barbu
+Bearded or beardless ||| Barbu ou sans barbe
+Antlered or antlerless deer ||| Cerf avec ou sans bois
+Antlerless deer (or antlers under 7 cm) ||| Cerf sans bois (ou bois de moins de 7 cm)
+Antlered deer (7 cm or more) ||| Cerf avec bois (7 cm ou plus)
+Read by the app from the hunting periods on ||| Lu par l'appli dans les périodes de chasse sur
+(this year's dates). † applies to part of the zone only or has an exception, and ZEC seasons can differ: always check the official periods and your zone's map before you hunt. ||| (dates de cette année). † vaut pour une partie de la zone seulement ou a une exception, et les saisons des zecs peuvent différer : vérifiez toujours les périodes officielles et la carte de votre zone avant de chasser.
+Licences, weapons and bag limits ||| Permis, armes et limites de prise
+Not public land: most likely private ||| Pas une terre publique : probablement privée
+Outside Quebec's public land: most land in southern Quebec is private. Ask the owner before you hunt, camp or ride off the road here. ||| Hors des terres publiques du Québec : la plupart des terres du sud du Québec sont privées. Demandez au propriétaire avant de chasser, camper ou rouler hors de la route ici.
+Where you are ||| Où vous êtes
+Clear ||| Dégagé
+Cloudy ||| Nuageux
+Mostly clear ||| Plutôt dégagé
+Partly cloudy ||| Partiellement nuageux
+Overcast ||| Couvert
+Fog ||| Brouillard
+Drizzle ||| Bruine
+Light rain ||| Pluie légère
+Heavy rain ||| Forte pluie
+Light snow ||| Neige légère
+Heavy snow ||| Forte neige
+Showers ||| Averses
+Snow showers ||| Averses de neige
+Thunderstorm ||| Orage
+Cloudy · weather from ||| Nuageux · météo de
+weather from ||| météo de
+pressure rising after a front ||| pression en hausse après un front
+cold snap ||| coup de froid
+None in view: government gauges are only on bigger rivers ||| Aucune à l'écran : les stations du gouvernement sont seulement sur les grandes rivières
+The usual timing for Ontario, Quebec and the east; it moves with elevation and the weather. ||| Le moment habituel en Ontario, au Québec et dans l'Est; ça change avec l'altitude et la météo.
+No search yet. ||| Pas encore de recherche.
+Seasons and limits ||| Saisons et limites
+Closed now ||| Fermé maintenant
+Open now ||| Ouvert maintenant
+No fishing ||| Pêche interdite
+no limit ||| aucune limite
+Angling only ||| Pêche à la ligne seulement
+Check the official rules ||| Voir les règles officielles
+Seasons, limits and exceptions ||| Saisons, limites et exceptions
+Zone map (PDF) ||| Carte de la zone (PDF)
+Interactive map ||| Carte interactive
+No usual flow known ||| Débit habituel inconnu
+No reading in the last few hours ||| Aucune lecture depuis quelques heures
+Private land: ask the owner before you cross it to the water, or use a public access or a boat. ||| Terre privée : demandez au propriétaire avant de la traverser jusqu'à l'eau, ou utilisez un accès public ou un bateau.
+Walleye and sauger ||| Doré jaune et doré noir
+Char (arctic char, brook trout) ||| Omble (omble chevalier, omble de fontaine)
+Lake trout and splake trout ||| Touladi et truite moulac
+Cutthroat trout and brown trout ||| Truite fardée et truite brune
+Muskellunge and tiger muskellunge ||| Maskinongé et maskinongé tigré
+Northern pike ||| Grand brochet
+Smallmouth bass ||| Achigan à petite bouche
+Largemouth bass ||| Achigan à grande bouche
+Black bass ||| Achigan
+Yellow perch ||| Perchaude
+Brook trout ||| Omble de fontaine
+Atlantic salmon ||| Saumon atlantique
+Landlocked salmon ||| Ouananiche
+Whitefish ||| Grand corégone
+Brown trout ||| Truite brune
+Lake trout ||| Touladi
+Walleye ||| Doré jaune
+Moose ||| Orignal
+White-tailed deer ||| Cerf de Virginie
+Black bear ||| Ours noir
+Wild turkey ||| Dindon sauvage
+Snowshoe hare ||| Lièvre d'Amérique
+Ruffed grouse ||| Gélinotte huppée
+Spruce grouse ||| Tétras du Canada
+Coyote ||| Coyote
+Wolf ||| Loup
+Ducks ||| Canards
+Geese ||| Oies
+Dry and firm ||| Sec et ferme
+Near you ||| Près de vous
+Most forest roads on public land are open, but ZECs and wildlife reserves charge at their gates. Off-road trails are run by clubs (FQMHR for motorcycles) and need their trail pass; most cross private land with the owners' permission. ||| La plupart des chemins forestiers sur les terres publiques sont ouverts, mais les zecs et les réserves fauniques font payer à leurs barrières. Les sentiers hors route sont gérés par des clubs (FQMHR pour les motos) et demandent leur droit d'accès; la plupart traversent des terres privées avec la permission des propriétaires.
+Muddy ||| Boueux
+Dusty ||| Poussiéreux
+Wet ||| Mouillé
+Snow on the ground ||| Neige au sol
+All areas around ||| Toutes les zones autour
+Fishing with dip nets and / or plaice fishing only. ||| Pêche à l'épuisette et / ou à la plie seulement.
+Angling, bow fishing, crossbow fishing, spear fishing while swimming, landing net fishing and plaice fishing ||| Pêche à la ligne, à l'arc, à l'arbalète, au harpon en nageant, à l'épuisette et à la plie
+Angling, bow fishing, crossbow fishing and spear fishing while swimming ||| Pêche à la ligne, à l'arc, à l'arbalète et au harpon en nageant
+Times on this device's clock. ||| Heures selon l'horloge de cet appareil.
+Mule deer (Black-tailed) ||| Cerf mulet (à queue noire)
+Mountain goat ||| Chèvre de montagne
+Cougar ||| Couguar
+Bobcat ||| Lynx roux
+Lynx ||| Lynx du Canada
+Raccoon ||| Raton laveur
+Red fox ||| Renard roux
+Caribou ||| Caribou
+Elk ||| Wapiti
+Bighorn sheep ||| Mouflon d'Amérique
+Pheasant ||| Faisan
+Woodcock ||| Bécasse

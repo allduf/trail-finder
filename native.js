@@ -57,7 +57,7 @@
     const b = e.target.closest && e.target.closest("button");
     if (!b || b.disabled) return;
     if (b.matches("button.rec, [data-haptic]")) window.tfHaptic("MEDIUM");
-    else if (/^\s*(save|☆|★|✓ ridden|\+ ridden)/i.test(b.textContent || "")) window.tfHaptic("LIGHT");
+    else if (/^\s*(save|☆|★|✓ ridden|\+ ridden|enregistrer|✓ roulé|\+ roulé)/i.test(b.textContent || "")) window.tfHaptic("LIGHT");
   }, true);
 
   const hide = () => { try { Splash.hide({ fadeOutDuration: 200 }); } catch {} };

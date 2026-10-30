@@ -1,0 +1,575 @@
+# English ||| French (Quebec). One line each. The English is the text the app shows, without icons in front or : after.
+Key ||| Légende
+Ski touring ||| Ski de randonnée
+Approach trails ||| Sentiers d'approche
+Other winter routes ||| Autres itinéraires d'hiver
+Huts, cabins and shelters (brown dots; brown house pins when zoomed in, “Book” when they must be booked ahead) ||| Refuges, chalets et abris (points bruns; épingles maison brunes de près, « Réserver » quand il faut réserver)
+Trailhead parking ||| Stationnement de départ de sentier
+Start of a camptocamp ski route ||| Départ d'un itinéraire de ski camptocamp
+Snow stations: snow depth ||| Stations de neige : épaisseur de neige
+Your ski tours ||| Vos sorties de ski
+Tap any line, dot or pin on the map to see what it is. ||| Touchez une ligne, un point ou une épingle sur la carte pour voir ce que c'est.
+Difficulty ||| Difficulté
+Type ||| Type
+Loam ||| Loam
+Green ||| Vert
+Blue ||| Bleu
+Black ||| Noir
+Double black ||| Double noir
+Pro line ||| Ligne pro
+Dashed: estimated level ||| Tirets : niveau estimé
+Not rated ||| Non classé
+Unofficial ||| Non officiel
+Forest roads ||| Chemins forestiers
+Forest road (turn on Forest roads in Layers for status) ||| Chemin forestier (activez Chemins forestiers dans Couches pour l'état)
+Bike parks ||| Parcs de vélo
+Lift-served bike park ||| Parc de vélo avec remontée
+Bike park ||| Parc de vélo
+MTB centre ||| Centre de vélo de montagne
+Skills or jump park (zoom in) ||| Parc d'habiletés ou de sauts (zoomez)
+Pump track or BMX track (zoom in) ||| Pumptrack ou piste de BMX (zoomez)
+All trails: bold = official, thin = not known, dotted = unofficial. White edge: trails in the list. ||| Tous les sentiers : gras = officiel, mince = inconnu, pointillé = non officiel. Bord blanc : sentiers de la liste.
+contributors ||| contributeurs
+Search this area ||| Chercher dans cette zone
+Back to search ||| Retour à la recherche
+MTB ||| Vélo
+Sport ||| Sport
+Skiing ||| Ski
+Hunting ||| Chasse
+Fishing ||| Pêche
+Adventure moto ||| Moto d'aventure
+Adventure ||| Aventure
+Layers ||| Couches
+Map style ||| Style de carte
+Map ||| Carte
+Topo ||| Topo
+Satellite ||| Satellite
+Sat + names ||| Sat + noms
+Standard ||| Standard
+Humanitarian ||| Humanitaire
+Standard (German copy) ||| Standard (copie allemande)
+Standard (French copy) ||| Standard (copie française)
+Light streets ||| Rues claires
+Satellite + names ||| Satellite + noms
+Sharp outdoor (vector) ||| Plein air net (vectoriel)
+Skiing layers ||| Couches de ski
+Backcountry ||| Hors-piste
+Avalanche and terrain ||| Avalanche et terrain
+Avalanche risk ||| Risque d'avalanche
+Snow and weather ||| Neige et météo
+Nordic and snowmobile ||| Ski de fond et motoneige
+Resorts ||| Stations
+Places and tracks ||| Lieux et traces
+What the lines and dots mean: tap Key on the map. ||| Ce que veulent dire les lignes et les points : touchez Légende sur la carte.
+Quick looks ||| Coups d'œil
+Ride ||| Rouler
+Plan ||| Planifier
+Safety ||| Sécurité
+Show on the map ||| Afficher sur la carte
+To ride ||| À rouler
+Ridden ||| Roulé
+All trails ||| Tous les sentiers
+My rides ||| Mes sorties
+Wildfires ||| Feux de forêt
+Radar ||| Radar
+Clouds ||| Nuages
+Smoke ||| Fumée
+Closures and warnings ||| Fermetures et avertissements
+Trailheads, parking, water, toilets ||| Départs de sentier, stationnement, eau, toilettes
+Rider-added trails ||| Sentiers ajoutés par les cyclistes
+More layers ||| Plus de couches
+Logging areas ||| Coupes forestières
+Elevation lines ||| Courbes de niveau
+Tools ||| Outils
+Plan a route ||| Planifier un trajet
+Old vs new photos ||| Anciennes vs nouvelles photos
+Offline maps ||| Cartes hors ligne
+Save point ||| Enregistrer le point
+My location ||| Ma position
+Full map ||| Carte plein écran
+New here? ||| Nouveau ici?
+Search a trail by name, or pick an area and how new. ||| Cherchez un sentier par son nom, ou choisissez une zone et depuis quand.
+Tap ||| Touchez
+Find ||| Trouver
+below, or the search box, to find trails, new or old. ||| en bas, ou la boîte de recherche, pour trouver des sentiers, nouveaux ou anciens.
+Tap any trail on the map for its details, weather and loam. ||| Touchez un sentier sur la carte pour ses détails, la météo et le loam.
+Got it ||| Compris
+Move the map, or drag a corner ||| Déplacez la carte ou tirez un coin
+Cancel ||| Annuler
+Find trails here ||| Trouver des sentiers ici
+Now ||| Maintenant
+A little smoke ||| Un peu de fumée
+Smoky ||| Enfumé
+Thick ||| Épais
+Very thick ||| Très épais
+Show the fires ||| Afficher les feux
+Smoke here, next 3 days ||| Fumée ici, 3 prochains jours
+Latest ||| Dernière
+Rain ||| Pluie
+Snow ||| Neige
+Old photo ||| Ancienne photo
+New photo ||| Nouvelle photo
+3D map too ||| Carte 3D aussi
+Save this area ||| Enregistrer cette zone
+Pick a square ||| Choisir un carré
+Saving the square you picked. ||| Enregistrement du carré choisi.
+Use the screen instead ||| Utiliser l'écran à la place
+Saved areas ||| Zones enregistrées
+Save this square ||| Enregistrer ce carré
+Back ||| Retour
+Search trails ||| Chercher des sentiers
+How it works ||| Comment ça marche
+Sign in ||| Se connecter
+New trails ||| Nouveaux sentiers
+Near me ||| Près de moi
+Prime loam ||| Loam parfait
+Today ||| Aujourd'hui
+Find a trail ||| Trouver un sentier
+New trails in an area ||| Nouveaux sentiers dans une zone
+Plan a tour ||| Planifier une sortie
+Record a tour ||| Enregistrer une sortie
+Save a point ||| Enregistrer un point
+Snowmobile clubs and grooming ||| Clubs de motoneige et damage
+Routes ||| Itinéraires
+Huts ||| Refuges
+Ask in plain words ||| Demandez en mots simples
+Ask ||| Demander
+Routes in view ||| Itinéraires visibles
+Open maps can be wrong and no route is avalanche-safe. Trail Finder helps you plan; it doesn't replace avalanche training ( ||| Les cartes ouvertes peuvent se tromper et aucun itinéraire n'est à l'abri des avalanches. Trail Finder vous aide à planifier; il ne remplace pas une formation en avalanche (
+free online course ||| cours gratuit en ligne
+, then an AST 1), a beacon, probe and shovel, ||| , puis un AST 1), un DVA, une sonde et une pelle,
+Avalanche Canada's forecast ||| le bulletin d'Avalanche Canada
+or what you see on the day. ||| ni ce que vous voyez sur place.
+Any trail, old or new. Typos are OK. ||| N'importe quel sentier, ancien ou nouveau. Les fautes de frappe sont OK.
+Where is it? ||| Où est-ce?
+(optional, makes it faster) ||| (facultatif, plus rapide)
+All areas ||| Toutes les zones
+Go ||| Go
+within ||| à moins de
+Prime loam now ||| Loam parfait maintenant
+Or show every trail of these levels (tap several), or only unofficial or alpine ones ||| Ou afficher tous les sentiers de ces niveaux (touchez-en plusieurs), ou seulement les non officiels ou alpins
+E-bikes OK ||| Vélos électriques OK
+Search a trail, town or riding area, or pick where and how new. ||| Cherchez un sentier, une ville ou un secteur, ou choisissez où et depuis quand.
+Search ||| Chercher
+Looking in ||| Recherche dans
+Change ▾ ||| Changer ▾
+Change ||| Changer
+Around you ||| Autour de vous
+Custom area (from the map) ||| Zone sur mesure (de la carte)
+Area ||| Zone
+How new ||| Depuis quand
+Any ||| Tous
+Month ||| Mois
+6 mo ||| 6 mois
+Year ||| An
+2 yr ||| 2 ans
+Only these levels (tap several), or only unofficial or alpine ||| Seulement ces niveaux (touchez-en plusieurs), ou seulement non officiels ou alpins
+Alpine rideable ||| Alpin roulable
+Find new trails ||| Trouver de nouveaux sentiers
+Clear results ||| Effacer les résultats
+MTB tagged ||| Identifié vélo de montagne
+Likely MTB ||| Probablement vélo de montagne
+Possible unmapped ||| Possiblement non cartographié
+Unofficial only ||| Non officiels seulement
+Official only ||| Officiels seulement
+Bits & re-drawn old trails ||| Bouts et anciens sentiers redessinés
+Where to ride today ||| Où rouler aujourd'hui
+My trails ||| Mes sentiers
+New folder ||| Nouveau dossier
+Want to ride ||| À rouler
+Empty. Open a trail and tap ☆ To ride to add it here. ||| Vide. Ouvrez un sentier et touchez ☆ À rouler pour l'ajouter ici.
+Empty. Open a trail and tap + Ridden to add it here. Trails you ride with Record ride, or in rides you import, show up here on their own. ||| Vide. Ouvrez un sentier et touchez + Roulé pour l'ajouter ici. Les sentiers roulés avec Enregistrer une sortie, ou dans les sorties importées, s'ajoutent tout seuls.
+Saved routes ||| Trajets enregistrés
+Your spots ||| Vos endroits
+Save a spot ||| Enregistrer un endroit
+Save a spot you found: a jump, water, a hidden entrance, where to park. Long-press the map (right-click on a computer) or tap 📍 Save a spot. ||| Enregistrez un endroit trouvé : un saut, de l'eau, une entrée cachée, où se stationner. Appuyez longuement sur la carte (clic droit sur ordinateur) ou touchez 📍 Enregistrer un endroit.
+Trails added by riders ||| Sentiers ajoutés par les cyclistes
+Add a trail ||| Ajouter un sentier
+Know a trail that isn't on the map? Add it for every rider. ||| Vous connaissez un sentier qui n'est pas sur la carte? Ajoutez-le pour tout le monde.
+Every trail on screen ||| Tous les sentiers à l'écran
+or draw a square ||| ou tracez un carré
+Search details ||| Détails de la recherche
+Hunt ||| Chasser
+Fish ||| Pêcher
+Roads ||| Routes
+Saved ||| Enregistrés
+More ||| Plus
+How Trail Finder works ||| Comment fonctionne Trail Finder
+Find mountain bike trails that are new to you and ride them when the dirt is just right. The Sport button on the map switches to Skiing, Hunting, Fishing or Adventure moto. ||| Trouvez des sentiers de vélo de montagne nouveaux pour vous et roulez-les quand la terre est parfaite. Le bouton Sport sur la carte passe au Ski, à la Chasse, à la Pêche ou à la Moto d'aventure.
+a trail, a town or Near me, then pick how new. ||| un sentier, une ville ou Près de moi, puis choisissez depuis quand.
+shows every trail, old or new. ||| montre tous les sentiers, anciens ou nouveaux.
+means damp, grippy dirt right now. The 🔔 tells you when a trail you saved turns prime. ||| veut dire une terre humide et collante en ce moment. La 🔔 vous avertit quand un sentier enregistré devient parfait.
+Tap a trail ||| Touchez un sentier
+for its difficulty, weather, loam, rider reports and how to get there. ||| pour sa difficulté, la météo, le loam, les rapports des cyclistes et comment s'y rendre.
+(Ride tab) follows you on the map and records your ride. Use 🔒 Pocket rather than locking the phone. ||| (onglet Rouler) vous suit sur la carte et enregistre votre sortie. Utilisez 🔒 Poche plutôt que de verrouiller le téléphone.
+Ride this trail ||| Rouler ce sentier
+(in a trail's details) guides you to it and buzzes if you leave it. ||| (dans les détails d'un sentier) vous y guide et vibre si vous le quittez.
+(Ride tab): tap the trails you want in order, then ▶ Ride it. ⋯ More has Shuttle, GPX and Save. ||| (onglet Rouler) : touchez les sentiers voulus dans l'ordre, puis ▶ Le rouler. ⋯ Plus contient Navette, GPX et Enregistrer.
+(Find) shows the best spots now, with ready-made loops from a parking lot. ||| (Trouver) montre les meilleurs endroits en ce moment, avec des boucles toutes prêtes depuis un stationnement.
+Which trail is this? ||| Quel sentier est-ce?
+(next to Search) names the trail in a photo, screenshot or short video. ||| (à côté de Chercher) nomme le sentier d'une photo, d'une capture d'écran ou d'une courte vidéo.
+(Find): type what you want, like “easy loop near Squamish”. ||| (Trouver) : tapez ce que vous voulez, comme « boucle facile près de Squamish ».
+Colours ||| Couleurs
+are like Trailforks: green, blue, black, red (double black), orange (pro line). Dashed = estimated level, dotted = unofficial. ||| sont comme Trailforks : vert, bleu, noir, rouge (double noir), orange (ligne pro). Tirets = niveau estimé, pointillé = non officiel.
+Touring, Nordic, Snowmobile, Resorts ||| Randonnée, Fond, Motoneige, Stations
+: the four buttons pick what's on the map. ||| : les quatre boutons choisissent ce qui est sur la carte.
+Avalanche card ||| Carte avalanche
+: today's forecast where you're looking. ||| : le bulletin du jour là où vous regardez.
+and ||| et
+Slope angle ||| Angle de pente
+(Layers) colour the steep ground. ||| (Couches) colorent le terrain raide.
+Tap a route ||| Touchez un itinéraire
+for its profile, steepness, weather and avalanche light: Normal caution, Extra caution or Not recommended. 🔔 Watch it to hear when that changes. ||| pour son profil, sa pente, la météo et le feu avalanche : Prudence normale, Prudence accrue ou Non recommandé. 🔔 Suivez-le pour savoir quand ça change.
+Tap anywhere ||| Touchez n'importe où
+for “This spot”: snow that fell, snow coming and the week's weather. ||| pour « Cet endroit » : la neige tombée, la neige à venir et la météo de la semaine.
+or ||| ou
+Follow this tour ||| Suivre cette sortie
+from a route. ||| depuis un itinéraire.
+: tap one for booking, beds and price. 🏕 Plan a cabin trip here works out the way in and each day's conditions. ||| : touchez-en un pour la réservation, les lits et le prix. 🏕 Planifier un séjour en refuge trouve le chemin d'accès et les conditions de chaque jour.
+: lift status, webcams and slackcountry. ||| : état des remontées, webcams et slackcountry.
+Heli and cat skiing ||| Héliski et ski en chenillette
+Backcountry areas ||| Secteurs hors-piste
+cover all of Canada. ||| couvrent tout le Canada.
+It helps you plan; it doesn't replace avalanche training, the full forecast on avalanche.ca, or what you see on the day. ||| Il vous aide à planifier; il ne remplace pas une formation en avalanche, le bulletin complet sur avalanche.ca, ni ce que vous voyez sur place.
+Tap the map ||| Touchez la carte
+for the zone, what's open today, draws, and whether it's Crown land, private, a park or a no-shooting town. ||| pour la zone, ce qui est ouvert aujourd'hui, les tirages au sort, et si c'est une terre publique, privée, un parc ou une ville où il est interdit de tirer.
+Wind and light ||| Vent et lumière
+: the orange cone shows where your scent goes. The light card has legal light, sun, moon and ⏰ alarms. ||| : le cône orange montre où va votre odeur. La carte lumière donne la lumière légale, le soleil, la lune et les ⏰ alarmes.
+Top buttons ||| Boutons du haut
+: My spot, Save a point, My hunts, Mark my truck and Back to truck, Track. ||| : Ma position, Enregistrer un point, Mes chasses, Marquer mon camion et Retour au camion, Trace.
+Drop pin ||| Placer une épingle
+marks a trail cam, tracks, a saline and more. Saved can show only the tags you pick. ||| marque une caméra de chasse, des pistes, une saline et plus. Enregistrés peut montrer seulement les étiquettes choisies.
+Compass ||| Boussole
+turns the map with your phone. ◎ Range drops a pin at the distance you ranged. ||| tourne la carte avec votre téléphone. ◎ Distance place une épingle à la distance mesurée.
+: Crown land, Property lines, forest types, burns, wetlands and slope. ||| : terres publiques, limites de lots, types de forêt, brûlis, milieux humides et pente.
+My hunts ||| Mes chasses
+keeps your harvests and tracked hunts, and shows what works. ||| garde vos récoltes et vos chasses suivies, et montre ce qui fonctionne.
+A guide, not the law: always check your province's hunting regulations. ||| Un guide, pas la loi : vérifiez toujours les règlements de chasse de votre province.
+Tap a lake, river or the sea ||| Touchez un lac, une rivière ou la mer
+for its rules, fish, stocking, river flow and tides. ||| pour ses règles, ses poissons, l'ensemencement, le débit et les marées.
+Where to fish today ||| Où pêcher aujourd'hui
+ranks the water near you by fresh stocking and good flow. ||| classe les plans d'eau près de vous selon l'ensemencement récent et le bon débit.
+Conditions ||| Conditions
+: wind, pressure, moon, a bite forecast, hatches and what bait to use. ||| : vent, pression, lune, prévision d'activité, éclosions et quel appât utiliser.
+Route ||| Trajet
+(on a spot) finds the easiest walk in, from the road or from you. ||| (sur un endroit) trouve la marche la plus facile, depuis la route ou depuis vous.
+Lake depth ||| Profondeur des lacs
+lines and depth charts are in Layers. ||| : les courbes et cartes bathymétriques sont dans Couches.
+Save a catch ||| Enregistrer une prise
+with a photo. The Fishing log shows what works for you. Your catches stay private. ||| avec une photo. Le journal de pêche montre ce qui fonctionne pour vous. Vos prises restent privées.
+Pick your bike ||| Choisissez votre moto
+first: roads turn green (fine for it), orange (hard) or red (not for it). ||| d'abord : les routes deviennent vertes (ça passe), orange (difficile) ou rouges (pas pour elle).
+Tap a road ||| Touchez une route
+for its surface, mud today, the rules and the nearest gas. ||| pour sa surface, la boue aujourd'hui, les règles et l'essence la plus proche.
+: tap stops and pick Most dirt, Mix or Paved. It checks gas range and closures, then ▶ Ride it speaks each turn. ||| : touchez les arrêts et choisissez Le plus de terre, Mélange ou Asphalte. Il vérifie l'autonomie et les fermetures, puis ▶ Le rouler annonce chaque virage.
+ADV routes ||| Itinéraires ADV
+: classic adventure routes across Canada that suit your bike. ||| : itinéraires d'aventure classiques partout au Canada qui conviennent à votre moto.
+Check-in alarm ||| Alarme de suivi
+rings if you stop moving, then offers to text your contact where you are. ||| sonne si vous arrêtez de bouger, puis propose d'envoyer votre position par texto à votre contact.
+Every sport ||| Tous les sports
+On phones, the tabs at the bottom are Map, Find, Ride, Saved and More. ← Back goes back one step. ||| Sur téléphone, les onglets du bas sont Carte, Trouver, Rouler, Enregistrés et Plus. ← Retour recule d'une étape.
+(on the map): clouds, smoke, 🌧 radar, wildfires, forest roads, map style and more. ⛰ 3D sits next to it. ||| (sur la carte) : nuages, fumée, 🌧 radar, feux de forêt, chemins forestiers, style de carte et plus. ⛰ 3D est juste à côté.
+(Ride tab) saves an area for when there's no signal. ||| (onglet Rouler) enregistre une zone pour quand il n'y a pas de réseau.
+Share my live location ||| Partager ma position en direct
+(Ride tab or More) lets friends follow you on a map. ||| (onglet Rouler ou Plus) permet à vos amis de vous suivre sur une carte.
+Sign in (More) to keep your saved trails, routes and rides on every device. ||| Connectez-vous (Plus) pour garder vos sentiers, trajets et sorties sur tous vos appareils.
+Most trails come from OpenStreetMap, so check local rules and closures before you go. ||| La plupart des sentiers viennent d'OpenStreetMap : vérifiez les règles locales et les fermetures avant de partir.
+Where the data comes from ||| D'où viennent les données
+Help and support ||| Aide et soutien
+Privacy ||| Confidentialité
+New point ||| Nouveau point
+What's here ||| Ce qu'il y a ici
+Length (cm) ||| Longueur (cm)
+Fly or lure ||| Mouche ou leurre
+Kept? ||| Gardé?
+Released ||| Remis à l'eau
+Kept ||| Gardé
+Date ||| Date
+Time ||| Heure
+Species ||| Espèce
+Animal ||| Animal
+Not set ||| Non choisi
+Antlered / male ||| Avec bois / mâle
+Antlerless / female ||| Sans bois / femelle
+Young of the year ||| Jeune de l'année
+Zone ||| Zone
+Name ||| Nom
+Description ||| Description
+Camera check ||| Vérification de caméra
+Animals seen ||| Animaux vus
+What it caught ||| Ce qu'elle a capté
+Save check ||| Enregistrer la vérification
+Moving ||| En mouvement
+m climb ||| m de montée
+Finding you… ||| On vous cherche…
+Waiting for GPS ||| En attente du GPS
+Follow ||| Suivre
+Pause ||| Pause
+Pocket ||| Poche
+Stop ||| Arrêter
+Save ride ||| Enregistrer la sortie
+Keep riding ||| Continuer à rouler
+Don't save ||| Ne pas enregistrer
+Carry on ||| Continuer
+Save it ||| L'enregistrer
+Hold here to unlock ||| Maintenez ici pour déverrouiller
+Keeps recording with the screen black. Don't press the phone's lock button: a locked phone stops the GPS. ||| Continue d'enregistrer avec l'écran noir. N'appuyez pas sur le bouton de verrouillage : un téléphone verrouillé arrête le GPS.
+Loops ||| Boucles
+Save ||| Enregistrer
+Send the GPX ||| Envoyer le GPX
+Ride it ||| Le rouler
+Build it by ||| Le construire en
+Picking trails ||| Choisissant des sentiers
+Tapping points ||| Touchant des points
+Climbs ||| Montées
+Pedal ||| Pédaler
+Shuttle ||| Navette
+Set start ||| Choisir le départ
+Back to start ||| Retour au départ
+Share ||| Partager
+GPX ||| GPX
+Clear ||| Effacer
+Back to my route ||| Retour à mon trajet
+Draw the trail ||| Tracer le sentier
+Tap along the trail from its start to its end, the way it's ridden. Zoom in for a close line; drag to move the map. ||| Touchez le long du sentier du début à la fin, dans le sens où on le roule. Zoomez pour une ligne précise; glissez pour déplacer la carte.
+Tap where the trail starts ||| Touchez où le sentier commence
+Undo ||| Annuler
+Next › ||| Suivant ›
+Next ||| Suivant
+Optional. Signing in saves your settings and rides to your account so they're on every device. Everything else works the same without it. ||| Facultatif. Vous connecter enregistre vos réglages et sorties dans votre compte pour les avoir sur tous vos appareils. Tout le reste fonctionne pareil sans compte.
+Email ||| Courriel
+Password ||| Mot de passe
+Not now ||| Pas maintenant
+New here? Create an account ||| Nouveau? Créer un compte
+Forgot password? Email me a link ||| Mot de passe oublié? M'envoyer un lien
+Your account ||| Votre compte
+Signed in as ||| Connecté en tant que
+. Your settings, rides and trail folders are saved to your account. ||| . Vos réglages, sorties et dossiers de sentiers sont enregistrés dans votre compte.
+To ride, Ridden, your folders, saved routes and rides ||| À rouler, Roulé, vos dossiers, trajets enregistrés et sorties
+Settings ||| Réglages
+Email, password, sign out ||| Courriel, mot de passe, déconnexion
+Done ||| Terminé
+Change email ||| Changer de courriel
+New password ||| Nouveau mot de passe
+Save password ||| Enregistrer le mot de passe
+Sign out ||| Se déconnecter
+Delete my account ||| Supprimer mon compte
+Delete account? ||| Supprimer le compte?
+This deletes your account and everything saved to it: settings, rides and their photos, saved routes, spots, trail reports, grades, photos and trails you added. It can't be undone. ||| Ceci supprime votre compte et tout ce qui y est enregistré : réglages, sorties et leurs photos, trajets, endroits, rapports de sentiers, cotes, photos et sentiers ajoutés. C'est irréversible.
+Things saved only on this phone stay until you delete the app. You can make a new account any time. ||| Ce qui est enregistré seulement sur ce téléphone reste jusqu'à ce que vous supprimiez l'appli. Vous pouvez créer un nouveau compte n'importe quand.
+Keep my account ||| Garder mon compte
+Delete everything ||| Tout supprimer
+Delete ||| Supprimer
+Close ||| Fermer
+Notifications ||| Notifications
+Tell me when trails in my regions or on my To ride list are in prime loam ||| M'avertir quand des sentiers de mes régions ou de ma liste À rouler sont en loam parfait
+Tell me when a new trail is mapped in my regions ||| M'avertir quand un nouveau sentier est cartographié dans mes régions
+Tell me when the avalanche danger goes up in my regions or on ski tours I watch ||| M'avertir quand le danger d'avalanche monte dans mes régions ou sur les sorties de ski que je suis
+Tell me when a lake or river near me is stocked with fish ||| M'avertir quand un lac ou une rivière près de moi est ensemencé
+Also send them to this phone as notifications ||| Les envoyer aussi à ce téléphone en notifications
+My regions ||| Mes régions
+Avalanche danger ||| Danger d'avalanche
+Fresh stocking ||| Ensemencement récent
+Prime loam, now and soon ||| Loam parfait, maintenant et bientôt
+Change regions ||| Changer de régions
+Mark all read ||| Tout marquer comme lu
+Go ride: new to you, in good dirt ||| Allez rouler : nouveau pour vous, dans de la bonne terre
+Checking the loam… ||| Vérification du loam…
+Riding areas near you ||| Secteurs de vélo près de vous
+Loading… ||| Chargement…
+A photo, a screenshot of a post or a video of up to 5 seconds. ||| Une photo, une capture d'écran d'une publication ou une vidéo de 5 secondes maximum.
+Choose a photo or short video ||| Choisir une photo ou une courte vidéo
+Paste a screenshot ||| Coller une capture d'écran
+or drop one here ||| ou déposez-en une ici
+A copy goes to Google to place it · How it works ||| Une copie va chez Google pour la situer · Comment ça marche
+With the spot where it was taken, you get that trail. Without it, the app reads the words in it (trail names, places, hashtags, Strava or Trailforks labels) and lists the likely trails. The words are read on your device; to place the picture, a copy goes to Google's AI (Gemini) and Google's image search, which may keep it. “Yes, that's it” saves a small copy for Trail Finder to learn from (never shown in the app). ||| Avec l'endroit où elle a été prise, vous obtenez ce sentier. Sans lui, l'appli lit les mots dedans (noms de sentiers, lieux, mots-clics, étiquettes Strava ou Trailforks) et liste les sentiers probables. Les mots sont lus sur votre appareil; pour situer l'image, une copie va à l'IA de Google (Gemini) et à la recherche d'images de Google, qui peuvent la garder. « Oui, c'est ça » garde une petite copie pour que Trail Finder apprenne (jamais affichée dans l'appli).
+I took it here, just now ||| Je l'ai prise ici, à l'instant
+No location in this photo. If it's yours, choose it again with its location: in the photo picker tap Options, turn on Location, then pick it. The spot finds the exact trail. ||| Pas de position dans cette photo. Si elle est à vous, choisissez-la de nouveau avec sa position : dans le choix de photos, touchez Options, activez Position, puis choisissez-la. L'endroit trouve le sentier exact.
+Not in the list? Type the trail it is, and the app learns it ||| Pas dans la liste? Tapez le sentier, et l'appli l'apprend
+(saved like a “Yes”) ||| (enregistré comme un « Oui »)
+(optional, helps when the picture has no spot) ||| (facultatif, aide quand l'image n'a pas d'endroit)
+Anywhere (I don't know) ||| N'importe où (je ne sais pas)
+What do you see? ||| Que voyez-vous?
+(optional: describe it, or paste the post's caption) ||| (facultatif : décrivez-la, ou collez la légende de la publication)
+Words read from the picture ||| Mots lus dans l'image
+Find the trail ||| Trouver le sentier
+Read the words instead ||| Lire les mots à la place
+Teach it your trails ||| Apprenez-lui vos sentiers
+Pick photos from your rides that kept their location (on iPhone: in the photo picker tap Options and turn on Location). Each one is placed on the trail it was taken on and a small copy is kept privately, never shown in the app. Photo find then compares pictures without a location with these spots, so it can tell the trails apart even deep in the woods. Up to 30 at a time. ||| Choisissez des photos de vos sorties qui ont gardé leur position (sur iPhone : dans le choix de photos, touchez Options et activez Position). Chacune est placée sur le sentier où elle a été prise et une petite copie est gardée en privé, jamais affichée dans l'appli. La recherche par photo compare ensuite les images sans position à ces endroits, pour distinguer les sentiers même au fond du bois. Jusqu'à 30 à la fois.
+Choose ride photos ||| Choisir des photos de sorties
+Skip ||| Passer
+Welcome to Trail Finder ||| Bienvenue dans Trail Finder
+What are you out for? You can switch any time with the sport button on the map. ||| Vous sortez pour quoi? Vous pouvez changer n'importe quand avec le bouton Sport sur la carte.
+Mountain biking ||| Vélo de montagne
+Trails new to you, and where the dirt is best today ||| Des sentiers nouveaux pour vous, et où la terre est la meilleure aujourd'hui
+Ski tours, avalanche forecast, huts and resorts ||| Ski de randonnée, bulletin d'avalanche, refuges et stations
+Zones, open seasons, no-shooting areas and wind ||| Zones, saisons ouvertes, secteurs où il est interdit de tirer et vent
+Stocked lakes, fishing rules and river flow ||| Lacs ensemencés, règles de pêche et débit des rivières
+Gravel and back roads graded for your bike ||| Routes de gravier et chemins de campagne cotés pour votre moto
+Map of trails ||| Carte des sentiers
+Zoom in ||| Zoom avant
+Zoom out ||| Zoom arrière
+Map faces north. Turn it with two fingers, or right-drag (Ctrl+drag) with a mouse ||| La carte pointe au nord. Tournez-la avec deux doigts, ou glisser-droit (Ctrl+glisser) avec une souris
+Clear selection (Esc) ||| Effacer la sélection (Échap)
+Clear selection ||| Effacer la sélection
+Colour the trails by ||| Colorer les sentiers selon
+A JavaScript library for interactive maps ||| Une bibliothèque JavaScript pour cartes interactives
+Map layers ||| Couches de la carte
+Close layers ||| Fermer les couches
+Shade the slopes by the avalanche forecast (Avalanche Canada) ||| Ombrer les pentes selon le bulletin d'avalanche (Avalanche Canada)
+Quick looks: turn on the layers for ||| Coups d'œil : activer les couches pour
+Riding today: all trails, trailheads and parking, bike parks ||| Rouler aujourd'hui : tous les sentiers, départs et stationnements, parcs de vélo
+Planning a trip: all trails, forest roads, elevation lines, trailheads ||| Planifier une sortie : tous les sentiers, chemins forestiers, courbes de niveau, départs de sentier
+Before you go: wildfires and their smoke, forest road closures and status, logging areas ||| Avant de partir : feux de forêt et leur fumée, fermetures et état des chemins forestiers, coupes forestières
+Your to-ride list is empty: open a trail and tap ☆ To ride ||| Votre liste À rouler est vide : ouvrez un sentier et touchez ☆ À rouler
+Your Ridden list is empty: open a trail and tap + Ridden, or record or import a ride ||| Votre liste Roulé est vide : ouvrez un sentier et touchez + Roulé, ou enregistrez ou importez une sortie
+Hide the other MTB trails, show only the ones in the list ||| Cacher les autres sentiers, montrer seulement ceux de la liste
+No rides yet: record one, or import rides from Strava or a GPS file ||| Pas encore de sorties : enregistrez-en une, ou importez-les de Strava ou d'un fichier GPS
+Colour the forest and dirt roads by condition, with gates, bridges and fords ||| Colorer les chemins forestiers et de terre selon leur état, avec barrières, ponts et gués
+Show active wildfires and areas closed because of fire ||| Afficher les feux de forêt actifs et les zones fermées à cause des feux
+Rain and snow radar: where it's falling now and the last 3 hours (Environment Canada), on the flat and 3D maps ||| Radar pluie et neige : où il en tombe maintenant et les 3 dernières heures (Environnement Canada), sur les cartes plate et 3D
+Clouds, rain and snow now and for the next 3 days, on the flat map ||| Nuages, pluie et neige maintenant et pour les 3 prochains jours, sur la carte plate
+Wildfire smoke now and for the next 3 days (Environment Canada forecast), on the flat and 3D maps ||| Fumée des feux maintenant et pour les 3 prochains jours (prévision d'Environnement Canada), sur les cartes plate et 3D
+Show closures and warnings from Alberta Parks, BC Parks, Ontario Parks, Parks Canada and riders ||| Afficher les fermetures et avertissements d'Alberta Parks, BC Parks, Parcs Ontario, Parcs Canada et des cyclistes
+Show trailheads, parking, drinking water, toilets, bike repair stations, shelters and BC recreation sites ||| Afficher les départs de sentier, stationnements, eau potable, toilettes, stations de réparation, abris et sites récréatifs de la C.-B.
+Hide the bike parks, pump tracks and MTB centres ||| Cacher les parcs de vélo, pumptracks et centres de vélo de montagne
+Show trails riders added that aren't on OpenStreetMap yet ||| Afficher les sentiers ajoutés par les cyclistes qui ne sont pas encore sur OpenStreetMap
+Show logging areas (cut blocks) and areas closed to motor vehicles ||| Afficher les coupes forestières et les zones fermées aux véhicules à moteur
+Show elevation lines (contours) with heights in metres, on the flat and 3D maps ||| Afficher les courbes de niveau avec les altitudes en mètres, sur les cartes plate et 3D
+Plan a route: tap points on the map, or pick the trails you want and the app builds the ride. Distance, climb, GPX, and Ride it ||| Planifier un trajet : touchez des points sur la carte, ou choisissez les sentiers voulus et l'appli construit la sortie. Distance, montée, GPX et Le rouler
+Drag between an older and a newer satellite photo of this spot to spot freshly cut trails ||| Glissez entre une ancienne et une nouvelle photo satellite de cet endroit pour repérer les sentiers fraîchement coupés
+Save an area's map, trails and forest roads on this device for riding with no signal ||| Enregistrer la carte, les sentiers et chemins forestiers d'une zone sur cet appareil pour rouler sans réseau
+Show your saved points and add a new one ||| Afficher vos points enregistrés et en ajouter un
+Ride with the map: it follows you, shows the trail you're on and the next junction, and records the ride ||| Rouler avec la carte : elle vous suit, montre le sentier où vous êtes et la prochaine intersection, et enregistre la sortie
+Plan a route: tap points on the map, or pick the trails you want and the app builds the ride ||| Planifier un trajet : touchez des points sur la carte, ou choisissez les sentiers voulus et l'appli construit la sortie
+Hide the search panel so the map fills the screen ||| Cacher le panneau de recherche pour que la carte remplisse l'écran
+Satellite photos over the real mountains, with the same trails ||| Photos satellite sur les vraies montagnes, avec les mêmes sentiers
+Aerial and satellite photos, as sharp as they come for each area ||| Photos aériennes et satellite, les plus nettes possibles pour chaque zone
+Drag this corner to change the square ||| Tirez ce coin pour changer le carré
+Square ||| Carré
+Clouds forecast ||| Prévision des nuages
+Play the next hours ||| Jouer les prochaines heures
+Forecast hour ||| Heure de la prévision
+Clouds by height here, hour by hour ||| Nuages par altitude ici, heure par heure
+Turn clouds off ||| Désactiver les nuages
+Wildfire smoke forecast ||| Prévision de la fumée des feux
+Turn smoke off ||| Désactiver la fumée
+Rain and snow radar ||| Radar pluie et neige
+Play the last 3 hours ||| Jouer les 3 dernières heures
+Radar time ||| Heure du radar
+Rain or snow ||| Pluie ou neige
+Turn radar off ||| Désactiver le radar
+Close old vs new photos ||| Fermer anciennes vs nouvelles photos
+Split between old and new photo ||| Séparation entre ancienne et nouvelle photo
+Name for this area ||| Nom de cette zone
+Square to save ||| Carré à enregistrer
+Expand the panel ||| Agrandir le panneau
+Shrink the panel ||| Réduire le panneau
+Which trail is this? Find a trail from a photo ||| Quel sentier est-ce? Trouver un sentier à partir d'une photo
+Your recorded and imported rides (GPX, Strava archive) and stats ||| Vos sorties enregistrées et importées (GPX, archive Strava) et statistiques
+Get notified about new trails and prime loam ||| Être averti des nouveaux sentiers et du loam parfait
+Optional: save your settings and rides to an account ||| Facultatif : enregistrer vos réglages et sorties dans un compte
+Quick searches ||| Recherches rapides
+What do you want to find? ||| Que voulez-vous trouver?
+Show these routes ||| Afficher ces itinéraires
+Save a point on the map with a name, a description and a photo ||| Enregistrer un point sur la carte avec un nom, une description et une photo
+List ||| Liste
+Find a route, hut or place ||| Trouver un itinéraire, un refuge ou un lieu
+Find a route or hut by name, or a place to go to ||| Trouver un itinéraire ou un refuge par son nom, ou un lieu où aller
+Places ||| Lieux
+Simple ski tour near Whistler ||| Sortie de ski simple près de Whistler
+Town, place or GPS point ||| Ville, lieu ou point GPS
+Search trails near a town, place or GPS point (like 49.70, -123.15) ||| Chercher des sentiers près d'une ville, d'un lieu ou d'un point GPS (comme 49.70, -123.15)
+List every trail within this distance of where you are ||| Lister tous les sentiers à cette distance de vous
+Trails in the area, old or new, with damp prime loam right now (Loam index 40 to 59) ||| Sentiers de la zone, anciens ou nouveaux, en loam parfait humide en ce moment (indice de loam 40 à 59)
+Trails in the area that aren't part of the official bike network: plain paths with no bike tags (the dotted lines on the base map) and MTB trails mappers flagged as unofficial ||| Sentiers de la zone qui ne font pas partie du réseau officiel : chemins simples sans étiquette vélo (les pointillés de la carte de base) et sentiers de vélo marqués non officiels par les cartographes
+Only trails e-bikes may ride: Class 1 (pedal-assist) where the land manager allows it, from the map tags, the park and the province's rules ||| Seulement les sentiers permis aux vélos électriques : classe 1 (assistance au pédalage) là où le gestionnaire le permet, selon les étiquettes de la carte, le parc et les règles de la province
+Trail, town or area ||| Sentier, ville ou zone
+Search a trail, town or riding area anywhere in Canada ||| Chercher un sentier, une ville ou un secteur n'importe où au Canada
+Which trail is this? Find a trail from a photo, a screenshot of a post or a short video ||| Quel sentier est-ce? Trouver un sentier à partir d'une photo, d'une capture d'écran ou d'une courte vidéo
+Find a trail from a photo or video ||| Trouver un sentier à partir d'une photo ou d'une vidéo
+Area the trail search looks in ||| Zone où cherche la recherche de sentiers
+Go to a town, place or GPS point (like 49.70, -123.15) ||| Aller à une ville, un lieu ou un point GPS (comme 49.70, -123.15)
+Every trail, old or new ||| Tous les sentiers, anciens ou nouveaux
+New trails that aren't part of the official bike network: plain paths with no bike tags, and MTB trails mappers flagged as unofficial ||| Nouveaux sentiers hors du réseau officiel : chemins simples sans étiquette vélo, et sentiers de vélo marqués non officiels par les cartographes
+Only new trails e-bikes may ride: Class 1 (pedal-assist) where the land manager allows it, from the map tags, the park and the province's rules ||| Seulement les nouveaux sentiers permis aux vélos électriques : classe 1 (assistance au pédalage) là où le gestionnaire le permet, selon les étiquettes de la carte, le parc et les règles de la province
+Alpine paths above the tree line that look doable on a mountain bike, any age (alpine.js, weekly data) ||| Chemins alpins au-dessus de la limite des arbres qui semblent faisables en vélo de montagne, de tout âge (données hebdomadaires)
+Show these trails ||| Afficher ces sentiers
+Lines that several GPS traces follow at bike speed, where OpenStreetMap has no trail yet. Unverified. ||| Lignes suivies par plusieurs traces GPS à vitesse de vélo, là où OpenStreetMap n'a pas encore de sentier. Non vérifié.
+Show only trails tagged as informal, closed or no bikes: of the types ticked, or of every type when none is ticked ||| Afficher seulement les sentiers marqués informels, fermés ou interdits aux vélos : des types cochés, ou de tous les types si aucun n'est coché
+Show only trails the map says are official: run by a park, town, trail club or bike park, listed by Recreation Sites and Trails BC, or mapped as informal=no. Of the types ticked, or of every type when none is ticked ||| Afficher seulement les sentiers officiels selon la carte : gérés par un parc, une ville, un club ou un parc de vélo, listés par Recreation Sites and Trails BC, ou marqués informal=no. Des types cochés, ou de tous les types si aucun n'est coché
+Hidden unless ticked: unnamed scraps under 200 m, and pieces of old trails that a mapper split or re-drew (same name as an older trail within 1 km), which only look new ||| Cachés sauf si coché : bouts sans nom de moins de 200 m, et morceaux d'anciens sentiers qu'un cartographe a coupés ou redessinés (même nom qu'un sentier plus vieux à moins de 1 km), qui ont seulement l'air neufs
+2-hour loop in prime loam near Squamish tomorrow ||| Boucle de 2 heures en loam parfait près de Squamish demain
+Trails near you in prime loam that you haven't ridden, and each riding area's loam, reports and fires ||| Sentiers près de vous en loam parfait que vous n'avez pas roulés, et le loam, les rapports et les feux de chaque secteur
+Delete folder ||| Supprimer le dossier
+Show only ||| Afficher seulement
+List every MTB trail on the map on screen, old or new ||| Lister tous les sentiers de vélo à l'écran, anciens ou nouveaux
+Drag a square on the map to list every MTB trail inside it, old or new ||| Tracez un carré sur la carte pour lister tous les sentiers de vélo dedans, anciens ou nouveaux
+Sections ||| Sections
+Rainbow trout ||| Truite arc-en-ciel
+Optional ||| Facultatif
+Mule deer ||| Cerf mulet
+Found from the map ||| Trouvé à partir de la carte
+Like “Skin track start” ||| Comme « Début de la trace de montée »
+Optional: what's here, when it's good, what to watch for ||| Facultatif : ce qu'il y a ici, quand c'est bon, à quoi faire attention
+Like “2 bucks, one 4 point, 6:40 AM” ||| Comme « 2 mâles, un 4 pointes, 6 h 40 »
+Pause recording (stops counting time and distance) ||| Mettre l'enregistrement en pause (arrête le temps et la distance)
+Black screen that ignores touches, so the phone can go in your pocket without locking it (a locked phone stops the GPS) ||| Écran noir qui ignore les touchers, pour mettre le téléphone dans votre poche sans le verrouiller (un téléphone verrouillé arrête le GPS)
+Spoken directions are on (tap to turn off) ||| Les directions vocales sont activées (touchez pour désactiver)
+Spoken directions ||| Directions vocales
+Unfinished ride ||| Sortie non terminée
+Pocket mode ||| Mode poche
+Back to the loop list, as you left it, to pick another ||| Retour à la liste de boucles, comme vous l'avez laissée, pour en choisir une autre
+Close the planner (your route stays until you clear it) ||| Fermer le planificateur (votre trajet reste jusqu'à ce que vous l'effaciez)
+Your saved routes ||| Vos trajets enregistrés
+Look for trails by name, level or area, then come back ||| Cherchez des sentiers par nom, niveau ou zone, puis revenez
+Save this ride to open again later ||| Enregistrer cette sortie pour la rouvrir plus tard
+More options ||| Plus d'options
+How to make the route ||| Comment faire le trajet
+Tap the trails you want to ride; the app builds the ride through them ||| Touchez les sentiers que vous voulez rouler; l'appli construit la sortie à travers eux
+Tap points on the map; the route follows the trails between them ||| Touchez des points sur la carte; le trajet suit les sentiers entre eux
+Pedal or shuttle ||| Pédaler ou navette
+Ride all of it, climbs included ||| Tout rouler, montées comprises
+A 4x4 pickup drives you up the open forest roads; you ride from where it stops ||| Un pick-up 4x4 vous monte par les chemins forestiers ouverts; vous roulez depuis là où il s'arrête
+End the ride back at the start ||| Finir la sortie au point de départ
+Send this ride to a friend: the link opens it in their app ||| Envoyer cette sortie à un ami : le lien l'ouvre dans son appli
+you@example.com ||| vous@exemple.com
+At least 6 characters ||| Au moins 6 caractères
+Remove this picture ||| Retirer cette image
+Remove this picture to add another ||| Retirer cette image pour en ajouter une autre
+The trail's name, like Cream Puff ||| Le nom du sentier, comme Cream Puff
+Like: big granite wall behind (the Chief?), rooty forest, lake below, slabs. Or a trail or place name you saw. ||| Comme : grand mur de granit derrière (le Chief?), forêt pleine de racines, lac en bas, dalles. Ou un nom de sentier ou de lieu que vous avez vu.
+Words read from the picture (you can fix them) ||| Mots lus dans l'image (vous pouvez les corriger)
+Centre the map on where you are and follow you as you move ||| Centrer la carte sur vous et vous suivre quand vous bougez
+how new you pick ||| depuis quand, à vous de choisir
+damp dirt now ||| terre humide maintenant
+Which trail? ||| Quel sentier?
+from a photo ||| à partir d'une photo
+What are you looking for? ||| Que cherchez-vous?
+The best areas for today's weather and dirt ||| Les meilleurs secteurs selon la météo et la terre du jour
+Zoomed far out, you get a square to frame them ||| De loin, vous avez un carré pour les encadrer
+On the map ||| Sur la carte
+Trailheads, parking ||| Départs, stationnement
+All layers ||| Toutes les couches
+Start riding ||| Commencer à rouler
+Follows you, names the trail you're on and the next junction, records the ride. ||| Vous suit, nomme le sentier où vous êtes et la prochaine intersection, enregistre la sortie.
+Tap points, or pick the trails you want ||| Touchez des points, ou choisissez les sentiers voulus
+Ride a saved route ||| Rouler un trajet enregistré
+Routes you planned and saved ||| Trajets planifiés et enregistrés
+Save an area for riding with no signal ||| Enregistrer une zone pour rouler sans réseau
+Friends and family see where you are ||| Amis et famille voient où vous êtes
+Loam alerts and notifications ||| Alertes loam et notifications
+Prime loam and new trails in your regions ||| Loam parfait et nouveaux sentiers dans vos régions
+Hide everything but the map ||| Tout cacher sauf la carte
+Live location ||| Position en direct
+Share where you are, or see friends who share ||| Partagez où vous êtes, ou voyez vos amis qui partagent
+On now: tap to send the link or stop ||| Activé : touchez pour envoyer le lien ou arrêter
+You ||| Vous
+Account ||| Compte
+Your saves follow you to every device ||| Vos sauvegardes vous suivent sur tous vos appareils
+Keep your saves on every device ||| Gardez vos sauvegardes sur tous vos appareils
+What's new ||| Quoi de neuf
+The latest changes to the app ||| Les derniers changements de l'appli
+Questions, problems, ideas ||| Questions, problèmes, idées
+What the app keeps and how to delete it ||| Ce que l'appli garde et comment le supprimer
+Language ||| Langue
