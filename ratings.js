@@ -321,6 +321,11 @@
     { name: "Johnny's Trail", c: [51.1, -115.34], r: 2500, src: "Alberta Parks trail reports, Canmore and Area", url: "https://www.albertaparks.ca/parks/kananaskis/kananaskis-country/advisories-public-safety/trail-reports/canmore-and-area/" },
     { name: "Douglas Fir Bench (Closed Dec 1 - May 15)", c: [51.1, -115.34], r: 2500, src: "Alberta Parks trail reports, Canmore and Area", url: "https://www.albertaparks.ca/parks/kananaskis/kananaskis-country/advisories-public-safety/trail-reports/canmore-and-area/" },
     { name: "Benchlands", c: [51.1, -115.34], r: 2500, src: "Alberta Parks trail reports, Canmore and Area", url: "https://www.albertaparks.ca/parks/kananaskis/kananaskis-country/advisories-public-safety/trail-reports/canmore-and-area/" },
+    // Lake Louise (Banff National Park): the bike trails on Parks Canada's list, plain paths in OpenStreetMap (coverage check
+    // 2026-10-30: no MTB trails at Lake Louise). Every other path there is closed to bikes.
+    { name: "Bow River Trail", c: [51.415, -116.177], r: 4000, d: "green", src: "Parks Canada, mountain biking in the Lake Louise area", url: "https://parks.canada.ca/pn-np/ab/banff/activ/cyclisme-biking/velomontagne-mountainbiking/LakeLouise" },
+    { name: "Old Highway 1A", c: [51.44, -116.26], r: 6000, d: "green", src: "Parks Canada, mountain biking in the Lake Louise area", url: "https://parks.canada.ca/pn-np/ab/banff/activ/cyclisme-biking/velomontagne-mountainbiking/LakeLouise" },
+    { name: "Moraine Lake Highline Trail", c: [51.38, -116.17], r: 4000, d: "black", src: "Parks Canada, mountain biking in the Lake Louise area", url: "https://parks.canada.ca/pn-np/ab/banff/activ/cyclisme-biking/velomontagne-mountainbiking/LakeLouise" },
     // Canmore Nordic Centre
     { name: "Canmore Trail", c: [51.09, -115.376], r: 1500, d: "green", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },
     { name: "Narnia", c: [51.088, -115.374], r: 1500, d: "green", src: "Alberta Parks, Canmore Nordic Centre summer trail map", url: "https://albertaparks.ca/media/3996277/summer-trails-map.pdf" },

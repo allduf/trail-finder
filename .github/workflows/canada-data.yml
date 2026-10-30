@@ -5,7 +5,7 @@ name: Canada trail data
 # the canada-data branch (one commit, replaced each night, so the repo doesn't grow) and published with the
 # website by pages.yml. They are never committed to main. The same run lists Canada's bike parks, pump tracks and
 # MTB centres (scripts/build-bike-parks.mjs -> ca/bike-parks.json), the trailheads and parking near the trails
-# (scripts/build-canada-access.mjs -> ca/a/), the forest roads near them (scripts/build-canada-roads.mjs -> ca/r/), the gas stations, campsites and hot springs for Moto mode (scripts/build-moto.mjs -> ca/moto/), every trail name for the name box (scripts/build-name-index.mjs -> ca/names.json), the new trails for the 🔔 (scripts/build-new-trails.mjs ca -> ca/new-trails.json) and the ski resort runs, groomed nordic and snowmobile trails (scripts/build-canada-winter.mjs -> ca/w/).
+# (scripts/build-canada-access.mjs -> ca/a/), the forest roads near them (scripts/build-canada-roads.mjs -> ca/r/, with each province's government road map from scripts/build-gov-roads.mjs), the gas stations, campsites and hot springs for Moto mode (scripts/build-moto.mjs -> ca/moto/), every trail name for the name box (scripts/build-name-index.mjs -> ca/names.json), the new trails for the 🔔 (scripts/build-new-trails.mjs ca -> ca/new-trails.json) and the ski resort runs, groomed nordic and snowmobile trails (scripts/build-canada-winter.mjs -> ca/w/).
 on:
   schedule:
     - cron: "17 8 * * *"    # 08:17 UTC; Geofabrik's daily extracts are out by then
@@ -94,6 +94,10 @@ jobs:
           node scripts/build-canada-roads.mjs finish || echo "::warning::Forest roads failed"
           node scripts/build-canada-winter.mjs finish || echo "::warning::Winter trails failed"
           node scripts/build-moto.mjs finish || echo "::warning::Moto points failed"
+      - name: Government forest road maps near the roads (scripts/build-gov-roads.mjs, a week's cache from last night)
+        run: |
+          git fetch -q --depth=1 origin canada-data:refs/ca/last || echo "No canada-data branch yet"
+          node scripts/build-gov-roads.mjs || echo "::warning::Government forest roads failed"
       - name: New trails across Canada (for the 🔔 alerts)
         run: |
           # Last night's chunks and feed, to compare with (scripts/build-new-trails.mjs ca). The first night starts the feed.

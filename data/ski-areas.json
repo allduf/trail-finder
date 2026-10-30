@@ -1247,6 +1247,29 @@
    ]
   },
   {
+   "id": "sun-peaks-bc",
+   "name": "Tod Mountain backcountry (Sun Peaks)",
+   "prov": "BC",
+   "region": "Kamloops",
+   "lat": 50.92,
+   "lon": -119.91,
+   "approx": true,
+   "about": "The slopes beyond Sun Peaks' boundary on Tod Mountain: mostly mellow terrain with pockets of steep, cliffy ground. No avalanche control and no ski patrol out there.",
+   "access": "Only through the resort's two backcountry gates: the end of First Saddle (near Main Face and Offset) and Second Saddle (between Skunk and the top of the old West Bowl T-bar). Sleds use the marked route from parking lot 6, never inside the resort boundary.",
+   "rules": "No skinning or hiking uphill inside the resort boundary, at any time. Come back through the resort by 3:45 pm (winch cats groom after). Little or no cell signal; AST 1 strongly advised, don't go alone.",
+   "forecast": "ac",
+   "links": [
+    {
+     "t": "Sun Peaks Resort: backcountry safety",
+     "u": "https://www.sunpeaksresort.com/node/2548"
+    },
+    {
+     "t": "Avalanche Canada",
+     "u": "https://avalanche.ca"
+    }
+   ]
+  },
+  {
    "id": "fish-lake",
    "name": "Fish Lake (Whitehorse)",
    "prov": "YT",

@@ -171,6 +171,11 @@
    "page": "https://511yukon.ca/",
    "credit": "511 Yukon, Government of Yukon"
   },
+  "qc511": {
+   "name": "Québec 511",
+   "page": "https://www.quebec511.info/en/Carte/Default.aspx",
+   "credit": "Québec 511, Ministère des Transports du Québec"
+  },
   "nb511": {
    "name": "511 New Brunswick",
    "page": "https://511.gnb.ca/",
@@ -1943,6 +1948,17 @@
    "lat": 47.8507667,
    "lon": -67.0063833,
    "img": "https://511.gnb.ca/map/Cctv/5"
+  },
+  {
+   "id": "qc-4002",
+   "owner": "qc511",
+   "resort": "Chic-Chocs",
+   "kind": "road",
+   "name": "Route 299 at Mont-Albert",
+   "view": "Route 299 through the Chic-Chocs at Mont-Albert (Parc national de la Gaspésie), on Québec 511's page.",
+   "lat": 48.94656,
+   "lon": -66.12352,
+   "page": "https://www.quebec511.info/Carte/Fenetres/FenetreVideo.html?id=4002"
   },
   {
    "id": "nb-26",

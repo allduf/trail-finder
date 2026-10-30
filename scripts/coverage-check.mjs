@@ -177,6 +177,9 @@ const CHECKS = [
       const j = await data(`data/roads-${z.id}.json`);
       if (j) { src = "home"; for (const k of ["ften", "osm"]) n += Object.values(j[k] || {}).filter((r) => anyNear(s, r.g)).length; }
     }
+    // Outside the home zones: OpenStreetMap roads plus each province's government road map (scripts/build-gov-roads.mjs).
+    // A chunk whose province map was asked and has no roads here is as complete as the free data gets (like Alberta).
+    let gov = 0, asked = [];
     if (!n) {
       const idx = await get(SITE + "ca/r/index.json");
       for (const c of (idx && idx.chunks) || []) {
@@ -184,10 +187,18 @@ const CHECKS = [
         if (!inBox(s, [la, lo, la + 1, lo + 1.2], 0.1)) continue;
         const j = await get(`${SITE}ca/r/${c}.json`); src = "osm";
         n += Object.values((j && j.osm) || {}).filter((r) => anyNear(s, r.g)).length;
+        gov += ((j && j.ften) || []).filter((r) => anyNear(s, r.g)).length;
+        asked.push(...((j && j.gov) || []));
       }
     }
-    if (!n) return s.park ? na("inside a park: no forest roads") : none("no forest roads layer");
-    return src === "home" || s.pv === "ab" ? ok(n, `${n} roads`) : less(n, `${n} roads (OpenStreetMap only: no BC road permits or status)`);
+    if (!n && !gov) {
+      if (s.park) return na("inside a park: no forest roads");
+      const { here } = await mtbWays(s);
+      return here.length ? none("no forest roads layer") : na("no MTB trails here, so no roads near them");
+    }
+    if (src === "home" || s.pv === "ab") return ok(n, `${n} roads`);
+    if (gov) return ok(n + gov, `${n} roads + ${gov} government road lines with their status`);
+    return asked.length ? ok(n, `${n} roads (the ${asked[0].toUpperCase()} government road map has none here)`) : less(n, `${n} roads (OpenStreetMap only: no government road status)`);
   }],
   ["areas", "Riding area names", "Riding", async (s) => {
     const list = JSON.parse(await readFile(new URL("../data/riding-areas.json", import.meta.url), "utf8")).areas;
