@@ -3277,6 +3277,9 @@ out body;`;
     if (selT) { if (selT._glow) selT._glow.bringToFront(); if (selT._edge) selT._edge.bringToFront(); selT._line.bringToFront(); }
   }
   let trailsTimed = false;   // the first trails drawn, timed once (usage page)
+  // Only when the app opened in MTB: opened in another sport, the first trails came when the rider switched to MTB,
+  // and that counted minutes of skiing as waiting (37 s "most" on the usage page, 2026-10-30).
+  window.addEventListener("tf:sport", (e) => { if (e.detail !== "mtb") trailsTimed = true; });
   function render() {
     syncClear();
     if (state.prime) { renderPrime(); return; }
