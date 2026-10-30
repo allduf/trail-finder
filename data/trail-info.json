@@ -16,7 +16,8 @@
     "p-sdm": { "name": "Sentiers du Moulin", "url": "https://www.sentiersdumoulin.com/activite/velo-de-montagne/", "c": [46.991, -71.272], "r": 4000 },
     "p-bro": { "name": "Bromont, montagne d'expériences", "url": "https://www.bromontmontagne.com/velo-de-montagne/entre-deux-coups-de-rateau-2026/", "c": [45.291, -72.636], "r": 5000 },
     "grs": { "name": "Grouse Mountain, bike park trail descriptions", "url": "https://www.grousemountain.com/bike-park/trail-descriptions", "c": [49.3795, -123.0761], "r": 3000 },
-    "lm": { "name": "Le Massif de Charlevoix, mountain biking page", "url": "https://www.lemassif.com/en/activities-events/charlevoix-attractions/mountain-bike-trail-quebec", "c": [47.28, -70.597], "r": 7000 }
+    "lm": { "name": "Le Massif de Charlevoix, mountain biking page", "url": "https://www.lemassif.com/en/activities-events/charlevoix-attractions/mountain-bike-trail-quebec", "c": [47.28, -70.597], "r": 7000 },
+    "pc-ll": { "name": "Parks Canada, mountain biking in the Lake Louise area", "url": "https://parks.canada.ca/pn-np/ab/banff/activ/cyclisme-biking/velomontagne-mountainbiking/LakeLouise", "c": [51.425, -116.19], "r": 9000 }
   },
   "trails": [
     { "s": "fer", "n": ["Silk", "Manchuria"], "no": "1/2", "kind": "Multi-use", "text": "Double-track road; part of the multi-use network." },
@@ -130,7 +131,10 @@
     { "s": "grs", "n": ["Tim's Trim"], "kind": "Green flow trail", "level": "green", "km": 3.5, "text": "Machine-built beginner flow trail with wide sweeping turns, small rollers, berms and wooden bridges; the next step after Lemon Squeezy. Named after Tim Peck, who worked at Grouse for 39 years." },
     { "s": "grs", "n": ["Oh Deer!"], "kind": "Blue flow trail", "level": "blue", "km": 1.8, "text": "Machine-built intermediate flow trail after Tim's Trim: gentle berms and rollers, with rock drops, wood drops and bridges, through forest and open meadows." },
     { "s": "grs", "n": ["Sooty's Jump Line"], "kind": "Jump line", "km": 1.2, "text": "The park's main jump trail, aimed at intermediates but fun for experts: tabletops and tombstone-shaped jumps, tight berms and big fast berms." },
-    { "s": "lm", "n": ["Cerise sur le Sundae"], "kind": "Family ride", "level": "green", "km": 3, "text": "Easy 3 km family trail from the summit with big views over the St. Lawrence River." }
+    { "s": "lm", "n": ["Cerise sur le Sundae"], "kind": "Family ride", "level": "green", "km": 3, "text": "Easy 3 km family trail from the summit with big views over the St. Lawrence River." },
+    { "s": "pc-ll", "n": ["Bow River Trail", "Bow River"], "kind": "Easy", "level": "green", "km": 5.7, "text": "Flat gravel path along the river (5.7 km one way), busy with walkers: ride slowly and call out as you pass. Pedal-assist e-bikes allowed. The part south of the soft-sided campground is closed May 15 to October 15. Starts at the campground or across from the train station on Sentinel Road." },
+    { "s": "pc-ll", "n": ["Old Highway 1A", "Great Divide"], "kind": "Easy", "level": "green", "km": 9.8, "text": "The old highway, closed to cars (9.8 km one way): rough pavement from Lake Louise Drive over the Great Divide into Yoho. Pedal-assist e-bikes allowed. Its own parking lot is closed: start from the Lake Louise Lakeshore lot (paid)." },
+    { "s": "pc-ll", "n": ["Moraine Lake Highline Trail", "Moraine Lake Highline"], "kind": "Difficult", "level": "black", "km": 9.3, "text": "Rooty, rocky singletrack (9.3 km one way, 485 m up) onto Mount Temple's shoulder, then down to Moraine Lake. No e-bikes. The upper part closes to everyone when the buffalo berries ripen (grizzlies): check the trail report. Starts 2.5 km up Moraine Lake Road, where parking is very limited." }
   ],
   "photos": [
     { "s": "p-spk", "n": ["Arm Pump"], "img": "https://www.sunpeaksresort.com/sites/default/files/inline-images/2_3.jpg", "cap": "Arm Pump, berms freshly buffed and watered by the trail crew", "date": "2025-09", "by": "Sun Peaks Resort" },

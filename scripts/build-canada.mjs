@@ -59,7 +59,9 @@ const longRide = (r) => /^(ncn|rcn|icn)$/.test(r.tags.network || "") || r.ways.l
 // MTB trails too. Smithers' Bluff trails (Anti Flow, Meanstreak, Huckin' Eh...) are plain paths on the map, so the app showed
 // one trail there (coverage check, 2026-10-27).
 const AREA_M = 3000, SPARSE = 20;
-const AREAS = JSON.parse(readFileSync(new URL("data/riding-areas.json", root), "utf8")).areas.filter((a) => /^ca_/.test(a.zone || ""));
+// An area marked label only names the map: its named paths are its hiking trails (Blue Mountain, Collingwood: The Grind,
+// Cagey, Apple Bowl Lookout... on the resort's summer hiking map; the coverage check's rated share fell from 100% to 42%).
+const AREAS = JSON.parse(readFileSync(new URL("data/riding-areas.json", root), "utf8")).areas.filter((a) => /^ca_/.test(a.zone || "") && !a.label);
 const metres = (a, b) => Math.hypot((a[0] - b[0]) * 110540, (a[1] - b[1]) * 111320 * Math.cos((a[0] * Math.PI) / 180));
 const bikeOk = (t) => !/^(no|private)$/.test(t.access || "") && !/^(no|dismount|use_sidepath)$/.test(t.bicycle || "") && t.snowmobile !== "designated"
   && !(t["piste:type"] && !/^(yes|designated|permissive|customers)$/.test(t.bicycle || ""));
@@ -69,6 +71,16 @@ const NOT_BIKE_NAME = /\b(pedestrian|boardwalk|interpretive|nature walk|stairs?|
 // The area a named path (not tagged for bikes) is near, if its path could be a bike trail.
 const areaOf = (tags, mid) => /^(path|bridleway)$/.test(tags.highway || "") && bikeOk(tags) && !motor(tags) && !NOT_BIKE_NAME.test(tags.name || "")
   && /^(hiking)?$/.test(tags.sac_scale || "") ? AREAS.find((a) => metres(mid, a.c) <= (a.r || AREA_M)) : null;
+
+// Trails listed in ratings.js HAND (a rider's or a park's own list says they're bike trails) are MTB trails even with no
+// bike tags, as in build-mtb.mjs, so the chunks' lists keep them too (the app draws only what's in a list). Lake Louise's
+// Parks Canada bike trails (Bow River, Old Highway 1A) are plain paths on the map.
+const HAND = (() => {
+  const m = readFileSync(new URL("ratings.js", root), "utf8").match(/const HAND = (\[[\s\S]*?\n  \]);/);
+  try { return m ? Function(`return ${m[1]}`)() : []; } catch { return []; }
+})();
+const handOf = (id, tags, mid) => bikeOk(tags) && HAND.find((h) => (h.ids && h.ids.includes(id))
+  || (h.name && tags.name && h.name.toLowerCase() === tags.name.toLowerCase() && metres(mid, h.c) <= h.r));
 
 // Douglas-Peucker on a local flat projection, keeping points more than tol metres off the line (as in build-mtb.mjs).
 function simplify(pts, tol = 2) {
@@ -192,6 +204,7 @@ async function finish() {
           }
         }
         if (k & 4) c.mtb.ways[id] = { tags, g };
+        else if ((k & 1) && handOf(id, tags, pts[Math.floor(pts.length / 2)])) c.mtb.ways[id] = { tags, g };
         else if ((k & 1) && tags.name && !walkRoute.has(id)) { const a = areaOf(tags, pts[Math.floor(pts.length / 2)]); if (a) maybe.push({ c, a, id, tags, g }); }
         if ((k & 2) && !c._names.has("w" + id)) { c._names.add("w" + id); c.names.push({ t: "w", id, c: pts[Math.floor(pts.length / 2)], tags }); }
       }

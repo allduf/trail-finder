@@ -549,7 +549,15 @@ ${own.length ? `<ul>${own.map((t) => `<li><button type="button" data-id="${esc(t
   }
   window.addEventListener("hashchange", fromHash);
 
-  window.tfRiderTrails = { start, fromFind, draw: startDraw, all: () => all };
+  // Search (index.html): a rider-added trail found by name opens like one tapped in the Saved list.
+  function openById(id) {
+    const t = everyTrail().find((x) => x.id === id);
+    if (!t) return;
+    if (!on) setOn(true);
+    map.fitBounds(L.latLngBounds(t.line), { padding: [40, 40], maxZoom: 16 });
+    setTimeout(() => openTrail(t), 350);
+  }
+  window.tfRiderTrails = { start, fromFind, draw: startDraw, all: () => everyTrail(), open: openById };
   if (!isAlt()) { layer.addTo(map); arrows.addTo(map); }
   draw(); paintBox(); fromHash();
   setTimeout(load, 2000);

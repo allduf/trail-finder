@@ -5940,7 +5940,11 @@ out body;`;
       return ["good", sm ? `smoothness=${sm}` : tt ? `tracktype=${tt} (solid)` : `surface=${t.surface}`];
     return ["unknown", "no condition mapped"];
   }
+  // Outside the home zones the chunk files also carry other provinces' government road maps (src yt, on, qc, ns;
+  // scripts/build-gov-roads.mjs), each with its state already worked out (k) and why (w).
+  const GOV_ROADS = { yt: "Yukon forest resource roads", on: "Ontario MNRF roads", qc: "Québec AQréseau+ roads", ns: "Nova Scotia topographic roads" };
   function ftenRoadStatus(r) {
+    if (r.k && ROAD_STATUS[r.k]) return [r.k, r.w || ""];
     if (r.s === "RETIRED") return ["heavy", `tenure retired${r.d ? " " + r.d : ""}: no longer maintained, often deactivated`];
     if (r.s === "ACTIVE") return ["good", "active tenure: the road is held and maintained"];
     return ["unknown", `tenure status ${r.s || "unknown"}`];
@@ -6074,7 +6078,7 @@ out body;`;
       o.osmSt = o.st; o.osmWhy = o.why;
       if (!o.name) o.name = (o.ften.find((r) => r.n) || {}).n || "";
       if (o.st !== "unknown") return;
-      const r = o.ften.find((x) => x.s === "ACTIVE") || o.ften.find((x) => x.s === "RETIRED") || o.ften[0];
+      const r = o.ften.find((x) => x.s === "ACTIVE") || o.ften.find((x) => x.k && x.k !== "unknown") || o.ften.find((x) => x.s === "RETIRED") || o.ften[0];
       [o.st, o.why] = ftenRoadStatus(r);
       o.why += "; OpenStreetMap has no condition for it";
     });
@@ -6428,13 +6432,23 @@ out body;`;
     // OpenStreetMap names come first: government labels are often permit codes like "R00591 G".
     const named = hits.filter((r) => r.name).sort((a, b) => (a.src === "osm" ? 0 : 1) - (b.src === "osm" ? 0 : 1));
     const name = named.length ? named[0].name : "Unnamed dirt road";
-    const tenure = (t) => `BC Forest Tenure roads: ${esc(t.t || "road section")}${t.p ? ", " + esc(t.p) : ""}${t.f ? ", file " + esc(t.f) : ""} (${esc(ROAD_STATUS[ftenRoadStatus(t)[0]].label.toLowerCase())}, tenure ${esc((t.s || "?").toLowerCase())})`;
+    const tenure = (t) => t.src
+      ? `${esc(GOV_ROADS[t.src] || "Government roads")}: ${esc(t.w || ROAD_STATUS[ftenRoadStatus(t)[0]].label.toLowerCase())} · ${esc(t.t || "road")}${t.p ? ", " + esc(t.p) : ""}${t.f ? ", " + esc(t.f) : ""}`
+      : `BC Forest Tenure roads: ${esc(t.t || "road section")}${t.p ? ", " + esc(t.p) : ""}${t.f ? ", file " + esc(t.f) : ""} (${esc(ROAD_STATUS[ftenRoadStatus(t)[0]].label.toLowerCase())}, tenure ${esc((t.s || "?").toLowerCase())})`;
+    // Several government sections often lie along one road (Québec splits its forest roads at every junction): each
+    // different line once, with how many sections say it, and at most 3.
+    const govLines = (list) => {
+      const seen = new Map();
+      list.forEach((t) => { const k = tenure(t); seen.set(k, (seen.get(k) || 0) + 1); });
+      const out = [...seen].map(([k, n]) => k + (n > 1 ? ` (${n} sections)` : ""));
+      return out.slice(0, 3).concat(out.length > 3 ? [`and ${out.length - 3} more`] : []);
+    };
     const parts = hits.map((r) => r.src === "ften"
-      ? `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">${[r.r, ...(r.ften || [])].map(tenure).join("<br>")}</span></p>`
-      : `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">OpenStreetMap: ${esc(["highway=" + (r.tags.highway || r.tags["disused:highway"] || r.tags["abandoned:highway"] || "?"), r.tags.tracktype, r.tags.surface].filter(Boolean).join(", "))}${r.osmSt ? ` (${r.osmSt === "unknown" ? "no condition mapped" : esc(ROAD_STATUS[r.osmSt].label.toLowerCase())})` : ""} · <a href="https://www.openstreetmap.org/way/${r.id}" target="_blank" rel="noopener">way ${r.id}</a>${(r.ften || []).map((t) => "<br>" + tenure(t)).join("")}</span></p>`);
+      ? `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">${govLines([r.r, ...(r.ften || [])]).join("<br>")}</span></p>`
+      : `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">OpenStreetMap: ${esc(["highway=" + (r.tags.highway || r.tags["disused:highway"] || r.tags["abandoned:highway"] || "?"), r.tags.tracktype, r.tags.surface].filter(Boolean).join(", "))}${r.osmSt ? ` (${r.osmSt === "unknown" ? "no condition mapped" : esc(ROAD_STATUS[r.osmSt].label.toLowerCase())})` : ""} · <a href="https://www.openstreetmap.org/way/${r.id}" target="_blank" rel="noopener">way ${r.id}</a>${govLines(r.ften || []).map((t) => "<br>" + t).join("")}</span></p>`);
     L.popup({ className: "road-pop-wrap", maxWidth: 280 }).setLatLng(ll).setContent(`<div class="road-pop"><h4>${esc(name)}</h4>${parts.join("")}${areas.join("")}
-      <p class="src">From mapped data, not a live closure list: check the
-      <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p></div>`).openOn(map);
+      <p class="src">From mapped data, not a live closure list: ${ll.lat >= 48.2 && ll.lat <= 60 && ll.lng <= -114.05 ? `check the
+      <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.` : "obey gates and posted signs, and check the province's road notices before driving."}</p></div>`).openOn(map);
     pickLayer.clearLayers();
     return true;
   }
@@ -6545,7 +6559,7 @@ out body;`;
   const fmtM = (m) => (m < 1000 ? `${Math.round(m / 10) * 10 || 10} m` : `${(m / 1000).toFixed(1)} km`);
   function roadLine(hit, none) {
     if (!hit) return `<span class="muted">${none}</span>`;
-    const { r, d } = hit, what = r.name || (r.src === "ften" ? r.r.t || "Forest Service road" : "an unnamed dirt road");
+    const { r, d } = hit, what = r.name || (r.src === "ften" ? r.r.t || (r.r.src ? "forest road" : "Forest Service road") : "an unnamed dirt road");
     return `${roadSwatch(r.st)}${d > 40 ? `${fmtM(d)} from ` : "On "}<strong>${esc(what)}</strong>: ${esc(ROAD_STATUS[r.st].label.toLowerCase())}${r.why && !/=/.test(r.why) ? ` <span class="muted">(${esc(r.why)})</span>` : ""}`;
   }
   function accessInfo(x) {
@@ -7164,7 +7178,15 @@ out tags center qt;`;
     map.setView(ll, 15);
     setStatus(`${x.name} is in the middle of the map.`);
   }
-  const pickHit = (h) => (h.p ? goPlace(h.p) : h.x ? goCaTrail(h.x) : showFound(h.g));
+  const pickHit = (h) => (h.p ? goPlace(h.p) : h.x ? goCaTrail(h.x) : h.rt ? window.tfRiderTrails.open(h.rt.id) : showFound(h.g));
+  // Trails riders added (rider-trails.js): not in OpenStreetMap, so not in the name files, but found by name here too.
+  function riderHits(raw) {
+    const rt = window.tfRiderTrails, q = norm(raw);
+    if (!rt || !q) return [];
+    const qWords = q.split(" "), here = you.ll || map.getCenter();
+    return rt.all().filter((t) => t.name && t.line && t.line.length).map((t) => ({ rt: t, s: matchScore(q, qWords, norm(t.name)) }))
+      .filter((h) => h.s >= 0.6).map((h) => ((h.d = here.distanceTo(L.latLng(h.rt.line[0]))), h)).sort((a, b) => b.s - a.s || a.d - b.d).slice(0, 5);
+  }
 
   let hits = [], hitSel = -1, wideFor = "";
   // From you when the app knows where you are (alex saw Half Nelson "45 km away" from 5 km: it was measured from
@@ -7179,6 +7201,7 @@ out tags center qt;`;
       const p = h.p, meta = [PLACE_KIND[p.kind], p.prov, p.kind === "t" && p.pop >= 1000 ? p.pop.toLocaleString("en-CA") + " people" : "", fmtDist(h.d)].filter(Boolean).join(" · ");
       return `<li class="hit place" ${sel}<div><div class="hn">📍 ${esc(p.name)}</div><div class="hm">${esc(meta)}</div></div></li>`;
     }
+    if (h.rt) return `<li class="hit mtb" ${sel}<div><div class="hn">➕ ${esc(h.rt.name)}</div><div class="hm">${esc(["Added by a rider", nearTown(h.rt.line[0][0], h.rt.line[0][1]), fmtDist(h.d)].filter(Boolean).join(" · "))}</div></div></li>`;
     if (h.x) {
       const x = h.x, meta = [CA_KIND[x.kind], nearTown(x.lat, x.lon), fmtDist(h.d)].filter(Boolean).join(" · ");
       return `<li class="hit ${x.kind === "M" || x.kind === "R" ? "mtb" : ""}" ${sel}<div><div class="hn">${esc(x.name)}</div><div class="hm">${esc(meta)}</div></div></li>`;
@@ -7228,12 +7251,14 @@ out tags center qt;`;
     const loading = want.some((z) => names.inflight.has(z.id));
     // Towns only when the name starts that way, or nothing else matched: "Coulee" near Bromont wants the trail, not Spring Coulee AB.
     const local = hits, towns = placeHits(raw).filter((h, i, l) => h.s >= 0.97 || !local.length), far = caHits(raw, local, want).slice(0, Math.max(3, 10 - local.length));
-    hits = towns.concat(local, far);
+    const added = riderHits(raw);
+    hits = towns.concat(added, local, far);
     if (hitSel >= hits.length) hitSel = hits.length - 1;
     if (!loading) logUse("search", "Trail name:" + raw, hits.length);
     let n = 0;
     const rowsOf = (l) => l.map((h) => hitRow(h, n++)).join("");
     const rows = (towns.length ? `<li class="hhead"><span>Towns and areas</span></li>` + rowsOf(towns) : "")
+      + (added.length ? `<li class="hhead"><span>Added by riders</span></li>` + rowsOf(added) : "")
       + (local.length && (towns.length || wide) ? `<li class="hhead"><span>${wide ? `Not in ${esc(shortZone(zsel))}. Found in other areas` : "Trails"}</span></li>` : "") + rowsOf(local)
       + (far.length ? `<li class="hhead"><span>${local.length ? "More across Canada" : "Trails across Canada"}</span></li>` + rowsOf(far) : "");
     let note = "";
@@ -7241,7 +7266,8 @@ out tags center qt;`;
     if (loading && wide) note = `Not in ${esc(shortZone(zsel))}. Looking in the other areas around…`;
     else if (loading) note = (zsel ? `Loading trail names in ${esc(shortZone(zsel))}…` : `Loading trail names: ${want.filter((z) => names.fresh.has(z.id)).length} of ${want.length} areas…`) + (busyFor() ? " OpenStreetMap is busy, so this can take a minute." : "");
     else if (failed.length) note = `Names for ${esc(failed.map(shortZone).join(", "))} didn't load. <button class="linkish" type="button" data-retry>Try again</button>`;
-    if (!hits.length && !loading) note = `No trail or town named “${esc(raw)}” found${wide ? ` in ${esc(shortZone(zsel))} or the other areas around` : zsel ? ` in ${esc(shortZone(zsel))}` : ""}. Check the spelling or type part of the name.${wide || zsel ? " Or pick another area." : ""}` + (note ? "<br>" + note : "");
+    if (!hits.length && !loading) note = `No trail or town named “${esc(raw)}” found${wide ? ` in ${esc(shortZone(zsel))} or the other areas around` : zsel ? ` in ${esc(shortZone(zsel))}` : ""}. Check the spelling or type part of the name.${wide || zsel ? " Or pick another area." : ""}` + (note ? "<br>" + note : "")
+      + (window.tfRiderTrails ? `<br>Not on the map yet? <button class="linkish" type="button" data-addtrail>➕ Add it</button> and every rider will find it.` : "");
     box.innerHTML = rows + (note ? `<li class="hnote">${note}</li>` : "");
     input.setAttribute("aria-activedescendant", hitSel >= 0 ? "hit" + hitSel : "");
   }
@@ -7305,6 +7331,7 @@ out tags center qt;`;
   if (location.hash === "#folders") { history.replaceState(null, "", location.pathname + location.search); showFolders(); }
   $("trailHits").addEventListener("click", (e) => {
     if (e.target.closest("[data-retry]")) { loadNames(true); return; }
+    if (e.target.closest("[data-addtrail]")) { $("trailHits").hidden = true; window.tfRiderTrails.start(); return; }
     if (e.target.closest("[data-clear-recent]")) { store.set("recentTrails", []); hitSel = -1; refreshHits(); return; }
     const li = e.target.closest(".hit"); if (li) pickHit(hits[+li.dataset.n]);
   });
