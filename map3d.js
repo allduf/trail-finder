@@ -141,6 +141,8 @@
       if (l instanceof L.CircleMarker && !(l instanceof L.Circle)) {
         // A dot that opens something when tapped in 2D (a hut in Skiing) opens it in 3D too (alex 2026-10-24).
         if (o.interactive !== false && l.listens("click")) hitDots.push({ l, c: ll(l.getLatLng()), r: l.getRadius() + (o.weight || 0) });
+        // A named dot (a hut) gets its name beside it once zoomed in to its labelZoom, like the trail names.
+        if (o.label) names.push({ n: o.label, c: o.fillColor || o.color, o: 1, s: -1e9, z: o.labelZoom || 12, p: ll(l.getLatLng()) });
         dots.push({ type: "Feature", geometry: { type: "Point", coordinates: ll(l.getLatLng()) },
           properties: { r: l.getRadius(), c: o.color, w: o.stroke === false ? 0 : o.weight,   /* no outline on a shadow dot */ f: o.fillColor || o.color, fo: o.fillOpacity, k: order } });
         return;
@@ -197,7 +199,7 @@
     if (!src) return;
     const cv = gl.getCanvas(), w = cv.clientWidth, h = cv.clientHeight, m = 0.06, box = gl.getBounds(), best = new Map();
     if (gl.getZoom() >= 12) for (const k of nameCands) {
-      if (!box.contains(k.p)) continue;
+      if (!box.contains(k.p) || (k.z && gl.getZoom() < k.z)) continue;
       const q = gl.project(k.p);
       if (!(q.x > w * m && q.x < w * (1 - m) && q.y > h * m && q.y < h * (1 - m))) continue;
       const dd = (q.x - w / 2) ** 2 + (q.y - h / 2) ** 2, b = best.get(k.n);
@@ -640,7 +642,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=980");
+      const w = new Worker("winter-fill.js?v=990");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -717,7 +719,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=980" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=990" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
