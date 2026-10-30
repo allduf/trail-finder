@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-30", "text": "Skiing 3D: the ground fills in faster after you move, with a soft winter photo instead of grey patches while the sharp one loads."},
     {"date": "2026-10-30", "text": "The map Key button now moves up above the radar, clouds and smoke bars on phones, so it no longer sits on top of their colour key."},
     {"date": "2026-10-29", "text": "Faster on phones: typing a trail name in search no longer freezes the keyboard, and zooming out over new trails stays smoother."},
     {"date": "2026-10-29", "text": "Skiing: Snow forecast and New snow also show rain (in greens) where it rains instead, make the 3D map lag less, and no longer leave dark patches when the weather service is busy."},

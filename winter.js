@@ -2908,7 +2908,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // "step|i|j" -> { f: snow cm in the last 24 h, n: snow cm in the next 3 days, rf / rn: rain mm the same, at } or { err, at }
   const snowGrid = new Map();
   const snowAsk = new Map();    // waiting to be asked: key -> { lat, lon, done: [resolve], tries }
-  const SNOW_PER_MIN = 250, SNOW_PER_HOUR = 2000, SNOW_TRIES = 4, SNOW_WAIT_MS = 3000;
+  const SNOW_PER_MIN = 250, SNOW_PER_HOUR = 2000, SNOW_TRIES = 4, SNOW_WAIT_MS = 800;
   let snowTimer = 0, snowVer = 0, snowPause = 0, snowRefused = 0, snowSaveT = 0;
   let snowSent = [];   // [time, places] in the last hour, kept on the phone so opening the app again counts them
   try {
@@ -2983,14 +2983,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const w = snowAsk.get(k) || { lat: i * step, lon: j * step, done: [], tries: 0 };
       w.done.push(() => ok(snowGrid.get(k)));
       snowAsk.set(k, w);
-      snowLater(400);   // the tiles of one view come in over a few hundred ms: all of them, so the close ones go first
+      snowLater(150);   // the tiles of one view are all asked for at once: all of them, so the close ones go first
     });
   }
-  // Tiles drawn with points still missing are drawn again when those come (all of them at once, a few seconds later).
-  // A tile doesn't wait longer than SNOW_WAIT_MS: a waiting tile holds one of the map's download places, which the
-  // Winter photos need too.
+  // Tiles drawn with points still missing are drawn again when those come (all of them at once, under a second later).
+  // A tile doesn't wait longer than SNOW_WAIT_MS (one Open-Meteo answer): a waiting tile holds one of the map's
+  // download places, which the Winter photos need too. It waited 3 s before, and the ground filled in slower after
+  // each move (alex's recording, 2026-10-29); it now draws the coarse grid or the points around meanwhile.
   let snowAgain = 0;
-  const snowRedraw = () => { if (!snowAgain) snowAgain = setTimeout(() => { snowAgain = 0; snowVer++; freshLayer.redraw(); snowfcLayer.redraw(); }, 2000); };
+  const snowRedraw = () => { if (!snowAgain) snowAgain = setTimeout(() => { snowAgain = 0; snowVer++; freshLayer.redraw(); snowfcLayer.redraw(); }, 700); };
   // The half-degree (then one-degree) grid's blend at a spot, from the points already in, or null.
   function snowCoarse(lat, lon) {
     for (const st of [0.5, 1]) {
