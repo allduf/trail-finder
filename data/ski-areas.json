@@ -20,6 +20,18 @@
   "none": {
    "name": "No public avalanche forecast",
    "url": ""
+  },
+  "jan": {
+   "name": "Japan Avalanche Network (nadare.jp, in English)",
+   "url": "https://data.nadare.jp/avalanche_informations?locale=en"
+  },
+  "niseko": {
+   "name": "Niseko Avalanche Information (daily, posted at the gates) and the Japan Avalanche Network's SW Hokkaido bulletin",
+   "url": "https://niseko.nadare.info/"
+  },
+  "jpnone": {
+   "name": "No public avalanche bulletin",
+   "url": ""
   }
  },
  "atesSources": {
@@ -3179,6 +3191,289 @@
      "u": "https://parks.canada.ca/pn-np/nu/auyuittuq"
     }
    ]
+  },
+  {
+   "id": "jp-tsugaike",
+   "name": "Tsugaike: Tenguhara and Norikura-dake",
+   "region": "Hakuba Valley",
+   "lat": 36.7815,
+   "lon": 137.8014,
+   "kind": "traverse",
+   "about": "Hakuba's busiest tour: from the top of Tsugaike's ropeway, skin up to the Tenguhara plateau and on to Norikura-dake (2,436 m). Big open alpine bowls back down to the resort, or long runs down the Tsugaike or Kazafuki side.",
+   "access": "Tsugaike Kogen ski resort (Otari). Gondola and ropeway to the top station, then the backcountry gate.",
+   "rules": "Hakuba Valley: file a mountain-climbing registration form at the resort's ticket window before going through a gate. Backcountry only through the official gates (ABLE Hakuba Goryu, Happo-one, Tsugaike, Hakuba Norikura, Hakuba Cortina); going out from Jigatake, Kashimayari, Sanosaka, Hakuba47 or Iwatake is not allowed. Rescues are charged.",
+   "forecast": "jan",
+   "sub": "Hakuba",
+   "links": [
+    {
+     "t": "Hakuba Valley backcountry safety",
+     "u": "https://www.hakubavalley.com/en/safetytips_en/backcountry/"
+    },
+    {
+     "t": "Nagano backcountry guide (PDF)",
+     "u": "https://www.pref.nagano.lg.jp/kankoki/smartphone/documents/backcountry-e.pdf"
+    }
+   ],
+   "prov": "JP",
+   "huts": []
+  },
+  {
+   "id": "jp-happo",
+   "name": "Happo-one: Happo-ike and Karamatsu-dake",
+   "region": "Hakuba Valley",
+   "lat": 36.6942,
+   "lon": 137.7845,
+   "kind": "traverse",
+   "about": "From the top lift at Happo-one, up the ridge past Happo-ike pond toward Karamatsu-dake (2,696 m). Steep, wind-loaded alpine faces on both sides of the ridge: serious avalanche terrain, often done with a guide.",
+   "access": "Happo-one ski resort (Hakuba village). Adam gondola, Alpen quad and Grat quad to the top, then the gate.",
+   "huts": [
+    {
+     "name": "Happoike Sanso",
+     "by": "Hakuba village",
+     "note": "Closed in winter"
+    }
+   ],
+   "rules": "Hakuba Valley: file a mountain-climbing registration form at the resort's ticket window before going through a gate. Backcountry only through the official gates (ABLE Hakuba Goryu, Happo-one, Tsugaike, Hakuba Norikura, Hakuba Cortina); going out from Jigatake, Kashimayari, Sanosaka, Hakuba47 or Iwatake is not allowed. Rescues are charged.",
+   "forecast": "jan",
+   "sub": "Hakuba",
+   "links": [
+    {
+     "t": "Hakuba Valley backcountry safety",
+     "u": "https://www.hakubavalley.com/en/safetytips_en/backcountry/"
+    },
+    {
+     "t": "Nagano backcountry guide (PDF)",
+     "u": "https://www.pref.nagano.lg.jp/kankoki/smartphone/documents/backcountry-e.pdf"
+    }
+   ],
+   "prov": "JP"
+  },
+  {
+   "id": "jp-goryu",
+   "name": "Goryu: Jizo-no-atama and Toomi ridge",
+   "region": "Hakuba Valley",
+   "lat": 36.6598,
+   "lon": 137.8104,
+   "kind": "traverse",
+   "about": "Above Hakuba Goryu's Toomi area: the Jizo-no-atama shoulder and the ridge toward Shirodake and Kakunezato. Gullies on both sides that slide.",
+   "access": "ABLE Hakuba Goryu (Hakuba village). Telecabin and Alps-daira lifts, then the gate.",
+   "rules": "Hakuba Valley: file a mountain-climbing registration form at the resort's ticket window before going through a gate. Backcountry only through the official gates (ABLE Hakuba Goryu, Happo-one, Tsugaike, Hakuba Norikura, Hakuba Cortina); going out from Jigatake, Kashimayari, Sanosaka, Hakuba47 or Iwatake is not allowed. Rescues are charged.",
+   "forecast": "jan",
+   "sub": "Hakuba",
+   "links": [
+    {
+     "t": "Hakuba Valley backcountry safety",
+     "u": "https://www.hakubavalley.com/en/safetytips_en/backcountry/"
+    },
+    {
+     "t": "Nagano backcountry guide (PDF)",
+     "u": "https://www.pref.nagano.lg.jp/kankoki/smartphone/documents/backcountry-e.pdf"
+    }
+   ],
+   "prov": "JP",
+   "huts": []
+  },
+  {
+   "id": "jp-cortina",
+   "name": "Hakuba Cortina and Norikura gates",
+   "region": "Hakuba Valley",
+   "lat": 36.7787,
+   "lon": 137.8824,
+   "approx": true,
+   "kind": "traverse",
+   "about": "The deep-snow tree skiing of the valley's north end: gates from Hakuba Cortina and Hakuba Norikura lead into steep trees and gullies around the two resorts.",
+   "access": "Hakuba Cortina or Hakuba Norikura ski resorts (Otari).",
+   "rules": "Hakuba Valley: file a mountain-climbing registration form at the resort's ticket window before going through a gate. Backcountry only through the official gates (ABLE Hakuba Goryu, Happo-one, Tsugaike, Hakuba Norikura, Hakuba Cortina); going out from Jigatake, Kashimayari, Sanosaka, Hakuba47 or Iwatake is not allowed. Rescues are charged.",
+   "forecast": "jan",
+   "sub": "Hakuba",
+   "links": [
+    {
+     "t": "Hakuba Valley backcountry safety",
+     "u": "https://www.hakubavalley.com/en/safetytips_en/backcountry/"
+    },
+    {
+     "t": "Nagano backcountry guide (PDF)",
+     "u": "https://www.pref.nagano.lg.jp/kankoki/smartphone/documents/backcountry-e.pdf"
+    }
+   ],
+   "prov": "JP",
+   "huts": []
+  },
+  {
+   "id": "jp-myoko",
+   "name": "Myoko: Mt Myoko and Kanna",
+   "region": "Myoko",
+   "lat": 36.8913,
+   "lon": 138.1134,
+   "kind": "traverse",
+   "about": "Heavy Sea of Japan snow around Mt Myoko (2,454 m), with tours from the Myoko Kogen resorts (Akakura, Ikenotaira, Suginohara, Seki Onsen) and Mt Kanna.",
+   "access": "Myoko Kogen resorts, about 1 hour 30 minutes by road from Hakuba.",
+   "rules": "Use the resorts' backcountry gates where they have them and file a climbing registration (Niigata police). Check each resort's backcountry rules.",
+   "forecast": "jan",
+   "sub": "Myoko",
+   "links": [
+    {
+     "t": "JAN Myoko bulletin",
+     "u": "https://data.nadare.jp/avalanche_informations?locale=en&area_id=3"
+    }
+   ],
+   "prov": "JP",
+   "huts": []
+  },
+  {
+   "id": "jp-kagura",
+   "name": "Kagura and Tanigawa-dake",
+   "region": "Yuzawa and Minakami",
+   "lat": 36.8521,
+   "lon": 138.7039,
+   "kind": "traverse",
+   "about": "Off the top of Kagura ski resort (Yuzawa) toward Kagura-ga-mine, and the steep, avalanche-prone Tanigawa-dake range near Minakami.",
+   "access": "Kagura ski resort (Yuzawa), or the Tanigawa-dake ropeway (Minakami).",
+   "rules": "Kagura's backcountry gate needs a climbing registration. Tanigawa-dake has its own climbing ordinance (Gunma): registration required for the dangerous zone.",
+   "forecast": "jan",
+   "sub": "Kagura Tanigawa Hotaka",
+   "links": [
+    {
+     "t": "JAN Kagura Tanigawa Hotaka bulletin",
+     "u": "https://data.nadare.jp/avalanche_informations?locale=en&area_id=4"
+    }
+   ],
+   "prov": "JP",
+   "huts": []
+  },
+  {
+   "id": "jp-niseko",
+   "name": "Niseko Annupuri gates",
+   "region": "Niseko",
+   "lat": 42.8749,
+   "lon": 140.6588,
+   "kind": "traverse",
+   "about": "Niseko United's 11 backcountry gates (Annupuri, Niseko Village, Grand Hirafu, Hanazono) lead to the summit bowls of Niseko Annupuri (1,308 m) and the tree runs around it. Deep, light snow and very busy on powder days.",
+   "access": "Any of the four Niseko United resorts; the summit gates are from the top lifts.",
+   "rules": "Niseko Rules: go out only through an open gate; when a gate is closed the backcountry is closed. Ducking ropes is banned, and lift passes can be taken away. Beacon, probe and shovel very highly recommended. Rescues are charged.",
+   "forecast": "niseko",
+   "sub": "SW Hokkaido",
+   "links": [
+    {
+     "t": "Niseko Rules",
+     "u": "https://www.niseko.ne.jp/en/niseko/niseko-rules/"
+    },
+    {
+     "t": "Niseko Avalanche Information",
+     "u": "https://niseko.nadare.info/"
+    }
+   ],
+   "prov": "JP",
+   "huts": []
+  },
+  {
+   "id": "jp-yotei",
+   "name": "Mt Yotei",
+   "region": "Niseko",
+   "lat": 42.8269,
+   "lon": 140.8067,
+   "kind": "traverse",
+   "about": "The 1,898 m volcano across the valley from Niseko: a long climb from the trailheads around its base (Kutchan, Makkari, Kyogoku, Hirafu sides) to ski the open upper slopes or into the crater. Icy and wind-blasted near the top; whiteouts come fast.",
+   "access": "Trailheads at the foot of the mountain, by car from Kutchan or Niseko. Parking is small in winter.",
+   "rules": "No lifts, no patrol. File a climbing registration (Hokkaido police) and check the weather: the summit is exposed.",
+   "forecast": "niseko",
+   "sub": "SW Hokkaido",
+   "links": [
+    {
+     "t": "Hokkaido Wilds (route guides)",
+     "u": "https://hokkaidowilds.org/"
+    }
+   ],
+   "prov": "JP",
+   "huts": []
+  },
+  {
+   "id": "jp-kiroro",
+   "name": "Kiroro and Mt Yoichi",
+   "region": "Shakotan, near Otaru",
+   "lat": 43.08,
+   "lon": 140.985,
+   "approx": true,
+   "kind": "traverse",
+   "about": "Kiroro's backcountry gates lead to the peaks around the resort (the 1,107 m and 992 m peaks west of it) and to Mt Yoichi (1,488 m), the area's big tour.",
+   "access": "Kiroro Resort, about 40 minutes by road from Otaru.",
+   "rules": "Kiroro's backcountry rules change from season to season: enter only through the gates, and submit a backcountry plan at the resort base (Mountain Club desk) before going.",
+   "forecast": "jpnone",
+   "links": [
+    {
+     "t": "Hokkaido Wilds: Kiroro 1107 m",
+     "u": "https://hokkaidowilds.org/ski-touring/kiroro-1107m-992m-peaks"
+    },
+    {
+     "t": "Hokkaido Wilds: Mt Yoichi",
+     "u": "https://hokkaidowilds.org/ski-touring/hokkaido-back-country-skiing-mt-yoichi-akai-kawa-route"
+    }
+   ],
+   "prov": "JP",
+   "huts": []
+  },
+  {
+   "id": "jp-asahidake",
+   "name": "Asahidake",
+   "region": "Daisetsuzan",
+   "lat": 43.66,
+   "lon": 142.85,
+   "approx": true,
+   "kind": "traverse",
+   "about": "Hokkaido's highest peak (2,291 m), in Daisetsuzan National Park. The ropeway gives laps of open backcountry; strong skiers skin 2 to 3 hours from the top station toward the summit. Volcanic vents, warm creeks under the snow and cold, fast-changing weather.",
+   "access": "Asahidake Ropeway from Asahidake Onsen, about 1 hour by road from Asahikawa.",
+   "rules": "No patrol away from the ropeway area. File a climbing registration; go with people who can rescue each other, or a guide.",
+   "forecast": "jan",
+   "sub": "Central Hokkaido",
+   "links": [
+    {
+     "t": "JAN Central Hokkaido bulletin",
+     "u": "https://data.nadare.jp/avalanche_informations?locale=en&area_id=7"
+    }
+   ],
+   "prov": "JP",
+   "huts": []
+  },
+  {
+   "id": "jp-tokachi",
+   "name": "Tokachidake: Sandan-yama and Kamihoro",
+   "region": "Daisetsuzan",
+   "lat": 43.4134,
+   "lon": 142.6653,
+   "kind": "traverse",
+   "about": "Tours from the Tokachidake Onsen and Fukiage Onsen side: Sandan-yama (1,748 m) and the Kamihoro-kamettoku ridge, with tree runs lower down. An active volcano area.",
+   "access": "Tokachidake Onsen road above Kamifurano (open in winter to the onsen).",
+   "rules": "No lifts, no patrol. File a climbing registration (Hokkaido police).",
+   "forecast": "jan",
+   "sub": "Central Hokkaido",
+   "links": [
+    {
+     "t": "JAN Central Hokkaido bulletin",
+     "u": "https://data.nadare.jp/avalanche_informations?locale=en&area_id=7"
+    }
+   ],
+   "prov": "JP",
+   "huts": []
+  },
+  {
+   "id": "jp-furano",
+   "name": "Furano backcountry gates",
+   "region": "Furano",
+   "lat": 43.3326,
+   "lon": 142.3281,
+   "kind": "traverse",
+   "about": "Furano ski resort's gate system opens tree runs beside the resort to skiers with avalanche gear and training.",
+   "access": "Furano ski resort (Kitanomine or Furano zone).",
+   "rules": "Gates only, and only with beacon, probe and shovel. The rules are set each season: check at the resort.",
+   "forecast": "jpnone",
+   "links": [
+    {
+     "t": "Ski resorts with backcountry access (Hokkaido)",
+     "u": "https://steep.jp/en/mountain/38373/"
+    }
+   ],
+   "prov": "JP",
+   "huts": []
   }
  ]
 }
