@@ -14,6 +14,9 @@
 //    and wind in the 3 days before you go in.
 //  - Save offline: the map, ski data and terrain around the cabin and the way in (offline.js), and the forecast as it
 //    is now is kept with the trip and shown when there's no signal.
+//  - Then (alex picked them 2026-10-30): day tours from the cabin (mapped tours within 1.5 km, ★ the ones you plan),
+//    a packing list built from the trip (nights, people, what the cabin has, the coldest night, the way in's slopes),
+//    and a trip plan to leave with a friend, with a late alert for their calendar at the "call for help" time.
 // Trips stay on this device (tf:skiTrips).
 (() => {
   "use strict";
@@ -69,6 +72,25 @@
 #skiPane .tp-list button { font: inherit; width: 100%; text-align: left; display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; font-size: .85rem; }
 #skiPane .tp-list button small { color: var(--muted); white-space: nowrap; }
 #skiPane .sk-tripgo { font: inherit; font-size: .9rem; font-weight: 800; padding: 10px; border-radius: 11px; border: 0; background: ${COL}; color: #fff; cursor: pointer; }
+#skiPane .tp-tours li { display: flex; gap: 4px; }
+#skiPane .tp-tours li > button:first-child { flex: 1; }
+#skiPane .tp-tours small { color: var(--muted); white-space: normal; }
+#skiPane .tp-list .tp-star { flex: none; width: 48px; justify-content: center; align-items: center; font-size: 1.3rem; color: #f08c00; }
+#skiPane details.tp-pack > summary, #skiPane details.tp-plan > summary { font-size: .92rem; font-weight: 800; padding: 4px 0; }
+#skiPane details summary small { font-weight: 600; color: var(--muted); margin-left: 4px; }
+#skiPane .tp-pack h5 { margin: 8px 0 2px; font-size: .74rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+#skiPane .tp-check { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; font-size: .86rem; line-height: 1.3; cursor: pointer; }
+#skiPane .tp-check input { width: 20px; height: 20px; margin: 0; flex: none; accent-color: ${COL}; }
+#skiPane .tp-check input:checked + span { color: var(--muted); text-decoration: line-through; }
+#skiPane .tp-pack .tp-btns, #skiPane .tp-plan .tp-btns { margin-top: 8px; }
+#skiPane .tp-plan > p, #skiPane .tp-plan-form { margin: 6px 0; }
+#skiPane .tp-plan-form { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+#skiPane .tp-plan-form .wide { grid-column: 1 / -1; }
+#skiPane .tp-plan-form label { display: flex; flex-direction: column; gap: 2px; font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); min-width: 0; }
+#skiPane .tp-plan-form input { font: inherit; font-size: 16px; padding: 7px 6px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--fg); min-width: 0; width: 100%; box-sizing: border-box; }
+#skiPane .tp-plan .tp-btns > * { flex: 1 1 40%; justify-content: center; text-align: center; }
+#skiPane .tp-late { color: #c92a2a; font-weight: 700; }
+#skiPane .tp-late-tag { color: #fff !important; background: #c92a2a; border-radius: 6px; padding: 1px 6px; font-weight: 800; }
 #skiPane .sk-acts.tp4 { grid-template-columns: repeat(3, 1fr); }`;   /* phones: one row each (theme.css) */
   document.head.append(css);
 
@@ -119,6 +141,7 @@
     if (t.way && t.way.src === "auto" && t.way.v !== WAY_V) { t.way = null; t.wayFail = ""; }
     if (!t.way && !/^(noroad|water)$/.test(t.wayFail || "")) findWay(t);
     loadDays(t);
+    loadTours(t);
   }
   const hutName = (t) => t.hut.name || (S.KIND[t.hut.kind] || "Cabin");
 
@@ -232,6 +255,158 @@
     renderDays();
   }
 
+  // ---------- day tours from the cabin ----------
+  // The mapped tours and snowshoe routes that pass within 1.5 km of the cabin, for the full days you're there. A ★ puts
+  // one in the trip plan you leave with a friend. Kept with the trip (t.tours) so the list shows with no signal.
+  async function loadTours(t) {
+    if (!window.tfSki || !window.tfSki.near) return;
+    try {
+      const r = await window.tfSki.near([t.hut.lat, t.hut.lon], 3, ["tour", "snowshoe", "other"]);
+      t.tours = r.routes.filter((x) => x.d <= 1500).slice(0, 8).map((x) => ({ id: x.id, name: x.name, label: x.label, km: +x.km.toFixed(1), d: Math.round(x.d), pill: x.pill, c: x.c }));
+      putTrip(t);
+    } catch { if (!t.tours) t.tours = []; }
+    if (cur === t) renderTours();
+  }
+  function toursHtml(t) {
+    const full = t.nights - 1, l = t.tours;
+    const lead = `<p class="sk-note">${full > 0 ? `<b>${full} full day${full > 1 ? "s" : ""}</b> at the cabin, plus the afternoon you get in.` : "One night: the afternoon you get in and the morning before you ski out."}</p>`;
+    if (!l) return `${lead}<p class="tp-wait">Looking for tours near the cabin…</p>`;
+    if (!l.length) return `${lead}<p class="sk-note">No mapped tours start near the cabin. Tap the slopes around it on the map for their angle and avalanche terrain, or draw one with Plan a tour.</p>`;
+    const pick = t.pick || [];
+    return `${lead}<ul class="tp-list tp-tours">${l.map((x) => `<li><button type="button" data-tour="${esc(x.id)}"><span>${esc(x.name)} <small>${esc(x.label)} · ${x.km.toFixed(1)} km${x.d >= 150 ? ` · starts ${(x.d / 1000).toFixed(1)} km away` : " · from the door"}</small>${x.pill ? `<br>${x.pill}` : ""}</span></button><button type="button" class="tp-star" data-star="${esc(x.id)}" aria-pressed="${pick.includes(x.id)}" aria-label="Plan to do ${esc(x.name)}">${pick.includes(x.id) ? "★" : "☆"}</button></li>`).join("")}</ul>
+      <p class="sk-note">Tap one for its slopes and today's avalanche check. ★ the ones you plan to do: they go in your trip plan.</p>`;
+  }
+
+  // ---------- packing list ----------
+  // Built from the trip: how many nights and people, what the cabin has (heat, water, outhouse, booking, fee), the way
+  // in's slopes and the coldest night in the forecast. Ticks stay with the trip (t.packed).
+  function packItems(t) {
+    const g = t.hut.tags || {}, w = t.way, n = t.nights, p = t.people;
+    const rows = view && view.rows ? view.rows.filter((r) => r.code != null) : [];
+    const cold = rows.length ? Math.min(...rows.map((r) => r.lo)) : null;
+    const noWater = g.drinking_water !== "yes", noHeat = !g.heating || g.heating === "none";
+    const fuel = Math.ceil((p * n * (noWater ? 0.2 : 0.1) + 0.1) * 10) / 10;   // litres of white gas: about 200 ml a person a day melting snow
+    const bag = cold == null ? "Sleeping bag" : `Sleeping bag rated to ${Math.min(-5, Math.round(cold) - 5)}°C${noHeat ? " (no heat: inside gets near the outside cold)" : ""}`;
+    const G = [
+      ["Avalanche and safety", [
+        ["beacon", `Avalanche beacon each, fresh batteries${p > 1 ? ` (${p})` : ""}`], ["shovel", "Shovel and probe each"],
+        ["sat", "Satellite messenger or PLB (inReach, Zoleo): most cabins have no cell signal"], ["aid", "First aid kit"],
+        ["repair", "Repair kit: skin glue/straps, binding parts, pole splint, tape"], ["bivy", "Emergency bivy or tarp"],
+        ["lamp", "Headlamp and spare batteries"], ["power", "Phone charged + power bank (cold drains it)"]]],
+      ["Skiing", [
+        ["skis", "Skis or splitboard, skins, poles"],
+        ...(w && (w.steep >= 25 || w.km30 > 0) ? [["crampons", `Ski crampons: the way in gets to ${w.steep}°`]] : []),
+        ...(rows.some((r) => r.snow >= 10 || r.gust >= 50) ? [["goggles", "Goggles: snow or strong wind in the forecast"]] : [["goggles", "Goggles and sunglasses"]]),
+        ["wax", "Skin wax"]]],
+      ["Sleeping", [
+        ["bag", bag], ["pad", "Sleeping pad (check if the cabin has mattresses)"], ["booties", "Hut booties or down slippers"], ["plugs", "Earplugs"]]],
+      ["Cooking and water", [
+        ["stove", `Stove and about ${fuel.toFixed(1)} L of fuel${noWater ? (g.drinking_water === "no" ? ": no water, you melt snow" : ": plan to melt snow") : ""}`],
+        ["pot", "Pot, lighter × 2, mug, spoon"], ["bottle", "Water bottles + a thermos"],
+        ...(/wood|stove/i.test(g.heating || "") ? [["fire", "Fire starter (check if wood is supplied)"]] : [])]],
+      ["Food", [
+        ["meals", `${n} breakfast${n > 1 ? "s" : ""}, ${n + 1} lunches and ${n} dinner${n > 1 ? "s" : ""}${p > 1 ? ` for ${p}` : ""}`],
+        ["snacks", `Snacks for ${n + 1} days`], ["spare", "One spare day of food, in case you're stuck in by weather"]]],
+      ["Clothes", [
+        ["layers", "Base layers, puffy jacket, shell jacket and pants"], ["hands", "Spare gloves, warm mitts, toque, buff"], ["socks", `Dry socks for ${n} night${n > 1 ? "s" : ""}`]]],
+      ["Cabin", [
+        ...(/^(required|only|yes)$/.test(g.reservation || "") ? [["booking", "Booking confirmation"]] : []),
+        ...(g.charge || g.fee === "yes" ? [["fee", `Cabin fee${g.charge ? `: ${g.charge}` : ""}`]] : []),
+        ...(g.toilets === "no" ? [["wag", "Wag bags: there's no outhouse, pack it out"]] : [["tp", "Toilet paper"]]),
+        ["trash", "Garbage bag: pack everything out"]]],
+      ["Before you go", [["offline", "Trip saved offline (button below)"], ["plan", "Trip plan left with a friend (below)"]]],
+    ];
+    return G;
+  }
+  const packDone = (t) => ({ ...(t.packed || {}), ...(t.offAt ? { offline: 1 } : {}), ...(t.plan && t.plan.sent ? { plan: 1 } : {}) });
+  function packHtml(t) {
+    const G = packItems(t), done = packDone(t), auto = { offline: !!t.offAt, plan: !!(t.plan && t.plan.sent) }, all = G.flatMap((x) => x[1]), n = all.filter((x) => done[x[0]]).length;
+    return `<details class="tp-pack" ${t.packOpen ? "open" : ""}><summary>Packing list <small>${n} of ${all.length} packed</small></summary>
+      ${G.map(([h, items]) => `<h5>${esc(h)}</h5>${items.map(([k, label]) => `<label class="tp-check"><input type="checkbox" data-pk="${k}" ${done[k] ? "checked" : ""} ${auto[k] ? "disabled" : ""}> <span>${esc(label)}</span></label>`).join("")}`).join("")}
+      <div class="tp-btns"><button type="button" data-tp="packshare">📤 Send the list to the group</button>${n ? `<button type="button" data-tp="packclear">Untick all</button>` : ""}</div></details>`;
+  }
+
+  // ---------- trip plan for a friend, and the late alert ----------
+  // What AdventureSmart asks you to leave with someone: who, where, the way in, when you'll be out and when to call
+  // for help. It goes out through the share sheet (text, email...). The late alert is a calendar event for the friend
+  // that rings at the "call for help" time, with what to do in it: it works with no signal on your side, and no server.
+  // On your phone the trip turns red once your out time has passed, until you tap We're out safe.
+  const me = () => store.get("tripMe", {});
+  const outDay = (t) => addDays(t.date, t.nights);
+  const planOf = (t) => {
+    const m = me(), pl = t.plan || {};
+    return { who: pl.who != null ? pl.who : m.who || "", car: pl.car != null ? pl.car : m.car || "", friend: pl.friend != null ? pl.friend : m.friend || "",
+      out: pl.out || `${outDay(t)}T16:00`, help: pl.help || `${outDay(t)}T20:00`, sent: pl.sent || 0, safe: pl.safe || 0 };
+  };
+  const when = (v) => new Date(v).toLocaleString("en-CA", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const late = (t) => { const pl = t.plan; return !!(pl && pl.sent && !pl.safe && Date.now() > new Date(pl.out || `${outDay(t)}T16:00`).getTime()); };
+  function planText(t) {
+    const pl = planOf(t), w = t.way, ll = (a, b) => `${a.toFixed(5)}, ${b.toFixed(5)}`;
+    const tours = (t.tours || []).filter((x) => (t.pick || []).includes(x.id)).map((x) => x.name);
+    const hasSat = (t.packed || {}).sat;
+    return [`TRIP PLAN: ${hutName(t)} (backcountry ski trip)`,
+      `Who: ${pl.who || "me"}${t.people > 1 ? ` (${t.people} people)` : ""}`,
+      `Cabin: ${hutName(t)}, ${ll(t.hut.lat, t.hut.lon)} https://www.google.com/maps?q=${t.hut.lat.toFixed(5)},${t.hut.lon.toFixed(5)}`,
+      `Going in: ${dayWord(t.date)}${w ? `, ${w.from.replace(/^Park /, "parking ")} (${ll(w.line[0][0], w.line[0][1])}), ${w.km.toFixed(1)} km and ${fmtM(w.up)} up, about ${fmtH(w.hIn)}` : ""}`,
+      `Nights: ${t.nights}. Back at the car by ${when(pl.out)}`,
+      ...(tours.length ? [`Day tours we may do: ${tours.join(", ")}`] : []),
+      ...(pl.car ? [`Car: ${pl.car}${w ? " at the parking above" : ""}`] : []),
+      `Gear: avalanche beacons, shovels, probes, first aid${hasSat ? ", satellite messenger" : ""}, ${t.nights + 1} days of food + a spare day`,
+      ``, `If you haven't heard from us by ${when(pl.help)}: call 911 (or the RCMP) and say we're overdue on a backcountry ski trip. They call Search and Rescue. Read them this plan.`,
+      ...(t.hut.tags.operator ? [`The cabin is run by ${t.hut.tags.operator}${t.hut.tags.website ? ` (${t.hut.tags.website})` : ""}.`] : []),
+    ].join("\n");
+  }
+  const icsEsc = (s) => String(s).replace(/[\\;,]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
+  const stamp = (d) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
+  function alertIcs(t) {
+    const pl = planOf(t), at = new Date(pl.help), who = pl.who || "your friend";
+    return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Trail Finder//Cabin trip//EN", "CALSCALE:GREGORIAN",
+      "BEGIN:VEVENT", `UID:tf-trip-${t.id}@trail-finder`, `DTSTAMP:${stamp(new Date())}`, `DTSTART:${stamp(at)}`, `DTEND:${stamp(new Date(at.getTime() + 30 * 60000))}`,
+      `SUMMARY:${icsEsc(`Heard from ${who}? (${hutName(t)} trip)`)}`, `GEO:${t.hut.lat.toFixed(5)};${t.hut.lon.toFixed(5)}`,
+      `DESCRIPTION:${icsEsc(`Not heard from ${who} yet? If they haven't told you they're out safe, call 911 and say they're overdue on a backcountry ski trip.\n\n${planText(t)}`)}`,
+      "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${icsEsc(`Not heard from ${who}? Call 911`)}`, "TRIGGER:PT0M", "END:VALARM",
+      "END:VEVENT", "END:VCALENDAR"].map((l) => (l.match(/.{1,60}/gu) || [""]).join("\r\n ")).join("\r\n");   // folded: 75 bytes a line at most
+  }
+  async function shareFile(body, name, type, text) {
+    const f = new File([body], name, { type });
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [f] })) {
+      try { await navigator.share({ files: [f], title: name, text }); return true; } catch (e) { if (e && e.name === "AbortError") return false; }
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([body], { type })); a.download = name;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+    if (window.tfToast) window.tfToast(`Saved ${name}: send it to your friend to open.`);
+    return true;
+  }
+  async function shareText(title, text) {
+    try {
+      if (navigator.share) { await navigator.share({ title, text }); return true; }
+      await navigator.clipboard.writeText(text);
+      if (window.tfToast) window.tfToast("Copied: paste it in a message.");
+      return true;
+    } catch (e) { if (e && e.name === "AbortError") return false; try { prompt("Copy this:", text); } catch {} return true; }
+  }
+  function planHtml(t) {
+    const pl = planOf(t), isLate = late(t);
+    const status = pl.safe ? `<p class="sk-note">✅ Out safe ${esc(when(pl.safe))}.</p>`
+      : isLate ? `<p class="tp-late">Past your out time (${esc(when(pl.out))}). Out safe? Tell ${esc(pl.friend || "your friend")} now${Date.now() > new Date(pl.help).getTime() ? ": their alert has gone off" : `, before the alert goes off at ${esc(when(pl.help))}`}.</p>`
+      : pl.sent ? `<p class="sk-note">Sent ${esc(when(pl.sent))}: their alert goes off at ${esc(when(pl.help))} unless you tell them you're out.</p>` : "";
+    return `<details class="tp-plan" ${t.planOpen || isLate ? "open" : ""}><summary>Trip plan for a friend${isLate ? ` <small class="tp-late-tag">Overdue</small>` : pl.sent ? " <small>sent</small>" : ""}</summary>
+      <p class="sk-note">Leave it with someone at home: if you don't check in, they call for help.</p>
+      <div class="tp-plan-form">
+        <label>Who's going<input type="text" data-pl="who" value="${esc(pl.who)}" placeholder="Your names" autocomplete="off"></label>
+        <label>Friend at home<input type="text" data-pl="friend" value="${esc(pl.friend)}" placeholder="Their name" autocomplete="off"></label>
+        <label class="wide">Car<input type="text" data-pl="car" value="${esc(pl.car)}" placeholder="Colour, make, plate" autocomplete="off"></label>
+        <label class="wide">Out by<input type="datetime-local" data-pl="out" value="${esc(pl.out)}"></label>
+        <label class="wide">Call for help at (if no word from you)<input type="datetime-local" data-pl="help" value="${esc(pl.help)}"></label>
+      </div>
+      ${status}
+      <div class="tp-btns"><button type="button" class="go" data-tp="plansend">📤 Send the trip plan</button><button type="button" data-tp="planics">⏰ Late alert for their calendar</button>
+        ${window.tfLive ? `<button type="button" data-tp="live">📍 Live location</button>` : ""}${pl.sent && !pl.safe ? `<button type="button" data-tp="safe">✅ We're out safe</button>` : ""}</div>
+      <p class="sk-note">The late alert is a calendar event: it rings on their phone at "Call for help at" with what to do. Live location only sends where you have signal.</p></details>`;
+  }
+
   // ---------- drawing the card ----------
   function factsHtml(t) {
     const g = t.hut.tags || {}, out = [];
@@ -305,6 +480,9 @@
       ${factsHtml(t)}
       <div class="sk-sec tp-way" id="tpWay"><h4>The way in</h4>${wayHtml(t)}</div>
       <div class="sk-sec" id="tpDays"><h4>Each day</h4>${daysHtml()}</div>
+      <div class="sk-sec" id="tpTours"><h4>Day tours from the cabin</h4>${toursHtml(t)}</div>
+      <div class="sk-sec" id="tpPack">${packHtml(t)}</div>
+      <div class="sk-sec" id="tpPlan">${planHtml(t)}</div>
       <div class="sk-sec"><div class="tp-btns"><button type="button" data-tp="off" ${t.way ? "" : "disabled"}>⤓ Save the trip offline</button><button type="button" data-tp="hut">Cabin details</button><button type="button" data-tp="del">🗑 Delete</button></div>
         <p class="sk-note" id="tpOff">${offHtml(t)}</p></div>`;
   }
@@ -323,10 +501,33 @@
   }
   window.addEventListener("tf:offline", (e) => { const el = $("tpOff"); if (el && cur && e.detail && e.detail.name === offName(cur)) el.innerHTML = offHtml(cur); });
   const renderWay = () => { const el = $("tpWay"); if (el && cur) el.innerHTML = `<h4>The way in</h4>${wayHtml(cur)}`; };
-  const renderDays = () => { const el = $("tpDays"); if (el && cur) el.innerHTML = `<h4>Each day</h4>${daysHtml()}`; };
+  const renderDays = () => { const el = $("tpDays"); if (el && cur) el.innerHTML = `<h4>Each day</h4>${daysHtml()}`; renderPack(); };
+  const renderTours = () => { const el = $("tpTours"); if (el && cur) el.innerHTML = `<h4>Day tours from the cabin</h4>${toursHtml(cur)}`; };
+  const renderPack = () => { const el = $("tpPack"); if (el && cur) el.innerHTML = packHtml(cur); };
+  const renderPlan = () => { const el = $("tpPlan"); if (el && cur) el.innerHTML = planHtml(cur); };
+  card.addEventListener("toggle", (e) => {   // keep the packing list / trip plan open across redraws
+    if (!cur) return;
+    if (e.target.classList.contains("tp-pack")) cur.packOpen = e.target.open;
+    else if (e.target.classList.contains("tp-plan")) cur.planOpen = e.target.open;
+  }, true);
 
   card.addEventListener("change", (e) => {
-    if (!cur || e.target.dataset.tp !== "date" || !e.target.value) return;
+    if (!cur) return;
+    const el = e.target;
+    if (el.dataset.pk) {
+      cur.packed = { ...(cur.packed || {}) };
+      if (el.checked) cur.packed[el.dataset.pk] = 1; else delete cur.packed[el.dataset.pk];
+      putTrip(cur); renderPack(); return;
+    }
+    if (el.dataset.pl) {
+      const k = el.dataset.pl;
+      cur.plan = { ...(cur.plan || {}), [k]: el.value.trim() };
+      if (k === "out" && el.value && !(cur.plan.helpSet)) { const d = new Date(el.value); d.setHours(d.getHours() + 4); cur.plan.help = `${localDate(d)}T${d.toTimeString().slice(0, 5)}`; }
+      if (k === "help") cur.plan.helpSet = 1;
+      if (/^(who|car|friend)$/.test(k)) store.set("tripMe", { ...me(), [k]: el.value.trim() });   // the next trip starts with them
+      putTrip(cur); if (k === "out" || k === "help") renderPlan(); return;
+    }
+    if (el.dataset.tp !== "date" || !el.value) return;
     cur.date = e.target.value; putTrip(cur); render(); loadDays(cur);
   });
   card.addEventListener("click", (e) => {
@@ -337,6 +538,21 @@
     if (k === "n-" || k === "n+") { t.nights = Math.max(1, Math.min(10, t.nights + (k === "n+" ? 1 : -1))); putTrip(t); render(); loadDays(t); }
     else if (k === "p-" || k === "p+") { t.people = Math.max(1, Math.min(40, t.people + (k === "p+" ? 1 : -1))); putTrip(t); render(); }
     else if (k === "again") { t.wayFail = ""; findWay(t); }
+    else if (k === "packshare") {
+      const done = packDone(t), left = packItems(t).map(([h, items]) => [h, items.filter((x) => !done[x[0]] && !/^(offline|plan)$/.test(x[0]))]).filter((x) => x[1].length);
+      shareText(`Packing for ${hutName(t)}`, `Packing for ${hutName(t)}, ${dayWord(t.date)}, ${t.nights} night${t.nights > 1 ? "s" : ""}:\n` + left.map(([h, items]) => `\n${h}\n${items.map((x) => `- ${x[1]}`).join("\n")}`).join("\n"));
+    } else if (k === "packclear") { t.packed = {}; putTrip(t); renderPack(); }
+    else if (k === "plansend" || k === "planics") {
+      const pl = planOf(t);
+      if (new Date(pl.help) <= new Date(pl.out)) { if (window.tfToast) window.tfToast("Call for help at must be after your out time."); return; }
+      const go = k === "plansend" ? shareText(`Trip plan: ${hutName(t)}`, planText(t))
+        : shareFile(alertIcs(t), `trip-alert-${hutName(t).replace(/[^\w]+/g, "-").toLowerCase()}.ics`, "text/calendar", `Add this to your calendar: it rings at ${when(pl.help)} if you haven't heard from ${pl.who || "me"}.`);
+      go.then((ok) => { if (!ok) return; t.plan = { ...(t.plan || {}), who: pl.who, car: pl.car, friend: pl.friend, out: pl.out, help: pl.help, sent: t.plan && t.plan.sent || Date.now(), safe: 0 }; putTrip(t); renderPlan(); renderPack(); });
+    } else if (k === "safe") {
+      const pl = planOf(t);
+      shareText("Out safe", `${pl.who || "We"}: out safe from ${hutName(t)}, back at the car ${when(Date.now())}. You can delete the late alert.`)
+        .then((ok) => { if (!ok) return; t.plan = { ...(t.plan || {}), safe: Date.now() }; putTrip(t); renderPlan(); });
+    } else if (k === "live" && window.tfLive) window.tfLive.open();
     else if (k === "show" && t.way) {
       const r = S.route(t.way.line, `Way in to ${hutName(t)}`, infos.get(t.id) || null);
       S.select(r);
@@ -367,7 +583,7 @@
     card.hidden = false; btn.setAttribute("aria-pressed", "true");
     const mine = trips();
     card.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>🏕 Cabin trips</h3></div>
-      ${mine.length ? `<ul class="tp-list">${mine.map((t) => `<li><button type="button" data-trip="${esc(t.id)}"><span>${esc(t.hut.name || "Cabin")}</span><small>${esc(dayWord(t.date))} · ${t.nights} night${t.nights > 1 ? "s" : ""}</small></button></li>`).join("")}</ul>` : ""}
+      ${mine.length ? `<ul class="tp-list">${mine.map((t) => `<li><button type="button" data-trip="${esc(t.id)}"><span>${esc(t.hut.name || "Cabin")}</span><small>${late(t) ? `<b class="tp-late-tag">Overdue</b> ` : ""}${esc(dayWord(t.date))} · ${t.nights} night${t.nights > 1 ? "s" : ""}</small></button></li>`).join("")}</ul>` : ""}
       <p class="sk-note">Tap a cabin (the brown dots) on the map, then <b>🏕 Plan a cabin trip here</b>, or pick one near you:</p>
       <ul class="tp-list" id="tpNear"><li><p class="tp-wait">Finding cabins…</p></li></ul>`;
     scrollTo();
@@ -378,6 +594,16 @@
     el.innerHTML = near.length ? near.map(({ h, d }) => `<li><button type="button" data-hut="${esc(h.id)}"><span>${esc(h.name)}</span><small>${d < 9500 ? (d / 1000).toFixed(1) : Math.round(d / 1000)} km</small></button></li>`).join("")
       : `<li class="sk-note">No cabins on the map near here.</li>`;
   }
+  card.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-tour], [data-star]");
+    if (!a || !cur) return;
+    const t = cur, id = a.dataset.tour || a.dataset.star, x = (t.tours || []).find((y) => y.id === id);
+    if (a.dataset.star) {
+      const p = new Set(t.pick || []); if (p.has(id)) p.delete(id); else p.add(id);
+      t.pick = [...p]; putTrip(t); renderTours(); return;
+    }
+    if (x && window.tfSki.show) window.tfSki.show(x.id, x.c).then(() => setTimeout(() => window.tfPanelScrollTo && $("skDetail") && window.tfPanelScrollTo($("skDetail")), 80));
+  });
   card.addEventListener("click", (e) => {
     const a = e.target.closest("[data-trip], [data-hut]");
     if (!a) return;
@@ -398,5 +624,6 @@
     if (head) head.after(row); else d.prepend(row);
   });
   window.addEventListener("tf:sport", () => { if (!isSki()) close(); });
+  { const o = trips().find(late); if (o && window.tfToast) setTimeout(() => window.tfToast(`Past your out time from ${hutName(o)}: open 🏕 Cabin trip and tap We're out safe.`), 2500); }
   window.tfCabinTrip = { open, list: showList, close };
 })();
