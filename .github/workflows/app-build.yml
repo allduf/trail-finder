@@ -1,0 +1,47 @@
+name: TestFlight build check
+
+# Every hour, ask App Store Connect which TestFlight builds testers can install and save data/app-build.json to the
+# site-data branch (scripts/app-build.mjs), then republish the website when it changed, so the iPhone app's
+# "New version" popup (app-update.js) appears as soon as a build reaches the Friends group (or alex, internal).
+# Uses the same Apple secrets as ios-app.yml.
+on:
+  schedule:
+    - cron: "41 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # save the data file (site-data branch)
+  actions: write    # start the website publish
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Ask Apple
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          if [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$ASC_KEY_P8" ]; then echo "::notice::Apple secrets not set."; exit 0; fi
+          export ASC_KEY_ID=$(printf '%s' "$ASC_KEY_ID" | tr -d ' \r\n\t') ASC_ISSUER_ID=$(printf '%s' "$ASC_ISSUER_ID" | tr -d ' \r\n\t')
+          # Same .p8 rebuild as ios-app.yml (pasted keys often lose their line breaks).
+          body=$(printf '%s' "$ASC_KEY_P8" | tr -d '\r' | sed -e 's/-----BEGIN PRIVATE KEY-----//' -e 's/-----END PRIVATE KEY-----//' | tr -d ' \n\t')
+          { echo "-----BEGIN PRIVATE KEY-----"; printf '%s\n' "$body" | fold -w 64; echo "-----END PRIVATE KEY-----"; } > "$RUNNER_TEMP/AuthKey.p8"
+          node scripts/app-build.mjs "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/app-build.json"
+          rm -f "$RUNNER_TEMP/AuthKey.p8"
+      - name: Save and republish when it changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Only when Apple answered: saving main's copy on a bad hour would send the number back down.
+          if [ ! -s "$RUNNER_TEMP/app-build.json" ]; then exit 0; fi
+          cp "$RUNNER_TEMP/app-build.json" data/app-build.json
+          out=$(bash scripts/site-data.sh save "TestFlight build numbers" data/app-build.json)
+          echo "$out"
+          if ! echo "$out" | grep -q "No changes"; then gh workflow run pages.yml --ref main; fi

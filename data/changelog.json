@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-30", "text": "iPhone app: the New version popup now shows as soon as a newer build is ready in TestFlight."},
     {"date": "2026-10-30", "text": "Skiing 3D on iPhone: fixed black squares on the ground after moving around for a while."},
     {"date": "2026-10-30", "text": "Français : the app is now in French on phones set to French (Quebec). Switch it any time in More, Language / Langue."},
     {"date": "2026-10-30", "text": "Forest roads across Canada now show each road's government status (open, closed, maintained, drivable) in BC, Yukon, Ontario, Quebec and Nova Scotia. Lake Louise's bike trails are on the map."},
