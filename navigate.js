@@ -1114,9 +1114,16 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     setRiding(false);
     if (canTurn) { syncCompass(); if (faceWay) map.turnTo(0); }
   }
-  map.on("dragstart", () => { if (rec) { following = false; $("navFollow").hidden = false; } });
-  // A drag on the 3D map stops following too (it never reached the flat map, so every fix flew it back to you).
-  const grab3d = (g) => g.on("dragstart", (ev) => { if (rec && ev.originalEvent) { following = false; $("navFollow").hidden = false; } });
+  // A drag, or a tap anywhere on the map (alex, 2026-10-30), stops following; "◎ Follow" brings it back.
+  const unfollow = () => { if (rec) { following = false; $("navFollow").hidden = false; } };
+  map.on("dragstart", unfollow);
+  window.tfOnMapTap(map.getContainer(), unfollow);
+  // On the 3D map too (it never reached the flat map, so every fix flew it back to you), and a hand zoom off you.
+  const grab3d = (g) => {
+    g.on("dragstart", (ev) => { if (ev.originalEvent) unfollow(); });
+    window.tfOnMapTap(g.getCanvasContainer(), unfollow);
+    g.on("zoomstart", (ev) => { if (window.tfByHand3d(ev)) unfollow(); });
+  };
   if (window.trailMap3d) grab3d(window.trailMap3d);
   window.addEventListener("tf:map3d", (e) => grab3d(e.detail));
   $("navFollow").addEventListener("click", () => {
