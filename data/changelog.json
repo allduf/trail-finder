@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-30", "text": "Japan: 🔊 on each Japanese phrase says it out loud, and winter satellite photos for Hakuba, Myoko, Nozawa, Hokkaido and Hakkoda in the 3D map."},
     {"date": "2026-10-30", "text": "3D map: town, peak and lake names in Japan (and anywhere not written in our letters) now show in English."},
     {"date": "2026-10-30", "text": "iPhone app: the New version popup now shows as soon as a newer build is ready in TestFlight."},
     {"date": "2026-10-30", "text": "Skiing in Japan: runs, lifts, tours and huts everywhere, the Japan Avalanche Network's daily danger for Hakuba, Myoko and Hokkaido, backcountry areas, and camper van stops (Michi-no-eki, RV parks, onsen, ferries), and 🗣 Japanese help: phrases to show people, emergency numbers and Translate."},

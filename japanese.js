@@ -70,20 +70,27 @@ dialog.jp-dlg .jp-x { position: absolute; top: 10px; right: 10px; width: 34px; h
 dialog.jp-dlg .jp-go { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 dialog.jp-dlg .jp-go a { font-size: .86rem; font-weight: 700; padding: 9px 14px; border-radius: 999px; background: #1f5fe0; color: #fff; text-decoration: none; }
 dialog.jp-dlg .jp-go a.alt { background: var(--chip); color: var(--fg); border: 1px solid var(--line); }
-dialog.jp-dlg .jp-p { all: unset; box-sizing: border-box; display: block; width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); margin: 0 0 6px; cursor: pointer; background: var(--bg); }
+dialog.jp-dlg .jp-row { display: flex; gap: 6px; align-items: stretch; margin: 0 0 6px; }
+dialog.jp-dlg .jp-p { all: unset; box-sizing: border-box; display: block; flex: 1; min-width: 0; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); cursor: pointer; background: var(--bg); }
+dialog.jp-dlg .jp-say { flex: 0 0 52px; border-radius: 10px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); font-size: 1.4rem; cursor: pointer; }
+dialog.jp-dlg .jp-say.on, dialog.jp-big .jp-say.on { background: #1f5fe0; color: #fff; border-color: #1f5fe0; }
 dialog.jp-dlg .jp-p b { display: block; font-size: .88rem; }
 dialog.jp-dlg .jp-p span { display: block; font-size: 1.05rem; margin-top: 2px; }
 dialog.jp-dlg .jp-p small { display: block; color: var(--muted); font-size: .78rem; }
 dialog.jp-dlg .jp-num { display: flex; gap: 10px; align-items: baseline; margin: 4px 0; }
-dialog.jp-dlg .jp-num a { font-weight: 800; font-size: 1.05rem; color: var(--accent); min-width: 120px; }
+dialog.jp-dlg .jp-num a { font-weight: 800; font-size: 1.05rem; color: var(--accent); min-width: 120px; white-space: nowrap; flex-shrink: 0; }
+dialog.jp-dlg .jp-num span { min-width: 0; }
 dialog.jp-dlg .jp-small { font-size: .78rem; color: var(--muted); }
 html dialog.jp-big:modal { position: fixed; inset: 0; border: 0; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); margin: 0; width: auto; height: auto; max-width: none; max-height: none; box-sizing: border-box; background: #fff; color: #111; }
-dialog.jp-big div { box-sizing: border-box; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 24px; gap: 18px; text-align: center; }
+dialog.jp-big > div { box-sizing: border-box; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 24px; gap: 18px; text-align: center; }
 dialog.jp-big p { margin: 0; font-size: clamp(2rem, 9vw, 4rem); line-height: 1.3; font-weight: 700; }
 dialog.jp-big small { font-size: 1rem; color: #555; }
+dialog.jp-big .jp-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 dialog.jp-big button { align-self: center; font: inherit; font-weight: 700; padding: 12px 22px; border-radius: 999px; border: 1px solid #ccc; background: #f1f3f5; color: #111; }
 #jpBtn { position: absolute; z-index: 800; right: 12px; top: calc(env(safe-area-inset-top, 0px) + 96px); font: inherit; font-weight: 700; font-size: .9rem; padding: 10px 14px; border-radius: 999px; border: 0; background: var(--panel); color: var(--fg); box-shadow: 0 2px 10px rgba(0,0,0,.25); cursor: pointer; display: none; }
 #jpBtn.on { display: block; }
+/* Wide screens: in the map's button column, under Layers (it sat on top of Layers, alex 2026-10-30). */
+@media (min-width: 761px) { .map-tools #jpBtn { position: static; font-size: .85rem; font-weight: 600; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); box-shadow: 0 1px 4px rgba(0,0,0,.15); } }
 #skiPane .jp-open { font: inherit; font-size: .88rem; font-weight: 700; padding: 10px 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; width: 100%; margin-top: 6px; display: none; }
 #skiPane .jp-open.on { display: block; }
 `;
@@ -96,9 +103,23 @@ dialog.jp-big button { align-self: center; font: inherit; font-weight: 700; padd
   document.body.append(dlg, big);
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
 
+  // Say it out loud in Japanese (alex 2026-10-30: "so it can say it in Japanese for you"): the phone's own Japanese
+  // voice, which works with no signal once it's on the iPhone (Settings → Accessibility → Spoken Content → Voices).
+  const voiceJa = () => { const v = (speechSynthesis.getVoices() || []).filter((x) => /^ja/i.test(x.lang)); return v.find((x) => x.localService) || v[0] || null; };
+  if (window.speechSynthesis) speechSynthesis.getVoices();   // iOS lists the voices only after a first ask
+  function say(text, b) {
+    if (!window.speechSynthesis) { if (window.tfToast) window.tfToast("This device can't speak out loud: show the phrase instead."); return; }
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text), v = voiceJa();
+    u.lang = "ja-JP"; u.rate = 0.85; if (v) u.voice = v;
+    if (b) { b.classList.add("on"); u.onend = u.onerror = () => b.classList.remove("on"); }
+    speechSynthesis.speak(u);
+    if (!v && window.tfToast) window.tfToast("No Japanese voice found: on iPhone, Settings → Accessibility → Spoken Content → Voices → Japanese.");
+  }
   function show(p) {
-    big.innerHTML = `<div><p lang="ja">${esc(p[1])}</p><small>${esc(p[2])}<br>${esc(p[0])}</small><button type="button">Done</button></div>`;
-    big.querySelector("button").onclick = () => big.close();
+    big.innerHTML = `<div><p lang="ja">${esc(p[1])}</p><small>${esc(p[2])}<br>${esc(p[0])}</small><div class="jp-btns"><button type="button" class="jp-say" aria-label="Say it in Japanese">🔊 Say it</button><button type="button" class="jp-done">Done</button></div></div>`;
+    big.querySelector(".jp-done").onclick = () => { if (window.speechSynthesis) speechSynthesis.cancel(); big.close(); };
+    const sb = big.querySelector(".jp-say"); sb.onclick = () => say(p[1], sb);
     big.showModal();
   }
   function open() {
@@ -113,10 +134,11 @@ dialog.jp-big button { align-self: center; font: inherit; font-weight: 700; padd
       <p class="jp-small">Apple doesn't let apps start it, but it takes a second: press and hold both AirPods stems (or Control Center → Translate). You hear their Japanese in English; they read your answer in Japanese on your iPhone. Before the trip: Settings → Apps → Translate → Downloaded Languages → Japanese and English, and Settings → your AirPods → Live Translation → Japanese (if Japanese isn't listed, update iOS). Needs AirPods Pro 2 or 3 and an iPhone 15 Pro or newer with Apple Intelligence.</p>
       <h3>Emergency numbers</h3>
       ${NUMBERS.map(([n, w]) => `<div class="jp-num"><a href="tel:${n.replace(/-/g, "")}">${n}</a><span>${esc(w)}</span></div>`).join("")}
-      ${PHRASES.map(([g, list], gi) => `<h3>${esc(g)}</h3>${list.map((p, i) => `<button type="button" class="jp-p" data-g="${gi}" data-i="${i}"><b>${esc(p[0])}</b><span lang="ja">${esc(p[1])}</span><small>${esc(p[2])}</small></button>`).join("")}`).join("")}
-      <p class="jp-small">Tap a phrase to show it big. These work with no signal.</p>`;
+      ${PHRASES.map(([g, list], gi) => `<h3>${esc(g)}</h3>${list.map((p, i) => `<div class="jp-row"><button type="button" class="jp-p" data-g="${gi}" data-i="${i}"><b>${esc(p[0])}</b><span lang="ja">${esc(p[1])}</span><small>${esc(p[2])}</small></button><button type="button" class="jp-say" data-g="${gi}" data-i="${i}" aria-label="Say it in Japanese">🔊</button></div>`).join("")}`).join("")}
+      <p class="jp-small">Tap a phrase to show it big, or 🔊 to have the phone say it in Japanese. These work with no signal. For the best voice on iPhone: Settings → Accessibility → Spoken Content → Voices → Japanese, and download one (Kyoko or O-ren, Enhanced).</p>`;
     dlg.querySelector(".jp-x").onclick = () => dlg.close();
     dlg.querySelectorAll(".jp-p").forEach((b) => b.addEventListener("click", () => show(PHRASES[+b.dataset.g][1][+b.dataset.i])));
+    dlg.querySelectorAll(".jp-say").forEach((b) => b.addEventListener("click", () => say(PHRASES[+b.dataset.g][1][+b.dataset.i][1], b)));
     if (!dlg.open) dlg.showModal();
   }
 
@@ -125,7 +147,12 @@ dialog.jp-big button { align-self: center; font: inherit; font-weight: 700; padd
   btn.type = "button"; btn.id = "jpBtn"; btn.textContent = "🗣 Japanese";
   btn.title = "Japanese phrases to show people, emergency numbers and Google Translate";
   btn.addEventListener("click", (e) => { e.stopPropagation(); open(); });
-  map.getContainer().append(btn);
+  const tools = document.querySelector(".map-tools"), loc = document.getElementById("locate");
+  const place = () => {
+    if (matchMedia("(min-width: 761px)").matches && tools && loc) { if (btn.nextSibling !== loc) tools.insertBefore(btn, loc); }
+    else if (btn.parentNode !== map.getContainer()) map.getContainer().append(btn);
+  };
+  place(); matchMedia("(min-width: 761px)").addEventListener("change", place);
   L.DomEvent.disableClickPropagation(btn);
   const panelBtn = document.createElement("button");
   panelBtn.type = "button"; panelBtn.className = "jp-open"; panelBtn.textContent = "🗣 Japanese help: phrases and translate";
