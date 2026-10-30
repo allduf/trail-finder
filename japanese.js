@@ -110,7 +110,7 @@ dialog.jp-big button { align-self: center; font: inherit; font-weight: 700; padd
       </div>
       <p class="jp-small">In the Google Translate app: the camera reads signs and menus, Conversation listens to both of you. Download Japanese in the app before the trip so it works with no signal.</p>
       <h3>Talk with AirPods (Apple Live Translation)</h3>
-      <p class="jp-small">Apple doesn't let apps start it, but it takes a second: press and hold both AirPods stems (or Control Center → Translate). You hear their Japanese in English; they read your answer in Japanese on your iPhone. Before the trip: Translate app → Live → download Japanese and English. Needs AirPods Pro 2 or 3 and an iPhone 15 Pro or newer with Apple Intelligence.</p>
+      <p class="jp-small">Apple doesn't let apps start it, but it takes a second: press and hold both AirPods stems (or Control Center → Translate). You hear their Japanese in English; they read your answer in Japanese on your iPhone. Before the trip: Settings → Apps → Translate → Downloaded Languages → Japanese and English, and Settings → your AirPods → Live Translation → Japanese (if Japanese isn't listed, update iOS). Needs AirPods Pro 2 or 3 and an iPhone 15 Pro or newer with Apple Intelligence.</p>
       <h3>Emergency numbers</h3>
       ${NUMBERS.map(([n, w]) => `<div class="jp-num"><a href="tel:${n.replace(/-/g, "")}">${n}</a><span>${esc(w)}</span></div>`).join("")}
       ${PHRASES.map(([g, list], gi) => `<h3>${esc(g)}</h3>${list.map((p, i) => `<button type="button" class="jp-p" data-g="${gi}" data-i="${i}"><b>${esc(p[0])}</b><span lang="ja">${esc(p[1])}</span><small>${esc(p[2])}</small></button>`).join("")}`).join("")}
