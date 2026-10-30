@@ -643,7 +643,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1300");
+      const w = new Worker("winter-fill.js?v=1310");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -720,7 +720,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1300" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1310" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1112,11 +1112,11 @@
     // others (12 on phones): they're few and small (256 px, ~16 MB for 64), and zooming back out or panning back over
     // ground already seen then shows them at once instead of a blank for 1-3 s while they come again (alex's
     // recordings, 2026-10-29: a zoom-out over Pemberton). MapLibre internals: any surprise just skips it.
-    // The sharp ground photos and the heights keep more too on phones (12 for the rest): panning back or zooming back in
-    // over ground just seen showed it blank or blurry for 1-3 s while the same tiles came again (alex's recordings,
-    // 2026-10-29/30). 12 was set when phones kept running out of memory in 3D (2026-10-26); those were leaks, fixed
-    // since (#478, #539). ~6 MB more photos and ~30 MB more heights, at most.
-    const KEEP = PHONE ? { winterlo: 64, satlo: 64, sat: 40, winter: 40, winterhd: 24, dem: 24 } : { winterlo: 64, satlo: 64 };
+    // The sharp ground photos and the heights stay at 12 on phones: 40/24 (2026-10-30, #550) made whole squares of the
+    // 3D ground go black on alex's iPhone after a minute of moving around Whistler with Snow forecast on (recording
+    // 2026-10-30): the graphics card ran out of room for the painted ground. Ground just seen comes back from the
+    // phone's own tile cache now (sw.js TILES), not the network, so 12 costs little.
+    const KEEP = { winterlo: 64, satlo: 64 };
     const keepLo = () => { for (const [id, n] of Object.entries(KEEP)) try { const m = gl.style.tileManagers[id]; if (m && "_maxTileCacheSize" in m) m._maxTileCacheSize = n; } catch {} };
     gl.once("style.load", keepLo); gl.once("load", keepLo);
     // Pins that would sit on top of each other are left out until zoomed in, like the names: at Whistler village in
