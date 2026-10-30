@@ -308,7 +308,7 @@ details > summary { cursor: pointer; font-weight: 600; }
   const SAVE = new Set(["#wantBtn", "#savePick", "#ridden"]);
   const RIDE = new Set(["#navRideBtn", "#trailGo", "#rideBtn", "#planMapBtn", "Ride (in #tabbar)"]);
   const BOX = { "Trail name": "🔎 Trail name", Place: "📍 Place", Ask: "💬 Ask" };
-  const SPEED = [["page", "App ready"], ["map", "Map pictures"], ["trails", "Trails on the map"], ["3d", "3D mountains"]];
+  const SPEED = [["html", "Page arrived"], ["dcl", "Scripts started"], ["page", "App ready"], ["map", "Map pictures"], ["trails", "Trails on the map"], ["3d", "3D mountains"]];
   function paint() {
     // alex's own phone is the one named "Me". Once one is, the page starts on "Everyone but me".
     const labels = new Map((all || []).map((d) => [d.device, d.label]));
