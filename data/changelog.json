@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-10-30", "text": "iPhone app (next update): in MTB, Layers > Native map (test) opens a map drawn by the iPhone itself. Try it and tell us if it moves smoother."},
     {"date": "2026-10-30", "text": "Tap or drag anywhere on the map (2D or 3D) and it stops following you. Tap Recenter (or Follow while riding) to follow again."},
     {"date": "2026-10-30", "text": "Skiing cabin trips: the card now says Not finished when some offline files are still missing, and Saved only when it all is."},
     {"date": "2026-10-30", "text": "Offline maps: Pick a square shows a square right away with big corners to drag, and a big green Saved or orange Not saved box says if it worked. Missing files are tried again by themselves."},
