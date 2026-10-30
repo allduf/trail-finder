@@ -630,5 +630,36 @@
       return { t, top: stateAt(levCov, hi, lo), bottom: stateAt(levCov, lo, lo), day: !h.is_day || h.is_day[j] !== 0 };
     });
   }
+  // The Key (bottom left) moves up above any open bar (clouds, smoke, radar) so the bar never covers it, on phones
+  // most of all, where the bar spans the map's width (alex 2026-10-30, "Overlaping" on the Skiing 3D radar bar).
+  const keyCorner = map.getContainer().querySelector(".leaflet-bottom.leaflet-left");
+  let liftT = 0;
+  function liftKey() {
+    if (!keyCorner) return;
+    keyCorner.style.paddingBottom = "";
+    const bars = [...wrap.querySelectorAll(".cl-bar")].filter((b) => !b.hidden && b.offsetHeight);
+    if (!bars.length) return;
+    const k = keyCorner.getBoundingClientRect(), top = Math.min(...bars.map((b) => b.getBoundingClientRect().top));
+    const kids = [...keyCorner.children].filter((c) => c.offsetHeight);
+    if (!kids.length) return;
+    const low = Math.max(...kids.map((c) => c.getBoundingClientRect().bottom));
+    const left = Math.min(...bars.map((b) => b.getBoundingClientRect().left));
+    if (low <= top - 6 || k.left + Math.max(...kids.map((c) => c.offsetWidth)) + 10 <= left) return;   // clear already
+    keyCorner.style.paddingBottom = `${Math.ceil(low - top + 8)}px`;
+  }
+  const liftSoon = () => { clearTimeout(liftT); liftT = setTimeout(liftKey, 60); };
+  const barWatch = new MutationObserver(liftSoon), barSize = window.ResizeObserver ? new ResizeObserver(liftSoon) : null;
+  const watchBars = () => wrap.querySelectorAll(".cl-bar").forEach((b) => {
+    if (b.dataset.keyWatch) return;
+    b.dataset.keyWatch = "1";
+    barWatch.observe(b, { attributes: true, attributeFilter: ["hidden", "style"] });
+    if (barSize) barSize.observe(b);
+  });
+  watchBars();
+  new MutationObserver(() => { watchBars(); liftSoon(); }).observe(wrap, { childList: true });
+  new MutationObserver(liftSoon).observe(map.getContainer(), { attributes: true, attributeFilter: ["class"] });   // 2D <-> 3D
+  window.addEventListener("resize", liftSoon);
+  if (keyCorner) keyCorner.addEventListener("transitionend", liftSoon);   // the bottom sheet moved
+
   window.tfClouds = { chart, hours, STATES, isOn: () => on, hour: () => hour, setHour: (h) => { if (on) setHour(h); } };   // smoke.js follows this slider
 })();
