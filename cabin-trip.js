@@ -306,8 +306,22 @@
       <div class="sk-sec tp-way" id="tpWay"><h4>The way in</h4>${wayHtml(t)}</div>
       <div class="sk-sec" id="tpDays"><h4>Each day</h4>${daysHtml()}</div>
       <div class="sk-sec"><div class="tp-btns"><button type="button" data-tp="off" ${t.way ? "" : "disabled"}>⤓ Save the trip offline</button><button type="button" data-tp="hut">Cabin details</button><button type="button" data-tp="del">🗑 Delete</button></div>
-        <p class="sk-note">${t.offAt ? `Saved offline ${esc(new Date(t.offAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" }))}: the map, ski routes, slopes and avalanche forecast around the cabin and the way in work with no signal; the forecast above is kept as it was then. ` : "Saves the map, ski routes, slopes and avalanche forecast around the cabin and the way in, and keeps this forecast, for no signal. "}The trip stays on this phone.</p></div>`;
+        <p class="sk-note" id="tpOff">${offHtml(t)}</p></div>`;
   }
+  // Where the trip's offline save is, from Offline maps itself (offline.js status, PR #544): saving, saved, or not
+  // finished with files missing (alex saw "Saved offline" with 2 files missing). Missing files retry on their own.
+  const offName = (t) => `Cabin trip: ${hutName(t)}`;
+  const day = (ms) => esc(new Date(ms).toLocaleDateString("en-CA", { month: "short", day: "numeric" }));
+  function offHtml(t) {
+    const st = window.tfOffline && window.tfOffline.status ? window.tfOffline.status(offName(t)) : null;
+    const what = "the map, ski routes, slopes and avalanche forecast around the cabin and the way in";
+    if (st && st.state === "saving") return `<b>Saving offline… ${Math.round(st.pct || 0)}%</b> Keep the app open until it's done.`;
+    if (st && st.state === "missing") return `<b style="color:#c92a2a">Not finished: ${st.missing} file${st.missing === 1 ? "" : "s"} still missing.</b> They download again by themselves when you have signal; don't count on this trip offline until it says Saved.`;
+    if (st && st.state === "saved") return `<b>Saved offline ${day(st.at || t.offAt)}</b>: ${what} work with no signal; the forecast above is kept as it was then. The trip stays on this phone.`;
+    if (t.offAt && window.tfOffline && window.tfOffline.status) return `Not saved offline any more (it was deleted from Offline maps). Save it again for no signal.`;
+    return `Saves ${what}, and keeps this forecast, for no signal. The trip stays on this phone.`;
+  }
+  window.addEventListener("tf:offline", (e) => { const el = $("tpOff"); if (el && cur && e.detail && e.detail.name === offName(cur)) el.innerHTML = offHtml(cur); });
   const renderWay = () => { const el = $("tpWay"); if (el && cur) el.innerHTML = `<h4>The way in</h4>${wayHtml(cur)}`; };
   const renderDays = () => { const el = $("tpDays"); if (el && cur) el.innerHTML = `<h4>Each day</h4>${daysHtml()}`; };
 
@@ -343,7 +357,7 @@
       const ll = [...t.way.line, [t.hut.lat, t.hut.lon]];
       const box = [Math.min(...ll.map((p) => p[0])), Math.min(...ll.map((p) => p[1])), Math.max(...ll.map((p) => p[0])), Math.max(...ll.map((p) => p[1]))];
       t.offAt = Date.now(); putTrip(t); render();
-      window.tfOffline.saveBox(box, `Cabin trip: ${hutName(t)}`);
+      window.tfOffline.saveBox(box, offName(t));
     }
   });
 
