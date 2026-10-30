@@ -1516,14 +1516,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=1270"></script>
-<script src="native.js?v=1270"></script>
-<script src="keyboard.js?v=1270"></script>
-<script src="rotate.js?v=1270"></script>
-<script src="official.js?v=1270"></script>
-<script src="directions.js?v=1270"></script>
-<script src="ratings.js?v=1270"></script>
-<script src="ebike.js?v=1270"></script>
+<script src="welcome.js?v=1290"></script>
+<script src="native.js?v=1290"></script>
+<script src="keyboard.js?v=1290"></script>
+<script src="rotate.js?v=1290"></script>
+<script src="official.js?v=1290"></script>
+<script src="directions.js?v=1290"></script>
+<script src="ratings.js?v=1290"></script>
+<script src="ebike.js?v=1290"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -4118,7 +4118,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=1270").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=1290").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5935,7 +5935,11 @@ out body;`;
       return ["good", sm ? `smoothness=${sm}` : tt ? `tracktype=${tt} (solid)` : `surface=${t.surface}`];
     return ["unknown", "no condition mapped"];
   }
+  // Outside the home zones the chunk files also carry other provinces' government road maps (src yt, on, qc, ns;
+  // scripts/build-gov-roads.mjs), each with its state already worked out (k) and why (w).
+  const GOV_ROADS = { yt: "Yukon forest resource roads", on: "Ontario MNRF roads", qc: "Québec AQréseau+ roads", ns: "Nova Scotia topographic roads" };
   function ftenRoadStatus(r) {
+    if (r.k && ROAD_STATUS[r.k]) return [r.k, r.w || ""];
     if (r.s === "RETIRED") return ["heavy", `tenure retired${r.d ? " " + r.d : ""}: no longer maintained, often deactivated`];
     if (r.s === "ACTIVE") return ["good", "active tenure: the road is held and maintained"];
     return ["unknown", `tenure status ${r.s || "unknown"}`];
@@ -6069,7 +6073,7 @@ out body;`;
       o.osmSt = o.st; o.osmWhy = o.why;
       if (!o.name) o.name = (o.ften.find((r) => r.n) || {}).n || "";
       if (o.st !== "unknown") return;
-      const r = o.ften.find((x) => x.s === "ACTIVE") || o.ften.find((x) => x.s === "RETIRED") || o.ften[0];
+      const r = o.ften.find((x) => x.s === "ACTIVE") || o.ften.find((x) => x.k && x.k !== "unknown") || o.ften.find((x) => x.s === "RETIRED") || o.ften[0];
       [o.st, o.why] = ftenRoadStatus(r);
       o.why += "; OpenStreetMap has no condition for it";
     });
@@ -6423,13 +6427,23 @@ out body;`;
     // OpenStreetMap names come first: government labels are often permit codes like "R00591 G".
     const named = hits.filter((r) => r.name).sort((a, b) => (a.src === "osm" ? 0 : 1) - (b.src === "osm" ? 0 : 1));
     const name = named.length ? named[0].name : "Unnamed dirt road";
-    const tenure = (t) => `BC Forest Tenure roads: ${esc(t.t || "road section")}${t.p ? ", " + esc(t.p) : ""}${t.f ? ", file " + esc(t.f) : ""} (${esc(ROAD_STATUS[ftenRoadStatus(t)[0]].label.toLowerCase())}, tenure ${esc((t.s || "?").toLowerCase())})`;
+    const tenure = (t) => t.src
+      ? `${esc(GOV_ROADS[t.src] || "Government roads")}: ${esc(t.w || ROAD_STATUS[ftenRoadStatus(t)[0]].label.toLowerCase())} · ${esc(t.t || "road")}${t.p ? ", " + esc(t.p) : ""}${t.f ? ", " + esc(t.f) : ""}`
+      : `BC Forest Tenure roads: ${esc(t.t || "road section")}${t.p ? ", " + esc(t.p) : ""}${t.f ? ", file " + esc(t.f) : ""} (${esc(ROAD_STATUS[ftenRoadStatus(t)[0]].label.toLowerCase())}, tenure ${esc((t.s || "?").toLowerCase())})`;
+    // Several government sections often lie along one road (Québec splits its forest roads at every junction): each
+    // different line once, with how many sections say it, and at most 3.
+    const govLines = (list) => {
+      const seen = new Map();
+      list.forEach((t) => { const k = tenure(t); seen.set(k, (seen.get(k) || 0) + 1); });
+      const out = [...seen].map(([k, n]) => k + (n > 1 ? ` (${n} sections)` : ""));
+      return out.slice(0, 3).concat(out.length > 3 ? [`and ${out.length - 3} more`] : []);
+    };
     const parts = hits.map((r) => r.src === "ften"
-      ? `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">${[r.r, ...(r.ften || [])].map(tenure).join("<br>")}</span></p>`
-      : `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">OpenStreetMap: ${esc(["highway=" + (r.tags.highway || r.tags["disused:highway"] || r.tags["abandoned:highway"] || "?"), r.tags.tracktype, r.tags.surface].filter(Boolean).join(", "))}${r.osmSt ? ` (${r.osmSt === "unknown" ? "no condition mapped" : esc(ROAD_STATUS[r.osmSt].label.toLowerCase())})` : ""} · <a href="https://www.openstreetmap.org/way/${r.id}" target="_blank" rel="noopener">way ${r.id}</a>${(r.ften || []).map((t) => "<br>" + tenure(t)).join("")}</span></p>`);
+      ? `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">${govLines([r.r, ...(r.ften || [])]).join("<br>")}</span></p>`
+      : `<p><span class="st">${esc(ROAD_STATUS[r.st].label)}</span> (${esc(r.why)})<br><span class="src">OpenStreetMap: ${esc(["highway=" + (r.tags.highway || r.tags["disused:highway"] || r.tags["abandoned:highway"] || "?"), r.tags.tracktype, r.tags.surface].filter(Boolean).join(", "))}${r.osmSt ? ` (${r.osmSt === "unknown" ? "no condition mapped" : esc(ROAD_STATUS[r.osmSt].label.toLowerCase())})` : ""} · <a href="https://www.openstreetmap.org/way/${r.id}" target="_blank" rel="noopener">way ${r.id}</a>${govLines(r.ften || []).map((t) => "<br>" + t).join("")}</span></p>`);
     L.popup({ className: "road-pop-wrap", maxWidth: 280 }).setLatLng(ll).setContent(`<div class="road-pop"><h4>${esc(name)}</h4>${parts.join("")}${areas.join("")}
-      <p class="src">From mapped data, not a live closure list: check the
-      <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.</p></div>`).openOn(map);
+      <p class="src">From mapped data, not a live closure list: ${ll.lat >= 48.2 && ll.lat <= 60 && ll.lng <= -114.05 ? `check the
+      <a href="https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information" target="_blank" rel="noopener">BC resource road safety notices</a> before driving.` : "obey gates and posted signs, and check the province's road notices before driving."}</p></div>`).openOn(map);
     pickLayer.clearLayers();
     return true;
   }
@@ -6540,7 +6554,7 @@ out body;`;
   const fmtM = (m) => (m < 1000 ? `${Math.round(m / 10) * 10 || 10} m` : `${(m / 1000).toFixed(1)} km`);
   function roadLine(hit, none) {
     if (!hit) return `<span class="muted">${none}</span>`;
-    const { r, d } = hit, what = r.name || (r.src === "ften" ? r.r.t || "Forest Service road" : "an unnamed dirt road");
+    const { r, d } = hit, what = r.name || (r.src === "ften" ? r.r.t || (r.r.src ? "forest road" : "Forest Service road") : "an unnamed dirt road");
     return `${roadSwatch(r.st)}${d > 40 ? `${fmtM(d)} from ` : "On "}<strong>${esc(what)}</strong>: ${esc(ROAD_STATUS[r.st].label.toLowerCase())}${r.why && !/=/.test(r.why) ? ` <span class="muted">(${esc(r.why)})</span>` : ""}`;
   }
   function accessInfo(x) {
@@ -8059,47 +8073,47 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=1270"></script>
-<script src="native-map.js?v=1270"></script>
-<script src="contours.js?v=1270"></script>
-<script src="clouds.js?v=1270"></script>
-<script src="smoke.js?v=1270"></script>
-<script src="radar.js?v=1270"></script>
-<script src="photo-slider.js?v=1270"></script>
-<script src="ski-terrain.js?v=1270"></script>
-<script src="place-search.js?v=1270"></script>
-<script src="winter.js?v=1270"></script>
-<script src="hunts.js?v=1270"></script>
-<script src="ski-points.js?v=1270"></script>
-<script src="offline.js?v=1270"></script>
-<script src="ride-stats.js?v=1270"></script>
-<script src="native-gps.js?v=1270"></script>
-<script src="navigate.js?v=1270"></script>
-<script src="planner.js?v=1270"></script>
-<script src="loops.js?v=1270"></script>
-<script src="ride-finds.js?v=1270"></script>
-<script src="rides.js?v=1270"></script>
-<script src="community.js?v=1270"></script>
-<script src="ride-files.js?v=1270"></script>
-<script src="rider-trails.js?v=1270"></script>
-<script src="account.js?v=1270"></script>
-<script src="live.js?v=1270"></script>
-<script src="strava.js?v=1270"></script>
-<script src="reports.js?v=1270"></script>
-<script src="grades.js?v=1270"></script>
-<script src="trail-photos.js?v=1270"></script>
-<script src="visitors.js?v=1270"></script>
-<script src="usage.js?v=1270"></script>
-<script src="notify.js?v=1270"></script>
-<script src="closures.js?v=1270"></script>
-<script src="status.js?v=1270"></script>
-<script src="ask.js?v=1270"></script>
-<script src="areas.js?v=1270"></script>
-<script src="alpine.js?v=1270"></script>
-<script src="bikeparks.js?v=1270"></script>
-<script src="photo-find.js?v=1270"></script>
-<script src="whats-new.js?v=1270"></script>
-<script src="app-update.js?v=1270"></script>
+<script src="map3d.js?v=1290"></script>
+<script src="native-map.js?v=1290"></script>
+<script src="contours.js?v=1290"></script>
+<script src="clouds.js?v=1290"></script>
+<script src="smoke.js?v=1290"></script>
+<script src="radar.js?v=1290"></script>
+<script src="photo-slider.js?v=1290"></script>
+<script src="ski-terrain.js?v=1290"></script>
+<script src="place-search.js?v=1290"></script>
+<script src="winter.js?v=1290"></script>
+<script src="hunts.js?v=1290"></script>
+<script src="ski-points.js?v=1290"></script>
+<script src="offline.js?v=1290"></script>
+<script src="ride-stats.js?v=1290"></script>
+<script src="native-gps.js?v=1290"></script>
+<script src="navigate.js?v=1290"></script>
+<script src="planner.js?v=1290"></script>
+<script src="loops.js?v=1290"></script>
+<script src="ride-finds.js?v=1290"></script>
+<script src="rides.js?v=1290"></script>
+<script src="community.js?v=1290"></script>
+<script src="ride-files.js?v=1290"></script>
+<script src="rider-trails.js?v=1290"></script>
+<script src="account.js?v=1290"></script>
+<script src="live.js?v=1290"></script>
+<script src="strava.js?v=1290"></script>
+<script src="reports.js?v=1290"></script>
+<script src="grades.js?v=1290"></script>
+<script src="trail-photos.js?v=1290"></script>
+<script src="visitors.js?v=1290"></script>
+<script src="usage.js?v=1290"></script>
+<script src="notify.js?v=1290"></script>
+<script src="closures.js?v=1290"></script>
+<script src="status.js?v=1290"></script>
+<script src="ask.js?v=1290"></script>
+<script src="areas.js?v=1290"></script>
+<script src="alpine.js?v=1290"></script>
+<script src="bikeparks.js?v=1290"></script>
+<script src="photo-find.js?v=1290"></script>
+<script src="whats-new.js?v=1290"></script>
+<script src="app-update.js?v=1290"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

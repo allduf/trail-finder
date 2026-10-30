@@ -246,5 +246,6 @@
   {"name": "Tyee Mountain (Telkwa)", "zone": "ca_54_-127.2", "c": [54.734, -126.948], "tier": 2},
   {"name": "Sugarloaf (Campbellton)", "zone": "ca_47_-67.2", "c": [47.9785, -66.6858], "tier": 1},
   {"name": "Blue Mountain (Collingwood)", "zone": "ca_44_-80.4", "c": [44.497, -80.309], "tier": 1, "label": true},
-  {"name": "Ski Wentworth", "zone": "ca_45_-63.6", "c": [45.63, -63.559], "tier": 1}
+  {"name": "Ski Wentworth", "zone": "ca_45_-63.6", "c": [45.63, -63.559], "tier": 1},
+  {"name": "Lake Louise", "zone": "ca_51_-116.4", "c": [51.425, -116.19], "tier": 1, "label": true}
 ]}
