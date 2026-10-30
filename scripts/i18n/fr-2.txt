@@ -1,0 +1,449 @@
+# Trail details, results, tap-the-map cards
+Tagged as a bike trail ||| Identifié comme sentier de vélo
+Official ||| Officiel
+Unnamed path ||| Chemin sans nom
+Unnamed track ||| Chemin de terre sans nom
+bike park trail ||| sentier de parc de vélo
+signed for bikes ||| balisé pour les vélos
+natural surface (dirt) ||| surface naturelle (terre)
+natural surface (ground) ||| surface naturelle (sol)
+bikes allowed ||| vélos permis
+Estimated from the slope, not a real rating ||| Estimé selon la pente, pas une vraie cote
+Mappers flagged it as informal, closed or no bikes ||| Les cartographes l'ont marqué informel, fermé ou interdit aux vélos
+signed for bikes (bicycle=designated) ||| balisé pour les vélos (bicycle=designated)
+Loading the smoke forecast here… ||| Chargement de la prévision de fumée ici…
+Class 1 OK ||| Classe 1 OK
+Both ways ||| Dans les deux sens
+No map tag, local trail data or rider report says which way it's ridden, so it's shown as both ways. ||| Aucune étiquette, donnée locale ou rapport ne dit dans quel sens on le roule, alors il est montré dans les deux sens.
+BC: Class 1 e-bikes may ride where bikes may (BC Parks, Recreation Sites and Trails BC, towns like Whistler), unless a sign says no. Class 1 means pedal-assist only (no throttle), up to 500 W, and the motor stops helping at 32 km/h. Class 2 and 3 count as motor vehicles. ||| C.-B. : les vélos électriques de classe 1 peuvent rouler là où les vélos le peuvent (BC Parks, Recreation Sites and Trails BC, villes comme Whistler), sauf si un panneau l'interdit. Classe 1 veut dire assistance au pédalage seulement (sans accélérateur), jusqu'à 500 W, et le moteur arrête d'aider à 32 km/h. Les classes 2 et 3 comptent comme véhicules à moteur.
+Source ||| Source
+long ||| de long
+down ||| descente
+up ||| montée
+Go to trail ||| Aller au sentier
+Add ||| Ajouter
+Save to a folder ||| Enregistrer dans un dossier
+Your note ||| Votre note
+Weather and Loam moisture index ||| Météo et indice d'humidité du loam
+Trail conditions from riders ||| État du sentier selon les cyclistes
+No reports in the last 90 days. Rode it lately? Tell other riders how it was. ||| Aucun rapport depuis 90 jours. Vous l'avez roulé récemment? Dites aux autres comment c'était.
+Sign in to post a report ||| Connectez-vous pour publier un rapport
+(reading reports needs no account) ||| (lire les rapports ne demande pas de compte)
+How hard riders say it is ||| Difficulté selon les cyclistes
+No rider grades yet. ||| Pas encore de cotes des cyclistes.
+Ridden it? Say how hard it is. ||| Vous l'avez roulé? Dites à quel point il est difficile.
+Sign in to give your grade ||| Connectez-vous pour donner votre cote
+(seeing grades needs no account) ||| (voir les cotes ne demande pas de compte)
+Rider photos ||| Photos des cyclistes
+No rider photos yet. ||| Pas encore de photos des cyclistes.
+Sign in to add a photo ||| Connectez-vous pour ajouter une photo
+Elevation ||| Altitude
+Length ||| Longueur
+Descent ||| Descente
+Low to high ||| Du bas vers le haut
+About this trail ||| À propos de ce sentier
+No description or photos found in open sources yet. ||| Aucune description ni photo trouvée dans les sources ouvertes pour l'instant.
+Street-level photos on Mapillary ||| Photos au niveau de la rue sur Mapillary
+Share your photo on Wikimedia Commons ||| Partagez votre photo sur Wikimedia Commons
+Links ||| Liens
+Search on Trailforks ||| Chercher sur Trailforks
+Search videos on YouTube ||| Chercher des vidéos sur YouTube
+Open on OpenStreetMap ||| Ouvrir sur OpenStreetMap
+Edit or fix it ||| Le modifier ou le corriger
+More info ||| Plus d'infos
+More details ||| Plus de détails
+First mapped ||| Cartographié la première fois
+MTB difficulty (IMBA) ||| Difficulté vélo (IMBA)
+Green circle, easy ||| Cercle vert, facile
+Blue square, intermediate ||| Carré bleu, intermédiaire
+Black diamond, difficult ||| Losange noir, difficile
+Official? ||| Officiel?
+Not known ||| Inconnu
+Unknown ||| Inconnu
+Why it's MTB tagged ||| Pourquoi il est identifié vélo de montagne
+Why it's likely MTB ||| Pourquoi c'est probablement du vélo de montagne
+Map points ||| Points de la carte
+Mapped by ||| Cartographié par
+Last edited ||| Dernière modification
+Never edited since (version 1) ||| Jamais modifié depuis (version 1)
+Starts at ||| Commence à
+Ends at ||| Finit à
+Way type ||| Type de chemin
+Full history on OpenStreetMap ||| Historique complet sur OpenStreetMap
+Edit history ||| Historique des modifications
+Getting there ||| S'y rendre
+Directions ||| Itinéraire
+Shuttle access ||| Accès en navette
+Forest roads near the ends of the trail. ||| Chemins forestiers près des bouts du sentier.
+Top ||| Haut
+Bottom ||| Bas
+unknown ||| inconnu
+(no condition mapped) ||| (aucun état cartographié)
+good condition ||| bon état
+an unnamed dirt road ||| un chemin de terre sans nom
+On ||| Sur
+The map follows you along it and buzzes if you go off it ||| La carte vous suit le long du sentier et vibre si vous en sortez
+Add to your to-ride list, shown on the map with today's loam ||| Ajouter à votre liste À rouler, montrée sur la carte avec le loam du jour
+Add to your list of trails you've ridden ||| Ajouter à votre liste de sentiers roulés
+Save to a trail folder ||| Enregistrer dans un dossier de sentiers
+Send this trail to a friend: the link opens the app on it ||| Envoyer ce sentier à un ami : le lien ouvre l'appli dessus
+Share this trail ||| Partager ce sentier
+New folder name ||| Nom du nouveau dossier
+Why you want to ride it, who told you about it, where to park… ||| Pourquoi vous voulez le rouler, qui vous en a parlé, où se stationner…
+Add to my ride ||| Ajouter à ma sortie
+Loading weather… ||| Chargement de la météo…
+Loading reports… ||| Chargement des rapports…
+Loading photos… ||| Chargement des photos…
+Loading elevation… ||| Chargement de l'altitude…
+Looking for a description and photos… ||| Recherche d'une description et de photos…
+Looking for trailheads, parking and roads… ||| Recherche des départs, stationnements et routes…
+Part of MTB route ||| Fait partie de l'itinéraire de vélo
+Example trail, not real data. ||| Sentier d'exemple, pas de vraies données.
+Recreation Sites and Trails BC ||| Recreation Sites and Trails BC
+Looks like a moto trail ||| Ressemble à un sentier de moto
+Looks like a hiking-only trail ||| Ressemble à un sentier pédestre seulement
+This only shows what OpenStreetMap mappers tagged and what government trail lists say. It's a hint, not the trail's legal status. Check with the land manager or Trailforks before riding. ||| Ceci montre seulement ce que les cartographes d'OpenStreetMap ont noté et ce que disent les listes gouvernementales. C'est un indice, pas le statut légal du sentier. Vérifiez auprès du gestionnaire du territoire ou sur Trailforks avant de rouler.
+Alpine, looks rideable ||| Alpin, semble roulable
+A guess from the map tags and terrain heights, not a bike rating. Expect rock, hike-a-bike and late snow, and check the area's rules: bikes may still be closed there. ||| Une estimation selon les étiquettes et l'altitude, pas une cote vélo. Attendez-vous à du roc, du portage et de la neige tardive, et vérifiez les règles : les vélos y sont peut-être encore interdits.
+Sat ||| sam.
+Sun ||| dim.
+Mon ||| lun.
+Tue ||| mar.
+Wed ||| mer.
+Thu ||| jeu.
+Fri ||| ven.
+Monday ||| Lundi
+Tuesday ||| Mardi
+Wednesday ||| Mercredi
+Thursday ||| Jeudi
+Friday ||| Vendredi
+Saturday ||| Samedi
+Sunday ||| Dimanche
+Tomorrow ||| Demain
+Clean air for riding here: very little wildfire smoke in the forecast. ||| Air propre pour rouler ici : très peu de fumée de feux dans la prévision.
+Wildfire smoke near the ground, every 3 hours, for the map centre. Tap the chart to see that hour on the map. Forecast: Environment Canada FireWork (10 km; smoke from fires only, not city haze). ||| Fumée des feux près du sol, aux 3 heures, pour le centre de la carte. Touchez le graphique pour voir cette heure sur la carte. Prévision : FireWork d'Environnement Canada (10 km; fumée des feux seulement, pas le smog urbain).
+Couldn't read the loam right now. Try again in a few minutes. ||| Impossible de lire le loam en ce moment. Réessayez dans quelques minutes.
+Loam not available ||| Loam non disponible
+No rider reports this week. ||| Aucun rapport de cyclistes cette semaine.
+Trails here ||| Sentiers ici
+Save offline ||| Enregistrer hors ligne
+Wildfire smoke at the map centre over the next 3 days ||| Fumée des feux au centre de la carte pour les 3 prochains jours
+Updated just now ||| Mis à jour à l'instant
+Lift status updated just now, from each resort's own lift report ||| État des remontées mis à jour à l'instant, selon le rapport de chaque station
+Plan a cabin trip here ||| Planifier un séjour en refuge ici
+No booking: first come, first served ||| Sans réservation : premier arrivé, premier servi
+Free ||| Gratuit
+free ||| gratuit
+A backcountry cabin you ski or hike to: an unstaffed place to warm up or spend the night. ||| Un refuge d'arrière-pays où l'on va en ski ou à pied : un endroit sans gardien pour se réchauffer ou passer la nuit.
+Backcountry cabin ||| Refuge d'arrière-pays
+Note ||| Note
+allowed ||| permis
+Fee ||| Tarif
+No danger ratings yet ||| Pas encore de cotes de danger
+Full forecast on avalanche.ca ||| Bulletin complet sur avalanche.ca
+Weather ||| Météo
+Loading the forecast… ||| Chargement de la prévision…
+Snow stations nearby ||| Stations de neige à proximité
+last 24 h ||| dernières 24 h
+Couldn't reach the photo sources right now. ||| Impossible de joindre les sources de photos en ce moment.
+From ||| De
+No warning signs in the weather at 1,900 m (check the forecast anyway). ||| Aucun signe d'alerte dans la météo à 1 900 m (vérifiez quand même le bulletin).
+Wind from ||| Vent du
+Good ||| Bon
+Open ||| Ouvert
+This spot ||| Cet endroit
+the region's synopsis ||| le résumé de la région
+before you hunt. ||| avant de chasser.
+Hunters ||| Chasseurs
+Taken ||| Abattus
+Success ||| Succès
+Days per animal ||| Jours par animal
+Rules here ||| Règles ici
+Land and forest ||| Terre et forêt
+Open timber ||| Forêt claire
+Thinner conifer forest: travel routes, some grass and shrubs underneath, easier to see through. ||| Forêt de conifères plus clairsemée : corridors de déplacement, un peu d'herbe et d'arbustes dessous, plus facile de voir à travers.
+What can I see from here? ||| Que puis-je voir d'ici?
+Clear ground is in sight from here, or a few steps to the edge (up to 100 m), as far as 5 km. Dark ground is hidden behind a ridge or a rise. Trees aren't counted, so look for openings and cut blocks. ||| Le terrain clair est visible d'ici, ou à quelques pas du bord (jusqu'à 100 m), jusqu'à 5 km. Le terrain foncé est caché derrière une crête ou une butte. Les arbres ne sont pas comptés : cherchez les ouvertures et les coupes.
+At your spot ||| À votre position
+Map centre ||| Centre de la carte
+Your scent drifts SW (the orange cone). Approach from the SW, into the wind. ||| Votre odeur dérive vers le SO (le cône orange). Approchez par le SO, face au vent.
+Wind ||| Vent
+now ||| maintenant
+slide for later ||| glissez pour plus tard
+Thermals sinking: your scent drifts downhill, so stay below the animals. ||| Thermiques descendants : votre odeur descend la pente, restez sous les animaux.
+Thermals rising: your scent drifts uphill, so stay above the animals. ||| Thermiques montants : votre odeur monte la pente, restez au-dessus des animaux.
+Gusts ||| Rafales
+Cloud ||| Nuages
+mm now ||| mm maintenant
+Clear · weather from ||| Dégagé · météo de
+Next 12 hours ||| 12 prochaines heures
+Hour, wind from (km/h), temperature, chance of rain or snow. ||| Heure, vent du (km/h), température, risque de pluie ou de neige.
+Hunt forecast ||| Prévision de chasse
+pressure falling ||| pression en baisse
+light snow: fresh tracks ||| neige légère : pistes fraîches
+Okay ||| Correct
+an ordinary day ||| une journée ordinaire
+Rules of thumb hunters use (pressure, cold snaps, wind, rain, moon), not a promise. ||| Règles empiriques des chasseurs (pression, coups de froid, vent, pluie, lune), pas une promesse.
+This spot is in the hunt's zone ||| Cet endroit est dans la zone de la chasse
+The arrow points where the wind blows to ||| La flèche pointe où va le vent
+Wind at this hour ||| Vent à cette heure
+River very low ||| Rivière très basse
+Pressure falling ||| Pression en baisse
+Pressure rising ||| Pression en hausse
+Fish here ||| Poissons ici
+From BC's fish inventory (surveys and records), not a guarantee they're there now. ||| Selon l'inventaire des poissons de la C.-B. (relevés et mentions), pas une garantie qu'ils y sont maintenant.
+Depth ||| Profondeur
+Depth map (PDF) ||| Carte bathymétrique (PDF)
+Show depth lines on the map ||| Afficher les courbes de profondeur sur la carte
+What to use ||| Quoi utiliser
+Pick how you fish ||| Choisissez comment vous pêchez
+How do you fish? ||| Comment pêchez-vous?
+Fly ||| Mouche
+Lures ||| Leurres
+Trolling ||| Pêche à la traîne
+Ice ||| Sur glace
+In short ||| En bref
+The main rules only: the full rules below decide. ||| Les règles principales seulement : les règles complètes plus bas font foi.
+In-season changes ||| Changements en cours de saison
+Find the lake or river by name in the region's tables; waters not listed follow the region's general rules. ||| Trouvez le lac ou la rivière par son nom dans les tableaux de la région; les plans d'eau non listés suivent les règles générales de la région.
+Licence ||| Permis
+Buy online ||| Acheter en ligne
+Licences are for the season you're in; kids and seniors often fish free or at a discount, so check the page. ||| Les permis valent pour la saison en cours; les jeunes et les aînés pêchent souvent gratuitement ou à rabais, vérifiez la page.
+Boating ||| Navigation
+Everywhere: a Pleasure Craft Operator Card to drive anything with a motor, and a life jacket for each person. In Ontario, Quebec, Manitoba, New Brunswick and Nova Scotia, 10 km/h within 30 m of shore unless signs say otherwise. ||| Partout : une carte de conducteur d'embarcation de plaisance pour conduire tout ce qui a un moteur, et un gilet de sauvetage par personne. En Ontario, au Québec, au Manitoba, au Nouveau-Brunswick et en Nouvelle-Écosse, 10 km/h à moins de 30 m de la rive sauf indication contraire.
+Transport Canada's list of restricted waters ||| La liste des eaux restreintes de Transports Canada
+Nearest river ||| Rivière la plus proche
+Very low ||| Très bas
+High ||| Haut
+Very high ||| Très haut
+dropping (24 h) ||| en baisse (24 h)
+dropping slowly (24 h) ||| en baisse lente (24 h)
+rising (24 h) ||| en hausse (24 h)
+steady (24 h) ||| stable (24 h)
+Warm, skinny water: go early in the day and keep fish in the water. ||| Eau chaude et basse : allez-y tôt et gardez les poissons dans l'eau.
+usual ||| habituel
+The last 7 days; dashed: the usual for the month. ||| Les 7 derniers jours; tirets : l'habituel pour le mois.
+Public land: you can usually walk in to the shore and fish from it. ||| Terre publique : vous pouvez généralement marcher jusqu'à la rive et pêcher de là.
+Near the spot: fresh stocking and good flows first. ||| Près de l'endroit : ensemencements récents et bons débits d'abord.
+Near the map: fresh stocking and good flows first. ||| Près de la carte : ensemencements récents et bons débits d'abord.
+Conditions at the spot ||| Conditions à l'endroit
+Route to this spot ||| Trajet vers cet endroit
+The last 7 days ||| Les 7 derniers jours
+Gas station ||| Station-service
+Height ||| Altitude
+From OpenStreetMap, as mapped by riders and locals ||| D'OpenStreetMap, tel que cartographié par les motocyclistes et les gens du coin
+see it or fix it ||| le voir ou le corriger
+Can I ride here? ||| Puis-je rouler ici?
+Private land ||| Terre privée
+Private land: stay on the public road, and ask the owner before you ride or camp off it. ||| Terre privée : restez sur la route publique, et demandez au propriétaire avant de rouler ou camper ailleurs.
+No park, reserve or closure mapped here. ||| Aucun parc, réserve ou fermeture cartographié ici.
+British Columbia: riding rules ||| Colombie-Britannique : règles pour rouler
+BC resource road safety ||| Sécurité sur les chemins de ressources de la C.-B.
+BC off-road vehicle rules ||| Règles des véhicules hors route de la C.-B.
+Cell signal likely on the roads here (LTE or 5G). ||| Réseau cellulaire probable sur les routes ici (LTE ou 5G).
+Nearest ||| Le plus proche
+Campground ||| Camping
+RV park ||| Parc de VR
+As the crow flies. ||| À vol d'oiseau.
+Campground · fee ||| Camping · payant
+Light and moon today ||| Lumière et lune aujourd'hui
+Legal light ||| Lumière légale
+Legal light until ||| Lumière légale jusqu'à
+Sunrise · sunset ||| Lever · coucher du soleil
+Moon ||| Lune
+Feeding times ||| Périodes d'alimentation
+What these times mean ||| Ce que veulent dire ces heures
+Alarms ||| Alarmes
+Legal light starts ||| Début de la lumière légale
+Sunrise ||| Lever du soleil
+Sunset ||| Coucher du soleil
+Legal light ends ||| Fin de la lumière légale
+Ring ||| Sonner
+right on time ||| à l'heure pile
+Add to my calendar ||| Ajouter à mon calendrier
+While Trail Finder is open it rings and shows a notice. For alarms with the app closed, “Add to my calendar” puts the next 14 days at this spot in your phone's calendar, each with its own alert. ||| Quand Trail Finder est ouvert, il sonne et affiche un avis. Pour des alarmes avec l'appli fermée, « Ajouter à mon calendrier » met les 14 prochains jours à cet endroit dans le calendrier de votre téléphone, chacun avec son alerte.
+Hunting maps offline ||| Cartes de chasse hors ligne
+Zones, seasons, draws for the area on screen, or a square you draw, for no signal. Offline maps (Track tab) saves them with the base map and the 3D map in one go. ||| Zones, saisons et tirages pour la zone à l'écran, ou un carré que vous tracez, pour quand il n'y a pas de réseau. Cartes hors ligne (onglet Trace) les enregistre avec la carte de base et la carte 3D d'un coup.
+Draw a square ||| Tracer un carré
+About 1 MB ||| Environ 1 Mo
+A guide, not the law ||| Un guide, pas la loi
+Zones, parks, seasons and draw odds come from each province's open data and regulation pages (and the federal protected areas database), read by the app each month, and can be out of date or simplified. Always check the regulations where you hunt (the spot card links them: ||| Les zones, parcs, saisons et chances de tirage viennent des données ouvertes et des règlements de chaque province (et de la base fédérale des aires protégées), lus par l'appli chaque mois, et peuvent être périmés ou simplifiés. Vérifiez toujours les règlements où vous chassez (la carte de l'endroit y mène :
+...), and get permission before hunting private land, a lease or an outfitter's territory. ||| ...), et obtenez la permission avant de chasser sur une terre privée, un bail ou le territoire d'une pourvoirie.
+Pin your trail cameras, tracks, salines, caches, stands, sightings and where you parked, with a photo and notes. Only you see them. Tap 📍 Save a point, or long-press the map. ||| Épinglez vos caméras de chasse, pistes, salines, caches, miradors, observations et où vous êtes stationné, avec une photo et des notes. Vous seul les voyez. Touchez 📍 Enregistrer un point, ou appuyez longuement sur la carte.
+Legal light is half an hour before sunrise to half an hour after sunset, the usual hunting hours in most provinces (some hunts and provinces differ). Feeding times are solunar: the moon overhead or underfoot (major) and moonrise or moonset (minor), a traditional guide. Times on this device's clock. ||| La lumière légale va d'une demi-heure avant le lever du soleil à une demi-heure après le coucher, les heures de chasse habituelles dans la plupart des provinces (certaines chasses et provinces diffèrent). Les périodes d'alimentation sont solunaires : la lune au-dessus ou en dessous (majeure) et le lever ou coucher de la lune (mineure), un guide traditionnel. Heures selon l'horloge de cet appareil.
+Tap to switch between true north and magnetic north ||| Touchez pour passer du nord géographique au nord magnétique
+Clear the target ||| Effacer la cible
+Hold this heading: the map stops turning ||| Garder ce cap : la carte arrête de tourner
+Rangefinder: a target on the sight line, at the distance you set ||| Télémètre : une cible sur la ligne de visée, à la distance choisie
+Put the map back on you ||| Recentrer la carte sur vous
+Closer ||| Plus près
+Distance to the target ||| Distance de la cible
+Metres or yards, as your rangefinder shows ||| Mètres ou verges, comme votre télémètre l'affiche
+Farther ||| Plus loin
+Compass mode: the map turns with your phone, with a sight line, distances and a rangefinder ||| Mode boussole : la carte tourne avec votre téléphone, avec une ligne de visée, des distances et un télémètre
+Your hunts (where you walked, the weather, what you saw), harvests and trail cameras ||| Vos chasses (où vous avez marché, la météo, ce que vous avez vu), récoltes et caméras de chasse
+Hunting tools ||| Outils de chasse
+Go to a town, mountain, lake or region ||| Aller à une ville, une montagne, un lac ou une région
+What can I hunt near Pemberton ||| Que puis-je chasser près de Pemberton
+Map views ||| Vues de la carte
+Save an area for hunting with no signal ||| Enregistrer une zone pour chasser sans réseau
+Each hunt you tracked: where you walked, the weather, what you saw ||| Chaque chasse suivie : où vous avez marché, la météo, ce que vous avez vu
+What works ||| Ce qui fonctionne
+The wind, pressure and moon when you find animals ||| Le vent, la pression et la lune quand vous trouvez des animaux
+Harvests ||| Récoltes
+By season, with a CSV ||| Par saison, avec un CSV
+Trail cameras ||| Caméras de chasse
+Every check, in order ||| Chaque vérification, dans l'ordre
+Pick what the 🔔 tells you about ||| Choisissez de quoi la 🔔 vous avertit
+Lock ||| Verrouiller
+Range ||| Distance
+Recenter ||| Recentrer
+Exit ||| Quitter
+Drag up or down on the map to move the target, or type what your rangefinder says. ||| Glissez vers le haut ou le bas sur la carte pour déplacer la cible, ou tapez ce que dit votre télémètre.
+Hunting layers ||| Couches de chasse
+Boundaries ||| Limites
+Hunting zones ||| Zones de chasse
+Limited entry zones ||| Zones à tirage au sort
+Parks, towns and closures ||| Parcs, villes et fermetures
+Land ||| Terre
+Private and public land ||| Terres privées et publiques
+Property lines ||| Limites de lots
+Far from roads ||| Loin des routes
+Habitat ||| Habitat
+Forest types ||| Types de forêt
+Old burns ||| Anciens brûlis
+Cut blocks by age ||| Coupes par âge
+Wetlands ||| Milieux humides
+Terrain ||| Terrain
+Aspect ||| Orientation
+Scent cone ||| Cône d'odeur
+Range rings ||| Cercles de distance
+What the colours mean: tap Key on the map. ||| Ce que veulent dire les couleurs : touchez Légende sur la carte.
+Search towns, mountains, lakes ||| Chercher villes, montagnes, lacs
+Drop a pin ||| Placer une épingle
+My spot ||| Ma position
+Rules ||| Règles
+Truck ||| Camion
+Measure ||| Mesurer
+All tags ||| Toutes les étiquettes
+Trail cam ||| Caméra de chasse
+Tracks ||| Pistes
+Saline ||| Saline
+Cache ||| Cache
+where to hunt ||| où chasser
+Scouting ||| Repérage
+feed, far from roads ||| nourriture, loin des routes
+On the hunt ||| À la chasse
+wind and range ||| vent et distance
+All hunting layers ||| Toutes les couches de chasse
+At the map centre ||| Au centre de la carte
+Fishing layers ||| Couches de pêche
+Water ||| Eau
+River flow gauges ||| Stations de débit
+Stocked lakes and rivers ||| Lacs et rivières ensemencés
+Pink: stocked in the last 30 days ||| Rose : ensemencé dans les 30 derniers jours
+Highlight on the map ||| Mettre en évidence sur la carte
+All rivers ||| Toutes les rivières
+All lakes ||| Tous les lacs
+Creeks and streams ||| Ruisseaux
+Ocean and bays ||| Océan et baies
+Lake depth lines ||| Courbes de profondeur des lacs
+Crown land ||| Terres publiques
+Access ||| Accès
+Hidden spots ||| Endroits cachés
+Walk-in stocked lakes and hike-in waters few people fish ||| Lacs ensemencés accessibles à pied et plans d'eau éloignés peu pêchés
+Fishing spots ||| Endroits de pêche
+Public spots, piers and docks all over Canada ||| Endroits publics, jetées et quais partout au Canada
+Boat launches ||| Mises à l'eau
+Public ramps all over Canada ||| Rampes publiques partout au Canada
+Ocean ||| Océan
+Tide stations ||| Stations de marée
+Tap one for the next high and low tides ||| Touchez-en une pour les prochaines marées hautes et basses
+Fishing zones and regions ||| Zones et régions de pêche
+The areas the rules are written for, tap one for its rules ||| Les secteurs visés par les règles, touchez-en un pour ses règles
+Parks, zecs and reserves ||| Parcs, zecs et réserves
+None in view: this shows national parks, Quebec zecs, wildlife reserves and parks, and ecological reserves (no fishing, in red) ||| Aucun à l'écran : ceci montre les parcs nationaux, les zecs du Québec, les réserves fauniques et parcs, et les réserves écologiques (pêche interdite, en rouge)
+Search lakes, rivers, towns ||| Chercher lacs, rivières, villes
+Fishing log ||| Journal de pêche
+Bait ||| Appât
+where to fish ||| où pêcher
+Rivers ||| Rivières
+flow, spots ||| débit, endroits
+Lakes ||| Lacs
+stocked, depth ||| ensemencés, profondeur
+tides, areas ||| marées, secteurs
+All fishing layers ||| Toutes les couches de pêche
+Conditions on the map ||| Conditions sur la carte
+Getting the weather… ||| Obtention de la météo…
+Sun and moon ||| Soleil et lune
+The first and last hour of light are often best. Feeding times are solunar, a traditional guide. Weather: Open-Meteo. ||| La première et la dernière heure de clarté sont souvent les meilleures. Les périodes d'alimentation sont solunaires, un guide traditionnel. Météo : Open-Meteo.
+Flies to try ||| Mouches à essayer
+The usual timing for the coast; it moves with elevation and the weather. ||| Le moment habituel sur la côte; ça change avec l'altitude et la météo.
+Rules, zones, stocking and river flows come from each province's and Canada's open data and can be late or simplified. Always check your province's fishing regulations and any in-season changes before you fish, and buy the licence you need (a tidal licence for the ocean). ||| Les règles, zones, ensemencements et débits viennent des données ouvertes de chaque province et du Canada et peuvent être en retard ou simplifiés. Vérifiez toujours les règlements de pêche de votre province et les changements en cours de saison avant de pêcher, et achetez le permis requis (un permis de pêche en eau à marée pour l'océan).
+Save your catches and spots: the holes that fish, the way down to the water, launches, where you parked. Only you see them. Tap Save a catch, 📍 Save a point, or long-press the map. ||| Enregistrez vos prises et vos endroits : les trous qui donnent, le chemin vers l'eau, les mises à l'eau, où vous êtes stationné. Vous seul les voyez. Touchez Enregistrer une prise, 📍 Enregistrer un point, ou appuyez longuement sur la carte.
+Every river in bright blue, all over Canada ||| Toutes les rivières en bleu vif, partout au Canada
+Every lake and pond in green, all over Canada ||| Tous les lacs et étangs en vert, partout au Canada
+Small creeks in light blue, dashed when they dry up in summer ||| Petits ruisseaux en bleu pâle, en tirets quand ils s'assèchent l'été
+Salt water in blue, where you need a tidal licence ||| L'eau salée en bleu, où il faut un permis de pêche en eau à marée
+Over 8,000 surveyed lakes in Ontario, Quebec and Manitoba, a few in BC, soundings in New Brunswick: zoom in on a lake. BC: tap a lake for its depth map ||| Plus de 8 000 lacs relevés en Ontario, au Québec et au Manitoba, quelques-uns en C.-B., des sondages au Nouveau-Brunswick : zoomez sur un lac. C.-B. : touchez un lac pour sa carte bathymétrique
+Public land you can walk to the water on: green; private: yellow (BC, AB, ON, QC, NB, NS, SK, NL; zoom in) ||| Terre publique où marcher jusqu'à l'eau : vert; privée : jaune (C.-B., Alb., Ont., Qc, N.-B., N.-É., Sask., T.-N.-L.; zoomez)
+Your catches and what works for you ||| Vos prises et ce qui fonctionne pour vous
+Fishing tools ||| Outils de pêche
+Go to a lake, river, town or region ||| Aller à un lac, une rivière, une ville ou une région
+Lakes stocked with rainbow trout near Kamloops ||| Lacs ensemencés de truite arc-en-ciel près de Kamloops
+Save an area for fishing with no signal ||| Enregistrer une zone pour pêcher sans réseau
+Stocking alerts and notifications ||| Alertes d'ensemencement et notifications
+Lakes near you just stocked, and what else the 🔔 tells you about ||| Les lacs près de vous tout juste ensemencés, et le reste dont la 🔔 vous avertit
+Adventure moto layers ||| Couches de moto d'aventure
+Dirt roads for my bike ||| Chemins de terre pour ma moto
+Gravel roads and tracks coloured for your bike (zoom in) ||| Routes de gravier et chemins colorés pour votre moto (zoomez)
+Mud and dust today ||| Boue et poussière aujourd'hui
+Rain, soil moisture and snow, in squares ||| Pluie, humidité du sol et neige, en carrés
+Where you can't ride ||| Où vous ne pouvez pas rouler
+Parks, reserves and motor vehicle closures ||| Parcs, réserves et fermetures aux véhicules à moteur
+Public land: green, private: yellow (ON, QC, NB, NS, SK, NL; zoom in) ||| Terre publique : vert, privée : jaune (Ont., Qc, N.-B., N.-É., Sask., T.-N.-L.; zoomez)
+Stops ||| Arrêts
+Gas stations ||| Stations-service
+All of Canada ||| Tout le Canada
+My fuel range ||| Mon autonomie
+How far a tank takes you from here (with 20% left) ||| Jusqu'où un plein vous mène d'ici (avec 20 % restant)
+Campsites, huts and rec sites ||| Campings, refuges et sites récréatifs
+Free BC rec sites marked ||| Sites récréatifs gratuits de la C.-B. indiqués
+Hot springs ||| Sources thermales
+Moto shops ||| Boutiques de moto
+Dealers and repair ||| Concessionnaires et réparation
+Ferries ||| Traversiers
+Landings, inland ferries too ||| Quais, traversiers intérieurs aussi
+Cell signal on roads ||| Réseau cellulaire sur les routes
+LTE or 5G from any carrier (ISED). No shading: likely no signal ||| LTE ou 5G de tout fournisseur (ISDE). Sans ombrage : probablement pas de réseau
+Tap the map: start, then where you want to go ||| Touchez la carte : le départ, puis où vous voulez aller
+Search towns, regions, mountains ||| Chercher villes, régions, montagnes
+My adventure rides ||| Mes sorties d'aventure
+Fuel & camp ||| Essence et camping
+Mud today ||| Boue aujourd'hui
+Set up your bike ||| Configurer votre moto
+So the roads, routes and fuel range fit your bike and your riding ||| Pour que les routes, les trajets et l'autonomie correspondent à votre moto et votre conduite
+Start ||| Départ
+Dirt today: no weather right now ||| Terre aujourd'hui : pas de météo en ce moment
+Send my location ||| Envoyer ma position
+for my bike ||| pour ma moto
+Mud ||| Boue
+today ||| aujourd'hui
+range, sleep ||| autonomie, dodo
+can I ride ||| puis-je rouler
+Road surfaces and grades come from OpenStreetMap and can be out of date: a road can wash out or be deactivated any day. Closures, parks and land rules come from the provinces' and Canada's open data and are simplified. Check posted signs, BC's resource road notices, Alberta's Public Land Use Zones, your province's off-highway vehicle rules, and ride to the conditions. ||| Les surfaces et les cotes des routes viennent d'OpenStreetMap et peuvent être périmées : une route peut être emportée ou désactivée n'importe quel jour. Les fermetures, parcs et règles des terres viennent des données ouvertes des provinces et du Canada et sont simplifiées. Vérifiez les panneaux, les avis des chemins de ressources de la C.-B., les zones d'usage des terres publiques de l'Alberta, les règles de véhicules hors route de votre province, et roulez selon les conditions.
+Your adventure moto rides: where you went, km of dirt, the weather ||| Vos sorties de moto d'aventure : où vous êtes allé, les km de terre, la météo
+Adventure moto tools ||| Outils de moto d'aventure
+Go to a town, region or mountain ||| Aller à une ville, une région ou une montagne
+Dirt route under 300 km near Kamloops ||| Trajet de terre de moins de 300 km près de Kamloops
+Ride with the map: it follows you, says the turns of your moto route and records the ride ||| Rouler avec la carte : elle vous suit, annonce les virages de votre trajet et enregistre la sortie
+Follows you, says the turns of your moto route, records the ride. ||| Vous suit, annonce les virages de votre trajet, enregistre la sortie.
+Plan a moto route ||| Planifier un trajet de moto
+Most dirt, a mix, or curvy paved roads, for your bike ||| Le plus de terre, un mélange, ou des routes asphaltées sinueuses, pour votre moto
+Ride a saved moto route ||| Rouler un trajet de moto enregistré
+Save an area for riding with no signal (or save a route from its card) ||| Enregistrer une zone pour rouler sans réseau (ou enregistrer un trajet depuis sa carte)
+Rides you recorded or imported, with km of dirt ||| Sorties enregistrées ou importées, avec les km de terre
+Saved adventure routes ||| Trajets d'aventure enregistrés
+Routes you planned ||| Trajets planifiés
+My bikes ||| Mes motos
+Your bikes: weight, tank, tires, skill ||| Vos motos : poids, réservoir, pneus, niveau
