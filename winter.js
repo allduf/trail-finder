@@ -1463,7 +1463,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const none = !dgList.length ? "No forecast here today" : fIdx < 0 ? "Not forecast yet" : "No rating yet";
       avTile = tile("skAvy", CGREY, "Avalanche", none, [{ m: !dgList.length ? "Avalanche Canada's daily forecasts run from about late November to April." : "Check avalanche.ca before you go." }]);
     } else {
-      const g = selGroup || [cond.r], pre = cond.r.src === "plan" ? null : groupTerrain(g);
+      const g = selGroup || [cond.r], pre = cond.r.src === "plan" || cond.r.src === "trip" ? null : groupTerrain(g);
       const official = g.find((x) => x.ates && x.ates.cls >= 1 && x.ates.cls <= 3)?.ates;
       const cls = official ? official.cls : Math.max(T.terrainClass(info).c, pre ? pre.c : 0);
       const L1 = T.LIGHTS[T.light(dg.r, cls)];
@@ -1635,7 +1635,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const d = $("skDetail");
     const isHut = r.lat != null, isStart = isHut && r.src === "c2c", t = isStart ? TYPES[r.type] || TYPES.tour : isHut ? HUT : TYPES[r.type] || TYPES.other;
     const osmType = { w: "way", r: "relation", n: "node" }[r.id[0]];
-    const mine = r.src === "plan";
+    const mine = r.src === "plan" || r.src === "trip";   // your planned tour, or a cabin trip's way in (cabin-trip.js)
     const src = mine ? "your plan" : r.src === "bc"
       ? `BC Recreation Sites and Trails (<a href="https://www.sitesandtrailsbc.ca/" target="_blank" rel="noopener">sitesandtrailsbc.ca</a>)`
       : r.src === "c2c"
@@ -1771,12 +1771,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // class with what it's based on, and 🔔 Watch this tour (alerts in the bell, notify.js, from tf:skiWatch).
   let selGroup = null;
   const watchList = () => store.get("skiWatch", []);
-  const watchKeyOf = (r, top) => (r.src === "plan" ? `p:${top.lat.toFixed(3)},${top.lon.toFixed(3)}` : r.id);
+  const watchKeyOf = (r, top) => (r.src === "plan" || r.src === "trip" ? `p:${top.lat.toFixed(3)},${top.lon.toFixed(3)}` : r.id);
   function showCheck() {
     const el = $("skCheck"), g = selGroup;
     if (!el || !g || selected !== g[0]) return;
     const r = g[0], info = r.info || null;
-    const pre = r.src === "plan" ? null : groupTerrain(g);
+    const pre = r.src === "plan" || r.src === "trip" ? null : groupTerrain(g);
     const live = info ? T.terrainClass(info) : null;
     const preCls = pre ? { ...T.terrainClass(pre), ...T.CLASSES[pre.c], c: pre.c } : null;   // pre.c: the pieces' hardest, or their sum
     const official = g.find((x) => x.ates && x.ates.cls >= 1 && x.ates.cls <= 3)?.ates || null;
@@ -1806,7 +1806,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     $("skWatch").addEventListener("click", () => {
       const list = watchList().filter((w) => w.k !== k);
       if (!on) {
-        list.unshift({ k, n: r.src === "plan" ? "Your planned tour" : nameOf(r) || "Unnamed tour", c: [Math.round(top.lat * 1e5) / 1e5, Math.round(top.lon * 1e5) / 1e5], lo: Math.round(lo), hi: Math.round(hi), cls: cls.c });
+        list.unshift({ k, n: r.src === "plan" ? "Your planned tour" : r.src === "trip" ? r.name : nameOf(r) || "Unnamed tour", c: [Math.round(top.lat * 1e5) / 1e5, Math.round(top.lon * 1e5) / 1e5], lo: Math.round(lo), hi: Math.round(hi), cls: cls.c });
         if (store.get("avyAlert", null) !== true) store.set("avyAlert", true);   // watching a tour means wanting its alerts
       }
       store.set("skiWatch", list.slice(0, 40));
@@ -1918,6 +1918,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSnapTo) setTimeout(() => window.tfSnapTo(on ? "peek" : plan.pts.length > 1 ? "half" : "peek"), 0);
     drawPlan(); renderPlan();
     if (!on && selected && selected.src === "plan" && window.tfPanelScrollTo) window.tfPanelScrollTo($("skPlan"));
+    window.dispatchEvent(new CustomEvent("tf:ski-plan", { detail: { on } }));   // cabin-trip.js: a way in drawn by hand
   }
   // ---------- this spot: a tap on the map away from everything ----------
   // alex 2026-10-27: "click anywhere on the map and see information about that terrain, avalanche risk, slope angle,
@@ -3491,6 +3492,41 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (r) select(r, true); else if (c) map.setView(c, Math.max(map.getZoom(), k ? 13 : 10));
     },
   };
+  // Plan a cabin trip (cabin-trip.js): the parts of Skiing a trip is built from.
+  window.tfSki.trip = {
+    loadSki: () => Promise.resolve(loadSki()).then(() => loadCanIdx()).then(() => ski),
+    near: async (c, km) => { await loadSki(); await loadCanIdx(); const b = L.latLng(c[0], c[1]).toBounds(km * 2000); await loadCanada(b); return (ski?.routes || []).filter((r) => r.type !== "resort" && r.bounds && b.intersects(r.bounds)); },
+    info: (lines) => T.info(lines, dem),
+    hours: (info) => tourHours(info),
+    weather: (lat, lon, ele) => weather(lat, lon, ele),
+    avy: () => (avy || example ? Promise.resolve() : avyErr ? Promise.reject(new Error(avyErr)) : loadAvy()),
+    // The avalanche forecast on a date (yyyy-mm-dd) from lo to hi m: { r, band, area, d }, { none: "why" } without one.
+    dangerOn: (lat, lon, lo, hi, date) => {
+      const a = avy || example ? areaAt(lat, lon) : null, f = a && a.forecast;
+      if (!f || !f.days || !f.days.length || (!example && f.validUntil && new Date(f.validUntil) < new Date())) return { none: "no forecast here today" };
+      const i = f.days.findIndex((d) => d.date === date);
+      if (i < 0) return { none: date < f.days[0].date ? "past" : "not forecast yet" };
+      return dangerAt(lat, lon, lo, hi, i);
+    },
+    example: () => example,
+    nearSnow: (lat, lon) => { if (!snow && !snowErr) loadSnow(); return nearSnow(lat, lon); },
+    showStation: (id) => { const st = (snow?.stations || []).find((x) => x.id === id); if (st) { if (!shown.has("snow")) { shown.add("snow"); applySwitches(); } showStation(st); } },
+    // The way in as a tour (src "trip"): the same card as a mapped route, with its conditions, Flyover, GPX and Go.
+    route: (line, name, info) => {
+      const r = { id: "trip", src: "trip", type: "tour", name, tags: {}, g: [line.flat()], lines: [line], bounds: L.latLngBounds(line) };
+      if (info) r.info = info;
+      return r;
+    },
+    select: (r) => select(r, true),
+    selectHut: (h) => select(h, true),
+    selected: () => selected,
+    // Draw your own way in with Plan a tour, from pts (the hut's end of it, or what was there).
+    plan: (pts) => { if (pts) { plan.pts = pts.map((p) => [+p[0].toFixed(6), +p[1].toFixed(6)]); planChanged(); } setPlanning(true); },
+    planPts: () => plan.pts.slice(),
+    planning: () => plan.on,
+    loadJs: (n) => loadJs(n),
+    KIND, HUT_ABOUT, DANGER, BANDS, WICON, COMPASS,
+  };
   window.tfSkiOffline = (box) => {
     const tx = (lon, z) => Math.floor(((lon + 180) / 360) * 2 ** z);
     const ty = (lat, z) => { const r = (lat * Math.PI) / 180; return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z); };
@@ -3507,11 +3543,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // in this order (the order they used to have in index.html), after the page's own scripts, and each one draws
   // itself for the sport that's on when it arrives. Same ?v= as this script, for the same cache rule.
   const jsVer = (document.currentScript && new URL(document.currentScript.src).search) || "";
-  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "moto"];
+  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "moto"];
   const NEEDS = {
     hunt: ["crownland", "hunting", "compass"],
     fish: ["crownland", "fish-bait", "fish-route", "fishing"],
-    ski: ["webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat"],
+    ski: ["webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip"],
     moto: ["crownland", "hunting", "moto"],   // Moto's "Can I ride here" reads Hunting's parks and closures (window.tfHunt)
   };
   const jsLoads = {};

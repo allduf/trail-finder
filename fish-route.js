@@ -185,7 +185,9 @@
   }
 
   // A grid over the box [west x, north y, east x, south y] (mercator), with the ground, lines and heights painted in.
-  async function buildGrid(box, onStep) {
+  // extra: more lines to walk on, [{ pts: [[lat, lon], ...], name }] (Skiing's cabin trips: the ski routes, which the
+  // vector tiles don't have).
+  async function buildGrid(box, onStep, extra) {
     const latMid = uny((box[1] + box[3]) / 2), mPer = WORLD * Math.cos(latMid * RAD);   // metres per mercator unit here
     let cs = CELL_M / mPer, W = Math.ceil((box[2] - box[0]) / cs), H = Math.ceil((box[3] - box[1]) / cs);
     if (W * H > MAX_CELLS) { const k = Math.sqrt((W * H) / MAX_CELLS); cs *= k; W = Math.ceil((box[2] - box[0]) / cs); H = Math.ceil((box[3] - box[1]) / cs); }
@@ -286,6 +288,7 @@
       const shut = /^(closed|impass)$/.test(r.st || "");
       strokeLine(gm.map(ll), putLine(shut ? L_PATH : L_TRACK, false, nameOf(r.name || "")));
     }
+    for (const e of extra || []) if (e.pts && e.pts.length > 1) strokeLine(e.pts.map(ll), putLine(L_PATH, false, nameOf(e.name || "")));
 
     // Heights at each cell's middle, then the steepness of the ground there (for side-hills and cliffs).
     const px = (X, Y) => {
@@ -358,7 +361,8 @@
   const cellLL = (g, i) => [uny(g.y0 + (Math.floor(i / g.W) + 0.5) * g.cs), unx(g.x0 + ((i % g.W) + 0.5) * g.cs)];
   // Where to leave the car, and what it costs (seconds): a parking lot (trailheads have one) first, then a street, then a
   // 4x4 track (often an old logging road that isn't drivable any more).
-  const drivable = (g, i) => (g.flag[i] & F_PARK ? 0 : g.line[i] === L_STREET || g.line[i] === L_MAIN ? 300 : g.line[i] === L_TRACK ? 1200 : -1);
+  // goal.track: what starting on a track costs instead (Skiing: logging roads aren't plowed in winter).
+  const drivable = (g, i, goal) => (g.flag[i] & F_PARK ? 0 : g.line[i] === L_STREET || g.line[i] === L_MAIN ? 300 : g.line[i] === L_TRACK ? (goal && goal.track) || 1200 : -1);
 
   // The search runs back from the spot, so one search finds the best start of many (roads) as well as one (you).
   // Spot on water: it starts from the shores around it (searched through the water up to SHORE_M), each one costing
@@ -390,7 +394,7 @@
     const gc = goal.you ? cellAt(g, goal.you[0], goal.you[1]) : -1, near = Math.max(1, Math.round(30 / g.cellM));
     const gr = gc >= 0 ? Math.floor(gc / W) : 0, gcc = gc >= 0 ? gc % W : 0, vmax = 6 / 3.6;
     const hEst = (i) => (gc < 0 ? 0 : Math.max(0, Math.hypot(Math.floor(i / W) - gr, (i % W) - gcc) - near) * g.cellM / vmax);
-    const isGoal = (i) => (gc >= 0 ? Math.abs(Math.floor(i / W) - gr) <= near && Math.abs((i % W) - gcc) <= near : drivable(g, i) >= 0);
+    const isGoal = (i) => (gc >= 0 ? Math.abs(Math.floor(i / W) - gr) <= near && Math.abs((i % W) - gcc) <= near : drivable(g, i, goal) >= 0);
     if (goal.you && gc < 0) return null;
     const open = Heap();
     while (heap.size) { const i = heap.pop(); open.push(cost[i] + hEst(i), i); }
@@ -403,7 +407,7 @@
       done[i] = 1;
       if (cost[i] < edge) { const r = Math.floor(i / W), c = i % W; if (!r || !c || r === g.H - 1 || c === W - 1) edge = cost[i]; }
       if (isGoal(i)) {
-        const tot = cost[i] + (gc >= 0 ? 0 : drivable(g, i));
+        const tot = cost[i] + (gc >= 0 ? 0 : drivable(g, i, goal));
         if (tot < bestCost) { bestCost = tot; best = i; }
         if (gc >= 0) break;
       }
@@ -492,12 +496,13 @@
   // A route that reached the grid's edge for less than it cost might do better outside it (a trail that loops out), so
   // the grid grows and it's worked out again: from you, padded more; from the road, 1.5 km round the spot, then 4, then 7
   // (alex's Cheakamus Lake: the trail from the trailhead is 6 km, while a ski-hill road 2 km away sits 1000 m above).
+  // from.radii and from.lines (cabin-trip.js): other sizes for the road search, and more lines to walk on.
   async function build(spotLL, from, onStep) {
     let got = null;
     if (from.you) {
       const d = metres(spotLL, from.you);
       for (const pad of [Math.max(400, d * 0.3), Math.max(1500, d * 0.8)]) {
-        const g = await buildGrid(boxAround([spotLL, from.you], pad), onStep);
+        const g = await buildGrid(boxAround([spotLL, from.you], pad), onStep, from.lines);
         onStep && onStep("route");
         const res = search(g, spotLL, from);
         if (res && res.cells) { got = { g, res, from: "you" }; if (!res.edge) break; }
@@ -505,10 +510,10 @@
       }
       return got || { fail: "noway" };
     }
-    for (const r of [1500, 4000, 7000]) {
-      const g = await buildGrid(boxAround([spotLL], r), onStep);
+    for (const r of from.radii || [1500, 4000, 7000]) {
+      const g = await buildGrid(boxAround([spotLL], r), onStep, from.lines);
       onStep && onStep("route");
-      const res = search(g, spotLL, {});
+      const res = search(g, spotLL, { track: from.track });
       if (res && res.water) return { g, res, fail: "water" };
       if (res && res.cells) {
         const i = res.cells[0];
@@ -684,5 +689,6 @@
     start([lat, lon], h ? h.textContent.trim() : "", null);
   });
   window.addEventListener("tf:sport", () => { if (!isFish()) clear(); });
-  window.tfFishRoute = { button, clear, start: (lat, lon, name, from) => start([lat, lon], name || "", from || null), _build: build, _describe: describe };
+  window.tfFishRoute = { button, clear, start: (lat, lon, name, from) => start([lat, lon], name || "", from || null), _build: build, _describe: describe,
+    groundName: (k) => (GROUND[k] ? GROUND[k][0] : "the bush") };   // cabin-trip.js: the way in to a hut
 })();

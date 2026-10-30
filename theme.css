@@ -539,23 +539,24 @@ html body :is(#huntPane, #fishPane) .tf-phone { display: none; }
   html body :is(#huntPane .hn-view.on, #fishPane .fs-view.on, #motoPane .mt-view.on) { background: var(--accent); border-color: var(--accent); color: #fff; }
   html body :is(#huntPane .hn-card, #fishPane .fs-card, #motoPane .mt-card) header svg { color: var(--accent); }
   /* the list: rows like Find's, with › */
-  html body :is(#skiPane #skPlanBtn, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtSafeRow .mt-pill) {
+  html body :is(#skiPane #skPlanBtn, #skiPane #skTripBtn, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtSafeRow .mt-pill) {
     display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; box-sizing: border-box; margin: 0; padding: 10px 14px; text-align: left;
     font: inherit; font-size: .95rem; font-weight: 700; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 14px; cursor: pointer;
   }
-  html body :is(#skiPane #skPlanBtn, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtSafeRow .mt-pill)::after { content: "›"; margin-left: auto; color: var(--muted); font-size: 1.4rem; line-height: 1; font-weight: 400; }
+  html body :is(#skiPane #skPlanBtn, #skiPane #skTripBtn, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtSafeRow .mt-pill)::after { content: "›"; margin-left: auto; color: var(--muted); font-size: 1.4rem; line-height: 1; font-weight: 400; }
   html body #motoPane #mtSafeRow { display: grid; grid-template-columns: 1fr; gap: 10px; }
   html body #motoPane #mtSafeRow .mt-pill svg { color: var(--accent); }
   html body #motoPane .mt-bike, html body #motoPane .mt-bike.setup { border: 1px solid var(--line); border-radius: 14px; background: var(--bg); min-height: 52px; }
   html body #motoPane .mt-bike :is(svg, em) { color: var(--accent); }
   html body #skiPane .sk-acts { display: block; }
+  html body #skiPane .sk-acts #skTripBtn { margin-top: 10px; }
   /* the order: search, Today, a card you tapped, 4 buttons, the list, what's on the map, the sport's own cards, the small print */
   html body :is(#skiPane, #huntPane, #fishPane, #motoPane) { display: flex; flex-direction: column; gap: 10px; }
   html body :is(#skiPane, #huntPane, #fishPane, #motoPane) > *, html body #skiPane .sk-listwrap > * { order: 7; margin-top: 0; margin-bottom: 0; }
   html body :is(#skiPane, #huntPane, #fishPane, #motoPane) > [hidden], html body #skiPane .sk-listwrap > [hidden] { display: none; }
   html body #skiPane .sk-listwrap { display: contents; }
   html body :is(#huntPane, #fishPane, #motoPane) > .ps-box, html body #skiPane #skFindForm, html body #skiPane #skPlaceMsg, html body #skiPane #skPlaces { order: 1; }
-  html body :is(#skNow, #hnNow, #fsNow, #mtNow, #hnSpot, #fsSpot, #skSpot, #skPlan, #skDetail, #skStation) { order: 2; }
+  html body :is(#skNow, #hnNow, #fsNow, #mtNow, #hnSpot, #fsSpot, #skSpot, #skPlan, #skTrip, #skDetail, #skStation) { order: 2; }
   html body :is(#huntPane .hn-actions, #huntPane #hnPins, #fishPane .fs-actions, #motoPane .mt-actions, #skiPane .sk-views, #hnTruck, #fsTruck, #hnHint, #fsHint, #mtHint) { order: 3; }
   html body :is(#skiPane .sk-acts, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtBike, #motoPane #mtSafeRow, #fishPane #fsToday) { order: 4; }
   html body :is(#hnLayers, #fsMap, #mtMap) { order: 5; }
