@@ -93,23 +93,30 @@
 .offline-card p { margin: 6px 0; }
 .offline-card .muted { color: var(--muted); font-size: .8rem; }
 .offline-card input { width: 100%; box-sizing: border-box; font: inherit; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); margin: 4px 0 8px; }
-.offline-card .row { display: flex; gap: 8px; align-items: center; }
-.offline-card .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin: 8px 0 2px; }
+.offline-card .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.offline-card .bar { height: 12px; border-radius: 6px; background: var(--line); overflow: hidden; margin: 8px 0 4px; }
 .offline-card .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.offline-card .off-state { margin: 10px 0 4px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--chip); }
+.offline-card .off-state > b { display: block; font-size: 1.05rem; }
+.offline-card .off-state p { margin: 4px 0 0; }
+.offline-card .off-state .row { margin-top: 8px; }
+.offline-card .off-state.ok { background: #e3f4ea; border-color: #1f8a4c; color: #0f4d2a; }
+.offline-card .off-state.bad { background: #fdf0dc; border-color: #c27309; color: #6b3d00; }
+.offline-card .off-state.ok .bar, .offline-card .off-state.bad .bar { display: none; }
+.offline-card li .ok { display: block; color: #1f8a4c; font-size: .8rem; font-weight: 600; }
+.off-frame .box-bar .btn.primary { flex: 1.8; }
+.off-frame .box-tip.too-big { color: #b42318; font-weight: 600; }
 .offline-card ul { list-style: none; margin: 8px 0 0; padding: 0; border-top: 1px solid var(--line); }
 .offline-card li { display: flex; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); }
 .offline-card li div { flex: 1; min-width: 0; }
 .offline-card li b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .offline-card h3 { margin: 12px 0 0; font-size: .9rem; }
-.offline-card li .warn { display: block; color: #b45309; font-size: .8rem; }
+.offline-card li .warn { display: block; color: #b45309; font-size: .8rem; font-weight: 600; }
 .offline-card li button.del { color: #b42318; }
 .offline-card li button { font: inherit; font-size: .8rem; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
 .offline-card label.d3 { display: flex; gap: 8px; align-items: center; margin: 0 0 4px; cursor: pointer; }
 .offline-card label.d3 input { width: auto; margin: 0; accent-color: var(--accent); }
 .offline-card .linkish { font: inherit; border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; }
-.offline-draw-tip { position: absolute; z-index: 1001; left: 50%; top: 12px; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; white-space: nowrap;
-  background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.2); padding: 8px 8px 8px 14px; font-size: .88rem; }
-.offline-draw-tip button { font: inherit; border: 1px solid var(--line); border-radius: 999px; background: var(--chip); color: var(--fg); padding: 4px 10px; cursor: pointer; }
 .map-tools #offlineBtn.on { background: var(--accent); border-color: var(--accent); color: #fff; }`;
   document.head.append(css);
   const card = document.createElement("div");
@@ -119,9 +126,9 @@
 <p class="muted" data-what></p>
 <div data-new><input data-name maxlength="60" aria-label="Name for this area">
 <label class="d3"><input type="checkbox" data-3d> <span data-3d-label>3D map too</span></label><p data-est></p>
-<div class="row"><button class="btn primary" type="button" data-save>Save this area</button><button class="btn" type="button" data-draw>▭ Draw a square</button><button class="btn" type="button" data-stop hidden>Stop</button></div>
-<p class="muted" data-drawn hidden>Saving the square you drew. <button type="button" class="linkish" data-undraw>Use the screen instead</button></p>
-<div class="bar" hidden><i></i></div><p class="muted" data-prog></p></div>
+<div class="row"><button class="btn primary" type="button" data-save>Save this area</button><button class="btn" type="button" data-draw>▭ Pick a square</button></div>
+<p class="muted" data-drawn hidden>Saving the square you picked. <button type="button" class="linkish" data-undraw>Use the screen instead</button></p>
+<div class="off-state" data-state hidden><b data-st-head></b><div class="bar"><i></i></div><p data-prog></p><div class="row" data-st-acts></div></div></div>
 <h3 data-saved-h hidden>Saved areas</h3><ul data-list></ul><p class="muted" data-use></p>`;
   document.querySelector(".mapwrap").append(card);
   L.DomEvent.disableClickPropagation(card);
@@ -135,14 +142,17 @@
     card.hidden = !on;
     btn.classList.toggle("on", on);
     btn.setAttribute("aria-pressed", on);
-    if (on) { outlines.addTo(map); drawnLayer.addTo(map); $("[data-name]").value = suggestName(); sportText(); renderList(); estimate(); }
-    else { outlines.remove(); drawnLayer.remove(); setDrawn(null); drawMode(false); }
+    if (on) {
+      outlines.addTo(map); drawnLayer.addTo(map); $("[data-name]").value = suggestName(); sportText(); renderList(); estimate();
+      if (!busy) $("[data-state]").hidden = true;
+      setTimeout(autoFinish, 1500);
+    } else { outlines.remove(); drawnLayer.remove(); setDrawn(null); sqMode(false); }
   }
   btn.addEventListener("click", () => open(card.hidden));
   // The card's words follow the sport, so no bike words in Skiing, Hunting or Fishing.
   function sportText() {
     const s = sportNow();
-    $("[data-what]").textContent = `Save the area on screen, or draw a square on the map, to use ${WHAT[s]} with no signal. Saved maps use the Sharp outdoor style, which the map switches to when you're offline.`;
+    $("[data-what]").textContent = `Save the area on screen, or pick a square on the map, to use ${WHAT[s]} with no signal. Saved maps use the Sharp outdoor style, which the map switches to when you're offline.`;
     $("[data-3d-label]").textContent = s === "ski" ? "3D map too (the mountains' shape and last winter's photos)" : "3D map too (the mountains' shape, with the saved map on them)";
     $("[data-3d]").checked = want3d();
   }
@@ -195,8 +205,8 @@
     outlines.clearLayers();
     areas.forEach((a) => L.rectangle([[a.box[0], a.box[1]], [a.box[2], a.box[3]]], { color: "#1f6f4a", weight: 2, dashArray: "6 5", fill: false, interactive: false }).addTo(outlines));
     $("[data-saved-h]").hidden = !areas.length;
-    $("[data-list]").innerHTML = areas.map((a) => `<li><div><b>${ICON[sportOf(a)]} ${esc(a.name)}</b><span class="muted">${a.d3 ? "3D · " : ""}${mb(a.bytes)} · saved ${new Date(a.at).toLocaleDateString()}</span>${a.missing ? `<span class="warn">Not finished: ${a.missing.toLocaleString()} file${a.missing > 1 ? "s" : ""} missing</span>` : ""}</div>
-${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""}<button type="button" data-show="${a.id}">Show</button><button type="button" class="del" data-del="${a.id}">Delete</button></li>`).join("");
+    $("[data-list]").innerHTML = areas.map((a) => `<li><div><b>${ICON[sportOf(a)]} ${esc(a.name)}</b><span class="muted">${a.d3 ? "3D · " : ""}${mb(a.bytes)} · ${new Date(a.at).toLocaleDateString()}</span>${a.missing ? `<span class="warn">⚠ Not finished: ${files(a.missing)} missing${a.missingUrls ? ` (${whatsMissing(a.missingUrls)})` : ""}</span>` : `<span class="ok">✓ Works with no signal</span>`}</div>
+${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` : ""}<button type="button" data-show="${a.id}">Show</button><button type="button" class="del" data-del="${a.id}">Delete</button></li>`).join("");
     const use = $("[data-use]");
     use.textContent = "";
     if (navigator.storage && navigator.storage.estimate) {
@@ -250,13 +260,19 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
         let res = await cache.match(u), gone = false;
         if (!res) {
           for (let tries = 0; tries < 3 && !res; tries++) {
-            try { const r = await fetch(u); if (r.ok) { await cache.put(u, r.clone()); res = r; continue; } if (r.status === 404) { gone = true; break; } }
+            try {
+              const r = await fetch(u);
+              if (r.ok) { await cache.put(u, r.clone()); res = r; continue; }
+              if (r.status >= 400 && r.status < 500 && r.status !== 408 && r.status !== 429) { gone = true; break; }   // not there: asking again won't help
+            }
             catch {}
             await wait(800 * (tries + 1));   // dropped connection or a busy server (429, 5xx): give it a moment
           }
         }
-        // A tile that doesn't exist (404: no winter photo or no fine heights there) is fine for the 3D files.
-        if (res) bytes += (await res.blob()).size; else if (!optional && !(gone && /mapterhorn|trail-finder-winter/.test(u))) failed.push(u);
+        // A file that doesn't exist (404: no winter photo, no fine heights or no map tile there) has nothing to save, so
+        // it never counts as missing; before 2026-10-30 only the 3D ones were let off, and an area could stay
+        // "Not finished" for good over a file no server has.
+        if (res) bytes += (await res.blob()).size; else if (!optional && !gone) failed.push(u);
         if (onDone) onDone();
       }
     }
@@ -266,10 +282,10 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
   const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
   // Files that failed get a few more rounds, slower each time, before the save gives up on them.
   const RETRY_WAIT = [3000, 10000, 30000];
-  async function retryFailed(cache, failed, prog) {
+  async function retryFailed(cache, failed, onWait) {
     let bytes = 0;
     for (let r = 0; r < RETRY_WAIT.length && failed.length && !busy.stop; r++) {
-      prog.textContent = `${failed.length} file${failed.length > 1 ? "s" : ""} didn't download. Trying again (${r + 1} of ${RETRY_WAIT.length})…`;
+      onWait(failed.length, RETRY_WAIT[r], r);
       await wait(RETRY_WAIT[r]);
       if (busy.stop) break;
       const got = await fetchAll(cache, failed);
@@ -280,24 +296,98 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
 
   $("[data-save]").addEventListener("click", () => saveArea(areaBox(), $("[data-name]").value.trim() || suggestName()));
 
-  // ---------- draw a square to save ----------
-  // Same gesture as "Draw a square to find trails": the map stops panning and a drag draws the square.
-  const tip = document.createElement("div");
-  tip.className = "offline-draw-tip";
-  tip.hidden = true;
-  tip.innerHTML = `<span>Drag a square over the area to save</span><button type="button">Cancel</button>`;
-  document.querySelector(".mapwrap").append(tip);
-  L.DomEvent.disableClickPropagation(tip);
-  const draw = { on: false, start: null, rect: null };
-  const swallow = (c) => c.stopPropagation();
-  function drawMode(on) {
-    if (draw.on === on) return;
-    draw.on = on;
-    tip.hidden = !on;
-    if (!busy) card.hidden = on;   // out of the way while drawing, back when done
-    map.getContainer().classList.toggle("drawing", on);
-    if (on) map.dragging.disable(); else map.dragging.enable();
+  // ---------- the square to save ----------
+  // alex 2026-10-30: "hard to draw a square". No more dragging one out with the map frozen (which didn't work at all
+  // on the 3D map): the same square as Find's (index.html's .box-frame) shows up at once in the middle of the map, with
+  // big round corners to drag. One finger anywhere else still moves and zooms the map under it, 2D or 3D, the bar
+  // says how big the square is as it changes, and ✓ Save this square starts saving it.
+  const frame = document.createElement("div");
+  frame.className = "box-frame off-frame"; frame.hidden = true;
+  frame.innerHTML = `<div class="box-sq">${["nw", "ne", "sw", "se"].map((c) => `<button type="button" class="box-h" data-c="${c}" aria-label="Drag this corner to change the square"><i></i></button>`).join("")}</div>
+    <div class="box-bar" role="group" aria-label="Square to save"><span class="box-tip" data-sq-tip>Move the map, or drag a corner</span><button type="button" class="btn" data-sq-x>Cancel</button><button type="button" class="btn primary" data-sq-go>✓ Save this square</button></div>`;
+  document.querySelector(".mapwrap").append(frame);
+  L.DomEvent.disableClickPropagation(frame.querySelector(".box-bar"));
+  const sq = frame.querySelector(".box-sq"), sqPos = { l: 0, t: 0, r: 0, b: 0 }, sqTip = frame.querySelector("[data-sq-tip]"), sqGo = frame.querySelector("[data-sq-go]");
+  const placeSq = () => { Object.assign(sq.style, { left: sqPos.l + "px", top: sqPos.t + "px", width: sqPos.r - sqPos.l + "px", height: sqPos.b - sqPos.t + "px" }); sqSize(); };
+  const phone = () => matchMedia("(max-width: 760px)").matches;
+  // The free part of the map: below the buttons at the top, above the bar (and on phones, the sheet).
+  function freeArea() {
+    const wrap = frame.getBoundingClientRect();
+    const tools = Math.max(0, ...[".map-tools", ".leaflet-top.leaflet-left", ".leaflet-top.leaflet-right"].map((q) => document.querySelector(q)).filter((el) => el && el.offsetHeight).map((el) => el.getBoundingClientRect().bottom));
+    const bar = frame.querySelector(".box-bar").getBoundingClientRect();
+    const top = phone() ? Math.max(24, tools - wrap.top + 12) : 24;
+    const bottom = (bar.height ? bar.top : wrap.bottom - 90) - wrap.top - 16;
+    return { w: wrap.width, top, bottom: Math.max(top + 120, bottom) };
   }
+  function startSq() {
+    const a = freeArea(), side = Math.min(a.w - 64, a.bottom - a.top - 24, 460);
+    const cx = a.w / 2, cy = (a.top + a.bottom) / 2;
+    Object.assign(sqPos, { l: cx - side / 2, r: cx + side / 2, t: cy - side / 2, b: cy + side / 2 });
+    placeSq();
+  }
+  const gl3d = () => (map.getContainer().classList.contains("is3d") && window.trailMap3d) || null;
+  // The square on the ground: its corners and the middle of each side, from the 3D map when it's on (a tilted view
+  // makes the square a wider box on the ground), else the flat map.
+  function sqBox() {
+    const wrap = frame.getBoundingClientRect(), { l, t, r, b } = sqPos, mx = (l + r) / 2, my = (t + b) / 2;
+    const pts = [[l, t], [r, t], [l, b], [r, b], [mx, t], [mx, b], [l, my], [r, my]], gl = gl3d();
+    const el = gl ? gl.getContainer() : map.getContainer(), m = el.getBoundingClientRect(), ox = wrap.left - m.left, oy = wrap.top - m.top;
+    const lls = pts.map(([x, y]) => (gl ? gl.unproject([x + ox, y + oy]) : map.containerPointToLatLng([x + ox, y + oy])));
+    const lat = lls.map((p) => p.lat), lon = lls.map((p) => p.lng);
+    return [Math.min(...lat), Math.min(...lon), Math.max(...lat), Math.max(...lon)].map((v) => +v.toFixed(5));
+  }
+  let sizeQueued = false;
+  function sqSize() {
+    if (sizeQueued || frame.hidden) return;
+    sizeQueued = true;
+    requestAnimationFrame(() => {
+      sizeQueued = false;
+      const tiles = countTiles(tileRanges(sqBox(), 0, MAX_Z)), big = tiles > MAX_TILES;
+      sqTip.classList.toggle("too-big", big);
+      sqTip.textContent = big ? `Too big to save: drag a corner in or zoom in (${Math.round((100 * tiles) / MAX_TILES)}% of the limit)`
+        : `${mb(tiles * TILE_KB * 1e3).replace(/^u/, "U").replace(/^(\d)/, "About $1")} of map. Move the map, or drag a corner`;
+      sqGo.disabled = big || !navigator.onLine;
+    });
+  }
+  function sqMode(on) {
+    if (frame.hidden === !on) return;
+    frame.hidden = !on;
+    document.body.classList.toggle("box-on", on);
+    if (!busy) card.hidden = on;   // out of the way while picking, back when done
+    const gl = window.trailMap3d;
+    if (on) { map.on("move", sqSize); if (gl) gl.on("move", sqSize); requestAnimationFrame(() => requestAnimationFrame(startSq)); }
+    else { map.off("move", sqSize); if (gl) gl.off("move", sqSize); }
+  }
+  // Corners: one finger drags the corner; the map doesn't move meanwhile.
+  let cornerDrag = null;
+  frame.querySelectorAll(".box-h").forEach((h) => {
+    h.addEventListener("pointerdown", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      h.setPointerCapture(e.pointerId);
+      cornerDrag = { c: h.dataset.c, x0: e.clientX, y0: e.clientY, p0: { ...sqPos } };
+      sq.classList.add("moving");
+    });
+    h.addEventListener("pointermove", (e) => {
+      if (!cornerDrag) return;
+      const a = freeArea(), dx = e.clientX - cornerDrag.x0, dy = e.clientY - cornerDrag.y0, p = cornerDrag.p0, MIN = 70;
+      const minTop = Math.min(a.top, p.t) - 40;
+      if (cornerDrag.c[1] === "w") sqPos.l = Math.max(4, Math.min(p.r - MIN, p.l + dx)); else sqPos.r = Math.min(a.w - 4, Math.max(p.l + MIN, p.r + dx));
+      if (cornerDrag.c[0] === "n") sqPos.t = Math.max(minTop, Math.min(p.b - MIN, p.t + dy)); else sqPos.b = Math.min(Math.max(a.bottom - 4, p.b), Math.max(p.t + MIN, p.b + dy));
+      placeSq();
+    });
+    const end = () => { cornerDrag = null; sq.classList.remove("moving"); };
+    h.addEventListener("pointerup", end); h.addEventListener("pointercancel", end);
+    h.addEventListener("click", (e) => e.stopPropagation());
+  });
+  frame.querySelector("[data-sq-x]").addEventListener("click", () => sqMode(false));
+  sqGo.addEventListener("click", () => {
+    const b = sqBox();
+    sqMode(false);
+    setDrawn(b);
+    saveArea(b, $("[data-name]").value.trim() || suggestName());
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !frame.hidden) sqMode(false); });
+  window.addEventListener("resize", () => { if (!frame.hidden) startSq(); });
   function setDrawn(b) {
     drawn = b;
     drawnLayer.clearLayers();
@@ -308,41 +398,66 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
     if (!nm.dataset.typed) nm.value = suggestName();
     estimate();
   }
-  $("[data-draw]").addEventListener("click", () => drawMode(true));
-  tip.querySelector("button").addEventListener("click", () => drawMode(false));
+  $("[data-draw]").addEventListener("click", () => sqMode(true));
   $("[data-undraw]").addEventListener("click", () => setDrawn(null));
-  const mapEl = map.getContainer();
-  mapEl.addEventListener("pointerdown", (e) => {
-    if (!draw.on || e.button > 0 || e.target.closest(".leaflet-control, .offline-draw-tip")) return;
-    e.preventDefault(); e.stopPropagation();
-    mapEl.setPointerCapture(e.pointerId);
-    draw.start = map.mouseEventToLatLng(e);
-    draw.rect = L.rectangle([draw.start, draw.start], { color: "#1f6f4a", weight: 2, dashArray: "6 6", fillOpacity: 0.06, interactive: false }).addTo(map);
-  }, true);
-  mapEl.addEventListener("pointermove", (e) => {
-    if (draw.start) { e.stopPropagation(); draw.rect.setBounds(L.latLngBounds(draw.start, map.mouseEventToLatLng(e))); }
-  }, true);
-  mapEl.addEventListener("pointerup", (e) => {
-    if (!draw.start) return;
-    e.stopPropagation();
-    const b = L.latLngBounds(draw.start, map.mouseEventToLatLng(e));
-    draw.start = null;
-    draw.rect.remove();
-    mapEl.addEventListener("click", swallow, true);   // swallow the click that follows (so no trail opens)
-    setTimeout(() => mapEl.removeEventListener("click", swallow, true), 400);
-    const px = map.latLngToContainerPoint(b.getNorthWest()).distanceTo(map.latLngToContainerPoint(b.getSouthEast()));
-    if (px < 20) return;   // a tap, not a square: keep drawing
-    drawMode(false);
-    setDrawn([b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((v) => +v.toFixed(5)));
-  }, true);
+
+  // ---------- how the save is going ----------
+  // alex 2026-10-30: "hard to tell when it saved or not". One box under the buttons says it in big words: Saving
+  // with a progress bar, then a green "Saved: works with no signal" or an orange "Not saved yet" with Try again.
+  // Files that still don't come are tried again on their own: when the signal comes back, each time Offline maps
+  // opens, and once more a couple of minutes after a save that missed some.
+  const files = (n) => `${n.toLocaleString()} file${n === 1 ? "" : "s"}`;
+  const KINDS = [[/mapterhorn|elevation-tiles/, "3D heights"], [/trail-finder-winter/, "winter photos"], [/openfreemap\.org\/(?!styles|fonts|sprites)/, "map tiles"],
+    [/\/data\//, "trail data"], [/unpkg\.com|openfreemap/, "map style"]];
+  const whatsMissing = (urls) => [...new Set(urls.map((u) => (KINDS.find(([re]) => re.test(u)) || [0, "other files"])[1]))].join(", ");
+  function showState(kind, head, text, pct, acts) {
+    const st = $("[data-state]");
+    st.hidden = false;
+    st.className = "off-state" + (kind ? " " + kind : "");
+    $("[data-st-head]").textContent = head;
+    $("[data-prog]").textContent = text;
+    if (pct != null) st.querySelector(".bar i").style.width = pct + "%";
+    $("[data-st-acts]").innerHTML = acts || "";
+  }
+  $("[data-st-acts]").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.stop != null) { if (busy) busy.stop = true; b.disabled = true; b.textContent = "Stopping…"; }
+    else if (b.dataset.retry) { const a = load().find((x) => x.id === b.dataset.retry); if (a) saveArea(a.box, a.name, a.id, a.boxes); }
+  });
+  // Where each save stands, for other scripts (cabin-trip.js: "Save the trip offline"): "saving", "saved" or "missing".
+  let savingName = null;
+  const statusOf = (name) => {
+    if (busy && savingName === name) return { state: "saving", pct: busy.pct || 0 };
+    const a = load().find((x) => x.name === name);
+    return a ? { state: a.missing ? "missing" : "saved", missing: a.missing || 0, at: a.at } : null;
+  };
+  const tell = (name) => window.dispatchEvent(new CustomEvent("tf:offline", { detail: { name, ...statusOf(name) } }));
+  // Finish areas that are missing files, one at a time, with no tap. Each area gets a few of these per visit, so a
+  // file no server will ever send doesn't make the app ask for it all day.
+  const autoTries = new Map();
+  async function autoFinish() {
+    if (busy || !navigator.onLine) return;
+    const a = load().find((x) => x.missing && (autoTries.get(x.id) || 0) < 3);
+    if (!a) return;
+    autoTries.set(a.id, (autoTries.get(a.id) || 0) + 1);
+    await saveArea(a.box, a.name, a.id, a.boxes, true);
+  }
+  let autoTimer = 0;
+  const autoLater = (ms) => { clearTimeout(autoTimer); autoTimer = setTimeout(autoFinish, ms); };
+  window.addEventListener("online", () => autoLater(3000));
+  if (load().some((a) => a.missing)) autoLater(20000);   // left unfinished last time: try again once the page has settled
+
   // Save (or finish saving) an area. Anything downloaded goes in the list, even when the save is stopped or some
-  // files never come, so it can always be finished or deleted from there.
-  async function saveArea(box, name, id, boxes) {
+  // files never come, so it can always be finished or deleted from there. auto: a try no one tapped (autoFinish).
+  async function saveArea(box, name, id, boxes, auto) {
     if (busy) return;
-    const bar = card.querySelector(".bar"), prog = $("[data-prog]");
-    busy = { stop: false };
-    $("[data-save]").disabled = true; $("[data-stop]").hidden = false; bar.hidden = false;
-    prog.textContent = "Getting the map style…";
+    busy = { stop: false, pct: 0 };
+    savingName = name;
+    $("[data-save]").disabled = true;
+    const stop = `<button class="btn" type="button" data-stop>Stop</button>`;
+    showState("", `Saving ${name}…`, "Getting the map style…", 0, stop);
+    tell(name);
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     let sources = null, bytes = 0, failed = [];
     const old0 = id && load().find((x) => x.id === id), sport = old0 ? sportOf(old0) : sportNow(), d3 = old0 ? !!old0.d3 : $("[data-3d]").checked;
@@ -351,11 +466,13 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
       if (!sources) return;
       const areas = load(), old = areas.find((x) => x.id === id);
       const entry = { id: id || Date.now().toString(36), name, box, sources, bytes, at: Date.now(), sport, ski: sport === "ski", d3, ...(huntLayers ? { huntLayers } : {}), ...(boxes ? { boxes } : {}) };
-      if (failed.length || busy.stop) entry.missing = Math.max(1, failed.length + busy.left);
+      if (old) { delete old.missing; delete old.missingUrls; }
+      if (failed.length || busy.stop) { entry.missing = Math.max(1, failed.length + busy.left); if (failed.length) entry.missingUrls = failed.slice(0, 20); }
       if (old) Object.assign(old, entry); else areas.push(entry);
       id = entry.id;
       save(areas);
     };
+    let ok = false;
     try {
       const cache = await caches.open(CACHE);
       const parts = await styleParts(cache);
@@ -363,32 +480,49 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Finish</button>` : ""
       const tiles = sources.flatMap((s) => [...tileUrls(s, box, boxes)]);
       const data = [...dataUrls(box), ...ext.data];
       const total = tiles.length + data.length + parts.extra.length + LIBS.length + ext.tiles.length;
-      let done = 0;
+      let done = 0, shown = 0;
       busy.left = total;
-      const tick = () => { done++; busy.left = total - done; bar.firstChild.style.width = (100 * done) / total + "%"; prog.textContent = `${done.toLocaleString()} of ${total.toLocaleString()} files`; };
+      const tick = () => {
+        done++; busy.left = total - done; busy.pct = Math.floor((100 * done) / total);
+        if (busy.pct === shown && done < total) return;
+        shown = busy.pct;
+        showState("", `Saving ${name}… ${busy.pct}%`, `${done.toLocaleString()} of ${total.toLocaleString()} files. Keep the app open until it says Saved.`, busy.pct, stop);
+      };
       for (const [urls, optional] of [[[...LIBS, ...parts.extra]], [data, true], [tiles], [ext.tiles]]) {   // a zone may not have every kind of file
         const got = await fetchAll(cache, urls, tick, optional);
         bytes += got.bytes; failed.push(...got.failed);
       }
-      if (failed.length && !busy.stop) { const got = await retryFailed(cache, failed, prog); bytes += got.bytes; failed = got.failed; }
+      if (failed.length && !busy.stop) {
+        const got = await retryFailed(cache, failed, (n, ms, r) => showState("", `Almost there: ${files(n)} to go`,
+          `${n === 1 ? "It hasn't" : "They haven't"} come yet. Trying again in ${ms / 1000} s (${r + 1} of ${RETRY_WAIT.length})…`, 99, stop));
+        bytes += got.bytes; failed = got.failed;
+      }
       if (busy.stop) { record(); throw new Error("Stopped"); }
       busy.left = 0;
       record();
-      if (failed.length) throw new Error(`${failed.length} file${failed.length > 1 ? "s" : ""} still didn't download after ${RETRY_WAIT.length + 1} tries`);
-      prog.textContent = `Saved ${name} (${mb(bytes)}). It works with no signal now.`;
+      if (failed.length) throw new Error("missing");
+      ok = true;
+      showState("ok", "✓ Saved: works with no signal", `${name} (${mb(bytes)}) is on this ${phone() ? "phone" : "device"}. Tap Show below to see it on the map.`, 100);
+      if (auto && card.hidden && window.tfToast) window.tfToast(`✓ ${name} finished saving: it works with no signal now.`);
     } catch (e) {
-      prog.textContent = e.message === "Stopped" ? `Stopped. Tap Finish next to ${name} below to pick up where it left off, or Delete to remove it.`
-        : `Couldn't save the whole area (${e.message}). ${sources ? `Tap Finish next to ${name} below when you have better signal, or Delete to remove it.` : "Try again with signal."}`;
+      const retry = sources && id ? `<button class="btn primary" type="button" data-retry="${esc(id)}">Try again now</button>` : "";
+      if (e.message === "Stopped") showState("bad", "Not saved yet: stopped", `Tap Try again to pick up where it left off, or Delete ${name} below.`, null, retry);
+      else if (failed.length) showState("bad", `⚠ Not saved yet: ${files(failed.length)} missing`, `Missing: ${whatsMissing(failed)}. The rest is saved. It tries again by itself when you have signal.`, null, retry);
+      else showState("bad", "⚠ Not saved", `${sources ? "The save stopped" : "Couldn't reach the map"} (${e.message}). Try again with signal.`, null, retry);
     }
-    busy = null;
-    $("[data-stop]").hidden = true; bar.hidden = true; bar.firstChild.style.width = "0";
+    busy = null; savingName = null;
+    if (drawn) setDrawn(null);   // the square is in the list now (Try again uses its own box)
+    tell(name);
     renderList(); estimate();
+    if (!ok && navigator.onLine && id && (autoTries.get(id) || 0) < 3) autoLater(120000);
   }
-  $("[data-stop]").addEventListener("click", () => { if (busy) busy.stop = true; });
 
   // Save a given box straight away (alex, from Outmap: "save offline" on a saved route or a riding area, no square to
   // draw). The box gets a margin; too big for one save, the card opens on it and says so.
   window.tfOffline = {
+    // { state: "saving" | "saved" | "missing", pct, missing, at } for the area saved under this name, or null.
+    // A "tf:offline" event on window ({ detail: { name, state, ... } }) says each time it changes.
+    status: statusOf,
     saveBox(box, name) {
       const latM = (box[2] - box[0]) * 0.15 + 0.004, lonM = (box[3] - box[1]) * 0.15 + 0.006;
       const b = [box[0] - latM, box[1] - lonM, box[2] + latM, box[3] + lonM].map((v) => +v.toFixed(5));
