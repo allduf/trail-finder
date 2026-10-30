@@ -616,7 +616,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=980");
+      const w = new Worker("winter-fill.js?v=990");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -693,7 +693,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=980" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=990" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -949,6 +949,10 @@
           fill: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://fill/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           shade: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: 14, tiles: ["tfdem://{z}/{x}/{y}"] },
+          // Under the Summer photos, like winterlo under Winter: the same photos at zoom 9 at most, so a spot whose sharp
+          // photo is still coming is a blurry photo, not a hole to the sky (MTB, Hunting, Fishing, Moto; alex's
+          // recordings, 2026-10-29).
+          satlo: { type: "raster", tileSize: 256, maxzoom: 9, tiles: ["tfsat://{z}/{x}/{y}"] },
           sat: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfsat://{z}/{x}/{y}"],
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
           // Sharp place, peak and lake names from OpenFreeMap (free, no key), instead of blurry label pictures.
@@ -972,6 +976,7 @@
           { id: "off-land", type: "fill", source: "names", "source-layer": "landcover", layout: { visibility: "none" },
             paint: { "fill-color": ["match", ["get", "class"], "wood", "#a7c496", "grass", "#d4e3b5", "rock", "#d3cfc6", "ice", "#f3f7fa", "sand", "#ece2c3", "wetland", "#c2dacb", "farmland", "#e3e6c3", "#d6e0c4"] } },
           { id: "off-water", type: "fill", source: "names", "source-layer": "water", layout: { visibility: "none" }, paint: { "fill-color": "#98c0e4" } },
+          { id: "satlo", type: "raster", source: "satlo", paint: { "raster-fade-duration": 0, "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
           { id: "sat", type: "raster", source: "sat", paint: { "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
           { id: "fill", type: "raster", source: "fill", layout: { visibility: "none" } },
@@ -1041,6 +1046,12 @@
     const lod = () => ["sat", "fill", "winter", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
     // Set as soon as the style is in, so the very first tiles already come at that setting.
     gl.once("style.load", lod); gl.once("load", lod);
+    // The blurry photos under the sharp ones (winterlo, satlo) keep more tiles after they leave the view than the
+    // others (12 on phones): they're few and small (256 px, ~16 MB for 64), and zooming back out or panning back over
+    // ground already seen then shows them at once instead of a blank for 1-3 s while they come again (alex's
+    // recordings, 2026-10-29: a zoom-out over Pemberton). MapLibre internals: any surprise just skips it.
+    const keepLo = () => { for (const id of ["winterlo", "satlo"]) try { const m = gl.style.tileManagers[id]; if (m && "_maxTileCacheSize" in m) m._maxTileCacheSize = 64; } catch {} };
+    gl.once("style.load", keepLo); gl.once("load", keepLo);
     // The tilt starts as soon as the height under the first (flat) view's centre is in.
     // It waited for "load" before: every first tile of every source (photos, names, roads, the hidden ones) at the
     // flat view, which a phone loaded for 8-10 s with "Loading the mountains…" up, then loaded the tilted view all
@@ -1100,7 +1111,7 @@
       winBtn.style.display = ski() ? "" : "none";
       sumBtn.style.display = ski() ? "none" : "";
       const w = photos === "winter" || photos === "live";
-      gl.setLayoutProperty("sat", "visibility", photos === "sharp" ? "visible" : "none");
+      for (const id of ["satlo", "sat"]) gl.setLayoutProperty(id, "visibility", photos === "sharp" ? "visible" : "none");
       gl.setLayoutProperty("fill", "visibility", photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
       gl.setLayoutProperty("ground", "visibility", photos === "winter" ? "visible" : "none");
       for (const id of ["winterlo", "winter", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
@@ -1118,7 +1129,7 @@
     const offGround = () => {
       const off = !navigator.onLine;
       for (const id of ["off-bg", "off-land", "off-water", "shade"]) gl.setLayoutProperty(id, "visibility", off ? "visible" : "none");
-      if (off) for (const id of ["sat", "fill", "live"]) gl.setLayoutProperty(id, "visibility", "none");
+      if (off) for (const id of ["satlo", "sat", "fill", "live"]) gl.setLayoutProperty(id, "visibility", "none");
     };
     netChange = () => { if (gl && gl.getLayer("off-bg")) setPhotos(photos); };
     // Winter outside last winter's photos shows today's snow (NASA, as in Live): say so. Live where NASA sees no
@@ -1148,7 +1159,7 @@
     const tileTries = new Map();
     gl.on("idle", () => {
       if (!navigator.onLine) return;
-      for (const id of ["sat", "fill", "winterlo", "winter", "live"]) {
+      for (const id of ["satlo", "sat", "fill", "winterlo", "winter", "live"]) {
         const m = gl.style?.tileManagers?.[id], tiles = m?._inViewTiles;
         if (!tiles || typeof m._reloadTile !== "function") continue;
         for (const t of tiles.getAllIds()) {
