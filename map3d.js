@@ -614,7 +614,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=920");
+      const w = new Worker("winter-fill.js?v=960");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -691,7 +691,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=920" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=960" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -934,6 +934,11 @@
           // fast; the same zoom-14 photo right up close, so it looks the same (side-by-side phone test, 2026-10-27).
           winter: { type: "raster", tileSize: PHONE ? 256 : PHOTO_TILE, minzoom: 6, maxzoom: 14, bounds: WINTER_BOUNDS, tiles: ["tfwinterphoto://{z}/{x}/{y}"],
             attribution: "Winter: Copernicus Sentinel-2 data 2026 (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>" },
+          // Under Winter: the same photos, zoom 9 at most (a tile is ~50 km across, ~20 tiles a whole 3D view). After a
+          // move or zooming out, a spot whose Winter photo is still on its way showed plain grey or blank patches for
+          // 1-3 s (alex's recording, 2026-10-29); these few big tiles are there long before, so it's a blurry winter
+          // photo for that moment instead, sharpening when Winter's tile comes.
+          winterlo: { type: "raster", tileSize: 256, minzoom: 6, maxzoom: 9, bounds: WINTER_BOUNDS, tiles: ["tfwinterphoto://{z}/{x}/{y}"] },
           // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above).
           winterhd: { type: "raster", tileSize: PHONE ? 256 : 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] },
           live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
@@ -968,6 +973,7 @@
           { id: "sat", type: "raster", source: "sat", paint: { "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
           { id: "fill", type: "raster", source: "fill", layout: { visibility: "none" } },
+          { id: "winterlo", type: "raster", source: "winterlo", layout: { visibility: "none" }, paint: { "raster-fade-duration": 0 } },
           { id: "winter", type: "raster", source: "winter", layout: { visibility: "none" } },
           { id: "winterhd", type: "raster", source: "winterhd", layout: { visibility: "none" }, paint: { "raster-fade-duration": 200 } },
           { id: "live", type: "raster", source: "live", layout: { visibility: "none" } },
@@ -1095,7 +1101,7 @@
       gl.setLayoutProperty("sat", "visibility", photos === "sharp" ? "visible" : "none");
       gl.setLayoutProperty("fill", "visibility", photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
       gl.setLayoutProperty("ground", "visibility", photos === "winter" ? "visible" : "none");
-      for (const id of ["winter", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
+      for (const id of ["winterlo", "winter", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
       gl.setLayoutProperty("live", "visibility", photos === "live" ? "visible" : "none");
       sumBtn.title = "Sharp photos, taken in summer where Esri has one";
       winBtn.title = "Real satellite photos from February and March 2026 (Sentinel-2, 10 m, so softer)";
@@ -1140,7 +1146,7 @@
     const tileTries = new Map();
     gl.on("idle", () => {
       if (!navigator.onLine) return;
-      for (const id of ["sat", "fill", "winter", "live"]) {
+      for (const id of ["sat", "fill", "winterlo", "winter", "live"]) {
         const m = gl.style?.tileManagers?.[id], tiles = m?._inViewTiles;
         if (!tiles || typeof m._reloadTile !== "function") continue;
         for (const t of tiles.getAllIds()) {
