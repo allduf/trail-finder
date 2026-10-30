@@ -429,7 +429,33 @@
       return typeof ImageBitmap !== "undefined" && d instanceof ImageBitmap ? { ...r, data: once(d) } : r;
     });
   }
-  const once = (bmp) => { uploadOnce.add(bmp); return bmp; };
+  const once = (bmp) => { uploadOnce.add(bmp); waiting.set(bmp, Date.now()); return bmp; };
+  // Every other picture layer on the 3D map is freed the same way (Skiing's snow and rain forecast, avalanche,
+  // slope, heatmap; Hunting's and Fishing's painted layers; contours): all their tiles are new pictures too, and
+  // with Snow and rain forecast on they were ~25 MB a view, made again each time new forecast points came in. A
+  // phone ran out of memory again in Skiing 3D with it on, zoomed out over Whistler and Pemberton (alex, 2026-10-30).
+  // A tile scrolled away before MapLibre took its picture never reaches the graphics card: it's let go right away
+  // if the tile was already cancelled, else after WAIT_MS (a picture MapLibre takes is on the card at once).
+  const waiting = new Map();   // picture -> when it was handed over, until it's on the graphics card
+  const WAIT_MS = 20000;
+  setInterval(() => {
+    const old = Date.now() - WAIT_MS;
+    for (const [bmp, t] of waiting) if (t < old) { waiting.delete(bmp); uploadOnce.delete(bmp); try { bmp.close(); } catch {} }
+  }, 10000);
+  function freeAllPictures() {
+    if (maplibregl.addProtocol.tfFreed) return;
+    const add = maplibregl.addProtocol;
+    maplibregl.addProtocol = function (name, fn) {
+      return add.call(this, name, async (params, abort) => {
+        const r = await fn(params, abort), d = r && r.data;
+        if (typeof ImageBitmap === "undefined" || !(d instanceof ImageBitmap) || uploadOnce.has(d)) return r;
+        if (abort && abort.signal && abort.signal.aborted) { try { d.close(); } catch {} throw new DOMException("aborted", "AbortError"); }
+        once(d);
+        return r;
+      });
+    };
+    maplibregl.addProtocol.tfFreed = true;
+  }
   let satProtocol = false;
   function addSatProtocol() {
     if (satProtocol) return;
@@ -807,6 +833,40 @@
       };
     } catch {}
   }
+  // Picture layers drawn again leak in MapLibre 5.24.0 too: when a raster source's address changes (setTiles: Snow
+  // and rain forecast each time new forecast points come in, the radar's frames, the avalanche day) every tile in view
+  // loads again and gets a new picture on the graphics card, and its old one is dropped without being freed. With
+  // Snow and rain forecast on, the graphics memory climbed every move (76 -> 240 MB in 18 moves and still rising,
+  // phone test at Whistler) and the iPhone app ran out of memory (alex, 2026-10-30). Now the old picture goes back
+  // to MapLibre's own pool as the new one takes its place (reused for the next tile; past 50 spare ones it's freed),
+  // also when two loads of the same tile overlap (forecast points coming in faster than the tiles are drawn).
+  // MapLibre internals: any surprise just skips it.
+  let reloadFixed = false;
+  function fixReloadLeak() {
+    const src = gl.getSource("sat");
+    if (reloadFixed || !src) return;
+    reloadFixed = true;
+    try {
+      const proto = Object.getPrototypeOf(src), orig = proto.loadTile;
+      if (typeof orig !== "function" || orig.tfFixed) return;
+      proto.loadTile = function (tile) {
+        if (tile && !Object.prototype.hasOwnProperty.call(tile, "tfTexture")) {
+          const painter = this.map.painter;
+          tile.tfTexture = tile.texture;
+          // MapLibre sets it twice per load: first to a spare picture from its pool or null, then (if null) to a new
+          // one, so the old picture is kept through the null and handed back when the new one is in.
+          Object.defineProperty(tile, "texture", { configurable: true, enumerable: true, get() { return this.tfTexture; }, set(t) {
+            const old = this.tfTexture || this.tfOld;
+            this.tfTexture = t;
+            this.tfOld = t ? null : old;
+            if (old && t && old !== t) try { painter.saveTileTexture(old); } catch {}
+          } });
+        }
+        return orig.apply(this, arguments);
+      };
+      proto.loadTile.tfFixed = true;
+    } catch {}
+  }
   // MapLibre's picture-on-the-graphics-card class isn't exported: found from the terrain's own empty one.
   let texFixed = false;
   function closeUploaded(proto) {
@@ -816,7 +876,7 @@
       if (typeof up !== "function") return;
       proto.update = function (image) {
         const out = up.apply(this, arguments);
-        if (uploadOnce.has(image)) { uploadOnce.delete(image); try { image.close(); } catch {} }
+        if (uploadOnce.has(image)) { uploadOnce.delete(image); waiting.delete(image); try { image.close(); } catch {} }
         return out;
       };
     } catch {}
@@ -910,6 +970,7 @@
     L.DomEvent.disableScrollPropagation(box);
     ["pointerdown", "touchstart", "contextmenu", "keydown"].forEach((t) => box.addEventListener(t, (e) => e.stopPropagation()));
 
+    freeAllPictures();
     addDemProtocol();
     addWinterProtocol();
     addWinterPhotoProtocol();
@@ -1089,7 +1150,7 @@
       // restarted on the flat map. A view that needs more paints its ground in turns: a little slower, never a crash.
       gl.on("render", phoneBuffers);
     }
-    const demFix = () => { fixDemLeak(); if (demFixed) gl.off("render", demFix); };
+    const demFix = () => { fixDemLeak(); fixReloadLeak(); if (demFixed && reloadFixed) gl.off("render", demFix); };
     gl.on("render", demFix);
     gl.on("moveend", keepView);
     gl.on("moveend", placeNames);
