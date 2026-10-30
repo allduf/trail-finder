@@ -11,10 +11,23 @@
 
   // Settings saved to the account: the tf:* localStorage keys the pages remember.
   // Not "map3d": 3D turned on at a computer would open a phone straight into 3D, which can run it out of memory.
-  const SETTINGS = ["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "nearKm", "track", "nameNear", "mode", "nameZone", "want", "folders", "notify", "notifyRead", "toride", "riddenMap", "loamAlert", "loamNew", "loamRide", "loamArea", "notifyNew", "planGone", "planSaved", "recentTrails", "myFinds", "shareOn", "shareKey", "sharePast", "shareFrom", "sharePlaces", "newsSeen"];
+  const SETTINGS = ["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "nearKm", "track", "nameNear", "mode", "nameZone", "want", "folders", "notify", "notifyRead", "toride", "riddenMap", "loamAlert", "loamNew", "loamRide", "loamArea", "notifyNew", "planGone", "planSaved", "recentTrails", "myFinds", "shareOn", "shareKey", "sharePast", "shareFrom", "sharePlaces", "newsSeen",
+    // What each sport saves (alex 2026-10-30: trips, spots and pins on the account in every sport). Pins and tracks have
+    // their own tables (ski-points.js, ride.html); these are the lists kept in localStorage. listGone comes first: the
+    // lists' merges read it.
+    "listGone", "skiTrips", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike"];
   const STAMP = "tf:settingsAt";   // when this device last changed a setting (ms)
 
   const api = window.tfAccount = { enabled: !!(SUPABASE_URL && SUPABASE_ANON_KEY), url: SUPABASE_URL, key: SUPABASE_ANON_KEY, client: null, user: null, ready: null };
+  // A list item deleted on this device (tf:listGone, { k: list key, id, at }), so the next sync doesn't bring it back
+  // from the account. Pages call it before writing the list without the item (that write fires "tf:setting").
+  api.gone = (k, ids) => {
+    try {
+      const at = Date.now(), l = JSON.parse(localStorage.getItem("tf:listGone") || "[]") || [];
+      [].concat(ids).forEach((id) => l.unshift({ k, id: String(id), at }));
+      localStorage.setItem("tf:listGone", JSON.stringify(l.slice(0, 300)));
+    } catch {}
+  };
   if (!api.enabled) { api.ready = Promise.resolve(null); return; }
 
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -53,7 +66,7 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
   box.innerHTML = `
 <form method="dialog" id="acctIn">
   <h2>Sign in</h2>
-  <p>Optional. Signing in saves your settings and rides to your account so they're on every device. Everything else works the same without it.</p>
+  <p>Optional. Signing in saves your settings, rides, pins and trips to your account so they're on every device. Everything else works the same without it.</p>
   <label for="acctEmail">Email</label>
   <input type="email" id="acctEmail" placeholder="you@example.com" autocomplete="email" required>
   <label for="acctPass">Password</label>
@@ -282,9 +295,37 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
   // merge both devices' lists (deleted ones are remembered in tf:planGone). Syncs run on sign-in, after a change,
   // when the app comes back to the screen, and when a page asks (tfAccount.sync(), e.g. opening 📂 Saved).
   const KEYAT = "tf:settingsKeyAt";
-  const LIVE = new Set(["planSaved", "planGone", "notifyRead", "loamAlert", "myFinds", "shareOn", "shareKey", "sharePast", "shareFrom", "sharePlaces", "newsSeen"]);   // read fresh by the page, so no reload
+  const LIVE = new Set(["planSaved", "planGone", "notifyRead", "loamAlert", "myFinds", "shareOn", "shareKey", "sharePast", "shareFrom", "sharePlaces", "newsSeen",
+    "listGone", "skiTrips", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike"]);   // read fresh by the page, so no reload
   const jparse = (v, d) => { try { const x = JSON.parse(v); return x == null ? d : x; } catch { return d; } };
+  // A saved list both devices add to: items by id, the newer edit wins, minus those deleted (tf:listGone) after their
+  // last edit. sorted: newest first (else this device's order, then the account's new ones). max: the page's own cap.
+  const listMerge = (key, idOf, whenOf, sorted, max) => (a, b, out) => {
+    const gone = {};
+    jparse(out.listGone, []).forEach((g) => { if (g && g.k === key && !(gone[g.id] >= g.at)) gone[g.id] = g.at || 0; });
+    const all = new Map();
+    [...jparse(a, []), ...jparse(b, [])].forEach((e) => {
+      const id = e && idOf(e);
+      if (id == null || (gone[id] != null && gone[id] >= whenOf(e))) return;
+      const was = all.get(String(id));
+      if (!was || whenOf(e) > whenOf(was)) all.set(String(id), e);
+    });
+    let list = [...all.values()];
+    if (sorted) list.sort((x, y) => whenOf(y) - whenOf(x) || (String(idOf(x)) < String(idOf(y)) ? -1 : 1));
+    list = list.slice(0, max);
+    return list.length ? JSON.stringify(list) : null;
+  };
   const MERGE = {
+    listGone: (a, b) => {
+      const all = {};
+      [...jparse(a, []), ...jparse(b, [])].forEach((g) => { const id = g && g.k && g.id != null && g.k + "\n" + g.id; if (id && !(all[id] && all[id].at >= g.at)) all[id] = g; });
+      const list = Object.values(all).sort((x, y) => y.at - x.at || (x.k + x.id < y.k + y.id ? -1 : 1)).slice(0, 300);
+      return list.length ? JSON.stringify(list) : null;
+    },
+    skiTrips: listMerge("skiTrips", (t) => t.id, (t) => t.ed || t.at || 0, true, 20),         // cabin trips (cabin-trip.js)
+    skiWatch: listMerge("skiWatch", (w) => w.k, (w) => w.at || 0, true, 40),                 // 🔔 Watch this tour (winter.js)
+    motoRoutes: listMerge("motoRoutes", (r) => r.id, (r) => r.ed || r.at || 0, true, 40),   // Adventure moto saved routes
+    motoBikes: listMerge("motoBikes", (k) => k.id, (k) => k.ed || 0, false, 20),            // Adventure moto: my bikes
     // What's new (whats-new.js): the newest change seen on any device, so a line read on the phone isn't shown again on the computer.
     newsSeen: (a, b) => {
       const x = jparse(a, null), y = jparse(b, null);

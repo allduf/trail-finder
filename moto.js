@@ -509,6 +509,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     q("#mtTires").onclick = (e) => { const x = e.target.closest("[data-tire]"); if (x) { edit.tires = x.dataset.tire; sync(); } };
     q("#mtSkill").onclick = (e) => { const x = e.target.closest("[data-skill]"); if (x) { edit.skill = x.dataset.skill; sync(); } };
     q("[data-save]").onclick = () => {
+      edit.ed = Date.now();   // the newer edit wins when two devices' bikes merge (account.js)
       const i = bikes.findIndex((x) => x.id === edit.id);
       if (i >= 0) bikes[i] = edit; else bikes.push(edit);
       bikeId = edit.id; store.set("motoBikes", bikes); store.set("motoBike", bikeId);
@@ -517,6 +518,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const del = q("[data-del]");
     if (del) del.onclick = () => {
       if (!confirm(`Delete ${edit.name || "this bike"}?`)) return;
+      if (window.tfAccount && window.tfAccount.gone) window.tfAccount.gone("motoBikes", edit.id);   // so the account doesn't bring it back
       bikes = bikes.filter((x) => x.id !== edit.id); bikeId = bikes[0] && bikes[0].id;
       store.set("motoBikes", bikes); store.set("motoBike", bikeId); dlg.close(); bikeChanged();
     };
@@ -1909,6 +1911,8 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     if (name == null) return;
     const entry = { id: Date.now().toString(36), name: name.trim() || route.name || "My adventure route", pts: planPts.slice(), loop: planLoop, style: planStyle, km: Math.round(route.km), at: Date.now(),
       line: encode6(route.line), parts: route.parts.map((x) => [x.name, x.say, x.text, x.a, x.b, +(x.km || 0).toFixed(2)]), time: route.time };
+    const replaced = saved.filter((x) => x.name === entry.name).map((x) => x.id);   // same name: the new one takes its place
+    if (replaced.length && window.tfAccount && window.tfAccount.gone) window.tfAccount.gone("motoRoutes", replaced);
     saved = [entry, ...saved.filter((x) => x.name !== entry.name)].slice(0, 40);
     try { store.set("motoRoutes", saved); } catch {}
     route.name = entry.name;
@@ -1925,6 +1929,18 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     el.querySelectorAll("[data-open]").forEach((x) => (x.onclick = () => openRoute(saved.find((r) => r.id === x.dataset.open))));
     showCard(el);
   }
+  // Routes and bikes from the rider's other devices (account.js merges both lists).
+  window.addEventListener("tf:settings-synced", (e) => {
+    if (e.detail.includes("motoRoutes")) {
+      saved = store.get("motoRoutes", []);
+      const el = $("mtRoute"), h = el && !el.hidden && el.querySelector("header h3");
+      if (h && h.textContent === "Saved routes") openSaved();
+    }
+    if (e.detail.includes("motoBikes") || e.detail.includes("motoBike")) {
+      bikes = store.get("motoBikes", []); bikeId = store.get("motoBike", bikes[0] && bikes[0].id);
+      bikeChanged();
+    }
+  });
   function openRoute(r) {
     if (!r) return;
     planPts = r.pts.slice(); planLoop = !!r.loop; planStyle = r.style || "dirt";
