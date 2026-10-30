@@ -93,15 +93,15 @@ details > summary { cursor: pointer; font-weight: 600; }
     <div class="card"><table id="searches"></table></div>
 
     <h2>Each tester</h2>
-    <p class="muted">To know who is who, find the same phone and iOS in TestFlight's tester list and type the name. Only you see it.</p>
+    <p class="muted">Phones are named for you from your TestFlight tester list (below) when only one tester has that phone and iOS. Type a name to fix one by hand. Only you see it.</p>
     <div id="people"></div>
     <div id="quiet"></div>
     <div class="card">
       <details id="rosterBox">
         <summary>Your TestFlight testers</summary>
-        <p class="muted">Paste the names from TestFlight, one per line, and name each phone above with the same name. Names with no phone are testers who haven't opened the app since usage started.</p>
-        <textarea id="roster" aria-label="TestFlight tester names, one per line"></textarea>
-        <p><button class="btn go" type="button" id="rosterSave">Save names</button> <span class="muted" id="rosterMsg"></span></p>
+        <p class="muted">In App Store Connect, open TestFlight › All Testers, select the whole list (from the first email to the last phone), copy, paste it here and Save. Each phone with the same model and iOS as only one tester gets that tester's name; your own (Internal) becomes “Me”. Emails are dropped, only name, phone and iOS are kept. A line can also be typed by hand as <i>Name · iPhone 14 · iOS 27.0.1</i>.</p>
+        <textarea id="roster" aria-label="TestFlight tester list"></textarea>
+        <p><button class="btn go" type="button" id="rosterSave">Save and name phones</button> <span class="muted" id="rosterMsg"></span></p>
       </details>
       <div id="rosterOut"></div>
     </div>
@@ -310,16 +310,70 @@ details > summary { cursor: pointer; font-weight: 600; }
     $("msg").hidden = !!rows.length;
     if (!rows.length) { $("msg").textContent = "Nothing yet in this period. Data comes in as testers use the app."; $("out").hidden = true; return; }
     $("out").hidden = false;
+    await autoName();
     paint();
   }
   window.addEventListener("tf:account", () => load());
 
   $("rosterSave").addEventListener("click", async () => {
-    const names = $("roster").value.split("\n").map((x) => x.trim()).filter(Boolean);
+    const names = parseRoster($("roster").value).map(rosterLine);
     const { error } = await window.tfAccount.client.rpc("tf_use_roster_set", { names });
     $("rosterMsg").textContent = error ? (/does not exist|Could not find/.test(error.message) ? "Run usage-more.sql first." : `Couldn't save: ${error.message}`) : "Saved.";
-    if (!error) { roster = names; paint(); }
+    if (!error) { roster = names; $("roster").value = names.join("\n"); await autoName(); paint(); }
   });
+
+  // ---- TestFlight list → names. TestFlight's All Testers page copies as email, name, status, ..., "iPhone 14", "iOS 27.0.1"
+  // (as lines or tab-separated). A saved line is "Name · iPhone 14 · iOS 27.0.1", or just a name; emails are never kept.
+  function parseRoster(text) {
+    const out = [], email = /[^\s@]+@[^\s@]+\.[a-z]{2,}/i;
+    const bits = String(text).split(/[\n\t]+/).map((x) => x.trim()).filter(Boolean);
+    if (!bits.some((b) => email.test(b))) {
+      for (const b of bits) { const [name, model, ios] = b.split(/\s*·\s*/); out.push({ name, model: model || null, ios: ios ? ios.replace(/^iOS\s*/i, "") : null, me: /^me$/i.test(name) }); }
+      return out.filter((t) => t.name);
+    }
+    let cur = null;
+    for (const b of bits) {
+      if (email.test(b)) { cur = { name: null, model: null, ios: null, me: false }; out.push(cur); const rest = b.replace(email, "").trim(); if (rest) cur.name = rest; continue; }
+      if (!cur) continue;
+      if (/internal/i.test(b)) cur.me = true;
+      const m = /(iP(?:hone|ad)[^·]*?)\s*(?:·\s*)?(?:iOS\s*([\d.]+))?$/.exec(b);
+      if (m && /^iP(hone|ad)/.test(b)) { cur.model = m[1].trim(); if (m[2]) cur.ios = m[2]; continue; }
+      const v = /^iOS\s*([\d.]+)$/i.exec(b);
+      if (v) { cur.ios = v[1]; continue; }
+      if (!cur.name && /^[^\d]/.test(b) && !/^(invited|installed|accepted|expired|testing|no builds|fr|me|–|-)\b/i.test(b)) cur.name = b.replace(/\s*·\s*internal$/i, "").trim();
+    }
+    return out.filter((t) => t.name);
+  }
+  const rosterLine = (t) => { if (t.me) t = { ...t, name: "Me" }; const tail = [t.model, t.ios ? `iOS ${t.ios}` : null].filter(Boolean).join(" · "); return tail ? `${t.name.slice(0, 58 - tail.length)} · ${tail}` : t.name.slice(0, 60); };
+  const rosterName = (line) => String(line).split(/\s*·\s*/)[0];
+  const phoneKey = (model, ios) => `${model} · iOS ${ios}`.toLowerCase();
+  let clashes = [];
+  // Names every unnamed phone whose model and iOS match exactly one tester (and only one unnamed phone has them).
+  async function autoName() {
+    clashes = [];
+    if (!roster || !roster.length) return;
+    const testers = parseRoster(roster.join("\n")).filter((t) => t.model && t.ios);
+    const phones = new Map();
+    for (const d of [...(all || []), ...rows]) if (!phones.has(d.device)) phones.set(d.device, d);
+    const labelled = new Set([...phones.values()].map((d) => rosterName(d.label || "").trim().toLowerCase()).filter(Boolean));
+    const byKey = new Map();
+    for (const t of testers) { const k = phoneKey(t.model, t.ios); if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(t); }
+    const jobs = [];
+    for (const [k, ts] of byKey) {
+      const open = ts.filter((t) => !labelled.has((t.me ? "me" : t.name).toLowerCase()));
+      if (!open.length) continue;
+      const free = [...phones.values()].filter((d) => !(d.label || "").trim() && phoneOf(d).toLowerCase() === k);
+      if (!free.length) continue;
+      if (open.length > 1 || free.length > 1) { clashes.push({ phone: phoneOf(free[0]), names: open.map((t) => t.name), phones: free.length }); continue; }
+      const label = open[0].me ? "Me" : open[0].name.slice(0, 60), device = free[0].device;
+      jobs.push(window.tfAccount.client.rpc("tf_use_label", { device, label }).then(({ error }) => {
+        if (error) return;
+        rows.forEach((r) => { if (r.device === device) r.label = label; });
+        (all || []).forEach((r) => { if (r.device === device) r.label = label; });
+      }));
+    }
+    await Promise.all(jobs);
+  }
 
   // Cancelled downloads were logged as errors before usage.js skipped them; they aren't faults.
   const realError = (r) => r.kind !== "error" || !/aborted|AbortError/i.test(r.what || "");
@@ -549,9 +603,12 @@ details > summary { cursor: pointer; font-weight: 600; }
     // TestFlight names with no phone named the same.
     if (roster && roster.length) {
       const named = new Set([...(all || []), ...rows].map((d) => (d.label || "").trim().toLowerCase()).filter(Boolean));
-      const missing = roster.filter((n) => !named.has(n.trim().toLowerCase()));
-      $("rosterOut").innerHTML = `<p>${roster.length - missing.length} of ${roster.length} testers matched to a phone.</p>` +
-        (missing.length ? `<p class="muted">No phone yet (never opened the app since usage started, or the phone isn't named):</p><ul class="list">${missing.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : "");
+      const ts = parseRoster(roster.join("\n"));
+      const missing = ts.filter((t) => !named.has((t.me ? "me" : t.name).toLowerCase()));
+      const same = new Set(clashes.flatMap((c) => c.names));
+      $("rosterOut").innerHTML = `<p>${ts.length - missing.length} of ${ts.length} testers matched to a phone.</p>` +
+        (clashes.length ? `<p class="muted">Same phone and iOS, so name these by hand (look at when each was last seen, or ask them):</p><ul class="list">${clashes.map((c) => `<li>${esc(c.phone)}: ${esc(c.names.join(", "))}${c.phones > 1 ? ` (${c.phones} phones)` : ""}</li>`).join("")}</ul>` : "") +
+        (missing.length ? `<p class="muted">No phone yet (hasn't opened the app since usage started, has updated iOS since TestFlight saw it, or has an old build that doesn't send its model):</p><ul class="list">${missing.filter((t) => !same.has(t.name)).map((t) => `<li>${esc(t.name)}${t.model ? ` <span class="muted">${esc(t.model)}${t.ios ? ` · iOS ${esc(t.ios)}` : ""}</span>` : ""}</li>`).join("")}</ul>` : "");
     } else $("rosterOut").innerHTML = roster ? "" : `<p class="muted">Saving names needs usage-more.sql.</p>`;
 
     const setLabel = async (device, label) => {
