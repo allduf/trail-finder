@@ -891,6 +891,7 @@ button.btn.box-btn[aria-pressed="true"] { background: var(--accent); color: var(
 .box-bar .btn { flex: 1; min-height: 46px; font-size: 1rem; }
 .box-bar #boxGo { flex: 1.8; }
 body.box-on .map-actions, body.box-on .first-tip { display: none !important; }
+body.box-on .leaflet-bottom.leaflet-left { visibility: hidden; }   /* the Key button would cover Cancel on a phone */
 @media (max-width: 760px) { .box-bar { bottom: calc(var(--sheet-vis) + 10px); } }
 .status { padding: 10px 16px; font-size: .9rem; color: var(--muted); border-bottom: 1px solid var(--line); }
 .status.warn { background: var(--warn-bg); color: var(--warn-fg); }
