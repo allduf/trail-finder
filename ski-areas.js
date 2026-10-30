@@ -148,7 +148,7 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
       <h2>${esc(a.name)}</h2>
       <p class="sa-sub">${sub}</p>
       <p>${esc(a.about)}</p>
-      <div class="sa-acts"><button type="button" class="go" data-act="show">Show on the map</button><button type="button" data-act="list">All areas</button></div>
+      <div class="sa-acts"><button type="button" class="go" data-act="show">Show on the map</button><button type="button" data-act="list">All areas</button>${a.prov === "JP" && window.tfJapanese ? `<button type="button" data-act="jp">🗣 Japanese help</button>` : ""}</div>
       ${a.access ? `<h3>Getting there</h3><p>${esc(a.access)}</p>` : ""}
       ${huts ? `<h3>Huts and lodges</h3><ul>${huts}</ul>` : ""}
       ${a.rules ? `<h3>Rules and permits</h3><p>${esc(a.rules)}</p>` : ""}
@@ -159,6 +159,7 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
     dlg.querySelector(".sa-x").onclick = () => dlg.close();
     dlg.querySelector('[data-act="show"]').onclick = () => { dlg.close(); map.flyTo([a.lat, a.lon], Math.max(map.getZoom(), a.kind === "expedition" ? 9 : 12)); };
     dlg.querySelector('[data-act="list"]').onclick = () => openList();
+    const jpB = dlg.querySelector('[data-act="jp"]'); if (jpB) jpB.onclick = () => { dlg.close(); window.tfJapanese.open(); };
     if (!dlg.open) dlg.showModal();
     dlg.scrollTop = 0;
     draw();

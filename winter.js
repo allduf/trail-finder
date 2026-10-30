@@ -3688,11 +3688,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // in this order (the order they used to have in index.html), after the page's own scripts, and each one draws
   // itself for the sport that's on when it arrives. Same ?v= as this script, for the same cache rule.
   const jsVer = (document.currentScript && new URL(document.currentScript.src).search) || "";
-  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "camper", "moto"];
+  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "moto"];
   const NEEDS = {
     hunt: ["crownland", "hunting", "compass"],
     fish: ["crownland", "fish-bait", "fish-route", "fishing"],
-    ski: ["webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "camper"],
+    ski: ["webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "camper", "japanese"],
     moto: ["crownland", "hunting", "moto"],   // Moto's "Can I ride here" reads Hunting's parks and closures (window.tfHunt)
   };
   const jsLoads = {};

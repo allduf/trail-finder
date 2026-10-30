@@ -142,6 +142,8 @@ dialog.cv-dlg .cv-small { font-size: .78rem; color: var(--muted); }
   function show(html) {
     dlg.innerHTML = `<button type="button" class="cv-x" aria-label="Close">✕</button>${html}`;
     dlg.querySelector(".cv-x").onclick = () => dlg.close();
+    const jp = dlg.querySelector("[data-jp]");
+    if (jp) jp.onclick = (e) => { e.preventDefault(); dlg.close(); window.tfJapanese.open(); };
     if (!dlg.open) dlg.showModal();
   }
   function open(p) {
@@ -170,6 +172,8 @@ dialog.cv-dlg .cv-small { font-size: .78rem; color: var(--muted); }
         <a class="go" href="https://www.google.com/maps/dir/?api=1&destination=${ll}" target="_blank" rel="noopener">Drive here (Google Maps)</a>
         <a href="https://maps.apple.com/?daddr=${ll}" target="_blank" rel="noopener">Apple Maps</a>
         ${t.website ? `<a href="${esc(t.website)}" target="_blank" rel="noopener">Website ↗</a>` : ""}
+        ${window.tfJapanese ? `<a href="#" data-jp="1">🗣 Japanese help</a>` : ""}
+        ${t["name:ja"] || /[\u3040-\u30ff\u4e00-\u9fff]/.test(p.n || "") ? `<a href="${window.tfJapanese ? window.tfJapanese.url(t["name:ja"] || p.n) : "#"}" target="_blank" rel="noopener">Translate the name ↗</a>` : ""}
       </div>
       ${ferries}
       <p class="cv-small">From OpenStreetMap, updated weekly. Hours and winter closing change: check before you count on it.</p>`);
