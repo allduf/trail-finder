@@ -1592,14 +1592,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=900"></script>
-<script src="native.js?v=900"></script>
-<script src="keyboard.js?v=900"></script>
-<script src="rotate.js?v=900"></script>
-<script src="official.js?v=900"></script>
-<script src="directions.js?v=900"></script>
-<script src="ratings.js?v=900"></script>
-<script src="ebike.js?v=900"></script>
+<script src="welcome.js?v=920"></script>
+<script src="native.js?v=920"></script>
+<script src="keyboard.js?v=920"></script>
+<script src="rotate.js?v=920"></script>
+<script src="official.js?v=920"></script>
+<script src="directions.js?v=920"></script>
+<script src="ratings.js?v=920"></script>
+<script src="ebike.js?v=920"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -4188,7 +4188,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=900").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=920").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5687,6 +5687,14 @@ out body;`;
   // handle taps, pans and drawing in between.
   const SLICE_MS = 40;
   const breather = () => new Promise((r) => (window.scheduler && scheduler.yield ? scheduler.yield().then(r) : setTimeout(r, 0)));
+  // fn for each item, letting taps and pans through every SLICE_MS.
+  async function inSlices(items, fn) {
+    let t0 = performance.now();
+    for (const x of items) {
+      if (performance.now() - t0 > SLICE_MS) { await breather(); t0 = performance.now(); }
+      fn(x);
+    }
+  }
   const domReady = new Promise((r) => (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", () => r(), { once: true }) : r()));
   let viewSquares = Promise.resolve();   // the official and rating squares asked for at the start (set below)
   const sortReady = () => domReady.then(() => Promise.race([viewSquares, new Promise((r) => setTimeout(r, 4000))]));
@@ -5924,15 +5932,15 @@ out body;`;
     const offLoad = () => window.tfOfficial.load(map.getBounds());
     map.on("moveend", offLoad); viewSquares = Promise.all([viewSquares, offLoad()]).catch(() => {});
     // Only trails the new squares reach are checked again: checking every loaded trail froze the map for a moment on each pan.
-    window.tfOfficial.onChange((touches = () => true) => {
+    // A few hundred at a time (inSlices): zooming out the first time froze the map for seconds on a phone.
+    window.tfOfficial.onChange(async (touches = () => true) => {
       let all = 0, found = 0;
-      for (const list of allData.values()) {
+      for (const list of [...allData.values()]) {
         let n = 0;
-        (list || []).forEach((w) => { if (w.geom && touches(w.geom)) { w.c = classify(withOfficial(w.tags, w.geom), w.r || []) || w.c; n++; } });
-        if (n) { allRedo(list); all += n; }
+        await inSlices(list || [], (w) => { if (w.geom && touches(w.geom)) { w.c = classify(withOfficial(w.tags, w.geom), w.r || []) || w.c; n++; } });
+        if (n) { allRedo(list); all += n; queueAllDraw(); }
       }
-      if (all) queueAllDraw();
-      (state.trails || []).forEach((t) => {
+      await inSlices((state.trails || []).slice(), (t) => {
         if (!t.geom || !touches(t.geom)) return;
         const c = classify(withOfficial(t.tags, t.geom), (t.routes || []).map((r) => r.name), t.routeTypes || []);
         if (c) { Object.assign(t, { unoff: c.unoff, official: c.official }); found++; }
@@ -5950,15 +5958,15 @@ out body;`;
       if (rateWho) rateWho.push(touches || null);
       if (!touches) rateWho = null;
       clearTimeout(rateTimer);
-      rateTimer = setTimeout(() => {
+      rateTimer = setTimeout(async () => {
         const who = rateWho; rateWho = [];
         const may = (geom, id) => !who || who.some((f) => f(geom, id));
-        for (const list of allData.values()) {
+        for (const list of [...allData.values()]) {
           let n = 0;
-          (list || []).forEach((w) => { if (may(w.geom, w.id)) { rateTags(w.tags, w.geom, w.id); n++; } });
-          if (n) allRedo(list);
+          await inSlices(list || [], (w) => { if (may(w.geom, w.id)) { rateTags(w.tags, w.geom, w.id); n++; } });
+          if (n) { allRedo(list); queueAllDraw(); }
         }
-        (state.trails || []).forEach((t) => { if (may(t.geom, t.id)) rateTags(t.tags, t.geom, t.id); });
+        await inSlices((state.trails || []).slice(), (t) => { if (may(t.geom, t.id)) rateTags(t.tags, t.geom, t.id); });
         queueAllDraw();
         if (state.trails && state.trails.length) render();
       }, 150);
@@ -6875,19 +6883,28 @@ out body;`;
     return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
       .replace(/&/g, " and ").replace(/['’`]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   }
-  // Edit distance that counts a swap of two letters ("fwol" / "flow") as one typo.
-  function editDist(a, b) {
+  // Edit distance that counts a swap of two letters ("fwol" / "flow") as one typo. With max: exact when it's max or
+  // less, otherwise just some number above max (typing a name scored every word of every trail: 4 s per key on phones).
+  let edRows = [new Int32Array(64), new Int32Array(64), new Int32Array(64)];
+  function editDist(a, b, max = Infinity) {
     const m = a.length, n = b.length;
     if (!m) return n; if (!n) return m;
-    let prev2 = null, prev = Array.from({ length: n + 1 }, (_, j) => j);
+    if (Math.abs(m - n) > max) return max + 1;
+    if (edRows[0].length <= n) edRows = [0, 1, 2].map(() => new Int32Array(n * 2 + 1));
+    let [prev2, prev, cur] = edRows, prevMin = 0;
+    for (let j = 0; j <= n; j++) prev[j] = j;
     for (let i = 1; i <= m; i++) {
-      const cur = [i];
+      cur[0] = i;
+      let rowMin = i;
       for (let j = 1; j <= n; j++) {
         let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
         if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
         cur[j] = v;
+        if (v < rowMin) rowMin = v;
       }
-      prev2 = prev; prev = cur;
+      if (rowMin > max && prevMin > max) return max + 1;   // two rows past max: every later row is too
+      prevMin = rowMin;
+      [prev2, prev, cur] = [prev, cur, prev2];
     }
     return prev[n];
   }
@@ -6895,19 +6912,22 @@ out body;`;
   function wordScore(q, w) {
     if (w === q) return 1;
     if (q.length >= 2 && w.startsWith(q)) return 0.95;          // still typing the word
-    let d = editDist(q, w);
+    const k = typosAllowed(q.length);
+    let d = editDist(q, w, k);
     if (q.length >= 3 && w.length > q.length) {                  // typo in a half-typed word
-      d = Math.min(d, editDist(q, w.slice(0, q.length)), editDist(q, w.slice(0, q.length + 1)));
+      d = Math.min(d, editDist(q, w.slice(0, q.length), k), editDist(q, w.slice(0, q.length + 1), k));
     }
-    return d <= typosAllowed(q.length) ? 0.88 - 0.1 * d : 0;
+    return d <= k ? 0.88 - 0.1 * d : 0;
   }
+  const textWords = new Map();   // each name's words, split once (not on every key typed)
   function matchScore(q, qWords, text) {
     if (!text) return 0;
     if (text === q) return 1;
     if (text.startsWith(q)) return 0.97;
     const at = text.indexOf(q);
     if (at > 0) return text[at - 1] === " " ? 0.94 : 0.8;
-    const words = text.split(" ");
+    let words = textWords.get(text);
+    if (!words) { words = text.split(" "); textWords.set(text, words); }
     let total = 0, weight = 0;
     for (const qw of qWords) {
       const wt = STOP.has(qw) ? 0.25 : 1;
@@ -6915,8 +6935,8 @@ out body;`;
       total += best * wt; weight += wt;
     }
     // Also compare without spaces, for "rockgarden" vs "Rock Garden".
-    const a = q.replace(/ /g, ""), b = text.replace(/ /g, "");
-    const whole = a.length >= 4 && editDist(a, b) <= typosAllowed(a.length) ? 0.85 : 0;
+    const a = q.replace(/ /g, ""), k = typosAllowed(a.length);
+    const whole = a.length >= 4 && Math.abs(text.length - words.length + 1 - a.length) <= k && editDist(a, words.join(""), k) <= k ? 0.85 : 0;
     return Math.max(weight ? 0.92 * total / weight : 0, whole);
   }
 
@@ -7059,8 +7079,8 @@ out tags center qt;`;
     const zb = !wide && nameZone() ? nameZone().bounds.pad(0.02) : null;
     return names.groups.filter((g) => !zb || zb.contains(g.center)).map((g) => {
       let s = 0; for (const t of g.texts) s = Math.max(s, matchScore(q, qWords, t));
-      return { g, s: s + (g.mtb ? 0.02 : 0), d: here.distanceTo(g.center) };
-    }).filter((h) => h.s >= 0.6)
+      return { g, s: s + (g.mtb ? 0.02 : 0) };
+    }).filter((h) => h.s >= 0.6).map((h) => ((h.d = here.distanceTo(h.g.center)), h))
       .sort((a, b) => b.s - a.s || a.d - b.d).slice(0, 10);
   }
 
@@ -7094,7 +7114,7 @@ out tags center qt;`;
     if (t === q) return 1;
     if (q.length >= 3 && t.startsWith(q)) return 0.97;
     if (q.length >= 4 && t.includes(" " + q)) return 0.9;
-    if (q.length >= 5 && Math.abs(t.length - q.length) <= 1 && editDist(q, t) <= 1) return 0.85;
+    if (q.length >= 5 && Math.abs(t.length - q.length) <= 1 && editDist(q, t, 1) <= 1) return 0.85;
     return 0;
   }
   function placeHits(raw) {
@@ -8068,46 +8088,46 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=900"></script>
-<script src="contours.js?v=900"></script>
-<script src="clouds.js?v=900"></script>
-<script src="smoke.js?v=900"></script>
-<script src="radar.js?v=900"></script>
-<script src="photo-slider.js?v=900"></script>
-<script src="ski-terrain.js?v=900"></script>
-<script src="place-search.js?v=900"></script>
-<script src="winter.js?v=900"></script>
-<script src="hunts.js?v=900"></script>
-<script src="ski-points.js?v=900"></script>
-<script src="offline.js?v=900"></script>
-<script src="ride-stats.js?v=900"></script>
-<script src="native-gps.js?v=900"></script>
-<script src="navigate.js?v=900"></script>
-<script src="planner.js?v=900"></script>
-<script src="loops.js?v=900"></script>
-<script src="ride-finds.js?v=900"></script>
-<script src="rides.js?v=900"></script>
-<script src="community.js?v=900"></script>
-<script src="ride-files.js?v=900"></script>
-<script src="rider-trails.js?v=900"></script>
-<script src="account.js?v=900"></script>
-<script src="live.js?v=900"></script>
-<script src="strava.js?v=900"></script>
-<script src="reports.js?v=900"></script>
-<script src="grades.js?v=900"></script>
-<script src="trail-photos.js?v=900"></script>
-<script src="visitors.js?v=900"></script>
-<script src="usage.js?v=900"></script>
-<script src="notify.js?v=900"></script>
-<script src="closures.js?v=900"></script>
-<script src="status.js?v=900"></script>
-<script src="ask.js?v=900"></script>
-<script src="areas.js?v=900"></script>
-<script src="alpine.js?v=900"></script>
-<script src="bikeparks.js?v=900"></script>
-<script src="photo-find.js?v=900"></script>
-<script src="whats-new.js?v=900"></script>
-<script src="app-update.js?v=900"></script>
+<script src="map3d.js?v=920"></script>
+<script src="contours.js?v=920"></script>
+<script src="clouds.js?v=920"></script>
+<script src="smoke.js?v=920"></script>
+<script src="radar.js?v=920"></script>
+<script src="photo-slider.js?v=920"></script>
+<script src="ski-terrain.js?v=920"></script>
+<script src="place-search.js?v=920"></script>
+<script src="winter.js?v=920"></script>
+<script src="hunts.js?v=920"></script>
+<script src="ski-points.js?v=920"></script>
+<script src="offline.js?v=920"></script>
+<script src="ride-stats.js?v=920"></script>
+<script src="native-gps.js?v=920"></script>
+<script src="navigate.js?v=920"></script>
+<script src="planner.js?v=920"></script>
+<script src="loops.js?v=920"></script>
+<script src="ride-finds.js?v=920"></script>
+<script src="rides.js?v=920"></script>
+<script src="community.js?v=920"></script>
+<script src="ride-files.js?v=920"></script>
+<script src="rider-trails.js?v=920"></script>
+<script src="account.js?v=920"></script>
+<script src="live.js?v=920"></script>
+<script src="strava.js?v=920"></script>
+<script src="reports.js?v=920"></script>
+<script src="grades.js?v=920"></script>
+<script src="trail-photos.js?v=920"></script>
+<script src="visitors.js?v=920"></script>
+<script src="usage.js?v=920"></script>
+<script src="notify.js?v=920"></script>
+<script src="closures.js?v=920"></script>
+<script src="status.js?v=920"></script>
+<script src="ask.js?v=920"></script>
+<script src="areas.js?v=920"></script>
+<script src="alpine.js?v=920"></script>
+<script src="bikeparks.js?v=920"></script>
+<script src="photo-find.js?v=920"></script>
+<script src="whats-new.js?v=920"></script>
+<script src="app-update.js?v=920"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
