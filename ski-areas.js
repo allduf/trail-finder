@@ -19,6 +19,8 @@
 
   const ATES = { 1: { label: "Simple", color: "#2f9e44" }, 2: { label: "Challenging", color: "#1f5fe0" }, 3: { label: "Complex", color: "#1a1a1a" } };
   const PROV = { BC: "British Columbia", AB: "Alberta", YT: "Yukon", QC: "Quebec", NL: "Newfoundland and Labrador", NB: "New Brunswick", NS: "Nova Scotia", NU: "Nunavut", JP: "Japan" };
+  // Japan's areas are listed and searched only while the map is in Japan (alex 2026-10-30: Japan things only there).
+  const inJapanNow = () => { const c = map.getCenter(); return c.lat > 24 && c.lat < 46.5 && c.lng > 122 && c.lng < 146.5; };
   const KIND = { traverse: "Traverse", expedition: "Expedition" };
 
   const css = document.createElement("style");
@@ -178,7 +180,7 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
     const box = dlg.querySelector(".sa-find"), list = dlg.querySelector(".sa-list");
     const fill = () => {
       const q = query.trim().toLowerCase();
-      const hit = (a) => !q || [a.name, a.region, PROV[a.prov], a.about, ...(a.huts || []).map((h) => h.name)].join(" ").toLowerCase().includes(q);
+      const hit = (a) => (a.prov !== "JP" || inJapanNow()) && (!q || [a.name, a.region, PROV[a.prov], a.about, ...(a.huts || []).map((h) => h.name)].join(" ").toLowerCase().includes(q));
       const c = map.getCenter();
       const away = (a) => Math.round(map.distance([a.lat, a.lon], c) / 1000);
       let html = "";
@@ -206,7 +208,7 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
   const match = (q) => {
     q = String(q || "").trim().toLowerCase();
     if (!q) return [];
-    return areas.filter((a) => [a.name, a.region, PROV[a.prov], ...(a.huts || []).map((h) => h.name)].join(" ").toLowerCase().includes(q))
+    return areas.filter((a) => (a.prov !== "JP" || inJapanNow()) && [a.name, a.region, PROV[a.prov], ...(a.huts || []).map((h) => h.name)].join(" ").toLowerCase().includes(q))
       .sort((x, y) => !x.name.toLowerCase().includes(q) - !y.name.toLowerCase().includes(q))
       .map((a) => ({ name: a.name, sub: ["Backcountry area", a.region, PROV[a.prov]].filter(Boolean).join(" · "), ic: "⛰", lat: a.lat, lon: a.lon, bb: null, zoom: a.kind === "expedition" ? 9 : 12, area: a.id }));
   };

@@ -85,7 +85,7 @@ dialog.cv-dlg .cv-small { font-size: .78rem; color: var(--muted); }
   const btn = document.createElement("button");
   btn.type = "button"; btn.id = "skiCamperBtn";
   btn.title = "Japan: Michi-no-eki, expressway rest areas, RV parks, onsen, gas, laundries, ferries and roads closed in winter, for a camper van trip";
-  const place = () => { if (!btn.isConnected && window.tfSkiSlot) window.tfSkiSlot("places", btn, { label: "Camper stops (Japan)", sym: "🚐", bg: "#2f9e44" }); };
+  const place = () => { if (!btn.isConnected && window.tfSkiSlot) window.tfSkiSlot("places", btn, { label: "Camper stops (Japan)", sym: "🚐", bg: "#2f9e44" }); btn.hidden = !inJapan(map.getBounds()); };
   const setBtn = () => { btn.setAttribute("aria-pressed", String(on)); btn.classList.toggle("on", on); };
   btn.addEventListener("click", () => {
     on = !on;
