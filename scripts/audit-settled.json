@@ -200,6 +200,26 @@
    "date": "2026-10-24",
    "who": "Claude (weekly audit)",
    "note": "No open source gives levels: Visit Oliver has none, Mountain Biking BC only counts trails per level, Destination Osoyoos blocked every request. Only Trailforks has levels."
+  },
+  "area-thin:Sugarloaf Mountain": {
+   "date": "2026-10-31",
+   "who": "Claude (weekly audit)",
+   "note": "A small set east of Merritt (Coco Bonk, Wounded Knee, Pete's New Trail, Deja Vu, Hogs Back); label moved 1.8 km onto their middle. 5 named trails is its real size on OpenStreetMap."
+  },
+  "ratings:kel": {
+   "date": "2026-10-31",
+   "who": "Claude (weekly audit)",
+   "note": "Researched 2026-10-24: 8 more rated from Tourism Kelowna network stories, Visit Westside and KelownaNow. MTBCO's pages embed Trailforks maps only; kmbc.ca, kelowna.ca and Castanet couldn't be read; RDCO pages give no MTB levels. The rest have levels only on Trailforks."
+  },
+  "ratings:ver": {
+   "date": "2026-10-31",
+   "who": "Claude (weekly audit)",
+   "note": "Researched 2026-10-24: Silver Shack rated from the SilverStar trail map PDF. The Vernon-area trails (Big Ed, Tombstone, Pali Gap...) have levels only on Trailforks; Sovereign Lake and Kalamalka (BC Parks) give none."
+  },
+  "ratings:cbk": {
+   "date": "2026-10-31",
+   "who": "Claude (weekly audit)",
+   "note": "Researched 2026-10-24: SW Passage rated from the City of Kimberley trail map PDF; Kimberley Nordic and Cranbrook Community Forest send riders to Trailforks; kimberleytrails.ca didn't load."
   }
  }
 }
