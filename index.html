@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Trail Finder">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#12291d">
-<script src="i18n.js?v=1400"></script>
+<script src="i18n.js?v=1410"></script>
 </head>
 <body>
 <title>Trail Finder</title>
@@ -768,7 +768,39 @@ button:focus-visible, input:focus-visible, select:focus-visible, label.toggle:ha
 .tsearch-where .tw-l { color: var(--muted); flex: none; }
 .tsearch-where b { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tsearch-where .tw-c { flex: none; font-weight: 700; color: var(--accent); }
-.tsearch-where select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; cursor: pointer; }
+button.tsearch-where { border: 0; color: inherit; font: inherit; font-size: .9rem; text-align: left; cursor: pointer; }
+/* Where to look: a sheet from the bottom with a search box, Near me, recent and popular areas, and every area (alex 2026-10-31) */
+.where-sheet { position: fixed; inset: 0; z-index: 2500; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; }
+.where-sheet[hidden] { display: none; }
+.ws-box { background: var(--panel, var(--bg)); color: var(--fg); width: 100%; max-width: 520px; max-height: 88vh; max-height: 88dvh; border-radius: 20px 20px 0 0; display: flex; flex-direction: column; box-shadow: 0 -8px 30px rgba(0,0,0,.25); padding-bottom: env(safe-area-inset-bottom); }
+@media (min-width: 700px) { .where-sheet { align-items: center; } .ws-box { border-radius: 20px; max-height: 80vh; } }
+.ws-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 8px; }
+.ws-head h2 { margin: 0; font-size: 1.2rem; }
+.ws-x { border: 0; background: var(--chip); color: inherit; width: 36px; height: 36px; border-radius: 50%; font-size: 1.1rem; cursor: pointer; }
+.ws-q { margin: 0 16px 10px; display: flex; align-items: center; gap: 8px; background: var(--chip); border-radius: 12px; padding: 0 12px; }
+.ws-q input { flex: 1; min-width: 0; border: 0; background: transparent; color: inherit; font-size: 16px; padding: 12px 0; outline: none; box-shadow: none; }
+#wsQ:focus, #wsQ:focus-visible { outline: none !important; box-shadow: none !important; border: 0 !important; background: transparent !important; }
+@media (max-width: 699px) { .ws-box { height: 88vh; height: 88dvh; } }
+.ws-q:focus-within { box-shadow: 0 0 0 2px var(--accent); }
+.ws-body { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 16px 16px; overscroll-behavior: contain; }
+.ws-near { width: 100%; display: flex; align-items: center; gap: 10px; border: 0; border-radius: 12px; padding: 12px 14px; background: var(--accent); color: var(--accent-fg, #fff); font: inherit; font-weight: 700; cursor: pointer; text-align: left; }
+.ws-near small { display: block; font-weight: 400; opacity: .85; }
+.ws-msg { margin: 8px 2px 0; font-size: .85rem; color: var(--muted); }
+.ws-h { margin: 16px 2px 6px; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.ws-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ws-chip { border: 0; border-radius: 999px; padding: 9px 14px; background: var(--chip); color: inherit; font: inherit; font-size: .92rem; cursor: pointer; }
+.ws-chip.on { outline: 2px solid var(--accent); }
+.ws-list { list-style: none; margin: 0; padding: 0; }
+.ws-list button { width: 100%; display: flex; align-items: center; gap: 10px; border: 0; background: none; color: inherit; font: inherit; text-align: left; padding: 11px 4px; border-bottom: 1px solid var(--line, rgba(0,0,0,.08)); cursor: pointer; }
+.ws-list button small { display: block; color: var(--muted); font-size: .8rem; }
+.ws-list button .ws-i { flex: none; width: 24px; text-align: center; }
+.ws-list button.on b::after { content: " ✓"; color: var(--accent); }
+.ws-all summary { cursor: pointer; padding: 12px 2px; font-weight: 700; list-style: none; }
+.ws-all summary::-webkit-details-marker { display: none; }
+.ws-all summary::after { content: " ▾"; color: var(--muted); }
+.ws-all[open] summary::after { content: " ▴"; }
+.ws-reg { margin: 10px 2px 2px; font-weight: 700; font-size: .85rem; color: var(--muted); }
+.ws-tip { margin: 16px 2px 4px; font-size: .85rem; color: var(--muted); line-height: 1.35; }
 .tsearch-row .tsearch { flex: 1; min-width: 0; position: static; }
 /* the 🔍 centres on the box by itself (the row also holds 📍 Looking in on phones, so the row's middle is lower) */
 .tsearch-row .tsearch { display: flex; align-items: center; }
@@ -1372,7 +1404,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
           </div>
           <button class="btn primary" id="trailGo" type="button">Search</button>
           <button class="btn photo-find-btn" id="photoFindBtn" type="button" title="Which trail is this? Find a trail from a photo, a screenshot of a post or a short video" aria-label="Find a trail from a photo or video"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 7.5h3.2L9 5h6l1.8 2.5H20a1 1 0 0 1 1 1V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8.5a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
-          <label class="tsearch-where" id="tsWhere"><span aria-hidden="true">📍</span><span class="tw-l">Looking in</span><b id="tsWhereName">All areas</b><span class="tw-c" aria-hidden="true">Change ▾</span><select id="tsWhereSel" aria-label="Area the trail search looks in"></select></label>
+          <button type="button" class="tsearch-where" id="tsWhere" aria-haspopup="dialog" aria-label="Change the area the trail search looks in"><span aria-hidden="true">📍</span><span class="tw-l">Looking in</span><b id="tsWhereName">All areas</b><span class="tw-c" aria-hidden="true">Change ›</span></button>
         </div>
         <div>
           <label class="label" for="zone">Area</label>
@@ -1517,14 +1549,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=1400"></script>
-<script src="native.js?v=1400"></script>
-<script src="keyboard.js?v=1400"></script>
-<script src="rotate.js?v=1400"></script>
-<script src="official.js?v=1400"></script>
-<script src="directions.js?v=1400"></script>
-<script src="ratings.js?v=1400"></script>
-<script src="ebike.js?v=1400"></script>
+<script src="welcome.js?v=1410"></script>
+<script src="native.js?v=1410"></script>
+<script src="keyboard.js?v=1410"></script>
+<script src="rotate.js?v=1410"></script>
+<script src="official.js?v=1410"></script>
+<script src="directions.js?v=1410"></script>
+<script src="ratings.js?v=1410"></script>
+<script src="ebike.js?v=1410"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -4122,7 +4154,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=1400").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=1410").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -7111,7 +7143,7 @@ out tags center qt;`;
     if (q.length >= 5 && Math.abs(t.length - q.length) <= 1 && editDist(q, t, 1) <= 1) return 0.85;
     return 0;
   }
-  function placeHits(raw) {
+  function placeHits(raw, n = 3) {
     const q = norm(raw);
     if (!places || q.length < 3) return [];
     const here = you.ll || map.getCenter(), out = [], kept = [];
@@ -7125,7 +7157,7 @@ out tags center qt;`;
         if (kept.some((k) => k.t === h.p.t && Math.abs(k.lat - h.p.lat) < 0.15 && Math.abs(k.lon - h.p.lon) < 0.2)) return false;
         kept.push(h.p); return true;
       })
-      .slice(0, 3);
+      .slice(0, n);
   }
   // The nearest town to a spot, for "near Bromont, QC" under a trail from anywhere in Canada.
   function nearTown(lat, lon) {
@@ -8041,21 +8073,126 @@ out tags center qt;`;
     if (zoneSel.value === "custom" || zoneSel.value === "near") return;
     goToZone(zoneSel.value);
   });
-  // 📍 Looking in: the area the trail name box looks in, right under it on the phone's Find page. A real <select>
-  // over the chip, so one tap opens the phone's own list (alex couldn't find where to change the area, 2026-10-28).
+  // 📍 Looking in: the area the trail name box looks in, right under it on the phone's Find page. A tap opens
+  // "Where to look": type any town or area in Canada, Near me, recent and popular areas, then every area by region.
+  // (alex 2026-10-31: the phone's own long list was hard to use, and a town not on it had no way in.)
   function syncWhere() {
-    const whereSel = $("tsWhereSel");
-    if (whereSel.innerHTML !== zoneSel.innerHTML) whereSel.innerHTML = zoneSel.innerHTML;
-    whereSel.value = zoneSel.value;
     const z = nameZone(), r = regionById(zoneSel.value) || (REGIONS.some((r) => r.bounds.contains(map.getCenter())) && regionHere());
-    $("tsWhereName").textContent = z ? shortZone(z) : r ? "All of " + r.name : "All areas around";
+    $("tsWhereName").textContent = z ? (z.circle ? "Near you" : shortZone(z)) : r ? "All of " + r.name : "All areas around";
   }
-  $("tsWhereSel").addEventListener("change", () => {
-    const v = $("tsWhereSel").value;
-    if (v !== "custom" && v !== "near") goToZone(v);
+  // Popular riding areas, nearest to the map first: our zones, plus big eastern spots (kept here so they show at once).
+  const WHERE_POPULAR = [
+    { z: "wh" }, { z: "sqm", n: "Squamish" }, { z: "van", n: "North Shore" }, { z: "pem", n: "Pemberton" }, { z: "sun", n: "Sunshine Coast" },
+    { z: "kam", n: "Kamloops" }, { z: "kel", n: "Kelowna" }, { z: "pen", n: "Penticton" }, { z: "ver", n: "Vernon" }, { z: "rev" },
+    { z: "ros", n: "Rossland" }, { z: "nel" }, { z: "fer", n: "Fernie" }, { z: "gol" }, { z: "kan", n: "Canmore" }, { z: "yyc" },
+    { p: { name: "Cumberland", lat: 49.618, lon: -125.03, kind: "a" } },
+    { p: { name: "Bromont", lat: 45.2944, lon: -72.6487, kind: "a" } },
+    { p: { name: "Mont-Sainte-Anne", lat: 47.105, lon: -70.9, kind: "a" } },
+    { p: { name: "Mont-Tremblant", lat: 46.1982, lon: -74.5767, kind: "a" } },
+    { p: { name: "Vallée Bras-du-Nord", lat: 47.0894, lon: -71.8877, kind: "a" } },
+    { p: { name: "Gatineau Park", lat: 45.5015, lon: -75.851, kind: "a" } },
+    { p: { name: "Kelso (Milton)", lat: 43.5105, lon: -79.9765, kind: "a" } },
+    { p: { name: "Hardwood Hills", lat: 44.524, lon: -79.555, kind: "a" } },
+    { p: { name: "Fredericton", lat: 45.9849, lon: -66.578, kind: "a" } },
+  ];
+  const ws = document.createElement("div");
+  ws.className = "where-sheet"; ws.id = "whereSheet"; ws.hidden = true;
+  ws.innerHTML = `<div class="ws-box" role="dialog" aria-modal="true" aria-labelledby="wsTitle">
+    <div class="ws-head"><h2 id="wsTitle">Where to look</h2><button type="button" class="ws-x" id="wsX" aria-label="Close">✕</button></div>
+    <form class="ws-q" id="wsForm" autocomplete="off"><span aria-hidden="true">🔍</span><input id="wsQ" type="search" enterkeyhint="search" placeholder="Type a town or area in Canada" aria-label="Type a town or area in Canada"></form>
+    <div class="ws-body" id="wsBody"></div></div>`;
+  document.body.appendChild(ws);
+  let wsMore = null;   // places from the map service (place-search.js) for the typed words, after Search
+  const wsName = (o) => (o.z ? o.n || shortZone(zoneById(o.z)) : o.p.name);
+  const wsKey = (o) => (o.z ? "z:" + o.z : "p:" + o.p.name);
+  const wsOn = (o) => (o.z ? zoneSel.value === o.z && nameZoneSel.value !== "near" : nameZoneSel.value === "near" && nearPlace && nearPlace.label === o.p.name);
+  const wsLl = (o) => (o.z ? zoneById(o.z).bounds.getCenter() : L.latLng(o.p.lat, o.p.lon));
+  let wsPicks = [];
+  const wsChip = (o) => { wsPicks.push(o); return `<button type="button" class="ws-chip${wsOn(o) ? " on" : ""}" data-ws="${wsPicks.length - 1}">${esc(wsName(o))}</button>`; };
+  const wsRow = (o, ic, sub) => { wsPicks.push(o); return `<li><button type="button" class="${wsOn(o) ? "on" : ""}" data-ws="${wsPicks.length - 1}"><span class="ws-i" aria-hidden="true">${ic}</span><span><b>${esc(o.label || wsName(o))}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</span></button></li>`; };
+  function wsRender() {
+    wsPicks = [];
+    const q = $("wsQ").value.trim(), body = $("wsBody");
+    if (q) {
+      const nq = norm(q), out = [];
+      REGIONS.filter((r) => norm(r.name).includes(nq)).forEach((r) => out.push(wsRow({ z: r.id, label: "All of " + r.name }, "🗺️", r.zones.length + " areas")));
+      const zs = ZONES.filter((z) => norm(z.name).includes(nq)).slice(0, 5);
+      zs.forEach((z) => out.push(wsRow({ z: z.id, label: z.name }, "🚵", regionOf(z))));
+      // Nelson the area on our list and Nelson the riding area or town in it: once
+      placeHits(q, 7).filter((h) => !zs.some((z) => z.bounds.contains([h.p.lat, h.p.lon]))).slice(0, 6).forEach((h) => out.push(wsRow({ p: h.p }, h.p.kind === "a" ? "🚵" : "📍", h.p.kind === "a" ? "Riding area" : [h.p.prov, h.p.pop > 1000 ? "town" : "place"].filter(Boolean).join(" · "))));
+      (wsMore || []).forEach((h) => out.push(wsRow({ p: { name: h.name, lat: h.lat, lon: h.lon, kind: "t", pop: 0 } }, h.ic || "📍", h.sub)));
+      body.innerHTML = (out.length ? `<ul class="ws-list">${out.join("")}</ul>` : `<p class="ws-msg">${places ? "Nothing by that name in our list yet." : "Loading towns…"}</p>`) +
+        (wsMore ? "" : `<ul class="ws-list"><li><button type="button" id="wsMoreBtn"><span class="ws-i" aria-hidden="true">🔎</span><span><b>Search more places</b><small>Any town, park or mountain in Canada</small></span></button></li></ul>`) +
+        `<p class="ws-msg" id="wsMsg" hidden></p>`;
+      return;
+    }
+    const here = map.getCenter(), recent = store.get("whereRecent", []).filter((o) => (o.z ? zoneById(o.z) : o.p)).slice(0, 4);
+    const pop = WHERE_POPULAR.filter((o) => !recent.some((r) => wsKey(r) === wsKey(o)))
+      .sort((a, b) => here.distanceTo(wsLl(a)) - here.distanceTo(wsLl(b))).slice(0, 12);
+    body.innerHTML = `<button type="button" class="ws-near" id="wsNear"><span aria-hidden="true">📍</span><span>Near me<small>Trails within ${+$("nameNearKm").value || 10} km of where you are</small></span></button>
+      <p class="ws-msg" id="wsMsg" hidden></p>` +
+      (recent.length ? `<div class="ws-h">Recent</div><div class="ws-chips">${recent.map(wsChip).join("")}</div>` : "") +
+      `<div class="ws-h">Popular</div><div class="ws-chips">${pop.map(wsChip).join("")}</div>
+      <details class="ws-all"><summary>Every area on the list</summary>` +
+      REGIONS.map((r) => `<div class="ws-reg">${esc(r.name)}</div><ul class="ws-list">` + wsRow({ z: r.id, label: "All of " + r.name }, "🗺️", "") +
+        r.zones.map((z) => wsRow({ z: z.id, label: z.name }, "🚵", "")).join("") + `</ul>`).join("") +
+      `</details><p class="ws-tip">Not on the list? Type any town or riding area in Canada in the box above. The map goes there and the trail search looks around it.</p>`;
+  }
+  const regionOf = (z) => (REGIONS.find((r) => r.ids.includes(z.id)) || {}).name || "";
+  function openWhere() {
+    loadPlaces(); placesP.then(() => { if (!ws.hidden && $("wsQ").value.trim()) wsRender(); });
+    $("wsQ").value = ""; wsMore = null;
+    wsRender();
+    ws.hidden = false;
+    logUse("open", "Where to look");
+  }
+  const closeWhere = () => { ws.hidden = true; $("wsQ").blur(); };
+  function wsRemember(o) {
+    const k = wsKey(o), list = store.get("whereRecent", []).filter((r) => wsKey(r) !== k);
+    store.set("whereRecent", [o.z ? { z: o.z } : { p: { name: o.p.name, lat: o.p.lat, lon: o.p.lon, kind: o.p.kind, pop: o.p.pop || 0, prov: o.p.prov } }, ...list].slice(0, 4));
+  }
+  // The trail name typed before the area changed is searched again in the new area.
+  function wsRerun(q) {
+    if (!q) return;
+    $("trailQ").value = q; hitSel = -1;
+    loadNames(); refreshHits();
+  }
+  function wsPick(o) {
+    const q = $("trailQ").value.trim();
+    closeWhere();
+    wsRemember(o);
+    if (o.z) { goToZone(o.z); logUse("pick", "Area"); }
+    else goPlace(o.p);
     syncWhere();
-    if ($("trailQ").value.trim()) { hitSel = -1; $("trailQ").focus(); loadNames(); refreshHits(); }
+    wsRerun(q);
+  }
+  ws.addEventListener("click", (e) => {
+    if (e.target === ws) { closeWhere(); return; }
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.id === "wsX") closeWhere();
+    else if (b.id === "wsNear") {
+      const msg = $("wsMsg"), q = $("trailQ").value.trim();
+      askLocation((ll) => { closeWhere(); nameNearAt(ll); syncWhere(); wsRerun(q); }, (text) => { msg.hidden = false; msg.textContent = text; });
+    } else if (b.id === "wsMoreBtn") $("wsForm").requestSubmit ? $("wsForm").requestSubmit() : $("wsForm").dispatchEvent(new Event("submit", { cancelable: true }));
+    else if (b.dataset.ws) wsPick(wsPicks[+b.dataset.ws]);
   });
+  $("wsQ").addEventListener("input", () => { wsMore = null; wsRender(); });
+  $("wsForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const q = $("wsQ").value.trim();
+    if (!q || !window.tfPlaceSearch) return;
+    const msg = $("wsMsg"); if (msg) { msg.hidden = false; msg.textContent = `Looking for ${q}…`; }
+    try {
+      const hits = await window.tfPlaceSearch.search(q);
+      if ($("wsQ").value.trim() !== q) return;
+      wsMore = hits.filter((h) => h.ca !== false);
+      wsRender();
+      if (!wsMore.length) { const m = $("wsMsg"); m.hidden = false; m.textContent = `No place called ${q} found in Canada. Try the nearest town.`; }
+    } catch { const m = $("wsMsg"); if (m) { m.hidden = false; m.textContent = "No signal: pick an area below, or try again."; } }
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !ws.hidden) closeWhere(); });
+  $("tsWhere").addEventListener("click", openWhere);
   [zoneSel, nameZoneSel].forEach((s) => s.addEventListener("change", syncWhere));
   map.on("moveend", syncWhere);
   syncWhere();
@@ -8095,47 +8232,47 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=1400"></script>
-<script src="native-map.js?v=1400"></script>
-<script src="contours.js?v=1400"></script>
-<script src="clouds.js?v=1400"></script>
-<script src="smoke.js?v=1400"></script>
-<script src="radar.js?v=1400"></script>
-<script src="photo-slider.js?v=1400"></script>
-<script src="ski-terrain.js?v=1400"></script>
-<script src="place-search.js?v=1400"></script>
-<script src="winter.js?v=1400"></script>
-<script src="hunts.js?v=1400"></script>
-<script src="ski-points.js?v=1400"></script>
-<script src="offline.js?v=1400"></script>
-<script src="ride-stats.js?v=1400"></script>
-<script src="native-gps.js?v=1400"></script>
-<script src="navigate.js?v=1400"></script>
-<script src="planner.js?v=1400"></script>
-<script src="loops.js?v=1400"></script>
-<script src="ride-finds.js?v=1400"></script>
-<script src="rides.js?v=1400"></script>
-<script src="community.js?v=1400"></script>
-<script src="ride-files.js?v=1400"></script>
-<script src="rider-trails.js?v=1400"></script>
-<script src="account.js?v=1400"></script>
-<script src="live.js?v=1400"></script>
-<script src="strava.js?v=1400"></script>
-<script src="reports.js?v=1400"></script>
-<script src="grades.js?v=1400"></script>
-<script src="trail-photos.js?v=1400"></script>
-<script src="visitors.js?v=1400"></script>
-<script src="usage.js?v=1400"></script>
-<script src="notify.js?v=1400"></script>
-<script src="closures.js?v=1400"></script>
-<script src="status.js?v=1400"></script>
-<script src="ask.js?v=1400"></script>
-<script src="areas.js?v=1400"></script>
-<script src="alpine.js?v=1400"></script>
-<script src="bikeparks.js?v=1400"></script>
-<script src="photo-find.js?v=1400"></script>
-<script src="whats-new.js?v=1400"></script>
-<script src="app-update.js?v=1400"></script>
+<script src="map3d.js?v=1410"></script>
+<script src="native-map.js?v=1410"></script>
+<script src="contours.js?v=1410"></script>
+<script src="clouds.js?v=1410"></script>
+<script src="smoke.js?v=1410"></script>
+<script src="radar.js?v=1410"></script>
+<script src="photo-slider.js?v=1410"></script>
+<script src="ski-terrain.js?v=1410"></script>
+<script src="place-search.js?v=1410"></script>
+<script src="winter.js?v=1410"></script>
+<script src="hunts.js?v=1410"></script>
+<script src="ski-points.js?v=1410"></script>
+<script src="offline.js?v=1410"></script>
+<script src="ride-stats.js?v=1410"></script>
+<script src="native-gps.js?v=1410"></script>
+<script src="navigate.js?v=1410"></script>
+<script src="planner.js?v=1410"></script>
+<script src="loops.js?v=1410"></script>
+<script src="ride-finds.js?v=1410"></script>
+<script src="rides.js?v=1410"></script>
+<script src="community.js?v=1410"></script>
+<script src="ride-files.js?v=1410"></script>
+<script src="rider-trails.js?v=1410"></script>
+<script src="account.js?v=1410"></script>
+<script src="live.js?v=1410"></script>
+<script src="strava.js?v=1410"></script>
+<script src="reports.js?v=1410"></script>
+<script src="grades.js?v=1410"></script>
+<script src="trail-photos.js?v=1410"></script>
+<script src="visitors.js?v=1410"></script>
+<script src="usage.js?v=1410"></script>
+<script src="notify.js?v=1410"></script>
+<script src="closures.js?v=1410"></script>
+<script src="status.js?v=1410"></script>
+<script src="ask.js?v=1410"></script>
+<script src="areas.js?v=1410"></script>
+<script src="alpine.js?v=1410"></script>
+<script src="bikeparks.js?v=1410"></script>
+<script src="photo-find.js?v=1410"></script>
+<script src="whats-new.js?v=1410"></script>
+<script src="app-update.js?v=1410"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

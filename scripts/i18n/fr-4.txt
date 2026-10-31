@@ -35,3 +35,18 @@ No Japanese voice found: on iPhone, Settings → Accessibility → Spoken Conten
 Tap a phrase to show it big, or 🔊 to have the phone say it in Japanese. These work with no signal. For the best voice on iPhone: Settings → Accessibility → Spoken Content → Voices → Japanese, and download one (Kyoko or O-ren, Enhanced). ||| Touchez une phrase pour l'afficher en grand, ou 🔊 pour que le téléphone la dise en japonais. Fonctionne sans réseau. Pour la meilleure voix sur iPhone : Réglages → Accessibilité → Contenu énoncé → Voix → Japonais, et téléchargez-en une (Kyoko ou O-ren, Améliorée).
 Japan: 🔊 on each Japanese phrase says it out loud, and winter satellite photos for Hakuba, Myoko, Nozawa, Hokkaido and Hakkoda in the 3D map. ||| Japon : 🔊 sur chaque phrase japonaise la dit à voix haute, et photos satellite d'hiver pour Hakuba, Myoko, Nozawa, Hokkaido et Hakkoda dans la carte 3D.
 Map: your location dot now stays put when you zoom in or out while the map follows you, and a pinch keeps the spot under your fingers. ||| Carte : votre point de position reste en place quand vous zoomez pendant que la carte vous suit, et un pincement garde l'endroit sous vos doigts.
+Where to look ||| Où chercher
+Type a town or area in Canada ||| Tapez une ville ou un secteur au Canada
+Near me ||| Près de moi
+Recent ||| Récents
+Popular ||| Populaires
+Every area on the list ||| Tous les secteurs de la liste
+Not on the list? Type any town or riding area in Canada in the box above. The map goes there and the trail search looks around it. ||| Pas dans la liste? Tapez n'importe quelle ville ou secteur de vélo au Canada dans la case ci-dessus. La carte s'y rend et la recherche de sentiers regarde autour.
+Search more places ||| Chercher d'autres endroits
+Any town, park or mountain in Canada ||| N'importe quelle ville, parc ou montagne au Canada
+Riding area ||| Secteur de vélo
+Nothing by that name in our list yet. ||| Rien de ce nom dans notre liste pour l'instant.
+Loading towns… ||| Chargement des villes…
+Change › ||| Changer ›
+Near you ||| Près de vous
+No signal: pick an area below, or try again. ||| Pas de réseau : choisissez un secteur ci-dessous ou réessayez.
