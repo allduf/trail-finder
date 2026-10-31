@@ -297,6 +297,31 @@ export async function read(id: string): Promise<Record<string, unknown>> {
   return v;
 }
 
+// Webcam pictures whose file names change (alex 2026-10-31): Big White numbers each new picture (gemlake_124.jpg), so the
+// app asks here for the current names: ?cams=bigwhite → { cams: { bigwhite: { gemlake: "https://…/gemlake_124.jpg" } } }.
+// Only the names are read off the resort's own webcam page; the pictures still load from their site.
+const CAM_PAGES: Record<string, { url: string; re: RegExp; base: string }> = {
+  bigwhite: { url: "https://www.bigwhite.com/mountain-conditions/webcams", re: /\/sites\/default\/files\/([a-z0-9]+)_(\d+)\.jpg/g, base: "https://www.bigwhite.com/sites/default/files/" },
+};
+export function camNames(id: string, html: string): Record<string, string> {
+  const P = CAM_PAGES[id], out: Record<string, string> = {};
+  for (const m of html.matchAll(P.re)) out[m[1]] = `${P.base}${m[1]}_${m[2]}.jpg`;
+  return out;
+}
+async function readCams(id: string): Promise<Record<string, string>> {
+  const key = "cams:" + id, hit = cache.get(key);
+  if (hit && Date.now() - hit.at < 4 * 60000) return hit.v as Record<string, string>;
+  try {
+    const r = await fetch(CAM_PAGES[id].url, { headers: { "User-Agent": UA, Accept: "text/html" }, signal: AbortSignal.timeout(12000) });
+    if (!r.ok) throw new Error(String(r.status));
+    const v = camNames(id, await r.text());
+    cache.set(key, { at: Date.now(), v });
+    return v;
+  } catch {
+    return (hit?.v as Record<string, string>) || {};
+  }
+}
+
 function headers(origin: string | null) {
   const ok = origin && ORIGINS.some((r) => r.test(origin));
   return { "Access-Control-Allow-Origin": ok ? origin! : "https://allduf.github.io", "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -307,6 +332,11 @@ if (typeof Deno !== "undefined") Deno.serve(async (req) => {
   const h = headers(req.headers.get("origin"));
   if (req.method === "OPTIONS") return new Response("ok", { headers: h });
   if (req.method !== "GET") return new Response(JSON.stringify({ error: "GET only" }), { status: 405, headers: h });
+  const camIds = (new URL(req.url).searchParams.get("cams") || "").split(",").filter((x) => CAM_PAGES[x]);
+  if (camIds.length) {
+    const got = await Promise.all(camIds.map(readCams));
+    return new Response(JSON.stringify({ t: new Date().toISOString(), cams: Object.fromEntries(camIds.map((id, i) => [id, got[i]])) }), { headers: h });
+  }
   // ?r=wb,fernie reads only those resorts (the ones near the map); no r reads them all.
   const want = (new URL(req.url).searchParams.get("r") || "").split(",").filter((x) => SOURCES[x]);
   const ids = want.length ? want : Object.keys(SOURCES);
