@@ -1432,7 +1432,20 @@
     "Nothing by that name in our list yet.":"Rien de ce nom dans notre liste pour l'instant.",
     "Loading towns…":"Chargement des villes…",
     "Change ›":"Changer ›",
-    "No signal: pick an area below, or try again.":"Pas de réseau : choisissez un secteur ci-dessous ou réessayez."};
+    "No signal: pick an area below, or try again.":"Pas de réseau : choisissez un secteur ci-dessous ou réessayez.",
+    "Starting the live video…":"Démarrage de la vidéo en direct…",
+    "The live video is off right now. This is the camera's last picture.":"La vidéo en direct est arrêtée pour le moment. Voici la dernière image de la caméra.",
+    "Try their player":"Essayer leur lecteur",
+    "Open the live stream ↗":"Ouvrir le direct ↗",
+    "Their webcam page ↗":"Leur page webcam ↗",
+    "Open their webcam page ↗":"Ouvrir leur page webcam ↗",
+    "The resort's live video isn't playing right now. This is the camera's latest picture.":"La vidéo en direct de la station ne joue pas pour le moment. Voici la dernière image de la caméra.",
+    "The resort's live video isn't playing right now.":"La vidéo en direct de la station ne joue pas pour le moment.",
+    "This camera is switched off right now, often the case out of season.":"Cette caméra est éteinte pour le moment, souvent le cas hors saison.",
+    "This camera's picture isn't available right now.":"L'image de cette caméra n'est pas disponible pour le moment.",
+    "This highway camera is off right now.":"Cette caméra routière est éteinte pour le moment.",
+    "This may be an older picture: the newest is on their webcam page.":"C'est peut-être une image plus ancienne : la plus récente est sur leur page webcam.",
+    "Finding the latest picture…":"Recherche de la dernière image…"};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

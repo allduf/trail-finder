@@ -1,5 +1,5 @@
 {
- "note": "Live webcams shown in Skiing (webcams.js). Hand-edited. Feeds are never copied: 'embed' is the owner's own embeddable player (iframe), 'img' is the owner's live picture shown from their server, 'feed' finds the newest picture when a cam's picture gets a new name each time (pmsc:<cam> or viu:<station>, see webcams.js), and 'page' is the owner's webcam page. Spots are the camera's real location, from OpenStreetMap lift stations, lodges and peaks; 'approximate spot' in where means the page doesn't say exactly where the camera is. kind: resort, backcountry (huts, lodges, remote park cameras) or road (provincial highway cameras: DriveBC, 511 Yukon, NB, NS, Ontario, Québec 511 and NL; the eastern ones near ski hills come from scripts/build-east-road-cams.mjs).",
+ "note": "Live webcams shown in Skiing (webcams.js). Hand-edited. Feeds are never copied: 'embed' is the owner's own embeddable player (iframe), 'img' is the owner's live picture shown from their server (with a YouTube or Brownrice 'embed', 'img' is the still picture shown when the video can't play), 'feed' finds the newest picture when a cam's picture gets a new name each time (pmsc:<cam>, viu:<station> or bigwhite:<cam>, see webcams.js; 'img' is then the fallback), and 'page' is the owner's webcam page. Spots are the camera's real location, from OpenStreetMap lift stations, lodges and peaks; 'approximate spot' in where means the page doesn't say exactly where the camera is. kind: resort, backcountry (huts, lodges, remote park cameras) or road (provincial highway cameras: DriveBC, 511 Yukon, NB, NS, Ontario, Québec 511 and NL; the eastern ones near ski hills come from scripts/build-east-road-cams.mjs).",
  "owners": {
   "wb": {
    "name": "Whistler Blackcomb",
@@ -555,7 +555,8 @@
    "lon": -118.94736,
    "ele": 2214,
    "where": "Top of Gem Lake Express",
-   "img": "https://www.bigwhite.com/sites/default/files/gemlake_404.jpg"
+   "img": "https://www.bigwhite.com/sites/default/files/gemlake_123.jpg",
+   "feed": "bigwhite:gemlake"
   },
   {
    "id": "bigwhite-cliff",
@@ -567,7 +568,8 @@
    "lon": -118.93398,
    "ele": 2267,
    "where": "Top of Cliff Chair",
-   "img": "https://www.bigwhite.com/sites/default/files/cliff_404.jpg"
+   "img": "https://www.bigwhite.com/sites/default/files/cliff_123.jpg",
+   "feed": "bigwhite:cliff"
   },
   {
    "id": "bigwhite-snow-ghost",
@@ -579,7 +581,8 @@
    "lon": -118.938,
    "ele": 2105,
    "where": "Top of Snow Ghost Express",
-   "img": "https://www.bigwhite.com/sites/default/files/snowghost_405.jpg"
+   "img": "https://www.bigwhite.com/sites/default/files/snowghost_123.jpg",
+   "feed": "bigwhite:snowghost"
   },
   {
    "id": "bigwhite-black-forest",
@@ -591,7 +594,8 @@
    "lon": -118.92355,
    "ele": 2058,
    "where": "Top of Black Forest Express",
-   "img": "https://www.bigwhite.com/sites/default/files/blackforest_405.jpg"
+   "img": "https://www.bigwhite.com/sites/default/files/blackforest_123.jpg",
+   "feed": "bigwhite:blackforest"
   },
   {
    "id": "bigwhite-bullet",
@@ -603,7 +607,8 @@
    "lon": -118.93016,
    "ele": 2149,
    "where": "Top of Bullet Express",
-   "img": "https://www.bigwhite.com/sites/default/files/bullet_397.jpg"
+   "img": "https://www.bigwhite.com/sites/default/files/bullet_105.jpg",
+   "feed": "bigwhite:bullet"
   },
   {
    "id": "bigwhite-westridge",
@@ -615,7 +620,8 @@
    "lon": -118.97944,
    "ele": 1512,
    "where": "Westridge Warming Hut",
-   "img": "https://www.bigwhite.com/sites/default/files/westridge_404.jpg"
+   "img": "https://www.bigwhite.com/sites/default/files/westridge_123.jpg",
+   "feed": "bigwhite:westridge"
   },
   {
    "id": "bigwhite-happy-valley",
@@ -627,7 +633,8 @@
    "lon": -118.92056,
    "ele": 1673,
    "where": "Base of Lara's Gondola",
-   "img": "https://www.bigwhite.com/sites/default/files/happyvalley_405.jpg"
+   "img": "https://www.bigwhite.com/sites/default/files/happyvalley_123.jpg",
+   "feed": "bigwhite:happyvalley"
   },
   {
    "id": "bigwhite-village-centre",
@@ -639,7 +646,8 @@
    "lon": -118.92653,
    "ele": 1759,
    "where": "Village Centre Mall",
-   "img": "https://www.bigwhite.com/sites/default/files/village_406.jpg"
+   "img": "https://www.bigwhite.com/sites/default/files/village_123.jpg",
+   "feed": "bigwhite:village"
   },
   {
    "id": "bigwhite-easy-street",
@@ -651,7 +659,8 @@
    "lon": -118.92344,
    "ele": 1765,
    "where": "Base of Bullet Express (approximate spot)",
-   "img": "https://www.bigwhite.com/sites/default/files/hwy33_404.jpg"
+   "img": "https://www.bigwhite.com/sites/default/files/hwy33_123.jpg",
+   "feed": "bigwhite:hwy33"
   },
   {
    "id": "bigwhite-telus-park",
@@ -663,7 +672,8 @@
    "lon": -118.92344,
    "ele": 1765,
    "where": "Base of Bullet Express (approximate spot)",
-   "img": "https://www.bigwhite.com/sites/default/files/teluspark_405.jpg"
+   "img": "https://www.bigwhite.com/sites/default/files/teluspark_123.jpg",
+   "feed": "bigwhite:teluspark"
   },
   {
    "id": "bigwhite-pow-cam",
@@ -675,7 +685,8 @@
    "lon": -118.93518,
    "ele": 2282,
    "where": "Big White Mountain",
-   "img": "https://www.bigwhite.com/sites/default/files/powpow_404.jpg"
+   "img": "https://www.bigwhite.com/sites/default/files/powpow_123.jpg",
+   "feed": "bigwhite:powpow"
   },
   {
    "id": "silverstar-pow-cam",
@@ -846,7 +857,8 @@
    "lon": -117.07763,
    "ele": 2271,
    "where": "Top of Golden Eagle Express",
-   "embed": "https://www.youtube.com/embed/URWhAMV7irM?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/WTZX8sq5y6Y?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/khcam3/eagleeyecam.jpg"
   },
   {
    "id": "khmr-stairway",
@@ -858,7 +870,8 @@
    "lon": -117.09121,
    "ele": 2429,
    "where": "Top of Stairway to Heaven",
-   "embed": "https://www.youtube.com/embed/l2DY-ram9_Y?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/mCfxn0_ijJw?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/khcam5/stairway.jpg"
   },
   {
    "id": "khmr-terminator",
@@ -870,7 +883,8 @@
    "lon": -117.06963,
    "ele": 2376,
    "where": "Terminator Peak",
-   "embed": "https://www.youtube.com/embed/5VcEXV7EKAg?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/wfYpIsfzapw?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/khcam6/terminator.jpg"
   },
   {
    "id": "khmr-crystal-bowl",
@@ -881,7 +895,8 @@
    "lat": 51.27,
    "lon": -117.071,
    "where": "Crystal Bowl (approximate spot)",
-   "embed": "https://www.youtube.com/embed/bEb0o1ivgh8?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/Y1QokmaYAsA?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/KHCAM7/CrystalBowl.jpg"
   },
   {
    "id": "khmr-catamount",
@@ -893,7 +908,8 @@
    "lon": -117.05866,
    "ele": 1607,
    "where": "Top of Catamount",
-   "embed": "https://www.youtube.com/embed/fOENzc3vkfc?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/fOENzc3vkfc?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/khcam1/catamount.jpg"
   },
   {
    "id": "khmr-base",
@@ -905,7 +921,8 @@
    "lon": -117.04867,
    "ele": 1262,
    "where": "Base of Golden Eagle Express",
-   "embed": "https://www.youtube.com/embed/zg_7iykoEas?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/zg_7iykoEas?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/khcam2/basecam.jpg"
   },
   {
    "id": "fernie-griz-cam",
@@ -917,7 +934,8 @@
    "lon": -115.11893,
    "ele": 2072,
    "where": "Polar Peak",
-   "embed": "https://www.youtube.com/embed/MGKJlITiEZA?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/MGKJlITiEZA?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/fecam6/image.jpg"
   },
   {
    "id": "fernie-cedar-bowl",
@@ -929,7 +947,8 @@
    "lon": -115.11291,
    "ele": 1364,
    "where": "Top of Haul Back",
-   "embed": "https://www.youtube.com/embed/XOeG7cqi_GU?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/XOeG7cqi_GU?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/fecam1/image.jpg"
   },
   {
    "id": "fernie-lizard-cam",
@@ -941,7 +960,8 @@
    "lon": -115.11881,
    "ele": 1651,
    "where": "Top of Great Bear Express Quad",
-   "embed": "https://www.youtube.com/embed/KAMmoKIweUM?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/KAMmoKIweUM?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/fecam8/image.jpg"
   },
   {
    "id": "fernie-white-pass-chair",
@@ -953,7 +973,8 @@
    "lon": -115.11257,
    "ele": 1900,
    "where": "Top of White Pass Quad",
-   "embed": "https://www.youtube.com/embed/rz6_8QU5iBA?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/rz6_8QU5iBA?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams2/fecam11/final.jpg"
   },
   {
    "id": "fernie-lizard-run",
@@ -965,7 +986,8 @@
    "lon": -115.0863,
    "ele": 1073,
    "where": "Lizard Creek Lodge",
-   "embed": "https://www.youtube.com/embed/0ADwbNaaQIA?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/0ADwbNaaQIA?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/fecam2/image.jpg"
   },
   {
    "id": "kimberley-caper-and-vimy-ridge",
@@ -977,7 +999,8 @@
    "lon": -116.04755,
    "ele": 1909,
    "where": "Top of Easter",
-   "embed": "https://www.youtube.com/embed/Cd_JiApY9y8?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/Cd_JiApY9y8?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/kmcam3/kmcam3.jpg"
   },
   {
    "id": "kimberley-kimberley-quad-top",
@@ -989,7 +1012,8 @@
    "lon": -116.03386,
    "ele": 1786,
    "where": "Top of North Star Express",
-   "embed": "https://www.youtube.com/embed/RBGs7fi1z6U?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/RBGs7fi1z6U?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/kmcam1/kmcam1.jpg"
   },
   {
    "id": "kimberley-base-area",
@@ -1001,7 +1025,8 @@
    "lon": -116.00556,
    "ele": 1238,
    "where": "Base of North Star Express",
-   "embed": "https://www.youtube.com/embed/RD3_u1nw0Uw?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/RD3_u1nw0Uw?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/kmcam2/kmcam2.jpg"
   },
   {
    "id": "nakiska-top-of-gold-chair-express",
@@ -1013,7 +1038,8 @@
    "lon": -115.18883,
    "ele": 2245,
    "where": "Top of Gold Chair",
-   "embed": "https://www.youtube.com/embed/nNb6j9T8r5k?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/nNb6j9T8r5k?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/nacam3/nacam3.jpg"
   },
   {
    "id": "nakiska-top-of-silver-chair",
@@ -1025,7 +1051,8 @@
    "lon": -115.17664,
    "ele": 1950,
    "where": "Top of Silver Chair",
-   "embed": "https://www.youtube.com/embed/VNtDiB63aNU?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/VNtDiB63aNU?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/nacam2/nacam2.jpg"
   },
   {
    "id": "nakiska-big-bear",
@@ -1037,7 +1064,8 @@
    "lon": -115.17085,
    "ele": 1794,
    "where": "Base of Gold Chair (approximate spot)",
-   "embed": "https://www.youtube.com/embed/t_Q_rt8Rpsg?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/t_Q_rt8Rpsg?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/nacam5/nacam5.jpg"
   },
   {
    "id": "nakiska-mid-mountain-lodge",
@@ -1049,7 +1077,8 @@
    "lon": -115.15315,
    "ele": 1529,
    "where": "Base of Silver Chair",
-   "embed": "https://www.youtube.com/embed/Dh1LQeqGlJQ?autoplay=1&mute=1"
+   "embed": "https://www.youtube.com/embed/Dh1LQeqGlJQ?autoplay=1&mute=1",
+   "img": "https://secure.skircr.com/cams/nacam1/nacam1.jpg"
   },
   {
    "id": "panorama-summit-cam",
@@ -1122,18 +1151,6 @@
    "ele": 2468,
    "where": "Goldie Plateau",
    "img": "https://www.panoramaresort.com/webcam-api/latest/19/1280/720"
-  },
-  {
-   "id": "panorama-village",
-   "owner": "panorama",
-   "resort": "Panorama",
-   "kind": "resort",
-   "name": "Village",
-   "lat": 50.45637,
-   "lon": -116.23792,
-   "ele": 1177,
-   "where": "Base of Mile 1 Express",
-   "img": "https://www.panoramaresort.com/webcam-api/latest/20/1280/720"
   },
   {
    "id": "panorama-showoff",
