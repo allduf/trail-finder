@@ -2,6 +2,7 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-10-31", "text": "Skiing webcams: live video now plays right in the card on iPhone, a big Open the live stream button, and a clear note with the last picture when a camera is off. Every cam checked: Kicking Horse videos and Big White pictures fixed."},
+    {"date": "2026-10-31", "text": "Trail levels: 10 Banff trails now show Parks Canada's level and 5 Mount Swansea trails (Invermere) the Columbia Valley tourism level."},
     {"date": "2026-10-31", "text": "Find: tap 📍 Looking in to type any town or riding area in Canada, use Near me, or pick from recent and popular areas, instead of the long list."},
     {"date": "2026-10-30", "text": "Map: your location dot now stays put when you zoom in or out while the map follows you, and a pinch keeps the spot under your fingers."},
     {"date": "2026-10-30", "text": "Japan: 🔊 on each Japanese phrase says it out loud, and winter satellite photos for Hakuba, Myoko, Nozawa, Hokkaido and Hakkoda in the 3D map."},

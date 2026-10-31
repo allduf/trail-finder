@@ -200,6 +200,46 @@
    "date": "2026-10-24",
    "who": "Claude (weekly audit)",
    "note": "No open source gives levels: Visit Oliver has none, Mountain Biking BC only counts trails per level, Destination Osoyoos blocked every request. Only Trailforks has levels."
+  },
+  "area-thin:Sugarloaf Mountain": {
+   "date": "2026-10-31",
+   "who": "Claude (weekly audit)",
+   "note": "A small set east of Merritt (Coco Bonk, Wounded Knee, Pete's New Trail, Deja Vu, Hogs Back); label moved 1.8 km onto their middle. 5 named trails is its real size on OpenStreetMap."
+  },
+  "ratings:kel": {
+   "date": "2026-10-31",
+   "who": "Claude (weekly audit)",
+   "note": "Researched 2026-10-24: 8 more rated from Tourism Kelowna network stories, Visit Westside and KelownaNow. MTBCO's pages embed Trailforks maps only; kmbc.ca, kelowna.ca and Castanet couldn't be read; RDCO pages give no MTB levels. The rest have levels only on Trailforks."
+  },
+  "ratings:ver": {
+   "date": "2026-10-31",
+   "who": "Claude (weekly audit)",
+   "note": "Researched 2026-10-24: Silver Shack rated from the SilverStar trail map PDF. The Vernon-area trails (Big Ed, Tombstone, Pali Gap...) have levels only on Trailforks; Sovereign Lake and Kalamalka (BC Parks) give none."
+  },
+  "ratings:cbk": {
+   "date": "2026-10-31",
+   "who": "Claude (weekly audit)",
+   "note": "Researched 2026-10-24: SW Passage rated from the City of Kimberley trail map PDF; Kimberley Nordic and Cranbrook Community Forest send riders to Trailforks; kimberleytrails.ca didn't load."
+  },
+  "ratings:pr": {
+   "date": "2026-10-31",
+   "who": "Claude (weekly audit)",
+   "note": "Qathet Regional Cycling Association (was Powell River Cycling) puts its trail levels on Trailforks only; Tourism Powell River, Mountain Biking BC and bikepacking.com describe networks but rate no single trail."
+  },
+  "ratings:chil": {
+   "date": "2026-10-31",
+   "who": "Claude (weekly audit)",
+   "note": "Tyax Adventures, BC Parks (South Chilcotin), Recreation Sites and Trails BC and the Bridge River Valley guide give no per-trail levels; blogs quote Trailforks colours. Only Trailforks has levels."
+  },
+  "ratings:bnf": {
+   "date": "2026-10-31",
+   "who": "Claude (weekly audit)",
+   "note": "10 rated from Parks Canada's Banff-area bike trails (Tunnel Bench Loop, Hoodoos, The Toe, Goat Creek). Minnewanka and Stoney left out: Parks Canada and Banff & Lake Louise Tourism disagree. The rest (Spray Quarry, Valleyview, Sulphur, Shoulder...) are not on Parks Canada's list."
+  },
+  "ratings:inv": {
+   "date": "2026-10-31",
+   "who": "Claude (weekly audit)",
+   "note": "5 Mount Swansea trails rated from Columbia Valley Tourism. Meat Grinder left out (sources disagree). Lake Lillian, Johnson, Juniper Heights and Radium have levels only on Trailforks; the Columbia Valley Cycling Society site could not be read."
   }
  }
 }
