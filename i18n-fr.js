@@ -1446,7 +1446,10 @@
     "This camera's picture isn't available right now.":"L'image de cette caméra n'est pas disponible pour le moment.",
     "This highway camera is off right now.":"Cette caméra routière est éteinte pour le moment.",
     "This may be an older picture: the newest is on their webcam page.":"C'est peut-être une image plus ancienne : la plus récente est sur leur page webcam.",
-    "Finding the latest picture…":"Recherche de la dernière image…"};
+    "Finding the latest picture…":"Recherche de la dernière image…",
+    "Save this area offline":"Enregistrer cette zone hors ligne",
+    "Use the map here with no signal":"Utiliser la carte ici sans réseau",
+    "Save the map of an area on this phone for when there's no signal":"Enregistrer la carte d'une zone sur ce téléphone pour quand il n'y a pas de réseau"};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
@@ -1469,6 +1472,8 @@
     [/^(\d+) (minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years) ago$/, function (m, n, u) { return "il y a " + n + " " + UNIT[u]; }],
     [/^Stocked (\d+) (day|days|week|weeks|month|months|year|years) ago, (.+)$/, function (m, n, u, f) { return "Ensemencé il y a " + n + " " + UNIT[u] + ", " + f; }],
     [/^just now$/i, "à l'instant"],
+    [/^1 saved area · save another for no signal$/, "1 zone enregistrée · en enregistrer une autre pour sans réseau"],
+    [/^(\d+) saved areas · save another for no signal$/, "$1 zones enregistrées · en enregistrer une autre pour sans réseau"],
     [/^([\d.,]+) km long$/, "$1 km de long"],
     [/^Winter route · ([\d.,]+) km long$/, "Itinéraire d'hiver · $1 km de long"],
     [/^within ([\d.,]+ k?m)$/, "à moins de $1"],
