@@ -1,5 +1,4 @@
 {
-  "about": "Written every hour by scripts/app-build.mjs from App Store Connect (don't edit). build = newest build the Friends TestFlight group can install, newest = newest for internal testers. app-update.js shows people on an older build a popup to update.",
-  "build": 36,
-  "newest": 36
+  "about": "Fallback only: the TestFlight build check (app-build.yml, scripts/app-build.mjs) writes the real copy to the site-data branch every hour, which wins on the website. build = Friends, newest = internal testers.",
+  "build": 32
 }
