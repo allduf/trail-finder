@@ -652,7 +652,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1450");
+      const w = new Worker("winter-fill.js?v=1460");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -685,7 +685,12 @@
       const have = await loadWinterBlocks();
       if (have) {
         data.push(...WINTERS.map((w) => new URL(w + "blocks.json", location.href).href));
-        each(6, 14, (z, x, y) => { if (anyWinter(have, z, x, y)) { tiles.push(new URL(`${winterSite(have, z, x, y)}${z}/${x}/${y}.webp`, location.href).href); photos++; } });
+        // Zoom 6 to 10 with one tile more on every side (alex 2026-10-31, airplane mode: the ground just past the saved
+        // square was plain green while online it's all winter photos): a blurry winter photo all around, ~25 to
+        // 400 km out depending on the zoom, for about 50 small tiles.
+        const add = (z, x, y) => { if (anyWinter(have, z, x, y)) { tiles.push(new URL(`${winterSite(have, z, x, y)}${z}/${x}/${y}.webp`, location.href).href); photos++; } };
+        for (let z = 6; z <= 10; z++) for (let x = tileX(b[1], z) - 1; x <= tileX(b[3], z) + 1; x++) for (let y = tileY(b[2], z) - 1; y <= tileY(b[0], z) + 1; y++) add(z, x, y);
+        each(11, 14, add);
       }
     }
     return { data, tiles, heights: tiles.length - photos, photos };
@@ -729,7 +734,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1450" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1460" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
