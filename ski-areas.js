@@ -59,7 +59,7 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
 
   // ---------- data ----------
   let loading = null, doc = {}, areas = [];
-  const load = () => (loading = loading || fetch("data/ski-areas.json?v=1410").then((r) => r.json()).then((d) => {
+  const load = () => (loading = loading || fetch("data/ski-areas.json?v=1420").then((r) => r.json()).then((d) => {
     doc = d;
     areas = (d.areas || []).filter((a) => isFinite(a.lat) && isFinite(a.lon));
     return d;
