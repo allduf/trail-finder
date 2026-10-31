@@ -51,7 +51,7 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
 
   // ---------- data ----------
   let data = null, cams = [], owners = {};
-  const load = () => (data = data || fetch("data/webcams.json?v=1440").then((r) => r.json()).then((d) => {
+  const load = () => (data = data || fetch("data/webcams.json?v=1450").then((r) => r.json()).then((d) => {
     owners = d.owners || {};
     cams = (d.cams || []).filter((c) => isFinite(c.lat) && isFinite(c.lon));
     return d;

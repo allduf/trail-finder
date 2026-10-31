@@ -155,10 +155,30 @@ for (const sport of SPORTS) {
     await wait(500);
   }
 
+  // Offline maps from the Saved tab, no route needed (alex, 2026-10-31).
+  if (tabs.some((t) => t.nav === "saved")) {
+    await step(p, sport, "Saved → Offline maps", async () => {
+      await tap(page, "#tabbar [data-nav=saved]");
+      await tap(page, '#hub [data-hub="offline"]');
+      await page.waitForSelector(".offline-card:not([hidden])", { state: "visible", timeout: 5000 });
+    });
+    await tap(page, ".offline-card [data-x]").catch(() => page.keyboard.press("Escape"));
+    await back(page);
+    await wait(500);
+  }
+
   // Map buttons: Layers, then 3D (on and off).
   if (await visible(page, "#layersBtn")) {
     await step(p, sport, "Layers", () => tap(page, "#layersBtn"));
     await tap(page, "#layersBtn").catch(() => page.keyboard.press("Escape"));
+    await wait(500);
+    // Offline maps without a route (alex, 2026-10-31): the first row of Layers opens the Offline maps card.
+    await step(p, sport, "Layers → Save this area offline", async () => {
+      await tap(page, "#layersBtn");
+      await tap(page, "#lmOffline");
+      await page.waitForSelector(".offline-card:not([hidden])", { state: "visible", timeout: 5000 });
+    });
+    await tap(page, ".offline-card [data-x]").catch(() => page.keyboard.press("Escape"));
     await wait(500);
   }
   if (await visible(page, "#btn3d")) {

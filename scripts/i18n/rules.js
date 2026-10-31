@@ -20,6 +20,8 @@
     [/^(\d+) (minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years) ago$/, function (m, n, u) { return "il y a " + n + " " + UNIT[u]; }],
     [/^Stocked (\d+) (day|days|week|weeks|month|months|year|years) ago, (.+)$/, function (m, n, u, f) { return "Ensemencé il y a " + n + " " + UNIT[u] + ", " + f; }],
     [/^just now$/i, "à l'instant"],
+    [/^1 saved area · save another for no signal$/, "1 zone enregistrée · en enregistrer une autre pour sans réseau"],
+    [/^(\d+) saved areas · save another for no signal$/, "$1 zones enregistrées · en enregistrer une autre pour sans réseau"],
     [/^([\d.,]+) km long$/, "$1 km de long"],
     [/^Winter route · ([\d.,]+) km long$/, "Itinéraire d'hiver · $1 km de long"],
     [/^within ([\d.,]+ k?m)$/, "à moins de $1"],
