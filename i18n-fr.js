@@ -1449,7 +1449,19 @@
     "Finding the latest picture…":"Recherche de la dernière image…",
     "Save this area offline":"Enregistrer cette zone hors ligne",
     "Use the map here with no signal":"Utiliser la carte ici sans réseau",
-    "Save the map of an area on this phone for when there's no signal":"Enregistrer la carte d'une zone sur ce téléphone pour quand il n'y a pas de réseau"};
+    "Save the map of an area on this phone for when there's no signal":"Enregistrer la carte d'une zone sur ce téléphone pour quand il n'y a pas de réseau",
+    "About":"À propos",
+    "Highest point":"Point le plus haut",
+    "Best season":"Meilleure saison",
+    "Main aspect":"Orientation principale",
+    "Parking":"Stationnement",
+    "Hokkaido: 160 ski tours from Hokkaido Wilds, with difficulty, time, aspect, parking and safety notes.":"Hokkaido : 160 sorties de ski de randonnée de Hokkaido Wilds, avec difficulté, durée, orientation, stationnement et notes de sécurité.",
+    "Snow depth (Japan)":"Épaisseur de neige (Japon)",
+    "Japan topo map (GSI)":"Carte topo du Japon (GSI)",
+    "New snow, 24 h":"Neige fraîche, 24 h",
+    "New snow, 12 h":"Neige fraîche, 12 h",
+    "New snow, 6 h":"Neige fraîche, 6 h",
+    "Japan: Hokkaido Wilds ski tours and huts in Hokkaido, snow depth at the weather stations, and Japan's official topo map.":"Japon : sorties de ski et refuges de Hokkaido Wilds à Hokkaido, épaisseur de neige aux stations météo et carte topo officielle du Japon."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

@@ -644,7 +644,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // job (ca/w/, scripts/build-canada-winter.mjs; alex 2026-10-26: everything everywhere). Squares are keyed "<dir><square>".
   const CAN_MIN_Z = 5;
   // Japan (jp/w/, scripts/build-japan.mjs, weekly; alex 2026-10-30, Skiing only) comes the same way, with its ski lifts.
-  const CAN_DIRS = ["data/ski-canada/", "ca/w/", "jp/w/"];
+  // Hokkaido Wilds' ski tours (data/ski-japan-hw/, scripts/hokkaido-wilds.py, hand-run; alex 2026-11-01) too.
+  const CAN_DIRS = ["data/ski-canada/", "ca/w/", "jp/w/", "data/ski-japan-hw/"];
   let canIdx = null, canIdxLoading = null, canRedraw = 0;
   const canGot = new Map();   // square -> its loading promise
   const loadCanIdx = () => canIdx ? Promise.resolve(canIdx) : canIdxLoading || (canIdxLoading = Promise.all(CAN_DIRS.map((dir) => fetch(dir + "index.json", { cache: "no-cache" })
@@ -667,7 +668,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
           r.lines = r.g.map(lineOf); r.bounds = L.latLngBounds(r.lines.flat());
           ski.routes.push(r);
         }
-        ski.huts = [...(ski.huts || []), ...hutFacts(t.huts || [])];
+        ski.huts = dedupeHw([...(ski.huts || []), ...hutFacts(t.huts || [])]);
         ski.starts = [...(ski.starts || []), ...(t.starts || [])];
         ski.parking = [...(ski.parking || []), ...(t.parking || [])];
         if (t.lifts && t.lifts.length && window.tfLifts) window.tfLifts.add(t);
@@ -677,6 +678,20 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       canGot.set(k, p);
       return p;
     }));
+  }
+  // A Hokkaido Wilds hut and the same hut from OpenStreetMap (within 300 m): one pin, Hokkaido Wilds' (its notes),
+  // keeping the OpenStreetMap hut's Japanese name.
+  function dedupeHw(huts) {
+    const hw = huts.filter((h) => h.src === "hw");
+    if (!hw.length) return huts;
+    return huts.filter((h) => {
+      if (h.src === "hw") return true;
+      const twin = hw.find((x) => Math.abs(x.lat - h.lat) < 0.003 && Math.abs(x.lon - h.lon) < 0.004 && map.distance([x.lat, x.lon], [h.lat, h.lon]) < 300);
+      if (!twin) return true;
+      const ja = (h.tags && h.tags["name:ja"]) || (/[\u3040-\u30ff\u4e00-\u9fff]/.test(h.name || "") ? h.name : "");
+      if (ja && !twin.tags["name:ja"]) twin.tags["name:ja"] = ja;
+      return false;
+    });
   }
   function loadCanadaView() {
     if (sport !== "ski" || !ski || map.getZoom() < CAN_MIN_Z) return;
@@ -1398,6 +1413,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // Sépaq and Parks Canada trails (data/ski-canada/)
     park: (v) => ["Park", v], sector: (v) => ["Sector", v], difficulty: (v) => ["Difficulty", FR_DIFF[v] || v], "winter difficulty": (v) => ["Difficulty in winter", v],
     use: (v) => ["For", v.split(", ").map((u) => FR_USE[u] || u).join(", ")],
+    // Hokkaido Wilds routes (data/ski-japan-hw/)
+    "hw:about": (v) => ["About", v], "hw:difficulty": (v) => ["Difficulty", v], "hw:distance": (v) => ["Distance", v], "hw:time": (v) => ["Time", v],
+    "hw:ascent": (v) => ["Climb", v], "hw:high": (v) => ["Highest point", v], "hw:season": (v) => ["Best season", v], "hw:aspect": (v) => ["Main aspect", v],
+    "hw:trailhead": (v) => ["Getting there", v], "hw:parking": (v) => ["Parking", v], "hw:safety": (v) => ["Safety", v], "hw:by": null,
   };
   const FR_DIFF = { Facile: "Easy", "Débutant": "Beginner", "Intermédiaire": "Intermediate", Difficile: "Difficult", "Très difficile": "Very difficult", Polyvalent: "Mixed" };
   const FR_USE = { Raquette: "snowshoeing", "Ski nordique": "backcountry nordic skiing (not groomed)", "Randonnée alpine": "alpine ski touring", "Accès ski hors-piste": "access to off-piste skiing",
@@ -1786,6 +1805,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ? `Sépaq winter trails (<a href="https://www.donneesquebec.ca/recherche/dataset/sentiers-hivernaux" target="_blank" rel="noopener">Données Québec</a>, CC BY 4.0)`
       : r.src === "club"
       ? `${r.facts && r.facts.src ? `<a href="${esc(r.facts.src)}" target="_blank" rel="noopener">${esc(r.tags.operator || "the hut's club")}</a>` : esc(r.tags.operator || "the hut's club")} (not on OpenStreetMap yet)`
+      : r.src === "hw"
+      ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a> by ${esc(r.tags["hw:by"] || "Rob Thomson")} (<a href="https://hokkaidowilds.org/" target="_blank" rel="noopener">hokkaidowilds.org</a>, CC BY-SA 4.0): full guide, photos and topo map there`
       : r.src === "pc"
       ? `Parks Canada trails (<a href="https://open.canada.ca/data/en/dataset/64a90e8d-5bc0-4027-8645-b5881b4068d4" target="_blank" rel="noopener">open.canada.ca</a>, Open Government Licence)`
       : `<a href="https://www.openstreetmap.org/${osmType}/${r.id.slice(1)}" target="_blank" rel="noopener">OpenStreetMap</a>`;
@@ -3688,11 +3709,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // in this order (the order they used to have in index.html), after the page's own scripts, and each one draws
   // itself for the sport that's on when it arrives. Same ?v= as this script, for the same cache rule.
   const jsVer = (document.currentScript && new URL(document.currentScript.src).search) || "";
-  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "moto"];
+  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "japan-snow", "moto"];
   const NEEDS = {
     hunt: ["crownland", "hunting", "compass"],
     fish: ["crownland", "fish-bait", "fish-route", "fishing"],
-    ski: ["webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "camper", "japanese"],
+    ski: ["webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "japan-snow"],
     moto: ["crownland", "hunting", "moto"],   // Moto's "Can I ride here" reads Hunting's parks and closures (window.tfHunt)
   };
   const jsLoads = {};
