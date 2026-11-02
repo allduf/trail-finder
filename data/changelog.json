@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-01", "text": "Japan: Hokkaido Wilds ski tours and huts in Hokkaido, snow depth at the weather stations, and Japan's official topo map."},
     {"date": "2026-10-31", "text": "Offline maps: your saved areas are outlined on the map with no signal (2D and 3D), Skiing saves blurry winter photos all around them, and the square to save can't grow past the size limit."},
     {"date": "2026-10-31", "text": "Save an area for no signal without planning a route: Saved → Offline maps, or Layers → Save this area offline, in every sport, 2D and 3D."},
     {"date": "2026-10-31", "text": "Skiing webcams: live video now plays right in the card on iPhone, a big Open the live stream button, and a clear note with the last picture when a camera is off. Every cam checked: Kicking Horse videos and Big White pictures fixed."},
