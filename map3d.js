@@ -670,7 +670,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1520");
+      const w = new Worker("winter-fill.js?v=1540");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -752,7 +752,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1520" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1540" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -859,6 +859,58 @@
     } catch {}
   }
   window.tf3dLighten = lighten;   // for the memory test
+
+  // Away from the app, the 3D map gives back ALL its graphics memory (fix list item 29, 2026-11-02): lighten() alone
+  // still left the ground, the photos and the heights on the graphics card, and alex's iPhone kept restarting the app
+  // 5 to 25 s after coming back to Skiing 3D. On a phone, going to the background now drops the whole WebGL context
+  // (WEBGL_lose_context); coming back gets it again and MapLibre rebuilds the same map from its saved style (sources,
+  // layers, terrain, icons) and refetches the tiles, mostly from the browser's cache: a second or two of redraw
+  // instead of a restart. Between the two, the map has no style, so the calls other parts of the app make on it
+  // answer "nothing there" instead of throwing.
+  let slept = null, lostSeen = false, wakeWanted = false;
+  const QUIET = ["getSource", "getLayer", "addSource", "addLayer", "removeLayer", "removeSource", "setPaintProperty", "setLayoutProperty",
+    "setFilter", "moveLayer", "getLayoutProperty", "getPaintProperty", "setTerrain", "getTerrain", "setSky", "hasImage", "addImage", "removeImage",
+    "updateImage", "setFeatureState", "removeFeatureState", "queryRenderedFeatures", "querySourceFeatures", "setLight", "isSourceLoaded"];
+  function quietWhileAsleep() {
+    if (gl.tfQuiet) return;
+    gl.tfQuiet = true;
+    for (const k of QUIET) {
+      const f = gl[k];
+      if (typeof f !== "function") continue;
+      gl[k] = function () { if (!this.style) return k === "queryRenderedFeatures" || k === "querySourceFeatures" ? [] : k === "hasImage" ? false : undefined; return f.apply(this, arguments); };
+    }
+    // No drawing while the context is away (a move or a resize then threw "shaderPreludeCode" in the test): the
+    // camera still moves, and the first draw after the context comes back shows where it ended up.
+    const live = (m) => { try { return !m.painter.context.gl.isContextLost(); } catch { return false; } };
+    for (const k of ["_render", "resize", "triggerRepaint"]) {
+      const f = gl[k];
+      if (typeof f === "function") gl[k] = function () { return live(this) ? f.apply(this, arguments) : this; };
+    }
+    // A finger on the map in the moment the context comes back asked for the ground under it before the new painter
+    // was ready (test: "shaderPreludeCode" from a mouseover): then the map's centre stands in.
+    const unproject = gl.unproject;
+    gl.unproject = function () { try { return unproject.apply(this, arguments); } catch { return this.getCenter(); } };
+    gl.on("webglcontextlost", () => { lostSeen = true; if (wakeWanted) wake3d(); });
+    gl.on("webglcontextrestored", () => { try { fixDemLeak(); gl.resize(); gl.triggerRepaint(); } catch {} });
+  }
+  function sleep3d() {
+    if (!PHONE || !gl || slept) return;
+    try {
+      const ext = gl.painter.context.gl.getExtension("WEBGL_lose_context");
+      if (!ext) return;
+      quietWhileAsleep();
+      slept = ext; lostSeen = false; wakeWanted = false;
+      ext.loseContext();
+    } catch { slept = null; }
+  }
+  function wake3d() {
+    if (!slept) return;
+    if (!lostSeen) { wakeWanted = true; return; }   // MapLibre hasn't heard of the loss yet: right after it does
+    const ext = slept;
+    slept = null; wakeWanted = false;
+    try { ext.restoreContext(); } catch {}
+  }
+  window.tf3dSleep = sleep3d; window.tf3dWake = wake3d;   // for the phone test
 
   // Mountain heights leak in MapLibre 5.24.0: when a neighbouring height tile arrives, the edges of the tiles
   // already drawn are filled in and each gets a NEW 1 MB picture on the graphics card, the old one never freed.
@@ -1450,7 +1502,7 @@
     rest2d(on);
     if (on) {
       if (!gl) build();
-      else { box.hidden = false; gl.resize(); const c = map.getCenter(); syncing++; gl.jumpTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d(), pitch: 0 }); syncing--; tiltUp(); }
+      else { wake3d(); box.hidden = false; gl.resize(); const c = map.getCenter(); syncing++; gl.jumpTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d(), pitch: 0 }); syncing--; tiltUp(); }
       syncData(); keepView();
     } else if (box) { if (gl) tilt = Math.max(gl.getPitch(), 30); box.hidden = true; lighten(); }
     syncBtn();
@@ -1475,8 +1527,8 @@
   document.addEventListener("visibilitychange", () => {
     const shown = document.visibilityState === "visible";
     mark(on && shown);
-    if (!shown) lighten();
-    else if (on) resumes++;
+    if (!shown) { lighten(); sleep3d(); }
+    else if (on) { resumes++; wake3d(); }
   });
   addEventListener("pagehide", () => mark(false));
   addEventListener("pageshow", () => mark(on));
