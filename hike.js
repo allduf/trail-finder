@@ -182,10 +182,16 @@ way(r.r)["highway"](${bb})->.b;
 out tags geom qt;
 .r out body qt;`;
   }
-  async function ask(q) {
-    const one = (url) => fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" }, signal: timeout(60000) })
-      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
-    return Promise.any([one(OVERPASS[0]), new Promise((ok) => setTimeout(ok, 3000)).then(() => one(OVERPASS[1]))]);
+  let mirror = 0;
+  async function ask(q, ms = 45000) {
+    const url = OVERPASS[mirror % OVERPASS.length];
+    try {
+      const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" }, signal: timeout(ms) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = await r.json();
+      if (j.remark && /error/i.test(j.remark)) throw new Error(j.remark);
+      return j;
+    } catch (e) { mirror++; throw e; }   // the other server next time
   }
   const CACHE = "tf-hikes-v1", cacheUrl = (k) => `https://trail-finder.local/hikes/${k}`;
   async function cacheGet(k) {
@@ -226,33 +232,59 @@ out tags geom qt;
     tiles.set(k, "done");
     return true;
   }
-  let loadRun = 0, loading = 0, loadErr = false;
-  async function loadView() {
+  // The home zones (Vancouver to Calgary) come ready-made from the weekly job (data/hike-<zone>.json,
+  // scripts/build-hike.mjs). Everywhere else: Overpass, one square at a time (two at most), nearest the middle of the
+  // map first, at most MAX_SQ squares for a view, and a pause that grows after each failure (alex 2026-11-02: asked
+  // live for dozens of squares at once, the server refused or queued them and the panel sat on "Finding…" for good).
+  const MAX_SQ = 9, zoneFiles = new Map();   // zone id -> "loading" | "done" | "none"
+  let queue = [], active = 0, fails = 0, pauseUntil = 0, pumpT = 0;
+  const zoneAt = (lat, lon) => ((window.tfToday && window.tfToday.zones) || []).find((z) => z.bounds && z.bounds.contains([lat, lon]));
+  function loadZone(z) {
+    zoneFiles.set(z.id, "loading");
+    nightly(`hike-${z.id}.json`).then((j) => {
+      if (j && j.v === 1 && Array.isArray(j.w) && j.w.length) { absorb(j); zoneFiles.set(z.id, "done"); }
+      else zoneFiles.set(z.id, "none");
+    }).catch(() => zoneFiles.set(z.id, "none")).finally(() => { regroup(); loadView(); });
+  }
+  const pending = () => active + queue.length + [...zoneFiles.values()].filter((v) => v === "loading").length;
+  function pump() {
+    clearTimeout(pumpT);
     if (!isHike()) return;
-    const z = map.getZoom();
-    if (z < MIN_ZOOM) { renderList(); return; }
-    const v = map.getBounds().pad(0.15), want = [];
+    const wait = pauseUntil - Date.now();
+    if (wait > 0) { pumpT = setTimeout(pump, wait + 50); return; }
+    while (active < 2 && queue.length) {
+      const t = queue.shift();
+      if (tiles.get(t.k) === "done" || tiles.get(t.k) === "loading") continue;
+      active++;
+      loadTile(t.k, t.b).then((ok) => {
+        active--;
+        if (ok) fails = 0;
+        else { fails++; pauseUntil = Date.now() + Math.min(60000, 4000 * 2 ** Math.min(fails - 1, 4)); queue.unshift(t); }
+        regroup(); pump();
+      });
+      if (fails) break;   // after a failure, one at a time
+    }
+  }
+  function loadView() {
+    if (!isHike()) return;
+    if (map.getZoom() < MIN_ZOOM) { queue = []; renderList(); return; }
+    const v = map.getBounds(), c = map.getCenter(), want = [];
     for (let s = Math.floor(v.getSouth() / T_LAT) * T_LAT; s < v.getNorth(); s += T_LAT)
       for (let w = Math.floor(v.getWest() / T_LON) * T_LON; w < v.getEast(); w += T_LON) {
-        const k = tKey(s, w);
-        if (tiles.get(k) !== "done" && tiles.get(k) !== "loading") want.push({ k, b: [s, w, s + T_LAT, w + T_LON], d: kmTo([s + T_LAT / 2, w + T_LON / 2], [map.getCenter().lat, map.getCenter().lng]) });
+        const k = tKey(s, w), mid = [s + T_LAT / 2, w + T_LON / 2];
+        if (tiles.get(k) === "done") continue;
+        const z = zoneAt(mid[0], mid[1]);
+        if (z) {
+          const st = zoneFiles.get(z.id);
+          if (!st) loadZone(z);
+          if (st !== "none") continue;   // the zone's file has it, or is on its way
+        }
+        want.push({ k, b: [s, w, s + T_LAT, w + T_LON], d: kmTo(mid, [c.lat, c.lng]) });
       }
-    if (!want.length) { regroup(); return; }
-    want.sort((a, b) => a.d - b.d);
-    const run = ++loadRun, todo = want.slice(0, 16);
-    loading += todo.length; loadErr = false; renderList();
-    const work = async () => {
-      while (todo.length) {
-        const t = todo.shift();
-        const ok = await loadTile(t.k, t.b);
-        loading--;
-        if (!ok) loadErr = true;
-        if (run === loadRun || isHike()) regroup();
-      }
-    };
-    await Promise.all([work(), work()]);
+    queue = want.sort((a, b) => a.d - b.d).slice(0, MAX_SQ);
+    pump();
+    renderList();
   }
-
   // ---------- ways into hikes ----------
   // A hike is a hiking route (a route=hiking relation: all its trails together) or the trail pieces that share a name
   // within about 2 km of each other. Paved city paths, sidewalks, lit paths and bike-park lines are left out.
@@ -374,7 +406,8 @@ out tags geom qt;
     }
     const all = inView(), list = gradeOn.length ? all.filter((h) => gradeOn.includes(h.g)) : all;
     $("hkCount").textContent = all.length ? `${all.length} hike${all.length > 1 ? "s" : ""} in view` : "Hikes in view";
-    msg.textContent = loading > 0 ? "Finding the hiking trails here…" : loadErr && !all.length ? "OpenStreetMap's trail server didn't answer. Move the map a bit to try again."
+    const left = pending();
+    msg.textContent = left > 0 && fails && !all.length ? "OpenStreetMap's trail server is busy. Trying again…" : left > 0 ? (all.length ? "Finding more hiking trails…" : "Finding the hiking trails here…")
       : !all.length ? "No named hiking trails here on OpenStreetMap." : !list.length ? "None of that grade in view." : list.length > 40 ? "Nearest 40 shown: zoom in for the rest." : "";
     ul.innerHTML = list.slice(0, 40).map((h) => `<li><button type="button" data-hike="${esc(h.id)}"><span class="hk-dot" style="--c:${GRADES[h.g].c}"></span><b>${esc(h.name)}</b><small>${esc(subOf(h))}</small><em>${saved().some((s) => s.id === h.id) ? "★" : ""}</em></button></li>`).join("");
   }
