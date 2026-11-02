@@ -1595,7 +1595,8 @@
     "Save this hike":"Enregistrer cette rando",
     "My hikes (recorded)":"Mes randos (enregistrées)",
     "Save to My hikes":"Enregistrer dans Mes randos",
-    "Lunch spot with a view":"Dîner avec vue"};
+    "Lunch spot with a view":"Dîner avec vue",
+    "You can also ask in plain words, like":"Vous pouvez aussi demander en mots simples, par exemple"};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

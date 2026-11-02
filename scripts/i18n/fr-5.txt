@@ -66,3 +66,6 @@ Save this hike ||| Enregistrer cette rando
 My hikes (recorded) ||| Mes randos (enregistrées)
 Save to My hikes ||| Enregistrer dans Mes randos
 Lunch spot with a view ||| Dîner avec vue
+
+# Interface review 2026-11-02 (one search box on Find)
+You can also ask in plain words, like ||| Vous pouvez aussi demander en mots simples, par exemple

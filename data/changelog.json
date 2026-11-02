@@ -2,6 +2,7 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-11-02", "text": "3D map is sharper close up on phones when the map is still and not tilted far, with no extra memory."},
+    {"date": "2026-11-02", "text": "Cleaner look: fewer names on the map, a calmer map style, a simpler trail card, and one search box that also takes questions."},
     {"date": "2026-11-02", "text": "New sport: 🥾 Hiking. Hikes by grade, time and heights, snow at the top today, the park pass it needs, and closures nearby."},
     {"date": "2026-11-02", "text": "Trail reports, rider photos and rider grades have ⚑ Report and Hide this rider. New Terms and safety page in More."},
     {"date": "2026-11-02", "text": "Photo find, Ask in plain words and fish ID now ask once before anything goes to Google's AI (18 or older). Change it in More, Google's AI."},

@@ -154,7 +154,7 @@
     // 3D map keeps a tiled index of); they're copied again after each move.
     const near = PHONE && map.getBounds().pad(2);
     // Lines in a pane the 2D map hides (MTB-only layers like ✓ Ridden in Skiing and Hunting) stay off the 3D map too.
-    const hidden = new Map();
+    const hidden = new Map(), altSport = document.body.classList.contains("sport-alt");
     const paneHidden = (o) => {
       const name = (o.renderer && o.renderer.options.pane) || o.pane || "overlayPane";
       if (!hidden.has(name)) { const el = map.getPane(name); hidden.set(name, !!el && getComputedStyle(el).display === "none"); }
@@ -193,7 +193,10 @@
       if (!o.stroke || !(o.opacity > 0)) return;
       lines.push({ type: "Feature", geometry, properties: { c: o.color, w: o.weight * LINE_SCALE, o: faded(o) ? o.opacity * 0.6 : o.opacity, k: order, d: o.dashArray ? (o.lineCap === "round" && dotKey(o.dashArray, o.weight)) || dashKey(o.dashArray, o.weight) : "",
       } });
-      if (o.label) nameSpots(o.label, parts, o.color, faded(o) ? o.opacity * 0.6 : o.opacity, names);
+      // MTB trail names stay off the 3D map in the other sports, as the 2D map hides them there (alex 2026-11-02:
+      // bike trail names over Whistler in Skiing 3D read as clutter to a skier).
+      if (o.label && !(altSport && o.renderer && /^(allTrails|boxTrails|newTrails)$/.test(o.renderer.options.pane)))
+        nameSpots(o.label, parts, o.color, faded(o) ? o.opacity * 0.6 : o.opacity, names);
     });
     return { lines, dots, hitLines, names };
   }
