@@ -22,13 +22,14 @@ dialog.tp-view { border: 0; padding: 0; background: #000; max-width: min(96vw, 1
 dialog.tp-view::backdrop { background: rgba(0,0,0,.8); }
 dialog.tp-view img { display: block; max-width: min(96vw, 1200px); max-height: calc(100dvh - 76px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); object-fit: contain; margin: 0 auto; }
 dialog.tp-view footer { display: flex; gap: 8px; align-items: center; padding: 8px 10px; color: #fff; font-size: .85rem; }
-dialog.tp-view footer span { flex: 1; }
+dialog.tp-view footer > span:first-child { flex: 1; }
+dialog.tp-view .tp-mod .mod-btns button { color: #fffc; }
 dialog.tp-view footer button { font: inherit; font-weight: 600; padding: 6px 12px; border-radius: 8px; border: 1px solid #fff4; background: #ffffff1a; color: #fff; cursor: pointer; }`;
   document.head.append(css);
 
   const viewer = document.createElement("dialog");
   viewer.className = "tp-view";
-  viewer.innerHTML = `<img alt=""><footer><span></span><button type="button" data-del hidden>Delete</button><button type="button" data-x>Close</button></footer>`;
+  viewer.innerHTML = `<img alt=""><footer><span></span><span class="tp-mod"></span><button type="button" data-del hidden>Delete</button><button type="button" data-x>Close</button></footer>`;
   document.body.append(viewer);
   viewer.querySelector("[data-x]").addEventListener("click", () => viewer.close());
   viewer.addEventListener("click", (e) => { if (e.target === viewer) viewer.close(); });
@@ -55,7 +56,7 @@ dialog.tp-view footer button { font: inherit; font-weight: 600; padding: 6px 12p
     if (current !== t || !document.body.contains(box)) return;
     if (!acct.client) { box.textContent = "Rider photos aren't available right now."; return; }
     const type = t.osmType || "way";
-    const { data, error } = await acct.client.from("trail_photos").select("id, user_id, path, caption, created_at")
+    let { data, error } = await acct.client.from("trail_photos").select("id, user_id, path, caption, created_at")
       .eq("osm_type", type).eq("osm_id", t.id).order("created_at", { ascending: false }).limit(MAX_SHOWN);
     if (current !== t || !document.body.contains(box)) return;
     if (error) {   // photos not set up or not reachable: hide the section, never show riders a database message (alex)
@@ -66,15 +67,19 @@ dialog.tp-view footer button { font: inherit; font-weight: 600; padding: 6px 12p
     }
     box.classList.remove("muted");
     const me = acct.user ? acct.user.id : null;
+    // Hide this rider (moderation.js): their photos drop out here.
+    const mod = window.tfMod, kept = mod ? mod.filter(data) : { rows: data, n: 0 };
+    data = kept.rows;
     const grid = !data.length ? `<p class="muted">No rider photos yet.${me ? " Add the first one." : ""}</p>`
       : `<div class="tp-grid">${data.map((p, i) => `<button type="button" data-i="${i}" aria-label="Open photo"><img loading="lazy" alt="${esc(p.caption || "Rider photo")}" src="${esc(urlOf(p.path))}"></button>`).join("")}</div>`;
     const add = me ? `<label class="tp-add">📷 Add a photo<input type="file" accept="image/*"></label> <span class="muted tp-msg" role="status"></span>`
       : `<p><button type="button" class="linkish tp-signin">Sign in to add a photo</button></p>`;
-    box.innerHTML = grid + add;
+    box.innerHTML = (mod ? mod.hiddenLine(kept.n) : "") + grid + add;
     box.querySelectorAll(".tp-grid button").forEach((b) => b.addEventListener("click", () => {
       const p = data[+b.dataset.i];
       viewer.querySelector("img").src = urlOf(p.path);
       viewer.querySelector("span").textContent = `${p.caption ? p.caption + " · " : ""}${new Date(p.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}${p.user_id === me ? " · yours" : ""}`;
+      viewer.querySelector(".tp-mod").innerHTML = mod ? mod.buttons("photo", p.id, p.user_id) : "";
       const del = viewer.querySelector("[data-del]");
       del.hidden = p.user_id !== me;
       del.onclick = async () => {
@@ -109,5 +114,7 @@ dialog.tp-view footer button { font: inherit; font-weight: 600; padding: 6px 12p
   }
 
   window.tfTrailPhotos = { show };
+  // A report or a hidden rider (moderation.js): close the big photo and redraw the trail's photos.
+  document.addEventListener("tf:modchange", () => { if (viewer.open) viewer.close(); if (current && document.getElementById("trailPhotos")) show(current); });
   window.addEventListener("tf:account", () => { if (current && document.getElementById("trailPhotos")) show(current); });
 })();

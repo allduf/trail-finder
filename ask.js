@@ -162,6 +162,8 @@ ol.ask-list b { font-size: .96rem; } ol.ask-list small { color: var(--muted); fo
   let aiOff = "";
   async function aiParse(q, sport) {
     if (aiOff) return { ok: false, why: aiOff };
+    // Google's AI only after a yes (welcome.js tfAiConsent); without it the words are read on the phone.
+    if (window.tfAiConsent && !(await window.tfAiConsent.ask("ask"))) return { ok: false, why: "Google's AI is off (your choice), so your words were read on the phone." };
     const acct = window.tfAccount;
     try {
       if (!acct || !acct.enabled) return { ok: false, why: "The AI isn't available here." };

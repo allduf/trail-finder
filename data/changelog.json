@@ -1,6 +1,8 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-02", "text": "Trail reports, rider photos and rider grades have ⚑ Report and Hide this rider. New Terms and safety page in More."},
+    {"date": "2026-11-02", "text": "Photo find, Ask in plain words and fish ID now ask once before anything goes to Google's AI (18 or older). Change it in More, Google's AI."},
     {"date": "2026-11-02", "text": "More real trail grades: Vernon (Kal Park, Ellison, Predator, King Eddy) from the City of Vernon trail map, Kimberley Nature Park from its society's map, and Fireman at China Ridge."},
     {"date": "2026-11-02", "text": "3D map on iPhone: it now gives back all its memory while you are in another app, to stop the restarts when you come back. The 3D map redraws for a second or two when you return."},
     {"date": "2026-11-02", "text": "Hunting, Fishing and Moto: the place search now suggests towns as you type. Fishing: Where to fish today knows the season (cold water, ice likely). Moto: the same campground shows once, and the Sport button says Moto."},

@@ -213,10 +213,24 @@
     } catch { /* not set up (no CORS answer) or offline */ }
     paint();
   }
+  // Connect Strava only for alex (go-public checklist item 11, 2026-11-02): the Strava API app allows one athlete until
+  // Strava reviews it, and Strava's terms limit showing its data to others. Everyone else keeps "Import whole Strava
+  // archive" just above. tf_is_admin() (supabase/usage.sql) says who alex is; a rider already connected keeps the box.
+  let admin = null, adminFor = null;
+  async function checkAdmin() {
+    const uid = acct.user && acct.user.id;
+    if (!uid || adminFor === uid) return;
+    adminFor = uid;
+    try { await acct.load(); const { data, error } = await acct.client.rpc("tf_is_admin"); admin = !error && data === true; } catch { admin = false; }
+    paint();
+  }
   function paint() {
     if (!box) return;
-    box.hidden = !ready;
-    const m = me(), msg = note ? `<p class="hint${noteWarn ? " warn" : ""}" role="status">${esc(note)}</p>` : "";
+    const m = me();
+    if (acct.user && adminFor !== acct.user.id) checkAdmin();
+    box.hidden = !ready || !acct.user || !(m || (admin && adminFor === acct.user.id));
+    if (box.hidden) return;
+    const msg = note ? `<p class="hint${noteWarn ? " warn" : ""}" role="status">${esc(note)}</p>` : "";
     if (!acct.user) {
       box.innerHTML = `<p><b>Strava</b>: sign in to bring your Strava rides in on their own, on every device.</p><div class="btns"><button type="button" class="btn" data-s="in">Sign in</button></div>${msg}`;
       return;

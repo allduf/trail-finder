@@ -61,6 +61,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
 
   const css = document.createElement("style");
   css.textContent = `
+.pf-limit { background: var(--warn-bg, #fff4e0); color: var(--warn-fg, #7a4a00); border-radius: 10px; padding: 10px 12px; font-size: .92rem; line-height: 1.4; }
 .tsearch-row .photo-find-btn { padding-left: 10px; padding-right: 10px; display: inline-flex; align-items: center; }
 .pf { position: fixed; inset: 0; z-index: 1001; background: rgba(0,0,0,.45); display: grid; place-items: center; padding: 16px; }
 .pf[hidden] { display: none; }
@@ -591,6 +592,9 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const area = $("pfArea").selectedOptions[0];
     const key = [$("pfCaption").value.trim(), $("pfArea").value].join("|");
     if (ai && aiKey === key) return ai;      // once per picture and description: the free AI allows only so many a day
+    // Google's AI only after a yes (welcome.js tfAiConsent: Apple 5.1.2(i), Gemini is 18 or older).
+    if (window.tfAiConsent && !(await window.tfAiConsent.ask("photo"))) { aiWhy = "Google's AI is off (your choice): turn it on in More, Google's AI."; return null; }
+    if (my !== job) return null;
     say(`The AI is looking at the picture (mountains, rock, lakes, words)… up to ${AI_WAIT / 1000} s`, 0.9);
     const look = async () => {
       await acct.load();
@@ -647,6 +651,12 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     $("pfAi").hidden = !seen && !aiWhy;
     $("pfAi").textContent = seen && !seen.scene && pages.length ? "" : seen ? `The AI sees${seen.ms ? ` (${Math.round(seen.ms / 1000)} s)` : ""}: ` + seen.scene + (seen.landmarks.length ? ` Landmarks: ${seen.landmarks.join(", ")}.` : "") + (seen.viewpoint && seen.viewpoint.where ? ` Taken around: ${seen.viewpoint.where}.` : "")
       : aiWhy ? `AI check skipped (${aiWhy}): matching the words, your description and landmarks.` : "";
+    // This person's AI photo searches for today are used up (the function's per-person limit; 3 a day once the app is
+    // public, go-public checklist item 26): say it plainly, with when it comes back (alex, 2026-11-02).
+    if (!seen && /daily limit is reached/i.test(aiWhy)) {
+      $("pfAi").innerHTML = `<div class="pf-limit"><b>You've used today's AI photo searches.</b> <span>Come back tomorrow for more.</span> <span>Until then, photo find still uses the spot saved in the photo, the words in it and your description.</span></div>`;
+      $("pfAi").hidden = false;
+    }
     // Where the same picture is online: a link to each page (the rider can read the post there).
     if (pages.length || (on && on.error)) {
       const box = document.createElement("div");
@@ -727,6 +737,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const list = (woods ? [...rows.filter((r) => ok(r) && r.taught), ...more.filter((r) => ok(r) && r.taught), ...rows.filter((r) => ok(r) && !r.taught)] : rows.filter(ok)).slice(0, 8);
     more = more.filter((r) => ok(r) && !list.some((x) => F.norm(x.name) === F.norm(r.name))).slice(0, 30);
     if (aiOff || !list.length || !media || !acct || !acct.client) return;
+    if (window.tfAiConsent && !window.tfAiConsent.ok()) return;   // the online check goes to Google too
     if (TEST && TEST.diag) TEST.diag.before = list.map((r) => r.name);
     const out = $("pfCmp"), key = aiKey + "|" + list.map((r) => r.name + "@" + r.save.zone).join(",");
     let got = cmp && cmpKey === key ? cmp : null, why = "";

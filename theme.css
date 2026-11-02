@@ -465,6 +465,7 @@ body.sport-alt .layers-menu .lm-looks, body.sport-alt .layers-menu .lm-looks-hea
   .hub-seg { display: flex; padding: 4px; gap: 4px; border-radius: 12px; background: var(--chip); }
   .hub-seg button { flex: 1 1 auto; min-width: 0; padding: 4px 2px; min-height: 44px; font: inherit; font-weight: 700; color: var(--fg); background: none; border: 0; border-radius: 9px; cursor: pointer; }
   .hub-seg [aria-pressed="true"] { background: var(--panel); box-shadow: var(--shadow-sm); }
+  .hub-hint { margin: -2px 2px 0; font-size: .82rem; color: var(--muted); line-height: 1.3; }
   @media (max-width: 380px) { .hub-seg button { font-size: .86em; } }
   .hub-slot:empty { display: none; }
   .hub .wantlist { margin: 0; }

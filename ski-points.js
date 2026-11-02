@@ -536,6 +536,9 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     idFor = ph;
     const acct = window.tfAccount;
     if (!acct || !acct.enabled) { say2("Fish ID needs the app's photo AI, which isn't on here."); return; }
+    // Google's AI only after a yes (welcome.js tfAiConsent).
+    if (window.tfAiConsent && !(await window.tfAiConsent.ask("fish"))) { say2("Google's AI is off (your choice), so pick the fish yourself. Turn it on in More, Google's AI."); idFor = null; return; }
+    if (idFor !== ph) return;
     say2("Looking at the fish… up to 30 s");
     try {
       await acct.load();
