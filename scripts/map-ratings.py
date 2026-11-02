@@ -5,7 +5,7 @@
 # disagree, is left out. Writes scripts/map-ratings.json, which scripts/build-ratings.mjs adds to the rating lines (as
 # source <id>; ratings.js names it in SRC), so the site shows "Rated “Moderate” by <the map>".
 #
-# Run by hand when a map changes (pip install pymupdf numpy; needs the site-data branch's data/mtb-*.json, see
+# Run by hand when a map changes (pip install pymupdf numpy pillow pyproj; needs the site-data branch's data/mtb-*.json, see
 # scripts/site-data.sh get):  python3 scripts/map-ratings.py
 import json, math, re, collections, urllib.request, io
 import numpy as np
@@ -21,6 +21,20 @@ MAPS = {
         "legend": {"77,230,0": ["green", "Easy"], "0,170,255": ["blue", "Moderate"], "0,0,0": ["black", "Difficult"],
                    "255,0,0": ["dbl", "Very Difficult"]},
         "dark": "0,0,0",   # also the colour of text and roads: counts only where no trail colour is near
+    },
+    # A plain picture with a printed UTM grid instead of a georeferenced PDF: "grid" gives two pixel columns with their
+    # easting and two pixel rows with their northing (read off the map's 1 km lines), in UTM zone "utm" (NAD83).
+    "knps": {
+        "name": "the Kimberley Nature Park Society trail guide (2023)",
+        "url": "https://www.kimberleynaturepark.ca/trails/maps",
+        "img": "https://static.wixstatic.com/media/2e36a1_dc39ad3c37cb43e4987c639f42e358d6~mv2.png",
+        # the 1 km lines are at x 82/1456, y 185/1331, but the trails sit 5 px east and 2 px north of where the grid puts
+        # them (best fit of all the zone's ways, same in every corner of the map), so the grid is moved by that much
+        "utm": 11, "grid": {"x": [[87, 568000], [1461, 574000]], "y": [[183, 5504000], [1329, 5499000]]},
+        "zone": "cbk",
+        "legend": {"69,110,46": ["green", "Easy"], "3,124,189": ["blue", "Intermediate"], "34,32,32": ["black", "Difficult"]},
+        "dark": "34,32,32",
+        "tol": 40,   # creeks (9,154,215) and winter ski trails (1,135,121) are close to the trail blue
     },
 }
 DPI, NEAR_M, STEP_M, TOL = 200, 8, 6, 110
@@ -53,13 +67,31 @@ def along(g, step):
         out += [(a + (c - a) * k / n, b + (d - b) * k / n) for k in range(n)]
     return out + g[-1:]
 
+def utm_grid(m):
+    """(lat, lon) -> pixel of a picture with a printed UTM grid (see "grid" in MAPS)."""
+    from pyproj import Transformer
+    tr = Transformer.from_crs("EPSG:4326", f"EPSG:269{m['utm']:02d}", always_xy=True)
+    (x0, e0), (x1, e1) = m["grid"]["x"]; (y0, n0), (y1, n1) = m["grid"]["y"]
+    def to_px(la, lo):
+        e, n = tr.transform(lo, la)
+        return np.array([x0 + (e - e0) * (x1 - x0) / (e1 - e0), y0 + (n - n0) * (y1 - y0) / (n1 - n0)])
+    return to_px
+
 def read_map(mid, m):
-    doc = pymupdf.open(stream=urllib.request.urlopen(m["pdf"], timeout=120).read(), filetype="pdf")
-    page = doc[0]
-    to_pt = georef(doc, page)
-    pix = page.get_pixmap(dpi=DPI, alpha=False)
-    img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, 3).astype(int)
-    sc = DPI / 72
+    if "img" in m:   # a picture: pixels already, no PDF page to render
+        from PIL import Image
+        req = urllib.request.Request(m["img"], headers={"User-Agent": "trail-finder (github.com/allduf/trail-finder)"})
+        img = np.array(Image.open(io.BytesIO(urllib.request.urlopen(req, timeout=120).read())).convert("RGB")).astype(int)
+        class P: pass
+        pix = P(); pix.h, pix.w = img.shape[:2]
+        to_pt, sc = utm_grid(m), 1
+    else:
+        doc = pymupdf.open(stream=urllib.request.urlopen(m["pdf"], timeout=120).read(), filetype="pdf")
+        page = doc[0]
+        to_pt = georef(doc, page)
+        pix = page.get_pixmap(dpi=DPI, alpha=False)
+        img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, 3).astype(int)
+        sc = DPI / 72
     cols = {k: np.array(list(map(int, k.split(",")))) for k in m["legend"]}
     ways = json.load(open(f"data/mtb-{m['zone']}.json"))["ways"]
     # search NEAR_M around each point: pixels per metre from two points 100 m apart (north-south) in the zone
@@ -79,7 +111,7 @@ def read_map(mid, m):
             inside += 1
             win = img[y - r:y + r + 1, x - r:x + r + 1].reshape(-1, 3)
             for k, dist in colour(win).items():
-                if (dist < TOL).any(): hits[k] += 1
+                if (dist < m.get("tol", TOL)).any(): hits[k] += 1
         if inside < max(3, 0.8 * len(pts)): continue
         share = {k: v / inside for k, v in hits.items()}
         coloured = sorted(((v, k) for k, v in share.items() if k != m["dark"]), reverse=True) + [(0, None), (0, None)]

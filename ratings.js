@@ -85,11 +85,12 @@
     return out;
   }
   const SRC = { qc: "Sépaq", ott: "the City of Ottawa", ut: "Utah's trail data (UGRC)", pa: "Pennsylvania state parks", wh: "the Resort Municipality of Whistler", csrd: "the Columbia Shuswap Regional District",
-    fta: "the Fernie Trails Alliance", rdos: "the Regional District of Okanagan-Similkameen", ccf: "the Cranbrook Community Forest Society trail map" };
+    fta: "the Fernie Trails Alliance", rdos: "the Regional District of Okanagan-Similkameen", ccf: "the Cranbrook Community Forest Society trail map",
+    tv: "the Greater Vernon trail map (City of Vernon, Tourism Vernon)", knps: "the Kimberley Nature Park Society trail guide" };
   // Towns' own trail lists name each trail: a line with another trail's name is a different trail on the same spot.
   // Words are kept per name: the same few names are checked against every point of every trail (a freeze of a second
   // or more on a phone when a new part of the map loaded, alex 2026-10-23).
-  const NAMED = /^(wh|csrd)$/, wordsOf = new Map(), words = (s) => {
+  const NAMED = /^(wh|csrd|tv)$/, wordsOf = new Map(), words = (s) => {
     s = s || "";
     let w = wordsOf.get(s);
     if (!w) { if (wordsOf.size > 20000) wordsOf.clear(); wordsOf.set(s, (w = new Set(s.toLowerCase().match(/[a-z0-9]{3,}/g) || []))); }
@@ -498,6 +499,8 @@
     { name: "Hula Girl", c: [50.493, -115.953], r: 2000, d: "blue", src: "Columbia Valley Tourism, Mount Swansea", url: "https://columbiavalley.com/mount-swansea/" },
     { name: "Booty Call", c: [50.505, -115.951], r: 2000, d: "black", src: "Columbia Valley Tourism, Mount Swansea", url: "https://columbiavalley.com/mount-swansea/" },
     { name: "Steeps", c: [50.5, -115.951], r: 2000, d: "black", src: "Columbia Valley Tourism, Mount Swansea", url: "https://columbiavalley.com/mount-swansea/" },
+    // fix list item 40 (2026-11-02): Princeton, from the China Ridge Trails Society's own trail sheet
+    { name: "Fireman Trail", c: [49.477, -120.568], r: 2000, d: "blue", src: "China Ridge Trails Society, Fireman's Trail sheet: 'intermediate'", url: "https://www.chinaridgetrails.com/_files/ugd/388108_3e0d995012a64b639dcafc19a315c19d.pdf" },
     { name: "Gravy Train", c: [50.489, -115.952], r: 2000, d: "black", src: "Columbia Valley Tourism, Mount Swansea", url: "https://columbiavalley.com/mount-swansea/" },
     { name: "Autobahn", c: [50.497, -115.953], r: 2000, d: "black", src: "Columbia Valley Tourism, Mount Swansea", url: "https://columbiavalley.com/mount-swansea/" },
     // weekly audit, 2026-10-24: bike trails left out for a hiking grade or a gravel surface

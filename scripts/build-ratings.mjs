@@ -19,8 +19,13 @@
 //          Checked against trails rated elsewhere: Red Sonja 4 (black), Old Goat and Dem Bones 3 (blue), Dirt Diggler 5.
 //      rdos Regional District of Okanagan-Similkameen hiking and biking trails (their trail map, "Trails_RDOS"): Difficulty
 //          Beginner, Intermediate, Advanced on bike and multi-use trails (Three Blind Mice trail by trail, Apex, the KVR...)
+//      tv  Greater Vernon trail map (provided by the City of Vernon, managed by Tourism Vernon, made with the North Okanagan
+//          Cycling Society and the other trail groups): Difficulty Easy, Moderate, Difficult, Most Difficult (drawn darker than Difficult:
+//          double black) on the trails it
+//          marks for biking (Kalamalka Lake park, Ellison, Predator Ridge, King Eddy, Sovereign Lake, Becker Park...)
 //      ccf ... and other clubs' georeferenced PDF maps, read colour by colour by scripts/map-ratings.py (run by hand) into
-//          scripts/map-ratings.json: Cranbrook Community Forest Society (Easy, Moderate, Difficult, Very Difficult)
+//          scripts/map-ratings.json: Cranbrook Community Forest Society (Easy, Moderate, Difficult, Very Difficult), and the
+//          Kimberley Nature Park Society trail guide (a picture with a UTM grid: Easy, Intermediate, Difficult)
 //    The province of BC and Alberta have no open data with an MTB difficulty (Recreation Sites and Trails BC only has a few
 //    descriptions in free text); towns can (Whistler). scripts/find-sources.mjs looks for more.
 // 2. For the unrated ways of the all-trails lists (data/mtb-<zone>.json), data/ratings/osm.json:
@@ -231,6 +236,7 @@ const SOURCES = {
   wh: { name: "Resort Municipality of Whistler", licence: "Open Government Licence – Resort Municipality of Whistler", url: "https://portal-rmow.opendata.arcgis.com/" },
   rdos: { name: "Regional District of Okanagan-Similkameen", licence: "Published in the district's Hiking and Biking Trails map", url: "https://rdos.maps.arcgis.com/" },
   fta: { name: "Fernie Trails Alliance", licence: "Published in Tourism Fernie's public trail map", url: "https://www.fernietrailsalliance.com/" },
+  tv: { name: "Greater Vernon trail map (City of Vernon, Tourism Vernon and local trail groups)", licence: "Published by the City of Vernon as a public service", url: "https://trails.tourismvernon.com/" },
 };
 const MAP_RATINGS = (() => { try { return JSON.parse(readFileSync("scripts/map-ratings.json", "utf8")); } catch { return { maps: {}, lines: [] }; } })();
 for (const [k, m] of Object.entries(MAP_RATINGS.maps)) SOURCES[k] = { name: m.name, licence: "The club's own trail map, read by scripts/map-ratings.py", url: m.url };
@@ -346,6 +352,18 @@ async function buildLines() {
       for (const { a, paths } of fs) {
         if (!/bik/i.test(`${a.Activity1} ${a.Activity2} ${a.TrailUse}`) || /special event|road/i.test(`${a.TrailUse} ${a.Activity1}`)) continue;
         paths.forEach((p) => add(levelOfWords(a.Difficulty), "rdos", a.SubName || a.NetworkName, a.Difficulty, lonlat(p)));
+      }
+    },
+    async tv() {
+      const j = await get("https://www.tourismvernon.com/trail-data/geojson");
+      if (!j || !Array.isArray(j.features)) throw new Error("Tourism Vernon: no trail list");
+      for (const f of j.features) {
+        const p = f.properties || {}, g = f.geometry;
+        if (p.Biking !== "true" || !g) continue;
+        const parts = g.type === "MultiLineString" ? g.coordinates : g.type === "LineString" ? [g.coordinates] : [];
+        // the map draws Most Difficult darker than Difficult (black): it's their double black (36, Big Ed, Hammered Cow)
+        const d = /most difficult/i.test(p.Difficulty || "") ? "dbl" : levelOfWords(p.Difficulty);
+        parts.forEach((c) => add(d, "tv", p.Name, p.Difficulty, c.map(([x, y]) => [y, x])));
       }
     },
     async maps() {   // from the file, so it never fails; each map is its own source
