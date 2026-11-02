@@ -100,7 +100,7 @@ for (const c of crashes) {
 const crashLines = [];
 for (const c of restarts) {
   const t = Date.parse(c.at);
-  const before = (await rows(`tf_use_events?select=at,page,kind,what,ms&device=eq.${encodeURIComponent(c.device)}&at=gte.${new Date(t - 3 * 3600e3).toISOString()}&at=lt.${c.at}&order=at`))
+  const before = (await rows(`tf_use_events?select=at,page,kind,what,ms&device=eq.${encodeURIComponent(c.device)}&at=gte.${new Date(t - 3 * 3600e3).toISOString()}&at=lt.${new Date(t).toISOString()}&order=at`))
     .filter((e) => e.kind !== "crash");
   // The dead page started at its last "open" (or the first event after a gap).
   const opens = before.filter((e) => e.kind === "open");
