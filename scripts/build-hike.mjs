@@ -9,6 +9,11 @@
 //    paths of hiking routes (route=hiking or foot). Paved, lit and sidewalk paths, foot=no and bike-park lines are left
 //    out here already (the same rules as hike.js keepWay), t keeps a few tags, g the shape ([lat, lon], 5 decimals).
 //  - r: the hiking routes, with their trail ids (m).
+//  And data/hike-places-<zone>.json: { v: 1, builtAt, p: [[id, kind, lat, lon, name, extra]] }, the places a hiker
+//  looks for: trailheads, parking, huts and shelters, campsites, viewpoints, peaks, waterfalls, drinking water and
+//  toilets (Hiking's own layers, alex 2026-11-02: "i want hiking to be as good as all the other sports"). Parking,
+//  water, toilets and unnamed campsites only within 400 m of a hiking trail (not every lot in town); extra keeps a few
+//  tags (ele, fee, capacity, operator, website, shelter type...).
 // Zones refreshed in the last FRESH_HOURS are skipped; a zone that fails keeps its last good file.
 //
 // Run: node scripts/build-hike.mjs   (Node 18 or newer, no packages; FORCE=1 refreshes every zone, ZONES=wh,sqm some)
@@ -95,6 +100,65 @@ async function fetchBox(box, depth = 0) {
   }
 }
 
+// ---------- places ----------
+function placeQuery([s, w, n, e]) {
+  const bb = [s, w, n, e].map((x) => x.toFixed(5)).join(",");
+  return `[out:json][timeout:180];
+(
+  nwr["highway"="trailhead"](${bb});
+  nwr["tourism"~"^(alpine_hut|wilderness_hut|viewpoint|camp_site)$"](${bb});
+  nwr["amenity"="shelter"]["shelter_type"~"^(basic_hut|lean_to|weather_shelter|rock_shelter)$"](${bb});
+  node["natural"~"^(peak|volcano)$"]["name"](${bb});
+  node["waterway"="waterfall"](${bb});
+  nwr["amenity"="parking"]["access"!~"^(private|no|customers|permit|delivery)$"](${bb});
+  node["amenity"~"^(drinking_water|toilets)$"](${bb});
+);
+out center tags qt;`;
+}
+async function fetchPlaces(box, depth = 0) {
+  try { return (await overpass(placeQuery(box))).elements || []; }
+  catch (e) {
+    if (!e.heavy || depth >= 2) throw e;
+    const out = [];
+    for (const q of quarters(box)) out.push(...(await fetchPlaces(q, depth + 1)));
+    return out;
+  }
+}
+const PLACE_EXTRA = ["ele", "fee", "charge", "capacity", "operator", "website", "reservation", "shelter_type", "backcountry", "drinking_water", "opening_hours", "seasonal", "description", "height"];
+// One place kind per element (the same as hike.js placeKind).
+function placeKind(t) {
+  if (t.highway === "trailhead") return "th";
+  if (t.amenity === "parking") return "park";
+  if (/^(alpine_hut|wilderness_hut)$/.test(t.tourism) || t.amenity === "shelter") return "hut";
+  if (t.tourism === "camp_site") return "camp";
+  if (t.tourism === "viewpoint") return "view";
+  if (/^(peak|volcano)$/.test(t.natural)) return "peak";
+  if (t.waterway === "waterfall") return "fall";
+  if (t.amenity === "drinking_water") return "water";
+  if (t.amenity === "toilets") return "wc";
+  return null;
+}
+const NEAR_TRAIL = new Set(["park", "water", "wc"]);
+function buildPlaces(els, trailWays) {
+  // A 0.004° grid (about 400 m) of the trails' points: "near a trail" is the place's cell or one next to it.
+  const C = 0.004, cells = new Set(), cell = (a, b) => `${Math.floor(a / C)},${Math.floor(b / C)}`;
+  for (const w of trailWays) for (const p of w.g) cells.add(cell(p[0], p[1]));
+  const near = (lat, lon) => { const y = Math.floor(lat / C), x = Math.floor(lon / C); for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) if (cells.has(`${y + i},${x + j}`)) return true; return false; };
+  const out = [], seen = new Set();
+  for (const e of els) {
+    const t = e.tags || {}, k = placeKind(t), lat = e.lat != null ? e.lat : e.center && e.center.lat, lon = e.lon != null ? e.lon : e.center && e.center.lon;
+    if (!k || lat == null) continue;
+    const id = e.type[0] + e.id;
+    if (seen.has(id)) continue;
+    if ((NEAR_TRAIL.has(k) || (k === "camp" && !t.name)) && !near(lat, lon)) continue;
+    if (t.access && /^(private|no)$/.test(t.access)) continue;
+    seen.add(id);
+    const x = {}; PLACE_EXTRA.forEach((key) => { if (t[key] != null) x[key] = String(t[key]).slice(0, 200); });
+    out.push([id, k, +lat.toFixed(5), +lon.toFixed(5), t.name || "", x]);
+  }
+  return { v: 1, builtAt: new Date().toISOString(), at: Date.now(), p: out };
+}
+
 // ---------- one zone ----------
 function build(els, box) {
   const rels = new Map(), ways = new Map();
@@ -117,19 +181,30 @@ function build(els, box) {
 }
 
 mkdirSync(DATA, { recursive: true });
-const todo = ZONES.filter((z) => !ONLY || ONLY.includes(z.id)).map((z) => ({ z, old: readJson(`hike-${z.id}.json`) }))
-  .filter(({ old }) => !old || old.rules !== RULES || Date.now() - Date.parse(old.builtAt) > FRESH_HOURS * 3600e3)
+const stale = (old) => !old || Date.now() - Date.parse(old.builtAt) > FRESH_HOURS * 3600e3;
+const todo = ZONES.filter((z) => !ONLY || ONLY.includes(z.id)).map((z) => ({ z, old: readJson(`hike-${z.id}.json`), oldP: readJson(`hike-places-${z.id}.json`) }))
+  .filter(({ old, oldP }) => stale(old) || old.rules !== RULES || stale(oldP))
   .sort((a, b) => (a.old ? Date.parse(a.old.builtAt) : 0) - (b.old ? Date.parse(b.old.builtAt) : 0));
 log(`${todo.length} of ${ZONES.length} zones to build`);
 let built = 0, failed = 0;
-for (const { z } of todo) {
+for (const { z, old, oldP } of todo) {
   if (outOfTime()) { log("Out of time: the rest next run."); break; }
   log(`${z.id} (${z.name})`);
+  let trails = old;
   try {
-    const f = build(await fetchBox(z.box), z.box);
-    if (!f.w.length) throw new Error("no trails at all (OpenStreetMap answered empty)");
-    writeFileSync(new URL(`hike-${z.id}.json`, DATA), JSON.stringify(f));
-    log(`  ${f.w.length} trails, ${f.r.length} hiking routes, ${Math.round(JSON.stringify(f).length / 1024)} KB`);
+    if (stale(old) || old.rules !== RULES) {
+      const f = build(await fetchBox(z.box), z.box);
+      if (!f.w.length) throw new Error("no trails at all (OpenStreetMap answered empty)");
+      writeFileSync(new URL(`hike-${z.id}.json`, DATA), JSON.stringify(f));
+      log(`  ${f.w.length} trails, ${f.r.length} hiking routes, ${Math.round(JSON.stringify(f).length / 1024)} KB`);
+      trails = f;
+    }
+    if (trails && (stale(oldP) || trails !== old) && !outOfTime()) {
+      const p = buildPlaces(await fetchPlaces(z.box), trails.w);
+      writeFileSync(new URL(`hike-places-${z.id}.json`, DATA), JSON.stringify(p));
+      const n = {}; p.p.forEach((x) => (n[x[1]] = (n[x[1]] || 0) + 1));
+      log(`  places: ${Object.entries(n).map(([k, c]) => `${c} ${k}`).join(", ")}`);
+    }
     built++;
   } catch (e) { log(`  failed: ${e.message} (keeping the last file)`); failed++; }
 }

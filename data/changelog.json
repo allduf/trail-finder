@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-02", "text": "Hiking: Today shows which hikes near you are snow-free, plus trailheads, huts, viewpoints, water and slope angle in Layers, and a height profile on each hike."},
     {"date": "2026-11-02", "text": "3D map is sharper close up on phones when the map is still and not tilted far, with no extra memory."},
     {"date": "2026-11-02", "text": "3D map Live is now a real recent satellite photo (with its date), so it shows today's snow or bare ground, not the Summer photo again."},
     {"date": "2026-11-02", "text": "Cleaner look: fewer names on the map, a calmer map style, a simpler trail card, and one search box that also takes questions."},
