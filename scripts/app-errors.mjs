@@ -81,6 +81,44 @@ const fresh = list.filter((g) => !known.has(key(g.what)));
 const cell = (s) => String(s).replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ").replace(/`/g, "'");
 const who = (g) => [...g.phones].map((d) => (devices.get(d) || {}).label).filter(Boolean).slice(0, 3).join(", ");
 
+// ---------- crashes ----------
+// Each restart after a crash (usage.js "app", map3d.js "3d") with what the dead page was doing just before: the sport,
+// the last taps and load times, and how long that page had been open. The queue is kept on the phone, so the events
+// before a crash arrive with the next visit. Phones by model only (this log is public), never by name.
+const CRASH_HOURS = Math.max(1, +(process.env.CRASH_HOURS || HOURS));
+const crashes = await rows(`tf_use_events?select=device,session,at,what&kind=eq.crash&at=gte.${ago(CRASH_HOURS)}&order=at`);
+const crashDev = new Map();
+for (const d of [...new Set(crashes.map((c) => c.device))])
+  for (const x of await rows(`tf_use_devices?select=device,os,screen&device=eq.${encodeURIComponent(d)}`)) crashDev.set(x.device, x);
+// One crash per restart: the app and the 3D map both notice the same one within a few seconds.
+const restarts = [];
+for (const c of crashes) {
+  const prev = restarts[restarts.length - 1];
+  if (prev && prev.device === c.device && Date.parse(c.at) - Date.parse(prev.at) < 30e3) { prev.what = prev.what === "3d" || c.what === "3d" ? "3d" : "app"; continue; }
+  restarts.push({ ...c });
+}
+const crashLines = [];
+for (const c of restarts) {
+  const t = Date.parse(c.at);
+  const before = (await rows(`tf_use_events?select=at,page,kind,what,ms&device=eq.${encodeURIComponent(c.device)}&at=gte.${new Date(t - 3 * 3600e3).toISOString()}&at=lt.${c.at}&order=at`))
+    .filter((e) => e.kind !== "crash");
+  // The dead page started at its last "open" (or the first event after a gap).
+  const opens = before.filter((e) => e.kind === "open");
+  const lastOpen = opens[opens.length - 1];
+  const sp = [...before].reverse().find((x) => (x.kind === "sport" || x.kind === "open") && x.what);
+  const d = crashDev.get(c.device) || {};
+  const last = before[before.length - 1];
+  const tail = before.slice(-14).map((e) => `${Math.round((t - Date.parse(e.at)) / 1000)}s ${e.kind}${e.what ? ` ${e.what}` : ""}${e.ms != null ? ` (${e.ms})` : ""}`);
+  crashLines.push(`- **${c.at.slice(0, 16).replace("T", " ")}Z** ${c.what === "3d" ? "in the 3D map" : "app"} · ${cell(d.os || "?")} · ${cell(d.screen || "")} · phone ${c.device.slice(0, 4)}` +
+    ` · sport ${sp ? (SPORTS[sp.what] || sp.what) : "?"}` +
+    (lastOpen ? ` · page open ${Math.round((Date.parse(last.at) - Date.parse(lastOpen.at)) / 60e3)} min before its last event` : "") +
+    (last ? ` · last event ${Math.round((t - Date.parse(last.at)) / 1000)} s before the restart` : " · nothing sent before") +
+    (tail.length ? `\n  <sub>${cell(tail.join(" · "))}</sub>` : ""));
+}
+const crashMd = !restarts.length ? "" : [`**${restarts.length} crash restart${restarts.length > 1 ? "s" : ""}** in the last ${CRASH_HOURS} hours ` +
+  `(${restarts.filter((c) => c.what === "3d").length} in the 3D map). Newest last; under each, what that phone did just before (seconds before the restart).`, "", ...crashLines].join("\n");
+console.log(crashMd || `No crashes in the last ${CRASH_HOURS} hours.`);
+
 const day = new Date().toISOString().slice(0, 10);
 const md = !list.length ? `No app errors in the last ${HOURS} hours 🎉` : [
   `**${errors.length} error${errors.length > 1 ? "s" : ""}** on ${new Set(errors.map((e) => e.device)).size} phone(s) in the last ${HOURS} hours` +
@@ -90,7 +128,7 @@ const md = !list.length ? `No app errors in the last ${HOURS} hours 🎉` : [
   list.length > 25 ? `\n…and ${list.length - 25} more on usage.html.` : "",
 ].join("\n");
 console.log(md);
-if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `## App errors, ${day}\n\n${md}\n`);
+if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `## App errors, ${day}\n\n${md}\n${crashMd ? `\n## Crashes\n\n${crashMd}\n` : ""}`);
 if (DRY) { console.log("Dry run: no issue comment."); process.exit(0); }
 
 // ---------- the issue ----------
@@ -109,7 +147,7 @@ const body = `${MARK}\nEach morning \`.github/workflows/app-errors.yml\` writes 
   `Last checked ${day}: ${errors.length} error(s).`;
 if (!issue) issue = await github("/issues", "POST", { title: TITLE, body, assignees: [OWNER] });
 else await github(`/issues/${issue.number}`, "PATCH", { body, state: "open" });
-if (list.length) {
-  await github(`/issues/${issue.number}/comments`, "POST", { body: `### ${day}\n${fresh.length ? `@${OWNER} ${fresh.length} new error${fresh.length > 1 ? "s" : ""} in the app.\n\n` : "\n"}${md}` });
+if (list.length || crashMd) {
+  await github(`/issues/${issue.number}/comments`, "POST", { body: `### ${day}\n${fresh.length ? `@${OWNER} ${fresh.length} new error${fresh.length > 1 ? "s" : ""} in the app.\n\n` : "\n"}${list.length ? md : ""}${crashMd ? `\n\n#### Crashes\n${crashMd}` : ""}` });
   console.log(`Commented on issue #${issue.number}.`);
 }
