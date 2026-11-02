@@ -1554,7 +1554,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <p class="src">Canada: Canadian Wildland Fire Information System (Natural Resources Canada, Canadian Forest Service, Northern Forestry Centre, Edmonton), Canada Lands Survey System, Environment and Climate Change Canada hydrometric data, Fisheries and Oceans Canada tides, ISED National Broadband Data (Open Government Licence - Canada). Avalanche forecasts: Avalanche Canada. Rogers Pass: Parks Canada. Stocking: Freshwater Fisheries Society of BC. Logging outside BC and Quebec: Global Forest Watch. Ski routes: camptocamp.org. Bike tank and fuel numbers are approximate makers' figures.</p>
     </details>
     <p><button class="btn primary" id="aboutClose" type="button">Got it</button></p>
-    <p class="muted"><a href="support.html">Help and support</a> · <a href="privacy.html">Privacy</a></p>
+    <p class="muted"><a href="support.html">Help and support</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms and safety</a></p>
   </div>
 </div>
 
@@ -5484,7 +5484,8 @@ out body;`;
       ${window.tfWhatsNew ? card("news", "🆕", "What's new", "The latest changes to the app") : ""}
       ${card("about", "?", "How it works", "")}
       ${card("support", "✉", "Help and support", "Questions, problems, ideas")}
-      ${card("privacy", "🔒", "Privacy", "What the app keeps and how to delete it")}`;
+      ${card("privacy", "🔒", "Privacy", "What the app keeps and how to delete it")}
+      ${card("terms", "📜", "Terms and safety", "Your own risk, the rules for posts")}`;
     }
     return "";
   }
@@ -5700,7 +5701,7 @@ out body;`;
     else if (act === "full") $("fullBtn").click();
     else if (act === "account") document.querySelector(".brand [data-account-slot] button")?.click();
     else if (act === "about") $("aboutBtn").click();
-    else if (act === "support" || act === "privacy") location.href = act + ".html";
+    else if (act === "support" || act === "privacy" || act === "terms") location.href = act + ".html";
     else if (act === "news") window.tfWhatsNew.open();
     else if (act.startsWith("log") && window.tfPoints) window.tfPoints.openLog(act.slice(4) || undefined);   // My hunts' tabs, the Fishing log
     else if (act === "tours") location.href = "ride.html#rides";
@@ -8318,6 +8319,7 @@ out tags center qt;`;
 <script src="account.js?v=1530"></script>
 <script src="live.js?v=1530"></script>
 <script src="strava.js?v=1530"></script>
+<script src="moderation.js?v=1530"></script>
 <script src="reports.js?v=1530"></script>
 <script src="grades.js?v=1530"></script>
 <script src="trail-photos.js?v=1530"></script>

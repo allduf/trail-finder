@@ -61,6 +61,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
 
   const css = document.createElement("style");
   css.textContent = `
+.pf-limit { background: var(--warn-bg, #fff4e0); color: var(--warn-fg, #7a4a00); border-radius: 10px; padding: 10px 12px; font-size: .92rem; line-height: 1.4; }
 .tsearch-row .photo-find-btn { padding-left: 10px; padding-right: 10px; display: inline-flex; align-items: center; }
 .pf { position: fixed; inset: 0; z-index: 1001; background: rgba(0,0,0,.45); display: grid; place-items: center; padding: 16px; }
 .pf[hidden] { display: none; }
@@ -650,6 +651,12 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     $("pfAi").hidden = !seen && !aiWhy;
     $("pfAi").textContent = seen && !seen.scene && pages.length ? "" : seen ? `The AI sees${seen.ms ? ` (${Math.round(seen.ms / 1000)} s)` : ""}: ` + seen.scene + (seen.landmarks.length ? ` Landmarks: ${seen.landmarks.join(", ")}.` : "") + (seen.viewpoint && seen.viewpoint.where ? ` Taken around: ${seen.viewpoint.where}.` : "")
       : aiWhy ? `AI check skipped (${aiWhy}): matching the words, your description and landmarks.` : "";
+    // This person's AI photo searches for today are used up (the function's per-person limit; 3 a day once the app is
+    // public, go-public checklist item 26): say it plainly, with when it comes back (alex, 2026-11-02).
+    if (!seen && /daily limit is reached/i.test(aiWhy)) {
+      $("pfAi").innerHTML = `<div class="pf-limit"><b>You've used today's AI photo searches.</b> <span>Come back tomorrow for more.</span> <span>Until then, photo find still uses the spot saved in the photo, the words in it and your description.</span></div>`;
+      $("pfAi").hidden = false;
+    }
     // Where the same picture is online: a link to each page (the rider can read the post there).
     if (pages.length || (on && on.error)) {
       const box = document.createElement("div");

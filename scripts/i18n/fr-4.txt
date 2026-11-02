@@ -125,3 +125,39 @@ Google's AI is off (your choice), so pick the fish yourself. Turn it on in More,
 Photo find, Ask in plain words and fish ID now ask once before anything goes to Google's AI (18 or older). Change it in More, Google's AI. ||| La recherche par photo, Demandez en mots simples et l'identification des poissons demandent maintenant une fois avant d'envoyer quoi que ce soit à l'IA de Google (18 ans ou plus). Modifiable dans Plus, IA de Google.
 Use it ||| L'utiliser
 Don't use it ||| Ne pas l'utiliser
+# Photo find daily limit note (item 26), 2026-11-02
+You've used today's AI photo searches. ||| Vous avez utilisé vos recherches par photo avec l'IA pour aujourd'hui.
+Come back tomorrow for more. ||| Revenez demain pour en faire d'autres.
+Until then, photo find still uses the spot saved in the photo, the words in it and your description. ||| D'ici là, la recherche par photo utilise quand même l'endroit enregistré dans la photo, les mots qu'elle contient et votre description.
+# Terms page link, reports and hide (moderation.js), 2026-11-02
+Terms and safety ||| Conditions et sécurité
+Your own risk, the rules for posts ||| À vos risques, les règles des publications
+Terms ||| Conditions
+Report ||| Signaler
+Hide this rider ||| Masquer cet usager
+Report this photo ||| Signaler cette photo
+Report these rider grades ||| Signaler ces cotes des usagers
+Report this trail report ||| Signaler ce rapport de sentier
+Sign in to report it, so reports can't be faked. ||| Connectez-vous pour signaler, afin qu'on ne puisse pas faire de faux signalements.
+Or email trailfinder.help@outlook.com. ||| Ou écrivez à trailfinder.help@outlook.com.
+ You can also hide this rider without an account. ||| Vous pouvez aussi masquer cet usager sans compte.
+Cancel ||| Annuler
+Sign in ||| Se connecter
+Rude, hateful or harassing ||| Grossier, haineux ou harcelant
+Spam or ads ||| Pourriel ou publicité
+Wrong or not about this trail ||| Faux ou pas à propos de ce sentier
+Dangerous or illegal ||| Dangereux ou illégal
+Shows a person or private info ||| Montre une personne ou des renseignements privés
+Something else ||| Autre chose
+Anything else? (optional) ||| Autre chose ? (facultatif)
+Also hide everything from this rider ||| Masquer aussi tout ce que publie cet usager
+Posts several riders report are hidden until they're checked. You can also email trailfinder.help@outlook.com. ||| Les publications signalées par plusieurs usagers sont masquées jusqu'à leur vérification. Vous pouvez aussi écrire à trailfinder.help@outlook.com.
+Send report ||| Envoyer le signalement
+Sending… ||| Envoi…
+Thanks, your report is in ||| Merci, votre signalement est envoyé
+It will be checked. Posts several riders report stop showing. ||| Il sera vérifié. Les publications signalées par plusieurs usagers ne s'affichent plus.
+Close ||| Fermer
+Show hidden riders again ||| Réafficher les usagers masqués
+Hide everything this rider posts? You can show them again from any trail. ||| Masquer tout ce que publie cet usager ? Vous pourrez le réafficher depuis n'importe quel sentier.
+Reports aren't set up yet. ||| Les signalements ne sont pas encore prêts.
+Couldn't send it. Try again later. ||| Envoi impossible. Réessayez plus tard.

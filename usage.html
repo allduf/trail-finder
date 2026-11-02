@@ -77,6 +77,11 @@ details > summary { cursor: pointer; font-weight: 600; }
   </div>
   <div id="msg" class="muted">Loading…</div>
   <div id="setup" class="note" hidden>One step left to see searches, speed, crashes and every tester: paste <b>supabase/usage-more.sql</b> into the Supabase SQL Editor and run it. Until then the app can't send them.</div>
+  <div id="flagsBox" hidden>
+    <h2>Reported posts</h2>
+    <p class="muted">Trail reports, rider photos and rider grades that riders reported (⚑). 3 reports hide a post for everyone until you keep it or remove it.</p>
+    <div class="card" id="flags"></div>
+  </div>
   <div id="out" hidden>
     <div class="who days" role="group" aria-label="Whose use">
       <button type="button" data-who="others">Everyone but me</button><button type="button" data-who="all">Everyone</button><button type="button" data-who="me">Only me</button>
@@ -285,6 +290,7 @@ details > summary { cursor: pointer; font-weight: 600; }
       }
       return { data: got, error: null };
     };
+    loadFlags();
     const [rep, dev, ros, kin, lim] = await Promise.all([
       report(), acct.client.rpc("tf_use_devices_all"), acct.client.rpc("tf_use_roster_get"),
       acct.client.rpc("tf_visits_by_kind", { days }), acct.client.rpc("tf_use_limits"),
@@ -312,6 +318,37 @@ details > summary { cursor: pointer; font-weight: 600; }
     $("out").hidden = false;
     await autoName();
     paint();
+  }
+  // Reported posts (supabase/moderation.sql, go-public checklist item 3): keep or remove each one.
+  const REASON = { rude: "rude", spam: "spam", wrong: "wrong", unsafe: "dangerous", private: "private info", other: "other" };
+  async function loadFlags() {
+    const acct = window.tfAccount, box = $("flags");
+    if (!acct || !acct.client || !acct.user) return;
+    const { data, error } = await acct.client.rpc("tf_flag_list");
+    $("flagsBox").hidden = false;
+    if (error) {
+      box.innerHTML = /Could not find|does not exist/.test(error.message)
+        ? `<p class="muted" style="padding:10px">Not set up yet: paste <b>supabase/moderation.sql</b> into the Supabase SQL Editor and run it.</p>`
+        : `<p class="muted" style="padding:10px">Couldn't load: ${esc(error.message)}</p>`;
+      return;
+    }
+    if (!data.length) { box.innerHTML = `<p class="muted" style="padding:10px">Nothing reported. 👍</p>`; return; }
+    const pic = (path) => path ? `<img alt="" loading="lazy" style="width:72px;height:54px;object-fit:cover;border-radius:6px;vertical-align:middle" src="${esc(acct.client.storage.from("trail-photos").getPublicUrl(path).data.publicUrl)}">` : "";
+    const KIND = { report: "Trail report", photo: "Photo", grade: "Rider grades" };
+    box.innerHTML = `<table><tr><th>What</th><th>Post</th><th>Reports</th><th></th></tr>${data.map((f, i) => `<tr>
+      <td>${KIND[f.kind] || esc(f.kind)}<br><span class="muted">${esc(f.trail_name || "")}</span></td>
+      <td>${pic(f.path)} ${esc(f.body || (f.kind === "grade" ? "" : "(already deleted)"))}${f.posted_at ? `<br><span class="muted">${esc(new Date(f.posted_at).toLocaleDateString())}</span>` : ""}</td>
+      <td><b>${f.flags}</b>${f.flags >= 3 ? " (hidden)" : ""}<br><span class="muted">${esc(String(f.reasons || "").split(", ").map((r) => REASON[r] || r).join(", "))}${f.notes ? `: ${esc(f.notes)}` : ""}</span></td>
+      <td style="white-space:nowrap"><button class="btn" type="button" data-flag="${i}" data-rm="0">Keep</button> <button class="btn go" type="button" data-flag="${i}" data-rm="1">Remove</button></td></tr>`).join("")}</table>`;
+    box.querySelectorAll("[data-flag]").forEach((b) => b.addEventListener("click", async () => {
+      const f = data[+b.dataset.flag], rm = b.dataset.rm === "1";
+      if (rm && !confirm(f.kind === "grade" ? "Remove every rider grade on this trail?" : "Remove this post for good?")) return;
+      b.disabled = true;
+      if (rm && f.kind === "photo" && f.path) await acct.client.storage.from("trail-photos").remove([f.path]).catch(() => {});
+      const { error: e } = await acct.client.rpc("tf_flag_done", { k: f.kind, t: f.target_id, remove: rm });
+      if (e) { b.disabled = false; b.textContent = "Couldn't"; return; }
+      loadFlags();
+    }));
   }
   window.addEventListener("tf:account", () => load());
 

@@ -134,7 +134,9 @@
       ? `<div class="muted">${mine ? "Your grade (tap it again to take it back):" : "Your grade, one tap:"}</div>
          <div class="rg-pick" role="group" aria-label="Your grade">${LEVELS.map((l) => `<button type="button" class="g-${l}" data-g="${l}" aria-pressed="${mine === l}"><span class="rg-sym" aria-hidden="true">${SYM[l]}</span>${LABEL[l]}</button>`).join("")}</div>`
       : acct && acct.enabled ? `<p><button type="button" class="linkish rg-signin">Sign in to give your grade</button> <span class="muted">(seeing grades needs no account)</span></p>` : "";
-    box.innerHTML = `<p class="rg-say">${say}</p>${pick}<span class="muted rg-msg" role="status">${esc(msg || (waiting ? "Your grade is waiting for signal to go up." : ""))}</span>`;
+    // ⚑ Report on the riders' grades (moderation.js): 3 reports take this trail's rider grades out until alex checks them.
+    const flag = g && window.tfMod ? ` ${window.tfMod.buttons("grade", t.id, "", t.osmType || "way")}` : "";
+    box.innerHTML = `<p class="rg-say">${say}${flag}</p>${pick}<span class="muted rg-msg" role="status">${esc(msg || (waiting ? "Your grade is waiting for signal to go up." : ""))}</span>`;
     const signIn = box.querySelector(".rg-signin");
     if (signIn) signIn.addEventListener("click", () => { if (acct.open) acct.open(); else { const b = document.querySelector(".acct-btn"); if (b) b.click(); } });
     box.querySelectorAll(".rg-pick button").forEach((b) => b.addEventListener("click", () => give(box, t, b.dataset.g === mine ? null : b.dataset.g)));

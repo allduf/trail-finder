@@ -59,17 +59,20 @@
       return;
     }
     const since = new Date(Date.now() - LIST_DAYS * DAY).toISOString();
-    const { data, error } = await acct.client.from("trail_reports").select("id, user_id, condition, note, created_at")
+    let { data, error } = await acct.client.from("trail_reports").select("id, user_id, condition, note, created_at")
       .eq("osm_type", type).eq("osm_id", t.id).gte("created_at", since).order("created_at", { ascending: false }).limit(30);
     if (current !== t || !document.body.contains(box)) return;
     box.classList.remove("muted");
     const me = acct.user ? acct.user.id : null;
+    // Hide this rider (moderation.js): their reports drop out here; a line says how many and brings them back.
+    const mod = window.tfMod, kept = !error && mod ? mod.filter(data) : { rows: data || [], n: 0 };
+    if (!error) data = kept.rows;
     const list = error ? `<p class="muted">Couldn't load reports (${esc(error.message)}).</p>`
       : !data.length ? `<p class="muted">No reports in the last ${LIST_DAYS} days. Rode it lately? Tell other riders how it was.</p>`
-      : `<ul class="rep-list">${data.map((r) => { const k = kind(r.condition); return `<li><span class="rep-ico" aria-hidden="true">${k.icon}</span><div><strong>${esc(k.label)}</strong> <span class="muted">${esc(when(r.created_at))}${r.user_id === me ? " · you" : ""}</span>${r.note ? `<div>${esc(r.note)}</div>` : ""}</div>${r.user_id === me ? `<button type="button" class="linkish rep-del" data-id="${r.id}">Delete</button>` : ""}</li>`; }).join("")}</ul>`;
+      : `<ul class="rep-list">${data.map((r) => { const k = kind(r.condition); return `<li><span class="rep-ico" aria-hidden="true">${k.icon}</span><div><strong>${esc(k.label)}</strong> <span class="muted">${esc(when(r.created_at))}${r.user_id === me ? " · you" : ""}</span>${r.note ? `<div>${esc(r.note)}</div>` : ""}${mod ? mod.buttons("report", r.id, r.user_id) : ""}</div>${r.user_id === me ? `<button type="button" class="linkish rep-del" data-id="${r.id}">Delete</button>` : ""}</li>`; }).join("")}</ul>`;
     const form = me ? formHtml(t, type)
       : `<p><button type="button" class="linkish rep-signin">Sign in to post a report</button> <span class="muted">(reading reports needs no account)</span></p>`;
-    box.innerHTML = list + form;
+    box.innerHTML = (window.tfMod ? window.tfMod.hiddenLine(kept.n) : "") + list + form;
 
     box.querySelectorAll(".rep-del").forEach((b) => b.addEventListener("click", async () => {
       b.disabled = true;
@@ -154,5 +157,6 @@
   setTimeout(flush, 3000);
 
   window.tfReports = { show };
+  document.addEventListener("tf:modchange", () => { if (current && document.getElementById("reports")) show(current); });
   window.addEventListener("tf:account", () => { if (current && document.getElementById("reports")) show(current); });
 })();

@@ -96,7 +96,7 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     <input type="password" id="acctNewPass" autocomplete="new-password" minlength="6" placeholder="At least 6 characters">
     <div class="acct-row" style="margin-bottom:12px"><button type="button" id="acctSetPass">Save password</button></div>
     <div class="acct-row"><button type="button" id="acctBack">← Back</button><button type="button" id="acctSignOut">Sign out</button></div>
-    <div class="acct-alt"><a href="privacy.html">Privacy</a><button type="button" id="acctDel" class="acct-del">Delete my account</button></div>
+    <div class="acct-alt"><a href="privacy.html">Privacy</a> <a href="terms.html">Terms</a><button type="button" id="acctDel" class="acct-del">Delete my account</button></div>
   </div>
   <div id="acctDelBox" hidden>
     <h2>Delete account?</h2>
