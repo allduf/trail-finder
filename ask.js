@@ -54,7 +54,13 @@ dialog.ask-dlg form.ask-box label { position: absolute; width: 1px; height: 1px;
   /* the sports' Find pages are in a set order (theme.css): the box goes right under their search box */
   html body :is(#skiPane, #huntPane, #fishPane, #motoPane) form.ask-box { order: 1; }
   html body .panel:not(.nav-alt) :is(#skiPane, #huntPane, #fishPane, #motoPane) form.ask-box { display: none; }
+  /* One search box on the Find page (alex 2026-11-02, interface review): the sport's own search takes questions too
+     (asks() below), so its Ask box shrinks to one example line that asks it when tapped. */
+  :is(.hub, #skiPane, #huntPane, #fishPane, #motoPane) form.ask-box > :is(label, .ask-row) { display: none; }
+  :is(.hub, #skiPane, #huntPane, #fishPane, #motoPane) form.ask-box .ask-try { display: block; }
 }
+.ask-try { all: unset; display: none; box-sizing: border-box; cursor: pointer; font-size: .84rem; color: var(--muted); padding: 2px 2px 4px; line-height: 1.35; }
+.ask-try b { color: #1f5fe0; font-weight: 600; }
 dialog.ask-dlg { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--fg); padding: 14px; width: min(540px, calc(100vw - 16px)); max-height: calc(100dvh - 24px); overflow: auto; box-sizing: border-box; box-shadow: 0 10px 40px rgba(0,0,0,.3); font: inherit; }
 dialog.ask-dlg::backdrop { background: rgba(0,0,0,.45); }
 dialog.ask-dlg h2 { margin: 0 0 8px; font-family: var(--font-display); font-size: 1.25rem; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
@@ -82,7 +88,30 @@ ol.ask-list b { font-size: .96rem; } ol.ask-list small { color: var(--muted); fo
 
   // ---------- the box (on each sport's Find page) and the answer sheet ----------
   const boxHtml = (sp, cls = "") => `<form class="ask-box ${cls}" data-ask="${sp}" role="search"><label for="askIn-${sp}${cls ? "-" + cls : ""}">💬 Ask in plain words</label>
-    <div class="ask-row"><input class="ask-in" id="askIn-${sp}${cls ? "-" + cls : ""}" type="search" enterkeyhint="search" autocomplete="off" placeholder="${esc(SP[sp].ph)}" aria-label="Ask in plain words"><button type="submit" class="ask-go">Ask</button></div></form>`;
+    <div class="ask-row"><input class="ask-in" id="askIn-${sp}${cls ? "-" + cls : ""}" type="search" enterkeyhint="search" autocomplete="off" placeholder="${esc(SP[sp].ph)}" aria-label="Ask in plain words"><button type="submit" class="ask-go">Ask</button></div><button type="button" class="ask-try" data-try="${esc(SP[sp].ph)}"><span aria-hidden="true">💬 </span><span>You can also ask in plain words, like:</span> <b>${esc(SP[sp].ph)}</b></button></form>`;
+  document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest(".ask-try"); if (b) open(b.dataset.try); });
+  // The sport's own search box answers questions too (interface review 2026-11-02: two search boxes on Find). Words that
+  // read like a question ("loop near Squamish tomorrow", "what can I hunt near Pemberton") go to Ask; names (a trail, a
+  // town, "Lord of the Squirrels") stay with the normal search.
+  const QWORD = /\b(near|nearby|around|loop|loops|where|what|which|how|when|best|today|tomorrow|tonight|weekend|stocked|danger|hours?|km|under|i|me)\b/i;
+  const asks = (q) => !document.body.classList.contains("sport-hike") && !!SP[sportOf()] && q.trim().split(/\s+/).length >= 3 && QWORD.test(q);
+  document.addEventListener("submit", (e) => {
+    // Only each sport's own search under its buttons (and Skiing's find box), not a box like Plan a route's "Add a place".
+    const f = e.target.closest && e.target.closest("form.ps-box, form#skFindForm");
+    const inp = f && f.querySelector("input"), q = inp ? inp.value.trim() : "";
+    const own = f && (f.id === "skFindForm" || (f.previousElementSibling && f.previousElementSibling.matches(".hn-actions, .fs-actions, .mt-actions")));
+    if (!own || f.closest("dialog") || !asks(q)) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    inp.blur(); open(q);
+  }, true);
+  const trailAsk = (e) => {
+    const inp = $("trailQ"), q = inp ? inp.value.trim() : "";
+    if (!asks(q)) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    inp.blur(); open(q);
+  };
+  document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target && e.target.id === "trailQ") trailAsk(e); }, true);
+  document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("#trailGo")) trailAsk(e); }, true);
   document.addEventListener("submit", (e) => {
     const f = e.target.closest && e.target.closest("form[data-ask]");
     if (!f) return;

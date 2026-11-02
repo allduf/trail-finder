@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Trail Finder">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#12291d">
-<script src="i18n.js?v=1560"></script>
+<script src="i18n.js?v=1570"></script>
 </head>
 <body>
 <title>Trail Finder</title>
@@ -947,6 +947,10 @@ body.box-on .leaflet-bottom.leaflet-left { visibility: hidden; }   /* the Key bu
 .grade { display: inline-block; font-family: var(--font-display); font-weight: 700; font-size: .8rem; padding: 0 6px; border-radius: 4px; background: var(--fg); color: var(--panel); letter-spacing: .04em; }
 /* 25% made the other trails vanish on the map tiles, leaving only their names (alex, 2026-10-20): keep them readable */
 .trail-focus .leaflet-allTrails-pane, .trail-focus .leaflet-boxTrails-pane, .trail-focus .leaflet-trailNames-pane { opacity: .6; transition: opacity .2s; }
+/* Phones, MTB: saved spots and rider-added trails show on the Saved page only, not above the trail results */
+@media (max-width: 760px) { body:not(.sport-alt) #spBox:not(#hub #spBox), body:not(.sport-alt) #rtBox:not(#hub #rtBox) { display: none; } }
+/* The street map toned down so what the app draws stands out (makeBase) */
+.base-calm { filter: saturate(.62) brightness(1.06) contrast(.9); }
 .trail-name { background: none; border: 0; }
 .trail-name span { display: block; transform: translate(-50%, -130%); white-space: nowrap; font-family: var(--font-body); font-size: 11.5px; font-weight: 700; letter-spacing: .01em;
   text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff; }
@@ -972,12 +976,22 @@ body.box-on .leaflet-bottom.leaflet-left { visibility: hidden; }   /* the Key bu
 .d-saves { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0 4px; }
 .d-saves .want-btn { padding: 8px 4px; border-radius: 12px; font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .d-saves .share-btn { border-color: var(--line); color: var(--fg); }
+/* The save row in one quiet style (interface review 2026-11-02: four buttons in four colours); a list the trail is on
+   still lights up in its own colour. Ride it stays the one bright button on the card. */
+.d-saves .want-btn[aria-pressed="false"] { border-color: var(--line); color: var(--fg); background: transparent; }
 /* Trail details head (alex, 2026-10-24): name row, short chips, the 4 numbers, two big buttons */
 .d-top { justify-content: flex-start; }
 .d-top h2 { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .d-top .back { font-size: 1.4rem; line-height: 1; padding: 4px 8px 4px 0; text-decoration: none; }
 .d-head { margin-bottom: 4px; }
 .d-head .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+/* One chip style on the trail card (alex 2026-11-02, interface review: six badges in five styles). "MTB tagged" is the
+   usual case, so it's left out (the line's colour says it); Official, use and unofficial tags take the plain pill look;
+   the grade badge stays the one dark chip. The ⓘ marks stay on the chips that explain themselves when tapped. */
+.d-head.mtb .chips > .chip.mtb { display: none; }
+.d-head .chips .off-tag, .d-head .chips .use-tag, .d-head .chips .unoff-tag { font-size: .8rem; font-weight: 600; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip, #fff); color: var(--muted); vertical-align: 0; }
+.d-head .chips .unoff-tag { border-style: dashed; color: var(--fg); }
+.d-head .chips .off-tag::before { content: "✓ "; color: #2f7d32; }
 .why-chip { font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; border: 1px solid var(--line); background: var(--chip, #fff); color: var(--fg); border-radius: 999px; }
 .why-chip::after, .d-head .diff.has-why::after { content: " ⓘ"; opacity: .6; font-style: normal; }
 .d-head .diff.has-why { cursor: pointer; }
@@ -1570,14 +1584,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=1560"></script>
-<script src="native.js?v=1560"></script>
-<script src="keyboard.js?v=1560"></script>
-<script src="rotate.js?v=1560"></script>
-<script src="official.js?v=1560"></script>
-<script src="directions.js?v=1560"></script>
-<script src="ratings.js?v=1560"></script>
-<script src="ebike.js?v=1560"></script>
+<script src="welcome.js?v=1570"></script>
+<script src="native.js?v=1570"></script>
+<script src="keyboard.js?v=1570"></script>
+<script src="rotate.js?v=1570"></script>
+<script src="official.js?v=1570"></script>
+<script src="directions.js?v=1570"></script>
+<script src="ratings.js?v=1570"></script>
+<script src="ebike.js?v=1570"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1959,6 +1973,10 @@ body.sport-alt #rideMapBtn { display: none !important; }
     const [url, base] = BASEMAPS[key];
     const opt = { ...base, ...FAST_TILES };
     if (key === "vector") { await loadVectorLib(); return L.maplibreGL({ style: url, attributionControl: { customAttribution: opt.attribution } }); }
+    // The plain street map is toned down a little (alex 2026-11-02, interface review: the bright pink towns and greens of
+    // the OpenStreetMap style read as "a web map" next to AllTrails or onX); trails, zones and pins drawn on top keep
+    // their full colour. Photos and the topo style are left as they are.
+    if (/^osm/.test(key)) opt.className = "base-calm";
     const layer = key === "sat" || key === "sathybrid" ? new EsriDeep(url, opt) : L.tileLayer(url, opt);
     if (key !== "sathybrid") return layer;
     return L.layerGroup([layer, L.tileLayer(SAT_NAMES, { maxNativeZoom: 19, maxZoom: 22, ...FAST_TILES })]);
@@ -4201,7 +4219,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=1560").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=1570").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5475,7 +5493,9 @@ out body;`;
         + offlineCard()
         + `<div class="hub-slot" data-slot="points"></div>`;
     }
-    if (page === "saved") return offlineCard() + `<div class="hub-slot" data-slot="saved"></div>`;
+    // MTB's saved spots (ski-points.js #spBox) live here too on phones, not above the trail results (interface review
+    // 2026-11-02: "Your spots" and "Add a trail" sat above the list a rider had just asked for).
+    if (page === "saved") return offlineCard() + `<div class="hub-slot" data-slot="saved"></div><div class="hub-slot" data-slot="points"></div>`;
     if (page === "more") {
       const sp = $("sport").value, acct = document.querySelector(".brand [data-account-slot] button");
       const signedIn = acct && /(Account|Compte)$/.test(acct.textContent.trim());   // "Compte" in French (i18n-fr.js)
@@ -5961,12 +5981,19 @@ out body;`;
       const b = best.get(name);
       if (!b || inView.length > b.pts.length) best.set(name, { name, color, pts: inView });
     });
+    // Fewer names, more room around each (alex 2026-11-02, interface review: dozens of names piled up and cut off at
+    // Whistler read as cluttered next to AllTrails or onX). How many grows with the zoom and the screen's size, longest
+    // trails first; a name never runs off the screen or under the map buttons, and keeps a gap from the next one.
+    const z = map.getZoom(), area = (size.x * size.y) / (390 * 650);
+    const cap = Math.min(MAX_NAMES, Math.round((z < 14 ? 8 : z < 15 ? 14 : z < 16 ? 22 : 34) * Math.max(1, area)));
+    const top = matchMedia("(max-width: 760px)").matches ? 70 : 10;
     const placed = [];
-    [...best.values()].sort((a, b) => b.pts.length - a.pts.length).slice(0, MAX_NAMES * 2).forEach((b) => {
-      if (placed.length >= MAX_NAMES) return;
+    [...best.values()].sort((a, b) => b.pts.length - a.pts.length).slice(0, cap * 3).forEach((b) => {
+      if (placed.length >= cap) return;
       const at = b.pts[b.pts.length >> 1], xy = map.latLngToContainerPoint(at);
-      const half = Math.min(110, b.name.length * 3.4 + 6);
-      if (placed.some((q) => Math.abs(q.x - xy.x) < half + q.half && Math.abs(q.y - xy.y) < 16)) return;
+      const half = b.name.length * 3.5 + 6;
+      if (xy.x - half < 4 || xy.x + half > size.x - 4 || xy.y - 26 < top) return;
+      if (placed.some((q) => Math.abs(q.x - xy.x) < half + q.half + 10 && Math.abs(q.y - xy.y) < 26)) return;
       placed.push({ x: xy.x, y: xy.y, half });
       nameLayer.addLayer(L.marker(at, { pane: "trailNames", interactive: false, keyboard: false,
         icon: L.divIcon({ className: "trail-name", iconSize: null, html: `<span style="color: ${b.color}">${esc(b.name)}</span>` }) }));
@@ -6908,6 +6935,10 @@ out body;`;
     $("findBtn").addEventListener("click", done);
     $("list").addEventListener("click", done);
     document.querySelector('[data-nav="new"]').addEventListener("click", done);
+    // Any first step counts as getting going (interface review 2026-11-02: the tip stayed over the trail just tapped):
+    // the search bar, a quick chip or tab, or a tap on the map.
+    document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("#peekSearch, #peekQuick, nav")) done(); }, true);
+    map.on("click", done);
   }
 
   // ---------- Full map: the panel hides and the map fills the screen ----------
@@ -8306,48 +8337,48 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=1560"></script>
-<script src="native-map.js?v=1560"></script>
-<script src="contours.js?v=1560"></script>
-<script src="clouds.js?v=1560"></script>
-<script src="smoke.js?v=1560"></script>
-<script src="radar.js?v=1560"></script>
-<script src="photo-slider.js?v=1560"></script>
-<script src="ski-terrain.js?v=1560"></script>
-<script src="place-search.js?v=1560"></script>
-<script src="winter.js?v=1560"></script>
-<script src="hunts.js?v=1560"></script>
-<script src="ski-points.js?v=1560"></script>
-<script src="offline.js?v=1560"></script>
-<script src="ride-stats.js?v=1560"></script>
-<script src="native-gps.js?v=1560"></script>
-<script src="navigate.js?v=1560"></script>
-<script src="planner.js?v=1560"></script>
-<script src="loops.js?v=1560"></script>
-<script src="ride-finds.js?v=1560"></script>
-<script src="rides.js?v=1560"></script>
-<script src="community.js?v=1560"></script>
-<script src="ride-files.js?v=1560"></script>
-<script src="rider-trails.js?v=1560"></script>
-<script src="account.js?v=1560"></script>
-<script src="live.js?v=1560"></script>
-<script src="strava.js?v=1560"></script>
-<script src="moderation.js?v=1560"></script>
-<script src="reports.js?v=1560"></script>
-<script src="grades.js?v=1560"></script>
-<script src="trail-photos.js?v=1560"></script>
-<script src="visitors.js?v=1560"></script>
-<script src="usage.js?v=1560"></script>
-<script src="notify.js?v=1560"></script>
-<script src="closures.js?v=1560"></script>
-<script src="status.js?v=1560"></script>
-<script src="ask.js?v=1560"></script>
-<script src="areas.js?v=1560"></script>
-<script src="alpine.js?v=1560"></script>
-<script src="bikeparks.js?v=1560"></script>
-<script src="photo-find.js?v=1560"></script>
-<script src="whats-new.js?v=1560"></script>
-<script src="app-update.js?v=1560"></script>
+<script src="map3d.js?v=1570"></script>
+<script src="native-map.js?v=1570"></script>
+<script src="contours.js?v=1570"></script>
+<script src="clouds.js?v=1570"></script>
+<script src="smoke.js?v=1570"></script>
+<script src="radar.js?v=1570"></script>
+<script src="photo-slider.js?v=1570"></script>
+<script src="ski-terrain.js?v=1570"></script>
+<script src="place-search.js?v=1570"></script>
+<script src="winter.js?v=1570"></script>
+<script src="hunts.js?v=1570"></script>
+<script src="ski-points.js?v=1570"></script>
+<script src="offline.js?v=1570"></script>
+<script src="ride-stats.js?v=1570"></script>
+<script src="native-gps.js?v=1570"></script>
+<script src="navigate.js?v=1570"></script>
+<script src="planner.js?v=1570"></script>
+<script src="loops.js?v=1570"></script>
+<script src="ride-finds.js?v=1570"></script>
+<script src="rides.js?v=1570"></script>
+<script src="community.js?v=1570"></script>
+<script src="ride-files.js?v=1570"></script>
+<script src="rider-trails.js?v=1570"></script>
+<script src="account.js?v=1570"></script>
+<script src="live.js?v=1570"></script>
+<script src="strava.js?v=1570"></script>
+<script src="moderation.js?v=1570"></script>
+<script src="reports.js?v=1570"></script>
+<script src="grades.js?v=1570"></script>
+<script src="trail-photos.js?v=1570"></script>
+<script src="visitors.js?v=1570"></script>
+<script src="usage.js?v=1570"></script>
+<script src="notify.js?v=1570"></script>
+<script src="closures.js?v=1570"></script>
+<script src="status.js?v=1570"></script>
+<script src="ask.js?v=1570"></script>
+<script src="areas.js?v=1570"></script>
+<script src="alpine.js?v=1570"></script>
+<script src="bikeparks.js?v=1570"></script>
+<script src="photo-find.js?v=1570"></script>
+<script src="whats-new.js?v=1570"></script>
+<script src="app-update.js?v=1570"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
