@@ -161,3 +161,4 @@ Show hidden riders again ||| Réafficher les usagers masqués
 Hide everything this rider posts? You can show them again from any trail. ||| Masquer tout ce que publie cet usager ? Vous pourrez le réafficher depuis n'importe quel sentier.
 Reports aren't set up yet. ||| Les signalements ne sont pas encore prêts.
 Couldn't send it. Try again later. ||| Envoi impossible. Réessayez plus tard.
+3D map on iPhone: it now gives back all its memory while you are in another app, to stop the restarts when you come back. The 3D map redraws for a second or two when you return. ||| Carte 3D sur iPhone : elle libère toute sa mémoire quand vous êtes dans une autre appli, pour éviter les redémarrages au retour. La carte 3D se redessine une ou deux secondes à votre retour.
