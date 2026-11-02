@@ -135,6 +135,33 @@ ul.ps-hits:empty { display: none; }
     if (o.sheet !== false && window.tfSnapTo) window.tfSnapTo(o.sheet || "half");
   }
 
+  // ---------- towns while typing ----------
+  // Every sport's box offers Canadian towns, places and parks as you type (fix list item 38, 2026-11-02: Hunting
+  // showed nothing until Go), from the same GeoNames list as MTB's name box (data/places.json, loaded on the first
+  // letter). Nominatim is still only asked on Go.
+  const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const PKIND = { t: ["Town", "🏘"], l: ["Place", "📍"], p: ["Park", "🌲"] };
+  let towns = null, townsP = null;
+  function loadTowns(then) {
+    if (!townsP) townsP = fetch("data/places.json").then((r) => (r.ok ? r.json() : null)).catch(() => null)
+      .then((f) => { towns = ((f && f.places) || []).map(([name, lat, lon, prov, kind, pop]) => ({ name, lat, lon, prov, kind, pop: pop || 0, t: norm(name) })); });
+    townsP.then(then);
+  }
+  function townHits(raw, n) {
+    const q = norm(raw);
+    if (!towns || q.length < 2) return [];
+    const c = map.getCenter(), k = Math.cos((c.lat * Math.PI) / 180), out = [];
+    for (const p of towns) {
+      const s = p.t === q ? 3 : p.t.startsWith(q) ? 2 : q.length >= 4 && p.t.includes(" " + q) ? 1 : 0;
+      if (s) out.push([p, s, Math.hypot(p.lat - c.lat, (p.lon - c.lng) * k)]);
+    }
+    // Exact names first, then the nearest of the bigger towns: a town near the map beats a big one far away.
+    return out.sort((a, b) => b[1] - a[1] || (a[2] - b[2]) / 2 + Math.log10(1 + b[0].pop) - Math.log10(1 + a[0].pop)).slice(0, n).map(([p]) => {
+      const kd = PKIND[p.kind] || PKIND.l;
+      return { name: p.name, sub: [kd[0], p.prov].filter(Boolean).join(" · "), kind: kd[0], ic: kd[1], lat: p.lat, lon: p.lon, bb: null, zoom: p.kind === "t" ? 12 : 13, ca: true };
+    });
+  }
+
   const hitHtml = (p, i) => `<li><button type="button" data-i="${i}"><span class="ps-ic" aria-hidden="true">${esc(p.ic || "📍")}</span><span class="ps-tx"><b>${esc(p.name)}</b><small>${esc(p.sub || "")}</small></span></button></li>`;
 
   // ---------- a search box ----------
@@ -158,11 +185,13 @@ ul.ps-hits:empty { display: none; }
       if (o.onPick) o.onPick(p); else go(p);
     };
     ul.addEventListener("click", (e) => { const b = e.target.closest("button[data-i]"); if (b) pick(rows[+b.dataset.i]); });
-    input.addEventListener("input", () => {
+    const typed = () => {
       const q = input.value.trim();
-      const loc = q.length >= 2 && o.local ? o.local(q) || [] : [];
-      show(loc.slice(0, 5), q.length >= 2 ? "Press Go to search every place with that name." : "");
-    });
+      const loc = q.length >= 2 && o.local ? (o.local(q) || []).slice(0, 5) : [];
+      const all = [...loc, ...townHits(q, 5 - Math.min(loc.length, 3))].slice(0, 5);
+      show(all, q.length >= 2 ? (all.length ? "Not in the list? Press Go to search every place." : "Press Go to search every place with that name.") : "");
+    };
+    input.addEventListener("input", () => { typed(); if (!towns) loadTowns(() => { if (document.activeElement === input || input.value.trim()) typed(); }); });
     el.addEventListener("submit", async (e) => {
       e.preventDefault();
       const q = input.value.trim();

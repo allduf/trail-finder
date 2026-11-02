@@ -4,7 +4,11 @@ name: Weekly alpine rideable trails
 # and save them in data/alpine-<zone>.json for the site's "Alpine rideable" layer (scripts/build-alpine.mjs).
 on:
   schedule:
-    - cron: "17 13 * * 3"   # Wednesdays, 13:17 UTC (early morning in Vancouver)
+    # Wednesdays and Saturdays, 13:17 UTC (early morning in Vancouver). One run can't do all 34 zones in its 80 minutes,
+    # so the Saturday run picks up the zones Wednesday didn't reach (oldest first, ones built in the last 6 days skipped)
+    # and every zone refreshes each week (the 8 Rockies zones were 14 days old on 2026-11-02's test).
+    - cron: "17 13 * * 3"
+    - cron: "17 13 * * 6"
   workflow_dispatch:         # "Run workflow" button on the Actions tab
 
 permissions:

@@ -634,7 +634,39 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     }
     zoomNote(); drawPoints(); drawRange(); renderNear();
   }
-  const listOf = (k) => pts[k] || [...live[k].values()].flat();
+  // One point per place: the same name within 300 m is shown once (Riverside Resort Campground was mapped three
+  // times, as an RV park and a campground, and listed three times under Near you, 2026-11-02).
+  const SAME_M = 300, deduped = new WeakMap();
+  function onePerPlace(list) {
+    const seen = new Map(), out = [];
+    const far = (a, b) => Math.hypot(a[0] - b[0], (a[1] - b[1]) * Math.cos(a[0] * Math.PI / 180)) * 111320 >= SAME_M;
+    for (const p of list) {
+      const n = String(p[2] || "").trim().toLowerCase();
+      if (!n) { out.push(p); continue; }
+      const cx = Math.round(p[0] / 0.004), cy = Math.round(p[1] / 0.006);   // cells about 400 m wide: a 300 m twin is in this cell or the next
+      let twin = false;
+      for (let i = -1; i <= 1 && !twin; i++) for (let j = -1; j <= 1 && !twin; j++) {
+        const near = seen.get(`${n}|${cx + i}|${cy + j}`);
+        if (near && near.some((q) => !far(q, p))) twin = true;
+      }
+      if (twin) continue;
+      const key = `${n}|${cx}|${cy}`;
+      seen.has(key) ? seen.get(key).push(p) : seen.set(key, [p]);
+      out.push(p);
+    }
+    return out;
+  }
+  const liveOne = {};   // k -> [cells and points it was made from, list]
+  const campsAll = () => onePerPlace([...listOf("camp"), ...recList()]);   // campsites and BC rec sites, a site in both once
+  const listOf = (k) => {
+    if (!pts[k]) {
+      const cells = [...live[k].values()], tag = cells.length + ":" + cells.reduce((n, c) => n + c.length, 0);
+      if (!liveOne[k] || liveOne[k][0] !== tag) liveOne[k] = [tag, onePerPlace(cells.flat())];
+      return liveOne[k][1];
+    }
+    if (!deduped.has(pts[k])) deduped.set(pts[k], onePerPlace(pts[k]));
+    return deduped.get(pts[k]);
+  };
   // BC rec sites (DataBC), asked for the view: many are free campsites on forest roads.
   const recCells = new Map();
   const inBCbox = (lat, lon) => lat > 48.2 && lat < 60 && lon > -139.1 && lon < -114;
@@ -1037,7 +1069,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   }
   function renderSpotNear(box, s) {
     if (!box) return;
-    const f = nearest(listOf("fuel"), s.lat, s.lon, 2), c = nearest([...listOf("camp"), ...recList()], s.lat, s.lon, 2, 60);
+    const f = nearest(listOf("fuel"), s.lat, s.lon, 2), c = nearest(campsAll(), s.lat, s.lon, 2, 60);
     box.innerHTML = (f.length || c.length) ? `<h4>Nearest</h4><ul class="mt-list">${[...f.map((x) => ["fuel", x]), ...c.map((x) => [x[1].rec ? "rec" : "camp", x])].map(([k, [d, p]]) =>
       `<li style="--c:${PT[k].c}"><button type="button" class="mt-go" data-ll="${p[0]},${p[1]}"><b>${PT[k].t} ${esc(p[2] || PT[k].name)}</b><small>${esc(kindLine(k, p))}</small><em>${fmtKm(d)}</em></button></li>`).join("")}</ul>
       <p class="mt-note">As the crow flies.</p>` : "";
@@ -1049,7 +1081,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     if (spot && spot.how !== "centre") { el.hidden = true; return; }
     const at = you ? [you.lat, you.lon] : null;
     if (!at) { el.hidden = true; return; }
-    const f = nearest(listOf("fuel"), at[0], at[1], 3, 300), c = nearest([...listOf("camp"), ...recList()], at[0], at[1], 3, 80);
+    const f = nearest(listOf("fuel"), at[0], at[1], 3, 300), c = nearest(campsAll(), at[0], at[1], 3, 80);
     if (!f.length && !c.length) { el.hidden = true; return; }
     el.hidden = false;
     el.innerHTML = `<header>${svg(IC.fuel)}<h3>Near you</h3></header>
@@ -1830,7 +1862,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
         fuel = over.length ? over.map((g) => `<div class="mt-warn"><b>${svg(IC.fuel, 14)} ${fmtKm(g.km)} with no gas</b> from ${esc(g.from.name)} to ${esc(g.to.name)}: more than your ${usable(b)} km. Carry fuel or add a stop.</div>`).join("")
           : `<div class="mt-warn ok">${svg(IC.fuel, 14)} Gas is never more than ${fmtKm(fp.longest)} apart (your range: ${usable(b)} km with 20% left). ${fp.stops.length} station${fp.stops.length === 1 ? "" : "s"} on the way.</div>`;
       }
-      const end = r.line[r.line.length - 1], camps = nearest([...listOf("camp"), ...recList()], end[0], end[1], 3, 25);
+      const end = r.line[r.line.length - 1], camps = nearest(campsAll(), end[0], end[1], 3, 25);
       body = `<p><b>${esc(r.name || "Your route")}</b></p>
         <div class="mt-stats"><div><b>${fmtKm(r.km)}</b><span>distance</span></div><div><b>${fmtH(r.time + (tr ? tr.delay : 0))}</b><span>riding</span></div><div><b>${dirtPct == null ? "…" : dirtPct + "%"}</b><span>dirt</span></div><div><b>${r.edges ? fmtKm(st.longest) : "…"}</b><span>longest dirt</span></div></div>
         ${r.offline ? `<div class="mt-warn ok">${svg(IC.cell, 14)} Planned with no signal, from the roads in your saved offline maps. Closures and road reports from today weren't checked: plan again when you have signal.</div>` : ""}
@@ -2034,7 +2066,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
   });
   function renderStops() {
     const el = $("mtNear"), at = you ? [you.lat, you.lon] : (() => { const c = map.getCenter(); return [c.lat, c.lng]; })();
-    const f = nearest(listOf("fuel"), at[0], at[1], 4, 300), c = nearest([...listOf("camp"), ...recList()], at[0], at[1], 5, 80), h = nearest(listOf("hot"), at[0], at[1], 2, 120);
+    const f = nearest(listOf("fuel"), at[0], at[1], 4, 300), c = nearest(campsAll(), at[0], at[1], 5, 80), h = nearest(listOf("hot"), at[0], at[1], 2, 120);
     el.hidden = false;
     el.innerHTML = `<header>${svg(IC.fuel)}<h3>Fuel &amp; camp ${you ? "near you" : "here"}</h3></header>
       <div class="mt-row"><button type="button" class="mt-pill" data-fill>${svg(IC.fuel, 16)}I just filled up</button><span class="mt-note">${fill ? `${Math.round(fill.km)} km since the last fill-up` : "Counts down your tank as you ride"}</span></div>
