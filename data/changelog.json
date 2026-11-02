@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-02", "text": "Skiing: Whistler webcams no longer pile up in the village, Ski touring lists real tours before plain loops, smaller phones fit the sheet better, map buttons are easier to tap, and Skiing opens faster by skipping bike trail files."},
     {"date": "2026-11-02", "text": "Prime loam: when no trail is prime, it now lists the trails closest to prime instead of an empty list, and a trail rated differently along its length shows the whole range (Blue to Black) everywhere."},
     {"date": "2026-11-02", "text": "3D map: uses less memory when you leave the app or go back to the flat map, and the snow forecast redraws more calmly, to stop the 3D restarts on iPhone."},
     {"date": "2026-11-01", "text": "Japan: Hokkaido Wilds ski tours and huts in Hokkaido, snow depth at the weather stations, and Japan's official topo map."},

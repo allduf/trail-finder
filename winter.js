@@ -1052,10 +1052,16 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       groups.get(key).push(r);
     }
     const starts = (shown.has("tour") ? ski.starts || [] : []).filter((h) => (q ? has(h.name) : b.contains([h.lat, h.lon])));
-    const huts = (shown.has("hut") ? ski.huts || [] : []).filter((h) => (q ? has(h.name) : b.contains([h.lat, h.lon])));
+    // Huts are few and far apart: count the ones around the view too, so a tight view of a village doesn't say "Huts 0"
+    // (app review 2026-11-02, Whistler).
+    const hb = b.pad(1);
+    const huts = (shown.has("hut") ? ski.huts || [] : []).filter((h) => (q ? has(h.name) : hb.contains([h.lat, h.lon])));
+    // In Touring, plain winter routes (valley walking and nordic loops at Lost Lake...) go after the ski tours: the list
+    // opened with Nature Walking Trail, Tin Pants and Gipsy Drum at Whistler (app review 2026-11-02).
+    const plainLast = (x) => (shown.has("tour") && x.g && x.g[0].type === "other" ? 1 : 0);
     // A route with no name and no peak close by goes after the named ones.
     const routes = [...[...groups.values()].map((g) => ({ g, d: awayM(c.lat, c.lng, g), anon: !nameOf(g[0]), k: riskOf(g) })), ...starts.map((h) => ({ h, d: ptAway(c.lat, c.lng, h), anon: false }))]
-      .sort((x, y) => x.anon - y.anon || (sortSafe ? riskRank(x) - riskRank(y) : 0) || x.d - y.d);
+      .sort((x, y) => x.anon - y.anon || plainLast(x) - plainLast(y) || (sortSafe ? riskRank(x) - riskRank(y) : 0) || x.d - y.d);
     const hutRows = huts.map((h) => ({ h, d: ptAway(c.lat, c.lng, h) })).sort((x, y) => x.d - y.d);
     const tabs = $("skTabs");
     tabs.hidden = !shown.has("hut");
