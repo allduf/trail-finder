@@ -1,0 +1,40 @@
+name: Weekly hiking trails
+
+# Twice a week, find the hiking trails and hiking routes of every home zone
+# and save them in data/hike-<zone>.json for Hiking (scripts/build-hike.mjs).
+on:
+  schedule:
+    # Tuesdays and Fridays, 14:43 UTC: one run may not reach all zones in 80 minutes, the next picks up the oldest.
+    - cron: "43 14 * * 2"
+    - cron: "43 14 * * 5"
+  workflow_dispatch:         # "Run workflow" button on the Actions tab
+
+permissions:
+  contents: write   # save the data files (site-data branch)
+  pages: write      # ask GitHub Pages to publish them
+
+concurrency:
+  group: trail-data   # never at the same time as the other data jobs, they all commit to data/
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
+        run: bash scripts/site-data.sh get
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Get the hiking trails
+        run: node scripts/build-hike.mjs
+      - name: Save the new data
+        if: github.ref_name == 'main'
+        run: bash scripts/site-data.sh save "Weekly hiking trails" 'data/hike-*.json'
+      - name: Publish the website
+        if: github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent || echo "Pages will publish on its own."
