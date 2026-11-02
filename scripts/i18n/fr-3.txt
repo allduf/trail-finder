@@ -368,3 +368,5 @@ Elk ||| Wapiti
 Bighorn sheep ||| Mouflon d'Amérique
 Pheasant ||| Faisan
 Woodcock ||| Bécasse
+No clear photo lately: today's snow ||| Pas de photo claire récemment : la neige du jour
+The newest clear satellite photo (NASA Landsat and Sentinel-2, a few days to weeks old) ||| La plus récente photo satellite claire (NASA Landsat et Sentinel-2, de quelques jours à quelques semaines)

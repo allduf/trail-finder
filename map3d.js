@@ -505,8 +505,13 @@
       // at Whistler, twice the Winter photos, in the same download line, and each was painted with snow on the page:
       // the Winter photos arrived late and the map lagged (phone tests and alex, 2026-10-27).
       if (mode === "fill" && covered(await loadWinterBlocks(), z, x, y)) return noTile();
+      const rawP = photoBytes(z, x, y, sig);
+      if (mode === "live") {   // a real recent photo first (liveRecent below)
+        const recent = await liveRecent(z, x, y, await rawP, sig).catch((e) => { if (sig.aborted) throw e; return null; });
+        if (recent) { liveTiles++; liveSnowy++; return { data: recent }; }
+      }
       const [raw, live] = await Promise.all([
-        photoBytes(z, x, y, sig),
+        rawP,
         under(Math.min(z, 8), z, x, y, (a, b, c) => cached(`s${a}/${b}/${c}`, () => image(NASA_SNOW(a, b, c), new AbortController().signal).then(pixels))).catch(() => null)]);
       // How much snow NASA saw at each photo pixel (0 to 1), blended between its 500 m cells so edges
       // aren't blocky. The tile's colour is a code for the snow index (ndsi below), not a picture of snow:
@@ -613,6 +618,95 @@
     if (gl) summerTiles = tiles;
   }
 
+  // ---------- Live: the newest clear satellite photo ----------
+  // Live used to be the Summer photo with NASA's snow map painted on: it could only add snow, never take away the
+  // snow already in the photo. At Mount Brew the sharpest Esri photo is from July 2017, still white, while the
+  // mountain was bare rock in October 2026, so Summer and Live looked the same (alex, 2026-11-02). Now Live is a
+  // real photo taken in the last few weeks: NASA's Harmonized Landsat Sentinel-2 photos (30 m, every 2-3 days, on
+  // GIBS like the snow map). NASA's search (CMR) says which passes over each ~40 km square were mostly cloud-free;
+  // the newest is used, gaps in its strip filled from the next ones. Up close the photo is only 30 m, so the sharp
+  // photo's fine detail (trees, rocks, roads) is laid over its colours. No clear pass in 60 days: the old way.
+  const CMR = "https://cmr.earthdata.nasa.gov/search/granules.json";
+  const HLS = (layer, day, z, x, y) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${day}/GoogleMapsCompatible_Level12/${z}/${y}/${x}.png`;
+  const clearPasses = new Map();
+  // Up to 3 passes [{layer, day}] over the point, newest first; [] when none was clear enough.
+  const passesAt = (lng, lat) => {
+    const n = 512, key = Math.floor((lng + 180) / 360 * n) + "/" + Math.floor((1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * n);
+    if (!clearPasses.has(key)) {
+      if (clearPasses.size > 300) clearPasses.delete(clearPasses.keys().next().value);
+      const since = new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10);
+      const q = `short_name=HLSS30&short_name=HLSL30&point=${lng.toFixed(3)},${lat.toFixed(3)}&temporal=${since}T00:00:00Z,&sort_key=-start_date&page_size=60`;
+      const p = fetch(`${CMR}?${q}`).then((r) => r.json()).then((j) => {
+        const all = (j.feed?.entry || []).map((e) => ({ layer: /HLS\.L30/.test(e.title) ? "HLS_L30_Nadir_BRDF_Adjusted_Reflectance" : "HLS_S30_Nadir_BRDF_Adjusted_Reflectance",
+          day: (e.time_start || "").slice(0, 10), cloud: +(e.cloud_cover ?? 100) })).filter((g) => g.day);
+        const seen = new Set(), pick = (max) => all.filter((g) => g.cloud <= max && !seen.has(g.layer + g.day) && seen.add(g.layer + g.day));
+        let got = pick(30).slice(0, 3);   // newest first (CMR's order)
+        if (!got.length) got = pick(60).sort((a, b) => a.cloud - b.cloud).slice(0, 2);
+        return got;
+      });
+      p.catch(() => clearPasses.delete(key));
+      clearPasses.set(key, p);
+    }
+    return clearPasses.get(key);
+  };
+  const tileLngLat = (z, x, y) => [(x + 0.5) / (1 << z) * 360 - 180, Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 0.5) / (1 << z)))) * 180 / Math.PI];
+  let liveDay = "";   // the photo's day at the middle of the view, for the note under the buttons
+  async function liveRecent(z, x, y, raw, sig) {
+    if (!navigator.onLine) return null;
+    const [lng, lat] = tileLngLat(z, x, y), passes = await passesAt(lng, lat).catch(() => null);
+    if (!passes || !passes.length) return null;
+    const hz = Math.min(z, 12), k = z - hz;
+    const W = 256, cv = new OffscreenCanvas(W, W), cx = cv.getContext("2d", { willReadFrequently: true });
+    cx.imageSmoothingQuality = "high";
+    // Newest pass on top: each older one only shows where the ones above it have no data (edge of its strip).
+    let any = false;
+    for (const p of passes.slice().reverse()) {
+      const part = await under(hz, z, x, y, (a, b, c) => cached(`h${p.layer[4]}${p.day}/${a}/${b}/${c}`, () => image(HLS(p.layer, p.day, a, b, c), new AbortController().signal)))
+        .catch((e) => { if (sig.aborted) throw e; return null; });
+      if (!part) continue;
+      const [img, l, t, s] = part;
+      cx.drawImage(img, l, t, s, s, 0, 0, W, W);
+      any = true;
+    }
+    if (!any) return null;
+    const H = cx.getImageData(0, 0, W, W), P = H.data;
+    let filled = 0;
+    for (let i = 3; i < P.length; i += 4) if (P[i] > 200) filled++;
+    if (filled < P.length / 4 * 0.5) return null;   // mostly outside every clear pass: the old way for this tile
+    // The sharp photo, whole and blurred to the satellite's 30 m: what it adds is its fine detail (sharp - blurred).
+    const photo = await createImageBitmap(new Blob([raw])).catch(() => null);
+    let S = null, B = null;
+    if (photo) {
+      const pc = new OffscreenCanvas(W, W), px = pc.getContext("2d", { willReadFrequently: true });
+      px.drawImage(photo, 0, 0, W, W); S = px.getImageData(0, 0, W, W).data;
+      if (k > 0) {
+        const lo = Math.max(1, W >> k), sc = new OffscreenCanvas(lo, lo), sx = sc.getContext("2d");
+        sx.imageSmoothingQuality = "high"; sx.drawImage(photo, 0, 0, lo, lo);
+        px.imageSmoothingQuality = "high"; px.clearRect(0, 0, W, W); px.drawImage(sc, 0, 0, W, W); B = px.getImageData(0, 0, W, W).data;
+      }
+      photo.close();
+    }
+    const amt = Math.min(0.85, 0.3 * k);   // more detail the closer the view
+    for (let i = 0; i < P.length; i += 4) {
+      if (P[i + 3] < 128) { if (S) { P[i] = S[i]; P[i + 1] = S[i + 1]; P[i + 2] = S[i + 2]; } P[i + 3] = 255; continue; }   // no data: the sharp photo
+      for (let c = 0; c < 3; c++) {
+        let v = P[i + c] * 1.08 + 4;   // NASA's colours are a little dark beside Esri's
+        if (B) v += Math.max(-45, Math.min(45, (S[i + c] - B[i + c]) * amt));
+        P[i + c] = v < 0 ? 0 : v > 255 ? 255 : v;
+      }
+      P[i + 3] = 255;
+    }
+    cx.putImageData(H, 0, 0);
+    return createImageBitmap(cv);
+  }
+  // "Photo of Oct 11" under the buttons, for the middle of the view.
+  async function liveDayHere() {
+    if (!gl) return "";
+    const c = gl.getCenter(), p = await passesAt(c.lng, c.lat).catch(() => null);
+    liveDay = p && p.length ? p[0].day : "";
+    return liveDay;
+  }
+
   // Last winter's photos cover the riding areas from the Sunshine Coast to the Rockies, and since 2026-10-26 the
   // ski hills, ski tours and backcountry areas across Canada (alex: "fix winter map all over canada"; the whole
   // country at 10 m would be ~20 GB). blocks.json lists the zoom-11 squares that have them. They're their own site
@@ -673,7 +767,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1580");
+      const w = new Worker("winter-fill.js?v=1610");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -755,7 +849,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1580" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1610" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1115,7 +1209,7 @@
           // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above).
           winterhd: { type: "raster", tileSize: PHONE ? 256 : 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] },
           live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
-            attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
+            attribution: "Live: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> HLS (Landsat, Sentinel-2), MODIS snow" },
           // Under the Winter photos instead of the summer ones: today's snow wherever last winter's photos don't reach.
           fill: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://fill/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
@@ -1307,7 +1401,7 @@
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
     // Summer / Winter / Live: Summer = the sharp snow-free Esri photos, Winter = last winter's real
-    // Sentinel-2 photos, Live = NASA's latest snow cover painted on the sharp photos. Skiing has only Winter and
+    // Sentinel-2 photos, Live = the newest clear satellite photo (liveRecent; else NASA's snow map on the sharp photos). Skiing has only Winter and
     // Live (alex, 2026-10-23), and MTB only Summer and Live.
     const mk = (label) => { const el = document.createElement("button"); el.type = "button"; el.textContent = label;
       el.style.cssText = "width:auto;padding:0 10px;font:600 12px var(--font-body, system-ui)"; return el; };
@@ -1328,7 +1422,7 @@
       gl.setLayoutProperty("live", "visibility", photos === "live" ? "visible" : "none");
       sumBtn.title = "Sharp photos, taken in summer where Esri has one";
       winBtn.title = "Real satellite photos from February and March 2026 (Sentinel-2, 10 m, so softer)";
-      liveBtn.title = "Today's real snow (NASA satellite, 2 days old)";
+      liveBtn.title = "The newest clear satellite photo (NASA Landsat and Sentinel-2, a few days to weeks old)";
       for (const [el, on] of [[sumBtn, !w], [winBtn, photos === "winter"], [liveBtn, photos === "live"]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; }
       bySport("3dPhotosBy", sportNow(), photos);
       offGround();
@@ -1350,7 +1444,14 @@
     const winterHere = async () => {
       if (!navigator.onLine) { noWinter.textContent = "No signal: the saved map"; noWinter.style.display = ""; return; }
       if (photos === "live") {
-        if (liveTiles) { noWinter.textContent = "No snow here today: same as Summer"; noWinter.style.display = liveSnowy ? "none" : ""; }
+        // The day of the satellite photo in the middle of the view, so Live never looks like Summer without saying why.
+        const day = await liveDayHere();
+        if (photos !== "live") return;
+        if (day) {
+          const d = new Date(day + "T12:00:00Z"), mon = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()];
+          noWinter.textContent = `Satellite photo of ${mon} ${d.getUTCDate()}`; noWinter.style.display = ""; return;
+        }
+        if (liveTiles) { noWinter.textContent = "No clear photo lately: today's snow"; noWinter.style.display = ""; }
         return;
       }
       noWinter.textContent = "No winter photos here yet: today's snow";

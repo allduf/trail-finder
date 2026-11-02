@@ -20,6 +20,7 @@
     [/^(\d+) (minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years) ago$/, function (m, n, u) { return "il y a " + n + " " + UNIT[u]; }],
     [/^Stocked (\d+) (day|days|week|weeks|month|months|year|years) ago, (.+)$/, function (m, n, u, f) { return "Ensemencé il y a " + n + " " + UNIT[u] + ", " + f; }],
     [/^just now$/i, "à l'instant"],
+    [/^Satellite photo of (.+)$/, function (m, d) { return "Photo satellite du " + dt(d); }],
     [/^✓ Saved: (.+)$/, "✓ Enregistré : $1"],
     [/^⚠ Saved: (.+)$/, "⚠ Enregistré : $1"],
     [/^Biggest square allowed \((?:about )?(.+) of map\)$/, function (m, n) { return "Le plus grand carré permis (" + (/^\d/.test(n) ? "environ " : "") + n.replace("under 1 MB", "moins de 1 Mo").replace(" MB", " Mo").replace(" GB", " Go") + " de carte)"; }],
