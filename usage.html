@@ -316,7 +316,13 @@ details > summary { cursor: pointer; font-weight: 600; }
   window.addEventListener("tf:account", () => load());
 
   $("rosterSave").addEventListener("click", async () => {
-    const names = parseRoster($("roster").value).map(rosterLine);
+    // A list without phones (names only, or the export file) keeps the phone and iOS already saved for the same person.
+    const before = parseRoster((roster || []).join("\n"));
+    const names = parseRoster($("roster").value).map((t) => {
+      if (t.model) return t;
+      const old = before.filter((o) => o.model && sameName(o.name, t.name));
+      return old.length === 1 ? { ...old[0], name: norm(old[0].name).length > norm(t.name).length ? old[0].name : t.name } : t;
+    }).map(rosterLine);
     const { error } = await window.tfAccount.client.rpc("tf_use_roster_set", { names });
     $("rosterMsg").textContent = error ? (/does not exist|Could not find/.test(error.message) ? "Run usage-more.sql first." : `Couldn't save: ${error.message}`) : "Saved.";
     if (!error) { roster = names; $("roster").value = names.join("\n"); await autoName(); paint(); }
@@ -325,7 +331,10 @@ details > summary { cursor: pointer; font-weight: 600; }
   // ---- TestFlight list → names. TestFlight's All Testers page copies as email, name, status, ..., "iPhone 14", "iOS 27.0.1"
   // (as lines or tab-separated). A saved line is "Name · iPhone 14 · iOS 27.0.1", or just a name; emails are never kept.
   function parseRoster(text) {
-    const out = [], email = /[^\s@]+@[^\s@]+\.[a-z]{2,}/i;
+    // TestFlight's "Export testers" file: "First","Last","email" on each line.
+    const csv = String(text).split("\n").map((l) => /^\s*"([^"]*)"\s*,\s*"([^"]*)"\s*,\s*"[^"]*@[^"]*"/.exec(l)).filter(Boolean);
+    if (csv.length) return csv.map((m) => ({ name: `${m[1]} ${m[2]}`.trim(), model: null, ios: null, me: false })).filter((t) => t.name);
+    const out = [], email = /[^\s@",]+@[^\s@",]+\.[a-z]{2,}/i;
     const bits = String(text).split(/[\n\t]+/).map((x) => x.trim()).filter(Boolean);
     if (!bits.some((b) => email.test(b))) {
       for (const b of bits) { const [name, model, ios] = b.split(/\s*·\s*/); out.push({ name, model: model || null, ios: ios ? ios.replace(/^iOS\s*/i, "") : null, me: /^me$/i.test(name) }); }
@@ -346,6 +355,10 @@ details > summary { cursor: pointer; font-weight: 600; }
   }
   const rosterLine = (t) => { if (t.me) t = { ...t, name: "Me" }; const tail = [t.model, t.ios ? `iOS ${t.ios}` : null].filter(Boolean).join(" · "); return tail ? `${t.name.slice(0, 58 - tail.length)} · ${tail}` : t.name.slice(0, 60); };
   const rosterName = (line) => String(line).split(/\s*·\s*/)[0];
+  // Names match when equal or one is the start of the other ("Alex" and "Alex Beaulieu Marchand"), ignoring case and accents.
+  const norm = (n) => String(n || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+  const sameName = (a, b) => { const x = norm(a), y = norm(b); return !!x && !!y && (x === y || x.startsWith(y + " ") || y.startsWith(x + " ")); };
+  const nameOf = (t) => (t.me ? "Me" : t.name);
   const phoneKey = (model, ios) => `${model} · iOS ${ios}`.toLowerCase();
   // Names every unnamed phone whose model and iOS match exactly one tester (and only one unnamed phone has them).
   // Screen size (points) of each iPhone model, to guess phones whose app hasn't sent its model yet.
@@ -367,13 +380,13 @@ details > summary { cursor: pointer; font-weight: 600; }
     const testers = parseRoster(roster.join("\n")).filter((t) => t.model);
     const phones = new Map();
     for (const d of [...(all || []), ...rows]) if (!phones.has(d.device)) phones.set(d.device, d);
-    const labelled = new Set([...phones.values()].map((d) => rosterName(d.label || "").trim().toLowerCase()).filter(Boolean));
-    const isOpen = (t) => !labelled.has((t.me ? "me" : t.name).toLowerCase());
+    const labelled = [...phones.values()].map((d) => (d.label || "").trim()).filter(Boolean);
+    const isOpen = (t) => !labelled.some((l) => sameName(l, nameOf(t)));
     const isFree = (d) => !(d.label || "").trim();
     const jobs = [];
     const name = (t, d) => {
       const label = t.me ? "Me" : t.name.slice(0, 60), device = d.device;
-      d.label = label; labelled.add(label.toLowerCase());
+      d.label = label; labelled.push(label);
       jobs.push(window.tfAccount.client.rpc("tf_use_label", { device, label }).then(({ error }) => {
         if (error) return;
         rows.forEach((r) => { if (r.device === device) r.label = label; });
@@ -639,9 +652,9 @@ details > summary { cursor: pointer; font-weight: 600; }
     $("quiet").innerHTML = quiet.length ? `<div class="card"><h3>Not seen in the last ${days} days (${quiet.length})</h3><table>${quiet.map((d) => `<tr><td><input value="${esc(d.label || "")}" placeholder="Name this phone" data-device="${esc(d.device)}" aria-label="Name" style="width:160px"> <span class="muted">${esc(phoneOf(d))}</span></td><td class="n">${ago(d.last_seen)}</td></tr>`).join("")}</table></div>` : "";
     // TestFlight names with no phone named the same.
     if (roster && roster.length) {
-      const named = new Set([...(all || []), ...rows].map((d) => (d.label || "").trim().toLowerCase()).filter(Boolean));
+      const named = [...(all || []), ...rows].map((d) => (d.label || "").trim()).filter(Boolean);
       const ts = parseRoster(roster.join("\n"));
-      const missing = ts.filter((t) => !named.has((t.me ? "me" : t.name).toLowerCase()));
+      const missing = ts.filter((t) => !named.some((l) => sameName(l, nameOf(t))));
       const same = new Set(clashes.flatMap((c) => c.names));
       $("rosterOut").innerHTML = `<p>${ts.length - missing.length} of ${ts.length} testers matched to a phone.</p>` +
         (clashes.length ? `<p class="muted">Same phone model, so name these by hand (look at when each was last seen, or ask them):</p><ul class="list">${clashes.map((c) => `<li>${esc(c.phone)}: ${esc(c.names.join(", "))}${c.phones > 1 ? ` (${c.phones} phones)` : ""}</li>`).join("")}</ul>` : "") +
