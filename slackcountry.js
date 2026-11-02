@@ -150,6 +150,7 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
         }
       }
       for (const g of rs.gates) {
+        if (g.none && z < NAMES_Z) continue;   // "No gate" read like a warning from afar (app review 2026-11-02): only up close
         add(g.lat, g.lon, `<span class="sc-gate${g.none ? " none" : ""}">${g.none ? "No gate" : "Gate"}</span>`, g.name, () => openGate(rs, g));
       }
     }

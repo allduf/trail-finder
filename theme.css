@@ -341,7 +341,7 @@ body.sport-alt .first-tip { display: none; }
   .map-tools .layers-menu .lm-top button { width: 40px; height: 40px; font-size: 1.1rem; justify-content: center; border: 0; background: var(--chip, #eee); border-radius: 50%; }
   .layers-menu .lm-looks, .layers-menu .lm-looks-head { display: none; }
   body.lm-open .panel { visibility: hidden; }
-  .first-tip { left: 12px; right: 12px; transform: none; width: auto; max-width: none; bottom: calc(var(--sheet-vis) + 12px); transition: bottom .28s cubic-bezier(.2, .8, .2, 1); }
+  .first-tip { left: 12px; right: 12px; transform: none; width: auto; max-width: none; bottom: calc(var(--sheet-vis) + 64px); transition: bottom .28s cubic-bezier(.2, .8, .2, 1); }
 }
 .first-tip .tip-phone { display: none; }
 @media (max-width: 760px) { .first-tip .tip-wide { display: none; } .first-tip .tip-phone { display: inline; } }

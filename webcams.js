@@ -51,7 +51,7 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
 
   // ---------- data ----------
   let data = null, cams = [], owners = {};
-  const load = () => (data = data || fetch("data/webcams.json?v=1490").then((r) => r.json()).then((d) => {
+  const load = () => (data = data || fetch("data/webcams.json?v=1500").then((r) => r.json()).then((d) => {
     owners = d.owners || {};
     cams = (d.cams || []).filter((c) => isFinite(c.lat) && isFinite(c.lon));
     return d;
@@ -84,11 +84,21 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
   let glMarkers = [], selected = null;
   const pinHtml = (c, n) => `<div class="wc-pin${c.kind === "backcountry" ? " bc" : c.kind === "road" ? " road" : ""}${selected && groupOf(selected) === groupOf(c) && (n > 1 || selected === c) ? " on" : ""}" style="position:relative">📷${n > 1 ? `<b>${n}</b>` : ""}</div>`;
   // Far out, one pin per resort (the first cam in the list, the one that matters most); zoomed in, every cam.
+  // In between (zoom 9 to 12), a resort's cams within 1 km of each other share one pin with a count: Whistler village
+  // had four pins on top of the town's name (app review 2026-11-02), while the peak cams keep their own.
+  const band = (z) => (z >= 13 ? 2 : z >= 9 ? 1 : 0);
   function visible() {
-    if (map.getZoom() >= 9) return cams.map((c) => [c, 1]);
-    const seen = new Map();
-    for (const c of cams) { const g = groupOf(c); seen.has(g) ? seen.get(g)[1]++ : seen.set(g, [c, 1]); }
-    return [...seen.values()];
+    const z = band(map.getZoom());
+    if (z === 2) return cams.map((c) => [c, 1]);
+    const seen = new Map(), near = [];
+    for (const c of cams) {
+      const g = groupOf(c);
+      if (z === 0) { seen.has(g) ? seen.get(g)[1]++ : seen.set(g, [c, 1]); continue; }
+      const k = Math.cos(c.lat * Math.PI / 180);
+      const hit = near.find((x) => groupOf(x[0]) === g && Math.hypot(x[0].lat - c.lat, (x[0].lon - c.lon) * k) * 111 < 1);
+      hit ? hit[1]++ : near.push([c, 1]);
+    }
+    return z === 0 ? [...seen.values()] : near;
   }
   function draw() {
     layer.clearLayers();
@@ -113,8 +123,8 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
     }
   }
   const shown = () => on && isSki() && cams.length > 0;
-  let lastZoomBand = map.getZoom() >= 9;
-  map.on("zoomend", () => { const b = map.getZoom() >= 9; if (b !== lastZoomBand) { lastZoomBand = b; draw(); } });
+  let lastZoomBand = band(map.getZoom());
+  map.on("zoomend", () => { const b = band(map.getZoom()); if (b !== lastZoomBand) { lastZoomBand = b; draw(); } });
   window.addEventListener("tf:map3d", draw);
   async function sync() {
     placeBtn(); setBtn();

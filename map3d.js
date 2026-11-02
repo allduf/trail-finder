@@ -101,6 +101,8 @@
 .mapwrap.is3d #basemap, .mapwrap.is3d #mapNote { display: none; }
 #map.is3d .leaflet-pane, #map.is3d .leaflet-control-zoom, #map.is3d .leaflet-control-attribution { visibility: hidden; }
 .map-tools #btn3d.on { background: var(--fg); border-color: var(--fg); color: var(--panel); }
+/* Gloves (app review 2026-11-02): zoom, compass and Summer/Winter/Live were 29 pt, Apple asks for 44. */
+@media (pointer: coarse) { #map3d .maplibregl-ctrl-group button { height: 40px; min-width: 40px; } }
 #map3d .maplibregl-popup-content { background: var(--panel); color: var(--fg); font: 600 .85rem var(--font-body, system-ui); padding: 4px 8px; border-radius: 6px; }
 #map3d .maplibregl-popup-tip { display: none; }
 #map3d .g3-wait { position: absolute; left: 50%; top: 38%; transform: translateX(-50%); z-index: 2; pointer-events: none; padding: 8px 14px; border-radius: 999px; background: rgba(15,30,25,.78); color: #fff; font: 600 .9rem var(--font-body, system-ui); white-space: nowrap; }
@@ -668,7 +670,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1490");
+      const w = new Worker("winter-fill.js?v=1500");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -750,7 +752,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1490" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1500" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
