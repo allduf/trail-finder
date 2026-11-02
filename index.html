@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Trail Finder">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#12291d">
-<script src="i18n.js?v=1510"></script>
+<script src="i18n.js?v=1530"></script>
 </head>
 <body>
 <title>Trail Finder</title>
@@ -1268,7 +1268,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   body #layersMenu .lm-offline small { display: block; font-size: .78rem; opacity: .75; }
 }
 </style>
-<link rel="stylesheet" href="theme.css?v=14">
+<link rel="stylesheet" href="theme.css?v=15">
 <style>
 /* Phone map buttons (alex, 2026-10-24): the same four labelled buttons in every sport, Sport, Layers and 3D on the
    left, Me on the right. Satellite is a map style in Layers; Save a point, Compass and Measure live in each sport's
@@ -1562,14 +1562,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=1510"></script>
-<script src="native.js?v=1510"></script>
-<script src="keyboard.js?v=1510"></script>
-<script src="rotate.js?v=1510"></script>
-<script src="official.js?v=1510"></script>
-<script src="directions.js?v=1510"></script>
-<script src="ratings.js?v=1510"></script>
-<script src="ebike.js?v=1510"></script>
+<script src="welcome.js?v=1530"></script>
+<script src="native.js?v=1530"></script>
+<script src="keyboard.js?v=1530"></script>
+<script src="rotate.js?v=1530"></script>
+<script src="official.js?v=1530"></script>
+<script src="directions.js?v=1530"></script>
+<script src="ratings.js?v=1530"></script>
+<script src="ebike.js?v=1530"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -4193,7 +4193,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=1510").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=1530").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5472,6 +5472,9 @@ out body;`;
       <div class="hub-seg" role="group" aria-label="Sport">${[...$("sport").options].map((o) => `<button type="button" data-sport="${o.value}" aria-pressed="${o.value === sp}">${esc(o.dataset.short || o.textContent)}</button>`).join("")}</div>
       <div class="hub-sec">Language</div>
       <div class="hub-seg" role="group" aria-label="Language" translate="no">${[["en", "English"], ["fr", "Français"]].map(([l, n]) => `<button type="button" data-lang="${l}" aria-pressed="${(window.tfLang ? window.tfLang.lang : "en") === l}">${n}</button>`).join("")}</div>
+      ${window.tfAiConsent ? `<div class="hub-sec">Google's AI</div>
+      <div class="hub-seg" role="group" aria-label="Google's AI">${[[true, "Use it"], [false, "Don't use it"]].map(([v, n]) => `<button type="button" data-ai="${v}" aria-pressed="${window.tfAiConsent.state() === v}">${n}</button>`).join("")}</div>
+      <p class="hub-hint">For photo find, Ask in plain words and fish ID. 18 or older.</p>` : ""}
       <div class="hub-sec">Tools</div>
       ${document.querySelector(".brand .notify-btn") ? card("alerts", "🔔", w.alerts[0], w.alerts[1]) : ""}
       ${card("full", "⤢", "Full map", "Hide everything but the map")}
@@ -5503,6 +5506,8 @@ out body;`;
       else if (b.el.parentElement !== b.home) b.home.insertBefore(b.el, b.next);
     });
   }
+  // More → Google's AI: show the new On / Off as soon as it's answered (welcome.js tfAiConsent).
+  document.addEventListener("tf:aiconsent", () => { if (!hubEl.hidden && navTop() === "more") hubEl.innerHTML = hubHtml("more"); });
   // Show the page on top of the stack (or the plain map when the stack is empty).
   function showNav(snap) {
     try { syncPeekToday(); } catch {}   // a sport's Today line can appear after the sport was picked (its file makes it)
@@ -5674,9 +5679,11 @@ out body;`;
     quick(b.dataset.q);
   });
   hubEl.addEventListener("click", (e) => {
-    if (e.target.closest("[data-sport], [data-hub], [data-lang]")) e.stopPropagation();   // the page decides the sheet's height
+    if (e.target.closest("[data-sport], [data-hub], [data-lang], [data-ai]")) e.stopPropagation();   // the page decides the sheet's height
     const lg = e.target.closest("[data-lang]");
     if (lg) { if (window.tfLang) window.tfLang.set(lg.dataset.lang); return; }   // i18n.js: reloads in that language
+    const ai = e.target.closest("[data-ai]");
+    if (ai && window.tfAiConsent) { window.tfAiConsent.set(ai.dataset.ai === "true"); return; }   // welcome.js: On asks again (18 or older)
     const sp = e.target.closest("[data-sport]");
     if (sp) { if ($("sport").value !== sp.dataset.sport) { $("sport").value = sp.dataset.sport; $("sport").dispatchEvent(new Event("change", { bubbles: true })); } return; }
     const b = e.target.closest("[data-hub]"); if (!b) return;
@@ -8285,47 +8292,47 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=1510"></script>
-<script src="native-map.js?v=1510"></script>
-<script src="contours.js?v=1510"></script>
-<script src="clouds.js?v=1510"></script>
-<script src="smoke.js?v=1510"></script>
-<script src="radar.js?v=1510"></script>
-<script src="photo-slider.js?v=1510"></script>
-<script src="ski-terrain.js?v=1510"></script>
-<script src="place-search.js?v=1510"></script>
-<script src="winter.js?v=1510"></script>
-<script src="hunts.js?v=1510"></script>
-<script src="ski-points.js?v=1510"></script>
-<script src="offline.js?v=1510"></script>
-<script src="ride-stats.js?v=1510"></script>
-<script src="native-gps.js?v=1510"></script>
-<script src="navigate.js?v=1510"></script>
-<script src="planner.js?v=1510"></script>
-<script src="loops.js?v=1510"></script>
-<script src="ride-finds.js?v=1510"></script>
-<script src="rides.js?v=1510"></script>
-<script src="community.js?v=1510"></script>
-<script src="ride-files.js?v=1510"></script>
-<script src="rider-trails.js?v=1510"></script>
-<script src="account.js?v=1510"></script>
-<script src="live.js?v=1510"></script>
-<script src="strava.js?v=1510"></script>
-<script src="reports.js?v=1510"></script>
-<script src="grades.js?v=1510"></script>
-<script src="trail-photos.js?v=1510"></script>
-<script src="visitors.js?v=1510"></script>
-<script src="usage.js?v=1510"></script>
-<script src="notify.js?v=1510"></script>
-<script src="closures.js?v=1510"></script>
-<script src="status.js?v=1510"></script>
-<script src="ask.js?v=1510"></script>
-<script src="areas.js?v=1510"></script>
-<script src="alpine.js?v=1510"></script>
-<script src="bikeparks.js?v=1510"></script>
-<script src="photo-find.js?v=1510"></script>
-<script src="whats-new.js?v=1510"></script>
-<script src="app-update.js?v=1510"></script>
+<script src="map3d.js?v=1530"></script>
+<script src="native-map.js?v=1530"></script>
+<script src="contours.js?v=1530"></script>
+<script src="clouds.js?v=1530"></script>
+<script src="smoke.js?v=1530"></script>
+<script src="radar.js?v=1530"></script>
+<script src="photo-slider.js?v=1530"></script>
+<script src="ski-terrain.js?v=1530"></script>
+<script src="place-search.js?v=1530"></script>
+<script src="winter.js?v=1530"></script>
+<script src="hunts.js?v=1530"></script>
+<script src="ski-points.js?v=1530"></script>
+<script src="offline.js?v=1530"></script>
+<script src="ride-stats.js?v=1530"></script>
+<script src="native-gps.js?v=1530"></script>
+<script src="navigate.js?v=1530"></script>
+<script src="planner.js?v=1530"></script>
+<script src="loops.js?v=1530"></script>
+<script src="ride-finds.js?v=1530"></script>
+<script src="rides.js?v=1530"></script>
+<script src="community.js?v=1530"></script>
+<script src="ride-files.js?v=1530"></script>
+<script src="rider-trails.js?v=1530"></script>
+<script src="account.js?v=1530"></script>
+<script src="live.js?v=1530"></script>
+<script src="strava.js?v=1530"></script>
+<script src="reports.js?v=1530"></script>
+<script src="grades.js?v=1530"></script>
+<script src="trail-photos.js?v=1530"></script>
+<script src="visitors.js?v=1530"></script>
+<script src="usage.js?v=1530"></script>
+<script src="notify.js?v=1530"></script>
+<script src="closures.js?v=1530"></script>
+<script src="status.js?v=1530"></script>
+<script src="ask.js?v=1530"></script>
+<script src="areas.js?v=1530"></script>
+<script src="alpine.js?v=1530"></script>
+<script src="bikeparks.js?v=1530"></script>
+<script src="photo-find.js?v=1530"></script>
+<script src="whats-new.js?v=1530"></script>
+<script src="app-update.js?v=1530"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

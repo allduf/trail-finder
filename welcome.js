@@ -187,3 +187,95 @@ dialog.welc .welc-later { display: block; width: 100%; margin-top: 6px; font: in
   };
   if (document.readyState === "complete") setTimeout(start, 300); else addEventListener("load", () => setTimeout(start, 300), { once: true });
 })();
+
+// Ask before anything goes to Google's AI (go-public checklist items 1 and 2, alex 2026-11-02). Apple's rule 5.1.2(i)
+// wants a clear yes before personal data goes to a third-party AI, and Google's Gemini terms are for people 18 or older.
+// Photo find (Gemini + Google image search), Ask in plain words and fish ID call window.tfAiConsent.ask(kind) before
+// their first call to the AI; the answer is kept on this device (tf:aiOk = { ok, adult, at }). No, or under 18: the AI
+// is skipped and the rest of each tool still works on the phone. More → Google's AI turns it on or off later.
+(() => {
+  "use strict";
+  const KEY = "tf:aiOk";
+  const get = () => { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } };
+  const put = (v) => { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {} };
+  // The accuracy test (scripts/photo-find-test.mjs) runs photo find on its own: it never waits for a tap.
+  const test = () => !!window.tfPhotoTest;
+  const WHAT = {
+    photo: ["A small copy of your picture, and any words you typed with it, goes to Google's Gemini AI and Google image search to find where it was taken.",
+      "Without it, photo find still uses the spot saved in the photo and the words it can read on your phone."],
+    ask: ["Your question goes to Google's Gemini AI so it can understand it.",
+      "Without it, your question is read on your phone, which understands fewer ways of asking."],
+    fish: ["A small copy of your catch photo goes to Google's Gemini AI to name the fish.",
+      "Without it, pick the fish from the list yourself."],
+    settings: ["Photo find, Ask in plain words and fish ID can send your pictures and questions to Google's Gemini AI.",
+      "Without it, they still work on your phone, with fewer answers."],
+  };
+  let dlg = null, waiting = [];
+  function done(ok, adult) {
+    put({ ok, adult: !!adult, at: new Date().toISOString() });
+    if (dlg && dlg.open) dlg.close();
+    const w = waiting; waiting = [];
+    w.forEach((f) => f(ok));
+    document.dispatchEvent(new CustomEvent("tf:aiconsent", { detail: { ok } }));
+  }
+  function show(kind) {
+    const [what, without] = WHAT[kind] || WHAT.settings;
+    if (!dlg) {
+      dlg = document.createElement("dialog");
+      dlg.className = "ai-ok";
+      dlg.setAttribute("aria-label", "Use Google's AI?");
+      dlg.tabIndex = -1;
+      dlg.addEventListener("cancel", (e) => { e.preventDefault(); done(false, false); });   // Escape or back = No
+      dlg.addEventListener("change", (e) => { if (e.target.matches("[data-adult]")) dlg.querySelector("[data-yes]").disabled = !e.target.checked; });
+      dlg.addEventListener("click", (e) => {
+        const b = e.target.closest("button");
+        if (!b) return;
+        if (b.dataset.yes != null) { if (dlg.querySelector("[data-adult]").checked) done(true, true); }
+        else if (b.dataset.no != null) done(false, false);
+      });
+      document.body.append(dlg);
+    }
+    dlg.innerHTML = `<h2>Use Google's AI?</h2>
+      <p class="ai-ok-lead">${what}</p>
+      <ul class="ai-ok-list">
+        <li>Your name and email aren't sent.</li>
+        <li>Google may keep it and use it to improve its products.</li>
+        <li>Google only allows its AI for people 18 or older.</li>
+      </ul>
+      <label class="ai-ok-adult"><input type="checkbox" data-adult> <span>I'm 18 or older</span></label>
+      <button type="button" class="ai-ok-go" data-yes disabled>Yes, use Google's AI</button>
+      <button type="button" class="ai-ok-no" data-no>No thanks</button>
+      <p class="ai-ok-note"><span>${without}</span> <span>Change it any time in More, Google's AI.</span> <a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>`;
+    if (!dlg.open) dlg.showModal();
+    dlg.focus({ preventScroll: true });
+  }
+  const css = document.createElement("style");
+  css.textContent = `
+dialog.ai-ok { border: 0; border-radius: 20px; background: var(--panel); color: var(--fg); padding: 18px 18px 14px; width: min(420px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); box-sizing: border-box; box-shadow: 0 14px 50px rgba(0,0,0,.4); font: inherit; overflow: auto; }
+dialog.ai-ok::backdrop { background: rgba(6,16,10,.55); }
+dialog.ai-ok:focus { outline: none; }
+dialog.ai-ok h2 { margin: 0 0 6px; font-family: var(--font-display); font-size: 1.45rem; line-height: 1.15; }
+dialog.ai-ok .ai-ok-lead { margin: 0 0 10px; font-size: .95rem; line-height: 1.4; }
+dialog.ai-ok .ai-ok-list { margin: 0 0 12px; padding-left: 20px; font-size: .9rem; line-height: 1.4; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
+dialog.ai-ok .ai-ok-adult { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--chip); font-weight: 700; cursor: pointer; }
+dialog.ai-ok .ai-ok-adult input { width: 22px; height: 22px; margin: 0; accent-color: var(--accent); flex: none; }
+dialog.ai-ok .ai-ok-go { display: block; width: 100%; margin-top: 14px; font: inherit; font-weight: 800; font-size: 1.02rem; padding: 13px; border-radius: 14px; border: 0; background: var(--cta); color: var(--cta-fg); cursor: pointer; }
+dialog.ai-ok .ai-ok-go:disabled { opacity: .4; cursor: default; }
+dialog.ai-ok .ai-ok-no { display: block; width: 100%; min-height: 44px; margin-top: 4px; font: inherit; padding: 10px; background: none; border: 0; color: var(--muted); cursor: pointer; }
+dialog.ai-ok .ai-ok-note { color: var(--muted); font-size: .82rem; line-height: 1.35; margin: 6px 0 0; text-align: center; }
+dialog.ai-ok .ai-ok-note a { color: inherit; }`;
+  document.head.append(css);
+  window.tfAiConsent = {
+    // true or false once answered on this device, null before.
+    state() { if (test()) return true; const v = get(); return v && typeof v.ok === "boolean" ? v.ok : null; },
+    ok() { return this.state() === true; },
+    // The answer, asking first if there isn't one yet. Resolves true or false.
+    ask(kind) {
+      const s = this.state();
+      if (s !== null) return Promise.resolve(s);
+      return new Promise((res) => { waiting.push(res); show(kind); });
+    },
+    // More → Google's AI: On asks again (the 18 or older box), Off turns it off at once.
+    set(on) { if (on) { waiting.push(() => {}); show("settings"); } else done(false, false); },
+  };
+})();

@@ -1479,7 +1479,31 @@
     "Near you: open rivers and good flows first, then lakes.":"Près de vous : rivières ouvertes et bons débits d'abord, puis les lacs.",
     "Near the spot: open rivers and good flows first, then lakes.":"Près de l'endroit : rivières ouvertes et bons débits d'abord, puis les lacs.",
     "Near the map: open rivers and good flows first, then lakes.":"Près de la carte : rivières ouvertes et bons débits d'abord, puis les lacs.",
-    "Hunting, Fishing and Moto: the place search now suggests towns as you type. Fishing: Where to fish today knows the season (cold water, ice likely). Moto: the same campground shows once, and the Sport button says Moto.":"Chasse, Pêche et Moto : la recherche d’endroits suggère les villes pendant que vous tapez. Pêche : Où pêcher aujourd’hui tient compte de la saison (eau froide, glace probable). Moto : un même camping n’apparaît qu’une fois, et le bouton Sport dit Moto."};
+    "Hunting, Fishing and Moto: the place search now suggests towns as you type. Fishing: Where to fish today knows the season (cold water, ice likely). Moto: the same campground shows once, and the Sport button says Moto.":"Chasse, Pêche et Moto : la recherche d’endroits suggère les villes pendant que vous tapez. Pêche : Où pêcher aujourd’hui tient compte de la saison (eau froide, glace probable). Moto : un même camping n’apparaît qu’une fois, et le bouton Sport dit Moto.",
+    "Use Google's AI?":"Utiliser l'IA de Google ?",
+    "A small copy of your picture, and any words you typed with it, goes to Google's Gemini AI and Google image search to find where it was taken.":"Une petite copie de votre photo, et les mots que vous avez tapés avec, sont envoyés à l'IA Gemini de Google et à la recherche d'images Google pour trouver où elle a été prise.",
+    "Without it, photo find still uses the spot saved in the photo and the words it can read on your phone.":"Sans elle, la recherche par photo utilise quand même l'endroit enregistré dans la photo et les mots lus sur votre téléphone.",
+    "Your question goes to Google's Gemini AI so it can understand it.":"Votre question est envoyée à l'IA Gemini de Google pour qu'elle la comprenne.",
+    "Without it, your question is read on your phone, which understands fewer ways of asking.":"Sans elle, votre question est lue sur votre téléphone, qui comprend moins de façons de demander.",
+    "A small copy of your catch photo goes to Google's Gemini AI to name the fish.":"Une petite copie de la photo de votre prise est envoyée à l'IA Gemini de Google pour nommer le poisson.",
+    "Without it, pick the fish from the list yourself.":"Sans elle, choisissez vous-même le poisson dans la liste.",
+    "Photo find, Ask in plain words and fish ID can send your pictures and questions to Google's Gemini AI.":"La recherche par photo, Demandez en mots simples et l'identification des poissons peuvent envoyer vos photos et vos questions à l'IA Gemini de Google.",
+    "Without it, they still work on your phone, with fewer answers.":"Sans elle, ils fonctionnent quand même sur votre téléphone, avec moins de réponses.",
+    "Your name and email aren't sent.":"Votre nom et votre courriel ne sont pas envoyés.",
+    "Google may keep it and use it to improve its products.":"Google peut les garder et s'en servir pour améliorer ses produits.",
+    "Google only allows its AI for people 18 or older.":"Google réserve son IA aux personnes de 18 ans ou plus.",
+    "I'm 18 or older":"J'ai 18 ans ou plus",
+    "Yes, use Google's AI":"Oui, utiliser l'IA de Google",
+    "No thanks":"Non merci",
+    "Change it any time in More, Google's AI.":"Modifiable en tout temps dans Plus, IA de Google.",
+    "Google's AI":"IA de Google",
+    "For photo find, Ask in plain words and fish ID. 18 or older.":"Pour la recherche par photo, Demandez en mots simples et l'identification des poissons. 18 ans ou plus.",
+    "Google's AI is off (your choice): turn it on in More, Google's AI.":"L'IA de Google est désactivée (votre choix) : activez-la dans Plus, IA de Google.",
+    "Google's AI is off (your choice), so your words were read on the phone.":"L'IA de Google est désactivée (votre choix), vos mots ont donc été lus sur le téléphone.",
+    "Google's AI is off (your choice), so pick the fish yourself. Turn it on in More, Google's AI.":"L'IA de Google est désactivée (votre choix), choisissez donc le poisson vous-même. Activez-la dans Plus, IA de Google.",
+    "Photo find, Ask in plain words and fish ID now ask once before anything goes to Google's AI (18 or older). Change it in More, Google's AI.":"La recherche par photo, Demandez en mots simples et l'identification des poissons demandent maintenant une fois avant d'envoyer quoi que ce soit à l'IA de Google (18 ans ou plus). Modifiable dans Plus, IA de Google.",
+    "Use it":"L'utiliser",
+    "Don't use it":"Ne pas l'utiliser"};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

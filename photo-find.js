@@ -591,6 +591,9 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const area = $("pfArea").selectedOptions[0];
     const key = [$("pfCaption").value.trim(), $("pfArea").value].join("|");
     if (ai && aiKey === key) return ai;      // once per picture and description: the free AI allows only so many a day
+    // Google's AI only after a yes (welcome.js tfAiConsent: Apple 5.1.2(i), Gemini is 18 or older).
+    if (window.tfAiConsent && !(await window.tfAiConsent.ask("photo"))) { aiWhy = "Google's AI is off (your choice): turn it on in More, Google's AI."; return null; }
+    if (my !== job) return null;
     say(`The AI is looking at the picture (mountains, rock, lakes, words)… up to ${AI_WAIT / 1000} s`, 0.9);
     const look = async () => {
       await acct.load();
@@ -727,6 +730,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const list = (woods ? [...rows.filter((r) => ok(r) && r.taught), ...more.filter((r) => ok(r) && r.taught), ...rows.filter((r) => ok(r) && !r.taught)] : rows.filter(ok)).slice(0, 8);
     more = more.filter((r) => ok(r) && !list.some((x) => F.norm(x.name) === F.norm(r.name))).slice(0, 30);
     if (aiOff || !list.length || !media || !acct || !acct.client) return;
+    if (window.tfAiConsent && !window.tfAiConsent.ok()) return;   // the online check goes to Google too
     if (TEST && TEST.diag) TEST.diag.before = list.map((r) => r.name);
     const out = $("pfCmp"), key = aiKey + "|" + list.map((r) => r.name + "@" + r.save.zone).join(",");
     let got = cmp && cmpKey === key ? cmp : null, why = "";
