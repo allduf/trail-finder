@@ -767,7 +767,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1610");
+      const w = new Worker("winter-fill.js?v=1620");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -849,7 +849,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1610" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1620" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -903,22 +903,51 @@
   // MapLibre internals (pinned 5.24.0): any surprise just skips it.
   const PHONE_BUFFERS = 12;   // enough for a view tilted to 70-75° (measured)
   // Each buffer is 1024 px on phones instead of 2048: ~8 MB instead of ~32, so 12 are ~100 MB instead of ~380, and
-  // the map draws about twice as many frames while moving (phone test at Blackcomb). A little softer right under the
-  // camera, the same further off. 2048 and then 1536 px still ran an iPhone out of memory in Skiing 3D at Whistler and
-  // Blackcomb (alex's recordings, 2026-10-26).
+  // the map draws about twice as many frames while moving (phone test at Blackcomb). 2048 and then 1536 px for every
+  // buffer ran an iPhone out of memory in Skiing 3D at Whistler and Blackcomb (alex's recordings, 2026-10-26).
+  // But a view that isn't tilted far needs only 2-5 buffers, and at 1024 px the ground right under the camera looks
+  // soft (Outmap/FATMAP look sharper there). So the memory is a budget, not a size: 12 x 1024 px worth of buffers
+  // (~100 MB). Once the map is still and needs few buffers, they're made bigger (1536 px for up to 5, 2048 px for up
+  // to 3) inside that budget; as soon as a view needs more than fit, they go back to 1024 px. Never more memory
+  // than before, sharper ground whenever the view allows it (2026-11-02).
   const PHONE_RTT = 1024;
+  const RTT_BUDGET = PHONE_BUFFERS * PHONE_RTT * PHONE_RTT;   // pixels of paint buffer, all buffers together
+  const RTT_SIZES = [2048, 1536, PHONE_RTT];
+  const fitting = (size) => Math.floor(RTT_BUDGET / (size * size));   // how many buffers of this size fit the budget
+  function setRtt(pool, size) {
+    if (gl.terrain) gl.terrain.tileManager.freeRtt();   // every piece of ground paints again, into the new buffers
+    pool.freeAllObjects();
+    for (const o of pool._objects) o.fbo.destroy();   // the colour buffer and depth buffer
+    pool._objects = []; pool._recentlyUsed = [];
+    pool._tileSize = size; pool._size = fitting(size);
+    gl.triggerRepaint();
+  }
+  // Paint buffers the view in front of the camera needs: one per piece of ground per layer stack.
+  function rttNeed() {
+    const rtt = gl.painter.renderToTexture, terrain = gl.terrain;
+    if (!rtt || !terrain) return 0;
+    return terrain.tileManager.getRenderableTiles().length * Math.max(1, (rtt._stacks || []).length);
+  }
   function phoneBuffers() {
     try {
       const pool = gl.painter.renderToTexture && gl.painter.renderToTexture.pool;
       if (!pool) return;
-      if (pool._size !== PHONE_BUFFERS) pool._size = PHONE_BUFFERS;
-      if (pool._tileSize === PHONE_RTT) return;
-      if (gl.terrain) gl.terrain.tileManager.freeRtt();   // every piece of ground paints again, into the smaller buffers
-      pool.freeAllObjects();
-      for (const o of pool._objects) o.fbo.destroy();   // the colour buffer and depth buffer
-      pool._objects = []; pool._recentlyUsed = [];
-      pool._tileSize = PHONE_RTT;
-      gl.triggerRepaint();
+      if (!RTT_SIZES.includes(pool._tileSize)) return setRtt(pool, PHONE_RTT);   // MapLibre's own 2048 x 30
+      if (pool._size !== fitting(pool._tileSize)) pool._size = fitting(pool._tileSize);
+      // Bigger buffers and the view now needs more than fit (tilting, zooming out): back to 1024 px right away,
+      // so the ground isn't painted in turns while moving.
+      if (pool._tileSize > PHONE_RTT && rttNeed() > pool._size) setRtt(pool, PHONE_RTT);
+    } catch {}
+  }
+  // Map still: the biggest buffers whose count still fits the budget for this view.
+  function sharpenWhenStill() {
+    try {
+      const pool = gl.painter.renderToTexture && gl.painter.renderToTexture.pool;
+      if (!pool || gl.isMoving() || document.hidden) return;
+      const need = rttNeed();
+      if (!need) return;
+      const size = RTT_SIZES.find((s) => need <= fitting(s));
+      if (size && size !== pool._tileSize) setRtt(pool, size);
     } catch {}
   }
   function trimPaintBuffers() {
@@ -1388,6 +1417,7 @@
     setTimeout(waited, 20000); setTimeout(timeIt, 30000);
     if (PHONE) {
       gl.on("idle", trimPaintBuffers);
+      gl.on("idle", sharpenWhenStill);   // after the trim: bigger paint buffers when few are needed
       // At most PHONE_BUFFERS paint buffers, even while moving: with no limit (30) a long tilted ride across the
       // mountains kept up to 16 (~510 MB, measured) until the map stopped, and the iPhone app ran out of memory and
       // restarted on the flat map. A view that needs more paints its ground in turns: a little slower, never a crash.
