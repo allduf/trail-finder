@@ -39,6 +39,7 @@
     [/^(\d) out of 5$/, "$1 sur 5"],
     [/^Bite today (\d)\/5$/, "Activité aujourd'hui $1/5"],
     [/^All tags \((\d+)\)$/, "Toutes les étiquettes ($1)"],
+    [/^(\S+) (Green|Blue|Black|Double black|Pro line) to (\S+) (Green|Blue|Black|Double black|Pro line)$/, function (m, a, x, b, y) { return a + " " + tw(x) + " à " + b + " " + tw(y); }],
     [/^Est\. (green|blue|black|double black)\?$/, function (m, c) { return "Est. " + { green: "vert", blue: "bleu", black: "noir", "double black": "double noir" }[c] + "?"; }],
     [/^(.+): tap to zoom in$/, "$1 : touchez pour zoomer"],
     [/^Sport: (.+) \(tap to change\)$/, function (m, s) { return "Sport : " + tw(s) + " (touchez pour changer)"; }],

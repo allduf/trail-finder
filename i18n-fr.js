@@ -1463,7 +1463,10 @@
     "New snow, 6 h":"Neige fraîche, 6 h",
     "Japan: Hokkaido Wilds ski tours and huts in Hokkaido, snow depth at the weather stations, and Japan's official topo map.":"Japon : sorties de ski et refuges de Hokkaido Wilds à Hokkaido, épaisseur de neige aux stations météo et carte topo officielle du Japon.",
     "Zoom in to save: from this far out, even the smallest square is too much":"Zoomez pour enregistrer : de si loin, même le plus petit carré est trop grand",
-    "3D map: uses less memory when you leave the app or go back to the flat map, and the snow forecast redraws more calmly, to stop the 3D restarts on iPhone.":"Carte 3D : utilise moins de mémoire quand vous quittez l'app ou revenez à la carte à plat, et la prévision de neige se redessine plus calmement, pour éviter les redémarrages de la 3D sur iPhone."};
+    "3D map: uses less memory when you leave the app or go back to the flat map, and the snow forecast redraws more calmly, to stop the 3D restarts on iPhone.":"Carte 3D : utilise moins de mémoire quand vous quittez l'app ou revenez à la carte à plat, et la prévision de neige se redessine plus calmement, pour éviter les redémarrages de la 3D sur iPhone.",
+    "Closest to prime right now":"Les plus proches du loam parfait en ce moment",
+    "Parts of this trail are rated differently":"Des parties de ce sentier ont des niveaux différents",
+    "Prime loam: when no trail is prime, it now lists the trails closest to prime instead of an empty list, and a trail rated differently along its length shows the whole range (Blue to Black) everywhere.":"Loam parfait : quand aucun sentier n'est parfait, la liste montre maintenant les sentiers les plus proches du loam parfait au lieu d'une liste vide, et un sentier noté différemment sur sa longueur montre tout l'éventail (Bleu à Noir) partout."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
@@ -1505,6 +1508,7 @@
     [/^(\d) out of 5$/, "$1 sur 5"],
     [/^Bite today (\d)\/5$/, "Activité aujourd'hui $1/5"],
     [/^All tags \((\d+)\)$/, "Toutes les étiquettes ($1)"],
+    [/^(\S+) (Green|Blue|Black|Double black|Pro line) to (\S+) (Green|Blue|Black|Double black|Pro line)$/, function (m, a, x, b, y) { return a + " " + tw(x) + " à " + b + " " + tw(y); }],
     [/^Est\. (green|blue|black|double black)\?$/, function (m, c) { return "Est. " + { green: "vert", blue: "bleu", black: "noir", "double black": "double noir" }[c] + "?"; }],
     [/^(.+): tap to zoom in$/, "$1 : touchez pour zoomer"],
     [/^Sport: (.+) \(tap to change\)$/, function (m, s) { return "Sport : " + tw(s) + " (touchez pour changer)"; }],
