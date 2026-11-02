@@ -241,7 +241,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
 #fishPane .fs-hatch li { display: grid; grid-template-columns: 1fr; }
 #fishPane ul.fs-top button.fs-go { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 8px; }
 #fishPane ul.fs-top button.fs-go small { grid-column: 1; }
-#fishPane ul.fs-top button.fs-go em { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-style: normal; font-size: .76rem; color: var(--muted); white-space: nowrap; }
+#fishPane ul.fs-list li small.fs-sea { color: #1c7ed6; font-weight: 600; }
+#fishPane ul.fs-top button.fs-go em { grid-column: 2; grid-row: 1 / span 3; align-self: center; font-style: normal; font-size: .76rem; color: var(--muted); white-space: nowrap; }
 #fishPane .fs-style { margin-bottom: 8px; }
 #fishPane .fs-style button.fs-chip { cursor: pointer; font: inherit; font-size: .8rem; font-weight: 700; padding: 6px 12px; }
 #fishPane .fs-style button.fs-chip.on { background: #0c8599; border-color: #0c8599; color: #fff; }
@@ -2090,17 +2091,39 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   }
   $("fsNow").addEventListener("click", () => { if (window.tfPanelScrollTo) window.tfPanelScrollTo($("fsCond")); });
 
+  // ---------- the season on the water ----------
+  // Fix list item 41 (2026-11-02): in November "Where to fish today" ranked Alta, Lost and Nita lakes by stocking from
+  // 5 to 7 months ago, with no word on ice or cold water. From the month and the air at the spot (the last day and the
+  // next 3, Open-Meteo): ice likely, cold water, warm water or plain open water. Ice is a guess from the air: lakes
+  // higher than the spot freeze sooner.
+  function season() {
+    const m = new Date().getMonth() + 1, h = wx && wx.hourly, t = h && h.temperature_2m ? h.temperature_2m.filter((x) => x != null) : [];
+    const air = t.length ? t.reduce((a, x) => a + x, 0) / t.length : null;
+    const winter = m === 12 || m <= 3, shoulder = m === 11 || m === 4;
+    if ((winter && (air == null ? spot.lat > 49.4 : air < 2)) || (shoulder && air != null && air < -3))
+      return { k: "ice", lake: "Ice likely: ice fishing only where the ice is safe (10 cm of clear ice to walk on)", w: 0.45,
+        note: "Lakes here are likely frozen or freezing. Rivers and the coast stay open; check the ice before you walk on it." };
+    if (winter || shoulder || m === 10 && air != null && air < 6)
+      return { k: "cold", lake: "Cold water: fish slow and deep, midday is best", w: 0.8,
+        note: "The water is cold this time of year. Trout feed slowly and deep, best in the warmest hours; stocking from months ago still holds fish. Check in-season closures for rivers." };
+    if ((m === 7 || m === 8) && (air == null || air > 17))
+      return { k: "warm", lake: "Warm water: fish early, late and deep", w: 0.9, note: "Summer: lake trout go deep in the heat. Mornings and evenings are best." };
+    return { k: "open", lake: "", w: 1, note: "" };
+  }
+  const flowing = (w) => /\b(river|creek|brook|rivière|ruisseau)\b/i.test(w.n);   // stocked rivers stay open in winter
+
   // ---------- where to fish today ----------
   function renderToday() {
     const el = $("fsToday");
     if (!spot || (!stocked && !gauges)) { el.innerHTML = ""; return; }
-    const R = 60, cand = [];
+    const R = 60, cand = [], sea = season();
     for (const [w, d] of near(stocked ? stocked.waters : [], spot.lat, spot.lon, R, (x) => x.c)) {
       const fd = freshDays(w), planned = w.r.find((r) => /planned/.test(r[0]) && r[0].startsWith(String(new Date().getFullYear())));
       let s = fd == null ? 0.5 : fd <= 14 ? 3 : fd <= 45 ? 2 : fd <= 365 ? 1 : 0.3;
       if (planned && !fd) s += 0.5;
+      if (!flowing(w)) s *= sea.w;   // a frozen or cold lake fishes slower than its stocking says
       const why = fd == null ? (planned ? "Stocking planned this year" : "Stocked in recent years") : `Stocked ${fd <= 0 ? "today" : fd === 1 ? "yesterday" : fd < 60 ? `${fd} days ago` : `${Math.round(fd / 30)} months ago`}${stocked.sp[w.r[0][1]] ? `, ${stocked.sp[w.r[0][1]].toLowerCase()}` : ""}`;
-      cand.push({ name: w.n, lat: w.c[0], lon: w.c[1], d, s: s - d / 40, why, c: fd != null && fd <= 30 ? C.fresh : C.stocked, open: () => openWater(w) });
+      cand.push({ name: w.n, lat: w.c[0], lon: w.c[1], d, s: s - d / 40, why, sea: flowing(w) ? "" : sea.lake, c: fd != null && fd <= 30 ? C.fresh : C.stocked, open: () => openWater(w) });
     }
     for (const [g, d] of near(gauges || [], spot.lat, spot.lon, R, (x) => [x[2], x[3]])) {
       const l = lightOf(g, readings.get(g[0]));
@@ -2110,11 +2133,12 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     }
     cand.sort((a, b) => b.s - a.s);
     const top = cand.filter((x) => x.s > 0).slice(0, 6), day = castDays()[0];
-    const row = (x, i) => `<li style="--c:${x.c}"><button type="button" class="fs-go" data-i="${i}"><b>${esc(x.name)}</b><small>${esc(x.why)}</small><em>${fmtKm(x.d)}</em></button></li>`;
+    const row = (x, i) => `<li style="--c:${x.c}"><button type="button" class="fs-go" data-i="${i}"><b>${esc(x.name)}</b>${x.sea ? `<small class="fs-sea">${esc(x.sea)}</small>` : ""}<small>${esc(x.why)}</small><em>${fmtKm(x.d)}</em></button></li>`;
     el.innerHTML = `<header>${svg(IC.star)}<h3>Where to fish today</h3>${day ? stars(day.s) : ""}</header>
       ${top.length ? `<ul class="fs-list fs-top">${top.slice(0, 3).map(row).join("")}</ul>
         ${top.length > 3 ? `<details class="fs-more"><summary>${top.length - 3} more</summary><ul class="fs-list fs-top">${top.slice(3).map((x, i) => row(x, i + 3)).join("")}</ul></details>` : ""}
-        <p class="fs-note">Near ${spot.how === "you" ? "you" : spot.how === "tap" ? "the spot" : "the map"}: fresh stocking and good flows first.</p>`
+        ${sea.note ? `<p class="fs-note fs-season">${esc(sea.note)}</p>` : ""}
+        <p class="fs-note">Near ${spot.how === "you" ? "you" : spot.how === "tap" ? "the spot" : "the map"}: ${sea.k === "ice" ? "open rivers and good flows first, then lakes" : "fresh stocking and good flows first"}.</p>`
         : `<p class="fs-note">Nothing stocked or with a river reading within ${R} km. Move the map or zoom in.</p>`}`;
     el.querySelectorAll("[data-i]").forEach((b) => b.addEventListener("click", () => { const x = top[+b.dataset.i]; map.setView([x.lat, x.lon], Math.max(map.getZoom(), 12)); x.open(); }));
   }
