@@ -151,7 +151,7 @@ details > summary { cursor: pointer; font-weight: 600; }
     <div class="card"><table id="errors"></table></div>
   </div>
 </main>
-<script src="account.js?v=1470"></script>
+<script src="account.js?v=1480"></script>
 <script>
 (() => {
   // Plain names for the app's main buttons (ids in index.html and ride.html). Anything else shows as tapped.
@@ -445,7 +445,7 @@ details > summary { cursor: pointer; font-weight: 600; }
       const c = s.ev.filter((r) => r.kind === "crash");
       for (let i = 0; i < c.length; i++) {
         const twin = c.find((o, j) => j !== i && Math.abs(new Date(o.at) - new Date(c[i].at)) < 60e3);
-        if (twin && c[i].what === "app" && twin.what === "3d") continue;
+        if (twin && /^app/.test(c[i].what || "") && /^3d/.test(twin.what || "")) continue;
         crashes.push(c[i]); devices.get(c[i].device).crashes++;
       }
     }
@@ -564,7 +564,17 @@ details > summary { cursor: pointer; font-weight: 600; }
     }).join("");
 
     const cg = new Map();
-    for (const c of crashes) { const k = c.what === "3d" ? "In the 3D map" : "Somewhere else"; const g = cg.get(k) || { n: 0, who: new Set() }; g.n++; g.who.add(c.label || c.device.slice(0, 6)); cg.set(k, g); }
+    // Since 2 Nov 2026 a crash carries where the app was: "3d · ski · Winter · skisnowfc · 4 min · back 1x" or
+    // "app · ski · flat map · Saved tab". Grouped by place and layers; minutes left out, coming back from the
+    // background kept as a flag (most 3D crashes came seconds after it).
+    const crashWhere = (w) => {
+      const parts = String(w || "").split(" · "), kind = parts.shift();
+      if (!parts.length) return kind === "3d" ? "In the 3D map (no details: before 2 Nov)" : "Somewhere else (no details: before 2 Nov)";
+      const back = parts.some((x) => /^back \d+x$/.test(x));
+      const rest = parts.filter((x) => !/^\d+ min$|^back \d+x$/.test(x)).map((x) => SPORTS[x] || x.replace(/^ski(?=[a-z])/, "").replace(/\+/g, ", "));
+      return `${kind === "3d" ? "In the 3D map" : "Not in 3D"} · ${rest.join(" · ")}${back ? " · after coming back to the app" : ""}`;
+    };
+    for (const c of crashes) { const k = crashWhere(c.what); const g = cg.get(k) || { n: 0, who: new Set() }; g.n++; g.who.add(c.label || c.device.slice(0, 6)); cg.set(k, g); }
     $("crashes").innerHTML = cg.size ? `<tr><th>Where</th><th class="n">Times</th><th>Who</th></tr>` + [...cg.entries()].map(([k, g]) => `<tr><td>${k}</td><td class="n">${g.n}</td><td>${esc([...g.who].join(", "))}</td></tr>`).join("")
       : none(3, "No crashes 🎉");
 

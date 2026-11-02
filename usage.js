@@ -123,9 +123,16 @@
   // Crash restarts: "tf:useAlive" is renewed every few seconds while the app is on screen and cleared when it is hidden
   // or left normally (also going to ride.html). If the page opens on screen less than a minute after it, the app died
   // and iOS reloaded it. map3d.js reports the same thing as "3d" when it happened in the 3D map.
-  const ALIVE = "tf:useAlive";
-  { const t = Number(lsGet(ALIVE) || 0); if (t && Date.now() - t < 60e3 && document.visibilityState === "visible") add("crash", "app"); }
-  const alive = (v) => { try { v ? localStorage.setItem(ALIVE, String(Date.now())) : localStorage.removeItem(ALIVE); } catch {} };
+  // "tf:useCtx" keeps where the app was (sport, flat or 3D map, the open tab), sent with the crash so the usage page
+  // can say more than "Somewhere else" (alex 2026-11-02).
+  const ALIVE = "tf:useAlive", CTX = "tf:useCtx";
+  { const t = Number(lsGet(ALIVE) || 0); if (t && Date.now() - t < 60e3 && document.visibilityState === "visible") { const c = lsGet(CTX); add("crash", c ? `app · ${c}` : "app"); } }
+  const where = () => {
+    const b = document.body.classList, sp = ["mtb", "ski", "hunt", "fish", "moto"].find((x) => b.contains("sport-" + x));
+    const tab = document.querySelector("#tabbar [aria-current=true]");
+    return [sp, document.querySelector(".is3d") ? "3D map" : "flat map", tab ? `${(tab.textContent || "").trim().slice(0, 12)} tab` : ""].filter(Boolean).join(" · ");
+  };
+  const alive = (v) => { try { if (v) { localStorage.setItem(ALIVE, String(Date.now())); localStorage.setItem(CTX, where()); } else localStorage.removeItem(ALIVE); } catch {} };
   setInterval(() => { if (document.visibilityState === "visible") alive(true); }, 5000);
   alive(true);
   // How long the page took to be ready, from the start of loading.
