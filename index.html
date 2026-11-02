@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Trail Finder">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#12291d">
-<script src="i18n.js?v=1480"></script>
+<script src="i18n.js?v=1490"></script>
 </head>
 <body>
 <title>Trail Finder</title>
@@ -941,6 +941,7 @@ body.box-on .leaflet-bottom.leaflet-left { visibility: hidden; }   /* the Key bu
 .trail.prime .bar { background: var(--prime); }
 .trail .name { font-weight: 600; overflow-wrap: anywhere; }
 .trail .meta { font-size: .85rem; color: var(--muted); }
+.list-note { margin: 10px 14px 2px; font-size: .78rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
 .trail .right { text-align: right; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .grade { display: inline-block; font-family: var(--font-display); font-weight: 700; font-size: .8rem; padding: 0 6px; border-radius: 4px; background: var(--fg); color: var(--panel); letter-spacing: .04em; }
 /* 25% made the other trails vanish on the map tiles, leaving only their names (alex, 2026-10-20): keep them readable */
@@ -1560,14 +1561,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=1480"></script>
-<script src="native.js?v=1480"></script>
-<script src="keyboard.js?v=1480"></script>
-<script src="rotate.js?v=1480"></script>
-<script src="official.js?v=1480"></script>
-<script src="directions.js?v=1480"></script>
-<script src="ratings.js?v=1480"></script>
-<script src="ebike.js?v=1480"></script>
+<script src="welcome.js?v=1490"></script>
+<script src="native.js?v=1490"></script>
+<script src="keyboard.js?v=1490"></script>
+<script src="rotate.js?v=1490"></script>
+<script src="official.js?v=1490"></script>
+<script src="directions.js?v=1490"></script>
+<script src="ratings.js?v=1490"></script>
+<script src="ebike.js?v=1490"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -2500,6 +2501,15 @@ body.sport-alt #rideMapBtn { display: none !important; }
     if (tags["tf:diffsrc"] === "riders" && difficulty(tags) === tags["tf:diff"]) return `<span class="diff d-${d}" title="${esc(tags["tf:diffwhy"] || "Graded by riders")}">👥 ${DIFF[d].label}</span>`;
     return `<span class="diff d-${d}"${tags["tf:diffwhy"] && difficulty(tags) === tags["tf:diff"] ? ` title="${esc(tags["tf:diffwhy"])}"` : ""}>${DIFF[d].sym} ${DIFF[d].label}</span>`;
   };
+  // One trail made of pieces rated differently (Lord of the Squirrels: two blue, one black) shows the whole range, the
+  // same in the search list and on the card (app review 2026-11-02: search said Blue, the card said Black).
+  const DIFF_ORDER = ["green", "blue", "black", "dbl", "pro"];
+  const diffRangeBadge = (tags, pieces) => {
+    const ds = [...new Set((pieces || []).filter((p) => p && !isEst(p)).map(difficulty).filter(Boolean))].sort((a, b) => DIFF_ORDER.indexOf(a) - DIFF_ORDER.indexOf(b));
+    if (ds.length < 2) return diffBadge(tags);
+    const lo = ds[0], hi = ds[ds.length - 1];
+    return `<span class="diff d-${hi}" title="Parts of this trail are rated differently">${DIFF[lo].sym} ${DIFF[lo].label} to ${DIFF[hi].sym} ${DIFF[hi].label}</span>`;
+  };
   // Trails with no MTB rating on OpenStreetMap get one from ratings.js (official open data, the same trail's rated piece,
   // a rider's own rating, riders' grades in the app, or an estimate from the slope) as made-up tags tf:diff, tf:diffsrc (hand, off, riders, same, est) and tf:diffwhy. Changes tags in place.
   function rateTags(tags, geom, id) {
@@ -3119,6 +3129,7 @@ out body;`;
     const { line, all } = chainSegments(segs.map((t) => t.geom));
     const routes = new Map(); items.forEach((t) => (t.routes || []).forEach((r) => routes.set(r.id, r)));
     const m = { ...main, geom: line, chainAll: all, segments: segs.map((t) => t.geom), segIds: segs.map((t) => t.id),
+      pieceTags: items.filter((t) => rank(t) === best).map((t) => t.tags),
       km: items.reduce((n, t) => n + t.km, 0), bounds: items.reduce((b, t) => b.extend(t.bounds), L.latLngBounds(main.geom)),
       created: first.created, creator: first.creator, firstChangeset: first.firstChangeset,
       unoff: [...new Set(items.flatMap((t) => t.unoff || []))], routes: [...routes.values()],
@@ -3362,7 +3373,7 @@ out body;`;
     list.innerHTML = (namePick ? namePickBar(rows.length, shown.length) : "") + "<ol>" + rows.map((t) => {
       return `<li class="trail ${t.cat}${state.selected === t.id ? " sel" : ""}" data-id="${t.id}" tabindex="0">
         <span class="bar"${barStyle(t)}></span>
-        <div><div class="name">${esc(trailName(t))} ${t.ghost ? "" : diffBadge(t.tags)} ${isUnoff(t) ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(t.official)} ${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}${t.bit ? ` <span class="use-tag">${BIT_TAG[t.bit]}</span>` : ""}</div>
+        <div><div class="name">${esc(trailName(t))} ${t.ghost ? "" : diffRangeBadge(t.tags, t.pieceTags)} ${isUnoff(t) ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(t.official)} ${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}${t.bit ? ` <span class="use-tag">${BIT_TAG[t.bit]}</span>` : ""}</div>
         <div class="meta">${near ? `<span class="zone-tag">${fmtAway(nearDist(t))}</span> · ` : ""}${!zoneById(state.zone) && !state.custom && t.zone ? `<span class="zone-tag">${esc(t.zone.split(" (")[0])}</span> · ` : ""}${esc(plainWhy(t))}</div></div>
         <div class="right">${fmtLen(t.km)}<br>${ago(t.created)}${loamBadge(t)}</div></li>`;
     }).join("") + "</ol>";
@@ -3429,10 +3440,20 @@ out body;`;
     // from the middle of the map.
     const from = near ? L.latLng(near.ll) : you.ll || map.getCenter(), showAway = !!(near || you.ll);
     const dist = (e) => from.distanceTo(e.center);
-    const shown = prime.filter((e) => picked(e.cat, e.unoff.length, e.official, e.g.tags, llOf(e))).sort((a, b) => dist(a) - dist(b) || a.g.name.localeCompare(b.g.name));
-    state.primeShown = shown; state.shownCount = shown.length; state.primeTotal = typed.length;
+    let shown = prime.filter((e) => picked(e.cat, e.unoff.length, e.official, e.g.tags, llOf(e))).sort((a, b) => dist(a) - dist(b) || a.g.name.localeCompare(b.g.name));
+    state.shownCount = shown.length; state.primeTotal = typed.length;
     state.shownIds = new Set();
     state.loamPending = typed.some((e) => loamOf(e) === undefined);
+    // Nothing prime (most days from November to April, app review 2026-11-02): list the trails closest to prime right
+    // now instead of an empty list, the ones nearest the 40-59 band first, then the closest to you.
+    const offBy = (v) => (v < 40 ? 40 - v : v >= 60 ? v - 59 : 0);
+    state.primeClose = 0;
+    if (!shown.length && !state.loamPending) {
+      shown = typed.filter((e) => { const v = loamOf(e); return v != null && offBy(v) <= 20 && !isSnowy(snowOf(e)) && picked(e.cat, e.unoff.length, e.official, e.g.tags, llOf(e)); })
+        .sort((a, b) => offBy(loamOf(a)) - offBy(loamOf(b)) || dist(a) - dist(b)).slice(0, 25);
+      state.primeClose = shown.length;
+    }
+    state.primeShown = shown;
 
     trailLayer.clearLayers(); drawn.key = "";
     drawAllTrails();
@@ -3442,10 +3463,10 @@ out body;`;
     renderStatus();
 
     const list = $("list");
-    list.innerHTML = shown.length ? "<ol>" + shown.map((e, i) => {
+    list.innerHTML = shown.length ? (state.primeClose ? `<p class="list-note">Closest to prime right now</p>` : "") + "<ol>" + shown.map((e, i) => {
       return `<li class="trail prime ${e.cat}" data-pk="${i}" tabindex="0">
         <span class="bar"${barStyle({ tags: e.g.tags })}></span>
-        <div><div class="name">${esc(e.g.name)} ${diffBadge(e.g.tags)} ${e.unoff.length ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(e.official)}</div>
+        <div><div class="name">${esc(e.g.name)} ${diffRangeBadge(e.g.tags, e.g.items.filter((i) => hasMtb(i.tags)).map((i) => i.tags))} ${e.unoff.length ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(e.official)}</div>
         <div class="meta">${showAway ? `<span class="zone-tag">${fmtAway(dist(e))}</span> · ` : ""}${esc([e.g.kind, e.g.zone].filter(Boolean).join(" · "))}</div></div>
         <div class="right">${loamBadge(e).replace(/^<br>/, "")}</div></li>`;
     }).join("") + "</ol>" : "";
@@ -3497,7 +3518,7 @@ out body;`;
         : busy || (noType ? "Tick a trail type above to see the trails." : only ? `No ${only}trails in ${where} are in prime loam right now. Turn off ${onlyOff} to see the others.`
           : `No trails in ${where} are in prime loam right now (Loam index 40 to 59).${loamNow()}${state.primeSoon
             ? ` Forecast: ${state.primeSoon.n} trail${state.primeSoon.n === 1 ? "" : "s"} here turn${state.primeSoon.n === 1 ? "s" : ""} prime ${state.primeSoon.day === "tomorrow" ? "tomorrow" : "on " + state.primeSoon.day}. The 🔔 can tell you when.`
-            : " None look prime in the next few days either."} Pick Month, Year… to see new trails instead.`));
+            : " None look prime in the next few days either."}${state.primeClose ? ` Below: the ${state.primeClose} trail${state.primeClose === 1 ? "" : "s"} closest to prime right now.` : " Pick Month, Year… to see new trails instead."}`));
       return;
     }
     $("findBtn").disabled = !!state.loading;
@@ -4165,7 +4186,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=1480").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=1490").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -4414,7 +4435,7 @@ out body;`;
       <div class="d-top"><button class="linkish back" id="detailBack" type="button" aria-label="Back" title="Back">←</button><h2>${esc(trailName(t))}</h2></div>
       <div class="d-head ${t.cat}">
         <span class="bar"${barStyle(t)}></span>
-        <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${diffBadge(t.tags)}${dirChip(t)}${t.ghost ? "" : ebikeChip(t)}${isUnoff(t) ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(t.official)}${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}</div>
+        <div class="chips"><span class="chip ${t.cat}">${t.catLabel || CAT_LABEL[t.cat]}</span>${diffRangeBadge(t.tags, t.pieceTags)}${dirChip(t)}${t.ghost ? "" : ebikeChip(t)}${isUnoff(t) ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(t.official)}${t.use ? `<span class="use-tag">${USE_LABEL[t.use]}</span>` : ""}</div>
       </div>
       <div class="d-notes">
         <p class="diff-note muted why" id="diffNote"${t.tags["tf:diffwhy"] && difficulty(t.tags) === t.tags["tf:diff"] ? "" : " hidden"}>${esc(t.tags["tf:diffwhy"] || "")}</p>
@@ -4519,7 +4540,7 @@ out body;`;
       if (!difficulty(t.tags)) { note.textContent = "Not rated on OpenStreetMap, and too short to estimate from the slope."; return; }
       note.textContent = t.tags["tf:diffwhy"];
       const chip = document.querySelector("#detail .d-head .chips .chip");
-      if (chip && !document.querySelector("#detail .d-head .chips .diff")) chip.insertAdjacentHTML("afterend", diffBadge(t.tags));
+      if (chip && !document.querySelector("#detail .d-head .chips .diff")) chip.insertAdjacentHTML("afterend", diffRangeBadge(t.tags, t.pieceTags));
       markDiffWhy();
       const bar = document.querySelector("#detail .d-head .bar");
       if (bar && state.colorBy === "diff") bar.style.background = diffColor(difficulty(t.tags));
@@ -4531,7 +4552,7 @@ out body;`;
     const t = dirOpen, chips = document.querySelector("#detail .d-head .chips");
     if (!t || t.ghost || !chips || $("detail").hidden) return;
     if (t.id > 0) rateTags(t.tags, t.geom, t.id);   // a trail opened from search or a link isn't in the lists rated again
-    const old = chips.querySelector(".diff"), badge = diffBadge(t.tags);
+    const old = chips.querySelector(".diff"), badge = diffRangeBadge(t.tags, t.pieceTags);
     if (old) old.outerHTML = badge; else if (badge) chips.querySelector(".chip").insertAdjacentHTML("afterend", badge);
     const note = $("diffNote"), why = t.tags["tf:diffwhy"] && difficulty(t.tags) === t.tags["tf:diff"] ? t.tags["tf:diffwhy"] : "";
     if (note) { note.hidden = !why; note.textContent = why; }
@@ -7280,7 +7301,7 @@ out tags center qt;`;
     const g = h.g;
     const meta = [g.kind, g.zone || nearTown(g.center.lat, g.center.lng), g.items.length > 1 ? g.items.length + " segments" : "", fmtDist(h.d)].filter(Boolean).join(" · ");
     return `<li class="hit ${g.mtb ? "mtb" : ""}" role="option" id="hit${n}" data-n="${n}" aria-selected="${n === hitSel}"><span class="bar"></span>
-      <div><div class="hn">${esc(g.name)} ${diffBadge(g.tags)} ${g.isNew ? `<span class="newtag">New</span>` : ""} ${unofficial(g.tags).length ? unoffTag(UNOFF_FLAGGED) : ""} ${g.use ? `<span class="use-tag">${USE_LABEL[g.use]}</span>` : ""}</div><div class="hm">${esc(meta)}</div></div></li>`;
+      <div><div class="hn">${esc(g.name)} ${diffRangeBadge(g.tags, g.items.filter((i) => hasMtb(i.tags)).map((i) => i.tags))} ${g.isNew ? `<span class="newtag">New</span>` : ""} ${unofficial(g.tags).length ? unoffTag(UNOFF_FLAGGED) : ""} ${g.use ? `<span class="use-tag">${USE_LABEL[g.use]}</span>` : ""}</div><div class="hm">${esc(meta)}</div></div></li>`;
   }
   // Past searches: the trails picked from the name box, newest first, shown when the box is tapped while empty (alex).
   // Kept small (ids, centre, tags) so they reopen without the names files, and synced like other settings.
@@ -7485,7 +7506,7 @@ out tags center qt;`;
     foundLayer.clearLayers();
     setStatus(`Loading ${g.name}…`);
     try {
-      let main, segs = [], segIds = [];
+      let main, segs = [], segIds = [], pieceTags = [];
       if (g.type === "r") {
         const els = (await getJson(`${OSM_API}/relation/${g.items[0].id}/full.json`)).elements;
         const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e]));
@@ -7510,10 +7531,11 @@ out tags center qt;`;
         if (!ways.length) throw new Error("the trail's shape didn't load");
         ways.sort((a, b) => b.km - a.km);
         main = ways[0].w; segs = ways.map((x) => x.line); segIds = [...new Set(ways.map((x) => x.w.id))];
+        pieceTags = ways.filter((x) => hasMtb(x.w.tags || {})).map((x) => x.w.tags);
       }
       if (token !== foundToken) return;
       if (!segs.length) throw new Error("the trail's shape didn't load");
-      await presentTrail({ main, segs, segIds, type: g.type === "r" ? "relation" : "way", kind: g.kind, token, view: "fit", loamAt: g.center });   // same Loam reading as its list row
+      await presentTrail({ main, segs, segIds, pieceTags, type: g.type === "r" ? "relation" : "way", kind: g.kind, token, view: "fit", loamAt: g.center });   // same Loam reading as its list row
     } catch (e) {
       if (token === foundToken) setStatus(`Couldn't load ${g.name} (${e.message}). Try again in a moment.`, true);
     }
@@ -7521,7 +7543,7 @@ out tags center qt;`;
 
   // Build the full trail record (category, first-mapped date), draw it and open its panel.
   // view: "fit" zooms to the whole trail; a LatLng only makes sure that spot stays visible.
-  async function presentTrail({ main, segs, segIds, type, kind, routes = [], routeTypes = [], token, view, loamAt }) {
+  async function presentTrail({ main, segs, segIds, pieceTags, type, kind, routes = [], routeTypes = [], token, view, loamAt }) {
       const tags = main.tags || {};
       const types = routeTypes.concat(tags.route ? [tags.route] : []);
       const { line: geom, all: chainAll } = chainSegments(segs);
@@ -7532,7 +7554,7 @@ out tags center qt;`;
       const c = classify(withOfficial(ctags, geom), routes.map((r) => r.name).concat(tags.route === "mtb" ? [tags.name] : []), types);
       const bounds = segs.reduce((b, s) => b.extend(L.latLngBounds(s)), L.latLngBounds(segs[0]));
       const t = {
-        id: main.id, osmType: type, tags, routes, searched: true, geom, loamAt, chainAll, segments: segs, segIds, bounds,
+        id: main.id, osmType: type, tags, pieceTags, routes, searched: true, geom, loamAt, chainAll, segments: segs, segIds, bounds,
         km: segs.reduce((s, l) => s + lengthKm(l), 0), zone: zoneOf(bounds.getCenter()),
         version: main.version, lastEdit: new Date(main.timestamp), lastUser: main.user || "", lastChangeset: main.changeset,
         cat: c ? c.cat : "other", catLabel: c ? null : isRoad(tags) ? "Forest road" : kind, unoff: c ? c.unoff : unofficial(ctags), official: c ? c.official : officialWhy(ctags), ...useOf(tags, routes.length ? types.concat("mtb") : types),
@@ -8254,47 +8276,47 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=1480"></script>
-<script src="native-map.js?v=1480"></script>
-<script src="contours.js?v=1480"></script>
-<script src="clouds.js?v=1480"></script>
-<script src="smoke.js?v=1480"></script>
-<script src="radar.js?v=1480"></script>
-<script src="photo-slider.js?v=1480"></script>
-<script src="ski-terrain.js?v=1480"></script>
-<script src="place-search.js?v=1480"></script>
-<script src="winter.js?v=1480"></script>
-<script src="hunts.js?v=1480"></script>
-<script src="ski-points.js?v=1480"></script>
-<script src="offline.js?v=1480"></script>
-<script src="ride-stats.js?v=1480"></script>
-<script src="native-gps.js?v=1480"></script>
-<script src="navigate.js?v=1480"></script>
-<script src="planner.js?v=1480"></script>
-<script src="loops.js?v=1480"></script>
-<script src="ride-finds.js?v=1480"></script>
-<script src="rides.js?v=1480"></script>
-<script src="community.js?v=1480"></script>
-<script src="ride-files.js?v=1480"></script>
-<script src="rider-trails.js?v=1480"></script>
-<script src="account.js?v=1480"></script>
-<script src="live.js?v=1480"></script>
-<script src="strava.js?v=1480"></script>
-<script src="reports.js?v=1480"></script>
-<script src="grades.js?v=1480"></script>
-<script src="trail-photos.js?v=1480"></script>
-<script src="visitors.js?v=1480"></script>
-<script src="usage.js?v=1480"></script>
-<script src="notify.js?v=1480"></script>
-<script src="closures.js?v=1480"></script>
-<script src="status.js?v=1480"></script>
-<script src="ask.js?v=1480"></script>
-<script src="areas.js?v=1480"></script>
-<script src="alpine.js?v=1480"></script>
-<script src="bikeparks.js?v=1480"></script>
-<script src="photo-find.js?v=1480"></script>
-<script src="whats-new.js?v=1480"></script>
-<script src="app-update.js?v=1480"></script>
+<script src="map3d.js?v=1490"></script>
+<script src="native-map.js?v=1490"></script>
+<script src="contours.js?v=1490"></script>
+<script src="clouds.js?v=1490"></script>
+<script src="smoke.js?v=1490"></script>
+<script src="radar.js?v=1490"></script>
+<script src="photo-slider.js?v=1490"></script>
+<script src="ski-terrain.js?v=1490"></script>
+<script src="place-search.js?v=1490"></script>
+<script src="winter.js?v=1490"></script>
+<script src="hunts.js?v=1490"></script>
+<script src="ski-points.js?v=1490"></script>
+<script src="offline.js?v=1490"></script>
+<script src="ride-stats.js?v=1490"></script>
+<script src="native-gps.js?v=1490"></script>
+<script src="navigate.js?v=1490"></script>
+<script src="planner.js?v=1490"></script>
+<script src="loops.js?v=1490"></script>
+<script src="ride-finds.js?v=1490"></script>
+<script src="rides.js?v=1490"></script>
+<script src="community.js?v=1490"></script>
+<script src="ride-files.js?v=1490"></script>
+<script src="rider-trails.js?v=1490"></script>
+<script src="account.js?v=1490"></script>
+<script src="live.js?v=1490"></script>
+<script src="strava.js?v=1490"></script>
+<script src="reports.js?v=1490"></script>
+<script src="grades.js?v=1490"></script>
+<script src="trail-photos.js?v=1490"></script>
+<script src="visitors.js?v=1490"></script>
+<script src="usage.js?v=1490"></script>
+<script src="notify.js?v=1490"></script>
+<script src="closures.js?v=1490"></script>
+<script src="status.js?v=1490"></script>
+<script src="ask.js?v=1490"></script>
+<script src="areas.js?v=1490"></script>
+<script src="alpine.js?v=1490"></script>
+<script src="bikeparks.js?v=1490"></script>
+<script src="photo-find.js?v=1490"></script>
+<script src="whats-new.js?v=1490"></script>
+<script src="app-update.js?v=1490"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

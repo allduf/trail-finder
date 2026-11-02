@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-02", "text": "Prime loam: when no trail is prime, it now lists the trails closest to prime instead of an empty list, and a trail rated differently along its length shows the whole range (Blue to Black) everywhere."},
     {"date": "2026-11-02", "text": "3D map: uses less memory when you leave the app or go back to the flat map, and the snow forecast redraws more calmly, to stop the 3D restarts on iPhone."},
     {"date": "2026-11-01", "text": "Japan: Hokkaido Wilds ski tours and huts in Hokkaido, snow depth at the weather stations, and Japan's official topo map."},
     {"date": "2026-10-31", "text": "Offline maps: your saved areas are outlined on the map with no signal (2D and 3D), Skiing saves blurry winter photos all around them, and the square to save can't grow past the size limit."},
