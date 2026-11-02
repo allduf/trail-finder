@@ -44,9 +44,25 @@
   try { const t = +localStorage.getItem(OPEN); crashed = t > 0 && Date.now() - t < CRASH_MS && document.visibilityState === "visible"; } catch {}
   // For alex's usage page (usage.js): 3D restarts after a crash and how long the mountains take to first draw.
   const logUse = (...a) => (window.tfUse ? window.tfUse(...a) : (window.tfUseQ = window.tfUseQ || []).push(a));
-  if (crashed) logUse("crash", "3d");
+  // What the 3D map was showing, kept with the mark (alex 2026-11-02: "Somewhere else" / "In the 3D map" said too
+  // little): the sport, the photos and the ground layers on, how long the 3D map had been open and how many times
+  // the app came back to it from the background. Sent with the crash, so the usage page says what was on.
+  const CTX = "tf:3dCtx";
+  let since3d = 0, resumes = 0, baseIds = null;
+  const ctxNow = () => {
+    if (!gl) return "";
+    try {
+      const vis = (id) => gl.getLayer(id) && gl.getLayoutProperty(id, "visibility") !== "none";
+      const photo = vis("winter") ? "Winter" : vis("live") ? "Live" : "Summer";
+      const extra = baseIds ? gl.getLayersOrder().filter((id) => !baseIds.has(id) && /raster|hillshade/.test(gl.getLayer(id).type) && vis(id)) : [];
+      return [sportNow(), photo, extra.join("+"), `${Math.round((Date.now() - since3d) / 60000)} min`, resumes ? `back ${resumes}x` : ""].filter(Boolean).join(" · ");
+    } catch { return ""; }
+  };
+  let crashCtx = "";
+  try { crashCtx = crashed ? localStorage.getItem(CTX) || "" : ""; } catch {}
+  if (crashed) logUse("crash", crashCtx ? `3d · ${crashCtx}` : "3d");
   mark(false);
-  setInterval(() => { if (on && document.visibilityState === "visible") mark(true); }, 5000);
+  setInterval(() => { if (on && document.visibilityState === "visible") { mark(true); try { localStorage.setItem(CTX, ctxNow()); } catch {} } }, 5000);
   // Where the 3D map was looking, kept while it's open: after a crash the page opens there on the flat map, not on
   // the whole area (alex 2026-10-24: "it lag and jump somewhere in the 2d map"). Not a synced setting either.
   const VIEW = "tf:3dView";
@@ -652,7 +668,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1470");
+      const w = new Worker("winter-fill.js?v=1480");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -734,7 +750,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1470" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1480" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -819,6 +835,28 @@
       gl.triggerRepaint();
     } catch {}
   }
+
+  // Let go of the graphics memory the 3D map can do without for now: every paint buffer, the tiles kept after they
+  // left the view, and MapLibre's spare tile pictures. Done when the app goes to the background in 3D and when the
+  // flat map is picked (the 3D map stays built underneath, so it kept all of it before). alex's iPhone restarted
+  // 3D five times on 2026-10-30/31, three of them seconds after coming back to the app: iOS counts what an app holds
+  // while away, and coming back redraws on top of it. Everything comes back on its own on the next draw (the
+  // pictures from the photo caches, a second or two).
+  function lighten() {
+    if (!gl) return;
+    try {
+      const p = gl.painter, pool = p.renderToTexture && p.renderToTexture.pool;
+      if (pool && gl.terrain) {
+        gl.terrain.tileManager.freeRtt();
+        pool.freeAllObjects();
+        for (const o of pool._objects) o.fbo.destroy();
+        pool._objects = []; pool._recentlyUsed = [];
+      }
+      for (const tm of Object.values(gl.style.tileManagers || {})) if (tm._outOfViewCache) tm._outOfViewCache.reset();
+      if (p._tileTextures) { for (const k in p._tileTextures) for (const t of p._tileTextures[k]) t.destroy(); p._tileTextures = {}; }
+    } catch {}
+  }
+  window.tf3dLighten = lighten;   // for the memory test
 
   // Mountain heights leak in MapLibre 5.24.0: when a neighbouring height tile arrives, the edges of the tiles
   // already drawn are filled in and each gets a NEW 1 MB picture on the graphics card, the old one never freed.
@@ -1178,6 +1216,7 @@
     const demIn = () => { if (gl.queryTerrainElevation(gl.getCenter())) tiltNow(); };
     gl.on("render", demIn);
     gl.once("load", tiltNow);
+    gl.once("load", () => { try { baseIds = new Set(gl.getLayersOrder()); } catch {} });
     // Until the ground first draws the 3D map is only sky (several seconds on a phone with weak signal), which
     // looked broken: say it's coming. Gone once the tilted view has its heights and its photos (not every source:
     // names and the layers under the photos can come after), or after 20 s if some imagery never answers.
@@ -1402,6 +1441,7 @@
       return;
     }
     on = want; mark(on);
+    if (on) { since3d = Date.now(); resumes = 0; }
     if (!auto) { bySport("map3dBy", sportNow(), on); if (on) crashed = false; }
     map.getContainer().classList.toggle("is3d", on);
     map.getContainer().parentElement.classList.toggle("is3d", on);   // hides the 2D map style menu
@@ -1410,7 +1450,7 @@
       if (!gl) build();
       else { box.hidden = false; gl.resize(); const c = map.getCenter(); syncing++; gl.jumpTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d(), pitch: 0 }); syncing--; tiltUp(); }
       syncData(); keepView();
-    } else if (box) { if (gl) tilt = Math.max(gl.getPitch(), 30); box.hidden = true; }
+    } else if (box) { if (gl) tilt = Math.max(gl.getPitch(), 30); box.hidden = true; lighten(); }
     syncBtn();
   }
   function syncBtn() {
@@ -1430,7 +1470,12 @@
     set3d(!crashed && saved3d(s), true);
   });
   // Hidden or closed normally: not a crash. Back on screen in 3D: watch again.
-  document.addEventListener("visibilitychange", () => mark(on && document.visibilityState === "visible"));
+  document.addEventListener("visibilitychange", () => {
+    const shown = document.visibilityState === "visible";
+    mark(on && shown);
+    if (!shown) lighten();
+    else if (on) resumes++;
+  });
   addEventListener("pagehide", () => mark(false));
   addEventListener("pageshow", () => mark(on));
   if (crashed) {

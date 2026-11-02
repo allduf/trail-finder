@@ -2895,10 +2895,21 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         if (!want) { if (has) gl.removeLayer(id); if (gl.getSource(id)) gl.removeSource(id); return; }
         const src = gl.getSource(id);
         if (!src) gl.addSource(id, { type: "raster", tiles: [url()], tileSize: 256, minzoom: o.minZoom, maxzoom: o.maxNative || 14, attribution: o.attribution3d || "Terrain: Mapzen Terrain Tiles" });
-        else if (src.tiles && src.tiles[0] !== url()) src.setTiles([url()]);
+        else if (src.tiles && src.tiles[0] !== url()) later3d(src);
         if (!has) gl.addLayer({ id, type: "raster", source: id, paint: { "raster-fade-duration": 0, "raster-opacity": o.opacity || 1 } }, gl.getLayer("avy") ? "avy" : gl.getLayer("osm-roads") ? "osm-roads" : undefined);
       };
       whenStyle(gl, apply);
+    }
+    // A new picture of the layer in 3D (Snow forecast after more points came in, the hourly update) loads every tile
+    // of it again and repaints all the ground under it. At most once every 4 s, and not in the first 5 s back in the
+    // app or while it's away: alex's iPhone restarted in 3D right after turning on Snow and rain forecast and right
+    // after coming back to the app (2026-10-30), when everything else on the map is loading too.
+    let lastSet = 0, setT = 0, shownAt = 0;
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) shownAt = Date.now(); });
+    function later3d(src) {
+      const wait = Math.max(lastSet + 4000, shownAt + 5000) - Date.now();
+      if (wait <= 0 && !document.hidden) { lastSet = Date.now(); src.setTiles([url()]); return; }
+      if (!setT) setT = setTimeout(() => { setT = 0; sync3d(); }, Math.max(wait, 1000));
     }
     window.addEventListener("tf:map3d", sync3d);
     const set = (on) => {

@@ -94,7 +94,7 @@ for (const d of [...new Set(crashes.map((c) => c.device))])
 const restarts = [];
 for (const c of crashes) {
   const prev = restarts[restarts.length - 1];
-  if (prev && prev.device === c.device && Date.parse(c.at) - Date.parse(prev.at) < 30e3) { prev.what = prev.what === "3d" || c.what === "3d" ? "3d" : "app"; continue; }
+  if (prev && prev.device === c.device && Date.parse(c.at) - Date.parse(prev.at) < 30e3) { if (/^3d/.test(c.what || "")) prev.what = c.what; continue; }
   restarts.push({ ...c });
 }
 const crashLines = [];
@@ -109,14 +109,14 @@ for (const c of restarts) {
   const d = crashDev.get(c.device) || {};
   const last = before[before.length - 1];
   const tail = before.slice(-14).map((e) => `${Math.round((t - Date.parse(e.at)) / 1000)}s ${e.kind}${e.what ? ` ${e.what}` : ""}${e.ms != null ? ` (${e.ms})` : ""}`);
-  crashLines.push(`- **${c.at.slice(0, 16).replace("T", " ")}Z** ${c.what === "3d" ? "in the 3D map" : "app"} · ${cell(d.os || "?")} · ${cell(d.screen || "")} · phone ${c.device.slice(0, 4)}` +
+  crashLines.push(`- **${c.at.slice(0, 16).replace("T", " ")}Z** ${cell(/^3d/.test(c.what || "") ? `in the 3D map${c.what.slice(2)}` : `app${(c.what || "").slice(3)}`)} · ${cell(d.os || "?")} · ${cell(d.screen || "")} · phone ${c.device.slice(0, 4)}` +
     ` · sport ${sp ? (SPORTS[sp.what] || sp.what) : "?"}` +
     (lastOpen ? ` · page open ${Math.round((Date.parse(last.at) - Date.parse(lastOpen.at)) / 60e3)} min before its last event` : "") +
     (last ? ` · last event ${Math.round((t - Date.parse(last.at)) / 1000)} s before the restart` : " · nothing sent before") +
     (tail.length ? `\n  <sub>${cell(tail.join(" · "))}</sub>` : ""));
 }
 const crashMd = !restarts.length ? "" : [`**${restarts.length} crash restart${restarts.length > 1 ? "s" : ""}** in the last ${CRASH_HOURS} hours ` +
-  `(${restarts.filter((c) => c.what === "3d").length} in the 3D map). Newest last; under each, what that phone did just before (seconds before the restart).`, "", ...crashLines].join("\n");
+  `(${restarts.filter((c) => /^3d/.test(c.what || "")).length} in the 3D map). Newest last; under each, what that phone did just before (seconds before the restart).`, "", ...crashLines].join("\n");
 console.log(crashMd || `No crashes in the last ${CRASH_HOURS} hours.`);
 
 const day = new Date().toISOString().slice(0, 10);
