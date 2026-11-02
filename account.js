@@ -15,7 +15,7 @@
     // What each sport saves (alex 2026-10-30: trips, spots and pins on the account in every sport). Pins and tracks have
     // their own tables (ski-points.js, ride.html); these are the lists kept in localStorage. listGone comes first: the
     // lists' merges read it.
-    "listGone", "skiTrips", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved"];
+    "listGone", "skiTrips", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"];
   const STAMP = "tf:settingsAt";   // when this device last changed a setting (ms)
 
   const api = window.tfAccount = { enabled: !!(SUPABASE_URL && SUPABASE_ANON_KEY), url: SUPABASE_URL, key: SUPABASE_ANON_KEY, client: null, user: null, ready: null };
@@ -296,7 +296,7 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
   // when the app comes back to the screen, and when a page asks (tfAccount.sync(), e.g. opening 📂 Saved).
   const KEYAT = "tf:settingsKeyAt";
   const LIVE = new Set(["planSaved", "planGone", "notifyRead", "loamAlert", "myFinds", "shareOn", "shareKey", "sharePast", "shareFrom", "sharePlaces", "newsSeen",
-    "listGone", "skiTrips", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved"]);   // read fresh by the page, so no reload
+    "listGone", "skiTrips", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"]);   // read fresh by the page, so no reload
   const jparse = (v, d) => { try { const x = JSON.parse(v); return x == null ? d : x; } catch { return d; } };
   // A saved list both devices add to: items by id, the newer edit wins, minus those deleted (tf:listGone) after their
   // last edit. sorted: newest first (else this device's order, then the account's new ones). max: the page's own cap.
@@ -327,6 +327,7 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     motoRoutes: listMerge("motoRoutes", (r) => r.id, (r) => r.ed || r.at || 0, true, 40),   // Adventure moto saved routes
     motoBikes: listMerge("motoBikes", (k) => k.id, (k) => k.ed || 0, false, 20),            // Adventure moto: my bikes
     hikeSaved: listMerge("hikeSaved", (h) => h.id, (h) => h.at || 0, true, 200),            // Hiking: saved hikes (hike.js)
+    hikePlans: listMerge("hikePlans", (h) => h.id, (h) => h.at || 0, true, 100),            // Hiking: planned hikes (hike.js)
     // What's new (whats-new.js): the newest change seen on any device, so a line read on the phone isn't shown again on the computer.
     newsSeen: (a, b) => {
       const x = jparse(a, null), y = jparse(b, null);

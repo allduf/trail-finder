@@ -1635,7 +1635,28 @@
     "The weather service is busy: tap Today again in a minute.":"Le service météo est occupé : touchez Aujourd'hui de nouveau dans une minute.",
     "No signal: Today needs a connection.":"Pas de réseau : Aujourd'hui a besoin d'une connexion.",
     "Today ranks the hikes near you: snow-free first, then snow up high, then closed or warned.":"Aujourd'hui classe les randos près de vous : sans neige d'abord, puis neige en altitude, puis fermées ou avec avertissement.",
-    "Layers: trailheads and parking, huts and campsites, viewpoints, water, slope angle. Tap one for the hikes from it.":"Couches : départs et stationnements, refuges et campings, belvédères, eau, angle de pente. Touchez-en un pour les randos qui en partent."};
+    "Layers: trailheads and parking, huts and campsites, viewpoints, water, slope angle. Tap one for the hikes from it.":"Couches : départs et stationnements, refuges et campings, belvédères, eau, angle de pente. Touchez-en un pour les randos qui en partent.",
+    "Plan a hike":"Planifier une rando",
+    "Parks and passes":"Parcs et laissez-passer",
+    "Planned hikes":"Randos planifiées",
+    "Tap Plan, then points on the map: the route follows the trails. Save it and it's here.":"Touchez Planifier, puis des points sur la carte : le trajet suit les sentiers. Enregistrez-le et il sera ici.",
+    "Tap the map where you start, then where you want to go. The route follows the footpaths and hiking trails.":"Touchez la carte où vous partez, puis où vous voulez aller. Le trajet suit les sentiers pédestres et de randonnée.",
+    "Tap Plan to start.":"Touchez Planifier pour commencer.",
+    "Start set. Now tap where you want to go (a summit, a lake, a hut).":"Départ placé. Touchez maintenant où vous voulez aller (un sommet, un lac, un refuge).",
+    "Finding the way along the trails…":"Recherche du chemin par les sentiers…",
+    "No signal: planning needs a connection.":"Pas de réseau : la planification a besoin d'une connexion.",
+    "No trail joins those points at this grade: move a point onto a trail, or allow harder trails.":"Aucun sentier ne relie ces points à ce niveau : déplacez un point sur un sentier, ou permettez des sentiers plus difficiles.",
+    "The route server is busy: tap Undo then add the point again in a moment.":"Le serveur de trajets est occupé : touchez Annuler puis ajoutez le point de nouveau dans un instant.",
+    "Up to moderate":"Jusqu'à modéré",
+    "Up to hard":"Jusqu'à difficile",
+    "Up to expert":"Jusqu'à expert",
+    "Back to the start":"Retour au départ",
+    "Follow it":"La suivre",
+    "GPX file":"Fichier GPX",
+    "Add points":"Ajouter des points",
+    "No snow at the top":"Pas de neige au sommet",
+    "Routing: Valhalla on OpenStreetMap. Check the route on the map: a path on the map isn't always a trail on the ground.":"Trajets : Valhalla sur OpenStreetMap. Vérifiez le trajet sur la carte : un chemin sur la carte n'est pas toujours un sentier sur le terrain.",
+    "Plan: tap points on the map and the route follows the trails, with climb, time and snow at the top. Save it, follow it or send it as a GPX file.":"Planifier : touchez des points sur la carte et le trajet suit les sentiers, avec dénivelé, durée et neige au sommet. Enregistrez-le, suivez-le ou envoyez-le en fichier GPX."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

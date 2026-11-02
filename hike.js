@@ -23,6 +23,9 @@
 //    elevation, a few points each) and the snow there right now (Open-Meteo, all of them in one ask), with the
 //    closures and wildfires near each: snow-free first.
 //  - The hike card: a height profile, where to start (the nearest trailhead or parking) and what's along it.
+//  - Plan a hike: tap points on the map (2D or 3D) and the route follows the footpaths and hiking trails (Valhalla's
+//    pedestrian routing, the same server Moto plans on), up to the grade you pick; distance, climb, time, profile and
+//    the snow at its top; save it (synced), follow it (navigate.js tfRide.follow) or send it as a GPX file.
 (() => {
   "use strict";
   const map = window.tfLeaflet, sel = document.getElementById("sport");
@@ -83,6 +86,7 @@
     today: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/>',
     pin: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
     hut: '<path d="M3 11 12 4l9 7M6 10v10h12V10"/><path d="M10 20v-5h4v5"/>',
+    plan: '<circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><path d="M7 18h6a3 3 0 0 0 0-6h-2a3 3 0 0 1 0-6h6"/>',
   };
 
   // ---------- places along the trails ----------
@@ -179,7 +183,12 @@ body:not(.sport-hike) #hikePane, body:not(.sport-hike) .leaflet-hike-pane { disp
 #hikePane .hk-along li .hk-dot { transform: translateY(1px); }
 #hikePane .hk-along small { color: var(--muted); }
 #hikePane .hk-today-h { margin: 6px 0 0; font-size: .74rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-body:not(.sport-hike) .lm-hike, body.sport-hike #accessBtn { display: none !important; }
+body:not(.sport-hike) .lm-hike, body.sport-hike #accessBtn, body:not(.hk-planning) #hkPlanBar { display: none !important; }
+#hkPlanBar { position: fixed; z-index: 1200; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 72px); width: min(560px, calc(100% - 24px)); box-sizing: border-box;
+  display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px; border-radius: 14px; background: var(--panel); color: var(--fg); box-shadow: 0 4px 16px #0003; font-size: .84rem; }
+#hkPlanBar span { flex: 1; min-width: 0; }
+#hkPlanBar button { font: inherit; font-weight: 700; font-size: .8rem; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
+#hkPlanBar button.go { background: ${ACC}; border-color: ${ACC}; color: #fff; }
 .lm-hike { display: flex; flex-direction: column; }
 .lm-hike .hk-group { margin: 0; font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-top: 6px; }
 .lm-hike .hk-layer { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 5px 0; cursor: pointer; }
@@ -201,11 +210,12 @@ body:not(.sport-hike) .lm-hike, body.sport-hike #accessBtn { display: none !impo
       <button type="button" class="hk-act" data-act="today">${svg(IC.today)}Today</button>
       <button type="button" class="hk-act" data-act="list">${svg(IC.boot)}Hikes here</button>
       <button type="button" class="hk-act" data-act="snow">${svg(IC.snow)}Snow line</button>
-      <button type="button" class="hk-act" data-act="pass">${svg(IC.pass)}Passes</button>
+      <button type="button" class="hk-act" data-act="plan">${svg(IC.plan)}Plan</button>
       <button type="button" class="hk-act" data-act="saved">${svg(IC.star)}Saved</button>
     </div>
     <button type="button" class="hk-now" id="hkNow" hidden></button>
     <div class="hk-card" id="hkToday" hidden></div>
+    <div class="hk-card" id="hkPlan" hidden></div>
     <div class="hk-card" id="hkPlace" hidden></div>
     <div class="hk-card" id="hkHike" hidden></div>
     <div class="hk-card" id="hkSnow" hidden></div>
@@ -216,7 +226,8 @@ body:not(.sport-hike) .lm-hike, body.sport-hike #accessBtn { display: none !impo
       <div class="hk-row" id="hkGrades" role="group" aria-label="Grade"></div>
       <p class="hk-note" id="hkMsg" role="status"></p>
       <ul class="hk-list" id="hkList"></ul>
-      <div class="hk-key">${GRADES.map((g) => `<span><span class="hk-dot" style="--c:${g.c}"></span>${esc(g.label)}</span>`).join("")}</div></div>
+      <div class="hk-key">${GRADES.map((g) => `<span><span class="hk-dot" style="--c:${g.c}"></span>${esc(g.label)}</span>`).join("")}</div>
+      <div class="hk-row"><button type="button" class="hk-pill" id="hkPassBtn">${svg(IC.pass, 16)}Parks and passes</button></div></div>
     <details class="hk-safe"><summary>A guide, not a guarantee</summary>Trails, grades and heights come from OpenStreetMap and Open-Meteo and can be wrong or out of date. Snow amounts are a weather model's guess. Parks change their passes and closures often: check the park's own page, tell someone your plan, carry the ten essentials and bear spray, and turn back when it doesn't feel right.</details>`;
   if (window.tfPlaceSearch) pane.querySelector(".hk-actions").after(window.tfPlaceSearch.box({ placeholder: "Go to a town, park or mountain", local: (q) => localHits(q),
     onPick: (p) => { if (p.hike && hikes.has(p.hike)) openHike(p.hike, true); else window.tfPlaceSearch.go(p); } }));
@@ -228,12 +239,18 @@ body:not(.sport-hike) .lm-hike, body.sport-hike #accessBtn { display: none !impo
   lmHike.innerHTML = `<div class="lm-head">Hiking layers</div><div id="hkLayerList"></div>`;
   const lmStyle = document.querySelector("#layersMenu .lm-style");
   if (lmStyle) lmStyle.after(lmHike); else pane.append(lmHike);
-  const showCard = (el) => { el.hidden = false; if (window.tfPanelScrollTo) window.tfPanelScrollTo(el); };
+  // Phones: a card opened from the map lifts the sheet to half when it's down (as Skiing's cardInView does).
+  const showCard = (el) => {
+    el.hidden = false;
+    const p = document.querySelector(".panel"), low = phone() && window.tfSnapTo && p && p.classList.contains("sheet-peek");
+    if (low) window.tfSnapTo("half");
+    setTimeout(() => { if (window.tfPanelScrollTo) window.tfPanelScrollTo(el); }, low ? 320 : 0);
+  };
   const toPanel = () => { const t = document.querySelector('#tabbar [data-nav="hike"]'); if (phone() && t && t.getAttribute("aria-current") !== "true") t.click(); };
   const closeX = (id) => `<button type="button" class="hk-x" data-close="${id}" aria-label="Close">${svg(IC.x, 16)}</button>`;
   pane.addEventListener("click", (e) => {
     const c = e.target.closest("[data-close]");
-    if (c) { $(c.dataset.close).hidden = true; if (c.dataset.close === "hkHike") select(null); if (c.dataset.close === "hkPlace") { curPlace = null; drawPlaces(); } }
+    if (c) { $(c.dataset.close).hidden = true; if (c.dataset.close === "hkHike") select(null); if (c.dataset.close === "hkPlace") { curPlace = null; drawPlaces(); } if (c.dataset.close === "hkPlan") setPlanning(false); }
   });
 
   // ---------- the trails from OpenStreetMap ----------
@@ -462,7 +479,7 @@ out center tags qt;`;
       seen.add(h.id);
       if (lines.has(h.id)) continue;
       const pl = L.polyline(h.ways.map((w) => w.g), { renderer: rend, pane: "hike", label: h.name, labelZoom: 13, ...styleOf(h, false, false) });
-      pl.on("click", (e) => { if (e.originalEvent) L.DomEvent.stop(e); openHike(h.id); toPanel(); });
+      pl.on("click", (e) => { if (e.originalEvent) L.DomEvent.stop(e); if (plan.on) { planAdd(e.latlng); return; } openHike(h.id); toPanel(); });
       if (!L.Browser.touch) pl.bindTooltip(esc(h.name), { sticky: true, direction: "top", opacity: 0.9 });
       lines.set(h.id, pl); layer.addLayer(pl);
     }
@@ -510,7 +527,7 @@ out center tags qt;`;
       const k = PLACES[p.k], big = p.k === "hut" || p.k === "th";
       const m = L.circleMarker(p.ll, { renderer: placeRend, pane: "hikePlaces", radius: big ? 7 : 5.5, color: "#fff", weight: 2, fillColor: k.c, fillOpacity: 1,
         label: p.n && p.k !== "park" && p.k !== "wc" && p.k !== "water" ? p.n : undefined, labelZoom: p.k === "hut" ? 12 : 14 });
-      m.on("click", (e) => { if (e.originalEvent) L.DomEvent.stop(e); openPlace(p.id); toPanel(); });
+      m.on("click", (e) => { if (e.originalEvent) L.DomEvent.stop(e); if (plan.on) { planAdd(L.latLng(p.ll)); return; } openPlace(p.id); toPanel(); });
       if (!L.Browser.touch) m.bindTooltip(esc(p.n || k.label), { direction: "top", opacity: 0.9 });
       placeLayer.addLayer(m);
     }
@@ -656,7 +673,8 @@ out center tags qt;`;
     const on = isHike();
     const want = (l, yes) => { if (yes && !map.hasLayer(l)) l.addTo(map); else if (!yes && map.hasLayer(l)) map.removeLayer(l); };
     want(layer, on && shown.has("trails")); want(looseLayer, on && shown.has("trails"));
-    want(placeLayer, on); want(slopeLayer, on && shown.has("slope"));
+    want(placeLayer, on); want(slopeLayer, on && shown.has("slope")); want(planLayer, on);
+    if (!on && plan.on) setPlanning(false);
     if (on && shown.has("sleep")) loadHuts();
     drawPlaces(); renderLayers();
   }
@@ -949,7 +967,7 @@ out center tags qt;`;
     if (s) { toggleSave(cur); renderHike(); renderList(); return; }
     const b = e.target.closest("[data-hk]"); if (!b || !cur) return;
     if (b.dataset.hk === "zoom") map.fitBounds(L.latLngBounds([cur.bb[0], cur.bb[1]], [cur.bb[2], cur.bb[3]]), { padding: [30, 30], maxZoom: 15 });
-    else if (b.dataset.hk === "start" && window.tfRide) window.tfRide.start();
+    else if (b.dataset.hk === "start" && window.tfRide) { if (window.tfRide.follow) window.tfRide.follow(cur.ways.map((w) => w.g), cur.name); else window.tfRide.start(); }
   });
 
   // ---------- saved hikes ----------
@@ -966,11 +984,16 @@ out center tags qt;`;
     $("hkSaved").innerHTML = `<header>${svg(IC.star)}<h3>Saved hikes</h3>${closeX("hkSaved")}</header>
       ${list.length ? `<ul class="hk-list">${list.map((s) => `<li><button type="button" data-open="${esc(s.id)}"><span class="hk-dot" style="--c:${GRADES[s.g || 0].c}"></span><b>${esc(s.n)}</b><small>${esc(GRADES[s.g || 0].label)} · ${fmtKm(s.km)}</small><em>›</em></button></li>`).join("")}</ul>`
         : `<p class="hk-note">Tap a hike on the map, then ☆ on its card to keep it here for later.</p>`}
+      <h4>Planned hikes</h4>
+      ${plans().length ? `<ul class="hk-list">${plans().map((r) => `<li><button type="button" data-plan="${esc(r.id)}"><span class="hk-dot" style="--c:${ACC}"></span><b>${esc(r.n)}</b><small>${fmtKm(r.km)}${r.up ? ` · ${fmtM(r.up)} up` : ""} · ${esc(new Date(r.at).toLocaleDateString(undefined, { month: "short", day: "numeric" }))}</small><em>›</em></button></li>`).join("")}</ul>`
+        : `<p class="hk-note">Tap Plan, then points on the map: the route follows the trails. Save it and it's here.</p>`}
       <button type="button" class="hk-pill" data-log="1">${svg(IC.log, 16)}My hikes (recorded)</button>`;
     showCard($("hkSaved"));
   }
   $("hkSaved").addEventListener("click", (e) => {
     if (e.target.closest("[data-log]")) { openLog(); return; }
+    const pb = e.target.closest("[data-plan]");
+    if (pb) { const r = plans().find((x) => x.id === pb.dataset.plan); if (r) loadPlan(r); return; }
     const b = e.target.closest("[data-open]"); if (!b) return;
     const s = saved().find((x) => x.id === b.dataset.open); if (!s) return;
     map.fitBounds(L.latLngBounds([s.bb[0], s.bb[1]], [s.bb[2], s.bb[3]]), { padding: [30, 30], maxZoom: 15 });
@@ -1051,6 +1074,175 @@ out center tags qt;`;
     el.innerHTML = `<header>${svg(IC.snow)}<h3>Snow line, next 3 days</h3>${closeX("hkSnow")}</header>
       <div class="hk-days">${wx.days.map((d, i) => `<div><b>${esc(day(d.d, i))}</b><span>${d.line == null ? "–" : d.line < 200 ? "Valley" : `${d.line.toLocaleString()} m`}</span><small>${Math.round(d.min)} to ${Math.round(d.max)}°C</small><small>${d.snow >= 0.5 ? `${Math.round(d.snow)} cm snow` : d.pop != null ? `rain ${d.pop}%` : ""}</small></div>`).join("")}</div>
       <p class="hk-note">Around the middle of the map (the valley here is about ${fmtM(wx.elev || 0)}). Above the snow line, expect snow on the trail and bring microspikes. Snow already on the ground can stay well below it into early summer: tap a hike for the snow at its top. Weather: Open-Meteo.</p>`;
+  }
+
+  // ---------- plan a hike ----------
+  // Points tapped on the map; the route between them along footpaths and hiking trails (Valhalla pedestrian routing,
+  // max_hiking_difficulty from the grade picked: OpenStreetMap's sac_scale 1-6), with heights every 30 m along it.
+  const VALHALLA = "https://valhalla1.openstreetmap.de";
+  const UPTO = [{ k: 2, label: "Moderate" }, { k: 3, label: "Hard" }, { k: 6, label: "Expert" }];
+  const plan = { on: false, pts: [], route: null, busy: false, err: "", seq: 0, name: "", id: null };
+  const plans = () => store.get("hikePlans", []);
+  map.createPane("hikePlan").style.zIndex = 460;
+  const planRend = L.canvas({ pane: "hikePlan", padding: 0.3 });
+  const planLayer = L.layerGroup();
+  const decode6 = (str) => {
+    let i = 0, lat = 0, lon = 0; const out = [];
+    while (i < str.length) {
+      for (const k of [0, 1]) {
+        let b, shift = 0, res = 0;
+        do { b = str.charCodeAt(i++) - 63; res |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+        const d = res & 1 ? ~(res >> 1) : res >> 1;
+        if (k === 0) lat += d; else lon += d;
+      }
+      out.push([lat / 1e6, lon / 1e6]);
+    }
+    return out;
+  };
+  function setPlanning(on) {
+    plan.on = on;
+    document.body.classList.toggle("hk-planning", on);
+    if (on) { toPanel(); renderPlan(); showCard($("hkPlan")); if (map.getZoom() < 12) map.setZoom(13); }
+    else { $("hkPlan").hidden = true; }
+    pane.querySelectorAll('[data-act="plan"]').forEach((b) => b.classList.toggle("on", on));
+    drawPlan();
+  }
+  map.on("click", (e) => { if (isHike() && plan.on) planAdd(e.latlng); });
+  // On the map while planning (the phone sheet drops when the map is tapped): the total so far, Undo and Done.
+  const planBar = document.createElement("div");
+  planBar.id = "hkPlanBar"; planBar.setAttribute("role", "status");
+  document.body.append(planBar);
+  planBar.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-pb]"); if (!b) return;
+    if (b.dataset.pb === "undo") { plan.pts.pop(); plan.id = null; routePlan(); drawPlan(); }
+    else { setPlanning(false); renderPlan(); showCard($("hkPlan")); toPanel(); }
+  });
+  function renderBar() {
+    const r = plan.route;
+    planBar.innerHTML = `<span>${plan.busy ? "Finding the way…" : plan.err ? esc(plan.err) : r ? `<b>${fmtKm(r.km)}</b> · up ${fmtM(r.up)} · about ${fmtH(r.km / 4 + r.up / 500)}` : plan.pts.length ? "Now tap where you want to go" : "Tap the map where you start"}</span>
+      ${plan.pts.length ? `<button type="button" data-pb="undo">Undo</button>` : ""}<button type="button" class="go" data-pb="done">Done</button>`;
+  }
+  function planAdd(ll) {
+    plan.pts.push([+ll.lat.toFixed(5), +ll.lng.toFixed(5)]);
+    plan.id = null;
+    drawPlan(); routePlan();
+  }
+  async function routePlan() {
+    const seq = ++plan.seq;
+    plan.err = "";
+    if (plan.pts.length < 2) { plan.route = null; renderPlan(); drawPlan(); return; }
+    plan.busy = true; renderPlan();
+    const upto = store.get("hikeUpto", 3);
+    try {
+      const r = await fetch(`${VALHALLA}/route`, { method: "POST", headers: { "Content-Type": "application/json" }, signal: timeout(40000),
+        body: JSON.stringify({ locations: plan.pts.map((p) => ({ lat: p[0], lon: p[1], radius: 60 })), costing: "pedestrian",
+          costing_options: { pedestrian: { max_hiking_difficulty: upto, use_hills: 0.5, walkway_factor: 1.5, sidewalk_factor: 2, use_tracks: 0.6 } },
+          elevation_interval: 30, directions_options: { units: "kilometers", language: "en-US" } }) });
+      const j = await r.json();
+      if (seq !== plan.seq) return;
+      if (!r.ok || !j.trip) throw new Error((j && j.error) || `HTTP ${r.status}`);
+      const line = [], el = [];
+      j.trip.legs.forEach((leg) => { const g = decode6(leg.shape); line.push(...(line.length ? g.slice(1) : g)); (leg.elevation || []).forEach((m) => el.push(m)); });
+      let up = 0, down = 0, last = el[0];
+      for (let i = 1; i < el.length; i++) { const d = el[i] - last; if (Math.abs(d) >= 8) { if (d > 0) up += d; else down -= d; last = el[i]; } }
+      let hi = -Infinity, hiAt = line[0];
+      if (el.length) { const k = el.indexOf(Math.max(...el)); hi = el[k]; hiAt = line[Math.min(line.length - 1, Math.round((k / Math.max(1, el.length - 1)) * (line.length - 1)))]; }
+      plan.route = { line, el, km: j.trip.summary.length, up, down, hi, hiAt, top: "loading" };
+      if (el.length) snowTop({ hi, hiAt }).then((t) => { if (plan.route && plan.route.line === line) { plan.route.top = t; renderPlan(); } }).catch(() => { if (plan.route) plan.route.top = null; renderPlan(); });
+    } catch (e) {
+      if (seq !== plan.seq) return;
+      plan.route = null;
+      plan.err = !navigator.onLine ? "No signal: planning needs a connection." : /no path|no suitable edges|unreachable|disconnected/i.test(String(e.message)) ? "No trail joins those points at this grade: move a point onto a trail, or allow harder trails." : "The route server is busy: tap Undo then add the point again in a moment.";
+    } finally {
+      if (seq === plan.seq) { plan.busy = false; renderPlan(); drawPlan(); }
+    }
+  }
+  function drawPlan() {
+    planLayer.clearLayers();
+    if (!isHike()) return;
+    if (plan.route) {
+      planLayer.addLayer(L.polyline(plan.route.line, { renderer: planRend, pane: "hikePlan", color: "#fff", weight: 9, opacity: 0.9, interactive: false }));
+      planLayer.addLayer(L.polyline(plan.route.line, { renderer: planRend, pane: "hikePlan", color: "#d6336c", weight: 5, opacity: 1, interactive: false, lineCap: "round" }));
+    }
+    if (plan.on || plan.route) plan.pts.forEach((p, i) => planLayer.addLayer(L.circleMarker(p, { renderer: planRend, pane: "hikePlan", radius: i === 0 ? 8 : 6, color: "#fff", weight: 2, fillColor: i === 0 ? "#2f9e44" : "#d6336c", fillOpacity: 1, interactive: false })));
+  }
+  function renderPlan() {
+    renderBar();
+    const el = $("hkPlan"), r = plan.route, upto = store.get("hikeUpto", 3);
+    const head = `<header>${svg(IC.plan)}<h3>Plan a hike</h3>${closeX("hkPlan")}</header>`;
+    const chips = `<div class="hk-row" role="group" aria-label="Trails up to">${UPTO.map((u) => `<button type="button" class="hk-pill${u.k === upto ? " on" : ""}" data-upto="${u.k}">Up to ${esc(u.label.toLowerCase())}</button>`).join("")}</div>`;
+    let body = "";
+    if (!plan.pts.length) body = `<p class="hk-note">${plan.on ? "Tap the map where you start, then where you want to go. The route follows the footpaths and hiking trails." : "Tap Plan to start."}</p>`;
+    else if (plan.pts.length === 1) body = `<p class="hk-note">Start set. Now tap where you want to go (a summit, a lake, a hut).</p>`;
+    if (plan.busy) body += `<p class="hk-note">Finding the way along the trails…</p>`;
+    if (plan.err) body += `<div class="hk-warn bad"><b>${esc(plan.err)}</b></div>`;
+    if (r) {
+      const time = r.km / 4 + r.up / 500, t = r.top;
+      body += `<div class="hk-row"><span class="hk-fact">${fmtKm(r.km)}</span><span class="hk-fact">up ${fmtM(r.up)}</span><span class="hk-fact">down ${fmtM(r.down)}</span><span class="hk-fact">about ${fmtH(time)}</span></div>
+        ${r.el.length > 3 ? profileSvg(r.el, r.km) : ""}
+        ${r.hi > -Infinity ? `<p class="hk-note">Highest point ${fmtM(r.hi)}. Time: 4 km/h plus 1 h for every 500 m up; add breaks.</p>` : ""}
+        ${t === "loading" ? `<p class="hk-note">Checking the snow at the top…</p>` : t ? `<div class="hk-warn ${t.snow >= 0.1 ? "bad" : t.snow > 0 || t.fall >= 1 ? "" : "ok"}">${svg(IC.snow, 14)} <b>${t.snow >= 0.01 ? `About ${Math.round(t.snow * 100)} cm of snow at the top now` : t.fall >= 1 ? `${Math.round(t.fall)} cm of snow coming at the top` : "No snow at the top"}</b>${t.sunset ? `<small>Sunset ${hm(t.sunset)}</small>` : ""}</div>` : ""}
+        <label class="hk-note" style="display:flex;gap:6px;align-items:center">Name <input id="hkPlanName" maxlength="60" value="${esc(plan.name)}" placeholder="My hike" style="flex:1;font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg)"></label>`;
+    }
+    const btns = `<div class="hk-row">
+      ${plan.pts.length ? `<button type="button" class="hk-pill" data-pl="undo">Undo</button><button type="button" class="hk-pill" data-pl="loop">Back to the start</button><button type="button" class="hk-pill" data-pl="clear">Clear</button>` : ""}
+      ${r ? `<button type="button" class="hk-pill go" data-pl="save">${svg(IC.star, 16)}${plan.id ? "Saved" : "Save"}</button><button type="button" class="hk-pill go" data-pl="follow">${svg(IC.play, 16)}Follow it</button><button type="button" class="hk-pill" data-pl="gpx">GPX file</button>` : ""}
+      ${plan.on ? "" : `<button type="button" class="hk-pill" data-pl="edit">Add points</button>`}${plan.id ? `<button type="button" class="hk-pill" data-pl="del">Delete</button>` : ""}</div>`;
+    el.innerHTML = head + chips + body + btns + `<p class="hk-note">Routing: Valhalla on OpenStreetMap. Check the route on the map: a path on the map isn't always a trail on the ground.</p>`;
+  }
+  $("hkPlan").addEventListener("input", (e) => { if (e.target.id === "hkPlanName") plan.name = e.target.value; });
+  $("hkPlan").addEventListener("click", (e) => {
+    const u = e.target.closest("[data-upto]");
+    if (u) { store.set("hikeUpto", +u.dataset.upto); routePlan(); return; }
+    const b = e.target.closest("[data-pl]"); if (!b) return;
+    const a = b.dataset.pl;
+    if (a === "undo") { plan.pts.pop(); plan.id = null; routePlan(); drawPlan(); }
+    else if (a === "clear") { plan.pts = []; plan.route = null; plan.id = null; plan.name = ""; plan.seq++; plan.busy = false; plan.err = ""; renderPlan(); drawPlan(); }
+    else if (a === "loop" && plan.pts.length > 1) planAdd(L.latLng(plan.pts[0]));
+    else if (a === "edit") setPlanning(true);
+    else if (a === "save") savePlan();
+    else if (a === "follow" && plan.route && window.tfRide && window.tfRide.follow) { setPlanning(false); window.tfRide.follow([plan.route.line], plan.name || "your hike"); }
+    else if (a === "gpx") gpxOut();
+    else if (a === "del" && plan.id) {
+      if (window.tfAccount && window.tfAccount.gone) window.tfAccount.gone("hikePlans", plan.id);
+      store.set("hikePlans", plans().filter((x) => x.id !== plan.id));
+      plan.pts = []; plan.route = null; plan.id = null; plan.name = ""; renderPlan(); drawPlan();
+      if (!$("hkSaved").hidden) renderSaved();
+    }
+  });
+  function savePlan() {
+    const r = plan.route; if (!r) return;
+    const id = plan.id || "p" + Date.now().toString(36);
+    const n = (plan.name || "").trim() || `Hike of ${fmtKm(r.km)}`;
+    const keep = r.line.filter((p, i) => i % 2 === 0 || i === r.line.length - 1).map((p) => [+p[0].toFixed(5), +p[1].toFixed(5)]);
+    const item = { id, n, pts: plan.pts, line: keep, km: +r.km.toFixed(2), up: Math.round(r.up), at: Date.now() };
+    store.set("hikePlans", [item, ...plans().filter((x) => x.id !== id)].slice(0, 100));
+    plan.id = id; plan.name = n;
+    renderPlan();
+    if (!$("hkSaved").hidden) renderSaved();
+  }
+  function loadPlan(r) {
+    plan.pts = r.pts.slice(); plan.name = r.n; plan.err = "";
+    plan.route = { line: r.line, el: [], km: r.km, up: r.up || 0, down: 0, hi: -Infinity, hiAt: r.line[0], top: null };
+    plan.id = r.id;
+    plan.on = false; document.body.classList.remove("hk-planning");
+    map.fitBounds(L.latLngBounds(r.line), { padding: [30, 30], maxZoom: 15 });
+    renderPlan(); showCard($("hkPlan")); drawPlan();
+    routePlan().then(() => { plan.id = r.id; renderPlan(); });   // fresh heights and snow
+  }
+  function gpxOut() {
+    const r = plan.route; if (!r) return;
+    const n = plan.name || "Hike";
+    const x = (s) => esc(s);
+    const gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>${x(n)}</name></metadata><trk><name>${x(n)}</name><trkseg>${r.line.map((p) => `<trkpt lat="${p[0]}" lon="${p[1]}"/>`).join("")}</trkseg></trk></gpx>`;
+    const file = `${n.replace(/[^\w\- ]+/g, "").trim() || "hike"}.gpx`;
+    const blob = new Blob([gpx], { type: "application/gpx+xml" });
+    try {
+      const f = new File([blob], file, { type: "application/gpx+xml" });
+      if (navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: n }).catch(() => {}); return; }
+    } catch {}
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = file; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }
 
   // ---------- where to hike today ----------
@@ -1143,9 +1335,11 @@ out center tags qt;`;
     else if (a === "list") showCard($("hkListCard"));
     else if (a === "snow") { renderSnow(); showCard($("hkSnow")); if (!wx) loadWx(); }
     else if (a === "pass") { renderPasses(); showCard($("hkPasses")); }
+    else if (a === "plan") { setPlanning(!plan.on || $("hkPlan").hidden); }
     else if (a === "saved") renderSaved();
   });
   $("hkNow").addEventListener("click", () => { renderSnow(); showCard($("hkSnow")); });
+  $("hkPassBtn").addEventListener("click", () => { renderPasses(); showCard($("hkPasses")); });
 
   // ---------- for other scripts ----------
   window.tfHike = {
@@ -1153,7 +1347,7 @@ out center tags qt;`;
     hub(what) {   // index.html's Saved page: My hikes, Saved hikes
       const t = document.querySelector('#tabbar [data-nav="hike"]');
       if (phone() && t && t.getAttribute("aria-current") !== "true") t.click();
-      if (what === "log") openLog(); else if (what === "saved") renderSaved(); else if (what === "today") openToday();
+      if (what === "log") openLog(); else if (what === "saved") renderSaved(); else if (what === "today") openToday(); else if (what === "plan") setPlanning(true);
     },
   };
 
