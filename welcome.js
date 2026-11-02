@@ -27,6 +27,7 @@
     ["hunt", "🦌", "Hunting", "Zones, open seasons, no-shooting areas and wind"],
     ["fish", "🎣", "Fishing", "Stocked lakes, fishing rules and river flow"],
     ["moto", "🏍", "Adventure moto", "Gravel and back roads graded for your bike"],
+    ["hike", "🥾", "Hiking", "Hikes by grade, snow on the trail, park passes"],
   ];
   // Step 2 (why location helps) and step 3 (what you'll see), in each sport's own words.
   const WORDS = {
@@ -65,6 +66,15 @@
         ["Private", "priv", "Your catches and spots stay yours: there's no public catch map."],
       ],
       go: "Start fishing",
+    },
+    hike: {
+      here: "The map opens where you are, with the hiking trails around you coloured by grade.",
+      lines: [
+        ["Colours", "road", "<b style=\"color:#2f9e44\">Green</b> easy, <b style=\"color:#1c7ed6\">blue</b> moderate, <b style=\"color:#e8590c\">orange</b> hard, <b style=\"color:#c92a2a\">red</b> expert."],
+        ["Tap", "tap", "Tap a hike for its time, the snow at the top today, the park pass and closures."],
+        ["Snow", "new", "Snow line: how high the snow comes down in the next 3 days."],
+      ],
+      go: "Start hiking",
     },
     moto: {
       here: "The map opens where you are, with the roads around you coloured for your bike.",

@@ -1,0 +1,68 @@
+# Hiking (hike.js, 2026-11-02)
+Hiking ||| Randonnée
+Hikes ||| Randos
+Hike ||| Rando
+Start hiking ||| Commencer la rando
+Start hike ||| Commencer la rando
+My hikes ||| Mes randos
+Saved hikes ||| Randos enregistrées
+Hikes here ||| Randos ici
+Snow line ||| Limite de neige
+Passes ||| Laissez-passer
+Saved ||| Enregistrés
+Hikes in view ||| Randos à l'écran
+Not graded ||| Non classé
+Easy ||| Facile
+Moderate ||| Modéré
+Hard ||| Difficile
+Expert ||| Expert
+Loop ||| Boucle
+One way ||| Aller simple
+Several branches ||| Plusieurs branches
+Shared with bikes ||| Partagé avec les vélos
+Park and pass ||| Parc et laissez-passer
+Closures and warnings ||| Fermetures et avertissements
+Drive to the start ||| Aller au départ en auto
+Show all of it ||| Tout afficher
+Website ||| Site web
+Search hikes, towns, parks ||| Chercher randos, villes, parcs
+Go to a town, park or mountain ||| Aller à une ville, un parc ou une montagne
+Hikes you recorded: distance and climb ||| Randos enregistrées : distance et dénivelé
+Hikes you starred to do ||| Randos marquées à faire
+Save an area for hiking with no signal ||| Enregistrer une zone pour randonner sans réseau
+Follows you on the map and records your hike. ||| Vous suit sur la carte et enregistre votre rando.
+Record your hike: the map follows you ||| Enregistrez votre rando : la carte vous suit
+Hikes by grade, snow on the trail, park passes ||| Randos par niveau, neige sur le sentier, laissez-passer des parcs
+Snow line, next 3 days ||| Limite de neige, 3 prochains jours
+Parks and passes in Canada ||| Parcs et laissez-passer au Canada
+A guide, not a guarantee ||| Un guide, pas une garantie
+Zoom in to a valley or a town to see its hikes. ||| Zoomez sur une vallée ou une ville pour voir ses randos.
+Finding the hiking trails here… ||| Recherche des sentiers de randonnée ici…
+No named hiking trails here on OpenStreetMap. ||| Aucun sentier de randonnée nommé ici sur OpenStreetMap.
+None of that grade in view. ||| Aucune de ce niveau à l'écran.
+Nearest 40 shown: zoom in for the rest. ||| Les 40 plus proches : zoomez pour les autres.
+Working out the heights… ||| Calcul des altitudes…
+Checking the snow at the top… ||| Vérification de la neige au sommet…
+Checking which park it's in… ||| Recherche du parc…
+Checking closures and wildfires nearby… ||| Vérification des fermetures et feux à proximité…
+Easy: a clear path, little climbing ||| Facile : sentier clair, peu de montée
+A clear path, little climbing ||| Sentier clair, peu de montée
+Mountain trail: steep or rough in parts ||| Sentier de montagne : raide ou accidenté par endroits
+Demanding: exposed bits, sure footing needed ||| Exigeant : passages exposés, pied sûr nécessaire
+Alpine route or scramble: hands needed, route finding ||| Itinéraire alpin ou escalade facile : mains nécessaires, orientation
+No grade on the map yet ||| Pas encore de niveau sur la carte
+Parks Canada pass ||| Laissez-passer de Parcs Canada
+BC Parks day-use pass ||| Laissez-passer d'usage de jour de BC Parks
+Kananaskis Conservation Pass ||| Laissez-passer de conservation de Kananaskis
+Sépaq access fee ||| Droits d'accès Sépaq
+Ontario Parks permit ||| Permis de Parcs Ontario
+Park rules ||| Règles du parc
+Check ||| Vérifier
+More ||| Plus
+Wildfire report ||| Rapport de feu de forêt
+Today ||| Aujourd'hui
+Hiking tools ||| Outils de randonnée
+Save this hike ||| Enregistrer cette rando
+My hikes (recorded) ||| Mes randos (enregistrées)
+Save to My hikes ||| Enregistrer dans Mes randos
+Lunch spot with a view ||| Dîner avec vue

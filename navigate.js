@@ -457,7 +457,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   }
   function fillGap(a, b, dt) {
     let got = null;
-    try { if (!document.body.classList.contains("sport-ski") && !document.body.classList.contains("sport-moto")) got = trailPath(a, b, dt); } catch {}   // ski tours and moto rides don't follow bike trails
+    try { if (!document.body.classList.contains("sport-ski") && !document.body.classList.contains("sport-moto") && !document.body.classList.contains("sport-hike")) got = trailPath(a, b, dt); } catch {}   // ski tours and moto rides don't follow bike trails
     const min = Math.round(dt / 60), when = min >= 1 ? `${min} min` : `${Math.round(dt)} s`;
     if (got && got.path.length > 1) {
       // points along the trail at an even pace, between the two real fixes; heights unknown
@@ -748,7 +748,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     const args = { action };
     if (action === "start") {
       const sp = rec.sport || "mtb";
-      Object.assign(args, { sport: sp, start: rec.start, title: { ski: "Ski tour", hunt: "Hunting", fish: "Fishing", moto: "Moto ride" }[sp] || "Riding" });
+      Object.assign(args, { sport: sp, start: rec.start, title: { ski: "Ski tour", hunt: "Hunting", fish: "Fishing", moto: "Moto ride", hike: "Hike" }[sp] || "Riding" });
     }
     if (st) {
       const next = $("navNext").hidden ? "" : $("navNext").textContent.trim(), name = $("navName").textContent.trim();
@@ -1074,7 +1074,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
       await delCurrent();
     }
     rec = cur && !cur.end ? cur : { id: "current", start: Date.now(), points: [], from: "ride" };
-    if (!rec.points.length) { const b = document.body.classList; const sp = b.contains("sport-ski") ? "ski" : b.contains("sport-hunt") ? "hunt" : b.contains("sport-fish") ? "fish" : b.contains("sport-moto") ? "moto" : ""; if (sp) rec.sport = sp; }   // a ski tour, a hunt (My hunts), a day fishing or a moto ride
+    if (!rec.points.length) { const b = document.body.classList; const sp = b.contains("sport-ski") ? "ski" : b.contains("sport-hunt") ? "hunt" : b.contains("sport-fish") ? "fish" : b.contains("sport-moto") ? "moto" : b.contains("sport-hike") ? "hike" : ""; if (sp) rec.sport = sp; }   // a ski tour, a hunt (My hunts), a day fishing or a moto ride
     rec.from = "ride";             // ride.html's Keep riding sends it back here
     resumeBox.hidden = true;
     drawTrack();

@@ -23,7 +23,7 @@
   // The app reopens on the map it was closed on, for each sport (alex 2026-10-25: "next time they open it, open with
   // the map style they closed it at"): 3D or flat, and the 3D photos, kept per sport in "map3dBy" and "3dPhotosBy".
   // The sport itself is saved by winter.js; before it has set the body class, the saved one is the sport.
-  const sportNow = () => ["mtb", "ski", "hunt", "fish", "moto"].find((s) => document.body.classList.contains("sport-" + s)) || store.get("sport", "mtb");
+  const sportNow = () => ["mtb", "ski", "hunt", "fish", "moto", "hike"].find((s) => document.body.classList.contains("sport-" + s)) || store.get("sport", "mtb");
   const bySport = (k, s, v) => { const o = store.get(k, null) || {}; if (v === undefined) return o[s]; if (o[s] !== v) store.set(k, { ...o, [s]: v }); };
 
   // Phones have far less memory for the 3D map than a computer, and iPhone Safari kills the whole page when it
@@ -670,7 +670,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1550");
+      const w = new Worker("winter-fill.js?v=1560");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -752,7 +752,7 @@
   function addWinterHdProtocol() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1550" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1560" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);

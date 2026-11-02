@@ -22,7 +22,7 @@
   if (!map || !window.L || !document.getElementById("skiPane")) return;
   // MTB has pins too (alex, from Outmap's waypoints): a jump, water, a hidden entrance. Long-press the map or
   // "📍 Save a spot" under My trails; MTB pins show whenever there are some, with no map button.
-  const sportNow = () => (document.body.classList.contains("sport-ski") ? "ski" : document.body.classList.contains("sport-hunt") ? "hunt" : document.body.classList.contains("sport-fish") ? "fish" : "mtb");
+  const sportNow = () => (document.body.classList.contains("sport-ski") ? "ski" : document.body.classList.contains("sport-hunt") ? "hunt" : document.body.classList.contains("sport-fish") ? "fish" : document.body.classList.contains("sport-hike") ? "hike" : "mtb");
   const sportOf = (p) => p.sport || "ski";
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const isSki = () => !!sportNow();   // a sport with saved points (Skiing, Hunting or Fishing)
@@ -249,7 +249,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     $("spCount").textContent = isMtb() ? (points.length ? `📍 Your spots (${points.length})` : "📍 Your spots") : $("spCount").textContent;
     $("spNew").textContent = isMtb() ? "📍 Save a spot" : "📍 Save a point";
     paintFilt();
-    if (!points.length) { list.innerHTML = isMtb() ? `<li class="sk-hint">Save a spot you found: a jump, water, a hidden entrance, where to park. Long-press the map (right-click on a computer) or tap 📍 Save a spot.</li>` : isHunt() ? `<li class="sk-hint">Pin your trail cameras, tracks, salines, caches, stands, sightings and where you parked, with a photo and notes. Only you see them. Tap 📍 Save a point, or long-press the map.</li>` : isFish() ? `<li class="sk-hint">Save your catches and spots: the holes that fish, the way down to the water, launches, where you parked. Only you see them. Tap Save a catch, 📍 Save a point, or long-press the map.</li>` : `<li class="sk-hint">Save a spot you want to remember: a skin track start, a good line, a hazard. Tap 📍 Save a point, or long-press the map.</li>`; return; }
+    if (!points.length) { list.innerHTML = isMtb() ? `<li class="sk-hint">Save a spot you found: a jump, water, a hidden entrance, where to park. Long-press the map (right-click on a computer) or tap 📍 Save a spot.</li>` : isHunt() ? `<li class="sk-hint">Pin your trail cameras, tracks, salines, caches, stands, sightings and where you parked, with a photo and notes. Only you see them. Tap 📍 Save a point, or long-press the map.</li>` : sportNow() === "hike" ? `<li class="sk-hint">Save the spots of your hikes: a viewpoint, water, a campsite, where to park. Only you see them. Tap 📍 Save a point, or long-press the map.</li>` : isFish() ? `<li class="sk-hint">Save your catches and spots: the holes that fish, the way down to the water, launches, where you parked. Only you see them. Tap Save a catch, 📍 Save a point, or long-press the map.</li>` : `<li class="sk-hint">Save a spot you want to remember: a skin track start, a good line, a hazard. Tap 📍 Save a point, or long-press the map.</li>`; return; }
     const sorted = [...visible()].sort((a, b) => b.created - a.created);
     list.innerHTML = sorted.map((p, i) => {
       const u = p.thumb || p.photo ? thumbUrl(p) : "";
@@ -399,7 +399,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     idFor = null; $("spfId").hidden = true; $("spfId").innerHTML = "";
     const mtb = p ? sportOf(p) === "mtb" : isMtb();
     $("spfTitle").textContent = mtb ? (p ? "Edit spot" : "New spot") : p ? "Edit point" : "New point";
-    $("spfName").placeholder = mtb ? "Like “Gap jump” or “Creek water”" : isHunt() ? "Like “North stand”" : isFish() ? "Like “Tailout below the bridge”" : "Like “Skin track start”";
+    $("spfName").placeholder = mtb ? "Like “Gap jump” or “Creek water”" : isHunt() ? "Like “North stand”" : isFish() ? "Like “Tailout below the bridge”" : sportNow() === "hike" ? "Like “Lunch spot with a view”" : "Like “Skin track start”";
     $("spfName").value = p ? p.name : (preset && preset.name) || "";
     $("spfDesc").value = p ? p.note || "" : (preset && preset.note) || "";
     $("spfMsg").textContent = p ? "" : `At ${where.lat.toFixed(5)}, ${where.lon.toFixed(5)}`;
@@ -914,7 +914,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     const m = location.hash.match(/^#pin=(-?[\d.]+),(-?[\d.]+),(\w*),(\w*),(.*)$/);
     if (!m) return;
     history.replaceState(null, "", location.pathname + location.search);
-    const [lat, lon] = [+m[1], +m[2]], sport = ["hunt", "mtb", "fish"].includes(m[3]) ? m[3] : "ski";
+    const [lat, lon] = [+m[1], +m[2]], sport = ["hunt", "mtb", "fish", "hike"].includes(m[3]) ? m[3] : "ski";
     if (!isFinite(lat) || !isFinite(lon)) return;
     const sel = document.getElementById("sport");
     if (sel && sel.value !== sport) { sel.value = sport; sel.dispatchEvent(new Event("change")); }

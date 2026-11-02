@@ -128,7 +128,7 @@
   const ALIVE = "tf:useAlive", CTX = "tf:useCtx";
   { const t = Number(lsGet(ALIVE) || 0); if (t && Date.now() - t < 60e3 && document.visibilityState === "visible") { const c = lsGet(CTX); add("crash", c ? `app · ${c}` : "app"); } }
   const where = () => {
-    const b = document.body.classList, sp = ["mtb", "ski", "hunt", "fish", "moto"].find((x) => b.contains("sport-" + x));
+    const b = document.body.classList, sp = ["mtb", "ski", "hunt", "fish", "moto", "hike"].find((x) => b.contains("sport-" + x));
     const tab = document.querySelector("#tabbar [aria-current=true]");
     return [sp, document.querySelector(".is3d") ? "3D map" : "flat map", tab ? `${(tab.textContent || "").trim().slice(0, 12)} tab` : ""].filter(Boolean).join(" · ");
   };
