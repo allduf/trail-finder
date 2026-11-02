@@ -1461,7 +1461,8 @@
     "New snow, 24 h":"Neige fraîche, 24 h",
     "New snow, 12 h":"Neige fraîche, 12 h",
     "New snow, 6 h":"Neige fraîche, 6 h",
-    "Japan: Hokkaido Wilds ski tours and huts in Hokkaido, snow depth at the weather stations, and Japan's official topo map.":"Japon : sorties de ski et refuges de Hokkaido Wilds à Hokkaido, épaisseur de neige aux stations météo et carte topo officielle du Japon."};
+    "Japan: Hokkaido Wilds ski tours and huts in Hokkaido, snow depth at the weather stations, and Japan's official topo map.":"Japon : sorties de ski et refuges de Hokkaido Wilds à Hokkaido, épaisseur de neige aux stations météo et carte topo officielle du Japon.",
+    "Zoom in to save: from this far out, even the smallest square is too much":"Zoomez pour enregistrer : de si loin, même le plus petit carré est trop grand"};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
@@ -1484,6 +1485,9 @@
     [/^(\d+) (minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years) ago$/, function (m, n, u) { return "il y a " + n + " " + UNIT[u]; }],
     [/^Stocked (\d+) (day|days|week|weeks|month|months|year|years) ago, (.+)$/, function (m, n, u, f) { return "Ensemencé il y a " + n + " " + UNIT[u] + ", " + f; }],
     [/^just now$/i, "à l'instant"],
+    [/^✓ Saved: (.+)$/, "✓ Enregistré : $1"],
+    [/^⚠ Saved: (.+)$/, "⚠ Enregistré : $1"],
+    [/^Biggest square allowed \((?:about )?(.+) of map\)$/, function (m, n) { return "Le plus grand carré permis (" + (/^\d/.test(n) ? "environ " : "") + n.replace("under 1 MB", "moins de 1 Mo").replace(" MB", " Mo").replace(" GB", " Go") + " de carte)"; }],
     [/^1 saved area · save another for no signal$/, "1 zone enregistrée · en enregistrer une autre pour sans réseau"],
     [/^(\d+) saved areas · save another for no signal$/, "$1 zones enregistrées · en enregistrer une autre pour sans réseau"],
     [/^([\d.,]+) km long$/, "$1 km de long"],

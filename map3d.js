@@ -685,7 +685,12 @@
       const have = await loadWinterBlocks();
       if (have) {
         data.push(...WINTERS.map((w) => new URL(w + "blocks.json", location.href).href));
-        each(6, 14, (z, x, y) => { if (anyWinter(have, z, x, y)) { tiles.push(new URL(`${winterSite(have, z, x, y)}${z}/${x}/${y}.webp`, location.href).href); photos++; } });
+        // Zoom 6 to 10 with one tile more on every side (alex 2026-10-31, airplane mode: the ground just past the saved
+        // square was plain green while online it's all winter photos): a blurry winter photo all around, ~25 to
+        // 400 km out depending on the zoom, for about 50 small tiles.
+        const add = (z, x, y) => { if (anyWinter(have, z, x, y)) { tiles.push(new URL(`${winterSite(have, z, x, y)}${z}/${x}/${y}.webp`, location.href).href); photos++; } };
+        for (let z = 6; z <= 10; z++) for (let x = tileX(b[1], z) - 1; x <= tileX(b[3], z) + 1; x++) for (let y = tileY(b[2], z) - 1; y <= tileY(b[0], z) + 1; y++) add(z, x, y);
+        each(11, 14, add);
       }
     }
     return { data, tiles, heights: tiles.length - photos, photos };

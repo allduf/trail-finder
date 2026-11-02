@@ -5670,6 +5670,9 @@ out body;`;
     else if (act.startsWith("moto-") && window.tfMoto) window.tfMoto.hub(act.slice(5));   // moto.js: plan, routes, log, bike
   });
   ["tabNew", "tabName"].forEach((id) => $(id).addEventListener("click", () => setTimeout(syncTabbar)));
+  // The sport set at start (winter.js, the last one used) also renames the tabs and the search box: opened with no
+  // signal, nothing else came along to do it and Skiing showed "Ride" and "Search trails" (2026-10-31).
+  window.addEventListener("tf:sport", () => setTimeout(syncTabbar));
   $("sport").addEventListener("change", () => setTimeout(() => { if (navTop() === "more") showNav("keep"); else if (navStack.length && navStack[0] !== "more") { navStack.length = 0; showNav("peek"); } else syncTabbar(); }));
   phoneMQ.addEventListener("change", () => { if (!phoneMQ.matches) { navStack.length = 0; } showNav(phoneMQ.matches ? "peek" : null); });
   const resnap = () => { if (phoneMQ.matches) snapTo(sheet.snap); else { appEl.style.removeProperty("--sheet-h"); appEl.style.removeProperty("--sheet-vis"); } };

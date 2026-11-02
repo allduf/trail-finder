@@ -82,3 +82,4 @@ New snow, 24 h ||| Neige fraîche, 24 h
 New snow, 12 h ||| Neige fraîche, 12 h
 New snow, 6 h ||| Neige fraîche, 6 h
 Japan: Hokkaido Wilds ski tours and huts in Hokkaido, snow depth at the weather stations, and Japan's official topo map. ||| Japon : sorties de ski et refuges de Hokkaido Wilds à Hokkaido, épaisseur de neige aux stations météo et carte topo officielle du Japon.
+Zoom in to save: from this far out, even the smallest square is too much ||| Zoomez pour enregistrer : de si loin, même le plus petit carré est trop grand
