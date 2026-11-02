@@ -263,7 +263,7 @@ label.toggle.off { background: transparent; border: 1px dashed var(--line); box-
   .tabbar svg { width: 24px; height: 24px; padding: 3px 14px; border-radius: 999px; transition: background .15s; }
   .tabbar > [aria-current="true"] { color: var(--fg); }
   .tabbar > [aria-current="true"] svg { background: color-mix(in srgb, var(--cta) 70%, transparent); color: var(--cta-fg, #10230f); }
-  body.sport-alt .tabbar .mtb-only, body:not(.sport-ski) .tabbar .ski-only, body:not(.sport-hunt) .tabbar .hunt-only, body:not(.sport-fish) .tabbar .fish-only, body:not(.sport-moto) .tabbar .moto-only { display: none; }
+  body.sport-alt .tabbar .mtb-only, body:not(.sport-ski) .tabbar .ski-only, body:not(.sport-hunt) .tabbar .hunt-only, body:not(.sport-fish) .tabbar .fish-only, body:not(.sport-moto) .tabbar .moto-only, body:not(.sport-hike) .tabbar .hike-only { display: none; }
   .app.fullmap .tabbar { display: none; }
 }
 @media (min-width: 761px) { .tabbar { display: none !important; } }
@@ -519,26 +519,26 @@ html body :is(#huntPane, #fishPane) .tf-phone { display: none; }
   html body :is(#skNow, #hnNow, #fsNow, #mtNow, .hub-now, .peek-today) svg { color: var(--accent); flex: none; }
   /* the 4 big buttons */
   .hub-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
-  html body :is(#huntPane .hn-actions, #fishPane .fs-actions, #motoPane .mt-actions, #skiPane .sk-views) { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
-  html body :is(.hub-tile, #huntPane .hn-act, #fishPane .fs-act, #motoPane .mt-act, #skiPane .sk-view) {
+  html body :is(#huntPane .hn-actions, #fishPane .fs-actions, #motoPane .mt-actions, #hikePane .hk-actions, #skiPane .sk-views) { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+  html body :is(.hub-tile, #huntPane .hn-act, #fishPane .fs-act, #motoPane .mt-act, #hikePane .hk-act, #skiPane .sk-view) {
     font: inherit; font-size: .78rem; font-weight: 700; line-height: 1.15; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; text-align: center;
     min-height: 68px; min-width: 0; padding: 8px 3px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); box-shadow: none; cursor: pointer;
   }
-  html body :is(.hub-tile, #huntPane .hn-act, #fishPane .fs-act, #motoPane .mt-act, #skiPane .sk-view) :is(svg, .ic) { color: var(--accent); font-size: 1.3rem; line-height: 1; }
+  html body :is(.hub-tile, #huntPane .hn-act, #fishPane .fs-act, #motoPane .mt-act, #hikePane .hk-act, #skiPane .sk-view) :is(svg, .ic) { color: var(--accent); font-size: 1.3rem; line-height: 1; }
   html body :is(.hub-tile, #skiPane .sk-view) small { font-weight: 500; font-size: .68rem; color: var(--muted); }
-  html body :is(#huntPane .hn-act.on, #fishPane .fs-act.on, #motoPane .mt-act.on, #skiPane .sk-view[aria-pressed="true"]) { background: var(--accent); border-color: var(--accent); color: #fff; }
-  html body :is(#huntPane .hn-act.on, #fishPane .fs-act.on, #motoPane .mt-act.on, #skiPane .sk-view[aria-pressed="true"]) :is(svg, small, .ic) { color: #fff; }
+  html body :is(#huntPane .hn-act.on, #fishPane .fs-act.on, #motoPane .mt-act.on, #hikePane .hk-act.on, #skiPane .sk-view[aria-pressed="true"]) { background: var(--accent); border-color: var(--accent); color: #fff; }
+  html body :is(#huntPane .hn-act.on, #fishPane .fs-act.on, #motoPane .mt-act.on, #hikePane .hk-act.on, #skiPane .sk-view[aria-pressed="true"]) :is(svg, small, .ic) { color: #fff; }
   .hub .dot { margin: 3px 0; }
   /* what's on the map: chips and views, one style */
   .hub-chips { display: flex; flex-wrap: wrap; gap: 7px; }
-  html body :is(.hub-chips button, #huntPane .hn-pill, #fishPane .fs-pill, #motoPane .mt-pill) {
+  html body :is(.hub-chips button, #huntPane .hn-pill, #fishPane .fs-pill, #motoPane .mt-pill, #hikePane .hk-pill) {
     font: inherit; font-size: .84rem; font-weight: 600; min-height: 36px; padding: 0 13px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
   }
-  html body :is(#huntPane .hn-pill, #fishPane .fs-pill, #motoPane .mt-pill) svg { color: var(--accent); }
+  html body :is(#huntPane .hn-pill, #fishPane .fs-pill, #motoPane .mt-pill, #hikePane .hk-pill) svg { color: var(--accent); }
   .hub-chips button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
   html body :is(#huntPane .hn-view, #fishPane .fs-view, #motoPane .mt-view) { border-radius: 12px; background: var(--bg); }
   html body :is(#huntPane .hn-view.on, #fishPane .fs-view.on, #motoPane .mt-view.on) { background: var(--accent); border-color: var(--accent); color: #fff; }
-  html body :is(#huntPane .hn-card, #fishPane .fs-card, #motoPane .mt-card) header svg { color: var(--accent); }
+  html body :is(#huntPane .hn-card, #fishPane .fs-card, #motoPane .mt-card, #hikePane .hk-card) header svg { color: var(--accent); }
   /* the list: rows like Find's, with › */
   html body :is(#skiPane #skPlanBtn, #skiPane #skTripBtn, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtSafeRow .mt-pill) {
     display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; box-sizing: border-box; margin: 0; padding: 10px 14px; text-align: left;
@@ -552,24 +552,24 @@ html body :is(#huntPane, #fishPane) .tf-phone { display: none; }
   html body #skiPane .sk-acts { display: block; }
   html body #skiPane .sk-acts #skTripBtn { margin-top: 10px; }
   /* the order: search, Today, a card you tapped, 4 buttons, the list, what's on the map, the sport's own cards, the small print */
-  html body :is(#skiPane, #huntPane, #fishPane, #motoPane) { display: flex; flex-direction: column; gap: 10px; }
-  html body :is(#skiPane, #huntPane, #fishPane, #motoPane) > *, html body #skiPane .sk-listwrap > * { order: 7; margin-top: 0; margin-bottom: 0; }
-  html body :is(#skiPane, #huntPane, #fishPane, #motoPane) > [hidden], html body #skiPane .sk-listwrap > [hidden] { display: none; }
+  html body :is(#skiPane, #huntPane, #fishPane, #motoPane, #hikePane) { display: flex; flex-direction: column; gap: 10px; }
+  html body :is(#skiPane, #huntPane, #fishPane, #motoPane, #hikePane) > *, html body #skiPane .sk-listwrap > * { order: 7; margin-top: 0; margin-bottom: 0; }
+  html body :is(#skiPane, #huntPane, #fishPane, #motoPane, #hikePane) > [hidden], html body #skiPane .sk-listwrap > [hidden] { display: none; }
   html body #skiPane .sk-listwrap { display: contents; }
-  html body :is(#huntPane, #fishPane, #motoPane) > .ps-box, html body #skiPane #skFindForm, html body #skiPane #skPlaceMsg, html body #skiPane #skPlaces { order: 1; }
-  html body :is(#skNow, #hnNow, #fsNow, #mtNow, #hnSpot, #fsSpot, #skSpot, #skPlan, #skTrip, #skDetail, #skStation) { order: 2; }
-  html body :is(#huntPane .hn-actions, #huntPane #hnPins, #fishPane .fs-actions, #motoPane .mt-actions, #skiPane .sk-views, #hnTruck, #fsTruck, #hnHint, #fsHint, #mtHint) { order: 3; }
+  html body :is(#huntPane, #fishPane, #motoPane, #hikePane) > .ps-box, html body #skiPane #skFindForm, html body #skiPane #skPlaceMsg, html body #skiPane #skPlaces { order: 1; }
+  html body :is(#skNow, #hnNow, #fsNow, #mtNow, #hkNow, #hikePane #hkHike, #hnSpot, #fsSpot, #skSpot, #skPlan, #skTrip, #skDetail, #skStation) { order: 2; }
+  html body :is(#huntPane .hn-actions, #huntPane #hnPins, #fishPane .fs-actions, #motoPane .mt-actions, #hikePane .hk-actions, #skiPane .sk-views, #hnTruck, #fsTruck, #hnHint, #fsHint, #mtHint) { order: 3; }
   html body :is(#skiPane .sk-acts, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtBike, #motoPane #mtSafeRow, #fishPane #fsToday) { order: 4; }
   html body :is(#hnLayers, #fsMap, #mtMap) { order: 5; }
   html body #skiPane #avCard { order: 6; }
   html body #huntPane #hnOffBox { order: 8; }
-  html body :is(#huntPane .hn-safe, #fishPane .fs-safe, #motoPane .mt-safe, #skiPane .sk-safe) { order: 9; }
+  html body :is(#huntPane .hn-safe, #fishPane .fs-safe, #motoPane .mt-safe, #hikePane .hk-safe, #skiPane .sk-safe) { order: 9; }
   /* one home for each tool: Record a tour is the Track tab; Save a point, My hunts and the Fishing log are in Saved */
   html body :is(#skiPane #skRecBtn, #skiPane #skSaveBtn, #huntPane .hn-act[data-act="point"], #huntPane .hn-act[data-act="log"], #fishPane .fs-act[data-act="log"], #huntPane #hnMeasure, #huntPane #hnCompass, #huntPane #spBox, #fishPane #spBox, #skiPane #spBox) { display: none !important; }
   html body.sport-hunt .hub #spBox .sp-new { display: inline-block; }
   html body .hub-now { margin: 0; }
   /* the sheet grown over the map (a spot you tapped): the map's own search and Today line sit on top, not twice */
-  html body .panel:not(.nav-alt) :is(#huntPane > .ps-box, #fishPane > .ps-box, #motoPane > .ps-box, #skFindForm, #skNow, #hnNow, #fsNow, #mtNow) { display: none; }
+  html body .panel:not(.nav-alt) :is(#huntPane > .ps-box, #fishPane > .ps-box, #motoPane > .ps-box, #hikePane > .ps-box, #skFindForm, #skNow, #hnNow, #fsNow, #mtNow, #hkNow) { display: none; }
   .peek-today .dot, .hub-now .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
   html body :is(.hn-keybtn, .fs-keybtn, .mt-keybtn) svg { color: var(--accent); }
 }

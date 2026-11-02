@@ -440,7 +440,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   document.head.append(css);
 
   // ---------- the sport menu ----------
-  const SPORTS = ["mtb", "ski", "hunt", "fish", "moto"];   // an old saved "hike" (Hiking, never built) opens MTB
+  const SPORTS = ["mtb", "ski", "hunt", "fish", "moto", "hike"];   // Hiking (hike.js) since 2026-11-02
   let sport = SPORTS.includes(store.get("sport", "mtb")) ? store.get("sport", "mtb") : "mtb";
   let avyOn = store.get("avy", false);
 
@@ -3726,11 +3726,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // in this order (the order they used to have in index.html), after the page's own scripts, and each one draws
   // itself for the sport that's on when it arrives. Same ?v= as this script, for the same cache rule.
   const jsVer = (document.currentScript && new URL(document.currentScript.src).search) || "";
-  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "japan-snow", "moto"];
+  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "japan-snow", "moto", "hike"];
   const NEEDS = {
     hunt: ["crownland", "hunting", "compass"],
     fish: ["crownland", "fish-bait", "fish-route", "fishing"],
     ski: ["webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "japan-snow"],
+    hike: ["hike"],
     moto: ["crownland", "hunting", "moto"],   // Moto's "Can I ride here" reads Hunting's parks and closures (window.tfHunt)
   };
   const jsLoads = {};
@@ -3771,7 +3772,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     // The map's ▶ Ride button records a ski tour in Skiing (navigate.js).
     const rideBtn = document.getElementById("navRideBtn");
-    if (rideBtn) rideBtn.textContent = sport === "ski" ? "▶ Record" : "▶ Ride";
+    if (rideBtn) rideBtn.textContent = sport === "ski" ? "▶ Record" : sport === "hike" ? "▶ Hike" : "▶ Ride";
     refreshAvy(); refreshHeat(); refreshSlope(); refreshTerrainLayers(); refreshMoreLayers();
     map.invalidateSize({ pan: false });   // the map is wider in Skiing and Hunting on a wide desktop (no results column)
     window.dispatchEvent(new CustomEvent("tf:sport", { detail: sport }));
@@ -3782,7 +3783,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // Shows the current sport's icon; one tap opens the three sports, a second tap switches. On phones it is the first
   // chip of the map's chip row, on wide screens it sits at the top of the map tools; the same on the 3D map.
   // [icon, name, short name for the map button when the name is too long for it]
-  const SPORT_UI = { mtb: ["🚵", "MTB"], ski: ["⛷", "Skiing"], hunt: ["🦌", "Hunting"], fish: ["🎣", "Fishing"], moto: ["🏍", "Adventure moto", "Moto"] };
+  const SPORT_UI = { mtb: ["🚵", "MTB"], ski: ["⛷", "Skiing"], hunt: ["🦌", "Hunting"], fish: ["🎣", "Fishing"], moto: ["🏍", "Adventure moto", "Moto"], hike: ["🥾", "Hiking"] };
   const tools = document.querySelector(".map-tools");
   let sportBtn = null, sportMenu = null;
   if (tools) {

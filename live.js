@@ -24,8 +24,8 @@
   const rand = (n) => { const a = new Uint8Array(n); crypto.getRandomValues(a); return [...a].map((b) => "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"[b % 57]).join(""); };
   const CODE_RE = /^[A-Za-z0-9_-]{12,40}$/;
   const SEND_MS = 15000, POLL_MS = 15000, STALE_MS = 10 * 60000;
-  const sportNow = () => ["ski", "hunt", "fish", "moto"].find((s) => document.body.classList.contains("sport-" + s)) || "mtb";
-  const SPORT_WORD = { mtb: "riding", ski: "skiing", hunt: "hunting", fish: "fishing", moto: "riding" };
+  const sportNow = () => ["ski", "hunt", "fish", "moto", "hike"].find((s) => document.body.classList.contains("sport-" + s)) || "mtb";
+  const SPORT_WORD = { mtb: "riding", ski: "skiing", hunt: "hunting", fish: "fishing", moto: "riding", hike: "hiking" };
   const linkOf = (grp) => `${location.origin}${location.pathname}#live=${grp}`;
 
   async function rpc(fn, args) {

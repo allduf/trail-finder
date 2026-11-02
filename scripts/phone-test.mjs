@@ -21,8 +21,8 @@ import { fileURLToPath } from "node:url";
 const LIVE = "https://allduf.github.io/trail-finder/";
 const BROWSER = process.env.BROWSER || "webkit";
 const OUT = process.env.OUT || "phone-test-shots";
-const SPORTS = (process.env.SPORTS || "mtb,ski,hunt,fish,moto").split(",").map((s) => s.trim()).filter(Boolean);
-const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto" };
+const SPORTS = (process.env.SPORTS || "mtb,ski,hunt,fish,moto,hike").split(",").map((s) => s.trim()).filter(Boolean);
+const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking" };
 // Code libraries (the 3D map's MapLibre), fonts, and the map pictures and heights: everything else outside is cut off.
 const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com",
   "tile.openstreetmap.org", "tiles.openfreemap.org", "tiles.mapterhorn.com", "server.arcgisonline.com", "allduf.github.io"]);   // the last: Winter 3D photos
@@ -141,7 +141,7 @@ for (const sport of SPORTS) {
     await page.waitForFunction((s) => (document.getElementById("sport") || {}).value === s, sport, { timeout: 8000 });
   }, sport === "ski" ? 8000 : 4000);   // Skiing opens on the 3D map
   {
-    const want = { ski: "tfWebcams", hunt: "tfHunt", fish: "tfFish", moto: "tfMoto" }[sport];
+    const want = { ski: "tfWebcams", hunt: "tfHunt", fish: "tfFish", moto: "tfMoto", hike: "tfHike" }[sport];
     if (want) { const ok = await page.evaluate((k) => !!window[k], want); results.push({ sport, step: "Its own scripts loaded", ok, note: ok ? "" : `${want} missing after picking it`, shot: "" }); }
   }
 
