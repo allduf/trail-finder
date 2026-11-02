@@ -1,7 +1,8 @@
 name: Weekly hiking trails
 
 # Twice a week, find the hiking trails and hiking routes of every home zone
-# and save them in data/hike-<zone>.json for Hiking (scripts/build-hike.mjs).
+# and save them in data/hike-<zone>.json, with the trailheads, huts, viewpoints and water
+# along them in data/hike-places-<zone>.json, for Hiking (scripts/build-hike.mjs).
 on:
   schedule:
     # Tuesdays and Fridays, 14:43 UTC: one run may not reach all zones in 80 minutes, the next picks up the oldest.
