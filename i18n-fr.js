@@ -1657,7 +1657,10 @@
     "No snow at the top":"Pas de neige au sommet",
     "Routing: Valhalla on OpenStreetMap. Check the route on the map: a path on the map isn't always a trail on the ground.":"Trajets : Valhalla sur OpenStreetMap. Vérifiez le trajet sur la carte : un chemin sur la carte n'est pas toujours un sentier sur le terrain.",
     "Plan: tap points on the map and the route follows the trails, with climb, time and snow at the top. Save it, follow it or send it as a GPX file.":"Planifier : touchez des points sur la carte et le trajet suit les sentiers, avec dénivelé, durée et neige au sommet. Enregistrez-le, suivez-le ou envoyez-le en fichier GPX.",
-    "Winter photos":"Photos d'hiver"};
+    "Winter photos":"Photos d'hiver",
+    "The line":"Le tracé",
+    "trip reports and guidebooks":"récits de sortie et guides",
+    "(not on OpenStreetMap yet)":"(pas encore sur OpenStreetMap)"};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

@@ -148,3 +148,8 @@ No snow at the top ||| Pas de neige au sommet
 Routing: Valhalla on OpenStreetMap. Check the route on the map: a path on the map isn't always a trail on the ground. ||| Trajets : Valhalla sur OpenStreetMap. Vérifiez le trajet sur la carte : un chemin sur la carte n'est pas toujours un sentier sur le terrain.
 Plan: tap points on the map and the route follows the trails, with climb, time and snow at the top. Save it, follow it or send it as a GPX file. ||| Planifier : touchez des points sur la carte et le trajet suit les sentiers, avec dénivelé, durée et neige au sommet. Enregistrez-le, suivez-le ou envoyez-le en fichier GPX.
 Winter photos ||| Photos d'hiver
+
+# Hand-kept ski routes (data/ski-hand/, 2026-11-03)
+The line ||| Le tracé
+trip reports and guidebooks ||| récits de sortie et guides
+(not on OpenStreetMap yet) ||| (pas encore sur OpenStreetMap)
