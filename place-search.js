@@ -144,6 +144,45 @@ ul.ps-hits:empty { display: none; }
   // showed nothing until Go), from the same GeoNames list as MTB's name box (data/places.json, loaded on the first
   // letter). Nominatim is still only asked on Go.
   const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  // ---------- typos ----------
+  // alex 2026-11-03: "revol" found nothing (Revelstoke is spelled r-e-v-e-l). A name matches when the letters typed
+  // are, give or take one slip (two from 9 letters), how the name or one of its words starts: a letter wrong, missing,
+  // extra or two swapped. Shared by every sport's box (Skiing's resorts, routes and huts, Hiking's hikes, MTB's towns).
+  const slipsOk = (len) => (len < 4 ? 0 : len < 9 ? 1 : 2);
+  let edRow = [new Int32Array(40), new Int32Array(40), new Int32Array(40)];
+  function edits(a, b, max) {
+    const m = a.length, n = b.length;
+    if (!m || !n) return Math.max(m, n);
+    if (Math.abs(m - n) > max) return max + 1;
+    if (edRow[0].length <= n) edRow = [0, 1, 2].map(() => new Int32Array(n * 2 + 1));
+    let [p2, p, c] = edRow;
+    for (let j = 0; j <= n; j++) p[j] = j;
+    for (let i = 1; i <= m; i++) {
+      c[0] = i; let low = i;
+      for (let j = 1; j <= n; j++) {
+        let v = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, p2[j - 2] + 1);
+        c[j] = v; if (v < low) low = v;
+      }
+      if (low > max) return max + 1;
+      [p2, p, c] = [p, c, p2];
+    }
+    return p[n];
+  }
+  // How many slips between what's typed (q, plain letters) and the start of the name t or of one of its words;
+  // -1 when too many. Both already plain (norm()).
+  function slips(q, t) {
+    const k = slipsOk(q.length);
+    if (!k || !t) return -1;
+    let best = k + 1;
+    const tryAt = (w) => {
+      if (w.length < q.length - k) return;
+      for (let L = q.length - 1; L <= q.length + 1 && best; L++) if (L > 0 && L <= w.length) best = Math.min(best, edits(q, w.slice(0, L), Math.min(k, best)));
+    };
+    tryAt(t);
+    if (best && t.includes(" ")) for (const w of t.split(" ")) { if (w.length >= 3) tryAt(w); if (!best) break; }
+    return best <= k ? best : -1;
+  }
   const PKIND = { t: ["Town", "🏘"], l: ["Place", "📍"], p: ["Park", "🌲"] };
   let towns = null, townsP = null;
   function loadTowns(then) {
@@ -159,12 +198,66 @@ ul.ps-hits:empty { display: none; }
       const s = p.t === q ? 3 : p.t.startsWith(q) ? 2 : q.length >= 4 && p.t.includes(" " + q) ? 1 : 0;
       if (s) out.push([p, s, Math.hypot(p.lat - c.lat, (p.lon - c.lng) * k)]);
     }
+    // Nothing spelled that way: the towns one slip away ("revol" -> Revelstoke), only those that start most like
+    // what's typed ("rev..." Revelstoke, not "res..." Resolute).
+    if (!out.length && q.length >= 4) {
+      const same = (w) => { let i = 0; while (i < w.length && w[i] === q[i]) i++; return i; };
+      let most = 0;
+      for (const p of towns) {
+        const d = slips(q, p.t);
+        if (d < 0) continue;
+        const pre = Math.max(same(p.t), ...p.t.split(" ").map(same));
+        most = Math.max(most, pre);
+        out.push([p, 0.5 - d / 10, Math.hypot(p.lat - c.lat, (p.lon - c.lng) * k), pre]);
+      }
+      for (let i = out.length - 1; i >= 0; i--) if (out[i][3] < most) out.splice(i, 1);
+    }
     // Exact names first, then the nearest of the bigger towns: a town near the map beats a big one far away.
     return out.sort((a, b) => b[1] - a[1] || (a[2] - b[2]) / 2 + Math.log10(1 + b[0].pop) - Math.log10(1 + a[0].pop)).slice(0, n).map(([p]) => {
       const kd = PKIND[p.kind] || PKIND.l;
       return { name: p.name, sub: [kd[0], p.prov].filter(Boolean).join(" · "), kind: kd[0], ic: kd[1], lat: p.lat, lon: p.lon, bb: null, zoom: p.kind === "t" ? 13 : 14, ca: true };
     });
   }
+
+  // ---------- every place while typing ----------
+  // Mountains, lakes, rivers, parks and regions too, not only towns (alex 2026-11-03: "propose some location when you
+  // start writing a search, for every sport"). Komoot's Photon is made for search-as-you-type and forgives slips;
+  // asked once the typing pauses (0.45 s), at most once a second, Canadian places only while the map is in Canada.
+  // live(q, then) gives what's already known for q and calls then() when Photon answers.
+  const liveCache = new Map();
+  let liveTimer = 0;
+  const DROP_KIND = /^(house|houses|building|apartments|yes|residential|commercial|industrial|retail|farmyard|construction|hotel|motel|guest_house|hostel|apartment|attraction|artwork|information|museum|gallery|picnic_site|zoo|theme_park|aquarium|chalet)$/;
+  function live(raw, then) {
+    const q = norm(raw);
+    if (q.length < 3 || parseGps(raw)) return [];
+    const got = liveCache.get(q);
+    if (Array.isArray(got)) return got;
+    if (got) return [];   // being asked
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(() => {
+      if (liveCache.has(q)) return;
+      liveCache.set(q, "asking");
+      const c = map.getCenter(), inCa = c.lat > 41.5 && c.lat < 84 && c.lng > -141.1 && c.lng < -52.5;
+      ask("pho", `https://photon.komoot.io/api/?limit=12&lat=${c.lat.toFixed(2)}&lon=${c.lng.toFixed(2)}${inCa ? "&bbox=-141.1,41.6,-52.5,83.2" : ""}&q=` + encodeURIComponent(raw.trim()))
+        .then((j) => {
+          const kept = [];
+          const out = (j.features || []).filter((f) => { const p = f.properties; return p.name && !JUNK.test(p.osm_key) && !DROP_KIND.test(p.osm_value) && (!inCa || p.countrycode === "CA"); })
+            .map((f) => {
+              const p = f.properties, e = p.extent, ll = f.geometry.coordinates, kd = kindOf(p.osm_value, p.type, p.osm_key);
+              const where = [[p.city, p.district, p.county].find((x) => x && x !== p.name), p.state].filter(Boolean).slice(-2);
+              return { name: p.name, sub: [kd[0], ...where].join(" · "), kind: kd[0], ic: kd[1], lat: ll[1], lon: ll[0], bb: e && e.length === 4 ? [e[3], e[1], e[0], e[2]] : null, ca: p.countrycode === "CA", live: true };
+            })
+            .filter((x) => { if (kept.some((y) => y.name === x.name && Math.abs(y.lat - x.lat) + Math.abs(y.lon - x.lon) < 0.5)) return false; kept.push(x); return true; });
+          liveCache.set(q, out.slice(0, 6));
+          then();
+        })
+        .catch(() => { liveCache.set(q, []); then(); setTimeout(() => liveCache.delete(q), 30000); });   // no signal: the local suggestions stay
+    }, 450);
+    return [];
+  }
+  // The same place once: a town from the list and Photon's town, or a resort and Photon's ski area.
+  const samePlace = (a, b) => norm(a.name) === norm(b.name) && Math.abs(a.lat - b.lat) + Math.abs(a.lon - b.lon) < 0.3;
+  const addNew = (list, more, n) => { for (const x of more) { if (list.length >= n) break; if (!list.some((y) => samePlace(x, y))) list.push(x); } return list; };
 
   const hitHtml = (p, i) => `<li><button type="button" data-i="${i}"><span class="ps-ic" aria-hidden="true">${esc(p.ic || "📍")}</span><span class="ps-tx"><b>${esc(p.name)}</b><small>${esc(p.sub || "")}</small></span></button></li>`;
 
@@ -193,7 +286,8 @@ ul.ps-hits:empty { display: none; }
       const q = input.value.trim();
       const loc = q.length >= 2 && o.local ? (o.local(q) || []).slice(0, 5) : [];
       const all = [...loc, ...townHits(q, 5 - Math.min(loc.length, 3))].slice(0, 5);
-      show(all, q.length >= 2 ? (all.length ? "Not in the list? Press Go to search every place." : "Press Go to search every place with that name.") : "");
+      addNew(all, live(q, () => { if (input.value.trim() === q) typed(); }), 7);
+      show(all, q.length >= 2 ? (all.length ? "Not in the list? Press Go to search every place." : q.length >= 3 && !parseGps(q) && !Array.isArray(liveCache.get(norm(q))) ? "Looking…" : "Keep typing, or press Go to search every place.") : "");
     };
     input.addEventListener("input", () => { typed(); if (!towns) loadTowns(() => { if (document.activeElement === input || input.value.trim()) typed(); }); });
     el.addEventListener("submit", async (e) => {
@@ -220,5 +314,5 @@ ul.ps-hits:empty { display: none; }
   // towns(q, n, then): the Canadian towns and places named q while typing (Skiing's find box); then() runs once the
   // list has loaded, the first time.
   const townsNamed = (q, n, then) => { if (!towns) loadTowns(then); return townHits(q, n); };
-  window.tfPlaceSearch = { search, go, box, parseGps, hitHtml, towns: townsNamed };
+  window.tfPlaceSearch = { search, go, box, parseGps, hitHtml, towns: townsNamed, live, addNew, slips, norm };
 })();

@@ -717,7 +717,10 @@ out center tags qt;`;
   function localHits(q) {
     const k = nameKey(q);
     if (k.length < 2) return [];
-    return [...hikes.values()].filter((h) => nameKey(h.name).includes(k)).slice(0, 4)
+    // The name has the letters typed, or is one slip off ("garibaldy"): place-search.js slips.
+    const P = window.tfPlaceSearch, slip = (n) => k.length >= 4 && P && P.slips && P.slips(k, n) >= 0;
+    const all = [...hikes.values()], exact = all.filter((h) => nameKey(h.name).includes(k));
+    return (exact.length ? exact : all.filter((h) => slip(nameKey(h.name)))).slice(0, 4)
       .map((h) => ({ name: h.name, sub: `Hike · ${GRADES[h.g].label} · ${fmtKm(h.km)}`, ic: "🥾", lat: h.c[0], lon: h.c[1], bb: null, zoom: 14, hike: h.id }));
   }
 

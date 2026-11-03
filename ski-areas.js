@@ -212,7 +212,10 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
   const match = (q) => {
     q = String(q || "").trim().toLowerCase();
     if (!q) return [];
-    return areas.filter((a) => (a.prov !== "JP" || inJapanNow()) && [a.name, a.region, PROV[a.prov], ...(a.huts || []).map((h) => h.name)].join(" ").toLowerCase().includes(q))
+    // What's typed in the text, or one slip off the start of a word ("revol" -> Revelstoke), place-search.js.
+    const P = window.tfPlaceSearch, nq = P && P.norm ? P.norm(q) : q;
+    const has = (t) => t.toLowerCase().includes(q) || (!!P && !!P.slips && nq.length >= 4 && P.slips(nq, P.norm(t)) >= 0);
+    return areas.filter((a) => (a.prov !== "JP" || inJapanNow()) && has([a.name, a.region, PROV[a.prov], ...(a.huts || []).map((h) => h.name)].join(" ")))
       .sort((x, y) => !x.name.toLowerCase().includes(q) - !y.name.toLowerCase().includes(q))
       .map((a) => ({ name: a.name, sub: ["Backcountry area", a.region, PROV[a.prov]].filter(Boolean).join(" · "), ic: "⛰", lat: a.lat, lon: a.lon, bb: null, zoom: a.kind === "expedition" ? 10 : 13, area: a.id }));
   };

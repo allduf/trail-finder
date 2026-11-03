@@ -7284,6 +7284,8 @@ out tags center qt;`;
     if (q.length >= 3 && t.startsWith(q)) return 0.97;
     if (q.length >= 4 && t.includes(" " + q)) return 0.9;
     if (q.length >= 5 && Math.abs(t.length - q.length) <= 1 && editDist(q, t, 1) <= 1) return 0.85;
+    // A slip in a half-typed name ("revol" -> Revelstoke): under the trails, which come first when one matched.
+    if (q.length >= 4 && window.tfPlaceSearch && window.tfPlaceSearch.slips(q, t) >= 0) return 0.6;
     return 0;
   }
   function placeHits(raw, n = 3) {
@@ -7391,7 +7393,7 @@ out tags center qt;`;
   function hitRow(h, n) {
     const sel = `role="option" id="hit${n}" data-n="${n}" aria-selected="${n === hitSel}"><span class="bar"></span>`;
     if (h.p) {
-      const p = h.p, meta = [PLACE_KIND[p.kind], p.prov, p.kind === "t" && p.pop >= 1000 ? p.pop.toLocaleString("en-CA") + " people" : "", fmtDist(h.d)].filter(Boolean).join(" · ");
+      const p = h.p, meta = [p.label || PLACE_KIND[p.kind], p.prov, p.kind === "t" && p.pop >= 1000 ? p.pop.toLocaleString("en-CA") + " people" : "", fmtDist(h.d)].filter(Boolean).join(" · ");
       return `<li class="hit place" ${sel}<div><div class="hn">📍 ${esc(p.name)}</div><div class="hm">${esc(meta)}</div></div></li>`;
     }
     if (h.rt) return `<li class="hit mtb" ${sel}<div><div class="hn">➕ ${esc(h.rt.name)}</div><div class="hm">${esc(["Added by a rider", nearTown(h.rt.line[0][0], h.rt.line[0][1]), fmtDist(h.d)].filter(Boolean).join(" · "))}</div></div></li>`;
@@ -7444,6 +7446,17 @@ out tags center qt;`;
     const loading = want.some((z) => names.inflight.has(z.id));
     // Towns only when the name starts that way, or nothing else matched: "Coulee" near Bromont wants the trail, not Spring Coulee AB.
     const local = hits, towns = placeHits(raw).filter((h, i, l) => h.s >= 0.97 || !local.length), far = caHits(raw, local, want).slice(0, Math.max(3, 10 - local.length));
+    // Mountains, lakes, parks and regions from Photon once the typing pauses (place-search.js live), when few trails
+    // matched (alex 2026-11-03: "propose some location when you start writing a search, for every sport").
+    const P = window.tfPlaceSearch;
+    if (P && P.live && local.length + far.length < 3) {
+      const here = you.ll || map.getCenter();
+      for (const x of P.live(raw, () => { if ($("trailQ").value.trim() === raw) refreshHits(); })) {
+        if (towns.length >= 4) break;
+        if (towns.some((h) => P.norm(h.p.name) === P.norm(x.name) && Math.abs(h.p.lat - x.lat) + Math.abs(h.p.lon - x.lon) < 0.3)) continue;
+        towns.push({ p: { name: x.name, lat: x.lat, lon: x.lon, prov: "", kind: "l", pop: 0, label: x.sub, t: P.norm(x.name) }, s: 0.5, d: here.distanceTo([x.lat, x.lon]) });
+      }
+    }
     const added = riderHits(raw);
     hits = towns.concat(added, local, far);
     if (hitSel >= hits.length) hitSel = hits.length - 1;

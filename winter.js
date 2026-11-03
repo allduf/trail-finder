@@ -1173,7 +1173,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }).catch(() => {});
   }).catch(() => {}), { once: true });
   const plain = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-  // 4 the whole name, 3 its start, 2 the start of a word in it, 1 anywhere in it (3 letters or more); 0 no match.
+  // 4 the whole name, 3 its start, 2 the start of a word in it, 1 anywhere in it (3 letters or more), under 1 a slip;
+  // 0 no match.
   const score = (name, q) => {
     const n = plain(name);
     if (!n || !q) return 0;
@@ -1183,7 +1184,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // Each word typed starts a word of the name: "bromont exp" finds "Bromont, montagne d'expériences".
     const nw = n.split(" "), qw = q.split(" ");
     if (qw.length > 1 && qw.every((w) => nw.some((x) => x.startsWith(w)))) return nw[0].startsWith(qw[0]) ? 3 : 2;
-    return q.length >= 3 && n.includes(q) ? 1 : 0;
+    if (q.length >= 3 && n.includes(q)) return 1;
+    // One slip off the start of the name or a word ("revol" -> Revelstoke, "whisler" -> Whistler), after the rest.
+    const P = window.tfPlaceSearch, d = P && P.slips && q.length >= 4 ? P.slips(q, n) : -1;
+    return d >= 0 ? 0.6 - d / 10 : 0;
   };
   const kmAway = (m) => (m < 950 ? `${Math.max(100, Math.round(m / 100) * 100)} m` : `${m < 9500 ? (m / 1000).toFixed(1) : Math.round(m / 1000)} km`);
   const ROUTE_IC = { tour: "⛷", access: "🥾", nordic: "🎿", snowshoe: "❄", snowmobile: "🛷", resort: "🚡", offpiste: "◆", other: "❄" };
@@ -1235,6 +1239,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const rest = [...mine.filter((x) => !top.includes(x)).slice(0, Math.max(2, 6 - top.length)), ...areaRest.slice(0, 2)];
     const towns = P.towns ? P.towns(q, asked ? 0 : 2, () => { if (findText.trim() === q) renderPlaces(); }) : [];
     placeRows = asked ? [...top.slice(0, 3), ...rest.slice(0, 3), ...(placeFound || [])] : [...top, ...rest, ...towns];
+    // Mountains, lakes, parks and regions from Photon once the typing pauses (place-search.js live), not already listed.
+    if (!asked && P.live) P.addNew(placeRows, P.live(q, () => { if (findText.trim() === q) renderPlaces(); }), placeRows.length + 3);
     ul.innerHTML = placeRows.map(P.hitHtml).join("")
       + (asked ? "" : `<li><button type="button" data-more><span class="ps-ic" aria-hidden="true">🔍</span><span class="ps-tx"><span class="ps-more">Search places named “${esc(q)}”</span><small>A region, range, mountain or town: the map goes there</small></span></button></li>`);
     if (!asked) msg.textContent = "";
