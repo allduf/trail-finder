@@ -59,3 +59,5 @@ Add ||| Ajouter
 Remove ||| Retirer
 Done ||| Terminé
 No friends added yet. ||| Aucun ami ajouté pour l'instant.
+Add a name ||| Ajouter un nom
+Name (only you see it) ||| Nom (vous seul le voyez)

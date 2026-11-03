@@ -1761,7 +1761,9 @@
     "Friends":"Amis",
     "Who sees unofficial trails":"Qui voit les sentiers non officiels",
     "They see unofficial trails like you do. Everyone else never sees your unofficial list, closed or no-bikes trails, Likely MTB paths or possible unmapped lines.":"Ils voient les sentiers non officiels comme vous. Les autres ne voient jamais votre liste non officielle, les sentiers fermés ou interdits aux vélos, les chemins Probablement VTT ni les tracés possibles non cartographiés.",
-    "No friends added yet.":"Aucun ami ajouté pour l'instant."};
+    "No friends added yet.":"Aucun ami ajouté pour l'instant.",
+    "Add a name":"Ajouter un nom",
+    "Name (only you see it)":"Nom (vous seul le voyez)"};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
