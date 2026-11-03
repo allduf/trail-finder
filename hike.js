@@ -864,11 +864,7 @@ out center tags qt;`;
   // alex 2026-11-03: anything found about a trail beyond OpenStreetMap goes on the trail (the Sea to Sky Gondola's
   // trails: difficulty, length, time, what it's like). An entry fits a hike with one of its names within r metres.
   let tInfo = null;
-<<<<<<< HEAD
   const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=2090").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
-=======
-  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=2090").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
->>>>>>> origin/main
   const fold = (x) => String(x || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   function operatorFacts(h) {
     const j = tInfo && tInfo.then ? null : tInfo;
