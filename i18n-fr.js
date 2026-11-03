@@ -1697,7 +1697,11 @@
     "Orange on the profile is 30° and steeper.":"En orange sur le profil : 30° et plus raide.",
     "Move along the profile to see the spot on the map.":"Glissez le long du profil pour voir l'endroit sur la carte.",
     "More details: avalanche check, slopes, forecast, weather":"Plus de détails : avalanches, pentes, prévisions, météo",
-    "Skiing: route cards now show length, climb, descent, time, top and bottom in boxes, with the height profile right under them.":"Ski : les fiches d'itinéraire montrent maintenant longueur, montée, descente, durée, haut et bas dans des cases, avec le profil d'altitude juste en dessous."};
+    "Skiing: route cards now show length, climb, descent, time, top and bottom in boxes, with the height profile right under them.":"Ski : les fiches d'itinéraire montrent maintenant longueur, montée, descente, durée, haut et bas dans des cases, avec le profil d'altitude juste en dessous.",
+    "Uphill ski route (skin track)":"Itinéraire de montée en ski (montée en peaux)",
+    "Uphill (skin track)":"Montée (en peaux)",
+    "A way up for skinning, not a run down. At a ski resort, skinning up usually needs an uphill pass and is only allowed at set hours and on set runs: check the resort's uphill rules before you go.":"Un chemin pour monter en peaux, pas une descente. En station, la montée en peaux demande souvent un billet de montée et n'est permise qu'à certaines heures et sur certaines pistes : vérifiez les règles de la station avant d'y aller.",
+    "Skiing: uphill ski routes (skin tracks) at Quebec hills now show as backcountry ski routes with their own card (Mont Sutton's Piste d'Ascension and Skimo), and more Chic-Chocs ski lines (Mont Lyall, the Cuves de la Mine, Mont Porphyre, Mont Hog's Back, the Grande Cuve).":"Ski : les itinéraires de montée en peaux des montagnes du Québec s'affichent maintenant comme itinéraires de ski hors-piste avec leur propre fiche (Piste d'Ascension et Skimo au mont Sutton), et plus de lignes de ski des Chic-Chocs (mont Lyall, Cuves de la Mine, mont Porphyre, mont Hog's Back, Grande Cuve)."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
