@@ -1657,7 +1657,15 @@
     "No snow at the top":"Pas de neige au sommet",
     "Routing: Valhalla on OpenStreetMap. Check the route on the map: a path on the map isn't always a trail on the ground.":"Trajets : Valhalla sur OpenStreetMap. Vérifiez le trajet sur la carte : un chemin sur la carte n'est pas toujours un sentier sur le terrain.",
     "Plan: tap points on the map and the route follows the trails, with climb, time and snow at the top. Save it, follow it or send it as a GPX file.":"Planifier : touchez des points sur la carte et le trajet suit les sentiers, avec dénivelé, durée et neige au sommet. Enregistrez-le, suivez-le ou envoyez-le en fichier GPX.",
-    "Winter photos":"Photos d'hiver"};
+    "Winter photos":"Photos d'hiver",
+    "Freeride lines":"Lignes freeride",
+    "Freeride line":"Ligne freeride",
+    "Freeride line (darker: extreme)":"Ligne freeride (plus foncée : extrême)",
+    "Freeride lines here":"Lignes freeride ici",
+    "Freeride":"Freeride",
+    "Steepest":"Pente max.",
+    "Drop":"Dénivelé",
+    "Faces":"Orientation"};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
@@ -1743,6 +1751,9 @@
     [/^Rated (.+) by the (.+) map \((\d{4})\)\. It has no rating on OpenStreetMap yet\.$/, function (m, r, b, y) { return "Coté " + tw(r).toLowerCase() + " selon la carte " + b + " (" + y + "). Pas encore de cote sur OpenStreetMap."; }],
     [/^Part of MTB route “(.+)”$/, "Fait partie de l'itinéraire de vélo « $1 »"],
     [/^Slackcountry at (.+) \((\d+) lines\)$/, "Slackcountry à $1 ($2 lignes)"],
+    [/^Freeride lines here \((\d+)\)$/, "Lignes freeride ici ($1)"],
+    [/^In the ski area \((\d+)\)$/, "Dans la station ($1)"],
+    [/^Backcountry: no ski patrol \((\d+)\)$/, "Hors-piste : pas de patrouille ($1)"],
     [/^Issued (.+), for the middle of the map\.$/, "Publié le $1, pour le centre de la carte."],
     [/^Avalanche: (.+)$/, function (m, a) { return "Avalanche : " + tw(a); }],
     [/^Seasons in (.+)$/, "Saisons en $1"],
