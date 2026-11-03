@@ -282,6 +282,15 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 .sk-hutpin.on { box-shadow: 0 0 0 3px #ffe14d, 0 1px 4px #0008; }
 .sk-hutgl { z-index: 3; }
 .sk-book { display: grid; gap: 4px; margin: 8px 0 4px; padding: 10px 12px; border-radius: 10px; background: #f6efe9; border: 1px solid #e3d3c6; color: #3b1d0d; }
+.sk-hutphs { margin: 8px 0 2px; }
+.sk-hutph { display: block; position: relative; width: 100%; padding: 0; border: 0; border-radius: 10px; overflow: hidden; background: var(--chip, #eee); cursor: zoom-in; }
+.sk-hutph img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.sk-hutph-n { position: absolute; right: 8px; bottom: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.6); color: #fff; font-size: 13px; font-weight: 700; }
+.sk-hutph-row { display: flex; gap: 6px; margin-top: 6px; overflow-x: auto; }
+.sk-hutph-t { flex: 0 0 auto; padding: 0; border: 0; border-radius: 8px; overflow: hidden; background: var(--chip, #eee); }
+.sk-hutph-t img { display: block; width: 72px; height: 54px; object-fit: cover; }
+.sk-hutph-credit { margin: 4px 0 0; font-size: 11px; }
+.sk-hutph-none { margin: 0; }
 .sk-book.must { background: #fff4e0; border-color: #f0b85a; }
 .sk-book b { font-size: 15px; }
 .sk-book .sk-bookbtn { justify-self: start; margin-top: 2px; padding: 8px 16px; border-radius: 999px; background: #0b7a3e; color: #fff; font-weight: 700; text-decoration: none; }
@@ -1409,7 +1418,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     access: (v) => ["Access", yesNo(v)], ski: (v) => ["Skiing", yesNo(v)], snowmobile: (v) => ["Snowmobiles", yesNo(v)], "snowmobile:conditional": (v) => ["Snowmobiles when", v],
     "name:ja": (v) => ["Japanese name", v], "description:en": (v) => ["Description", v],
     seasonal: (v) => ["Seasonal", v], opening_hours: (v) => ["Open", v], ref: (v) => ["Number", v], ele: (v) => ["Height", v + " m"],
-    capacity: null, reservation: null, "reservation:website": null, "booking:note": null, charge: null, website: (v) => ["Website", v], url: (v) => ["Website", v],
+    wikimedia_commons: null, image: null, wikidata: null, capacity: null, reservation: null, "reservation:website": null, "booking:note": null, charge: null, website: (v) => ["Website", v], url: (v) => ["Website", v],
     // Hut facts (data/huts.json): booking, price and beds are in the box at the top of the card (bookHtml).
     heating: (v) => ["Heat", { wood: "Wood stove", propane: "Propane heater", gas: "Gas heater", electric: "Electric", no: "None", none: "None" }[v] || v],
     drinking_water: (v, t) => ["Water", [{ yes: "Drinking water", no: "No drinking water" }[v] || v, t["drinking_water:note"]].filter(Boolean).join(": ")],
@@ -1510,13 +1519,88 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ${list.length > PH_FIRST ? `<button class="linkish ab-all" type="button">Show all ${list.length} photos</button>` : ""}
 `
       : `<p class="sk-note">${failed ? "Couldn't reach the photo sources right now." : `No open photos found ${isHut ? "here" : "on this route or around its top"} yet.`}</p>`;
-    return `<h4>Photos</h4>${body}`;
+    return `<h4>${isHut ? "Photos nearby" : "Photos"}</h4>${body}`;
   }
   function bindPhotos(el, list) {
     const all = el.querySelector(".ab-all");
     if (all) all.addEventListener("click", () => { el.querySelectorAll(".ab-ph[hidden]").forEach((b) => { b.hidden = false; }); all.remove(); });
     el.querySelectorAll(".ab-ph").forEach((b) => b.addEventListener("click", () => window.tfPhotos.open(list, +b.dataset.i)));
     el.querySelectorAll(".ab-ph img").forEach((img) => img.addEventListener("error", () => img.closest(".ab-ph").remove()));
+  }
+  // Photos of the hut itself (alex 2026-11-03: "find if there is any pictures of the cabin on the internet, if yes add
+  // them to the cabin info"). Open licences only, credited: the files listed for the hut in data/huts.json ('photos'),
+  // the map's wikimedia_commons / image tag, then a live Wikimedia Commons search by the hut's name (a picture counts
+  // only when its title or caption names the hut and it isn't far away), then a picture taken right at the hut.
+  // Club sites' own photos are copyrighted: the card links to them instead.
+  const HUT_WORD = /\b(hut|huts|cabin|cabins|shelter|lodge|refuge|chalet|cabane|abri|bothy|camp|hostel)\b/;
+  const HUT_GEN = /\b(the|and|of|du|de|la|le|les|des|hut|huts|cabin|shelter|lodge|refuge|chalet|cabane|abri|memorial|emergency|backcountry|alpine|mount|mt)\b/g;
+  const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const stem = (w) => w.replace(/s$/, "");
+  async function hutPhotos(r) {
+    if (r.hutPh) return r.hutPh;
+    const P = window.tfPhotos;
+    if (!P) return (r.hutPh = []);
+    const t = r.tags || {}, files = [...((r.facts && r.facts.photos) || [])];
+    const wc = t.wikimedia_commons || "";
+    if (/^File:/i.test(wc)) files.push(wc);
+    const img = /commons\.wikimedia\.org\/wiki\/(File:[^?#]+)/i.exec(t.image || "");
+    if (img) files.push(decodeURIComponent(img[1]).replace(/_/g, " "));
+    const there = (p) => (p.at ? map.distance([r.lat, r.lon], p.at) : null);
+    const out = [], seen = new Set();
+    const add = (list, from) => list.forEach((p) => { if (!seen.has(p.full)) { seen.add(p.full); out.push({ ...p, dist: there(p), from: "hut", own: true, why: from }); } });
+    const jobs = [];
+    if (files.length) jobs.push(P.commons({ titles: [...new Set(files)].slice(0, 20).join("|") }).then((l) => {
+      // Keep the hand-picked order.
+      const key = (p) => decodeURIComponent((p.page || "").split("/wiki/")[1] || "").replace(/_/g, " ").toLowerCase();
+      const want = files.map((f) => f.toLowerCase()), at = (p) => { const i = want.indexOf(key(p)); return i < 0 ? 99 : i; };
+      return l.sort((a, b) => at(a) - at(b));
+    }).catch(() => []));
+    else jobs.push(Promise.resolve([]));
+    if (/^Category:/i.test(wc)) jobs.push(P.commons({ generator: "categorymembers", gcmtitle: wc, gcmtype: "file", gcmlimit: "20" }).catch(() => []));
+    else jobs.push(Promise.resolve([]));
+    // By name: every word of the name that isn't "hut", "the"... must be in the photo's title or caption.
+    const names = [r.name, ...((r.facts && r.facts.aka) || [])].filter(Boolean);
+    const cores = names.map((n) => norm(n).replace(HUT_GEN, " ").replace(/\s+/g, " ").trim()).filter((c) => c.length >= 4);
+    const core = cores[0];
+    jobs.push(core ? P.commons({ generator: "search", gsrsearch: `"${core}" filetype:bitmap`, gsrnamespace: "6", gsrlimit: "30" }).then((l) => l.filter((p) => {
+      const text = " " + norm(p.title + " " + p.about) + " ", words = text.split(" ").map(stem);
+      const d = there(p);
+      if (d != null && d > 8000) return false;                                     // another place with the same name
+      if (names.some((n) => text.includes(" " + norm(n) + " "))) return true;      // the full name: "Wedgemount Hut"
+      const all = cores.some((c) => c.split(" ").every((w) => words.includes(stem(w))));
+      return all && HUT_WORD.test(text) && d != null && d < 3000;                  // "Elfin lakes shelter", close by
+    })).catch(() => []) : Promise.resolve([]));
+    // Taken right at the hut (within 60 m): most likely the hut or the view from its door.
+    jobs.push(P.commons({ generator: "geosearch", ggscoord: `${r.lat.toFixed(5)}|${r.lon.toFixed(5)}`, ggsradius: "60", ggsnamespace: "6", ggslimit: "10" }).catch(() => []));
+    const [mine, cat, named, at] = await Promise.all(jobs);
+    add(mine, "list"); add(cat, "list"); add(named, "name"); add(at.filter((p) => p.at), "at");
+    return (r.hutPh = out.slice(0, 12));
+  }
+  // The club or park page (its photos are theirs to show), and a web image search, when no open photo is found.
+  function hutPhotoLinks(r) {
+    const t = r.tags || {}, page = t.website || t.url || (r.facts && r.facts.src) || "";
+    const site = page ? page.replace(/^https?:\/\/(www\.)?/, "").split("/")[0] : "";
+    const q = encodeURIComponent(`"${r.name}" ${HUT_WORD.test(norm(r.name)) ? "" : "hut "}${r.lat > 0 && r.lon < -50 ? "Canada" : ""}`.trim());
+    return [page ? `<a href="${esc(page)}" target="_blank" rel="noopener">Photos on ${esc(site)} ↗</a>` : "",
+      r.name ? `<a href="https://www.google.com/search?tbm=isch&q=${q}" target="_blank" rel="noopener">Search the web for photos ↗</a>` : ""].filter(Boolean).join(" · ");
+  }
+  function hutPhHtml(r, list) {
+    const p = list[0];
+    if (!p) {
+      const links = hutPhotoLinks(r);
+      return links ? `<p class="sk-note sk-hutph-none">No free-to-use photo of this hut yet. ${links}</p>` : "";
+    }
+    const credit = [p.author && `© ${p.author}`, p.licence, p.src].filter(Boolean).join(" · ");
+    return `<button type="button" class="sk-hutph" data-i="0" aria-label="Open the hut's photos"><img src="${esc(p.big || p.thumb)}" alt="${esc(p.title)}" referrerpolicy="no-referrer">
+        ${list.length > 1 ? `<span class="sk-hutph-n">📷 ${list.length}</span>` : ""}</button>
+      ${list.length > 1 ? `<div class="sk-hutph-row">${list.slice(1, 6).map((x, i) => `<button type="button" class="sk-hutph-t" data-i="${i + 1}"><img src="${esc(x.thumb)}" alt="${esc(x.title)}" loading="lazy" referrerpolicy="no-referrer"></button>`).join("")}</div>` : ""}
+      <p class="sk-note sk-hutph-credit">${p.why === "at" ? "Taken at the hut. " : ""}${esc(credit)}</p>`;
+  }
+  function bindHutPh(el, list) {
+    el.querySelectorAll(".sk-hutph, .sk-hutph-t").forEach((b) => b.addEventListener("click", () => window.tfPhotos.open(list, +b.dataset.i)));
+    el.querySelectorAll(".sk-hutph-t img").forEach((img) => img.addEventListener("error", () => img.closest("button").remove()));
+    const big = el.querySelector(".sk-hutph img");
+    if (big) big.addEventListener("error", () => { const p = list[0]; if (p.full && big.src !== p.full) big.src = p.full; else el.querySelector(".sk-hutph").remove(); });
   }
   // GPX of the route, with the heights when they're loaded.
   function gpx(title, group, info) {
@@ -1838,7 +1922,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
           ${window.tfRide ? `<button type="button" class="go" id="skFollow" title="Follow this tour with your location"><span class="ic" aria-hidden="true">▶</span>Go</button>` : ""}
         </div>
         <button type="button" class="sk-more-btn" id="skMoreBtn" aria-expanded="${moreOpen}" aria-controls="skMore">${moreOpen ? "Fewer details ▴" : "More details: avalanche check, profile, forecast, weather ▾"}</button>
-      </div>` : `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>${isHut && !isStart ? bookHtml(r) : ""}`;
+      </div>` : `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>${isHut && !isStart && !/^(parking|trailhead)$/.test(r.kind) ? `<div id="skHutPh" class="sk-hutphs"><p class="sk-note sk-hutph-none">Looking for photos of the hut…</p></div>` : ""}${isHut && !isStart ? bookHtml(r) : ""}`;
     d.innerHTML = `${card}<div id="skMore"${isRoute && !moreOpen ? " hidden" : ""} class="sk-morebox">
       ${isHut && !isStart ? `<p class="sk-hint">${esc(HUT_ABOUT[r.kind] || HUT_ABOUT.basic_hut)}</p>` : ""}
       <dl><dt>Type</dt><dd>${esc(isStart ? t.label + " (start point only; see camptocamp for the route)" : isHut ? KIND[r.kind] || (r.kind || "hut").replace(/_/g, " ") : t.label)}</dd>
@@ -1910,6 +1994,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const el = $("skPh"); if (!live() || !el) return; el.innerHTML = photosHtml(ph, isHut); bindPhotos(el, ph.list);
       const img = $("skRcPh"), p0 = ph.list[0];   // the card's photo: the route's own, else the closest
       if (img && p0) { img.src = p0.big || p0.thumb; img.alt = p0.title || ""; img.hidden = false; img.onclick = () => window.tfPhotos.open(ph.list, 0); img.onerror = () => { img.hidden = true; }; }
+    });
+    if ($("skHutPh")) hutPhotos(r).then((list) => {
+      const el = $("skHutPh"); if (!live() || !el) return;
+      el.innerHTML = hutPhHtml(r, list); bindHutPh(el, list);
     });
     if (isHut) { showWx(r.lat, r.lon, parseFloat(r.tags?.ele) || null); showPh(null); return; }
     routeInfo(group).then((info) => {

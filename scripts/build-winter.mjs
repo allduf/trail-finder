@@ -168,7 +168,7 @@ function skiType(t) {
   if (t.ski) return "access";
   return "";
 }
-const OSM_KEEP = ["name", "ref", "piste:name", "piste:difficulty", "piste:grooming", "piste:type", "description", "note", "website", "operator", "access", "ski", "ele", "fee", "capacity", "reservation", "url", "seasonal", "opening_hours", "snowmobile", "snowmobile:conditional", "highway", "surface"];
+const OSM_KEEP = ["name", "ref", "piste:name", "piste:difficulty", "piste:grooming", "piste:type", "description", "note", "website", "operator", "access", "ski", "ele", "fee", "capacity", "reservation", "url", "seasonal", "opening_hours", "snowmobile", "snowmobile:conditional", "highway", "surface", "wikimedia_commons", "image", "wikidata"];
 const keepTags = (t) => Object.fromEntries(OSM_KEEP.filter((k) => t[k]).map((k) => [k, String(t[k]).slice(0, 300)]));
 // A route's tags as written to ski.json (see where it's written). DataBC's are all office fields.
 const slimTags = (r) => r.src === "bc" ? {} : Object.fromEntries(Object.entries(r.tags).filter(([k, v]) =>
