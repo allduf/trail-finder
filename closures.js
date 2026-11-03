@@ -125,7 +125,7 @@
     mapped(tags).forEach((x) => parts.push({ cls: x.bad ? "bad" : x.warn ? "warn" : "", html: `<h4>🚧 On the map</h4>${esc(x.text)}` }));
     if (whAlpine(name, ll)) {
       const m = new Date().getMonth(), closed = m >= 10 || m <= 4;
-      parts.push({ cls: closed ? "bad" : "", html: `<h4>🏔 Whistler alpine trail network</h4>${closed ? "<b>Closed for the winter now.</b> " : ""}The alpine network closes for hiking and biking from November to May, and opens once the snow is gone: check <a href="https://www.trailforks.com/region/whistler/" target="_blank" rel="noopener">Trailforks</a> for the opening. <span class="muted">Source: <a href="https://www.whistler.ca/culture-recreation/trails/alpine-trail-program/alpine-trail-network" target="_blank" rel="noopener">RMOW</a>.</span>` });
+      parts.push({ cls: closed ? "bad" : "", html: `<h4>🏔 Whistler alpine trail network</h4>${closed ? "<b>Closed for the winter now.</b> " : ""}The alpine network closes for hiking and biking from November to May, and opens once the snow is gone: check <a href="https://www.whistlerblackcomb.com/" target="_blank" rel="noopener">Whistler Blackcomb</a> for the opening. <span class="muted">Source: <a href="https://www.whistler.ca/culture-recreation/trails/alpine-trail-program/alpine-trail-network" target="_blank" rel="noopener">RMOW</a>.</span>` });
     }
     await load();
     if (!box()) return;

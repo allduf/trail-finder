@@ -99,7 +99,6 @@ body.sport-alt #parkBtn, body.sport-alt .leaflet-bikeParks-pane, body.sport-alt 
       web && `<a href="${esc(web)}" target="_blank" rel="noopener">Website</a>`, fb && !web && `<a href="${esc(fb)}" target="_blank" rel="noopener">Facebook</a>`,
       phone && `<a href="tel:${esc(phone.split(";")[0].replace(/[^\d+]/g, ""))}">${esc(phone.split(";")[0])}</a>`,
       `<a href="https://www.google.com/maps/dir/?api=1&destination=${ll}" target="_blank" rel="noopener">Directions</a>`,
-      t.name && `<a href="https://www.trailforks.com/search/?q=${encodeURIComponent(t.name)}" target="_blank" rel="noopener">Search on Trailforks</a>`,
       osm && `<a href="https://www.openstreetmap.org/${osm}/${x.id.slice(1)}" target="_blank" rel="noopener">OpenStreetMap</a>`,
     ].filter(Boolean);
     return `<div class="road-pop bp-pop"><h4>${esc(nameOf(x))}</h4><p><span class="st">${esc(what(x))}</span><br>${tags.join("")}</p>

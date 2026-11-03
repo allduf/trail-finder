@@ -46,7 +46,6 @@ No description or photos found in open sources yet. ||| Aucune description ni ph
 Street-level photos on Mapillary ||| Photos au niveau de la rue sur Mapillary
 Share your photo on Wikimedia Commons ||| Partagez votre photo sur Wikimedia Commons
 Links ||| Liens
-Search on Trailforks ||| Chercher sur Trailforks
 Search videos on YouTube ||| Chercher des vidéos sur YouTube
 Open on OpenStreetMap ||| Ouvrir sur OpenStreetMap
 Edit or fix it ||| Le modifier ou le corriger
@@ -102,7 +101,7 @@ Example trail, not real data. ||| Sentier d'exemple, pas de vraies données.
 Recreation Sites and Trails BC ||| Recreation Sites and Trails BC
 Looks like a moto trail ||| Ressemble à un sentier de moto
 Looks like a hiking-only trail ||| Ressemble à un sentier pédestre seulement
-This only shows what OpenStreetMap mappers tagged and what government trail lists say. It's a hint, not the trail's legal status. Check with the land manager or Trailforks before riding. ||| Ceci montre seulement ce que les cartographes d'OpenStreetMap ont noté et ce que disent les listes gouvernementales. C'est un indice, pas le statut légal du sentier. Vérifiez auprès du gestionnaire du territoire ou sur Trailforks avant de rouler.
+This only shows what OpenStreetMap mappers tagged and what government trail lists say. It's a hint, not the trail's legal status. Check with the land manager or local trail club before riding. ||| Ceci montre seulement ce que les cartographes d'OpenStreetMap ont noté et ce que disent les listes gouvernementales. C'est un indice, pas le statut légal du sentier. Vérifiez auprès du gestionnaire du territoire ou du club de sentiers local avant de rouler.
 Alpine, looks rideable ||| Alpin, semble roulable
 A guess from the map tags and terrain heights, not a bike rating. Expect rock, hike-a-bike and late snow, and check the area's rules: bikes may still be closed there. ||| Une estimation selon les étiquettes et l'altitude, pas une cote vélo. Attendez-vous à du roc, du portage et de la neige tardive, et vérifiez les règles : les vélos y sont peut-être encore interdits.
 Sat ||| sam.

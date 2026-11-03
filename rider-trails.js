@@ -324,7 +324,7 @@ ${t.notes ? `<p class="rt-notes">${esc(t.notes)}</p>` : ""}
 <div class="rt-pick">
 <button type="button" data-how="draw">✎ Draw it on the map<small>Tap along the trail from its start to its end</small></button>
 ${f.length ? `<button type="button" data-how="finds">🆕 From one of my rides<small>${f.length === 1 ? "The possible new trail" : `${f.length} possible new trails`} you saved from your rides</small></button>` : `<button type="button" data-how="rides">🆕 From one of my rides<small>Open a ride in My rides: stretches off the map show there, each with “Add for everyone”</small></button>`}
-<label class="rt-file"><button type="button" data-how="gpx">📄 From a GPS file<small>GPX, TCX or FIT, from Strava, Garmin, Trailforks…</small></button><input type="file" accept=".gpx,.tcx,.fit,.gz,application/gpx+xml" hidden></label>
+<label class="rt-file"><button type="button" data-how="gpx">📄 From a GPS file<small>GPX, TCX or FIT, from Strava, Garmin…</small></button><input type="file" accept=".gpx,.tcx,.fit,.gz,application/gpx+xml" hidden></label>
 </div><p class="rt-msg" role="status"></p><div class="rt-row"><button type="button" data-x>Cancel</button></div>`);
     const msg = dlg.querySelector(".rt-msg"), file = dlg.querySelector("input[type=file]");
     dlg.querySelector("[data-x]").addEventListener("click", () => dlg.close());

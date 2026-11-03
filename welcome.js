@@ -36,7 +36,7 @@
       lines: [
         ["New", "new", "Trails added to the map in the last 6 months: the ones you likely don't know yet. Pick how new in Find."],
         ["Loam", "loam", "How damp the dirt is right now. <b>Prime loam</b> (teal dots) is the best riding today, <b>Tacky</b> is good, dry or wet less so."],
-        ["Tap", "tap", "Tap any trail for its level, weather and loam. Colours like Trailforks: green, blue, black, red."],
+        ["Tap", "tap", "Tap any trail for its level, weather and loam. Colours: green, blue, black, red."],
       ],
       go: "Find new trails",
     },
