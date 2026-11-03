@@ -59,3 +59,8 @@ Add ||| Ajouter
 Remove ||| Retirer
 Done ||| Terminé
 No friends added yet. ||| Aucun ami ajouté pour l'instant.
+
+# Trail name search headers (index.html refreshHits), 2026-11-03
+More across Canada ||| Plus ailleurs au Canada
+Trails across Canada ||| Sentiers ailleurs au Canada
+Towns and areas ||| Villes et secteurs

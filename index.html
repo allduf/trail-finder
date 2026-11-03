@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Trail Finder">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#12291d">
-<script src="i18n.js?v=2030"></script>
+<script src="i18n.js?v=2050"></script>
 <!-- Unofficial trails are for alex and friends only (friends.js): everyone else gets the public map, class tf-pub. -->
 <script>try { if (localStorage.getItem("tf-friend") !== "1") document.documentElement.classList.add("tf-pub"); } catch (e) { document.documentElement.classList.add("tf-pub"); }</script>
 </head>
@@ -825,6 +825,7 @@ button.tsearch-where { border: 0; color: inherit; font: inherit; font-size: .9re
 .hits .hn { font-weight: 600; overflow-wrap: anywhere; }
 .hits .hm { font-size: .82rem; color: var(--muted); }
 .hits .hhead { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 12px 2px; font-size: .74rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.hits .hhead.hnone { margin-top: 4px; padding: 8px 12px 6px; font-size: .86rem; letter-spacing: 0; text-transform: none; color: var(--ink, inherit); background: color-mix(in srgb, #f5a623 16%, transparent); border-radius: 8px; }
 .hits .hhead .linkish { padding: 0; font-size: .8rem; font-weight: 600; letter-spacing: 0; text-transform: none; text-decoration: underline; }
 .hits .hnote { padding: 8px 12px; font-size: .82rem; color: var(--muted); }
 .hits .hnote .linkish { padding: 0; text-decoration: underline; font-size: inherit; }
@@ -1594,14 +1595,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=2030"></script>
-<script src="native.js?v=2030"></script>
-<script src="keyboard.js?v=2030"></script>
-<script src="rotate.js?v=2030"></script>
-<script src="official.js?v=2030"></script>
-<script src="directions.js?v=2030"></script>
-<script src="ratings.js?v=2030"></script>
-<script src="ebike.js?v=2030"></script>
+<script src="welcome.js?v=2050"></script>
+<script src="native.js?v=2050"></script>
+<script src="keyboard.js?v=2050"></script>
+<script src="rotate.js?v=2050"></script>
+<script src="official.js?v=2050"></script>
+<script src="directions.js?v=2050"></script>
+<script src="ratings.js?v=2050"></script>
+<script src="ebike.js?v=2050"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -4289,7 +4290,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=2030").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=2050").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -7073,13 +7074,18 @@ out body;`;
   const placeArea = () => nearPlace && { id: "near:" + nearPlace.box.map((n) => n.toFixed(2)).join(","), name: "Near " + nearPlace.label,
     bounds: L.latLngBounds([nearPlace.box[0], nearPlace.box[1]], [nearPlace.box[2], nearPlace.box[3]]),
     circle: nearPlace.c && { ll: L.latLng(nearPlace.c), km: nearPlace.km } };
-  const nameZone = () => ($("nameZone").value === "near" ? placeArea() : zoneById($("nameZone").value));
+  // A whole region picked as the Area ("All of Sea to Sky + Sunshine Coast"): its value here is "r:" + the region id,
+  // since the Sea to Sky region's own id is "all" (alex 2026-11-03: Behemoth with Sea to Sky picked jumped to Toronto,
+  // the name box was looking at "All areas" whenever a region rather than one zone was picked).
+  const regionArea = (id) => { const r = regionById(id); return r && { id: "r:" + r.id, name: r.name, bounds: r.bounds, zones: r.zones }; };
+  const nameZone = () => { const v = $("nameZone").value; return v === "near" ? placeArea() : v.startsWith("r:") ? regionArea(v.slice(2)) : zoneById(v); };
   // "All areas": the region the map is on, plus the Canada-wide chunks on screen (only those outside the regions).
   const nameZonesAround = () => (REGIONS.some((r) => r.bounds.contains(map.getCenter())) ? regionHere().zones.slice() : []).concat(caZonesIn([map.getBounds()]));
   // A town picked ("Near Bromont"): the nightly name files of the zones and chunks it touches, not a slow OpenStreetMap download.
   const wantedZones = () => {
     const z = nameZone();
     if (!z) return nameZonesAround();
+    if (z.zones) return z.zones.slice();
     if (!String(z.id).startsWith("near:")) return [z];
     const zs = ZONES.filter((h) => h.bounds.intersects(z.bounds)).concat(caZonesIn([z.bounds]));
     return useNightly && zs.length ? zs : [z];
@@ -7360,7 +7366,7 @@ out tags center qt;`;
   function caHits(raw, local, searched) {
     const q = norm(raw);
     if (!caNames || !caNames.length || q.length < 3) return [];
-    const qWords = q.split(" "), here = you.ll || map.getCenter();
+    const qWords = q.split(" "), here = you.ll || map.getCenter(), z = nameZone(), zb = z && z.bounds.pad(0.02);
     const loaded = searched.filter((z) => names.zones.has(z.id)).map((z) => z.bounds);
     // 33,000 names on every key: only those sharing three letters in a row with the longest word typed are scored
     // (the start, middle or end, so one typo still finds it). The full scoring took a quarter second on a laptop.
@@ -7374,9 +7380,10 @@ out tags center qt;`;
       const ll = L.latLng(x.lat, x.lon);
       if (loaded.some((b) => b.contains(ll))) continue;
       if (local.some((h) => h.g && h.g.texts[0] === x.texts[0] && h.g.center.distanceTo(ll) < 5000)) continue;
-      out.push({ x, s: s + (x.kind === "M" || x.kind === "R" ? 0.02 : 0), d: here.distanceTo(ll) });
+      out.push({ x, s: s + (x.kind === "M" || x.kind === "R" ? 0.02 : 0), d: here.distanceTo(ll), inArea: !!(zb && zb.contains(ll)) });
     }
-    return out.sort((a, b) => b.s - a.s || a.d - b.d).slice(0, 8);
+    // In the Area picked first (its names can still be loading), then the best match, then the nearest.
+    return out.sort((a, b) => b.inArea - a.inArea || b.s - a.s || a.d - b.d).slice(0, 8);
   }
   // A town or area picked: the map goes there and the name box looks around it ("📍 Looking in Near Bromont").
   function goPlace(p) {
@@ -7423,6 +7430,18 @@ out tags center qt;`;
   }
 
   let hits = [], hitSel = -1, wideFor = "";
+  // Where a result is, and whether it's in the Area picked (a town typed by name is always fine to go to).
+  const hitLL = (h) => (h.p ? L.latLng(h.p.lat, h.p.lon) : h.x ? L.latLng(h.x.lat, h.x.lon) : h.rt ? L.latLng(h.rt.line[0]) : h.g.center);
+  const hitInArea = (h) => { const z = nameZone(); return !z || !!h.p || z.bounds.pad(0.02).contains(hitLL(h)); };
+  // Search / Enter: straight to the first result only when it's in the Area picked. A trail of the same name
+  // elsewhere in Canada is listed under "Nothing named … in <area>" and needs a tap (alex 2026-11-03: Behemoth with
+  // Sea to Sky picked jumped to Toronto).
+  function searchPick() {
+    const h = hits[Math.max(hitSel, 0)];
+    if (!h) return;
+    if (hitSel < 0 && !hitInArea(h)) { $("trailHits").hidden = false; $("trailQ").setAttribute("aria-expanded", "true"); return; }
+    pickHit(h);
+  }
   // From you when the app knows where you are (alex saw Half Nelson "45 km away" from 5 km: it was measured from
   // the map, still on a Vancouver trail); otherwise from the middle of the map, and it says so.
   const fmtDist = (m) => {
@@ -7497,15 +7516,20 @@ out tags center qt;`;
       }
     }
     const added = riderHits(raw);
-    hits = towns.concat(added, local, far);
+    // With an Area picked, the trails in it first; same-name trails elsewhere come after, clearly marked.
+    const zb = zsel && zsel.bounds.pad(0.02), farIn = zb ? far.filter((h) => h.inArea) : [], farOut = far.filter((h) => !farIn.includes(h));
+    const noneHere = !!zsel && !(wide ? 0 : local.length) && !farIn.length && !added.some(hitInArea);
+    const farNote = noneHere && !(wide && local.length);   // the wide list above already said "Nothing named … in <area>"
+    hits = towns.concat(added, local, farIn, farOut);
     if (hitSel >= hits.length) hitSel = hits.length - 1;
     if (!loading) logUse("search", "Trail name:" + raw, hits.length);
     let n = 0;
     const rowsOf = (l) => l.map((h) => hitRow(h, n++)).join("");
     const rows = (towns.length ? `<li class="hhead"><span>Towns and areas</span></li>` + rowsOf(towns) : "")
       + (added.length ? `<li class="hhead"><span>Added by riders</span></li>` + rowsOf(added) : "")
-      + (local.length && (towns.length || wide) ? `<li class="hhead"><span>${wide ? `Not in ${esc(shortZone(zsel))}. Found in other areas` : "Trails"}</span></li>` : "") + rowsOf(local)
-      + (far.length ? `<li class="hhead"><span>${local.length ? "More across Canada" : "Trails across Canada"}</span></li>` + rowsOf(far) : "");
+      + (local.length && (towns.length || wide) ? `<li class="hhead${wide ? " hnone" : ""}"><span>${wide ? `Nothing named “${esc(raw)}” in ${esc(shortZone(zsel))}. Found in other areas:` : "Trails"}</span></li>` : "") + rowsOf(local)
+      + (farIn.length ? `<li class="hhead"><span>${local.length ? "More trails" : "Trails"} in ${esc(shortZone(zsel))}</span></li>` + rowsOf(farIn) : "")
+      + (farOut.length ? `<li class="hhead${farNote ? " hnone" : ""}"><span>${farNote ? `Nothing named “${esc(raw)}” in ${esc(shortZone(zsel))}${loading ? " yet" : ""}. Found elsewhere in Canada:` : local.length ? "More across Canada" : "Trails across Canada"}</span></li>` + rowsOf(farOut) : "");
     let note = "";
     const failed = want.filter((z) => names.failed.has(z.id));
     if (loading && wide) note = `Not in ${esc(shortZone(zsel))}. Looking in the other areas around…`;
@@ -7534,7 +7558,7 @@ out tags center qt;`;
     } else if (e.key === "Enter") {
       e.preventDefault();
       clearTimeout(hitTimer); refreshHits();
-      const h = hits[$("trailQ").value.trim() ? Math.max(hitSel, 0) : hitSel]; if (h) pickHit(h);
+      if ($("trailQ").value.trim()) searchPick(); else if (hits[hitSel]) pickHit(hits[hitSel]);
     } else if (e.key === "Escape") {
       e.stopPropagation();
       if (!$("trailHits").hidden) { $("trailHits").hidden = true; } else { $("trailQ").value = ""; clearNamePick(); }
@@ -7546,7 +7570,7 @@ out tags center qt;`;
     input.focus();
     if (!input.value.trim()) return;
     clearTimeout(hitTimer); refreshHits();
-    if (hits.length) pickHit(hits[Math.max(hitSel, 0)]);
+    searchPick();
   });
 
   // ---------- two modes: find a trail by name / new trails in an area ----------
@@ -8175,13 +8199,14 @@ out tags center qt;`;
   zoneSel.value = zoneById(state.zone) || regionById(state.zone) || state.zone === "home" ? state.zone : "all";
   const nameZoneSel = $("nameZone");
   function fillNameZones() {
-    nameZoneSel.innerHTML = `<option value="all">All areas</option>` + ZONES.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("") +
+    nameZoneSel.innerHTML = `<option value="all">All areas</option>` + REGIONS.map((r) => `<option value="r:${r.id}">All of ${esc(r.name)}</option>`).join("") + ZONES.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("") +
       (nearPlace ? `<option value="near">${nearPlace.c ? `Near me (within ${nearPlace.km} km)` : `Near ${esc(nearPlace.label)}`}</option>` : "");
   }
   fillNameZones();
   const savedNameZone = store.get("nameZone", "all");
-  nameZoneSel.value = zoneById(savedNameZone) || (savedNameZone === "near" && nearPlace) ? savedNameZone : "all";
+  nameZoneSel.value = zoneById(savedNameZone) || (savedNameZone === "near" && nearPlace) || (/^r:/.test(savedNameZone) && regionArea(savedNameZone.slice(2))) ? savedNameZone : "all";
   if (zoneById(state.zone)) nameZoneSel.value = state.zone;   // one search: the name box looks in the Area picked above
+  else if (regionById(state.zone) && zoneSel.value === state.zone) nameZoneSel.value = "r:" + state.zone;
   $("nameNearForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const q = $("nameNear").value.trim();
@@ -8260,7 +8285,7 @@ out tags center qt;`;
     clearNear();
     zoneSel.value = id;
     state.zone = id; store.set("zone", state.zone);
-    nameZoneSel.value = zoneById(id) ? id : "all"; store.set("nameZone", nameZoneSel.value);   // name search looks in the same area
+    nameZoneSel.value = zoneById(id) ? id : regionById(id) ? "r:" + id : "all"; store.set("nameZone", nameZoneSel.value);   // name search looks in the same area
     syncWhere();
     map.fitBounds(zoneBounds(state.zone));
     searchZones(true, true);
@@ -8275,7 +8300,7 @@ out tags center qt;`;
   // (alex 2026-10-31: the phone's own long list was hard to use, and a town not on it had no way in.)
   function syncWhere() {
     const z = nameZone(), r = regionById(zoneSel.value) || (REGIONS.some((r) => r.bounds.contains(map.getCenter())) && regionHere());
-    $("tsWhereName").textContent = z ? (z.circle ? "Near you" : shortZone(z)) : r ? "All of " + r.name : "All areas around";
+    $("tsWhereName").textContent = z ? (z.circle ? "Near you" : z.zones ? "All of " + z.name : shortZone(z)) : r ? "All of " + r.name : "All areas around";
   }
   // Popular riding areas, nearest to the map first: our zones, plus big eastern spots (kept here so they show at once).
   const WHERE_POPULAR = [
@@ -8429,49 +8454,49 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=2030"></script>
-<script src="native-map.js?v=2030"></script>
-<script src="contours.js?v=2030"></script>
-<script src="clouds.js?v=2030"></script>
-<script src="smoke.js?v=2030"></script>
-<script src="radar.js?v=2030"></script>
-<script src="photo-slider.js?v=2030"></script>
-<script src="ski-terrain.js?v=2030"></script>
-<script src="place-search.js?v=2030"></script>
-<script src="winter.js?v=2030"></script>
-<script src="hunts.js?v=2030"></script>
-<script src="ski-points.js?v=2030"></script>
-<script src="offline.js?v=2030"></script>
-<script src="ride-stats.js?v=2030"></script>
-<script src="native-gps.js?v=2030"></script>
-<script src="navigate.js?v=2030"></script>
-<script src="planner.js?v=2030"></script>
-<script src="loops.js?v=2030"></script>
-<script src="ride-finds.js?v=2030"></script>
-<script src="rides.js?v=2030"></script>
-<script src="community.js?v=2030"></script>
-<script src="ride-files.js?v=2030"></script>
-<script src="rider-trails.js?v=2030"></script>
-<script src="account.js?v=2030"></script>
-<script src="friends.js?v=2030"></script>
-<script src="live.js?v=2030"></script>
-<script src="strava.js?v=2030"></script>
-<script src="moderation.js?v=2030"></script>
-<script src="reports.js?v=2030"></script>
-<script src="grades.js?v=2030"></script>
-<script src="trail-photos.js?v=2030"></script>
-<script src="visitors.js?v=2030"></script>
-<script src="usage.js?v=2030"></script>
-<script src="notify.js?v=2030"></script>
-<script src="closures.js?v=2030"></script>
-<script src="status.js?v=2030"></script>
-<script src="ask.js?v=2030"></script>
-<script src="areas.js?v=2030"></script>
-<script src="alpine.js?v=2030"></script>
-<script src="bikeparks.js?v=2030"></script>
-<script src="photo-find.js?v=2030"></script>
-<script src="whats-new.js?v=2030"></script>
-<script src="app-update.js?v=2030"></script>
+<script src="map3d.js?v=2050"></script>
+<script src="native-map.js?v=2050"></script>
+<script src="contours.js?v=2050"></script>
+<script src="clouds.js?v=2050"></script>
+<script src="smoke.js?v=2050"></script>
+<script src="radar.js?v=2050"></script>
+<script src="photo-slider.js?v=2050"></script>
+<script src="ski-terrain.js?v=2050"></script>
+<script src="place-search.js?v=2050"></script>
+<script src="winter.js?v=2050"></script>
+<script src="hunts.js?v=2050"></script>
+<script src="ski-points.js?v=2050"></script>
+<script src="offline.js?v=2050"></script>
+<script src="ride-stats.js?v=2050"></script>
+<script src="native-gps.js?v=2050"></script>
+<script src="navigate.js?v=2050"></script>
+<script src="planner.js?v=2050"></script>
+<script src="loops.js?v=2050"></script>
+<script src="ride-finds.js?v=2050"></script>
+<script src="rides.js?v=2050"></script>
+<script src="community.js?v=2050"></script>
+<script src="ride-files.js?v=2050"></script>
+<script src="rider-trails.js?v=2050"></script>
+<script src="account.js?v=2050"></script>
+<script src="friends.js?v=2050"></script>
+<script src="live.js?v=2050"></script>
+<script src="strava.js?v=2050"></script>
+<script src="moderation.js?v=2050"></script>
+<script src="reports.js?v=2050"></script>
+<script src="grades.js?v=2050"></script>
+<script src="trail-photos.js?v=2050"></script>
+<script src="visitors.js?v=2050"></script>
+<script src="usage.js?v=2050"></script>
+<script src="notify.js?v=2050"></script>
+<script src="closures.js?v=2050"></script>
+<script src="status.js?v=2050"></script>
+<script src="ask.js?v=2050"></script>
+<script src="areas.js?v=2050"></script>
+<script src="alpine.js?v=2050"></script>
+<script src="bikeparks.js?v=2050"></script>
+<script src="photo-find.js?v=2050"></script>
+<script src="whats-new.js?v=2050"></script>
+<script src="app-update.js?v=2050"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
