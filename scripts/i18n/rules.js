@@ -125,4 +125,12 @@
     [/^((?:[A-Z][a-z]+(?: [a-z]+)*)(?: \([^)]*\))?, (?:[A-Z][a-z]+(?: [a-z]+)*(?: \([^)]*\))?, )*[A-Z][a-z]+(?: [a-z]+)* \+\d+(?: more)?)$/, function (m) { return tl(m); }],
     [/^Quebec zone (.+)$/, "Québec zone $1"],
     [/^([NSEW]{1,3}) (\d+)$/, function (m, d, n) { return d.replace(/W/g, "O") + " " + n; }],
+    [/^The nearest is (.+), (\d+) km away(?: \((low|moderate|considerable|high|extreme) at its worst today\))?: snow and danger can be very different here\.$/, function (m, n, k, r) {
+      var RD = { low: "faible", moderate: "modéré", considerable: "considérable", high: "élevé", extreme: "extrême" };
+      return "La plus proche est " + n + ", à " + k + " km" + (r ? " (" + RD[r] + " au pire aujourd'hui)" : "") + " : la neige et le danger peuvent être très différents ici.";
+    }],
+    [/^(\d+) rider reports? within 40 km in the last (\d+) days(?:, (\d+) with avalanches)?\.$/, function (m, n, d, a) {
+      return n + " observation" + (n === "1" ? "" : "s") + " d'usagers à moins de 40 km ces " + d + " derniers jours" + (a ? ", dont " + a + " avec avalanches" : "") + ".";
+    }],
+    [/^No rider reports within 40 km in the last (\d+) days\.$/, "Aucune observation d'usagers à moins de 40 km ces $1 derniers jours."],
   ];

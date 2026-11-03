@@ -159,6 +159,10 @@ Drop ||| Dénivelé
 Faces ||| Orientation
 Top ||| Sommet
 
+# Hand-kept ski routes (data/ski-hand/, 2026-11-03)
+The line ||| Le tracé
+trip reports and guidebooks ||| récits de sortie et guides
+(not on OpenStreetMap yet) ||| (pas encore sur OpenStreetMap)
 # Hut photos (winter.js, 2026-11-03)
 Looking for photos of the hut… ||| Recherche de photos du refuge…
 No free-to-use photo of this hut yet. ||| Pas encore de photo libre de ce refuge.

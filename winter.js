@@ -654,7 +654,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const CAN_MIN_Z = 5;
   // Japan (jp/w/, scripts/build-japan.mjs, weekly; alex 2026-10-30, Skiing only) comes the same way, with its ski lifts.
   // Hokkaido Wilds' ski tours (data/ski-japan-hw/, scripts/hokkaido-wilds.py, hand-run; alex 2026-11-01) too.
-  const CAN_DIRS = ["data/ski-canada/", "ca/w/", "jp/w/", "data/ski-japan-hw/"];
+  // Hand-kept routes no open source has (data/ski-hand/, alex 2026-11-03: Joffre Shoulder) too.
+  const CAN_DIRS = ["data/ski-canada/", "ca/w/", "jp/w/", "data/ski-japan-hw/", "data/ski-hand/"];
   let canIdx = null, canIdxLoading = null, canRedraw = 0;
   const canGot = new Map();   // square -> its loading promise
   const loadCanIdx = () => canIdx ? Promise.resolve(canIdx) : canIdxLoading || (canIdxLoading = Promise.all(CAN_DIRS.map((dir) => fetch(dir + "index.json", { cache: "no-cache" })
@@ -898,7 +899,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     heat: "Public OpenStreetMap GPS traces from December to April, roads and lifts left out",
     mine: "Your tours from My rides (import or record them there)",
     slope: "Colours the slopes by steepness: 27° and up, where avalanches start",
-    snow: "Snow stations (BC snow pillows, Environment Canada elsewhere): snow depth, new snow and temperature, every 2 hours",
+    snow: "Snow stations (BC snow pillows, Quebec's climate network, Environment Canada elsewhere): snow depth, new snow and temperature, every 2 hours",
     aspect: "Colours the slopes of 25° and more by the way they face, to match the forecast's problem aspects",
     runout: "Where avalanches from steep slopes above can reach, and the gullies and creek beds where snow piles up deep",
     flats: "Nearly flat ground (under 5°): where you'll have to skate, pole or skin out, and where a splitboard has to switch to walk mode",
@@ -1116,7 +1117,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       return `<li><button type="button" data-i="${i}"${cur ? ' aria-current="true"' : ""}>${ic}<span class="sk-tx"><span class="nm">${nm}</span><span class="sub">${sub}</span></span>${away(x.d)}</button></li>`;
     }).join("")
       + (rows.length > MAX ? `<li class="sk-empty">${rows.length - MAX} more: ${q ? "type more of the name" : "zoom in"} to see them.</li>` : "")
-      + (!rows.length ? `<li class="sk-empty">${q ? `Nothing named “${esc(findText.trim())}” in what's shown.` : listTab === "huts" ? "No huts in view. Zoom out or move the map." : "No ski routes in view. Zoom out or move the map."}</li>` : "");
+      + (!rows.length ? `<li class="sk-empty">${q ? `Nothing named “${esc(findText.trim())}” in what's shown.` : listTab === "huts" ? "No huts in view. Zoom out or move the map." : shown.has("heat") ? "No mapped ski routes in view. The heatmap shows where people have toured here." : `<span>No mapped ski routes in view. Zoom out, or turn on the ski heatmap: it shows where people tour even where no route is mapped.</span> <button type="button" class="linkish" id="skHeatOn">Show the ski heatmap</button>`}</li>` : "");
+    const heatBtn = $("skHeatOn");
+    if (heatBtn) heatBtn.addEventListener("click", () => { shown.add("heat"); const off = oneGround("heat"); applySwitches(); if (off.includes("avy")) refreshAvy(); });
     list.querySelectorAll("button[data-i]").forEach((bt) => bt.addEventListener("click", () => { const x = rows[+bt.dataset.i]; select(x.g || x.h, true); }));
   }
   $("skTabs").addEventListener("click", (e) => {
@@ -1432,6 +1435,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     "hw:about": (v) => ["About", v], "hw:difficulty": (v) => ["Difficulty", v], "hw:distance": (v) => ["Distance", v], "hw:time": (v) => ["Time", v],
     "hw:ascent": (v) => ["Climb", v], "hw:high": (v) => ["Highest point", v], "hw:season": (v) => ["Best season", v], "hw:aspect": (v) => ["Main aspect", v],
     "hw:trailhead": (v) => ["Getting there", v], "hw:parking": (v) => ["Parking", v], "hw:safety": (v) => ["Safety", v], "hw:by": null,
+    // Hand-kept routes (data/ski-hand/)
+    "hand:about": (v) => ["About", v], "hand:climb": (v) => ["Climb", v], "hand:high": (v) => ["Highest point", v], "hand:aspect": (v) => ["Main aspect", v],
+    "hand:start": (v) => ["Getting there", v], "hand:safety": (v) => ["Safety", v], "hand:rules": (v) => ["Rules", v], "hand:line": (v) => ["The line", v],
   };
   const FR_DIFF = { Facile: "Easy", "Débutant": "Beginner", "Intermédiaire": "Intermediate", Difficile: "Difficult", "Très difficile": "Very difficult", Polyvalent: "Mixed" };
   const FR_USE = { Raquette: "snowshoeing", "Ski nordique": "backcountry nordic skiing (not groomed)", "Randonnée alpine": "alpine ski touring", "Accès ski hors-piste": "access to off-piste skiing",
@@ -1897,6 +1903,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ? `${r.facts && r.facts.src ? `<a href="${esc(r.facts.src)}" target="_blank" rel="noopener">${esc(r.tags.operator || "the hut's club")}</a>` : esc(r.tags.operator || "the hut's club")} (not on OpenStreetMap yet)`
       : r.src === "hw"
       ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a> by ${esc(r.tags["hw:by"] || "Rob Thomson")} (<a href="https://hokkaidowilds.org/" target="_blank" rel="noopener">hokkaidowilds.org</a>, CC BY-SA 4.0): full guide, photos and topo map there`
+      : r.src === "hand"
+      ? `trip reports and guidebooks${(r.links || []).length ? ": " + r.links.map((l) => `<a href="${esc(l.u)}" target="_blank" rel="noopener">${esc(l.t)}</a>`).join(", ") : ""} (not on OpenStreetMap yet)`
       : r.src === "pc"
       ? `Parks Canada trails (<a href="https://open.canada.ca/data/en/dataset/64a90e8d-5bc0-4027-8645-b5881b4068d4" target="_blank" rel="noopener">open.canada.ca</a>, Open Government Licence)`
       : `<a href="https://www.openstreetmap.org/${osmType}/${r.id.slice(1)}" target="_blank" rel="noopener">OpenStreetMap</a>`;
@@ -2556,7 +2564,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <p class="sk-hint">Snow station at ${st.ele.toLocaleString()} m · read ${esc(when(st.at))}</p>
       <div class="sk-stats"><div><b>${cm(st.sd)}</b><span>snow</span></div><div><b>${plus(st.sd24)}</b><span>24 h</span></div><div><b>${plus(st.sd72)}</b><span>3 days</span></div><div><b>${st.ta == null ? "–" : Math.round(st.ta) + "°C"}</b><span>air now</span></div></div>
       ${st.days.length && st.days.some((v) => v) ? `<div class="sk-spark" aria-label="Snow depth over the last 7 days">${st.days.map((v) => `<span style="height:${v == null ? 0 : Math.max(2, (v / max) * 100)}%" title="${cm(v)}"></span>`).join("")}</div><div class="sk-days">${st.days.map((_, i) => `<span>${day(i)}</span>`).join("")}</div>` : ""}
-      <p class="sk-note">${st.lo24 != null ? `Last 24 h: low ${Math.round(st.lo24)}°C, high ${Math.round(st.hi24)}°C. ` : ""}${st.swe != null ? `Water in the snow: ${Math.round(st.swe)} mm. ` : ""}Measured by ${st.src === "msc" ? "Environment Canada, at the station (often a valley or airport, not the mountain)" : "BC's River Forecast Centre"}. The snow on the slopes around can be quite different.</p>`;
+      <p class="sk-note">${st.lo24 != null ? `Last 24 h: low ${Math.round(st.lo24)}°C, high ${Math.round(st.hi24)}°C. ` : ""}${st.swe != null ? `Water in the snow: ${Math.round(st.swe)} mm. ` : ""}Measured by ${st.src === "msc" ? "Environment Canada, at the station (often a valley or airport, not the mountain)" : st.src === "qc" ? "Quebec's climate network (Ministère de l'Environnement), at the station" : "BC's River Forecast Centre"}. The snow on the slopes around can be quite different.</p>`;
   }
   function showStation(st) {
     snowOn = st;
@@ -2613,6 +2621,20 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (a.polys.some((p) => inPoly(lat, lon, p))) return a;
     }
     return null;
+  }
+  // The nearest area with a forecast, within 300 km: { a, km } (distance to its outline's corners, close enough).
+  function nearestArea(lat, lon) {
+    let best = null;
+    const k = Math.cos((lat * Math.PI) / 180);
+    for (const a of avy?.areas || []) {
+      if (!a.forecast || !a.forecast.days?.length || !a.box) continue;
+      if (lat < a.box[0] - 3 || lat > a.box[2] + 3 || lon < a.box[1] - 6 || lon > a.box[3] + 6) continue;
+      for (const p of a.polys) for (const [y, x] of p) {
+        const km = Math.hypot(y - lat, (x - lon) * k) * 111;
+        if (km <= 300 && (!best || km < best.km)) best = { a, km };
+      }
+    }
+    return best;
   }
   const dayOf = (f) => f && f.days && (f.days[Math.min(day, f.days.length - 1)] || null);
   const hasForecasts = () => (avy?.areas || []).some((a) => a.forecast && a.forecast.days?.length);
@@ -2679,7 +2701,21 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // Only the area under the map centre (or a forecast with no outline): the Chic-Chocs used to show Glacier's forecast.
     const area = (example ? null : areaAt(c.lat, c.lng)) || (data.areas.find((a) => a.polys.some((p) => inPoly(c.lat, c.lng, p))) || data.areas.find((a) => !a.polys.length && a.forecast?.days?.length));
     const f = area && area.forecast;
-    if (!area) return short("", site === AVY_SITE.jp ? `No avalanche bulletin covers this spot. ${site.season} ${siteLink(site)}` : `No avalanche forecast covers this spot. Check <a href="https://avalanche.ca/map" target="_blank" rel="noopener">avalanche.ca</a> for the nearest one.`);
+    if (!area && site === AVY_SITE.jp) return short("", `No avalanche bulletin covers this spot. ${site.season} ${siteLink(site)}`);
+    // Outside every forecast area (Whitehorse: Avalanche Canada covers the White Pass only, fix list item 45,
+    // 2026-11-02): the nearest forecast, how far, its rating today, and riders' reports near the spot.
+    if (!area) {
+      const nb = nearestArea(c.lat, c.lng), nd = nb && dayOf(nb.a.forecast), r = nd ? Math.max(nd.alp || 0, nd.tln || 0, nd.btl || 0) : 0;
+      const reps = minData ? (minData.reports || []).filter((m) => map.distance([m.lat, m.lon], c) <= 40000) : [];
+      const seen = reps.filter((m) => m.av && m.av.seen).length;
+      const days = (minData && minData.days) || 14, nm = nb ? (nb.a.forecast.title || nb.a.name) : "";
+      const msg = [`No avalanche forecast covers this spot.`,
+        nb && (r ? `The nearest is ${nm}, ${Math.round(nb.km)} km away (${DANGER[r].label.replace(/^\d /, "").toLowerCase()} at its worst today): snow and danger can be very different here.`
+          : `The nearest is ${nm}, ${Math.round(nb.km)} km away: snow and danger can be very different here.`),
+        minData && (reps.length ? `${reps.length} rider report${reps.length === 1 ? "" : "s"} within 40 km in the last ${days} days${seen ? `, ${seen} with avalanches` : ""}.` : `No rider reports within 40 km in the last ${days} days.`),
+        "Read the snow yourself."].filter(Boolean).map((x) => `<span>${esc(x)}</span>`).join(" ") + ` <a href="https://avalanche.ca/map" target="_blank" rel="noopener">Check avalanche.ca</a>`;
+      return short("", msg);
+    }
     if (!f || !f.days?.length) return short(esc(area.name), "No forecast for this area right now.");
     const d = dayOf(f), expired = !example && f.validUntil && new Date(f.validUntil) < new Date();
     const notes = Object.values(f.summaries || {}).filter(Boolean), rated = example || f.days.some((x) => x.alp || x.tln || x.btl);
