@@ -163,3 +163,11 @@ Top ||| Sommet
 The line ||| Le tracé
 trip reports and guidebooks ||| récits de sortie et guides
 (not on OpenStreetMap yet) ||| (pas encore sur OpenStreetMap)
+# Hut photos (winter.js, 2026-11-03)
+Looking for photos of the hut… ||| Recherche de photos du refuge…
+No free-to-use photo of this hut yet. ||| Pas encore de photo libre de ce refuge.
+Search the web for photos ↗ ||| Chercher des photos sur le web ↗
+Taken at the hut. ||| Prise au refuge.
+Photos nearby ||| Photos aux alentours
+Open the hut's photos ||| Ouvrir les photos du refuge
+Skiing: hut cards show a photo of the hut when there is a free one online, or a link to the club's photos. ||| Ski : les fiches des refuges montrent une photo du refuge quand il y en a une libre en ligne, sinon un lien vers les photos du club.

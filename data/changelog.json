@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-03", "text": "Skiing: hut cards show a photo of the hut when there is a free one online, or a link to the club's photos."},
     {"date": "2026-11-03", "text": "Skiing: Joffre Shoulder on the Duffey is now a ski tour, with where to park, the climb and what to watch for."},
     {"date": "2026-11-03", "text": "Skiing: snow stations near Bromont, Mont-Tremblant, the Chic-Chocs, Blue Mountain, Sugarloaf and Marble Mountain (now shown even before the snow), the nearest avalanche forecast where none covers you (Whitehorse), and a ski heatmap shortcut where no tour is mapped."},
     {"date": "2026-11-03", "text": "Skiing: new Freeride lines layer (Layers, Resorts): the named chutes, couloirs, faces and glades skiers have mapped, not the groomed runs. About 100 at Whistler Blackcomb and about 1,450 across Canada (resorts, heli and cat skiing, Baffin Island). Tap one for its steepness, drop and which way it faces."},

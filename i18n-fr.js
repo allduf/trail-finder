@@ -1676,7 +1676,14 @@
     "Faces":"Orientation",
     "The line":"Le tracé",
     "trip reports and guidebooks":"récits de sortie et guides",
-    "(not on OpenStreetMap yet)":"(pas encore sur OpenStreetMap)"};
+    "(not on OpenStreetMap yet)":"(pas encore sur OpenStreetMap)",
+    "Looking for photos of the hut…":"Recherche de photos du refuge…",
+    "No free-to-use photo of this hut yet.":"Pas encore de photo libre de ce refuge.",
+    "Search the web for photos ↗":"Chercher des photos sur le web ↗",
+    "Taken at the hut.":"Prise au refuge.",
+    "Photos nearby":"Photos aux alentours",
+    "Open the hut's photos":"Ouvrir les photos du refuge",
+    "Skiing: hut cards show a photo of the hut when there is a free one online, or a link to the club's photos.":"Ski : les fiches des refuges montrent une photo du refuge quand il y en a une libre en ligne, sinon un lien vers les photos du club."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
@@ -1699,6 +1706,7 @@
     [/^(\d+) (minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years) ago$/, function (m, n, u) { return "il y a " + n + " " + UNIT[u]; }],
     [/^Stocked (\d+) (day|days|week|weeks|month|months|year|years) ago, (.+)$/, function (m, n, u, f) { return "Ensemencé il y a " + n + " " + UNIT[u] + ", " + f; }],
     [/^just now$/i, "à l'instant"],
+    [/^Photos on (.+) ↗$/, "Photos sur $1 ↗"],
     [/^Satellite photo of (.+)$/, function (m, d) { return "Photo satellite du " + dt(d); }],
     [/^✓ Saved: (.+)$/, "✓ Enregistré : $1"],
     [/^⚠ Saved: (.+)$/, "⚠ Enregistré : $1"],

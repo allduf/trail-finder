@@ -30,6 +30,7 @@ for (const [i, e] of (info.huts || []).entries()) {
   for (const [k, v] of links(e.tags)) if (!/^https?:\/\//.test(v)) bad.push(`${e.name}: ${k} is not a link: ${v}`);
   if (e.src && !/^https:\/\//.test(e.src)) bad.push(`${e.name}: src is not an https link`);
   if (e.tags?.reservation && !/^(required|yes|recommended|no|members_only)$/.test(e.tags.reservation)) bad.push(`${e.name}: reservation=${e.tags.reservation}`);
+  if (e.photos && !(Array.isArray(e.photos) && e.photos.every((f) => /^File:.+\.(jpe?g|png|webp)$/i.test(f)))) bad.push(`${e.name}: photos must be Wikimedia Commons "File:....jpg" names`);
   e.keys = [e.name, ...(e.aka || [])].map(key).filter(Boolean);
 }
 for (const o of ops) for (const [k, v] of links(o.tags)) if (!/^https?:\/\//.test(v)) bad.push(`operator ${o.op}: ${k} is not a link`);
