@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-03", "text": "Skiing: sharper Winter photos around Squamish, Whistler and Pemberton when you zoom in close, sharpened 4 times by a free AI model (2D and 3D)."},
     {"date": "2026-11-03", "text": "Skiing: 9 more slackcountry runs at Whistler Blackcomb (Flute back side, Oboe east, Fissile, Circle Lake, Spearhead Glacier, Phalanx, Decker Glacier, Disease Ridge, Spearhead Traverse)."},
     {"date": "2026-11-03", "text": "Skiing: the search box is now at the top, and shows resorts, routes, huts, freeride and slackcountry lines and towns as you type."},
     {"date": "2026-11-03", "text": "Skiing: a route or freeride line card only shows a photo at the top when the photo is really of that line. Nearby photos stay under Photos."},

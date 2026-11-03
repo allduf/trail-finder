@@ -731,6 +731,14 @@
       have.some = some;
       return have;
     }).catch(() => { winterBlocks = null; return null; }));
+  // AI-sharpened Winter photos (alex 2026-11-03, "Sea to Sky first"): last winter's same photos sharpened 4x (10 m to
+  // 2.5 m) by ESA's free SEN2SR model (scripts/winter-photos/sharpen.py), zoom 15 only, on the second site with their
+  // own list of zoom-11 squares (sharp.json). SHARP_BOUNDS: the box they're in, so nothing is asked for elsewhere.
+  const SHARP = WINTERS[1], SHARP_BOUNDS = [-123.58, 49.6, -122.16, 50.74];
+  let sharpBlocks = null;
+  const loadSharp = () => sharpBlocks || (sharpBlocks = fetch(SHARP + "sharp.json").then((r) => r.ok ? r.json() : [])
+    .then((a) => new Set(a.map(([x, y]) => x + "/" + y))).catch(() => new Set()));
+  const hasSharp = (sharp, z, x, y) => z >= 15 && !!sharp && sharp.has((x >> (z - 11)) + "/" + (y >> (z - 11)));
   // Which site has tile z/x/y: the square's own, or for a wider tile the site with most squares under it (each site
   // draws its own zooms 6-10 from its squares only).
   const winterSite = (have, z, x, y) => {
@@ -767,7 +775,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1770");
+      const w = new Worker("winter-fill.js?v=1800");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -850,7 +858,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1770" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1800" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -858,6 +866,18 @@
         if (m.data) job.ok({ data: m.data }); else job.no(new Error(m.err || "no tile"));
       };
       return w;
+    });
+  }
+  let sharpProtocol = false;
+  function addWinterSharpProtocol() {
+    if (sharpProtocol) return;
+    sharpProtocol = true;
+    photoProtocol("tfwintersharp", async (params, abort) => {
+      const [z, x, y] = params.url.replace("tfwintersharp://", "").split("/").map(Number);
+      const [have, sharp] = await Promise.all([loadWinterBlocks(), loadSharp()]);
+      if (!hasSharp(sharp, z, x, y)) return noTile();
+      const m = await fillTile(z, x, y, covered(have, z, x, y), abort, SHARP).catch((e) => { if (abort.signal.aborted) throw e; return { none: true }; });
+      return m.data ? { data: m.data } : noTile();
     });
   }
   let hdProtocol = false;
@@ -868,11 +888,13 @@
     photoProtocol("tfwinterhd", async (params, abort) => {
       const [z, x, y] = params.url.replace("tfwinterhd://", "").split("/").map(Number);
       const have = await loadWinterBlocks();
-      return anyWinter(have, z, x, y) ? hdTile(z, x, y, abort, winterSite(have, z, x, y)) : noTile();
+      if (!anyWinter(have, z, x, y)) return noTile();
+      const sharp = await loadSharp();
+      return hdTile(z, x, y, abort, winterSite(have, z, x, y), hasSharp(sharp, z, x, y) ? SHARP : null);
     });
   }
   {
-    hdTile = (z, x, y, abort, site) => new Promise((ok, no) => {
+    hdTile = (z, x, y, abort, site, fine = null) => new Promise((ok, no) => {
       const id = ++hdId;
       const w = hdWorkers[hdNext++ % hdWorkers.length];
       hdWaiting.set(id, { ok, no });
@@ -884,7 +906,7 @@
       // The terrain first: these wait until the ground in view has its heights (at most 3 s, 15 on phones), so they don't
       // hold up the mountains, then sharpen the photos already showing. On phones they also wait for the map to
       // stop moving: the ones scrolled past meanwhile are dropped without being drawn.
-      const send = () => { if (hdWaiting.has(id)) w.postMessage({ id, z, x, y, base: location.href, site }); };
+      const send = () => { if (hdWaiting.has(id)) w.postMessage({ id, z, x, y, base: location.href, site, fine }); };
       if (!PHONE) return terrainReady().then(send);
       if (hdQueue.length > 64) hdQueue.splice(0, hdQueue.length, ...hdQueue.filter((j) => hdWaiting.has(j.id)));
       hdQueue.push({ id, go: () => terrainReady().then(mapStill).then(() => hdWaiting.has(id) ? (send(), true) : false) });
@@ -917,11 +939,13 @@
     if (z >= 15) {
       // The close-up keeps last winter's cloudy holes see-through (on the 3D map the filled Winter photo is under it):
       // here the filled zoom-14 photo goes under it, cut to this tile.
+      // Where there are sharpened photos (Sea to Sky), the zoom-15 sharpened one goes under instead.
       startHdWorkers();
-      const k = z - 14, n = 1 << k;
+      const fine = hasSharp(await loadSharp(), z, x, y), uz = fine ? 15 : 14;
+      const k = z - uz, n = 1 << k;
       const [under, hd] = await Promise.all([
-        fillTile(14, x >> k, y >> k, covered(have, 14, x >> k, y >> k), abort, site).then((m) => m.data).catch((e) => { if (signal.aborted) throw e; return null; }),
-        hdTile(z, x, y, abort, site).then((m) => m.data).catch((e) => { if (signal.aborted) throw e; return null; }),
+        fillTile(uz, x >> k, y >> k, covered(have, 14, x >> (z - 14), y >> (z - 14)), abort, fine ? SHARP : site).then((m) => m.data).catch((e) => { if (signal.aborted) throw e; return null; }),
+        hdTile(z, x, y, abort, site, fine ? SHARP : null).then((m) => m.data).catch((e) => { if (signal.aborted) throw e; return null; }),
       ]);
       if (!under) return hd;
       const cv = new OffscreenCanvas(256, 256), cx = cv.getContext("2d"), size = under.width / n;
@@ -1248,6 +1272,7 @@
     addWinterPhotoProtocol();
     addSatProtocol();
     addWinterHdProtocol();
+    addWinterSharpProtocol();
     // Photo tiles downloaded at once: 16 by default. Ours come from several sites over HTTP/2 and each is small, so
     // 32 at once fills the ground after a move about twice as fast (phone test, 2026-10-27).
     try { maplibregl.setMaxParallelImageRequests(32); } catch {}
@@ -1274,6 +1299,8 @@
           // 1-3 s (alex's recording, 2026-10-29); these few big tiles are there long before, so it's a blurry winter
           // photo for that moment instead, sharpening when Winter's tile comes.
           winterlo: { type: "raster", tileSize: 256, minzoom: 6, maxzoom: 9, bounds: WINTER_BOUNDS, tiles: ["tfwinterphoto://{z}/{x}/{y}"] },
+          // Sea to Sky, from zoom 15: the AI-sharpened Winter photos (SHARP above), over Winter and under the close-ups.
+          winsharp: { type: "raster", tileSize: 256, minzoom: 15, maxzoom: 15, bounds: SHARP_BOUNDS, tiles: ["tfwintersharp://{z}/{x}/{y}"] },
           // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above).
           winterhd: { type: "raster", tileSize: PHONE ? 256 : 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] },
           live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
@@ -1315,6 +1342,7 @@
           { id: "fill", type: "raster", source: "fill", layout: { visibility: "none" } },
           { id: "winterlo", type: "raster", source: "winterlo", layout: { visibility: "none" }, paint: { "raster-fade-duration": 0 } },
           { id: "winter", type: "raster", source: "winter", layout: { visibility: "none" } },
+          { id: "winsharp", type: "raster", source: "winsharp", layout: { visibility: "none" }, paint: { "raster-fade-duration": 0 } },
           { id: "winterhd", type: "raster", source: "winterhd", layout: { visibility: "none" }, paint: { "raster-fade-duration": 200 } },
           { id: "live", type: "raster", source: "live", layout: { visibility: "none" } },
           // Soft sun and shadow on the slopes, so white mountains still read in winter.
@@ -1376,7 +1404,7 @@
     // (as before) reloaded every photo after each move, up to 900 tiles each time, and showed blurry ones while
     // moving. Now about 150 to 380 tiles in a tilted view, against 500 to 900.
     // Phones the same since 2026-10-23 (they had 4 levels and fewer far tiles, which made the distance blurry).
-    const lod = () => ["sat", "fill", "winter", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
+    const lod = () => ["sat", "fill", "winter", "winsharp", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
     // Set as soon as the style is in, so the very first tiles already come at that setting.
     gl.once("style.load", lod); gl.once("load", lod);
     // The blurry photos under the sharp ones (winterlo, satlo) keep more tiles after they leave the view than the
@@ -1487,7 +1515,7 @@
       for (const id of ["satlo", "sat"]) gl.setLayoutProperty(id, "visibility", photos === "sharp" ? "visible" : "none");
       gl.setLayoutProperty("fill", "visibility", photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
       gl.setLayoutProperty("ground", "visibility", photos === "winter" ? "visible" : "none");
-      for (const id of ["winterlo", "winter", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
+      for (const id of ["winterlo", "winter", "winsharp", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
       gl.setLayoutProperty("live", "visibility", photos === "live" ? "visible" : "none");
       sumBtn.title = "Sharp photos, taken in summer where Esri has one";
       winBtn.title = "Real satellite photos from February and March 2026 (Sentinel-2, 10 m, so softer)";
