@@ -75,12 +75,13 @@ const areaOf = (tags, mid) => /^(path|bridleway)$/.test(tags.highway || "") && b
 // Trails listed in ratings.js HAND (a rider's or a park's own list says they're bike trails) are MTB trails even with no
 // bike tags, as in build-mtb.mjs, so the chunks' lists keep them too (the app draws only what's in a list). Lake Louise's
 // Parks Canada bike trails (Bow River, Old Highway 1A) are plain paths on the map.
+const nameHash = (s) => { let h = 0x811c9dc5; for (const ch of s) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); };   // ratings.js nh entries
 const HAND = (() => {
   const m = readFileSync(new URL("ratings.js", root), "utf8").match(/const HAND = (\[[\s\S]*?\n  \]);/);
   try { return m ? Function(`return ${m[1]}`)() : []; } catch { return []; }
 })();
 const handOf = (id, tags, mid) => bikeOk(tags) && HAND.find((h) => (h.ids && h.ids.includes(id))
-  || (h.name && tags.name && h.name.toLowerCase() === tags.name.toLowerCase() && metres(mid, h.c) <= h.r));
+  || (tags.name && (h.name ? h.name.toLowerCase() === tags.name.toLowerCase() : h.nh === nameHash(tags.name.toLowerCase())) && metres(mid, h.c) <= h.r));
 
 // Douglas-Peucker on a local flat projection, keeping points more than tol metres off the line (as in build-mtb.mjs).
 function simplify(pts, tol = 2) {

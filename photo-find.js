@@ -872,6 +872,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       ((f && f.items) || []).forEach((i) => {
         const name = i.tags.name || i.tags["mtb:name"];
         if (!name || !i.c) return;
+        if (i.t === "w" && window.tfPubSecret && window.tfPubSecret(i.tags, i.c, i.id)) return;   // the public map never names a hidden trail
         const ws = core(words(name)), key = i.t + ":" + ws.join(" ");
         if (!ws.length) return;
         const same = byKey.get(key) || [];
