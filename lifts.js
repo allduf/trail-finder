@@ -67,7 +67,7 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
 
   // ---------- data ----------
   let data = null, lifts = [], resorts = {};
-  const load = () => (data = data || fetch("data/ski-lifts.json?v=2130").then((r) => r.json()).then((d) => {
+  const load = () => (data = data || fetch("data/ski-lifts.json?v=2140").then((r) => r.json()).then((d) => {
     resorts = d.resorts || {}; lifts = d.lifts || [];
     return d;
   }).catch(() => { data = null; return null; }));
@@ -76,7 +76,7 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
   // and lines they reach, webcams, parking and the rules.
   let access = null;
   const triedLive = {};
-  const loadAccess = () => (access = access || fetch("data/access-lifts.json?v=2130").then((r) => r.json()).then((d) => d.lifts || {}).catch(() => { access = null; return {}; }));
+  const loadAccess = () => (access = access || fetch("data/access-lifts.json?v=2140").then((r) => r.json()).then((d) => d.lifts || {}).catch(() => { access = null; return {}; }));
   // Live status, per resort: { t, lifts: [{ n, s, w, o, c }], err } from the function, and when we got it.
   const live = {};
   let gotAt = 0, liveErr = "", timer = 0, busy = false;
