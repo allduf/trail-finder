@@ -12,6 +12,7 @@
 // Run: node scripts/build-data.mjs   (Node 18 or newer, no packages needed)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { keepName, oldNames, stillThere } from "./keep-names.mjs";
 
 const root = new URL("../", import.meta.url);
 const html = readFileSync(new URL("index.html", root), "utf8");
@@ -177,6 +178,7 @@ if (freshTiles) log(`  ${freshTiles} squares were built less than ${SQUARE_FRESH
 if (skippedTiles) log(`  Out of time: ${skippedTiles} squares left for the next run, keeping their last good data.`);
 
 let written = 0;
+const oldWay = (id) => { for (const f of before.values()) if (f && f.ways && f.ways[id]) return f.ways[id]; return null; };
 for (const z of ZONES) {
   const old = before.get(z.id);
   const out = { v: 1, builtAt, months: MAX_MONTHS, tiles: {}, ways: {}, rels: {} };
@@ -184,7 +186,7 @@ for (const z of ZONES) {
     const t = tiles.get(key);
     if (t) {
       out.tiles[key] = { at: t.at, ways: [...t.ways.keys()] };
-      t.ways.forEach((w, id) => { out.ways[id] = w; });
+      t.ways.forEach((w, id) => { keepName(id, (oldWay(id) || {}).tags, w.tags, root); out.ways[id] = w; });   // never lose a name (keep-names.mjs)
       t.rels.forEach((r) => { const o = out.rels[r.id]; out.rels[r.id] = { tags: r.tags, ways: [...new Set([...(o ? o.ways : []), ...r.ways])] }; });
     } else if (old && old.tiles && old.tiles[key]) {
       const ot = old.tiles[key];
@@ -196,6 +198,26 @@ for (const z of ZONES) {
   if (!Object.keys(out.tiles).length) { log(`${z.name}: nothing loaded, leaving its file as it was`); continue; }
   writeFileSync(new URL(`trails-${z.id}.json`, DATA), JSON.stringify(out));
   written++;
+}
+
+// A trail whose name was removed on the map keeps the name we had (alex, 2026-11-03), and a renamed one keeps its old
+// name for the search (keep-names.mjs). A way missing from tonight's list is asked for: still there unnamed, or deleted?
+async function keepNames(z, items) {
+  const last = new Map(((readJson(`names-${z.id}.json`) || {}).items || []).filter((i) => i.t === "w").map((i) => [i.id, i]));
+  const inBox = (c) => c && c[0] >= z.box[0] && c[0] <= z.box[2] && c[1] >= z.box[1] && c[1] <= z.box[3];
+  Object.entries(oldNames(root)).forEach(([id, s]) => { if (!last.has(+id) && inBox(s.c)) last.set(+id, { t: "w", id: +id, c: s.c, tags: {} }); });
+  let renamed = 0, back = 0;
+  const have = new Set();
+  for (const i of items) if (i.t === "w") { have.add(i.id); if (keepName(i.id, (last.get(i.id) || {}).tags, i.tags, root) === "renamed") renamed++; }
+  const gone = [...last.values()].filter((i) => !have.has(i.id));
+  const now = gone.length ? await stillThere(gone.map((i) => i.id), OSM_API, UA) : new Map();
+  if (!now) { items.push(...gone.filter((i) => i.tags.name || i.tags["mtb:name"])); return ` (OpenStreetMap API not answering: ${gone.length} names kept as they were)`; }
+  for (const i of gone) {
+    const tags = now.get(i.id);
+    if (!tags || keepName(i.id, i.tags, tags, root) !== "kept") continue;
+    items.push({ t: "w", id: i.id, c: i.c, tags }); back++;
+  }
+  return renamed || back ? ` (${back} names kept after the map lost them, ${renamed} renamed with the old name kept)` : "";
 }
 
 // Trail names, one Overpass query per zone (split if too heavy). Same item format as toItems() in index.html.
@@ -212,8 +234,9 @@ for (const z of zoneOrder) {
     const els = await fetchBox(z.box, (b) => namesQuery(b));
     const items = els.filter((e) => e.tags && e.center && (e.tags.name || e.tags["mtb:name"]))
       .map((e) => ({ t: e.type === "relation" ? "r" : "w", id: e.id, c: [round(e.center.lat), round(e.center.lon)], tags: e.tags }));
+    const kept = await keepNames(z, items);
     writeFileSync(new URL(`names-${z.id}.json`, DATA), JSON.stringify({ v: 1, builtAt, items }));
-    log(`  ${z.name}: ${items.length} names`);
+    log(`  ${z.name}: ${items.length} names${kept}`);
   } catch (e) {
     failedNames++;
     log(`  ${z.name}: failed (${e.message}), keeping last good data`);

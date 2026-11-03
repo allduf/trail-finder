@@ -20,6 +20,7 @@
     [/^(\d+) (minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years) ago$/, function (m, n, u) { return "il y a " + n + " " + UNIT[u]; }],
     [/^Stocked (\d+) (day|days|week|weeks|month|months|year|years) ago, (.+)$/, function (m, n, u, f) { return "Ensemencé il y a " + n + " " + UNIT[u] + ", " + f; }],
     [/^just now$/i, "à l'instant"],
+    [/^Was called (.+)$/, "Autrefois appelé $1"],
     [/^Photos on (.+) ↗$/, "Photos sur $1 ↗"],
     [/^Satellite photo of (.+)$/, function (m, d) { return "Photo satellite du " + dt(d); }],
     [/^✓ Saved: (.+)$/, "✓ Enregistré : $1"],

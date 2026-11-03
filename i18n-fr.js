@@ -1801,7 +1801,8 @@
     "Signed out. Your saved trails, folders, rides and pins were taken off this device. They're safe in your account.":"Déconnecté. Vos sentiers sauvegardés, dossiers, sorties et repères ont été retirés de cet appareil. Ils restent dans votre compte.",
     "Saving your last changes to your account…":"Enregistrement de vos derniers changements dans votre compte…",
     "Not signed out. Try again when you have signal.":"Pas déconnecté. Réessayez quand vous aurez du réseau.",
-    "Sign out now removes your saved trails, folders, rides and pins from that device (they stay safe in your account), so the next person using it never sees them.":"La déconnexion retire maintenant vos sentiers sauvegardés, dossiers, sorties et repères de l'appareil (ils restent dans votre compte), pour que la prochaine personne ne les voie jamais."};
+    "Sign out now removes your saved trails, folders, rides and pins from that device (they stay safe in your account), so the next person using it never sees them.":"La déconnexion retire maintenant vos sentiers sauvegardés, dossiers, sorties et repères de l'appareil (ils restent dans votre compte), pour que la prochaine personne ne les voie jamais.",
+    "Search finds trails by their old name too, and a trail keeps its name when the map loses it.":"La recherche trouve aussi les sentiers par leur ancien nom, et un sentier garde son nom quand la carte le perd."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
@@ -1824,6 +1825,7 @@
     [/^(\d+) (minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years) ago$/, function (m, n, u) { return "il y a " + n + " " + UNIT[u]; }],
     [/^Stocked (\d+) (day|days|week|weeks|month|months|year|years) ago, (.+)$/, function (m, n, u, f) { return "Ensemencé il y a " + n + " " + UNIT[u] + ", " + f; }],
     [/^just now$/i, "à l'instant"],
+    [/^Was called (.+)$/, "Autrefois appelé $1"],
     [/^Photos on (.+) ↗$/, "Photos sur $1 ↗"],
     [/^Satellite photo of (.+)$/, function (m, d) { return "Photo satellite du " + dt(d); }],
     [/^✓ Saved: (.+)$/, "✓ Enregistré : $1"],

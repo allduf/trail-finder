@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-03", "text": "Search finds trails by their old name too, and a trail keeps its name when the map loses it."},
     {"date": "2026-11-03", "text": "Radar: slide past Latest (or tap Next 3 days) to see where rain or snow is forecast over the next 3 days, plus a 3-day total."},
     {"date": "2026-11-03", "text": "Sign out now removes your saved trails, folders, rides and pins from that device (they stay safe in your account), so the next person using it never sees them."},
     {"date": "2026-11-03", "text": "MTB: unofficial trails (the ones only approved riders see dotted) are no longer shown to everyone else."},

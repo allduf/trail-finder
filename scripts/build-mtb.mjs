@@ -27,6 +27,7 @@
 // Run: node scripts/build-mtb.mjs   (Node 18 or newer, no packages needed; FORCE=1 refreshes every zone)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { keepName } from "./keep-names.mjs";
 
 const root = new URL("../", import.meta.url);
 const html = readFileSync(new URL("index.html", root), "utf8");
@@ -478,8 +479,10 @@ for (const z of order) {
     const sparse = areas.filter((a) => a.r || tagged.filter((w) => w.geometry.some((p) => metres([p.lat, p.lon], a.c) <= AREA_M)).length < SPARSE);
     const ways = {}, routes = {}, rest = [];
     let fromAreas = 0, fromRec = 0, fromLift = 0, fromHand = 0, fromOff = 0;
+    const lastWays = (readJson(`mtb-${z.id}.json`) || {}).ways || {};
     for (const w of all.values()) {
       const tags = { ...(w.tags || {}) };
+      keepName(w.id, (lastWays[w.id] || {}).tags, tags, root);   // a name removed on the map stays, an old one stays searchable (keep-names.mjs)
       const mid = w.geometry[w.geometry.length >> 1];
       const bikeWay = /^(path|bridleway)$/.test(tags.highway || "") || tags.highway === "footway" && /^(yes|designated|permissive)$/.test(tags.bicycle || "");
       const t = rec && bikeWay && !/^(no|private)$/.test(tags.access || "") ? recMatch(w.geometry, rec.index) : null;
