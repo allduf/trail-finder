@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-03", "text": "Skiing: a route or freeride line card only shows a photo at the top when the photo is really of that line. Nearby photos stay under Photos."},
     {"date": "2026-11-03", "text": "Skiing: hut cards show a photo of the hut when there is a free one online, or a link to the club's photos."},
     {"date": "2026-11-03", "text": "Skiing: Joffre Shoulder on the Duffey is now a ski tour, with where to park, the climb and what to watch for."},
     {"date": "2026-11-03", "text": "Skiing: snow stations near Bromont, Mont-Tremblant, the Chic-Chocs, Blue Mountain, Sugarloaf and Marble Mountain (now shown even before the snow), the nearest avalanche forecast where none covers you (Whitehorse), and a ski heatmap shortcut where no tour is mapped."},
