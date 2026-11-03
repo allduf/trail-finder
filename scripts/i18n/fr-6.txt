@@ -82,3 +82,4 @@ Name removed. ||| Nom retiré.
 Checking the code… ||| Vérification du code…
 Type the code from the email (6 numbers or more). ||| Entrez le code reçu par courriel (6 chiffres ou plus).
 Too many emails just now. Wait a minute and try again. ||| Trop de courriels envoyés. Attendez une minute et réessayez.
+MTB: unofficial trails (the ones only approved riders see dotted) are no longer shown to everyone else. ||| Vélo de montagne : les sentiers non officiels (ceux que seuls les cyclistes approuvés voient en pointillé) ne sont plus affichés aux autres.
