@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-03", "text": "Trail search stays in the Area you picked, even a whole region like Sea to Sky. A trail with the same name elsewhere in Canada is only listed after, clearly marked, and Search never jumps there by itself."},
     {"date": "2026-11-03", "text": "Skiing 3D: searching a place now turns the 3D map to the side it's seen best from, so ridges in front don't hide it."},
     {"date": "2026-11-03", "text": "Searching a place now frames it close so you really see it: a backcountry area like Sky Pilot fills the screen, above the bottom sheet on phones, and 3D looks at it less tilted."},
     {"date": "2026-11-03", "text": "MTB: trails mapped as closed, private or not open to bikes are no longer shown, out of respect for land owners and local trail builders."},

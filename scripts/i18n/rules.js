@@ -133,4 +133,8 @@
       return n + " observation" + (n === "1" ? "" : "s") + " d'usagers à moins de 40 km ces " + d + " derniers jours" + (a ? ", dont " + a + " avec avalanches" : "") + ".";
     }],
     [/^No rider reports within 40 km in the last (\d+) days\.$/, "Aucune observation d'usagers à moins de 40 km ces $1 derniers jours."],
+    // Trail name search (index.html refreshHits): the Area picked first, elsewhere only when nothing matched there.
+    [/^Nothing named “(.+)” in (.+?)( yet)?\. Found elsewhere in Canada:$/, function (m, q, z, y) { return "Rien nommé « " + q + " » dans " + tt(z) + (y ? " pour l'instant" : "") + ". Trouvé ailleurs au Canada :"; }],
+    [/^Nothing named “(.+)” in (.+)\. Found in other areas:$/, function (m, q, z) { return "Rien nommé « " + q + " » dans " + tt(z) + ". Trouvé dans d'autres secteurs :"; }],
+    [/^(More trails|Trails) in (.+)$/, function (m, w, z) { return (w === "Trails" ? "Sentiers" : "Autres sentiers") + " dans " + tt(z); }],
   ];
