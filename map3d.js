@@ -784,7 +784,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1860");
+      const w = new Worker("winter-fill.js?v=1900");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -867,7 +867,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1860" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1900" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -883,10 +883,12 @@
     sharpProtocol = true;
     photoProtocol("tfwintersharp", async (params, abort) => {
       const [z, x, y] = params.url.replace("tfwintersharp://", "").split("/").map(Number);
-      const [have, sharp] = await Promise.all([loadWinterBlocks(), loadSharp()]);
-      if (!hasSharp(sharp, z, x, y)) return noTile();
-      const m = await fillTile(z, x, y, covered(have, z, x, y), abort, SHARP).catch((e) => { if (abort.signal.aborted) throw e; return { none: true }; });
-      return m.data ? { data: m.data } : noTile();
+      if (!hasSharp(await loadSharp(), z, x, y)) return noTile();
+      // Straight from the site, not through the Winter workers (winter-fill.js): four of these per Winter tile filled
+      // the same two workers and held the Winter photos back too (alex 2026-11-03: "i like the quality but it way
+      // longer to load"). The odd cloudy hole stays see-through, with the filled Winter photo under it.
+      const r = await fetch(`${SHARP}${z}/${x}/${y}.webp`, { signal: abort.signal }).catch((e) => { if (abort.signal.aborted) throw e; return null; });
+      return r && r.ok ? { data: await r.arrayBuffer() } : noTile();
     });
   }
   let hdProtocol = false;
@@ -1284,7 +1286,9 @@
     addWinterSharpProtocol();
     // Photo tiles downloaded at once: 16 by default. Ours come from several sites over HTTP/2 and each is small, so
     // 32 at once fills the ground after a move about twice as fast (phone test, 2026-10-27).
-    try { maplibregl.setMaxParallelImageRequests(32); } catch {}
+    // Computers 64 (2026-11-03): the close-ups (winterhd) keep their place in this queue while a worker draws them,
+    // and over the Sea to Sky the sharpened photos waited behind them ("way longer to load").
+    try { maplibregl.setMaxParallelImageRequests(PHONE ? 32 : 64); } catch {}
     const c = map.getCenter();
     gl = new maplibregl.Map({
       container: box, antialias: !PHONE, pixelRatio: PHONE ? Math.min(devicePixelRatio || 1, 2) : undefined,
@@ -1309,7 +1313,9 @@
           // photo for that moment instead, sharpening when Winter's tile comes.
           winterlo: { type: "raster", tileSize: 256, minzoom: 6, maxzoom: 9, bounds: WINTER_BOUNDS, tiles: ["tfwinterphoto://{z}/{x}/{y}"] },
           // Sea to Sky, from zoom 15: the AI-sharpened Winter photos (SHARP above), over Winter and under the close-ups.
-          winsharp: { type: "raster", tileSize: 256, minzoom: 15, maxzoom: 15, bounds: SHARP_BOUNDS, tiles: ["tfwintersharp://{z}/{x}/{y}"] },
+          // Same tile size as the close-ups, so on a computer they come in from the same zoom (~14) and show as soon as
+          // they're downloaded, while the close-ups are still being drawn (alex 2026-11-03: "way longer to load").
+          winsharp: { type: "raster", tileSize: PHONE ? 256 : 128, minzoom: 15, maxzoom: 15, bounds: SHARP_BOUNDS, tiles: ["tfwintersharp://{z}/{x}/{y}"] },
           // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above).
           winterhd: { type: "raster", tileSize: PHONE ? 256 : 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] },
           live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
