@@ -50,7 +50,7 @@
     if (r._fr !== undefined) return r._fr;
     let ok = false;
     const t = r.tags || {}, n = r.name || "";
-    if (n && !r.area && r.lines && r.lines.length && /^(resort|offpiste|tour)$/.test(r.type) && !slackIds.has(r.id) && !NOT.test(n)
+    if (n && !/^\d+$/.test(n) && !r.area && r.lines && r.lines.length && /^(resort|offpiste|tour)$/.test(r.type) && !slackIds.has(r.id) && !NOT.test(n)
       && (!t["piste:type"] || t["piste:type"] === "downhill") && !GROOMED.test(t["piste:grooming"] || "")) {
       const p = r.lines[0][0], rs = resortAt(p), d = r.diff;
       if (rs && rs.skip.has(n.toLowerCase())) ok = false;

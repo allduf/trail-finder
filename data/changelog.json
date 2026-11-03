@@ -1,7 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
-    {"date": "2026-11-03", "text": "Skiing: new Freeride lines layer (Layers, Resorts): the named chutes, couloirs, faces and glades skiers have mapped, not the groomed runs. 115 at Whistler Blackcomb, and more across Canada. Tap one for its steepness, drop and which way it faces."},
+    {"date": "2026-11-03", "text": "Skiing: new Freeride lines layer (Layers, Resorts): the named chutes, couloirs, faces and glades skiers have mapped, not the groomed runs. About 100 at Whistler Blackcomb and about 1,450 across Canada (resorts, heli and cat skiing, Baffin Island). Tap one for its steepness, drop and which way it faces."},
     {"date": "2026-11-03", "text": "Skiing: the flat map has a new Winter style (Layers), last winter's satellite photos with snow, the same as the 3D map. It opens on Winter in Skiing."},
     {"date": "2026-11-02", "text": "Hiking: Today shows which hikes near you are snow-free, Plan a hike follows the trails, plus trailheads, huts, viewpoints, water and slope angle in Layers, and a height profile on each hike."},
     {"date": "2026-11-02", "text": "Skiing: 6 more huts on the map with booking, price and beds: Mt. Colin and Castle Mountain (Rockies), Raven Lake, Grizzly Den and 8 Mile (near Prince George) and Wally Joyce (Bon Echo, Ontario)."},
