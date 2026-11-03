@@ -1538,6 +1538,14 @@
     "Reports aren't set up yet.":"Les signalements ne sont pas encore prêts.",
     "Couldn't send it. Try again later.":"Envoi impossible. Réessayez plus tard.",
     "3D map on iPhone: it now gives back all its memory while you are in another app, to stop the restarts when you come back. The 3D map redraws for a second or two when you return.":"Carte 3D sur iPhone : elle libère toute sa mémoire quand vous êtes dans une autre appli, pour éviter les redémarrages au retour. La carte 3D se redessine une ou deux secondes à votre retour.",
+    "No mapped ski routes in view. Zoom out, or turn on the ski heatmap: it shows where people tour even where no route is mapped.":"Aucun itinéraire de ski cartographié en vue. Dézoomez, ou activez la carte de chaleur ski : elle montre où les gens font de la rando même là où aucun itinéraire n'est tracé.",
+    "Show the ski heatmap":"Afficher la carte de chaleur ski",
+    "No mapped ski routes in view. The heatmap shows where people have toured here.":"Aucun itinéraire de ski cartographié en vue. La carte de chaleur montre où les gens ont fait de la rando ici.",
+    "No avalanche forecast covers this spot.":"Aucune prévision d'avalanche ne couvre cet endroit.",
+    "Read the snow yourself.":"Évaluez la neige vous-même.",
+    "Check avalanche.ca":"Consulter avalanche.ca",
+    "Snow stations (BC snow pillows, Quebec's climate network, Environment Canada elsewhere): snow depth, new snow and temperature, every 2 hours":"Stations de neige (coussins à neige de la C.-B., réseau climatologique du Québec, Environnement Canada ailleurs) : épaisseur de neige, neige fraîche et température, aux 2 heures",
+    "Skiing: snow stations near Bromont, Mont-Tremblant, the Chic-Chocs, Blue Mountain, Sugarloaf and Marble Mountain (now shown even before the snow), the nearest avalanche forecast where none covers you (Whitehorse), and a ski heatmap shortcut where no tour is mapped.":"Ski : stations de neige près de Bromont, du Mont-Tremblant, des Chic-Chocs, de Blue Mountain, de Sugarloaf et de Marble Mountain (affichées même avant la neige), la prévision d’avalanche la plus proche là où aucune ne vous couvre (Whitehorse), et un raccourci vers la carte de chaleur ski là où aucune rando n’est tracée.",
     "Hiking":"Randonnée",
     "Hikes":"Randos",
     "Hike":"Rando",
@@ -1781,6 +1789,14 @@
     [/^((?:[A-Z][a-z]+(?: [a-z]+)*)(?: \([^)]*\))?, (?:[A-Z][a-z]+(?: [a-z]+)*(?: \([^)]*\))?, )*[A-Z][a-z]+(?: [a-z]+)* \+\d+(?: more)?)$/, function (m) { return tl(m); }],
     [/^Quebec zone (.+)$/, "Québec zone $1"],
     [/^([NSEW]{1,3}) (\d+)$/, function (m, d, n) { return d.replace(/W/g, "O") + " " + n; }],
+    [/^The nearest is (.+), (\d+) km away(?: \((low|moderate|considerable|high|extreme) at its worst today\))?: snow and danger can be very different here\.$/, function (m, n, k, r) {
+      var RD = { low: "faible", moderate: "modéré", considerable: "considérable", high: "élevé", extreme: "extrême" };
+      return "La plus proche est " + n + ", à " + k + " km" + (r ? " (" + RD[r] + " au pire aujourd'hui)" : "") + " : la neige et le danger peuvent être très différents ici.";
+    }],
+    [/^(\d+) rider reports? within 40 km in the last (\d+) days(?:, (\d+) with avalanches)?\.$/, function (m, n, d, a) {
+      return n + " observation" + (n === "1" ? "" : "s") + " d'usagers à moins de 40 km ces " + d + " derniers jours" + (a ? ", dont " + a + " avec avalanches" : "") + ".";
+    }],
+    [/^No rider reports within 40 km in the last (\d+) days\.$/, "Aucune observation d'usagers à moins de 40 km ces $1 derniers jours."],
   ];
 
   // ---- the translator (from scripts/i18n/engine.js) ----
