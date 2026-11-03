@@ -1751,7 +1751,11 @@
     "Ride down only":"Descente seulement",
     "Closed for maintenance":"Fermé pour entretien",
     "Skiing: the Sea to Sky Gondola is on the map as the way up to Sky Pilot. Tap it for today's hours, if skis can go up, the groomed access road, routes, webcams and parking.":"Ski : la télécabine Sea to Sky est sur la carte comme accès à Sky Pilot. Touchez-la pour les heures du jour, si les skis peuvent monter, le chemin d'accès damé, les itinéraires, les webcams et le stationnement.",
-    "Today on the way up":"Aujourd'hui sur le chemin"};
+    "Today on the way up":"Aujourd'hui sur le chemin",
+    "Or show every trail of these levels (tap several), or only alpine ones":"Ou afficher tous les sentiers de ces niveaux (touchez-en plusieurs), ou seulement les alpins",
+    "Only these levels (tap several), or only alpine":"Seulement ces niveaux (touchez-en plusieurs), ou seulement alpins",
+    "All trails: bold = official, thin = not known. White edge: trails in the list.":"Tous les sentiers : gras = officiel, mince = inconnu. Bord blanc : sentiers de la liste.",
+    "MTB: trails mapped as closed, private or not open to bikes are no longer shown, out of respect for land owners and local trail builders.":"Vélo de montagne : les sentiers indiqués fermés, privés ou interdits aux vélos ne sont plus affichés, par respect pour les propriétaires et les bâtisseurs de sentiers locaux."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

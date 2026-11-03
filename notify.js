@@ -168,7 +168,9 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
       if ((!f || f.v !== 1) && (!ca || ca.v !== 1)) return;
       const items = [...(f && f.v === 1 ? f.items : []), ...(ca && ca.v === 1 ? ca.items : [])].sort((a, b) => (b.at > a.at ? 1 : b.at < a.at ? -1 : 0));
       // Only trails the map would show: MTB tagged or looks like MTB, not hiking-only (scripts/push-loam.mjs does the same).
-      feed = items.map((it) => ({ ...it, c: window.tfClassify(it.tags || {}, it.routes || [], it.routes && it.routes.length ? ["mtb"] : []) }))
+      const secret = window.tfPubSecret || (() => false);   // the public map: never a hidden trail (index.html pubHidden)
+      feed = items.filter((it) => !secret(it.tags || {}, it.c, it.ids && it.ids[0]))
+        .map((it) => ({ ...it, c: window.tfClassify(it.tags || {}, it.routes || [], it.routes && it.routes.length ? ["mtb"] : []) }))
         .filter((it) => it.c && LABEL[it.c.cat] && it.c.use !== "hike");
       fetchedAt = Date.now();
       paint();
@@ -660,7 +662,8 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     return { v: APP_V, zones: p ? p.zones : [], ca: caGroups(p).map((g) => ({ n: g.n, ids: g.ids })), since: p ? p.since : null, loam: loamOn(), newt: newOn() && !!p,
       ride: rideList().filter((t) => t.c).map((t) => ({ k: t.key, n: t.name, c: [r5(t.c[0]), r5(t.c[1])] })),
       avy: avyOn(), tours: avyOn() ? skiWatch().map((t) => ({ k: t.k, n: t.n, c: t.c, lo: t.lo, hi: t.hi, cls: t.cls })) : [],
-      fish: fishOn() ? { c: fishPref().c, since: fishPref().since } : null };
+      fish: fishOn() ? { c: fishPref().c, since: fishPref().since } : null,
+      ...(window.tfFriend ? { f: 1 } : {}) };   // alex or a friend (friends.js): new-trail alerts include unofficial trails
   };
   const swReady = () => Promise.race([navigator.serviceWorker.ready, new Promise((_, no) => setTimeout(() => no(new Error("no service worker")), 8000))]);
   const lastSave = () => { try { return JSON.parse(lsGet("tf:pushSaved") || "{}") || {}; } catch { return {}; } };
