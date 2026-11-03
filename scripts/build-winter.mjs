@@ -119,6 +119,8 @@ async function overpass(query, { wait = 240000, tries = 6 } = {}) {
   }
   throw lastErr;
 }
+// Overpass picks the candidates by name; uphillKind() then decides (Overpass regexes are POSIX: "." for é).
+const UPHILL_OSM = "skimo|ski.?alpinisme|skin ?(track|trail|route)|uphill|mont.{1,2}es? (de|en|.{1,2}) peaux?|randonn.{1,2}e alpine|rando alpine|ascension";
 const skiQuery = ([s, w, n, e]) => `[out:json][timeout:200][bbox:${s},${w},${n},${e}];
 (
   way["piste:type"];
@@ -131,6 +133,7 @@ const skiQuery = ([s, w, n, e]) => `[out:json][timeout:200][bbox:${s},${w},${n},
   way["snowmobile"~"^(yes|designated|permissive)$"]["highway"!~"^(motorway|trunk|primary|secondary|tertiary|residential|motorway_link|trunk_link|primary_link|secondary_link)$"];
   relation["route"="snowmobile"];
   wr["landuse"="winter_sports"];
+  way["highway"~"^(path|footway|track|bridleway)$"]["name"~"${UPHILL_OSM}",i];
   nwr["amenity"="parking"]["ski"~"^(yes|designated|permissive)$"];
   nwr["highway"="trailhead"];
   nwr["amenity"="parking"]["name"~"trail ?head|backcountry|ski|snowshoe|sno-?park",i];
@@ -152,6 +155,22 @@ async function fetchOsm(box, depth = 0) {
 // piste:type=sled is a sledding / tubing hill; snowmobile trails are piste:type=snowmobile, route=snowmobile or
 // snowmobile=yes|designated|permissive (often a forest road that is a sled trail in winter).
 const SNOWMOBILE_OK = /^(yes|designated|permissive)$/;
+// Uphill ski routes (skin tracks) that OpenStreetMap has as a plain path with no ski tags, only a name: Mont Sutton's
+// "Piste d'Ascension" and "Skimo" (alex 2026-11-03: "that is a backcountry ski route"; "maybe name monter de peau,
+// skimo, randonner alpine"). A name that can only mean skiing up counts anywhere; "Ascension" alone (Owl's Head) only
+// inside a ski resort's boundary, so a hiking trail called that elsewhere isn't taken for one. "Montée" alone is left
+// out: at the hills it is mostly a bike climb ("M32 Montée") or a hiking trail ("Montée du Lac Mohawk").
+const UPHILL = /skimo|ski[- ]?alpinisme|skin ?(track|trail|route)|uphill (route|track|trail|ski)|ski uphill|mont[ée]es? (de|en|à|a) peaux?|randonn[ée]e alpine|rando alpine|(piste|sentier|voie|parcours|chemin) d'? ?ascension|skin ?up/i;
+const UPHILL_RESORT = /^(l'|la )?ascension\b/i;
+const UPHILL_PATH = /^(path|footway|track|bridleway|piste)$/;
+const uphillName = (t) => [t.name, t["piste:name"], t.alt_name].filter(Boolean).join(" | ");
+// "strong", "resort" (needs a resort boundary around it) or "".
+function uphillKind(t) {
+  const n = uphillName(t);
+  if (!n) return "";
+  if (UPHILL.test(n)) return "strong";
+  return [t.name, t["piste:name"]].some((v) => v && UPHILL_RESORT.test(v.trim())) ? "resort" : "";
+}
 function skiType(t) {
   const pt = String(t["piste:type"] || "").split(";")[0];
   const groom = t["piste:grooming"] || "";
@@ -273,20 +292,25 @@ function parkingSpots(lots, routes) {
 // OpenStreetMap elements (ways and relations with their geometry, huts) -> { routes, huts, parking }.
 function osmRoutes(els) {
   log(`  ${els.length} elements`);
-  const routes = [], huts = [], lots = [], wayIds = new Set();
+  const routes = [], huts = [], lots = [], wayIds = new Set(), resorts = resortAreas(els);
   for (const el of els) if (isParking(el, el.tags || {})) lots.push(el);
   // Ways first, so relation members already drawn on their own aren't drawn twice.
   for (const el of els.filter((e) => e.type === "way" && e.geometry)) {
     const t = el.tags || {};
     if (/hut|shelter/.test(t.tourism || t.amenity || "") || t.landuse === "winter_sports" || isParking(el, t)) continue;
-    const type = skiType(t);
+    let type = skiType(t);
+    const up = (!type || type === "tour") && UPHILL_PATH.test(t.highway || "piste") ? uphillKind(t) : "";
+    if (!type && up) {
+      const mid = el.geometry[Math.floor(el.geometry.length / 2)];
+      if (up === "strong" || (mid && inResort(resorts, mid.lat, mid.lon))) type = "tour";
+    }
     if (!type) continue;
     const g = flat(el.geometry.map((p) => ({ lat: p.lat, lon: p.lon })), 6);
     if (g.length < 4) continue;
     // A private way, or a bit of trail under 100 m (a bridge, a mapping slip), isn't an approach trail.
     if (type === "access" && (/^(private|no)$/.test(t.access || "") || lineM(g) < 100)) continue;
     wayIds.add(el.id);
-    routes.push({ id: "w" + el.id, src: "osm", type, name: t.name || t["piste:name"] || t.ref || "", diff: t["piste:difficulty"] || "", g: [g], tags: keepTags(t) });
+    routes.push({ id: "w" + el.id, src: "osm", type, name: t.name || t["piste:name"] || t.ref || "", diff: t["piste:difficulty"] || "", g: [g], tags: keepTags(t), ...(type === "tour" && up ? { up: 1 } : {}) });
   }
   for (const el of els.filter((e) => e.type === "relation")) {
     const t = el.tags || {};
@@ -316,9 +340,10 @@ function osmRoutes(els) {
     if (lat == null) continue;
     huts.push({ id: el.type[0] + el.id, name: t.name || "", kind: t.tourism || "shelter", lat: round(lat), lon: round(lon), tags: keepTags(t) });
   }
-  resortTerrain(routes, resortAreas(els));
+  resortTerrain(routes, resorts);
   const parking = parkingSpots(lots, routes);
   const count = (k) => routes.filter((r) => r.type === k).length;
+  log(`  uphill ski routes (skin tracks): ${routes.filter((r) => r.up).length}`);
   log(`  routes: ${routes.length} (tour ${count("tour")}, off-piste ${count("offpiste")}, nordic ${count("nordic")}, snowshoe ${count("snowshoe")}, resort ${count("resort")}, sled ${count("sled")}, snowmobile ${count("snowmobile")}, access ${count("access")}, other ${count("other")}); huts: ${huts.length}; trailhead parking: ${parking.length}`);
   return { routes, huts, parking };
 }
@@ -533,6 +558,7 @@ area["ISO3166-2"="CA-${iso}"]->.p;
   nwr["tourism"~"^(alpine_hut|wilderness_hut)$"](area.p);
   nwr["amenity"="shelter"]["shelter_type"="basic_hut"](area.p);
   wr["landuse"="winter_sports"](area.p);
+  way["highway"~"^(path|footway|track|bridleway)$"]["name"~"${UPHILL_OSM}",i](area.p);
 );
 out tags geom qt;`;
 // Canada-wide Overpass queries are slow (some provinces take many minutes), so the job gives them CANADA_OSM_MIN
