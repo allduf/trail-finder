@@ -34,7 +34,10 @@ dialog.frd { border: 0; border-radius: 20px; background: var(--panel); color: va
 dialog.frd::backdrop { background: rgba(0,0,0,.45); }
 dialog.frd h2 { margin: 0 0 4px; font-size: 1.2rem; }
 dialog.frd .frd-lead { margin: 0 0 12px; color: var(--muted); font-size: .92rem; line-height: 1.35; }
-dialog.frd form { display: flex; gap: 8px; margin-bottom: 12px; }
+dialog.frd form { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+dialog.frd form .frd-name { flex: 1 1 100%; }
+dialog.frd li input.frd-n { flex: none; width: 100%; padding: 6px 10px; font-weight: 600; border-color: transparent; background: transparent; }
+dialog.frd li input.frd-n:focus, dialog.frd li input.frd-n:hover { border-color: var(--line); background: var(--bg); }
 dialog.frd input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--fg); }
 dialog.frd button { font: inherit; min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; }
 dialog.frd button.frd-add { background: var(--accent, #2f9e44); color: #fff; border-color: transparent; font-weight: 600; }
@@ -57,14 +60,21 @@ dialog.frd .frd-close { width: 100%; }`;
       m.className = "frd-msg err"; return;
     }
     m.textContent = msg || ""; m.className = "frd-msg" + (err ? " err" : "");
-    list.innerHTML = data.length ? data.map((f) => `<li><span class="frd-who">${esc(f.email)}${f.signed_up ? "" : "<small>No account with this email yet: they create one in the app</small>"}</span>
+    // The name (supabase/friends-names.sql) is typed right on the row and saved when you leave the box.
+    list.innerHTML = data.length ? data.map((f) => `<li><span class="frd-who"><input class="frd-n" data-e="${esc(f.email)}" value="${esc(f.name || "")}" placeholder="Add a name" aria-label="Name for ${esc(f.email)}" maxlength="80">
+      <small>${esc(f.email)}${f.signed_up ? "" : " · no account with this email yet"}</small></span>
       <button type="button" data-rm="${esc(f.email)}">Remove</button></li>`).join("") : `<li><span class="frd-who"><small>No friends added yet.</small></span></li>`;
   }
-  async function set(email, add) {
-    const a = window.tfAccount;
-    const { error } = await a.client.rpc("tf_friend_set", { e: email, add });
-    if (error) { paint("Couldn't save: " + (/not allowed/.test(error.message) ? "only alex can change the list." : "no connection, try again."), true); return false; }
-    paint(add ? `${email} added. They sign in once with this email.` : `${email} removed.`);
+  async function set(email, add, name) {
+    const a = window.tfAccount, args = { e: email, add };
+    if (name != null) args.n = name;   // only sent with a name, so it still works before friends-names.sql is run
+    const { error } = await a.client.rpc("tf_friend_set", args);
+    if (error) {
+      paint(name != null && /Could not find|PGRST202|function/.test(error.message + error.code) ? "One step left for names: run supabase/friends-names.sql in Supabase."
+        : "Couldn't save: " + (/not allowed/.test(error.message) ? "only alex can change the list." : "no connection, try again."), true);
+      return false;
+    }
+    paint(!add ? `${email} removed.` : name != null && name !== "" ? `Saved: ${name}.` : `${email} added. They sign in once with this email.`);
     return true;
   }
   async function open() {
@@ -74,17 +84,20 @@ dialog.frd .frd-close { width: 100%; }`;
       dlg.setAttribute("aria-label", "Friends");
       dlg.innerHTML = `<h2>Friends</h2>
         <p class="frd-lead">They see unofficial trails like you do. Everyone else never sees your unofficial list, closed or no-bikes trails, Likely MTB paths or possible unmapped lines.</p>
-        <form><input type="email" required autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="friend@email.com" aria-label="Friend's email"><button type="submit" class="frd-add">Add</button></form>
+        <form><input class="frd-name" type="text" autocomplete="off" maxlength="80" placeholder="Name (only you see it)" aria-label="Friend's name"><input class="frd-mail" type="email" required autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="friend@email.com" aria-label="Friend's email"><button type="submit" class="frd-add">Add</button></form>
         <p class="frd-msg" role="status"></p><ul></ul>
         <button type="button" class="frd-close">Done</button>`;
       dlg.querySelector("form").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const inp = dlg.querySelector("input"), email = inp.value.trim().toLowerCase();
+        const inp = dlg.querySelector(".frd-mail"), nameIn = dlg.querySelector(".frd-name"), email = inp.value.trim().toLowerCase(), name = nameIn.value.trim();
         if (!email) return;
         e.submitter && (e.submitter.disabled = true);
-        if (await set(email, true)) inp.value = "";
+        if (await set(email, true, name || null)) { inp.value = ""; nameIn.value = ""; }
         e.submitter && (e.submitter.disabled = false);
       });
+      // A row's name: saved when it changes (leaving the box or Enter).
+      dlg.addEventListener("change", (e) => { if (e.target.matches(".frd-n")) set(e.target.dataset.e, true, e.target.value.trim()); });
+      dlg.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.matches(".frd-n")) { e.preventDefault(); e.target.blur(); } });
       dlg.addEventListener("click", async (e) => {
         const b = e.target.closest("button");
         if (!b) return;
@@ -116,5 +129,7 @@ dialog.frd .frd-close { width: 100%; }`;
   // Signed in from before: tf:account fires once the sign-in library loads. Never signed in here: no event, so a device
   // that was a friend's and has no sign-in any more goes back to the public map.
   const a = window.tfAccount;
-  if (a && a.ready) a.ready.then((u) => { if (!u && now()) flip(false); });
+  // Signed in: ask here too. The sign-in library can finish loading before this file runs, and then its tf:account
+  // came before the listener above: a friend stayed on the public map (2026-11-03).
+  if (a && a.ready) a.ready.then((u) => { if (u) check(u); else if (now()) flip(false); });
 })();

@@ -1762,6 +1762,8 @@
     "Who sees unofficial trails":"Qui voit les sentiers non officiels",
     "They see unofficial trails like you do. Everyone else never sees your unofficial list, closed or no-bikes trails, Likely MTB paths or possible unmapped lines.":"Ils voient les sentiers non officiels comme vous. Les autres ne voient jamais votre liste non officielle, les sentiers fermés ou interdits aux vélos, les chemins Probablement VTT ni les tracés possibles non cartographiés.",
     "No friends added yet.":"Aucun ami ajouté pour l'instant.",
+    "Add a name":"Ajouter un nom",
+    "Name (only you see it)":"Nom (vous seul le voyez)",
     "More across Canada":"Plus ailleurs au Canada",
     "Trails across Canada":"Sentiers ailleurs au Canada",
     "Towns and areas":"Villes et secteurs"};

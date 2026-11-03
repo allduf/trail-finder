@@ -59,6 +59,8 @@ Add ||| Ajouter
 Remove ||| Retirer
 Done ||| Terminé
 No friends added yet. ||| Aucun ami ajouté pour l'instant.
+Add a name ||| Ajouter un nom
+Name (only you see it) ||| Nom (vous seul le voyez)
 
 # Trail name search headers (index.html refreshHits), 2026-11-03
 More across Canada ||| Plus ailleurs au Canada
