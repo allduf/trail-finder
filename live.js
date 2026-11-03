@@ -241,7 +241,7 @@ dialog.live .lv-pin { flex: none; }
         ${peopleHtml()}
         <button type="button" class="lv-btn lv-stop" data-a="stop">Stop sharing</button>`;
     } else {
-      const name = ls.get("liveName", "");
+      const name = ls.get("liveName", "") || (window.tfAccount && window.tfAccount.name ? window.tfAccount.name() : "");   // the account name (Settings → Your name) when none typed yet
       h += `<p>Friends and family see where you are on a map, from a link you send them. They don't need the app.</p>
         ${peopleHtml()}
         <label for="lvName">Your name</label><input id="lvName" maxlength="40" autocomplete="given-name" placeholder="What they'll see on the map" value="${esc(name)}">

@@ -58,6 +58,8 @@ dialog.acct .acct-menu small { display: block; font-weight: 400; color: var(--mu
 dialog.acct button.danger { background: #c0392b; color: #fff; border-color: transparent; }
 dialog.acct .acct-alt a { color: var(--accent); font-weight: 600; padding: 2px 0; }
 dialog.acct .acct-alt button.acct-del { color: #c0392b; }
+dialog.acct .acct-code { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+dialog.acct #acctCode { font-size: 1.3rem; letter-spacing: .25em; text-align: center; }
 dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
 dialog.acct .acct-out-row { justify-content: space-between; align-items: center; }`;
   document.head.appendChild(css);
@@ -74,7 +76,12 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   <input type="password" id="acctPass" autocomplete="current-password" minlength="6">
   <p class="acct-msg" id="acctMsg" role="status"></p>
   <div class="acct-row"><button type="button" data-close>Not now</button><button type="submit" class="go" id="acctSend">Sign in</button></div>
-  <div class="acct-alt"><button type="button" id="acctNew">New here? Create an account</button><button type="button" id="acctLink">Forgot password? Email me a link</button></div>
+  <div class="acct-alt"><button type="button" id="acctNew">New here? Create an account</button><button type="button" id="acctLink">Forgot password? Email me a code</button></div>
+  <div id="acctCodeBox" class="acct-code" hidden>
+    <label for="acctCode">Code from the email</label>
+    <input type="text" id="acctCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="10" placeholder="123456">
+    <div class="acct-row"><button type="button" class="go" id="acctCodeGo">Sign in with the code</button></div>
+  </div>
 </form>
 <div id="acctOut" hidden>
   <div id="acctMenu">
@@ -83,19 +90,24 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     <p class="acct-msg" id="acctSync" role="status"></p>
     <div class="acct-menu">
       <button type="button" id="acctGoFolders"><span aria-hidden="true">📁</span> My trails<small>To ride, Ridden, your folders, saved routes and rides</small></button>
-      <button type="button" id="acctGoSettings"><span aria-hidden="true">⚙️</span> Settings<small>Email, password, delete account</small></button>
+      <button type="button" id="acctGoSettings"><span aria-hidden="true">⚙️</span> Settings<small>Name, email, password, your data</small></button>
     </div>
     <div class="acct-row acct-out-row"><button type="button" id="acctSignOutTop">Sign out</button><button type="button" class="go" data-close>Done</button></div>
   </div>
   <div id="acctSettings" hidden>
     <h2>Settings</h2>
     <p class="acct-msg" id="acctSetMsg" role="status"></p>
+    <label for="acctName">Your name</label>
+    <input type="text" id="acctName" autocomplete="name" maxlength="40" placeholder="What friends see, e.g. on live location">
+    <div class="acct-row" style="margin-bottom:12px"><button type="button" id="acctSetName">Save name</button></div>
     <label for="acctNewEmail">Email</label>
     <input type="email" id="acctNewEmail" autocomplete="email">
     <div class="acct-row" style="margin-bottom:12px"><button type="button" id="acctSetEmail">Change email</button></div>
     <label for="acctNewPass">New password</label>
     <input type="password" id="acctNewPass" autocomplete="new-password" minlength="6" placeholder="At least 6 characters">
     <div class="acct-row" style="margin-bottom:12px"><button type="button" id="acctSetPass">Save password</button></div>
+    <label>Your data</label>
+    <div class="acct-row" style="margin-bottom:12px;justify-content:flex-start"><button type="button" id="acctExport">Download my data</button></div>
     <div class="acct-row"><button type="button" id="acctBack">← Back</button><button type="button" id="acctSignOut">Sign out</button></div>
     <div class="acct-alt"><a href="privacy.html">Privacy</a> <a href="terms.html">Terms</a><button type="button" id="acctDel" class="acct-del">Delete my account</button></div>
   </div>
@@ -119,9 +131,11 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     b.addEventListener("click", openBox);
     slot.appendChild(b); buttons.push(b);
   });
+  // The rider's name (Settings → Your name), kept on the account (user_metadata.name), so it follows them to every device.
+  api.name = () => ((api.user && api.user.user_metadata && api.user.user_metadata.name) || "").trim();
   function paintButtons() {
     buttons.forEach((b) => {
-      if (api.user) { b.innerHTML = `<span class="acct-dot" aria-hidden="true"></span>Account`; b.querySelector(".acct-dot").textContent = (api.user.email || "?")[0]; b.title = api.user.email || ""; }
+      if (api.user) { b.innerHTML = `<span class="acct-dot" aria-hidden="true"></span>Account`; b.querySelector(".acct-dot").textContent = (api.name() || api.user.email || "?")[0]; b.title = api.user.email || ""; }
       else { b.textContent = "Sign in"; b.title = "Optional: save your settings and rides to an account"; }
     });
   }
@@ -129,13 +143,14 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   function openBox() {
     api.load();
     q("acctIn").hidden = !!api.user; q("acctOut").hidden = !api.user;
-    if (api.user) { q("acctWho").textContent = api.user.email || ""; showSettings(false); }
-    else { q("acctMsg").textContent = ""; q("acctMsg").className = "acct-msg"; }
+    if (api.user) showSettings(false);
+    else { q("acctMsg").textContent = ""; q("acctMsg").className = "acct-msg"; q("acctCodeBox").hidden = true; q("acctCode").value = ""; }
     if (!box.open) box.showModal();
   }
   function showSettings(on) {
     q("acctMenu").hidden = on; q("acctSettings").hidden = !on; q("acctDelBox").hidden = true;
-    if (on) { q("acctNewEmail").value = api.user.email || ""; q("acctSetMsg").textContent = ""; }
+    if (!on) q("acctWho").textContent = api.name() ? `${api.name()} (${api.user.email || ""})` : api.user.email || "";
+    if (on) { q("acctNewEmail").value = api.user.email || ""; q("acctName").value = api.name(); q("acctSetMsg").textContent = ""; }
   }
   q("acctGoSettings").addEventListener("click", () => showSettings(true));
   q("acctBack").addEventListener("click", () => showSettings(false));
@@ -209,15 +224,35 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     const { data, error } = await api.client.auth.signUp({ ...c, options: { emailRedirectTo: redirect() } });
     if (error) say(error.message, true);
     else if (data.session) box.close();
-    else say(`Almost done: check ${c.email} and tap the link once to confirm. After that, sign in with your password.`);
+    else { codeFor(c.email); say(`Almost done: we emailed a code to ${c.email}. Type it below (or tap the link in the email).`); }
   });
   q("acctLink").addEventListener("click", async () => {
     const c = await creds(); if (!c) return;
     say("Sending…");
     const { error } = await api.client.auth.signInWithOtp({ email: c.email, options: { emailRedirectTo: redirect() } });
-    if (error) say(error.message, true);
-    else say(`Check ${c.email} and tap the link. Once you're in, you can set a new password under Account.`);
+    if (error) say(/rate|seconds/i.test(error.message) ? "Too many emails just now. Wait a minute and try again." : error.message, true);
+    else { codeFor(c.email); say(`We emailed a code to ${c.email}. Type it below. Once you're in, you can set a new password under Account → Settings.`); }
   });
+  // Sign in with the code from the email (alex 2026-11-03). The iPhone app can't catch email links (they open Safari,
+  // so the rider got signed in there, not in the app); a code typed into the app works everywhere. The email still has
+  // the link too. Needs {{ .Token }} in the Supabase "Magic Link" and "Confirm signup" emails (supabase/email-setup.md).
+  let codeEmail = "";
+  function codeFor(email) { codeEmail = email; q("acctCodeBox").hidden = false; q("acctCode").value = ""; setTimeout(() => q("acctCode").focus(), 50); }
+  async function useCode() {
+    const token = q("acctCode").value.replace(/\D/g, ""), email = q("acctEmail").value.trim() || codeEmail;
+    if (token.length < 6) { say("Type the code from the email (6 numbers or more).", true); q("acctCode").focus(); return; }
+    await api.load();
+    if (!api.client) { say("Sign-in isn't available right now. Try again later.", true); return; }
+    q("acctCodeGo").disabled = true; say("Checking the code…");
+    // "email" covers the sign-in and the new-account emails; older projects send new accounts a "signup" code.
+    let { error } = await api.client.auth.verifyOtp({ email, token, type: "email" });
+    if (error) ({ error } = await api.client.auth.verifyOtp({ email, token, type: "signup" }));
+    q("acctCodeGo").disabled = false;
+    if (error) say(/expired|invalid/i.test(error.message) ? "That code didn't work or is too old. Check the newest email, or tap \u201cEmail me a code\u201d again." : error.message, true);
+    else box.close();
+  }
+  q("acctCodeGo").addEventListener("click", useCode);
+  q("acctCode").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); useCode(); } });
   const setMsg = (text) => { q("acctSetMsg").textContent = text; };
   q("acctSetPass").addEventListener("click", async () => {
     const pw = q("acctNewPass").value;
@@ -225,6 +260,59 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     const { error } = await api.client.auth.updateUser({ password: pw });
     q("acctNewPass").value = "";
     setMsg(error ? "Couldn't save the password: " + error.message : "Password saved. Next time, sign in with your email and password.");
+  });
+  q("acctSetName").addEventListener("click", async () => {
+    const name = q("acctName").value.trim().slice(0, 40);
+    const { data, error } = await api.client.auth.updateUser({ data: { name } });
+    if (error) { setMsg("Couldn't save the name: " + error.message); return; }
+    if (data && data.user) api.user = data.user;
+    paintButtons();
+    try { if (name && !localStorage.getItem("tf:liveName")) localStorage.setItem("tf:liveName", JSON.stringify(name)); } catch {}
+    setMsg(name ? `Saved. Friends will see \u201c${name}\u201d.` : "Name removed.");
+  });
+  // Download my data (privacy laws, e.g. Quebec's Law 25: people can get a copy of what we keep about them). One JSON
+  // file: the account, every row saved to it, links to its photos (good for 7 days), and this device's settings.
+  // Strava keys and other secrets are never in it.
+  q("acctExport").addEventListener("click", async () => {
+    const b = q("acctExport"), uid = api.user && api.user.id, c = api.client;
+    if (!uid) return;
+    b.disabled = true; setMsg("Gathering your data…");
+    try {
+      const out = { made_by: "Trail Finder", made_at: new Date().toISOString(),
+        account: { email: api.user.email, name: api.name() || null, created_at: api.user.created_at, last_sign_in_at: api.user.last_sign_in_at } };
+      const tables = { settings: "settings", rides: "rides", saved_spots_and_pins: "ski_points", trail_reports: "trail_reports", trail_grades: "trail_grades",
+        trail_photos: "trail_photos", trails_you_added: "rider_trails", trail_votes: "rider_trail_votes", reports_of_bad_content: "content_flags" };
+      for (const [name, table] of Object.entries(tables)) {
+        const { data, error } = await c.from(table).select("*").eq("user_id", uid).limit(5000).then((r) => r, (e) => ({ error: e }));
+        if (!error && data && data.length) out[name] = data;
+      }
+      const photos = [];
+      for (const bucket of ["ride-photos", "point-photos"]) {
+        const files = await listFiles(bucket, uid).catch(() => []);
+        for (let i = 0; i < files.length; i += 100) {
+          const { data } = await c.storage.from(bucket).createSignedUrls(files.slice(i, i + 100), 7 * 86400).then((r) => r, () => ({ data: null }));
+          (data || []).forEach((f) => { if (f.signedUrl) photos.push({ file: `${bucket}/${f.path}`, link: f.signedUrl }); });
+        }
+      }
+      (out.trail_photos || []).forEach((p) => { if (p.path) photos.push({ file: `trail-photos/${p.path}`, link: c.storage.from("trail-photos").getPublicUrl(p.path).data.publicUrl }); });
+      if (photos.length) out.photos = photos;
+      const device = {};
+      try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (/^tf:/.test(k) && k !== "tf:shareKey") device[k.slice(3)] = localStorage.getItem(k); } } catch {}
+      out.this_device = device;
+      const text = JSON.stringify(out, null, 1), fname = `trail-finder-my-data-${new Date().toISOString().slice(0, 10)}.json`;
+      const file = typeof File === "function" ? new File([text], fname, { type: "application/json" }) : null;
+      // Phones (and the iPhone app) save through the share sheet ("Save to Files"); computers download the file.
+      if (file && navigator.canShare && navigator.canShare({ files: [file] }) && /iPhone|iPad|Android/i.test(navigator.userAgent)) {
+        await navigator.share({ files: [file], title: "My Trail Finder data" }).catch((e) => { if (e && e.name !== "AbortError") throw e; });
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([text], { type: "application/json" })); a.download = fname;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      }
+      setMsg(`Your data is ready (${Math.max(1, Math.round(text.length / 1024))} KB). Photo links in it work for 7 days.`);
+    } catch (e) { setMsg("Couldn't gather your data: " + ((e && e.message) || e) + ". Try again in a minute."); }
+    b.disabled = false;
   });
   q("acctSetEmail").addEventListener("click", async () => {
     const email = q("acctNewEmail").value.trim();
