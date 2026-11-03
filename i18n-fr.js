@@ -1767,7 +1767,8 @@
     "More across Canada":"Plus ailleurs au Canada",
     "Trails across Canada":"Sentiers ailleurs au Canada",
     "Towns and areas":"Villes et secteurs",
-    "Email, password, delete account":"Courriel, mot de passe, supprimer le compte"};
+    "Email, password, delete account":"Courriel, mot de passe, supprimer le compte",
+    "MTB: unofficial trails (the ones only approved riders see dotted) are no longer shown to everyone else.":"Vélo de montagne : les sentiers non officiels (ceux que seuls les cyclistes approuvés voient en pointillé) ne sont plus affichés aux autres."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

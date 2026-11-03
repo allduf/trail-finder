@@ -67,3 +67,4 @@ More across Canada ||| Plus ailleurs au Canada
 Trails across Canada ||| Sentiers ailleurs au Canada
 Towns and areas ||| Villes et secteurs
 Email, password, delete account ||| Courriel, mot de passe, supprimer le compte
+MTB: unofficial trails (the ones only approved riders see dotted) are no longer shown to everyone else. ||| Vélo de montagne : les sentiers non officiels (ceux que seuls les cyclistes approuvés voient en pointillé) ne sont plus affichés aux autres.
