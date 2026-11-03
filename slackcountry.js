@@ -328,7 +328,7 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
   function placeList() {
     const rs = on && isSki() ? near()[0] : null;
     listBtn.hidden = !rs;
-    if (rs) listBtn.textContent = `⛷ Slackcountry at ${rs.name} (${nLines(rs)})`;
+    if (rs) listBtn.textContent = `⛷ Slackcountry at ${rs.name}`;
     if (!listBtn.isConnected) { const acts = document.querySelector("#skiPane .sk-acts"); if (acts) acts.after(listBtn); }
   }
   listBtn.addEventListener("click", () => { const rs = near()[0]; if (rs) openList(rs); });

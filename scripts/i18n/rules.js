@@ -83,7 +83,7 @@
     [/^Rated “(.+)” by (.+) \((.+)\)\.$/, function (m, r, b, n) { return "Coté « " + tw(r) + " » par " + b + " (" + n + ")."; }],
     [/^Rated (.+) by the (.+) map \((\d{4})\)\. It has no rating on OpenStreetMap yet\.$/, function (m, r, b, y) { return "Coté " + tw(r).toLowerCase() + " selon la carte " + b + " (" + y + "). Pas encore de cote sur OpenStreetMap."; }],
     [/^Part of MTB route “(.+)”$/, "Fait partie de l'itinéraire de vélo « $1 »"],
-    [/^Slackcountry at (.+) \((\d+) lines\)$/, "Slackcountry à $1 ($2 lignes)"],
+    [/^Slackcountry at (.+)$/, "Slackcountry à $1"],
     [/^Freeride lines here \((\d+)\)$/, "Lignes freeride ici ($1)"],
     [/^In the ski area \((\d+)\)$/, "Dans la station ($1)"],
     [/^Backcountry: no ski patrol \((\d+)\)$/, "Hors-piste : pas de patrouille ($1)"],
