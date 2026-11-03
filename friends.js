@@ -129,5 +129,7 @@ dialog.frd .frd-close { width: 100%; }`;
   // Signed in from before: tf:account fires once the sign-in library loads. Never signed in here: no event, so a device
   // that was a friend's and has no sign-in any more goes back to the public map.
   const a = window.tfAccount;
-  if (a && a.ready) a.ready.then((u) => { if (!u && now()) flip(false); });
+  // Signed in: ask here too. The sign-in library can finish loading before this file runs, and then its tf:account
+  // came before the listener above: a friend stayed on the public map (2026-11-03).
+  if (a && a.ready) a.ready.then((u) => { if (u) check(u); else if (now()) flip(false); });
 })();
