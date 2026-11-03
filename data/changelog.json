@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-03", "text": "Sign out now removes your saved trails, folders, rides and pins from that device (they stay safe in your account), so the next person using it never sees them."},
     {"date": "2026-11-03", "text": "MTB: unofficial trails (the ones only approved riders see dotted) are no longer shown to everyone else."},
     {"date": "2026-11-03", "text": "Account: sign in with a code from the email (works in the iPhone app), add your name, and download all your data from Settings."},
     {"date": "2026-11-03", "text": "Fixed a rare error that could stop a trail from opening when some of its map details were missing."},

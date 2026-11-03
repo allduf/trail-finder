@@ -83,3 +83,10 @@ Checking the code… ||| Vérification du code…
 Type the code from the email (6 numbers or more). ||| Entrez le code reçu par courriel (6 chiffres ou plus).
 Too many emails just now. Wait a minute and try again. ||| Trop de courriels envoyés. Attendez une minute et réessayez.
 MTB: unofficial trails (the ones only approved riders see dotted) are no longer shown to everyone else. ||| Vélo de montagne : les sentiers non officiels (ceux que seuls les cyclistes approuvés voient en pointillé) ne sont plus affichés aux autres.
+Everyone can read your report (never your name or email). ||| Tout le monde peut lire votre rapport (jamais votre nom ni votre courriel).
+Everyone can see photos you add (never your name or email). The photo's location data is removed. ||| Tout le monde voit les photos que vous ajoutez (jamais votre nom ni votre courriel). La position enregistrée dans la photo est retirée.
+Friends and family see where you are on a map, from a link you send them. They don't need the app. Only people with the link can see you, and only while you share. ||| Amis et famille voient où vous êtes sur une carte, avec un lien que vous leur envoyez. Ils n'ont pas besoin de l'appli. Seules les personnes qui ont le lien vous voient, et seulement pendant le partage.
+Signed out. Your saved trails, folders, rides and pins were taken off this device. They're safe in your account. ||| Déconnecté. Vos sentiers sauvegardés, dossiers, sorties et repères ont été retirés de cet appareil. Ils restent dans votre compte.
+Saving your last changes to your account… ||| Enregistrement de vos derniers changements dans votre compte…
+Not signed out. Try again when you have signal. ||| Pas déconnecté. Réessayez quand vous aurez du réseau.
+Sign out now removes your saved trails, folders, rides and pins from that device (they stay safe in your account), so the next person using it never sees them. ||| La déconnexion retire maintenant vos sentiers sauvegardés, dossiers, sorties et repères de l'appareil (ils restent dans votre compte), pour que la prochaine personne ne les voie jamais.
