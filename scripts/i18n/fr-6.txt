@@ -104,3 +104,8 @@ Saving your last changes to your account… ||| Enregistrement de vos derniers c
 Not signed out. Try again when you have signal. ||| Pas déconnecté. Réessayez quand vous aurez du réseau.
 Sign out now removes your saved trails, folders, rides and pins from that device (they stay safe in your account), so the next person using it never sees them. ||| La déconnexion retire maintenant vos sentiers sauvegardés, dossiers, sorties et repères de l'appareil (ils restent dans votre compte), pour que la prochaine personne ne les voie jamais.
 Search finds trails by their old name too, and a trail keeps its name when the map loses it. ||| La recherche trouve aussi les sentiers par leur ancien nom, et un sentier garde son nom quand la carte le perd.
+Radar forecast now looks like Skiing's: smooth and see-through, snow in purples and rain in greens, with the same colours in every sport. ||| La prévision du radar ressemble maintenant à celle du ski : lisse et transparente, neige en violet et pluie en vert, avec les mêmes couleurs dans tous les sports.
+Snow coming, next 3 days (cm) ||| Neige à venir, 3 prochains jours (cm)
+Rain instead, next 3 days (mm) ||| Pluie à la place, 3 prochains jours (mm)
+Snow coming, these 3 hours (cm) ||| Neige à venir, ces 3 heures (cm)
+Rain instead, these 3 hours (mm) ||| Pluie à la place, ces 3 heures (mm)
