@@ -242,7 +242,7 @@ dialog.live .lv-pin { flex: none; }
         <button type="button" class="lv-btn lv-stop" data-a="stop">Stop sharing</button>`;
     } else {
       const name = ls.get("liveName", "") || (window.tfAccount && window.tfAccount.name ? window.tfAccount.name() : "");   // the account name (Settings → Your name) when none typed yet
-      h += `<p>Friends and family see where you are on a map, from a link you send them. They don't need the app.</p>
+      h += `<p>Friends and family see where you are on a map, from a link you send them. They don't need the app. Only people with the link can see you, and only while you share.</p>
         ${peopleHtml()}
         <label for="lvName">Your name</label><input id="lvName" maxlength="40" autocomplete="given-name" placeholder="What they'll see on the map" value="${esc(name)}">
         <div class="lv-row"><div><label for="lvDue">Back by</label><select id="lvDue"><option value="0">Not set</option>${[60, 120, 180, 240, 360, 480].map((m) => `<option value="${m}">${clock(Date.now() + m * 60000)} (${m / 60} h)</option>`).join("")}</select></div>

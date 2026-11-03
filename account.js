@@ -61,7 +61,8 @@ dialog.acct .acct-alt button.acct-del { color: #c0392b; }
 dialog.acct .acct-code { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 dialog.acct #acctCode { font-size: 1.3rem; letter-spacing: .25em; text-align: center; }
 dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
-dialog.acct .acct-out-row { justify-content: space-between; align-items: center; }`;
+dialog.acct .acct-out-row { justify-content: space-between; align-items: center; }
+.acct-toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 3000; width: min(420px, calc(100vw - 32px)); box-sizing: border-box; background: var(--panel, #fff); color: var(--fg, #111); border: 1px solid var(--line, #ccc); border-radius: 12px; padding: 12px 14px; box-shadow: 0 8px 30px rgba(0,0,0,.25); font-size: .92rem; }`;
   document.head.appendChild(css);
 
   const box = document.createElement("dialog");
@@ -321,11 +322,97 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     setMsg(error ? "Couldn't change the email: " + error.message : `Check ${email} (and your old address) and tap the confirm links. The change happens after that.`);
   });
   // Sign out sits right in the Your account box (alex 2026-11-03) and again under Settings.
+  // Signing out also takes the rider's own things off this device (alex 2026-11-03: signed out on the computer, Ridden,
+  // Saved and folders were still there). They stay in the account and come back on the next sign-in. Map look (style,
+  // sport, area, colours) stays, it isn't personal. Rides and pins that never went to the account (a Strava archive
+  // kept on this device, or saved here before signing in) stay too: removing them would lose them for good.
+  const PREFS = new Set(["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "nearKm", "track", "nameNear", "mode", "nameZone", "toride", "riddenMap", "newsSeen"]);
+  // Personal things kept only on the device (not in SETTINGS): Strava link, pending reports/grades, alerts already
+  // seen, the home spot, the friends' live groups looked at, route drafts, the friend/admin flags, notifications.
+  const DEVICE_PERSONAL = ["strava", "stravaFolder", "stravaPending", "stravaReady", "stravaAsked", "liveGroups", "liveName", "caHome",
+    "repQueue", "gradeQueue", "hiddenRiders", "loamAlerts", "fishAlerts", "avyAlerts", "findsScan", "findsCache", "myFindsNo", "plan", "planPicks",
+    "loopWant", "loopSkip", "shareSent", "shareYes", "shareNo", "rideShapes", "riderTrailDraft", "whereRecent", "tripMe", "skiPlan", "motoPlan",
+    "hikeGrades", "usageWho", "pushId", "pushSaved", "pushErr", "settingsAt", "settingsKeyAt"];
+  api.personalKeys = () => [...SETTINGS.filter((k) => !PREFS.has(k)), ...DEVICE_PERSONAL].map((k) => "tf:" + k).concat(["tf-friend", "tf-admin"]);
+  // Removes the records of an account from one of the app's IndexedDB stores (owner = account id). Never creates the
+  // database: a device that never had it stays without it.
+  const dropOwned = (dbName, store, also) => new Promise((resolve) => {
+    let r;
+    try { r = indexedDB.open(dbName); } catch { resolve(0); return; }
+    r.onupgradeneeded = () => { try { r.transaction.abort(); } catch {} };
+    r.onerror = () => resolve(0);
+    r.onsuccess = () => {
+      const db = r.result;
+      if (!db.objectStoreNames.contains(store)) { db.close(); resolve(0); return; }
+      const stores = [store].concat(also && db.objectStoreNames.contains(also.store) ? [also.store] : []);
+      const tx = db.transaction(stores, "readwrite"), os = tx.objectStore(store);
+      let n = 0;
+      os.openCursor().onsuccess = (e) => {
+        const c = e.target.result;
+        if (!c) return;
+        if (c.value && c.value.owner) {
+          n++;
+          if (stores.length > 1) {
+            const idx = tx.objectStore(also.store).index(also.index);
+            idx.openKeyCursor(IDBKeyRange.only(c.value.id)).onsuccess = (ev) => { const k = ev.target.result; if (k) { tx.objectStore(also.store).delete(k.primaryKey); k.continue(); } };
+          }
+          c.delete();
+        }
+        c.continue();
+      };
+      tx.oncomplete = () => { db.close(); resolve(n); };
+      tx.onerror = tx.onabort = () => { db.close(); resolve(n); };
+    };
+  });
+  api.clearDevice = async () => {
+    // Phone notifications follow the person: stop them for this device (they watched that rider's trails).
+    const pushId = lsGet("tf:pushId");
+    if (pushId && api.client) await api.client.rpc("push_delete", { p_id: pushId }).then(() => {}, () => {});
+    try {
+      const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+      const sub = reg && reg.pushManager && await reg.pushManager.getSubscription();
+      if (sub) await sub.unsubscribe();
+    } catch {}
+    api.personalKeys().forEach((k) => lsSet(k, null));
+    const rides = await dropOwned("trail-finder-rides", "rides", { store: "photos", index: "rideId" });
+    const pins = await dropOwned("trail-finder-points", "points");
+    return { rides, pins };
+  };
   async function signOut() {
+    const note = q("acctSync"), btns = [q("acctSignOut"), q("acctSignOutTop")];
+    btns.forEach((b) => { b.disabled = true; });
+    note.textContent = "Saving your last changes to your account…";
+    // Anything changed here that isn't in the account yet goes up first, so taking it off this device loses nothing.
+    const saved = await api.sync().catch(() => false);
+    if (saved === false && !confirm("Your account didn't answer (no signal?). Changes made on this device since the last save will be lost if you sign out now.\n\nSign out anyway?")) {
+      note.textContent = "Not signed out. Try again when you have signal.";
+      btns.forEach((b) => { b.disabled = false; });
+      return;
+    }
     window.dispatchEvent(new CustomEvent("tf:signing-out", { detail: api.user }));
+    // Off the device first, then sign out: friends.js reloads the page when the friend flag changes on sign-out, and
+    // that reload must not cut the clean-up short. No sync runs in between (api.signingOut), so the emptied lists
+    // never go up to the account.
+    api.signingOut = true;
+    await api.clearDevice();
     try { await api.client.auth.signOut(); } catch { await api.client.auth.signOut({ scope: "local" }).catch(() => {}); }
-    box.close();
+    try { sessionStorage.setItem("tf:signedOut", "1"); } catch {}
+    // A fresh start, so nothing of the account is left in the open page either.
+    location.reload();
   }
+  // Right after a sign-out: say what happened, once.
+  try {
+    if (sessionStorage.getItem("tf:signedOut")) {
+      sessionStorage.removeItem("tf:signedOut");
+      setTimeout(() => {
+        const t = document.createElement("div");
+        t.className = "acct-toast"; t.setAttribute("role", "status");
+        t.textContent = "Signed out. Your saved trails, folders, rides and pins were taken off this device. They're safe in your account.";
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 6000);
+      }, 600);
+    }
+  } catch {}
   q("acctSignOut").addEventListener("click", signOut);
   q("acctSignOutTop").addEventListener("click", signOut);
 
@@ -371,7 +458,10 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
       if (error) throw error;
       ["tf:shareKey", "tf:shareOn", STAMP, KEYAT].forEach((k) => lsSet(k, null));
       window.dispatchEvent(new CustomEvent("tf:signing-out", { detail: api.user }));
+      api.signingOut = true;
+      await api.clearDevice();
       await api.client.auth.signOut({ scope: "local" }).catch(() => {});
+      api.signingOut = false;
       setUser(null);
       msg.textContent = "Your account is deleted.";
       setTimeout(() => box.close(), 1800);
@@ -469,7 +559,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     .catch((e) => { console.warn("Couldn't sync settings:", e); syncSay({ error: (e && e.message) || String(e) }); return false; })
     .finally(() => { syncing = null; if (again) { again = false; setTimeout(api.sync, 500); } }));
   async function doSync() {
-    if (!api.user || !api.client) return false;
+    if (!api.user || !api.client || api.signingOut) return false;
     lastSync = Date.now();
     const { data: row, error } = await api.client.from("settings").select("data, updated_at").eq("user_id", api.user.id).order("updated_at", { ascending: false }).limit(1).maybeSingle();
     if (error) { console.warn("Couldn't load settings:", error.message); syncSay({ error: error.message }); return false; }

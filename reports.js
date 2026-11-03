@@ -88,7 +88,7 @@
   // phone and posts when you're back online.
   function formHtml(t, type) {
     const waiting = queue().filter((q) => q.osm_type === type && q.osm_id === t.id);
-    return `<div class="rep-form"><p class="muted rep-how">How was it? One tap posts it${navigator.onLine ? "" : " when you're back online"}.</p>
+    return `<div class="rep-form"><p class="muted rep-how">How was it? One tap posts it${navigator.onLine ? "" : " when you're back online"}.</p><p class="muted rep-who">Everyone can read your report (never your name or email).</p>
         <input type="text" maxlength="280" placeholder="Optional note first, like “big cedar down below the bridge”">
         <div class="rep-pick" role="group" aria-label="How was it?">${Object.entries(KINDS).map(([c, k]) => `<button type="button" data-c="${c}">${k.icon} ${esc(k.label)}</button>`).join("")}</div>
         <span class="muted rep-msg" role="status">${waiting.length ? `${waiting.length} report${waiting.length > 1 ? "s" : ""} waiting for signal to post.` : ""}</span></div>`;

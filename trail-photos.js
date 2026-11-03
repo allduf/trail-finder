@@ -72,7 +72,7 @@ dialog.tp-view footer button { font: inherit; font-weight: 600; padding: 6px 12p
     data = kept.rows;
     const grid = !data.length ? `<p class="muted">No rider photos yet.${me ? " Add the first one." : ""}</p>`
       : `<div class="tp-grid">${data.map((p, i) => `<button type="button" data-i="${i}" aria-label="Open photo"><img loading="lazy" alt="${esc(p.caption || "Rider photo")}" src="${esc(urlOf(p.path))}"></button>`).join("")}</div>`;
-    const add = me ? `<label class="tp-add">📷 Add a photo<input type="file" accept="image/*"></label> <span class="muted tp-msg" role="status"></span>`
+    const add = me ? `<label class="tp-add">📷 Add a photo<input type="file" accept="image/*"></label> <span class="muted tp-msg" role="status"></span><p class="muted tp-who">Everyone can see photos you add (never your name or email). The photo's location data is removed.</p>`
       : `<p><button type="button" class="linkish tp-signin">Sign in to add a photo</button></p>`;
     box.innerHTML = (mod ? mod.hiddenLine(kept.n) : "") + grid + add;
     box.querySelectorAll(".tp-grid button").forEach((b) => b.addEventListener("click", () => {
