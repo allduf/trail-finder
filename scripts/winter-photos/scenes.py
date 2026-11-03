@@ -2,12 +2,14 @@
     python3 scripts/winter-photos/scenes.py blocks.json        (a list of zoom-11 [x, y] blocks)
 For each 100 km Sentinel-2 square that the blocks touch, the 8 least cloudy passes of last winter are kept (build.py
 takes, pixel by pixel, the middle value of the clear ones). East of the Rockies the snow melts earlier in spring, so
-there the passes come from mid-January to mid-March instead of February and March (free search: Earth Search, AWS)."""
+there the passes come from mid-January to mid-March instead of February and March (free search: Earth Search, AWS).
+For cloudy places (sharpen.py), more passes into their own list: OUT=more.json WHEN=2026-01-01T00:00:00Z/2026-03-31T23:59:59Z
+MAXCLOUD=90 KEEP=40 python3 scripts/winter-photos/scenes.py blocks.json, then SCENES=more.json for sharpen.py."""
 import json, math, os, sys, urllib.request
 from collections import defaultdict
 
 here = os.path.dirname(os.path.abspath(__file__))
-listed = os.path.join(here, "../../data/winter-scenes.json")
+listed = os.environ.get("OUT") or os.path.join(here, "../../data/winter-scenes.json")   # OUT: another list (sharpen.py SCENES)
 SEARCH = "https://earth-search.aws.element84.com/v1/search"
 BUCKET = "https://sentinel-cogs.s3.us-west-2.amazonaws.com/"
 KEEP = int(os.environ.get("KEEP", 8))
@@ -18,7 +20,7 @@ def lnglat(x, y, z=11):
 
 def search(bbox, when):
     body = {"collections": ["sentinel-2-l2a"], "bbox": bbox, "datetime": when, "limit": 100,
-            "query": {"eo:cloud_cover": {"lt": 60}},
+            "query": {"eo:cloud_cover": {"lt": int(os.environ.get("MAXCLOUD", 60))}},
             "fields": {"include": ["id", "bbox", "properties.eo:cloud_cover", "assets.red.href"], "exclude": ["geometry"]}}
     req = urllib.request.Request(SEARCH, json.dumps(body).encode(), {"Content-Type": "application/json"})
     for _ in range(4):
@@ -31,7 +33,7 @@ if __name__ == "__main__":
     found = defaultdict(dict)
     for k, (x, y) in enumerate(blocks):
         w, n = lnglat(x, y); e, s = lnglat(x + 1, y + 1)
-        when = "2026-02-01T00:00:00Z/2026-03-31T23:59:59Z" if w < -110 else "2026-01-15T00:00:00Z/2026-03-15T23:59:59Z"
+        when = os.environ.get("WHEN") or ("2026-02-01T00:00:00Z/2026-03-31T23:59:59Z" if w < -110 else "2026-01-15T00:00:00Z/2026-03-15T23:59:59Z")
         for f in search([w, s, e, n], when):
             href = f["assets"]["red"]["href"]
             if not href.startswith(BUCKET): continue
