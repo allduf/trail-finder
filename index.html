@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Trail Finder">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#12291d">
-<script src="i18n.js?v=1640"></script>
+<script src="i18n.js?v=1680"></script>
 </head>
 <body>
 <title>Trail Finder</title>
@@ -1282,7 +1282,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   body #layersMenu .lm-offline small { display: block; font-size: .78rem; opacity: .75; }
 }
 </style>
-<link rel="stylesheet" href="theme.css?v=16">
+<link rel="stylesheet" href="theme.css?v=17">
 <style>
 /* Phone map buttons (alex, 2026-10-24): the same four labelled buttons in every sport, Sport, Layers and 3D on the
    left, Me on the right. Satellite is a map style in Layers; Save a point, Compass and Measure live in each sport's
@@ -1332,6 +1332,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <button type="button" role="radio" data-base="topo" class="t-topo"><span>Topo</span></button>
         <button type="button" role="radio" data-base="sat" class="t-sat"><span>Satellite</span></button>
         <button type="button" role="radio" data-base="sathybrid" class="t-sathybrid"><span>Sat + names</span></button>
+        <!-- Skiing only (alex 2026-11-03: "is there anyway to have a better winter map?"): last winter's photos, the same as the 3D map's Winter. -->
+        <button type="button" role="radio" data-base="winter" class="t-winter"><span>Winter</span></button>
         </div>
         <select id="basemap" aria-label="Map style" hidden>
         <option value="osm">Standard</option>
@@ -1343,6 +1345,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <option value="voyager">Light streets</option>
         <option value="sat">Satellite</option>
         <option value="sathybrid">Satellite + names</option>
+        <option value="winter">Winter photos</option>
         <option value="vector">Sharp outdoor (vector)</option>
         </select></div>
         <div class="lm-head lm-looks-head">Quick looks</div>
@@ -1587,14 +1590,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=1640"></script>
-<script src="native.js?v=1640"></script>
-<script src="keyboard.js?v=1640"></script>
-<script src="rotate.js?v=1640"></script>
-<script src="official.js?v=1640"></script>
-<script src="directions.js?v=1640"></script>
-<script src="ratings.js?v=1640"></script>
-<script src="ebike.js?v=1640"></script>
+<script src="welcome.js?v=1680"></script>
+<script src="native.js?v=1680"></script>
+<script src="keyboard.js?v=1680"></script>
+<script src="rotate.js?v=1680"></script>
+<script src="official.js?v=1680"></script>
+<script src="directions.js?v=1680"></script>
+<script src="ratings.js?v=1680"></script>
+<script src="ebike.js?v=1680"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1950,6 +1953,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
     // 31-50 cm satellite elsewhere. Those go to zoom 20-22; EsriDeep (below) uses each spot's deepest level.
     sat: [ESRI_SAT, { maxZoom: 22, attribution: SAT_ATTR }],
     sathybrid: [ESRI_SAT, { maxZoom: 22, attribution: SAT_ATTR }],
+    // Skiing only: last winter's photos (map3d.js tfWinterTile) over the summer photo, which shows where there are none.
+    winter: [ESRI_SAT, { maxZoom: 22, attribution: SAT_ATTR + ' | Winter: <a href="https://www.esa.int/Applications/Observing_the_Earth/Copernicus/Sentinel-2">Copernicus Sentinel-2</a>' }],
     // OpenMapTiles vector map hosted free by OpenFreeMap: drawn by the browser, so it's sharp at any zoom and on retina screens.
     vector: ["https://tiles.openfreemap.org/styles/liberty", { maxZoom: 22, attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> <a href="https://www.openmaptiles.org/">&copy; OpenMapTiles</a> ' + OSM_ATTR }],
   };
@@ -1980,9 +1985,28 @@ body.sport-alt #rideMapBtn { display: none !important; }
     // the OpenStreetMap style read as "a web map" next to AllTrails or onX); trails, zones and pins drawn on top keep
     // their full colour. Photos and the topo style are left as they are.
     if (/^osm/.test(key)) opt.className = "base-calm";
-    const layer = key === "sat" || key === "sathybrid" ? new EsriDeep(url, opt) : L.tileLayer(url, opt);
+    const layer = key === "sat" || key === "sathybrid" || key === "winter" ? new EsriDeep(url, opt) : L.tileLayer(url, opt);
+    if (key === "winter") return L.layerGroup([layer, winterPhotos()]);
     if (key !== "sathybrid") return layer;
     return L.layerGroup([layer, L.tileLayer(SAT_NAMES, { maxNativeZoom: 19, maxZoom: 22, ...FAST_TILES })]);
+  }
+  // Skiing's Winter map style: last winter's photos drawn by the 3D map's workers (map3d.js tfWinterTile), zooms 6 to
+  // 16 (sharper close-ups from 15), enlarged past that. See-through where there are none, so the summer photo shows.
+  function winterPhotos() {
+    const g = new (L.GridLayer.extend({
+      createTile(c, done) {
+        const cv = document.createElement("canvas"), ac = new AbortController();
+        cv.width = cv.height = 256;
+        cv._stop = () => ac.abort();
+        (window.tfWinterTile ? window.tfWinterTile(c.z, c.x, c.y, ac.signal) : Promise.resolve(null))
+          .then((bmp) => { if (bmp) { cv.getContext("2d").drawImage(bmp, 0, 0, 256, 256); try { bmp.close(); } catch {} } })
+          .catch(() => {})
+          .then(() => done(null, cv));
+        return cv;
+      },
+    }))({ maxNativeZoom: 16, maxZoom: 22, ...FAST_TILES });
+    g.on("tileunload", (e) => e.tile._stop && e.tile._stop());
+    return g;
   }
   // Esri photos stop at a different zoom in each place (22 over Squamish, 21 in Whistler, 18 at Duffey Lake)
   // and show a grey "Map data not yet available" tile past that. Esri's tile map says which tiles exist, so
@@ -2064,7 +2088,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     $("basemap").value = use;
     satSync(use);
     syncTiles(use);
-    if (remember) store.set("basemap4", key);
+    if (remember) store.set(skiing() ? "basemapSki" : "basemap4", key);
     const note = $("mapNote");
     note.hidden = use === key;
     if (use !== key) note.textContent = key === "osm" && FROM_FILE
@@ -2072,13 +2096,25 @@ body.sport-alt #rideMapBtn { display: none !important; }
       : "That map style didn't load here, so a similar one is shown.";
   }
   // The 4 styles riders pick from; a style saved from before (CyclOSM, Light streets…) opens as Map.
-  const PICKS = ["osm", "topo", "sat", "sathybrid"];
+  const PICKS = ["osm", "topo", "sat", "sathybrid", "winter"];
   function syncTiles(k) {
     const cur = PICKS.includes(k) ? k : "osm";
     document.querySelectorAll("#lmTiles [data-base]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.base === cur)));
   }
   $("lmTiles").addEventListener("click", (e) => { const b = e.target.closest("[data-base]"); if (b) setBasemap(b.dataset.base, true); });
-  { const saved = store.get("basemap4", "osm"); setBasemap(PICKS.includes(saved) ? saved : "osm", !PICKS.includes(saved)); }
+  // Skiing keeps its own map style, Winter at first; the other sports share theirs and never get Winter.
+  const skiing = () => document.body.classList.contains("sport-ski");
+  const savedBase = () => {
+    if (skiing()) { const k = store.get("basemapSki", "winter"); return PICKS.includes(k) ? k : "winter"; }
+    const k = store.get("basemap4", "osm");
+    return PICKS.includes(k) && k !== "winter" ? k : "osm";
+  };
+  { const saved = store.get("basemap4", "osm"); setBasemap(PICKS.includes(saved) && saved !== "winter" ? saved : "osm", !PICKS.includes(saved)); }
+  window.addEventListener("tf:sport", () => {
+    if (!navigator.onLine && $("basemap").value === "vector") return;   // no signal: the saved offline map stays (offline.js)
+    const want = savedBase();
+    if ($("basemap").value !== want) setBasemap(want, false);
+  });
   $("basemap").addEventListener("change", (e) => setBasemap(e.target.value, true));
   // One tap to satellite photos and back to the last map style.
   function isSat(k) { return k === "sat" || k === "sathybrid"; }
@@ -2087,7 +2123,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     const cur = $("basemap").value;
     if (!isSat(cur)) store.set("basemapPrev", cur);
     const prev = store.get("basemapPrev", "osm");
-    setBasemap(isSat(cur) ? (PICKS.includes(prev) ? prev : "osm") : "sathybrid", true);
+    setBasemap(isSat(cur) ? (PICKS.includes(prev) && (prev !== "winter" || skiing()) ? prev : "osm") : "sathybrid", true);
   });
   window.tfSetBasemap = setBasemap;   // offline.js opens the saved vector map when there's no signal
 
@@ -4222,7 +4258,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=1640").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=1680").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -8340,48 +8376,48 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=1640"></script>
-<script src="native-map.js?v=1640"></script>
-<script src="contours.js?v=1640"></script>
-<script src="clouds.js?v=1640"></script>
-<script src="smoke.js?v=1640"></script>
-<script src="radar.js?v=1640"></script>
-<script src="photo-slider.js?v=1640"></script>
-<script src="ski-terrain.js?v=1640"></script>
-<script src="place-search.js?v=1640"></script>
-<script src="winter.js?v=1640"></script>
-<script src="hunts.js?v=1640"></script>
-<script src="ski-points.js?v=1640"></script>
-<script src="offline.js?v=1640"></script>
-<script src="ride-stats.js?v=1640"></script>
-<script src="native-gps.js?v=1640"></script>
-<script src="navigate.js?v=1640"></script>
-<script src="planner.js?v=1640"></script>
-<script src="loops.js?v=1640"></script>
-<script src="ride-finds.js?v=1640"></script>
-<script src="rides.js?v=1640"></script>
-<script src="community.js?v=1640"></script>
-<script src="ride-files.js?v=1640"></script>
-<script src="rider-trails.js?v=1640"></script>
-<script src="account.js?v=1640"></script>
-<script src="live.js?v=1640"></script>
-<script src="strava.js?v=1640"></script>
-<script src="moderation.js?v=1640"></script>
-<script src="reports.js?v=1640"></script>
-<script src="grades.js?v=1640"></script>
-<script src="trail-photos.js?v=1640"></script>
-<script src="visitors.js?v=1640"></script>
-<script src="usage.js?v=1640"></script>
-<script src="notify.js?v=1640"></script>
-<script src="closures.js?v=1640"></script>
-<script src="status.js?v=1640"></script>
-<script src="ask.js?v=1640"></script>
-<script src="areas.js?v=1640"></script>
-<script src="alpine.js?v=1640"></script>
-<script src="bikeparks.js?v=1640"></script>
-<script src="photo-find.js?v=1640"></script>
-<script src="whats-new.js?v=1640"></script>
-<script src="app-update.js?v=1640"></script>
+<script src="map3d.js?v=1680"></script>
+<script src="native-map.js?v=1680"></script>
+<script src="contours.js?v=1680"></script>
+<script src="clouds.js?v=1680"></script>
+<script src="smoke.js?v=1680"></script>
+<script src="radar.js?v=1680"></script>
+<script src="photo-slider.js?v=1680"></script>
+<script src="ski-terrain.js?v=1680"></script>
+<script src="place-search.js?v=1680"></script>
+<script src="winter.js?v=1680"></script>
+<script src="hunts.js?v=1680"></script>
+<script src="ski-points.js?v=1680"></script>
+<script src="offline.js?v=1680"></script>
+<script src="ride-stats.js?v=1680"></script>
+<script src="native-gps.js?v=1680"></script>
+<script src="navigate.js?v=1680"></script>
+<script src="planner.js?v=1680"></script>
+<script src="loops.js?v=1680"></script>
+<script src="ride-finds.js?v=1680"></script>
+<script src="rides.js?v=1680"></script>
+<script src="community.js?v=1680"></script>
+<script src="ride-files.js?v=1680"></script>
+<script src="rider-trails.js?v=1680"></script>
+<script src="account.js?v=1680"></script>
+<script src="live.js?v=1680"></script>
+<script src="strava.js?v=1680"></script>
+<script src="moderation.js?v=1680"></script>
+<script src="reports.js?v=1680"></script>
+<script src="grades.js?v=1680"></script>
+<script src="trail-photos.js?v=1680"></script>
+<script src="visitors.js?v=1680"></script>
+<script src="usage.js?v=1680"></script>
+<script src="notify.js?v=1680"></script>
+<script src="closures.js?v=1680"></script>
+<script src="status.js?v=1680"></script>
+<script src="ask.js?v=1680"></script>
+<script src="areas.js?v=1680"></script>
+<script src="alpine.js?v=1680"></script>
+<script src="bikeparks.js?v=1680"></script>
+<script src="photo-find.js?v=1680"></script>
+<script src="whats-new.js?v=1680"></script>
+<script src="app-update.js?v=1680"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

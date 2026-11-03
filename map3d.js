@@ -767,7 +767,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1640");
+      const w = new Worker("winter-fill.js?v=1680");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -836,6 +836,7 @@
   const hdQueue = [];
   let hdWorkers = null, hdNext = 0, hdId = 0;
   const hdWaiting = new Map();
+  let hdTile = null;   // (z, x, y, abort, site) -> { data }: one close-up, drawn by a worker (set below)
   const terrainReady = () => new Promise((ok) => {
     const done = () => { if (!gl || !gl.getSource("dem") || gl.isSourceLoaded("dem")) { clearTimeout(t); if (gl) gl.off("sourcedata", done); ok(); } };
     const t = setTimeout(() => { if (gl) gl.off("sourcedata", done); ok(); }, PHONE ? 15000 : 3000);
@@ -846,10 +847,10 @@
     if (!PHONE || !gl || !gl.isMoving()) return ok();
     gl.once("moveend", () => setTimeout(() => mapStill().then(ok), 150));   // a short pause, not between two flicks
   });
-  function addWinterHdProtocol() {
+  function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1640" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1680" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -858,12 +859,20 @@
       };
       return w;
     });
+  }
+  let hdProtocol = false;
+  function addWinterHdProtocol() {
+    if (hdProtocol) return;
+    hdProtocol = true;
+    startHdWorkers();
     photoProtocol("tfwinterhd", async (params, abort) => {
       const [z, x, y] = params.url.replace("tfwinterhd://", "").split("/").map(Number);
       const have = await loadWinterBlocks();
       return anyWinter(have, z, x, y) ? hdTile(z, x, y, abort, winterSite(have, z, x, y)) : noTile();
     });
-    const hdTile = (z, x, y, abort, site) => new Promise((ok, no) => {
+  }
+  {
+    hdTile = (z, x, y, abort, site) => new Promise((ok, no) => {
       const id = ++hdId;
       const w = hdWorkers[hdNext++ % hdWorkers.length];
       hdWaiting.set(id, { ok, no });
@@ -894,6 +903,36 @@
     };
     const hdFree = (id) => { if (hdBusy.delete(id)) hdPump(); };
   }
+
+  // ---------- Winter photos on the flat map (Skiing's "Winter" map style, index.html) ----------
+  // alex 2026-11-03: "is there anyway to have a better winter map?" The flat map in Skiing only had the summer
+  // styles; the same winter photos as the 3D map now draw there too: zooms 6-14 last winter's photos with their cloudy
+  // holes filled (winter-fill.js), 15-16 with the finer detail added (winter-hd.js). null where there are none (the
+  // summer photo under it shows). The flat map is light on memory, so phones get the close-ups too.
+  window.tfWinterTile = async (z, x, y, signal) => {
+    if (z < 6) return null;
+    const have = await loadWinterBlocks();
+    if (!anyWinter(have, z, x, y)) return null;
+    const abort = { signal }, site = winterSite(have, z, x, y);
+    if (z >= 15) {
+      // The close-up keeps last winter's cloudy holes see-through (on the 3D map the filled Winter photo is under it):
+      // here the filled zoom-14 photo goes under it, cut to this tile.
+      startHdWorkers();
+      const k = z - 14, n = 1 << k;
+      const [under, hd] = await Promise.all([
+        fillTile(14, x >> k, y >> k, covered(have, 14, x >> k, y >> k), abort, site).then((m) => m.data).catch((e) => { if (signal.aborted) throw e; return null; }),
+        hdTile(z, x, y, abort, site).then((m) => m.data).catch((e) => { if (signal.aborted) throw e; return null; }),
+      ]);
+      if (!under) return hd;
+      const cv = new OffscreenCanvas(256, 256), cx = cv.getContext("2d"), size = under.width / n;
+      cx.imageSmoothingQuality = "high";
+      cx.drawImage(under, (x % n) * size, (y % n) * size, size, size, 0, 0, 256, 256);
+      drop(under);
+      if (hd) { cx.drawImage(hd, 0, 0, 256, 256); drop(hd); }
+      return createImageBitmap(cv);
+    }
+    return (await fillTile(z, x, y, covered(have, z, x, y), abort, site)).data || null;
+  };
 
   // ---------- phone memory ----------
   // MapLibre paints the photos and lines for each piece of ground in view into a 2048 px buffer (about 32 MB with

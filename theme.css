@@ -573,3 +573,7 @@ html body :is(#huntPane, #fishPane) .tf-phone { display: none; }
   .peek-today .dot, .hub-now .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
   html body :is(.hn-keybtn, .fs-keybtn, .mt-keybtn) svg { color: var(--accent); }
 }
+/* Skiing's Winter map style (alex 2026-11-03): a 5th tile, only in Skiing */
+.map-tools .layers-menu .lm-tiles .t-winter { background: radial-gradient(circle at 30% 30%, #f4f8fb, #b9c9d6 60%, #5d6f7c); color: #15211a; }
+body:not(.sport-ski) .layers-menu .lm-tiles .t-winter { display: none; }
+body.sport-ski .layers-menu .lm-tiles { grid-template-columns: repeat(5, 1fr); }
