@@ -58,7 +58,8 @@ dialog.acct .acct-menu small { display: block; font-weight: 400; color: var(--mu
 dialog.acct button.danger { background: #c0392b; color: #fff; border-color: transparent; }
 dialog.acct .acct-alt a { color: var(--accent); font-weight: 600; padding: 2px 0; }
 dialog.acct .acct-alt button.acct-del { color: #c0392b; }
-dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: 3px; }`;
+dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
+dialog.acct .acct-out-row { justify-content: space-between; align-items: center; }`;
   document.head.appendChild(css);
 
   const box = document.createElement("dialog");
@@ -82,9 +83,9 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     <p class="acct-msg" id="acctSync" role="status"></p>
     <div class="acct-menu">
       <button type="button" id="acctGoFolders"><span aria-hidden="true">📁</span> My trails<small>To ride, Ridden, your folders, saved routes and rides</small></button>
-      <button type="button" id="acctGoSettings"><span aria-hidden="true">⚙️</span> Settings<small>Email, password, sign out</small></button>
+      <button type="button" id="acctGoSettings"><span aria-hidden="true">⚙️</span> Settings<small>Email, password, delete account</small></button>
     </div>
-    <div class="acct-row"><button type="button" class="go" data-close>Done</button></div>
+    <div class="acct-row acct-out-row"><button type="button" id="acctSignOutTop">Sign out</button><button type="button" class="go" data-close>Done</button></div>
   </div>
   <div id="acctSettings" hidden>
     <h2>Settings</h2>
@@ -231,11 +232,14 @@ dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: v
     const { error } = await api.client.auth.updateUser({ email }, { emailRedirectTo: redirect() });
     setMsg(error ? "Couldn't change the email: " + error.message : `Check ${email} (and your old address) and tap the confirm links. The change happens after that.`);
   });
-  q("acctSignOut").addEventListener("click", async () => {
+  // Sign out sits right in the Your account box (alex 2026-11-03) and again under Settings.
+  async function signOut() {
     window.dispatchEvent(new CustomEvent("tf:signing-out", { detail: api.user }));
-    await api.client.auth.signOut();
+    try { await api.client.auth.signOut(); } catch { await api.client.auth.signOut({ scope: "local" }).catch(() => {}); }
     box.close();
-  });
+  }
+  q("acctSignOut").addEventListener("click", signOut);
+  q("acctSignOutTop").addEventListener("click", signOut);
 
   // Delete my account (Apple rule 5.1.1): the rider's own photo files go first through Storage (folders named by the
   // user id), then delete_my_account() (supabase/delete-account.sql) removes the sign-in and every row tied to it.
