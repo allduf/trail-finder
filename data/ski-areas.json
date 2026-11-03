@@ -88,17 +88,29 @@
    "name": "Sky Pilot and Sea to Sky Gondola backcountry",
    "prov": "BC",
    "region": "Sea to Sky",
-   "lat": 49.66,
-   "lon": -123.13,
-   "about": "From the top of the Sea to Sky Gondola: Sky Pilot Valley, Mount Habrich and the Sky Pilot group. Big alpine terrain an hour from Vancouver.",
-   "access": "Ride the Sea to Sky Gondola in Squamish (ticket) and follow its backcountry access route past the marked boundary.",
-   "rules": "Follow the gondola's backcountry rules (some days the access closes). Beyond the boundary there is no patrol.",
+   "lat": 49.648,
+   "lon": -123.095,
+   "about": "The upper Shannon Creek watershed above the Sea to Sky Gondola (a sightseeing gondola, not a ski resort): more than 1,300 ha around Sky Pilot, Co-Pilot, Mount Habrich, Skyline Ridge and Goat Ridge, four alpine bowls with up to 1,100 m of vertical. Lines like Stadium Gully, Co-Pilot Gully, Exit Gully and the Ledge couloirs, an hour from Vancouver.",
+   "access": "Ride the Sea to Sky Gondola in Squamish to the Summit Lodge (885 m, ticket; parking $10 a day), then follow the Backcountry Access Road (2.2 km, groomed every day in winter) to the Sky Pilot Valley or Skyline Ridge approach. Tap the gondola line on the map for today's status, hours and whether skis can go up.",
+   "rules": "Skis and boards go up only with backcountry gear, and not when Avalanche Canada's South Coast forecast is High or Extreme. Past the gondola's maintained area nothing is controlled, marked or patrolled. Be back well before the last ride down, or ski down the service road. Emergency: 911, then the gondola's line 604-892-2555.",
    "forecast": "ac",
    "sub": "Garibaldi",
    "links": [
     {
-     "t": "Sea to Sky Gondola",
-     "u": "https://www.seatoskygondola.com"
+     "t": "Sea to Sky Gondola: ski touring",
+     "u": "https://www.seatoskygondola.com/winter-activities/ski-touring/"
+    },
+    {
+     "t": "Sea to Sky Gondola: Daily Conditions",
+     "u": "https://www.seatoskygondola.com/daily-conditions/"
+    },
+    {
+     "t": "Backcountry access map (PDF)",
+     "u": "https://www.seatoskygondola.com/site/assets/files/7879/ssg_backcountry_trail_map.pdf"
+    },
+    {
+     "t": "VOC wiki: Sky Pilot",
+     "u": "https://wiki.ubc-voc.com/Sky_Pilot"
     }
    ]
   },

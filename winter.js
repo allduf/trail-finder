@@ -687,6 +687,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
           r.lines = r.g.map(lineOf); r.bounds = L.latLngBounds(r.lines.flat());
           ski.routes.push(r);
         }
+        // Facts added by hand to OpenStreetMap routes (data/ski-hand/ "patch", by route id): a name, tags, links
+        // (alex 2026-11-03: the Sea to Sky Gondola's groomed Backcountry Access Road).
+        for (const [id, p] of Object.entries(t.patch || {})) {
+          const r = ski.routes.find((x) => x.id === id);
+          if (!r) continue;
+          if (p.name) r.name = p.name;
+          r.tags = { ...(r.tags || {}), ...(p.tags || {}) };
+          if (p.links) r.links = [...(r.links || []), ...p.links.filter((l) => !(r.links || []).some((x) => x.u === l.u))];
+        }
         ski.huts = dedupeHw([...(ski.huts || []), ...hutFacts(t.huts || [])]);
         ski.starts = [...(ski.starts || []), ...(t.starts || [])];
         ski.parking = [...(ski.parking || []), ...(t.parking || [])];
@@ -1147,7 +1156,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=690").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=1940").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -1155,7 +1164,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         b[0] = Math.min(b[0], la); b[1] = Math.max(b[1], la); b[2] = Math.min(b[2], lo); b[3] = Math.max(b[3], lo);
       }
       const pad = (b) => b && [b[0] - 0.006, b[1] + 0.006, b[2] - 0.008, b[3] + 0.008];
-      resorts = Object.entries((d && d.resorts) || {}).map(([id, r]) => ({ id, name: r.name, lat: r.lat, lon: r.lon, live: r.live, bb: pad(bbs[id]) }));
+      resorts = Object.entries((d && d.resorts) || {}).map(([id, r]) => ({ id, name: r.name, lat: r.lat, lon: r.lon, live: r.live, access: r.access, bb: pad(bbs[id]) }));
       renderPlaces();
     }).catch(() => {});
     fetch("data/slackcountry.json").then((r) => (r.ok ? r.json() : null)).then((d) => {
@@ -1211,7 +1220,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     for (const r of resorts) {
       const s = score(r.name, q);
-      if (s) out.push({ name: r.name, sub: `Ski resort${r.live ? " · live lift status" : ""} · ${kmAway(ptAway(c.lat, c.lng, r))}`, ic: "🚡", s: s + 0.5, d: ptAway(c.lat, c.lng, r), lat: r.lat, lon: r.lon, bb: r.bb || null, zoom: 15 });
+      // An access gondola (the Sea to Sky Gondola) isn't a ski resort: picking it opens its box (lifts.js).
+      if (s) out.push({ name: r.name, sub: `${r.access ? "Backcountry access gondola" : "Ski resort"}${r.live ? " · live status" : ""} · ${kmAway(ptAway(c.lat, c.lng, r))}`, ic: "🚡", s: s + 0.5, d: ptAway(c.lat, c.lng, r), lat: r.lat, lon: r.lon, bb: r.bb || null, zoom: 15, access: r.access ? r.name : "" });
     }
     return out.sort((x, y) => y.s - x.s || x.d - y.d);
   }
@@ -1275,6 +1285,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     $("skPlaceMsg").textContent = `Near ${p.name}: nearest the middle of the map first.`;
     window.tfPlaceSearch.go(p);
     if (p.helicat && window.tfHeliCat) window.tfHeliCat.open(p.helicat);
+    if (p.access && window.tfLifts) window.tfLifts.open(p.access);
     renderList();
     // The list of what's near the place under the box (again once the avalanche card above has filled in).
     const top = () => {
@@ -1543,10 +1554,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // Hand-kept routes (data/ski-hand/)
     "hand:about": (v) => ["About", v], "hand:climb": (v) => ["Climb", v], "hand:high": (v) => ["Highest point", v], "hand:aspect": (v) => ["Main aspect", v],
     "hand:start": (v) => ["Getting there", v], "hand:safety": (v) => ["Safety", v], "hand:rules": (v) => ["Rules", v], "hand:line": (v) => ["The line", v],
+    "hand:groomed": (v) => ["Groomed", v],
   };
   const FR_DIFF = { Facile: "Easy", "Débutant": "Beginner", "Intermédiaire": "Intermediate", Difficile: "Difficult", "Très difficile": "Very difficult", Polyvalent: "Mixed" };
   const FR_USE = { Raquette: "snowshoeing", "Ski nordique": "backcountry nordic skiing (not groomed)", "Randonnée alpine": "alpine ski touring", "Accès ski hors-piste": "access to off-piste skiing",
     "Pédestre sur neige": "winter walking", VPS: "fat biking", "Ski classique": "classic skiing", "Pas de patin": "skate skiing", "Ski Hok": "Hok skis" };
+  const linksHtml = (r) => (r.links || []).map((l) => `<a href="${esc(l.u)}" target="_blank" rel="noopener">${esc(l.t)}</a>`).join(", ");
   const val2 = (v) => (/^https?:\/\//.test(v) ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""))}</a>` : esc(v));
   function tagsHtml(r) {
     const plain = [];
@@ -2025,10 +2038,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       : r.src === "hw"
       ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a> by ${esc(r.tags["hw:by"] || "Rob Thomson")} (<a href="https://hokkaidowilds.org/" target="_blank" rel="noopener">hokkaidowilds.org</a>, CC BY-SA 4.0): full guide, photos and topo map there`
       : r.src === "hand"
-      ? `trip reports and guidebooks${(r.links || []).length ? ": " + r.links.map((l) => `<a href="${esc(l.u)}" target="_blank" rel="noopener">${esc(l.t)}</a>`).join(", ") : ""} (not on OpenStreetMap yet)`
+      ? `${r.osmLine ? "the operator's pages and guide notes" : "trip reports and guidebooks"}${(r.links || []).length ? ": " + linksHtml(r) : ""}${r.osmLine ? `; the line follows trails on <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OpenStreetMap</a>` : " (not on OpenStreetMap yet)"}`
       : r.src === "pc"
       ? `Parks Canada trails (<a href="https://open.canada.ca/data/en/dataset/64a90e8d-5bc0-4027-8645-b5881b4068d4" target="_blank" rel="noopener">open.canada.ca</a>, Open Government Licence)`
-      : `<a href="https://www.openstreetmap.org/${osmType}/${r.id.slice(1)}" target="_blank" rel="noopener">OpenStreetMap</a>`;
+      : `<a href="https://www.openstreetmap.org/${osmType}/${r.id.slice(1)}" target="_blank" rel="noopener">OpenStreetMap</a>${(r.links || []).length ? `; more facts from ${linksHtml(r)}` : ""}`;
     const tags = tagsHtml(r);
     const club = !isHut && r.type === "snowmobile" ? clubNear(r.lines[0][0][0], r.lines[0][0][1]) : null;
     const title = isHut ? r.name || (isStart ? "camptocamp route" : KIND[r.kind] || "Hut") : nameOf(r) || "Unnamed route";

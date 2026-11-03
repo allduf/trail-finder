@@ -58,6 +58,9 @@ const RESORTS = [
   ["vallee", "Vallée du Parc", 46.615, -72.8, 0.015, 0.02],
   ["searchmont", "Searchmont", 46.775, -84.06, 0.025, 0.04],
   ["lochlomond", "Loch Lomond", 48.294, -89.347, 0.015, 0.02],
+  // Not a ski resort: a sightseeing gondola that is also the way up to the Sky Pilot backcountry (alex 2026-11-03).
+  // access: lifts.js shows its own box (data/access-lifts.json), and the search calls it a backcountry access gondola.
+  ["s2sg", "Sea to Sky Gondola", 49.673, -123.144, 0.006, 0.016, { access: true }],
   ["sugarloaf", "Sugarloaf", 47.975, -66.68, 0.015, 0.02],
   ["crabbe", "Crabbe Mountain", 46.12, -67.11, 0.015, 0.025],
   ["wentworth", "Ski Wentworth", 45.608, -63.552, 0.015, 0.025],
@@ -198,7 +201,7 @@ console.log("status names with no lift:", JSON.stringify(unmatched));
 const out = {
   note: "Ski lifts of the resorts in the app, for the live lift status in Skiing (lifts.js). Built by scripts/build-ski-lifts.mjs from OpenStreetMap (ODbL) with heights from Open-Meteo; st is the resort's own name for the lift in its lift status. Hand-run, kept in main.",
   builtAt: new Date().toISOString(),
-  resorts: Object.fromEntries(RESORTS.map(([id, name, la, lo]) => [id, { name, lat: la, lon: lo, live: !!SOURCES[id], ...(SOURCES[id] ? { page: SOURCES[id].page } : {}) }])),
+  resorts: Object.fromEntries(RESORTS.map(([id, name, la, lo, , , more]) => [id, { name, lat: la, lon: lo, live: !!SOURCES[id], ...(SOURCES[id] ? { page: SOURCES[id].page } : {}), ...(more || {}) }])),
   lifts: [...(OLD ? OLD.lifts.filter((l) => !ONLY.has(l.r)) : []), ...lifts].sort((a, b) => a.r.localeCompare(b.r) || a.n.localeCompare(b.n)),
 };
 fs.writeFileSync(new URL("../data/ski-lifts.json", import.meta.url), JSON.stringify(out));

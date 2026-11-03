@@ -210,6 +210,11 @@
    "name": "Québec 511",
    "page": "https://www.quebec511.info/en/Carte/Default.aspx",
    "credit": "Québec 511, ministère des Transports et de la Mobilité durable"
+  },
+  "s2sg": {
+   "name": "Sea to Sky Gondola",
+   "page": "https://www.seatoskygondola.com/weather-and-cams/",
+   "credit": "Sea to Sky Gondola"
   }
  },
  "cams": [
@@ -2810,6 +2815,33 @@
    "lat": 46.64076,
    "lon": -72.67339,
    "page": "https://www.quebec511.info/Carte/Fenetres/FenetreVideo.html?id=4025"
+  },
+  {
+   "id": "s2sg-exitgully",
+   "owner": "s2sg",
+   "resort": "Sea to Sky Gondola",
+   "kind": "backcountry",
+   "name": "Exit Gully, Habrich Ridge",
+   "view": "Visibility and snow surface in the Sky Pilot backcountry",
+   "lat": 49.6512,
+   "lon": -123.0757,
+   "ele": 1550,
+   "where": "Habrich Ridge – Exit Gully weather station (approximate spot)",
+   "embed": "https://portal.ridgetec.com/embed/gallery/NjI1N3wyNDQyOQ?thumbsPerPage=1&columns=1",
+   "page": "https://www.seatoskygondola.com/winter-activities/ski-touring/"
+  },
+  {
+   "id": "s2sg-summit",
+   "owner": "s2sg",
+   "resort": "Sea to Sky Gondola",
+   "kind": "backcountry",
+   "name": "Sea to Sky Gondola summit",
+   "view": "Current view from the Summit Lodge",
+   "lat": 49.6709,
+   "lon": -123.1313,
+   "ele": 885,
+   "where": "Summit Lodge",
+   "page": "https://www.seatoskygondola.com/weather-and-cams/"
   }
  ]
 }
