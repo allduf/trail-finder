@@ -4,8 +4,11 @@
 // composite on MSC GeoMet, Open Government Licence - Canada), so it covers the south of every province.
 // - The map shows rain in blues and greens, then yellow, red and purple for heavier. Snow uses the same colours with
 //   snow rates (cm/h). Rain or Snow is picked for you (Skiing, or the cold months, start on Snow) and the bar switches it.
-// - ▶ plays the last 3 hours; the bar says what's falling at the map centre now.
+// - ▶ plays the last 3 hours (or, on the forecast, the next 3 days); the bar says what's falling at the map centre.
 // - Outside radar range (the far north) the map stays clear, and the bar says so when the map centre has no radar.
+// - Next 3 days (alex 2026-11-03, "can it show the next 3 days ... rain or snow", like Skiing's forecast layer): the
+//   slider carries on past Latest into Environment Canada's forecast model (RDPS, 10 km, all of Canada), rain or snow
+//   fallen in each 3 hours, then a 3-day total. Forecast frames are labelled with the day and time, never "Latest".
 // Kept light like the smoke layer: the pictures come ready-made from the map server, one for the view.
 (() => {
   "use strict";
@@ -22,6 +25,13 @@
   const LAYERS = { rain: "RADAR_1KM_RRAI", snow: "RADAR_1KM_RSNO" };
   const ATTR = 'Radar: <a href="https://eccc-msc.github.io/open-data/msc-data/obs_radar/readme_radar_geomet_en/">Environment Canada</a> (OGL-Canada)';
   const OPACITY = 0.7, M_PER_PX = 1000;   // 1 km radar: about one pixel per km is all the detail there is
+  // Forecast: RDPS model, rain/snow fallen in each 3 hours (a frame every 3 h, ~3.5 days ahead) and the total since
+  // the model run. 10 km model: one picture pixel per 2.5 km is plenty and keeps phone memory down.
+  const FC = { rain: "RDPS_10km_Rain-Accum3h", snow: "RDPS_10km_Snow-Accum3h" };
+  const FC_TOTAL = { rain: "RDPS_10km_Rain-Accum", snow: "RDPS_10km_Snow-Accum" };
+  const FC_STYLE = { rain: "PRECIPMM", snow: "" };
+  const FC_M_PER_PX = 2500, FC_STEP_S = 10800, FC_MAX_S = 3.5 * 86400;
+  const FC_ATTR = 'Forecast: <a href="https://eccc-msc.github.io/open-data/msc-data/nwp_rdps/readme_rdps_en/">Environment Canada RDPS</a> (OGL-Canada)';
   const STEP_S = 360;                      // a picture every 6 minutes
 
   const css = document.createElement("style");
@@ -32,6 +42,12 @@
 #rdBar .rd-kind button { border: 0; border-radius: 0; padding: 5px 8px; }
 #rdBar .rd-kind button[aria-pressed=true] { background: #1971c2; color: #fff; }
 #rdBar .cl-key i { border-color: #0002; }
+#rdBar .rd-jump { display: flex; gap: 6px; margin: 6px 0 0; align-items: stretch; }
+#rdBar .rd-sec { display: flex; gap: 4px; flex: 1; min-width: 0; }
+#rdBar .rd-sec button { flex: 1 1 auto; padding: 5px 4px; font-size: .8rem; white-space: nowrap; min-width: 0; }
+#rdBar .rd-sec button[aria-pressed=true] { background: #1971c2; border-color: #1971c2; color: #fff; }
+#rdBar .rd-sec button[hidden] { display: none; }
+#rdBar .cl-when.fc { color: #1971c2; }
 `;
   document.head.append(css);
 
@@ -64,49 +80,87 @@
   const frames = () => (span ? Math.max(0, Math.round((span.t1 - span.t0) / STEP_S)) : 0);
   let frame = 0;                                   // 0 = the oldest, frames() = the newest
   const frameT = (f) => (span ? span.t0 + f * STEP_S : 0);
+  // ---------- the forecast frames, after the radar's ----------
+  let fc = null, fcAt = 0, fcP = null;   // { times: [unix s of each 3 h ending], end }
+  function getFc(force) {
+    if (fc && !force && Date.now() - fcAt < 1800000) return Promise.resolve(fc);
+    if (fcP) return fcP;
+    const k = kind;
+    fcP = fetch(`${GEOMET}?service=WMS&version=1.3.0&request=GetCapabilities&layer=${FC[k]}`)
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
+      .then((x) => {
+        const time = (x.match(/<Dimension name="time"[^>]*>([^<]+)</) || [])[1];
+        if (!time) throw new Error("no forecast times");
+        const [a, b] = time.split("/"), t0 = Date.parse(a) / 1000, t1 = Date.parse(b) / 1000, now = Date.now() / 1000;
+        const times = [];
+        for (let t = t0; t <= t1 && t <= now + FC_MAX_S; t += FC_STEP_S) if (t > now) times.push(t);
+        if (k !== kind) return fc;
+        fc = times.length ? { times, end: times[times.length - 1] } : null;
+        fcAt = Date.now();
+        return fc;
+      })
+      .finally(() => { fcP = null; });
+    return fcP;
+  }
+  const fcN = () => (fc ? fc.times.length : 0);
+  const lastF = () => frames() + (fcN() ? fcN() + 1 : 0);        // the 3-day total is the last stop
+  const secOf = (f) => (f <= frames() ? "radar" : f <= frames() + fcN() ? "fc" : "total");
+  const fcTime = (f) => (secOf(f) === "fc" ? fc.times[f - frames() - 1] : fc ? fc.end : 0);
+  const dayTime = (t) => {
+    const d = new Date(t * 1000), today = new Date().toDateString() === d.toDateString();
+    const clock = d.toLocaleTimeString("en-CA", { hour: "numeric" }).replace(/\s?([ap])\.?m\.?/i, " $1m");
+    return `${today ? "Today" : d.toLocaleDateString("en-CA", { weekday: "short" })} ${clock}`;
+  };
   const label = (f) => {
+    if (fcN() && secOf(f) === "fc") return dayTime(fcTime(f) - FC_STEP_S);   // the start of its 3 hours
+    if (fcN() && secOf(f) === "total") return "3-day total";
     if (!span) return "Now";
     const t = frameT(f), ago = Math.round((Date.now() / 1000 - t) / 60);
     const clock = new Date(t * 1000).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" }).replace(/\s?([ap])\.?m\.?/i, " $1m");
     return f >= frames() ? (ago <= 15 ? "Latest" : clock) : clock;
   };
   const agoText = () => { if (!span) return ""; const m = Math.round((Date.now() / 1000 - span.t1) / 60); return m <= 1 ? "a minute ago" : `${m} min ago`; };
-  const wmsBase = () => `${GEOMET}?service=WMS&version=1.3.0&request=GetMap&layers=${layer()}&styles=&crs=EPSG:3857&format=image/png&transparent=true`;
+  const wmsBase = (f = frame) => {
+    const s = secOf(f), lay = s === "radar" ? layer() : s === "fc" ? FC[kind] : FC_TOTAL[kind], st = s === "radar" ? "" : FC_STYLE[kind];
+    return `${GEOMET}?service=WMS&version=1.3.0&request=GetMap&layers=${lay}&styles=${st}&crs=EPSG:3857&format=image/png&transparent=true`;
+  };
+  const timeOf = (f) => (secOf(f) === "radar" ? frameT(f) : fcTime(f));
 
   // ---------- flat map: one picture of the view ----------
   map.createPane("radar").style.zIndex = 379;   // with the smoke and clouds, over the photos; under trails and pins
   map.getPane("radar").style.pointerEvents = "none";
   let overlay = null, shownUrl = "";
   const is3d = () => map.getContainer().classList.contains("is3d");
-  function viewBox() {
+  function viewBox(mpp = M_PER_PX) {
     const b = map.getBounds().pad(0.3), crs = L.CRS.EPSG3857;
     const sw = crs.project(L.latLng(clamp(b.getSouth(), -85, 85), clamp(b.getWest(), -180, 180)));
     const ne = crs.project(L.latLng(clamp(b.getNorth(), -85, 85), clamp(b.getEast(), -180, 180)));
     const snap = 2 ** Math.round(Math.log2(Math.max(1000, (ne.x - sw.x) / 16)));
     const x0 = Math.floor(sw.x / snap) * snap, x1 = Math.ceil(ne.x / snap) * snap, y0 = Math.floor(sw.y / snap) * snap, y1 = Math.ceil(ne.y / snap) * snap;
-    const k = Math.cos((map.getCenter().lat * Math.PI) / 180), m = M_PER_PX / Math.max(0.2, k);
+    const k = Math.cos((map.getCenter().lat * Math.PI) / 180), m = mpp / Math.max(0.2, k);
     const w = clamp(Math.round((x1 - x0) / m), 64, 900), h = clamp(Math.round((y1 - y0) / m), 64, 900);
     return { bbox: `${x0},${y0},${x1},${y1}`, w, h, bounds: L.latLngBounds(crs.unproject(L.point(x0, y0)), crs.unproject(L.point(x1, y1))) };
   }
-  const urlFor = (v, f) => `${wmsBase()}&bbox=${v.bbox}&width=${v.w}&height=${v.h}&time=${iso(frameT(f))}`;
+  const urlFor = (v, f) => `${wmsBase(f)}&bbox=${v.bbox}&width=${v.w}&height=${v.h}&time=${iso(timeOf(f))}`;
+  const boxFor = (f) => viewBox(secOf(f) === "radar" ? M_PER_PX : FC_M_PER_PX);
   function draw2d() {
     if (!on || is3d() || !span) { if (overlay && map.hasLayer(overlay)) map.removeLayer(overlay); shownUrl = ""; return; }
-    const v = viewBox(), url = urlFor(v, frame);
+    const v = boxFor(frame), url = urlFor(v, frame);
     if (url === shownUrl && overlay && map.hasLayer(overlay)) return;
     const img = new Image();   // loaded first, then swapped in, so the rain doesn't blink while it plays
     img.onload = () => {
-      if (!on || is3d() || urlFor(viewBox(), frame) !== url) return;
+      if (!on || is3d() || urlFor(boxFor(frame), frame) !== url) return;
       shownUrl = url;
-      if (!overlay) overlay = L.imageOverlay(url, v.bounds, { pane: "radar", opacity: OPACITY, interactive: false, attribution: ATTR }).addTo(map);
+      if (!overlay) overlay = L.imageOverlay(url, v.bounds, { pane: "radar", opacity: OPACITY, interactive: false, attribution: `${ATTR}, ${FC_ATTR}` }).addTo(map);
       else { overlay.setUrl(url); overlay.setBounds(v.bounds); if (!map.hasLayer(overlay)) overlay.addTo(map); }
-      if (playing && frame < frames()) new Image().src = urlFor(v, frame + 1);
+      if (playing && frame < playEnd()) new Image().src = urlFor(boxFor(frame + 1), frame + 1);
     };
-    img.onerror = () => { note = "Couldn't load the radar, try again soon."; here(); };
+    img.onerror = () => { note = secOf(frame) === "radar" ? "Couldn't load the radar, try again soon." : "Couldn't load the forecast, try again soon."; here(); };
     img.src = url;
   }
 
   // ---------- 3D map: the same picture draped on the mountains ----------
-  const tilesUrl = () => `${wmsBase()}&bbox={bbox-epsg-3857}&width=256&height=256&time=${iso(frameT(frame))}`;
+  const tilesUrl = () => `${wmsBase()}&bbox={bbox-epsg-3857}&width=256&height=256&time=${iso(timeOf(frame))}`;
   function sync3d() {
     const gl = window.trailMap3d;
     if (!gl || !window.maplibregl) return;
@@ -115,7 +169,7 @@
       const src = gl.getSource("radar"), u = tilesUrl();
       if (src) { if (src._rdUrl !== u) { src._rdUrl = u; src.setTiles([u]); } return; }
       // Zoom 7 at most (about one radar pixel per screen pixel there); closer, the browser smooths it (phone memory).
-      gl.addSource("radar", { type: "raster", tiles: [u], tileSize: 256, maxzoom: 7, attribution: ATTR });
+      gl.addSource("radar", { type: "raster", tiles: [u], tileSize: 256, maxzoom: 7, attribution: `${ATTR}, ${FC_ATTR}` });
       gl.getSource("radar")._rdUrl = u;
       const before = ["clouds", "osm-roads", "lines"].find((id) => gl.getLayer(id));
       gl.addLayer({ id: "radar", type: "raster", source: "radar", paint: { "raster-opacity": OPACITY, "raster-fade-duration": 0, "raster-resampling": "linear" } }, before);
@@ -138,11 +192,11 @@
   const wrap = map.getContainer().parentElement;
   const bar = document.createElement("div");
   bar.className = "cl-bar"; bar.id = "rdBar"; bar.hidden = true; bar.setAttribute("role", "group"); bar.setAttribute("aria-label", "Rain and snow radar");
-  bar.innerHTML = `<div class="cl-row"><button type="button" id="rdPlay" aria-label="Play the last 3 hours">▶</button>
-<input type="range" id="rdFrame" min="0" max="30" step="1" value="30" aria-label="Radar time">
+  bar.innerHTML = `<div class="cl-row"><button type="button" id="rdPlay" aria-label="Play">▶</button>
+<input type="range" id="rdFrame" min="0" max="30" step="1" value="30" aria-label="Radar and forecast time">
 <span class="cl-when" id="rdWhen">Latest</span>
-<span class="rd-kind" role="group" aria-label="Rain or snow"><button type="button" data-k="rain" aria-pressed="false">Rain</button><button type="button" data-k="snow" aria-pressed="false">Snow</button></span>
 <button type="button" id="rdClose" aria-label="Turn radar off">✕</button></div>
+<div class="rd-jump"><span class="rd-kind" role="group" aria-label="Rain or snow"><button type="button" data-k="rain" aria-pressed="false">Rain</button><button type="button" data-k="snow" aria-pressed="false">Snow</button></span><span class="rd-sec" role="group" aria-label="Radar or forecast"><button type="button" data-j="radar" aria-pressed="true">Radar</button><button type="button" data-j="fc" id="rdJumpFc" aria-pressed="false">Next 3 days</button><button type="button" data-j="total" id="rdJumpTot" aria-pressed="false">3-day total</button></span></div>
 <p class="cl-here" id="rdHere" aria-live="polite"></p>
 <div class="cl-key" id="rdKey"></div>`;
   wrap.append(bar);
@@ -152,32 +206,73 @@
     rain: [["#5ab4ff", "Light"], ["#00c800", "Moderate"], ["#ffd700", "Heavy"], ["#ff1e00", "Very heavy"], ["#a000c8", "Hail or downpour"]],
     snow: [["#5ab4ff", "Light"], ["#00c800", "Moderate"], ["#ffd700", "Heavy"], ["#ff1e00", "Very heavy"], ["#a000c8", "Extreme"]],
   };
+  // The forecast's colours (Environment Canada's model maps): amount fallen in 3 hours, or in the 3-day total
+  const FC_KEYS = {
+    rain: [["#0000d2", "Under 1 mm"], ["#0054fd", "1-5 mm"], ["#00fcfe", "5-10 mm"], ["#a9fd55", "10-20 mm"], ["#fefe00", "20-30 mm"], ["#fd0000", "30+ mm"]],
+    snow: [["#0009dc", "Under 1 cm"], ["#00a5fd", "1-2.5 cm"], ["#25f2d8", "2.5-5 cm"], ["#b8fd45", "5-10 cm"], ["#fda800", "10-20 cm"], ["#fd2c00", "20+ cm"]],
+  };
+  let keyFor = "";
   function syncKind() {
     bar.querySelectorAll(".rd-kind button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === kind)));
-    $("rdKey").innerHTML = KEYS[kind].map(([c, w]) => `<span><i style="background:${c}"></i>${w}</span>`).join("");
+    const s = secOf(frame), k = `${kind},${s === "radar" ? "r" : "f"}`;
+    bar.querySelectorAll(".rd-sec button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.j === s)));
+    $("rdJumpTot").hidden = !fcN();
+    whenEl.classList.toggle("fc", s !== "radar");
+    if (k === keyFor) return;
+    keyFor = k;
+    $("rdKey").innerHTML = (s === "radar" ? KEYS : FC_KEYS)[kind].map(([c, w]) => `<span><i style="background:${c}"></i>${w}</span>`).join("");
   }
   bar.querySelector(".rd-kind").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-k]");
     if (!b || b.dataset.k === kind) return;
-    kind = b.dataset.k; store.set("radarKind", kind); syncKind();
-    shownUrl = ""; span = null;
-    getSpan().then(() => { setFrame(frames()); }, (er) => { note = `Couldn't load the radar (${er.message}).`; here(); });
+    const was = secOf(frame), wasT = timeOf(frame);
+    kind = b.dataset.k; store.set("radarKind", kind); keyFor = "";
+    shownUrl = ""; span = null; fc = null; syncKind();
+    getSpan().then(() => { setFrame(frames()); loadFc().then(() => { if (was !== "radar") goTo(was, wasT); }); },
+      (er) => { note = `Couldn't load the radar (${er.message}).`; here(); });
+  });
+  // The forecast's times come in next to the radar's; the slider grows to the right of Latest.
+  function loadFc(force) {
+    return getFc(force).then(() => { if (span) setFrame(frame); else syncKind(); }, () => { syncKind(); });
+  }
+  // Back to the same part of the slider (and the same time, if it's still there) after new radar or forecast times
+  function goTo(sec, t) {
+    if (sec === "radar" || !fcN()) return setFrame(frames());
+    if (sec === "total") return setFrame(lastF());
+    const i = fc.times.indexOf(t);
+    setFrame(frames() + 1 + (i >= 0 ? i : 0));
+  }
+  bar.querySelector(".rd-sec").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-j]");
+    if (!b) return;
+    stop();
+    const j = b.dataset.j;
+    if (j === "radar") return setFrame(frames());
+    if (!fcN()) { $("rdHere").textContent = "Loading the forecast…"; return loadFc(true).then(() => { if (fcN()) setFrame(j === "fc" ? frames() + 1 : lastF()); else $("rdHere").textContent = "Couldn't load the forecast, try again soon."; }); }
+    setFrame(j === "fc" ? frames() + 1 : lastF());
   });
   function setFrame(f, from) {
-    frame = clamp(Math.round(f), 0, frames());
-    slider.max = String(frames());
+    frame = clamp(Math.round(f), 0, lastF());
+    slider.max = String(lastF());
     if (from !== "slider") slider.value = String(frame);
     whenEl.textContent = label(frame);
+    syncKind();
     draw();
   }
   slider.addEventListener("input", () => setFrame(+slider.value, "slider"));
   let playing = 0;
-  function stop() { clearInterval(playing); playing = 0; playBtn.textContent = "▶"; playBtn.setAttribute("aria-label", "Play the last 3 hours"); }
+  // ▶ plays the part you're in: the last 3 hours of radar, or the next 3 days of forecast
+  let playFc = false;
+  const playEnd = () => (playFc ? frames() + fcN() : frames());
+  function stop() { clearInterval(playing); playing = 0; playBtn.textContent = "▶"; playBtn.setAttribute("aria-label", "Play"); }
   playBtn.addEventListener("click", () => {
     if (playing) return stop();
-    if (frame >= frames()) setFrame(0);
+    const s = secOf(frame);
+    playFc = fcN() > 0 && s !== "radar";
+    if (playFc && (s === "total" || frame >= frames() + fcN())) setFrame(frames() + 1);
+    else if (!playFc && frame >= frames()) setFrame(0);
     playBtn.textContent = "❚❚"; playBtn.setAttribute("aria-label", "Pause");
-    playing = setInterval(() => { if (frame >= frames()) stop(); else setFrame(frame + 1); }, is3d() ? 1000 : 450);
+    playing = setInterval(() => { if (frame >= playEnd()) stop(); else setFrame(frame + 1); }, is3d() ? 1000 : playFc ? 700 : 450);
   });
   $("rdClose").addEventListener("click", () => btn.click());
   // Clouds or smoke on too: their bar sits at the bottom, this one just above it.
@@ -202,12 +297,13 @@
   };
   const wordOf = (v) => RATE[kind].find(([max]) => v < max)[1];
   const cache = new Map();
-  function rateAt(lat, lon, f) {
-    const key = `${kind},${lat.toFixed(3)},${lon.toFixed(3)},${frameT(f)}`;
+  const rateAt = (lat, lon, f) => valAt(layer(), lat, lon, frameT(f));
+  function valAt(lay, lat, lon, t) {
+    const key = `${lay},${lat.toFixed(3)},${lon.toFixed(3)},${t}`;
     if (cache.has(key)) return cache.get(key);
     const d = 0.01;
-    const p = fetch(`${GEOMET}?service=WMS&version=1.3.0&request=GetFeatureInfo&layers=${layer()}&query_layers=${layer()}&crs=EPSG:4326`
-      + `&bbox=${(lat - d).toFixed(4)},${(lon - d).toFixed(4)},${(lat + d).toFixed(4)},${(lon + d).toFixed(4)}&width=3&height=3&i=1&j=1&info_format=application/json&time=${iso(frameT(f))}`)
+    const p = fetch(`${GEOMET}?service=WMS&version=1.3.0&request=GetFeatureInfo&layers=${lay}&query_layers=${lay}&crs=EPSG:4326`
+      + `&bbox=${(lat - d).toFixed(4)},${(lon - d).toFixed(4)},${(lat + d).toFixed(4)},${(lon + d).toFixed(4)}&width=3&height=3&i=1&j=1&info_format=application/json&time=${iso(t)}`)
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((j) => { const pr = (j.features || [])[0] && j.features[0].properties; const v = pr ? +pr.value : NaN; return Number.isFinite(v) ? Math.max(0, v) : NaN; });
     p.catch(() => cache.delete(key));
@@ -215,11 +311,37 @@
     if (cache.size > 300) cache.delete(cache.keys().next().value);
     return p;
   }
+  // Forecast at the map centre: rain AND snow (whichever the map shows), for the 3 hours or the whole 3 days.
+  // The model leaves snow out where none falls, so "nothing" reads as 0 there.
+  const z = (p) => p.then((v) => (Number.isNaN(v) ? 0 : v));
+  const amt = (v, u) => `${v < 1 ? v.toFixed(1) : Math.round(v)} ${u}`;
+  function fcHere(el, c, f, n) {
+    const s = secOf(f), t = fcTime(f), get = (k) => {
+      if (s === "fc") return z(valAt(FC[k], c.lat, c.lng, t));
+      // Total from now: (total since the run at the end) - (total since the run at the first frame) + the first frame
+      const t0 = fc.times[0];
+      return Promise.all([z(valAt(FC_TOTAL[k], c.lat, c.lng, fc.end)), z(valAt(FC_TOTAL[k], c.lat, c.lng, t0)), z(valAt(FC[k], c.lat, c.lng, t0))])
+        .then(([a, b, d]) => Math.max(0, a - b + d));
+    };
+    Promise.all([get("rain"), get("snow")]).then(([r, sn]) => {
+      if (n !== hereN) return;
+      const when = s === "fc" ? `${dayTime(t - FC_STEP_S)} to ${dayTime(t).replace(/^\S+ /, "")}` : `Next 3 days, to ${dayTime(fc.end)}`;
+      const bits = [];
+      if (r >= 0.1) bits.push(`${amt(r, "mm")} rain`);
+      if (sn >= 0.1) bits.push(`${amt(sn, "cm")} snow`);
+      el.textContent = `Forecast, ${when}, map centre: ${bits.length ? bits.join(", ") : "dry"}.`;
+      if (bits.length === 1 && (kind === "rain" ? sn >= 0.1 : r >= 0.1)) el.textContent += ` Tap ${kind === "rain" ? "Snow" : "Rain"} to see it on the map.`;
+    }, () => { if (n === hereN) el.textContent = "Couldn't read the forecast at the map centre, try again soon."; });
+  }
   let note = "", hereT = 0, hereN = 0;
   function here() {
     const el = $("rdHere");
     if (!span) { el.textContent = note || "Loading the radar…"; return; }
     clearTimeout(hereT);
+    if (secOf(frame) !== "radar") {
+      hereT = setTimeout(() => { if (note) { el.textContent = note; note = ""; return; } fcHere(el, map.getCenter(), frame, ++hereN); }, playing ? 0 : 300);
+      return;
+    }
     hereT = setTimeout(() => {
       const c = map.getCenter(), f = frame, n = ++hereN, unit = kind === "rain" ? "mm/h" : "cm/h";
       rateAt(c.lat, c.lng, f).then((v) => {
@@ -236,7 +358,7 @@
   // ---------- the button ----------
   const btn = document.createElement("button");
   btn.id = "radarBtn"; btn.type = "button"; btn.setAttribute("aria-pressed", "false");
-  btn.title = "Rain and snow radar: where it's falling now and the last 3 hours (Environment Canada), on the flat and 3D maps";
+  btn.title = "Rain and snow radar and forecast: where it's falling now, the last 3 hours and the next 3 days (Environment Canada), on the flat and 3D maps";
   btn.textContent = "🌧 Radar";
   const list = document.querySelector("#layersMenu .lm-overlays");
   const before = $("cloudBtn");
@@ -250,7 +372,7 @@
       place();
       note = "";
       here();
-      getSpan(true).then(() => { note = ""; setFrame(frames()); }, (e) => { note = `Couldn't load the radar (${e.message}).`; here(); });
+      getSpan(true).then(() => { note = ""; setFrame(frames()); loadFc(); }, (e) => { note = `Couldn't load the radar (${e.message}).`; here(); });
     } else {
       stop();
       place();
@@ -262,14 +384,17 @@
   btn.addEventListener("click", () => { on = !on; store.set("radar", on); apply(); });
   let moveT = 0;
   map.on("moveend", () => { if (!on) return; clearTimeout(moveT); moveT = setTimeout(draw, 400); });
-  // New pictures every 6 minutes: while it shows the latest, it moves on with them.
+  // New pictures every 6 minutes: while it shows the latest, it moves on with them. On a forecast frame it stays on
+  // the same forecast time (the radar part of the slider may have grown or shrunk; new model runs every 6 hours).
   setInterval(() => {
     if (!on || playing || document.visibilityState !== "visible") return;
-    const atEnd = frame >= frames();
-    getSpan(true).then(() => setFrame(atEnd ? frames() : frame), () => {});
+    const atEnd = frame === frames(), sec = secOf(frame), t = timeOf(frame), f = frame;
+    getSpan(true).then(() => getFc().catch(() => {})).then(() => {
+      if (sec !== "radar") goTo(sec, t); else setFrame(atEnd ? frames() : f);
+    }, () => {});
   }, STEP_S * 1000);
   document.addEventListener("visibilitychange", () => {
-    if (on && document.visibilityState === "visible") getSpan(true).then(() => setFrame(frames()), () => {});
+    if (on && document.visibilityState === "visible") getSpan(true).then(() => getFc(true).catch(() => {})).then(() => setFrame(frames()), () => {});
   });
   apply();
 

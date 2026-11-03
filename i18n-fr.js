@@ -1782,7 +1782,19 @@
     "Checking the code…":"Vérification du code…",
     "Type the code from the email (6 numbers or more).":"Entrez le code reçu par courriel (6 chiffres ou plus).",
     "Too many emails just now. Wait a minute and try again.":"Trop de courriels envoyés. Attendez une minute et réessayez.",
-    "MTB: unofficial trails (the ones only approved riders see dotted) are no longer shown to everyone else.":"Vélo de montagne : les sentiers non officiels (ceux que seuls les cyclistes approuvés voient en pointillé) ne sont plus affichés aux autres."};
+    "MTB: unofficial trails (the ones only approved riders see dotted) are no longer shown to everyone else.":"Vélo de montagne : les sentiers non officiels (ceux que seuls les cyclistes approuvés voient en pointillé) ne sont plus affichés aux autres.",
+    "Radar and forecast time":"Heure du radar et de la prévision",
+    "Radar or forecast":"Radar ou prévision",
+    "Radar now":"Radar maintenant",
+    "Next 3 days":"3 prochains jours",
+    "3-day total":"Total sur 3 jours",
+    "Play":"Lire",
+    "Couldn't load the forecast, try again soon.":"Impossible de charger la prévision, réessayez bientôt.",
+    "Couldn't read the forecast at the map centre, try again soon.":"Impossible de lire la prévision au centre de la carte, réessayez bientôt.",
+    "Under 1 mm":"Moins de 1 mm",
+    "Under 1 cm":"Moins de 1 cm",
+    "Rain and snow radar and forecast: where it's falling now, the last 3 hours and the next 3 days (Environment Canada), on the flat and 3D maps":"Radar et prévision de pluie et neige : où il en tombe maintenant, les 3 dernières heures et les 3 prochains jours (Environnement Canada), sur les cartes plate et 3D",
+    "Radar: slide past Latest (or tap Next 3 days) to see where rain or snow is forecast over the next 3 days, plus a 3-day total.":"Radar : glissez après « Dernière » (ou touchez 3 prochains jours) pour voir où la pluie ou la neige est prévue pour les 3 prochains jours, avec un total sur 3 jours."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
