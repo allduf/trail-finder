@@ -673,7 +673,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         ski.parking = [...(ski.parking || []), ...(t.parking || [])];
         if (t.lifts && t.lifts.length && window.tfLifts) window.tfLifts.add(t);
         clearTimeout(canRedraw);
-        canRedraw = setTimeout(() => { if (sport === "ski") { drawSki(); renderList(); } }, 50);
+        canRedraw = setTimeout(() => { if (sport === "ski") { drawSki(); renderList(); } window.dispatchEvent(new CustomEvent("tf:ski-more")); }, 50);   // freeride.js
       }).catch(() => canGot.delete(k));
       canGot.set(k, p);
       return p;
@@ -3695,6 +3695,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     },
     // slackcountry.js: today's danger at a line's top, for its go/caution light (null until the forecast is loaded).
     dangerAt: (lat, lon, lo, hi) => { if (!avy && !example) loadAvy(); return dangerAt(lat, lon, lo, hi); },
+    // freeride.js: every route loaded so far (home region and the Canada squares), loading the squares in bounds;
+    // open one route's card.
+    routes: () => (ski && ski.routes) || [],
+    loadIn: async (b) => { await loadSki(); await loadCanIdx(); await loadCanada(b); return (ski && ski.routes) || []; },
+    open: (r, fly) => { if (sport !== "ski") setSport("ski"); select(r, fly); const p = r.lines[0][Math.floor(r.lines[0].length / 2)]; cardInView($("skDetail"), p[0], p[1]); },
     slopeAt: async (lat, lon) => { const p = [{ lat, lon }]; await T.heights(p, 0, dem); return { slope: p[0].slope, e: p[0].e }; },
     // The 🔔 (notify.js): open a watched tour (by its route id) or a spot (a forecast area) in Skiing.
     show: async (k, c) => {
@@ -3746,7 +3751,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const tiles = [];
     for (let z = 10; z <= OFFLINE_DEM_Z; z++) for (let x = tx(box[1], z); x <= tx(box[3], z); x++) for (let y = ty(box[2], z); y <= ty(box[0], z); y++) tiles.push(DEM(z, x, y));
     const can = Object.entries(canIdx?.tiles || {}).filter(([, t]) => t.box[0] <= box[2] && t.box[2] >= box[0] && t.box[1] <= box[3] && t.box[3] >= box[1]).map(([k]) => k);
-    const data = [...["ski", "ski-terrain", "avalanche", "avalanche-reports", "snow-stations", "snowmobile-clubs", "grooming", "ski-heat", "rogers-pass", "rogers-status"].map((n) => "data/" + n), ...CAN_DIRS.map((d) => d + "index"), ...can].map((n) => new URL(`${n}.json`, location.href).href);
+    const data = [...["ski", "ski-terrain", "avalanche", "avalanche-reports", "snow-stations", "snowmobile-clubs", "grooming", "ski-heat", "rogers-pass", "rogers-status", "freeride-lines"].map((n) => "data/" + n), ...CAN_DIRS.map((d) => d + "index"), ...can].map((n) => new URL(`${n}.json`, location.href).href);
     return { data, tiles };
   };
 
@@ -3756,11 +3761,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // in this order (the order they used to have in index.html), after the page's own scripts, and each one draws
   // itself for the sport that's on when it arrives. Same ?v= as this script, for the same cache rule.
   const jsVer = (document.currentScript && new URL(document.currentScript.src).search) || "";
-  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "japan-snow", "moto", "hike"];
+  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "japan-snow", "moto", "hike"];
   const NEEDS = {
     hunt: ["crownland", "hunting", "compass"],
     fish: ["crownland", "fish-bait", "fish-route", "fishing"],
-    ski: ["webcams", "lifts", "rogers", "slackcountry", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "japan-snow"],
+    ski: ["webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "japan-snow"],
     hike: ["hike"],
     moto: ["crownland", "hunting", "moto"],   // Moto's "Can I ride here" reads Hunting's parks and closures (window.tfHunt)
   };
