@@ -59,7 +59,7 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
 
   // ---------- data ----------
   let loading = null, doc = {}, areas = [];
-  const load = () => (loading = loading || fetch("data/ski-areas.json?v=1850").then((r) => r.json()).then((d) => {
+  const load = () => (loading = loading || fetch("data/ski-areas.json?v=1860").then((r) => r.json()).then((d) => {
     doc = d;
     areas = (d.areas || []).filter((a) => isFinite(a.lat) && isFinite(a.lon));
     return d;
@@ -214,7 +214,7 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
     if (!q) return [];
     return areas.filter((a) => (a.prov !== "JP" || inJapanNow()) && [a.name, a.region, PROV[a.prov], ...(a.huts || []).map((h) => h.name)].join(" ").toLowerCase().includes(q))
       .sort((x, y) => !x.name.toLowerCase().includes(q) - !y.name.toLowerCase().includes(q))
-      .map((a) => ({ name: a.name, sub: ["Backcountry area", a.region, PROV[a.prov]].filter(Boolean).join(" · "), ic: "⛰", lat: a.lat, lon: a.lon, bb: null, zoom: a.kind === "expedition" ? 9 : 12, area: a.id }));
+      .map((a) => ({ name: a.name, sub: ["Backcountry area", a.region, PROV[a.prov]].filter(Boolean).join(" · "), ic: "⛰", lat: a.lat, lon: a.lon, bb: null, zoom: a.kind === "expedition" ? 10 : 13, area: a.id }));
   };
   window.tfSkiAreas = { open: (id) => load().then(() => { const a = areas.find((x) => x.id === id); if (a) open(a); }), list: () => load().then(openList), load, match };
   sync();

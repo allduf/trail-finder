@@ -127,11 +127,15 @@ ul.ps-hits:empty { display: none; }
   }
 
   // ---------- jump the map ----------
-  // A town, range or region fits its outline; a peak or a point zooms in around it.
+  // A town, range or region fits its outline; a peak or a point zooms in around it. Close in (alex 2026-11-03:
+  // "Bromont expérience" landed with all of Granby in view): a resort or a peak fills the screen, a town shows its
+  // streets. The 3D map sits one step further out than the flat map and is tilted, so in 3D one step closer still.
   function go(p, o = {}) {
-    const maxZoom = o.maxZoom || 13;
-    if (p.bb && (p.bb[1] - p.bb[0] > 0.01 || p.bb[3] - p.bb[2] > 0.01)) map.fitBounds([[p.bb[0], p.bb[2]], [p.bb[1], p.bb[3]]], { maxZoom, padding: [10, 10] });
-    else map.setView([p.lat, p.lon], Math.max(Math.min(map.getZoom(), maxZoom), o.zoom || p.zoom || 12));
+    const d3 = document.querySelector("#map.is3d") ? 1 : 0, maxZoom = (o.maxZoom || 15) + d3;
+    if (p.bb && (p.bb[1] - p.bb[0] > 0.004 || p.bb[3] - p.bb[2] > 0.004)) {
+      const b = L.latLngBounds([p.bb[0], p.bb[2]], [p.bb[1], p.bb[3]]);
+      map.setView(b.getCenter(), Math.min(maxZoom, map.getBoundsZoom(b, false, L.point(20, 20)) + d3));
+    } else map.setView([p.lat, p.lon], Math.max(Math.min(map.getZoom(), maxZoom), Math.min(maxZoom, (o.zoom || p.zoom || 14) + d3)));
     if (o.sheet !== false && window.tfSnapTo) window.tfSnapTo(o.sheet || "half");
   }
 
@@ -158,7 +162,7 @@ ul.ps-hits:empty { display: none; }
     // Exact names first, then the nearest of the bigger towns: a town near the map beats a big one far away.
     return out.sort((a, b) => b[1] - a[1] || (a[2] - b[2]) / 2 + Math.log10(1 + b[0].pop) - Math.log10(1 + a[0].pop)).slice(0, n).map(([p]) => {
       const kd = PKIND[p.kind] || PKIND.l;
-      return { name: p.name, sub: [kd[0], p.prov].filter(Boolean).join(" · "), kind: kd[0], ic: kd[1], lat: p.lat, lon: p.lon, bb: null, zoom: p.kind === "t" ? 12 : 13, ca: true };
+      return { name: p.name, sub: [kd[0], p.prov].filter(Boolean).join(" · "), kind: kd[0], ic: kd[1], lat: p.lat, lon: p.lon, bb: null, zoom: p.kind === "t" ? 13 : 14, ca: true };
     });
   }
 

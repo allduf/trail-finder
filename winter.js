@@ -1148,7 +1148,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
     fetch("data/ski-lifts.json?v=690").then((r) => (r.ok ? r.json() : null)).then((d) => {
-      resorts = Object.entries((d && d.resorts) || {}).map(([id, r]) => ({ id, name: r.name, lat: r.lat, lon: r.lon, live: r.live }));
+      // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
+      const bbs = {};
+      for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
+        const b = bbs[l.r] || (bbs[l.r] = [la, la, lo, lo]);
+        b[0] = Math.min(b[0], la); b[1] = Math.max(b[1], la); b[2] = Math.min(b[2], lo); b[3] = Math.max(b[3], lo);
+      }
+      const pad = (b) => b && [b[0] - 0.006, b[1] + 0.006, b[2] - 0.008, b[3] + 0.008];
+      resorts = Object.entries((d && d.resorts) || {}).map(([id, r]) => ({ id, name: r.name, lat: r.lat, lon: r.lon, live: r.live, bb: pad(bbs[id]) }));
       renderPlaces();
     }).catch(() => {});
     fetch("data/slackcountry.json").then((r) => (r.ok ? r.json() : null)).then((d) => {
@@ -1160,7 +1167,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // 4 the whole name, 3 its start, 2 the start of a word in it, 1 anywhere in it (3 letters or more); 0 no match.
   const score = (name, q) => {
     const n = plain(name);
-    return !n || !q ? 0 : n === q ? 4 : n.startsWith(q) ? 3 : n.includes(" " + q) ? 2 : q.length >= 3 && n.includes(q) ? 1 : 0;
+    if (!n || !q) return 0;
+    if (n === q) return 4;
+    if (n.startsWith(q)) return 3;
+    if (n.includes(" " + q)) return 2;
+    // Each word typed starts a word of the name: "bromont exp" finds "Bromont, montagne d'expériences".
+    const nw = n.split(" "), qw = q.split(" ");
+    if (qw.length > 1 && qw.every((w) => nw.some((x) => x.startsWith(w)))) return nw[0].startsWith(qw[0]) ? 3 : 2;
+    return q.length >= 3 && n.includes(q) ? 1 : 0;
   };
   const kmAway = (m) => (m < 950 ? `${Math.max(100, Math.round(m / 100) * 100)} m` : `${m < 9500 ? (m / 1000).toFixed(1) : Math.round(m / 1000)} km`);
   const ROUTE_IC = { tour: "⛷", access: "🥾", nordic: "🎿", snowshoe: "❄", snowmobile: "🛷", resort: "🚡", offpiste: "◆", other: "❄" };
@@ -1193,7 +1207,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     for (const r of resorts) {
       const s = score(r.name, q);
-      if (s) out.push({ name: r.name, sub: `Ski resort${r.live ? " · live lift status" : ""} · ${kmAway(ptAway(c.lat, c.lng, r))}`, ic: "🚡", s: s + 0.5, d: ptAway(c.lat, c.lng, r), lat: r.lat, lon: r.lon, zoom: 13 });
+      if (s) out.push({ name: r.name, sub: `Ski resort${r.live ? " · live lift status" : ""} · ${kmAway(ptAway(c.lat, c.lng, r))}`, ic: "🚡", s: s + 0.5, d: ptAway(c.lat, c.lng, r), lat: r.lat, lon: r.lon, bb: r.bb || null, zoom: 15 });
     }
     return out.sort((x, y) => y.s - x.s || x.d - y.d);
   }
@@ -1253,7 +1267,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       return;
     }
     $("skPlaceMsg").textContent = `Near ${p.name}: nearest the middle of the map first.`;
-    window.tfPlaceSearch.go(p, { maxZoom: 13 });
+    window.tfPlaceSearch.go(p);
     if (p.helicat && window.tfHeliCat) window.tfHeliCat.open(p.helicat);
     renderList();
     // The list of what's near the place under the box (again once the avalanche card above has filled in).

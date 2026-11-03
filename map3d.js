@@ -297,6 +297,15 @@
     // (a move while it tilts up would stop the tilt halfway: this one finishes it)
     gl.flyTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d(), duration: 1200, ...(Date.now() < tiltEnd ? { pitch: tilt } : {}) });
     setTimeout(() => syncing--, 1300);
+    gl.once("moveend", () => { groundCenter(); gl.once("idle", groundCenter); });
+  }
+  // After a long jump the camera can keep aiming at the height of the place it came from (alex 2026-11-03: searching
+  // Bromont, 300 m high, from Whistler aimed at 2,200 m): tilted 70°, it then looks kilometres past the place and the
+  // place sits at the bottom of the screen. Once the ground's heights there are in, aim at the ground itself.
+  function groundCenter() {
+    if (!gl || !gl.setCenterElevation || gl.isMoving()) return;
+    const e = gl.queryTerrainElevation(gl.getCenter());
+    if (e != null && Math.abs(e - gl.getCenterElevation()) > 30) gl.setCenterElevation(e);
   }
   function to2d() {
     if (!gl || syncing) return;
@@ -775,7 +784,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1850");
+      const w = new Worker("winter-fill.js?v=1860");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -858,7 +867,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1850" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1860" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
