@@ -56,14 +56,14 @@ const at = (img, fx, fy, ch) => {
 };
 const lum = (img, fx, fy) => 0.3 * at(img, fx, fy, 0) + 0.59 * at(img, fx, fy, 1) + 0.11 * at(img, fx, fy, 2);
 
-// fine: where the AI-sharpened zoom-15 photos are (2.5 m, sharpen.py; Sea to Sky), their site. Their colours are used
+// fine: where the AI-sharpened zoom-15 photos are (2.5 m, sharpen.py), their site (?r=2: same as SHARP_REV in map3d.js). Their colours are used
 // instead of the 10 m zoom-14 ones. Esri's real detail is still added against its 10 m average: against its 2.5 m one
 // (tried first) the trees lost their texture and the guessed shapes looked smudgy at zoom 15.
 async function draw({ id, z, x, y, base, site = "../trail-finder-winter/", fine = null }) {
   const keep = (p) => p.catch(() => null);
   const dz = Math.min(z - 1, 15);
   const coarse = () => under(14, z, x, y, (a, b, c) => new URL(`${site}${a}/${b}/${c}.webp`, base).href, site.includes("winter2") ? "w2" : "w");
-  const colour = fine ? under(15, z, x, y, (a, b, c) => new URL(`${fine}${a}/${b}/${c}.webp`, base).href, "s").catch(() => coarse()) : coarse();
+  const colour = fine ? under(15, z, x, y, (a, b, c) => new URL(`${fine}${a}/${b}/${c}.webp?r=2`, base).href, "s").catch(() => coarse()) : coarse();
   const [win, sharp, soft, dem] = await Promise.all([
     colour,
     keep(pixels(ESRI(z, x, y))),

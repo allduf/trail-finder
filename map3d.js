@@ -744,7 +744,8 @@
   // 2.5 m) by ESA's free SEN2SR model (scripts/winter-photos/sharpen.py), zoom 15 only, on the second site with their
   // own list of zoom-11 squares (sharp.json). SHARP_BOUNDS: the box they're in (Sea to Sky; Revelstoke, Rogers Pass and
   // Kicking Horse), so nothing is asked for elsewhere; squares in the box but not in sharp.json are never fetched.
-  const SHARP = WINTERS[1], SHARP_BOUNDS = [-123.58, 49.6, -116.89, 51.51];
+  // SHARP_REV: bumped when sharpened squares are rebuilt, so phones don't keep last month's copies (kept 30 days, sw.js).
+  const SHARP = WINTERS[1], SHARP_REV = "?r=2", SHARP_BOUNDS = [-123.58, 49.6, -116.89, 51.51];
   let sharpBlocks = null;
   const loadSharp = () => sharpBlocks || (sharpBlocks = fetch(SHARP + "sharp.json").then((r) => r.ok ? r.json() : [])
     .then((a) => new Set(a.map(([x, y]) => x + "/" + y))).catch(() => new Set()));
@@ -785,7 +786,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1940");
+      const w = new Worker("winter-fill.js?v=1960");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -868,7 +869,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1940" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1960" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -888,7 +889,7 @@
       // Straight from the site, not through the Winter workers (winter-fill.js): four of these per Winter tile filled
       // the same two workers and held the Winter photos back too (alex 2026-11-03: "i like the quality but it way
       // longer to load"). The odd cloudy hole stays see-through, with the filled Winter photo under it.
-      const r = await fetch(`${SHARP}${z}/${x}/${y}.webp`, { signal: abort.signal }).catch((e) => { if (abort.signal.aborted) throw e; return null; });
+      const r = await fetch(`${SHARP}${z}/${x}/${y}.webp${SHARP_REV}`, { signal: abort.signal }).catch((e) => { if (abort.signal.aborted) throw e; return null; });
       return r && r.ok ? { data: await r.arrayBuffer() } : noTile();
     });
   }

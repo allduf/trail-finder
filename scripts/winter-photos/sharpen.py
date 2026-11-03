@@ -16,7 +16,7 @@ import rasterio
 from rasterio.warp import reproject, transform_bounds, Resampling
 from rasterio.transform import from_bounds, from_origin
 from rasterio.windows import from_bounds as window_from
-from PIL import Image
+from PIL import Image, ImageFilter
 
 here = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, here)
@@ -24,10 +24,20 @@ os.environ.setdefault("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR")
 os.environ.setdefault("GDAL_HTTP_MULTIRANGE", "YES")
 os.environ.setdefault("GDAL_HTTP_MERGE_CONSECUTIVE_RANGES", "YES")
 from build import merc, tone, scenes, S2, CLOUDY, CLOUD_SWIR
+if os.environ.get("SCENES"):   # a longer list of passes for cloudy places (scenes.py OUT=...): more chances of a clear look
+    scenes = sorted((s for v in json.load(open(os.environ["SCENES"])).values() for s in v), key=lambda s: s["cloud"])
 
 W = 4096                     # a zoom-11 block at zoom 15
 MODEL = os.environ.get("SR_MODEL", os.path.join(here, "sr-model"))
 MLM = "https://huggingface.co/tacofoundation/sen2sr/resolve/main/SEN2SRLite/NonReference_RGBN_x4/mlm.json"
+
+def grow(m, r):
+    """The mask m made r pixels bigger on every side."""
+    out = m.copy()
+    for dy in range(-r, r + 1):
+        for dx in range(-r, r + 1):
+            if dx * dx + dy * dy <= r * r: out |= np.roll(np.roll(m, dy, 0), dx, 1)
+    return out
 
 def composite(bx, by):
     """RGBN reflectance (4, h, w) on a 10 m UTM grid around the block, how many clear passes each pixel had, the grid."""
@@ -56,7 +66,7 @@ def composite(bx, by):
                               resampling=Resampling.nearest if name in ("SCL",) or d.res[0] == 10 and d.crs == crs else Resampling.bilinear)
                     bands.append(o)
             rgbn, scl, swir = np.stack(bands[:4]) / 10000, bands[4], bands[5] / 10000
-            ok = (rgbn[:3].min(0) > 0) & ~np.isin(scl, CLOUDY)
+            ok = (rgbn[:3].min(0) > 0) & ~grow(np.isin(scl, CLOUDY) & (scl > 0), 3)   # 30 m off clouds: their hazy edges
             fog = ok & (rgbn[:3].mean(0) > 0.25) & (swir > CLOUD_SWIR)
             if ok.any(): passes.append((rgbn, ok, fog))
         except Exception as ex:
@@ -96,11 +106,13 @@ def block(bx, by):
     rgb = np.zeros((3, W, W), np.float32)
     for k in range(3):
         reproject(sr[k], rgb[k], src_transform=fine, src_crs=crs, dst_transform=dst_t, dst_crs="EPSG:3857", resampling=Resampling.bilinear)
-    seen = np.zeros((W, W), np.uint8)
-    reproject((n > 0).astype(np.uint8), seen, src_transform=grid, src_crs=crs, dst_transform=dst_t, dst_crs="EPSG:3857", resampling=Resampling.nearest)
+    seen = np.zeros((W, W), np.float32)
+    reproject((n > 0).astype(np.float32), seen, src_transform=grid, src_crs=crs, dst_transform=dst_t, dst_crs="EPSG:3857", resampling=Resampling.bilinear)
+    # Soft edges (~20 m) where the clear photo stops: no saw-tooth of 10 m squares against the filled-in Winter below.
+    seen = np.asarray(Image.fromarray((seen * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(6)), np.float32)
     img = np.zeros((W, W, 4), np.uint8)
     img[..., :3] = tone(rgb).transpose(1, 2, 0)
-    img[..., 3] = np.where(seen > 0, 255, 0)
+    img[..., 3] = np.clip((seen - 40) * 255 / 175, 0, 255).astype(np.uint8)
     return img
 
 def one(args):
