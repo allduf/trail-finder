@@ -645,7 +645,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const CAN_MIN_Z = 5;
   // Japan (jp/w/, scripts/build-japan.mjs, weekly; alex 2026-10-30, Skiing only) comes the same way, with its ski lifts.
   // Hokkaido Wilds' ski tours (data/ski-japan-hw/, scripts/hokkaido-wilds.py, hand-run; alex 2026-11-01) too.
-  const CAN_DIRS = ["data/ski-canada/", "ca/w/", "jp/w/", "data/ski-japan-hw/"];
+  // Hand-kept routes no open source has (data/ski-hand/, alex 2026-11-03: Joffre Shoulder) too.
+  const CAN_DIRS = ["data/ski-canada/", "ca/w/", "jp/w/", "data/ski-japan-hw/", "data/ski-hand/"];
   let canIdx = null, canIdxLoading = null, canRedraw = 0;
   const canGot = new Map();   // square -> its loading promise
   const loadCanIdx = () => canIdx ? Promise.resolve(canIdx) : canIdxLoading || (canIdxLoading = Promise.all(CAN_DIRS.map((dir) => fetch(dir + "index.json", { cache: "no-cache" })
@@ -1425,6 +1426,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     "hw:about": (v) => ["About", v], "hw:difficulty": (v) => ["Difficulty", v], "hw:distance": (v) => ["Distance", v], "hw:time": (v) => ["Time", v],
     "hw:ascent": (v) => ["Climb", v], "hw:high": (v) => ["Highest point", v], "hw:season": (v) => ["Best season", v], "hw:aspect": (v) => ["Main aspect", v],
     "hw:trailhead": (v) => ["Getting there", v], "hw:parking": (v) => ["Parking", v], "hw:safety": (v) => ["Safety", v], "hw:by": null,
+    // Hand-kept routes (data/ski-hand/)
+    "hand:about": (v) => ["About", v], "hand:climb": (v) => ["Climb", v], "hand:high": (v) => ["Highest point", v], "hand:aspect": (v) => ["Main aspect", v],
+    "hand:start": (v) => ["Getting there", v], "hand:safety": (v) => ["Safety", v], "hand:rules": (v) => ["Rules", v], "hand:line": (v) => ["The line", v],
   };
   const FR_DIFF = { Facile: "Easy", "Débutant": "Beginner", "Intermédiaire": "Intermediate", Difficile: "Difficult", "Très difficile": "Very difficult", Polyvalent: "Mixed" };
   const FR_USE = { Raquette: "snowshoeing", "Ski nordique": "backcountry nordic skiing (not groomed)", "Randonnée alpine": "alpine ski touring", "Accès ski hors-piste": "access to off-piste skiing",
@@ -1815,6 +1819,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ? `${r.facts && r.facts.src ? `<a href="${esc(r.facts.src)}" target="_blank" rel="noopener">${esc(r.tags.operator || "the hut's club")}</a>` : esc(r.tags.operator || "the hut's club")} (not on OpenStreetMap yet)`
       : r.src === "hw"
       ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a> by ${esc(r.tags["hw:by"] || "Rob Thomson")} (<a href="https://hokkaidowilds.org/" target="_blank" rel="noopener">hokkaidowilds.org</a>, CC BY-SA 4.0): full guide, photos and topo map there`
+      : r.src === "hand"
+      ? `trip reports and guidebooks${(r.links || []).length ? ": " + r.links.map((l) => `<a href="${esc(l.u)}" target="_blank" rel="noopener">${esc(l.t)}</a>`).join(", ") : ""} (not on OpenStreetMap yet)`
       : r.src === "pc"
       ? `Parks Canada trails (<a href="https://open.canada.ca/data/en/dataset/64a90e8d-5bc0-4027-8645-b5881b4068d4" target="_blank" rel="noopener">open.canada.ca</a>, Open Government Licence)`
       : `<a href="https://www.openstreetmap.org/${osmType}/${r.id.slice(1)}" target="_blank" rel="noopener">OpenStreetMap</a>`;

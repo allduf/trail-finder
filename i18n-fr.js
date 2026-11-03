@@ -1673,7 +1673,10 @@
     "Freeride":"Freeride",
     "Steepest":"Pente max.",
     "Drop":"Dénivelé",
-    "Faces":"Orientation"};
+    "Faces":"Orientation",
+    "The line":"Le tracé",
+    "trip reports and guidebooks":"récits de sortie et guides",
+    "(not on OpenStreetMap yet)":"(pas encore sur OpenStreetMap)"};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
