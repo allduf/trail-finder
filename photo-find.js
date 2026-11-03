@@ -150,7 +150,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     <span class="pf-or">or drop one here${matchMedia("(pointer: fine)").matches ? ", or press Ctrl+V / ⌘V" : ""}</span>
     <input type="file" id="pfFile" accept="image/*,video/*" hidden>
   </div>
-  <details class="pf-how"><summary>A copy goes to Google to place it · How it works</summary><p>With the spot where it was taken, you get that trail. Without it, the app reads the words in it (trail names, places, hashtags, Strava or Trailforks labels) and lists the likely trails. The words are read on your device; to place the picture, a copy goes to Google's AI (Gemini) and Google's image search, which may keep it. “Yes, that's it” saves a small copy for Trail Finder to learn from (never shown in the app).</p></details>
+  <details class="pf-how"><summary>A copy goes to Google to place it · How it works</summary><p>With the spot where it was taken, you get that trail. Without it, the app reads the words in it (trail names, places, hashtags, labels from riding apps) and lists the likely trails. The words are read on your device; to place the picture, a copy goes to Google's AI (Gemini) and Google's image search, which may keep it. “Yes, that's it” saves a small copy for Trail Finder to learn from (never shown in the app).</p></details>
   <div class="pf-prev" id="pfPrev" hidden><span class="pf-tw"><span id="pfThumb"></span><button type="button" class="pf-rm" id="pfRemove" aria-label="Remove this picture to add another" title="Remove this picture" hidden>✕</button></span><div style="flex:1;min-width:0"><div class="pf-status" id="pfStatus" role="status"></div><div class="pf-bar" id="pfBar" hidden><span></span></div>
     <div class="pf-here"><button type="button" class="btn" id="pfHere" hidden>📍 I took it here, just now</button><span id="pfTip" hidden>No location in this photo. If it's yours, choose it again with its location: in the photo picker tap Options, turn on Location, then pick it. The spot finds the exact trail.</span></div></div></div>
   <ul class="pf-res" id="pfRes" role="list"></ul>
@@ -1538,7 +1538,6 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const q = encodeURIComponent(`${r.name} ${r.zone || ""} mtb`.replace(/\s+/g, " ").trim());
     return `<div class="pv" aria-label="Videos and photos of ${esc(r.name)}"><a href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener">▶ YouTube</a>` +
       `<a href="https://www.instagram.com/explore/tags/${encodeURIComponent(tagOf(r.name))}/" target="_blank" rel="noopener">Instagram</a>` +
-      `<a href="https://www.trailforks.com/search/?q=${encodeURIComponent(r.name)}" target="_blank" rel="noopener">Trailforks</a>` +
       `<a href="https://www.google.com/search?tbm=isch&q=${q}" target="_blank" rel="noopener">Photos</a></div>`;
   }
   // What the online check said about this trail, with the found photo that looks like the same place.

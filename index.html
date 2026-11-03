@@ -1516,7 +1516,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
       <li><b>☀ Where to ride today</b> (Find) shows the best spots now, with ready-made loops from a parking lot.</li>
       <li><b>📷 Which trail is this?</b> (next to Search) names the trail in a photo, screenshot or short video.</li>
       <li><b>💬 Ask in plain words</b> (Find): type what you want, like “easy loop near Squamish”.</li>
-      <li><b>Colours</b> are like Trailforks: green, blue, black, red (double black), orange (pro line). Dashed = estimated level, dotted = unofficial.</li>
+      <li><b>Colours</b>: green, blue, black, red (double black), orange (pro line). Dashed = estimated level, dotted = unofficial.</li>
     </ul>
     <h3 id="aboutSki">⛷ Skiing</h3>
     <ul class="about-quick">
@@ -2518,7 +2518,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     if (tags.name && BIKEY_NAME.test(tags.name)) { score += 1; why.push("name sounds like a bike trail"); }
     const note = [tags.description, tags.note].find((v) => v && BIKE_NOTE.test(v) && !NO_BIKE_NOTE.test(v));
     if (note) { score += 2; why.push(`the mapper's note calls it a bike trail (“${note.length > 70 ? note.slice(0, 67) + "…" : note}”)`); }
-    if (/trailforks/i.test([tags.source, tags.website, tags["website:trailforks"], tags.url].join(" "))) { score += 1; why.push("linked to Trailforks (an MTB trail map)"); }
+    if (/trailforks/i.test([tags.source, tags.website, tags["website:trailforks"], tags.url].join(" "))) { score += 1; why.push("linked to an MTB trail map site"); }
     // Wide enough for a dirt bike or quad, or motor vehicles allowed: not counted as looking like MTB.
     const motor = /^(designated|customers)$/.test(tags.bicycle || "") ? null : !isNaN(w) && w >= 2 ? `wide (${w} m)` : ["motorcycle", "motor_vehicle", "atv", "ohv", "orv"].filter((k) => MOTO_OK.test(tags[k] || "")).map((k) => `${k}=${tags[k]}`)[0];
 
@@ -4526,7 +4526,7 @@ out body;`;
       ${t.use ? `<div class="unoff-box use-box"><strong>${t.use === "moto" ? "Looks like a moto trail" : "Looks like a hiking-only trail"}</strong><ul>${t.useWhy.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
         <p class="muted">${t.use === "moto" ? "Dirt-bike, ATV and 4x4 trails" : "Hiking-only trails"} are left out of the new-trails list. This is a guess from the map tags.</p></div>` : ""}
       ${isUnoff(t) ? `<div class="unoff-box"><strong>Unofficial</strong><ul>${t.unoff.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
-        <p class="muted">This only shows what OpenStreetMap mappers tagged and what government trail lists say. It's a hint, not the trail's legal status. Check with the land manager or Trailforks before riding.</p></div>` : ""}
+        <p class="muted">This only shows what OpenStreetMap mappers tagged and what government trail lists say. It's a hint, not the trail's legal status. Check with the land manager or local trail club before riding.</p></div>` : ""}
       ${tf.alpine ? `<div class="alpine-box"><strong>${window.tfAlpine ? window.tfAlpine.icon : ""} Alpine, looks rideable</strong>
         <p>${tf.alpine.up >= 1000 ? (tf.alpine.up / 1000).toFixed(1) + " km" : Math.round(tf.alpine.up / 10) * 10 + " m"} of it is above the tree line (about ${tf.alpine.tl} m here), up to ${tf.alpine.hi} m.${tf.alpine.why ? ` From the map: ${esc(tf.alpine.why)}.` : ""}</p>
         <p class="muted">A guess from the map tags and terrain heights, not a bike rating. Expect rock, hike-a-bike and late snow, and check the area's rules: bikes may still be closed there.</p></div>` : ""}
@@ -4540,7 +4540,6 @@ out body;`;
       ${real ? `<h3>About this trail</h3><div id="trailAbout" class="muted">Looking for a description and photos…</div>` : ""}
       ${routes ? `<h3>Part of MTB route</h3><ul class="plain">${routes}</ul>` : ""}
       ${real ? `<h3>Links</h3><div class="links">
-        ${t.tags.name || t.tfName ? `<a href="https://www.trailforks.com/search/?search=${encodeURIComponent(t.tags.name || t.tfName)}" target="_blank" rel="noopener">Search on Trailforks</a>` : ""}
         ${videoLinks(t)}
         <a href="https://www.openstreetmap.org/${type}/${t.id}" target="_blank" rel="noopener">Open on OpenStreetMap</a>
         <a href="https://www.openstreetmap.org/edit?${type}=${t.id}" target="_blank" rel="noopener">Edit or fix it</a>
@@ -4656,7 +4655,6 @@ out body;`;
       </dl>
       <h3>Compare with other heatmaps</h3><div class="links">
         <a href="https://www.strava.com/maps/global-heatmap?sport=MountainBikeRide&style=dark&terrain=true&labels=true&poi=false&cPhotos=false&gColor=hot&gOpacity=100#16/${at}" target="_blank" rel="noopener">Strava heatmap (MTB)</a>
-        <a href="https://www.trailforks.com/map/?ping=${mid[0].toFixed(5)},${mid[1].toFixed(5)}" target="_blank" rel="noopener">Trailforks map</a>
         <a href="https://www.openstreetmap.org/#map=17/${at}&layers=G" target="_blank" rel="noopener">OpenStreetMap GPS traces</a>
       </div>
       ${traceLinks ? `<p class="muted">The traces: ${traceLinks}</p>` : ""}
