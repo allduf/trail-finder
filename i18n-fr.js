@@ -1683,7 +1683,8 @@
     "Taken at the hut.":"Prise au refuge.",
     "Photos nearby":"Photos aux alentours",
     "Open the hut's photos":"Ouvrir les photos du refuge",
-    "Skiing: hut cards show a photo of the hut when there is a free one online, or a link to the club's photos.":"Ski : les fiches des refuges montrent une photo du refuge quand il y en a une libre en ligne, sinon un lien vers les photos du club."};
+    "Skiing: hut cards show a photo of the hut when there is a free one online, or a link to the club's photos.":"Ski : les fiches des refuges montrent une photo du refuge quand il y en a une libre en ligne, sinon un lien vers les photos du club.",
+    "Skiing: 9 more slackcountry runs at Whistler Blackcomb (Flute back side, Oboe east, Fissile, Circle Lake, Spearhead Glacier, Phalanx, Decker Glacier, Disease Ridge, Spearhead Traverse).":"Ski : 9 descentes slackcountry de plus à Whistler Blackcomb (Flute côté arrière, Oboe est, Fissile, Circle Lake, glacier Spearhead, Phalanx, glacier Decker, Disease Ridge, traversée Spearhead)."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
@@ -1769,7 +1770,7 @@
     [/^Rated “(.+)” by (.+) \((.+)\)\.$/, function (m, r, b, n) { return "Coté « " + tw(r) + " » par " + b + " (" + n + ")."; }],
     [/^Rated (.+) by the (.+) map \((\d{4})\)\. It has no rating on OpenStreetMap yet\.$/, function (m, r, b, y) { return "Coté " + tw(r).toLowerCase() + " selon la carte " + b + " (" + y + "). Pas encore de cote sur OpenStreetMap."; }],
     [/^Part of MTB route “(.+)”$/, "Fait partie de l'itinéraire de vélo « $1 »"],
-    [/^Slackcountry at (.+) \((\d+) lines\)$/, "Slackcountry à $1 ($2 lignes)"],
+    [/^Slackcountry at (.+)$/, "Slackcountry à $1"],
     [/^Freeride lines here \((\d+)\)$/, "Lignes freeride ici ($1)"],
     [/^In the ski area \((\d+)\)$/, "Dans la station ($1)"],
     [/^Backcountry: no ski patrol \((\d+)\)$/, "Hors-piste : pas de patrouille ($1)"],

@@ -171,3 +171,4 @@ Taken at the hut. ||| Prise au refuge.
 Photos nearby ||| Photos aux alentours
 Open the hut's photos ||| Ouvrir les photos du refuge
 Skiing: hut cards show a photo of the hut when there is a free one online, or a link to the club's photos. ||| Ski : les fiches des refuges montrent une photo du refuge quand il y en a une libre en ligne, sinon un lien vers les photos du club.
+Skiing: 9 more slackcountry runs at Whistler Blackcomb (Flute back side, Oboe east, Fissile, Circle Lake, Spearhead Glacier, Phalanx, Decker Glacier, Disease Ridge, Spearhead Traverse). ||| Ski : 9 descentes slackcountry de plus à Whistler Blackcomb (Flute côté arrière, Oboe est, Fissile, Circle Lake, glacier Spearhead, Phalanx, glacier Decker, Disease Ridge, traversée Spearhead).
