@@ -14,7 +14,7 @@ on:
   workflow_run:
     workflows: ["Canada trail data", "Nightly trail data", "All trails data", "Trailheads and parking data", "Forest roads data",
       "Wildfires data", "Winter data", "Weekly alpine rideable trails", "Weekly ski heatmap", "Weekly possible unmapped trails", "People count",
-      "Hunting data", "Trail data audit", "Japan ski data"]
+      "Hunting data", "Trail data audit", "Japan ski data", "Weekly hiking trails"]
     types: [completed]
   workflow_dispatch:
 
