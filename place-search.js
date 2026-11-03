@@ -131,12 +131,30 @@ ul.ps-hits:empty { display: none; }
   // "Bromont expérience" landed with all of Granby in view): a resort or a peak fills the screen, a town shows its
   // streets. The 3D map sits one step further out than the flat map and is tilted, so in 3D one step closer still.
   function go(p, o = {}) {
-    const d3 = document.querySelector("#map.is3d") ? 1 : 0, maxZoom = (o.maxZoom || 15) + d3;
-    if (p.bb && (p.bb[1] - p.bb[0] > 0.004 || p.bb[3] - p.bb[2] > 0.004)) {
-      const b = L.latLngBounds([p.bb[0], p.bb[2]], [p.bb[1], p.bb[3]]);
-      map.setView(b.getCenter(), Math.min(maxZoom, map.getBoundsZoom(b, false, L.point(20, 20)) + d3));
-    } else map.setView([p.lat, p.lon], Math.max(Math.min(map.getZoom(), maxZoom), Math.min(maxZoom, (o.zoom || p.zoom || 14) + d3)));
+    const d3 = document.querySelector("#map.is3d") ? 1 : 0;
+    // Every place is a box fitted to the part of the map that shows (alex 2026-11-03: "make it so you actually see
+    // it"; "Sky Pilot and Sea to Sky Gondola backcountry" showed the whole Squamish valley): its outline, or a square
+    // its size around it (a backcountry area 5 km, a town 4 km, a peak or a point 2 km).
+    let bb = p.bb && (p.bb[1] - p.bb[0] > 0.004 || p.bb[3] - p.bb[2] > 0.004) ? p.bb : null;
+    if (!bb) {
+      const km = o.km || p.km || ((o.zoom || p.zoom || 14) <= 12 ? 8 : 2), h = km / 2 / 111.32, w = h / Math.cos((p.lat * Math.PI) / 180);
+      bb = [p.lat - h, p.lat + h, p.lon - w, p.lon + w];
+    }
+    // The phone sheet first, so the box fits above it.
     if (o.sheet !== false && window.tfSnapTo) window.tfSnapTo(o.sheet || "half");
+    const b = L.latLngBounds([bb[0], bb[2]], [bb[1], bb[3]]);
+    // The zoom where the box just fits what shows (rounded, not always down: a whole step out left the place small),
+    // and the box's middle in the middle of what shows. The 3D map sits one step further out, so one step closer there.
+    const pad = window.tfMapPad ? window.tfMapPad() : { tl: [0, 0], br: [0, 0] };
+    const tl = L.point(pad.tl).add([20, 20]), br = L.point(pad.br).add([20, 20]), snap = map.options.zoomSnap;
+    map.options.zoomSnap = 0;
+    const fit = map.getBoundsZoom(b, false, tl.add(br));
+    map.options.zoomSnap = snap;
+    const z = Math.max(3, Math.min((o.maxZoom || 15) + d3, Math.round(fit + 0.2) + d3));
+    const c = map.project(b.getCenter(), z).add([(br.x - tl.x) / 2, (br.y - tl.y) / 2]);
+    // In 3D it's also looked at less tilted for a search, so the place fills the screen, not the far valleys behind it.
+    if (d3 && window.tf3dSearchView) window.tf3dSearchView({ lat: b.getCenter().lat, lon: b.getCenter().lng, dy: (br.y - tl.y) / 2 });
+    map.setView(map.unproject(c, z), z, { animate: false });
   }
 
   // ---------- towns while typing ----------
@@ -215,7 +233,7 @@ ul.ps-hits:empty { display: none; }
     // Exact names first, then the nearest of the bigger towns: a town near the map beats a big one far away.
     return out.sort((a, b) => b[1] - a[1] || (a[2] - b[2]) / 2 + Math.log10(1 + b[0].pop) - Math.log10(1 + a[0].pop)).slice(0, n).map(([p]) => {
       const kd = PKIND[p.kind] || PKIND.l;
-      return { name: p.name, sub: [kd[0], p.prov].filter(Boolean).join(" · "), kind: kd[0], ic: kd[1], lat: p.lat, lon: p.lon, bb: null, zoom: p.kind === "t" ? 13 : 14, ca: true };
+      return { name: p.name, sub: [kd[0], p.prov].filter(Boolean).join(" · "), kind: kd[0], ic: kd[1], lat: p.lat, lon: p.lon, bb: null, zoom: p.kind === "t" ? 13 : 14, km: p.kind === "t" ? (p.pop > 50000 ? 10 : 4) : 0, ca: true };
     });
   }
 

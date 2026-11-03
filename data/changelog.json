@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-03", "text": "Searching a place now frames it close so you really see it: a backcountry area like Sky Pilot fills the screen, above the bottom sheet on phones, and 3D looks at it less tilted."},
     {"date": "2026-11-03", "text": "Skiing: far fewer cloudy, painted-in patches in the sharp Winter photos at Kicking Horse, Rogers Pass and Revelstoke."},
     {"date": "2026-11-03", "text": "Skiing: the Sea to Sky Gondola is on the map as the way up to Sky Pilot. Tap it for today's hours, if skis can go up, the groomed access road, routes, webcams and parking."},
     {"date": "2026-11-03", "text": "Search: places now show as you type in every sport (towns, mountains, lakes, parks, resorts, routes, huts, trails), even with a typo like “revol” for Revelstoke."},

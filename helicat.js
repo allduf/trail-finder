@@ -347,7 +347,7 @@ dialog.hc-dlg .hc-near button { font: inherit; font-size: .84rem; font-weight: 7
     const has = (t) => t.toLowerCase().includes(q) || (!!P && !!P.slips && nq.length >= 4 && P.slips(nq, P.norm(t)) >= 0);
     return ops.filter((o) => has([o.name, o.region, o.base, PROV[o.prov]].join(" ")))
       .sort((x, y) => !x.name.toLowerCase().includes(q) - !y.name.toLowerCase().includes(q))
-      .map((o) => ({ name: o.name, sub: [TYPE[o.type], o.region].filter(Boolean).join(" · "), ic: o.type === "cat" ? "⛷" : "🚁", lat: o.lat, lon: o.lon, bb: null, zoom: 11, helicat: o.id }));
+      .map((o) => ({ name: o.name, sub: [TYPE[o.type], o.region].filter(Boolean).join(" · "), ic: o.type === "cat" ? "⛷" : "🚁", lat: o.lat, lon: o.lon, bb: null, zoom: 11, km: 30, helicat: o.id }));
   };
   window.tfHeliCat = { open: (id) => load().then(() => { const o = byId.get(id); if (o) open(o); }), list: () => load().then(openList), load, match };
   sync();
