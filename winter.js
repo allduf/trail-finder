@@ -1517,6 +1517,16 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     list.sort((a, b) => !!b.own - !!a.own || a.dist - b.dist);
     return (r.photos = { list: list.slice(0, PH_MAX), failed: lists.every((l) => l == null) });
   }
+  // A photo whose title names the route: every word of 4+ letters in the name (words like "the", "run" and "bowl"
+  // alone don't count, so "Glacier Bowl" needs "glacier"), e.g. "Saudan Couloir from the lift" for Saudan Couloir.
+  const PH_GENERIC = new Set(["bowl", "bowls", "chute", "chutes", "run", "runs", "face", "ridge", "glades", "trees", "trail", "route", "line", "upper", "lower", "main", "north", "south", "east", "west", "left", "right", "mount", "peak"]);
+  const phNorm = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/['’]/g, "");
+  function namesIt(p, r) {
+    const words = phNorm(r.name).split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !PH_GENERIC.has(w));
+    if (!words.length) return false;
+    const t = phNorm(`${p.title || ""} ${p.about || ""}`);
+    return words.every((w) => new RegExp(`\\b${w}`).test(t));
+  }
   function photosHtml(ph, isHut) {
     const { list, failed } = ph;
     const credit = (p) => [p.author && `© ${p.author}`, p.licence, p.src].filter(Boolean).join(" · ");
@@ -2000,8 +2010,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (isRoute) condStart(r, group, live);
     const showPh = (info) => mine ? null : routePhotos(r, info).then((ph) => {
       const el = $("skPh"); if (!live() || !el) return; el.innerHTML = photosHtml(ph, isHut); bindPhotos(el, ph.list);
-      const img = $("skRcPh"), p0 = ph.list[0];   // the card's photo: the route's own, else the closest
-      if (img && p0) { img.src = p0.big || p0.thumb; img.alt = p0.title || ""; img.hidden = false; img.onclick = () => window.tfPhotos.open(ph.list, 0); img.onerror = () => { img.hidden = true; }; }
+      // The card's photo only when it's really of this route (alex 2026-11-03: "most of the time it is not a picture of
+      // the line"): the route's own (camptocamp), or one whose title names it. The nearby photos stay in Photos below.
+      const img = $("skRcPh"), i0 = ph.list.findIndex((p) => p.own || namesIt(p, r)), p0 = ph.list[i0];
+      if (img && p0) { img.src = p0.big || p0.thumb; img.alt = p0.title || ""; img.hidden = false; img.onclick = () => window.tfPhotos.open(ph.list, i0); img.onerror = () => { img.hidden = true; }; }
     });
     if ($("skHutPh")) hutPhotos(r).then((list) => {
       const el = $("skHutPh"); if (!live() || !el) return;
