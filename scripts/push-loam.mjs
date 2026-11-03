@@ -204,11 +204,19 @@ console.log(`Loam read at ${lmi.size} of ${cellList.length} spots.`);
 const a = html.indexOf("// ---------- classification ----------"), b = html.indexOf("// Difficulty as Trailforks colours it");
 if (a < 0 || b < a) throw new Error("Couldn't find classify() in index.html");
 const { classify } = new Function("state", "esc", html.slice(a, b) + "\nreturn { classify };")({}, (s) => s);
-const feed = [...((readJson("data/new-trails.json") || {}).items || []), ...((readJson("ca/new-trails.json") || {}).items || [])].filter((it) => {
+const allNew = [...((readJson("data/new-trails.json") || {}).items || []), ...((readJson("ca/new-trails.json") || {}).items || [])];
+const newFeed = () => allNew.filter((it) => {
   if (Date.now() - Date.parse(it.at) > NEW_DAYS * 86400e3) return false;
   const c = classify(it.tags || {}, it.routes || [], it.routes && it.routes.length ? ["mtb"] : []);
   return c && (c.cat === "mtb" || c.cat === "looks") && c.use !== "hike";
 });
+// alex and friends' phones (watch.f, notify.js) get every new trail; everyone else the public map's (index.html pubHidden:
+// no unofficial, closed or Likely MTB trails).
+const feed = newFeed();
+globalThis.tfPub = true;
+const feedPub = newFeed();
+globalThis.tfPub = false;
+console.log(`New trails: ${feed.length} for friends, ${feedPub.length} for everyone else.`);
 
 // ---------- fresh stocking (Fishing): data/fishing/stocked.json, nightly ----------
 const stocked = readJson("data/fishing/stocked.json");
@@ -294,7 +302,7 @@ for (const s of subs) {
   if (w.newt) {
     const zones = new Set(zonesOf(w)), since = w.since || "";
     Object.keys(was).forEach((k) => { if (k.startsWith("n:")) now[k] = was[k]; });
-    const fresh = feed.filter((it) => zones.has(it.z) && it.at > since && !was["n:" + it.ids[0]]);
+    const fresh = (w.f ? feed : feedPub).filter((it) => zones.has(it.z) && it.at > since && !was["n:" + it.ids[0]]);
     fresh.forEach((it) => { now["n:" + it.ids[0]] = Date.parse(it.at); });
     if (fresh.length) {
       // Named trails first, then the unnamed ones counted per region.

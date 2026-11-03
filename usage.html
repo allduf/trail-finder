@@ -82,6 +82,11 @@ details > summary { cursor: pointer; font-weight: 600; }
     <p class="muted">Trail reports, rider photos and rider grades that riders reported (⚑). 3 reports hide a post for everyone until you keep it or remove it.</p>
     <div class="card" id="flags"></div>
   </div>
+  <div id="friendsBox" hidden>
+    <h2>Friends who see unofficial trails</h2>
+    <p class="muted">Everyone else never sees your unofficial list, closed or no-bikes trails, Likely MTB paths or possible unmapped lines. A friend signs in once in the app with the same email. You always see them while signed in.</p>
+    <div class="card" id="friends"></div>
+  </div>
   <div id="out" hidden>
     <div class="who days" role="group" aria-label="Whose use">
       <button type="button" data-who="others">Everyone but me</button><button type="button" data-who="all">Everyone</button><button type="button" data-who="me">Only me</button>
@@ -156,7 +161,7 @@ details > summary { cursor: pointer; font-weight: 600; }
     <div class="card"><table id="errors"></table></div>
   </div>
 </main>
-<script src="account.js?v=1980"></script>
+<script src="account.js?v=2000"></script>
 <script>
 (() => {
   // Plain names for the app's main buttons (ids in index.html and ride.html). Anything else shows as tapped.
@@ -291,6 +296,7 @@ details > summary { cursor: pointer; font-weight: 600; }
       return { data: got, error: null };
     };
     loadFlags();
+    loadFriends();
     const [rep, dev, ros, kin, lim] = await Promise.all([
       report(), acct.client.rpc("tf_use_devices_all"), acct.client.rpc("tf_use_roster_get"),
       acct.client.rpc("tf_visits_by_kind", { days }), acct.client.rpc("tf_use_limits"),
@@ -349,6 +355,34 @@ details > summary { cursor: pointer; font-weight: 600; }
       if (e) { b.disabled = false; b.textContent = "Couldn't"; return; }
       loadFlags();
     }));
+  }
+  // Friends who see unofficial trails (supabase/friends.sql, go-public checklist item 8).
+  async function loadFriends() {
+    const acct = window.tfAccount, box = $("friends");
+    if (!acct || !acct.client || !acct.user) return;
+    const { data, error } = await acct.client.rpc("tf_friend_list");
+    $("friendsBox").hidden = false;
+    if (error) {
+      box.innerHTML = /Could not find|does not exist/.test(error.message)
+        ? `<p class="muted" style="padding:10px">Not set up yet: paste <b>supabase/friends.sql</b> into the Supabase SQL Editor and run it.</p>`
+        : `<p class="muted" style="padding:10px">Couldn't load: ${esc(error.message)}</p>`;
+      return;
+    }
+    box.innerHTML = `<table>${data.length ? `<tr><th>Email</th><th>Added</th><th></th></tr>` : ""}${data.map((f, i) => `<tr><td>${esc(f.email)}${f.signed_up ? "" : `<br><span class="muted">No account with this email yet</span>`}</td>
+      <td>${esc(new Date(f.added_at).toLocaleDateString())}</td><td style="text-align:right"><button class="btn" type="button" data-friend="${i}">Remove</button></td></tr>`).join("")}
+      <tr><td colspan="3"><form id="friendAdd" style="display:flex;gap:8px;flex-wrap:wrap"><input type="email" id="friendEmail" required placeholder="friend@email.com" style="flex:1;min-width:180px;font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)">
+      <button class="btn go" type="submit">Add friend</button></form></td></tr></table>`;
+    const set = async (email, add, b) => {
+      b.disabled = true;
+      const { error: e } = await acct.client.rpc("tf_friend_set", { e: email, add });
+      if (e) { b.disabled = false; b.textContent = "Couldn't"; return; }
+      loadFriends();
+    };
+    box.querySelectorAll("[data-friend]").forEach((b) => b.addEventListener("click", () => {
+      const f = data[+b.dataset.friend];
+      if (confirm(`${f.email} will stop seeing unofficial trails.`)) set(f.email, false, b);
+    }));
+    $("friendAdd").addEventListener("submit", (e) => { e.preventDefault(); set($("friendEmail").value.trim(), true, e.submitter || e.target.querySelector("button")); });
   }
   window.addEventListener("tf:account", () => load());
 

@@ -13,7 +13,9 @@
 <meta name="apple-mobile-web-app-title" content="Trail Finder">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#12291d">
-<script src="i18n.js?v=1980"></script>
+<script src="i18n.js?v=2000"></script>
+<!-- Unofficial trails are for alex and friends only (friends.js): everyone else gets the public map, class tf-pub. -->
+<script>try { if (localStorage.getItem("tf-friend") !== "1") document.documentElement.classList.add("tf-pub"); } catch (e) { document.documentElement.classList.add("tf-pub"); }</script>
 </head>
 <body>
 <title>Trail Finder</title>
@@ -876,6 +878,8 @@ label.toggle.t-off .sw { background: var(--fg); }
 .unoff-box ul { margin: 6px 0; padding-left: 18px; }
 .unoff-box p { margin: 6px 0 0; font-size: .85rem; }
 label.toggle.t-mtb .sw { background: var(--mtb); } label.toggle.t-looks .sw { background: var(--looks); }
+/* Public map (not alex or a friend, friends.js): no Unofficial chip, no Likely MTB or Possible unmapped toggles. */
+.tf-pub .diff-chip[data-d="unoff"], .tf-pub label.toggle.t-unoff, .tf-pub label.toggle.t-looks, .tf-pub label.toggle.t-ghost { display: none !important; }
 label.toggle.t-ghost .sw { background: repeating-linear-gradient(90deg, var(--ghost) 0 4px, transparent 4px 7px); }
 label.toggle.t-bits .sw { background: repeating-linear-gradient(90deg, var(--muted) 0 2px, transparent 2px 4px); }
 label.toggle.off .sw { background: var(--muted); }
@@ -1590,14 +1594,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="welcome.js?v=1980"></script>
-<script src="native.js?v=1980"></script>
-<script src="keyboard.js?v=1980"></script>
-<script src="rotate.js?v=1980"></script>
-<script src="official.js?v=1980"></script>
-<script src="directions.js?v=1980"></script>
-<script src="ratings.js?v=1980"></script>
-<script src="ebike.js?v=1980"></script>
+<script src="welcome.js?v=2000"></script>
+<script src="native.js?v=2000"></script>
+<script src="keyboard.js?v=2000"></script>
+<script src="rotate.js?v=2000"></script>
+<script src="official.js?v=2000"></script>
+<script src="directions.js?v=2000"></script>
+<script src="ratings.js?v=2000"></script>
+<script src="ebike.js?v=2000"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1661,10 +1665,20 @@ body.sport-alt #rideMapBtn { display: none !important; }
     },
   };
 
+  // alex and approved friends (friends.js, supabase/friends.sql) see unofficial trails as before. Everyone else gets the
+  // public map (go-public checklist item 8, alex 2026-11-03): see pubHidden() for what's left out.
+  const FRIEND = (() => { try { return localStorage.getItem("tf-friend") === "1"; } catch { return false; } })();
+  window.tfFriend = FRIEND;
+  window.tfPub = !FRIEND;
+  if (!FRIEND) {   // the Unofficial chip is hidden on the public map (CSS .tf-pub), so the chip labels don't offer it
+    $("diffPickLabel").textContent = "Or show every trail of these levels (tap several), or only alpine ones";
+    $("newPickLabel").textContent = "Only these levels (tap several), or only alpine";
+  }   // read by the classification code as globalThis.tfPub, so the data jobs that run it can ask for either map
+
   const state = {
     months: store.get("months", 6),
     any: store.get("any", false),   // How new: Any = every trail in the area, old or new (the list under the search)
-    show: { mtb: true, looks: true, other: false, ghost: true },   // "other" paths have no chip and stay hidden
+    show: { mtb: true, looks: FRIEND, other: false, ghost: FRIEND },   // "other" paths have no chip and stay hidden; Likely MTB and Possible unmapped are friends only
     ghosts: [],          // possible unmapped trails from the weekly GPS-trace file
     newPick: [],          // level chips in New trails: DIFF keys and/or "unoff" and/or "ebike"
     onlyUnoff: false,     // "Unofficial only": flagged trails of the ticked types (of every type when none is ticked)
@@ -2342,7 +2356,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   const CLOSED_NOTE = /\b(unsanctioned|unauthori[sz]ed|illegal|not sanctioned|unofficial|closed|decommissioned|no bikes)\b/i;
   // One word everywhere for trails outside the official bike network: an "Unofficial" tag, with why in its tooltip.
   const UNOFF_FLAGGED = "Mappers flagged it as informal, closed or no bikes";
-  const unoffTag = (why) => `<span class="unoff-tag" title="${esc(why)}">Unofficial</span>`;
+  const unoffTag = (why) => (globalThis.tfPub ? "" : `<span class="unoff-tag" title="${esc(why)}">Unofficial</span>`);   // never on the public map
   function unofficial(tags) {
     const out = [];
     if (tags.informal === "yes") out.push("Mapped as an informal trail (informal=yes): it exists and gets used, but isn't an official trail.");
@@ -2460,9 +2474,25 @@ body.sport-alt #rideMapBtn { display: none !important; }
   function useOf(tags, routeTypes) { const u = trailUse(tags, routeTypes || []); return { use: u ? u.use : null, useWhy: u ? u.why : [] }; }
 
   // routes: names of the MTB routes the way is in; routeTypes: route types of every route it's in.
+  // The public map (not alex or a friend, see FRIEND): hidden or risky trails are left out of the app altogether (no line,
+  // name, list, search, alert, loop or loam pick; the base map still draws its plain path). alex chose the middle path
+  // (2026-11-03): left out are alex's own unofficial list (ratings.js HAND unoff), trails mapped as closed, private or
+  // no bikes (or with a note saying unsanctioned or closed), and anything not tagged for MTB (Likely MTB, plain paths).
+  // Well-known trails mappers only tagged informal=yes stay, without the word Unofficial.
+  function pubHidden(tags, r) {
+    if (r.cat !== "mtb") return true;
+    return (tags.informal === "yes" ? unofficial({ ...tags, informal: "" }) : r.unoff).length > 0;
+  }
+  // The same for a named piece in the name lists (search, Prime loam): alex's own list, or mapped as closed or no bikes.
+  function pubSecret(tags, ll, id) {
+    if (!globalThis.tfPub) return false;
+    const R = globalThis.tfRatings, h = R && R.hand && ll ? R.hand([ll], tags, id) : null;
+    return !!(h && h.unoff) || unofficial({ ...tags, informal: "" }).length > 0;
+  }
   function classify(tags, routes, routeTypes = []) {
     const r = classifyTrail(tags, routes);
     if (r) { r.unoff = unofficial(tags); r.official = officialWhy(tags); Object.assign(r, useOf(tags, routes.length ? routeTypes.concat("mtb") : routeTypes)); }
+    if (r && globalThis.tfPub) { if (pubHidden(tags, r)) return null; r.unoff = []; }
     // An official trail whose source doesn't say if bikes are allowed: official only when mappers tagged it for MTB.
     if (r && !r.official && tags["tf:off2"] && r.cat === "mtb" && !r.unoff.length) r.official = tags["tf:off2"];
     return r;
@@ -2881,6 +2911,7 @@ out body;`;
 
   // ---- possible unmapped trails: GitHub looks for them in OpenStreetMap's public GPS traces every week (scripts/find-unmapped.mjs) ----
   async function loadGhosts(zones, boxes) {
+    if (!FRIEND) { state.ghosts = []; return; }   // possible unmapped lines are hidden trails: friends only
     const files = await Promise.all(zones.map((z) => nightly(`unmapped-${z.id}.json`)));
     const byId = new Map();
     files.forEach((f) => (f && f.v === 1 ? f.items : []).forEach((x) => {
@@ -4258,7 +4289,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=1980").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=2000").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5060,6 +5091,7 @@ out body;`;
   }
   // For reports.js map badges: open a trail's details if it's loaded.
   window.tfClassify = classify;   // for new-trail notifications (notify.js)
+  window.tfPubSecret = pubSecret;   // and a new trail the public map must not name (alex's own list)
   const openRow = (li) => { if (li.dataset.pk) showFound(state.primeShown[+li.dataset.pk].g, true); else select(+li.dataset.id, true); };
   $("list").addEventListener("click", (e) => { const li = e.target.closest(".trail"); if (li) openRow(li); });
   $("list").addEventListener("keydown", (e) => { if (e.key === "Enter") { const li = e.target.closest(".trail"); if (li) openRow(li); } });
@@ -5552,6 +5584,7 @@ out body;`;
       ${window.tfLive ? card("live", "📡", "Live location", window.tfLive.sharing() ? "On now: tap to send the link or stop" : "Share where you are, or see friends who share") : ""}
       <div class="hub-sec">You</div>
       ${acct ? card("account", "👤", signedIn ? "Account" : "Sign in", signedIn ? "Your saves follow you to every device" : "Keep your saves on every device") : ""}
+      ${window.tfFriends && window.tfFriends.admin() ? card("friends", "🤝", "Friends", "Who sees unofficial trails") : ""}
       ${window.tfWhatsNew ? card("news", "🆕", "What's new", "The latest changes to the app") : ""}
       ${card("about", "?", "How it works", "")}
       ${card("support", "✉", "Help and support", "Questions, problems, ideas")}
@@ -5775,6 +5808,7 @@ out body;`;
     else if (act === "about") $("aboutBtn").click();
     else if (act === "support" || act === "privacy" || act === "terms") location.href = act + ".html";
     else if (act === "news") window.tfWhatsNew.open();
+    else if (act === "friends") window.tfFriends.open();   // friends.js, alex only
     else if (act.startsWith("log") && window.tfPoints) window.tfPoints.openLog(act.slice(4) || undefined);   // My hunts' tabs, the Fishing log
     else if (act === "tours") location.href = "ride.html#rides";
     else if (act.startsWith("moto-") && window.tfMoto) window.tfMoto.hub(act.slice(5));   // moto.js: plan, routes, log, bike
@@ -5877,7 +5911,7 @@ out body;`;
     const ways = (await loadZoneTrails(z)) || [], by = new Map();
     ways.forEach((w) => {
       const name = w.tags.name;
-      if (!name) return;
+      if (!name || !FRIEND && w.c.cat !== "mtb") return;   // the public map: MTB trails only (pubHidden)
       let len = 0;
       for (let i = 1; i < w.geom.length; i++) len += Math.abs(w.geom[i][0] - w.geom[i - 1][0]) + Math.abs(w.geom[i][1] - w.geom[i - 1][1]);
       const g = by.get(name), km = lengthKm(w.geom), lift = window.tfLiftOnly(w.tags);
@@ -6065,13 +6099,15 @@ out body;`;
       let all = 0, found = 0;
       for (const list of [...allData.values()]) {
         let n = 0;
-        await inSlices(list || [], (w) => { if (w.geom && touches(w.geom)) { w.c = classify(withOfficial(w.tags, w.geom), w.r || []) || w.c; n++; } });
+        // The public map: a trail that turns out hidden (an official trail not for bikes) becomes a plain path, which isn't drawn.
+        await inSlices(list || [], (w) => { if (w.geom && touches(w.geom)) { w.c = classify(withOfficial(w.tags, w.geom), w.r || []) || (FRIEND ? w.c : { ...w.c, cat: "other", unoff: [], official: null }); n++; } });
         if (n) { allRedo(list); all += n; queueAllDraw(); }
       }
       await inSlices((state.trails || []).slice(), (t) => {
         if (!t.geom || !touches(t.geom)) return;
         const c = classify(withOfficial(t.tags, t.geom), (t.routes || []).map((r) => r.name), t.routeTypes || []);
         if (c) { Object.assign(t, { unoff: c.unoff, official: c.official }); found++; }
+        else if (!FRIEND && t.cat !== "other") { Object.assign(t, { cat: "other", unoff: [], official: null }); found++; }
       });
       if (found) render();
     });
@@ -6875,14 +6911,15 @@ out body;`;
     document.querySelectorAll(".legend .lg-mode button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === state.colorBy)));
     const sw = (style, label) => `<li><i style="${style}"></i>${label}</li>`;
     const dots = "background: repeating-linear-gradient(90deg, var(--fg) 0 3px, transparent 3px 7px)";
+    const unoffSw = FRIEND ? sw(dots, "Unofficial") : "";   // the public map never shows unofficial trails (pubHidden)
     const section = (title, items) => `<li class="lg-more"><details data-k="${title}"${keyOpen.has(title) ? " open" : ""}><summary>${title}</summary><ul>${items}</ul></details></li>`;
     let html = state.colorBy === "loam"
-      ? LMI_LEVELS.map((l, k) => sw(`background: ${LMI_RIDE[k][0]}`, `${k * 20}–${Math.min(100, l[0] - 1)} ${esc(l[1])}`)).join("") + sw(`background: ${SNOW_COLOR}`, `❄ Snow (${SNOW_CM} cm or more)`) + sw(`background: ${UNRATED}`, "Not read yet") + sw(dots, "Unofficial")
+      ? LMI_LEVELS.map((l, k) => sw(`background: ${LMI_RIDE[k][0]}`, `${k * 20}–${Math.min(100, l[0] - 1)} ${esc(l[1])}`)).join("") + sw(`background: ${SNOW_COLOR}`, `❄ Snow (${SNOW_CM} cm or more)`) + sw(`background: ${UNRATED}`, "Not read yet") + unoffSw
       : byDiff
       ? Object.entries(DIFF).map(([k, v]) => sw(`background: ${v.color}`, `${v.sym} ${v.label}`)).join("")
-        + sw(`background: repeating-linear-gradient(90deg, ${DIFF.blue.color} 0 6px, transparent 6px 10px)`, "Dashed: estimated level") + sw(`background: ${UNRATED}`, "Not rated") + sw(dots, "Unofficial")
-      : sw("background: var(--mtb)", "MTB tagged") + sw("background: repeating-linear-gradient(90deg, var(--looks) 0 8px, transparent 8px 12px)", "Likely MTB")
-        + sw("background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 8px)", "Possible unmapped") + sw(dots, "Unofficial");
+        + sw(`background: repeating-linear-gradient(90deg, ${DIFF.blue.color} 0 6px, transparent 6px 10px)`, "Dashed: estimated level") + sw(`background: ${UNRATED}`, "Not rated") + unoffSw
+      : sw("background: var(--mtb)", "MTB tagged") + (!FRIEND ? "" : sw("background: repeating-linear-gradient(90deg, var(--looks) 0 8px, transparent 8px 12px)", "Likely MTB")
+        + sw("background: repeating-linear-gradient(90deg, var(--ghost) 0 3px, transparent 3px 8px)", "Possible unmapped") + unoffSw);
     if (window.tfAlpine && window.tfAlpine.on()) html += window.tfAlpine.keyItem(sw);
     if (state.roads) html += section("Forest roads", ["good", "degraded", "heavy", "impass", "unknown", "closed"].map((st) => {
         const c = roadStyle(st).color;
@@ -6912,7 +6949,7 @@ out body;`;
     $("keyNote").textContent = state.colorBy === "loam"
       ? `Today's Loam moisture index on each trail. 40–59 is prime loam.${map.getZoom() < LOAM_MAP_ZOOM ? " Zoom in to colour more trails." : ""}`
       : byDiff
-      ? state.allTrails ? "All trails: bold = official, thin = not known, dotted = unofficial. White edge: trails in the list." : "Dashed: likely MTB (no bike tags)."
+      ? state.allTrails ? (FRIEND ? "All trails: bold = official, thin = not known, dotted = unofficial. White edge: trails in the list." : "All trails: bold = official, thin = not known. White edge: trails in the list.") : FRIEND ? "Dashed: likely MTB (no bike tags)." : ""
       : state.allTrails ? "All trails: bold = official, thin = not known. Thick: trails in the list." : "";
   }
   renderKey();
@@ -7204,6 +7241,7 @@ out tags center qt;`;
     // A way that crosses a forest road is one item per piece, each in the trail of its own side (data/road-splits.json).
     const list = [];
     for (const i of items.values()) {
+      if (i.t === "w" && pubSecret(i.tags, i.c, i.id)) continue;   // the public map never names a hidden trail
       const pieces = i.t === "w" && roadPieces(i.id);
       if (pieces) pieces.forEach((p) => list.push({ ...i, k: p.k, c: p.mid }));
       else list.push(i);
@@ -7672,7 +7710,7 @@ out tags center qt;`;
         id: main.id, osmType: type, tags, pieceTags, routes, searched: true, geom, loamAt, chainAll, segments: segs, segIds, bounds,
         km: segs.reduce((s, l) => s + lengthKm(l), 0), zone: zoneOf(bounds.getCenter()),
         version: main.version, lastEdit: new Date(main.timestamp), lastUser: main.user || "", lastChangeset: main.changeset,
-        cat: c ? c.cat : "other", catLabel: c ? null : isRoad(tags) ? "Forest road" : kind, unoff: c ? c.unoff : unofficial(ctags), official: c ? c.official : officialWhy(ctags), ...useOf(tags, routes.length ? types.concat("mtb") : types),
+        cat: c ? c.cat : "other", catLabel: c ? null : isRoad(tags) ? "Forest road" : kind, unoff: c ? c.unoff : FRIEND ? unofficial(ctags) : [], official: c ? c.official : officialWhy(ctags), ...useOf(tags, routes.length ? types.concat("mtb") : types),
         ...tfInfo(ctags),
         why: c ? c.why : isRoad(tags) ? ["A forest or logging road, not a trail, so it's left out of the MTB trails. Turn on “Forest roads” to see roads on the map."] : [`No bike tags and not trail-like enough for the MTB colours (highway=${tags.highway || "none"}, ${tags.route ? "route=" + tags.route : "no route"}).`],
       };
@@ -8391,48 +8429,49 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=1980"></script>
-<script src="native-map.js?v=1980"></script>
-<script src="contours.js?v=1980"></script>
-<script src="clouds.js?v=1980"></script>
-<script src="smoke.js?v=1980"></script>
-<script src="radar.js?v=1980"></script>
-<script src="photo-slider.js?v=1980"></script>
-<script src="ski-terrain.js?v=1980"></script>
-<script src="place-search.js?v=1980"></script>
-<script src="winter.js?v=1980"></script>
-<script src="hunts.js?v=1980"></script>
-<script src="ski-points.js?v=1980"></script>
-<script src="offline.js?v=1980"></script>
-<script src="ride-stats.js?v=1980"></script>
-<script src="native-gps.js?v=1980"></script>
-<script src="navigate.js?v=1980"></script>
-<script src="planner.js?v=1980"></script>
-<script src="loops.js?v=1980"></script>
-<script src="ride-finds.js?v=1980"></script>
-<script src="rides.js?v=1980"></script>
-<script src="community.js?v=1980"></script>
-<script src="ride-files.js?v=1980"></script>
-<script src="rider-trails.js?v=1980"></script>
-<script src="account.js?v=1980"></script>
-<script src="live.js?v=1980"></script>
-<script src="strava.js?v=1980"></script>
-<script src="moderation.js?v=1980"></script>
-<script src="reports.js?v=1980"></script>
-<script src="grades.js?v=1980"></script>
-<script src="trail-photos.js?v=1980"></script>
-<script src="visitors.js?v=1980"></script>
-<script src="usage.js?v=1980"></script>
-<script src="notify.js?v=1980"></script>
-<script src="closures.js?v=1980"></script>
-<script src="status.js?v=1980"></script>
-<script src="ask.js?v=1980"></script>
-<script src="areas.js?v=1980"></script>
-<script src="alpine.js?v=1980"></script>
-<script src="bikeparks.js?v=1980"></script>
-<script src="photo-find.js?v=1980"></script>
-<script src="whats-new.js?v=1980"></script>
-<script src="app-update.js?v=1980"></script>
+<script src="map3d.js?v=2000"></script>
+<script src="native-map.js?v=2000"></script>
+<script src="contours.js?v=2000"></script>
+<script src="clouds.js?v=2000"></script>
+<script src="smoke.js?v=2000"></script>
+<script src="radar.js?v=2000"></script>
+<script src="photo-slider.js?v=2000"></script>
+<script src="ski-terrain.js?v=2000"></script>
+<script src="place-search.js?v=2000"></script>
+<script src="winter.js?v=2000"></script>
+<script src="hunts.js?v=2000"></script>
+<script src="ski-points.js?v=2000"></script>
+<script src="offline.js?v=2000"></script>
+<script src="ride-stats.js?v=2000"></script>
+<script src="native-gps.js?v=2000"></script>
+<script src="navigate.js?v=2000"></script>
+<script src="planner.js?v=2000"></script>
+<script src="loops.js?v=2000"></script>
+<script src="ride-finds.js?v=2000"></script>
+<script src="rides.js?v=2000"></script>
+<script src="community.js?v=2000"></script>
+<script src="ride-files.js?v=2000"></script>
+<script src="rider-trails.js?v=2000"></script>
+<script src="account.js?v=2000"></script>
+<script src="friends.js?v=2000"></script>
+<script src="live.js?v=2000"></script>
+<script src="strava.js?v=2000"></script>
+<script src="moderation.js?v=2000"></script>
+<script src="reports.js?v=2000"></script>
+<script src="grades.js?v=2000"></script>
+<script src="trail-photos.js?v=2000"></script>
+<script src="visitors.js?v=2000"></script>
+<script src="usage.js?v=2000"></script>
+<script src="notify.js?v=2000"></script>
+<script src="closures.js?v=2000"></script>
+<script src="status.js?v=2000"></script>
+<script src="ask.js?v=2000"></script>
+<script src="areas.js?v=2000"></script>
+<script src="alpine.js?v=2000"></script>
+<script src="bikeparks.js?v=2000"></script>
+<script src="photo-find.js?v=2000"></script>
+<script src="whats-new.js?v=2000"></script>
+<script src="app-update.js?v=2000"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

@@ -403,15 +403,16 @@
     { name: "Pretty Slabs", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
     { name: "Stepping Stones", c: [49.636, -123.177], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail below Pretty Slabs, Britannia" },
     { ids: [1055222771, 1065048117, 1283478720, 1285445609, 1285445610, 1285445611, 1285445613], c: [49.6372, -123.1735], r: 1000, who: "alex",
-      note: "the unnamed unsanctioned trails between Pretty Slabs, Stepping Stones and Semtex Roll, Britannia" },
+      unoff: "alex, who rides it, says it's an unofficial trail", note: "unnamed trails, Britannia" },
     { name: "Leftovers Skid Road", c: [50.103, -123.016], r: 1500, d: "green", who: "alex",
       note: "an old access skid road on the Rainbow-Sproat flank, Whistler, ridden as an easy MTB climbing trail" },
-    { name: "electric unicorn", c: [50.31, -122.816], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail",
-      note: "an unsanctioned trail by Signal Hill, Pemberton; mapped as a bike path (bicycle=designated) in a 2026-10-14 edit that dropped its informal=yes" },
-    { name: "Taste the Candy", c: [50.326, -122.843], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail", note: "an unsanctioned trail off Pemberton Creek, Pemberton" },
+    // alex's own unofficial trails are listed by nh (nameHash of the lower-case name), not by name, so this public file
+    // doesn't hand out a list of locals' hidden trails (go-public item 8, 2026-11-03). Only friends see them (index.html).
+    { nh: "py1ud6", c: [50.31, -122.816], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail" },
+    { nh: "1gilxce", c: [50.326, -122.843], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail" },
     { ids: [1105675082], c: [50.309, -122.942], r: 2000, who: "alex", named: "Hidden Peak Trail",
       note: "the unnamed AlpX black descent, Pemberton (its old_name is Hidden Peak Trail), which joins the Hidden Peak Trail climb" },
-    { name: "Taste the Gravy", c: [50.322, -122.83], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail", note: "an unsanctioned trail off Pemberton Creek, Pemberton" },
+    { nh: "11sddb2", c: [50.322, -122.83], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail" },
     // One OpenStreetMap mapper (tresspasserlover69, 2026-10-07 to 14) maps new unsanctioned lines as bike paths (highway=cycleway,
     // bicycle=designated), which reads as official, and removed informal=yes from older ones. Their edits: "added sick new line",
     // "added death line", "fun freeride line built for trolldom".
@@ -514,12 +515,15 @@
   ];
   // HAND by way id and by lower-case name (in list order), so each trail is a lookup, not a walk through the whole list:
   // every loaded trail is checked when the app opens.
+  // nameHash: FNV-1a of the lower-case name, base 36 (for the nh entries; scripts/build-mtb.mjs has the same).
+  const nameHash = (s) => { let h = 0x811c9dc5; for (const ch of s) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); };
   let handById = null, handByName = null;
   function handIndex() {
     handById = new Map(); handByName = new Map();
     HAND.forEach((h) => {
       (h.ids || []).forEach((n) => { if (!handById.has(n)) handById.set(n, h); });
-      if (h.name) { const k = h.name.toLowerCase(); if (!handByName.has(k)) handByName.set(k, []); handByName.get(k).push(h); }
+      const k = h.name ? h.name.toLowerCase() : h.nh ? "#" + h.nh : null;
+      if (k) { if (!handByName.has(k)) handByName.set(k, []); handByName.get(k).push(h); }
     });
   }
   function handOf(geom, tags, id) {
@@ -528,7 +532,7 @@
     if (n) { const h = handById.get(n); if (h) return h; }
     const name = ((tags && (tags.name || tags["tf:name"])) || "").toLowerCase(), mid = geom && geom[geom.length >> 1];
     if (!name || !mid) return null;
-    const h = (handByName.get(name) || []).find((h) =>
+    const h = (handByName.get(name) || handByName.get("#" + nameHash(name)) || []).find((h) =>
       Math.hypot((mid[0] - h.c[0]) * 110540, (mid[1] - h.c[1]) * 111320 * Math.cos((h.c[0] * Math.PI) / 180)) <= h.r);
     return h || null;
   }

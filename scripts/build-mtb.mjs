@@ -49,6 +49,8 @@ function readJsonAt(url) { try { return JSON.parse(readFileSync(url, "utf8")); }
 const radius = (a) => a.r || AREA_M;
 // Trails a rider (alex) listed in ratings.js HAND are MTB trails even with no bike tags, so the lists keep them too
 // (the app draws only what's in a list). Read from ratings.js, the one place they're kept.
+// alex's own unofficial trails are listed by nh = nameHash(lower-case name) (the same as ratings.js), not by name.
+const nameHash = (s) => { let h = 0x811c9dc5; for (const ch of s) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); };
 const HAND = (() => {
   const m = readFileSync(new URL("ratings.js", root), "utf8").match(/const HAND = (\[[\s\S]*?\n  \]);/);
   try { return m ? Function(`return ${m[1]}`)() : []; } catch { return []; }
@@ -170,7 +172,7 @@ const builtAt = new Date().toISOString().slice(0, 19) + "Z";
 const lastBuilt = (z) => Date.parse((readJson(`mtb-${z.id}.json`) || {}).builtAt) || 0;
 const areasOf = (z) => AREAS.filter((a) => a.zone === z.id && !a.label);   // label: names the map only (data/riding-areas.json)
 const inBox = (c, [s, w, n, e]) => c[0] >= s && c[0] <= n && c[1] >= w && c[1] <= e;
-const handNames = (z) => HAND.filter((h) => inBox(h.c, z.box)).map((h) => (h.name || h.ids.join(",")) + (h.named ? "=" + h.named : ""));   // editing the list rebuilds the zone
+const handNames = (z) => HAND.filter((h) => inBox(h.c, z.box)).map((h) => (h.name || h.nh || h.ids.join(",")) + (h.named ? "=" + h.named : ""));   // editing the list rebuilds the zone
 const zoneRules = (z) => (REC_ZONES[z.id] ? [["rec", REC_M, REC_SHARE].concat(REC_ZONES[z.id] === "all" ? [] : [REC_ZONES[z.id]])] : []).concat(OFFICIAL_ZONES[z.id] ? [["official", OFFICIAL_ZONES[z.id]]] : [])
   .concat(handNames(z).length ? [["hand"].concat(handNames(z))] : []);
 const areasKey = (z) => JSON.stringify(areasOf(z).map((a) => [a.name, a.c, radius(a), a.official || ""].concat(a.summer ? ["summer"] : []).concat(a.all ? ["all"] : []).concat(a.park ? [a.park] : [])).concat(zoneRules(z)));
@@ -483,7 +485,7 @@ for (const z of order) {
       const t = rec && bikeWay && !/^(no|private)$/.test(tags.access || "") ? recMatch(w.geometry, rec.index) : null;
       const park = rec && rec.parks.find((p) => inPark([mid.lat, mid.lon], p));
       const hand = HAND.find((h) => h.ids && h.ids.includes(w.id))   // unnamed trails, by way id
-        || tags.name && HAND.find((h) => h.name && h.name.toLowerCase() === tags.name.toLowerCase() && metres([mid.lat, mid.lon], h.c) <= h.r);
+        || tags.name && HAND.find((h) => (h.name ? h.name.toLowerCase() === tags.name.toLowerCase() : h.nh === nameHash(tags.name.toLowerCase())) && metres([mid.lat, mid.lon], h.c) <= h.r);
       if (hand) { tags["tf:hand"] = hand.who || hand.src; if (hand.named && !tags.name) tags["tf:name"] = hand.named; fromHand++; }
       else if (!ownMtb(tags) && !routeWays.has(w.id) && !t) {
         // A ski trail network that riders use in summer (summer on its label, e.g. China Ridge, Princeton): its ski trails count too.
