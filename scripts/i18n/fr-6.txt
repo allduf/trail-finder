@@ -52,3 +52,10 @@ Or show every trail of these levels (tap several), or only alpine ones ||| Ou af
 Only these levels (tap several), or only alpine ||| Seulement ces niveaux (touchez-en plusieurs), ou seulement alpins
 All trails: bold = official, thin = not known. White edge: trails in the list. ||| Tous les sentiers : gras = officiel, mince = inconnu. Bord blanc : sentiers de la liste.
 MTB: trails mapped as closed, private or not open to bikes are no longer shown, out of respect for land owners and local trail builders. ||| Vélo de montagne : les sentiers indiqués fermés, privés ou interdits aux vélos ne sont plus affichés, par respect pour les propriétaires et les bâtisseurs de sentiers locaux.
+Friends ||| Amis
+Who sees unofficial trails ||| Qui voit les sentiers non officiels
+They see unofficial trails like you do. Everyone else never sees your unofficial list, closed or no-bikes trails, Likely MTB paths or possible unmapped lines. ||| Ils voient les sentiers non officiels comme vous. Les autres ne voient jamais votre liste non officielle, les sentiers fermés ou interdits aux vélos, les chemins Probablement VTT ni les tracés possibles non cartographiés.
+Add ||| Ajouter
+Remove ||| Retirer
+Done ||| Terminé
+No friends added yet. ||| Aucun ami ajouté pour l'instant.

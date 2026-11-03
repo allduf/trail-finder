@@ -1755,7 +1755,11 @@
     "Or show every trail of these levels (tap several), or only alpine ones":"Ou afficher tous les sentiers de ces niveaux (touchez-en plusieurs), ou seulement les alpins",
     "Only these levels (tap several), or only alpine":"Seulement ces niveaux (touchez-en plusieurs), ou seulement alpins",
     "All trails: bold = official, thin = not known. White edge: trails in the list.":"Tous les sentiers : gras = officiel, mince = inconnu. Bord blanc : sentiers de la liste.",
-    "MTB: trails mapped as closed, private or not open to bikes are no longer shown, out of respect for land owners and local trail builders.":"Vélo de montagne : les sentiers indiqués fermés, privés ou interdits aux vélos ne sont plus affichés, par respect pour les propriétaires et les bâtisseurs de sentiers locaux."};
+    "MTB: trails mapped as closed, private or not open to bikes are no longer shown, out of respect for land owners and local trail builders.":"Vélo de montagne : les sentiers indiqués fermés, privés ou interdits aux vélos ne sont plus affichés, par respect pour les propriétaires et les bâtisseurs de sentiers locaux.",
+    "Friends":"Amis",
+    "Who sees unofficial trails":"Qui voit les sentiers non officiels",
+    "They see unofficial trails like you do. Everyone else never sees your unofficial list, closed or no-bikes trails, Likely MTB paths or possible unmapped lines.":"Ils voient les sentiers non officiels comme vous. Les autres ne voient jamais votre liste non officielle, les sentiers fermés ou interdits aux vélos, les chemins Probablement VTT ni les tracés possibles non cartographiés.",
+    "No friends added yet.":"Aucun ami ajouté pour l'instant."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
