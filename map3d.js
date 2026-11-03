@@ -742,8 +742,9 @@
     }).catch(() => { winterBlocks = null; return null; }));
   // AI-sharpened Winter photos (alex 2026-11-03, "Sea to Sky first"): last winter's same photos sharpened 4x (10 m to
   // 2.5 m) by ESA's free SEN2SR model (scripts/winter-photos/sharpen.py), zoom 15 only, on the second site with their
-  // own list of zoom-11 squares (sharp.json). SHARP_BOUNDS: the box they're in, so nothing is asked for elsewhere.
-  const SHARP = WINTERS[1], SHARP_BOUNDS = [-123.58, 49.6, -122.16, 50.74];
+  // own list of zoom-11 squares (sharp.json). SHARP_BOUNDS: the box they're in (Sea to Sky; Revelstoke, Rogers Pass and
+  // Kicking Horse), so nothing is asked for elsewhere; squares in the box but not in sharp.json are never fetched.
+  const SHARP = WINTERS[1], SHARP_BOUNDS = [-123.58, 49.6, -116.89, 51.51];
   let sharpBlocks = null;
   const loadSharp = () => sharpBlocks || (sharpBlocks = fetch(SHARP + "sharp.json").then((r) => r.ok ? r.json() : [])
     .then((a) => new Set(a.map(([x, y]) => x + "/" + y))).catch(() => new Set()));
@@ -784,7 +785,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1900");
+      const w = new Worker("winter-fill.js?v=1920");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -867,7 +868,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1900" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=1920" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1312,7 +1313,7 @@
           // 1-3 s (alex's recording, 2026-10-29); these few big tiles are there long before, so it's a blurry winter
           // photo for that moment instead, sharpening when Winter's tile comes.
           winterlo: { type: "raster", tileSize: 256, minzoom: 6, maxzoom: 9, bounds: WINTER_BOUNDS, tiles: ["tfwinterphoto://{z}/{x}/{y}"] },
-          // Sea to Sky, from zoom 15: the AI-sharpened Winter photos (SHARP above), over Winter and under the close-ups.
+          // Sea to Sky + Revelstoke to Golden, from zoom 15: the AI-sharpened Winter photos (SHARP above), over Winter and under the close-ups.
           // Same tile size as the close-ups, so on a computer they come in from the same zoom (~14) and show as soon as
           // they're downloaded, while the close-ups are still being drawn (alex 2026-11-03: "way longer to load").
           winsharp: { type: "raster", tileSize: PHONE ? 256 : 128, minzoom: 15, maxzoom: 15, bounds: SHARP_BOUNDS, tiles: ["tfwintersharp://{z}/{x}/{y}"] },

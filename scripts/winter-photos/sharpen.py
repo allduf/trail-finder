@@ -35,7 +35,7 @@ def composite(bx, by):
     ll = transform_bounds("EPSG:3857", "EPSG:4326", l, b, r, t)
     mine = [s for s in scenes if s["bbox"][0] < ll[2] and s["bbox"][2] > ll[0] and s["bbox"][1] < ll[3] and s["bbox"][3] > ll[1]]
     if not mine: return None
-    with rasterio.open(S2 + mine[0]["dir"] + "B04.tif") as d: crs = d.crs
+    crs = rasterio.crs.CRS.from_epsg(32600 + int(((ll[0] + ll[2]) / 2 + 180) // 6) + 1)   # the block's own UTM zone: its 10 m pixels as they are
     x0, y0, x1, y1 = transform_bounds("EPSG:3857", crs, l, b, r, t)
     x0, y0, x1, y1 = np.floor(x0 / 10) * 10 - 200, np.floor(y0 / 10) * 10 - 200, np.ceil(x1 / 10) * 10 + 200, np.ceil(y1 / 10) * 10 + 200
     w, h = int((x1 - x0) / 10), int((y1 - y0) / 10)
