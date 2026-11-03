@@ -1766,7 +1766,8 @@
     "Name (only you see it)":"Nom (vous seul le voyez)",
     "More across Canada":"Plus ailleurs au Canada",
     "Trails across Canada":"Sentiers ailleurs au Canada",
-    "Towns and areas":"Villes et secteurs"};
+    "Towns and areas":"Villes et secteurs",
+    "Email, password, delete account":"Courriel, mot de passe, supprimer le compte"};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

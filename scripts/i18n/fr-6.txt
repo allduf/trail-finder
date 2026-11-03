@@ -66,3 +66,4 @@ Name (only you see it) ||| Nom (vous seul le voyez)
 More across Canada ||| Plus ailleurs au Canada
 Trails across Canada ||| Sentiers ailleurs au Canada
 Towns and areas ||| Villes et secteurs
+Email, password, delete account ||| Courriel, mot de passe, supprimer le compte
