@@ -16,9 +16,9 @@
   async function check(user) {
     const a = window.tfAccount;
     if (!a) return;
-    if (!user) { saveAdmin(false); flip(false); return; }
+    if (!user) { saveAdmin(false); placeButton(); flip(false); return; }
     if (!a.client) return;
-    try { const { data, error } = await a.client.rpc("tf_is_admin"); if (!error) saveAdmin(data === true); } catch {}
+    try { const { data, error } = await a.client.rpc("tf_is_admin"); if (!error) { saveAdmin(data === true); placeButton(); } } catch {}
     try {
       const { data, error } = await a.client.rpc("tf_is_friend");
       if (error) return;   // no signal, or friends.sql not run yet: keep what this device knew
@@ -100,6 +100,18 @@ dialog.frd .frd-close { width: 100%; }`;
     if (a && !a.client && a.load) { await a.load(); paint(); }
   }
   window.tfFriends = { admin: isAdmin, open };
+  // On a computer (no More tab): a 🤝 Friends button next to Account, only on alex's devices.
+  function placeButton() {
+    const slot = document.querySelector(".brand [data-account-slot]");
+    let b = document.querySelector(".brand .frd-btn");
+    if (!isAdmin()) { if (b) b.remove(); return; }
+    if (b || !slot) return;
+    b = document.createElement("button");
+    b.type = "button"; b.className = "linkish frd-btn"; b.textContent = "🤝 Friends"; b.title = "Who sees unofficial trails";
+    b.addEventListener("click", open);
+    slot.after(b);
+  }
+  placeButton();
   window.addEventListener("tf:account", (e) => check(e.detail));
   // Signed in from before: tf:account fires once the sign-in library loads. Never signed in here: no event, so a device
   // that was a friend's and has no sign-in any more goes back to the public map.
