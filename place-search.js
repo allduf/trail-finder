@@ -213,5 +213,8 @@ ul.ps-hits:empty { display: none; }
     return el;
   }
 
-  window.tfPlaceSearch = { search, go, box, parseGps, hitHtml };
+  // towns(q, n, then): the Canadian towns and places named q while typing (Skiing's find box); then() runs once the
+  // list has loaded, the first time.
+  const townsNamed = (q, n, then) => { if (!towns) loadTowns(then); return townHits(q, n); };
+  window.tfPlaceSearch = { search, go, box, parseGps, hitHtml, towns: townsNamed };
 })();

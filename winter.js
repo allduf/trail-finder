@@ -217,7 +217,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 #skiPane .sk-tabs button { font: inherit; font-size: .88rem; font-weight: 700; padding: 7px 8px; border: 0; border-radius: 9px; background: none; color: var(--muted); cursor: pointer; }
 #skiPane .sk-tabs button b { font-weight: 600; font-size: .78rem; margin-left: 2px; opacity: .8; }
 #skiPane .sk-tabs button[aria-selected="true"] { background: var(--panel); color: var(--fg); box-shadow: 0 1px 3px #0002; }
-#skiPane .sk-find { font: inherit; font-size: .9rem; width: 100%; box-sizing: border-box; padding: 9px 12px 9px 34px; border: 1px solid var(--line); border-radius: 12px; color: var(--fg);
+#skiPane .sk-find { font: inherit; font-size: .9rem; flex: 1; min-width: 0; width: 100%; box-sizing: border-box; padding: 9px 12px 9px 34px; border: 1px solid var(--line); border-radius: 12px; color: var(--fg);
   background: var(--panel) no-repeat 11px 50% / 16px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m15.5 15.5 5 5'/%3E%3C/svg%3E"); }
 #skiPane .sk-findform { margin: 0; }
 #skiPane .sk-count { margin: 0; color: var(--muted); font-size: .78rem; }
@@ -459,6 +459,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   pane.setAttribute("aria-label", "Skiing");
   pane.innerHTML = `
     <div class="sk-views" id="skViews" role="group" aria-label="Show these routes"></div>
+    <form class="sk-findform" id="skFindForm" role="search"><div class="ps-row"><input type="search" class="sk-find" id="skFind" placeholder="Find a route, hut or place" aria-label="Find a route, hut, resort, freeride line or a place to go to" autocomplete="off" spellcheck="false" enterkeyhint="search"><button type="submit" class="ps-go">Go</button></div></form>
+    <p class="ps-msg" id="skPlaceMsg" role="status"></p><ul class="ps-hits" id="skPlaces" aria-label="Search results"></ul>
     <button type="button" class="sk-now" id="skNow" hidden></button>
     <div class="sk-acts"><button type="button" class="sk-act" id="skPlanBtn">✎ Plan a tour</button><button type="button" class="sk-act" id="skRecBtn">▶ Record a tour</button><button type="button" class="sk-act" id="skSaveBtn" title="Save a point on the map with a name, a description and a photo">📍 Save a point</button></div>
     <div class="sk-slopekey" id="skSlopeKey" hidden></div>
@@ -471,8 +473,6 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     <details class="sk-card" id="sbCard" hidden><summary id="sbSum">Snowmobile clubs and grooming</summary><div id="sbBody"></div></details>
     <div class="sk-listwrap">
       <div class="sk-tabs" id="skTabs" role="tablist" aria-label="List"><button type="button" role="tab" data-tab="routes">Routes</button><button type="button" role="tab" data-tab="huts">Huts</button></div>
-      <form class="sk-findform" id="skFindForm" role="search"><input type="search" class="sk-find" id="skFind" placeholder="Find a route, hut or place" aria-label="Find a route or hut by name, or a place to go to" autocomplete="off" enterkeyhint="search"></form>
-      <p class="ps-msg" id="skPlaceMsg" role="status"></p><ul class="ps-hits" id="skPlaces" aria-label="Places"></ul>
       <div class="sk-countrow"><p class="sk-count" id="skCount">Routes in view</p><button type="button" class="sk-sort" id="skSort" hidden></button></div>
       <ul class="sk-list" id="skList"></ul>
     </div>
@@ -1127,23 +1127,84 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     listTab = t.dataset.tab; store.set("skiTab", listTab); renderList();
   });
   $("skFind").addEventListener("input", (e) => { findText = e.target.value; renderList(); renderPlaces(); });
-  // Places too: a region, range, town or mountain ("Chic-Chocs", "Gaspésie", "Rogers Pass") jumps the map there and
-  // the list fills with what's near it (alex 2026-10-26: "add search an region"). While typing: the backcountry areas
-  // whose name matches (ski-areas.js); Enter or "Search places" asks OpenStreetMap (place-search.js).
+  // One search box at the top of Skiing, like every other sport (alex 2026-11-03: "can we add a search option like
+  // every sport"). While typing, what matches shows right under the box: ski resorts, backcountry areas, heli and cat
+  // skiing (ski-areas.js, helicat.js), slackcountry and freeride lines, routes and huts, then Canadian towns
+  // (place-search.js). Go or Enter asks OpenStreetMap for any other place: a region, range or mountain ("Chic-Chocs",
+  // "Rogers Pass") jumps the map there and the list fills with what's near it (alex 2026-10-26: "add search an region").
   let placeQ = "", placeFound = null, placeRows = [];
+  let resorts = [], slack = [];
   $("skFind").addEventListener("focus", () => window.tfLoadSport("ski").then(() => {   // ski-areas.js and helicat.js come with Skiing
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
+    // The same files lifts.js and slackcountry.js read (cached).
+    fetch("data/ski-lifts.json?v=690").then((r) => (r.ok ? r.json() : null)).then((d) => {
+      resorts = Object.entries((d && d.resorts) || {}).map(([id, r]) => ({ id, name: r.name, lat: r.lat, lon: r.lon, live: r.live }));
+      renderPlaces();
+    }).catch(() => {});
+    fetch("data/slackcountry.json").then((r) => (r.ok ? r.json() : null)).then((d) => {
+      slack = ((d && d.resorts) || []).flatMap((rs) => (rs.lines || []).map((l) => ({ id: l.id, name: l.name, short: l.short, resort: rs.name, lat: rs.lat, lon: rs.lon })));
+      renderPlaces();
+    }).catch(() => {});
   }).catch(() => {}), { once: true });
+  const plain = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  // 4 the whole name, 3 its start, 2 the start of a word in it, 1 anywhere in it (3 letters or more); 0 no match.
+  const score = (name, q) => {
+    const n = plain(name);
+    return !n || !q ? 0 : n === q ? 4 : n.startsWith(q) ? 3 : n.includes(" " + q) ? 2 : q.length >= 3 && n.includes(q) ? 1 : 0;
+  };
+  const kmAway = (m) => (m < 950 ? `${Math.max(100, Math.round(m / 100) * 100)} m` : `${m < 9500 ? (m / 1000).toFixed(1) : Math.round(m / 1000)} km`);
+  const ROUTE_IC = { tour: "⛷", access: "🥾", nordic: "🎿", snowshoe: "❄", snowmobile: "🛷", resort: "🚡", offpiste: "◆", other: "❄" };
+  // Routes (same-name pieces as one), tour starts and huts already loaded around the map, best match then nearest.
+  function localHits(q) {
+    const c = map.getCenter(), out = [];
+    if (ski) {
+      const groups = new Map();
+      for (const r of ski.routes || []) {
+        const n = nameOf(r), s = r.name ? score(n, q) : 0;   // unnamed routes ("Ski touring near ...") don't count
+        if (!s) continue;
+        const key = r.type + "|" + n.toLowerCase();
+        if (!groups.has(key)) groups.set(key, { g: [], s });
+        groups.get(key).g.push(r);
+      }
+      for (const { g, s } of groups.values()) {
+        const r = g[0], d = awayM(c.lat, c.lng, g), free = window.tfFreeride && window.tfFreeride.isFree && window.tfFreeride.isFree(r);
+        out.push({ name: (free && r.frName) || nameOf(r), sub: `${free ? "Freeride line" : (TYPES[r.type] || TYPES.other).label} · ${kmAway(d)}`, ic: free ? "◆" : ROUTE_IC[r.type] || "❄", s, d, route: g });
+      }
+      for (const h of [...(ski.huts || []), ...(ski.starts || [])]) {
+        const s = score(h.name, q);
+        if (!s) continue;
+        const d = ptAway(c.lat, c.lng, h), hut = (ski.huts || []).includes(h);
+        out.push({ name: h.name, sub: `${hut ? "Hut" : (TYPES[h.type] || TYPES.tour).label} · ${kmAway(d)}`, ic: hut ? "🛖" : "⛷", s, d, point: h });
+      }
+    }
+    for (const l of slack) {
+      const s = Math.max(score(l.name, q), score(l.short, q));
+      if (s) out.push({ name: l.name, sub: `Slackcountry line · ${l.resort}`, ic: "⛷", s, d: ptAway(c.lat, c.lng, l), slack: l });
+    }
+    for (const r of resorts) {
+      const s = score(r.name, q);
+      if (s) out.push({ name: r.name, sub: `Ski resort${r.live ? " · live lift status" : ""} · ${kmAway(ptAway(c.lat, c.lng, r))}`, ic: "🚡", s: s + 0.5, d: ptAway(c.lat, c.lng, r), lat: r.lat, lon: r.lon, zoom: 13 });
+    }
+    return out.sort((x, y) => y.s - x.s || x.d - y.d);
+  }
   function renderPlaces() {
-    const P = window.tfPlaceSearch, ul = $("skPlaces"), msg = $("skPlaceMsg"), q = findText.trim();
-    if (!P || q.length < 2) { ul.innerHTML = ""; msg.textContent = ""; placeRows = []; return; }
+    const P = window.tfPlaceSearch, ul = $("skPlaces"), msg = $("skPlaceMsg"), q = findText.trim(), pq = plain(q);
+    if (!P || pq.length < 2) { ul.innerHTML = ""; msg.textContent = ""; placeRows = []; return; }
     const areas = [...(window.tfSkiAreas && window.tfSkiAreas.match ? window.tfSkiAreas.match(q) : []),
       ...(window.tfHeliCat && window.tfHeliCat.match ? window.tfHeliCat.match(q) : [])];
     const asked = placeQ === q.toLowerCase();
-    placeRows = [...areas.slice(0, asked ? 2 : 3), ...(asked && placeFound ? placeFound : [])];
+    const mine = localHits(pq);
+    // Resorts first (the place people type most), then the backcountry areas, then the rest, then towns.
+    // (an area whose name only has the word in the middle, "Marmot Basin backcountry and Whistlers Creek", after).
+    const areaTop = areas.filter((a) => score(a.name, pq) >= 3), areaRest = areas.filter((a) => !areaTop.includes(a));
+    const top = [...mine.filter((x) => x.zoom && x.s >= 3).slice(0, 2), ...areaTop.slice(0, asked ? 2 : 3)];
+    const rest = [...mine.filter((x) => !top.includes(x)).slice(0, Math.max(2, 6 - top.length)), ...areaRest.slice(0, 2)];
+    const towns = P.towns ? P.towns(q, asked ? 0 : 2, () => { if (findText.trim() === q) renderPlaces(); }) : [];
+    placeRows = asked ? [...top.slice(0, 3), ...rest.slice(0, 3), ...(placeFound || [])] : [...top, ...rest, ...towns];
     ul.innerHTML = placeRows.map(P.hitHtml).join("")
       + (asked ? "" : `<li><button type="button" data-more><span class="ps-ic" aria-hidden="true">🔍</span><span class="ps-tx"><span class="ps-more">Search places named “${esc(q)}”</span><small>A region, range, mountain or town: the map goes there</small></span></button></li>`);
+    if (!asked) msg.textContent = "";
   }
   async function askPlaces() {
     const P = window.tfPlaceSearch, q = findText.trim();
@@ -1166,15 +1227,30 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const p = placeRows[+b.dataset.i]; if (!p) return;
     findText = ""; $("skFind").value = ""; $("skFind").blur();
     renderPlaces();
+    // A route, hut or line: its card, as when it's tapped on the map (its kind of route goes on if it was off).
+    const r = p.route ? p.route[0] : p.point;
+    if (r) {
+      $("skPlaceMsg").textContent = "";
+      if (!shown.has(r.type) && TYPES[r.type]) { shown.add(r.type); applySwitches(); }
+      select(p.route || p.point, true);
+      const at = p.route ? r.lines[0][Math.floor(r.lines[0].length / 2)] : [r.lat, r.lon];
+      cardInView($("skDetail"), at[0], at[1]);
+      return;
+    }
+    if (p.slack) {
+      $("skPlaceMsg").textContent = "";
+      map.setView([p.slack.lat, p.slack.lon], Math.max(map.getZoom(), 13));
+      if (window.tfSlack) window.tfSlack.load().then(() => window.tfSlack.open(p.slack.id)).catch(() => {});
+      return;
+    }
     $("skPlaceMsg").textContent = `Near ${p.name}: nearest the middle of the map first.`;
     window.tfPlaceSearch.go(p, { maxZoom: 13 });
     if (p.helicat && window.tfHeliCat) window.tfHeliCat.open(p.helicat);
     renderList();
-    // The box at the top of the sheet, so the list of what's near the place shows under it.
-    // (again once the avalanche card above has filled in for the new place).
+    // The list of what's near the place under the box (again once the avalanche card above has filled in).
     const top = () => {
       if (!window.tfPanelScrollTo || sport !== "ski") return;
-      const el = $("skTabs").hidden ? $("skFind") : $("skTabs"), sc = window.tfPanelScroller && window.tfPanelScroller(el);
+      const el = $("skTabs").hidden ? $("skList") : $("skTabs"), sc = window.tfPanelScroller && window.tfPanelScroller(el);
       window.tfPanelScrollTo(el);
       if (sc) sc.scrollTop = Math.max(0, sc.scrollTop - 16);   // clear of the sheet's handle
     };

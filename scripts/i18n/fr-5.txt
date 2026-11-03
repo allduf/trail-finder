@@ -171,3 +171,10 @@ Taken at the hut. ||| Prise au refuge.
 Photos nearby ||| Photos aux alentours
 Open the hut's photos ||| Ouvrir les photos du refuge
 Skiing: hut cards show a photo of the hut when there is a free one online, or a link to the club's photos. ||| Ski : les fiches des refuges montrent une photo du refuge quand il y en a une libre en ligne, sinon un lien vers les photos du club.
+# Skiing search box at the top (winter.js, 2026-11-03)
+Hut ||| Refuge
+Ski resort ||| Station de ski
+live lift status ||| état des remontées en direct
+Search results ||| Résultats de recherche
+Find a route, hut, resort, freeride line or a place to go to ||| Trouver un itinéraire, un refuge, une station, une ligne freeride ou un lieu où aller
+Skiing: the search box is now at the top, and shows resorts, routes, huts, freeride and slackcountry lines and towns as you type. ||| Ski : la boîte de recherche est maintenant en haut et montre stations, itinéraires, refuges, lignes freeride et slackcountry et villes pendant que vous tapez.
