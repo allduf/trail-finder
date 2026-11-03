@@ -412,9 +412,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 #skiPane .sk-rc-ph[hidden] { display: none; }
 #skiPane .sk-rc-tag { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: .82rem; }
 #skiPane .sk-rc-word { font-weight: 800; color: var(--c); }
-#skiPane .sk-rc-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .9rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-#skiPane .sk-rc-stats span { white-space: nowrap; }
-#skiPane .sk-rc-stats small { font-weight: 500; color: var(--muted); font-size: .72rem; margin-left: 2px; }
+#skiPane .sk-rc-elev { display: flex; flex-direction: column; gap: 6px; }
+#skiPane .sk-rc-elev .sk-stats b { font-variant-numeric: tabular-nums; }
+#skiPane .sk-rc-elev .sk-prof { touch-action: pan-y; }
+#skiPane .sk-rc-elev .sk-note { margin: 0; }
 #skiPane .sk-rc-btns { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 #skiPane .sk-rc-btns button { font: inherit; font-size: .78rem; font-weight: 700; padding: 8px 2px; border-radius: 12px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer;
   display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
@@ -1322,19 +1323,19 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     svg.addEventListener("pointerdown", move);
     svg.addEventListener("pointerleave", () => { cur.setAttribute("visibility", "hidden"); read.textContent = "Move along the profile to see the spot on the map."; hoverLayer.clearLayers(); });
   }
-  function elevHtml(info, bands, area) {
+  function elevHtml(info, bands, area, onCard) {
     const bk = bandKm(info, bands), asp = info.faces.map((s) => s.toUpperCase()).join(", ");
-    return `<h4>Elevation</h4>
-      <div class="sk-stats"><div><b>${fmtM(info.max)}</b><span>top</span></div><div><b>${fmtM(info.min)}</b><span>bottom</span></div>
+    return `<h4>${onCard ? "Slopes" : "Elevation"}</h4>
+      ${onCard ? "" : `<div class="sk-stats"><div><b>${fmtM(info.max)}</b><span>top</span></div><div><b>${fmtM(info.min)}</b><span>bottom</span></div>
         <div><b>↑ ${fmtM(info.up)}</b><span>climb</span></div><div><b>↓ ${fmtM(info.down)}</b><span>descent</span></div></div>
-      ${profileSvg(info, bands)}
+      ${profileSvg(info, bands)}`}
       <dl><dt>Ground</dt><dd>steepest about ${Math.round(info.maxSlope)}°${info.km30 >= 0.05 ? `; ${info.km30.toFixed(1)} km on slopes of 30° or more${info.km35 >= 0.05 ? ` (${info.km35.toFixed(1)} km of 35°+)` : ""}` : "; no slopes of 30° or more under the route"}</dd>
       ${asp ? `<dt>Steep parts face</dt><dd>${asp}</dd>` : ""}
       <dt>Bands</dt><dd>${BANDS.filter(([b]) => bk[b] >= 0.05).map(([b, n]) => `${n} ${bk[b].toFixed(1)} km`).join(" · ")}</dd></dl>
       ${info.above == null ? "" : info.above >= 0.05
         ? `<div class="sk-warn"><b>⚠ Steep slopes above:</b> ${info.above.toFixed(1)} km of the route is under ground of 30° or more that could slide onto it (red dashes on the map).</div>`
         : `<p class="sk-note">No steep slopes found above the route (within ${ABOVE_M} m).</p>`}
-      <p class="sk-note">Orange on the profile is 30° and steeper.</p>`;
+      ${onCard ? "" : `<p class="sk-note">Orange on the profile is 30° and steeper.</p>`}`;
   }
 
   // Avalanche Canada forecast for the route, and riders' reports of avalanches near it (data/avalanche-reports.json).
@@ -1717,10 +1718,16 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return (upKm + info.up / 100) / 4 + (downKm + info.down / 100) / 10;
   }
   const fmtHours = (h) => (h < 0.75 ? `${Math.max(15, Math.round((h * 60) / 15) * 15)} min` : `${Math.round(h * 2) / 2} h`);
-  function fillCard(info) {
+  // alex 2026-11-03: "the same kind of info elevation table in the trail info, a bit like mtb trail": six boxes
+  // (length, climb, descent, time, top, bottom) and the height profile right on the card, not only under More details.
+  const rcGrid = (cells) => `<div class="sk-stats sk-stats3">${cells.map(([v, n, tip]) => `<div${tip ? ` title="${tip}"` : ""}><b>${v}</b><span>${n}</span></div>`).join("")}</div>`;
+  function fillCard(info, bands) {
     const el = $("skRcStats");
     if (!el) return;
-    el.innerHTML = `<span>${(info.total / 1000).toFixed(1)}<small>km</small></span><span>↗ ${fmtM(info.up)}</span><span>↘ ${fmtM(info.down)}</span><span title="Munter estimate: 4 km or 400 m of climb an hour up, 10 km or 1000 m an hour down">⏱ ${fmtHours(tourHours(info))}</span><span>▲ ${fmtM(info.max)}</span>`;
+    el.innerHTML = rcGrid([[(info.total / 1000).toFixed(1) + " km", "Length"], ["↑ " + fmtM(info.up), "Climb"], ["↓ " + fmtM(info.down), "Descent"],
+      [fmtHours(tourHours(info)), "Takes", "Munter estimate: 4 km or 400 m of climb an hour up, 10 km or 1000 m an hour down"], [fmtM(info.max), "Top"], [fmtM(info.min), "Bottom"]])
+      + profileSvg(info, bands || DEFAULT_BANDS) + `<p class="sk-note">Orange on the profile is 30° and steeper.</p>`;
+    bindProfile(el, info);
   }
   // ---------- conditions on the route card ----------
   // alex 2026-10-27: "when i click on a ski route i would like to see all the weather information necessary for
@@ -2007,7 +2014,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         <img class="sk-rc-ph" id="skRcPh" alt="" hidden referrerpolicy="no-referrer">
         <div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>
         <div class="sk-rc-tag" id="skRcTag">${[esc(t.label), diffPill(r.diff)].filter(Boolean).join(" · ")}</div>
-        <div class="sk-rc-stats" id="skRcStats"><span>${len.toFixed(1)}<small>km</small></span></div>
+        <div class="sk-rc-elev" id="skRcStats">${rcGrid([[len.toFixed(1) + " km", "Length"], ["…", "Climb"], ["…", "Descent"], ["…", "Takes"], ["…", "Top"], ["…", "Bottom"]])}<p class="sk-note">Loading heights…</p></div>
         <div class="sk-cond" id="skCond">${condHtml()}</div>
         <div class="sk-rc-btns">
           <button type="button" id="skFly" title="Fly along the route on the 3D map"><span class="ic" aria-hidden="true">✈</span>Flyover</button>
@@ -2015,7 +2022,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
           <button type="button" id="skGpx" title="Download the route as a GPX file"><span class="ic" aria-hidden="true">⬇</span>GPX</button>
           ${window.tfRide ? `<button type="button" class="go" id="skFollow" title="Follow this tour with your location"><span class="ic" aria-hidden="true">▶</span>Go</button>` : ""}
         </div>
-        <button type="button" class="sk-more-btn" id="skMoreBtn" aria-expanded="${moreOpen}" aria-controls="skMore">${moreOpen ? "Fewer details ▴" : "More details: avalanche check, profile, forecast, weather ▾"}</button>
+        <button type="button" class="sk-more-btn" id="skMoreBtn" aria-expanded="${moreOpen}" aria-controls="skMore">${moreOpen ? "Fewer details ▴" : "More details: avalanche check, slopes, forecast, weather ▾"}</button>
       </div>` : `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>${isHut && !isStart && !/^(parking|trailhead)$/.test(r.kind) ? `<div id="skHutPh" class="sk-hutphs"><p class="sk-note sk-hutph-none">Looking for photos of the hut…</p></div>` : ""}${isHut && !isStart ? bookHtml(r) : ""}`;
     d.innerHTML = `${card}<div id="skMore"${isRoute && !moreOpen ? " hidden" : ""} class="sk-morebox">
       ${isHut && !isStart ? `<p class="sk-hint">${esc(HUT_ABOUT[r.kind] || HUT_ABOUT.basic_hut)}</p>` : ""}
@@ -2028,7 +2035,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ${club ? `<dt>Club</dt><dd><a href="#" class="sb-go">${esc(club.c.name)}</a> (${esc(club.a.name)}, ${club.km.toFixed(0)} km away): grooming report and trail pass</dd>` : ""}
       ${tags.plain}<span id="skNear"></span></dl>
       ${isHut || r.area ? "" : `<div class="sk-sec" id="skCheck"><h4>Avalanche check</h4><p class="sk-note">Working out the terrain…</p></div>`}
-      ${isHut ? "" : `<div class="sk-sec" id="skElev"><h4>Elevation</h4><p class="sk-note">Loading heights…</p></div>`}
+      ${isHut ? "" : `<div class="sk-sec" id="skElev"><h4>${isRoute ? "Slopes" : "Elevation"}</h4><p class="sk-note">Loading heights…</p></div>`}
       <div class="sk-sec" id="skLocal" hidden></div>
       <div class="sk-sec" id="skAvy"></div>
       <div class="sk-sec" id="skWx"><h4>Weather</h4><p class="sk-note">Loading the forecast…</p></div>
@@ -2040,7 +2047,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       moreOpen = $("skMore").hidden; store.set("skiMore", moreOpen);
       $("skMore").hidden = !moreOpen;
       moreBtn.setAttribute("aria-expanded", String(moreOpen));
-      moreBtn.textContent = moreOpen ? "Fewer details ▴" : "More details: avalanche check, profile, forecast, weather ▾";
+      moreBtn.textContent = moreOpen ? "Fewer details ▴" : "More details: avalanche check, slopes, forecast, weather ▾";
     });
     const rcw = $("skRcWatch");
     if (rcw) rcw.addEventListener("click", () => { const w = $("skWatch"); if (w) w.click(); });
@@ -2071,7 +2078,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const el = $("skAvy");
       el.innerHTML = avyHtml(area, info, p);
       const elev = $("skElev");
-      if (info && elev) { elev.innerHTML = elevHtml(info, area ? area.bands : DEFAULT_BANDS, area); bindProfile(elev, info); }
+      const bands = area ? area.bands : DEFAULT_BANDS;
+      if (info && elev) { elev.innerHTML = elevHtml(info, bands, area, isRoute); bindProfile(elev, info); }
+      if (info && isRoute) fillCard(info, bands);   // the card's profile shows the treeline and alpine of this forecast area
       showCheck();
     };
     // Under the weather: clouds by height against the route's top and bottom (clouds.js).
@@ -2102,7 +2111,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       showWx(info.top.lat, info.top.lon, info.max, info.min);
       showPh(info);
       drawAbove(info);
-      if (isRoute) { fillCard(info); drawPins(info); showCond(info); }
+      if (isRoute) { drawPins(info); showCond(info); }
       if (mine) renderPlan();
       const nb = $("skNear");
       if (nb) {
