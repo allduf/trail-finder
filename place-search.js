@@ -153,7 +153,7 @@ ul.ps-hits:empty { display: none; }
     const z = Math.max(3, Math.min((o.maxZoom || 15) + d3, Math.round(fit + 0.2) + d3));
     const c = map.project(b.getCenter(), z).add([(br.x - tl.x) / 2, (br.y - tl.y) / 2]);
     // In 3D it's also looked at less tilted for a search, so the place fills the screen, not the far valleys behind it.
-    if (d3 && window.tf3dSearchView) window.tf3dSearchView({ lat: b.getCenter().lat, lon: b.getCenter().lng, dy: (br.y - tl.y) / 2 });
+    if (d3 && window.tf3dSearchView) window.tf3dSearchView({ lat: b.getCenter().lat, lon: b.getCenter().lng, dy: (br.y - tl.y) / 2, km: (bb[1] - bb[0]) * 111.32 });
     map.setView(map.unproject(c, z), z, { animate: false });
   }
 

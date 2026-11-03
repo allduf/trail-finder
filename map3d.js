@@ -288,7 +288,50 @@
   let searchView = 0, searchAt = 0, searchTilt = false;   // (searchTilt: the first tilt up after opening keeps the search's 55°)
   let searchTo = null;
   // o: { lat, lon, dy } the place, and how far above the middle of the screen it should sit (the phone sheet covers the bottom)
-  window.tf3dSearchView = (o) => { searchAt = Date.now(); searchView = searchAt + 1500; searchTilt = true; searchTo = o || null; setTimeout(settle, 1500); };   // place-search.js: the next move is a search result
+  window.tf3dSearchView = (o) => {   // place-search.js: the next move is a search result
+    searchAt = Date.now(); searchView = searchAt + 1500; searchTilt = true; searchTo = o || null; setTimeout(settle, 1500);
+    if (o && o.km) turnToSee(o, searchAt);
+  };
+  // Turn the 3D camera to the side the place is seen from best (alex 2026-11-03: Sky Pilot was looked at from behind
+  // its ridges; "rotate map so we can see better the location"): of 12 directions around it, the one where the
+  // ground between the camera and the place stays lowest under the line of sight (55° tilt: 35° down to the place),
+  // then the lower, open side (a valley rather than more mountains). North-up when it makes no real difference.
+  async function turnToSee(o, at) {
+    try {
+      const z = o.km > 8 ? 9 : 10, n = 2 ** z, R = Math.max(1.5, o.km), sig = new AbortController().signal, tiles = new Map();
+      const elev = async (lat, lon) => {
+        const fx = ((lon + 180) / 360) * n, la = (lat * Math.PI) / 180, fy = ((1 - Math.log(Math.tan(la) + 1 / Math.cos(la)) / Math.PI) / 2) * n;
+        const tx = Math.floor(fx), ty = Math.floor(fy), k = `${tx}/${ty}`;
+        if (!tiles.has(k)) tiles.set(k, demTile(z, tx, ty, sig).then((img) => {
+          const cv = new OffscreenCanvas(img.width, img.height), cx = cv.getContext("2d", { willReadFrequently: true });
+          cx.drawImage(img, 0, 0); return cx.getImageData(0, 0, img.width, img.height);
+        }));
+        const d = await tiles.get(k), px = Math.min(d.width - 1, Math.floor((fx - tx) * d.width)), py = Math.min(d.height - 1, Math.floor((fy - ty) * d.height)), i = (py * d.width + px) * 4;
+        return d.data[i] * 256 + d.data[i + 1] + d.data[i + 2] / 256 - 32768;
+      };
+      const at0 = await elev(o.lat, o.lon), tan = Math.tan((35 * Math.PI) / 180), cosL = Math.cos((o.lat * Math.PI) / 180);
+      const dirs = [];
+      for (let a = 0; a < 360; a += 30) {   // a: compass direction from the place to the camera
+        let block = -Infinity, sum = 0, cnt = 0;
+        for (const f of [0.35, 0.6, 0.9, 1.3, 1.8, 2.5]) {
+          const d = f * R, la = o.lat + (d * Math.cos((a * Math.PI) / 180)) / 111.32, lo = o.lon + (d * Math.sin((a * Math.PI) / 180)) / (111.32 * cosL);
+          const e = await elev(la, lo);
+          block = Math.max(block, e - (at0 + d * 1000 * tan)); sum += e; cnt++;
+        }
+        dirs.push({ a, score: Math.max(0, block) + 0.15 * (sum / cnt - at0) });
+      }
+      const south = dirs.find((x) => x.a === 180), best = dirs.reduce((m, x) => (x.score < m.score ? x : m));
+      const bearing = best.score > south.score - 60 ? 0 : ((best.a + 180) % 360 + 540) % 360 - 180;   // 0: nothing better than north-up
+      const go = () => {
+        if (!gl || searchAt !== at || Date.now() - handAt < 3000) return;
+        if (gl.isMoving() || syncing) { setTimeout(go, 250); return; }
+        if (Math.abs(((gl.getBearing() - bearing) % 360 + 540) % 360 - 180) < 5) return;
+        gl.easeTo({ center: [o.lon, o.lat], ...(o.dy ? { offset: [0, -o.dy] } : {}), bearing, duration: 1400 });
+        gl.once("moveend", () => { to2d(); settle(); });   // the flat map turns with it
+      };
+      go();
+    } catch {}
+  }
   function from2d() {
     if (!gl || syncing) return;
     syncing++;
@@ -807,7 +850,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=2000");
+      const w = new Worker("winter-fill.js?v=2010");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -890,7 +933,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=2000" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=2010" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
