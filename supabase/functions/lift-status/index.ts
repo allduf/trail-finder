@@ -13,10 +13,10 @@ const ORIGINS = [/^https:\/\/allduf\.github\.io$/, /^http:\/\/localhost(:\d+)?$/
 const FRESH_MS = 3 * 60e3;
 const UA = "Mozilla/5.0 (compatible; TrailFinder lift status; +https://allduf.github.io/trail-finder/)";
 
-type Lift = { n: string; s: string; w?: number; o?: string; c?: string; k?: string };
+type Lift = { n: string; s: string; w?: number; o?: string; c?: string; k?: string; down?: string; ski?: string; skiOk?: boolean; rows?: Record<string, string> };
 type Result = { lifts: Lift[]; t?: string };
 type Source = { name: string; page: string; url: string; kind: "vail" | "rcr" | "whitewater" | "sunpeaks" | "bigwhite" | "norquay" | "mtnpowder" | "bromont" | "revelstoke" | "louise" | "red" | "msa"
-  | "stoneham" | "sutton" | "massif" | "orford" | "vsc" | "msl" | "relais" };
+  | "stoneham" | "sutton" | "massif" | "orford" | "vsc" | "msl" | "relais" | "s2sg" };
 
 // The resorts whose lift status could be read (checked 2026-10-25, more 2026-10-28; Mount Washington and Marble Mountain
 // turn away readers from data centres, so they stay links; Hudson Bay Mountain's lifts aren't in OpenStreetMap yet). The id is the resort's id in data/ski-lifts.json.
@@ -48,6 +48,10 @@ export const SOURCES: Record<string, Source> = {
   vsc: { name: "Val Saint-Côme", kind: "vsc", page: "https://www.valsaintcome.com/conditions-et-horaire", url: "https://www.valsaintcome.com/conditions-et-horaire" },
   relais: { name: "Le Relais", kind: "relais", page: "https://www.skirelais.com/hiver/pistes-conditions-de-neige/", url: "https://www.skirelais.com/hiver/pistes-conditions-de-neige/" },
   msl: { name: "Mount St. Louis Moonstone", kind: "msl", page: "https://www.mountstlouis.com/status/", url: "https://www.mountstlouis.com/status/" },
+  // Added 2026-11-03: the Sea to Sky Gondola (Squamish), a sightseeing gondola that is also the way up to the Sky Pilot
+  // backcountry (not a ski resort). Its Daily Conditions page says if it's open today, its hours, if skis and
+  // snowboards may go up today, and how each trail and the Backcountry Access Road are.
+  s2sg: { name: "Sea to Sky Gondola", kind: "s2sg", page: "https://www.seatoskygondola.com/daily-conditions/", url: "https://www.seatoskygondola.com/daily-conditions/" },
 };
 
 // Any resort's words for a lift's state, as one of ours.
@@ -276,8 +280,37 @@ function msl(html: string): Result {
   const part = html.split("<table").filter((t, i, all) => i && /Lifts\s*(<[^>]*>\s*)*$/.test(all[i - 1].slice(-300).replace(/<\/?(div|span|h\d)[^>]*>/g, " ").trimEnd() + " ")).join("");
   return { lifts: rows(part, /<td class\s*=\s*"title">([^<]+)<\/td>\s*<td[^>]*class\s*=\s*"status">([^<]*)<\/td>/g) };
 }
+// Sea to Sky Gondola: the bar at the top of every page says "OPEN 9 AM to 5 PM (Last Ride Down 6 PM)" (or that it's
+// closed); the Daily Conditions tables have one row per trail and activity (<tr><td>name<td>today's note), with
+// "Ski and Snowboard Touring" saying if backcountry skis and boards may go up today; "Last Updated: Monday, November 2,
+// 2026 at 9:00 am." is when staff wrote it (Vancouver time).
+const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+export function s2sg(html: string): Result {
+  const bar = text((/quick-info__text>([^<]*)</.exec(html) || [])[1] || "");
+  const hrs = /(\d{1,2}(?::\d\d)?\s*[ap]\.?m\.?)\s*(?:to|-|–)\s*(\d{1,2}(?::\d\d)?\s*[ap]\.?m\.?)/i.exec(bar);
+  const down = /last ride down\s*([0-9:]+\s*[ap]\.?m\.?)/i.exec(bar);
+  const rows: Record<string, string> = {};
+  for (const tr of html.split(/<tr>/i).slice(1)) {
+    const cells = tr.split(/<td[^>]*>/i).slice(1);
+    if (cells.length < 2) continue;
+    const n = text(cells[0]).replace(/([a-z])(Trail)\b/, "$1 $2"), v = text(cells[1].split(/<\/table>/i)[0]);
+    if (n && v && n.length < 60 && !/^(trail|activity)$/i.test(n)) rows[n] = v.slice(0, 400);
+  }
+  const skiKey = Object.keys(rows).find((k) => /ski and snowboard touring|ski touring/i.test(k));
+  const ski = skiKey ? rows[skiKey].split(/ For (some )?information/i)[0].trim() : undefined;
+  const skiOk = ski ? !/not|no skis|closed/i.test(ski) && /allowed|permitted|yes|will go up/i.test(ski) : undefined;
+  const st = /\bclosed\b/i.test(bar) ? "closed" : /\bopen\b/i.test(bar) ? "open" : "unknown";
+  const u = /Last Updated:\s*(?:[a-z]+,\s*)?([a-z]+)\s+(\d{1,2}),\s*(\d{4})(?:\s*at\s*(\d{1,2}):(\d\d)\s*([ap])\.?m)?/i.exec(text(html.slice(0, 200000)));
+  let t: string | undefined;
+  if (u && MONTHS.includes(u[1].toLowerCase())) {
+    const h = u[4] ? (+u[4] % 12) + (u[6].toLowerCase() === "p" ? 12 : 0) : 8;
+    const pad = (x: number) => String(x).padStart(2, "0");
+    t = zoned(`${u[3]}-${pad(MONTHS.indexOf(u[1].toLowerCase()) + 1)}-${pad(+u[2])} ${pad(h)}:${u[5] || "00"}`, "America/Vancouver");
+  }
+  return { lifts: [{ n: "Sea to Sky Gondola", s: st, k: "gondola", ...(hrs ? { o: hrs[1], c: hrs[2] } : {}), ...(down ? { down: down[1] } : {}), ...(ski ? { ski, skiOk } : {}), rows }], t };
+}
 export const PARSE: Record<Source["kind"], (body: string) => Result> = { vail, rcr, whitewater, sunpeaks, bigwhite, norquay, mtnpowder, bromont, revelstoke, louise, red, msa,
-  stoneham, sutton, massif, orford, vsc, relais, msl };
+  stoneham, sutton, massif, orford, vsc, relais, msl, s2sg };
 
 const cache = new Map<string, { at: number; v: Record<string, unknown> }>();
 export async function read(id: string): Promise<Record<string, unknown>> {

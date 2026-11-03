@@ -857,6 +857,20 @@ out center tags qt;`;
       .sort((a, b) => (b.bad ? 1 : 0) - (a.bad ? 1 : 0)).slice(0, 8);
   }
 
+  // ---------- what the trail's operator says (data/trail-info.json "hikes") ----------
+  // alex 2026-11-03: anything found about a trail beyond OpenStreetMap goes on the trail (the Sea to Sky Gondola's
+  // trails: difficulty, length, time, what it's like). An entry fits a hike with one of its names within r metres.
+  let tInfo = null;
+  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=1940").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
+  const fold = (x) => String(x || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  function operatorFacts(h) {
+    const j = tInfo && tInfo.then ? null : tInfo;
+    if (!j || !j.hikes) return [];
+    const names = new Set([h.name, ...h.ways.map((w) => w.t.name)].filter(Boolean).map(fold));
+    const mid = h.c || [(h.bb[0] + h.bb[2]) / 2, (h.bb[1] + h.bb[3]) / 2];
+    return j.hikes.filter((e) => { const sr = j.src[e.s] || {}; return e.n.some((n) => names.has(fold(n))) && kmTo(e.c || sr.c, mid) * 1000 <= (e.r || sr.r || 3000); })
+      .map((e) => ({ ...e, src: j.src[e.s] }));
+  }
   // ---------- the hike card ----------
   function openHike(id, fly) {
     const h = hikes.get(id);
@@ -866,6 +880,7 @@ out center tags qt;`;
     $("hkSnow").hidden = $("hkPasses").hidden = true;
     renderHike();
     showCard($("hkHike"));
+    if (!tInfo || tInfo.then) Promise.resolve(loadTInfo()).then((j) => { tInfo = j; renderHike(h); });
     if (!h.info || (h.info.ht === null && Date.now() - h.info.at > 20000)) {
       h.info = { at: Date.now(), ht: "loading", top: "loading", park: "loading", warn: "loading" };
       heights(h).then((ht) => { h.info.ht = ht; renderHike(h); if (ht) return snowTop(ht).then((s) => { h.info.top = s; }); h.info.top = null; })
@@ -916,6 +931,7 @@ out center tags qt;`;
       <div class="hk-row"><span class="hk-badge" style="--c:${g.c}">${esc(g.label)}</span><span class="hk-fact">${fmtKm(h.km)}</span><span class="hk-fact">${esc(shapeWord)}</span>${h.shared ? `<span class="hk-fact">Shared with bikes</span>` : ""}</div>
       <p class="hk-note">${esc(g.sub)}${h.g ? " (the hardest part)" : ""}${surf ? ` · ${esc(surf)}` : ""}${tags.some((t) => /^(bad|horrible|no)$/.test(t.trail_visibility || "")) ? " · path hard to see in places" : ""}</p>
       ${first("description") ? `<p>${esc(String(first("description")).slice(0, 300))}</p>` : ""}
+      ${operatorFacts(h).slice(0, 1).map((e) => `<div class="hk-warn">${svg(IC.boot, 14)} <b>${esc([e.level, e.km && `${e.km} km`].filter(Boolean).join(" · ") || "About this trail")}</b><small>${esc(e.text)} <a href="${esc(e.src.url)}" target="_blank" rel="noopener">${esc(e.src.name)}</a></small></div>`).join("")}
       ${heightHtml}${topHtml}
       ${st ? `<p>${svg(IC.pin, 14)} Start at <b>${esc(st.n || PLACES[st.k].label)}</b>${st.n ? ` <span class="hk-note">(${esc(PLACES[st.k].label.toLowerCase())})</span>` : ""}</p>` : ""}
       ${along.length ? `<h4>Along the way</h4><ul class="hk-along">${along.map((p) => `<li><span class="hk-dot" style="--c:${PLACES[p.k].c}"></span><span><b>${esc(p.n || PLACES[p.k].label)}</b> <small>${esc([p.n ? PLACES[p.k].label : "", p.x && p.x.ele ? fmtM(+p.x.ele) : ""].filter(Boolean).join(" · "))}</small></span></li>`).join("")}</ul>` : ""}

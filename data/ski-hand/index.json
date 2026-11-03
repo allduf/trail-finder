@@ -1,12 +1,12 @@
 {
- "note": "Hand-kept backcountry ski routes that no open data source has (alex 2026-11-03: Joffre Shoulder). One file per province; add a route to its file and widen that file's box here. Each route has src \"hand\", tags hand:* (shown in plain words in winter.js PLAIN) and links [{t,u}]. approx = drawn from the terrain model, not a GPS track.",
+ "note": "Hand-kept backcountry ski routes that no open data source has (alex 2026-11-03: Joffre Shoulder). One file per province (bc: Joffre Shoulder, the Sea to Sky Gondola's approaches); add a route to its file and widen that file's box here. Each route has src \"hand\", tags hand:* (shown in plain words in winter.js PLAIN) and links [{t,u}]. approx = drawn from the terrain model, not a GPS track. patch: tags, name and links added to OpenStreetMap routes by id (the gondola's groomed Backcountry Access Road).",
  "tiles": {
   "bc": {
    "box": [
-    50.342,
-    -122.484,
+    49.63,
+    -123.18,
     50.39,
-    -122.451
+    -122.45
    ]
   }
  }

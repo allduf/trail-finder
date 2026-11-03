@@ -48,16 +48,35 @@ dialog.lf-dlg .lf-runs li { font-size: .82rem; padding: 4px 9px; border-radius: 
 dialog.lf-dlg .lf-runs li i { font-style: normal; margin-right: 4px; color: var(--d); }
 dialog.lf-dlg .lf-foot { margin: 12px 0 0; font-size: .8rem; color: var(--muted); }
 dialog.lf-dlg .lf-foot a { color: var(--accent); font-weight: 600; }
+dialog.lf-dlg .lf-tag { display: inline-block; margin: 0 0 10px; padding: 3px 9px; border-radius: 999px; background: var(--chip); border: 1px solid var(--line); font-size: .78rem; font-weight: 600; }
+dialog.lf-dlg .lf-ski { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); font-size: .9rem; }
+dialog.lf-dlg .lf-ski.ok { background: color-mix(in srgb, #2f9e44 12%, transparent); border-color: color-mix(in srgb, #2f9e44 45%, transparent); }
+dialog.lf-dlg .lf-ski.no { background: color-mix(in srgb, #e03131 12%, transparent); border-color: color-mix(in srgb, #e03131 45%, transparent); }
+dialog.lf-dlg .lf-ski b { display: block; margin-bottom: 2px; }
+dialog.lf-dlg .lf-p { margin: 0 0 6px; font-size: .9rem; line-height: 1.4; }
+dialog.lf-dlg ul.lf-list { margin: 0 0 6px; padding-left: 18px; font-size: .88rem; line-height: 1.4; }
+dialog.lf-dlg .lf-btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
+dialog.lf-dlg .lf-btns button, dialog.lf-dlg .lf-btns a { min-height: 36px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); font: inherit; font-size: .86rem; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+dialog.lf-dlg .lf-btns button.big { font-weight: 600; background: var(--bg); }
+dialog.lf-dlg dl.lf-today { grid-template-columns: 1fr; gap: 2px; }
+dialog.lf-dlg .lf-today dt { margin-top: 6px; font-size: .8rem; }
+dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
 .sk-key .lf-kline { display: inline-block; width: 22px; height: 5px; border-radius: 3px; vertical-align: middle; box-shadow: 0 0 0 1.5px #fff; }
 `;
   document.head.appendChild(css);
 
   // ---------- data ----------
   let data = null, lifts = [], resorts = {};
-  const load = () => (data = data || fetch("data/ski-lifts.json?v=690").then((r) => r.json()).then((d) => {
+  const load = () => (data = data || fetch("data/ski-lifts.json?v=1940").then((r) => r.json()).then((d) => {
     resorts = d.resorts || {}; lifts = d.lifts || [];
     return d;
   }).catch(() => { data = null; return null; }));
+  // Gondolas that are a way up to the backcountry, not ski resorts (data/access-lifts.json; alex 2026-11-03: the Sea
+  // to Sky Gondola for Sky Pilot): their box says what they are, if skis may go up today, hours, tickets, the routes
+  // and lines they reach, webcams, parking and the rules.
+  let access = null;
+  const triedLive = {};
+  const loadAccess = () => (access = access || fetch("data/access-lifts.json?v=1940").then((r) => r.json()).then((d) => d.lifts || {}).catch(() => { access = null; return {}; }));
   // Live status, per resort: { t, lifts: [{ n, s, w, o, c }], err } from the function, and when we got it.
   const live = {};
   let gotAt = 0, liveErr = "", timer = 0, busy = false;
@@ -65,12 +84,14 @@ dialog.lf-dlg .lf-foot a { color: var(--accent); font-weight: 600; }
     const b = map.getBounds().pad(0.5);
     return Object.entries(resorts).filter(([, r]) => r.live && b.contains([r.lat, r.lon])).map(([id]) => id);
   };
-  async function poll(force) {
-    clearTimeout(timer);
-    if (!shown()) return;
-    timer = setTimeout(() => poll(), EVERY);
+  async function poll(force, only) {
+    if (!only) {
+      clearTimeout(timer);
+      if (!shown()) return;
+      timer = setTimeout(() => poll(), EVERY);
+    }
     if (document.hidden || busy) return;
-    const ids = near().filter((id) => force || !live[id] || Date.now() - live[id].at > EVERY - 5000);
+    const ids = (only || near()).filter((id) => force || !live[id] || Date.now() - live[id].at > EVERY - 5000);
     if (!ids.length) { draw(); return; }
     const acct = window.tfAccount;
     if (!acct || !acct.url) { liveErr = "Live status is not set up"; draw(); return; }
@@ -86,6 +107,7 @@ dialog.lf-dlg .lf-foot a { color: var(--accent); font-weight: 600; }
       liveErr = gotAt ? "Couldn't reach the lift status: tries again in 3 min" : "Live status isn't available yet";
     } finally { busy = false; }
     draw();
+    if (dlg.open && selected && (resorts[selected.r] || {}).access && live[selected.r] && ids.includes(selected.r)) openAccess(selected);   // today's status came in
   }
   document.addEventListener("visibilitychange", () => { if (!document.hidden && shown() && Date.now() - gotAt > EVERY) poll(); });
   map.on("moveend", () => { if (shown() && near().some((id) => !live[id])) poll(); });
@@ -111,7 +133,7 @@ dialog.lf-dlg .lf-foot a { color: var(--accent); font-weight: 600; }
     if (btn.isConnected) return true;
     return !!window.tfSkiSlot && window.tfSkiSlot("resort", btn, { label: "Lift status", sym: "🚡", bg: `linear-gradient(135deg, ${C.open} 33%, ${C.hold} 33% 66%, ${C.closed} 66%)` }) && (setNote(), true);
   }
-  const ago = (t) => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
+  const ago = (t) => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : Math.round(m / 1440) === 1 ? "1 day ago" : `${Math.round(m / 1440)} days ago`; };
   function noteText() {
     if (!on) return "";
     if (liveErr) return liveErr;
@@ -198,6 +220,7 @@ dialog.lf-dlg .lf-foot a { color: var(--accent); font-weight: 600; }
   }
   function open(l) {
     selected = l;
+    if ((resorts[l.r] || {}).access) { openAccess(l); return; }
     const r = resorts[l.r] || {}, st = statusOf(l), v = live[l.r];
     const c = C[st.s] || C.none, waiting = st.s === "none" && st.wait && !liveErr;
     const wait = st.w != null && st.s === "open" ? (st.w > 0 ? `<span><strong>${st.w} min</strong>wait</span>` : `<span><strong>No wait</strong>walk on</span>`) : "";
@@ -224,6 +247,75 @@ dialog.lf-dlg .lf-foot a { color: var(--accent); font-weight: 600; }
     dlg.querySelector(".lf-x").onclick = () => dlg.close();
     if (!dlg.open) dlg.showModal();
     draw();
+  }
+  // Today's line of the operator's timetable (yyyy-mm-dd in Vancouver time; the dates are inclusive).
+  const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Vancouver" });
+  const hoursToday = (a) => { const d = today(); return (a.hours || []).find((h) => h.from <= d && d <= h.to) || null; };
+  const nextOpen = (a) => { const d = today(); return (a.hours || []).find((h) => h.from > d && !h.closed) || null; };
+  const fmtDay = (s) => new Date(s + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const linkA = (u, t) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} ↗</a>`;
+  async function openAccess(l) {
+    const all = await loadAccess(), a = all[l.r] || {};
+    if (selected !== l) return;
+    const r = resorts[l.r] || {}, st = statusOf(l), v = live[l.r], sch = hoursToday(a), nx = nextOpen(a);
+    const fromLive = st.s === "open" || st.s === "closed";
+    const s = fromLive ? st.s : sch ? (sch.closed ? "closed" : "open") : "none";
+    const c = C[s] || C.none;
+    const hrs = fromLive && st.o ? `${fmtT(st.o)} to ${st.c ? fmtT(st.c) : "?"}${st.down ? `, last ride down ${fmtT(st.down)}` : ""}` : sch ? sch.t : "";
+    const head = s === "open" ? "Open today" : s === "closed" ? "Closed today" : "Hours not known";
+    const why = fromLive ? `From the gondola's own page${v && v.t ? `, updated ${ago(Date.parse(v.t))}` : ""}.`
+      : sch ? `From the gondola's timetable (checked ${fmtDay(a.checked)}): its live page isn't read yet.` : "Check the gondola's Daily Conditions page.";
+    const closedNote = s === "closed" && nx ? `<p class="lf-sub" style="margin:8px 0 0">Opens again ${esc(fmtDay(nx.from))}: ${esc(nx.t)}.</p>` : "";
+    const ski = st.ski
+      ? `<div class="lf-ski ${st.skiOk ? "ok" : "no"}"><b>${st.skiOk ? "✓ Skis and boards can go up today" : "✕ No skis or boards up today"}</b>${esc(st.ski)}</div>`
+      : `<div class="lf-ski"><b>Skis up today?</b>The gondola posts it every morning on ${linkA("https://www.seatoskygondola.com/daily-conditions/", "Daily Conditions")}. No skis or boards go up when the South Coast avalanche forecast is High or Extreme.</div>`;
+    const rows = st.rows || {};
+    const todayRows = ["Access Road", "Sky Pilot Valley Trail", "Skyline Ridge Trail", "Nordic Skiing", "Snowshoeing"].filter((k) => rows[k]).map((k) => [k === "Access Road" ? "Backcountry Access Road" : k, rows[k]]);
+    const routes = (a.routes || []).map((id) => `<button type="button" class="big" data-route="${esc(id)}">⛷ ${esc(id === "hand-s2s-skypilot-valley" ? "Sky Pilot Valley approach" : id === "hand-s2s-skyline" ? "Skyline Ridge" : id)}</button>`).join("");
+    const lines = (a.lines || []).map((n) => `<button type="button" data-line="${esc(n)}">${esc(n)}</button>`).join("");
+    const cams = (a.cams || []).map((id) => `<button type="button" class="big" data-cam="${esc(id)}">📷 ${esc(id === "s2sg-exitgully" ? "Exit Gully cam (backcountry)" : id === "s2sg-summit" ? "Summit cam" : id)}</button>`).join("");
+    const rideRows = [
+      ["Lift", kindText(l)],
+      hrs && ["Hours today", hrs],
+      l.len && ["Length", fmtLen(l.len)],
+      l.hi != null && ["Vertical", (() => { const hi = (a.top && a.top.ele) || l.hi; return `${Math.max(0, hi - l.lo).toLocaleString()} m (${l.lo.toLocaleString()} → ${hi.toLocaleString()} m)`; })()],
+      ["Ride", `about ${l.dur || rideMin(l)} min`],
+    ].filter(Boolean);
+    const sec = (h, body) => (body ? `<h3>${esc(h)}</h3>${body}` : "");
+    dlg.innerHTML = `<button type="button" class="lf-x" aria-label="Close">✕</button>
+      <h2>${esc(l.n || a.name || "Gondola")}</h2>
+      <span class="lf-tag">🚡 Backcountry access gondola · not a ski resort</span>
+      <div class="lf-state" style="--c:${c}"><i></i><div><b>${esc(head)}</b><div class="lf-sub" style="margin:2px 0 0">${esc(hrs)}${hrs ? "<br>" : ""}${esc(why)}</div></div></div>
+      ${closedNote}${ski}
+      ${todayRows.length ? `<h3>Today on the way up</h3><dl class="lf-today" style="margin-top:0">${todayRows.map(([k, x]) => `<dt>${esc(k)}</dt><dd>${esc(x)}</dd>`).join("")}</dl>` : ""}
+      ${sec("Routes from the top", routes ? `<div class="lf-btns">${routes}</div>` : "")}
+      ${sec("Lines in the bowls", lines ? `<div class="lf-btns">${lines}</div>` : "")}
+      ${sec("Webcams and weather", (cams ? `<div class="lf-btns">${cams}</div>` : "") + ((a.weather || []).length ? `<ul class="lf-list">${a.weather.map((w) => `<li>${linkA(w.u, w.t)}</li>`).join("")}</ul>` : ""))}
+      ${sec("What it is", a.what ? `<p class="lf-p">${esc(a.what)}</p>` : "")}
+      ${sec("The backcountry", a.terrain ? `<p class="lf-p">${esc(a.terrain)}</p>` : "")}
+      ${sec("Groomed access road", a.road ? `<p class="lf-p">${esc(a.road)}</p>` : "")}
+      ${sec("Rules for skiers and boarders", (a.ski || []).length ? `<ul class="lf-list">${a.ski.map((x) => `<li>${esc(x)}</li>`).join("")}${a.uphill ? `<li>${esc(a.uphill)}</li>` : ""}</ul>` : "")}
+      ${sec("Tickets", (a.tickets || []).length ? `<dl style="margin-top:0">${a.tickets.map(([k, x]) => `<dt>${esc(k)}</dt><dd>${esc(x)}</dd>`).join("")}</dl>${a.ticketNote ? `<p class="lf-sub" style="margin:6px 0 0">${esc(a.ticketNote)}</p>` : ""}` : "")}
+      ${sec("Parking", a.parking ? `<p class="lf-p">${esc(a.parking)}</p>` : "")}
+      ${sec("The gondola", `<dl style="margin-top:0">${rideRows.map(([k, x]) => `<dt>${esc(k)}</dt><dd>${esc(x)}</dd>`).join("")}</dl>`)}
+      ${a.emergency ? `<p class="lf-ski no" style="margin-top:14px"><b>Emergency</b>${esc(a.emergency).replace("911", '<a href="tel:911">911</a>').replace(esc(a.phone || "#none#"), `<a href="tel:${esc((a.phone || "").replace(/\D/g, ""))}">${esc(a.phone || "")}</a>`)}</p>` : ""}
+      ${sec("More from the gondola", (a.links || []).length ? `<ul class="lf-list">${a.links.map((x) => `<li>${linkA(x.u, x.t)}</li>`).join("")}</ul>` : "")}
+      <p class="lf-foot">Facts from ${esc(r.name || "the operator")}'s own pages (checked ${esc(fmtDay(a.checked || today()))})${gotAt && fromLive ? `, live status checked ${esc(ago(gotAt))}` : ""}. Gondola line from OpenStreetMap.</p>`;
+    dlg.querySelector(".lf-x").onclick = () => dlg.close();
+    const go = (fn) => () => { dlg.close(); fn(); };
+    // A route or line: its card, as when it's tapped on the map (the routes around the top load first).
+    const openRoute = async (want) => {
+      const S = window.tfSki; if (!S || !S.loadIn) return;
+      const top = l.g[l.g.length - 1], rs = await S.loadIn(L.latLng(top[0], top[1]).toBounds(16000));
+      const x = rs.find((y) => want(y) && y.lines);
+      if (x) S.open(x, true);
+    };
+    dlg.querySelectorAll("[data-route]").forEach((b) => (b.onclick = go(() => openRoute((y) => y.id === b.dataset.route))));
+    dlg.querySelectorAll("[data-cam]").forEach((b) => (b.onclick = go(() => window.tfWebcams && window.tfWebcams.open(b.dataset.cam))));
+    dlg.querySelectorAll("[data-line]").forEach((b) => (b.onclick = go(() => openRoute((y) => norm(y.name) === norm(b.dataset.line)))));
+    if (!dlg.open) dlg.showModal();
+    draw();
+    if (!live[l.r] && r.live && !triedLive[l.r]) { triedLive[l.r] = 1; poll(false, [l.r]); }   // the Lift status switch may be off: still read today's status
   }
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
   dlg.addEventListener("close", () => { selected = null; draw(); });
