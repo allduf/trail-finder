@@ -1684,7 +1684,13 @@
     "Photos nearby":"Photos aux alentours",
     "Open the hut's photos":"Ouvrir les photos du refuge",
     "Skiing: hut cards show a photo of the hut when there is a free one online, or a link to the club's photos.":"Ski : les fiches des refuges montrent une photo du refuge quand il y en a une libre en ligne, sinon un lien vers les photos du club.",
-    "Skiing: 9 more slackcountry runs at Whistler Blackcomb (Flute back side, Oboe east, Fissile, Circle Lake, Spearhead Glacier, Phalanx, Decker Glacier, Disease Ridge, Spearhead Traverse).":"Ski : 9 descentes slackcountry de plus à Whistler Blackcomb (Flute côté arrière, Oboe est, Fissile, Circle Lake, glacier Spearhead, Phalanx, glacier Decker, Disease Ridge, traversée Spearhead)."};
+    "Skiing: 9 more slackcountry runs at Whistler Blackcomb (Flute back side, Oboe east, Fissile, Circle Lake, Spearhead Glacier, Phalanx, Decker Glacier, Disease Ridge, Spearhead Traverse).":"Ski : 9 descentes slackcountry de plus à Whistler Blackcomb (Flute côté arrière, Oboe est, Fissile, Circle Lake, glacier Spearhead, Phalanx, glacier Decker, Disease Ridge, traversée Spearhead).",
+    "Hut":"Refuge",
+    "Ski resort":"Station de ski",
+    "live lift status":"état des remontées en direct",
+    "Search results":"Résultats de recherche",
+    "Find a route, hut, resort, freeride line or a place to go to":"Trouver un itinéraire, un refuge, une station, une ligne freeride ou un lieu où aller",
+    "Skiing: the search box is now at the top, and shows resorts, routes, huts, freeride and slackcountry lines and towns as you type.":"Ski : la boîte de recherche est maintenant en haut et montre stations, itinéraires, refuges, lignes freeride et slackcountry et villes pendant que vous tapez."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
