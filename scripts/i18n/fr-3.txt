@@ -182,7 +182,7 @@ No rides yet. Go to ||| Pas encore de sorties. Allez à
 and press Start, or import rides from Strava or your GPS. ||| et appuyez sur Départ, ou importez des sorties de Strava ou de votre GPS.
 Rides are saved on this device, and in your account when you're signed in. Use ||| Les sorties sont enregistrées sur cet appareil, et dans votre compte quand vous êtes connecté. Utilisez
 Download GPX ||| Télécharger le GPX
-on a ride to keep a copy or upload it to Strava or Trailforks. ||| sur une sortie pour en garder une copie ou la téléverser sur Strava ou Trailforks.
+on a ride to keep a copy or upload it to Strava or another app. ||| sur une sortie pour en garder une copie ou la téléverser sur Strava ou une autre appli.
 Without connecting Strava: open the activity, ⋯ menu, ||| Sans connecter Strava : ouvrez l'activité, menu ⋯,
 , then ||| , puis
 Import rides ||| Importer des sorties
