@@ -14,7 +14,7 @@
 //
 // Run: node scripts/build-snow-stations.mjs   (Node 18 or newer, no packages)
 
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 
 const OUT = new URL("../data/snow-stations.json", import.meta.url);
 const UA = "trail-finder snow stations (https://github.com/allduf/trail-finder)";
@@ -84,6 +84,61 @@ for (const f of fc.features || []) {
 }
 if (stations.length < 20) throw new Error(`Only ${stations.length} stations: keeping the last file`);
 
+// Ski hills (data/ski-lifts.json) and backcountry areas (data/ski-areas.json): stations near them are kept in every season.
+const readData = (f) => { try { return JSON.parse(readFileSync(new URL("../data/" + f, import.meta.url), "utf8")); } catch { return null; } };
+const HILLS = [...Object.values(readData("ski-lifts.json")?.resorts || {}), ...(readData("ski-areas.json")?.areas || [])]
+  .filter((h) => Number.isFinite(h.lat) && Number.isFinite(h.lon)).map((h) => [h.lat, h.lon]);
+const kmBetween = (a, b, c, d) => Math.hypot(a - c, (b - d) * Math.cos((a * Math.PI) / 180)) * 111.2;
+const nearHill = (lat, lon, km = 60) => HILLS.some(([a, b]) => kmBetween(lat, lon, a, b) <= km);
+
+// Quebec (fix list item 43, 2026-11-02: no station near Mont-Tremblant or the Chic-Chocs): the Réseau de surveillance
+// du climat du Québec measures snow on the ground at ~40 stations, among them Gîte du Mont-Albert in the Chic-Chocs,
+// Sutton next to Bromont and Saint-Hippolyte in the Laurentides. Données Québec, CC BY 4.0, Ministère de l'Environnement,
+// de la Lutte contre les changements climatiques, de la Faune et des Parcs. One file with every hour of the last 30
+// days (~34 MB); times are Quebec standard time (UTC-5). All of them are kept, with or without snow (there are few).
+const RSCQ = "https://stqc380donopppdtce01.blob.core.windows.net/donnees-ouvertes/Climat/Observations/Recentes/Horaire/CSV/Horaire_GROUPER_30j.csv";
+const rscq = [];
+try {
+  const lines = (await get(RSCQ)).replace(/^\uFEFF/, "").split(/\r?\n/);
+  const head = lines[0].split(",").map((h) => h.replace(/"/g, ""));
+  const col = (n) => head.indexOf(n), C = { id: col("NO_STATION"), name: col("NOM_STATION"), t: col("DATE_RECUEILLIE"), ta: col("TINS"), sd: col("NESOL"),
+    swe: col("NESOL_EQUIVALENT"), lon: col("LONGITUDE"), lat: col("LATITUDE"), ele: col("ALTITUDE") };
+  if (Object.values(C).some((i) => i < 0)) throw new Error("the columns changed: " + head.join(","));
+  const by = new Map();
+  for (let i = 1; i < lines.length; i++) {
+    const c = lines[i].split(",");   // no commas inside the quoted names (checked 2026-11-03)
+    if (c.length < head.length) continue;
+    const id = c[C.id].replace(/"/g, ""), t = Date.parse(c[C.t] + "-05:00");
+    if (!id || !t) continue;
+    let st = by.get(id);
+    if (!st) by.set(id, (st = { id, name: c[C.name].replace(/"/g, ""), lat: +c[C.lat], lon: +c[C.lon], ele: +c[C.ele], SD: [], SW: [], TA: [] }));
+    const num = (k, lim) => { const v = c[k] === "" ? NaN : +c[k]; return Number.isFinite(v) && v > lim[0] && v < lim[1] ? v : null; };
+    const sd = num(C.sd, LIMITS.SD), sw = num(C.swe, LIMITS.SW), ta = num(C.ta, LIMITS.TA);
+    if (sd != null) st.SD.push([t, sd]);
+    if (sw != null) st.SW.push([t, sw]);
+    if (ta != null) st.TA.push([t, ta]);
+  }
+  for (const st of by.values()) {
+    if (!st.SD.length || Date.now() - st.SD.at(-1)[0] > 3 * 24 * HOUR) continue;   // no snow sensor, or out of service
+    for (const k of ["SD", "SW", "TA"]) st[k].sort((a, b) => a[0] - b[0]);
+    const now = st.SD.at(-1), t = now[0], sdAt = (h) => at(st.SD, t - h * HOUR);
+    const day = st.TA.filter((x) => x[0] > t - 24 * HOUR).map((x) => x[1]);
+    const week = [6, 5, 4, 3, 2, 1, 0].map((d) => r1(sdAt(d * 24)));
+    if (now[1] > 0 && week.every((v) => v === r1(now[1]))) continue;   // stuck sensor
+    const fix = (v) => (v != null && v < 0 ? 0 : v);   // a few cm below zero is bare ground
+    rscq.push({
+      id: "qc:" + st.id, name: st.name, lat: +st.lat.toFixed(5), lon: +st.lon.toFixed(5), ele: Number.isFinite(st.ele) ? Math.round(st.ele) : null,
+      at: new Date(t).toISOString(), sd: fix(r1(now[1])),
+      sd24: sdAt(24) != null ? r1(now[1] - sdAt(24)) : null, sd72: sdAt(72) != null ? r1(now[1] - sdAt(72)) : null,
+      days: week.map(fix), swe: st.SW.length ? r1(st.SW.at(-1)[1]) : null, ta: st.TA.length ? r1(st.TA.at(-1)[1]) : null,
+      lo24: day.length ? r1(Math.min(...day)) : null, hi24: day.length ? r1(Math.max(...day)) : null, src: "qc",
+    });
+  }
+  stations.push(...rscq);
+  console.log(`${rscq.length} Quebec (RSCQ) snow stations`);
+} catch (e) { console.log(`::warning::Quebec stations failed (${e.message}); skipped this time`); }
+const rscqNear = (lat, lon) => rscq.some((q) => kmBetween(lat, lon, q.lat, q.lon) < 2);
+
 // The rest of Canada (alex 2026-10-26: "if their is other things only available in a region make it available
 // everywhere"): Environment Canada's automatic weather stations that measure snow depth (MSC SWOB real-time
 // observations, api.weather.gc.ca, Environment and Climate Change Canada Data Servers End-use Licence), outside BC
@@ -117,7 +172,10 @@ try {
     if (x.sd > 0 && week.every((v) => v === x.sd)) continue;   // the same depth to the cm all week: a stuck sensor
     // Hundreds of valley and airport stations: only the ones with snow this week, so a snow-free autumn map isn't
     // covered in "0 cm" pins. A few cm below zero is the sensor reading bare ground: 0.
-    if (!week.some((v) => v > 0)) continue;
+    // Near a ski hill or backcountry area (within 60 km) a station stays even with no snow yet: the eastern hills
+    // had none in November otherwise (fix list item 43, 2026-11-02: Blue Mountain, Sugarloaf, Marble Mountain).
+    if (!week.some((v) => v > 0) && !nearHill(x.lat, x.lon)) continue;
+    if (rscqNear(x.lat, x.lon)) continue;   // Quebec's own station on the same spot (below) has more
     for (let i = 0; i < week.length; i++) if (week[i] != null && week[i] < 0) week[i] = 0;
     if (x.sd < 0) x.sd = 0;
     stations.push({
@@ -132,5 +190,5 @@ try {
   console.log(`${n} Environment Canada snow depth stations outside BC`);
 } catch (e) { console.log(`::warning::Environment Canada stations failed (${e.message}); BC only this time`); }
 mkdirSync(new URL("../data/", import.meta.url), { recursive: true });
-writeFileSync(OUT, JSON.stringify({ builtAt: new Date().toISOString(), source: "BC River Forecast Centre, Automated Snow Weather Stations; Environment and Climate Change Canada (outside BC)", stations }));
+writeFileSync(OUT, JSON.stringify({ builtAt: new Date().toISOString(), source: "BC River Forecast Centre, Automated Snow Weather Stations; Ministère de l'Environnement du Québec (RSCQ, CC BY 4.0); Environment and Climate Change Canada (elsewhere)", stations }));
 console.log(`${stations.length} snow stations, ${stations.filter((s) => s.sd > 0).length} with snow`);
