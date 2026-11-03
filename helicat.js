@@ -342,7 +342,10 @@ dialog.hc-dlg .hc-near button { font: inherit; font-size: .84rem; font-weight: 7
   const match = (q) => {
     q = String(q || "").trim().toLowerCase();
     if (!q) return [];
-    return ops.filter((o) => [o.name, o.region, o.base, PROV[o.prov]].join(" ").toLowerCase().includes(q))
+    // What's typed in the text, or one slip off the start of a word ("revol" -> Revelstoke), place-search.js.
+    const P = window.tfPlaceSearch, nq = P && P.norm ? P.norm(q) : q;
+    const has = (t) => t.toLowerCase().includes(q) || (!!P && !!P.slips && nq.length >= 4 && P.slips(nq, P.norm(t)) >= 0);
+    return ops.filter((o) => has([o.name, o.region, o.base, PROV[o.prov]].join(" ")))
       .sort((x, y) => !x.name.toLowerCase().includes(q) - !y.name.toLowerCase().includes(q))
       .map((o) => ({ name: o.name, sub: [TYPE[o.type], o.region].filter(Boolean).join(" · "), ic: o.type === "cat" ? "⛷" : "🚁", lat: o.lat, lon: o.lon, bb: null, zoom: 11, helicat: o.id }));
   };
