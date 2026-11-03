@@ -1705,6 +1705,7 @@
     "Looking…":"Recherche…",
     "Keep typing, or press Go to search every place.":"Continuez à taper, ou appuyez sur Go pour chercher partout.",
     "Search: places now show as you type in every sport (towns, mountains, lakes, parks, resorts, routes, huts, trails), even with a typo like “revol” for Revelstoke.":"Recherche : les endroits s'affichent maintenant pendant que vous tapez, dans tous les sports (villes, montagnes, lacs, parcs, stations, itinéraires, refuges, sentiers), même avec une faute comme « revol » pour Revelstoke.",
+    "Searching a place now frames it close so you really see it: a backcountry area like Sky Pilot fills the screen, above the bottom sheet on phones, and 3D looks at it less tilted.":"Chercher un endroit le cadre maintenant de près pour vraiment le voir : un secteur hors-piste comme Sky Pilot remplit l'écran, au-dessus du panneau du bas sur téléphone, et la 3D le regarde moins inclinée.",
     "Backcountry access gondola · not a ski resort":"Télécabine d'accès à l'arrière-pays · pas une station de ski",
     "Backcountry access gondola":"Télécabine d'accès à l'arrière-pays",
     "Open today":"Ouvert aujourd'hui",

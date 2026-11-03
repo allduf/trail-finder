@@ -86,7 +86,7 @@
   // Coming back to 3D tilts to where it was left.
   const TILT = 70, TILT_MS = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 900;
   let tilt = TILT, tiltEnd = 0;
-  const tiltUp = () => { if (!gl) return; tiltEnd = Date.now() + TILT_MS + 100; gl.easeTo({ pitch: tilt, duration: TILT_MS, easing: (t) => 1 - (1 - t) ** 3 }); };
+  const tiltUp = () => { if (!gl) return; tiltEnd = Date.now() + TILT_MS + 100; const p = searchTilt ? Math.min(tilt, 55) : tilt; searchTilt = false; gl.easeTo({ pitch: p, duration: TILT_MS, easing: (t) => 1 - (1 - t) ** 3 }); };
   let hits = [];              // Leaflet layers that react to clicks, by index (the "id" of the 3D hit lines)
   let hitParts = [];          // their lines as [lng, lat] points, same index (nearestHit)
   let hitDots = [];           // round markers that react to clicks (huts in Skiing...): { l, c: [lng, lat], r }
@@ -285,6 +285,10 @@
 
   // ---------- keep the two cameras together ----------
   // MapLibre zoom levels are one less than Leaflet's (512 px tiles against 256 px).
+  let searchView = 0, searchAt = 0, searchTilt = false;   // (searchTilt: the first tilt up after opening keeps the search's 55°)
+  let searchTo = null;
+  // o: { lat, lon, dy } the place, and how far above the middle of the screen it should sit (the phone sheet covers the bottom)
+  window.tf3dSearchView = (o) => { searchAt = Date.now(); searchView = searchAt + 1500; searchTilt = true; searchTo = o || null; setTimeout(settle, 1500); };   // place-search.js: the next move is a search result
   function from2d() {
     if (!gl || syncing) return;
     syncing++;
@@ -295,15 +299,32 @@
         map.latLngToContainerPoint(c).distanceTo(map.latLngToContainerPoint(last2d.c)) < 2) { syncing--; return; }
     last2d = null;
     // (a move while it tilts up would stop the tilt halfway: this one finishes it)
-    gl.flyTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d(), duration: 1200, ...(Date.now() < tiltEnd ? { pitch: tilt } : {}) });
+    // A search result is looked at 55° down, not 70°: tilted all the way, the far valleys took the screen.
+    const search = Date.now() < searchView, to = search && searchTo;
+    const look = search ? { pitch: Math.min(tilt, 55) } : Date.now() < tiltEnd ? { pitch: tilt } : {};
+    searchView = 0; searchTo = null;
+    // (a search result: the place itself in the middle of what the sheet leaves showing)
+    gl.flyTo({ center: to ? [to.lon, to.lat] : [c.lng, c.lat], ...(to && to.dy ? { offset: [0, -to.dy] } : {}), zoom: map.getZoom() - 1, bearing: bearing2d(), duration: 1200, ...look });
     setTimeout(() => syncing--, 1300);
-    gl.once("moveend", () => { groundCenter(); gl.once("idle", groundCenter); });
+    settle();
+  }
+  // After a jump: aim at the ground (again as its heights come in: the 3D map is rarely still long enough to go idle),
+  // and a search result is looked at 55° down even if the first tilt up after opening ran after it. Not once the
+  // person has moved the 3D map themselves.
+  let handAt = 0;
+  function settle(n = 0) {
+    if (!gl || Date.now() - handAt < 3000) return;
+    if (!gl.isMoving()) {
+      groundCenter();
+      if (Date.now() - searchAt < 12000 && gl.getPitch() > 56) gl.easeTo({ pitch: 55, duration: 500 });
+    }
+    if (n < 6) setTimeout(() => settle(n + 1), 700 * (n + 1));
   }
   // After a long jump the camera can keep aiming at the height of the place it came from (alex 2026-11-03: searching
   // Bromont, 300 m high, from Whistler aimed at 2,200 m): tilted 70°, it then looks kilometres past the place and the
   // place sits at the bottom of the screen. Once the ground's heights there are in, aim at the ground itself.
   function groundCenter() {
-    if (!gl || !gl.setCenterElevation || gl.isMoving()) return;
+    if (!gl || !gl.setCenterElevation || gl.isMoving() || Date.now() - handAt < 3000) return;
     const e = gl.queryTerrainElevation(gl.getCenter());
     if (e != null && Math.abs(e - gl.getCenterElevation()) > 30) gl.setCenterElevation(e);
   }
@@ -786,7 +807,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=1990");
+      const w = new Worker("winter-fill.js?v=2000");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -869,7 +890,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=1990" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=2000" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1510,6 +1531,8 @@
     const demFix = () => { fixDemLeak(); fixReloadLeak(); if (demFixed && reloadFixed) gl.off("render", demFix); };
     gl.on("render", demFix);
     gl.on("moveend", keepView);
+    gl.on("idle", groundCenter);   // also after opening and tilting up: aim at the ground once its heights are in (a camera under the mountains drew nothing)
+    gl.on("movestart", (e) => { if (e.originalEvent) { handAt = Date.now(); searchTilt = false; } });   // the person's own moves win
     gl.on("moveend", placeNames);
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
