@@ -1807,7 +1807,8 @@
     "Snow coming, next 3 days (cm)":"Neige à venir, 3 prochains jours (cm)",
     "Rain instead, next 3 days (mm)":"Pluie à la place, 3 prochains jours (mm)",
     "Snow coming, these 3 hours (cm)":"Neige à venir, ces 3 heures (cm)",
-    "Rain instead, these 3 hours (mm)":"Pluie à la place, ces 3 heures (mm)"};
+    "Rain instead, these 3 hours (mm)":"Pluie à la place, ces 3 heures (mm)",
+    "Privacy: photo search no longer lets anyone see when other people confirmed a picture of a trail.":"Confidentialité : la recherche par photo ne montre plus à personne quand d'autres ont confirmé une photo d'un sentier."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

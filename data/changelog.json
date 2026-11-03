@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-03", "text": "Privacy: photo search no longer lets anyone see when other people confirmed a picture of a trail."},
     {"date": "2026-11-03", "text": "Search finds trails by their old name too, and a trail keeps its name when the map loses it."},
     {"date": "2026-11-03", "text": "Radar forecast now looks like Skiing's: smooth and see-through, snow in purples and rain in greens, with the same colours in every sport."},
     {"date": "2026-11-03", "text": "Radar: slide past Latest (or tap Next 3 days) to see where rain or snow is forecast over the next 3 days, plus a 3-day total."},
