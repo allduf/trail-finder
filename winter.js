@@ -57,7 +57,7 @@
   };
   // Uphill ski routes (skin tracks): the nightly job marks them up (scripts/build-winter.mjs uphillKind: Mont Sutton's
   // "Piste d'Ascension" and "Skimo" paths, alex 2026-11-03); a ski touring route named for the way up counts too.
-  const UPHILL = /skimo|ski[- ]?alpinisme|skin ?(track|trail|route)|uphill|mont[ée]es? (de|en|à|a) peaux?|randonn[ée]e alpine|rando alpine|ascension|skin ?up/i;
+  const UPHILL = /skimo|ski[- ]?alpinisme|skin ?(track|trail|route)|uphill|mont[ée]es? (de|en|à|a) peaux?|randonn[ée]e alpine|rando alpine|ascensio[nm]|skin ?up/i;
   const isUphill = (r) => !!r && r.lat == null && (r.up === 1 || (r.type === "tour" && !r.area && UPHILL.test(`${r.name || ""} | ${(r.tags && r.tags["piste:name"]) || ""}`)));
   const UP_LABEL = "Uphill ski route (skin track)";
   const UP_ABOUT = "A way up for skinning, not a run down. At a ski resort, skinning up usually needs an uphill pass and is only allowed at set hours and on set runs: check the resort's uphill rules before you go.";

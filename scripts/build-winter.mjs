@@ -121,6 +121,8 @@ async function overpass(query, { wait = 240000, tries = 6 } = {}) {
 }
 // Overpass picks the candidates by name; uphillKind() then decides (Overpass regexes are POSIX: "." for é).
 const UPHILL_OSM = "skimo|ski.?alpinisme|skin ?(track|trail|route)|uphill|mont.{1,2}es? (de|en|.{1,2}) peaux?|randonn.{1,2}e alpine|rando alpine|ascension";
+// Ski lifts, only to tell a ski resort's boundary from a backcountry ski zone's (resortAreas).
+const LIFTS_OSM = "^(chair_lift|gondola|cable_car|mixed_lift|t-bar|j-bar|platter|drag_lift|rope_tow|magic_carpet)$";
 const skiQuery = ([s, w, n, e]) => `[out:json][timeout:200][bbox:${s},${w},${n},${e}];
 (
   way["piste:type"];
@@ -134,6 +136,7 @@ const skiQuery = ([s, w, n, e]) => `[out:json][timeout:200][bbox:${s},${w},${n},
   relation["route"="snowmobile"];
   wr["landuse"="winter_sports"];
   way["highway"~"^(path|footway|track|bridleway)$"]["name"~"${UPHILL_OSM}",i];
+  way["aerialway"~"${LIFTS_OSM}"];
   nwr["amenity"="parking"]["ski"~"^(yes|designated|permissive)$"];
   nwr["highway"="trailhead"];
   nwr["amenity"="parking"]["name"~"trail ?head|backcountry|ski|snowshoe|sno-?park",i];
@@ -195,8 +198,17 @@ const slimTags = (r) => r.src === "bc" ? {} : Object.fromEntries(Object.entries(
 
 // Ski resort boundaries (landuse=winter_sports ways and multipolygons): every outer edge as one list of segments,
 // [lat1, lon1, lat2, lon2, ...] per resort with its box, for an even-odd point-in-area test.
+// Only an area with a ski lift or a groomed run in it is a resort: in the Chic-Chocs, OpenStreetMap maps backcountry
+// ski zones the same way (Mont Lyall, Mont Vallières-de-Saint-Réal, the Cuves de la Mine, Mont Porphyre, Mont York;
+// alex 2026-11-03: "check in gaspesie region too for all ski route"), and their lines are ski touring, not in-bounds
+// off-piste.
 function resortAreas(els) {
-  const out = [];
+  const out = [], marks = [];
+  for (const el of els) {
+    const t = el.tags || {};
+    if (!t.aerialway && !(skiType(t) === "resort")) continue;
+    for (const p of el.geometry || []) if (p) marks.push(p);
+  }
   for (const el of els) {
     if ((el.tags || {}).landuse !== "winter_sports") continue;
     const rings = el.type === "way" ? [el.geometry || []] : (el.members || []).filter((m) => m.type === "way" && m.role !== "inner").map((m) => m.geometry || []);
@@ -208,7 +220,9 @@ function resortAreas(els) {
       seg.push(a.lat, a.lon, b.lat, b.lon);
       s = Math.min(s, b.lat); n = Math.max(n, b.lat); w = Math.min(w, b.lon); e = Math.max(e, b.lon);
     }
-    if (seg.length >= 12) out.push({ seg, box: [s, w, n, e] });
+    if (seg.length < 12) continue;
+    const area = { seg, box: [s, w, n, e] };
+    if (marks.some((p) => inResort([area], p.lat, p.lon))) out.push(area);
   }
   return out;
 }
@@ -289,6 +303,9 @@ function parkingSpots(lots, routes) {
   }
   return out;
 }
+// Parc de la Gaspésie routes OpenStreetMap tags as backcountry nordic that the Sépaq (Données Québec "sentiers
+// hivernaux": Randonnée alpine) and camptocamp (Grande Cuve du Mont Albert) give as alpine ski touring.
+const ALPINE_REL = { 9318718: "tour" /* Mont Hog's Back (ski) */, 9318730: "tour" /* La Grande Cuve (ski) */ };
 // OpenStreetMap elements (ways and relations with their geometry, huts) -> { routes, huts, parking }.
 function osmRoutes(els) {
   log(`  ${els.length} elements`);
@@ -315,7 +332,7 @@ function osmRoutes(els) {
   for (const el of els.filter((e) => e.type === "relation")) {
     const t = el.tags || {};
     if (/hut|shelter/.test(t.tourism || t.amenity || "") || t.landuse === "winter_sports" || isParking(el, t)) continue;
-    const type = skiType(t) || "tour";
+    const type = ALPINE_REL[el.id] || skiType(t) || "tour";
     const name = t.name || t["piste:name"] || t.ref || "";
     const parts = [], memberIds = [];
     for (const m of el.members || []) {
@@ -323,7 +340,12 @@ function osmRoutes(els) {
       memberIds.push(m.ref);
       if (wayIds.has(m.ref)) {   // already drawn: just give it the route's name
         const r = routes.find((r) => r.id === "w" + m.ref);
-        if (r) { r.routes = [...new Set([...(r.routes || []), name || "route " + el.id])]; if (!r.name) r.name = name; }
+        if (r) {
+          r.routes = [...new Set([...(r.routes || []), name || "route " + el.id])];
+          if (!r.name) r.name = name;
+          // A piece tagged only piste:type=yes takes its route's kind (Mont Hog's Back's ski route).
+          if (r.type === "other" || (ALPINE_REL[el.id] && r.type !== "tour")) r.type = type;
+        }
         continue;
       }
       const g = flat(m.geometry.filter(Boolean).map((p) => ({ lat: p.lat, lon: p.lon })), 6);
@@ -559,6 +581,8 @@ area["ISO3166-2"="CA-${iso}"]->.p;
   nwr["amenity"="shelter"]["shelter_type"="basic_hut"](area.p);
   wr["landuse"="winter_sports"](area.p);
   way["highway"~"^(path|footway|track|bridleway)$"]["name"~"${UPHILL_OSM}",i](area.p);
+  relation["piste:type"="nordic"]["piste:grooming"~"backcountry|^no$"](area.p);
+  way["aerialway"~"${LIFTS_OSM}"](area.p);
 );
 out tags geom qt;`;
 // Canada-wide Overpass queries are slow (some provinces take many minutes), so the job gives them CANADA_OSM_MIN
