@@ -1934,7 +1934,8 @@
     "Neither":"Aucun des deux",
     "Zoomed in there: tap again to place your point.":"Zoom fait : touchez encore pour placer votre point.",
     "Skiing Plan a tour: drag the end of a line you added along it and the line stops there; your tour goes on to the next point from that spot.":"Ski, Planifier une sortie : glissez la fin d'une ligne ajoutée le long de celle-ci et la ligne s'arrête là; votre sortie continue vers le point suivant à partir de cet endroit.",
-    "Skiing Plan a tour: the list of your points (Start, 1, 2 … End) is always shown under Undo and Clear, with the safest way on or off, so you can reorder or delete points any time.":"Ski, Planifier une sortie : la liste de vos points (Départ, 1, 2 … Fin) est toujours affichée sous Annuler et Effacer, avec le trajet le plus sûr activé ou non, pour réordonner ou supprimer des points en tout temps."};
+    "Skiing Plan a tour: the list of your points (Start, 1, 2 … End) is always shown under Undo and Clear, with the safest way on or off, so you can reorder or delete points any time.":"Ski, Planifier une sortie : la liste de vos points (Départ, 1, 2 … Fin) est toujours affichée sous Annuler et Effacer, avec le trajet le plus sûr activé ou non, pour réordonner ou supprimer des points en tout temps.",
+    "Skiing Safest way: the route no longer breaks off near your points (each piece now starts and ends right on them), and Your route shows the same distance and climb as the summary above it.":"Ski, trajet le plus sûr : le trajet ne s'interrompt plus près de vos points (chaque morceau commence et finit pile sur eux), et Votre trajet montre la même distance et la même montée que le résumé au-dessus."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

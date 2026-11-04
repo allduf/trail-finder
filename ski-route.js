@@ -257,7 +257,17 @@
         (s) => onStep && onStep(s === "terrain" ? "Getting the terrain…" : "Finding the safest way…"));
       if (out.fail) return { fail: out.fail === "water" ? "water" : "noway", leg: i };
       const cells = out.res.cells;   // from a to b
-      legs.push({ ...pieces(FR, out.g, cells, av), straight: straight(FR, out.g, a, b) });
+      const pc = pieces(FR, out.g, cells, av);
+      // The search stops within a cell or two of a (and starts from open ground near b when b is on a rock face), so
+      // the line is joined to the points themselves: each leg starts and ends exactly on its points, with no gap
+      // between one leg and the next (alex 2026-11-04 screenshot: the way broke off before points 4 and 5).
+      if (pc.runs.length) {
+        const D = (p, q) => window.tfLeaflet.distance([p[0], p[1]], [q[0], q[1]]), f = pc.runs[0], l = pc.runs[pc.runs.length - 1];
+        const d0 = D(a, f.pts[0]), d1 = D(b, l.pts[l.pts.length - 1]);
+        if (d0 > 2) { f.pts.unshift([+a[0].toFixed(6), +a[1].toFixed(6)]); f.m += d0; if (pc.steps[0]) pc.steps[0].m += Math.round(d0); }
+        if (d1 > 2) { l.pts.push([+b[0].toFixed(6), +b[1].toFixed(6)]); l.m += d1; if (pc.steps.length) pc.steps[pc.steps.length - 1].m += Math.round(d1); }
+      }
+      legs.push({ ...pc, straight: straight(FR, out.g, a, b) });
     }
     return total(legs, av, { from: "pts" });
   }

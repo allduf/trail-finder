@@ -1291,7 +1291,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=2980").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3010").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2728,6 +2728,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const names = [];
     for (const l of legs) for (const s of l.steps) if (s.name && s.m >= 100 && names[names.length - 1] !== s.name) names.push(s.name);
     const via = names.length ? `<p class="ss-names">Via ${names.slice(0, 8).map((x) => `<span>${esc(x)}</span>`).join(", ")}${names.length > 8 ? ` and ${names.length - 8} more` : ""}</p>` : "";
+    // The totals the summary above and the route card show (heights every 25 m along the line), once they're in, so the
+    // same tour never shows two climbs (alex 2026-11-04: 1,061 m above, 1090 m here).
+    const inf = selected && selected.src === "plan" ? selected.info : null;
+    if (inf) { m = inf.total; up = inf.up; down = inf.down; }
     const sum = `<div class="ss-sum"><div><b>${D(m)}</b><small>Distance</small></div><div><b>${Math.round(up)} m</b><small>Climb</small></div><div><b>${Math.round(down)} m</b><small>Descent</small></div></div>`;
     return `<div class="sk-sec"><h4>Your route</h4>${sum}${via}<ol class="ss-list">${html}</ol></div>`;
   }
