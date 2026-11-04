@@ -1,14 +1,21 @@
 {
- "about": "Freeride lines layer in Skiing (freeride.js). The lines themselves come from OpenStreetMap (the ski routes winter.js already loads: home region, data/ski-canada/ and ca/w/), drawn by skiers who know them, so nothing here is guessed. A route counts as a freeride line when it's a named downhill descent (not an area, a skin track, a road or a park) and OpenStreetMap rates it freeride or extreme, or expert and ungroomed (or with a chute, couloir, face, bowl, glade, ridge, cliff... in its name). Hand-kept below: resorts where every ungroomed expert run is a freeride line (allExpert), names fixed, and lines left out (skip: slackcountry lines, which have their own layer).",
+ "about": "Freeride lines layer in Skiing (freeride.js). The lines themselves come from OpenStreetMap (the ski routes winter.js already loads: home region, data/ski-canada/ and ca/w/), drawn by skiers who know them, so nothing here is guessed. A route counts as a freeride line when it's a named downhill descent (not an area, a skin track, a road or a park) and OpenStreetMap rates it freeride or extreme, or expert and ungroomed (or with a chute, couloir, face, bowl, glade, ridge, cliff... in its name). An expert rating alone is not enough: marked trail-map runs through the trees are rated expert too (Insanity, Powerline at Whistler Creekside, alex 2026-11-04). Hand-kept below: resorts whose OpenStreetMap run descriptions count like the name (expertWords), real alpine lines with no such word (keep), names fixed, and lines left out (skip: slackcountry lines, which have their own layer, and low runs that aren't lines).",
  "resorts": [
   {
    "id": "wb",
    "name": "Whistler Blackcomb",
    "box": [49.99, -123.06, 50.14, -122.82],
-   "allExpert": true,
-   "guide": { "t": "Ski and Snowboard Guide to Whistler Blackcomb: Advanced/Expert (Finestone and Hodder, Quickdraw Publications), 120+ runs not on the trail map", "u": "https://www.quickdrawpublications.com/" },
-   "skip": ["Husume", "Poop Chutes", "Corona Bowl", "Body Bag Bowl", "DOA (Down, Over, and Around)", "Cowboy Left", "Musical Bumps Trail", "Fissile Peak NW Face", "Chuting Gallery"],
-   "rename": { "Search Ski Areas, Lifts, and Runs Stuie's Slope": "Stuie's Slope", "Asian Pussy (AP)": "AP" }
+   "expertWords": true,
+   "keep": ["Big O", "Blow Hole", "Dilemma", "Elevator", "Excitation", "Exhilaration", "Pig's Fancy", "Regulator", "Zut Zut"],
+   "guide": {
+    "t": "Ski and Snowboard Guide to Whistler Blackcomb: Advanced/Expert (Finestone and Hodder, Quickdraw Publications), 120+ runs not on the trail map",
+    "u": "https://www.quickdrawpublications.com/"
+   },
+   "skip": ["Husume", "Poop Chutes", "Corona Bowl", "Body Bag Bowl", "DOA (Down, Over, and Around)", "Cowboy Left", "Musical Bumps Trail", "Fissile Peak NW Face", "Chuting Gallery", "Lit Champs Glades"],
+   "rename": {
+    "Search Ski Areas, Lifts, and Runs Stuie's Slope": "Stuie's Slope",
+    "Asian Pussy (AP)": "AP"
+   }
   }
  ]
 }
