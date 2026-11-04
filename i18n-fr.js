@@ -1818,7 +1818,26 @@
     "Every source and its licence":"Chaque source et sa licence",
     "Plan a hike still finds a route along the trails when the route server is busy, and a new Data credits page lists every source.":"Planifier une randonnée trouve encore un trajet le long des sentiers quand le serveur de trajets est occupé, et une nouvelle page Sources des données liste chaque source.",
     "Skiing Freeride lines no longer show marked runs like Insanity and Powerline at Whistler Creekside.":"Les lignes freeride en ski n'affichent plus les pistes balisées comme Insanity et Powerline à Whistler Creekside.",
-    "Skiing This spot: the terrain box (Simple, Challenging, Complex) is now easy to read and fits in its box.":"Ski, Cet endroit : la case du terrain (Simple, Exigeant, Complexe) est maintenant facile à lire et tient dans sa case."};
+    "Skiing This spot: the terrain box (Simple, Challenging, Complex) is now easy to read and fits in its box.":"Ski, Cet endroit : la case du terrain (Simple, Exigeant, Complexe) est maintenant facile à lire et tient dans sa case.",
+    "Safest way here":"Trajet le plus sûr jusqu'ici",
+    "Find the safest way":"Trouver le trajet le plus sûr",
+    "Safest way: on":"Trajet le plus sûr : activé",
+    "Safest":"Plus sûr",
+    "Why this way":"Pourquoi ce trajet",
+    "Find again":"Chercher de nouveau",
+    "Find the safest way between my points":"Trouver le trajet le plus sûr entre mes points",
+    "Your tour, safest way":"Votre sortie, trajet le plus sûr",
+    "Finding the safest way…":"Recherche du trajet le plus sûr…",
+    "Getting the terrain…":"Lecture du terrain…",
+    "Reading the terrain, slopes and avalanche paths…":"Lecture du terrain, des pentes et des couloirs d'avalanche…",
+    "Looking for the safest way in from a plowed road…":"Recherche du trajet le plus sûr depuis une route déneigée…",
+    "⚠ This does not replace avalanche training.":"⚠ Ceci ne remplace pas une formation en avalanche.",
+    "One of today's problems is on every aspect, so slope angle and what's above matter most.":"Un des problèmes du jour touche toutes les orientations : l'angle de la pente et ce qui est au-dessus comptent le plus.",
+    "✓ No 30°+ slopes and no steep slopes above on this way, as far as the terrain map can see.":"✓ Aucune pente de 30°+ ni pente raide au-dessus sur ce trajet, d'après la carte du terrain.",
+    "That point is out on open water: move it to the shore.":"Ce point est sur l'eau : déplacez-le sur la rive.",
+    "Couldn't find a way between these points (cliffs or open water in the way, or too far apart). Move a point or add one between.":"Aucun trajet trouvé entre ces points (falaises ou eau sur le chemin, ou trop loin). Déplacez un point ou ajoutez-en un entre les deux.",
+    "Couldn't get the terrain for this area. Check your connection and try again.":"Impossible d'obtenir le terrain pour ce secteur. Vérifiez votre connexion et réessayez.",
+    "Skiing: 🛡 Safest way plans a tour around avalanche terrain (slope angle, today's forecast and problem aspects, slopes above and terrain traps) and shows why on the route.":"Ski : 🛡 Trajet le plus sûr planifie une sortie en contournant le terrain avalancheux (angle de pente, prévision du jour et orientations à problème, pentes au-dessus et pièges de terrain) et montre pourquoi sur le trajet."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
