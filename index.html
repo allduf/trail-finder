@@ -13,8 +13,8 @@
 <meta name="apple-mobile-web-app-title" content="Trail Finder">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#12291d">
-<script src="i18n.js?v=2770"></script>
-<script src="line-icons.js?v=2770"></script>
+<script src="i18n.js?v=2780"></script>
+<script src="line-icons.js?v=2780"></script>
 <!-- Unofficial trails are for alex and friends only (friends.js): everyone else gets the public map, class tf-pub. -->
 <script>try { if (localStorage.getItem("tf-friend") !== "1") document.documentElement.classList.add("tf-pub"); } catch (e) { document.documentElement.classList.add("tf-pub"); }</script>
 </head>
@@ -1598,15 +1598,15 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="risk.js?v=2770"></script>
-<script src="welcome.js?v=2770"></script>
-<script src="native.js?v=2770"></script>
-<script src="keyboard.js?v=2770"></script>
-<script src="rotate.js?v=2770"></script>
-<script src="official.js?v=2770"></script>
-<script src="directions.js?v=2770"></script>
-<script src="ratings.js?v=2770"></script>
-<script src="ebike.js?v=2770"></script>
+<script src="risk.js?v=2780"></script>
+<script src="welcome.js?v=2780"></script>
+<script src="native.js?v=2780"></script>
+<script src="keyboard.js?v=2780"></script>
+<script src="rotate.js?v=2780"></script>
+<script src="official.js?v=2780"></script>
+<script src="directions.js?v=2780"></script>
+<script src="ratings.js?v=2780"></script>
+<script src="ebike.js?v=2780"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -4308,7 +4308,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=2770").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=2780").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -6523,6 +6523,55 @@ out body;`;
       return t;
     },
   }))({ minZoom: ROAD_MIN_ZOOM, opacity: 0.7, pane: "roadAreas", attribution: "Forest loss: Hansen/UMD/Google/USGS/NASA, Global Forest Watch (CC BY 4.0)" });
+  // Ontario: the province's own forest management data (Open Government Licence - Ontario), one ArcGIS service per
+  // forest management unit, listed with its box in data/on-logging.json (scripts/build-on-logging.mjs): the blocks
+  // scheduled for logging this plan year (Annual Work Schedule, April to March) and the blocks logged in the newest
+  // reported year (Annual Report). Only the blocks in view are asked for, as shapes, with Logging areas on and zoomed in
+  // (alex 2026-11-04: Ontario logging). Planned in gold, logged in pink like Quebec's recent cuts.
+  const ON_BOX = L.latLngBounds([41.6, -95.2], [56.9, -74.3]);
+  const ON_STYLE = { plan: { color: "#b8860b", fillColor: "#f2c94c", fillOpacity: 0.45 }, done: { color: "#f0509c", fillColor: "#ffd6ec", fillOpacity: 0.5 } };
+  const ON_SILV = { CC: "clearcut", SH: "shelterwood cut (some big trees left)", SE: "selection cut (single trees taken)", RE: "partial cut" };
+  const onLayer = L.layerGroup().addTo(map);
+  let onUnits = null, onAreas = [], onHave = null, onSeq = 0;
+  function onLogging(areasOn) {
+    const view = map.getBounds();
+    if (!areasOn || !view.intersects(ON_BOX)) {
+      if (onHave) { onSeq++; onHave = null; onAreas = []; onLayer.clearLayers(); renderKey(); }
+      return;
+    }
+    const fine = map.getZoom() >= 13;
+    if (onHave && onHave.fine === fine && onHave.box.contains(view)) return;
+    const box = view.pad(0.4), seq = ++onSeq;
+    onHave = { box, fine };
+    onUnits = onUnits || fetch("data/on-logging.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    onUnits.then(async (j) => {
+      const units = ((j && j.units) || []).filter((u) => box.intersects(L.latLngBounds([u.b[0], u.b[1]], [u.b[2], u.b[3]])));
+      const px = 360 / 256 / 2 ** map.getZoom(), geom = [box.getWest(), box.getSouth(), box.getEast(), box.getNorth()].map((v) => v.toFixed(4)).join(",");
+      const got = await Promise.all(units.map((u) => fetch(`${u.url}/query?where=1%3D1&geometry=${geom}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects`
+        + `&outFields=*&outSR=4326&maxAllowableOffset=${(px * (fine ? 0.5 : 1)).toFixed(6)}&geometryPrecision=5&resultRecordCount=2000&f=geojson`)
+        .then((r) => (r.ok ? r.json() : null)).then((g) => ({ u, g })).catch(() => ({ u, g: null }))));
+      if (seq !== onSeq) return;
+      onAreas = [];
+      got.forEach(({ u, g }) => ((g && g.features) || []).forEach((f) => {
+        const t = f.geometry && f.geometry.type, polys = t === "Polygon" ? [f.geometry.coordinates] : t === "MultiPolygon" ? f.geometry.coordinates : [];
+        polys.forEach((rs) => {
+          const rings = rs.map((r) => r.map(([x, y]) => [y, x]));
+          onAreas.push({ k: u.k, yr: (f.properties && f.properties.AWS_YR) || u.yr, unit: u.n, p: f.properties || {}, rings, bounds: L.latLngBounds(rings[0]) });
+        });
+      }));
+      onLayer.clearLayers();
+      ["done", "plan"].forEach((k) => onAreas.filter((a) => a.k === k).forEach((a) =>
+        onLayer.addLayer(L.polygon(a.rings, { renderer: areaRenderer, interactive: false, weight: 2, ...ON_STYLE[k] }))));
+      renderKey();
+    });
+  }
+  const onYears = (y) => `April ${y} to March ${+y + 1}`;
+  function onAreaHtml(a) {
+    const silv = ON_SILV[a.p.SILVSYS], cat = a.p.HARVCAT || "";
+    const when = a.k === "plan" ? `Logging planned ${onYears(a.yr)}` : `Logged ${onYears(a.yr)}`;
+    const note = /CONTNG/.test(cat) ? "Backup block: only logged if another can't be" : /BRIDG/.test(cat) ? "Carried over from the last forest plan" : "";
+    return `<p><span class="st">${esc(when)}</span>${silv ? " · " + esc(silv) : ""}${note ? `<br>${esc(note)}` : ""}<br><span class="src">Ontario MNR ${a.k === "plan" ? "Annual Work Schedule" : "Annual Report"}, ${esc(a.unit)} Forest${a.p.BLOCKID ? `, block ${esc(a.p.BLOCKID)}` : ""}</span></p>`;
+  }
   let fires = null, areaKey = "";
   const rings = (gs) => gs.map(roadGeom);
   map.createPane("fireAreas").style.zIndex = 375;
@@ -6611,6 +6660,7 @@ out body;`;
     const qcOn = state.areas && map.getZoom() >= ROAD_MIN_ZOOM && map.getBounds().intersects(qcLogging.options.bounds);
     if (qcOn !== map.hasLayer(qcLogging)) { qcOn ? qcLogging.addTo(map) : map.removeLayer(qcLogging); renderKey(); }
     if (areasOn !== map.hasLayer(lossLayer)) { areasOn ? lossLayer.addTo(map) : map.removeLayer(lossLayer); renderKey(); }
+    onLogging(areasOn);
     EAST_ROADS.forEach((r) => { const v = on && map.getBounds().intersects(r.layer.options.bounds); if (v !== map.hasLayer(r.layer)) { v ? r.layer.addTo(map) : map.removeLayer(r.layer); renderKey(); } });
     if (key !== areaKey) {
       areaKey = key;
@@ -6669,6 +6719,8 @@ out body;`;
       });
     }
     if (!state.areas || map.getZoom() < ROAD_MIN_ZOOM) return out;
+    const onSeen = new Set();
+    onAreas.forEach((a) => { const h = onAreaHtml(a); if (!onSeen.has(h) && a.bounds.contains(ll) && inRings(ll, a.rings)) { onSeen.add(h); out.push(h); } });
     roadData.forEach((z) => z && z.areas.forEach((a) => {
       if (!a.bounds.contains(ll) || !inRings(ll, a.rings)) return;
       if (a.type === "mv") out.push(`<p><span class="st">Closed to motor vehicles</span>${a.m.d ? " · " + esc(a.m.d) : ""}<br><span class="src">${esc(a.m.n || "Motor Vehicle Prohibition Regulation area")}${a.m.x ? " · " + esc(a.m.x) : ""}</span></p>`);
@@ -6979,6 +7031,8 @@ out body;`;
     else html += section("Forest roads", sw("background: var(--road-plain)", "Forest road (turn on Forest roads in Layers for status)"));
     if (state.areas) html += section("Logging areas", Object.values(AREA_STYLE).map(areaSw).join("")
       + (map.hasLayer(qcLogging) ? sw("background: #d4e3b5; border: 2px solid #d4a017", "Quebec: authorized cut (CR = clear cut)") + sw("background: #ffd6ec; border: 2px solid #f0509c", `Quebec: logged ${QC_LOG_YEARS[0]} to ${QC_LOG_YEARS.at(-1)}`) : "")
+      + (onAreas.some((a) => a.k === "plan") ? sw("background: #f2c94c; border: 2px solid #b8860b", "Ontario: logging planned this year (April to March)") : "")
+      + (onAreas.some((a) => a.k === "done") ? sw("background: #ffd6ec; border: 2px solid #f0509c", "Ontario: logged in the newest reported year") : "")
       + (map.hasLayer(lossLayer) && lossSkip(map.getCenter().lat, map.getCenter().lng) === false ? sw("background: #f050a0", "Forest cut or burned 2020 and later (from space)") + sw("background: #7b2cbf", "Forest cut or burned 2010 to 2019") : ""));
     if (state.fires) {
       // The satellite fire areas and Alberta's fire orders only get a key line when some are on the map.
@@ -8531,49 +8585,49 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=2770"></script>
-<script src="native-map.js?v=2770"></script>
-<script src="contours.js?v=2770"></script>
-<script src="clouds.js?v=2770"></script>
-<script src="smoke.js?v=2770"></script>
-<script src="radar.js?v=2770"></script>
-<script src="photo-slider.js?v=2770"></script>
-<script src="ski-terrain.js?v=2770"></script>
-<script src="place-search.js?v=2770"></script>
-<script src="winter.js?v=2770"></script>
-<script src="hunts.js?v=2770"></script>
-<script src="ski-points.js?v=2770"></script>
-<script src="offline.js?v=2770"></script>
-<script src="ride-stats.js?v=2770"></script>
-<script src="native-gps.js?v=2770"></script>
-<script src="navigate.js?v=2770"></script>
-<script src="planner.js?v=2770"></script>
-<script src="loops.js?v=2770"></script>
-<script src="ride-finds.js?v=2770"></script>
-<script src="rides.js?v=2770"></script>
-<script src="community.js?v=2770"></script>
-<script src="ride-files.js?v=2770"></script>
-<script src="rider-trails.js?v=2770"></script>
-<script src="account.js?v=2770"></script>
-<script src="friends.js?v=2770"></script>
-<script src="live.js?v=2770"></script>
-<script src="strava.js?v=2770"></script>
-<script src="moderation.js?v=2770"></script>
-<script src="reports.js?v=2770"></script>
-<script src="grades.js?v=2770"></script>
-<script src="trail-photos.js?v=2770"></script>
-<script src="visitors.js?v=2770"></script>
-<script src="usage.js?v=2770"></script>
-<script src="notify.js?v=2770"></script>
-<script src="closures.js?v=2770"></script>
-<script src="status.js?v=2770"></script>
-<script src="ask.js?v=2770"></script>
-<script src="areas.js?v=2770"></script>
-<script src="alpine.js?v=2770"></script>
-<script src="bikeparks.js?v=2770"></script>
-<script src="photo-find.js?v=2770"></script>
-<script src="whats-new.js?v=2770"></script>
-<script src="app-update.js?v=2770"></script>
+<script src="map3d.js?v=2780"></script>
+<script src="native-map.js?v=2780"></script>
+<script src="contours.js?v=2780"></script>
+<script src="clouds.js?v=2780"></script>
+<script src="smoke.js?v=2780"></script>
+<script src="radar.js?v=2780"></script>
+<script src="photo-slider.js?v=2780"></script>
+<script src="ski-terrain.js?v=2780"></script>
+<script src="place-search.js?v=2780"></script>
+<script src="winter.js?v=2780"></script>
+<script src="hunts.js?v=2780"></script>
+<script src="ski-points.js?v=2780"></script>
+<script src="offline.js?v=2780"></script>
+<script src="ride-stats.js?v=2780"></script>
+<script src="native-gps.js?v=2780"></script>
+<script src="navigate.js?v=2780"></script>
+<script src="planner.js?v=2780"></script>
+<script src="loops.js?v=2780"></script>
+<script src="ride-finds.js?v=2780"></script>
+<script src="rides.js?v=2780"></script>
+<script src="community.js?v=2780"></script>
+<script src="ride-files.js?v=2780"></script>
+<script src="rider-trails.js?v=2780"></script>
+<script src="account.js?v=2780"></script>
+<script src="friends.js?v=2780"></script>
+<script src="live.js?v=2780"></script>
+<script src="strava.js?v=2780"></script>
+<script src="moderation.js?v=2780"></script>
+<script src="reports.js?v=2780"></script>
+<script src="grades.js?v=2780"></script>
+<script src="trail-photos.js?v=2780"></script>
+<script src="visitors.js?v=2780"></script>
+<script src="usage.js?v=2780"></script>
+<script src="notify.js?v=2780"></script>
+<script src="closures.js?v=2780"></script>
+<script src="status.js?v=2780"></script>
+<script src="ask.js?v=2780"></script>
+<script src="areas.js?v=2780"></script>
+<script src="alpine.js?v=2780"></script>
+<script src="bikeparks.js?v=2780"></script>
+<script src="photo-find.js?v=2780"></script>
+<script src="whats-new.js?v=2780"></script>
+<script src="app-update.js?v=2780"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

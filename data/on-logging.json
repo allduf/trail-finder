@@ -1,0 +1,810 @@
+{
+ "note": "Ontario forest management units with their newest official harvest data: k plan = Annual Work Schedule (Scheduled Harvest, for the year from April 1 of yr), k done = Annual Report (Harvest Operations done in the year from April 1 of yr). url is the ArcGIS feature layer the app asks for the blocks in view; b is its box [south, west, north, east]. Built by scripts/build-on-logging.mjs. Ontario Ministry of Natural Resources, Open Government Licence - Ontario.",
+ "builtAt": "2026-11-04T16:09:10.458Z",
+ "units": [
+  {
+   "n": "Abitibi River",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Abitibi_River_2024_AR_3382/FeatureServer/8",
+   "b": [
+    48.21,
+    -81.691,
+    49.432,
+    -79.518
+   ]
+  },
+  {
+   "n": "Abitibi River",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Abitibi_River_2026_AWS_2746_View/FeatureServer/10",
+   "b": [
+    47.93,
+    -81.955,
+    50.03,
+    -79.518
+   ]
+  },
+  {
+   "n": "Algoma",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Algoma_2024_AR_3457/FeatureServer/8",
+   "b": [
+    46.483,
+    -84.695,
+    47.861,
+    -83.738
+   ]
+  },
+  {
+   "n": "Algoma",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Algoma_2026_AWS_2712_View/FeatureServer/10",
+   "b": [
+    46.383,
+    -85.614,
+    48.185,
+    -83.466
+   ]
+  },
+  {
+   "n": "Algonquin Park",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Algonquin_Park_2024_AR_3357_View/FeatureServer/8",
+   "b": [
+    45.217,
+    -79.132,
+    46.133,
+    -77.642
+   ]
+  },
+  {
+   "n": "Algonquin Park",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Algonquin_Park_2026_AWS_2749_View/FeatureServer/10",
+   "b": [
+    45.204,
+    -79.157,
+    46.153,
+    -77.498
+   ]
+  },
+  {
+   "n": "Bancroft Minden",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Bancroft_Minden_2024_AR_3395/FeatureServer/8",
+   "b": [
+    44.597,
+    -78.988,
+    45.491,
+    -77.457
+   ]
+  },
+  {
+   "n": "Bancroft Minden",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Bancroft_Minden_2026_AWS_2683_View/FeatureServer/10",
+   "b": [
+    44.597,
+    -79.001,
+    45.672,
+    -77.415
+   ]
+  },
+  {
+   "n": "Black Spruce",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Black_Spruce_2026_AWS_2736_View/FeatureServer/10",
+   "b": [
+    48.604,
+    -91.214,
+    50.003,
+    -88.399
+   ]
+  },
+  {
+   "n": "Boundary Waters",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Boundary_Waters_2024_AR_3275/FeatureServer/8",
+   "b": [
+    48.551,
+    -94.525,
+    49.299,
+    -91.142
+   ]
+  },
+  {
+   "n": "Boundary Waters",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Boundary_Waters_2026_AWS_2669_View/FeatureServer/10",
+   "b": [
+    48.251,
+    -94.598,
+    49.454,
+    -90.963
+   ]
+  },
+  {
+   "n": "Caribou",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Caribou_2024_AR_3372/FeatureServer/8",
+   "b": [
+    50.25,
+    -90.74,
+    50.649,
+    -90.618
+   ]
+  },
+  {
+   "n": "Caribou",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Caribou_2026_AWS_2671_View/FeatureServer/10",
+   "b": [
+    50.234,
+    -91.24,
+    51.093,
+    -89.955
+   ]
+  },
+  {
+   "n": "Dog River Matawin",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Dog_River_Matawin_2024_AR_3258/FeatureServer/8",
+   "b": [
+    48.341,
+    -90.964,
+    49.343,
+    -89.633
+   ]
+  },
+  {
+   "n": "Dog River Matawin",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Dog_River_Matawin_2026_AWS_2693_View/FeatureServer/10",
+   "b": [
+    48.296,
+    -90.964,
+    49.409,
+    -89.554
+   ]
+  },
+  {
+   "n": "Dryden",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Dryden_2024_AR_3402/FeatureServer/8",
+   "b": [
+    49.552,
+    -93.475,
+    50.107,
+    -92.33
+   ]
+  },
+  {
+   "n": "Dryden",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Dryden_2026_AWS_2755_View/FeatureServer/10",
+   "b": [
+    49.539,
+    -93.802,
+    50.206,
+    -92.144
+   ]
+  },
+  {
+   "n": "English River",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/English_River_2024_AR_3371/FeatureServer/8",
+   "b": [
+    49.194,
+    -92.284,
+    50.203,
+    -90.911
+   ]
+  },
+  {
+   "n": "English River",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/English_River_2026_AWS_2673_View/FeatureServer/10",
+   "b": [
+    49.194,
+    -92.411,
+    50.24,
+    -89.78
+   ]
+  },
+  {
+   "n": "Gordon Cosens",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Gordon_Cosens_2026_AWS_2752_View/FeatureServer/10",
+   "b": [
+    48.225,
+    -83.753,
+    50.098,
+    -81.859
+   ]
+  },
+  {
+   "n": "Hearst",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Hearst_2024_AR_3358/FeatureServer/8",
+   "b": [
+    48.839,
+    -84.777,
+    50.195,
+    -82.477
+   ]
+  },
+  {
+   "n": "Hearst",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Hearst_2026_AWS_2750_View/FeatureServer/10",
+   "b": [
+    48.798,
+    -85.167,
+    50.198,
+    -82.477
+   ]
+  },
+  {
+   "n": "Kenogami",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Kenogami_2024_AR_3341/FeatureServer/8",
+   "b": [
+    49.489,
+    -87.607,
+    50.549,
+    -85.424
+   ]
+  },
+  {
+   "n": "Kenogami",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Kenogami_2026_AWS_2642_View/FeatureServer/10",
+   "b": [
+    48.845,
+    -87.782,
+    50.657,
+    -85.137
+   ]
+  },
+  {
+   "n": "Kenora",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Kenora_2024_AR_3349/FeatureServer/8",
+   "b": [
+    49.167,
+    -95.081,
+    50.143,
+    -93.713
+   ]
+  },
+  {
+   "n": "Kenora",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Kenora_2026_AWS_2738_View/FeatureServer/10",
+   "b": [
+    49.107,
+    -95.154,
+    50.357,
+    -93.468
+   ]
+  },
+  {
+   "n": "Lac Seul",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Lac_Seul_2026_AWS_2772_View/FeatureServer/10",
+   "b": [
+    49.796,
+    -92.627,
+    51.242,
+    -91.211
+   ]
+  },
+  {
+   "n": "Lake Nipigon",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Lake_Nipigon_2024_AR_3359/FeatureServer/8",
+   "b": [
+    48.973,
+    -88.412,
+    50.078,
+    -87.085
+   ]
+  },
+  {
+   "n": "Lake Nipigon",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Lake_Nipigon_2026_AWS_2725_View/FeatureServer/10",
+   "b": [
+    48.904,
+    -88.433,
+    50.412,
+    -87.085
+   ]
+  },
+  {
+   "n": "Lakehead",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Lakehead_2024_AR_3384/FeatureServer/8",
+   "b": [
+    48.008,
+    -90.551,
+    48.91,
+    -88.324
+   ]
+  },
+  {
+   "n": "Lakehead",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Lakehead_2026_AWS_2753_View/FeatureServer/10",
+   "b": [
+    47.986,
+    -90.692,
+    49.039,
+    -88.082
+   ]
+  },
+  {
+   "n": "Mazinaw Lanark",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Mazinaw_Lanark_2024_AR_3360/FeatureServer/8",
+   "b": [
+    44.831,
+    -77.427,
+    45.225,
+    -76.525
+   ]
+  },
+  {
+   "n": "Mazinaw Lanark",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Mazinaw_Lanark_2026_AWS_2754_View/FeatureServer/10",
+   "b": [
+    44.632,
+    -77.823,
+    45.265,
+    -76.327
+   ]
+  },
+  {
+   "n": "Missanaibi",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Missanaibi_2026_AWS_2728_View/FeatureServer/10",
+   "b": [
+    47.235,
+    -84.921,
+    48.796,
+    -82.757
+   ]
+  },
+  {
+   "n": "Nagagami",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Nagagami_2024_AR_3362/FeatureServer/8",
+   "b": [
+    48.796,
+    -85.079,
+    49.58,
+    -84.041
+   ]
+  },
+  {
+   "n": "Nagagami",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Nagagami_2026_AWS_2763_View/FeatureServer/10",
+   "b": [
+    48.732,
+    -85.333,
+    49.58,
+    -84.017
+   ]
+  },
+  {
+   "n": "Nipissing",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Nipissing_2026_AWS_2777_View/FeatureServer/10",
+   "b": [
+    45.862,
+    -80.42,
+    46.962,
+    -78.333
+   ]
+  },
+  {
+   "n": "Northshore",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Northshore_2026_AWS_2739_View/FeatureServer/10",
+   "b": [
+    46.114,
+    -83.696,
+    47.237,
+    -81.437
+   ]
+  },
+  {
+   "n": "Ogoki",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Ogoki_2024_AR_3380/FeatureServer/8",
+   "b": [
+    50.432,
+    -88.753,
+    51.156,
+    -87.526
+   ]
+  },
+  {
+   "n": "Ogoki",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Ogoki_2026_AWS_2751_View/FeatureServer/10",
+   "b": [
+    50.411,
+    -88.956,
+    51.492,
+    -86.548
+   ]
+  },
+  {
+   "n": "Ottawa Valley",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Ottawa_Valley_2024_AR_3347/FeatureServer/8",
+   "b": [
+    45.14,
+    -78.332,
+    46.217,
+    -76.749
+   ]
+  },
+  {
+   "n": "Ottawa Valley",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Ottawa_Valley_2026_AWS_2742_View/FeatureServer/10",
+   "b": [
+    45.106,
+    -78.364,
+    46.265,
+    -76.519
+   ]
+  },
+  {
+   "n": "Pic Forest",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Pic_Forest_2024_AR_3364/FeatureServer/8",
+   "b": [
+    48.77,
+    -86.202,
+    49.704,
+    -85.079
+   ]
+  },
+  {
+   "n": "Pic Forest",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Pic_Forest_2026_AWS_2748_View/FeatureServer/10",
+   "b": [
+    48.678,
+    -86.999,
+    49.724,
+    -85.079
+   ]
+  },
+  {
+   "n": "Pineland",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Pineland_2024_AR_3369/FeatureServer/8",
+   "b": [
+    47.648,
+    -82.878,
+    48.355,
+    -81.763
+   ]
+  },
+  {
+   "n": "Pineland",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Pineland_2026_AWS_2734_2_View/FeatureServer/10",
+   "b": [
+    47.582,
+    -82.977,
+    48.45,
+    -81.719
+   ]
+  },
+  {
+   "n": "Red Lake",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Red_Lake_2024_AR_3404/FeatureServer/8",
+   "b": [
+    50.744,
+    -93.812,
+    51.044,
+    -93.51
+   ]
+  },
+  {
+   "n": "Red Lake",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Red_Lake_2026_AWS_2778_View/FeatureServer/10",
+   "b": [
+    50.729,
+    -94.02,
+    51.366,
+    -93.41
+   ]
+  },
+  {
+   "n": "Romeo Malette",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Romeo_Malette_2024_AR_3350/FeatureServer/8",
+   "b": [
+    47.78,
+    -82.114,
+    48.799,
+    -81.078
+   ]
+  },
+  {
+   "n": "Romeo Malette",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Romeo_Malette_2026_AWS_2729_View/FeatureServer/10",
+   "b": [
+    47.754,
+    -82.293,
+    48.799,
+    -81.011
+   ]
+  },
+  {
+   "n": "Spanish",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Spanish_2024_AR_3370/FeatureServer/8",
+   "b": [
+    46.561,
+    -82.786,
+    47.655,
+    -81.09
+   ]
+  },
+  {
+   "n": "Spanish",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Spanish_2026_AWS_2735_View/FeatureServer/10",
+   "b": [
+    46.538,
+    -82.985,
+    47.844,
+    -81.074
+   ]
+  },
+  {
+   "n": "Sudbury",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Sudbury_2024_AR_3405/FeatureServer/8",
+   "b": [
+    46.042,
+    -81.238,
+    47.221,
+    -80.308
+   ]
+  },
+  {
+   "n": "Sudbury",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Sudbury_2026_AWS_2760_View/FeatureServer/10",
+   "b": [
+    46.019,
+    -81.597,
+    47.234,
+    -80.215
+   ]
+  },
+  {
+   "n": "Temagami",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Temagami_2024_AR_3367/FeatureServer/8",
+   "b": [
+    47.061,
+    -79.883,
+    47.581,
+    -79.598
+   ]
+  },
+  {
+   "n": "Temagami",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Temagami_2026_AWS_2741_View/FeatureServer/10",
+   "b": [
+    46.799,
+    -80.614,
+    47.581,
+    -79.349
+   ]
+  },
+  {
+   "n": "Timiskaming",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Timiskaming_2024_AR_3366/FeatureServer/8",
+   "b": [
+    47.061,
+    -81.686,
+    48.685,
+    -79.762
+   ]
+  },
+  {
+   "n": "Timiskaming",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Timiskaming_2026_AWS_2740_View/FeatureServer/10",
+   "b": [
+    47.061,
+    -81.727,
+    48.711,
+    -79.518
+   ]
+  },
+  {
+   "n": "Trout Lake",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Trout_Lake_2024_AR_3388/FeatureServer/8",
+   "b": [
+    50.54,
+    -93.485,
+    51.262,
+    -92.057
+   ]
+  },
+  {
+   "n": "Trout Lake",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Trout_Lake_2026_AWS_2654_View/FeatureServer/10",
+   "b": [
+    50.485,
+    -93.764,
+    51.449,
+    -92.001
+   ]
+  },
+  {
+   "n": "Wabadowgang Noopming",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Wabadowgang_Noopming_2024_AR_3392/FeatureServer/8",
+   "b": [
+    50.108,
+    -89.422,
+    50.581,
+    -88.549
+   ]
+  },
+  {
+   "n": "Wabadowgang Noopming",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Wabadowgang_Noopming_2026_AWS_2771_View/FeatureServer/10",
+   "b": [
+    50.003,
+    -89.506,
+    50.741,
+    -88.066
+   ]
+  },
+  {
+   "n": "Wabigoon",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Wabigoon_2026_AWS_2759_View/FeatureServer/10",
+   "b": [
+    49.2,
+    -93.516,
+    50.32,
+    -91.744
+   ]
+  },
+  {
+   "n": "Whiskey Jack",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Whiskey_Jack_2024_AR_3386/FeatureServer/8",
+   "b": [
+    49.463,
+    -94.133,
+    50.437,
+    -93.058
+   ]
+  },
+  {
+   "n": "Whiskey Jack",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/Whiskey_Jack_2026_AWS_2737/FeatureServer/10",
+   "b": [
+    49.428,
+    -94.339,
+    50.613,
+    -92.936
+   ]
+  },
+  {
+   "n": "White River",
+   "k": "done",
+   "yr": 2024,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/White_River_2024_AR_3363/FeatureServer/8",
+   "b": [
+    48.363,
+    -85.59,
+    48.994,
+    -84.8
+   ]
+  },
+  {
+   "n": "White River",
+   "k": "plan",
+   "yr": 2026,
+   "url": "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/White_River_2026_AWS_2747_View/FeatureServer/10",
+   "b": [
+    48.106,
+    -86.124,
+    49.148,
+    -84.794
+   ]
+  }
+ ]
+}
