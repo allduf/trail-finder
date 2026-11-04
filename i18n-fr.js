@@ -1819,6 +1819,10 @@
     "Plan a hike still finds a route along the trails when the route server is busy, and a new Data credits page lists every source.":"Planifier une randonnée trouve encore un trajet le long des sentiers quand le serveur de trajets est occupé, et une nouvelle page Sources des données liste chaque source.",
     "Skiing Freeride lines no longer show marked runs like Insanity and Powerline at Whistler Creekside.":"Les lignes freeride en ski n'affichent plus les pistes balisées comme Insanity et Powerline à Whistler Creekside.",
     "Skiing This spot: the terrain box (Simple, Challenging, Complex) is now easy to read and fits in its box.":"Ski, Cet endroit : la case du terrain (Simple, Exigeant, Complexe) est maintenant facile à lire et tient dans sa case.",
+    "Classic":"Classique",
+    "Also called":"Aussi appelé",
+    "A Duffey Lake Road classic":"Un classique de la Duffey Lake Road",
+    "Skiing: the Duffey classics Chief Pascall and Cayoosh (Kayoosh) are now ski tours, and Ask lists the classics first.":"Ski : les classiques de la Duffey, Chief Pascall et Cayoosh (Kayoosh), sont maintenant des tours de ski, et Demander liste les classiques en premier.",
     "Safest way here":"Trajet le plus sûr jusqu'ici",
     "Find the safest way":"Trouver le trajet le plus sûr",
     "Safest way: on":"Trajet le plus sûr : activé",
@@ -1843,7 +1847,16 @@
     "gentle ground, under 25°":"terrain doux, moins de 25°",
     "No steep or exposed ground on this leg.":"Aucun terrain raide ou exposé sur cette section.",
     "No safer way round on this leg.":"Pas de trajet plus sûr pour cette section.",
-    "Skiing Safest way: the route now has a step list (Start, Point 1, 2 ... End) with each leg's distance, climb and why, matching labels on the map, and it no longer runs down plowed highways.":"Trajet le plus sûr en ski : le trajet a maintenant une liste d'étapes (Départ, Point 1, 2 ... Arrivée) avec la distance, la montée et la raison de chaque section, comme sur la carte, et il ne suit plus les routes déneigées."};
+    "Skiing Safest way: the route now has a step list (Start, Point 1, 2 ... End) with each leg's distance, climb and why, matching labels on the map, and it no longer runs down plowed highways.":"Trajet le plus sûr en ski : le trajet a maintenant une liste d'étapes (Départ, Point 1, 2 ... Arrivée) avec la distance, la montée et la raison de chaque section, comme sur la carte, et il ne suit plus les routes déneigées.",
+    "Saved on this phone only":"Enregistré sur ce téléphone seulement",
+    "Keep your alerts":"Gardez vos alertes",
+    "Sign in so your alerts follow you to a new phone. Free, and the app works the same without it.":"Connectez-vous pour que vos alertes vous suivent sur un nouveau téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
+    "Sign in to have this route on all your devices, and keep it if you lose your phone. Free, and the app works the same without it.":"Connectez-vous pour avoir ce trajet sur tous vos appareils, et ne pas le perdre si vous perdez votre téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
+    "Sign in to have this cabin trip on all your devices, and keep it if you lose your phone. Free, and the app works the same without it.":"Connectez-vous pour avoir ce séjour en refuge sur tous vos appareils, et ne pas le perdre si vous perdez votre téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
+    "Sign in to have this hike on all your devices, and keep it if you lose your phone. Free, and the app works the same without it.":"Connectez-vous pour avoir cette randonnée sur tous vos appareils, et ne pas le perdre si vous perdez votre téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
+    "Sign in to have your trail lists on all your devices, and keep it if you lose your phone. Free, and the app works the same without it.":"Connectez-vous pour avoir vos listes de sentiers sur tous vos appareils, et ne pas le perdre si vous perdez votre téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
+    "Sign in to have your finds on all your devices, and keep it if you lose your phone. Free, and the app works the same without it.":"Connectez-vous pour avoir vos trouvailles sur tous vos appareils, et ne pas le perdre si vous perdez votre téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
+    "When you save something or turn on an alert without an account, a small card offers to sign in so it's on all your devices. You can say Not now.":"Quand vous enregistrez quelque chose ou activez une alerte sans compte, une petite carte propose de vous connecter pour l'avoir sur tous vos appareils. Vous pouvez répondre Pas maintenant."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
