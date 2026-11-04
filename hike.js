@@ -531,7 +531,7 @@ out center tags qt;`;
     const best = e && e.filter((x) => kmTo([x[1], x[2]], h.c) < 20).sort((a, b) => kmTo([a[1], a[2]], h.c) - kmTo([b[1], b[2]], h.c))[0];
     if (best) { h.g = best[3]; h.gFrom = { by: guide.src[best[4]] || best[4], url: best[5] || "" }; }
   }
-  getJ("data/hike-grades.json?v=3050").then((d) => {
+  getJ("data/hike-grades.json?v=3080").then((d) => {
     if (!d || d.v !== 1) return;
     guide = new Map(); guide.src = d.src || {};
     for (const x of d.h) { const k = guideKey(x[0]); if (k) (guide.get(k) || guide.set(k, []).get(k)).push(x); }
@@ -881,8 +881,9 @@ out center tags qt;`;
     if (ordered && ordered.length > 1) pts = sample(ordered, Math.min(100, Math.max(2, ordered.length)));
     else { const all = h.ways.flatMap((w) => w.g); pts = sample(all, Math.min(100, Math.max(2, all.length))); }
     const q = `latitude=${pts.map((p) => p[0].toFixed(4)).join(",")}&longitude=${pts.map((p) => p[1].toFixed(4)).join(",")}`;
-    const j = await getJ(`https://api.open-meteo.com/v1/elevation?${q}`);
-    const el = j.elevation || [];
+    let el;
+    try { el = (await getJ(`https://api.open-meteo.com/v1/elevation?${q}`)).elevation || []; }
+    catch (e) { el = await demHeights(pts); if (!el.length) throw e; }   // no signal: the saved terrain tiles
     if (!el.length) return null;
     let lo = Infinity, hi = -Infinity, hiAt = pts[0], loAt = pts[0];
     el.forEach((m, i) => { if (m < lo) { lo = m; loAt = pts[i]; } if (m > hi) { hi = m; hiAt = pts[i]; } });
@@ -979,7 +980,7 @@ out center tags qt;`;
   // alex 2026-11-03: anything found about a trail beyond OpenStreetMap goes on the trail (the Sea to Sky Gondola's
   // trails: difficulty, length, time, what it's like). An entry fits a hike with one of its names within r metres.
   let tInfo = null;
-  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=3050").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
+  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=3080").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
   const fold = (x) => String(x || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   function operatorFacts(h) {
     const j = tInfo && tInfo.then ? null : tInfo;
@@ -1424,16 +1425,56 @@ out center tags qt;`;
     for (let i = 1; i < line.length; i++) km += kmTo(line[i - 1], line[i]);
     return { line, km };
   }
-  // Heights every ~30 m along a line found on the phone (at most 300 points, Open-Meteo's 90 m terrain).
+  // Heights every ~30 m along a line found on the phone (at most 300 points, Open-Meteo's 90 m terrain). With no
+  // signal, from the terrain tiles an offline map saved (demHeights).
   async function heightsOf(line, km) {
     const n = Math.min(300, Math.max(2, Math.round((km * 1000) / 30))), pts = sample(line, n), el = [];
-    for (let k = 0; k < pts.length; k += 100) {
-      const part = pts.slice(k, k + 100);
-      const j = await getJ(`https://api.open-meteo.com/v1/elevation?latitude=${part.map((p) => p[0].toFixed(4)).join(",")}&longitude=${part.map((p) => p[1].toFixed(4)).join(",")}`);
-      el.push(...(j.elevation || []));
-    }
+    try {
+      for (let k = 0; k < pts.length; k += 100) {
+        const part = pts.slice(k, k + 100);
+        const j = await getJ(`https://api.open-meteo.com/v1/elevation?latitude=${part.map((p) => p[0].toFixed(4)).join(",")}&longitude=${part.map((p) => p[1].toFixed(4)).join(",")}`);
+        el.push(...(j.elevation || []));
+      }
+    } catch (e) { const d = await demHeights(pts); if (d.length) return d; throw e; }
     return el.length === pts.length ? el : [];
   }
+  // Heights from the terrain tiles (zoom 12, about 25 m apart, the ones Offline maps saves for Hiking): for planning a
+  // hike with no signal (alex 2026-11-04: "if i save a area for off line. am i able to create tour or route").
+  const OFF_Z = 12, demHt = new Map();
+  async function demHeights(pts) {
+    const n = 2 ** OFF_Z, out = [];
+    for (const p of pts) {
+      const r = (p[0] * Math.PI) / 180, xf = ((p[1] + 180) / 360) * n, yf = ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n;
+      const x = Math.floor(xf), y = Math.floor(yf), k = `${x}/${y}`;
+      if (!demHt.has(k)) demHt.set(k, fetch(`${DEM}${OFF_Z}/${x}/${y}.png`).then((res) => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.blob(); }).then(createImageBitmap).then((bmp) => {
+        const cv = document.createElement("canvas"); cv.width = cv.height = 256;
+        const cx = cv.getContext("2d", { willReadFrequently: true }); cx.imageSmoothingEnabled = false; cx.drawImage(bmp, 0, 0);
+        const px = cx.getImageData(0, 0, 256, 256).data, E = new Float32Array(65536);
+        for (let i = 0; i < E.length; i++) E[i] = px[i * 4] * 256 + px[i * 4 + 1] + px[i * 4 + 2] / 256 - 32768;
+        return E;
+      }).catch(() => { demHt.delete(k); return null; }));
+      const E = await demHt.get(k);
+      if (!E) return [];
+      out.push(E[Math.min(255, Math.floor((yf - y) * 256)) * 256 + Math.min(255, Math.floor((xf - x) * 256))]);
+    }
+    return out;
+  }
+  // What Offline maps saves for Hiking (offline.js): the hiking trails and places of the home zones in the box, the
+  // Canada chunks over it, the grades and trail facts, and the terrain tiles for heights.
+  window.tfHikeOffline = async (box) => {   // box = [south, west, north, east]
+    const abs = (u) => new URL(u, location.href).href, data = ["data/hike-grades.json?v=3080", "data/trail-info.json?v=3080", "ca/h/index.json"];
+    for (const z of window.tfZones || []) if (z.box[0] < box[2] && z.box[2] > box[0] && z.box[1] < box[3] && z.box[3] > box[1]) data.push(`data/hike-${z.id}.json`, `data/hike-places-${z.id}.json`);
+    const have = await chunkList();
+    for (let la = Math.floor(box[0] / CH_LAT) * CH_LAT; la < box[2]; la += CH_LAT)
+      for (let lo = Math.floor(box[1] / CH_LON) * CH_LON; lo < box[3]; lo += CH_LON) {
+        const id = chunkOf(la + CH_LAT / 2, lo + CH_LON / 2);
+        if (!have || have.has(id)) data.push(`ca/h/${id}.json`);
+      }
+    const tiles = [], tx = (lon, z) => Math.floor(((lon + 180) / 360) * 2 ** z);
+    const ty = (lat, z) => { const r = (lat * Math.PI) / 180; return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z); };
+    for (let x = tx(box[1], OFF_Z); x <= tx(box[3], OFF_Z); x++) for (let y = ty(box[2], OFF_Z); y <= ty(box[0], OFF_Z); y++) tiles.push(`${DEM}${OFF_Z}/${x}/${y}.png`);
+    return { data: [...new Set(data)].map(abs), tiles };
+  };
   async function routePlan() {
     const seq = ++plan.seq;
     plan.err = "";
