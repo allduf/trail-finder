@@ -1894,7 +1894,11 @@
     "I understand and accept":"Je comprends et j'accepte",
     "You make your own decisions and go at your own risk. Trail Finder isn't responsible for what happens.":"Vous prenez vos propres décisions et vous y allez à vos propres risques. Trail Finder n'est pas responsable de ce qui arrive.",
     "or what you see on the day. Where you go is your decision and your risk.":"ni ce que vous voyez sur place. L'endroit où vous allez est votre décision et votre risque.",
-    "Before your first tour, off-trail route or planned route, a short note makes clear that you make your own decisions and go at your own risk, with a line under every route. The Terms of use say it in full.":"Avant votre première sortie, votre premier itinéraire hors sentier ou planifié, une courte note précise que vous prenez vos propres décisions et y allez à vos propres risques, avec une ligne sous chaque itinéraire. Les Conditions d'utilisation le disent au complet."};
+    "Before your first tour, off-trail route or planned route, a short note makes clear that you make your own decisions and go at your own risk, with a line under every route. The Terms of use say it in full.":"Avant votre première sortie, votre premier itinéraire hors sentier ou planifié, une courte note précise que vous prenez vos propres décisions et y allez à vos propres risques, avec une ligne sous chaque itinéraire. Les Conditions d'utilisation le disent au complet.",
+    "Not on the list?":"Pas dans la liste?",
+    "Type another town or area…":"Taper une autre ville ou zone…",
+    "look in another place":"chercher ailleurs",
+    "Area not on the list? Pick “Type another town or area…” at the bottom of the Area list and type any town or riding area in Canada, like Cumberland. New trails and trail name searches then look there.":"Zone pas dans la liste? Choisissez « Taper une autre ville ou zone… » au bas de la liste des zones et tapez n'importe quelle ville ou secteur de vélo au Canada, comme Cumberland. Les nouveaux sentiers et la recherche par nom regardent alors là."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
@@ -1914,6 +1918,7 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    [/^Near (?!me\b|you\b|the\b)([^:.!?()]{1,40})$/, "Près de $1"],   // the Area box: "Near Cumberland"
     [/^(\d+) (minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years) ago$/, function (m, n, u) { return "il y a " + n + " " + UNIT[u]; }],
     [/^Stocked (\d+) (day|days|week|weeks|month|months|year|years) ago, (.+)$/, function (m, n, u, f) { return "Ensemencé il y a " + n + " " + UNIT[u] + ", " + f; }],
     [/^just now$/i, "à l'instant"],

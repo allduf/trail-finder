@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Trail Finder">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#12291d">
-<script src="i18n.js?v=2700"></script>
+<script src="i18n.js?v=2720"></script>
 <!-- Unofficial trails are for alex and friends only (friends.js): everyone else gets the public map, class tf-pub. -->
 <script>try { if (localStorage.getItem("tf-friend") !== "1") document.documentElement.classList.add("tf-pub"); } catch (e) { document.documentElement.classList.add("tf-pub"); }</script>
 </head>
@@ -1596,15 +1596,15 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="risk.js?v=2700"></script>
-<script src="welcome.js?v=2700"></script>
-<script src="native.js?v=2700"></script>
-<script src="keyboard.js?v=2700"></script>
-<script src="rotate.js?v=2700"></script>
-<script src="official.js?v=2700"></script>
-<script src="directions.js?v=2700"></script>
-<script src="ratings.js?v=2700"></script>
-<script src="ebike.js?v=2700"></script>
+<script src="risk.js?v=2720"></script>
+<script src="welcome.js?v=2720"></script>
+<script src="native.js?v=2720"></script>
+<script src="keyboard.js?v=2720"></script>
+<script src="rotate.js?v=2720"></script>
+<script src="official.js?v=2720"></script>
+<script src="directions.js?v=2720"></script>
+<script src="ratings.js?v=2720"></script>
+<script src="ebike.js?v=2720"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -2271,6 +2271,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
   }
   const fmtAway = (m) => (m < 1000 ? "under 1 km" : (m / 1000).toFixed(m < 10000 ? 1 : 0) + " km") + " away";
   function clearNear() { near = null; nearLayer.clearLayers(); }
+  // The Area box shows "Custom area (from the map)", or "Near Cumberland" for a town typed in (not on the list).
+  function setCustom(label) {
+    state.custom = true;
+    $("zone").querySelector('option[value="custom"]').textContent = label ? `Near ${label}` : "Custom area (from the map)";
+    $("zone").value = "custom";
+  }
   function startNear(ll, label) {
     near = { ll: L.latLng(ll), km: +$("nearKm").value, label: label || (near && near.ll.equals(L.latLng(ll)) && near.label) || "" };
     nearLayer.clearLayers();
@@ -2318,7 +2324,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   $("searchArea").addEventListener("click", () => {
     if (map.getZoom() < MIN_ZOOM) { setStatus("Zoom in a bit more (to a town or trail area) before searching.", true); return; }
     clearNear();
-    state.custom = true; $("zone").value = "custom";
+    setCustom();
     search([map.getBounds().pad(0.05)]);
   });
 
@@ -4300,7 +4306,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=2700").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=2720").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5157,8 +5163,10 @@ out body;`;
       map.fitBounds([[bb[0], bb[2]], [bb[1], bb[3]]], { maxZoom: 14 });
       if (map.getZoom() < MIN_ZOOM) map.setZoom(MIN_ZOOM);
       clearNear();
-      state.custom = true; $("zone").value = "custom";
+      const label = hits[0].name || hits[0].display_name.split(",")[0];
+      setCustom(label);
       search([map.getBounds().pad(0.05)], true);
+      if (window.tfLookNear) window.tfLookNear(label, map.getBounds().pad(0.05));   // the trail name box looks there too
     } catch { setStatus("Place search can't reach OpenStreetMap from here. Pan and zoom the map instead.", true); }
   });
 
@@ -5322,7 +5330,7 @@ out body;`;
       if (!locatedOnce) {                          // the first tap also finds the trails around you, as before
         locatedOnce = true;
         clearNear();
-        state.custom = true; $("zone").value = "custom";
+        setCustom();
         search([map.getBounds().pad(0.05)], true);
       }
     };
@@ -7414,6 +7422,16 @@ out tags center qt;`;
     if (window.tfLowerSheet) window.tfLowerSheet();
     toast(`${p.name}: type a trail name to search around it.`);
   }
+  // The place typed under Area (computer): the trail name box looks there too, and a typed trail name is searched again.
+  // (alex 2026-11-04: typed a place, searched "Sharknado", and it still looked in Sea to Sky.)
+  window.tfLookNear = (label, b) => {
+    nearPlace = { label, box: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()] };
+    store.set("nameNear", nearPlace);
+    fillNameZones();
+    nameZoneSel.value = "near"; store.set("nameZone", "near");
+    syncWhere();
+    if ($("trailQ").value.trim()) { hitSel = -1; loadNames(); refreshHits(); }
+  };
   // A trail from anywhere in Canada: load the names where it is (nightly files only), then open it like any other.
   async function goCaTrail(x) {
     logUse("pick", "Trail name (Canada)");
@@ -7546,7 +7564,7 @@ out tags center qt;`;
     if (loading && wide) note = `Not in ${esc(shortZone(zsel))}. Looking in the other areas around…`;
     else if (loading) note = (zsel ? `Loading trail names in ${esc(shortZone(zsel))}…` : `Loading trail names: ${want.filter((z) => names.fresh.has(z.id)).length} of ${want.length} areas…`) + (busyFor() ? " OpenStreetMap is busy, so this can take a minute." : "");
     else if (failed.length) note = `Names for ${esc(failed.map(shortZone).join(", "))} didn't load. <button class="linkish" type="button" data-retry>Try again</button>`;
-    if (!hits.length && !loading) note = `No trail or town named “${esc(raw)}” found${wide ? ` in ${esc(shortZone(zsel))} or the other areas around` : zsel ? ` in ${esc(shortZone(zsel))}` : ""}. Check the spelling or type part of the name.${wide || zsel ? " Or pick another area." : ""}` + (note ? "<br>" + note : "")
+    if (!hits.length && !loading) note = `No trail or town named “${esc(raw)}” found${zsel ? (/^Near /.test(shortZone(zsel)) ? " near " + esc(shortZone(zsel).slice(5)) : " in " + esc(shortZone(zsel))) : ""}${wide ? " or the other areas around" : ""}. Check the spelling or type part of the name.${wide || zsel ? ` Or <button class="linkish" type="button" data-where>look in another place</button>.` : ""}` + (note ? "<br>" + note : "")
       + (window.tfRiderTrails ? `<br>Not on the map yet? <button class="linkish" type="button" data-addtrail>➕ Add it</button> and every rider will find it.` : "");
     box.innerHTML = rows + (note ? `<li class="hnote">${note}</li>` : "");
     input.setAttribute("aria-activedescendant", hitSel >= 0 ? "hit" + hitSel : "");
@@ -7611,6 +7629,7 @@ out tags center qt;`;
   if (location.hash === "#folders") { history.replaceState(null, "", location.pathname + location.search); showFolders(); }
   $("trailHits").addEventListener("click", (e) => {
     if (e.target.closest("[data-retry]")) { loadNames(true); return; }
+    if (e.target.closest("[data-where]")) { $("trailHits").hidden = true; window.tfOpenWhere(); return; }
     if (e.target.closest("[data-addtrail]")) { $("trailHits").hidden = true; window.tfRiderTrails.start(); return; }
     if (e.target.closest("[data-clear-recent]")) { store.set("recentTrails", []); hitSel = -1; refreshHits(); return; }
     const li = e.target.closest(".hit"); if (li) pickHit(hits[+li.dataset.n]);
@@ -8204,7 +8223,8 @@ out tags center qt;`;
   const zoneSel = $("zone");
   zoneSel.innerHTML = REGIONS.map((r) => `<optgroup label="${esc(r.name)}"><option value="${r.id}">All of ${esc(r.name)}</option>` +
     r.zones.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("") + `</optgroup>`).join("") +
-    `<option value="home" hidden>Around you</option><option value="custom" hidden>Custom area (from the map)</option><option value="near" hidden>Near me</option>`;
+    `<option value="home" hidden>Around you</option><option value="custom" hidden>Custom area (from the map)</option><option value="near" hidden>Near me</option>` +
+    `<optgroup label="Not on the list?"><option value="other">✏️ Type another town or area…</option></optgroup>`;
   const syncHomeOpt = () => { zoneSel.querySelector('option[value="home"]').hidden = !homeBox(); };
   syncHomeOpt();
   zoneSel.value = zoneById(state.zone) || regionById(state.zone) || state.zone === "home" ? state.zone : "all";
@@ -8302,7 +8322,13 @@ out tags center qt;`;
     searchZones(true, true);
     if (anyMode()) findAny();
   }
+  // "Type another town or area…" (alex 2026-11-04: Vancouver Island isn't on the list): the list goes back to what it
+  // showed and the "Where to look" box opens, where any town or riding area in Canada can be typed.
+  let zonePrev = zoneSel.value;
+  zoneSel.addEventListener("focus", () => { zonePrev = zoneSel.value; });
   zoneSel.addEventListener("change", () => {
+    if (zoneSel.value === "other") { zoneSel.value = zonePrev; openWhere(); return; }
+    zonePrev = zoneSel.value;
     if (zoneSel.value === "custom" || zoneSel.value === "near") return;
     goToZone(zoneSel.value);
   });
@@ -8372,11 +8398,20 @@ out tags center qt;`;
       `</details><p class="ws-tip">Not on the list? Type any town or riding area in Canada in the box above. The map goes there and the trail search looks around it.</p>`;
   }
   const regionOf = (z) => (REGIONS.find((r) => r.ids.includes(z.id)) || {}).name || "";
+  // A town or area typed in (not on the list) is also the Area for new trails: "Near Cumberland" in the Area box.
+  function placeAsArea(label) {
+    const a = placeArea();
+    if (!a) return;
+    clearNear();
+    setCustom(label);
+    search([a.bounds], true);
+  }
   function openWhere() {
     loadPlaces(); placesP.then(() => { if (!ws.hidden && $("wsQ").value.trim()) wsRender(); });
     $("wsQ").value = ""; wsMore = null;
     wsRender();
     ws.hidden = false;
+    if (!matchMedia("(max-width: 760px)").matches) setTimeout(() => $("wsQ").focus(), 50);   // computer: type right away
     logUse("open", "Where to look");
   }
   const closeWhere = () => { ws.hidden = true; $("wsQ").blur(); };
@@ -8395,7 +8430,7 @@ out tags center qt;`;
     closeWhere();
     wsRemember(o);
     if (o.z) { goToZone(o.z); logUse("pick", "Area"); }
-    else goPlace(o.p);
+    else { goPlace(o.p); placeAsArea(o.p.name); }
     syncWhere();
     wsRerun(q);
   }
@@ -8426,6 +8461,7 @@ out tags center qt;`;
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !ws.hidden) closeWhere(); });
   $("tsWhere").addEventListener("click", openWhere);
+  window.tfOpenWhere = openWhere;
   [zoneSel, nameZoneSel].forEach((s) => s.addEventListener("change", syncWhere));
   map.on("moveend", syncWhere);
   syncWhere();
@@ -8465,49 +8501,49 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=2700"></script>
-<script src="native-map.js?v=2700"></script>
-<script src="contours.js?v=2700"></script>
-<script src="clouds.js?v=2700"></script>
-<script src="smoke.js?v=2700"></script>
-<script src="radar.js?v=2700"></script>
-<script src="photo-slider.js?v=2700"></script>
-<script src="ski-terrain.js?v=2700"></script>
-<script src="place-search.js?v=2700"></script>
-<script src="winter.js?v=2700"></script>
-<script src="hunts.js?v=2700"></script>
-<script src="ski-points.js?v=2700"></script>
-<script src="offline.js?v=2700"></script>
-<script src="ride-stats.js?v=2700"></script>
-<script src="native-gps.js?v=2700"></script>
-<script src="navigate.js?v=2700"></script>
-<script src="planner.js?v=2700"></script>
-<script src="loops.js?v=2700"></script>
-<script src="ride-finds.js?v=2700"></script>
-<script src="rides.js?v=2700"></script>
-<script src="community.js?v=2700"></script>
-<script src="ride-files.js?v=2700"></script>
-<script src="rider-trails.js?v=2700"></script>
-<script src="account.js?v=2700"></script>
-<script src="friends.js?v=2700"></script>
-<script src="live.js?v=2700"></script>
-<script src="strava.js?v=2700"></script>
-<script src="moderation.js?v=2700"></script>
-<script src="reports.js?v=2700"></script>
-<script src="grades.js?v=2700"></script>
-<script src="trail-photos.js?v=2700"></script>
-<script src="visitors.js?v=2700"></script>
-<script src="usage.js?v=2700"></script>
-<script src="notify.js?v=2700"></script>
-<script src="closures.js?v=2700"></script>
-<script src="status.js?v=2700"></script>
-<script src="ask.js?v=2700"></script>
-<script src="areas.js?v=2700"></script>
-<script src="alpine.js?v=2700"></script>
-<script src="bikeparks.js?v=2700"></script>
-<script src="photo-find.js?v=2700"></script>
-<script src="whats-new.js?v=2700"></script>
-<script src="app-update.js?v=2700"></script>
+<script src="map3d.js?v=2720"></script>
+<script src="native-map.js?v=2720"></script>
+<script src="contours.js?v=2720"></script>
+<script src="clouds.js?v=2720"></script>
+<script src="smoke.js?v=2720"></script>
+<script src="radar.js?v=2720"></script>
+<script src="photo-slider.js?v=2720"></script>
+<script src="ski-terrain.js?v=2720"></script>
+<script src="place-search.js?v=2720"></script>
+<script src="winter.js?v=2720"></script>
+<script src="hunts.js?v=2720"></script>
+<script src="ski-points.js?v=2720"></script>
+<script src="offline.js?v=2720"></script>
+<script src="ride-stats.js?v=2720"></script>
+<script src="native-gps.js?v=2720"></script>
+<script src="navigate.js?v=2720"></script>
+<script src="planner.js?v=2720"></script>
+<script src="loops.js?v=2720"></script>
+<script src="ride-finds.js?v=2720"></script>
+<script src="rides.js?v=2720"></script>
+<script src="community.js?v=2720"></script>
+<script src="ride-files.js?v=2720"></script>
+<script src="rider-trails.js?v=2720"></script>
+<script src="account.js?v=2720"></script>
+<script src="friends.js?v=2720"></script>
+<script src="live.js?v=2720"></script>
+<script src="strava.js?v=2720"></script>
+<script src="moderation.js?v=2720"></script>
+<script src="reports.js?v=2720"></script>
+<script src="grades.js?v=2720"></script>
+<script src="trail-photos.js?v=2720"></script>
+<script src="visitors.js?v=2720"></script>
+<script src="usage.js?v=2720"></script>
+<script src="notify.js?v=2720"></script>
+<script src="closures.js?v=2720"></script>
+<script src="status.js?v=2720"></script>
+<script src="ask.js?v=2720"></script>
+<script src="areas.js?v=2720"></script>
+<script src="alpine.js?v=2720"></script>
+<script src="bikeparks.js?v=2720"></script>
+<script src="photo-find.js?v=2720"></script>
+<script src="whats-new.js?v=2720"></script>
+<script src="app-update.js?v=2720"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
