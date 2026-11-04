@@ -723,7 +723,7 @@
     start([lat, lon], h ? h.textContent.trim() : "", null);
   });
   window.addEventListener("tf:sport", () => { if (!isFish()) clear(); });
-  window.tfFishRoute = { button, clear, start: (lat, lon, name, from) => start([lat, lon], name || "", from || null), _build: build, _describe: describe,
+  window.tfFishRoute = { button, clear, start: (lat, lon, name, from) => start([lat, lon], name || "", from || null), _build: build, _describe: describe, _buildGrid: buildGrid, _boxAround: boxAround,
     groundName: (k) => (GROUND[k] ? GROUND[k][0] : "the bush"),
     // ski-route.js (Skiing's safest way): the grid's parts it reads.
     _grid: { G, F_PAVED, L_MOTOR, L_STEPS, F_STREAM, F_RIVER, F_BRIDGE, F_PARK, L_PATH, L_TRACK, blocked, cellLL, cellAt, simplify, mx, my, unx, uny } };   // cabin-trip.js: the way in to a hut

@@ -519,7 +519,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 #skiPane .sk-rc-elev .sk-stats b { font-variant-numeric: tabular-nums; }
 #skiPane .sk-rc-elev .sk-prof { touch-action: pan-y; }
 #skiPane .sk-rc-elev .sk-note { margin: 0; }
-#skiPane .sk-rc-btns { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+#skiPane .sk-rc-btns { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
 #skiPane .sk-rc-btns button { font: inherit; font-size: .78rem; font-weight: 700; padding: 8px 2px; border-radius: 12px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer;
   display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
 #skiPane .sk-rc-btns button .ic { font-size: 1.1rem; line-height: 1.1; }
@@ -1278,7 +1278,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=2600").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=2650").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2184,6 +2184,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
           <button type="button" id="skFly" title="Fly along the route on the 3D map"><span class="ic" aria-hidden="true">✈</span>Flyover</button>
           ${mine ? "" : `<button type="button" id="skRcWatch" aria-pressed="false" disabled title="Alerts in the 🔔 when this tour turns risky"><span class="ic" aria-hidden="true">🔔</span>Watch</button>`}
           <button type="button" id="skGpx" title="Download the route as a GPX file"><span class="ic" aria-hidden="true">⬇</span>GPX</button>
+          ${r.src === "plan" ? "" : `<button type="button" id="skAddTour" title="Put this line in your planned tour: the route follows it from its top to its bottom"><span class="ic" aria-hidden="true">＋</span>Add to tour</button>`}
           ${window.tfRide ? `<button type="button" class="go" id="skFollow" title="Follow this tour with your location"><span class="ic" aria-hidden="true">▶</span>Go</button>` : ""}
         </div>
         <button type="button" class="sk-more-btn" id="skMoreBtn" aria-expanded="${moreOpen}" aria-controls="skMore">${moreOpen ? "Fewer details ▴" : "More details: avalanche check, slopes, forecast, weather ▾"}</button>
@@ -2232,6 +2233,19 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (go) go.addEventListener("click", (e) => { e.preventDefault(); showClub(club.c); });
     const gpxBtn = $("skGpx");
     if (gpxBtn) gpxBtn.addEventListener("click", () => gpx(title, group, r.info));
+    // Add to tour (alex 2026-11-04: "make it so you can put line in your tour"): the line goes in Plan a tour as two
+    // points, its top and its bottom (a skin track: bottom then top), and the leg between them follows it as drawn.
+    const addBtn = $("skAddTour");
+    if (addBtn) addBtn.addEventListener("click", () => {
+      addBtn.disabled = true;
+      routeInfo(group).then((info) => {
+        let line = info.pts.map((p) => [+p.lat.toFixed(6), +p.lon.toFixed(6)]);   // from its lower end
+        if (!isUphill(r)) line.reverse();                                          // skied from the top
+        if (line.length > 300) { const k = Math.ceil(line.length / 300); line = line.filter((_, i) => i % k === 0 || i === line.length - 1); }
+        planVia(line, title);
+      }, () => window.tfToast && window.tfToast("Couldn't load the line's heights. Try again."))
+        .finally(() => { addBtn.disabled = false; });
+    });
 
     // The avalanche forecast is needed here even with the shading off.
     if (!avy && !example && !avyErr) loadAvy();
@@ -2677,6 +2691,16 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <div class="sk-row"><button type="button" class="btn" id="skSafeRev">⇅ Reverse the tour</button><button type="button" class="btn" id="skSafeAgain">↻ Find again</button></div>
       <p class="sk-safe-dis"><b>Not a substitute for avalanche training.</b> This is a planning aid based on a terrain model (10 to 30 m) and the regional forecast. It can't see cornices, wind loading, small slopes, trees or today's snowpack, and a forecast covers a whole region. Take an avalanche course (AST 1), carry a transceiver, probe and shovel with partners who know how to use them, read the full forecast on ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}, and make your own decisions in the field.</p>
     </div>`;
+  }
+  function planVia(line, name) {
+    const a = line[0], z = line[line.length - 1], last = plan.pts[plan.pts.length - 1];
+    if (last && map.distance([last[0], last[1]], a) < 60) plan.pts[plan.pts.length - 1] = last[2] ? last : [a[0], a[1]];
+    else plan.pts.push([a[0], a[1]]);
+    plan.pts.push([z[0], z[1], { via: line, name }]);
+    if (!plan.on) setPlanning(true);
+    planChanged();
+    const n = plan.pts.length;
+    window.tfToast && window.tfToast(`${name} is in your tour, from ${ptName(n - 2, n)} to ${ptName(n - 1, n)}.`);
   }
   function planAdd(ll) {
     if (map.getZoom() < 12) { map.setView(ll, 13); return; }   // too far out to place a point well: zoom in there first

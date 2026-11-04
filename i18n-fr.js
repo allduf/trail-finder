@@ -1871,6 +1871,8 @@
     "Skiing Plan a tour: the route's points (Start, 1, 2 ... End) and its !n watch-out spots now show on the 3D map too, you can move points up or down in the list or reverse the tour, the route line is bolder, and the map no longer stalls while a long tour is worked out.":"Ski, Planifier une sortie : les points du trajet (Départ, 1, 2 ... Fin) et ses endroits !n à surveiller s'affichent maintenant aussi sur la carte 3D, vous pouvez monter ou descendre les points dans la liste ou inverser la sortie, la ligne du trajet est plus visible, et la carte ne bloque plus pendant le calcul d'une longue sortie.",
     "⇅ Reverse the tour":"⇅ Inverser la sortie",
     "Skiing Plan a tour: delete a point with the × beside it in Your route; the safest way is found again without it.":"Ski, Planifier une sortie : supprimez un point avec le × à côté dans Votre trajet; le trajet le plus sûr est recalculé sans lui.",
+    "Skiing Plan a tour: tap Add to tour on a line's card (a freeride line or any route) and your tour skis that exact line from its top to its bottom.":"Ski, Planifier une sortie : touchez Ajouter à la sortie sur la fiche d'une ligne (ligne freeride ou tout itinéraire) et votre sortie descend exactement cette ligne, de son sommet à son bas.",
+    "Add to tour":"Ajouter à la sortie",
     "Saved on this phone only":"Enregistré sur ce téléphone seulement",
     "Keep your alerts":"Gardez vos alertes",
     "Sign in so your alerts follow you to a new phone. Free, and the app works the same without it.":"Connectez-vous pour que vos alertes vous suivent sur un nouveau téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
