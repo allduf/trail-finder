@@ -91,16 +91,17 @@
 
   // ---------- places along the trails ----------
   // Kinds of place (the weekly job's placeKind, scripts/build-hike.mjs), their dot colours and the layer they're in.
+  // One colour per layer, the same on the map, in Layers and on the place card (alex 2026-11-04: "why not the same color?").
   const PLACES = {
     th: { label: "Trailhead", c: "#7c3aed", layer: "start" },
-    park: { label: "Parking", c: "#1d4ed8", layer: "start" },
+    park: { label: "Parking", c: "#7c3aed", layer: "start" },
     hut: { label: "Hut or shelter", c: "#b5651d", layer: "sleep" },
-    camp: { label: "Campsite", c: "#2f9e44", layer: "sleep" },
+    camp: { label: "Campsite", c: "#b5651d", layer: "sleep" },
     view: { label: "Viewpoint", c: "#f08c00", layer: "see" },
-    fall: { label: "Waterfall", c: "#1098ad", layer: "see" },
+    fall: { label: "Waterfall", c: "#f08c00", layer: "see" },
     peak: { label: "Summit", c: "#495057", layer: null },   // the base map names the summits already: on the hike card only
     water: { label: "Drinking water", c: "#0284c7", layer: "need" },
-    wc: { label: "Toilets", c: "#64748b", layer: "need" },
+    wc: { label: "Toilets", c: "#0284c7", layer: "need" },
   };
   function placeKind(t) {
     if (t.highway === "trailhead") return "th";
@@ -554,7 +555,7 @@ out center tags qt;`;
       if (!L.Browser.touch) m.bindTooltip(esc(p.n || k.label), { direction: "top", opacity: 0.9 });
       placeLayer.addLayer(m);
     }
-    if (curPlace && v.contains(curPlace.ll)) placeLayer.addLayer(L.circleMarker(curPlace.ll, { renderer: placeRend, pane: "hikePlaces", radius: 11, color: ACC, weight: 3, fill: false, interactive: false }));
+    if (curPlace && v.contains(curPlace.ll)) placeLayer.addLayer(L.circleMarker(curPlace.ll, { renderer: placeRend, pane: "hikePlaces", radius: 11, color: PLACES[curPlace.k].c, weight: 3, fill: false, interactive: false }));
   }
 
   // ---------- hut facts (data/huts.json, the same file Skiing reads) ----------
