@@ -2394,8 +2394,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const sp = safePath();
     if (sp) {
       const C = SAFE_CLS;
-      for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: "#fff", weight: 9, opacity: 0.95, lineCap: "round", lineJoin: "round", interactive: false }));
-      for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: (C[r.cls] || C.ok).color, weight: 5, opacity: 1, lineCap: "round", lineJoin: "round", interactive: false }));
+      // Easy to pick out among the runs and trails (alex 2026-11-04: "hard to see the route"): a dark halo, a white band, then the colours.
+      for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: "#111", weight: 14, opacity: 0.45, lineCap: "round", lineJoin: "round", interactive: false }));
+      for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: "#fff", weight: 10, opacity: 1, lineCap: "round", lineJoin: "round", interactive: false }));
+      for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: (C[r.cls] || C.ok).color, weight: 6, opacity: 1, lineCap: "round", lineJoin: "round", interactive: false }));
       safeWatch(sp).forEach((r, i) => {
         const html = `<div class="sk-safe-n sk-safe-w">!${i + 1}</div>`;
         plan.layer.addLayer(L.marker(r.mid, { pane: "ski", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html, iconSize: [26, 22], iconAnchor: [13, 11] }) }));
