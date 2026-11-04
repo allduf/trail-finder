@@ -204,6 +204,15 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 .sk-safe-pt { position: absolute; transform: translate(-50%, -50%); background: #1f5fe0; color: #fff; font: 800 11px/1 system-ui, sans-serif; padding: 4px 7px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 1px 3px #0006; white-space: nowrap; }
 .sk-safe-pt.end { background: #1a1a1a; }
 .sk-safe-w { width: auto !important; min-width: 18px; padding: 0 4px; border-radius: 6px !important; }
+#skiPane .ss-names { margin: 0; font-size: .8rem; color: var(--muted); line-height: 1.5; }
+#skiPane .ss-names span { color: var(--fg); font-weight: 700; }
+#skiPane .ss-names span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #1f5fe0; margin-right: 4px; vertical-align: 1px; }
+#skiPane ol.ss-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: .85rem; line-height: 1.35; }
+#skiPane ol.ss-list li { display: flex; gap: 8px; align-items: baseline; cursor: pointer; }
+#skiPane ol.ss-list .ss-n { flex: 0 0 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; font: 700 12px/1 system-ui, sans-serif; align-self: center; background: color-mix(in srgb, var(--c) 22%, var(--panel)); color: var(--fg); box-shadow: inset 0 0 0 2px var(--c); }
+#skiPane ol.ss-list .ss-pt .sk-safe-pt { position: static; transform: none; display: inline-block; box-shadow: none; border-width: 0; flex: 0 0 auto; align-self: center; }
+#skiPane ol.ss-list .ss-ud, #skiPane ol.ss-list .ss-off { color: var(--muted); font-size: .78rem; }
+#skiPane ol.ss-list .ss-warn { color: var(--c); font-weight: 700; font-size: .78rem; white-space: nowrap; }
 #skiPane ol.sk-safe-steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: .82rem; line-height: 1.35; }
 #skiPane ol.sk-safe-steps li { cursor: pointer; }
 #skiPane ol.sk-safe-steps li.pt { display: flex; gap: 8px; align-items: center; font-weight: 800; margin-top: 4px; flex-wrap: wrap; }
@@ -582,7 +591,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   let selected = null;   // route or hut object
   // A tour being planned: the points tapped on the map (kept on this device), drawn as an orange line.
   const plan = { on: false, pts: store.get("skiPlan", []), layer: L.layerGroup(), slopeWas: false, groundWas: [], timer: 0,
-    safe: store.get("skiSafe", false) === true, path: store.get("skiPlanPath", null), run: 0, wait: "", fail: "" };   // safe: the 🛡 Safest way (ski-route.js)
+    safe: store.get("skiSafe", true) !== false,   // on unless turned off (alex 2026-11-04: "make it on by default")
+    path: store.get("skiPlanPath", null), run: 0, wait: "", fail: "" };   // safe: the 🛡 Safest way (ski-route.js)
   const SAFE_CLS = {
     ok: { color: "#2f9e44", label: "Gentle ground" }, mid: { color: "#f2b705", label: "25° to 30°" }, steep: { color: "#e03131", label: "30°+ slope" },
     under: { color: "#e8590c", label: "Under steep slopes" }, trap: { color: "#a61e4d", label: "Terrain trap" },
@@ -1214,7 +1224,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=2350").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=2400").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2466,38 +2476,39 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const pct = (a, b) => Math.round((a / Math.max(1, b)) * 100);
   // Point names, the same on the map and in the list: Start, Point 1, Point 2 ... End (short: Start, 1, 2 ... End).
   const ptName = (i, n, short) => (i <= 0 ? "Start" : i >= n - 1 ? "End" : short ? String(i) : `Point ${i}`);
-  // The way step by step (alex 2026-11-04: "a list of the route, like point 1, point 2 ... start, end"): each point, then
-  // each leg's length and climb, why it goes that way, and its stretches (a named road or trail, or off trail).
+  // The route as a list, like MTB's Plan a route (alex 2026-11-04: "a list of the route like point 1 point 2 ... start
+  // end", then "a list like we have for mtb ride"): the named tracks it uses in order (chips), then one row per stretch
+  // (↗ skin up, ↘ ski down, → across, ↝ off trail) with its length and climb, the points (Start, 1, 2 ... End) between
+  // them, and a ⚠ on the rows with steep or exposed ground (its !n on the map). A row's tap shows it on the map.
   function stepsHtml(sp, watch) {
     const legs = sp.legs || [], n = plan.pts.length;
     if (!legs.length) return "";
     const C = SAFE_CLS;
-    const ud = (x) => [x.up >= 10 ? `↑ ${fmtM(x.up)}` : "", x.down >= 10 ? `↓ ${fmtM(x.down)}` : ""].filter(Boolean).join(" ");
     const D = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m / 10) * 10} m`);
-    const watchNo = (s) => { const i = watch.findIndex((w) => L.latLng(w.mid).distanceTo(s.mid) < Math.max(300, s.m / 2)); return i >= 0 ? ` (see !${i + 1})` : ""; };
-    const WHY = { ok: () => "gentle ground, under 25°", mid: () => "25° to 30°",
-      steep: (s) => `⚠ slopes up to ${s.maxDeg}°${watchNo(s)}`, under: (s) => `⚠ under steep slopes${watchNo(s)}`, trap: (s) => `⚠ terrain trap under steep slopes${watchNo(s)}` };
-    // A long safe stretch with a short steep or exposed bit in it says both.
-    const why1 = (s) => (s.hzM != null && s.worst !== s.safeWorst && s.hzM < s.m * 0.4 && s.m >= 300
-      ? `Mostly ${WHY[s.safeWorst || "ok"](s).replace(/^gentle ground/, "gentle")}; ⚠ about ${D(s.hzM)} ${s.worst === "steep" ? `on slopes up to ${s.maxDeg}°` : "under steep slopes"}${watchNo(s)}`
-      : WHY[s.worst] ? WHY[s.worst](s) : "");
-    const stepTxt = (s) => {
-      if (s.kind !== "off") return `${s.kind === "road" ? "Follow" : "Take"} <b>${s.name ? esc(s.name) : s.kind === "road" ? "the road" : "the trail"}</b> for ${D(s.m)}`;
-      const verb = s.up >= 30 && s.up > s.down * 1.5 ? "Skin up" : s.down >= 30 && s.down > s.up * 1.5 ? "Ski down" : "Go across";
-      return `${verb} <b>${D(s.m)}</b> off trail`;
+    const ud = (x) => [x.up >= 10 ? `↑ ${Math.round(x.up)} m` : "", x.down >= 10 ? `↓ ${Math.round(x.down)} m` : ""].filter(Boolean).join(" ");
+    const watchNo = (s) => { const i = watch.findIndex((w) => L.latLng(w.mid).distanceTo(s.mid) < Math.max(300, s.m / 2)); return i >= 0 ? ` !${i + 1}` : ""; };
+    const warn = (s) => {
+      if (s.worst === "ok" || s.worst === "mid") return "";
+      const w = s.worst === "steep" ? `${s.maxDeg}° slope` : s.worst === "trap" ? "terrain trap" : "under steep slopes";
+      return ` <span class="ss-warn" style="--c:${C[s.worst].color}">⚠ ${s.hzM && s.hzM < s.m * 0.6 ? `${D(s.hzM)} ` : ""}${w}${watchNo(s)}</span>`;
     };
-    const pt = (i) => { const q = plan.pts[i]; return `<li class="pt" data-safe-at="${q[0]},${q[1]}"><span class="sk-safe-pt${i && i < n - 1 ? "" : " end"}">${esc(ptName(i, n, true))}</span>${i && i < n - 1 ? esc(ptName(i, n)) : ""}${i === 0 && sp.park ? ` <span class="sk-note">${esc(sp.park)}</span>` : ""}</li>`; };
+    const row = (s) => {
+      const climb = s.up >= 30 && s.up > s.down * 1.5, desc = s.down >= 30 && s.down > s.up * 1.5;
+      const verb = climb ? "Skin up" : desc ? "Ski down" : "Cross";
+      const icon = s.kind === "off" && !climb && !desc ? "↝" : climb ? "↗" : desc ? "↘" : "→";
+      const what = s.kind !== "off" ? ` on ${s.name ? esc(s.name) : s.kind === "road" ? "the road" : "a trail"}` : ` <span class="ss-off">off trail</span>`;
+      return `<li class="ss-row" data-safe-at="${s.mid[0]},${s.mid[1]}"><span class="ss-n" style="--c:${(C[s.worst] || C.ok).color}">${icon}</span><span><b>${verb}</b>${what} ${D(s.m)}${ud(s) ? ` <span class="ss-ud">${ud(s)}</span>` : ""}${warn(s)}</span></li>`;
+    };
+    const pt = (i) => { const q = plan.pts[i]; return `<li class="ss-pt" data-safe-at="${q[0]},${q[1]}"><span class="sk-safe-pt${i && i < n - 1 ? "" : " end"}">${esc(ptName(i, n, true))}</span><span>${i && i < n - 1 ? `<b>${esc(ptName(i, n))}</b>` : ""}${i === 0 && sp.park ? ` <span class="ss-ud">${esc(sp.park)}</span>` : ""}</span></li>`; };
     let html = pt(0);
-    legs.forEach((l, k) => {
-      const now = l.steep + l.under, then = l.straight ? l.straight.steep + l.straight.under : 0;
-      const why = then - now >= 50 ? `Goes round: straight across has ${D(then)} of steep or exposed ground, this way ${now >= 10 ? D(now) : "none"}.`
-        : now < 10 ? "No steep or exposed ground on this leg." : "No safer way round on this leg.";
-      html += `<li class="leg">${D(l.m)}${ud(l) ? ` · ${ud(l)}` : ""} to ${k + 1 >= n - 1 ? "the end" : `point ${k + 1}`}. ${why}</li>`;
-      html += l.steps.filter((s) => s.m >= 40 || l.steps.length === 1).map((s) => `<li class="st" style="--c:${(C[s.worst] || C.ok).color}" data-safe-at="${s.mid[0]},${s.mid[1]}">${stepTxt(s)}${ud(s) ? ` <span class="sk-note">${ud(s)}</span>` : ""}<small>${why1(s)}</small></li>`).join("");
-      html += pt(k + 1);
-    });
-    return `<h4>The way, step by step</h4><ol class="sk-safe-steps">${html}</ol>`;
+    legs.forEach((l, k) => { html += l.steps.filter((s) => s.m >= 40 || l.steps.length === 1).map(row).join("") + pt(k + 1); });
+    // The named tracks in order, as MTB's "Trail → Trail" line.
+    const names = [];
+    for (const l of legs) for (const s of l.steps) if (s.name && s.m >= 100 && names[names.length - 1] !== s.name) names.push(s.name);
+    const chips = names.length ? `<p class="ss-names">${names.slice(0, 8).map((x) => `<span>${esc(x)}</span>`).join(" → ")}${names.length > 8 ? ` → +${names.length - 8} more` : ""}</p>` : "";
+    return `<h4>Your route</h4>${chips}<ol class="ss-list">${html}</ol>`;
   }
+
   function safeHtml() {
     if (!plan.safe) return "";
     if (plan.wait) return `<div class="sk-safe"><div class="sk-safe-wait">${esc(plan.wait)}</div></div>`;
@@ -2534,9 +2545,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       return `<b>${fmtM(r.m)} under steep slopes</b>${r.src ? `: a ${r.src.deg}° ${SAFE_ASP[r.src.asp]}-facing slope ${r.src.up > 0 ? `${r.src.up} m above` : "above"}${r.src.hit ? ", on a problem aspect today" : ""}` : ""}. A slide from there could reach you: cross one at a time and don't stop under it.`;
     };
     return `<div class="sk-safe">
+      ${stepsHtml(sp, watch)}
       <h4>🛡 Why this way</h4>
       ${fc}
-      ${stepsHtml(sp, watch)}
       <div class="sk-safe-bar" aria-hidden="true">${kinds.map((k) => `<i style="width:${(st[k] / tot) * 100}%;background:${C[k].color}"></i>`).join("")}</div>
       <div class="sk-safe-key">${kinds.map((k) => `<span style="--c:${C[k].color}">${C[k].label} ${fmtM(st[k])}</span>`).join("")}</div>
       <ul class="sk-safe-why">${why.map((t) => `<li>${t}</li>`).join("")}</ul>

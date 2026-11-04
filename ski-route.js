@@ -95,12 +95,13 @@
 
   // Seconds (x the risk) to go from cell a to the next cell b, d metres away.
   function costFn(FR) {
-    const { blocked, F_PAVED, L_MOTOR } = FR._grid;
+    const { blocked, F_PAVED, L_MOTOR, L_PATH } = FR._grid;
     return (g, a, b, d) => {
       if (blocked(g, a) || blocked(g, b)) return Infinity;
       const sk = g.sk, ln = g.line[b];
       // Plowed (paved) roads and highways aren't skied: crossing one is fine, following it for km is a drive, not a tour.
-      const x = !ln ? SKI_G[g.ground[b]] : ln === L_MOTOR ? 25 : g.flag[b] & F_PAVED ? 4 : 1;
+      // A mapped skin track or trail (the ski routes are drawn in as paths) is taken over open snow beside it when it's no riskier.
+      const x = !ln ? SKI_G[g.ground[b]] : ln === L_MOTOR ? 25 : g.flag[b] & F_PAVED ? 4 : ln === L_PATH ? 0.7 : 1;
       if (x === Infinity) return Infinity;
       let dh = g.hasH ? g.h[b] - g.h[a] : 0;
       if (!(dh === dh)) dh = 0;
