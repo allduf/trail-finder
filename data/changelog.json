@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-04", "text": "Skiing Plan a tour: delete a point with the × beside it in Your route; the safest way is found again without it."},
     {"date": "2026-11-04", "text": "Skiing Plan a tour: the route's points (Start, 1, 2 ... End) and its !n watch-out spots now show on the 3D map too, you can move points up or down in the list or reverse the tour, the route line is bolder, and the map no longer stalls while a long tour is worked out."},
     {"date": "2026-11-04", "text": "Skiing Safest way has a cleaner, calmer look: route totals at the top, a compact step list, fewer colours, and Why this way and Watch out fold away until you tap them."},
     {"date": "2026-11-04", "text": "Skiing Safest way follows the forecast: the way up always takes the safest line, and the ski down is more direct at Low or Moderate danger, the safest one when it's High or Extreme. Planning a tour no longer turns on slope angles."},

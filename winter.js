@@ -239,6 +239,8 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 #skiPane ol.ss-list .ss-mv button { width: 28px; height: 28px; padding: 0; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); display: grid; place-items: center; cursor: pointer; }
 #skiPane ol.ss-list .ss-mv button svg { width: 13px; height: 13px; }
 #skiPane ol.ss-list .ss-mv button:active { background: var(--line); }
+#skiPane ol.ss-list .ss-mv button.ss-del { margin-left: 4px; }
+#skiPane ol.ss-list .ss-mv button.ss-del:hover { color: #e03131; border-color: #e03131; }
 #skiPane ol.ss-list .ss-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 #skiPane ol.ss-list .ss-t b { font-weight: 600; }
 #skiPane ol.ss-list .ss-t small { color: var(--muted); font-size: .78rem; }
@@ -1276,7 +1278,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=2550").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=2600").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2470,6 +2472,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       [plan.pts[i], plan.pts[j]] = [plan.pts[j], plan.pts[i]];
       planChanged();
     }));
+    // Delete a point (alex 2026-11-04: "make it so i can delete point"); the way is found again without it.
+    card.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      plan.pts.splice(+b.dataset.del, 1);
+      planChanged();
+    }));
     const rv = $("skSafeRev"); if (rv) rv.addEventListener("click", () => { plan.pts.reverse(); planChanged(); });
   }
   function planChanged() {
@@ -2601,7 +2609,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     };
     const pt = (i) => {
       const q = plan.pts[i], mid = i && i < n - 1;
-      return `<li class="ss-pt" data-safe-at="${q[0]},${q[1]}"><span class="ss-pin${mid ? "" : " end"}">${mid ? i : IC.flag}</span><span class="ss-t"><b>${esc(ptName(i, n))}</b>${i === 0 && sp.park ? `<small>${esc(sp.park)}</small>` : ""}</span><span class="ss-mv">${i > 0 ? `<button type="button" data-mv="${i},-1" aria-label="Move ${esc(ptName(i, n))} up">${IC.up.replace("M4 12 12 4M6 4h6v6", "M8 13V3M4 7l4-4 4 4")}</button>` : ""}${i < n - 1 ? `<button type="button" data-mv="${i},1" aria-label="Move ${esc(ptName(i, n))} down">${IC.up.replace("M4 12 12 4M6 4h6v6", "M8 3v10M4 9l4 4 4-4")}</button>` : ""}</span></li>`;
+      return `<li class="ss-pt" data-safe-at="${q[0]},${q[1]}"><span class="ss-pin${mid ? "" : " end"}">${mid ? i : IC.flag}</span><span class="ss-t"><b>${esc(ptName(i, n))}</b>${i === 0 && sp.park ? `<small>${esc(sp.park)}</small>` : ""}</span><span class="ss-mv">${i > 0 ? `<button type="button" data-mv="${i},-1" aria-label="Move ${esc(ptName(i, n))} up">${IC.up.replace("M4 12 12 4M6 4h6v6", "M8 13V3M4 7l4-4 4 4")}</button>` : ""}${i < n - 1 ? `<button type="button" data-mv="${i},1" aria-label="Move ${esc(ptName(i, n))} down">${IC.up.replace("M4 12 12 4M6 4h6v6", "M8 3v10M4 9l4 4 4-4")}</button>` : ""}<button type="button" class="ss-del" data-del="${i}" aria-label="Delete ${esc(ptName(i, n))}">${IC.up.replace("M4 12 12 4M6 4h6v6", "M4 4l8 8M12 4l-8 8")}</button></span></li>`;
     };
     let html = pt(0), m = 0, up = 0, down = 0;
     legs.forEach((l, k) => { html += l.steps.filter((s) => s.m >= 40 || l.steps.length === 1).map(row).join("") + pt(k + 1); for (const s of l.steps) { m += s.m; up += s.up || 0; down += s.down || 0; } });
