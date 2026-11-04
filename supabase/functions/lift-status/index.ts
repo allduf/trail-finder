@@ -16,7 +16,7 @@ const UA = "Mozilla/5.0 (compatible; TrailFinder lift status; +https://allduf.gi
 type Lift = { n: string; s: string; w?: number; o?: string; c?: string; k?: string; down?: string; ski?: string; skiOk?: boolean; rows?: Record<string, string> };
 type Result = { lifts: Lift[]; t?: string };
 type Source = { name: string; page: string; url: string; kind: "vail" | "rcr" | "whitewater" | "sunpeaks" | "bigwhite" | "norquay" | "mtnpowder" | "bromont" | "revelstoke" | "louise" | "red" | "msa"
-  | "stoneham" | "sutton" | "massif" | "orford" | "vsc" | "msl" | "relais" | "s2sg" };
+  | "stoneham" | "sutton" | "massif" | "orford" | "vsc" | "msl" | "relais" | "s2sg" | "owlshead" | "horseshoe" | "msm" | "searchmont" };
 
 // The resorts whose lift status could be read (checked 2026-10-25, more 2026-10-28; Mount Washington and Marble Mountain
 // turn away readers from data centres, so they stay links; Hudson Bay Mountain's lifts aren't in OpenStreetMap yet). The id is the resort's id in data/ski-lifts.json.
@@ -47,6 +47,10 @@ export const SOURCES: Record<string, Source> = {
   orford: { name: "Mont Orford", kind: "orford", page: "https://montorford.com/fr-ca/hiver/conditions-ski/", url: "https://montorford.com/fr-ca/hiver/conditions-ski/" },
   vsc: { name: "Val Saint-Côme", kind: "vsc", page: "https://www.valsaintcome.com/conditions-et-horaire", url: "https://www.valsaintcome.com/conditions-et-horaire" },
   relais: { name: "Le Relais", kind: "relais", page: "https://www.skirelais.com/hiver/pistes-conditions-de-neige/", url: "https://www.skirelais.com/hiver/pistes-conditions-de-neige/" },
+  owlshead: { name: "Owl's Head", kind: "owlshead", page: "https://owlshead.com/conditions-de-ski/", url: "https://owlshead.com/conditions-de-ski/" },
+  horseshoe: { name: "Horseshoe Resort", kind: "horseshoe", page: "https://horseshoeresort.com/ski-report-trails/", url: "https://horseshoeresort.com/ski-report-trails/" },
+  msm: { name: "Mont Sainte-Marie", kind: "msm", page: "https://montstemarie.com/pages/conditions", url: "https://montstemarie.com/pages/conditions" },
+  searchmont: { name: "Searchmont", kind: "searchmont", page: "https://searchmont.com/snow-report/", url: "https://searchmont.com/snow-report/" },
   msl: { name: "Mount St. Louis Moonstone", kind: "msl", page: "https://www.mountstlouis.com/status/", url: "https://www.mountstlouis.com/status/" },
   // Added 2026-11-03: the Sea to Sky Gondola (Squamish), a sightseeing gondola that is also the way up to the Sky Pilot
   // backcountry (not a ski resort). Its Daily Conditions page says if it's open today, its hours, if skis and
@@ -280,6 +284,38 @@ function msl(html: string): Result {
   const part = html.split("<table").filter((t, i, all) => i && /Lifts\s*(<[^>]*>\s*)*$/.test(all[i - 1].slice(-300).replace(/<\/?(div|span|h\d)[^>]*>/g, " ").trimEnd() + " ")).join("");
   return { lifts: rows(part, /<td class\s*=\s*"title">([^<]+)<\/td>\s*<td[^>]*class\s*=\s*"status">([^<]*)<\/td>/g) };
 }
+// Owl's Head: one "section-piste" per lift, <span class="label-title p-small">1. Sommet</span> then
+// <span class="section-close">Fermé</span> (section-open when it runs); the snow park and alpine touring sections aren't lifts.
+function owlshead(html: string): Result {
+  const lifts: Lift[] = [];
+  for (const m of html.matchAll(/label-title p-small">\s*\d+\.\s*([^<]+)<\/span>\s*<span class="section-([a-z]+)">([^<]*)</g))
+    lifts.push({ n: text(m[1]), s: iconState(text(m[3]) || m[2]) });
+  return { lifts };
+}
+// Horseshoe: the table under "Chair Lifts", rows <td>Name</td> then a day and a night cell <td class="open|closed">; open if either
+// runs. "Updated: Sunday, April 5, 2026" above it is the day staff last wrote it.
+function horseshoe(html: string): Result {
+  const part = between(html, "<h1>Chair Lifts</h1>", "</table>"), lifts: Lift[] = [];
+  for (const m of part.matchAll(/<tr>\s*<td>([^<]+)<\/td>\s*<td class="([a-z-]*)"[\s\S]*?<\/td>\s*(?:<td class="([a-z-]*)")?/g)) {
+    const day = stateOf(m[2]), night = m[3] ? stateOf(m[3]) : "closed";
+    lifts.push({ n: text(m[1]).replace(/ \d Person Chair$/, ""), s: day === "open" || night === "open" ? "open" : day === "hold" || night === "hold" ? "hold" : "closed" });
+  }
+  const u = /class="updated">Updated:\s*(?:[a-z]+,\s*)?([a-z]+)\s+(\d{1,2}),\s*(\d{4})/i.exec(html);
+  const t = u && MONTHS.includes(u[1].toLowerCase()) ? zoned(`${u[3]}-${String(MONTHS.indexOf(u[1].toLowerCase()) + 1).padStart(2, "0")}-${u[2].padStart(2, "0")} 08:00`, "America/Toronto") : undefined;
+  return { lifts, t };
+}
+// Mont Sainte-Marie: <table class="lifts-table">, rows icon cell, <td>Name</td>, <td>🔴 Fermé-Closed</td> (🟢 open).
+function msm(html: string): Result {
+  return { lifts: rows(between(html, 'class="lifts-table"', "</table>"), /<tr>\s*<td><img[^>]*><\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]*)<\/td>/g)
+    .filter((l) => !/^shuttle$/i.test(l.n)) };
+}
+// Searchmont: <p class="slope-access-name"><strong>Buzzsaw Lift:</strong> <img src=".../green-check-32.png"> Open</p>.
+// The page keeps last season's signs all summer and has no date, so outside December to April it says nothing.
+function searchmont(html: string): Result {
+  const m = new Date().getUTCMonth(), season = m === 11 || m <= 3;
+  return { lifts: rows(html, /slope-access-name"><strong>([^<:]+):?<\/strong>\s*<img[^>]*src="[^"]*\/([a-z-]+)-32\.png"[^>]*>\s*([^<]*)/g, 1, 3)
+    .map((l) => ({ ...l, s: season ? l.s : "unknown" })) };
+}
 // Sea to Sky Gondola: the bar at the top of every page says "OPEN 9 AM to 5 PM (Last Ride Down 6 PM)" (or that it's
 // closed); the Daily Conditions tables have one row per trail and activity (<tr><td>name<td>today's note), with
 // "Ski and Snowboard Touring" saying if backcountry skis and boards may go up today; "Last Updated: Monday, November 2,
@@ -310,7 +346,7 @@ export function s2sg(html: string): Result {
   return { lifts: [{ n: "Sea to Sky Gondola", s: st, k: "gondola", ...(hrs ? { o: hrs[1], c: hrs[2] } : {}), ...(down ? { down: down[1] } : {}), ...(ski ? { ski, skiOk } : {}), rows }], t };
 }
 export const PARSE: Record<Source["kind"], (body: string) => Result> = { vail, rcr, whitewater, sunpeaks, bigwhite, norquay, mtnpowder, bromont, revelstoke, louise, red, msa,
-  stoneham, sutton, massif, orford, vsc, relais, msl, s2sg };
+  stoneham, sutton, massif, orford, vsc, relais, msl, s2sg, owlshead, horseshoe, msm, searchmont };
 
 const cache = new Map<string, { at: number; v: Record<string, unknown> }>();
 export async function read(id: string): Promise<Record<string, unknown>> {
