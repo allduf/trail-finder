@@ -1816,7 +1816,8 @@
     "No signal, and no trails saved here yet: zoom in while you have signal, or save an offline map.":"Pas de réseau, et aucun sentier enregistré ici : zoomez quand vous avez du réseau, ou enregistrez une carte hors ligne.",
     "Data credits":"Sources des données",
     "Every source and its licence":"Chaque source et sa licence",
-    "Plan a hike still finds a route along the trails when the route server is busy, and a new Data credits page lists every source.":"Planifier une randonnée trouve encore un trajet le long des sentiers quand le serveur de trajets est occupé, et une nouvelle page Sources des données liste chaque source."};
+    "Plan a hike still finds a route along the trails when the route server is busy, and a new Data credits page lists every source.":"Planifier une randonnée trouve encore un trajet le long des sentiers quand le serveur de trajets est occupé, et une nouvelle page Sources des données liste chaque source.",
+    "Skiing Freeride lines no longer show marked runs like Insanity and Powerline at Whistler Creekside.":"Les lignes freeride en ski n'affichent plus les pistes balisées comme Insanity et Powerline à Whistler Creekside."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

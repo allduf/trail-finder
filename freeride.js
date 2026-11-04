@@ -7,8 +7,8 @@
 // region, data/ski-canada/ and the nightly Canada squares ca/w/), so they're everywhere in Canada and updated nightly,
 // and nothing is drawn from a guess. A route is a freeride line when it's a named downhill line (not an area, a skin
 // track, a road or a park) that OpenStreetMap rates freeride or extreme, or expert with no grooming or with a chute,
-// couloir, face, bowl... in its name. data/freeride-lines.json (hand-kept) lists resorts where every ungroomed expert run
-// is one (Whistler Blackcomb), fixes names, and leaves out the slackcountry lines (their own layer, slackcountry.js).
+// couloir, face, bowl... in its name. data/freeride-lines.json (hand-kept) lists resorts whose run descriptions count
+// too and the real lines with no such word (Whistler Blackcomb), fixes names, and leaves out the slackcountry lines (their own layer, slackcountry.js).
 // A tap opens the route's card (winter.js) with a Freeride line part: rating, in the ski area or outside it, drop,
 // steepest slope and which way it faces. A "Freeride lines" switch in the Resorts group of the Skiing layers (tf:skiFree).
 (() => {
@@ -34,7 +34,7 @@
   let hand = null;
   const handLoad = fetch("data/freeride-lines.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
     .then((d) => {
-      hand = (d && d.resorts || []).map((x) => ({ ...x, bounds: L.latLngBounds([x.box[0], x.box[1]], [x.box[2], x.box[3]]), skip: new Set((x.skip || []).map((n) => n.toLowerCase())) }));
+      hand = (d && d.resorts || []).map((x) => ({ ...x, bounds: L.latLngBounds([x.box[0], x.box[1]], [x.box[2], x.box[3]]), skip: new Set((x.skip || []).map((n) => n.toLowerCase())), keep: new Set((x.keep || []).map((n) => n.toLowerCase())) }));
       return hand;
     });
   // The slackcountry lines' own OpenStreetMap ways stay on that layer.
@@ -55,7 +55,12 @@
       const p = r.lines[0][0], rs = resortAt(p), d = r.diff;
       if (rs && rs.skip.has(n.toLowerCase())) ok = false;
       else if (d === "freeride" || d === "extreme") ok = true;
-      else if (d === "expert") ok = TERRAIN.test(n) || /^(backcountry|no|mogul)$/.test(t["piste:grooming"] || "") || (!!rs && rs.allExpert && r.type !== "tour");
+      // An expert run alone is not a line: marked trail-map runs cut through the trees (Insanity, Powerline at Whistler
+      // Creekside, alex 2026-11-04 "not a freeride line") are rated expert too. It needs a chute, face, bowl... in its name,
+      // no grooming, or (resorts with expertWords, where the mapper describes every run) those words in its OpenStreetMap
+      // description, or its name in the resort's hand-checked keep list.
+      else if (d === "expert") ok = TERRAIN.test(n) || /^(backcountry|no|mogul)$/.test(t["piste:grooming"] || "")
+        || (!!rs && r.type !== "tour" && (rs.keep.has(n.toLowerCase()) || (!!rs.expertWords && TERRAIN.test(t.description || ""))));
       else if (d === "advanced" && r.type === "offpiste") ok = TERRAIN.test(n);
       if (ok && rs && rs.rename && rs.rename[n]) r.frName = rs.rename[n];
     }
