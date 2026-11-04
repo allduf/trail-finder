@@ -1929,7 +1929,8 @@
     "Add line":"Ajouter la ligne",
     "Just a point":"Juste un point",
     "Neither":"Aucun des deux",
-    "Zoomed in there: tap again to place your point.":"Zoom fait : touchez encore pour placer votre point."};
+    "Zoomed in there: tap again to place your point.":"Zoom fait : touchez encore pour placer votre point.",
+    "Skiing Plan a tour: drag the end of a line you added along it and the line stops there; your tour goes on to the next point from that spot.":"Ski, Planifier une sortie : glissez la fin d'une ligne ajoutée le long de celle-ci et la ligne s'arrête là; votre sortie continue vers le point suivant à partir de cet endroit."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

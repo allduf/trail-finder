@@ -1291,7 +1291,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=2860").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=2920").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2547,10 +2547,44 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     else plan.pts.pop();
     planChanged();
   }
+  // Dragging the end of an added line along it cuts the line there: the tour follows the line to that spot, then
+  // goes on to the next point (alex 2026-11-04: "when i move a point that was put at the end of a line it mean that i
+  // want to stop the line there and go to the next point"). The same at a line's start. Dropped away from the line,
+  // the line is cut at its nearest spot and the tour goes on to where the point was dropped.
   function movePt(i, ll) {
-    if (!plan.pts[i]) return;
+    const q = plan.pts[i];
+    if (!q) return;
     snap();
-    plan.pts[i] = [+ll.lat.toFixed(6), +ll.lng.toFixed(6)];   // moved off an added line: a plain point
+    const to = [+ll.lat.toFixed(6), +ll.lng.toFixed(6)], d = (a, b) => map.distance([a[0], a[1]], [b[0], b[1]]);
+    // The spot on v nearest the drop: on segment j (v[j] to v[j + 1]), at p.
+    const nearest = (v) => {
+      const kx = Math.cos((to[0] * Math.PI) / 180);
+      let best = { j: 0, p: v[0], far: Infinity };
+      for (let j = 0; j + 1 < v.length; j++) {
+        const a = v[j], b = v[j + 1], dx = (b[1] - a[1]) * kx, dy = b[0] - a[0], L2 = dx * dx + dy * dy;
+        const t = L2 ? Math.max(0, Math.min(1, (((to[1] - a[1]) * kx) * dx + (to[0] - a[0]) * dy) / L2)) : 0;
+        const p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], m = d(p, to);
+        if (m < best.far) best = { j, p, far: m };
+      }
+      return best;
+    };
+    // The line on the leg into this point (it ends here), or else on the leg out of it (it starts here).
+    const into = q[2] && q[2].via && q[2].via.length > 1 ? q : null, nx = plan.pts[i + 1], out = !into && nx && nx[2] && nx[2].via && nx[2].via.length > 1 ? nx : null;
+    const own = into || out;
+    if (own) {
+      const v = own[2].via, here = q;   // this point sits at one end of v
+      const atLast = d(v[v.length - 1], here) <= d(v[0], here);                   // which end
+      const { j, p, far } = nearest(v), pt = [+p[0].toFixed(6), +p[1].toFixed(6)];
+      const cut = atLast ? [...v.slice(0, j + 1), pt] : [pt, ...v.slice(j + 1)];
+      if (map.distance(cut[0], cut[cut.length - 1]) > 30) {
+        if (into) plan.pts[i] = [pt[0], pt[1], { ...q[2], via: cut }];
+        else { plan.pts[i] = pt; plan.pts[i + 1] = [nx[0], nx[1], { ...nx[2], via: cut }]; }
+        if (far > 60) plan.pts.splice(into ? i + 1 : i, 0, to);                   // then on to (or from) where it was dropped
+        planChanged();
+        return;
+      }
+    }
+    plan.pts[i] = to;   // moved off an added line: a plain point
     planChanged();
   }
   function planChanged() {
