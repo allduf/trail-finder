@@ -1596,6 +1596,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
+<script src="risk.js?v=2700"></script>
 <script src="welcome.js?v=2700"></script>
 <script src="native.js?v=2700"></script>
 <script src="keyboard.js?v=2700"></script>
@@ -8144,7 +8145,7 @@ out tags center qt;`;
       : none && unoffPick ? `<p class="hint box-why">No unofficial trails ${esc(inWhere)}${lvlText ? ` rated ${esc(lvlText)} or unrated` : ""}: every trail here is tagged for MTB or marked official.</p>`
       : none && ebikePick && !levels.length ? `<p class="hint box-why">No trails ${esc(inWhere)} are open to e-bikes, from the map tags and the park and province rules.</p>`
       : none && diff ? `<p class="hint box-why">No trails ${esc(inWhere)} are rated ${esc(lvlText)}${ebikePick ? " and open to e-bikes" : ""} in OpenStreetMap. Only trails with a difficulty rating show up here.</p>`
-      : unoffPick && !none ? `<p class="hint box-why">Unofficial trails: the ones mappers flagged come first, then trails with no bike tags (paths with no bike tags are grey). MTB tagged and official trails (club, park, ski or Recreation Sites and Trails BC) are left out.${lvlText ? " Most unofficial trails have no difficulty rating, so unrated ones are included with the levels you picked." : ""}</p>`
+      : unoffPick && !none ? `<p class="hint box-why">Unofficial trails: the ones mappers flagged come first, then trails with no bike tags (paths with no bike tags are grey). MTB tagged and official trails (club, park, ski or Recreation Sites and Trails BC) are left out.${lvlText ? " Most unofficial trails have no difficulty rating, so unrated ones are included with the levels you picked." : ""} Unofficial trails may be closed, private or not allowed: riding one is your decision and your risk.</p>`
       : none && circle ? `<p class="hint box-why">No MTB trails are mapped within ${circle.km} km. Pick a bigger distance.</p>`
       : none ? `<p class="hint box-why">OpenStreetMap has no trails tagged for mountain biking here: the lines on the map are hiking trails or forest roads, or nothing is mapped yet. Try a bigger square, or tap a line to see what it is.</p>` : "";
     $("boxRes").innerHTML = `<div class="box-head"><div><b>${none ? `No ${what} ${esc(inWhere)}` : `${boxGroups.length} ${one}${boxGroups.length === 1 ? "" : "s"} ${esc(inWhere)}`}</b>${unnamed ? ` <span class="muted">+ ${unnamed} unnamed bit${unnamed === 1 ? "" : "s"} (on the map)</span>` : ""}</div><span class="box-acts">${diff || circle ? "" : `<button class="linkish" id="boxRedo" type="button">${where ? "▢ Draw a square" : "▢ Change square"}</button>`}<button class="linkish" id="boxClear" type="button">${diff || circle ? "Clear" : "Clear square"}</button></span></div>${why}${rows}`;
