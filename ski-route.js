@@ -248,6 +248,10 @@
       const a = pts[i - 1], b = pts[i];
       if (window.tfLeaflet.distance(a, b) > MAX_LEG_M) return { fail: "far", leg: i, km: Math.round(window.tfLeaflet.distance(a, b) / 1000) };
       onStep && onStep(pts.length > 2 ? `Leg ${i} of ${pts.length - 1}: reading the terrain…` : "Reading the terrain, slopes and avalanche paths…");
+      // A line put in the tour (a freeride line or a mapped route, alex 2026-11-04: "make it so you can put line in your
+      // tour"): this leg follows it as drawn, with its slopes and exposure read the same way.
+      const via = viaOf(a, b);
+      if (via) { legs.push(await fixedLeg(FR, via, av, onStep)); continue; }
       const lines = await linesNear(S, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], Math.max(3, window.tfLeaflet.distance(a, b) / 1000 + 2));
       const out = await FR._build(b, { you: a, lines, cost, prep: (g) => prep(g, av), pads: (d) => [Math.max(600, d * 0.4), Math.max(2000, d)] },
         (s) => onStep && onStep(s === "terrain" ? "Getting the terrain…" : "Finding the safest way…"));
@@ -256,6 +260,35 @@
       legs.push({ ...pieces(FR, out.g, cells, av), straight: straight(FR, out.g, a, b) });
     }
     return total(legs, av, { from: "pts" });
+  }
+  // The point b carries the line it was added with ({ via: [[lat, lon], ...], name }); it's followed when the leg still
+  // runs from that line's one end to its other (after the points are moved round it may not), backwards if reversed.
+  const NEAR_M = 60;
+  function viaOf(a, b) {
+    const o = b[2], v = o && o.via;
+    if (!v || v.length < 2) return null;
+    const d = (p, q) => window.tfLeaflet.distance([p[0], p[1]], [q[0], q[1]]);
+    if (d(a, v[0]) < NEAR_M && d(b, v[v.length - 1]) < NEAR_M) return { pts: v, name: o.name || "" };
+    if (d(a, v[v.length - 1]) < NEAR_M && d(b, v[0]) < NEAR_M) return { pts: v.slice().reverse(), name: o.name || "" };
+    return null;
+  }
+  async function fixedLeg(FR, via, av, onStep) {
+    const L = window.tfLeaflet, v = via.pts;
+    const g = await FR._buildGrid(FR._boxAround(v, 400), (s) => onStep && onStep(s === "terrain" ? "Getting the terrain…" : "Reading the line…"), []);
+    await prep(g, av);
+    const { cellAt } = FR._grid, cells = [];
+    for (let i = 1; i < v.length; i++) {
+      const n = Math.max(1, Math.ceil(L.distance(v[i - 1], v[i]) / (g.cellM / 2)));
+      for (let k = i === 1 ? 0 : 1; k <= n; k++) {
+        const c = cellAt(g, v[i - 1][0] + ((v[i][0] - v[i - 1][0]) * k) / n, v[i - 1][1] + ((v[i][1] - v[i - 1][1]) * k) / n);
+        if (c >= 0 && c !== cells[cells.length - 1]) cells.push(c);
+      }
+    }
+    const leg = pieces(FR, g, cells, av), RANK = { ok: 0, mid: 1, under: 2, steep: 3, trap: 4 }, st = leg.steps;
+    // One step for the whole line, under its own name.
+    const one = { kind: "trail", name: via.name, m: 0, up: 0, down: 0, worst: "ok", hzM: 0, safeWorst: "ok", maxDeg: 0, at: st[0].at, mid: st[Math.floor(st.length / 2)].mid, line: true };
+    for (const x of st) { one.m += x.m; one.up += x.up; one.down += x.down; one.hzM += x.hzM; one.maxDeg = Math.max(one.maxDeg, x.maxDeg); if (RANK[x.worst] > RANK[one.worst]) one.worst = x.worst; if (RANK[x.safeWorst] > RANK[one.safeWorst]) one.safeWorst = x.safeWorst; }
+    return { runs: leg.runs, steps: [one], straight: straight(FR, g, v[0], v[v.length - 1]), line: via.name || true };
   }
   // From the best plowed parking to a spot (the "This spot" card): the search runs back from the spot to a lot or a
   // paved road (winter: logging roads aren't plowed, they're skied), within 2, 5 or 9 km.
