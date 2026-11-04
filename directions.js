@@ -70,6 +70,7 @@
     { name: "Leftovers Skid Road", c: [50.103, -123.016], r: 1500, dir: "climb", who: "alex, who rides it", note: "an access skid road ridden as a climbing trail (Whistler)" },
     { name: "Yummy Numby", c: [50.127, -122.926], r: 3000, dir: "climb", who: "Vital MTB's Whistler guide", where: "vitalmtb.com", note: "a singletrack climb (Whistler)" },
     { name: "Highline", c: [50.07, -123.028], r: 3000, dir: "climb", who: "MTB Project", where: "mtbproject.com", note: "the warm-up climb to the Cheakamus descents (Whistler)" },
+    { name: "Stl'lhalem Sintl'", c: [49.745, -123.075], r: 4000, dir: "climb", who: "SORCA's trail report (Oct/Nov 2025) and the District of Squamish trail data", where: "sorca.ca", note: "SORCA calls it the Climb Trail; it was Legacy Climb (Squamish)" },
     { name: "50 Shades of Green", c: [49.776, -123.118], r: 3000, dir: "climb", who: "Tourism Squamish's Alice Lake and Highlands map", where: "exploresquamish.com", note: "a well built climb into the Alice Lake and Mashiter trails (Squamish)" },
     { name: "Of Mice and Men", c: [49.77, -123.111], r: 3000, dir: "climb", who: "Singletracks", where: "singletracks.com", note: "an intermediate climbing trail in the Alice Lake network (Squamish)" },
     { name: "Upstream", c: [49.79, -123.099], r: 3000, dir: "climb", who: "Outmap", where: "outmap.pro", note: "built to be ridden uphill (Squamish)" },

@@ -86,11 +86,12 @@
   }
   const SRC = { qc: "Sépaq", ott: "the City of Ottawa", ut: "Utah's trail data (UGRC)", pa: "Pennsylvania state parks", wh: "the Resort Municipality of Whistler", csrd: "the Columbia Shuswap Regional District",
     fta: "the Fernie Trails Alliance", rdos: "the Regional District of Okanagan-Similkameen", ccf: "the Cranbrook Community Forest Society trail map",
-    tv: "the Greater Vernon trail map (City of Vernon, Tourism Vernon)", knps: "the Kimberley Nature Park Society trail guide" };
+    tv: "the Greater Vernon trail map (City of Vernon, Tourism Vernon)", knps: "the Kimberley Nature Park Society trail guide",
+    dos: "the District of Squamish" };
   // Towns' own trail lists name each trail: a line with another trail's name is a different trail on the same spot.
   // Words are kept per name: the same few names are checked against every point of every trail (a freeze of a second
   // or more on a phone when a new part of the map loaded, alex 2026-10-23).
-  const NAMED = /^(wh|csrd|tv)$/, wordsOf = new Map(), words = (s) => {
+  const NAMED = /^(wh|csrd|tv|dos)$/, wordsOf = new Map(), words = (s) => {
     s = s || "";
     let w = wordsOf.get(s);
     if (!w) { if (wordsOf.size > 20000) wordsOf.clear(); wordsOf.set(s, (w = new Set(s.toLowerCase().match(/[a-z0-9]{3,}/g) || []))); }
@@ -470,6 +471,10 @@
     { name: "Gear Jammer Connector", c: [49.276, -122.904], r: 2000, src: "Komoot, Burnaby Mountain Gearjammer", url: "https://www.komoot.com/smarttour/31037183" },
     // Roberts Creek (Sunshine Coast)
     { name: "Mach Chicken", c: [49.4475, -123.603], r: 1500, d: "black", src: "MTB Project, Roberts Creek trails (rated Difficult)", url: "https://www.mtbproject.com/directory/8020882/roberts-creek-gibson" },
+    // Sea to Sky check against club and guide maps, 2026-11-04: trails with only a slope estimate
+    { name: "Green Lake Loop", c: [50.147, -122.93], r: 2500, d: "blue", src: "MTB Project, Whistler (rated Intermediate)", url: "https://www.mtbproject.com/trail/7014305" },
+    { name: "Cherry On Top", c: [50.105, -123.005], r: 1500, d: "blue", src: "MTB Project, Whistler (rated Intermediate)", url: "https://www.mtbproject.com/trail/7069611" },
+    { name: "Train Wreck Trail", c: [50.08, -123.057], r: 1500, d: "blue", src: "MTB Project, Whistler (rated Intermediate)", url: "https://www.mtbproject.com/directory/8011397/whistler" },
     // weekly audit, 2026-10-24: levels from tourism, club and town pages
     { name: "Rock & Roll", c: [50.088, -120.852], r: 2000, d: "black", src: "Mountain Biking BC, Merritt day trip (2017)", url: "https://www.mountainbikingbc.ca/blog/ultimate-day-trip-to-the-interiors-hidden-gem-in-merritt-british-columbia/" },
     { name: "Godey", c: [50.079, -120.748], r: 2000, d: "black", src: "Mountain Biking BC, Merritt day trip (2017)", url: "https://www.mountainbikingbc.ca/blog/ultimate-day-trip-to-the-interiors-hidden-gem-in-merritt-british-columbia/" },
