@@ -1317,6 +1317,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const my = ++routeSeq;
     routeErr = "";
     if (locs.length < 2) { route = null; drawRoute(); renderRoute(); return; }
+    if (window.tfRiskOk && !(await window.tfRiskOk("route"))) { if (my === routeSeq) { route = null; drawRoute(); renderRoute(); } return; }
     $("mtRoute").hidden = false;
     renderRoute(true);
     let excl = avoidMine.map((a) => [a[0], a[1]]), r, best = null, lastAdd = [], cx = null, win = null;
@@ -1872,7 +1873,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
         <div class="mt-row"><button type="button" class="mt-pill go" data-r="ride">${svg(IC.ride, 16)}Ride it</button><button type="button" class="mt-pill" data-r="save">${svg(IC.save, 16)}Save</button><button type="button" class="mt-pill" data-r="gpx">${svg(IC.dl, 16)}GPX</button><button type="button" class="mt-pill" data-r="offline">${svg(IC.dl, 16)}Save offline</button><button type="button" class="mt-pill" data-r="fly">${svg(IC.fly, 16)}Fly it in 3D</button></div>`;
     }
     el.innerHTML = `<header>${svg(IC.plan)}<h3>Plan a route</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>${styles}${tools}<div class="mt-placeslot"></div>${wpListHtml()}${body}
-      <p class="mt-note">For your ${esc(b.name || TYPES[b.type].label)} (rides grade ${capOf(b)} well). Routes by Valhalla on OpenStreetMap roads.</p>`;
+      <p class="mt-note">For your ${esc(b.name || TYPES[b.type].label)} (rides grade ${capOf(b)} well). Routes by Valhalla on OpenStreetMap roads.</p>${window.tfRiskLine ? window.tfRiskLine() : ""}`;
     const slot = el.querySelector(".mt-placeslot"), pb = planPlaceBox();
     if (pb) slot.replaceWith(pb); else slot.remove();
     el.querySelector(".mt-x").onclick = () => { setPlanning(false); route = null; routeErr = ""; drawRoute(); renderRoute(); drawRange(); pane.querySelector('[data-act="plan"]').classList.remove("on"); };
