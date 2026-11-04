@@ -580,6 +580,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     fetch("data/ski-terrain.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null))
       .then((d) => { terrain = (d && d.routes) || {}; renderList(); if (selected && !$("skDetail").hidden) showCheck(); }).catch(() => {});
   }
+  // Spelling slips in mapped names (alex 2026-11-04: "Steep Creek Forest Serivce Road" on the Duffey).
+  const NAME_FIX = [[/\bSerivce\b/g, "Service"], [/\bSevice\b/g, "Service"], [/\bFores\b(?= Service)/g, "Forest"]];
+  function fixName(r) { if (r.name) NAME_FIX.forEach(([re, to]) => { r.name = r.name.replace(re, to); }); }
   function loadSki() {
     loadTerrain();
     if (ski || skiLoading) return skiLoading;
@@ -588,7 +591,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         ski = d;
         tidyAccess(d);
         d.huts = hutFacts(d.huts || [], true);
-        (d.routes || []).forEach((r) => { r.lines = r.g.map(lineOf); r.bounds = L.latLngBounds(r.lines.flat()); });
+        (d.routes || []).forEach((r) => { r.lines = r.g.map(lineOf); r.bounds = L.latLngBounds(r.lines.flat()); fixName(r); });
         window.dispatchEvent(new CustomEvent("tf:ski-data", { detail: d }));   // rogers.js: official terrain classes (r.ates)
         drawSki(); renderSwitches(); renderList(); loadCanadaView();
       })
@@ -688,7 +691,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         tidyAccess(t);
         for (const r of t.routes || []) {
           if (ids.has(r.id)) continue;
-          r.lines = r.g.map(lineOf); r.bounds = L.latLngBounds(r.lines.flat());
+          r.lines = r.g.map(lineOf); r.bounds = L.latLngBounds(r.lines.flat()); fixName(r);
           ski.routes.push(r);
         }
         // Facts added by hand to OpenStreetMap routes (data/ski-hand/ "patch", by route id): a name, tags, links
@@ -1078,7 +1081,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // Pieces with the same name and type are one entry.
     const groups = new Map();
     for (const r of ski.routes || []) {
-      if (!shown.has(r.type) || (q ? !has(nameOf(r)) : !inView(r))) continue;
+      if (!shown.has(r.type) || (q ? !has(nameOf(r)) && !has(r.tags && r.tags["hand:aka"]) : !inView(r))) continue;
       const key = r.name ? r.type + "|" + r.name.toLowerCase() : r.id;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(r);
@@ -1160,7 +1163,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=2240").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=2260").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -1558,7 +1561,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // Hand-kept routes (data/ski-hand/)
     "hand:about": (v) => ["About", v], "hand:climb": (v) => ["Climb", v], "hand:high": (v) => ["Highest point", v], "hand:aspect": (v) => ["Main aspect", v],
     "hand:start": (v) => ["Getting there", v], "hand:safety": (v) => ["Safety", v], "hand:rules": (v) => ["Rules", v], "hand:line": (v) => ["The line", v],
-    "hand:groomed": (v) => ["Groomed", v],
+    "hand:groomed": (v) => ["Groomed", v], "hand:classic": (v) => ["Classic", `A ${v} classic`], "hand:aka": (v) => ["Also called", v],
   };
   const FR_DIFF = { Facile: "Easy", "Débutant": "Beginner", "Intermédiaire": "Intermediate", Difficile: "Difficult", "Très difficile": "Very difficult", Polyvalent: "Mixed" };
   const FR_USE = { Raquette: "snowshoeing", "Ski nordique": "backcountry nordic skiing (not groomed)", "Randonnée alpine": "alpine ski touring", "Accès ski hors-piste": "access to off-piste skiing",
@@ -3918,7 +3921,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const routes = [...groups.values()].map((g) => {
         const r = g[0], risk = riskOf(g);
         return { id: r.id, name: nameOf(r), type: r.type, label: (TYPES[r.type] || TYPES.other).label, km: g.reduce((s, y) => s + km(y), 0), d: awayM(c[0], c[1], g),
-          cls: risk ? risk.c : 0, diff: r.diff || "", pill: [riskPill(risk), diffPill(r.diff)].filter(Boolean).join(" "), c: [r.lines[0][0][0], r.lines[0][0][1]] };
+          cls: risk ? risk.c : 0, diff: r.diff || "", classic: g.some((y) => y.tags && y.tags["hand:classic"]), pill: [riskPill(risk), diffPill(r.diff)].filter(Boolean).join(" "), c: [r.lines[0][0][0], r.lines[0][0][1]] };
       }).filter((x) => x.d <= lim).sort((x, y) => x.d - y.d);
       const huts = (ski.huts || []).map((h) => ({ name: h.name || "Hut", kind: KIND[h.kind] || "Hut", lat: h.lat, lon: h.lon, d: ptAway(c[0], c[1], h) }))
         .filter((h) => h.d <= lim).sort((x, y) => x.d - y.d);
