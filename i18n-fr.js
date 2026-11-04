@@ -1940,7 +1940,10 @@
     "You need a free account for this.":"Il vous faut un compte gratuit pour ceci.",
     "Saving maps for no signal needs a free account. Sign in or create one, and the save starts right after.":"Enregistrer des cartes pour les endroits sans réseau demande un compte gratuit. Connectez-vous ou créez-en un, et l'enregistrement commence tout de suite après.",
     "Saving needs a free account: you'll be asked to sign in first.":"L'enregistrement demande un compte gratuit : on vous demandera de vous connecter d'abord.",
-    "Offline maps now need a free account: tap Save and you'll be asked to sign in first, then the save starts. Maps you already saved keep working with no signal.":"Les cartes hors ligne demandent maintenant un compte gratuit : touchez Enregistrer, on vous demandera de vous connecter, puis l'enregistrement commence. Les cartes déjà enregistrées marchent toujours sans réseau."};
+    "Offline maps now need a free account: tap Save and you'll be asked to sign in first, then the save starts. Maps you already saved keep working with no signal.":"Les cartes hors ligne demandent maintenant un compte gratuit : touchez Enregistrer, on vous demandera de vous connecter, puis l'enregistrement commence. Les cartes déjà enregistrées marchent toujours sans réseau.",
+    "Skiing Plan a tour: your tour is only on the map while you plan or edit it, or after Show on map (Hide from map takes it off); zoomed out it's just the line, without its numbered points.":"Ski, Planifier une sortie : votre sortie n'est sur la carte que pendant que vous la planifiez ou la modifiez, ou après Afficher sur la carte (Masquer de la carte l'enlève); de loin, seule la ligne s'affiche, sans ses points numérotés.",
+    "Hide from map":"Masquer de la carte",
+    "Show on map":"Afficher sur la carte"};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

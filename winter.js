@@ -659,7 +659,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // A tour being planned: the points tapped on the map (kept on this device), drawn as an orange line.
   const plan = { on: false, pts: store.get("skiPlan", []), layer: L.layerGroup(), slopeWas: false, groundWas: [], timer: 0,
     safe: store.get("skiSafe", true) !== false,   // on unless turned off (alex 2026-11-04: "make it on by default")
-    path: store.get("skiPlanPath", null), run: 0, wait: "", fail: "", hist: [], offer: null, flash: -1, dragAt: 0 };   // safe: the 🛡 Safest way (ski-route.js)
+    path: store.get("skiPlanPath", null), run: 0, wait: "", fail: "", hist: [], offer: null, flash: -1, dragAt: 0, show: false };   // safe: the 🛡 Safest way (ski-route.js)
   const SAFE_CLS = {
     ok: { color: "#2f9e44", label: "Gentle ground" }, mid: { color: "#f2b705", label: "25° to 30°" }, steep: { color: "#e03131", label: "30°+ slope" },
     under: { color: "#e8590c", label: "Under steep slopes" }, trap: { color: "#a61e4d", label: "Terrain trap" },
@@ -1291,7 +1291,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3020").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3050").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2421,6 +2421,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     plan.layer.clearLayers();
     planGl.forEach((m) => m.remove()); planGl = [];
     if (sport !== "ski" || (!plan.pts.length && !plan.offer)) return;
+    // The tour is on the map only while it's being planned or edited, or after Show on map (alex 2026-11-04: "are we
+    // always seeing the ski route on the map? i dont want to always see it"). It stays saved either way.
+    if (!plan.on && !plan.show) return;
+    // Zoomed out, only the line: its numbered points and watch-outs piled up into one blob.
+    const pins = plan.on || map.getZoom() >= 12;
     const sp = safePath();
     if (sp) {
       const C = SAFE_CLS;
@@ -2428,7 +2433,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: "#111", weight: 14, opacity: 0.45, lineCap: "round", lineJoin: "round", interactive: false }));
       for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: "#fff", weight: 10, opacity: 1, lineCap: "round", lineJoin: "round", interactive: false }));
       for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: (C[r.cls] || C.ok).color, weight: 6, opacity: 1, lineCap: "round", lineJoin: "round", interactive: false }));
-      safeWatch(sp).forEach((r, i) => {
+      if (pins) safeWatch(sp).forEach((r, i) => {
         const html = `<div class="sk-safe-n sk-safe-w">!${i + 1}</div>`;
         plan.layer.addLayer(L.marker(r.mid, { pane: "ski", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html, iconSize: [26, 22], iconAnchor: [13, 11] }) }));
         planGlPin(r.mid, html, 4);
@@ -2447,7 +2452,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // dragged to a new spot, on the flat map and in 3D (alex 2026-11-04: "I want to move it on the map").
     if (!map.getPane("skiSafePt")) { map.createPane("skiSafePt").style.zIndex = 660; map.getPane("skiSafePt").style.pointerEvents = "none"; }   // over the parking and hut pins
     const n = plan.pts.length, drag = plan.on;
-    plan.pts.forEach((q, i) => {
+    if (pins) plan.pts.forEach((q, i) => {
       const cls = `sk-safe-pt${drag ? " drag" : ""}${i ? "" : " first"}${plan.flash === i ? " new" : ""}`, name = esc(ptName(i, n, true));
       const m = L.marker(q, { pane: "skiSafePt", interactive: drag, draggable: drag, keyboard: false, autoPan: true,
         icon: L.divIcon({ className: "", html: `<div class="${cls}">${name}</div>`, iconSize: [0, 0], iconAnchor: [0, 0] }) });
@@ -2463,6 +2468,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     aboveLayer.eachLayer((l) => l.bringToFront());   // the red "steep slopes above" dashes stay on top of the plan
   }
   window.addEventListener("tf:map3d", () => setTimeout(drawPlan, 0));
+  // Its points come back in close (zoom 12) and go zoomed out.
+  let planPinsWere = map.getZoom() >= 12;
+  map.on("zoomend", () => { const z = map.getZoom() >= 12; if (z !== planPinsWere) { planPinsWere = z; if (plan.show && !plan.on) drawPlan(); } });
   // While planning, a bar on the map keeps the totals and the buttons in sight (on a phone the panel is lowered).
   const planBar = document.createElement("div");
   planBar.className = "sk-planbar"; planBar.hidden = true; planBar.setAttribute("role", "status");
@@ -2503,11 +2511,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ${sum}
       <div class="sk-row"><button type="button" class="btn sk-safebtn" id="skSafeBtn" aria-pressed="${plan.safe}">${plan.safe ? "🛡 Safest way: on" : "🛡 Find the safest way"}</button></div>
       ${safeHtml()}
-      <div class="sk-row">${plan.on && n ? `<button type="button" class="btn" id="skPlanUndo">↶ Undo</button>` : ""}${n ? `<button type="button" class="btn" id="skPlanClear">Clear</button>` : ""}${!plan.on && n > 1 ? `<button type="button" class="btn" id="skPlanShow">Show details</button>` : ""}</div>
+      <div class="sk-row">${plan.on && n ? `<button type="button" class="btn" id="skPlanUndo">↶ Undo</button>` : ""}${n ? `<button type="button" class="btn" id="skPlanClear">Clear</button>` : ""}${!plan.on && n > 1 ? `<button type="button" class="btn" id="skPlanMap">${plan.show ? "Hide from map" : "Show on map"}</button><button type="button" class="btn" id="skPlanShow">Show details</button>` : ""}</div>
       ${safePath() ? "" : ptsHtml()}`;
     const u = $("skPlanUndo"); if (u) u.addEventListener("click", planUndo);
     const c = $("skPlanClear"); if (c) c.addEventListener("click", () => { if (plan.pts.length > 2 && !confirm("Clear your planned tour?")) return; snap(); plan.pts = []; planChanged(); });
-    const sh = $("skPlanShow"); if (sh) sh.addEventListener("click", () => { const r = planRoute(); if (r) select(r, true); });
+    const sh = $("skPlanShow"); if (sh) sh.addEventListener("click", () => { plan.show = true; drawPlan(); const r = planRoute(); if (r) select(r, true); });
+    const pm = $("skPlanMap"); if (pm) pm.addEventListener("click", () => {
+      plan.show = !plan.show; drawPlan(); renderPlan();
+      if (plan.show) { const r = planRoute(); if (r) map.fitBounds(r.bounds, { padding: [30, 30], maxZoom: 15 }); }
+    });
     $("skSafeBtn").addEventListener("click", () => setSafe(!plan.safe));
     // A tap on a step glides there (alex 2026-11-04: "not smooth": the 3D camera jumped): 3D eases keeping its tilt and
     // heading, 2D flies.
@@ -2857,6 +2869,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (plan.on === on) return;
     plan.on = on;
     plan.offer = null;
+    if (on) plan.show = true;   // just planned: it stays on the map until Hide from map (or the app is opened again)
     // The map's layers stay as they are while planning (alex 2026-11-04: "dont put the slope angle layer by default when
     // you plan a tour"); Slope angle is in Layers for whoever wants it.
     map.getContainer().classList.toggle("sk-planning", on);
