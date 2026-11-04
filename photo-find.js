@@ -1475,7 +1475,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const acct = window.tfAccount;
     if (!acct || !acct.enabled) return Promise.resolve([]);
     if (!past) past = acct.load().then(() => acct.client ? acct.client.from("trail_matches").select("id, trail_name, osm_type, osm_ids, zone, lat, lon, words")
-      .order("created_at", { ascending: false }).limit(500) : { data: [] }).then(({ data, error }) => (error ? [] : (data || []).filter((m) => !skipIds.includes(m.id)))).catch(() => []);
+      .order("id", { ascending: false }).limit(500) : { data: [] }).then(({ data, error }) => (error ? [] : (data || []).filter((m) => !skipIds.includes(m.id)))).catch(() => []);
     return past;
   }
   async function samePicture(hash) {
