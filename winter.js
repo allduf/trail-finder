@@ -2521,8 +2521,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const st = sp.stats, av = sp.av || {}, tot = Math.max(1, st.total), C = SAFE_CLS, sl = sp.straight || { total: 0, steep: 0, under: 0 };
     const chip = (v) => `<span class="av-chip" style="background:${DANGER[v || 0].color};color:${v >= 4 ? "#fff" : "#1a1a1a"}">${esc(DANGER[v || 0].label)}</span>`;
     const LV = { direct: ["#2f9e44", "Direct", "Low or Moderate danger" ], balanced: ["#f79218", "Balanced", "Considerable danger"], strict: ["#ef1c29", "Safest", "High or Extreme danger"] }[sp.level || "balanced"];
-    const lvTxt = { direct: "takes slopes up to about 35° when that saves a long way round, still off the steepest ground and out from under big slopes where it can.",
-      balanced: "goes round 30°+ slopes and steep slopes above when there's a sensible way, and takes the shortest steep bit when there isn't.",
+    const lvTxt = { direct: "on the way up it takes the safest line; skiing down it takes slopes up to about 35° when that saves a long way round, still off the steepest ground and out from under big slopes where it can.",
+      balanced: "on the way up it takes the safest line; skiing down it goes round 30°+ slopes and steep slopes above when there's a sensible way, and takes the shortest steep bit when there isn't.",
       strict: "stays off 30°+ slopes and out from under steep slopes, however much longer that makes it. If there's no way round, think twice about going." }[sp.level || "balanced"];
     const lvHtml = `<div class="sk-check" style="--c:${LV[0]}"><b>${LV[1]} route</b><span>${av.none ? "No rating here yet, so planned as for Moderate" : `For ${LV[2]} today`}: ${lvTxt}</span></div>`;
     const fc = av.none ? `<div class="sk-warn"><b>No avalanche forecast here ${example ? "" : "today"}.</b> Planned as for Moderate danger (a direct route); early and late in the season, conditions can change fast. Check ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))} before you go.</div>`

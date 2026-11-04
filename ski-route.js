@@ -97,8 +97,9 @@
       if (Math.max(m1, m2) >= 4 || (creek[i] & 3)) trap[i] = 1;
       risk[i] += expo[i] * 1.5 * (trap[i] ? 2 : 1);
     }
-    const K = LEVEL_K[levelOf(av)];
-    if (K !== 1) for (let i = 0; i < N; i++) risk[i] *= K;
+    // The way up is always the safest (alex 2026-11-04: "you can take steeper route when skiing down but take the safest
+    // way on the way up"): uphill steps weigh the risk at the strict level, the rest at today's level (costFn).
+    g.sk.kDown = LEVEL_K[levelOf(av)]; g.sk.kUp = LEVEL_K.strict;
   }
 
   // Seconds (x the risk) to go from cell a to the next cell b, d metres away.
@@ -118,7 +119,7 @@
       if (!sk.deg.length) return t;
       const dg = Math.max(sk.deg[a], sk.deg[b]);
       if (dg > 35) t *= 1 + (dg - 35) / 6;   // hard to skin up or ski down, avalanche or not
-      return t * (1 + (sk.risk[a] + sk.risk[b]) / 2);
+      return t * (1 + ((sk.risk[a] + sk.risk[b]) / 2) * (dh > 1 ? sk.kUp : sk.kDown));
     };
   }
 

@@ -1856,7 +1856,7 @@
     "Direct route":"Trajet direct",
     "Balanced route":"Trajet équilibré",
     "Safest route":"Trajet le plus sûr",
-    "Skiing Safest way follows the forecast: a more direct route at Low or Moderate danger, the safest one when it's High or Extreme. Planning a tour no longer turns on slope angles.":"Le trajet le plus sûr en ski suit la prévision : un trajet plus direct quand le danger est Faible ou Modéré, le plus sûr quand il est Élevé ou Extrême. Planifier une sortie n'active plus les angles de pente.",
+    "Skiing Safest way follows the forecast: the way up always takes the safest line, and the ski down is more direct at Low or Moderate danger, the safest one when it's High or Extreme. Planning a tour no longer turns on slope angles.":"Le trajet le plus sûr en ski suit la prévision : la montée prend toujours la ligne la plus sûre, et la descente est plus directe quand le danger est Faible ou Modéré, la plus sûre quand il est Élevé ou Extrême. Planifier une sortie n'active plus les angles de pente.",
     "Saved on this phone only":"Enregistré sur ce téléphone seulement",
     "Keep your alerts":"Gardez vos alertes",
     "Sign in so your alerts follow you to a new phone. Free, and the app works the same without it.":"Connectez-vous pour que vos alertes vous suivent sur un nouveau téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
