@@ -235,6 +235,10 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 #skiPane ol.ss-list .ss-pin { position: relative; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: #1f5fe0; color: #fff; font: 700 11px/1 system-ui, sans-serif; box-shadow: 0 0 0 3px var(--panel); }
 #skiPane ol.ss-list .ss-pin.end { background: #1a1a1a; }
 #skiPane ol.ss-list .ss-pin svg { width: 11px; height: 11px; }
+#skiPane ol.ss-list .ss-mv { display: flex; gap: 4px; }
+#skiPane ol.ss-list .ss-mv button { width: 28px; height: 28px; padding: 0; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+#skiPane ol.ss-list .ss-mv button svg { width: 13px; height: 13px; }
+#skiPane ol.ss-list .ss-mv button:active { background: var(--line); }
 #skiPane ol.ss-list .ss-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 #skiPane ol.ss-list .ss-t b { font-weight: 600; }
 #skiPane ol.ss-list .ss-t small { color: var(--muted); font-size: .78rem; }
@@ -2449,6 +2453,16 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     $("skSafeBtn").addEventListener("click", () => setSafe(!plan.safe));
     card.querySelectorAll("[data-safe-at]").forEach((li) => li.addEventListener("click", () => { const [la, lo] = li.dataset.safeAt.split(",").map(Number); map.setView([la, lo], Math.max(map.getZoom(), 15)); }));
     const ag = $("skSafeAgain"); if (ag) ag.addEventListener("click", () => { plan.path = null; planChanged(); });
+    // Reorder the points from the list (alex 2026-11-04: "make it so we can change the other way"): swap a point with
+    // the one above or below, or reverse the whole tour; the safest way is found again in the new order.
+    card.querySelectorAll("[data-mv]").forEach((b) => b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const [i, d] = b.dataset.mv.split(",").map(Number), j = i + d;
+      if (j < 0 || j >= plan.pts.length) return;
+      [plan.pts[i], plan.pts[j]] = [plan.pts[j], plan.pts[i]];
+      planChanged();
+    }));
+    const rv = $("skSafeRev"); if (rv) rv.addEventListener("click", () => { plan.pts.reverse(); planChanged(); });
   }
   function planChanged() {
     store.set("skiPlan", plan.pts);
@@ -2579,7 +2593,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     };
     const pt = (i) => {
       const q = plan.pts[i], mid = i && i < n - 1;
-      return `<li class="ss-pt" data-safe-at="${q[0]},${q[1]}"><span class="ss-pin${mid ? "" : " end"}">${mid ? i : IC.flag}</span><span class="ss-t"><b>${esc(ptName(i, n))}</b>${i === 0 && sp.park ? `<small>${esc(sp.park)}</small>` : ""}</span><span></span></li>`;
+      return `<li class="ss-pt" data-safe-at="${q[0]},${q[1]}"><span class="ss-pin${mid ? "" : " end"}">${mid ? i : IC.flag}</span><span class="ss-t"><b>${esc(ptName(i, n))}</b>${i === 0 && sp.park ? `<small>${esc(sp.park)}</small>` : ""}</span><span class="ss-mv">${i > 0 ? `<button type="button" data-mv="${i},-1" aria-label="Move ${esc(ptName(i, n))} up">${IC.up.replace("M4 12 12 4M6 4h6v6", "M8 13V3M4 7l4-4 4 4")}</button>` : ""}${i < n - 1 ? `<button type="button" data-mv="${i},1" aria-label="Move ${esc(ptName(i, n))} down">${IC.up.replace("M4 12 12 4M6 4h6v6", "M8 3v10M4 9l4 4 4-4")}</button>` : ""}</span></li>`;
     };
     let html = pt(0), m = 0, up = 0, down = 0;
     legs.forEach((l, k) => { html += l.steps.filter((s) => s.m >= 40 || l.steps.length === 1).map(row).join("") + pt(k + 1); for (const s of l.steps) { m += s.m; up += s.up || 0; down += s.down || 0; } });
@@ -2644,7 +2658,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       </details>
       ${watch.length ? `<details class="sk-sec sk-fold"><summary><h4>Watch out</h4><span style="--c:${C[watch.some((r) => r.cls === "steep" || r.cls === "trap") ? "steep" : "under"].color}">${watch.length} ${watch.length === 1 ? "spot" : "spots"}</span></summary><ol class="sk-safe-watch">${watch.map((r, i) => `<li style="--c:${(C[r.cls] || C.ok).color}" data-safe-at="${r.mid[0]},${r.mid[1]}"><i>!${i + 1}</i><span>${say(r)}</span></li>`).join("")}</ol></details>`
         : `<div class="sk-sec"><p class="sk-safe-ok">No 30°+ slopes and no steep slopes above on this route, as far as the terrain map can see.</p></div>`}
-      <div class="sk-row"><button type="button" class="btn" id="skSafeAgain">↻ Find again</button></div>
+      <div class="sk-row"><button type="button" class="btn" id="skSafeRev">⇅ Reverse the tour</button><button type="button" class="btn" id="skSafeAgain">↻ Find again</button></div>
       <p class="sk-safe-dis"><b>Not a substitute for avalanche training.</b> This is a planning aid based on a terrain model (10 to 30 m) and the regional forecast. It can't see cornices, wind loading, small slopes, trees or today's snowpack, and a forecast covers a whole region. Take an avalanche course (AST 1), carry a transceiver, probe and shovel with partners who know how to use them, read the full forecast on ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}, and make your own decisions in the field.</p>
     </div>`;
   }
