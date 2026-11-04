@@ -1868,6 +1868,7 @@
     "The way up takes the safest line. Skiing down, it goes round 30°+ slopes and steep slopes above when there's a sensible way, and takes the shortest steep section when there isn't.":"La montée prend la ligne la plus sûre. En descente, il contourne les pentes de 30°+ et les pentes raides au-dessus quand c'est raisonnable, et prend la section raide la plus courte sinon.",
     "Stays off 30°+ slopes and out from under steep slopes, however much longer that makes it. If there's no way round, reconsider the trip.":"Reste hors des pentes de 30°+ et loin du dessous des pentes raides, même si c'est beaucoup plus long. S'il n'y a pas de détour possible, reconsidérez la sortie.",
     "Watch out":"Attention",
+    "Skiing Plan a tour: the route's points (Start, 1, 2 ... End) and its !n watch-out spots now show on the 3D map too, matching the list.":"Ski, Planifier une sortie : les points du trajet (Départ, 1, 2 ... Fin) et ses endroits !n à surveiller s'affichent maintenant aussi sur la carte 3D, comme dans la liste.",
     "Saved on this phone only":"Enregistré sur ce téléphone seulement",
     "Keep your alerts":"Gardez vos alertes",
     "Sign in so your alerts follow you to a new phone. Free, and the app works the same without it.":"Connectez-vous pour que vos alertes vous suivent sur un nouveau téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
