@@ -208,6 +208,12 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 #skiPane .sk-safe h4 { margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: -.01em; }
 #skiPane .sk-sec { display: flex; flex-direction: column; gap: 8px; }
 #skiPane .sk-sec + .sk-sec { border-top: 1px solid var(--line); padding-top: 14px; }
+#skiPane details.sk-fold > summary { list-style: none; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+#skiPane details.sk-fold > summary::-webkit-details-marker { display: none; }
+#skiPane details.sk-fold > summary span { margin-left: auto; font-size: .76rem; font-weight: 600; color: color-mix(in srgb, var(--c) 70%, var(--fg)); }
+#skiPane details.sk-fold > summary::after { content: ""; width: 7px; height: 7px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); margin: 0 4px 3px 2px; transition: transform .15s; }
+#skiPane details.sk-fold[open] > summary::after { transform: rotate(-135deg); margin-bottom: -3px; }
+#skiPane details.sk-fold[open] > summary { margin-bottom: 2px; }
 #skiPane .sk-lbl { font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0; }
 #skiPane .ss-sum { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 #skiPane .ss-sum div { display: flex; flex-direction: column; gap: 1px; padding: 7px 10px; }
@@ -217,7 +223,7 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 #skiPane .ss-names { margin: 0; font-size: .78rem; color: var(--muted); line-height: 1.45; }
 #skiPane .ss-names span { color: var(--fg); font-weight: 600; }
 #skiPane ol.ss-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; font-size: .85rem; line-height: 1.3; }
-#skiPane ol.ss-list li { position: relative; display: grid; grid-template-columns: 24px 1fr auto; gap: 0 10px; align-items: start; padding: 6px 0; cursor: pointer; }
+#skiPane ol.ss-list li { position: relative; display: grid; grid-template-columns: 24px 1fr auto; gap: 0 10px; align-items: center; padding: 4px 0; cursor: pointer; }
 #skiPane ol.ss-list li::before { content: ""; position: absolute; left: 11px; top: 0; bottom: 0; width: 2px; background: var(--line); }
 #skiPane ol.ss-list li:first-child::before { top: 50%; }
 #skiPane ol.ss-list li:last-child::before { bottom: 50%; }
@@ -230,9 +236,9 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 #skiPane ol.ss-list .ss-pin svg { width: 11px; height: 11px; }
 #skiPane ol.ss-list .ss-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 #skiPane ol.ss-list .ss-t b { font-weight: 600; }
-#skiPane ol.ss-list .ss-t small { color: var(--muted); font-size: .76rem; }
+#skiPane ol.ss-list .ss-t small { color: var(--muted); font-size: .78rem; }
 #skiPane ol.ss-list .ss-m { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
-#skiPane ol.ss-list .ss-m small { display: block; color: var(--muted); font-size: .72rem; font-weight: 500; }
+#skiPane ol.ss-list .ss-m small { display: inline; margin-left: 6px; color: var(--muted); font-size: .72rem; font-weight: 500; }
 #skiPane ol.ss-list .ss-hz { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; margin-top: 2px; padding: 2px 7px 2px 3px; border-radius: 6px; font-size: .72rem; font-weight: 600; color: var(--fg); background: color-mix(in srgb, var(--c) 12%, var(--panel)); }
 #skiPane ol.ss-list .ss-hz i { font-style: normal; min-width: 15px; height: 15px; padding: 0 3px; box-sizing: border-box; border-radius: 4px; display: inline-grid; place-items: center; background: var(--c); color: #fff; font-size: .66rem; font-weight: 800; }
 .sk-safe-n { width: 18px; height: 18px; border-radius: 50%; color: #fff; font: 800 11px/18px system-ui, sans-serif; text-align: center; border: 2px solid #fff; box-shadow: 0 1px 3px #0006; box-sizing: content-box; }
@@ -259,6 +265,21 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 #skiPane .sk-safe-ok { margin: 0; font-size: .8rem; color: var(--muted); }
 #skiPane .sk-safe-dis { font-size: .72rem; color: var(--muted); margin: 0; line-height: 1.45; border-top: 1px solid var(--line); padding-top: 12px; }
 #skiPane .sk-safe-dis b { color: var(--fg); }
+/* Safest way card: calm greys, one red for hazards (alex 2026-11-04: "too much colour") */
+#skiPane .sk-safe { --hz: #e03131; }
+#skiPane ol.ss-list li.hz .ss-ic { color: var(--muted); box-shadow: inset 0 0 0 1.5px var(--line); }
+#skiPane ol.ss-list .ss-pin, #skiPane ol.ss-list .ss-pin.end { background: var(--fg); color: var(--panel); }
+#skiPane ol.ss-list .ss-hz { background: color-mix(in srgb, var(--fg) 6%, var(--panel)); }
+#skiPane ol.ss-list .ss-hz i, #skiPane ol.sk-safe-watch li i { background: var(--hz); }
+#skiPane .sk-mode { border-left: 1px solid var(--line); }
+#skiPane details.sk-fold { display: block; }
+#skiPane details.sk-fold > p.sk-lbl { margin-top: 18px; }
+#skiPane details.sk-fold > * + * { margin-top: 10px; }
+#skiPane details.sk-fold > .sk-fc-g, #skiPane details.sk-fold > .sk-safe-key { margin-top: 6px; }
+#skiPane .sk-mode-h span, #skiPane details.sk-fold > summary span { color: var(--muted); }
+#skiPane ol.sk-safe-watch li { background: transparent; border-color: var(--line); }
+#skiPane .sk-dg { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--fg); font-size: .72rem; font-weight: 600; white-space: nowrap; padding: 5px 6px; gap: 5px; }
+#skiPane .sk-dg i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 #skiPane .sk-safe-wait { display: flex; align-items: center; gap: 8px; font-size: .84rem; color: var(--muted); }
 #skiPane .sk-safe-wait::before { content: ""; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #2f9e44; border-right-color: transparent; animation: sksafespin .8s linear infinite; flex: none; }
 @keyframes sksafespin { to { transform: rotate(360deg); } }
@@ -2529,7 +2550,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const verb = climb ? "Skin up" : desc ? "Ski down" : "Traverse";
       const on = s.kind !== "off" ? (s.name ? esc(s.name) : s.kind === "road" ? "Road" : "Trail") : "Off trail";
       const bad = s.worst !== "ok" && s.worst !== "mid";
-      return `<li class="ss-row${bad ? " hz" : ""}" style="--c:${(C[s.worst] || C.ok).color}" data-safe-at="${s.mid[0]},${s.mid[1]}"><span class="ss-ic">${climb ? IC.up : desc ? IC.down : IC.across}</span><span class="ss-t"><b>${verb}</b><small>${on}</small>${hz(s)}</span><span class="ss-m">${D(s.m)}${ud(s) ? `<small>${ud(s)} m</small>` : ""}</span></li>`;
+      return `<li class="ss-row${bad ? " hz" : ""}" style="--c:${(C[s.worst] || C.ok).color}" data-safe-at="${s.mid[0]},${s.mid[1]}"><span class="ss-ic">${climb ? IC.up : desc ? IC.down : IC.across}</span><span class="ss-t"><span><b>${verb}</b> <small>· ${on}</small></span>${hz(s)}</span><span class="ss-m">${D(s.m)}${ud(s) ? `<small>${ud(s)}</small>` : ""}</span></li>`;
     };
     const pt = (i) => {
       const q = plan.pts[i], mid = i && i < n - 1;
@@ -2555,7 +2576,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!sp) return plan.pts.length < 2 ? `<p class="sk-note">🛡 Tap where you start and where you want to go: the way between them stays off steep slopes, avoids today's avalanche problem aspects and keeps out from under slopes that could slide.</p>`
       : `<div class="sk-row"><button type="button" class="btn" id="skSafeAgain">🛡 Find the safest way between my points</button></div>`;
     const st = sp.stats, av = sp.av || {}, tot = Math.max(1, st.total), C = SAFE_CLS, sl = sp.straight || { total: 0, steep: 0, under: 0 };
-    const chip = (v) => `<span class="av-chip" style="background:${DANGER[v || 0].color};color:${v >= 4 ? "#fff" : "#1a1a1a"}">${esc(DANGER[v || 0].label)}</span>`;
+    const chip = (v) => `<span class="sk-dg"><i style="background:${DANGER[v || 0].color}"></i>${esc(DANGER[v || 0].label)}</span>`;
+    const K = { ok: "#ced4da", mid: "#868e96", steep: "#e03131", under: "#ffa8a8", trap: "#a61e4d" };   // card bar: greys + reds only
     const LV = { direct: ["#2f9e44", "Direct", "Low or Moderate danger" ], balanced: ["#f79218", "Balanced", "Considerable danger"], strict: ["#ef1c29", "Safest", "High or Extreme danger"] }[sp.level || "balanced"];
     const lvTxt = { direct: "The way up takes the safest line. Skiing down, it takes slopes up to about 35° when that saves a long way round, while staying off the steepest ground and out from under big slopes where it can.",
       balanced: "The way up takes the safest line. Skiing down, it goes round 30°+ slopes and steep slopes above when there's a sensible way, and takes the shortest steep section when there isn't.",
@@ -2587,22 +2609,17 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     };
     return `<div class="sk-safe">
       ${stepsHtml(sp, watch)}
-      <div class="sk-sec">
-        <h4>Why this way</h4>
+      <details class="sk-sec sk-fold"><summary><h4>Why this way</h4><span style="--c:${LV[0]}">${LV[1]} route</span></summary>
         ${lvHtml}
         ${fc}
-      </div>
-      <div class="sk-sec">
         <p class="sk-lbl">Terrain on this route</p>
-        <div class="sk-safe-bar" aria-hidden="true">${kinds.map((k) => `<i style="width:${(st[k] / tot) * 100}%;background:${C[k].color}"></i>`).join("")}</div>
-        <div class="sk-safe-key">${kinds.map((k) => `<span style="--c:${C[k].color}">${C[k].label}<b>${fmtM(st[k])}</b></span>`).join("")}</div>
+        <div class="sk-safe-bar" aria-hidden="true">${kinds.map((k) => `<i style="width:${(st[k] / tot) * 100}%;background:${K[k]}"></i>`).join("")}</div>
+        <div class="sk-safe-key">${kinds.map((k) => `<span style="--c:${K[k]}">${C[k].label}<b>${fmtM(st[k])}</b></span>`).join("")}</div>
         <ul class="sk-safe-why">${why.map((t) => `<li>${t}</li>`).join("")}</ul>
-      </div>
-      <div class="sk-sec">
-        ${watch.length ? `<p class="sk-lbl">Watch out (${watch.length})</p><ol class="sk-safe-watch">${watch.map((r, i) => `<li style="--c:${(C[r.cls] || C.ok).color}" data-safe-at="${r.mid[0]},${r.mid[1]}"><i>!${i + 1}</i><span>${say(r)}</span></li>`).join("")}</ol>`
-          : `<p class="sk-safe-ok">No 30°+ slopes and no steep slopes above on this route, as far as the terrain map can see.</p>`}
-        <div class="sk-row"><button type="button" class="btn" id="skSafeAgain">↻ Find again</button></div>
-      </div>
+      </details>
+      ${watch.length ? `<details class="sk-sec sk-fold"><summary><h4>Watch out</h4><span style="--c:${C[watch.some((r) => r.cls === "steep" || r.cls === "trap") ? "steep" : "under"].color}">${watch.length} ${watch.length === 1 ? "spot" : "spots"}</span></summary><ol class="sk-safe-watch">${watch.map((r, i) => `<li style="--c:${(C[r.cls] || C.ok).color}" data-safe-at="${r.mid[0]},${r.mid[1]}"><i>!${i + 1}</i><span>${say(r)}</span></li>`).join("")}</ol></details>`
+        : `<div class="sk-sec"><p class="sk-safe-ok">No 30°+ slopes and no steep slopes above on this route, as far as the terrain map can see.</p></div>`}
+      <div class="sk-row"><button type="button" class="btn" id="skSafeAgain">↻ Find again</button></div>
       <p class="sk-safe-dis"><b>Not a substitute for avalanche training.</b> This is a planning aid based on a terrain model (10 to 30 m) and the regional forecast. It can't see cornices, wind loading, small slopes, trees or today's snowpack, and a forecast covers a whole region. Take an avalanche course (AST 1), carry a transceiver, probe and shovel with partners who know how to use them, read the full forecast on ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}, and make your own decisions in the field.</p>
     </div>`;
   }
