@@ -17,8 +17,8 @@
 // 6. In the woods (alex, 2026-10-24: "every trail has its own little things and classic features"): a picture with no
 //    spot, no name and no view to place it. The rider picks the area; its trails are ordered by what the picture shows
 //    that the trail lists know about each one (wooden bridges, bare rock, a gravel road, how hard, jumps, the alpine),
-//    and the online check compares the picture with riders' pictures of the best of them. "Teach it your trails" fills
-//    that library: ride photos that kept their spot, each placed on its trail and kept like a Yes.
+//    and the online check compares the picture with riders' pictures of the best of them. That library
+//    is filled by Yes answers and by trail pictures alex sends in chat (no in-app teaching: alex's rule, 2026-10-25).
 (() => {
   "use strict";
   const F = window.tfFind, map = window.tfLeaflet;
@@ -42,8 +42,6 @@
   const VIDEO_MAX_S = 5, VIDEO_MAX_MB = 60;
   const AREA_M = 3000;        // a riding area named in the words: its trails within this of its centre
   const FRESH_MS = 5 * 60e3;  // a photo and a phone fix this new: "I took it here, just now" can use where the phone is
-  // Ride photos taught at once: the app saves at most 40 pictures an hour for everyone (supabase/trail-matches.sql).
-  const TEACH_MAX = 30, TEACH_READ = 80;
   const STRONG = 1.05;        // a match this good in the areas looked at first doesn't need the other regions
   // The Supabase function holding supabase/functions/which-trail (the dashboard deployed it as "smooth-worker").
 const AI_FN = "smooth-worker";
@@ -123,16 +121,10 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
 .pf .pf-fix .pf-ok .pf-go { margin-top: 6px; }
 .pf .pf-here { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin-top: 6px; font-size: .82rem; color: var(--muted); }
 .pf .pf-here .btn { padding: 5px 10px; font-size: .85rem; white-space: normal; text-align: left; }
-.pf .pf-here [hidden], .pf .pf-areas[hidden], .pf .pf-teach [hidden] { display: none; }
+.pf .pf-here [hidden], .pf .pf-areas[hidden] { display: none; }
 .pf .pf-areas { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--chip); font-size: .85rem; }
 .pf .pf-areas span { flex-basis: 100%; }
 .pf .pf-areas .btn { padding: 5px 10px; font-size: .85rem; }
-.pf .pf-teach { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; font-size: .9rem; }
-.pf .pf-teach summary { font-weight: 700; cursor: pointer; }
-.pf .pf-teach .pf-res li { grid-template-columns: 4px 44px 1fr auto; cursor: default; }
-.pf .pf-teach .pf-res li img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; background: var(--chip); }
-.pf .pf-teach .pf-res li.off { opacity: .45; }
-.pf .pf-teach .pf-res input { width: 20px; height: 20px; }
 .pf-pin { font-size: 22px; line-height: 30px; text-align: center; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
 @media (max-width: 760px) { .pf { padding: 0; align-items: end; } .pf .card { max-height: 94%; border-radius: 14px 14px 0 0; padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
   .pf.kb .card { max-height: 100%; padding-bottom: 12px; } }
@@ -169,12 +161,6 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   <textarea id="pfCaption" placeholder="Like: big granite wall behind (the Chief?), rooty forest, lake below, slabs. Or a trail or place name you saw." spellcheck="false"></textarea>
   <details id="pfReadBox" hidden><summary>Words read from the picture</summary><textarea id="pfRead" spellcheck="false" aria-label="Words read from the picture (you can fix them)"></textarea></details>
   <div class="pf-go"><button type="button" class="btn" id="pfGo">Find the trail</button><button type="button" class="btn" id="pfWords" hidden>Read the words instead</button></div>
-  <details class="pf-teach" id="pfTeach"><summary>📚 Teach it your trails</summary>
-    <p class="pf-note">Pick photos from your rides that kept their location (on iPhone: in the photo picker tap Options and turn on Location). Each one is placed on the trail it was taken on and a small copy is kept privately, never shown in the app. Photo find then compares pictures without a location with these spots, so it can tell the trails apart even deep in the woods. Up to ${TEACH_MAX} at a time.</p>
-    <div class="pf-go"><button type="button" class="btn" id="pfTeachPick">Choose ride photos</button><input type="file" id="pfTeachFile" accept="image/*" multiple hidden></div>
-    <p class="pf-note" id="pfTeachSay" role="status"></p>
-    <ul class="pf-res" id="pfTeachList" role="list"></ul>
-    <div class="pf-go"><button type="button" class="btn primary" id="pfTeachSave" hidden>Save</button></div>
   </details>
 </div>`;
   document.body.append(box);
@@ -693,7 +679,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     say((n ? (sure ? "Likely trails, best first." : "Possible trails, best first.") : "No trail name found in the words.") + tapArea());
     const where = res.places.length ? `It mentions ${res.places.slice(0, 3).join(", ")}. ` : "";
     const wd = res.woods, inWoods = wd ? `Nothing in the picture places it, so these are trails in ${wd.where}${wd.shows.length ? " with what it shows" : ""}. ` : "";
-    show(res.rows, n ? where + inWoods + (sure ? "" : wd ? "Teaching it your ride photos (below) makes this better." : "None is a sure match: check the names against the post.")
+    show(res.rows, n ? where + inWoods + (sure ? "" : "None is a sure match: check the names against the post.")
       : where + "No trail name in the picture or caption matched a trail the app knows. Paste the caption, type a trail name you saw, or pick the area and try again.");
     if (n && seen) await compareOnline(my, res.rows, seen, res.more, wd, res.spot);
     testEnd(my);
@@ -1626,108 +1612,6 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   $("pfFixQ").addEventListener("input", () => { clearTimeout(fixT); fixT = setTimeout(fixFind, 200); });
   $("pfFixList").addEventListener("click", fixPick);
   $("pfFixList").addEventListener("keydown", (e) => { if (e.target.matches("li[data-n]") && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); fixPick(e); } });
-
-  // ---------- teaching it your trails: ride photos with their spot ----------
-  // Each photo whose spot is within ON_M of a named MTB trail is kept like a "Yes" on a photo found by its spot (method
-  // gps, the spot it was taken at): the online check compares later pictures with it (ones taken in the woods too), the
-  // same picture finds that trail at once, and the accuracy test can use it (its copy has no spot left).
-  let teach = [], teachJob = 0;
-  const zoneIdAt = (p) => (F.zones.find((z) => z.bounds.contains(L.latLng(p))) || { id: F.zoneOf(L.latLng(p)) }).id;
-  const teachFmt = (d) => (d < 15 ? "right on it" : `${Math.round(d / 5) * 5} m from it`);
-  $("pfTeachPick").addEventListener("click", () => $("pfTeachFile").click());
-  $("pfTeachFile").addEventListener("change", () => { const fs = [...$("pfTeachFile").files]; $("pfTeachFile").value = ""; if (fs.length) placeTaught(fs); });
-  // A small square copy for the list (a data URL: a long list doesn't keep big pictures in the phone's memory).
-  async function thumbOf(f) {
-    const u = URL.createObjectURL(f);
-    try {
-      const img = new Image(); img.src = u; await img.decode();
-      const c = document.createElement("canvas"), s = Math.min(img.naturalWidth, img.naturalHeight);
-      c.width = c.height = 88;
-      c.getContext("2d").drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, 88, 88);
-      const d = c.toDataURL("image/jpeg", 0.7);
-      c.width = c.height = 0;
-      return d;
-    } finally { URL.revokeObjectURL(u); }
-  }
-  function teachList() {
-    $("pfTeachList").innerHTML = teach.map((t, n) => `<li data-n="${n}" class="${t.on || t.saved ? "" : "off"}"><span class="bar"></span>${t.thumb ? `<img src="${t.thumb}" alt="">` : "<span></span>"}` +
-      `<div><div class="pn">${esc(t.g.name)} ${F.diffBadge(t.w.tags)}</div><div class="pm">${esc(F.zoneOf(L.latLng(t.p)) || "")} · taken ${teachFmt(t.d)}</div></div>` +
-      (t.saved ? `<span class="pc">✓ Saved</span>` : `<input type="checkbox" ${t.on ? "checked" : ""} aria-label="Keep this photo of ${esc(t.g.name)}">`) + `</li>`).join("");
-    const left = teach.filter((t) => t.on && !t.saved).length;
-    $("pfTeachSave").hidden = !left;
-    $("pfTeachSave").textContent = `Save ${Math.min(left, TEACH_MAX)} photo${Math.min(left, TEACH_MAX) > 1 ? "s" : ""}`;
-  }
-  $("pfTeachList").addEventListener("change", (e) => {
-    const li = e.target.closest("li[data-n]"), t = li && teach[+li.dataset.n];
-    if (t) { t.on = e.target.checked; teachList(); }
-  });
-  async function placeTaught(files) {
-    const my = ++teachJob, msg = $("pfTeachSay");
-    teach = []; teachList();
-    const pics = files.filter((f) => isMedia(f) && !isVideo(f)).slice(0, TEACH_READ);
-    let noSpot = 0, off = 0;
-    const ways = new Map(), loaded = new Set();
-    for (const [i, f] of pics.entries()) {
-      msg.textContent = `Placing photo ${i + 1} of ${pics.length}…`;
-      let p = null;
-      try { p = await photoSpot(f); } catch {}
-      if (my !== teachJob) return;
-      if (!p) { noSpot++; continue; }
-      for (const z of await zonesAround(p)) {
-        if (loaded.has(z.id)) continue;
-        loaded.add(z.id);
-        ((await F.mtbWays(z).catch(() => null)) || []).forEach((w) => ways.set(w.id, w));
-      }
-      let best = null;
-      for (const w of ways.values()) {
-        const name = w.tags.name || w.tags["mtb:name"];
-        if (!name) continue;
-        const d = wayDist(p, w.geom);
-        if (d <= ON_M && (!best || d < best.d)) best = { w, d, name };
-      }
-      if (!best) { off++; continue; }
-      const thumb = await thumbOf(f).catch(() => "");
-      if (my !== teachJob) return;
-      teach.push({ f, p, d: best.d, w: best.w, g: groupFrom(best.name, best.w, ways), on: true, thumb });
-      teachList();
-    }
-    msg.textContent = (teach.length ? `${teach.length} on a trail` : "None of them is on a mapped trail") +
-      (noSpot ? `, ${noSpot} without a location (on iPhone, pick them again with Options → Location on)` : "") + (off ? `, ${off} not on a named MTB trail` : "") + "." +
-      (teach.length ? ` Untick any that isn't on that trail, then save.${teach.length > TEACH_MAX ? ` ${TEACH_MAX} are saved at a time (the rest in an hour).` : ""}` : "");
-  }
-  $("pfTeachSave").addEventListener("click", async () => {
-    const acct = window.tfAccount, msg = $("pfTeachSay"), btn = $("pfTeachSave");
-    const pick = teach.filter((t) => t.on && !t.saved).slice(0, TEACH_MAX);
-    if (!pick.length || !acct || !acct.enabled) return;
-    await acct.load();
-    if (!acct.client) { msg.textContent = "Saving isn't available right now. Try again in a moment."; return; }
-    const my = teachJob;
-    btn.disabled = true;
-    let saved = 0, twice = 0, stop = null;
-    const hashes = new Set();
-    for (const [i, t] of pick.entries()) {
-      msg.textContent = `Saving ${i + 1} of ${pick.length}…`;
-      let m = null;
-      const u = URL.createObjectURL(t.f);
-      try { const c = await imageCanvas(u); m = { jpegs: [jpeg(c)], hash: dhash(c) }; c.width = c.height = 0; } catch {} finally { URL.revokeObjectURL(u); }
-      if (my !== teachJob) return;
-      if (!m) continue;
-      const sv = { name: t.g.name, type: "way", ids: t.g.items.map((x) => x.id).slice(0, 60), zone: zoneIdAt(t.p), c: t.p, method: "gps" };
-      // The same picture twice (in this batch, or saved before for this trail) is kept once.
-      if (hashes.has(m.hash) || (await samePicture(m.hash)).some((x) => F.norm(x.trail_name) === F.norm(sv.name))) { twice++; t.saved = true; continue; }
-      hashes.add(m.hash);
-      const r = await keepPicture(acct.client, sv, m, [], { hash: m.hash, gps: t.p, taught: true, conf: "Taught", d: Math.round(t.d) }, true);
-      if (r.error) { stop = r.error; break; }
-      saved++; t.saved = true;
-    }
-    btn.disabled = false;
-    teachList();
-    const left = teach.filter((t) => t.on && !t.saved).length;
-    const full = stop && /row-level security|policy|unauthori[sz]ed|403/i.test(`${stop.message || ""} ${stop.statusCode || ""}`);
-    msg.textContent = (saved ? `Saved ${saved} photo${saved > 1 ? "s" : ""}: photo find now knows ${new Set(pick.filter((t) => t.saved).map((t) => t.g.name)).size > 1 ? "those trails" : "that trail"} better.` : "Nothing new saved.") +
-      (twice ? ` ${twice} ${twice > 1 ? "were" : "was"} already saved.` : "") +
-      (full ? " The app saves at most 40 pictures an hour for everyone: save the rest in an hour." : stop ? " Couldn't save the rest (no connection?): tap Save again." : left ? ` ${left} left: tap Save again.` : "");
-  });
 
   const pickRow = (li) => { const r = li && shown[+li.dataset.n]; if (r) { close(); r.open(); if (r.save) showAsk(r); } };
   $("pfRes").addEventListener("click", (e) => { if (!e.target.closest("a")) pickRow(e.target.closest("li")); });
