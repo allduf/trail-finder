@@ -50,22 +50,24 @@
   // Fishing's waters, rules and stocking (fishing.js), Moto's gas and camping lists (dataUrls above), and with "3D map"
   // ticked the 3D map's heights, plus last winter's photos in Skiing (map3d.js). An area remembers its sport, 3D and
   // hunting layers, so Finish and Delete work on the same files whatever sport is on later.
-  const SPORTS = ["ski", "hunt", "fish", "moto"];
+  const SPORTS = ["ski", "hunt", "fish", "moto", "hike"];
   const sportNow = () => SPORTS.find((s) => document.body.classList.contains("sport-" + s)) || "mtb";
   const sportOf = (a) => a.sport || (a.ski ? "ski" : "mtb");   // areas saved before 2026-10-27 only had "ski"
-  const ICON = { mtb: "🚵", ski: "⛷", hunt: "🦌", fish: "🎣", moto: "🏍" };
+  const ICON = { mtb: "🚵", ski: "⛷", hunt: "🦌", fish: "🎣", moto: "🏍", hike: "🥾" };
   const WHAT = {
     mtb: "the map, trails and forest roads",
     ski: "the map, ski routes, huts, the avalanche forecast, snow stations and slope angles",
     hunt: "the map, hunting zones, seasons, draws and the hunting layers you have on",
     fish: "the map, the lakes and rivers with their fish, rules, stocking, boat launches and hidden spots",
     moto: "the map, roads and tracks (to plan and re-route a ride with no signal), gas, camping and hot springs",
+    hike: "the map, hiking trails and their heights (to plan a hike with no signal), trailheads and huts",
   };
   const none = { data: [], tiles: [] };
   async function extras(box, sport, d3, huntLayers) {
     const parts = [];
     // Hunting's and Fishing's files load with their sport (winter.js): an area saved there, deleted from MTB, needs them.
-    if ((sport === "hunt" || sport === "fish") && window.tfLoadSport) await window.tfLoadSport(sport).catch(() => {});
+    if ((sport === "hunt" || sport === "fish" || sport === "hike") && window.tfLoadSport) await window.tfLoadSport(sport).catch(() => {});
+    if (sport === "hike" && window.tfHikeOffline) parts.push(await window.tfHikeOffline(box).catch(() => ({ data: [], tiles: [] })));
     if (sport === "ski" && window.tfSkiOffline) parts.push(window.tfSkiOffline(box));
     if (sport === "hunt" && window.tfHuntOffline) parts.push(window.tfHuntOffline(box, huntLayers));
     if (sport === "fish" && window.tfFishOffline) parts.push(window.tfFishOffline(box));

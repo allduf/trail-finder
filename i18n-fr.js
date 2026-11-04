@@ -1943,7 +1943,8 @@
     "Offline maps now need a free account: tap Save and you'll be asked to sign in first, then the save starts. Maps you already saved keep working with no signal.":"Les cartes hors ligne demandent maintenant un compte gratuit : touchez Enregistrer, on vous demandera de vous connecter, puis l'enregistrement commence. Les cartes déjà enregistrées marchent toujours sans réseau.",
     "Skiing Plan a tour: your tour is only on the map while you plan or edit it, or after Show on map (Hide from map takes it off); zoomed out it's just the line, without its numbered points.":"Ski, Planifier une sortie : votre sortie n'est sur la carte que pendant que vous la planifiez ou la modifiez, ou après Afficher sur la carte (Masquer de la carte l'enlève); de loin, seule la ligne s'affiche, sans ses points numérotés.",
     "Hide from map":"Masquer de la carte",
-    "Show on map":"Afficher sur la carte"};
+    "Show on map":"Afficher sur la carte",
+    "Offline maps for Hiking: an area saved in Hiking keeps its hiking trails and terrain, so you can plan a hike with no signal (the route follows the trails, with its climb and height profile).":"Cartes hors ligne pour la randonnée : une zone enregistrée en Randonnée garde ses sentiers et le relief, pour planifier une randonnée sans signal (le trajet suit les sentiers, avec sa montée et son profil)."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
