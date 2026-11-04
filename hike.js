@@ -864,7 +864,7 @@ out center tags qt;`;
   // alex 2026-11-03: anything found about a trail beyond OpenStreetMap goes on the trail (the Sea to Sky Gondola's
   // trails: difficulty, length, time, what it's like). An entry fits a hike with one of its names within r metres.
   let tInfo = null;
-  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=2200").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
+  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=2210").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
   const fold = (x) => String(x || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   function operatorFacts(h) {
     const j = tInfo && tInfo.then ? null : tInfo;
@@ -1146,6 +1146,70 @@ out center tags qt;`;
     plan.id = null;
     drawPlan(); routePlan();
   }
+  // When the route server is busy, down or out of reach (go-public checklist item 17: valhalla1.openstreetmap.de is a
+  // volunteer server that doesn't allow heavy app traffic), the route is found on the phone along the hiking trails
+  // already loaded for the map (the weekly zone files, or the Overpass squares kept a week), shortest way with a small
+  // extra cost for climbing, and only on trails up to the grade picked. Heights come from Open-Meteo when there's signal.
+  const nodeKey = (p) => `${p[0].toFixed(5)},${p[1].toFixed(5)}`;
+  function localRoute(pts, upto) {
+    const G = new Map();   // key -> [[key, metres, point]...]
+    const at = new Map();  // key -> [lat, lon]
+    const link = (a, b) => {
+      const ka = nodeKey(a), kb = nodeKey(b), d = kmTo(a, b) * 1000;
+      if (ka === kb) return;
+      at.set(ka, a); at.set(kb, b);
+      if (!G.has(ka)) G.set(ka, []); if (!G.has(kb)) G.set(kb, []);
+      G.get(ka).push([kb, d]); G.get(kb).push([ka, d]);
+    };
+    ways.forEach((w) => {
+      if (/^(private|no)$/.test(w.t.access || "") || /^(private|no)$/.test(w.t.foot || "")) return;
+      if (upto < 6 && gradeOf(w.t) > upto) return;
+      for (let i = 1; i < w.g.length; i++) link(w.g[i - 1], w.g[i]);
+    });
+    if (!G.size) return null;
+    const snapTo = (p) => {
+      let best = null, bd = 300;   // within 300 m of a loaded trail
+      at.forEach((q, k) => { const d = kmTo(p, q) * 1000; if (d < bd) { bd = d; best = k; } });
+      return best;
+    };
+    const keys = pts.map(snapTo);
+    if (keys.some((k) => !k)) return { far: true };
+    const line = [];
+    for (let i = 1; i < keys.length; i++) {
+      const from = keys[i - 1], to = keys[i];
+      const dist = new Map([[from, 0]]), prev = new Map(), heap = [[0, from]];
+      const push = (x) => { heap.push(x); let j = heap.length - 1; while (j) { const u = (j - 1) >> 1; if (heap[u][0] <= heap[j][0]) break; [heap[j], heap[u]] = [heap[u], heap[j]]; j = u; } };
+      const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let j = 0; for (;;) { const l = 2 * j + 1, r = l + 1; let m = j; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === j) break; [heap[j], heap[m]] = [heap[m], heap[j]]; j = m; } } return top; };
+      while (heap.length) {
+        const [d, k] = pop();
+        if (k === to) break;
+        if (d > dist.get(k)) continue;
+        for (const [n, m] of G.get(k) || []) {
+          const nd = d + m;
+          if (nd < (dist.has(n) ? dist.get(n) : Infinity)) { dist.set(n, nd); prev.set(n, k); push([nd, n]); }
+        }
+      }
+      if (!dist.has(to)) return { gap: true };
+      const leg = [];
+      for (let k = to; k; k = prev.get(k)) { leg.push(at.get(k)); if (k === from) break; }
+      leg.reverse();
+      line.push(...(line.length ? leg.slice(1) : leg));
+    }
+    if (line.length < 2) return { gap: true };
+    let km = 0;
+    for (let i = 1; i < line.length; i++) km += kmTo(line[i - 1], line[i]);
+    return { line, km };
+  }
+  // Heights every ~30 m along a line found on the phone (at most 300 points, Open-Meteo's 90 m terrain).
+  async function heightsOf(line, km) {
+    const n = Math.min(300, Math.max(2, Math.round((km * 1000) / 30))), pts = sample(line, n), el = [];
+    for (let k = 0; k < pts.length; k += 100) {
+      const part = pts.slice(k, k + 100);
+      const j = await getJ(`https://api.open-meteo.com/v1/elevation?latitude=${part.map((p) => p[0].toFixed(4)).join(",")}&longitude=${part.map((p) => p[1].toFixed(4)).join(",")}`);
+      el.push(...(j.elevation || []));
+    }
+    return el.length === pts.length ? el : [];
+  }
   async function routePlan() {
     const seq = ++plan.seq;
     plan.err = "";
@@ -1171,7 +1235,25 @@ out center tags qt;`;
     } catch (e) {
       if (seq !== plan.seq) return;
       plan.route = null;
-      plan.err = !navigator.onLine ? "No signal: planning needs a connection." : /no path|no suitable edges|unreachable|disconnected/i.test(String(e.message)) ? "No trail joins those points at this grade: move a point onto a trail, or allow harder trails." : "The route server is busy: tap Undo then add the point again in a moment.";
+      const noPath = /no path|no suitable edges|unreachable|disconnected/i.test(String(e.message));
+      const loc = noPath ? null : localRoute(plan.pts, upto);
+      if (loc && loc.line) {
+        const { line, km } = loc;
+        let el = [];
+        try { el = await heightsOf(line, km); } catch {}
+        if (seq !== plan.seq) return;
+        let up = 0, down = 0, last = el[0];
+        for (let i = 1; i < el.length; i++) { const d = el[i] - last; if (Math.abs(d) >= 8) { if (d > 0) up += d; else down -= d; last = el[i]; } }
+        let hi = -Infinity, hiAt = line[0];
+        if (el.length) { const k = el.indexOf(Math.max(...el)); hi = el[k]; hiAt = line[Math.min(line.length - 1, Math.round((k / Math.max(1, el.length - 1)) * (line.length - 1)))]; }
+        plan.route = { line, el, km, up, down, hi, hiAt, top: el.length ? "loading" : null, local: true };
+        if (el.length) snowTop({ hi, hiAt }).then((t) => { if (plan.route && plan.route.line === line) { plan.route.top = t; renderPlan(); } }).catch(() => { if (plan.route) plan.route.top = null; renderPlan(); });
+      } else {
+        plan.err = noPath || (loc && loc.gap) ? "No trail joins those points at this grade: move a point onto a trail, or allow harder trails."
+          : loc && loc.far ? "Put each point on or near a trail on the map."
+          : !navigator.onLine ? "No signal, and no trails saved here yet: zoom in while you have signal, or save an offline map."
+          : "The route server is busy: tap Undo then add the point again in a moment.";
+      }
     } finally {
       if (seq === plan.seq) { plan.busy = false; renderPlan(); drawPlan(); }
     }
@@ -1207,7 +1289,7 @@ out center tags qt;`;
       ${plan.pts.length ? `<button type="button" class="hk-pill" data-pl="undo">Undo</button><button type="button" class="hk-pill" data-pl="loop">Back to the start</button><button type="button" class="hk-pill" data-pl="clear">Clear</button>` : ""}
       ${r ? `<button type="button" class="hk-pill go" data-pl="save">${svg(IC.star, 16)}${plan.id ? "Saved" : "Save"}</button><button type="button" class="hk-pill go" data-pl="follow">${svg(IC.play, 16)}Follow it</button><button type="button" class="hk-pill" data-pl="gpx">GPX file</button>` : ""}
       ${plan.on ? "" : `<button type="button" class="hk-pill" data-pl="edit">Add points</button>`}${plan.id ? `<button type="button" class="hk-pill" data-pl="del">Delete</button>` : ""}</div>`;
-    el.innerHTML = head + chips + body + btns + `<p class="hk-note">Routing: Valhalla on OpenStreetMap. Check the route on the map: a path on the map isn't always a trail on the ground.</p>`;
+    el.innerHTML = head + chips + body + btns + `<p class="hk-note">${r && r.local ? "<span>Found on your phone along the trails on the map (the route server didn't answer).</span> <span>Check the route on the map: a path on the map isn't always a trail on the ground.</span>" : "Routing: Valhalla on OpenStreetMap. Check the route on the map: a path on the map isn't always a trail on the ground."}</p>`;
   }
   $("hkPlan").addEventListener("input", (e) => { if (e.target.id === "hkPlanName") plan.name = e.target.value; });
   $("hkPlan").addEventListener("click", (e) => {
