@@ -30,6 +30,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           OWNER: allduf
           DRY: ${{ github.event_name == 'pull_request' && '1' || '' }}
-          # A pull request looks back 14 days of crashes, to see what they have in common.
+          # A pull request looks back 14 days of errors and crashes, to see what they have in common.
+          HOURS: ${{ github.event_name == 'pull_request' && '336' || '' }}
           CRASH_HOURS: ${{ github.event_name == 'pull_request' && '336' || '' }}
         run: node scripts/app-errors.mjs

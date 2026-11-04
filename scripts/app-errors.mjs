@@ -64,7 +64,7 @@ for (let i = 0; i < devList.length; i += 50)
 const groups = new Map();
 for (const e of errors) {
   const k = key(e.what);
-  if (!groups.has(k)) groups.set(k, { what: e.what, n: 0, phones: new Set(), sports: new Map(), taps: new Map(), last: e.at });
+  if (!groups.has(k)) groups.set(k, { what: e.what, n: 0, phones: new Set(), sports: new Map(), taps: new Map(), first: e.at, last: e.at });
   const g = groups.get(k);
   g.n++; g.phones.add(e.device); g.last = e.at; g.what = e.what;
   const before = (around.get(e.session) || []).filter((x) => x.at <= e.at);
@@ -79,6 +79,8 @@ const top = (m) => [...m].sort((a, b) => b[1] - a[1]).map(([k]) => k);
 const list = [...groups.values()].sort((a, b) => b.phones.size - a.phones.size || b.n - a.n);
 const fresh = list.filter((g) => !known.has(key(g.what)));
 const cell = (s) => String(s).replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ").replace(/`/g, "'");
+// When it happened: one day, or first and last day (a long look-back on a PR spans many days).
+const when = (g) => { const a = g.first.slice(5, 16).replace("T", " "), b = g.last.slice(5, 16).replace("T", " "); return a === b ? a : `${a} – ${b}`; };
 const who = (g) => [...g.phones].map((d) => (devices.get(d) || {}).label).filter(Boolean).slice(0, 3).join(", ");
 
 // ---------- crashes ----------
@@ -123,8 +125,8 @@ const day = new Date().toISOString().slice(0, 10);
 const md = !list.length ? `No app errors in the last ${HOURS} hours 🎉` : [
   `**${errors.length} error${errors.length > 1 ? "s" : ""}** on ${new Set(errors.map((e) => e.device)).size} phone(s) in the last ${HOURS} hours` +
     (fresh.length ? `, **${fresh.length} new** (not seen in the 14 days before).` : ", all seen before."), "",
-  "| | Error | Times | Phones | Sport | Tapped just before |", "|---|---|---|---|---|---|",
-  ...list.slice(0, 25).map((g) => `| ${known.has(key(g.what)) ? "" : "🆕"} | \`${cell(g.what)}\` | ${g.n} | ${g.phones.size}${who(g) ? ` (${cell(who(g))})` : ""} | ${cell(top(g.sports).join(", "))} | ${cell(top(g.taps)[0] || "")} |`),
+  "| | Error | Times | When (UTC) | Phones | Sport | Tapped just before |", "|---|---|---|---|---|---|---|",
+  ...list.slice(0, 25).map((g) => `| ${known.has(key(g.what)) ? "" : "🆕"} | \`${cell(g.what)}\` | ${g.n} | ${when(g)} | ${g.phones.size}${who(g) ? ` (${cell(who(g))})` : ""} | ${cell(top(g.sports).join(", "))} | ${cell(top(g.taps)[0] || "")} |`),
   list.length > 25 ? `\n…and ${list.length - 25} more on usage.html.` : "",
 ].join("\n");
 console.log(md);
