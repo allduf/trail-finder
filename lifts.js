@@ -67,7 +67,7 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
 
   // ---------- data ----------
   let data = null, lifts = [], resorts = {};
-  const load = () => (data = data || fetch("data/ski-lifts.json?v=2810").then((r) => r.json()).then((d) => {
+  const load = () => (data = data || fetch("data/ski-lifts.json?v=2860").then((r) => r.json()).then((d) => {
     resorts = d.resorts || {}; lifts = d.lifts || [];
     return d;
   }).catch(() => { data = null; return null; }));
@@ -76,7 +76,7 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
   // and lines they reach, webcams, parking and the rules.
   let access = null;
   const triedLive = {};
-  const loadAccess = () => (access = access || fetch("data/access-lifts.json?v=2810").then((r) => r.json()).then((d) => d.lifts || {}).catch(() => { access = null; return {}; }));
+  const loadAccess = () => (access = access || fetch("data/access-lifts.json?v=2860").then((r) => r.json()).then((d) => d.lifts || {}).catch(() => { access = null; return {}; }));
   // Live status, per resort: { t, lifts: [{ n, s, w, o, c }], err } from the function, and when we got it.
   const live = {};
   let gotAt = 0, liveErr = "", timer = 0, busy = false;
@@ -182,7 +182,7 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
       layer.addLayer(L.polyline(l.g, { renderer, color: "#fff", weight: sel ? 10 : 7, opacity: 0.95, interactive: false }));
       const ln = L.polyline(l.g, { renderer, color: sel ? "#ffe14d" : c, weight: sel ? 6 : 4, opacity: 1, dashArray: sched ? "8 6" : null });
       ln.bindTooltip(`${esc(l.n || KIND[l.k] || "Lift")}: ${esc(WORD[st.s])}${st.w > 0 && st.s === "open" ? `, ${st.w} min wait` : ""}`, { sticky: true });
-      ln.on("click", (e) => { L.DomEvent.stopPropagation(e); open(l); });
+      ln.on("click", (e) => { if (document.querySelector(".sk-planbar:not([hidden])")) return; L.DomEvent.stopPropagation(e); open(l); });   // planning a tour: a point there
       layer.addLayer(ln);
       if (!small) for (const p of [l.g[0], l.g[l.g.length - 1]]) layer.addLayer(L.circleMarker(p, { renderer, radius: 3.5, color: "#fff", weight: 1.5, fillColor: c, fillOpacity: 1, interactive: false }));
     }

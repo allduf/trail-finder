@@ -95,7 +95,13 @@
         layer.addLayer(L.polyline(line, { renderer, color: me ? C.sel : C.edge, weight: me ? 10 : 7, opacity: me ? 1 : 0.55, interactive: false }));
         const l = L.polyline(line, { renderer, color: ex ? C.extreme : C.line, weight: me ? 5.5 : ex ? 4.5 : 4, opacity: 1, label: nameOf(r) });
         l.bindTooltip(esc(`${nameOf(r)}: freeride line`), { sticky: true });
-        l.on("click", (e) => { if (planning()) return; L.DomEvent.stopPropagation(e); selId = r.id; window.tfSki.open(r); draw(); });
+        l.on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
+          // Planning a tour: add the whole line, or just a point there (winter.js asks).
+          if (planning()) { window.tfSki.trip.planOffer({ name: nameOf(r), kind: "Freeride line", at: e.latlng, lines: r.lines, add: () => window.tfSki.trip.planRouteLine(r) }); return; }
+          selId = r.id; window.tfSki.open(r); draw();
+        });
+        l.options.planOffer = true;   // map3d.js: in 3D while planning, a tap on it still comes here
         layer.addLayer(l);
       }
     }

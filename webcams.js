@@ -11,6 +11,7 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const isSki = () => document.body.classList.contains("sport-ski");
+  const skiPlanning = () => !!document.querySelector(".sk-planbar:not([hidden])");   // planning a tour (winter.js)
   let on = true;
   try { on = localStorage.getItem("tf:skiCams") !== "false"; } catch {}
 
@@ -51,7 +52,7 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
 
   // ---------- data ----------
   let data = null, cams = [], owners = {};
-  const load = () => (data = data || fetch("data/webcams.json?v=2810").then((r) => r.json()).then((d) => {
+  const load = () => (data = data || fetch("data/webcams.json?v=2860").then((r) => r.json()).then((d) => {
     owners = d.owners || {};
     cams = (d.cams || []).filter((c) => isFinite(c.lat) && isFinite(c.lon));
     return d;
@@ -109,13 +110,13 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
       const tip = n > 1 ? `${c.resort}: ${n} webcams` : c.name;
       const m = L.marker([c.lat, c.lon], { icon: L.divIcon({ className: "", html: pinHtml(c, n), iconSize: [28, 28], iconAnchor: [14, 14] }), keyboard: true, title: tip, zIndexOffset: 400 });
       m.bindTooltip(esc(tip), { direction: "top", offset: [0, -14] });
-      m.on("click", (e) => { L.DomEvent.stopPropagation(e); open(c); });
+      m.on("click", (e) => { if (skiPlanning()) return; L.DomEvent.stopPropagation(e); open(c); });   // planning a tour: a point there
       layer.addLayer(m);
       if (gl && window.maplibregl) {   // the 3D map doesn't show Leaflet markers, so add them there too
         const el = document.createElement("div");
         el.className = "wc-gl"; el.title = tip;   // no position style here: it would beat MapLibre's own and stack the pins down the screen
         el.innerHTML = pinHtml(c, n);
-        el.addEventListener("click", (e) => { e.stopPropagation(); open(c); });
+        el.addEventListener("click", (e) => { if (skiPlanning()) return; e.stopPropagation(); open(c); });
         // Always solid: MapLibre fades a pin it thinks a ridge hides, and on steep 3D slopes that was most of them
         // (grey, hard to see on alex's phone, 2026-10-24).
         glMarkers.push(new maplibregl.Marker({ element: el, anchor: "center", opacityWhenCovered: 1 }).setLngLat([c.lon, c.lat]).addTo(gl));

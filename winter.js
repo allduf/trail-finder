@@ -184,12 +184,20 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 #skiPane .sk-slopekey i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; opacity: .8; }
 #skiPane .sk-plan p { margin: 0; font-size: .85rem; }
 .sk-planning, .sk-planning .leaflet-interactive { cursor: crosshair !important; }
-.sk-planbar { position: absolute; z-index: 1001; left: 50%; top: 12px; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; max-width: calc(100% - 24px); box-sizing: border-box;
-  background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.2); padding: 6px 6px 6px 14px; font-size: .88rem; }
-.sk-planbar span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sk-planbar button { font: inherit; font-weight: 700; border: 1px solid var(--line); border-radius: 999px; background: var(--chip); color: var(--fg); padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+.sk-planning .leaflet-tooltip { display: none; }   /* a tap while planning is a point, not a name popping up */
+.sk-planbar { position: absolute; z-index: 1001; left: 50%; top: 12px; transform: translateX(-50%); display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; width: max-content; max-width: calc(100% - 24px); box-sizing: border-box;
+  background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.2); padding: 8px 8px 8px 12px; font-size: .88rem; }
+.sk-planbar .pb-msg { display: flex; align-items: center; gap: 9px; flex: 1 1 auto; min-width: 0; line-height: 1.25; }
+.sk-planbar .pb-msg small { display: block; color: var(--muted); font-size: .76rem; font-weight: 400; margin-top: 1px; }
+.sk-planbar .pb-dot { flex: none; width: 12px; height: 12px; border-radius: 50%; background: #1f5fe0; box-shadow: 0 0 0 0 #1f5fe088; animation: pbPulse 1.6s ease-out infinite; }
+.sk-planbar .pb-dot.line { background: #ffd43b; box-shadow: 0 0 0 0 #fab00588; }
+@keyframes pbPulse { 0% { box-shadow: 0 0 0 0 #1f5fe088; } 80%, 100% { box-shadow: 0 0 0 9px #1f5fe000; } }
+.sk-planbar .pb-btns { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.sk-planbar .pb-btns button { margin: 0; line-height: 1.2; }
+.sk-planbar button { font: inherit; font-weight: 700; border: 1px solid var(--line); border-radius: 999px; background: var(--chip); color: var(--fg); padding: 7px 12px; cursor: pointer; white-space: nowrap; }
+.sk-planbar button:disabled { opacity: .45; cursor: default; }
 .sk-planbar button.go { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
-@media (max-width: 999px) { .sk-planbar { top: 70px; } }
+@media (max-width: 999px) { .sk-planbar { top: 70px; width: calc(100% - 24px); } .sk-planbar .pb-msg { flex-basis: 100%; } }
 #skiPane .sk-row { display: flex; flex-wrap: wrap; gap: 6px; }
 #skiPane .sk-row .btn { font-size: .82rem; padding: 6px 10px; }
 #skiPane .sk-warn { background: #fff0e0; color: #7a3b00; border-radius: 8px; padding: 6px 8px; font-size: .82rem; }
@@ -203,6 +211,11 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 .sk-snow.none { background: #6b7787; }
 .sk-safe-pt { position: absolute; transform: translate(-50%, -50%); background: #1a1a1a; color: #fff; font: 800 11px/1 system-ui, sans-serif; padding: 4px 7px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 1px 3px #0006; white-space: nowrap; }
 .sk-safe-pt.gl { position: static; transform: none; }
+.sk-safe-pt.drag { font-size: 12px; padding: 7px 10px; border-width: 2.5px; cursor: grab; touch-action: none; pointer-events: auto; }
+.sk-safe-pt.drag:active { cursor: grabbing; }
+.sk-safe-pt.first { background: #2f9e44; }
+.sk-safe-pt.new { animation: skPtPop .5s ease-out; }
+@keyframes skPtPop { 0% { scale: .3; } 60% { scale: 1.25; } 100% { scale: 1; } }
 .sk-safe-w { background: #e03131; }
 .sk-safe-w { width: auto !important; min-width: 18px; padding: 0 4px; border-radius: 6px !important; }
 #skiPane .sk-safe { display: flex; flex-direction: column; gap: 14px; border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--panel); }
@@ -646,7 +659,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // A tour being planned: the points tapped on the map (kept on this device), drawn as an orange line.
   const plan = { on: false, pts: store.get("skiPlan", []), layer: L.layerGroup(), slopeWas: false, groundWas: [], timer: 0,
     safe: store.get("skiSafe", true) !== false,   // on unless turned off (alex 2026-11-04: "make it on by default")
-    path: store.get("skiPlanPath", null), run: 0, wait: "", fail: "" };   // safe: the 🛡 Safest way (ski-route.js)
+    path: store.get("skiPlanPath", null), run: 0, wait: "", fail: "", hist: [], offer: null, flash: -1, dragAt: 0 };   // safe: the 🛡 Safest way (ski-route.js)
   const SAFE_CLS = {
     ok: { color: "#2f9e44", label: "Gentle ground" }, mid: { color: "#f2b705", label: "25° to 30°" }, steep: { color: "#e03131", label: "30°+ slope" },
     under: { color: "#e8590c", label: "Under steep slopes" }, trap: { color: "#a61e4d", label: "Terrain trap" },
@@ -1278,7 +1291,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=2810").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=2860").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -1434,7 +1447,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   async function routeInfo(group) {
     const r = group[0];
     if (r.info) return r.info;
-    return (r.info = await T.info(group.flatMap((x) => x.lines), dem));
+    return (r.info = await T.info(group.flatMap((x) => x.lines), dem, r.src === "plan"));
   }
   const bandKm = (info, b) => {
     const out = { alp: 0, tln: 0, btl: 0 };
@@ -2238,13 +2251,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const addBtn = $("skAddTour");
     if (addBtn) addBtn.addEventListener("click", () => {
       addBtn.disabled = true;
-      routeInfo(group).then((info) => {
-        let line = info.pts.map((p) => [+p.lat.toFixed(6), +p.lon.toFixed(6)]);   // from its lower end
-        if (!isUphill(r)) line.reverse();                                          // skied from the top
-        if (line.length > 300) { const k = Math.ceil(line.length / 300); line = line.filter((_, i) => i % k === 0 || i === line.length - 1); }
-        planVia(line, title);
-      }, () => window.tfToast && window.tfToast("Couldn't load the line's heights. Try again."))
-        .finally(() => { addBtn.disabled = false; });
+      planRouteLine(r, group, title).finally(() => { addBtn.disabled = false; });
     });
 
     // The avalanche forecast is needed here even with the shading off.
@@ -2396,17 +2403,24 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // The plan's labels on the 3D map too (it doesn't show Leaflet markers): Start, 1, 2 ... End and the !n watch-outs
   // (alex 2026-11-04: "put point on map in the route").
   let planGl = [];
-  function planGlPin(ll, html, z) {
+  function planGlPin(ll, html, z, onDrag) {
     const gl = window.trailMap3d;
     if (!gl || !window.maplibregl) return;
     const el = document.createElement("div");
-    el.className = "sk-plangl"; el.style.zIndex = z; el.style.pointerEvents = "none"; el.innerHTML = html;
-    planGl.push(new maplibregl.Marker({ element: el, anchor: "center", opacityWhenCovered: 1 }).setLngLat([ll[1], ll[0]]).addTo(gl));
+    el.className = "sk-plangl"; el.style.zIndex = z; el.style.pointerEvents = onDrag ? "auto" : "none"; el.innerHTML = html;
+    const m = new maplibregl.Marker({ element: el, anchor: "center", opacityWhenCovered: 1, draggable: !!onDrag }).setLngLat([ll[1], ll[0]]).addTo(gl);
+    if (onDrag) {
+      // A tap on a point isn't a new point there; a drag moves it (alex 2026-11-04: "I want to move it on the map").
+      el.addEventListener("click", (e) => e.stopPropagation());
+      m.on("dragstart", () => { plan.dragAt = Date.now(); });
+      m.on("dragend", () => { plan.dragAt = Date.now(); const c = m.getLngLat(); onDrag(L.latLng(c.lat, c.lng)); });
+    }
+    planGl.push(m);
   }
   function drawPlan() {
     plan.layer.clearLayers();
     planGl.forEach((m) => m.remove()); planGl = [];
-    if (sport !== "ski" || !plan.pts.length) return;
+    if (sport !== "ski" || (!plan.pts.length && !plan.offer)) return;
     const sp = safePath();
     if (sp) {
       const C = SAFE_CLS;
@@ -2423,18 +2437,27 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       plan.layer.addLayer(L.polyline(plan.pts, { pane: "ski", color: "#fff", weight: 8, opacity: 0.9, interactive: false }));
       plan.layer.addLayer(L.polyline(plan.pts, { pane: "ski", color: plan.safe ? "#868e96" : "#e8590c", weight: 4, opacity: 1, dashArray: plan.on || plan.safe ? "10 6" : null, interactive: false }));
     }
-    // With 🛡 on, the points are labelled like the step list: Start, 1, 2 ... End.
-    if (plan.safe && plan.pts.length > 1 && !map.getPane("skiSafePt")) { map.createPane("skiSafePt").style.zIndex = 660; map.getPane("skiSafePt").style.pointerEvents = "none"; }   // over the parking and hut pins
-    if (plan.safe && plan.pts.length > 1) plan.pts.forEach((q, i) => {
-      const name = esc(ptName(i, plan.pts.length, true));
-      plan.layer.addLayer(L.marker(q, { pane: "skiSafePt", interactive: false, keyboard: false,
-        icon: L.divIcon({ className: "", html: `<div class="sk-safe-pt">${name}</div>`, iconSize: [0, 0], iconAnchor: [0, 0] }) }));
-      planGlPin(q, `<div class="sk-safe-pt gl">${name}</div>`, 5);
-    });
-    else plan.pts.forEach((q, i) => {
-      const html = `<div class="sk-plan-pt"${i ? "" : ' style="border-color:#2f9e44"'}></div>`;
-      plan.layer.addLayer(L.marker(q, { pane: "ski", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html, iconSize: [12, 12], iconAnchor: [6, 6] }) }));
-      planGlPin(q, html, 5);
+    // A freeride or slackcountry line tapped while planning: lit up until it's added or passed over.
+    if (plan.offer && !map.getPane("skiOffer")) { map.createPane("skiOffer").style.zIndex = 450; map.getPane("skiOffer").style.pointerEvents = "none"; }   // over the freeride and slackcountry lines
+    if (plan.offer) for (const line of plan.offer.lines) {
+      plan.layer.addLayer(L.polyline(line, { pane: "skiOffer", color: "#111", weight: 12, opacity: 0.55, lineCap: "round", interactive: false }));
+      plan.layer.addLayer(L.polyline(line, { pane: "skiOffer", color: "#ffd43b", weight: 7, opacity: 1, lineCap: "round", interactive: false }));
+    }
+    // The points are labelled like the step list (Start, 1, 2 ... End). While planning they're bigger and can be
+    // dragged to a new spot, on the flat map and in 3D (alex 2026-11-04: "I want to move it on the map").
+    if (!map.getPane("skiSafePt")) { map.createPane("skiSafePt").style.zIndex = 660; map.getPane("skiSafePt").style.pointerEvents = "none"; }   // over the parking and hut pins
+    const n = plan.pts.length, drag = plan.on;
+    plan.pts.forEach((q, i) => {
+      const cls = `sk-safe-pt${drag ? " drag" : ""}${i ? "" : " first"}${plan.flash === i ? " new" : ""}`, name = esc(ptName(i, n, true));
+      const m = L.marker(q, { pane: "skiSafePt", interactive: drag, draggable: drag, keyboard: false, autoPan: true,
+        icon: L.divIcon({ className: "", html: `<div class="${cls}">${name}</div>`, iconSize: [0, 0], iconAnchor: [0, 0] }) });
+      if (drag) {
+        m.on("click", (e) => L.DomEvent.stopPropagation(e));
+        m.on("dragstart", () => { plan.dragAt = Date.now(); });
+        m.on("dragend", () => { plan.dragAt = Date.now(); movePt(i, m.getLatLng()); });
+      }
+      plan.layer.addLayer(m);
+      planGlPin(q, `<div class="${cls} gl">${name}</div>`, 5, drag ? (ll) => movePt(i, ll) : null);
     });
     if (!map.hasLayer(plan.layer)) plan.layer.addTo(map);
     aboveLayer.eachLayer((l) => l.bringToFront());   // the red "steep slopes above" dashes stay on top of the plan
@@ -2449,9 +2472,25 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const card = $("skPlan"), info = selected && selected.src === "plan" ? selected.info : null, n = plan.pts.length;
     planBar.hidden = !plan.on;
     if (plan.on) {
-      planBar.innerHTML = `<span>${n < 2 ? `<b>Tap the map</b> ${n ? (plan.safe ? "where you want to go" : "for the next point") : "where you start"}` : plan.wait ? "Finding the safest way…" : info ? `<b>${(info.total / 1000).toFixed(1)} km</b> · ↑ ${fmtM(info.up)} · steepest ${Math.round(info.maxSlope)}°` : "Working it out…"}</span>
-        <button type="button" data-p="safe" class="safe" aria-pressed="${plan.safe}" title="Find the way with the least avalanche risk between your points">🛡 Safest</button>${n ? `<button type="button" data-p="undo">↶</button>` : ""}<button type="button" data-p="done" class="go">✓ Done</button>`;
-      planBar.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { if (b.dataset.p === "undo") { plan.pts.pop(); planChanged(); } else if (b.dataset.p === "safe") setSafe(!plan.safe); else setPlanning(false); }));
+      // Always says what a tap does next, on its own line on a phone (alex 2026-11-04: "Is hard to know when you can
+      // place a point"). A tapped freeride or slackcountry line asks first: the whole line, or just a point there.
+      const o = plan.offer;
+      const msg = o ? `<b>${esc(o.name)}</b> <small>${esc(o.kind)}: add the whole line to your tour?</small>`
+        : n === 0 ? `<b>Tap the map where you start</b><small>Start where you park. Tap a freeride or slackcountry line to add it all.</small>`
+        : n === 1 ? `<b>Now tap where you want to go</b><small>Drag a point to move it.</small>`
+        : `<b>${plan.wait ? "Finding the safest way…" : info ? `${(info.total / 1000).toFixed(1)} km · ↑ ${fmtM(info.up)} · steepest ${Math.round(info.maxSlope)}°` : "Working it out…"}</b><small>Tap to add a point · drag a point to move it</small>`;
+      planBar.innerHTML = `<div class="pb-msg"><i class="pb-dot${o ? " line" : ""}" aria-hidden="true"></i><span>${msg}</span></div>
+        <div class="pb-btns">${o ? `<button type="button" data-p="line" class="go">＋ Add line</button><button type="button" data-p="point">Just a point</button><button type="button" data-p="nope" aria-label="Neither">✕</button>`
+          : `<button type="button" data-p="safe" class="safe" aria-pressed="${plan.safe}" title="Find the way with the least avalanche risk between your points">🛡 Safest</button><button type="button" data-p="undo" aria-label="Undo"${plan.hist.length || n ? "" : " disabled"}>↶ Undo</button><button type="button" data-p="done" class="go">✓ Done</button>`}</div>`;
+      planBar.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+        const p = b.dataset.p;
+        if (p === "undo") planUndo();
+        else if (p === "safe") setSafe(!plan.safe);
+        else if (p === "line") { plan.offer = null; renderPlan(); o.add(); }
+        else if (p === "point") { plan.offer = null; planAdd(o.at); }
+        else if (p === "nope") { plan.offer = null; drawPlan(); renderPlan(); }
+        else setPlanning(false);
+      }));
     }
     $("skPlanBtn").setAttribute("aria-pressed", String(plan.on));
     $("skPlanBtn").textContent = plan.on ? "✓ Done planning" : n > 1 ? "✎ Edit my tour" : "✎ Plan a tour";
@@ -2465,8 +2504,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <div class="sk-row"><button type="button" class="btn sk-safebtn" id="skSafeBtn" aria-pressed="${plan.safe}">${plan.safe ? "🛡 Safest way: on" : "🛡 Find the safest way"}</button></div>
       ${safeHtml()}
       <div class="sk-row">${plan.on && n ? `<button type="button" class="btn" id="skPlanUndo">↶ Undo</button>` : ""}${n ? `<button type="button" class="btn" id="skPlanClear">Clear</button>` : ""}${!plan.on && n > 1 ? `<button type="button" class="btn" id="skPlanShow">Show details</button>` : ""}</div>`;
-    const u = $("skPlanUndo"); if (u) u.addEventListener("click", () => { plan.pts.pop(); planChanged(); });
-    const c = $("skPlanClear"); if (c) c.addEventListener("click", () => { if (plan.pts.length > 2 && !confirm("Clear your planned tour?")) return; plan.pts = []; planChanged(); });
+    const u = $("skPlanUndo"); if (u) u.addEventListener("click", planUndo);
+    const c = $("skPlanClear"); if (c) c.addEventListener("click", () => { if (plan.pts.length > 2 && !confirm("Clear your planned tour?")) return; snap(); plan.pts = []; planChanged(); });
     const sh = $("skPlanShow"); if (sh) sh.addEventListener("click", () => { const r = planRoute(); if (r) select(r, true); });
     $("skSafeBtn").addEventListener("click", () => setSafe(!plan.safe));
     // A tap on a step glides there (alex 2026-11-04: "not smooth": the 3D camera jumped): 3D eases keeping its tilt and
@@ -2483,16 +2522,36 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       e.stopPropagation();
       const [i, d] = b.dataset.mv.split(",").map(Number), j = i + d;
       if (j < 0 || j >= plan.pts.length) return;
+      snap();
       [plan.pts[i], plan.pts[j]] = [plan.pts[j], plan.pts[i]];
       planChanged();
     }));
     // Delete a point (alex 2026-11-04: "make it so i can delete point"); the way is found again without it.
     card.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", (e) => {
       e.stopPropagation();
+      snap();
       plan.pts.splice(+b.dataset.del, 1);
       planChanged();
     }));
-    const rv = $("skSafeRev"); if (rv) rv.addEventListener("click", () => { plan.pts.reverse(); planChanged(); });
+    const rv = $("skSafeRev"); if (rv) rv.addEventListener("click", () => { snap(); plan.pts.reverse(); planChanged(); });
+  }
+  // Undo goes back one change, whatever it was (a point added, moved, deleted, swapped, a line added, a clear).
+  function snap() {
+    plan.offer = null;
+    plan.hist.push(JSON.stringify(plan.pts));
+    if (plan.hist.length > 40) plan.hist.shift();
+  }
+  function planUndo() {
+    plan.offer = null;
+    if (plan.hist.length) plan.pts = JSON.parse(plan.hist.pop());
+    else plan.pts.pop();
+    planChanged();
+  }
+  function movePt(i, ll) {
+    if (!plan.pts[i]) return;
+    snap();
+    plan.pts[i] = [+ll.lat.toFixed(6), +ll.lng.toFixed(6)];   // moved off an added line: a plain point
+    planChanged();
   }
   function planChanged() {
     store.set("skiPlan", plan.pts);
@@ -2697,6 +2756,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     </div>`;
   }
   function planVia(line, name) {
+    snap();
     const a = line[0], z = line[line.length - 1], last = plan.pts[plan.pts.length - 1];
     if (last && map.distance([last[0], last[1]], a) < 60) plan.pts[plan.pts.length - 1] = last[2] ? last : [a[0], a[1]];
     else plan.pts.push([a[0], a[1]]);
@@ -2707,13 +2767,41 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     window.tfToast && window.tfToast(`${name} is in your tour, from ${ptName(n - 2, n)} to ${ptName(n - 1, n)}.`);
   }
   function planAdd(ll) {
-    if (map.getZoom() < 12) { map.setView(ll, 13); return; }   // too far out to place a point well: zoom in there first
+    if (plan.dragAt && Date.now() - plan.dragAt < 400) return;   // the end of dragging a point, not a tap
+    if (plan.offer) { plan.offer = null; drawPlan(); renderPlan(); }
+    if (map.getZoom() < 12) {   // too far out to place a point well: zoom in there first
+      map.setView(ll, 13);
+      window.tfToast && window.tfToast("Zoomed in there: tap again to place your point.");
+      return;
+    }
+    snap();
     plan.pts.push([+ll.lat.toFixed(6), +ll.lng.toFixed(6)]);
+    plan.flash = plan.pts.length - 1;
+    setTimeout(() => { plan.flash = -1; }, 600);
     planChanged();
+  }
+  // While planning, a freeride or slackcountry line tapped on the map (freeride.js, slackcountry.js) lights up and the
+  // bar asks: add the whole line, or just a point there (alex 2026-11-04: "make it so you can select and add a freeride
+  // line or a slackcountry route"). o: { name, kind, at (latlng), lines ([[lat, lon]...] list), add() }.
+  function planOffer(o) {
+    if (!plan.on) return;
+    if (plan.dragAt && Date.now() - plan.dragAt < 400) return;
+    plan.offer = o;
+    drawPlan(); renderPlan();
+  }
+  // A ski route (a freeride line) in the tour as drawn, from where it's skied (a skin track from its bottom).
+  function planRouteLine(r, group, title) {
+    return routeInfo(group || [r]).then((info) => {
+      let line = info.pts.map((p) => [+p.lat.toFixed(6), +p.lon.toFixed(6)]);   // from its lower end
+      if (!isUphill(r)) line.reverse();                                          // skied from the top
+      if (line.length > 300) { const k = Math.ceil(line.length / 300); line = line.filter((_, i) => i % k === 0 || i === line.length - 1); }
+      planVia(line, title || nameOf(r) || "This line");
+    }, () => { window.tfToast && window.tfToast("Couldn't load the line's heights. Try again."); });
   }
   function setPlanning(on) {
     if (plan.on === on) return;
     plan.on = on;
+    plan.offer = null;
     // The map's layers stay as they are while planning (alex 2026-11-04: "dont put the slope angle layer by default when
     // you plan a tour"); Slope angle is in Layers for whoever wants it.
     map.getContainer().classList.toggle("sk-planning", on);
@@ -4375,6 +4463,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     plan: (pts) => { if (pts) { plan.pts = pts.map((p) => [+p[0].toFixed(6), +p[1].toFixed(6)]); planChanged(); } setPlanning(true); },
     planPts: () => plan.pts.slice(),
     planning: () => plan.on,
+    planOffer: (o) => planOffer(o),
+    planRouteLine: (r) => planRouteLine(r),
+    planVia: (line, name) => planVia(line, name),
     loadJs: (n) => loadJs(n),
     KIND, HUT_ABOUT, DANGER, BANDS, WICON, COMPASS,
   };
