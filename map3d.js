@@ -445,7 +445,12 @@
   // only outside last winter's photos (it lies under them in Winter, so Winter has snow everywhere). Then, like real winter
   // photos: open ground, clearings and alpine go white, dark conifer forest keeps its trees with only a
   // dusting, and cliffs too steep to hold snow stay rock. The hillshade layer adds the relief.
-  const ESRI_NOW = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+  // Esri satellite photos through alex's ArcGIS Location Platform key (go-public checklist item 9, alex 2026-11-04): a
+  // public-app key that only works from allduf.github.io and the iPhone app (capacitor://localhost), basemaps only, free
+  // tier, pay-as-you-go off. It expires 2027-11-03: make a new one in the ArcGIS dashboard and replace it everywhere
+  // (grep ESRI_KEY). The keyless server.arcgisonline.com is not licensed for apps.
+  const ESRI_KEY = "AAPTaKR9-TZuN1eH02ABP_Bc5vw..xMXwwXkMDQjjAb6upb_kd_5vMlcLigPBWjvps-PK5ZIG3OO6KcxIe0Uf1nDiRYPXn8aWbYeu8vclWxP8ixOamgo8knt9spJ68YrIkl4_uYxkwhVBe2q2UmbwGV6TrGGUC6f--1S-Wl8amiPutWrCbgXFAEMKU67Z9HBb9W96-91gD8yhmr3GJCovCz1FDIwo5HRYbf35VT1pNMNH_UqJ9On9HCax9F82Nwfnb7eB-z8geDk1CqAXsRzoT6FIHJaKAT1_xZvTNIpw";
+  const ESRI_NOW = "https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=" + ESRI_KEY;
   let summerTiles = ESRI_NOW;   // Esri's newest photos, or an older summer one here (summerHere below)
   const ESRI = (z, x, y) => summerTiles.replace("{z}", z).replace("{y}", y).replace("{x}", x);
   const LIVE_DAY = new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10);   // NASA posts with a delay
@@ -491,13 +496,13 @@
   // 2026-10-26). Esri's tile map says which tiles exist (32 x 32 at a time, like EsriDeep on the flat map), so a
   // missing tile is cut from the deepest real photo above it and enlarged. The photo downloads while the tile map is
   // asked, so a tile that exists waits no longer than before.
-  const ESRI_HAVE = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tilemap";
+  const ESRI_HAVE = "https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tilemap";
   const haveBlocks = new Map();
   const esriHas = (z, x, y) => {
     const bx = x >> 5, by = y >> 5, k = `${z}/${bx}/${by}`;
     if (!haveBlocks.has(k)) {
       if (haveBlocks.size > 400) haveBlocks.delete(haveBlocks.keys().next().value);
-      haveBlocks.set(k, fetch(`${ESRI_HAVE}/${z}/${by * 32}/${bx * 32}/32/32`).then((r) => r.json())
+      haveBlocks.set(k, fetch(`${ESRI_HAVE}/${z}/${by * 32}/${bx * 32}/32/32?token=${ESRI_KEY}`).then((r) => r.json())
         .then((j) => j.valid === false || !j.data || j.location?.left !== bx * 32 || j.location?.top !== by * 32 ? null : j.data).catch(() => null));
     }
     return haveBlocks.get(k).then((d) => d ? d[(y - by * 32) * 32 + (x - bx * 32)] === 1 : z <= 19);
@@ -850,7 +855,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=2210");
+      const w = new Worker("winter-fill.js?v=2230");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -933,7 +938,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=2210" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=2230" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
