@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-04", "text": "Sea to Sky trails checked against local sources: Squamish trails get the District of Squamish’s own grades, SORCA’s 2025-26 trail work shows on each trail, and Whistler’s alpine hiking trails no longer show as bike trails."},
     {"date": "2026-11-04", "text": "Area not on the list? Pick “Type another town or area…” at the bottom of the Area list and type any town or riding area in Canada, like Cumberland. New trails and trail name searches then look there."},
     {"date": "2026-11-04", "text": "Skiing Plan a tour: tap Add to tour on a line's card (a freeride line or any route) and your tour skis that exact line from its top to its bottom."},
     {"date": "2026-11-04", "text": "Before your first tour, off-trail route or planned route, a short note makes clear that you make your own decisions and go at your own risk, with a line under every route. The Terms of use say it in full."},

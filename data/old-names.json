@@ -1,4 +1,7 @@
-{"about":"Trail names the map lost before 2026-11-03 (renamed or removed on OpenStreetMap), from the old nightly data in main's history (14-24 Oct 2026). n: names, newest last. The data jobs add them to the trails (scripts/keep-names.mjs). Add a line by hand when a name goes missing.","ways":{"17059463":{"n":["Trough Road"],"c":[39.96558,-106.514]},
+{"about":"Trail names the map lost before 2026-11-03 (renamed or removed on OpenStreetMap), from the old nightly data in main's history (14-24 Oct 2026). n: names, newest last. The data jobs add them to the trails (scripts/keep-names.mjs). Add a line by hand when a name goes missing, or for another name a local source gives (Smoke-a-Butt, Pemberton trails master plan 2020).","ways":{
+"1228370826":{"n":["Smoke-a-Butt"],"c":[50.32835,-122.79072]},
+"511159447":{"n":["Smoke-a-Butt"],"c":[50.32895,-122.79595]},
+"511159448":{"n":["Smoke-a-Butt"],"c":[50.32889,-122.79419]},"17059463":{"n":["Trough Road"],"c":[39.96558,-106.514]},
 "17060271":{"n":["South River Drive"],"c":[40.0034,-106.21563]},
 "17060272":{"n":["South River Drive"],"c":[39.99194,-106.17474]},
 "17060282":{"n":["Ute Pass Road"],"c":[39.88403,-106.09215]},

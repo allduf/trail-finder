@@ -1898,7 +1898,8 @@
     "Not on the list?":"Pas dans la liste?",
     "Type another town or area…":"Taper une autre ville ou zone…",
     "look in another place":"chercher ailleurs",
-    "Area not on the list? Pick “Type another town or area…” at the bottom of the Area list and type any town or riding area in Canada, like Cumberland. New trails and trail name searches then look there.":"Zone pas dans la liste? Choisissez « Taper une autre ville ou zone… » au bas de la liste des zones et tapez n'importe quelle ville ou secteur de vélo au Canada, comme Cumberland. Les nouveaux sentiers et la recherche par nom regardent alors là."};
+    "Area not on the list? Pick “Type another town or area…” at the bottom of the Area list and type any town or riding area in Canada, like Cumberland. New trails and trail name searches then look there.":"Zone pas dans la liste? Choisissez « Taper une autre ville ou zone… » au bas de la liste des zones et tapez n'importe quelle ville ou secteur de vélo au Canada, comme Cumberland. Les nouveaux sentiers et la recherche par nom regardent alors là.",
+    "Sea to Sky trails checked against local sources: Squamish trails get the District of Squamish’s own grades, SORCA’s 2025-26 trail work shows on each trail, and Whistler’s alpine hiking trails no longer show as bike trails.":"Sentiers de Sea to Sky vérifiés avec des sources locales : les sentiers de Squamish ont les cotes du District of Squamish, les travaux 2025-26 de la SORCA s'affichent sur chaque sentier, et les sentiers de randonnée alpins de Whistler ne s'affichent plus comme sentiers de vélo."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

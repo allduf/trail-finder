@@ -374,6 +374,17 @@ function inPark([lat, lon], park) {
 // left unnamed and untagged (Kicking Horse: 5 of 54 paths had bike tags).
 const LIFT_PARKS = { "Fernie Alpine Resort": "runs a lift-served bike park in summer", "Panorama Mountain Resort": "runs a lift-served bike park in summer" };
 const BIKE_LIFT = /\b(yes|summer|designated|permissive)\b/;
+// A resort's own hiking trails are not bike park trails, even with bikes on the lifts: the Whistler Blackcomb summer 2026
+// trail map (cdn.whistler.com/s3/pdf/maps/whistler-blackcomb-hiking-trail-map-2026.pdf) lists these as hiking trails and
+// its bike park map doesn't have them (nor the Raven's Eye platform at the top of the Cloudraker Skybridge). On Whistler
+// Blackcomb a numbered path graded for hiking (sac_scale and a ref, as the hiking map numbers them) is one too (Paleface Trail).
+const LIFT_HIKING = {
+  "Whistler Blackcomb": { names: /^(cloudraker (loop|skybridge)|peak express traverse|spearhead loop|harmony (lake (loop|trail)|meadows)|high note trail|half note trail|musical bumps trail|whistler summit trail|alpine (loop|walk)|fitzsimmons lookout|overlord trail|marmot trail|lakeside loop|decker loop|kids'? adventure trail|(little|big|heart) burn|raven'?s eye( viewing platform)?)$/i, numbered: true },
+};
+const liftHiking = (park, t) => {
+  const h = LIFT_HIKING[park.name];
+  return !!h && (h.names.test((t.name || "").trim()) || (h.numbered && !!t.sac_scale && /^\d+[a-z]?$/i.test(t.ref || "")));
+};
 function rings(el) {
   if (el.type === "way") return el.geometry && el.geometry.length > 3 ? [el.geometry.map((p) => [p.lat, p.lon])] : [];
   // A relation's outer ways, joined end to end into rings.
@@ -499,7 +510,7 @@ for (const z of order) {
         const a = !NOT_BIKE_NAME.test(tags.name || "") && sparse.find((a) => (tags.name || a.all && !motor(tags))
           && (metres([mid.lat, mid.lon], a.c) <= radius(a) || (a.park && park && park.name === a.park)));
         const lp = /^(path|bridleway)$/.test(tags.highway) && !motor(tags) && /^(hiking)?$/.test(tags.sac_scale || "") && !NOT_BIKE_NAME.test(tags.name || "")
-          && parks.find((p) => inPark([mid.lat, mid.lon], p));
+          && parks.find((p) => inPark([mid.lat, mid.lon], p) && !liftHiking(p, tags));
         const om = !lp && !a && offIndex && !motor(tags) && !NOT_BIKE_NAME.test(tags.name || "") ? offMatch(w.geometry, tags.name, offIndex) : null;
         if (lp) { tags["tf:lift"] = lp.name; tags["tf:lift-why"] = lp.why; fromLift++; }
         else if (om) {

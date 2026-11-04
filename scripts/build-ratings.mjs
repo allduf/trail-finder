@@ -23,6 +23,9 @@
 //          Cycling Society and the other trail groups): Difficulty Easy, Moderate, Difficult, Most Difficult (drawn darker than Difficult:
 //          double black) on the trails it
 //          marks for biking (Kalamalka Lake park, Ellison, Predator Ridge, King Eddy, Sovereign Lake, Becker Park...)
+//      dos District of Squamish trails (OGL-Squamish): DIFFICULTY Easier, More Difficult, Most Difficult, Extreme Difficulty
+//          (green, blue, black, double black). Only the district's own lines: the ones its SOURCE field says were traced
+//          from Trailforks are left out (its terms don't allow copying), and so are hiking, access and road lines.
 //      ccf ... and other clubs' georeferenced PDF maps, read colour by colour by scripts/map-ratings.py (run by hand) into
 //          scripts/map-ratings.json: Cranbrook Community Forest Society (Easy, Moderate, Difficult, Very Difficult), and the
 //          Kimberley Nature Park Society trail guide (a picture with a UTM grid: Easy, Intermediate, Difficult)
@@ -236,6 +239,7 @@ const SOURCES = {
   wh: { name: "Resort Municipality of Whistler", licence: "Open Government Licence – Resort Municipality of Whistler", url: "https://portal-rmow.opendata.arcgis.com/" },
   rdos: { name: "Regional District of Okanagan-Similkameen", licence: "Published in the district's Hiking and Biking Trails map", url: "https://rdos.maps.arcgis.com/" },
   fta: { name: "Fernie Trails Alliance", licence: "Published in Tourism Fernie's public trail map", url: "https://www.fernietrailsalliance.com/" },
+  dos: { name: "District of Squamish", licence: "Open Government Licence – Squamish", url: "https://squamish.ca/discover-squamish/maps-and-data/open-data/" },
   tv: { name: "Greater Vernon trail map (City of Vernon, Tourism Vernon and local trail groups)", licence: "Published by the City of Vernon as a public service", url: "https://trails.tourismvernon.com/" },
 };
 const MAP_RATINGS = (() => { try { return JSON.parse(readFileSync("scripts/map-ratings.json", "utf8")); } catch { return { maps: {}, lines: [] }; } })();
@@ -364,6 +368,16 @@ async function buildLines() {
         // the map draws Most Difficult darker than Difficult (black): it's their double black (36, Big Ed, Hammered Cow)
         const d = /most difficult/i.test(p.Difficulty || "") ? "dbl" : levelOfWords(p.Difficulty);
         parts.forEach((c) => add(d, "tv", p.Name, p.Difficulty, c.map(([x, y]) => [y, x])));
+      }
+    },
+    async dos() {
+      const LEVEL = { "Easier": "green", "More Difficult": "blue", "Most Difficult": "black", "Extreme Difficulty": "dbl" };
+      const fs = await arcgis("https://services.arcgis.com/YCM10gnCAvCoAhpj/arcgis/rest/services/Trails/FeatureServer/4",
+        "OBJECTID,NAME,DIFFICULTY,SOURCE,TRAIL_TYPE");
+      if (!fs.length) throw new Error("District of Squamish: no trails");
+      for (const { a, paths } of fs) {
+        if (/trailforks/i.test(a.SOURCE || "") || /road|paved/i.test(a.TRAIL_TYPE || "")) continue;
+        paths.forEach((p) => add(LEVEL[(a.DIFFICULTY || "").trim()], "dos", a.NAME, a.DIFFICULTY, lonlat(p)));
       }
     },
     async maps() {   // from the file, so it never fails; each map is its own source
