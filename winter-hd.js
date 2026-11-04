@@ -13,7 +13,12 @@
 //    spot is than the 10 m average around it (Esri's own zoom 13), not its summer colours. Mostly on dark ground
 //    (trees, rock): open snow takes only a little, since the summer photo has meadow and scree there.
 "use strict";
-const ESRI = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+// Esri satellite photos through alex's ArcGIS Location Platform key (go-public checklist item 9, alex 2026-11-04): a
+// public-app key that only works from allduf.github.io and the iPhone app (capacitor://localhost), basemaps only, free
+// tier, pay-as-you-go off. It expires 2027-11-03: make a new one in the ArcGIS dashboard and replace it everywhere
+// (grep ESRI_KEY). The keyless server.arcgisonline.com is not licensed for apps.
+const ESRI_KEY = "AAPTaKR9-TZuN1eH02ABP_Bc5vw..xMXwwXkMDQjjAb6upb_kd_5vMlcLigPBWjvps-PK5ZIG3OO6KcxIe0Uf1nDiRYPXn8aWbYeu8vclWxP8ixOamgo8knt9spJ68YrIkl4_uYxkwhVBe2q2UmbwGV6TrGGUC6f--1S-Wl8amiPutWrCbgXFAEMKU67Z9HBb9W96-91gD8yhmr3GJCovCz1FDIwo5HRYbf35VT1pNMNH_UqJ9On9HCax9F82Nwfnb7eB-z8geDk1CqAXsRzoT6FIHJaKAT1_xZvTNIpw";
+const ESRI = (z, x, y) => `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}?token=${ESRI_KEY}`;
 const LIDAR = (z, x, y) => `https://tiles.mapterhorn.com/${z}/${x}/${y}.webp`;
 const SUN = [Math.sin(160 / 57.3) * Math.cos(28 / 57.3), Math.cos(160 / 57.3) * Math.cos(28 / 57.3), Math.sin(28 / 57.3)];   // east, north, up
 const W = 256;

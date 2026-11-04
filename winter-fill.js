@@ -12,7 +12,12 @@
 // Out: { id, data: ImageBitmap, miss14 } or { id, none: true } (no photo here at all) or { id, err }. { cancel: id } drops one.
 "use strict";
 const W = 256;
-const ESRI = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+// Esri satellite photos through alex's ArcGIS Location Platform key (go-public checklist item 9, alex 2026-11-04): a
+// public-app key that only works from allduf.github.io and the iPhone app (capacitor://localhost), basemaps only, free
+// tier, pay-as-you-go off. It expires 2027-11-03: make a new one in the ArcGIS dashboard and replace it everywhere
+// (grep ESRI_KEY). The keyless server.arcgisonline.com is not licensed for apps.
+const ESRI_KEY = "AAPTaKR9-TZuN1eH02ABP_Bc5vw..xMXwwXkMDQjjAb6upb_kd_5vMlcLigPBWjvps-PK5ZIG3OO6KcxIe0Uf1nDiRYPXn8aWbYeu8vclWxP8ixOamgo8knt9spJ68YrIkl4_uYxkwhVBe2q2UmbwGV6TrGGUC6f--1S-Wl8amiPutWrCbgXFAEMKU67Z9HBb9W96-91gD8yhmr3GJCovCz1FDIwo5HRYbf35VT1pNMNH_UqJ9On9HCax9F82Nwfnb7eB-z8geDk1CqAXsRzoT6FIHJaKAT1_xZvTNIpw";
+const ESRI = (z, x, y) => `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}?token=${ESRI_KEY}`;
 const cancelled = new Set();
 const parents = new Map();   // a few filled parent tiles, for the missing tiles enlarged from them
 const keep = (k, p) => { parents.set(k, p); p.catch(() => parents.delete(k)); if (parents.size > 8) parents.delete(parents.keys().next().value); return p; };
