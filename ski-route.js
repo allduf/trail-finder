@@ -8,7 +8,7 @@
 //    start), more again above.
 //  - Today's avalanche forecast (Avalanche Canada, the area and day picked in Skiing): the band's danger rating
 //    (alpine / treeline / below treeline from the cell's height) scales it, and a slope facing one of the aspects of
-//    that band's avalanche problems counts 1.6x, one facing away 0.6x. No forecast: planned as if Considerable.
+//    that band's avalanche problems counts 1.6x, one facing away 0.6x. No forecast: planned as Moderate (see LEVEL_K).
 //  - Exposure: where a slide that starts on 30°+ ground above could run (followed down the fall line until the
 //    line back up to its top is under 24°, the alpha angle used for runout), and twice that in a gully or creek bed
 //    under it (a terrain trap).
@@ -22,8 +22,14 @@
   const ASP = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
   const ASP_NAME = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"];
   const BAND = ["alp", "tln", "btl"], BAND_NAME = ["alpine", "treeline", "below treeline"];
-  // Weight of a danger rating (1 Low ... 5 Extreme); 0 = no rating, planned as Considerable.
-  const WD = [2.5, 0.6, 1.2, 2.5, 5, 10];
+  // Weight of a danger rating (1 Low ... 5 Extreme); 0 = no rating, planned as Moderate.
+  const WD = [1.2, 0.6, 1.2, 2.5, 5, 10];
+  // How strict the whole route is, from the worst rating on the forecast (alex 2026-11-04: "you can take a bit steeper
+  // route. if the avalanche forecast is red dont take that route, find the safest route"): Low or Moderate (or no rating
+  // yet) a direct line that takes slopes up to ~35° rather than a long way round; Considerable the balance in between;
+  // High or Extreme (red) the safest way however long. K scales the risk part of every step.
+  const LEVEL_K = { direct: 0.3, balanced: 1, strict: 4 };
+  const levelOf = (av) => { const r = Math.max(av.r.alp || 0, av.r.tln || 0, av.r.btl || 0); return r >= 4 ? "strict" : r === 3 ? "balanced" : "direct"; };
   const slopeTerm = (s) => (s < 20 ? 0 : s < 25 ? 0.2 : s < 30 ? 1 : s < 35 ? 4 : s < 40 ? 7 : s < 45 ? 10 : 14);
   const ALPHA = Math.tan(24 * RAD);   // a slide runs out until the line back up to where it started is under 24°
   const RUN_M = 1500;                 // and never further than this
@@ -91,6 +97,8 @@
       if (Math.max(m1, m2) >= 4 || (creek[i] & 3)) trap[i] = 1;
       risk[i] += expo[i] * 1.5 * (trap[i] ? 2 : 1);
     }
+    const K = LEVEL_K[levelOf(av)];
+    if (K !== 1) for (let i = 0; i < N; i++) risk[i] *= K;
   }
 
   // Seconds (x the risk) to go from cell a to the next cell b, d metres away.
@@ -223,7 +231,7 @@
     // Each leg (Point i to Point i+1): its length, climb, the straight line's steep metres, and its steps.
     const legOut = legs.map((l) => ({ m: l.runs.reduce((s, r) => s + r.m, 0), up: l.steps.reduce((s, x) => s + x.up, 0), down: l.steps.reduce((s, x) => s + x.down, 0),
       steep: l.runs.filter((r) => r.cls === "steep").reduce((s, r) => s + r.m, 0), under: l.runs.filter((r) => r.cls === "under" || r.cls === "trap").reduce((s, r) => s + r.m, 0), straight: l.straight, steps: l.steps }));
-    return { line, runs, stats: st, straight: sl, av, legs: legOut, ...extra };
+    return { line, runs, stats: st, straight: sl, av, legs: legOut, level: levelOf(av), ...extra };
   }
 
   // The safest way through the points you tapped (pts: [[lat, lon], ...], 2 or more), one leg at a time.

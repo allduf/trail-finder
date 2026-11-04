@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-04", "text": "Skiing Safest way follows the forecast: a more direct route at Low or Moderate danger, the safest one when it's High or Extreme. Planning a tour no longer turns on slope angles."},
     {"date": "2026-11-04", "text": "Skiing Plan a tour: 🛡 Safest way is on by default, and the route shows as a list like MTB's (skin up, ski down, the named tracks it takes) and sticks to mapped skin tracks."},
     {"date": "2026-11-04", "text": "Skiing Safest way: the route now has a step list (Start, Point 1, 2 ... End) with each leg's distance, climb and why, matching labels on the map, and it no longer runs down plowed highways."},
     {"date": "2026-11-04", "text": "When you save something or turn on an alert without an account, a small card offers to sign in so it's on all your devices. You can say Not now."},

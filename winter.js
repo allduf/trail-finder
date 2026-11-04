@@ -1224,7 +1224,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=2400").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=2450").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2413,7 +2413,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       probs: (f.problems || []).map((p) => ({ type: p.type || "", aspects: p.aspects || [], elevations: p.elevations || [] })) };
   }
   // What's kept of a found way (on this device, with the points it was found for).
-  const slimSafe = (out, key) => ({ key, line: out.line, legs: out.legs || [], from: out.from, park: out.park || "", stats: out.stats, straight: out.straight, av: out.av, at: Date.now(),
+  const slimSafe = (out, key) => ({ key, level: out.level || "balanced", line: out.line, legs: out.legs || [], from: out.from, park: out.park || "", stats: out.stats, straight: out.straight, av: out.av, at: Date.now(),
     runs: out.runs.map((r) => ({ cls: r.cls, m: Math.round(r.m), pts: r.pts.map((p) => [+p[0].toFixed(6), +p[1].toFixed(6)]), mid: [+r.mid[0].toFixed(6), +r.mid[1].toFixed(6)], maxDeg: r.maxDeg, band: r.band, asp: r.asp, hit: r.hit, src: r.src ? { ...r.src, at: undefined } : null })) });
   function gotSafe(out, key) {
     plan.path = slimSafe(out, key);
@@ -2520,7 +2520,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       : `<div class="sk-row"><button type="button" class="btn" id="skSafeAgain">🛡 Find the safest way between my points</button></div>`;
     const st = sp.stats, av = sp.av || {}, tot = Math.max(1, st.total), C = SAFE_CLS, sl = sp.straight || { total: 0, steep: 0, under: 0 };
     const chip = (v) => `<span class="av-chip" style="background:${DANGER[v || 0].color};color:${v >= 4 ? "#fff" : "#1a1a1a"}">${esc(DANGER[v || 0].label)}</span>`;
-    const fc = av.none ? `<div class="sk-warn"><b>No avalanche forecast here ${example ? "" : "today"}.</b> Planned as if the danger were Considerable everywhere. Check ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))} before you go.</div>`
+    const LV = { direct: ["#2f9e44", "Direct", "Low or Moderate danger" ], balanced: ["#f79218", "Balanced", "Considerable danger"], strict: ["#ef1c29", "Safest", "High or Extreme danger"] }[sp.level || "balanced"];
+    const lvTxt = { direct: "takes slopes up to about 35° when that saves a long way round, still off the steepest ground and out from under big slopes where it can.",
+      balanced: "goes round 30°+ slopes and steep slopes above when there's a sensible way, and takes the shortest steep bit when there isn't.",
+      strict: "stays off 30°+ slopes and out from under steep slopes, however much longer that makes it. If there's no way round, think twice about going." }[sp.level || "balanced"];
+    const lvHtml = `<div class="sk-check" style="--c:${LV[0]}"><b>${LV[1]} route</b><span>${av.none ? "No rating here yet, so planned as for Moderate" : `For ${LV[2]} today`}: ${lvTxt}</span></div>`;
+    const fc = av.none ? `<div class="sk-warn"><b>No avalanche forecast here ${example ? "" : "today"}.</b> Planned as for Moderate danger (a direct route); early and late in the season, conditions can change fast. Check ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))} before you go.</div>`
       : `<div class="sk-safe-fc">${av.example ? "<b>EXAMPLE forecast</b> · " : ""}<span>${esc(av.title)}${av.day ? `, ${esc(av.day)}` : ""}:</span></div><div class="sk-safe-fc"><span>Alpine ${chip(av.r.alp)}</span><span>Treeline ${chip(av.r.tln)}</span><span>Below treeline ${chip(av.r.btl)}</span></div>`;
     const kinds = ["ok", "mid", "steep", "under", "trap"].filter((k) => st[k] >= 5);
     const why = [];
@@ -2547,6 +2552,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return `<div class="sk-safe">
       ${stepsHtml(sp, watch)}
       <h4>🛡 Why this way</h4>
+      ${lvHtml}
       ${fc}
       <div class="sk-safe-bar" aria-hidden="true">${kinds.map((k) => `<i style="width:${(st[k] / tot) * 100}%;background:${C[k].color}"></i>`).join("")}</div>
       <div class="sk-safe-key">${kinds.map((k) => `<span style="--c:${C[k].color}">${C[k].label} ${fmtM(st[k])}</span>`).join("")}</div>
@@ -2565,15 +2571,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   function setPlanning(on) {
     if (plan.on === on) return;
     plan.on = on;
-    // Slope angles while planning (CalTopo-style), back to how they were after.
-    // The ground colour that was on goes off meanwhile (one at a time) and comes back after.
-    if (on) { plan.slopeWas = shown.has("slope"); plan.groundWas = []; if (!plan.slopeWas) { shown.add("slope"); plan.groundWas = oneGround("slope"); applySwitches(); if (plan.groundWas.includes("avy")) refreshAvy(); } }
-    else if (!plan.slopeWas && shown.has("slope")) {
-      shown.delete("slope");
-      const back = plan.groundWas || [];
-      back.forEach((x) => (x === "avy" ? (avyOn = true, store.set("avy", true)) : shown.add(x)));
-      applySwitches(); if (back.includes("avy")) refreshAvy();
-    }
+    // The map's layers stay as they are while planning (alex 2026-11-04: "dont put the slope angle layer by default when
+    // you plan a tour"); Slope angle is in Layers for whoever wants it.
     map.getContainer().classList.toggle("sk-planning", on);
     if (on && map.getZoom() < 12) map.setZoom(13);
     // After the tap's own click reaches the panel (which raises a lowered sheet).
