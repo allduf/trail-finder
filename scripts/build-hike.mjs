@@ -1,11 +1,12 @@
 // Weekly job (see .github/workflows/hike-trails.yml): the hiking trails of each home zone, for Hiking (hike.js).
 // alex (2026-11-02, after Hiking went live): "where are the hiking trail?" Asked live, OpenStreetMap's trail server
 // (Overpass) often takes minutes or refuses a phone's dozens of squares, so the panel sat on "Finding the hiking
-// trails here…". The 31 home zones (Vancouver to Calgary) now come ready-made; elsewhere in Canada hike.js still asks
-// Overpass, a few squares at a time.
+// trails here…". The 31 home zones (Vancouver to Calgary) now come ready-made; the rest of Canada comes from the nightly
+// Canada job (scripts/build-canada-hike.mjs -> ca/h/, the same rules), and hike.js asks Overpass only where neither loads.
 //
 // Writes data/hike-<zone>.json in hike.js's own format: { v: 1, builtAt, box, at, w: [{ id, t, g }], r: [{ id, n, t, m }] }
-//  - w: hiking trails: named paths, footways and bridleways, any path or track with a hiking grade (sac_scale), and the
+//  - w: hiking trails: named paths, footways and bridleways, named tracks called a trail ("Sentier…", "…Trail"), any
+//    path or track with a hiking grade (sac_scale), and the
 //    paths of hiking routes (route=hiking or foot). Paved, lit and sidewalk paths, foot=no and bike-park lines are left
 //    out here already (the same rules as hike.js keepWay), t keeps a few tags, g the shape ([lat, lon], 5 decimals).
 //  - r: the hiking routes, with their trail ids (m).
@@ -34,7 +35,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
 const readJson = (name) => { try { return JSON.parse(readFileSync(new URL(name, DATA), "utf8")); } catch { return null; } };
 
-const RULES = 2;   // files built with older rules are rebuilt, however fresh
+const RULES = 3;   // files built with older rules are rebuilt, however fresh (3: named tracks called a trail, as Quebec maps many hiking trails)
 const KEEP = ["name", "highway", "sac_scale", "surface", "trail_visibility", "foot", "access", "bicycle", "mtb:scale", "mtb:scale:imba", "mtb:type", "footway", "lit", "operator", "website", "description", "incline", "ref", "seasonal", "informal", "wikimedia_commons", "image", "wikidata"];
 const FOOT_OK = /^(yes|designated|permissive)$/;
 // The same as keepWay in hike.js: what isn't a hike.
@@ -57,6 +58,7 @@ function query([s, w, n, e]) {
 (
   way["highway"~"^(path|footway|bridleway)$"]["name"](${bb});
   way["highway"~"^(path|footway|bridleway|track)$"]["sac_scale"](${bb});
+  way["highway"="track"]["name"~"(^|[^a-z])(sentier|trail|portage)([^a-z]|$)",i](${bb});
 )->.a;
 rel["route"~"^(hiking|foot)$"](${bb})->.r;
 way(r.r)["highway"](${bb})->.b;
