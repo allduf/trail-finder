@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-04", "text": "When you save something or turn on an alert without an account, a small card offers to sign in so it's on all your devices. You can say Not now."},
     {"date": "2026-11-04", "text": "Skiing This spot: the terrain box (Simple, Challenging, Complex) is now easy to read and fits in its box."},
     {"date": "2026-11-04", "text": "Skiing Freeride lines no longer show marked runs like Insanity and Powerline at Whistler Creekside."},
     {"date": "2026-11-04", "text": "Plan a hike still finds a route along the trails when the route server is busy, and a new Data credits page lists every source."},

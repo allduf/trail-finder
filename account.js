@@ -60,6 +60,15 @@ dialog.acct .acct-alt a { color: var(--accent); font-weight: 600; padding: 2px 0
 dialog.acct .acct-alt button.acct-del { color: #c0392b; }
 dialog.acct .acct-code { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 dialog.acct #acctCode { font-size: 1.3rem; letter-spacing: .25em; text-align: center; }
+.acct-nudge, .acct-nudge * { box-sizing: border-box; }
+.acct-nudge { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 16px); z-index: 2400; width: min(380px, calc(100vw - 32px));
+  background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 14px; padding: 14px; box-shadow: 0 8px 28px rgba(0,0,0,.28); opacity: 0; transition: opacity .2s, transform .2s; font: inherit; }
+.acct-nudge.on { opacity: 1; transform: translate(-50%, 0); }
+.acct-nudge p { margin: 0 0 10px; font-size: .9rem; color: var(--muted); line-height: 1.35; }
+.acct-nudge strong { display: block; color: var(--fg); font-size: 1rem; margin-bottom: 2px; }
+.acct-nudge .acct-row { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+.acct-nudge button { margin: 0; min-height: 40px; line-height: 1.2; font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 9px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
+.acct-nudge button.go { background: var(--accent); color: var(--accent-fg, #fff); border-color: transparent; }
 dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
 dialog.acct .acct-out-row { justify-content: space-between; align-items: center; }
 .acct-toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 3000; width: min(420px, calc(100vw - 32px)); box-sizing: border-box; background: var(--panel, #fff); color: var(--fg, #111); border: 1px solid var(--line, #ccc); border-radius: 12px; padding: 12px 14px; box-shadow: 0 8px 30px rgba(0,0,0,.25); font-size: .92rem; }`;
@@ -542,11 +551,72 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   window.addEventListener("tf:setting", () => {
     const now = Date.now(), cur = localSettings(), at = keyAts() || {};
     SETTINGS.forEach((k) => { if (cur[k] !== snap[k]) at[k] = now; });
+    nudgeCheck(snap, cur);
     snap = cur;
     lsSet(KEYAT, JSON.stringify(at)); lsSet(STAMP, String(now));
     if (!api.user) return;
     clearTimeout(pushTimer); pushTimer = setTimeout(api.sync, 1500);
   });
+  // ---------- a gentle "Sign in" nudge (alex 2026-11-04: encourage accounts, never require one) ----------
+  // When someone who isn't signed in saves something (a route, tour, cabin trip, hike, trail on a list) or turns an
+  // alert on, a small card says it's only on this phone and offers Sign in. "Not now" keeps it quiet for 3 weeks, and
+  // after 3 "Not now"s it never shows again. At most once a day. Kept in tf:signNudge (this device only, not synced).
+  const arr = (v) => { const x = jparse(v, null); return Array.isArray(x) ? x : []; };
+  const on = (v) => { const x = jparse(v, null); return x && x !== "0" ? 1 : 0; };
+  const NUDGE = {   // what each saved list counts, and what the card calls it
+    planSaved: [(v) => arr(v).length, "this route"],
+    motoRoutes: [(v) => arr(v).length, "this route"],
+    skiTrips: [(v) => arr(v).length, "this cabin trip"],
+    hikeSaved: [(v) => arr(v).length, "this hike"],
+    hikePlans: [(v) => arr(v).length, "this hike"],
+    folders: [(v) => arr(v).reduce((n, f) => n + ((f && f.trails && f.trails.length) || 0), 0), "your trail lists"],
+    myFinds: [(v) => arr(v).length, "your finds"],
+    skiWatch: [(v) => arr(v).length, "your alerts"],
+    notifyNew: [on, "your alerts"],
+    avyAlert: [on, "your alerts"],
+    fishAlert: [on, "your alerts"],
+    huntAlarms: [(v) => { const x = jparse(v, null); return x && x.on ? Object.values(x.on).filter(Boolean).length : 0; }, "your alerts"],
+  };
+  const NUDGE_KEY = "tf:signNudge", DAY = 864e5;
+  function nudgeCheck(prev, cur) {
+    if (api.user || api.savedSession) return;
+    let what = "";
+    for (const k in NUDGE) {
+      if (cur[k] === prev[k]) continue;
+      const [count, name] = NUDGE[k];
+      try { if (count(cur[k]) > count(prev[k])) { what = name; break; } } catch {}
+    }
+    if (!what) return;
+    const st = jparse(lsGet(NUDGE_KEY), null) || {}, now = Date.now();
+    if ((st.no || 0) >= 3 || now < (st.quiet || 0) || now - (st.shown || 0) < DAY) return;
+    st.shown = now; lsSet(NUDGE_KEY, JSON.stringify(st));
+    setTimeout(() => showNudge(what), 2200);   // after the page's own "Saved" toast
+  }
+  function showNudge(what) {
+    if (api.user || document.querySelector(".acct-nudge")) return;
+    const el = document.createElement("div");
+    el.className = "acct-nudge"; el.setAttribute("role", "status");
+    const isAlert = what === "your alerts";
+    el.innerHTML = `<p><strong></strong><span></span></p><div class="acct-row"><button type="button" data-n="no">Not now</button><button type="button" class="go" data-n="in">Sign in</button></div>`;
+    el.querySelector("strong").textContent = isAlert ? "Keep your alerts" : "Saved on this phone only";
+    el.querySelector("span").textContent = isAlert
+      ? "Sign in so your alerts follow you to a new phone. Free, and the app works the same without it."
+      : `Sign in to have ${what} on all your devices, and keep it if you lose your phone. Free, and the app works the same without it.`;   // whole sentences in scripts/i18n/fr-8.txt
+    const close = () => { el.classList.remove("on"); setTimeout(() => el.remove(), 250); };
+    el.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-n]"); if (!b) return;
+      if (b.dataset.n === "no") {
+        const st = jparse(lsGet(NUDGE_KEY), null) || {};
+        st.no = (st.no || 0) + 1; st.quiet = Date.now() + 21 * DAY; lsSet(NUDGE_KEY, JSON.stringify(st));
+      } else openBox();
+      close();
+    });
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add("on"));
+    setTimeout(() => { if (el.isConnected) close(); }, 20000);   // ignored: gone, and back at the next save tomorrow
+  }
+  window.addEventListener("tf:account", (e) => { if (e.detail) document.querySelectorAll(".acct-nudge").forEach((n) => n.remove()); });
+
   let syncing = null;
   // api.syncState: { at (ms, last good sync), error (text, last sync failed), routes (saved routes on the account) },
   // shown by 📂 Saved so a rider can see whether the account answered. A sync that hangs (a phone waking up) gives up
