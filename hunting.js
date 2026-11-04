@@ -1796,6 +1796,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   }
   async function saveOffline(layers, square) {
     if (!("caches" in window)) { hint("This browser can't save maps offline."); return; }
+    // Saving maps offline needs an account (alex 2026-11-04), like Offline maps (offline.js).
+    if (window.tfAccount && window.tfAccount.require && !(await window.tfAccount.require("Saving maps for no signal needs a free account. Sign in or create one, and the save starts right after."))) return;
+    if (offBusy) return;
     const box = square || viewBox(), urls = offUrls(box, layers);
     const c = await caches.open(OFF_CACHE);
     offBusy = { pct: 0, msg: "Starting…", stop: false };

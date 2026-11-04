@@ -78,8 +78,9 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   box.className = "acct";
   box.innerHTML = `
 <form method="dialog" id="acctIn">
-  <h2>Sign in</h2>
-  <p>Optional. Signing in saves your settings, rides, pins and trips to your account so they're on every device. Everything else works the same without it.</p>
+  <h2 id="acctHead">Sign in</h2>
+  <p id="acctNeed" hidden></p>
+  <p id="acctWhy">Optional. Signing in saves your settings, rides, pins and trips to your account so they're on every device. Everything else works the same without it.</p>
   <label for="acctEmail">Email</label>
   <input type="email" id="acctEmail" placeholder="you@example.com" autocomplete="email" required>
   <label for="acctPass">Password</label>
@@ -172,6 +173,29 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     if (!ev.detail.handled) location.href = "./#folders";
   });
   api.open = openBox;
+  // Something that needs an account (alex 2026-11-04: "if you want to save a map offline you need an account").
+  // Resolves true once the person is signed in (straight away if they already are, or have a saved sign-in on this
+  // device, even with no signal), false if they close the box. why: what the account is for, shown in the box.
+  api.require = (why) => {
+    if (api.user || api.savedSession) return Promise.resolve(true);
+    if (!api.enabled) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      openBox();
+      q("acctHead").textContent = "Sign in to save maps offline";
+      q("acctNeed").textContent = why || "You need a free account for this.";
+      q("acctNeed").hidden = false; q("acctWhy").hidden = true;
+      let done = false;
+      const finish = (ok) => {
+        if (done) return; done = true;
+        window.removeEventListener("tf:account", onIn); box.removeEventListener("close", onClose);
+        q("acctHead").textContent = "Sign in"; q("acctNeed").hidden = true; q("acctWhy").hidden = false;
+        resolve(ok);
+      };
+      const onIn = (e) => { if (e.detail) { if (box.open) box.close(); finish(true); } };
+      const onClose = () => setTimeout(() => finish(!!api.user), 1500);   // a sign-in can close the box just before tf:account
+      window.addEventListener("tf:account", onIn); box.addEventListener("close", onClose);
+    });
+  };
   api.setSyncNote = (text) => { q("acctSync").textContent = text || ""; };
 
   // ---------- Supabase ----------
