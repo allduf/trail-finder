@@ -1278,7 +1278,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=2760").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=2790").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -4438,9 +4438,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       drawHutPins();
       [skiLayer, hutLayer, hutNames, hutPins, pinLayer, parkLayer, mineLayer, clubLayer, hoverLayer, snowLayer, aboveLayer, plan.layer].forEach((l) => map.removeLayer(l));
     }
-    // The map's ▶ Ride button records a ski tour in Skiing (navigate.js).
+    // The map's ▶ Ride button records a ski tour in Skiing (navigate.js). The same word as the phone's tab: Ride in
+    // the riding sports, Record in the others (interface review 2026-11-02 item 6; Hunting and Fishing said Ride).
     const rideBtn = document.getElementById("navRideBtn");
-    if (rideBtn) rideBtn.textContent = sport === "ski" ? "▶ Record" : sport === "hike" ? "▶ Hike" : "▶ Ride";
+    if (rideBtn) rideBtn.textContent = sport === "mtb" || sport === "moto" ? "▶ Ride" : "▶ Record";
     refreshAvy(); refreshHeat(); refreshSlope(); refreshTerrainLayers(); refreshMoreLayers();
     map.invalidateSize({ pan: false });   // the map is wider in Skiing and Hunting on a wide desktop (no results column)
     window.dispatchEvent(new CustomEvent("tf:sport", { detail: sport }));
@@ -4452,6 +4453,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // chip of the map's chip row, on wide screens it sits at the top of the map tools; the same on the 3D map.
   // [icon, name, short name for the map button when the name is too long for it]
   const SPORT_UI = { mtb: ["🚵", "MTB"], ski: ["⛷", "Skiing"], hunt: ["🦌", "Hunting"], fish: ["🎣", "Fishing"], moto: ["🏍", "Adventure moto", "Moto"], hike: ["🥾", "Hiking"] };
+  // Line drawings like Layers, 3D and Me beside it (line-icons.js; interface review 2026-11-02 item 8).
+  const line = (e, size) => (window.tfLine ? window.tfLine(e, size) : e);
   const tools = document.querySelector(".map-tools");
   let sportBtn = null, sportMenu = null;
   if (tools) {
@@ -4462,7 +4465,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     sportMenu.className = "sport-menu"; sportMenu.id = "sportMenu"; sportMenu.hidden = true;
     sportMenu.setAttribute("role", "radiogroup"); sportMenu.setAttribute("aria-label", "Sport");
     sportMenu.innerHTML = `<div class="spm-head">Sport</div>` + SPORTS.map((s) =>
-      `<button type="button" role="radio" data-sport="${s}" aria-checked="false"><span aria-hidden="true">${SPORT_UI[s][0]}</span>${SPORT_UI[s][1]}</button>`).join("");
+      `<button type="button" role="radio" data-sport="${s}" aria-checked="false"><span aria-hidden="true">${line(SPORT_UI[s][0], 22)}</span>${SPORT_UI[s][1]}</button>`).join("");
     tools.prepend(sportBtn, sportMenu);
     const setOpen = (open) => {
       sportMenu.hidden = !open;
@@ -4488,7 +4491,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const syncSportBtn = () => {
     if (!sportBtn) return;
     const [icon, name, short] = SPORT_UI[sport];
-    sportBtn.innerHTML = `<span class="spb-i" aria-hidden="true">${icon}</span><span class="spb-l" aria-hidden="true">${short || name}</span><span class="spb-c" aria-hidden="true">▾</span>`;
+    sportBtn.innerHTML = `<span class="spb-i" aria-hidden="true">${line(icon, 24)}</span><span class="spb-l" aria-hidden="true">${short || name}</span><span class="spb-c" aria-hidden="true">▾</span>`;
     sportBtn.setAttribute("aria-label", `Sport: ${name}. Change sport`);
     sportBtn.title = `Sport: ${name} (tap to change)`;
     sportMenu.querySelectorAll("button[data-sport]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.sport === sport)));
