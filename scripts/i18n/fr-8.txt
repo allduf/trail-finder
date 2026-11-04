@@ -68,3 +68,9 @@ Skiing Plan a tour: drag the end of a line you added along it and the line stops
 Skiing Plan a tour: the list of your points (Start, 1, 2 … End) is always shown under Undo and Clear, with the safest way on or off, so you can reorder or delete points any time. ||| Ski, Planifier une sortie : la liste de vos points (Départ, 1, 2 … Fin) est toujours affichée sous Annuler et Effacer, avec le trajet le plus sûr activé ou non, pour réordonner ou supprimer des points en tout temps.
 Your points ||| Vos points
 Skiing Safest way: the route no longer breaks off near your points (each piece now starts and ends right on them), and Your route shows the same distance and climb as the summary above it. ||| Ski, trajet le plus sûr : le trajet ne s'interrompt plus près de vos points (chaque morceau commence et finit pile sur eux), et Votre trajet montre la même distance et la même montée que le résumé au-dessus.
+# Offline maps need an account (account.js, offline.js, hunting.js, 2026-11-04)
+Sign in to save maps offline ||| Connectez-vous pour enregistrer des cartes hors ligne
+You need a free account for this. ||| Il vous faut un compte gratuit pour ceci.
+Saving maps for no signal needs a free account. Sign in or create one, and the save starts right after. ||| Enregistrer des cartes pour les endroits sans réseau demande un compte gratuit. Connectez-vous ou créez-en un, et l'enregistrement commence tout de suite après.
+Saving needs a free account: you'll be asked to sign in first. ||| L'enregistrement demande un compte gratuit : on vous demandera de vous connecter d'abord.
+Offline maps now need a free account: tap Save and you'll be asked to sign in first, then the save starts. Maps you already saved keep working with no signal. ||| Les cartes hors ligne demandent maintenant un compte gratuit : touchez Enregistrer, on vous demandera de vous connecter, puis l'enregistrement commence. Les cartes déjà enregistrées marchent toujours sans réseau.

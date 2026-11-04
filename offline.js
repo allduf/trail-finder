@@ -129,6 +129,7 @@
 <div data-new><input data-name maxlength="60" aria-label="Name for this area">
 <label class="d3"><input type="checkbox" data-3d> <span data-3d-label>3D map too</span></label><p data-est></p>
 <div class="row"><button class="btn primary" type="button" data-save>Save this area</button><button class="btn" type="button" data-draw>▭ Pick a square</button></div>
+<p class="muted" data-needacct hidden>Saving needs a free account: you'll be asked to sign in first.</p>
 <p class="muted" data-drawn hidden>Saving the square you picked. <button type="button" class="linkish" data-undraw>Use the screen instead</button></p>
 <div class="off-state" data-state hidden><b data-st-head></b><div class="bar"><i></i></div><p data-prog></p><div class="row" data-st-acts></div></div></div>
 <h3 data-saved-h hidden>Saved areas</h3><ul data-list></ul><p class="muted" data-use></p>`;
@@ -197,6 +198,7 @@
     btn.classList.toggle("on", on);
     btn.setAttribute("aria-pressed", on);
     if (on) {
+      const A = window.tfAccount; $("[data-needacct]").hidden = !A || !A.require || !!(A.user || A.savedSession);
       drawnLayer.addTo(map); $("[data-name]").value = suggestName(); sportText(); renderList(); estimate();
       if (!busy) $("[data-state]").hidden = true;
       setTimeout(autoFinish, 1500);
@@ -204,6 +206,7 @@
     drawOutlines();
   }
   btn.addEventListener("click", () => open(card.hidden));
+  window.addEventListener("tf:account", (e) => { if (e.detail) $("[data-needacct]").hidden = true; });
   // The card's words follow the sport, so no bike words in Skiing, Hunting or Fishing.
   function sportText() {
     const s = sportNow();
@@ -542,9 +545,14 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
   window.addEventListener("online", () => autoLater(3000));
   if (load().some((a) => a.missing || needsRing(a))) autoLater(20000);   // left unfinished last time: try again once the page has settled
 
+  const needAccount = () => (window.tfAccount && window.tfAccount.require ? window.tfAccount.require("Saving maps for no signal needs a free account. Sign in or create one, and the save starts right after.") : Promise.resolve(true));
   // Save (or finish saving) an area. Anything downloaded goes in the list, even when the save is stopped or some
   // files never come, so it can always be finished or deleted from there. auto: a try no one tapped (autoFinish).
   async function saveArea(box, name, id, boxes, auto) {
+    if (busy) return;
+    // A new save needs an account (alex 2026-11-04). Finishing an area already saved never asks, and saved areas
+    // always work with no signal, signed in or not.
+    if (!auto && !id && !(await needAccount())) return;
     if (busy) return;
     busy = { stop: false, pct: 0 };
     savingName = name;
