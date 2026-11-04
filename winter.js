@@ -1291,7 +1291,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=2940").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=2980").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2503,7 +2503,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ${sum}
       <div class="sk-row"><button type="button" class="btn sk-safebtn" id="skSafeBtn" aria-pressed="${plan.safe}">${plan.safe ? "🛡 Safest way: on" : "🛡 Find the safest way"}</button></div>
       ${safeHtml()}
-      <div class="sk-row">${plan.on && n ? `<button type="button" class="btn" id="skPlanUndo">↶ Undo</button>` : ""}${n ? `<button type="button" class="btn" id="skPlanClear">Clear</button>` : ""}${!plan.on && n > 1 ? `<button type="button" class="btn" id="skPlanShow">Show details</button>` : ""}</div>`;
+      <div class="sk-row">${plan.on && n ? `<button type="button" class="btn" id="skPlanUndo">↶ Undo</button>` : ""}${n ? `<button type="button" class="btn" id="skPlanClear">Clear</button>` : ""}${!plan.on && n > 1 ? `<button type="button" class="btn" id="skPlanShow">Show details</button>` : ""}</div>
+      ${safePath() ? "" : ptsHtml()}`;
     const u = $("skPlanUndo"); if (u) u.addEventListener("click", planUndo);
     const c = $("skPlanClear"); if (c) c.addEventListener("click", () => { if (plan.pts.length > 2 && !confirm("Clear your planned tour?")) return; snap(); plan.pts = []; planChanged(); });
     const sh = $("skPlanShow"); if (sh) sh.addEventListener("click", () => { const r = planRoute(); if (r) select(r, true); });
@@ -2731,6 +2732,22 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return `<div class="sk-sec"><h4>Your route</h4>${sum}${via}<ol class="ss-list">${html}</ol></div>`;
   }
 
+  // The tour's points, always in sight under Undo and Clear (alex 2026-11-04: "WE SHOULD BE ABLE TO SEE THE LIST AT
+  // ALL TIME"): while the safest way is worked out, with it off, or when it couldn't be found. Same rows and buttons
+  // (move up/down, delete, tap to go there) as the step list the safest way shows.
+  function ptsHtml() {
+    const n = plan.pts.length;
+    if (!n) return "";
+    const svg = (d) => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+    const up = svg('<path d="M8 13V3M4 7l4-4 4 4"/>'), dn = svg('<path d="M8 3v10M4 9l4 4 4-4"/>'), del = svg('<path d="M4 4l8 8M12 4l-8 8"/>'), flag = svg('<path d="M4 14V2.5h8l-2 3 2 3H4"/>');
+    const km = (m) => (m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`);
+    const rows = plan.pts.map((q, i) => {
+      const mid = i > 0 && i < n - 1, name = ptName(i, n), o = q[2];
+      const leg = i ? (o && o.via ? `along ${o.name || "the line"}` : `${km(map.distance([plan.pts[i - 1][0], plan.pts[i - 1][1]], [q[0], q[1]]))} from ${ptName(i - 1, n)}`) : "";
+      return `<li class="ss-pt" data-safe-at="${q[0]},${q[1]}"><span class="ss-pin${mid ? "" : " end"}">${mid ? i : flag}</span><span class="ss-t"><b>${esc(name)}</b>${leg ? `<small>${esc(leg)}</small>` : ""}</span><span class="ss-mv">${i > 0 ? `<button type="button" data-mv="${i},-1" aria-label="Move ${esc(name)} up">${up}</button>` : ""}${i < n - 1 ? `<button type="button" data-mv="${i},1" aria-label="Move ${esc(name)} down">${dn}</button>` : ""}<button type="button" class="ss-del" data-del="${i}" aria-label="Delete ${esc(name)}">${del}</button></span></li>`;
+    }).join("");
+    return `<div class="sk-sec sk-pts"><h4>Your points</h4><ol class="ss-list">${rows}</ol></div>`;
+  }
   function safeHtml() {
     if (!plan.safe) return "";
     if (plan.wait) return `<div class="sk-safe"><div class="sk-safe-wait">${esc(plan.wait)}</div></div>`;
@@ -4509,7 +4526,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const tiles = [];
     for (let z = 10; z <= OFFLINE_DEM_Z; z++) for (let x = tx(box[1], z); x <= tx(box[3], z); x++) for (let y = ty(box[2], z); y <= ty(box[0], z); y++) tiles.push(DEM(z, x, y));
     const can = Object.entries(canIdx?.tiles || {}).filter(([, t]) => t.box[0] <= box[2] && t.box[2] >= box[0] && t.box[1] <= box[3] && t.box[3] >= box[1]).map(([k]) => k);
-    const data = [...["ski", "ski-terrain", "avalanche", "avalanche-reports", "snow-stations", "snowmobile-clubs", "grooming", "ski-heat", "rogers-pass", "rogers-status", "freeride-lines"].map((n) => "data/" + n), ...CAN_DIRS.map((d) => d + "index"), ...can].map((n) => new URL(`${n}.json`, location.href).href);
+    const data = [...["ski", "ski-terrain", "avalanche", "avalanche-reports", "snow-stations", "snowmobile-clubs", "grooming", "ski-heat", "rogers-pass", "rogers-status", "freeride-lines", "slackcountry"].map((n) => "data/" + n), ...CAN_DIRS.map((d) => d + "index"), ...can].map((n) => new URL(`${n}.json`, location.href).href);
     return { data, tiles };
   };
 
