@@ -183,12 +183,27 @@ body:not(.sport-hike) #hikePane, body:not(.sport-hike) .leaflet-hike-pane { disp
 #hikePane .hk-along li .hk-dot { transform: translateY(1px); }
 #hikePane .hk-along small { color: var(--muted); }
 #hikePane .hk-today-h { margin: 6px 0 0; font-size: .74rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-body:not(.sport-hike) .lm-hike, body.sport-hike #accessBtn, body:not(.hk-planning) #hkPlanBar { display: none !important; }
+body:not(.sport-hike) .lm-hike, body:not(.sport-hike) .hk-mapkey, body.sport-hike #accessBtn, body:not(.hk-planning) #hkPlanBar { display: none !important; }
 #hkPlanBar { position: fixed; z-index: 1200; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 72px); width: min(560px, calc(100% - 24px)); box-sizing: border-box;
   display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px; border-radius: 14px; background: var(--panel); color: var(--fg); box-shadow: 0 4px 16px #0003; font-size: .84rem; }
 #hkPlanBar span { flex: 1; min-width: 0; }
 #hkPlanBar button { font: inherit; font-weight: 700; font-size: .8rem; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
 #hkPlanBar button.go { background: ${ACC}; border-color: ${ACC}; color: #fff; }
+.hk-mapkey .hk-keybtn { font: inherit; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; border-radius: 999px; border: 0; background: #fff; color: #212529; box-shadow: 0 1px 4px #0004; cursor: pointer; font-size: 12px; }
+.hk-mapkey .hk-keybtn svg { color: ${ACC}; }
+.hk-mapkey .hk-keybox { margin-top: 6px; background: #fff; color: #212529; border-radius: 12px; padding: 8px 10px; box-shadow: 0 2px 10px #0004; width: min(240px, calc(100vw - 40px)); max-height: 45vh; overflow: auto; font: 500 11px/1.35 var(--font-body, system-ui); }
+.hk-mapkey .hk-keybox b { display: block; margin: 4px 0 2px; font-size: 11px; }
+.hk-mapkey .hk-keybox i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; margin-right: 6px; vertical-align: 2px; }
+.hk-mapkey .hk-keybox i.dash { background: repeating-linear-gradient(90deg, var(--c) 0 5px, transparent 5px 8px) !important; }
+.hk-mapkey .hk-keybox i.d { width: 10px; height: 10px; border-radius: 50%; vertical-align: -1px; border: 1.5px solid #fff; box-shadow: 0 0 0 1px #0002; }
+.hk-mapkey .hk-keybox i.box { height: 10px; vertical-align: -1px; }
+.hk-mapkey .hk-keybox p { margin: 6px 0 0; color: #666; }
+.mapwrap.is3d .hk-mapkey { margin-bottom: 46px; }
+#hikePane ul.hk-list li.hk-wait { display: grid; gap: 6px; padding: 11px 2px; border-bottom: 1px solid var(--line); }
+#hikePane ul.hk-list li.hk-wait span { display: block; height: 11px; width: 62%; border-radius: 6px; background: linear-gradient(90deg, var(--chip) 0 40%, var(--line) 50%, var(--chip) 60% 100%) 0 0 / 300% 100%; animation: hkWait 1.4s linear infinite; }
+#hikePane ul.hk-list li.hk-wait span + span { width: 38%; height: 9px; }
+@keyframes hkWait { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { #hikePane ul.hk-list li.hk-wait span { animation: none; } }
 .lm-hike { display: flex; flex-direction: column; }
 .lm-hike .hk-group { margin: 0; font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-top: 6px; }
 .lm-hike .hk-layer { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 5px 0; cursor: pointer; }
@@ -676,7 +691,31 @@ out center tags qt;`;
     want(placeLayer, on); want(slopeLayer, on && shown.has("slope")); want(planLayer, on);
     if (!on && plan.on) setPlanning(false);
     if (on && shown.has("sleep")) loadHuts();
-    drawPlaces(); renderLayers();
+    if (on && !keyCtl._map) keyCtl.addTo(map); else if (!on && keyCtl._map) keyCtl.remove();
+    drawPlaces(); renderLayers(); renderKey();
+  }
+
+  // ---------- map key ----------
+  // "Key", bottom left, like every other sport (interface review 2026-11-02, item 6: Hiking had none): what the trail
+  // colours and the dots mean, for the layers that are on.
+  const keyCtl = L.control({ position: "bottomleft" });
+  keyCtl.onAdd = () => {
+    const d = L.DomUtil.create("div", "hk-mapkey");
+    L.DomEvent.disableClickPropagation(d); L.DomEvent.disableScrollPropagation(d);
+    d.innerHTML = `<button type="button" class="hk-keybtn" aria-expanded="false">${svg('<path d="M12 3 2 8l10 5 10-5z M2 13l10 5 10-5 M2 17.5l10 5 10-5"/>', 16)}Key</button><div class="hk-keybox" hidden></div>`;
+    d.querySelector("button").addEventListener("click", (e) => { const box = d.querySelector(".hk-keybox"); box.hidden = !box.hidden; e.currentTarget.setAttribute("aria-expanded", String(!box.hidden)); renderKey(); });
+    return d;
+  };
+  function renderKey() {
+    const box = document.querySelector(".hk-mapkey .hk-keybox");
+    if (!box || box.hidden) return;
+    const line = (c, dash) => `<i class="${dash ? "dash" : ""}" style="--c:${c};background:${c}"></i>`, dot = (c) => `<i class="d" style="background:${c}"></i>`;
+    const places = Object.values(PLACES).filter((p) => p.layer && shown.has(p.layer));
+    box.innerHTML = (shown.has("trails") ? `<b>Hiking trails, by grade</b>${GRADES.slice(1).map((g, i) => `<div>${line(g.c, i === 3)}${esc(g.label)}</div>`).join("")}<div>${line(GRADES[0].c)}${esc(GRADES[0].label)}</div><div>${line("#8d6e46", true)}Other paths</div>` : "")
+      + (places.length ? `<b>Places</b>${places.map((p) => `<div>${dot(p.c)}${esc(p.label)}</div>`).join("")}` : "")
+      + (shown.has("slope") ? `<b>Slope angle</b><div><i class="box" style="background:#facc15"></i>25-35°</div><div><i class="box" style="background:#f08c00"></i>35-45°</div><div><i class="box" style="background:#e03131"></i>Over 45°</div>` : "")
+      + (plan.route || plan.pts.length ? `<b>Your plan</b><div>${line("#d6336c")}Planned hike</div>` : "")
+      + (map.getZoom() < MIN_ZOOM ? `<p>Zoom in to see the trails.</p>` : "") + `<p>Tap any line or dot on the map to see what it is.</p>`;
   }
 
   // ---------- hikes in view ----------
@@ -711,6 +750,8 @@ out center tags qt;`;
     const left = pending();
     msg.textContent = left > 0 && fails && !all.length ? "OpenStreetMap's trail server is busy. Trying again…" : left > 0 ? (all.length ? "Finding more hiking trails…" : "Finding the hiking trails here…")
       : !all.length ? "No named hiking trails here on OpenStreetMap." : !list.length ? "None of that grade in view." : list.length > 40 ? "Nearest 40 shown: zoom in for the rest." : "";
+    // Still finding them: grey rows where the hikes will be, not an empty card (interface review 2026-11-02 item 7).
+    if (left > 0 && !all.length) { ul.innerHTML = `<li class="hk-wait" aria-hidden="true"><span></span><span></span></li>`.repeat(4); return; }
     ul.innerHTML = list.slice(0, 40).map((h) => `<li><button type="button" data-hike="${esc(h.id)}"><span class="hk-dot" style="--c:${GRADES[h.g].c}"></span><b>${esc(h.name)}</b><small>${esc(subOf(h))}</small><em>${saved().some((s) => s.id === h.id) ? "★" : ""}</em></button></li>`).join("");
   }
   $("hkList").addEventListener("click", (e) => { const b = e.target.closest("[data-hike]"); if (b) openHike(b.dataset.hike, true); });
@@ -864,7 +905,7 @@ out center tags qt;`;
   // alex 2026-11-03: anything found about a trail beyond OpenStreetMap goes on the trail (the Sea to Sky Gondola's
   // trails: difficulty, length, time, what it's like). An entry fits a hike with one of its names within r metres.
   let tInfo = null;
-  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=2745").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
+  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=2770").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
   const fold = (x) => String(x || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   function operatorFacts(h) {
     const j = tInfo && tInfo.then ? null : tInfo;

@@ -422,6 +422,13 @@ body.sport-alt .layers-menu .lm-looks, body.sport-alt .layers-menu .lm-looks-hea
   /* quick searches under it, one row that scrolls sideways */
   body:not(.sport-alt) .peek-quick { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px 4px; }
   .peek-quick::-webkit-scrollbar { display: none; }
+  /* the row scrolls sideways: its edge fades where there's more, so the last button doesn't look cut ("Mud tod") */
+  .peek-quick.fade-r { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); }
+  .peek-quick.fade-l { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 48px), transparent); }
+  .sport-wait:not([hidden]) { display: flex; align-items: center; gap: 10px; margin: 18px 0; color: var(--muted); font-weight: 600; }
+  .sport-wait .sw-spin { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--line); border-top-color: var(--accent); animation: swSpin .8s linear infinite; }
+  @keyframes swSpin { to { transform: rotate(360deg); } }
+  .peek-quick.fade-l.fade-r { -webkit-mask-image: linear-gradient(to right, transparent, #000 48px, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(to right, transparent, #000 48px, #000 calc(100% - 48px), transparent); }
   .peek-quick button {
     flex: none; min-height: 40px; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border-radius: 999px;
     font: inherit; font-size: .9rem; font-weight: 600; color: var(--fg); background: var(--panel); border: 1px solid var(--line); cursor: pointer;

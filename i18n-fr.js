@@ -1895,7 +1895,16 @@
     "Not on the list?":"Pas dans la liste?",
     "Type another town or area…":"Taper une autre ville ou zone…",
     "look in another place":"chercher ailleurs",
-    "Area not on the list? Pick “Type another town or area…” at the bottom of the Area list and type any town or riding area in Canada, like Cumberland. New trails and trail name searches then look there.":"Zone pas dans la liste? Choisissez « Taper une autre ville ou zone… » au bas de la liste des zones et tapez n'importe quelle ville ou secteur de vélo au Canada, comme Cumberland. Les nouveaux sentiers et la recherche par nom regardent alors là."};
+    "Area not on the list? Pick “Type another town or area…” at the bottom of the Area list and type any town or riding area in Canada, like Cumberland. New trails and trail name searches then look there.":"Zone pas dans la liste? Choisissez « Taper une autre ville ou zone… » au bas de la liste des zones et tapez n'importe quelle ville ou secteur de vélo au Canada, comme Cumberland. Les nouveaux sentiers et la recherche par nom regardent alors là.",
+    "empty":"vide",
+    "Hiking trails, by grade":"Sentiers de randonnée, par niveau",
+    "Other paths":"Autres chemins",
+    "Your plan":"Votre plan",
+    "Planned hike":"Rando planifiée",
+    "Over 45°":"Plus de 45°",
+    "Zoom in to see the trails.":"Zoomez pour voir les sentiers.",
+    "Tap any line or dot on the map to see what it is.":"Touchez une ligne ou un point sur la carte pour voir ce que c'est.",
+    "Cleaner look: one style of icons everywhere, a Key in Hiking, and the Record tab named the same in Skiing, Hunting, Fishing and Hiking.":"Un look plus net : un seul style d'icônes partout, une légende en randonnée, et l'onglet Enregistrer nommé pareil en ski, chasse, pêche et randonnée."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
