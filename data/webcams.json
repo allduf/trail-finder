@@ -134,7 +134,7 @@
   "tremblant": {
    "name": "Tremblant",
    "page": "https://www.tremblant.ca/mountain-village/mountain-report/webcams",
-   "credit": "Tremblant"
+   "credit": "Tremblant, streamed by Skaping"
   },
   "msa": {
    "name": "Mont-Sainte-Anne",
@@ -144,17 +144,17 @@
   "bromont": {
    "name": "Bromont, montagne d'expériences",
    "page": "https://www.bromontmontagne.com/en/webcams/",
-   "credit": "Bromont, montagne d'expériences"
+   "credit": "Bromont, montagne d'expériences, streamed by Skaping"
   },
   "owlshead": {
    "name": "Owl's Head",
    "page": "https://www.owlshead.com/en/webcams",
-   "credit": "Owl's Head"
+   "credit": "Owl's Head, streamed by IPCamLive"
   },
   "bluemtn": {
    "name": "Blue Mountain Resort",
    "page": "https://www.bluemountain.ca/mountain/webcams",
-   "credit": "Blue Mountain Resort"
+   "credit": "Blue Mountain Resort, streamed by Skaping"
   },
   "wentworth": {
    "name": "Ski Wentworth",
@@ -215,6 +215,91 @@
    "name": "Sea to Sky Gondola",
    "page": "https://www.seatoskygondola.com/weather-and-cams/",
    "credit": "Sea to Sky Gondola"
+  },
+  "sommets": {
+   "name": "Sommet Saint-Sauveur",
+   "page": "https://www.sommets.com/fr/webcams/",
+   "credit": "Les Sommets, streamed by Skaping"
+  },
+  "edelweiss": {
+   "name": "Sommet Edelweiss",
+   "page": "https://www.sommets.com/fr/webcams/",
+   "credit": "Les Sommets, streamed by Skaping"
+  },
+  "montblanc": {
+   "name": "Ski Mont Blanc",
+   "page": "https://skimontblanc.com/",
+   "credit": "Ski Mont Blanc, streamed by Skaping"
+  },
+  "massif": {
+   "name": "Le Massif de Charlevoix",
+   "page": "https://www.lemassif.com/fr/montagne/hiver/neige-meteo-et-webcams",
+   "credit": "Le Massif de Charlevoix, streamed by Skaping"
+  },
+  "orford": {
+   "name": "Mont Orford",
+   "page": "https://montorford.com/fr-ca/hiver/services/cameras/",
+   "credit": "Mont Orford, streamed by IPCamLive"
+  },
+  "msl": {
+   "name": "Mount St. Louis Moonstone",
+   "page": "https://www.mountstlouis.com/webcams/",
+   "credit": "Mount St. Louis Moonstone"
+  },
+  "rigaud": {
+   "name": "Ski Mont Rigaud",
+   "page": "https://www.skaping.com/mont-rigaud/base-montagne",
+   "credit": "Ski Mont Rigaud, streamed by Skaping"
+  },
+  "grandfonds": {
+   "name": "Mont Grand-Fonds",
+   "page": "https://www.skaping.com/mont-grand-fonds/base",
+   "credit": "Mont Grand-Fonds, streamed by Skaping"
+  },
+  "edouard": {
+   "name": "Mont-Édouard",
+   "page": "https://www.skaping.com/mont-edouard/base",
+   "credit": "Mont-Édouard, streamed by Skaping"
+  },
+  "adstock": {
+   "name": "Mont Adstock",
+   "page": "https://www.skaping.com/mont-adstock/sommet",
+   "credit": "Mont Adstock, streamed by Skaping"
+  },
+  "stbruno": {
+   "name": "Ski Mont Saint-Bruno",
+   "page": "https://www.skaping.com/ski-saint-bruno/chalet-base",
+   "credit": "Ski Mont Saint-Bruno, streamed by Skaping"
+  },
+  "pinrouge": {
+   "name": "Pin Rouge",
+   "page": "https://www.skaping.com/tourisme-gaspesie/pin-rouge",
+   "credit": "Tourisme Gaspésie, streamed by Skaping"
+  },
+  "valirene": {
+   "name": "Val-d'Irène",
+   "page": "https://www.skaping.com/tourisme-gaspesie/val-irene",
+   "credit": "Tourisme Gaspésie, streamed by Skaping"
+  },
+  "stjoseph": {
+   "name": "Mont Saint-Joseph",
+   "page": "https://www.skaping.com/tourisme-gaspesie/mont-saint-joseph",
+   "credit": "Tourisme Gaspésie, streamed by Skaping"
+  },
+  "chicchac": {
+   "name": "Chic-Chac",
+   "page": "https://www.skaping.com/tourisme-gaspesie/chicchac",
+   "credit": "Tourisme Gaspésie, streamed by Skaping"
+  },
+  "sepaq": {
+   "name": "Parc national de la Gaspésie",
+   "page": "https://www.skaping.com/tourisme-gaspesie/avalanche-quebec",
+   "credit": "Tourisme Gaspésie, streamed by Skaping"
+  },
+  "capesmokey": {
+   "name": "Ski Cape Smokey",
+   "page": "https://www.skaping.com/cape-smokey",
+   "credit": "Ski Cape Smokey, streamed by Skaping"
   }
  },
  "cams": [
@@ -1847,50 +1932,6 @@
    "page": "https://www.drivebc.ca/cameras/1159"
   },
   {
-   "id": "tremblant-cams",
-   "owner": "tremblant",
-   "resort": "Tremblant",
-   "kind": "resort",
-   "name": "Tremblant webcams",
-   "view": "The resort's live cameras (on its own page)",
-   "lat": 46.2097,
-   "lon": -74.585,
-   "where": "Resort base, approximate spot"
-  },
-  {
-   "id": "bromont-cams",
-   "owner": "bromont",
-   "resort": "Bromont",
-   "kind": "resort",
-   "name": "Bromont webcams",
-   "view": "The resort's live cameras (on its own page)",
-   "lat": 45.3165,
-   "lon": -72.651,
-   "where": "Resort base, approximate spot"
-  },
-  {
-   "id": "owlshead-cams",
-   "owner": "owlshead",
-   "resort": "Owl's Head",
-   "kind": "resort",
-   "name": "Owl's Head webcams",
-   "view": "The resort's live cameras (on its own page)",
-   "lat": 45.0604,
-   "lon": -72.3131,
-   "where": "Resort base, approximate spot"
-  },
-  {
-   "id": "bluemtn-cams",
-   "owner": "bluemtn",
-   "resort": "Blue Mountain",
-   "kind": "resort",
-   "name": "Blue Mountain webcams",
-   "view": "The resort's live cameras (on its own page)",
-   "lat": 44.5015,
-   "lon": -80.311,
-   "where": "Resort base, approximate spot"
-  },
-  {
    "id": "wentworth-cams",
    "owner": "wentworth",
    "resort": "Ski Wentworth",
@@ -2842,6 +2883,551 @@
    "ele": 885,
    "where": "Summit Lodge",
    "page": "https://www.seatoskygondola.com/weather-and-cams/"
+  },
+  {
+   "id": "tremblant-pic-flying-mile",
+   "owner": "tremblant",
+   "resort": "Tremblant",
+   "kind": "resort",
+   "name": "Pic Flying Mile",
+   "view": "South side, from the top of Flying Mile",
+   "lat": 46.22057,
+   "lon": -74.57289,
+   "ele": 583,
+   "where": "Top of Flying Mile Express",
+   "embed": "https://www.skaping.com/tremblant/pic-flying-mile"
+  },
+  {
+   "id": "tremblant-versant-sud",
+   "owner": "tremblant",
+   "resort": "Tremblant",
+   "kind": "resort",
+   "name": "Versant Sud",
+   "view": "The south side",
+   "lat": 46.21394,
+   "lon": -74.58452,
+   "ele": 263,
+   "where": "South side base (approximate spot)",
+   "embed": "https://www.skaping.com/tremblant/versant-sud"
+  },
+  {
+   "id": "bluemtn-village",
+   "owner": "bluemtn",
+   "resort": "Blue Mountain",
+   "kind": "resort",
+   "name": "Village",
+   "view": "The Village at the base",
+   "lat": 44.50219,
+   "lon": -80.31319,
+   "ele": 233,
+   "where": "Village base (approximate spot)",
+   "embed": "https://www.skaping.com/blue-mountain/village"
+  },
+  {
+   "id": "bluemtn-mountain-top",
+   "owner": "bluemtn",
+   "resort": "Blue Mountain",
+   "kind": "resort",
+   "name": "Mountain Top",
+   "view": "From the top of the escarpment",
+   "lat": 44.49207,
+   "lon": -80.31727,
+   "ele": 451,
+   "where": "Top of Southern Comfort Express",
+   "embed": "https://www.skaping.com/blue-mountain/mountain-top"
+  },
+  {
+   "id": "bromont-panoramique-sommet",
+   "owner": "bromont",
+   "resort": "Bromont",
+   "kind": "resort",
+   "name": "Panoramique sommet",
+   "view": "Panorama from the summit",
+   "lat": 45.28987,
+   "lon": -72.63734,
+   "ele": 535,
+   "where": "Top of 3 (La Directe)",
+   "embed": "https://www.skaping.com/bromont/panoramique-sommet"
+  },
+  {
+   "id": "bromont-village",
+   "owner": "bromont",
+   "resort": "Bromont",
+   "kind": "resort",
+   "name": "Village",
+   "view": "The base village",
+   "lat": 45.30073,
+   "lon": -72.63684,
+   "ele": 196,
+   "where": "Base of 4 (L'Express du Village)",
+   "embed": "https://www.skaping.com/bromont/village"
+  },
+  {
+   "id": "bromont-rm-2-mont-soleil",
+   "owner": "bromont",
+   "resort": "Bromont",
+   "kind": "resort",
+   "name": "RM 2 (Mont Soleil)",
+   "view": "Lift 2, Mont Soleil",
+   "lat": 45.30114,
+   "lon": -72.62823,
+   "ele": 306,
+   "where": "Top of 2 (Mt Soleil)",
+   "embed": "https://www.skaping.com/bromont/rm-2"
+  },
+  {
+   "id": "bromont-rm-4-express-du-village",
+   "owner": "bromont",
+   "resort": "Bromont",
+   "kind": "resort",
+   "name": "RM 4 (Express du Village)",
+   "view": "Lift 4",
+   "lat": 45.28951,
+   "lon": -72.63766,
+   "ele": 531,
+   "where": "Top of 4 (L'Express du Village)",
+   "embed": "https://www.skaping.com/bromont/rm-4"
+  },
+  {
+   "id": "bromont-express-du-lac",
+   "owner": "bromont",
+   "resort": "Bromont",
+   "kind": "resort",
+   "name": "Express du Lac",
+   "view": "Lift 5, Express du Lac",
+   "lat": 45.28927,
+   "lon": -72.63704,
+   "ele": 535,
+   "where": "Top of 5 (L'Express du Lac)",
+   "embed": "https://www.skaping.com/bromont/rm-5"
+  },
+  {
+   "id": "bromont-rm-6-express-des-epinettes",
+   "owner": "bromont",
+   "resort": "Bromont",
+   "kind": "resort",
+   "name": "RM 6 (Express des Épinettes)",
+   "view": "Lift 6",
+   "lat": 45.28238,
+   "lon": -72.63301,
+   "ele": 490,
+   "where": "Top of 6 (Express des Épinettes)",
+   "embed": "https://www.skaping.com/bromont/rm-6"
+  },
+  {
+   "id": "sommets-sommet-express",
+   "owner": "sommets",
+   "resort": "Sommet Saint-Sauveur",
+   "kind": "resort",
+   "name": "Sommet Express",
+   "view": "The Sommet Express chair",
+   "lat": 45.87771,
+   "lon": -74.14533,
+   "ele": 395,
+   "where": "Top of Sommet Express",
+   "embed": "https://www.skaping.com/les-sommets-saint-sauveur/remontee"
+  },
+  {
+   "id": "sommets-piste-70",
+   "owner": "sommets",
+   "resort": "Sommet Saint-Sauveur",
+   "kind": "resort",
+   "name": "Piste 70",
+   "view": "The main run, Piste 70",
+   "lat": 45.88353,
+   "lon": -74.15556,
+   "ele": 203,
+   "where": "Piste 70 (approximate spot)",
+   "embed": "https://www.skaping.com/les-sommets-saint-sauveur/piste-principale"
+  },
+  {
+   "id": "sommets-pavillon-principal",
+   "owner": "sommets",
+   "resort": "Sommet Saint-Sauveur",
+   "kind": "resort",
+   "name": "Pavillon principal",
+   "view": "The main lodge at the base",
+   "lat": 45.88515,
+   "lon": -74.1499,
+   "ele": 204,
+   "where": "Main lodge (approximate spot)",
+   "embed": "https://www.skaping.com/les-sommets-saint-sauveur/pavillon-principal"
+  },
+  {
+   "id": "sommets-parc-f-u-n",
+   "owner": "sommets",
+   "resort": "Sommet Saint-Sauveur",
+   "kind": "resort",
+   "name": "Parc F.U.N.",
+   "view": "The terrain park",
+   "lat": 45.8806,
+   "lon": -74.17539,
+   "ele": 206,
+   "where": "Terrain park (approximate spot)",
+   "embed": "https://www.skaping.com/les-sommets-saint-sauveur/parc-fun"
+  },
+  {
+   "id": "sommets-versant-avila",
+   "owner": "sommets",
+   "resort": "Sommet Saint-Sauveur",
+   "kind": "resort",
+   "name": "Versant Avila",
+   "view": "The Avila side",
+   "lat": 45.88515,
+   "lon": -74.1345,
+   "ele": 200,
+   "where": "Base of Avila Express",
+   "embed": "https://www.skaping.com/les-sommets-saint-sauveur/versant-avila"
+  },
+  {
+   "id": "edelweiss-base",
+   "owner": "edelweiss",
+   "resort": "Sommet Edelweiss",
+   "kind": "resort",
+   "name": "Base",
+   "view": "The base area",
+   "lat": 45.64547,
+   "lon": -75.8508,
+   "ele": 156,
+   "where": "Base of Edelbahn Express",
+   "embed": "https://www.skaping.com/les-sommets-edelweiss/base"
+  },
+  {
+   "id": "montblanc-base",
+   "owner": "montblanc",
+   "resort": "Ski Mont Blanc",
+   "kind": "resort",
+   "name": "Base",
+   "view": "The base area",
+   "lat": 46.10864,
+   "lon": -74.48339,
+   "ele": 369,
+   "where": "Base of Quad Blanc",
+   "embed": "https://www.skaping.com/ski-mont-blanc/base"
+  },
+  {
+   "id": "montblanc-sommet",
+   "owner": "montblanc",
+   "resort": "Ski Mont Blanc",
+   "kind": "resort",
+   "name": "Sommet",
+   "view": "From the summit",
+   "lat": 46.10242,
+   "lon": -74.48377,
+   "ele": 538,
+   "where": "Top of Quad Blanc",
+   "embed": "https://www.skaping.com/ski-mont-blanc/sommet"
+  },
+  {
+   "id": "massif-camp-boule",
+   "owner": "massif",
+   "resort": "Le Massif de Charlevoix",
+   "kind": "resort",
+   "name": "Camp Boule",
+   "view": "Camp-Boule, looking over the St. Lawrence",
+   "lat": 47.28259,
+   "lon": -70.61508,
+   "ele": 797,
+   "where": "Top of Camp-Boule Express",
+   "embed": "https://www.skaping.com/massif-de-charlevoix/camp-boule"
+  },
+  {
+   "id": "rigaud-base",
+   "owner": "rigaud",
+   "resort": "Mont Rigaud",
+   "kind": "resort",
+   "name": "Base",
+   "view": "The base area",
+   "lat": 45.46345,
+   "lon": -74.33516,
+   "where": "Ski Mont Rigaud base (approximate spot)",
+   "embed": "https://www.skaping.com/mont-rigaud/base-montagne"
+  },
+  {
+   "id": "rigaud-sommet",
+   "owner": "rigaud",
+   "resort": "Mont Rigaud",
+   "kind": "resort",
+   "name": "Sommet",
+   "view": "From the summit",
+   "lat": 45.4605,
+   "lon": -74.3335,
+   "where": "Summit (approximate spot)",
+   "embed": "https://www.skaping.com/mont-rigaud/sommet-montagne"
+  },
+  {
+   "id": "grandfonds-base",
+   "owner": "grandfonds",
+   "resort": "Mont Grand-Fonds",
+   "kind": "resort",
+   "name": "Base",
+   "view": "The base area",
+   "lat": 47.76932,
+   "lon": -70.09241,
+   "where": "Mont Grand-Fonds base (approximate spot)",
+   "embed": "https://www.skaping.com/mont-grand-fonds/base"
+  },
+  {
+   "id": "grandfonds-sommet",
+   "owner": "grandfonds",
+   "resort": "Mont Grand-Fonds",
+   "kind": "resort",
+   "name": "Sommet",
+   "view": "From the summit",
+   "lat": 47.77175,
+   "lon": -70.08554,
+   "where": "Summit of Mont Grand-Fonds",
+   "embed": "https://www.skaping.com/mont-grand-fonds/sommet"
+  },
+  {
+   "id": "edouard-base",
+   "owner": "edouard",
+   "resort": "Mont-Édouard",
+   "kind": "resort",
+   "name": "Base",
+   "view": "The base area",
+   "lat": 48.1555,
+   "lon": -70.2905,
+   "where": "Mont-Édouard base (approximate spot)",
+   "embed": "https://www.skaping.com/mont-edouard/base"
+  },
+  {
+   "id": "adstock-sommet",
+   "owner": "adstock",
+   "resort": "Mont Adstock",
+   "kind": "resort",
+   "name": "Sommet",
+   "view": "From the summit (winter only)",
+   "lat": 46.02946,
+   "lon": -71.20534,
+   "where": "Summit of Mont Adstock",
+   "embed": "https://www.skaping.com/mont-adstock/sommet"
+  },
+  {
+   "id": "stbruno-chalet-principal",
+   "owner": "stbruno",
+   "resort": "Ski Mont Saint-Bruno",
+   "kind": "resort",
+   "name": "Chalet principal",
+   "view": "The main lodge",
+   "lat": 45.5554,
+   "lon": -73.33153,
+   "where": "Main lodge (approximate spot)",
+   "embed": "https://www.skaping.com/ski-saint-bruno/chalet-base"
+  },
+  {
+   "id": "stbruno-sommet",
+   "owner": "stbruno",
+   "resort": "Ski Mont Saint-Bruno",
+   "kind": "resort",
+   "name": "Sommet",
+   "view": "From the top",
+   "lat": 45.5525,
+   "lon": -73.3345,
+   "where": "Top of the hill (approximate spot)",
+   "embed": "https://www.skaping.com/ski-saint-bruno/sommet"
+  },
+  {
+   "id": "pinrouge-pin-rouge",
+   "owner": "pinrouge",
+   "resort": "Pin Rouge",
+   "kind": "resort",
+   "name": "Pin Rouge",
+   "view": "The ski hill, New Richmond",
+   "lat": 48.31652,
+   "lon": -65.71941,
+   "where": "Station touristique Pin-Rouge (approximate spot)",
+   "embed": "https://www.skaping.com/tourisme-gaspesie/pin-rouge"
+  },
+  {
+   "id": "valirene-val-direne",
+   "owner": "valirene",
+   "resort": "Val-d'Irène",
+   "kind": "resort",
+   "name": "Val-d'Irène",
+   "view": "The ski hill, Sainte-Irène",
+   "lat": 48.4765,
+   "lon": -67.58072,
+   "where": "Parc régional de Val-d'Irène (approximate spot)",
+   "embed": "https://www.skaping.com/tourisme-gaspesie/val-irene"
+  },
+  {
+   "id": "stjoseph-mont-saint-joseph",
+   "owner": "stjoseph",
+   "resort": "Mont Saint-Joseph",
+   "kind": "backcountry",
+   "name": "Mont Saint-Joseph",
+   "view": "Panorama from the summit over Carleton-sur-Mer and the bay",
+   "lat": 48.13434,
+   "lon": -66.116,
+   "where": "Summit of Mont Saint-Joseph",
+   "embed": "https://www.skaping.com/tourisme-gaspesie/mont-saint-joseph"
+  },
+  {
+   "id": "chicchac-monts-miller-and-porphyre",
+   "owner": "chicchac",
+   "resort": "Chic-Chac",
+   "kind": "backcountry",
+   "name": "Monts Miller and Porphyre",
+   "view": "Chic-Chac backcountry terrain at Murdochville",
+   "lat": 48.97441,
+   "lon": -65.5038,
+   "where": "Mont Porphyre, Murdochville (approximate spot)",
+   "embed": "https://www.skaping.com/tourisme-gaspesie/chicchac"
+  },
+  {
+   "id": "sepaq-mont-albert",
+   "owner": "sepaq",
+   "resort": "Parc national de la Gaspésie",
+   "kind": "backcountry",
+   "name": "Mont Albert",
+   "view": "Mont Albert from the Gîte, Chic-Chocs",
+   "lat": 48.94442,
+   "lon": -66.12214,
+   "where": "Gîte du Mont-Albert (approximate spot)",
+   "embed": "https://www.skaping.com/tourisme-gaspesie/avalanche-quebec"
+  },
+  {
+   "id": "capesmokey-cape-smokey",
+   "owner": "capesmokey",
+   "resort": "Ski Cape Smokey",
+   "kind": "resort",
+   "name": "Cape Smokey",
+   "view": "The ski hill above Ingonish",
+   "lat": 46.62392,
+   "lon": -60.42812,
+   "where": "Ski Cape Smokey (approximate spot)",
+   "embed": "https://www.skaping.com/cape-smokey"
+  },
+  {
+   "id": "owlshead-chalet",
+   "owner": "owlshead",
+   "resort": "Owl's Head",
+   "kind": "resort",
+   "name": "Chalet",
+   "view": "Outside the main chalet, Lake Memphremagog behind",
+   "lat": 45.07325,
+   "lon": -72.29794,
+   "ele": 351,
+   "where": "Main chalet (approximate spot)",
+   "embed": "https://g1.ipcamlive.com/player/player.php?alias=chaletoutside"
+  },
+  {
+   "id": "owlshead-summit",
+   "owner": "owlshead",
+   "resort": "Owl's Head",
+   "kind": "resort",
+   "name": "Summit",
+   "view": "From the summit (often off outside the ski season)",
+   "lat": 45.06337,
+   "lon": -72.29793,
+   "ele": 685,
+   "where": "Top of Main Quad",
+   "embed": "https://g3.ipcamlive.com/player/player.php?alias=summit"
+  },
+  {
+   "id": "orford-mountain",
+   "owner": "orford",
+   "resort": "Mont Orford",
+   "kind": "resort",
+   "name": "Mont Orford",
+   "view": "The resort's live camera",
+   "lat": 45.31796,
+   "lon": -72.22178,
+   "ele": 378,
+   "where": "Base of the gondola (approximate spot)",
+   "embed": "https://g1.ipcamlive.com/player/player.php?alias=69247706b6ce0"
+  },
+  {
+   "id": "msl-adventure-top",
+   "owner": "msl",
+   "resort": "Mount St. Louis Moonstone",
+   "kind": "resort",
+   "name": "Top of Adventure 8",
+   "view": "Top of Adventure 8",
+   "lat": 44.62917,
+   "lon": -79.67176,
+   "ele": 335,
+   "where": "Top of Adventure8 Express",
+   "img": "https://mountstlouis.com/webcams-upload/adventure-top/image.jpg"
+  },
+  {
+   "id": "msl-josl-huter-express",
+   "owner": "msl",
+   "resort": "Mount St. Louis Moonstone",
+   "kind": "resort",
+   "name": "Josl Huter Express",
+   "view": "Josl Huter Express",
+   "lat": 44.62422,
+   "lon": -79.66657,
+   "ele": 242,
+   "where": "Base of Josl Huter6 Express",
+   "img": "https://mountstlouis.com/webcams-upload/josl-huter-express/image.jpg"
+  },
+  {
+   "id": "msl-moonstone-base",
+   "owner": "msl",
+   "resort": "Mount St. Louis Moonstone",
+   "kind": "resort",
+   "name": "Moonstone base",
+   "view": "Moonstone base",
+   "lat": 44.62893,
+   "lon": -79.66356,
+   "ele": 232,
+   "where": "Base of Promenade6 Express",
+   "img": "https://mountstlouis.com/webcams-upload/moonstone-base/image.jpg"
+  },
+  {
+   "id": "msl-mslm-base",
+   "owner": "msl",
+   "resort": "Mount St. Louis Moonstone",
+   "kind": "resort",
+   "name": "Mount St. Louis base",
+   "view": "Mount St. Louis base",
+   "lat": 44.62352,
+   "lon": -79.66785,
+   "ele": 251,
+   "where": "Base of Summit6 Express",
+   "img": "https://mountstlouis.com/webcams-upload/mslm-base/image.jpg"
+  },
+  {
+   "id": "msl-beginner-area",
+   "owner": "msl",
+   "resort": "Mount St. Louis Moonstone",
+   "kind": "resort",
+   "name": "Beginner area",
+   "view": "Beginner area",
+   "lat": 44.6213,
+   "lon": -79.6686,
+   "ele": 244,
+   "where": "Base of Kinder Carpet",
+   "img": "https://mountstlouis.com/webcams-upload/beginner-area/image.jpg"
+  },
+  {
+   "id": "msl-junkyard",
+   "owner": "msl",
+   "resort": "Mount St. Louis Moonstone",
+   "kind": "resort",
+   "name": "Junkyard terrain park",
+   "view": "Junkyard terrain park",
+   "lat": 44.62221,
+   "lon": -79.67481,
+   "ele": 329,
+   "where": "Junkyard park (approximate spot)",
+   "img": "https://mountstlouis.com/webcams-upload/junkyard/image.jpg"
+  },
+  {
+   "id": "msl-easystreet",
+   "owner": "msl",
+   "resort": "Mount St. Louis Moonstone",
+   "kind": "resort",
+   "name": "Easy Street",
+   "view": "Easy Street",
+   "lat": 44.62134,
+   "lon": -79.6726,
+   "ele": 300,
+   "where": "Easy Street (approximate spot)",
+   "img": "https://mountstlouis.com/webcams-upload/Easystreet/image.jpg"
   }
  ]
 }

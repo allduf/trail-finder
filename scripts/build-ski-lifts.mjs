@@ -176,6 +176,11 @@ const HAND = {
   sutton: { "Télésiège I Ouest": "I OW", "Télésiège II Ouest": "II (OW)", "Télésiège IV Ouest": "IV OW" },
   orford: { "Télécabine hybride": "3-Gondole Hybride", "Alfred-Desrochers": "5-Quad Alfred D.", "Quad Giroux Est": "1-Quad Giroux Est", "Quad Giroux Nord": "2-Quad Giroux Nord", Rapido: "4-Triple Rapido" },
   relais: { "L'Hexago : télésiège sextuple débrayable": "A. Télésiège septuple débrayable", "Tapis bout'chou": "tapis Bout' chou", "Tapis magique": "G-Tapis magique" },
+  // 2026-11-04: Owl's Head numbers its chairs by area (Sommet = the summit quad, Panorama = the long chair from the east).
+  owlshead: { Sommet: "Main Quad", Familiale: "Little Quad", Bleue: "Blue Chair", Panorama: "Black Chair", "du Lac": "Lake Chair", "Tapis magique": "9" },
+  horseshoe: { "Snow School Express": "Camp Horseshoe Express", "Double Chair": "C1", "Highland Express Quad": "Highland Quad" },
+  msm: { Poma: "Promenade" },
+  searchmont: { "Lumberjack Belt": "Lumberjack" },
   msl: { "Summit Express": "Summit6 Express", "Adventure 8": "Adventure8 Express", "Promenade Express": "Promenade6 Express", "Kinder B": "Kinder Carpet" },
 };
 const unmatched = {};

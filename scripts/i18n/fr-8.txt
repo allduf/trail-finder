@@ -28,6 +28,15 @@ Not on the list? ||| Pas dans la liste?
 Type another town or area… ||| Taper une autre ville ou zone…
 look in another place ||| chercher ailleurs
 Area not on the list? Pick “Type another town or area…” at the bottom of the Area list and type any town or riding area in Canada, like Cumberland. New trails and trail name searches then look there. ||| Zone pas dans la liste? Choisissez « Taper une autre ville ou zone… » au bas de la liste des zones et tapez n'importe quelle ville ou secteur de vélo au Canada, comme Cumberland. Les nouveaux sentiers et la recherche par nom regardent alors là.
+Ontario: logging planned this year (April to March) ||| Ontario : coupe prévue cette année (avril à mars)
+Ontario: logged in the newest reported year ||| Ontario : coupé lors de la dernière année publiée
+Backup block: only logged if another can't be ||| Bloc de réserve : coupé seulement si un autre ne peut pas l'être
+Carried over from the last forest plan ||| Reporté du dernier plan forestier
+clearcut ||| coupe totale
+shelterwood cut (some big trees left) ||| coupe progressive (quelques gros arbres laissés)
+selection cut (single trees taken) ||| coupe de jardinage (arbres pris un à un)
+partial cut ||| coupe partielle
+Ontario logging: with Logging areas on, Ontario's own plans now show the blocks set to be logged this year (gold) and the ones logged lately (pink); tap one for the cut type. Skiing also has 43 more live webcams in Quebec, Ontario and the Maritimes (Tremblant, Bromont, Saint-Sauveur, Mont-Saint-Louis, the Chic-Chocs...) and live lifts at Owl's Head, Horseshoe, Mont Sainte-Marie and Searchmont. ||| Coupes en Ontario : avec Zones de coupe activées, les plans de l'Ontario montrent maintenant les blocs à couper cette année (or) et ceux coupés récemment (rose); touchez-en un pour le type de coupe. Le ski a aussi 43 nouvelles webcams en direct au Québec, en Ontario et dans les Maritimes (Tremblant, Bromont, Saint-Sauveur, Mont-Saint-Louis, les Chic-Chocs...) et l'état des remontées en direct à Owl's Head, Horseshoe, Mont Sainte-Marie et Searchmont.
 
 # Interface polish 6-8 (2026-11-04): Hiking key, empty folders
 empty ||| vide
