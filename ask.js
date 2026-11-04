@@ -434,8 +434,10 @@ ol.ask-list b { font-size: .96rem; } ol.ask-list small { color: var(--muted); fo
       // An easy tour leaves out the ones mapped as advanced or harder, whatever their terrain class.
       let routes = near.routes.filter((r) => (!max || !r.cls || r.cls <= max) && !(max === 1 && /advanced|expert|extreme|freeride/.test(r.diff)));
       if (p.km) routes = routes.filter((r) => r.km <= p.km * 1.3);
-      routes.sort((a, b) => (max ? (!a.cls) - (!b.cls) : 0) || a.d - b.d);
-      const rows = routes.slice(0, 10).map((r) => ({ title: esc(r.name), sub: `${r.pill ? r.pill + " · " : ""}${r.km >= 0.05 ? fmtKm(r.km) + " long · " : ""}${fmtKm(r.d / 1000)} away`,
+      // The classics of the area first (data/ski-hand/ "hand:classic"; alex 2026-11-04: "kayoosh and joffre lake and
+      // sholder is a classic in the duffys", missing under Steep Creek Forest Service Road and Chute 56).
+      routes.sort((a, b) => (max ? (!a.cls) - (!b.cls) : 0) || (!a.classic) - (!b.classic) || a.d - b.d);
+      const rows = routes.slice(0, 10).map((r) => ({ title: (r.classic ? "★ " : "") + esc(r.name), sub: (r.classic ? "Classic · " : "") + `${r.pill ? r.pill + " · " : ""}${r.km >= 0.05 ? fmtKm(r.km) + " long · " : ""}${fmtKm(r.d / 1000)} away`,
         go: go(() => S.show(r.id, r.c)) }));
       const avy = p.what === "avalanche" ? `<button type="button" class="ask-act" data-avy>⚠ Open the avalanche forecast ${at.you ? "here" : "for " + esc(at.name)}</button>
         <p class="ask-note">${p.date !== localDay() ? `The forecast has the next days too: look for ${esc(dayName(p.date))}. ` : ""}The light on each tour is today's danger in its terrain.</p>` : "";

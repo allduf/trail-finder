@@ -1,12 +1,12 @@
 {
- "note": "Hand-kept backcountry ski routes that no open data source has (alex 2026-11-03: Joffre Shoulder). One file per province (bc: Joffre Shoulder, the Sea to Sky Gondola's approaches); add a route to its file and widen that file's box here. Each route has src \"hand\", tags hand:* (shown in plain words in winter.js PLAIN) and links [{t,u}]. approx = drawn from the terrain model, not a GPS track. patch: tags, name and links added to OpenStreetMap routes by id (the gondola's groomed Backcountry Access Road).",
+ "note": "Hand-kept backcountry ski routes that no open data source has (alex 2026-11-03: Joffre Shoulder). One file per province (bc: the Duffey classics Joffre Shoulder, Chief Pascall and Cayoosh, the Sea to Sky Gondola's approaches); add a route to its file and widen that file's box here. Each route has src \"hand\", tags hand:* (shown in plain words in winter.js PLAIN) and links [{t,u}]. approx = drawn from the terrain model, not a GPS track. patch: tags, name and links added to OpenStreetMap routes by id (the gondola's groomed Backcountry Access Road). \"hand:classic\" marks a classic tour (the Duffey Lake Road ones, alex 2026-11-04): Ask lists classics first; \"hand:aka\" is other names it is searched by (Kayoosh).",
  "tiles": {
   "bc": {
    "box": [
     49.63,
     -123.18,
-    50.39,
-    -122.45
+    50.44,
+    -122.25
    ]
   }
  }
