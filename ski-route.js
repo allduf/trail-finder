@@ -27,6 +27,7 @@
   const slopeTerm = (s) => (s < 20 ? 0 : s < 25 ? 0.2 : s < 30 ? 1 : s < 35 ? 4 : s < 40 ? 7 : s < 45 ? 10 : 14);
   const ALPHA = Math.tan(24 * RAD);   // a slide runs out until the line back up to where it started is under 24°
   const RUN_M = 1500;                 // and never further than this
+  const MAX_LEG_M = 12000;            // a leg longer than this isn't one ski tour (and the grid gets too coarse to see slopes)
   const MIN_DROP = 25;                // m: a slope only a few metres high above you isn't counted (a sluff, not a slide that buries)
   // Ground on skis (fish-route.js G order: unknown, forest, grass, brush, wetland, rock, scree, ice, sand, fields, built, water).
   const SKI_G = [1.3, 1.6, 1, 2.5, 1.4, 1.2, 1.4, 1.1, 1, 1, 1.6, Infinity];
@@ -94,10 +95,12 @@
 
   // Seconds (x the risk) to go from cell a to the next cell b, d metres away.
   function costFn(FR) {
-    const { blocked } = FR._grid;
+    const { blocked, F_PAVED, L_MOTOR } = FR._grid;
     return (g, a, b, d) => {
       if (blocked(g, a) || blocked(g, b)) return Infinity;
-      const sk = g.sk, x = g.line[b] ? 1 : SKI_G[g.ground[b]];
+      const sk = g.sk, ln = g.line[b];
+      // Plowed (paved) roads and highways aren't skied: crossing one is fine, following it for km is a drive, not a tour.
+      const x = !ln ? SKI_G[g.ground[b]] : ln === L_MOTOR ? 25 : g.flag[b] & F_PAVED ? 4 : 1;
       if (x === Infinity) return Infinity;
       let dh = g.hasH ? g.h[b] - g.h[a] : 0;
       if (!(dh === dh)) dh = 0;
@@ -146,7 +149,45 @@
       }
       delete r.cells;
     }
-    return runs;
+    return { runs, steps: steps(FR, g, cells) };
+  }
+  // The way in plain steps: stretches on one named road or trail, or off trail, with their climb and the worst ground on
+  // them (for the list Start, Point 1 ... End).
+  function steps(FR, g, cells) {
+    const { cellLL, L_PATH, L_STEPS } = FR._grid, sk = g.sk, out = [];
+    const kindOf = (c) => (!g.line[c] ? "off" : g.line[c] === L_PATH || g.line[c] === L_STEPS ? "trail" : "road");
+    const RANK = { ok: 0, mid: 1, under: 2, steep: 3, trap: 4 };
+    let cur = null;
+    // A new stretch where the road or trail changes, and where the ground turns from safe (under 30°, nothing above) to
+    // steep or exposed and back, so each one has one reason.
+    const hz = (c) => { const k = clsOf(sk, c); return k === "steep" || k === "under" || k === "trap"; };
+    cells.forEach((c, i) => {
+      const kind = kindOf(c), name = kind === "off" ? "" : g.names[g.name[c]] || "", h = hz(c);
+      if (!cur || cur.kind !== kind || cur.hz !== h || (name && cur.name && name !== cur.name)) {
+        if (cur) cur.cells.push(c);
+        cur = { kind, name, hz: h, cells: [c] }; out.push(cur);
+      } else { cur.cells.push(c); if (name && !cur.name) cur.name = name; }
+    });
+    // Bits under 120 m fold into the stretch before (the grid stepping on and off a trail), then the same kind joins up.
+    for (let i = 1; i < out.length; i++) if (out[i].cells.length * g.cellM < 120) { out[i - 1].cells.push(...out[i].cells.slice(1)); out.splice(i--, 1); }
+    if (out.length > 1 && out[0].cells.length * g.cellM < 120) { out[1].cells.unshift(...out[0].cells.slice(0, -1)); out.shift(); }
+    const short = (x) => x.cells.length * g.cellM < 300;
+    for (let i = 1; i < out.length; i++) if (out[i].kind === out[i - 1].kind && (out[i].hz === out[i - 1].hz || short(out[i]) || short(out[i - 1])) && (out[i].name === out[i - 1].name || !out[i].name)) {
+      if (out[i].cells.length > out[i - 1].cells.length) out[i - 1].hz = out[i].hz;
+      out[i - 1].cells.push(...out[i].cells.slice(1)); out.splice(i--, 1);
+    }
+    return out.map((s) => {
+      let m = 0, up = 0, down = 0, worst = "ok", maxDeg = 0, hzM = 0, safeWorst = "ok";
+      for (let i = 0; i < s.cells.length; i++) {
+        const c = s.cells[i];
+        if (i) { const p = s.cells[i - 1], dh = g.h[c] - g.h[p]; m += (Math.abs((c % g.W) - (p % g.W)) + Math.abs(Math.floor(c / g.W) - Math.floor(p / g.W)) > 1 ? Math.SQRT2 : 1) * g.cellM; if (dh === dh) { if (dh > 0) up += dh; else down -= dh; } }
+        const k = clsOf(sk, c); if (RANK[k] > RANK[worst]) worst = k;
+        if (RANK[k] >= 2) hzM += g.cellM; else if (RANK[k] > RANK[safeWorst]) safeWorst = k;
+        if (sk.deg[c] > maxDeg) maxDeg = sk.deg[c];
+      }
+      const a = cellLL(g, s.cells[0]), mid = cellLL(g, s.cells[Math.floor(s.cells.length / 2)]);
+      return { kind: s.kind, name: s.name, m: Math.round(m), up: Math.round(up), down: Math.round(down), worst, hzM: Math.round(hzM), safeWorst, maxDeg: Math.round(maxDeg), at: [+a[0].toFixed(6), +a[1].toFixed(6)], mid: [+mid[0].toFixed(6), +mid[1].toFixed(6)] };
+    });
   }
   // The straight line between the same points, for "Straight across: x m on 30°+ slopes".
   function straight(FR, g, a, b) {
@@ -178,7 +219,10 @@
     const sl = legs.reduce((s, l) => ({ total: s.total + l.straight.total, steep: s.steep + l.straight.steep, under: s.under + l.straight.under }), { total: 0, steep: 0, under: 0 });
     const line = [];
     for (const r of runs) for (const p of r.pts) { const q = [+p[0].toFixed(6), +p[1].toFixed(6)], l = line[line.length - 1]; if (!l || l[0] !== q[0] || l[1] !== q[1]) line.push(q); }
-    return { line, runs, stats: st, straight: sl, av, ...extra };
+    // Each leg (Point i to Point i+1): its length, climb, the straight line's steep metres, and its steps.
+    const legOut = legs.map((l) => ({ m: l.runs.reduce((s, r) => s + r.m, 0), up: l.steps.reduce((s, x) => s + x.up, 0), down: l.steps.reduce((s, x) => s + x.down, 0),
+      steep: l.runs.filter((r) => r.cls === "steep").reduce((s, r) => s + r.m, 0), under: l.runs.filter((r) => r.cls === "under" || r.cls === "trap").reduce((s, r) => s + r.m, 0), straight: l.straight, steps: l.steps }));
+    return { line, runs, stats: st, straight: sl, av, legs: legOut, ...extra };
   }
 
   // The safest way through the points you tapped (pts: [[lat, lon], ...], 2 or more), one leg at a time.
@@ -188,13 +232,14 @@
     const cost = costFn(FR), legs = [];
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1], b = pts[i];
+      if (window.tfLeaflet.distance(a, b) > MAX_LEG_M) return { fail: "far", leg: i, km: Math.round(window.tfLeaflet.distance(a, b) / 1000) };
       onStep && onStep(pts.length > 2 ? `Leg ${i} of ${pts.length - 1}: reading the terrain…` : "Reading the terrain, slopes and avalanche paths…");
       const lines = await linesNear(S, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], Math.max(3, window.tfLeaflet.distance(a, b) / 1000 + 2));
       const out = await FR._build(b, { you: a, lines, cost, prep: (g) => prep(g, av), pads: (d) => [Math.max(600, d * 0.4), Math.max(2000, d)] },
         (s) => onStep && onStep(s === "terrain" ? "Getting the terrain…" : "Finding the safest way…"));
       if (out.fail) return { fail: out.fail === "water" ? "water" : "noway", leg: i };
       const cells = out.res.cells;   // from a to b
-      legs.push({ runs: pieces(FR, out.g, cells, av), straight: straight(FR, out.g, a, b) });
+      legs.push({ ...pieces(FR, out.g, cells, av), straight: straight(FR, out.g, a, b) });
     }
     return total(legs, av, { from: "pts" });
   }
@@ -210,7 +255,7 @@
     const cells = out.res.cells, start = FR._grid.cellLL(out.g, cells[0]);
     const park = out.park ? (out.parkName ? `Park at ${/parking|trailhead|lot\b|stationnement/i.test(out.parkName) ? "" : "the parking for "}${out.parkName}` : `Park at the parking lot${out.roadName ? ` by ${out.roadName}` : ""}`)
       : `Park beside ${out.roadName || "the plowed road"}`;
-    return total([{ runs: pieces(FR, out.g, cells, av), straight: straight(FR, out.g, start, spot) }], av, { from: "road", start, park });
+    return total([{ ...pieces(FR, out.g, cells, av), straight: straight(FR, out.g, start, spot) }], av, { from: "road", start, park });
   }
 
   window.tfSkiRoute = { route, fromRoad, CLS, ASP, ASP_NAME, BAND_NAME, _prep: prep, _slopeTerm: slopeTerm };
