@@ -384,7 +384,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 #skiPane .sk-spot h4 { margin: 6px 0 2px; font-size: .92rem; }
 #skiPane .sk-spot h5 { margin: 4px 0 0; font-size: .82rem; }
 #skiPane .sk-spot .sk-stats .sk-spotslope { background: color-mix(in srgb, var(--c) 45%, var(--panel)); box-shadow: inset 0 -4px 0 var(--c); }
-#skiPane .sk-spot .sk-stats .sk-ates { align-self: center; margin: 1px 0 2px; }
+#skiPane .sk-spot .sk-stats.sk-spotg { grid-template-columns: minmax(0, .8fr) minmax(0, .8fr) minmax(0, 1.1fr) minmax(0, 1.3fr); gap: 5px; }
+#skiPane .sk-spot .sk-stats div { min-width: 0; }
+#skiPane .sk-spot .sk-stats b { overflow: hidden; text-overflow: ellipsis; }
+#skiPane .sk-spot .sk-stats .sk-spotates { background: color-mix(in srgb, var(--c) 22%, var(--panel)); box-shadow: inset 0 -4px 0 var(--c), inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, var(--muted)); }
+#skiPane .sk-spot .sk-stats .sk-spotates b { color: var(--fg); font-size: .8rem; letter-spacing: -.01em; line-height: 1.35; }
 #skiPane .sk-spotdays { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 6px; text-align: center; font-size: .74rem; color: var(--muted); }
 #skiPane .sk-spotdays div { display: flex; flex-direction: column; gap: 2px; }
 #skiPane .sk-spotdays .av-chip { min-width: 0; font-size: .72rem; padding: 3px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2715,9 +2719,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const cls = spotTerrain(g);
     Object.assign(spot, { g, cls });
     const flat = g.slope < 5;
-    fill("skSpotGround", `<div class="sk-stats"><div class="sk-spotslope" style="--c:${slopeCol(g.slope)}"><b>${Math.round(g.slope)}°</b><span>slope</span></div>
+    fill("skSpotGround", `<div class="sk-stats sk-spotg"><div class="sk-spotslope" style="--c:${slopeCol(g.slope)}"><b>${Math.round(g.slope)}°</b><span>slope</span></div>
         <div><b>${flat ? "flat" : ASPECTS[g.asp].toUpperCase()}</b><span>faces</span></div><div><b>${fmtM(g.e)}</b><span>height</span></div>
-        <div><span class="sk-ates" style="--c:${cls.color}">${cls.label}</span><span>terrain</span></div></div>
+        <div class="sk-spotates" style="--c:${cls.color}"><b>${cls.label}</b><span>terrain</span></div></div>
       <ul class="sk-signs">${cls.why.map(([c, t]) => `<li class="${c}">${esc(t)}</li>`).join("")}</ul>
       <p class="sk-note">${esc(cls.what)} Terrain class is an estimate from the terrain map (ATES-style), not an official rating.</p>`);
     fillSpotAvy();

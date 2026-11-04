@@ -1818,6 +1818,7 @@
     "Every source and its licence":"Chaque source et sa licence",
     "Plan a hike still finds a route along the trails when the route server is busy, and a new Data credits page lists every source.":"Planifier une randonnée trouve encore un trajet le long des sentiers quand le serveur de trajets est occupé, et une nouvelle page Sources des données liste chaque source.",
     "Skiing Freeride lines no longer show marked runs like Insanity and Powerline at Whistler Creekside.":"Les lignes freeride en ski n'affichent plus les pistes balisées comme Insanity et Powerline à Whistler Creekside.",
+    "Skiing This spot: the terrain box (Simple, Challenging, Complex) is now easy to read and fits in its box.":"Ski, Cet endroit : la case du terrain (Simple, Exigeant, Complexe) est maintenant facile à lire et tient dans sa case.",
     "Safest way here":"Trajet le plus sûr jusqu'ici",
     "Find the safest way":"Trouver le trajet le plus sûr",
     "Safest way: on":"Trajet le plus sûr : activé",
