@@ -1196,6 +1196,7 @@
     else if (!picks.length) stats = "<b>1.</b> Tap the trails you want to ride, in the order you want them.";
     else if (busy || !legs.length) stats = `${picks.length} trail${picks.length > 1 ? "s" : ""} picked · building the ride…`;
     else stats = `${ride(fmtM(m))}${climb}${rideTime(m)}${drive} · ${picks.length} trail${picks.length > 1 ? "s" : ""}${gaps ? ` · <span class="gap-note">${gaps} stretch${gaps > 1 ? "es" : ""} off mapped trails${joining ? " (looking for streets and paths…)" : ""}</span>` : ""}`;
+    if (legs.length && window.tfRiskLine) stats += window.tfRiskLine();
     $("planStats").innerHTML = stats;
     if (mode === "tap") {
       const used = namesOf(legs.flatMap((l) => l.ways));
@@ -1470,6 +1471,8 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
   function setPlanning(on) {
     if (planning === on) return;
     planning = on;
+    // Opening Plan a route: the person accepts once that the route and its risks are theirs (risk.js); Cancel closes it.
+    if (on && window.tfRiskOk) window.tfRiskOk("route").then((ok) => { if (!ok && planning) setPlanning(false); });
     const before = $("map").getBoundingClientRect();
     document.querySelector(".app").classList.toggle("planning", on);
     document.body.classList.toggle("planning", on);

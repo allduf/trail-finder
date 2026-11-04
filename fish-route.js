@@ -643,6 +643,9 @@
   async function start(spotLL, name, want) {
     const token = ++seq, box = slot();
     if (!box) return;
+    // Off-trail routes are the person's call (risk.js): accepted once, Cancel finds nothing.
+    if (window.tfRiskOk && !(await window.tfRiskOk("offtrail"))) { if (token === seq) { const b = document.querySelector("#fsSpot [data-fsroute]"); if (b) b.setAttribute("aria-pressed", "false"); } return; }
+    if (token !== seq) return;
     const btn = document.querySelector("#fsSpot [data-fsroute]"); if (btn) btn.setAttribute("aria-pressed", "true");
     const wait = (t) => { if (token === seq) box.innerHTML = `<div class="fr"><div class="fr-wait">${t}</div></div>`; };
     wait("Finding you…");
@@ -703,6 +706,7 @@
       <ol class="fr-steps">${steps(c)}</ol>
       <div class="fr-btns"><button type="button" class="fr-go" data-fr="go">▶ Go</button>${c.from === "road" ? `<a href="${drive}" target="_blank" rel="noopener">Drive there</a>` : ""}<button type="button" data-fr="x" aria-label="Clear the route">✕</button></div>
       ${d.offM >= 10 ? `<p class="fr-warn">Off-trail parts (dashed) follow the terrain and OpenStreetMap's ground cover: check for private land, cliffs and high water on the way.</p>` : ""}
+      ${window.tfRiskLine ? window.tfRiskLine() : ""}
     </div>`;
     bindFrom(box, c.spot, c.name);
     box.querySelector('[data-fr="x"]').addEventListener("click", clear);

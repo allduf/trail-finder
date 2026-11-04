@@ -578,7 +578,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <div class="sk-countrow"><p class="sk-count" id="skCount">Routes in view</p><button type="button" class="sk-sort" id="skSort" hidden></button></div>
       <ul class="sk-list" id="skList"></ul>
     </div>
-    <p class="sk-safe">Open maps can be wrong and no route is avalanche-safe. Trail Finder helps you plan; it doesn't replace avalanche training (<a href="https://avysavvy.avalanche.ca/" target="_blank" rel="noopener">free online course</a>, then an AST 1), a beacon, probe and shovel, <a href="https://avalanche.ca/map" target="_blank" rel="noopener">Avalanche Canada's forecast</a> or what you see on the day.</p>`;
+    <p class="sk-safe">Open maps can be wrong and no route is avalanche-safe. Trail Finder helps you plan; it doesn't replace avalanche training (<a href="https://avysavvy.avalanche.ca/" target="_blank" rel="noopener">free online course</a>, then an AST 1), a beacon, probe and shovel, <a href="https://avalanche.ca/map" target="_blank" rel="noopener">Avalanche Canada's forecast</a> or what you see on the day. Where you go is your decision and your risk.</p>`;
   const head = document.querySelector(".panel-head");
   const modes = head && head.querySelector(".modes");
   if (modes) modes.after(pane); else if (head) head.append(pane);
@@ -1276,7 +1276,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=2550").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=2650").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2519,6 +2519,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   async function findSafe() {
     const my = ++plan.run, pts = plan.pts.slice(), key = planKey();
     const say = (t) => { if (my === plan.run) { plan.wait = t; renderPlan(); } };
+    // The person accepts once that the tour and its risks are theirs (risk.js); Cancel leaves the points, no way.
+    if (window.tfRiskOk && !(await window.tfRiskOk("avy"))) { if (my === plan.run) { plan.wait = ""; renderPlan(); } return; }
     say("Finding the safest way…");
     try {
       await loadJs("ski-route");
@@ -2545,6 +2547,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     spotLayer.clearLayers(); spotLayer.addLayer(L.circleMarker([lat, lon], { radius: 9, color: "#fff", weight: 3, fillColor: "#2f9e44", fillOpacity: 1, interactive: false })); if (!map.hasLayer(spotLayer)) spotLayer.addTo(map);
     if (window.tfSnapTo) window.tfSnapTo("half");
     if (window.tfPanelScrollTo) window.tfPanelScrollTo($("skPlan"));
+    if (window.tfRiskOk && !(await window.tfRiskOk("avy"))) { if (my === plan.run) { spotLayer.clearLayers(); plan.wait = ""; renderPlan(); } return; }
     try {
       await loadJs("ski-route");
       const av = await avyFor(lat, lon);
@@ -2668,6 +2671,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         : `<div class="sk-sec"><p class="sk-safe-ok">No 30°+ slopes and no steep slopes above on this route, as far as the terrain map can see.</p></div>`}
       <div class="sk-row"><button type="button" class="btn" id="skSafeRev">⇅ Reverse the tour</button><button type="button" class="btn" id="skSafeAgain">↻ Find again</button></div>
       <p class="sk-safe-dis"><b>Not a substitute for avalanche training.</b> This is a planning aid based on a terrain model (10 to 30 m) and the regional forecast. It can't see cornices, wind loading, small slopes, trees or today's snowpack, and a forecast covers a whole region. Take an avalanche course (AST 1), carry a transceiver, probe and shovel with partners who know how to use them, read the full forecast on ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}, and make your own decisions in the field.</p>
+      ${window.tfRiskLine ? window.tfRiskLine() : ""}
     </div>`;
   }
   function planAdd(ll) {
@@ -3236,7 +3240,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         ${notes.length ? `<h5>Forecaster's notes</h5>${notes.map((s) => `<p>${esc(s)}</p>`).join("")}` : ""}
         ${minHtml([{ lat: c.lat, lon: c.lng }])}
         ${avyOn ? `<h5>Slope colours</h5><ul class="av-legend">${DANGER.slice(1).map((x) => `<li><i style="background:${x.color}"></i>${x.label}</li>`).join("")}<li><i style="background:repeating-linear-gradient(135deg,#f79218 0 3px,#7a4a0c 3px 5px)"></i>Problem aspect</li></ul>
-        <p class="sk-note">Slopes of 25° and more, coloured by their band's rating (treeline about ${area.bands.lo}-${area.bands.hi} m here), then one level less where a slope faces away from today's problems or is under 30°, and one more at 40°+ on a problem aspect. An estimate, not a terrain rating.</p>` : ""}
+        <p class="sk-note">Slopes of 25° and more, coloured by their band's rating (treeline about ${area.bands.lo}-${area.bands.hi} m here), then one level less where a slope faces away from today's problems or is under 30°, and one more at 40°+ on a problem aspect. An estimate, not a terrain rating. Where you go is your decision and your risk.</p>` : ""}
         ${janNote(f)}<p class="sk-note">${f.issued ? "Issued " + esc(new Date(f.issued).toLocaleDateString()) + ", for" : "For"} the middle of the map.</p>
       </details>
       <div class="av-foot">${shade}${example ? `<button type="button" class="av-pill" id="avExOff">Hide example</button>` : rated ? "" : `<button type="button" class="av-pill" id="avEx">Example</button>`}<a class="av-pill" href="${esc(f.url || site.url)}" target="_blank" rel="noopener">${site.host} ↗</a></div>`;
