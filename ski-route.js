@@ -46,7 +46,10 @@
   };
 
   // The ground on each cell in avalanche terms. av: { r: { alp, tln, btl }, mask: { alp, tln, btl }, bands: { lo, hi } }.
-  function prep(g, av) {
+  const breathe = () => new Promise((r) => setTimeout(r, 0));
+  async function prep(g, av) {
+    let t0 = performance.now();
+    const rest = async () => { if (performance.now() - t0 > 12) { await breathe(); t0 = performance.now(); } };   // let the map move between rows
     const { W, H } = g, N = W * H, cm = g.cellM, h = g.h;
     const deg = new Float32Array(N), asp = new Uint8Array(N), band = new Uint8Array(N), risk = new Float32Array(N), start = new Float32Array(N);
     const expo = new Float32Array(N), src = new Int32Array(N).fill(-1), trap = new Uint8Array(N), down = new Int32Array(N).fill(-1);
@@ -54,7 +57,7 @@
     if (!g.hasH) return;
     const at = (r, c) => { const v = h[Math.min(H - 1, Math.max(0, r)) * W + Math.min(W - 1, Math.max(0, c))]; return v === v ? v : 0; };
     const lo = av.bands.lo, hi = av.bands.hi;
-    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
+    for (let r = 0; r < H; r++) { if (!(r & 15)) await rest(); for (let c = 0; c < W; c++) {
       const i = r * W + c, dx = (at(r, c + 1) - at(r, c - 1)) / (2 * cm), dyS = (at(r + 1, c) - at(r - 1, c)) / (2 * cm);
       const s = Math.atan(Math.hypot(dx, dyS)) / RAD;
       deg[i] = s;
@@ -64,10 +67,10 @@
       const rt = av.r[BAND[b]] || 0, m = av.mask[BAND[b]] || 0, A = m ? (m & (1 << asp[i]) ? 1.6 : 0.6) : 1, w = WD[rt] * A;
       risk[i] = w * slopeTerm(s);
       if (s >= 30 && s <= 60) start[i] = w;
-    }
+    } }
     // The fall line from each cell: its lowest neighbour.
     const dirs = [[-1, 0, 1], [1, 0, 1], [0, -1, 1], [0, 1, 1], [-1, -1, Math.SQRT2], [1, -1, Math.SQRT2], [-1, 1, Math.SQRT2], [1, 1, Math.SQRT2]];
-    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
+    for (let r = 0; r < H; r++) { if (!(r & 15)) await rest(); for (let c = 0; c < W; c++) {
       const i = r * W + c; let best = -1, bd = 0;
       for (const [dr, dc, k] of dirs) {
         const rr = r + dr, cc = c + dc; if (rr < 0 || cc < 0 || rr >= H || cc >= W) continue;
@@ -75,10 +78,11 @@
         if (drop > bd) { bd = drop; best = j; }
       }
       down[i] = best;
-    }
+    } }
     // Avalanche paths: down the fall line from each start cell while the alpha angle holds.
     const maxSteps = Math.ceil(RUN_M / cm);
     for (let i = 0; i < N; i++) {
+      if (!(i & 16383)) await rest();
       const w = start[i]; if (!w) continue;
       const h0 = h[i]; let cur = i, D = 0;
       for (let k = 0; k < maxSteps; k++) {
@@ -91,12 +95,12 @@
     }
     // Terrain traps under a path: a gully (4 m+ below the ground 30 m to each side) or a creek.
     const k = Math.max(1, Math.round(30 / cm)), creek = g.flag;
-    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
+    for (let r = 0; r < H; r++) { if (!(r & 15)) await rest(); for (let c = 0; c < W; c++) {
       const i = r * W + c; if (!expo[i]) continue;
       const e = h[i], m1 = (at(r - k, c) + at(r + k, c)) / 2 - e, m2 = (at(r, c - k) + at(r, c + k)) / 2 - e;
       if (Math.max(m1, m2) >= 4 || (creek[i] & 3)) trap[i] = 1;
       risk[i] += expo[i] * 1.5 * (trap[i] ? 2 : 1);
-    }
+    } }
     // The way up is always the safest (alex 2026-11-04: "you can take steeper route when skiing down but take the safest
     // way on the way up"): uphill steps weigh the risk at the strict level, the rest at today's level (costFn).
     g.sk.kDown = LEVEL_K[levelOf(av)]; g.sk.kUp = LEVEL_K.strict;

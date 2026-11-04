@@ -187,6 +187,8 @@
   // A grid over the box [west x, north y, east x, south y] (mercator), with the ground, lines and heights painted in.
   // extra: more lines to walk on, [{ pts: [[lat, lon], ...], name }] (Skiing's cabin trips: the ski routes, which the
   // vector tiles don't have).
+  // Long work gives the page a breath every ~12 ms (alex 2026-11-04: the map lagged while a long ski tour was worked out).
+  const breathe = () => new Promise((r) => setTimeout(r, 0));
   async function buildGrid(box, onStep, extra) {
     const latMid = uny((box[1] + box[3]) / 2), mPer = WORLD * Math.cos(latMid * RAD);   // metres per mercator unit here
     let cs = CELL_M / mPer, W = Math.ceil((box[2] - box[0]) / cs), H = Math.ceil((box[3] - box[1]) / cs);
@@ -206,6 +208,8 @@
     onStep && onStep("terrain");
     await Promise.all(djobs);
     if (!tiles.some((t) => t.t)) throw new Error("tiles");
+    let t0 = performance.now();
+    const rest = async () => { if (performance.now() - t0 > 12) { await breathe(); t0 = performance.now(); } };
 
     // Painting: polygons by even-odd scanlines, lines by stepping half a cell.
     const toCell = (tx, ty, p) => [((tx + p[0]) / n - g.x0) / cs, ((ty + p[1]) / n - g.y0) / cs];
@@ -240,6 +244,7 @@
     const nameOf = (s) => { if (!s) return 0; if (!nameId.has(s)) { if (g.names.length > 65000) return 0; nameId.set(s, g.names.length); g.names.push(s); } return nameId.get(s); };
     // Ground first (landuse under landcover under water), then waterways, then the lines on top.
     for (const layer of ["landuse", "landcover", "water"]) for (const { x, y, t } of tiles) {
+      await rest();
       if (!t || !t[layer]) continue;
       for (const f of t[layer]) {
         if (f.type !== 3) continue;
@@ -258,6 +263,7 @@
     }
     const putLine = (v, bridge, nm) => (i) => { if (!g.line[i] || LINE_X[v] < LINE_X[g.line[i]]) { g.line[i] = v; if (nm) g.name[i] = nm; } if (bridge) g.flag[i] |= F_BRIDGE; };
     for (const { x, y, t } of tiles) {
+      await rest();
       if (!t || !t.transportation) continue;
       for (const f of t.transportation) {
         const v = f.type === 2 ? lineOf(f.tags) : 0;
@@ -302,18 +308,18 @@
       return e instanceof Float32Array ? e[(Y - ty * 256) * 256 + (X - tx * 256)] : NaN;
     };
     let ok = 0;
-    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
+    for (let r = 0; r < H; r++) { if (!(r & 15)) await rest(); for (let c = 0; c < W; c++) {
       const X = (g.x0 + (c + 0.5) * cs) * dm * 256 - 0.5, Y = (g.y0 + (r + 0.5) * cs) * dm * 256 - 0.5, x = Math.floor(X), y = Math.floor(Y), u = X - x, v = Y - y;
       const h = (px(x, y) * (1 - u) + px(x + 1, y) * u) * (1 - v) + (px(x, y + 1) * (1 - u) + px(x + 1, y + 1) * u) * v;
       g.h[r * W + c] = h; if (h === h) ok++;
-    }
+    } }
     g.hasH = ok > N * 0.8;
     if (g.hasH) {
       const at = (r, c) => { const v = g.h[Math.min(H - 1, Math.max(0, r)) * W + Math.min(W - 1, Math.max(0, c))]; return v === v ? v : 0; };
-      for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
+      for (let r = 0; r < H; r++) { if (!(r & 15)) await rest(); for (let c = 0; c < W; c++) {
         const dx = (at(r, c + 1) - at(r, c - 1)) / (2 * g.cellM), dy = (at(r + 1, c) - at(r - 1, c)) / (2 * g.cellM);
         g.grad[r * W + c] = Math.hypot(dx, dy);
-      }
+      } }
     }
     return g;
   }
@@ -387,7 +393,7 @@
   // Spot on water: it starts from the shores around it (searched through the water up to SHORE_M), each one costing
   // a little for its distance from the spot, so the easy shore wins over the closest.
   const SHORE_M = 2000;
-  function search(g, spotLL, goal) {
+  async function search(g, spotLL, goal) {
     if (goal.winter && !g.nearPaved) markNearPaved(g);
     const N = g.W * g.H, cost = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1), heap = Heap();
     const s0 = cellAt(g, spotLL[0], spotLL[1]);
@@ -420,7 +426,9 @@
     while (heap.size) { const i = heap.pop(); open.push(cost[i] + hEst(i), i); }
     let best = -1, bestCost = Infinity, edge = Infinity;   // edge: the cheapest walk that reached the grid's edge
     const done = new Uint8Array(N);
+    let n = 0, t0 = performance.now();
     while (open.size) {
+      if ((++n & 2047) === 0 && performance.now() - t0 > 12) { await breathe(); t0 = performance.now(); }
       if (open.peek() >= bestCost) break;
       const i = open.pop();
       if (done[i]) continue;
@@ -526,9 +534,9 @@
       const d = metres(spotLL, from.you);
       for (const pad of from.pads ? from.pads(d) : [Math.max(400, d * 0.3), Math.max(1500, d * 0.8)]) {
         const g = await buildGrid(boxAround([spotLL, from.you], pad), onStep, from.lines);
-        if (from.prep) from.prep(g);   // ski-route.js: slopes, aspects, avalanche paths and the forecast on each cell
+        if (from.prep) await from.prep(g);   // ski-route.js: slopes, aspects, avalanche paths and the forecast on each cell
         onStep && onStep("route");
-        const res = search(g, spotLL, from);
+        const res = await search(g, spotLL, from);
         if (res && res.cells) { got = { g, res, from: "you", unplowed: unplowedM(g, res) }; if (!res.edge) break; }
         else if (res && res.water) return { g, res, fail: "water" };
       }
@@ -536,9 +544,9 @@
     }
     for (const r of from.radii || [1500, 4000, 7000]) {
       const g = await buildGrid(boxAround([spotLL], r), onStep, from.lines);
-      if (from.prep) from.prep(g);
+      if (from.prep) await from.prep(g);
       onStep && onStep("route");
-      const res = search(g, spotLL, { winter: from.winter, cost: from.cost });
+      const res = await search(g, spotLL, { winter: from.winter, cost: from.cost });
       if (res && res.water) return { g, res, fail: "water" };
       if (res && res.cells) {
         const i = res.cells[0];

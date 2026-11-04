@@ -201,8 +201,9 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 .sk-snow { display: inline-block; transform: translate(-50%, -100%); white-space: nowrap; font: 700 11px/1 system-ui, sans-serif; color: #fff; background: #0b7285; border: 2px solid #fff; border-radius: 10px; padding: 3px 6px; box-shadow: 0 1px 3px #0006; }
 .sk-snow.on { outline: 3px solid #ffe14d; }
 .sk-snow.none { background: #6b7787; }
-.sk-safe-pt { position: absolute; transform: translate(-50%, -50%); background: #1f5fe0; color: #fff; font: 800 11px/1 system-ui, sans-serif; padding: 4px 7px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 1px 3px #0006; white-space: nowrap; }
-.sk-safe-pt.end { background: #1a1a1a; }
+.sk-safe-pt { position: absolute; transform: translate(-50%, -50%); background: #1a1a1a; color: #fff; font: 800 11px/1 system-ui, sans-serif; padding: 4px 7px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 1px 3px #0006; white-space: nowrap; }
+.sk-safe-pt.gl { position: static; transform: none; }
+.sk-safe-w { background: #e03131; }
 .sk-safe-w { width: auto !important; min-width: 18px; padding: 0 4px; border-radius: 6px !important; }
 #skiPane .sk-safe { display: flex; flex-direction: column; gap: 14px; border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--panel); }
 #skiPane .sk-safe h4 { margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: -.01em; }
@@ -234,6 +235,10 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 #skiPane ol.ss-list .ss-pin { position: relative; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: #1f5fe0; color: #fff; font: 700 11px/1 system-ui, sans-serif; box-shadow: 0 0 0 3px var(--panel); }
 #skiPane ol.ss-list .ss-pin.end { background: #1a1a1a; }
 #skiPane ol.ss-list .ss-pin svg { width: 11px; height: 11px; }
+#skiPane ol.ss-list .ss-mv { display: flex; gap: 4px; }
+#skiPane ol.ss-list .ss-mv button { width: 28px; height: 28px; padding: 0; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+#skiPane ol.ss-list .ss-mv button svg { width: 13px; height: 13px; }
+#skiPane ol.ss-list .ss-mv button:active { background: var(--line); }
 #skiPane ol.ss-list .ss-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 #skiPane ol.ss-list .ss-t b { font-weight: 600; }
 #skiPane ol.ss-list .ss-t small { color: var(--muted); font-size: .78rem; }
@@ -372,6 +377,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 .sk-hutpin.book b { position: absolute; top: -8px; right: -10px; padding: 0 4px; border-radius: 7px; background: #0b7a3e; color: #fff; font: 800 9px/14px system-ui, sans-serif; border: 1.5px solid #fff; }
 .sk-hutpin.on { box-shadow: 0 0 0 3px #ffe14d, 0 1px 4px #0008; }
 .sk-hutgl { z-index: 3; }
+.sk-plangl { z-index: 5; }
 .sk-book { display: grid; gap: 4px; margin: 8px 0 4px; padding: 10px 12px; border-radius: 10px; background: #f6efe9; border: 1px solid #e3d3c6; color: #3b1d0d; }
 .sk-hutphs { margin: 8px 0 2px; }
 .sk-hutph { display: block; position: relative; width: 100%; padding: 0; border: 0; border-radius: 10px; overflow: hidden; background: var(--chip, #eee); cursor: zoom-in; }
@@ -1270,7 +1276,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=2500").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=2550").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2371,28 +2377,53 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const sp = safePath(), line = sp ? sp.line.slice() : plan.pts.slice();
     return { id: "plan", src: "plan", type: "tour", name: sp ? "Your tour, safest way" : "Your planned tour", tags: {}, g: [line.flat()], lines: [line], bounds: L.latLngBounds(line) };
   }
+  // The plan's labels on the 3D map too (it doesn't show Leaflet markers): Start, 1, 2 ... End and the !n watch-outs
+  // (alex 2026-11-04: "put point on map in the route").
+  let planGl = [];
+  function planGlPin(ll, html, z) {
+    const gl = window.trailMap3d;
+    if (!gl || !window.maplibregl) return;
+    const el = document.createElement("div");
+    el.className = "sk-plangl"; el.style.zIndex = z; el.style.pointerEvents = "none"; el.innerHTML = html;
+    planGl.push(new maplibregl.Marker({ element: el, anchor: "center", opacityWhenCovered: 1 }).setLngLat([ll[1], ll[0]]).addTo(gl));
+  }
   function drawPlan() {
     plan.layer.clearLayers();
+    planGl.forEach((m) => m.remove()); planGl = [];
     if (sport !== "ski" || !plan.pts.length) return;
     const sp = safePath();
     if (sp) {
       const C = SAFE_CLS;
-      for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: "#fff", weight: 9, opacity: 0.95, lineCap: "round", lineJoin: "round", interactive: false }));
-      for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: (C[r.cls] || C.ok).color, weight: 5, opacity: 1, lineCap: "round", lineJoin: "round", interactive: false }));
-      safeWatch(sp).forEach((r, i) => plan.layer.addLayer(L.marker(r.mid, { pane: "ski", interactive: false, keyboard: false,
-        icon: L.divIcon({ className: "", html: `<div class="sk-safe-n sk-safe-w" style="background:${(C[r.cls] || C.ok).color}">!${i + 1}</div>`, iconSize: [26, 22], iconAnchor: [13, 11] }) })));
+      // Easy to pick out among the runs and trails (alex 2026-11-04: "hard to see the route"): a dark halo, a white band, then the colours.
+      for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: "#111", weight: 14, opacity: 0.45, lineCap: "round", lineJoin: "round", interactive: false }));
+      for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: "#fff", weight: 10, opacity: 1, lineCap: "round", lineJoin: "round", interactive: false }));
+      for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: (C[r.cls] || C.ok).color, weight: 6, opacity: 1, lineCap: "round", lineJoin: "round", interactive: false }));
+      safeWatch(sp).forEach((r, i) => {
+        const html = `<div class="sk-safe-n sk-safe-w">!${i + 1}</div>`;
+        plan.layer.addLayer(L.marker(r.mid, { pane: "ski", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html, iconSize: [26, 22], iconAnchor: [13, 11] }) }));
+        planGlPin(r.mid, html, 4);
+      });
     } else if (plan.pts.length > 1) {
       plan.layer.addLayer(L.polyline(plan.pts, { pane: "ski", color: "#fff", weight: 8, opacity: 0.9, interactive: false }));
       plan.layer.addLayer(L.polyline(plan.pts, { pane: "ski", color: plan.safe ? "#868e96" : "#e8590c", weight: 4, opacity: 1, dashArray: plan.on || plan.safe ? "10 6" : null, interactive: false }));
     }
     // With 🛡 on, the points are labelled like the step list: Start, 1, 2 ... End.
     if (plan.safe && plan.pts.length > 1 && !map.getPane("skiSafePt")) { map.createPane("skiSafePt").style.zIndex = 660; map.getPane("skiSafePt").style.pointerEvents = "none"; }   // over the parking and hut pins
-    if (plan.safe && plan.pts.length > 1) plan.pts.forEach((q, i) => plan.layer.addLayer(L.marker(q, { pane: "skiSafePt", interactive: false, keyboard: false,
-      icon: L.divIcon({ className: "", html: `<div class="sk-safe-pt${i && i < plan.pts.length - 1 ? "" : " end"}">${esc(ptName(i, plan.pts.length, true))}</div>`, iconSize: [0, 0], iconAnchor: [0, 0] }) })));
-    else plan.pts.forEach((q, i) => plan.layer.addLayer(L.marker(q, { pane: "ski", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html: `<div class="sk-plan-pt"${i ? "" : ' style="border-color:#2f9e44"'}></div>`, iconSize: [12, 12], iconAnchor: [6, 6] }) })));
+    if (plan.safe && plan.pts.length > 1) plan.pts.forEach((q, i) => {
+      const name = esc(ptName(i, plan.pts.length, true));
+      plan.layer.addLayer(L.marker(q, { pane: "skiSafePt", interactive: false, keyboard: false,
+        icon: L.divIcon({ className: "", html: `<div class="sk-safe-pt">${name}</div>`, iconSize: [0, 0], iconAnchor: [0, 0] }) }));
+      planGlPin(q, `<div class="sk-safe-pt gl">${name}</div>`, 5);
+    });
+    else plan.pts.forEach((q, i) => {
+      const html = `<div class="sk-plan-pt"${i ? "" : ' style="border-color:#2f9e44"'}></div>`;
+      plan.layer.addLayer(L.marker(q, { pane: "ski", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html, iconSize: [12, 12], iconAnchor: [6, 6] }) }));
+      planGlPin(q, html, 5);
+    });
     if (!map.hasLayer(plan.layer)) plan.layer.addTo(map);
     aboveLayer.eachLayer((l) => l.bringToFront());   // the red "steep slopes above" dashes stay on top of the plan
   }
+  window.addEventListener("tf:map3d", () => setTimeout(drawPlan, 0));
   // While planning, a bar on the map keeps the totals and the buttons in sight (on a phone the panel is lowered).
   const planBar = document.createElement("div");
   planBar.className = "sk-planbar"; planBar.hidden = true; planBar.setAttribute("role", "status");
@@ -2422,8 +2453,24 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const c = $("skPlanClear"); if (c) c.addEventListener("click", () => { if (plan.pts.length > 2 && !confirm("Clear your planned tour?")) return; plan.pts = []; planChanged(); });
     const sh = $("skPlanShow"); if (sh) sh.addEventListener("click", () => { const r = planRoute(); if (r) select(r, true); });
     $("skSafeBtn").addEventListener("click", () => setSafe(!plan.safe));
-    card.querySelectorAll("[data-safe-at]").forEach((li) => li.addEventListener("click", () => { const [la, lo] = li.dataset.safeAt.split(",").map(Number); map.setView([la, lo], Math.max(map.getZoom(), 15)); }));
+    // A tap on a step glides there (alex 2026-11-04: "not smooth": the 3D camera jumped): 3D eases keeping its tilt and
+    // heading, 2D flies.
+    card.querySelectorAll("[data-safe-at]").forEach((li) => li.addEventListener("click", () => {
+      const [la, lo] = li.dataset.safeAt.split(",").map(Number), gl = window.trailMap3d;
+      if (gl && map.getContainer().closest(".is3d")) gl.easeTo({ center: [lo, la], zoom: Math.max(gl.getZoom(), 13.5), duration: 1100, easing: (t) => 1 - (1 - t) ** 3 });
+      else map.flyTo([la, lo], Math.max(map.getZoom(), 15), { duration: 0.8 });
+    }));
     const ag = $("skSafeAgain"); if (ag) ag.addEventListener("click", () => { plan.path = null; planChanged(); });
+    // Reorder the points from the list (alex 2026-11-04: "make it so we can change the other way"): swap a point with
+    // the one above or below, or reverse the whole tour; the safest way is found again in the new order.
+    card.querySelectorAll("[data-mv]").forEach((b) => b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const [i, d] = b.dataset.mv.split(",").map(Number), j = i + d;
+      if (j < 0 || j >= plan.pts.length) return;
+      [plan.pts[i], plan.pts[j]] = [plan.pts[j], plan.pts[i]];
+      planChanged();
+    }));
+    const rv = $("skSafeRev"); if (rv) rv.addEventListener("click", () => { plan.pts.reverse(); planChanged(); });
   }
   function planChanged() {
     store.set("skiPlan", plan.pts);
@@ -2554,7 +2601,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     };
     const pt = (i) => {
       const q = plan.pts[i], mid = i && i < n - 1;
-      return `<li class="ss-pt" data-safe-at="${q[0]},${q[1]}"><span class="ss-pin${mid ? "" : " end"}">${mid ? i : IC.flag}</span><span class="ss-t"><b>${esc(ptName(i, n))}</b>${i === 0 && sp.park ? `<small>${esc(sp.park)}</small>` : ""}</span><span></span></li>`;
+      return `<li class="ss-pt" data-safe-at="${q[0]},${q[1]}"><span class="ss-pin${mid ? "" : " end"}">${mid ? i : IC.flag}</span><span class="ss-t"><b>${esc(ptName(i, n))}</b>${i === 0 && sp.park ? `<small>${esc(sp.park)}</small>` : ""}</span><span class="ss-mv">${i > 0 ? `<button type="button" data-mv="${i},-1" aria-label="Move ${esc(ptName(i, n))} up">${IC.up.replace("M4 12 12 4M6 4h6v6", "M8 13V3M4 7l4-4 4 4")}</button>` : ""}${i < n - 1 ? `<button type="button" data-mv="${i},1" aria-label="Move ${esc(ptName(i, n))} down">${IC.up.replace("M4 12 12 4M6 4h6v6", "M8 3v10M4 9l4 4 4-4")}</button>` : ""}</span></li>`;
     };
     let html = pt(0), m = 0, up = 0, down = 0;
     legs.forEach((l, k) => { html += l.steps.filter((s) => s.m >= 40 || l.steps.length === 1).map(row).join("") + pt(k + 1); for (const s of l.steps) { m += s.m; up += s.up || 0; down += s.down || 0; } });
@@ -2619,7 +2666,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       </details>
       ${watch.length ? `<details class="sk-sec sk-fold"><summary><h4>Watch out</h4><span style="--c:${C[watch.some((r) => r.cls === "steep" || r.cls === "trap") ? "steep" : "under"].color}">${watch.length} ${watch.length === 1 ? "spot" : "spots"}</span></summary><ol class="sk-safe-watch">${watch.map((r, i) => `<li style="--c:${(C[r.cls] || C.ok).color}" data-safe-at="${r.mid[0]},${r.mid[1]}"><i>!${i + 1}</i><span>${say(r)}</span></li>`).join("")}</ol></details>`
         : `<div class="sk-sec"><p class="sk-safe-ok">No 30°+ slopes and no steep slopes above on this route, as far as the terrain map can see.</p></div>`}
-      <div class="sk-row"><button type="button" class="btn" id="skSafeAgain">↻ Find again</button></div>
+      <div class="sk-row"><button type="button" class="btn" id="skSafeRev">⇅ Reverse the tour</button><button type="button" class="btn" id="skSafeAgain">↻ Find again</button></div>
       <p class="sk-safe-dis"><b>Not a substitute for avalanche training.</b> This is a planning aid based on a terrain model (10 to 30 m) and the regional forecast. It can't see cornices, wind loading, small slopes, trees or today's snowpack, and a forecast covers a whole region. Take an avalanche course (AST 1), carry a transceiver, probe and shovel with partners who know how to use them, read the full forecast on ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}, and make your own decisions in the field.</p>
     </div>`;
   }
