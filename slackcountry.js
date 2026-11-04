@@ -116,11 +116,11 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
     const z = map.getZoom(), gl = window.trailMap3d && window.maplibregl ? window.trailMap3d : null;
     const add = (lat, lon, html, tip, go) => {
       const m = L.marker([lat, lon], { icon: L.divIcon({ className: "", html, iconSize: [0, 0], iconAnchor: [0, 0] }), keyboard: true, title: tip, zIndexOffset: 500 });
-      m.on("click", (e) => { L.DomEvent.stopPropagation(e); go(); });
+      m.on("click", (e) => { if (planning()) return; L.DomEvent.stopPropagation(e); go(); });   // planning: a point there
       pins.addLayer(m);
       if (gl) {
         const el = document.createElement("div"); el.title = tip; el.innerHTML = html; el.firstElementChild.style.transform = "none";   // MapLibre centres the marker itself
-        el.addEventListener("click", (e) => { e.stopPropagation(); go(); });
+        el.addEventListener("click", (e) => { if (planning()) return; e.stopPropagation(); go(); });
         glMarkers.push(new maplibregl.Marker({ element: el, anchor: "center", opacityWhenCovered: 1 }).setLngLat([lon, lat]).addTo(gl));
       }
     };
@@ -136,7 +136,15 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
       const order = [...rs.lines].sort((a, b) => (a === sel) - (b === sel));
       for (const l of order) {
         const me = l === sel, dim = sel && !me;
-        const tap = (p) => p.on("click", (e) => { if (planning()) return; L.DomEvent.stopPropagation(e); open(l); });
+        const tap = (p) => {
+          p.options.planOffer = true;   // map3d.js: in 3D while planning, a tap on it still comes here
+          return p.on("click", (e) => {
+            L.DomEvent.stopPropagation(e);
+            // Planning a tour: add the whole route (gate, way up, descent, way back), or just a point there.
+            if (planning()) { window.tfSki.trip.planOffer({ name: l.name, kind: "Slackcountry route", at: e.latlng, lines: [l.up, l.ski, l.out].filter((x) => x.length > 1), add: () => addTour(l) }); return; }
+            open(l);
+          });
+        };
         const tip = `${l.name}: slackcountry, outside ski patrol`;
         // The ways up and back are shared by several lines, so only the descents take taps.
         if (l.out.length > 1) layer.addLayer(L.polyline(l.out, { renderer, color: C.out, weight: me ? 5 : 3.5, opacity: dim ? 0.35 : 0.95, dashArray: "1 7", lineCap: "round", interactive: false }));
@@ -191,6 +199,12 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
     const word = ["", "1 Low", "2 Moderate", "3 Considerable", "4 High", "5 Extreme"][dg.r] || "";
     return `<div class="sc-light" style="--c:${x.color}"><i aria-hidden="true"></i><div><b>${esc(x.label)}</b> today: danger ${esc(word)} on ${CLS[l.cls].label.toLowerCase()} terrain. ${esc(x.what)}<br><a href="${forecastUrl(top)}" target="_blank" rel="noopener">The full forecast ↗</a></div></div>`;
   }
+  // The whole route in Plan a tour: from the gate up, the descent, then the way back, followed as drawn.
+  function addTour(l) {
+    let line = [...l.up, ...l.ski, ...l.out].map((p) => [+p[0].toFixed(6), +p[1].toFixed(6)]);
+    if (line.length > 300) { const k = Math.ceil(line.length / 300); line = line.filter((_, i) => i % k === 0 || i === line.length - 1); }
+    window.tfSki.trip.planVia(line, l.name);
+  }
   function open(l) {
     const rs = l.resort, g = rs.gateById.get(l.gate), back = l.ret && rs.gateById.get(l.ret), c = l.calc || {};
     sel = l; draw();
@@ -212,7 +226,7 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
       <h3>Avalanche terrain: ${clsPill(l.cls)} ${l.clsWhy ? "" : "<span class=\"sc-small\">(estimated)</span>"}</h3>
       <p class="sc-small">${esc(l.clsWhy || `Worked out from the shape of the ground, like the ATES scale: ${(c.why || []).join("; ")}. Forest, cornices and glaciers aren't seen.`)}</p>
       <div class="sc-lt">${lightHtml(l)}</div>
-      <div class="sc-acts"><button type="button" class="go" data-act="show">Show on the map</button><button type="button" data-act="list">All lines here</button></div>
+      <div class="sc-acts"><button type="button" class="go" data-act="show">Show on the map</button><button type="button" data-act="tour">＋ Add to tour</button><button type="button" data-act="list">All lines here</button></div>
       <div class="sc-key"><span><i></i>Descent</span><span><i class="up"></i>Way up from the gate</span><span><i class="out"></i>Way back</span></div>
       <h3>The gate and the way up</h3>
       ${g ? `<p><b>${esc(g.name)}.</b> ${esc(g.note)}</p>` : ""}
@@ -228,6 +242,7 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
     dlg.querySelector(".sc-x").onclick = () => dlg.close();
     dlg.querySelector('[data-act="show"]').onclick = () => { keep = true; dlg.close(); sel = l; map.fitBounds(L.latLngBounds([...l.up, ...l.ski, ...l.out]), { padding: [40, 40], maxZoom: 15 }); draw(); };
     dlg.querySelector('[data-act="list"]').onclick = () => openList(rs);
+    dlg.querySelector('[data-act="tour"]').onclick = () => { keep = true; dlg.close(); addTour(l); };
     if (!dlg.open) dlg.showModal();
     dlg.scrollTop = 0;
     // The forecast loads on first use: put the light in once it's there.

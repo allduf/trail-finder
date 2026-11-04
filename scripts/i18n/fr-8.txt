@@ -51,3 +51,16 @@ Cleaner look: one style of icons everywhere, a Key in Hiking, and the Record tab
 Sea to Sky trails checked against local sources: Squamish trails get the District of Squamish’s own grades, SORCA’s 2025-26 trail work shows on each trail, and Whistler’s alpine hiking trails no longer show as bike trails. ||| Sentiers de Sea to Sky vérifiés avec des sources locales : les sentiers de Squamish ont les cotes du District of Squamish, les travaux 2025-26 de la SORCA s'affichent sur chaque sentier, et les sentiers de randonnée alpins de Whistler ne s'affichent plus comme sentiers de vélo.
 Open the hike's photos ||| Ouvrir les photos de la randonnée
 Hiking: hike cards now show real photos of the hike when free-to-use ones exist (credited, tap to see them big). ||| Randonnée : les fiches des randonnées montrent maintenant de vraies photos de la randonnée quand il en existe de libres d'utilisation (avec le crédit, touchez pour les voir en grand).
+Skiing Plan a tour is easier: the bar says what to tap next, drag any point to move it (flat map and 3D), Undo takes back any change, and tapping a freeride line or slackcountry route while planning offers to add the whole line. ||| Ski, Planifier une sortie est plus simple : la barre dit quoi toucher ensuite, glissez un point pour le déplacer (carte plate et 3D), Annuler défait n'importe quel changement, et toucher une ligne freeride ou un itinéraire hors-piste pendant la planification propose d'ajouter toute la ligne.
+Tap the map where you start ||| Touchez la carte là où vous partez
+Start where you park. Tap a freeride or slackcountry line to add it all. ||| Partez de votre stationnement. Touchez une ligne freeride ou hors-piste pour l'ajouter en entier.
+Now tap where you want to go ||| Touchez maintenant là où vous voulez aller
+Drag a point to move it. ||| Glissez un point pour le déplacer.
+Tap to add a point ||| Touchez pour ajouter un point
+drag a point to move it ||| glissez un point pour le déplacer
+Freeride line: add the whole line to your tour? ||| Ligne freeride : ajouter toute la ligne à votre sortie?
+Slackcountry route: add the whole line to your tour? ||| Itinéraire hors-piste : ajouter toute la ligne à votre sortie?
+Add line ||| Ajouter la ligne
+Just a point ||| Juste un point
+Neither ||| Aucun des deux
+Zoomed in there: tap again to place your point. ||| Zoom fait : touchez encore pour placer votre point.

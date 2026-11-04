@@ -855,7 +855,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=2810");
+      const w = new Worker("winter-fill.js?v=2860");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -938,7 +938,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=2810" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=2860" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1740,8 +1740,18 @@
       return best;
     }
     const toLL = (lngLat) => L.latLng(lngLat.lat, lngLat.lng);
+    const skiPlanning = () => map.getContainer().classList.contains("sk-planning");
     gl.on("click", (e) => {
       // Planning a route: every tap is for the planner (a trail to pick or take out, or where you start), as in 2D.
+      // Planning a ski tour (winter.js): a tap is a point there, except on a freeride or slackcountry line, which asks
+      // whether to add the whole line (alex 2026-11-04: lift cards and line names popped up instead).
+      if (skiPlanning()) {
+        const latlng = toLL(e.lngLat), f = near(e.point, TAP)[0], layer = f ? hits[f.properties.i] : null;
+        to2d();
+        if (layer && layer.options && layer.options.planOffer) layer.fire("click", { latlng, originalEvent: e.originalEvent });
+        else map.fire("click", { latlng, layerPoint: map.latLngToLayerPoint(latlng), containerPoint: map.latLngToContainerPoint(latlng), originalEvent: e.originalEvent, from3d: true });
+        return;
+      }
       if (window.tfPlan && window.tfPlan.planning && window.tfPlan.planning()) {
         const latlng = toLL(e.lngLat);
         to2d();
@@ -1762,6 +1772,7 @@
     gl.on("movestart", () => tip.remove());
     gl.on("mousemove", (e) => {
       if (gl.isMoving() || (e.originalEvent && e.originalEvent.buttons)) return;   // turning or tilting: no trail names under the mouse
+      if (skiPlanning()) { tip.remove(); gl.getCanvas().style.cursor = "crosshair"; return; }   // a tap there is a point of the tour
       const dot = nearestDot(e.point, 2), f = !dot && near(e.point, 6)[0], layer = dot ? dot.l : f && hits[f.properties.i], t = layer && layer.getTooltip && layer.getTooltip();
       gl.getCanvas().style.cursor = layer ? "pointer" : "";
       if (t) tip.setLngLat(e.lngLat).setHTML(String(t.getContent())).addTo(gl); else tip.remove();

@@ -133,14 +133,15 @@
     return { km, trapKm };
   }
   // Everything about the route's shape: heights, climb, slopes, which aspects its steep parts face, what's above it.
-  async function info(lines, dem) {
+  async function info(lines, dem, keepDir) {
     const pieces = chain(lines);
     let pts = sampleLine(pieces, SAMPLE_M);
     const total = pts.length ? pts.at(-1).d : 0;
     if (pts.length > 1500) { const st = Math.ceil(pts.length / 1500); pts = pts.filter((_, i) => i % st === 0 || i === pts.length - 1); }
     await heights(pts, total, dem);
-    // Start from the lower end: a tour climbs from the valley.
-    if (pts.at(-1).e < pts[0].e) { pts.reverse(); pts.forEach((p) => { p.d = total - p.d; }); }
+    // Start from the lower end: a tour climbs from the valley. A planned tour (keepDir) keeps its own way, so its
+    // climb and descent aren't swapped when it ends lower than it starts.
+    if (!keepDir && pts.at(-1).e < pts[0].e) { pts.reverse(); pts.forEach((p) => { p.d = total - p.d; }); }
     let up = 0, down = 0, ref = pts[0].e;
     for (const p of pts) { if (p.e - ref >= 5) { up += p.e - ref; ref = p.e; } else if (ref - p.e >= 5) { down += ref - p.e; ref = p.e; } }
     const es = pts.map((p) => p.e), top = pts[es.indexOf(Math.max(...es))];
