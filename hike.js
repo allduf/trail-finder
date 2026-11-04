@@ -477,6 +477,8 @@ out center tags qt;`;
       h.g = Math.max(...h.ways.map((w) => gradeOf(w.t)));
       h.shared = h.ways.some((w) => w.t["mtb:scale"] != null || w.t["mtb:scale:imba"] != null || w.t.bicycle === "designated");
       h.c = [(h.bb[0] + h.bb[2]) / 2, (h.bb[1] + h.bb[3]) / 2];
+      h.gFrom = null;
+      if (!h.g) gradeFromGuide(h);
       const old = hikes.get(h.id);
       if (old && old.info) h.info = old.info;   // heights, snow and park already looked up
     }
@@ -486,37 +488,68 @@ out center tags qt;`;
     if (wantOpen && hikes.has(wantOpen)) { const id = wantOpen; wantOpen = null; openHike(id); }
   }
 
+  // ---------- grades from hiking guides (data/hike-grades.json) ----------
+  // Most trails have no grade on OpenStreetMap (Panorama Ridge did not). Well-known hikes get the grade a hiking guide
+  // gives the whole hike, matched by name near the guide's trailhead. A grade on the map always wins.
+  let guide = null;
+  const guideKey = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\bmount\b/g, "mt").replace(/\b(the|trail|trails|hike|loop|route|path|via|to)\b/g, "").replace(/[^a-z0-9]+/g, "");
+  function gradeFromGuide(h) {
+    if (!guide) return;
+    const e = guide.get(guideKey(h.name));
+    const best = e && e.filter((x) => kmTo([x[1], x[2]], h.c) < 20).sort((a, b) => kmTo([a[1], a[2]], h.c) - kmTo([b[1], b[2]], h.c))[0];
+    if (best) { h.g = best[3]; h.gFrom = { by: guide.src[best[4]] || best[4], url: best[5] || "" }; }
+  }
+  getJ("data/hike-grades.json?v=2920").then((d) => {
+    if (!d || d.v !== 1) return;
+    guide = new Map(); guide.src = d.src || {};
+    for (const x of d.h) { const k = guideKey(x[0]); if (k) (guide.get(k) || guide.set(k, []).get(k)).push(x); }
+    let any = false;
+    for (const h of hikes.values()) if (!h.g) { gradeFromGuide(h); if (h.g) { any = true; const pl = lines.get(h.id); if (pl) pl.setStyle(styleOf(h, cur && cur.id === h.id, !!cur && cur.id !== h.id)); } }
+    if (any) { renderList(); if (cur) renderHike(); }
+  }).catch(() => {});
+
   // ---------- the map ----------
   map.createPane("hike").style.zIndex = 430;
   const rend = L.canvas({ pane: "hike", padding: 0.3, tolerance: L.Browser.touch ? 10 : 5 });
   const layer = L.layerGroup();
   const lines = new Map();   // hike id -> polyline
   let cur = null, wantOpen = null;
+  // Each hike has a white edge under it (its own pane, so every edge sits under every line), so the colours read on
+  // the photos and in 3D (alex 2026-11-04: "trail are hard to see"). The open hike is wide and on top; the others
+  // stay readable around it. z3d: draw order in 3D (edges under all lines, the open hike over them).
+  map.createPane("hikeCase").style.zIndex = 429;
+  const caseRend = L.canvas({ pane: "hikeCase", padding: 0.3 });
+  const cases = new Map();   // hike id -> white edge
   const styleOf = (h, on, dim) => {
     const g = GRADES[h.g];
-    return { color: g.c, weight: on ? 6 : 3.5, opacity: dim ? 0.45 : 0.95, dashArray: h.g === 4 ? "7 6" : null, lineCap: "round" };
+    return { color: g.c, weight: on ? 7 : 4.5, opacity: on ? 1 : dim ? 0.7 : 0.95, dashArray: h.g === 4 ? "8 6" : null, lineCap: "round", z3d: on ? 1 : 0 };
   };
+  const caseOf = (on, dim) => ({ color: "#fff", weight: on ? 12 : 7.5, opacity: on ? 1 : dim ? 0.6 : 0.8, lineCap: "round", lineJoin: "round", z3d: on ? 0.5 : -1 });
   function draw() {
     if (!isHike()) return;
     const seen = new Set();
     for (const h of hikes.values()) {
       seen.add(h.id);
       if (lines.has(h.id)) continue;
+      const edge = L.polyline(h.ways.map((w) => w.g), { renderer: caseRend, pane: "hikeCase", interactive: false, ...caseOf(false, !!cur) });
+      cases.set(h.id, edge); layer.addLayer(edge);
       const pl = L.polyline(h.ways.map((w) => w.g), { renderer: rend, pane: "hike", label: h.name, labelZoom: 13, ...styleOf(h, false, false) });
       pl.on("click", (e) => { if (e.originalEvent) L.DomEvent.stop(e); if (plan.on) { planAdd(e.latlng); return; } openHike(h.id); toPanel(); });
       if (!L.Browser.touch) pl.bindTooltip(esc(h.name), { sticky: true, direction: "top", opacity: 0.9 });
       lines.set(h.id, pl); layer.addLayer(pl);
     }
-    for (const [id, pl] of lines) if (!seen.has(id)) { layer.removeLayer(pl); lines.delete(id); }
+    for (const [id, pl] of lines) if (!seen.has(id)) { layer.removeLayer(pl); lines.delete(id); layer.removeLayer(cases.get(id)); cases.delete(id); }
     looseLayer.clearLayers();
-    if (loose.length) looseLayer.addLayer(L.polyline(loose.map((w) => w.g), { renderer: rend, pane: "hike", interactive: false, color: "#8d6e46", weight: 2, opacity: 0.6, dashArray: "2 5", lineCap: "round" }));
+    if (loose.length) looseLayer.addLayer(L.polyline(loose.map((w) => w.g), { renderer: rend, pane: "hike", interactive: false, color: "#8d6e46", weight: 2.5, opacity: 0.75, dashArray: "2 5", lineCap: "round" }));
   }
   const looseLayer = L.layerGroup();
   function select(id, keep) {
     for (const [k, pl] of lines) {
       const h = hikes.get(k); if (!h) continue;
+      const edge = cases.get(k);
       pl.setStyle(styleOf(h, k === id, !!id && k !== id));
-      if (k === id) pl.bringToFront();
+      if (edge) edge.setStyle(caseOf(k === id, !!id && k !== id));
+      if (k === id) { if (edge) edge.bringToFront(); pl.bringToFront(); }
     }
     if (!id) { cur = null; return; }
     if (!keep) cur = hikes.get(id) || null;
@@ -1089,7 +1122,7 @@ out center tags qt;`;
     const web = first("website");
     el.innerHTML = `<header>${svg(IC.boot)}<h3>${esc(h.name)}</h3><button type="button" class="hk-x" data-save="${esc(h.id)}" aria-label="${isSaved ? "Remove from Saved" : "Save this hike"}" title="${isSaved ? "Saved: tap to remove" : "Save this hike"}" style="${isSaved ? `color:#f59f00` : ""}">${svg(IC.star, 16)}</button>${closeX("hkHike")}</header>
       <div class="hk-row"><span class="hk-badge" style="--c:${g.c}">${esc(g.label)}</span><span class="hk-fact">${fmtKm(h.km)}</span><span class="hk-fact">${esc(shapeWord)}</span>${h.shared ? `<span class="hk-fact">Shared with bikes</span>` : ""}</div>
-      <p class="hk-note">${esc(g.sub)}${h.g ? " (the hardest part)" : ""}${surf ? ` · ${esc(surf)}` : ""}${tags.some((t) => /^(bad|horrible|no)$/.test(t.trail_visibility || "")) ? " · path hard to see in places" : ""}</p>
+      <p class="hk-note">${esc(g.sub)}${h.gFrom ? ` · <span>Grade for the whole hike from</span> ${h.gFrom.url ? `<a href="${esc(h.gFrom.url)}" target="_blank" rel="noopener">${esc(h.gFrom.by)}</a>` : esc(h.gFrom.by)}` : h.g ? " (the hardest part)" : ""}${surf ? ` · ${esc(surf)}` : ""}${tags.some((t) => /^(bad|horrible|no)$/.test(t.trail_visibility || "")) ? " · path hard to see in places" : ""}</p>
       ${Array.isArray(h.photos) ? hikePhHtml(h.photos) : ""}
       ${first("description") ? `<p>${esc(String(first("description")).slice(0, 300))}</p>` : ""}
       ${operatorFacts(h).slice(0, 1).map((e) => `<div class="hk-warn">${svg(IC.boot, 14)} <b>${esc([e.level, e.km && `${e.km} km`].filter(Boolean).join(" · ") || "About this trail")}</b><small>${esc(e.text)} <a href="${esc(e.src.url)}" target="_blank" rel="noopener">${esc(e.src.name)}</a></small></div>`).join("")}

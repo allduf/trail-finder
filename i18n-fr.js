@@ -1704,6 +1704,8 @@
     "Search: places now show as you type in every sport (towns, mountains, lakes, parks, resorts, routes, huts, trails), even with a typo like “revol” for Revelstoke.":"Recherche : les endroits s'affichent maintenant pendant que vous tapez, dans tous les sports (villes, montagnes, lacs, parcs, stations, itinéraires, refuges, sentiers), même avec une faute comme « revol » pour Revelstoke.",
     "Searching a place now frames it close so you really see it: a backcountry area like Sky Pilot fills the screen, above the bottom sheet on phones, and 3D looks at it less tilted.":"Chercher un endroit le cadre maintenant de près pour vraiment le voir : un secteur hors-piste comme Sky Pilot remplit l'écran, au-dessus du panneau du bas sur téléphone, et la 3D le regarde moins inclinée.",
     "Skiing 3D: searching a place now turns the 3D map to the side it's seen best from, so ridges in front don't hide it.":"Ski 3D : chercher un endroit tourne maintenant la carte 3D du côté d'où on le voit le mieux, pour que les crêtes devant ne le cachent pas.",
+    "Grade for the whole hike from":"Niveau de toute la randonnée selon",
+    "Hiking: trails are easier to see on the map and in 3D (white edge, the open hike bold), and well-known hikes with no grade on the map now get one from a hiking guide.":"Randonnée : les sentiers se voient mieux sur la carte et en 3D (bord blanc, la randonnée ouverte en gras), et les randonnées connues sans niveau sur la carte en ont maintenant un, tiré d'un guide de randonnée.",
     "Backcountry access gondola · not a ski resort":"Télécabine d'accès à l'arrière-pays · pas une station de ski",
     "Backcountry access gondola":"Télécabine d'accès à l'arrière-pays",
     "Open today":"Ouvert aujourd'hui",
