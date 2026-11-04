@@ -435,7 +435,7 @@
       for (const [dr, dc] of dirs) {
         const rr = r + dr, cc = c + dc; if (rr < 0 || cc < 0 || rr >= g.H || cc >= W) continue;
         const j = rr * W + cc; if (done[j]) continue;
-        const t = stepCost(g, j, i, dr && dc ? g.cellM * Math.SQRT2 : g.cellM);   // walking from j toward the spot
+        const t = (goal.cost || stepCost)(g, j, i, dr && dc ? g.cellM * Math.SQRT2 : g.cellM);   // walking from j toward the spot (Skiing's safest way: its own cost)
         if (t === Infinity) continue;
         const nc = cost[i] + t;
         if (nc < cost[j]) { cost[j] = nc; prev[j] = i; open.push(nc + hEst(j), j); }
@@ -524,8 +524,9 @@
     let got = null;
     if (from.you) {
       const d = metres(spotLL, from.you);
-      for (const pad of [Math.max(400, d * 0.3), Math.max(1500, d * 0.8)]) {
+      for (const pad of from.pads ? from.pads(d) : [Math.max(400, d * 0.3), Math.max(1500, d * 0.8)]) {
         const g = await buildGrid(boxAround([spotLL, from.you], pad), onStep, from.lines);
+        if (from.prep) from.prep(g);   // ski-route.js: slopes, aspects, avalanche paths and the forecast on each cell
         onStep && onStep("route");
         const res = search(g, spotLL, from);
         if (res && res.cells) { got = { g, res, from: "you", unplowed: unplowedM(g, res) }; if (!res.edge) break; }
@@ -535,8 +536,9 @@
     }
     for (const r of from.radii || [1500, 4000, 7000]) {
       const g = await buildGrid(boxAround([spotLL], r), onStep, from.lines);
+      if (from.prep) from.prep(g);
       onStep && onStep("route");
-      const res = search(g, spotLL, { winter: from.winter });
+      const res = search(g, spotLL, { winter: from.winter, cost: from.cost });
       if (res && res.water) return { g, res, fail: "water" };
       if (res && res.cells) {
         const i = res.cells[0];
@@ -714,5 +716,7 @@
   });
   window.addEventListener("tf:sport", () => { if (!isFish()) clear(); });
   window.tfFishRoute = { button, clear, start: (lat, lon, name, from) => start([lat, lon], name || "", from || null), _build: build, _describe: describe,
-    groundName: (k) => (GROUND[k] ? GROUND[k][0] : "the bush") };   // cabin-trip.js: the way in to a hut
+    groundName: (k) => (GROUND[k] ? GROUND[k][0] : "the bush"),
+    // ski-route.js (Skiing's safest way): the grid's parts it reads.
+    _grid: { G, F_STREAM, F_RIVER, F_BRIDGE, F_PARK, L_PATH, L_TRACK, blocked, cellLL, cellAt, simplify, mx, my, unx, uny } };   // cabin-trip.js: the way in to a hut
 })();
