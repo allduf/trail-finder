@@ -5,7 +5,7 @@ name: Canada trail data
 # the canada-data branch (one commit, replaced each night, so the repo doesn't grow) and published with the
 # website by pages.yml. They are never committed to main. The same run lists Canada's bike parks, pump tracks and
 # MTB centres (scripts/build-bike-parks.mjs -> ca/bike-parks.json), the trailheads and parking near the trails
-# (scripts/build-canada-access.mjs -> ca/a/), the forest roads near them (scripts/build-canada-roads.mjs -> ca/r/, with each province's government road map from scripts/build-gov-roads.mjs), the gas stations, campsites and hot springs for Moto mode (scripts/build-moto.mjs -> ca/moto/), every trail name for the name box (scripts/build-name-index.mjs -> ca/names.json), the new trails for the 🔔 (scripts/build-new-trails.mjs ca -> ca/new-trails.json) and the ski resort runs, groomed nordic and snowmobile trails (scripts/build-canada-winter.mjs -> ca/w/).
+# (scripts/build-canada-access.mjs -> ca/a/), the forest roads near them (scripts/build-canada-roads.mjs -> ca/r/, with each province's government road map from scripts/build-gov-roads.mjs), the gas stations, campsites and hot springs for Moto mode (scripts/build-moto.mjs -> ca/moto/), every trail name for the name box (scripts/build-name-index.mjs -> ca/names.json), the new trails for the 🔔 (scripts/build-new-trails.mjs ca -> ca/new-trails.json), the ski resort runs, groomed nordic and snowmobile trails (scripts/build-canada-winter.mjs -> ca/w/) and every hiking trail with the hiking places (scripts/build-canada-hike.mjs -> ca/h/, for Hiking outside the home zones).
 on:
   schedule:
     - cron: "17 8 * * *"    # 08:17 UTC; Geofabrik's daily extracts are out by then
@@ -68,6 +68,11 @@ jobs:
               nwr/shop=motorcycle,motorcycle_repair,tyres
             osmium export --overwrite -a type,id -f geojsonseq -o /tmp/osm/m.geojsonseq /tmp/osm/m.pbf
             node scripts/build-moto.mjs ingest "$p" /tmp/osm/m.geojsonseq || echo "::warning::Moto points failed for $p"
+            # Hiking places: trailheads, parking, huts, campsites, viewpoints, peaks, waterfalls, water, toilets (scripts/build-canada-hike.mjs).
+            osmium tags-filter --overwrite -o /tmp/osm/hp.pbf /tmp/osm/p.pbf \
+              nwr/highway=trailhead nwr/tourism=alpine_hut,wilderness_hut,viewpoint,camp_site nwr/amenity=shelter,parking,drinking_water,toilets \
+              n/natural=peak,volcano n/waterway=waterfall
+            osmium export --overwrite -a type,id -f geojsonseq -o /tmp/osm/hp.geojsonseq /tmp/osm/hp.pbf
             rm /tmp/osm/p.pbf
             osmium export --overwrite -c /tmp/export.json -n --geometry-types=linestring -f geojsonseq -o /tmp/osm/s.geojsonseq /tmp/osm/s.pbf
             osmium cat --overwrite -t relation -f opl -o /tmp/osm/s.opl /tmp/osm/s.pbf
@@ -79,6 +84,7 @@ jobs:
             osmium export --overwrite -c /tmp/export.json -f geojsonseq -o /tmp/osm/w.geojsonseq /tmp/osm/f.pbf
             osmium cat --overwrite -t relation -f opl -o /tmp/osm/r.opl /tmp/osm/f.pbf
             node scripts/build-canada.mjs ingest "$p" /tmp/osm/w.geojsonseq /tmp/osm/r.opl
+            node scripts/build-canada-hike.mjs ingest "$p" /tmp/osm/w.geojsonseq /tmp/osm/r.opl /tmp/osm/hp.geojsonseq || echo "::warning::Hiking trails failed for $p"
             node scripts/build-bike-parks.mjs ingest "$p" /tmp/osm/b.geojsonseq /tmp/osm/w.geojsonseq || echo "::warning::Bike parks failed for $p"
             node scripts/build-canada-roads.mjs ingest "$p" /tmp/osm/rd.geojsonseq || echo "::warning::Forest roads failed for $p"
             rm /tmp/osm/*
@@ -94,6 +100,7 @@ jobs:
           node scripts/build-canada-roads.mjs finish || echo "::warning::Forest roads failed"
           node scripts/build-canada-winter.mjs finish || echo "::warning::Winter trails failed"
           node scripts/build-moto.mjs finish || echo "::warning::Moto points failed"
+          node scripts/build-canada-hike.mjs finish || echo "::warning::Hiking trails failed"
       - name: Government forest road maps near the roads (scripts/build-gov-roads.mjs, a week's cache from last night)
         run: |
           git fetch -q --depth=1 origin canada-data:refs/ca/last || echo "No canada-data branch yet"

@@ -292,6 +292,7 @@ body:not(.sport-hike) .lm-hike, body:not(.sport-hike) .hk-mapkey, body.sport-hik
 (
   way["highway"~"^(path|footway|bridleway)$"]["name"](${bb});
   way["highway"~"^(path|footway|bridleway|track)$"]["sac_scale"](${bb});
+  way["highway"="track"]["name"~"(^|[^a-z])(sentier|trail|portage)([^a-z]|$)",i](${bb});
 )->.a;
 rel["route"~"^(hiking|foot)$"](${bb})->.r;
 way(r.r)["highway"](${bb})->.b;
@@ -377,7 +378,7 @@ out center tags qt;`;
     return true;
   }
   // The home zones (Vancouver to Calgary) come ready-made from the weekly job (data/hike-<zone>.json,
-  // scripts/build-hike.mjs). Everywhere else: Overpass, one square at a time (two at most), nearest the middle of the
+  // scripts/build-hike.mjs). Elsewhere the nightly Canada chunks below (ca/h/), and where no chunk file loads: Overpass, one square at a time (two at most), nearest the middle of the
   // map first, at most MAX_SQ squares for a view, and a pause that grows after each failure (alex 2026-11-02: asked
   // live for dozens of squares at once, the server refused or queued them and the panel sat on "Finding…" for good).
   const MAX_SQ = 9, zoneFiles = new Map();   // zone id -> "loading" | "done" | "none"
@@ -391,7 +392,34 @@ out center tags qt;`;
     }).catch(() => zoneFiles.set(z.id, "none")).finally(() => { regroup(); loadView(); });
     nightly(`hike-places-${z.id}.json`).then((j) => { if (j && j.v === 1) { absorbPlaces(j.p); drawPlaces(); } }).catch(() => {});
   }
-  const pending = () => active + queue.length + [...zoneFiles.values()].filter((v) => v === "loading").length;
+  // Outside the home zones: every hiking trail in Canada, built each night (ca/h/<chunk>.json, 1° x 1.2° chunks,
+  // scripts/build-canada-hike.mjs; alex 2026-11-04 in Saint-Donat: "i though we had all the hiking trail in canada").
+  // Overpass only for squares whose chunk file doesn't load (no network to the site, or before the first night's run).
+  const CH_LAT = 1, CH_LON = 1.2, chunkFiles = new Map();   // chunk id -> "loading" | "done" | "none" | "fail"
+  const chunkOf = (lat, lon) => `${Math.floor(lat / CH_LAT) * CH_LAT}_${(Math.floor(lon / CH_LON) * CH_LON).toFixed(1)}`;
+  let chunkIdx = null;
+  const chunkList = () => (chunkIdx = chunkIdx || (/^https?:$/.test(location.protocol) ? getJ("ca/h/index.json", 15000, { cache: "no-cache" }) : Promise.reject(new Error("file")))
+    .then((d) => new Set((d && d.chunks) || [])).catch(() => { chunkIdx = null; return null; }));
+  const decode = (e) => {
+    const g = []; let i = 0, y = 0, x = 0;
+    const num = () => { let r = 0, sh = 0, b; do { b = e.charCodeAt(i++) - 63; r |= (b & 0x1f) << sh; sh += 5; } while (b >= 0x20); return r & 1 ? ~(r >> 1) : r >> 1; };
+    while (i < e.length) { y += num(); x += num(); g.push([y / 1e5, x / 1e5]); }
+    return g;
+  };
+  function loadChunk(id) {
+    chunkFiles.set(id, "loading");
+    chunkList().then((have) => {
+      if (!have) return "fail";
+      if (!have.has(id)) return "none";   // no hiking trails mapped there
+      return getJ(`ca/h/${id}.json`, 30000).then((j) => {
+        if (!j || j.v !== 1 || !Array.isArray(j.w)) return "fail";
+        absorb({ w: j.w.map((w) => ({ id: w.id, t: w.t, g: w.g || decode(w.e) })), r: j.r || [], p: j.p || [] });
+        drawPlaces();
+        return "done";
+      });
+    }).catch(() => "fail").then((st) => { chunkFiles.set(id, st); regroup(); loadView(); });
+  }
+  const pending = () => active + queue.length + [...zoneFiles.values(), ...chunkFiles.values()].filter((v) => v === "loading").length;
   function pump() {
     clearTimeout(pumpT);
     if (!isHike()) return;
@@ -423,6 +451,10 @@ out center tags qt;`;
           const st = zoneFiles.get(z.id);
           if (!st) loadZone(z);
           if (st !== "none") continue;   // the zone's file has it, or is on its way
+        } else {
+          const cid = chunkOf(mid[0], mid[1]), st = chunkFiles.get(cid);
+          if (!st) loadChunk(cid);
+          if (st !== "fail") continue;   // the chunk has it (or has none), or is on its way
         }
         want.push({ k, b: [s, w, s + T_LAT, w + T_LON], d: kmTo(mid, [c.lat, c.lng]) });
       }
@@ -499,7 +531,7 @@ out center tags qt;`;
     const best = e && e.filter((x) => kmTo([x[1], x[2]], h.c) < 20).sort((a, b) => kmTo([a[1], a[2]], h.c) - kmTo([b[1], b[2]], h.c))[0];
     if (best) { h.g = best[3]; h.gFrom = { by: guide.src[best[4]] || best[4], url: best[5] || "" }; }
   }
-  getJ("data/hike-grades.json?v=2880").then((d) => {
+  getJ("data/hike-grades.json?v=2940").then((d) => {
     if (!d || d.v !== 1) return;
     guide = new Map(); guide.src = d.src || {};
     for (const x of d.h) { const k = guideKey(x[0]); if (k) (guide.get(k) || guide.set(k, []).get(k)).push(x); }
@@ -947,7 +979,7 @@ out center tags qt;`;
   // alex 2026-11-03: anything found about a trail beyond OpenStreetMap goes on the trail (the Sea to Sky Gondola's
   // trails: difficulty, length, time, what it's like). An entry fits a hike with one of its names within r metres.
   let tInfo = null;
-  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=2880").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
+  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=2940").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
   const fold = (x) => String(x || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   function operatorFacts(h) {
     const j = tInfo && tInfo.then ? null : tInfo;
