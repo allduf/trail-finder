@@ -718,5 +718,5 @@
   window.tfFishRoute = { button, clear, start: (lat, lon, name, from) => start([lat, lon], name || "", from || null), _build: build, _describe: describe,
     groundName: (k) => (GROUND[k] ? GROUND[k][0] : "the bush"),
     // ski-route.js (Skiing's safest way): the grid's parts it reads.
-    _grid: { G, F_STREAM, F_RIVER, F_BRIDGE, F_PARK, L_PATH, L_TRACK, blocked, cellLL, cellAt, simplify, mx, my, unx, uny } };   // cabin-trip.js: the way in to a hut
+    _grid: { G, F_PAVED, L_MOTOR, L_STEPS, F_STREAM, F_RIVER, F_BRIDGE, F_PARK, L_PATH, L_TRACK, blocked, cellLL, cellAt, simplify, mx, my, unx, uny } };   // cabin-trip.js: the way in to a hut
 })();

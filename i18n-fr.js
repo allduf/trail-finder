@@ -1837,7 +1837,13 @@
     "That point is out on open water: move it to the shore.":"Ce point est sur l'eau : déplacez-le sur la rive.",
     "Couldn't find a way between these points (cliffs or open water in the way, or too far apart). Move a point or add one between.":"Aucun trajet trouvé entre ces points (falaises ou eau sur le chemin, ou trop loin). Déplacez un point ou ajoutez-en un entre les deux.",
     "Couldn't get the terrain for this area. Check your connection and try again.":"Impossible d'obtenir le terrain pour ce secteur. Vérifiez votre connexion et réessayez.",
-    "Skiing: 🛡 Safest way plans a tour around avalanche terrain (slope angle, today's forecast and problem aspects, slopes above and terrain traps) and shows why on the route.":"Ski : 🛡 Trajet le plus sûr planifie une sortie en contournant le terrain avalancheux (angle de pente, prévision du jour et orientations à problème, pentes au-dessus et pièges de terrain) et montre pourquoi sur le trajet."};
+    "Skiing: 🛡 Safest way plans a tour around avalanche terrain (slope angle, today's forecast and problem aspects, slopes above and terrain traps) and shows why on the route.":"Ski : 🛡 Trajet le plus sûr planifie une sortie en contournant le terrain avalancheux (angle de pente, prévision du jour et orientations à problème, pentes au-dessus et pièges de terrain) et montre pourquoi sur le trajet.",
+    "The way, step by step":"Le trajet, étape par étape",
+    "End":"Arrivée",
+    "gentle ground, under 25°":"terrain doux, moins de 25°",
+    "No steep or exposed ground on this leg.":"Aucun terrain raide ou exposé sur cette section.",
+    "No safer way round on this leg.":"Pas de trajet plus sûr pour cette section.",
+    "Skiing Safest way: the route now has a step list (Start, Point 1, 2 ... End) with each leg's distance, climb and why, matching labels on the map, and it no longer runs down plowed highways.":"Trajet le plus sûr en ski : le trajet a maintenant une liste d'étapes (Départ, Point 1, 2 ... Arrivée) avec la distance, la montée et la raison de chaque section, comme sur la carte, et il ne suit plus les routes déneigées."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
