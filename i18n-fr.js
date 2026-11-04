@@ -1907,7 +1907,16 @@
     "shelterwood cut (some big trees left)":"coupe progressive (quelques gros arbres laissés)",
     "selection cut (single trees taken)":"coupe de jardinage (arbres pris un à un)",
     "partial cut":"coupe partielle",
-    "Ontario logging: with Logging areas on, Ontario's own plans now show the blocks set to be logged this year (gold) and the ones logged lately (pink); tap one for the cut type. Skiing also has 43 more live webcams in Quebec, Ontario and the Maritimes (Tremblant, Bromont, Saint-Sauveur, Mont-Saint-Louis, the Chic-Chocs...) and live lifts at Owl's Head, Horseshoe, Mont Sainte-Marie and Searchmont.":"Coupes en Ontario : avec Zones de coupe activées, les plans de l'Ontario montrent maintenant les blocs à couper cette année (or) et ceux coupés récemment (rose); touchez-en un pour le type de coupe. Le ski a aussi 43 nouvelles webcams en direct au Québec, en Ontario et dans les Maritimes (Tremblant, Bromont, Saint-Sauveur, Mont-Saint-Louis, les Chic-Chocs...) et l'état des remontées en direct à Owl's Head, Horseshoe, Mont Sainte-Marie et Searchmont."};
+    "Ontario logging: with Logging areas on, Ontario's own plans now show the blocks set to be logged this year (gold) and the ones logged lately (pink); tap one for the cut type. Skiing also has 43 more live webcams in Quebec, Ontario and the Maritimes (Tremblant, Bromont, Saint-Sauveur, Mont-Saint-Louis, the Chic-Chocs...) and live lifts at Owl's Head, Horseshoe, Mont Sainte-Marie and Searchmont.":"Coupes en Ontario : avec Zones de coupe activées, les plans de l'Ontario montrent maintenant les blocs à couper cette année (or) et ceux coupés récemment (rose); touchez-en un pour le type de coupe. Le ski a aussi 43 nouvelles webcams en direct au Québec, en Ontario et dans les Maritimes (Tremblant, Bromont, Saint-Sauveur, Mont-Saint-Louis, les Chic-Chocs...) et l'état des remontées en direct à Owl's Head, Horseshoe, Mont Sainte-Marie et Searchmont.",
+    "empty":"vide",
+    "Hiking trails, by grade":"Sentiers de randonnée, par niveau",
+    "Other paths":"Autres chemins",
+    "Your plan":"Votre plan",
+    "Planned hike":"Rando planifiée",
+    "Over 45°":"Plus de 45°",
+    "Zoom in to see the trails.":"Zoomez pour voir les sentiers.",
+    "Tap any line or dot on the map to see what it is.":"Touchez une ligne ou un point sur la carte pour voir ce que c'est.",
+    "Cleaner look: one style of icons everywhere, a Key in Hiking, and the Record tab named the same in Skiing, Hunting, Fishing and Hiking.":"Un look plus net : un seul style d'icônes partout, une légende en randonnée, et l'onglet Enregistrer nommé pareil en ski, chasse, pêche et randonnée."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
