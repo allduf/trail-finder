@@ -2451,7 +2451,13 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const c = $("skPlanClear"); if (c) c.addEventListener("click", () => { if (plan.pts.length > 2 && !confirm("Clear your planned tour?")) return; plan.pts = []; planChanged(); });
     const sh = $("skPlanShow"); if (sh) sh.addEventListener("click", () => { const r = planRoute(); if (r) select(r, true); });
     $("skSafeBtn").addEventListener("click", () => setSafe(!plan.safe));
-    card.querySelectorAll("[data-safe-at]").forEach((li) => li.addEventListener("click", () => { const [la, lo] = li.dataset.safeAt.split(",").map(Number); map.setView([la, lo], Math.max(map.getZoom(), 15)); }));
+    // A tap on a step glides there (alex 2026-11-04: "not smooth": the 3D camera jumped): 3D eases keeping its tilt and
+    // heading, 2D flies.
+    card.querySelectorAll("[data-safe-at]").forEach((li) => li.addEventListener("click", () => {
+      const [la, lo] = li.dataset.safeAt.split(",").map(Number), gl = window.trailMap3d;
+      if (gl && map.getContainer().closest(".is3d")) gl.easeTo({ center: [lo, la], zoom: Math.max(gl.getZoom(), 13.5), duration: 1100, easing: (t) => 1 - (1 - t) ** 3 });
+      else map.flyTo([la, lo], Math.max(map.getZoom(), 15), { duration: 0.8 });
+    }));
     const ag = $("skSafeAgain"); if (ag) ag.addEventListener("click", () => { plan.path = null; planChanged(); });
     // Reorder the points from the list (alex 2026-11-04: "make it so we can change the other way"): swap a point with
     // the one above or below, or reverse the whole tour; the safest way is found again in the new order.
