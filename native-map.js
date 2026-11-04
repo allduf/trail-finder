@@ -4,6 +4,8 @@
 // colours and dashes, the dots), copied the way map3d.js copies them for 3D. As it moves, this page's map follows out of
 // sight so the trails there load, and they're sent again. Tapping a trail shows its name; "Details" comes back here and
 // opens that trail, as a tap on it here would. On the website, and in app builds without the plugin, this file does nothing.
+// Only alex sees the button (go-public checklist item 25, Apple rule 2.2: no test features for the public). friends.js
+// keeps "tf-admin" = "1" on alex's devices and fires "tf:admin" when that changes.
 (() => {
   "use strict";
   const C = window.Capacitor, map = window.tfLeaflet, L = window.L;
@@ -18,8 +20,11 @@
   btn.title = "Try the map drawn by the iPhone itself: does it move smoother?";
   btn.textContent = "📱 Native map (test)";
   tools.after(btn);
+  const adminNow = () => { try { return localStorage.getItem("tf-admin") === "1"; } catch { return false; } };
+  btn.hidden = !adminNow();
+  window.addEventListener("tf:admin", () => { btn.hidden = !adminNow(); });
   const css = document.createElement("style");
-  css.textContent = "body.sport-alt #nativeMapBtn { display: none; }";   // MTB only
+  css.textContent = "body.sport-alt #nativeMapBtn, #nativeMapBtn[hidden] { display: none !important; }";   // MTB only, alex only
   document.head.append(css);
 
   let open = false, hits = [], pending = 0;

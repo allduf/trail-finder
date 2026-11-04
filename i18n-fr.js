@@ -1808,7 +1808,15 @@
     "Rain instead, next 3 days (mm)":"Pluie à la place, 3 prochains jours (mm)",
     "Snow coming, these 3 hours (cm)":"Neige à venir, ces 3 heures (cm)",
     "Rain instead, these 3 hours (mm)":"Pluie à la place, ces 3 heures (mm)",
-    "Privacy: photo search no longer lets anyone see when other people confirmed a picture of a trail.":"Confidentialité : la recherche par photo ne montre plus à personne quand d'autres ont confirmé une photo d'un sentier."};
+    "Privacy: photo search no longer lets anyone see when other people confirmed a picture of a trail.":"Confidentialité : la recherche par photo ne montre plus à personne quand d'autres ont confirmé une photo d'un sentier.",
+    "Not chosen yet. You'll be asked the first time it's needed.":"Pas encore choisi. On vous le demandera la première fois.",
+    "Found on your phone along the trails on the map (the route server didn't answer).":"Trouvé sur votre téléphone le long des sentiers de la carte (le serveur de trajets n'a pas répondu).",
+    "Check the route on the map: a path on the map isn't always a trail on the ground.":"Vérifiez le trajet sur la carte : un chemin sur la carte n'est pas toujours un sentier sur le terrain.",
+    "Put each point on or near a trail on the map.":"Placez chaque point sur un sentier de la carte, ou tout près.",
+    "No signal, and no trails saved here yet: zoom in while you have signal, or save an offline map.":"Pas de réseau, et aucun sentier enregistré ici : zoomez quand vous avez du réseau, ou enregistrez une carte hors ligne.",
+    "Data credits":"Sources des données",
+    "Every source and its licence":"Chaque source et sa licence",
+    "Plan a hike still finds a route along the trails when the route server is busy, and a new Data credits page lists every source.":"Planifier une randonnée trouve encore un trajet le long des sentiers quand le serveur de trajets est occupé, et une nouvelle page Sources des données liste chaque source."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

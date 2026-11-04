@@ -12,7 +12,11 @@
   // alex (tf_is_admin) gets More → Friends on this device: "tf-admin" = "1", asked after each sign-in.
   const ADMIN = "tf-admin";
   const isAdmin = () => { try { return localStorage.getItem(ADMIN) === "1"; } catch { return false; } };
-  const saveAdmin = (v) => { try { if (v) localStorage.setItem(ADMIN, "1"); else localStorage.removeItem(ADMIN); } catch {} };
+  const saveAdmin = (v) => {
+    const was = isAdmin();
+    try { if (v) localStorage.setItem(ADMIN, "1"); else localStorage.removeItem(ADMIN); } catch {}
+    if (was !== isAdmin()) window.dispatchEvent(new Event("tf:admin"));   // native-map.js shows its test button to alex only
+  };
   async function check(user) {
     const a = window.tfAccount;
     if (!a) return;

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6f4a">
+<title>Data credits · Trail Finder</title>
+<style>
+/* Data credits (go-public checklist item 18, alex 2026-11-04): every source the app shows and its licence, linked
+   from How it works and the page footers. English and French on one page; the language follows the app (tf:lang) or
+   the phone. Add a line here whenever a new data source goes into the app. */
+:root {
+  --bg: #f3f5f2; --panel: #ffffff; --fg: #1d2420; --muted: #5c6862; --line: #d9dfda; --accent: #1f6f4a;
+  --font-display: "Arial Narrow", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --accent: #5cc98f; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --accent: #5cc98f; color-scheme: dark; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 720px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 32px); }
+.back { display: inline-block; color: var(--accent); font-weight: 600; text-decoration: none; padding: 8px 0; }
+h1 { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .02em; font-size: 1.7rem; margin: 8px 0 2px; }
+h2 { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .03em; font-size: 1.15rem; margin: 26px 0 6px; }
+p, li { max-width: 65ch; }
+.muted { color: var(--muted); font-size: .9rem; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin: 12px 0; }
+a { color: var(--accent); }
+ul { padding-left: 20px; }
+li { margin: 4px 0; }
+.lang { float: right; padding: 8px 0; }
+.warn { border-left: 4px solid #e8590c; }
+dl { margin: 0; }
+dt { font-weight: 700; margin-top: 10px; }
+dd { margin: 2px 0 0; color: var(--muted); font-size: .92rem; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="index.html"><span data-l="en">← Back to the map</span><span data-l="fr" hidden>← Retour à la carte</span></a><a class="lang" href="#" data-to="fr" data-l="en">Français</a><a class="lang" href="#" data-to="en" data-l="fr" hidden>English</a>
+<h1><span data-l="en">Data credits</span><span data-l="fr" hidden>Sources des données</span></h1>
+<p class="muted"><span data-l="en">Updated November 4, 2026</span><span data-l="fr" hidden>Mis à jour le 4 novembre 2026</span></p>
+<p><span data-l="en">Trail Finder is built on open data from the people and governments below. Thank you. Trail Finder is not affiliated with any of them, and none of them endorses the app.</span><span data-l="fr" hidden>Trail Finder est fait avec les données ouvertes des personnes et des gouvernements ci-dessous. Merci. Trail Finder n’est affilié à aucun d’eux, et aucun d’eux n’approuve l’application.</span></p>
+<h2><span data-l="en">Trails, roads and places</span><span data-l="fr" hidden>Sentiers, routes et lieux</span></h2>
+<div class="card"><dl>
+<dt>© OpenStreetMap contributors</dt><dd><span data-l="en">Open Database License (ODbL). Most trails, roads, huts, parking and places. Fix a mistake on openstreetmap.org.</span><span data-l="fr" hidden>Open Database License (ODbL). La plupart des sentiers, routes, refuges, stationnements et lieux. Corrigez une erreur sur openstreetmap.org.</span></dd>
+<dt>Geofabrik</dt><dd><span data-l="en">OpenStreetMap extracts for Canada (ODbL).</span><span data-l="fr" hidden>Extraits OpenStreetMap du Canada (ODbL).</span></dd>
+<dt>Overpass API (overpass-api.de, private.coffee)</dt><dd><span data-l="en">Live OpenStreetMap queries outside the home areas.</span><span data-l="fr" hidden>Requêtes OpenStreetMap en direct hors des zones principales.</span></dd>
+<dt>Nominatim, Photon (komoot)</dt><dd><span data-l="en">Place search, from OpenStreetMap (ODbL).</span><span data-l="fr" hidden>Recherche de lieux, à partir d’OpenStreetMap (ODbL).</span></dd>
+<dt>GeoNames</dt><dd><span data-l="en">Town list, CC BY 4.0.</span><span data-l="fr" hidden>Liste des villes, CC BY 4.0.</span></dd>
+<dt>Valhalla (FOSSGIS)</dt><dd><span data-l="en">Hiking and moto routes, on OpenStreetMap.</span><span data-l="fr" hidden>Trajets de randonnée et de moto, sur OpenStreetMap.</span></dd>
+<dt>camptocamp.org</dt><dd><span data-l="en">Ski routes, CC BY-SA.</span><span data-l="fr" hidden>Itinéraires de ski, CC BY-SA.</span></dd>
+<dt>Hokkaido Wilds</dt><dd><span data-l="en">Japan ski tours and huts (Japan only), linked to their pages.</span><span data-l="fr" hidden>Sorties de ski et refuges au Japon (Japon seulement), avec lien vers leurs pages.</span></dd>
+</dl></div>
+<h2><span data-l="en">Maps and photos from above</span><span data-l="fr" hidden>Cartes et photos aériennes</span></h2>
+<div class="card"><dl>
+<dt>OpenFreeMap, OpenMapTiles</dt><dd><span data-l="en">Main map, from OpenStreetMap (ODbL). OpenMapTiles schema, BSD and CC BY.</span><span data-l="fr" hidden>Carte principale, à partir d’OpenStreetMap (ODbL). Schéma OpenMapTiles, BSD et CC BY.</span></dd>
+<dt>OpenStreetMap, OSM France, CyclOSM, OpenTopoMap, CARTO</dt><dd><span data-l="en">Extra map styles: map data ODbL, styles CC BY-SA.</span><span data-l="fr" hidden>Styles de carte en option : données ODbL, styles CC BY-SA.</span></dd>
+<dt>Esri, Maxar, Earthstar Geographics and the GIS User Community</dt><dd><span data-l="en">Summer satellite photos (World Imagery) and Esri Wayback.</span><span data-l="fr" hidden>Photos satellite d’été (World Imagery) et Esri Wayback.</span></dd>
+<dt>NASA GIBS, NASA HLS (Landsat and Sentinel-2)</dt><dd><span data-l="en">Clouds and the newest clear satellite photo.</span><span data-l="fr" hidden>Nuages et photo satellite claire la plus récente.</span></dd>
+<dt>Contains modified Copernicus Sentinel data (ESA)</dt><dd><span data-l="en">Winter satellite photos, processed by Trail Finder.</span><span data-l="fr" hidden>Photos satellite d’hiver, traitées par Trail Finder.</span></dd>
+<dt>Mapterhorn, Mapzen Terrain Tiles on AWS</dt><dd><span data-l="en">Heights, 3D terrain, slope angle and contour lines.</span><span data-l="fr" hidden>Altitudes, relief 3D, angle de pente et courbes de niveau.</span></dd>
+<dt>Geospatial Information Authority of Japan (GSI)</dt><dd><span data-l="en">Japan topo map (Japan only).</span><span data-l="fr" hidden>Carte topographique du Japon (Japon seulement).</span></dd>
+</dl></div>
+<h2><span data-l="en">Weather, snow and avalanches</span><span data-l="fr" hidden>Météo, neige et avalanches</span></h2>
+<div class="card"><dl>
+<dt>Open-Meteo</dt><dd><span data-l="en">Weather, soil moisture (loam), snow, marine forecasts and heights, CC BY 4.0.</span><span data-l="fr" hidden>Météo, humidité du sol (loam), neige, prévisions marines et altitudes, CC BY 4.0.</span></dd>
+<dt>Environment and Climate Change Canada</dt><dd><span data-l="en">Radar, FireWork smoke, hydrometric data (river flow), Open Government Licence - Canada.</span><span data-l="fr" hidden>Radar, fumée FireWork, données hydrométriques (débit des rivières), Licence du gouvernement ouvert - Canada.</span></dd>
+<dt>Avalanche Canada</dt><dd><span data-l="en">Avalanche forecasts, shown with a link to the full bulletin.</span><span data-l="fr" hidden>Bulletins d’avalanche, avec un lien vers le bulletin complet.</span></dd>
+<dt>Parks Canada</dt><dd><span data-l="en">Rogers Pass restricted areas and winter permits, park passes.</span><span data-l="fr" hidden>Zones restreintes et permis d’hiver du col Rogers, laissez-passer des parcs.</span></dd>
+<dt>BC River Forecast Centre, VIU Hydromet</dt><dd><span data-l="en">Snow stations and backcountry weather stations.</span><span data-l="fr" hidden>Stations nivométriques et stations météo en arrière-pays.</span></dd>
+<dt>Japan Meteorological Agency (JMA)</dt><dd><span data-l="en">Japan snow depth (Japan only).</span><span data-l="fr" hidden>Hauteur de neige au Japon (Japon seulement).</span></dd>
+<dt>Ski resorts and lift operators</dt><dd><span data-l="en">Lift status and webcams, linked to each resort’s own page.</span><span data-l="fr" hidden>État des remontées et webcams, avec lien vers la page de chaque station.</span></dd>
+</dl></div>
+<h2><span data-l="en">Governments</span><span data-l="fr" hidden>Gouvernements</span></h2>
+<div class="card"><dl>
+<dt>Government of Canada</dt><dd><span data-l="en">Canadian Wildland Fire Information System (Natural Resources Canada), Canada Lands Survey System, Fisheries and Oceans Canada tides and fishing rules, ISED National Broadband Data (cell coverage), Open Government Licence - Canada.</span><span data-l="fr" hidden>Système canadien d’information sur les feux de végétation (Ressources naturelles Canada), Système d’arpentage des terres du Canada, marées et règles de pêche de Pêches et Océans Canada, Données nationales sur la large bande d’ISDE (couverture cellulaire), Licence du gouvernement ouvert - Canada.</span></dd>
+<dt>British Columbia</dt><dd><span data-l="en">DataBC forest roads, recreation sites, logging, parcels and forest inventory, BC Parks, BC Wildfire Service, DriveBC (Open511), Freshwater Fisheries Society of BC stocking, Open Government Licence - British Columbia. ParcelMap BC (LTSA).</span><span data-l="fr" hidden>Routes forestières, sites récréatifs, coupes, parcelles et inventaire forestier de DataBC, BC Parks, BC Wildfire Service, DriveBC (Open511), ensemencement de la Freshwater Fisheries Society of BC, Licence du gouvernement ouvert - Colombie-Britannique. ParcelMap BC (LTSA).</span></dd>
+<dt>Alberta</dt><dd><span data-l="en">Alberta Wildfire, Alberta Environment and Protected Areas, Alberta Parks, hunting regulations and draws, Merged Wetland Inventory, Open Government Licence - Alberta.</span><span data-l="fr" hidden>Alberta Wildfire, Environnement et Aires protégées de l’Alberta, Alberta Parks, règlements et tirages de chasse, inventaire des milieux humides, Licence du gouvernement ouvert - Alberta.</span></dd>
+<dt>Québec</dt><dd><span data-l="en">Données Québec, MELCCFP, MRNF (cadastre, lake depths, fishing), Québec 511, CC BY 4.0.</span><span data-l="fr" hidden>Données Québec, MELCCFP, MRNF (cadastre, profondeurs des lacs, pêche), Québec 511, CC BY 4.0.</span></dd>
+<dt>Ontario</dt><dd><span data-l="en">Ministry of Natural Resources (Land Information Ontario), Ontario Parks, Open Government Licence - Ontario.</span><span data-l="fr" hidden>Ministère des Richesses naturelles (Information sur les terres de l’Ontario), Parcs Ontario, Licence du gouvernement ouvert - Ontario.</span></dd>
+<dt>Manitoba, Saskatchewan, New Brunswick, Nova Scotia, Newfoundland and Labrador, Prince Edward Island, Yukon, Northwest Territories, Nunavut</dt><dd><span data-l="en">Lake depths, parcels, forest roads, road status, seasons and fishing rules, under each government’s open licence.</span><span data-l="fr" hidden>Profondeurs des lacs, parcelles, routes forestières, état des routes, saisons et règles de pêche, sous la licence ouverte de chaque gouvernement.</span></dd>
+<dt>Global Forest Watch (University of Maryland)</dt><dd><span data-l="en">Tree cover loss (logging outside BC and Quebec), CC BY 4.0.</span><span data-l="fr" hidden>Perte de couvert forestier (coupes hors C.-B. et Québec), CC BY 4.0.</span></dd>
+</dl></div>
+<h2><span data-l="en">Photos</span><span data-l="fr" hidden>Photos</span></h2>
+<div class="card"><dl>
+<dt>Wikimedia Commons</dt><dd><span data-l="en">Hut and place photos, each under its own open licence, with the author named on the photo.</span><span data-l="fr" hidden>Photos de refuges et de lieux, chacune sous sa propre licence ouverte, avec l’auteur nommé sur la photo.</span></dd>
+<dt>Riders</dt><dd><span data-l="en">Photos, trail reports and grades posted in the app by the people who use it.</span><span data-l="fr" hidden>Photos, rapports et cotes publiés dans l’application par ses utilisateurs.</span></dd>
+</dl></div>
+<p class="muted"><span data-l="en">Missing a credit or using your data in a way you don’t agree with? Write to <a href="mailto:trailfinder.help@outlook.com">trailfinder.help@outlook.com</a>.</span><span data-l="fr" hidden>Il manque une mention, ou vos données sont utilisées d’une façon qui ne vous convient pas ? Écrivez à <a href="mailto:trailfinder.help@outlook.com">trailfinder.help@outlook.com</a>.</span></p>
+<p class="muted"><a href="support.html"><span data-l="en">Help and support</span><span data-l="fr" hidden>Aide et soutien</span></a> · <a href="privacy.html"><span data-l="en">Privacy</span><span data-l="fr" hidden>Confidentialité</span></a> · <a href="terms.html"><span data-l="en">Terms and safety</span><span data-l="fr" hidden>Conditions et sécurité</span></a></p>
+</main>
+<script>
+// The language follows the app (tf:lang, i18n.js), else the phone; #fr / #en or the link at the top switch it.
+(function () {
+  var pick = location.hash === "#fr" ? "fr" : location.hash === "#en" ? "en" : null;
+  if (!pick) { try { pick = localStorage.getItem("tf:lang"); } catch (e) {} }
+  if (pick !== "fr" && pick !== "en") pick = /^fr/i.test(navigator.language || "") ? "fr" : "en";
+  function show(l) {
+    document.querySelectorAll("[data-l]").forEach(function (s) { s.hidden = s.dataset.l !== l; });
+    document.documentElement.lang = l;
+    document.title = l === "fr" ? "Sources des données · Trail Finder" : "Data credits · Trail Finder";
+  }
+  show(pick);
+  document.addEventListener("click", function (e) { var a = e.target.closest("[data-to]"); if (a) { e.preventDefault(); show(a.dataset.to); scrollTo(0, 0); } });
+})();
+</script>
+</body>
+</html>
