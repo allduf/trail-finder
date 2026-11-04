@@ -166,14 +166,14 @@ details > summary { cursor: pointer; font-weight: 600; }
 (() => {
   // Plain names for the app's main buttons (ids in index.html and ride.html). Anything else shows as tapped.
   const NAMES = {
-    "#findBtn": "Find a trail", "#tabName": "Tab: Trail name", "#tabNew": "Tab: New trails", "#goBtn": "Find trails (Go)",
+    "#findBtn": "Find a trail", "#tabName": "Tab: Trail name", "#tabNew": "Tab: New trails",
     "#nearBtn": "Near me", "#boxBtn": "Draw a square", "#boxGo": "Find trails in the square", "#searchArea": "Search this area",
     "#trailQ": "Trail name box", "#tsearch": "Search", "#peekSearch": "Search (bottom sheet)", "#peekQuick": "Quick search",
     "#peekPhoto": "Photo find (bottom sheet)", "#photoFindBtn": "Which trail is this? (photo)",
     "#layersBtn": "Layers", "#satBtn": "Satellite", "#btn3d": "3D map", "#contourBtn": "Elevation lines", "#roadsBtn": "Forest roads",
     "#firesBtn": "Wildfires", "#avyBtn": "Avalanche", "#parkBtn": "Bike parks", "#areasBtn": "Riding areas", "#riddenBtn": "Ridden layer",
     "#offlineBtn": "Offline maps", "#locate": "My location", "#followBtn": "Follow me", "#fullBtn": "Full screen",
-    "#rideBtn": "Record a ride", "#navRideBtn": "Ride this trail", "#trailGo": "Go to trail", "#planMapBtn": "Plan a route",
+    "#rideBtn": "Record a ride", "#navRideBtn": "Ride this trail", "#trailGo": "Search (trail name button)", "#goBtn": "Go to trail (directions)", "#planMapBtn": "Plan a route",
     "#wantBtn": "To ride", "#shareTrail": "Share trail", "#trailPhotos": "Trail photos", "#trailAbout": "About this trail",
     "#reports": "Trail reports", "#closures": "Closures", "#detailBack": "Back from trail", "#addRideBtn": "Add a ride",
     "#myRidesLink": "My rides", "#aboutBtn": "How it works", "#sport": "Sport menu", "#sheetToggle": "Sheet up/down",
@@ -511,7 +511,7 @@ details > summary { cursor: pointer; font-weight: 600; }
   // Taps that save something, and taps that go out with it, in every sport: known button ids, or a button's own words.
   const SAVE = new Set(["#wantBtn", "#savePick", "#ridden", "#spfSave", "#spcSave", "#skSaveBtn", "#rtSave", "#navSave", "#planSave", "#viewSave"]);
   const SAVE_TEXT = /^(💾 )?(save|saved|to ride|log (a |this )?(catch|harvest|hunt)|add (a )?(pin|catch|harvest)|drop (a )?pin)\b/i;
-  const RIDE = new Set(["#navRideBtn", "#trailGo", "#rideBtn", "#planMapBtn", "Ride (in #tabbar)", "#skRecBtn", "#skFollow", "#skPlanBtn",
+  const RIDE = new Set(["#navRideBtn", "#goBtn", "#rideBtn", "#planMapBtn", "Ride (in #tabbar)", "#skRecBtn", "#skFollow", "#skPlanBtn",
     "#navFollow", "#viewRecord", "#tdGo", "#cpGo", "#resumeGo", "#navResumeGo", "#tabRecord"]);
   const RIDE_TEXT = /^(▶ )?(record|follow|go|start|navigate|ride|track|plan a (route|tour|moto route))\b/i;
   // A spot, route or hut card being opened (other sports don't send "view" like the MTB trail card does).
