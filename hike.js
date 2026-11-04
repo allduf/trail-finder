@@ -162,6 +162,14 @@ body:not(.sport-hike) #hikePane, body:not(.sport-hike) .leaflet-hike-pane { disp
 #hikePane .hk-warn.bad { border-color: #c92a2a; }
 #hikePane .hk-warn.ok { border-color: #2f9e44; }
 #hikePane .hk-warn small { display: block; color: var(--muted); }
+#hikePane .hk-ph { margin: 8px 0 4px; }
+#hikePane .hk-ph-big { display: block; position: relative; width: 100%; padding: 0; border: 0; border-radius: 10px; overflow: hidden; background: var(--chip, #eee); cursor: zoom-in; }
+#hikePane .hk-ph-big img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+#hikePane .hk-ph-n { position: absolute; right: 8px; bottom: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; font-weight: 700; }
+#hikePane .hk-ph-row { display: flex; gap: 6px; margin-top: 6px; overflow-x: auto; scrollbar-width: none; }
+#hikePane .hk-ph-row button { flex: 0 0 auto; padding: 0; border: 0; border-radius: 8px; overflow: hidden; background: var(--chip, #eee); cursor: zoom-in; }
+#hikePane .hk-ph-row img { display: block; width: 72px; height: 54px; object-fit: cover; }
+#hikePane .hk-ph-credit { margin: 4px 0 0; font-size: 11px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 #hikePane ul.hk-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 #hikePane ul.hk-list button { font: inherit; text-align: left; width: 100%; border: 0; border-bottom: 1px solid var(--line); background: none; color: inherit; padding: 9px 2px; cursor: pointer;
   display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 1px 10px; align-items: center; }
@@ -277,7 +285,7 @@ body:not(.sport-hike) .lm-hike, body:not(.sport-hike) .hk-mapkey, body.sport-hik
   const ways = new Map();     // id -> { id, g: [[lat, lon]...], t: tags }
   const rels = new Map();     // id -> { id, n, t, m: [way ids] }
   const relOf = new Map();    // way id -> [rel ids]
-  const KEEP_TAGS = ["name", "highway", "sac_scale", "surface", "trail_visibility", "foot", "access", "bicycle", "mtb:scale", "mtb:scale:imba", "mtb:type", "footway", "lit", "operator", "website", "description", "incline", "ref", "seasonal", "informal"];
+  const KEEP_TAGS = ["name", "highway", "sac_scale", "surface", "trail_visibility", "foot", "access", "bicycle", "mtb:scale", "mtb:scale:imba", "mtb:type", "footway", "lit", "operator", "website", "description", "incline", "ref", "seasonal", "informal", "wikimedia_commons", "image", "wikidata"];
   function query(b) {
     const bb = b.map((n) => n.toFixed(4)).join(",");
     return `[out:json][timeout:40];
@@ -338,7 +346,7 @@ out center tags qt;`;
         out.w.push({ id: e.id, t, g: e.geometry.map((p) => [+p.lat.toFixed(5), +p.lon.toFixed(5)]) });
       } else if (e.type === "relation") {
         const t = e.tags || {};
-        out.r.push({ id: e.id, n: t.name || t.ref || "", t: { network: t.network, operator: t.operator, website: t.website, description: t.description, distance: t.distance, roundtrip: t.roundtrip },
+        out.r.push({ id: e.id, n: t.name || t.ref || "", t: { network: t.network, operator: t.operator, website: t.website, description: t.description, distance: t.distance, roundtrip: t.roundtrip, wikimedia_commons: t.wikimedia_commons, image: t.image, wikidata: t.wikidata },
           m: (e.members || []).filter((m) => m.type === "way").map((m) => m.ref) });
       }
     }
@@ -906,7 +914,7 @@ out center tags qt;`;
   // alex 2026-11-03: anything found about a trail beyond OpenStreetMap goes on the trail (the Sea to Sky Gondola's
   // trails: difficulty, length, time, what it's like). An entry fits a hike with one of its names within r metres.
   let tInfo = null;
-  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=2800").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
+  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=2810").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
   const fold = (x) => String(x || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   function operatorFacts(h) {
     const j = tInfo && tInfo.then ? null : tInfo;
@@ -915,6 +923,112 @@ out center tags qt;`;
     const mid = h.c || [(h.bb[0] + h.bb[2]) / 2, (h.bb[1] + h.bb[3]) / 2];
     return j.hikes.filter((e) => { const sr = j.src[e.s] || {}; return e.n.some((n) => names.has(fold(n))) && kmTo(e.c || sr.c, mid) * 1000 <= (e.r || sr.r || 3000); })
       .map((e) => ({ ...e, src: j.src[e.s] }));
+  }
+  // ---------- photos of the hike (alex 2026-11-04: "find pictures of each hike and add them to their info. if you
+  // dont find any picture dont add any") ----------
+  // Open licences only, credited, linked from where they live (nothing copied to the site). In order: files hand-picked
+  // for the hike in data/trail-info.json "hikePhotos", the map's wikimedia_commons / image / wikidata tags on the trail
+  // or its hiking route, then a live Wikimedia Commons search by the hike's name: a picture counts only when its title
+  // or caption has every telling word of the name ("Garibaldi Lake" for the Garibaldi Lake Trail) and it was taken
+  // within 2 km of the trail. Words like "trail", "lake" or "creek" alone never match. No photo: the card shows nothing.
+  const PH_DROP = new Set(["the", "and", "of", "to", "via", "a", "trail", "trails", "trailhead", "route", "path", "track", "hike", "hiking", "walk", "loop", "connector",
+    "access", "spur", "upper", "lower", "old", "new", "north", "south", "east", "west", "le", "la", "les", "de", "du", "des", "sentier", "piste", "chemin", "boucle", "mt", "st"]);
+  const PH_WEAK = new Set(["lake", "lakes", "creek", "river", "falls", "fall", "mountain", "mount", "peak", "ridge", "park", "canyon", "valley", "meadow", "meadows", "forest",
+    "beach", "point", "view", "lookout", "viewpoint", "bluff", "bluffs", "hill", "hills", "summit", "pass", "bypass", "road", "service", "rail", "community", "nature",
+    "regional", "provincial", "national", "island", "bay", "cove", "glacier", "basin", "lac", "mont", "chute", "chutes", "riviere", "parc", "garden", "pond", "marsh", "woods"]);
+  const PH_NOT = /\b(map|maps|diagram|chart|graph|logo|plan|sign|signage|poster|drawing|sketch|stamp|coat of arms|flag)\b/;   // photos only
+  const PH_PLACE = /\b(canada|canadian|bc|british columbia|alberta|yukon|saskatchewan|manitoba|ontario|quebec|new brunswick|nova scotia|newfoundland|prince edward island|northwest territories|nunavut)\b/;
+  const phFold = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const phStem = (w) => w.length > 4 ? w.replace(/s$/, "") : w;
+  function phCore(name) {
+    const words = phFold(name).split(" ").filter((w) => w && !PH_DROP.has(w));
+    return words.some((w) => w.length >= 4 && !PH_WEAK.has(w) && !/^\d+$/.test(w)) ? words : null;
+  }
+  function metresToHike(h, at) {
+    let best = Infinity;
+    for (const w of h.ways) { const step = Math.max(1, Math.floor(w.g.length / 40)); for (let i = 0; i < w.g.length; i += step) best = Math.min(best, kmTo(w.g[i], at)); }
+    return best * 1000;
+  }
+  function handPhotos(h) {
+    const j = tInfo && tInfo.then ? null : tInfo;
+    if (!j || !j.hikePhotos) return {};
+    // The hike itself first; then a named part of a longer hike (Deeks Lake Trail on the Howe Sound Crest Trail).
+    const own = new Set([h.name, h.rel && h.rel.n].filter(Boolean).map(fold)), parts = new Set(h.ways.map((w) => w.t.name).filter(Boolean).map(fold));
+    const near = (e) => metresToHike(h, e.c) <= (e.r || 5000);
+    const hits = j.hikePhotos.filter((e) => e.n.some((n) => own.has(fold(n)) || parts.has(fold(n))) && near(e));
+    const isOwn = (e) => e.n.some((n) => own.has(fold(n)));
+    return { main: hits.filter(isOwn).flatMap((e) => e.f), part: hits.filter((e) => !isOwn(e)).flatMap((e) => e.f) };
+  }
+  async function wikidataImages(ids) {
+    if (!ids.length) return [];
+    const q = new URLSearchParams({ action: "wbgetentities", format: "json", origin: "*", props: "claims", ids: ids.slice(0, 10).join("|") });
+    const r = await fetch(`https://www.wikidata.org/w/api.php?${q}`);
+    const j = await r.json();
+    return Object.values(j.entities || {}).flatMap((e) => ((e.claims && e.claims.P18) || []).map((c) => c.mainsnak && c.mainsnak.datavalue && c.mainsnak.datavalue.value))
+      .filter(Boolean).map((f) => "File:" + f);
+  }
+  async function hikePhotos(h) {
+    const P = window.tfPhotos;
+    if (!P) return [];
+    const tags = [...h.ways.map((w) => w.t), h.rel ? h.rel.t : {}];
+    const hand = handPhotos(h), files = [...(hand.main || [])], cats = [], qids = [];
+    for (const t of tags) {
+      const wc = t.wikimedia_commons || "";
+      if (/^File:/i.test(wc)) files.push(wc); else if (/^Category:/i.test(wc)) cats.push(wc);
+      const img = /commons\.wikimedia\.org\/wiki\/(File:[^?#]+)/i.exec(t.image || "");
+      if (img) files.push(decodeURIComponent(img[1]).replace(/_/g, " "));
+      else if (/^File:/i.test(t.image || "")) files.push(t.image);
+      if (/^Q\d+$/.test(t.wikidata || "")) qids.push(t.wikidata);
+    }
+    const wd = await wikidataImages([...new Set(qids)]).catch(() => []);
+    files.push(...wd);
+    const uniq = [...new Set(files.map((f) => f.replace(/_/g, " ")))].slice(0, 20);
+    const jobs = [uniq.length ? P.commons({ titles: uniq.join("|") }).then((l) => {
+      const key = (p) => decodeURIComponent((p.page || "").split("/wiki/")[1] || "").replace(/_/g, " ").toLowerCase();
+      const want = uniq.map((f) => f.toLowerCase()), at = (p) => { const i = want.indexOf(key(p)); return i < 0 ? 99 : i; };
+      return l.sort((a, b) => at(a) - at(b));
+    }).catch(() => []) : Promise.resolve([])];
+    cats.slice(0, 2).forEach((c) => jobs.push(P.commons({ generator: "categorymembers", gcmtitle: c, gcmtype: "file", gcmlimit: "12" }).catch(() => [])));
+    // By name: the hike's own name, and the route's if it has one.
+    const names = [...new Set([h.name, h.rel && h.rel.n].filter(Boolean))];
+    const cores = names.map(phCore).filter(Boolean);
+    // The hike's own Commons category, when there is one ("Category:Brandywine Meadows Trail").
+    const catNames = names.filter((n) => phCore(n)).map(phFold);
+    names.filter((n) => phCore(n)).slice(0, 2).forEach((n) => jobs.push(P.commons({ generator: "categorymembers", gcmtitle: `Category:${n}`, gcmtype: "file", gcmlimit: "12" })
+      .then((l) => l.filter((p) => !PH_NOT.test(phFold(p.title)) && (!p.at || metresToHike(h, p.at) <= 5000))).catch(() => [])));
+    // Unquoted, so "Deek's Lake" turns up for the Deeks Lake Trail; the filter below does the matching.
+    [...new Set(cores.map((c) => c.join(" ")))].slice(0, 2).forEach((q) => jobs.push(P.commons({ generator: "search", gsrsearch: `${q} filetype:bitmap`, gsrnamespace: "6", gsrlimit: "40" }).then((l) => l.filter((p) => {
+      const text = phFold(`${p.title} ${p.about}`), words = new Set(text.split(" ").map(phStem));
+      if (PH_NOT.test(text)) return false;
+      // Filed under the hike's own Commons category ("Norvan Falls Trail"): it's of this hike, unless taken far away.
+      if (catNames.some((n) => (p.cats || "").split("|").some((c) => phFold(c) === n))) return !p.at || metresToHike(h, p.at) <= 5000;
+      if (!cores.some((c) => c.every((w) => words.has(phStem(w))))) return false;
+      if (p.at) return metresToHike(h, p.at) <= 2000;
+      // No place on the photo: only when the caption has the whole name and says it's in Canada.
+      return cores.some((c) => c.length >= 2 && ` ${text} `.includes(` ${c.join(" ")} `)) && PH_PLACE.test(phFold(`${p.title} ${p.about} ${p.cats}`));
+    })).catch(() => [])));
+    const partFiles = (hand.part || []).slice(0, 10);
+    if (partFiles.length) jobs.push(P.commons({ titles: partFiles.join("|") }).catch(() => []));
+    const lists = await Promise.all(jobs), seen = new Set(), out = [];
+    lists.forEach((l) => l.forEach((p) => { if (!seen.has(p.full)) { seen.add(p.full); out.push({ ...p, dist: p.at ? metresToHike(h, p.at) : null }); } }));
+    return out.slice(0, 12);
+  }
+  function hikePhHtml(list) {
+    const p = list && list[0];
+    if (!p) return "";
+    const credit = [p.author && `© ${p.author}`, p.licence, p.src].filter(Boolean).join(" · ");
+    return `<div class="hk-ph"><button type="button" class="hk-ph-big" data-ph="0" aria-label="Open the hike's photos"><img src="${esc(p.big || p.thumb)}" alt="${esc(p.title)}" referrerpolicy="no-referrer">
+        ${list.length > 1 ? `<span class="hk-ph-n">${list.length} photos</span>` : ""}</button>
+      ${list.length > 1 ? `<div class="hk-ph-row">${list.slice(1, 8).map((x, i) => `<button type="button" data-ph="${i + 1}" aria-label="Photo ${i + 2}"><img src="${esc(x.thumb)}" alt="${esc(x.title)}" loading="lazy" referrerpolicy="no-referrer"></button>`).join("")}</div>` : ""}
+      <p class="hk-note hk-ph-credit">${esc(p.title)}${credit ? ` · ${esc(credit)}` : ""}</p></div>`;
+  }
+  function bindHikePh(el, list) {
+    const box = el.querySelector(".hk-ph");
+    if (!box) return;
+    box.querySelectorAll("[data-ph]").forEach((b) => b.addEventListener("click", () => window.tfPhotos.open(list, +b.dataset.ph)));
+    box.querySelectorAll(".hk-ph-row img").forEach((img) => img.addEventListener("error", () => img.closest("button").remove()));
+    const big = box.querySelector(".hk-ph-big img");
+    big.addEventListener("error", () => { const p = list[0]; if (p.full && big.src !== p.full) big.src = p.full; else box.remove(); });
   }
   // ---------- the hike card ----------
   function openHike(id, fly) {
@@ -933,6 +1047,7 @@ out center tags qt;`;
       parksAt(h.c).then((ps) => { h.info.park = passFor(ps, h.c); }).catch(() => { h.info.park = "error"; }).finally(() => renderHike(h));
       warningsNear(h).then((w) => { h.info.warn = w; }).catch(() => { h.info.warn = []; }).finally(() => renderHike(h));
     }
+    if (!h.photos) { h.photos = "loading"; Promise.resolve(loadTInfo()).then((j) => { tInfo = j; return hikePhotos(h); }).catch(() => []).then((l) => { h.photos = l; renderHike(h); }); }
   }
   function renderHike(only) {
     const h = cur, el = $("hkHike");
@@ -975,6 +1090,7 @@ out center tags qt;`;
     el.innerHTML = `<header>${svg(IC.boot)}<h3>${esc(h.name)}</h3><button type="button" class="hk-x" data-save="${esc(h.id)}" aria-label="${isSaved ? "Remove from Saved" : "Save this hike"}" title="${isSaved ? "Saved: tap to remove" : "Save this hike"}" style="${isSaved ? `color:#f59f00` : ""}">${svg(IC.star, 16)}</button>${closeX("hkHike")}</header>
       <div class="hk-row"><span class="hk-badge" style="--c:${g.c}">${esc(g.label)}</span><span class="hk-fact">${fmtKm(h.km)}</span><span class="hk-fact">${esc(shapeWord)}</span>${h.shared ? `<span class="hk-fact">Shared with bikes</span>` : ""}</div>
       <p class="hk-note">${esc(g.sub)}${h.g ? " (the hardest part)" : ""}${surf ? ` · ${esc(surf)}` : ""}${tags.some((t) => /^(bad|horrible|no)$/.test(t.trail_visibility || "")) ? " · path hard to see in places" : ""}</p>
+      ${Array.isArray(h.photos) ? hikePhHtml(h.photos) : ""}
       ${first("description") ? `<p>${esc(String(first("description")).slice(0, 300))}</p>` : ""}
       ${operatorFacts(h).slice(0, 1).map((e) => `<div class="hk-warn">${svg(IC.boot, 14)} <b>${esc([e.level, e.km && `${e.km} km`].filter(Boolean).join(" · ") || "About this trail")}</b><small>${esc(e.text)} <a href="${esc(e.src.url)}" target="_blank" rel="noopener">${esc(e.src.name)}</a></small></div>`).join("")}
       ${heightHtml}${topHtml}
@@ -989,6 +1105,7 @@ out center tags qt;`;
         ${web ? `<a class="hk-pill" href="${esc(web)}" target="_blank" rel="noopener">Website</a>` : ""}
       </div>
       <p class="hk-note">${h.rel ? "Hiking route" : "Trail"} on <a href="https://www.openstreetmap.org/${h.rel ? "relation/" + h.rel.id : "way/" + h.ways[0].id}" target="_blank" rel="noopener">OpenStreetMap</a>. Wrong or missing? You can fix it there.</p>`;
+    if (Array.isArray(h.photos)) bindHikePh(el, h.photos);
   }
   // A small height profile (SVG): distance along, height up.
   function profileSvg(el, km) {

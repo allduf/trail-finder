@@ -34,8 +34,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
 const readJson = (name) => { try { return JSON.parse(readFileSync(new URL(name, DATA), "utf8")); } catch { return null; } };
 
-const RULES = 1;   // files built with older rules are rebuilt, however fresh
-const KEEP = ["name", "highway", "sac_scale", "surface", "trail_visibility", "foot", "access", "bicycle", "mtb:scale", "mtb:scale:imba", "mtb:type", "footway", "lit", "operator", "website", "description", "incline", "ref", "seasonal", "informal"];
+const RULES = 2;   // files built with older rules are rebuilt, however fresh
+const KEEP = ["name", "highway", "sac_scale", "surface", "trail_visibility", "foot", "access", "bicycle", "mtb:scale", "mtb:scale:imba", "mtb:type", "footway", "lit", "operator", "website", "description", "incline", "ref", "seasonal", "informal", "wikimedia_commons", "image", "wikidata"];
 const FOOT_OK = /^(yes|designated|permissive)$/;
 // The same as keepWay in hike.js: what isn't a hike.
 function keepWay(t, inRel) {
@@ -167,7 +167,7 @@ function build(els, box) {
       const t = e.tags || {}, m = (e.members || []).filter((x) => x.type === "way").map((x) => x.ref);
       const old = rels.get(e.id);
       if (old) { old.m = [...new Set([...old.m, ...m])]; continue; }
-      rels.set(e.id, { id: e.id, n: t.name || t.ref || "", t: Object.fromEntries(["network", "operator", "website", "description", "distance", "roundtrip"].filter((k) => t[k] != null).map((k) => [k, t[k]])), m });
+      rels.set(e.id, { id: e.id, n: t.name || t.ref || "", t: Object.fromEntries(["network", "operator", "website", "description", "distance", "roundtrip", "wikimedia_commons", "image", "wikidata"].filter((k) => t[k] != null).map((k) => [k, t[k]])), m });
     } else if (e.type === "way" && e.geometry && e.geometry.length > 1 && !ways.has(e.id)) {
       const t = {}; KEEP.forEach((k) => { if (e.tags && e.tags[k] != null) t[k] = e.tags[k]; });
       ways.set(e.id, { id: e.id, t, g: e.geometry.filter(Boolean).map((p) => [+p.lat.toFixed(5), +p.lon.toFixed(5)]) });

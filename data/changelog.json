@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-04", "text": "Hiking: hike cards now show real photos of the hike when free-to-use ones exist (credited, tap to see them big)."},
     {"date": "2026-11-04", "text": "Sea to Sky trails checked against local sources: Squamish trails get the District of Squamish’s own grades, SORCA’s 2025-26 trail work shows on each trail, and Whistler’s alpine hiking trails no longer show as bike trails."},
     {"date": "2026-11-04", "text": "Ontario logging: with Logging areas on, Ontario's own plans now show the blocks set to be logged this year (gold) and the ones logged lately (pink); tap one for the cut type. Skiing also has 43 more live webcams in Quebec, Ontario and the Maritimes (Tremblant, Bromont, Saint-Sauveur, Mont-Saint-Louis, the Chic-Chocs...) and live lifts at Owl's Head, Horseshoe, Mont Sainte-Marie and Searchmont."},
     {"date": "2026-11-04", "text": "Photo find is simpler: the “Teach it your trails” section is gone. Photo find still learns from every Yes you give it."},

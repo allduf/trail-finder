@@ -1914,7 +1914,9 @@
     "Zoom in to see the trails.":"Zoomez pour voir les sentiers.",
     "Tap any line or dot on the map to see what it is.":"Touchez une ligne ou un point sur la carte pour voir ce que c'est.",
     "Cleaner look: one style of icons everywhere, a Key in Hiking, and the Record tab named the same in Skiing, Hunting, Fishing and Hiking.":"Un look plus net : un seul style d'icônes partout, une légende en randonnée, et l'onglet Enregistrer nommé pareil en ski, chasse, pêche et randonnée.",
-    "Sea to Sky trails checked against local sources: Squamish trails get the District of Squamish’s own grades, SORCA’s 2025-26 trail work shows on each trail, and Whistler’s alpine hiking trails no longer show as bike trails.":"Sentiers de Sea to Sky vérifiés avec des sources locales : les sentiers de Squamish ont les cotes du District of Squamish, les travaux 2025-26 de la SORCA s'affichent sur chaque sentier, et les sentiers de randonnée alpins de Whistler ne s'affichent plus comme sentiers de vélo."};
+    "Sea to Sky trails checked against local sources: Squamish trails get the District of Squamish’s own grades, SORCA’s 2025-26 trail work shows on each trail, and Whistler’s alpine hiking trails no longer show as bike trails.":"Sentiers de Sea to Sky vérifiés avec des sources locales : les sentiers de Squamish ont les cotes du District of Squamish, les travaux 2025-26 de la SORCA s'affichent sur chaque sentier, et les sentiers de randonnée alpins de Whistler ne s'affichent plus comme sentiers de vélo.",
+    "Open the hike's photos":"Ouvrir les photos de la randonnée",
+    "Hiking: hike cards now show real photos of the hike when free-to-use ones exist (credited, tap to see them big).":"Randonnée : les fiches des randonnées montrent maintenant de vraies photos de la randonnée quand il en existe de libres d'utilisation (avec le crédit, touchez pour les voir en grand)."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
