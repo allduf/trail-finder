@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-05", "text": "Skiing: ＋ Add a point under End in your tour's list, then tap the map where you want to go next."},
     {"date": "2026-11-05", "text": "Skiing: every new tour starts with the 🛡 Safest way on, and Ask reads \"the bottom of Poop Chutes on Glacier Road\" as Poop Chutes, by Glacier Road."},
     {"date": "2026-11-05", "text": "Skiing Ask: knows every chairlift by name, even misspelled (\"finish at the bottom of 7th even\" is the 7th Heaven chair)."},
     {"date": "2026-11-05", "text": "Skiing: a tour plan typed in the search box (\"start at the top of Showcase, ski DOA, finish in Lakeside Bowl\") now goes to Ask and becomes a tour."},

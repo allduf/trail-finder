@@ -2037,7 +2037,9 @@
     ": where a slide from steeper ground could run, and gullies or creeks (terrain traps)":": là où une avalanche partie plus haut pourrait descendre, et les ravins ou ruisseaux (pièges de terrain)",
     ": about 430 m an hour up, slower in forest; open water and cliffs can't be crossed":": environ 430 m à l'heure en montée, plus lent en forêt; l'eau libre et les falaises ne se traversent pas",
     "Your tour's card then shows each stretch and why it goes there. Drag, add or take away points with ✎ Edit my tour. No route is avalanche-safe: check the forecast and decide in the field.":"La fiche de votre sortie montre ensuite chaque tronçon et pourquoi il passe là. Déplacez, ajoutez ou enlevez des points avec ✎ Modifier ma sortie. Aucun itinéraire n'est à l'abri des avalanches : consultez le bulletin et décidez sur le terrain.",
-    "That's only one point: say where you start and where you finish, or a line to ski.":"Ce n'est qu'un point : dites où vous partez et où vous arrivez, ou une ligne à skier."};
+    "That's only one point: say where you start and where you finish, or a line to ski.":"Ce n'est qu'un point : dites où vous partez et où vous arrivez, ou une ligne à skier.",
+    "Add a point":"Ajouter un point",
+    "Tap the map where you want to go next: it becomes the new End.":"Touchez la carte là où vous voulez aller ensuite : ce sera la nouvelle arrivée."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

@@ -258,6 +258,8 @@ body.sk-route-focus :is(.wc-gl, .hc-pin, .sk-pin.park) { transform: scale(.75); 
 #skiPane ol.ss-list .ss-mv button svg { width: 13px; height: 13px; }
 #skiPane ol.ss-list .ss-mv button:active { background: var(--line); }
 #skiPane ol.ss-list .ss-mv button.ss-del { margin-left: 4px; }
+#skiPane .ss-add { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 44px; margin: 8px 0 0; font: inherit; font-weight: 700; font-size: .92rem; border-radius: 12px; border: 1.5px dashed var(--line); background: none; color: #1f5fe0; cursor: pointer; }
+#skiPane .ss-add span { font-size: 1.1rem; line-height: 1; }
 #skiPane ol.ss-list .ss-mv button.ss-del:hover { color: #e03131; border-color: #e03131; }
 #skiPane ol.ss-list .ss-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 #skiPane ol.ss-list .ss-t b { font-weight: 600; }
@@ -1296,7 +1298,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3320").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3330").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2615,6 +2617,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       planChanged();
     }));
     const rv = $("skSafeRev"); if (rv) rv.addEventListener("click", () => { snap(); plan.pts.reverse(); planChanged(); });
+    // ＋ Add a point under End (alex 2026-11-05: "i want to add point"): back to tapping the map; the point tapped is the
+    // new End, and the way to it is found like the others. (A point between two others: drag the line, or move it up.)
+    card.querySelectorAll("[data-add-pt]").forEach((b) => b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (!plan.on) setPlanning(true);
+      if (window.tfSnapTo) setTimeout(() => window.tfSnapTo("peek"), 0);
+      window.tfToast && window.tfToast("Tap the map where you want to go next: it becomes the new End.");
+    }));
   }
   // Undo goes back one change, whatever it was (a point added, moved, deleted, swapped, a line added, a clear).
   function snap() {
@@ -2814,7 +2824,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const inf = planNowInfo();
     if (inf) { m = inf.total; up = inf.up; down = inf.down; }
     const sum = `<div class="ss-sum"><div><b>${D(m)}</b><small>Distance</small></div><div><b>${Math.round(up)} m</b><small>Climb</small></div><div><b>${Math.round(down)} m</b><small>Descent</small></div></div>`;
-    return `<div class="sk-sec"><h4>Your route</h4>${sum}${via}<ol class="ss-list">${html}</ol></div>`;
+    return `<div class="sk-sec"><h4>Your route</h4>${sum}${via}<ol class="ss-list">${html}</ol><button type="button" class="ss-add" data-add-pt><span aria-hidden="true">＋</span> Add a point</button></div>`;
   }
 
   // The tour's points, always in sight under Undo and Clear (alex 2026-11-04: "WE SHOULD BE ABLE TO SEE THE LIST AT
@@ -2831,7 +2841,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const leg = i ? (o && o.via ? `along ${o.name || "the line"}` : `${km(map.distance([plan.pts[i - 1][0], plan.pts[i - 1][1]], [q[0], q[1]]))} from ${ptName(i - 1, n)}`) : "";
       return `<li class="ss-pt" data-safe-at="${q[0]},${q[1]}"><span class="ss-pin${mid ? "" : " end"}">${mid ? i : flag}</span><span class="ss-t"><b>${esc(name)}</b>${leg ? `<small>${esc(leg)}</small>` : ""}</span><span class="ss-mv">${i > 0 ? `<button type="button" data-mv="${i},-1" aria-label="Move ${esc(name)} up">${up}</button>` : ""}${i < n - 1 ? `<button type="button" data-mv="${i},1" aria-label="Move ${esc(name)} down">${dn}</button>` : ""}<button type="button" class="ss-del" data-del="${i}" aria-label="Delete ${esc(name)}">${del}</button></span></li>`;
     }).join("");
-    return `<div class="sk-sec sk-pts"><h4>Your points</h4><ol class="ss-list">${rows}</ol></div>`;
+    return `<div class="sk-sec sk-pts"><h4>Your points</h4><ol class="ss-list">${rows}</ol>${plan.on ? "" : '<button type="button" class="ss-add" data-add-pt><span aria-hidden="true">＋</span> Add a point</button>'}</div>`;
   }
   function safeHtml() {
     if (!plan.safe) return "";
