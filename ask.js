@@ -99,7 +99,9 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   // read like a question ("loop near Squamish tomorrow", "what can I hunt near Pemberton") go to Ask; names (a trail, a
   // town, "Lord of the Squirrels") stay with the normal search.
   const QWORD = /\b(near|nearby|around|loop|loops|where|what|which|how|when|best|today|tomorrow|tonight|weekend|stocked|danger|hours?|km|under|i|me)\b/i;
-  const asks = (q) => !document.body.classList.contains("sport-hike") && !!SP[sportOf()] && q.trim().split(/\s+/).length >= 3 && QWORD.test(q);
+  const asks = (q) => !document.body.classList.contains("sport-hike") && !!SP[sportOf()] && q.trim().split(/\s+/).length >= 3 && (QWORD.test(q) || (sportOf() === "ski" && planLike(q)));
+  // (Skiing: a plan of the day typed without "I want…", like "start at the top of Showcase, ski DOA, finish in Lakeside
+  // Bowl", goes to Ask too, which makes it a tour; the video thread found it running a place search, 2026-11-05.)
   document.addEventListener("submit", (e) => {
     // Only each sport's own search under its buttons (and Skiing's find box), not a box like Plan a route's "Add a place".
     const f = e.target.closest && e.target.closest("form.ps-box, form#skFindForm");
@@ -183,6 +185,8 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     head.innerHTML = `<p class="ask-said">${esc(p.summary || summaryOf(p, sp))}</p><ul class="ask-chips">${chipsOf(p, sp).map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
       ${ai.ok ? "" : `<p class="ask-note">${esc(ai.why)} Read here more simply: ask again later for a smarter read.</p>`}`;
     out.innerHTML = `<p class="ask-wait">Finding the place…</p>`;
+    // A ski plan's own pieces ("finish in Lakeside Bowl") aren't the place to look around: they're found near the map.
+    if (sp === "ski" && planLike(q) && p.place && planSteps(q).some((x) => norm(x.name) === norm(p.place) || norm(p.place).includes(norm(x.name)))) p.place = "";
     let at = await whereOf(p);
     if (my !== token) return;
     // A ski tour typed as a plan names its own pieces: when the place isn't found, they're looked for around the map.
@@ -322,7 +326,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     if (p.sport === "ski") {
       const SKIW = new Set(["mount", "mt", "mountain", "resort", "ski", "area", "hill", "slack", "country", "slackcountry", "backcountry", "side", "the", "de", "du", "station", "mont"]);
       const w = n.split(" ").filter((x) => x && !SKIW.has(x));
-      const rs = w.length ? await fetch("data/ski-lifts.json?v=3300").then((r) => r.json()).then((d) => Object.values(d.resorts || {})).catch(() => []) : [];
+      const rs = w.length ? await fetch("data/ski-lifts.json?v=3310").then((r) => r.json()).then((d) => Object.values(d.resorts || {})).catch(() => []) : [];
       const hit = rs.find((r) => r.name && w.every((x) => norm(r.name).split(" ").includes(x)));
       if (hit) return { c: [hit.lat, hit.lon], name: hit.name };
     }
@@ -383,7 +387,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     return out;
   }
   let liftsP = null, slackP = null;
-  const liftsList = () => liftsP || (liftsP = fetch("data/ski-lifts.json?v=3300").then((r) => r.json()).then((d) => d.lifts || []).catch(() => { liftsP = null; return []; }));
+  const liftsList = () => liftsP || (liftsP = fetch("data/ski-lifts.json?v=3310").then((r) => r.json()).then((d) => d.lifts || []).catch(() => { liftsP = null; return []; }));
   const slackList = () => slackP || (slackP = fetch("data/slackcountry.json").then((r) => r.json()).then((d) => (d.resorts || []).flatMap((rs) => (rs.lines || []).map((l) => ({ ...l, resort: rs.name })))).catch(() => { slackP = null; return []; }));
   const pairs = (flat) => { const o = []; for (let i = 0; i + 1 < flat.length; i += 2) o.push([flat[i], flat[i + 1]]); return o; };
   // How well a name typed matches a name on the map: 3 the same, 2.5 the same before its brackets or its short name,
@@ -498,8 +502,13 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     const steps = planSteps(p.q || "");
     if (!steps.length) return false;
     out.innerHTML = `<p class="ask-wait">Finding ${esc(steps.map((x) => x.name).join(", "))}…</p>`;
-    const pieces = await planPieces(steps, at.c);
+    let pieces = await planPieces(steps, at.c);
     if (stale()) return true;
+    // Nothing named there: the middle of the map (where the person is looking) before giving up.
+    if (!pieces.some((x) => !x.miss) && !at.mid) {
+      const m = map.getCenter(), mid = { c: [m.lat, m.lng], mid: true };
+      if (kmTo(mid.c, at.c) > 20) { const again = await planPieces(steps, mid.c); if (stale()) return true; if (again.some((x) => !x.miss)) { pieces = again; at = mid; } }
+    }
     const found = pieces.filter((x) => !x.miss);
     if (!found.length) return false;
     const { pts, used } = await planPts(pieces);
