@@ -1944,7 +1944,16 @@
     "Skiing Plan a tour: your tour is only on the map while you plan or edit it, or after Show on map (Hide from map takes it off); zoomed out it's just the line, without its numbered points.":"Ski, Planifier une sortie : votre sortie n'est sur la carte que pendant que vous la planifiez ou la modifiez, ou après Afficher sur la carte (Masquer de la carte l'enlève); de loin, seule la ligne s'affiche, sans ses points numérotés.",
     "Hide from map":"Masquer de la carte",
     "Show on map":"Afficher sur la carte",
-    "Offline maps for Hiking: an area saved in Hiking keeps its hiking trails and terrain, so you can plan a hike with no signal (the route follows the trails, with its climb and height profile).":"Cartes hors ligne pour la randonnée : une zone enregistrée en Randonnée garde ses sentiers et le relief, pour planifier une randonnée sans signal (le trajet suit les sentiers, avec sa montée et son profil)."};
+    "Offline maps for Hiking: an area saved in Hiking keeps its hiking trails and terrain, so you can plan a hike with no signal (the route follows the trails, with its climb and height profile).":"Cartes hors ligne pour la randonnée : une zone enregistrée en Randonnée garde ses sentiers et le relief, pour planifier une randonnée sans signal (le trajet suit les sentiers, avec sa montée et son profil).",
+    "Turn on to see open, rough, closed or washed out":"Activez pour voir ouverts, abîmés, fermés ou emportés",
+    "Zoom in to see each road's status":"Zoomez pour voir l'état de chaque chemin",
+    "Open, rough, closed or washed out: zoom in":"Ouverts, abîmés, fermés ou emportés : zoomez",
+    "Checking the roads in view…":"Vérification des chemins à l'écran…",
+    "No forest roads in view":"Aucun chemin forestier à l'écran",
+    "Checking for fires…":"Recherche de feux…",
+    "Wildfire out of control":"Feu de forêt hors de contrôle",
+    "Wildfire being held":"Feu de forêt contenu",
+    "Wildfire under control":"Feu de forêt maîtrisé"};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
@@ -2086,6 +2095,11 @@
     [/^Nothing named “(.+)” in (.+?)( yet)?\. Found elsewhere in Canada:$/, function (m, q, z, y) { return "Rien nommé « " + q + " » dans " + tt(z) + (y ? " pour l'instant" : "") + ". Trouvé ailleurs au Canada :"; }],
     [/^Nothing named “(.+)” in (.+)\. Found in other areas:$/, function (m, q, z) { return "Rien nommé « " + q + " » dans " + tt(z) + ". Trouvé dans d'autres secteurs :"; }],
     [/^(More trails|Trails) in (.+)$/, function (m, w, z) { return (w === "Trails" ? "Sentiers" : "Autres sentiers") + " dans " + tt(z); }],
+    // The status after Forest roads and Wildfires in Layers (index.html layerStatsNow).
+    [/^([\d.]+) km (impassable|closed|very rough|rough|good)$/, function (m, n, w) { return n.replace(".", ",") + " km " + { impassable: "impraticables", closed: "fermés", "very rough": "très abîmés", rough: "abîmés", good: "en bon état" }[w]; }],
+    [/^(\d+) (out of control|being held|under control|burning)$/, function (m, n, w) { return n + " " + { "out of control": "hors de contrôle", "being held": "contenu" + (n > 1 ? "s" : ""), "under control": "maîtrisé" + (n > 1 ? "s" : ""), burning: "en feu" }[w]; }],
+    [/^within (\d+) km$/, "dans un rayon de $1 km"],
+    [/^No active fires within (\d+) km$/, "Aucun feu actif dans un rayon de $1 km"],
   ];
 
   // ---- the translator (from scripts/i18n/engine.js) ----
