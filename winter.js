@@ -21,6 +21,8 @@
   "use strict";
   const map = window.tfLeaflet, sel = document.getElementById("sport"), avyBtn = document.getElementById("avyBtn"), T = window.tfTerrain;
   if (!map || !sel || !window.L || !T) return;
+  // What's typed in the Skiing search box goes to the usage page (usage.js, iPhone app only).
+  const logUse = (...a) => (window.tfUse ? window.tfUse(...a) : (window.tfUseQ = window.tfUseQ || []).push(a));
   const store = {
     get(k, d) { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) {   // "tf:setting" tells account.js (optional sign-in) to save settings to the rider's account
@@ -1294,7 +1296,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3220").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3230").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -1379,6 +1381,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     placeRows = asked ? [...top.slice(0, 3), ...rest.slice(0, 3), ...(placeFound || [])] : [...top, ...rest, ...towns];
     // Mountains, lakes, parks and regions from Photon once the typing pauses (place-search.js live), not already listed.
     if (!asked && P.live) P.addNew(placeRows, P.live(q, () => { if (findText.trim() === q) renderPlaces(); }), placeRows.length + 3);
+    logUse("search", "Ski find:" + q, placeRows.length);   // the usage page's "What people search for"
     ul.innerHTML = placeRows.map(P.hitHtml).join("")
       + (asked ? "" : `<li><button type="button" data-more><span class="ps-ic" aria-hidden="true">🔍</span><span class="ps-tx"><span class="ps-more">Search places named “${esc(q)}”</span><small>A region, range, mountain or town: the map goes there</small></span></button></li>`);
     if (!asked) msg.textContent = "";
@@ -1402,6 +1405,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const b = e.target.closest("button"); if (!b) return;
     if (b.hasAttribute("data-more")) { askPlaces(); return; }
     const p = placeRows[+b.dataset.i]; if (!p) return;
+    logUse("pick", "Ski find");
     findText = ""; $("skFind").value = ""; $("skFind").blur();
     renderPlaces();
     // A route, hut or line: its card, as when it's tapped on the map (its kind of route goes on if it was off).
