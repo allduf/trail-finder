@@ -223,16 +223,31 @@
       }
     }
   }
+  const nameKey = (n) => String(n).toLowerCase().replace(/\(.*?\)/g, " ").replace(/[^a-z0-9à-ÿ']+/g, " ").trim();
   function placeNames() {
     const src = gl && gl.getSource("trailNames");
     if (!src) return;
     const cv = gl.getCanvas(), w = cv.clientWidth, h = cv.clientHeight, m = 0.06, box = gl.getBounds(), best = new Map();
+    // A route's name is left out where a slackcountry pin already names the same line ("DOA (Down, Over, and Around)"
+    // under "DOA", "Body Bag Bowl" under "Body Bag": alex 2026-11-05, the Spearhead read as over packed).
+    const pinned = (window.tfSlack && window.tfSlack.names ? window.tfSlack.names() : []).map(nameKey).filter((x) => x.length > 2);
+    const same = new Map();
+    const dup = (n) => { if (!pinned.length) return false; let v = same.get(n); if (v === undefined) { const a = nameKey(n); v = pinned.some((b) => a === b || a.startsWith(b + " ") || b.startsWith(a + " ")); same.set(n, v); } return v; };
     if (gl.getZoom() >= 12) for (const k of nameCands) {
-      if (!box.contains(k.p) || (k.z && gl.getZoom() < k.z)) continue;
+      if (!box.contains(k.p) || (k.z && gl.getZoom() < k.z) || dup(k.n)) continue;
       const q = gl.project(k.p);
       if (!(q.x > w * m && q.x < w * (1 - m) && q.y > h * m && q.y < h * (1 - m))) continue;
       const dd = (q.x - w / 2) ** 2 + (q.y - h / 2) ** 2, b = best.get(k.n);
       if (!b || dd < b.dd) best.set(k.n, { k, dd });
+    }
+    // At most about as many names as the flat map shows, with room around each, longest trails first (alex 2026-11-05,
+    // "see if anything else is too crowded": MTB 3D over Whistler wrote ~45 trail names, the far ones in a pile).
+    const cap = Math.round(20 * Math.max(1, (w * h) / (390 * 650))), put = [];
+    for (const v of [...best.values()].sort((a, b) => a.k.s - b.k.s)) {
+      if (put.length >= cap) { best.delete(v.k.n); continue; }
+      const q = gl.project(v.k.p), half = String(v.k.n).length * 3.4 + 8;
+      if (put.some((o) => Math.abs(o.x - q.x) < half + o.half && Math.abs(o.y - q.y) < 24)) { best.delete(v.k.n); continue; }
+      put.push({ x: q.x, y: q.y, half });
     }
     src.setData({ type: "FeatureCollection", features: [...best.values()].map(({ k }) =>
       ({ type: "Feature", geometry: { type: "Point", coordinates: k.p }, properties: { n: k.n, c: k.c, o: k.o, s: k.s } })) });
@@ -855,7 +870,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=3170");
+      const w = new Worker("winter-fill.js?v=3200");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -938,7 +953,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=3170" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=3200" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1524,9 +1539,10 @@
         if (r.width) pins.push({ el, n, r });
       }
       pins.sort((a, b) => b.n - a.n || b.r.bottom - a.r.bottom);
-      const kept = [], gap = 3;
+      // A little room between pins, not only no overlap (alex 2026-11-05: the slackcountry names touching at the Spearhead).
+      const kept = [], gap = 5;
       for (const p of pins) {
-        const hit = p.n < 99 && kept.some((k) => p.r.left + gap < k.r.right && k.r.left + gap < p.r.right && p.r.top + gap < k.r.bottom && k.r.top + gap < p.r.bottom);
+        const hit = p.n < 99 && kept.some((k) => p.r.left < k.r.right + gap && k.r.left < p.r.right + gap && p.r.top < k.r.bottom + gap && k.r.top < p.r.bottom + gap);
         p.el.classList.toggle("tf-crowd", hit);
         if (!hit) kept.push(p);
       }

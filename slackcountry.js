@@ -30,11 +30,14 @@
 
   const css = document.createElement("style");
   css.textContent = `
-.sc-pin { box-sizing: border-box; display: inline-block; padding: 3px 8px; border-radius: 999px; background: ${C.ski}; color: #fff; border: 2px solid #fff; box-shadow: 0 1px 4px #0008; font: 700 11px/1.2 system-ui, sans-serif; white-space: nowrap; cursor: pointer; transform: translate(-50%, -50%); }
+/* Smaller since alex 2026-11-05 ("it look over pack", Spearhead in 3D): was 11 px text, 3 x 8 px padding, 2 px edge. */
+.sc-pin { box-sizing: border-box; display: inline-block; padding: 1px 6px; border-radius: 999px; background: ${C.ski}; color: #fff; border: 1.5px solid #fff; box-shadow: 0 1px 3px #0007; font: 700 9.5px/1.2 system-ui, sans-serif; white-space: nowrap; cursor: pointer; transform: translate(-50%, -50%); }
 .sc-pin.on { background: #ffe14d; color: #111; }
-.sc-gate { box-sizing: border-box; display: inline-flex; align-items: center; gap: 3px; padding: 3px 7px; border-radius: 6px; background: ${C.gate}; color: #fff; border: 2px solid #fff; box-shadow: 0 1px 4px #0008; font: 800 10px/1.2 system-ui, sans-serif; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; cursor: pointer; transform: translate(-50%, -50%); }
+.sc-gate { box-sizing: border-box; display: inline-flex; align-items: center; gap: 3px; padding: 1px 5px; border-radius: 5px; background: ${C.gate}; color: #fff; border: 1.5px solid #fff; box-shadow: 0 1px 3px #0007; font: 800 8.5px/1.2 system-ui, sans-serif; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; cursor: pointer; transform: translate(-50%, -50%); }
 .sc-gate.none { background: ${C.none}; }
-.sc-resort { box-sizing: border-box; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; background: ${C.ski}; color: #fff; border: 2px solid #fff; box-shadow: 0 1px 4px #0008; font: 700 11px/1.2 system-ui, sans-serif; white-space: nowrap; cursor: pointer; transform: translate(-50%, -50%); }
+/* A name that would sit on another one waits for a closer zoom (2D: declutter() here; 3D: map3d.js unclutter). */
+.sc-crowd { visibility: hidden; }
+.sc-resort { box-sizing: border-box; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 999px; background: ${C.ski}; color: #fff; border: 1.5px solid #fff; box-shadow: 0 1px 3px #0007; font: 700 10px/1.2 system-ui, sans-serif; white-space: nowrap; cursor: pointer; transform: translate(-50%, -50%); }
 #skiPane .sc-open { font: inherit; font-size: .88rem; font-weight: 700; padding: 10px 8px; border-radius: 12px; border: 1px solid ${C.ski}; background: color-mix(in srgb, ${C.ski} 10%, var(--chip)); color: var(--fg); cursor: pointer; width: 100%; }
 dialog.sc-dlg { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--fg); padding: 16px; width: min(620px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,.3); font: inherit; font-size: .92rem; box-sizing: border-box; }
 dialog.sc-dlg::backdrop { background: rgba(0,0,0,.55); }
@@ -106,16 +109,16 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
   const renderer = L.canvas({ pane: "slack", padding: 0.3, tolerance: L.Browser.touch ? 10 : 5 });
   if (window.tfSkiTapThrough) window.tfSkiTapThrough(renderer);   // so the ski routes below still take taps (winter.js)
   const layer = L.layerGroup(), pins = L.layerGroup();
-  let sel = null, glMarkers = [];
+  let sel = null, glMarkers = [], drawnNames = [];
   const shown = () => on && isSki() && !!doc;
   const planning = () => !!document.querySelector(".sk-planbar:not([hidden])");
   function draw() {
-    layer.clearLayers(); pins.clearLayers();
+    layer.clearLayers(); pins.clearLayers(); drawnNames = [];
     glMarkers.forEach((m) => m.remove()); glMarkers = [];
     if (!shown()) return;
     const z = map.getZoom(), gl = window.trailMap3d && window.maplibregl ? window.trailMap3d : null;
-    const add = (lat, lon, html, tip, go) => {
-      const m = L.marker([lat, lon], { icon: L.divIcon({ className: "", html, iconSize: [0, 0], iconAnchor: [0, 0] }), keyboard: true, title: tip, zIndexOffset: 500 });
+    const add = (lat, lon, html, tip, go, len) => {
+      const m = L.marker([lat, lon], { icon: L.divIcon({ className: "", html, iconSize: [0, 0], iconAnchor: [0, 0] }), keyboard: true, title: tip, zIndexOffset: 500, len });
       m.on("click", (e) => { if (planning()) return; L.DomEvent.stopPropagation(e); go(); });   // planning: a point there
       pins.addLayer(m);
       if (gl) {
@@ -154,7 +157,8 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
         layer.addLayer(tap(L.polyline(l.ski, { renderer, color: C.ski, weight: me ? 6 : 5, opacity: dim ? 0.55 : 1 }).bindTooltip(esc(tip), { sticky: true })));
         if (z >= NAMES_Z || me) {
           const at = l.ski[Math.floor((l.ski.length - 1) * 0.4)];   // on the line, clear of the gate pins at the tops
-          add(at[0], at[1], `<span class="sc-pin${me ? " on" : ""}">${esc(l.short || l.name)}</span>`, tip, () => open(l));
+          add(at[0], at[1], `<span class="sc-pin${me ? " on" : ""}">${esc(l.short || l.name)}</span>`, tip, () => open(l), ((l.calc && l.calc.km) || 1) * 1000);
+          drawnNames.push(l.short || l.name, l.name);
         }
       }
       for (const g of rs.gates) {
@@ -162,7 +166,26 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
         add(g.lat, g.lon, `<span class="sc-gate${g.none ? " none" : ""}">${g.none ? "No gate" : "Gate"}</span>`, g.name, () => openGate(rs, g));
       }
     }
+    requestAnimationFrame(declutter);
   }
+  // The flat map: a pin that would touch one already placed is hidden until zoomed in (alex 2026-11-05: the names piled
+  // up around the Spearhead). Gates first, then the open line, then the longer lines; the 3D map does its own (map3d.js).
+  function declutter() {
+    const all = [];
+    pins.eachLayer((m) => { const el = m.getElement && m.getElement(); const s = el && el.firstElementChild; if (!s) return;
+      s.classList.remove("sc-crowd");
+      const n = s.classList.contains("on") ? 99 : s.classList.contains("sc-gate") ? 50 : 40 + Math.min(4, (m.options.len || 0) / 1000);
+      all.push({ s, n, r: s.getBoundingClientRect() }); });
+    all.sort((a, b) => b.n - a.n);
+    const kept = [], gap = 4;
+    for (const p of all) {
+      if (!p.r.width) continue;
+      const hit = p.n < 99 && kept.some((k) => p.r.left < k.r.right + gap && k.r.left < p.r.right + gap && p.r.top < k.r.bottom + gap && k.r.top < p.r.bottom + gap);
+      p.s.classList.toggle("sc-crowd", hit);
+      if (!hit) kept.push(p);
+    }
+  }
+  map.on("zoomend moveend", () => { if (shown()) requestAnimationFrame(declutter); });
   // Skiing's files load when Skiing is picked (winter.js), often after the 3D map was built: draw on that one too.
   const on3d = () => {
     const gl = window.trailMap3d; if (!gl) return;
@@ -363,7 +386,9 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
   new MutationObserver(() => { if (!btn.isConnected) placeBtn(); }).observe($("layersMenu") || document.body, { childList: true, subtree: true });
   // Tapping the map away from a line unselects it.
   map.on("click", () => { if (sel) { sel = null; draw(); } });
-  window.tfSlack = { load, open: (id) => { const l = resorts().flatMap((r) => r.lines).find((x) => x.id === id); if (l) open(l); }, list: (id) => { const rs = resorts().find((r) => r.id === id) || resorts()[0]; if (rs) openList(rs); } };
+  // The names on the map now: map3d.js leaves out a ski route's own name when it's the same line (the touring route
+  // "DOA (Down, Over, and Around)" under the "DOA" pin, alex 2026-11-05).
+  window.tfSlack = { names: () => (shown() ? drawnNames : []), load, open: (id) => { const l = resorts().flatMap((r) => r.lines).find((x) => x.id === id); if (l) open(l); }, list: (id) => { const rs = resorts().find((r) => r.id === id) || resorts()[0]; if (rs) openList(rs); } };
   sync();
   on3d();
 })();

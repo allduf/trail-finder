@@ -118,8 +118,8 @@
       const put = [];
       for (const { p, r } of [...best.values()].sort((a, b) => a.d - b.d)) {
         if (put.length >= MAX_NAMES) break;
-        const q = map.latLngToContainerPoint(p), w = 14 + nameOf(r).length * 6.5;
-        if (put.some((o) => Math.abs(o.y - q.y) < 22 && q.x < o.x + o.w && o.x < q.x + w)) continue;
+        const q = map.latLngToContainerPoint(p), w = 12 + nameOf(r).length * 5.7;   // 9.5 px text since 2026-11-05 (was 11)
+        if (put.some((o) => Math.abs(o.y - q.y) < 20 && q.x < o.x + o.w && o.x < q.x + w)) continue;
         put.push({ x: q.x, y: q.y, w });
         names.addLayer(L.tooltip({ permanent: true, direction: "right", offset: [6, 0], className: "fr-name", interactive: false }).setLatLng(p).setContent(esc(nameOf(r))));
       }
@@ -128,7 +128,7 @@
   }
   const css = document.createElement("style");
   css.textContent = `
-.leaflet-tooltip.fr-name { background: ${C.line}; color: #fff; border: 1.5px solid #fff; border-radius: 6px; padding: 1px 6px; font: 700 11px/1.3 system-ui, sans-serif; box-shadow: 0 1px 3px #0007; white-space: nowrap; }
+.leaflet-tooltip.fr-name { background: ${C.line}; color: #fff; border: 1.5px solid #fff; border-radius: 6px; padding: 1px 5px; font: 700 9.5px/1.25 system-ui, sans-serif; box-shadow: 0 1px 3px #0007; white-space: nowrap; }
 .leaflet-tooltip.fr-name::before { display: none; }
 #skiPane .fr-open { font: inherit; font-size: .88rem; font-weight: 700; padding: 10px 8px; border-radius: 12px; border: 1px solid ${C.line}; background: color-mix(in srgb, ${C.line} 10%, var(--chip)); color: var(--fg); cursor: pointer; width: 100%; margin-top: 6px; }
 .fr-sec { margin: 8px 0; padding: 9px 11px; border-radius: 10px; border: 1px solid color-mix(in srgb, ${C.line} 45%, transparent); background: color-mix(in srgb, ${C.line} 8%, transparent); }

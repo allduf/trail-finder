@@ -531,7 +531,7 @@ out center tags qt;`;
     const best = e && e.filter((x) => kmTo([x[1], x[2]], h.c) < 20).sort((a, b) => kmTo([a[1], a[2]], h.c) - kmTo([b[1], b[2]], h.c))[0];
     if (best) { h.g = best[3]; h.gFrom = { by: guide.src[best[4]] || best[4], url: best[5] || "" }; }
   }
-  getJ("data/hike-grades.json?v=3170").then((d) => {
+  getJ("data/hike-grades.json?v=3200").then((d) => {
     if (!d || d.v !== 1) return;
     guide = new Map(); guide.src = d.src || {};
     for (const x of d.h) { const k = guideKey(x[0]); if (k) (guide.get(k) || guide.set(k, []).get(k)).push(x); }
@@ -611,7 +611,17 @@ out center tags qt;`;
         places.set(c.id, c); list.push(c);
       });
     }
+    // Dots that would sit on each other are left out until zoomed in (alex 2026-11-05, "see if anything else is too
+    // crowded": the parking lots and trailheads were a purple pile over Whistler village). Huts first, then trailheads,
+    // campsites, viewpoints, parking, water and toilets; the open place always stays.
+    const RANK = ["hut", "th", "camp", "view", "fall", "park", "water", "wc"], room = [], keep = new Set(), GAP = 14;
+    for (const p of [...list].sort((a, b) => RANK.indexOf(a.k) - RANK.indexOf(b.k))) {
+      const q = map.latLngToContainerPoint(p.ll);
+      if (p !== curPlace && room.some((o) => Math.abs(o.x - q.x) < GAP && Math.abs(o.y - q.y) < GAP)) continue;
+      room.push(q); keep.add(p);
+    }
     for (const p of list) {
+      if (!keep.has(p)) continue;
       if (++n > 700) break;
       const k = PLACES[p.k], big = p.k === "hut" || p.k === "th";
       const m = L.circleMarker(p.ll, { renderer: placeRend, pane: "hikePlaces", radius: big ? 7 : 5.5, color: "#fff", weight: 2, fillColor: k.c, fillOpacity: 1,
@@ -980,7 +990,7 @@ out center tags qt;`;
   // alex 2026-11-03: anything found about a trail beyond OpenStreetMap goes on the trail (the Sea to Sky Gondola's
   // trails: difficulty, length, time, what it's like). An entry fits a hike with one of its names within r metres.
   let tInfo = null;
-  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=3170").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
+  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=3200").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
   const fold = (x) => String(x || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   function operatorFacts(h) {
     const j = tInfo && tInfo.then ? null : tInfo;
@@ -1462,7 +1472,7 @@ out center tags qt;`;
   // What Offline maps saves for Hiking (offline.js): the hiking trails and places of the home zones in the box, the
   // Canada chunks over it, the grades and trail facts, and the terrain tiles for heights.
   window.tfHikeOffline = async (box) => {   // box = [south, west, north, east]
-    const abs = (u) => new URL(u, location.href).href, data = ["data/hike-grades.json?v=3170", "data/trail-info.json?v=3170", "ca/h/index.json"];
+    const abs = (u) => new URL(u, location.href).href, data = ["data/hike-grades.json?v=3200", "data/trail-info.json?v=3200", "ca/h/index.json"];
     for (const z of window.tfZones || []) if (z.box[0] < box[2] && z.box[2] > box[0] && z.box[1] < box[3] && z.box[3] > box[1]) data.push(`data/hike-${z.id}.json`, `data/hike-places-${z.id}.json`);
     const have = await chunkList();
     for (let la = Math.floor(box[0] / CH_LAT) * CH_LAT; la < box[2]; la += CH_LAT)
