@@ -2582,7 +2582,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <div class="sk-row">${plan.on && n ? `<button type="button" class="btn" id="skPlanUndo">↶ Undo</button>` : ""}${n ? `<button type="button" class="btn" id="skPlanClear">Clear</button>` : ""}${!plan.on && n > 1 ? `<button type="button" class="btn" id="skPlanMap">${plan.show ? "Hide from map" : "Show on map"}</button><button type="button" class="btn" id="skPlanShow">Show details</button>` : ""}</div>
       ${safePath() ? "" : ptsHtml()}`;
     const u = $("skPlanUndo"); if (u) u.addEventListener("click", planUndo);
-    const c = $("skPlanClear"); if (c) c.addEventListener("click", () => { if (plan.pts.length > 2 && !confirm("Clear your planned tour?")) return; snap(); plan.pts = []; planChanged(); });
+    const c = $("skPlanClear"); if (c) c.addEventListener("click", () => { if (plan.pts.length > 2 && !confirm("Clear your planned tour?")) return; snap(); plan.pts = []; plan.safe = true; store.set("skiSafe", true); planChanged(); });   // the next tour starts safest
     const sh = $("skPlanShow"); if (sh) sh.addEventListener("click", () => { plan.show = true; drawPlan(); const r = planRoute(); if (r) select(r, true); });
     const pm = $("skPlanMap"); if (pm) pm.addEventListener("click", () => {
       plan.show = !plan.show; drawPlan(); renderPlan();
@@ -2938,6 +2938,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (plan.on === on) return;
     plan.on = on;
     plan.offer = null;
+    // A new tour (no way drawn yet) starts with the 🛡 Safest way on (alex 2026-11-05: "when you create a tour make sure
+    // safest way is on by default"); turning it off lasts for that tour.
+    if (on && plan.pts.length < 2 && !plan.safe) { plan.safe = true; store.set("skiSafe", true); }
     if (on) plan.show = true;   // just planned: it stays on the map until Hide from map (or the app is opened again)
     // The map's layers stay as they are while planning (alex 2026-11-04: "dont put the slope angle layer by default when
     // you plan a tour"); Slope angle is in Layers for whoever wants it.
@@ -4619,6 +4622,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       snap();
       plan.pts = pts.map((p) => (p[2] ? [+p[0].toFixed(6), +p[1].toFixed(6), p[2]] : [+p[0].toFixed(6), +p[1].toFixed(6)]));
       plan.path = null; plan.fail = ""; plan.show = true;
+      plan.safe = true; store.set("skiSafe", true);   // a new tour always starts with the 🛡 Safest way (alex 2026-11-05)
       if (plan.on) { plan.on = false; map.getContainer().classList.remove("sk-planning"); }
       map.fitBounds(L.latLngBounds(pts.flatMap((p) => [[p[0], p[1]], ...((p[2] && p[2].via) || [])])), { padding: [40, 40], maxZoom: 15 });
       planChanged();

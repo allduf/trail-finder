@@ -382,7 +382,10 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       n = n.replace(/\s+(?:today|tomorrow|please|and|then|run|line|in the (?:morning|afternoon))$/g, "").trim();
       if (!n || /^(?:a |my |our )?(?:tour|ski tour|day|lap|it|there|here|plan)$/.test(n) || n.length < 2) continue;
       if (/^the (?:car|parking|lot)|^(?:parking|car|the road)$/.test(n)) continue;
-      out.push({ kind, name: n, pos, up, lift: /\b(?:chair|chairlift|lift|gondola|t ?-?bar|express|quad)\b/.test(n) });
+      // "the bottom of Poop Chutes on Glacier Road": the name, then where it is (a hint, also used when the name isn't found).
+      let hint = "";
+      if ((m = n.match(/^(.+?)\s+(?:on|onto|at|by|near|above|below|beside|next to|along)\s+(?:the\s+)?(.{2,})$/))) { n = m[1].trim(); hint = m[2].trim(); }
+      out.push({ kind, name: n, hint, pos, up, lift: /\b(?:chair|chairlift|lift|gondola|t ?-?bar|express|quad)\b/.test(n) });
     }
     return out;
   }
@@ -440,19 +443,37 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     // What each kind of step looks for first: a start or finish at the top/bottom of something is most often a lift;
     // a line skied is a slackcountry line or a route; a finish "in" something is most often a bowl or a run.
     const PREF = { start: { lift: 0.3, run: 0.1, area: 0.1 }, via: { slack: 0.4, route: 0.25, run: 0.2, area: 0.15 }, end: { area: 0.3, run: 0.2, lift: 0.05 } };
-    return steps.map((st) => {
+    // How far a piece is from a point (km), from a few of its points.
+    const away = (x, ref) => { let m = Infinity; for (const ln of x.lines) { const k = Math.max(1, Math.ceil(ln.length / 12)); for (let i = 0; i < ln.length; i += k) m = Math.min(m, kmTo(ln[i], ref)); m = Math.min(m, kmTo(ln[ln.length - 1], ref)); } return m; };
+    // The best piece for a name: how well it's named, what the step looks for, then how near (to the place, then to the
+    // tour's other pieces and the "on Glacier Road" hint: 0.1 a km, so the Glacier Road by the Poop Chutes, not 3 km on).
+    const pick = (name, st, refs) => {
       let best = null;
       for (const x of cands) {
-        const sc = nameScore(st.name, x.name, x.alt);
+        const sc = nameScore(name, x.name, x.alt);
         if (sc < 1.5) continue;
-        const d = Math.min(...x.lines.map((ln) => kmTo(ln[0], c)));
-        const v = sc + (PREF[st.kind][x.kind] || 0) + (st.pos && x.kind === "lift" ? 0.2 : 0) + (st.lift && x.kind === "lift" ? 1 : 0) - d / 200;
+        const d = refs.length ? Math.min(...refs.map((r) => away(x, r))) / 10 : away(x, c) / 200;
+        const v = sc + (PREF[st.kind][x.kind] || 0) + (st.pos && x.kind === "lift" ? 0.2 : 0) + (st.lift && x.kind === "lift" ? 1 : 0) - d;
         if (!best || v > best.v) best = { v, x };
       }
-      if (!best) return { ...st, miss: true };
-      // Same-name pieces (a run mapped in parts): all of them, for its top and bottom.
-      const same = cands.filter((y) => y.kind === best.x.kind && y.name === best.x.name);
-      return { ...st, hit: best.x, lines: same.flatMap((y) => y.lines) };
+      return best && best.x;
+    };
+    const mid = (x) => { const ln = x.lines[0]; return ln[Math.floor(ln.length / 2)]; };
+    // First each step on its own (its name, else its "on ..." hint), then again near the others it goes with.
+    let hits = steps.map((st) => pick(st.name, st, []) || null);
+    const hintHit = steps.map((st) => (st.hint ? pick(st.hint, st, []) : null));
+    hits = steps.map((st, i) => {
+      if (!hits[i]) return hintHit[i] ? { x: hintHit[i], byHint: true } : null;
+      const refs = [...(hintHit[i] ? hintHit[i].lines.flat() : []), ...hits.filter((h, j) => h && j !== i).map(mid)];
+      return { x: (refs.length && pick(st.name, st, refs)) || hits[i] };
+    });
+    return steps.map((st, i) => {
+      const h = hits[i];
+      if (!h) return { ...st, miss: true };
+      // Same-name pieces close by (a run mapped in parts): all of them, for its top and bottom.
+      const near = h.x.lines.flat();
+      const same = cands.filter((y) => y === h.x || (y.kind === h.x.kind && y.name === h.x.name && near.some((p) => away(y, p) < 0.3)));
+      return { ...st, hit: h.x, lines: same.flatMap((y) => y.lines) };
     });
   }
   // The highest and lowest of a piece's points (heights from the terrain tiles, at most ~14 asked).
@@ -500,6 +521,13 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       // finish at the bottom (of a bowl or run: where it comes out).
       const top = pc.pos ? pc.pos === "top" : pc.kind === "start";
       if (x.kind === "lift") { const g = mainLine(pc.lines); const [e0, e1] = await Promise.all([window.tfSki.trip.heightAt(g[0][0], g[0][1]).catch(() => null), window.tfSki.trip.heightAt(g[g.length - 1][0], g[g.length - 1][1]).catch(() => null)]); const hiEnd = e0 != null && e1 != null && e0 > e1 ? g[0] : g[g.length - 1]; addPt(top ? hiEnd : hiEnd === g[0] ? g[g.length - 1] : g[0]); continue; }
+      // A finish "on" a run or road ("finish on Glacier Road"): where the tour reaches it, not its far bottom.
+      if (pc.kind === "end" && !pc.pos && x.kind !== "area" && x.kind !== "lift" && pts.length) {
+        const l = pts[pts.length - 1];
+        let b = null, bd = Infinity;
+        for (const p of pc.lines.flat()) { const d = kmTo(p, l); if (d < bd) { bd = d; b = p; } }
+        if (b) { addPt(b); continue; }
+      }
       const h = await hiLo(pc.lines);
       // A finish "in" a bowl: its middle, where you're in it, more than its lowest corner.
       if (pc.kind === "end" && x.kind === "area" && !pc.pos) { const all = pc.lines.flat(); addPt([(h.lo.p[0] * 2 + all.reduce((s, p) => s + p[0], 0) / all.length) / 3, (h.lo.p[1] * 2 + all.reduce((s, p) => s + p[1], 0) / all.length) / 3]); continue; }
