@@ -132,6 +132,8 @@ for (const sport of SPORTS) {
     const extra = await page.evaluate(() => ["tfHunt", "tfFish", "tfWebcams", "tfMoto"].filter((k) => window[k]));
     results.push({ sport, step: "Opens without the other sports' scripts", ok: !extra.length, note: extra.length ? `loaded anyway: ${extra.join(", ")}` : "", shot: "" });
   }
+  // The one-time terms sheet (risk.js "Before you head out") is agreed to like a person would.
+  await page.locator("dialog.tf-terms [data-terms=ok]").click({ timeout: 6000 }).catch(() => {});
   // Anything the app shows on a first open (What's new, tips) is closed like a rider would.
   await page.keyboard.press("Escape").catch(() => {});
 
