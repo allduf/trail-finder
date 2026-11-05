@@ -1,7 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
-    {"date": "2026-11-05", "text": "Less crowded maps: smaller slackcountry and freeride names in Skiing with no names on top of each other or twice, fewer trail names in 3D, and fewer piled-up dots in Hiking and Adventure moto."},
+    {"date": "2026-11-05", "text": "Less crowded maps: smaller slackcountry and freeride names in Skiing with no names on top of each other or twice, fewer trail names in 3D, and fewer piled-up dots in Hiking and Adventure moto. Hiking now writes the hike names on the map, like MTB."},
     {"date": "2026-11-05", "text": "Fishing: Green Lake (Whistler) now shows its signed boat zones on the map (no-wake ends, waterski middle, float plane landing) and the sign's rules and report numbers in Boating."},
     {"date": "2026-11-05", "text": "Directions stay in the app now, like Google Maps: add stops, pick Drive, Bike or Walk, then Start for turn-by-turn with the next turn on top, spoken turns and the map following you."},
     {"date": "2026-11-05", "text": "Adventure moto: Directions stay in the app now: add stops, pick Moto, Bike or Walk, then Start for turn-by-turn like Apple Maps, with the next turn on top, spoken turns, the map following you, and a dark look after sunset."},
