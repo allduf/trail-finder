@@ -364,6 +364,9 @@
       }
       legs.push(one);
     }
+    // What still doubles back inside a leg (the points you put in are where a tour may turn round) goes to the app's
+    // error list, so it's seen and fixed.
+    if (window.tfNoBack) legs.forEach((l) => window.tfNoBack.check("Skiing tour", l.runs.flatMap((r) => r.pts)));
     return total(legs, av, { from: "pts" });
   }
   // The search between two points: { runs, steps, straight } or { fail }.
@@ -446,10 +449,12 @@
   // leg is searched. Also what the way before the crux is (app), for the card.
   const CRUX_GRADE = Math.tan(24 * RAD), CRUX_MIN_UP = 60;
   async function cruxOf(FR, way, av, onStep) {
-    const L = window.tfLeaflet, v = way.pts;
+    const L = window.tfLeaflet;
+    let v = way.pts;
     if (v.length < 2) return null;
     const g = await lineGrid(FR, v, av, onStep);
     if (!g.hasH) return null;
+    v = noBack(FR, g, v);
     const { cellAt } = FR._grid, H = v.map((p) => { const c = cellAt(g, p[0], p[1]); return c >= 0 ? g.h[c] : NaN; });
     const top = v.length - 1;
     let k = -1, along = 0;
@@ -464,8 +469,17 @@
     if (k > 0) app = expoOf(pieces(FR, g, lineCells(FR, g, v.slice(0, k + 1)), av).runs);
     return { crux, app };
   }
+  // A drawn line never doubles back (alex 2026-11-05: the Corona Bowl way up climbed to a high spot near the Spearhead and
+  // came back down to the skin track, and the tour followed it as drawn): knots, turns back on itself and climbs to a
+  // spot just to come back down are cut (noback.js), with the heights from the terrain under it.
+  function noBack(FR, g, v) {
+    const NB = window.tfNoBack;
+    if (!NB) return v;
+    const { cellAt } = FR._grid;
+    return NB.clean(v, { loops: true, hAt: g.hasH ? (la, lo) => { const c = cellAt(g, la, lo); return c >= 0 ? g.h[c] : null; } : null });
+  }
   async function fixedLeg(FR, via, av, onStep) {
-    const v = via.pts, g = await lineGrid(FR, v, av, onStep), cells = lineCells(FR, g, v);
+    const g = await lineGrid(FR, via.pts, av, onStep), v = noBack(FR, g, via.pts), cells = lineCells(FR, g, v);
     const leg = pieces(FR, g, cells, av), RANK = { ok: 0, mid: 1, under: 2, steep: 3, trap: 4 }, st = leg.steps;
     // One step for the whole line, under its own name.
     const one = { kind: "trail", name: via.name, m: 0, up: 0, down: 0, worst: "ok", hzM: 0, safeWorst: "ok", maxDeg: 0, at: st[0].at, mid: st[Math.floor(st.length / 2)].mid, line: true };

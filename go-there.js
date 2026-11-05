@@ -295,6 +295,8 @@ body.go-picking .leaflet-container { cursor: crosshair; }
     html: `<svg viewBox="0 0 26 26" width="26" height="26"><circle cx="13" cy="13" r="10" fill="${c}" stroke="#fff" stroke-width="3"/><text x="13" y="17.5" text-anchor="middle" font="800 11px system-ui" font-size="11" font-weight="800" fill="#fff">${txt}</text></svg>` });
   function draw(fit) {
     const r = st.route;
+    // No doubling back (noback.js, alex 2026-11-05 "everywhere"): what still turns round on itself goes to the error list.
+    if (r && r.line && window.tfNoBack) window.tfNoBack.check("Directions", r.line, { stops: st.stops.map((s) => s.ll) });
     caseLine.setLatLngs(r ? r.line : []); mainLine.setLatLngs(r ? r.line : []);
     pins.clearLayers();
     st.stops.forEach((s, i) => {

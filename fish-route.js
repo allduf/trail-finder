@@ -574,6 +574,8 @@
   const layer = L.layerGroup();
   function draw(route) {
     layer.clearLayers();
+    // No doubling back (noback.js, alex 2026-11-05 "everywhere"): what still turns round on itself goes to the error list.
+    if (window.tfNoBack) window.tfNoBack.check("Fishing route", route.d.runs.flatMap((r) => r.pts));
     for (const r of route.d.runs) L.polyline(r.pts, { pane: "fishRoute", color: "#fff", weight: 8, opacity: 0.9, lineCap: "round", lineJoin: "round", interactive: false }).addTo(layer);
     for (const r of route.d.runs) L.polyline(r.pts, { pane: "fishRoute", color: r.kind === "off" ? OFF : ACC, weight: 4.5, opacity: 1, lineCap: "round", lineJoin: "round",
       dashArray: r.kind === "off" ? "7 7" : null, interactive: false }).addTo(layer);

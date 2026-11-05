@@ -1082,6 +1082,8 @@
   const stopIcon = (text, cls = "") => L.divIcon({ className: "plan-stop " + cls, iconSize: [24, 24], iconAnchor: [12, 12], html: `<span>${text}</span>` });
   function draw() {
     const real = legs.filter((l) => !l.gap);
+    // No doubling back (noback.js, alex 2026-11-05 "everywhere"): what still turns round on itself goes to the error list.
+    if (window.tfNoBack) real.forEach((l) => window.tfNoBack.check("MTB Plan a route", l.pts));
     caseLine.setLatLngs(real.map((l) => l.pts));
     line.setLatLngs(real.filter((l) => mode === "tap" || l.pick >= 0).map((l) => l.pts));
     linkLine.setLatLngs(mode === "pick" ? real.filter((l) => l.pick < 0).map((l) => l.pts) : []);
