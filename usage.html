@@ -161,7 +161,7 @@ details > summary { cursor: pointer; font-weight: 600; }
     <div class="card"><table id="errors"></table></div>
   </div>
 </main>
-<script src="account.js?v=3210"></script>
+<script src="account.js?v=3230"></script>
 <script>
 (() => {
   // Plain names for the app's main buttons (ids in index.html and ride.html). Anything else shows as tapped.
@@ -248,6 +248,7 @@ details > summary { cursor: pointer; font-weight: 600; }
   };
   const mins = (ms) => { const m = Math.round(ms / 60e3); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
   const secs = (ms) => (ms == null ? "–" : ms < 10e3 ? `${(ms / 1000).toFixed(1)} s` : `${Math.round(ms / 1000)} s`);
+  const agoShort = (d) => { const m = Math.round((Date.now() - new Date(d)) / 6e4); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
   const ago = (d) => { const h = (Date.now() - new Date(d)) / 36e5; return h < 1 ? "just now" : h < 24 ? `${Math.round(h)} h ago` : `${Math.round(h / 24)} days ago`; };
   const dayAgo = (day) => { const n = Math.round((Date.parse(new Date().toISOString().slice(0, 10)) - Date.parse(day)) / 864e5); return n <= 0 ? "today" : n === 1 ? "yesterday" : `${n} days ago`; };
   const bar = (n, max) => `<div class="bar" style="width:${Math.max(2, Math.round(100 * n / (max || 1)))}%"></div>`;
@@ -259,6 +260,14 @@ details > summary { cursor: pointer; font-weight: 600; }
   const weekName = (k) => new Date(k + "T12:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric" });
   let days = 30, rows = [], all = null, roster = null, who = null, kinds = null, limits = null;
   try { who = localStorage.getItem("tf:usageWho"); } catch {}
+  let searchSort = "new";
+  try { searchSort = localStorage.getItem("tf:usageSearchSort") || "new"; } catch {}
+  $("searches").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-ssort]"); if (!b) return;
+    searchSort = b.dataset.ssort;
+    try { localStorage.setItem("tf:usageSearchSort", searchSort); } catch {}
+    paint();
+  });
 
   document.querySelectorAll("[data-who]").forEach((b) => b.addEventListener("click", () => {
     who = b.dataset.who;
@@ -516,7 +525,7 @@ details > summary { cursor: pointer; font-weight: 600; }
   const RIDE_TEXT = /^(▶ )?(record|follow|go|start|navigate|ride|track|plan a (route|tour|moto route))\b/i;
   // A spot, route or hut card being opened (other sports don't send "view" like the MTB trail card does).
   const CARD = /^(#(fsSpot|mtSpot|mtRoute)|list:#(results|list|trailHits|wantList))|\(in #(fsSpot|mtSpot|mtRoute|detail)\)$/;
-  const BOX = { "Trail name": "🔎 Trail name", Place: "📍 Place", Ask: "💬 Ask" };
+  const BOX = { "Trail name": "🔎 Trail name", Place: "📍 Place", Ask: "💬 Ask", Area: "🗺️ Where to look", "Ski find": "⛷ Skiing search" };
   const SPEED = [["html", "Page arrived"], ["dcl", "Scripts started"], ["page", "App ready"], ["map", "Map pictures"], ["trails", "Trails on the map"], ["3d", "3D mountains"]];
   function paint() {
     // alex's own phone is the one named "Me". Once one is, the page starts on "Everyone but me".
@@ -562,7 +571,7 @@ details > summary { cursor: pointer; font-weight: 600; }
       const box = String(r.what).split(":")[0], q = String(r.what).slice(box.length + 1).trim();
       const t = new Date(r.at);
       const picked = s.ev.slice(i + 1).some((o) => o.kind === "pick" && o.what === box && new Date(o.at) - t < 180e3);
-      searches.push({ box, q, n: r.ms, picked, device: r.device });
+      searches.push({ box, q, n: r.ms, picked, device: r.device, at: r.at });
     });
     const empty = searches.filter((x) => x.n === 0).length, noPick = searches.filter((x) => x.n > 0 && !x.picked).length;
 
@@ -611,13 +620,14 @@ details > summary { cursor: pointer; font-weight: 600; }
 
     const sg = new Map();
     for (const x of searches) {
-      const k = `${x.box}|${x.q.toLowerCase()}`, g = sg.get(k) || { box: x.box, q: x.q, n: 0, who: new Set(), empty: 0, picked: 0, last: x.n };
-      g.n++; g.who.add(x.device); if (x.n === 0) g.empty++; if (x.picked) g.picked++; g.last = x.n; sg.set(k, g);
+      const k = `${x.box}|${x.q.toLowerCase()}`, g = sg.get(k) || { box: x.box, q: x.q, n: 0, who: new Set(), empty: 0, picked: 0, last: x.n, at: x.at };
+      g.n++; g.who.add(x.device); if (x.n === 0) g.empty++; if (x.picked) g.picked++; g.last = x.n; if (x.at > g.at) g.at = x.at; sg.set(k, g);
     }
-    const sl = [...sg.values()].sort((a, b) => b.n - a.n || b.empty - a.empty).slice(0, 60);
-    $("searches").innerHTML = (searches.length ? `<caption class="muted" style="text-align:left;padding-bottom:6px">${searches.length} searches: ${empty} found nothing, ${noPick} got answers but no pick.</caption>` : "") +
+    // Newest first by default, so a search just made is at the top (alex 2026-11-05: "i dont see it"); Most searched groups.
+    const sl = [...sg.values()].sort(searchSort === "most" ? (a, b) => b.n - a.n || b.empty - a.empty || (b.at > a.at ? 1 : -1) : (a, b) => (b.at > a.at ? 1 : b.at < a.at ? -1 : 0)).slice(0, 60);
+    $("searches").innerHTML = (searches.length ? `<caption class="muted" style="text-align:left;padding-bottom:6px">${searches.length} searches: ${empty} found nothing, ${noPick} got answers but no pick. <span class="days" style="display:inline-flex;margin-left:6px"><button type="button" data-ssort="new" aria-pressed="${searchSort !== "most"}">Newest first</button><button type="button" data-ssort="most" aria-pressed="${searchSort === "most"}">Most searched</button></span></caption>` : "") +
       `<tr><th>Searched for</th><th>What happened</th></tr>` +
-      (sl.map((g) => `<tr><td><span class="q">${esc(g.q)}</span><br><span class="muted">${esc(BOX[g.box] || g.box)} · ${g.n === 1 ? "once" : `${g.n} times`}${g.who.size > 1 ? ` by ${g.who.size} testers` : ""}${g.last == null ? "" : ` · ${g.last} result${g.last === 1 ? "" : "s"}`}</span></td>
+      (sl.map((g) => `<tr><td><span class="q">${esc(g.q)}</span><br><span class="muted">${esc(BOX[g.box] || g.box)} · ${g.n === 1 ? "once" : `${g.n} times`}${g.who.size > 1 ? ` by ${g.who.size} testers` : ""}${g.last == null ? "" : ` · ${g.last} result${g.last === 1 ? "" : "s"}`} · ${g.n === 1 ? "" : "last "}${agoShort(g.at)}</span></td>
         <td style="width:1%">${g.empty === g.n ? `<span class="tag bad">Nothing found</span>` : g.picked ? `<span class="tag good">Picked one${g.picked < g.n ? ` (${g.picked} of ${g.n})` : ""}</span>` : `<span class="tag bad">Didn't pick one</span>`}</td></tr>`).join("") || none(2, all ? "No searches yet" : "Searches show here once usage-more.sql is run"));
 
     const rg = new Map();
