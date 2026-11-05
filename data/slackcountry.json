@@ -690,10 +690,10 @@
      "kind": "line",
      "diff": "expert",
      "osm": ["w460133633"],
-     "about": "Long chutes from the ridge north of Corona Bowl (toward Phalanx Mountain) down to Glacier Road: about 700 m down.",
-     "access": "From the Spearhead Glacier, skin north past Corona Bowl to the top. The way up isn't well documented: go with someone who knows it.",
+     "about": "Long chutes off Phalanx Mountain's north ridge, west of the Phalanx Glacier, down to Glacier Road: about 700 m down.",
+     "access": "From the Blackcomb Glacier gate, skin over the Spearhead's south shoulder and down onto the Spearhead Glacier, then sidehill round the east side of the Spearhead-Phalanx col: you can't stay on the ridge, Phalanx's south ridge has rock pinnacles. Bootpack the Stairmaster, a steep, narrow couloir on Phalanx's southeast face, to the notch between its two summits (about 140 m, 15 to 20 minutes), then follow the north ridge to the drop-in. Gentler: ski the Phalanx Glacier from the top and cross back over the lower north ridge into the chutes.",
      "exit": "The chutes end on Glacier Road: follow it to the Crystal or Excelerator chairs, or the valley.",
-     "hazards": ["In 2021 two size 3 avalanches here killed one person and injured at least two others.", "Long, narrow chutes that funnel any slide."],
+     "hazards": ["In 2021 two size 3 avalanches here killed one person and injured at least two others.", "Long, narrow chutes that funnel any slide.", "The Stairmaster on the way up is a steep couloir too: avalanche terrain, one at a time.", "The lower chutes (the dogleg) can be icy above a cliff."],
      "src": [
       {
        "t": "Global News: Blackcomb Glacier avalanche (2021)",
@@ -702,10 +702,22 @@
       {
        "t": "Pique: skiers escape avalanche near Whistler",
        "u": "https://piquenewsmagazine.com/whistler-news/backcountry-skiers-escape-avalanche-near-whistler-2493271"
+      },
+      {
+       "t": "Trip report with GPS track: Phalanx via the Stairmaster (2025)",
+       "u": "https://tareef.tech/blog/phalanx-mountain/"
+      },
+      {
+       "t": "sverdina.com: Stairmaster and Poop Chutes (2023)",
+       "u": "https://sverdina.com/2023_01_01_archive.asp"
+      },
+      {
+       "t": "BCMC trip: Stairmaster Couloir and Poop Chutes (2020)",
+       "u": "https://bcmc.ca/events/1584411628"
       }
      ],
      "g": {
-      "up": [50.08907,-122.87689,50.08838,-122.87573,50.08768,-122.87422,50.08717,-122.87268,50.08701,-122.87181,50.08708,-122.87076,50.08693,-122.87051,50.08504,-122.86961,50.08429,-122.86905,50.08394,-122.86853,50.08361,-122.87002,50.0828,-122.86868,50.08269,-122.86948,50.08374,-122.86941,50.0835,-122.869,50.08334,-122.86836,50.08333,-122.86786,50.08385,-122.86669,50.08407,-122.86577,50.08476,-122.86511,50.08492,-122.86386,50.08511,-122.86332,50.08514,-122.86255,50.08501,-122.86192,50.08504,-122.86125,50.08543,-122.861,50.0905,-122.8605,50.0985,-122.859,50.1029,-122.86066],
+      "up": [50.08914,-122.87663,50.08861,-122.87608,50.08802,-122.87507,50.08763,-122.87424,50.08707,-122.87255,50.08691,-122.87159,50.08698,-122.8712,50.08681,-122.87074,50.0869,-122.87058,50.08686,-122.87045,50.08497,-122.86932,50.08463,-122.86894,50.08438,-122.86833,50.08421,-122.86853,50.08395,-122.86924,50.08329,-122.86886,50.08321,-122.86826,50.08331,-122.86778,50.08391,-122.86669,50.08405,-122.86586,50.0848,-122.86503,50.08491,-122.86431,50.0852,-122.86412,50.08514,-122.86413,50.08539,-122.86335,50.08543,-122.86276,50.08528,-122.86187,50.08527,-122.86259,50.08524,-122.86266,50.08508,-122.86243,50.08505,-122.86105,50.08566,-122.86141,50.08678,-122.86283,50.08813,-122.86414,50.08838,-122.86428,50.08866,-122.86427,50.09001,-122.86355,50.09072,-122.8627,50.09186,-122.86088,50.09225,-122.86061,50.09265,-122.86013,50.09261,-122.86006,50.09293,-122.86016,50.09332,-122.86003,50.09379,-122.85973,50.09431,-122.85919,50.09469,-122.85832,50.0947,-122.85707,50.09515,-122.85642,50.09572,-122.85621,50.09627,-122.85624,50.09685,-122.85572,50.09726,-122.85581,50.09705,-122.85634,50.09715,-122.85634,50.09714,-122.85654,50.09734,-122.85685,50.09747,-122.85733,50.0981,-122.85826,50.09836,-122.85867,50.09917,-122.85867,50.10025,-122.86035,50.10061,-122.86063,50.10232,-122.86063,50.1029,-122.86066],
       "ski": [50.1029,-122.86066,50.10394,-122.86271,50.1055,-122.86499,50.1072,-122.86702,50.10938,-122.86907,50.10983,-122.8697,50.11019,-122.87053,50.11052,-122.87188,50.11051,-122.8725,50.10981,-122.87597,50.10969,-122.87702,50.10969,-122.87848,50.1098,-122.87982],
       "out": [50.1098,-122.87982,50.11004,-122.88029,50.11045,-122.88067,50.11062,-122.88163,50.1109,-122.88222,50.11255,-122.8844,50.11362,-122.88604,50.11414,-122.88663,50.1148,-122.88787,50.11543,-122.88869,50.1156,-122.88963,50.11547,-122.89065,50.11563,-122.89126,50.11555,-122.89184,50.11593,-122.89304,50.11625,-122.89359,50.11658,-122.89391,50.11703,-122.89399,50.11759,-122.89372,50.11787,-122.89375,50.11839,-122.89435,50.11846,-122.89472]
      },
@@ -717,10 +729,10 @@
       "maxSlope": 38,
       "faces": ["w"],
       "k35": 0.3,
-      "tripKm": 7.3,
-      "climb": 1336,
+      "tripKm": 7.7,
+      "climb": 1266,
       "cls": 3,
-      "why": ["1.0 km on slopes of 35° or more", "6.2 km under steep slopes", "0.5 km in gullies or creek beds (terrain traps)"]
+      "why": ["1.7 km on slopes of 35° or more", "6.4 km under steep slopes", "0.5 km in gullies or creek beds (terrain traps)"]
      }
     },
     {

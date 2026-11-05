@@ -152,7 +152,7 @@
   // Lines: 1 street, 2 track or forest road, 3 path, 4 steps, 5 main road, 6 motorway
   const L_STREET = 1, L_TRACK = 2, L_PATH = 3, L_STEPS = 4, L_MAIN = 5, L_MOTOR = 6;
   const LINE_X = [0, 1.0, 1.05, 1.1, 1.6, 1.15, 25];
-  const F_STREAM = 1, F_RIVER = 2, F_BRIDGE = 4, F_PARK = 8, F_PAVED = 16;
+  const F_STREAM = 1, F_RIVER = 2, F_BRIDGE = 4, F_PARK = 8, F_PAVED = 16, F_NOGO = 32;
 
   function groundOf(layer, t) {
     const c = t.class || "", s = t.subclass || "";
@@ -300,7 +300,15 @@
       const shut = /^(closed|impass)$/.test(r.st || "");
       strokeLine(gm.map(ll), putLine(shut ? L_PATH : L_TRACK, false, nameOf(r.name || "")));
     }
-    for (const e of extra || []) if (e.pts && e.pts.length > 1) strokeLine(e.pts.map(ll), putLine(L_PATH, false, nameOf(e.name || "")));
+    for (const e of extra || []) if (e.pts && e.pts.length > 1 && !e.nogo) strokeLine(e.pts.map(ll), putLine(L_PATH, false, nameOf(e.name || "")));
+    // Ground that can't be crossed though the terrain model says it can (Skiing's data/ski-hand/ "nogo": a ridge of rock
+    // pinnacles the heights are too coarse to see, alex 2026-11-05: Phalanx Mountain's south ridge): about 30 m wide, so
+    // the search can't slip through it on a diagonal.
+    for (const e of extra || []) if (e.nogo && e.pts && e.pts.length > 1) {
+      const k = Math.max(1, Math.round(15 / g.cellM));
+      strokeLine(e.pts.map(ll), (i) => { const r = Math.floor(i / W), c = i % W;
+        for (let rr = r - k; rr <= r + k; rr++) for (let cc = c - k; cc <= c + k; cc++) if (rr >= 0 && cc >= 0 && rr < H && cc < W) g.flag[rr * W + cc] |= F_NOGO; });
+    }
 
     // Heights at each cell's middle, then the steepness of the ground there (for side-hills and cliffs).
     const px = (X, Y) => {
@@ -327,7 +335,7 @@
   // ---------- the search ----------
   // Seconds to walk from cell a to the next cell b, d metres away (Infinity: can't).
   // Seconds to walk from cell a to the next cell b, d metres away (Infinity: can't).
-  const blocked = (g, i) => !g.line[i] && !(g.flag[i] & F_BRIDGE) && (g.ground[i] === G.water || (g.hasH && g.grad[i] > 1.2));   // open water, a cliff
+  const blocked = (g, i) => (g.flag[i] & F_NOGO) || (!g.line[i] && !(g.flag[i] & F_BRIDGE) && (g.ground[i] === G.water || (g.hasH && g.grad[i] > 1.2)));   // open water, a cliff, no-go ground
   function stepCost(g, a, b, d) {
     if (blocked(g, a) || blocked(g, b)) return Infinity;
     const la = g.line[a], lb = g.line[b], on = la && lb;

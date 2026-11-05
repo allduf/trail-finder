@@ -108,7 +108,7 @@
 
   // Seconds (x the risk) to go from cell a to the next cell b, d metres away.
   function costFn(FR) {
-    const { blocked, F_PAVED, L_MOTOR, L_PATH } = FR._grid;
+    const { blocked, F_PAVED, F_KNOWN, L_MOTOR, L_PATH } = FR._grid;
     return (g, a, b, d) => {
       if (blocked(g, a) || blocked(g, b)) return Infinity;
       const sk = g.sk, ln = g.line[b];
@@ -121,9 +121,13 @@
       if ((!g.line[a] || !g.line[b]) && Math.abs(dh) / d > 1) return Infinity;   // over 45° straight up or down
       let t = (d * x) / 1.1 + Math.max(0, dh) / 0.12 + Math.max(0, -dh) * 0.4;
       if (!sk.deg.length) return t;
+      // A known way (a documented skin track or bootpack, linesNear): its steep bits are a bootpack at the usual pace, and
+      // the day's level decides its risk, up as well as down: on a Low or Moderate day the Stairmaster, not a made-up way
+      // round; on a red day it's still avoided (kDown is then strict).
+      const known = F_KNOWN && g.flag[a] & g.flag[b] & F_KNOWN;
       const dg = Math.max(sk.deg[a], sk.deg[b]);
-      if (dg > 35) t *= 1 + (dg - 35) / 6;   // hard to skin up or ski down, avalanche or not
-      return t * (1 + ((sk.risk[a] + sk.risk[b]) / 2) * (dh > 1 ? sk.kUp : sk.kDown));
+      if (dg > 35 && !known) t *= 1 + (dg - 35) / 6;   // hard to skin up or ski down, avalanche or not
+      return t * (1 + ((sk.risk[a] + sk.risk[b]) / 2) * (dh > 1 && !known ? sk.kUp : sk.kDown));
     };
   }
 
@@ -192,9 +196,13 @@
     }
     return out.map((s) => {
       let m = 0, up = 0, down = 0, worst = "ok", maxDeg = 0, hzM = 0, safeWorst = "ok";
+      // Climb from the heights averaged over ~70 m of the way: a line drawn along a side-hill or up a gully steps from
+      // cell to cell across the slope, and each little up and down added hundreds of metres that aren't there (alex
+      // 2026-11-05: the Stairmaster way read 868 m up for about 500).
+      const hs = s.cells.map((c, i) => { let t = 0, n = 0; for (let k = Math.max(0, i - 3); k <= Math.min(s.cells.length - 1, i + 3); k++) { const v = g.h[s.cells[k]]; if (v === v) { t += v; n++; } } return n ? t / n : NaN; });
       for (let i = 0; i < s.cells.length; i++) {
         const c = s.cells[i];
-        if (i) { const p = s.cells[i - 1], dh = g.h[c] - g.h[p]; m += (Math.abs((c % g.W) - (p % g.W)) + Math.abs(Math.floor(c / g.W) - Math.floor(p / g.W)) > 1 ? Math.SQRT2 : 1) * g.cellM; if (dh === dh) { if (dh > 0) up += dh; else down -= dh; } }
+        if (i) { const p = s.cells[i - 1], dh = hs[i] - hs[i - 1]; m += (Math.abs((c % g.W) - (p % g.W)) + Math.abs(Math.floor(c / g.W) - Math.floor(p / g.W)) > 1 ? Math.SQRT2 : 1) * g.cellM; if (dh === dh) { if (dh > 0) up += dh; else down -= dh; } }
         const k = clsOf(sk, c); if (RANK[k] > RANK[worst]) worst = k;
         if (RANK[k] >= 2) hzM += g.cellM; else if (RANK[k] > RANK[safeWorst]) safeWorst = k;
         if (sk.deg[c] > maxDeg) maxDeg = sk.deg[c];
@@ -225,7 +233,14 @@
     return { S, FR };
   }
   async function linesNear(S, c, km) {
-    try { const rs = await S.near(c, km); return rs.flatMap((r) => r.lines.map((pts) => ({ pts, name: r.name || "" }))); } catch { return []; }
+    try {
+      // A hand-kept route (data/ski-hand/) is a documented way up: the one everyone takes (alex 2026-11-05: the Stairmaster
+      // bootpack to Phalanx and the Poop Chutes), so costFn weighs its risk at today's level, not the strict uphill one.
+      const rs = await S.near(c, km), out = rs.flatMap((r) => r.lines.map((pts) => ({ pts, name: r.name || "", known: r.src === "hand" })));
+      // Ground the terrain model makes look easy but isn't (data/ski-hand/ "nogo": Phalanx's pinnacled south ridge): never crossed.
+      for (const n of (S.nogo && S.nogo(c, km)) || []) out.push({ pts: n.pts, nogo: true });
+      return out;
+    } catch { return []; }
   }
   function total(legs, av, extra) {
     const runs = legs.flatMap((l) => l.runs), st = { total: 0, ok: 0, mid: 0, steep: 0, under: 0, trap: 0, hit: 0, maxDeg: 0 };
@@ -252,24 +267,65 @@
       // tour"): this leg follows it as drawn, with its slopes and exposure read the same way.
       const via = viaOf(a, b);
       if (via) { legs.push(await fixedLeg(FR, via, av, onStep)); continue; }
-      const lines = await linesNear(S, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], Math.max(3, window.tfLeaflet.distance(a, b) / 1000 + 2));
-      const out = await FR._build(b, { you: a, lines, cost, prep: (g) => prep(g, av), pads: (d) => [Math.max(600, d * 0.4), Math.max(2000, d)] },
-        (s) => onStep && onStep(s === "terrain" ? "Getting the terrain…" : "Finding the safest way…"));
-      if (out.fail) return { fail: out.fail === "water" ? "water" : "noway", leg: i };
-      const cells = out.res.cells;   // from a to b
-      const pc = pieces(FR, out.g, cells, av);
-      // The search stops within a cell or two of a (and starts from open ground near b when b is on a rock face), so
-      // the line is joined to the points themselves: each leg starts and ends exactly on its points, with no gap
-      // between one leg and the next (alex 2026-11-04 screenshot: the way broke off before points 4 and 5).
-      if (pc.runs.length) {
-        const D = (p, q) => window.tfLeaflet.distance([p[0], p[1]], [q[0], q[1]]), f = pc.runs[0], l = pc.runs[pc.runs.length - 1];
-        const d0 = D(a, f.pts[0]), d1 = D(b, l.pts[l.pts.length - 1]);
-        if (d0 > 2) { f.pts.unshift([+a[0].toFixed(6), +a[1].toFixed(6)]); f.m += d0; if (pc.steps[0]) pc.steps[0].m += Math.round(d0); }
-        if (d1 > 2) { l.pts.push([+b[0].toFixed(6), +b[1].toFixed(6)]); l.m += d1; if (pc.steps.length) pc.steps[pc.steps.length - 1].m += Math.round(d1); }
+      // A documented way up between the two points (wayOf): the leg follows it as drawn, and the search only finds the
+      // way onto it and from its end to the point.
+      const way = await wayOf(S, a, b, av);
+      const parts = way ? [[a, way.pts[0]], way, [way.pts[way.pts.length - 1], b]] : [[a, b]], got = [];
+      for (const p of parts) {
+        if (p.pts) { got.push(await fixedLeg(FR, p, av, onStep)); continue; }
+        if (window.tfLeaflet.distance(p[0], p[1]) < 25) continue;
+        const leg = await searchLeg(S, FR, cost, p[0], p[1], av, onStep);
+        if (leg.fail) return { fail: leg.fail, leg: i };
+        got.push(leg);
       }
-      legs.push({ ...pc, straight: straight(FR, out.g, a, b) });
+      legs.push(got.length === 1 ? got[0] : { runs: got.flatMap((l) => l.runs), steps: got.flatMap((l) => l.steps),
+        straight: got.reduce((s, l) => ({ total: s.total + l.straight.total, steep: s.steep + l.straight.steep, under: s.under + l.straight.under }), { total: 0, steep: 0, under: 0 }) });
     }
     return total(legs, av, { from: "pts" });
+  }
+  // The search between two points: { runs, steps, straight } or { fail }.
+  async function searchLeg(S, FR, cost, a, b, av, onStep) {
+    const lines = await linesNear(S, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], Math.max(3, window.tfLeaflet.distance(a, b) / 1000 + 2));
+    const out = await FR._build(b, { you: a, lines, cost, prep: (g) => prep(g, av), pads: (d) => [Math.max(600, d * 0.4), Math.max(2000, d)] },
+      (s) => onStep && onStep(s === "terrain" ? "Getting the terrain…" : "Finding the safest way…"));
+    if (out.fail) return { fail: out.fail === "water" ? "water" : "noway" };
+    const cells = out.res.cells;   // from a to b
+    const pc = pieces(FR, out.g, cells, av);
+    // The search stops within a cell or two of a (and starts from open ground near b when b is on a rock face), so
+    // the line is joined to the points themselves: each leg starts and ends exactly on its points, with no gap
+    // between one leg and the next (alex 2026-11-04 screenshot: the way broke off before points 4 and 5).
+    if (pc.runs.length) {
+      const D = (p, q) => window.tfLeaflet.distance([p[0], p[1]], [q[0], q[1]]), f = pc.runs[0], l = pc.runs[pc.runs.length - 1];
+      const d0 = D(a, f.pts[0]), d1 = D(b, l.pts[l.pts.length - 1]);
+      if (d0 > 2) { f.pts.unshift([+a[0].toFixed(6), +a[1].toFixed(6)]); f.m += d0; if (pc.steps[0]) pc.steps[0].m += Math.round(d0); }
+      if (d1 > 2) { l.pts.push([+b[0].toFixed(6), +b[1].toFixed(6)]); l.m += d1; if (pc.steps.length) pc.steps[pc.steps.length - 1].m += Math.round(d1); }
+    }
+    return { ...pc, straight: straight(FR, out.g, a, b) };
+  }
+  // A documented way up (data/ski-hand/ route with "way": the skin track and bootpack everyone uses, alex 2026-11-05:
+  // "a chute that you need to boot pack call stairs master to go at the top of poop chutes"): taken when it starts
+  // near a, ends near b and goes the way of the leg. The search alone weighs every 35°+ slope against a long way
+  // round the terrain model thinks is easy (Phalanx: a ridge of pinnacles, or the far side of the mountain), so it never
+  // picks the bootpack. Not on a red day (High or Extreme): then the search finds the safest way, as for any tour.
+  const WAY_FROM_M = 1500, WAY_TO_M = 800;
+  async function wayOf(S, a, b, av) {
+    if (levelOf(av) === "strict") return null;
+    const L = window.tfLeaflet, mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    let rs = [];
+    try { rs = await S.near(mid, Math.max(3, L.distance(a, b) / 1000 + 2)); } catch { return null; }
+    let best = null;
+    for (const r of rs) {
+      if (r.src !== "hand" || !r.way) continue;
+      for (const v of r.lines) {
+        let i = 0, j = 0, di = Infinity, dj = Infinity;
+        v.forEach((p, k) => { const x = L.distance(a, p), y = L.distance(b, p); if (x < di) { di = x; i = k; } if (y < dj) { dj = y; j = k; } });
+        // Its top must be the bit nearest b (the way is the whole climb, not a piece of it), and it must be the way
+        // forward: the walk to it and from it shorter than going straight.
+        if (L.distance(v[j], v[v.length - 1]) > 300 || i >= j || di > WAY_FROM_M || dj > WAY_TO_M || di + dj > L.distance(a, b)) continue;
+        if (!best || di + dj < best.d) best = { pts: v.slice(i, j + 1), name: r.name || "", d: di + dj };
+      }
+    }
+    return best;
   }
   // The point b carries the line it was added with ({ via: [[lat, lon], ...], name }); it's followed when the leg still
   // runs from that line's one end to its other (after the points are moved round it may not), backwards if reversed.
