@@ -29,3 +29,7 @@ Whistler Blackcomb today ||| Whistler Blackcomb aujourd'hui
 Experts only ||| Experts seulement
 Couldn't load it: check their terrain status map ||| Impossible de le charger : voyez leur carte de l'état du terrain
 Closed ||| Fermé
+Next to no time exposed ||| Presque aucune exposition
+One at a time ||| Un à la fois
+Don't stop ||| Ne pas s'arrêter
+Today's weather couldn't be loaded, so only the avalanche forecast is in it: check for new snow, wind and warming yourself. ||| La météo du jour n'a pas pu être chargée, seul le bulletin d'avalanche compte : vérifiez vous-même la neige fraîche, le vent et le réchauffement.

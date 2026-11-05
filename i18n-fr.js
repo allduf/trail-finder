@@ -2043,7 +2043,11 @@
     "Whistler Blackcomb today":"Whistler Blackcomb aujourd'hui",
     "Experts only":"Experts seulement",
     "Couldn't load it: check their terrain status map":"Impossible de le charger : voyez leur carte de l'état du terrain",
-    "Closed":"Fermé"};
+    "Closed":"Fermé",
+    "Next to no time exposed":"Presque aucune exposition",
+    "One at a time":"Un à la fois",
+    "Don't stop":"Ne pas s'arrêter",
+    "Today's weather couldn't be loaded, so only the avalanche forecast is in it: check for new snow, wind and warming yourself.":"La météo du jour n'a pas pu être chargée, seul le bulletin d'avalanche compte : vérifiez vous-même la neige fraîche, le vent et le réchauffement."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
@@ -2190,6 +2194,22 @@
     [/^(\d+) (out of control|being held|under control|burning)$/, function (m, n, w) { return n + " " + { "out of control": "hors de contrôle", "being held": "contenu" + (n > 1 ? "s" : ""), "under control": "maîtrisé" + (n > 1 ? "s" : ""), burning: "en feu" }[w]; }],
     [/^within (\d+) km$/, "dans un rayon de $1 km"],
     [/^No active fires within (\d+) km$/, "Aucun feu actif dans un rayon de $1 km"],
+    // Skiing Safest way, "Why this way": time exposed and how it's weighed (ski-route.js, winter.js safeHtml)
+    [/^About (.+) exposed$/, "Environ $1 exposé"],
+    [/^of (.+) on the move: (.+)\. Time on or under a slope that could slide is what it keeps short\.$/, function (m, t, rest) { return "sur " + t + " en mouvement : " + rest.replace(/ on 30°\+ slopes/, " sur des pentes de 30°+").replace(/ under steep slopes/, " sous des pentes raides") + ". Le temps passé sur ou sous une pente qui peut partir, c'est ce qu'il garde court."; }],
+    [/^in (.+) on the move: no 30°\+ slopes and nothing steep above, as far as the terrain map can see\.$/, "sur $1 en mouvement : aucune pente de 30°+ et rien de raide au-dessus, d'après le modèle de terrain."],
+    [/^How it weighs it today, on skins: 1 min on a 30-35° slope counts like (\d+) min on gentle ground, 35-40° like (\d+) min \((\d+) min sidehilling across it\), under a steep slope like (\d+) min\. So it drops to flatter ground, crosses and climbs back when that's less time exposed, even if it's longer\.$/,
+      "Comment il pèse le temps aujourd'hui, en peaux : 1 min sur une pente de 30-35° compte comme $1 min en terrain doux, 35-40° comme $2 min ($3 min en traversée à flanc), sous une pente raide comme $4 min. Il descend donc vers du terrain plus plat, traverse et remonte quand on y est moins longtemps exposé, même si c'est plus long."],
+    [/^Leaves the usual skin track \((.+)\) before its crux: that track sidehills (.+) on 30°\+ slopes, about (.+) exposed\. This way: (.+?), about (.+?)(?:, for about (.+) more on the move)?\. The usual track is quicker on a stable day; with slab problems in the forecast, the way round is the safer bet\.$/,
+      function (m, n, a, b, c, d, e) { return "Quitte la trace habituelle (" + n + ") avant son passage clé : cette trace traverse à flanc " + a + " de pentes de 30°+, environ " + b + " d'exposition. Par ici : " + (c === "none" ? "aucun" : c) + ", environ " + d + (e ? ", pour environ " + e + " de plus en mouvement" : "") + ". La trace habituelle est plus rapide par temps stable; avec des plaques dans le bulletin, le détour est le choix le plus sûr."; }],
+    [/^Today's weather \(at (.+?)\) shows no new snow, wind loading, rain or warming to add\.$/, "La météo du jour (à $1) n'ajoute ni neige fraîche, ni transport par le vent, ni pluie, ni réchauffement."],
+    [/^Today's weather is in it too \(at (.+?)\): (.+)\.$/, function (m, at, rest) {
+      return "La météo du jour compte aussi (à " + at + ") : " + rest
+        .replace(/(\d+) cm of new snow in the last day, (\d+) cm in 3 days: every slope counts ([\d.]+)x/, "$1 cm de neige fraîche en 24 h, $2 cm en 3 jours : chaque pente compte $3x")
+        .replace(/wind up to (\d+) km\/h with snow to move: (.+?)-facing slopes in the alpine and at treeline count 1\.5x \(wind slabs\)/, function (m2, w, a) { return "vent jusqu'à " + w + " km/h avec de la neige à transporter : pentes orientées " + a.replace(/northeast/g, "nord-est").replace(/northwest/g, "nord-ouest").replace(/southeast/g, "sud-est").replace(/southwest/g, "sud-ouest").replace(/north/g, "nord").replace(/south/g, "sud").replace(/east/g, "est").replace(/west/g, "ouest") + " en alpin et à la limite des arbres : 1,5x (plaques à vent)"; })
+        .replace(/rain on snow up to about (.+?): 1\.5x below that/, "pluie sur neige jusqu'à environ $1 : 1,5x en dessous")
+        .replace(/warming to (-?\d+)°C at (.+?): sunny slopes count up to 1\.4x/, "réchauffement jusqu'à $1 °C à $2 : pentes ensoleillées jusqu'à 1,4x") + ".";
+    }],
   ];
 
   // ---- the translator (from scripts/i18n/engine.js) ----

@@ -45,6 +45,24 @@
     trap: { color: "#a61e4d", label: "Terrain trap" },
   };
 
+  // Today's weather signs (winter.js avyWeather, Open-Meteo at the alpine height; alex 2026-11-05: "feed recent snowfall,
+  // wind and warming into the risk for that day"): what Avalanche Canada lists for extra caution, on top of the forecast,
+  // which was written the evening before and can't see a storm that came in overnight.
+  //  - New snow: 10 cm+ in a day or 20 cm+ in 3 days 1.25x on every slope, 25 cm+ / 40 cm+ (a storm slab) 1.6x.
+  //  - Wind loading (25 km/h+ with snow to move): the slopes facing away from the wind (lee, wx.lee) 1.5x in the alpine
+  //    and at treeline, where wind moves snow.
+  //  - Rain on snow: 1.5x below the freezing level (wet slides).
+  //  - Warming to 3°C+ at the alpine height: sunny slopes (southeast to southwest) 1.4x, east and west 1.2x.
+  // At most 3x in all. wx: { snowF, lee: [aspect index...], rainTo (m), warm (°C) } or none.
+  const SUNNY = [1, 1, 1.2, 1.4, 1.4, 1.4, 1.2, 1];
+  const wxF = (wx, a, b, e) => {
+    if (!wx) return 1;
+    let f = wx.snowF || 1;
+    if (wx.lee && b < 2 && wx.lee.includes(a)) f *= 1.5;
+    if (wx.rainTo && e < wx.rainTo) f *= 1.5;
+    if (wx.warm >= 3) f *= SUNNY[a];
+    return Math.min(3, f);
+  };
   // The ground on each cell in avalanche terms. av: { r: { alp, tln, btl }, mask: { alp, tln, btl }, bands: { lo, hi } }.
   const breathe = () => new Promise((r) => setTimeout(r, 0));
   async function prep(g, av) {
@@ -64,7 +82,7 @@
       asp[i] = Math.round(((Math.atan2(-dx, dyS) / RAD + 360) % 360) / 45) % 8;   // the way the slope faces (downhill)
       const e = at(r, c), b = e >= hi ? 0 : e >= lo ? 1 : 2;
       band[i] = b;
-      const rt = av.r[BAND[b]] || 0, m = av.mask[BAND[b]] || 0, A = m ? (m & (1 << asp[i]) ? 1.6 : 0.6) : 1, w = WD[rt] * A;
+      const rt = av.r[BAND[b]] || 0, m = av.mask[BAND[b]] || 0, A = m ? (m & (1 << asp[i]) ? 1.6 : 0.6) : 1, w = WD[rt] * A * wxF(av.wx, asp[i], b, e);
       risk[i] = w * slopeTerm(s);
       if (s >= 30 && s <= 60) start[i] = w;
     } }
@@ -107,8 +125,20 @@
   }
 
   // Seconds (x the risk) to go from cell a to the next cell b, d metres away.
+  // Exposure time is what the risk multiplies (Avalanche Canada: "minimize exposure time on or under large, complex, steep
+  // terrain"): a minute spent on or under a slope that could slide costs many minutes of travel on safe ground, so a way
+  // that drops to flat ground, crosses and climbs back wins over a long sidehill whenever it's less time exposed
+  // (alex 2026-11-05: "sometime it safer to go down traverse on flat and go up again instead to stay expose on a slope").
+  //  - On skins (any step that isn't clearly downhill, so a traverse as well as a climb) the risk weighs at the strict
+  //    level: you move at 2 to 4 km/h, can't get out of the way, and a skin track is where groups get caught together.
+  //  - A traverse across a 30°+ slope (moving along it, not up or down it) counts 1.5x: the track cuts across the slab in
+  //    its start zone, the classic skier trigger, and it keeps you in the start zone the whole way across.
+  // These weights (SIDEHILL, kUp, the slope and danger terms) are judgment, set from the AST/ATES rules of thumb and the
+  // Munter reduction method's doubling per danger level, not measured odds.
+  const SIDEHILL = 1.5, SIDE_GRADE = Math.tan(15 * RAD), SKIN_DOWN = -0.1;
+  const mult = (sk, risk, skin, side) => 1 + risk * (skin ? sk.kUp : sk.kDown) * (side ? SIDEHILL : 1);
   function costFn(FR) {
-    const { blocked, F_PAVED, F_KNOWN, L_MOTOR, L_PATH } = FR._grid;
+    const { blocked, F_PAVED, L_MOTOR, L_PATH } = FR._grid;
     return (g, a, b, d) => {
       if (blocked(g, a) || blocked(g, b)) return Infinity;
       const sk = g.sk, ln = g.line[b];
@@ -121,16 +151,29 @@
       if ((!g.line[a] || !g.line[b]) && Math.abs(dh) / d > 1) return Infinity;   // over 45° straight up or down
       let t = (d * x) / 1.1 + Math.max(0, dh) / 0.12 + Math.max(0, -dh) * 0.4;
       if (!sk.deg.length) return t;
-      // A known way (a documented skin track or bootpack, linesNear): its steep bits are a bootpack at the usual pace, and
-      // the day's level decides its risk, up as well as down: on a Low or Moderate day the Stairmaster, not a made-up way
-      // round; on a red day it's still avoided (kDown is then strict).
-      const known = F_KNOWN && g.flag[a] & g.flag[b] & F_KNOWN;
       const dg = Math.max(sk.deg[a], sk.deg[b]);
-      if (dg > 35 && !known) t *= 1 + (dg - 35) / 6;   // hard to skin up or ski down, avalanche or not
-      return t * (1 + ((sk.risk[a] + sk.risk[b]) / 2) * (dh > 1 && !known ? sk.kUp : sk.kDown));
+      if (dg > 35) t *= 1 + (dg - 35) / 6;   // hard to skin up or ski down, avalanche or not
+      const skin = dh > SKIN_DOWN * d, side = skin && dg >= 30 && Math.abs(dh) < SIDE_GRADE * d;
+      return t * mult(sk, (sk.risk[a] + sk.risk[b]) / 2, skin, side);
     };
   }
 
+  // About how long a stretch takes, for the exposure times on the card: skinning 4 km/h on the flat and 430 m an hour up
+  // (the cost's pace), skiing down about 11 km/h with stops.
+  const travelSec = (d, dh) => (dh < SKIN_DOWN * d ? d / 3 : d / 1.1 + Math.max(0, dh) / 0.12);
+  // Is cell c a place to regroup, and what kind: "ridge" (a crest, higher than the ground 30 m to each side, so nothing
+  // above it), "trees" (mapped forest: the map can't tell dense trees from open glades) or "flat" (open, gentle, not under
+  // anything), or "" (not one). The terrain model is 10 to 30 m: a small slope or a cornice beside it isn't seen.
+  function safeKind(g, c) {
+    const sk = g.sk;
+    if (!sk.deg.length || sk.deg[c] >= 20 || sk.expo[c] > 0 || sk.trap[c]) return "";
+    const W = g.W, H = g.H, r = Math.floor(c / W), col = c % W, k = Math.max(1, Math.round(30 / g.cellM)), h = g.h;
+    const at = (rr, cc) => { const v = h[Math.min(H - 1, Math.max(0, rr)) * W + Math.min(W - 1, Math.max(0, cc))]; return v === v ? v : h[c]; };
+    // Steep ground right beside it (within 30 m) counts as under a slope too: the runout model needs a 25 m drop.
+    for (let dr = -k; dr <= k; dr += k) for (let dc = -k; dc <= k; dc += k) { const rr = r + dr, cc = col + dc; if (rr >= 0 && cc >= 0 && rr < H && cc < W && sk.deg[rr * W + cc] >= 30 && at(rr, cc) > h[c] + 5) return ""; }
+    const e = h[c], ridge = (at(r - k, col) < e - 3 && at(r + k, col) < e - 3) || (at(r, col - k) < e - 3 && at(r, col + k) < e - 3);
+    return ridge ? "ridge" : g.ground[c] === 1 ? "trees" : "flat";
+  }
   const clsOf = (sk, c) => (sk.expo[c] > 0 ? (sk.trap[c] ? "trap" : "under") : sk.deg[c] >= 30 ? "steep" : sk.deg[c] >= 25 ? "mid" : "ok");
   // Cells to pieces of one kind, with what's around them.
   function pieces(FR, g, cells, av) {
@@ -144,7 +187,24 @@
       if (last && last.cls === kinds[i]) last.cells.push(c);
       else { if (last) last.cells.push(c); runs.push({ cls: kinds[i], cells: [c] }); }
     });
+    // Heights averaged over ~70 m of the way (cell-to-cell steps along a sidehill aren't climbs), for the time on each run.
+    const hs = new Map();
+    cells.forEach((c, i) => { let t = 0, n = 0; for (let k = Math.max(0, i - 3); k <= Math.min(cells.length - 1, i + 3); k++) { const v = g.h[cells[k]]; if (v === v) { t += v; n++; } } hs.set(i, n ? t / n : NaN); });
+    let ci = 0;
     for (const r of runs) {
+      // How long it takes (see travelSec), and the minutes it's on 30°+ ground or under it: the exposure time.
+      r.sec = 0; r.safe = [];
+      let off = 0, lastSafe = -1e9;
+      for (let k = 1; k < r.cells.length; k++) {
+        const p = r.cells[k - 1], c = r.cells[k], d = (Math.abs((c % g.W) - (p % g.W)) + Math.abs(Math.floor(c / g.W) - Math.floor(p / g.W)) > 1 ? Math.SQRT2 : 1) * g.cellM;
+        const dh = hs.get(ci + k) - hs.get(ci + k - 1);
+        r.sec += travelSec(d, dh === dh ? dh : 0);
+        off += d;
+        // A place to regroup (Avalanche Canada: "away from start zones, tracks and runout zones, such as dense trees or high
+        // ground far from steep slopes"): under 20°, nothing above that could slide, no gully; every 25 m along the way.
+        if (off - lastSafe >= 25) { const k2 = safeKind(g, c); if (k2) { r.safe.push({ off: Math.round(off), at: cellLL(g, c), kind: k2 }); lastSafe = off; } }
+      }
+      ci += r.cells.length - 1;
       const pts = r.cells.map((c) => cellLL(g, c));
       r.m = 0; for (let i = 1; i < pts.length; i++) r.m += window.tfLeaflet.distance(pts[i - 1], pts[i]);
       r.pts = simplify(pts.map((p) => [my(p[0]) / g.cs, mx(p[1]) / g.cs]), 0.7).map(([y, x]) => [uny(y * g.cs), unx(x * g.cs)]);
@@ -234,24 +294,36 @@
   }
   async function linesNear(S, c, km) {
     try {
-      // A hand-kept route (data/ski-hand/) is a documented way up: the one everyone takes (alex 2026-11-05: the Stairmaster
-      // bootpack to Phalanx and the Poop Chutes), so costFn weighs its risk at today's level, not the strict uphill one.
-      const rs = await S.near(c, km), out = rs.flatMap((r) => r.lines.map((pts) => ({ pts, name: r.name || "", known: r.src === "hand" })));
+      // Mapped routes (OpenStreetMap and data/ski-hand/) go in as paths: a little quicker than open snow, weighed for avalanche
+      // terrain like any other ground (a documented way's bootpack crux is followed as drawn, see wayOf).
+      const rs = await S.near(c, km), out = rs.flatMap((r) => r.lines.map((pts) => ({ pts, name: r.name || "" })));
       // Ground the terrain model makes look easy but isn't (data/ski-hand/ "nogo": Phalanx's pinnacled south ridge): never crossed.
       for (const n of (S.nogo && S.nogo(c, km)) || []) out.push({ pts: n.pts, nogo: true });
       return out;
     } catch { return []; }
   }
   function total(legs, av, extra) {
-    const runs = legs.flatMap((l) => l.runs), st = { total: 0, ok: 0, mid: 0, steep: 0, under: 0, trap: 0, hit: 0, maxDeg: 0 };
-    for (const r of runs) { st.total += r.m; st[r.cls] += r.m; if (r.hit && r.cls === "steep") st.hit += r.m; st.maxDeg = Math.max(st.maxDeg, r.maxDeg); }
+    // Where each run starts and ends along the whole tour (m), and the regroup places on the way (for the map and the card).
+    const safe = [];
+    { let D = 0; for (const l of legs) for (const r of l.runs) { r.at0 = Math.round(D); for (const q of r.safe || []) safe.push({ d: Math.round(D + q.off), at: [+q.at[0].toFixed(6), +q.at[1].toFixed(6)], kind: q.kind }); D += r.m; r.at1 = Math.round(D); delete r.safe; } }
+    const runs = legs.flatMap((l) => l.runs), st = { total: 0, ok: 0, mid: 0, steep: 0, under: 0, trap: 0, hit: 0, maxDeg: 0, sec: 0, steepSec: 0, underSec: 0 };
+    for (const r of runs) {
+      st.total += r.m; st[r.cls] += r.m; if (r.hit && r.cls === "steep") st.hit += r.m; st.maxDeg = Math.max(st.maxDeg, r.maxDeg);
+      st.sec += r.sec || 0; if (r.cls === "steep") st.steepSec += r.sec || 0; else if (r.cls === "under" || r.cls === "trap") st.underSec += r.sec || 0;
+    }
     const sl = legs.reduce((s, l) => ({ total: s.total + l.straight.total, steep: s.steep + l.straight.steep, under: s.under + l.straight.under }), { total: 0, steep: 0, under: 0 });
     const line = [];
     for (const r of runs) for (const p of r.pts) { const q = [+p[0].toFixed(6), +p[1].toFixed(6)], l = line[line.length - 1]; if (!l || l[0] !== q[0] || l[1] !== q[1]) line.push(q); }
     // Each leg (Point i to Point i+1): its length, climb, the straight line's steep metres, and its steps.
     const legOut = legs.map((l) => ({ m: l.runs.reduce((s, r) => s + r.m, 0), up: l.steps.reduce((s, x) => s + x.up, 0), down: l.steps.reduce((s, x) => s + x.down, 0),
       steep: l.runs.filter((r) => r.cls === "steep").reduce((s, r) => s + r.m, 0), under: l.runs.filter((r) => r.cls === "under" || r.cls === "trap").reduce((s, r) => s + r.m, 0), straight: l.straight, steps: l.steps }));
-    return { line, runs, stats: st, straight: sl, av, legs: legOut, level: levelOf(av), ...extra };
+    // What a minute in each kind of terrain weighs on the way up today, in minutes on gentle ground (the card's "how it
+    // weighs it"): the alpine rating, an aspect that isn't named in the problems.
+    const sk = { kUp: LEVEL_K.strict, kDown: LEVEL_K[levelOf(av)] }, w = WD[(av.r && (av.r.alp || av.r.tln || av.r.btl)) || 0];
+    const weigh = { s30: mult(sk, w * slopeTerm(32), true, false), s35: mult(sk, w * slopeTerm(37), true, false), side35: mult(sk, w * slopeTerm(37), true, true), under: mult(sk, w * 1.5, true, false) };
+    // A documented skin track the search left (wayOf): what it would have been, for "why this way".
+    const alts = legs.map((l) => l.alt).filter(Boolean);
+    return { line, runs, stats: st, straight: sl, av, legs: legOut, level: levelOf(av), weigh, alts, safe, ...extra };
   }
 
   // The safest way through the points you tapped (pts: [[lat, lon], ...], 2 or more), one leg at a time.
@@ -269,8 +341,13 @@
       if (via) { legs.push(await fixedLeg(FR, via, av, onStep)); continue; }
       // A documented way up between the two points (wayOf): the leg follows it as drawn, and the search only finds the
       // way onto it and from its end to the point.
+      // Only its crux (the bootpack or steep climb at the top, cruxOf) is followed as drawn. The way to the crux is
+      // searched like any other ground, with the documented track as a path: a skin track is often set across slopes for
+      // speed in good conditions (the Stairmaster's GPS track sidehills 2 km of 30-40° slopes in April), and dropping to
+      // flatter ground and climbing back can be far less time exposed (alex 2026-11-05).
       const way = await wayOf(S, a, b, av);
-      const parts = way ? [[a, way.pts[0]], way, [way.pts[way.pts.length - 1], b]] : [[a, b]], got = [];
+      const cx = way && (await cruxOf(FR, way, av, onStep));
+      const parts = cx ? [[a, cx.crux.pts[0]], cx.crux, [cx.crux.pts[cx.crux.pts.length - 1], b]] : [[a, b]], got = [];
       for (const p of parts) {
         if (p.pts) { got.push(await fixedLeg(FR, p, av, onStep)); continue; }
         if (window.tfLeaflet.distance(p[0], p[1]) < 25) continue;
@@ -278,8 +355,14 @@
         if (leg.fail) return { fail: leg.fail, leg: i };
         got.push(leg);
       }
-      legs.push(got.length === 1 ? got[0] : { runs: got.flatMap((l) => l.runs), steps: got.flatMap((l) => l.steps),
-        straight: got.reduce((s, l) => ({ total: s.total + l.straight.total, steep: s.steep + l.straight.steep, under: s.under + l.straight.under }), { total: 0, steep: 0, under: 0 }) });
+      const one = got.length === 1 ? got[0] : { runs: got.flatMap((l) => l.runs), steps: got.flatMap((l) => l.steps),
+        straight: got.reduce((s, l) => ({ total: s.total + l.straight.total, steep: s.steep + l.straight.steep, under: s.under + l.straight.under }), { total: 0, steep: 0, under: 0 }) };
+      // The documented approach next to the one found: told on the card when the found one is less time exposed.
+      if (cx && cx.app && got[0] && !got[0].line) {
+        const me = expoOf(got[0].runs), it = cx.app;
+        if (it.expo - me.expo >= 120 && it.steep - me.steep >= 150) one.alt = { name: way.name, mine: me, theirs: it };
+      }
+      legs.push(one);
     }
     return total(legs, av, { from: "pts" });
   }
@@ -338,11 +421,9 @@
     if (d(a, v[v.length - 1]) < NEAR_M && d(b, v[0]) < NEAR_M) return { pts: v.slice().reverse(), name: o.name || "" };
     return null;
   }
-  async function fixedLeg(FR, via, av, onStep) {
-    const L = window.tfLeaflet, v = via.pts;
-    const g = await FR._buildGrid(FR._boxAround(v, 400), (s) => onStep && onStep(s === "terrain" ? "Getting the terrain…" : "Reading the line…"), []);
-    await prep(g, av);
-    const { cellAt } = FR._grid, cells = [];
+  // The cells under a drawn line, in order.
+  function lineCells(FR, g, v) {
+    const L = window.tfLeaflet, { cellAt } = FR._grid, cells = [];
     for (let i = 1; i < v.length; i++) {
       const n = Math.max(1, Math.ceil(L.distance(v[i - 1], v[i]) / (g.cellM / 2)));
       for (let k = i === 1 ? 0 : 1; k <= n; k++) {
@@ -350,6 +431,41 @@
         if (c >= 0 && c !== cells[cells.length - 1]) cells.push(c);
       }
     }
+    return cells;
+  }
+  const lineGrid = async (FR, v, av, onStep) => {
+    const g = await FR._buildGrid(FR._boxAround(v, 400), (s) => onStep && onStep(s === "terrain" ? "Getting the terrain…" : "Reading the line…"), []);
+    await prep(g, av);
+    return g;
+  };
+  // Time, and time exposed (on 30°+ ground or under it), on some runs; m on 30°+ slopes.
+  const expoOf = (runs) => runs.reduce((o, r) => { o.sec += r.sec || 0; o.m += r.m; if (r.cls !== "ok" && r.cls !== "mid") o.expo += r.sec || 0; if (r.cls === "steep") o.steep += r.m; return o; }, { sec: 0, expo: 0, steep: 0, m: 0 });
+  // A documented way's crux: from the bottom of its last steep climb to its top (the Stairmaster: the ~180 m bootpack up
+  // the couloir), where there's no other way up. The steep climb is the last stretch that gains 60 m+ at 24°+ on
+  // average (the alpha-angle steepness of real avalanche terrain); none (a long gentle skin track): null, and the whole
+  // leg is searched. Also what the way before the crux is (app), for the card.
+  const CRUX_GRADE = Math.tan(24 * RAD), CRUX_MIN_UP = 60;
+  async function cruxOf(FR, way, av, onStep) {
+    const L = window.tfLeaflet, v = way.pts;
+    if (v.length < 2) return null;
+    const g = await lineGrid(FR, v, av, onStep);
+    if (!g.hasH) return null;
+    const { cellAt } = FR._grid, H = v.map((p) => { const c = cellAt(g, p[0], p[1]); return c >= 0 ? g.h[c] : NaN; });
+    const top = v.length - 1;
+    let k = -1, along = 0;
+    for (let i = top - 1; i >= 0; i--) {
+      along += L.distance(v[i], v[i + 1]);
+      const up = H[top] - H[i];
+      if (up === up && up >= CRUX_MIN_UP && up / along >= CRUX_GRADE) k = i;
+    }
+    if (k < 0) return null;
+    const crux = { pts: v.slice(k), name: way.name };
+    let app = null;
+    if (k > 0) app = expoOf(pieces(FR, g, lineCells(FR, g, v.slice(0, k + 1)), av).runs);
+    return { crux, app };
+  }
+  async function fixedLeg(FR, via, av, onStep) {
+    const v = via.pts, g = await lineGrid(FR, v, av, onStep), cells = lineCells(FR, g, v);
     const leg = pieces(FR, g, cells, av), RANK = { ok: 0, mid: 1, under: 2, steep: 3, trap: 4 }, st = leg.steps;
     // One step for the whole line, under its own name.
     const one = { kind: "trail", name: via.name, m: 0, up: 0, down: 0, worst: "ok", hzM: 0, safeWorst: "ok", maxDeg: 0, at: st[0].at, mid: st[Math.floor(st.length / 2)].mid, line: true };
