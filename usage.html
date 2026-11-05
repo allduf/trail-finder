@@ -72,7 +72,7 @@ details > summary { cursor: pointer; font-weight: 600; }
       <p class="lead">What testers do in the iPhone app: what they look for, where they get stuck, and how fast it is. Only you can see this. Each phone is an anonymous code; give it a name below.</p>
     </div>
     <div class="days" role="group" aria-label="Period">
-      <button type="button" data-days="7">7 days</button><button type="button" data-days="30" aria-pressed="true">30 days</button><button type="button" data-days="90">90 days</button>
+      <button type="button" data-days="1">24 h</button><button type="button" data-days="3">3 days</button><button type="button" data-days="7">7 days</button><button type="button" data-days="30" aria-pressed="true">30 days</button><button type="button" data-days="90">90 days</button>
     </div>
   </div>
   <div id="msg" class="muted">Loading…</div>
@@ -90,7 +90,6 @@ details > summary { cursor: pointer; font-weight: 600; }
   <div id="out" hidden>
     <div class="who days" role="group" aria-label="Whose use">
       <button type="button" data-who="others">Everyone but me</button><button type="button" data-who="all">Everyone</button><button type="button" data-who="me">Only me</button>
-      <span style="width:10px" aria-hidden="true"></span><button type="button" data-days="1">Last 24 h</button><button type="button" data-days="3">Last 3 days</button>
       <span class="muted" id="whoHint"></span>
     </div>
     <div class="stats" id="stats"></div>
