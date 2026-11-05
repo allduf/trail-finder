@@ -1,0 +1,25 @@
+Your tour ||| Votre sortie
+Finish ||| Arrivée
+Up ||| Montée
+Make this tour on the map ||| Tracer cette sortie sur la carte
+Plan a tour ||| Planifier une sortie
+slackcountry line ||| ligne hors-limites
+bowl ||| cuvette
+run ||| piste
+lift ||| remontée
+ski route ||| itinéraire de ski
+off-piste ||| hors-piste
+at the top of ||| en haut de
+The way between the pieces (the climb too) is the Safest way, from ||| Le chemin entre les étapes (la montée aussi) est le Chemin le plus sûr, d'après
+Today's avalanche danger ||| Le danger d'avalanche du jour
+where you are: alpine, treeline or below treeline (Avalanche Canada) ||| là où vous êtes : alpin, limite des arbres ou sous la limite des arbres (Avalanche Canada)
+Slope angle ||| L'inclinaison de la pente
+: it keeps off 30° to 45°, where most slab avalanches start ||| : il évite 30° à 45°, où partent la plupart des plaques
+Which way slopes face ||| L'orientation des pentes
+: more care on the aspects of today's avalanche problems ||| : plus de prudence sur les orientations des problèmes d'avalanche du jour
+What's above you ||| Ce qu'il y a au-dessus de vous
+: where a slide from steeper ground could run, and gullies or creeks (terrain traps) ||| : là où une avalanche partie plus haut pourrait descendre, et les ravins ou ruisseaux (pièges de terrain)
+Time ||| Le temps
+: about 430 m an hour up, slower in forest; open water and cliffs can't be crossed ||| : environ 430 m à l'heure en montée, plus lent en forêt; l'eau libre et les falaises ne se traversent pas
+Your tour's card then shows each stretch and why it goes there. Drag, add or take away points with ✎ Edit my tour. No route is avalanche-safe: check the forecast and decide in the field. ||| La fiche de votre sortie montre ensuite chaque tronçon et pourquoi il passe là. Déplacez, ajoutez ou enlevez des points avec ✎ Modifier ma sortie. Aucun itinéraire n'est à l'abri des avalanches : consultez le bulletin et décidez sur le terrain.
+That's only one point: say where you start and where you finish, or a line to ski. ||| Ce n'est qu'un point : dites où vous partez et où vous arrivez, ou une ligne à skier.
