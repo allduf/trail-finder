@@ -870,7 +870,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=3210");
+      const w = new Worker("winter-fill.js?v=3220");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -953,7 +953,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=3210" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=3220" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1598,6 +1598,14 @@
     gl.on("idle", groundCenter);   // also after opening and tilting up: aim at the ground once its heights are in (a camera under the mountains drew nothing)
     gl.on("movestart", (e) => { if (e.originalEvent) { handAt = Date.now(); searchTilt = false; } });   // the person's own moves win
     gl.on("moveend", placeNames);
+    // A ski tour on the map (winter.js routeFocus): the other names smaller and fainter, so the route reads first.
+    const namesFocus = (e) => { try {
+      const f = !!(e && e.detail);
+      gl.setLayoutProperty("trail-names", "text-size", f ? ["interpolate", ["linear"], ["zoom"], 12, 9, 15, 10.5] : ["interpolate", ["linear"], ["zoom"], 12, 11.5, 15, 13.5]);
+      gl.setPaintProperty("trail-names", "text-opacity", f ? ["*", ["get", "o"], 0.7] : ["get", "o"]);
+    } catch {} };
+    window.addEventListener("tf:routefocus", namesFocus);
+    if (document.body.classList.contains("sk-route-focus")) gl.once("load", () => namesFocus({ detail: true }));
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");

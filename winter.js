@@ -185,6 +185,9 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 #skiPane .sk-plan p { margin: 0; font-size: .85rem; }
 .sk-planning, .sk-planning .leaflet-interactive { cursor: crosshair !important; }
 .sk-planning .leaflet-tooltip { display: none; }   /* a tap while planning is a point, not a name popping up */
+/* A tour on the map: the other names and pins smaller and fainter (routeFocus) */
+body.sk-route-focus :is(.sc-pin:not(.on), .sc-gate, .sc-resort, .leaflet-tooltip.fr-name) { font-size: 7.5px !important; padding: 0 4px !important; opacity: .75; }
+body.sk-route-focus :is(.wc-gl, .hc-pin, .sk-pin.park) { transform: scale(.75); opacity: .75; }
 .sk-planbar { position: absolute; z-index: 1001; left: 50%; top: 12px; transform: translateX(-50%); display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; width: max-content; max-width: calc(100% - 24px); box-sizing: border-box;
   background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.2); padding: 8px 8px 8px 12px; font-size: .88rem; }
 .sk-planbar .pb-msg { display: flex; align-items: center; gap: 9px; flex: 1 1 auto; min-width: 0; line-height: 1.25; }
@@ -1291,7 +1294,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3210").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3220").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2453,7 +2456,32 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     planGl.push(m);
   }
+  // While a tour is planned or shown, everything else on the map steps back so the route reads first (alex 2026-11-05:
+  // "When you set a route make everything else just a bit smaller", "Smaller highlighted line"): the other lines
+  // (slackcountry, freeride, touring, runs, lifts...) thinner and a little fainter, their names and pins smaller, on the
+  // flat map and in 3D (map3d.js copies the thinner lines; tf:routefocus for its names). The tour's own lines, its points
+  // and a line offered while planning keep their size. Areas (polygons) are left as they are.
+  const FOCUS_W = 0.5, FOCUS_O = 0.7;
+  let focusOn = false;
+  const thinIt = (l) => {
+    if (!focusOn || !(l instanceof L.Polyline) || l instanceof L.Polygon || l._tfThin || plan.layer.hasLayer(l) || !(l.options.weight > 0)) return;
+    l._tfThin = { w: l.options.weight, o: l.options.opacity };
+    l.setStyle({ weight: Math.max(1.5, l.options.weight * FOCUS_W), opacity: (l.options.opacity == null ? 1 : l.options.opacity) * FOCUS_O });
+  };
+  map.on("layeradd", (e) => thinIt(e.layer));
+  function routeFocus(want) {
+    if (want === focusOn) return;
+    focusOn = want;
+    document.body.classList.toggle("sk-route-focus", want);
+    map.eachLayer((l) => {
+      if (want) thinIt(l);
+      else if (l._tfThin) { const t = l._tfThin; delete l._tfThin; l.setStyle({ weight: t.w, opacity: t.o }); }
+    });
+    map.fire("trailfocus");   // map3d.js: copy the lines again
+    window.dispatchEvent(new CustomEvent("tf:routefocus", { detail: want }));
+  }
   function drawPlan() {
+    routeFocus(sport === "ski" && (plan.on || (plan.show && plan.pts.length > 1)));
     plan.layer.clearLayers();
     planGl.forEach((m) => m.remove()); planGl = [];
     if (sport !== "ski" || (!plan.pts.length && !plan.offer)) return;
@@ -4630,6 +4658,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       loadSki(); loadMine(); loadClubs(); if (shown.has("snow")) loadSnow(); renderSwitches(); renderList(); drawPlan(); renderPlan();
     } else {
       setPlanning(false);
+      routeFocus(false);
       drawParking();
       drawHutPins();
       [skiLayer, hutLayer, hutNames, hutPins, pinLayer, parkLayer, mineLayer, clubLayer, hoverLayer, snowLayer, aboveLayer, plan.layer].forEach((l) => map.removeLayer(l));
