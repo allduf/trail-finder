@@ -77,7 +77,7 @@
   const PHOTO_TILE = 128;
 
   const LINE_SCALE = 1.15;    // trails a little bolder than in 2D, so they read against the photos
-  let on = false, gl = null, box = null, libLoading = null;
+  let on = false, gl = null, box = null, libLoading = null, copiedNear = null;
   let netChange = null;   // the open 3D map's switch between photos and the saved map (offGround)
   window.addEventListener("online", () => netChange && netChange());
   window.addEventListener("offline", () => netChange && netChange());
@@ -107,6 +107,7 @@
 #map3d .maplibregl-popup-tip { display: none; }
 #map3d .g3-wait { position: absolute; left: 50%; top: 38%; transform: translateX(-50%); z-index: 2; pointer-events: none; padding: 8px 14px; border-radius: 999px; background: rgba(15,30,25,.78); color: #fff; font: 600 .9rem var(--font-body, system-ui); white-space: nowrap; }
 #map3d .maplibregl-marker.tf-crowd { visibility: hidden !important; pointer-events: none; }
+.maplibregl-marker.tf-off { display: none !important; }
 #map3d .maplibregl-ctrl-bottom-right { margin-bottom: 6px; }`;
   document.head.append(css);
 
@@ -153,6 +154,7 @@
     // Phones: only the trails around the view (the whole region is ~10,000 lines and 4-5 MB each copy, which the
     // 3D map keeps a tiled index of); they're copied again after each move.
     const near = PHONE && map.getBounds().pad(2);
+    copiedNear = near;
     // Lines in a pane the 2D map hides (MTB-only layers like ✓ Ridden in Skiing and Hunting) stay off the 3D map too.
     const hidden = new Map(), altSport = document.body.classList.contains("sport-alt");
     const paneHidden = (o) => {
@@ -289,7 +291,9 @@
   map.on("layeradd layerremove", (e) => { if (e.layer instanceof L.Path) scheduleSync(); });
   map.on("trailfocus", scheduleSync);
   window.addEventListener("tf:sport", scheduleSync);   // panes shown or hidden by sport
-  if (PHONE) map.on("moveend", scheduleSync);
+  // After a move, only when the view has left the area copied last time (5 screens wide): in Skiing every copy walks
+  // ~20,000 route lines and sends them all to the 3D map again, after every small move (testers 2026-11-05: slow).
+  if (PHONE) map.on("moveend", () => { if (!copiedNear || !copiedNear.contains(map.getBounds().pad(0.5))) scheduleSync(); });
   // Selecting a trail restyles lines without adding or removing any.
   const setStyle = L.Path.prototype.setStyle;
   L.Path.prototype.setStyle = function (style) { const r = setStyle.call(this, style); scheduleSync(); return r; };
@@ -870,7 +874,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=3430");
+      const w = new Worker("winter-fill.js?v=3440");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -953,7 +957,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=3430" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=3440" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1307,6 +1311,70 @@
       if (this._element.style.opacity !== this._opacity) this._element.style.opacity = this._opacity;
     };
     M._updateOpacity.quick = true;
+    // Pins far off the screen are not placed again on every frame of a move (testers 2026-11-05: "the app is slow",
+    // Skiing). MapLibre moves every pin on every frame, each one asking the mountain heights where it stands, and
+    // Skiing at Whistler has ~400 of them (webcams, road cams, slackcountry, heli/cat, parking, huts) with ~15 on the
+    // screen: a phone-size test at 4x slower CPU drew 1 frame a second while the 3D map moved. A pin out of view
+    // (with half a screen of margin) is hidden and skipped; it comes back as soon as a move brings it near.
+    const add = M.addTo;
+    if (add && !add.culled) {
+      M.addTo = function (m) {
+        if (!this._tfCull && typeof this._update === "function") {
+          this._tfCull = true;
+          const place = this._update;
+          this._update = (e) => {
+            const el = this._element;
+            if (this._map && el && this._lngLat && !nearView(this._map, this._lngLat)) {
+              if (!this._tfOff) { this._tfOff = true; el.classList.add("tf-off"); }
+              return;
+            }
+            if (this._tfOff) { this._tfOff = false; if (el) el.classList.remove("tf-off"); }
+            return place(e);
+          };
+        }
+        return add.call(this, m);
+      };
+      M.addTo.culled = true;
+    }
+  }
+  // The part of the map near the screen, worked out once per camera position (not once per pin).
+  let viewKey = "", viewBox = null;
+  function nearView(m, p) {
+    const tr = m.transform, c = tr.center;
+    const key = `${c.lng},${c.lat},${tr.zoom},${tr.pitch},${tr.bearing},${tr.width},${tr.height}`;
+    if (key !== viewKey) {
+      viewKey = key;
+      try {
+        const b = m.getBounds(), dx = (b.getEast() - b.getWest()) * 0.5, dy = (b.getNorth() - b.getSouth()) * 0.5;
+        viewBox = [b.getWest() - dx, b.getSouth() - dy, b.getEast() + dx, b.getNorth() + dy];
+      } catch { viewBox = null; }
+    }
+    if (!viewBox) return true;
+    const lng = p.lng, lat = p.lat;
+    return lat >= viewBox[1] && lat <= viewBox[3] && lng >= viewBox[0] && lng <= viewBox[2];
+  }
+  // How high the ground is under a point: MapLibre 5.24 works out every tile on the screen again (coveringTiles) each
+  // time it is asked, to pick which detail of heights to read. Each pin and each trail name asks on every frame, so
+  // that pick is kept while the camera stays put (and for at most a quarter second, as height tiles come in).
+  let elevFixed = false;
+  function fastElevation() {
+    if (elevFixed || !gl.terrain) return;
+    elevFixed = true;
+    try {
+      const P = Object.getPrototypeOf(gl.terrain), ask = P.getElevationForLngLat, atZoom = P.getElevationForLngLatZoom;
+      if (typeof ask !== "function" || typeof atZoom !== "function") return;
+      let key = "", z = null, at = 0;
+      P.getElevationForLngLat = function (lnglat, tr) {
+        const c = tr && tr.center;
+        if (!c) return ask.call(this, lnglat, tr);
+        const k = `${c.lng},${c.lat},${tr.zoom},${tr.pitch},${tr.bearing},${tr.width},${tr.height}`, now = performance.now();
+        if (k === key && z != null && now - at < 250) return atZoom.call(this, lnglat, z);
+        let seen = null;
+        this.getElevationForLngLatZoom = function (a, zz) { seen = zz; return atZoom.call(this, a, zz); };
+        try { const v = ask.call(this, lnglat, tr); key = k; z = seen; at = now; return v; }
+        finally { delete this.getElevationForLngLatZoom; }
+      };
+    } catch {}
   }
 
   // ---------- the flat map rests under the 3D map ----------
@@ -1531,6 +1599,7 @@
       unclutterT = 0; unclutterAt = performance.now();
       const pins = [];
       for (const el of box.querySelectorAll(".maplibregl-marker")) {
+        if (el.classList.contains("tf-off")) continue;   // far off the screen (nearView)
         const n = pinRank(el);
         if (!n) continue;
         // A pin in the sky (pinInSky) is hidden already and keeps no room.
@@ -1592,7 +1661,7 @@
       // restarted on the flat map. A view that needs more paints its ground in turns: a little slower, never a crash.
       gl.on("render", phoneBuffers);
     }
-    const demFix = () => { fixDemLeak(); fixReloadLeak(); if (demFixed && reloadFixed) gl.off("render", demFix); };
+    const demFix = () => { fixDemLeak(); fixReloadLeak(); fastElevation(); if (demFixed && reloadFixed && elevFixed) gl.off("render", demFix); };
     gl.on("render", demFix);
     gl.on("moveend", keepView);
     gl.on("idle", groundCenter);   // also after opening and tilting up: aim at the ground once its heights are in (a camera under the mountains drew nothing)

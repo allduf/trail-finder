@@ -121,6 +121,38 @@ const crashMd = !restarts.length ? "" : [`**${restarts.length} crash restart${re
   `(${restarts.filter((c) => /^3d/.test(c.what || "")).length} in the 3D map). Newest last; under each, what that phone did just before (seconds before the restart).`, "", ...crashLines].join("\n");
 console.log(crashMd || `No crashes in the last ${CRASH_HOURS} hours.`);
 
+// ---------- speed ----------
+// How long things took on testers' phones (usage.js and map3d.js "speed" events, in ms), by sport: the middle time and
+// the slow end (9 in 10 were quicker), so a change that makes the app faster or slower shows here the next morning
+// (testers 2026-11-05: "the app is slow", most of all in Skiing).
+const SPEED = { html: "Page arrived", dcl: "Scripts started", page: "App ready", map: "Map pictures", "3d": "3D map ready" };
+const speedRows = await rows(`tf_use_events?select=device,session,at,what,ms&kind=eq.speed&at=gte.${ago(CRASH_HOURS)}&order=at`);
+const speedSport = new Map();
+{
+  const ss = [...new Set(speedRows.map((e) => e.session))];
+  for (let i = 0; i < ss.length; i += 50)
+    for (const e of await rows(`tf_use_events?select=session,at,kind,what&session=in.${inList(ss.slice(i, i + 50))}&kind=in.(sport,open)&at=gte.${ago(CRASH_HOURS + 12)}&order=at`)) {
+      if (!speedSport.has(e.session)) speedSport.set(e.session, []);
+      speedSport.get(e.session).push(e);
+    }
+}
+const speedGroups = new Map();
+for (const e of speedRows) {
+  if (!(e.ms > 0)) continue;
+  const sp = [...(speedSport.get(e.session) || [])].reverse().find((x) => x.at <= e.at && x.what);
+  const k = `${SPORTS[sp && sp.what] || (sp && sp.what) || "?"}|${e.what}`;
+  if (!speedGroups.has(k)) speedGroups.set(k, { ms: [], phones: new Set() });
+  const g = speedGroups.get(k); g.ms.push(e.ms); g.phones.add(e.device);
+}
+const pct = (xs, q) => { const a = [...xs].sort((x, y) => x - y); return a[Math.min(a.length - 1, Math.floor(a.length * q))]; };
+const sec = (ms) => `${(ms / 1000).toFixed(1)} s`;
+const speedList = [...speedGroups].map(([k, g]) => { const [sport, what] = k.split("|"); return { sport, what, ...g }; })
+  .sort((a, b) => a.sport.localeCompare(b.sport) || Object.keys(SPEED).indexOf(a.what) - Object.keys(SPEED).indexOf(b.what));
+const speedMd = !speedList.length ? "" : [`How long things took on phones in the last ${CRASH_HOURS} hours (middle time; 9 in 10 were quicker than the slow end).`, "",
+  "| Sport | What | Middle | Slow end | Times | Phones |", "|---|---|---|---|---|---|",
+  ...speedList.map((g) => `| ${cell(g.sport)} | ${cell(SPEED[g.what] || g.what)} | ${sec(pct(g.ms, 0.5))} | ${sec(pct(g.ms, 0.9))} | ${g.ms.length} | ${g.phones.size} |`)].join("\n");
+console.log(speedMd || `No speed times in the last ${CRASH_HOURS} hours.`);
+
 const day = new Date().toISOString().slice(0, 10);
 const md = !list.length ? `No app errors in the last ${HOURS} hours 🎉` : [
   `**${errors.length} error${errors.length > 1 ? "s" : ""}** on ${new Set(errors.map((e) => e.device)).size} phone(s) in the last ${HOURS} hours` +
@@ -130,7 +162,7 @@ const md = !list.length ? `No app errors in the last ${HOURS} hours 🎉` : [
   list.length > 25 ? `\n…and ${list.length - 25} more on usage.html.` : "",
 ].join("\n");
 console.log(md);
-if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `## App errors, ${day}\n\n${md}\n${crashMd ? `\n## Crashes\n\n${crashMd}\n` : ""}`);
+if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `## App errors, ${day}\n\n${md}\n${crashMd ? `\n## Crashes\n\n${crashMd}\n` : ""}${speedMd ? `\n## Speed\n\n${speedMd}\n` : ""}`);
 if (DRY) { console.log("Dry run: no issue comment."); process.exit(0); }
 
 // ---------- the issue ----------
