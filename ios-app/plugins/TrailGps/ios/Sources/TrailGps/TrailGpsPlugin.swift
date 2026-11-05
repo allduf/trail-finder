@@ -22,6 +22,10 @@ import UIKit
 // Lock screen (navigate.js): activity({ action: "start" | "update" | "end", ... }) shows the ride on the lock screen
 // and in the Dynamic Island (iOS 16.2+, the RideActivity extension in ios-app/ios/App draws it). The page sends the
 // km, climb and the trail you're on while it's awake; with the phone locked, the km and climb carry on from the fixes here.
+// Directions (go-there.js, like Google Maps): activity() also takes the next turn (turn, turnM, arrow, leftKm, eta), and
+// turns({ list: [[lat, lon, metres along, text, arrow]...], total, mps, asleep }) hands over the turns still ahead, so
+// with the phone locked the lock screen and Dynamic Island keep showing the next turn, how far, the km left and the
+// arrival time, worked out here from each fix.
 #if canImport(ActivityKit)
 // The same as RideAttributes in ios-app/ios/App/RideActivity/RideActivity.swift (the lock screen matches them by name).
 struct RideAttributes: ActivityAttributes {
@@ -31,6 +35,12 @@ struct RideAttributes: ActivityAttributes {
         var line: String
         var paused: Bool
         var pausedText: String
+        // Directions (go-there.js): the next turn, metres to it (-1: none), its arrow, km left, arrival (s since 1970, 0: none)
+        var turn: String
+        var turnM: Int
+        var arrow: String
+        var leftKm: Double
+        var eta: Double
     }
     var sport: String
     var title: String
@@ -49,7 +59,8 @@ public class TrailGpsPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         CAPPluginMethod(name: "speak", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cues", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "live", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "activity", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "activity", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "turns", returnType: CAPPluginReturnPromise)
     ]
 
     private static let keepMs: Double = 12 * 3600 * 1000   // older fixes left in the file are from a ride long over
@@ -78,6 +89,16 @@ public class TrailGpsPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     private var actPushed: Double = 0                       // when the lock screen was last updated (ms)
     private var actFromPage: Double = 0                     // when the page last sent numbers (ms)
     private var actRef: Any?                                // Activity<RideAttributes> (iOS 16.2+)
+    // Directions: the next turn shown, and the turns ahead for when the page is asleep
+    private var actTurn = ""
+    private var actTurnM = -1
+    private var actArrow = ""
+    private var actLeftKm: Double = 0
+    private var actEta: Double = 0                          // seconds since 1970
+    private var turnList: [(lat: Double, lon: Double, at: Double, text: String, arrow: String)] = []
+    private var turnNext = 0
+    private var turnTotal: Double = 0
+    private var turnMps: Double = 13
 
     private var fileURL: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -119,6 +140,8 @@ public class TrailGpsPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     @objc func stop(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             self.recording = false
+            self.turnList = []
+            self.actTurn = ""; self.actTurnM = -1; self.actArrow = ""; self.actLeftKm = 0; self.actEta = 0
             self.endActivity()
             if self.liveCfg == nil { self.halt() } else { self.cueList = []; self.cueNext = 0; self.tune() }
             self.saved = []
@@ -202,7 +225,14 @@ public class TrailGpsPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         let paused = call.getBool("paused"), pausedText = call.getString("pausedText")
         let sport = call.getString("sport") ?? "mtb", title = call.getString("title") ?? "Riding"
         let start = call.getDouble("start") ?? Date().timeIntervalSince1970 * 1000
+        let turn = call.getString("turn"), turnM = call.getDouble("turnM"), arrow = call.getString("arrow")
+        let leftKm = call.getDouble("leftKm"), eta = call.getDouble("eta")
         DispatchQueue.main.async {
+            if let turn = turn { self.actTurn = String(turn.prefix(90)) }
+            if let turnM = turnM { self.actTurnM = Int(turnM) }
+            if let arrow = arrow { self.actArrow = arrow }
+            if let leftKm = leftKm { self.actLeftKm = leftKm }
+            if let eta = eta { self.actEta = eta > 0 ? eta / 1000 : 0 }
             if let km = km { self.actKm = km }
             if let climb = climb { self.actClimb = climb }
             if let line = line { self.actLine = String(line.prefix(80)) }
@@ -221,6 +251,49 @@ public class TrailGpsPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
             }
             call.resolve(["on": self.actOn])
         }
+    }
+
+    // The turns still ahead, in order, for when the phone is locked. An empty list clears them.
+    @objc func turns(_ call: CAPPluginCall) {
+        let list = call.getArray("list") ?? []
+        let total = call.getDouble("total") ?? 0, mps = call.getDouble("mps") ?? 13, asleep = call.getBool("asleep") ?? false
+        DispatchQueue.main.async {
+            self.turnList = list.compactMap { item in
+                guard let a = item as? [Any], a.count >= 5,
+                      let lat = (a[0] as? NSNumber)?.doubleValue, let lon = (a[1] as? NSNumber)?.doubleValue,
+                      let at = (a[2] as? NSNumber)?.doubleValue, let text = a[3] as? String, let arrow = a[4] as? String else { return nil }
+                return (lat: lat, lon: lon, at: at, text: text, arrow: arrow)
+            }
+            self.turnNext = 0
+            self.turnTotal = total
+            self.turnMps = max(1, mps)
+            if self.turnList.isEmpty { self.actTurn = ""; self.actTurnM = -1; self.actArrow = ""; self.actLeftKm = 0; self.actEta = 0 }
+            if asleep { self.actFromPage = 0 }   // the page is going to sleep: the lock screen is worked out here from now on
+            call.resolve(["count": self.turnList.count])
+        }
+    }
+
+    // With the page asleep: the next turn from this fix (passed within 35 m: on to the one after), straight-line metres to
+    // it, and the km and time left from where it sits along the route. Returns true when the turn changed.
+    private func turnAt(_ l: CLLocation) -> Bool {
+        guard !turnList.isEmpty, l.horizontalAccuracy <= 50 else { return false }
+        let before = turnNext
+        var i = turnNext
+        while i < min(turnList.count, turnNext + 4) {
+            if l.distance(from: CLLocation(latitude: turnList[i].lat, longitude: turnList[i].lon)) <= 35 { turnNext = i + 1 }
+            i += 1
+        }
+        if turnNext >= turnList.count {
+            actTurn = "You have arrived"; actTurnM = 0; actArrow = "arrive"; actLeftKm = 0
+            actEta = Date().timeIntervalSince1970
+        } else {
+            let t = turnList[turnNext]
+            let d = l.distance(from: CLLocation(latitude: t.lat, longitude: t.lon))
+            let left = max(0, turnTotal - t.at) + d
+            actTurn = t.text; actTurnM = Int(d.rounded()); actArrow = t.arrow; actLeftKm = left / 1000
+            actEta = Date().timeIntervalSince1970 + left / turnMps
+        }
+        return turnNext != before
     }
 
     private func startActivity(sport: String, title: String, start: Date) {
@@ -242,7 +315,8 @@ public class TrailGpsPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     #if canImport(ActivityKit)
     @available(iOS 16.2, *)
     private func actState() -> RideAttributes.ContentState {
-        RideAttributes.ContentState(km: actKm, climb: Int(actClimb.rounded()), line: actLine, paused: actPaused, pausedText: actPausedText)
+        RideAttributes.ContentState(km: actKm, climb: Int(actClimb.rounded()), line: actLine, paused: actPaused, pausedText: actPausedText,
+                                    turn: actTurn, turnM: actTurnM, arrow: actArrow, leftKm: actLeftKm, eta: actEta)
     }
     #endif
 
@@ -284,6 +358,12 @@ public class TrailGpsPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
                 if alt > base + 4 { if !pageAwake { actClimb += alt - base }; actAltBase = alt }
                 else if alt < base - 4 { actAltBase = alt }
             } else { actAltBase = alt }
+        }
+        if !pageAwake && !turnList.isEmpty {
+            // Directions: the distance to the turn changes all the time, so refresh more often (iOS may slow it down)
+            let changed = turnAt(l)
+            if changed || now - actPushed >= 4000 { pushActivity() }
+            return
         }
         if !pageAwake && now - actPushed >= 15000 { pushActivity() }
     }
