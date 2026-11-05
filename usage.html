@@ -90,6 +90,7 @@ details > summary { cursor: pointer; font-weight: 600; }
   <div id="out" hidden>
     <div class="who days" role="group" aria-label="Whose use">
       <button type="button" data-who="others">Everyone but me</button><button type="button" data-who="all">Everyone</button><button type="button" data-who="me">Only me</button>
+      <span style="width:10px" aria-hidden="true"></span><button type="button" data-days="1">Last 24 h</button><button type="button" data-days="3">Last 3 days</button>
       <span class="muted" id="whoHint"></span>
     </div>
     <div class="stats" id="stats"></div>
@@ -753,7 +754,7 @@ details > summary { cursor: pointer; font-weight: 600; }
     }).join("");
     // Phones seen before but not in this period: they stopped using the app (or haven't opened it lately).
     const quiet = (all || []).filter((d) => keep(d.device) && !devices.has(d.device)).sort((a, b) => new Date(b.last_seen) - new Date(a.last_seen));
-    $("quiet").innerHTML = quiet.length ? `<div class="card"><h3>Not seen in the last ${days} days (${quiet.length})</h3><table>${quiet.map((d) => `<tr><td><input value="${esc(d.label || "")}" placeholder="Name this phone" data-device="${esc(d.device)}" aria-label="Name" style="width:160px"> <span class="muted">${esc(phoneOf(d))}</span></td><td class="n">${ago(d.last_seen)}</td></tr>`).join("")}</table></div>` : "";
+    $("quiet").innerHTML = quiet.length ? `<div class="card"><h3>Not seen in the last ${days === 1 ? "24 hours" : `${days} days`} (${quiet.length})</h3><table>${quiet.map((d) => `<tr><td><input value="${esc(d.label || "")}" placeholder="Name this phone" data-device="${esc(d.device)}" aria-label="Name" style="width:160px"> <span class="muted">${esc(phoneOf(d))}</span></td><td class="n">${ago(d.last_seen)}</td></tr>`).join("")}</table></div>` : "";
     // TestFlight names with no phone named the same.
     if (roster && roster.length) {
       const named = [...(all || []), ...rows].map((d) => (d.label || "").trim()).filter(Boolean);
