@@ -370,3 +370,6 @@ Pheasant ||| Faisan
 Woodcock ||| Bécasse
 No clear photo lately: today's snow ||| Pas de photo claire récemment : la neige du jour
 The newest clear satellite photo (NASA Landsat and Sentinel-2, a few days to weeks old) ||| La plus récente photo satellite claire (NASA Landsat et Sentinel-2, de quelques jours à quelques semaines)
+Show Rogers Pass permit areas? ||| Afficher les secteurs à permis du col Rogers?
+Turn on ||| Activer
+Skiing opens faster with fewer layers on: touring routes, approaches, parking and lift status. Turn on the rest in Layers; on Rogers Pass the app asks to show the permit areas. ||| Le ski s'ouvre plus vite avec moins de couches : itinéraires de randonnée, approches, stationnements et état des remontées. Activez le reste dans Couches; au col Rogers, l'appli demande d'afficher les secteurs à permis.
