@@ -83,7 +83,12 @@ ol.ask-list b { font-size: .96rem; } ol.ask-list small { color: var(--muted); fo
 .ask-areas button { font: inherit; font-size: .82rem; font-weight: 600; padding: 6px 11px; min-height: 36px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip, #fff); color: var(--fg); cursor: pointer; }
 .ask-areas button[aria-pressed="true"] { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
 .ask-act { font: inherit; font-weight: 700; padding: 10px 14px; min-height: 44px; border-radius: 12px; border: 0; background: #1f5fe0; color: #fff; cursor: pointer; width: 100%; margin: 6px 0 0; }
-.ask-wait { color: var(--muted); font-size: .88rem; padding: 6px 0; }`;
+.ask-wait { color: var(--muted); font-size: .88rem; padding: 6px 0; }
+ol.ask-plan { margin: 0; padding: 0 0 0 4px; list-style: none; counter-reset: st; display: flex; flex-direction: column; gap: 6px; }
+ol.ask-plan li { counter-increment: st; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; font-size: .95rem; padding: 8px 10px 8px 34px; border: 1px solid var(--line); border-radius: 10px; position: relative; }
+ol.ask-plan li::before { content: counter(st); position: absolute; left: 9px; top: 8px; width: 18px; height: 18px; border-radius: 50%; background: #e8590c; color: #fff; font-size: .72rem; font-weight: 800; display: grid; place-items: center; }
+ul.ask-why { margin: 4px 0 0; padding: 0 0 0 18px; font-size: .84rem; display: flex; flex-direction: column; gap: 3px; }
+ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`;
   document.head.append(css);
 
   // ---------- the box (on each sport's Find page) and the answer sheet ----------
@@ -178,8 +183,10 @@ ol.ask-list b { font-size: .96rem; } ol.ask-list small { color: var(--muted); fo
     head.innerHTML = `<p class="ask-said">${esc(p.summary || summaryOf(p, sp))}</p><ul class="ask-chips">${chipsOf(p, sp).map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
       ${ai.ok ? "" : `<p class="ask-note">${esc(ai.why)} Read here more simply: ask again later for a smarter read.</p>`}`;
     out.innerHTML = `<p class="ask-wait">Finding the place…</p>`;
-    const at = await whereOf(p);
+    let at = await whereOf(p);
     if (my !== token) return;
+    // A ski tour typed as a plan names its own pieces: when the place isn't found, they're looked for around the map.
+    if (!at && sp === "ski" && planLike(q)) { const m = map.getCenter(); at = { c: [m.lat, m.lng], mid: true }; }
     if (!at) { logUse("search", "Ask:" + q, 0); out.innerHTML = `<p class="ask-note ask-warn">Couldn't find “${esc(p.place)}” on the map. Try the town's name, or move the map there and ask “near here”.</p>`; return; }
     out.innerHTML = `<p class="ask-wait">Looking ${at.you ? "around you" : at.mid ? "around the middle of the map" : "near " + esc(at.name)}…</p>`;
     try { await ANSWER[sp](p, at, out, () => my !== token); if (my === token) logUse("search", "Ask:" + q, out.querySelectorAll("button").length); }
@@ -310,10 +317,21 @@ ol.ask-list b { font-size: .96rem; } ol.ask-list small { color: var(--muted); fo
       const a = (await ridingAreas()).find((x) => norm(x.name) === n);
       if (a) return { c: a.c, name: a.name, area: a };
     }
+    // Skiing: a resort by its name ("Blackcomb", "Blackcomb Mountain", "Blackcomb slackcountry") before the place
+    // search, which once answered a mountain bike jump park for Blackcomb Mountain.
+    if (p.sport === "ski") {
+      const SKIW = new Set(["mount", "mt", "mountain", "resort", "ski", "area", "hill", "slack", "country", "slackcountry", "backcountry", "side", "the", "de", "du", "station", "mont"]);
+      const w = n.split(" ").filter((x) => x && !SKIW.has(x));
+      const rs = w.length ? await fetch("data/ski-lifts.json?v=3300").then((r) => r.json()).then((d) => Object.values(d.resorts || {})).catch(() => []) : [];
+      const hit = rs.find((r) => r.name && w.every((x) => norm(r.name).split(" ").includes(x)));
+      if (hit) return { c: [hit.lat, hit.lon], name: hit.name };
+    }
     const ps = window.tfPlaceSearch;
     if (ps) {
       const hits = await Promise.race([ps.search(p.place).catch(() => null), new Promise((r) => setTimeout(() => r(null), 8000))]);
-      const h = hits && (hits.find((x) => x.ca) || (!p.ll && hits[0]));
+      // A ski question never lands on a bike park, a skate park or a pump track.
+      const ok = (x) => p.sport !== "ski" || !/\bbike|\bjump park|\bskate|\bpump track|\bbmx\b/i.test(x.name + " " + (x.sub || ""));
+      const h = hits && (hits.find((x) => x.ca && ok(x)) || (!p.ll && hits.find(ok)));
       if (h) return { c: [h.lat, h.lon], name: h.name, bb: h.bb };
     }
     if (p.ll) return { c: p.ll, name: p.place };
@@ -329,6 +347,193 @@ ol.ask-list b { font-size: .96rem; } ol.ask-list small { color: var(--muted); fo
   const listHtml = (rows) => `<ol class="ask-list">${rows.map((r, i) => `<li><button type="button" data-i="${i}"><b>${r.title}</b><small>${r.sub}</small></button></li>`).join("")}</ol>`;
   const wire = (el, rows) => el.querySelectorAll("ol.ask-list button[data-i]").forEach((b) => b.addEventListener("click", () => { close(); rows[+b.dataset.i].go(); }));
   const nearName = (at) => (at.you ? "you" : at.mid ? "the middle of the map" : at.name);
+
+  // ---------- Skiing: a tour typed as the plan of the day ----------
+  // alex 2026-11-05: "i want to plan a tour in blackcomb slack country and ride doa starting from the top of showcase
+  // and finish in lakeside bowl", then "could be nice to type your plan of the day and it creates the route for you".
+  // The words are cut into steps (start, the lines skied or climbed in order, the finish), each named piece is found
+  // near the place among the lifts (data/ski-lifts.json), the slackcountry lines (data/slackcountry.json) and every
+  // named ski route (tours, resort runs, off-piste bowls: winter.js), and the pieces become a Plan a tour: the lines as
+  // drawn, the 🛡 Safest way between them for today's forecast.
+  const PLAN_LIKE = /\bplan\b|\bstart|\bstrat|\bbegin|\bfinish|\bend(?:ing)? (?:in|at|up|on)\b|\bthen\b|\bvia\b|\bfrom the (?:top|bottom)\b|\btop of\b|\bdrop (?:in|into)\b/i;
+  const planLike = (q) => PLAN_LIKE.test(q || "");
+  const K_START = "start(?:ing)?|strat(?:ing)?|begin(?:ning)?|from|leav(?:e|ing)";
+  const K_END = "finish(?:ing)?|end(?:ing)?(?: up)?|come out|coming out|exit(?:ing)?|get(?:ting)? out|back (?:to|in|at)";
+  const K_UP = "skin(?:ning)?(?: up)?|climb(?:ing)?|bootpack(?:ing)?|hike|hiking|walk(?:ing)? up|go(?:ing)? up|ride (?:up )?the lift|take the lift";
+  const K_VIA = `${K_UP}|ride|riding|ski|skiing|board|boarding|do|doing|take|taking|drop(?:ping)?(?: in(?:to)?)?|via|through`;
+  function planSteps(q) {
+    let s = " " + q.toLowerCase().replace(/[’']/g, "'").replace(/[.,;!?]+/g, " , ") + " ";
+    // A cut before each step word, and at "and" / commas.
+    s = s.replace(new RegExp(`\\s(${K_START}|${K_END}|${K_VIA})\\s`, "g"), " | $1 ").replace(/\s(?:and then|and|then|after that|,)(?=\s)/g, " | ");
+    const out = [];
+    for (let c of s.split("|").map((x) => x.trim()).filter(Boolean)) {
+      let m, kind = null, up = false;
+      if ((m = c.match(new RegExp(`^(?:${K_START})\\b`)))) kind = "start";
+      else if ((m = c.match(new RegExp(`^(?:${K_END})\\b`)))) kind = "end";
+      else if ((m = c.match(new RegExp(`^(?:${K_VIA})\\b`)))) { kind = "via"; up = new RegExp(`^(?:${K_UP})\\b`).test(c); }
+      if (!kind) continue;
+      let n = c.slice(m[0].length).trim(), pos = "";
+      for (let k = 0; k < 4; k++) n = n.replace(/^(?:from|at|on|in|into|to|by|of|off|up|down|the|a|an|with|out)\s+/, "");
+      if ((m = n.match(/^(top|bottom|base|summit|end|start)\s+(?:of\s+)?(?:the\s+)?/))) { pos = /top|summit|start/.test(m[1]) ? "top" : "bottom"; n = n.slice(m[0].length); }
+      n = n.replace(/\s+(?:today|tomorrow|please|and|then|run|line|in the (?:morning|afternoon))$/g, "").trim();
+      if (!n || /^(?:a |my |our )?(?:tour|ski tour|day|lap|it|there|here|plan)$/.test(n) || n.length < 2) continue;
+      if (/^the (?:car|parking|lot)|^(?:parking|car|the road)$/.test(n)) continue;
+      out.push({ kind, name: n, pos, up });
+    }
+    return out;
+  }
+  let liftsP = null, slackP = null;
+  const liftsList = () => liftsP || (liftsP = fetch("data/ski-lifts.json?v=3300").then((r) => r.json()).then((d) => d.lifts || []).catch(() => { liftsP = null; return []; }));
+  const slackList = () => slackP || (slackP = fetch("data/slackcountry.json").then((r) => r.json()).then((d) => (d.resorts || []).flatMap((rs) => (rs.lines || []).map((l) => ({ ...l, resort: rs.name })))).catch(() => { slackP = null; return []; }));
+  const pairs = (flat) => { const o = []; for (let i = 0; i + 1 < flat.length; i += 2) o.push([flat[i], flat[i + 1]]); return o; };
+  // How well a name typed matches a name on the map: 3 the same, 2.5 the same before its brackets or its short name,
+  // 2 every word there (a word of 4+ letters may be one letter off), 0 not it.
+  const close1 = (a, b) => {
+    if (a === b) return true;
+    if (a.length < 4 || Math.abs(a.length - b.length) > 1) return false;
+    let i = 0, j = 0, e = 0;
+    while (i < a.length && j < b.length) { if (a[i] === b[j]) { i++; j++; continue; } if (++e > 1) return false; if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; } }
+    return e + (a.length - i) + (b.length - j) <= 1;
+  };
+  const GENERIC = new Set(["the", "lift", "chair", "run", "line", "trail", "route", "mount", "mt", "mountain", "bowl", "express", "t", "bar"]);
+  function nameScore(typed, ...names) {
+    const t = norm(typed);
+    let best = 0;
+    for (const nm of names) {
+      if (!nm) continue;
+      const n = norm(nm), lead = norm(String(nm).split("(")[0]);
+      if (n === t) return 3;
+      if (lead === t) best = Math.max(best, 2.5);
+      const tw = t.split(" ").filter((w) => !GENERIC.has(w)), nw = n.split(" ");
+      if (!tw.length) continue;
+      // DOA = Down, Over and Around: the initials count too.
+      if (tw.length === 1 && tw[0].length >= 2 && tw[0].length <= 5 && nw.filter((w) => !["and", "of", "the"].includes(w)).map((w) => w[0]).join("") === tw[0]) best = Math.max(best, 2.2);
+      if (tw.every((w) => nw.some((x) => close1(w, x)))) best = Math.max(best, 2 - (nw.length - tw.length) * 0.05);
+    }
+    return best;
+  }
+  async function planPieces(steps, c) {
+    const S = window.tfSki.trip;
+    const [lifts, slack, routes] = await Promise.all([liftsList(), slackList(), S.namedNear(c, 30).catch(() => [])]);
+    const R = 30;
+    const cands = [
+      ...lifts.filter((l) => l.g && l.g.length > 1 && kmTo(l.g[0], c) < R).map((l) => ({ kind: "lift", name: l.n, alt: l.st, lines: [l.g], what: "lift" })),
+      ...slack.filter((l) => l.g && l.g.ski && kmTo([l.g.ski[0], l.g.ski[1]], c) < R).map((l) => ({ kind: "slack", name: l.name, alt: l.short, lines: [pairs(l.g.ski)], what: "slackcountry line", diff: l.diff })),
+      ...routes.map((r) => ({ kind: r.area ? "area" : r.type === "resort" ? "run" : "route", name: r.name, alt: r.aka, lines: r.lines.map((ln) => ln.map((p) => [p[0], p[1]])), what: r.area ? "bowl" : r.type === "resort" ? "run" : r.type === "offpiste" ? "off-piste" : "ski route", diff: r.diff, rid: r.id })),
+    ];
+    // What each kind of step looks for first: a start or finish at the top/bottom of something is most often a lift;
+    // a line skied is a slackcountry line or a route; a finish "in" something is most often a bowl or a run.
+    const PREF = { start: { lift: 0.3, run: 0.1, area: 0.1 }, via: { slack: 0.4, route: 0.25, run: 0.2, area: 0.15 }, end: { area: 0.3, run: 0.2, lift: 0.05 } };
+    return steps.map((st) => {
+      let best = null;
+      for (const x of cands) {
+        const sc = nameScore(st.name, x.name, x.alt);
+        if (sc < 2) continue;
+        const d = Math.min(...x.lines.map((ln) => kmTo(ln[0], c)));
+        const v = sc + (PREF[st.kind][x.kind] || 0) + (st.pos && x.kind === "lift" ? 0.2 : 0) - d / 200;
+        if (!best || v > best.v) best = { v, x };
+      }
+      if (!best) return { ...st, miss: true };
+      // Same-name pieces (a run mapped in parts): all of them, for its top and bottom.
+      const same = cands.filter((y) => y.kind === best.x.kind && y.name === best.x.name);
+      return { ...st, hit: best.x, lines: same.flatMap((y) => y.lines) };
+    });
+  }
+  // The highest and lowest of a piece's points (heights from the terrain tiles, at most ~14 asked).
+  async function hiLo(lines) {
+    const all = lines.flat(), k = Math.max(1, Math.ceil(all.length / 14));
+    const pts = all.filter((_, i) => i % k === 0 || i === all.length - 1);
+    const e = await Promise.all(pts.map((p) => window.tfSki.trip.heightAt(p[0], p[1]).catch(() => null)));
+    let hi = null, lo = null;
+    pts.forEach((p, i) => { if (e[i] == null) return; if (!hi || e[i] > hi.e) hi = { p, e: e[i] }; if (!lo || e[i] < lo.e) lo = { p, e: e[i] }; });
+    return { hi: hi || { p: pts[0] }, lo: lo || { p: pts[pts.length - 1] } };
+  }
+  // The longest piece of a line, as one list of points from start to end.
+  const mainLine = (lines) => lines.slice().sort((a, b) => b.length - a.length)[0];
+  async function planPts(pieces) {
+    const pts = [], used = [];
+    const near = (a, b, m) => map.distance([a[0], a[1]], [b[0], b[1]]) < m;
+    const addPt = (p) => { const l = pts[pts.length - 1]; if (!l || !near(l, p, 60)) pts.push([p[0], p[1]]); };
+    const addLine = (line, name) => {
+      const l = pts[pts.length - 1];
+      if (!l || !near(l, line[0], 60)) pts.push([line[0][0], line[0][1]]);
+      pts.push([line[line.length - 1][0], line[line.length - 1][1], { via: line, name }]);
+    };
+    const order = [...pieces.filter((x) => x.kind === "start"), ...pieces.filter((x) => x.kind === "via"), ...pieces.filter((x) => x.kind === "end")];
+    for (const pc of order) {
+      if (pc.miss) continue;
+      const x = pc.hit;
+      used.push(pc);
+      if (pc.kind === "via") {
+        if (x.kind === "area") { const h = await hiLo(pc.lines); addPt(pc.up ? h.lo.p : h.hi.p); addPt(pc.up ? h.hi.p : h.lo.p); continue; }
+        let line = mainLine(pc.lines).slice();
+        if (x.kind === "slack") {
+          // The line as it's skied (its drawn order). The way up to it is the 🛡 Safest way's (alex 2026-11-05: "a custom
+          // route ... with the safest way to go uphill"), not the line's usual approach.
+          addLine(line, x.alt || x.name);
+          continue;
+        }
+        const [ea, eb] = await Promise.all([window.tfSki.trip.heightAt(line[0][0], line[0][1]).catch(() => null), window.tfSki.trip.heightAt(line[line.length - 1][0], line[line.length - 1][1]).catch(() => null)]);
+        const upward = x.kind === "lift" || pc.up;
+        if (ea != null && eb != null && (upward ? ea > eb : ea < eb)) line.reverse();
+        if (line.length > 300) { const k = Math.ceil(line.length / 300); line = line.filter((_, i) => i % k === 0 || i === line.length - 1); }
+        addLine(line, x.name);
+        continue;
+      }
+      // A start or a finish: the top or bottom asked; else a start at the top (of a lift: where it drops you off) and a
+      // finish at the bottom (of a bowl or run: where it comes out).
+      const top = pc.pos ? pc.pos === "top" : pc.kind === "start";
+      if (x.kind === "lift") { const g = mainLine(pc.lines); const [e0, e1] = await Promise.all([window.tfSki.trip.heightAt(g[0][0], g[0][1]).catch(() => null), window.tfSki.trip.heightAt(g[g.length - 1][0], g[g.length - 1][1]).catch(() => null)]); const hiEnd = e0 != null && e1 != null && e0 > e1 ? g[0] : g[g.length - 1]; addPt(top ? hiEnd : hiEnd === g[0] ? g[g.length - 1] : g[0]); continue; }
+      const h = await hiLo(pc.lines);
+      // A finish "in" a bowl: its middle, where you're in it, more than its lowest corner.
+      if (pc.kind === "end" && x.kind === "area" && !pc.pos) { const all = pc.lines.flat(); addPt([(h.lo.p[0] * 2 + all.reduce((s, p) => s + p[0], 0) / all.length) / 3, (h.lo.p[1] * 2 + all.reduce((s, p) => s + p[1], 0) / all.length) / 3]); continue; }
+      addPt(top ? h.hi.p : h.lo.p);
+    }
+    return { pts, used };
+  }
+  // The answer: the steps as read, and Make this tour.
+  async function askPlan(p, at, out, stale) {
+    const S = window.tfSki && window.tfSki.trip;
+    if (!S || !S.namedNear || !S.planSet) return false;
+    const steps = planSteps(p.q || "");
+    if (!steps.length) return false;
+    out.innerHTML = `<p class="ask-wait">Finding ${esc(steps.map((x) => x.name).join(", "))}…</p>`;
+    const pieces = await planPieces(steps, at.c);
+    if (stale()) return true;
+    const found = pieces.filter((x) => !x.miss);
+    if (!found.length) return false;
+    const { pts, used } = await planPts(pieces);
+    if (stale()) return true;
+    const miss = pieces.filter((x) => x.miss);
+    const lbl = (x) => {
+      const h = x.hit, nm = esc(h.alt && h.kind === "slack" ? h.alt : h.name), pos = x.pos === "top" ? "the top of " : x.pos === "bottom" ? "the bottom of " : x.kind === "start" && h.kind === "lift" ? "the top of " : "";
+      const what = `<small>${esc(h.what)}${h.diff ? " · " + esc(h.diff) : ""}</small>`;
+      return x.kind === "start" ? `<b>Start</b> at ${pos}${nm} ${what}` : x.kind === "end" ? `<b>Finish</b> ${pos ? "at " + pos : h.kind === "area" ? "in " : "at "}${nm} ${what}` : `<b>${x.up || h.kind === "lift" ? "Up" : "Ski"}</b> ${nm} ${what}`;
+    };
+    const ord = [...used.filter((x) => x.kind === "start"), ...used.filter((x) => x.kind === "via"), ...used.filter((x) => x.kind === "end")];
+    // The heading says what was read: a tour from these pieces (not "Tours near you").
+    const hd = dlg.querySelector(".ask-head .ask-said"), ch = dlg.querySelector(".ask-head .ask-chips");
+    const short = (x) => (x.hit.kind === "slack" && x.hit.alt) || x.hit.name;
+    if (hd) hd.textContent = `A tour ${ord.map((x) => (x.kind === "start" ? "from " : x.kind === "end" ? "to " : "via ") + short(x)).join(", ")}`;
+    if (ch) ch.innerHTML = `<li>🗺 Plan a tour</li>${at.name ? `<li>📍 ${esc(at.name)}</li>` : ""}`;
+    const ok = pts.length > 1;
+    out.innerHTML = `<h3>Your tour</h3><ol class="ask-plan">${ord.map((x) => `<li>${lbl(x)}</li>`).join("")}</ol>
+      ${miss.length ? `<p class="ask-note ask-warn">Couldn't find ${miss.map((x) => `“${esc(x.name)}”`).join(", ")} near ${esc(nearName(at))}: left out. Add it by tapping the map once the tour is drawn.</p>` : ""}
+      ${ok ? `<button type="button" class="ask-act" data-plan>🗺 Make this tour on the map</button>
+      <p class="ask-said">🛡 The way between the pieces (the climb too) is the Safest way, from:</p>
+      <ul class="ask-why">
+        <li><b>Today's avalanche danger</b> where you are: alpine, treeline or below treeline (Avalanche Canada)</li>
+        <li><b>Slope angle</b>: it keeps off 30° to 45°, where most slab avalanches start</li>
+        <li><b>Which way slopes face</b>: more care on the aspects of today's avalanche problems</li>
+        <li><b>What's above you</b>: where a slide from steeper ground could run, and gullies or creeks (terrain traps)</li>
+        <li><b>Time</b>: about 430 m an hour up, slower in forest; open water and cliffs can't be crossed</li>
+      </ul>
+      <p class="ask-note">Your tour's card then shows each stretch and why it goes there. Drag, add or take away points with ✎ Edit my tour. No route is avalanche-safe: check the forecast and decide in the field.</p>`
+      : `<p class="ask-note">That's only one point: say where you start and where you finish, or a line to ski.</p>`}`;
+    const b = out.querySelector("[data-plan]");
+    if (b) b.addEventListener("click", () => { logUse("pick", "Ask plan"); close(); S.planSet(pts); });
+    return true;
+  }
 
   const ANSWER = {
     // MTB: the trails within reach, read for the day asked.
@@ -417,6 +622,9 @@ ol.ask-list b { font-size: .96rem; } ol.ask-list small { color: var(--muted); fo
     async ski(p, at, out, stale) {
       const S = window.tfSki;
       if (!S || !S.near) { out.innerHTML = `<p class="ask-note">Skiing isn't loaded yet. Try again in a moment.</p>`; return; }
+      // A tour typed as a plan ("start at the top of Showcase, ski DOA, finish in Lakeside Bowl"): made into Plan a tour.
+      if (p.what !== "huts" && p.what !== "avalanche" && planLike(p.q) && (await askPlan(p, at, out, stale))) return;
+      if (stale()) return;
       const s = (p.q || "").toLowerCase() + " " + p.words.join(" ");
       const types = /nordic|cross[- ]country|classic|skate|xc\b/.test(s) ? ["nordic"] : /snowshoe/.test(s) ? ["snowshoe"] : /snowmobile|sled/.test(s) ? ["snowmobile"] : ["tour"];
       const R = p.km_away || 25;

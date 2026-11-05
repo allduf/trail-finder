@@ -1296,7 +1296,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3230").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3300").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -4603,6 +4603,28 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     planOffer: (o) => planOffer(o),
     planRouteLine: (r) => planRouteLine(r),
     planVia: (line, name) => planVia(line, name),
+    // Ask in plain words (ask.js), a tour typed as a plan of the day ("start at the top of Showcase, ski DOA, finish in
+    // Lakeside Bowl"): every named route within maxKm of c of any kind (tours, resort runs, off-piste bowls) with its
+    // lines, then the tour made from its pieces (the same points as tapped, a line's end carrying { via, name }).
+    namedNear: async (c, maxKm) => {
+      await loadSki(); await loadCanIdx();
+      const b = L.latLng(c[0], c[1]).toBounds(maxKm * 2000);
+      await loadCanada(b);
+      return ((ski && ski.routes) || []).filter((r) => r.name && r.bounds && b.intersects(r.bounds) && r.lines && r.lines.length)
+        .map((r) => ({ id: r.id, name: nameOf(r), type: r.type, diff: r.diff || "", area: !!r.area, aka: (r.tags && r.tags["hand:aka"]) || "", lines: r.lines }));
+    },
+    heightAt: async (lat, lon) => { const p = [{ lat, lon }]; await T.heights(p, 0, dem); return p[0].e; },
+    planSet: (pts) => {
+      if (sport !== "ski") setSport("ski");
+      snap();
+      plan.pts = pts.map((p) => (p[2] ? [+p[0].toFixed(6), +p[1].toFixed(6), p[2]] : [+p[0].toFixed(6), +p[1].toFixed(6)]));
+      plan.path = null; plan.fail = ""; plan.show = true;
+      if (plan.on) { plan.on = false; map.getContainer().classList.remove("sk-planning"); }
+      map.fitBounds(L.latLngBounds(pts.flatMap((p) => [[p[0], p[1]], ...((p[2] && p[2].via) || [])])), { padding: [40, 40], maxZoom: 15 });
+      planChanged();
+      if (window.tfSnapTo) setTimeout(() => window.tfSnapTo("half"), 0);
+      if (window.tfPanelScrollTo) setTimeout(() => window.tfPanelScrollTo($("skPlan")), 50);
+    },
     loadJs: (n) => loadJs(n),
     KIND, HUT_ABOUT, DANGER, BANDS, WICON, COMPASS,
   };
