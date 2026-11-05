@@ -469,15 +469,16 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const xs = [], xSeen = new Set();
     const tcShort = new Set(rules.map((r) => BOAT_SHORT[r[2]](r[6])));   // already said by Transport Canada's list
     for (const x of extra) for (const t of boatBits(x.t)) { const k = t.toLowerCase(); if (!xSeen.has(k) && !tcShort.has(boatShort(t))) { xSeen.add(k); xs.push({ ...x, t }); } }
-    const xli = xs.map((x) => `<li style="--c:${/no motors|electric/i.test(boatShort(x.t)) ? "#e03131" : "#f08c00"}"><b>${esc(x.t[0].toUpperCase() + x.t.slice(1))}</b><small>From ${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.src)}</a>` : esc(x.src)}</small></li>`).join("");
+    const xli = xs.map((x) => `<li><b>${esc(x.t[0].toUpperCase() + x.t.slice(1))}</b><small>From ${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.src)}</a>` : esc(x.src)}</small></li>`).join("");
     const xSum = [...new Set(xs.map((x) => boatShort(x.t)))].slice(0, 2).join(", ");
     if (!rules.length && xs.length) return out(esc(xSum), `<ul class="fs-list">${xli}</ul><p class="fs-note">${esc(name || "This water")} isn't on Transport Canada's list of restricted waters, but the sources above give these limits: follow any signs at the launch.</p>${general}`);
     if (!rules.length) return nm || nearestTide(lat, lon, 3) || sign ? out("No special limits", `<p class="fs-note">${esc(name || "This water")} isn't on Transport Canada's list of restricted waters.</p>${general}`) : "";
-    const li = rules.map((r) => `<li style="--c:${r[2] <= 3 ? "#e03131" : "#f08c00"}"><b>${esc(BOAT[r[2]](r[6]))}${part(r) ? " (part of the water)" : ""}</b>${esc(clean(r[4]))}${r[5] ? ` (${esc(clean(r[5]))})` : ""}</li>`).join("");
+    const li = rules.map((r) => `<li><b>${esc(BOAT[r[2]](r[6]))}${part(r) ? " (part of the water)" : ""}</b>${esc(clean(r[4]))}${r[5] ? ` (${esc(clean(r[5]))})` : ""}</li>`).join("");
     const whole = rules.filter((r) => !part(r)), sum = [...new Set((whole.length ? whole : rules).map((r) => BOAT_SHORT[r[2]](r[6])))].slice(0, 2).join(", ");
     return out(esc(whole.length ? sum : `${sum} in parts`), `${sign ? '<p class="fs-note">Transport Canada\'s list:</p>' : ""}<ul class="fs-list">${li}${xli}</ul>${general}`);
   }
   // A lake with a sign at the water (data/fishing-boat-zones.json): which zone the spot is in, the sign's rules, who to call.
+  // Boating lists use the plain grey bar, no orange/red per line (alex 2026-11-05: "i dont like all the colors make it professional").
   function signSum(sign) {
     const k = sign.inside.map((z) => z.k);
     if (k.includes("plane")) return "Float plane landing zone here";
@@ -487,8 +488,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   }
   function signHtml(sign) {
     const l = sign.lake;
-    const here = [...new Set(sign.inside.map((z) => z.k))].map((k) => `<li style="--c:${BZ[k][0]}"><b>You're in the ${esc(BZ[k][1].toLowerCase())}</b></li>`).join("");
-    const rules = l.rules.map((t) => `<li style="--c:#f08c00">${esc(t)}</li>`).join("");
+    const here = [...new Set(sign.inside.map((z) => z.k))].map((k) => `<li><b>You're in the ${esc(BZ[k][1].toLowerCase())}</b></li>`).join("");
+    const rules = l.rules.map((t) => `<li>${esc(t)}</li>`).join("");
     const call = (l.report || []).map(([who, n]) => `<a href="tel:${esc(n.replace(/[^\d+]/g, ""))}">${esc(who)}: ${esc(n)}</a>`).join("<br>");
     return `<ul class="fs-list">${here}${rules}</ul>${call ? `<p class="fs-note">Report a problem on the water:<br>${call}<br>Emergency or accident: 911</p>` : ""}<p class="fs-note">From the ${esc(l.src)}. Zones on the map are drawn from the sign's map: follow the buoys.</p>`;
   }
