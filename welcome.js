@@ -192,6 +192,8 @@ dialog.welc .welc-later { display: block; width: 100%; margin-top: 6px; font: in
   // As soon as the page is ready (another popup open first: wait for it).
   const start = (tries = 20) => {
     if (!window.tfWelcome.pending) return;
+    // The terms come first (risk.js "Before you head out"): wait for I agree however long it's read.
+    if (window.tfTerms && window.tfTerms.pending) { document.addEventListener("tf:terms", () => setTimeout(start, 300), { once: true }); return; }
     if (document.querySelector("dialog[open]") && tries > 0) { setTimeout(() => start(tries - 1), 500); return; }
     open();
   };
