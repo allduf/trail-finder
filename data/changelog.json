@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-04", "text": "Skiing Plan a tour: turning 🛡 Safest on and off is instant now; the line, distance and steepest slope switch together."},
     {"date": "2026-11-04", "text": "Offline maps for Hiking: an area saved in Hiking keeps its hiking trails and terrain, so you can plan a hike with no signal (the route follows the trails, with its climb and height profile)."},
     {"date": "2026-11-04", "text": "Skiing Plan a tour: your tour is only on the map while you plan or edit it, or after Show on map (Hide from map takes it off); zoomed out it's just the line, without its numbered points."},
     {"date": "2026-11-04", "text": "Offline maps now need a free account: tap Save and you'll be asked to sign in first, then the save starts. Maps you already saved keep working with no signal."},
