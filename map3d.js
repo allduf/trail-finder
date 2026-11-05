@@ -874,7 +874,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=3460");
+      const w = new Worker("winter-fill.js?v=3480");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -957,7 +957,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=3460" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=3480" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1646,13 +1646,26 @@
     let timed = false;
     const timeIt = () => { if (!timed) { timed = true; logUse("speed", "3d", Math.min(performance.now() - t3d, 30000)); } };
     const photoSource = () => ["winter", "live", "sat"].find((id) => gl.getLayer(id) && gl.getLayoutProperty(id, "visibility") !== "none") || "sat";
+    // The few big, blurry photos under the sharp ones (Winter: winterlo, Summer: satlo), there long before.
+    const quickPhotos = () => { const lo = ({ winter: "winterlo", sat: "satlo" })[photoSource()]; return lo && gl.getSource(lo) ? lo : photoSource(); };
+    // The note goes as soon as the mountains have their shape and a first (blurry) photo on them: the sharp photos
+    // then come in, nearest first, while you look. It waited for every sharp photo of the view and for the map to
+    // stop moving before, so on a phone it stayed up 5-6 s over mountains already drawn (alex's recording, 2026-11-05).
+    // The mountains' shape is in once the tilt has started (the height under the centre); the far heights fill in
+    // after, like the photos (all of them took 3-5 s more on a slow phone).
     const groundIn = () => {
-      if (!tilted || gl.isMoving() || !["dem", photoSource()].every((id) => gl.isSourceLoaded(id))) return;
-      waited(); timeIt();
+      if (!tilted || !gl.isSourceLoaded(quickPhotos())) return;
+      waited();
     };
     const waited = () => { wait.remove(); gl.off("sourcedata", groundIn); gl.off("idle", groundIn); gl.off("moveend", groundIn); };
     gl.on("sourcedata", groundIn); gl.on("idle", groundIn); gl.on("moveend", groundIn);
-    setTimeout(waited, 20000); setTimeout(timeIt, 30000);
+    // The usage page's 3D time stays what it always measured: every sharp photo of the first view in, map still.
+    const allIn = () => {
+      if (!tilted || gl.isMoving() || !["dem", photoSource()].every((id) => gl.isSourceLoaded(id))) return;
+      timeIt(); gl.off("sourcedata", allIn); gl.off("idle", allIn); gl.off("moveend", allIn);
+    };
+    gl.on("sourcedata", allIn); gl.on("idle", allIn); gl.on("moveend", allIn);
+    setTimeout(waited, 12000); setTimeout(timeIt, 30000);
     if (PHONE) {
       gl.on("idle", trimPaintBuffers);
       gl.on("idle", sharpenWhenStill);   // after the trim: bigger paint buffers when few are needed

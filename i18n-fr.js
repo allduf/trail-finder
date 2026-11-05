@@ -2069,7 +2069,8 @@
     "How the app is used":"Utilisation de l’appli",
     "Don't share":"Ne pas partager",
     "Screens, taps, searches and errors, with no name, email or location, to fix bugs.":"Écrans, touches, recherches et erreurs, sans nom, courriel ni position, pour corriger les bogues.",
-    "Privacy page now in French too, says where your data is kept and for how long, and More has a switch to stop sharing how you use the app.":"La page Confidentialité est maintenant aussi en français, dit où vos données sont gardées et combien de temps, et Plus a un bouton pour arrêter de partager votre utilisation de l’appli."};
+    "Privacy page now in French too, says where your data is kept and for how long, and More has a switch to stop sharing how you use the app.":"La page Confidentialité est maintenant aussi en français, dit où vos données sont gardées et combien de temps, et Plus a un bouton pour arrêter de partager votre utilisation de l’appli.",
+    "3D opens sooner: \"Loading the mountains\" goes as soon as the mountains are drawn, and the sharp photos fill in while you look.":"La 3D s’ouvre plus vite : « Chargement des montagnes » disparaît dès que les montagnes sont dessinées, et les photos nettes arrivent pendant que vous regardez."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
