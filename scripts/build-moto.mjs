@@ -63,7 +63,8 @@ async function ingest(prov, file) {
     seen.add(id);
     const [lat, lon] = centreOf(f.geometry);
     if (!isFinite(lat) || !isFinite(lon)) continue;
-    const name = String(t.name || t.brand || t.operator || "").slice(0, 60), extra = extraOf(k, t);
+    const real = (v) => (/^(none|null|undefined|n\/?a|unnamed|no name|noname|-|\?)$/i.test(String(v || "").trim()) ? "" : String(v || "").trim());   // "None" mapped as a name is no name
+    const name = (real(t.name) || real(t.brand) || real(t.operator)).slice(0, 60), extra = extraOf(k, t);
     // The OpenStreetMap id ("n", "w" or "r" and the number in base 36), so a tap on the map can fetch all its tags
     // (fee, water, toilets, hours, website...) without making the file bigger with them.
     const osm = t["@id"] ? `${String(t["@type"] || "n")[0]}${Number(t["@id"]).toString(36)}` : "";

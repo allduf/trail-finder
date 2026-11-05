@@ -88,3 +88,46 @@ Checking for fires… ||| Recherche de feux…
 Wildfire out of control ||| Feu de forêt hors de contrôle
 Wildfire being held ||| Feu de forêt contenu
 Wildfire under control ||| Feu de forêt maîtrisé
+# Directions in the app (go-there.js, navigate.js, 2026-11-05)
+Directions ||| Itinéraire
+Your location ||| Votre position
+Choose start ||| Choisir le départ
+Choose destination ||| Choisir la destination
+Choose stop ||| Choisir un arrêt
+＋ Add stop ||| ＋ Ajouter un arrêt
+⇅ Swap ||| ⇅ Inverser
+Start from ||| Partir de
+Go to ||| Aller à
+Stop on the way ||| Arrêt en chemin
+◎ Your location ||| ◎ Votre position
+Cancel ||| Annuler
+Or tap the map where you want it. ||| Ou touchez la carte à l'endroit voulu.
+Search a place ||| Chercher un lieu
+Search ||| Chercher
+🚗 Drive ||| 🚗 Auto
+🏍 Moto ||| 🏍 Moto
+🚲 Bike ||| 🚲 Vélo
+🚶 Walk ||| 🚶 À pied
+Finding the way… ||| Recherche du chemin…
+▶ Start ||| ▶ Démarrer
+Other maps ↗ ||| Autres cartes ↗
+Move up ||| Monter
+Move down ||| Descendre
+Remove this stop ||| Retirer cet arrêt
+Swap start and destination ||| Inverser le départ et la destination
+Dropped pin ||| Point sur la carte
+Couldn't find where you are. Turn on Location for Trail Finder, or tap “Your location” to choose a start. ||| Impossible de trouver votre position. Activez la localisation pour Trail Finder, ou touchez « Votre position » pour choisir un départ.
+Couldn't find a way there right now. Check the places, or try again in a minute. ||| Impossible de trouver un chemin pour l'instant. Vérifiez les lieux ou réessayez dans une minute.
+No signal, and this trip goes outside your saved offline maps. Save the area in Offline maps first, or try again with signal. ||| Pas de signal, et ce trajet sort de vos cartes hors ligne. Enregistrez la zone dans Cartes hors ligne d'abord, ou réessayez avec du signal.
+No signal. Driving directions can use your saved offline maps; bike and walk need signal. ||| Pas de signal. L'itinéraire en auto peut utiliser vos cartes hors ligne; vélo et marche ont besoin de signal.
+No road joins these places in your saved maps. ||| Aucune route ne relie ces lieux dans vos cartes enregistrées.
+A place is too far from any road in your saved maps. ||| Un lieu est trop loin de toute route dans vos cartes enregistrées.
+Head to the route ||| Rejoignez l'itinéraire
+Arrived ||| Arrivé
+Off route ||| Hors itinéraire
+Finding a new way ||| Recherche d'un nouveau chemin
+Arrive ||| Arrivée
+min left ||| min restantes
+h left ||| h restantes
+km left ||| km restants
+End ||| Terminer
