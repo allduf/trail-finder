@@ -1,6 +1,6 @@
 // Directions inside the app, like Google Maps (alex 2026-11-05: "When we click direction can we make it so it stays in
 // the app and create a route to that location ... like google map navigation", then "Make the itinerary option similar
-// ... how you can add stops"). Every Directions / Drive here link in every sport opens this sheet instead of leaving the
+// ... how you can add stops"; then "In moto mode only for now"). In Adventure moto, every Directions link opens this sheet instead of leaving the
 // app: From (your location) → stops → To, + Add stop (search a place or tap the map), drag-free ▲▼ to reorder, ✕ to
 // remove, Drive / Bike / Walk (Moto in Adventure moto), the time, distance and arrival, then ▶ Start, which hands the
 // route to Ride mode (navigate.js tfRide.follow) for turn-by-turn: next-turn banner, spoken turns, map following you,
@@ -400,6 +400,7 @@ body.go-picking .leaflet-container { cursor: crosshair; }
   document.addEventListener("click", (e) => {
     const a = e.target.closest && e.target.closest("a[href]");
     if (!a || a.hasAttribute("data-ext") || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    if (!isMoto()) return;   // Adventure moto only for now (alex 2026-11-05); the other sports still open Google Maps
     const d = destOf(a);
     if (!d) return;
     e.preventDefault(); e.stopPropagation();

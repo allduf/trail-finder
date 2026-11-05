@@ -1,7 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
-    {"date": "2026-11-05", "text": "Directions stay in the app now, like Google Maps: add stops, pick Drive, Bike or Walk, then Start for turn-by-turn with the next turn on top, spoken turns and the map following you."},
+    {"date": "2026-11-05", "text": "Adventure moto: Directions stay in the app now: add stops, pick Moto, Bike or Walk, then Start for turn-by-turn like Apple Maps, with the next turn on top, spoken turns, the map following you, and a dark look after sunset."},
     {"date": "2026-11-05", "text": "Layers: Forest roads and Wildfires now show their status under the name: how many km of road in view are good, rough, closed or impassable, and how many fires within 100 km are out of control, being held or under control. Fire pins are red, orange or yellow by status."},
     {"date": "2026-11-04", "text": "Skiing Plan a tour: turning 🛡 Safest on and off is instant now; the line, distance and steepest slope switch together."},
     {"date": "2026-11-04", "text": "Offline maps for Hiking: an area saved in Hiking keeps its hiking trails and terrain, so you can plan a hike with no signal (the route follows the trails, with its climb and height profile)."},
