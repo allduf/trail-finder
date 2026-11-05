@@ -280,7 +280,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   const strip = document.createElement("div");
   strip.className = "nav-strip"; strip.hidden = true; strip.setAttribute("role", "region"); strip.setAttribute("aria-label", "Ride");
   strip.innerHTML = `<div class="nav-tip" id="navTip" hidden></div>
-    <div class="nav-nums"><div id="navTimeBox"><b id="navTime">0:00</b><span id="navTimeK">Moving</span></div><div><b id="navDist">0.00</b><span>km</span></div><div><b id="navClimb">0</b><span>m climb</span></div><div><b id="navSpeed">0.0</b><span>km/h</span></div></div>
+    <div class="nav-nums"><div id="navTimeBox"><b id="navTime">0:00</b><span id="navTimeK">Moving</span></div><div><b id="navDist">0.00</b><span id="navDistK">km</span></div><div><b id="navClimb">0</b><span id="navClimbK">m climb</span></div><div><b id="navSpeed">0.0</b><span>km/h</span></div></div>
     <div class="nav-row"><span class="nav-bar" id="navBar"></span><div class="nav-main"><div class="nav-name" id="navName">Finding you…</div><div class="nav-sub" id="navSub">Waiting for GPS</div></div></div>
     <div class="nav-next" id="navNext" hidden></div>
     <div class="nav-route" id="navRoute" hidden></div>
@@ -342,7 +342,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   // The compass button switches it while riding; the choice is kept for the next ride. Turning the map by hand
   // goes back to north up... until the button is tapped again.
   const canTurn = !!(map.setBearing && map.compass);
-  let faceWay = false, lastFace = 0;
+  let faceWay = false, lastFace = 0, faceTemp = false;   // faceTemp: turned on for directions only, not kept
   try { faceWay = localStorage.getItem("tf:rideFace") === "1"; } catch {}
   const turnNorm = (d) => ((d % 360) + 540) % 360 - 180;
   function faceTo(deg) {
@@ -358,7 +358,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     map.compass.setMode(faceWay ? "Map faces the way you're going. Tap for north up" : "North up. Tap to turn the map the way you're going", faceWay);
   }
   function setFace(on, keep = true) {
-    faceWay = on;
+    faceWay = on; faceTemp = false;
     if (keep) try { localStorage.setItem("tf:rideFace", on ? "1" : "0"); } catch {}
     syncCompass();
     if (!on) map.turnTo(0);
@@ -377,13 +377,26 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     const c = map.latLngToContainerPoint(p), want = L.point(box.width / 2, visH / 2);
     return map.containerPointToLatLng(L.point(box.width / 2, box.height / 2).add(c.subtract(want)));
   }
+  // Driving to a place: the zoom follows the speed (further out on the highway) unless you zoomed by hand.
+  let autoZ = null, zWant = null;
+  function wantZoom() {
+    if (!(route && route.drive)) return Math.max(map.getZoom(), RIDE_ZOOM);
+    const v = rec ? speedNow() : 0, t = v > 22 ? 14 : v > 11 ? 15 : 16;
+    if (autoZ != null && map.getZoom() !== autoZ) return map.getZoom();   // zoomed by hand: keep it
+    if (autoZ == null) { autoZ = t; return t; }
+    // A new speed band only once it has held for 6 s (a stop at a light, a GPS hiccup don't zoom the map in and out).
+    if (t === autoZ) zWant = null;
+    else if (!zWant || zWant.t !== t) zWant = { t, at: Date.now() };
+    else if (Date.now() - zWant.at >= 6000) { autoZ = t; zWant = null; }
+    return autoZ;
+  }
   function onFix(pos) {
     const c = pos.coords, t = pos.timestamp || Date.now(), p = [c.latitude, c.longitude];
     lastFix = { c, t };
     drawYou();
     const g = map.touchGestures || map.touchZoom || {}, busy = map._animatingZoom || g._zooming || g._rotating || L.Draggable._dragging || map._tfHeld3d;
     if (following && !busy) {                     // a short slide, not a jump, while the zoom stays put; never mid-pinch
-      const z = Math.max(map.getZoom(), RIDE_ZOOM), glide = z === map.getZoom() && !document.hidden;
+      const z = wantZoom(), glide = z === map.getZoom() && !document.hidden;
       map.setView(z === map.getZoom() ? aboveStrip(p) : p, z, glide ? { animate: true, pan: { duration: 0.6, easeLinearity: 1, noMoveStart: true } } : { animate: false });
     }
     if (c.accuracy > MAX_ACC_M) { gpsMsg.textContent = `Weak GPS (±${Math.round(c.accuracy)} m). Waiting for a better fix…`; gpsMsg.hidden = false; }
@@ -611,7 +624,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     route = null;
     [routeCase, routeLine, routeDone, routeRest].forEach((l) => { l.setLatLngs([]); layer.removeLayer(l); });
     routeMarks.clearLayers(); layer.removeLayer(routeMarks);
-    $("navRoute").hidden = true; $("navParts").hidden = true;
+    $("navRoute").hidden = true; $("navParts").hidden = true; turnBox.hidden = true;
     ["start", "end"].forEach((k) => voice.said.delete(k));
     sendCues();
   }
@@ -749,7 +762,9 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     if (action === "start") {
       const sp = rec.sport || "mtb";
       Object.assign(args, { sport: sp, start: rec.start, title: { ski: "Ski tour", hunt: "Hunting", fish: "Fishing", moto: "Moto ride", hike: "Hike" }[sp] || "Riding" });
+      if (route && route.drive) Object.assign(args, { sport: route.mode === "moto" ? "moto" : route.mode === "walk" ? "walk" : route.mode === "bike" ? "mtb" : "drive", title: `To ${route.name}`.slice(0, 60) });
     }
+    Object.assign(args, turnState());
     if (st) {
       const next = $("navNext").hidden ? "" : $("navNext").textContent.trim(), name = $("navName").textContent.trim();
       Object.assign(args, { km: +(st.dist / 1000).toFixed(2), climb: st.climb == null ? 0 : Math.round(st.climb), paused: !!rec.paused,
@@ -757,6 +772,34 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     }
     lockSent = Date.now();
     CAP.nativePromise("TrailGps", "activity", args).catch(() => {});
+  }
+  // The next turn for the lock screen and Dynamic Island (builds with turns, TrailGps "turns"): what, how far, the arrow,
+  // and the km and arrival time left. With the phone locked the app works these out from the list sendTurns() gives it.
+  const LOCK_TURNS = !!(LOCK_SCREEN && (CAP.PluginHeaders || []).some((h) => h.name === "TrailGps" && (h.methods || []).some((x) => x.name === "turns")));
+  function turnState() {
+    if (!LOCK_TURNS) return {};
+    if (!route || !route.parts || !roadRoute() || !route.on) return { turn: "", turnM: -1, arrow: "", leftKm: 0, eta: 0 };
+    const t = nextTurn(), trip = tripLeft();
+    return { turn: t ? turnWords(t.x).slice(0, 90) : "Arrived", turnM: t ? Math.round(t.m) : 0, arrow: t ? arrowOf(t.x, t.n) : "arrive",
+      leftKm: +(trip.m / 1000).toFixed(2), eta: Date.now() + trip.sec * 1000 };
+  }
+  let turnsSent = "";
+  function sendTurns() {
+    if (!LOCK_TURNS) return;
+    let list = [], total = 0, mps = 0;
+    if (rec && route && route.parts && roadRoute()) {
+      const t = route.on ? nextTurn() : { n: 1 };
+      if (t) for (let n = Math.max(1, t.n); n < route.parts.length && list.length < 300; n++) {
+        const x = route.parts[n], q = n === route.parts.length - 1 && x.arrow === "arrive" ? route.seq[route.seq.length - 1].q : x.pts[0];
+        list.push([+q[0].toFixed(6), +q[1].toFixed(6), Math.round(n === route.parts.length - 1 && x.arrow === "arrive" ? route.total : x.from), turnWords(x).slice(0, 90), arrowOf(x, n)]);
+      }
+      const trip = tripLeft();
+      total = Math.round(route.total); mps = trip && trip.sec > 0 ? trip.m / trip.sec : 13;
+    }
+    const k = JSON.stringify([list, total]);
+    if (k === turnsSent && !document.hidden) return;
+    turnsSent = k;
+    CAP.nativePromise("TrailGps", "turns", { list, total, mps: +mps.toFixed(2), asleep: !!document.hidden }).catch(() => {});
   }
   const PRE_MIN = 100, PRE_MAX = 260, PRE_M = 200, AT_M = 40, JUNC_MIN = 25, JUNC_MAX = 80, SUM_M = 5000, NAME_AGAIN_MS = 180000, JUNC_AGAIN_MS = 600000;
   const voice = { said: new Map(), trail: "", km: null };
@@ -799,6 +842,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   function turnText(n, pre) {
     const x = route.parts[n];
     // A moto route (moto.js) brings its own words for each turn, from the router.
+    if (x.arrow === "arrive" && pre) return `In ${sayM(pre)}, ${x.name && x.name !== "Destination" ? x.name : "your destination"}.`;
     if (x.say) return pre ? `In ${sayM(pre)}, ${x.say[0].toLowerCase() + x.say.slice(1)}` : x.say;
     const what = x.kind === "drive" ? "the shuttle" : x.kind === "gap" ? "a stretch off the mapped trails" : null;
     const w = what ? "" : turnWord(n);
@@ -813,9 +857,10 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     if (document.hidden && voice.cues) return;     // the phone is locked: the app says the turns
     const all = route.parts, pos = route.pos, cur = partAt(pos);
     const picked = all.filter((x) => x.kind === "pick").length || all.length;
-    const moto = all[0].kind === "moto";   // a moto route: roads, faster, so the turns are said further ahead
+    const moto = all[0].kind === "moto" || all[0].kind === "road";   // a moto route or directions: roads, faster, so the turns are said further ahead
+    const fin = all[all.length - 1].arrow === "arrive" ? all[all.length - 1] : null;   // directions: "You have arrived at …" 
     if (!voice.said.has("start")) say(moto ? `Starting your route: ${sayM(route.total)}. ${all[0].say || ""}` : pos < 150 ? `Starting your ride: ${picked > 1 ? `${picked} trails, ` : ""}${sayM(route.total)}. First, ${spokenPart(all[0])}.` : `On ${spokenPart(all[cur])}.`, "start");
-    if (route.total - pos < (moto ? 60 : 30)) { say(moto ? "You have arrived. Nice ride!" : "End of the route. Nice ride!", "end"); return; }
+    if (route.total - pos < (moto ? 60 : 30)) { voice.said.set("at" + (all.length - 1), Date.now()); say(fin ? fin.say || fin.text : moto ? "You have arrived. Nice ride!" : "End of the route. Nice ride!", "end"); return; }
     const preMin = moto ? 250 : PRE_MIN, preMax = moto ? 900 : PRE_MAX, atM = moto ? 70 : AT_M;
     for (let n = Math.max(1, cur); n < all.length && n <= cur + 2; n++) {
       const d = all[n].from - pos;
@@ -827,6 +872,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   // The planned ride's turns from where you are on, for the app to say with the phone locked (it says them in order).
   let cuesSent = "";
   function sendCues() {
+    sendTurns();
     if (!NATIVE_VOICE) return;
     const list = [];
     if (rec && route && route.parts && voiceOn()) {
@@ -864,6 +910,85 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     sendCues();
   }
 
+  // ---------- the next turn, on top of the map (routes with turn words: directions to a place, moto routes) ----------
+  // Like Google Maps: the arrow, how far, the words, and "Then" when the turn after comes right after it.
+  const ARROW_SVG = {
+    straight: '<path d="M12 21V4M6 10l6-6 6 6"/>',
+    right: '<path d="M6 21v-7a5 5 0 0 1 5-5h9M15 4l5 5-5 5"/>',
+    "slight-right": '<path d="M8 21v-7l9-9M10 5h7v7"/>',
+    "sharp-right": '<path d="M7 3v10a3 3 0 0 0 5 2l7-7M19 15V8h-7" transform="rotate(25 12 12)"/>',
+    uturn: '<path d="M7 21V9a5 5 0 0 1 10 0v6M13 11l4 4 4-4"/>',
+    roundabout: '<circle cx="12" cy="9" r="4"/><path d="M12 21v-8M16 9h4M17 5l3 4-3 4" />',
+    arrive: '<path d="M6 21V4h12l-3 4 3 4H6"/>',
+    ferry: '<path d="M3 18c3 2 6 2 9 0s6-2 9 0M5 15l1-5h12l1 5M12 4v6"/>',
+  };
+  // A turn's arrow: the router's, else from its words, else from the line's bend.
+  function arrowOf(x, n) {
+    if (x.arrow) return x.arrow;
+    const t = String(x.text || x.say || "").toLowerCase(), side = /\bleft\b/.test(t) ? "left" : /\bright\b/.test(t) ? "right" : "";
+    if (/arriv|destination/.test(t)) return "arrive";
+    if (/u-turn|turn around/.test(t)) return "uturn";
+    if (/roundabout/.test(t)) return "roundabout";
+    if (/ferry/.test(t)) return "ferry";
+    if (side) return /slight|bear|keep|stay|exit|ramp/.test(t) ? `slight-${side}` : /sharp/.test(t) ? `sharp-${side}` : side;
+    if (route && route.parts && n > 0) { const w = turnWord(n).toLowerCase(), s2 = /left/.test(w) ? "left" : /right/.test(w) ? "right" : ""; if (s2) return /bear/.test(w) ? `slight-${s2}` : /sharp/.test(w) ? `sharp-${s2}` : s2; if (/around/.test(w)) return "uturn"; }
+    return "straight";
+  }
+  const arrowSvg = (a, size) => {
+    const left = /left/.test(a), base = a.replace("left", "right");
+    return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${left ? ' style="transform:scaleX(-1)"' : ""}>${ARROW_SVG[base] || ARROW_SVG.straight}</svg>`;
+  };
+  const turnBox = document.createElement("div");
+  turnBox.className = "nav-turn"; turnBox.hidden = true; turnBox.setAttribute("role", "status"); turnBox.setAttribute("aria-live", "polite");
+  document.body.appendChild(turnBox);
+  const turnCss = document.createElement("style");
+  turnCss.textContent = `
+.nav-turn { position: fixed; z-index: 1210; left: 8px; right: 8px; top: calc(8px + env(safe-area-inset-top, 0px)); max-width: 560px; margin: 0 auto; background: #0f6b3a; color: #fff; border-radius: 18px; box-shadow: 0 6px 24px rgba(0,0,0,.3); overflow: hidden; }
+.nav-turn[hidden] { display: none; }
+.nav-turn .nt-main { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+.nav-turn .nt-arrow { flex: none; display: grid; place-items: center; }
+.nav-turn .nt-d { font-size: 1.7rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.nav-turn .nt-t { font-size: 1.05rem; font-weight: 600; line-height: 1.25; margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.nav-turn .nt-then { display: flex; align-items: center; gap: 6px; padding: 6px 14px; background: #0a4f2b; font-size: .92rem; font-weight: 700; }
+.nav-turn.off { background: #b3261e; }
+.nav-strip.driving .nav-row, .nav-strip.driving .nav-parts, .nav-strip.driving .nav-route { display: none; }
+`;
+  document.head.appendChild(turnCss);
+  const roadRoute = () => !!(route && route.parts && route.parts.some((x) => x.text || x.say));
+  // The next turn ahead of where you are: { n, x, m metres to it } (null when the route is done).
+  function nextTurn() {
+    const all = route.parts, pos = route.pos;
+    for (let n = Math.max(1, partAt(pos)); n < all.length; n++) if (all[n].from > pos + 5) return { n, x: all[n], m: all[n].from - pos };
+    const last = all[all.length - 1];
+    return last && last.arrow === "arrive" && route.total - pos > 30 ? { n: all.length - 1, x: last, m: route.total - pos } : null;
+  }
+  const turnWords = (x) => String(x.text || x.say || x.name || "").replace(/\.$/, "");
+  const roundM = (m) => (m < 1000 ? `${m < 100 ? Math.max(10, Math.round(m / 10) * 10) : Math.round(m / 50) * 50} m` : `${(m / 1000).toFixed(m < 9950 ? 1 : 0)} km`);
+  function renderTurn() {
+    if (!rec || !route || !roadRoute()) { turnBox.hidden = true; return; }
+    if (!route.on) {
+      turnBox.classList.remove("off");
+      turnBox.innerHTML = `<div class="nt-main"><span class="nt-arrow">${arrowSvg("straight", 44)}</span><div><div class="nt-d">Head to the route</div><div class="nt-t">${esc(route.parts[0] ? turnWords(route.parts[0]) : route.name)}</div></div></div>`;
+      turnBox.hidden = false; return;
+    }
+    const t = nextTurn();
+    if (!t) { turnBox.classList.remove("off"); turnBox.innerHTML = `<div class="nt-main"><span class="nt-arrow">${arrowSvg("arrive", 44)}</span><div><div class="nt-d">Arrived</div><div class="nt-t">${esc(route.name)}</div></div></div>`; turnBox.hidden = false; return; }
+    const after = route.parts[t.n + 1], soon = after && after.from - t.x.from < 300 && t.m < 600;
+    turnBox.classList.toggle("off", !!route.alerted);
+    turnBox.innerHTML = `<div class="nt-main"><span class="nt-arrow">${arrowSvg(route.alerted ? "uturn" : arrowOf(t.x, t.n), 44)}</span><div><div class="nt-d">${route.alerted ? (route.rerouting ? "Finding a new way" : "Off route") : roundM(t.m)}</div><div class="nt-t">${esc(turnWords(t.x))}</div></div></div>`
+      + (soon && !route.alerted ? `<div class="nt-then">Then ${arrowSvg(arrowOf(after, t.n + 1), 20)}</div>` : "");
+    turnBox.hidden = false;
+  }
+  // How long and how far to the end: the router's time for each piece left, the one you're on in part.
+  function tripLeft() {
+    const all = route.parts, pos = route.pos;
+    if (!all) return null;
+    let sec = 0;
+    all.forEach((x) => { const len = x.to - x.from; if (!len || x.to <= pos) return; const f = x.from >= pos ? 1 : (x.to - pos) / len; sec += (x.sec || len / 13) * f; });
+    return { m: Math.max(0, route.total - pos), sec };
+  }
+  const clockAt = (t) => new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).replace(/\s?[ap]\.?m\.?$/i, "");
+
   function updateRoute(p, acc) {
     if (!route) return;
     let best = { d: Infinity }, aim = null, left;
@@ -890,7 +1015,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     const x = '<button type="button" class="x" id="navUnfollow">Stop following</button>';
     if (best.d <= OFF_M) {
       if (route.alerted) say("Back on the route.");
-      if (!route.on && !following) { following = true; $("navFollow").hidden = true; map.setView(map.getZoom() >= RIDE_ZOOM ? aboveStrip(p) : p, Math.max(map.getZoom(), RIDE_ZOOM)); }   // reached it: follow you again
+      if (!route.on && !following) { following = true; $("navFollow").hidden = true; const z = wantZoom(); map.setView(map.getZoom() === z ? aboveStrip(p) : p, z); }   // reached it: follow you again
       route.on = true; route.offSince = 0; route.alerted = false;
       box.classList.remove("off");
       box.innerHTML = `${x}Following <b>${esc(route.name)}</b> · ${fmtM(left)} left of ${fmtM(route.total)}`;
@@ -912,7 +1037,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     }
     box.hidden = false;
     $("navUnfollow").addEventListener("click", clearRoute);
-    drawProgress(); renderParts();
+    drawProgress(); renderParts(); renderTurn();
     routeVoice(left);
   }
   function pointOnLine(g, pr) {
@@ -929,7 +1054,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
       r.rerouting = false;
       if (route !== r || !n || !n.lines || !n.lines.length) return;
       setRoute(n.lines, n.name || r.name, n.parts);
-      route.reroute = r.reroute; route.rerouteAt = Date.now();
+      route.reroute = r.reroute; route.rerouteAt = Date.now(); route.drive = r.drive; route.mode = r.mode;
       [...voice.said.keys()].forEach((k) => { if (/^(pre|at)\d/.test(k)) voice.said.delete(k); });
       say("New route.");
       if (lastFix) updateRoute([lastFix.c.latitude, lastFix.c.longitude], lastFix.c.accuracy);
@@ -940,11 +1065,17 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   // opts.reroute (optional): plan again when you leave the route, see reroute().
   async function follow(lines, name, parts, opts) {
     if (!lines || !lines.length) return;
-    if (!rec) { await start(); if (!rec) return; }
+    if (!rec) { await start({ drive: !!(opts && opts.drive) }); if (!rec) return; }
     try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch {}   // from the tap, so iPhones allow the beep later
     primeVoice();
     setRoute(lines, name || "this trail", parts);
     if (opts && opts.reroute) route.reroute = opts.reroute;
+    if (opts && opts.drive) {
+      route.drive = true; route.mode = opts.mode || "drive"; autoZ = null;
+      if (canTurn && !faceWay) { faceWay = true; faceTemp = true; syncCompass(); }   // like Google Maps: the way you're going is up
+      if (rec.drive) lockScreen("start", STATS.statsOf(rec.points, rec.start, Date.now(), rec.breaks));   // "To <place>" on the lock screen
+    }
+    driveButtons();
     [...voice.said.keys()].forEach((k) => { if (/^(pre|at)\d/.test(k)) voice.said.delete(k); });
     const here = lastFix && [lastFix.c.latitude, lastFix.c.longitude];
     if (!here || Math.min(...lines.map((g) => project(g, here).d)) > 300) {   // far from it: show the whole trail and you
@@ -976,8 +1107,20 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     $("navTime").textContent = mins(st.moving);
     $("navTimeK").textContent = rec.paused ? "Paused" : stopped && rec.points.length ? "Stopped" : "Moving";
     $("navTimeBox").classList.toggle("paused", !!rec.paused || (stopped && rec.points.length > 0));
-    $("navDist").textContent = (st.dist / 1000).toFixed(2);
-    $("navClimb").textContent = st.climb == null ? "–" : Math.round(st.climb);
+    const trip = route && route.drive ? tripLeft() : null;
+    if (trip) {            // directions to a place: when you get there, how long, how far
+      $("navTime").textContent = clockAt(Date.now() + trip.sec * 1000);
+      $("navTimeK").textContent = "Arrive";
+      $("navTimeBox").classList.remove("paused");
+      $("navDist").textContent = trip.sec >= 3600 ? `${Math.floor(trip.sec / 3600)}:${pad2(Math.round(trip.sec / 60) % 60)}` : Math.max(1, Math.round(trip.sec / 60));
+      $("navDistK").textContent = trip.sec >= 3600 ? "h left" : "min left";
+      $("navClimb").textContent = trip.m >= 9500 ? Math.round(trip.m / 1000) : (trip.m / 1000).toFixed(1);
+      $("navClimbK").textContent = "km left";
+    } else {
+      $("navDist").textContent = (st.dist / 1000).toFixed(2);
+      $("navClimb").textContent = st.climb == null ? "–" : Math.round(st.climb);
+      $("navDistK").textContent = "km"; $("navClimbK").textContent = "m climb";
+    }
     $("navSpeed").textContent = (v * 3.6).toFixed(1);
     if (Date.now() - lockSent > 10000 && document.visibilityState === "visible") lockScreen("update", st);
     const k = Math.floor(st.dist / SUM_M);
@@ -1060,13 +1203,15 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     map.panBy([after.left - before.left, after.top - before.top], { animate: false });
   }
 
-  async function start() {
+  async function start(o) {
     if (rec) return;
+    const drive = !!(o && o.drive === true);
     if (!navigator.geolocation && !IN_APP) { alert("This browser can't share your location, so Ride mode can't follow you."); return; }
     startCompass();                               // first, while the tap still counts (iPhone asks here)
     primeVoice();
     voice.said.clear(); voice.trail = ""; voice.km = null;
-    const cur = await getCurrent();
+    let cur = await getCurrent();
+    if (cur && cur.drive) { await delCurrent(); cur = null; }   // an old trip to a place, not a ride
     const lastT = cur && (cur.points.length ? cur.points[cur.points.length - 1][3] : cur.start);
     if (cur && !cur.end && Date.now() - lastT > RESUME_MS) cur.end = lastT;   // left running long ago: that ride is over
     if (cur && cur.end) {
@@ -1074,6 +1219,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
       await delCurrent();
     }
     rec = cur && !cur.end ? cur : { id: "current", start: Date.now(), points: [], from: "ride" };
+    if (drive && !rec.points.length) rec.drive = true;   // directions to a place: End just ends it, nothing to save
     if (!rec.points.length) { const b = document.body.classList; const sp = b.contains("sport-ski") ? "ski" : b.contains("sport-hunt") ? "hunt" : b.contains("sport-fish") ? "fish" : b.contains("sport-moto") ? "moto" : b.contains("sport-hike") ? "hike" : ""; if (sp) rec.sport = sp; }   // a ski tour, a hunt (My hunts), a day fishing or a moto ride
     rec.from = "ride";             // ride.html's Keep riding sends it back here
     resumeBox.hidden = true;
@@ -1088,6 +1234,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     if (nav.youLayer) map.removeLayer(nav.youLayer);   // the plain blue dot: Ride mode has its own arrow
     following = true; $("navFollow").hidden = true;
     $("navBtns").hidden = false; $("navAsk").hidden = true;
+    driveButtons();
     setRiding(true);
     syncCompass();
     if (map.getZoom() < RIDE_ZOOM) map.setZoom(RIDE_ZOOM);
@@ -1112,6 +1259,8 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     gpsMsg.hidden = true;
     if (nav.youLayer) nav.youLayer.addTo(map);
     setRiding(false);
+    if (faceTemp) { faceWay = false; faceTemp = false; }
+    turnBox.hidden = true;
     if (canTurn) { syncCompass(); if (faceWay) map.turnTo(0); }
   }
   // A drag, or a tap anywhere on the map (alex, 2026-10-30), stops following; "◎ Follow" brings it back.
@@ -1128,9 +1277,19 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   window.addEventListener("tf:map3d", (e) => grab3d(e.detail));
   $("navFollow").addEventListener("click", () => {
     following = true; $("navFollow").hidden = true;
-    if (lastFix) { const p = [lastFix.c.latitude, lastFix.c.longitude]; map.setView(map.getZoom() >= RIDE_ZOOM ? aboveStrip(p) : p, Math.max(map.getZoom(), RIDE_ZOOM)); }
+    if (lastFix) { const p = [lastFix.c.latitude, lastFix.c.longitude], z = wantZoom(); map.setView(map.getZoom() === z ? aboveStrip(p) : p, z); }
   });
-  $("navStop").addEventListener("click", () => { $("navBtns").hidden = true; $("navAsk").hidden = false; });
+  $("navStop").addEventListener("click", async () => {
+    if (rec && rec.drive) { await delCurrent(); leave(); return; }   // directions: End ends it
+    $("navBtns").hidden = true; $("navAsk").hidden = false;
+  });
+  // Directions to a place (go-there.js): End instead of Stop, no Pause, the trip's numbers instead of the ride's.
+  function driveButtons() {
+    const d = !!(rec && rec.drive);
+    $("navStop").textContent = d ? "End" : "■ Stop";
+    $("navPause").hidden = d;
+    strip.classList.toggle("driving", !!(route && route.drive));
+  }
   $("navKeep").addEventListener("click", () => { $("navBtns").hidden = false; $("navAsk").hidden = true; });
   $("navDrop").addEventListener("click", async () => {
     if (rec && rec.points.length > 1 && !confirm("Drop this ride? It won't be saved.")) return;
@@ -1202,6 +1361,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   async function offerResume() {
     const cur = await getCurrent();
     if (!cur || rec) return;
+    if (cur.drive) { await delCurrent(); return; }   // directions to a place (go-there.js): not a ride to save
     const lastT = cur.points.length ? cur.points[cur.points.length - 1][3] : cur.start;
     if (!cur.points.length && !cur.end && Date.now() - lastT > RESUME_MS) { await delCurrent(); return; }   // nothing recorded, long ago
     const over = !!cur.end || Date.now() - lastT > RESUME_MS;

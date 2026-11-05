@@ -39,6 +39,10 @@
   const phone = () => matchMedia("(max-width: 760px)").matches;
   const timeout = (ms) => (AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined);
   const getJ = (url, ms = 12000, opt = {}) => fetch(url, { signal: timeout(ms), ...opt }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
+  // A name mapped as "None", "null" or "unnamed" is no name (alex 2026-11-05: a campground card titled "None"): the card
+  // and lists then say what the place is instead.
+  const realName = (s) => { s = String(s || "").trim(); return /^(none|null|undefined|n\/?a|unnamed|no name|noname|-|\?)$/i.test(s) ? "" : s; };
+  const cleanName = (p) => (p && p[2] && !realName(p[2]) ? [...p.slice(0, 2), "", ...p.slice(3)] : p);
   const postJ = (url, body, ms = 30000) => getJ(url, ms, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const kmBetween = (a, b) => map.distance(a, b) / 1000;
   const fmtKm = (k) => (k < 1 ? `${Math.round(k * 1000)} m` : k < 10 ? `${k.toFixed(1)} km` : `${Math.round(k).toLocaleString()} km`);
@@ -597,7 +601,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   const ptsGot = {}, live = { fuel: new Map(), camp: new Map(), hot: new Map(), shop: new Map(), ferry: new Map() };   // live = from OpenStreetMap, by 0.5° cell
   let liveMode = false;   // the nightly files aren't there yet: ask OpenStreetMap for what's on screen
   function loadPts(k) {
-    if (!ptsGot[k]) ptsGot[k] = getJ(`ca/moto/${k}.json`, 20000).then((j) => { pts[k] = j.list || []; drawPoints(); }).catch(() => { liveMode = true; loadLive(); });
+    if (!ptsGot[k]) ptsGot[k] = getJ(`ca/moto/${k}.json`, 20000).then((j) => { pts[k] = (j.list || []).map(cleanName); drawPoints(); }).catch(() => { liveMode = true; loadLive(); });
     return ptsGot[k];
   }
   const OP_Q = {
@@ -630,7 +634,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       if (la2 == null) continue;
       const k = t.amenity === "fuel" ? "fuel" : t.tourism ? "camp" : t.natural === "hot_spring" ? "hot" : t.shop ? "shop" : t.amenity === "ferry_terminal" ? "ferry" : null;
       const key = `${Math.floor(la2 * 2) / 2},${Math.floor(lo2 * 2) / 2}`;
-      if (k && kinds.includes(k) && live[k].has(key)) live[k].get(key).push([la2, lo2, t.name || t.brand || "", k === "camp" && t.fee === "no" ? "free" : k === "fuel" && t.brand ? t.brand : "", `${el.type[0]}${el.id.toString(36)}`]);
+      if (k && kinds.includes(k) && live[k].has(key)) live[k].get(key).push([la2, lo2, realName(t.name) || realName(t.brand) || "", k === "camp" && t.fee === "no" ? "free" : k === "fuel" && t.brand ? t.brand : "", `${el.type[0]}${el.id.toString(36)}`]);
     }
     zoomNote(); drawPoints(); drawRange(); renderNear();
   }
@@ -995,10 +999,10 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     if (!s || s.how === "centre") { el.hidden = true; return; }
     const my = ++spotSeq, b = cur(), cap = capOf(b);
     el.hidden = false;
-    const title = s.pin ? (s.pin.p[2] || kindLine(s.pin.k, s.pin.p).split(" · ")[0]) : s.road ? (s.road.name || (s.road.class === "track" ? "Unnamed track" : "Unnamed gravel road")) : "This spot";
+    const title = s.pin ? (realName(s.pin.p[2]) || kindLine(s.pin.k, s.pin.p).split(" · ")[0]) : s.road ? (s.road.name || (s.road.class === "track" ? "Unnamed track" : "Unnamed gravel road")) : "This spot";
     const head = `<header>${svg(s.pin ? IC.camp : IC.road)}<h3>${esc(title)}</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>`;
     const pinLine = s.pin ? `${pinHead(s.pin.k, s.pin.p)}<div data-pin><p class="mt-note">Looking up its details…</p></div>
-      <div class="mt-row"><a class="mt-pill" href="${goLink(s.lat, s.lon)}" target="_blank" rel="noopener">${svg(IC.ride, 16)}Directions</a>${planning || route ? `<button type="button" class="mt-pill" data-addpt>${svg(IC.plan, 16)}Add to my route</button>` : ""}</div>` : "";
+      <div class="mt-row"><a class="mt-pill" href="${goLink(s.lat, s.lon)}" data-go-name="${esc(title)}" target="_blank" rel="noopener">${svg(IC.ride, 16)}Directions</a>${planning || route ? `<button type="button" class="mt-pill" data-addpt>${svg(IC.plan, 16)}Add to my route</button>` : ""}</div>` : "";
     let gradeHtml = "";
     if (s.road) {
       const g = gradeOfTile(s.road), f = fitOf(g, cap);
