@@ -315,7 +315,7 @@
     try { rs = await S.near(mid, Math.max(3, L.distance(a, b) / 1000 + 2)); } catch { return null; }
     let best = null;
     for (const r of rs) {
-      if (r.src !== "hand" || !r.way) continue;
+      if (!r.way) continue;   // set only by data/ski-hand/ (a route, or a patch on an OpenStreetMap one)
       for (const v of r.lines) {
         let i = 0, j = 0, di = Infinity, dj = Infinity;
         v.forEach((p, k) => { const x = L.distance(a, p), y = L.distance(b, p); if (x < di) { di = x; i = k; } if (y < dj) { dj = y; j = k; } });
