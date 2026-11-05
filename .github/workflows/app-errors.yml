@@ -8,7 +8,7 @@ on:
   schedule:
     - cron: "17 15 * * *"   # 15:17 UTC, 8:17 am in BC (summer time)
   pull_request:
-    paths: ["scripts/app-errors.mjs", ".github/workflows/app-errors.yml"]
+    paths: ["scripts/app-errors.mjs", "scripts/usage-cleanup.mjs", ".github/workflows/app-errors.yml"]
   workflow_dispatch:
 
 permissions:
@@ -34,3 +34,8 @@ jobs:
           HOURS: ${{ github.event_name == 'pull_request' && '336' || '' }}
           CRASH_HOURS: ${{ github.event_name == 'pull_request' && '336' || '' }}
         run: node scripts/app-errors.mjs
+      - name: Delete usage events and visit codes older than a year (privacy page promise)
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          DRY: ${{ github.event_name == 'pull_request' && '1' || '' }}
+        run: node scripts/usage-cleanup.mjs

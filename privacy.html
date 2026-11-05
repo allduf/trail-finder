@@ -7,7 +7,8 @@
 <meta name="theme-color" content="#1f6f4a">
 <title>Privacy · Trail Finder</title>
 <style>
-/* Privacy policy: linked from More, How it works, the account box and the App Store listing. Keep it in plain words
+/* English and French on one page (Quebec Law 25 and Bill 96): the language follows the app (tf:lang) or the phone.
+   Privacy policy: linked from More, How it works, the account box and the App Store listing. Keep it in plain words
    and update it (and the date) whenever the app starts keeping or sending something new. */
 :root {
   --bg: #f3f5f2; --panel: #ffffff; --fg: #1d2420; --muted: #5c6862; --line: #d9dfda; --accent: #1f6f4a;
@@ -30,29 +31,36 @@ p, li { max-width: 65ch; }
 a { color: var(--accent); }
 ul { padding-left: 20px; }
 li { margin: 4px 0; }
+.lang { float: right; padding: 8px 0; }
+[hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <main>
-<a class="back" href="./">← Back to the map</a>
+<section lang="en" data-l="en">
+<a class="back" href="./">← Back to the map</a><a class="lang" href="#fr" data-to="fr">Français</a>
 <h1>Privacy</h1>
-<p class="muted">Last updated November 2, 2026</p>
+<p class="muted">Last updated November 5, 2026</p>
 
-<p>Trail Finder is a map app for mountain biking, skiing, hunting, fishing and adventure riding. You can use all of it without an account. We don't sell your data, we don't show ads, and nothing is used to track you across other apps or websites.</p>
+<p>Trail Finder is a map app for mountain biking, skiing, hiking, hunting, fishing and adventure riding. You can use all of it without an account. We don't sell your data, we don't show ads, and nothing is used to track you across other apps or websites.</p>
+
+<h2>Who looks after your data</h2>
+<p>Trail Finder is made by one person in British Columbia, who is also the person in charge of protecting personal information. Write to them at <a href="mailto:trailfinder.help@outlook.com">trailfinder.help@outlook.com</a> for any question, request or complaint about your data.</p>
 
 <h2>Your location</h2>
-<p>Your location is used on your phone to show where you are, find trails near you, follow a ride or tour and give directions. It isn't sent to us unless you save something that holds it (a recorded ride, a spot, a trail report or a photo search) or you turn on live location (see below).</p>
+<p>Your location is used on your phone to show where you are, find trails near you, follow a ride or tour and give directions. It isn't sent to us unless you save something that holds it (a recorded ride, a spot, a trail report or a photo search) or you turn on live location (see below). You can turn location off for Trail Finder in your phone's settings; the map still works.</p>
 
 <h2>Without an account</h2>
 <ul>
   <li><b>Saved on your phone only:</b> your settings, To ride and Ridden lists, folders, planned routes, recorded rides, catches, hunts and offline maps. Deleting the app deletes them.</li>
   <li><b>Visit count:</b> the website sends a random device code once a day so we know roughly how many people use it. Nothing else is in it.</li>
-  <li><b>How the app is used (iPhone app only):</b> a random device code, the phone model and iOS version, which screens and buttons are opened, what you type in the search boxes and in Ask (a typed GPS point is sent only as "GPS point") and how many results came back, how long the map takes to load, if the app had to restart after a crash, the named area the map shows (like "Whistler" or a province, never a spot), plus error messages, so we can find bugs and make the app easier to use. No name, email, location or photo.</li>
+  <li><b>How the app is used (iPhone app only, you can turn it off):</b> a random device code, the phone model and iOS version, which screens and buttons are opened, what you type in the search boxes and in Ask (a typed GPS point is sent only as "GPS point") and how many results came back, how long the map takes to load, if the app had to restart after a crash, the named area the map shows (like "Whistler" or a province, never a spot), plus error messages, so we can find bugs and make the app easier to use. No name, email, location or photo. To stop it, open <b>More → How the app is used → Don't share</b>.</li>
   <li><b>Notifications:</b> if you turn on alerts, your phone's notification address and the trails, tours or spots you watch are saved so the alerts can be sent. Turning alerts off deletes them.</li>
 </ul>
 
 <h2>With an account (optional)</h2>
 <p>Signing in keeps your settings, saved routes, rides and their photos, spots and folders on every device. We keep your email address, the name you add (if any, shown only to people you share your live location with) and those things. Only you can read them.</p>
+<p>We email you only what your account needs: sign-in codes and links, and password resets. We don't send newsletters or ads. If we ever want to, we'll ask first, and every such email will have a way to stop them.</p>
 
 <h2>Things you choose to share</h2>
 <ul>
@@ -64,22 +72,147 @@ li { margin: 4px 0; }
 </ul>
 
 <h2>Other services the app talks to</h2>
-<p>Like any map app, the app asks map, terrain and weather services for the area on your screen: OpenStreetMap, OpenFreeMap, Esri, Open-Meteo, Avalanche Canada, government open data and similar. They see the area and your internet address, never your account. Accounts and saved things are stored with Supabase. Strava files you import are read on your phone.</p>
+<p>Like any map app, the app asks map, terrain and weather services for the area on your screen: OpenStreetMap, OpenFreeMap, Esri, Open-Meteo, Avalanche Canada, government open data and similar. They see the area and your internet address, never your account. Strava files you import are read on your phone.</p>
 
-<h2>Getting a copy of your data</h2>
-<p>Signed in, open <b>More → Account → Settings → Download my data</b>. You get one file with everything saved to your account and the settings on this device.</p>
+<h2>Where your data is kept</h2>
+<p>We use these companies to run the app, and they may keep your data outside Canada, mostly in the United States, where the law may let governments ask to see it:</p>
+<ul>
+  <li><b>Supabase:</b> accounts, saved things, posts, live location, alerts and how the app is used.</li>
+  <li><b>Google:</b> photo search, Ask and fish ID (only if you said yes to Google's AI).</li>
+  <li><b>Brevo:</b> sends the sign-in emails.</li>
+  <li><b>Apple:</b> delivers notifications on iPhone. <b>GitHub:</b> hosts the website.</li>
+</ul>
+<p>They may use your data only to provide their service to us (except Google's free plan, see above).</p>
 
-<h2>Deleting your data</h2>
-<p>Signed in, open <b>More → Account → Settings → Delete my account</b>. It deletes your account and everything saved to it, right away. To delete what's only on your phone, delete the app. For anything else, write to <a href="mailto:trailfinder.help@outlook.com">trailfinder.help@outlook.com</a>.</p>
+<h2>How long we keep it</h2>
+<ul>
+  <li>Your account and what's saved to it: until you delete it.</li>
+  <li>Live location: until you stop, or 2 hours after the last update.</li>
+  <li>Shared ride lines (Help improve Trail Finder): until you take them back, at most 2 years.</li>
+  <li>How the app is used and the visit count: 1 year.</li>
+  <li>Alert addresses: until you turn alerts off.</li>
+  <li>Posts (reports, grades, photos, trails you add): until you delete them or your account.</li>
+  <li>Confirmed photo-search pictures: as long as they help photo search. Write to us to have yours removed.</li>
+</ul>
+
+<h2>Your rights</h2>
+<p>You can ask to see, correct or delete your data, get a copy, or take back a yes you gave us. Most of it you can do yourself:</p>
+<ul>
+  <li><b>Copy:</b> signed in, open More → Account → Settings → Download my data. You get one file with everything saved to your account and the settings on this device.</li>
+  <li><b>Delete:</b> signed in, open More → Account → Settings → Delete my account. It deletes your account and everything saved to it, right away. To delete what's only on your phone, delete the app.</li>
+  <li><b>Say no:</b> Google's AI, How the app is used, alerts, live location and ride sharing each turn off in the app.</li>
+  <li>For anything else, write to <a href="mailto:trailfinder.help@outlook.com">trailfinder.help@outlook.com</a>. We answer within 30 days.</li>
+</ul>
+<p>If you're not happy with our answer, you can complain to the Office of the Privacy Commissioner of Canada (priv.gc.ca), or in Quebec to the Commission d'accès à l'information (cai.gouv.qc.ca).</p>
+
+<h2>If something goes wrong</h2>
+<p>If your data is lost, stolen or seen by someone who shouldn't see it and that could seriously harm you, we'll tell you and the Privacy Commissioner as soon as we can.</p>
 
 <h2>Children</h2>
-<p>Trail Finder isn't made for children under 13 and we don't knowingly keep their data.</p>
-
-<h2>Contact</h2>
-<p>Questions about your data: <a href="mailto:trailfinder.help@outlook.com">trailfinder.help@outlook.com</a>.</p>
+<p>Trail Finder isn't made for children under 14 and we don't knowingly keep their data. Google's AI is for people 18 or older.</p>
 
 <h2>Changes</h2>
-<p>When this page changes, the date at the top changes too.</p>
+<p>When this page changes, the date at the top changes too. If we start using your data in a new way, the app will tell you first.</p>
+
+<h2>Contact</h2>
+<p><a href="mailto:trailfinder.help@outlook.com">trailfinder.help@outlook.com</a> · <a href="terms.html">Terms</a> · <a href="support.html">Help and support</a></p>
+</section>
+
+<section lang="fr" data-l="fr" hidden>
+<a class="back" href="./">← Retour à la carte</a><a class="lang" href="#en" data-to="en">English</a>
+<h1>Confidentialité</h1>
+<p class="muted">Mise à jour le 5 novembre 2026</p>
+
+<p>Trail Finder est une application de cartes pour le vélo de montagne, le ski, la randonnée, la chasse, la pêche et la moto d’aventure. Tout fonctionne sans compte. Nous ne vendons pas vos données, nous ne montrons pas de publicité, et rien ne sert à vous suivre dans d’autres applications ou sites.</p>
+
+<h2>Qui s’occupe de vos données</h2>
+<p>Trail Finder est fait par une personne en Colombie-Britannique, qui est aussi la personne responsable de la protection des renseignements personnels. Écrivez-lui à <a href="mailto:trailfinder.help@outlook.com">trailfinder.help@outlook.com</a> pour toute question, demande ou plainte au sujet de vos données.</p>
+
+<h2>Votre position</h2>
+<p>Votre position sert sur votre téléphone à montrer où vous êtes, trouver des sentiers près de vous, suivre une sortie et donner des indications. Elle ne nous est pas envoyée, sauf si vous enregistrez quelque chose qui la contient (une sortie enregistrée, un endroit, un rapport de sentier ou une recherche par photo) ou si vous activez la position en direct (voir plus bas). Vous pouvez désactiver la localisation pour Trail Finder dans les réglages du téléphone; la carte fonctionne quand même.</p>
+
+<h2>Sans compte</h2>
+<ul>
+  <li><b>Gardé sur votre téléphone seulement :</b> vos réglages, listes À rouler et Roulé, dossiers, itinéraires, sorties enregistrées, prises, chasses et cartes hors ligne. Supprimer l’application les supprime.</li>
+  <li><b>Nombre de visites :</b> le site envoie un code d’appareil aléatoire une fois par jour pour savoir à peu près combien de personnes l’utilisent. Rien d’autre.</li>
+  <li><b>Utilisation de l’appli (application iPhone seulement, vous pouvez l’arrêter) :</b> un code d’appareil aléatoire, le modèle du téléphone et la version d’iOS, les écrans et boutons ouverts, ce que vous tapez dans les recherches et dans Demandez (un point GPS tapé est envoyé seulement comme « point GPS ») et le nombre de résultats, le temps de chargement de la carte, un redémarrage après un plantage, la zone nommée que montre la carte (comme « Whistler » ou une province, jamais un endroit précis) et les messages d’erreur, pour trouver les bogues et rendre l’application plus simple. Aucun nom, courriel, position ni photo. Pour l’arrêter : <b>Plus → Utilisation de l’appli → Ne pas partager</b>.</li>
+  <li><b>Notifications :</b> si vous activez les alertes, l’adresse de notification du téléphone et les sentiers, sorties ou endroits suivis sont gardés pour envoyer les alertes. Désactiver les alertes les supprime.</li>
+</ul>
+
+<h2>Avec un compte (facultatif)</h2>
+<p>Un compte garde vos réglages, itinéraires, sorties et leurs photos, endroits et dossiers sur tous vos appareils. Nous gardons votre courriel, le nom que vous ajoutez (s’il y a lieu, montré seulement aux personnes avec qui vous partagez votre position en direct) et ces éléments. Vous seul pouvez les lire.</p>
+<p>Nous vous écrivons seulement pour votre compte : codes et liens de connexion, et changement de mot de passe. Pas d’infolettre ni de publicité. Si nous voulons un jour le faire, nous vous le demanderons d’abord, et chaque courriel aura un moyen de vous désabonner.</p>
+
+<h2>Ce que vous choisissez de partager</h2>
+<ul>
+  <li><b>Rapports de sentier, cotes, photos et sentiers ajoutés</b> sont montrés aux autres usagers, sans votre courriel.</li>
+  <li><b>Position en direct</b> (seulement pendant le partage) : votre position toutes les 15 à 20 secondes, la dernière heure de votre trace, le nom tapé, votre sport et votre heure de retour sont envoyés à notre serveur et montrés à quiconque a votre lien. Ils sont supprimés quand vous touchez Arrêter le partage, quand le temps choisi est écoulé, ou 2 heures après la dernière mise à jour.</li>
+  <li><b>Aidez à améliorer Trail Finder</b> (désactivé sauf si vous l’activez) : une copie raccourcie du tracé de chaque sortie (sans début ni fin, seulement le mois) est partagée sans lien avec un compte, pour trouver des sentiers non cartographiés et le sens dans lequel ils sont roulés. Vous pouvez tout reprendre dans Mes sorties.</li>
+  <li><b>Quel est ce sentier? (recherche par photo) :</b> la photo ou l’image de la vidéo, son point GPS s’il y en a un et ce que vous tapez sont envoyés à Google (Gemini et Cloud Vision) pour trouver le sentier. Quand vous confirmez, une petite copie de l’image est gardée en privé pour améliorer les prochaines recherches. Elle n’est jamais montrée à personne.</li>
+  <li><b>L’IA de Google</b> (seulement après votre oui, 18 ans ou plus) : la recherche par photo, Demandez en mots simples (votre question) et l’identification des poissons (une petite copie de la photo de la prise) utilisent l’IA Gemini de Google. L’application demande une fois avant la première utilisation et fonctionne sans elle si vous dites non. Votre nom et votre courriel ne sont pas envoyés. Avec le forfait gratuit, Google peut garder ce qui est envoyé et s’en servir pour améliorer ses produits. Activez-la ou désactivez-la en tout temps dans Plus, IA de Google.</li>
+</ul>
+
+<h2>Autres services utilisés</h2>
+<p>Comme toute application de cartes, elle demande aux services de cartes, de relief et de météo la zone à l’écran : OpenStreetMap, OpenFreeMap, Esri, Open-Meteo, Avalanche Canada, les données ouvertes des gouvernements et d’autres. Ils voient la zone et votre adresse Internet, jamais votre compte. Les fichiers Strava importés sont lus sur votre téléphone.</p>
+
+<h2>Où sont gardées vos données</h2>
+<p>Nous utilisons ces entreprises pour faire fonctionner l’application. Elles peuvent garder vos données hors du Canada, surtout aux États-Unis, où la loi peut permettre aux gouvernements d’y accéder :</p>
+<ul>
+  <li><b>Supabase :</b> comptes, éléments enregistrés, publications, position en direct, alertes et utilisation de l’appli.</li>
+  <li><b>Google :</b> recherche par photo, Demandez et identification des poissons (seulement si vous avez dit oui à l’IA de Google).</li>
+  <li><b>Brevo :</b> envoie les courriels de connexion.</li>
+  <li><b>Apple :</b> livre les notifications sur iPhone. <b>GitHub :</b> héberge le site.</li>
+</ul>
+<p>Elles peuvent utiliser vos données seulement pour nous fournir leur service (sauf le forfait gratuit de Google, voir plus haut).</p>
+
+<h2>Combien de temps nous les gardons</h2>
+<ul>
+  <li>Votre compte et ce qui y est enregistré : jusqu’à ce que vous le supprimiez.</li>
+  <li>Position en direct : jusqu’à l’arrêt, ou 2 heures après la dernière mise à jour.</li>
+  <li>Tracés partagés (Aidez à améliorer Trail Finder) : jusqu’à ce que vous les repreniez, au plus 2 ans.</li>
+  <li>Utilisation de l’appli et nombre de visites : 1 an.</li>
+  <li>Adresses d’alerte : jusqu’à ce que vous désactiviez les alertes.</li>
+  <li>Publications (rapports, cotes, photos, sentiers ajoutés) : jusqu’à ce que vous les supprimiez, ou votre compte.</li>
+  <li>Images confirmées de recherche par photo : tant qu’elles aident la recherche par photo. Écrivez-nous pour faire retirer les vôtres.</li>
+</ul>
+
+<h2>Vos droits</h2>
+<p>Vous pouvez demander à voir, corriger ou supprimer vos données, en obtenir une copie, ou retirer un consentement donné. Vous pouvez faire la plupart de ces choses vous-même :</p>
+<ul>
+  <li><b>Copie :</b> connecté, ouvrez Plus → Compte → Réglages → Télécharger mes données. Vous obtenez un fichier avec tout ce qui est enregistré dans votre compte et les réglages de cet appareil.</li>
+  <li><b>Suppression :</b> connecté, ouvrez Plus → Compte → Réglages → Supprimer mon compte. Votre compte et tout ce qui y est enregistré sont supprimés tout de suite. Pour ce qui est seulement sur le téléphone, supprimez l’application.</li>
+  <li><b>Dire non :</b> l’IA de Google, l’utilisation de l’appli, les alertes, la position en direct et le partage des sorties se désactivent chacun dans l’application.</li>
+  <li>Pour le reste, écrivez à <a href="mailto:trailfinder.help@outlook.com">trailfinder.help@outlook.com</a>. Nous répondons dans les 30 jours.</li>
+</ul>
+<p>Si notre réponse ne vous satisfait pas, vous pouvez porter plainte au Commissariat à la protection de la vie privée du Canada (priv.gc.ca) ou, au Québec, à la Commission d’accès à l’information (cai.gouv.qc.ca).</p>
+
+<h2>En cas d’incident</h2>
+<p>Si vos données sont perdues, volées ou vues par quelqu’un qui ne devrait pas les voir et que cela peut vous causer un préjudice sérieux, nous vous en informerons, ainsi que la Commission ou le Commissariat, dès que possible.</p>
+
+<h2>Enfants</h2>
+<p>Trail Finder n’est pas fait pour les enfants de moins de 14 ans et nous ne gardons pas sciemment leurs données. L’IA de Google est réservée aux 18 ans et plus.</p>
+
+<h2>Changements</h2>
+<p>Quand cette page change, la date en haut change aussi. Si nous commençons à utiliser vos données d’une nouvelle façon, l’application vous le dira d’abord.</p>
+
+<h2>Contact</h2>
+<p><a href="mailto:trailfinder.help@outlook.com">trailfinder.help@outlook.com</a> · <a href="terms.html">Conditions</a> · <a href="support.html">Aide et soutien</a></p>
+</section>
 </main>
+<script>
+// The language follows the app (tf:lang, i18n.js), else the phone; #fr / #en or the link at the top switch it.
+(function () {
+  var pick = location.hash === "#fr" ? "fr" : location.hash === "#en" ? "en" : null;
+  if (!pick) { try { pick = localStorage.getItem("tf:lang"); } catch (e) {} }
+  if (pick !== "fr" && pick !== "en") pick = /^fr/i.test(navigator.language || "") ? "fr" : "en";
+  function show(l) {
+    document.querySelectorAll("[data-l]").forEach(function (s) { s.hidden = s.dataset.l !== l; });
+    document.documentElement.lang = l;
+    document.title = l === "fr" ? "Confidentialité · Trail Finder" : "Privacy · Trail Finder";
+  }
+  show(pick);
+  document.addEventListener("click", function (e) { var a = e.target.closest("[data-to]"); if (a) { e.preventDefault(); show(a.dataset.to); scrollTo(0, 0); } });
+})();
+</script>
 </body>
 </html>

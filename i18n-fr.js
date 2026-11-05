@@ -2062,7 +2062,11 @@
     "Terms of use: you agree once before using the app that you make your own decisions and take the risk, and the terms now spell out what the Safest way, ATES classes, weather, route status and GPS tracks can and can't tell you.":"Conditions d'utilisation : vous acceptez une fois, avant d'utiliser l'application, que vous prenez vos propres décisions et assumez les risques, et les conditions expliquent maintenant ce que le Chemin le plus sûr, les classes ATES, la météo, le statut des itinéraires et les traces GPS peuvent ou non vous dire.",
     "Skiing: tap a point or step in your tour list to see it up close, facing it.":"Ski : touchez un point ou une étape dans la liste de votre randonnée pour le voir de près, bien en face.",
     "Routes never double back: a tour, ride, hike or drive no longer goes up to a spot and comes back the same way (Corona Bowl and other Blackcomb lines fixed).":"Les itinéraires ne reviennent plus sur leurs pas : une randonnée, une sortie, une marche ou un trajet ne monte plus à un endroit pour redescendre par le même chemin (Corona Bowl et d'autres lignes de Blackcomb corrigées).",
-    "Skiing 3D map moves more smoothly: pins far off the screen no longer slow down every move.":"Carte 3D en ski plus fluide : les épingles loin de l'écran ne ralentissent plus chaque déplacement."};
+    "Skiing 3D map moves more smoothly: pins far off the screen no longer slow down every move.":"Carte 3D en ski plus fluide : les épingles loin de l'écran ne ralentissent plus chaque déplacement.",
+    "How the app is used":"Utilisation de l’appli",
+    "Don't share":"Ne pas partager",
+    "Screens, taps, searches and errors, with no name, email or location, to fix bugs.":"Écrans, touches, recherches et erreurs, sans nom, courriel ni position, pour corriger les bogues.",
+    "Privacy page now in French too, says where your data is kept and for how long, and More has a switch to stop sharing how you use the app.":"La page Confidentialité est maintenant aussi en français, dit où vos données sont gardées et combien de temps, et Plus a un bouton pour arrêter de partager votre utilisation de l’appli."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

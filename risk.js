@@ -7,7 +7,7 @@
 // RULE (alex 2026-11-05): "Keep it updated everytime we add something": a new feature that suggests where to go or
 // says how safe something is gets a line in terms.html (EN + FR) and, if it plans a route, a tfRiskOk kind here.
 // Before anything else, every device agrees once to the terms (tfTerms below, "Before you head out"): asked again only
-// when TERMS_V goes up after a real change to the terms.
+// when TERMS_V goes up after a real change to the terms (terms.html Changes promises a new I agree for a change that matters).
 (function () {
   "use strict";
   var KEY = "tf:riskOk";
