@@ -1598,6 +1598,14 @@
     gl.on("idle", groundCenter);   // also after opening and tilting up: aim at the ground once its heights are in (a camera under the mountains drew nothing)
     gl.on("movestart", (e) => { if (e.originalEvent) { handAt = Date.now(); searchTilt = false; } });   // the person's own moves win
     gl.on("moveend", placeNames);
+    // A ski tour on the map (winter.js routeFocus): the other names smaller and fainter, so the route reads first.
+    const namesFocus = (e) => { try {
+      const f = !!(e && e.detail);
+      gl.setLayoutProperty("trail-names", "text-size", f ? ["interpolate", ["linear"], ["zoom"], 12, 9, 15, 10.5] : ["interpolate", ["linear"], ["zoom"], 12, 11.5, 15, 13.5]);
+      gl.setPaintProperty("trail-names", "text-opacity", f ? ["*", ["get", "o"], 0.7] : ["get", "o"]);
+    } catch {} };
+    window.addEventListener("tf:routefocus", namesFocus);
+    if (document.body.classList.contains("sk-route-focus")) gl.once("load", () => namesFocus({ detail: true }));
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
     gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
