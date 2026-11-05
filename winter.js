@@ -1312,7 +1312,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3350").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3370").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2753,7 +2753,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       probs: (f.problems || []).map((p) => ({ type: p.type || "", aspects: p.aspects || [], elevations: p.elevations || [] })) };
   }
   // What's kept of a found way (on this device, with the points it was found for).
-  const slimSafe = (out, key) => ({ key, level: out.level || "balanced", line: out.line, legs: out.legs || [], from: out.from, park: out.park || "", stats: out.stats, straight: out.straight, av: out.av, at: Date.now(),
+  const slimSafe = (out, key) => ({ key, level: out.level || "balanced", line: out.line, legs: out.legs || [], from: out.from, park: out.park || "", stats: out.stats, straight: out.straight, av: out.av, weigh: out.weigh, alts: out.alts || [], at: Date.now(),
     runs: out.runs.map((r) => ({ cls: r.cls, m: Math.round(r.m), pts: r.pts.map((p) => [+p[0].toFixed(6), +p[1].toFixed(6)]), mid: [+r.mid[0].toFixed(6), +r.mid[1].toFixed(6)], maxDeg: r.maxDeg, band: r.band, asp: r.asp, hit: r.hit, src: r.src ? { ...r.src, at: undefined } : null })) });
   function gotSafe(out, key) {
     plan.path = slimSafe(out, key);
@@ -2907,6 +2907,17 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     why.push(`<b>${pct(st.ok + st.mid, tot)}%</b> of the way is under 30°${st.ok / tot > 0.5 ? `, ${pct(st.ok, tot)}% under 25°` : ""}.`);
     const now = st.steep + st.under + st.trap, then = sl.steep + sl.under;
     if (sl.total && then - now >= 50) why.push(`Straight across would be ${fmtM(sl.steep)} on 30°+ slopes and ${fmtM(sl.under)} under steep slopes. This way: ${now >= 5 ? `${fmtM(st.steep)} and ${fmtM(st.under + st.trap)}` : "none"}.`);
+    // Time exposed, and how the search weighs it against a longer way (alex 2026-11-05: "sometime it safer to go down
+    // traverse on flat and go up again instead to stay expose on a slope").
+    const mins = (sec) => { const m = Math.max(1, Math.round(sec / 60)); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`; };
+    if (st.sec > 0) {
+      const ex = st.steepSec + st.underSec;
+      why.push(ex >= 30 ? `<b>About ${mins(ex)} exposed</b> of ${mins(st.sec)} on the move: ${[st.steepSec >= 30 ? `${mins(st.steepSec)} on 30°+ slopes` : "", st.underSec >= 30 ? `${mins(st.underSec)} under steep slopes` : ""].filter(Boolean).join(", ")}. Time on or under a slope that could slide is what it keeps short.`
+        : `<b>Next to no time exposed</b> in ${mins(st.sec)} on the move: no 30°+ slopes and nothing steep above, as far as the terrain map can see.`);
+    }
+    const wg = sp.weigh;
+    if (wg) why.push(`How it weighs it today, on skins: 1 min on a 30-35° slope counts like ${Math.round(wg.s30)} min on gentle ground, 35-40° like ${Math.round(wg.s35)} min (${Math.round(wg.side35)} min sidehilling across it), under a steep slope like ${Math.round(wg.under)} min. So it drops to flatter ground, crosses and climbs back when that's less time exposed, even if it's longer.`);
+    for (const x of sp.alts || []) why.push(`Leaves the usual skin track (${esc(x.name)}) before its crux: that track sidehills ${fmtM(x.theirs.steep)} on 30°+ slopes, about ${mins(x.theirs.expo)} exposed. This way: ${x.mine.steep >= 20 ? fmtM(x.mine.steep) : "none"}, about ${mins(x.mine.expo)}${x.mine.sec - x.theirs.sec >= 120 ? `, for about ${mins(x.mine.sec - x.theirs.sec)} more on the move` : ""}. The usual track is quicker on a stable day; with slab problems in the forecast, the way round is the safer bet.`);
     if (!av.none && (av.probs || []).length) {
       const parts = (av.probs || []).filter((p) => p.aspects.length && p.aspects.length < 8).map((p) => `${p.aspects.map((x) => x.toUpperCase()).join(" ")} in the ${p.elevations.map((b) => ({ alp: "alpine", tln: "treeline", btl: "below treeline" }[b] || b)).join(", ")} (${esc(p.type)})`);
       if (parts.length) why.push(`Keeps off today's problem aspects where it can: ${parts.join("; ")}.${st.hit >= 5 ? ` Still ${fmtM(st.hit)} on them.` : ""}`);
@@ -2937,7 +2948,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ${watch.length ? `<details class="sk-sec sk-fold"><summary><h4>Watch out</h4><span style="--c:${C[watch.some((r) => r.cls === "steep" || r.cls === "trap") ? "steep" : "under"].color}">${watch.length} ${watch.length === 1 ? "spot" : "spots"}</span></summary><ol class="sk-safe-watch">${watch.map((r, i) => `<li style="--c:${(C[r.cls] || C.ok).color}" data-safe-at="${r.mid[0]},${r.mid[1]}"><i>!${i + 1}</i><span>${say(r)}</span></li>`).join("")}</ol></details>`
         : `<div class="sk-sec"><p class="sk-safe-ok">No 30°+ slopes and no steep slopes above on this route, as far as the terrain map can see.</p></div>`}
       <div class="sk-row"><button type="button" class="btn" id="skSafeRev">⇅ Reverse the tour</button><button type="button" class="btn" id="skSafeAgain">↻ Find again</button></div>
-      <p class="sk-safe-dis"><b>Not a substitute for avalanche training.</b> This is a planning aid based on a terrain model (10 to 30 m) and the regional forecast. It can't see cornices, wind loading, small slopes, trees or today's snowpack, and a forecast covers a whole region. Take an avalanche course (AST 1), carry a transceiver, probe and shovel with partners who know how to use them, read the full forecast on ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}, and make your own decisions in the field.</p>
+      <p class="sk-safe-dis"><b>Not a substitute for avalanche training.</b> This is a planning aid based on a terrain model (10 to 30 m) and the regional forecast. It can't see cornices, wind loading, small slopes, trees or today's snowpack, and a forecast covers a whole region. How much a minute on a steep slope weighs against a longer way is judgment taken from avalanche course rules of thumb, not measured odds. Take an avalanche course (AST 1), carry a transceiver, probe and shovel with partners who know how to use them, read the full forecast on ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}, and make your own decisions in the field.</p>
       ${window.tfRiskLine ? window.tfRiskLine() : ""}
     </div>`;
   }

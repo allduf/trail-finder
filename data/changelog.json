@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-05", "text": "Skiing: the Safest way now weighs time spent on or under avalanche slopes, so it drops to flat ground and climbs back rather than sidehilling a long steep slope, and Why this way says how many minutes you're exposed."},
     {"date": "2026-11-05", "text": "Skiing: the Poop Chutes now go down the Phalanx Glacier like the GPS track (not the north ridge), and Whistler Blackcomb's 21 official uphill and backcountry routes show today's Open or Closed."},
     {"date": "2026-11-05", "text": "Skiing: Phalanx via the Stairmaster bootpack, the real way to the top of the Poop Chutes, and tours to there follow it (no more Phalanx south ridge, which has rock pinnacles)."},
     {"date": "2026-11-05", "text": "Skiing: ＋ Add a point under End in your tour's list, then tap the map where you want to go next."},
