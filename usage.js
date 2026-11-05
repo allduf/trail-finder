@@ -10,6 +10,15 @@
   if (!C || !C.isNativePlatform || !C.isNativePlatform() || !acct || !acct.enabled) { window.tfUse = () => {}; window.tfUseQ = []; return; }
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+  // More → How the app is used: Don't share stops it at once and drops what wasn't sent yet (tf:useOff, this device).
+  let off = lsGet("tf:useOff") === "1";
+  window.tfUsage = {
+    on: () => !off,
+    set(v) {
+      off = !v;
+      try { if (off) { localStorage.setItem("tf:useOff", "1"); localStorage.removeItem("tf:useQueue"); queue = []; } else localStorage.removeItem("tf:useOff"); } catch {}
+    },
+  };
   const rid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now());
 
   let device = lsGet("tf:device");
@@ -37,6 +46,7 @@
   let queue = [];
   try { queue = JSON.parse(lsGet(QKEY) || "[]"); } catch {}
   const add = (k, w, ms) => {
+    if (off) return;
     queue.push({ s: session, t: new Date().toISOString(), p: page, k, w: w == null ? null : String(w).slice(0, 120), ms });
     if (queue.length > MAX_QUEUE) queue = queue.slice(-MAX_QUEUE);
     lsSet(QKEY, JSON.stringify(queue));
@@ -72,7 +82,7 @@
 
   let sending = false;
   function flush(leaving) {
-    if (sending || !queue.length || !navigator.onLine) return;
+    if (off || sending || !queue.length || !navigator.onLine) return;
     const batch = queue.slice(0, 200);
     sending = true;
     fetch(`${acct.url}/rest/v1/rpc/tf_use`, {
