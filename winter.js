@@ -223,6 +223,9 @@ body.sk-route-focus :is(.wc-gl, .hc-pin, .sk-pin.park) { transform: scale(.75); 
 @keyframes skPtPop { 0% { scale: .3; } 60% { scale: 1.25; } 100% { scale: 1; } }
 .sk-safe-w { background: #e03131; }
 .sk-safe-w { width: auto !important; min-width: 18px; padding: 0 4px; border-radius: 6px !important; }
+.sk-safe-w { white-space: nowrap; }
+.sk-safe-w small { font-weight: 700; font-size: 10px; margin-left: 4px; }
+.sk-safe-rg { width: 16px; height: 16px; border-radius: 50%; background: #2f9e44; color: #fff; font: 800 10px/16px system-ui, sans-serif; text-align: center; border: 2px solid #fff; box-shadow: 0 1px 3px #0006; box-sizing: content-box; }
 #skiPane .sk-safe { display: flex; flex-direction: column; gap: 14px; border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--panel); }
 #skiPane .sk-safe h4 { margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: -.01em; }
 #skiPane .sk-sec { display: flex; flex-direction: column; gap: 8px; }
@@ -687,12 +690,29 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         if (r.maxDeg > cur.maxDeg) { cur.maxDeg = r.maxDeg; cur.asp = r.asp; cur.band = r.band; }
         if (r.src && (!cur.src || r.src.deg + (r.src.hit ? 10 : 0) > cur.src.deg + (cur.src.hit ? 10 : 0))) cur.src = r.src;
         if (r.m > cur.big) { cur.big = r.m; cur.mid = r.mid; }
+        cur.at1 = r.at1;
       } else { cur = { ...r, by: { [r.cls]: r.m }, big: r.m }; out.push(cur); }
       gap = 0;
     }
     for (const w of out) w.cls = w.by.trap >= 20 ? "trap" : (w.by.steep || 0) >= (w.by.under || 0) ? "steep" : "under";
-    return out.filter((w) => w.m >= 40);
+    const res = out.filter((w) => w.m >= 40);
+    // A place to regroup before and after each one (alex 2026-11-05: "safe spots on the route for regrouping"): the
+    // nearest regroup place on the way within 400 m, a ridge or trees over open flat ground when they're about as close.
+    const sf = sp.safe || [], rank = { ridge: 0, trees: 1, flat: 2 };
+    const pick = (lo, hi, near) => sf.filter((q) => q.d >= lo && q.d <= hi).sort((a, b) => Math.abs(a.d - near) + rank[a.kind] * 60 - (Math.abs(b.d - near) + rank[b.kind] * 60))[0] || null;
+    for (const w of res) if (w.at0 != null) {
+      w.before = pick(w.at0 - 400, w.at0 - 10, w.at0);
+      w.after = pick(w.at1 + 10, w.at1 + 400, w.at1);
+    }
+    return res;
   }
+  // The regroup places to show on the map: before and after each watch-out, each place once.
+  function regroupPts(watch) {
+    const out = [];
+    for (const w of watch) for (const q of [w.before, w.after]) if (q && !out.some((o) => Math.abs(o.d - q.d) < 60)) out.push(q);
+    return out;
+  }
+  const RG_KIND = { ridge: "on the ridge", trees: "in the trees", flat: "on flat ground" };
   const aboveLayer = L.layerGroup();   // drawAbove()
   const pinLayer = L.layerGroup();     // drawPins(): the opened tour's start and top
   const lineOf = (flat) => { const out = []; for (let i = 0; i < flat.length; i += 2) out.push([flat[i], flat[i + 1]]); return out; };
@@ -1662,7 +1682,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     if (rain >= 2 && fzMax > ele) signs.push(["hi", `🌧 Rain on snow: about ${Math.round(rain)} mm of rain at ${at}. Wet slides, and a crust after.`]);
     if (warm >= 3) signs.push([warm >= 6 ? "hi" : "", `☀ Warming: up to ${Math.round(warm)}°C at ${at} in the next day. Wet avalanches and falling cornices: off sunny and steep slopes early.`]);
-    return { signs, fzNow, fzMax, snow24, snow72, next24, lee, maxW };
+    return { signs, fzNow, fzMax, snow24, snow72, next24, lee, maxW, rain, warm };
   }
   function signsHtml(a, ele) {
     if (!a) return "";
@@ -2543,11 +2563,23 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: "#111", weight: 14, opacity: 0.45, lineCap: "round", lineJoin: "round", interactive: false }));
       for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: "#fff", weight: 10, opacity: 1, lineCap: "round", lineJoin: "round", interactive: false }));
       for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: (C[r.cls] || C.ok).color, weight: 6, opacity: 1, lineCap: "round", lineJoin: "round", interactive: false }));
-      if (pins) safeWatch(sp).forEach((r, i) => {
-        const html = `<div class="sk-safe-n sk-safe-w">!${i + 1}</div>`;
-        plan.layer.addLayer(L.marker(r.mid, { pane: "ski", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html, iconSize: [26, 22], iconAnchor: [13, 11] }) }));
-        planGlPin(r.mid, html, 4);
-      });
+      // Each watch-out says how to cross it (alex 2026-11-05: "mark crux crossings as one at a time on the map"): on 30°+
+      // ground or in a terrain trap, one at a time; under a slope, keep moving. Green R pins: where to regroup.
+      if (pins) {
+        const watch = safeWatch(sp);
+        watch.forEach((r, i) => {
+          const how = r.cls === "under" ? "Don't stop" : "One at a time";
+          const html = `<div class="sk-safe-n sk-safe-w">!${i + 1}<small>${how}</small></div>`;
+          if (!map.getPane("skiSafePt")) { map.createPane("skiSafePt").style.zIndex = 660; map.getPane("skiSafePt").style.pointerEvents = "none"; }
+          plan.layer.addLayer(L.marker(r.mid, { pane: "skiSafePt", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html, iconSize: null, iconAnchor: [13, 11] }) }));
+          planGlPin(r.mid, html, 4);
+        });
+        for (const q of regroupPts(watch).filter((q) => !watch.some((r) => map.distance(q.at, r.mid) < 80))) {   // not under a watch-out's label
+          const html = `<div class="sk-safe-rg" title="Regroup ${RG_KIND[q.kind]}">R</div>`;
+          plan.layer.addLayer(L.marker(q.at, { pane: "ski", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html, iconSize: [22, 22], iconAnchor: [11, 11] }) }));
+          planGlPin(q.at, html, 3);
+        }
+      }
     } else if (plan.pts.length > 1) {
       plan.layer.addLayer(L.polyline(plan.pts, { pane: "ski", color: "#fff", weight: 8, opacity: 0.9, interactive: false }));
       plan.layer.addLayer(L.polyline(plan.pts, { pane: "ski", color: plan.safe ? "#868e96" : "#e8590c", weight: 4, opacity: 1, dashArray: plan.on || plan.safe ? "10 6" : null, interactive: false }));
@@ -2752,9 +2784,22 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return { r: { alp: d.alp || 0, tln: d.tln || 0, btl: d.btl || 0 }, mask: { ...a.mask }, bands, title: f.title || a.name || "", day: d.label || d.date || "", example: !!example,
       probs: (f.problems || []).map((p) => ({ type: p.type || "", aspects: p.aspects || [], elevations: p.elevations || [] })) };
   }
+  // Today's weather signs for the safest way (ski-route.js wxF): Open-Meteo at the alpine height (the forecast's alpine
+  // band, where slabs form) where the tour starts. { snowF, lee, rainTo, warm, snow24, snow72, maxW, wind } or
+  // { none: true } when it can't be had (offline, Open-Meteo's daily limit): the route then reads the forecast only.
+  async function routeWx(pt, av) {
+    const ele = Math.round(((av.bands && av.bands.hi) || DEFAULT_BANDS.hi) + 150);
+    try {
+      const w = await Promise.race([weather(pt[0], pt[1], ele), new Promise((_, no) => setTimeout(() => no(new Error("slow")), 8000))]);
+      const a = avyWeather(w, ele);
+      if (!a) return { none: true };
+      const snowF = a.snow24 >= 25 || a.snow72 >= 40 ? 1.6 : a.snow24 >= 10 || a.snow72 >= 20 ? 1.25 : 1;
+      return { snowF, lee: a.lee, rainTo: a.rain >= 2 && a.fzMax > 0 ? a.fzMax : 0, warm: Math.round(a.warm), snow24: Math.round(a.snow24), snow72: Math.round(a.snow72), maxW: Math.round(a.maxW), ele };
+    } catch { return { none: true }; }
+  }
   // What's kept of a found way (on this device, with the points it was found for).
-  const slimSafe = (out, key) => ({ key, level: out.level || "balanced", line: out.line, legs: out.legs || [], from: out.from, park: out.park || "", stats: out.stats, straight: out.straight, av: out.av, weigh: out.weigh, alts: out.alts || [], at: Date.now(),
-    runs: out.runs.map((r) => ({ cls: r.cls, m: Math.round(r.m), pts: r.pts.map((p) => [+p[0].toFixed(6), +p[1].toFixed(6)]), mid: [+r.mid[0].toFixed(6), +r.mid[1].toFixed(6)], maxDeg: r.maxDeg, band: r.band, asp: r.asp, hit: r.hit, src: r.src ? { ...r.src, at: undefined } : null })) });
+  const slimSafe = (out, key) => ({ key, level: out.level || "balanced", line: out.line, legs: out.legs || [], from: out.from, park: out.park || "", stats: out.stats, straight: out.straight, av: out.av, weigh: out.weigh, alts: out.alts || [], safe: out.safe || [], at: Date.now(),
+    runs: out.runs.map((r) => ({ cls: r.cls, m: Math.round(r.m), at0: r.at0, at1: r.at1, pts: r.pts.map((p) => [+p[0].toFixed(6), +p[1].toFixed(6)]), mid: [+r.mid[0].toFixed(6), +r.mid[1].toFixed(6)], maxDeg: r.maxDeg, band: r.band, asp: r.asp, hit: r.hit, src: r.src ? { ...r.src, at: undefined } : null })) });
   function gotSafe(out, key) {
     plan.path = slimSafe(out, key);
     store.set("skiPlanPath", plan.path);
@@ -2772,6 +2817,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     try {
       await loadJs("ski-route");
       const av = await avyFor(pts[0][0], pts[0][1]);
+      av.wx = await routeWx(pts[0], av);
       const out = await window.tfSkiRoute.route(pts, av, say);
       if (my !== plan.run) return;
       if (out.fail) { plan.wait = ""; plan.fail = out.fail; plan.failAt = out; drawPlan(); renderPlan(); return; }
@@ -2798,6 +2844,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     try {
       await loadJs("ski-route");
       const av = await avyFor(lat, lon);
+      av.wx = await routeWx([lat, lon], av);
       const out = await window.tfSkiRoute.fromRoad([lat, lon], av, say);
       if (my !== plan.run) return;
       spotLayer.clearLayers();
@@ -2917,6 +2964,16 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     const wg = sp.weigh;
     if (wg) why.push(`How it weighs it today, on skins: 1 min on a 30-35° slope counts like ${Math.round(wg.s30)} min on gentle ground, 35-40° like ${Math.round(wg.s35)} min (${Math.round(wg.side35)} min sidehilling across it), under a steep slope like ${Math.round(wg.under)} min. So it drops to flatter ground, crosses and climbs back when that's less time exposed, even if it's longer.`);
+    // Today's weather in the risk (routeWx).
+    const wx = av.wx;
+    if (wx && !wx.none) {
+      const bits = [];
+      if (wx.snowF > 1) bits.push(`${wx.snow24} cm of new snow in the last day, ${wx.snow72} cm in 3 days: every slope counts ${wx.snowF}x`);
+      if (wx.lee && wx.lee.length) bits.push(`wind up to ${wx.maxW} km/h with snow to move: ${wx.lee.map((x) => SAFE_ASP[x]).join(", ")}-facing slopes in the alpine and at treeline count 1.5x (wind slabs)`);
+      if (wx.rainTo) bits.push(`rain on snow up to about ${fmtM(wx.rainTo)}: 1.5x below that`);
+      if (wx.warm >= 3) bits.push(`warming to ${wx.warm}°C at ${fmtM(wx.ele)}: sunny slopes count up to 1.4x`);
+      why.push(bits.length ? `Today's weather is in it too (at ${fmtM(wx.ele)}): ${bits.join("; ")}.` : `Today's weather (at ${fmtM(wx.ele)}) shows no new snow, wind loading, rain or warming to add.`);
+    } else if (wx && wx.none) why.push("Today's weather couldn't be loaded, so only the avalanche forecast is in it: check for new snow, wind and warming yourself.");
     for (const x of sp.alts || []) why.push(`Leaves the usual skin track (${esc(x.name)}) before its crux: that track sidehills ${fmtM(x.theirs.steep)} on 30°+ slopes, about ${mins(x.theirs.expo)} exposed. This way: ${x.mine.steep >= 20 ? fmtM(x.mine.steep) : "none"}, about ${mins(x.mine.expo)}${x.mine.sec - x.theirs.sec >= 120 ? `, for about ${mins(x.mine.sec - x.theirs.sec)} more on the move` : ""}. The usual track is quicker on a stable day; with slab problems in the forecast, the way round is the safer bet.`);
     if (!av.none && (av.probs || []).length) {
       const parts = (av.probs || []).filter((p) => p.aspects.length && p.aspects.length < 8).map((p) => `${p.aspects.map((x) => x.toUpperCase()).join(" ")} in the ${p.elevations.map((b) => ({ alp: "alpine", tln: "treeline", btl: "below treeline" }[b] || b)).join(", ")} (${esc(p.type)})`);
@@ -2928,7 +2985,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const say = (r) => {
       const asp = r.asp >= 0 ? `${SAFE_ASP[r.asp]}-facing` : "";
       const also = r.cls === "steep" && (r.by.under || 0) >= 30 ? ` Part of it is also under steeper slopes${r.src ? ` (${r.src.deg}° ${SAFE_ASP[r.src.asp]}-facing above)` : ""}.` : r.cls === "under" && (r.by.steep || 0) >= 30 ? ` About ${fmtM(r.by.steep)} of it is on 30°+ ground itself.` : "";
-      return say1(r, asp) + also;
+      const far = (m, w) => (m < 30 ? `right ${w} it` : `${fmtM(Math.round(m / 10) * 10)} ${w} it`);
+      const rg = [r.before ? `${far(r.at0 - r.before.d, "before")} ${RG_KIND[r.before.kind]}` : "", r.after ? `${far(r.after.d - r.at1, "after")} ${RG_KIND[r.after.kind]}` : ""].filter(Boolean);
+      return say1(r, asp) + also + (rg.length ? ` Regroup ${rg.join(", and ")}.` : "");
     };
     const say1 = (r, asp) => {
       if (r.cls === "steep") return `<b>${fmtM(r.m)} on slopes up to ${r.maxDeg}°</b>${asp ? `, ${asp}` : ""} (${SAFE_BAND[r.band]})${r.hit ? ", <b>on an aspect in today's avalanche problems</b>" : ""}. No gentler way round here: go one at a time and stay on the lowest-angle line.`;

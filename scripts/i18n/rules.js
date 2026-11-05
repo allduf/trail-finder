@@ -152,4 +152,12 @@
       "Comment il pèse le temps aujourd'hui, en peaux : 1 min sur une pente de 30-35° compte comme $1 min en terrain doux, 35-40° comme $2 min ($3 min en traversée à flanc), sous une pente raide comme $4 min. Il descend donc vers du terrain plus plat, traverse et remonte quand on y est moins longtemps exposé, même si c'est plus long."],
     [/^Leaves the usual skin track \((.+)\) before its crux: that track sidehills (.+) on 30°\+ slopes, about (.+) exposed\. This way: (.+?), about (.+?)(?:, for about (.+) more on the move)?\. The usual track is quicker on a stable day; with slab problems in the forecast, the way round is the safer bet\.$/,
       function (m, n, a, b, c, d, e) { return "Quitte la trace habituelle (" + n + ") avant son passage clé : cette trace traverse à flanc " + a + " de pentes de 30°+, environ " + b + " d'exposition. Par ici : " + (c === "none" ? "aucun" : c) + ", environ " + d + (e ? ", pour environ " + e + " de plus en mouvement" : "") + ". La trace habituelle est plus rapide par temps stable; avec des plaques dans le bulletin, le détour est le choix le plus sûr."; }],
+    [/^Today's weather \(at (.+?)\) shows no new snow, wind loading, rain or warming to add\.$/, "La météo du jour (à $1) n'ajoute ni neige fraîche, ni transport par le vent, ni pluie, ni réchauffement."],
+    [/^Today's weather is in it too \(at (.+?)\): (.+)\.$/, function (m, at, rest) {
+      return "La météo du jour compte aussi (à " + at + ") : " + rest
+        .replace(/(\d+) cm of new snow in the last day, (\d+) cm in 3 days: every slope counts ([\d.]+)x/, "$1 cm de neige fraîche en 24 h, $2 cm en 3 jours : chaque pente compte $3x")
+        .replace(/wind up to (\d+) km\/h with snow to move: (.+?)-facing slopes in the alpine and at treeline count 1\.5x \(wind slabs\)/, function (m2, w, a) { return "vent jusqu'à " + w + " km/h avec de la neige à transporter : pentes orientées " + a.replace(/northeast/g, "nord-est").replace(/northwest/g, "nord-ouest").replace(/southeast/g, "sud-est").replace(/southwest/g, "sud-ouest").replace(/north/g, "nord").replace(/south/g, "sud").replace(/east/g, "est").replace(/west/g, "ouest") + " en alpin et à la limite des arbres : 1,5x (plaques à vent)"; })
+        .replace(/rain on snow up to about (.+?): 1\.5x below that/, "pluie sur neige jusqu'à environ $1 : 1,5x en dessous")
+        .replace(/warming to (-?\d+)°C at (.+?): sunny slopes count up to 1\.4x/, "réchauffement jusqu'à $1 °C à $2 : pentes ensoleillées jusqu'à 1,4x") + ".";
+    }],
   ];

@@ -45,6 +45,24 @@
     trap: { color: "#a61e4d", label: "Terrain trap" },
   };
 
+  // Today's weather signs (winter.js avyWeather, Open-Meteo at the alpine height; alex 2026-11-05: "feed recent snowfall,
+  // wind and warming into the risk for that day"): what Avalanche Canada lists for extra caution, on top of the forecast,
+  // which was written the evening before and can't see a storm that came in overnight.
+  //  - New snow: 10 cm+ in a day or 20 cm+ in 3 days 1.25x on every slope, 25 cm+ / 40 cm+ (a storm slab) 1.6x.
+  //  - Wind loading (25 km/h+ with snow to move): the slopes facing away from the wind (lee, wx.lee) 1.5x in the alpine
+  //    and at treeline, where wind moves snow.
+  //  - Rain on snow: 1.5x below the freezing level (wet slides).
+  //  - Warming to 3°C+ at the alpine height: sunny slopes (southeast to southwest) 1.4x, east and west 1.2x.
+  // At most 3x in all. wx: { snowF, lee: [aspect index...], rainTo (m), warm (°C) } or none.
+  const SUNNY = [1, 1, 1.2, 1.4, 1.4, 1.4, 1.2, 1];
+  const wxF = (wx, a, b, e) => {
+    if (!wx) return 1;
+    let f = wx.snowF || 1;
+    if (wx.lee && b < 2 && wx.lee.includes(a)) f *= 1.5;
+    if (wx.rainTo && e < wx.rainTo) f *= 1.5;
+    if (wx.warm >= 3) f *= SUNNY[a];
+    return Math.min(3, f);
+  };
   // The ground on each cell in avalanche terms. av: { r: { alp, tln, btl }, mask: { alp, tln, btl }, bands: { lo, hi } }.
   const breathe = () => new Promise((r) => setTimeout(r, 0));
   async function prep(g, av) {
@@ -64,7 +82,7 @@
       asp[i] = Math.round(((Math.atan2(-dx, dyS) / RAD + 360) % 360) / 45) % 8;   // the way the slope faces (downhill)
       const e = at(r, c), b = e >= hi ? 0 : e >= lo ? 1 : 2;
       band[i] = b;
-      const rt = av.r[BAND[b]] || 0, m = av.mask[BAND[b]] || 0, A = m ? (m & (1 << asp[i]) ? 1.6 : 0.6) : 1, w = WD[rt] * A;
+      const rt = av.r[BAND[b]] || 0, m = av.mask[BAND[b]] || 0, A = m ? (m & (1 << asp[i]) ? 1.6 : 0.6) : 1, w = WD[rt] * A * wxF(av.wx, asp[i], b, e);
       risk[i] = w * slopeTerm(s);
       if (s >= 30 && s <= 60) start[i] = w;
     } }
@@ -143,6 +161,19 @@
   // About how long a stretch takes, for the exposure times on the card: skinning 4 km/h on the flat and 430 m an hour up
   // (the cost's pace), skiing down about 11 km/h with stops.
   const travelSec = (d, dh) => (dh < SKIN_DOWN * d ? d / 3 : d / 1.1 + Math.max(0, dh) / 0.12);
+  // Is cell c a place to regroup, and what kind: "ridge" (a crest, higher than the ground 30 m to each side, so nothing
+  // above it), "trees" (mapped forest: the map can't tell dense trees from open glades) or "flat" (open, gentle, not under
+  // anything), or "" (not one). The terrain model is 10 to 30 m: a small slope or a cornice beside it isn't seen.
+  function safeKind(g, c) {
+    const sk = g.sk;
+    if (!sk.deg.length || sk.deg[c] >= 20 || sk.expo[c] > 0 || sk.trap[c]) return "";
+    const W = g.W, H = g.H, r = Math.floor(c / W), col = c % W, k = Math.max(1, Math.round(30 / g.cellM)), h = g.h;
+    const at = (rr, cc) => { const v = h[Math.min(H - 1, Math.max(0, rr)) * W + Math.min(W - 1, Math.max(0, cc))]; return v === v ? v : h[c]; };
+    // Steep ground right beside it (within 30 m) counts as under a slope too: the runout model needs a 25 m drop.
+    for (let dr = -k; dr <= k; dr += k) for (let dc = -k; dc <= k; dc += k) { const rr = r + dr, cc = col + dc; if (rr >= 0 && cc >= 0 && rr < H && cc < W && sk.deg[rr * W + cc] >= 30 && at(rr, cc) > h[c] + 5) return ""; }
+    const e = h[c], ridge = (at(r - k, col) < e - 3 && at(r + k, col) < e - 3) || (at(r, col - k) < e - 3 && at(r, col + k) < e - 3);
+    return ridge ? "ridge" : g.ground[c] === 1 ? "trees" : "flat";
+  }
   const clsOf = (sk, c) => (sk.expo[c] > 0 ? (sk.trap[c] ? "trap" : "under") : sk.deg[c] >= 30 ? "steep" : sk.deg[c] >= 25 ? "mid" : "ok");
   // Cells to pieces of one kind, with what's around them.
   function pieces(FR, g, cells, av) {
@@ -162,11 +193,16 @@
     let ci = 0;
     for (const r of runs) {
       // How long it takes (see travelSec), and the minutes it's on 30°+ ground or under it: the exposure time.
-      r.sec = 0;
+      r.sec = 0; r.safe = [];
+      let off = 0, lastSafe = -1e9;
       for (let k = 1; k < r.cells.length; k++) {
         const p = r.cells[k - 1], c = r.cells[k], d = (Math.abs((c % g.W) - (p % g.W)) + Math.abs(Math.floor(c / g.W) - Math.floor(p / g.W)) > 1 ? Math.SQRT2 : 1) * g.cellM;
         const dh = hs.get(ci + k) - hs.get(ci + k - 1);
         r.sec += travelSec(d, dh === dh ? dh : 0);
+        off += d;
+        // A place to regroup (Avalanche Canada: "away from start zones, tracks and runout zones, such as dense trees or high
+        // ground far from steep slopes"): under 20°, nothing above that could slide, no gully; every 25 m along the way.
+        if (off - lastSafe >= 25) { const k2 = safeKind(g, c); if (k2) { r.safe.push({ off: Math.round(off), at: cellLL(g, c), kind: k2 }); lastSafe = off; } }
       }
       ci += r.cells.length - 1;
       const pts = r.cells.map((c) => cellLL(g, c));
@@ -267,6 +303,9 @@
     } catch { return []; }
   }
   function total(legs, av, extra) {
+    // Where each run starts and ends along the whole tour (m), and the regroup places on the way (for the map and the card).
+    const safe = [];
+    { let D = 0; for (const l of legs) for (const r of l.runs) { r.at0 = Math.round(D); for (const q of r.safe || []) safe.push({ d: Math.round(D + q.off), at: [+q.at[0].toFixed(6), +q.at[1].toFixed(6)], kind: q.kind }); D += r.m; r.at1 = Math.round(D); delete r.safe; } }
     const runs = legs.flatMap((l) => l.runs), st = { total: 0, ok: 0, mid: 0, steep: 0, under: 0, trap: 0, hit: 0, maxDeg: 0, sec: 0, steepSec: 0, underSec: 0 };
     for (const r of runs) {
       st.total += r.m; st[r.cls] += r.m; if (r.hit && r.cls === "steep") st.hit += r.m; st.maxDeg = Math.max(st.maxDeg, r.maxDeg);
@@ -284,7 +323,7 @@
     const weigh = { s30: mult(sk, w * slopeTerm(32), true, false), s35: mult(sk, w * slopeTerm(37), true, false), side35: mult(sk, w * slopeTerm(37), true, true), under: mult(sk, w * 1.5, true, false) };
     // A documented skin track the search left (wayOf): what it would have been, for "why this way".
     const alts = legs.map((l) => l.alt).filter(Boolean);
-    return { line, runs, stats: st, straight: sl, av, legs: legOut, level: levelOf(av), weigh, alts, ...extra };
+    return { line, runs, stats: st, straight: sl, av, legs: legOut, level: levelOf(av), weigh, alts, safe, ...extra };
   }
 
   // The safest way through the points you tapped (pts: [[lat, lon], ...], 2 or more), one leg at a time.
