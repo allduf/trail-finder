@@ -339,7 +339,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   // spots, gauges, tides; ~5 MB for all of Canada) and the heights the Route to a spot uses (zoom 12, fish-route.js).
   window.tfFishOffline = (box) => {
     const data = [...["boating", "eat", "fishlist", "gauges", "spots", "stocked", "tidal", "tides", "walkin", "zones", "qcrules", "onrules"].map((n) => `data/fishing/${n}.json`),
-      "data/fishing-hidden.json", "data/fishing-launches.json", "data/fishing/depth/i.json", ...depthOffline(box)].map((u) => new URL(u, location.href).href);
+      "data/fishing-hidden.json", "data/fishing-launches.json", "data/fishing-boat-zones.json", "data/fishing/depth/i.json", ...depthOffline(box)].map((u) => new URL(u, location.href).href);
     const tx = (lon) => Math.floor(((lon + 180) / 360) * 4096), ty = (lat) => Math.floor(((1 - Math.asinh(Math.tan((lat * Math.PI) / 180)) / Math.PI) / 2) * 4096);
     const tiles = [];
     for (let x = tx(box[1]); x <= tx(box[3]); x++) for (let y = ty(box[2]); y <= ty(box[0]); y++) tiles.push(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/12/${x}/${y}.png`);
@@ -446,8 +446,10 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     return "Has limits";
   }
   async function boatHtml(lat, lon, name, prov, extra = []) {
-    const b = await loadBoating();
-    if (!b) return "";
+    const [b, sign] = await Promise.all([loadBoating(), boatSignAt(lat, lon)]);
+    if (!b && !sign) return "";
+    const out = (sum, body) => (sign ? fold("boat", IC.boat, "Boating", esc(signSum(sign)), signHtml(sign) + (body || "")) : fold("boat", IC.boat, "Boating", sum, body));
+    if (!b) return out("", "");
     const nm = plain(name);
     // A water's rule is listed at its middle: the same name within 25 km, or anything listed within 1.5 km of the spot.
     // Alberta's are listed by name only.
@@ -469,11 +471,26 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     for (const x of extra) for (const t of boatBits(x.t)) { const k = t.toLowerCase(); if (!xSeen.has(k) && !tcShort.has(boatShort(t))) { xSeen.add(k); xs.push({ ...x, t }); } }
     const xli = xs.map((x) => `<li style="--c:${/no motors|electric/i.test(boatShort(x.t)) ? "#e03131" : "#f08c00"}"><b>${esc(x.t[0].toUpperCase() + x.t.slice(1))}</b><small>From ${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.src)}</a>` : esc(x.src)}</small></li>`).join("");
     const xSum = [...new Set(xs.map((x) => boatShort(x.t)))].slice(0, 2).join(", ");
-    if (!rules.length && xs.length) return fold("boat", IC.boat, "Boating", esc(xSum), `<ul class="fs-list">${xli}</ul><p class="fs-note">${esc(name || "This water")} isn't on Transport Canada's list of restricted waters, but the sources above give these limits: follow any signs at the launch.</p>${general}`);
-    if (!rules.length) return nm || nearestTide(lat, lon, 3) ? fold("boat", IC.boat, "Boating", "No special limits", `<p class="fs-note">${esc(name || "This water")} isn't on Transport Canada's list of restricted waters.</p>${general}`) : "";
+    if (!rules.length && xs.length) return out(esc(xSum), `<ul class="fs-list">${xli}</ul><p class="fs-note">${esc(name || "This water")} isn't on Transport Canada's list of restricted waters, but the sources above give these limits: follow any signs at the launch.</p>${general}`);
+    if (!rules.length) return nm || nearestTide(lat, lon, 3) || sign ? out("No special limits", `<p class="fs-note">${esc(name || "This water")} isn't on Transport Canada's list of restricted waters.</p>${general}`) : "";
     const li = rules.map((r) => `<li style="--c:${r[2] <= 3 ? "#e03131" : "#f08c00"}"><b>${esc(BOAT[r[2]](r[6]))}${part(r) ? " (part of the water)" : ""}</b>${esc(clean(r[4]))}${r[5] ? ` (${esc(clean(r[5]))})` : ""}</li>`).join("");
     const whole = rules.filter((r) => !part(r)), sum = [...new Set((whole.length ? whole : rules).map((r) => BOAT_SHORT[r[2]](r[6])))].slice(0, 2).join(", ");
-    return fold("boat", IC.boat, "Boating", esc(whole.length ? sum : `${sum} in parts`), `<ul class="fs-list">${li}${xli}</ul>${general}`);
+    return out(esc(whole.length ? sum : `${sum} in parts`), `${sign ? '<p class="fs-note">Transport Canada\'s list:</p>' : ""}<ul class="fs-list">${li}${xli}</ul>${general}`);
+  }
+  // A lake with a sign at the water (data/fishing-boat-zones.json): which zone the spot is in, the sign's rules, who to call.
+  function signSum(sign) {
+    const k = sign.inside.map((z) => z.k);
+    if (k.includes("plane")) return "Float plane landing zone here";
+    if (k.includes("nowake")) return "No-wake zone here";
+    if (k.includes("ski")) return "Waterski zone here: watch for wakes";
+    return sign.lake.sum || "Signed zones, see the map";
+  }
+  function signHtml(sign) {
+    const l = sign.lake;
+    const here = [...new Set(sign.inside.map((z) => z.k))].map((k) => `<li style="--c:${BZ[k][0]}"><b>You're in the ${esc(BZ[k][1].toLowerCase())}</b></li>`).join("");
+    const rules = l.rules.map((t) => `<li style="--c:#f08c00">${esc(t)}</li>`).join("");
+    const call = (l.report || []).map(([who, n]) => `<a href="tel:${esc(n.replace(/[^\d+]/g, ""))}">${esc(who)}: ${esc(n)}</a>`).join("<br>");
+    return `<ul class="fs-list">${here}${rules}</ul>${call ? `<p class="fs-note">Report a problem on the water:<br>${call}<br>Emergency or accident: 911</p>` : ""}<p class="fs-note">From the ${esc(l.src)}. Zones on the map are drawn from the sign's map: follow the buoys.</p>`;
   }
   const BC_PDF = "https://www2.gov.bc.ca/assets/gov/sports-recreation-arts-and-culture/outdoor-recreation/fishing-and-hunting/freshwater-fishing/";
   const BC_REGION = { 1: ["1", "region_1_vancouver_island"], 2: ["2", "region_2_lower_mainland"], 3: ["3", "region_3_thompson"], 4: ["4", "region_4_kootenay"], 5: ["5", "region_5_cariboo"],
@@ -707,6 +724,46 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     });
   }
   map.on("moveend", () => { if (isFish() && (shown.has("zones") || shown.has("areas"))) drawZones(); });
+  // ---------- signed boating zones (data/fishing-boat-zones.json, from signs at the water, edited by hand) ----------
+  // alex 2026-11-04 photographed Whistler's "Boaters stop! Read this" sign at Green Lake: no-wake ends, waterski zone,
+  // float planes. Drawn with the Boat launches layer from zoom 12; the lake's rules go in the spot card's Boating fold.
+  const BZ = { nowake: ["#f08c00", "No-wake zone"], ski: ["#1c7ed6", "Waterski and wakeboard zone"], plane: ["#ae3ec9", "Float plane landing zone"], nomotor: ["#e03131", "No-motor zone"] };
+  let boatZones = null;
+  const loadBoatZones = () => boatZones || (boatZones = fetch("data/fishing-boat-zones.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : { lakes: [] })).then((j) => j.lakes || []).catch(() => []));
+  const inPoly = (lat, lon, p) => { let k = false; for (let i = 0, j = p.length - 1; i < p.length; j = i++) if ((p[i][0] > lat) !== (p[j][0] > lat) && lon < ((p[j][1] - p[i][1]) * (lat - p[i][0])) / (p[j][0] - p[i][0]) + p[i][1]) k = !k; return k; };
+  // The signed lake at a spot: inside one of its zones, or on its shore (within 250 m of an outline).
+  async function boatSignAt(lat, lon) {
+    for (const l of await loadBoatZones()) {
+      if (Math.abs(l.c[0] - lat) > 0.1 || Math.abs(l.c[1] - lon) > 0.15) continue;
+      const inside = l.zones.filter((z) => inPoly(lat, lon, z.p));
+      if (inside.length || l.zones.some((z) => z.p.some((q) => km(lat, lon, q[0], q[1]) < 0.25))) return { lake: l, inside };
+    }
+    return null;
+  }
+  const boatLayer = L.layerGroup(), boatLabels = L.layerGroup();
+  allFish.push(boatLayer, boatLabels);
+  function drawBoatZones() {
+    boatLayer.clearLayers(); boatLabels.clearLayers();
+    if (!isFish() || !shown.has("launch") || map.getZoom() < 12) return;
+    loadBoatZones().then((lakes) => {
+      boatLayer.clearLayers(); boatLabels.clearLayers();
+      if (!isFish() || !shown.has("launch") || map.getZoom() < 12) return;
+      const view = map.getBounds().pad(0.5);
+      for (const l of lakes) {
+        if (!view.intersects(L.latLngBounds(l.zones.flatMap((z) => z.p)))) continue;
+        for (const z of l.zones) {
+          const [c] = BZ[z.k] || BZ.nowake, plane = z.k === "plane";
+          L.polygon(z.p, { pane: "fishLines", color: c, weight: plane ? 2 : 1.4, opacity: 0.9, dashArray: plane ? "5 4" : null, fill: true, fillColor: c,
+            fillOpacity: plane ? 0.22 : 0.16, interactive: false, smoothFactor: 1 }).addTo(boatLayer);
+          // Names where the data puts them (z.l): the middle of a curved arm can be on land.
+          if (!z.l) continue;
+          L.marker(z.l, { pane: "fishLabels", interactive: false, keyboard: false,
+            icon: L.divIcon({ className: "fs-zlabel", html: `<span style="--c:${c}">${esc(z.n)}</span>`, iconSize: null }) }).addTo(boatLabels);
+        }
+      }
+      sync3d();
+    });
+  }
   // Crown land: each province's own map (crownland.js), under the water colours.
   const crownTiles = window.tfCrown ? window.tfCrown.leaflet("fishTiles", 0.26) : null;
   function syncTiles() {
@@ -1002,7 +1059,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   map.on("moveend", () => { if (isFish() && shown.has("creeks")) syncFarCreeks(); });
   function applyLayers() {
     store.set("fishLayers", [...shown]);
-    renderLayers(); renderKey(); syncTiles(); syncWater(); drawZones(); drawPoints(); loadReadings(); loadAccess();
+    renderLayers(); renderKey(); syncTiles(); syncWater(); drawZones(); drawPoints(); drawBoatZones(); loadReadings(); loadAccess();
   }
   // Map key: what the dot colours mean.
   const keyCtl = L.control({ position: "bottomleft" });
@@ -2288,9 +2345,9 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       // Zone and park fills and names (map3d.js brings over only their outlines), from what drawZones put on the flat map.
       const fills = [], names = [];
       if (isFish()) {
-        zoneLayer.eachLayer((l) => fills.push({ type: "Feature", properties: { c: l.options.fillColor, o: Math.min(0.35, l.options.fillOpacity * 1.6) },
-          geometry: { type: "MultiPolygon", coordinates: ((r) => (Array.isArray(r[0]) ? r : [r]))(l.getLatLngs()).filter((r) => r.length > 2).map((r) => [[...r, r[0]].map((q) => [q.lng, q.lat])]) } }));
-        labelLayer.eachLayer((m) => { const sp = m.options.icon.options.html.match(/--c:([^"]+)">([^<]*)</); if (sp) names.push({ type: "Feature", properties: { c: sp[1], t: sp[2].replace(/&amp;/g, "&") }, geometry: { type: "Point", coordinates: [m.getLatLng().lng, m.getLatLng().lat] } }); });
+        [zoneLayer, boatLayer].forEach((g) => g.eachLayer((l) => fills.push({ type: "Feature", properties: { c: l.options.fillColor, o: Math.min(0.35, l.options.fillOpacity * 1.6) },
+          geometry: { type: "MultiPolygon", coordinates: ((r) => (Array.isArray(r[0]) ? r : [r]))(l.getLatLngs()).filter((r) => r.length > 2).map((r) => [[...r, r[0]].map((q) => [q.lng, q.lat])]) } })));
+        [labelLayer, boatLabels].forEach((g) => g.eachLayer((m) => { const sp = m.options.icon.options.html.match(/--c:([^"]+)">([^<]*)</); if (sp) names.push({ type: "Feature", properties: { c: sp[1], t: sp[2].replace(/&amp;/g, "&") }, geometry: { type: "Point", coordinates: [m.getLatLng().lng, m.getLatLng().lat] } }); }));
       }
       const under = gl.getLayer("osm-roads") ? "osm-roads" : undefined;
       if (!gl.getSource("fs-fill")) {
@@ -2398,6 +2455,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     }, 600);
   });
   map.on("zoomend moveend", () => { if (isFish()) renderLayers(); });
+  map.on("moveend", () => { if (isFish()) drawBoatZones(); });
   let started = false;
   function sync() {
     const on = isFish();
@@ -2406,7 +2464,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     syncTiles(); syncWater();
     if (!on) { drawPoints(); return; }
     if (!started) { started = true; renderLayers(); ready.then(() => { drawPoints(); renderToday(); }); }
-    drawZones(); drawPoints(); loadReadings(); loadAccess();
+    drawZones(); drawPoints(); drawBoatZones(); loadReadings(); loadAccess();
     if (!spot) { const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); } else { loadWeather(); renderToday(); renderHatch(); }
   }
   window.addEventListener("tf:sport", sync);

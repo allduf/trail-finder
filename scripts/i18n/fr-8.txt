@@ -88,3 +88,26 @@ Checking for fires… ||| Recherche de feux…
 Wildfire out of control ||| Feu de forêt hors de contrôle
 Wildfire being held ||| Feu de forêt contenu
 Wildfire under control ||| Feu de forêt maîtrisé
+# Signed boating zones (fishing.js, data/fishing-boat-zones.json, 2026-11-05)
+No wake ||| Sans vagues
+Waterski zone ||| Zone de ski nautique
+Float planes ||| Hydravions
+No-wake ends, float planes ||| Bouts sans vagues, hydravions
+Float plane landing zone here ||| Zone d'amerrissage d'hydravions ici
+No-wake zone here ||| Zone sans vagues ici
+Waterski zone here: watch for wakes ||| Zone de ski nautique ici : attention aux vagues
+Signed zones, see the map ||| Zones balisées, voir la carte
+You're in the no-wake zone ||| Vous êtes dans la zone sans vagues
+You're in the waterski and wakeboard zone ||| Vous êtes dans la zone de ski nautique et wakeboard
+You're in the float plane landing zone ||| Vous êtes dans la zone d'amerrissage d'hydravions
+You're in the no-motor zone ||| Vous êtes dans la zone sans moteur
+Report a problem on the water ||| Signaler un problème sur l'eau
+Emergency or accident: 911 ||| Urgence ou accident : 911
+Transport Canada's list ||| La liste de Transports Canada
+No-wake zone (10 km/h) at both ends (marked by a buoy and a shore sign): the north-east arm with the launch, and the south-west end by Nicklaus North ||| Zone sans vagues (10 km/h) aux deux bouts (bouée et panneau sur la rive) : le bras nord-est avec la mise à l'eau, et le bout sud-ouest près de Nicklaus North
+Waterski and wakeboard zone in the middle of the lake ||| Zone de ski nautique et wakeboard au milieu du lac
+Float planes land and take off on the lake: watch for planes and their wakes in the middle ||| Des hydravions amerrissent et décollent sur le lac : attention aux avions et à leurs vagues au milieu
+Give way to human-powered boats (canoes, kayaks, paddleboards) ||| Cédez le passage aux embarcations à propulsion humaine (canots, kayaks, planches à pagaie)
+No refuelling on the water, no sewage discharge, no living on a boat ||| Pas de plein d'essence sur l'eau, pas de rejet d'eaux usées, pas de résidence sur un bateau
+Stop invasive species: wash your boat before and after ||| Freinez les espèces envahissantes : lavez votre bateau avant et après
+Carry the Transport Canada safety gear; boating impaired is illegal ||| Ayez l'équipement de sécurité de Transports Canada; naviguer avec les facultés affaiblies est illégal
