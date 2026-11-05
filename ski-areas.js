@@ -14,8 +14,8 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const isSki = () => document.body.classList.contains("sport-ski");
-  let on = true;
-  try { on = localStorage.getItem("tf:skiAreas") !== "false"; } catch {}
+  let on = false;
+  try { on = localStorage.getItem("tf:skiAreas") === "true"; } catch {}   // off until turned on (alex 2026-11-05: Skiing opens with a short set)
 
   const ATES = { 1: { label: "Simple", color: "#2f9e44" }, 2: { label: "Challenging", color: "#1f5fe0" }, 3: { label: "Complex", color: "#1a1a1a" } };
   const PROV = { BC: "British Columbia", AB: "Alberta", YT: "Yukon", QC: "Quebec", NL: "Newfoundland and Labrador", NB: "New Brunswick", NS: "Nova Scotia", NU: "Nunavut", JP: "Japan" };
@@ -59,7 +59,7 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
 
   // ---------- data ----------
   let loading = null, doc = {}, areas = [];
-  const load = () => (loading = loading || fetch("data/ski-areas.json?v=3440").then((r) => r.json()).then((d) => {
+  const load = () => (loading = loading || fetch("data/ski-areas.json?v=3450").then((r) => r.json()).then((d) => {
     doc = d;
     areas = (d.areas || []).filter((a) => isFinite(a.lat) && isFinite(a.lon));
     return d;

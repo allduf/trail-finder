@@ -22,8 +22,8 @@
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const isSki = () => document.body.classList.contains("sport-ski");
   const BOX = L.latLngBounds([51.05, -117.8], [51.48, -117.3]);   // Glacier National Park, roughly
-  let on = true;
-  try { on = localStorage.getItem("tf:skiRogers") !== "false"; } catch {}
+  let on = false;
+  try { on = localStorage.getItem("tf:skiRogers") === "true"; } catch {}   // off until turned on (alex 2026-11-05: Skiing opens with a short set)
 
   const C = { open: "#2f9e44", closed: "#e03131", wait: "#f08c00", U: "#1f5fe0", P: "#862e9c", cls: { 1: "#2f9e44", 2: "#1971c2", 3: "#1c1c1e" } };
   const CLS = { 1: "Simple", 2: "Challenging", 3: "Complex" };
@@ -56,6 +56,9 @@
 .rp-pin.p { background: var(--c); }
 .rp-pin.run { border-radius: 11px; background: var(--c); }
 .rp-pin.on { outline: 3px solid #ffe14d; }
+.sk-fly.rp-ask span { white-space: normal; line-height: 1.25; }
+.sk-fly.rp-ask span { white-space: normal; line-height: 1.25; }
+.sk-fly.rp-ask button[data-n] { background: none; color: #fff; padding: 7px 8px; }
 `;
   document.head.appendChild(css);
 
@@ -373,7 +376,7 @@
     if (btn.isConnected) return true;
     return !!window.tfSkiSlot && window.tfSkiSlot("places", btn, { label: "Rogers Pass permit areas", bg: "linear-gradient(135deg, #2f9e44 50%, #e03131 50%)" });
   }
-  btn.addEventListener("click", () => { on = !on; try { localStorage.setItem("tf:skiRogers", String(on)); } catch {} sync(); });
+  btn.addEventListener("click", () => { on = !on; asked = true; askGone(); try { localStorage.setItem("tf:skiRogers", String(on)); } catch {} sync(); });
   function sync() {
     placeBtn();
     btn.setAttribute("aria-pressed", String(on)); btn.classList.toggle("on", on);
@@ -385,6 +388,28 @@
   let lastSki = isSki();
   new MutationObserver(() => { if (isSki() !== lastSki) { lastSki = isSki(); sync(); } }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   new MutationObserver(() => { if (!btn.isConnected) placeBtn(); }).observe($("layersMenu") || document.body, { childList: true, subtree: true });
+  // Off by default, so looking at Rogers Pass with it off asks once per app open (alex 2026-11-05: "when you look on the
+  // map over rogers pass and the layer is not activated. ask if the user want to turn on rogers pass").
+  let asked = false, ask = null;
+  const askGone = () => { if (ask) { ask.remove(); ask = null; } };
+  function askRogers() {
+    const want = !on && !asked && isSki() && BOX.contains(map.getCenter()) && map.getZoom() >= 9;
+    if (!want) { if (ask && (on || !isSki() || !BOX.contains(map.getCenter()))) askGone(); return; }
+    if (ask) return;
+    ask = document.createElement("div");
+    ask.className = "sk-fly rp-ask"; ask.setAttribute("role", "status");
+    ask.innerHTML = `<span>Show Rogers Pass permit areas?</span><button type="button" data-y>Turn on</button><button type="button" data-n aria-label="No thanks">✕</button>`;
+    L.DomEvent.disableClickPropagation(ask);
+    ask.addEventListener("click", (e) => {
+      const y = e.target.closest("[data-y]"), n = e.target.closest("[data-n]");
+      if (!y && !n) return;
+      asked = true; askGone();
+      if (y) { on = true; try { localStorage.setItem("tf:skiRogers", "true"); } catch {} sync(); }
+    });
+    map.getContainer().append(ask);
+  }
+  map.on("moveend", askRogers);
+  window.addEventListener("tf:sport", () => setTimeout(askRogers, 0));
   window.tfRogers = { areaAt: (lat, lon) => (status ? areaAt(lat, lon).map((a) => ({ name: a.name, group: a.group, open: isOpen(a) })) : null), load };
   sync();
   on3d();

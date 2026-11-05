@@ -12,8 +12,8 @@
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const isSki = () => document.body.classList.contains("sport-ski");
   const skiPlanning = () => !!document.querySelector(".sk-planbar:not([hidden])");   // planning a tour (winter.js)
-  let on = true;
-  try { on = localStorage.getItem("tf:skiCams") !== "false"; } catch {}
+  let on = false;
+  try { on = localStorage.getItem("tf:skiCams") === "true"; } catch {}   // off until turned on (alex 2026-11-05: Skiing opens with a short set)
 
   const css = document.createElement("style");
   css.textContent = `
@@ -52,7 +52,7 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
 
   // ---------- data ----------
   let data = null, cams = [], owners = {};
-  const load = () => (data = data || fetch("data/webcams.json?v=3440").then((r) => r.json()).then((d) => {
+  const load = () => (data = data || fetch("data/webcams.json?v=3450").then((r) => r.json()).then((d) => {
     owners = d.owners || {};
     cams = (d.cams || []).filter((c) => isFinite(c.lat) && isFinite(c.lon));
     return d;
