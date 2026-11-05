@@ -15,8 +15,8 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const isSki = () => document.body.classList.contains("sport-ski");
-  let on = true;
-  try { on = localStorage.getItem("tf:skiHeliCat") !== "false"; } catch {}
+  let on = false;
+  try { on = localStorage.getItem("tf:skiHeliCat") === "true"; } catch {}   // off until turned on (alex 2026-11-05: Skiing opens with a short set)
 
   const C = { heli: "#e8590c", cat: "#1c7ed6" };
   const TYPE = { heli: "Heli-skiing", cat: "Cat skiing", both: "Heli and cat skiing" };

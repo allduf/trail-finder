@@ -75,7 +75,10 @@
   const CLUB = { label: "Snowmobile clubs", color: "#c2255c" };
   // The four buttons at the top of the panel: each one turns its group of layers on or off (more than one can be on).
   const VIEWS = {
-    tour: { icon: "⛷", label: "Touring", sub: "backcountry", layers: ["tour", "access", "park", "other", "hut", "snow"] },
+    tour: { icon: "⛷", label: "Touring", sub: "backcountry", layers: ["tour", "access", "park", "other", "hut", "snow"],
+      // Turned off with Touring but not back on by it (alex 2026-11-05: Skiing opens with a short set, faster): each is a
+      // switch in Layers.
+      quiet: ["other", "snow", "hut"] },
     nordic: { icon: "🎿", label: "Nordic", sub: "and snowshoe", layers: ["nordic", "snowshoe"] },
     sled: { icon: "🛷", label: "Snowmobile", sub: "trails, clubs", layers: ["snowmobile", "club"] },
     resort: { icon: "🚡", label: "Resorts", sub: "runs, bowls", layers: ["resort", "offpiste"] },
@@ -654,7 +657,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const hutLayer = L.layerGroup();
   let ski = null, skiLoading = null, skiErr = "";
   // "skiLayers2": the simpler Skiing starts everyone again on Touring (and their own tours), the old 13 chips forgotten.
-  let shown = new Set(store.get("skiLayers2", [...VIEWS.tour.layers, "mine"]));
+  // Skiing opens with a short set (alex 2026-11-05: "those should be by default", "take huts and cabin of the default
+  // layer"): touring routes, approaches, parking and the rider's own tours (+ Lift status, lifts.js; Rogers Pass permits
+  // ask when the map is there, rogers.js). The 3D ground was ready about 14% sooner, 397 -> ~27 pins at Whistler. Everyone gets it once ("skiShort"); after that their own choice stays.
+  const SKI_START = ["tour", "access", "park", "mine"];
+  let shown = new Set(store.get("skiLayers2", SKI_START));
+  if (!store.get("skiShort", false)) {
+    ["other", "snow", "hut"].forEach((k) => shown.delete(k));
+    store.set("skiSnowAdded", true); store.set("skiParkAdded", true); store.set("skiShort", true); store.set("skiLayers2", [...shown]);
+  }
   if (!store.get("skiSnowAdded", false)) { if (shown.has("tour")) shown.add("snow"); store.set("skiSnowAdded", true); store.set("skiLayers2", [...shown]); }
   if (!store.get("skiParkAdded", false)) { if (shown.has("access")) shown.add("park"); store.set("skiParkAdded", true); store.set("skiLayers2", [...shown]); }
   // The ground colours (Avalanche risk and the shaded terrain and snow layers): one at a time (window.tfOneGround).
@@ -1153,8 +1164,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   window.tfSkiKeyRender = renderSkiKey;
   $("skViews").addEventListener("click", (e) => {
     const b = e.target.closest("[data-view]"); if (!b) return;
-    const v = VIEWS[b.dataset.view].layers, on = v.some((k) => shown.has(k));
-    v.forEach((k) => (on ? shown.delete(k) : shown.add(k)));
+    const view = VIEWS[b.dataset.view], v = view.layers, on = v.some((k) => shown.has(k));
+    v.forEach((k) => (on ? shown.delete(k) : (view.quiet || []).includes(k) || shown.add(k)));
     if (!on && b.dataset.view === "sled") loadClubs();
     applySwitches();
   });
@@ -1332,7 +1343,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3450").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3460").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
