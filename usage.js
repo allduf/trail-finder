@@ -113,6 +113,8 @@
   const sport = document.getElementById("sport");
   if (sport) sport.addEventListener("change", () => add("sport", sport.value));
 
+  // A route that still doubles back somewhere (noback.js): in the error list, to be fixed.
+  addEventListener("tf:route-back", (e) => add("error", (e.detail && e.detail.msg) || "Route doubles back"));
   addEventListener("error", (e) => add("error", `${e.message || "error"} @${(e.filename || "").split("/").pop()}:${e.lineno || 0}`));
   // A cancelled download (AbortError, "Fetch is aborted") is the app stopping work it no longer needs, not a fault.
   addEventListener("unhandledrejection", (e) => {

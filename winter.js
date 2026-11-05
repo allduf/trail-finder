@@ -1332,7 +1332,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3420").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3430").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -3016,7 +3016,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ${window.tfRiskLine ? window.tfRiskLine() : ""}
     </div>`;
   }
+  // A line put in a tour never doubles back (noback.js): a line made of pieces joined end to end, or drawn with a knot,
+  // is cut where it turns round or loops, so the tour doesn't follow it there and back (alex 2026-11-05).
+  const noBackLine = (line) => (window.tfNoBack && line && line.length > 2 ? window.tfNoBack.clean(line, { loops: true }) : line);
   function planVia(line, name) {
+    line = noBackLine(line);
     snap();
     const a = line[0], z = line[line.length - 1], last = plan.pts[plan.pts.length - 1];
     if (last && map.distance([last[0], last[1]], a) < 60) plan.pts[plan.pts.length - 1] = last[2] ? last : [a[0], a[1]];
@@ -4747,7 +4751,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     planSet: (pts) => {
       if (sport !== "ski") setSport("ski");
       snap();
-      plan.pts = pts.map((p) => (p[2] ? [+p[0].toFixed(6), +p[1].toFixed(6), p[2]] : [+p[0].toFixed(6), +p[1].toFixed(6)]));
+      plan.pts = pts.map((p) => (p[2] ? [+p[0].toFixed(6), +p[1].toFixed(6), p[2].via ? { ...p[2], via: noBackLine(p[2].via) } : p[2]] : [+p[0].toFixed(6), +p[1].toFixed(6)]));
       plan.path = null; plan.fail = ""; plan.show = true;
       plan.safe = true; store.set("skiSafe", true);   // a new tour always starts with the 🛡 Safest way (alex 2026-11-05)
       if (plan.on) { plan.on = false; map.getContainer().classList.remove("sk-planning"); }

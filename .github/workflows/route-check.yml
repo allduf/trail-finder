@@ -1,0 +1,24 @@
+name: Route check
+
+# No route the app follows as drawn doubles back (alex 2026-11-05: "make sure it never does that", "everywhere"):
+# the Skiing slackcountry lines and hand-kept ski routes, and (listed only) the Adventure moto routes. A line that turns
+# round on itself or knots back fails the check, with where. Same rules as the app (noback.js).
+on:
+  pull_request:
+    paths: ["data/slackcountry.json", "data/ski-hand/**", "data/moto-routes.json", "noback.js", "scripts/check-routes.mjs", ".github/workflows/route-check.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: No drawn route doubles back
+        run: node scripts/check-routes.mjs

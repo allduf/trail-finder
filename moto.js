@@ -1811,6 +1811,8 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     routeLayer.clearLayers();
     if (!isMoto() || !route) { sync3d(); return; }
     const cap = capOf(cur());
+    // No doubling back (noback.js, alex 2026-11-05 "everywhere"): what still turns round on itself goes to the error list.
+    if (window.tfNoBack) window.tfNoBack.check("Moto route", route.line, { stops: route.pts });
     routeLayer.addLayer(L.polyline(route.line, { renderer: lineRenderer, color: "#fff", weight: 9, opacity: 0.9, interactive: false }));
     if (route.edges) {
       for (const e of route.edges) {
