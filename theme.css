@@ -584,3 +584,10 @@ html body :is(#huntPane, #fishPane) .tf-phone { display: none; }
 .map-tools .layers-menu .lm-tiles .t-winter { background: radial-gradient(circle at 30% 30%, #f4f8fb, #b9c9d6 60%, #5d6f7c); color: #15211a; }
 body:not(.sport-ski) .layers-menu .lm-tiles .t-winter { display: none; }
 body.sport-ski .layers-menu .lm-tiles { grid-template-columns: repeat(5, 1fr); }
+
+/* The status after Forest roads and Wildfires in Layers (alex 2026-11-05): a small live line under the name */
+.layers-menu .lm-nm { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.layers-menu .lm-stat { display: block; white-space: normal; overflow-wrap: anywhere; margin-top: 2px; font-size: .78rem; font-weight: 500; line-height: 1.3; color: var(--muted); }
+.layers-menu .lm-stat:empty { display: none; }
+.layers-menu .lm-stat span { white-space: nowrap; }
+.layers-menu .lm-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: 1px; }

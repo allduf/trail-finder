@@ -1288,7 +1288,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   body #layersMenu .lm-offline small { display: block; font-size: .78rem; opacity: .75; }
 }
 </style>
-<link rel="stylesheet" href="theme.css?v=18">
+<link rel="stylesheet" href="theme.css?v=19">
 <style>
 /* Phone map buttons (alex, 2026-10-24): the same four labelled buttons in every sport, Sport, Layers and 3D on the
    left, Me on the right. Satellite is a map style in Layers; Save a point, Compass and Measure live in each sport's
@@ -1363,8 +1363,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <div class="lm-head">Show on the map</div>
         <div class="lm-list lm-overlays">
         <button id="allBtn" type="button" aria-pressed="true" title="Show every MTB trail on the map, old and new, coloured by difficulty">≋ All trails</button>
-        <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status">⛟ Forest roads</button>
-        <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire">🔥 Wildfires</button>
+        <button id="roadsBtn" type="button" aria-pressed="false" title="Show forest service roads and dirt roads, with their status"><span class="lm-nm">⛟ Forest roads<small class="lm-stat" id="roadsStat"></small></span></button>
+        <button id="firesBtn" type="button" aria-pressed="false" title="Show active wildfires and areas closed because of fire"><span class="lm-nm">🔥 Wildfires<small class="lm-stat" id="firesStat"></small></span></button>
         <button id="closeBtn" type="button" aria-pressed="false" title="Show closures and warnings from Alberta Parks, BC Parks, Ontario Parks, Parks Canada and riders">🚧 Closures and warnings</button>
         <button id="accessBtn" type="button" aria-pressed="false" title="Show trailheads, parking, drinking water, toilets, bike repair stations, shelters and BC recreation sites">Ⓟ Trailheads, parking, water, toilets</button>
         <button id="parkBtn" type="button" aria-pressed="true" title="Show bike parks, pump tracks and MTB centres across Canada">🚵 Bike parks</button>
@@ -5548,6 +5548,7 @@ out body;`;
     `<button type="button" class="hub-card" data-hub="${act}"${extra}><span class="ic" aria-hidden="true">${ic}</span><span class="tx"><b>${title}</b>${sub ? `<small>${sub}</small>` : ""}</span><span class="go" aria-hidden="true">›</span></button>`;
   const tile = (act, ic, title, sub) => `<button type="button" class="hub-tile" data-hub="${act}"><span class="ic" aria-hidden="true">${ic}</span><b>${title}</b><small>${sub}</small></button>`;
   const HUB_LAYERS = ["allBtn", "parkBtn", "closeBtn", "accessBtn", "roadsBtn"];   // MTB's main map layers, as chips on Find
+  const btnLabel = (b) => { const c = b.cloneNode(true); c.querySelectorAll(".lm-stat").forEach((x) => x.remove()); return c.textContent.trim(); };   // without the status line
   // Offline maps in Saved too (alex, 2026-10-31: "maybe adding the option here"): the saved areas are kept things,
   // and saving one needs no route.
   const offlineCard = () => {
@@ -5565,7 +5566,7 @@ out body;`;
       ${card("today", "☀", "Where to ride today", "The best areas for today's weather and dirt")}
       ${card("screen", "▭", "Every trail on screen", "Zoomed far out, you get a square to frame them")}
       <div class="hub-sec">On the map</div>
-      <div class="hub-chips">${HUB_LAYERS.map((id) => { const b = $(id); return b ? `<button type="button" data-hub="layer" data-id="${id}" aria-pressed="${b.getAttribute("aria-pressed") === "true"}">${esc(b.textContent.trim().replace(/, water, toilets$/, ""))}</button>` : ""; }).join("")}<button type="button" data-hub="layers">+ All layers</button></div>`;
+      <div class="hub-chips">${HUB_LAYERS.map((id) => { const b = $(id); return b ? `<button type="button" data-hub="layer" data-id="${id}" aria-pressed="${b.getAttribute("aria-pressed") === "true"}">${esc(btnLabel(b).replace(/, water, toilets$/, ""))}</button>` : ""; }).join("")}<button type="button" data-hub="layers">+ All layers</button></div>`;
     const w = words();
     if (page === "ride") return `<button type="button" class="hub-start" data-hub="start">${w.start}</button>
       <p class="hub-note">${w.note}</p>
@@ -6359,6 +6360,7 @@ out body;`;
     return kept;
   }
   function drawRoads() {
+    layerStats();
     const zoomed = map.getZoom() >= ROAD_MIN_ZOOM, on = state.roads && zoomed;
     const loaded = [...roadData.values()].filter(Boolean);
     const w = roadWidth(), key = [state.roads, zoomed, loaded.length, w].join("/");
@@ -6418,6 +6420,10 @@ out body;`;
   // Wildfires, their own button: fires, perimeters, areas closed because of fire, evacuation orders and alerts.
   const FIRE_STYLE = {
     fire: { svg: ICON.flame, bg: "#e85d04", fg: "#fff", round: true, label: "Active wildfire" },
+    // Each fire's pin coloured by its stage of control (alex 2026-11-05: "status"), the agencies' own words.
+    oc: { svg: ICON.flame, bg: "#c1121f", fg: "#fff", round: true, label: "Wildfire out of control" },
+    bh: { svg: ICON.flame, bg: "#e85d04", fg: "#fff", round: true, label: "Wildfire being held" },
+    uc: { svg: ICON.flame, bg: "#f2b705", fg: "#1a1a1a", round: true, label: "Wildfire under control" },
     perim: { label: "Fire perimeter", color: "#ff6d00", fillOpacity: 0.2 },
     restr: { label: "Area closed because of fire", color: "#b5179e", fillOpacity: 0.14, dashArray: "8 5" },
     order: { label: "Evacuation order (leave now)", color: "#c1121f", fillOpacity: 0.22 },
@@ -6578,8 +6584,8 @@ out body;`;
   const fireRenderer = L.canvas({ pane: "fireAreas", padding: 0.3 });
   const fireLayer = L.layerGroup().addTo(map);
   const withRings = (list) => (list || []).map((a) => ({ ...a, rings: rings(a.g) }));
-  function loadFires() {
-    if (fires || !state.fires) return;
+  function loadFires(forStatus) {
+    if (fires || (!state.fires && !forStatus)) return;
     fires = { fires: [], perims: [], restr: [], evac: [] };
     // BC (fires.json) and the rest of Canada (fires-ca.json), each drawn as soon as it arrives.
     const add = (f, src) => {
@@ -6587,7 +6593,7 @@ out body;`;
       const tag = (list) => (list || []).map((x) => ({ src, ...x }));
       fires = { at: fires.at || f.builtAt, fires: [...fires.fires, ...tag(f.fires)], perims: [...fires.perims, ...withRings(tag(f.perims))],
         restr: [...fires.restr, ...withRings(tag(f.restr))], evac: [...fires.evac, ...withRings(tag(f.evac))] };
-      drawFires();
+      drawFires(); layerStats();
     };
     nightly("fires.json").then((f) => add(f, "bc")).then(renderKey);
     nightly("fires-ca.json").then((f) => add(f, "ca")).then(renderKey);
@@ -6603,13 +6609,13 @@ out body;`;
     fires.evac.filter((a) => a.kind !== "alert").forEach((a) => poly(a.rings, FIRE_STYLE.order));
     fires.perims.filter((p) => p.src === "m3").forEach((p) => poly(p.rings, FIRE_STYLE.m3));
     fires.perims.filter((p) => p.src !== "m3").forEach((p) => poly(p.rings, { ...FIRE_STYLE.perim, weight: 2.5 }));
-    const k = FIRE_STYLE.fire;
-    // Fire pins are small and sit under the other pins, so they don't take over the map.
-    const fireIcon = L.divIcon({ className: "rf-pin fire-pin", html: pinHtml(k), iconSize: [18, 18] });
-    fires.fires.forEach((x) => fireLayer.addLayer(L.marker([x.lat, x.lon], { icon: fireIcon, keyboard: false, title: k.label, zIndexOffset: -1000 })
-      .bindPopup(`<div class="road-pop"><h4>${esc(k.label)}</h4><p><span class="st">${esc(x.st || "Burning")}</span>${x.name ? " · " + esc(x.name) : ""}</p>
+    // Fire pins are small and sit under the other pins, so they don't take over the map; coloured by stage of control.
+    const fireIcons = {};
+    const fireIcon = (g) => fireIcons[g] || (fireIcons[g] = L.divIcon({ className: "rf-pin fire-pin", html: pinHtml(FIRE_STYLE[g] || FIRE_STYLE.fire), iconSize: [18, 18] }));
+    fires.fires.forEach((x) => { const g = fireStage(x.st), k = FIRE_STYLE[g] || FIRE_STYLE.fire; fireLayer.addLayer(L.marker([x.lat, x.lon], { icon: fireIcon(g), keyboard: false, title: k.label, zIndexOffset: g === "oc" ? -900 : -1000 })
+      .bindPopup(`<div class="road-pop"><h4>${esc(k.label)}</h4><p><span class="st" style="color:${g === "uc" ? "#8a6d00" : (FIRE_STYLE[g] || FIRE_STYLE.fire).bg}">${esc(x.st || "Burning")}</span>${x.name ? " · " + esc(x.name) : ""}</p>
       <p class="src">${esc(fireWho(x))} ${esc(x.n)}${x.ha ? ` · ${esc(x.ha)} ha` : ""}${x.d ? ` · ${x.src === "cwfis" ? "updated" : "started"} ${esc(x.d)}` : ""}${x.cause ? ` · ${esc(x.cause)}` : ""}${x.src === "cwfis" ? `, via ${CWFIS_CITE}` : ""}.
-      Check the ${FIRE_LINKS[x.src] || FIRE_LINKS.bc} for the latest.</p></div>`, { maxWidth: 280 })));
+      Check the ${FIRE_LINKS[x.src] || FIRE_LINKS.bc} for the latest.</p></div>`, { maxWidth: 280 })); });
   }
   function syncFiresBtn() {
     const b = $("firesBtn");
@@ -6617,6 +6623,69 @@ out body;`;
     b.classList.toggle("on", state.fires);
     b.title = state.fires ? "Hide the wildfires" : "Show active wildfires and areas closed because of fire";
   }
+  // Stage of control, from each agency's own words: oc out of control, bh being held, uc under control (or turned over, patrolled).
+  function fireStage(st) {
+    const t = String(st || "");
+    if (/out of control|^OC\b/i.test(t)) return "oc";
+    if (/being held|^BH\b/i.test(t)) return "bh";
+    if (/under control|turned over|patrol|^UC\b/i.test(t)) return "uc";
+    return "fire";
+  }
+  // ---------- The status after Forest roads and Wildfires in Layers (alex 2026-11-05: circled both, "Add status after") ----------
+  // Under each name, a short live line for the map in view: how many km of forest road are good, rough, closed or
+  // impassable, and how many fires near the map are out of control, being held or under control. Worked out only
+  // while Layers is open. The fire files are small, so they load for this line with Wildfires off too.
+  const FIRE_NEAR_KM = 100;
+  const ROAD_STAT = [["impass", "impassable"], ["closed", "closed"], ["heavy", "very rough"], ["degraded", "rough"], ["good", "good"]];   // roads with no condition mapped are left out
+  const statDot = (c) => `<i class="lm-dot" style="background:${c}"></i>`;
+  const statLine = (parts) => parts.map(([c, t]) => `<span>${c ? statDot(c) : ""}${esc(t)}</span>`).join(" · ");
+  let statT = 0;
+  function layerStats() {
+    clearTimeout(statT);
+    statT = setTimeout(layerStatsNow, 150);
+  }
+  function layerStatsNow() {
+    const lm = $("layersMenu"), rs = $("roadsStat"), fs = $("firesStat");
+    if (!lm || lm.hidden || !rs || !fs) return;
+    const view = map.getBounds(), zoomed = map.getZoom() >= ROAD_MIN_ZOOM;
+    // Forest roads: km in view by status, the worst first.
+    let road = "";
+    if (!zoomed) road = statLine([[null, state.roads ? "Zoom in to see each road's status" : "Open, rough, closed or washed out: zoom in"]]);
+    else if (phoneMQ.matches && !state.roads && !state.areas) road = statLine([[null, "Turn on to see open, rough, closed or washed out"]]);
+    else {
+      const loaded = [...roadData.values()].filter(Boolean), km = {}, seen = new Set();
+      const inView = ZONES.some((z) => z.bounds.intersects(view) && roadData.get(z.id) === null);
+      loaded.forEach((z) => z.list.forEach((r) => {
+        const k = r.src + (r.id || r.r.f + r.geom[0]);
+        if (seen.has(k) || !r.bounds || !view.intersects(r.bounds)) return;
+        seen.add(k);
+        let m = 0;
+        for (let i = 1; i < r.geom.length; i++) {
+          const a = r.geom[i - 1], b = r.geom[i];
+          if (!view.contains([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2])) continue;
+          const dy = (b[0] - a[0]) * 110.54, dx = (b[1] - a[1]) * 111.32 * Math.cos(a[0] * Math.PI / 180);
+          m += Math.sqrt(dx * dx + dy * dy);
+        }
+        if (m) km[r.st] = (km[r.st] || 0) + m;
+      }));
+      const fmt = (v) => (v < 10 ? v.toFixed(1).replace(/\.0$/, "") : String(Math.round(v)));
+      const parts = ROAD_STAT.filter(([st]) => km[st] >= 0.05).map(([st, t]) => [ROAD_STYLE[st].color, `${fmt(km[st])} km ${t}`]);
+      road = parts.length ? statLine(parts) : statLine([[null, inView || !loaded.length ? "Checking the roads in view…" : "No forest roads in view"]]);
+    }
+    if (rs.dataset.h !== road) { rs.dataset.h = road; rs.innerHTML = road; }
+    // Wildfires near the map: how many at each stage.
+    let fire = "";
+    if (!fires) { loadFires(true); fire = statLine([[null, "Checking for fires…"]]); }
+    else {
+      const c = map.getCenter(), n = { oc: 0, bh: 0, uc: 0, fire: 0 };
+      fires.fires.forEach((x) => { if (c.distanceTo([x.lat, x.lon]) <= FIRE_NEAR_KM * 1000) n[fireStage(x.st)]++; });
+      const parts = [["oc", "out of control"], ["bh", "being held"], ["uc", "under control"], ["fire", "burning"]].filter(([g]) => n[g])
+        .map(([g, t]) => [(FIRE_STYLE[g] || FIRE_STYLE.fire).bg, `${n[g]} ${t}`]);
+      fire = parts.length ? statLine([...parts, [null, `within ${FIRE_NEAR_KM} km`]]) : statLine([[null, `No active fires within ${FIRE_NEAR_KM} km`]]);
+    }
+    if (fs.dataset.h !== fire) { fs.dataset.h = fire; fs.innerHTML = fire; }
+  }
+  map.on("moveend", layerStats);
   $("firesBtn").addEventListener("click", () => {
     state.fires = !state.fires; store.set("fires", state.fires);
     syncFiresBtn(); loadFires(); drawFires(); renderKey();
@@ -6786,7 +6855,7 @@ out body;`;
   }
   $("roadsBtn").addEventListener("click", () => {
     state.roads = !state.roads; store.set("roads", state.roads);
-    syncRoadsBtn(); loadRoads(); drawRoads(); renderKey();
+    syncRoadsBtn(); loadRoads(); drawRoads(); renderKey(); layerStats();
     if (state.roads && map.getZoom() < ROAD_MIN_ZOOM) setStatus("Zoom in to see the forest roads.");
     drawRoadExtras();
   });
@@ -7037,7 +7106,7 @@ out body;`;
     if (state.fires) {
       // The satellite fire areas and Alberta's fire orders only get a key line when some are on the map.
       const has = (k) => fires && (k === "m3" ? fires.perims.some((p) => p.src === "m3") : fires.restr.some((a) => a.kind === k));
-      html += section("Wildfires", `<li>${pinHtml(FIRE_STYLE.fire, "lg-ico")}${FIRE_STYLE.fire.label}</li>` + ["perim", "m3", "restr", "order", "alert", "ban", "frestr", "ohv"]
+      html += section("Wildfires", ["oc", "bh", "uc"].map((g) => `<li>${pinHtml(FIRE_STYLE[g], "lg-ico")}${FIRE_STYLE[g].label}</li>`).join("") + ["perim", "m3", "restr", "order", "alert", "ban", "frestr", "ohv"]
         .filter((k) => !["m3", "ban", "frestr", "ohv"].includes(k) || has(k)).map((k) => areaSw(FIRE_STYLE[k])).join(""));
     }
     if (window.tfBikeParks && window.tfBikeParks.on()) html += section("Bike parks", window.tfBikeParks.keyItems());
@@ -7068,6 +7137,7 @@ out body;`;
     layersBtn.setAttribute("aria-expanded", String(open));
     layersBtn.classList.toggle("open", open);
     layersBtn.parentElement.classList.toggle("menu-open", open);
+    if (open) layerStats();   // the status after Forest roads and Wildfires
   }
   layersBtn.addEventListener("click", () => setLayersOpen(layersMenu.hidden));
   $("lmClose").addEventListener("click", () => setLayersOpen(false));
