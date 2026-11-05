@@ -393,6 +393,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   function onFix(pos) {
     const c = pos.coords, t = pos.timestamp || Date.now(), p = [c.latitude, c.longitude];
     lastFix = { c, t };
+    if (Date.now() - nightAt > 30000) nightCheck();   // light by day, dark after sunset (every 30 s)
     drawYou();
     const g = map.touchGestures || map.touchZoom || {}, busy = map._animatingZoom || g._zooming || g._rotating || L.Draggable._dragging || map._tfHeld3d;
     if (following && !busy) {                     // a short slide, not a jump, while the zoom stays put; never mid-pinch
@@ -622,9 +623,10 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   }
   function clearRoute() {
     route = null;
+    [routeLine, routeRest].forEach((l) => l.setStyle({ color: "#7b2ff7" })); routeCase.setStyle({ color: "#fff" });
     [routeCase, routeLine, routeDone, routeRest].forEach((l) => { l.setLatLngs([]); layer.removeLayer(l); });
     routeMarks.clearLayers(); layer.removeLayer(routeMarks);
-    $("navRoute").hidden = true; $("navParts").hidden = true; turnBox.hidden = true;
+    $("navRoute").hidden = true; $("navParts").hidden = true; turnBox.hidden = true; turnH();
     ["start", "end"].forEach((k) => voice.said.delete(k));
     sendCues();
   }
@@ -942,18 +944,43 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   turnBox.className = "nav-turn"; turnBox.hidden = true; turnBox.setAttribute("role", "status"); turnBox.setAttribute("aria-live", "polite");
   document.body.appendChild(turnBox);
   const turnCss = document.createElement("style");
+  // The look of Apple Maps' navigation (alex 2026-11-05, a screenshot: "Like that"): a dark card with the next turn and a
+  // lighter "Then" line under it, and a dark card at the bottom with the arrival time, the time and the km left.
   turnCss.textContent = `
-.nav-turn { position: fixed; z-index: 1210; left: 8px; right: 8px; top: calc(8px + env(safe-area-inset-top, 0px)); max-width: 560px; margin: 0 auto; background: #0f6b3a; color: #fff; border-radius: 18px; box-shadow: 0 6px 24px rgba(0,0,0,.3); overflow: hidden; }
+.nav-turn { position: fixed; z-index: 1210; left: 8px; right: 8px; top: calc(8px + env(safe-area-inset-top, 0px)); max-width: 560px; margin: 0 auto; background: #fafaf7; color: #14211a; border-radius: 26px; box-shadow: 0 8px 28px rgba(0,0,0,.35); overflow: hidden; }
 .nav-turn[hidden] { display: none; }
-.nav-turn .nt-main { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+.nav-turn .nt-main { display: flex; align-items: center; gap: 16px; padding: 16px 18px; }
 .nav-turn .nt-arrow { flex: none; display: grid; place-items: center; }
-.nav-turn .nt-d { font-size: 1.7rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-.nav-turn .nt-t { font-size: 1.05rem; font-weight: 600; line-height: 1.25; margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.nav-turn .nt-then { display: flex; align-items: center; gap: 6px; padding: 6px 14px; background: #0a4f2b; font-size: .92rem; font-weight: 700; }
-.nav-turn.off { background: #b3261e; }
+.nav-turn .nt-d { font-size: 1.15rem; font-weight: 700; line-height: 1; opacity: .8; font-variant-numeric: tabular-nums; }
+.nav-turn .nt-t { font-size: 1.45rem; font-weight: 800; line-height: 1.18; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.nav-turn .nt-then { display: flex; align-items: center; gap: 16px; padding: 10px 18px 12px 26px; background: #eeeee9; font-size: 1.05rem; font-weight: 600; color: rgba(20,33,26,.8); }
+.nav-turn .nt-then span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-turn .nt-arrow { color: #2f7cf6; }
+.nav-turn.off { background: #b3261e; color: #fff; }
+.nav-turn.off .nt-arrow { color: #fff; }
 .nav-strip.driving .nav-row, .nav-strip.driving .nav-parts, .nav-strip.driving .nav-route { display: none; }
+.nav-strip.driving { border-radius: 26px; }
+.nav-strip.driving .nav-nums { grid-template-columns: repeat(3, 1fr); margin-bottom: 12px; }
+.nav-strip.driving .nav-nums > div:nth-child(4) { display: none; }
+.nav-strip.driving .nav-nums b { font-size: 1.9rem; font-weight: 700; }
+.nav-strip.driving .nav-nums span { font-size: .95rem; text-transform: none; letter-spacing: 0; }
+.nav-strip.driving .nav-btns .stop { background: #e5484d; border-color: #e5484d; }
+/* After sunset where you are: dark cards and a dark map (alex: "depending of the time of the day it turn dark at night") */
+body.nav-night .nav-turn:not(.off) { background: #1c262e; color: #fff; }
+body.nav-night .nav-turn .nt-arrow { color: #c7f061; }
+body.nav-night .nav-turn .nt-then { background: #2c3740; color: rgba(255,255,255,.88); }
+body.nav-night .nav-strip.driving { background: #1c262e; color: #fff; }
+body.nav-night .nav-strip.driving .nav-nums span { color: rgba(255,255,255,.7); }
+body.nav-night .nav-strip.driving .nav-btns button:not(.stop) { background: rgba(255,255,255,.12); border-color: transparent; color: #fff; }
+body.nav-night .nav-strip.driving .nav-tip { background: rgba(255,255,255,.12); color: #fff; }
+body.nav-night .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6); }
+.app.riding .leaflet-top { margin-top: var(--nav-turn-h, 0px); }
 `;
   document.head.appendChild(turnCss);
+  // "Turn right onto Sea to Sky Highway" -> "Turn right", for the Then line.
+  const shortTurn = (x) => { const w = turnWords(x); const m = w.match(/^(.*?)\s+(onto|on|toward|towards)\s+/i); return (m ? m[1] : w).slice(0, 60); };
+  // The map's buttons (compass) sit under the turn card while it shows.
+  function turnH() { document.documentElement.style.setProperty("--nav-turn-h", turnBox.hidden ? "0px" : `${turnBox.offsetHeight + 4}px`); }
   const roadRoute = () => !!(route && route.parts && route.parts.some((x) => x.text || x.say));
   // The next turn ahead of where you are: { n, x, m metres to it } (null when the route is done).
   function nextTurn() {
@@ -965,19 +992,35 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   const turnWords = (x) => String(x.text || x.say || x.name || "").replace(/\.$/, "");
   const roundM = (m) => (m < 1000 ? `${m < 100 ? Math.max(10, Math.round(m / 10) * 10) : Math.round(m / 50) * 50} m` : `${(m / 1000).toFixed(m < 9950 ? 1 : 0)} km`);
   function renderTurn() {
-    if (!rec || !route || !roadRoute()) { turnBox.hidden = true; return; }
+    if (!rec || !route || !roadRoute()) { turnBox.hidden = true; turnH(); return; }
     if (!route.on) {
       turnBox.classList.remove("off");
       turnBox.innerHTML = `<div class="nt-main"><span class="nt-arrow">${arrowSvg("straight", 44)}</span><div><div class="nt-d">Head to the route</div><div class="nt-t">${esc(route.parts[0] ? turnWords(route.parts[0]) : route.name)}</div></div></div>`;
-      turnBox.hidden = false; return;
+      turnBox.hidden = false; turnH(); return;
     }
     const t = nextTurn();
-    if (!t) { turnBox.classList.remove("off"); turnBox.innerHTML = `<div class="nt-main"><span class="nt-arrow">${arrowSvg("arrive", 44)}</span><div><div class="nt-d">Arrived</div><div class="nt-t">${esc(route.name)}</div></div></div>`; turnBox.hidden = false; return; }
-    const after = route.parts[t.n + 1], soon = after && after.from - t.x.from < 300 && t.m < 600;
+    if (!t) { turnBox.classList.remove("off"); turnBox.innerHTML = `<div class="nt-main"><span class="nt-arrow">${arrowSvg("arrive", 44)}</span><div><div class="nt-d">Arrived</div><div class="nt-t">${esc(route.name)}</div></div></div>`; turnBox.hidden = false; turnH(); return; }
+    const after = route.parts[t.n + 1];
     turnBox.classList.toggle("off", !!route.alerted);
-    turnBox.innerHTML = `<div class="nt-main"><span class="nt-arrow">${arrowSvg(route.alerted ? "uturn" : arrowOf(t.x, t.n), 44)}</span><div><div class="nt-d">${route.alerted ? (route.rerouting ? "Finding a new way" : "Off route") : roundM(t.m)}</div><div class="nt-t">${esc(turnWords(t.x))}</div></div></div>`
-      + (soon && !route.alerted ? `<div class="nt-then">Then ${arrowSvg(arrowOf(after, t.n + 1), 20)}</div>` : "");
+    turnBox.innerHTML = `<div class="nt-main"><span class="nt-arrow">${arrowSvg(route.alerted ? "uturn" : arrowOf(t.x, t.n), 56)}</span><div><div class="nt-d">${route.alerted ? (route.rerouting ? "Finding a new way" : "Off route") : roundM(t.m)}</div><div class="nt-t">${esc(turnWords(t.x))}</div></div></div>`
+      + (after && !route.alerted ? `<div class="nt-then">${arrowSvg(arrowOf(after, t.n + 1), 28)}<span>Then ${esc(shortTurn(after).replace(/^./, (c) => c.toLowerCase()))}</span></div>` : "");
     turnBox.hidden = false;
+    turnH();
+  }
+  // Night where you are: the sun below the horizon (about -0.8° with the air's bending), from the date and your position.
+  function sunUp(lat, lon, t) {
+    const d = (t / 86400000) - 10957.5, g = (357.529 + 0.98560028 * d) * RAD, q = 280.459 + 0.98564736 * d;
+    const L2 = (q + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * RAD, e = (23.439 - 0.00000036 * d) * RAD;
+    const dec = Math.asin(Math.sin(e) * Math.sin(L2)), ra = Math.atan2(Math.cos(e) * Math.sin(L2), Math.cos(L2));
+    const gmst = (18.697374558 + 24.06570982441908 * d) % 24, ha = (gmst * 15 + lon) * RAD - ra;
+    const alt = Math.asin(Math.sin(lat * RAD) * Math.sin(dec) + Math.cos(lat * RAD) * Math.cos(dec) * Math.cos(ha));
+    return alt / RAD > -0.83;
+  }
+  let nightAt = 0;
+  function nightCheck() {
+    nightAt = Date.now();
+    const on = !!(rec && route && route.drive && lastFix && !sunUp(lastFix.c.latitude, lastFix.c.longitude, Date.now()));
+    document.body.classList.toggle("nav-night", on);
   }
   // How long and how far to the end: the router's time for each piece left, the one you're on in part.
   function tripLeft() {
@@ -1055,6 +1098,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
       if (route !== r || !n || !n.lines || !n.lines.length) return;
       setRoute(n.lines, n.name || r.name, n.parts);
       route.reroute = r.reroute; route.rerouteAt = Date.now(); route.drive = r.drive; route.mode = r.mode;
+      if (r.drive) { [routeLine, routeRest].forEach((l) => l.setStyle({ color: "#2f7cf6" })); routeCase.setStyle({ color: "#0b4fb3", opacity: 0.9 }); }
       [...voice.said.keys()].forEach((k) => { if (/^(pre|at)\d/.test(k)) voice.said.delete(k); });
       say("New route.");
       if (lastFix) updateRoute([lastFix.c.latitude, lastFix.c.longitude], lastFix.c.accuracy);
@@ -1073,6 +1117,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     if (opts && opts.drive) {
       route.drive = true; route.mode = opts.mode || "drive"; autoZ = null;
       if (canTurn && !faceWay) { faceWay = true; faceTemp = true; syncCompass(); }   // like Google Maps: the way you're going is up
+      [routeLine, routeRest].forEach((l) => l.setStyle({ color: "#2f7cf6" })); routeCase.setStyle({ color: "#0b4fb3", opacity: 0.9 });   // a blue route, like Apple Maps
       if (rec.drive) lockScreen("start", STATS.statsOf(rec.points, rec.start, Date.now(), rec.breaks));   // "To <place>" on the lock screen
     }
     driveButtons();
@@ -1260,7 +1305,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
     if (nav.youLayer) nav.youLayer.addTo(map);
     setRiding(false);
     if (faceTemp) { faceWay = false; faceTemp = false; }
-    turnBox.hidden = true;
+    turnBox.hidden = true; turnH(); document.body.classList.remove("nav-night");
     if (canTurn) { syncCompass(); if (faceWay) map.turnTo(0); }
   }
   // A drag, or a tap anywhere on the map (alex, 2026-10-30), stops following; "◎ Follow" brings it back.

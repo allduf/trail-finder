@@ -2013,7 +2013,9 @@
     "Arrive":"Arrivée",
     "min left":"min restantes",
     "h left":"h restantes",
-    "km left":"km restants"};
+    "km left":"km restants",
+    "Then turn left":"Puis tournez à gauche",
+    "Then turn right":"Puis tournez à droite"};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

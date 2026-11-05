@@ -154,3 +154,5 @@ min left ||| min restantes
 h left ||| h restantes
 km left ||| km restants
 End ||| Terminer
+Then turn left ||| Puis tournez à gauche
+Then turn right ||| Puis tournez à droite
