@@ -706,12 +706,18 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     ptLayer.clearLayers(); pts3d = [];
     if (!isMoto()) { sync3d(); return; }
     const z = map.getZoom(), b = map.getBounds().pad(0.15);
+    // Pins that would sit on each other wait for a closer zoom (alex 2026-11-05, "see if anything else is too crowded":
+    // campsites piled up around Squamish, the 3D map too). Fuel first, then campsites, hot springs, shops, ferries.
+    const room = [], GAP = 24;
     const put = (k, p) => {
       if (!b.contains([p[0], p[1]])) return;
+      pts3d.push({ k, p });   // the 3D map leaves out its own crowded ones (pts3dData), from its own view
+      const q = map.latLngToContainerPoint([p[0], p[1]]);
+      if (room.some((o) => Math.abs(o.x - q.x) < GAP && Math.abs(o.y - q.y) < GAP)) return;
+      room.push(q);
       const m = L.marker([p[0], p[1]], { pane: "moto", icon: ICONS[k], keyboard: false, title: p[2] || PT[k].name });
       m.on("click", (e) => { L.DomEvent.stopPropagation(e); openPoint(k, p); });
       ptLayer.addLayer(m);
-      pts3d.push({ k, p });
     };
     for (const k of ["fuel", "camp", "hot", "shop", "ferry"]) {
       if (!shown.has(k) || z < (LAYERS[k].minZoom || 0)) continue;
@@ -2189,7 +2195,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
         g.addLayer({ id: "mt-route-case", type: "line", source: "mt-route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#fff", "line-width": 9 } });
         g.addLayer({ id: "mt-route", type: "line", source: "mt-route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ACC, "line-width": 5 } });
       } else g.getSource("mt-route").setData(rdata);
-      const pdata = { type: "FeatureCollection", features: on ? pts3d.map((x, n) => ({ type: "Feature", properties: { n, c: PT[x.k].c }, geometry: { type: "Point", coordinates: [x.p[1], x.p[0]] } })) : [] };
+      const pdata = pts3dData(g, on);
       if (!g.getSource("mt-pts")) {
         g.addSource("mt-pts", { type: "geojson", data: pdata });
         g.addLayer({ id: "mt-pts", type: "circle", source: "mt-pts", paint: { "circle-color": ["get", "c"], "circle-radius": 7, "circle-stroke-color": "#fff", "circle-stroke-width": 2, "circle-pitch-alignment": "viewport" } });
@@ -2198,10 +2204,23 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     if (g.style && (g.style._loaded || g.isStyleLoaded())) apply();
     else if (!wait3d) { wait3d = true; const go = () => { if (!wait3d) return; wait3d = false; apply(); }; g.once("style.load", go); g.once("load", go); g.once("idle", go); }
   }
+  // The stops on the 3D map, one dot per spot of the screen: tilted, the far ground holds many dots in little room (alex
+  // 2026-11-05, "see if anything else is too crowded": green campsite dots all over the mountains past Squamish).
+  function pts3dData(g, on) {
+    const room = [], GAP = 18, feats = [];
+    if (on) pts3d.forEach((x, n) => {
+      const q = g.project([x.p[1], x.p[0]]);
+      if (room.some((o) => Math.abs(o.x - q.x) < GAP && Math.abs(o.y - q.y) < GAP)) return;
+      room.push(q);
+      feats.push({ type: "Feature", properties: { n, c: PT[x.k].c }, geometry: { type: "Point", coordinates: [x.p[1], x.p[0]] } });
+    });
+    return { type: "FeatureCollection", features: feats };
+  }
   // moto.js loads only when Moto is picked, often after the 3D map was built: take the one already there too.
   function on3d(g) {
     if (!g || g === gl3) return;
     gl3 = g;
+    gl3.on("moveend", () => { const src = isMoto() && gl3.getSource("mt-pts"); if (src) src.setData(pts3dData(gl3, true)); });
     gl3.on("click", (ev) => {
       if (!isMoto() || document.querySelector(".app.riding") || document.body.classList.contains("sp-picking") || document.body.classList.contains("cp-on")) return;
       const r = L.Browser.touch ? 18 : 10, near = (f) => { const q = gl3.project(f.geometry.coordinates); return Math.hypot(q.x - ev.point.x, q.y - ev.point.y); };

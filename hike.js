@@ -531,7 +531,7 @@ out center tags qt;`;
     const best = e && e.filter((x) => kmTo([x[1], x[2]], h.c) < 20).sort((a, b) => kmTo([a[1], a[2]], h.c) - kmTo([b[1], b[2]], h.c))[0];
     if (best) { h.g = best[3]; h.gFrom = { by: guide.src[best[4]] || best[4], url: best[5] || "" }; }
   }
-  getJ("data/hike-grades.json?v=3180").then((d) => {
+  getJ("data/hike-grades.json?v=3210").then((d) => {
     if (!d || d.v !== 1) return;
     guide = new Map(); guide.src = d.src || {};
     for (const x of d.h) { const k = guideKey(x[0]); if (k) (guide.get(k) || guide.set(k, []).get(k)).push(x); }
@@ -573,8 +573,39 @@ out center tags qt;`;
     for (const [id, pl] of lines) if (!seen.has(id)) { layer.removeLayer(pl); lines.delete(id); layer.removeLayer(cases.get(id)); cases.delete(id); }
     looseLayer.clearLayers();
     if (loose.length) looseLayer.addLayer(L.polyline(loose.map((w) => w.g), { renderer: rend, pane: "hike", interactive: false, color: "#8d6e46", weight: 2.5, opacity: 0.75, dashArray: "2 5", lineCap: "round" }));
+    drawNames();
   }
   const looseLayer = L.layerGroup();
+  // Hike names on the flat map, like the MTB trail names (alex 2026-11-05: "we should add the name of the trail like
+  // the other sport"): from zoom 13, each name once, on the part of the hike nearest the middle of the screen, in its
+  // grade's colour. How many grows with the zoom, longest hikes first, never on top of each other. The 3D map writes
+  // its own from the lines' label (map3d.js).
+  const nameLayer = L.layerGroup();
+  map.createPane("hikeNames").style.zIndex = 440;   // its own: the MTB names' pane is hidden in the other sports
+  map.getPane("hikeNames").style.pointerEvents = "none";
+  function drawNames() {
+    nameLayer.clearLayers();
+    if (!isHike() || !shown.has("trails") || map.getZoom() < 13) return;
+    const size = map.getSize(), c = map.getCenter(), m = 0.08, z = map.getZoom(), list = [];
+    const inView = (p) => { const q = map.latLngToContainerPoint(p); return q.x > size.x * m && q.x < size.x * (1 - m) && q.y > size.y * m && q.y < size.y * (1 - m); };
+    for (const h of hikes.values()) {
+      if (!h.name || !lines.has(h.id)) continue;
+      let best = null, n = 0;
+      for (const w of h.ways) for (const p of w.g) if (inView(p)) { n++; const d = c.distanceTo(p); if (!best || d < best.d) best = { d, p }; }
+      if (best) list.push({ h, p: best.p, n: cur && cur.id === h.id ? 1e9 : n });
+    }
+    const cap = Math.round((z < 14 ? 8 : z < 15 ? 14 : z < 16 ? 22 : 34) * Math.max(1, (size.x * size.y) / (390 * 650)));
+    const top = matchMedia("(max-width: 760px)").matches ? 70 : 10, placed = [];
+    for (const { h, p } of list.sort((a, b) => b.n - a.n)) {
+      if (placed.length >= cap) break;
+      const xy = map.latLngToContainerPoint(p), half = h.name.length * 3.5 + 6;
+      if (xy.x - half < 4 || xy.x + half > size.x - 4 || xy.y - 26 < top) continue;
+      if (placed.some((q) => Math.abs(q.x - xy.x) < half + q.half + 10 && Math.abs(q.y - xy.y) < 26)) continue;
+      placed.push({ x: xy.x, y: xy.y, half });
+      nameLayer.addLayer(L.marker(p, { pane: "hikeNames", interactive: false, keyboard: false,
+        icon: L.divIcon({ className: "trail-name", iconSize: null, html: `<span style="color: ${GRADES[h.g].c}">${esc(h.name)}</span>` }) }));
+    }
+  }
   function select(id, keep) {
     for (const [k, pl] of lines) {
       const h = hikes.get(k); if (!h) continue;
@@ -611,7 +642,17 @@ out center tags qt;`;
         places.set(c.id, c); list.push(c);
       });
     }
+    // Dots that would sit on each other are left out until zoomed in (alex 2026-11-05, "see if anything else is too
+    // crowded": the parking lots and trailheads were a purple pile over Whistler village). Huts first, then trailheads,
+    // campsites, viewpoints, parking, water and toilets; the open place always stays.
+    const RANK = ["hut", "th", "camp", "view", "fall", "park", "water", "wc"], room = [], keep = new Set(), GAP = 14;
+    for (const p of [...list].sort((a, b) => RANK.indexOf(a.k) - RANK.indexOf(b.k))) {
+      const q = map.latLngToContainerPoint(p.ll);
+      if (p !== curPlace && room.some((o) => Math.abs(o.x - q.x) < GAP && Math.abs(o.y - q.y) < GAP)) continue;
+      room.push(q); keep.add(p);
+    }
     for (const p of list) {
+      if (!keep.has(p)) continue;
       if (++n > 700) break;
       const k = PLACES[p.k], big = p.k === "hut" || p.k === "th";
       const m = L.circleMarker(p.ll, { renderer: placeRend, pane: "hikePlaces", radius: big ? 7 : 5.5, color: "#fff", weight: 2, fillColor: k.c, fillOpacity: 1,
@@ -762,11 +803,11 @@ out center tags qt;`;
     const on = isHike();
     const want = (l, yes) => { if (yes && !map.hasLayer(l)) l.addTo(map); else if (!yes && map.hasLayer(l)) map.removeLayer(l); };
     want(layer, on && shown.has("trails")); want(looseLayer, on && shown.has("trails"));
-    want(placeLayer, on); want(slopeLayer, on && shown.has("slope")); want(planLayer, on);
+    want(placeLayer, on); want(nameLayer, on); want(slopeLayer, on && shown.has("slope")); want(planLayer, on);
     if (!on && plan.on) setPlanning(false);
     if (on && shown.has("sleep")) loadHuts();
     if (on && !keyCtl._map) keyCtl.addTo(map); else if (!on && keyCtl._map) keyCtl.remove();
-    drawPlaces(); renderLayers(); renderKey();
+    drawPlaces(); drawNames(); renderLayers(); renderKey();
   }
 
   // ---------- map key ----------
@@ -980,7 +1021,7 @@ out center tags qt;`;
   // alex 2026-11-03: anything found about a trail beyond OpenStreetMap goes on the trail (the Sea to Sky Gondola's
   // trails: difficulty, length, time, what it's like). An entry fits a hike with one of its names within r metres.
   let tInfo = null;
-  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=3180").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
+  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=3210").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
   const fold = (x) => String(x || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   function operatorFacts(h) {
     const j = tInfo && tInfo.then ? null : tInfo;
@@ -1462,7 +1503,7 @@ out center tags qt;`;
   // What Offline maps saves for Hiking (offline.js): the hiking trails and places of the home zones in the box, the
   // Canada chunks over it, the grades and trail facts, and the terrain tiles for heights.
   window.tfHikeOffline = async (box) => {   // box = [south, west, north, east]
-    const abs = (u) => new URL(u, location.href).href, data = ["data/hike-grades.json?v=3180", "data/trail-info.json?v=3180", "ca/h/index.json"];
+    const abs = (u) => new URL(u, location.href).href, data = ["data/hike-grades.json?v=3210", "data/trail-info.json?v=3210", "ca/h/index.json"];
     for (const z of window.tfZones || []) if (z.box[0] < box[2] && z.box[2] > box[0] && z.box[1] < box[3] && z.box[3] > box[1]) data.push(`data/hike-${z.id}.json`, `data/hike-places-${z.id}.json`);
     const have = await chunkList();
     for (let la = Math.floor(box[0] / CH_LAT) * CH_LAT; la < box[2]; la += CH_LAT)
@@ -1721,7 +1762,7 @@ out center tags qt;`;
   let moveT = 0;
   map.on("moveend", () => {
     if (!isHike()) return;
-    renderList(); drawPlaces(); renderLayers();
+    renderList(); drawPlaces(); drawNames(); renderLayers();
     clearTimeout(moveT);
     moveT = setTimeout(() => { loadView(); loadWx(); }, 600);
   });
