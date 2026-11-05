@@ -245,7 +245,7 @@ body.sk-route-focus :is(.wc-gl, .hc-pin, .sk-pin.park) { transform: scale(.75); 
 #skiPane .ss-names { margin: 0; font-size: .78rem; color: var(--muted); line-height: 1.45; }
 #skiPane .ss-names span { color: var(--fg); font-weight: 600; }
 #skiPane ol.ss-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; font-size: .85rem; line-height: 1.3; }
-#skiPane ol.ss-list li { position: relative; display: grid; grid-template-columns: 24px 1fr auto; gap: 0 10px; align-items: center; padding: 4px 0; }
+#skiPane ol.ss-list li { position: relative; display: grid; grid-template-columns: 24px 1fr auto; gap: 0 10px; align-items: center; padding: 4px 0; cursor: pointer; }
 #skiPane ol.ss-list li::before { content: ""; position: absolute; left: 11px; top: 0; bottom: 0; width: 2px; background: var(--line); }
 #skiPane ol.ss-list li:first-child::before { top: 50%; }
 #skiPane ol.ss-list li:last-child::before { bottom: 50%; }
@@ -290,7 +290,7 @@ body.sk-route-focus :is(.wc-gl, .hc-pin, .sk-pin.park) { transform: scale(.75); 
 #skiPane ul.sk-safe-why, #skiPane ol.sk-safe-watch { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: .8rem; line-height: 1.4; }
 #skiPane ul.sk-safe-why li { position: relative; padding-left: 14px; }
 #skiPane ul.sk-safe-why li::before { content: ""; position: absolute; left: 2px; top: .55em; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); }
-#skiPane ol.sk-safe-watch li { display: grid; grid-template-columns: 22px 1fr; gap: 0 9px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--c) 7%, var(--panel)); border: 1px solid color-mix(in srgb, var(--c) 25%, var(--line)); }
+#skiPane ol.sk-safe-watch li { display: grid; grid-template-columns: 22px 1fr; gap: 0 9px; cursor: pointer; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--c) 7%, var(--panel)); border: 1px solid color-mix(in srgb, var(--c) 25%, var(--line)); }
 #skiPane ol.sk-safe-watch li i { font-style: normal; height: 20px; border-radius: 5px; display: grid; place-items: center; background: var(--c); color: #fff; font-size: .7rem; font-weight: 800; }
 #skiPane .sk-safe-ok { margin: 0; font-size: .8rem; color: var(--muted); }
 #skiPane .sk-safe-dis { font-size: .72rem; color: var(--muted); margin: 0; line-height: 1.45; border-top: 1px solid var(--line); padding-top: 12px; }
@@ -1332,7 +1332,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3410").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3420").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2663,8 +2663,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (plan.show) { const r = planRoute(); if (r) map.fitBounds(r.bounds, { padding: [30, 30], maxZoom: 15 }); }
     });
     $("skSafeBtn").addEventListener("click", () => setSafe(!plan.safe));
-    // A tap on a step or point in the list no longer moves the map (alex 2026-11-05: "i dont like when it brings you to
-    // a point"): the map stays where you put it; the pins and the line on the map show where each point is.
+    // A tap on a point or step shows it up close (alex 2026-11-05: "i wanted to have a better view of the point you
+    // click on to see it better on the map"; before, the map only slid over at the zoom it had, the point stayed small
+    // and far): a 1 km square around it fills what the phone sheet leaves showing, in 3D tilted 55° and turned to
+    // the side it's seen from best, not from behind a peak (alex: "make sure you are facing the point"), like a search
+    // result (place-search.js go, map3d.js turnToSee).
+    card.querySelectorAll("[data-safe-at]").forEach((li) => li.addEventListener("click", () => {
+      const [la, lo] = li.dataset.safeAt.split(",").map(Number), ps = window.tfPlaceSearch;
+      // (a phone sheet pulled all the way up comes down to half, so there's map to see the point on)
+      const pad = window.tfMapPad ? window.tfMapPad() : null, tall = pad && pad.br[1] > innerHeight * 0.6;
+      if (ps && ps.go) ps.go({ lat: la, lon: lo }, { km: 1, maxZoom: 16, sheet: tall ? "half" : false });
+      else map.setView([la, lo], 16);
+    }));
     const ag = $("skSafeAgain"); if (ag) ag.addEventListener("click", () => { plan.path = null; planChanged(); });
     // Reorder the points from the list (alex 2026-11-04: "make it so we can change the other way"): swap a point with
     // the one above or below, or reverse the whole tour; the safest way is found again in the new order.

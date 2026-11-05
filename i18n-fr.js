@@ -2060,7 +2060,7 @@
     "Read the Terms of use":"Lire les conditions d'utilisation",
     "By tapping I agree you accept the Terms of use. Under the age of majority? A parent or guardian agrees for you.":"En touchant J'accepte, vous acceptez les conditions d'utilisation. Pas encore majeur? Un parent ou tuteur accepte pour vous.",
     "Terms of use: you agree once before using the app that you make your own decisions and take the risk, and the terms now spell out what the Safest way, ATES classes, weather, route status and GPS tracks can and can't tell you.":"Conditions d'utilisation : vous acceptez une fois, avant d'utiliser l'application, que vous prenez vos propres décisions et assumez les risques, et les conditions expliquent maintenant ce que le Chemin le plus sûr, les classes ATES, la météo, le statut des itinéraires et les traces GPS peuvent ou non vous dire.",
-    "Skiing: tapping a point or step in your tour list no longer moves the map.":"Ski : toucher un point ou une étape dans la liste de votre randonnée ne déplace plus la carte."};
+    "Skiing: tap a point or step in your tour list to see it up close, facing it.":"Ski : touchez un point ou une étape dans la liste de votre randonnée pour le voir de près, bien en face."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
