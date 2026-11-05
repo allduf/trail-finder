@@ -819,8 +819,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }));
   function loadCanada(bounds) {
     if (!ski || !canIdx) return Promise.resolve();
-    const want = Object.entries(canIdx.tiles || {}).filter(([k, t]) => !canGot.has(k) && bounds.intersects(L.latLngBounds([t.box[0], t.box[1]], [t.box[2], t.box[3]])));
-    return Promise.all(want.map(([k]) => {
+    const hit = Object.entries(canIdx.tiles || {}).filter(([k, t]) => bounds.intersects(L.latLngBounds([t.box[0], t.box[1]], [t.box[2], t.box[3]])));
+    const want = hit.filter(([k]) => !canGot.has(k));
+    // Squares already on their way count too: the Safest way's search (tfSki.trip.near) waits for them, or it would plan
+    // without the hand-kept routes when the map had only just asked for them.
+    const coming = hit.filter(([k]) => canGot.has(k)).map(([k]) => canGot.get(k));
+    return Promise.all([...coming, ...want.map(([k]) => {
       const p = fetch(`${k}.json`, { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }).then((t) => {
         const ids = new Set((ski.routes || []).map((r) => r.id));
         tidyAccess(t);
@@ -841,13 +845,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         ski.huts = dedupeHw([...(ski.huts || []), ...hutFacts(t.huts || [])]);
         ski.starts = [...(ski.starts || []), ...(t.starts || [])];
         ski.parking = [...(ski.parking || []), ...(t.parking || [])];
+        // Ground the Safest way never crosses (data/ski-hand/ "nogo", ski-route.js): flat [lat, lon, ...] lines.
+        ski.nogo = [...(ski.nogo || []), ...(t.nogo || []).map((n) => ({ ...n, pts: lineOf(n.g) }))];
         if (t.lifts && t.lifts.length && window.tfLifts) window.tfLifts.add(t);
         clearTimeout(canRedraw);
         canRedraw = setTimeout(() => { if (sport === "ski") { drawSki(); renderList(); } window.dispatchEvent(new CustomEvent("tf:ski-more")); }, 50);   // freeride.js
       }).catch(() => canGot.delete(k));
       canGot.set(k, p);
       return p;
-    }));
+    })]);
   }
   // A Hokkaido Wilds hut and the same hut from OpenStreetMap (within 300 m): one pin, Hokkaido Wilds' (its notes),
   // keeping the OpenStreetMap hut's Japanese name.
@@ -1298,7 +1304,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3330").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3340").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -4585,6 +4591,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   window.tfSki.trip = {
     loadSki: () => Promise.resolve(loadSki()).then(() => loadCanIdx()).then(() => ski),
     near: async (c, km) => { await loadSki(); await loadCanIdx(); const b = L.latLng(c[0], c[1]).toBounds(km * 2000); await loadCanada(b); return (ski?.routes || []).filter((r) => r.type !== "resort" && r.bounds && b.intersects(r.bounds)); },
+    // No-go ground near c (after near() has loaded the squares): [{ pts: [[lat, lon], ...], name, why }].
+    nogo: (c, km) => { const b = L.latLng(c[0], c[1]).toBounds(km * 2000); return (ski?.nogo || []).filter((n) => n.pts.some((p) => b.contains(p))); },
     info: (lines) => T.info(lines, dem),
     hours: (info) => tourHours(info),
     weather: (lat, lon, ele) => weather(lat, lon, ele),
