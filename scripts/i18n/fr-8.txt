@@ -78,3 +78,13 @@ Skiing Plan a tour: your tour is only on the map while you plan or edit it, or a
 Hide from map ||| Masquer de la carte
 Show on map ||| Afficher sur la carte
 Offline maps for Hiking: an area saved in Hiking keeps its hiking trails and terrain, so you can plan a hike with no signal (the route follows the trails, with its climb and height profile). ||| Cartes hors ligne pour la randonnée : une zone enregistrée en Randonnée garde ses sentiers et le relief, pour planifier une randonnée sans signal (le trajet suit les sentiers, avec sa montée et son profil).
+# Status after Forest roads and Wildfires in Layers (index.html, 2026-11-05)
+Turn on to see open, rough, closed or washed out ||| Activez pour voir ouverts, abîmés, fermés ou emportés
+Zoom in to see each road's status ||| Zoomez pour voir l'état de chaque chemin
+Open, rough, closed or washed out: zoom in ||| Ouverts, abîmés, fermés ou emportés : zoomez
+Checking the roads in view… ||| Vérification des chemins à l'écran…
+No forest roads in view ||| Aucun chemin forestier à l'écran
+Checking for fires… ||| Recherche de feux…
+Wildfire out of control ||| Feu de forêt hors de contrôle
+Wildfire being held ||| Feu de forêt contenu
+Wildfire under control ||| Feu de forêt maîtrisé

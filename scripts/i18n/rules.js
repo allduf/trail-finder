@@ -139,4 +139,9 @@
     [/^Nothing named “(.+)” in (.+?)( yet)?\. Found elsewhere in Canada:$/, function (m, q, z, y) { return "Rien nommé « " + q + " » dans " + tt(z) + (y ? " pour l'instant" : "") + ". Trouvé ailleurs au Canada :"; }],
     [/^Nothing named “(.+)” in (.+)\. Found in other areas:$/, function (m, q, z) { return "Rien nommé « " + q + " » dans " + tt(z) + ". Trouvé dans d'autres secteurs :"; }],
     [/^(More trails|Trails) in (.+)$/, function (m, w, z) { return (w === "Trails" ? "Sentiers" : "Autres sentiers") + " dans " + tt(z); }],
+    // The status after Forest roads and Wildfires in Layers (index.html layerStatsNow).
+    [/^([\d.]+) km (impassable|closed|very rough|rough|good)$/, function (m, n, w) { return n.replace(".", ",") + " km " + { impassable: "impraticables", closed: "fermés", "very rough": "très abîmés", rough: "abîmés", good: "en bon état" }[w]; }],
+    [/^(\d+) (out of control|being held|under control|burning)$/, function (m, n, w) { return n + " " + { "out of control": "hors de contrôle", "being held": "contenu" + (n > 1 ? "s" : ""), "under control": "maîtrisé" + (n > 1 ? "s" : ""), burning: "en feu" }[w]; }],
+    [/^within (\d+) km$/, "dans un rayon de $1 km"],
+    [/^No active fires within (\d+) km$/, "Aucun feu actif dans un rayon de $1 km"],
   ];
