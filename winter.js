@@ -1291,7 +1291,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3080").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3090").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -1447,7 +1447,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   async function routeInfo(group) {
     const r = group[0];
     if (r.info) return r.info;
-    return (r.info = await T.info(group.flatMap((x) => x.lines), dem, r.src === "plan"));
+    const info = await T.info(group.flatMap((x) => x.lines), dem, r.src === "plan");
+    if (r.src === "plan" && r.key) {
+      planInfo.set(r.key, info);
+      if (planInfo.size > 12) planInfo.delete(planInfo.keys().next().value);
+    }
+    return (r.info = info);
   }
   const bandKm = (info, b) => {
     const out = { alp: 0, tln: 0, btl: 0 };
@@ -2145,9 +2150,13 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const group = Array.isArray(it) ? it : [it];
     const r = group[0];
     if (selected !== r) { hoverLayer.clearLayers(); aboveLayer.clearLayers(); pinLayer.clearLayers(); stopFly(); }
+    const was = selected;
     selGroup = group;
     selected = r;
-    drawSki(); renderList();
+    // Your tour swapped for its other way (🛡 Safest on or off): no mapped route changes its highlight, so the
+    // whole Skiing layer (and the 3D map's copy of it) isn't redrawn.
+    if (!(was && was.src === "plan" && r.src === "plan")) drawSki();
+    renderList();
     if (fly) {
       if (r.lat != null) map.setView([r.lat, r.lon], Math.max(map.getZoom(), 14));
       else map.fitBounds(group.reduce((b, x) => b.extend(x.bounds), L.latLngBounds(r.bounds.getSouthWest(), r.bounds.getNorthEast())), { padding: [30, 30], maxZoom: 15 });
@@ -2298,6 +2307,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       drawAbove(info);
       if (isRoute) { drawPins(info); showCond(info); }
       if (mine) renderPlan();
+      if (r.src === "plan") warmPlanOther();
       const nb = $("skNear");
       if (nb) {
         nb.outerHTML = nearbyHtml(info);
@@ -2395,11 +2405,37 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // was found for), not straight.
   const planKey = () => JSON.stringify(plan.pts);
   const safePath = () => (plan.safe && plan.path && plan.path.key === planKey() && plan.path.line && plan.path.line.length > 1 ? plan.path : null);
+  // Each way's heights and slopes are kept (by its points and whether it's the safest way), so turning 🛡 Safest on
+  // and off shows the other way's numbers and card at once instead of working them out again (alex 2026-11-04: "It
+  // lag when I activate and deactivate safest way").
+  const planInfo = new Map();
+  const planLineKey = () => (plan.pts.length < 2 ? "" : (safePath() ? "s" : "p") + planKey());
   function planRoute() {
     if (plan.pts.length < 2) return null;
-    const sp = safePath(), line = sp ? sp.line.slice() : plan.pts.slice();
-    return { id: "plan", src: "plan", type: "tour", name: sp ? "Your tour, safest way" : "Your planned tour", tags: {}, g: [line.flat()], lines: [line], bounds: L.latLngBounds(line) };
+    const sp = safePath(), line = sp ? sp.line.slice() : plan.pts.slice(), key = planLineKey();
+    const r = { id: "plan", src: "plan", type: "tour", name: sp ? "Your tour, safest way" : "Your planned tour", tags: {}, g: [line.flat()], lines: [line], bounds: L.latLngBounds(line), key };
+    if (planInfo.has(key)) r.info = planInfo.get(key);
+    return r;
   }
+  // Once one way's numbers are in, the other way's (straight between the points, or the safest way when it's been
+  // found) are worked out quietly too, so even the first 🛡 Safest switch is instant.
+  function warmPlanOther() {
+    if (plan.pts.length < 2) return;
+    const k = planKey(), sp = plan.path && plan.path.key === k && plan.path.line && plan.path.line.length > 1 ? plan.path : null;
+    const other = safePath() ? { key: "p" + k, line: plan.pts.slice() } : sp ? { key: "s" + k, line: sp.line.slice() } : null;
+    if (!other || planInfo.has(other.key)) return;
+    setTimeout(() => {
+      if (planInfo.has(other.key) || planKey() !== k) return;
+      routeInfo([{ src: "plan", key: other.key, lines: [other.line] }]).catch(() => {});
+    }, 800);
+  }
+  // The numbers for the way on the map now: none while the other way's are still showing.
+  const planNowInfo = () => {
+    const key = planLineKey();
+    if (!key) return null;
+    if (selected && selected.src === "plan" && selected.key === key && selected.info) return selected.info;
+    return planInfo.get(key) || null;
+  };
   // The plan's labels on the 3D map too (it doesn't show Leaflet markers): Start, 1, 2 ... End and the !n watch-outs
   // (alex 2026-11-04: "put point on map in the route").
   let planGl = [];
@@ -2477,7 +2513,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   document.querySelector(".mapwrap").append(planBar);
   L.DomEvent.disableClickPropagation(planBar);
   function renderPlan() {
-    const card = $("skPlan"), info = selected && selected.src === "plan" ? selected.info : null, n = plan.pts.length;
+    const card = $("skPlan"), info = planNowInfo(), n = plan.pts.length;
     planBar.hidden = !plan.on;
     if (plan.on) {
       // Always says what a tap does next, on its own line on a phone (alex 2026-11-04: "Is hard to know when you can
@@ -2618,6 +2654,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       renderPlan(); return;
     }
     renderPlan();
+    if (r.info) { select(r); return; }   // already worked out (🛡 Safest turned back on or off): at once
     plan.timer = setTimeout(() => select(r), 350);   // a quick run of taps works it out once
   }
   // ---------- 🛡 the safest way ----------
@@ -2742,7 +2779,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const via = names.length ? `<p class="ss-names">Via ${names.slice(0, 8).map((x) => `<span>${esc(x)}</span>`).join(", ")}${names.length > 8 ? ` and ${names.length - 8} more` : ""}</p>` : "";
     // The totals the summary above and the route card show (heights every 25 m along the line), once they're in, so the
     // same tour never shows two climbs (alex 2026-11-04: 1,061 m above, 1090 m here).
-    const inf = selected && selected.src === "plan" ? selected.info : null;
+    const inf = planNowInfo();
     if (inf) { m = inf.total; up = inf.up; down = inf.down; }
     const sum = `<div class="ss-sum"><div><b>${D(m)}</b><small>Distance</small></div><div><b>${Math.round(up)} m</b><small>Climb</small></div><div><b>${Math.round(down)} m</b><small>Descent</small></div></div>`;
     return `<div class="sk-sec"><h4>Your route</h4>${sum}${via}<ol class="ss-list">${html}</ol></div>`;
