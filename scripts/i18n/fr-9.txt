@@ -25,3 +25,7 @@ Your tour's card then shows each stretch and why it goes there. Drag, add or tak
 That's only one point: say where you start and where you finish, or a line to ski. ||| Ce n'est qu'un point : dites où vous partez et où vous arrivez, ou une ligne à skier.
 Add a point ||| Ajouter un point
 Tap the map where you want to go next: it becomes the new End. ||| Touchez la carte là où vous voulez aller ensuite : ce sera la nouvelle arrivée.
+Whistler Blackcomb today ||| Whistler Blackcomb aujourd'hui
+Experts only ||| Experts seulement
+Couldn't load it: check their terrain status map ||| Impossible de le charger : voyez leur carte de l'état du terrain
+Closed ||| Fermé

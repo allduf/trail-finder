@@ -308,6 +308,10 @@ body.sk-route-focus :is(.wc-gl, .hc-pin, .sk-pin.park) { transform: scale(.75); 
 #skiPane .sk-dg { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--fg); font-size: .72rem; font-weight: 600; white-space: nowrap; padding: 5px 6px; gap: 5px; }
 #skiPane .sk-dg i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 #skiPane .sk-safe-wait { display: flex; align-items: center; gap: 8px; font-size: .84rem; color: var(--muted); }
+#skiPane .sk-wbst { margin: 6px 0; padding: 6px 10px; border-radius: 8px; background: #f1f3f5; font-weight: 600; }
+#skiPane .sk-wbst.open { background: #d3f9d8; color: #1b5e20; }
+#skiPane .sk-wbst.experts { background: #fff3bf; color: #7a4f00; }
+#skiPane .sk-wbst.closed { background: #ffe3e3; color: #a51111; }
 #skiPane .sk-safe-wait::before { content: ""; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #2f9e44; border-right-color: transparent; animation: sksafespin .8s linear infinite; flex: none; }
 @keyframes sksafespin { to { transform: rotate(360deg); } }
 .sk-planbar button.safe[aria-pressed="true"] { background: #2f9e44; border-color: #2f9e44; color: #fff; }
@@ -839,6 +843,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
           const r = ski.routes.find((x) => x.id === id);
           if (!r) continue;
           if (p.name) r.name = p.name;
+          // A line redrawn from a GPS track (alex 2026-11-05: the Poop Chutes, skied down the Phalanx Glacier, not from
+          // the ridge where OpenStreetMap starts it), and a documented way the Safest way follows (ski-route.js wayOf).
+          if (p.g) { r.g = p.g; r.lines = p.g.map(lineOf); r.bounds = L.latLngBounds(r.lines.flat()); r.info = null; }
+          if (p.way) r.way = true;
           r.tags = { ...(r.tags || {}), ...(p.tags || {}) };
           if (p.links) r.links = [...(r.links || []), ...p.links.filter((l) => !(r.links || []).some((x) => x.u === l.u))];
         }
@@ -1304,7 +1312,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3340").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3350").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -1681,6 +1689,23 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <p class="sk-note">Model forecast from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>. Wind: strongest / gusts.</p>`;
   }
 
+  // Whistler Blackcomb's uphill and backcountry access routes (data/ski-hand/ "wb": the name on their map): today's state
+  // from the operator's own terrain status map (an ArcGIS layer, open to any site), read when a card opens, kept 5 min.
+  const WB_ST = { 1: { k: "open", label: "Open" }, 2: { k: "experts", label: "Experts only" }, 3: { k: "closed", label: "Closed" } };
+  let wbSt = null;
+  function wbStatus(name) {
+    if (!wbSt || Date.now() - wbSt.at > 300000) {
+      const q = "where=1%3D1&outFields=Name,status,Status&returnGeometry=false&f=json";
+      const B = "https://services3.arcgis.com/XthfLqjm6BwtGUpE/arcgis/rest/services/";
+      wbSt = { at: Date.now(), p: Promise.all(["Backcountry_Access", "Early_Season_Uphill_Access"].map((s) => fetch(`${B}${s}/FeatureServer/0/query?${q}`).then((r) => r.json())))
+        .then((js) => { const m = new Map(); for (const j of js) for (const f of j.features || []) { const a = f.attributes || {}; m.set(String(a.Name || "").trim(), a); } return m; })
+        .catch(() => { wbSt = null; return null; }) };
+    }
+    return wbSt.p.then((m) => {
+      const a = m && m.get(name); if (!a) return null;
+      return WB_ST[a.status || a.Status] || null;
+    });
+  }
   // OpenStreetMap tags in plain words; the rest are left out (alex: "take out everything unnecessary").
   const GROOM = { backcountry: "Not groomed (backcountry)", no: "Not groomed", classic: "Groomed for classic", skating: "Groomed for skate", "classic+skating": "Groomed for classic and skate", "classic;skating": "Groomed for classic and skate", scooter: "Packed by snowmobile", mogul: "Moguls" };
   const DIFF = { novice: "Novice", easy: "Easy", intermediate: "Intermediate", advanced: "Advanced", expert: "Expert", freeride: "Freeride (off-piste)", extreme: "Extreme" };
@@ -2196,6 +2221,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ? `${r.facts && r.facts.src ? `<a href="${esc(r.facts.src)}" target="_blank" rel="noopener">${esc(r.tags.operator || "the hut's club")}</a>` : esc(r.tags.operator || "the hut's club")} (not on OpenStreetMap yet)`
       : r.src === "hw"
       ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a> by ${esc(r.tags["hw:by"] || "Rob Thomson")} (<a href="https://hokkaidowilds.org/" target="_blank" rel="noopener">hokkaidowilds.org</a>, CC BY-SA 4.0): full guide, photos and topo map there`
+      : r.src === "hand" && r.official
+      ? `Whistler Blackcomb's own backcountry access map: ${linksHtml(r)}`
       : r.src === "hand"
       ? `${r.osmLine ? "the operator's pages and guide notes" : "trip reports and guidebooks"}${(r.links || []).length ? ": " + linksHtml(r) : ""}${r.osmLine ? `; the line follows trails on <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OpenStreetMap</a>` : " (not on OpenStreetMap yet)"}`
       : r.src === "pc"
@@ -2214,6 +2241,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         <img class="sk-rc-ph" id="skRcPh" alt="" hidden referrerpolicy="no-referrer">
         <div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>
         <div class="sk-rc-tag" id="skRcTag">${[esc(isUphill(r) ? UP_LABEL : t.label), diffPill(r.diff)].filter(Boolean).join(" · ")}</div>
+        ${r.wb ? `<p class="sk-wbst" id="skWbSt"><span>Whistler Blackcomb today</span> <b>…</b></p>` : ""}
         ${isUphill(r) ? `<p class="sk-hint sk-up">⬆ ${esc(UP_ABOUT)}</p>` : ""}
         <div class="sk-rc-elev" id="skRcStats">${rcGrid([[len.toFixed(1) + " km", "Length"], ["…", "Climb"], ["…", "Descent"], ["…", "Takes"], ["…", "Top"], ["…", "Bottom"]])}<p class="sk-note">Loading heights…</p></div>
         <div class="sk-cond" id="skCond">${condHtml()}</div>
@@ -2250,6 +2278,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       $("skMore").hidden = !moreOpen;
       moreBtn.setAttribute("aria-expanded", String(moreOpen));
       moreBtn.textContent = moreOpen ? "Fewer details ▴" : "More details: avalanche check, slopes, forecast, weather ▾";
+    });
+    if (r.wb) wbStatus(r.wb).then((st) => {
+      const el = $("skWbSt");
+      if (!el || !live()) return;
+      el.className = `sk-wbst ${st ? st.k : ""}`;
+      el.querySelector("b").textContent = st ? st.label : "Couldn't load it: check their terrain status map";
     });
     const rcw = $("skRcWatch");
     if (rcw) rcw.addEventListener("click", () => { const w = $("skWatch"); if (w) w.click(); });
