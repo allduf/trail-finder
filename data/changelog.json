@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-05", "text": "Skiing Ask: knows every chairlift by name, even misspelled (\"finish at the bottom of 7th even\" is the 7th Heaven chair)."},
     {"date": "2026-11-05", "text": "Skiing: a tour plan typed in the search box (\"start at the top of Showcase, ski DOA, finish in Lakeside Bowl\") now goes to Ask and becomes a tour."},
     {"date": "2026-11-05", "text": "Skiing: type your plan of the day in Ask (\"start at the top of Showcase, ski DOA, finish in Lakeside Bowl\") and it makes the tour on the map, with the 🛡 Safest way for the climb and what it is based on."},
     {"date": "2026-11-05", "text": "Skiing: while you plan or show a tour, the other lines get thinner and fainter and their names smaller, so your route stands out."},

@@ -326,7 +326,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     if (p.sport === "ski") {
       const SKIW = new Set(["mount", "mt", "mountain", "resort", "ski", "area", "hill", "slack", "country", "slackcountry", "backcountry", "side", "the", "de", "du", "station", "mont"]);
       const w = n.split(" ").filter((x) => x && !SKIW.has(x));
-      const rs = w.length ? await fetch("data/ski-lifts.json?v=3310").then((r) => r.json()).then((d) => Object.values(d.resorts || {})).catch(() => []) : [];
+      const rs = w.length ? await fetch("data/ski-lifts.json?v=3320").then((r) => r.json()).then((d) => Object.values(d.resorts || {})).catch(() => []) : [];
       const hit = rs.find((r) => r.name && w.every((x) => norm(r.name).split(" ").includes(x)));
       if (hit) return { c: [hit.lat, hit.lon], name: hit.name };
     }
@@ -382,22 +382,33 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       n = n.replace(/\s+(?:today|tomorrow|please|and|then|run|line|in the (?:morning|afternoon))$/g, "").trim();
       if (!n || /^(?:a |my |our )?(?:tour|ski tour|day|lap|it|there|here|plan)$/.test(n) || n.length < 2) continue;
       if (/^the (?:car|parking|lot)|^(?:parking|car|the road)$/.test(n)) continue;
-      out.push({ kind, name: n, pos, up });
+      out.push({ kind, name: n, pos, up, lift: /\b(?:chair|chairlift|lift|gondola|t ?-?bar|express|quad)\b/.test(n) });
     }
     return out;
   }
   let liftsP = null, slackP = null;
-  const liftsList = () => liftsP || (liftsP = fetch("data/ski-lifts.json?v=3310").then((r) => r.json()).then((d) => d.lifts || []).catch(() => { liftsP = null; return []; }));
+  const liftsList = () => liftsP || (liftsP = fetch("data/ski-lifts.json?v=3320").then((r) => r.json()).then((d) => d.lifts || []).catch(() => { liftsP = null; return []; }));
   const slackList = () => slackP || (slackP = fetch("data/slackcountry.json").then((r) => r.json()).then((d) => (d.resorts || []).flatMap((rs) => (rs.lines || []).map((l) => ({ ...l, resort: rs.name })))).catch(() => { slackP = null; return []; }));
   const pairs = (flat) => { const o = []; for (let i = 0; i + 1 < flat.length; i += 2) o.push([flat[i], flat[i + 1]]); return o; };
   // How well a name typed matches a name on the map: 3 the same, 2.5 the same before its brackets or its short name,
   // 2 every word there (a word of 4+ letters may be one letter off), 0 not it.
+  // A word typed close enough to a word on the map: a letter or two off by length (alex 2026-11-05: "7th even" is the
+  // 7th Heaven chair), also said the way it sounds (a silent h dropped: "even" / "heaven").
+  const lev = (a, b) => {
+    const d = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      let prev = d[0]; d[0] = i;
+      for (let j = 1; j <= b.length; j++) { const t = d[j]; d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = t; }
+    }
+    return d[b.length];
+  };
   const close1 = (a, b) => {
     if (a === b) return true;
-    if (a.length < 4 || Math.abs(a.length - b.length) > 1) return false;
-    let i = 0, j = 0, e = 0;
-    while (i < a.length && j < b.length) { if (a[i] === b[j]) { i++; j++; continue; } if (++e > 1) return false; if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; } }
-    return e + (a.length - i) + (b.length - j) <= 1;
+    if (/^\d/.test(a) || /^\d/.test(b)) return a.replace(/(st|nd|rd|th)$/, "") === b.replace(/(st|nd|rd|th)$/, "");   // 7th = 7
+    const n = Math.max(a.length, b.length), max = n >= 7 ? 2 : n >= 4 ? 1 : 0;
+    if (!max) return false;
+    const sound = (w) => w.replace(/^h/, "").replace(/ph/g, "f").replace(/(.)\1/g, "$1");
+    return lev(a, b) <= max || lev(sound(a), sound(b)) <= 1;
   };
   const GENERIC = new Set(["the", "lift", "chair", "run", "line", "trail", "route", "mount", "mt", "mountain", "bowl", "express", "t", "bar"]);
   function nameScore(typed, ...names) {
@@ -412,7 +423,8 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       if (!tw.length) continue;
       // DOA = Down, Over and Around: the initials count too.
       if (tw.length === 1 && tw[0].length >= 2 && tw[0].length <= 5 && nw.filter((w) => !["and", "of", "the"].includes(w)).map((w) => w[0]).join("") === tw[0]) best = Math.max(best, 2.2);
-      if (tw.every((w) => nw.some((x) => close1(w, x)))) best = Math.max(best, 2 - (nw.length - tw.length) * 0.05);
+      // Every word typed is there: 2, less a little for each other word in the name (min 1.8) and each word only close.
+      if (tw.every((w) => nw.some((x) => close1(w, x)))) best = Math.max(best, Math.max(1.8, 2 - (nw.length - tw.length) * 0.02) - tw.filter((w) => !nw.includes(w)).length * 0.1);
     }
     return best;
   }
@@ -432,9 +444,9 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       let best = null;
       for (const x of cands) {
         const sc = nameScore(st.name, x.name, x.alt);
-        if (sc < 2) continue;
+        if (sc < 1.5) continue;
         const d = Math.min(...x.lines.map((ln) => kmTo(ln[0], c)));
-        const v = sc + (PREF[st.kind][x.kind] || 0) + (st.pos && x.kind === "lift" ? 0.2 : 0) - d / 200;
+        const v = sc + (PREF[st.kind][x.kind] || 0) + (st.pos && x.kind === "lift" ? 0.2 : 0) + (st.lift && x.kind === "lift" ? 1 : 0) - d / 200;
         if (!best || v > best.v) best = { v, x };
       }
       if (!best) return { ...st, miss: true };
