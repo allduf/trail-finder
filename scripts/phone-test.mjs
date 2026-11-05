@@ -133,7 +133,9 @@ for (const sport of SPORTS) {
     results.push({ sport, step: "Opens without the other sports' scripts", ok: !extra.length, note: extra.length ? `loaded anyway: ${extra.join(", ")}` : "", shot: "" });
   }
   // The one-time terms sheet (risk.js "Before you head out") is agreed to like a person would.
-  await page.locator("dialog.tf-terms [data-terms=ok]").click({ timeout: 6000 }).catch(() => {});
+  // On a brand-new device the welcome opens right after I agree: wait for it so Escape below closes it.
+  if (await page.locator("dialog.tf-terms [data-terms=ok]").click({ timeout: 6000 }).then(() => true, () => false))
+    await page.waitForSelector("dialog.welc[open]", { timeout: 4000 }).catch(() => {});
   // Anything the app shows on a first open (What's new, tips) is closed like a rider would.
   await page.keyboard.press("Escape").catch(() => {});
 
