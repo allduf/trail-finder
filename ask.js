@@ -83,6 +83,7 @@ ol.ask-list b { font-size: .96rem; } ol.ask-list small { color: var(--muted); fo
 .ask-areas button { font: inherit; font-size: .82rem; font-weight: 600; padding: 6px 11px; min-height: 36px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip, #fff); color: var(--fg); cursor: pointer; }
 .ask-areas button[aria-pressed="true"] { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
 .ask-act { font: inherit; font-weight: 700; padding: 10px 14px; min-height: 44px; border-radius: 12px; border: 0; background: #1f5fe0; color: #fff; cursor: pointer; width: 100%; margin: 6px 0 0; }
+.ask-more { font: inherit; font-weight: 700; padding: 8px 14px; min-height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--chip, #fff); color: #1f5fe0; cursor: pointer; width: 100%; margin: 6px 0 0; }
 .ask-wait { color: var(--muted); font-size: .88rem; padding: 6px 0; }
 ol.ask-plan { margin: 0; padding: 0 0 0 4px; list-style: none; counter-reset: st; display: flex; flex-direction: column; gap: 6px; }
 ol.ask-plan li { counter-increment: st; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; font-size: .95rem; padding: 8px 10px 8px 34px; border: 1px solid var(--line); border-radius: 10px; position: relative; }
@@ -98,8 +99,12 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   // The sport's own search box answers questions too (interface review 2026-11-02: two search boxes on Find). Words that
   // read like a question ("loop near Squamish tomorrow", "what can I hunt near Pemberton") go to Ask; names (a trail, a
   // town, "Lord of the Squirrels") stay with the normal search.
+  // alex 2026-11-06: "Simple ski tour in the duffeys" got "No place named …" ("Not clear where to ask"): "in the …",
+  // planning words and how hard read as a question too, and words that aren't a place go to Ask. One box for everything.
   const QWORD = /\b(near|nearby|around|loop|loops|where|what|which|how|when|best|today|tomorrow|tonight|weekend|stocked|danger|hours?|km|under|i|me)\b/i;
-  const asks = (q) => !document.body.classList.contains("sport-hike") && !!SP[sportOf()] && q.trim().split(/\s+/).length >= 3 && (QWORD.test(q) || (sportOf() === "ski" && planLike(q)));
+  // (not in MTB, where trail names like "Walk in the Park" are searched by name)
+  const QMORE = /\b(in the|plan|touring|simple|easy|beginner|intermediate|advanced|challenging|want|find|show)\b/i;
+  const asks = (q) => !document.body.classList.contains("sport-hike") && !!SP[sportOf()] && q.trim().split(/\s+/).length >= 3 && (QWORD.test(q) || (sportOf() !== "mtb" && QMORE.test(q)) || (sportOf() === "ski" && planLike(q)));
   // (Skiing: a plan of the day typed without "I want…", like "start at the top of Showcase, ski DOA, finish in Lakeside
   // Bowl", goes to Ask too, which makes it a tour; the video thread found it running a place search, 2026-11-05.)
   document.addEventListener("submit", (e) => {
@@ -159,7 +164,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   document.body.append(dlg);
   dlg.querySelector("h2 button").addEventListener("click", () => dlg.close());
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });   // a tap outside the sheet
-  dlg.querySelector(".ask-out").addEventListener("click", (e) => { if (e.target.closest("button") && !e.target.closest(".ask-ex")) logUse("pick", "Ask"); });
+  dlg.querySelector(".ask-out").addEventListener("click", (e) => { if (e.target.closest("button") && !e.target.closest(".ask-ex, .ask-more")) logUse("pick", "Ask"); });
   const close = () => { if (dlg.open) dlg.close(); };
 
   let token = 0;
@@ -187,8 +192,14 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     out.innerHTML = `<p class="ask-wait">Finding the place…</p>`;
     // A ski plan's own pieces ("finish in Lakeside Bowl") aren't the place to look around: they're found near the map.
     if (sp === "ski" && planLike(q) && p.place && planSteps(q).some((x) => norm(x.name) === norm(p.place) || norm(p.place).includes(norm(x.name)))) p.place = "";
+    const was = p.place;
     let at = await whereOf(p);
     if (my !== token) return;
+    // A backcountry area read from the words ("in the duffys", "Duffy Lake"): the heading says where it looked.
+    if (at && at.name && (at.region || p.place !== was)) {
+      p.place = at.name; p.summary = "";
+      head.innerHTML = `<p class="ask-said">${esc(summaryOf(p, sp))}</p><ul class="ask-chips">${chipsOf(p, sp).map((c) => `<li>${esc(c)}</li>`).join("")}</ul>${ai.ok ? "" : `<p class="ask-note">${esc(ai.why)} Read here more simply: ask again later for a smarter read.</p>`}`;
+    }
     // A ski tour typed as a plan names its own pieces: when the place isn't found, they're looked for around the map.
     if (!at && sp === "ski" && planLike(q)) { const m = map.getCenter(); at = { c: [m.lat, m.lng], mid: true }; }
     if (!at) { logUse("search", "Ask:" + q, 0); out.innerHTML = `<p class="ask-note ask-warn">Couldn't find “${esc(p.place)}” on the map. Try the town's name, or move the map there and ask “near here”.</p>`; return; }
@@ -313,8 +324,51 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     if (!navigator.geolocation) return Promise.resolve(mid());
     return new Promise((ok) => navigator.geolocation.getCurrentPosition((x) => ok({ c: [x.coords.latitude, x.coords.longitude], you: true }), () => ok(mid()), { timeout: 8000, maximumAge: 600000 }));
   }
+  // Skiing: the backcountry areas (data/ski-areas.json, "Backcountry areas across Canada") by their name or their
+  // region, spelling slips and all (alex 2026-11-06: "Plan a backcountry day in the duffys" went to a Duffy Lake near
+  // Kamloops, the place search's only Canadian "Duffy Lake", and found no tours). A region is the middle of its areas,
+  // with a radius that takes them all in.
+  let skiAreasP = null;
+  const skiAreas = () => skiAreasP || (skiAreasP = fetch("data/ski-areas.json").then((r) => r.json()).then((d) => (d.areas || []).filter((a) => a.lat != null)).catch(() => { skiAreasP = null; return []; }));
+  const FILL = new Set(["the", "a", "lake", "lakes", "road", "rd", "hwy", "highway", "area", "areas", "backcountry", "zone", "zones", "peak", "peaks", "mount", "mt", "mountain", "mountains", "range", "ski", "skiing", "touring", "tour", "tours", "bc", "of", "and", "in", "near", "around", "park", "region", "day"]);
+  const stem = (w) => (w.length > 4 && /s$/.test(w) && !/ss$/.test(w) ? w.slice(0, -1) : w);
+  const slip = (a, b) => {   // one letter added, left out or changed, on words of 5 letters or more
+    if (a === b) return true;
+    if (Math.min(a.length, b.length) < 5 || Math.abs(a.length - b.length) > 1) return false;
+    let i = 0, j = 0, e = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) { i++; j++; continue; }
+      if (++e > 1) return false;
+      if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+    }
+    return e + (a.length - i) + (b.length - j) <= 1;
+  };
+  const wordsOf = (s) => norm(s).split(" ").filter(Boolean).map(stem);
+  const namedBy = (want, name) => { const have = wordsOf(name); return want.every((w) => have.some((h) => slip(w, h))); };
+  async function skiAreaOf(place) {
+    const want = wordsOf(place).filter((w) => !FILL.has(w) && w.length >= 3);
+    if (!want.length) return null;
+    const areas = await skiAreas();
+    // The region first ("the duffys": all four Duffey areas), then one area ("Joffre", "Marriott Basin").
+    const reg = areas.filter((a) => a.region && (namedBy(want, a.region) || (a.sub && namedBy(want, a.sub))));
+    const regName = reg.length && reg[0].region;
+    const inReg = reg.filter((a) => a.region === regName);
+    // A region of one area is often a town too (Pemberton, Kamloops): the town, by the place search, not that one area.
+    if (inReg.length > 1) {
+      const c = [inReg.reduce((s, a) => s + a.lat, 0) / inReg.length, inReg.reduce((s, a) => s + a.lon, 0) / inReg.length];
+      const R = Math.max(25, Math.ceil(Math.max(...inReg.map((a) => kmTo(c, [a.lat, a.lon]))) + 15));
+      return { c, name: regName, R, region: true };
+    }
+    const a = areas.find((x) => namedBy(want, x.name) || namedBy(want, x.id.replace(/-/g, " ")));
+    return a ? { c: [a.lat, a.lon], name: a.name } : null;
+  }
+  // "in the duffys", "in the Chic-Chocs": the words after "in the" at the end of a ski question, tried only against
+  // the backcountry areas (never the place search: "in the trees", "in the alpine").
+  const inThe = (q) => { const m = norm(q).match(/\b(?:in|at|to|around) the ([a-z][a-z ]{2,30})$/); return m ? m[1] : ""; };
+
   // The place named: a riding area or zone by its name, else the place search (OpenStreetMap), else the AI's own spot.
   async function whereOf(p) {
+    if (p.sport === "ski" && !p.near_me && !p.place && inThe(p.q)) { const a = await skiAreaOf(inThe(p.q)); if (a) { p.place = a.name; return a; } }
     if (p.near_me || !p.place) return youOr();
     const n = norm(p.place);
     if (p.sport === "mtb") {
@@ -326,9 +380,11 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     if (p.sport === "ski") {
       const SKIW = new Set(["mount", "mt", "mountain", "resort", "ski", "area", "hill", "slack", "country", "slackcountry", "backcountry", "side", "the", "de", "du", "station", "mont"]);
       const w = n.split(" ").filter((x) => x && !SKIW.has(x));
-      const rs = w.length ? await fetch("data/ski-lifts.json?v=3600").then((r) => r.json()).then((d) => Object.values(d.resorts || {})).catch(() => []) : [];
+      const rs = w.length ? await fetch("data/ski-lifts.json?v=3610").then((r) => r.json()).then((d) => Object.values(d.resorts || {})).catch(() => []) : [];
       const hit = rs.find((r) => r.name && w.every((x) => norm(r.name).split(" ").includes(x)));
       if (hit) return { c: [hit.lat, hit.lon], name: hit.name };
+      const a = await skiAreaOf(p.place);
+      if (a) return a;
     }
     const ps = window.tfPlaceSearch;
     if (ps) {
@@ -390,7 +446,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     return out;
   }
   let liftsP = null, slackP = null;
-  const liftsList = () => liftsP || (liftsP = fetch("data/ski-lifts.json?v=3600").then((r) => r.json()).then((d) => d.lifts || []).catch(() => { liftsP = null; return []; }));
+  const liftsList = () => liftsP || (liftsP = fetch("data/ski-lifts.json?v=3610").then((r) => r.json()).then((d) => d.lifts || []).catch(() => { liftsP = null; return []; }));
   const slackList = () => slackP || (slackP = fetch("data/slackcountry.json").then((r) => r.json()).then((d) => (d.resorts || []).flatMap((rs) => (rs.lines || []).map((l) => ({ ...l, resort: rs.name })))).catch(() => { slackP = null; return []; }));
   const pairs = (flat) => { const o = []; for (let i = 0; i + 1 < flat.length; i += 2) o.push([flat[i], flat[i + 1]]); return o; };
   // How well a name typed matches a name on the map: 3 the same, 2.5 the same before its brackets or its short name,
@@ -676,9 +732,14 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       if (stale()) return;
       const s = (p.q || "").toLowerCase() + " " + p.words.join(" ");
       const types = /nordic|cross[- ]country|classic|skate|xc\b/.test(s) ? ["nordic"] : /snowshoe/.test(s) ? ["snowshoe"] : /snowmobile|sled/.test(s) ? ["snowmobile"] : ["tour"];
-      const R = p.km_away || 25;
-      const near = await S.near(at.c, R, types);
+      let R = p.km_away || at.R || 25;
+      let near = await S.near(at.c, R, types);
       if (stale()) return;
+      // Nothing that close: look further (up to 75 km) before saying there's nothing, and say how far it went.
+      let wider = 0;
+      if (!p.km_away && p.what !== "huts" && !near.routes.some((r) => r.name)) {
+        for (const k of [50, 75]) { const n2 = await S.near(at.c, k, types); if (stale()) return; if (n2.routes.length) { wider = R; R = k; near = n2; break; } }
+      }
       const go = (fn) => () => { if (window.tfSnapTo) window.tfSnapTo("half"); fn(); };
       if (p.what === "huts") {
         const rows = near.huts.slice(0, 10).map((h) => ({ title: `🛖 ${esc(h.name)}`, sub: `${esc(h.kind)} · ${fmtKm(h.d / 1000)} away`, go: go(() => S.showHut(h.lat, h.lon)) }));
@@ -694,14 +755,29 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       // The classics of the area first (data/ski-hand/ "hand:classic"; alex 2026-11-04: "kayoosh and joffre lake and
       // sholder is a classic in the duffys", missing under Steep Creek Forest Service Road and Chute 56).
       routes.sort((a, b) => (max ? (!a.cls) - (!b.cls) : 0) || (!a.classic) - (!b.classic) || a.d - b.d);
-      const rows = routes.slice(0, 10).map((r) => ({ title: (r.classic ? "★ " : "") + esc(r.name), sub: (r.classic ? "Classic · " : "") + `${r.pill ? r.pill + " · " : ""}${r.km >= 0.05 ? fmtKm(r.km) + " long · " : ""}${fmtKm(r.d / 1000)} away`,
+      // Many options (alex 2026-11-06: "We should have many option"): the first 12, the rest one tap away.
+      const SHOW = 12;
+      const rows = routes.map((r) => ({ title: (r.classic ? "★ " : "") + esc(r.name), sub: (r.classic ? "Classic · " : "") + `${r.pill ? r.pill + " · " : ""}${r.km >= 0.05 ? fmtKm(r.km) + " long · " : ""}${fmtKm(r.d / 1000)} away`,
         go: go(() => S.show(r.id, r.c)) }));
       const avy = p.what === "avalanche" ? `<button type="button" class="ask-act" data-avy>⚠ Open the avalanche forecast ${at.you ? "here" : "for " + esc(at.name)}</button>
         <p class="ask-note">${p.date !== localDay() ? `The forecast has the next days too: look for ${esc(dayName(p.date))}. ` : ""}The light on each tour is today's danger in its terrain.</p>` : "";
-      out.innerHTML = avy + (rows.length ? `<h3>${{ tour: "Ski tours", nordic: "Nordic trails", snowshoe: "Snowshoe routes", snowmobile: "Snowmobile trails" }[types[0]]} near ${esc(nearName(at))}</h3>${listHtml(rows)}
-        <p class="ask-note">Open maps can be wrong and no route is avalanche-safe: check the forecast before you go.</p>`
-        : `<p class="ask-note">No ${types[0] === "tour" ? "ski tours" : types[0] + " routes"} like that mapped within ${R} km of ${esc(nearName(at))}.</p>`);
+      const word = { tour: "ski tours", nordic: "Nordic trails", snowshoe: "snowshoe routes", snowmobile: "snowmobile trails" }[types[0]];
+      // Few left after "simple" or "easy" (the Duffey is nearly all Challenging and Complex terrain): say so, and offer them all.
+      const allN = near.routes.length, fewNote = max && rows.length < 3 && allN > rows.length
+        ? `<p class="ask-note">Only ${rows.length || "none"} of the ${allN} ${word} here ${rows.length === 1 ? "is" : "are"} mapped as ${["", "Simple", "Challenging or easier", "Complex or easier"][max]} terrain.</p><button type="button" class="ask-more" data-all>Show all ${allN} ${word}</button>` : "";
+      out.innerHTML = avy + (rows.length ? `<h3>${rows.length} ${rows.length === 1 ? word.replace(/s$/, "").replace(/s (trail|route)$/, " $1") : word} ${at.region ? "around " : "near "}${esc(nearName(at))}</h3>
+        ${wider ? `<p class="ask-note">None within ${wider} km, so these go out to ${R} km.</p>` : ""}${listHtml(rows)}
+        ${rows.length > SHOW ? `<button type="button" class="ask-more">Show all ${rows.length}</button>` : ""}
+        ${fewNote}<p class="ask-note">Open maps can be wrong and no route is avalanche-safe: check the forecast before you go.</p>`
+        : `<p class="ask-note">No ${word} like that mapped within ${R} km of ${esc(nearName(at))}.</p>${fewNote}`);
+      const allB = out.querySelector("[data-all]");
+      if (allB) allB.addEventListener("click", () => { p.levels = []; p.km = 0; ANSWER.ski(p, at, out, stale); });
       wire(out, rows);
+      const list = out.querySelector("ol.ask-list"), more = out.querySelector(".ask-more");
+      if (list && more) {
+        [...list.children].forEach((li, i) => { li.hidden = i >= SHOW; });
+        more.addEventListener("click", () => { [...list.children].forEach((li) => { li.hidden = false; }); more.remove(); });
+      }
       const ab = out.querySelector("[data-avy]");
       if (ab) ab.addEventListener("click", () => { close(); map.setView(at.c, 11); setTimeout(() => { const b = $("skNow"); if (b && !b.hidden) b.click(); }, 400); });
     },
@@ -768,5 +844,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     },
   };
 
-  window.tfAsk = { html: (sp) => boxHtml(sp), open, parse: localParse };
+  // looks: whether words read like a question (the sport's search box hands those to Ask, winter.js and place-search.js
+  // also when no place has that name).
+  window.tfAsk = { html: (sp) => boxHtml(sp), open, parse: localParse, looks: (q) => asks(q || "") };
 })();

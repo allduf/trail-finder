@@ -319,6 +319,8 @@ ul.ps-hits:empty { display: none; }
         if (input.value.trim() !== q) return;
         const all = [...loc.slice(0, 3), ...found];
         logUse("search", "Place:" + q, all.length);
+        // A sport's own search box: several words that aren't a place are a question for Ask (one box for everything).
+        if (!all.length && !o.onPick && window.tfAsk && !document.body.classList.contains("sport-hike") && q.split(/\s+/).length >= 3) { show([]); input.blur(); window.tfAsk.open(q); return; }
         if (!all.length) { show([], `Couldn't find “${q}”. Try a town or mountain name.`); return; }
         if (all.length === 1) { pick(all[0]); return; }
         input.blur();   // the phone keyboard out of the way of the list
