@@ -152,7 +152,11 @@
   // Lines: 1 street, 2 track or forest road, 3 path, 4 steps, 5 main road, 6 motorway
   const L_STREET = 1, L_TRACK = 2, L_PATH = 3, L_STEPS = 4, L_MAIN = 5, L_MOTOR = 6;
   const LINE_X = [0, 1.0, 1.05, 1.1, 1.6, 1.15, 25];
-  const F_STREAM = 1, F_RIVER = 2, F_BRIDGE = 4, F_PARK = 8, F_PAVED = 16, F_NOGO = 32;
+  const F_STREAM = 1, F_RIVER = 2, F_BRIDGE = 4, F_PARK = 8, F_PAVED = 16, F_NOGO = 32, F_WAY = 64;
+  // A documented way in (Skiing's cabin trips: the hut's own winter route, data/huts.json "winter:route") is walked at
+  // half the cost of any other trail, so the way in follows it rather than a shorter summer trail (alex 2026-11-06,
+  // Keith's Hut: the summer trail runs through the 2019 slide path).
+  const WAY_X = 0.5;
 
   function groundOf(layer, t) {
     const c = t.class || "", s = t.subclass || "";
@@ -185,8 +189,8 @@
   }
 
   // A grid over the box [west x, north y, east x, south y] (mercator), with the ground, lines and heights painted in.
-  // extra: more lines to walk on, [{ pts: [[lat, lon], ...], name }] (Skiing's cabin trips: the ski routes, which the
-  // vector tiles don't have).
+  // extra: more lines to walk on, [{ pts: [[lat, lon], ...], name, way }] (Skiing's cabin trips: the ski routes, which the
+  // vector tiles don't have; way: the hut's documented way in, see WAY_X).
   // Long work gives the page a breath every ~12 ms (alex 2026-11-04: the map lagged while a long ski tour was worked out).
   const breathe = () => new Promise((r) => setTimeout(r, 0));
   async function buildGrid(box, onStep, extra) {
@@ -300,7 +304,10 @@
       const shut = /^(closed|impass)$/.test(r.st || "");
       strokeLine(gm.map(ll), putLine(shut ? L_PATH : L_TRACK, false, nameOf(r.name || "")));
     }
-    for (const e of extra || []) if (e.pts && e.pts.length > 1 && !e.nogo) strokeLine(e.pts.map(ll), putLine(L_PATH, false, nameOf(e.name || "")));
+    for (const e of extra || []) if (e.pts && e.pts.length > 1 && !e.nogo) {
+      const put = putLine(L_PATH, false, nameOf(e.name || ""));
+      strokeLine(e.pts.map(ll), e.way ? (i) => { put(i); g.name[i] = nameOf(e.name || ""); g.flag[i] |= F_WAY; } : put);
+    }
     // Ground that can't be crossed though the terrain model says it can (Skiing's data/ski-hand/ "nogo": a ridge of rock
     // pinnacles the heights are too coarse to see, alex 2026-11-05: Phalanx Mountain's south ridge): about 30 m wide, so
     // the search can't slip through it on a diagonal.
@@ -340,6 +347,7 @@
     if (blocked(g, a) || blocked(g, b)) return Infinity;
     const la = g.line[a], lb = g.line[b], on = la && lb;
     let x = on ? (LINE_X[la] + LINE_X[lb]) / 2 : ((la ? 1.1 : GROUND[g.ground[a]][1]) + (lb ? 1.1 : GROUND[g.ground[b]][1])) / 2;
+    if (on && g.flag[a] & F_WAY && g.flag[b] & F_WAY) x *= WAY_X;
     let s = 0;
     if (g.hasH) {
       const ha = g.h[a], hb = g.h[b];
@@ -740,5 +748,5 @@
   window.tfFishRoute = { button, clear, start: (lat, lon, name, from) => start([lat, lon], name || "", from || null), _build: build, _describe: describe, _buildGrid: buildGrid, _boxAround: boxAround,
     groundName: (k) => (GROUND[k] ? GROUND[k][0] : "the bush"),
     // ski-route.js (Skiing's safest way): the grid's parts it reads.
-    _grid: { G, F_PAVED, L_MOTOR, L_STEPS, F_STREAM, F_RIVER, F_BRIDGE, F_PARK, L_PATH, L_TRACK, blocked, cellLL, cellAt, simplify, mx, my, unx, uny } };   // cabin-trip.js: the way in to a hut
+    _grid: { G, F_PAVED, F_WAY, L_MOTOR, L_STEPS, F_STREAM, F_RIVER, F_BRIDGE, F_PARK, L_PATH, L_TRACK, blocked, cellLL, cellAt, simplify, mx, my, unx, uny } };   // cabin-trip.js: the way in to a hut
 })();

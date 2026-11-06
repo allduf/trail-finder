@@ -54,3 +54,8 @@ Privacy page now in French too, says where your data is kept and for how long, a
 Skiing: the Safest way no longer puts advice tags (One at a time, Don't stop) or regroup pins on the map. The route and its Watch out list show the terrain; how to travel it is your call. ||| Ski : le Trajet le plus sûr n'affiche plus de conseils (Un à la fois, Ne pas s'arrêter) ni d'endroits pour se regrouper sur la carte. Le tracé et sa liste Attention montrent le terrain; la façon de le parcourir vous appartient.
 3D opens sooner: "Loading the mountains" goes as soon as the mountains are drawn, and the sharp photos fill in while you look. ||| La 3D s’ouvre plus vite : « Chargement des montagnes » disparaît dès que les montagnes sont dessinées, et les photos nettes arrivent pendant que vous regardez.
 3D turns smoothly on a computer, and the sharp snow photos come in seconds sooner when you zoom in close. ||| La 3D tourne en douceur sur ordinateur, et les photos nettes de la neige arrivent plusieurs secondes plus tôt quand vous zoomez de près.
+Winter access ||| Accès en hiver
+Closures ||| Fermetures
+Check the notices ||| Voir les avis
+Closure notices ||| Avis de fermeture
+Starts at the winter parking from the winter access below. ||| Part du stationnement d'hiver indiqué dans l'accès en hiver ci-dessous.
