@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-05", "text": "3D opens sooner: \"Loading the mountains\" goes as soon as the mountains are drawn, and the sharp photos fill in while you look."},
     {"date": "2026-11-05", "text": "Privacy page now in French too, says where your data is kept and for how long, and More has a switch to stop sharing how you use the app."},
     {"date": "2026-11-05", "text": "Skiing opens faster with fewer layers on: touring routes, approaches, parking and lift status. Turn on the rest in Layers; on Rogers Pass the app asks to show the permit areas."},
     {"date": "2026-11-05", "text": "Skiing 3D map moves more smoothly: pins far off the screen no longer slow down every move."},
