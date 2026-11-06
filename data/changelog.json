@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-06", "text": "Photo find: when your picture matches one riders took of a trail, that trail comes first, and parts of one trail (like Gouranga and Gouranga Rock Ride) show together."},
     {"date": "2026-11-06", "text": "Cabin trips: the way in now starts at the hut's winter parking, follows its winter route, and shows closures (Keith's Hut and more)."},
     {"date": "2026-11-06", "text": "Skiing tours: clearer steep-slope notes, progress while finding a way, readable danger."},
     {"date": "2026-11-06", "text": "3D turns smoothly on a computer, and the sharp snow photos come in seconds sooner when you zoom in close."},
