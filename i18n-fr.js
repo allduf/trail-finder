@@ -603,6 +603,10 @@
     "Avalanche Canada doesn't recommend backcountry travel in avalanche terrain at this danger, so the app doesn't draw a way. Your points stay on the map.":"Avalanche Canada ne recommande pas les déplacements en terrain avalancheux à ce niveau de danger, donc l'application ne trace pas de chemin. Vos points restent sur la carte.",
     "No route drawn: there's no avalanche forecast here today.":"Aucun itinéraire tracé : il n'y a pas de bulletin d'avalanche ici aujourd'hui.",
     "Without one, the app can't weigh the danger, so it doesn't draw a way. Your points stay on the map. Check":"Sans bulletin, l'application ne peut pas évaluer le danger, donc elle ne trace pas de chemin. Vos points restent sur la carte. Consultez",
+    "Only short steep bits (under 40 m each), marked ! in the steps above. Nothing longer on 30°+ slopes or under steep slopes, as far as the terrain map can see.":"Seulement de courts passages raides (moins de 40 m chacun), marqués ! dans les étapes plus haut. Rien de plus long sur des pentes de 30°+ ni sous des pentes raides, d'après la carte du terrain.",
+    "Less exposed: on":"Moins exposé : activé",
+    "Less exposed: off":"Moins exposé : désactivé",
+    "Skiing tours: clearer steep-slope notes, progress while finding a way, readable danger.":"Ski, sorties : notes de pentes raides plus claires, progression pendant la recherche d'un chemin, danger lisible.",
     "Tagged as a bike trail":"Identifié comme sentier de vélo",
     "Official":"Officiel",
     "Unnamed path":"Chemin sans nom",
@@ -2119,6 +2123,7 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    [/^Leg (\d+) of (\d+) · (.+)$/, function (m, a, b, t) { return "Tronçon " + a + " sur " + b + " · " + tt(t); }],   // ski-route.js, a tour with stops
     [/^Near (?!me\b|you\b|the\b)([^:.!?()]{1,40})$/, "Près de $1"],   // the Area box: "Near Cumberland"
     [/^(\d+) (minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years) ago$/, function (m, n, u) { return "il y a " + n + " " + UNIT[u]; }],
     [/^Stocked (\d+) (day|days|week|weeks|month|months|year|years) ago, (.+)$/, function (m, n, u, f) { return "Ensemencé il y a " + n + " " + UNIT[u] + ", " + f; }],

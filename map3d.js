@@ -108,7 +108,10 @@
 #map3d .g3-wait { position: absolute; left: 50%; top: 38%; transform: translateX(-50%); z-index: 2; pointer-events: none; padding: 8px 14px; border-radius: 999px; background: rgba(15,30,25,.78); color: #fff; font: 600 .9rem var(--font-body, system-ui); white-space: nowrap; }
 #map3d .maplibregl-marker.tf-crowd { visibility: hidden !important; pointer-events: none; }
 .maplibregl-marker.tf-off { display: none !important; }
-#map3d .maplibregl-ctrl-bottom-right { margin-bottom: 6px; }`;
+#map3d .maplibregl-ctrl-bottom-right { margin-bottom: 6px; }
+/* Phones: above the sheet like the flat map's buttons; the zoom/compass box was half under it (alex's recording 2026-11-05). */
+/* At most the sheet's peek height, so with the sheet up half way they don't climb into the top buttons. */
+@media (max-width: 760px) { #map3d .maplibregl-ctrl-bottom-right { bottom: min(var(--sheet-vis, 0px), 200px); transition: bottom .28s cubic-bezier(.2, .8, .2, 1); } }`;
   document.head.append(css);
 
   function loadLib() {
@@ -170,7 +173,7 @@
         // A dot that opens something when tapped in 2D (a hut in Skiing) opens it in 3D too (alex 2026-10-24).
         if (o.interactive !== false && l.listens("click")) hitDots.push({ l, c: ll(l.getLatLng()), r: l.getRadius() + (o.weight || 0) });
         // A named dot (a hut) gets its name beside it once zoomed in to its labelZoom, like the trail names.
-        if (o.label) names.push({ n: o.label, c: o.fillColor || o.color, o: 1, s: -1e9, z: o.labelZoom || 12, p: ll(l.getLatLng()) });
+        if (o.label) names.push({ n: o.label, c: o.fillColor || o.color, o: 1, s: -1e9, z: o.labelZoom || 12, p: ll(l.getLatLng()), dot: 1 });
         dots.push({ type: "Feature", geometry: { type: "Point", coordinates: ll(l.getLatLng()) },
           properties: { r: l.getRadius(), c: o.color, w: o.stroke === false ? 0 : o.weight,   /* no outline on a shadow dot */ f: o.fillColor || o.color, fo: o.fillOpacity, k: order } });
         return;
@@ -252,7 +255,7 @@
       put.push({ x: q.x, y: q.y, half });
     }
     src.setData({ type: "FeatureCollection", features: [...best.values()].map(({ k }) =>
-      ({ type: "Feature", geometry: { type: "Point", coordinates: k.p }, properties: { n: k.n, c: k.c, o: k.o, s: k.s } })) });
+      ({ type: "Feature", geometry: { type: "Point", coordinates: k.p }, properties: { n: k.n, c: k.c, o: k.o, s: k.s, dot: k.dot ? 1 : 0 } })) });
   }
 
   function ensureDashLayer(d) {
@@ -877,7 +880,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=3540");
+      const w = new Worker("winter-fill.js?v=3560");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -976,7 +979,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=3540" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=3560" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1581,7 +1584,11 @@
           { id: "trail-names", type: "symbol", source: "trailNames", minzoom: 12,
             layout: { "text-field": ["get", "n"], "text-font": ["Noto Sans Bold"], "symbol-sort-key": ["get", "s"],
               "text-size": ["interpolate", ["linear"], ["zoom"], 12, 11.5, 15, 13.5], "text-padding": 2, "text-max-width": 16,
-              "text-variable-anchor": ["bottom", "top", "left", "right"], "text-radial-offset": 0.4,
+              // A hut's name goes under or beside its pin, never behind it ("Soo🏠bin" for Sootip Cabin, alex's recording
+              // 2026-11-05): its dot gets a house pin 36 px tall on top.
+              "text-variable-anchor-offset": ["case", ["==", ["get", "dot"], 1],
+                ["literal", ["top", [0, 0.6], "left", [1.4, -1.5], "right", [-1.4, -1.5], "bottom", [0, -3.4]]],
+                ["literal", ["bottom", [0, -0.4], "top", [0, 0.4], "left", [0.4, 0], "right", [-0.4, 0]]]],
               "text-rotation-alignment": "viewport", "text-pitch-alignment": "viewport" },
             paint: { "text-color": ["get", "c"], "text-opacity": ["get", "o"], "text-halo-color": "#fff", "text-halo-width": 1.8, "text-halo-blur": 0.3 } },
           { id: "water-names", type: "symbol", source: "names", "source-layer": "water_name", minzoom: 10,
@@ -1671,6 +1678,8 @@
     const demIn = () => { if (gl.queryTerrainElevation(gl.getCenter())) tiltNow(); };
     gl.on("render", demIn);
     gl.once("load", tiltNow);
+    // The map credits start folded to their (i) on phones: lifted above the sheet, the open box covered the map.
+    if (PHONE) gl.once("load", () => { const at = box.querySelector(".maplibregl-ctrl-attrib"); if (at) { at.classList.remove("maplibregl-compact-show"); at.removeAttribute("open"); } });
     gl.once("load", () => { try { baseIds = new Set(gl.getLayersOrder()); } catch {} });
     // Until the ground first draws the 3D map is only sky (several seconds on a phone with weak signal), which
     // looked broken: say it's coming. Gone once the tilted view has its heights and its photos (not every source:
