@@ -190,7 +190,7 @@
   const CHART = [null, [0, 0, 1], [0, 0, 1], [0, 1, 2], [1, 2, 2], [2, 2, 2]];
   const LIGHTS = [
     { key: "go", label: "Normal caution", color: "#2f9e44", what: "Accidents are rare in this mix of danger and terrain. Still use your training and watch the conditions." },
-    { key: "care", label: "Extra caution", color: "#f2b705", what: "Most accidents happen here. Go only with avalanche skills, pick the safest way and be ready to turn back." },
+    { key: "care", label: "Extra caution", color: "#f2b705", what: "Most accidents happen here. Go only with avalanche skills and be ready to turn back." },
     { key: "no", label: "Not recommended", color: "#e03131", what: "On Avalanche Canada's Avaluator chart, this terrain at this danger rating is not recommended. Pick simpler terrain or another day." }];
   const light = (danger, cls) => (danger >= 1 && danger <= 5 && cls >= 1 && cls <= 3 ? CHART[danger][cls - 1] : -1);
 

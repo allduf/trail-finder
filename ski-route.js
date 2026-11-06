@@ -373,7 +373,7 @@
   async function searchLeg(S, FR, cost, a, b, av, onStep) {
     const lines = await linesNear(S, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], Math.max(3, window.tfLeaflet.distance(a, b) / 1000 + 2));
     const out = await FR._build(b, { you: a, lines, cost, prep: (g) => prep(g, av), pads: (d) => [Math.max(600, d * 0.4), Math.max(2000, d)] },
-      (s) => onStep && onStep(s === "terrain" ? "Getting the terrain…" : "Finding the safest way…"));
+      (s) => onStep && onStep(s === "terrain" ? "Getting the terrain…" : "Finding a less exposed way…"));
     if (out.fail) return { fail: out.fail === "water" ? "water" : "noway" };
     const cells = out.res.cells;   // from a to b
     const pc = pieces(FR, out.g, cells, av);
@@ -490,10 +490,10 @@
   // paved road (winter: logging roads aren't plowed, they're skied), within 2, 5 or 9 km.
   async function fromRoad(spot, av, onStep) {
     const { S, FR } = await finder();
-    onStep && onStep("Looking for the safest way in from a plowed road…");
+    onStep && onStep("Looking for a less exposed way in from a plowed road…");
     const lines = await linesNear(S, spot, 9);
     const out = await FR._build(spot, { lines, radii: [2000, 5000, 9000], winter: true, cost: costFn(FR), prep: (g) => prep(g, av) },
-      (s) => onStep && onStep(s === "terrain" ? "Getting the terrain…" : "Finding the safest way…"));
+      (s) => onStep && onStep(s === "terrain" ? "Getting the terrain…" : "Finding a less exposed way…"));
     if (out.fail) return { fail: out.fail === "water" ? "water" : "noroad" };
     const cells = out.res.cells, start = FR._grid.cellLL(out.g, cells[0]);
     const park = out.park ? (out.parkName ? `Park at ${/parking|trailhead|lot\b|stationnement/i.test(out.parkName) ? "" : "the parking for "}${out.parkName}` : `Park at the parking lot${out.roadName ? ` by ${out.roadName}` : ""}`)
