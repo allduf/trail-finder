@@ -944,9 +944,25 @@
   let hdWorkers = null, hdNext = 0, hdId = 0;
   const hdWaiting = new Map();
   let hdTile = null;   // (z, x, y, abort, site) -> { data }: one close-up, drawn by a worker (set below)
-  const terrainReady = () => new Promise((ok) => {
-    const done = () => { if (!gl || !gl.getSource("dem") || gl.isSourceLoaded("dem")) { clearTimeout(t); if (gl) gl.off("sourcedata", done); ok(); } };
-    const t = setTimeout(() => { if (gl) gl.off("sourcedata", done); ok(); }, PHONE ? 15000 : 3000);
+  // Has the ground under close-up z/x/y its heights yet? (a loaded height tile covering it; MapLibre internals, any
+  // surprise counts as yes)
+  const demHere = (z, x, y) => {
+    try {
+      const m = gl.style.tileManagers.dem, tiles = m._inViewTiles;
+      for (const k of tiles.getAllIds()) {
+        const t = tiles.getTileById(k), c = t && t.tileID.canonical;
+        if (c && t.state === "loaded" && c.z <= z && x >> (z - c.z) === c.x && y >> (z - c.z) === c.y) return true;
+      }
+      return false;
+    } catch { return true; }
+  };
+  // Close-ups wait for the heights of their own piece of ground (at most 3 s, 2.5 s on phones), so they don't hold up
+  // the mountains. Phones waited for every height tile of the view before, out to the horizon: a close-up in front
+  // started 6-7 s after zooming in and the snow stayed blurry ~10 s (alex's recording, 2026-11-06, measured).
+  const terrainReady = (z, x, y) => new Promise((ok) => {
+    const here = () => !gl || !gl.getSource("dem") || (z === undefined ? gl.isSourceLoaded("dem") : demHere(z, x, y));
+    const done = () => { if (here()) { clearTimeout(t); if (gl) gl.off("sourcedata", done); ok(); } };
+    const t = setTimeout(() => { if (gl) gl.off("sourcedata", done); ok(); }, PHONE ? 2500 : 3000);
     if (gl) gl.on("sourcedata", done);
     done();
   });
@@ -1004,13 +1020,13 @@
         hdFree(id);
         w.postMessage({ cancel: id }); no(new DOMException("aborted", "AbortError"));
       });
-      // The terrain first: these wait until the ground in view has its heights (at most 3 s, 15 on phones), so they don't
-      // hold up the mountains, then sharpen the photos already showing. On phones they also wait for the map to
+      // The terrain first: these wait until their own ground has its heights (terrainReady), then sharpen the photos
+      // already showing. On phones they also wait for the map to
       // stop moving: the ones scrolled past meanwhile are dropped without being drawn.
       const send = () => { if (hdWaiting.has(id)) w.postMessage({ id, z, x, y, base: location.href, site, fine }); };
-      if (!PHONE) return terrainReady().then(send);
+      if (!PHONE) return terrainReady(z, x, y).then(send);
       if (hdQueue.length > 64) hdQueue.splice(0, hdQueue.length, ...hdQueue.filter((j) => hdWaiting.has(j.id)));
-      hdQueue.push({ id, go: () => terrainReady().then(mapStill).then(() => hdWaiting.has(id) ? (send(), true) : false) });
+      hdQueue.push({ id, go: () => terrainReady(z, x, y).then(mapStill).then(() => hdWaiting.has(id) ? (send(), true) : false) });
       hdPump();
     });
     // Phones: start the newest waiting close-ups (the view now) while fewer than PHONE_HD_SLOTS are being drawn.
