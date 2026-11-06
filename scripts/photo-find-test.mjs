@@ -9,7 +9,11 @@
 // the past runs; when fewer trails are found than last time, a comment mentions OWNER (GitHub emails them).
 //
 // Run: SUPABASE_SECRET_KEY=... node scripts/photo-find-test.mjs   (needs the playwright package and its Chromium)
-// Optional: CASES (how many pictures, 10), CHROMIUM (a browser to use), GITHUB_TOKEN + GITHUB_REPOSITORY (update the issue), OWNER (allduf).
+// Optional: CASES (how many pictures, 10), CHROMIUM (a browser to use), GITHUB_TOKEN + GITHUB_REPOSITORY (update the issue), OWNER (allduf),
+// PUBLIC=1 (test the public map instead of alex's).
+// The app runs as alex and the friends see it (localStorage "tf-friend", friends.js): since PR #619 the public map leaves
+// out every unofficial trail, so 3 of the 10 test trails (Glory Hole, Cowboy Town, Green Therapy, all informal=yes) could
+// never be found by a signed-out browser, and the runs from 2026-11-03 on measured that, not photo find.
 // Pictures found or taught by their spot run with their area picked ("area given"), as a rider would for a photo in the woods.
 // When nothing places a picture and the app asks "Where was it taken?", the test answers with the picture's area like a
 // rider would ("asked where"), and the list after that answer is the result.
@@ -33,6 +37,7 @@ const GAP_MS = +(process.env.GAP_S || 20) * 1000;   // a pause between pictures:
 const REPO = process.env.GITHUB_REPOSITORY, TOKEN = process.env.GITHUB_TOKEN, OWNER = process.env.OWNER || "allduf";
 const GITHUB_API = process.env.GITHUB_API_URL || "https://api.github.com";
 const TITLE = "Photo find accuracy";
+const PUBLIC = /^(1|yes|true)$/i.test(process.env.PUBLIC || "");
 if (!KEY) { console.log("No SUPABASE_SECRET_KEY secret: nothing to test."); process.exit(0); }
 
 const headers = { apikey: KEY, ...(KEY.startsWith("sb_") ? {} : { Authorization: `Bearer ${KEY}` }) };
@@ -99,7 +104,9 @@ const results = [];
 for (const [i, c] of cases.entries()) {
   if (i) await new Promise((ok) => setTimeout(ok, GAP_MS));
   const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
-  await page.addInitScript((skip) => { window.tfPhotoTest = { skip }; }, c.skip);
+  await page.addInitScript(([skip, pub]) => { window.tfPhotoTest = { skip }; if (!pub) try { localStorage.setItem("tf-friend", "1"); } catch {} }, [c.skip, PUBLIC]);
+  // Signed out, friends.js would turn the friend view off again (and reload): not loaded in alex's view.
+  if (!PUBLIC) await page.route(/\/friends\.js(\?|$)/, (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: "" }));
   const t0 = Date.now();
   let got = null, err = "";
   try {
@@ -171,12 +178,12 @@ const listed = results.filter((r) => r.rank).length;
 const wrong = results.filter((r) => r.sure && r.rank !== 1).length;
 const day = new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC";
 const withAi = results.filter((r) => r.ai).length;
-const run = { at: day + (process.env.LABEL ? " (" + process.env.LABEL + ")" : ""), n, first, top3, listed, wrong, ai: withAi };
+const run = { at: day + (process.env.LABEL ? " (" + process.env.LABEL + ")" : "") + (PUBLIC ? " public map" : ""), n, first, top3, listed, wrong, ai: withAi };
 const pct = (k) => `${Math.round((k / n) * 100)}%`;
 const esc = (s) => String(s).replace(/[|\\`*_[\]<>#]/g, "\\$&");
 const table = `| Trail | Area | Found at | App's top 3 | What happened | Time |\n|---|---|---|---|---|---|\n` + results.map((r) =>
   `| ${esc(r.trail)} | ${esc(r.zone || "")} | ${r.rank === 1 ? "✅ 1st" : r.rank ? `🟡 ${r.rank}${r.rank === 2 ? "nd" : r.rank === 3 ? "rd" : "th"}` : "❌ not listed"} | ${esc(topText(r))} | ${esc(r.how)} | ${r.s} s |`).join("\n");
-const summary = `**${run.at}**: ${n} confirmed pictures. Right trail first: **${first} (${pct(first)})**, in the top 3: **${top3} (${pct(top3)})**, listed at all: ${listed} (${pct(listed)}). ` +
+const summary = `**${run.at}**: ${n} confirmed pictures${PUBLIC ? " (public map: unofficial trails left out)" : " (alex's map, unofficial trails in)"}. Right trail first: **${first} (${pct(first)})**, in the top 3: **${top3} (${pct(top3)})**, listed at all: ${listed} (${pct(listed)}). ` +
   `Sure but wrong (another trail called "Best match"): **${wrong}**.` +
   (withAi < n ? ` The AI answered for ${withAi} of ${n} (the free AI was busy or used up for the others), so this run says less.` : "") + `\n\n${table}\n`;
 if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `## ${TITLE}\n\n${summary}`);
