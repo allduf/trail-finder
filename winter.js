@@ -209,6 +209,9 @@ body.sk-route-focus :is(.wc-gl, .hc-pin, .sk-pin.park) { transform: scale(.75); 
 #skiPane .sk-row { display: flex; flex-wrap: wrap; gap: 6px; }
 #skiPane .sk-row .btn { font-size: .82rem; padding: 6px 10px; }
 #skiPane .sk-warn { background: #fff0e0; color: #7a3b00; border-radius: 8px; padding: 6px 8px; font-size: .82rem; }
+#skiPane .sk-est { margin: 0 0 10px; line-height: 1.4; }
+#skiPane .sk-est-dg { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 6px; font-weight: 600; }
+#skiPane .sk-est-b { display: inline-flex; align-items: center; gap: 4px; }
 #skiPane .sk-spark { display: flex; align-items: flex-end; gap: 3px; height: 44px; }
 #skiPane .sk-spark span { flex: 1; background: #74c0fc; border-radius: 2px 2px 0 0; min-height: 1px; position: relative; }
 #skiPane .sk-spark span:last-child { background: #1f5fe0; }
@@ -678,7 +681,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   let selected = null;   // route or hut object
   // A tour being planned: the points tapped on the map (kept on this device), drawn as an orange line.
   const plan = { on: false, pts: store.get("skiPlan", []), layer: L.layerGroup(), slopeWas: false, groundWas: [], timer: 0,
-    safe: store.get("skiSafe", true) !== false,   // on unless turned off (alex 2026-11-04: "make it on by default")
+    safe: store.get("skiSafe", false) === true,   // off until turned on for this tour (alex 2026-11-06, liability review: a choice, not the default)
     path: store.get("skiPlanPath", null), run: 0, wait: "", fail: "", hist: [], offer: null, flash: -1, dragAt: 0, show: false };   // safe: the 🛡 Safest way (ski-route.js)
   const SAFE_CLS = {
     ok: { color: "#2f9e44", label: "Gentle ground" }, mid: { color: "#f2b705", label: "25° to 30°" }, steep: { color: "#e03131", label: "30°+ slope" },
@@ -1323,7 +1326,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3500").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3510").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2473,7 +2476,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   function planRoute() {
     if (plan.pts.length < 2) return null;
     const sp = safePath(), line = sp ? sp.line.slice() : plan.pts.slice(), key = planLineKey();
-    const r = { id: "plan", src: "plan", type: "tour", name: sp ? "Your tour, safest way" : "Your planned tour", tags: {}, g: [line.flat()], lines: [line], bounds: L.latLngBounds(line), key };
+    const r = { id: "plan", src: "plan", type: "tour", name: sp ? "Your tour, less exposed way" : "Your planned tour", tags: {}, g: [line.flat()], lines: [line], bounds: L.latLngBounds(line), key };
     if (planInfo.has(key)) r.info = planInfo.get(key);
     return r;
   }
@@ -2604,10 +2607,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const msg = o ? `<b>${esc(o.name)}</b> <small>${esc(o.kind)}: add the whole line to your tour?</small>`
         : n === 0 ? `<b>Tap the map where you start</b><small>Start where you park. Tap a freeride or slackcountry line to add it all.</small>`
         : n === 1 ? `<b>Now tap where you want to go</b><small>Drag a point to move it.</small>`
-        : `<b>${plan.wait ? "Finding the safest way…" : info ? `${(info.total / 1000).toFixed(1)} km · ↑ ${fmtM(info.up)} · steepest ${Math.round(info.maxSlope)}°` : "Working it out…"}</b><small>Tap to add a point · drag a point to move it</small>`;
+        : `<b>${plan.wait ? "Finding a less exposed way…" : info ? `${(info.total / 1000).toFixed(1)} km · ↑ ${fmtM(info.up)} · steepest ${Math.round(info.maxSlope)}°` : "Working it out…"}</b><small>Tap to add a point · drag a point to move it</small>`;
       planBar.innerHTML = `<div class="pb-msg"><i class="pb-dot${o ? " line" : ""}" aria-hidden="true"></i><span>${msg}</span></div>
         <div class="pb-btns">${o ? `<button type="button" data-p="line" class="go">＋ Add line</button><button type="button" data-p="point">Just a point</button><button type="button" data-p="nope" aria-label="Neither">✕</button>`
-          : `<button type="button" data-p="safe" class="safe" aria-pressed="${plan.safe}" title="Find the way with the least avalanche risk between your points">🛡 Safest</button><button type="button" data-p="undo" aria-label="Undo"${plan.hist.length || n ? "" : " disabled"}>↶ Undo</button><button type="button" data-p="done" class="go">✓ Done</button>`}</div>`;
+          : `<button type="button" data-p="safe" class="safe" aria-pressed="${plan.safe}" title="Find a way between your points that keeps off steep and exposed slopes">Less exposed</button><button type="button" data-p="undo" aria-label="Undo"${plan.hist.length || n ? "" : " disabled"}>↶ Undo</button><button type="button" data-p="done" class="go">✓ Done</button>`}</div>`;
       planBar.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
         const p = b.dataset.p;
         if (p === "undo") planUndo();
@@ -2625,14 +2628,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const sum = n < 2 ? "" : !info ? `<p>Working out heights and slopes…</p>`
       : `<p><b>${(info.total / 1000).toFixed(1)} km</b> · ↑ ${fmtM(info.up)} · ↓ ${fmtM(info.down)} · top ${fmtM(info.max)}</p>
         <p>Steepest ${Math.round(info.maxSlope)}° · ${info.km30 >= 0.05 ? `<b>${info.km30.toFixed(1)} km on 30°+ slopes</b>` : "no 30°+ slopes under it"}${info.above >= 0.05 && !safePath() ? ` · <b>${info.above.toFixed(1)} km under steep slopes</b>` : ""}</p>`;
-    card.innerHTML = `${plan.on ? `<p><b>Tap the map</b> to add each point of your tour: ${plan.safe ? "where you start, then where you want to go (add more points to go a certain way). The 🛡 Safest way finds the line between them." : "up the skin track, then the way down."} ${n ? "" : "Start where you park."}</p>` : `<p><b>${safePath() ? "Your tour, safest way" : "Your planned tour"}</b></p>`}
+    card.innerHTML = `${plan.on ? `<p><b>Tap the map</b> to add each point of your tour: ${plan.safe ? "where you start, then where you want to go (add more points to go a certain way). The Less exposed way finds a line between them." : "up the skin track, then the way down."} ${n ? "" : "Start where you park."}</p>` : `<p><b>${safePath() ? "Your tour, less exposed way" : "Your planned tour"}</b></p>`}
       ${sum}
-      <div class="sk-row"><button type="button" class="btn sk-safebtn" id="skSafeBtn" aria-pressed="${plan.safe}">${plan.safe ? "🛡 Safest way: on" : "🛡 Find the safest way"}</button></div>
+      <div class="sk-row"><button type="button" class="btn sk-safebtn" id="skSafeBtn" aria-pressed="${plan.safe}">${plan.safe ? "Less exposed way: on" : "Find a less exposed way"}</button></div>
       ${safeHtml()}
       <div class="sk-row">${plan.on && n ? `<button type="button" class="btn" id="skPlanUndo">↶ Undo</button>` : ""}${n ? `<button type="button" class="btn" id="skPlanClear">Clear</button>` : ""}${!plan.on && n > 1 ? `<button type="button" class="btn" id="skPlanMap">${plan.show ? "Hide from map" : "Show on map"}</button><button type="button" class="btn" id="skPlanShow">Show details</button>` : ""}</div>
       ${safePath() ? "" : ptsHtml()}`;
     const u = $("skPlanUndo"); if (u) u.addEventListener("click", planUndo);
-    const c = $("skPlanClear"); if (c) c.addEventListener("click", () => { if (plan.pts.length > 2 && !confirm("Clear your planned tour?")) return; snap(); plan.pts = []; plan.safe = true; store.set("skiSafe", true); planChanged(); });   // the next tour starts safest
+    const c = $("skPlanClear"); if (c) c.addEventListener("click", () => { if (plan.pts.length > 2 && !confirm("Clear your planned tour?")) return; snap(); plan.pts = []; plan.safe = false; store.set("skiSafe", false); planChanged(); });   // the next tour starts safest
     const sh = $("skPlanShow"); if (sh) sh.addEventListener("click", () => { plan.show = true; drawPlan(); const r = planRoute(); if (r) select(r, true); });
     const pm = $("skPlanMap"); if (pm) pm.addEventListener("click", () => {
       plan.show = !plan.show; drawPlan(); renderPlan();
@@ -2736,7 +2739,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     clearTimeout(plan.timer);
     plan.fail = "";
     if (plan.safe && plan.pts.length > 1 && !safePath()) {
-      plan.run++; plan.wait = "Finding the safest way…";
+      plan.run++; plan.wait = "Finding a less exposed way…";
       drawPlan(); renderPlan();
       plan.timer = setTimeout(findSafe, 600);   // a quick run of taps works it out once
       return;
@@ -2789,15 +2792,24 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const r = planRoute();
     if (r) select(r, !plan.on);
   }
+  // No way is drawn when today's danger anywhere on the tour's bands is High or Extreme, or there's no forecast to weigh
+  // (alex 2026-11-06, "fix all those": Avalanche Canada's "not recommended" days; the points and terrain stay).
+  function avyGate(av) {
+    if (!av || av.none) return "nofc";
+    const m = Math.max(av.r.alp || 0, av.r.tln || 0, av.r.btl || 0);
+    return m >= 4 ? "high" : "";
+  }
   async function findSafe() {
     const my = ++plan.run, pts = plan.pts.slice(), key = planKey();
     const say = (t) => { if (my === plan.run) { plan.wait = t; renderPlan(); } };
     // The person accepts once that the tour and its risks are theirs (risk.js); Cancel leaves the points, no way.
     if (window.tfRiskOk && !(await window.tfRiskOk("avy"))) { if (my === plan.run) { plan.wait = ""; renderPlan(); } return; }
-    say("Finding the safest way…");
+    say("Finding a less exposed way…");
     try {
       await loadJs("ski-route");
       const av = await avyFor(pts[0][0], pts[0][1]);
+      const gate = avyGate(av);
+      if (gate) { if (my === plan.run) { plan.wait = ""; plan.fail = gate; plan.failAv = av; drawPlan(); renderPlan(); } return; }
       av.wx = await routeWx(pts[0], av);
       const out = await window.tfSkiRoute.route(pts, av, say);
       if (my !== plan.run) return;
@@ -2816,7 +2828,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     plan.pts = []; store.set("skiPlan", plan.pts); plan.fail = "";
     if (selected && selected.src === "plan") { selected = null; selToken++; $("skDetail").hidden = true; aboveLayer.clearLayers(); }
     const say = (t) => { if (my === plan.run) { plan.wait = t; renderPlan(); } };
-    say("Looking for the safest way in from a plowed road…");
+    say("Looking for a less exposed way in from a plowed road…");
     drawPlan();
     spotLayer.clearLayers(); spotLayer.addLayer(L.circleMarker([lat, lon], { radius: 9, color: "#fff", weight: 3, fillColor: "#2f9e44", fillOpacity: 1, interactive: false })); if (!map.hasLayer(spotLayer)) spotLayer.addTo(map);
     if (window.tfSnapTo) window.tfSnapTo("half");
@@ -2825,6 +2837,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     try {
       await loadJs("ski-route");
       const av = await avyFor(lat, lon);
+      const gate = avyGate(av);
+      if (gate) { if (my === plan.run) { spotLayer.clearLayers(); plan.wait = ""; plan.fail = gate; plan.failAv = av; renderPlan(); } return; }
       av.wx = await routeWx([lat, lon], av);
       const out = await window.tfSkiRoute.fromRoad([lat, lon], av, say);
       if (my !== plan.run) return;
@@ -2915,17 +2929,24 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!plan.safe) return "";
     if (plan.wait) return `<div class="sk-safe"><div class="sk-safe-wait">${esc(plan.wait)}</div></div>`;
     if (plan.fail === "far") { const f = plan.failAt || {}; return `<div class="sk-safe"><p><b>${esc(ptName(f.leg - 1, plan.pts.length))} to ${esc(ptName(f.leg, plan.pts.length))} is ${f.km} km in a straight line:</b> too far for one ski tour (12 km at most between two points). Put your points closer, or tap points along the way you want to go.</p></div>`; }
+    if (plan.fail === "high" || plan.fail === "nofc") {
+      const av = plan.failAv || {}, dg = (v) => `<span class="sk-dg"><i style="background:${DANGER[v || 0].color}"></i>${esc(DANGER[v || 0].label)}</span>`;
+      return `<div class="sk-safe"><div class="sk-warn sk-est">${plan.fail === "high"
+        ? `<b>No route drawn: avalanche danger is High or Extreme here today.</b> Avalanche Canada doesn't recommend backcountry travel in avalanche terrain at this danger, so the app doesn't draw a way. Your points stay on the map.
+          <span class="sk-est-dg"><span>Avalanche danger${av.example ? " (example)" : " today"}:</span>${[["Alpine", av.r.alp], ["Treeline", av.r.tln], ["Below treeline", av.r.btl]].map(([n, v]) => `<span class="sk-est-b">${n} ${dg(v)}</span>`).join("")}</span>`
+        : `<b>No route drawn: there's no avalanche forecast here today.</b> Without one, the app can't weigh the danger, so it doesn't draw a way. Your points stay on the map. Check ${siteLink(avySite(plan.pts[0] ? plan.pts[0][0] : map.getCenter().lat, plan.pts[0] ? plan.pts[0][1] : map.getCenter().lng))}.`}</div></div>`;
+    }
     if (plan.fail) return `<div class="sk-safe"><p>${esc({ water: "That point is out on open water: move it to the shore.", noway: "Couldn't find a way between these points (cliffs or open water in the way, or too far apart). Move a point or add one between.",
       noroad: "No plowed road or parking within 9 km of this spot that the map knows of. Use ✎ Plan a tour and tap where you start.", net: "Couldn't get the terrain for this area. Check your connection and try again." }[plan.fail] || "")}</p></div>`;
     const sp = safePath();
-    if (!sp) return plan.pts.length < 2 ? `<p class="sk-note">🛡 Tap where you start and where you want to go: the way between them stays off steep slopes, avoids today's avalanche problem aspects and keeps out from under slopes that could slide.</p>`
-      : `<div class="sk-row"><button type="button" class="btn" id="skSafeAgain">🛡 Find the safest way between my points</button></div>`;
+    if (!sp) return plan.pts.length < 2 ? `<p class="sk-note">Tap where you start and where you want to go: the way between them stays off steep slopes, avoids today's avalanche problem aspects and keeps out from under slopes that could slide.</p>`
+      : `<div class="sk-row"><button type="button" class="btn" id="skSafeAgain">Find a less exposed way between my points</button></div>`;
     const st = sp.stats, av = sp.av || {}, tot = Math.max(1, st.total), C = SAFE_CLS, sl = sp.straight || { total: 0, steep: 0, under: 0 };
     const chip = (v) => `<span class="sk-dg"><i style="background:${DANGER[v || 0].color}"></i>${esc(DANGER[v || 0].label)}</span>`;
     const K = { ok: "#ced4da", mid: "#868e96", steep: "#e03131", under: "#ffa8a8", trap: "#a61e4d" };   // card bar: greys + reds only
-    const LV = { direct: ["#2f9e44", "Direct", "Low or Moderate danger" ], balanced: ["#f79218", "Balanced", "Considerable danger"], strict: ["#ef1c29", "Safest", "High or Extreme danger"] }[sp.level || "balanced"];
-    const lvTxt = { direct: "The way up takes the safest line. Skiing down, it takes slopes up to about 35° when that saves a long way round, while staying off the steepest ground and out from under big slopes where it can.",
-      balanced: "The way up takes the safest line. Skiing down, it goes round 30°+ slopes and steep slopes above when there's a sensible way, and takes the shortest steep section when there isn't.",
+    const LV = { direct: ["#2f9e44", "Direct", "Low or Moderate danger" ], balanced: ["#f79218", "Balanced", "Considerable danger"], strict: ["#ef1c29", "Most careful", "High or Extreme danger"] }[sp.level || "balanced"];
+    const lvTxt = { direct: "The way up takes the least exposed line it finds. Skiing down, it takes slopes up to about 35° when that saves a long way round, while staying off the steepest ground and out from under big slopes where it can.",
+      balanced: "The way up takes the least exposed line it finds. Skiing down, it goes round 30°+ slopes and steep slopes above when there's a sensible way, and takes the shortest steep section when there isn't.",
       strict: "Stays off 30°+ slopes and out from under steep slopes, however much longer that makes it. If there's no way round, reconsider the trip." }[sp.level || "balanced"];
     const lvHtml = `<div class="sk-mode" style="--c:${LV[0]}"><div class="sk-mode-h"><b>${LV[1]} route</b><span>${av.none ? "No rating: planned as Moderate" : LV[2]}</span></div><p>${lvTxt}</p></div>`;
     const fc = av.none ? `<div class="sk-warn"><b>No avalanche forecast here ${example ? "" : "today"}.</b> Planned as for Moderate danger (a direct route); early and late in the season, conditions can change fast. Check ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))} before you go.</div>`
@@ -2961,7 +2982,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (parts.length) why.push(`Keeps off today's problem aspects where it can: ${parts.join("; ")}.${st.hit >= 5 ? ` Still ${fmtM(st.hit)} on them.` : ""}`);
       if ((av.probs || []).some((p) => p.aspects.length >= 8)) why.push("One of today's problems is on every aspect, so slope angle and what's above matter most.");
     }
-    if (sp.park) why.push(`${esc(sp.park)}: the closest plowed road for the safest way in (logging roads past it aren't plowed, they're part of the ski).`);
+    if (sp.park) why.push(`${esc(sp.park)}: the closest plowed road for a less exposed way in (logging roads past it aren't plowed, they're part of the ski).`);
     const watch = safeWatch(sp);
     const say = (r) => {
       const asp = r.asp >= 0 ? `${SAFE_ASP[r.asp]}-facing` : "";
@@ -2973,7 +2994,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (r.cls === "trap") return `<b>${fmtM(r.m)} in a gully or creek bed under steep slopes</b>${r.src ? ` (${r.src.deg}° ${SAFE_ASP[r.src.asp]}-facing, ${r.src.up > 0 ? `${r.src.up} m above` : "above"})` : ""}: a terrain trap.`;
       return `<b>${fmtM(r.m)} under steep slopes</b>${r.src ? `: a ${r.src.deg}° ${SAFE_ASP[r.src.asp]}-facing slope ${r.src.up > 0 ? `${r.src.up} m above` : "above"}${r.src.hit ? ", on a problem aspect today" : ""}` : ""}.`;
     };
+    // Top of every planned tour (Safest way liability review 2026-11-06, alex picked "Rename + safer wording"): what it
+    // is, that it can't see today's snowpack, that the call is theirs, and today's danger, before any step of the way.
+    const topWarn = `<div class="sk-warn sk-est"><b>A computer's estimate, not a safe route.</b> It can't see today's snowpack, cornices or wind loading. You decide whether and where to go.
+      <span class="sk-est-dg">${av.none ? "No avalanche forecast here today." : `<span>Avalanche danger${av.example ? " (example)" : " today"}:</span>${[["Alpine", av.r.alp], ["Treeline", av.r.tln], ["Below treeline", av.r.btl]].map(([n, v]) => `<span class="sk-est-b">${n} ${chip(v)}</span>`).join("")}`}</span></div>`;
     return `<div class="sk-safe">
+      ${topWarn}
       ${stepsHtml(sp, watch)}
       <details class="sk-sec sk-fold"><summary><h4>Why this way</h4><span style="--c:${LV[0]}">${LV[1]} route</span></summary>
         ${lvHtml}
@@ -2987,7 +3013,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         : `<div class="sk-sec"><p class="sk-safe-ok">No 30°+ slopes and no steep slopes above on this route, as far as the terrain map can see.</p></div>`}
       <div class="sk-row"><button type="button" class="btn" id="skSafeRev">⇅ Reverse the tour</button><button type="button" class="btn" id="skSafeAgain">↻ Find again</button></div>
       <p class="sk-safe-dis"><b>Not a substitute for avalanche training.</b> This is a planning aid based on a terrain model (10 to 30 m) and the regional forecast. It can't see cornices, wind loading, small slopes, trees or today's snowpack, and a forecast covers a whole region. How much a minute on a steep slope weighs against a longer way is judgment taken from avalanche course rules of thumb, not measured odds. Take an avalanche course (AST 1), carry a transceiver, probe and shovel with partners who know how to use them, read the full forecast on ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}, and make your own decisions in the field.</p>
-      ${window.tfRiskLine ? window.tfRiskLine() : ""}
+      
     </div>`;
   }
   // A line put in a tour never doubles back (noback.js): a line made of pieces joined end to end, or drawn with a knot,
@@ -3041,9 +3067,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (plan.on === on) return;
     plan.on = on;
     plan.offer = null;
-    // A new tour (no way drawn yet) starts with the 🛡 Safest way on (alex 2026-11-05: "when you create a tour make sure
-    // safest way is on by default"); turning it off lasts for that tour.
-    if (on && plan.pts.length < 2 && !plan.safe) { plan.safe = true; store.set("skiSafe", true); }
+    // A new tour (no way drawn yet) starts with the Less exposed way off; people turn it on for each tour (alex 2026-11-06,
+    // "fix all those" in the liability review, replacing the 2026-11-05 "on by default" rule).
+    if (on && plan.pts.length < 2 && plan.safe) { plan.safe = false; store.set("skiSafe", false); }
     if (on) plan.show = true;   // just planned: it stays on the map until Hide from map (or the app is opened again)
     // The map's layers stay as they are while planning (alex 2026-11-04: "dont put the slope angle layer by default when
     // you plan a tour"); Slope angle is in Layers for whoever wants it.
@@ -3239,7 +3265,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     el.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>📍 This spot</h3></div>
       <p class="sk-hint">${lat.toFixed(4)}, ${lon.toFixed(4)}</p>
       <div id="skSpotGround"><p class="sk-note">Reading the terrain…</p></div><div id="skSpotAvy"></div><div id="skSpotSnow"></div><div id="skSpotNear"></div><div id="skSpotMin"></div>
-      <div class="sk-acts sk-spotacts"><button type="button" class="sk-act" data-act="safe">🛡 Safest way here</button><button type="button" class="sk-act" data-act="plan">✎ Plan a tour from here</button>${shown.has("slope") ? "" : `<button type="button" class="sk-act" data-act="slope">Show slope angles</button>`}</div>`;
+      <div class="sk-acts sk-spotacts"><button type="button" class="sk-act" data-act="safe">Less exposed way here</button><button type="button" class="sk-act" data-act="plan">✎ Plan a tour from here</button>${shown.has("slope") ? "" : `<button type="button" class="sk-act" data-act="slope">Show slope angles</button>`}</div>`;
     el.querySelector(".sk-x").addEventListener("click", closeSpot);
     el.querySelector("[data-act=plan]").addEventListener("click", () => { closeSpot(); setPlanning(true); planAdd(L.latLng(lat, lon)); });
     el.querySelector("[data-act=safe]").addEventListener("click", () => { closeSpot(); if (plan.on) setPlanning(false); safeTo(lat, lon); });
@@ -4727,7 +4753,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       snap();
       plan.pts = pts.map((p) => (p[2] ? [+p[0].toFixed(6), +p[1].toFixed(6), p[2].via ? { ...p[2], via: noBackLine(p[2].via) } : p[2]] : [+p[0].toFixed(6), +p[1].toFixed(6)]));
       plan.path = null; plan.fail = ""; plan.show = true;
-      plan.safe = true; store.set("skiSafe", true);   // a new tour always starts with the 🛡 Safest way (alex 2026-11-05)
+      plan.safe = false; store.set("skiSafe", false);   // a new tour starts with the Less exposed way off: turned on per tour (alex 2026-11-06)
       if (plan.on) { plan.on = false; map.getContainer().classList.remove("sk-planning"); }
       map.fitBounds(L.latLngBounds(pts.flatMap((p) => [[p[0], p[1]], ...((p[2] && p[2].via) || [])])), { padding: [40, 40], maxZoom: 15 });
       planChanged();

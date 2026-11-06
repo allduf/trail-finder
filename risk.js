@@ -11,19 +11,81 @@
 (function () {
   "use strict";
   var KEY = "tf:riskOk";
-  // Each kind's version: raise one to ask again for that kind after its words change (avy 2: 2026-11-05).
-  var ACK = { avy: 2, offtrail: 1, route: 1 };
+  // Each kind's version: raise one to ask again for that kind after its words change (avy 2: 2026-11-05, 3: renamed Less exposed way 2026-11-06).
+  var ACK = { avy: 3, offtrail: 1, route: 1 };
   var KIND = {
-    avy: "The Safest way, avalanche danger, ATES terrain classes (official or our estimate), slope angles, the weather it weighs, route and lift status and other people's GPS tracks are estimates from terrain models, forecasts and other people's data. They can be late or wrong, they can't see today's snowpack, cornices or wind loading, and a line the app picks can still slide.",
+    avy: "The Less exposed way, avalanche danger, ATES terrain classes (official or our estimate), slope angles, the weather it weighs, route and lift status and other people's GPS tracks are estimates from terrain models, forecasts and other people's data. They can be late or wrong, they can't see today's snowpack, cornices or wind loading, and a line the app picks can still slide.",
     offtrail: "Off-trail routes follow a terrain model and map data. They can cross private land, cliffs, high water, wildlife and closed areas the map doesn't know about.",
     route: "Routes can use trails and roads that are closed, private, unofficial, washed out or beyond your skills.",
   };
   function saved() { try { return JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { return {}; } }
-  function accepted(kind) { var s = saved()[kind]; return !!(s && s.v >= (ACK[kind] || 1)); }
+  // The avalanche sheet comes back once each winter (season = the year the winter starts, from August), so it's read
+  // fresh before every season of touring (Safest way liability review 2026-11-06).
+  var SEASONAL = { avy: true };
+  function seasonNow() { var d = new Date(); return d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear() - 1; }
+  function accepted(kind) {
+    var s = saved()[kind];
+    return !!(s && s.v >= (ACK[kind] || 1) && (!SEASONAL[kind] || s.season === seasonNow()));
+  }
   function remember(kind) {
     var s = saved(); s[kind] = { v: ACK[kind] || 1, at: new Date().toISOString() };
+    if (SEASONAL[kind]) s[kind].season = seasonNow();
     try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {}
+    record(kind, s[kind].v, s[kind].season || 0, s[kind].at);
   }
+
+  // Proof of each I agree, kept on the server too (supabase/agreements.sql): a phone can be lost or wiped, and a release
+  // nobody can show was agreed to protects no one. Queued on the device (tf:agreeQ) until the server has it; agreements
+  // made before this existed are sent once with their own date (tf:agreeSent).
+  var QKEY = "tf:agreeQ", SENT = "tf:agreeSent";
+  function lsJson(k, d) { try { return JSON.parse(localStorage.getItem(k) || "null") || d; } catch (e) { return d; } }
+  function lsPut(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function record(what, v, season, at) {
+    var sent = lsJson(SENT, {}), id = what + ":" + v + ":" + (season || 0);
+    if (sent[id]) return;
+    var q = lsJson(QKEY, []);
+    if (!q.some(function (x) { return x.id === id; })) q.push({ id: id, what: what, v: v, season: season || 0, at: at || new Date().toISOString() });
+    lsPut(QKEY, q.slice(-20));
+    setTimeout(flush, 500);
+  }
+  var flushing = false;
+  function flush() {
+    var acct = window.tfAccount, q = lsJson(QKEY, []);
+    if (flushing || !q.length || !acct || !acct.enabled || !acct.url || navigator.onLine === false) return;
+    if (/[?&]nowelcome\b/.test(location.search) || navigator.webdriver) return;   // tests don't leave records
+    var device = null;
+    try { device = localStorage.getItem("tf:device"); if (!device) { device = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()); localStorage.setItem("tf:device", device); } } catch (e) {}
+    if (!device) return;
+    flushing = true;
+    var tokenP = Promise.resolve(null);
+    try { if (acct.client && acct.client.auth) tokenP = acct.client.auth.getSession().then(function (r) { return r && r.data && r.data.session ? r.data.session.access_token : null; }).catch(function () { return null; }); } catch (e) {}
+    tokenP.then(function (token) {
+      var lang = (document.documentElement.lang || "en").slice(0, 10);
+      return q.reduce(function (p, x) {
+        return p.then(function () {
+          return fetch(acct.url + "/rest/v1/rpc/tf_agree", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", apikey: acct.key, Authorization: "Bearer " + (token || acct.key) },
+            body: JSON.stringify({ device: device, what: x.what, v: x.v, season: x.season, agreed_at: x.at, lang: lang }),
+          }).then(function (res) {
+            if (!res.ok) return;
+            var sent = lsJson(SENT, {}); sent[x.id] = 1; lsPut(SENT, sent);
+            lsPut(QKEY, lsJson(QKEY, []).filter(function (y) { return y.id !== x.id; }));
+          });
+        });
+      }, Promise.resolve());
+    }).catch(function () {}).then(function () { flushing = false; });
+  }
+  function backfill() {
+    var t = lsJson(TKEY_EARLY, null);
+    if (t && t.v) record("terms", t.v, 0, t.at);
+    var s = saved();
+    Object.keys(s).forEach(function (k) { if (s[k] && s[k].v && KIND[k]) record(k, s[k].v, s[k].season || 0, s[k].at); });
+    flush();
+  }
+  var TKEY_EARLY = "tf:termsOk";
+  addEventListener("load", function () { setTimeout(backfill, 4000); }, { once: true });
+  addEventListener("online", function () { flush(); });
   var css = "#tfRisk{position:fixed;inset:0;z-index:100000;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.45)}" +
     "#tfRisk .rk{background:var(--panel,#fff);color:var(--fg,#1d2420);width:100%;max-width:480px;max-height:88vh;overflow:auto;border-radius:16px 16px 0 0;padding:18px 18px calc(env(safe-area-inset-bottom) + 16px);box-shadow:0 -6px 24px rgba(0,0,0,.25);font:15px/1.45 system-ui,-apple-system,sans-serif}" +
     "@media (min-width:700px){#tfRisk{align-items:center}#tfRisk .rk{border-radius:16px}}" +
@@ -90,7 +152,7 @@
     d.className = "tf-terms"; d.tabIndex = -1; d.setAttribute("aria-labelledby", "tfTermsH");
     d.innerHTML = '<h2 id="tfTermsH">Before you head out</h2>' +
       '<p class="tt-lead">Trail Finder helps you plan. It doesn\'t decide for you.</p><ul>' +
-      "<li>Maps, routes, the Safest way, avalanche and terrain ratings, forecasts, trail and road status, GPS tracks and other people's posts can be wrong, late or missing.</li>" +
+      "<li>Maps, routes, the Less exposed way, avalanche and terrain ratings, forecasts, trail and road status, GPS tracks and other people's posts can be wrong, late or missing.</li>" +
       "<li>Nothing in the app is advice or a promise that a place is safe, open or allowed.</li>" +
       "<li><b>You decide whether to go, where, which way and when to turn back, and you accept all the risk, for you and anyone with you.</b></li>" +
       "<li><b>Trail Finder and the people who make it are not responsible for your decisions or what happens: accidents, injury, death, rescue costs, loss or damage.</b></li>" +
@@ -102,7 +164,9 @@
     d.addEventListener("click", function (e) {
       if (!e.target.closest("[data-terms=ok]")) return;
       termsMem = true; terms.pending = false;
-      try { localStorage.setItem(TKEY, JSON.stringify({ v: TERMS_V, at: new Date().toISOString() })); } catch (x) {}
+      var at = new Date().toISOString();
+      try { localStorage.setItem(TKEY, JSON.stringify({ v: TERMS_V, at: at })); } catch (x) {}
+      record("terms", TERMS_V, 0, at);
       d.close(); d.remove();
       document.dispatchEvent(new CustomEvent("tf:terms"));
     });

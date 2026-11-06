@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-06", "text": "Skiing: Safest way is now Less exposed way, turned on for each tour. Each tour starts with today's avalanche danger, no way is drawn at High or Extreme danger or with no forecast, and the avalanche warning comes back each winter."},
     {"date": "2026-11-06", "text": "Skiing: the Safest way no longer puts advice tags (One at a time, Don't stop) or regroup pins on the map. The route and its Watch out list show the terrain; how to travel it is your call."},
     {"date": "2026-11-05", "text": "3D opens sooner: \"Loading the mountains\" goes as soon as the mountains are drawn, and the sharp photos fill in while you look."},
     {"date": "2026-11-05", "text": "Privacy page now in French too, says where your data is kept and for how long, and More has a switch to stop sharing how you use the app."},
