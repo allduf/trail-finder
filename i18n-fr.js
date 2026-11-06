@@ -2103,7 +2103,12 @@
     "Privacy page now in French too, says where your data is kept and for how long, and More has a switch to stop sharing how you use the app.":"La page Confidentialité est maintenant aussi en français, dit où vos données sont gardées et combien de temps, et Plus a un bouton pour arrêter de partager votre utilisation de l’appli.",
     "Skiing: the Safest way no longer puts advice tags (One at a time, Don't stop) or regroup pins on the map. The route and its Watch out list show the terrain; how to travel it is your call.":"Ski : le Trajet le plus sûr n'affiche plus de conseils (Un à la fois, Ne pas s'arrêter) ni d'endroits pour se regrouper sur la carte. Le tracé et sa liste Attention montrent le terrain; la façon de le parcourir vous appartient.",
     "3D opens sooner: \"Loading the mountains\" goes as soon as the mountains are drawn, and the sharp photos fill in while you look.":"La 3D s’ouvre plus vite : « Chargement des montagnes » disparaît dès que les montagnes sont dessinées, et les photos nettes arrivent pendant que vous regardez.",
-    "3D turns smoothly on a computer, and the sharp snow photos come in seconds sooner when you zoom in close.":"La 3D tourne en douceur sur ordinateur, et les photos nettes de la neige arrivent plusieurs secondes plus tôt quand vous zoomez de près."};
+    "3D turns smoothly on a computer, and the sharp snow photos come in seconds sooner when you zoom in close.":"La 3D tourne en douceur sur ordinateur, et les photos nettes de la neige arrivent plusieurs secondes plus tôt quand vous zoomez de près.",
+    "Winter access":"Accès en hiver",
+    "Closures":"Fermetures",
+    "Check the notices":"Voir les avis",
+    "Closure notices":"Avis de fermeture",
+    "Starts at the winter parking from the winter access below.":"Part du stationnement d'hiver indiqué dans l'accès en hiver ci-dessous."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

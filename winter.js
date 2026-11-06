@@ -1329,7 +1329,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3560").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3570").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -1730,7 +1730,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const yesNo = (v) => ({ yes: "allowed", designated: "allowed (signed for it)", permissive: "allowed", no: "not allowed", private: "private" }[v] || v);
   const PLAIN = {
     "piste:grooming": (v) => ["Grooming", GROOM[v] || v], "piste:difficulty": null, highway: (v) => ON[v] && ["Follows", ON[v]],
-    description: (v) => ["Description", v], "winter:access": (v) => ["Winter access", v.replace(/^Winter: /, "")], note: (v) => ["Note", v], operator: (v) => ["Run by", v], fee: (v, t) => !t.charge && ["Fee", v === "yes" ? "yes, a fee to use it" : v === "no" ? "free" : v],
+    description: (v) => ["Description", v], "winter:access": (v) => ["Winter access", v.replace(/^Winter: /, "")], "winter:closure": (v) => ["⚠️ Closures", v], "winter:closure:website": (v) => ["Closure notices", v], note: (v) => ["Note", v], operator: (v) => ["Run by", v], fee: (v, t) => !t.charge && ["Fee", v === "yes" ? "yes, a fee to use it" : v === "no" ? "free" : v],
     access: (v) => ["Access", yesNo(v)], ski: (v) => ["Skiing", yesNo(v)], snowmobile: (v) => ["Snowmobiles", yesNo(v)], "snowmobile:conditional": (v) => ["Snowmobiles when", v],
     "name:ja": (v) => ["Japanese name", v], "description:en": (v) => ["Description", v],
     seasonal: (v) => ["Seasonal", v], opening_hours: (v) => ["Open", v], ref: (v) => ["Number", v], ele: (v) => ["Height", v + " m"],
