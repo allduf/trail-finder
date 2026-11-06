@@ -5,7 +5,11 @@
   "backgroundColor": "#f2efe7",
   "server": {
     "url": "https://allduf.github.io/trail-finder/",
-    "errorPath": "offline.html"
+    "errorPath": "offline.html",
+    "allowNavigation": [
+      "trailfinderapp.ca",
+      "www.trailfinderapp.ca"
+    ]
   },
   "ios": {
     "limitsNavigationsToAppBoundDomains": true,

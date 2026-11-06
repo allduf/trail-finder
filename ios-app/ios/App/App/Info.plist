@@ -79,6 +79,8 @@
 	<key>WKAppBoundDomains</key>
 	<array>
 		<string>allduf.github.io</string>
+		<string>trailfinderapp.ca</string>
+		<string>www.trailfinderapp.ca</string>
 	</array>
 </dict>
 </plist>

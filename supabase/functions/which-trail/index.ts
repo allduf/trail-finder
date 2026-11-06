@@ -29,7 +29,7 @@
 // its own trails, loam, tours and maps. Its own daily limits: ASK_PER_DAY (300) for the app and ASK_PER_PERSON (30),
 // counted with the others once supabase/ask-limits.sql is run.
 
-const ORIGINS = [/^https:\/\/allduf\.github\.io$/, /^http:\/\/localhost(:\d+)?$/];
+const ORIGINS = [/^https:\/\/allduf\.github\.io$/, /^https:\/\/(www\.)?trailfinderapp\.ca$/, /^http:\/\/localhost(:\d+)?$/];
 const MAX_IMAGES = 3, MAX_B64 = 1_500_000, PER_HOUR = 30;
 const PER_DAY = { vision: 30, ai: 200, compare: 100, ask: 300 };
 const PER_PERSON = { vision: 10, ai: 20, compare: 20, ask: 30 };

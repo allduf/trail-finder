@@ -8,7 +8,7 @@
   const acct = window.tfAccount;
   if (!acct || !acct.enabled || !/^https?:/.test(location.protocol)) return;
   // Only real visits to the live site: test browsers (Playwright, local copies) made a new "device" every run.
-  if (navigator.webdriver || location.hostname !== "allduf.github.io") return;
+  if (navigator.webdriver || !["allduf.github.io", "trailfinderapp.ca", "www.trailfinderapp.ca"].includes(location.hostname)) return;
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 

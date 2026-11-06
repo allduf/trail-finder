@@ -14,7 +14,7 @@
 // Actions (POST { action }): status, start { back } (the address to Strava's consent page), connect { code, state, scope },
 // list { after, before } (bike rides with GPS, newest first), streams { id } (the GPS track), disconnect.
 
-const ORIGINS = [/^https:\/\/allduf\.github\.io$/, /^http:\/\/localhost(:\d+)?$/];
+const ORIGINS = [/^https:\/\/allduf\.github\.io$/, /^https:\/\/(www\.)?trailfinderapp\.ca$/, /^http:\/\/localhost(:\d+)?$/];
 const BACK = /^(https:\/\/allduf\.github\.io\/trail-finder\/|http:\/\/localhost(:\d+)?\/)[\w./-]*$/;
 const BIKES = new Set(["MountainBikeRide", "EMountainBikeRide", "Ride", "EBikeRide", "GravelRide"]);
 const STATE_MS = 30 * 60e3;

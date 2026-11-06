@@ -9,7 +9,7 @@
 // GET /functions/v1/lift-status → { t, resorts: { <id>: { name, page, t, src, lifts: [{ n, s, w?, o?, c?, k? }], err? } } }
 // s: "open" | "hold" | "closed" | "scheduled" | "unknown". w: wait in minutes. o / c: opening and closing time. k: kind.
 
-const ORIGINS = [/^https:\/\/allduf\.github\.io$/, /^http:\/\/localhost(:\d+)?$/, /^capacitor:\/\/localhost$/, /^https?:\/\/localhost$/];
+const ORIGINS = [/^https:\/\/allduf\.github\.io$/, /^https:\/\/(www\.)?trailfinderapp\.ca$/, /^http:\/\/localhost(:\d+)?$/, /^capacitor:\/\/localhost$/, /^https?:\/\/localhost$/];
 const FRESH_MS = 3 * 60e3;
 const UA = "Mozilla/5.0 (compatible; TrailFinder lift status; +https://allduf.github.io/trail-finder/)";
 
