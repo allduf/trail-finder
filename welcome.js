@@ -197,7 +197,9 @@ dialog.welc .welc-later { display: block; width: 100%; margin-top: 6px; font: in
     if (document.querySelector("dialog[open]") && tries > 0) { setTimeout(() => start(tries - 1), 500); return; }
     open();
   };
-  if (document.readyState === "complete") setTimeout(start, 300); else addEventListener("load", () => setTimeout(start, 300), { once: true });
+  // Once the app's scripts have run (DOMContentLoaded), not after every map picture has arrived ("load"): with the terms
+  // now showing at once, I agree came before "load" and the screen sat on a map that did nothing (2026-11-06).
+  if (document.readyState !== "loading") setTimeout(start, 300); else document.addEventListener("DOMContentLoaded", () => setTimeout(start, 300), { once: true });
 })();
 
 // Ask before anything goes to Google's AI (go-public checklist items 1 and 2, alex 2026-11-02). Apple's rule 5.1.2(i)
