@@ -67,6 +67,10 @@
 #skiPane .tp-btns { display: flex; flex-wrap: wrap; gap: 6px; }
 #skiPane .tp-btns > * { font: inherit; font-size: .84rem; font-weight: 800; padding: 9px 12px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
 #skiPane .tp-btns .go { background: ${COL}; border-color: ${COL}; color: #fff; flex: 1; justify-content: center; }
+#skiPane .tp-closed { margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; border: 1.5px solid #e03131; background: color-mix(in srgb, #e03131 10%, var(--panel)); font-size: .8rem; line-height: 1.35; }
+#skiPane .tp-closed a { color: #1f5fe0; font-weight: 700; }
+#skiPane .tp-winter { margin: 6px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--chip); border: 1px solid var(--line); font-size: .8rem; line-height: 1.35; }
+#skiPane .tp-winter b { display: block; font-size: .74rem; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); margin-bottom: 2px; }
 #skiPane .tp-wait { display: flex; align-items: center; gap: 8px; font-size: .84rem; color: var(--muted); margin: 0; }
 #skiPane .tp-wait::before { content: ""; width: 14px; height: 14px; border-radius: 50%; border: 2px solid ${COL}; border-right-color: transparent; animation: tpspin .8s linear infinite; flex: none; }
 @keyframes tpspin { to { transform: rotate(360deg); } }
@@ -153,8 +157,17 @@
   // the ski routes as trails. Its line runs from the start to the cabin. In winter the car stays on a plowed road
   // (alex 2026-10-30, Tom's Hut: "most fsr are not plowed during winter so you have to backcountry ski on the fsr"):
   // a paved road or a lot beside one; logging roads and tracks are part of the ski in. A hut's known winter parking
-  // (data/huts.json "winter:parking", from the club or a trip report) wins: the way in starts there.
-  const WAY_V = 2;   // ways worked out before the winter rule are worked out again
+  // (data/huts.json "winter:parking", from the club or a trip report) wins: the way in starts there. And it follows the
+  // hut's own winter route (alex 2026-11-06, Keith's Hut: "are you basing ... the route to the cabin on the winter access
+  // information?"): the mapped ski routes named in "winter:route" (";" between names), or named after the hut with
+  // "winter" in the name ("Keith's Hut Winter Access"), cost half as much as any other trail (fish-route.js WAY_X).
+  const WAY_V = 3;   // ways worked out before the winter parking and winter routes are worked out again
+  const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  function winterWay(hut) {
+    const named = String(hut.tags["winter:route"] || "").split(";").map(norm).filter(Boolean);
+    const base = norm(hut.name).replace(/\b(memorial|hut|cabin|lodge|refuge|shelter|the)\b/g, " ").replace(/\s+/g, " ").trim();
+    return (name) => { const n = norm(name); return !!n && (named.includes(n) || (base.length > 2 && /\bwinter\b/.test(n) && n.includes(base))); };
+  }
   async function findWay(t) {
     const my = ++wayRun.n;
     t.wayWait = "Looking for the easiest way in from a parking lot…"; render();
@@ -164,7 +177,9 @@
       const FR = window.tfFishRoute;
       if (!FR || !FR._build) throw new Error("no route finder");
       const routes = await S.near([t.hut.lat, t.hut.lon], 10);
-      const lines = routes.flatMap((r) => r.lines.map((pts) => ({ pts, name: r.name || "" })));
+      const isWay = winterWay(t.hut);
+      const lines = routes.flatMap((r) => r.lines.map((pts) => ({ pts, name: r.name || "", way: isWay(r.name) })));
+      const wayNames = [...new Set(lines.filter((l) => l.way).map((l) => l.name))];
       const wp = String(t.hut.tags["winter:parking"] || "").split(",").map(Number), known = wp.length === 2 && wp.every(isFinite) ? wp : null;
       const out = await FR._build([t.hut.lat, t.hut.lon], known ? { you: known, lines } : { lines, radii: [2000, 5000, 9000], winter: true },
         (s) => say(s === "terrain" ? "Reading the terrain, trails and roads around the cabin…" : "Working out the easiest way in…"));
@@ -175,7 +190,7 @@
       for (const r of d.runs) for (const p of r.pts) { const q = [+p[0].toFixed(5), +p[1].toFixed(5)], l = line[line.length - 1]; if (!l || l[0] !== q[0] || l[1] !== q[1]) line.push(q); }
       const from = known ? `Park at ${t.hut.tags["winter:parking:name"] || "the winter parking"}` : out.park ? (out.parkName ? `Park at ${/parking|trailhead|lot\b|stationnement/i.test(out.parkName) ? "" : "the parking for "}${out.parkName}` : `Park at the parking lot${out.roadName ? ` by ${out.roadName}` : ""}`)
         : `Park beside ${out.roadName || "the plowed road"}`;
-      await setWay(t, line, { src: "auto", v: WAY_V, from, known: !!known, unplowed: Math.round(out.unplowed || 0), offM: Math.round(d.offM), names: [...new Set(d.runs.filter((r) => r.name && r.m >= 300).map((r) => r.name))].slice(0, 4) });
+      await setWay(t, line, { src: "auto", v: WAY_V, from, known: !!known, unplowed: Math.round(out.unplowed || 0), winter: wayNames.filter((n) => d.runs.reduce((m, r) => m + (r.name === n ? r.m : 0), 0) >= 200), offM: Math.round(d.offM), names: [...new Set(d.runs.filter((r) => r.name && r.m >= 300).map((r) => r.name))].slice(0, 4) });
     } catch (e) {
       if (wayRun.n !== my) return;
       t.wayFail = "net"; t.wayWait = "";
@@ -351,6 +366,7 @@
       `Who: ${pl.who || "me"}${t.people > 1 ? ` (${t.people} people)` : ""}`,
       `Cabin: ${hutName(t)}, ${ll(t.hut.lat, t.hut.lon)} https://www.google.com/maps?q=${t.hut.lat.toFixed(5)},${t.hut.lon.toFixed(5)}`,
       `Going in: ${dayWord(t.date)}${w ? `, ${w.from.replace(/^Park /, "parking ")} (${ll(w.line[0][0], w.line[0][1])}), ${w.km.toFixed(1)} km and ${fmtM(w.up)} up, about ${fmtH(w.hIn)}` : ""}`,
+      ...(w && w.names && w.names.length ? [`Way in: via ${w.names.join(", ")}`] : []),
       `Nights: ${t.nights}. Back at the car by ${when(pl.out)}`,
       ...(tours.length ? [`Day tours we may do: ${tours.join(", ")}`] : []),
       ...(pl.car ? [`Car: ${pl.car}${w ? " at the parking above" : ""}`] : []),
@@ -429,12 +445,25 @@
       ${g.operator ? `<p class="sk-note">Run by ${esc(g.operator)}${book || /^(required|only|yes)$/.test(g.reservation || "") ? "" : ". Check with them before you go: some cabins need booking or a permit."}</p>` : !out.length ? `<p class="sk-note">${esc(S.HUT_ABOUT[t.hut.kind] || S.HUT_ABOUT.basic_hut)} Check who runs it and if it needs booking before you go.</p>` : ""}
       ${g.description ? `<p class="sk-note">${esc(g.description)}</p>` : ""}`;
   }
+  // The hut's closure notice (data/huts.json "winter:closure", with "winter:closure:website" for the notices) at the
+  // top of the way in, and its winter access (how the club and guides say to get in) under it.
+  function closedHtml(t) {
+    const g = t.hut.tags || {}, c = g["winter:closure"], u = g["winter:closure:website"];
+    return c ? `<p class="tp-closed">⚠️ <b>Closures:</b> ${esc(c)}${u ? ` <a href="${esc(u)}" target="_blank" rel="noopener">Check the notices</a>` : ""}</p>` : "";
+  }
+  function winterHtml(t) {
+    const a = t.hut.tags["winter:access"];
+    return a ? `<p class="tp-winter"><b>Winter access</b>${esc(a.replace(/^Winter: /, ""))}</p>` : "";
+  }
   function wayHtml(t) {
+    return closedHtml(t) + wayBody(t);
+  }
+  function wayBody(t) {
     const w = t.way;
-    if (t.wayWait) return `<p class="tp-wait">${esc(t.wayWait)}</p>`;
+    if (t.wayWait) return `<p class="tp-wait">${esc(t.wayWait)}</p>${winterHtml(t)}`;
     if (!w) {
       const msg = { noroad: "No parking lot or road within 9 km that the map knows of: the way in must start further away (by snowmobile, lift or a long ski).", water: "The cabin sits on the water on the map.", net: "Couldn't get the map data for the way in. Check your connection and try again." }[t.wayFail] || "";
-      return `<p class="sk-note">${esc(msg)}</p><div class="tp-btns"><button type="button" data-tp="draw">✎ Draw the way in</button>${t.wayFail === "net" ? `<button type="button" data-tp="again">↻ Try again</button>` : ""}</div>`;
+      return `<p class="sk-note">${esc(msg)}</p>${winterHtml(t)}<div class="tp-btns"><button type="button" data-tp="draw">✎ Draw the way in</button>${t.wayFail === "net" ? `<button type="button" data-tp="again">↻ Try again</button>` : ""}</div>`;
     }
     const C = T.CLASSES[w.cls], a = w.line[0];
     const ios = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) && "ontouchend" in document;
@@ -445,7 +474,9 @@
       <p><span class="sk-ates" style="--c:${C.color}">${C.label}</span> <span class="sk-note">avalanche terrain, estimated: ${esc((w.why || []).join("; "))}</span></p>
       ${w.offM >= 50 ? `<p class="sk-note">${fmtM(w.offM)} of it isn't on a mapped trail or road: it follows the terrain.</p>` : ""}
       ${w.unplowed >= 200 ? `<p class="sk-note"><b>${(w.unplowed / 1000).toFixed(1)} km of it is on gravel or logging roads</b>: not plowed in winter, so you ski it (counted in the km, climb and time).</p>` : ""}
-      ${t.hut.tags["winter:access"] ? `<p class="sk-note">${esc(t.hut.tags["winter:access"])}</p>` : ""}
+      ${w.winter && w.winter.length ? `<p class="sk-note">✓ Starts at the winter parking and follows the mapped winter route (${esc(w.winter.join(", "))}).</p>`
+        : w.known ? `<p class="sk-note">✓ Starts at the winter parking from the winter access below.</p>` : ""}
+      ${winterHtml(t)}
       ${w.src === "auto" && !w.known ? `<p class="sk-note">Starts where the plowed road is: check the pullout is plowed, and the road report, before you drive.</p>` : ""}
       <div class="tp-btns"><button type="button" class="go" data-tp="show">Show the way in + conditions</button><a href="${drive}" target="_blank" rel="noopener">🚗 Drive</a><button type="button" data-tp="draw">✎ Draw my own</button></div>`;
   }
