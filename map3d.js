@@ -947,9 +947,25 @@
   let hdWorkers = null, hdNext = 0, hdId = 0;
   const hdWaiting = new Map();
   let hdTile = null;   // (z, x, y, abort, site) -> { data }: one close-up, drawn by a worker (set below)
-  const terrainReady = () => new Promise((ok) => {
-    const done = () => { if (!gl || !gl.getSource("dem") || gl.isSourceLoaded("dem")) { clearTimeout(t); if (gl) gl.off("sourcedata", done); ok(); } };
-    const t = setTimeout(() => { if (gl) gl.off("sourcedata", done); ok(); }, PHONE ? 15000 : 3000);
+  // Has the ground under close-up z/x/y its heights yet? (a loaded height tile covering it; MapLibre internals, any
+  // surprise counts as yes)
+  const demHere = (z, x, y) => {
+    try {
+      const m = gl.style.tileManagers.dem, tiles = m._inViewTiles;
+      for (const k of tiles.getAllIds()) {
+        const t = tiles.getTileById(k), c = t && t.tileID.canonical;
+        if (c && t.state === "loaded" && c.z <= z && x >> (z - c.z) === c.x && y >> (z - c.z) === c.y) return true;
+      }
+      return false;
+    } catch { return true; }
+  };
+  // Close-ups wait for the heights of their own piece of ground (at most 3 s, 2.5 s on phones), so they don't hold up
+  // the mountains. Phones waited for every height tile of the view before, out to the horizon: a close-up in front
+  // started 6-7 s after zooming in and the snow stayed blurry ~10 s (alex's recording, 2026-11-06, measured).
+  const terrainReady = (z, x, y) => new Promise((ok) => {
+    const here = () => !gl || !gl.getSource("dem") || (z === undefined ? gl.isSourceLoaded("dem") : demHere(z, x, y));
+    const done = () => { if (here()) { clearTimeout(t); if (gl) gl.off("sourcedata", done); ok(); } };
+    const t = setTimeout(() => { if (gl) gl.off("sourcedata", done); ok(); }, PHONE ? 2500 : 3000);
     if (gl) gl.on("sourcedata", done);
     done();
   });
@@ -1007,13 +1023,13 @@
         hdFree(id);
         w.postMessage({ cancel: id }); no(new DOMException("aborted", "AbortError"));
       });
-      // The terrain first: these wait until the ground in view has its heights (at most 3 s, 15 on phones), so they don't
-      // hold up the mountains, then sharpen the photos already showing. On phones they also wait for the map to
+      // The terrain first: these wait until their own ground has its heights (terrainReady), then sharpen the photos
+      // already showing. On phones they also wait for the map to
       // stop moving: the ones scrolled past meanwhile are dropped without being drawn.
       const send = () => { if (hdWaiting.has(id)) w.postMessage({ id, z, x, y, base: location.href, site, fine }); };
-      if (!PHONE) return terrainReady().then(send);
+      if (!PHONE) return terrainReady(z, x, y).then(send);
       if (hdQueue.length > 64) hdQueue.splice(0, hdQueue.length, ...hdQueue.filter((j) => hdWaiting.has(j.id)));
-      hdQueue.push({ id, go: () => terrainReady().then(mapStill).then(() => hdWaiting.has(id) ? (send(), true) : false) });
+      hdQueue.push({ id, go: () => terrainReady(z, x, y).then(mapStill).then(() => hdWaiting.has(id) ? (send(), true) : false) });
       hdPump();
     });
     // Phones: start the newest waiting close-ups (the view now) while fewer than PHONE_HD_SLOTS are being drawn.
@@ -1115,6 +1131,24 @@
       if (!need) return;
       const size = RTT_SIZES.find((s) => need <= fitting(s));
       if (size && size !== pool._tileSize) setRtt(pool, size);
+    } catch {}
+  }
+  // Computers: the paint buffers are made ahead, while the map is still. MapLibre made each one the moment a turn
+  // first needed it (~32 MB of graphics memory each, 2048 px + depth), so the start of a turn that showed new ground
+  // stuck while the graphics card set them up (alex's recording, 2026-11-06: 0.1 s then 0.2 s stops in the first half
+  // second of a turn, then smooth; one turn made 6 new ones, measured). One at a time, only while still, at most
+  // WARM_BUFFERS: a computer reached MapLibre's 30 after a few turns anyway, so this never holds more than before.
+  const WARM_BUFFERS = 24;
+  let warmT = 0;
+  function warmPaintBuffers() {
+    clearTimeout(warmT);
+    try {
+      const pool = gl && gl.painter.renderToTexture && gl.painter.renderToTexture.pool;
+      if (!pool || !gl.terrain || gl.isMoving() || document.hidden || pool._objects.length >= Math.min(pool._size, WARM_BUFFERS)) return;
+      const obj = pool._createObject(pool._objects.length);
+      pool._objects.push(obj);
+      pool._recentlyUsed.unshift(obj.id);   // free and first in line to be used
+      warmT = setTimeout(warmPaintBuffers, 60);   // the next one a moment later: never a long stop
     } catch {}
   }
   function trimPaintBuffers() {
@@ -1676,7 +1710,7 @@
       // mountains kept up to 16 (~510 MB, measured) until the map stopped, and the iPhone app ran out of memory and
       // restarted on the flat map. A view that needs more paints its ground in turns: a little slower, never a crash.
       gl.on("render", phoneBuffers);
-    }
+    } else gl.on("idle", warmPaintBuffers);
     const demFix = () => { fixDemLeak(); fixReloadLeak(); fastElevation(); if (demFixed && reloadFixed && elevFixed) gl.off("render", demFix); };
     gl.on("render", demFix);
     gl.on("moveend", keepView);
@@ -1887,6 +1921,19 @@
       if (t) tip.setLngLat(e.lngLat).setHTML(String(t.getContent())).addTo(gl); else tip.remove();
     });
     gl.getCanvas().addEventListener("mouseleave", () => tip.remove());
+    // The mouse passing over a pin or name ("mouseover"/"mouseout" between things inside the map): MapLibre turns each
+    // one into a map event and looks up the ground under the mouse for it, which with the mountains on means
+    // reading a pixel back from the graphics card and waiting for it to finish drawing. While turning, the pins sweep
+    // under the mouse, so this happened again and again and the turn stuck for 0.1-0.3 s at a time (alex's
+    // recording, 2026-11-06; 15 of 16 s of main-thread time in a turn, measured). Nothing listens for those
+    // map events, so crossings inside the map stop here, and all of them while the map moves or a button is held
+    // (the mouse running over the map's own buttons mid-turn); really leaving or entering a still map gets through.
+    const inner = gl.getCanvasContainer();
+    const skipCrossing = (e) => {
+      if (gl.isMoving() || e.buttons || (e.relatedTarget && inner.contains(e.relatedTarget) && inner.contains(e.target))) e.stopPropagation();
+    };
+    inner.addEventListener("mouseover", skipCrossing, true);
+    inner.addEventListener("mouseout", skipCrossing, true);
   }
 
   // Each sport opens on the map it was last left on, 3D or flat, also after the app is closed. Skiing starts on 3D
