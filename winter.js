@@ -198,6 +198,7 @@ body.sk-route-focus :is(.wc-gl, .hc-pin, .sk-pin.park) { transform: scale(.75); 
 .sk-planbar .pb-msg { display: flex; align-items: center; gap: 9px; flex: 1 1 auto; min-width: 0; line-height: 1.25; }
 .sk-planbar .pb-msg small { display: block; color: var(--muted); font-size: .76rem; font-weight: 400; margin-top: 1px; }
 .sk-planbar .pb-dot { flex: none; width: 12px; height: 12px; border-radius: 50%; background: #1f5fe0; box-shadow: 0 0 0 0 #1f5fe088; animation: pbPulse 1.6s ease-out infinite; }
+.sk-planbar .pb-dot.busy { background: none; border: 2px solid #2f9e44; border-right-color: transparent; width: 10px; height: 10px; animation: sksafespin .8s linear infinite; box-shadow: none; }
 .sk-planbar .pb-dot.line { background: #ffd43b; box-shadow: 0 0 0 0 #fab00588; }
 @keyframes pbPulse { 0% { box-shadow: 0 0 0 0 #1f5fe088; } 80%, 100% { box-shadow: 0 0 0 9px #1f5fe000; } }
 .sk-planbar .pb-btns { display: flex; align-items: center; gap: 6px; margin-left: auto; }
@@ -212,6 +213,7 @@ body.sk-route-focus :is(.wc-gl, .hc-pin, .sk-pin.park) { transform: scale(.75); 
 #skiPane .sk-est { margin: 0 0 10px; line-height: 1.4; }
 #skiPane .sk-est-dg { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 6px; font-weight: 600; }
 #skiPane .sk-est-b { display: inline-flex; align-items: center; gap: 4px; }
+#skiPane .sk-warn .sk-dg { background: #fff; border-color: #e3b98c; color: #5c2c00; }   /* was light text on the peach box (alex's recording 2026-11-05) */
 #skiPane .sk-spark { display: flex; align-items: flex-end; gap: 3px; height: 44px; }
 #skiPane .sk-spark span { flex: 1; background: #74c0fc; border-radius: 2px 2px 0 0; min-height: 1px; position: relative; }
 #skiPane .sk-spark span:last-child { background: #1f5fe0; }
@@ -384,6 +386,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 #skiPane .av-top h3 { font-size: .95rem; }
 #skiPane .av-where { color: var(--muted); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #skiPane .av-line { margin: 0; font-size: .85rem; }
+#skiPane .av-card.av-dup .av-line { display: none; }
 #skiPane .av-bands { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 #skiPane .av-band { background: var(--c); color: var(--t); border-radius: 8px; padding: 6px 4px; text-align: center; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 #skiPane .av-band b { font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1326,7 +1329,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3540").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3560").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2492,6 +2495,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       routeInfo([{ src: "plan", key: other.key, lines: [other.line] }]).catch(() => {});
     }, 800);
   }
+  // A tour kept from last time (or from another device) had no numbers until a point moved: "Working out heights and
+  // slopes…" stayed on for good (alex's recording 2026-11-05). Work them out quietly once, then show them.
+  let planWarming = "";
+  function warmPlanNow() {
+    const r = planRoute();
+    if (!r || r.info || planWarming === r.key) return;
+    planWarming = r.key;
+    routeInfo([r]).then(() => { if (planLineKey() === r.key) renderPlan(); }, () => {}).finally(() => { if (planWarming === r.key && planInfo.has(r.key)) planWarming = ""; });
+  }
   // The numbers for the way on the map now: none while the other way's are still showing.
   const planNowInfo = () => {
     const key = planLineKey();
@@ -2607,10 +2619,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const msg = o ? `<b>${esc(o.name)}</b> <small>${esc(o.kind)}: add the whole line to your tour?</small>`
         : n === 0 ? `<b>Tap the map where you start</b><small>Start where you park. Tap a freeride or slackcountry line to add it all.</small>`
         : n === 1 ? `<b>Now tap where you want to go</b><small>Drag a point to move it.</small>`
-        : `<b>${plan.wait ? "Finding a less exposed way…" : info ? `${(info.total / 1000).toFixed(1)} km · ↑ ${fmtM(info.up)} · steepest ${Math.round(info.maxSlope)}°` : "Working it out…"}</b><small>Tap to add a point · drag a point to move it</small>`;
-      planBar.innerHTML = `<div class="pb-msg"><i class="pb-dot${o ? " line" : ""}" aria-hidden="true"></i><span>${msg}</span></div>
+        : `<b>${plan.wait ? esc(plan.wait) : info ? `${(info.total / 1000).toFixed(1)} km · ↑ ${fmtM(info.up)} · steepest ${Math.round(info.maxSlope)}°` : "Working it out…"}</b><small>Tap to add a point · drag a point to move it</small>`;
+      planBar.innerHTML = `<div class="pb-msg"><i class="pb-dot${o ? " line" : ""}${plan.wait && !o ? " busy" : ""}" aria-hidden="true"></i><span>${msg}</span></div>
         <div class="pb-btns">${o ? `<button type="button" data-p="line" class="go">＋ Add line</button><button type="button" data-p="point">Just a point</button><button type="button" data-p="nope" aria-label="Neither">✕</button>`
-          : `<button type="button" data-p="safe" class="safe" aria-pressed="${plan.safe}" title="Find a way between your points that keeps off steep and exposed slopes">Less exposed</button><button type="button" data-p="undo" aria-label="Undo"${plan.hist.length || n ? "" : " disabled"}>↶ Undo</button><button type="button" data-p="done" class="go">✓ Done</button>`}</div>`;
+          : `<button type="button" data-p="safe" class="safe" aria-pressed="${plan.safe}" title="Find a way between your points that keeps off steep and exposed slopes">${plan.safe ? "Less exposed: on" : "Less exposed: off"}</button><button type="button" data-p="undo" aria-label="Undo"${plan.hist.length || n ? "" : " disabled"}>↶ Undo</button><button type="button" data-p="done" class="go">✓ Done</button>`}</div>`;
       planBar.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
         const p = b.dataset.p;
         if (p === "undo") planUndo();
@@ -2625,9 +2637,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     $("skPlanBtn").textContent = plan.on ? "✓ Done planning" : n > 1 ? "✎ Edit my tour" : "✎ Plan a tour";
     card.hidden = !plan.on && n < 2 && !plan.wait && !plan.fail;
     if (card.hidden) return;
+    if (n > 1 && !info && !plan.wait) warmPlanNow();
     const sum = n < 2 ? "" : !info ? `<p>Working out heights and slopes…</p>`
       : `<p><b>${(info.total / 1000).toFixed(1)} km</b> · ↑ ${fmtM(info.up)} · ↓ ${fmtM(info.down)} · top ${fmtM(info.max)}</p>
-        <p>Steepest ${Math.round(info.maxSlope)}° · ${info.km30 >= 0.05 ? `<b>${info.km30.toFixed(1)} km on 30°+ slopes</b>` : "no 30°+ slopes under it"}${info.above >= 0.05 && !safePath() ? ` · <b>${info.above.toFixed(1)} km under steep slopes</b>` : ""}</p>`;
+        <p>Steepest ${Math.round(info.maxSlope)}° · ${info.km30 >= 0.05 ? `<b>${info.km30.toFixed(1)} km on 30°+ slopes</b>` : info.maxSlope >= 30 ? "only short bits on 30°+ slopes" : "no 30°+ slopes under it"}${info.above >= 0.05 && !safePath() ? ` · <b>${info.above.toFixed(1)} km under steep slopes</b>` : ""}</p>`;
     card.innerHTML = `${plan.on ? `<p><b>Tap the map</b> to add each point of your tour: ${plan.safe ? "where you start, then where you want to go (add more points to go a certain way). The Less exposed way finds a line between them." : "up the skin track, then the way down."} ${n ? "" : "Start where you park."}</p>` : `<p><b>${safePath() ? "Your tour, less exposed way" : "Your planned tour"}</b></p>`}
       ${sum}
       <div class="sk-row"><button type="button" class="btn sk-safebtn" id="skSafeBtn" aria-pressed="${plan.safe}">${plan.safe ? "Less exposed way: on" : "Find a less exposed way"}</button></div>
@@ -2962,7 +2975,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (st.sec > 0) {
       const ex = st.steepSec + st.underSec;
       why.push(ex >= 30 ? `<b>About ${mins(ex)} exposed</b> of ${mins(st.sec)} on the move: ${[st.steepSec >= 30 ? `${mins(st.steepSec)} on 30°+ slopes` : "", st.underSec >= 30 ? `${mins(st.underSec)} under steep slopes` : ""].filter(Boolean).join(", ")}. Time on or under a slope that could slide is what it keeps short.`
-        : `<b>Next to no time exposed</b> in ${mins(st.sec)} on the move: no 30°+ slopes and nothing steep above, as far as the terrain map can see.`);
+        : `<b>Next to no time exposed</b> in ${mins(st.sec)} on the move: ${st.steep + st.under + st.trap >= 5 ? "only short bits on or under steep slopes" : "no 30°+ slopes and nothing steep above"}, as far as the terrain map can see.`);
     }
     const wg = sp.weigh;
     if (wg) why.push(`How it weighs it today, on skins: 1 min on a 30-35° slope counts like ${Math.round(wg.s30)} min on gentle ground, 35-40° like ${Math.round(wg.s35)} min (${Math.round(wg.side35)} min sidehilling across it), under a steep slope like ${Math.round(wg.under)} min. So it drops to flatter ground, crosses and climbs back when that's less time exposed, even if it's longer.`);
@@ -3010,7 +3023,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         <ul class="sk-safe-why">${why.map((t) => `<li>${t}</li>`).join("")}</ul>
       </details>
       ${watch.length ? `<details class="sk-sec sk-fold"><summary><h4>Watch out</h4><span style="--c:${C[watch.some((r) => r.cls === "steep" || r.cls === "trap") ? "steep" : "under"].color}">${watch.length} ${watch.length === 1 ? "spot" : "spots"}</span></summary><ol class="sk-safe-watch">${watch.map((r, i) => `<li style="--c:${(C[r.cls] || C.ok).color}" data-safe-at="${r.mid[0]},${r.mid[1]}"><i>!${i + 1}</i><span>${say(r)}</span></li>`).join("")}</ol></details>`
-        : `<div class="sk-sec"><p class="sk-safe-ok">No 30°+ slopes and no steep slopes above on this route, as far as the terrain map can see.</p></div>`}
+        : (sp.legs || []).some((l) => l.steps.some((s) => s.worst === "steep" || s.worst === "under" || s.worst === "trap"))
+          // Short bits (under 40 m) still show "!" on their step: the card says so instead of "no 30°+ slopes" (alex's
+          // recording 2026-11-05: a step read "33° slope · 30 m" over "No 30°+ slopes on this route").
+          ? `<div class="sk-sec"><p class="sk-safe-ok">Only short steep bits (under 40 m each), marked ! in the steps above. Nothing longer on 30°+ slopes or under steep slopes, as far as the terrain map can see.</p></div>`
+          : `<div class="sk-sec"><p class="sk-safe-ok">No 30°+ slopes and no steep slopes above on this route, as far as the terrain map can see.</p></div>`}
       <div class="sk-row"><button type="button" class="btn" id="skSafeRev">⇅ Reverse the tour</button><button type="button" class="btn" id="skSafeAgain">↻ Find again</button></div>
       <p class="sk-safe-dis"><b>Not a substitute for avalanche training.</b> This is a planning aid based on a terrain model (10 to 30 m) and the regional forecast. It can't see cornices, wind loading, small slopes, trees or today's snowpack, and a forecast covers a whole region. How much a minute on a steep slope weighs against a longer way is judgment taken from avalanche course rules of thumb, not measured odds. Take an avalanche course (AST 1), carry a transceiver, probe and shovel with partners who know how to use them, read the full forecast on ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}, and make your own decisions in the field.</p>
       
@@ -3648,6 +3665,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       : line ? `<span>⚠ <b>Avalanche:</b> ${esc(line.textContent.split(/\.\s/)[0].replace(/\.$/, ""))}</span>` : "";   // first sentence: the card under it has the rest
     if (b.innerHTML !== html) b.innerHTML = html;
     b.hidden = !html;
+    // The one-line card (early season, no forecast...) says the same as the line on top: said once (alex's recording 2026-11-05).
+    card.classList.toggle("av-dup", !!(html && !bands.length && line && !/\.\s/.test(line.textContent.trim())));
   }
   new MutationObserver(syncNow).observe($("avCard"), { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
   $("skNow").addEventListener("click", () => { const c = $("avCard"); if (!c.hidden && window.tfPanelScrollTo) window.tfPanelScrollTo(c); });

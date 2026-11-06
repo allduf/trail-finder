@@ -334,11 +334,14 @@
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1], b = pts[i];
       if (window.tfLeaflet.distance(a, b) > MAX_LEG_M) return { fail: "far", leg: i, km: Math.round(window.tfLeaflet.distance(a, b) / 1000) };
-      onStep && onStep(pts.length > 2 ? `Leg ${i} of ${pts.length - 1}: reading the terrain…` : "Reading the terrain, slopes and avalanche paths…");
+      // Each message says which leg it's on when there are several, so a long search shows it's moving (alex's recording
+      // 2026-11-05: "Finding a less exposed way…" sat unchanged for seconds).
+      const say = pts.length > 2 ? (t) => onStep && onStep(`Leg ${i} of ${pts.length - 1} · ${t}`) : onStep;
+      say && say("Reading the terrain, slopes and avalanche paths…");
       // A line put in the tour (a freeride line or a mapped route, alex 2026-11-04: "make it so you can put line in your
       // tour"): this leg follows it as drawn, with its slopes and exposure read the same way.
       const via = viaOf(a, b);
-      if (via) { legs.push(await fixedLeg(FR, via, av, onStep)); continue; }
+      if (via) { legs.push(await fixedLeg(FR, via, av, say)); continue; }
       // A documented way up between the two points (wayOf): the leg follows it as drawn, and the search only finds the
       // way onto it and from its end to the point.
       // Only its crux (the bootpack or steep climb at the top, cruxOf) is followed as drawn. The way to the crux is
@@ -346,12 +349,12 @@
       // speed in good conditions (the Stairmaster's GPS track sidehills 2 km of 30-40° slopes in April), and dropping to
       // flatter ground and climbing back can be far less time exposed (alex 2026-11-05).
       const way = await wayOf(S, a, b, av);
-      const cx = way && (await cruxOf(FR, way, av, onStep));
+      const cx = way && (await cruxOf(FR, way, av, say));
       const parts = cx ? [[a, cx.crux.pts[0]], cx.crux, [cx.crux.pts[cx.crux.pts.length - 1], b]] : [[a, b]], got = [];
       for (const p of parts) {
-        if (p.pts) { got.push(await fixedLeg(FR, p, av, onStep)); continue; }
+        if (p.pts) { got.push(await fixedLeg(FR, p, av, say)); continue; }
         if (window.tfLeaflet.distance(p[0], p[1]) < 25) continue;
-        const leg = await searchLeg(S, FR, cost, p[0], p[1], av, onStep);
+        const leg = await searchLeg(S, FR, cost, p[0], p[1], av, say);
         if (leg.fail) return { fail: leg.fail, leg: i };
         got.push(leg);
       }

@@ -17,6 +17,7 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    [/^Leg (\d+) of (\d+) · (.+)$/, function (m, a, b, t) { return "Tronçon " + a + " sur " + b + " · " + tt(t); }],   // ski-route.js, a tour with stops
     [/^Near (?!me\b|you\b|the\b)([^:.!?()]{1,40})$/, "Près de $1"],   // the Area box: "Near Cumberland"
     [/^(\d+) (minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years) ago$/, function (m, n, u) { return "il y a " + n + " " + UNIT[u]; }],
     [/^Stocked (\d+) (day|days|week|weeks|month|months|year|years) ago, (.+)$/, function (m, n, u, f) { return "Ensemencé il y a " + n + " " + UNIT[u] + ", " + f; }],
