@@ -4,19 +4,21 @@
 // isn't responsible; they tap I understand and accept (kept on this device per kind, asked again when its ACK version goes up
 // with the terms). tfRiskLine() is the one short line under every planned route that says the same with a Terms link.
 // The wording follows terms.html, whose full version still waits on a lawyer's review (see the terms draft doc).
-// RULE (alex 2026-11-05): "Keep it updated everytime we add something": a new feature that suggests where to go or
-// says how safe something is gets a line in terms.html (EN + FR) and, if it plans a route, a tfRiskOk kind here.
+// The terms cover every feature, now and later, without naming it (alex 2026-11-06, "bullet proof"; TERMS_V 2), so a
+// new feature needs no new words here or in terms.html: if it plans a route or tour, await tfRiskOk(kind) with an
+// existing kind (or none: unknown kinds get the general "any" text) and show tfRiskLine() on its card.
 // Before anything else, every device agrees once to the terms (tfTerms below, "Before you head out"): asked again only
 // when TERMS_V goes up after a real change to the terms (terms.html Changes promises a new I agree for a change that matters).
 (function () {
   "use strict";
   var KEY = "tf:riskOk";
   // Each kind's version: raise one to ask again for that kind after its words change (avy 2: 2026-11-05, 3: renamed Less exposed way 2026-11-06).
-  var ACK = { avy: 3, offtrail: 1, route: 1 };
+  var ACK = { avy: 3, offtrail: 1, route: 1, any: 1 };
   var KIND = {
     avy: "The Less exposed way, avalanche danger, ATES terrain classes (official or our estimate), slope angles, the weather it weighs, route and lift status and other people's GPS tracks are estimates from terrain models, forecasts and other people's data. They can be late or wrong, they can't see today's snowpack, cornices or wind loading, and a line the app picks can still slide.",
     offtrail: "Off-trail routes follow a terrain model and map data. They can cross private land, cliffs, high water, wildlife and closed areas the map doesn't know about.",
     route: "Routes can use trails and roads that are closed, private, unofficial, washed out or beyond your skills.",
+    any: "Routes, ratings, forecasts, status and other people's data in the app are estimates. They can be late, wrong or missing, and they can't see what's in front of you today.",
   };
   function saved() { try { return JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { return {}; } }
   // The avalanche sheet comes back once each winter (season = the year the winter starts, from August), so it's read
@@ -104,7 +106,7 @@
   var open = null;
   // Resolves true once the person has accepted this kind (now or before), false if they cancel.
   window.tfRiskOk = function (kind) {
-    if (!KIND[kind]) kind = "route";
+    if (!KIND[kind]) kind = "any";
     if (accepted(kind)) return Promise.resolve(true);
     if (open) return open;
     if (!document.getElementById("tfRiskCss")) { var st = document.createElement("style"); st.id = "tfRiskCss"; st.textContent = css; document.head.appendChild(st); }
@@ -114,6 +116,7 @@
       el.innerHTML = '<div class="rk"><h2 id="tfRiskH">Your trip, your decisions</h2>' +
         "<p>Trail Finder helps you plan. Its maps, routes, forecasts and ratings can be wrong or out of date.</p>" +
         "<p>" + KIND[kind] + "</p>" +
+        "<p>This goes for every route, tour and tool in the app, now and added later.</p>" +
         '<p class="rk-b">You decide where you go and what you do, and you accept all the risk: accidents, injury, death, lost or damaged gear and vehicles, and rescue costs.</p>' +
         '<p class="rk-b">Trail Finder and the people who make it are not responsible for your decisions or for anything that happens on your trip.</p>' +
         '<p>Check conditions yourself, stay within your skills, and call 911 in an emergency. <a href="terms.html">Terms of use</a></p>' +
@@ -137,7 +140,8 @@
   // Before you head out: the terms in five lines, agreed once on each device before the app is used (clickwrap). No
   // Cancel: the app is only for people who agree; Read the Terms of use opens the full page and the sheet comes back.
   // ?nowelcome (the photo-find test) skips it; the phone test taps I agree like a person would.
-  var TKEY = "tf:termsOk", TERMS_V = 1, termsMem = false;
+  // TERMS_V 2 (2026-11-06): the terms now cover every activity and every feature added later; everyone agrees once more.
+  var TKEY = "tf:termsOk", TERMS_V = 2, termsMem = false;
   function termsAccepted() {
     if (termsMem) return true;
     try { var t = JSON.parse(localStorage.getItem(TKEY) || "null"); return !!(t && t.v >= TERMS_V); } catch (e) { return false; }
@@ -152,7 +156,7 @@
     d.className = "tf-terms"; d.tabIndex = -1; d.setAttribute("aria-labelledby", "tfTermsH");
     d.innerHTML = '<h2 id="tfTermsH">Before you head out</h2>' +
       '<p class="tt-lead">Trail Finder helps you plan. It doesn\'t decide for you.</p><ul>' +
-      "<li>Maps, routes, the Less exposed way, avalanche and terrain ratings, forecasts, trail and road status, GPS tracks and other people's posts can be wrong, late or missing.</li>" +
+      "<li>Everything the app shows, in every sport and every feature (now and added later), can be wrong, late or missing: maps, routes, the Less exposed way, avalanche and terrain ratings, forecasts, trail and road status, AI answers, GPS tracks and other people's posts.</li>" +
       "<li>Nothing in the app is advice or a promise that a place is safe, open or allowed.</li>" +
       "<li><b>You decide whether to go, where, which way and when to turn back, and you accept all the risk, for you and anyone with you.</b></li>" +
       "<li><b>Trail Finder and the people who make it are not responsible for your decisions or what happens: accidents, injury, death, rescue costs, loss or damage.</b></li>" +

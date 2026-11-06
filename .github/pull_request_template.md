@@ -6,5 +6,5 @@
 - [ ] Shared `?v=` and `sw.js` `tf-N` bumped above main and every open PR
 - [ ] One short line at the top of `data/changelog.json` (user-facing changes)
 - [ ] French line in `scripts/i18n/` for new text people see
-- [ ] **Terms and safety (alex's rule, 2026-11-05):** if this adds or changes something that suggests where to go, plans a route, rates difficulty, danger or conditions, shows official status, or shares other people's data, `terms.html` (English and French) covers it, and route or tour planning waits on `tfRiskOk(kind)` and shows `tfRiskLine()` (`risk.js`). Raise that kind's version in `ACK` if its words changed; raise `TERMS_V` only for a real change to the terms.
+- [ ] **Terms and safety (alex's rules, 2026-11-05 and 2026-11-06):** `terms.html` covers every feature, now and later, without naming it, so a normal feature needs **no** terms edit. Route or tour planning still waits on `tfRiskOk(kind)` and shows `tfRiskLine()` (`risk.js`; an unknown kind gets the general text). Edit `terms.html` (English and French) and raise `TERMS_V` only for a new kind of risk the general words don't reach: something paid, selling or renting gear, guided trips or events, a new country, or data shared in a new way (that goes in `privacy.html`).
 - [ ] `ios-app/` changes? They start a new TestFlight build: tell alex before merging
