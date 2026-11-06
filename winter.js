@@ -224,11 +224,6 @@ body.sk-route-focus :is(.wc-gl, .hc-pin, .sk-pin.park) { transform: scale(.75); 
 .sk-safe-pt.first { background: #2f9e44; }
 .sk-safe-pt.new { animation: skPtPop .5s ease-out; }
 @keyframes skPtPop { 0% { scale: .3; } 60% { scale: 1.25; } 100% { scale: 1; } }
-.sk-safe-w { background: #e03131; }
-.sk-safe-w { width: auto !important; min-width: 18px; padding: 0 4px; border-radius: 6px !important; }
-.sk-safe-w { white-space: nowrap; }
-.sk-safe-w small { font-weight: 700; font-size: 10px; margin-left: 4px; }
-.sk-safe-rg { width: 16px; height: 16px; border-radius: 50%; background: #2f9e44; color: #fff; font: 800 10px/16px system-ui, sans-serif; text-align: center; border: 2px solid #fff; box-shadow: 0 1px 3px #0006; box-sizing: content-box; }
 #skiPane .sk-safe { display: flex; flex-direction: column; gap: 14px; border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--panel); }
 #skiPane .sk-safe h4 { margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: -.01em; }
 #skiPane .sk-sec { display: flex; flex-direction: column; gap: 8px; }
@@ -707,23 +702,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     for (const w of out) w.cls = w.by.trap >= 20 ? "trap" : (w.by.steep || 0) >= (w.by.under || 0) ? "steep" : "under";
     const res = out.filter((w) => w.m >= 40);
-    // A place to regroup before and after each one (alex 2026-11-05: "safe spots on the route for regrouping"): the
-    // nearest regroup place on the way within 400 m, a ridge or trees over open flat ground when they're about as close.
-    const sf = sp.safe || [], rank = { ridge: 0, trees: 1, flat: 2 };
-    const pick = (lo, hi, near) => sf.filter((q) => q.d >= lo && q.d <= hi).sort((a, b) => Math.abs(a.d - near) + rank[a.kind] * 60 - (Math.abs(b.d - near) + rank[b.kind] * 60))[0] || null;
-    for (const w of res) if (w.at0 != null) {
-      w.before = pick(w.at0 - 400, w.at0 - 10, w.at0);
-      w.after = pick(w.at1 + 10, w.at1 + 400, w.at1);
-    }
     return res;
   }
-  // The regroup places to show on the map: before and after each watch-out, each place once.
-  function regroupPts(watch) {
-    const out = [];
-    for (const w of watch) for (const q of [w.before, w.after]) if (q && !out.some((o) => Math.abs(o.d - q.d) < 60)) out.push(q);
-    return out;
-  }
-  const RG_KIND = { ridge: "on the ridge", trees: "in the trees", flat: "on flat ground" };
   const aboveLayer = L.layerGroup();   // drawAbove()
   const pinLayer = L.layerGroup();     // drawPins(): the opened tour's start and top
   const lineOf = (flat) => { const out = []; for (let i = 0; i < flat.length; i += 2) out.push([flat[i], flat[i + 1]]); return out; };
@@ -1343,7 +1323,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3460").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3500").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2574,23 +2554,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: "#111", weight: 14, opacity: 0.45, lineCap: "round", lineJoin: "round", interactive: false }));
       for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: "#fff", weight: 10, opacity: 1, lineCap: "round", lineJoin: "round", interactive: false }));
       for (const r of sp.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "ski", color: (C[r.cls] || C.ok).color, weight: 6, opacity: 1, lineCap: "round", lineJoin: "round", interactive: false }));
-      // Each watch-out says how to cross it (alex 2026-11-05: "mark crux crossings as one at a time on the map"): on 30°+
-      // ground or in a terrain trap, one at a time; under a slope, keep moving. Green R pins: where to regroup.
-      if (pins) {
-        const watch = safeWatch(sp);
-        watch.forEach((r, i) => {
-          const how = r.cls === "under" ? "Don't stop" : "One at a time";
-          const html = `<div class="sk-safe-n sk-safe-w">!${i + 1}<small>${how}</small></div>`;
-          if (!map.getPane("skiSafePt")) { map.createPane("skiSafePt").style.zIndex = 660; map.getPane("skiSafePt").style.pointerEvents = "none"; }
-          plan.layer.addLayer(L.marker(r.mid, { pane: "skiSafePt", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html, iconSize: null, iconAnchor: [13, 11] }) }));
-          planGlPin(r.mid, html, 4);
-        });
-        for (const q of regroupPts(watch).filter((q) => !watch.some((r) => map.distance(q.at, r.mid) < 80))) {   // not under a watch-out's label
-          const html = `<div class="sk-safe-rg" title="Regroup ${RG_KIND[q.kind]}">R</div>`;
-          plan.layer.addLayer(L.marker(q.at, { pane: "ski", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html, iconSize: [22, 22], iconAnchor: [11, 11] }) }));
-          planGlPin(q.at, html, 3);
-        }
-      }
+      // No advice tags or regroup pins on the map (alex 2026-11-06: "that the advise off pls", "we need to be carefull
+      // with the presition of the app"): the coloured line shows the terrain; the Watch out list says what's there.
     } else if (plan.pts.length > 1) {
       plan.layer.addLayer(L.polyline(plan.pts, { pane: "ski", color: "#fff", weight: 8, opacity: 0.9, interactive: false }));
       plan.layer.addLayer(L.polyline(plan.pts, { pane: "ski", color: plan.safe ? "#868e96" : "#e8590c", weight: 4, opacity: 1, dashArray: plan.on || plan.safe ? "10 6" : null, interactive: false }));
@@ -2990,7 +2955,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (wx.warm >= 3) bits.push(`warming to ${wx.warm}°C at ${fmtM(wx.ele)}: sunny slopes count up to 1.4x`);
       why.push(bits.length ? `Today's weather is in it too (at ${fmtM(wx.ele)}): ${bits.join("; ")}.` : `Today's weather (at ${fmtM(wx.ele)}) shows no new snow, wind loading, rain or warming to add.`);
     } else if (wx && wx.none) why.push("Today's weather couldn't be loaded, so only the avalanche forecast is in it: check for new snow, wind and warming yourself.");
-    for (const x of sp.alts || []) why.push(`Leaves the usual skin track (${esc(x.name)}) before its crux: that track sidehills ${fmtM(x.theirs.steep)} on 30°+ slopes, about ${mins(x.theirs.expo)} exposed. This way: ${x.mine.steep >= 20 ? fmtM(x.mine.steep) : "none"}, about ${mins(x.mine.expo)}${x.mine.sec - x.theirs.sec >= 120 ? `, for about ${mins(x.mine.sec - x.theirs.sec)} more on the move` : ""}. The usual track is quicker on a stable day; with slab problems in the forecast, the way round is the safer bet.`);
+    for (const x of sp.alts || []) why.push(`Leaves the usual skin track (${esc(x.name)}) before its crux: that track sidehills ${fmtM(x.theirs.steep)} on 30°+ slopes, about ${mins(x.theirs.expo)} exposed. This way: ${x.mine.steep >= 20 ? fmtM(x.mine.steep) : "none"}, about ${mins(x.mine.expo)}${x.mine.sec - x.theirs.sec >= 120 ? `, for about ${mins(x.mine.sec - x.theirs.sec)} more on the move` : ""}.`);
     if (!av.none && (av.probs || []).length) {
       const parts = (av.probs || []).filter((p) => p.aspects.length && p.aspects.length < 8).map((p) => `${p.aspects.map((x) => x.toUpperCase()).join(" ")} in the ${p.elevations.map((b) => ({ alp: "alpine", tln: "treeline", btl: "below treeline" }[b] || b)).join(", ")} (${esc(p.type)})`);
       if (parts.length) why.push(`Keeps off today's problem aspects where it can: ${parts.join("; ")}.${st.hit >= 5 ? ` Still ${fmtM(st.hit)} on them.` : ""}`);
@@ -3001,14 +2966,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const say = (r) => {
       const asp = r.asp >= 0 ? `${SAFE_ASP[r.asp]}-facing` : "";
       const also = r.cls === "steep" && (r.by.under || 0) >= 30 ? ` Part of it is also under steeper slopes${r.src ? ` (${r.src.deg}° ${SAFE_ASP[r.src.asp]}-facing above)` : ""}.` : r.cls === "under" && (r.by.steep || 0) >= 30 ? ` About ${fmtM(r.by.steep)} of it is on 30°+ ground itself.` : "";
-      const far = (m, w) => (m < 30 ? `right ${w} it` : `${fmtM(Math.round(m / 10) * 10)} ${w} it`);
-      const rg = [r.before ? `${far(r.at0 - r.before.d, "before")} ${RG_KIND[r.before.kind]}` : "", r.after ? `${far(r.after.d - r.at1, "after")} ${RG_KIND[r.after.kind]}` : ""].filter(Boolean);
-      return say1(r, asp) + also + (rg.length ? ` Regroup ${rg.join(", and ")}.` : "");
+      return say1(r, asp) + also;
     };
     const say1 = (r, asp) => {
-      if (r.cls === "steep") return `<b>${fmtM(r.m)} on slopes up to ${r.maxDeg}°</b>${asp ? `, ${asp}` : ""} (${SAFE_BAND[r.band]})${r.hit ? ", <b>on an aspect in today's avalanche problems</b>" : ""}. No gentler way round here: go one at a time and stay on the lowest-angle line.`;
-      if (r.cls === "trap") return `<b>${fmtM(r.m)} in a gully or creek bed under steep slopes</b>${r.src ? ` (${r.src.deg}° ${SAFE_ASP[r.src.asp]}-facing, ${r.src.up > 0 ? `${r.src.up} m above` : "above"})` : ""}: a terrain trap, even a small slide piles up deep here. Move through quickly, one at a time.`;
-      return `<b>${fmtM(r.m)} under steep slopes</b>${r.src ? `: a ${r.src.deg}° ${SAFE_ASP[r.src.asp]}-facing slope ${r.src.up > 0 ? `${r.src.up} m above` : "above"}${r.src.hit ? ", on a problem aspect today" : ""}` : ""}. A slide from there could reach you: cross one at a time and don't stop under it.`;
+      if (r.cls === "steep") return `<b>${fmtM(r.m)} on slopes up to ${r.maxDeg}°</b>${asp ? `, ${asp}` : ""} (${SAFE_BAND[r.band]})${r.hit ? ", <b>on an aspect in today's avalanche problems</b>" : ""}..`;
+      if (r.cls === "trap") return `<b>${fmtM(r.m)} in a gully or creek bed under steep slopes</b>${r.src ? ` (${r.src.deg}° ${SAFE_ASP[r.src.asp]}-facing, ${r.src.up > 0 ? `${r.src.up} m above` : "above"})` : ""}: a terrain trap.`;
+      return `<b>${fmtM(r.m)} under steep slopes</b>${r.src ? `: a ${r.src.deg}° ${SAFE_ASP[r.src.asp]}-facing slope ${r.src.up > 0 ? `${r.src.up} m above` : "above"}${r.src.hit ? ", on a problem aspect today" : ""}` : ""}.`;
     };
     return `<div class="sk-safe">
       ${stepsHtml(sp, watch)}

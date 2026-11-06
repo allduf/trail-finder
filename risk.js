@@ -14,7 +14,7 @@
   // Each kind's version: raise one to ask again for that kind after its words change (avy 2: 2026-11-05).
   var ACK = { avy: 2, offtrail: 1, route: 1 };
   var KIND = {
-    avy: "The Safest way, avalanche danger, ATES terrain classes (official or our estimate), slope angles, the weather it weighs, places to regroup, route and lift status and other people's GPS tracks are estimates from terrain models, forecasts and other people's data. They can be late or wrong, they can't see today's snowpack, cornices or wind loading, and a line the app picks can still slide.",
+    avy: "The Safest way, avalanche danger, ATES terrain classes (official or our estimate), slope angles, the weather it weighs, route and lift status and other people's GPS tracks are estimates from terrain models, forecasts and other people's data. They can be late or wrong, they can't see today's snowpack, cornices or wind loading, and a line the app picks can still slide.",
     offtrail: "Off-trail routes follow a terrain model and map data. They can cross private land, cliffs, high water, wildlife and closed areas the map doesn't know about.",
     route: "Routes can use trails and roads that are closed, private, unofficial, washed out or beyond your skills.",
   };
