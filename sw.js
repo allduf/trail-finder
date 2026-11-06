@@ -4,10 +4,10 @@
 // are not touched; map tiles only as TILES says (OpenStreetMap, heights, Winter photos), and the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-3390";
+const VERSION = "tf-3400";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=19", "account.js?v=3590", "friends.js?v=3590", "moderation.js?v=3590", "reports.js?v=3590", "grades.js?v=3590", "trail-photos.js?v=3590", "status.js?v=3590", "ask.js?v=3590", "visitors.js?v=3590", "usage.js?v=3590", "map3d.js?v=3590", "ski-terrain.js?v=3590", "winter.js?v=3590", "place-search.js?v=3590", "clouds.js?v=3590", "smoke.js?v=3590", "radar.js?v=3590", "live.js?v=3590", "ski-points.js?v=3590", "hunts.js?v=3590", "webcams.js?v=3590", "lifts.js?v=3590", "ski-areas.js?v=3590", "helicat.js?v=3590", "cabin-trip.js?v=3590", "camper.js?v=3590", "japanese.js?v=3590", "japan-snow.js?v=3590", "rogers.js?v=3590", "slackcountry.js?v=3590", "freeride.js?v=3590", "crownland.js?v=3590", "hunting.js?v=3590", "fish-bait.js?v=3590", "fish-route.js?v=3590", "ski-route.js?v=3590", "fishing.js?v=3590", "moto.js?v=3590", "moto-roads.js?v=3590", "hike.js?v=3590", "compass.js?v=3590", "offline.js?v=3590", "native-gps.js?v=3590", "native.js?v=3590", "native-map.js?v=3590", "keyboard.js?v=3590", "navigate.js?v=3590", "go-there.js?v=3590", "ride-stats.js?v=3590", "ride-finds.js?v=3590", "rides.js?v=3590", "planner.js?v=3590", "rotate.js?v=3590", "photo-find.js?v=3590", "ebike.js?v=3590", "closures.js?v=3590", "loops.js?v=3590", "strava.js?v=3590", "share.js?v=3590", "community.js?v=3590", "ride-files.js?v=3590", "rider-trails.js?v=3590", "alpine.js?v=3590", "areas.js?v=3590", "bikeparks.js?v=3590", "contours.js?v=3590", "directions.js?v=3590", "notify.js?v=3590", "official.js?v=3590", "photo-slider.js?v=3590", "ratings.js?v=3590", "whats-new.js?v=3590", "app-update.js?v=3590", "noback.js?v=3590", "risk.js?v=3590", "welcome.js?v=3590", "i18n.js?v=3590", "line-icons.js?v=3590", "i18n-fr.js?v=3590", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=19", "account.js?v=3600", "friends.js?v=3600", "moderation.js?v=3600", "reports.js?v=3600", "grades.js?v=3600", "trail-photos.js?v=3600", "status.js?v=3600", "ask.js?v=3600", "visitors.js?v=3600", "usage.js?v=3600", "map3d.js?v=3600", "ski-terrain.js?v=3600", "winter.js?v=3600", "place-search.js?v=3600", "clouds.js?v=3600", "smoke.js?v=3600", "radar.js?v=3600", "live.js?v=3600", "ski-points.js?v=3600", "hunts.js?v=3600", "webcams.js?v=3600", "lifts.js?v=3600", "ski-areas.js?v=3600", "helicat.js?v=3600", "cabin-trip.js?v=3600", "camper.js?v=3600", "japanese.js?v=3600", "japan-snow.js?v=3600", "rogers.js?v=3600", "slackcountry.js?v=3600", "freeride.js?v=3600", "crownland.js?v=3600", "hunting.js?v=3600", "fish-bait.js?v=3600", "fish-route.js?v=3600", "ski-route.js?v=3600", "fishing.js?v=3600", "moto.js?v=3600", "moto-roads.js?v=3600", "hike.js?v=3600", "compass.js?v=3600", "offline.js?v=3600", "native-gps.js?v=3600", "native.js?v=3600", "native-map.js?v=3600", "keyboard.js?v=3600", "navigate.js?v=3600", "go-there.js?v=3600", "ride-stats.js?v=3600", "ride-finds.js?v=3600", "rides.js?v=3600", "planner.js?v=3600", "rotate.js?v=3600", "photo-find.js?v=3600", "ebike.js?v=3600", "closures.js?v=3600", "loops.js?v=3600", "strava.js?v=3600", "share.js?v=3600", "community.js?v=3600", "ride-files.js?v=3600", "rider-trails.js?v=3600", "alpine.js?v=3600", "areas.js?v=3600", "bikeparks.js?v=3600", "contours.js?v=3600", "directions.js?v=3600", "notify.js?v=3600", "official.js?v=3600", "photo-slider.js?v=3600", "ratings.js?v=3600", "whats-new.js?v=3600", "app-update.js?v=3600", "noback.js?v=3600", "risk.js?v=3600", "welcome.js?v=3600", "i18n.js?v=3600", "line-icons.js?v=3600", "i18n-fr.js?v=3600", "manifest.webmanifest",
   "privacy.html", "support.html", "terms.html", "credits.html",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "vendor/leaflet-1.9.4.js",
@@ -22,7 +22,13 @@ self.addEventListener("install", (e) => {
 });
 
 self.addEventListener("activate", (e) => {
-  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== OFFLINE && !TILES.some((t) => t.name === k)).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  // The version just before this one is kept too: a page opened from it (served at once, below) may still be running and
+  // load its sport scripts later, and those must be its own, not this version's under the old ?v= address.
+  e.waitUntil(caches.keys().then((keys) => {
+    const num = (k) => (/^tf-\d+$/.test(k) ? +k.slice(3) : -1), mine = num(VERSION);
+    const prev = Math.max(-1, ...keys.map(num).filter((n) => n < mine));
+    return Promise.all(keys.filter((k) => k !== VERSION && k !== OFFLINE && !TILES.some((t) => t.name === k) && !(prev >= 0 && num(k) === prev)).map((k) => caches.delete(k)));
+  }).then(() => self.clients.claim()));
 });
 
 // Data files (data/*.json) on a slow connection: when the network takes longer than DATA_WAIT_MS and a saved copy is
@@ -32,6 +38,10 @@ self.addEventListener("activate", (e) => {
 // blank screen for 5 s or more downloading a page it already had). A saved page only ever runs with the scripts saved
 // with it (the same cache), and a fresh deploy still shows on the next open with any signal. Other files without a
 // ?v= always wait for the network.
+// The page itself (alex, 2026-11-06: "make it as fast as possible", first impressions): a saved page is shown at once
+// and the new one downloaded for next time. Phones reported ~2 s for the page on every open, the PAGE_WAIT_MS cap,
+// before anything showed. A new deploy shows on the open after the one that downloads it (the same as the iPhone
+// app's own update), and the previous version's files are kept (activate above) for a page still running from it.
 const DATA_WAIT_MS = 1500, PAGE_WAIT_MS = 2000;
 async function networkFirst(req, e) {
   const cache = await caches.open(VERSION);
@@ -52,9 +62,10 @@ async function networkFirst(req, e) {
     const page = req.mode === "navigate";
     if (page || /\/data\/[^?]*\.json$/.test(new URL(req.url).pathname)) {
       const home = page && /\/(index\.html)?$/.test(new URL(req.url).pathname);
-      const hit = page ? await caches.match(req, { ignoreSearch: true }) || (home ? await cache.match("index.html") : null) : await caches.match(req);
+      const hit = page ? await cache.match(req, { ignoreSearch: true }) || (home ? await cache.match("index.html") : null) || await caches.match(req, { ignoreSearch: true }) : await caches.match(req);
       if (hit) {
         e.waitUntil(net.catch(() => null));
+        if (page && hit.ok && !hit.redirected) return hit;
         // The whole file, not just its first bytes: a big file can start quickly and then crawl.
         const whole = net.then(async (r) => (r.ok ? new Response(await r.blob(), { status: r.status, statusText: r.statusText, headers: r.headers }) : null)).catch(() => null);
         const slow = new Promise((ok) => setTimeout(() => ok(null), page ? PAGE_WAIT_MS : DATA_WAIT_MS));

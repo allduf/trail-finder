@@ -608,6 +608,7 @@
     "Less exposed: off":"Moins exposé : désactivé",
     "Skiing tours: clearer steep-slope notes, progress while finding a way, readable danger.":"Ski, sorties : notes de pentes raides plus claires, progression pendant la recherche d'un chemin, danger lisible.",
     "Photo find: when your picture matches one riders took of a trail, that trail comes first, and parts of one trail (like Gouranga and Gouranga Rock Ride) show together.":"Trouver par photo : quand votre photo correspond à celle qu'un usager a prise d'un sentier, ce sentier vient en premier, et les parties d'un même sentier (comme Gouranga et Gouranga Rock Ride) s'affichent ensemble.",
+    "The app opens faster, most of all when you open it again":"L'application s'ouvre plus vite, surtout quand vous la rouvrez",
     "Tagged as a bike trail":"Identifié comme sentier de vélo",
     "Official":"Officiel",
     "Unnamed path":"Chemin sans nom",

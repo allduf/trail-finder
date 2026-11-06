@@ -175,6 +175,9 @@
     d.focus({ preventScroll: true });
   }
   if (terms.pending) {
-    if (document.readyState === "complete") setTimeout(showTerms, 200); else addEventListener("load", function () { setTimeout(showTerms, 200); }, { once: true });
+    // At once, while the rest of the app downloads behind it (alex, 2026-11-06, first impressions): it used to wait for
+    // the whole page (~3.5 s on a phone with 4G, the screen showing buttons that did nothing yet); reading it covers that
+    // time. risk.js runs in <body> after the app's own markup, so the sheet has a body and the theme to sit in.
+    if (document.body) setTimeout(showTerms, 0); else addEventListener("DOMContentLoaded", function () { setTimeout(showTerms, 0); }, { once: true });
   }
 })();
