@@ -24,16 +24,16 @@
   --accent: #5cc98f; --accent-fg: #0d1a12; --bar: #2f6b4a; --err: #ff6b5e; color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
 main { max-width: 980px; margin: 0 auto; padding: 16px; }
 h1 { font-size: 1.5rem; margin: 4px 0 2px; }
 h2 { font-size: 1.1rem; margin: 26px 0 8px; }
 p.lead, .muted { color: var(--muted); }
-.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .days { display: flex; gap: 6px; }
 .days button, .btn { font: inherit; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
 .days button[aria-pressed="true"], .btn.go { background: var(--accent); color: var(--accent-fg); border-color: transparent; }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 14px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px; }
 .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
 .stat b { display: block; font-size: 1.5rem; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; overflow-x: auto; }
@@ -62,104 +62,178 @@ textarea { width: 100%; min-height: 120px; font: inherit; padding: 8px; border: 
 .list { margin: 0; padding-left: 18px; }
 .funnel td:first-child { width: 34%; }
 details > summary { cursor: pointer; font-weight: 600; }
+/* Layout (2026-11-06, alex "make it easier to use and understand"): one tab per question instead of one long page. */
+.head { margin-bottom: 4px; }
+.head .lead { margin: 0; }
+.tabs { position: sticky; top: 0; z-index: 5; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; margin: 12px -16px 0; padding: 8px 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { flex: none; font: inherit; font-weight: 600; padding: 8px 14px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-fg); }
+.badge { display: inline-block; min-width: 20px; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--err); color: #fff; font-size: .75rem; line-height: 20px; text-align: center; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; margin-top: 12px; }
+.frow { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.flabel { font-size: .8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.days { overflow-x: auto; scrollbar-width: none; }
+.days button { flex: none; white-space: nowrap; }
+.filters .who { margin: 0; flex-wrap: nowrap; }
+.hint { margin: 0; width: 100%; font-size: .85rem; }
+.hint:empty { display: none; }
+body[data-view="manage"] #msg, body[data-view="manage"] #setup { display: none; }
+section[data-panel] > h2:first-child { margin-top: 18px; }
+.intro { margin-top: 18px; }
+.stats .stat[data-go] { cursor: pointer; }
+.stats .stat[data-go]:hover { border-color: var(--accent); }
+.todo { padding: 4px 0; }
+.todo button { display: flex; width: 100%; align-items: center; gap: 10px; font: inherit; text-align: left; padding: 10px 14px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; }
+.todo button:last-child { border-bottom: 0; }
+.todo button::after { content: "›"; margin-left: auto; color: var(--muted); font-size: 1.2rem; }
+.todo .ok { padding: 10px 14px; margin: 0; color: var(--muted); }
+.todo .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--err); }
+.todo .dot.soft { background: #d9a400; }
+.friend { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.friend:last-child { border-bottom: 0; }
+.friend .who2 { flex: 1; min-width: 0; }
+.friend .em { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.friend .btn { padding: 4px 10px; font-size: .85rem; }
+.addf { display: flex; gap: 8px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.addf input { flex: 1; min-width: 180px; font: inherit; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+.flag { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.flag:last-child { border-bottom: 0; }
+.flag .acts { margin-top: 6px; display: flex; gap: 8px; }
+@media (max-width: 560px) { main { padding: 12px; } .tabs { margin: 10px -12px 0; padding: 8px 12px; } .stats { grid-template-columns: repeat(2, 1fr); } .flabel { display: none; } .filters { gap: 8px; } .days button { padding: 6px 10px; } }
 </style>
 </head>
 <body>
 <main>
-  <div class="top">
-    <div>
-      <h1>App usage</h1>
-      <p class="lead">What testers do in the iPhone app: what they look for, where they get stuck, and how fast it is. Only you can see this. Each phone is an anonymous code; give it a name below.</p>
-    </div>
-    <div class="days" role="group" aria-label="Period">
-      <button type="button" data-days="1">24 h</button><button type="button" data-days="3">3 days</button><button type="button" data-days="7">7 days</button><button type="button" data-days="30" aria-pressed="true">30 days</button><button type="button" data-days="90">90 days</button>
-    </div>
-  </div>
+  <header class="head">
+    <h1>App usage</h1>
+    <p class="lead">What testers do in the iPhone app. Only you can see this page.</p>
+  </header>
   <div id="msg" class="muted">Loading…</div>
   <div id="setup" class="note" hidden>One step left to see searches, speed, crashes and every tester: paste <b>supabase/usage-more.sql</b> into the Supabase SQL Editor and run it. Until then the app can't send them.</div>
-  <div id="flagsBox" hidden>
-    <h2>Reported posts</h2>
-    <p class="muted">Trail reports, rider photos and rider grades that riders reported (⚑). 3 reports hide a post for everyone until you keep it or remove it.</p>
-    <div class="card" id="flags"></div>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Sections" hidden>
+    <button type="button" role="tab" data-tab="overview">Overview</button>
+    <button type="button" role="tab" data-tab="testers">Testers</button>
+    <button type="button" role="tab" data-tab="searches">Searches<span class="badge" id="badge-searches" hidden></span></button>
+    <button type="button" role="tab" data-tab="use">What they use</button>
+    <button type="button" role="tab" data-tab="problems">Problems<span class="badge" id="badge-problems" hidden></span></button>
+    <button type="button" role="tab" data-tab="manage">Manage<span class="badge" id="badge-manage" hidden></span></button>
+  </nav>
+
+  <div class="filters" id="filters" hidden>
+    <div class="frow"><span class="flabel">Period</span>
+      <div class="days" role="group" aria-label="Period">
+        <button type="button" data-days="1">24 h</button><button type="button" data-days="3">3 days</button><button type="button" data-days="7">7 days</button><button type="button" data-days="30" aria-pressed="true">30 days</button><button type="button" data-days="90">90 days</button>
+      </div>
+    </div>
+    <div class="frow"><span class="flabel">Who</span>
+      <div class="who days" role="group" aria-label="Whose use">
+        <button type="button" data-who="others">Everyone but me</button><button type="button" data-who="all">Everyone</button><button type="button" data-who="me">Only me</button>
+      </div>
+    </div>
+    <p class="muted hint" id="whoHint"></p>
   </div>
-  <div id="friendsBox" hidden>
-    <h2>Friends who see unofficial trails</h2>
-    <p class="muted">Everyone else never sees your unofficial list, closed or no-bikes trails, Likely MTB paths or possible unmapped lines. A friend signs in once in the app with the same email. You always see them while signed in.</p>
-    <div class="card" id="friends"></div>
-  </div>
+
   <div id="out" hidden>
-    <div class="who days" role="group" aria-label="Whose use">
-      <button type="button" data-who="others">Everyone but me</button><button type="button" data-who="all">Everyone</button><button type="button" data-who="me">Only me</button>
-      <span class="muted" id="whoHint"></span>
-    </div>
-    <div class="stats" id="stats"></div>
+    <section data-panel="overview">
+      <h2>Needs you</h2>
+      <div class="card todo" id="todo"></div>
+      <div class="stats" id="stats"></div>
 
-    <h2>Crashes</h2>
-    <p class="muted">Times the app died and iOS opened it again (usually out of memory).</p>
-    <div class="card"><table id="crashes"></table></div>
+      <h2>App or website</h2>
+      <p class="muted">How people opened Trail Finder. Each phone or computer counts once a day.</p>
+      <div class="card"><table id="kinds"></table></div>
 
-    <h2>What people search for</h2>
-    <p class="muted">Everything typed in a search box or in Ask, once the person stopped typing. “Nothing found” and “Didn't pick one” are the places the app let them down.</p>
-    <div class="card"><table id="searches"></table></div>
+      <h2>Coming back</h2>
+      <p class="muted">Testers each week, and how many were already there in an earlier week.</p>
+      <div class="card"><table id="weeks"></table></div>
 
-    <h2>Each tester</h2>
-    <p class="muted">Phones are named for you from your TestFlight tester list (below) when only one tester has that phone and iOS. Type a name to fix one by hand. Only you see it.</p>
-    <div id="people"></div>
-    <div id="quiet"></div>
-    <div class="card">
-      <details id="rosterBox">
-        <summary>Your TestFlight testers</summary>
-        <p class="muted">In App Store Connect, open TestFlight › All Testers, select the whole list (from the first email to the last phone), copy, paste it here and Save. Each phone with the same model and iOS as only one tester gets that tester's name; your own (Internal) becomes “Me”. Emails are dropped, only name, phone and iOS are kept. A line can also be typed by hand as <i>Name · iPhone 14 · iOS 27.0.1</i>.</p>
-        <textarea id="roster" aria-label="TestFlight tester list"></textarea>
-        <p><button class="btn go" type="button" id="rosterSave">Save and name phones</button> <span class="muted" id="rosterMsg"></span></p>
-      </details>
-      <div id="rosterOut"></div>
-    </div>
+      <h2>Costs and limits</h2>
+      <p class="muted">Free allowances that could run out. Photo find and Ask stop for the day at their limit, so they can't run up a bill.</p>
+      <div class="card"><table id="limits"></table></div>
+    </section>
 
-    <h2>App or website</h2>
-    <p class="muted">Everyone who opened Trail Finder, also people using the website link instead of the app. Each phone or computer counts once a day. Tablets count as phones.</p>
-    <div class="card"><table id="kinds"></table></div>
+    <section data-panel="testers">
+      <p class="muted intro">One card per phone, most recent first. Phones get names from your TestFlight list (bottom of this page); type in the box to fix a name.</p>
+      <div id="people"></div>
+      <div id="quiet"></div>
+      <h2>Your TestFlight testers</h2>
+      <div class="card">
+        <details id="rosterBox">
+          <summary>Paste or update the tester list</summary>
+          <p class="muted">App Store Connect › TestFlight › All Testers: select the whole list, copy, paste here, Save. Each phone with the same model and iOS as only one tester gets that name; yours (Internal) becomes “Me”. Emails are dropped. You can also type a line like <i>Name · iPhone 14 · iOS 27.0.1</i>.</p>
+          <textarea id="roster" aria-label="TestFlight tester list"></textarea>
+          <p><button class="btn go" type="button" id="rosterSave">Save and name phones</button> <span class="muted" id="rosterMsg"></span></p>
+        </details>
+        <div id="rosterOut"></div>
+      </div>
+    </section>
 
-    <h2>Costs and limits</h2>
-    <p class="muted">The free allowances that could run out or cost money. Photo find and Ask stop for the day at their limit (UTC days), so they can't run up a bill.</p>
-    <div class="card"><table id="limits"></table></div>
+    <section data-panel="searches">
+      <h2>What people search for</h2>
+      <p class="muted">Everything typed in a search box or Ask. Red tags are where the app let them down.</p>
+      <div class="card"><table id="searches"></table></div>
 
-    <h2>Find results</h2>
-    <p class="muted">Lists people asked for with Find a trail (new trails, near me, by level, in a square), and how often the list came back empty.</p>
-    <div class="card"><table id="results"></table></div>
+      <h2>Find results</h2>
+      <p class="muted">Lists from Find a trail, and how often they came back empty.</p>
+      <div class="card"><table id="results"></table></div>
 
-    <h2>From finding to going out</h2>
-    <p class="muted">Out of the visits in each sport, how many got to each step. A big drop shows where people stop. A visit that used two sports counts in both. A card is a trail, spot, route or hut card; saved is a trail, route, point, pin or catch; went out is ride, record, follow, plan or go.</p>
-    <div class="card" style="overflow-x:auto"><table id="funnel" class="funnel"></table></div>
+      <h2>Where people look</h2>
+      <p class="muted">The area on the map (a zone or province, never a spot).</p>
+      <div class="card"><table id="areas"></table></div>
+    </section>
 
-    <div class="cols">
-      <div><h2>Where visits end</h2><p class="muted">The last thing done before leaving the app.</p><div class="card"><table id="ends"></table></div></div>
-      <div><h2>Where people look</h2><p class="muted">The area on the map (a zone or a province, never a spot).</p><div class="card"><table id="areas"></table></div></div>
-    </div>
+    <section data-panel="use">
+      <h2>From finding to going out</h2>
+      <p class="muted">Out of the visits in each sport, how many reached each step. A big drop is where people stop.</p>
+      <div class="card" style="overflow-x:auto"><table id="funnel" class="funnel"></table></div>
 
-    <h2>Speed</h2>
-    <p class="muted">How long people wait. “Most” is the usual wait (half are faster); “Slow ones” is what 1 visit in 10 waits or longer.</p>
-    <div class="card"><table id="speed"></table></div>
+      <h2>Most used</h2>
+      <p class="muted">Each button, and how many testers used it.</p>
+      <div class="card"><table id="features"></table></div>
 
-    <h2>Coming back</h2>
-    <p class="muted">Testers who used the app each week, and how many of them were there in an earlier week too.</p>
-    <div class="card"><table id="weeks"></table></div>
+      <h2>Never tapped</h2>
+      <p class="muted">Main buttons nobody used in this period.</p>
+      <div class="card" id="never"></div>
 
-    <h2>Most used</h2>
-    <p class="muted">Each tap, and how many testers used it. Things near the bottom, or missing, are the ones people don't find or don't need.</p>
-    <div class="card"><table id="features"></table></div>
-    <div class="cols">
-      <div><h2>First tap of a visit</h2><div class="card"><table id="firsts"></table></div></div>
-      <div><h2>Time in each sport</h2><div class="card"><table id="sports"></table></div><h2>Sport switches</h2><div class="card"><table id="switches"></table></div></div>
-    </div>
-    <h2>Never tapped</h2>
-    <p class="muted">Main buttons nobody used in this period.</p>
-    <div class="card" id="never"></div>
+      <div class="cols">
+        <div><h2>First tap of a visit</h2><div class="card"><table id="firsts"></table></div></div>
+        <div><h2>Where visits end</h2><div class="card"><table id="ends"></table></div></div>
+      </div>
+      <div class="cols">
+        <div><h2>Time in each sport</h2><div class="card"><table id="sports"></table></div></div>
+        <div><h2>Sport switches</h2><div class="card"><table id="switches"></table></div></div>
+      </div>
+    </section>
 
-    <h2>Errors</h2>
-    <p class="muted">The same error is counted once, with how many times it happened.</p>
-    <div class="card"><table id="errors"></table></div>
+    <section data-panel="problems">
+      <h2>Crashes</h2>
+      <p class="muted">Times the app died and iOS opened it again (usually out of memory).</p>
+      <div class="card"><table id="crashes"></table></div>
+
+      <h2>Speed</h2>
+      <p class="muted">“Usual” is what half the visits beat; “Slow” is what 1 visit in 10 waits or longer.</p>
+      <div class="card"><table id="speed"></table></div>
+
+      <h2>Errors</h2>
+      <p class="muted">Each error once, with how many times it happened.</p>
+      <div class="card"><table id="errors"></table></div>
+    </section>
   </div>
+
+  <section data-panel="manage" id="manage" hidden>
+    <div id="flagsBox" hidden>
+      <h2>Reported posts</h2>
+      <p class="muted">Trail reports, photos and grades riders flagged (⚑). 3 reports hide a post until you keep or remove it.</p>
+      <div class="card" id="flags"></div>
+    </div>
+    <div id="friendsBox" hidden>
+      <h2>Friends who see unofficial trails</h2>
+      <p class="muted">Only these people (and you) see unofficial, closed and no-bikes trails, Likely MTB paths and possible unmapped lines. They sign in once in the app with this email.</p>
+      <div class="card" id="friends"></div>
+    </div>
+  </section>
 </main>
 <script src="account.js?v=3560"></script>
 <script>
@@ -269,6 +343,40 @@ details > summary { cursor: pointer; font-weight: 600; }
     paint();
   });
 
+  // ---- tabs: one question per tab; the choice is kept (and in the link, e.g. usage.html#problems).
+  const TABS = ["overview", "testers", "searches", "use", "problems", "manage"];
+  let tab = "overview";
+  try { tab = localStorage.getItem("tf:usageTab") || tab; } catch {}
+  if (TABS.includes(location.hash.slice(1))) tab = location.hash.slice(1);
+  if (!TABS.includes(tab)) tab = "overview";
+  const showTab = (t, scroll) => {
+    tab = t;
+    try { localStorage.setItem("tf:usageTab", t); } catch {}
+    if (location.hash.slice(1) !== t) history.replaceState(null, "", `#${t}`);
+    document.body.dataset.view = t;
+    document.querySelectorAll("button[data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
+    document.querySelectorAll("[data-panel]").forEach((p) => { p.hidden = p.dataset.panel !== t; });
+    $("filters").hidden = t === "manage";
+    const on = document.querySelector(`button[data-tab="${t}"]`), bar = $("tabs");
+    if (on && bar.scrollWidth > bar.clientWidth) bar.scrollLeft = on.offsetLeft - bar.clientWidth / 2 + on.offsetWidth / 2;
+    if (scroll) window.scrollTo({ top: 0 });
+  };
+  document.querySelectorAll("button[data-tab]").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab, true)));
+  document.addEventListener("keydown", (e) => { const g = e.target.closest && e.target.closest(".stat[data-go]"); if (g && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); showTab(g.dataset.go, true); } });
+  document.addEventListener("click", (e) => { const g = e.target.closest("[data-go]"); if (g) showTab(g.dataset.go, true); });
+  const badge = (k, n) => { const b = $(`badge-${k}`); b.hidden = !n; b.textContent = n > 99 ? "99+" : String(n || ""); };
+  // ---- "Needs you": the few things worth acting on, each one tap from its tab. Filled by paint() and loadFlags().
+  const need = { flags: 0, data: [] };
+  const paintTodo = () => {
+    const items = [];
+    if (need.flags) items.push(["manage", `${need.flags} reported post${need.flags === 1 ? "" : "s"} to keep or remove`, ""]);
+    items.push(...need.data);
+    $("todo").innerHTML = items.length
+      ? items.map(([go, text, soft]) => `<button type="button" data-go="${go}"><span class="dot${soft ? " soft" : ""}"></span>${esc(text)}</button>`).join("")
+      : `<p class="ok">Nothing needs you right now. 👍</p>`;
+    badge("manage", need.flags);
+  };
+
   document.querySelectorAll("[data-who]").forEach((b) => b.addEventListener("click", () => {
     who = b.dataset.who;
     try { localStorage.setItem("tf:usageWho", who); } catch {}
@@ -291,6 +399,8 @@ details > summary { cursor: pointer; font-weight: 600; }
       $("signIn").onclick = () => acct.open();
       return;
     }
+    $("tabs").hidden = false;
+    showTab(tab);
     // Supabase hands back at most 1,000 rows per call, so the events come 1,000 at a time (oldest first) until a short page.
     const want = days;
     const report = async () => {
@@ -341,6 +451,7 @@ details > summary { cursor: pointer; font-weight: 600; }
     if (!acct || !acct.client || !acct.user) return;
     const { data, error } = await acct.client.rpc("tf_flag_list");
     $("flagsBox").hidden = false;
+    need.flags = error ? 0 : data.length; paintTodo();
     if (error) {
       box.innerHTML = /Could not find|does not exist/.test(error.message)
         ? `<p class="muted" style="padding:10px">Not set up yet: paste <b>supabase/moderation.sql</b> into the Supabase SQL Editor and run it.</p>`
@@ -350,11 +461,11 @@ details > summary { cursor: pointer; font-weight: 600; }
     if (!data.length) { box.innerHTML = `<p class="muted" style="padding:10px">Nothing reported. 👍</p>`; return; }
     const pic = (path) => path ? `<img alt="" loading="lazy" style="width:72px;height:54px;object-fit:cover;border-radius:6px;vertical-align:middle" src="${esc(acct.client.storage.from("trail-photos").getPublicUrl(path).data.publicUrl)}">` : "";
     const KIND = { report: "Trail report", photo: "Photo", grade: "Rider grades" };
-    box.innerHTML = `<table><tr><th>What</th><th>Post</th><th>Reports</th><th></th></tr>${data.map((f, i) => `<tr>
-      <td>${KIND[f.kind] || esc(f.kind)}<br><span class="muted">${esc(f.trail_name || "")}</span></td>
-      <td>${pic(f.path)} ${esc(f.body || (f.kind === "grade" ? "" : "(already deleted)"))}${f.posted_at ? `<br><span class="muted">${esc(new Date(f.posted_at).toLocaleDateString())}</span>` : ""}</td>
-      <td><b>${f.flags}</b>${f.flags >= 3 ? " (hidden)" : ""}<br><span class="muted">${esc(String(f.reasons || "").split(", ").map((r) => REASON[r] || r).join(", "))}${f.notes ? `: ${esc(f.notes)}` : ""}</span></td>
-      <td style="white-space:nowrap"><button class="btn" type="button" data-flag="${i}" data-rm="0">Keep</button> <button class="btn go" type="button" data-flag="${i}" data-rm="1">Remove</button></td></tr>`).join("")}</table>`;
+    box.innerHTML = data.map((f, i) => `<div class="flag">
+      <b>${KIND[f.kind] || esc(f.kind)}</b>${f.trail_name ? ` on ${esc(f.trail_name)}` : ""} <span class="tag bad">${f.flags} report${f.flags === 1 ? "" : "s"}${f.flags >= 3 ? ", hidden" : ""}</span>
+      <div>${pic(f.path)} ${esc(f.body || (f.kind === "grade" ? "" : "(already deleted)"))}</div>
+      <div class="muted">Why: ${esc(String(f.reasons || "").split(", ").map((r) => REASON[r] || r).join(", "))}${f.notes ? `: ${esc(f.notes)}` : ""}${f.posted_at ? ` · posted ${esc(new Date(f.posted_at).toLocaleDateString())}` : ""}</div>
+      <div class="acts"><button class="btn" type="button" data-flag="${i}" data-rm="0">Keep it</button><button class="btn go" type="button" data-flag="${i}" data-rm="1">Remove it</button></div></div>`).join("");
     box.querySelectorAll("[data-flag]").forEach((b) => b.addEventListener("click", async () => {
       const f = data[+b.dataset.flag], rm = b.dataset.rm === "1";
       if (rm && !confirm(f.kind === "grade" ? "Remove every rider grade on this trail?" : "Remove this post for good?")) return;
@@ -377,10 +488,11 @@ details > summary { cursor: pointer; font-weight: 600; }
         : `<p class="muted" style="padding:10px">Couldn't load: ${esc(error.message)}</p>`;
       return;
     }
-    box.innerHTML = `<table>${data.length ? `<tr><th>Email</th><th>Added</th><th></th></tr>` : ""}${data.map((f, i) => `<tr><td>${esc(f.email)}${f.signed_up ? "" : `<br><span class="muted">No account with this email yet</span>`}</td>
-      <td>${esc(new Date(f.added_at).toLocaleDateString())}</td><td style="text-align:right"><button class="btn" type="button" data-friend="${i}">Remove</button></td></tr>`).join("")}
-      <tr><td colspan="3"><form id="friendAdd" style="display:flex;gap:8px;flex-wrap:wrap"><input type="email" id="friendEmail" required placeholder="friend@email.com" style="flex:1;min-width:180px;font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)">
-      <button class="btn go" type="submit">Add friend</button></form></td></tr></table>`;
+    const joined = data.filter((f) => f.signed_up).length;
+    box.innerHTML = `<form id="friendAdd" class="addf"><input type="email" id="friendEmail" required placeholder="friend@email.com" aria-label="Friend's email"><button class="btn go" type="submit">Add friend</button></form>
+      ${data.length ? `<p class="muted" style="margin:10px 0 0">${data.length} friend${data.length === 1 ? "" : "s"}, ${joined} signed in so far.</p>` : `<p class="muted">No friends added yet.</p>`}
+      ${data.map((f, i) => `<div class="friend"><div class="who2"><span class="em">${esc(f.email)}</span><span class="muted" style="font-size:.85rem">Added ${esc(new Date(f.added_at).toLocaleDateString())}</span></div>
+      ${f.signed_up ? `<span class="tag good">Signed in</span>` : `<span class="tag">Not signed in yet</span>`}<button class="btn" type="button" data-friend="${i}" aria-label="Remove ${esc(f.email)}">Remove</button></div>`).join("")}`;
     const set = async (email, add, b) => {
       b.disabled = true;
       const { error: e } = await acct.client.rpc("tf_friend_set", { e: email, add });
@@ -536,7 +648,7 @@ details > summary { cursor: pointer; font-weight: 600; }
     const blank = blankDevices();
     const keep = (device) => (showBlank || !blank.has(device)) && (view === "all" || (view === "me") === meSet.has(device));
     document.querySelectorAll("[data-who]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.who === view)));
-    $("whoHint").textContent = meSet.size ? "" : "Tap “This is me” on your own phone below to hide it.";
+    $("whoHint").textContent = meSet.size ? "" : "Tip: in Testers, tap “This is me” on your own phone to leave it out.";
     const shown = rows.filter((r) => realError(r) && keep(r.device));
     const devices = new Map(), sessions = new Map();
     for (const r of shown) {
@@ -580,12 +692,23 @@ details > summary { cursor: pointer; font-weight: 600; }
     const back = [...devices.values()].filter((d) => d.days.size > 1).length;
     const mapMid = quantile(shown.filter((r) => r.kind === "speed" && r.what === "map").map((r) => r.ms), 0.5);
     const allShown = all ? all.filter((d) => keep(d.device)).length : null;
+    const errN = shown.filter((r) => r.kind === "error").length;
     $("stats").innerHTML = [
-      [devices.size, "testers", allShown != null ? `of ${allShown} phones ever seen` : ""], [sessions.size, "visits", mins(totalMs) + " in all"],
-      [back, "came back", "used it on 2 or more days"], [searches.length, "searches", searches.length ? `${pct(empty, searches.length)} found nothing` : ""],
-      [crashes.length, "crashes", ""], [secs(mapMid), "map load", "usual wait"],
-      [taps.length, "taps", ""], [shown.filter((r) => r.kind === "error").length, "errors", ""],
-    ].map(([n, l, sub]) => `<div class="stat"><b>${esc(n)}</b>${esc(l)}${sub ? `<small>${esc(sub)}</small>` : ""}</div>`).join("");
+      [devices.size, "testers", allShown != null ? `of ${allShown} phones ever seen` : "", "testers"], [sessions.size, "visits", mins(totalMs) + " in all", "testers"],
+      [back, "came back", "used it on 2 or more days", "testers"], [searches.length, "searches", searches.length ? `${pct(empty, searches.length)} found nothing` : "", "searches"],
+      [crashes.length, "crashes", "", "problems"], [secs(mapMid), "map load", "usual wait", "problems"],
+      [taps.length, "taps", "", "use"], [errN, "errors", "", "problems"],
+    ].map(([n, l, sub, go]) => `<div class="stat" data-go="${go}" role="button" tabindex="0"><b>${esc(n)}</b>${esc(l)}${sub ? `<small>${esc(sub)}</small>` : ""}</div>`).join("");
+    const nothing = new Set(searches.filter((x) => x.n === 0).map((x) => `${x.box}|${x.q.toLowerCase()}`)).size;
+    const unnamed = [...devices.values()].filter((d) => !(d.label || "").trim()).length;
+    const many = (n, one, more) => `${n} ${n === 1 ? one : more}`;
+    need.data = [];
+    if (crashes.length) need.data.push(["problems", `${many(crashes.length, "crash", "crashes")} on ${many(new Set(crashes.map((c) => c.device)).size, "phone", "phones")}`, ""]);
+    if (nothing) need.data.push(["searches", `${many(nothing, "search", "searches")} found nothing`, "soft"]);
+    if (errN) need.data.push(["problems", many(errN, "error", "errors"), "soft"]);
+    if (unnamed) need.data.push(["testers", `${many(unnamed, "phone", "phones")} without a name`, "soft"]);
+    badge("problems", crashes.length);
+    badge("searches", nothing);
 
     // ---- app or website (visitors.js): people and days used, for each way of opening Trail Finder.
     const KIND = [["app", "📱 iPhone app"], ["phone", "🌐 Website, phone"], ["computer", "💻 Website, computer"]];
@@ -610,6 +733,7 @@ details > summary { cursor: pointer; font-weight: 600; }
       const lim = CAPS.map(([k, l, cap, why]) => {
         const days7 = use.filter((u) => u.kind === k), now = (days7.find((u) => u.day === today) || {}).n || 0;
         const top = Math.max(0, ...days7.map((u) => u.n)), full = days7.filter((u) => u.n >= cap).length;
+        if (full) need.data.push(["overview", `${l.replace(/^\S+ /, "")} hit its daily limit on ${full} day${full === 1 ? "" : "s"}`, ""]);
         return `<tr><td>${l}<br><span class="muted">${esc(why)}</span>${bar(now, cap)}</td><td class="n">${now} of ${cap}<br><span class="muted">busiest ${top}</span>${full ? `<br><span class="err">full ${full} day${full === 1 ? "" : "s"}</span>` : ""}</td></tr>`;
       });
       const db = Number(limits.db_bytes) || 0, FREE = 500 * 1048576;
@@ -673,7 +797,7 @@ details > summary { cursor: pointer; font-weight: 600; }
     const al = [...ag.entries()].sort((a, b) => b[1].who.size - a[1].who.size || b[1].n - a[1].n).slice(0, 20);
     $("areas").innerHTML = `<tr><th>Area</th><th class="n">Testers</th></tr>` + (al.map(([w, g]) => `<tr><td>${esc(w)}</td><td class="n">${g.who.size}</td></tr>`).join("") || none(2, "None yet"));
 
-    $("speed").innerHTML = `<tr><th>Wait</th><th class="n">Most</th><th class="n">Slow ones</th><th class="n">Times</th></tr>` + SPEED.map(([k, l]) => {
+    $("speed").innerHTML = `<tr><th>Wait</th><th class="n">Usual</th><th class="n">Slow</th><th class="n">Times</th></tr>` + SPEED.map(([k, l]) => {
       const v = shown.filter((r) => r.kind === "speed" && r.what === k).map((r) => r.ms);
       return `<tr><td>${l}</td><td class="n">${secs(quantile(v, 0.5))}</td><td class="n">${secs(quantile(v, 0.9))}</td><td class="n">${v.length}</td></tr>`;
     }).join("");
@@ -790,6 +914,7 @@ details > summary { cursor: pointer; font-weight: 600; }
     $("errors").innerHTML = el.length
       ? `<tr><th>Error</th><th class="n">Times</th><th>Who</th><th class="n">Last</th></tr>` + el.map(([k, g]) => `<tr><td class="raw">${esc(k)}</td><td class="n">${g.n}</td><td>${esc([...g.who].join(", "))}</td><td class="n">${ago(g.last)}</td></tr>`).join("")
       : none(1, "No errors 🎉");
+    paintTodo();
   }
 
   load();
