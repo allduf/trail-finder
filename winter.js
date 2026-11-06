@@ -1329,7 +1329,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3600").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3610").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -1428,6 +1428,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const found = await P.search(q);
       if (findText.trim() !== q) return;
       placeQ = q.toLowerCase(); placeFound = found;
+      // No place by that name and several words: it's a question, so Ask answers it (alex 2026-11-06: "Simple ski tour
+      // in the duffeys" said "No place named …": "Not clear where to ask").
+      if (!found.length && window.tfAsk && q.split(/\s+/).length >= 3) { msg.textContent = ""; $("skFind").blur(); window.tfAsk.open(q); return; }
       msg.textContent = found.length ? "Tap a place to go there." : `No place named “${q}”.`;
       $("skFind").blur();   // the phone keyboard out of the way of the list
       renderPlaces();
@@ -4688,9 +4691,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         groups.get(k).push(r);
       }
       const routes = [...groups.values()].map((g) => {
+        // cls: hand-kept routes not in the nightly terrain file yet have their class read from the guidebooks (data/ski-hand/ "hand:cls")
         const r = g[0], risk = riskOf(g);
         return { id: r.id, name: nameOf(r), type: r.type, label: (TYPES[r.type] || TYPES.other).label, km: g.reduce((s, y) => s + km(y), 0), d: awayM(c[0], c[1], g),
-          cls: risk ? risk.c : 0, diff: r.diff || "", classic: g.some((y) => y.tags && y.tags["hand:classic"]), pill: [riskPill(risk), diffPill(r.diff)].filter(Boolean).join(" "), c: [r.lines[0][0][0], r.lines[0][0][1]] };
+          cls: risk ? risk.c : +(g.find((y) => y.tags && y.tags["hand:cls"]) || { tags: {} }).tags["hand:cls"] || 0, diff: r.diff || "", classic: g.some((y) => y.tags && y.tags["hand:classic"]), pill: [riskPill(risk), diffPill(r.diff)].filter(Boolean).join(" "), c: [r.lines[0][0][0], r.lines[0][0][1]] };
       }).filter((x) => x.d <= lim).sort((x, y) => x.d - y.d);
       const huts = (ski.huts || []).map((h) => ({ name: h.name || "Hut", kind: KIND[h.kind] || "Hut", lat: h.lat, lon: h.lon, d: ptAway(c[0], c[1], h) }))
         .filter((h) => h.d <= lim).sort((x, y) => x.d - y.d);
