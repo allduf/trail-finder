@@ -4,10 +4,10 @@
 // are not touched; map tiles only as TILES says (OpenStreetMap, heights, Winter photos), and the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-3330";
+const VERSION = "tf-3340";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=19", "account.js?v=3530", "friends.js?v=3530", "moderation.js?v=3530", "reports.js?v=3530", "grades.js?v=3530", "trail-photos.js?v=3530", "status.js?v=3530", "ask.js?v=3530", "visitors.js?v=3530", "usage.js?v=3530", "map3d.js?v=3530", "ski-terrain.js?v=3530", "winter.js?v=3530", "place-search.js?v=3530", "clouds.js?v=3530", "smoke.js?v=3530", "radar.js?v=3530", "live.js?v=3530", "ski-points.js?v=3530", "hunts.js?v=3530", "webcams.js?v=3530", "lifts.js?v=3530", "ski-areas.js?v=3530", "helicat.js?v=3530", "cabin-trip.js?v=3530", "camper.js?v=3530", "japanese.js?v=3530", "japan-snow.js?v=3530", "rogers.js?v=3530", "slackcountry.js?v=3530", "freeride.js?v=3530", "crownland.js?v=3530", "hunting.js?v=3530", "fish-bait.js?v=3530", "fish-route.js?v=3530", "ski-route.js?v=3530", "fishing.js?v=3530", "moto.js?v=3530", "moto-roads.js?v=3530", "hike.js?v=3530", "compass.js?v=3530", "offline.js?v=3530", "native-gps.js?v=3530", "native.js?v=3530", "native-map.js?v=3530", "keyboard.js?v=3530", "navigate.js?v=3530", "go-there.js?v=3530", "ride-stats.js?v=3530", "ride-finds.js?v=3530", "rides.js?v=3530", "planner.js?v=3530", "rotate.js?v=3530", "photo-find.js?v=3530", "ebike.js?v=3530", "closures.js?v=3530", "loops.js?v=3530", "strava.js?v=3530", "share.js?v=3530", "community.js?v=3530", "ride-files.js?v=3530", "rider-trails.js?v=3530", "alpine.js?v=3530", "areas.js?v=3530", "bikeparks.js?v=3530", "contours.js?v=3530", "directions.js?v=3530", "notify.js?v=3530", "official.js?v=3530", "photo-slider.js?v=3530", "ratings.js?v=3530", "whats-new.js?v=3530", "app-update.js?v=3530", "noback.js?v=3530", "risk.js?v=3530", "welcome.js?v=3530", "i18n.js?v=3530", "line-icons.js?v=3530", "i18n-fr.js?v=3530", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=19", "account.js?v=3540", "friends.js?v=3540", "moderation.js?v=3540", "reports.js?v=3540", "grades.js?v=3540", "trail-photos.js?v=3540", "status.js?v=3540", "ask.js?v=3540", "visitors.js?v=3540", "usage.js?v=3540", "map3d.js?v=3540", "ski-terrain.js?v=3540", "winter.js?v=3540", "place-search.js?v=3540", "clouds.js?v=3540", "smoke.js?v=3540", "radar.js?v=3540", "live.js?v=3540", "ski-points.js?v=3540", "hunts.js?v=3540", "webcams.js?v=3540", "lifts.js?v=3540", "ski-areas.js?v=3540", "helicat.js?v=3540", "cabin-trip.js?v=3540", "camper.js?v=3540", "japanese.js?v=3540", "japan-snow.js?v=3540", "rogers.js?v=3540", "slackcountry.js?v=3540", "freeride.js?v=3540", "crownland.js?v=3540", "hunting.js?v=3540", "fish-bait.js?v=3540", "fish-route.js?v=3540", "ski-route.js?v=3540", "fishing.js?v=3540", "moto.js?v=3540", "moto-roads.js?v=3540", "hike.js?v=3540", "compass.js?v=3540", "offline.js?v=3540", "native-gps.js?v=3540", "native.js?v=3540", "native-map.js?v=3540", "keyboard.js?v=3540", "navigate.js?v=3540", "go-there.js?v=3540", "ride-stats.js?v=3540", "ride-finds.js?v=3540", "rides.js?v=3540", "planner.js?v=3540", "rotate.js?v=3540", "photo-find.js?v=3540", "ebike.js?v=3540", "closures.js?v=3540", "loops.js?v=3540", "strava.js?v=3540", "share.js?v=3540", "community.js?v=3540", "ride-files.js?v=3540", "rider-trails.js?v=3540", "alpine.js?v=3540", "areas.js?v=3540", "bikeparks.js?v=3540", "contours.js?v=3540", "directions.js?v=3540", "notify.js?v=3540", "official.js?v=3540", "photo-slider.js?v=3540", "ratings.js?v=3540", "whats-new.js?v=3540", "app-update.js?v=3540", "noback.js?v=3540", "risk.js?v=3540", "welcome.js?v=3540", "i18n.js?v=3540", "line-icons.js?v=3540", "i18n-fr.js?v=3540", "manifest.webmanifest",
   "privacy.html", "support.html", "terms.html", "credits.html",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "vendor/leaflet-1.9.4.js",
@@ -112,7 +112,7 @@ async function savedFirst(req) {
 //  - osm: OpenStreetMap's map; shown from here at once and fetched again in the background when over a day old,
 //    as OpenStreetMap asks apps to keep its tiles rather than download them on every open
 const TILES = [
-  { name: "tf-tiles-photos", max: 4000, days: 30, test: (u) => u.origin === self.location.origin && /\/trail-finder-winter2?\/\d+\/\d+\/\d+\.webp$/.test(u.pathname) },
+  { name: "tf-tiles-photos", max: 4000, days: 30, test: (u) => (u.origin === self.location.origin || u.hostname === "allduf.github.io") && /\/trail-finder-winter2?\/\d+\/\d+\/\d+\.webp$/.test(u.pathname) },
   { name: "tf-tiles-heights", max: 200, days: 7, test: (u) => u.hostname === "tiles.mapterhorn.com" },
   { name: "tf-tiles-osm", max: 2000, days: 7, fresh: 1, test: (u) => u.hostname === "tile.openstreetmap.org" },
 ];
@@ -155,7 +155,7 @@ self.addEventListener("fetch", (e) => {
   const tile = TILES.find((t) => t.test(url));
   if (tile) e.respondWith(tileFirst(req, tile, e).catch(() => fetch(req)));
   else if (url.origin === self.location.origin && (url.searchParams.has("v") || url.pathname.includes("/vendor/"))) e.respondWith(cacheFirst(req));
-  else if (url.origin === self.location.origin && /\/trail-finder-winter2?\//.test(url.pathname) && !url.pathname.endsWith(".json")) e.respondWith(savedFirst(req));
+  else if ((url.origin === self.location.origin || url.hostname === "allduf.github.io") && /\/trail-finder-winter2?\//.test(url.pathname) && !url.pathname.endsWith(".json")) e.respondWith(savedFirst(req));
   else if (url.origin === self.location.origin) e.respondWith(networkFirst(req, e));
   else if (STATIC_HOSTS.includes(url.hostname)) e.respondWith(cacheFirst(req));
   else if (url.hostname === "tiles.openfreemap.org") e.respondWith(openFreeMap(req));
