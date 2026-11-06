@@ -715,6 +715,35 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   // The AI's spot is often several km off (a slab 5 km from where it put the camera, In and Out Burger 6.7 km when it said
   // 1 km): look wide.
   const vpRadius = (vp) => Math.min(15, Math.max(8, vp.km * 2.5)) * 1000;
+  // Trails that are parts of one: "Gouranga", "Gouranga Rock Ride" and "Lower Gouranga" are one trail to riders, and the
+  // online check can't tell their pictures apart (2026-11-06: a Gouranga Rock Ride picture, Gouranga 2nd and the Rock Ride
+  // not listed, twice). Under each of the first 3 trails the check didn't prove, its nearest part within 3 km, right after
+  // it (one only: the trails after it stay near the top). It never takes its "Best match" away.
+  async function withParts(rows) {
+    const out = [], rest = [...rows], have = new Set(rows.map((r) => F.norm(r.name)));
+    while (rest.length) {
+      const r = rest.shift(), i = out.length;
+      out.push(r);
+      if (i >= 3 || r.part || !r.save || (r.web && r.web.proof && r.web.fit > 0.6)) continue;
+      const z = F.zoneById(r.save.zone), ws = core(words(r.name)), key = ws.filter((w) => w.length >= 4 && !GENERIC.has(w));
+      if (!z || !key.length) continue;
+      const at = L.latLng(r.save.c[0], r.save.c[1]);
+      const parts = (await zoneNames(z).catch(() => [])).filter((g) => {
+        if (out.some((x) => F.norm(x.name) === F.norm(g.name)) || g.ws.join(" ") === ws.join(" ") || g.center.distanceTo(at) > 3000) return false;
+        const [a, b] = g.ws.length > ws.length ? [ws, g.ws] : [g.ws, ws];
+        return a.length > 0 && a.every((w) => b.includes(w)) && a.some((w) => key.includes(w));
+      }).sort((a, b) => a.center.distanceTo(at) - b.center.distanceTo(at)).slice(0, 1);
+      // Further down already: moved up under it (as it is). Not listed: added.
+      rest.unshift(...parts.map((g) => {
+        const j = rest.findIndex((x) => F.norm(x.name) === F.norm(g.name));
+        const why = `part of the same trail as ${r.name}`;
+        if (j >= 0) { const [x] = rest.splice(j, 1); return { ...x, s: Math.max(x.s, r.s - 0.01), meta: x.meta + " · " + why, best: false, conf: x.conf === "Best match" ? "Likely" : x.conf, part: true }; }
+        have.add(F.norm(g.name));
+        return { ...rowOf({ g, s: r.s - 0.01, why: [why] }, "mixed"), best: false, conf: "Possible", part: true };
+      }));
+    }
+    return out.slice(0, 10);
+  }
   // vp: the AI's spot when it stands (match() says), photos from around it are compared too.
   async function compareOnline(my, rows, seen, more = [], woods = null, vp = null) {
     const acct = window.tfAccount, ok = (r) => r.save && r.name !== "Unnamed trail";
@@ -775,7 +804,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     // A trail further down that the AI knows the picture is from joins the list.
     for (const k of got.other || []) {
       const r = more.find((x) => F.norm(x.name) === F.norm(String(k.trail)));
-      if (r && k.fit > 0.5 && !next.some((x) => F.norm(x.name) === F.norm(r.name)))
+      // Above 0.6 only (that needs its proof): every "knows it's" at 0.5 or 0.6 in the 2026-11-06 runs was wrong.
+      if (r && k.fit > 0.6 && !next.some((x) => F.norm(x.name) === F.norm(r.name)))
         next.push({ ...r, s: r.s + 0.4 * (k.fit - 0.5), web: { fit: k.fit, why: k.why, proof: k.proof, photo: null } });
     }
     // Photos from around the spot that look close, even if not the same place: the trails where they were taken (or the
@@ -783,9 +813,19 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const around = vp && (got.close || []).length ? (await trailsNear([L.latLng(vp.lat, vp.lon)], vpRadius(vp), 600)).list : [];
     const found = [];
     for (const c of got.close || []) {
+      // 0.6 or less is the check's "very like it, but nothing lines up": the same kind of forest or rock, which many
+      // trails around there have. In the 2026-11-06 runs every such photo pointed to the wrong trails (Green Therapy,
+      // Trespasser and On the Rocks for an Out There picture; four unnamed ones put Rudy's, Let It Go and Cop Killer over
+      // Cream Puff). Only a photo it calls closer than that moves the list.
+      if (!(c.close > 0.6)) continue;
       let gs = c.trail ? around.filter((g) => F.norm(g.name) === F.norm(c.trail)).slice(0, 1) : [];
-      if (!gs.length && c.confirmed && c.trail && c.at) gs = (await trailsNear([L.latLng(c.at[0], c.at[1])], 600)).list.filter((g) => F.norm(g.name) === F.norm(c.trail)).slice(0, 1);
-      if (!gs.length && c.at) gs = (await trailsNear([L.latLng(c.at[0], c.at[1])], 600)).list.slice(0, 2);
+      // A photo of a named trail: that trail, looked for by its name around where the photo is (3 km: the spot saved with a
+      // rider's picture can be the trail's middle, and a long trail's pieces are measured from their own middles).
+      if (!gs.length && c.trail && c.at) gs = (await trailsNear([L.latLng(c.at[0], c.at[1])], 3000, 2000)).list.filter((g) => F.norm(g.name) === F.norm(c.trail)).slice(0, 1);
+      // Only a photo known by its spot alone lifts the trails next to it. One of a named trail the list doesn't have (left
+      // out of the public map, or renamed) lifts nothing: 2026-11-06, a rider's Cowboy Town picture matched and Skookum and
+      // Fred, its neighbours, went to the top instead.
+      if (!gs.length && !c.trail && c.at) gs = (await trailsNear([L.latLng(c.at[0], c.at[1])], 600)).list.slice(0, 2);
       if (my !== job) return;
       const why = c.confirmed ? `${c.close >= 0.8 ? "looks like the same place as" : "looks close to"} a picture a rider confirmed on it`
         : `${c.close >= 0.8 ? "an online photo of the same place" : "an online photo that looks close"}${c.at ? " was taken near it" : ""}`;
@@ -807,6 +847,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       r.best = i === 0 && !!r.sure && r.s >= STRONG && (next.length === 1 || next[1].s <= r.s - 0.049);
       r.conf = r.best ? "Best match" : r.s >= top - 0.05 && r.s >= STRONG ? "Likely" : "Possible";
     });
+    next = await withParts(next);
+    if (my !== job) return;
     show(next, $("pfNote").textContent);
     say((next[0].best ? "Likely trails, best first (checked online)." : "Possible trails, best first (checked online).") + tapArea());
     const src = (got.sources || []).map((w) => `<a href="${esc(w.uri)}" target="_blank" rel="noopener">${esc(w.title || "page")}</a>`).join("");
@@ -1461,8 +1503,20 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const acct = window.tfAccount;
     if (!acct || !acct.enabled) return Promise.resolve([]);
     if (!past) past = acct.load().then(() => acct.client ? acct.client.from("trail_matches").select("id, trail_name, osm_type, osm_ids, zone, lat, lon, words")
-      .order("id", { ascending: false }).limit(500) : { data: [] }).then(({ data, error }) => (error ? [] : (data || []).filter((m) => !skipIds.includes(m.id)))).catch(() => []);
+      .order("id", { ascending: false }).limit(500) : { data: [] }).then(({ data, error }) => (error ? [] : (data || []).filter((m) => !skipIds.includes(m.id)))).then(publicOnly).catch(() => []);
     return past;
+  }
+  // The public map never names a hidden trail (index.html pubSecret, alex 2026-11-03): a picture confirmed on one, a
+  // rider's or one taught from a video, doesn't bring it into the list either. Only trails in the area's name list stay.
+  async function publicOnly(ms) {
+    if (!window.tfPub || !ms.length) return ms;
+    const names = new Map();
+    for (const m of ms) {
+      const z = pastGroup(m).zone;
+      if (!names.has(z.id)) names.set(z.id, F.zoneById(z.id) ? zoneNames(z).then((gs) => new Set(gs.map((g) => F.norm(g.name)))).catch(() => new Set()) : Promise.resolve(new Set()));
+    }
+    const ok = new Map(await Promise.all([...names].map(async ([id, p]) => [id, await p])));
+    return ms.filter((m) => ok.get(pastGroup(m).zone.id).has(F.norm(m.trail_name)));
   }
   async function samePicture(hash) {
     const acct = window.tfAccount;
@@ -1471,7 +1525,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       await acct.load();
       if (!acct.client) return [];
       const { data, error } = await acct.client.functions.invoke(AI_FN, { timeout: 8000, body: { mode: "same", hash } });
-      return !error && data && Array.isArray(data.same) ? data.same : [];
+      return !error && data && Array.isArray(data.same) ? await publicOnly(data.same) : [];
     } catch { return []; }
   }
   async function ensureMedia() {
