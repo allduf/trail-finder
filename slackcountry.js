@@ -20,7 +20,9 @@
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const isSki = () => document.body.classList.contains("sport-ski");
   let on = false;
-  try { on = localStorage.getItem("tf:skiSlack") === "true"; } catch {}   // off until turned on (alex 2026-11-05: Skiing opens with a short set)
+  // On unless the rider turned it off (alex 2026-11-07: Skiing opens with Lift status + Slackcountry on). Nobody had it
+  // on by hand since 2026-11-05 (off by default then), so only a "false" saved by a tap keeps it off.
+  try { on = localStorage.getItem("tf:skiSlack") !== "false"; } catch {}
 
   const C = { ski: "#e8125c", out: "#f08c00", gate: "#e03131", none: "#868e96" };
   const CLS = { 1: { label: "Simple", color: "#2f9e44" }, 2: { label: "Challenging", color: "#1971c2" }, 3: { label: "Complex", color: "#1a1a1a" } };

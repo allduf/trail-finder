@@ -664,12 +664,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // Skiing opens with a short set (alex 2026-11-05: "those should be by default", "take huts and cabin of the default
   // layer"): touring routes, approaches, parking and the rider's own tours (+ Lift status, lifts.js; Rogers Pass permits
   // ask when the map is there, rogers.js). The 3D ground was ready about 14% sooner, 397 -> ~27 pins at Whistler. Everyone gets it once ("skiShort"); after that their own choice stays.
-  const SKI_START = ["tour", "access", "park", "mine"];
+  // alex 2026-11-07 (Layers screenshot, "make it like that instead"): Your ski tours start off, Slackcountry on
+  // (slackcountry.js). Everyone gets "Your ski tours" off once ("skiMineOff"); after that their own choice stays.
+  const SKI_START = ["tour", "access", "park"];
   let shown = new Set(store.get("skiLayers2", SKI_START));
   if (!store.get("skiShort", false)) {
     ["other", "snow", "hut"].forEach((k) => shown.delete(k));
     store.set("skiSnowAdded", true); store.set("skiParkAdded", true); store.set("skiShort", true); store.set("skiLayers2", [...shown]);
   }
+  if (!store.get("skiMineOff", false)) { shown.delete("mine"); store.set("skiMineOff", true); store.set("skiLayers2", [...shown]); }
   if (!store.get("skiSnowAdded", false)) { if (shown.has("tour")) shown.add("snow"); store.set("skiSnowAdded", true); store.set("skiLayers2", [...shown]); }
   if (!store.get("skiParkAdded", false)) { if (shown.has("access")) shown.add("park"); store.set("skiParkAdded", true); store.set("skiLayers2", [...shown]); }
   // The ground colours (Avalanche risk and the shaded terrain and snow layers): one at a time (window.tfOneGround).
@@ -1332,7 +1335,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3680").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3690").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {

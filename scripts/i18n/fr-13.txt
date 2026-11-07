@@ -8,3 +8,4 @@ Go to a town, region or mountain, or ask in plain words ||| Aller à une ville, 
 One search bar for everything: type a place or ask in plain words, and Go turns into Ask when it reads like a question. ||| Une seule barre pour tout : écrivez un lieu ou posez une question en mots simples, et Go devient Demander quand c'est une question.
 Search or ask a question ||| Chercher ou poser une question
 Search or ask ||| Chercher ou demander
+Skiing opens with Lift status and Slackcountry on; Your ski tours are a switch in Layers. ||| Le ski s'ouvre avec l'état des remontées et le slackcountry ; Vos sorties de ski sont un bouton dans Couches.

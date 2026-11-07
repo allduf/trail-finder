@@ -625,6 +625,7 @@
     "Or close this and tap the map where you start.":"Ou fermez ceci et touchez la carte là où vous partez.",
     "Skiing Plan a tour: type your plan in words (start, lines, finish) and it draws the tour.":"Ski, Planifier une sortie : écrivez votre plan en mots (départ, lignes, arrivée) et la sortie se dessine.",
     "3D map: trail and route lines are sharp now, drawn on top of the mountains instead of painted soft into the photo.":"Carte 3D : les lignes des sentiers et des itinéraires sont nettes maintenant, dessinées par-dessus les montagnes au lieu d'être peintes floues dans la photo.",
+    "Skiing opens with Lift status and Slackcountry on; Your ski tours are a switch in Layers.":"Le ski s'ouvre avec l'état des remontées et le slackcountry ; Vos sorties de ski sont un bouton dans Couches.",
     "Search a route, hut, resort, freeride line or place, or ask in plain words":"Chercher un itinéraire, un refuge, une station, une ligne freeride ou un lieu, ou demander en mots simples",
     "Search a trail, town or riding area anywhere in Canada, or ask in plain words":"Chercher un sentier, une ville ou un secteur partout au Canada, ou demander en mots simples",
     "Search a trail, town or area, or ask in plain words. Or pick where and how new.":"Cherchez un sentier, une ville ou un secteur, ou demandez en mots simples. Ou choisissez où et depuis quand.",
