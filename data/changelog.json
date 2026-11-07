@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-07", "text": "3D map: trail and route lines are sharp now, drawn on top of the mountains instead of painted soft into the photo."},
     {"date": "2026-11-07", "text": "Skiing Plan a tour: type your plan in words (start, lines, finish) and it draws the tour."},
     {"date": "2026-11-06", "text": "Terms of use now cover every sport and every feature, including ones added later. You'll tap I agree once more."},
     {"date": "2026-11-06", "text": "Skiing Ask: the Duffey (“the duffys” too) and every backcountry area by name, with all their tours, plus Anniversary Glacier and Vantage Peak from Keith's Hut."},

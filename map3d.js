@@ -266,14 +266,337 @@
       // A zero-length dash with round caps draws a dot as wide as the line; dashes count in line widths.
       const w = +d.split(":")[2], dot = w * LINE_SCALE * DOT_GROW;
       const line = (lid, paint) => gl.addLayer({ id: lid, type: "line", source: "lines", filter: ["==", ["get", "d"], d],
-        layout: { "line-cap": "round", "line-join": "round", "line-sort-key": ["get", "k"] }, paint }, "dots");
+        layout: { "line-cap": "round", "line-join": "round", "line-sort-key": ["get", "k"] }, paint }, "hits");
       line(id + ":band", { "line-color": "#14201a", "line-width": dot + DOT_BAND, "line-opacity": ["*", ["get", "o"], 0.55] });
       line(id, { "line-color": ["get", "c"], "line-width": dot, "line-opacity": ["get", "o"], "line-dasharray": [0, DOT_STEP] });
       return;
     }
     gl.addLayer({ id, type: "line", source: "lines", filter: ["==", ["get", "d"], d],
       layout: { "line-sort-key": ["get", "k"] },
-      paint: { "line-color": ["get", "c"], "line-width": ["get", "w"], "line-opacity": ["get", "o"], "line-dasharray": d.split(",").map(Number) } }, "dots");
+      paint: { "line-color": ["get", "c"], "line-width": ["get", "w"], "line-opacity": ["get", "o"], "line-dasharray": d.split(",").map(Number) } }, "hits");
+  }
+
+  // ---------- crisp lines (alex 2026-11-07: "Highlighted line are a bit blurry") ----------
+  // MapLibre paints line layers into the same paint buffers as the photos and drapes them over the mountains, so on
+  // phones (1024 px buffers, see phone memory) a route line came out as soft and wide as the ground photo under it,
+  // with a fuzzy dark rim. The trail and route lines are drawn here instead, on top of the mountains, at the
+  // screen's own sharpness: each point sits at the height of the ground actually drawn there (the same pieces of
+  // terrain, same grid), hidden behind ridges like the ground. No extra paint buffers: the layer comes after the
+  // draped ones. Widths are the 2D widths at the middle of the screen, a little wider nearer and narrower farther.
+  // The draped copies ("lines", "dash:*") stay as they were, hidden, and come back if this can't run (no WebGL
+  // feature, globe view, a MapLibre surprise).
+  const CRISP_STEP = 18;        // metres between points along a line (the terrain grid is ~12-25 m up close)
+  const CRISP_MAX = 40000;      // points at most in one build (~6 MB of line data on the graphics card); longer lines get coarser steps
+  const CRISP_PULL = 0.004;     // lines drawn 0.4% nearer the eye than the ground (20 m at 5 km), so slopes don't cut them
+  let crispFeats = [], crispOn = false, crispBuildT = 0, crispBox = null;
+  const crispColors = new Map();
+  const crispCtx = document.createElement("canvas").getContext("2d");
+  function crispColor(c) {
+    let v = crispColors.get(c);
+    if (v) return v;
+    crispCtx.fillStyle = "#000"; crispCtx.fillStyle = String(c || "#000");
+    const s = crispCtx.fillStyle;   // "#rrggbb" or "rgba(r, g, b, a)"
+    if (s[0] === "#") v = [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16), 1];
+    else { const n = s.match(/[\d.]+/g).map(Number); v = [n[0], n[1], n[2], n.length > 3 ? n[3] : 1]; }
+    crispColors.set(c, v);
+    return v;
+  }
+  // The copied lines as what to draw: [{ parts, bb, c: [r,g,b,a], w, dash, gap, kind }] in drawing order.
+  // kind 0 solid, 1 dashed (dash/gap in line widths), 2 round dots (gap = dot step in widths).
+  function crispPrep(lines) {
+    const out = [];
+    for (const f of [...lines].sort((a, b) => a.properties.k - b.properties.k)) {
+      const p = f.properties, parts = f.geometry.coordinates;
+      let w = 180, s = 90, e = -180, n = -90;
+      for (const q of parts) for (const [x, y] of q) { if (x < w) w = x; if (x > e) e = x; if (y < s) s = y; if (y > n) n = y; }
+      const bb = [w, s, e, n], col = crispColor(p.c), o = p.o == null ? 1 : p.o;
+      if (String(p.d).startsWith("dot:")) {
+        const [, step, lw] = String(p.d).split(":").map(Number), dot = lw * LINE_SCALE * DOT_GROW;
+        out.push({ parts, bb, c: [20, 32, 26, col[3] * o * 0.55], w: dot + DOT_BAND, dash: 0, gap: 0, kind: 0 });
+        out.push({ parts, bb, c: [col[0], col[1], col[2], col[3] * o], w: dot, dash: 0, gap: DOT_STEP, kind: 2 });
+      } else if (p.d) {
+        const d = String(p.d).split(",").map(Number);
+        out.push({ parts, bb, c: [col[0], col[1], col[2], col[3] * o], w: p.w, dash: d[0] || 1, gap: d[1] || 1, kind: 1 });
+      } else out.push({ parts, bb, c: [col[0], col[1], col[2], col[3] * o], w: p.w, dash: 0, gap: 0, kind: 0 });
+    }
+    return out;
+  }
+  // Height of the ground as drawn: the terrain piece on screen that holds the point, read on its 128 x 128 grid
+  // and blended across the grid square like the drawn mesh. Off the drawn pieces: the best height known.
+  function crispHeights() {
+    const terrain = gl.terrain, tm = terrain && terrain.tileManager;
+    if (!tm) return null;
+    const mesh = terrain.meshSize || 128, byKey = new Map();
+    let zMin = 99, zMax = -1;
+    for (const t of tm.getRenderableTiles()) {
+      const c = t.tileID.canonical;
+      byKey.set(c.z + "/" + c.x + "/" + c.y, t.tileID);
+      zMin = Math.min(zMin, c.z); zMax = Math.max(zMax, c.z);
+    }
+    // The height tiles downloaded so far, by z/x/y (MapLibre internals: none found just means height 0 off the view).
+    const dems = new Map();
+    let demMin = 99, demMax = -1;
+    try {
+      for (const t of Object.values(tm.tileManager._tiles || {})) {
+        if (!t.dem || !t.tileID) continue;
+        const c = t.tileID.canonical;
+        dems.set(c.z + "/" + c.x + "/" + c.y, t.dem); demMin = Math.min(demMin, c.z); demMax = Math.max(demMax, c.z);
+      }
+    } catch {}
+    // A height tile's height at mercator x, y (bilinear between its pixels, as MapLibre reads it), exaggerated.
+    const ex = terrain.exaggeration || 1;
+    const demAt = (dem, c, mx, my) => {
+      const n = 2 ** c.z, fx = (mx * n - c.x) * dem.dim, fy = (my * n - c.y) * dem.dim;
+      const x0 = Math.max(-1, Math.min(dem.dim - 1, Math.floor(fx))), y0 = Math.max(-1, Math.min(dem.dim - 1, Math.floor(fy))), u = fx - x0, v = fy - y0;
+      return (dem.get(x0, y0) * (1 - u) * (1 - v) + dem.get(x0 + 1, y0) * u * (1 - v) + dem.get(x0, y0 + 1) * (1 - u) * v + dem.get(x0 + 1, y0 + 1) * u * v) * ex;
+    };
+    // Heights read once per grid corner per terrain piece (each corner serves many points), from the height tile
+    // that piece is drawn with. Read straight from the tile's data: MapLibre's own lookup sets up a graphics texture
+    // per piece as it goes (a build took up to 1.8 s with it, measured).
+    const grids = new Map(), G = mesh + 1;
+    const at = (id, gx, gy) => {
+      let e = grids.get(id.key);
+      if (!e) {
+        let src = null;
+        try { src = tm.getSourceTile(id, true); } catch {}
+        e = { a: new Float32Array(G * G).fill(NaN), dem: src && src.dem, c: src && src.tileID && src.tileID.canonical };
+        grids.set(id.key, e);
+      }
+      if (!e.dem) return 0;
+      let v = e.a[gy * G + gx];
+      if (v !== v) { const c = id.canonical, n = 2 ** c.z; v = demAt(e.dem, e.c, (c.x + gx / mesh) / n, (c.y + gy / mesh) / n); e.a[gy * G + gx] = v; }
+      return v;
+    };
+    return (mx, my, lng, lat) => {   // mercator x, y in 0..1
+      for (let z = zMax; z >= zMin; z--) {
+        const n = 2 ** z, tx = Math.floor(mx * n), ty = Math.floor(my * n), id = byKey.get(z + "/" + tx + "/" + ty);
+        if (!id) continue;
+        const fx = (mx * n - tx) * mesh, fy = (my * n - ty) * mesh, gx = Math.min(mesh - 1, Math.floor(fx)), gy = Math.min(mesh - 1, Math.floor(fy));
+        const u = fx - gx, v = fy - gy;
+        // The mesh's two triangles per square: (0,0)-(0,1)-(1,1) and (0,0)-(1,1)-(1,0).
+        const h00 = at(id, gx, gy), h11 = at(id, gx + 1, gy + 1);
+        if (v >= u) { const h01 = at(id, gx, gy + 1); return h00 + (h11 - h01) * u + (h01 - h00) * v; }
+        const h10 = at(id, gx + 1, gy); return h00 + (h10 - h00) * u + (h11 - h10) * v;
+      }
+      // Off the drawn pieces (just outside the view): the finest height tile downloaded there.
+      for (let z = demMax; z >= demMin; z--) {
+        const n = 2 ** z, dem = dems.get(z + "/" + Math.floor(mx * n) + "/" + Math.floor(my * n));
+        if (dem) return demAt(dem, { z, x: Math.floor(mx * n), y: Math.floor(my * n) }, mx, my);
+      }
+      return 0;
+    };
+  }
+  // The lines in and around the view as triangles: every point twice (one per side), with the points before and
+  // after it so the shader can turn the line's width to face the screen.
+  const CRISP_FLOATS = 18;   // pos 3, prev 3, next 3, side 1, dist 1, colour 4 (0..1), width 1, dash 1, gap 1... kind packed in side
+  function crispBuild() {
+    crispBuildT = 0;
+    const L3 = crispLayer, t0 = performance.now();
+    if (!crispOn || !gl || !L3.glc) return;
+    if (gl.isMoving()) return;   // never while a finger moves the map: the move's end builds again
+    const height = gl.terrain && crispHeights();
+    if (!height) { L3.count = 0; crispDraped(true); return; }   // no mountains: the draped lines are right
+    const b = gl.getBounds(), pad = 0.35;
+    const dx = (b.getEast() - b.getWest()) * pad, dy = (b.getNorth() - b.getSouth()) * pad;
+    const box = [b.getWest() - dx, b.getSouth() - dy, b.getEast() + dx, b.getNorth() + dy];
+    crispBox = box;
+    const feats = crispFeats.filter((f) => f.bb[0] <= box[2] && f.bb[2] >= box[0] && f.bb[1] <= box[3] && f.bb[3] >= box[1]);
+    const c0 = gl.getCenter(), o = maplibregl.MercatorCoordinate.fromLngLat(c0), origin = [o.x, o.y];
+    const kx = Math.cos((c0.lat * Math.PI) / 180) * 111320;
+    let total = 0;
+    for (const f of feats) for (const q of f.parts) for (let i = 1; i < q.length; i++) total += Math.hypot((q[i][0] - q[i - 1][0]) * kx, (q[i][1] - q[i - 1][1]) * 110540);
+    const step = Math.max(CRISP_STEP, total / CRISP_MAX);
+    // Straight into typed arrays that grow as needed (a plain array of numbers took ~4x the memory while building).
+    let verts = new Float32Array(CRISP_FLOATS * 8192), idx = new Uint32Array(3 * 8192), nv = 0, ni = 0;
+    const room = (v, i) => {
+      if ((nv + v) * CRISP_FLOATS > verts.length) { const a = new Float32Array(Math.max(verts.length * 2, (nv + v) * CRISP_FLOATS)); a.set(verts); verts = a; }
+      if (ni + i > idx.length) { const a = new Uint32Array(Math.max(idx.length * 2, ni + i)); a.set(idx); idx = a; }
+    };
+    const merc = (lng, lat) => [(lng + 180) / 360, (1 - Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / Math.PI) / 2];
+    const zPerM = (lat) => 1 / (2 * Math.PI * 6371008.8 * Math.cos((lat * Math.PI) / 180));   // mercator units per metre up (MapLibre's)
+    for (const f of feats) {
+      const [r, g, bl, a] = f.c, kind = f.kind;
+      for (const q of f.parts) {
+        // Points every `step` metres, at the drawn ground's height (+1.5 m so a line on a ridge isn't cut by it), as
+        // [x, y, z, metres along] from the origin, in mercator units.
+        let n = 1;
+        for (let i = 1; i < q.length; i++) n += Math.max(1, Math.ceil(Math.hypot((q[i][0] - q[i - 1][0]) * kx, (q[i][1] - q[i - 1][1]) * 110540) / step));
+        if (n < 2) continue;
+        const P = new Float64Array(n * 4);
+        let k = 0, dist = 0;
+        const put = (lng, lat, d) => {
+          const [mx, my] = merc(lng, lat);
+          P[k] = mx - origin[0]; P[k + 1] = my - origin[1]; P[k + 2] = ((height(mx, my, lng, lat) || 0) + 1.5) * zPerM(lat); P[k + 3] = d; k += 4;
+        };
+        put(q[0][0], q[0][1], 0);
+        for (let i = 1; i < q.length; i++) {
+          const segM = Math.hypot((q[i][0] - q[i - 1][0]) * kx, (q[i][1] - q[i - 1][1]) * 110540), m = Math.max(1, Math.ceil(segM / step));
+          for (let j = 1; j <= m; j++) { const t = j / m; put(q[i - 1][0] + (q[i][0] - q[i - 1][0]) * t, q[i - 1][1] + (q[i][1] - q[i - 1][1]) * t, dist + segM * t); }
+          dist += segM;
+        }
+        const first = nv;
+        room(n * 2, (n - 1) * 6);
+        for (let i = 0; i < n; i++) {
+          const p = i * 4, pv = Math.max(0, i - 1) * 4, nx = Math.min(n - 1, i + 1) * 4;
+          for (let side = -1; side <= 1; side += 2) {
+            const o = nv * CRISP_FLOATS;
+            verts[o] = P[p]; verts[o + 1] = P[p + 1]; verts[o + 2] = P[p + 2];
+            verts[o + 3] = P[pv]; verts[o + 4] = P[pv + 1]; verts[o + 5] = P[pv + 2];
+            verts[o + 6] = P[nx]; verts[o + 7] = P[nx + 1]; verts[o + 8] = P[nx + 2];
+            verts[o + 9] = side * (1 + kind * 2); verts[o + 10] = P[p + 3];
+            verts[o + 11] = r / 255; verts[o + 12] = g / 255; verts[o + 13] = bl / 255; verts[o + 14] = a;
+            verts[o + 15] = f.w; verts[o + 16] = f.dash; verts[o + 17] = f.gap;
+            nv++;
+          }
+          if (i > 0) { const v = first + (i - 1) * 2; idx[ni] = v; idx[ni + 1] = v + 1; idx[ni + 2] = v + 2; idx[ni + 3] = v + 1; idx[ni + 4] = v + 3; idx[ni + 5] = v + 2; ni += 6; }
+        }
+      }
+    }
+    const t1 = performance.now();
+    crispDraped(false);
+    const t2 = performance.now();
+    L3.upload(verts.subarray(0, nv * CRISP_FLOATS), nv > 65535 ? idx.subarray(0, ni) : Uint16Array.from(idx.subarray(0, ni)), origin);
+    (crispLayer.took = crispLayer.took || []).push([Math.round(t1 - t0), Math.round(t2 - t1), Math.round(performance.now() - t2), nv]);   // for tests: ms building, ms handing over, points x 2
+    if (crispLayer.took.length > 20) crispLayer.took.shift();
+  }
+  function crispSoon(ms) { if (crispOn && !crispBuildT) crispBuildT = setTimeout(crispBuild, ms == null ? 120 : ms); }
+  const CRISP_VS = `
+    uniform mat4 u_matrix; uniform vec2 u_vp; uniform float u_dpr, u_w0, u_pxm, u_zoff, u_mpx;
+    attribute vec3 a_pos, a_prev, a_next; attribute vec2 a_sd; attribute vec4 a_color; attribute vec3 a_style;
+    varying vec4 v_color; varying float v_across, v_half, v_along, v_kind, v_dash, v_period;
+    void main() {
+      vec4 c = u_matrix * vec4(a_pos, 1.0), p = u_matrix * vec4(a_prev, 1.0), n = u_matrix * vec4(a_next, 1.0);
+      if (c.w <= 0.0) { gl_Position = vec4(0.0, 0.0, -2.0, 1.0); return; }
+      vec2 h = u_vp * 0.5;
+      vec2 sc = c.xy / c.w * h;
+      vec2 sp = p.w > 0.0 ? p.xy / p.w * h : sc, sn = n.w > 0.0 ? n.xy / n.w * h : sc;
+      vec2 d1 = sc - sp, d2 = sn - sc;
+      if (dot(d1, d1) < 1e-6) d1 = d2;
+      if (dot(d2, d2) < 1e-6) d2 = d1;
+      if (dot(d1, d1) < 1e-6) { d1 = vec2(1.0, 0.0); d2 = d1; }
+      d1 = normalize(d1); d2 = normalize(d2);
+      vec2 n1 = vec2(-d1.y, d1.x), n2 = vec2(-d2.y, d2.x), nm = n1 + n2;
+      nm = dot(nm, nm) < 1e-4 ? n1 : normalize(nm);
+      float miter = 1.0 / max(dot(nm, n1), 0.85);   // short corners: no spikes on a wiggly track
+      // As wide as the line painted on the ground was: its 2D width on flat ground at the 3D zoom, seen from here
+      // (thinner far off, and thinner where it runs across the view on tilted ground), but never under 70% of a
+      // line facing the screen at that distance, so far routes still read.
+      float s = clamp(u_w0 / c.w, 0.3, 1.6), side = sign(a_sd.x), kind = floor((abs(a_sd.x) - 1.0) * 0.5 + 0.5);
+      float hwS = a_style.x * u_dpr * s * 0.5;
+      vec2 g = a_next.xy - a_prev.xy;
+      vec2 gp = dot(g, g) > 0.0 ? normalize(vec2(-g.y, g.x)) : vec2(0.0, 1.0);
+      vec4 q = u_matrix * vec4(a_pos + vec3(gp * a_style.x * 0.5 * u_mpx, 0.0), 1.0);
+      float hwD = q.w > 0.0 ? length(q.xy / q.w * h - sc) : hwS;
+      float hw = max(clamp(hwD, 0.7 * hwS, a_style.x * u_dpr), 0.6);   // up close at most twice the 2D width
+      float ext = hw + 1.0;
+      vec2 off = nm * miter * ext * side;
+      // Pulled a little toward the eye (same spot on the screen): a line on a slope isn't cut by the ground's mesh.
+      gl_Position = vec4(c.xy + off / h * c.w, c.z + u_zoff, c.w);
+      v_color = a_color; v_across = ext * side; v_half = hw; v_kind = kind;
+      v_along = a_sd.y * u_pxm * u_dpr * s;
+      float wpx = hw * 2.0;
+      v_dash = a_style.y * wpx; v_period = kind == 2.0 ? max(a_style.z * wpx, 1.0) : max((a_style.y + a_style.z) * wpx, 1.0);
+    }`;
+  const CRISP_FS = `
+    precision highp float;   // the dash position runs to thousands of pixels: half floats (iPhone mediump) can't hold it
+    varying vec4 v_color; varying float v_across, v_half, v_along, v_kind, v_dash, v_period;
+    void main() {
+      float a = clamp(v_half - abs(v_across) + 0.5, 0.0, 1.0);
+      if (v_kind > 0.5) {
+        float t = mod(v_along, v_period);
+        if (v_kind > 1.5) { float d = min(t, v_period - t); a = clamp(v_half - length(vec2(d, v_across)) + 0.5, 0.0, 1.0); }
+        else if (t > v_dash) discard;
+      }
+      a *= v_color.a;
+      if (a <= 0.0) discard;
+      gl_FragColor = vec4(v_color.rgb * a, a);
+    }`;
+  const crispLayer = {
+    id: "crisp-lines", type: "custom", renderingMode: "3d",
+    glc: null, prog: null, vbo: null, ibo: null, count: 0, big: false, origin: [0, 0], loc: {},
+    onAdd(m, g) {
+      try {
+        const sh = (t, src) => { const s = g.createShader(t); g.shaderSource(s, src); g.compileShader(s); if (!g.getShaderParameter(s, g.COMPILE_STATUS)) throw new Error(g.getShaderInfoLog(s)); return s; };
+        const pr = g.createProgram();
+        g.attachShader(pr, sh(g.VERTEX_SHADER, CRISP_VS)); g.attachShader(pr, sh(g.FRAGMENT_SHADER, CRISP_FS)); g.linkProgram(pr);
+        if (!g.getProgramParameter(pr, g.LINK_STATUS)) throw new Error(g.getProgramInfoLog(pr));
+        this.big = !!(typeof WebGL2RenderingContext !== "undefined" && g instanceof WebGL2RenderingContext) || !!g.getExtension("OES_element_index_uint");
+        this.prog = pr; this.vbo = g.createBuffer(); this.ibo = g.createBuffer(); this.glc = g; this.count = 0;
+        for (const n of ["u_matrix", "u_vp", "u_dpr", "u_w0", "u_pxm", "u_zoff", "u_mpx"]) this.loc[n] = g.getUniformLocation(pr, n);
+        for (const n of ["a_pos", "a_prev", "a_next", "a_sd", "a_color", "a_style"]) this.loc[n] = g.getAttribLocation(pr, n);
+      } catch (e) { this.glc = null; crispFail(e); }
+    },
+    onRemove(m, g) { try { g.deleteBuffer(this.vbo); g.deleteBuffer(this.ibo); g.deleteProgram(this.prog); } catch {} this.glc = null; this.count = 0; },
+    upload(v, i, origin) {
+      const g = this.glc;
+      if (!g) return;
+      if (i instanceof Uint32Array && !this.big) i = new Uint16Array(0);
+      // Fresh buffers each time: refilling ones the last frames still draw from can make the browser wait for the
+      // graphics card to finish them (seconds in the test browser).
+      const vbo = g.createBuffer(), ibo = g.createBuffer();
+      g.bindBuffer(g.ARRAY_BUFFER, vbo); g.bufferData(g.ARRAY_BUFFER, v, g.STATIC_DRAW);
+      g.bindBuffer(g.ELEMENT_ARRAY_BUFFER, ibo); g.bufferData(g.ELEMENT_ARRAY_BUFFER, i, g.STATIC_DRAW);
+      g.deleteBuffer(this.vbo); g.deleteBuffer(this.ibo);
+      this.vbo = vbo; this.ibo = ibo;
+      this.count = i.length; this.type32 = i instanceof Uint32Array; this.origin = origin;
+      gl.triggerRepaint();
+    },
+    render(g, args) {
+      if (!this.count || !this.glc) return;
+      const pd = args.defaultProjectionData;
+      if (!pd || (pd.fallbackMatrix && pd.fallbackMatrix !== pd.mainMatrix)) return;   // globe: not handled
+      // The view's matrix moved to the build's origin in 64-bit, so the points (small numbers near 0) stay exact.
+      const M = pd.mainMatrix, ox = this.origin[0], oy = this.origin[1], m = new Float32Array(16);
+      for (let r = 0; r < 4; r++) { m[r] = M[r]; m[4 + r] = M[4 + r]; m[8 + r] = M[8 + r]; m[12 + r] = M[0 + r] * ox + M[4 + r] * oy + M[12 + r]; }
+      // Distance to the middle of the view, to size the lines by distance like the ground does.
+      const c = gl.getCenter(), mc = maplibregl.MercatorCoordinate.fromLngLat(c, gl.transform.elevation || 0);
+      const w0 = M[3] * mc.x + M[7] * mc.y + M[11] * mc.z + M[15];
+      const mpp = (40075016.686 * Math.cos((c.lat * Math.PI) / 180)) / (512 * 2 ** gl.getZoom());
+      const L = this.loc, dpr = g.drawingBufferWidth / Math.max(1, gl.getCanvas().clientWidth);
+      g.useProgram(this.prog);
+      g.uniformMatrix4fv(L.u_matrix, false, m);
+      g.uniform2f(L.u_vp, g.drawingBufferWidth, g.drawingBufferHeight);
+      g.uniform1f(L.u_dpr, dpr); g.uniform1f(L.u_w0, w0); g.uniform1f(L.u_pxm, 1 / mpp); g.uniform1f(L.u_mpx, 1 / (512 * 2 ** gl.getZoom()));
+      // Every point moved CRISP_PULL of the way to the eye: in clip space that's one constant on z (the eye is
+      // (0, 0, P[14], 0) there), so it costs nothing per point.
+      const P = args.projectionMatrix, e = P ? P[14] : 0;
+      g.uniform1f(L.u_zoff, (CRISP_PULL * e) / (1 - CRISP_PULL));
+      g.bindBuffer(g.ARRAY_BUFFER, this.vbo); g.bindBuffer(g.ELEMENT_ARRAY_BUFFER, this.ibo);
+      const S = CRISP_FLOATS * 4, at = (n, size, off) => { if (L[n] < 0) return; g.enableVertexAttribArray(L[n]); g.vertexAttribPointer(L[n], size, g.FLOAT, false, S, off * 4); };
+      at("a_pos", 3, 0); at("a_prev", 3, 3); at("a_next", 3, 6); at("a_sd", 2, 9); at("a_color", 4, 11); at("a_style", 3, 15);
+      g.depthMask(false);   // lines on lines blend; the ground still hides them behind ridges
+      g.drawElements(g.TRIANGLES, this.count, this.type32 ? g.UNSIGNED_INT : g.UNSIGNED_SHORT, 0);
+      for (const n of ["a_pos", "a_prev", "a_next", "a_sd", "a_color", "a_style"]) if (L[n] >= 0) g.disableVertexAttribArray(L[n]);
+      g.depthMask(true);
+    },
+  };
+  // The draped copies on or off (off while the crisp ones draw).
+  let crispShown = true;
+  function crispDraped(show, again) {
+    if (show === crispShown && !again) return;
+    crispShown = show;
+    try { for (const id of ["lines", ...dashLayers].flatMap((d) => (d.startsWith("dash:dot:") ? [d + ":band", d] : [d]))) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", show ? "visible" : "none"); } catch {}
+  }
+  function crispFail(e) {
+    crispOn = false;
+    if (gl) crispDraped(true);
+    try { console.warn("crisp lines off:", e && e.message); } catch {}
+  }
+  function crispStart() {
+    if (crispOn || !gl || gl.getLayer("crisp-lines")) return;
+    try {
+      gl.addLayer(crispLayer, gl.getLayer("dots") ? "dots" : undefined);
+      if (!crispLayer.glc) return;
+      crispOn = true;
+      gl.on("moveend", () => {
+        if (!crispOn) return;
+        const b = gl.getBounds(), x = crispBox;
+        if (!x || b.getWest() < x[0] || b.getSouth() < x[1] || b.getEast() > x[2] || b.getNorth() > x[3]) crispSoon(0);
+        else crispSoon(250);   // same ground, finer terrain pieces now under the camera
+      });
+      gl.on("sourcedata", (e) => { if (crispOn && e.sourceId === "dem" && e.tile) crispSoon(600); });
+      crispSoon(0);
+    } catch (e) { crispFail(e); }
   }
 
   let pending = 0;
@@ -284,6 +607,8 @@
     const s = snapshot();
     new Set(s.lines.map((f) => f.properties.d).filter(Boolean)).forEach(ensureDashLayer);
     gl.getSource("lines").setData({ type: "FeatureCollection", features: s.lines });
+    crispFeats = crispPrep(s.lines);
+    if (crispOn) { if (!crispShown) crispDraped(false, true); crispSoon(0); } else crispStart();
     gl.getSource("dots").setData({ type: "FeatureCollection", features: s.dots });
     gl.getSource("hits").setData({ type: "FeatureCollection", features: s.hitLines });
     nameCands = s.names; placeNames();
@@ -882,7 +1207,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=3640");
+      const w = new Worker("winter-fill.js?v=3650");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -981,7 +1306,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=3640" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=3650" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1243,6 +1568,9 @@
     try { ext.restoreContext(); } catch {}
   }
   window.tf3dSleep = sleep3d; window.tf3dWake = wake3d;   // for the phone test
+  // For tests: the 3D map, and the crisp lines off (the draped ones back) or on, for a before/after.
+  window.tf3dGl = () => gl;
+  window.tf3dCrisp = (want) => { if (!gl || !gl.getLayer("crisp-lines")) return; gl.setLayoutProperty("crisp-lines", "visibility", want ? "visible" : "none"); crispDraped(!want, true); };
 
   // Mountain heights leak in MapLibre 5.24.0: when a neighbouring height tile arrives, the edges of the tiles
   // already drawn are filled in and each gets a NEW 1 MB picture on the graphics card, the old one never freed.

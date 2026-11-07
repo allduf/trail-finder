@@ -624,6 +624,7 @@
     "Name a lift, run, bowl or line, like this:":"Nommez une remontée, une piste, un bol ou une ligne, comme ceci :",
     "Or close this and tap the map where you start.":"Ou fermez ceci et touchez la carte là où vous partez.",
     "Skiing Plan a tour: type your plan in words (start, lines, finish) and it draws the tour.":"Ski, Planifier une sortie : écrivez votre plan en mots (départ, lignes, arrivée) et la sortie se dessine.",
+    "3D map: trail and route lines are sharp now, drawn on top of the mountains instead of painted soft into the photo.":"Carte 3D : les lignes des sentiers et des itinéraires sont nettes maintenant, dessinées par-dessus les montagnes au lieu d'être peintes floues dans la photo.",
     "Tagged as a bike trail":"Identifié comme sentier de vélo",
     "Official":"Officiel",
     "Unnamed path":"Chemin sans nom",
