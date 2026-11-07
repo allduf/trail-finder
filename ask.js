@@ -166,10 +166,16 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });   // a tap outside the sheet
   dlg.querySelector(".ask-out").addEventListener("click", (e) => { if (e.target.closest("button") && !e.target.closest(".ask-ex, .ask-more")) logUse("pick", "Ask"); });
   const close = () => { if (dlg.open) dlg.close(); };
+  // Opened from Skiing's Plan a tour ("Tap the map where you start", alex 2026-11-07: "When I click plan a route I want
+  // to be able to ask what I want to plan"): the words are read as the plan of the day, whatever they're worded like.
+  let planAsk = false;
+  dlg.addEventListener("close", () => { planAsk = false; });
+  const PLAN_EX = ["Start at the top of Showcase, ski DOA, finish in Lakeside Bowl", "Start at Joffre Lakes parking, skin up the Shoulder, finish at the parking", "From the top of 7th Heaven ski Lakeside Bowl and finish at the bottom of 7th Heaven"];
 
   let token = 0;
-  async function open(q) {
+  async function open(q, o) {
     const sp = sportOf(), my = ++token;
+    if (o) planAsk = !!o.plan && sp === "ski";
     dlg.querySelector(".ask-top").innerHTML = boxHtml(sp, "ask-in-dlg");
     const inp = dlg.querySelector(".ask-in");
     inp.value = q || "";
@@ -177,7 +183,8 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     const head = dlg.querySelector(".ask-head"), out = dlg.querySelector(".ask-out");
     if (!q) {
       head.innerHTML = "";
-      out.innerHTML = `<p class="ask-note">Type what you're after, the way you'd ask a friend. For example:</p><div class="ask-ex">${SP[sp].ex.map((x) => `<button type="button">${esc(x)}</button>`).join("")}</div>`;
+      out.innerHTML = planAsk ? `<p class="ask-note">Type your plan of the day: where you start, the lines you want to ski or climb, and where you finish. For example:</p><div class="ask-ex">${PLAN_EX.map((x) => `<button type="button">${esc(x)}</button>`).join("")}</div>`
+        : `<p class="ask-note">Type what you're after, the way you'd ask a friend. For example:</p><div class="ask-ex">${SP[sp].ex.map((x) => `<button type="button">${esc(x)}</button>`).join("")}</div>`;
       out.querySelectorAll(".ask-ex button").forEach((b) => b.addEventListener("click", () => open(b.textContent)));
       setTimeout(() => inp.focus(), 50);
       return;
@@ -187,11 +194,12 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     const ai = await aiParse(q, sp);
     if (my !== token) return;
     const p = ai.ok ? fromAi(ai, q, sp) : localParse(q, sp);
+    if (planAsk) p.plan = true;
     head.innerHTML = `<p class="ask-said">${esc(p.summary || summaryOf(p, sp))}</p><ul class="ask-chips">${chipsOf(p, sp).map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
       ${ai.ok ? "" : `<p class="ask-note">${esc(ai.why)} Read here more simply: ask again later for a smarter read.</p>`}`;
     out.innerHTML = `<p class="ask-wait">Finding the place…</p>`;
     // A ski plan's own pieces ("finish in Lakeside Bowl") aren't the place to look around: they're found near the map.
-    if (sp === "ski" && planLike(q) && p.place && planSteps(q).some((x) => norm(x.name) === norm(p.place) || norm(p.place).includes(norm(x.name)))) p.place = "";
+    if (sp === "ski" && (planAsk || planLike(q)) && p.place && planSteps(q).some((x) => norm(x.name) === norm(p.place) || norm(p.place).includes(norm(x.name)))) p.place = "";
     const was = p.place;
     let at = await whereOf(p);
     if (my !== token) return;
@@ -201,7 +209,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       head.innerHTML = `<p class="ask-said">${esc(summaryOf(p, sp))}</p><ul class="ask-chips">${chipsOf(p, sp).map((c) => `<li>${esc(c)}</li>`).join("")}</ul>${ai.ok ? "" : `<p class="ask-note">${esc(ai.why)} Read here more simply: ask again later for a smarter read.</p>`}`;
     }
     // A ski tour typed as a plan names its own pieces: when the place isn't found, they're looked for around the map.
-    if (!at && sp === "ski" && planLike(q)) { const m = map.getCenter(); at = { c: [m.lat, m.lng], mid: true }; }
+    if (!at && sp === "ski" && (planAsk || planLike(q))) { const m = map.getCenter(); at = { c: [m.lat, m.lng], mid: true }; }
     if (!at) { logUse("search", "Ask:" + q, 0); out.innerHTML = `<p class="ask-note ask-warn">Couldn't find “${esc(p.place)}” on the map. Try the town's name, or move the map there and ask “near here”.</p>`; return; }
     out.innerHTML = `<p class="ask-wait">Looking ${at.you ? "around you" : at.mid ? "around the middle of the map" : "near " + esc(at.name)}…</p>`;
     try { await ANSWER[sp](p, at, out, () => my !== token); if (my === token) logUse("search", "Ask:" + q, out.querySelectorAll("button").length); }
@@ -380,7 +388,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     if (p.sport === "ski") {
       const SKIW = new Set(["mount", "mt", "mountain", "resort", "ski", "area", "hill", "slack", "country", "slackcountry", "backcountry", "side", "the", "de", "du", "station", "mont"]);
       const w = n.split(" ").filter((x) => x && !SKIW.has(x));
-      const rs = w.length ? await fetch("data/ski-lifts.json?v=3630").then((r) => r.json()).then((d) => Object.values(d.resorts || {})).catch(() => []) : [];
+      const rs = w.length ? await fetch("data/ski-lifts.json?v=3640").then((r) => r.json()).then((d) => Object.values(d.resorts || {})).catch(() => []) : [];
       const hit = rs.find((r) => r.name && w.every((x) => norm(r.name).split(" ").includes(x)));
       if (hit) return { c: [hit.lat, hit.lon], name: hit.name };
       const a = await skiAreaOf(p.place);
@@ -421,7 +429,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   const K_END = "finish(?:ing)?|end(?:ing)?(?: up)?|come out|coming out|exit(?:ing)?|get(?:ting)? out|back (?:to|in|at)";
   const K_UP = "skin(?:ning)?(?: up)?|climb(?:ing)?|bootpack(?:ing)?|hike|hiking|walk(?:ing)? up|go(?:ing)? up|ride (?:up )?the lift|take the lift";
   const K_VIA = `${K_UP}|ride|riding|ski|skiing|board|boarding|do|doing|take|taking|drop(?:ping)?(?: in(?:to)?)?|via|through`;
-  function planSteps(q) {
+  function planSteps(q, loose) {
     let s = " " + q.toLowerCase().replace(/[’']/g, "'").replace(/[.,;!?]+/g, " , ") + " ";
     // A cut before each step word, and at "and" / commas.
     s = s.replace(new RegExp(`\\s(${K_START}|${K_END}|${K_VIA})\\s`, "g"), " | $1 ").replace(/\s(?:and then|and|then|after that|,)(?=\s)/g, " | ");
@@ -431,6 +439,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       if ((m = c.match(new RegExp(`^(?:${K_START})\\b`)))) kind = "start";
       else if ((m = c.match(new RegExp(`^(?:${K_END})\\b`)))) kind = "end";
       else if ((m = c.match(new RegExp(`^(?:${K_VIA})\\b`)))) { kind = "via"; up = new RegExp(`^(?:${K_UP})\\b`).test(c); }
+      if (!kind && loose && c.length > 2 && !/^(?:i|i'd|i'm|we|plan|planning|let's|make|a|an|my|tour|touring|go|want)\b/.test(c)) { kind = "via"; m = [""]; }   // from Plan a tour: a bare name ("DOA and Lakeside Bowl") is a line to ski
       if (!kind) continue;
       let n = c.slice(m[0].length).trim(), pos = "";
       for (let k = 0; k < 4; k++) n = n.replace(/^(?:from|at|on|in|into|to|by|of|off|up|down|the|a|an|with|out)\s+/, "");
@@ -446,7 +455,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     return out;
   }
   let liftsP = null, slackP = null;
-  const liftsList = () => liftsP || (liftsP = fetch("data/ski-lifts.json?v=3630").then((r) => r.json()).then((d) => d.lifts || []).catch(() => { liftsP = null; return []; }));
+  const liftsList = () => liftsP || (liftsP = fetch("data/ski-lifts.json?v=3640").then((r) => r.json()).then((d) => d.lifts || []).catch(() => { liftsP = null; return []; }));
   const slackList = () => slackP || (slackP = fetch("data/slackcountry.json").then((r) => r.json()).then((d) => (d.resorts || []).flatMap((rs) => (rs.lines || []).map((l) => ({ ...l, resort: rs.name })))).catch(() => { slackP = null; return []; }));
   const pairs = (flat) => { const o = []; for (let i = 0; i + 1 < flat.length; i += 2) o.push([flat[i], flat[i + 1]]); return o; };
   // How well a name typed matches a name on the map: 3 the same, 2.5 the same before its brackets or its short name,
@@ -595,7 +604,8 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   async function askPlan(p, at, out, stale) {
     const S = window.tfSki && window.tfSki.trip;
     if (!S || !S.namedNear || !S.planSet) return false;
-    const steps = planSteps(p.q || "");
+    // From Plan a tour, a name without a step word ("DOA and Lakeside Bowl") is a line to ski, in that order.
+    const steps = planSteps(p.q || "", !!p.plan);
     if (!steps.length) return false;
     out.innerHTML = `<p class="ask-wait">Finding ${esc(steps.map((x) => x.name).join(", "))}…</p>`;
     let pieces = await planPieces(steps, at.c);
@@ -728,8 +738,13 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       const S = window.tfSki;
       if (!S || !S.near) { out.innerHTML = `<p class="ask-note">Skiing isn't loaded yet. Try again in a moment.</p>`; return; }
       // A tour typed as a plan ("start at the top of Showcase, ski DOA, finish in Lakeside Bowl"): made into Plan a tour.
-      if (p.what !== "huts" && p.what !== "avalanche" && planLike(p.q) && (await askPlan(p, at, out, stale))) return;
+      if ((p.plan || (p.what !== "huts" && p.what !== "avalanche" && planLike(p.q))) && (await askPlan(p, at, out, stale))) return;
       if (stale()) return;
+      if (p.plan) {   // asked from Plan a tour: say what's missing, not a list of other tours
+        out.innerHTML = `<p class="ask-note ask-warn">Couldn't find those names near ${esc(nearName(at))}.</p><p class="ask-note">Name a lift, run, bowl or line, like this:</p><div class="ask-ex">${PLAN_EX.map((x) => `<button type="button">${esc(x)}</button>`).join("")}</div><p class="ask-note">Or close this and tap the map where you start.</p>`;
+        out.querySelectorAll(".ask-ex button").forEach((b) => b.addEventListener("click", () => open(b.textContent)));
+        return;
+      }
       const s = (p.q || "").toLowerCase() + " " + p.words.join(" ");
       const types = /nordic|cross[- ]country|classic|skate|xc\b/.test(s) ? ["nordic"] : /snowshoe/.test(s) ? ["snowshoe"] : /snowmobile|sled/.test(s) ? ["snowmobile"] : ["tour"];
       let R = p.km_away || at.R || 25;
