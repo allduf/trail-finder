@@ -64,11 +64,20 @@ const lum = (img, fx, fy) => 0.3 * at(img, fx, fy, 0) + 0.59 * at(img, fx, fy, 1
 // fine: where the AI-sharpened zoom-15 photos are (2.5 m, sharpen.py), their site (?r=2: same as SHARP_REV in map3d.js). Their colours are used
 // instead of the 10 m zoom-14 ones. Esri's real detail is still added against its 10 m average: against its 2.5 m one
 // (tried first) the trees lost their texture and the guessed shapes looked smudgy at zoom 15.
+// Winter photos on Cloudflare Pages (2026-11-07): Netlify's free credits ran out and Pages takes 20,000 files a site, so
+// each photo site is split by zoom-11 square: trail-finder-winter on trailfinder-w1-0..13, -winter2 on trailfinder-w2-0..3
+// (zooms under 11, blocks.json and sharp.json on -0). The netlify.app address stays the name used everywhere else.
+const tfWinterShard = (u, z, x, y) => {
+  const m = /^https:\/\/trailfinder-winter2\.netlify\.app\/(trail-finder-winter2?)\//.exec(u);
+  if (!m) return u;
+  const two = m[1].endsWith("2"), k = z < 11 ? 0 : (((x >> (z - 11)) * 31 + (y >> (z - 11))) % (two ? 4 : 14));
+  return `https://trailfinder-w${two ? 2 : 1}-${k}.pages.dev/${m[1]}/` + u.slice(m[0].length);
+};
 async function draw({ id, z, x, y, base, site = "../trail-finder-winter/", fine = null }) {
   const keep = (p) => p.catch(() => null);
   const dz = Math.min(z - 1, 15);
-  const coarse = () => under(14, z, x, y, (a, b, c) => new URL(`${site}${a}/${b}/${c}.webp`, base).href, site.includes("winter2") ? "w2" : "w");
-  const colour = fine ? under(15, z, x, y, (a, b, c) => new URL(`${fine}${a}/${b}/${c}.webp?r=2`, base).href, "s").catch(() => coarse()) : coarse();
+  const coarse = () => under(14, z, x, y, (a, b, c) => tfWinterShard(new URL(`${site}${a}/${b}/${c}.webp`, base).href, a, b, c), site.includes("winter2") ? "w2" : "w");
+  const colour = fine ? under(15, z, x, y, (a, b, c) => tfWinterShard(new URL(`${fine}${a}/${b}/${c}.webp?r=2`, base).href, a, b, c), "s").catch(() => coarse()) : coarse();
   const [win, sharp, soft, dem] = await Promise.all([
     colour,
     keep(pixels(ESRI(z, x, y))),

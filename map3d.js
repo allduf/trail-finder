@@ -1146,9 +1146,18 @@
   const WINTER = NSITE + "trail-finder-winter/", WINTERS = [WINTER, NSITE + "trail-finder-winter2/"];
   // Canada, and Japan's ski areas (Hakuba, Myoko, Nozawa, Hokkaido, Hakkoda: alex's trip, 2026-10-30, on winter2). Tiles
   // with no square under them are never asked for, so the wide box costs nothing.
+  // Winter photos on Cloudflare Pages (2026-11-07): Netlify's free credits ran out and Pages takes 20,000 files a site, so
+  // each photo site is split by zoom-11 square: trail-finder-winter on trailfinder-w1-0..13, -winter2 on trailfinder-w2-0..3
+  // (zooms under 11, blocks.json and sharp.json on -0). The netlify.app address stays the name used everywhere else.
+  const tfWinterShard = (u, z, x, y) => {
+    const m = /^https:\/\/trailfinder-winter2\.netlify\.app\/(trail-finder-winter2?)\//.exec(u);
+    if (!m) return u;
+    const two = m[1].endsWith("2"), k = z < 11 ? 0 : (((x >> (z - 11)) * 31 + (y >> (z - 11))) % (two ? 4 : 14));
+    return `https://trailfinder-w${two ? 2 : 1}-${k}.pages.dev/${m[1]}/` + u.slice(m[0].length);
+  };
   const WINTER_BOUNDS = [-141, 24, 146.5, 70];
   let winterBlocks = null;
-  const loadWinterBlocks = () => winterBlocks || (winterBlocks = Promise.all(WINTERS.map((w, i) => fetch(w + "blocks.json").then((r) => r.json())
+  const loadWinterBlocks = () => winterBlocks || (winterBlocks = Promise.all(WINTERS.map((w, i) => fetch(tfWinterShard(new URL(w + "blocks.json", location.href).href, 0, 0, 0)).then((r) => r.json())
     .catch(() => [])))   // a missing site only hides its squares
     .then((lists) => {
       // Each square and the site it's on, and every zoom 6-10 tile with any of them inside (how many on each site),
@@ -1168,7 +1177,7 @@
   // SHARP_REV: bumped when sharpened squares are rebuilt, so phones don't keep last month's copies (kept 30 days, sw.js).
   const SHARP = WINTERS[1], SHARP_REV = "?r=2", SHARP_BOUNDS = [-123.58, 49.6, -116.89, 51.51];
   let sharpBlocks = null;
-  const loadSharp = () => sharpBlocks || (sharpBlocks = fetch(SHARP + "sharp.json").then((r) => r.ok ? r.json() : [])
+  const loadSharp = () => sharpBlocks || (sharpBlocks = fetch(tfWinterShard(new URL(SHARP + "sharp.json", location.href).href, 0, 0, 0)).then((r) => r.ok ? r.json() : [])
     .then((a) => new Set(a.map(([x, y]) => x + "/" + y))).catch(() => new Set()));
   const hasSharp = (sharp, z, x, y) => z >= 15 && !!sharp && sharp.has((x >> (z - 11)) + "/" + (y >> (z - 11)));
   // The middle distance from the same sharpened photos (alex 2026-11-07, Kicking Horse 3D: "Map is blurry a bit"):
@@ -1184,7 +1193,7 @@
     const n = 1 << (15 - z), s = 256 / n, cv = new OffscreenCanvas(256, 256), cx = cv.getContext("2d", { willReadFrequently: true });
     const parts = [];
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) parts.push((async () => {
-      const r = await fetch(`${SHARP}15/${x * n + i}/${y * n + j}.webp${SHARP_REV}`, { signal });
+      const r = await fetch(tfWinterShard(new URL(`${SHARP}15/${x * n + i}/${y * n + j}.webp${SHARP_REV}`, location.href).href, 15, x * n + i, y * n + j), { signal });
       if (!r.ok) throw new Error("no sharp tile");
       const bmp = await createImageBitmap(await r.blob(), { resizeWidth: s, resizeHeight: s, resizeQuality: "high" });
       cx.drawImage(bmp, i * s, j * s); bmp.close();
@@ -1244,7 +1253,7 @@
   const fillWaiting = new Map();
   const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=3710");
+      const w = new Worker("winter-fill.js?v=3720");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1276,11 +1285,11 @@
     if (sport === "ski") {
       const have = await loadWinterBlocks();
       if (have) {
-        data.push(...WINTERS.map((w) => new URL(w + "blocks.json", location.href).href));
+        data.push(...WINTERS.map((w) => tfWinterShard(new URL(w + "blocks.json", location.href).href, 0, 0, 0)));
         // Zoom 6 to 10 with one tile more on every side (alex 2026-10-31, airplane mode: the ground just past the saved
         // square was plain green while online it's all winter photos): a blurry winter photo all around, ~25 to
         // 400 km out depending on the zoom, for about 50 small tiles.
-        const add = (z, x, y) => { if (anyWinter(have, z, x, y)) { tiles.push(new URL(`${winterSite(have, z, x, y)}${z}/${x}/${y}.webp`, location.href).href); photos++; } };
+        const add = (z, x, y) => { if (anyWinter(have, z, x, y)) { tiles.push(tfWinterShard(new URL(`${winterSite(have, z, x, y)}${z}/${x}/${y}.webp`, location.href).href, z, x, y)); photos++; } };
         for (let z = 6; z <= 10; z++) for (let x = tileX(b[1], z) - 1; x <= tileX(b[3], z) + 1; x++) for (let y = tileY(b[2], z) - 1; y <= tileY(b[0], z) + 1; y++) add(z, x, y);
         each(11, 14, add);
       }
@@ -1343,7 +1352,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=3710" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=3720" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1363,7 +1372,7 @@
       // Straight from the site, not through the Winter workers (winter-fill.js): four of these per Winter tile filled
       // the same two workers and held the Winter photos back too (alex 2026-11-03: "i like the quality but it way
       // longer to load"). The odd cloudy hole stays see-through, with the filled Winter photo under it.
-      const r = await fetch(`${SHARP}${z}/${x}/${y}.webp${SHARP_REV}`, { signal: abort.signal }).catch((e) => { if (abort.signal.aborted) throw e; return null; });
+      const r = await fetch(tfWinterShard(new URL(`${SHARP}${z}/${x}/${y}.webp${SHARP_REV}`, location.href).href, z, x, y), { signal: abort.signal }).catch((e) => { if (abort.signal.aborted) throw e; return null; });
       return r && r.ok ? { data: await r.arrayBuffer() } : noTile();
     });
   }

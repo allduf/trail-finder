@@ -101,9 +101,18 @@ const decode = async (blob) => {
 // Tile z/x/y's pixels (holes filled if whole), or null where there's no photo. A missing tile past zoom 11 is cut
 // from the one above it and enlarged (the newer squares stop at zoom 13, and a few tiles were cloudy every pass).
 // A tile scrolled away meanwhile (id cancelled) stops before decoding and filling: those were done for nothing.
+// Winter photos on Cloudflare Pages (2026-11-07): Netlify's free credits ran out and Pages takes 20,000 files a site, so
+// each photo site is split by zoom-11 square: trail-finder-winter on trailfinder-w1-0..13, -winter2 on trailfinder-w2-0..3
+// (zooms under 11, blocks.json and sharp.json on -0). The netlify.app address stays the name used everywhere else.
+const tfWinterShard = (u, z, x, y) => {
+  const m = /^https:\/\/trailfinder-winter2\.netlify\.app\/(trail-finder-winter2?)\//.exec(u);
+  if (!m) return u;
+  const two = m[1].endsWith("2"), k = z < 11 ? 0 : (((x >> (z - 11)) * 31 + (y >> (z - 11))) % (two ? 4 : 14));
+  return `https://trailfinder-w${two ? 2 : 1}-${k}.pages.dev/${m[1]}/` + u.slice(m[0].length);
+};
 async function tile(z, x, y, base, skip, whole, out, id) {
   if (!skip) {
-    const r = await fetch(new URL(`${z}/${x}/${y}.webp`, base).href);
+    const r = await fetch(tfWinterShard(new URL(`${z}/${x}/${y}.webp`, base).href, z, x, y));
     if (cancelled.has(id)) return null;
     if (r.ok) { const px = await decode(await r.blob()); return whole && !cancelled.has(id) && !(await fillHoles(px.data, z, x, y)) ? null : px; }
     if (r.status !== 404) throw new Error(`HTTP ${r.status}`);
