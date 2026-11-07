@@ -9,3 +9,4 @@ One search bar for everything: type a place or ask in plain words, and Go turns 
 Search or ask a question ||| Chercher ou poser une question
 Search or ask ||| Chercher ou demander
 Skiing opens with Lift status and Slackcountry on; Your ski tours are a switch in Layers. ||| Le ski s'ouvre avec l'état des remontées et le slackcountry ; Vos sorties de ski sont un bouton dans Couches.
+Skiing 3D: the winter photo is sharper and cleaner from the middle distance at Whistler, Revelstoke, Rogers Pass and Kicking Horse, without the grey squares. ||| Ski 3D : la photo d'hiver est plus nette et plus propre dès la moyenne distance à Whistler, Revelstoke, Rogers Pass et Kicking Horse, sans les carrés gris.
