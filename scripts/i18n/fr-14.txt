@@ -1,0 +1,19 @@
+# Save a planned tour and plan another (alex 2026-11-07)
+Name this tour ||| Nommer cette sortie
+★ Save ||| ★ Enregistrer
+★ Save this tour ||| ★ Enregistrer cette sortie
+★ Save changes ||| ★ Enregistrer les changements
+＋ Plan a new tour ||| ＋ Planifier une nouvelle sortie
+Saved tours ||| Sorties enregistrées
+less exposed way ||| chemin moins exposé
+Delete this tour ||| Supprimer cette sortie
+No saved tours yet. Plan a tour, then tap ★ Save this tour. ||| Aucune sortie enregistrée. Planifiez une sortie, puis touchez ★ Enregistrer cette sortie.
+This tour isn't saved. Start a new one anyway? ||| Cette sortie n'est pas enregistrée. En commencer une nouvelle quand même?
+The tour on the map isn't saved. Open this one instead? ||| La sortie sur la carte n'est pas enregistrée. Ouvrir celle-ci à la place?
+Tour saved: it's in Saved, on all your devices. ||| Sortie enregistrée : elle est dans Enregistrés, sur tous vos appareils.
+Tour saved: it's in Saved. ||| Sortie enregistrée : elle est dans Enregistrés.
+New tour: tap the map where you start. ||| Nouvelle sortie : touchez la carte là où vous partez.
+Planned tours ||| Sorties planifiées
+Tours you planned and saved ||| Sorties que vous avez planifiées et enregistrées
+Sign in to have this tour on all your devices, and keep it if you lose your phone. Free, and the app works the same without it. ||| Connectez-vous pour avoir cette sortie sur tous vos appareils, et ne pas la perdre si vous perdez votre téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.
+Skiing: save a planned tour (★ Save this tour) and start another; saved tours are in Saved and on your account. ||| Ski : enregistrez une sortie planifiée (★ Enregistrer cette sortie) et commencez-en une autre; les sorties enregistrées sont dans Enregistrés et sur votre compte.

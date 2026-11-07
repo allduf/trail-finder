@@ -210,6 +210,22 @@ body.sk-route-focus :is(.wc-gl, .hc-pin, .sk-pin.park) { transform: scale(.75); 
 .sk-planbar button.go { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
 @media (max-width: 999px) { .sk-planbar { top: 70px; width: calc(100% - 24px); } .sk-planbar .pb-msg { flex-basis: 100%; } }
 #skiPane .sk-row { display: flex; flex-wrap: wrap; gap: 6px; }
+#skiPane .sk-tourrow { display: flex; flex-direction: column; gap: 6px; }
+#skiPane .sk-tourrow .btn, #skiPane .sk-tourname .btn, #skiPane .sk-tourscard .sk-row .btn { font-size: .9rem; padding: 9px 14px; min-height: 40px; }
+#skiPane .sk-tour-ok { color: var(--accent); font-weight: 700; }
+#skiPane .sk-tourrow .sk-row { align-items: center; }
+#skiPane .sk-tourrow .sk-row .btn { flex: 1 1 auto; }
+#skiPane .sk-tourname { display: flex; flex-direction: column; gap: 6px; }
+#skiPane .sk-tourname label { font-size: .82rem; font-weight: 700; }
+#skiPane .sk-tourname input { font: inherit; font-size: 16px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); min-width: 0; }
+#skiPane .sk-tours-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#skiPane .sk-tours-h .btn { padding: 4px 10px; }
+#skiPane .sk-tours { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+#skiPane .sk-tours li { display: flex; align-items: stretch; border-top: 1px solid var(--line); }
+#skiPane .sk-tour-open { flex: 1; min-width: 0; text-align: left; font: inherit; background: none; border: 0; color: var(--fg); padding: 10px 2px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+#skiPane .sk-tour-open b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#skiPane .sk-tour-open small { color: var(--muted); font-size: .78rem; }
+#skiPane .sk-tour-del { font: inherit; background: none; border: 0; color: var(--muted); padding: 0 12px; min-width: 44px; cursor: pointer; }
 #skiPane .sk-row .btn { font-size: .82rem; padding: 6px 10px; }
 #skiPane .sk-warn { background: #fff0e0; color: #7a3b00; border-radius: 8px; padding: 6px 8px; font-size: .82rem; }
 #skiPane .sk-est { margin: 0 0 10px; line-height: 1.4; }
@@ -603,6 +619,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     <div class="sk-slopekey" id="skSlopeKey" hidden></div>
     <div class="sk-slopekey" id="skLayerKey" hidden></div>
     <div class="sk-card sk-plan" id="skPlan" hidden></div>
+    <div class="sk-card sk-tourscard" id="skTours" hidden></div>
     <div class="sk-card sk-spot" id="skSpot" hidden></div>
     <div class="sk-card" id="skStation" hidden></div>
     <div class="sk-card" id="skDetail" hidden></div>
@@ -690,7 +707,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // A tour being planned: the points tapped on the map (kept on this device), drawn as an orange line.
   const plan = { on: false, pts: store.get("skiPlan", []), layer: L.layerGroup(), slopeWas: false, groundWas: [], timer: 0,
     safe: store.get("skiSafe", false) === true,   // off until turned on for this tour (alex 2026-11-06, liability review: a choice, not the default)
-    path: store.get("skiPlanPath", null), run: 0, wait: "", fail: "", hist: [], offer: null, flash: -1, dragAt: 0, show: false };   // safe: the 🛡 Safest way (ski-route.js)
+    path: store.get("skiPlanPath", null), run: 0, wait: "", fail: "", hist: [], offer: null, flash: -1, dragAt: 0, show: false,   // safe: the 🛡 Safest way (ski-route.js)
+    tour: store.get("skiPlanTour", null), naming: false };   // tour: the saved tour (tf:skiTours) on the card, if it's one
+  // The ?demo=forecast past forecast (taken out 2026-11-07) left its flag on the phones that opened it, and a way found
+  // with it kept that day's "3 Considerable" as today's danger (alex's screenshot 2026-11-07). Both go; the way is found
+  // again with the real forecast.
+  try { if (localStorage.getItem("tf:demoAvy") != null) { localStorage.removeItem("tf:demoAvy"); plan.path = null; store.set("skiPlanPath", null); } } catch {}
   const SAFE_CLS = {
     ok: { color: "#2f9e44", label: "Gentle ground" }, mid: { color: "#f2b705", label: "25° to 30°" }, steep: { color: "#e03131", label: "30°+ slope" },
     under: { color: "#e8590c", label: "Under steep slopes" }, trap: { color: "#a61e4d", label: "Terrain trap" },
@@ -1334,7 +1356,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3720").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3730").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2478,7 +2500,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // 🛡 Safest way (ski-route.js): with it on, the line between the points is the one it found (kept with the points it
   // was found for), not straight.
   const planKey = () => JSON.stringify(plan.pts);
-  const safePath = () => (plan.safe && plan.path && plan.path.key === planKey() && plan.path.line && plan.path.line.length > 1 ? plan.path : null);
+  // A found way is only good on the day it was found: its danger ratings are that day's forecast, shown as "today".
+  const sameDay = (t) => !!t && new Date(t).toDateString() === new Date().toDateString();
+  const safePath = () => (plan.safe && plan.path && plan.path.key === planKey() && sameDay(plan.path.at) && plan.path.line && plan.path.line.length > 1 ? plan.path : null);
   // Each way's heights and slopes are kept (by its points and whether it's the safest way), so turning 🛡 Safest on
   // and off shows the other way's numbers and card at once instead of working them out again (alex 2026-11-04: "It
   // lag when I activate and deactivate safest way").
@@ -2495,7 +2519,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // found) are worked out quietly too, so even the first 🛡 Safest switch is instant.
   function warmPlanOther() {
     if (plan.pts.length < 2) return;
-    const k = planKey(), sp = plan.path && plan.path.key === k && plan.path.line && plan.path.line.length > 1 ? plan.path : null;
+    const k = planKey(), sp = plan.path && plan.path.key === k && sameDay(plan.path.at) && plan.path.line && plan.path.line.length > 1 ? plan.path : null;
     const other = safePath() ? { key: "p" + k, line: plan.pts.slice() } : sp ? { key: "s" + k, line: sp.line.slice() } : null;
     if (!other || planInfo.has(other.key)) return;
     setTimeout(() => {
@@ -2658,12 +2682,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         <p>Steepest ${Math.round(info.maxSlope)}° · ${info.km30 >= 0.05 ? `<b>${info.km30.toFixed(1)} km on 30°+ slopes</b>` : info.maxSlope >= 30 ? "only short bits on 30°+ slopes" : "no 30°+ slopes under it"}${info.above >= 0.05 && !safePath() ? ` · <b>${info.above.toFixed(1)} km under steep slopes</b>` : ""}</p>`;
     card.innerHTML = `${plan.on ? `<p><b>Tap the map</b> to add each point of your tour: ${plan.safe ? "where you start, then where you want to go (add more points to go a certain way). The Less exposed way finds a line between them." : "up the skin track, then the way down."} ${n ? "" : "Start where you park."}</p>` : `<p><b>${safePath() ? "Your tour, less exposed way" : "Your planned tour"}</b></p>`}
       ${sum}
+      ${tourRow(n)}
       <div class="sk-row"><button type="button" class="btn sk-safebtn" id="skSafeBtn" aria-pressed="${plan.safe}">${plan.safe ? "Less exposed way: on" : "Find a less exposed way"}</button></div>
       ${safeHtml()}
       <div class="sk-row">${plan.on && n ? `<button type="button" class="btn" id="skPlanUndo">↶ Undo</button>` : ""}${n ? `<button type="button" class="btn" id="skPlanClear">Clear</button>` : ""}${!plan.on && n > 1 ? `<button type="button" class="btn" id="skPlanMap">${plan.show ? "Hide from map" : "Show on map"}</button><button type="button" class="btn" id="skPlanShow">Show details</button>` : ""}</div>
       ${safePath() ? "" : ptsHtml()}`;
     const u = $("skPlanUndo"); if (u) u.addEventListener("click", planUndo);
-    const c = $("skPlanClear"); if (c) c.addEventListener("click", () => { if (plan.pts.length > 2 && !confirm("Clear your planned tour?")) return; snap(); plan.pts = []; plan.safe = false; store.set("skiSafe", false); planChanged(); });   // the next tour starts safest
+    const c = $("skPlanClear"); if (c) c.addEventListener("click", () => { if (plan.pts.length > 2 && !tourSame(tourOf()) && !confirm("Clear your planned tour?")) return; snap(); plan.pts = []; plan.safe = false; store.set("skiSafe", false); setTour(null); planChanged(); });
+    tourWire(card);   // the next tour starts safest
     const sh = $("skPlanShow"); if (sh) sh.addEventListener("click", () => { plan.show = true; drawPlan(); const r = planRoute(); if (r) select(r, true); });
     const pm = $("skPlanMap"); if (pm) pm.addEventListener("click", () => {
       plan.show = !plan.show; drawPlan(); renderPlan();
@@ -2710,6 +2736,122 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       window.tfToast && window.tfToast("Tap the map where you want to go next: it becomes the new End.");
     }));
   }
+  // ---------- saved tours ----------
+  // alex 2026-11-07: "once you are done planning a tour make it so we can save it and start planning another tour if we
+  // want". ★ Save this tour (with a name) keeps it in tf:skiTours, on this phone and, signed in, on the account
+  // (account.js); ＋ Plan a new tour starts again from nothing. Saved tours are in the Saved tab (and from the tour card);
+  // opening one puts it back on the map to edit or follow. Only the points are kept: a less exposed way is found again
+  // with that day's forecast when it's opened, never shown with an old day's danger.
+  const tours = () => store.get("skiTours", []);
+  // (or, after an Undo or from another device, the saved tour with exactly these points)
+  const tourOf = () => (plan.tour && tours().find((t) => t.id === plan.tour)) || (plan.pts.length > 1 && tours().find((t) => JSON.stringify(t.pts) === planKey())) || null;
+  const tourSame = (t) => !!t && JSON.stringify(t.pts) === planKey() && !!t.safe === !!plan.safe;
+  const setTour = (id) => { plan.tour = id; plan.naming = false; store.set("skiPlanTour", id); };
+  const tourDay = (at) => new Date(at).toLocaleDateString(window.tfLang && window.tfLang.lang === "fr" ? "fr-CA" : "en-CA", { month: "short", day: "numeric" });
+  // A first name for it: the lines it skis (Ask's or tapped freeride lines), else the day it was planned.
+  function tourName() {
+    const names = [...new Set(plan.pts.map((p) => p[2] && p[2].name).filter(Boolean))];
+    const n = names.join(", ");
+    return n ? (n.length > 48 ? n.slice(0, 46) + "…" : n) : `${window.tfLang && window.tfLang.lang === "fr" ? "Sortie" : "Tour"} ${tourDay(Date.now())}`;
+  }
+  function tourRow(n) {
+    const cnt = tours().length;
+    if (plan.on && n === 0 && cnt) return `<div class="sk-row"><button type="button" class="btn" data-tour="list">📂 Or open a saved tour (${cnt})</button></div>`;
+    if (plan.on || n < 2) return "";
+    const t = tourOf(), same = tourSame(t);
+    const list = cnt ? `<button type="button" class="btn" data-tour="list">📂 Saved tours (${cnt})</button>` : "";
+    if (plan.naming) return `<form class="sk-tourname" id="skTourForm"><label for="skTourName">Name this tour</label>
+        <input id="skTourName" type="text" maxlength="60" autocomplete="off" enterkeyhint="done" value="${esc(t ? t.n : tourName())}">
+        <div class="sk-row"><button type="submit" class="btn primary">★ Save</button><button type="button" class="btn" data-tour="cancel">Cancel</button></div></form>`;
+    return `<div class="sk-tourrow">${same ? `<p class="sk-tour-ok">${esc("✓ Saved: " + t.n)}</p>` : ""}
+      <div class="sk-row">${same ? "" : `<button type="button" class="btn primary" data-tour="save">${t ? "★ Save changes" : "★ Save this tour"}</button>`}<button type="button" class="btn${same ? " primary" : ""}" data-tour="new">＋ Plan a new tour</button>${list}</div></div>`;
+  }
+  function tourWire(card) {
+    const f = card.querySelector("#skTourForm");
+    if (f) {
+      const i = f.querySelector("input");
+      setTimeout(() => { i.focus(); i.select(); }, 30);
+      f.addEventListener("submit", (e) => { e.preventDefault(); saveTour(i.value); });
+    }
+    card.querySelectorAll("[data-tour]").forEach((b) => b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const a = b.dataset.tour;
+      if (a === "save") { plan.naming = true; renderPlan(); }
+      else if (a === "cancel") { plan.naming = false; renderPlan(); }
+      else if (a === "new") newTour();
+      else if (a === "list") showTours();
+    }));
+  }
+  function saveTour(name) {
+    if (plan.pts.length < 2) return;
+    const old = tourOf(), info = planNowInfo(), now = Date.now(), b = planRoute().bounds;
+    const t = { id: old ? old.id : "t" + now.toString(36), n: String(name || "").trim().slice(0, 60) || tourName(), pts: JSON.parse(planKey()), safe: !!plan.safe, at: old ? old.at : now, ed: now,
+      bb: [+b.getSouth().toFixed(5), +b.getWest().toFixed(5), +b.getNorth().toFixed(5), +b.getEast().toFixed(5)] };
+    if (info) Object.assign(t, { km: +(info.total / 1000).toFixed(1), up: Math.round(info.up), down: Math.round(info.down), top: Math.round(info.max) });
+    store.set("skiTours", [t, ...tours().filter((x) => x.id !== t.id)].slice(0, 50));
+    setTour(t.id);
+    renderPlan(); renderTours();
+    window.tfToast && window.tfToast(window.tfAccount && window.tfAccount.user ? "Tour saved: it's in Saved, on all your devices." : "Tour saved: it's in Saved.");
+  }
+  // A new tour from nothing (the one before stays in Saved if it was saved; Undo brings it back if it wasn't).
+  function newTour() {
+    if (plan.pts.length > 1 && !tourSame(tourOf()) && !confirm("This tour isn't saved. Start a new one anyway?")) return;
+    snap();
+    plan.pts = []; plan.fail = ""; plan.safe = false; store.set("skiSafe", false);
+    setTour(null);
+    planChanged();
+    setPlanning(true);
+    window.tfToast && window.tfToast("New tour: tap the map where you start.");
+  }
+  function openTour(id) {
+    const t = tours().find((x) => x.id === id);
+    if (!t) return;
+    if (plan.pts.length > 1 && !tourSame(tourOf()) && JSON.stringify(t.pts) !== planKey() && !confirm("The tour on the map isn't saved. Open this one instead?")) return;
+    if (sport !== "ski") setSport("ski");
+    snap();
+    plan.pts = JSON.parse(JSON.stringify(t.pts)); plan.fail = ""; plan.safe = !!t.safe; store.set("skiSafe", plan.safe);
+    setTour(t.id);
+    if (plan.on) setPlanning(false);
+    plan.show = true;
+    $("skTours").hidden = true;
+    planChanged();
+    if (t.bb) map.fitBounds([[t.bb[0], t.bb[1]], [t.bb[2], t.bb[3]]], { padding: [30, 30], maxZoom: 15 });
+    if (window.tfSnapTo) setTimeout(() => window.tfSnapTo("half"), 0);
+    if (window.tfPanelScrollTo) setTimeout(() => window.tfPanelScrollTo($("skPlan")), 60);
+  }
+  function delTour(id) {
+    const t = tours().find((x) => x.id === id);
+    if (!t || !confirm(`Delete "${t.n}"?`)) return;
+    if (window.tfAccount && window.tfAccount.gone) window.tfAccount.gone("skiTours", id);   // so a sync doesn't bring it back
+    store.set("skiTours", tours().filter((x) => x.id !== id));
+    if (plan.tour === id) setTour(null);
+    renderTours(); renderPlan();
+  }
+  // The list of saved tours (a card in the Skiing pane; the Saved tab and the tour card open it).
+  function renderTours() {
+    const el = $("skTours");
+    if (!el || el.hidden) return;
+    const l = tours();
+    el.innerHTML = `<div class="sk-tours-h"><b>Saved tours</b><button type="button" class="btn" data-tours="close" aria-label="Close">✕</button></div>
+      ${l.length ? `<ul class="sk-tours">${l.map((t) => `<li><button type="button" class="sk-tour-open" data-open-tour="${esc(t.id)}"><b>${esc(t.n)}</b><small>${t.km != null ? `${t.km.toFixed(1)} km · ↑ ${fmtM(t.up)} · ` : ""}${t.safe ? `<span>less exposed way</span> · ` : ""}${tourDay(t.ed || t.at)}</small></button><button type="button" class="sk-tour-del" data-del-tour="${esc(t.id)}" aria-label="Delete this tour">✕</button></li>`).join("")}</ul>`
+        : `<p>No saved tours yet. Plan a tour, then tap ★ Save this tour.</p>`}
+      <div class="sk-row"><button type="button" class="btn primary" data-tours="new">＋ Plan a new tour</button></div>`;
+  }
+  function showTours() {
+    const el = $("skTours");
+    el.hidden = false; renderTours();
+    if (window.tfSnapTo) setTimeout(() => window.tfSnapTo("half"), 0);
+    setTimeout(() => { if (window.tfPanelScrollTo) window.tfPanelScrollTo(el); else el.scrollIntoView({ block: "start" }); }, 60);
+  }
+  $("skTours").addEventListener("click", (e) => {
+    const o = e.target.closest("[data-open-tour]"); if (o) { openTour(o.dataset.openTour); return; }
+    const d = e.target.closest("[data-del-tour]"); if (d) { e.stopPropagation(); delTour(d.dataset.delTour); return; }
+    const b = e.target.closest("[data-tours]"); if (!b) return;
+    if (b.dataset.tours === "close") $("skTours").hidden = true;
+    else { $("skTours").hidden = true; newTour(); }
+  });
+  // Another device saved or deleted a tour (account.js sync).
+  window.addEventListener("tf:settings-synced", () => { renderTours(); if (sport === "ski") renderPlan(); });
   // Undo goes back one change, whatever it was (a point added, moved, deleted, swapped, a line added, a clear).
   function snap() {
     plan.offer = null;
@@ -2853,7 +2995,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const my = ++plan.run;
     clearTimeout(plan.timer);
     plan.safe = true; store.set("skiSafe", true);
-    plan.pts = []; store.set("skiPlan", plan.pts); plan.fail = "";
+    plan.pts = []; store.set("skiPlan", plan.pts); plan.fail = ""; setTour(null);
     if (selected && selected.src === "plan") { selected = null; selToken++; $("skDetail").hidden = true; aboveLayer.clearLayers(); }
     const say = (t) => { if (my === plan.run) { plan.wait = t; renderPlan(); } };
     say("Looking for a less exposed way in from a plowed road…");
@@ -4688,6 +4830,13 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // OFFLINE_DEM_Z (closer zooms are cut from those when offline, see dem()).
   const OFFLINE_DEM_Z = 12;
   window.tfSki = {
+    // index.html's Saved tab (Skiing): the saved tours.
+    tours: () => {
+      if (sport !== "ski") setSport("ski");
+      const t = document.querySelector('#tabbar [data-nav="ski"]');
+      if (window.matchMedia("(max-width: 760px)").matches && t && t.getAttribute("aria-current") !== "true") t.click();
+      setTimeout(showTours, 0);
+    },
     // Ask in plain words (ask.js): the named routes of these types (all when null) and the huts within maxKm of c
     // ([lat, lon]), nearest first, the way the list shows them (same-name pieces as one) with their risk light.
     near: async (c, maxKm, types) => {
@@ -4766,7 +4915,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     selectHut: (h) => select(h, true),
     selected: () => selected,
     // Draw your own way in with Plan a tour, from pts (the hut's end of it, or what was there).
-    plan: (pts) => { if (pts) { plan.pts = pts.map((p) => [+p[0].toFixed(6), +p[1].toFixed(6)]); planChanged(); } setPlanning(true); },
+    plan: (pts) => { if (pts) { plan.pts = pts.map((p) => [+p[0].toFixed(6), +p[1].toFixed(6)]); setTour(null); planChanged(); } setPlanning(true); },
     planPts: () => plan.pts.slice(),
     planning: () => plan.on,
     planOffer: (o) => planOffer(o),
@@ -4787,7 +4936,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (sport !== "ski") setSport("ski");
       snap();
       plan.pts = pts.map((p) => (p[2] ? [+p[0].toFixed(6), +p[1].toFixed(6), p[2].via ? { ...p[2], via: noBackLine(p[2].via) } : p[2]] : [+p[0].toFixed(6), +p[1].toFixed(6)]));
-      plan.path = null; plan.fail = ""; plan.show = true;
+      plan.path = null; plan.fail = ""; plan.show = true; setTour(null);   // a new tour, not the saved one that was open
       plan.safe = false; store.set("skiSafe", false);   // a new tour starts with the Less exposed way off: turned on per tour (alex 2026-11-06)
       if (plan.on) { plan.on = false; map.getContainer().classList.remove("sk-planning"); }
       map.fitBounds(L.latLngBounds(pts.flatMap((p) => [[p[0], p[1]], ...((p[2] && p[2].via) || [])])), { padding: [40, 40], maxZoom: 15 });
@@ -4852,6 +5001,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (sport === "ski") {
       skiLayer.addTo(map); hutLayer.addTo(map); hutNames.addTo(map); hutPins.addTo(map); pinLayer.addTo(map); parkLayer.addTo(map); mineLayer.addTo(map); clubLayer.addTo(map); snowLayer.addTo(map); aboveLayer.addTo(map);
       loadSki(); loadMine(); loadClubs(); if (shown.has("snow")) loadSnow(); renderSwitches(); renderList(); drawPlan(); renderPlan();
+      if (plan.safe && plan.pts.length > 1 && !safePath() && !plan.wait && !plan.fail) planChanged();   // a way from another day (or the old demo forecast): today's
     } else {
       setPlanning(false);
       routeFocus(false);

@@ -15,7 +15,7 @@
     // What each sport saves (alex 2026-10-30: trips, spots and pins on the account in every sport). Pins and tracks have
     // their own tables (ski-points.js, ride.html); these are the lists kept in localStorage. listGone comes first: the
     // lists' merges read it.
-    "listGone", "skiTrips", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"];
+    "listGone", "skiTrips", "skiTours", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"];
   const STAMP = "tf:settingsAt";   // when this device last changed a setting (ms)
 
   const api = window.tfAccount = { enabled: !!(SUPABASE_URL && SUPABASE_ANON_KEY), url: SUPABASE_URL, key: SUPABASE_ANON_KEY, client: null, user: null, ready: null };
@@ -511,7 +511,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   // when the app comes back to the screen, and when a page asks (tfAccount.sync(), e.g. opening 📂 Saved).
   const KEYAT = "tf:settingsKeyAt";
   const LIVE = new Set(["planSaved", "planGone", "notifyRead", "loamAlert", "myFinds", "shareOn", "shareKey", "sharePast", "shareFrom", "sharePlaces", "newsSeen",
-    "listGone", "skiTrips", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"]);   // read fresh by the page, so no reload
+    "listGone", "skiTrips", "skiTours", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"]);   // read fresh by the page, so no reload
   const jparse = (v, d) => { try { const x = JSON.parse(v); return x == null ? d : x; } catch { return d; } };
   // A saved list both devices add to: items by id, the newer edit wins, minus those deleted (tf:listGone) after their
   // last edit. sorted: newest first (else this device's order, then the account's new ones). max: the page's own cap.
@@ -538,6 +538,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
       return list.length ? JSON.stringify(list) : null;
     },
     skiTrips: listMerge("skiTrips", (t) => t.id, (t) => t.ed || t.at || 0, true, 20),         // cabin trips (cabin-trip.js)
+    skiTours: listMerge("skiTours", (t) => t.id, (t) => t.ed || t.at || 0, true, 50),         // Skiing: planned tours saved (winter.js)
     skiWatch: listMerge("skiWatch", (w) => w.k, (w) => w.at || 0, true, 40),                 // 🔔 Watch this tour (winter.js)
     motoRoutes: listMerge("motoRoutes", (r) => r.id, (r) => r.ed || r.at || 0, true, 40),   // Adventure moto saved routes
     motoBikes: listMerge("motoBikes", (k) => k.id, (k) => k.ed || 0, false, 20),            // Adventure moto: my bikes
@@ -591,6 +592,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     planSaved: [(v) => arr(v).length, "this route"],
     motoRoutes: [(v) => arr(v).length, "this route"],
     skiTrips: [(v) => arr(v).length, "this cabin trip"],
+    skiTours: [(v) => arr(v).length, "this tour"],
     hikeSaved: [(v) => arr(v).length, "this hike"],
     hikePlans: [(v) => arr(v).length, "this hike"],
     folders: [(v) => arr(v).reduce((n, f) => n + ((f && f.trails && f.trails.length) || 0), 0), "your trail lists"],

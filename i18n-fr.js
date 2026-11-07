@@ -636,6 +636,24 @@
     "One search bar for everything: type a place or ask in plain words, and Go turns into Ask when it reads like a question.":"Une seule barre pour tout : écrivez un lieu ou posez une question en mots simples, et Go devient Demander quand c'est une question.",
     "Search or ask a question":"Chercher ou poser une question",
     "Search or ask":"Chercher ou demander",
+    "Name this tour":"Nommer cette sortie",
+    "★ Save":"★ Enregistrer",
+    "★ Save this tour":"★ Enregistrer cette sortie",
+    "★ Save changes":"★ Enregistrer les changements",
+    "＋ Plan a new tour":"＋ Planifier une nouvelle sortie",
+    "Saved tours":"Sorties enregistrées",
+    "less exposed way":"chemin moins exposé",
+    "Delete this tour":"Supprimer cette sortie",
+    "No saved tours yet. Plan a tour, then tap ★ Save this tour.":"Aucune sortie enregistrée. Planifiez une sortie, puis touchez ★ Enregistrer cette sortie.",
+    "This tour isn't saved. Start a new one anyway?":"Cette sortie n'est pas enregistrée. En commencer une nouvelle quand même?",
+    "The tour on the map isn't saved. Open this one instead?":"La sortie sur la carte n'est pas enregistrée. Ouvrir celle-ci à la place?",
+    "Tour saved: it's in Saved, on all your devices.":"Sortie enregistrée : elle est dans Enregistrés, sur tous vos appareils.",
+    "Tour saved: it's in Saved.":"Sortie enregistrée : elle est dans Enregistrés.",
+    "New tour: tap the map where you start.":"Nouvelle sortie : touchez la carte là où vous partez.",
+    "Planned tours":"Sorties planifiées",
+    "Tours you planned and saved":"Sorties que vous avez planifiées et enregistrées",
+    "Sign in to have this tour on all your devices, and keep it if you lose your phone. Free, and the app works the same without it.":"Connectez-vous pour avoir cette sortie sur tous vos appareils, et ne pas la perdre si vous perdez votre téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
+    "Skiing: save a planned tour (★ Save this tour) and start another; saved tours are in Saved and on your account.":"Ski : enregistrez une sortie planifiée (★ Enregistrer cette sortie) et commencez-en une autre; les sorties enregistrées sont dans Enregistrés et sur votre compte.",
     "Tagged as a bike trail":"Identifié comme sentier de vélo",
     "Official":"Officiel",
     "Unnamed path":"Chemin sans nom",
@@ -2157,6 +2175,9 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    [/^📂 Saved tours \((\d+)\)$/, "📂 Sorties enregistrées ($1)"],   // winter.js, the tour card
+    [/^📂 Or open a saved tour \((\d+)\)$/, "📂 Ou ouvrir une sortie enregistrée ($1)"],
+    [/^Delete "(.+)"\?$/, "Supprimer « $1 »?"],
     [/^Leg (\d+) of (\d+) · (.+)$/, function (m, a, b, t) { return "Tronçon " + a + " sur " + b + " · " + tt(t); }],   // ski-route.js, a tour with stops
     [/^Near (?!me\b|you\b|the\b)([^:.!?()]{1,40})$/, "Près de $1"],   // the Area box: "Near Cumberland"
     [/^(\d+) (minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years) ago$/, function (m, n, u) { return "il y a " + n + " " + UNIT[u]; }],

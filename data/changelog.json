@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-07", "text": "Skiing: save a planned tour (★ Save this tour) and start another; saved tours are in Saved and on your account."},
     {"date": "2026-11-07", "text": "Skiing 3D: the winter photo is sharper and cleaner from the middle distance at Whistler, Revelstoke, Rogers Pass and Kicking Horse, without the grey squares."},
     {"date": "2026-11-07", "text": "Skiing opens with Lift status and Slackcountry on; Your ski tours are a switch in Layers."},
     {"date": "2026-11-07", "text": "One search bar for everything: type a place or ask in plain words, and Go turns into Ask when it reads like a question."},
