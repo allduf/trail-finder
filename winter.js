@@ -616,7 +616,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     <form class="sk-findform" id="skFindForm" role="search"><div class="ps-row"><input type="search" class="sk-find" id="skFind" placeholder="Search or ask a question" aria-label="Search a route, hut, resort, freeride line or place, or ask in plain words" autocomplete="off" spellcheck="false" enterkeyhint="search"><button type="submit" class="ps-go">Go</button></div></form>
     <p class="ps-msg" id="skPlaceMsg" role="status"></p><ul class="ps-hits" id="skPlaces" aria-label="Search results"></ul>
     <button type="button" class="sk-now" id="skNow" hidden></button>
-    <div class="sk-acts"><button type="button" class="sk-act" id="skPlanBtn">✎ Plan a tour</button><button type="button" class="sk-act" id="skRecBtn">▶ Record a tour</button><button type="button" class="sk-act" id="skSaveBtn" title="Save a point on the map with a name, a description and a photo">📍 Save a point</button></div>
+    <div class="sk-acts"><button type="button" class="sk-act" id="skPlanBtn">✎ Plan a tour</button><button type="button" class="sk-act" id="skRecBtn">▶ Record a tour</button><button type="button" class="sk-act" id="skSaveBtn" title="Save a point on the map with a name, a description and a photo">📍 Save a point</button><button type="button" class="sk-act" id="skNewBtn" hidden>＋ Plan a new tour</button><button type="button" class="sk-act" id="skToursBtn" hidden>📂 Saved tours</button></div>
     <div class="sk-slopekey" id="skSlopeKey" hidden></div>
     <div class="sk-slopekey" id="skLayerKey" hidden></div>
     <div class="sk-card sk-plan" id="skPlan" hidden></div>
@@ -1357,7 +1357,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3740").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3750").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2675,6 +2675,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     $("skPlanBtn").setAttribute("aria-pressed", String(plan.on));
     $("skPlanBtn").textContent = plan.on ? "✓ Done planning" : n > 1 ? "✎ Edit my tour" : "✎ Plan a tour";
+    // ＋ Plan a new tour and 📂 Saved tours sit with ✎ Plan a tour at the top of Routes (alex 2026-11-07, with a drawing
+    // of the tour card: "should it go there?"), not on the tour card.
+    const cnt = tours().length;
+    $("skNewBtn").hidden = plan.on || n < 2;
+    $("skToursBtn").hidden = !cnt;
+    $("skToursBtn").textContent = `📂 Saved tours (${cnt})`;
     card.hidden = !plan.on && n < 2 && !plan.wait && !plan.fail;
     if (card.hidden) return;
     if (n > 1 && !info && !plan.wait) warmPlanNow();
@@ -2761,14 +2767,13 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (plan.on && n === 0 && cnt) return `<div class="sk-row"><button type="button" class="btn" data-tour="list">📂 Or open a saved tour (${cnt})</button></div>`;
     if (plan.on || n < 2) return "";
     const t = tourOf(), same = tourSame(t);
-    const list = cnt ? `<button type="button" class="btn" data-tour="list">📂 Saved tours (${cnt})</button>` : "";
     if (plan.naming) return `<form class="sk-tourname" id="skTourForm"><label for="skTourName">Name this tour</label>
         <input id="skTourName" type="text" maxlength="60" autocomplete="off" enterkeyhint="done" value="${esc(t ? t.n : tourName())}">
         <div class="sk-row"><button type="submit" class="btn primary">★ Save</button><button type="button" class="btn" data-tour="cancel">Cancel</button></div></form>`;
     // Kept by itself (alex 2026-11-07: "a lot of step to organize a plan for ski tour"): a tour is saved when it's made
     // (✓ Done, or Ask's Make this tour) under the lines it skis, and follows its edits; Rename is there if wanted.
     return `<div class="sk-tourrow">${same ? `<p class="sk-tour-ok"><span>${esc("✓ Saved as " + t.n)}</span> <button type="button" class="linkish" data-tour="rename">Rename</button></p>` : ""}
-      <div class="sk-row">${same ? "" : `<button type="button" class="btn primary" data-tour="save">${t ? "★ Save changes" : "★ Save this tour"}</button>`}<button type="button" class="btn${same ? " primary" : ""}" data-tour="new">＋ Plan a new tour</button>${list}</div></div>`;
+      ${same ? "" : `<div class="sk-row"><button type="button" class="btn primary" data-tour="save">${t ? "★ Save changes" : "★ Save this tour"}</button></div>`}</div>`;
   }
   function tourWire(card) {
     const f = card.querySelector("#skTourForm");
@@ -3526,6 +3531,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   let dbl3d = null;
   window.addEventListener("tf:map3d", () => { const gl = window.trailMap3d; if (gl && gl !== dbl3d) { dbl3d = gl; gl.on("dblclick", () => clearTimeout(offTimer)); } });
   $("skPlanBtn").addEventListener("click", () => setPlanning(!plan.on));
+  $("skNewBtn").addEventListener("click", () => newTour());
+  $("skToursBtn").addEventListener("click", () => showTours());
   // Save a point lives here on phones, so the map keeps the same four buttons in every sport
   $("skSaveBtn").addEventListener("click", () => { if (window.tfPoints) window.tfPoints.add(); });
   $("skRecBtn").addEventListener("click", () => {
