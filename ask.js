@@ -49,16 +49,16 @@ form.ask-box label { font-size: .78rem; font-weight: 800; letter-spacing: .04em;
 .hub form.ask-box { margin: 10px 0 2px; }
 #panel > .panel-head form.ask-box.ask-desk { margin: 2px 0 8px; }
 dialog.ask-dlg form.ask-box label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-@media (max-width: 760px) {
-  form.ask-box.ask-desk { display: none; }
-  /* the sports' Find pages are in a set order (theme.css): the box goes right under their search box */
-  html body :is(#skiPane, #huntPane, #fishPane, #motoPane) form.ask-box { order: 1; }
-  html body .panel:not(.nav-alt) :is(#skiPane, #huntPane, #fishPane, #motoPane) form.ask-box { display: none; }
-  /* One search box on the Find page (alex 2026-11-02, interface review): the sport's own search takes questions too
-     (asks() below), so its Ask box shrinks to one example line that asks it when tapped. */
-  :is(.hub, #skiPane, #huntPane, #fishPane, #motoPane) form.ask-box > :is(label, .ask-row) { display: none; }
-  :is(.hub, #skiPane, #huntPane, #fishPane, #motoPane) form.ask-box .ask-try { display: block; }
-}
+/* ONE bar for searching and asking, on phones and computers (alex 2026-11-07: "Not clear if I Ask things in the search
+   bar or not? Should it be in the same bar or two separate bar?"). The sport's own search box takes questions (asks()
+   below), says so in its placeholder, and its Go button turns into Ask while the words read like a question. The Ask box
+   is only used inside the answer sheet now. */
+form.ask-box:not(.ask-in-dlg) { display: none !important; }
+.ask-will { all: unset; box-sizing: border-box; display: block; width: 100%; cursor: pointer; margin: 2px 0 0; padding: 9px 12px; border-radius: 12px; border: 1px dashed #1f5fe0; font-size: .9rem; font-weight: 600; color: #1f5fe0; line-height: 1.3; }
+.ask-will b { font-weight: 700; }
+#trailHits .hnote .ask-will { margin: 0; }
+.ask-will[hidden] { display: none; }
+#skFindForm.tf-asking ~ #skPlaceMsg, form.ps-box.tf-asking .ps-msg { display: none; }
 .ask-try { all: unset; display: none; box-sizing: border-box; cursor: pointer; font-size: .84rem; color: var(--muted); padding: 2px 2px 4px; line-height: 1.35; }
 .ask-try b { color: #1f5fe0; font-weight: 600; }
 dialog.ask-dlg { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--fg); padding: 14px; width: min(540px, calc(100vw - 16px)); max-height: calc(100dvh - 24px); overflow: auto; box-sizing: border-box; box-shadow: 0 10px 40px rgba(0,0,0,.3); font: inherit; }
@@ -94,7 +94,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
 
   // ---------- the box (on each sport's Find page) and the answer sheet ----------
   const boxHtml = (sp, cls = "") => `<form class="ask-box ${cls}" data-ask="${sp}" role="search"><label for="askIn-${sp}${cls ? "-" + cls : ""}">💬 Ask in plain words</label>
-    <div class="ask-row"><input class="ask-in" id="askIn-${sp}${cls ? "-" + cls : ""}" type="search" enterkeyhint="search" autocomplete="off" placeholder="${esc(SP[sp].ph)}" aria-label="Ask in plain words"><button type="submit" class="ask-go">Ask</button></div><button type="button" class="ask-try" data-try="${esc(SP[sp].ph)}"><span aria-hidden="true">💬 </span><span>You can also ask in plain words, like:</span> <b>${esc(SP[sp].ph)}</b></button></form>`;
+    <div class="ask-row"><input class="ask-in" id="askIn-${sp}${cls ? "-" + cls : ""}" type="search" enterkeyhint="search" autocomplete="off" placeholder="${esc(SP[sp].ph)}" aria-label="Ask in plain words"><button type="submit" class="ask-go">Ask</button></div></form>`;
   document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest(".ask-try"); if (b) open(b.dataset.try); });
   // The sport's own search box answers questions too (interface review 2026-11-02: two search boxes on Find). Words that
   // read like a question ("loop near Squamish tomorrow", "what can I hunt near Pemberton") go to Ask; names (a trail, a
@@ -116,6 +116,35 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     e.preventDefault(); e.stopImmediatePropagation();
     inp.blur(); open(q);
   }, true);
+  // While typing in that one bar: when the words read like a question, Go says Ask and one line says what will happen.
+  const ownBox = (el) => {
+    if (!el || el.tagName !== "INPUT") return null;
+    if (el.id === "trailQ") return { inp: el, btn: $("trailGo"), row: null };   // its list under the box says it (index.html)
+    const f = el.closest("form.ps-box, form#skFindForm");
+    if (!f || f.closest("dialog")) return null;
+    const own = f.id === "skFindForm" || (f.previousElementSibling && f.previousElementSibling.matches(".hn-actions, .fs-actions, .mt-actions"));
+    return own ? { inp: el, btn: f.querySelector(".ps-go"), row: f.querySelector(".ps-row") } : null;
+  };
+  const askCue = (b) => {
+    if (!b) return;
+    const on = asks(b.inp.value || "");
+    if (b.btn) {
+      if (!b.btn.dataset.word) b.btn.dataset.word = b.btn.textContent;
+      b.btn.textContent = on ? "Ask" : b.btn.dataset.word;
+    }
+    if (!b.row) return;
+    // (inside the form, right under its row, so it stays with the box wherever the pane puts it)
+    let will = b.row.nextElementSibling && b.row.nextElementSibling.classList.contains("ask-will") ? b.row.nextElementSibling : null;
+    if (!will && !on) return;
+    if (!will) { will = document.createElement("button"); will.type = "submit"; will.className = "ask-will"; b.row.after(will); }
+    will.hidden = !on;
+    will.innerHTML = on ? `<span aria-hidden="true">💬 </span><span>Ask</span> <b>“${esc(b.inp.value.trim())}”</b>` : "";
+    b.row.closest("form").classList.toggle("tf-asking", on);
+  };
+  document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("[data-ask-now]")) trailAsk(e); }, true);
+  document.addEventListener("input", (e) => askCue(ownBox(e.target)));
+  document.addEventListener("search", (e) => askCue(ownBox(e.target)), true);   // the ✕ in the box
+  document.addEventListener("focusout", (e) => { const b = ownBox(e.target); if (b) setTimeout(() => askCue(b), 0); });
   const trailAsk = (e) => {
     const inp = $("trailQ"), q = inp ? inp.value.trim() : "";
     if (!asks(q)) return;
@@ -388,7 +417,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     if (p.sport === "ski") {
       const SKIW = new Set(["mount", "mt", "mountain", "resort", "ski", "area", "hill", "slack", "country", "slackcountry", "backcountry", "side", "the", "de", "du", "station", "mont"]);
       const w = n.split(" ").filter((x) => x && !SKIW.has(x));
-      const rs = w.length ? await fetch("data/ski-lifts.json?v=3670").then((r) => r.json()).then((d) => Object.values(d.resorts || {})).catch(() => []) : [];
+      const rs = w.length ? await fetch("data/ski-lifts.json?v=3680").then((r) => r.json()).then((d) => Object.values(d.resorts || {})).catch(() => []) : [];
       const hit = rs.find((r) => r.name && w.every((x) => norm(r.name).split(" ").includes(x)));
       if (hit) return { c: [hit.lat, hit.lon], name: hit.name };
       const a = await skiAreaOf(p.place);
@@ -455,7 +484,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     return out;
   }
   let liftsP = null, slackP = null;
-  const liftsList = () => liftsP || (liftsP = fetch("data/ski-lifts.json?v=3670").then((r) => r.json()).then((d) => d.lifts || []).catch(() => { liftsP = null; return []; }));
+  const liftsList = () => liftsP || (liftsP = fetch("data/ski-lifts.json?v=3680").then((r) => r.json()).then((d) => d.lifts || []).catch(() => { liftsP = null; return []; }));
   const slackList = () => slackP || (slackP = fetch("data/slackcountry.json").then((r) => r.json()).then((d) => (d.resorts || []).flatMap((rs) => (rs.lines || []).map((l) => ({ ...l, resort: rs.name })))).catch(() => { slackP = null; return []; }));
   const pairs = (flat) => { const o = []; for (let i = 0; i + 1 < flat.length; i += 2) o.push([flat[i], flat[i + 1]]); return o; };
   // How well a name typed matches a name on the map: 3 the same, 2.5 the same before its brackets or its short name,

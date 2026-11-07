@@ -1,0 +1,10 @@
+# One bar for search and Ask (alex 2026-11-07)
+Search a route, hut, resort, freeride line or place, or ask in plain words ||| Chercher un itinéraire, un refuge, une station, une ligne freeride ou un lieu, ou demander en mots simples
+Search a trail, town or riding area anywhere in Canada, or ask in plain words ||| Chercher un sentier, une ville ou un secteur partout au Canada, ou demander en mots simples
+Search a trail, town or area, or ask in plain words. Or pick where and how new. ||| Cherchez un sentier, une ville ou un secteur, ou demandez en mots simples. Ou choisissez où et depuis quand.
+Go to a town, mountain, lake or region, or ask in plain words ||| Aller à une ville, une montagne, un lac ou une région, ou demander en mots simples
+Go to a lake, river, town or region, or ask in plain words ||| Aller à un lac, une rivière, une ville ou une région, ou demander en mots simples
+Go to a town, region or mountain, or ask in plain words ||| Aller à une ville, une région ou une montagne, ou demander en mots simples
+One search bar for everything: type a place or ask in plain words, and Go turns into Ask when it reads like a question. ||| Une seule barre pour tout : écrivez un lieu ou posez une question en mots simples, et Go devient Demander quand c'est une question.
+Search or ask a question ||| Chercher ou poser une question
+Search or ask ||| Chercher ou demander

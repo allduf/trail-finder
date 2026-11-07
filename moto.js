@@ -393,7 +393,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       <div class="mt-row"><button type="button" class="mt-pill" id="mtAll">${svg(IC.layers, 16)}All layers</button><button type="button" class="mt-pill" id="mtRoutesBtn">${svg(IC.save, 16)}Saved routes</button><button type="button" class="mt-pill" id="mtLogBtn">${svg(IC.log, 16)}My adventure rides</button></div></div>
     <details class="mt-safe"><summary>A guide, not the law</summary>Road surfaces and grades come from OpenStreetMap and can be out of date: a road can wash out or be deactivated any day. Closures, parks and land rules come from the provinces' and Canada's open data and are simplified. Check posted signs, BC's resource road notices, Alberta's Public Land Use Zones, your province's off-highway vehicle rules, and ride to the conditions.</details>`;
   // Go to a place (place-search.js): a town, mountain, lake or region, and the map jumps there (alex 2026-10-26).
-  if (window.tfPlaceSearch) pane.querySelector(".mt-actions").after(window.tfPlaceSearch.box({ placeholder: "Go to a town, region or mountain" }));
+  if (window.tfPlaceSearch) pane.querySelector(".mt-actions").after(window.tfPlaceSearch.box({ placeholder: "Search or ask a question", label: "Go to a town, region or mountain, or ask in plain words" }));
   const lmMoto = document.createElement("div");
   lmMoto.className = "lm-moto";
   lmMoto.innerHTML = `<div class="lm-head">Adventure moto layers</div><p class="mt-note" id="mtLayerNote" style="margin:0;font-size:.74rem;color:var(--muted)"></p><div id="mtLayerList"></div>`;
