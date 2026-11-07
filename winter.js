@@ -398,6 +398,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 #skiPane .av-sw { display: inline-block; width: 14px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: linear-gradient(90deg, #52ba4a, #fff300, #f79218, #ef1c29); }
 #skiPane .av-pill[aria-pressed="true"] { background: #f79218; border-color: #f79218; color: #1a1a1a; }
 #skiPane .av-card > details > summary { font-size: .82rem; color: var(--muted); }
+#skiPane .av-demo { color: var(--muted); font-size: .68rem; margin: 2px 0 0; opacity: .8; }
 #skiPane .av-warn { background: #fff3cd; color: #5c4400; border-radius: 8px; padding: 6px 8px; font-size: .82rem; font-weight: 600; }
 #skiPane .av-legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; font-size: .8rem; }
 #skiPane .av-legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; border: 1px solid #0002; }
@@ -1331,7 +1332,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3650").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3670").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -1597,6 +1598,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const rated = f && f.days?.some((x) => x.alp || x.tln || x.btl);
     let html = `<h4>Avalanche${f ? `: ${esc(f.title || area.name)}` : ""}</h4>`;
     if (example) html += `<div class="av-warn">EXAMPLE, not a real forecast.</div>`;
+    html += demoNote();
     if (!f || !d) html += `<p>No avalanche forecast here right now. ${site.season} ${link}</p>`;
     else {
       const expired = !example && f.validUntil && new Date(f.validUntil) < new Date();
@@ -3162,6 +3164,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const where = `${bandN} here (${band === "alp" ? `above ~${fmtM(bands.hi)}` : band === "tln" ? `~${fmtM(bands.lo)} to ${fmtM(bands.hi)}` : `below ~${fmtM(bands.lo)}`})`;
     let html = `<h4>Avalanche danger${f ? `: ${esc(f.title || a.name)}` : ""}</h4>`;
     if (example) html += `<div class="av-warn">EXAMPLE, not a real forecast.</div>`;
+    html += demoNote();
     const expired = f && !example && f.validUntil && new Date(f.validUntil) < new Date();
     if (!f || !f.days || !f.days.length || expired) return html + `<p class="sk-note">${where}.</p><p>No avalanche forecast here right now${expired ? " (the last one has expired)" : ""}. ${site.season} ${link}</p>`;
     const d = dayOf(f), r = (d && d[band]) || 0, li = r ? T.light(r, cls.c) : -1;
@@ -3524,10 +3527,31 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     });
     return d;
   }
+  // Filming a promo video before the season (alex 2026-11-07): trailfinderapp.ca/?demo=forecast shows Avalanche Canada's
+  // real forecasts from a past winter day (data/avalanche-demo.json) moved to today, until ?demo=off. Nobody else sees it.
+  const DEMO_AVY = (() => {
+    try {
+      const q = new URLSearchParams(location.search).get("demo");
+      if (q === "forecast") localStorage.setItem("tf:demoAvy", "1"); else if (q === "off") localStorage.removeItem("tf:demoAvy");
+      return localStorage.getItem("tf:demoAvy") === "1";
+    } catch { return false; }
+  })();
+  function demoToday(d) {
+    const DAY = 864e5, from = Date.parse(d.demo.from + "T00:00:00Z"), now = new Date();
+    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()), shift = today - from;
+    const move = (t) => (t ? new Date(Date.parse(t) + shift).toISOString() : t);
+    (d.areas || []).forEach((a) => {
+      const f = a.forecast; if (!f) return;
+      f.issued = move(f.issued); f.validUntil = new Date(today + 4 * DAY).toISOString();
+      (f.days || []).forEach((x, i) => { const t = new Date(today + i * DAY); x.date = t.toISOString().slice(0, 10); x.label = t.toLocaleDateString("en-CA", { weekday: "long", timeZone: "UTC" }); });
+    });
+    return d;
+  }
+  const demoNote = () => (avy && avy.demo && !example ? `<p class="av-demo">Past forecast (${esc(avy.demo.from)}), shown as today for a demo.</p>` : "");
   function loadAvy() {
     if (avy || avyLoading) return avyLoading;
-    avyLoading = fetch("data/avalanche.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((d) => { avy = prepAreas(d); refreshAvy(); })
+    avyLoading = fetch(DEMO_AVY ? "data/avalanche-demo.json" : "data/avalanche.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((d) => { avy = prepAreas(d.demo ? demoToday(d) : d); refreshAvy(); })
       .catch((e) => { avyErr = e.message; renderForecast(); })
       .finally(() => { avyLoading = null; });
     return avyLoading;
@@ -3651,6 +3675,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ${rated ? `${f.days.length > 1 ? `<div class="av-days" role="group" aria-label="Day">${f.days.map((x, i) => `<button type="button" data-d="${i}" aria-pressed="${x === d}">${esc(x.label || x.date)}</button>`).join("")}</div>` : ""}
       <div class="av-bands">${BANDS.map(([b, n]) => band(b, n)).join("")}</div>`
         : `<p class="av-line">No danger ratings yet: it's early season.</p>`}
+      ${demoNote()}
       <div id="avWx">${cardWeather(c, area.bands.hi)}</div>
       <details id="avMore"${avMore ? " open" : ""}><summary>${rated ? "Problems, notes and riders' reports" : "Read the bulletin"}</summary>
         ${f.highlights ? `<p><strong>${esc(f.highlights)}</strong></p>` : ""}
