@@ -625,8 +625,6 @@
     "Or close this and tap the map where you start.":"Ou fermez ceci et touchez la carte là où vous partez.",
     "Skiing Plan a tour: type your plan in words (start, lines, finish) and it draws the tour.":"Ski, Planifier une sortie : écrivez votre plan en mots (départ, lignes, arrivée) et la sortie se dessine.",
     "3D map: trail and route lines are sharp now, drawn on top of the mountains instead of painted soft into the photo.":"Carte 3D : les lignes des sentiers et des itinéraires sont nettes maintenant, dessinées par-dessus les montagnes au lieu d'être peintes floues dans la photo.",
-    "Skiing 3D: the winter photo is sharper and cleaner from the middle distance at Whistler, Revelstoke, Rogers Pass and Kicking Horse, without the grey squares.":"Ski 3D : la photo d'hiver est plus nette et plus propre dès la moyenne distance à Whistler, Revelstoke, Rogers Pass et Kicking Horse, sans les carrés gris.",
-    "Skiing opens with Lift status and Slackcountry on; Your ski tours are a switch in Layers.":"Le ski s'ouvre avec l'état des remontées et le slackcountry ; Vos sorties de ski sont un bouton dans Couches.",
     "Search a route, hut, resort, freeride line or place, or ask in plain words":"Chercher un itinéraire, un refuge, une station, une ligne freeride ou un lieu, ou demander en mots simples",
     "Search a trail, town or riding area anywhere in Canada, or ask in plain words":"Chercher un sentier, une ville ou un secteur partout au Canada, ou demander en mots simples",
     "Search a trail, town or area, or ask in plain words. Or pick where and how new.":"Cherchez un sentier, une ville ou un secteur, ou demandez en mots simples. Ou choisissez où et depuis quand.",
@@ -636,6 +634,8 @@
     "One search bar for everything: type a place or ask in plain words, and Go turns into Ask when it reads like a question.":"Une seule barre pour tout : écrivez un lieu ou posez une question en mots simples, et Go devient Demander quand c'est une question.",
     "Search or ask a question":"Chercher ou poser une question",
     "Search or ask":"Chercher ou demander",
+    "Skiing opens with Lift status and Slackcountry on; Your ski tours are a switch in Layers.":"Le ski s'ouvre avec l'état des remontées et le slackcountry ; Vos sorties de ski sont un bouton dans Couches.",
+    "Skiing 3D: the winter photo is sharper and cleaner from the middle distance at Whistler, Revelstoke, Rogers Pass and Kicking Horse, without the grey squares.":"Ski 3D : la photo d'hiver est plus nette et plus propre dès la moyenne distance à Whistler, Revelstoke, Rogers Pass et Kicking Horse, sans les carrés gris.",
     "Name this tour":"Nommer cette sortie",
     "★ Save":"★ Enregistrer",
     "★ Save this tour":"★ Enregistrer cette sortie",
@@ -654,6 +654,11 @@
     "Tours you planned and saved":"Sorties que vous avez planifiées et enregistrées",
     "Sign in to have this tour on all your devices, and keep it if you lose your phone. Free, and the app works the same without it.":"Connectez-vous pour avoir cette sortie sur tous vos appareils, et ne pas la perdre si vous perdez votre téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
     "Skiing: save a planned tour (★ Save this tour) and start another; saved tours are in Saved and on your account.":"Ski : enregistrez une sortie planifiée (★ Enregistrer cette sortie) et commencez-en une autre; les sorties enregistrées sont dans Enregistrés et sur votre compte.",
+    "Make it with the less exposed way":"Tracer avec le chemin moins exposé",
+    "The less exposed way finds the way between the pieces (the climb too). It weighs":"Le chemin moins exposé trouve le chemin entre les étapes (la montée aussi). Il tient compte de",
+    "Your tour is kept in Saved. Its card shows each stretch and why it goes there. Drag, add or take away points with ✎ Edit my tour. No route is avalanche-safe: check the forecast and decide in the field.":"Votre sortie est gardée dans Enregistrés. Sa fiche montre chaque tronçon et pourquoi il passe là. Déplacez, ajoutez ou enlevez des points avec ✎ Modifier ma sortie. Aucun itinéraire n'est à l'abri des avalanches : consultez le bulletin et décidez sur le terrain.",
+    "No saved tours yet. Each tour you plan is kept here.":"Aucune sortie enregistrée. Chaque sortie que vous planifiez est gardée ici.",
+    "Skiing: planning a tour takes fewer taps. Each tour is saved by itself, and a typed plan can be made with the less exposed way in one tap.":"Ski : planifier une sortie demande moins de touches. Chaque sortie est enregistrée d'elle-même, et un plan écrit peut être tracé avec le chemin moins exposé en une touche.",
     "Tagged as a bike trail":"Identifié comme sentier de vélo",
     "Official":"Officiel",
     "Unnamed path":"Chemin sans nom",
@@ -2176,6 +2181,7 @@
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
     [/^📂 Saved tours \((\d+)\)$/, "📂 Sorties enregistrées ($1)"],   // winter.js, the tour card
+    [/^✓ Saved as (.+)$/, "✓ Enregistrée sous « $1 »"],
     [/^📂 Or open a saved tour \((\d+)\)$/, "📂 Ou ouvrir une sortie enregistrée ($1)"],
     [/^Delete "(.+)"\?$/, "Supprimer « $1 »?"],
     [/^Leg (\d+) of (\d+) · (.+)$/, function (m, a, b, t) { return "Tronçon " + a + " sur " + b + " · " + tt(t); }],   // ski-route.js, a tour with stops

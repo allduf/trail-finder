@@ -83,6 +83,7 @@ ol.ask-list b { font-size: .96rem; } ol.ask-list small { color: var(--muted); fo
 .ask-areas button { font: inherit; font-size: .82rem; font-weight: 600; padding: 6px 11px; min-height: 36px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip, #fff); color: var(--fg); cursor: pointer; }
 .ask-areas button[aria-pressed="true"] { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
 .ask-act { font: inherit; font-weight: 700; padding: 10px 14px; min-height: 44px; border-radius: 12px; border: 0; background: #1f5fe0; color: #fff; cursor: pointer; width: 100%; margin: 6px 0 0; }
+.ask-act.ask-act2 { background: transparent; color: #1f5fe0; box-shadow: inset 0 0 0 2px #1f5fe0; }
 .ask-more { font: inherit; font-weight: 700; padding: 8px 14px; min-height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--chip, #fff); color: #1f5fe0; cursor: pointer; width: 100%; margin: 6px 0 0; }
 .ask-wait { color: var(--muted); font-size: .88rem; padding: 6px 0; }
 ol.ask-plan { margin: 0; padding: 0 0 0 4px; list-style: none; counter-reset: st; display: flex; flex-direction: column; gap: 6px; }
@@ -417,7 +418,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     if (p.sport === "ski") {
       const SKIW = new Set(["mount", "mt", "mountain", "resort", "ski", "area", "hill", "slack", "country", "slackcountry", "backcountry", "side", "the", "de", "du", "station", "mont"]);
       const w = n.split(" ").filter((x) => x && !SKIW.has(x));
-      const rs = w.length ? await fetch("data/ski-lifts.json?v=3730").then((r) => r.json()).then((d) => Object.values(d.resorts || {})).catch(() => []) : [];
+      const rs = w.length ? await fetch("data/ski-lifts.json?v=3740").then((r) => r.json()).then((d) => Object.values(d.resorts || {})).catch(() => []) : [];
       const hit = rs.find((r) => r.name && w.every((x) => norm(r.name).split(" ").includes(x)));
       if (hit) return { c: [hit.lat, hit.lon], name: hit.name };
       const a = await skiAreaOf(p.place);
@@ -484,7 +485,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     return out;
   }
   let liftsP = null, slackP = null;
-  const liftsList = () => liftsP || (liftsP = fetch("data/ski-lifts.json?v=3730").then((r) => r.json()).then((d) => d.lifts || []).catch(() => { liftsP = null; return []; }));
+  const liftsList = () => liftsP || (liftsP = fetch("data/ski-lifts.json?v=3740").then((r) => r.json()).then((d) => d.lifts || []).catch(() => { liftsP = null; return []; }));
   const slackList = () => slackP || (slackP = fetch("data/slackcountry.json").then((r) => r.json()).then((d) => (d.resorts || []).flatMap((rs) => (rs.lines || []).map((l) => ({ ...l, resort: rs.name })))).catch(() => { slackP = null; return []; }));
   const pairs = (flat) => { const o = []; for (let i = 0; i + 1 < flat.length; i += 2) o.push([flat[i], flat[i + 1]]); return o; };
   // How well a name typed matches a name on the map: 3 the same, 2.5 the same before its brackets or its short name,
@@ -664,7 +665,8 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     out.innerHTML = `<h3>Your tour</h3><ol class="ask-plan">${ord.map((x) => `<li>${lbl(x)}</li>`).join("")}</ol>
       ${miss.length ? `<p class="ask-note ask-warn">Couldn't find ${miss.map((x) => `“${esc(x.name)}”`).join(", ")} near ${esc(nearName(at))}: left out. Add it by tapping the map once the tour is drawn.</p>` : ""}
       ${ok ? `<button type="button" class="ask-act" data-plan>🗺 Make this tour on the map</button>
-      <p class="ask-said">Turn on Less exposed way on your tour to find the way between the pieces (the climb too). It weighs:</p>
+      <button type="button" class="ask-act ask-act2" data-plan-safe>🗺 Make it with the less exposed way</button>
+      <p class="ask-said">The less exposed way finds the way between the pieces (the climb too). It weighs:</p>
       <ul class="ask-why">
         <li><b>Today's avalanche danger</b> where you are: alpine, treeline or below treeline (Avalanche Canada)</li>
         <li><b>Slope angle</b>: it keeps off 30° to 45°, where most slab avalanches start</li>
@@ -672,10 +674,13 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
         <li><b>What's above you</b>: where a slide from steeper ground could run, and gullies or creeks (terrain traps)</li>
         <li><b>Time</b>: about 430 m an hour up, slower in forest; open water and cliffs can't be crossed</li>
       </ul>
-      <p class="ask-note">Your tour's card then shows each stretch and why it goes there. Drag, add or take away points with ✎ Edit my tour. No route is avalanche-safe: check the forecast and decide in the field.</p>`
+      <p class="ask-note">Your tour is kept in Saved. Its card shows each stretch and why it goes there. Drag, add or take away points with ✎ Edit my tour. No route is avalanche-safe: check the forecast and decide in the field.</p>`
       : `<p class="ask-note">That's only one point: say where you start and where you finish, or a line to ski.</p>`}`;
     const b = out.querySelector("[data-plan]");
     if (b) b.addEventListener("click", () => { logUse("pick", "Ask plan"); close(); S.planSet(pts); });
+    // The same, with the less exposed way turned on for this tour in the same tap (alex 2026-11-07: fewer steps).
+    const bs = out.querySelector("[data-plan-safe]");
+    if (bs) bs.addEventListener("click", () => { logUse("pick", "Ask plan less exposed"); close(); S.planSet(pts, { safe: true }); });
     return true;
   }
 

@@ -18,6 +18,7 @@
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
     [/^📂 Saved tours \((\d+)\)$/, "📂 Sorties enregistrées ($1)"],   // winter.js, the tour card
+    [/^✓ Saved as (.+)$/, "✓ Enregistrée sous « $1 »"],
     [/^📂 Or open a saved tour \((\d+)\)$/, "📂 Ou ouvrir une sortie enregistrée ($1)"],
     [/^Delete "(.+)"\?$/, "Supprimer « $1 »?"],
     [/^Leg (\d+) of (\d+) · (.+)$/, function (m, a, b, t) { return "Tronçon " + a + " sur " + b + " · " + tt(t); }],   // ski-route.js, a tour with stops

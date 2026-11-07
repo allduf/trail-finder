@@ -213,6 +213,7 @@ body.sk-route-focus :is(.wc-gl, .hc-pin, .sk-pin.park) { transform: scale(.75); 
 #skiPane .sk-tourrow { display: flex; flex-direction: column; gap: 6px; }
 #skiPane .sk-tourrow .btn, #skiPane .sk-tourname .btn, #skiPane .sk-tourscard .sk-row .btn { font-size: .9rem; padding: 9px 14px; min-height: 40px; }
 #skiPane .sk-tour-ok { color: var(--accent); font-weight: 700; }
+#skiPane .sk-tour-ok .linkish { font: inherit; font-weight: 600; color: var(--fg); background: none; border: 0; padding: 4px 6px; text-decoration: underline; cursor: pointer; }
 #skiPane .sk-tourrow .sk-row { align-items: center; }
 #skiPane .sk-tourrow .sk-row .btn { flex: 1 1 auto; }
 #skiPane .sk-tourname { display: flex; flex-direction: column; gap: 6px; }
@@ -1356,7 +1357,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3730").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3740").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2511,7 +2512,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   function planRoute() {
     if (plan.pts.length < 2) return null;
     const sp = safePath(), line = sp ? sp.line.slice() : plan.pts.slice(), key = planLineKey();
-    const r = { id: "plan", src: "plan", type: "tour", name: sp ? "Your tour, less exposed way" : "Your planned tour", tags: {}, g: [line.flat()], lines: [line], bounds: L.latLngBounds(line), key };
+    const r = { id: "plan", src: "plan", type: "tour", name: sp ? "Your tour, less exposed way" : "Your planned tour", tags: {}, g: [line.flatMap((p) => [p[0], p[1]])], lines: [line], bounds: L.latLngBounds(line), key };
     if (planInfo.has(key)) r.info = planInfo.get(key);
     return r;
   }
@@ -2677,6 +2678,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     card.hidden = !plan.on && n < 2 && !plan.wait && !plan.fail;
     if (card.hidden) return;
     if (n > 1 && !info && !plan.wait) warmPlanNow();
+    if (info && !plan.on && plan.tour) { const t = tourOf(); if (t && t.km == null && tourSame(t)) { keepTour(false); return; } }   // its length and climb, now known
     const sum = n < 2 ? "" : !info ? `<p>Working out heights and slopes…</p>`
       : `<p><b>${(info.total / 1000).toFixed(1)} km</b> · ↑ ${fmtM(info.up)} · ↓ ${fmtM(info.down)} · top ${fmtM(info.max)}</p>
         <p>Steepest ${Math.round(info.maxSlope)}° · ${info.km30 >= 0.05 ? `<b>${info.km30.toFixed(1)} km on 30°+ slopes</b>` : info.maxSlope >= 30 ? "only short bits on 30°+ slopes" : "no 30°+ slopes under it"}${info.above >= 0.05 && !safePath() ? ` · <b>${info.above.toFixed(1)} km under steep slopes</b>` : ""}</p>`;
@@ -2763,7 +2765,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (plan.naming) return `<form class="sk-tourname" id="skTourForm"><label for="skTourName">Name this tour</label>
         <input id="skTourName" type="text" maxlength="60" autocomplete="off" enterkeyhint="done" value="${esc(t ? t.n : tourName())}">
         <div class="sk-row"><button type="submit" class="btn primary">★ Save</button><button type="button" class="btn" data-tour="cancel">Cancel</button></div></form>`;
-    return `<div class="sk-tourrow">${same ? `<p class="sk-tour-ok">${esc("✓ Saved: " + t.n)}</p>` : ""}
+    // Kept by itself (alex 2026-11-07: "a lot of step to organize a plan for ski tour"): a tour is saved when it's made
+    // (✓ Done, or Ask's Make this tour) under the lines it skis, and follows its edits; Rename is there if wanted.
+    return `<div class="sk-tourrow">${same ? `<p class="sk-tour-ok"><span>${esc("✓ Saved as " + t.n)}</span> <button type="button" class="linkish" data-tour="rename">Rename</button></p>` : ""}
       <div class="sk-row">${same ? "" : `<button type="button" class="btn primary" data-tour="save">${t ? "★ Save changes" : "★ Save this tour"}</button>`}<button type="button" class="btn${same ? " primary" : ""}" data-tour="new">＋ Plan a new tour</button>${list}</div></div>`;
   }
   function tourWire(card) {
@@ -2776,13 +2780,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     card.querySelectorAll("[data-tour]").forEach((b) => b.addEventListener("click", (e) => {
       e.stopPropagation();
       const a = b.dataset.tour;
-      if (a === "save") { plan.naming = true; renderPlan(); }
+      if (a === "save") { const t = tourOf(); saveTour(t ? t.n : tourName()); }   // one tap: named after its lines (Rename after)
+      else if (a === "rename") { plan.naming = true; renderPlan(); }
       else if (a === "cancel") { plan.naming = false; renderPlan(); }
       else if (a === "new") newTour();
       else if (a === "list") showTours();
     }));
   }
-  function saveTour(name) {
+  function saveTour(name, quiet) {
     if (plan.pts.length < 2) return;
     const old = tourOf(), info = planNowInfo(), now = Date.now(), b = planRoute().bounds;
     const t = { id: old ? old.id : "t" + now.toString(36), n: String(name || "").trim().slice(0, 60) || tourName(), pts: JSON.parse(planKey()), safe: !!plan.safe, at: old ? old.at : now, ed: now,
@@ -2791,7 +2796,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     store.set("skiTours", [t, ...tours().filter((x) => x.id !== t.id)].slice(0, 50));
     setTour(t.id);
     renderPlan(); renderTours();
+    if (quiet && old) return;   // an edit of a kept tour: no toast each time
     window.tfToast && window.tfToast(window.tfAccount && window.tfAccount.user ? "Tour saved: it's in Saved, on all your devices." : "Tour saved: it's in Saved.");
+  }
+  // A tour is kept as soon as it's made (✓ Done, Ask's Make this tour: force), then follows its edits (a point moved,
+  // deleted or swapped on the card, Less exposed way on or off, Undo) without a Save tap. Its length and climb are
+  // added once they're worked out. A tour deleted from Saved while on the map isn't put back until it's changed.
+  function keepTour(force) {
+    if (plan.on || plan.pts.length < 2 || planKey() === plan.noKeep) return;
+    const t = tourOf();
+    if (!force && !(plan.tour && t)) return;
+    if (tourSame(t) && (t.km != null || !planNowInfo())) { if (plan.tour !== t.id) setTour(t.id); return; }
+    saveTour(t ? t.n : tourName(), true);
   }
   // A new tour from nothing (the one before stays in Saved if it was saved; Undo brings it back if it wasn't).
   function newTour() {
@@ -2824,7 +2840,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!t || !confirm(`Delete "${t.n}"?`)) return;
     if (window.tfAccount && window.tfAccount.gone) window.tfAccount.gone("skiTours", id);   // so a sync doesn't bring it back
     store.set("skiTours", tours().filter((x) => x.id !== id));
-    if (plan.tour === id) setTour(null);
+    if (plan.tour === id || JSON.stringify(t.pts) === planKey()) { setTour(null); plan.noKeep = planKey(); }   // (kept off until it's changed)
     renderTours(); renderPlan();
   }
   // The list of saved tours (a card in the Skiing pane; the Saved tab and the tour card open it).
@@ -2834,7 +2850,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const l = tours();
     el.innerHTML = `<div class="sk-tours-h"><b>Saved tours</b><button type="button" class="btn" data-tours="close" aria-label="Close">✕</button></div>
       ${l.length ? `<ul class="sk-tours">${l.map((t) => `<li><button type="button" class="sk-tour-open" data-open-tour="${esc(t.id)}"><b>${esc(t.n)}</b><small>${t.km != null ? `${t.km.toFixed(1)} km · ↑ ${fmtM(t.up)} · ` : ""}${t.safe ? `<span>less exposed way</span> · ` : ""}${tourDay(t.ed || t.at)}</small></button><button type="button" class="sk-tour-del" data-del-tour="${esc(t.id)}" aria-label="Delete this tour">✕</button></li>`).join("")}</ul>`
-        : `<p>No saved tours yet. Plan a tour, then tap ★ Save this tour.</p>`}
+        : `<p>No saved tours yet. Each tour you plan is kept here.</p>`}
       <div class="sk-row"><button type="button" class="btn primary" data-tours="new">＋ Plan a new tour</button></div>`;
   }
   function showTours() {
@@ -2906,6 +2922,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   function planChanged() {
     store.set("skiPlan", plan.pts);
+    if (plan.noKeep && planKey() !== plan.noKeep) plan.noKeep = "";
+    keepTour(false);
     clearTimeout(plan.timer);
     plan.fail = "";
     if (plan.safe && plan.pts.length > 1 && !safePath()) {
@@ -3249,6 +3267,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // you plan a tour"); Slope angle is in Layers for whoever wants it.
     map.getContainer().classList.toggle("sk-planning", on);
     if (on && map.getZoom() < 12) map.setZoom(13);
+    if (!on) keepTour(true);   // ✓ Done: the tour is saved, no extra Save tap
     // After the tap's own click reaches the panel (which raises a lowered sheet).
     if (window.tfSnapTo) setTimeout(() => window.tfSnapTo(on ? "peek" : plan.pts.length > 1 ? "half" : "peek"), 0);
     drawPlan(); renderPlan();
@@ -4932,15 +4951,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         .map((r) => ({ id: r.id, name: nameOf(r), type: r.type, diff: r.diff || "", area: !!r.area, aka: (r.tags && r.tags["hand:aka"]) || "", lines: r.lines }));
     },
     heightAt: async (lat, lon) => { const p = [{ lat, lon }]; await T.heights(p, 0, dem); return p[0].e; },
-    planSet: (pts) => {
+    planSet: (pts, o) => {
       if (sport !== "ski") setSport("ski");
       snap();
       plan.pts = pts.map((p) => (p[2] ? [+p[0].toFixed(6), +p[1].toFixed(6), p[2].via ? { ...p[2], via: noBackLine(p[2].via) } : p[2]] : [+p[0].toFixed(6), +p[1].toFixed(6)]));
       plan.path = null; plan.fail = ""; plan.show = true; setTour(null);   // a new tour, not the saved one that was open
-      plan.safe = false; store.set("skiSafe", false);   // a new tour starts with the Less exposed way off: turned on per tour (alex 2026-11-06)
+      // A new tour starts with the Less exposed way off, turned on per tour (alex 2026-11-06): Ask's "Make it the less
+      // exposed way" is that choice for this tour, in the same tap as making it (alex 2026-11-07: fewer steps).
+      plan.safe = !!(o && o.safe); store.set("skiSafe", plan.safe);
       if (plan.on) { plan.on = false; map.getContainer().classList.remove("sk-planning"); }
       map.fitBounds(L.latLngBounds(pts.flatMap((p) => [[p[0], p[1]], ...((p[2] && p[2].via) || [])])), { padding: [40, 40], maxZoom: 15 });
       planChanged();
+      keepTour(true);   // kept at once, like ✓ Done
       if (window.tfSnapTo) setTimeout(() => window.tfSnapTo("half"), 0);
       if (window.tfPanelScrollTo) setTimeout(() => window.tfPanelScrollTo($("skPlan")), 50);
     },
