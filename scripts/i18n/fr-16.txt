@@ -1,2 +1,3 @@
 # Mud and dust squares layer removed (alex 2026-11-08)
 Adventure moto: the Mud and dust today squares are off the map. The Dirt today card and Mud today button stay. ||| Moto d'aventure : les carrés Boue et poussière aujourd'hui ne sont plus sur la carte. La fiche Terre aujourd'hui et le bouton Boue aujourd'hui restent.
+Skiing Ask: "the end of Brandywine Meadows tomorrow" starts where the forest road meets the snow line and uses tomorrow's avalanche forecast. ||| Ski, Demander : « le bout de Brandywine Meadows demain » part là où le chemin forestier atteint la limite de la neige et utilise la prévision d'avalanche de demain.

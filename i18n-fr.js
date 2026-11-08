@@ -661,6 +661,7 @@
     "Skiing: planning a tour takes fewer taps. Each tour is saved by itself, and a typed plan can be made with the less exposed way in one tap.":"Ski : planifier une sortie demande moins de touches. Chaque sortie est enregistrée d'elle-même, et un plan écrit peut être tracé avec le chemin moins exposé en une touche.",
     "Skiing: Plan a new tour and Saved tours are now at the top of Routes, next to Plan a tour.":"Ski : Planifier une nouvelle sortie et Sorties enregistrées sont maintenant en haut de Itinéraires, à côté de Planifier une sortie.",
     "Adventure moto: the Mud and dust today squares are off the map. The Dirt today card and Mud today button stay.":"Moto d'aventure : les carrés Boue et poussière aujourd'hui ne sont plus sur la carte. La fiche Terre aujourd'hui et le bouton Boue aujourd'hui restent.",
+    "Skiing Ask: \"the end of Brandywine Meadows tomorrow\" starts where the forest road meets the snow line and uses tomorrow's avalanche forecast.":"Ski, Demander : « le bout de Brandywine Meadows demain » part là où le chemin forestier atteint la limite de la neige et utilise la prévision d'avalanche de demain.",
     "Create an account":"Créer un compte",
     "Create a free account":"Créer un compte gratuit",
     "Create account":"Créer le compte",

@@ -1357,7 +1357,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3770").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3780").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -4957,6 +4957,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       return ((ski && ski.routes) || []).filter((r) => r.name && r.bounds && b.intersects(r.bounds) && r.lines && r.lines.length)
         .map((r) => ({ id: r.id, name: nameOf(r), type: r.type, diff: r.diff || "", area: !!r.area, aka: (r.tags && r.tags["hand:aka"]) || "", lines: r.lines }));
     },
+    // Trailhead parking near c (km), nearest first (ask.js: where a typed tour starts when no start is said).
+    parkingNear: async (c, maxKm) => { await loadSki(); return ((ski && ski.parking) || []).map((h) => ({ lat: h.lat, lon: h.lon, name: h.name || "", d: map.distance(c, [h.lat, h.lon]) })).filter((h) => h.d <= maxKm * 1000).sort((a, b) => a.d - b.d); },
     heightAt: async (lat, lon) => { const p = [{ lat, lon }]; await T.heights(p, 0, dem); return p[0].e; },
     planSet: (pts, o) => {
       if (sport !== "ski") setSport("ski");
@@ -4970,6 +4972,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       map.fitBounds(L.latLngBounds(pts.flatMap((p) => [[p[0], p[1]], ...((p[2] && p[2].via) || [])])), { padding: [40, 40], maxZoom: 15 });
       planChanged();
       keepTour(true);   // kept at once, like ✓ Done
+      // A tour asked for a day ("tomorrow", ask.js): the forecast of that day, for the less exposed way and the map.
+      if (o && o.date) (avy || example ? Promise.resolve() : loadAvy()).then(() => {
+        const ar = areaAt(pts[0][0], pts[0][1]), f = ar && ar.forecast, i = f && f.days ? f.days.findIndex((d) => d.date === o.date) : -1;
+        if (i >= 0 && i !== day) { day = i; refreshAvy(); plan.path = null; planChanged(); }
+      }).catch(() => {});
       if (window.tfSnapTo) setTimeout(() => window.tfSnapTo("half"), 0);
       if (window.tfPanelScrollTo) setTimeout(() => window.tfPanelScrollTo($("skPlan")), 50);
     },
