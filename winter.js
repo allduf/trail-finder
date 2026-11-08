@@ -683,8 +683,22 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // ask when the map is there, rogers.js). The 3D ground was ready about 14% sooner, 397 -> ~27 pins at Whistler. Everyone gets it once ("skiShort"); after that their own choice stays.
   // alex 2026-11-07 (Layers screenshot, "make it like that instead"): Your ski tours start off, Slackcountry on
   // (slackcountry.js). Everyone gets "Your ski tours" off once ("skiMineOff"); after that their own choice stays.
-  const SKI_START = ["tour", "access", "park"];
+  // alex 2026-11-08 (screen recording, "make those layer by default when you are not sign in"): a device that isn't
+  // signed in opens Skiing on Ski touring + Snowmobile trails, with Webcams, Lift status and Slackcountry on (webcams.js,
+  // lifts.js, slackcountry.js read the tf:ski* switches written here; they load after this file). Approach trails,
+  // parking and every ground colour start off. Signed-out devices get it once ("skiGuest"); after that their own choice
+  // stays. Signed-in devices keep their own layers.
+  const signedIn = (() => { try { return Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k)); } catch { return false; } })();
+  const GUEST_START = ["tour", "snowmobile"];
+  const SKI_START = signedIn ? ["tour", "access", "park"] : GUEST_START;
   let shown = new Set(store.get("skiLayers2", SKI_START));
+  if (!signedIn && !store.get("skiGuest", false)) {
+    shown = new Set(GUEST_START);
+    try { ["tf:skiCams", "tf:skiLifts", "tf:skiSlack"].forEach((k) => localStorage.setItem(k, "true")); } catch {}
+    store.set("avy", false); avyOn = false;
+    ["skiShort", "skiMineOff", "skiSnowAdded", "skiParkAdded", "skiGuest"].forEach((k) => store.set(k, true));   // the older one-time changes don't touch it after
+    store.set("skiLayers2", [...shown]);
+  }
   if (!store.get("skiShort", false)) {
     ["other", "snow", "hut"].forEach((k) => shown.delete(k));
     store.set("skiSnowAdded", true); store.set("skiParkAdded", true); store.set("skiShort", true); store.set("skiLayers2", [...shown]);
@@ -1357,7 +1371,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3820").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3830").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {

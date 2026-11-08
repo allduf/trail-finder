@@ -1138,6 +1138,7 @@
     "Your bikes: weight, tank, tires, skill":"Vos motos : poids, réservoir, pneus, niveau",
     "Skiing webcams: the Black Tusk Snowmobile Club's 4 live cameras at the Brohm Ridge chalet, above Squamish (they run in winter).":"Webcams Ski : les 4 caméras en direct du Black Tusk Snowmobile Club au chalet de Brohm Ridge, au-dessus de Squamish (elles fonctionnent l'hiver).",
     "Skiing 3D map moves smoothly again near Squamish, Whistler and Kicking Horse.":"La carte 3D Ski bouge de nouveau en douceur près de Squamish, Whistler et Kicking Horse.",
+    "Skiing opens with touring routes, snowmobile trails, webcams, lift status and slackcountry when you're not signed in.":"Le ski s'ouvre avec les itinéraires de randonnée, les sentiers de motoneige, les webcams, l'état des remontées et le slackcountry quand vous n'êtes pas connecté.",
     "Gate":"Barrière",
     "No gate":"Sans barrière",
     "Book":"Réserver",
