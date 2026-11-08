@@ -396,8 +396,6 @@ Lakes near you just stocked, and what else the 🔔 tells you about ||| Les lacs
 Adventure moto layers ||| Couches de moto d'aventure
 Dirt roads for my bike ||| Chemins de terre pour ma moto
 Gravel roads and tracks coloured for your bike (zoom in) ||| Routes de gravier et chemins colorés pour votre moto (zoomez)
-Mud and dust today ||| Boue et poussière aujourd'hui
-Rain, soil moisture and snow, in squares ||| Pluie, humidité du sol et neige, en carrés
 Where you can't ride ||| Où vous ne pouvez pas rouler
 Parks, reserves and motor vehicle closures ||| Parcs, réserves et fermetures aux véhicules à moteur
 Public land: green, private: yellow (ON, QC, NB, NS, SK, NL; zoom in) ||| Terre publique : vert, privée : jaune (Ont., Qc, N.-B., N.-É., Sask., T.-N.-L.; zoomez)

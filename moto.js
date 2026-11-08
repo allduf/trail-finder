@@ -19,7 +19,7 @@
 //    hardest bits for your bike, gas stops and gaps longer than your range, camping near the end; save, GPX, save
 //    the route's corridor offline, and Ride it with spoken turns.
 // Map: dirt roads and tracks coloured for your bike (OpenFreeMap vector tiles, streamed, so nothing big is stored
-// on the site), mud and dust today, gas stations with your fuel range ring, campsites and BC rec sites, hot springs,
+// on the site), the dirt today card, gas stations with your fuel range ring, campsites and BC rec sites, hot springs,
 // moto shops, ferries, and where you can't ride. The same on the 3D map.
 // Routes and turn-by-turn words: Valhalla (the FOSSGIS server behind openstreetmap.org's directions), motorcycle
 // costing. Points: ca/moto/*.json (scripts/build-moto.mjs in the nightly Canada job), else OpenStreetMap live.
@@ -163,7 +163,6 @@
   // ---------- map layers ----------
   const LAYERS = {
     roads: { g: "Roads", label: "Dirt roads for my bike", sub: "Gravel roads and tracks coloured for your bike (zoom in)", on: true, icon: ["#2f9e44", "line"] },
-    mud: { g: "Roads", label: "Mud and dust today", sub: "Rain, soil moisture and snow, in squares", icon: ["#8b5a2b", "box"] },
     rules: { g: "Roads", label: "Where you can't ride", sub: "Parks, reserves and motor vehicle closures", on: true, minZoom: 7, icon: ["#e03131", "box"] },
     crown: { g: "Roads", label: "Crown land", sub: "Public land: green, private: yellow (ON, QC, NB, NS, SK, NL; zoom in)", minZoom: 9, icon: ["#2f9e44", "box"] },
     fuel: { g: "Stops", label: "Gas stations", sub: "All of Canada", on: true, minZoom: 7, icon: ["#1971c2", "dot"] },
@@ -177,13 +176,13 @@
   const GROUPS = ["Roads", "Stops", "Safety"];
   const VIEWS = {
     roads: { label: "Roads", sub: "for my bike", layers: ["roads", "rules", "fuel", "ferry"] },
-    mud: { label: "Mud", sub: "today", layers: ["roads", "mud"] },
     stops: { label: "Fuel & camp", sub: "range, sleep", layers: ["roads", "fuel", "range", "camp", "hot", "ferry", "crown"] },
     rules: { label: "Rules", sub: "can I ride", layers: ["roads", "rules", "crown"] },
   };
-  let shown = new Set(store.get("motoLayers", Object.keys(LAYERS).filter((k) => LAYERS[k].on)));
+  // The "Mud and dust today" squares layer is gone (alex 2026-11-08: not relevant); the Dirt today card stays.
+  let shown = new Set(store.get("motoLayers", Object.keys(LAYERS).filter((k) => LAYERS[k].on)).filter((k) => LAYERS[k]));
   // The layers that colour the whole ground: one at a time (window.tfOneGround, winter.js).
-  const GROUND = ["mud", "crown", "cell"];
+  const GROUND = ["crown", "cell"];
   if (window.tfOneGround(shown, null, GROUND).length) store.set("motoLayers", [...shown]);
 
   // ---------- look ----------
@@ -695,10 +694,10 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   map.createPane("moto").style.zIndex = 610;
   map.createPane("motoLines").style.zIndex = 430;
   map.createPane("motoRules").style.zIndex = 355;
-  const ptLayer = L.layerGroup(), rangeLayer = L.layerGroup(), routeLayer = L.layerGroup(), wpLayer = L.layerGroup(), mudLayer = L.layerGroup(), rulesLayer = L.layerGroup(), spotLayer = L.layerGroup();
+  const ptLayer = L.layerGroup(), rangeLayer = L.layerGroup(), routeLayer = L.layerGroup(), wpLayer = L.layerGroup(), rulesLayer = L.layerGroup(), spotLayer = L.layerGroup();
   const lineRenderer = L.canvas({ pane: "motoLines", padding: 0.3, tolerance: L.Browser.touch ? 10 : 5 });
   const rulesRenderer = L.canvas({ pane: "motoRules", padding: 0.3 });
-  const allMoto = [ptLayer, rangeLayer, routeLayer, wpLayer, mudLayer, rulesLayer, spotLayer];
+  const allMoto = [ptLayer, rangeLayer, routeLayer, wpLayer, rulesLayer, spotLayer];
   const pinIcon = (k) => L.divIcon({ className: "", html: `<div class="mt-pin" style="background:${PT[k].c}">${PT[k].t}</div>`, iconSize: [0, 0] });
   const ICONS = Object.fromEntries(Object.keys(PT).map((k) => [k, pinIcon(k)]));
   let pts3d = [];
@@ -754,7 +753,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       icon: L.divIcon({ className: "", html: `<div class="mt-mud" style="color:#1971c2;text-shadow:0 0 3px #fff,0 0 3px #fff">⛽ ${usable(cur())} km</div>`, iconSize: [0, 0] }) }));
   }
 
-  // ---------- mud and dust today ----------
+  // ---------- dirt today (the card) ----------
   // Open-Meteo (free, no key), several squares per call: rain of the last 3 days and the next day, the top soil's
   // moisture, snow on the ground and the temperature.
   const MUD = {
@@ -789,29 +788,6 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       (Array.isArray(j) ? j : [j]).forEach((w, n) => { w.utc_offset_seconds = 0; mudCache.set(part[n].join(","), { at: Date.now(), w }); });
     }
     return cells.map((c) => (mudCache.get(c.join(",")) || {}).w || null);
-  }
-  let mudSeq = 0;
-  async function drawMud() {
-    mudLayer.clearLayers();
-    if (!isMoto() || !shown.has("mud")) return;
-    const z = map.getZoom();
-    if (z < 7) { zoomNote(); return; }
-    const b = map.getBounds(), cells = [];
-    // About 36 squares a screen at most: each is one place for Open-Meteo, and its free limit counts places.
-    let step = z >= 11 ? 0.05 : z >= 9 ? 0.1 : 0.25;
-    while (((b.getNorth() - b.getSouth()) / step) * ((b.getEast() - b.getWest()) / step) > 36) step *= 2;
-    for (let la = Math.floor(b.getSouth() / step) * step; la < b.getNorth(); la += step) for (let lo = Math.floor(b.getWest() / step) * step; lo < b.getEast(); lo += step) cells.push([+(la + step / 2).toFixed(3), +(lo + step / 2).toFixed(3)]);
-    if (cells.length > 80) return;
-    const my = ++mudSeq, ws = await weatherAt(cells);
-    if (my !== mudSeq || !isMoto() || !shown.has("mud")) return;
-    mudLayer.clearLayers();
-    cells.forEach((c, n) => {
-      const m = mudOf(ws[n]);
-      if (!m) return;
-      const [label, color] = MUD[m.k];
-      mudLayer.addLayer(L.rectangle([[c[0] - step / 2, c[1] - step / 2], [c[0] + step / 2, c[1] + step / 2]], { renderer: rulesRenderer, color, weight: 0, fillColor: color, fillOpacity: 0.28, interactive: false }));
-      mudLayer.addLayer(L.marker(c, { pane: "moto", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html: `<div class="mt-mud">${label}${m.r24 >= 1 ? ` ${Math.round(m.r24)} mm` : ""}</div>`, iconSize: [0, 0] }) }));
-    });
   }
   async function renderNow() {
     const el = $("mtNow"), at = spot || (you ? { lat: you.lat, lon: you.lon } : (() => { const c = map.getCenter(); return { lat: c.lat, lon: c.lng }; })());
@@ -2074,7 +2050,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     const act = b.dataset.act;
     if (act === "plan") { if (planning) setPlanning(false); else { setPlanning(true); if (route) renderRoute(); } }
     else if (act === "stops") { setView("stops"); renderStops(); }
-    else if (act === "mud") { setView("mud"); renderNow(); showCard($("mtNow")); }
+    else if (act === "mud") { renderNow(); showCard($("mtNow")); }
     else if (act === "trips") openTrips();
   });
   function renderStops() {
@@ -2092,6 +2068,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     showCard(el);
   }
   let view = store.get("motoView", "roads");
+  if (!VIEWS[view] && view) { view = "roads"; store.set("motoView", view); }
   function setView(k) {
     view = k; store.set("motoView", k);
     shown = new Set(VIEWS[k].layers.concat(shown.has("shop") ? ["shop"] : []));
@@ -2099,7 +2076,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
   }
   function renderLayers() {
     pane.querySelectorAll("[data-view]").forEach((b) => b.classList.toggle("on", VIEWS[b.dataset.view].layers.every((l) => shown.has(l)) && b.dataset.view === view));
-    pane.querySelectorAll("[data-act]").forEach((b) => { if (b.dataset.act === "stops") b.classList.toggle("on", view === "stops"); if (b.dataset.act === "mud") b.classList.toggle("on", shown.has("mud")); });
+    pane.querySelectorAll("[data-act]").forEach((b) => { if (b.dataset.act === "stops") b.classList.toggle("on", view === "stops"); });
     const z = map.getZoom(), list = $("mtLayerList");
     if (list) list.innerHTML = GROUPS.map((g) => `<p class="mt-group">${esc(g)}</p>` + Object.entries(LAYERS).filter(([, l]) => l.g === g).map(([k, l]) => {
       const ic = l.icon[1] === "dot" ? `border-radius:50%;background:${l.icon[0]};width:14px;height:14px;margin:4px` : l.icon[1] === "ring" ? `border-radius:50%;border:2px dashed ${l.icon[0]}` : l.icon[1] === "line" ? `background:linear-gradient(90deg,#2f9e44 33%,#f08c00 33% 66%,#e03131 66%);height:6px;margin-top:8px` : `background:${l.icon[0]}55;border:2px solid ${l.icon[0]}`;
@@ -2119,7 +2096,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     if (stops && liveMode && liveState === "loading") { el.textContent = "Loading gas, camping and shops from OpenStreetMap…"; return; }
     if (stops && liveMode && liveState === "fail") { el.textContent = "Couldn't reach OpenStreetMap for gas and camping: move the map to try again."; return; }
     if (stops && liveMode && z < 8) { el.textContent = "Zoom in to see gas stations, camping and shops."; return; }
-    el.textContent = shown.has("roads") && z < (inBCbox(map.getCenter().lat, map.getCenter().lng) ? 9 : 13) ? (inBCbox(map.getCenter().lat, map.getCenter().lng) ? "Zoom in to see the forest roads." : "Zoom in to see the dirt roads.") : shown.has("mud") && z < 7 ? "Zoom in to see the mud and dust." : "";
+    el.textContent = shown.has("roads") && z < (inBCbox(map.getCenter().lat, map.getCenter().lng) ? 9 : 13) ? (inBCbox(map.getCenter().lat, map.getCenter().lng) ? "Zoom in to see the forest roads." : "Zoom in to see the dirt roads.") : "";
   }
   $("mtLayerList").addEventListener("change", (e) => {
     const k = e.target.dataset.layer; if (!k) return;
@@ -2140,7 +2117,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     renderLayers(); renderKey();
     showRoads(isMoto() && shown.has("roads"));
     if (isMoto() && shown.has("roads")) { if (!ftenLayer._map) ftenLayer.addTo(map); } else if (ftenLayer._map) map.removeLayer(ftenLayer);
-    drawPoints(); drawRange(); drawMud(); drawRules(); drawCell(); drawCrown();
+    drawPoints(); drawRange(); drawRules(); drawCell(); drawCrown();
     if (shown.has("camp")) loadRec();
     loadLive();
   }
@@ -2158,7 +2135,6 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     if (!box || box.hidden) return;
     const i = (c, dot) => `<i class="${dot ? "d" : ""}" style="background:${c}"></i>`, cap = capOf(cur());
     box.innerHTML = (shown.has("roads") ? `<b>Dirt roads for your ${esc(cur().name || TYPES[cur().type].label)}</b>${Object.entries(FIT).map(([, [l, c]]) => `<div>${i(c)}${esc(l)}</div>`).join("")}<div style="color:#666">Dashed: a track (two-track). Solid: a gravel road. Your bike rides grade ${cap} well.</div>` : "")
-      + (shown.has("mud") ? `<b>Dirt today</b>${Object.values(MUD).map(([l, c]) => `<div>${i(c)}${esc(l)}</div>`).join("")}` : "")
       + (shown.has("rules") ? `<b>Land</b>${["no", "roads", "fee", "ask"].map((k) => `<div>${i(RULES[k].color)}${esc(RULES[k].label)}</div>`).join("")}` : "")
       + (shown.has("crown") && window.tfCrown ? `<b>Crown land</b><div>${i(window.tfCrown.COL.crown)}Crown land: public</div><div>${i(window.tfCrown.COL.private)}Private land</div><div>${i(window.tfCrown.COL.lease)}Crown lease (SK farm land)</div>` : "")
       + (["fuel", "camp", "hot", "shop", "ferry"].some((k) => shown.has(k)) ? `<b>Stops</b>${["fuel", "camp", "hot", "shop", "ferry"].filter((k) => shown.has(k)).map((k) => `<div>${i(PT[k].c, 1)}${esc(PT[k].name)}</div>`).join("")}` : "")
@@ -2718,7 +2694,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     if (!isMoto()) return;
     drawPoints(); zoomNote();
     clearTimeout(moveTimer);
-    moveTimer = setTimeout(() => { drawMud(); drawRules(); drawCell(); loadRec(); loadLive(); if (!spot) renderNow(); }, 500);
+    moveTimer = setTimeout(() => { drawRules(); drawCell(); loadRec(); loadLive(); if (!spot) renderNow(); }, 500);
   });
   map.on("zoomend", () => { if (isMoto()) renderLayers(); });
   let started = false;
