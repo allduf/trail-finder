@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-08", "text": "Skiing avalanche forecast explained: each problem in plain words, what its size means, and Avalanche Canada's own advice."},
     {"date": "2026-11-08", "text": "Skiing opens with touring routes, snowmobile trails, webcams, lift status and slackcountry when you're not signed in."},
     {"date": "2026-11-08", "text": "Skiing 3D map moves smoothly again near Squamish, Whistler and Kicking Horse."},
     {"date": "2026-11-08", "text": "Skiing webcams: the Black Tusk Snowmobile Club's 4 live cameras at the Brohm Ridge chalet, above Squamish (they run in winter)."},

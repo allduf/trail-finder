@@ -113,6 +113,26 @@
     return w[0].toUpperCase() + w.slice(1);
   };
   const ASPECTS = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
+  // Each avalanche problem and size in plain words, so the forecast reads easily (alex 2026-11-08: "help people to
+  // understand better the forecast"). Sizes are Avalanche Canada's destructive size scale.
+  const PROB_WHAT = {
+    "storm slab": "New snow from the last storms that hasn't bonded to the snow under it yet.",
+    "wind slab": "Snow the wind has piled onto slopes on the side away from the wind: below ridges, in gullies, behind rolls.",
+    "persistent slab": "A weak layer buried in the snowpack. It can stay touchy for weeks and be triggered from thin spots.",
+    "deep persistent slab": "A weak layer deep near the ground. Hard to trigger, but huge when it goes.",
+    "loose wet": "Wet surface snow sliding as the sun or warm air heats it.",
+    "loose dry": "Loose dry snow sluffing off steep slopes.",
+    "wet slab": "A whole slab letting go as meltwater weakens the layers under it.",
+    "cornice": "Overhanging snow on ridgetops that can break off and trigger the slope below.",
+    "glide slab": "The whole snowpack sliding on smooth ground like rock or grass.",
+  };
+  const SIZE_WHAT = ["", "Size 1: small, harmful mostly if it carries you into a terrain trap.", "Size 2: can bury, injure or kill a person.",
+    "Size 3: can bury and destroy a car.", "Size 4: can destroy a railway car.", "Size 5: the largest known, can gouge the landscape."];
+  const probWhat = (p) => PROB_WHAT[String(p.type || "").toLowerCase()] || "";
+  const sizeWhat = (p) => { const n = Math.floor(Math.max(...String(p.size || "").split(/[^\d.]+/).map(Number).filter((x) => x > 0), 0)); return SIZE_WHAT[Math.min(5, n)] || ""; };
+  const probNotes = (p) => [probWhat(p), sizeWhat(p)].filter(Boolean).map((x) => `<p class="sk-note">${esc(x)}</p>`).join("");
+  // Avalanche Canada's own travel and terrain advice and the forecaster's confidence, quoted as they wrote them.
+  const adviceHtml = (f) => `${(f.advice || []).length ? `<h5>${/^jan-/.test(f.id || "") ? "What the Japan Avalanche Network says" : "What Avalanche Canada says to do"}</h5><ul class="av-adv">${f.advice.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}${f.confidence ? `<p class="sk-note"><span>Forecaster confidence</span>: <b>${esc(f.confidence)}</b></p>` : ""}`;
   const bandsFor = (area) => T.bandsFor(area.name);   // where treeline and alpine start, roughly (ski-terrain.js)
   // Who forecasts avalanches at a spot. Japan (Skiing only; alex 2026-10-30, a winter trip to Hakuba and Hokkaido): the
   // Japan Avalanche Network's bulletins, read into data/avalanche.json as "jan-" areas by scripts/japan-avalanche.mjs.
@@ -416,6 +436,8 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 #skiPane .av-pill[aria-pressed="true"] { background: #f79218; border-color: #f79218; color: #1a1a1a; }
 #skiPane .av-card > details > summary { font-size: .82rem; color: var(--muted); }
 #skiPane .av-warn { background: #fff3cd; color: #5c4400; border-radius: 8px; padding: 6px 8px; font-size: .82rem; font-weight: 600; }
+#skiPane .av-adv { margin: 4px 0 6px; padding-left: 18px; font-size: .82rem; }
+#skiPane .av-adv li { margin: 2px 0; }
 #skiPane .av-legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; font-size: .8rem; }
 #skiPane .av-legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; border: 1px solid #0002; }
 #skiPane details summary { cursor: pointer; font-weight: 600; font-size: .85rem; }
@@ -1371,7 +1393,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3830").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3840").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -3361,10 +3383,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const asp = ASPECTS[g.asp], probs = (f.problems || []).filter((p) => (p.elevations || []).includes(band));
     if (probs.length) html += probs.map((p) => {
       const on = g.slope >= 20 && (p.aspects || []).includes(asp);
-      return `<div class="av-prob${on ? "" : " off"}">${rose(p)}<div><b>${esc(p.type)}</b><p>${on ? `<b>On this slope:</b> ${esc(ASPECT_NAME[g.asp])}-facing in the ${bandN.toLowerCase()}` : g.slope < 20 ? "Gentle ground here, but on the slopes around it" : `On other aspects (${esc(p.aspects.map((s) => s.toUpperCase()).join(" "))}), not this ${esc(ASPECT_NAME[g.asp])}-facing slope`}</p><p>${p.likelihood ? "Likelihood: " + esc(likely(p.likelihood)) : ""}${p.size ? ` · size ${esc(p.size)}` : ""}</p></div></div>`;
+      return `<div class="av-prob${on ? "" : " off"}">${rose(p)}<div><b>${esc(p.type)}</b><p>${on ? `<b>On this slope:</b> ${esc(ASPECT_NAME[g.asp])}-facing in the ${bandN.toLowerCase()}` : g.slope < 20 ? "Gentle ground here, but on the slopes around it" : `On other aspects (${esc(p.aspects.map((s) => s.toUpperCase()).join(" "))}), not this ${esc(ASPECT_NAME[g.asp])}-facing slope`}</p><p>${p.likelihood ? "Likelihood: " + esc(likely(p.likelihood)) : ""}${p.size ? ` · size ${esc(p.size)}` : ""}</p>${on ? probNotes(p) : ""}</div></div>`;
     }).join("");
     else if ((f.problems || []).length) html += `<p class="sk-note">None of today's avalanche problems are in the ${bandN.toLowerCase()}.</p>`;
     if (f.highlights) html += `<p><strong>${esc(f.highlights)}</strong></p>`;
+    html += adviceHtml(f);
     return html + `${janNote(f)}<p><a href="${esc(f.url || site.url)}" target="_blank" rel="noopener">Full ${/^jan-/.test(f.id || "") ? "bulletin" : "forecast"} on ${site.host}</a></p>`;
   }
   // Snow that fell (last 24 h, 3 days, week) and snow coming (next 24 h, 3 days, week) at the spot's height, each box
@@ -3842,7 +3865,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <div id="avWx">${cardWeather(c, area.bands.hi)}</div>
       <details id="avMore"${avMore ? " open" : ""}><summary>${rated ? "Problems, notes and riders' reports" : "Read the bulletin"}</summary>
         ${f.highlights ? `<p><strong>${esc(f.highlights)}</strong></p>` : ""}
-        ${(f.problems || []).map((p) => `<div class="av-prob">${rose(p)}<div><b>${esc(p.type)}</b><p>${esc(p.aspects.map((s) => s.toUpperCase()).join(" "))} · ${esc(p.elevations.map((b) => BANDS.find((x) => x[0] === b)[1]).join(", "))}</p><p>${p.likelihood ? "Likelihood: " + esc(likely(p.likelihood)) : ""}${p.size ? " · Size " + esc(p.size) : ""}</p>${p.comment ? `<details><summary>More</summary><p>${esc(p.comment)}</p></details>` : ""}</div></div>`).join("")}
+        ${(f.problems || []).map((p) => `<div class="av-prob">${rose(p)}<div><b>${esc(p.type)}</b><p>${esc(p.aspects.map((s) => s.toUpperCase()).join(" "))} · ${esc(p.elevations.map((b) => BANDS.find((x) => x[0] === b)[1]).join(", "))}</p><p>${p.likelihood ? "Likelihood: " + esc(likely(p.likelihood)) : ""}${p.size ? " · Size " + esc(p.size) : ""}</p>${probNotes(p)}${p.comment ? `<details><summary>More</summary><p>${esc(p.comment)}</p></details>` : ""}</div></div>`).join("")}
+        ${(f.problems || []).length ? `<p class="sk-note">Each rose shows where a problem is: dark parts are the slopes facing that way (north at the top), the middle ring is the alpine, then treeline, then below treeline.</p>` : ""}
+        ${adviceHtml(f)}
         ${notes.length ? `<h5>Forecaster's notes</h5>${notes.map((s) => `<p>${esc(s)}</p>`).join("")}` : ""}
         ${minHtml([{ lat: c.lat, lon: c.lng }])}
         ${avyOn ? `<h5>Slope colours</h5><ul class="av-legend">${DANGER.slice(1).map((x) => `<li><i style="background:${x.color}"></i>${x.label}</li>`).join("")}<li><i style="background:repeating-linear-gradient(135deg,#f79218 0 3px,#7a4a0c 3px 5px)"></i>Problem aspect</li></ul>
