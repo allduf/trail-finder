@@ -63,7 +63,7 @@
   // ---------- icons ----------
   const svg = (d, size = 20) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
   const IC = {
-    moto: '<circle cx="5" cy="17" r="3.5"/><circle cx="19" cy="17" r="3.5"/><path d="M5 17 8.5 11H15l2-1M19 17 16.5 6.5H14"/><path d="M8 11c.5-2 2-2.5 3.5-2.5H15l1 2.5"/><path d="M10 11.5 11 16h3.5l1.5-4.5"/>',
+    moto: '<circle cx="4.5" cy="17.5" r="3.5"/><circle cx="19.5" cy="17.5" r="3.5"/><path d="M19.5 17.5 16 6.5M14.5 6.5h3M17.5 11.5H21M2.5 10H10l1.5-1.5h3M4.5 17.5 9 15.5"/><rect x="9" y="12" width="5" height="4" rx="1"/>',
     plan: '<path d="M4 20c4 0 4-6 8-6s4 6 8 6"/><circle cx="4" cy="20" r="1.5"/><circle cx="20" cy="20" r="1.5"/><path d="M12 3v7M9 6l3-3 3 3"/>',
     fuel: '<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M6 9h6"/><path d="M14 11h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V9l-3-3"/>',
     camp: '<path d="M3 20 12 4l9 16z"/><path d="M12 20l-3-6h6z"/>',

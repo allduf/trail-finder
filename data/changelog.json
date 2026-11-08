@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-08", "text": "Same line icons for every sport everywhere in the app, and Adventure moto now has its own dirt bike icon."},
     {"date": "2026-11-08", "text": "Account Settings: a green ✓ box now confirms when your password, name or email change worked."},
     {"date": "2026-11-08", "text": "Skiing avalanche forecast explained: each problem in plain words, what its size means, and Avalanche Canada's own advice."},
     {"date": "2026-11-08", "text": "Skiing opens with touring routes, snowmobile trails, webcams, lift status and slackcountry when you're not signed in."},

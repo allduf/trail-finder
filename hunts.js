@@ -141,7 +141,7 @@
             <b>${esc(h.title || "Hunt")}</b>
             <span class="sp-meta">${esc(fmtDay(h.start))}, ${esc(fmtTime(h.start))} to ${esc(fmtTime(endOf(h)))}${c && c.zone ? ` · ${esc(c.zone)}` : ""}</span>
             <span class="hh-nums">${esc(dur(endOf(h) - h.start))} · ${esc(km(st.dist))}${st.climb != null ? ` · ↑ ${Math.round(st.climb)} m` : ""}</span>
-            ${seen.length ? `<span class="hh-seen">${kindsLine(seen, kinds)}</span>` : `<span class="hh-seen none">Nothing saved on the way</span>`}
+            ${seen.length ? `<span class="hh-seen" data-no-line>${kindsLine(seen, kinds)}</span>` : `<span class="hh-seen none">Nothing saved on the way</span>`}
             ${condLine(c && { ...c, moon: moonName(h.start) })}</span></button></li>`;
         }).join("")}</ul>`;
     }).join("") + `<p class="sp-meta">Tap a hunt to see your walk on the map. Photos, notes and GPX are in <a href="ride.html#rides">all your tracks</a>.</p>`;

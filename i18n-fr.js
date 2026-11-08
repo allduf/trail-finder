@@ -1164,6 +1164,7 @@
     "Password changed. Next time, sign in with your email and this new password.":"Mot de passe changé. La prochaine fois, connectez-vous avec votre courriel et ce nouveau mot de passe.",
     "That's already your password. Pick a different one.":"C'est déjà votre mot de passe. Choisissez-en un autre.",
     "Account Settings: a green ✓ box now confirms when your password, name or email change worked.":"Réglages du compte : une case verte ✓ confirme maintenant quand le changement de mot de passe, de nom ou de courriel a fonctionné.",
+    "Same line icons for every sport everywhere in the app, and Adventure moto now has its own dirt bike icon.":"Les mêmes icônes au trait pour chaque sport partout dans l'app, et la Moto d'aventure a maintenant sa propre icône de moto hors route.",
     "Gate":"Barrière",
     "No gate":"Sans barrière",
     "Book":"Réserver",

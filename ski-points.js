@@ -263,7 +263,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     const sorted = [...visible()].sort((a, b) => b.created - a.created);
     list.innerHTML = sorted.map((p, i) => {
       const u = p.thumb || p.photo ? thumbUrl(p) : "";
-      return `<li><button type="button" data-i="${i}"${selected === p.id ? ' aria-current="true"' : ""}>${u ? `<img class="sp-th" alt="" src="${u}">` : `<span class="sp-th">${iconOf(p)}</span>`}<span class="nm">${esc(p.name)}</span><span class="meta">${esc(new Date(p.created).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }))}</span></button></li>`;
+      return `<li><button type="button" data-i="${i}"${selected === p.id ? ' aria-current="true"' : ""}>${u ? `<img class="sp-th" alt="" src="${u}">` : `<span class="sp-th" data-no-line>${iconOf(p)}</span>`}<span class="nm">${esc(p.name)}</span><span class="meta">${esc(new Date(p.created).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }))}</span></button></li>`;
     }).join("");
     list.querySelectorAll("button[data-i]").forEach((b) => b.addEventListener("click", () => {
       const p = sorted[+b.dataset.i];
@@ -356,7 +356,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     <h2 id="spfTitle">New point</h2>
     <div id="spfPhoto"></div>
     <div class="sp-kind"><label id="spfKindL">What's here</label><select id="spfKind" hidden aria-hidden="true" tabindex="-1"></select>
-      <div class="sp-tags" id="spfTags" role="group" aria-labelledby="spfKindL"></div><p class="sp-taghint" id="spfTagHint"></p></div>
+      <div class="sp-tags" id="spfTags" data-no-line role="group" aria-labelledby="spfKindL"></div><p class="sp-taghint" id="spfTagHint"></p></div>
     <div class="sp-catch" id="spfCatch" hidden>
       <div class="sp-id" id="spfId" hidden></div>
       <div class="sp-grid2"><div><label for="spfFish">Fish</label><input type="text" id="spfFish" maxlength="40" list="spfFishList" placeholder="Rainbow trout"></div>
@@ -656,8 +656,8 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     if (blob) viewUrl = URL.createObjectURL(blob);
     const when = new Date(p.created).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
     viewer.innerHTML = `${viewUrl ? `<div class="sp-photo"><img alt="${esc(p.name)}" src="${viewUrl}"></div>` : ""}
-      <h2>${hasKinds(sportOf(p)) ? iconOf(p) + " " : ""}${esc(p.name)}</h2>
-      ${hasKinds(sportOf(p)) && tagsOf(p).length > 1 ? `<div class="sp-tagline">${tagsOf(p).map((k) => kindOf({ kind: k }, sportOf(p))).filter(Boolean).map((d) => `<span>${d[2]} ${esc(d[1])}</span>`).join("")}</div>`
+      <h2 data-no-line>${hasKinds(sportOf(p)) ? iconOf(p) + " " : ""}${esc(p.name)}</h2>
+      ${hasKinds(sportOf(p)) && tagsOf(p).length > 1 ? `<div class="sp-tagline" data-no-line>${tagsOf(p).map((k) => kindOf({ kind: k }, sportOf(p))).filter(Boolean).map((d) => `<span>${d[2]} ${esc(d[1])}</span>`).join("")}</div>`
         : hasKinds(sportOf(p)) && kindOf(p) ? `<p class="sp-meta">${esc(kindOf(p)[1])}</p>` : ""}
       ${p.kind === "catch" && p.catch ? catchFacts(p.catch) : ""}
       ${p.kind === "harvest" && p.harvest ? `<dl class="sp-facts">${p.harvest.species ? `<dt>Species</dt><dd>${esc(p.harvest.species)}</dd>` : ""}${p.harvest.sex ? `<dt>Animal</dt><dd>${esc(p.harvest.sex)}</dd>` : ""}${p.harvest.date ? `<dt>Date</dt><dd>${esc(fmtDay(p.harvest.date))}</dd>` : ""}${p.harvest.zone ? `<dt>Zone</dt><dd>${esc(p.harvest.zone)}</dd>` : ""}</dl>` : ""}
