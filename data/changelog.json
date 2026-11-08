@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-08", "text": "Share a spot with a friend: every This spot card has a Share button. Your friend gets a link that opens the app on that spot with a purple pin, plus the coordinates."},
     {"date": "2026-11-08", "text": "Skiing Ask: \"the end of Brandywine Meadows tomorrow\" starts where the forest road meets the snow line and uses tomorrow's avalanche forecast."},
     {"date": "2026-11-08", "text": "Account: tapping Create an account opens its own screen, and a new account is ready right away (no email to wait for)."},
     {"date": "2026-11-08", "text": "Skiing: the Powder Mountain Snowmobile Club's sled trails at Brandywine are on the map: Brandywine Bowl, Metal Dome, Chocolate Bowl, and the backcountry routes to Powder Mountain, the Sea of White and Ring Mountain."},

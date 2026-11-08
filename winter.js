@@ -1357,7 +1357,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3780").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3790").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -3453,6 +3453,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       map.panBy([0, y - (box.top + (top - box.top) * 0.6)]);
     }, 320);
   }
+  window.tfSkiSpot = (lat, lon) => { unselect(); showSpot(lat, lon); };   // a shared spot (ski-points.js #pin=)
   async function showSpot(lat, lon) {
     const seq = ++spotSeq, el = $("skSpot");
     spot = { lat, lon, g: null, cls: null };
@@ -3460,7 +3461,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     spotLayer.addLayer(L.circleMarker([lat, lon], { radius: 9, color: "#fff", weight: 3, fillColor: "#e8590c", fillOpacity: 1, interactive: false }));
     if (!map.hasLayer(spotLayer)) spotLayer.addTo(map);
     el.hidden = false;
-    el.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>📍 This spot</h3></div>
+    el.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button>${window.tfShareBtn ? window.tfShareBtn(lat, lon, { sport: "ski" }) : ""}<h3>📍 This spot</h3></div>
       <p class="sk-hint">${lat.toFixed(4)}, ${lon.toFixed(4)}</p>
       <div id="skSpotGround"><p class="sk-note">Reading the terrain…</p></div><div id="skSpotAvy"></div><div id="skSpotSnow"></div><div id="skSpotNear"></div><div id="skSpotMin"></div>
       <div class="sk-acts sk-spotacts"><button type="button" class="sk-act" data-act="safe">Less exposed way here</button><button type="button" class="sk-act" data-act="plan">✎ Plan a tour from here</button>${shown.has("slope") ? "" : `<button type="button" class="sk-act" data-act="slope">Show slope angles</button>`}</div>`;
@@ -3480,6 +3481,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const cls = spotTerrain(g);
     Object.assign(spot, { g, cls });
     const flat = g.slope < 5;
+    const shb = el.querySelector(".tf-share");   // the shared text says how high and which way it faces
+    if (shb) shb.dataset.about = `${fmtM(g.e)}, ${flat ? "flat" : `faces ${ASPECTS[g.asp].toUpperCase()}, ${Math.round(g.slope)}°`}`;
     fill("skSpotGround", `<div class="sk-stats sk-spotg"><div class="sk-spotslope" style="--c:${slopeCol(g.slope)}"><b>${Math.round(g.slope)}°</b><span>slope</span></div>
         <div><b>${flat ? "flat" : ASPECTS[g.asp].toUpperCase()}</b><span>faces</span></div><div><b>${fmtM(g.e)}</b><span>height</span></div>
         <div class="sk-spotates" style="--c:${cls.color}"><b>${cls.label}</b><span>terrain</span></div></div>

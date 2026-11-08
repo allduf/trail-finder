@@ -4,8 +4,8 @@
 // and the 3D map; tapping one shows its photo, name and description, with Edit, Delete, Share and Guide me here.
 // Hunting points also have a kind (truck, stand, blind, sighting, rub, scrape, trail camera...), shown on the pin,
 // and the Hunting panel has "Mark my truck" and "Back to the truck". Guide me here follows your location with a
-// line to the point and its distance and direction. Share sends a link that opens the point on another phone, ready
-// to save (#pin=lat,lon,sport,kind,name).
+// line to the point and its distance and direction. Share sends a link that opens the point on another phone, with
+// ★ Save to my points (#pin=lat,lon,sport,kind,name). Every sport's "This spot" card has the same Share (tfShareBtn).
 // Fishing points have kinds too (catch, spot, access, launch, truck, hatch...). A catch keeps the species, length, fly or
 // lure, kept or released, and the conditions when it was saved (window.tfFish.snapshot: weather, pressure trend, moon,
 // light, river flow, tide), so the fishing log can show what works: catches by pressure, moon, time of day, flow and tide,
@@ -89,6 +89,16 @@
   // ---------- look ----------
   const css = document.createElement("style");
   css.textContent = `
+.tf-share { font: inherit; font-size: .85rem; font-weight: 600; border: 1px solid var(--line); background: var(--chip, #f1f3f5); color: var(--ink, inherit); border-radius: 999px; padding: 4px 11px 4px 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; flex: none; min-height: 30px; }
+.tf-share svg { width: 16px; height: 16px; }
+#skSpot .tf-share { float: right; margin: -3px 8px 0 0; }
+#tfShared { position: fixed; z-index: 1300; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 10px); width: min(94vw, 420px); background: var(--card, #fff); color: var(--ink, #222); border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.28); padding: 10px 12px; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; }
+#tfShared b { font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tfShared small { color: var(--muted, #666); grid-column: 1; }
+#tfShared .tfs-x { grid-row: 1 / span 2; grid-column: 2; align-self: start; font: inherit; border: 0; background: var(--chip, #f1f3f5); color: var(--muted, #666); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; }
+#tfShared .tfs-row { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 8px; }
+#tfShared .tfs-row button, #tfShared .tfs-row a { font: inherit; font-weight: 600; flex: 1; border: 0; border-radius: 10px; padding: 9px 8px; cursor: pointer; text-align: center; text-decoration: none; background: var(--chip, #f1f3f5); color: inherit; }
+#tfShared .tfs-row .tfs-save { background: #7048e8; color: #fff; }
 body:not(.sport-ski):not(.sport-hunt):not(.sport-fish) #spAdd { display: none !important; }
 body.sport-hunt .sp-pin { background: ${HUNT_COLOR}; }
 body.sport-fish .sp-pin { background: ${FISH_COLOR}; }
@@ -897,7 +907,13 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     hasTruck: () => all.some((p) => sportOf(p) === (isFish() ? "fish" : "hunt") && p.kind === "truck") };
 
   // ---------- sharing ----------
-  const shareLink = (p) => `${location.origin}${location.pathname}#pin=${p.lat.toFixed(5)},${p.lon.toFixed(5)},${sportOf(p)},${p.kind || ""},${encodeURIComponent(p.name)}`;
+  // A point (saved point, or any "This spot" card) goes out as a trailfinderapp.ca link plus its coordinates as plain
+  // text, so the friend can use it even without the app (alex 2026-11-08: "share a point with my friend").
+  // The iPhone app runs the live site, but a local copy (tests) still sends the real site's address.
+  const appBase = () => (location.protocol === "https:" ? location.origin + location.pathname : "https://trailfinderapp.ca/");
+  const SPORTS = ["ski", "hunt", "mtb", "fish", "hike", "moto"];
+  const pinLink = (lat, lon, sp, kind, name) => `${appBase()}#pin=${lat.toFixed(5)},${lon.toFixed(5)},${SPORTS.includes(sp) ? sp : "ski"},${kind || ""},${encodeURIComponent(name || "")}`;
+  const shareLink = (p) => pinLink(p.lat, p.lon, sportOf(p), p.kind, p.name);
   async function share(p, msg) {
     const url = shareLink(p), text = `${p.name}${p.note ? ` - ${p.note}` : ""}\n${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}`;
     const data = { title: p.name, text, url };
@@ -909,19 +925,75 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
       if (msg) msg.textContent = "Link copied: paste it in a message.";
     } catch (e) { if (msg && e && e.name !== "AbortError") msg.textContent = `Couldn't share: ${e.message || e}`; }
   }
-  // A shared link (#pin=...) opens that sport at the point with the form ready to save it.
+  // "This spot" cards in every sport put in a Share button: window.tfShareBtn(lat, lon, { sport, name, about }) gives its
+  // HTML, and one listener here sends it (the phone's share sheet, else the link and coordinates are copied).
+  const SHARE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
+  window.tfShareBtn = (lat, lon, o = {}) => `<button type="button" class="tf-share" data-share-spot="${(+lat).toFixed(5)},${(+lon).toFixed(5)}" data-sport="${esc(o.sport || "")}" data-name="${esc(o.name || "")}" data-about="${esc(o.about || "")}" aria-label="Share this spot with a friend" title="Share this spot with a friend">${SHARE_SVG}Share</button>`;
+  async function shareSpot(lat, lon, o = {}) {
+    const name = o.name || "", sp = o.sport || sportNow(), url = pinLink(lat, lon, sp, "", name);
+    const title = name || "A spot on Trail Finder";
+    const text = `📍 ${title}${o.about ? ` (${o.about})` : ""}\n${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+    try {
+      if (navigator.share) { await navigator.share({ title, text, url }); return; }
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      if (window.tfToast) window.tfToast("Link copied: paste it in a message.");
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      try { prompt("Copy this link:", url); } catch {}
+    }
+  }
+  window.tfShareSpot = shareSpot;
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("[data-share-spot]");
+    if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    const [lat, lon] = b.dataset.shareSpot.split(",").map(Number);
+    if (isFinite(lat) && isFinite(lon)) shareSpot(lat, lon, { sport: b.dataset.sport, name: b.dataset.name, about: b.dataset.about });
+  }, true);
+
+  // A shared link (#pin=...) opens that sport on the point: a purple pin there (flat and 3D map), the sport's own
+  // "This spot" card, and a small card on top with the name and ★ Save to my points (the friend decides to keep it).
+  let sharedLayer = null;
+  function closeShared() {
+    const el = document.getElementById("tfShared"); if (el) el.remove();
+    if (sharedLayer) { map.removeLayer(sharedLayer); sharedLayer = null; }
+  }
+  function showShared(lat, lon, sp, kind, name) {
+    closeShared();
+    sharedLayer = L.layerGroup([L.circleMarker([lat, lon], { radius: 11, color: "#fff", weight: 3, fillColor: "#7048e8", fillOpacity: 1, interactive: false })]).addTo(map);
+    const el = document.createElement("div");
+    el.id = "tfShared"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "Spot shared with you");
+    const go = `https://www.google.com/maps/dir/?api=1&destination=${lat.toFixed(5)},${lon.toFixed(5)}`;
+    el.innerHTML = `<b>📍 ${esc(name || "Spot shared with you")}</b><button type="button" class="tfs-x" aria-label="Close">✕</button>
+      <small>${name ? "Shared with you · " : ""}${lat.toFixed(5)}, ${lon.toFixed(5)}</small>
+      <div class="tfs-row">${sp === "moto" ? "" : `<button type="button" class="tfs-save">★ Save to my points</button>`}<a class="tfs-go" href="${go}" target="_blank" rel="noopener">Directions</a></div>`;
+    el.querySelector(".tfs-x").addEventListener("click", closeShared);
+    const sv = el.querySelector(".tfs-save");
+    if (sv) sv.addEventListener("click", () => { el.remove(); setPins(true); edit(null, { lat, lon }, { kind, name, note: "Shared with me" }); });
+    document.body.appendChild(el);
+  }
+  // Each sport's own card for a spot; its script may still be loading just after the sport changed (winter.js tfLoadSport).
+  const spotCard = (sp) => (sp === "ski" ? window.tfSkiSpot : sp === "hunt" ? window.tfHunt && window.tfHunt.spot : sp === "fish" ? window.tfFish && window.tfFish.spot : sp === "moto" ? window.tfMoto && window.tfMoto.spot : sp === "mtb" ? null : null);
   function openShared() {
     const m = location.hash.match(/^#pin=(-?[\d.]+),(-?[\d.]+),(\w*),(\w*),(.*)$/);
     if (!m) return;
     history.replaceState(null, "", location.pathname + location.search);
-    const [lat, lon] = [+m[1], +m[2]], sport = ["hunt", "mtb", "fish", "hike"].includes(m[3]) ? m[3] : "ski";
-    if (!isFinite(lat) || !isFinite(lon)) return;
+    const [lat, lon] = [+m[1], +m[2]], sport = SPORTS.includes(m[3]) ? m[3] : "ski";
+    if (!isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return;
     const sel = document.getElementById("sport");
     if (sel && sel.value !== sport) { sel.value = sport; sel.dispatchEvent(new Event("change")); }
-    map.setView([lat, lon], Math.max(map.getZoom(), 15));
-    setPins(true);
     let name = ""; try { name = decodeURIComponent(m[5]).slice(0, 80); } catch {}
-    setTimeout(() => edit(null, { lat, lon }, { kind: m[4], name, note: "Shared with me" }), 300);
+    const kind = m[4];
+    let tries = 0;
+    const go = () => {
+      const card = spotCard(sport);
+      if (!card && sport !== "mtb" && sport !== "hike" && ++tries < 40) { setTimeout(go, 250); return; }   // up to 10 s
+      if (map.getContainer().closest(".is3d") && window.tf3dSearchView) window.tf3dSearchView({ lat, lon, km: 1.5 });
+      map.setView([lat, lon], Math.max(map.getZoom(), 15));
+      showShared(lat, lon, sport, kind, name);
+      if (card) setTimeout(() => { try { card(lat, lon, name); } catch {} }, 400);
+    };
+    setTimeout(go, 300);
   }
 
   // ---------- account (optional sign-in, see account.js) ----------

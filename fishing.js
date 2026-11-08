@@ -1143,7 +1143,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   async function showSpot(lat, lon, title) {
     const el = $("fsSpot"), seq = ++spotSeq;
     el.hidden = false;
-    el.innerHTML = `<header>${svg(IC.pin)}<h3 id="fsSpotName">${esc(title || "This spot")}</h3>${routeBtn(lat, lon)}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div>
+    el.innerHTML = `<header>${svg(IC.pin)}<h3 id="fsSpotName">${esc(title || "This spot")}</h3>${routeBtn(lat, lon)}${window.tfShareBtn ? window.tfShareBtn(lat, lon, { sport: "fish", name: title }) : ""}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div>
       <div id="fsHidden"></div><div id="fsWater"><p class="fs-note fs-look">Looking up this spot…</p></div><div id="fsDepth"></div><div id="fsBait"></div>
       <div id="fsSea"></div><div id="fsSeason"></div><div id="fsRules"></div><div id="fsLic"></div><div id="fsBoat"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsLand"></div><div id="fsAcc"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
@@ -2281,6 +2281,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
 
   // For ski-points.js: what the conditions were when a catch is saved (the catch log keeps them, for patterns later).
   window.tfFish = {
+    spot(lat, lon, name) { setSpot(lat, lon, "tap"); showSpot(lat, lon, name || undefined); },   // a shared spot (ski-points.js #pin=)
     async snapshot(lat, lon) {
       const out = {};
       try {

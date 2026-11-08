@@ -982,7 +982,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const my = ++spotSeq, b = cur(), cap = capOf(b);
     el.hidden = false;
     const title = s.pin ? (realName(s.pin.p[2]) || kindLine(s.pin.k, s.pin.p).split(" · ")[0]) : s.road ? (s.road.name || (s.road.class === "track" ? "Unnamed track" : "Unnamed gravel road")) : "This spot";
-    const head = `<header>${svg(s.pin ? IC.camp : IC.road)}<h3>${esc(title)}</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>`;
+    const head = `<header>${svg(s.pin ? IC.camp : IC.road)}<h3>${esc(title)}</h3>${window.tfShareBtn ? window.tfShareBtn(s.lat, s.lon, { sport: "moto", name: s.pin || s.road ? title : "" }) : ""}<button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>`;
     const pinLine = s.pin ? `${pinHead(s.pin.k, s.pin.p)}<div data-pin><p class="mt-note">Looking up its details…</p></div>
       <div class="mt-row"><a class="mt-pill" href="${goLink(s.lat, s.lon)}" data-go-name="${esc(title)}" target="_blank" rel="noopener">${svg(IC.ride, 16)}Directions</a>${planning || route ? `<button type="button" class="mt-pill" data-addpt>${svg(IC.plan, 16)}Add to my route</button>` : ""}</div>` : "";
     let gradeHtml = "";
@@ -2665,6 +2665,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
 
   // ---------- for other scripts ----------
   window.tfMoto = {
+    spot(lat, lon) { setSpot(lat, lon, "tap"); toPanel(); },   // a shared spot (ski-points.js #pin=)
     rideInfo,
     openLog,
     openTrip: async (id) => { await openTrips(); showTrip(id); },   // Ask in plain words (ask.js): one ADV route
