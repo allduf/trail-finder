@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-08", "text": "Skiing 3D map moves smoothly again near Squamish, Whistler and Kicking Horse."},
     {"date": "2026-11-08", "text": "Skiing webcams: the Black Tusk Snowmobile Club's 4 live cameras at the Brohm Ridge chalet, above Squamish (they run in winter)."},
     {"date": "2026-11-08", "text": "Hunting: a layer that isn't mapped in your province now says so, Alberta grazing leases show in Alberta, and range ring labels no longer pile up when zoomed out."},
     {"date": "2026-11-08", "text": "Share a spot with a friend: every This spot card has a Share button. Your friend gets a link that opens the app on that spot with a purple pin, plus the coordinates."},

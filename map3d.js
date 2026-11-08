@@ -1189,29 +1189,9 @@
   // can't come (offline, a missing tile) the tile is the plain Winter photo as before.
   const SHARP_MID = [13, 14];
   const sharpMid = (sharp, z, x, y) => SHARP_MID.includes(z) && !!sharp && sharp.has((x >> (z - 11)) + "/" + (y >> (z - 11)));
-  async function sharpMidTile(z, x, y, signal, under) {
-    const n = 1 << (15 - z), s = 256 / n, cv = new OffscreenCanvas(256, 256), cx = cv.getContext("2d", { willReadFrequently: true });
-    const parts = [];
-    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) parts.push((async () => {
-      const r = await fetch(tfWinterShard(new URL(`${SHARP}15/${x * n + i}/${y * n + j}.webp${SHARP_REV}`, location.href).href, 15, x * n + i, y * n + j), { signal });
-      if (!r.ok) throw new Error("no sharp tile");
-      const bmp = await createImageBitmap(await r.blob(), { resizeWidth: s, resizeHeight: s, resizeQuality: "high" });
-      cx.drawImage(bmp, i * s, j * s); bmp.close();
-    })());
-    const done = await Promise.allSettled(parts);
-    if (signal.aborted) throw new DOMException("aborted", "AbortError");
-    if (done.some((d) => d.status === "rejected")) return null;
-    const px = cx.getImageData(0, 0, 256, 256).data;
-    let holes = false;
-    for (let i = 3; i < px.length; i += 4) if (px[i] < 250) { holes = true; break; }
-    if (holes) {
-      const u = await under().catch((e) => { if (signal.aborted) throw e; return null; });
-      if (u) { cx.globalCompositeOperation = "destination-over"; cx.drawImage(u, 0, 0, 256, 256); drop(u); }
-    }
-    const out = await createImageBitmap(cv);
-    cv.width = cv.height = 0;   // its picture let go now, not whenever the browser cleans up (iPhone memory)
-    return out;
-  }
+  // The shrinking is done in the winter-fill.js workers (sharp: in their message), off the page: on the page it was
+  // 16 pictures decoded and shrunk per tile while the map moved, and dragging the 3D map near Squamish and Whistler
+  // drew about 2 frames a second (alex's recording, 2026-11-08: "really slow").
   // Which site has tile z/x/y: the square's own, or for a wider tile the site with most squares under it (each site
   // draws its own zooms 6-10 from its squares only).
   const winterSite = (have, z, x, y) => {
@@ -1236,12 +1216,8 @@
       const [z, x, y] = params.url.replace("tfwinterphoto://", "").split("/").map(Number);
       const have = await loadWinterBlocks();
       if (!anyWinter(have, z, x, y)) return noTile();
-      if (sharpMid(await loadSharp(), z, x, y)) {
-        const under = () => fillTile(z, x, y, covered(have, z, x, y), abort, winterSite(have, z, x, y)).then((m) => m.data);
-        const bmp = await sharpMidTile(z, x, y, abort.signal, under).catch((e) => { if (abort.signal.aborted) throw e; return null; });
-        if (bmp) return { data: bmp };
-      }
-      const m = await fillTile(z, x, y, covered(have, z, x, y), abort, winterSite(have, z, x, y)).catch((e) => { if (abort.signal.aborted) throw e; return { none: true }; });
+      const sharp = sharpMid(await loadSharp(), z, x, y);
+      const m = await fillTile(z, x, y, covered(have, z, x, y), abort, winterSite(have, z, x, y), sharp).catch((e) => { if (abort.signal.aborted) throw e; return { none: true }; });
       if (m.miss14) { const b = (x >> 3) + "/" + (y >> 3); missing14.set(b, (missing14.get(b) || 0) + 1); }
       if (m.data) return { data: m.data };
       // No winter photo here after all, or it couldn't be read: the summer photo rather than a hole to the sky.
@@ -1251,9 +1227,10 @@
   // Workers that fetch the Winter photos and fill their cloudy holes (winter-fill.js), off the page.
   let fillWorkers = null, fillNext = 0, fillId = 0;
   const fillWaiting = new Map();
-  const fillTile = (z, x, y, whole, abort, site) => new Promise((ok, no) => {
+  // sharp: zooms 13-14 inside the sharpened squares, made from the zoom-15 sharpened photos (see SHARP_MID).
+  const fillTile = (z, x, y, whole, abort, site, sharp) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=3810");
+      const w = new Worker("winter-fill.js?v=3820");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1263,7 +1240,7 @@
       if (!fillWaiting.delete(id)) return;
       w.postMessage({ cancel: id }); no(new DOMException("aborted", "AbortError"));
     });
-    w.postMessage({ id, z, x, y, base: new URL(site, location.href).href, skip: no14(z, x, y), whole });
+    w.postMessage({ id, z, x, y, base: new URL(site, location.href).href, skip: no14(z, x, y), whole, sharp: sharp ? new URL(SHARP, location.href).href : null, rev: SHARP_REV });
   });
   // Since 2026-10-26 the newer squares (ski hills and tours across Canada) stop at zoom 13 to fit the site, and a few
   // tiles are missing where every pass was cloudy. Those came back see-through, so up close the hidden layer under
@@ -1352,7 +1329,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=3810" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=3820" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1451,11 +1428,7 @@
       if (hd) { cx.drawImage(hd, 0, 0, 256, 256); drop(hd); }
       return createImageBitmap(cv);
     }
-    if (sharpMid(await loadSharp(), z, x, y)) {
-      const bmp = await sharpMidTile(z, x, y, signal, () => fillTile(z, x, y, covered(have, z, x, y), abort, site).then((m) => m.data)).catch((e) => { if (signal.aborted) throw e; return null; });
-      if (bmp) return bmp;
-    }
-    return (await fillTile(z, x, y, covered(have, z, x, y), abort, site)).data || null;
+    return (await fillTile(z, x, y, covered(have, z, x, y), abort, site, sharpMid(await loadSharp(), z, x, y))).data || null;
   };
 
   // ---------- phone memory ----------
