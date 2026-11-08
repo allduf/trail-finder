@@ -267,7 +267,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     e.preventDefault();
     if (mode === "new") return createAccount();
     const c = await creds(); if (!c) return;
-    if (!c.password) { say("Enter your password, or use \u201cEmail me a code\u201d.", true); return; }
+    if (!c.password) { say("Type your password. No account yet? Tap \u201cNew here? Create an account\u201d.", true); q("acctPass").focus(); return; }
     q("acctSend").disabled = true; say("Signing in…");
     const { error } = await api.client.auth.signInWithPassword(c);
     q("acctSend").disabled = false;
@@ -300,7 +300,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     const c = await creds(); if (!c) return;
     say("Sending…");
     const { error } = await api.client.auth.signInWithOtp({ email: c.email, options: { emailRedirectTo: redirect() } });
-    if (error) say(/rate|seconds/i.test(error.message) ? "Too many emails just now. Wait a minute and try again." : error.message, true);
+    if (error) say(/rate|seconds/i.test(error.message) ? "Too many emails just now. Wait a minute and try again." : /sending|smtp/i.test(error.message) ? "We couldn't send the email just now. Try again in a few minutes. If it keeps happening, write to trailfinder.help@outlook.com." : error.message, true);
     else { codeFor(c.email); say(`We emailed a code to ${c.email}. Type it below. Once you're in, you can set a new password under Account → Settings.`); }
   });
   // Sign in with the code from the email (alex 2026-11-03). The iPhone app can't catch email links (they open Safari,

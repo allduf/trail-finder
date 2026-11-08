@@ -1158,6 +1158,8 @@
     "Size 3: can bury and destroy a car.":"Taille 3 : peut ensevelir et détruire une voiture.",
     "Size 4: can destroy a railway car.":"Taille 4 : peut détruire un wagon de train.",
     "Size 5: the largest known, can gouge the landscape.":"Taille 5 : la plus grande connue, peut marquer le paysage.",
+    "Type your password. No account yet? Tap “New here? Create an account”.":"Entrez votre mot de passe. Pas encore de compte? Touchez « Nouveau? Créer un compte ».",
+    "We couldn't send the email just now. Try again in a few minutes. If it keeps happening, write to trailfinder.help@outlook.com.":"Nous n'avons pas pu envoyer le courriel. Réessayez dans quelques minutes. Si ça continue, écrivez à trailfinder.help@outlook.com.",
     "Gate":"Barrière",
     "No gate":"Sans barrière",
     "Book":"Réserver",
