@@ -1136,6 +1136,7 @@
     "Routes you planned":"Trajets planifiés",
     "My bikes":"Mes motos",
     "Your bikes: weight, tank, tires, skill":"Vos motos : poids, réservoir, pneus, niveau",
+    "Skiing webcams: the Black Tusk Snowmobile Club's 4 live cameras at the Brohm Ridge chalet, above Squamish (they run in winter).":"Webcams Ski : les 4 caméras en direct du Black Tusk Snowmobile Club au chalet de Brohm Ridge, au-dessus de Squamish (elles fonctionnent l'hiver).",
     "Gate":"Barrière",
     "No gate":"Sans barrière",
     "Book":"Réserver",
