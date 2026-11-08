@@ -50,6 +50,9 @@ dialog.acct button.go { background: var(--accent); color: var(--accent-fg, #fff)
 dialog.acct button:disabled { opacity: .6; cursor: default; }
 dialog.acct .acct-msg { min-height: 1.2em; font-size: .88rem; margin: 0 0 10px; color: var(--fg); }
 dialog.acct .acct-msg.err { color: #c0392b; }
+dialog.acct .acct-ok { margin: -6px 0 12px; padding: 8px 10px; border-radius: 9px; font-size: .9rem; font-weight: 600; background: #e3f3e6; color: #1e6b34; }
+dialog.acct .acct-ok:not(.err)::before { content: "\\2713  "; }
+dialog.acct .acct-ok.err { background: #fbe5e2; color: #c0392b; }
 dialog.acct .acct-alt { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 12px; font-size: .88rem; }
 dialog.acct .acct-alt button { background: none; border: 0; padding: 2px 0; color: var(--accent); font-weight: 600; }
 dialog.acct .acct-menu { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
@@ -324,21 +327,34 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   q("acctCodeGo").addEventListener("click", useCode);
   q("acctCode").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); useCode(); } });
   const setMsg = (text) => { q("acctSetMsg").textContent = text; };
+  // A clear answer right under the button that was tapped (alex 2026-11-08: "once you change your password you should
+  // have a confirmation it worked"): green box with a check, or a red one, and the button says ✓ Saved for a moment.
+  function answer(btnId, text, err) {
+    const row = q(btnId).closest(".acct-row");
+    let p = row.nextElementSibling;
+    if (!p || !p.classList.contains("acct-ok")) { p = document.createElement("p"); p.setAttribute("role", "status"); row.after(p); }
+    p.className = "acct-ok" + (err ? " err" : ""); p.textContent = text;
+    clearTimeout(p._t); p._t = setTimeout(() => p.remove(), 10000);
+    if (!err) { const b = q(btnId), was = b.dataset.label || (b.dataset.label = b.textContent); b.textContent = "\u2713 Saved"; setTimeout(() => { b.textContent = was; }, 2500); }
+  }
   q("acctSetPass").addEventListener("click", async () => {
     const pw = q("acctNewPass").value;
-    if (pw.length < 6) { setMsg("Passwords need at least 6 characters."); return; }
+    if (pw.length < 6) { answer("acctSetPass", "Passwords need at least 6 characters.", true); q("acctNewPass").focus(); return; }
+    q("acctSetPass").disabled = true;
     const { error } = await api.client.auth.updateUser({ password: pw });
+    q("acctSetPass").disabled = false;
+    if (error) { answer("acctSetPass", /same|different/i.test(error.message) ? "That's already your password. Pick a different one." : "Couldn't change the password: " + error.message, true); return; }
     q("acctNewPass").value = "";
-    setMsg(error ? "Couldn't save the password: " + error.message : "Password saved. Next time, sign in with your email and password.");
+    answer("acctSetPass", "Password changed. Next time, sign in with your email and this new password.");
   });
   q("acctSetName").addEventListener("click", async () => {
     const name = q("acctName").value.trim().slice(0, 40);
     const { data, error } = await api.client.auth.updateUser({ data: { name } });
-    if (error) { setMsg("Couldn't save the name: " + error.message); return; }
+    if (error) { answer("acctSetName", "Couldn't save the name: " + error.message, true); return; }
     if (data && data.user) api.user = data.user;
     paintButtons();
     try { if (name && !localStorage.getItem("tf:liveName")) localStorage.setItem("tf:liveName", JSON.stringify(name)); } catch {}
-    setMsg(name ? `Saved. Friends will see \u201c${name}\u201d.` : "Name removed.");
+    answer("acctSetName", name ? `Name saved. Friends will see \u201c${name}\u201d.` : "Name removed.");
   });
   // Download my data (privacy laws, e.g. Quebec's Law 25: people can get a copy of what we keep about them). One JSON
   // file: the account, every row saved to it, links to its photos (good for 7 days), and this device's settings.
@@ -388,7 +404,8 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     const email = q("acctNewEmail").value.trim();
     if (!q("acctNewEmail").reportValidity() || !email || email === api.user.email) return;
     const { error } = await api.client.auth.updateUser({ email }, { emailRedirectTo: redirect() });
-    setMsg(error ? "Couldn't change the email: " + error.message : `Check ${email} (and your old address) and tap the confirm links. The change happens after that.`);
+    if (error) answer("acctSetEmail", "Couldn't change the email: " + error.message, true);
+    else answer("acctSetEmail", `Almost done: check ${email} (and your old address) and tap the confirm links. The change happens after that.`);
   });
   // Sign out sits right in the Your account box (alex 2026-11-03) and again under Settings.
   // Signing out also takes the rider's own things off this device (alex 2026-11-03: signed out on the computer, Ridden,
