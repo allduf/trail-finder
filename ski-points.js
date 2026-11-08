@@ -427,7 +427,8 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     showHarvest();
     paintPhoto();
     if (!form.open) form.showModal();
-    if (!p) $("spfName").focus();
+    // On a phone the keyboard would cover the tags (the main pick) and scroll the form past its top: no focus there.
+    if (!p && !matchMedia("(pointer: coarse)").matches) $("spfName").focus();
   }
   let tags = [], tagSport = "hunt";
   // Tap every tag that fits (tap again to take it off); the main one sets the pin's icon and, for a harvest or a catch,

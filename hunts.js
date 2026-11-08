@@ -127,7 +127,7 @@
   const sawAnimal = (p) => (p.tags && p.tags.length ? p.tags : [p.kind]).some((k) => SEEN.includes(k));   // a pin can carry several tags
 
   function huntsHtml(hunts, pts, kinds) {
-    if (!hunts.length) return `<p class="sp-empty">No hunts yet. When you head out, tap <b>${phone() ? "Track" : "Start tracking"}</b> and the app records your walk. Save it at the end and it shows here with the time you were out, how far you walked, a map of where you went, what you saved on the way (sightings, sign, harvests) and the wind and weather when you started.</p>
+    if (!hunts.length) return `<p class="sp-empty">No hunts yet. When you head out, tap <b>${phone() ? "Record" : "Start tracking"}</b> and the app records your walk. Save it at the end and it shows here with the time you were out, how far you walked, a map of where you went, what you saved on the way (sightings, sign, harvests) and the wind and weather when you started.</p>
       <div class="sp-row"><button type="button" class="go" data-hh="start">▶ Start tracking a hunt</button></div>`;
     const by = new Map();
     for (const h of hunts) { const k = seasonOf(h.start); (by.get(k) || by.set(k, []).get(k)).push(h); }

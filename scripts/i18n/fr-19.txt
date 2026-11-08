@@ -1,0 +1,6 @@
+# Hunting check (alex 2026-11-08)
+Not mapped here yet (BC and Alberta) ||| Pas encore cartographié ici (C.-B. et Alberta)
+Not mapped here yet (BC only) ||| Pas encore cartographié ici (C.-B. seulement)
+Not mapped here yet (no open map for this province) ||| Pas encore cartographié ici (aucune carte ouverte pour cette province)
+Zones, seasons, draws for the area on screen, or a square you draw, for no signal. Offline maps (Record tab) saves them with the base map and the 3D map in one go. ||| Zones, saisons et tirages pour la zone à l'écran, ou un carré que vous tracez, pour quand il n'y a pas de réseau. Cartes hors ligne (onglet Enregistrer) les enregistre avec la carte de base et la carte 3D d'un coup.
+Hunting: a layer that isn't mapped in your province now says so, Alberta grazing leases show in Alberta, and range ring labels no longer pile up when zoomed out. ||| Chasse : une couche qui n'est pas cartographiée dans votre province le dit maintenant, les baux de pâturage de l'Alberta s'affichent en Alberta, et les étiquettes des cercles de distance ne s'empilent plus quand on dézoome.
