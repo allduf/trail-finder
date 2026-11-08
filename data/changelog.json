@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-08", "text": "Skiing: the Powder Mountain Snowmobile Club's sled trails at Brandywine are on the map: Brandywine Bowl, Metal Dome, Chocolate Bowl, and the backcountry routes to Powder Mountain, the Sea of White and Ring Mountain."},
     {"date": "2026-11-08", "text": "Adventure moto: the Mud and dust today squares are off the map. The Dirt today card and Mud today button stay."},
     {"date": "2026-11-07", "text": "Skiing: Plan a new tour and Saved tours are now at the top of Routes, next to Plan a tour."},
     {"date": "2026-11-07", "text": "Skiing: planning a tour takes fewer taps. Each tour is saved by itself, and a typed plan can be made with the less exposed way in one tap."},
