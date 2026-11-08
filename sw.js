@@ -4,7 +4,7 @@
 // are not touched; map tiles only as TILES says (OpenStreetMap, heights, Winter photos), and the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-3670";
+const VERSION = "tf-3680";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
   "./", "index.html", "ride.html", "theme.css?v=20", "account.js?v=3870", "friends.js?v=3870", "moderation.js?v=3870", "reports.js?v=3870", "grades.js?v=3870", "trail-photos.js?v=3870", "status.js?v=3870", "ask.js?v=3870", "visitors.js?v=3870", "usage.js?v=3870", "map3d.js?v=3870", "ski-terrain.js?v=3870", "winter.js?v=3870", "place-search.js?v=3870", "clouds.js?v=3870", "smoke.js?v=3870", "radar.js?v=3870", "live.js?v=3870", "ski-points.js?v=3870", "hunts.js?v=3870", "webcams.js?v=3870", "lifts.js?v=3870", "ski-areas.js?v=3870", "helicat.js?v=3870", "cabin-trip.js?v=3870", "camper.js?v=3870", "japanese.js?v=3870", "japan-snow.js?v=3870", "rogers.js?v=3870", "slackcountry.js?v=3870", "freeride.js?v=3870", "crownland.js?v=3870", "hunting.js?v=3870", "fish-bait.js?v=3870", "fish-route.js?v=3870", "ski-route.js?v=3870", "fishing.js?v=3870", "moto.js?v=3870", "moto-roads.js?v=3870", "hike.js?v=3870", "compass.js?v=3870", "offline.js?v=3870", "native-gps.js?v=3870", "native.js?v=3870", "native-map.js?v=3870", "keyboard.js?v=3870", "navigate.js?v=3870", "go-there.js?v=3870", "ride-stats.js?v=3870", "ride-finds.js?v=3870", "rides.js?v=3870", "planner.js?v=3870", "rotate.js?v=3870", "photo-find.js?v=3870", "ebike.js?v=3870", "closures.js?v=3870", "loops.js?v=3870", "strava.js?v=3870", "share.js?v=3870", "community.js?v=3870", "ride-files.js?v=3870", "rider-trails.js?v=3870", "alpine.js?v=3870", "areas.js?v=3870", "bikeparks.js?v=3870", "contours.js?v=3870", "directions.js?v=3870", "notify.js?v=3870", "official.js?v=3870", "photo-slider.js?v=3870", "ratings.js?v=3870", "whats-new.js?v=3870", "app-update.js?v=3870", "noback.js?v=3870", "risk.js?v=3870", "welcome.js?v=3870", "i18n.js?v=3870", "line-icons.js?v=3870", "i18n-fr.js?v=3870", "manifest.webmanifest",
@@ -43,6 +43,13 @@ self.addEventListener("activate", (e) => {
 // before anything showed. A new deploy shows on the open after the one that downloads it (the same as the iPhone
 // app's own update), and the previous version's files are kept (activate above) for a page still running from it.
 const DATA_WAIT_MS = 1500, PAGE_WAIT_MS = 2000;
+// Cloudflare Pages (since 2026-11-07) answers ride.html and index.html with a 308 to /ride and /. A saved copy that came
+// through a redirect can't answer a page open: the browser shows "This site can't be reached" (alex 2026-11-08, My tours
+// on a computer). Such a copy is rebuilt as a plain answer before it's used.
+async function plain(r) {
+  if (!r || !r.redirected) return r;
+  return new Response(await r.blob(), { status: r.status, statusText: r.statusText, headers: r.headers });
+}
 async function networkFirst(req, e) {
   const cache = await caches.open(VERSION);
   try {
@@ -65,18 +72,18 @@ async function networkFirst(req, e) {
       const hit = page ? await cache.match(req, { ignoreSearch: true }) || (home ? await cache.match("index.html") : null) || await caches.match(req, { ignoreSearch: true }) : await caches.match(req);
       if (hit) {
         e.waitUntil(net.catch(() => null));
-        if (page && hit.ok && !hit.redirected) return hit;
+        if (page && hit.ok) return plain(hit);
         // The whole file, not just its first bytes: a big file can start quickly and then crawl.
         const whole = net.then(async (r) => (r.ok ? new Response(await r.blob(), { status: r.status, statusText: r.statusText, headers: r.headers }) : null)).catch(() => null);
         const slow = new Promise((ok) => setTimeout(() => ok(null), page ? PAGE_WAIT_MS : DATA_WAIT_MS));
-        return (await Promise.race([whole, slow])) || hit;
+        return (await Promise.race([whole, slow])) || plain(hit);
       }
     }
-    return await net;
+    return await plain(await net);
   } catch (err) {
     const hit = await caches.match(req, { ignoreSearch: req.mode === "navigate" });
-    if (hit) return hit;
-    if (req.mode === "navigate") { const home = await cache.match("index.html"); if (home) return home; }
+    if (hit) return plain(hit);
+    if (req.mode === "navigate") { const home = await cache.match("index.html"); if (home) return plain(home); }
     throw err;
   }
 }
