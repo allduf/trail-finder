@@ -59,6 +59,7 @@ dialog.acct button.danger { background: #c0392b; color: #fff; border-color: tran
 dialog.acct .acct-alt a { color: var(--accent); font-weight: 600; padding: 2px 0; }
 dialog.acct .acct-alt button.acct-del { color: #c0392b; }
 dialog.acct .acct-code { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+dialog.acct #acctPassTip { margin: 4px 0 0; font-size: .8rem; color: var(--muted); }
 dialog.acct #acctCode { font-size: 1.3rem; letter-spacing: .25em; text-align: center; }
 .acct-nudge, .acct-nudge * { box-sizing: border-box; }
 .acct-nudge { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 16px); z-index: 2400; width: min(380px, calc(100vw - 32px));
@@ -85,9 +86,10 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   <input type="email" id="acctEmail" placeholder="you@example.com" autocomplete="email" required>
   <label for="acctPass">Password</label>
   <input type="password" id="acctPass" autocomplete="current-password" minlength="6">
+  <p id="acctPassTip" hidden>At least 6 characters. Pick a new one, not your email password.</p>
   <p class="acct-msg" id="acctMsg" role="status"></p>
   <div class="acct-row"><button type="button" data-close>Not now</button><button type="submit" class="go" id="acctSend">Sign in</button></div>
-  <div class="acct-alt"><button type="button" id="acctNew">New here? Create an account</button><button type="button" id="acctLink">Forgot password? Email me a code</button></div>
+  <div class="acct-alt"><button type="button" id="acctNew">New here? Create an account</button><button type="button" id="acctHave" hidden>Already have an account? Sign in</button><button type="button" id="acctLink">Forgot password? Email me a code</button></div>
   <div id="acctCodeBox" class="acct-code" hidden>
     <label for="acctCode">Code from the email</label>
     <input type="text" id="acctCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="10" placeholder="123456">
@@ -155,8 +157,29 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     api.load();
     q("acctIn").hidden = !!api.user; q("acctOut").hidden = !api.user;
     if (api.user) showSettings(false);
-    else { q("acctMsg").textContent = ""; q("acctMsg").className = "acct-msg"; q("acctCodeBox").hidden = true; q("acctCode").value = ""; }
+    else { q("acctMsg").textContent = ""; q("acctMsg").className = "acct-msg"; q("acctCodeBox").hidden = true; q("acctCode").value = ""; setMode("in"); }
     if (!box.open) box.showModal();
+  }
+  // Two screens in one box (alex 2026-11-08: "when you click on Create an account it should open a new window and start
+  // creating an account"): Sign in, and Create an account with its own heading and big button. need: the reason an
+  // account is needed (api.require), shown on both screens.
+  let mode = "in", need = "";
+  const HAD = "trailfinder-had-account";   // this device was signed in before: open on Sign in, not Create an account
+  function setMode(m) {
+    mode = m;
+    const nu = m === "new";
+    q("acctHead").textContent = nu ? (need ? "Create a free account" : "Create an account") : (need ? "Sign in to save maps offline" : "Sign in");
+    q("acctNeed").hidden = !need; q("acctNeed").textContent = need;
+    q("acctWhy").hidden = !!need;
+    q("acctWhy").textContent = nu ? "Free. Just your email and a password you pick. Your settings, rides, pins and trips are then saved to your account and on every device."
+      : "Optional. Signing in saves your settings, rides, pins and trips to your account so they're on every device. Everything else works the same without it.";
+    q("acctSend").textContent = nu ? "Create account" : "Sign in";
+    q("acctPass").autocomplete = nu ? "new-password" : "current-password";
+    q("acctPass").placeholder = nu ? "Pick a password" : "";
+    q("acctPassTip").hidden = !nu;
+    q("acctNew").hidden = nu; q("acctHave").hidden = !nu; q("acctLink").hidden = nu;
+    q("acctCodeBox").hidden = true;
+    say("");
   }
   function showSettings(on) {
     q("acctMenu").hidden = on; q("acctSettings").hidden = !on; q("acctDelBox").hidden = true;
@@ -181,14 +204,13 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     if (!api.enabled) return Promise.resolve(true);
     return new Promise((resolve) => {
       openBox();
-      q("acctHead").textContent = "Sign in to save maps offline";
-      q("acctNeed").textContent = why || "You need a free account for this.";
-      q("acctNeed").hidden = false; q("acctWhy").hidden = true;
+      need = why || "You need a free account for this.";
+      setMode(lsGet(HAD) ? "in" : "new");
       let done = false;
       const finish = (ok) => {
         if (done) return; done = true;
         window.removeEventListener("tf:account", onIn); box.removeEventListener("close", onClose);
-        q("acctHead").textContent = "Sign in"; q("acctNeed").hidden = true; q("acctWhy").hidden = false;
+        need = ""; setMode("in");
         resolve(ok);
       };
       const onIn = (e) => { if (e.detail) { if (box.open) box.close(); finish(true); } };
@@ -228,7 +250,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     paintButtons();
     if (was === now) return;
     if (!was && now && box.open) openBox();
-    if (now) api.sync();
+    if (now) { api.sync(); lsSet(HAD, "1"); }
     window.dispatchEvent(new CustomEvent("tf:account", { detail: user }));
   }
 
@@ -243,23 +265,37 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   const redirect = () => location.origin + location.pathname;
   q("acctIn").addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (mode === "new") return createAccount();
     const c = await creds(); if (!c) return;
-    if (!c.password) { say("Enter your password, or use \u201cEmail me a link\u201d.", true); return; }
+    if (!c.password) { say("Enter your password, or use \u201cEmail me a code\u201d.", true); return; }
     q("acctSend").disabled = true; say("Signing in…");
     const { error } = await api.client.auth.signInWithPassword(c);
     q("acctSend").disabled = false;
-    if (error) say(/invalid/i.test(error.message) ? "Wrong email or password. New here? Create an account below." : error.message, true);
-    else box.close();
+    if (!error) box.close();
+    else if (/invalid/i.test(error.message)) say("Wrong email or password. New here? Tap Create an account below.", true);
+    else if (/not confirmed/i.test(error.message)) say("This account isn't confirmed yet. Tap \u201cForgot password? Email me a code\u201d to get in.", true);
+    else say(error.message, true);
   });
-  q("acctNew").addEventListener("click", async () => {
+  q("acctNew").addEventListener("click", () => { setMode("new"); q("acctEmail").focus(); });
+  q("acctHave").addEventListener("click", () => { setMode("in"); q("acctEmail").focus(); });
+  async function createAccount() {
     const c = await creds(); if (!c) return;
-    if (c.password.length < 6) { say("Pick a password of at least 6 characters, then tap Create an account.", true); q("acctPass").focus(); return; }
-    say("Creating your account…");
+    if (c.password.length < 6) { say("Pick a password of at least 6 characters.", true); q("acctPass").focus(); return; }
+    q("acctSend").disabled = true; say("Creating your account…");
     const { data, error } = await api.client.auth.signUp({ ...c, options: { emailRedirectTo: redirect() } });
-    if (error) say(error.message, true);
-    else if (data.session) box.close();
+    q("acctSend").disabled = false;
+    // An email that already has an account: no error, but a user with no identities (or "already registered").
+    const taken = (error && /already|registered|exists/i.test(error.message)) || (!error && data.user && data.user.identities && !data.user.identities.length);
+    if (taken) { setMode("in"); say("You already have an account with this email. Type your password and tap Sign in.", false); q("acctPass").focus(); }
+    else if (error) say(/sending|email.*(send|deliver)|smtp/i.test(error.message) ? "We couldn't send the email to finish your account just now. Try again in a few minutes. If it keeps happening, write to trailfinder.help@outlook.com." : /rate|seconds/i.test(error.message) ? "Too many tries just now. Wait a minute and try again." : error.message, true);
+    else if (data.session) { box.close(); toast("Your account is ready. You're signed in."); }
     else { codeFor(c.email); say(`Almost done: we emailed a code to ${c.email}. Type it below (or tap the link in the email).`); }
-  });
+  }
+  function toast(text) {
+    const t = document.createElement("div");
+    t.className = "acct-toast"; t.setAttribute("role", "status"); t.textContent = text;
+    document.body.appendChild(t); setTimeout(() => t.remove(), 4000);
+  }
   q("acctLink").addEventListener("click", async () => {
     const c = await creds(); if (!c) return;
     say("Sending…");
