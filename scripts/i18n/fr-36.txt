@@ -1,0 +1,10 @@
+Ride saved to My rides ||| Sortie enregistrée dans Mes sorties
+Ski tour saved to My rides ||| Sortie de ski enregistrée dans Mes sorties
+Hunt saved to My rides ||| Chasse enregistrée dans Mes sorties
+Fishing saved to My rides ||| Pêche enregistrée dans Mes sorties
+Moto ride saved to My rides ||| Sortie moto enregistrée dans Mes sorties
+Hike saved to My rides ||| Randonnée enregistrée dans Mes sorties
+Add photos ||| Ajouter des photos
+Saving… ||| Enregistrement…
+You have an earlier ride that isn't saved. Save it to My rides now? Cancel starts a new ride and drops the old one. ||| Vous avez une sortie précédente non enregistrée. L'enregistrer dans Mes sorties maintenant? Annuler commence une nouvelle sortie et efface l'ancienne.
+Save ride: no more save page. Save puts the ride straight into My rides and you stay on the map; add a name or photos later from My rides. ||| Enregistrer la sortie : plus de page d'enregistrement. Enregistrer met la sortie directement dans Mes sorties et vous restez sur la carte; ajoutez un nom ou des photos plus tard dans Mes sorties.
