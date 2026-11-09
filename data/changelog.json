@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-09", "text": "3D map is quicker to stand up: the mountain heights under you are fetched first, and going back to the flat map is instant."},
     {"date": "2026-11-09", "text": "A brand-new phone opens lighter: nothing is downloaded behind the welcome screens, and only the sport you pick loads its maps and trails."},
     {"date": "2026-11-09", "text": "Skiing: a route's card opens right away when you tap it, and the 3D map shows the route itself instead of the far valleys behind it, with less to download."},
     {"date": "2026-11-09", "text": "Search is quicker: trail and town names start loading as soon as you tap the search box, and a trail split by a road shows once. Hiking lists real hikes first, and a part of the app that fails to load is tried again."},

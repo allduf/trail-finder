@@ -1,0 +1,1 @@
+3D map is quicker to stand up: the mountain heights under you are fetched first, and going back to the flat map is instant. ||| La carte 3D se dresse plus vite : les hauteurs des montagnes sous vous arrivent en premier, et le retour à la carte plate est instantané.
