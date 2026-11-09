@@ -8,7 +8,9 @@
 //    start), more again above.
 //  - Today's avalanche forecast (Avalanche Canada, the area and day picked in Skiing): the band's danger rating
 //    (alpine / treeline / below treeline from the cell's height) scales it, and a slope facing one of the aspects of
-//    that band's avalanche problems counts 1.6x, one facing away 0.6x. No forecast: planned as Moderate (see LEVEL_K).
+//    that band's avalanche problems counts 1.6x, one facing away 0.6x. No forecast (av.none): terrain only, every
+//    slope weighed the same whatever its height or aspect, with no danger rating at all (alex 2026-11-09: "show the
+//    less exposed way but put a warning that there is no avalanche forecast included").
 //  - Exposure: where a slide that starts on 30°+ ground above could run (followed down the fall line until the
 //    line back up to its top is under 24°, the alpha angle used for runout), and twice that in a gully or creek bed
 //    under it (a terrain trap).
@@ -22,14 +24,16 @@
   const ASP = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
   const ASP_NAME = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"];
   const BAND = ["alp", "tln", "btl"], BAND_NAME = ["alpine", "treeline", "below treeline"];
-  // Weight of a danger rating (1 Low ... 5 Extreme); 0 = no rating, planned as Moderate.
+  // Weight of a danger rating (1 Low ... 5 Extreme); 0 = no rating (not used with no forecast: terrain only, w = 1).
   const WD = [1.2, 0.6, 1.2, 2.5, 5, 10];
   // How strict the whole route is, from the worst rating on the forecast (alex 2026-11-04: "you can take a bit steeper
   // route. if the avalanche forecast is red dont take that route, find the safest route"): Low or Moderate (or no rating
   // yet) a direct line that takes slopes up to ~35° rather than a long way round; Considerable the balance in between;
   // High or Extreme (red) the safest way however long. K scales the risk part of every step.
-  const LEVEL_K = { direct: 0.3, balanced: 1, strict: 4 };
-  const levelOf = (av) => { const r = Math.max(av.r.alp || 0, av.r.tln || 0, av.r.btl || 0); return r >= 4 ? "strict" : r === 3 ? "balanced" : "direct"; };
+  // terrain: no forecast, so no danger level is assumed; the risk is slope angle and what's above only, weighed as
+  // the in-between (balanced) route would weigh it.
+  const LEVEL_K = { direct: 0.3, balanced: 1, strict: 4, terrain: 1 };
+  const levelOf = (av) => { if (av.none) return "terrain"; const r = Math.max(av.r.alp || 0, av.r.tln || 0, av.r.btl || 0); return r >= 4 ? "strict" : r === 3 ? "balanced" : "direct"; };
   const slopeTerm = (s) => (s < 20 ? 0 : s < 25 ? 0.2 : s < 30 ? 1 : s < 35 ? 4 : s < 40 ? 7 : s < 45 ? 10 : 14);
   const ALPHA = Math.tan(24 * RAD);   // a slide runs out until the line back up to where it started is under 24°
   const RUN_M = 1500;                 // and never further than this
@@ -84,7 +88,7 @@
       asp[i] = Math.round(((Math.atan2(-dx, dyS) / RAD + 360) % 360) / 45) % 8;   // the way the slope faces (downhill)
       const e = at(r, c), b = e >= hi ? 0 : e >= lo ? 1 : 2;
       band[i] = b;
-      const rt = av.r[BAND[b]] || 0, m = av.mask[BAND[b]] || 0, A = m ? (m & (1 << asp[i]) ? 1.6 : 0.6) : 1, w = WD[rt] * A * wxF(av.wx, asp[i], b, e);
+      const rt = av.r[BAND[b]] || 0, m = av.mask[BAND[b]] || 0, A = m ? (m & (1 << asp[i]) ? 1.6 : 0.6) : 1, w = av.none ? 1 : WD[rt] * A * wxF(av.wx, asp[i], b, e);
       risk[i] = w * slopeTerm(s);
       if (s >= 30 && s <= 60) start[i] = w;
     } }
@@ -321,7 +325,7 @@
       steep: l.runs.filter((r) => r.cls === "steep").reduce((s, r) => s + r.m, 0), under: l.runs.filter((r) => r.cls === "under" || r.cls === "trap").reduce((s, r) => s + r.m, 0), straight: l.straight, steps: l.steps }));
     // What a minute in each kind of terrain weighs on the way up today, in minutes on gentle ground (the card's "how it
     // weighs it"): the alpine rating, an aspect that isn't named in the problems.
-    const sk = { kUp: LEVEL_K.strict, kDown: LEVEL_K[levelOf(av)] }, w = WD[(av.r && (av.r.alp || av.r.tln || av.r.btl)) || 0];
+    const sk = { kUp: LEVEL_K.strict, kDown: LEVEL_K[levelOf(av)] }, w = av.none ? 1 : WD[(av.r && (av.r.alp || av.r.tln || av.r.btl)) || 0];
     const weigh = { s30: mult(sk, w * slopeTerm(32), true, false), s35: mult(sk, w * slopeTerm(37), true, false), side35: mult(sk, w * slopeTerm(37), true, true), under: mult(sk, w * 1.5, true, false) };
     // A documented skin track the search left (wayOf): what it would have been, for "why this way".
     const alts = legs.map((l) => l.alt).filter(Boolean);
