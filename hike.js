@@ -531,7 +531,7 @@ out center tags qt;`;
     const best = e && e.filter((x) => kmTo([x[1], x[2]], h.c) < 20).sort((a, b) => kmTo([a[1], a[2]], h.c) - kmTo([b[1], b[2]], h.c))[0];
     if (best) { h.g = best[3]; h.gFrom = { by: guide.src[best[4]] || best[4], url: best[5] || "" }; }
   }
-  getJ("data/hike-grades.json?v=4010").then((d) => {
+  getJ("data/hike-grades.json?v=4030").then((d) => {
     if (!d || d.v !== 1) return;
     guide = new Map(); guide.src = d.src || {};
     for (const x of d.h) { const k = guideKey(x[0]); if (k) (guide.get(k) || guide.set(k, []).get(k)).push(x); }
@@ -846,10 +846,14 @@ out center tags qt;`;
     store.set("hikeGrades", gradeOn);
     renderGrades(); renderList();
   });
+  // Real hikes first (1 km or more, with a grade or a signed hiking route, not a bike trail), then the graded ones
+  // shared with bikes, then other trails of 1 km or more, then the short pieces; nearest first within each. The deep
+  // test 2026-11-09 near Whistler opened on "Magic Chair Part 2", a 386 m piece with no grade, then the bike trails.
+  const tierOf = (h) => (h.km < 1 ? 3 : !(h.g > 0 || h.rel) ? 2 : h.shared ? 1 : 0);
   const inView = () => {
     const v = map.getBounds(), c = [map.getCenter().lat, map.getCenter().lng];
     return [...hikes.values()].filter((h) => h.km >= 0.3 && v.intersects(L.latLngBounds([h.bb[0], h.bb[1]], [h.bb[2], h.bb[3]])))
-      .map((h) => ({ h, d: kmTo(h.c, c) })).sort((a, b) => a.d - b.d).map((x) => x.h);
+      .map((h) => ({ h, d: kmTo(h.c, c), t: tierOf(h) })).sort((a, b) => a.t - b.t || a.d - b.d).map((x) => x.h);
   };
   const subOf = (h) => [GRADES[h.g].label, fmtKm(h.km) + " of trail", h.rel ? "hiking route" : "", h.shared ? "shared with bikes" : ""].filter(Boolean).join(" · ");
   function renderList() {
@@ -864,7 +868,7 @@ out center tags qt;`;
     $("hkCount").textContent = all.length ? `${all.length} hike${all.length > 1 ? "s" : ""} in view` : "Hikes in view";
     const left = pending();
     msg.textContent = left > 0 && fails && !all.length ? "OpenStreetMap's trail server is busy. Trying again…" : left > 0 ? (all.length ? "Finding more hiking trails…" : "Finding the hiking trails here…")
-      : !all.length ? "No named hiking trails here on OpenStreetMap." : !list.length ? "None of that grade in view." : list.length > 40 ? "Nearest 40 shown: zoom in for the rest." : "";
+      : !all.length ? "No named hiking trails here on OpenStreetMap." : !list.length ? "None of that grade in view." : list.length > 40 ? "40 shown, real hikes first: zoom in for the rest." : "";
     // Still finding them: grey rows where the hikes will be, not an empty card (interface review 2026-11-02 item 7).
     if (left > 0 && !all.length) { ul.innerHTML = `<li class="hk-wait" aria-hidden="true"><span></span><span></span></li>`.repeat(4); return; }
     ul.innerHTML = list.slice(0, 40).map((h) => `<li><button type="button" data-hike="${esc(h.id)}"><span class="hk-dot" style="--c:${GRADES[h.g].c}"></span><b>${esc(h.name)}</b><small>${esc(subOf(h))}</small><em>${saved().some((s) => s.id === h.id) ? "★" : ""}</em></button></li>`).join("");
@@ -1021,7 +1025,7 @@ out center tags qt;`;
   // alex 2026-11-03: anything found about a trail beyond OpenStreetMap goes on the trail (the Sea to Sky Gondola's
   // trails: difficulty, length, time, what it's like). An entry fits a hike with one of its names within r metres.
   let tInfo = null;
-  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=4010").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
+  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=4030").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
   const fold = (x) => String(x || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   function operatorFacts(h) {
     const j = tInfo && tInfo.then ? null : tInfo;
@@ -1503,7 +1507,7 @@ out center tags qt;`;
   // What Offline maps saves for Hiking (offline.js): the hiking trails and places of the home zones in the box, the
   // Canada chunks over it, the grades and trail facts, and the terrain tiles for heights.
   window.tfHikeOffline = async (box) => {   // box = [south, west, north, east]
-    const abs = (u) => new URL(u, location.href).href, data = ["data/hike-grades.json?v=4010", "data/trail-info.json?v=4010", "ca/h/index.json"];
+    const abs = (u) => new URL(u, location.href).href, data = ["data/hike-grades.json?v=4030", "data/trail-info.json?v=4030", "ca/h/index.json"];
     for (const z of window.tfZones || []) if (z.box[0] < box[2] && z.box[2] > box[0] && z.box[1] < box[3] && z.box[3] > box[1]) data.push(`data/hike-${z.id}.json`, `data/hike-places-${z.id}.json`);
     const have = await chunkList();
     for (let la = Math.floor(box[0] / CH_LAT) * CH_LAT; la < box[2]; la += CH_LAT)

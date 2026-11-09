@@ -1712,6 +1712,8 @@
     "Check avalanche.ca":"Consulter avalanche.ca",
     "Snow stations (BC snow pillows, Quebec's climate network, Environment Canada elsewhere): snow depth, new snow and temperature, every 2 hours":"Stations de neige (coussins à neige de la C.-B., réseau climatologique du Québec, Environnement Canada ailleurs) : épaisseur de neige, neige fraîche et température, aux 2 heures",
     "Skiing: snow stations near Bromont, Mont-Tremblant, the Chic-Chocs, Blue Mountain, Sugarloaf and Marble Mountain (now shown even before the snow), the nearest avalanche forecast where none covers you (Whitehorse), and a ski heatmap shortcut where no tour is mapped.":"Ski : stations de neige près de Bromont, du Mont-Tremblant, des Chic-Chocs, de Blue Mountain, de Sugarloaf et de Marble Mountain (affichées même avant la neige), la prévision d’avalanche la plus proche là où aucune ne vous couvre (Whitehorse), et un raccourci vers la carte de chaleur ski là où aucune rando n’est tracée.",
+    "Search is quicker: trail and town names start loading as soon as you tap the search box, and a trail split by a road shows once. Hiking lists real hikes first, and a part of the app that fails to load is tried again.":"La recherche est plus rapide : les noms des sentiers et des villes se chargent dès que vous touchez la boîte de recherche, et un sentier coupé par une route n'apparaît qu'une fois. La randonnée montre d'abord les vraies randonnées, et une partie de l'app qui ne se charge pas est réessayée.",
+    "40 shown, real hikes first: zoom in for the rest.":"40 affichées, les vraies randonnées d'abord : zoomez pour les autres.",
     "Hiking":"Randonnée",
     "Hikes":"Randos",
     "Hike":"Rando",
