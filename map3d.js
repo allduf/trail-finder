@@ -396,7 +396,7 @@
   function crispBuild() {
     crispBuildT = 0;
     const L3 = crispLayer, t0 = performance.now();
-    if (!crispOn || !gl || !L3.glc) return;
+    if (!crispOn || !gl || !L3.glc || !on) return;   // 3D switched off: nothing to build (back on builds again)
     if (gl.isMoving()) return;   // never while a finger moves the map: the move's end builds again
     const height = gl.terrain && crispHeights();
     if (!height) { L3.count = 0; crispDraped(true); return; }   // no mountains: the draped lines are right
@@ -546,7 +546,7 @@
       gl.triggerRepaint();
     },
     render(g, args) {
-      if (!this.count || !this.glc) return;
+      if (!this.count || !this.glc || !on) return;   // never draw while the 3D map is hidden: the hidden map kept repainting, and turning 3D back on froze the page
       const pd = args.defaultProjectionData;
       if (!pd || (pd.fallbackMatrix && pd.fallbackMatrix !== pd.mainMatrix)) return;   // globe: not handled
       // The view's matrix moved to the build's origin in 64-bit, so the points (small numbers near 0) stay exact.
@@ -1234,7 +1234,7 @@
   // sharp: zooms 13-14 inside the sharpened squares, made from the zoom-15 sharpened photos (see SHARP_MID).
   const fillTile = (z, x, y, whole, abort, site, sharp) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=3940");
+      const w = new Worker("winter-fill.js?v=3960");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1333,7 +1333,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=3940" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=3960" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
