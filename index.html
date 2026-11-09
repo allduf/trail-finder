@@ -23,8 +23,8 @@ addEventListener("error", (e) => {
   setTimeout(() => { const s = document.createElement("script"); s.src = el.src; s.async = false; s.dataset.retried = "1"; el.after(s); }, 1500);
 }, true);
 </script>
-<script src="i18n.js?v=4040"></script>
-<script src="line-icons.js?v=4040"></script>
+<script src="i18n.js?v=4070"></script>
+<script src="line-icons.js?v=4070"></script>
 <!-- Unofficial trails are for alex and friends only (friends.js): everyone else gets the public map, class tf-pub. -->
 <script>try { if (localStorage.getItem("tf-friend") !== "1") document.documentElement.classList.add("tf-pub"); } catch (e) { document.documentElement.classList.add("tf-pub"); }</script>
 <style>/* Netlify host badge (free plan, can't be removed): keep it off the tab bar, small, left edge, and BEHIND every app card/sheet/bar (z 999 < 1000) */#nl-badge-frame{z-index:999!important;top:40%!important;bottom:auto!important;right:auto!important;left:0!important;transform:scale(.5);transform-origin:0 0}</style>
@@ -1611,16 +1611,16 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="noback.js?v=4040"></script>
-<script src="risk.js?v=4040"></script>
-<script src="welcome.js?v=4040"></script>
-<script src="native.js?v=4040"></script>
-<script src="keyboard.js?v=4040"></script>
-<script src="rotate.js?v=4040"></script>
-<script src="official.js?v=4040"></script>
-<script src="directions.js?v=4040"></script>
-<script src="ratings.js?v=4040"></script>
-<script src="ebike.js?v=4040"></script>
+<script src="noback.js?v=4070"></script>
+<script src="risk.js?v=4070"></script>
+<script src="welcome.js?v=4070"></script>
+<script src="native.js?v=4070"></script>
+<script src="keyboard.js?v=4070"></script>
+<script src="rotate.js?v=4070"></script>
+<script src="official.js?v=4070"></script>
+<script src="directions.js?v=4070"></script>
+<script src="ratings.js?v=4070"></script>
+<script src="ebike.js?v=4070"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3377,11 +3377,19 @@ out body;`;
   const netTried = new Set();
   // Skiing never shows MTB trails, so it doesn't fetch their files at open (item 35, 2026-11-02: ~5 MB of mtb-/names-
   // files came in during Skiing's first seconds). Before winter.js sets the body class, the saved sport tells.
-  const skiNow = () => { const b = document.body.classList; return b.contains("sport-ski") || (!b.contains("sport-mtb") && !b.contains("sport-alt") && store.get("sport", "mtb") === "ski"); };
-  let wasSki = skiNow();
-  window.addEventListener("tf:sport", (e) => { const was = wasSki; wasSki = e.detail === "ski"; if (was && !wasSki) { render(); loadAllTrails(); } });
+  // MTB's trail files (names, all trails, official and rating squares) are for the MTB map only: every other sport hides
+  // its trails (winter.js tfMtbLayers). A first open fetches nothing until a sport is picked in the welcome
+  // (welcome.js tfWelcome.picked): tapping I agree pulled ~3 MB of MTB files behind the welcome screens, whatever sport
+  // came next (alex 2026-11-09 app test: "first open on a new phone downloads 6.5 to 8 MB").
+  const welcomeWait = () => !!(window.tfWelcome && window.tfWelcome.pending && !window.tfWelcome.picked);
+  const mtbSport = () => { const b = document.body.classList; return b.contains("sport-mtb") || (!b.contains("sport-alt") && !b.contains("sport-ski") && store.get("sport", "mtb") === "mtb"); };
+  const mtbOff = () => welcomeWait() || !mtbSport();
+  let wasMtb = mtbSport();
+  // Back to MTB from another sport: its files now (mtbStart is set once the map's MTB layers are ready, below).
+  let mtbStart = () => {};
+  window.addEventListener("tf:sport", (e) => { const was = wasMtb; wasMtb = e.detail === "mtb"; if (!was && wasMtb) mtbStart(); });
   function ensureNetNames() {
-    if (skiNow()) return;
+    if (mtbOff()) return;
     const zs = primeZones().filter((z) => !names.zones.has(z.id) && !netTried.has(z.id));
     if (!zs.length) return;
     zs.forEach((z) => netTried.add(z.id));
@@ -4322,7 +4330,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=4040").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=4070").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5938,10 +5946,8 @@ out body;`;
   // A first open: nothing is fetched until a sport is picked in the welcome (welcome.js tfWelcome.picked). New people
   // who picked Skiing got ~3 MB of MTB trail files (and ~9 MB of JSON to read) competing with the 3D mountains on 4G
   // (alex 2026-11-09: "i showed my app to people and it was lagging and took so long to load").
-  const welcomePick = () => !!(window.tfWelcome && window.tfWelcome.pending && !window.tfWelcome.picked);
-  document.addEventListener("tf:welcomepick", () => { if (!skiNow()) loadAllTrails(); });
   function loadAllTrails() {
-    if ((!state.allTrails && !officialOnly()) || skiNow() || welcomePick()) return;
+    if ((!state.allTrails && !officialOnly()) || mtbOff()) return;
     const view = map.getBounds();
     ZONES.filter((z) => z.bounds.intersects(view)).forEach(loadZoneTrails);
     caIndexLoad().then(() => { if (state.allTrails || officialOnly()) caZonesIn([map.getBounds()]).forEach(loadZoneTrails); });
@@ -6169,7 +6175,7 @@ out body;`;
   syncAllBtn();
   // Official trails (official.js): load the squares in view; when new ones arrive, check the trails already loaded again.
   if (window.tfOfficial) {
-    const offLoad = () => window.tfOfficial.load(map.getBounds());
+    const offLoad = () => (mtbOff() ? Promise.resolve() : window.tfOfficial.load(map.getBounds()));
     map.on("moveend", offLoad); viewSquares = Promise.all([viewSquares, offLoad()]).catch(() => {});
     // Only trails the new squares reach are checked again: checking every loaded trail froze the map for a moment on each pan.
     // A few hundred at a time (inSlices): zooming out the first time froze the map for seconds on a phone.
@@ -6193,7 +6199,7 @@ out body;`;
   // Ratings for unrated trails (ratings.js): load the rated open-data squares in view; when ratings arrive (the region's
   // file, new squares or an estimate), rate the loaded trails again and redraw.
   if (window.tfRatings) {
-    const rateLoad = () => window.tfRatings.load(map.getBounds());
+    const rateLoad = () => (mtbOff() ? Promise.resolve() : window.tfRatings.load(map.getBounds()));
     map.on("moveend", rateLoad); viewSquares = Promise.all([viewSquares, rateLoad(), window.tfRatings.ready]).catch(() => {});
     let rateTimer = 0, rateWho = [];   // what may change: touches(geom, id) from ratings.js, null for every trail
     window.tfRatings.onChange((touches) => {
@@ -6215,6 +6221,15 @@ out body;`;
     });
   }
   loadAllTrails();
+  // MTB picked in the welcome (or Skip), or back to MTB from another sport: the official and rating squares in view
+  // first (so a zone's trails are sorted once), then the trails and their names.
+  mtbStart = () => {
+    if (mtbOff()) return;
+    const b = map.getBounds();
+    viewSquares = Promise.all([viewSquares, window.tfOfficial && window.tfOfficial.load(b), window.tfRatings && window.tfRatings.load(b)]).catch(() => {});
+    loadAllTrails(); render();
+  };
+  document.addEventListener("tf:welcomepick", () => mtbStart());
 
   // ---------- Forest roads: dirt and Forest Service roads, coloured by their status ----------
   // From the weekly data/roads-<zone>.json files (scripts/build-roads.mjs): BC government Forest Tenure road
@@ -8707,50 +8722,50 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=4040"></script>
-<script src="native-map.js?v=4040"></script>
-<script src="contours.js?v=4040"></script>
-<script src="clouds.js?v=4040"></script>
-<script src="smoke.js?v=4040"></script>
-<script src="radar.js?v=4040"></script>
-<script src="photo-slider.js?v=4040"></script>
-<script src="ski-terrain.js?v=4040"></script>
-<script src="place-search.js?v=4040"></script>
-<script src="winter.js?v=4040"></script>
-<script src="hunts.js?v=4040"></script>
-<script src="ski-points.js?v=4040"></script>
-<script src="offline.js?v=4040"></script>
-<script src="ride-stats.js?v=4040"></script>
-<script src="native-gps.js?v=4040"></script>
-<script src="navigate.js?v=4040"></script>
-<script src="go-there.js?v=4040"></script>
-<script src="planner.js?v=4040"></script>
-<script src="loops.js?v=4040"></script>
-<script src="ride-finds.js?v=4040"></script>
-<script src="rides.js?v=4040"></script>
-<script src="community.js?v=4040"></script>
-<script src="ride-files.js?v=4040"></script>
-<script src="rider-trails.js?v=4040"></script>
-<script src="account.js?v=4040"></script>
-<script src="friends.js?v=4040"></script>
-<script src="live.js?v=4040"></script>
-<script src="strava.js?v=4040"></script>
-<script src="moderation.js?v=4040"></script>
-<script src="reports.js?v=4040"></script>
-<script src="grades.js?v=4040"></script>
-<script src="trail-photos.js?v=4040"></script>
-<script src="visitors.js?v=4040"></script>
-<script src="usage.js?v=4040"></script>
-<script src="notify.js?v=4040"></script>
-<script src="closures.js?v=4040"></script>
-<script src="status.js?v=4040"></script>
-<script src="ask.js?v=4040"></script>
-<script src="areas.js?v=4040"></script>
-<script src="alpine.js?v=4040"></script>
-<script src="bikeparks.js?v=4040"></script>
-<script src="photo-find.js?v=4040"></script>
-<script src="whats-new.js?v=4040"></script>
-<script src="app-update.js?v=4040"></script>
+<script src="map3d.js?v=4070"></script>
+<script src="native-map.js?v=4070"></script>
+<script src="contours.js?v=4070"></script>
+<script src="clouds.js?v=4070"></script>
+<script src="smoke.js?v=4070"></script>
+<script src="radar.js?v=4070"></script>
+<script src="photo-slider.js?v=4070"></script>
+<script src="ski-terrain.js?v=4070"></script>
+<script src="place-search.js?v=4070"></script>
+<script src="winter.js?v=4070"></script>
+<script src="hunts.js?v=4070"></script>
+<script src="ski-points.js?v=4070"></script>
+<script src="offline.js?v=4070"></script>
+<script src="ride-stats.js?v=4070"></script>
+<script src="native-gps.js?v=4070"></script>
+<script src="navigate.js?v=4070"></script>
+<script src="go-there.js?v=4070"></script>
+<script src="planner.js?v=4070"></script>
+<script src="loops.js?v=4070"></script>
+<script src="ride-finds.js?v=4070"></script>
+<script src="rides.js?v=4070"></script>
+<script src="community.js?v=4070"></script>
+<script src="ride-files.js?v=4070"></script>
+<script src="rider-trails.js?v=4070"></script>
+<script src="account.js?v=4070"></script>
+<script src="friends.js?v=4070"></script>
+<script src="live.js?v=4070"></script>
+<script src="strava.js?v=4070"></script>
+<script src="moderation.js?v=4070"></script>
+<script src="reports.js?v=4070"></script>
+<script src="grades.js?v=4070"></script>
+<script src="trail-photos.js?v=4070"></script>
+<script src="visitors.js?v=4070"></script>
+<script src="usage.js?v=4070"></script>
+<script src="notify.js?v=4070"></script>
+<script src="closures.js?v=4070"></script>
+<script src="status.js?v=4070"></script>
+<script src="ask.js?v=4070"></script>
+<script src="areas.js?v=4070"></script>
+<script src="alpine.js?v=4070"></script>
+<script src="bikeparks.js?v=4070"></script>
+<script src="photo-find.js?v=4070"></script>
+<script src="whats-new.js?v=4070"></script>
+<script src="app-update.js?v=4070"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
