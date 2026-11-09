@@ -2428,6 +2428,9 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   // This file loads the first time Fishing is picked (winter.js), often after the 3D map was built: take that one too.
   const on3d = (e) => {
     gl3 = e.detail;
+    // "tf:map3d" also comes again for the same 3D map when it's back after a pause (map3d.js afterRestore): one tap handler.
+    if (gl3.tfFishTap) { sync3d(); return; }
+    gl3.tfFishTap = true;
     gl3.on("click", (ev) => {
       if (!isFish() || document.querySelector(".app.riding, .app.planning") || document.body.classList.contains("sp-picking")) return;
       const hit = gl3.getLayer("fs-pts") && gl3.queryRenderedFeatures([[ev.point.x - 8, ev.point.y - 8], [ev.point.x + 8, ev.point.y + 8]], { layers: ["fs-pts"] })[0];

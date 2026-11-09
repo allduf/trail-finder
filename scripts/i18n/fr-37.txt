@@ -1,0 +1,1 @@
+The app runs out of memory less often on iPhone: a little while after you switch back to the flat map, the hidden 3D map lets go of its memory, and saving offline maps uses less. ||| L'app manque moins souvent de mémoire sur iPhone : peu après le retour à la carte plane, la carte 3D cachée libère sa mémoire, et l'enregistrement des cartes hors ligne en utilise moins.

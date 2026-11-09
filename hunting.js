@@ -2029,6 +2029,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const on3d = (e) => {
     gl3 = e.detail;
     fillsSet = labelsSet = false;
+    // "tf:map3d" also comes again for the same 3D map when it's back after a pause (map3d.js afterRestore): one tap handler.
+    if (gl3.tfHuntTap) { sync3d(); return; }
+    gl3.tfHuntTap = true;
     gl3.on("click", (ev) => {
       if (!isHunt() || document.querySelector(".app.riding, .app.planning") || document.body.classList.contains("cp-on")) return;
       if (meas) { meas.push(L.latLng(ev.lngLat.lat, ev.lngLat.lng)); measDraw(); return; }

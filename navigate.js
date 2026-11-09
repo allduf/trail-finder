@@ -1314,6 +1314,8 @@ body.nav-night .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightn
   window.tfOnMapTap(map.getContainer(), unfollow);
   // On the 3D map too (it never reached the flat map, so every fix flew it back to you), and a hand zoom off you.
   const grab3d = (g) => {
+    if (!g || g.tfNavGrab) return;   // once per 3D map ("tf:map3d" comes again after a pause, map3d.js afterRestore)
+    g.tfNavGrab = true;
     g.on("dragstart", (ev) => { if (ev.originalEvent) unfollow(); });
     window.tfOnMapTap(g.getCanvasContainer(), unfollow);
     g.on("zoomstart", (ev) => { if (window.tfByHand3d(ev)) unfollow(); });

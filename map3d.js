@@ -1234,7 +1234,7 @@
   // sharp: zooms 13-14 inside the sharpened squares, made from the zoom-15 sharpened photos (see SHARP_MID).
   const fillTile = (z, x, y, whole, abort, site, sharp) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=3960");
+      const w = new Worker("winter-fill.js?v=3990");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1333,7 +1333,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=3960" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=3990" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1342,6 +1342,12 @@
       };
       return w;
     });
+  }
+  // The Winter photo workers (and the photos they keep) let go once the 3D map is put away on a phone and none of
+  // them is busy (the flat map's Winter style may still be using them: then they stay). Started again when needed.
+  function stopPhotoWorkers() {
+    if (fillWorkers && !fillWaiting.size) { fillWorkers.forEach((w) => w.terminate()); fillWorkers = null; }
+    if (hdWorkers && !hdWaiting.size && !hdBusy.size) { hdWorkers.forEach((w) => w.terminate()); hdWorkers = null; hdQueue.length = 0; }
   }
   let sharpProtocol = false;
   function addWinterSharpProtocol() {
@@ -1372,6 +1378,7 @@
   }
   {
     hdTile = (z, x, y, abort, site, fine = null) => new Promise((ok, no) => {
+      startHdWorkers();   // (let go while the 3D map was put away, stopPhotoWorkers)
       const id = ++hdId;
       const w = hdWorkers[hdNext++ % hdWorkers.length];
       hdWaiting.set(id, { ok, no });
@@ -1575,7 +1582,22 @@
     const unproject = gl.unproject;
     gl.unproject = function () { try { return unproject.apply(this, arguments); } catch { return this.getCenter(); } };
     gl.on("webglcontextlost", () => { lostSeen = true; if (wakeWanted) wake3d(); });
-    gl.on("webglcontextrestored", () => { try { fixDemLeak(); gl.resize(); gl.triggerRepaint(); } catch {} });
+    gl.on("webglcontextrestored", () => { try { fixDemLeak(); gl.resize(); gl.triggerRepaint(); } catch {} afterRestore(); });
+  }
+  // MapLibre brings the map back as it was when the context went away, but what changed in between was dropped (the
+  // calls above answer "nothing there" while it's away). The sport changed on the flat map, for one: back in 3D,
+  // MTB still had Skiing's winter photos and Skiing's trail lines (test, 2026-11-09). So once the style is back:
+  // the photos for this sport, the trail lines copied again, and every layer of the other files drawn again for what
+  // is on now (they all redraw on "tf:map3d", as for a new 3D map).
+  const restoreHooks = [];
+  function afterRestore() {
+    const go = () => {
+      if (!gl || !gl.style) return;
+      for (const f of restoreHooks) try { f(); } catch {}
+      drawn = false; scheduleSync();
+      window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));
+    };
+    if (gl && gl.style && gl.style._loaded) go(); else if (gl) gl.once("style.load", go);
   }
   function sleep3d() {
     if (!PHONE || !gl || slept) return;
@@ -2187,6 +2209,7 @@
     gl.addControl({ onAdd() { const d = document.createElement("div"); d.className = "maplibregl-ctrl maplibregl-ctrl-group";
       d.style.cssText += ";display:flex;position:relative;overflow:visible"; d.append(sumBtn, winBtn, liveBtn, noWinter); return d; }, onRemove() {} }, "bottom-right");
     gl.once("styledata", pick);
+    restoreHooks.push(pick);
     // "load" waits for every first tile, and imagery that fails to load can hold it back, so the
     // trails go on as soon as the style itself is ready.
     gl.on("styledata", () => { if (!drawn && gl.getSource("lines")) scheduleSync(); });
@@ -2307,6 +2330,8 @@
   // 2026-10-27: "make the 2d map by default for the mtb mode"); the other sports start on the old shared "map3d" choice
   // until they're switched once.
   const saved3d = (s) => { const v = bySport("map3dBy", s); return typeof v === "boolean" ? v : s === "ski" ? true : s === "mtb" ? false : store.get("map3d", false); };
+  const FLAT_SLEEP_MS = 10000;
+  let flatSleepT = 0;
   let want3d = null;   // last asked for, so a switch back to 2D while the 3D library loads isn't undone when it arrives
   function set3d(want, auto) {
     want3d = want;
@@ -2317,6 +2342,7 @@
       return;
     }
     on = want; mark(on);
+    clearTimeout(flatSleepT);
     if (on) { since3d = Date.now(); resumes = 0; }
     if (!auto) { bySport("map3dBy", sportNow(), on); if (on) crashed = false; }
     map.getContainer().classList.toggle("is3d", on);
@@ -2326,7 +2352,16 @@
       if (!gl) build();
       else { wake3d(); box.hidden = false; gl.resize(); const c = map.getCenter(); syncing++; gl.jumpTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d(), pitch: 0 }); syncing--; tiltUp(); }
       syncData(); keepView();
-    } else if (box) { if (gl) tilt = Math.max(gl.getPitch(), 30); box.hidden = true; lighten(); }
+    } else if (box) {
+      if (gl) tilt = Math.max(gl.getPitch(), 30);
+      box.hidden = true; lighten();
+      // Phones: a little while on the flat map and the hidden 3D map gives back ALL its memory, like going to the
+      // background (sleep3d). lighten() alone left ~120-160 MB of graphics memory and the 3D map's tiles held while
+      // the flat map was used; the usage page showed crashes on the flat map's tabs (MTB Find and Plus, Hunting Saved
+      // and More) after 3D had been on (alex 2026-11-09). Tapping ⛰ 3D again rebuilds it (a second or two).
+      clearTimeout(flatSleepT);
+      if (PHONE) flatSleepT = setTimeout(() => { if (on) return; sleep3d(); setTimeout(() => { if (!on) stopPhotoWorkers(); }, 1000); }, FLAT_SLEEP_MS);
+    }
     syncBtn();
   }
   function syncBtn() {
