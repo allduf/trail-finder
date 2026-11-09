@@ -1,0 +1,1 @@
+Skiing: a route's card opens right away when you tap it, and the 3D map shows the route itself instead of the far valleys behind it, with less to download. ||| Ski : la fiche d'un itinéraire s'ouvre tout de suite quand vous le touchez, et la carte 3D montre l'itinéraire lui-même plutôt que les vallées lointaines derrière, avec moins à télécharger.
