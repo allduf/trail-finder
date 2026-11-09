@@ -13,10 +13,11 @@
 <meta name="apple-mobile-web-app-title" content="Trail Finder">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#12291d">
-<script src="i18n.js?v=3610"></script>
-<script src="line-icons.js?v=3610"></script>
+<script src="i18n.js?v=3960"></script>
+<script src="line-icons.js?v=3960"></script>
 <!-- Unofficial trails are for alex and friends only (friends.js): everyone else gets the public map, class tf-pub. -->
 <script>try { if (localStorage.getItem("tf-friend") !== "1") document.documentElement.classList.add("tf-pub"); } catch (e) { document.documentElement.classList.add("tf-pub"); }</script>
+<style>/* Netlify host badge (free plan, can't be removed): keep it off the tab bar, small, left edge, and BEHIND every app card/sheet/bar (z 999 < 1000) */#nl-badge-frame{z-index:999!important;top:40%!important;bottom:auto!important;right:auto!important;left:0!important;transform:scale(.5);transform-origin:0 0}</style>
 </head>
 <body>
 <title>Trail Finder</title>
@@ -1290,7 +1291,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   body #layersMenu .lm-offline small { display: block; font-size: .78rem; opacity: .75; }
 }
 </style>
-<link rel="stylesheet" href="theme.css?v=19">
+<link rel="stylesheet" href="theme.css?v=20">
 <style>
 /* Phone map buttons (alex, 2026-10-24): the same four labelled buttons in every sport, Sport, Layers and 3D on the
    left, Me on the right. Satellite is a map style in Layers; Save a point, Compass and Measure live in each sport's
@@ -1434,11 +1435,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
         </div>
       </section>
       <section class="pane" id="paneNew" role="tabpanel" aria-labelledby="tabNew">
-        <p class="hint">Search a trail, town or riding area, or pick where and how new.</p>
+        <p class="hint">Search a trail, town or area, or ask in plain words. Or pick where and how new.</p>
         <div class="tsearch-row">
           <div class="tsearch" id="tsearch">
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-            <input id="trailQ" type="search" placeholder="Trail, town or area" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="trailHits" aria-autocomplete="list" aria-label="Search a trail, town or riding area anywhere in Canada">
+            <input id="trailQ" type="search" placeholder="Search or ask a question" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="trailHits" aria-autocomplete="list" aria-label="Search a trail, town or riding area anywhere in Canada, or ask in plain words">
             <ul class="hits" id="trailHits" role="listbox" hidden></ul>
           </div>
           <button class="btn primary" id="trailGo" type="button">Search</button>
@@ -1502,7 +1503,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <button type="button" data-nav="ski" class="ski-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 20 21 8 M6 21l2-6 M12 4a2 2 0 1 0 0 .1 M9 12l4-3 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Routes</span></button>
     <button type="button" data-nav="hunt" class="hunt-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Hunt</span></button>
     <button type="button" data-nav="fish" class="fish-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M2.5 12c3-4.5 8.5-6 13-3.5L21 5v14l-5.5-3.5C11 18 5.5 16.5 2.5 12z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor"/></svg><span>Fish</span></button>
-    <button type="button" data-nav="moto" class="moto-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="17" r="3.5"/><circle cx="19" cy="17" r="3.5"/><path d="M5 17 8.5 11H15l2-1M19 17 16.5 6.5H14"/><path d="M8 11c.5-2 2-2.5 3.5-2.5H15l1 2.5"/><path d="M10 11.5 11 16h3.5l1.5-4.5"/></svg><span>Roads</span></button>
+    <button type="button" data-nav="moto" class="moto-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.5" cy="17.5" r="3.5"/><circle cx="19.5" cy="17.5" r="3.5"/><path d="M19.5 17.5 16 6.5M14.5 6.5h3M17.5 11.5H21M2.5 10H10l1.5-1.5h3M4.5 17.5 9 15.5"/><rect x="9" y="12" width="5" height="4" rx="1"/></svg><span>Roads</span></button>
     <button type="button" data-nav="hike" class="hike-only"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h5v8l6 3c1.5.7 2 1.8 2 3v2H4V3z"/><path d="M4 19h16M7 7h3M7 11h4"/></svg><span>Hikes</span></button>
     <button type="button" data-nav="ride" title="Ride with the map: it follows you, shows the trail you're on and the next junction, and records the ride"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 8v8l6-4z" fill="#ff4d5e"/></svg><span>Ride</span></button>
     <button type="button" data-nav="saved"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 3.2l2.6 5.5 6 .7-4.4 4.1 1.1 5.9L12 16.5l-5.3 2.9 1.1-5.9-4.4-4.1 6-.7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Saved</span></button>
@@ -1600,16 +1601,16 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="noback.js?v=3610"></script>
-<script src="risk.js?v=3610"></script>
-<script src="welcome.js?v=3610"></script>
-<script src="native.js?v=3610"></script>
-<script src="keyboard.js?v=3610"></script>
-<script src="rotate.js?v=3610"></script>
-<script src="official.js?v=3610"></script>
-<script src="directions.js?v=3610"></script>
-<script src="ratings.js?v=3610"></script>
-<script src="ebike.js?v=3610"></script>
+<script src="noback.js?v=3960"></script>
+<script src="risk.js?v=3960"></script>
+<script src="welcome.js?v=3960"></script>
+<script src="native.js?v=3960"></script>
+<script src="keyboard.js?v=3960"></script>
+<script src="rotate.js?v=3960"></script>
+<script src="official.js?v=3960"></script>
+<script src="directions.js?v=3960"></script>
+<script src="ratings.js?v=3960"></script>
+<script src="ebike.js?v=3960"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -4311,7 +4312,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=3610").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=3960").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5528,15 +5529,15 @@ out body;`;
   // function declarations: setSheetH runs syncTabbar before this part of the script has run
   function sportOf() { return document.body.classList.contains("sport-ski") ? "ski" : document.body.classList.contains("sport-hunt") ? "hunt" : document.body.classList.contains("sport-fish") ? "fish" : document.body.classList.contains("sport-moto") ? "moto" : document.body.classList.contains("sport-hike") ? "hike" : "mtb"; }
   function words() { return {
-    mtb: { find: "Find", search: "Search trails", tab: "Ride", start: "▶ Start riding", note: "Follows you, names the trail you're on and the next junction, records the ride.", offline: "Save an area for riding with no signal",
+    mtb: { find: "Find", search: "Search or ask", tab: "Ride", start: "▶ Start riding", note: "Follows you, names the trail you're on and the next junction, records the ride.", offline: "Save an area for riding with no signal",
       alerts: ["Loam alerts and notifications", "Prime loam and new trails in your regions"] },
-    ski: { find: "Routes", search: "Search routes, huts, places", tab: "Record", start: "▶ Start recording", note: "Follows you on the map and records your track.", offline: "Save an area for skiing with no signal",
+    ski: { find: "Routes", search: "Search or ask", tab: "Record", start: "▶ Start recording", note: "Follows you on the map and records your track.", offline: "Save an area for skiing with no signal",
       alerts: ["Avalanche alerts and notifications", "Avalanche danger in your regions and on tours you watch"] },
-    hunt: { find: "Hunt", search: "Search towns, mountains, lakes", tab: "Record", start: "▶ Start recording", note: "Follows you on the map and records your track.", offline: "Save an area for hunting with no signal",
+    hunt: { find: "Hunt", search: "Search or ask", tab: "Record", start: "▶ Start recording", note: "Follows you on the map and records your track.", offline: "Save an area for hunting with no signal",
       alerts: ["Notifications", "Pick what the 🔔 tells you about"] },
-    fish: { find: "Fish", search: "Search lakes, rivers, towns", tab: "Record", start: "▶ Start recording", note: "Follows you on the map and records your track.", offline: "Save an area for fishing with no signal",
+    fish: { find: "Fish", search: "Search or ask", tab: "Record", start: "▶ Start recording", note: "Follows you on the map and records your track.", offline: "Save an area for fishing with no signal",
       alerts: ["Stocking alerts and notifications", "Lakes near you just stocked, and what else the 🔔 tells you about"] },
-    moto: { find: "Roads", search: "Search towns, regions, mountains", tab: "Ride", start: "▶ Start riding", note: "Follows you, says the turns of your moto route, records the ride.", offline: "Save an area for riding with no signal (or save a route from its card)",
+    moto: { find: "Roads", search: "Search or ask", tab: "Ride", start: "▶ Start riding", note: "Follows you, says the turns of your moto route, records the ride.", offline: "Save an area for riding with no signal (or save a route from its card)",
       alerts: ["Notifications", "Pick what the 🔔 tells you about"] },
     hike: { find: "Hikes", search: "Search hikes, towns, parks", tab: "Record", start: "▶ Start recording", note: "Follows you on the map and records your hike.", offline: "Save an area for hiking with no signal",
       alerts: ["Notifications", "Pick what the 🔔 tells you about"] },
@@ -5591,7 +5592,7 @@ out body;`;
         : sp === "fish" ? card("log", "🎣", "Fishing log", "Your catches and what works for you")
         : sp === "hike" ? card("hike-log", "🥾", "My hikes", "Hikes you recorded: distance and climb") + card("hike-saved", "★", "Saved hikes", "Hikes you starred to do")
         : sp === "moto" ? card("moto-log", "🏍", "My adventure rides", "Rides you recorded or imported, with km of dirt") + card("moto-routes", "📂", "Saved adventure routes", "Routes you planned") + card("moto-bike", "⚙", "My bikes", "Your bikes: weight, tank, tires, skill")
-        : card("tours", "⛷", "My tours", "Ski tours you recorded or imported"))
+        : card("ski-planned", "✎", "Planned tours", "Tours you planned and saved") + card("tours", "⛷", "My tours", "Ski tours you recorded or imported"))
         + offlineCard()
         + `<div class="hub-slot" data-slot="points"></div>`;
     }
@@ -5872,6 +5873,7 @@ out body;`;
     else if (act === "friends") window.tfFriends.open();   // friends.js, alex only
     else if (act.startsWith("log") && window.tfPoints) window.tfPoints.openLog(act.slice(4) || undefined);   // My hunts' tabs, the Fishing log
     else if (act === "tours") location.href = "ride.html#rides";
+    else if (act === "ski-planned" && window.tfSki && window.tfSki.tours) window.tfSki.tours();   // winter.js: saved planned tours
     else if (act.startsWith("moto-") && window.tfMoto) window.tfMoto.hub(act.slice(5));   // moto.js: plan, routes, log, bike
     else if (act.startsWith("hike-") && window.tfHike) window.tfHike.hub(act.slice(5));   // hike.js: log, saved
   });
@@ -5923,8 +5925,13 @@ out body;`;
   // official trails when I zoom in"; outside BC few trails carry the operator tags that make them "official" here).
   const OFFICIAL_ZOOM = 12;
   const officialOnly = () => !state.allTrails && map.getZoom() >= OFFICIAL_ZOOM;
+  // A first open: nothing is fetched until a sport is picked in the welcome (welcome.js tfWelcome.picked). New people
+  // who picked Skiing got ~3 MB of MTB trail files (and ~9 MB of JSON to read) competing with the 3D mountains on 4G
+  // (alex 2026-11-09: "i showed my app to people and it was lagging and took so long to load").
+  const welcomePick = () => !!(window.tfWelcome && window.tfWelcome.pending && !window.tfWelcome.picked);
+  document.addEventListener("tf:welcomepick", () => { if (!skiNow()) loadAllTrails(); });
   function loadAllTrails() {
-    if ((!state.allTrails && !officialOnly()) || skiNow()) return;
+    if ((!state.allTrails && !officialOnly()) || skiNow() || welcomePick()) return;
     const view = map.getBounds();
     ZONES.filter((z) => z.bounds.intersects(view)).forEach(loadZoneTrails);
     caIndexLoad().then(() => { if (state.allTrails || officialOnly()) caZonesIn([map.getBounds()]).forEach(loadZoneTrails); });
@@ -7728,7 +7735,10 @@ out tags center qt;`;
     if (loading && wide) note = `Not in ${esc(shortZone(zsel))}. Looking in the other areas around…`;
     else if (loading) note = (zsel ? `Loading trail names in ${esc(shortZone(zsel))}…` : `Loading trail names: ${want.filter((z) => names.fresh.has(z.id)).length} of ${want.length} areas…`) + (busyFor() ? " OpenStreetMap is busy, so this can take a minute." : "");
     else if (failed.length) note = `Names for ${esc(failed.map(shortZone).join(", "))} didn't load. <button class="linkish" type="button" data-retry>Try again</button>`;
-    if (!hits.length && !loading) note = `No trail or town named “${esc(raw)}” found${zsel ? (/^Near /.test(shortZone(zsel)) ? " near " + esc(shortZone(zsel).slice(5)) : " in " + esc(shortZone(zsel))) : ""}${wide ? " or the other areas around" : ""}. Check the spelling or type part of the name.${wide || zsel ? ` Or <button class="linkish" type="button" data-where>look in another place</button>.` : ""}` + (note ? "<br>" + note : "")
+    // One bar for search and Ask (alex 2026-11-07): words that read like a question say so instead of "No trail named …".
+    const asking = !!(window.tfAsk && window.tfAsk.looks(raw));
+    if (asking && !hits.length) note = `<button type="button" class="ask-will" data-ask-now><span aria-hidden="true">💬 </span><span>Ask</span> <b>“${esc(raw)}”</b></button>`;
+    else if (!hits.length && !loading) note = `No trail or town named “${esc(raw)}” found${zsel ? (/^Near /.test(shortZone(zsel)) ? " near " + esc(shortZone(zsel).slice(5)) : " in " + esc(shortZone(zsel))) : ""}${wide ? " or the other areas around" : ""}. Check the spelling or type part of the name.${wide || zsel ? ` Or <button class="linkish" type="button" data-where>look in another place</button>.` : ""}` + (note ? "<br>" + note : "")
       + (window.tfRiderTrails ? `<br>Not on the map yet? <button class="linkish" type="button" data-addtrail>➕ Add it</button> and every rider will find it.` : "");
     box.innerHTML = rows + (note ? `<li class="hnote">${note}</li>` : "");
     input.setAttribute("aria-activedescendant", hitSel >= 0 ? "hit" + hitSel : "");
@@ -8667,50 +8677,50 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=3610"></script>
-<script src="native-map.js?v=3610"></script>
-<script src="contours.js?v=3610"></script>
-<script src="clouds.js?v=3610"></script>
-<script src="smoke.js?v=3610"></script>
-<script src="radar.js?v=3610"></script>
-<script src="photo-slider.js?v=3610"></script>
-<script src="ski-terrain.js?v=3610"></script>
-<script src="place-search.js?v=3610"></script>
-<script src="winter.js?v=3610"></script>
-<script src="hunts.js?v=3610"></script>
-<script src="ski-points.js?v=3610"></script>
-<script src="offline.js?v=3610"></script>
-<script src="ride-stats.js?v=3610"></script>
-<script src="native-gps.js?v=3610"></script>
-<script src="navigate.js?v=3610"></script>
-<script src="go-there.js?v=3610"></script>
-<script src="planner.js?v=3610"></script>
-<script src="loops.js?v=3610"></script>
-<script src="ride-finds.js?v=3610"></script>
-<script src="rides.js?v=3610"></script>
-<script src="community.js?v=3610"></script>
-<script src="ride-files.js?v=3610"></script>
-<script src="rider-trails.js?v=3610"></script>
-<script src="account.js?v=3610"></script>
-<script src="friends.js?v=3610"></script>
-<script src="live.js?v=3610"></script>
-<script src="strava.js?v=3610"></script>
-<script src="moderation.js?v=3610"></script>
-<script src="reports.js?v=3610"></script>
-<script src="grades.js?v=3610"></script>
-<script src="trail-photos.js?v=3610"></script>
-<script src="visitors.js?v=3610"></script>
-<script src="usage.js?v=3610"></script>
-<script src="notify.js?v=3610"></script>
-<script src="closures.js?v=3610"></script>
-<script src="status.js?v=3610"></script>
-<script src="ask.js?v=3610"></script>
-<script src="areas.js?v=3610"></script>
-<script src="alpine.js?v=3610"></script>
-<script src="bikeparks.js?v=3610"></script>
-<script src="photo-find.js?v=3610"></script>
-<script src="whats-new.js?v=3610"></script>
-<script src="app-update.js?v=3610"></script>
+<script src="map3d.js?v=3960"></script>
+<script src="native-map.js?v=3960"></script>
+<script src="contours.js?v=3960"></script>
+<script src="clouds.js?v=3960"></script>
+<script src="smoke.js?v=3960"></script>
+<script src="radar.js?v=3960"></script>
+<script src="photo-slider.js?v=3960"></script>
+<script src="ski-terrain.js?v=3960"></script>
+<script src="place-search.js?v=3960"></script>
+<script src="winter.js?v=3960"></script>
+<script src="hunts.js?v=3960"></script>
+<script src="ski-points.js?v=3960"></script>
+<script src="offline.js?v=3960"></script>
+<script src="ride-stats.js?v=3960"></script>
+<script src="native-gps.js?v=3960"></script>
+<script src="navigate.js?v=3960"></script>
+<script src="go-there.js?v=3960"></script>
+<script src="planner.js?v=3960"></script>
+<script src="loops.js?v=3960"></script>
+<script src="ride-finds.js?v=3960"></script>
+<script src="rides.js?v=3960"></script>
+<script src="community.js?v=3960"></script>
+<script src="ride-files.js?v=3960"></script>
+<script src="rider-trails.js?v=3960"></script>
+<script src="account.js?v=3960"></script>
+<script src="friends.js?v=3960"></script>
+<script src="live.js?v=3960"></script>
+<script src="strava.js?v=3960"></script>
+<script src="moderation.js?v=3960"></script>
+<script src="reports.js?v=3960"></script>
+<script src="grades.js?v=3960"></script>
+<script src="trail-photos.js?v=3960"></script>
+<script src="visitors.js?v=3960"></script>
+<script src="usage.js?v=3960"></script>
+<script src="notify.js?v=3960"></script>
+<script src="closures.js?v=3960"></script>
+<script src="status.js?v=3960"></script>
+<script src="ask.js?v=3960"></script>
+<script src="areas.js?v=3960"></script>
+<script src="alpine.js?v=3960"></script>
+<script src="bikeparks.js?v=3960"></script>
+<script src="photo-find.js?v=3960"></script>
+<script src="whats-new.js?v=3960"></script>
+<script src="app-update.js?v=3960"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

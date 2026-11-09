@@ -52,7 +52,7 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
 
   // ---------- data ----------
   let data = null, cams = [], owners = {};
-  const load = () => (data = data || fetch("data/webcams.json?v=3610").then((r) => r.json()).then((d) => {
+  const load = () => (data = data || fetch("data/webcams.json?v=3960").then((r) => r.json()).then((d) => {
     owners = d.owners || {};
     cams = (d.cams || []).filter((c) => isFinite(c.lat) && isFinite(c.lon));
     return d;
@@ -150,11 +150,11 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
   //   for Brownrice's own player. Computers without built-in live video get Brownrice's player, as before.
   // - YouTube (Kicking Horse, Fernie, Kimberley, Nakiska): the player tells the card when a video can't play (an ended
   //   live stream); the card then shows the resort's own still picture of that camera.
-  // - IPCamLive (Manning, Apex): their open camera state says when a camera is switched off (Manning's alpine cams in
+  // - IPCamLive (Manning, Apex, Owl's Head, Brohm Ridge; aliases can be any name, not only hex): their open camera state says when a camera is switched off (Manning's alpine cams in
   //   the off season); the card says so instead of showing their error box.
   // - A highway picture that fails, or Nova Scotia 511's "No live camera feed" picture, says the camera is off.
   // Every card links straight to the camera's own live stream ("Open the live stream") and to the owner's webcam page.
-  const BRI = /player\.brownrice\.com\/embed\/([\w-]+)/, YT = /youtube(?:-nocookie)?\.com\/embed\/([\w-]+)/, IPC = /ipcamlive\.com\/player\/player\.php\?alias=([0-9a-f]+)/;
+  const BRI = /player\.brownrice\.com\/embed\/([\w-]+)/, YT = /youtube(?:-nocookie)?\.com\/embed\/([\w-]+)/, IPC = /ipcamlive\.com\/player\/player\.php\?alias=([\w-]+)/;
   const canHls = (() => { try { return !!document.createElement("video").canPlayType("application/vnd.apple.mpegurl"); } catch { return false; } })();
   const bust = (u) => u + (u.includes("?") ? "&" : "?") + "t=" + Date.now();
   const briOf = (c) => (c.embed && c.embed.match(BRI) || [])[1] || "";

@@ -1,0 +1,7 @@
+# Fewer steps to plan a ski tour (alex 2026-11-07)
+Make it with the less exposed way ||| Tracer avec le chemin moins exposé
+The less exposed way finds the way between the pieces (the climb too). It weighs ||| Le chemin moins exposé trouve le chemin entre les étapes (la montée aussi). Il tient compte de
+Your tour is kept in Saved. Its card shows each stretch and why it goes there. Drag, add or take away points with ✎ Edit my tour. No route is avalanche-safe: check the forecast and decide in the field. ||| Votre sortie est gardée dans Enregistrés. Sa fiche montre chaque tronçon et pourquoi il passe là. Déplacez, ajoutez ou enlevez des points avec ✎ Modifier ma sortie. Aucun itinéraire n'est à l'abri des avalanches : consultez le bulletin et décidez sur le terrain.
+No saved tours yet. Each tour you plan is kept here. ||| Aucune sortie enregistrée. Chaque sortie que vous planifiez est gardée ici.
+Skiing: planning a tour takes fewer taps. Each tour is saved by itself, and a typed plan can be made with the less exposed way in one tap. ||| Ski : planifier une sortie demande moins de touches. Chaque sortie est enregistrée d'elle-même, et un plan écrit peut être tracé avec le chemin moins exposé en une touche.
+Skiing: Plan a new tour and Saved tours are now at the top of Routes, next to Plan a tour. ||| Ski : Planifier une nouvelle sortie et Sorties enregistrées sont maintenant en haut de Itinéraires, à côté de Planifier une sortie.

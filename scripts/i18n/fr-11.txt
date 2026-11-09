@@ -1,0 +1,10 @@
+Plan it ||| Planifier
+Type your plan ||| Écrivez votre plan
+💬 Or type your plan: start at…, ski…, finish… ||| 💬 Ou écrivez votre plan : départ à…, descendre…, arrivée à…
+Type your plan of the day: where you start, the lines you want to ski or climb, and where you finish. For example: ||| Écrivez votre plan de la journée : où vous partez, les lignes à descendre ou à monter, et où vous finissez. Par exemple :
+Start at the top of Showcase, ski DOA, finish in Lakeside Bowl ||| Départ en haut de Showcase, descendre DOA, arrivée dans Lakeside Bowl
+Start at Joffre Lakes parking, skin up the Shoulder, finish at the parking ||| Départ au stationnement de Joffre Lakes, monter en peaux la Shoulder, arrivée au stationnement
+From the top of 7th Heaven ski Lakeside Bowl and finish at the bottom of 7th Heaven ||| Du haut de 7th Heaven, descendre Lakeside Bowl et finir en bas de 7th Heaven
+Name a lift, run, bowl or line, like this: ||| Nommez une remontée, une piste, un bol ou une ligne, comme ceci :
+Or close this and tap the map where you start. ||| Ou fermez ceci et touchez la carte là où vous partez.
+Skiing Plan a tour: type your plan in words (start, lines, finish) and it draws the tour. ||| Ski, Planifier une sortie : écrivez votre plan en mots (départ, lignes, arrivée) et la sortie se dessine.

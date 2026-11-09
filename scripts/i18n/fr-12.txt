@@ -1,0 +1,1 @@
+3D map: trail and route lines are sharp now, drawn on top of the mountains instead of painted soft into the photo. ||| Carte 3D : les lignes des sentiers et des itinéraires sont nettes maintenant, dessinées par-dessus les montagnes au lieu d'être peintes floues dans la photo.

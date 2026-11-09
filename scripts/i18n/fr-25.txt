@@ -1,0 +1,4 @@
+✓ Saved ||| ✓ Enregistré
+Password changed. Next time, sign in with your email and this new password. ||| Mot de passe changé. La prochaine fois, connectez-vous avec votre courriel et ce nouveau mot de passe.
+That's already your password. Pick a different one. ||| C'est déjà votre mot de passe. Choisissez-en un autre.
+Account Settings: a green ✓ box now confirms when your password, name or email change worked. ||| Réglages du compte : une case verte ✓ confirme maintenant quand le changement de mot de passe, de nom ou de courriel a fonctionné.

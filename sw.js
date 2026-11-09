@@ -4,10 +4,10 @@
 // are not touched; map tiles only as TILES says (OpenStreetMap, heights, Winter photos), and the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-3410";
+const VERSION = "tf-3760";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=19", "account.js?v=3610", "friends.js?v=3610", "moderation.js?v=3610", "reports.js?v=3610", "grades.js?v=3610", "trail-photos.js?v=3610", "status.js?v=3610", "ask.js?v=3610", "visitors.js?v=3610", "usage.js?v=3610", "map3d.js?v=3610", "ski-terrain.js?v=3610", "winter.js?v=3610", "place-search.js?v=3610", "clouds.js?v=3610", "smoke.js?v=3610", "radar.js?v=3610", "live.js?v=3610", "ski-points.js?v=3610", "hunts.js?v=3610", "webcams.js?v=3610", "lifts.js?v=3610", "ski-areas.js?v=3610", "helicat.js?v=3610", "cabin-trip.js?v=3610", "camper.js?v=3610", "japanese.js?v=3610", "japan-snow.js?v=3610", "rogers.js?v=3610", "slackcountry.js?v=3610", "freeride.js?v=3610", "crownland.js?v=3610", "hunting.js?v=3610", "fish-bait.js?v=3610", "fish-route.js?v=3610", "ski-route.js?v=3610", "fishing.js?v=3610", "moto.js?v=3610", "moto-roads.js?v=3610", "hike.js?v=3610", "compass.js?v=3610", "offline.js?v=3610", "native-gps.js?v=3610", "native.js?v=3610", "native-map.js?v=3610", "keyboard.js?v=3610", "navigate.js?v=3610", "go-there.js?v=3610", "ride-stats.js?v=3610", "ride-finds.js?v=3610", "rides.js?v=3610", "planner.js?v=3610", "rotate.js?v=3610", "photo-find.js?v=3610", "ebike.js?v=3610", "closures.js?v=3610", "loops.js?v=3610", "strava.js?v=3610", "share.js?v=3610", "community.js?v=3610", "ride-files.js?v=3610", "rider-trails.js?v=3610", "alpine.js?v=3610", "areas.js?v=3610", "bikeparks.js?v=3610", "contours.js?v=3610", "directions.js?v=3610", "notify.js?v=3610", "official.js?v=3610", "photo-slider.js?v=3610", "ratings.js?v=3610", "whats-new.js?v=3610", "app-update.js?v=3610", "noback.js?v=3610", "risk.js?v=3610", "welcome.js?v=3610", "i18n.js?v=3610", "line-icons.js?v=3610", "i18n-fr.js?v=3610", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=20", "account.js?v=3960", "friends.js?v=3960", "moderation.js?v=3960", "reports.js?v=3960", "grades.js?v=3960", "trail-photos.js?v=3960", "status.js?v=3960", "ask.js?v=3960", "visitors.js?v=3960", "usage.js?v=3960", "map3d.js?v=3960", "ski-terrain.js?v=3960", "winter.js?v=3960", "place-search.js?v=3960", "clouds.js?v=3960", "smoke.js?v=3960", "radar.js?v=3960", "live.js?v=3960", "ski-points.js?v=3960", "hunts.js?v=3960", "webcams.js?v=3960", "lifts.js?v=3960", "ski-areas.js?v=3960", "helicat.js?v=3960", "cabin-trip.js?v=3960", "camper.js?v=3960", "japanese.js?v=3960", "japan-snow.js?v=3960", "rogers.js?v=3960", "slackcountry.js?v=3960", "freeride.js?v=3960", "crownland.js?v=3960", "hunting.js?v=3960", "fish-bait.js?v=3960", "fish-route.js?v=3960", "ski-route.js?v=3960", "fishing.js?v=3960", "moto.js?v=3960", "moto-roads.js?v=3960", "hike.js?v=3960", "compass.js?v=3960", "offline.js?v=3960", "native-gps.js?v=3960", "native.js?v=3960", "native-map.js?v=3960", "keyboard.js?v=3960", "navigate.js?v=3960", "go-there.js?v=3960", "ride-stats.js?v=3960", "ride-finds.js?v=3960", "rides.js?v=3960", "planner.js?v=3960", "rotate.js?v=3960", "photo-find.js?v=3960", "ebike.js?v=3960", "closures.js?v=3960", "loops.js?v=3960", "strava.js?v=3960", "share.js?v=3960", "community.js?v=3960", "ride-files.js?v=3960", "rider-trails.js?v=3960", "alpine.js?v=3960", "areas.js?v=3960", "bikeparks.js?v=3960", "contours.js?v=3960", "directions.js?v=3960", "notify.js?v=3960", "official.js?v=3960", "photo-slider.js?v=3960", "ratings.js?v=3960", "whats-new.js?v=3960", "app-update.js?v=3960", "noback.js?v=3960", "risk.js?v=3960", "welcome.js?v=3960", "i18n.js?v=3960", "line-icons.js?v=3960", "i18n-fr.js?v=3960", "manifest.webmanifest",
   "privacy.html", "support.html", "terms.html", "credits.html",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "vendor/leaflet-1.9.4.js",
@@ -43,6 +43,13 @@ self.addEventListener("activate", (e) => {
 // before anything showed. A new deploy shows on the open after the one that downloads it (the same as the iPhone
 // app's own update), and the previous version's files are kept (activate above) for a page still running from it.
 const DATA_WAIT_MS = 1500, PAGE_WAIT_MS = 2000;
+// Cloudflare Pages (since 2026-11-07) answers ride.html and index.html with a 308 to /ride and /. A saved copy that came
+// through a redirect can't answer a page open: the browser shows "This site can't be reached" (alex 2026-11-08, My tours
+// on a computer). Such a copy is rebuilt as a plain answer before it's used.
+async function plain(r) {
+  if (!r || !r.redirected) return r;
+  return new Response(await r.blob(), { status: r.status, statusText: r.statusText, headers: r.headers });
+}
 async function networkFirst(req, e) {
   const cache = await caches.open(VERSION);
   try {
@@ -65,18 +72,18 @@ async function networkFirst(req, e) {
       const hit = page ? await cache.match(req, { ignoreSearch: true }) || (home ? await cache.match("index.html") : null) || await caches.match(req, { ignoreSearch: true }) : await caches.match(req);
       if (hit) {
         e.waitUntil(net.catch(() => null));
-        if (page && hit.ok && !hit.redirected) return hit;
+        if (page && hit.ok) return plain(hit);
         // The whole file, not just its first bytes: a big file can start quickly and then crawl.
         const whole = net.then(async (r) => (r.ok ? new Response(await r.blob(), { status: r.status, statusText: r.statusText, headers: r.headers }) : null)).catch(() => null);
         const slow = new Promise((ok) => setTimeout(() => ok(null), page ? PAGE_WAIT_MS : DATA_WAIT_MS));
-        return (await Promise.race([whole, slow])) || hit;
+        return (await Promise.race([whole, slow])) || plain(hit);
       }
     }
-    return await net;
+    return await plain(await net);
   } catch (err) {
     const hit = await caches.match(req, { ignoreSearch: req.mode === "navigate" });
-    if (hit) return hit;
-    if (req.mode === "navigate") { const home = await cache.match("index.html"); if (home) return home; }
+    if (hit) return plain(hit);
+    if (req.mode === "navigate") { const home = await cache.match("index.html"); if (home) return plain(home); }
     throw err;
   }
 }
@@ -123,7 +130,7 @@ async function savedFirst(req) {
 //  - osm: OpenStreetMap's map; shown from here at once and fetched again in the background when over a day old,
 //    as OpenStreetMap asks apps to keep its tiles rather than download them on every open
 const TILES = [
-  { name: "tf-tiles-photos", max: 4000, days: 30, test: (u) => (u.origin === self.location.origin || u.hostname === "allduf.github.io") && /\/trail-finder-winter2?\/\d+\/\d+\/\d+\.webp$/.test(u.pathname) },
+  { name: "tf-tiles-photos", max: 4000, days: 30, test: (u) => (u.origin === self.location.origin || /^(allduf\.github\.io|trailfinder-winter2?\.netlify\.app|trailfinder-w[12]-\d+\.pages\.dev)$/.test(u.hostname)) && /\/trail-finder-winter2?\/\d+\/\d+\/\d+\.webp$/.test(u.pathname) },
   { name: "tf-tiles-heights", max: 200, days: 7, test: (u) => u.hostname === "tiles.mapterhorn.com" },
   { name: "tf-tiles-osm", max: 2000, days: 7, fresh: 1, test: (u) => u.hostname === "tile.openstreetmap.org" },
 ];
@@ -166,7 +173,7 @@ self.addEventListener("fetch", (e) => {
   const tile = TILES.find((t) => t.test(url));
   if (tile) e.respondWith(tileFirst(req, tile, e).catch(() => fetch(req)));
   else if (url.origin === self.location.origin && (url.searchParams.has("v") || url.pathname.includes("/vendor/"))) e.respondWith(cacheFirst(req));
-  else if ((url.origin === self.location.origin || url.hostname === "allduf.github.io") && /\/trail-finder-winter2?\//.test(url.pathname) && !url.pathname.endsWith(".json")) e.respondWith(savedFirst(req));
+  else if ((url.origin === self.location.origin || /^(allduf\.github\.io|trailfinder-winter2?\.netlify\.app|trailfinder-w[12]-\d+\.pages\.dev)$/.test(url.hostname)) && /\/trail-finder-winter2?\//.test(url.pathname) && !url.pathname.endsWith(".json")) e.respondWith(savedFirst(req));
   else if (url.origin === self.location.origin) e.respondWith(networkFirst(req, e));
   else if (STATIC_HOSTS.includes(url.hostname)) e.respondWith(cacheFirst(req));
   else if (url.hostname === "tiles.openfreemap.org") e.respondWith(openFreeMap(req));

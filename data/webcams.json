@@ -300,6 +300,11 @@
    "name": "Ski Cape Smokey",
    "page": "https://www.skaping.com/cape-smokey",
    "credit": "Ski Cape Smokey, streamed by Skaping"
+  },
+  "btsc": {
+   "name": "Black Tusk Snowmobile Club",
+   "page": "https://btsc.ca/webcam-%26-weather-data",
+   "credit": "Black Tusk Snowmobile Club, streamed by IPCamLive"
   }
  },
  "cams": [
@@ -1579,6 +1584,66 @@
    "where": "Brandywine snowmobile trailhead, Callaghan Valley turn-off on Highway 99 (approximate spot)",
    "feed": "pmsc:PL1",
    "season": "Runs in winter; the club turns it off in summer."
+  },
+  {
+   "id": "btsc-chalet-west",
+   "owner": "btsc",
+   "resort": "Brohm Ridge",
+   "kind": "backcountry",
+   "name": "Brohm Ridge Chalet, west",
+   "view": "Live video looking west from the Black Tusk Snowmobile Club chalet",
+   "lat": 49.8364,
+   "lon": -123.0706,
+   "ele": 1488,
+   "where": "Brohm Ridge Chalet, Black Tusk Snowmobile Club",
+   "embed": "https://g1.ipcamlive.com/player/player.php?alias=westchalet",
+   "page": "https://btsc.ca/webcam-%26-weather-data",
+   "season": "it runs in winter, when the club's chalet is open"
+  },
+  {
+   "id": "btsc-chalet-east",
+   "owner": "btsc",
+   "resort": "Brohm Ridge",
+   "kind": "backcountry",
+   "name": "Brohm Ridge Chalet, east",
+   "view": "Live video looking east from the chalet, toward Brohm Peak and Garibaldi",
+   "lat": 49.83634,
+   "lon": -123.07035,
+   "ele": 1488,
+   "where": "Brohm Ridge Chalet, Black Tusk Snowmobile Club",
+   "embed": "https://g1.ipcamlive.com/player/player.php?alias=eastchalet",
+   "page": "https://btsc.ca/webcam-%26-weather-data",
+   "season": "it runs in winter, when the club's chalet is open"
+  },
+  {
+   "id": "btsc-chalet-rear-door",
+   "owner": "btsc",
+   "resort": "Brohm Ridge",
+   "kind": "backcountry",
+   "name": "Brohm Ridge Chalet, back door",
+   "view": "Live video of the snow at the chalet's back door",
+   "lat": 49.83628,
+   "lon": -123.07045,
+   "ele": 1488,
+   "where": "Brohm Ridge Chalet, Black Tusk Snowmobile Club",
+   "embed": "https://g1.ipcamlive.com/player/player.php?alias=chaletreardoor",
+   "page": "https://btsc.ca/webcam-%26-weather-data",
+   "season": "it runs in winter, when the club's chalet is open"
+  },
+  {
+   "id": "btsc-barrys-cabin",
+   "owner": "btsc",
+   "resort": "Brohm Ridge",
+   "kind": "backcountry",
+   "name": "Barry's Cabin",
+   "view": "Live video from Barry's Cabin, next to the chalet (on 7 am to 11 pm)",
+   "lat": 49.8359,
+   "lon": -123.07072,
+   "ele": 1484,
+   "where": "Barry's Cabin, Brohm Ridge, Black Tusk Snowmobile Club",
+   "embed": "https://g1.ipcamlive.com/player/player.php?alias=barrys",
+   "page": "https://btsc.ca/webcam-%26-weather-data",
+   "season": "it runs in winter, when the club's chalet is open"
   },
   {
    "id": "coqsnow-0k-parking",

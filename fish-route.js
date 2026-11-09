@@ -192,7 +192,9 @@
   // extra: more lines to walk on, [{ pts: [[lat, lon], ...], name, way }] (Skiing's cabin trips: the ski routes, which the
   // vector tiles don't have; way: the hut's documented way in, see WAY_X).
   // Long work gives the page a breath every ~12 ms (alex 2026-11-04: the map lagged while a long ski tour was worked out).
-  const breathe = () => new Promise((r) => setTimeout(r, 0));
+  // A breath through a message, not setTimeout(0): browsers hold a run of setTimeout(0) back 4 ms or more each, which
+  // added about a quarter to a long search on a phone (alex 2026-11-09, a quick ski tour "took too long").
+  const breathe = () => new Promise((r) => { const ch = new MessageChannel(); ch.port1.onmessage = () => { ch.port1.close(); r(); }; ch.port2.postMessage(0); });
   async function buildGrid(box, onStep, extra) {
     const latMid = uny((box[1] + box[3]) / 2), mPer = WORLD * Math.cos(latMid * RAD);   // metres per mercator unit here
     let cs = CELL_M / mPer, W = Math.ceil((box[2] - box[0]) / cs), H = Math.ceil((box[3] - box[1]) / cs);
@@ -531,6 +533,17 @@
   }
 
   // ---------- building one ----------
+  // Asks for a box's tiles (the vector tiles and the heights) without building anything, so a ski tour's legs download
+  // together instead of one after another (alex 2026-11-09: "i tried to make a quick ski tour and it was lagging and took
+  // too long": each leg waited 2-3 s for its own terrain). Same tiles and zoom as buildGrid, so it uses them as they are.
+  function warm(box) {
+    const n = 2 ** TZ;
+    for (let x = Math.floor(box[0] * n); x <= Math.floor(box[2] * n); x++) for (let y = Math.floor(box[1] * n); y <= Math.floor(box[3] * n); y++) vtile(x, y);
+    let dz = navigator.onLine ? 14 : 12;
+    for (; dz > 11; dz--) { const m = 2 ** dz; if ((Math.floor(box[2] * m) - Math.floor(box[0] * m) + 1) * (Math.floor(box[3] * m) - Math.floor(box[1] * m) + 1) <= 30) break; }
+    const dm = 2 ** dz;
+    for (let x = Math.floor(box[0] * dm); x <= Math.floor(box[2] * dm); x++) for (let y = Math.floor(box[1] * dm); y <= Math.floor(box[3] * dm); y++) demTile(dz, x, y);
+  }
   const boxAround = (pts, padM) => {
     let w = 1, e = 0, n = 1, s = 0;
     for (const [lat, lon] of pts) { const x = mx(lon), y = my(lat); w = Math.min(w, x); e = Math.max(e, x); n = Math.min(n, y); s = Math.max(s, y); }
@@ -745,7 +758,7 @@
     start([lat, lon], h ? h.textContent.trim() : "", null);
   });
   window.addEventListener("tf:sport", () => { if (!isFish()) clear(); });
-  window.tfFishRoute = { button, clear, start: (lat, lon, name, from) => start([lat, lon], name || "", from || null), _build: build, _describe: describe, _buildGrid: buildGrid, _boxAround: boxAround,
+  window.tfFishRoute = { button, clear, start: (lat, lon, name, from) => start([lat, lon], name || "", from || null), _build: build, _describe: describe, _buildGrid: buildGrid, _boxAround: boxAround, _warm: warm,
     groundName: (k) => (GROUND[k] ? GROUND[k][0] : "the bush"),
     // ski-route.js (Skiing's safest way): the grid's parts it reads.
     _grid: { G, F_PAVED, F_WAY, L_MOTOR, L_STEPS, F_STREAM, F_RIVER, F_BRIDGE, F_PARK, L_PATH, L_TRACK, blocked, cellLL, cellAt, simplify, mx, my, unx, uny } };   // cabin-trip.js: the way in to a hut

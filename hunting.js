@@ -244,13 +244,13 @@
     zones: { g: "Boundaries", label: "Hunting zones", sub: "Management units and zones across Canada", on: true, sw: [C.zone, "line"] },
     leh: { g: "Boundaries", label: "Limited entry zones", sub: "BC draw-only hunts", on: false, sw: [C.leh, "dash"] },
     rules: { g: "Boundaries", label: "Parks, towns and closures", sub: "Where hunting is banned or has its own rules (ZECs and outfitters in Quebec)", on: true, sw: [C.no, "hatch"] },
-    land: { g: "Land", label: "Private and public land", sub: "Crown land and private land from each province's map (BC private parcels, Alberta Green Area)", on: false, sw: [C.open, "fill"], minZoom: 9 },
-    lots: { g: "Land", label: "Property lines", sub: "Lot lines from each province's land registry (lot numbers, never owner names)", on: false, sw: ["#e64980", "lot"], minZoom: 13 },
-    reach: { g: "Land", label: "Far from roads", sub: "Clear where you're over 1.5 km from any road: few hunters walk that far", on: false, sw: [REACH[1][1], "fill"], minZoom: 9 },
-    forest: { g: "Habitat", label: "Forest types", sub: "Thick timber, open timber, aspen, young forest and brush, meadows", on: false, sw: ["#1b5e20", "fill"], minZoom: 8 },
-    burns: { g: "Habitat", label: "Old burns", sub: "Fire scars by age: young burns grow feed", on: false, sw: [BURN, "burn"], minZoom: 7 },
-    cut: { g: "Habitat", label: "Cut blocks by age", sub: "Logged areas (BC): 5-20 year old ones are prime browse", on: false, sw: [CUTS[1][2], "cut"], minZoom: 10 },
-    wet: { g: "Habitat", label: "Wetlands", sub: "Marshes, fens, bogs and swamps", on: false, sw: [C.wet, "fill"], minZoom: 10 },
+    land: { g: "Land", label: "Private and public land", sub: "Crown land and private land from each province's map (BC private parcels, Alberta Green Area)", where: "no open map for this province", on: false, sw: [C.open, "fill"], minZoom: 9 },
+    lots: { g: "Land", label: "Property lines", sub: "Lot lines from each province's land registry (lot numbers, never owner names)", where: "no open map for this province", on: false, sw: ["#e64980", "lot"], minZoom: 13 },
+    reach: { g: "Land", label: "Far from roads", sub: "Clear where you're over 1.5 km from any road: few hunters walk that far", where: "BC and Alberta", on: false, sw: [REACH[1][1], "fill"], minZoom: 9 },
+    forest: { g: "Habitat", label: "Forest types", sub: "Thick timber, open timber, aspen, young forest and brush, meadows", where: "BC and Alberta", on: false, sw: ["#1b5e20", "fill"], minZoom: 8 },
+    burns: { g: "Habitat", label: "Old burns", sub: "Fire scars by age: young burns grow feed", where: "BC and Alberta", on: false, sw: [BURN, "burn"], minZoom: 7 },
+    cut: { g: "Habitat", label: "Cut blocks by age", sub: "Logged areas (BC): 5-20 year old ones are prime browse", where: "BC only", on: false, sw: [CUTS[1][2], "cut"], minZoom: 10 },
+    wet: { g: "Habitat", label: "Wetlands", sub: "Marshes, fens, bogs and swamps", where: "BC and Alberta", on: false, sw: [C.wet, "fill"], minZoom: 10 },
     slope: { g: "Terrain", label: "Slope angle", sub: "Steepness in four bands", on: false, sw: ["#e03131", "fill"], minZoom: 9 },
     aspect: { g: "Terrain", label: "Aspect", sub: "Which way each slope faces", on: false, sw: ["#40c057", "fill"], minZoom: 9 },
     wind: { g: "Tools", label: "Scent cone", sub: "Where the wind carries your scent", on: true, sw: [ORANGE, "cone"] },
@@ -458,7 +458,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     <details class="hn-card" id="hnOffBox"><summary>${svg(IC.down, 16)} Hunting maps offline</summary><div id="hnOff"></div></details>
     <details class="hn-safe"><summary>A guide, not the law</summary>Zones, parks, seasons and draw odds come from each province's open data and regulation pages (and the federal protected areas database), read by the app each month, and can be out of date or simplified. Always check the regulations where you hunt (the spot card links them: <a href="${BC_SYNOPSIS}" target="_blank" rel="noopener">BC</a>, <a href="${AB_REGS}" target="_blank" rel="noopener">Alberta</a>, <a href="${QC_REGS}" target="_blank" rel="noopener">Quebec</a>, <a href="${PV.on.regs}" target="_blank" rel="noopener">Ontario</a>...), and get permission before hunting private land, a lease or an outfitter's territory.</details>`;
   // Go to a place (place-search.js): a town, mountain, lake or region, and the map jumps there (alex 2026-10-26).
-  if (window.tfPlaceSearch) pane.querySelector(".hn-actions").after(window.tfPlaceSearch.box({ placeholder: "Go to a town, mountain, lake or region" }));
+  if (window.tfPlaceSearch) pane.querySelector(".hn-actions").after(window.tfPlaceSearch.box({ placeholder: "Search or ask a question", label: "Go to a town, mountain, lake or region, or ask in plain words" }));
   // Every hunting layer switch lives in the map's Layers menu (alex: "should we put that here?"), shown only in Hunting.
   const lmHunt = document.createElement("div");
   lmHunt.className = "lm-hunt";
@@ -683,7 +683,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const PICS = [
     { id: "hn-land", layer: "land", tmpl: wms(PMBC, sld(PMBC, [[`<PropertyIsEqualTo><PropertyName>OWNER_TYPE</PropertyName><Literal>Private</Literal></PropertyIsEqualTo>`, C.private]])),
       min: 11, opacity: 0.4, attr: 'Land: <a href="https://ltsa.ca/property-owners/about-land-records/parcelmap-bc/">ParcelMap BC</a>, DataBC' },
-    { id: "hn-graze", layer: "land", tmpl: arcgis(GRAZE_SVC, dyn([1], rgba(GRAZE_COLOR, 90), rgba("#b07d00", 255))), min: 9, opacity: 0.8, attr: "Leases: Alberta Recreational Access" },
+    { id: "hn-graze", layer: "land", tmpl: arcgis(GRAZE_SVC, dyn([1], rgba(GRAZE_COLOR, 90), rgba("#b07d00", 255))), min: 9, opacity: 0.8, ab: true, attr: "Leases: Alberta Recreational Access" },
     { id: "hn-forest", layer: "forest", tmpl: wms(VRI, forestSld()), min: 11, opacity: 0.5, attr: 'Forest: <a href="https://www2.gov.bc.ca/gov/content/industry/forestry/managing-our-forest-resources/forest-inventory">BC Vegetation Resources Inventory</a>' },
     { id: "hn-fuel", layer: "forest", tmpl: arcgis(FUEL_SVC, "layers=show%3A1"), recolor: FUEL_RGB, min: 8, opacity: 0.5, ab: true, attr: "Forest: Alberta Wildfire fuel types" },
     { id: "hn-burns", layer: "burns", tmpl: wms(FIRES, sld(FIRES, BURNS.map(([a, b, gap]) => [between("FIRE_YEAR", a, b), burnSym(gap)]))), min: 7, opacity: 1, attr: 'Burns: <a href="https://catalogue.data.gov.bc.ca/dataset/fire-perimeters-historical">BC Wildfire Service</a>' },
@@ -802,9 +802,12 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const terrainOpts = { pane: "huntTiles", minZoom: 9, maxNativeZoom: 14, maxZoom: 20, attribution: 'Terrain: <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>' };
   const terrain = { slope: new TerrainGrid({ ...terrainOpts, mode: "slope" }), aspect: new TerrainGrid({ ...terrainOpts, mode: "aspect" }) };
 
+  // A province's layer goes on the map only near the view: no requests (and no credit line) for faraway provinces.
+  const picNear = (p, view = map.getBounds().pad(0.5)) => L.latLngBounds(picBounds(p)).intersects(view);
   function syncTiles() {
+    const view = map.getBounds().pad(0.5);
     for (const p of PICS) {
-      const want = isHunt() && shown.has(p.layer);
+      const want = isHunt() && shown.has(p.layer) && picNear(p, view);
       if (want && !map.hasLayer(p.tiles)) p.tiles.addTo(map); else if (!want && map.hasLayer(p.tiles)) map.removeLayer(p.tiles);
     }
     for (const [k, l] of Object.entries(terrain)) {
@@ -844,10 +847,10 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     : kind === "cone" ? `<span class="hn-ic" style="background:conic-from 0deg, transparent;background:linear-gradient(135deg, ${c}55, ${c})"></span>` : kind === "ring" ? `<span class="hn-ic" style="border:2px dashed ${c};border-radius:50%"></span>`
     : `<span class="hn-ic" style="background:${c};opacity:.85"></span>`;
   function renderLayers() {
-    const z = map.getZoom();
+    const z = map.getZoom(), view = map.getBounds();
     $("hnLayerList").innerHTML = GROUPS.map((g) => `<h4 class="hn-group">${g}</h4>` + Object.entries(LAYERS).filter(([, l]) => l.g === g).map(([k, l]) => {
-      const on = shown.has(k), far = on && l.minZoom && z < l.minZoom;
-      return `<label class="hn-layer">${icon(l.sw)}<span><b>${esc(l.label)}</b>${far ? '<small class="z">Zoom in closer to see it</small>' : ""}</span><input type="checkbox" class="hn-sw-input" role="switch" data-k="${k}"${on ? " checked" : ""} aria-label="${esc(l.label)}"></label>`;
+      const on = shown.has(k), ps = PICS.filter((p) => p.layer === k), none = on && ps.length && !ps.some((p) => picNear(p, view)), far = on && !none && l.minZoom && z < l.minZoom;
+      return `<label class="hn-layer">${icon(l.sw)}<span><b>${esc(l.label)}</b>${none ? `<small class="z">Not mapped here yet (${esc(l.where || "")})</small>` : far ? '<small class="z">Zoom in closer to see it</small>' : ""}</span><input type="checkbox" class="hn-sw-input" role="switch" data-k="${k}"${on ? " checked" : ""} aria-label="${esc(l.label)}"></label>`;
     }).join("")).join("");
     // the view whose layers are exactly the ones on lights up
     pane.querySelectorAll("[data-view]").forEach((b) => { const v = VIEWS[b.dataset.view].layers; b.classList.toggle("on", v.length === shown.size && v.every((k) => shown.has(k))); });
@@ -925,9 +928,14 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   function drawRings() {
     ringLayer.clearLayers();
     if (!shown.has("rings") || !spot) return;
+    // Zoomed out the rings sit a few pixels apart: a ring gets its label only 20 px or more out from the last labelled one.
+    const mPerPx = (40075016.686 * Math.cos((spot.lat * Math.PI) / 180)) / (256 * 2 ** map.getZoom());
+    let lastPx = -99;
     for (const m of RINGS) {   // a white line under the dark dashes, so the rings show on the photos (2D and 3D) too
       L.circle([spot.lat, spot.lon], { radius: m, pane: "hunt", interactive: false, color: "#fff", weight: 3.5, opacity: 0.55, fill: false }).addTo(ringLayer);
       L.circle([spot.lat, spot.lon], { radius: m, pane: "hunt", interactive: false, color: "#212529", weight: 1.5, opacity: 0.8, dashArray: "5 5", fill: false }).addTo(ringLayer);
+      if (m / mPerPx - lastPx < 20) continue;
+      lastPx = m / mPerPx;
       L.marker([spot.lat + (m * Math.SQRT1_2) / 111320, spot.lon + (m * Math.SQRT1_2) / (111320 * Math.cos(spot.lat * Math.PI / 180))], {   // north-east, so the labels spread out
         pane: "huntLabels", interactive: false, keyboard: false,
         icon: L.divIcon({ className: "", html: `<div class="hn-label" style="color:#212529;border-color:#212529;font-size:10px">${m} m</div>`, iconSize: [0, 0] }) }).addTo(ringLayer);
@@ -1189,7 +1197,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       const c = wx.current || {}, w = windAt(), g = Math.round(c.wind_gusts_10m ?? 0), sp = Math.round(c.wind_speed_10m ?? 0);
       const h = wx.hourly || {}, hours = Math.min(12, (h.time || []).length - 1);
       const hourHtml = (h.time || []).slice(0, 13).map((_, i) => {
-        const t = h.time[i].slice(11, 16), hd = h.wind_direction_10m[i];
+        const t = hourLabel(h.time[i]), hd = h.wind_direction_10m[i];
         return `<div><b>${t}</b>${arrow((hd + 180) % 360, 18)}<span>${compass(hd)} ${Math.round(h.wind_speed_10m[i])}</span><span>${Math.round(h.temperature_2m[i])}°</span><span>${h.precipitation_probability?.[i] ?? "–"}%</span></div>`;
       }).join("");
       body = `<div class="hn-wind"><div class="hn-arrow" id="hnArrow" title="The arrow points where the wind blows to">${arrow((w.dir + 180) % 360)}</div><div>
@@ -1472,7 +1480,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     }
     spotOpen = known ? [...open] : null;
     const name = z.map((u) => `${esc(zoneName(u, true))}${u.p !== "qc" && zoneSub(u) ? ` · ${esc(zoneSub(u))}` : ""}${u.cwd ? " · CWD surveillance zone" : ""}`).join(" / ");
-    el.innerHTML = `<header>${svg(IC.pin)}<h3>This spot</h3><button type="button" class="hn-x" aria-label="Close">${svg(IC.x, 14)}</button></header>
+    el.innerHTML = `<header>${svg(IC.pin)}<h3>This spot</h3>${window.tfShareBtn ? window.tfShareBtn(lat, lon, { sport: "hunt" }) : ""}<button type="button" class="hn-x" aria-label="Close">${svg(IC.x, 14)}</button></header>
       <p class="hn-zone">${name || (pvHere.length ? `${esc(PV[pvHere[0]].name)}: no hunting zone here on the map` : "Outside the hunting zones on the map")}</p>
       <div class="hn-chips">${known ? `<span class="hn-chip" style="--c:${open.size ? "#2f9e44" : "var(--line)"}">${open.size ? `Open now: ${esc([...open].slice(0, 3).join(", "))}${open.size > 3 ? ` +${open.size - 3} more` : ""}` : "No general season open today"}</span>` : ""}<span id="hnLand"></span>${warn.join("")}</div>
       <p class="hn-lot" id="hnLot" hidden></p>
@@ -1772,7 +1780,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   function renderOffline() {
     const el = $("hnOff"), saved = store.get(OFF_KEY, []), layers = offLayers();
     const n = offUrls(offSquare || viewBox(), layers, OFF_MAX).length;
-    el.innerHTML = `<p class="hn-note" style="margin-top:6px">Zones, seasons, draws${layers.length ? ` and ${esc(layers.map((k) => LAYERS[k].label.toLowerCase()).join(", "))}` : ""} for ${offSquare ? "the square you drew" : "the area on screen, or a square you draw"}, for no signal. Offline maps (${matchMedia("(max-width: 760px)").matches ? "Track tab" : "Layers menu"}) saves them with the base map and the 3D map in one go.</p>
+    el.innerHTML = `<p class="hn-note" style="margin-top:6px">Zones, seasons, draws${layers.length ? ` and ${esc(layers.map((k) => LAYERS[k].label.toLowerCase()).join(", "))}` : ""} for ${offSquare ? "the square you drew" : "the area on screen, or a square you draw"}, for no signal. Offline maps (${matchMedia("(max-width: 760px)").matches ? "Record tab" : "Layers menu"}) saves them with the base map and the 3D map in one go.</p>
       ${offBusy ? `<div class="hn-bar"><i style="width:${Math.round(offBusy.pct)}%"></i></div><p class="hn-note">${esc(offBusy.msg)}</p><div class="hn-row"><button type="button" class="hn-btn ghost" id="hnOffStop">Stop</button></div>`
         : `<div class="hn-row"><button type="button" class="hn-btn" id="hnOffSave"${n > OFF_MAX ? " disabled" : ""}>${offSquare ? "Save this square" : "Save this area"}</button>${offSquare
           ? `<button type="button" class="hn-pill" id="hnOffClear">${svg(IC.x, 14)}Clear the square</button>` : `<button type="button" class="hn-pill" id="hnOffDraw">${svg(IC.square, 16)}Draw a square</button>`}<span class="hn-note">${n > OFF_MAX ? (offSquare ? "Too big: draw a smaller square" : "Too big: zoom in or draw a square") : offSize(n)}</span></div>`}
@@ -2034,6 +2042,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
 
   // For ski-points.js: the hunting zone at a point, for the harvest log.
   window.tfHunt = {
+    spot(lat, lon) { setSpot(lat, lon, "tap"); showSpot(lat, lon); },   // a shared spot (ski-points.js #pin=)
     // moto.js (Can I ride here): the parks, reserves, closures and other land at a point or in a box, the same
     // outlines as the Hunting rules layer ({ k, n, p, b, g } with g as flat [lat, lon, ...] rings).
     async areasAt(lat, lon) {
@@ -2071,11 +2080,11 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   let moveTimer = 0;
   map.on("moveend", () => {
     if (!isHunt()) return;
-    drawLabels();
+    drawLabels(); syncTiles(); renderLayers();
     clearTimeout(moveTimer);
     moveTimer = setTimeout(() => { if (!spot || spot.how === "centre") { const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); } if (!offBusy) renderOffline(); }, 600);
   });
-  map.on("zoomend", () => { if (isHunt()) { drawLabels(); renderLayers(); } });
+  map.on("zoomend", () => { if (isHunt()) { drawLabels(); renderLayers(); drawRings(); } });
   let started = false;
   function sync() {
     const on = isHunt();

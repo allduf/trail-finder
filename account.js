@@ -15,7 +15,7 @@
     // What each sport saves (alex 2026-10-30: trips, spots and pins on the account in every sport). Pins and tracks have
     // their own tables (ski-points.js, ride.html); these are the lists kept in localStorage. listGone comes first: the
     // lists' merges read it.
-    "listGone", "skiTrips", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"];
+    "listGone", "skiTrips", "skiTours", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"];
   const STAMP = "tf:settingsAt";   // when this device last changed a setting (ms)
 
   const api = window.tfAccount = { enabled: !!(SUPABASE_URL && SUPABASE_ANON_KEY), url: SUPABASE_URL, key: SUPABASE_ANON_KEY, client: null, user: null, ready: null };
@@ -50,6 +50,9 @@ dialog.acct button.go { background: var(--accent); color: var(--accent-fg, #fff)
 dialog.acct button:disabled { opacity: .6; cursor: default; }
 dialog.acct .acct-msg { min-height: 1.2em; font-size: .88rem; margin: 0 0 10px; color: var(--fg); }
 dialog.acct .acct-msg.err { color: #c0392b; }
+dialog.acct .acct-ok { margin: -6px 0 12px; padding: 8px 10px; border-radius: 9px; font-size: .9rem; font-weight: 600; background: #e3f3e6; color: #1e6b34; }
+dialog.acct .acct-ok:not(.err)::before { content: "\\2713  "; }
+dialog.acct .acct-ok.err { background: #fbe5e2; color: #c0392b; }
 dialog.acct .acct-alt { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 12px; font-size: .88rem; }
 dialog.acct .acct-alt button { background: none; border: 0; padding: 2px 0; color: var(--accent); font-weight: 600; }
 dialog.acct .acct-menu { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
@@ -59,6 +62,7 @@ dialog.acct button.danger { background: #c0392b; color: #fff; border-color: tran
 dialog.acct .acct-alt a { color: var(--accent); font-weight: 600; padding: 2px 0; }
 dialog.acct .acct-alt button.acct-del { color: #c0392b; }
 dialog.acct .acct-code { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+dialog.acct #acctPassTip { margin: 4px 0 0; font-size: .8rem; color: var(--muted); }
 dialog.acct #acctCode { font-size: 1.3rem; letter-spacing: .25em; text-align: center; }
 .acct-nudge, .acct-nudge * { box-sizing: border-box; }
 .acct-nudge { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 16px); z-index: 2400; width: min(380px, calc(100vw - 32px));
@@ -85,9 +89,10 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   <input type="email" id="acctEmail" placeholder="you@example.com" autocomplete="email" required>
   <label for="acctPass">Password</label>
   <input type="password" id="acctPass" autocomplete="current-password" minlength="6">
+  <p id="acctPassTip" hidden>At least 6 characters. Pick a new one, not your email password.</p>
   <p class="acct-msg" id="acctMsg" role="status"></p>
   <div class="acct-row"><button type="button" data-close>Not now</button><button type="submit" class="go" id="acctSend">Sign in</button></div>
-  <div class="acct-alt"><button type="button" id="acctNew">New here? Create an account</button><button type="button" id="acctLink">Forgot password? Email me a code</button></div>
+  <div class="acct-alt"><button type="button" id="acctNew">New here? Create an account</button><button type="button" id="acctHave" hidden>Already have an account? Sign in</button><button type="button" id="acctLink">Forgot password? Email me a code</button></div>
   <div id="acctCodeBox" class="acct-code" hidden>
     <label for="acctCode">Code from the email</label>
     <input type="text" id="acctCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="10" placeholder="123456">
@@ -155,8 +160,29 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     api.load();
     q("acctIn").hidden = !!api.user; q("acctOut").hidden = !api.user;
     if (api.user) showSettings(false);
-    else { q("acctMsg").textContent = ""; q("acctMsg").className = "acct-msg"; q("acctCodeBox").hidden = true; q("acctCode").value = ""; }
+    else { q("acctMsg").textContent = ""; q("acctMsg").className = "acct-msg"; q("acctCodeBox").hidden = true; q("acctCode").value = ""; setMode("in"); }
     if (!box.open) box.showModal();
+  }
+  // Two screens in one box (alex 2026-11-08: "when you click on Create an account it should open a new window and start
+  // creating an account"): Sign in, and Create an account with its own heading and big button. need: the reason an
+  // account is needed (api.require), shown on both screens.
+  let mode = "in", need = "";
+  const HAD = "trailfinder-had-account";   // this device was signed in before: open on Sign in, not Create an account
+  function setMode(m) {
+    mode = m;
+    const nu = m === "new";
+    q("acctHead").textContent = nu ? (need ? "Create a free account" : "Create an account") : (need ? "Sign in to save maps offline" : "Sign in");
+    q("acctNeed").hidden = !need; q("acctNeed").textContent = need;
+    q("acctWhy").hidden = !!need;
+    q("acctWhy").textContent = nu ? "Free. Just your email and a password you pick. Your settings, rides, pins and trips are then saved to your account and on every device."
+      : "Optional. Signing in saves your settings, rides, pins and trips to your account so they're on every device. Everything else works the same without it.";
+    q("acctSend").textContent = nu ? "Create account" : "Sign in";
+    q("acctPass").autocomplete = nu ? "new-password" : "current-password";
+    q("acctPass").placeholder = nu ? "Pick a password" : "";
+    q("acctPassTip").hidden = !nu;
+    q("acctNew").hidden = nu; q("acctHave").hidden = !nu; q("acctLink").hidden = nu;
+    q("acctCodeBox").hidden = true;
+    say("");
   }
   function showSettings(on) {
     q("acctMenu").hidden = on; q("acctSettings").hidden = !on; q("acctDelBox").hidden = true;
@@ -181,14 +207,13 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     if (!api.enabled) return Promise.resolve(true);
     return new Promise((resolve) => {
       openBox();
-      q("acctHead").textContent = "Sign in to save maps offline";
-      q("acctNeed").textContent = why || "You need a free account for this.";
-      q("acctNeed").hidden = false; q("acctWhy").hidden = true;
+      need = why || "You need a free account for this.";
+      setMode(lsGet(HAD) ? "in" : "new");
       let done = false;
       const finish = (ok) => {
         if (done) return; done = true;
         window.removeEventListener("tf:account", onIn); box.removeEventListener("close", onClose);
-        q("acctHead").textContent = "Sign in"; q("acctNeed").hidden = true; q("acctWhy").hidden = false;
+        need = ""; setMode("in");
         resolve(ok);
       };
       const onIn = (e) => { if (e.detail) { if (box.open) box.close(); finish(true); } };
@@ -228,7 +253,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     paintButtons();
     if (was === now) return;
     if (!was && now && box.open) openBox();
-    if (now) api.sync();
+    if (now) { api.sync(); lsSet(HAD, "1"); }
     window.dispatchEvent(new CustomEvent("tf:account", { detail: user }));
   }
 
@@ -243,28 +268,42 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   const redirect = () => location.origin + location.pathname;
   q("acctIn").addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (mode === "new") return createAccount();
     const c = await creds(); if (!c) return;
-    if (!c.password) { say("Enter your password, or use \u201cEmail me a link\u201d.", true); return; }
+    if (!c.password) { say("Type your password. No account yet? Tap \u201cNew here? Create an account\u201d.", true); q("acctPass").focus(); return; }
     q("acctSend").disabled = true; say("Signing in…");
     const { error } = await api.client.auth.signInWithPassword(c);
     q("acctSend").disabled = false;
-    if (error) say(/invalid/i.test(error.message) ? "Wrong email or password. New here? Create an account below." : error.message, true);
-    else box.close();
+    if (!error) box.close();
+    else if (/invalid/i.test(error.message)) say("Wrong email or password. New here? Tap Create an account below.", true);
+    else if (/not confirmed/i.test(error.message)) say("This account isn't confirmed yet. Tap \u201cForgot password? Email me a code\u201d to get in.", true);
+    else say(error.message, true);
   });
-  q("acctNew").addEventListener("click", async () => {
+  q("acctNew").addEventListener("click", () => { setMode("new"); q("acctEmail").focus(); });
+  q("acctHave").addEventListener("click", () => { setMode("in"); q("acctEmail").focus(); });
+  async function createAccount() {
     const c = await creds(); if (!c) return;
-    if (c.password.length < 6) { say("Pick a password of at least 6 characters, then tap Create an account.", true); q("acctPass").focus(); return; }
-    say("Creating your account…");
+    if (c.password.length < 6) { say("Pick a password of at least 6 characters.", true); q("acctPass").focus(); return; }
+    q("acctSend").disabled = true; say("Creating your account…");
     const { data, error } = await api.client.auth.signUp({ ...c, options: { emailRedirectTo: redirect() } });
-    if (error) say(error.message, true);
-    else if (data.session) box.close();
+    q("acctSend").disabled = false;
+    // An email that already has an account: no error, but a user with no identities (or "already registered").
+    const taken = (error && /already|registered|exists/i.test(error.message)) || (!error && data.user && data.user.identities && !data.user.identities.length);
+    if (taken) { setMode("in"); say("You already have an account with this email. Type your password and tap Sign in.", false); q("acctPass").focus(); }
+    else if (error) say(/sending|email.*(send|deliver)|smtp/i.test(error.message) ? "We couldn't send the email to finish your account just now. Try again in a few minutes. If it keeps happening, write to trailfinder.help@outlook.com." : /rate|seconds/i.test(error.message) ? "Too many tries just now. Wait a minute and try again." : error.message, true);
+    else if (data.session) { box.close(); toast("Your account is ready. You're signed in."); }
     else { codeFor(c.email); say(`Almost done: we emailed a code to ${c.email}. Type it below (or tap the link in the email).`); }
-  });
+  }
+  function toast(text) {
+    const t = document.createElement("div");
+    t.className = "acct-toast"; t.setAttribute("role", "status"); t.textContent = text;
+    document.body.appendChild(t); setTimeout(() => t.remove(), 4000);
+  }
   q("acctLink").addEventListener("click", async () => {
     const c = await creds(); if (!c) return;
     say("Sending…");
     const { error } = await api.client.auth.signInWithOtp({ email: c.email, options: { emailRedirectTo: redirect() } });
-    if (error) say(/rate|seconds/i.test(error.message) ? "Too many emails just now. Wait a minute and try again." : error.message, true);
+    if (error) say(/rate|seconds/i.test(error.message) ? "Too many emails just now. Wait a minute and try again." : /sending|smtp/i.test(error.message) ? "We couldn't send the email just now. Try again in a few minutes. If it keeps happening, write to trailfinder.help@outlook.com." : error.message, true);
     else { codeFor(c.email); say(`We emailed a code to ${c.email}. Type it below. Once you're in, you can set a new password under Account → Settings.`); }
   });
   // Sign in with the code from the email (alex 2026-11-03). The iPhone app can't catch email links (they open Safari,
@@ -288,21 +327,34 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   q("acctCodeGo").addEventListener("click", useCode);
   q("acctCode").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); useCode(); } });
   const setMsg = (text) => { q("acctSetMsg").textContent = text; };
+  // A clear answer right under the button that was tapped (alex 2026-11-08: "once you change your password you should
+  // have a confirmation it worked"): green box with a check, or a red one, and the button says ✓ Saved for a moment.
+  function answer(btnId, text, err) {
+    const row = q(btnId).closest(".acct-row");
+    let p = row.nextElementSibling;
+    if (!p || !p.classList.contains("acct-ok")) { p = document.createElement("p"); p.setAttribute("role", "status"); row.after(p); }
+    p.className = "acct-ok" + (err ? " err" : ""); p.textContent = text;
+    clearTimeout(p._t); p._t = setTimeout(() => p.remove(), 10000);
+    if (!err) { const b = q(btnId), was = b.dataset.label || (b.dataset.label = b.textContent); b.textContent = "\u2713 Saved"; setTimeout(() => { b.textContent = was; }, 2500); }
+  }
   q("acctSetPass").addEventListener("click", async () => {
     const pw = q("acctNewPass").value;
-    if (pw.length < 6) { setMsg("Passwords need at least 6 characters."); return; }
+    if (pw.length < 6) { answer("acctSetPass", "Passwords need at least 6 characters.", true); q("acctNewPass").focus(); return; }
+    q("acctSetPass").disabled = true;
     const { error } = await api.client.auth.updateUser({ password: pw });
+    q("acctSetPass").disabled = false;
+    if (error) { answer("acctSetPass", /same|different/i.test(error.message) ? "That's already your password. Pick a different one." : "Couldn't change the password: " + error.message, true); return; }
     q("acctNewPass").value = "";
-    setMsg(error ? "Couldn't save the password: " + error.message : "Password saved. Next time, sign in with your email and password.");
+    answer("acctSetPass", "Password changed. Next time, sign in with your email and this new password.");
   });
   q("acctSetName").addEventListener("click", async () => {
     const name = q("acctName").value.trim().slice(0, 40);
     const { data, error } = await api.client.auth.updateUser({ data: { name } });
-    if (error) { setMsg("Couldn't save the name: " + error.message); return; }
+    if (error) { answer("acctSetName", "Couldn't save the name: " + error.message, true); return; }
     if (data && data.user) api.user = data.user;
     paintButtons();
     try { if (name && !localStorage.getItem("tf:liveName")) localStorage.setItem("tf:liveName", JSON.stringify(name)); } catch {}
-    setMsg(name ? `Saved. Friends will see \u201c${name}\u201d.` : "Name removed.");
+    answer("acctSetName", name ? `Name saved. Friends will see \u201c${name}\u201d.` : "Name removed.");
   });
   // Download my data (privacy laws, e.g. Quebec's Law 25: people can get a copy of what we keep about them). One JSON
   // file: the account, every row saved to it, links to its photos (good for 7 days), and this device's settings.
@@ -352,7 +404,8 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     const email = q("acctNewEmail").value.trim();
     if (!q("acctNewEmail").reportValidity() || !email || email === api.user.email) return;
     const { error } = await api.client.auth.updateUser({ email }, { emailRedirectTo: redirect() });
-    setMsg(error ? "Couldn't change the email: " + error.message : `Check ${email} (and your old address) and tap the confirm links. The change happens after that.`);
+    if (error) answer("acctSetEmail", "Couldn't change the email: " + error.message, true);
+    else answer("acctSetEmail", `Almost done: check ${email} (and your old address) and tap the confirm links. The change happens after that.`);
   });
   // Sign out sits right in the Your account box (alex 2026-11-03) and again under Settings.
   // Signing out also takes the rider's own things off this device (alex 2026-11-03: signed out on the computer, Ridden,
@@ -511,7 +564,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   // when the app comes back to the screen, and when a page asks (tfAccount.sync(), e.g. opening 📂 Saved).
   const KEYAT = "tf:settingsKeyAt";
   const LIVE = new Set(["planSaved", "planGone", "notifyRead", "loamAlert", "myFinds", "shareOn", "shareKey", "sharePast", "shareFrom", "sharePlaces", "newsSeen",
-    "listGone", "skiTrips", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"]);   // read fresh by the page, so no reload
+    "listGone", "skiTrips", "skiTours", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"]);   // read fresh by the page, so no reload
   const jparse = (v, d) => { try { const x = JSON.parse(v); return x == null ? d : x; } catch { return d; } };
   // A saved list both devices add to: items by id, the newer edit wins, minus those deleted (tf:listGone) after their
   // last edit. sorted: newest first (else this device's order, then the account's new ones). max: the page's own cap.
@@ -538,6 +591,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
       return list.length ? JSON.stringify(list) : null;
     },
     skiTrips: listMerge("skiTrips", (t) => t.id, (t) => t.ed || t.at || 0, true, 20),         // cabin trips (cabin-trip.js)
+    skiTours: listMerge("skiTours", (t) => t.id, (t) => t.ed || t.at || 0, true, 50),         // Skiing: planned tours saved (winter.js)
     skiWatch: listMerge("skiWatch", (w) => w.k, (w) => w.at || 0, true, 40),                 // 🔔 Watch this tour (winter.js)
     motoRoutes: listMerge("motoRoutes", (r) => r.id, (r) => r.ed || r.at || 0, true, 40),   // Adventure moto saved routes
     motoBikes: listMerge("motoBikes", (k) => k.id, (k) => k.ed || 0, false, 20),            // Adventure moto: my bikes
@@ -591,6 +645,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     planSaved: [(v) => arr(v).length, "this route"],
     motoRoutes: [(v) => arr(v).length, "this route"],
     skiTrips: [(v) => arr(v).length, "this cabin trip"],
+    skiTours: [(v) => arr(v).length, "this tour"],
     hikeSaved: [(v) => arr(v).length, "this hike"],
     hikePlans: [(v) => arr(v).length, "this hike"],
     folders: [(v) => arr(v).reduce((n, f) => n + ((f && f.trails && f.trails.length) || 0), 0), "your trail lists"],

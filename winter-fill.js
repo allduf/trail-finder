@@ -9,6 +9,9 @@
 // Message in: { id, z, x, y, base, skip, whole } (base = the Winter photo site with this tile, trail-finder-winter or -winter2; skip = don't
 // ask for this zoom-14 tile, it's known to be missing; whole = the tile is all inside the photo squares, so every
 // see-through pixel is a hole: tiles across a square's edge keep their see-through outside part).
+// sharp (with rev): zooms 13-14 inside the AI-sharpened squares are the zoom-15 sharpened photos on that site shrunk
+// together (16 for a zoom-13 tile, 4 for zoom 14), their few holes filled with this tile's own filled Winter photo;
+// if any piece can't come, the plain Winter tile as before (map3d.js SHARP_MID; moved here off the page 2026-11-08).
 // Out: { id, data: ImageBitmap, miss14 } or { id, none: true } (no photo here at all) or { id, err }. { cancel: id } drops one.
 "use strict";
 const W = 256;
@@ -101,9 +104,18 @@ const decode = async (blob) => {
 // Tile z/x/y's pixels (holes filled if whole), or null where there's no photo. A missing tile past zoom 11 is cut
 // from the one above it and enlarged (the newer squares stop at zoom 13, and a few tiles were cloudy every pass).
 // A tile scrolled away meanwhile (id cancelled) stops before decoding and filling: those were done for nothing.
+// Winter photos on Cloudflare Pages (2026-11-07): Netlify's free credits ran out and Pages takes 20,000 files a site, so
+// each photo site is split by zoom-11 square: trail-finder-winter on trailfinder-w1-0..13, -winter2 on trailfinder-w2-0..3
+// (zooms under 11, blocks.json and sharp.json on -0). The netlify.app address stays the name used everywhere else.
+const tfWinterShard = (u, z, x, y) => {
+  const m = /^https:\/\/trailfinder-winter2\.netlify\.app\/(trail-finder-winter2?)\//.exec(u);
+  if (!m) return u;
+  const two = m[1].endsWith("2"), k = z < 11 ? 0 : (((x >> (z - 11)) * 31 + (y >> (z - 11))) % (two ? 4 : 14));
+  return `https://trailfinder-w${two ? 2 : 1}-${k}.pages.dev/${m[1]}/` + u.slice(m[0].length);
+};
 async function tile(z, x, y, base, skip, whole, out, id) {
   if (!skip) {
-    const r = await fetch(new URL(`${z}/${x}/${y}.webp`, base).href);
+    const r = await fetch(tfWinterShard(new URL(`${z}/${x}/${y}.webp`, base).href, z, x, y));
     if (cancelled.has(id)) return null;
     if (r.ok) { const px = await decode(await r.blob()); return whole && !cancelled.has(id) && !(await fillHoles(px.data, z, x, y)) ? null : px; }
     if (r.status !== 404) throw new Error(`HTTP ${r.status}`);
@@ -119,13 +131,46 @@ async function tile(z, x, y, base, skip, whole, out, id) {
   return readCx.getImageData(0, 0, W, W);
 }
 
+async function sharpTile(m, out) {
+  const n = 1 << (15 - m.z), s = W / n, cv = new OffscreenCanvas(W, W), cx = cv.getContext("2d", { willReadFrequently: true });
+  try {
+    const parts = [];
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) parts.push((async () => {
+      const X = m.x * n + i, Y = m.y * n + j;
+      const r = await fetch(tfWinterShard(new URL(`15/${X}/${Y}.webp${m.rev || ""}`, m.sharp).href, 15, X, Y));
+      if (!r.ok) throw new Error("no sharp tile");
+      const bmp = await createImageBitmap(await r.blob(), { resizeWidth: s, resizeHeight: s, resizeQuality: "high" });
+      cx.drawImage(bmp, i * s, j * s); bmp.close();
+    })());
+    const done = await Promise.allSettled(parts);
+    if (cancelled.has(m.id) || done.some((d) => d.status === "rejected")) return null;
+    const px = cx.getImageData(0, 0, W, W), d = px.data;
+    let holes = false;
+    for (let i = 3; i < d.length; i += 4) if (d[i] < 250) { holes = true; break; }
+    if (holes) {
+      // The filled Winter photo under the holes (as "destination-over" did on the page).
+      const u = await tile(m.z, m.x, m.y, m.base, m.skip, m.whole, out, m.id).catch(() => null);
+      if (u) {
+        const e = u.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const a = d[i + 3] / 255;
+          if (a >= 1) continue;
+          d[i] = d[i] * a + e[i] * (1 - a); d[i + 1] = d[i + 1] * a + e[i + 1] * (1 - a); d[i + 2] = d[i + 2] * a + e[i + 2] * (1 - a);
+          d[i + 3] = 255 * (a + (e[i + 3] / 255) * (1 - a));
+        }
+      }
+    }
+    return px;
+  } finally { cv.width = cv.height = 0; }
+}
+
 const busy = new Set();   // tiles being made: a cancel for one already sent is dropped, not kept for ever
 self.onmessage = async ({ data: m }) => {
   if (m.cancel) { if (busy.has(m.cancel)) cancelled.add(m.cancel); return; }
   const out = { id: m.id };
   busy.add(m.id);
   try {
-    const px = await tile(m.z, m.x, m.y, m.base, m.skip, m.whole, out, m.id);
+    const px = (m.sharp && await sharpTile(m, out).catch(() => null)) || (cancelled.has(m.id) ? null : await tile(m.z, m.x, m.y, m.base, m.skip, m.whole, out, m.id));
     if (cancelled.has(m.id)) return;
     if (!px) { out.none = true; self.postMessage(out); return; }
     outCx.putImageData(px, 0, 0);

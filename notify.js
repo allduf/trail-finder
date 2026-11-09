@@ -422,7 +422,9 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     const nNew = prefs() ? unread().length : 0, nLoam = loamUnread().length, nAvy = avyUnread().length, nFish = fishUnread().length, n = nNew + nLoam + nAvy + nFish;
     btn.innerHTML = `<span aria-hidden="true">🔔</span>${n ? `<span class="nt-count">${n > 99 ? "99+" : n}</span>` : ""}`;
     const parts = [nFish && `${nFish} fresh stocking${nFish > 1 ? "s" : ""}`, nAvy && `${nAvy} avalanche alert${nAvy > 1 ? "s" : ""}`, nNew && `${nNew} new trail${nNew > 1 ? "s" : ""}`, nLoam && `${nLoam} prime loam alert${nLoam > 1 ? "s" : ""}`].filter(Boolean);
-    btn.title = parts.length ? parts.join(", ") : prefs() ? "No new trails" : "Get notified about new trails and prime loam";
+    // Bike words only in MTB: the other sports' 🔔 holds their own alerts (alarms, avalanche, stocking).
+    const bike = !document.body.classList.contains("sport-alt");
+    btn.title = parts.length ? parts.join(", ") : !bike ? "Notifications" : prefs() ? "No new trails" : "Get notified about new trails and prime loam";
     btn.setAttribute("aria-label", btn.title);
     if (box.open && !q("ntList").hidden) paintList();
   }
@@ -609,6 +611,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     if (k !== watchKey) { watchKey = k; checkLoam(true); checkAvy(true); checkFish(true); pushSync(); }
   };
   window.addEventListener("tf:setting", () => setTimeout(rewatch, 300));
+  window.addEventListener("tf:sport", () => setTimeout(paint));
   window.addEventListener("tf:account", () => setTimeout(rewatch, 1500));
   setTimeout(rewatch, 2000);   // the To ride list, once index.html has it
 

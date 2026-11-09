@@ -21,7 +21,9 @@
   let on = false;
   try { on = localStorage.getItem("tf:skiFree") === "true"; } catch {}   // off until turned on (alex 2026-11-05: Skiing opens with a short set)
 
-  const C = { line: "#9c36b5", extreme: "#5f1a73", edge: "#1d0826", sel: "#ffe14d" };
+  // Black on a white edge, like a black run on a trail map (alex 2026-11-09: it was purple, "hard to differentiate" from
+  // the pink-red slackcountry lines in 3D): reads on snow and forest, and nothing else in Skiing is black.
+  const C = { line: "#16181b", extreme: "#000000", edge: "#ffffff", sel: "#ffe14d" };
   const RATE = { freeride: "Freeride", extreme: "Extreme", expert: "◆◆ Expert", advanced: "◆ Advanced" };
   const FACE = { n: "north", ne: "north-east", e: "east", se: "south-east", s: "south", sw: "south-west", w: "west", nw: "north-west" };
   const LINES_Z = 11, NAMES_Z = 14, MAX_NAMES = 45;
@@ -92,8 +94,8 @@
     for (const r of [...list.filter((r) => r !== sel), ...(sel ? [sel] : [])]) {
       const me = r === sel, ex = r.diff === "extreme";
       for (const line of r.lines) {
-        layer.addLayer(L.polyline(line, { renderer, color: me ? C.sel : C.edge, weight: me ? 10 : 7, opacity: me ? 1 : 0.55, interactive: false }));
-        const l = L.polyline(line, { renderer, color: ex ? C.extreme : C.line, weight: me ? 5.5 : ex ? 4.5 : 4, opacity: 1, label: nameOf(r) });
+        layer.addLayer(L.polyline(line, { renderer, color: me ? C.sel : C.edge, weight: me ? 10 : ex ? 8 : 7, opacity: me ? 1 : 0.9, interactive: false }));
+        const l = L.polyline(line, { renderer, color: ex ? C.extreme : C.line, weight: me ? 5.5 : ex ? 5 : 4, opacity: 1, label: nameOf(r) });
         l.bindTooltip(esc(`${nameOf(r)}: freeride line`), { sticky: true });
         l.on("click", (e) => {
           L.DomEvent.stopPropagation(e);
@@ -259,7 +261,7 @@ dialog.fr-dlg .fr-small { font-size: .78rem; color: var(--muted); }
     if (!ul) return;
     ul.querySelectorAll(".fr-k").forEach((x) => x.remove());
     if (!shown()) return;
-    ul.insertAdjacentHTML("beforeend", `<li class="fr-k"><span class="sk-kic"><i style="background:${C.line};height:4px;box-shadow:0 0 0 2px ${C.edge}8c"></i></span>Freeride line (darker: extreme)</li>`);
+    ul.insertAdjacentHTML("beforeend", `<li class="fr-k"><span class="sk-kic"><i style="background:${C.line};height:4px;box-shadow:0 0 0 2px #fff, 0 0 0 3px #0004"></i></span>Freeride line (black; thicker: extreme)</li>`);
   }
   let keyObs = null;
   function watchKey() {

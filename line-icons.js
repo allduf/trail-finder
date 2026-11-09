@@ -16,7 +16,11 @@
     ski: '<path d="M3 20 21 8M6 21l2-6"/><circle cx="12" cy="4.5" r="1.6"/><path d="M9 12l4-3 3 3"/>',
     hunt: '<circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/>',
     fish: '<path d="M2.5 12c3-4.5 8.5-6 13-3.5L21 5v14l-5.5-3.5C11 18 5.5 16.5 2.5 12z"/><circle cx="7.5" cy="11" r=".6"/>',
-    moto: '<circle cx="5" cy="17" r="3.5"/><circle cx="19" cy="17" r="3.5"/><path d="M5 17 8.5 11H15l2-1M19 17 16.5 6.5H14"/><path d="M10 11.5 11 16h3.5l1.5-4.5"/>',
+    // Adventure moto: a dirt bike (engine, high front fender, long seat) so it can't pass for the MTB bike (alex picked A, 2026-11-08).
+    moto: '<circle cx="4.5" cy="17.5" r="3.5"/><circle cx="19.5" cy="17.5" r="3.5"/><path d="M19.5 17.5 16 6.5M14.5 6.5h3M17.5 11.5H21M2.5 10H10l1.5-1.5h3M4.5 17.5 9 15.5"/><rect x="9" y="12" width="5" height="4" rx="1"/>',
+    // Skiing's Nordic and Snowmobile buttons, so the four Skiing buttons are all line drawings (2026-11-08).
+    nordic: '<circle cx="13.5" cy="4" r="1.6"/><path d="M13 7.5 10.5 13l3 2-1.5 4.5M10.5 13 7 16.5M13 7.5l3 3 3-1M5 9.5l-1.5 9.5M19 9.5 18 19M2 20.5h11M14 20.5h8"/>',
+    sled: '<path d="M2 19.5h14.5c2 0 3.5-1 4.5-2.5"/><path d="M4 16.5h13.5l3-3h-6L13 10H8.5L6 13.5H4z"/><path d="M13 10l1.5-3.5H18M7 19.5v-3M15 19.5v-3"/>',
     boot: '<path d="M7 3h5v8l6 3c1.5.7 2 1.8 2 3v2H4V3z"/><path d="M4 19h16M7 7h3M7 11h4"/>',
     sparkle: '<path d="M10 3l1.8 5.2L17 10l-5.2 1.8L10 17l-1.8-5.2L3 10l5.2-1.8z"/><path d="M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"/>',
     target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',
@@ -58,7 +62,7 @@
   };
   // Emoji (and the few text symbols used as icons) -> drawing. The tab bar and map buttons draw the sports the same way.
   const E = {
-    "🚵": "bike", "🚴": "bike", "🚲": "bike", "⛷": "ski", "🎿": "ski", "🦌": "hunt", "🎣": "fish", "🐟": "fish", "🏍": "moto", "🥾": "boot",
+    "🚵": "bike", "🚴": "bike", "🚲": "bike", "⛷": "ski", "🎿": "nordic", "🛷": "sled", "🦌": "hunt", "🎣": "fish", "🐟": "fish", "🏍": "moto", "🥾": "boot",
     "✨": "sparkle", "🆕": "sparkle", "◎": "target", "🎯": "target", "☀": "sun", "📷": "camera", "▭": "screen", "✎": "pencil",
     "📂": "folder", "📁": "folder", "⤓": "download", "📡": "signal", "📈": "chart", "★": "star", "⭐": "star", "⚙": "gear",
     "🔔": "bell", "⤢": "expand", "👤": "user", "🤝": "people", "✉": "mail", "🔒": "lock", "📜": "doc", "⚠": "warn",
@@ -86,7 +90,7 @@
       if (k) hits.push([n, k]);
     }
     for (const [n, [, name, rest]] of hits) {
-      const size = n.parentElement.classList.contains("ic") ? 22 : n.parentElement.classList.contains("spb-i") ? 22 : 17;
+      const pc = n.parentElement.classList, size = pc.contains("ic") || pc.contains("spb-i") || pc.contains("i") ? 22 : 17;
       const t = document.createElement("template");
       t.innerHTML = draw(name, size);
       n.parentNode.insertBefore(t.content.firstChild, n);
@@ -95,6 +99,46 @@
       n.data = rest.replace(/^\s+/, rest.trim() && !flex ? "\u00a0" : "");
     }
   };
+  // The sports' own icons, everywhere (alex 2026-11-08, "i like those kind of icon, we should put the same style for
+  // all the sport"): the Sport menu's drawings for MTB, Skiing, Hunting, Fishing, Adventure moto and Hiking also replace
+  // those emoji at the start of a button or title anywhere else (welcome, How it works, Offline maps, Ask, logs, search
+  // lists, desktop panels). Map pins are left alone, and so is anything under data-no-line (a point's kind list, where
+  // 🦌 means shed antlers, not Hunting).
+  // The sports' own panels (Routes, Hunt, Fish, Roads, Hikes) get every known emoji drawn, like the phone's sheet.
+  const SPORT_E = /^\s*(🚵|🚴|🚲|⛷|🎿|🛷|🚡|🦌|🎣|🐟|🏍|🥾)/u, HAS = /🚵|🚴|🚲|⛷|🎿|🛷|🚡|🦌|🎣|🐟|🏍|🥾/u;
+  const PANES = "#skiPane, #huntPane, #fishPane, #motoPane, #hikePane";
+  const NOT = ".leaflet-pane, .leaflet-marker-icon, .maplibregl-marker, .maplibregl-canvas-container, [data-no-line], select, textarea, input";
+  const sweep = (root) => {
+    if (!root || root.nodeType !== 1 || root.closest(NOT)) return;
+    if (root.closest(PANES)) return window.tfLineify(root);
+    root.querySelectorAll(PANES).forEach((p) => window.tfLineify(p));
+    if (!HAS.test(root.textContent || "")) return;
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), hits = [];
+    for (let n = w.nextNode(); n; n = w.nextNode()) {
+      const p = n.parentElement;
+      if (!p || !SPORT_E.test(n.data) || SKIP.test(p.tagName) || p.closest(NOT + ", svg")) continue;
+      if (n.previousSibling && !(n.previousSibling.nodeType === 3 && !n.previousSibling.data.trim())) continue;
+      hits.push(p);
+    }
+    // tfLineify swaps every known emoji at the start of that element's texts (a "🚵 My rides" button, a ⛷ icon box).
+    new Set(hits).forEach((p) => window.tfLineify(p));
+  };
+  const pending = new Set();
+  let queued = false;
+  const flush = () => { queued = false; const roots = [...pending]; pending.clear(); mo.disconnect(); roots.forEach((r) => r.isConnected && sweep(r)); watch(); };
+  const mo = new MutationObserver((list) => {
+    for (const m of list) {
+      if (m.type === "characterData") { if (m.target.parentElement && HAS.test(m.target.data)) pending.add(m.target.parentElement); continue; }
+      for (const n of m.addedNodes) {
+        if (n.nodeType === 1) pending.add(n);
+        else if (n.nodeType === 3 && n.parentElement && HAS.test(n.data)) pending.add(n.parentElement);
+      }
+    }
+    if (pending.size && !queued) { queued = true; requestAnimationFrame(flush); }
+  });
+  const watch = () => mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+  const start = () => { sweep(document.body); watch(); };
+  if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
   const css = document.createElement("style");
   css.textContent = `svg.tf-line { flex: none; vertical-align: -3px; }
 .spb-i > svg.tf-line, .sport-menu button > span > svg.tf-line { display: block; margin: 0 auto; }

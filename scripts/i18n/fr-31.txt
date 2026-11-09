@@ -1,0 +1,1 @@
+Skiing avalanche forecast: never shows yesterday's day as today, refreshes when you come back to the app, and warns when you're looking at an old saved copy. ||| Ski, prévision d'avalanche : n'affiche plus jamais la journée d'hier comme celle d'aujourd'hui, se met à jour quand vous revenez dans l'app et vous avertit quand vous regardez une ancienne copie enregistrée.
