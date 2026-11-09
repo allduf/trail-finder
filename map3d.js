@@ -586,6 +586,29 @@
     if (gl) crispDraped(true);
     try { console.warn("crisp lines off:", e && e.message); } catch {}
   }
+  // Back in the app after the phone dropped the 3D map's graphics (sleep3d): MapLibre rebuilds the map from its saved
+  // style, which keeps every line, dot and name but leaves out this layer (it says so: custom layers "can't be
+  // restored"). The draped copies were saved hidden, so every trail, route and planned tour vanished and only the
+  // names stayed (alex 2026-11-09, Skiing 3D, tour by Spearhead). Add it again once the rebuilt style is in, on the
+  // new context; if that can't happen, the draped lines come back instead.
+  function crispRestored() {
+    if (!crispOn || !gl) return;
+    const L3 = crispLayer;
+    L3.glc = null; L3.prog = null; L3.vbo = null; L3.ibo = null; L3.count = 0; L3.loc = {};
+    crispBox = null;
+    clearTimeout(crispBuildT); crispBuildT = 0;
+    let tries = 0;
+    const again = () => {
+      if (!crispOn || !gl) return;
+      if (!gl.style || !gl.isStyleLoaded()) { if (++tries < 100) setTimeout(again, 100); else crispFail(new Error("style not back")); return; }
+      try { if (!gl.getLayer("crisp-lines")) gl.addLayer(L3, gl.getLayer("dots") ? "dots" : undefined); } catch (e) { return crispFail(e); }
+      if (!L3.glc) return crispFail(new Error("no program"));
+      crispDraped(false, true);
+      crispSoon(300);
+    };
+    again();
+  }
+  window.tf3dCrispCount = () => crispLayer.count;   // for the reopen test
   function crispStart() {
     if (crispOn || !gl || gl.getLayer("crisp-lines")) return;
     try {
@@ -1582,7 +1605,7 @@
     const unproject = gl.unproject;
     gl.unproject = function () { try { return unproject.apply(this, arguments); } catch { return this.getCenter(); } };
     gl.on("webglcontextlost", () => { lostSeen = true; if (wakeWanted) wake3d(); });
-    gl.on("webglcontextrestored", () => { try { fixDemLeak(); gl.resize(); gl.triggerRepaint(); } catch {} afterRestore(); });
+    gl.on("webglcontextrestored", () => { try { fixDemLeak(); gl.resize(); gl.triggerRepaint(); } catch {} crispRestored(); afterRestore(); });
   }
   // MapLibre brings the map back as it was when the context went away, but what changed in between was dropped (the
   // calls above answer "nothing there" while it's away). The sport changed on the flat map, for one: back in 3D,
