@@ -467,8 +467,11 @@ body.cp-ranging { user-select: none; -webkit-user-select: none; }
   map.on("zoomend", () => { if (S.on && !is3d()) draw(true); });
   map.on("moveend", () => { if (S.on && !is3d() && S.free) draw(); });
   // This file loads the first time Hunting is picked (winter.js), often after the 3D map was built: take that one too.
+  // "tf:map3d" also comes again for the same 3D map when it's back after a pause (map3d.js afterRestore): once each.
   const on3d = (e) => {
     const g = e.detail;
+    if (!g || g.tfCompass) return;
+    g.tfCompass = true;
     g.on("dragstart", (ev) => { if (S.on && ev.originalEvent && !S.free) { S.free = true; render(); } });
     g.on("rotate", (ev) => { if (S.on && S.manual && ev.originalEvent) soon(); });
     g.on("zoomend", (ev) => { if (S.on && ev.originalEvent) draw(true); });

@@ -311,18 +311,22 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
   }
   // Fetch and keep a list of URLs, a few at a time, skipping ones already saved. Returns the bytes saved and the
   // URLs that still failed after 3 quick tries.
+  // A file's size from its header, without reading it: reading every file back (and keeping a second copy of each
+  // download for that) put thousands of map tiles through the phone's memory during a save (2026-11-09, the usage
+  // page's crashes on Hunting's Saved tab, where Offline maps is). Only a file without the header is read back.
+  const sizeOfRes = (r) => +r.headers.get("content-length") || 0;
   async function fetchAll(cache, urls, onDone, optional) {
     let i = 0, bytes = 0;
     const failed = [];
     async function worker() {
       while (i < urls.length && !busy.stop) {
         const u = urls[i++];
-        let res = await cache.match(u), gone = false;
+        let res = await cache.match(u), gone = false, size = res ? sizeOfRes(res) : 0;
         if (!res) {
           for (let tries = 0; tries < 3 && !res; tries++) {
             try {
               const r = await fetch(u);
-              if (r.ok) { await cache.put(u, r.clone()); res = r; continue; }
+              if (r.ok) { size = sizeOfRes(r); await cache.put(u, r); res = r; continue; }
               if (r.status >= 400 && r.status < 500 && r.status !== 408 && r.status !== 429) { gone = true; break; }   // not there: asking again won't help
             }
             catch {}
@@ -332,7 +336,8 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
         // A file that doesn't exist (404: no winter photo, no fine heights or no map tile there) has nothing to save, so
         // it never counts as missing; before 2026-10-30 only the 3D ones were let off, and an area could stay
         // "Not finished" for good over a file no server has.
-        if (res) bytes += (await res.blob()).size; else if (!optional && !gone) failed.push(u);
+        if (res) bytes += size || await cache.match(u).then((m) => (m ? m.blob() : null)).then((b) => (b ? b.size : 0), () => 0);
+        else if (!optional && !gone) failed.push(u);
         if (onDone) onDone();
       }
     }
