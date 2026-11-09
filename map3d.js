@@ -135,7 +135,9 @@
   // on the network (alex 2026-10-25: "I want the app go as quick as this", Outmap's 3D comes up at once). The
   // service worker and the browser keep it; running it waits for the tap.
   const prefetch = () => { if (window.maplibregl || libLoading) return; [".js", ".css"].forEach((x) => fetch(LIB + x, { mode: "no-cors" }).catch(() => null)); };
-  addEventListener("load", () => setTimeout(() => (window.requestIdleCallback || setTimeout)(prefetch), 8000), { once: true });
+  // A first open: not behind the welcome screens, where it raced the picked sport's own files (Skiing's 3D loads it then anyway).
+  const idlePrefetch = () => setTimeout(() => (window.requestIdleCallback || setTimeout)(prefetch), 8000);
+  addEventListener("load", () => (window.tfWelcome && window.tfWelcome.pending ? document.addEventListener("tf:welcomed", idlePrefetch, { once: true }) : idlePrefetch()), { once: true });
 
   // ---------- copy what the 2D map shows ----------
   const ll = (p) => [p.lng, p.lat];
@@ -1257,7 +1259,7 @@
   // sharp: zooms 13-14 inside the sharpened squares, made from the zoom-15 sharpened photos (see SHARP_MID).
   const fillTile = (z, x, y, whole, abort, site, sharp) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=3990");
+      const w = new Worker("winter-fill.js?v=4030");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1356,7 +1358,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=3990" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=4030" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
