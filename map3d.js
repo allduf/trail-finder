@@ -86,7 +86,11 @@
   // Coming back to 3D tilts to where it was left.
   const TILT = 70, TILT_MS = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 900;
   let tilt = TILT, tiltEnd = 0;
-  const tiltUp = () => { if (!gl) return; tiltEnd = Date.now() + TILT_MS + 100; const p = searchTilt ? Math.min(tilt, 55) : tilt; searchTilt = false; gl.easeTo({ pitch: p, duration: TILT_MS, easing: (t) => 1 - (1 - t) ** 3 }); };
+  // Far out (a whole region on screen) the tilt stays lower: at 70° the view ran to the horizon, Prince George from
+  // Squamish, and the first 3D open fetched ~7 MB of mountain heights for it on a phone's 4G (alex 2026-11-09: "took so
+  // long to load"). Zoomed in as usual, the usual tilt.
+  const WIDE_Z = 9, WIDE_TILT = 50;
+  const tiltUp = () => { if (!gl) return; tiltEnd = Date.now() + TILT_MS + 100; let p = searchTilt ? Math.min(tilt, 55) : tilt; if (gl.getZoom() < WIDE_Z) p = Math.min(p, WIDE_TILT); searchTilt = false; gl.easeTo({ pitch: p, duration: TILT_MS, easing: (t) => 1 - (1 - t) ** 3 }); };
   let hits = [];              // Leaflet layers that react to clicks, by index (the "id" of the 3D hit lines)
   let hitParts = [];          // their lines as [lng, lat] points, same index (nearestHit)
   let hitDots = [];           // round markers that react to clicks (huts in Skiing...): { l, c: [lng, lat], r }
@@ -1230,7 +1234,7 @@
   // sharp: zooms 13-14 inside the sharpened squares, made from the zoom-15 sharpened photos (see SHARP_MID).
   const fillTile = (z, x, y, whole, abort, site, sharp) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=3910");
+      const w = new Worker("winter-fill.js?v=3920");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1329,7 +1333,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=3910" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=3920" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -2335,11 +2339,25 @@
   syncBtn();
   // The crash guard wins: if the page died in 3D, this visit opens every sport flat until ⛰ 3D is tapped.
   let sport = null;
+  // A first open's welcome (welcome.js) is up over the map, which still shows all of BC: Skiing's 3D waits for it to
+  // close (and for the map to move to the person, if they allowed it). Opened behind the welcome it downloaded ~7 MB
+  // of mountain heights for the whole province, then all over again near the person: ~20 s on a phone's 4G before
+  // the mountains showed (alex 2026-11-09: "i showed my app to people and it ... took so long to load").
+  let afterWelcome = false;
+  const welcomeUp = () => !!(window.tfWelcome && window.tfWelcome.pending);
+  const auto3d = (s) => {
+    const want = !crashed && saved3d(s);
+    if (want && !on && welcomeUp()) {
+      if (!afterWelcome) { afterWelcome = true; document.addEventListener("tf:welcomed", () => { afterWelcome = false; setTimeout(() => auto3d(sportNow()), 400); }, { once: true }); }
+      return;
+    }
+    set3d(want, true);
+  };
   window.addEventListener("tf:sport", (e) => {
     const s = e.detail, was = sport;
     sport = s;
     if (s === was) return;
-    set3d(!crashed && saved3d(s), true);
+    auto3d(s);
   });
   // Hidden or closed normally: not a crash. Back on screen in 3D: watch again.
   document.addEventListener("visibilitychange", () => {
@@ -2359,5 +2377,5 @@
     };
     if (document.readyState === "complete") setTimeout(back, 0); else addEventListener("load", () => setTimeout(back, 0), { once: true });
   }
-  else if (saved3d(sportNow())) set3d(true, true);
+  else if (saved3d(sportNow())) auto3d(sportNow());
 })();

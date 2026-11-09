@@ -133,8 +133,10 @@ dialog.welc .welc-later { display: block; width: 100%; margin-top: 6px; font: in
     set(KEY, true); set("tf:tipSeen", true);   // the small "New here?" tip says the same as step 3
     const tip = document.getElementById("firstTip"); if (tip) tip.hidden = true;
     window.tfWelcome.pending = false;
+    picked();   // Skip: the sport already showing
     if (dlg && dlg.open) dlg.close();
     if (window.tfLocateAfterWelcome) window.tfLocateAfterWelcome();   // Skip: still open on the rider, not all of BC
+    document.dispatchEvent(new CustomEvent("tf:welcomed"));   // map3d.js: Skiing's 3D opens now, not behind the welcome
   }
   function render() {
     const n = steps(), at = step === 2 && n === 2 ? 1 : step;
@@ -160,7 +162,10 @@ dialog.welc .welc-later { display: block; width: 100%; margin-top: 6px; font: in
     sport = s;
     const sel = document.getElementById("sport");
     if (sel && sel.value !== s) { sel.value = s; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+    picked();
   }
+  // index.html waits for this before fetching MTB's trail files on a first open (none for Skiing).
+  const picked = () => { if (window.tfWelcome.picked) return; window.tfWelcome.picked = true; document.dispatchEvent(new CustomEvent("tf:welcomepick")); };
   function open(force) {
     if (!dlg) {
       dlg = document.createElement("dialog");

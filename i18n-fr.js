@@ -1538,6 +1538,7 @@
     "Show Rogers Pass permit areas?":"Afficher les secteurs à permis du col Rogers?",
     "Turn on":"Activer",
     "Skiing opens faster with fewer layers on: touring routes, approaches, parking and lift status. Turn on the rest in Layers; on Rogers Pass the app asks to show the permit areas.":"Le ski s'ouvre plus vite avec moins de couches : itinéraires de randonnée, approches, stationnements et état des remontées. Activez le reste dans Couches; au col Rogers, l'appli demande d'afficher les secteurs à permis.",
+    "Opening the app for the first time is lighter and quicker, especially in Skiing.":"La première ouverture de l'appli est plus légère et plus rapide, surtout en ski.",
     "Camper stops (Japan)":"Arrêts camping-car (Japon)",
     "Michi-no-eki (roadside station)":"Michi-no-eki (halte routière)",
     "Expressway service or parking area":"Aire de service ou de repos d'autoroute",
