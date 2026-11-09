@@ -1398,7 +1398,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3920").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3930").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -1664,6 +1664,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const rated = f && f.days?.some((x) => x.alp || x.tln || x.btl);
     let html = `<h4>Avalanche${f ? `: ${esc(f.title || area.name)}` : ""}</h4>`;
     if (example) html += `<div class="av-warn">EXAMPLE, not a real forecast.</div>`;
+    else html += staleWarn();
     if (!f || !d) html += `<p>No avalanche forecast here right now. ${site.season} ${link}</p>`;
     else {
       const expired = !example && f.validUntil && new Date(f.validUntil) < new Date();
@@ -3393,6 +3394,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const where = `${bandN} here (${band === "alp" ? `above ~${fmtM(bands.hi)}` : band === "tln" ? `~${fmtM(bands.lo)} to ${fmtM(bands.hi)}` : `below ~${fmtM(bands.lo)}`})`;
     let html = `<h4>Avalanche danger${f ? `: ${esc(f.title || a.name)}` : ""}</h4>`;
     if (example) html += `<div class="av-warn">EXAMPLE, not a real forecast.</div>`;
+    else html += staleWarn();
     const expired = f && !example && f.validUntil && new Date(f.validUntil) < new Date();
     if (!f || !f.days || !f.days.length || expired) return html + `<p class="sk-note">${where}.</p><p>No avalanche forecast here right now${expired ? " (the last one has expired)" : ""}. ${site.season} ${link}</p>`;
     const d = dayOf(f), r = (d && d[band]) || 0, li = r ? T.light(r, cls.c) : -1;
@@ -3756,8 +3758,39 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   map.on("moveend", () => { if (sport === "ski") { renderList(); renderForecast(); } });
 
   // ---------- avalanche forecast ----------
-  let avy = null, avyLoading = null, avyErr = "", example = false, day = 0;
+  let avy = null, avyLoading = null, avyErr = "", example = false, day = 0, avyAt = 0;
+  // Back in the app: past days dropped after midnight, and the forecast file read again when it's over 30 minutes
+  // old, so a phone left open overnight never keeps showing yesterday's bulletin.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible" || !avy) return;
+    if (trimmedFor !== localDay()) { trimDays(avy); refreshAvy(); }
+    if (Date.now() - avyAt > 30 * 60000 && !avyLoading) {
+      avyLoading = fetch("data/avalanche.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then((d) => { avy = prepAreas(d); avyAt = Date.now(); refreshAvy(); })
+        .catch(() => {})
+        .finally(() => { avyLoading = null; });
+    }
+  });
+  // The forecast file is rebuilt every 3 hours; older than 12 hours means a saved copy (no signal) or a stopped update.
+  const avyStale = () => !example && avy && avy.builtAt && Date.now() - Date.parse(avy.builtAt) > 12 * 3600e3;
+  const staleWarn = () => avyStale() ? `<div class="av-warn">Saved copy from ${esc(new Date(avy.builtAt).toLocaleString("en-CA", { weekday: "short", hour: "numeric", minute: "2-digit" }))}: a newer forecast may be out. Check avalanche.ca before you go.</div>` : "";
+  // Only today and later: Avalanche Canada's bulletins list a few days from the day they were issued, so the first
+  // day can be yesterday (alex 2026-11-09: "no mistakes are allowed"). Each day's "date" is its local date; a day
+  // without a date (none so far) is kept. Run again when the app comes back after midnight.
+  const localDay = () => new Date().toLocaleDateString("en-CA");
+  let trimmedFor = "";
+  function trimDays(d) {
+    const today = localDay();
+    trimmedFor = today;
+    (d.areas || []).forEach((a) => {
+      const f = a.forecast;
+      if (!f || !f.days) return;
+      if (!f.allDays) f.allDays = f.days;
+      f.days = f.allDays.filter((x) => !x.date || x.date >= today);
+    });
+  }
   function prepAreas(d) {
+    trimDays(d);
     (d.areas || []).forEach((a) => {
       a.polys = (a.rings || []).map((r) => { const pts = []; for (let i = 0; i < r.length; i += 2) pts.push([r[i], r[i + 1]]); return pts; });
       const all = a.polys.flat();
@@ -3772,7 +3805,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   function loadAvy() {
     if (avy || avyLoading) return avyLoading;
     avyLoading = fetch("data/avalanche.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((d) => { avy = prepAreas(d); refreshAvy(); })
+      .then((d) => { avy = prepAreas(d); avyAt = Date.now(); refreshAvy(); })
       .catch((e) => { avyErr = e.message; renderForecast(); })
       .finally(() => { avyLoading = null; });
     return avyLoading;
@@ -3891,7 +3924,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const notes = Object.values(f.summaries || {}).filter(Boolean), rated = example || f.days.some((x) => x.alp || x.tln || x.btl);
     const band = (b, n) => { const r = d[b] || 0, x = DANGER[r]; return `<div class="av-band" style="--c:${x.color};--t:${r >= 4 ? "#fff" : "#1a1a1a"}"><b>${esc(x.label.replace(/^\d /, ""))}</b><span>${n}</span></div>`; };
     card.innerHTML = `${example ? `<div class="av-warn">EXAMPLE, not a real forecast.</div>` : ""}
-      ${expired ? `<div class="av-warn">This forecast has expired. Check ${site.host}.</div>` : ""}
+      ${expired ? `<div class="av-warn">This forecast has expired. Check ${site.host}.</div>` : staleWarn()}
       ${top(esc(f.title || area.name))}
       ${rated ? `${f.days.length > 1 ? `<div class="av-days" role="group" aria-label="Day">${f.days.map((x, i) => `<button type="button" data-d="${i}" aria-pressed="${x === d}">${esc(x.label || x.date)}</button>`).join("")}</div>` : ""}
       <div class="av-bands">${BANDS.map(([b, n]) => band(b, n)).join("")}</div>`
