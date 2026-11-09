@@ -1398,7 +1398,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3930").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3940").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -3759,20 +3759,85 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 
   // ---------- avalanche forecast ----------
   let avy = null, avyLoading = null, avyErr = "", example = false, day = 0, avyAt = 0;
-  // Back in the app: past days dropped after midnight, and the forecast file read again when it's over 30 minutes
-  // old, so a phone left open overnight never keeps showing yesterday's bulletin.
+  // Most accurate possible (alex 2026-11-09): the forecasts are read LIVE from Avalanche Canada's own forecast service
+  // (open to any site) each time the app opens and when it comes back after 10 minutes, so a new or updated bulletin
+  // shows at once. data/avalanche.json (area outlines + a saved copy of the forecasts, rebuilt hourly in season) is
+  // the backup when Avalanche Canada can't be reached. Same reading as scripts/build-winter.mjs normalizeForecast().
+  const AVCAN = "https://api.avalanche.ca/forecasts/en/products";
+  const acText = (v) => String(v == null ? "" : typeof v === "object" ? v.display || v.value || "" : v)
+    .replace(/<(br|\/p|\/li)\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;|&rsquo;/g, "'").replace(/&quot;/g, '"')
+    .replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
+  const acVal = (v) => (v == null ? "" : typeof v === "object" ? String(v.value ?? v.display ?? "") : String(v));
+  const AC_LEVELS = { low: 1, moderate: 2, considerable: 3, high: 4, extreme: 5 };
+  function acLevel(r) {
+    if (r && typeof r === "object" && r.rating) r = r.rating;
+    const s = (acVal(r) + " " + (r && typeof r === "object" ? r.display || "" : "")).toLowerCase();
+    const n = s.match(/[1-5]/);
+    if (n) return +n[0];
+    for (const [k, v] of Object.entries(AC_LEVELS)) if (s.includes(k)) return v;
+    return 0;
+  }
+  const acBand = (s) => { s = acVal(s).toLowerCase(); return /alp/.test(s) ? "alp" : /tln|treeline|tl/.test(s) ? "tln" : /btl|below/.test(s) ? "btl" : ""; };
+  const acAspect = (s) => { s = acVal(s).toLowerCase().replace(/[^a-z]/g, ""); const x = { north: "n", northeast: "ne", east: "e", southeast: "se", south: "s", southwest: "sw", west: "w", northwest: "nw" }[s] || s; return ASPECTS.includes(x) ? x : ""; };
+  function acForecast(p, old) {
+    const r = p.report || p;
+    const days = (r.dangerRatings || []).map((d) => {
+      const rt = d.ratings || d;
+      return { date: acVal(d.date).slice(0, 10) || acVal(d.date?.value).slice(0, 10), label: acText(d.date?.display || d.date), alp: acLevel(rt.alp), tln: acLevel(rt.tln), btl: acLevel(rt.btl) };
+    });
+    const problems = (r.problems || []).map((pr) => {
+      const d = pr.data || pr;
+      const size = d.expectedSize ? [d.expectedSize.min, d.expectedSize.max].filter((x) => x != null).join("-") : "";
+      return { type: acText(pr.type) || acText(pr.name), aspects: [...new Set((d.aspects || []).map(acAspect).filter(Boolean))],
+        elevations: [...new Set((d.elevations || []).map(acBand).filter(Boolean))], likelihood: acText(d.likelihood), size, comment: acText(pr.comment).slice(0, 1200) };
+    });
+    const summaries = Object.fromEntries((r.summaries || []).map((x) => [acVal(x.type).toLowerCase(), acText(x.content).slice(0, 1500)]));
+    return { ...(old || {}), id: p.id || r.id || "", url: p.url || (p.slug ? `https://avalanche.ca/forecasts/${p.slug}` : (old && old.url) || "https://avalanche.ca/map"),
+      owner: acText(p.owner) || "Avalanche Canada", issued: acVal(r.dateIssued), validUntil: acVal(r.validUntil), forecaster: acText(r.forecaster),
+      highlights: acText(r.highlights).slice(0, 1500), confidence: acText(r.confidence?.rating), summaries,
+      advice: (r.terrainAndTravelAdvice || []).map(acText).filter(Boolean).slice(0, 8), days, problems, allDays: undefined, live: true };
+  }
+  // Put Avalanche Canada's live bulletins into the areas (matched by area id; the title stays the saved one). A live
+  // bulletin replaces the saved one unless the saved one was issued later. Areas with no live bulletin keep theirs.
+  async function avyLive() {
+    const r = await fetch(AVCAN, { cache: "no-store", signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined });   // never hold the map up long
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const all = await r.json(), list = Array.isArray(all) ? all : all.products || all.data || [];
+    if (!avy) return;
+    let n = 0;
+    for (const p of list) {
+      if (!p || !(p.report || p.dangerRatings)) continue;
+      const t = acVal(p.type).toLowerCase();
+      if (t && !/forecast/.test(t)) continue;
+      const a = avy.areas.find((x) => x.id === String(p.area?.id ?? ""));
+      if (!a) continue;
+      const f = acForecast(p, a.forecast);
+      if (a.forecast && a.forecast.issued && f.issued && Date.parse(f.issued) < Date.parse(a.forecast.issued)) continue;
+      if (a.forecast && a.forecast.title) f.title = a.forecast.title;
+      else f.title = acText(p.report?.title) || a.name;
+      a.forecast = f; n++;
+    }
+    avy = prepAreas(avy);
+    avy.liveAt = Date.now();
+    avyAt = Date.now();
+    refreshAvy();
+    return n;
+  }
+  // Back in the app: past days dropped after midnight, and the forecasts read again when over 10 minutes old, so a
+  // phone left open overnight never keeps showing yesterday's bulletin.
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState !== "visible" || !avy) return;
     if (trimmedFor !== localDay()) { trimDays(avy); refreshAvy(); }
-    if (Date.now() - avyAt > 30 * 60000 && !avyLoading) {
+    if (Date.now() - avyAt > 10 * 60000 && !avyLoading) {
       avyLoading = fetch("data/avalanche.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-        .then((d) => { avy = prepAreas(d); avyAt = Date.now(); refreshAvy(); })
-        .catch(() => {})
+        .then((d) => { avy = prepAreas(d); avyAt = Date.now(); refreshAvy(); }, () => {})
+        .then(() => avyLive()).catch(() => {})
         .finally(() => { avyLoading = null; });
     }
   });
-  // The forecast file is rebuilt every 3 hours; older than 12 hours means a saved copy (no signal) or a stopped update.
-  const avyStale = () => !example && avy && avy.builtAt && Date.now() - Date.parse(avy.builtAt) > 12 * 3600e3;
+  // Stale = not read live from Avalanche Canada and the saved copy is over 12 hours old (no signal, or the hourly
+  // rebuild stopped): the cards say so.
+  const avyStale = () => !example && avy && !avy.liveAt && avy.builtAt && Date.now() - Date.parse(avy.builtAt) > 12 * 3600e3;
   const staleWarn = () => avyStale() ? `<div class="av-warn">Saved copy from ${esc(new Date(avy.builtAt).toLocaleString("en-CA", { weekday: "short", hour: "numeric", minute: "2-digit" }))}: a newer forecast may be out. Check avalanche.ca before you go.</div>` : "";
   // Only today and later: Avalanche Canada's bulletins list a few days from the day they were issued, so the first
   // day can be yesterday (alex 2026-11-09: "no mistakes are allowed"). Each day's "date" is its local date; a day
@@ -3805,7 +3870,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   function loadAvy() {
     if (avy || avyLoading) return avyLoading;
     avyLoading = fetch("data/avalanche.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((d) => { avy = prepAreas(d); avyAt = Date.now(); refreshAvy(); })
+      .then((d) => { avy = prepAreas(d); avyAt = Date.now(); refreshAvy(); return avyLive().catch(() => {}); })
       .catch((e) => { avyErr = e.message; renderForecast(); })
       .finally(() => { avyLoading = null; });
     return avyLoading;
