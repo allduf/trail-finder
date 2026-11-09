@@ -48,6 +48,60 @@
   const putCurrent = async (v) => { try { const os = await store("readwrite"); await commit(os, os.put(v)); } catch {} };
   const delCurrent = async () => { try { const os = await store("readwrite"); await commit(os, os.delete("current")); } catch {} };
 
+  // ---------- Save: straight into My rides, no save page (alex 2026-11-09: "just save the ride and that's it") ----------
+  // Same ride as ride.html's save form makes with nothing typed in: the name it gives ("Morning ride"), no photos.
+  // A name, notes and photos can still be added any time from My rides. The ride goes to the account the next time
+  // My rides opens (ride.html uploads rides saved on this device before).
+  const NOUN = { ski: "ski tour", hunt: "hunt", fish: "fishing", moto: "moto ride", hike: "hike" };
+  function rideTitle(t, sport) {
+    const h = new Date(t).getHours();
+    const part = h < 5 ? "Night" : h < 12 ? "Morning" : h < 17 ? "Afternoon" : h < 21 ? "Evening" : "Night";
+    return `${part} ${NOUN[sport] || "ride"}`;
+  }
+  async function mapClimb(pts) {      // when the phone gave no GPS height: heights from Open-Meteo's terrain model
+    const n = Math.min(100, pts.length), sample = [];
+    for (let k = 0; k < n; k++) sample.push(pts[Math.round(k * (pts.length - 1) / Math.max(1, n - 1))]);
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 5000);
+    try {
+      const res = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${sample.map((p) => p[0].toFixed(5)).join(",")}&longitude=${sample.map((p) => p[1].toFixed(5)).join(",")}`, { signal: ctl.signal });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return STATS.upDown((await res.json()).elevation || []);
+    } finally { clearTimeout(t); }
+  }
+  async function saveRide(r) {
+    const end = r.end || (r.points.length ? r.points[r.points.length - 1][3] : Date.now());
+    const ride = { id: "ride-" + r.start, start: r.start, end, points: r.points, stats: STATS.statsOf(r.points, r.start, end, r.breaks), saved: Date.now() };
+    if (r.breaks && r.breaks.length) ride.breaks = r.breaks;
+    if (r.sport in NOUN) ride.sport = r.sport;
+    ride.title = rideTitle(r.start, ride.sport);
+    ride.description = "";
+    ride.photoCount = 0;
+    if (ride.stats.climb == null && r.points.length > 1) { try { const ud = await mapClimb(r.points); ride.stats.climb = ud.up; ride.stats.descent = ud.down; ride.stats.climbFrom = "map"; } catch {} }
+    const t = (await dbP).transaction(["rides", "current"], "readwrite");   // one step: the ride is in My rides and no longer "being recorded"
+    t.objectStore("rides").put(ride);
+    t.objectStore("current").delete("current");
+    await new Promise((res, rej) => { t.oncomplete = res; t.onerror = t.onabort = () => rej(t.error); });
+    try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
+    window.dispatchEvent(new CustomEvent("tf:rides-imported", { detail: [ride.id] }));   // My rides on the map (rides.js) draws it
+    savedNote(ride);
+    return ride;
+  }
+  function savedNote(ride) {
+    let el = $("navSaved");
+    if (!el) {
+      el = document.createElement("div"); el.id = "navSaved"; el.setAttribute("role", "status");
+      document.body.appendChild(el);
+    }
+    const n = NOUN[ride.sport] || "ride";
+    el.innerHTML = `<span>✓ ${esc(n[0].toUpperCase() + n.slice(1))} saved to My rides</span> <a href="ride.html#ride/${encodeURIComponent(ride.id)}">Add photos</a>`;
+    el.classList.add("on");
+    clearTimeout(savedNote.t); savedNote.t = setTimeout(() => el.classList.remove("on"), 6000);
+  }
+  async function saveOrSay(r) {
+    try { await saveRide(r); return true; }
+    catch (e) { alert("Couldn't save the ride: " + (e && e.message ? e.message : e) + ". It's still kept on this phone: open the map again to save it."); return false; }
+  }
+
   // ---------- geometry: metres on a flat patch around the rider (fine over a few km) ----------
   const R = 6371008.8, RAD = Math.PI / 180;
   function metres(a, b) {
@@ -275,6 +329,11 @@
 #navRideBtn { font-weight: 700; }
 @media (max-width: 760px) { #navRideBtn { display: none; } }
 body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
+#navSaved { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); z-index: 3000; width: max-content; max-width: calc(100vw - 32px);
+  display: flex; gap: 14px; align-items: center; padding: 12px 16px; border-radius: 12px; background: var(--fg, #1d2521); color: var(--panel, #fff); font-weight: 600;
+  box-shadow: 0 6px 20px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+#navSaved.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+#navSaved a { color: inherit; text-decoration: underline; white-space: nowrap; padding: 6px 0; }
 `;
   document.head.appendChild(css);
   const strip = document.createElement("div");
@@ -1260,7 +1319,9 @@ body.nav-night .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightn
     const lastT = cur && (cur.points.length ? cur.points[cur.points.length - 1][3] : cur.start);
     if (cur && !cur.end && Date.now() - lastT > RESUME_MS) cur.end = lastT;   // left running long ago: that ride is over
     if (cur && cur.end) {
-      if (confirm("You have an earlier ride that isn't saved. Open it to save it now?\n\nCancel starts a new ride and drops the old one.")) { await putCurrent(cur); location.href = "ride.html#save"; return; }
+      if (confirm("You have an earlier ride that isn't saved. Save it to My rides now?\n\nCancel starts a new ride and drops the old one.")) { if (!(await saveOrSay(cur))) return; }
+      else await delCurrent();
+      cur = null;
       await delCurrent();
     }
     rec = cur && !cur.end ? cur : { id: "current", start: Date.now(), points: [], from: "ride" };
@@ -1347,8 +1408,12 @@ body.nav-night .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightn
     if (rec.points.length < 2) { alert("Nothing recorded yet: the GPS hasn't had a good fix. Keep riding or choose Don't save."); return; }
     stopWatching();
     rec.end = Date.now();
-    await putCurrent(rec);
-    location.href = "ride.html#save";            // title, description, photos, My rides
+    await putCurrent(rec);                        // kept even if saving fails
+    const btn = $("navSave"); btn.disabled = true; btn.textContent = "Saving…";
+    const ok = await saveOrSay(rec);
+    btn.disabled = false; btn.textContent = "Save ride";
+    leave();
+    if (!ok) offerResume();                       // still kept on this phone: the Save / Don't save box comes back
   });
   document.addEventListener("visibilitychange", () => {
     if (!rec) return;
@@ -1419,7 +1484,7 @@ body.nav-night .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightn
       : `<b>You were recording a ride</b> (started ${esc(day + at)}, ${(st.dist / 1000).toFixed(2)} km so far) when the page closed.`;
     $("navResumeGo").hidden = over;
     resumeBox.hidden = false;
-    $("navResumeSave").onclick = async () => { if (!cur.end) cur.end = lastT; await putCurrent(cur); location.href = "ride.html#save"; };
+    $("navResumeSave").onclick = async () => { if (!cur.end) cur.end = lastT; if (await saveOrSay(cur)) resumeBox.hidden = true; };
     $("navResumeDrop").onclick = async () => { if (!confirm("Drop this ride? It won't be saved.")) return; await delCurrent(); resumeBox.hidden = true; };
     $("navResumeGo").onclick = () => start();
   }
