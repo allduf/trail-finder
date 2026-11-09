@@ -7,7 +7,7 @@
 // view. The heatmap, your ski tours and each single route type are switches in the map's Layers menu, next to the
 // "Avalanche risk" button that shades the mountain faces by Avalanche Canada's forecast, on the flat
 // map and on the 3D map: each slope steep enough to slide (about 25° and more) gets the danger colour of its
-// elevation band, and stripes where its aspect and elevation are named in the day's avalanche problems.
+// elevation band (always Avalanche Canada's own rating, never raised or lowered), in a darker shade where its aspect and elevation are named in the day's avalanche problems.
 // Also a "Ski heatmap" of winter OpenStreetMap GPS traces, "Your ski tours" from the rider's own rides, and
 // snowmobile trails with the region's snowmobile clubs and their latest grooming reports.
 // Data: data/ski.json and data/avalanche.json, made by .github/workflows/winter-data.yml; data/ski-heat.json, made
@@ -103,6 +103,10 @@
     { label: "No rating", color: "#9aa3ad" }, { label: "1 Low", color: "#52ba4a" }, { label: "2 Moderate", color: "#fff300" },
     { label: "3 Considerable", color: "#f79218" }, { label: "4 High", color: "#ef1c29" }, { label: "5 Extreme", color: "#1a1a1a" },
   ];
+  // The darker shade of each colour, for slopes that face a direction (and sit in a band) named in today's avalanche
+  // problems (alex 2026-11-09: "if the alpine is in yellow and Avalanche Canada says to watch certain things (like
+  // face orientation) make it a darker yellow"; was stripes). Same hue, darker, so the level still reads at a glance.
+  const DARK = ["#5f666d", "#2c7a25", "#c4a000", "#b35d00", "#a30d16", "#000000"];
   const BANDS = [["alp", "Alpine"], ["tln", "Treeline"], ["btl", "Below treeline"]];
   // Avalanche Canada's likelihood codes ("veryLikely_likely") in words, lower end first: "likely to very likely".
   const LIKELY = ["unlikely", "possible", "likely", "veryLikely", "certain"];
@@ -439,6 +443,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 #skiPane .av-adv { margin: 4px 0 6px; padding-left: 18px; font-size: .82rem; }
 #skiPane .av-adv li { margin: 2px 0; }
 #skiPane .av-legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; font-size: .8rem; }
+#skiPane .av-legend i.av-dk { margin-left: -6px; }
 #skiPane .av-legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; border: 1px solid #0002; }
 #skiPane details summary { cursor: pointer; font-weight: 600; font-size: .85rem; }
 #skiPane details p { white-space: pre-line; }
@@ -1393,7 +1398,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3890").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3900").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -3371,8 +3376,16 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!f || !f.days || !f.days.length || expired) return html + `<p class="sk-note">${where}.</p><p>No avalanche forecast here right now${expired ? " (the last one has expired)" : ""}. ${site.season} ${link}</p>`;
     const d = dayOf(f), r = (d && d[band]) || 0, li = r ? T.light(r, cls.c) : -1;
     if (r && g.slope >= 25) {
-      const mask = a ? a.mask[band] : 0, hit = mask & (1 << g.asp), lv = slopeLevel(r, hit, mask, g.slope);
-      html += `<p>On the map, this slope is <span class="av-chip" style="background:${DANGER[lv].color};color:${lv >= 4 ? "#fff" : "#1a1a1a"}">${esc(DANGER[lv].label)}</span>: ${Math.round(g.slope)}° ${esc(ASPECT_NAME[g.asp])}-facing, ${hit ? "on an aspect in today's problems" : mask ? "away from today's problems" : "no problems listed in this band"}.</p>`;
+      // The map colour is the band's own rating from Avalanche Canada, never moved up or down by the app (alex
+      // 2026-11-09: "no mistakes are allowed"); the darker shade only says the slope faces a direction in today's problems.
+      const mask = a ? a.mask[band] : 0, hit = mask & (1 << g.asp);
+      html += `<p>On the map, this slope is <span class="av-chip" style="background:${hit ? DARK[r] : DANGER[r].color};color:${r >= 4 || (hit && r === 3) ? "#fff" : "#1a1a1a"}">${esc(DANGER[r].label)}</span>, Avalanche Canada's ${bandN.toLowerCase()} rating: ${Math.round(g.slope)}° ${esc(ASPECT_NAME[g.asp])}-facing, ${hit ? "darker because it faces a direction in today's problems" : mask ? "not a direction in today's problems" : "no problems listed in this band"}.</p>`;
+    }
+    // Band heights are an estimate: near an edge, the next band's rating may be the one that applies here.
+    const edge = r && (band === "btl" ? [["lo", "tln"]] : band === "alp" ? [["hi", "tln"]] : [["lo", "btl"], ["hi", "alp"]]).find(([k]) => Math.abs(g.e - bands[k]) < 150);
+    if (edge) {
+      const nb = edge[1], nr = (d && d[nb]) || 0;
+      if (nr && nr !== r) html += `<div class="sk-warn"><b>⚠ Near a band edge:</b> ${BANDS.find((x) => x[0] === band)[1].toLowerCase()} and ${BANDS.find((x) => x[0] === nb)[1].toLowerCase()} meet at about ${fmtM(bands[edge[0]])} here. That height is an estimate, so this spot may be in either band. The ${BANDS.find((x) => x[0] === nb)[1].toLowerCase()} rating today is ${esc(DANGER[nr].label)}.</div>`;
     }
     if (li >= 0) {
       const L0 = T.LIGHTS[li];
@@ -3870,8 +3883,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         ${adviceHtml(f)}
         ${notes.length ? `<h5>Forecaster's notes</h5>${notes.map((s) => `<p>${esc(s)}</p>`).join("")}` : ""}
         ${minHtml([{ lat: c.lat, lon: c.lng }])}
-        ${avyOn ? `<h5>Slope colours</h5><ul class="av-legend">${DANGER.slice(1).map((x) => `<li><i style="background:${x.color}"></i>${x.label}</li>`).join("")}<li><i style="background:repeating-linear-gradient(135deg,#f79218 0 3px,#7a4a0c 3px 5px)"></i>Problem aspect</li></ul>
-        <p class="sk-note">Slopes of 25° and more, coloured by their band's rating (treeline about ${area.bands.lo}-${area.bands.hi} m here), then one level less where a slope faces away from today's problems or is under 30°, and one more at 40°+ on a problem aspect. An estimate, not a terrain rating. Where you go is your decision and your risk.</p>` : ""}
+        ${avyOn ? `<h5>Slope colours</h5><ul class="av-legend">${DANGER.slice(1).map((x, i) => `<li><i style="background:${x.color}"></i><i class="av-dk" style="background:${DARK[i + 1]}"></i>${x.label}</li>`).join("")}</ul>
+        <p class="sk-note">Darker shade: the slope faces a direction Avalanche Canada names in today's problems for its band.</p>
+        <p class="sk-note">Slopes of 25° and more, in the colour of Avalanche Canada's rating for their band, never changed by the app. Treeline is about ${area.bands.lo}-${area.bands.hi} m here (an estimate, so check both ratings near a band edge). Where you go is your decision and your risk.</p>` : ""}
         ${janNote(f)}<p class="sk-note">${f.issued ? "Issued " + esc(new Date(f.issued).toLocaleDateString()) + ", for" : "For"} the middle of the map.</p>
       </details>
       <div class="av-foot">${shade}${example ? `<button type="button" class="av-pill" id="avExOff">Hide example</button>` : rated ? "" : `<button type="button" class="av-pill" id="avEx">Example</button>`}<a class="av-pill" href="${esc(f.url || site.url)}" target="_blank" rel="noopener">${site.host} ↗</a></div>`;
@@ -3943,21 +3957,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const tileLat = (y, z) => { const n = Math.PI - (2 * Math.PI * y) / 2 ** z; return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))); };
   const tileLon = (x, z) => (x / 2 ** z) * 360 - 180;
   const rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
-  const COLORS = DANGER.map((d) => rgb(d.color));
+  const COLORS = DANGER.map((d) => rgb(d.color)), DARK_RGB = DARK.map(rgb);
   // Pixels at low zoom are hundreds of metres wide, which flattens slopes: ask for less steepness there.
   const minSlope = (z) => (z >= 12 ? 25 : z === 11 ? 21 : z === 10 ? 17 : z === 9 ? 13 : 10);
-  // The danger on one slope, from its band's rating moved by its direction and steepness (alex 2026-10-27: "the red
-  // zone based on slope aspect and angle too, not just the alpine"): one level less where the slope faces away from
-  // today's avalanche problems in its band (only when there are problems there) and one less under 30°; one more at
-  // 40° and steeper on a problem aspect, where most accidents happen. Never past Extreme or below Low.
-  function slopeLevel(r, hit, probs, slope) {
-    if (!r) return 0;
-    let lv = r;
-    if (probs && !hit) lv--;
-    if (slope < 30) lv--;
-    else if (hit && slope >= 40) lv++;
-    return Math.max(1, Math.min(5, lv));
-  }
   async function paint(z, x, y) {
     const data = example ? exampleData() : avy;
     const out = new ImageData(256, 256);
@@ -3991,10 +3993,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         if (!r) continue;
         // Downhill direction: east = -dz/dx, north = +dz/dy (pixel rows run south).
         const asp = ((Math.atan2(-dzdx, dzdy) * 180) / Math.PI + 360) % 360, sector = Math.round(asp / 45) % 8;
-        const hit = a.mask[band] & (1 << sector), lv = slopeLevel(r, hit, a.mask[band], slope);
+        const hit = a.mask[band] & (1 << sector);
         let alpha = slope < 30 ? 0.3 : slope < 45 ? 0.55 : 0.42;
-        let [cr, cg, cb] = COLORS[lv];
-        if (hit) { alpha = Math.min(0.85, alpha + 0.22); if ((px + py) % 7 < 2) { cr *= 0.45; cg *= 0.45; cb *= 0.45; } }
+        // Always the band's own rating (alex 2026-11-09: never show a level Avalanche Canada didn't give); a darker shade
+        // where the slope faces a direction in today's problems for its band.
+        const [cr, cg, cb] = hit ? DARK_RGB[r] : COLORS[r];
+        if (hit) alpha = Math.min(0.85, alpha + 0.22);
         const j = i * 4;
         o[j] = cr; o[j + 1] = cg; o[j + 2] = cb; o[j + 3] = alpha * 255;
       }
@@ -4573,7 +4577,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const bar = (title, cells) => `<button type="button" class="sk-bar" title="Tap to change the layers"><span class="bt">${esc(title)}</span><span class="bc">${cells.map((c) => `<i style="background:${c[0]}"></i>`).join("")}</span><span class="bl">${cells.map((c) => `<span>${esc(c[1])}</span>`).join("")}</span></button>`;
     const out = [];
     if (sport === "ski") {
-      if (avyOn) out.push(bar("Avalanche danger, slopes 25°+", DANGER.slice(1).map((d) => [d.color, d.label.replace(/^\d /, "").replace("Considerable", "Consid.")])));
+      if (avyOn) out.push(bar("Avalanche danger, slopes 25°+", DANGER.slice(1).map((d, i) => [`linear-gradient(${d.color} 50%,${DARK[i + 1]} 50%)`, d.label.replace(/^\d /, "").replace("Considerable", "Consid.")])).replace("</button>", `<span class="bt">Darker: today's problems</span></button>`));
       if (shown.has("slope")) out.push(bar(slopePal === "fatmap" ? "Slope angle (FATMAP)" : "Slope angle", SLOPE.map((s) => [s[2], s[3]])));
       if (shown.has("aspect")) out.push(bar("Slope direction, 25°+", ASPECTS.map((s, i) => [ASPECT_COLORS[i], s.toUpperCase()])));
       if (shown.has("runout")) out.push(bar(map.getZoom() < RZ ? "Runout zones: zoom in" : "Runout zones", [["rgba(214,51,108,.6)", "can reach"], ["repeating-linear-gradient(135deg,#8c28a0 0 3px,#58186e 3px 6px)", "trap"]]));
