@@ -13,6 +13,16 @@
 <meta name="apple-mobile-web-app-title" content="Trail Finder">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#12291d">
+<script>
+// One of the app's own scripts that fails to download (a server blip: the deep test 2026-11-09 got a 502 on radar.js)
+// is asked for once more, 1.5 s later, instead of leaving that part of the app missing. Only the scripts written in
+// this page: the ones loaded later have their own error handling (onerror) and are asked for again when needed.
+addEventListener("error", (e) => {
+  const el = e.target;
+  if (!el || el.tagName !== "SCRIPT" || !el.src || el.onerror || el.dataset.retried || new URL(el.src).origin !== location.origin) return;
+  setTimeout(() => { const s = document.createElement("script"); s.src = el.src; s.async = false; s.dataset.retried = "1"; el.after(s); }, 1500);
+}, true);
+</script>
 <script src="i18n.js?v=4030"></script>
 <script src="line-icons.js?v=4030"></script>
 <!-- Unofficial trails are for alex and friends only (friends.js): everyone else gets the public map, class tf-pub. -->
@@ -7488,6 +7498,21 @@ out tags center qt;`;
     names.groups = groups; names.dirty = false; names.trailCount = state.trails.length;
   }
 
+  // A way that crosses a forest road is two groups of the same name (one per side, buildGroups): in the list it's one
+  // row, the whole trail (deep test 2026-11-09: "Comfortably Numb (North Secret)" was listed twice).
+  function joinPieces(hits) {
+    const out = [];
+    for (const h of hits) {
+      const ids = new Set(h.g.items.map((i) => i.id));
+      const k = out.find((o) => o.g.type === h.g.type && o.g.name === h.g.name && o.g.items.some((i) => ids.has(i.id)));
+      if (!k) { out.push(h); continue; }
+      const items = k.g.items.concat(h.g.items.filter((i) => !k.g.items.some((o) => o.id === i.id && o.k === i.k)));
+      const lat = items.reduce((s, i) => s + i.c[0], 0) / items.length, lon = items.reduce((s, i) => s + i.c[1], 0) / items.length;
+      k.g = { ...k.g, items, center: L.latLng(lat, lon), isNew: k.g.isNew || h.g.isNew };
+      k.d = Math.min(k.d, h.d);
+    }
+    return out;
+  }
   // wide: every name loaded, whatever area is picked (nothing matched in the picked one).
   function findNames(raw, wide) {
     const q = norm(raw);
@@ -7496,11 +7521,12 @@ out tags center qt;`;
     const qWords = q.split(" ");
     const here = you.ll || map.getCenter();
     const zb = !wide && nameZone() ? nameZone().bounds.pad(0.02) : null;
-    return names.groups.filter((g) => !zb || zb.contains(g.center)).map((g) => {
+    const hits = names.groups.filter((g) => !zb || zb.contains(g.center)).map((g) => {
       let s = 0; for (const t of g.texts) s = Math.max(s, matchScore(q, qWords, t));
       return { g, s: s + (g.mtb ? 0.02 : 0) };
     }).filter((h) => h.s >= 0.6).map((h) => ((h.d = here.distanceTo(h.g.center)), h))
-      .sort((a, b) => b.s - a.s || a.d - b.d).slice(0, 10);
+      .sort((a, b) => b.s - a.s || a.d - b.d);
+    return joinPieces(hits.slice(0, 20)).slice(0, 10);
   }
 
   // ---------- towns and trails anywhere in Canada ----------
@@ -7763,8 +7789,12 @@ out tags center qt;`;
   $("trailQ").addEventListener("input", () => {
     if (namePick && $("trailQ").value.trim().toLowerCase() !== namePick.key) clearNamePick();
     hitSel = -1; clearTimeout(hitTimer); hitTimer = setTimeout(refreshHits, 120); loadNames(); });
-  // Names load once something is typed, so a "Where is it?" area picked first limits the download.
-  $("trailQ").addEventListener("focus", () => { if ($("trailQ").value.trim()) loadNames(); refreshHits(); });
+  // The name lists (this area's trail names, towns, and every trail name in Canada: about 0.7 MB) start downloading
+  // the moment the box is touched, not on the first letter: the deep test 2026-11-09 waited 2.9 s for "Comfortably"
+  // on LTE because the lists only started with the "C". An Area picked later still loads its own names when typing.
+  const warmNames = () => { loadPlaces(); loadNames(); };
+  $("trailQ").addEventListener("pointerdown", warmNames, { passive: true });
+  $("trailQ").addEventListener("focus", () => { warmNames(); refreshHits(); });
   $("trailQ").addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== $("trailQ")) { $("trailHits").hidden = true; $("trailQ").setAttribute("aria-expanded", "false"); } }, 150));
   $("trailQ").addEventListener("keydown", (e) => {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {

@@ -846,10 +846,14 @@ out center tags qt;`;
     store.set("hikeGrades", gradeOn);
     renderGrades(); renderList();
   });
+  // Real hikes first (1 km or more, with a grade or a signed hiking route, not a bike trail), then the graded ones
+  // shared with bikes, then other trails of 1 km or more, then the short pieces; nearest first within each. The deep
+  // test 2026-11-09 near Whistler opened on "Magic Chair Part 2", a 386 m piece with no grade, then the bike trails.
+  const tierOf = (h) => (h.km < 1 ? 3 : !(h.g > 0 || h.rel) ? 2 : h.shared ? 1 : 0);
   const inView = () => {
     const v = map.getBounds(), c = [map.getCenter().lat, map.getCenter().lng];
     return [...hikes.values()].filter((h) => h.km >= 0.3 && v.intersects(L.latLngBounds([h.bb[0], h.bb[1]], [h.bb[2], h.bb[3]])))
-      .map((h) => ({ h, d: kmTo(h.c, c) })).sort((a, b) => a.d - b.d).map((x) => x.h);
+      .map((h) => ({ h, d: kmTo(h.c, c), t: tierOf(h) })).sort((a, b) => a.t - b.t || a.d - b.d).map((x) => x.h);
   };
   const subOf = (h) => [GRADES[h.g].label, fmtKm(h.km) + " of trail", h.rel ? "hiking route" : "", h.shared ? "shared with bikes" : ""].filter(Boolean).join(" · ");
   function renderList() {
@@ -864,7 +868,7 @@ out center tags qt;`;
     $("hkCount").textContent = all.length ? `${all.length} hike${all.length > 1 ? "s" : ""} in view` : "Hikes in view";
     const left = pending();
     msg.textContent = left > 0 && fails && !all.length ? "OpenStreetMap's trail server is busy. Trying again…" : left > 0 ? (all.length ? "Finding more hiking trails…" : "Finding the hiking trails here…")
-      : !all.length ? "No named hiking trails here on OpenStreetMap." : !list.length ? "None of that grade in view." : list.length > 40 ? "Nearest 40 shown: zoom in for the rest." : "";
+      : !all.length ? "No named hiking trails here on OpenStreetMap." : !list.length ? "None of that grade in view." : list.length > 40 ? "40 shown, real hikes first: zoom in for the rest." : "";
     // Still finding them: grey rows where the hikes will be, not an empty card (interface review 2026-11-02 item 7).
     if (left > 0 && !all.length) { ul.innerHTML = `<li class="hk-wait" aria-hidden="true"><span></span><span></span></li>`.repeat(4); return; }
     ul.innerHTML = list.slice(0, 40).map((h) => `<li><button type="button" data-hike="${esc(h.id)}"><span class="hk-dot" style="--c:${GRADES[h.g].c}"></span><b>${esc(h.name)}</b><small>${esc(subOf(h))}</small><em>${saved().some((s) => s.id === h.id) ? "★" : ""}</em></button></li>`).join("");

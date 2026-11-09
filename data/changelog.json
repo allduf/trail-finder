@@ -2,6 +2,7 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-11-09", "text": "A brand-new phone opens lighter: nothing is downloaded behind the welcome screens, and only the sport you pick loads its maps and trails."},
+    {"date": "2026-11-09", "text": "Search is quicker: trail and town names start loading as soon as you tap the search box, and a trail split by a road shows once. Hiking lists real hikes first, and a part of the app that fails to load is tried again."},
     {"date": "2026-11-09", "text": "The app runs out of memory less often on iPhone: a little while after you switch back to the flat map, the hidden 3D map lets go of its memory, and saving offline maps uses less."},
     {"date": "2026-11-09", "text": "Save ride: no more save page. Save puts the ride straight into My rides and you stay on the map; add a name or photos later from My rides."},
     {"date": "2026-11-09", "text": "Skiing 3D: your trails, routes and the tour you're planning stay on the map when you come back to the app."},
