@@ -1,0 +1,32 @@
+name: Publish summer photos
+
+# This branch (summer-photos, one commit, no history) holds the late-summer mountain photos for the Summer map
+# (scripts/winter-photos/summer.py on main). Every push here publishes trail-finder-summer/ + _headers to the
+# Cloudflare Pages: zooms 11-14 + summer.json to project trailfinder-summer, zoom 15 to trailfinder-summer-15 (free
+# Pages takes 20,000 files a project), both at <project>.pages.dev/trail-finder-summer/. Needs the repository secret CLOUDFLARE_API_TOKEN (Cloudflare Pages: Edit), as pages.yml.
+on:
+  push:
+    branches: [summer-photos]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish to Cloudflare Pages (trailfinder-summer)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 9ad76bdf11abb4440ad064451cf06d9a
+        run: |
+          mkdir -p a/trail-finder-summer b/trail-finder-summer
+          cp _headers a/ && cp _headers b/
+          cp trail-finder-summer/summer.json a/trail-finder-summer/
+          for z in 11 12 13 14; do cp -r trail-finder-summer/$z a/trail-finder-summer/; done
+          cp -r trail-finder-summer/15 b/trail-finder-summer/
+          for p in trailfinder-summer trailfinder-summer-15; do npx --yes wrangler@4 pages project create $p --production-branch main || true; done
+          npx --yes wrangler@4 pages deploy a --project-name trailfinder-summer --branch main --commit-dirty=true
+          npx --yes wrangler@4 pages deploy b --project-name trailfinder-summer-15 --branch main --commit-dirty=true
