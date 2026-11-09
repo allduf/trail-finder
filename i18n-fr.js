@@ -1170,6 +1170,7 @@
     "Darker shade: the slope faces a direction Avalanche Canada names in today's problems for its band.":"Teinte plus foncée : la pente fait face à une orientation nommée par Avalanche Canada dans les problèmes du jour pour son étage.",
     "Darker: today's problems":"Plus foncé : problèmes du jour",
     "Skiing avalanche shading: every slope now shows exactly Avalanche Canada's rating for its band, and slopes facing today's problems are a darker shade (darker yellow at Moderate) instead of stripes.":"Ski, couleurs d'avalanche : chaque pente montre maintenant exactement la cote d'Avalanche Canada pour son étage, et les pentes orientées vers les problèmes du jour sont d'une teinte plus foncée (jaune plus foncé à Modéré) au lieu de rayures.",
+    "Planning a ski tour is faster: your tour and its less exposed way show up sooner.":"Planifier une sortie de ski est plus rapide : votre sortie et son chemin moins exposé s'affichent plus tôt.",
     "Gate":"Barrière",
     "No gate":"Sans barrière",
     "Book":"Réserver",

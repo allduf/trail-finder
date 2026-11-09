@@ -64,7 +64,9 @@
     return Math.min(3, f);
   };
   // The ground on each cell in avalanche terms. av: { r: { alp, tln, btl }, mask: { alp, tln, btl }, bands: { lo, hi } }.
-  const breathe = () => new Promise((r) => setTimeout(r, 0));
+  // A breath through a message, not setTimeout(0): browsers hold a run of setTimeout(0) back 4 ms or more each, which
+  // added about a quarter to a long search on a phone (alex 2026-11-09, a quick ski tour "took too long").
+  const breathe = () => new Promise((r) => { const ch = new MessageChannel(); ch.port1.onmessage = () => { ch.port1.close(); r(); }; ch.port2.postMessage(0); });
   async function prep(g, av) {
     let t0 = performance.now();
     const rest = async () => { if (performance.now() - t0 > 12) { await breathe(); t0 = performance.now(); } };   // let the map move between rows
@@ -328,8 +330,19 @@
 
   // The safest way through the points you tapped (pts: [[lat, lon], ...], 2 or more), one leg at a time.
   // av: the forecast (winter.js tfSki.avyFor). onStep(text) while it works.
+  // Every leg's terrain asked for at once (fish-route.js warm): the legs are then worked out one by one as before, but
+  // none waits for its own download. Each leg's first grid (searchLeg's first pad, or a line's box).
+  function warm(FR, pts) {
+    if (!FR._warm) return;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i], via = viaOf(a, b), d = window.tfLeaflet.distance(a, b);
+      if (via) FR._warm(FR._boxAround(via.pts, 400));
+      else if (d <= MAX_LEG_M) for (const pad of [Math.max(600, d * 0.4), Math.max(2000, d)]) FR._warm(FR._boxAround([b, a], pad));   // both of searchLeg's grids (the second when the first is too tight)
+    }
+  }
   async function route(pts, av, onStep) {
     const { S, FR } = await finder();
+    warm(FR, pts);
     const cost = costFn(FR), legs = [];
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1], b = pts[i];
@@ -504,5 +517,5 @@
     return total([{ ...pieces(FR, out.g, cells, av), straight: straight(FR, out.g, start, spot) }], av, { from: "road", start, park });
   }
 
-  window.tfSkiRoute = { route, fromRoad, CLS, ASP, ASP_NAME, BAND_NAME, _prep: prep, _slopeTerm: slopeTerm };
+  window.tfSkiRoute = { route, fromRoad, warm: (pts) => finder().then(({ FR }) => warm(FR, pts)).catch(() => {}), CLS, ASP, ASP_NAME, BAND_NAME, _prep: prep, _slopeTerm: slopeTerm };
 })();

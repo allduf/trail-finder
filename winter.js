@@ -1398,7 +1398,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=3900").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=3910").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2284,7 +2284,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     selected = r;
     // Your tour swapped for its other way (🛡 Safest on or off): no mapped route changes its highlight, so the
     // whole Skiing layer (and the 3D map's copy of it) isn't redrawn.
-    if (!(was && was.src === "plan" && r.src === "plan")) drawSki();
+    // Nor when your tour is picked with no mapped route highlighted before (drawSki only marks the selected mapped
+    // route or hut): ~0.6 s of redrawing every Skiing line on a phone for nothing (alex 2026-11-09, quick tour lag).
+    if (!((!was || was.src === "plan") && r.src === "plan")) drawSki();
     renderList();
     if (fly) {
       if (r.lat != null) map.setView([r.lat, r.lon], Math.max(map.getZoom(), 14));
@@ -2966,14 +2968,29 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     plan.pts[i] = to;   // moved off an added line: a plain point
     planChanged();
   }
+  // The heights the tour's card reads (ski-terrain.js: zoom 13 under the line and 350 m round it) start coming as soon as
+  // the points change, not after the 350 ms wait and the heights first (alex 2026-11-09: a quick tour "took too long").
+  function warmPlanDem() {
+    const all = plan.pts.flatMap((p) => [[p[0], p[1]], ...((p[2] && p[2].via) || [])]);
+    if (all.length < 2) return;
+    const z = 13, n = 2 ** z, pad = 0.006, lat = all.map((p) => p[0]), lon = all.map((p) => p[1]);
+    const tx = (lo) => Math.floor(((lo + 180) / 360) * n), ty = (la) => { const s = Math.sin((la * Math.PI) / 180); return Math.floor((0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n); };
+    const x0 = tx(Math.min(...lon) - pad), x1 = tx(Math.max(...lon) + pad), y0 = ty(Math.max(...lat) + pad), y1 = ty(Math.min(...lat) - pad);
+    if ((x1 - x0 + 1) * (y1 - y0 + 1) > 16) return;   // a long tour: its card asks for what it needs as before
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) dem(z, x, y).catch(() => {});
+  }
   function planChanged() {
     store.set("skiPlan", plan.pts);
+    warmPlanDem();
     if (plan.noKeep && planKey() !== plan.noKeep) plan.noKeep = "";
     keepTour(false);
     clearTimeout(plan.timer);
     plan.fail = "";
     if (plan.safe && plan.pts.length > 1 && !safePath()) {
       plan.run++; plan.wait = "Finding a less exposed way…";
+      // Its terrain starts downloading now, while the taps settle and the risk sheet is read (ski-route.js warm).
+      const pts = plan.pts.slice();
+      loadJs("ski-route").then(() => window.tfSkiRoute && window.tfSkiRoute.warm && window.tfSkiRoute.warm(pts)).catch(() => {});
       drawPlan(); renderPlan();
       plan.timer = setTimeout(findSafe, 600);   // a quick run of taps works it out once
       return;
@@ -3036,15 +3053,19 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   async function findSafe() {
     const my = ++plan.run, pts = plan.pts.slice(), key = planKey();
     const say = (t) => { if (my === plan.run) { plan.wait = t; renderPlan(); } };
+    // The route finder, the forecast and the weather start coming now, while the risk sheet is read (they were one
+    // after the other after it: ~1.5 s on a phone before the search even started).
+    const jsP = loadJs("ski-route"), avP = avyFor(pts[0][0], pts[0][1]), wxP = avP.then((av) => (avyGate(av) ? null : routeWx(pts[0], av)));
+    jsP.catch(() => {}); avP.catch(() => {}); wxP.catch(() => {});
     // The person accepts once that the tour and its risks are theirs (risk.js); Cancel leaves the points, no way.
     if (window.tfRiskOk && !(await window.tfRiskOk("avy"))) { if (my === plan.run) { plan.wait = ""; renderPlan(); } return; }
     say("Finding a less exposed way…");
     try {
-      await loadJs("ski-route");
-      const av = await avyFor(pts[0][0], pts[0][1]);
+      await jsP;
+      const av = await avP;
       const gate = avyGate(av);
       if (gate) { if (my === plan.run) { plan.wait = ""; plan.fail = gate; plan.failAv = av; drawPlan(); renderPlan(); } return; }
-      av.wx = await routeWx(pts[0], av);
+      av.wx = await wxP;
       const out = await window.tfSkiRoute.route(pts, av, say);
       if (my !== plan.run) return;
       if (out.fail) { plan.wait = ""; plan.fail = out.fail; plan.failAt = out; drawPlan(); renderPlan(); return; }
