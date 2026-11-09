@@ -1398,7 +1398,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=4020").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=4040").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2287,12 +2287,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // whole Skiing layer (and the 3D map's copy of it) isn't redrawn.
     // Nor when your tour is picked with no mapped route highlighted before (drawSki only marks the selected mapped
     // route or hut): ~0.6 s of redrawing every Skiing line on a phone for nothing (alex 2026-11-09, quick tour lag).
-    if (!((!was || was.src === "plan") && r.src === "plan")) drawSki();
-    renderList();
-    if (fly) {
-      if (r.lat != null) map.setView([r.lat, r.lon], Math.max(map.getZoom(), 14));
-      else map.fitBounds(group.reduce((b, x) => b.extend(x.bounds), L.latLngBounds(r.bounds.getSouthWest(), r.bounds.getNorthEast())), { padding: [30, 30], maxZoom: 15 });
-    }
+    const redraw = !((!was || was.src === "plan") && r.src === "plan");
+    const flyBox = fly && r.lat == null ? group.reduce((b, x) => b.extend(x.bounds), L.latLngBounds(r.bounds.getSouthWest(), r.bounds.getNorthEast())) : null;
     // The pieces of a route with the same name and type go together (as in the list).
     if (!Array.isArray(it) && r.lat == null && r.name && ski) {
       const box = r.bounds.pad(0.5), same = (ski.routes || []).filter((x) => x.type === r.type && x.name && x.name.toLowerCase() === r.name.toLowerCase() && box.intersects(x.bounds));
@@ -2404,6 +2400,24 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       planRouteLine(r, group, title).finally(() => { addBtn.disabled = false; });
     });
 
+    // The card shows first, then the map catches up (alex 2026-11-09 app test: Singing Pass took 1.5 s to show its card
+    // while every Skiing line was redrawn and the map started to move). On the next frame: the highlight, the list's
+    // current row, and the move. In 3D the route is looked at 55° down like a search result (place-search.js), not 70°:
+    // tilted all the way, the far valleys behind it took the screen and ~3 MB of map pieces (18 s on LTE).
+    requestAnimationFrame(() => setTimeout(() => {
+      if (!live()) return;
+      if (redraw) drawSki();
+      renderList();
+      if (!fly) return;
+      if (r.lat != null) map.setView([r.lat, r.lon], Math.max(map.getZoom(), 14));
+      else {
+        if (document.querySelector("#map.is3d") && window.tf3dSearchView) {
+          const pad = window.tfMapPad ? window.tfMapPad() : { tl: [0, 0], br: [0, 0] }, c = flyBox.getCenter();
+          window.tf3dSearchView({ lat: c.lat, lon: c.lng, dy: (pad.br[1] - pad.tl[1]) / 2 });
+        }
+        map.fitBounds(flyBox, { padding: [30, 30], maxZoom: 15 });
+      }
+    }, 0));
     // The avalanche forecast is needed here even with the shading off.
     if (!avy && !example && !avyErr) loadAvy();
     const showAvy = (info) => {
