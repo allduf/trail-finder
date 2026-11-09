@@ -797,12 +797,48 @@
     cx.drawImage(parent, (x % 2) * size, (y % 2) * size, size, size, 0, 0, 512, 512);
     return cv;
   }
+  // The height under the view's centre comes first. The 3D map stays flat, "Loading the mountains…" up, until it's in,
+  // and MapLibre only asks for it once its library has started and the map's style is in (deep test, alex 2026-11-09:
+  // "if something is taking a long time to load or open I want to know so we can upgrade that"). It's fetched on the
+  // flat map once it's been still a few seconds (a handful per visit, ~200 KB each, kept by sw.js for 7 days) and the
+  // moment ⛰ 3D is tapped, so it's already here when MapLibre asks: the tilt starts ~1 s sooner.
+  const warmDem = new Map();   // Mapterhorn address -> its bytes (a promise, null if it failed)
+  let warmed2d = 0;
+  const WARM_2D_MAX = 8;
+  function centreTile(z) {
+    const c = map.getCenter(), n = 2 ** z, lat = Math.max(-85, Math.min(85, c.lat)) * Math.PI / 180;
+    const x = Math.floor((c.lng + 180) / 360 * n), y = Math.floor((1 - Math.log(Math.tan(lat) + 1 / Math.cos(lat)) / Math.PI) / 2 * n);
+    return [z, Math.max(0, Math.min(n - 1, x)), Math.max(0, Math.min(n - 1, y))];
+  }
+  function warmCentre() {
+    if (!navigator.onLine) return false;
+    // The 3D map opens one zoom out from the flat map, and its heights come one zoom coarser than that (MapLibre).
+    const [z, x, y] = centreTile(Math.max(0, Math.min(14, Math.floor(map.getZoom() - 2))));
+    if (isMissing(z, x, y)) return false;
+    const url = MAPTERHORN(z, x, y);
+    if (warmDem.has(url)) return false;
+    if (warmDem.size > 12) warmDem.delete(warmDem.keys().next().value);
+    warmDem.set(url, fetch(url).then((r) => {
+      if (r.status === 404 || r.status === 204) missing.add(`${z}/${x}/${y}`);
+      return r.ok ? r.arrayBuffer() : null;
+    }).catch(() => null));
+    return true;
+  }
+  let warmDemT = 0;
+  map.on("movestart", () => clearTimeout(warmDemT));
+  map.on("moveend", () => {
+    clearTimeout(warmDemT);
+    if (on || warmed2d >= WARM_2D_MAX || map.getZoom() < 9 || (navigator.connection && navigator.connection.saveData)) return;
+    warmDemT = setTimeout(() => { if (!on && warmCentre()) warmed2d++; }, 3000);
+  });
   let demProtocol = false;
   function addDemProtocol() {
     if (demProtocol) return;
     demProtocol = true;
     maplibregl.addProtocol("tfdem", async (params, abort) => {
       const [z, x, y] = params.url.replace("tfdem://", "").split("/").map(Number);
+      const warm = warmDem.get(MAPTERHORN(z, x, y));
+      if (warm) { warmDem.delete(MAPTERHORN(z, x, y)); const b = await warm; if (b) return { data: b }; }
       if (!isMissing(z, x, y) && !offDeep(z)) {   // the usual case: Mapterhorn's own tile, passed on as it is
         const r = await fetch(MAPTERHORN(z, x, y), { signal: abort.signal }).catch((e) => { if (abort.signal.aborted) throw e; return null; });
         if (r && r.ok) return { data: await r.arrayBuffer() };
@@ -1259,7 +1295,7 @@
   // sharp: zooms 13-14 inside the sharpened squares, made from the zoom-15 sharpened photos (see SHARP_MID).
   const fillTile = (z, x, y, whole, abort, site, sharp) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=4090");
+      const w = new Worker("winter-fill.js?v=4100");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1358,7 +1394,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=4090" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=4100" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -2361,6 +2397,7 @@
   function set3d(want, auto) {
     want3d = want;
     if (want === on) { syncBtn(); return; }
+    if (want) warmCentre();
     if (want && !window.maplibregl) {
       btn.textContent = "⛰ Loading 3D…";
       loadLib().then(() => { if (want3d) set3d(true, auto); }, () => { btn.textContent = "⛰ 3D unavailable"; setTimeout(syncBtn, 3000); });
@@ -2372,7 +2409,10 @@
     if (!auto) { bySport("map3dBy", sportNow(), on); if (on) crashed = false; }
     map.getContainer().classList.toggle("is3d", on);
     map.getContainer().parentElement.classList.toggle("is3d", on);   // hides the 2D map style menu
-    rest2d(on);
+    // Back to 2D, the flat map's lines are drawn again just after the 3D map is hidden, not in the same moment: in
+    // Adventure moto (thousands of roads) the tap froze the screen ~1.3 s on a slowed phone (deep test, 2026-11-09).
+    if (on) rest2d(true);
+    else requestAnimationFrame(() => setTimeout(() => { if (!on) rest2d(false); }, 0));
     if (on) {
       if (!gl) build();
       else { wake3d(); box.hidden = false; gl.resize(); const c = map.getCenter(); syncing++; gl.jumpTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d(), pitch: 0 }); syncing--; tiltUp(); }
