@@ -586,6 +586,29 @@
     if (gl) crispDraped(true);
     try { console.warn("crisp lines off:", e && e.message); } catch {}
   }
+  // Back in the app after the phone dropped the 3D map's graphics (sleep3d): MapLibre rebuilds the map from its saved
+  // style, which keeps every line, dot and name but leaves out this layer (it says so: custom layers "can't be
+  // restored"). The draped copies were saved hidden, so every trail, route and planned tour vanished and only the
+  // names stayed (alex 2026-11-09, Skiing 3D, tour by Spearhead). Add it again once the rebuilt style is in, on the
+  // new context; if that can't happen, the draped lines come back instead.
+  function crispRestored() {
+    if (!crispOn || !gl) return;
+    const L3 = crispLayer;
+    L3.glc = null; L3.prog = null; L3.vbo = null; L3.ibo = null; L3.count = 0; L3.loc = {};
+    crispBox = null;
+    clearTimeout(crispBuildT); crispBuildT = 0;
+    let tries = 0;
+    const again = () => {
+      if (!crispOn || !gl) return;
+      if (!gl.style || !gl.isStyleLoaded()) { if (++tries < 100) setTimeout(again, 100); else crispFail(new Error("style not back")); return; }
+      try { if (!gl.getLayer("crisp-lines")) gl.addLayer(L3, gl.getLayer("dots") ? "dots" : undefined); } catch (e) { return crispFail(e); }
+      if (!L3.glc) return crispFail(new Error("no program"));
+      crispDraped(false, true);
+      crispSoon(300);
+    };
+    again();
+  }
+  window.tf3dCrispCount = () => crispLayer.count;   // for the reopen test
   function crispStart() {
     if (crispOn || !gl || gl.getLayer("crisp-lines")) return;
     try {
@@ -1234,7 +1257,7 @@
   // sharp: zooms 13-14 inside the sharpened squares, made from the zoom-15 sharpened photos (see SHARP_MID).
   const fillTile = (z, x, y, whole, abort, site, sharp) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=3960");
+      const w = new Worker("winter-fill.js?v=3970");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1333,7 +1356,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=3960" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=3970" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1575,7 +1598,7 @@
     const unproject = gl.unproject;
     gl.unproject = function () { try { return unproject.apply(this, arguments); } catch { return this.getCenter(); } };
     gl.on("webglcontextlost", () => { lostSeen = true; if (wakeWanted) wake3d(); });
-    gl.on("webglcontextrestored", () => { try { fixDemLeak(); gl.resize(); gl.triggerRepaint(); } catch {} });
+    gl.on("webglcontextrestored", () => { try { fixDemLeak(); gl.resize(); gl.triggerRepaint(); } catch {} crispRestored(); });
   }
   function sleep3d() {
     if (!PHONE || !gl || slept) return;
