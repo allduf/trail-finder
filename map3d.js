@@ -1241,6 +1241,42 @@
   // Kicking Horse), so nothing is asked for elsewhere; squares in the box but not in sharp.json are never fetched.
   // SHARP_REV: bumped when sharpened squares are rebuilt, so phones don't keep last month's copies (kept 30 days, sw.js).
   const SHARP = WINTERS[1], SHARP_REV = "?r=2", SHARP_BOUNDS = [-123.58, 49.6, -116.89, 51.51];
+  // ---------- late-summer mountains on the Summer map ----------
+  // alex 2026-11-09 ("use some image around september for the summer map"): Esri's sharp summer photo is from early
+  // July in many alpine places (Brandywine and Metal Dome: July 5, 2017), so the meadows and ridges showed melting
+  // snow all summer. Over the Sea to Sky, the mountains (fading in from about 1,250 to 1,450 m) are now late-August
+  // 2025 Sentinel-2 photos, AI-sharpened to 2.5 m like Winter's (scripts/winter-photos/summer.py), on their own site;
+  // below that they're see-through, so valleys, towns and forest keep Esri's sharper photo. Zooms 11 to 15 (each
+  // zoom built from the one below); summer.json lists the zoom-11 squares, so nothing is asked for elsewhere.
+  // SUMMER_REV: bump when the squares are rebuilt (sw.js keeps photos 30 days).
+  // Cloudflare Pages takes 20,000 files a site: zooms 11-14 and the list on one, zoom 15 (~15,000 tiles) on another.
+  const SUMMER = "https://trailfinder-summer.pages.dev/trail-finder-summer/", SUMMER15 = "https://trailfinder-summer-15.pages.dev/trail-finder-summer/";
+  const SUMMER_REV = "?r=1", SUMMER_BOUNDS = [-123.58, 49.6, -122.17, 50.74];
+  let summerBlocks = null;
+  const loadSummer = () => summerBlocks || (summerBlocks = fetch(SUMMER + "summer.json").then((r) => r.ok ? r.json() : [])
+    .then((a) => new Set(a.map(([x, y]) => x + "/" + y))).catch(() => new Set()));
+  const hasSummer = (s, z, x, y) => z >= 11 && z <= 15 && !!s && s.has((x >> (z - 11)) + "/" + (y >> (z - 11)));
+  // The tile's bytes, or null (not a mountain square, below the trees, or it couldn't come: Esri's photo shows).
+  const summerBytes = async (z, x, y, signal) => {
+    if (!hasSummer(await loadSummer(), z, x, y)) return null;
+    const r = await fetch(`${z === 15 ? SUMMER15 : SUMMER}${z}/${x}/${y}.webp${SUMMER_REV}`, { signal }).catch((e) => { if (signal && signal.aborted) throw e; return null; });
+    return r && r.ok ? r.arrayBuffer() : null;
+  };
+  // The flat map's Summer and Satellite styles (index.html summerPhotos): the same tiles as a picture, or null.
+  window.tfSummerTile = async (z, x, y, signal) => {
+    const b = await summerBytes(z, x, y, signal);
+    return b ? createImageBitmap(new Blob([b])) : null;
+  };
+  let summerProtocol = false;
+  function addSummerProtocol() {
+    if (summerProtocol) return;
+    summerProtocol = true;
+    photoProtocol("tfsummer", async (params, abort) => {
+      const [z, x, y] = params.url.replace("tfsummer://", "").split("/").map(Number);
+      const b = await summerBytes(z, x, y, abort.signal);
+      return b ? { data: b } : noTile();
+    });
+  }
   let sharpBlocks = null;
   const loadSharp = () => sharpBlocks || (sharpBlocks = fetch(tfWinterShard(new URL(SHARP + "sharp.json", location.href).href, 0, 0, 0)).then((r) => r.ok ? r.json() : [])
     .then((a) => new Set(a.map(([x, y]) => x + "/" + y))).catch(() => new Set()));
@@ -1295,7 +1331,7 @@
   // sharp: zooms 13-14 inside the sharpened squares, made from the zoom-15 sharpened photos (see SHARP_MID).
   const fillTile = (z, x, y, whole, abort, site, sharp) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=4100");
+      const w = new Worker("winter-fill.js?v=4110");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1394,7 +1430,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=4100" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=4110" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1918,6 +1954,7 @@
     addSatProtocol();
     addWinterHdProtocol();
     addWinterSharpProtocol();
+    addSummerProtocol();
     // Photo tiles downloaded at once: 16 by default. Ours come from several sites over HTTP/2 and each is small, so
     // 32 at once fills the ground after a move about twice as fast (phone test, 2026-10-27).
     // Computers 64 (2026-11-03): the close-ups (winterhd) keep their place in this queue while a worker draws them,
@@ -1964,6 +2001,9 @@
           satlo: { type: "raster", tileSize: 256, maxzoom: 9, tiles: ["tfsat://{z}/{x}/{y}"] },
           sat: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfsat://{z}/{x}/{y}"],
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
+          // Over the Summer photo: the late-summer mountains (SUMMER above), see-through below the trees.
+          sumhi: { type: "raster", tileSize: PHONE ? 256 : 128, minzoom: 11, maxzoom: 15, bounds: SUMMER_BOUNDS, tiles: ["tfsummer://{z}/{x}/{y}"],
+            attribution: "Mountains: Copernicus Sentinel-2 data 2025 (ESA)" },
           // Sharp place, peak and lake names from OpenFreeMap (free, no key), instead of blurry label pictures.
           names: { type: "vector", url: "https://tiles.openfreemap.org/planet", attribution: "<a href=\"https://openfreemap.org\">OpenFreeMap</a>" },
           // Heights down to zoom 16 (2 m lidar where Mapterhorn has it): real gullies and rock bands up close, not
@@ -1987,6 +2027,7 @@
           { id: "off-water", type: "fill", source: "names", "source-layer": "water", layout: { visibility: "none" }, paint: { "fill-color": "#98c0e4" } },
           { id: "satlo", type: "raster", source: "satlo", paint: { "raster-fade-duration": 0, "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
           { id: "sat", type: "raster", source: "sat", paint: { "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
+          { id: "sumhi", type: "raster", source: "sumhi", paint: { "raster-fade-duration": 0 } },
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
           { id: "fill", type: "raster", source: "fill", layout: { visibility: "none" } },
           { id: "winterlo", type: "raster", source: "winterlo", layout: { visibility: "none" }, paint: { "raster-fade-duration": 0 } },
@@ -2057,7 +2098,7 @@
     // (as before) reloaded every photo after each move, up to 900 tiles each time, and showed blurry ones while
     // moving. Now about 150 to 380 tiles in a tilted view, against 500 to 900.
     // Phones the same since 2026-10-23 (they had 4 levels and fewer far tiles, which made the distance blurry).
-    const lod = () => ["sat", "fill", "winter", "winsharp", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
+    const lod = () => ["sat", "sumhi", "fill", "winter", "winsharp", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
     // Set as soon as the style is in, so the very first tiles already come at that setting.
     gl.once("style.load", lod); gl.once("load", lod);
     // The blurry photos under the sharp ones (winterlo, satlo) keep more tiles after they leave the view than the
@@ -2192,7 +2233,7 @@
       winBtn.style.display = ski() ? "" : "none";
       sumBtn.style.display = ski() ? "none" : "";
       const w = photos === "winter" || photos === "live";
-      for (const id of ["satlo", "sat"]) gl.setLayoutProperty(id, "visibility", photos === "sharp" ? "visible" : "none");
+      for (const id of ["satlo", "sat", "sumhi"]) gl.setLayoutProperty(id, "visibility", photos === "sharp" ? "visible" : "none");
       gl.setLayoutProperty("fill", "visibility", photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
       gl.setLayoutProperty("ground", "visibility", photos === "winter" ? "visible" : "none");
       for (const id of ["winterlo", "winter", "winsharp", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
@@ -2210,7 +2251,7 @@
     const offGround = () => {
       const off = !navigator.onLine;
       for (const id of ["off-bg", "off-land", "off-water", "shade"]) gl.setLayoutProperty(id, "visibility", off ? "visible" : "none");
-      if (off) for (const id of ["satlo", "sat", "fill", "live"]) gl.setLayoutProperty(id, "visibility", "none");
+      if (off) for (const id of ["satlo", "sat", "sumhi", "fill", "live"]) gl.setLayoutProperty(id, "visibility", "none");
     };
     netChange = () => { if (gl && gl.getLayer("off-bg")) setPhotos(photos); };
     // Winter outside last winter's photos shows today's snow (NASA, as in Live): say so. Live where NASA sees no
