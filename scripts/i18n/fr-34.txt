@@ -1,0 +1,1 @@
+Skiing: switching the 3D map off and back on no longer freezes the app. ||| Ski : désactiver puis réactiver la carte 3D ne fige plus l'app.

@@ -1541,6 +1541,8 @@
     "Opening the app for the first time is lighter and quicker, especially in Skiing.":"La première ouverture de l'appli est plus légère et plus rapide, surtout en ski.",
     "Skiing avalanche forecast: never shows yesterday's day as today, refreshes when you come back to the app, and warns when you're looking at an old saved copy.":"Ski, prévision d'avalanche : n'affiche plus jamais la journée d'hier comme celle d'aujourd'hui, se met à jour quand vous revenez dans l'app et vous avertit quand vous regardez une ancienne copie enregistrée.",
     "Skiing: the avalanche forecast now comes live from Avalanche Canada every time you open the app, so a new or updated bulletin shows right away.":"Ski : la prévision d'avalanche vient maintenant en direct d'Avalanche Canada chaque fois que vous ouvrez l'app, donc un bulletin nouveau ou mis à jour s'affiche tout de suite.",
+    "Skiing: switching the 3D map off and back on no longer freezes the app.":"Ski : désactiver puis réactiver la carte 3D ne fige plus l'app.",
+    "Skiing 3D: your trails, routes and the tour you're planning stay on the map when you come back to the app.":"Ski 3D : vos sentiers, vos itinéraires et la sortie que vous planifiez restent sur la carte quand vous revenez dans l'app.",
     "Ride saved to My rides":"Sortie enregistrée dans Mes sorties",
     "Ski tour saved to My rides":"Sortie de ski enregistrée dans Mes sorties",
     "Hunt saved to My rides":"Chasse enregistrée dans Mes sorties",
