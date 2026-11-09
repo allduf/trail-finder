@@ -1,0 +1,37 @@
+name: Old address redirect
+
+# The old address allduf.github.io/trail-finder/ (GitHub Pages, until the 2026-11-06 suspension) now only holds
+# old-address/: a page that sends people to trailfinderapp.ca, and a sw.js that replaces the old saved app. Browsers
+# that saved the app at the old address kept showing that saved copy (old layout, Winter photos missing: alex
+# 2026-11-08), because GitHub Pages' custom-domain redirect also redirected sw.js, and a service worker can't update
+# through a redirect. This sw.js is answered directly (no custom domain on this Pages site), so those browsers pick it
+# up, clear the saved copy and open trailfinderapp.ca. The real site is on Cloudflare Pages (pages.yml).
+# Needs: Settings > Pages > Source "GitHub Actions", and NO custom domain there.
+on:
+  push:
+    branches: [main]
+    paths: ["old-address/**", ".github/workflows/old-address.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: old-address
+      - id: deploy
+        uses: actions/deploy-pages@v4

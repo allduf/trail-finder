@@ -49,7 +49,7 @@ jobs:
           git clone -q --depth 1 --branch japan-data "https://github.com/${GITHUB_REPOSITORY}.git" japan || { echo "No japan-data branch yet."; exit 0; }
           mv japan/jp site/jp
       - name: Leave out what the website doesn't need
-        run: rm -rf site/.git site/.github site/scripts site/supabase site/ios-app
+        run: rm -rf site/.git site/.github site/scripts site/supabase site/ios-app site/old-address
       - name: Publish to Cloudflare Pages (trailfinderapp.ca)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
