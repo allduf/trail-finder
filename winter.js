@@ -1398,7 +1398,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=4080").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=4090").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -3025,14 +3025,36 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // ski-route.js finds the way between the points with the least avalanche risk for today's forecast (or from the
   // best plowed parking to a spot, from the "This spot" card), with fish-route.js's grid and search.
   // Today's forecast where the tour starts, in the shape ski-route.js reads.
+  // A forecast to weigh at a spot now (a way found without one offers to look again).
+  avyFor.has = (lat, lon) => { const a = avy || example ? areaAt(lat, lon) : null, f = a && a.forecast, d = f && f.days && f.days.length && !(f.validUntil && !example && new Date(f.validUntil) < new Date()) ? dayOf(f) : null; return !!(d && (d.alp || d.tln || d.btl)); };
   async function avyFor(lat, lon) {
-    if (!avy && !example && !avyErr) { try { await loadAvy(); } catch { /* no forecast file: planned as Considerable */ } }
+    if (!avy && !example && !avyErr) { try { await loadAvy(); } catch { /* no forecast file: the way is from the terrain only, said on the card */ } }
+    // The saved copy is in before Avalanche Canada's live read is: wait for that too (10 s at most), so a bulletin out
+    // this morning is used and "couldn't reach" is only said when it really couldn't.
+    if (avyLoading && !example) { try { await avyLoading; } catch {} }
     const a = avy || example ? areaAt(lat, lon) : null, f = a && a.forecast;
     const bands = a ? a.bands : DEFAULT_BANDS, expired = f && !example && f.validUntil && new Date(f.validUntil) < new Date();
-    if (!f || !f.days || !f.days.length || expired) return { r: {}, mask: {}, bands, none: true };
-    const d = dayOf(f) || {};
+    const d = f && f.days && f.days.length && !expired ? dayOf(f) || {} : null;
+    // No forecast to weigh: the way is drawn from the terrain alone (ski-route.js "terrain"), and the card says why
+    // (alex 2026-11-09). why: "early" only Avalanche Canada's early season bulletin (no ratings), "net" Avalanche Canada couldn't be reached and the saved copy has none for today, "off"
+    // no forecast area covers the spot, "norating" a forecast with no danger rating today, "none" none published today.
+    if (!d || !(d.alp || d.tln || d.btl)) {
+      const why = !avy && !example ? "net" : !a ? "off" : f && (f.early || /early.?season/i.test(f.title || "")) ? "early" : d ? "norating" : !example && !avy.liveAt && !/^jan-/.test(a.id || "") ? "net" : "none";
+      const area = (f && f.title) || (a && a.name) || "";
+      return { r: {}, mask: {}, bands, none: true, why, area: area.length <= 40 ? area : "" };
+    }
     return { r: { alp: d.alp || 0, tln: d.tln || 0, btl: d.btl || 0 }, mask: { ...a.mask }, bands, title: f.title || a.name || "", day: d.label || d.date || "", example: !!example,
       probs: (f.problems || []).map((p) => ({ type: p.type || "", aspects: p.aspects || [], elevations: p.elevations || [] })) };
+  }
+  // Why a way has no forecast in it (avyFor's why), in plain words.
+  function noFcWhy(av, pt) {
+    const jp = pt && inJapan(pt[0], pt[1]), who = jp ? "The Japan Avalanche Network" : "Avalanche Canada", m = new Date().getMonth();
+    const off = m >= 4 && m <= 10 || (m === 3 && new Date().getDate() > 15) ? ` ${avySite(pt ? pt[0] : null, pt ? pt[1] : null).season}` : "";
+    return { net: `The app couldn't reach ${who} for today's forecast (no connection, or their site didn't answer), and its saved copy has none for this area today.`,
+      off: "No avalanche forecast area covers this spot.",
+      early: "Avalanche Canada has only its early season bulletin here, which gives no danger ratings. Their daily forecasts start about late November.",
+      norating: `${who}'s forecast${av.area ? ` for ${av.area}` : ""} gives no danger rating today.`,
+      none: `${who} hasn't published a forecast${av.area ? ` for ${av.area}` : " for this area"} today.${off}` }[av.why] || "There's no avalanche forecast here today.";
   }
   // Today's weather signs for the safest way (ski-route.js wxF): Open-Meteo at the alpine height (the forecast's alpine
   // band, where slabs form) where the tour starts. { snowF, lee, rainTo, warm, snow24, snow72, maxW, wind } or
@@ -3058,10 +3080,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const r = planRoute();
     if (r) select(r, !plan.on);
   }
-  // No way is drawn when today's danger anywhere on the tour's bands is High or Extreme, or there's no forecast to weigh
-  // (alex 2026-11-06, "fix all those": Avalanche Canada's "not recommended" days; the points and terrain stay).
+  // No way is drawn when today's danger anywhere on the tour's bands is High or Extreme (alex 2026-11-06, "fix all
+  // those": Avalanche Canada's "not recommended" days; the points and terrain stay). With no forecast the way is drawn
+  // from the terrain only, with a warning that no forecast is in it and why (alex 2026-11-09).
   function avyGate(av) {
-    if (!av || av.none) return "nofc";
+    if (!av || av.none) return "";
     const m = Math.max(av.r.alp || 0, av.r.tln || 0, av.r.btl || 0);
     return m >= 4 ? "high" : "";
   }
@@ -3070,7 +3093,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const say = (t) => { if (my === plan.run) { plan.wait = t; renderPlan(); } };
     // The route finder, the forecast and the weather start coming now, while the risk sheet is read (they were one
     // after the other after it: ~1.5 s on a phone before the search even started).
-    const jsP = loadJs("ski-route"), avP = avyFor(pts[0][0], pts[0][1]), wxP = avP.then((av) => (avyGate(av) ? null : routeWx(pts[0], av)));
+    const jsP = loadJs("ski-route"), avP = avyFor(pts[0][0], pts[0][1]), wxP = avP.then((av) => (avyGate(av) || av.none ? null : routeWx(pts[0], av)));
     jsP.catch(() => {}); avP.catch(() => {}); wxP.catch(() => {});
     // The person accepts once that the tour and its risks are theirs (risk.js); Cancel leaves the points, no way.
     if (window.tfRiskOk && !(await window.tfRiskOk("avy"))) { if (my === plan.run) { plan.wait = ""; renderPlan(); } return; }
@@ -3109,7 +3132,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const av = await avyFor(lat, lon);
       const gate = avyGate(av);
       if (gate) { if (my === plan.run) { spotLayer.clearLayers(); plan.wait = ""; plan.fail = gate; plan.failAv = av; renderPlan(); } return; }
-      av.wx = await routeWx([lat, lon], av);
+      if (!av.none) av.wx = await routeWx([lat, lon], av);   // no forecast: terrain only, no weather either
       const out = await window.tfSkiRoute.fromRoad([lat, lon], av, say);
       if (my !== plan.run) return;
       spotLayer.clearLayers();
@@ -3199,12 +3222,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!plan.safe) return "";
     if (plan.wait) return `<div class="sk-safe"><div class="sk-safe-wait">${esc(plan.wait)}</div></div>`;
     if (plan.fail === "far") { const f = plan.failAt || {}; return `<div class="sk-safe"><p><b>${esc(ptName(f.leg - 1, plan.pts.length))} to ${esc(ptName(f.leg, plan.pts.length))} is ${f.km} km in a straight line:</b> too far for one ski tour (12 km at most between two points). Put your points closer, or tap points along the way you want to go.</p></div>`; }
-    if (plan.fail === "high" || plan.fail === "nofc") {
+    if (plan.fail === "high") {
       const av = plan.failAv || {}, dg = (v) => `<span class="sk-dg"><i style="background:${DANGER[v || 0].color}"></i>${esc(DANGER[v || 0].label)}</span>`;
-      return `<div class="sk-safe"><div class="sk-warn sk-est">${plan.fail === "high"
-        ? `<b>No route drawn: avalanche danger is High or Extreme here today.</b> Avalanche Canada doesn't recommend backcountry travel in avalanche terrain at this danger, so the app doesn't draw a way. Your points stay on the map.
-          <span class="sk-est-dg"><span>Avalanche danger${av.example ? " (example)" : " today"}:</span>${[["Alpine", av.r.alp], ["Treeline", av.r.tln], ["Below treeline", av.r.btl]].map(([n, v]) => `<span class="sk-est-b">${n} ${dg(v)}</span>`).join("")}</span>`
-        : `<b>No route drawn: there's no avalanche forecast here today.</b> Without one, the app can't weigh the danger, so it doesn't draw a way. Your points stay on the map. Check ${siteLink(avySite(plan.pts[0] ? plan.pts[0][0] : map.getCenter().lat, plan.pts[0] ? plan.pts[0][1] : map.getCenter().lng))}.`}</div></div>`;
+      return `<div class="sk-safe"><div class="sk-warn sk-est"><b>No route drawn: avalanche danger is High or Extreme here today.</b> Avalanche Canada doesn't recommend backcountry travel in avalanche terrain at this danger, so the app doesn't draw a way. Your points stay on the map.
+          <span class="sk-est-dg"><span>Avalanche danger${av.example ? " (example)" : " today"}:</span>${[["Alpine", av.r.alp], ["Treeline", av.r.tln], ["Below treeline", av.r.btl]].map(([n, v]) => `<span class="sk-est-b">${n} ${dg(v)}</span>`).join("")}</span></div></div>`;
     }
     if (plan.fail) return `<div class="sk-safe"><p>${esc({ water: "That point is out on open water: move it to the shore.", noway: "Couldn't find a way between these points (cliffs or open water in the way, or too far apart). Move a point or add one between.",
       noroad: "No plowed road or parking within 9 km of this spot that the map knows of. Use ✎ Plan a tour and tap where you start.", net: "Couldn't get the terrain for this area. Check your connection and try again." }[plan.fail] || "")}</p></div>`;
@@ -3214,12 +3235,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const st = sp.stats, av = sp.av || {}, tot = Math.max(1, st.total), C = SAFE_CLS, sl = sp.straight || { total: 0, steep: 0, under: 0 };
     const chip = (v) => `<span class="sk-dg"><i style="background:${DANGER[v || 0].color}"></i>${esc(DANGER[v || 0].label)}</span>`;
     const K = { ok: "#ced4da", mid: "#868e96", steep: "#e03131", under: "#ffa8a8", trap: "#a61e4d" };   // card bar: greys + reds only
-    const LV = { direct: ["#2f9e44", "Direct", "Low or Moderate danger" ], balanced: ["#f79218", "Balanced", "Considerable danger"], strict: ["#ef1c29", "Most careful", "High or Extreme danger"] }[sp.level || "balanced"];
-    const lvTxt = { direct: "The way up takes the least exposed line it finds. Skiing down, it takes slopes up to about 35° when that saves a long way round, while staying off the steepest ground and out from under big slopes where it can.",
+    const LV = av.none ? ["#868e96", "Terrain only", "No avalanche forecast in it"] : { direct: ["#2f9e44", "Direct", "Low or Moderate danger" ], balanced: ["#f79218", "Balanced", "Considerable danger"], strict: ["#ef1c29", "Most careful", "High or Extreme danger"] }[sp.level || "balanced"];
+    const lvTxt = av.none ? "Slope angle and steep slopes above only, weighed the same at every height and on every aspect. The way up takes the least exposed line it finds. Skiing down, it goes round 30°+ slopes and steep slopes above when there's a sensible way, and takes the shortest steep section when there isn't." : { direct: "The way up takes the least exposed line it finds. Skiing down, it takes slopes up to about 35° when that saves a long way round, while staying off the steepest ground and out from under big slopes where it can.",
       balanced: "The way up takes the least exposed line it finds. Skiing down, it goes round 30°+ slopes and steep slopes above when there's a sensible way, and takes the shortest steep section when there isn't.",
       strict: "Stays off 30°+ slopes and out from under steep slopes, however much longer that makes it. If there's no way round, reconsider the trip." }[sp.level || "balanced"];
-    const lvHtml = `<div class="sk-mode" style="--c:${LV[0]}"><div class="sk-mode-h"><b>${LV[1]} route</b><span>${av.none ? "No rating: planned as Moderate" : LV[2]}</span></div><p>${lvTxt}</p></div>`;
-    const fc = av.none ? `<div class="sk-warn"><b>No avalanche forecast here ${example ? "" : "today"}.</b> Planned as for Moderate danger (a direct route); early and late in the season, conditions can change fast. Check ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))} before you go.</div>`
+    const lvHtml = `<div class="sk-mode" style="--c:${LV[0]}"><div class="sk-mode-h"><b>${LV[1]} route</b><span>${LV[2]}</span></div><p>${lvTxt}</p></div>`;
+    const fc = av.none ? `<p class="sk-lbl">Avalanche forecast</p><p class="sk-fc-r"><b>None in this way.</b> <span>${esc(noFcWhy(av, sp.line[0]))}</span></p>`
       : `<p class="sk-lbl">Avalanche forecast${av.example ? " · Example" : ""}</p><div class="sk-fc-g"><div>Alpine${chip(av.r.alp)}</div><div>Treeline${chip(av.r.tln)}</div><div>Below treeline${chip(av.r.btl)}</div></div><p class="sk-fc-r">${esc(av.title)}${av.day ? ` · ${esc(av.day)}` : ""}</p>`;
     const kinds = ["ok", "mid", "steep", "under", "trap"].filter((k) => st[k] >= 5);
     const why = [];
@@ -3246,6 +3267,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (wx.warm >= 3) bits.push(`warming to ${wx.warm}°C at ${fmtM(wx.ele)}: sunny slopes count up to 1.4x`);
       why.push(bits.length ? `Today's weather is in it too (at ${fmtM(wx.ele)}): ${bits.join("; ")}.` : `Today's weather (at ${fmtM(wx.ele)}) shows no new snow, wind loading, rain or warming to add.`);
     } else if (wx && wx.none) why.push("Today's weather couldn't be loaded, so only the avalanche forecast is in it: check for new snow, wind and warming yourself.");
+    if (av.none) why.push("Terrain only: no avalanche forecast, no avalanche problems and no weather are in it.");
     for (const x of sp.alts || []) why.push(`Leaves the usual skin track (${esc(x.name)}) before its crux: that track sidehills ${fmtM(x.theirs.steep)} on 30°+ slopes, about ${mins(x.theirs.expo)} exposed. This way: ${x.mine.steep >= 20 ? fmtM(x.mine.steep) : "none"}, about ${mins(x.mine.expo)}${x.mine.sec - x.theirs.sec >= 120 ? `, for about ${mins(x.mine.sec - x.theirs.sec)} more on the move` : ""}.`);
     if (!av.none && (av.probs || []).length) {
       const parts = (av.probs || []).filter((p) => p.aspects.length && p.aspects.length < 8).map((p) => `${p.aspects.map((x) => x.toUpperCase()).join(" ")} in the ${p.elevations.map((b) => ({ alp: "alpine", tln: "treeline", btl: "below treeline" }[b] || b)).join(", ")} (${esc(p.type)})`);
@@ -3267,8 +3289,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // Top of every planned tour (Safest way liability review 2026-11-06, alex picked "Rename + safer wording"): what it
     // is, that it can't see today's snowpack, that the call is theirs, and today's danger, before any step of the way.
     const topWarn = `<div class="sk-warn sk-est"><b>A computer's estimate, not a safe route.</b> It can't see today's snowpack, cornices or wind loading. You decide whether and where to go.
-      <span class="sk-est-dg">${av.none ? "No avalanche forecast here today." : `<span>Avalanche danger${av.example ? " (example)" : " today"}:</span>${[["Alpine", av.r.alp], ["Treeline", av.r.tln], ["Below treeline", av.r.btl]].map(([n, v]) => `<span class="sk-est-b">${n} ${chip(v)}</span>`).join("")}`}</span></div>`;
+      <span class="sk-est-dg">${av.none ? "" : `<span>Avalanche danger${av.example ? " (example)" : " today"}:</span>${[["Alpine", av.r.alp], ["Treeline", av.r.tln], ["Below treeline", av.r.btl]].map(([n, v]) => `<span class="sk-est-b">${n} ${chip(v)}</span>`).join("")}`}</span></div>`;
+    // No forecast (alex 2026-11-09): the way is still drawn, from the terrain only, with this first and why there's none.
+    const fcNow = av.none && avyFor.has(sp.line[0][0], sp.line[0][1]);
+    const noFc = av.none ? `<div class="sk-warn sk-est sk-nofc"><b>No avalanche forecast included.</b> <span>${esc(noFcWhy(av, sp.line[0]))}</span> <span>This way is from the terrain only: slope angle and steep slopes above. It doesn't know today's avalanche danger or avalanche problems. Check</span> ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}.${fcNow ? ` <b>A forecast is in now: tap ↻ Find again below to use it.</b>` : ""}</div>` : "";
     return `<div class="sk-safe">
+      ${noFc}
       ${topWarn}
       ${stepsHtml(sp, watch)}
       <details class="sk-sec sk-fold"><summary><h4>Why this way</h4><span style="--c:${LV[0]}">${LV[1]} route</span></summary>
@@ -3286,7 +3312,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
           ? `<div class="sk-sec"><p class="sk-safe-ok">Only short steep bits (under 40 m each), marked ! in the steps above. Nothing longer on 30°+ slopes or under steep slopes, as far as the terrain map can see.</p></div>`
           : `<div class="sk-sec"><p class="sk-safe-ok">No 30°+ slopes and no steep slopes above on this route, as far as the terrain map can see.</p></div>`}
       <div class="sk-row"><button type="button" class="btn" id="skSafeRev">⇅ Reverse the tour</button><button type="button" class="btn" id="skSafeAgain">↻ Find again</button></div>
-      <p class="sk-safe-dis"><b>Not a substitute for avalanche training.</b> This is a planning aid based on a terrain model (10 to 30 m) and the regional forecast. It can't see cornices, wind loading, small slopes, trees or today's snowpack, and a forecast covers a whole region. How much a minute on a steep slope weighs against a longer way is judgment taken from avalanche course rules of thumb, not measured odds. Take an avalanche course (AST 1), carry a transceiver, probe and shovel with partners who know how to use them, read the full forecast on ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}, and make your own decisions in the field.</p>
+      <p class="sk-safe-dis"><b>Not a substitute for avalanche training.</b> This is a planning aid based on a terrain model (10 to 30 m)${av.none ? "" : " and the regional forecast"}. It can't see cornices, wind loading, small slopes, trees or today's snowpack, and a forecast covers a whole region. How much a minute on a steep slope weighs against a longer way is judgment taken from avalanche course rules of thumb, not measured odds. Take an avalanche course (AST 1), carry a transceiver, probe and shovel with partners who know how to use them, read the full forecast on ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}, and make your own decisions in the field.</p>
       
     </div>`;
   }
@@ -3809,7 +3835,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return { ...(old || {}), id: p.id || r.id || "", url: p.url || (p.slug ? `https://avalanche.ca/forecasts/${p.slug}` : (old && old.url) || "https://avalanche.ca/map"),
       owner: acText(p.owner) || "Avalanche Canada", issued: acVal(r.dateIssued), validUntil: acVal(r.validUntil), forecaster: acText(r.forecaster),
       highlights: acText(r.highlights).slice(0, 1500), confidence: acText(r.confidence?.rating), summaries,
-      advice: (r.terrainAndTravelAdvice || []).map(acText).filter(Boolean).slice(0, 8), days, problems, allDays: undefined, live: true };
+      advice: (r.terrainAndTravelAdvice || []).map(acText).filter(Boolean).slice(0, 8), days, problems, allDays: undefined, live: true,
+      // Avalanche Canada's early season bulletin: its ratings say "earlyseason" (no danger level), so the card can say why.
+      early: (r.dangerRatings || []).some((d) => /early\s*season/i.test(JSON.stringify(d.ratings || d))) || /early\s*season/i.test(acText(r.title)) };
   }
   // Put Avalanche Canada's live bulletins into the areas (matched by area id; the title stays the saved one). A live
   // bulletin replaces the saved one unless the saved one was issued later. Areas with no live bulletin keep theirs.

@@ -19,6 +19,9 @@
   var R = [
     [/^📂 Saved tours \((\d+)\)$/, "📂 Sorties enregistrées ($1)"],   // winter.js, the tour card
     [/^✓ Saved as (.+)$/, "✓ Enregistrée sous « $1 »"],
+    // winter.js noFcWhy: why a Less exposed way has no avalanche forecast in it
+    [/^(Avalanche Canada|The Japan Avalanche Network) hasn't published a forecast for (.+) today\.(?: (.+))?$/, function (m, w, a, x) { return (w === "Avalanche Canada" ? "Avalanche Canada" : "Le Japan Avalanche Network") + " n'a pas publié de bulletin pour " + (a === "this area" ? "ce secteur" : a) + " aujourd'hui." + (x ? " " + tt(x) : ""); }],
+    [/^(Avalanche Canada|The Japan Avalanche Network)'s forecast(?: for (.+))? gives no danger rating today\.$/, function (m, w, a) { return "Le bulletin " + (w === "Avalanche Canada" ? "d'Avalanche Canada" : "du Japan Avalanche Network") + (a ? " pour " + a : "") + " ne donne aucun niveau de danger aujourd'hui."; }],
     [/^📂 Or open a saved tour \((\d+)\)$/, "📂 Ou ouvrir une sortie enregistrée ($1)"],
     [/^Delete "(.+)"\?$/, "Supprimer « $1 »?"],
     [/^Leg (\d+) of (\d+) · (.+)$/, function (m, a, b, t) { return "Tronçon " + a + " sur " + b + " · " + tt(t); }],   // ski-route.js, a tour with stops

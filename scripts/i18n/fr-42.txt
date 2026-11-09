@@ -1,0 +1,17 @@
+# Skiing: Less exposed way with no avalanche forecast (terrain only, with why) — alex 2026-11-09
+No avalanche forecast included. ||| Aucun bulletin d'avalanche inclus.
+This way is from the terrain only: slope angle and steep slopes above. It doesn't know today's avalanche danger or avalanche problems. Check ||| Ce chemin vient du terrain seulement : l'angle des pentes et les pentes raides au-dessus. Il ne connaît ni le danger d'avalanche du jour ni les problèmes d'avalanche. Consultez
+A forecast is in now: tap ↻ Find again below to use it. ||| Un bulletin est arrivé : touchez ↻ Chercher de nouveau plus bas pour l'utiliser.
+No avalanche forecast area covers this spot. ||| Aucune zone de bulletin d'avalanche ne couvre cet endroit.
+There's no avalanche forecast here today. ||| Il n'y a pas de bulletin d'avalanche ici aujourd'hui.
+The app couldn't reach Avalanche Canada for today's forecast (no connection, or their site didn't answer), and its saved copy has none for this area today. ||| L'application n'a pas pu joindre Avalanche Canada pour le bulletin du jour (pas de connexion, ou leur site n'a pas répondu), et sa copie enregistrée n'en a aucun pour ce secteur aujourd'hui.
+The app couldn't reach The Japan Avalanche Network for today's forecast (no connection, or their site didn't answer), and its saved copy has none for this area today. ||| L'application n'a pas pu joindre le Japan Avalanche Network pour le bulletin du jour (pas de connexion, ou leur site n'a pas répondu), et sa copie enregistrée n'en a aucun pour ce secteur aujourd'hui.
+None in this way. ||| Aucun dans ce chemin.
+Terrain only ||| Terrain seulement
+Terrain only route ||| Itinéraire terrain seulement
+No avalanche forecast in it ||| Sans bulletin d'avalanche
+Slope angle and steep slopes above only, weighed the same at every height and on every aspect. The way up takes the least exposed line it finds. Skiing down, it goes round 30°+ slopes and steep slopes above when there's a sensible way, and takes the shortest steep section when there isn't. ||| Seulement l'angle des pentes et les pentes raides au-dessus, pesés de la même façon à toute altitude et sur toute orientation. La montée prend la ligne la moins exposée qu'il trouve. En descente, il contourne les pentes de 30°+ et les pentes raides au-dessus quand c'est raisonnable, et prend la section raide la plus courte sinon.
+Terrain only: no avalanche forecast, no avalanche problems and no weather are in it. ||| Terrain seulement : ni bulletin d'avalanche, ni problèmes d'avalanche, ni météo n'y sont pris en compte.
+Avalanche Canada's daily forecasts run from about late November to April. ||| Les bulletins quotidiens d'Avalanche Canada vont d'environ fin novembre à avril.
+Skiing: with no avalanche forecast for the day, Less exposed way still draws a way from the terrain alone (slope angle and steep slopes above), with a warning that no forecast is in it and why. ||| Ski : sans bulletin d'avalanche pour la journée, Chemin moins exposé trace quand même un chemin d'après le terrain seulement (angle des pentes et pentes raides au-dessus), avec un avertissement qu'aucun bulletin n'y est inclus et pourquoi.
+Avalanche Canada has only its early season bulletin here, which gives no danger ratings. Their daily forecasts start about late November. ||| Avalanche Canada n'a ici que son bulletin de début de saison, qui ne donne aucun niveau de danger. Ses bulletins quotidiens commencent vers la fin novembre.
