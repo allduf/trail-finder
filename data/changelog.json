@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-10", "text": "Help and support page is now in French too, and follows your language."},
     {"date": "2026-11-09", "text": "Summer map, Sea to Sky: the mountains are late-August satellite photos now, so the meadows and ridges no longer show old July snow."},
     {"date": "2026-11-09", "text": "3D map is quicker to stand up: the mountain heights under you are fetched first, and going back to the flat map is instant."},
     {"date": "2026-11-09", "text": "Skiing: with no avalanche forecast for the day, Less exposed way still draws a way from the terrain alone (slope angle and steep slopes above), with a warning that no forecast is in it and why."},

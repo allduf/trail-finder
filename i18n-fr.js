@@ -1733,6 +1733,7 @@
     "Skiing: with no avalanche forecast for the day, Less exposed way still draws a way from the terrain alone (slope angle and steep slopes above), with a warning that no forecast is in it and why.":"Ski : sans bulletin d'avalanche pour la journée, Chemin moins exposé trace quand même un chemin d'après le terrain seulement (angle des pentes et pentes raides au-dessus), avec un avertissement qu'aucun bulletin n'y est inclus et pourquoi.",
     "Avalanche Canada has only its early season bulletin here, which gives no danger ratings. Their daily forecasts start about late November.":"Avalanche Canada n'a ici que son bulletin de début de saison, qui ne donne aucun niveau de danger. Ses bulletins quotidiens commencent vers la fin novembre.",
     "Summer map, Sea to Sky: the mountains are late-August satellite photos now, so the meadows and ridges no longer show old July snow.":"Carte d'été, Sea to Sky : les montagnes sont maintenant des photos satellite de fin août, donc les prés et les crêtes ne montrent plus la vieille neige de juillet.",
+    "Help and support page is now in French too, and follows your language.":"La page Aide et soutien est maintenant aussi en français et suit votre langue.",
     "Hiking":"Randonnée",
     "Hikes":"Randos",
     "Hike":"Rando",
