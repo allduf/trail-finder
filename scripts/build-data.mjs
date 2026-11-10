@@ -115,7 +115,19 @@ async function fetchV1(ids) {
     try { res = await fetch(`${OSM_API}/ways?ways=${chunk.map((id) => id + "v1").join(",")}`, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(60000) }); }
     catch (e) { log(`    first versions: ${e.message}`); return; }
     if (!res.ok) {
-      if (chunk.length === 1) return;   // redacted or deleted first version: the site will try again itself
+      if (chunk.length === 1) {
+        // Redacted first version (the 2012 licence change): the oldest version still shown says the trail is at least
+        // that old. Older than the cutoff, it's no new trail, so it's left out of the file and phones don't ask for it
+        // again on every search (that held "New trails" for many seconds, 2026-11-10). Otherwise the site tries itself.
+        try {
+          const h = await fetch(`${OSM_API}/way/${chunk[0]}/history`, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(60000) });
+          if (h.ok) {
+            const ts = [...(await h.text()).matchAll(/<way\b[^>]*\btimestamp="([^"]+)"/g)].map((m) => m[1]).sort();
+            if (ts[0] && ts[0] < cutoff) out.set(chunk[0], { t: ts[0], u: "", c: 0 });
+          }
+        } catch {}
+        return;
+      }
       const mid = Math.ceil(chunk.length / 2);
       await get(chunk.slice(0, mid)); await get(chunk.slice(mid));
       return;
