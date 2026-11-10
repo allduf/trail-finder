@@ -117,7 +117,12 @@ def block(bx, by):
 
 def one(args):
     out, x, y = args
-    img = block(x, y)
+    for attempt in range(3):   # a failed read (network, a busy model download) once killed a whole GitHub job of squares
+        try:
+            img = block(x, y); break
+        except Exception as ex:
+            import traceback; print("block", x, y, "failed, try", attempt + 1, ":", repr(ex)[:300], flush=True); traceback.print_exc()
+            if attempt == 2: return x, y
     if img is None: open(f"{out}/{x}_{y}.empty", "w").close()
     else: Image.fromarray(img, "RGBA").save(f"{out}/{x}_{y}.png")
     return x, y

@@ -1,0 +1,108 @@
+name: Build sharpened Winter photos, all of Canada
+
+# The AI-sharpened Winter photos (scripts/winter-photos/sharpen.py: last winter's Sentinel-2 passes, 4x sharper with
+# ESA's free SEN2SR model) for every other Winter photo square in Canada (alex 2026-11-10: "After you can do all of
+# Canada. But on another pr"): the ~2,230 zoom-11 squares in data/sharp-canada.json (every square with Winter photos,
+# west of 50 W, minus the 388 Sea to Sky / Revelstoke to Banff ones already on trailfinder-sharp-0..9).
+# Too much for one machine (~2 min a square), so 48 jobs each build the squares of one site, k = (x * 31 + y) % 48,
+# and publish them to Cloudflare Pages project trailfinder-sharpca-k (zooms 11-15, ~16,000 files; Pages takes 20,000
+# a site), which map3d.js tfSharpSite reads. First a job lists the satellite passes for all of them: up to 40 per
+# 100 km tile with clouds under 90% (cloudy winters left holes and smeared patches with fewer, alex's Kafir Peak
+# recording). Built 2026-11-10 (from its branch); runs by hand only (Run workflow: some sites, e.g. "6,20", or empty =
+# all 48, ~3 hours), so merging it doesn't build everything again.
+# Needs the repository secret CLOUDFLARE_API_TOKEN (Cloudflare Pages: Edit), as pages.yml.
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Only these site numbers, e.g. 6,20,24 (0-47); empty = all"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sharp-canada
+  cancel-in-progress: false
+
+jobs:
+  passes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      sites: ${{ steps.sites.outputs.sites }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Satellite passes for every square (Earth Search, free)
+        run: |
+          python3 - <<'EOF'
+          import json, math
+          sq = json.load(open("data/sharp-canada.json"))
+          west = [b for b in sq if b[0] / 2048 * 360 - 180 < -110]
+          east = [b for b in sq if b[0] / 2048 * 360 - 180 >= -110]
+          json.dump(west, open("west.json", "w")); json.dump(east, open("east.json", "w"))
+          print(len(west), "west,", len(east), "east")
+          EOF
+          # West: January to March (snow stays); east of the Rockies it melts sooner: January to mid-March.
+          OUT=$PWD/more.json WHEN=2026-01-01T00:00:00Z/2026-03-31T23:59:59Z MAXCLOUD=90 KEEP=40 python3 scripts/winter-photos/scenes.py west.json | tail -2
+          OUT=$PWD/more.json WHEN=2026-01-01T00:00:00Z/2026-03-15T23:59:59Z MAXCLOUD=90 KEEP=40 python3 scripts/winter-photos/scenes.py east.json | tail -2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: passes
+          path: more.json
+      - id: sites
+        run: |
+          only="${{ github.event.inputs.only }}"
+          if [ -n "$only" ]; then echo "sites=[$only]" >> $GITHUB_OUTPUT
+          else echo "sites=$(python3 -c 'print(list(range(48)))')" >> $GITHUB_OUTPUT; fi
+
+  build:
+    needs: passes
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        site: ${{ fromJSON(needs.passes.outputs.sites) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: passes
+      - name: Tools (CPU torch, SEN2SR)
+        run: |
+          pip install -q --index-url https://download.pytorch.org/whl/cpu torch
+          pip install -q sen2sr mlstac rasterio matplotlib einops timm pillow numpy
+      - name: The sharpening model, once (four workers downloading it at the same time broke it)
+        run: python3 -c "import mlstac; mlstac.download(file='https://huggingface.co/tacofoundation/sen2sr/resolve/main/SEN2SRLite/NonReference_RGBN_x4/mlm.json', output_dir='scripts/winter-photos/sr-model')"
+      - name: This site's squares
+        run: |
+          python3 -c "
+          import json; k = ${{ matrix.site }}
+          sq = [b for b in json.load(open('data/sharp-canada.json')) if (b[0] * 31 + b[1]) % 48 == k]
+          json.dump(sq, open('mine.json', 'w')); print(len(sq), 'squares')"
+      - name: Sharpen (about 2 minutes a square)
+        run: |
+          SCENES=$PWD/more.json WORKERS=4 SR_THREADS=1 python3 scripts/winter-photos/sharpen.py blocks mine.json 2>&1 | grep --line-buffered -v "it/s\]\|s/it\]\|^skip" || true
+          ls blocks | grep -c png || { echo "::error::no square came out"; exit 1; }
+      - name: Cut into tiles, zooms 11-15
+        run: |
+          mkdir -p w2 site/trail-finder-winter2
+          python3 scripts/winter-photos/sharpen.py --tiles blocks w2
+          python3 scripts/winter-photos/sharp-mid.py w2 site
+          cp -r w2/15 site/trail-finder-winter2/15
+          cp w2/sharp.json site/trail-finder-winter2/sharp.json
+          printf '/*\n  Access-Control-Allow-Origin: *\n' > site/_headers
+          echo "Not found" > site/404.html
+          du -sh site && find site -type f | wc -l
+          if [ "$(find site -type f | wc -l)" -gt 19900 ]; then echo "::error::more than Cloudflare Pages' 20,000 files"; exit 1; fi
+      - name: Publish to Cloudflare Pages (trailfinder-sharpca-${{ matrix.site }})
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 9ad76bdf11abb4440ad064451cf06d9a
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::error::Add the CLOUDFLARE_API_TOKEN repository secret (Settings > Secrets and variables > Actions)."; exit 1; fi
+          npx --yes wrangler@4 pages project create trailfinder-sharpca-${{ matrix.site }} --production-branch main || true
+          for try in 1 2 3; do npx --yes wrangler@4 pages deploy site --project-name trailfinder-sharpca-${{ matrix.site }} --branch main --commit-dirty=true && break; [ $try = 3 ] && exit 1; sleep 30; done
