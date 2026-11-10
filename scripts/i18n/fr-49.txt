@@ -1,0 +1,2 @@
+Then tap the map to go on from its end. ||| Puis touchez la carte pour continuer depuis sa fin.
+Skiing: pick a tour (from Ask or the list), then tap ✎ Plan a tour: its line stays in your plan, and each point you tap goes on from its end. ↶ Undo takes the points back off. ||| Ski : choisissez une sortie (avec Demander ou dans la liste), puis touchez ✎ Planifier une sortie : son tracé reste dans votre plan, et chaque point touché continue depuis sa fin. ↶ Annuler retire les points.

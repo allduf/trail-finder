@@ -1,0 +1,44 @@
+name: Fix PR conflicts
+
+# After main changes (a PR merged), merges main into every open PR and fixes the conflicts that only come from PRs
+# running side by side: new lines at the top of data/changelog.json, French lines in scripts/i18n/ (i18n-fr.js is made
+# again), and the shared ?v= / sw.js tf- number (one new number above main and every open PR). Then it starts the
+# required iPhone test on the new commit so auto-merge can go on. Real code conflicts are never touched: the PR gets a
+# comment naming the files. Rules: scripts/pr-fix/resolve.mjs. Test: node scripts/pr-fix/test.mjs
+# Leave a PR alone: give it the label "no-auto-fix".
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17,47 * * * *"   # also catches a PR opened already in conflict
+  workflow_dispatch:
+
+permissions:
+  contents: write        # push the merge to the PR branch
+  pull-requests: write
+  issues: write          # the comment on a real conflict
+  actions: write         # start the phone test (a push by this workflow starts no checks by itself)
+
+concurrency:
+  group: pr-fix
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Fix the PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp -r scripts/pr-fix "$RUNNER_TEMP/pr-fix"
+          node "$RUNNER_TEMP/pr-fix/run.mjs"
