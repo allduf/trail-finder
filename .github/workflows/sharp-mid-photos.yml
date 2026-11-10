@@ -6,8 +6,8 @@ name: Publish sharpened Winter photos, zooms 11-15
 # (https://trailfinder-sharpmid.pages.dev/trail-finder-winter2/, ~11,400 files, Pages takes 20,000 a project), which
 # map3d.js read until 2026-11-10. Runs when the script or this file changes, and by hand: run it again after the
 # sharpened squares are rebuilt (and bump SHARP_REV in map3d.js and winter-hd.js, as for the zoom-15 ones).
-# Since 2026-11-10 (Whistler to Lillooet and Gold Bridge, ~220 squares) the zoom-15 photos are published here too, and
-# every zoom goes to six sites trailfinder-sharp-0..5 split by square (scripts/winter-photos/sharp-sites.py; map3d.js
+# Since 2026-11-10 (Whistler to Lillooet and Gold Bridge, Revelstoke to Banff, ~390 squares) the zoom-15 photos are published here too, and
+# every zoom goes to ten sites trailfinder-sharp-0..9 split by square (scripts/winter-photos/sharp-sites.py; map3d.js
 # tfSharpSite): too many files for one. Run it by hand after merging rebuilt squares in allduf/trail-finder-winter2.
 # Needs the repository secret CLOUDFLARE_API_TOKEN (Cloudflare Pages: Edit), as pages.yml.
 on:
@@ -45,15 +45,15 @@ jobs:
         run: |
           python3 app/scripts/winter-photos/sharp-mid.py w2 site
           du -sh site && find site -type f | wc -l
-      - name: Split zooms 11-15 over six sites
+      - name: Split zooms 11-15 over ten sites
         run: python3 app/scripts/winter-photos/sharp-sites.py w2 site sites
-      - name: Publish to Cloudflare Pages (trailfinder-sharp-0..5)
+      - name: Publish to Cloudflare Pages (trailfinder-sharp-0..9)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: 9ad76bdf11abb4440ad064451cf06d9a
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::error::Add the CLOUDFLARE_API_TOKEN repository secret (Settings > Secrets and variables > Actions)."; exit 1; fi
-          for k in 0 1 2 3 4 5; do
+          for k in 0 1 2 3 4 5 6 7 8 9; do
             npx --yes wrangler@4 pages project create trailfinder-sharp-$k --production-branch main || true
             for try in 1 2 3; do npx --yes wrangler@4 pages deploy sites/sharp-$k --project-name trailfinder-sharp-$k --branch main --commit-dirty=true && break; [ $try = 3 ] && exit 1; sleep 20; done
           done

@@ -68,8 +68,8 @@ const lum = (img, fx, fy) => 0.3 * at(img, fx, fy, 0) + 0.59 * at(img, fx, fy, 1
 // each photo site is split by zoom-11 square: trail-finder-winter on trailfinder-w1-0..13, -winter2 on trailfinder-w2-0..3
 // (zooms under 11, blocks.json and sharp.json on -0). The netlify.app address stays the name used everywhere else.
 // AI-sharpened Winter photos, zooms 11-15 (2026-11-10, alex: "Make all the map you see ai resolution"): split by zoom-11
-// square over trailfinder-sharp-0..5 (Cloudflare Pages takes 20,000 files a site; sharp.json on -0).
-const tfSharpSite = (z, x, y) => `https://trailfinder-sharp-${z < 11 ? 0 : ((x >> (z - 11)) * 31 + (y >> (z - 11))) % 6}.pages.dev/trail-finder-winter2/`;
+// square over trailfinder-sharp-0..9 (Cloudflare Pages takes 20,000 files a site; sharp.json on -0).
+const tfSharpSite = (z, x, y) => `https://trailfinder-sharp-${z < 11 ? 0 : ((x >> (z - 11)) * 31 + (y >> (z - 11))) % 10}.pages.dev/trail-finder-winter2/`;
 const tfWinterShard = (u, z, x, y) => {
   const m = /^https:\/\/trailfinder-winter2\.netlify\.app\/(trail-finder-winter2?)\//.exec(u);
   if (!m) return u;
