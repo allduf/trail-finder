@@ -7,7 +7,8 @@
 <meta name="theme-color" content="#1f6f4a">
 <title>Support · Trail Finder</title>
 <style>
-/* Support page: linked from More and the App Store listing (Apple needs a support address). */
+/* Support page: linked from More and the App Store listing (Apple needs a support address).
+   English and French on one page (Quebec Bill 96), like privacy.html: the language follows the app (tf:lang) or the phone. */
 :root {
   --bg: #f3f5f2; --panel: #ffffff; --fg: #1d2420; --muted: #5c6862; --line: #d9dfda; --accent: #1f6f4a;
   --font-display: "Arial Narrow", system-ui, sans-serif;
@@ -29,18 +30,21 @@ p, li { max-width: 65ch; }
 a { color: var(--accent); }
 ul { padding-left: 20px; }
 li { margin: 4px 0; }
+.lang { float: right; padding: 8px 0; }
+[hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <main>
-<a class="back" href="./">← Back to the map</a>
+<section lang="en" data-l="en">
+<a class="back" href="./">← Back to the map</a><a class="lang" href="#fr" data-to="fr">Français</a>
 <h1>Support</h1>
 <p>Something not working, a trail that's wrong, or an idea? We'd like to hear it.</p>
 
 <div class="card">
   <h2 style="margin-top:0">Write to us</h2>
-  <p>Email <a href="mailto:trailfinder.help@outlook.com">trailfinder.help@outlook.com</a>. We usually answer within a few days.</p>
-  <p id="mail">In the iPhone app you can also take a screenshot and tap <b>Share Beta Feedback</b>, or open TestFlight → Trail Finder → <b>Send Beta Feedback</b>.</p>
+  <p>Email <a href="mailto:trailfinder.help@outlook.com">trailfinder.help@outlook.com</a>, in English or French. We usually answer within a few days.</p>
+  <p id="mail">If you test the iPhone app with TestFlight, you can also take a screenshot and tap <b>Share Beta Feedback</b>, or open TestFlight → Trail Finder → <b>Send Beta Feedback</b>.</p>
   <p>You can also open an issue on <a href="https://github.com/allduf/trail-finder/issues">GitHub</a>.</p>
 </div>
 
@@ -55,6 +59,47 @@ li { margin: 4px 0; }
   <li><b>Report a post:</b> tap ⚑ Report under a trail report, a rider photo or rider grades, or Hide this rider. Rules for posts: <a href="terms.html">Terms and safety</a>.</li>
 </ul>
 <p class="muted">Trails, closures and avalanche ratings come from public data and can be out of date. Always check local rules and conditions before you go.</p>
+</section>
+
+<section lang="fr" data-l="fr" hidden>
+<a class="back" href="./">← Retour à la carte</a><a class="lang" href="#en" data-to="en">English</a>
+<h1>Aide et soutien</h1>
+<p>Quelque chose ne fonctionne pas, un sentier est erroné ou vous avez une idée? Écrivez-nous.</p>
+
+<div class="card">
+  <h2 style="margin-top:0">Nous écrire</h2>
+  <p>Courriel : <a href="mailto:trailfinder.help@outlook.com">trailfinder.help@outlook.com</a>, en français ou en anglais. Nous répondons habituellement en quelques jours.</p>
+  <p>Si vous testez l’application iPhone avec TestFlight, vous pouvez aussi faire une capture d’écran et toucher <b>Envoyer un commentaire bêta</b>, ou ouvrir TestFlight → Trail Finder → <b>Envoyer un commentaire bêta</b>.</p>
+  <p>Vous pouvez aussi ouvrir un signalement sur <a href="https://github.com/allduf/trail-finder/issues">GitHub</a> (en anglais).</p>
+</div>
+
+<h2>Réponses rapides</h2>
+<ul>
+  <li><b>La carte est vide ou bloquée :</b> fermez complètement l’application et rouvrez-la. Elle charge la version la plus récente à chaque ouverture.</li>
+  <li><b>Pas de point GPS :</b> autorisez la localisation pour Trail Finder dans Réglages → Confidentialité et sécurité → Service de localisation.</li>
+  <li><b>Pas d’alertes :</b> activez les notifications pour Trail Finder dans Réglages, puis touchez 🔔 dans l’application.</li>
+  <li><b>Sauvegardes absentes sur un autre appareil :</b> connectez-vous avec le même compte sur les deux, puis ouvrez Enregistrés.</li>
+  <li><b>Un sentier est erroné ou manquant :</b> les sentiers viennent d’OpenStreetMap. Touchez le sentier et envoyez un rapport, ou écrivez-nous.</li>
+  <li><b>Supprimer mon compte :</b> Plus → Compte → Réglages → Supprimer mon compte. Voir <a href="privacy.html#fr">Confidentialité</a>.</li>
+  <li><b>Signaler une publication :</b> touchez ⚑ Signaler sous un rapport de sentier, une photo ou des cotes d’usagers, ou Masquer cet usager. Règles des publications : <a href="terms.html#fr">Conditions et sécurité</a>.</li>
+</ul>
+<p class="muted">Les sentiers, les fermetures et les cotes d’avalanche viennent de données publiques et peuvent être périmés. Vérifiez toujours les règles et les conditions locales avant de partir.</p>
+</section>
 </main>
+<script>
+// The language follows the app (tf:lang, i18n.js), else the phone; #fr / #en or the link at the top switch it.
+(function () {
+  var pick = location.hash === "#fr" ? "fr" : location.hash === "#en" ? "en" : null;
+  if (!pick) { try { pick = localStorage.getItem("tf:lang"); } catch (e) {} }
+  if (pick !== "fr" && pick !== "en") pick = /^fr/i.test(navigator.language || "") ? "fr" : "en";
+  function show(l) {
+    document.querySelectorAll("[data-l]").forEach(function (s) { s.hidden = s.dataset.l !== l; });
+    document.documentElement.lang = l;
+    document.title = l === "fr" ? "Aide et soutien · Trail Finder" : "Support · Trail Finder";
+  }
+  show(pick);
+  document.addEventListener("click", function (e) { var a = e.target.closest("[data-to]"); if (a) { e.preventDefault(); show(a.dataset.to); scrollTo(0, 0); } });
+})();
+</script>
 </body>
 </html>
