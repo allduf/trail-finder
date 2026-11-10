@@ -1748,6 +1748,8 @@
     "Lift status: every ski hill in Canada now has its lifts on the Skiing map, and a ski run's card says if the run is open today when the resort's own report names it (Ski Garceau first).":"État des remontées : chaque centre de ski au Canada a maintenant ses remontées sur la carte Ski, et la fiche d'une piste dit si elle est ouverte aujourd'hui quand le rapport de la station la nomme (Ski Garceau d'abord).",
     "Skiing 3D: searching a mountain or ridge no longer lands the camera inside the slope (blurry for several seconds), and a red pin with its name shows exactly where the place is. Tap the pin to take it away.":"Ski en 3D : chercher une montagne ou une crête ne pose plus la caméra dans la pente (floue pendant plusieurs secondes), et une épingle rouge avec son nom montre exactement où est l'endroit. Touchez l'épingle pour l'enlever.",
     "Skiing 3D: route and run lines far off on the horizon are no longer drawn as specks. Lines fade out in the distance, and the map is quicker after each move.":"Ski en 3D : les lignes des itinéraires et des pistes loin à l'horizon ne sont plus dessinées en petits points. Les lignes s'effacent au loin, et la carte est plus rapide après chaque déplacement.",
+    "Then tap the map to go on from its end.":"Puis touchez la carte pour continuer depuis sa fin.",
+    "Skiing: pick a tour (from Ask or the list), then tap ✎ Plan a tour: its line stays in your plan, and each point you tap goes on from its end. ↶ Undo takes the points back off.":"Ski : choisissez une sortie (avec Demander ou dans la liste), puis touchez ✎ Planifier une sortie : son tracé reste dans votre plan, et chaque point touché continue depuis sa fin. ↶ Annuler retire les points.",
     "Hiking":"Randonnée",
     "Hikes":"Randos",
     "Hike":"Rando",
@@ -2306,6 +2308,9 @@
     [/^(.+) says (\d+) of its (\d+) lifts run today( but not which ones)?\.$/, function (m, n, a, b, w) { return n + " indique que " + a + " de ses " + b + " remontées fonctionnent aujourd'hui" + (w ? ", sans dire lesquelles" : "") + "."; }],
     [/^The resort's report has no time on it: checked (.+)\.$/, function (m, t) { var a = /^(\d+) min ago$/.exec(t), h = /^(\d+) h ago$/.exec(t); return "Le rapport de la station n'indique pas d'heure : vérifié " + (t === "just now" ? "à l'instant" : a ? "il y a " + a[1] + " min" : h ? "il y a " + h[1] + " h" : t) + "."; }],
     [/^From the resort's own report, checked (.+):$/, function (m, t) { var a = /^(\d+) min ago$/.exec(t), h = /^(\d+) h ago$/.exec(t), d = /^(\d+) days? ago$/.exec(t); return "Du rapport de la station, vérifié " + (t === "just now" ? "à l'instant" : a ? "il y a " + a[1] + " min" : h ? "il y a " + h[1] + " h" : d ? "il y a " + d[1] + " j" : t) + " :"; }],
+    // winter.js: the tour picked on its card is the start of Plan a tour (2026-11-10)
+    [/^(.+) is in your tour\. Tap the map to go on from its end\.$/, "$1 est dans votre sortie. Touchez la carte pour continuer depuis sa fin."],
+    [/^Putting (.+) in your tour…$/, "Ajout de $1 à votre sortie…"],
     [/^📂 Saved tours \((\d+)\)$/, "📂 Sorties enregistrées ($1)"],   // winter.js, the tour card
     [/^✓ Saved as (.+)$/, "✓ Enregistrée sous « $1 »"],
     // winter.js noFcWhy: why a Less exposed way has no avalanche forecast in it
