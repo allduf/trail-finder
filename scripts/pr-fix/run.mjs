@@ -27,6 +27,34 @@ function commentOnce(p, sha, body) {
   gh(["api", "-X", "POST", `repos/${repo}/issues/${p.number}/comments`, "--input", "-"], JSON.stringify({ body: `${MARK}${sha} -->\n${body}` }));
 }
 
+// The required iPhone test on the commit just pushed. GitHub holds the PR's own test run of a push made by this
+// workflow as "waiting for approval" (seen on #710, 2026-11-10), and that waiting run can leave the PR "blocked" even
+// once another phone run passed. So: start that held run again (it then runs like any PR test); if there is none or
+// GitHub refuses, start the test by hand on the branch instead.
+function startPhoneTest(p, sha) {
+  let held = [];
+  for (let i = 0; i < 6 && !held.length; i++) {
+    execFileSync("sleep", ["10"]);
+    try {
+      held = JSON.parse(gh(["api", `repos/${repo}/actions/workflows/phone-test.yml/runs?head_sha=${sha}&event=pull_request&per_page=10`]))
+        .workflow_runs.filter((r) => r.conclusion === "action_required");
+    } catch { /* try again */ }
+  }
+  let restarted = false;
+  for (const r of held) {
+    try { gh(["api", "-X", "POST", `repos/${repo}/actions/runs/${r.id}/rerun`]); restarted = true; console.log(`#${p.number}: started the held phone test again (run ${r.id})`); }
+    catch (e) { console.log(`#${p.number}: could not restart held run ${r.id}: ${String(e.stderr || e.message).split("\n")[0]}`); }
+  }
+  if (restarted) {
+    execFileSync("sleep", ["15"]);
+    const again = JSON.parse(gh(["api", `repos/${repo}/actions/runs/${held[0].id}`]));
+    if (again.status !== "completed" || again.conclusion !== "action_required") return;
+    console.log(`#${p.number}: the restarted run is held again`);
+  }
+  try { gh(["workflow", "run", "phone-test.yml", "--repo", repo, "--ref", p.headRefName]); console.log(`#${p.number}: started the phone test on the branch`); }
+  catch (e) { console.log(`#${p.number}: could not start the phone test: ${e.message}`); }
+}
+
 let fixed = 0, stuck = 0;
 for (const p of prs) {
   const others = [...versions].filter(([n]) => n !== p.number).map(([, v]) => v);
@@ -52,9 +80,7 @@ for (const p of prs) {
       continue;
     }
     if (r.version) versions.set(p.number, r.version);
-    // a push made by this workflow starts no checks by itself: start the required iPhone test on the new commit
-    try { gh(["workflow", "run", "phone-test.yml", "--repo", repo, "--ref", p.headRefName]); }
-    catch (e) { console.log(`#${p.number}: could not start the phone test: ${e.message}`); }
+    startPhoneTest(p, git(dir, ["rev-parse", "HEAD"]).trim());
     fixed++;
   } else if (r.status === "conflict") {
     stuck++;
