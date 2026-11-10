@@ -33,6 +33,10 @@ ul.ps-hits:empty { display: none; }
 .ps-tx b { font-weight: 650; font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ps-tx small { color: var(--muted); font-size: .76rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ps-more { color: #1f5fe0; font-weight: 700; font-size: .88rem; }
+.ps-pin { position: relative; width: 0; height: 0; cursor: pointer; }
+.ps-pin-dot { position: absolute; left: -15px; top: -40px; width: 30px; height: 40px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.55)); }
+.ps-pin-name { position: absolute; left: 0; bottom: 44px; transform: translateX(-50%); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis;
+  font: 700 13px/1.2 var(--font-body, system-ui); color: #111; background: #fff; padding: 4px 9px; border-radius: 9px; box-shadow: 0 1px 5px rgba(0,0,0,.45); }
 `;
   document.head.append(css);
 
@@ -142,7 +146,13 @@ ul.ps-hits:empty { display: none; }
     }
     // The phone sheet first, so the box fits above it.
     if (o.sheet !== false && window.tfSnapTo) window.tfSnapTo(o.sheet || "half");
-    const b = L.latLngBounds([bb[0], bb[2]], [bb[1], bb[3]]);
+    let b = L.latLngBounds([bb[0], bb[2]], [bb[1], bb[3]]);
+    // A ridge, glacier or lake (an outline up to ~5 km): the spot found in the middle, where its pin goes, not the
+    // outline's middle, which can be off it (Microwave Ridge's was 1 km away: in 3D its pin ended up past the top).
+    if (p.lat != null && bb[1] - bb[0] < 0.05 && bb[3] - bb[2] < 0.08 && b.contains([p.lat, p.lon])) {
+      const h = Math.max(p.lat - bb[0], bb[1] - p.lat), w = Math.max(p.lon - bb[2], bb[3] - p.lon);
+      b = L.latLngBounds([p.lat - h, p.lon - w], [p.lat + h, p.lon + w]);
+    }
     // The zoom where the box just fits what shows (rounded, not always down: a whole step out left the place small),
     // and the box's middle in the middle of what shows. The 3D map sits one step further out, so one step closer there.
     const pad = window.tfMapPad ? window.tfMapPad() : { tl: [0, 0], br: [0, 0] };
@@ -155,7 +165,46 @@ ul.ps-hits:empty { display: none; }
     // In 3D it's also looked at less tilted for a search, so the place fills the screen, not the far valleys behind it.
     if (d3 && window.tf3dSearchView) window.tf3dSearchView({ lat: b.getCenter().lat, lon: b.getCenter().lng, dy: (br.y - tl.y) / 2, km: (bb[1] - bb[0]) * 111.32 });
     map.setView(map.unproject(c, z), z, { animate: false });
+    if (o.pin !== false) dropPin(p, bb);
   }
+
+  // ---------- the place's pin ----------
+  // A red pin with the place's name on the spot found, on the flat map and the 3D map (alex 2026-11-09, recording of a
+  // search for Microwave Ridge: "it not clear where it is exactly": the ridge's name was one small label among the
+  // peaks'). Not for a whole region (its middle isn't a place). It stays until the next search, a tap on it, or another
+  // sport.
+  const PIN_SVG = `<svg class="ps-pin-dot" viewBox="0 0 30 40" aria-hidden="true"><path d="M15 39C15 39 28 24.5 28 14A13 13 0 0 0 2 14C2 24.5 15 39 15 39Z" fill="#e0262b" stroke="#fff" stroke-width="2.4"/><circle cx="15" cy="14" r="5" fill="#fff"/></svg>`;
+  let pin2 = null, pin3 = null, pinAt = null;
+  const pinEl = (p) => {
+    const el = document.createElement("div");
+    el.className = "ps-pin";
+    el.title = p.name + " (tap to take the pin away)";
+    el.innerHTML = `<span class="ps-pin-name">${esc(p.name)}</span>${PIN_SVG}`;
+    return el;
+  };
+  function clearPin() {
+    if (pin2) pin2.remove();
+    if (pin3) pin3.remove();
+    pin2 = pin3 = pinAt = null;
+  }
+  function pin3d() {
+    const gl = window.tf3dGl && window.tf3dGl();
+    if (!pinAt || !gl || !window.maplibregl || (pin3 && pin3._map === gl)) return;
+    if (pin3) pin3.remove();   // a new 3D map (it's made again after a long time away)
+    const el = pinEl(pinAt);
+    el.addEventListener("click", (e) => { e.stopPropagation(); clearPin(); });
+    pin3 = new maplibregl.Marker({ element: el, anchor: "center", opacityWhenCovered: 1 }).setLngLat([pinAt.lon, pinAt.lat]).addTo(gl);
+  }
+  function dropPin(p, bb) {
+    clearPin();
+    if (!p || !p.name || p.lat == null || (bb && bb[1] - bb[0] > 0.15)) return;
+    pinAt = { name: p.name, lat: p.lat, lon: p.lon };
+    pin2 = L.marker([p.lat, p.lon], { icon: L.divIcon({ className: "", html: pinEl(pinAt).outerHTML, iconSize: [0, 0], iconAnchor: [0, 0] }), zIndexOffset: 2000, title: p.name, keyboard: false })
+      .on("click", (e) => { L.DomEvent.stopPropagation(e); clearPin(); }).addTo(map);
+    pin3d();
+  }
+  window.addEventListener("tf:map3d", pin3d);   // the 3D map opened after the search
+  window.addEventListener("tf:sport", clearPin);
 
   // ---------- towns while typing ----------
   // Every sport's box offers Canadian towns, places and parks as you type (fix list item 38, 2026-11-02: Hunting
@@ -334,5 +383,5 @@ ul.ps-hits:empty { display: none; }
   // towns(q, n, then): the Canadian towns and places named q while typing (Skiing's find box); then() runs once the
   // list has loaded, the first time.
   const townsNamed = (q, n, then) => { if (!towns) loadTowns(then); return townHits(q, n); };
-  window.tfPlaceSearch = { search, go, box, parseGps, hitHtml, towns: townsNamed, live, addNew, slips, norm };
+  window.tfPlaceSearch = { search, go, clearPin, box, parseGps, hitHtml, towns: townsNamed, live, addNew, slips, norm };
 })();
