@@ -90,14 +90,14 @@
     { g: "Backcountry", keys: ["tour", "access", "park", "other", "hut"], routes: true },
     // Picture tiles, 3 to a row, like FATMAP's terrain layers: what each one looks like on the mountains.
     { g: "Avalanche and terrain", slot: "avy", keys: ["slope", "aspect", "runout", "flats", "elev"], tiles: true },
-    { g: "Snow and weather", keys: ["snow", "fresh", "snowfc"], slot: "wx", slotAfter: true },
+    { g: "Snow and weather", keys: ["snow", "fresh", "snowfc1", "snowfc2", "snowfc"], slot: "wx", slotAfter: true },
     { g: "Nordic and snowmobile", keys: ["nordic", "snowshoe", "snowmobile", "club"], routes: true },
     { g: "Resorts", keys: ["resort", "offpiste"], routes: true, slot: "resort", slotAfter: true },
     { g: "Places and tracks", slot: "places", keys: ["heat", "mine"] },
   ];
   const SNOW = { label: "Snow stations", color: "#0b7285" };
   const LABEL = (k) => (TYPES[k] || { hut: HUT, park: PARK, heat: HEAT, mine: MINE, club: CLUB, snow: SNOW, slope: { label: "Slope angle" }, aspect: { label: "Slope direction" }, runout: { label: "Runout zones and traps" },
-    flats: { label: "Flats" }, elev: { label: "Elevation bands" }, fresh: { label: "New snow and rain (24 h)" }, snowfc: { label: "Snow and rain forecast (3 days)" } }[k]).label;
+    flats: { label: "Flats" }, elev: { label: "Elevation bands" }, fresh: { label: "New snow and rain (24 h)" }, snowfc1: { label: "Snow and rain forecast (24 h)" }, snowfc2: { label: "Snow and rain forecast (2 days)" }, snowfc: { label: "Snow and rain forecast (3 days)" } }[k]).label;
   // Avalanche Canada's danger scale colours.
   const DANGER = [
     { label: "No rating", color: "#9aa3ad" }, { label: "1 Low", color: "#52ba4a" }, { label: "2 Moderate", color: "#fff300" },
@@ -734,7 +734,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   if (!store.get("skiSnowAdded", false)) { if (shown.has("tour")) shown.add("snow"); store.set("skiSnowAdded", true); store.set("skiLayers2", [...shown]); }
   if (!store.get("skiParkAdded", false)) { if (shown.has("access")) shown.add("park"); store.set("skiParkAdded", true); store.set("skiLayers2", [...shown]); }
   // The ground colours (Avalanche risk and the shaded terrain and snow layers): one at a time (window.tfOneGround).
-  const GROUND = ["avy", "slope", "aspect", "runout", "flats", "elev", "fresh", "snowfc"];
+  const GROUND = ["avy", "slope", "aspect", "runout", "flats", "elev", "fresh", "snowfc1", "snowfc2", "snowfc"];
   // k just went on: the other ground colours go off. Returns the keys turned off (the caller redraws them).
   function oneGround(k) {
     const s = new Set(shown);
@@ -1143,11 +1143,13 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     flats: "background:#38d9a9",
     elev: "background:linear-gradient(180deg, #9775fa, #ffd43b 50%, #51cf66)",
     fresh: "background:linear-gradient(135deg, #d0ebff, #748ffc 50%, #e64980)",
+    snowfc1: "background:linear-gradient(135deg, #d0ebff, #748ffc 50%, #e64980)",
+    snowfc2: "background:linear-gradient(135deg, #d0ebff, #748ffc 50%, #e64980)",
     snowfc: "background:linear-gradient(135deg, #d0ebff, #748ffc 50%, #e64980)",
     heat: `background:linear-gradient(135deg, ${HEAT.ramp.join(", ")})`,
     mine: `border:3px solid ${MINE.color}`,
   };
-  const SW_SYM = { club: "❄", snow: "❄", park: "P", fresh: "❄", snowfc: "🌨" };
+  const SW_SYM = { club: "❄", snow: "❄", park: "P", fresh: "❄", snowfc1: "🌨", snowfc2: "🌨", snowfc: "🌨" };
   const swIcon = (k) => {
     const t = TYPES[k];
     const st = t ? `border:3px ${t.dashArray ? "dashed" : "solid"} ${t.color}` : SW_ICON[k] || "";
@@ -1164,8 +1166,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     runout: "Where avalanches from steep slopes above can reach, and the gullies and creek beds where snow piles up deep",
     flats: "Nearly flat ground (under 5°): where you'll have to skate, pole or skin out, and where a splitboard has to switch to walk mode",
     elev: "The three heights of the avalanche forecast: below treeline, treeline and alpine, at the heights used for that area",
-    fresh: "Snow that fell in the last 24 hours, in centimetres; where it rained instead, the rain in millimetres in greens (Open-Meteo weather model)",
-    snowfc: "Snow coming in the next 3 days, in centimetres; where rain comes instead, the rain in millimetres in greens (Open-Meteo weather model)",
+    fresh: "Snow that fell in the last 24 hours, in centimetres; where it rained instead, the rain in millimetres in greens. Split by each spot's height and the freezing level (Open-Meteo weather model)",
+    snowfc1: "Snow coming in the next 24 hours, in centimetres; where rain comes instead, the rain in millimetres in greens. Split by each spot's height and the freezing level (Open-Meteo weather model)",
+    snowfc2: "Snow coming in the next 2 days, in centimetres; where rain comes instead, the rain in millimetres in greens. Split by each spot's height and the freezing level (Open-Meteo weather model)",
+    snowfc: "Snow coming in the next 3 days, in centimetres; where rain comes instead, the rain in millimetres in greens. Split by each spot's height and the freezing level (Open-Meteo weather model)",
   };
   const thumbs = {};   // picture tiles' pictures (makeThumbs)
   function renderSwitches() {
@@ -1707,10 +1711,59 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const p = fetch(`${WX}?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}${ele != null ? `&elevation=${Math.round(ele)}` : ""}&timezone=auto&past_days=7&forecast_days=8`
       + "&daily=weather_code,temperature_2m_max,temperature_2m_min,snowfall_sum,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant"
       + "&hourly=freezing_level_height,temperature_2m,precipitation,snowfall,wind_speed_10m,wind_direction_10m&current=temperature_2m,weather_code")
-      .then((r) => { if (!r.ok) throw new Error(r.status === 429 ? "too many requests today, try later" : `HTTP ${r.status}`); return r.json(); });
+      .then((r) => { if (!r.ok) throw new Error(r.status === 429 ? "too many requests today, try later" : `HTTP ${r.status}`); return r.json(); })
+      .then((w) => splitAtHeight(w, ele));
     p.catch(() => wxCache.delete(key));
     wxCache.set(key, { at: Date.now(), p });
     return p;
+  }
+  // Snow or rain at a height (alex 2026-11-10: "how accurate the rain/snow forecast is? check specially with the
+  // elevation. im pretty sure it will rain in the valley", "keep it really accurate with the elevation and the freezing
+  // level"). Open-Meteo's own snowfall comes from the weather model's smoothed ground: near Gold Bridge it gave 7 cm of
+  // snow at 1,530 m and 8 cm at 1,315 m for the next 3 days with the freezing level never under 1,490 m, and the map's
+  // grid points (7-11 km apart, often on a ridge) coloured the valleys between them with that snow. So the share of
+  // snow is worked out here, hour by hour, from the freezing level and the real height: all snow from 200 m under the
+  // freezing level up, all rain from 600 m under it down, mixed in between. That day Environment Canada's HRDPS snow
+  // level ran a median of about 400 m under Open-Meteo's freezing level (Whistler, Squamish, Gold Bridge, Lillooet), the
+  // middle of the mix. The temperature at the height isn't used when there's a freezing level: it's the model ground's,
+  // carried up or down at 6.5°C per km, and at the Gold Bridge spot (2,118 m) it read -0.4°C under a freezing level of
+  // 2,620 m in a warm front, when Environment Canada's snow level was 2,240-2,370 m (rain). Only a model with no
+  // freezing level gets the 0°C height from it. Open-Meteo counts 0.7 cm of snow for each mm of water; the same here.
+  const SNOW_ALL = 200, RAIN_ALL = 600, LAPSE = 0.0065, CM_PER_MM = 0.7;
+  // e: the height (m); fz: the hour's freezing level (m, or null); t: the temperature (°C) at height te. 0 (rain) to 1 (snow), or null.
+  function snowShare(e, fz, t, te) {
+    const z0 = fz != null ? fz : t != null && te != null ? te + t / LAPSE : null;
+    if (z0 == null) return null;
+    return Math.max(0, Math.min(1, (e - (z0 - RAIN_ALL)) / (RAIN_ALL - SNOW_ALL)));
+  }
+  const SNOW_CODES = [71, 73, 75, 77, 85, 86], RAIN_CODES = [51, 53, 55, 61, 63, 65, 80, 81, 82];
+  // The weather icon follows the split: a snow icon on a day that's rain at this height (or the other way) would say
+  // the opposite of the numbers next to it.
+  const codeFor = (code, snowCm, mm) => {
+    if (SNOW_CODES.includes(code) && snowCm < 0.5 && mm >= 0.2) return mm >= 10 ? 65 : mm >= 2 ? 63 : 61;
+    if (RAIN_CODES.includes(code) && snowCm >= 1 && snowCm / CM_PER_MM >= mm / 2) return snowCm >= 10 ? 75 : 73;
+    return code;
+  };
+  // Every hour's (and day's) snowfall worked out again at the height asked for, from its precipitation (weather()).
+  function splitAtHeight(w, ele) {
+    const h = w && w.hourly;
+    if (!h || !h.precipitation || !h.freezing_level_height || ele == null) return w;
+    h.snowfall = h.precipitation.map((p, i) => {
+      const s = snowShare(ele, h.freezing_level_height[i], h.temperature_2m ? h.temperature_2m[i] : null, ele);
+      return s == null ? h.snowfall[i] : (p || 0) * s * CM_PER_MM;
+    });
+    const dd = w.daily;
+    if (dd && dd.time && dd.snowfall_sum) {
+      const by = new Map();
+      h.time.forEach((t, i) => { const d = t.slice(0, 10); by.set(d, (by.get(d) || 0) + (h.snowfall[i] || 0)); });
+      dd.snowfall_sum = dd.time.map((d, i) => (by.has(d) ? by.get(d) : dd.snowfall_sum[i]));
+      if (dd.weather_code) dd.weather_code = dd.weather_code.map((c, i) => codeFor(c, dd.snowfall_sum[i] || 0, dd.precipitation_sum ? dd.precipitation_sum[i] || 0 : 0));
+    }
+    if (w.current && w.current.weather_code != null) {
+      const i = h.time.indexOf(w.current.time.slice(0, 13) + ":00");
+      if (i >= 0) w.current.weather_code = codeFor(w.current.weather_code, h.snowfall[i] || 0, h.precipitation[i] || 0);
+    }
+    return w;
   }
   const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
   // Avalanche weather: the weather signs the avalanche courses teach (and Avalanche Canada's forecasts watch): lots of
@@ -1733,10 +1786,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const a = ((h.wind_direction_10m[i] || 0) * Math.PI) / 180;
       wx += Math.sin(a) * v; wy += Math.cos(a) * v;
     }
-    // Rain: precipitation when it's above freezing at this height, last day and next day.
+    // Rain: the precipitation that isn't snow at this height (splitAtHeight), last day and next day.
     let rain = 0, warm = -99;
     for (let i = Math.max(0, i0 - 23); i <= Math.min(h.time.length - 1, i0 + 24); i++) {
-      if ((h.temperature_2m[i] ?? -99) > 0.5) rain += h.precipitation[i] || 0;
+      rain += Math.max(0, (h.precipitation[i] || 0) - (h.snowfall[i] || 0) / CM_PER_MM);
       if (i > i0) warm = Math.max(warm, h.temperature_2m[i] ?? -99);
     }
     const fzNow = h.freezing_level_height[i0], fzMax = Math.max(...h.freezing_level_height.slice(i0, i0 + 25).filter((v) => v != null));
@@ -3529,13 +3582,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     html += `<h5>Avalanche weather</h5>${signsHtml(aw, g.e)}`;
     return html;
   }
-  // What the New snow and Snow forecast map layers show at this spot (same grid and blend as their tiles), so the card
-  // can say why its numbers differ when they do: the card is worked out for the spot's own height.
+  // What the New snow and Snow forecast map layers show at this spot's height (same grid, blend and split as their
+  // tiles), so the card can say why its numbers differ when they do: the map blends the forecast points around (7-11 km
+  // apart), the card is the forecast for this very spot.
   async function spotLayerNote(lat, lon, w, g) {
     const s = snowStep(11), fi = lat / s, fj = lon / s, i = Math.floor(fi), j = Math.floor(fj), ty = fi - i, tx = fj - j;
     const v = await Promise.all([[i, j], [i, j + 1], [i + 1, j], [i + 1, j + 1]].map(([a, b]) => snowPoint(s, a, b)));
     if (v.some((x) => !x || x.err)) return "";
-    const mix = (k) => (v[0][k] * (1 - tx) + v[1][k] * tx) * (1 - ty) + (v[2][k] * (1 - tx) + v[3][k] * tx) * ty;
+    const ws = [(1 - tx) * (1 - ty), tx * (1 - ty), (1 - tx) * ty, tx * ty];
+    const mix = (span) => v.reduce((t, p, k) => t + atHeight(snowTable(p, span), g.e)[0] * ws[k], 0);
     const aw = avyWeather(w, g.e), h = w.hourly;
     if (!aw) return "";
     let i0 = h.time.findIndex((t) => t > w.current.time) - 1;
@@ -3544,7 +3599,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     for (let q = i0 + 1; q <= Math.min(h.time.length - 1, i0 + 72); q++) n72 += h.snowfall[q] || 0;
     const f = mix("f"), nx = mix("n");
     if (Math.abs(f - aw.snow24) < 3 && Math.abs(nx - n72) < 3) return "";
-    return `The map's New snow and Snow forecast colours here: ${Math.round(f)} cm in the last 24 h, ${Math.round(nx)} cm in the next 3 days. They use the weather model's smoothed ground, this card the spot's own height (${fmtM(g.e)}).`;
+    return `The map's New snow and Snow forecast colours at ${fmtM(g.e)} here: ${Math.round(f)} cm in the last 24 h, ${Math.round(nx)} cm in the next 3 days. The map blends the forecast points around (7 to 11 km apart), this card is the forecast for this spot.`;
   }
   // The closest route on the map (within 3 km), hut (within 10 km) and snow station (within 30 km).
   function spotNearHtml(lat, lon) {
@@ -4556,8 +4611,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // forecast on, measured over Whistler).
   // Far away (the 3D map's horizon) a point every half degree is plenty, and every degree at zoom 7 and out.
   const snowStep = (z) => (z >= 9 ? 0.1 : z >= 8 ? 0.5 : 1);
-  const SNOW_KEEP_MS = 2 * 3600000, SNOW_SAVE = "tf:snowGrid", SNOW_USE = "tf:snowUse";   // not synced settings
-  // "step|i|j" -> { f: snow cm in the last 24 h, n: snow cm in the next 3 days, rf / rn: rain mm the same, at } or { err, at }
+  // tf:snowGrid2 since 2026-11-10 (the hours themselves, for the split by height); the old tf:snowGrid goes.
+  const SNOW_KEEP_MS = 2 * 3600000, SNOW_SAVE = "tf:snowGrid2", SNOW_USE = "tf:snowUse";   // not synced settings
+  try { localStorage.removeItem("tf:snowGrid"); } catch {}
+  // "step|i|j" -> { e: the point's height (m), w: its wet hours [hour (0 = 24 h ago, 24 = now), mm, freezing level m or
+  // null, °C at height e], at } or { err, at }. Snow and rain at any height come from those (snowTable).
   const snowGrid = new Map();
   const snowAsk = new Map();    // waiting to be asked: key -> { lat, lon, done: [resolve], tries }
   const SNOW_PER_MIN = 250, SNOW_PER_HOUR = 2000, SNOW_TRIES = 4, SNOW_WAIT_MS = 800;
@@ -4566,16 +4624,16 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   try {
     const now = Date.now();
     snowSent = (JSON.parse(localStorage.getItem(SNOW_USE)) || []).filter((x) => now - x[0] < 3600000);
-    for (const [k, f, n, rf, rn, at] of JSON.parse(localStorage.getItem(SNOW_SAVE)) || []) if (now - at < SNOW_KEEP_MS) snowGrid.set(k, { f, n, rf, rn, at });
+    for (const [k, e, w, at] of JSON.parse(localStorage.getItem(SNOW_SAVE)) || []) if (now - at < SNOW_KEEP_MS) snowGrid.set(k, { e, w, at });
   } catch {}
   const snowSave = () => {
     if (snowSaveT) return;
     snowSaveT = setTimeout(() => {
       snowSaveT = 0;
       const now = Date.now(), keep = [];
-      const r1 = (x) => Math.round(x * 10) / 10;
-      for (const [k, v] of snowGrid) if (!v.err && now - v.at < SNOW_KEEP_MS) keep.push([k, r1(v.f), r1(v.n), r1(v.rf), r1(v.rn), v.at]);
-      try { localStorage.setItem(SNOW_SAVE, JSON.stringify(keep.slice(-4000))); localStorage.setItem(SNOW_USE, JSON.stringify(snowSent)); } catch {}
+      for (const [k, v] of snowGrid) if (!v.err && now - v.at < SNOW_KEEP_MS) keep.push([k, v.e, v.w, v.at]);
+      // Each point keeps its wet hours (about 20 numbers a rainy day), so fewer points fit than before: the latest 1,500.
+      try { localStorage.setItem(SNOW_SAVE, JSON.stringify(keep.slice(-1500))); localStorage.setItem(SNOW_USE, JSON.stringify(snowSent)); } catch {}
     }, 3000);
   };
   const snowLater = (ms) => { if (!snowTimer) snowTimer = setTimeout(snowFlush, ms); };
@@ -4598,17 +4656,19 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     for (let s = 0; s < all.length; s += 100) {
       const part = all.slice(s, s + 100);
       snowSent.push([now, part.length]);
-      fetch(`${WX}?latitude=${part.map(([, p]) => p.lat.toFixed(3)).join(",")}&longitude=${part.map(([, p]) => p.lon.toFixed(3)).join(",")}&hourly=snowfall,rain&past_hours=24&forecast_hours=72&timezone=GMT`)
+      fetch(`${WX}?latitude=${part.map(([, p]) => p.lat.toFixed(3)).join(",")}&longitude=${part.map(([, p]) => p.lon.toFixed(3)).join(",")}&hourly=precipitation,freezing_level_height,temperature_2m&past_hours=24&forecast_hours=72&timezone=GMT`)
         .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
         .then((j) => {
           snowRefused = 0;
           const list = Array.isArray(j) ? j : [j];
           part.forEach(([k, p], i) => {
-            const h = list[i] && list[i].hourly, sf = (h && h.snowfall) || [], ra = (h && h.rain) || [];
-            let f = 0, n = 0, rf = 0, rn = 0;
-            sf.forEach((v, q) => { if (q < 24) f += v || 0; else n += v || 0; });
-            ra.forEach((v, q) => { if (q < 24) rf += v || 0; else rn += v || 0; });
-            snowGrid.set(k, h ? { f, n, rf, rn, at: Date.now() } : { err: true, at: Date.now() });
+            const pt = list[i], h = pt && pt.hourly, w = [];
+            if (h && h.precipitation) h.precipitation.forEach((mm, q) => {
+              if (!(mm >= 0.05)) return;
+              const fz = h.freezing_level_height ? h.freezing_level_height[q] : null, t = h.temperature_2m ? h.temperature_2m[q] : null;
+              w.push([q, Math.round(mm * 10) / 10, fz == null ? null : Math.round(fz / 10) * 10, t == null ? null : Math.round(t * 10) / 10]);
+            });
+            snowGrid.set(k, h && h.precipitation ? { e: pt.elevation ?? null, w, at: Date.now() } : { err: true, at: Date.now() });
             p.done.forEach((d) => d());
           });
           snowSave();
@@ -4643,37 +4703,64 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // download places, which the Winter photos need too. It waited 3 s before, and the ground filled in slower after
   // each move (alex's recording, 2026-10-29); it now draws the coarse grid or the points around meanwhile.
   let snowAgain = 0;
-  const snowRedraw = () => { if (!snowAgain) snowAgain = setTimeout(() => { snowAgain = 0; snowVer++; freshLayer.redraw(); snowfcLayer.redraw(); }, 700); };
-  // The half-degree (then one-degree) grid's blend at a spot, from the points already in, or null.
-  function snowCoarse(lat, lon) {
+  const snowRedraw = () => { if (!snowAgain) snowAgain = setTimeout(() => { snowAgain = 0; snowVer++; snowLayersRedraw(); }, 700); };
+  // Snow (cm) and rain (mm) at every 100 m of height from 0 to 5,000 m at one grid point, over a span of its hours,
+  // split hour by hour at each height by snowShare. Kept on the point (worked out once per span).
+  const SNOW_SPANS = { f: [0, 24], n1: [24, 48], n2: [24, 72], n: [24, 96] }, SNOW_NL = 51;
+  function snowTable(v, span) {
+    const tb = v.tb || (v.tb = {});
+    if (tb[span]) return tb[span];
+    const [a, b] = SNOW_SPANS[span], out = new Float32Array(2 * SNOW_NL);
+    for (const [q, mm, fz, t] of v.w || []) {
+      if (q < a || q >= b) continue;
+      for (let l = 0; l < SNOW_NL; l++) {
+        const sh = snowShare(l * 100, fz, t, v.e) ?? 0;
+        out[l] += mm * sh * CM_PER_MM; out[SNOW_NL + l] += mm * (1 - sh);
+      }
+    }
+    return (tb[span] = out);
+  }
+  // A table's snow and rain at height e: [cm, mm].
+  const atHeight = (tb, e) => {
+    const f = Math.max(0, Math.min(SNOW_NL - 1.001, e / 100)), l = Math.floor(f), t = f - l;
+    return [tb[l] * (1 - t) + tb[l + 1] * t, tb[SNOW_NL + l] * (1 - t) + tb[SNOW_NL + l + 1] * t];
+  };
+  const mixTables = (ts, ws) => {
+    const out = new Float32Array(2 * SNOW_NL);
+    ts.forEach((tb, k) => { for (let l = 0; l < out.length; l++) out[l] += tb[l] * ws[k]; });
+    return out;
+  };
+  const okPoint = (v) => v && !v.err && Date.now() - v.at < SNOW_KEEP_MS;
+  // The half-degree (then one-degree) grid's blend at a spot, from the points already in, or null: [table, height].
+  function snowCoarse(lat, lon, span) {
     for (const st of [0.5, 1]) {
       const fi = lat / st, fj = lon / st, i = Math.floor(fi), j = Math.floor(fj), ty = fi - i, tx = fj - j;
       const p = [[i, j], [i, j + 1], [i + 1, j], [i + 1, j + 1]].map(([a, b]) => snowGrid.get(`${st}|${a}|${b}`));
-      if (p.some((v) => !v || v.err || Date.now() - v.at >= SNOW_KEEP_MS)) continue;
-      const mix = (k) => ((p[0][k] || 0) * (1 - tx) + (p[1][k] || 0) * tx) * (1 - ty) + ((p[2][k] || 0) * (1 - tx) + (p[3][k] || 0) * tx) * ty;
-      return { f: mix("f"), n: mix("n"), rf: mix("rf"), rn: mix("rn") };
+      if (!p.every(okPoint)) continue;
+      const ws = [(1 - tx) * (1 - ty), tx * (1 - ty), (1 - tx) * ty, tx * ty];
+      return [mixTables(p.map((v) => snowTable(v, span)), ws), p.reduce((s, v, k) => s + (v.e || 0) * ws[k], 0)];
     }
     return null;
   }
   // Missing points (not answered yet, or refused) take the average of the points next to them, a few rounds out, so a
-  // missing point leaves no bare square in the tint.
-  function snowFill(vals, R, C) {
+  // missing point leaves no bare square in the tint. vals: tables (or null), hts: heights (NaN when missing).
+  function snowFill(vals, hts, R, C) {
     for (let round = 0; round < 4; round++) {
       const miss = [];
-      for (let q = 0; q < vals.length; q++) if (Number.isNaN(vals[q])) miss.push(q);
+      for (let q = 0; q < vals.length; q++) if (!vals[q]) miss.push(q);
       if (!miss.length || miss.length === vals.length) return;
       const next = miss.map((q) => {
-        const r = (q / C) | 0, c = q % C;
-        let t = 0, n = 0;
+        const r = (q / C) | 0, c = q % C, ts = [];
+        let h = 0;
         for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [-1, 1], [1, -1], [1, 1]]) {
           const rr = r + dr, cc = c + dc;
           if (rr < 0 || cc < 0 || rr >= R || cc >= C) continue;
           const v = vals[rr * C + cc];
-          if (!Number.isNaN(v)) { t += v; n++; }
+          if (v) { ts.push(v); h += hts[rr * C + cc]; }
         }
-        return n ? t / n : NaN;
+        return ts.length ? [mixTables(ts, ts.map(() => 1 / ts.length)), h / ts.length] : null;
       });
-      miss.forEach((q, m) => { vals[q] = next[m]; });
+      miss.forEach((q, m) => { if (next[m]) { vals[q] = next[m][0]; hts[q] = next[m][1]; } });
     }
   }
   const snowColor = (cm, scale = SNOW_RGB) => {
@@ -4686,37 +4773,44 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     return null;
   };
-  const paintSnowBy = (field, rainField) => async (z, x, y) => {
+  // Each pixel is coloured for its own height (the terrain tile under it), not the grid points' heights: the snow and
+  // rain at that height at the four points around, blended by distance. So a valley between two ridge points gets the
+  // valley's rain and the ridges their snow.
+  const paintSnowBy = (span) => async (z, x, y) => {
     const out = new ImageData(256, 256), o = out.data, s = snowStep(z);
     const top = tileLat(y, z), bottom = tileLat(y + 1, z), left = tileLon(x, z), right = tileLon(x + 1, z);
     const i0 = Math.floor(bottom / s), i1 = Math.ceil(top / s), j0 = Math.floor(left / s), j1 = Math.ceil(right / s);
-    const R = i1 - i0 + 1, C = j1 - j0 + 1, vals = new Float32Array(R * C).fill(NaN), rain = new Float32Array(R * C).fill(NaN), jobs = [];
+    const R = i1 - i0 + 1, C = j1 - j0 + 1, vals = new Array(R * C).fill(null), hts = new Float32Array(R * C).fill(NaN), jobs = [];
     for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) jobs.push(snowPoint(s, i, j).then((v) => {
-      if (v && !v.err) { vals[(i - i0) * C + (j - j0)] = v[field]; rain[(i - i0) * C + (j - j0)] = v[rainField] || 0; }
+      if (v && !v.err) { vals[(i - i0) * C + (j - j0)] = snowTable(v, span); hts[(i - i0) * C + (j - j0)] = v.e ?? NaN; }
     }));
-    const all = Promise.all(jobs);
+    const all = Promise.all(jobs), heights = demTile(z, x, y).catch(() => null);
     let partial = false;
     await Promise.race([all, new Promise((ok) => setTimeout(() => { partial = true; ok(); }, SNOW_WAIT_MS))]);
     // Drawn again as each missing point comes, not only once all of them have: after a refusal the last ones can take
     // half an hour, and the ones already in should show.
     if (partial) jobs.forEach((j) => j.then(snowRedraw));
     // A close-up point still missing takes the far-away grid's value there when that's in (asked first after opening).
-    if (s < 0.5) for (let q = 0; q < vals.length; q++) if (Number.isNaN(vals[q])) {
-      const v = snowCoarse((i0 + ((q / C) | 0)) * s, (j0 + (q % C)) * s);
-      if (v) { vals[q] = v[field]; rain[q] = v[rainField] || 0; }
+    if (s < 0.5) for (let q = 0; q < vals.length; q++) if (!vals[q]) {
+      const v = snowCoarse((i0 + ((q / C) | 0)) * s, (j0 + (q % C)) * s, span);
+      if (v) { vals[q] = v[0]; hts[q] = v[1]; }
     }
-    snowFill(vals, R, C); snowFill(rain, R, C);
-    const blend = (g, ia, ja, tx, ty) => {
-      const a = g[ia * C + ja], b = g[ia * C + ja + 1], c = g[(ia + 1) * C + ja], d = g[(ia + 1) * C + ja + 1];
-      return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;   // NaN when a point is missing
-    };
+    snowFill(vals, hts, R, C);
+    const E = await heights;
     for (let py = 0; py < 256; py++) {
       const fi = tileLat(y + (py + 0.5) / 256, z) / s - i0, ia = Math.floor(fi), ty = fi - ia;
       for (let px = 0; px < 256; px++) {
         const fj = tileLon(x + (px + 0.5) / 256, z) / s - j0, ja = Math.floor(fj), tx = fj - ja;
-        const sn = blend(vals, ia, ja, tx, ty);
-        if (Number.isNaN(sn)) continue;
-        const col = snowColor(sn) || snowColor(blend(rain, ia, ja, tx, ty), RAIN_RGB);
+        const q = [ia * C + ja, ia * C + ja + 1, (ia + 1) * C + ja, (ia + 1) * C + ja + 1];
+        if (q.some((k) => !vals[k])) continue;
+        const ws = [(1 - tx) * (1 - ty), tx * (1 - ty), (1 - tx) * ty, tx * ty];
+        // The pixel's height; without the terrain tile (no signal), the points' own heights blended.
+        let e = E ? E[py * 256 + px] : q.reduce((t, k, m) => t + (hts[k] || 0) * ws[m], 0);
+        if (E && e < 0) continue;   // the sea
+        if (!(e >= 0)) e = 0;
+        let sn = 0, rn = 0;
+        for (let m = 0; m < 4; m++) { const [a, b] = atHeight(vals[q[m]], e); sn += a * ws[m]; rn += b * ws[m]; }
+        const col = snowColor(sn) || snowColor(rn, RAIN_RGB);
         if (!col) continue;
         const k = (py * 256 + px) * 4;
         o[k] = col[0]; o[k + 1] = col[1]; o[k + 2] = col[2]; o[k + 3] = 150;
@@ -4725,13 +4819,17 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return out;
   };
   const snowAttr = 'Snow: <a href="https://open-meteo.com/">Open-Meteo</a> weather model';
-  const freshLayer = paintedLayer("skifresh", paintSnowBy("f", "rf"), { z: 352, minZoom: 6, maxNative: 10, ver: () => snowVer, attribution: snowAttr, attribution3d: "Snow: Open-Meteo" });
-  const snowfcLayer = paintedLayer("skisnowfc", paintSnowBy("n", "rn"), { z: 351, minZoom: 6, maxNative: 10, ver: () => snowVer, attribution: snowAttr, attribution3d: "Snow: Open-Meteo" });
+  const snowTint = (id, span, z) => paintedLayer(id, paintSnowBy(span), { z, minZoom: 6, maxNative: 10, ver: () => snowVer, attribution: snowAttr, attribution3d: "Snow: Open-Meteo" });
+  const freshLayer = snowTint("skifresh", "f", 352);
+  // Snow and rain forecast for the next 24 h, 2 days or 3 days (alex 2026-11-10: "can we add 24h and 2 days with the
+  // same setting that we cant have more than one activated at the same time": they're ground colours, one at a time).
+  const FC_LAYERS = { snowfc1: snowTint("skisnowfc1", "n1", 351), snowfc2: snowTint("skisnowfc2", "n2", 351), snowfc: snowTint("skisnowfc", "n", 351) };
+  const snowLayersRedraw = () => { freshLayer.redraw(); Object.values(FC_LAYERS).forEach((l) => l.redraw()); };
   // New numbers every hour: repaint the tiles then.
-  setInterval(() => { if (sport === "ski" && (shown.has("fresh") || shown.has("snowfc"))) { snowVer++; freshLayer.redraw(); snowfcLayer.redraw(); } }, 3600000);
+  setInterval(() => { if (sport === "ski" && ["fresh", ...Object.keys(FC_LAYERS)].some((k) => shown.has(k))) { snowVer++; snowLayersRedraw(); } }, 3600000);
   function refreshMoreLayers() {
     const on = (k) => sport === "ski" && shown.has(k);
-    flatsLayer(on("flats")); elevLayer(on("elev")); freshLayer(on("fresh")); snowfcLayer(on("snowfc"));
+    flatsLayer(on("flats")); elevLayer(on("elev")); freshLayer(on("fresh")); Object.entries(FC_LAYERS).forEach(([k, l]) => l(on(k)));
     renderBars();
   }
 
@@ -4766,6 +4864,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const cm = SNOW_CM.slice(0, 6).map(([v, c], i) => [c, i === 5 ? `${v}+` : String(v)]);
       const mm = RAIN_MM.map(([v, c], i) => [c, i === RAIN_MM.length - 1 ? `${v}+` : String(v)]);
       if (shown.has("fresh")) out.push(bar("New snow, last 24 h (cm)", cm), bar("Rain instead, last 24 h (mm)", mm));
+      if (shown.has("snowfc1")) out.push(bar("Snow coming, next 24 h (cm)", cm), bar("Rain instead, next 24 h (mm)", mm));
+      if (shown.has("snowfc2")) out.push(bar("Snow coming, next 2 days (cm)", cm), bar("Rain instead, next 2 days (mm)", mm));
       if (shown.has("snowfc")) out.push(bar("Snow coming, next 3 days (cm)", cm), bar("Rain instead, next 3 days (mm)", mm));
     }
     el.innerHTML = out.join("");
