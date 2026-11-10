@@ -2,6 +2,8 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-11-10", "text": "Skiing: the sharp AI winter photos now cover every ski hill, tour and backcountry area with Winter photos across Canada, built from many more satellite passes, so far fewer cloudy or blurry patches."},
+    {"date": "2026-11-10", "text": "On a phone, the Search this area button no longer sits over the map while you read a trail, and Hiking keeps your saved hikes in one place: the Saved tab."},
+    {"date": "2026-11-10", "text": "Mountain biking: New trails shows its list faster, and no longer sits for many seconds waiting on a few old trails OpenStreetMap can't date."},
     {"date": "2026-11-10", "text": "Skiing, Whistler to Pemberton, the Duffey, Lillooet and Gold Bridge, and Revelstoke to Lake Louise and Banff: the sharp AI winter photos now cover the whole area, rebuilt from four times more satellite passes, so far fewer cloudy, smeared or blocky patches."},
     {"date": "2026-11-10", "text": "3D: turning and tilting now go around the spot under your mouse (right-click or Ctrl and drag), and on a phone around the spot between your two fingers, instead of the middle of the screen."},
     {"date": "2026-11-10", "text": "Skiing: pick a tour (from Ask or the list), then tap ✎ Plan a tour: its line stays in your plan, and each point you tap goes on from its end. ↶ Undo takes the points back off."},
