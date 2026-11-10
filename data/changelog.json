@@ -2,6 +2,7 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-11-10", "text": "3D: turning and tilting now go around the spot under your mouse (right-click or Ctrl and drag), and on a phone around the spot between your two fingers, instead of the middle of the screen."},
+    {"date": "2026-11-10", "text": "Skiing 3D: route and run lines far off on the horizon are no longer drawn as specks. Lines fade out in the distance, and the map is quicker after each move."},
     {"date": "2026-11-10", "text": "Skiing 3D: searching a mountain or ridge no longer lands the camera inside the slope (blurry for several seconds), and a red pin with its name shows exactly where the place is. Tap the pin to take it away."},
     {"date": "2026-11-10", "text": "Lift status: every ski hill in Canada now has its lifts on the Skiing map, and a ski run's card says if the run is open today when the resort's own report names it (Ski Garceau first)."},
     {"date": "2026-11-10", "text": "Skiing 3D, Sea to Sky, Revelstoke and Golden: the snow photos come in much faster when you turn or move to look at another area, and the middle distance is sharper."},
