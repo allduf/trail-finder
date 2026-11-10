@@ -1,0 +1,1 @@
+Skiing 3D: route and run lines far off on the horizon are no longer drawn as specks. Lines fade out in the distance, and the map is quicker after each move. ||| Ski en 3D : les lignes des itinéraires et des pistes loin à l'horizon ne sont plus dessinées en petits points. Les lignes s'effacent au loin, et la carte est plus rapide après chaque déplacement.
