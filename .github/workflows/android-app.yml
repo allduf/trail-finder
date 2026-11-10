@@ -1,0 +1,170 @@
+name: Android app
+
+# Builds the Android app (android-app/: the website in a Capacitor shell, like the iPhone app in ios-app/).
+# The app opens the live website, so website changes reach it without a new build; a new build is only needed when
+# android-app/ changes.
+#
+# Pull requests: a test build, opened on an Android phone simulator with the pull request's own website, and
+# test/phone-check.mjs checks the app's parts work (GPS with the app away, the ride notification, Back button...).
+# Screenshots are kept as the "android-phone-check" artifact.
+#
+# main / Run workflow: the Google Play build (.aab), signed with the upload key, kept as the "android-play-build"
+# artifact (the very first one is uploaded by hand in Play Console), and sent to Play's Internal testing once the
+# Play key is set. Also a test .apk ("android-test-apk") that installs on any Android phone directly.
+# Repository secrets (Settings > Secrets and variables > Actions):
+#   ANDROID_UPLOAD_KEY            the upload key file (upload-key.jks) as base64 text (see android-app/README.md)
+#   ANDROID_KEY_PASSWORD          its password
+#   PLAY_SERVICE_ACCOUNT_JSON     (later) the Google Play service account key file's whole text, to send builds by itself
+# Without them the job says so and only makes the test .apk.
+on:
+  push:
+    branches: [main]
+    paths: ["android-app/**", ".github/workflows/android-app.yml"]
+  pull_request:
+    paths: ["android-app/**", ".github/workflows/android-app.yml", "native.js", "native-gps.js", "app-update.js", "notify.js", "usage.js"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-app-${{ github.event_name == 'pull_request' && github.ref || 'release' }}
+  cancel-in-progress: false
+
+jobs:
+  phone-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: android-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test build (opens the website served from this runner)
+        run: |
+          npm ci
+          node -e '
+            const fs = require("fs"), c = JSON.parse(fs.readFileSync("capacitor.config.json"));
+            c.server.url = "http://10.0.2.2:8080/"; c.server.cleartext = true; c.server.allowNavigation.push("10.0.2.2");
+            fs.writeFileSync("capacitor.config.json", JSON.stringify(c, null, 2));'
+          npx cap sync android
+          cd android && ./gradlew assembleDebug --no-daemon -q
+      - name: Serve this pull request's website
+        working-directory: .
+        run: nohup python3 -m http.server 8080 > /tmp/web.log 2>&1 &
+      - name: Turn on the simulator's speed-up (KVM)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Phone check on an Android 14 simulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          working-directory: android-app
+          script: bash test/phone-check.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-phone-check
+          path: android-app/shots/
+          if-no-files-found: ignore
+
+  play-build:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: android-app
+    env:
+      ANDROID_VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare
+        run: |
+          npm ci
+          npx cap sync android
+      - name: Check the upload key
+        id: key
+        env:
+          ANDROID_UPLOAD_KEY: ${{ secrets.ANDROID_UPLOAD_KEY }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_UPLOAD_KEY" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
+            echo "::notice::No Android upload key yet, so no Google Play build (only the test .apk). See android-app/README.md."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p "$RUNNER_TEMP/key"
+          printf '%s' "$ANDROID_UPLOAD_KEY" | tr -d ' \r\n\t' | base64 -d > "$RUNNER_TEMP/key/upload.jks"
+          pw=$(printf '%s' "$ANDROID_KEY_PASSWORD" | tr -d '\r\n')
+          echo "::add-mask::$pw"
+          if ! keytool -list -keystore "$RUNNER_TEMP/key/upload.jks" -storepass "$pw" -alias upload >/dev/null 2>&1; then
+            echo "::error::The upload key or its password doesn't open (alias 'upload'). Paste both secrets again from the files in android-app/README.md."
+            exit 1
+          fi
+          echo "ANDROID_KEYSTORE=$RUNNER_TEMP/key/upload.jks" >> "$GITHUB_ENV"
+          echo "ANDROID_KEY_PASSWORD=$pw" >> "$GITHUB_ENV"
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+      - name: Test .apk only (no upload key yet)
+        if: steps.key.outputs.ok != 'true'
+        run: |
+          cd android && ./gradlew assembleDebug --no-daemon -q
+          mkdir -p ../out && cp app/build/outputs/apk/debug/app-debug.apk ../out/trail-finder-test.apk
+      - name: Google Play build (.aab) and test .apk, signed
+        if: steps.key.outputs.ok == 'true'
+        run: |
+          cd android && ./gradlew bundleRelease assembleRelease --no-daemon -q
+          mkdir -p ../out && cp app/build/outputs/apk/release/app-release.apk ../out/trail-finder-${{ github.run_number }}.apk
+          echo "::notice::Google Play build ${{ github.run_number }} made (artifact android-play-build)."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-test-apk
+          path: android-app/out/*.apk
+      - uses: actions/upload-artifact@v4
+        if: steps.key.outputs.ok == 'true'
+        with:
+          name: android-play-build
+          path: android-app/android/app/build/outputs/bundle/release/app-release.aab
+      - name: Check the Play key
+        id: play
+        if: steps.key.outputs.ok == 'true'
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "::notice::No Google Play key yet: upload the android-play-build artifact in Play Console > Testing by hand."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Send to Google Play Internal testing
+        if: steps.play.outputs.ok == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.allduf.trailfinder
+          releaseFiles: android-app/android/app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
