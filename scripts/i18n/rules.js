@@ -25,6 +25,9 @@
     [/^(.+) says (\d+) of its (\d+) lifts run today( but not which ones)?\.$/, function (m, n, a, b, w) { return n + " indique que " + a + " de ses " + b + " remontées fonctionnent aujourd'hui" + (w ? ", sans dire lesquelles" : "") + "."; }],
     [/^The resort's report has no time on it: checked (.+)\.$/, function (m, t) { var a = /^(\d+) min ago$/.exec(t), h = /^(\d+) h ago$/.exec(t); return "Le rapport de la station n'indique pas d'heure : vérifié " + (t === "just now" ? "à l'instant" : a ? "il y a " + a[1] + " min" : h ? "il y a " + h[1] + " h" : t) + "."; }],
     [/^From the resort's own report, checked (.+):$/, function (m, t) { var a = /^(\d+) min ago$/.exec(t), h = /^(\d+) h ago$/.exec(t), d = /^(\d+) days? ago$/.exec(t); return "Du rapport de la station, vérifié " + (t === "just now" ? "à l'instant" : a ? "il y a " + a[1] + " min" : h ? "il y a " + h[1] + " h" : d ? "il y a " + d[1] + " j" : t) + " :"; }],
+    // winter.js: the tour picked on its card is the start of Plan a tour (2026-11-10)
+    [/^(.+) is in your tour\. Tap the map to go on from its end\.$/, "$1 est dans votre sortie. Touchez la carte pour continuer depuis sa fin."],
+    [/^Putting (.+) in your tour…$/, "Ajout de $1 à votre sortie…"],
     [/^📂 Saved tours \((\d+)\)$/, "📂 Sorties enregistrées ($1)"],   // winter.js, the tour card
     [/^✓ Saved as (.+)$/, "✓ Enregistrée sous « $1 »"],
     // winter.js noFcWhy: why a Less exposed way has no avalanche forecast in it

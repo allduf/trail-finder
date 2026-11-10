@@ -294,6 +294,12 @@
   const CRISP_STEP = 18;        // metres between points along a line (the terrain grid is ~12-25 m up close)
   const CRISP_MAX = 40000;      // points at most in one build (~6 MB of line data on the graphics card); longer lines get coarser steps
   const CRISP_PULL = 0.004;     // lines drawn 0.4% nearer the eye than the ground (20 m at 5 km), so slopes don't cut them
+  // How far from the camera lines are drawn (alex 2026-11-10, tilted Skiing 3D near Pemberton: runs near Merritt drawn
+  // as pink specks on the horizon, "do we need to see the line that far?"). Out to CRISP_FAR_K times the camera's
+  // distance to the middle of the view (so straight down the whole screen still has its lines), never under
+  // CRISP_FAR_MIN; they fade out over the last CRISP_FADE of that. Lines past it aren't built at all: less work after
+  // each move, and the near lines get the points the far ones used to take (CRISP_MAX).
+  const CRISP_FAR_K = 1.6, CRISP_FAR_MIN = 20000, CRISP_FADE = 0.3;
   let crispFeats = [], crispOn = false, crispBuildT = 0, crispBox = null;
   const crispColors = new Map();
   const crispCtx = document.createElement("canvas").getContext("2d");
@@ -406,11 +412,40 @@
     const dx = (b.getEast() - b.getWest()) * pad, dy = (b.getNorth() - b.getSouth()) * pad;
     const box = [b.getWest() - dx, b.getSouth() - dy, b.getEast() + dx, b.getNorth() + dy];
     crispBox = box;
-    const feats = crispFeats.filter((f) => f.bb[0] <= box[2] && f.bb[2] >= box[0] && f.bb[1] <= box[3] && f.bb[3] >= box[1]);
     const c0 = gl.getCenter(), o = maplibregl.MercatorCoordinate.fromLngLat(c0), origin = [o.x, o.y];
     const kx = Math.cos((c0.lat * Math.PI) / 180) * 111320;
+    // The camera on the ground (lng, lat) and how far lines go from it, in metres.
+    const far = crispFar(c0);
+    L3.far = far;
+    const camX = far.lng, camY = far.lat, R = far.m;
+    const offM = (lng, lat) => Math.hypot((lng - camX) * kx, (lat - camY) * 110540);   // metres from the camera, flat
+    // Nearest point of a segment to the camera, in metres.
+    const segM = (a, b) => {
+      const ax = (a[0] - camX) * kx, ay = (a[1] - camY) * 110540, dx = (b[0] - a[0]) * kx, dy = (b[1] - a[1]) * 110540, l = dx * dx + dy * dy;
+      const t = l ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l)) : 0;
+      return Math.hypot(ax + t * dx, ay + t * dy);
+    };
+    const boxM = (bb) => offM(Math.max(bb[0], Math.min(bb[2], camX)), Math.max(bb[1], Math.min(bb[3], camY)));
+    // Each line cut down to its stretches within reach: [{ q, d0 }] with d0 = metres along the whole line where the
+    // stretch starts (dashes keep their place).
+    const feats = [];
     let total = 0;
-    for (const f of feats) for (const q of f.parts) for (let i = 1; i < q.length; i++) total += Math.hypot((q[i][0] - q[i - 1][0]) * kx, (q[i][1] - q[i - 1][1]) * 110540);
+    for (const f of crispFeats) {
+      if (!(f.bb[0] <= box[2] && f.bb[2] >= box[0] && f.bb[1] <= box[3] && f.bb[3] >= box[1]) || boxM(f.bb) > R) continue;
+      const runs = [];
+      for (const q of f.parts) {
+        let cur = null, along = 0;
+        for (let i = 1; i < q.length; i++) {
+          const m = Math.hypot((q[i][0] - q[i - 1][0]) * kx, (q[i][1] - q[i - 1][1]) * 110540);
+          if (segM(q[i - 1], q[i]) <= R) {
+            if (!cur) { cur = { q: [q[i - 1]], d0: along }; runs.push(cur); }
+            cur.q.push(q[i]); total += m;
+          } else cur = null;
+          along += m;
+        }
+      }
+      if (runs.length) feats.push({ f, runs });
+    }
     const step = Math.max(CRISP_STEP, total / CRISP_MAX);
     // Straight into typed arrays that grow as needed (a plain array of numbers took ~4x the memory while building).
     let verts = new Float32Array(CRISP_FLOATS * 8192), idx = new Uint32Array(3 * 8192), nv = 0, ni = 0;
@@ -420,21 +455,21 @@
     };
     const merc = (lng, lat) => [(lng + 180) / 360, (1 - Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / Math.PI) / 2];
     const zPerM = (lat) => 1 / (2 * Math.PI * 6371008.8 * Math.cos((lat * Math.PI) / 180));   // mercator units per metre up (MapLibre's)
-    for (const f of feats) {
+    for (const { f, runs } of feats) {
       const [r, g, bl, a] = f.c, kind = f.kind;
-      for (const q of f.parts) {
+      for (const { q, d0 } of runs) {
         // Points every `step` metres, at the drawn ground's height (+1.5 m so a line on a ridge isn't cut by it), as
         // [x, y, z, metres along] from the origin, in mercator units.
         let n = 1;
         for (let i = 1; i < q.length; i++) n += Math.max(1, Math.ceil(Math.hypot((q[i][0] - q[i - 1][0]) * kx, (q[i][1] - q[i - 1][1]) * 110540) / step));
         if (n < 2) continue;
         const P = new Float64Array(n * 4);
-        let k = 0, dist = 0;
+        let k = 0, dist = d0;
         const put = (lng, lat, d) => {
           const [mx, my] = merc(lng, lat);
           P[k] = mx - origin[0]; P[k + 1] = my - origin[1]; P[k + 2] = ((height(mx, my, lng, lat) || 0) + 1.5) * zPerM(lat); P[k + 3] = d; k += 4;
         };
-        put(q[0][0], q[0][1], 0);
+        put(q[0][0], q[0][1], d0);
         for (let i = 1; i < q.length; i++) {
           const segM = Math.hypot((q[i][0] - q[i - 1][0]) * kx, (q[i][1] - q[i - 1][1]) * 110540), m = Math.max(1, Math.ceil(segM / step));
           for (let j = 1; j <= m; j++) { const t = j / m; put(q[i - 1][0] + (q[i][0] - q[i - 1][0]) * t, q[i - 1][1] + (q[i][1] - q[i - 1][1]) * t, dist + segM * t); }
@@ -465,9 +500,27 @@
     (crispLayer.took = crispLayer.took || []).push([Math.round(t1 - t0), Math.round(t2 - t1), Math.round(performance.now() - t2), nv]);   // for tests: ms building, ms handing over, points x 2
     if (crispLayer.took.length > 20) crispLayer.took.shift();
   }
+  // The camera's spot on the ground and how far lines are drawn from it (metres). Camera from MapLibre's free camera;
+  // if that isn't there, the middle of the view (lines then simply reach CRISP_FAR_MIN or more around it).
+  function crispFar(c0) {
+    c0 = c0 || gl.getCenter();
+    let lng = c0.lng, lat = c0.lat, dist = 0;
+    try {
+      const tr = gl.transform, ll = tr.getCameraLngLat && tr.getCameraLngLat();   // MapLibre 5's camera (no getFreeCameraOptions)
+      if (ll && Number.isFinite(ll.lng) && Number.isFinite(ll.lat)) {
+        lng = ll.lng; lat = ll.lat;
+        const flat = Math.hypot((lng - c0.lng) * Math.cos((c0.lat * Math.PI) / 180) * 111320, (lat - c0.lat) * 110540);
+        const up = Math.max(0, (tr.getCameraAltitude ? tr.getCameraAltitude() : 0) - (tr.elevation || 0));
+        dist = Math.hypot(flat, up);
+      }
+    } catch {}
+    return { lng, lat, m: window.tf3dAllFar ? 1e8 : Math.max(CRISP_FAR_MIN, CRISP_FAR_K * dist) };   // tf3dAllFar: tests, the old look
+  }
+  window.tf3dFar = () => (crispLayer.far ? { ...crispLayer.far, took: (crispLayer.took || []).slice(), count: crispLayer.count } : null);   // for tests
   function crispSoon(ms) { if (crispOn && !crispBuildT) crispBuildT = setTimeout(crispBuild, ms == null ? 120 : ms); }
   const CRISP_VS = `
     uniform mat4 u_matrix; uniform vec2 u_vp; uniform float u_dpr, u_w0, u_pxm, u_zoff, u_mpx;
+    uniform vec3 u_far;   // camera x, y from the build's origin (mercator) and how far lines go (mercator units)
     attribute vec3 a_pos, a_prev, a_next; attribute vec2 a_sd; attribute vec4 a_color; attribute vec3 a_style;
     varying vec4 v_color; varying float v_across, v_half, v_along, v_kind, v_dash, v_period;
     void main() {
@@ -498,7 +551,9 @@
       vec2 off = nm * miter * ext * side;
       // Pulled a little toward the eye (same spot on the screen): a line on a slope isn't cut by the ground's mesh.
       gl_Position = vec4(c.xy + off / h * c.w, c.z + u_zoff, c.w);
-      v_color = a_color; v_across = ext * side; v_half = hw; v_kind = kind;
+      // Fades out toward the far edge of the lines' reach.
+      float fd = length(a_pos.xy - u_far.xy) / max(u_far.z, 1e-9);
+      v_color = vec4(a_color.rgb, a_color.a * (1.0 - smoothstep(1.0 - ${CRISP_FADE.toFixed(2)}, 1.0, fd))); v_across = ext * side; v_half = hw; v_kind = kind;
       v_along = a_sd.y * u_pxm * u_dpr * s;
       float wpx = hw * 2.0;
       v_dash = a_style.y * wpx; v_period = kind == 2.0 ? max(a_style.z * wpx, 1.0) : max((a_style.y + a_style.z) * wpx, 1.0);
@@ -528,7 +583,7 @@
         if (!g.getProgramParameter(pr, g.LINK_STATUS)) throw new Error(g.getProgramInfoLog(pr));
         this.big = !!(typeof WebGL2RenderingContext !== "undefined" && g instanceof WebGL2RenderingContext) || !!g.getExtension("OES_element_index_uint");
         this.prog = pr; this.vbo = g.createBuffer(); this.ibo = g.createBuffer(); this.glc = g; this.count = 0;
-        for (const n of ["u_matrix", "u_vp", "u_dpr", "u_w0", "u_pxm", "u_zoff", "u_mpx"]) this.loc[n] = g.getUniformLocation(pr, n);
+        for (const n of ["u_matrix", "u_vp", "u_dpr", "u_w0", "u_pxm", "u_zoff", "u_mpx", "u_far"]) this.loc[n] = g.getUniformLocation(pr, n);
         for (const n of ["a_pos", "a_prev", "a_next", "a_sd", "a_color", "a_style"]) this.loc[n] = g.getAttribLocation(pr, n);
       } catch (e) { this.glc = null; crispFail(e); }
     },
@@ -567,6 +622,12 @@
       // (0, 0, P[14], 0) there), so it costs nothing per point.
       const P = args.projectionMatrix, e = P ? P[14] : 0;
       g.uniform1f(L.u_zoff, (CRISP_PULL * e) / (1 - CRISP_PULL));
+      // Reach from where the camera is now (it may have moved since the build), the distance from the build.
+      const fr = this.far ? crispFar(c) : null;
+      if (fr) {
+        const cm = maplibregl.MercatorCoordinate.fromLngLat([fr.lng, fr.lat]), mPerU = 40075016.686 * Math.cos((fr.lat * Math.PI) / 180);
+        g.uniform3f(L.u_far, cm.x - ox, cm.y - oy, this.far.m / mPerU);
+      } else g.uniform3f(L.u_far, 0, 0, 1e9);
       g.bindBuffer(g.ARRAY_BUFFER, this.vbo); g.bindBuffer(g.ELEMENT_ARRAY_BUFFER, this.ibo);
       const S = CRISP_FLOATS * 4, at = (n, size, off) => { if (L[n] < 0) return; g.enableVertexAttribArray(L[n]); g.vertexAttribPointer(L[n], size, g.FLOAT, false, S, off * 4); };
       at("a_pos", 3, 0); at("a_prev", 3, 3); at("a_next", 3, 6); at("a_sd", 2, 9); at("a_color", 4, 11); at("a_style", 3, 15);
@@ -666,8 +727,30 @@
   // o: { lat, lon, dy } the place, and how far above the middle of the screen it should sit (the phone sheet covers the bottom)
   window.tf3dSearchView = (o) => {   // place-search.js: the next move is a search result
     searchAt = Date.now(); searchView = searchAt + 1500; searchTilt = true; searchTo = o || null; setTimeout(settle, 1500);
+    // The ground's height at the place, asked right away (one small tile): the camera is aimed at it when it lands if
+    // the view's own heights aren't in yet. Before, the camera kept the height of where it came from (alex's recording
+    // 2026-11-09: Microwave Ridge, 2,000 m, searched from the valley, aimed at 770 m): it landed inside the ridge, a few
+    // metres from a blurry slope, for about 10 s, until a later check moved it up.
+    if (o && o.lat != null) o.h = heightAt(o.lat, o.lon).catch(() => null);
     if (o && o.km) turnToSee(o, searchAt);
   };
+  // The ground's height at a point (m, as the 3D map draws it: its exaggeration included), from a zoom 12 heights tile.
+  const heightTiles = new Map();
+  async function heightAt(lat, lon, z = 12) {
+    const n = 2 ** z, fx = ((lon + 180) / 360) * n, la = (lat * Math.PI) / 180, fy = ((1 - Math.log(Math.tan(la) + 1 / Math.cos(la)) / Math.PI) / 2) * n;
+    const tx = Math.floor(fx), ty = Math.floor(fy), k = `${z}/${tx}/${ty}`;
+    if (!heightTiles.has(k)) {
+      if (heightTiles.size > 8) heightTiles.delete(heightTiles.keys().next().value);
+      const t = demTile(z, tx, ty, new AbortController().signal).then((img) => {
+        const cv = new OffscreenCanvas(img.width, img.height), cx = cv.getContext("2d", { willReadFrequently: true });
+        cx.drawImage(img, 0, 0); return cx.getImageData(0, 0, img.width, img.height);
+      });
+      heightTiles.set(k, t); t.catch(() => heightTiles.delete(k));
+    }
+    const d = await heightTiles.get(k), px = Math.min(d.width - 1, Math.floor((fx - tx) * d.width)), py = Math.min(d.height - 1, Math.floor((fy - ty) * d.height)), i = (py * d.width + px) * 4;
+    const e = d.data[i] * 256 + d.data[i + 1] + d.data[i + 2] / 256 - 32768, t = gl && gl.getTerrain && gl.getTerrain();
+    return e * ((t && t.exaggeration) || 1);
+  }
   // Turn the 3D camera to the side the place is seen from best (alex 2026-11-03: Sky Pilot was looked at from behind
   // its ridges; "rotate map so we can see better the location"): of 12 directions around it, the one where the
   // ground between the camera and the place stays lowest under the line of sight (55° tilt: 35° down to the place),
@@ -725,6 +808,29 @@
     // (a search result: the place itself in the middle of what the sheet leaves showing)
     gl.flyTo({ center: to ? [to.lon, to.lat] : [c.lng, c.lat], ...(to && to.dy ? { offset: [0, -to.dy] } : {}), zoom: map.getZoom() - 1, bearing: bearing2d(), duration: 1200, ...look });
     setTimeout(() => syncing--, 1300);
+    // A search result: aimed at the ground as soon as it lands, not at the next check (up to 10 s later when the map
+    // was still moving then), from the place's height on the 3D map when it's in, else its own height (heightAt).
+    // MapLibre's flight keeps the height it started from when the place's heights aren't in yet. Then the place is put
+    // back where it should sit on the screen (aimed lower, it ended up above the top of the screen).
+    if (to) gl.once("moveend", () => {
+      const aim = (e) => {
+        if (!gl || e == null || !isFinite(e) || gl.isMoving() || Date.now() - handAt < 3000 || !gl.setCenterElevation) return;
+        if (Math.abs(e - gl.getCenterElevation()) > 30) gl.setCenterElevation(e);
+        place(0);
+      };
+      // The place where it should sit (dy above the middle), measured on the screen and moved there: a move with an
+      // offset counts the offset on the flat ground at the old height, and left the place off the top of the screen.
+      const place = (n) => {
+        if (!gl || gl.isMoving() || Date.now() - handAt < 3000) return;
+        groundCenter();
+        const cv = gl.getCanvas(), at = gl.project([to.lon, to.lat]), dx = at.x - cv.clientWidth / 2, dy = at.y - (cv.clientHeight / 2 - (to.dy || 0));
+        if (n > 3 || Math.hypot(dx, dy) < 15) { if (n) to2d(); return; }
+        gl.panBy([dx, dy], { duration: n ? 200 : 350 });
+        gl.once("moveend", () => place(n + 1));
+      };
+      const e = gl.queryTerrainElevation([to.lon, to.lat]);
+      if (e != null) aim(e); else if (to.h) to.h.then(aim);
+    });
     settle();
   }
   // After a jump: aim at the ground (again as its heights come in: the 3D map is rarely still long enough to go idle),
@@ -1342,7 +1448,7 @@
   // sharp: zooms 11-14 inside the sharpened squares, from the zoom-15 sharpened photos (see SHARP_MID).
   const fillTile = (z, x, y, whole, abort, site, sharp) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=4170");
+      const w = new Worker("winter-fill.js?v=4210");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1441,7 +1547,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=4170" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=4210" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1948,6 +2054,63 @@
   })();
 
   // ---------- the 3D map ----------
+  // Turning and tilting go around the ground under the mouse (alex 2026-11-10, desktop recording: "when you rotate,
+  // make it rotate around where your mouse point"), and on a phone around the ground between the two fingers.
+  // MapLibre turned and tilted around the middle of the screen: with the mouse always, and with two fingers too once
+  // the mountains are on (with terrain it drops the fingers' point as soon as they slide). Now the spot of ground
+  // picked when the turn or tilt starts stays put on the screen: under the mouse where the button went down, under the
+  // fingers while they twist (it follows them, so a twist can also slide and pinch, like a photo between the fingers),
+  // and where the fingers started on a two-finger tilt. In the sky or near the horizon it keeps the middle as before:
+  // turning around a spot 50 km away would swing the whole view across the valley.
+  function pivotOnPointer() {
+    const hm = gl.handlers, M = maplibregl.MercatorCoordinate;
+    if (!hm || typeof hm._handleMapControls !== "function" || !M) return;
+    const cc = gl.getCanvasContainer();
+    let piv = null, down = null, mid = null, fingers = 0;
+    const at = (x, y) => { const r = cc.getBoundingClientRect(); return new maplibregl.Point(x - r.left, y - r.top); };
+    const touches = (e) => {
+      fingers = e.touches.length;
+      if (fingers === 2) mid = at((e.touches[0].clientX + e.touches[1].clientX) / 2, (e.touches[0].clientY + e.touches[1].clientY) / 2);
+      if (fingers < 2) piv = null;
+    };
+    ["touchstart", "touchmove", "touchend", "touchcancel"].forEach((t) => box.addEventListener(t, touches, { capture: true, passive: true }));
+    box.addEventListener("mousedown", (e) => { down = at(e.clientX, e.clientY); piv = null; }, true);
+    addEventListener("mouseup", () => { piv = null; }, true);
+    const live = (n) => { const h = hm._handlersById && hm._handlersById[n]; return !!(h && h.isActive && h.isActive()); };
+    // The spot of ground under screen point p, with its height (MapLibre's own read of the ground under a point).
+    function ground(p, tr) {
+      if (p.x < 0 || p.y < 0 || p.x > tr.width || p.y > tr.height) return null;
+      let g = null;
+      try { g = gl.terrain ? gl.terrain.pointCoordinate(p) : tr.screenPointToMercatorCoordinate(p); } catch { return null; }
+      if (!g || !isFinite(g.x) || !isFinite(g.y)) return null;
+      const c = M.fromLngLat(tr.center), view = tr.height / tr.worldSize;   // screen height in world units, seen from above
+      if (Math.hypot(g.x - c.x, g.y - c.y) > 3 * view) return null;        // near the horizon
+      return { x: g.x, y: g.y, h: gl.terrain ? g.z || 0 : 0, view };       // h: metres, as the mountains are drawn
+    }
+    // Moves the view so the picked ground is at screen point p again (after MapLibre turned or tilted it).
+    function place(tr, p) {
+      // (MapLibre measures this height from the height of the middle of the view, in metres.)
+      const a = tr.screenPointToMercatorCoordinateAtZ(p, piv.g.h - (tr.elevation || 0));
+      if (!a || !isFinite(a.x) || !isFinite(a.y) || Math.hypot(a.x - piv.g.x, a.y - piv.g.y) > 4 * piv.g.view) return;
+      const c = M.fromLngLat(tr.center);
+      tr.setCenter(new M(c.x + piv.g.x - a.x, c.y + piv.g.y - a.y).toLngLat());
+    }
+    const orig = hm._handleMapControls;
+    hm._handleMapControls = function (args) {
+      const mouse = live("mouseRotate") || live("mousePitch"), tilt = live("touchPitch"), twist = live("touchRotate");
+      if (piv === null && (mouse || tilt || twist) && typeof args.tr.screenPointToMercatorCoordinateAtZ === "function") {
+        // The ground under the point as it was drawn before this move (the fingers' point has already slid by panDelta).
+        const p = mouse ? down : fingers === 2 && mid ? (args.panDelta ? mid.sub(args.panDelta) : mid) : null;
+        const g = p && ground(p, args.tr);
+        piv = g ? { g, p, follow: twist && !tilt } : false;   // false: this gesture keeps the middle
+        if (g && gl.terrain) { this._terrainMovement = true; gl._elevationFreeze = true; }
+      }
+      const r = orig.apply(this, arguments);
+      if (piv) { try { place(args.tr, piv.follow ? mid : piv.p); } catch {} }
+      return r;
+    };
+  }
+
   function build() {
     quickPins();
     box = document.createElement("div");
@@ -2339,6 +2502,7 @@
         return ease.center || ease.zoom !== undefined ? ease : undefined;
       };
     }
+    pivotOnPointer();
     new ResizeObserver(() => gl.resize()).observe(box);
 
     // Taps go to the same Leaflet trail lines (opening the same details panel); anywhere else is a
