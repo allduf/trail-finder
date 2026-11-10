@@ -1734,6 +1734,7 @@
     "Avalanche Canada has only its early season bulletin here, which gives no danger ratings. Their daily forecasts start about late November.":"Avalanche Canada n'a ici que son bulletin de début de saison, qui ne donne aucun niveau de danger. Ses bulletins quotidiens commencent vers la fin novembre.",
     "Summer map, Sea to Sky: the mountains are late-August satellite photos now, so the meadows and ridges no longer show old July snow.":"Carte d'été, Sea to Sky : les montagnes sont maintenant des photos satellite de fin août, donc les prés et les crêtes ne montrent plus la vieille neige de juillet.",
     "Help and support page is now in French too, and follows your language.":"La page Aide et soutien est maintenant aussi en français et suit votre langue.",
+    "Skiing: new backcountry routes drawn from skiers' GPS tracks: the winter way up to Wedgemount Lake and its hut, Mount Taylor from Joffre Lakes, Blowdown Peak and Mamquam Mountain. Chief Pascall now follows a real GPS track too.":"Ski : nouveaux itinéraires hors-piste tracés d'après des traces GPS de skieurs : la montée d'hiver au lac Wedgemount et à son refuge, le mont Taylor depuis les lacs Joffre, le pic Blowdown et le mont Mamquam. Le mont Chief Pascall suit maintenant lui aussi une vraie trace GPS.",
     "Hiking":"Randonnée",
     "Hikes":"Randos",
     "Hike":"Rando",
