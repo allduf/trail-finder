@@ -1398,7 +1398,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (window.tfSkiAreas && window.tfSkiAreas.load) window.tfSkiAreas.load().then(renderPlaces);
     if (window.tfHeliCat && window.tfHeliCat.load) window.tfHeliCat.load().then(renderPlaces);   // heli and cat skiing (helicat.js)
     // The same files lifts.js and slackcountry.js read (cached).
-    fetch("data/ski-lifts.json?v=4160").then((r) => (r.ok ? r.json() : null)).then((d) => {
+    fetch("data/ski-lifts.json?v=4180").then((r) => (r.ok ? r.json() : null)).then((d) => {
       // Each resort's lifts give its outline: picking it fits the lifts on the screen (the runs sit around them).
       const bbs = {};
       for (const l of (d && d.lifts) || []) for (const [la, lo] of l.g || []) {
@@ -2295,6 +2295,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (same.length > 1) group.splice(0, group.length, r, ...same.filter((x) => x !== r));
     }
     const token = ++selToken, live = () => token === selToken && selected === r;
+    // Picked from a list while planning with no points yet: that tour is the start of the plan.
+    if (fly && plan.on && !plan.pts.length && !plan.seeding && r.lat == null && r.src !== "plan") setTimeout(() => { if (selected === r) planFromSelected(); }, 0);
     const d = $("skDetail");
     const isHut = r.lat != null, isStart = isHut && r.src === "c2c", t = isStart ? TYPES[r.type] || TYPES.tour : isHut ? HUT : TYPES[r.type] || TYPES.other;
     const osmType = { w: "way", r: "relation", n: "node" }[r.id[0]];
@@ -2708,6 +2710,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       // place a point"). A tapped freeride or slackcountry line asks first: the whole line, or just a point there.
       const o = plan.offer;
       const msg = o ? `<b>${esc(o.name)}</b> <small>${esc(o.kind)}: add the whole line to your tour?</small>`
+        : n === 0 && plan.seeding ? `<b>Putting ${esc(plan.seeding)} in your tour…</b><small>Then tap the map to go on from its end.</small>`
         : n === 0 ? `<b>Tap the map where you start</b><small>Start where you park. Tap a freeride or slackcountry line to add it all.</small>`
         : n === 1 ? `<b>Now tap where you want to go</b><small>Drag a point to move it.</small>`
         : `<b>${plan.wait ? esc(plan.wait) : info ? `${(info.total / 1000).toFixed(1)} km · ↑ ${fmtM(info.up)} · steepest ${Math.round(info.maxSlope)}°` : "Working it out…"}</b><small>Tap to add a point · drag a point to move it</small>`;
@@ -3329,10 +3332,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!plan.on) setPlanning(true);
     planChanged();
     const n = plan.pts.length;
-    window.tfToast && window.tfToast(`${name} is in your tour, from ${ptName(n - 2, n)} to ${ptName(n - 1, n)}.`);
+    window.tfToast && window.tfToast(plan.seeding ? `${name} is in your tour. Tap the map to go on from its end.` : `${name} is in your tour, from ${ptName(n - 2, n)} to ${ptName(n - 1, n)}.`);
   }
   function planAdd(ll) {
     if (plan.dragAt && Date.now() - plan.dragAt < 400) return;   // the end of dragging a point, not a tap
+    if (plan.seeding) return;   // the picked tour's line is still going in: taps go on from its end
     if (plan.offer) { plan.offer = null; drawPlan(); renderPlan(); }
     if (map.getZoom() < 12) {   // too far out to place a point well: zoom in there first
       map.setView(ll, 13);
@@ -3355,13 +3359,28 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     drawPlan(); renderPlan();
   }
   // A ski route (a freeride line) in the tour as drawn, from where it's skied (a skin track from its bottom).
-  function planRouteLine(r, group, title) {
+  // up: the line goes in from its lower end (a skin track, or a whole tour from its parking to its top).
+  function planRouteLine(r, group, title, up) {
     return routeInfo(group || [r]).then((info) => {
       let line = info.pts.map((p) => [+p.lat.toFixed(6), +p.lon.toFixed(6)]);   // from its lower end
-      if (!isUphill(r)) line.reverse();                                          // skied from the top
+      if (!(up || isUphill(r))) line.reverse();                                  // skied from the top
       if (line.length > 300) { const k = Math.ceil(line.length / 300); line = line.filter((_, i) => i % k === 0 || i === line.length - 1); }
       planVia(line, title || nameOf(r) || "This line");
     }, () => { window.tfToast && window.tfToast("Couldn't load the line's heights. Try again."); });
+  }
+  // The tour picked on its card (from Ask's list, Touring or the map) is where a plan starts (alex 2026-11-10: "when i
+  // ask something and I select a plan, i want to be able to add point after but keep the line that i selected"): with
+  // no tour of your own yet, Plan a tour puts that line in first, from its start to its top as the card pins it, and
+  // each tap goes on from its end. Undo takes the taps back off, then the line.
+  function planFromSelected() {
+    const r = selected;
+    if (!r || r.lat != null || r.src === "plan" || !r.lines || !r.lines.length || plan.pts.length > 1) return false;
+    if (plan.pts.length) { snap(); plan.pts = []; }   // a lone point: the line is the start instead
+    const group = selGroup && selGroup[0] === r ? selGroup : [r], up = r.type === "tour" && !r.area;
+    plan.seeding = nameOf(r) || "This tour";
+    setPlanning(true);
+    planRouteLine(r, group, plan.seeding, up).finally(() => { plan.seeding = ""; renderPlan(); });
+    return true;
   }
   function setPlanning(on) {
     if (plan.on === on) return;
@@ -3646,7 +3665,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   map.on("dblclick", () => clearTimeout(offTimer));
   let dbl3d = null;
   window.addEventListener("tf:map3d", () => { const gl = window.trailMap3d; if (gl && gl !== dbl3d) { dbl3d = gl; gl.on("dblclick", () => clearTimeout(offTimer)); } });
-  $("skPlanBtn").addEventListener("click", () => setPlanning(!plan.on));
+  $("skPlanBtn").addEventListener("click", () => { if (!plan.on && planFromSelected()) return; setPlanning(!plan.on); });
   $("skNewBtn").addEventListener("click", () => newTour());
   $("skToursBtn").addEventListener("click", () => showTours());
   // Save a point lives here on phones, so the map keeps the same four buttons in every sport
