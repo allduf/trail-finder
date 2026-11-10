@@ -1442,7 +1442,7 @@
   // sharp: zooms 11-14 inside the sharpened squares, from the zoom-15 sharpened photos (see SHARP_MID).
   const fillTile = (z, x, y, whole, abort, site, sharp) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=4190");
+      const w = new Worker("winter-fill.js?v=4200");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1541,7 +1541,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=4190" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=4200" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -2048,6 +2048,63 @@
   })();
 
   // ---------- the 3D map ----------
+  // Turning and tilting go around the ground under the mouse (alex 2026-11-10, desktop recording: "when you rotate,
+  // make it rotate around where your mouse point"), and on a phone around the ground between the two fingers.
+  // MapLibre turned and tilted around the middle of the screen: with the mouse always, and with two fingers too once
+  // the mountains are on (with terrain it drops the fingers' point as soon as they slide). Now the spot of ground
+  // picked when the turn or tilt starts stays put on the screen: under the mouse where the button went down, under the
+  // fingers while they twist (it follows them, so a twist can also slide and pinch, like a photo between the fingers),
+  // and where the fingers started on a two-finger tilt. In the sky or near the horizon it keeps the middle as before:
+  // turning around a spot 50 km away would swing the whole view across the valley.
+  function pivotOnPointer() {
+    const hm = gl.handlers, M = maplibregl.MercatorCoordinate;
+    if (!hm || typeof hm._handleMapControls !== "function" || !M) return;
+    const cc = gl.getCanvasContainer();
+    let piv = null, down = null, mid = null, fingers = 0;
+    const at = (x, y) => { const r = cc.getBoundingClientRect(); return new maplibregl.Point(x - r.left, y - r.top); };
+    const touches = (e) => {
+      fingers = e.touches.length;
+      if (fingers === 2) mid = at((e.touches[0].clientX + e.touches[1].clientX) / 2, (e.touches[0].clientY + e.touches[1].clientY) / 2);
+      if (fingers < 2) piv = null;
+    };
+    ["touchstart", "touchmove", "touchend", "touchcancel"].forEach((t) => box.addEventListener(t, touches, { capture: true, passive: true }));
+    box.addEventListener("mousedown", (e) => { down = at(e.clientX, e.clientY); piv = null; }, true);
+    addEventListener("mouseup", () => { piv = null; }, true);
+    const live = (n) => { const h = hm._handlersById && hm._handlersById[n]; return !!(h && h.isActive && h.isActive()); };
+    // The spot of ground under screen point p, with its height (MapLibre's own read of the ground under a point).
+    function ground(p, tr) {
+      if (p.x < 0 || p.y < 0 || p.x > tr.width || p.y > tr.height) return null;
+      let g = null;
+      try { g = gl.terrain ? gl.terrain.pointCoordinate(p) : tr.screenPointToMercatorCoordinate(p); } catch { return null; }
+      if (!g || !isFinite(g.x) || !isFinite(g.y)) return null;
+      const c = M.fromLngLat(tr.center), view = tr.height / tr.worldSize;   // screen height in world units, seen from above
+      if (Math.hypot(g.x - c.x, g.y - c.y) > 3 * view) return null;        // near the horizon
+      return { x: g.x, y: g.y, h: gl.terrain ? g.z || 0 : 0, view };       // h: metres, as the mountains are drawn
+    }
+    // Moves the view so the picked ground is at screen point p again (after MapLibre turned or tilted it).
+    function place(tr, p) {
+      // (MapLibre measures this height from the height of the middle of the view, in metres.)
+      const a = tr.screenPointToMercatorCoordinateAtZ(p, piv.g.h - (tr.elevation || 0));
+      if (!a || !isFinite(a.x) || !isFinite(a.y) || Math.hypot(a.x - piv.g.x, a.y - piv.g.y) > 4 * piv.g.view) return;
+      const c = M.fromLngLat(tr.center);
+      tr.setCenter(new M(c.x + piv.g.x - a.x, c.y + piv.g.y - a.y).toLngLat());
+    }
+    const orig = hm._handleMapControls;
+    hm._handleMapControls = function (args) {
+      const mouse = live("mouseRotate") || live("mousePitch"), tilt = live("touchPitch"), twist = live("touchRotate");
+      if (piv === null && (mouse || tilt || twist) && typeof args.tr.screenPointToMercatorCoordinateAtZ === "function") {
+        // The ground under the point as it was drawn before this move (the fingers' point has already slid by panDelta).
+        const p = mouse ? down : fingers === 2 && mid ? (args.panDelta ? mid.sub(args.panDelta) : mid) : null;
+        const g = p && ground(p, args.tr);
+        piv = g ? { g, p, follow: twist && !tilt } : false;   // false: this gesture keeps the middle
+        if (g && gl.terrain) { this._terrainMovement = true; gl._elevationFreeze = true; }
+      }
+      const r = orig.apply(this, arguments);
+      if (piv) { try { place(args.tr, piv.follow ? mid : piv.p); } catch {} }
+      return r;
+    };
+  }
+
   function build() {
     quickPins();
     box = document.createElement("div");
@@ -2439,6 +2496,7 @@
         return ease.center || ease.zoom !== undefined ? ease : undefined;
       };
     }
+    pivotOnPointer();
     new ResizeObserver(() => gl.resize()).observe(box);
 
     // Taps go to the same Leaflet trail lines (opening the same details panel); anywhere else is a
