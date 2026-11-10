@@ -8,16 +8,17 @@ name: Build sharpened Winter photos, all of Canada
 # and publish them to Cloudflare Pages project trailfinder-sharpca-k (zooms 11-15, ~16,000 files; Pages takes 20,000
 # a site), which map3d.js tfSharpSite reads. First a job lists the satellite passes for all of them: up to 40 per
 # 100 km tile with clouds under 90% (cloudy winters left holes and smeared patches with fewer, alex's Kafir Peak
-# recording). Runs by hand, or when this file changes. One job can be run again alone: ONLY=<k>.
+# recording). Runs by hand, or when this file changes. Some sites again: list them ("6,20") in
+# scripts/winter-photos/sharp-canada-only.txt and push, or give them to Run workflow (empty = all 48).
 # Needs the repository secret CLOUDFLARE_API_TOKEN (Cloudflare Pages: Edit), as pages.yml.
 on:
   push:
     branches: [main, claude/project-thread-own97v]
-    paths: [.github/workflows/sharp-canada.yml]
+    paths: [.github/workflows/sharp-canada.yml, scripts/winter-photos/sharp-canada-only.txt]
   workflow_dispatch:
     inputs:
       only:
-        description: "Only this site number (0-47); empty = all"
+        description: "Only these site numbers, e.g. 6,20,24 (0-47); empty = all"
         required: false
         default: ""
 
@@ -55,7 +56,8 @@ jobs:
           path: more.json
       - id: sites
         run: |
-          if [ -n "${{ github.event.inputs.only }}" ]; then echo 'sites=[${{ github.event.inputs.only }}]' >> $GITHUB_OUTPUT
+          only="${{ github.event.inputs.only }}"; [ -z "$only" ] && only="$(tr -d ' \n' < scripts/winter-photos/sharp-canada-only.txt 2>/dev/null)"
+          if [ -n "$only" ]; then echo "sites=[$only]" >> $GITHUB_OUTPUT
           else echo "sites=$(python3 -c 'print(list(range(48)))')" >> $GITHUB_OUTPUT; fi
 
   build:
@@ -76,6 +78,8 @@ jobs:
         run: |
           pip install -q --index-url https://download.pytorch.org/whl/cpu torch
           pip install -q sen2sr mlstac rasterio matplotlib einops timm pillow numpy
+      - name: The sharpening model, once (four workers downloading it at the same time broke it)
+        run: python3 -c "import mlstac; mlstac.download(file='https://huggingface.co/tacofoundation/sen2sr/resolve/main/SEN2SRLite/NonReference_RGBN_x4/mlm.json', output_dir='scripts/winter-photos/sr-model')"
       - name: This site's squares
         run: |
           python3 -c "
@@ -84,7 +88,7 @@ jobs:
           json.dump(sq, open('mine.json', 'w')); print(len(sq), 'squares')"
       - name: Sharpen (about 2 minutes a square)
         run: |
-          SCENES=$PWD/more.json WORKERS=4 SR_THREADS=1 python3 scripts/winter-photos/sharpen.py blocks mine.json 2>&1 | grep --line-buffered "^block" || true
+          SCENES=$PWD/more.json WORKERS=4 SR_THREADS=1 python3 scripts/winter-photos/sharpen.py blocks mine.json 2>&1 | grep --line-buffered -v "it/s\]\|s/it\]\|^skip" || true
           ls blocks | grep -c png || { echo "::error::no square came out"; exit 1; }
       - name: Cut into tiles, zooms 11-15
         run: |
