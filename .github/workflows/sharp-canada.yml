@@ -8,13 +8,10 @@ name: Build sharpened Winter photos, all of Canada
 # and publish them to Cloudflare Pages project trailfinder-sharpca-k (zooms 11-15, ~16,000 files; Pages takes 20,000
 # a site), which map3d.js tfSharpSite reads. First a job lists the satellite passes for all of them: up to 40 per
 # 100 km tile with clouds under 90% (cloudy winters left holes and smeared patches with fewer, alex's Kafir Peak
-# recording). Runs by hand, or when this file changes. Some sites again: list them ("6,20") in
-# scripts/winter-photos/sharp-canada-only.txt and push, or give them to Run workflow (empty = all 48).
+# recording). Built 2026-11-10 (from its branch); runs by hand only (Run workflow: some sites, e.g. "6,20", or empty =
+# all 48, ~3 hours), so merging it doesn't build everything again.
 # Needs the repository secret CLOUDFLARE_API_TOKEN (Cloudflare Pages: Edit), as pages.yml.
 on:
-  push:
-    branches: [main, claude/project-thread-own97v]
-    paths: [.github/workflows/sharp-canada.yml, scripts/winter-photos/sharp-canada-only.txt]
   workflow_dispatch:
     inputs:
       only:
@@ -56,7 +53,7 @@ jobs:
           path: more.json
       - id: sites
         run: |
-          only="${{ github.event.inputs.only }}"; [ -z "$only" ] && only="$(tr -d ' \n' < scripts/winter-photos/sharp-canada-only.txt 2>/dev/null)"
+          only="${{ github.event.inputs.only }}"
           if [ -n "$only" ]; then echo "sites=[$only]" >> $GITHUB_OUTPUT
           else echo "sites=$(python3 -c 'print(list(range(48)))')" >> $GITHUB_OUTPUT; fi
 
