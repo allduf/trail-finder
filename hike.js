@@ -185,6 +185,8 @@ body:not(.sport-hike) #hikePane, body:not(.sport-hike) .leaflet-hike-pane { disp
 #hikePane .hk-safe { color: var(--muted); font-size: .76rem; }
 #hikePane .hk-safe summary { cursor: pointer; font-weight: 700; }
 #hikePane .hk-actions.five { grid-template-columns: repeat(5, 1fr); }
+/* Phones: saved hikes have one home, the Saved tab (My hikes, Saved hikes). */
+@media (max-width: 760px) { #hikePane .hk-actions.five { grid-template-columns: repeat(4, 1fr); } #hikePane .hk-act[data-act="saved"] { display: none !important; } }
 #hikePane .hk-prof { width: 100%; height: auto; max-height: 110px; display: block; }
 #hikePane .hk-prof text { font-size: 10px; fill: var(--muted); }
 #hikePane .hk-along { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: .82rem; }
