@@ -1931,6 +1931,9 @@
     "Snow coming in the next 2 days, in centimetres; where rain comes instead, the rain in millimetres in greens. Split by each spot's height and the freezing level (Open-Meteo weather model)":"Neige prévue dans les 2 prochains jours, en centimètres; là où il pleuvra, la pluie en millimètres en verts. Séparées selon l'altitude de chaque endroit et l'isotherme 0 °C (modèle météo Open-Meteo)",
     "Snow coming in the next 3 days, in centimetres; where rain comes instead, the rain in millimetres in greens. Split by each spot's height and the freezing level (Open-Meteo weather model)":"Neige prévue dans les 3 prochains jours, en centimètres; là où il pleuvra, la pluie en millimètres en verts. Séparées selon l'altitude de chaque endroit et l'isotherme 0 °C (modèle météo Open-Meteo)",
     "Skiing: snow and rain on the map and on This spot are now split by the real height of each spot and the freezing level, so valleys under the snow line show rain, not the snow of the ridges around. New: Snow and rain forecast for the next 24 h and 2 days, next to 3 days (one at a time).":"Ski : la neige et la pluie sur la carte et dans Cet endroit sont maintenant séparées selon l'altitude réelle de chaque endroit et l'isotherme 0 °C, donc les vallées sous la limite de la neige montrent la pluie, pas la neige des crêtes autour. Nouveau : prévision de neige et pluie pour les 24 prochaines heures et 2 jours, à côté de 3 jours (une à la fois).",
+    "Skiing: Ask goes to the mountain or ridge you name (it used to land on a peak nearby), and when no ski tour is mapped on it, it plans one from the closest road to it. The tours nearby stay one tap away.":"Ski : Demander va à la montagne ou à la crête que vous nommez (avant, il tombait sur un sommet voisin), et quand aucune sortie de ski n'y est tracée, il en planifie une depuis la route la plus proche. Les sorties à proximité restent à un toucher.",
+    "where the road comes closest (the snow line couldn't be read: drag it to where the car stops)":"là où la route passe le plus près (la limite de la neige n'a pas pu être lue : glissez-le là où l'auto s'arrête)",
+    "where the road comes closest (no snow on the roads in the forecast)":"là où la route passe le plus près (pas de neige sur les routes dans les prévisions)",
     "3D: tilting no longer zooms in or out. The camera stays at the same height and only the angle changes, so tilting up looks out to the horizon instead of dropping down to the snow.":"3D : incliner la vue ne fait plus de zoom avant ou arrière. La caméra reste à la même hauteur et seul l'angle change : en inclinant vers le haut, on regarde vers l'horizon au lieu de descendre jusqu'à la neige.",
     "Backcountry access gondola · not a ski resort":"Télécabine d'accès à l'arrière-pays · pas une station de ski",
     "Backcountry access gondola":"Télécabine d'accès à l'arrière-pays",
@@ -2317,6 +2320,15 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    // ask.js: a mountain or ridge with no tour mapped on it, planned from the closest road (2026-11-10)
+    [/^No tour mapped on (.+): finding the closest road to it…$/, "Aucune sortie tracée sur $1 : recherche de la route la plus proche…"],
+    [/^No ski tour is mapped on (.+) in the app yet, so this one starts from the closest road to it\.$/, "Aucune sortie de ski n'est encore tracée sur $1 dans l'appli : celle-ci part donc de la route la plus proche."],
+    [/^A tour to (.+)$/, "Une sortie vers $1"],
+    [/^(.+) from the top in a straight line$/, function (m, d) { return (d === "under 1 km" ? "moins de 1 km" : d) + " du sommet à vol d'oiseau"; }],
+    [/^at the top of (.+)$/, "au sommet de $1"],
+    [/^about ([\d,\s]+) m high$/, function (m, h) { return "environ " + h.replace(/,/g, " ") + " m d'altitude"; }],
+    [/^No drivable road is mapped within 15 km of (.+)\. The map is there now: tap it where you start, then ✎ Edit my tour adds the rest\.$/, "Aucune route carrossable n'est tracée à moins de 15 km de $1. La carte y est maintenant : touchez-la là où vous partez, puis ✎ Modifier ma sortie ajoute le reste."],
+    [/^Show the (\d+) ski tours nearby instead$/, "Voir plutôt les $1 sorties de ski à proximité"],
     // lifts.js: a resort's run and lift counts today, and a run's status on its card (2026-11-10)
     [/^(\d+) of (\d+) runs open$/, "$1 pistes ouvertes sur $2"],
     [/^(\d+) of (\d+) (chairlifts|lifts) running$/, function (m, a, b, k) { return a + " " + (k === "chairlifts" ? "télésièges" : "remontées") + " en marche sur " + b; }],
