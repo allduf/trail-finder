@@ -67,6 +67,12 @@ const RESORTS = [
   ["martock", "Ski Martock", 44.936, -64.171, 0.012, 0.02],
   ["beneoin", "Ski Ben Eoin", 45.96, -60.43, 0.015, 0.025],
   ["marble", "Marble Mountain", 48.94, -57.83, 0.02, 0.03],
+  // alex 2026-11-10 ("there is no lift status?" on Ski Garceau): its own report lists every run and how many lifts run.
+  ["garceau", "Ski Garceau", 46.335, -74.195, 0.012, 0.016],
+  // Every other ski hill in Canada with lifts in OpenStreetMap (scripts/ski-resorts-canada.json, found 2026-11-10 from
+  // the resort runs in ca/w/ and ski.json; names from the hill's OpenStreetMap area, else the town): drawn grey with
+  // "no live status" until a source for it is added to the lift-status function.
+  ...JSON.parse(fs.readFileSync(new URL("ski-resorts-canada.json", import.meta.url), "utf8")).resorts,
 ];
 // ONLY=id,id rebuilds just those resorts and keeps the others as they are in data/ski-lifts.json (off season most
 // resorts' status lists are empty, so a full rebuild then would lose their matched status names).

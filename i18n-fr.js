@@ -1733,9 +1733,19 @@
     "Skiing: with no avalanche forecast for the day, Less exposed way still draws a way from the terrain alone (slope angle and steep slopes above), with a warning that no forecast is in it and why.":"Ski : sans bulletin d'avalanche pour la journée, Chemin moins exposé trace quand même un chemin d'après le terrain seulement (angle des pentes et pentes raides au-dessus), avec un avertissement qu'aucun bulletin n'y est inclus et pourquoi.",
     "Avalanche Canada has only its early season bulletin here, which gives no danger ratings. Their daily forecasts start about late November.":"Avalanche Canada n'a ici que son bulletin de début de saison, qui ne donne aucun niveau de danger. Ses bulletins quotidiens commencent vers la fin novembre.",
     "Summer map, Sea to Sky: the mountains are late-August satellite photos now, so the meadows and ridges no longer show old July snow.":"Carte d'été, Sea to Sky : les montagnes sont maintenant des photos satellite de fin août, donc les prés et les crêtes ne montrent plus la vieille neige de juillet.",
-    "Skiing 3D, Sea to Sky, Revelstoke and Golden: the snow photos come in much faster when you turn or move to look at another area, and the middle distance is sharper.":"Ski en 3D, Sea to Sky, Revelstoke et Golden : les photos de neige arrivent beaucoup plus vite quand vous tournez ou regardez un autre secteur, et le plan moyen est plus net.",
     "Help and support page is now in French too, and follows your language.":"La page Aide et soutien est maintenant aussi en français et suit votre langue.",
     "Skiing: new backcountry routes drawn from skiers' GPS tracks: the winter way up to Wedgemount Lake and its hut, Mount Taylor from Joffre Lakes, Blowdown Peak and Mamquam Mountain. Chief Pascall now follows a real GPS track too.":"Ski : nouveaux itinéraires hors-piste tracés d'après des traces GPS de skieurs : la montée d'hiver au lac Wedgemount et à son refuge, le mont Taylor depuis les lacs Joffre, le pic Blowdown et le mont Mamquam. Le mont Chief Pascall suit maintenant lui aussi une vraie trace GPS.",
+    "Run open":"Piste ouverte",
+    "Run closed":"Piste fermée",
+    "No run status from the resort":"La station ne donne pas l'état des pistes",
+    "Couldn't read the resort's report":"Impossible de lire le rapport de la station",
+    "This run isn't in the resort's report":"Cette piste n'est pas dans le rapport de la station",
+    "their page ↗":"leur page ↗",
+    "Status not given":"État non donné",
+    "No live status":"Pas d'état en direct",
+    "Moguls":"Bosses",
+    "Natural snow":"Neige naturelle",
+    "Lift status: every ski hill in Canada now has its lifts on the Skiing map, and a ski run's card says if the run is open today when the resort's own report names it (Ski Garceau first).":"État des remontées : chaque centre de ski au Canada a maintenant ses remontées sur la carte Ski, et la fiche d'une piste dit si elle est ouverte aujourd'hui quand le rapport de la station la nomme (Ski Garceau d'abord).",
     "Hiking":"Randonnée",
     "Hikes":"Randos",
     "Hike":"Rando",
@@ -2286,6 +2296,14 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    // lifts.js: a resort's run and lift counts today, and a run's status on its card (2026-11-10)
+    [/^(\d+) of (\d+) runs open$/, "$1 pistes ouvertes sur $2"],
+    [/^(\d+) of (\d+) (chairlifts|lifts) running$/, function (m, a, b, k) { return a + " " + (k === "chairlifts" ? "télésièges" : "remontées") + " en marche sur " + b; }],
+    [/^(\d+) of (\d+) magic carpets$/, "$1 tapis magiques sur $2"],
+    [/^Today at (.+?)(:?)$/, function (m, n, c) { return "Aujourd'hui à " + n + (c ? " :" : ""); }],
+    [/^(.+) says (\d+) of its (\d+) lifts run today( but not which ones)?\.$/, function (m, n, a, b, w) { return n + " indique que " + a + " de ses " + b + " remontées fonctionnent aujourd'hui" + (w ? ", sans dire lesquelles" : "") + "."; }],
+    [/^The resort's report has no time on it: checked (.+)\.$/, function (m, t) { var a = /^(\d+) min ago$/.exec(t), h = /^(\d+) h ago$/.exec(t); return "Le rapport de la station n'indique pas d'heure : vérifié " + (t === "just now" ? "à l'instant" : a ? "il y a " + a[1] + " min" : h ? "il y a " + h[1] + " h" : t) + "."; }],
+    [/^From the resort's own report, checked (.+):$/, function (m, t) { var a = /^(\d+) min ago$/.exec(t), h = /^(\d+) h ago$/.exec(t), d = /^(\d+) days? ago$/.exec(t); return "Du rapport de la station, vérifié " + (t === "just now" ? "à l'instant" : a ? "il y a " + a[1] + " min" : h ? "il y a " + h[1] + " h" : d ? "il y a " + d[1] + " j" : t) + " :"; }],
     [/^📂 Saved tours \((\d+)\)$/, "📂 Sorties enregistrées ($1)"],   // winter.js, the tour card
     [/^✓ Saved as (.+)$/, "✓ Enregistrée sous « $1 »"],
     // winter.js noFcWhy: why a Less exposed way has no avalanche forecast in it

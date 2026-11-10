@@ -61,13 +61,17 @@ dialog.lf-dlg .lf-btns button.big { font-weight: 600; background: var(--bg); }
 dialog.lf-dlg dl.lf-today { grid-template-columns: 1fr; gap: 2px; }
 dialog.lf-dlg .lf-today dt { margin-top: 6px; font-size: .8rem; }
 dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
+#skiPane .sk-wbst.closed { background: #ffe3e3; color: #8a1c1c; }
+#skiPane #lfRunSt > span { display: block; font-size: .78rem; font-weight: 600; opacity: .8; }
+#skiPane .sk-wbst .lf-runsub { display: block; margin-top: 2px; font-weight: 400; font-size: .8rem; color: var(--muted); }
+#skiPane .sk-wbst .lf-runsub a { color: var(--accent); font-weight: 600; }
 .sk-key .lf-kline { display: inline-block; width: 22px; height: 5px; border-radius: 3px; vertical-align: middle; box-shadow: 0 0 0 1.5px #fff; }
 `;
   document.head.appendChild(css);
 
   // ---------- data ----------
   let data = null, lifts = [], resorts = {};
-  const load = () => (data = data || fetch("data/ski-lifts.json?v=4140").then((r) => r.json()).then((d) => {
+  const load = () => (data = data || fetch("data/ski-lifts.json?v=4150").then((r) => r.json()).then((d) => {
     resorts = d.resorts || {}; lifts = d.lifts || [];
     return d;
   }).catch(() => { data = null; return null; }));
@@ -76,7 +80,7 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
   // and lines they reach, webcams, parking and the rules.
   let access = null;
   const triedLive = {};
-  const loadAccess = () => (access = access || fetch("data/access-lifts.json?v=4140").then((r) => r.json()).then((d) => d.lifts || {}).catch(() => { access = null; return {}; }));
+  const loadAccess = () => (access = access || fetch("data/access-lifts.json?v=4150").then((r) => r.json()).then((d) => d.lifts || {}).catch(() => { access = null; return {}; }));
   // Live status, per resort: { t, lifts: [{ n, s, w, o, c }], err } from the function, and when we got it.
   const live = {};
   let gotAt = 0, liveErr = "", timer = 0, busy = false;
@@ -90,22 +94,23 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
       if (!shown()) return;
       timer = setTimeout(() => poll(), EVERY);
     }
-    if (document.hidden || busy) return;
+    if (document.hidden || (busy && !only)) return;
     const ids = (only || near()).filter((id) => force || !live[id] || Date.now() - live[id].at > EVERY - 5000);
     if (!ids.length) { draw(); return; }
     const acct = window.tfAccount;
     if (!acct || !acct.url) { liveErr = "Live status is not set up"; draw(); return; }
-    busy = true;
+    if (!only) busy = true;
     try {
       // A plain GET with no extra headers, so the browser doesn't have to ask first.
       const r = await fetch(`${acct.url}/functions/v1/${FN}?r=${ids.join(",")}`, { cache: "no-store" });
       if (!r.ok) throw new Error(String(r.status));
       const d = await r.json();
       for (const [id, v] of Object.entries(d.resorts || {})) live[id] = { ...v, at: Date.now() };
+      for (const id of ids) if (!(d.resorts || {})[id]) live[id] = { lifts: [], at: Date.now(), missing: 1 };   // not read by the function yet
       gotAt = Date.now(); liveErr = "";
     } catch (e) {
       liveErr = gotAt ? "Couldn't reach the lift status: tries again in 3 min" : "Live status isn't available yet";
-    } finally { busy = false; }
+    } finally { if (!only) busy = false; }
     draw();
     if (dlg.open && selected && (resorts[selected.r] || {}).access && live[selected.r] && ids.includes(selected.r)) openAccess(selected);   // today's status came in
   }
@@ -119,7 +124,23 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
     if (!resorts[l.r] || !resorts[l.r].live) return { s: "none" };
     if (!v || !v.lifts) return { s: "none", wait: true };
     const st = norm(l.st || l.n), x = v.lifts.find((y) => norm(y.n) === st);
-    return x ? { ...x, t: v.t } : { s: "none", t: v.t, empty: !v.lifts.length };
+    if (x) return { ...x, t: v.t };
+    // A resort that only says how many lifts run (Ski Garceau: "0/2 Remontées mécaniques"): none running = this one is
+    // closed, all running = open; some = we can't tell which (never guessed).
+    const cnt = v.sum && (/^(magic_carpet|rope_tow)$/.test(l.k) ? v.sum.carpets || v.sum.lifts : v.sum.lifts);
+    if (cnt && cnt[1] > 0) return cnt[0] === 0 ? { s: "closed", t: v.t, byCount: cnt } : cnt[0] >= cnt[1] ? { s: "open", t: v.t, byCount: cnt } : { s: "unknown", t: v.t, some: cnt };
+    return { s: "none", t: v.t, empty: !v.lifts.length };
+  }
+  // Today's counts at a resort, in words ("0 of 38 runs open · 0 of 2 chairlifts running"), when the resort gives them.
+  function sumText(v) {
+    if (!v) return "";
+    const sm = v.sum || {}, out = [];
+    const runs = sm.runs || (v.runs && v.runs.length ? [v.runs.filter((x) => x.s === "open").length, v.runs.length] : null);
+    if (runs) out.push(`${runs[0]} of ${runs[1]} runs open`);
+    const lf = sm.lifts || (v.lifts && v.lifts.length ? [v.lifts.filter((x) => x.s === "open").length, v.lifts.length] : null);
+    if (lf) out.push(`${lf[0]} of ${lf[1]} ${sm.carpets ? "chairlifts" : "lifts"} running`);
+    if (sm.carpets) out.push(`${sm.carpets[0]} of ${sm.carpets[1]} magic carpets`);
+    return out.join(" · ");
   }
   // Every lift of a resort closed and no update for 5 days: the resort is closed for the season.
   const season = (id) => { const v = live[id]; return !!(v && v.lifts && v.lifts.length && v.lifts.every((x) => x.s === "closed") && v.t && Date.now() - Date.parse(v.t) > 5 * 864e5); };
@@ -175,7 +196,11 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
     setNote(); keyRender();
     if (!shown()) return;
     const small = map.getZoom() < 12;
+    // Only the lifts around the view (about 1,000 lifts across Canada since 2026-11-10), none when zoomed out to a province.
+    drawnBox = map.getBounds().pad(1);
+    if (map.getZoom() < 8) return;
     for (const l of lifts) {
+      if (!drawnBox.contains(l.g[0])) continue;
       if (small && /^(magic_carpet|rope_tow)$/.test(l.k)) continue;
       const c = colorOf(l), sel = selected === l, st = statusOf(l);
       const sched = st.s === "scheduled";
@@ -187,8 +212,11 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
       if (!small) for (const p of [l.g[0], l.g[l.g.length - 1]]) layer.addLayer(L.circleMarker(p, { renderer, radius: 3.5, color: "#fff", weight: 1.5, fillColor: c, fillOpacity: 1, interactive: false }));
     }
   }
+  let drawnBox = null;
+  map.on("moveend", () => { if (shown() && drawnBox && !drawnBox.contains(map.getBounds())) draw(); });
   let zBand = map.getZoom() >= 12;
-  map.on("zoomend", () => { const b = map.getZoom() >= 12; if (b !== zBand) { zBand = b; if (shown()) draw(); } });
+  let zFar = map.getZoom() < 8;
+  map.on("zoomend", () => { const b = map.getZoom() >= 12, f = map.getZoom() < 8; if (b !== zBand || f !== zFar) { zBand = b; zFar = f; if (shown()) draw(); } });
   const shown = () => on && isSki() && lifts.length > 0;
   async function sync() {
     placeBtn(); setBtn();
@@ -225,7 +253,7 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
     const c = C[st.s] || C.none, waiting = st.s === "none" && st.wait && !liveErr;
     const wait = st.w != null && st.s === "open" ? (st.w > 0 ? `<span><strong>${st.w} min</strong>wait</span>` : `<span><strong>No wait</strong>walk on</span>`) : "";
     const hours = st.o || st.c ? `${st.o ? fmtT(st.o) : "?"} – ${st.c ? fmtT(st.c) : "?"}` : "";
-    const why = st.s !== "none" ? "" : !r.live ? `${esc(r.name || "This resort")} doesn't publish a lift status the app can read yet.` : liveErr ? esc(liveErr) + "." : waiting ? "Getting the live status…" : st.empty ? `${esc(r.name || "The resort")} hasn't posted its lift status yet (it starts when the season opens).` : "This lift isn't in the resort's lift report.";
+    const why = st.some ? `${esc(r.name || "The resort")} says ${st.some[0]} of its ${st.some[1]} lifts run today but not which ones.` : st.byCount ? `${esc(r.name || "The resort")} says ${st.byCount[0]} of its ${st.byCount[1]} lifts run today.` : st.s !== "none" ? "" : !r.live || (v && v.missing) ? `${esc(r.name || "This resort")} doesn't publish a lift status the app can read yet.` : liveErr ? esc(liveErr) + "." : waiting ? "Getting the live status…" : st.empty ? `${esc(r.name || "The resort")} hasn't posted its lift status yet (it starts when the season opens).` : "This lift isn't in the resort's lift report.";
     const seasonNote = season(l.r) ? `<p class="lf-sub" style="margin:8px 0 0">Closed for the season: the resort's last lift report was ${esc(new Date(v.t).toLocaleDateString(undefined, { month: "short", day: "numeric" }))}.</p>` : "";
     const runs = (l.runs || []).map(([n, d]) => { const x = DIFF[d]; return `<li>${x ? `<i style="--d:${x[1]}" aria-label="${esc(d)}">${x[0]}</i>` : ""}${esc(n)}</li>`; }).join("");
     const rows = [
@@ -240,13 +268,15 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
       <h2>${esc(l.n || KIND[l.k] || "Lift")}</h2>
       <p class="lf-sub">${esc(r.name || "")}</p>
       <div class="lf-state" style="--c:${c}"><i></i><div><b>${esc(WORD[st.s])}</b>${why ? `<div class="lf-sub" style="margin:2px 0 0">${why}</div>` : ""}</div>${wait}</div>
-      ${seasonNote}
+      ${seasonNote}${sumText(v) ? `<p class="lf-sub" style="margin:8px 0 0"><b>Today at ${esc(r.name || "the resort")}:</b> <span>${esc(sumText(v))}</span></p>` : ""}
       <dl>${rows.map(([a, b]) => `<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join("")}</dl>
       ${runs ? `<h3>Runs from the top</h3><ul class="lf-runs">${runs}</ul>` : ""}
-      <p class="lf-foot">${st.t || (v && v.t) ? `Resort's lift report updated ${esc(ago(Date.parse(st.t || v.t)))}${gotAt ? `, checked ${esc(ago(gotAt))}` : ""}. ` : ""}${r.page ? `<a href="${esc(r.page)}" target="_blank" rel="noopener">${esc(r.name)} lift status ↗</a>` : ""}<br>Lift line, length and heights from OpenStreetMap.</p>`;
+      <p class="lf-foot">${v && v.noDate ? `The resort's report has no time on it: checked ${esc(ago(v.at))}. ` : st.t || (v && v.t) ? `Resort's lift report updated ${esc(ago(Date.parse(st.t || v.t)))}${gotAt ? `, checked ${esc(ago(gotAt))}` : ""}. ` : ""}${r.page ? `<a href="${esc(r.page)}" target="_blank" rel="noopener">${esc(r.name)} lift status ↗</a>` : ""}<br>Lift line, length and heights from OpenStreetMap.</p>`;
     dlg.querySelector(".lf-x").onclick = () => dlg.close();
     if (!dlg.open) dlg.showModal();
     draw();
+    // A lift away from where the map last looked (from the search): read its resort now, then fill the box again.
+    if (r.live && !v && !triedLive[l.r]) { triedLive[l.r] = 1; poll(false, [l.r]).then(() => { if (dlg.open && selected === l) open(l); }); }
   }
   // Today's line of the operator's timetable (yyyy-mm-dd in Vancouver time; the dates are inclusive).
   const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Vancouver" });
@@ -319,6 +349,51 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
   }
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
   dlg.addEventListener("close", () => { selected = null; draw(); });
+
+  // ---------- a run's status on its card ----------
+  // A ski run's card (winter.js) says if the run is open today when its resort's own report names it (alex 2026-11-10:
+  // "there is no lift status?"): by the same name only (accents, "Le"/"La", I/II/III and dashes don't count), never a
+  // guess. A run the report doesn't name still gets the resort's counts, and is closed when every run there is.
+  const ROMAN = { i: "1", ii: "2", iii: "3", iv: "4", v: "5" };
+  const runKey = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/['’`]/g, " ")
+    .split(/[^a-z0-9]+/).filter(Boolean).map((w) => ROMAN[w] || w).filter((w, i) => !(i === 0 && /^(le|la|les|l|the)$/.test(w))).join(" ");
+  const RUN_C = { open: "open", closed: "closed" };
+  const SURF = { "Damée": "Groomed", "À bosse": "Moguls", "À bosses": "Moguls", "Neige naturelle": "Natural snow" };
+  function nearResort(lat, lon) {
+    let best = null, bd = 1e9;
+    for (const [id, r] of Object.entries(resorts)) {
+      if (!r.live || r.access) continue;
+      const d = Math.hypot(lat - r.lat, (lon - r.lon) * Math.cos((lat * Math.PI) / 180));
+      if (d < bd) { bd = d; best = id; }
+    }
+    return bd < 0.045 ? best : null;   // about 5 km
+  }
+  async function runCard(r) {
+    if (!r || r.type !== "resort" || !r.lines || !r.lines[0]) return;
+    await load();
+    const p = r.lines[0][Math.floor(r.lines[0].length / 2)], id = nearResort(p[0], p[1]);
+    if (!id) return;
+    const tag = $("skRcTag");
+    if (!tag || !document.getElementById("skDetail").contains(tag)) return;
+    let el = $("lfRunSt");
+    if (!el) { el = document.createElement("p"); el.id = "lfRunSt"; el.className = "sk-wbst"; tag.after(el); }
+    const name = resorts[id].name;
+    el.innerHTML = `<span>Today at ${esc(name)}</span> <b>…</b>`;
+    if (!live[id] || Date.now() - live[id].at > EVERY) await poll(true, [id]);
+    if (!el.isConnected) return;
+    const v = live[id];
+    if (!v || v.err || (!v.runs && !v.sum)) {
+      el.innerHTML = `<span>Today at ${esc(name)}</span> <b>${v && v.err ? "Couldn't read the resort's report" : "No run status from the resort"}</b>`;
+      return;
+    }
+    const k = runKey(r.name), x = k && (v.runs || []).find((y) => runKey(y.n) === k);
+    const runs = (v.sum && v.sum.runs) || (v.runs ? [v.runs.filter((y) => y.s === "open").length, v.runs.length] : null);
+    const s = x ? x.s : runs && runs[1] > 0 && runs[0] === 0 ? "closed" : "";
+    el.className = `sk-wbst ${RUN_C[s] || ""}`;
+    el.innerHTML = `<span>Today at ${esc(name)}</span> <b>${s === "open" ? "Run open" : s === "closed" ? "Run closed" : x ? esc(WORD[s] || "Status not given") : "This run isn't in the resort's report"}</b>`
+      + `<small class="lf-runsub"><span>${esc([x && (SURF[x.g] || x.g), sumText(v)].filter(Boolean).join(" · "))}</span><br><span>From the resort's own report, checked ${esc(ago(v.at))}:</span> <a href="${esc(resorts[id].page || v.page || "#")}" target="_blank" rel="noopener">their page ↗</a></small>`;
+  }
+  window.addEventListener("tf:ski-select", (e) => { runCard(e.detail && e.detail.item).catch(() => {}); });
 
   let lastSki = isSki();
   new MutationObserver(() => { if (isSki() !== lastSki) { lastSki = isSki(); sync(); } }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
