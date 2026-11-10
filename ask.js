@@ -208,13 +208,15 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   const aiNote = (ai) => ai.ok ? "" : ai.off
     ? `<p class="ask-note ask-off"><span>${esc(ai.why)}</span> <button type="button" class="ask-ai-on" data-ai-on>Turn Google's AI back on</button></p>`
     : `<p class="ask-note">${esc(ai.why)} Read here more simply: ask again later for a smarter read.</p>`;
-  // The button asks again (18 or older box, welcome.js); a yes asks the same question again, now with the AI.
-  dlg.addEventListener("click", (e) => {
-    if (!e.target.closest("[data-ai-on]") || !window.tfAiConsent) return;
-    const q = dlg.querySelector(".ask-in").value.trim();
-    const again = (ev) => { document.removeEventListener("tf:aiconsent", again); if (ev.detail && ev.detail.ok && dlg.open && q) open(q); };
-    document.addEventListener("tf:aiconsent", again);
-    window.tfAiConsent.set(true);
+  // The button asks again (18 or older box, welcome.js). Once the AI is on, from here or from More, the off note goes
+  // at once (alex: not shown when it's on) and an open Ask reads its question again with the AI.
+  dlg.addEventListener("click", (e) => { if (e.target.closest("[data-ai-on]") && window.tfAiConsent) window.tfAiConsent.set(true); });
+  document.addEventListener("tf:aiconsent", (ev) => {
+    if (!ev.detail || !ev.detail.ok) return;
+    const had = dlg.querySelector(".ask-off");
+    document.querySelectorAll(".ask-off").forEach((n) => n.remove());
+    const q = dlg.querySelector(".ask-in") && dlg.querySelector(".ask-in").value.trim();
+    if (had && dlg.open && q) open(q);
   });
   let token = 0;
   async function open(q, o) {
