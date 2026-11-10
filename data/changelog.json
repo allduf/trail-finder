@@ -1,7 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
-    {"date": "2026-11-10", "text": "Lift status: every ski hill in Canada now has its lifts on the Skiing map, and a ski run's card says if the run is open today when the resort's own report names it (Ski Garceau first)."},
+    {"date": "2026-11-10", "text": "Skiing 3D, Sea to Sky, Revelstoke and Golden: the snow photos come in much faster when you turn or move to look at another area, and the middle distance is sharper."},
     {"date": "2026-11-10", "text": "Skiing: new backcountry routes drawn from skiers' GPS tracks: the winter way up to Wedgemount Lake and its hut, Mount Taylor from Joffre Lakes, Blowdown Peak and Mamquam Mountain. Chief Pascall now follows a real GPS track too."},
     {"date": "2026-11-10", "text": "Help and support page is now in French too, and follows your language."},
     {"date": "2026-11-09", "text": "Summer map, Sea to Sky: the mountains are late-August satellite photos now, so the meadows and ridges no longer show old July snow."},

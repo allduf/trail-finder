@@ -130,7 +130,7 @@ async function savedFirst(req) {
 //  - osm: OpenStreetMap's map; shown from here at once and fetched again in the background when over a day old,
 //    as OpenStreetMap asks apps to keep its tiles rather than download them on every open
 const TILES = [
-  { name: "tf-tiles-photos", max: 4000, days: 30, test: (u) => (u.origin === self.location.origin || /^(allduf\.github\.io|trailfinder-winter2?\.netlify\.app|trailfinder-w[12]-\d+\.pages\.dev|trailfinder-summer(-15)?\.pages\.dev)$/.test(u.hostname)) && /\/trail-finder-(winter2?|summer)\/\d+\/\d+\/\d+\.webp$/.test(u.pathname) },
+  { name: "tf-tiles-photos", max: 4000, days: 30, test: (u) => (u.origin === self.location.origin || /^(allduf\.github\.io|trailfinder-winter2?\.netlify\.app|trailfinder-w[12]-\d+\.pages\.dev|trailfinder-summer(-15)?\.pages\.dev|trailfinder-sharpmid\.pages\.dev)$/.test(u.hostname)) && /\/trail-finder-(winter2?|summer)\/\d+\/\d+\/\d+\.webp$/.test(u.pathname) },
   { name: "tf-tiles-heights", max: 200, days: 7, test: (u) => u.hostname === "tiles.mapterhorn.com" },
   { name: "tf-tiles-osm", max: 2000, days: 7, fresh: 1, test: (u) => u.hostname === "tile.openstreetmap.org" },
 ];
@@ -173,7 +173,7 @@ self.addEventListener("fetch", (e) => {
   const tile = TILES.find((t) => t.test(url));
   if (tile) e.respondWith(tileFirst(req, tile, e).catch(() => fetch(req)));
   else if (url.origin === self.location.origin && (url.searchParams.has("v") || url.pathname.includes("/vendor/"))) e.respondWith(cacheFirst(req));
-  else if ((url.origin === self.location.origin || /^(allduf\.github\.io|trailfinder-winter2?\.netlify\.app|trailfinder-w[12]-\d+\.pages\.dev|trailfinder-summer(-15)?\.pages\.dev)$/.test(url.hostname)) && /\/trail-finder-(winter2?|summer)\//.test(url.pathname) && !url.pathname.endsWith(".json")) e.respondWith(savedFirst(req));
+  else if ((url.origin === self.location.origin || /^(allduf\.github\.io|trailfinder-winter2?\.netlify\.app|trailfinder-w[12]-\d+\.pages\.dev|trailfinder-summer(-15)?\.pages\.dev|trailfinder-sharpmid\.pages\.dev)$/.test(url.hostname)) && /\/trail-finder-(winter2?|summer)\//.test(url.pathname) && !url.pathname.endsWith(".json")) e.respondWith(savedFirst(req));
   else if (url.origin === self.location.origin) e.respondWith(networkFirst(req, e));
   else if (STATIC_HOSTS.includes(url.hostname)) e.respondWith(cacheFirst(req));
   else if (url.hostname === "tiles.openfreemap.org") e.respondWith(openFreeMap(req));
