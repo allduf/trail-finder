@@ -1,0 +1,2009 @@
+{
+"note": "Every other ski hill in Canada with lifts in OpenStreetMap, for scripts/build-ski-lifts.mjs: [id, name, lat, lon, half height, half width (degrees), more]. Found 2026-11-10 from the resort runs in ca/w/ and data/ski.json; the name is the hill's OpenStreetMap area (landuse=winter_sports), else Nominatim's nearest ski place, else 'Ski hill near <town>'. Closed ('former') hills left out.",
+"resorts": [
+[
+"h-chibougamau",
+"Ski hill near Chibougamau",
+49.9117,
+-74.303,
+0.0087,
+0.0102,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-saint-felicien",
+"Ski hill near Saint-Félicien",
+48.5911,
+-72.503,
+0.0077,
+0.0085,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-la-corne",
+"Ski hill near La Corne",
+48.4168,
+-77.7805,
+0.008,
+0.0096,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-do-mi-",
+"Do-Mi-Ski Ski Area",
+48.8927,
+-72.2366,
+0.007,
+0.0076,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-val-d'or",
+"Ski hill near Val-d'Or",
+48.0851,
+-77.8081,
+0.0066,
+0.0076,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-wood-buffalo",
+"Ski hill near Wood Buffalo",
+56.6645,
+-111.1356,
+0.0092,
+0.0131,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-westlock-county",
+"Ski hill near Westlock County",
+54.304,
+-113.4734,
+0.0094,
+0.0102,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-bonnyville",
+"Ski hill near Bonnyville",
+54.4384,
+-110.0124,
+0.0088,
+0.0131,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-long-lake",
+"Long Lake Ski Area",
+54.4662,
+-112.7775,
+0.0078,
+0.0092,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-whispering-pines",
+"Whispering Pines Ski Area",
+56.6026,
+-119.3988,
+0.0089,
+0.0128,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-greenview",
+"Ski hill near Greenview",
+55.0584,
+-118.8597,
+0.0088,
+0.012,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-misery",
+"Misery Mountain Ski Hill",
+56.2232,
+-117.3088,
+0.0098,
+0.0126,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-fairview",
+"Fairview Ski Hill",
+55.9945,
+-118.6063,
+0.0096,
+0.0115,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-smoky-river",
+"Ski hill near Smoky River",
+55.4658,
+-117.1928,
+0.0078,
+0.0095,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-saddle-hills-county",
+"Ski hill near Saddle Hills County",
+55.5058,
+-119.5895,
+0.0071,
+0.0089,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-northern-lights",
+"Ski hill near Northern Lights",
+56.9898,
+-117.4937,
+0.0069,
+0.0076,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-barrhead",
+"Ski hill near Barrhead",
+54.3643,
+-114.5411,
+0.0075,
+0.0077,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-whitecourt",
+"Ski hill near Whitecourt",
+54.1346,
+-115.6541,
+0.0075,
+0.0098,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-powder-king",
+"Powder King Mountain Resort",
+55.3694,
+-122.6284,
+0.0195,
+0.022,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-murray-ridge",
+"Murray Ridge Ski Area",
+54.5247,
+-124.2008,
+0.0141,
+0.0195,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-bear",
+"Bear Mountain Ski Hill",
+55.713,
+-120.2635,
+0.0081,
+0.0103,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-portage",
+"Portage Mountain Ski Hill",
+56.0099,
+-122.1711,
+0.007,
+0.0071,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-hudson-bay",
+"Hudson Bay Mountain",
+54.7764,
+-127.2403,
+0.0215,
+0.0457,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-shames",
+"Shames Mountain",
+54.4931,
+-128.9641,
+0.014,
+0.018,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-farlagne",
+"Mont Farlagne",
+47.4105,
+-68.3851,
+0.0098,
+0.0119,
+{
+"prov": "NB",
+"osm": 1
+}
+],
+[
+"h-grand-fonds",
+"Mont Grand-Fonds",
+47.7692,
+-70.0932,
+0.0109,
+0.015,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-biencourt",
+"Ski hill near Biencourt",
+47.9925,
+-68.5699,
+0.0094,
+0.0099,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-sherbrooke",
+"Ski hill near Sherbrooke",
+45.3825,
+-71.9115,
+0.0084,
+0.0084,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-tingwick",
+"Ski hill near Tingwick",
+45.9278,
+-71.9562,
+0.0102,
+0.0123,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-adstock",
+"Ski hill near Adstock",
+46.0311,
+-71.1926,
+0.0088,
+0.0113,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h--orignal",
+"Station de ski Mont-Orignal",
+46.4116,
+-70.5885,
+0.0086,
+0.0135,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-saint-georges",
+"Centre de ski Saint-Georges",
+46.1391,
+-70.6643,
+0.0079,
+0.0085,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-beauce",
+"Club ski Beauce",
+46.3702,
+-70.9314,
+0.0072,
+0.0079,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-matapedia",
+"Ski hill near Matapédia",
+47.9725,
+-66.9593,
+0.0085,
+0.0097,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-saint-pierre-baptiste",
+"Ski hill near Saint-Pierre-Baptiste",
+46.2273,
+-71.6676,
+0.008,
+0.0086,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-lac-megantic",
+"Ski hill near Lac-Mégantic",
+45.5882,
+-70.933,
+0.0072,
+0.008,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-plein-air-levis",
+"Centre de plein air de Lévis",
+46.8205,
+-71.1587,
+0.007,
+0.0072,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-sima",
+"Mount Sima",
+60.6081,
+-135.0567,
+0.0105,
+0.0169,
+{
+"prov": "YT",
+"osm": 1
+}
+],
+[
+"h-sir-sam's-&-bike",
+"Sir Sam's Ski & Bike",
+45.1279,
+-78.4848,
+0.008,
+0.0115,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-north-bay",
+"Ski hill near North Bay",
+46.3353,
+-79.432,
+0.0085,
+0.0085,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-adanac",
+"Adanac Ski Hill",
+46.5091,
+-80.9603,
+0.0075,
+0.0085,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-mt.-dufour",
+"Mt. Dufour Ski Area",
+46.3872,
+-82.6347,
+0.0082,
+0.0093,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-antoine",
+"Antoine Mountain",
+46.3641,
+-78.7392,
+0.0099,
+0.0095,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-boogie",
+"Boogie Mountain",
+46.2389,
+-81.7744,
+0.0074,
+0.008,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-greater-sudbury",
+"Ski hill near Greater Sudbury",
+46.431,
+-81.1418,
+0.0067,
+0.0072,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-huntsville",
+"Ski hill near Huntsville",
+45.2873,
+-79.2639,
+0.0073,
+0.0088,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-tri-town",
+"Tri Town Ski and Snowboard Village",
+47.3614,
+-79.5737,
+0.0088,
+0.0091,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-hidden-valley-highlands",
+"Hidden Valley Highlands Ski Area",
+45.3547,
+-79.1325,
+0.0094,
+0.01,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-mission-ridge-winter-par",
+"Mission Ridge Winter Park",
+50.7529,
+-103.7808,
+0.0082,
+0.0089,
+{
+"prov": "SK",
+"osm": 1
+}
+],
+[
+"h-hill",
+"Ski hill",
+50.5212,
+-102.4931,
+0.0102,
+0.0121,
+{
+"prov": "SK",
+"osm": 1
+}
+],
+[
+"h-cain-alpine-park",
+"Mount Cain Alpine Park",
+50.2227,
+-126.3464,
+0.01,
+0.0163,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-watson-lake",
+"Ski hill near Watson Lake",
+60.1144,
+-128.7441,
+0.01,
+0.0136,
+{
+"prov": "YT",
+"osm": 1
+}
+],
+[
+"h-dawson-city",
+"Ski hill near Dawson City",
+64.052,
+-139.4055,
+0.0078,
+0.0101,
+{
+"prov": "YT",
+"osm": 1
+}
+],
+[
+"h-yellowknife",
+"Ski hill near Yellowknife",
+62.4631,
+-114.41,
+0.0066,
+0.0067,
+{
+"prov": "NT",
+"osm": 1
+}
+],
+[
+"h-hidden-valley",
+"Hidden Valley Ski Resort",
+49.6505,
+-110.2733,
+0.0143,
+0.0193,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-baldy",
+"Mount Baldy Ski Area",
+48.5245,
+-89.1235,
+0.0094,
+0.0102,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-loch-lomond",
+"Loch Lomond Ski Area",
+48.2839,
+-89.387,
+0.0107,
+0.0115,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-manitouwadge-township",
+"Ski hill near Manitouwadge Township",
+49.1329,
+-85.8518,
+0.0084,
+0.0083,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-clarenville",
+"Ski hill near Clarenville",
+48.1604,
+-54.0509,
+0.0095,
+0.0102,
+{
+"prov": "NL",
+"osm": 1
+}
+],
+[
+"h-batawa",
+"Batawa Ski Hill",
+44.1653,
+-77.5958,
+0.0077,
+0.0077,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-mt.-timothy",
+"Mt. Timothy Ski Area",
+51.9088,
+-121.2534,
+0.0128,
+0.0216,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-purden",
+"Purden Ski Village",
+53.8954,
+-121.8807,
+0.0122,
+0.024,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-willow-river/upper-frase",
+"Ski hill near Willow River/Upper Fraser",
+53.9399,
+-122.4557,
+0.0106,
+0.0131,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-bowron-lake/barlow-creek",
+"Ski hill near Bowron Lake/Barlow Creek/Barkerville",
+53.0774,
+-121.9465,
+0.0165,
+0.0232,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-clearwater",
+"Clearwater Ski Hill",
+51.6314,
+-120.0186,
+0.0118,
+0.0149,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-prince-george",
+"Ski hill near Prince George",
+53.9838,
+-122.7944,
+0.0077,
+0.0085,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-wapiti-valley-&-board",
+"Wapiti Valley Ski & Board Resort",
+53.2341,
+-104.4571,
+0.008,
+0.0099,
+{
+"prov": "SK",
+"osm": 1
+}
+],
+[
+"h-timber-ridge",
+"Ski Timber Ridge",
+53.7865,
+-106.9841,
+0.0079,
+0.0096,
+{
+"prov": "SK",
+"osm": 1
+}
+],
+[
+"h-mystery-lake",
+"Ski hill near Mystery Lake",
+55.8714,
+-97.7767,
+0.0089,
+0.0114,
+{
+"prov": "MB",
+"osm": 1
+}
+],
+[
+"h-saint-donat",
+"Ski hill near Saint-Donat",
+48.4677,
+-68.1998,
+0.0125,
+0.0161,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-matane",
+"Ski hill near Matane",
+48.7666,
+-67.5502,
+0.0098,
+0.0108,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-saguenay",
+"Ski hill near Saguenay",
+48.438,
+-71.2269,
+0.0083,
+0.0088,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-saint-david---falardeau",
+"Ski hill near Saint-David-de-Falardeau",
+48.6488,
+-70.8958,
+0.0129,
+0.0211,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-parc-regional-val-d'iren",
+"Parc régional de Val-d'Irène",
+48.4777,
+-67.5796,
+0.011,
+0.0141,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-rimouski",
+"Ski hill near Rimouski",
+48.3627,
+-68.478,
+0.0091,
+0.0115,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-hebertville",
+"Ski hill near Hébertville",
+48.3514,
+-71.6082,
+0.0102,
+0.0111,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-petit-chic-chocs",
+"Station Petit Chic-Chocs",
+49.05,
+-66.6957,
+0.0084,
+0.0094,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h--villa-saguenay",
+"Centre de ski Mont-Villa Saguenay",
+48.5472,
+-71.6315,
+0.0069,
+0.0069,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-gallix",
+"Station de Ski Gallix",
+50.1745,
+-66.7153,
+0.0091,
+0.0114,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-saguenay-2",
+"Ski hill near Saguenay",
+48.3212,
+-70.8337,
+0.009,
+0.0118,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h--edouard",
+"Station de ski Mont-Édouard",
+48.1597,
+-70.2885,
+0.0136,
+0.013,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-ti-basse",
+"Mont Ti-Basse",
+49.2893,
+-68.1719,
+0.0091,
+0.0107,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-saint-mathieu---rioux",
+"Ski hill near Saint-Mathieu-de-Rioux",
+48.1509,
+-69.0036,
+0.0092,
+0.0144,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-sainte-anne-des-monts",
+"Ski hill near Sainte-Anne-des-Monts",
+49.0948,
+-66.5228,
+0.0086,
+0.0099,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-madawaska",
+"Madawaska Mountain",
+45.4332,
+-77.6599,
+0.0095,
+0.0092,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-pakenham",
+"Mount Pakenham Ski Hill",
+45.321,
+-76.3346,
+0.0086,
+0.0106,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-martin",
+"Mount Martin Ski Club",
+46.1152,
+-77.5093,
+0.007,
+0.0073,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-vorlage",
+"Centre Vorlage",
+45.6454,
+-75.9386,
+0.0114,
+0.0108,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-belle-neige",
+"Belle Neige",
+46.002,
+-74.2195,
+0.0087,
+0.0098,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-cascades",
+"Mont Cascades Ski",
+45.5889,
+-75.845,
+0.0097,
+0.0125,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-municipal-la-tuque",
+"Centre municipal de ski de La Tuque",
+47.4325,
+-72.7728,
+0.0088,
+0.0094,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-saint-bruno",
+"Ski Mont Saint-Bruno",
+45.5557,
+-73.3322,
+0.0093,
+0.0111,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-rigaud",
+"Ski Mont Rigaud",
+45.4656,
+-74.3352,
+0.0087,
+0.01,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-gabriel",
+"Ski Mont Gabriel",
+45.9193,
+-74.155,
+0.0107,
+0.0098,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-morin-heights",
+"Ski Morin Heights",
+45.8995,
+-74.2734,
+0.011,
+0.0126,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-chantecler",
+"Ski Chantecler",
+45.9572,
+-74.1717,
+0.0101,
+0.0107,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-chilly",
+"Mont Chilly",
+45.9149,
+-76.7466,
+0.0078,
+0.0087,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-la-reserve",
+"Ski La Réserve",
+46.2806,
+-74.1885,
+0.0111,
+0.0122,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-avalanche",
+"Ski Mont Avalanche",
+45.9677,
+-74.3477,
+0.0082,
+0.009,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-vallee-bleue",
+"Vallée Bleue",
+46.0305,
+-74.2271,
+0.0151,
+0.0176,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-montcalm",
+"Ski Montcalm",
+46.0397,
+-73.8297,
+0.0098,
+0.0131,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-sainte-agathe-des-monts",
+"Ski hill near Sainte-Agathe-des-Monts",
+46.0685,
+-74.3042,
+0.007,
+0.0077,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-chantecler-2",
+"Ski Chantecler",
+45.9897,
+-74.1683,
+0.0092,
+0.0087,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-terrebonne",
+"Ski hill near Terrebonne",
+45.7122,
+-73.6637,
+0.0072,
+0.0066,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-dryden",
+"Dryden Ski Club",
+49.9027,
+-92.7881,
+0.0077,
+0.0078,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-atikokan",
+"Ski hill near Atikokan",
+48.806,
+-91.5936,
+0.0073,
+0.0079,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-kenora",
+"Ski hill near Kenora",
+49.7915,
+-94.4122,
+0.008,
+0.0092,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-touristique-pin-rouge",
+"Station touristique Pin-Rouge",
+48.3177,
+-65.7193,
+0.013,
+0.0172,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-bechervaise",
+"Centre de ski Mont Béchervaise",
+48.842,
+-64.5426,
+0.0111,
+0.0094,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-miller",
+"Station de ski Mont Miller",
+48.9635,
+-65.4846,
+0.0125,
+0.0126,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-asessippi-&",
+"Asessippi Ski Area & Resort",
+50.9482,
+-101.3315,
+0.0092,
+0.0142,
+{
+"prov": "MB",
+"osm": 1
+}
+],
+[
+"h-pembina",
+"Ski hill near Pembina",
+49.2352,
+-98.6954,
+0.0078,
+0.0089,
+{
+"prov": "MB",
+"osm": 1
+}
+],
+[
+"h-stony",
+"Stony Mountain Ski Area",
+50.0941,
+-97.2055,
+0.0068,
+0.0071,
+{
+"prov": "MB",
+"osm": 1
+}
+],
+[
+"h-valley",
+"Ski Valley",
+50.3178,
+-99.8793,
+0.0078,
+0.0085,
+{
+"prov": "MB",
+"osm": 1
+}
+],
+[
+"h-springfield",
+"Ski hill near Springfield",
+49.9632,
+-96.9828,
+0.0069,
+0.0071,
+{
+"prov": "MB",
+"osm": 1
+}
+],
+[
+"h-valley-2",
+"Snow Valley Ski Resort",
+44.4099,
+-79.789,
+0.0091,
+0.0108,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-caledon",
+"Caledon Ski Club",
+43.8052,
+-80.008,
+0.0095,
+0.0123,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-glen-eden",
+"Glen Eden",
+43.5045,
+-79.944,
+0.0092,
+0.0092,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-hockley-valley",
+"Hockley Valley Resort",
+43.9753,
+-80.0477,
+0.0079,
+0.0087,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-osler-bluff",
+"Osler Bluff Ski Club",
+44.4581,
+-80.284,
+0.0107,
+0.0137,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-devil's-glen-country",
+"Devil's Glen Country Club",
+44.3529,
+-80.2043,
+0.0093,
+0.0111,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-london",
+"Ski hill near London",
+42.9429,
+-81.3399,
+0.0075,
+0.0095,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-lakeridge",
+"Ski Lakeridge Resort",
+44.0204,
+-79.059,
+0.0181,
+0.0105,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-clarington",
+"Ski hill near Clarington",
+44.0242,
+-78.5781,
+0.0089,
+0.0118,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-beaver-valley",
+"Beaver Valley Ski Club",
+44.3553,
+-80.5506,
+0.013,
+0.0109,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-vaughan",
+"Ski hill near Vaughan",
+43.8243,
+-79.4402,
+0.007,
+0.0069,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-mansfield",
+"Mansfield Ski Club",
+44.1987,
+-80.057,
+0.0088,
+0.01,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-earl-bales-park",
+"Earl Bales Park Ski and Snowboard Centre",
+43.7533,
+-79.4305,
+0.007,
+0.0079,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-kitchener",
+"Ski hill near Kitchener",
+43.4341,
+-80.4202,
+0.0084,
+0.0086,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-labrador-city",
+"Ski hill near Labrador City",
+52.9772,
+-66.9286,
+0.0101,
+0.0135,
+{
+"prov": "NL",
+"osm": 1
+}
+],
+[
+"h-hill-2",
+"Ski hill",
+53.5229,
+-64.0195,
+0.0082,
+0.0082,
+{
+"prov": "NL",
+"osm": 1
+}
+],
+[
+"h-marmot-basin",
+"Marmot Basin",
+52.7951,
+-118.1048,
+0.0157,
+0.0279,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-silver-summit",
+"Silver Summit",
+53.89,
+-116.5765,
+0.0095,
+0.0149,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-brazeau-county",
+"Ski hill near Brazeau County",
+53.2366,
+-114.9249,
+0.0078,
+0.0086,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-medicine-lodge",
+"Medicine Lodge Ski Area",
+52.4534,
+-114.2596,
+0.0085,
+0.0107,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-crowsnest-pass",
+"Ski hill near Crowsnest Pass",
+49.6013,
+-114.4527,
+0.0113,
+0.0121,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-wapiti",
+"Wapiti",
+50.0233,
+-114.9474,
+0.0097,
+0.0142,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-fairmont-hot-springs",
+"Fairmont Hot Springs Resort Ski Area",
+50.336,
+-115.8271,
+0.0117,
+0.0186,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-salmo-valley",
+"Ski hill near Salmo Valley",
+49.181,
+-117.3042,
+0.0114,
+0.0107,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-mt.-baldy",
+"Mt. Baldy Ski Area",
+49.1587,
+-119.2428,
+0.0149,
+0.0238,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-summit-lake-&",
+"Summit Lake Ski & Snowboard Area",
+50.1438,
+-117.616,
+0.008,
+0.0119,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-thunderhill",
+"Thunderhill Ski Area",
+52.0152,
+-101.6032,
+0.0081,
+0.012,
+{
+"prov": "MB",
+"osm": 1
+}
+],
+[
+"h-duck",
+"Duck Mountain Ski Area",
+51.5608,
+-101.6119,
+0.0097,
+0.0101,
+{
+"prov": "SK",
+"osm": 1
+}
+],
+[
+"h-poley",
+"Poley Mountain Ski Area",
+45.6775,
+-65.3783,
+0.0104,
+0.0121,
+{
+"prov": "NB",
+"osm": 1
+}
+],
+[
+"h-cape-smokey",
+"Ski Cape Smokey",
+46.6229,
+-60.4267,
+0.011,
+0.0114,
+{
+"prov": "NS",
+"osm": 1
+}
+],
+[
+"h-brookvale",
+"Ski hill near Brookvale",
+46.2802,
+-63.4094,
+0.008,
+0.0086,
+{
+"prov": "PE",
+"osm": 1
+}
+],
+[
+"h-rabbit",
+"Rabbit Hill Snow Resort",
+53.3794,
+-113.67,
+0.0076,
+0.0099,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-sunridge",
+"Sunridge Ski Area",
+53.5668,
+-113.3721,
+0.0082,
+0.0088,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-valley-3",
+"Snow Valley Ski Club",
+53.4839,
+-113.5589,
+0.0069,
+0.008,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-paintearth",
+"Ski hill near Paintearth",
+52.4128,
+-111.8259,
+0.0071,
+0.0082,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-vermilion-river",
+"Ski hill near Vermilion River",
+53.1005,
+-110.1579,
+0.0078,
+0.011,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-gwynne-valley",
+"Gwynne Valley",
+52.9849,
+-113.2174,
+0.0072,
+0.0072,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-edmonton",
+"Edmonton Ski Club",
+53.5339,
+-113.4749,
+0.0071,
+0.0102,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-canyon",
+"Canyon Ski Resort",
+52.3053,
+-113.6866,
+0.0109,
+0.0105,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-innisfail",
+"Ski hill near Innisfail",
+52.036,
+-113.9672,
+0.0069,
+0.0072,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-flagstaff-county",
+"Ski hill near Flagstaff County",
+52.5552,
+-111.3118,
+0.0073,
+0.0096,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-wainwright",
+"Ski hill near Wainwright",
+53.0422,
+-110.7339,
+0.0086,
+0.0128,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-battle-river-no.-438",
+"Ski hill near Battle River No. 438",
+52.8122,
+-108.6057,
+0.0087,
+0.0107,
+{
+"prov": "SK",
+"osm": 1
+}
+],
+[
+"h-timmins",
+"Ski hill near Timmins",
+48.5371,
+-81.5418,
+0.0089,
+0.0124,
+{
+"prov": "ON",
+"osm": 1
+}
+],
+[
+"h-rouyn-noranda",
+"Ski hill near Rouyn-Noranda",
+48.1789,
+-79.4029,
+0.0092,
+0.0103,
+{
+"prov": "QC",
+"osm": 1
+}
+],
+[
+"h-mt-seymour",
+"Mt Seymour",
+49.3719,
+-122.9444,
+0.0154,
+0.0114,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-sasquatch",
+"Sasquatch Mountain Resort",
+49.3851,
+-121.9406,
+0.0142,
+0.0172,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-harper",
+"Harper Mountain",
+50.7222,
+-120.1327,
+0.0118,
+0.015,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-phoenix",
+"Phoenix Ski Area",
+49.1057,
+-118.5863,
+0.0094,
+0.011,
+{
+"prov": "BC",
+"osm": 1
+}
+],
+[
+"h-fortress",
+"Fortress Mountain Resort",
+50.8261,
+-115.2088,
+0.0164,
+0.0177,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-rocky-view-county",
+"Ski hill near Rocky View County",
+50.9835,
+-114.5782,
+0.0098,
+0.0121,
+{
+"prov": "AB",
+"osm": 1
+}
+],
+[
+"h-winsport",
+"WinSport Ski Hill",
+51.0798,
+-114.2147,
+0.0093,
+0.0089,
+{
+"prov": "AB",
+"osm": 1
+}
+]
+]
+}
