@@ -1822,7 +1822,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     planPts.push(pt);
     if (!planning) setPlanning(true);
     planChanged();
-    if (planPts.length === 1) window.tfPlaceSearch.go(p, { maxZoom: 12, sheet: false });
+    if (planPts.length === 1) window.tfPlaceSearch.go(p, { maxZoom: 12, sheet: false, pin: false });
     else map.fitBounds(L.latLngBounds(planPts).pad(0.15));
     renderRoute();
   }

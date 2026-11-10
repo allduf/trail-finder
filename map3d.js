@@ -666,8 +666,30 @@
   // o: { lat, lon, dy } the place, and how far above the middle of the screen it should sit (the phone sheet covers the bottom)
   window.tf3dSearchView = (o) => {   // place-search.js: the next move is a search result
     searchAt = Date.now(); searchView = searchAt + 1500; searchTilt = true; searchTo = o || null; setTimeout(settle, 1500);
+    // The ground's height at the place, asked right away (one small tile): the camera is aimed at it when it lands if
+    // the view's own heights aren't in yet. Before, the camera kept the height of where it came from (alex's recording
+    // 2026-11-09: Microwave Ridge, 2,000 m, searched from the valley, aimed at 770 m): it landed inside the ridge, a few
+    // metres from a blurry slope, for about 10 s, until a later check moved it up.
+    if (o && o.lat != null) o.h = heightAt(o.lat, o.lon).catch(() => null);
     if (o && o.km) turnToSee(o, searchAt);
   };
+  // The ground's height at a point (m, as the 3D map draws it: its exaggeration included), from a zoom 12 heights tile.
+  const heightTiles = new Map();
+  async function heightAt(lat, lon, z = 12) {
+    const n = 2 ** z, fx = ((lon + 180) / 360) * n, la = (lat * Math.PI) / 180, fy = ((1 - Math.log(Math.tan(la) + 1 / Math.cos(la)) / Math.PI) / 2) * n;
+    const tx = Math.floor(fx), ty = Math.floor(fy), k = `${z}/${tx}/${ty}`;
+    if (!heightTiles.has(k)) {
+      if (heightTiles.size > 8) heightTiles.delete(heightTiles.keys().next().value);
+      const t = demTile(z, tx, ty, new AbortController().signal).then((img) => {
+        const cv = new OffscreenCanvas(img.width, img.height), cx = cv.getContext("2d", { willReadFrequently: true });
+        cx.drawImage(img, 0, 0); return cx.getImageData(0, 0, img.width, img.height);
+      });
+      heightTiles.set(k, t); t.catch(() => heightTiles.delete(k));
+    }
+    const d = await heightTiles.get(k), px = Math.min(d.width - 1, Math.floor((fx - tx) * d.width)), py = Math.min(d.height - 1, Math.floor((fy - ty) * d.height)), i = (py * d.width + px) * 4;
+    const e = d.data[i] * 256 + d.data[i + 1] + d.data[i + 2] / 256 - 32768, t = gl && gl.getTerrain && gl.getTerrain();
+    return e * ((t && t.exaggeration) || 1);
+  }
   // Turn the 3D camera to the side the place is seen from best (alex 2026-11-03: Sky Pilot was looked at from behind
   // its ridges; "rotate map so we can see better the location"): of 12 directions around it, the one where the
   // ground between the camera and the place stays lowest under the line of sight (55° tilt: 35° down to the place),
@@ -725,6 +747,29 @@
     // (a search result: the place itself in the middle of what the sheet leaves showing)
     gl.flyTo({ center: to ? [to.lon, to.lat] : [c.lng, c.lat], ...(to && to.dy ? { offset: [0, -to.dy] } : {}), zoom: map.getZoom() - 1, bearing: bearing2d(), duration: 1200, ...look });
     setTimeout(() => syncing--, 1300);
+    // A search result: aimed at the ground as soon as it lands, not at the next check (up to 10 s later when the map
+    // was still moving then), from the place's height on the 3D map when it's in, else its own height (heightAt).
+    // MapLibre's flight keeps the height it started from when the place's heights aren't in yet. Then the place is put
+    // back where it should sit on the screen (aimed lower, it ended up above the top of the screen).
+    if (to) gl.once("moveend", () => {
+      const aim = (e) => {
+        if (!gl || e == null || !isFinite(e) || gl.isMoving() || Date.now() - handAt < 3000 || !gl.setCenterElevation) return;
+        if (Math.abs(e - gl.getCenterElevation()) > 30) gl.setCenterElevation(e);
+        place(0);
+      };
+      // The place where it should sit (dy above the middle), measured on the screen and moved there: a move with an
+      // offset counts the offset on the flat ground at the old height, and left the place off the top of the screen.
+      const place = (n) => {
+        if (!gl || gl.isMoving() || Date.now() - handAt < 3000) return;
+        groundCenter();
+        const cv = gl.getCanvas(), at = gl.project([to.lon, to.lat]), dx = at.x - cv.clientWidth / 2, dy = at.y - (cv.clientHeight / 2 - (to.dy || 0));
+        if (n > 3 || Math.hypot(dx, dy) < 15) { if (n) to2d(); return; }
+        gl.panBy([dx, dy], { duration: n ? 200 : 350 });
+        gl.once("moveend", () => place(n + 1));
+      };
+      const e = gl.queryTerrainElevation([to.lon, to.lat]);
+      if (e != null) aim(e); else if (to.h) to.h.then(aim);
+    });
     settle();
   }
   // After a jump: aim at the ground (again as its heights come in: the 3D map is rarely still long enough to go idle),
@@ -1336,7 +1381,7 @@
   // sharp: zooms 11-14 inside the sharpened squares, from the zoom-15 sharpened photos (see SHARP_MID).
   const fillTile = (z, x, y, whole, abort, site, sharp) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=4150");
+      const w = new Worker("winter-fill.js?v=4160");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1435,7 +1480,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=4150" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=4160" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
