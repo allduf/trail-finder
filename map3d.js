@@ -1348,10 +1348,14 @@
     }).catch(() => { winterBlocks = null; return null; }));
   // AI-sharpened Winter photos (alex 2026-11-03, "Sea to Sky first"): last winter's same photos sharpened 4x (10 m to
   // 2.5 m) by ESA's free SEN2SR model (scripts/winter-photos/sharpen.py), zoom 15 only, on the second site with their
-  // own list of zoom-11 squares (sharp.json). SHARP_BOUNDS: the box they're in (Sea to Sky; Revelstoke, Rogers Pass and
+  // own list of zoom-11 squares (sharp.json). SHARP_BOUNDS: since 2026-11-10 all of Canada (see sharpCaSite); it was the box of (Sea to Sky; Revelstoke, Rogers Pass and
   // Kicking Horse), so nothing is asked for elsewhere; squares in the box but not in sharp.json are never fetched.
   // SHARP_REV: bumped when sharpened squares are rebuilt, so phones don't keep last month's copies (kept 30 days, sw.js).
-  const SHARP = WINTERS[1], SHARP_REV = "?r=3", SHARP_BOUNDS = [-123.76, 49.6, -115.13, 51.85];
+  const SHARP = WINTERS[1], SHARP_REV = "?r=3", SHARP_BOUNDS = [-141, 41.6, -52, 70];
+  // The rest of Canada (alex 2026-11-10: "After you can do all of Canada"): every other Winter photo square, listed in
+  // data/sharp-canada.json and built by .github/workflows/sharp-canada.yml onto 48 sites, k = (x * 31 + y) % 48 of the
+  // zoom-11 square. A square that came out empty (all cloud) just 404s: the plain Winter photo shows there.
+  const sharpCaSite = (x11, y11) => `https://trailfinder-sharpca-${(x11 * 31 + y11) % 48}.pages.dev/trail-finder-winter2/`;
   // ---------- late-summer mountains on the Summer map ----------
   // alex 2026-11-09 ("use some image around september for the summer map"): Esri's sharp summer photo is from early
   // July in many alpine places (Brandywine and Metal Dome: July 5, 2017), so the meadows and ridges showed melting
@@ -1389,8 +1393,19 @@
     });
   }
   let sharpBlocks = null;
-  const loadSharp = () => sharpBlocks || (sharpBlocks = fetch(tfWinterShard(new URL(SHARP + "sharp.json", location.href).href, 0, 0, 0)).then((r) => r.ok ? r.json() : [])
-    .then((a) => new Set(a.map(([x, y]) => x + "/" + y))).catch(() => new Set()));
+  const sharpList = (u) => fetch(u).then((r) => r.ok ? r.json() : []).then((a) => a.map(([x, y]) => x + "/" + y)).catch(() => []);
+  const loadSharp = () => sharpBlocks || (sharpBlocks = Promise.all([sharpList(tfWinterShard(new URL(SHARP + "sharp.json", location.href).href, 0, 0, 0)),
+    sharpList(new URL("data/sharp-canada.json", location.href).href)]).then(([west, ca]) => {
+    const all = new Set(west), more = new Set();
+    for (const k of ca) if (!all.has(k)) { all.add(k); more.add(k); }
+    all.ca = more;
+    return all;
+  }));
+  // Where tile z/x/y's sharpened photos are: the Sea to Sky / Revelstoke to Banff sites, or the rest of Canada's.
+  const sharpBase = (sharp, z, x, y) => {
+    const bx = x >> (z - 11), by = y >> (z - 11);
+    return sharp && sharp.ca && sharp.ca.has(bx + "/" + by) ? sharpCaSite(bx, by) : (z >= 15 ? SHARP : tfSharpSite(z, x, y));
+  };
   const hasSharp = (sharp, z, x, y) => z >= 15 && !!sharp && sharp.has((x >> (z - 11)) + "/" + (y >> (z - 11)));
   // The middle distance from the same sharpened photos (alex 2026-11-07, Kicking Horse 3D: "Map is blurry a bit"):
   // zooms 13 and 14 came from the plain Winter photos, built from far fewer passes, so in cloudy winters (Kicking
@@ -1406,7 +1421,8 @@
   // filled into its cloudy holes (a second download for many). Since 2026-11-10 on the same sites as the zoom-15 ones
   // (tfSharpSite: each square's zooms 11-15 together, ten sites as there are now ~390 squares).
   const SHARP_MID = [11, 12, 13, 14];
-  const sharpMid = (sharp, z, x, y) => SHARP_MID.includes(z) && !!sharp && sharp.has((x >> (z - 11)) + "/" + (y >> (z - 11)));
+  // The site to take zoom-11-14 tile z/x/y from, or null (not a sharpened square).
+  const sharpMid = (sharp, z, x, y) => SHARP_MID.includes(z) && !!sharp && sharp.has((x >> (z - 11)) + "/" + (y >> (z - 11))) ? sharpBase(sharp, z, x, y) : null;
   // The shrinking is done in the winter-fill.js workers (sharp: in their message), off the page: on the page it was
   // 16 pictures decoded and shrunk per tile while the map moved, and dragging the 3D map near Squamish and Whistler
   // drew about 2 frames a second (alex's recording, 2026-11-08: "really slow").
@@ -1448,7 +1464,7 @@
   // sharp: zooms 11-14 inside the sharpened squares, from the zoom-15 sharpened photos (see SHARP_MID).
   const fillTile = (z, x, y, whole, abort, site, sharp) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=4210");
+      const w = new Worker("winter-fill.js?v=4220");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1458,7 +1474,7 @@
       if (!fillWaiting.delete(id)) return;
       w.postMessage({ cancel: id }); no(new DOMException("aborted", "AbortError"));
     });
-    w.postMessage({ id, z, x, y, base: new URL(site, location.href).href, skip: no14(z, x, y), whole, sharp: sharp ? tfSharpSite(z, x, y) : null, rev: SHARP_REV });
+    w.postMessage({ id, z, x, y, base: new URL(site, location.href).href, skip: no14(z, x, y), whole, sharp: sharp || null, rev: SHARP_REV });
   });
   // Since 2026-10-26 the newer squares (ski hills and tours across Canada) stop at zoom 13 to fit the site, and a few
   // tiles are missing where every pass was cloudy. Those came back see-through, so up close the hidden layer under
@@ -1547,7 +1563,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=4210" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=4220" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1569,11 +1585,12 @@
     sharpProtocol = true;
     photoProtocol("tfwintersharp", async (params, abort) => {
       const [z, x, y] = params.url.replace("tfwintersharp://", "").split("/").map(Number);
-      if (!hasSharp(await loadSharp(), z, x, y)) return noTile();
+      const sharp = await loadSharp();
+      if (!hasSharp(sharp, z, x, y)) return noTile();
       // Straight from the site, not through the Winter workers (winter-fill.js): four of these per Winter tile filled
       // the same two workers and held the Winter photos back too (alex 2026-11-03: "i like the quality but it way
       // longer to load"). The odd cloudy hole stays see-through, with the filled Winter photo under it.
-      const r = await fetch(tfWinterShard(new URL(`${SHARP}${z}/${x}/${y}.webp${SHARP_REV}`, location.href).href, z, x, y), { signal: abort.signal }).catch((e) => { if (abort.signal.aborted) throw e; return null; });
+      const r = await fetch(tfWinterShard(new URL(`${sharpBase(sharp, z, x, y)}${z}/${x}/${y}.webp${SHARP_REV}`, location.href).href, z, x, y), { signal: abort.signal }).catch((e) => { if (abort.signal.aborted) throw e; return null; });
       return r && r.ok ? { data: await r.arrayBuffer() } : noTile();
     });
   }
@@ -1587,7 +1604,7 @@
       const have = await loadWinterBlocks();
       if (!anyWinter(have, z, x, y)) return noTile();
       const sharp = await loadSharp();
-      return hdTile(z, x, y, abort, winterSite(have, z, x, y), hasSharp(sharp, z, x, y) ? SHARP : null);
+      return hdTile(z, x, y, abort, winterSite(have, z, x, y), hasSharp(sharp, z, x, y) ? sharpBase(sharp, z, x, y) : null);
     });
   }
   {
@@ -1639,11 +1656,11 @@
       // here the filled zoom-14 photo goes under it, cut to this tile.
       // Where there are sharpened photos (Sea to Sky), the zoom-15 sharpened one goes under instead.
       startHdWorkers();
-      const fine = hasSharp(await loadSharp(), z, x, y), uz = fine ? 15 : 14;
+      const sharp = await loadSharp(), fine = hasSharp(sharp, z, x, y) ? sharpBase(sharp, z, x, y) : null, uz = fine ? 15 : 14;
       const k = z - uz, n = 1 << k;
       const [under, hd] = await Promise.all([
-        fillTile(uz, x >> k, y >> k, covered(have, 14, x >> (z - 14), y >> (z - 14)), abort, fine ? SHARP : site).then((m) => m.data).catch((e) => { if (signal.aborted) throw e; return null; }),
-        hdTile(z, x, y, abort, site, fine ? SHARP : null).then((m) => m.data).catch((e) => { if (signal.aborted) throw e; return null; }),
+        fillTile(uz, x >> k, y >> k, covered(have, 14, x >> (z - 14), y >> (z - 14)), abort, fine || site).then((m) => m.data).catch((e) => { if (signal.aborted) throw e; return null; }),
+        hdTile(z, x, y, abort, site, fine).then((m) => m.data).catch((e) => { if (signal.aborted) throw e; return null; }),
       ]);
       if (!under) return hd;
       const cv = new OffscreenCanvas(256, 256), cx = cv.getContext("2d"), size = under.width / n;
