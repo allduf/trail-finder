@@ -129,7 +129,10 @@
   // A cancelled download (AbortError, "Fetch is aborted") is the app stopping work it no longer needs, not a fault.
   addEventListener("unhandledrejection", (e) => {
     if (e.reason && e.reason.name === "AbortError") return;
-    add("error", `promise: ${(e.reason && (e.reason.message || e.reason)) || "rejected"}`);
+    // Where it came from (the first file and line in the stack): "promise: HTTP 404" alone couldn't be traced (2026-11-10).
+    const m = String((e.reason && e.reason.stack) || "").match(/[a-z]+:\/\/[^\s()]*?\/([\w.-]*)(?:[?#][^\s()]*?)?:(\d+):\d+/);
+    const at = m ? `${m[1] || "index"}:${m[2]}` : "";
+    add("error", `promise: ${(e.reason && (e.reason.message || e.reason)) || "rejected"}${at ? ` @${at}` : ""}`);
   });
 
   // Crash restarts: "tf:useAlive" is renewed every few seconds while the app is on screen and cleared when it is hidden

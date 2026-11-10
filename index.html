@@ -23,8 +23,8 @@ addEventListener("error", (e) => {
   setTimeout(() => { const s = document.createElement("script"); s.src = el.src; s.async = false; s.dataset.retried = "1"; el.after(s); }, 1500);
 }, true);
 </script>
-<script src="i18n.js?v=4210"></script>
-<script src="line-icons.js?v=4210"></script>
+<script src="i18n.js?v=4230"></script>
+<script src="line-icons.js?v=4230"></script>
 <!-- Unofficial trails are for alex and friends only (friends.js): everyone else gets the public map, class tf-pub. -->
 <script>try { if (localStorage.getItem("tf-friend") !== "1") document.documentElement.classList.add("tf-pub"); } catch (e) { document.documentElement.classList.add("tf-pub"); }</script>
 <style>/* Netlify host badge (free plan, can't be removed): keep it off the tab bar, small, left edge, and BEHIND every app card/sheet/bar (z 999 < 1000) */#nl-badge-frame{z-index:999!important;top:40%!important;bottom:auto!important;right:auto!important;left:0!important;transform:scale(.5);transform-origin:0 0}</style>
@@ -1611,16 +1611,16 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="noback.js?v=4210"></script>
-<script src="risk.js?v=4210"></script>
-<script src="welcome.js?v=4210"></script>
-<script src="native.js?v=4210"></script>
-<script src="keyboard.js?v=4210"></script>
-<script src="rotate.js?v=4210"></script>
-<script src="official.js?v=4210"></script>
-<script src="directions.js?v=4210"></script>
-<script src="ratings.js?v=4210"></script>
-<script src="ebike.js?v=4210"></script>
+<script src="noback.js?v=4230"></script>
+<script src="risk.js?v=4230"></script>
+<script src="welcome.js?v=4230"></script>
+<script src="native.js?v=4230"></script>
+<script src="keyboard.js?v=4230"></script>
+<script src="rotate.js?v=4230"></script>
+<script src="official.js?v=4230"></script>
+<script src="directions.js?v=4230"></script>
+<script src="ratings.js?v=4230"></script>
+<script src="ebike.js?v=4230"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -2743,21 +2743,35 @@ body.sport-alt #rideMapBtn { display: none !important; }
 
   // Version-1 lookups: returns Map(id -> {timestamp, user}) using the multi-fetch API.
   let v1Failed = 0;
+  // Ways whose first version OpenStreetMap won't give (redacted in 2012, so old trails anyway): the API answers 404/403
+  // every time, and asking again on each search held the New trails list for many seconds on phones ("Trails on the
+  // map" 37 s usual, 180 s slow on the usage page, 2026-11-10). Remembered on this device for a month.
+  const NO_V1_KEY = "tf:noV1", NO_V1_MS = 30 * 864e5;
+  const noV1 = (() => { try { const j = JSON.parse(localStorage.getItem(NO_V1_KEY) || "null"); return new Set(j && Date.now() - j.at < NO_V1_MS ? j.ids : []); } catch { return new Set(); } })();
+  const noV1At = (() => { try { return (JSON.parse(localStorage.getItem(NO_V1_KEY) || "null") || {}).at; } catch { return 0; } })() || Date.now();
+  const rememberNoV1 = (id) => { noV1.add(id); try { localStorage.setItem(NO_V1_KEY, JSON.stringify({ at: noV1At, ids: [...noV1].slice(-2000) })); } catch {} };
+  // A slow answer gives up after 15 s instead of waiting forever (the trails it holds stay out until the next search).
+  const osmGet = (url) => fetch(url, window.AbortSignal && AbortSignal.timeout ? { signal: AbortSignal.timeout(15000) } : {});
   async function fetchV1(ids, onProgress) {
     const out = new Map();
     v1Failed = 0;
+    ids = ids.filter((id) => !noV1.has(id));
     const chunks = [];
     for (let i = 0; i < ids.length; i += 120) chunks.push(ids.slice(i, i + 120));
     let done = 0;
     async function get(chunk) {
-      const res = await fetch(`${OSM_API}/ways?ways=${chunk.map((id) => id + "v1").join(",")}`);
+      const res = await osmGet(`${OSM_API}/ways?ways=${chunk.map((id) => id + "v1").join(",")}`).catch(() => null);
+      if (!res) { v1Failed += chunk.length; return; }   // no answer: tried again on the next search
       if (!res.ok) {
         if (chunk.length === 1) {
-          const one = await fetch(`${OSM_API}/way/${chunk[0]}/1`).catch(() => null);
+          const one = await osmGet(`${OSM_API}/way/${chunk[0]}/1`).catch(() => null);
           if (one && one.ok) {
             const w = new DOMParser().parseFromString(await one.text(), "application/xml").querySelector("way");
             if (w) out.set(+w.getAttribute("id"), { timestamp: w.getAttribute("timestamp"), user: w.getAttribute("user") || "", changeset: +w.getAttribute("changeset") });
-          } else v1Failed++;
+          } else {
+            v1Failed++;
+            if (one && (one.status === 403 || one.status === 404 || one.status === 410)) rememberNoV1(chunk[0]);
+          }
           return;
         }
         const mid = Math.ceil(chunk.length / 2);
@@ -2979,6 +2993,7 @@ out body;`;
   async function search(boxes, offline, auto) {
     if (!auto && anyMode()) { findAny(); return; }   // How new: Any lists every trail in the area instead
     const token = ++state.token;
+    if (!trailsTimed) trailsT0 = auto ? 0 : performance.now();
     state.waiting = !!auto;
     gate.strikes = 0;
     $("searchArea").hidden = true;
@@ -3014,6 +3029,9 @@ out body;`;
     if (token !== state.token) return;
     if (state.ghosts.length) mergeTiles(tiles);
     let fromNightly = 0;
+    // A square's trails go on the map as soon as they're sorted: the few first-version dates the nightly file lacks are
+    // asked of OpenStreetMap after, in the background (waiting for them held every square behind it).
+    const nightlyDates = [];
     for (const t of tiles) {
       const f = files.find((f) => f.tiles[t.key]);
       if (!f) continue;
@@ -3021,9 +3039,17 @@ out body;`;
       nightlyAt.set(t.key, at);
       if (c && c.fetchedAt >= at) continue;
       const sq = nightlySquare(f, t.key);
-      const r = await processElements(sq.elements, token, sq.known, null);
+      // processElements calls back with the dated trails (more = dates still to ask) before it awaits anything.
+      let later = null;
+      const p = processElements(sq.elements, token, sq.known, (trails, more) => {
+        if (token !== state.token) return;
+        if (later) tileCache.set(t.key, { fetchedAt: 0, trails });
+        else if (more) later = { trails };
+      });
+      const r = later || await p.catch((e) => { log(`${t.key}: ${e.message}`); return { trails: [] }; });
+      if (later) nightlyDates.push(p.then((r) => { if (token === state.token) { tileCache.set(t.key, { fetchedAt: at, trails: r.trails }); mergeTiles(tiles); render(); } }).catch(() => {}));
       if (token !== state.token) return;
-      tileCache.set(t.key, { fetchedAt: at, trails: r.trails });
+      tileCache.set(t.key, { fetchedAt: later ? 0 : at, trails: r.trails });
       fromNightly++;
     }
     if (files.length) log(`${fromNightly} squares from the nightly file (built ${new Date(Math.max(...files.map((f) => Date.parse(f.builtAt)))).toLocaleString()}).`);
@@ -3095,6 +3121,7 @@ out body;`;
     }
     // One worker per OpenStreetMap server, so both share the load.
     if (todo.length) { await Promise.all(OVERPASS.map((_, i) => worker(i))); await Promise.all(checking); }
+    await Promise.all(nightlyDates);
     clearTimeout(renderTimer);
     if (token === state.token) mergeTiles(tiles);
     clearInterval(tick);
@@ -3483,6 +3510,10 @@ out body;`;
     if (selT) { if (selT._glow) selT._glow.bringToFront(); if (selT._edge) selT._edge.bringToFront(); selT._line.bringToFront(); }
   }
   let trailsTimed = false;   // the first trails drawn, timed once (usage page)
+  // Timed from the search that brought them, not from the app opening: on a first open the clock ran while the person
+  // read the terms and the welcome and only then tapped New trails ("Trails on the map" 37 s, 2026-11-10). The search
+  // the app runs by itself on opening (saved trails) counts from the opening.
+  let trailsT0 = 0;
   // Only when the app opened in MTB: opened in another sport, the first trails came when the rider switched to MTB,
   // and that counted minutes of skiing as waiting (37 s "most" on the usage page, 2026-10-30).
   window.addEventListener("tf:sport", (e) => { if (e.detail !== "mtb") trailsTimed = true; });
@@ -3494,7 +3525,7 @@ out body;`;
     const vis = mergeSegments(base.filter((t) => !t.use))   // moto and hiking-only trails are left out
       .filter((t) => t.km * 1000 >= MIN_TRAIL_M);
     state.merged = new Map(vis.map((t) => [t.id, t]));
-    if (!trailsTimed && vis.length) { trailsTimed = true; logUse("speed", "trails", performance.now()); }
+    if (!trailsTimed && vis.length) { trailsTimed = true; logUse("speed", "list", performance.now() - trailsT0); }
     const idx = oldNameIndex(monthsAgo(state.months));
     vis.forEach((t) => { t.bit = bitOf(t, idx); });
     const kept = state.showBits ? vis : vis.filter((t) => !t.bit);
@@ -4338,7 +4369,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=4210").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=4230").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -8730,50 +8761,50 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=4210"></script>
-<script src="native-map.js?v=4210"></script>
-<script src="contours.js?v=4210"></script>
-<script src="clouds.js?v=4210"></script>
-<script src="smoke.js?v=4210"></script>
-<script src="radar.js?v=4210"></script>
-<script src="photo-slider.js?v=4210"></script>
-<script src="ski-terrain.js?v=4210"></script>
-<script src="place-search.js?v=4210"></script>
-<script src="winter.js?v=4210"></script>
-<script src="hunts.js?v=4210"></script>
-<script src="ski-points.js?v=4210"></script>
-<script src="offline.js?v=4210"></script>
-<script src="ride-stats.js?v=4210"></script>
-<script src="native-gps.js?v=4210"></script>
-<script src="navigate.js?v=4210"></script>
-<script src="go-there.js?v=4210"></script>
-<script src="planner.js?v=4210"></script>
-<script src="loops.js?v=4210"></script>
-<script src="ride-finds.js?v=4210"></script>
-<script src="rides.js?v=4210"></script>
-<script src="community.js?v=4210"></script>
-<script src="ride-files.js?v=4210"></script>
-<script src="rider-trails.js?v=4210"></script>
-<script src="account.js?v=4210"></script>
-<script src="friends.js?v=4210"></script>
-<script src="live.js?v=4210"></script>
-<script src="strava.js?v=4210"></script>
-<script src="moderation.js?v=4210"></script>
-<script src="reports.js?v=4210"></script>
-<script src="grades.js?v=4210"></script>
-<script src="trail-photos.js?v=4210"></script>
-<script src="visitors.js?v=4210"></script>
-<script src="usage.js?v=4210"></script>
-<script src="notify.js?v=4210"></script>
-<script src="closures.js?v=4210"></script>
-<script src="status.js?v=4210"></script>
-<script src="ask.js?v=4210"></script>
-<script src="areas.js?v=4210"></script>
-<script src="alpine.js?v=4210"></script>
-<script src="bikeparks.js?v=4210"></script>
-<script src="photo-find.js?v=4210"></script>
-<script src="whats-new.js?v=4210"></script>
-<script src="app-update.js?v=4210"></script>
+<script src="map3d.js?v=4230"></script>
+<script src="native-map.js?v=4230"></script>
+<script src="contours.js?v=4230"></script>
+<script src="clouds.js?v=4230"></script>
+<script src="smoke.js?v=4230"></script>
+<script src="radar.js?v=4230"></script>
+<script src="photo-slider.js?v=4230"></script>
+<script src="ski-terrain.js?v=4230"></script>
+<script src="place-search.js?v=4230"></script>
+<script src="winter.js?v=4230"></script>
+<script src="hunts.js?v=4230"></script>
+<script src="ski-points.js?v=4230"></script>
+<script src="offline.js?v=4230"></script>
+<script src="ride-stats.js?v=4230"></script>
+<script src="native-gps.js?v=4230"></script>
+<script src="navigate.js?v=4230"></script>
+<script src="go-there.js?v=4230"></script>
+<script src="planner.js?v=4230"></script>
+<script src="loops.js?v=4230"></script>
+<script src="ride-finds.js?v=4230"></script>
+<script src="rides.js?v=4230"></script>
+<script src="community.js?v=4230"></script>
+<script src="ride-files.js?v=4230"></script>
+<script src="rider-trails.js?v=4230"></script>
+<script src="account.js?v=4230"></script>
+<script src="friends.js?v=4230"></script>
+<script src="live.js?v=4230"></script>
+<script src="strava.js?v=4230"></script>
+<script src="moderation.js?v=4230"></script>
+<script src="reports.js?v=4230"></script>
+<script src="grades.js?v=4230"></script>
+<script src="trail-photos.js?v=4230"></script>
+<script src="visitors.js?v=4230"></script>
+<script src="usage.js?v=4230"></script>
+<script src="notify.js?v=4230"></script>
+<script src="closures.js?v=4230"></script>
+<script src="status.js?v=4230"></script>
+<script src="ask.js?v=4230"></script>
+<script src="areas.js?v=4230"></script>
+<script src="alpine.js?v=4230"></script>
+<script src="bikeparks.js?v=4230"></script>
+<script src="photo-find.js?v=4230"></script>
+<script src="whats-new.js?v=4230"></script>
+<script src="app-update.js?v=4230"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
