@@ -8,15 +8,18 @@
 // signing in). No secrets.
 // GET /functions/v1/lift-status → { t, resorts: { <id>: { name, page, t, src, lifts: [{ n, s, w?, o?, c?, k? }], err? } } }
 // s: "open" | "hold" | "closed" | "scheduled" | "unknown". w: wait in minutes. o / c: opening and closing time. k: kind.
+// Some resorts also give their runs (runs: [{ n, s, d?, g? }], d: the resort's level word, g: groomed / moguls...) and
+// counts (sum: { runs: [open, total], lifts: [open, total], carpets: [open, total] }) when they don't name each lift.
 
 const ORIGINS = [/^https:\/\/allduf\.github\.io$/, /^https:\/\/(www\.)?trailfinderapp\.ca$/, /^http:\/\/localhost(:\d+)?$/, /^capacitor:\/\/localhost$/, /^https?:\/\/localhost$/];
 const FRESH_MS = 3 * 60e3;
 const UA = "Mozilla/5.0 (compatible; TrailFinder lift status; +https://allduf.github.io/trail-finder/)";
 
 type Lift = { n: string; s: string; w?: number; o?: string; c?: string; k?: string; down?: string; ski?: string; skiOk?: boolean; rows?: Record<string, string> };
-type Result = { lifts: Lift[]; t?: string };
+type Run = { n: string; s: string; d?: string; g?: string };
+type Result = { lifts: Lift[]; t?: string; runs?: Run[]; sum?: Record<string, [number, number]> };
 type Source = { name: string; page: string; url: string; kind: "vail" | "rcr" | "whitewater" | "sunpeaks" | "bigwhite" | "norquay" | "mtnpowder" | "bromont" | "revelstoke" | "louise" | "red" | "msa"
-  | "stoneham" | "sutton" | "massif" | "orford" | "vsc" | "msl" | "relais" | "s2sg" | "owlshead" | "horseshoe" | "msm" | "searchmont" };
+  | "stoneham" | "sutton" | "massif" | "orford" | "vsc" | "msl" | "relais" | "s2sg" | "owlshead" | "horseshoe" | "msm" | "searchmont" | "garceau" };
 
 // The resorts whose lift status could be read (checked 2026-10-25, more 2026-10-28; Mount Washington and Marble Mountain
 // turn away readers from data centres, so they stay links; Hudson Bay Mountain's lifts aren't in OpenStreetMap yet). The id is the resort's id in data/ski-lifts.json.
@@ -51,6 +54,9 @@ export const SOURCES: Record<string, Source> = {
   horseshoe: { name: "Horseshoe Resort", kind: "horseshoe", page: "https://horseshoeresort.com/ski-report-trails/", url: "https://horseshoeresort.com/ski-report-trails/" },
   msm: { name: "Mont Sainte-Marie", kind: "msm", page: "https://montstemarie.com/pages/conditions", url: "https://montstemarie.com/pages/conditions" },
   searchmont: { name: "Searchmont", kind: "searchmont", page: "https://searchmont.com/snow-report/", url: "https://searchmont.com/snow-report/" },
+  // Added 2026-11-10 (alex: "there is no lift status?" on Mont Garceau): its conditions page has every run open or
+  // closed, and how many chairlifts and magic carpets run (not which one).
+  garceau: { name: "Ski Garceau", kind: "garceau", page: "https://skigarceau.com/conditions-de-ski/", url: "https://skigarceau.com/conditions-de-ski/" },
   msl: { name: "Mount St. Louis Moonstone", kind: "msl", page: "https://www.mountstlouis.com/status/", url: "https://www.mountstlouis.com/status/" },
   // Added 2026-11-03: the Sea to Sky Gondola (Squamish), a sightseeing gondola that is also the way up to the Sky Pilot
   // backcountry (not a ski resort). Its Daily Conditions page says if it's open today, its hours, if skis and
@@ -320,6 +326,26 @@ function searchmont(html: string): Result {
 // closed); the Daily Conditions tables have one row per trail and activity (<tr><td>name<td>today's note), with
 // "Ski and Snowboard Touring" saying if backcountry skis and boards may go up today; "Last Updated: Monday, November 2,
 // 2026 at 9:00 am." is when staff wrote it (Vancouver time).
+// Ski Garceau: counts in <strong class="conditions-ski-value">0/38</strong><span class="conditions-ski-label">Pistes
+// ouvertes</span> (also Remontées mécaniques, Tapis magiques); the runs table rows <th>3A</th><td>Chiquita I</td>
+// <td><img alt="Intermédiaire"></td><td>Damée</td><td><span class="pistes-etat pistes-etat--fermee">Fermée</span>.
+// Lifts aren't named, so lifts is empty and sum says how many run.
+export function garceau(html: string): Result {
+  const sum: Record<string, [number, number]> = {};
+  for (const m of html.matchAll(/conditions-ski-value">\s*(\d+)\s*\/\s*(\d+)\s*<\/strong>\s*<span class="conditions-ski-label">([^<]+)</g)) {
+    const k = /piste/i.test(m[3]) ? "runs" : /tapis/i.test(m[3]) ? "carpets" : /remont/i.test(m[3]) ? "lifts" : "";
+    if (k && +m[1] <= +m[2]) sum[k] = [+m[1], +m[2]];
+  }
+  const runs: Run[] = [];
+  for (const tr of between(html, "tableau-pistes", "</table>").split(/<tr>/).slice(2)) {
+    const td = [...tr.matchAll(/<td>([\s\S]*?)<\/td>/g)].map((m) => m[1]);
+    const st = /pistes-etat--([a-z]+)/.exec(tr);
+    if (td.length < 4 || !st) continue;
+    const d = (/alt="([^"]+)"/.exec(td[1]) || [])[1];
+    runs.push({ n: text(td[0]), s: /^ouvert/.test(st[1]) ? "open" : /^ferm/.test(st[1]) ? "closed" : stateOf(text(td[3])), ...(d ? { d: text(d) } : {}), ...(text(td[2]) ? { g: text(td[2]) } : {}) });
+  }
+  return { lifts: [], runs, sum };
+}
 const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 export function s2sg(html: string): Result {
   const bar = text((/quick-info__text>([^<]*)</.exec(html) || [])[1] || "");
@@ -346,7 +372,7 @@ export function s2sg(html: string): Result {
   return { lifts: [{ n: "Sea to Sky Gondola", s: st, k: "gondola", ...(hrs ? { o: hrs[1], c: hrs[2] } : {}), ...(down ? { down: down[1] } : {}), ...(ski ? { ski, skiOk } : {}), rows }], t };
 }
 export const PARSE: Record<Source["kind"], (body: string) => Result> = { vail, rcr, whitewater, sunpeaks, bigwhite, norquay, mtnpowder, bromont, revelstoke, louise, red, msa,
-  stoneham, sutton, massif, orford, vsc, relais, msl, s2sg, owlshead, horseshoe, msm, searchmont };
+  stoneham, sutton, massif, orford, vsc, relais, msl, s2sg, owlshead, horseshoe, msm, searchmont, garceau };
 
 const cache = new Map<string, { at: number; v: Record<string, unknown> }>();
 export async function read(id: string): Promise<Record<string, unknown>> {
@@ -358,7 +384,8 @@ export async function read(id: string): Promise<Record<string, unknown>> {
     if (!r.ok) throw new Error(`the resort's site answered ${r.status}`);
     const res = PARSE[src.kind](await r.text());
     const mod = r.headers.get("last-modified");
-    v = { name: src.name, page: src.page, src: src.kind, t: res.t || (mod ? new Date(mod).toISOString() : new Date().toISOString()), lifts: res.lifts };
+    v = { name: src.name, page: src.page, src: src.kind, t: res.t || (mod ? new Date(mod).toISOString() : new Date().toISOString()), lifts: res.lifts, ...(res.t || mod ? {} : { noDate: true }),
+      ...(res.runs && res.runs.length ? { runs: res.runs } : {}), ...(res.sum && Object.keys(res.sum).length ? { sum: res.sum } : {}) };
   } catch (e) {
     v = { name: src.name, page: src.page, src: src.kind, lifts: [], err: String((e as Error)?.message || e).slice(0, 120), ...(hit ? { old: hit.v } : {}) };
   }

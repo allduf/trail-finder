@@ -1,0 +1,11 @@
+Run open ||| Piste ouverte
+Run closed ||| Piste fermée
+No run status from the resort ||| La station ne donne pas l'état des pistes
+Couldn't read the resort's report ||| Impossible de lire le rapport de la station
+This run isn't in the resort's report ||| Cette piste n'est pas dans le rapport de la station
+their page ↗ ||| leur page ↗
+Status not given ||| État non donné
+No live status ||| Pas d'état en direct
+Moguls ||| Bosses
+Natural snow ||| Neige naturelle
+Lift status: every ski hill in Canada now has its lifts on the Skiing map, and a ski run's card says if the run is open today when the resort's own report names it (Ski Garceau first). ||| État des remontées : chaque centre de ski au Canada a maintenant ses remontées sur la carte Ski, et la fiche d'une piste dit si elle est ouverte aujourd'hui quand le rapport de la station la nomme (Ski Garceau d'abord).
