@@ -111,10 +111,15 @@ const decode = async (blob) => {
 // Winter photos on Cloudflare Pages (2026-11-07): Netlify's free credits ran out and Pages takes 20,000 files a site, so
 // each photo site is split by zoom-11 square: trail-finder-winter on trailfinder-w1-0..13, -winter2 on trailfinder-w2-0..3
 // (zooms under 11, blocks.json and sharp.json on -0). The netlify.app address stays the name used everywhere else.
+// AI-sharpened Winter photos, zooms 11-15 (2026-11-10, alex: "Make all the map you see ai resolution"): split by zoom-11
+// square over trailfinder-sharp-0..5 (Cloudflare Pages takes 20,000 files a site; sharp.json on -0).
+const tfSharpSite = (z, x, y) => `https://trailfinder-sharp-${z < 11 ? 0 : ((x >> (z - 11)) * 31 + (y >> (z - 11))) % 6}.pages.dev/trail-finder-winter2/`;
 const tfWinterShard = (u, z, x, y) => {
   const m = /^https:\/\/trailfinder-winter2\.netlify\.app\/(trail-finder-winter2?)\//.exec(u);
   if (!m) return u;
   const two = m[1].endsWith("2"), k = z < 11 ? 0 : (((x >> (z - 11)) * 31 + (y >> (z - 11))) % (two ? 4 : 14));
+  // The AI-sharpened photos (zoom 15 and sharp.json) on their own sites since 2026-11-10: see tfSharpSite in map3d.js.
+  if (two && (z >= 15 || u.slice(m[0].length).startsWith("sharp.json"))) return tfSharpSite(z, x, y) + u.slice(m[0].length);
   return `https://trailfinder-w${two ? 2 : 1}-${k}.pages.dev/${m[1]}/` + u.slice(m[0].length);
 };
 // signal: this tile's own download stops if it's cancelled (the tiles above it are shared, kept in parents: never).

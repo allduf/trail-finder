@@ -1214,10 +1214,15 @@
   // Winter photos on Cloudflare Pages (2026-11-07): Netlify's free credits ran out and Pages takes 20,000 files a site, so
   // each photo site is split by zoom-11 square: trail-finder-winter on trailfinder-w1-0..13, -winter2 on trailfinder-w2-0..3
   // (zooms under 11, blocks.json and sharp.json on -0). The netlify.app address stays the name used everywhere else.
+  // AI-sharpened Winter photos, zooms 11-15 (2026-11-10, alex: "Make all the map you see ai resolution"): split by zoom-11
+  // square over trailfinder-sharp-0..5 (Cloudflare Pages takes 20,000 files a site; sharp.json on -0).
+  const tfSharpSite = (z, x, y) => `https://trailfinder-sharp-${z < 11 ? 0 : ((x >> (z - 11)) * 31 + (y >> (z - 11))) % 6}.pages.dev/trail-finder-winter2/`;
   const tfWinterShard = (u, z, x, y) => {
     const m = /^https:\/\/trailfinder-winter2\.netlify\.app\/(trail-finder-winter2?)\//.exec(u);
     if (!m) return u;
     const two = m[1].endsWith("2"), k = z < 11 ? 0 : (((x >> (z - 11)) * 31 + (y >> (z - 11))) % (two ? 4 : 14));
+    // The AI-sharpened photos (zoom 15 and sharp.json) on their own sites since 2026-11-10: see tfSharpSite in map3d.js.
+    if (two && (z >= 15 || u.slice(m[0].length).startsWith("sharp.json"))) return tfSharpSite(z, x, y) + u.slice(m[0].length);
     return `https://trailfinder-w${two ? 2 : 1}-${k}.pages.dev/${m[1]}/` + u.slice(m[0].length);
   };
   const WINTER_BOUNDS = [-141, 24, 146.5, 70];
@@ -1240,7 +1245,7 @@
   // own list of zoom-11 squares (sharp.json). SHARP_BOUNDS: the box they're in (Sea to Sky; Revelstoke, Rogers Pass and
   // Kicking Horse), so nothing is asked for elsewhere; squares in the box but not in sharp.json are never fetched.
   // SHARP_REV: bumped when sharpened squares are rebuilt, so phones don't keep last month's copies (kept 30 days, sw.js).
-  const SHARP = WINTERS[1], SHARP_REV = "?r=2", SHARP_BOUNDS = [-123.58, 49.6, -116.89, 51.51];
+  const SHARP = WINTERS[1], SHARP_REV = "?r=3", SHARP_BOUNDS = [-123.76, 49.6, -116.89, 51.51];
   // ---------- late-summer mountains on the Summer map ----------
   // alex 2026-11-09 ("use some image around september for the summer map"): Esri's sharp summer photo is from early
   // July in many alpine places (Brandywine and Metal Dome: July 5, 2017), so the meadows and ridges showed melting
@@ -1292,8 +1297,9 @@
   // tile instead of 16 or 4: after looking at a new zone the phone asked for ~230 small photos and the ground in front
   // stayed plain grey-white for many seconds (alex's iPhone recording near Brandywine and Mount Fee: "Long time to
   // load when you look at a different zone"). Zooms 11 and 12 too, which were the plain Winter photo with Esri's photo
-  // filled into its cloudy holes (a second download for many). SHARP_MID_SITE: their own Cloudflare Pages site.
-  const SHARP_MID = [11, 12, 13, 14], SHARP_MID_SITE = "https://trailfinder-sharpmid.pages.dev/trail-finder-winter2/";
+  // filled into its cloudy holes (a second download for many). Since 2026-11-10 on the same sites as the zoom-15 ones
+  // (tfSharpSite: each square's zooms 11-15 together, six sites as there are now ~220 squares).
+  const SHARP_MID = [11, 12, 13, 14];
   const sharpMid = (sharp, z, x, y) => SHARP_MID.includes(z) && !!sharp && sharp.has((x >> (z - 11)) + "/" + (y >> (z - 11)));
   // The shrinking is done in the winter-fill.js workers (sharp: in their message), off the page: on the page it was
   // 16 pictures decoded and shrunk per tile while the map moved, and dragging the 3D map near Squamish and Whistler
@@ -1336,7 +1342,7 @@
   // sharp: zooms 11-14 inside the sharpened squares, from the zoom-15 sharpened photos (see SHARP_MID).
   const fillTile = (z, x, y, whole, abort, site, sharp) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=4150");
+      const w = new Worker("winter-fill.js?v=4170");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1346,7 +1352,7 @@
       if (!fillWaiting.delete(id)) return;
       w.postMessage({ cancel: id }); no(new DOMException("aborted", "AbortError"));
     });
-    w.postMessage({ id, z, x, y, base: new URL(site, location.href).href, skip: no14(z, x, y), whole, sharp: sharp ? SHARP_MID_SITE : null, rev: SHARP_REV });
+    w.postMessage({ id, z, x, y, base: new URL(site, location.href).href, skip: no14(z, x, y), whole, sharp: sharp ? tfSharpSite(z, x, y) : null, rev: SHARP_REV });
   });
   // Since 2026-10-26 the newer squares (ski hills and tours across Canada) stop at zoom 13 to fit the site, and a few
   // tiles are missing where every pass was cloudy. Those came back see-through, so up close the hidden layer under
@@ -1435,7 +1441,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=4150" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=4170" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
