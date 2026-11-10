@@ -17,6 +17,15 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    // ask.js: a mountain or ridge with no tour mapped on it, planned from the closest road (2026-11-10)
+    [/^No tour mapped on (.+): finding the closest road to it…$/, "Aucune sortie tracée sur $1 : recherche de la route la plus proche…"],
+    [/^No ski tour is mapped on (.+) in the app yet, so this one starts from the closest road to it\.$/, "Aucune sortie de ski n'est encore tracée sur $1 dans l'appli : celle-ci part donc de la route la plus proche."],
+    [/^A tour to (.+)$/, "Une sortie vers $1"],
+    [/^(.+) from the top in a straight line$/, function (m, d) { return (d === "under 1 km" ? "moins de 1 km" : d) + " du sommet à vol d'oiseau"; }],
+    [/^at the top of (.+)$/, "au sommet de $1"],
+    [/^about ([\d,\s]+) m high$/, function (m, h) { return "environ " + h.replace(/,/g, " ") + " m d'altitude"; }],
+    [/^No drivable road is mapped within 15 km of (.+)\. The map is there now: tap it where you start, then ✎ Edit my tour adds the rest\.$/, "Aucune route carrossable n'est tracée à moins de 15 km de $1. La carte y est maintenant : touchez-la là où vous partez, puis ✎ Modifier ma sortie ajoute le reste."],
+    [/^Show the (\d+) ski tours nearby instead$/, "Voir plutôt les $1 sorties de ski à proximité"],
     // lifts.js: a resort's run and lift counts today, and a run's status on its card (2026-11-10)
     [/^(\d+) of (\d+) runs open$/, "$1 pistes ouvertes sur $2"],
     [/^(\d+) of (\d+) (chairlifts|lifts) running$/, function (m, a, b, k) { return a + " " + (k === "chairlifts" ? "télésièges" : "remontées") + " en marche sur " + b; }],

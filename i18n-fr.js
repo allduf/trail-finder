@@ -1920,6 +1920,9 @@
     "Skiing 3D, Sea to Sky, Revelstoke and Golden: the snow photos come in much faster when you turn or move to look at another area, and the middle distance is sharper.":"Ski en 3D, Sea to Sky, Revelstoke et Golden : les photos de neige arrivent beaucoup plus vite quand vous tournez ou regardez un autre secteur, et le plan moyen est plus net.",
     "Skiing: the sharp AI winter photos now cover every ski hill, tour and backcountry area with Winter photos across Canada, built from many more satellite passes, so far fewer cloudy or blurry patches.":"Ski : les photos d'hiver nettes par IA couvrent maintenant chaque station, itinéraire et secteur hors-piste ayant des photos d'hiver partout au Canada, faites à partir de beaucoup plus de passages satellite, donc beaucoup moins de taches floues ou nuageuses.",
     "Mountain biking: New trails shows its list faster, and no longer sits for many seconds waiting on a few old trails OpenStreetMap can't date.":"Vélo de montagne : Nouveaux sentiers affiche sa liste plus vite et n'attend plus de longues secondes après quelques vieux sentiers qu'OpenStreetMap ne peut pas dater.",
+    "Skiing: Ask goes to the mountain or ridge you name (it used to land on a peak nearby), and when no ski tour is mapped on it, it plans one from the closest road to it. The tours nearby stay one tap away.":"Ski : Demander va à la montagne ou à la crête que vous nommez (avant, il tombait sur un sommet voisin), et quand aucune sortie de ski n'y est tracée, il en planifie une depuis la route la plus proche. Les sorties à proximité restent à un toucher.",
+    "where the road comes closest (the snow line couldn't be read: drag it to where the car stops)":"là où la route passe le plus près (la limite de la neige n'a pas pu être lue : glissez-le là où l'auto s'arrête)",
+    "where the road comes closest (no snow on the roads in the forecast)":"là où la route passe le plus près (pas de neige sur les routes dans les prévisions)",
     "Backcountry access gondola · not a ski resort":"Télécabine d'accès à l'arrière-pays · pas une station de ski",
     "Backcountry access gondola":"Télécabine d'accès à l'arrière-pays",
     "Open today":"Ouvert aujourd'hui",
@@ -2305,6 +2308,15 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    // ask.js: a mountain or ridge with no tour mapped on it, planned from the closest road (2026-11-10)
+    [/^No tour mapped on (.+): finding the closest road to it…$/, "Aucune sortie tracée sur $1 : recherche de la route la plus proche…"],
+    [/^No ski tour is mapped on (.+) in the app yet, so this one starts from the closest road to it\.$/, "Aucune sortie de ski n'est encore tracée sur $1 dans l'appli : celle-ci part donc de la route la plus proche."],
+    [/^A tour to (.+)$/, "Une sortie vers $1"],
+    [/^(.+) from the top in a straight line$/, function (m, d) { return (d === "under 1 km" ? "moins de 1 km" : d) + " du sommet à vol d'oiseau"; }],
+    [/^at the top of (.+)$/, "au sommet de $1"],
+    [/^about ([\d,\s]+) m high$/, function (m, h) { return "environ " + h.replace(/,/g, " ") + " m d'altitude"; }],
+    [/^No drivable road is mapped within 15 km of (.+)\. The map is there now: tap it where you start, then ✎ Edit my tour adds the rest\.$/, "Aucune route carrossable n'est tracée à moins de 15 km de $1. La carte y est maintenant : touchez-la là où vous partez, puis ✎ Modifier ma sortie ajoute le reste."],
+    [/^Show the (\d+) ski tours nearby instead$/, "Voir plutôt les $1 sorties de ski à proximité"],
     // lifts.js: a resort's run and lift counts today, and a run's status on its card (2026-11-10)
     [/^(\d+) of (\d+) runs open$/, "$1 pistes ouvertes sur $2"],
     [/^(\d+) of (\d+) (chairlifts|lifts) running$/, function (m, a, b, k) { return a + " " + (k === "chairlifts" ? "télésièges" : "remontées") + " en marche sur " + b; }],
