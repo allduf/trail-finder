@@ -1,0 +1,3 @@
+# Ask: Turn Google's AI back on button when the AI is off by choice (ask.js, 2026-11-10)
+Turn Google's AI back on ||| Réactiver l'IA de Google
+Ask: when Google's AI is turned off, the note in Ask now has a Turn Google's AI back on button, so a No tapped by accident is quick to undo. ||| Demander : quand l'IA de Google est désactivée, la note dans Demander a maintenant un bouton Réactiver l'IA de Google, pour annuler vite un Non touché par erreur.
