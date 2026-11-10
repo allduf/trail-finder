@@ -1,0 +1,50 @@
+name: Publish sharpened Winter photos, zooms 11-14
+
+# The AI-sharpened Winter photos (allduf/trail-finder-winter2, zoom 15 only) shrunk once to zooms 11-14 by
+# scripts/winter-photos/sharp-mid.py, so the 3D map downloads one picture a tile instead of 16 (alex 2026-11-09:
+# "Long time to load when you look at a different zone"). Published to the Cloudflare Pages project trailfinder-sharpmid
+# (https://trailfinder-sharpmid.pages.dev/trail-finder-winter2/, ~11,400 files, Pages takes 20,000 a project), which
+# map3d.js SHARP_MID_SITE reads. Runs when the script or this file changes, and by hand: run it again after the
+# sharpened squares are rebuilt (and bump SHARP_REV in map3d.js and winter-hd.js, as for the zoom-15 ones).
+# Needs the repository secret CLOUDFLARE_API_TOKEN (Cloudflare Pages: Edit), as pages.yml.
+on:
+  push:
+    branches: [main, claude/project-thread-s7umm4]
+    paths: [scripts/winter-photos/sharp-mid.py, .github/workflows/sharp-mid-photos.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sharp-mid-photos
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: app
+          sparse-checkout: scripts/winter-photos
+      - uses: actions/checkout@v4
+        with:
+          repository: allduf/trail-finder-winter2
+          path: w2
+          sparse-checkout: |
+            /15/
+            /sharp.json
+          sparse-checkout-cone-mode: false
+      - run: pip install pillow==12.*
+      - name: Shrink the zoom-15 photos to zooms 11-14
+        run: python3 app/scripts/winter-photos/sharp-mid.py w2 site && printf '/*\n  Access-Control-Allow-Origin: *\n' > site/_headers && du -sh site && find site -type f | wc -l
+      - name: Publish to Cloudflare Pages (trailfinder-sharpmid)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 9ad76bdf11abb4440ad064451cf06d9a
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::error::Add the CLOUDFLARE_API_TOKEN repository secret (Settings > Secrets and variables > Actions)."; exit 1; fi
+          npx --yes wrangler@4 pages project create trailfinder-sharpmid --production-branch main || true
+          npx --yes wrangler@4 pages deploy site --project-name trailfinder-sharpmid --branch main --commit-dirty=true

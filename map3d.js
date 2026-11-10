@@ -1288,7 +1288,12 @@
   // are now the zoom-15 sharpened photos shrunk together (4 for a zoom-14 tile, 16 for zoom 13, ~5 KB each, kept by
   // sw.js and reused when zooming in). Their few leftover holes get the filled Winter photo under them; if any piece
   // can't come (offline, a missing tile) the tile is the plain Winter photo as before.
-  const SHARP_MID = [13, 14];
+  // Since 2026-11-10 those are made once and downloaded whole (scripts/winter-photos/sharp-mid.py), one download a
+  // tile instead of 16 or 4: after looking at a new zone the phone asked for ~230 small photos and the ground in front
+  // stayed plain grey-white for many seconds (alex's iPhone recording near Brandywine and Mount Fee: "Long time to
+  // load when you look at a different zone"). Zooms 11 and 12 too, which were the plain Winter photo with Esri's photo
+  // filled into its cloudy holes (a second download for many). SHARP_MID_SITE: their own Cloudflare Pages site.
+  const SHARP_MID = [11, 12, 13, 14], SHARP_MID_SITE = "https://trailfinder-sharpmid.pages.dev/trail-finder-winter2/";
   const sharpMid = (sharp, z, x, y) => SHARP_MID.includes(z) && !!sharp && sharp.has((x >> (z - 11)) + "/" + (y >> (z - 11)));
   // The shrinking is done in the winter-fill.js workers (sharp: in their message), off the page: on the page it was
   // 16 pictures decoded and shrunk per tile while the map moved, and dragging the 3D map near Squamish and Whistler
@@ -1328,10 +1333,10 @@
   // Workers that fetch the Winter photos and fill their cloudy holes (winter-fill.js), off the page.
   let fillWorkers = null, fillNext = 0, fillId = 0;
   const fillWaiting = new Map();
-  // sharp: zooms 13-14 inside the sharpened squares, made from the zoom-15 sharpened photos (see SHARP_MID).
+  // sharp: zooms 11-14 inside the sharpened squares, from the zoom-15 sharpened photos (see SHARP_MID).
   const fillTile = (z, x, y, whole, abort, site, sharp) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=4130");
+      const w = new Worker("winter-fill.js?v=4140");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1341,7 +1346,7 @@
       if (!fillWaiting.delete(id)) return;
       w.postMessage({ cancel: id }); no(new DOMException("aborted", "AbortError"));
     });
-    w.postMessage({ id, z, x, y, base: new URL(site, location.href).href, skip: no14(z, x, y), whole, sharp: sharp ? new URL(SHARP, location.href).href : null, rev: SHARP_REV });
+    w.postMessage({ id, z, x, y, base: new URL(site, location.href).href, skip: no14(z, x, y), whole, sharp: sharp ? SHARP_MID_SITE : null, rev: SHARP_REV });
   });
   // Since 2026-10-26 the newer squares (ski hills and tours across Canada) stop at zoom 13 to fit the site, and a few
   // tiles are missing where every pass was cloudy. Those came back see-through, so up close the hidden layer under
@@ -1430,7 +1435,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=4130" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=4140" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
