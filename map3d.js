@@ -335,14 +335,27 @@
   }
   // Height of the ground as drawn: the terrain piece on screen that holds the point, read on its 128 x 128 grid
   // and blended across the grid square like the drawn mesh. Off the drawn pieces: the best height known.
+  // Kept between builds (see crispHeights and crispBuild): the height grids, and the arrays a build fills. Only grown,
+  // never made again for each build; what's handed to the graphics card is a copy, so refilling them is safe.
+  const crispGridPool = [];
+  let crispGridUsed = null, crispVerts = null, crispIdx = null, crispPts = null;
+  function crispGridsBack() {
+    if (!crispGridUsed) return;
+    for (const e of crispGridUsed.values()) if (crispGridPool.length < 300) crispGridPool.push(e.a);
+    crispGridUsed = null;
+  }
+  // Let go of them all (lighten: the 3D map put away or the app in the background).
+  function crispRelease() { crispGridPool.length = 0; crispVerts = crispIdx = crispPts = null; }
   function crispHeights() {
     const terrain = gl.terrain, tm = terrain && terrain.tileManager;
     if (!tm) return null;
-    const mesh = terrain.meshSize || 128, byKey = new Map();
+    // Pieces by zoom, then by y * 2^z + x: a number, not a "z/x/y" text made for every point at every zoom (that was
+    // most of a build's throwaway memory, ~15 MB each time, measured 2026-11-11).
+    const mesh = terrain.meshSize || 128, byZ = [];
     let zMin = 99, zMax = -1;
     for (const t of tm.getRenderableTiles()) {
       const c = t.tileID.canonical;
-      byKey.set(c.z + "/" + c.x + "/" + c.y, t.tileID);
+      (byZ[c.z] || (byZ[c.z] = new Map())).set(c.y * 2 ** c.z + c.x, t.tileID);
       zMin = Math.min(zMin, c.z); zMax = Math.max(zMax, c.z);
     }
     // The height tiles downloaded so far, by z/x/y (MapLibre internals: none found just means height 0 off the view).
@@ -365,13 +378,20 @@
     // Heights read once per grid corner per terrain piece (each corner serves many points), from the height tile
     // that piece is drawn with. Read straight from the tile's data: MapLibre's own lookup sets up a graphics texture
     // per piece as it goes (a build took up to 1.8 s with it, measured).
+    // The grids come from a pool kept between builds (crispGridPool): a new one for each of the ~250 terrain pieces
+    // every build made ~18 MB of throwaway memory each time, 20-40 builds a minute while looking around, and the
+    // iPhone app restarted in Skiing 3D (alex 2026-11-11). crispBuild gives them back when it's done.
     const grids = new Map(), G = mesh + 1;
+    crispGridUsed = grids;
     const at = (id, gx, gy) => {
       let e = grids.get(id.key);
       if (!e) {
         let src = null;
         try { src = tm.getSourceTile(id, true); } catch {}
-        e = { a: new Float32Array(G * G).fill(NaN), dem: src && src.dem, c: src && src.tileID && src.tileID.canonical };
+        let a = crispGridPool.pop();
+        if (!a || a.length !== G * G) a = new Float32Array(G * G);
+        a.fill(NaN);
+        e = { a, dem: src && src.dem, c: src && src.tileID && src.tileID.canonical };
         grids.set(id.key, e);
       }
       if (!e.dem) return 0;
@@ -381,7 +401,9 @@
     };
     return (mx, my, lng, lat) => {   // mercator x, y in 0..1
       for (let z = zMax; z >= zMin; z--) {
-        const n = 2 ** z, tx = Math.floor(mx * n), ty = Math.floor(my * n), id = byKey.get(z + "/" + tx + "/" + ty);
+        const m = byZ[z];
+        if (!m) continue;
+        const n = 2 ** z, tx = Math.floor(mx * n), ty = Math.floor(my * n), id = m.get(ty * n + tx);
         if (!id) continue;
         const fx = (mx * n - tx) * mesh, fy = (my * n - ty) * mesh, gx = Math.min(mesh - 1, Math.floor(fx)), gy = Math.min(mesh - 1, Math.floor(fy));
         const u = fx - gx, v = fy - gy;
@@ -408,6 +430,9 @@
     if (gl.isMoving()) return;   // never while a finger moves the map: the move's end builds again
     const height = gl.terrain && crispHeights();
     if (!height) { L3.count = 0; crispDraped(true); return; }   // no mountains: the draped lines are right
+    try { crispFill(L3, height, t0); } finally { crispGridsBack(); }
+  }
+  function crispFill(L3, height, t0) {
     const b = gl.getBounds(), pad = 0.35;
     const dx = (b.getEast() - b.getWest()) * pad, dy = (b.getNorth() - b.getSouth()) * pad;
     const box = [b.getWest() - dx, b.getSouth() - dy, b.getEast() + dx, b.getNorth() + dy];
@@ -448,12 +473,12 @@
     }
     const step = Math.max(CRISP_STEP, total / CRISP_MAX);
     // Straight into typed arrays that grow as needed (a plain array of numbers took ~4x the memory while building).
-    let verts = new Float32Array(CRISP_FLOATS * 8192), idx = new Uint32Array(3 * 8192), nv = 0, ni = 0;
+    // The same arrays every build (crispVerts...): made again each time they were ~20 MB of throwaway memory a build.
+    let verts = crispVerts || new Float32Array(CRISP_FLOATS * 8192), idx = crispIdx || new Uint32Array(3 * 8192), nv = 0, ni = 0;
     const room = (v, i) => {
-      if ((nv + v) * CRISP_FLOATS > verts.length) { const a = new Float32Array(Math.max(verts.length * 2, (nv + v) * CRISP_FLOATS)); a.set(verts); verts = a; }
-      if (ni + i > idx.length) { const a = new Uint32Array(Math.max(idx.length * 2, ni + i)); a.set(idx); idx = a; }
+      if ((nv + v) * CRISP_FLOATS > verts.length) { const a = new Float32Array(Math.max(verts.length * 2, (nv + v) * CRISP_FLOATS)); a.set(verts.subarray(0, nv * CRISP_FLOATS)); verts = a; }
+      if (ni + i > idx.length) { const a = new Uint32Array(Math.max(idx.length * 2, ni + i)); a.set(idx.subarray(0, ni)); idx = a; }
     };
-    const merc = (lng, lat) => [(lng + 180) / 360, (1 - Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / Math.PI) / 2];
     const zPerM = (lat) => 1 / (2 * Math.PI * 6371008.8 * Math.cos((lat * Math.PI) / 180));   // mercator units per metre up (MapLibre's)
     for (const { f, runs } of feats) {
       const [r, g, bl, a] = f.c, kind = f.kind;
@@ -463,10 +488,11 @@
         let n = 1;
         for (let i = 1; i < q.length; i++) n += Math.max(1, Math.ceil(Math.hypot((q[i][0] - q[i - 1][0]) * kx, (q[i][1] - q[i - 1][1]) * 110540) / step));
         if (n < 2) continue;
-        const P = new Float64Array(n * 4);
+        if (!crispPts || crispPts.length < n * 4) crispPts = new Float64Array(Math.max(n * 4, crispPts ? crispPts.length * 2 : 16384));
+        const P = crispPts;
         let k = 0, dist = d0;
         const put = (lng, lat, d) => {
-          const [mx, my] = merc(lng, lat);
+          const mx = (lng + 180) / 360, my = (1 - Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / Math.PI) / 2;
           P[k] = mx - origin[0]; P[k + 1] = my - origin[1]; P[k + 2] = ((height(mx, my, lng, lat) || 0) + 1.5) * zPerM(lat); P[k + 3] = d; k += 4;
         };
         put(q[0][0], q[0][1], d0);
@@ -493,6 +519,7 @@
         }
       }
     }
+    crispVerts = verts; crispIdx = idx;
     const t1 = performance.now();
     crispDraped(false);
     const t2 = performance.now();
@@ -2066,6 +2093,7 @@
   // pictures from the photo caches, a second or two).
   function lighten() {
     if (!gl) return;
+    crispRelease();
     try {
       const p = gl.painter, pool = p.renderToTexture && p.renderToTexture.pool;
       if (pool && gl.terrain) {
@@ -2185,8 +2213,9 @@
       const proto = Object.getPrototypeOf(gl.terrain), orig = proto.getTerrainData;
       if (typeof orig !== "function") return;
       proto.getTerrainData = function (tileID) {
+        let t = null;
         try {
-          const t = this.tileManager.getSourceTile(tileID, true);
+          t = this.tileManager.getSourceTile(tileID, true);
           if (t && t.dem && t.demTexture && t.needsTerrainPrepare) {
             const gl2 = this.painter.context.gl;
             if (t.tfDemSent === t.dem && !edgesOnly(t)) t.tfDemSent = null;
@@ -2196,7 +2225,8 @@
           }
         } catch {}
         const out = orig.apply(this, arguments);
-        try { const t = this.tileManager.getSourceTile(tileID, true); if (t && t.dem && t.demTexture && !t.needsTerrainPrepare) t.tfDemSent = t.dem; } catch {}
+        // The same height tile as above (looked up once: each lookup makes new objects, every piece of ground, every frame).
+        try { if (t && t.dem && t.demTexture && !t.needsTerrainPrepare) t.tfDemSent = t.dem; } catch {}
         if (!texFixed && this._emptyDemTexture) closeUploaded(Object.getPrototypeOf(this._emptyDemTexture));
         return out;
       };
