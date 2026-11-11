@@ -71,6 +71,7 @@ dialog.ask-dlg h3 { margin: 14px 0 6px; font-size: .76rem; font-weight: 800; let
 .ask-chips li { font-size: .76rem; padding: 2px 9px; border-radius: 999px; background: var(--chip, #eef1f4); border: 1px solid var(--line); }
 .ask-note { margin: 6px 0 0; color: var(--muted); font-size: .8rem; }
 .ask-warn { color: #b45309; }
+.ask-off .ask-ai-on { display: block; width: 100%; margin: 8px 0 2px; min-height: 44px; font: inherit; font-size: .9rem; font-weight: 700; border-radius: 10px; border: 1px solid #1f5fe0; background: none; color: #1f5fe0; cursor: pointer; }
 .ask-ex { display: flex; flex-direction: column; gap: 5px; margin: 6px 0 0; }
 .ask-ex button { all: unset; box-sizing: border-box; cursor: pointer; font-size: .86rem; padding: 8px 10px; border-radius: 10px; border: 1px dashed var(--line); color: #1f5fe0; }
 ol.ask-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -202,6 +203,21 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   dlg.addEventListener("close", () => { planAsk = false; });
   const PLAN_EX = ["Start at the top of Showcase, ski DOA, finish in Lakeside Bowl", "Start at Joffre Lakes parking, skin up the Shoulder, finish at the parking", "From the top of 7th Heaven ski Lakeside Bowl and finish at the bottom of 7th Heaven"];
 
+  // Why the AI didn't read the question. Off by choice (More, Google's AI): a button turns it back on from here, since
+  // a No tapped by accident was easy to miss (alex, 2026-11-10); "ask again later" only when the AI itself failed.
+  const aiNote = (ai) => ai.ok ? "" : ai.off
+    ? `<p class="ask-note ask-off"><span>${esc(ai.why)}</span> <button type="button" class="ask-ai-on" data-ai-on>Turn Google's AI back on</button></p>`
+    : `<p class="ask-note">${esc(ai.why)} Read here more simply: ask again later for a smarter read.</p>`;
+  // The button asks again (18 or older box, welcome.js). Once the AI is on, from here or from More, the off note goes
+  // at once (alex: not shown when it's on) and an open Ask reads its question again with the AI.
+  dlg.addEventListener("click", (e) => { if (e.target.closest("[data-ai-on]") && window.tfAiConsent) window.tfAiConsent.set(true); });
+  document.addEventListener("tf:aiconsent", (ev) => {
+    if (!ev.detail || !ev.detail.ok) return;
+    const had = dlg.querySelector(".ask-off");
+    document.querySelectorAll(".ask-off").forEach((n) => n.remove());
+    const q = dlg.querySelector(".ask-in") && dlg.querySelector(".ask-in").value.trim();
+    if (had && dlg.open && q) open(q);
+  });
   let token = 0;
   async function open(q, o) {
     const sp = sportOf(), my = ++token;
@@ -226,7 +242,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     const p = ai.ok ? fromAi(ai, q, sp) : localParse(q, sp);
     if (planAsk) p.plan = true;
     head.innerHTML = `<p class="ask-said">${esc(p.summary || summaryOf(p, sp))}</p><ul class="ask-chips">${chipsOf(p, sp).map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
-      ${ai.ok ? "" : `<p class="ask-note">${esc(ai.why)} Read here more simply: ask again later for a smarter read.</p>`}`;
+      ${aiNote(ai)}`;
     out.innerHTML = `<p class="ask-wait">Finding the place…</p>`;
     // A ski plan's own pieces ("finish in Lakeside Bowl") aren't the place to look around: they're found near the map.
     if (sp === "ski" && (planAsk || planLike(q)) && p.place && planSteps(q).some((x) => norm(x.name) === norm(p.place) || norm(p.place).includes(norm(x.name)))) p.place = "";
@@ -236,7 +252,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     // A backcountry area read from the words ("in the duffys", "Duffy Lake"): the heading says where it looked.
     if (at && at.name && (at.region || p.place !== was)) {
       p.place = at.name; p.summary = "";
-      head.innerHTML = `<p class="ask-said">${esc(summaryOf(p, sp))}</p><ul class="ask-chips">${chipsOf(p, sp).map((c) => `<li>${esc(c)}</li>`).join("")}</ul>${ai.ok ? "" : `<p class="ask-note">${esc(ai.why)} Read here more simply: ask again later for a smarter read.</p>`}`;
+      head.innerHTML = `<p class="ask-said">${esc(summaryOf(p, sp))}</p><ul class="ask-chips">${chipsOf(p, sp).map((c) => `<li>${esc(c)}</li>`).join("")}</ul>${aiNote(ai)}`;
     }
     // A ski tour typed as a plan names its own pieces: when the place isn't found, they're looked for around the map.
     if (!at && sp === "ski" && (planAsk || planLike(q))) { const m = map.getCenter(); at = { c: [m.lat, m.lng], mid: true }; }
@@ -252,7 +268,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   async function aiParse(q, sport) {
     if (aiOff) return { ok: false, why: aiOff };
     // Google's AI only after a yes (welcome.js tfAiConsent); without it the words are read on the phone.
-    if (window.tfAiConsent && !(await window.tfAiConsent.ask("ask"))) return { ok: false, why: "Google's AI is off (your choice), so your words were read on the phone." };
+    if (window.tfAiConsent && !(await window.tfAiConsent.ask("ask"))) return { ok: false, off: true, why: "Google's AI is off (your choice), so your words were read on the phone." };
     const acct = window.tfAccount;
     try {
       if (!acct || !acct.enabled) return { ok: false, why: "The AI isn't available here." };

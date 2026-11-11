@@ -1934,6 +1934,8 @@
     "Skiing: Ask goes to the mountain or ridge you name (it used to land on a peak nearby), and when no ski tour is mapped on it, it plans one from the closest road to it. The tours nearby stay one tap away.":"Ski : Demander va à la montagne ou à la crête que vous nommez (avant, il tombait sur un sommet voisin), et quand aucune sortie de ski n'y est tracée, il en planifie une depuis la route la plus proche. Les sorties à proximité restent à un toucher.",
     "where the road comes closest (the snow line couldn't be read: drag it to where the car stops)":"là où la route passe le plus près (la limite de la neige n'a pas pu être lue : glissez-le là où l'auto s'arrête)",
     "where the road comes closest (no snow on the roads in the forecast)":"là où la route passe le plus près (pas de neige sur les routes dans les prévisions)",
+    "Turn Google's AI back on":"Réactiver l'IA de Google",
+    "Ask: when Google's AI is turned off, the note in Ask now has a Turn Google's AI back on button, so a No tapped by accident is quick to undo.":"Demander : quand l'IA de Google est désactivée, la note dans Demander a maintenant un bouton Réactiver l'IA de Google, pour annuler vite un Non touché par erreur.",
     "Backcountry access gondola · not a ski resort":"Télécabine d'accès à l'arrière-pays · pas une station de ski",
     "Backcountry access gondola":"Télécabine d'accès à l'arrière-pays",
     "Open today":"Ouvert aujourd'hui",
