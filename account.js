@@ -15,7 +15,7 @@
     // What each sport saves (alex 2026-10-30: trips, spots and pins on the account in every sport). Pins and tracks have
     // their own tables (ski-points.js, ride.html); these are the lists kept in localStorage. listGone comes first: the
     // lists' merges read it.
-    "listGone", "skiTrips", "skiTours", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"];
+    "listGone", "skiTrips", "skiTours", "tripPack", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"];
   const STAMP = "tf:settingsAt";   // when this device last changed a setting (ms)
 
   const api = window.tfAccount = { enabled: !!(SUPABASE_URL && SUPABASE_ANON_KEY), url: SUPABASE_URL, key: SUPABASE_ANON_KEY, client: null, user: null, ready: null };
@@ -564,7 +564,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   // when the app comes back to the screen, and when a page asks (tfAccount.sync(), e.g. opening 📂 Saved).
   const KEYAT = "tf:settingsKeyAt";
   const LIVE = new Set(["planSaved", "planGone", "notifyRead", "loamAlert", "myFinds", "shareOn", "shareKey", "sharePast", "shareFrom", "sharePlaces", "newsSeen",
-    "listGone", "skiTrips", "skiTours", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"]);   // read fresh by the page, so no reload
+    "listGone", "skiTrips", "skiTours", "tripPack", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"]);   // read fresh by the page, so no reload
   const jparse = (v, d) => { try { const x = JSON.parse(v); return x == null ? d : x; } catch { return d; } };
   // A saved list both devices add to: items by id, the newer edit wins, minus those deleted (tf:listGone) after their
   // last edit. sorted: newest first (else this device's order, then the account's new ones). max: the page's own cap.

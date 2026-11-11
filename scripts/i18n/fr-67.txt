@@ -1,0 +1,71 @@
+Your lines for this trip ||| Vos lignes pour ce séjour
+The way in ||| L'accès
+No lines yet. Tap any ski line on the map and then ||| Pas encore de lignes. Touchez une ligne de ski sur la carte puis
+Add to cabin trip ||| Ajouter au séjour en refuge
+Draw a tour from the cabin ||| Tracer une sortie depuis le refuge
+See them all ||| Tout voir
+GPX of the whole trip ||| GPX de tout le séjour
+Add it to which trip? ||| L'ajouter à quel séjour ?
+Take off ||| Retirer
+Tap the map along your tour from the cabin, then ✓ Done. It goes in this trip. ||| Touchez la carte le long de votre sortie depuis le refuge, puis ✓ Terminé. Elle s'ajoute à ce séjour.
+Packing list ||| Liste de bagages
+Your own items ||| Vos propres articles
+Add an item ||| Ajouter un article
+Add ||| Ajouter
+Edit the list ||| Modifier la liste
+Put back what you took off ||| Remettre ce que vous avez retiré
+What you take off or add stays that way for your next trips too. ||| Ce que vous retirez ou ajoutez reste ainsi pour vos prochains séjours aussi.
+It's on the list already. ||| C'est déjà sur la liste.
+Your bag is ready. Have a great trip! ||| Votre sac est prêt. Bon séjour !
+Who brings? ||| Qui l'apporte ?
+Who? ||| Qui ?
+Your group ||| Votre groupe
+Their names are used for who brings what, who cooks, who booked and who paid. ||| Leurs noms servent pour qui apporte quoi, qui cuisine, qui a réservé et qui a payé.
+Add a name ||| Ajouter un nom
+Your name ||| Votre nom
+So the group sees who changed what ||| Pour que le groupe voie qui a changé quoi
+Share this trip with your group ||| Partager ce séjour avec votre groupe
+Send the link again ||| Renvoyer le lien
+Sync now ||| Synchroniser
+That name is in the group already. ||| Ce nom est déjà dans le groupe.
+Anyone with the link can see and change this trip, so only send it to your group. Your ticks in the packing list, the trip plan for a friend and your photos stay on your phone. ||| Toute personne qui a le lien peut voir et modifier ce séjour : envoyez-le seulement à votre groupe. Vos coches dans la liste de bagages, le plan de sortie pour un proche et vos photos restent sur votre téléphone.
+Your group opens the link in Trail Finder and gets the same trip: lines, packing list, who brings what, meals, booking and costs. Everyone can add and delete things. Your ticks, your trip plan for a friend and your photos stay yours. ||| Votre groupe ouvre le lien dans Trail Finder et obtient le même séjour : lignes, liste de bagages, qui apporte quoi, repas, réservation et coûts. Tout le monde peut ajouter et supprimer des choses. Vos coches, votre plan de sortie pour un proche et vos photos restent à vous.
+Link copied: paste it in your group's chat. ||| Lien copié : collez-le dans la discussion de votre groupe.
+This shared trip doesn't exist any more. ||| Ce séjour partagé n'existe plus.
+Meals ||| Repas
+Breakfast ||| Déjeuner
+Lunch ||| Dîner
+Dinner ||| Souper
+What ||| Quoi
+Send the meal plan ||| Envoyer le plan des repas
+No meals typed in yet. ||| Aucun repas inscrit pour l'instant.
+Booking ||| Réservation
+Booked ||| Réservé
+Confirmation # ||| N° de confirmation
+Paid ($) ||| Payé ($)
+Booked by ||| Réservé par
+Remind me to book on ||| Me rappeler de réserver le
+Add the reminder to my calendar ||| Ajouter le rappel à mon calendrier
+Book on their site ||| Réserver sur leur site
+This cabin isn't booked: first come, first served. ||| Ce refuge ne se réserve pas : premier arrivé, premier servi.
+This cabin must be booked ahead. ||| Ce refuge doit être réservé à l'avance.
+This cabin can be booked. ||| Ce refuge peut être réservé.
+needs booking ||| à réserver
+Costs ||| Coûts
+What (gas, food…) ||| Quoi (essence, nourriture…)
+Paid by ||| Payé par
+Add what it was for and how much. ||| Indiquez pour quoi et combien.
+Trip journal ||| Journal du séjour
+How the snow was, what you skied, what to bring next time. ||| Comment était la neige, ce que vous avez skié, quoi apporter la prochaine fois.
+Write a note ||| Écrire une note
+Add the note ||| Ajouter la note
+Photos ||| Photos
+Add photos ||| Ajouter des photos
+Photos stay on this phone. ||| Les photos restent sur ce téléphone.
+Delete this note? ||| Supprimer cette note ?
+Delete this photo? ||| Supprimer cette photo ?
+Trip plan for a friend ||| Plan de sortie pour un proche
+tomorrow! ||| demain !
+today! ||| aujourd'hui !
+you're there ||| vous y êtes
+Cabin trip organizer: each cabin trip is now a folder. Add any ski line or your own tour to it, add your own items to the packing list, put a name on shared gear, plan the meals, keep the booking and split the costs, write a trip journal and get a GPX of the whole trip. Share it with your group: everyone can add and delete things. ||| Organisateur de séjour en refuge : chaque séjour est maintenant un dossier. Ajoutez-y n'importe quelle ligne de ski ou votre propre sortie, vos propres articles à la liste de bagages, un nom sur le matériel partagé, planifiez les repas, gardez la réservation, partagez les coûts, écrivez un journal et obtenez un GPX de tout le séjour. Partagez-le avec votre groupe : tout le monde peut ajouter et supprimer des choses.

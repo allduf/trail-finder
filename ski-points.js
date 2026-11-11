@@ -997,6 +997,21 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     setTimeout(go, 300);
   }
 
+  // A group's cabin trip link (#trip=id.key, cabin-trip.js shareTrip): Skiing opens with that trip, kept in sync.
+  function openTripLink() {
+    const m = location.hash.match(/^#trip=([0-9a-f-]{36})\.([0-9a-zA-Z-]{8,64})$/);
+    if (!m) return;
+    history.replaceState(null, "", location.pathname + location.search);
+    const sel = document.getElementById("sport");
+    if (sel && sel.value !== "ski") { sel.value = "ski"; sel.dispatchEvent(new Event("change")); }
+    let tries = 0;
+    const go = () => {
+      if (!(window.tfCabinTrip && window.tfCabinTrip.join)) { if (++tries < 60) setTimeout(go, 250); return; }   // up to 15 s while Skiing loads
+      window.tfCabinTrip.join(m[1], m[2]);
+    };
+    setTimeout(go, 300);
+  }
+
   // ---------- account (optional sign-in, see account.js) ----------
   // IndexedDB stays the copy the map shows. Signed in, each point is also kept in the account; points saved
   // before signing in move into it at the next sync. Signed out, points that belong to an account leave this
@@ -1129,5 +1144,5 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   let lastSport = sportNow();   // winter.js sets body.sport-ski / sport-hunt when the sport menu changes
   new MutationObserver(() => { if (sportNow() !== lastSport) { lastSport = sportNow(); readFilt(); placeBox(); points = all.filter((p) => sportOf(p) === sportNow()); if (!isSki()) stopGuide(); onSport(); } })
     .observe(document.body, { attributes: true, attributeFilter: ["class"] });
-  reload().then(() => { onSport(); openShared(); });
+  reload().then(() => { onSport(); openShared(); openTripLink(); });
 })();
