@@ -17,6 +17,12 @@
 //  - Then (alex picked them 2026-10-30): day tours from the cabin (mapped tours within 1.5 km, ★ the ones you plan),
 //    a packing list built from the trip (nights, people, what the cabin has, the coldest night, the way in's slopes),
 //    and a trip plan to leave with a friend, with a late alert for their calendar at the "call for help" time.
+//  - Then (alex 2026-11-11: "a folder where you can save the approach route and all the lines that you want to ride on that
+//    trip", and a list of what to bring that you tick as it goes in the bag): each trip is a folder. "Your lines for
+//    this trip" holds the way in plus any ski line added from its card (🏕 Add to cabin trip), a saved planned tour, or a
+//    ★ tour near the cabin; they're kept with the trip (their points, so they show with no signal and go in the offline
+//    save) and drawn together on the map. The packing list takes your own items and drops the ones you don't bring;
+//    those choices carry over to the next trip (tf:tripPack, on the account when signed in).
 // Trips are kept in tf:skiTrips, saved to the rider's account when signed in (account.js merges both devices' trips).
 (() => {
   "use strict";
@@ -97,6 +103,58 @@
 #skiPane .tp-plan .tp-btns > * { flex: 1 1 40%; justify-content: center; text-align: center; }
 #skiPane .tp-late { color: #c92a2a; font-weight: 700; }
 #skiPane .tp-late-tag { color: #fff !important; background: #c92a2a; border-radius: 6px; padding: 1px 6px; font-weight: 800; }
+#skiPane .tp-lines .tp-sw { display: inline-block; width: 16px; height: 4px; border-radius: 2px; background: #e8590c; vertical-align: middle; margin-right: 6px; box-shadow: 0 0 0 1.5px #fff, 0 0 0 2.5px var(--line); }
+#skiPane .tp-lines .tp-sw.way { background: ${COL}; }
+#skiPane .tp-list .tp-rm { flex: none; width: 44px; justify-content: center; align-items: center; font-size: 1rem; color: var(--muted); }
+#skiPane .tp-addf { display: flex; gap: 6px; margin-top: 8px; }
+#skiPane .tp-addf input { flex: 1; font: inherit; font-size: 16px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg); min-width: 0; }
+#skiPane .tp-addf button { font: inherit; font-size: .86rem; font-weight: 800; padding: 8px 14px; border-radius: 10px; border: 0; background: ${COL}; color: #fff; cursor: pointer; }
+#skiPane .tp-edit-row { display: flex; align-items: center; gap: 8px; padding: 2px 0; font-size: .86rem; }
+#skiPane .tp-edit-row span { flex: 1; }
+#skiPane .tp-edit-row button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: #c92a2a; border-radius: 9px; width: 40px; height: 34px; cursor: pointer; flex: none; }
+#skiPane .tp-addto { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+#skiPane .tp-addto > button, #skiPane .tp-addto li button { font: inherit; font-size: .86rem; font-weight: 800; padding: 10px; border-radius: 11px; border: 1.5px solid ${COL}; background: color-mix(in srgb, ${COL} 7%, var(--panel)); color: var(--fg); cursor: pointer; width: 100%; }
+#skiPane .tp-addto .tp-in { display: flex; align-items: center; gap: 8px; font-size: .84rem; padding: 8px 10px; border-radius: 11px; background: color-mix(in srgb, ${COL} 10%, var(--panel)); }
+#skiPane .tp-addto .tp-in span { flex: 1; }
+#skiPane .tp-addto .tp-in button { font: inherit; font-size: .8rem; font-weight: 700; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 9px; padding: 6px 10px; cursor: pointer; }
+#skiPane .tp-names { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+#skiPane .tp-names li { display: inline-flex; align-items: center; gap: 2px; padding: 2px 2px 2px 12px; border-radius: 999px; background: color-mix(in srgb, ${COL} 14%, var(--panel)); font-weight: 700; font-size: .86rem; }
+#skiPane .tp-names button { font: inherit; border: 0; background: none; color: var(--muted); width: 32px; height: 32px; cursor: pointer; }
+#skiPane .tp-mine { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+#skiPane .tp-mine input, #skiPane .tp-meal input, #skiPane .tp-costadd input, #skiPane .tp-note textarea { font: inherit; font-size: 16px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg); min-width: 0; box-sizing: border-box; }
+#skiPane .tp-mine input { text-transform: none; letter-spacing: 0; font-weight: 400; }
+#skiPane .sk-trip select { font: inherit; font-size: 16px; padding: 7px 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg); min-width: 0; max-width: 100%; }
+#skiPane .tp-plan-form select { width: 100%; }
+#skiPane .tp-pkrow { display: flex; align-items: center; gap: 6px; }
+#skiPane .tp-pkrow .tp-check { flex: 1; min-width: 0; }
+#skiPane .tp-pkrow .tp-who { flex: none; width: 118px; font-size: 13px; padding: 5px 4px; color: var(--muted); }
+#skiPane .tp-pkrow .tp-who.set { color: var(--fg); font-weight: 700; border-color: ${COL}; background: color-mix(in srgb, ${COL} 8%, var(--bg)); }
+#skiPane .tp-bar { height: 10px; border-radius: 999px; background: var(--chip); overflow: hidden; margin: 4px 0 6px; border: 1px solid var(--line); }
+#skiPane .tp-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, ${COL}, #20c997); transition: width .4s ease; }
+#skiPane .tp-ready { margin: 4px 0; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #20c997 16%, var(--panel)); font-weight: 800; font-size: .9rem; animation: tppop .5s ease; }
+@keyframes tppop { 0% { transform: scale(.9); opacity: 0; } 60% { transform: scale(1.03); opacity: 1; } 100% { transform: scale(1); } }
+#skiPane .tp-meal { display: grid; grid-template-columns: 74px 1fr 104px; gap: 6px; align-items: center; margin: 4px 0; font-size: .84rem; font-weight: 700; }
+#skiPane .tp-meal select { font-size: 13px; padding: 7px 4px; }
+#skiPane .tp-costs, #skiPane .tp-pay { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+#skiPane .tp-costs li { display: flex; align-items: center; gap: 8px; padding: 6px 4px 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); font-size: .88rem; }
+#skiPane .tp-costs li span { flex: 1; display: flex; flex-direction: column; }
+#skiPane .tp-costs li small { color: var(--muted); font-size: .76rem; }
+#skiPane .tp-costs li button, #skiPane .tp-notei button { font: inherit; border: 0; background: none; color: var(--muted); width: 34px; height: 34px; cursor: pointer; }
+#skiPane .tp-costadd { display: grid; grid-template-columns: 1fr 72px; gap: 6px; margin-top: 6px; }
+#skiPane .tp-costadd select { grid-column: 1; }
+#skiPane .tp-costadd button, #skiPane .tp-note button { font: inherit; font-size: .86rem; font-weight: 800; padding: 9px 12px; border-radius: 10px; border: 0; background: ${COL}; color: #fff; cursor: pointer; }
+#skiPane .tp-sum { margin: 8px 0 2px; font-size: .9rem; }
+#skiPane .tp-pay li { padding: 6px 10px; border-radius: 10px; background: color-mix(in srgb, #20c997 12%, var(--panel)); font-size: .88rem; }
+#skiPane .tp-note { display: flex; flex-direction: column; gap: 6px; }
+#skiPane .tp-note textarea { width: 100%; resize: vertical; }
+#skiPane .tp-notei { border-left: 3px solid ${COL}; padding: 2px 0 2px 10px; margin: 8px 0; }
+#skiPane .tp-notei small { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: .76rem; }
+#skiPane .tp-notei p { margin: 0; font-size: .88rem; white-space: pre-wrap; }
+#skiPane .tp-photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+#skiPane .tp-photos figure { margin: 0; position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--chip); }
+#skiPane .tp-photos img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#skiPane .tp-photos button { position: absolute; top: 3px; right: 3px; width: 30px; height: 30px; border-radius: 50%; border: 0; background: rgba(0,0,0,.55); color: #fff; cursor: pointer; }
+#skiPane .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; padding: 10px; border-radius: 11px; border: 1.5px dashed ${COL}; font-weight: 800; font-size: .88rem; cursor: pointer; }
 #skiPane .sk-acts.tp4 { grid-template-columns: repeat(3, 1fr); }`;   /* phones: one row each (theme.css) */
   document.head.append(css);
 
@@ -119,8 +177,10 @@
     if (!snapOnly) t.ed = Date.now();   // the newer edit wins when two devices' trips merge (account.js); a new forecast isn't an edit
     const { wayWait, ...keep } = t, l = trips().filter((x) => x.id !== t.id);
     l.unshift(keep); store.set("skiTrips", l.slice(0, 20));
+    if (!snapOnly && t.share) pushSoon(t);   // a shared trip: the change goes to the group
   };
   const infos = new Map();   // trip id -> the way in's heights and slopes (ski-terrain.js info), for its route card
+  let packEdit = false;   // the packing list showing ✕ to take items off
   let cur = null, seq = 0, view = null;   // cur: the trip on the card; view: its forecast rows as last worked out
   const wayRun = { n: 0 };
 
@@ -135,12 +195,13 @@
   function open(h) {
     if (!h) return;
     const old = trips().find((x) => x.hut.id === h.id);
-    const t = old || { id: Date.now().toString(36), hut: hutOf(h), date: addDays(localDate(new Date()), 1), nights: 2, people: 4, way: null, at: Date.now() };
+    const t = old || { id: Date.now().toString(36), hut: hutOf(h), date: addDays(localDate(new Date()), 1), nights: 2, people: 4, way: null, at: Date.now(), lines: [], ...packTpl() };
     t.hut = { ...t.hut, ...hutOf(h), tags: { ...(t.hut.tags || {}), ...(h.tags || {}) } };   // newer facts about the cabin win
     start(t);
   }
   function start(t) {
-    cur = t; view = null;
+    cur = t; view = null; packEdit = false;
+    if (!t.own) Object.assign(t, packTpl());   // a trip from before your own items: starts with your usual ones
     card.hidden = false; btn.setAttribute("aria-pressed", "true");
     render();
     drawWay();
@@ -148,8 +209,13 @@
     if (t.way && t.way.src === "auto" && t.way.v !== WAY_V) { t.way = null; t.wayFail = ""; }
     if (!t.way && !/^(noroad|water)$/.test(t.wayFail || "")) findWay(t);
     loadDays(t);
-    loadTours(t);
+    loadTours(t).then(() => movePicks(t));
   }
+  // "· 3 days to go" (fun to watch it count down), "· today!", "· you're there", nothing once it's over.
+  const countdown = (t) => {
+    const d = Math.round((new Date(t.date + "T12:00") - new Date(localDate(new Date()) + "T12:00")) / 864e5);
+    return d > 1 ? ` · <b>${d} days to go</b>` : d === 1 ? " · <b>tomorrow!</b>" : d === 0 ? " · <b>today!</b>" : -d <= t.nights ? " · <b>you're there</b>" : "";
+  };
   const hutName = (t) => t.hut.name || (S.KIND[t.hut.kind] || "Cabin");
 
   // ---------- the way in ----------
@@ -218,13 +284,17 @@
     const t = cur;
     if (!t || !isSki()) return;
     L.circleMarker([t.hut.lat, t.hut.lon], { pane: "ski", radius: 9, color: "#fff", weight: 3, fillColor: COL, fillOpacity: 1, interactive: false }).addTo(layer);
+    for (const x of linesOf(t)) for (const l of x.ls) {
+      L.polyline(l, { pane: "ski", color: "#fff", weight: 7, opacity: 0.9, interactive: false }).addTo(layer);
+      L.polyline(l, { pane: "ski", color: LCOL, weight: 4, opacity: 1, interactive: false }).addTo(layer);
+    }
     if (t.way && t.way.line.length > 1) {
       L.polyline(t.way.line, { pane: "ski", color: "#fff", weight: 8, opacity: 0.9, interactive: false }).addTo(layer);
       L.polyline(t.way.line, { pane: "ski", color: COL, weight: 4.5, opacity: 1, interactive: false }).addTo(layer);
       L.marker(t.way.line[0], { pane: "ski", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html: `<span class="sk-pin park" style="background:#1f5fe0">P</span>`, iconSize: [22, 22], iconAnchor: [11, 11] }) }).addTo(layer);
     }
     if (!map.hasLayer(layer)) layer.addTo(map);
-    const b = t.way ? L.latLngBounds(t.way.line).extend([t.hut.lat, t.hut.lon]) : L.latLng(t.hut.lat, t.hut.lon).toBounds(3000);
+    const b = tripBounds(t) || L.latLng(t.hut.lat, t.hut.lon).toBounds(3000);
     if (!map.getBounds().contains(b)) map.fitBounds(b, { padding: [30, 30], maxZoom: 14 });
   }
   // Your own way in, drawn with Plan a tour: points from where you park to the cabin.
@@ -290,10 +360,134 @@
     const lead = `<p class="sk-note">${full > 0 ? `<b>${full} full day${full > 1 ? "s" : ""}</b> at the cabin, plus the afternoon you get in.` : "One night: the afternoon you get in and the morning before you ski out."}</p>`;
     if (!l) return `${lead}<p class="tp-wait">Looking for tours near the cabin…</p>`;
     if (!l.length) return `${lead}<p class="sk-note">No mapped tours start near the cabin. Tap the slopes around it on the map for their angle and avalanche terrain, or draw one with Plan a tour.</p>`;
-    const pick = t.pick || [];
+    const pick = linesOf(t).map((x) => x.rid);
     return `${lead}<ul class="tp-list tp-tours">${l.map((x) => `<li><button type="button" data-tour="${esc(x.id)}"><span>${esc(x.name)} <small>${esc(x.label)} · ${x.km.toFixed(1)} km${x.d >= 150 ? ` · starts ${(x.d / 1000).toFixed(1)} km away` : " · from the door"}</small>${x.pill ? `<br>${x.pill}` : ""}</span></button><button type="button" class="tp-star" data-star="${esc(x.id)}" aria-pressed="${pick.includes(x.id)}" aria-label="Plan to do ${esc(x.name)}">${pick.includes(x.id) ? "★" : "☆"}</button></li>`).join("")}</ul>
-      <p class="sk-note">Tap one for its slopes and today's avalanche check. ★ the ones you plan to do: they go in your trip plan.</p>`;
+      <p class="sk-note">Tap one for its slopes and today's avalanche check. ★ the ones you plan to do: they go in your lines for this trip and in your trip plan.</p>`;
   }
+
+  // ---------- your lines for this trip ----------
+  // The trip as a folder (alex 2026-11-11): the way in, then every line you want to ski while you're there. A line is
+  // kept with its points (rounded, about every 12 m), so it draws, opens and saves offline with no signal. rid: a mapped
+  // ski route's id (its card opens from the list); tour: a saved planned tour's id (tf:skiTours).
+  const LCOL = "#e8590c";
+  const toast = (m) => { if (window.tfToast) window.tfToast(m); };
+  const linesOf = (t) => t.lines || [];
+  const r5 = (p) => [+(+p[0]).toFixed(5), +(+p[1]).toFixed(5)];
+  const thin = (l) => { const out = []; l.forEach((p, i) => { const q = r5(p); if (!out.length || i === l.length - 1 || map.distance(out.at(-1), q) >= 12) out.push(q); }); return out; };
+  const lineKm = (ls) => ls.reduce((s, l) => s + l.reduce((a, p, i) => (i ? a + map.distance(l[i - 1], p) : 0), 0), 0) / 1000;
+  function tripBounds(t) {
+    const pts = [[t.hut.lat, t.hut.lon], ...(t.way ? t.way.line : []), ...linesOf(t).flatMap((x) => x.ls.flat())];
+    return pts.length > 1 ? L.latLngBounds(pts) : null;
+  }
+  const sameLine = (a, b) => (a.rid ? a.rid === b.rid : a.tour ? a.tour === b.tour : !b.rid && !b.tour && a.name === b.name);
+  const tripById = (id) => (cur && cur.id === id ? cur : trips().find((x) => x.id === id));
+  function addLine(t, x) {
+    const ls = x.ls.map(thin).filter((l) => l.length > 1);
+    if (!ls.length) return;
+    const y = { id: x.rid || x.tour || "l" + Date.now().toString(36), rid: x.rid || "", tour: x.tour || "", name: String(x.name || "Ski line").slice(0, 80), label: x.label || "", ls, km: +lineKm(ls).toFixed(1), c: x.c ? r5(x.c) : ls[0][0] };
+    t.lines = [...linesOf(t).filter((z) => !sameLine(z, y)), y];
+    putTrip(t);
+    if (cur === t) { renderLines(); renderTours(); drawWay(); }
+  }
+  function dropLine(t, id) {
+    t.lines = linesOf(t).filter((z) => z.id !== id);
+    putTrip(t);
+    if (cur === t) { renderLines(); renderTours(); drawWay(); }
+  }
+  // A mapped tour near the cabin, all its same-name pieces (the way the tours list shows it).
+  async function routeLines(t, id) {
+    try {
+      const rs = await S.near([t.hut.lat, t.hut.lon], 3), r = rs.find((x) => x.id === id);
+      if (!r) return null;
+      const nm = (r.name || "").toLowerCase();
+      return (nm ? rs.filter((x) => x.type === r.type && (x.name || "").toLowerCase() === nm) : [r]).flatMap((x) => x.lines);
+    } catch { return null; }
+  }
+  // Trips from before the folder: their ★ tours (t.pick) become lines. Ones that can't load yet stay for next time.
+  async function movePicks(t) {
+    if (!t.pick || !t.pick.length) return;
+    const left = [];
+    for (const id of t.pick) {
+      const x = (t.tours || []).find((y) => y.id === id);
+      if (!x || linesOf(t).some((y) => y.rid === id)) continue;
+      const ls = await routeLines(t, id);
+      if (ls) addLine(t, { rid: id, name: x.name, label: x.label, ls, c: x.c }); else left.push(id);
+    }
+    if (left.length) t.pick = left; else delete t.pick;
+    putTrip(t, true);
+  }
+  function linesHtml(t) {
+    const l = linesOf(t), w = t.way;
+    const way = w ? `<li><button type="button" data-tl="way"><span><i class="tp-sw way"></i>The way in <small>${w.km.toFixed(1)} km · ↑ ${fmtM(w.up)}</small></span></button></li>` : "";
+    const rows = l.map((x) => `<li><button type="button" data-tl="${esc(x.id)}"><span><i class="tp-sw"></i>${esc(x.name)} <small>${[x.label, x.km.toFixed(1) + " km"].filter(Boolean).map(esc).join(" · ")}</small></span></button><button type="button" class="tp-rm" data-tlrm="${esc(x.id)}" aria-label="Take ${esc(x.name)} off this trip">✕</button></li>`).join("");
+    return `${way || rows ? `<ul class="tp-list tp-tours">${way}${rows}</ul>` : ""}
+      ${l.length ? "" : `<p class="sk-note">No lines yet. Tap any ski line on the map and then <b>🏕 Add to cabin trip</b>, ★ a tour near the cabin below, or draw your own.</p>`}
+      <div class="tp-btns"><button type="button" data-tp="drawline">✏️ Draw a tour from the cabin</button>${l.length ? `<button type="button" data-tp="fitall">🗺 See them all</button>` : ""}${l.length || w ? `<button type="button" data-tp="gpx">⬇ GPX of the whole trip</button>` : ""}</div>`;
+  }
+  // A saved planned tour as a line (winter.js planLine: the less exposed way when it's on, its saved name and id).
+  const planItem = () => { const p = S.planLine && S.planLine(); return p && p.line.length > 1 ? { tour: p.tour, name: p.name, ls: [p.line] } : null; };
+  // A ski line's card: the line with its same-name pieces close by (the way its card counts them).
+  function routeItem(r) {
+    const all = (window.tfSki.routes && window.tfSki.routes()) || [], nm = (r.name || "").toLowerCase(), near = r.bounds && r.bounds.pad ? r.bounds.pad(3) : null;
+    const g = nm && near ? all.filter((x) => x.type === r.type && (x.name || "").toLowerCase() === nm && x.bounds && near.intersects(x.bounds)) : [];
+    if (!g.includes(r)) g.push(r);
+    const h = document.querySelector("#skDetail h3");
+    return { rid: r.id, name: (h && h.textContent.trim()) || r.name || "Ski line", ls: g.flatMap((x) => x.lines), c: r.lines[0][0] };
+  }
+  // "🏕 Add to cabin trip" (only once you have a trip): into the trip that's open, your only trip, or the one you pick.
+  function offerAdd(after, getItem) {
+    if (!after || !trips().length) return;
+    const box = document.createElement("div");
+    box.className = "tp-addto";
+    after.after(box);
+    const draw = (pick) => {
+      const x = getItem(), l = trips();
+      if (!x) { box.innerHTML = ""; return; }
+      if (pick) { box.innerHTML = `<p class="sk-note">Add it to which trip?</p><ul class="tp-list">${pick.map((t) => `<li><button type="button" data-addto="${esc(t.id)}"><span>${esc(hutName(t))}</span><small>${esc(dayWord(t.date))}</small></button></li>`).join("")}</ul>`; return; }
+      const inT = l.filter((t) => linesOf(t).some((y) => sameLine(y, x)));
+      box.innerHTML = inT.map((t) => `<div class="tp-in"><span>✓ In your trip to <b>${esc(hutName(t))}</b></span><button type="button" data-addrm="${esc(t.id)}">Take off</button></div>`).join("")
+        + (inT.length === l.length ? "" : `<button type="button" data-addgo="1">🏕 Add to cabin trip</button>`);
+    };
+    box.addEventListener("click", (e) => {
+      const b = e.target.closest("button"), x = b && getItem();
+      if (!x) return;
+      e.stopPropagation();
+      const into = (id) => { const t = tripById(id); if (!t) return; addLine(t, x); toast(`Added to your trip to ${hutName(t)}.`); draw(); };
+      if (b.dataset.addrm) { const t = tripById(b.dataset.addrm), y = t && linesOf(t).find((z) => sameLine(z, x)); if (y) dropLine(t, y.id); draw(); }
+      else if (b.dataset.addto) into(b.dataset.addto);
+      else if (b.dataset.addgo) {
+        const free = trips().filter((t) => !linesOf(t).some((y) => sameLine(y, x)));
+        if (cur && !card.hidden && free.some((t) => t.id === cur.id)) into(cur.id); else if (free.length === 1) into(free[0].id); else draw(free);
+      }
+    });
+    draw();
+  }
+  window.addEventListener("tf:ski-select", (e) => {
+    const r = e.detail && e.detail.item, d = $("skDetail");
+    if (!r || !d || r.lat != null || r.area || r.src === "trip" || !r.lines || !r.lines.length) return;
+    let item = null;
+    offerAdd(d.querySelector(".sk-rc-btns"), () => (r.src === "plan" ? planItem() : item || (item = routeItem(r))));
+  });
+  // A tour drawn from the cabin with Plan a tour (✏️ Draw a tour from the cabin) goes in the trip once it's ✓ Done.
+  let drawingLine = null;
+  window.addEventListener("tf:ski-plan", (e) => {
+    if (e.detail.on || !drawingLine) return;
+    const t = drawingLine; drawingLine = null;
+    setTimeout(() => { const x = planItem(); if (x) { addLine(t, x); toast(`Added to your trip to ${hutName(t)}.`); } }, 80);
+  });
+  card.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-tl], [data-tlrm]");
+    if (!a || !cur) return;
+    const t = cur;
+    if (a.dataset.tlrm) { dropLine(t, a.dataset.tlrm); return; }
+    const toCard = () => setTimeout(() => window.tfPanelScrollTo && $("skDetail") && window.tfPanelScrollTo($("skDetail")), 80);
+    if (a.dataset.tl === "way") { if (t.way) { S.select(S.route(t.way.line, `Way in to ${hutName(t)}`, infos.get(t.id) || null)); toCard(); } return; }
+    const x = linesOf(t).find((y) => y.id === a.dataset.tl);
+    if (!x) return;
+    if (x.rid && window.tfSki.show) { window.tfSki.show(x.rid, x.c).then(toCard); return; }
+    S.select({ id: "trip", src: "trip", type: "tour", name: x.name, tags: {}, g: x.ls.map((l) => l.flat()), lines: x.ls, bounds: L.latLngBounds(x.ls.flat()) });
+    toCard();
+  });
 
   // ---------- packing list ----------
   // Built from the trip: how many nights and people, what the cabin has (heat, water, outhouse, booking, fee), the way
@@ -337,11 +531,33 @@
     return G;
   }
   const packDone = (t) => ({ ...(t.packed || {}), ...(t.offAt ? { offline: 1 } : {}), ...(t.plan && t.plan.sent ? { plan: 1 } : {}) });
+  // Your own items, and the ones you never bring, carry over to your next trips (tf:tripPack, on the account when
+  // signed in). Own items' keys start with "my_" (their ticks are in t.packed like the others).
+  const packTpl = () => { const v = store.get("tripPack", {}); return { own: (v.own || []).map((x) => ({ ...x })), hide: (v.hide || []).slice() }; };
+  const tplSet = (f) => { const v = store.get("tripPack", {}); store.set("tripPack", f({ own: v.own || [], hide: v.hide || [] })); };
+  function packList(t) {
+    const hide = new Set(t.hide || []);
+    const G = packItems(t).map(([h, items]) => [h, items.filter((x) => !hide.has(x[0]))]).filter((x) => x[1].length);
+    const own = (t.own || []).map((x) => [x.k, x.label]);
+    if (own.length) { const i = G.findIndex((x) => x[0] === "Before you go"); G.splice(i < 0 ? G.length : i, 0, ["Your own items", own]); }
+    return G;
+  }
   function packHtml(t) {
-    const G = packItems(t), done = packDone(t), auto = { offline: !!t.offAt, plan: !!(t.plan && t.plan.sent) }, all = G.flatMap((x) => x[1]), n = all.filter((x) => done[x[0]]).length;
-    return `<details class="tp-pack" ${t.packOpen ? "open" : ""}><summary>Packing list <small>${n} of ${all.length} packed</small></summary>
-      ${G.map(([h, items]) => `<h5>${esc(h)}</h5>${items.map(([k, label]) => `<label class="tp-check"><input type="checkbox" data-pk="${k}" ${done[k] ? "checked" : ""} ${auto[k] ? "disabled" : ""}> <span>${esc(label)}</span></label>`).join("")}`).join("")}
-      <div class="tp-btns"><button type="button" data-tp="packshare">📤 Send the list to the group</button>${n ? `<button type="button" data-tp="packclear">Untick all</button>` : ""}</div></details>`;
+    const G = packList(t), done = packDone(t), auto = { offline: !!t.offAt, plan: !!(t.plan && t.plan.sent) }, all = G.flatMap((x) => x[1]), n = all.filter((x) => done[x[0]]).length;
+    const body = packEdit
+      ? G.map(([h, items]) => `<h5>${esc(h)}</h5>${items.map(([k, label]) => `<div class="tp-edit-row"><span>${esc(label)}</span><button type="button" data-pkrm="${k}" aria-label="Take ${esc(label)} off the list">✕</button></div>`).join("")}`).join("")
+      : G.map(([h, items]) => `<h5>${esc(h)}</h5>${items.map(([k, label]) => `<div class="tp-pkrow"><label class="tp-check"><input type="checkbox" data-pk="${k}" ${done[k] ? "checked" : ""} ${auto[k] ? "disabled" : ""}> <span>${esc(label)}</span></label>${isGroupGear(k) && names(t).length ? whoSel(t, `data-gear="${k}" class="tp-who${(t.gear || {})[k] ? " set" : ""}"`, (t.gear || {})[k], "Who brings?") : ""}</div>`).join("")}`).join("");
+    const pct = all.length ? Math.round((n / all.length) * 100) : 0;
+    return `<details class="tp-pack" ${t.packOpen || packEdit ? "open" : ""}><summary>🎒 Packing list <small>${n} of ${all.length} packed</small></summary>
+      <div class="tp-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Packed"><i style="width:${pct}%"></i></div>
+      ${n && n === all.length ? `<p class="tp-ready">🎉 Your bag is ready. Have a great trip!</p>` : ""}
+      ${names(t).length ? "" : `<p class="sk-note">Add your group's names (👥 Your group) to put a name on shared gear like the stove, so nobody brings two.</p>`}
+      ${body}
+      <form class="tp-addf" data-pkadd="1"><input type="text" maxlength="80" placeholder="Add an item" autocomplete="off" enterkeyhint="done" aria-label="Add an item to the packing list"><button type="submit">Add</button></form>
+      ${packEdit ? `<p class="sk-note">What you take off or add stays that way for your next trips too.</p>` : ""}
+      <div class="tp-btns">${packEdit
+        ? `<button type="button" class="go" data-tp="packedit">✓ Done</button>${(t.hide || []).length ? `<button type="button" data-tp="packback">Put back what you took off</button>` : ""}`
+        : `<button type="button" data-tp="packshare">📤 Send the list to the group</button><button type="button" data-tp="packedit">✎ Edit the list</button>${n ? `<button type="button" data-tp="packclear">Untick all</button>` : ""}`}</div></details>`;
   }
 
   // ---------- trip plan for a friend, and the late alert ----------
@@ -360,7 +576,7 @@
   const late = (t) => { const pl = t.plan; return !!(pl && pl.sent && !pl.safe && Date.now() > new Date(pl.out || `${outDay(t)}T16:00`).getTime()); };
   function planText(t) {
     const pl = planOf(t), w = t.way, ll = (a, b) => `${a.toFixed(5)}, ${b.toFixed(5)}`;
-    const tours = (t.tours || []).filter((x) => (t.pick || []).includes(x.id)).map((x) => x.name);
+    const tours = linesOf(t).map((x) => x.name);
     const hasSat = (t.packed || {}).sat;
     return [`TRIP PLAN: ${hutName(t)} (backcountry ski trip)`,
       `Who: ${pl.who || "me"}${t.people > 1 ? ` (${t.people} people)` : ""}`,
@@ -368,7 +584,7 @@
       `Going in: ${dayWord(t.date)}${w ? `, ${w.from.replace(/^Park /, "parking ")} (${ll(w.line[0][0], w.line[0][1])}), ${w.km.toFixed(1)} km and ${fmtM(w.up)} up, about ${fmtH(w.hIn)}` : ""}`,
       ...(w && w.names && w.names.length ? [`Way in: via ${w.names.join(", ")}`] : []),
       `Nights: ${t.nights}. Back at the car by ${when(pl.out)}`,
-      ...(tours.length ? [`Day tours we may do: ${tours.join(", ")}`] : []),
+      ...(tours.length ? [`Lines we may ski: ${tours.join(", ")}`] : []),
       ...(pl.car ? [`Car: ${pl.car}${w ? " at the parking above" : ""}`] : []),
       `Gear: avalanche beacons, shovels, probes, first aid${hasSat ? ", satellite messenger" : ""}, ${t.nights + 1} days of food + a spare day`,
       ``, `If you haven't heard from us by ${when(pl.help)}: call 911 (or the RCMP) and say we're overdue on a backcountry ski trip. They call Search and Rescue. Read them this plan.`,
@@ -386,6 +602,15 @@
       "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${icsEsc(`Not heard from ${who}? Call 911`)}`, "TRIGGER:PT0M", "END:VALARM",
       "END:VEVENT", "END:VCALENDAR"].map((l) => (l.match(/.{1,60}/gu) || [""]).join("\r\n ")).join("\r\n");   // folded: 75 bytes a line at most
   }
+  function bookIcs(t) {
+    const d = (t.book && t.book.remind) || localDate(new Date()), at = new Date(d + "T09:00"), g = t.hut.tags || {}, site = g["reservation:website"] || g.website || "";
+    return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Trail Finder//Cabin trip//EN", "CALSCALE:GREGORIAN",
+      "BEGIN:VEVENT", `UID:tf-book-${t.id}@trail-finder`, `DTSTAMP:${stamp(new Date())}`, `DTSTART:${stamp(at)}`, `DTEND:${stamp(new Date(at.getTime() + 15 * 60000))}`,
+      `SUMMARY:${icsEsc(`Book ${hutName(t)} (${dayWord(t.date)}, ${t.nights} night${t.nights > 1 ? "s" : ""})`)}`,
+      `DESCRIPTION:${icsEsc(`Book the cabin for ${t.people} people.${site ? `\n${site}` : ""}`)}`,
+      "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${icsEsc(`Book ${hutName(t)}`)}`, "TRIGGER:PT0M", "END:VALARM",
+      "END:VEVENT", "END:VCALENDAR"].map((l) => (l.match(/.{1,60}/gu) || [""]).join("\r\n ")).join("\r\n");
+  }
   async function shareFile(body, name, type, text) {
     const f = new File([body], name, { type });
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [f] })) {
@@ -395,7 +620,7 @@
     a.href = URL.createObjectURL(new Blob([body], { type })); a.download = name;
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 30000);
-    if (window.tfToast) window.tfToast(`Saved ${name}: send it to your friend to open.`);
+    if (window.tfToast) window.tfToast(text && /^Saved/.test(text) ? text : `Saved ${name}: send it to your friend to open.`);
     return true;
   }
   async function shareText(title, text) {
@@ -411,7 +636,7 @@
     const status = pl.safe ? `<p class="sk-note">✅ Out safe ${esc(when(pl.safe))}.</p>`
       : isLate ? `<p class="tp-late">Past your out time (${esc(when(pl.out))}). Out safe? Tell ${esc(pl.friend || "your friend")} now${Date.now() > new Date(pl.help).getTime() ? ": their alert has gone off" : `, before the alert goes off at ${esc(when(pl.help))}`}.</p>`
       : pl.sent ? `<p class="sk-note">Sent ${esc(when(pl.sent))}: their alert goes off at ${esc(when(pl.help))} unless you tell them you're out.</p>` : "";
-    return `<details class="tp-plan" ${t.planOpen || isLate ? "open" : ""}><summary>Trip plan for a friend${isLate ? ` <small class="tp-late-tag">Overdue</small>` : pl.sent ? " <small>sent</small>" : ""}</summary>
+    return `<details class="tp-plan" ${t.planOpen || isLate ? "open" : ""}><summary>🛟 Trip plan for a friend${isLate ? ` <small class="tp-late-tag">Overdue</small>` : pl.sent ? " <small>sent</small>" : ""}</summary>
       <p class="sk-note">Leave it with someone at home: if you don't check in, they call for help.</p>
       <div class="tp-plan-form">
         <label>Who's going<input type="text" data-pl="who" value="${esc(pl.who)}" placeholder="Your names" autocomplete="off"></label>
@@ -425,6 +650,293 @@
         ${window.tfLive ? `<button type="button" data-tp="live">📍 Live location</button>` : ""}${pl.sent && !pl.safe ? `<button type="button" data-tp="safe">✅ We're out safe</button>` : ""}</div>
       <p class="sk-note">The late alert is a calendar event: it rings on their phone at "Call for help at" with what to do. Live location only sends where you have signal.</p><p class="sk-note">Trail Finder doesn't call for help itself: your friend does.</p></details>`;
   }
+
+  // ---------- the trip organizer (alex 2026-11-11: the group, who brings what, meals, booking, costs, journal) ----------
+  // The group's names (t.group) are typed once and picked from everywhere else: who brings a shared item, who cooks,
+  // who booked, who paid. Nothing here is advice: it's the group's own notes.
+  const uid = (p) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  const names = (t) => (t.group || []).map((x) => x.n);
+  const whoSel = (t, attr, val, none) => `<select ${attr} aria-label="Who">${[`<option value="">${esc(none || "Who?")}</option>`, ...names(t).map((n) => `<option ${n === val ? "selected" : ""}>${esc(n)}</option>`), ...(val && !names(t).includes(val) ? [`<option selected>${esc(val)}</option>`] : [])].join("")}</select>`;
+  const money = (v) => `$${(Math.round(v * 100) / 100).toFixed(2).replace(/\.00$/, "")}`;
+  // The shared items in the packing list: one for the group, so it gets a name (gear split). Your own items can too.
+  const GROUP_GEAR = new Set(["sat", "aid", "repair", "bivy", "stove", "pot", "fire", "booking", "fee", "wag", "tp", "trash"]);
+  const isGroupGear = (k) => GROUP_GEAR.has(k) || k.startsWith("my_");
+
+  function groupHtml(t) {
+    const sh = t.share, l = t.group || [], my = me().name || "";
+    const st = sh ? `<p class="sk-note">${sh.err ? `<b style="color:#c92a2a">Not synced yet</b> (${esc(sh.err)}): your changes go to the group when you have signal.` : `✓ Shared: everyone with the link sees and edits the same trip${sh.at ? `, last synced ${esc(new Date(sh.at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" }))}` : ""}${sh.by ? ` (last change by ${esc(sh.by)})` : ""}.`}</p>` : "";
+    return `<details class="tp-pack tp-grp" ${t.grpOpen ? "open" : ""}><summary>👥 Your group <small>${sh ? "shared" : l.length ? `${l.length} ${l.length > 1 ? "people" : "person"}` : ""}</small></summary>
+      <p class="sk-note">Their names are used for who brings what, who cooks, who booked and who paid.</p>
+      <ul class="tp-names">${l.map((x) => `<li>${esc(x.n)}<button type="button" data-grm="${esc(x.k)}" aria-label="Take ${esc(x.n)} off the group">✕</button></li>`).join("")}</ul>
+      <form class="tp-addf" data-gadd="1"><input type="text" maxlength="30" placeholder="Add a name" autocomplete="off" enterkeyhint="done" aria-label="Add a name to the group"><button type="submit">Add</button></form>
+      <label class="tp-mine">Your name<input type="text" data-me="name" maxlength="30" value="${esc(my)}" placeholder="So the group sees who changed what" autocomplete="off"></label>
+      ${st}
+      <div class="tp-btns">${sh ? `<button type="button" class="go" data-tp="sharelink">📤 Send the link again</button><button type="button" data-tp="syncnow">↻ Sync now</button>`
+        : `<button type="button" class="go" data-tp="share">📤 Share this trip with your group</button>`}</div>
+      <p class="sk-note">${sh ? "Anyone with the link can see and change this trip, so only send it to your group. Your ticks in the packing list, the trip plan for a friend and your photos stay on your phone." : "Your group opens the link in Trail Finder and gets the same trip: lines, packing list, who brings what, meals, booking and costs. Everyone can add and delete things. Your ticks, your trip plan for a friend and your photos stay yours."}</p></details>`;
+  }
+
+  function bookHtml(t) {
+    const b = t.book || {}, g = t.hut.tags || {}, site = g["reservation:website"] || (/^(required|only|yes)$/.test(g.reservation || "") ? g.website : "");
+    return `<details class="tp-pack tp-book" ${t.bookOpen ? "open" : ""}><summary>📅 Booking <small>${b.done ? "booked ✓" : /^(required|only)$/.test(g.reservation || "") ? "needs booking" : ""}</small></summary>
+      ${g.reservation ? `<p class="sk-note">${g.reservation === "no" ? "This cabin isn't booked: first come, first served." : /^(required|only)$/.test(g.reservation) ? "This cabin must be booked ahead." : "This cabin can be booked."}${g.charge ? ` Fee: ${esc(g.charge)}.` : ""}</p>` : ""}
+      ${site ? `<div class="tp-btns"><a href="${esc(site)}" target="_blank" rel="noopener">🔗 Book on their site</a></div>` : ""}
+      <label class="tp-check"><input type="checkbox" data-set="book.done" ${b.done ? "checked" : ""}> <span>Booked</span></label>
+      <div class="tp-plan-form">
+        <label>Confirmation #<input type="text" data-set="book.conf" maxlength="40" value="${esc(b.conf || "")}" autocomplete="off"></label>
+        <label>Paid ($)<input type="number" inputmode="decimal" min="0" step="any" data-set="book.paid" value="${esc(b.paid || "")}"></label>
+        <label class="wide">Booked by${whoSel(t, 'data-set="book.by"', b.by, "—")}</label>
+        ${b.done ? "" : `<label class="wide">Remind me to book on<input type="date" data-set="book.remind" value="${esc(b.remind || localDate(new Date()))}"></label>`}
+      </div>
+      ${b.done ? "" : `<div class="tp-btns"><button type="button" data-tp="bookics">⏰ Add the reminder to my calendar</button></div>`}</details>`;
+  }
+
+  // Meals: the afternoon you get in (lunch on the way, dinner), the full days, and the morning you ski out.
+  const MEALS = [["b", "Breakfast"], ["l", "Lunch"], ["d", "Dinner"]];
+  function mealsHtml(t) {
+    const m = t.meals || {}, dates = tripDates(t), n = Object.values(m).filter((x) => x && x.what).length;
+    return `<details class="tp-pack tp-meals" ${t.mealOpen ? "open" : ""}><summary>🍲 Meals <small>${n ? `${n} planned` : ""}</small></summary>
+      ${dates.map((date, i) => `<h5>${esc(dayWord(date))}${i === 0 ? " · going in" : i === dates.length - 1 ? " · out" : ""}</h5>
+        ${MEALS.filter(([k]) => !(i === 0 && k === "b") && !(i === dates.length - 1 && k === "d")).map(([k, label]) => { const x = m[`${date}:${k}`] || {}; return `<div class="tp-meal"><span>${label}</span><input type="text" maxlength="60" data-meal="${date}:${k}" value="${esc(x.what || "")}" placeholder="What" autocomplete="off" aria-label="${label} ${esc(dayWord(date))}">${whoSel(t, `data-mealwho="${date}:${k}"`, x.who, "Who?")}</div>`; }).join("")}`).join("")}
+      <div class="tp-btns"><button type="button" data-tp="mealshare">📤 Send the meal plan</button></div></details>`;
+  }
+
+  // Costs: what each person paid, the share each, and who pays whom to even it out.
+  function settle(t) {
+    const l = t.costs || [], total = l.reduce((s, x) => s + (+x.amt || 0), 0), who = names(t);
+    const n = Math.max(who.length, 1), each = total / n;
+    const bal = Object.fromEntries(who.map((w) => [w, -each]));
+    for (const x of l) if (x.by && x.by in bal) bal[x.by] += +x.amt || 0;
+    const pos = Object.entries(bal).filter((x) => x[1] > 0.005).sort((a, b) => b[1] - a[1]), neg = Object.entries(bal).filter((x) => x[1] < -0.005).sort((a, b) => a[1] - b[1]), pay = [];
+    let i = 0, j = 0;
+    while (i < neg.length && j < pos.length) { const v = Math.min(-neg[i][1], pos[j][1]); pay.push([neg[i][0], pos[j][0], v]); neg[i][1] += v; pos[j][1] -= v; if (neg[i][1] > -0.005) i++; if (pos[j][1] < 0.005) j++; }
+    return { total, each, n, pay, noPayer: l.filter((x) => !x.by || !who.includes(x.by)).length };
+  }
+  function costHtml(t) {
+    const l = t.costs || [], s = settle(t), g = t.hut.tags || {};
+    return `<details class="tp-pack tp-cost" ${t.costOpen ? "open" : ""}><summary>💵 Costs <small>${l.length ? `${money(s.total)} · ${money(s.each)} each` : ""}</small></summary>
+      ${l.length ? `<ul class="tp-costs">${l.map((x) => `<li><span>${esc(x.what)}<small>${x.by ? `paid by ${esc(x.by)}` : "who paid?"}</small></span><b>${money(+x.amt || 0)}</b><button type="button" data-crm="${esc(x.id)}" aria-label="Delete ${esc(x.what)}">✕</button></li>`).join("")}</ul>` : `<p class="sk-note">Add the cabin fee, gas, food and anything else the group shares.${g.charge ? ` The cabin's fee: ${esc(g.charge)}.` : ""}</p>`}
+      <form class="tp-costadd" data-cadd="1"><input type="text" maxlength="40" placeholder="What (gas, food…)" autocomplete="off" aria-label="What it was for"><input type="number" inputmode="decimal" min="0" step="any" placeholder="$" aria-label="Amount">${whoSel(t, "", "", "Paid by")}<button type="submit">Add</button></form>
+      ${l.length ? `<p class="tp-sum"><b>${money(s.total)}</b> in all, <b>${money(s.each)}</b> each for ${s.n} ${s.n > 1 ? "people" : "person"}${names(t).length ? "" : " (add names in Your group to split it)"}.</p>
+        ${s.pay.length ? `<ul class="tp-pay">${s.pay.map(([a, b, v]) => `<li>${esc(a)} pays ${esc(b)} <b>${money(v)}</b></li>`).join("")}</ul>` : ""}
+        ${s.noPayer ? `<p class="sk-note">${s.noPayer} cost${s.noPayer > 1 ? "s have" : " has"} no one from the group as the payer: they're in the total but not in who pays whom.</p>` : ""}` : ""}</details>`;
+  }
+
+  // Journal: notes (shared with the group) and photos (on this phone only), for after you come out.
+  function journalHtml(t) {
+    const l = (t.notes || []).slice().sort((a, b) => b.at - a.at);
+    return `<details class="tp-pack tp-jour" ${t.jourOpen ? "open" : ""}><summary>📓 Trip journal <small>${l.length ? `${l.length} note${l.length > 1 ? "s" : ""}` : ""}</small></summary>
+      <p class="sk-note">How the snow was, what you skied, what to bring next time.</p>
+      <form class="tp-note" data-nadd="1"><textarea maxlength="1000" rows="3" placeholder="Write a note" aria-label="Write a note"></textarea><button type="submit">Add the note</button></form>
+      ${l.map((x) => `<div class="tp-notei"><small>${esc(new Date(x.at).toLocaleString("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}${x.by ? ` · ${esc(x.by)}` : ""}<button type="button" data-nrm="${esc(x.id)}" aria-label="Delete this note">✕</button></small><p>${esc(x.text)}</p></div>`).join("")}
+      <h5>Photos</h5><div class="tp-photos" id="tpPhotos"></div>
+      <label class="tp-photoadd">📷 Add photos<input type="file" accept="image/*" multiple data-photo="1" hidden></label>
+      <p class="sk-note">Photos stay on this phone.</p></details>`;
+  }
+  // Photos in IndexedDB (tf-trip-journal), made smaller (1600 px, JPEG) so a phone holds many trips.
+  const PDB = () => new Promise((ok, no) => { const r = indexedDB.open("tf-trip-journal", 1); r.onupgradeneeded = () => r.result.createObjectStore("photos", { keyPath: "id" }).createIndex("trip", "trip"); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
+  const ptx = async (mode, f) => { const db = await PDB(); return new Promise((ok, no) => { const tx = db.transaction("photos", mode), r = f(tx.objectStore("photos")); tx.oncomplete = () => ok(r && r.result); tx.onerror = () => no(tx.error); }); };
+  async function shrink(file) {
+    const bmp = await createImageBitmap(file).catch(() => null);
+    if (!bmp) return file;
+    const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height)), c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    return new Promise((ok) => c.toBlob((b) => ok(b || file), "image/jpeg", 0.82));
+  }
+  const tripKey = (t) => (t.share ? "s:" + t.share.id : t.id);
+  const urls = [];
+  async function renderPhotos() {
+    const el = $("tpPhotos"), t = cur;
+    if (!el || !t) return;
+    let l = [];
+    try { l = await ptx("readonly", (s) => s.index("trip").getAll(tripKey(t))); } catch {}
+    if (cur !== t) return;
+    urls.splice(0).forEach((u) => URL.revokeObjectURL(u));
+    el.innerHTML = l.sort((a, b) => a.at - b.at).map((p) => { const u = URL.createObjectURL(p.blob); urls.push(u); return `<figure><a href="${u}" target="_blank" rel="noopener"><img src="${u}" alt="Trip photo" loading="lazy"></a><button type="button" data-prm="${esc(p.id)}" aria-label="Delete this photo">✕</button></figure>`; }).join("");
+  }
+
+  // GPX of the whole trip: the cabin, the way in and every line, for a watch or another app.
+  function tripGpx(t) {
+    const x = (s) => String(s).replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&apos;" }[c]));
+    const trk = (name, ls) => `<trk><name>${x(name)}</name>${ls.map((l) => `<trkseg>${l.map((p) => `<trkpt lat="${p[0]}" lon="${p[1]}"/>`).join("")}</trkseg>`).join("")}</trk>`;
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>${x(hutName(t))} cabin trip</name></metadata>`
+      + `<wpt lat="${t.hut.lat}" lon="${t.hut.lon}"><name>${x(hutName(t))}</name></wpt>`
+      + (t.way ? trk(`Way in to ${hutName(t)}`, [t.way.line]) : "") + linesOf(t).map((l) => trk(l.name, l.ls)).join("") + `</gpx>`;
+  }
+
+  // ---------- sharing the trip with the group ----------
+  // The trip goes to the app's database (supabase/shared-trips.sql) under a random id, with a random key that only the
+  // link carries (the database keeps an md5 of it): anyone with the link reads and changes it, nobody else can. Each
+  // phone keeps its copy (works with no signal) and the copy it last synced (share.base): a sync merges the group's
+  // changes with yours item by item (an added line or item, a deleted one, a meal typed), so two people editing at once
+  // both keep their changes. Ticks, the trip plan for a friend, offline saves and photos stay on each phone.
+  const SHARED = ["hut", "date", "nights", "people", "way", "lines", "own", "hide", "gear", "meals", "book", "costs", "notes", "group"];
+  const docOf = (t) => JSON.parse(JSON.stringify(Object.fromEntries(SHARED.filter((k) => t[k] !== undefined).map((k) => [k, t[k]]))));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
+  const keyed = (v) => Array.isArray(v) && v.length > 0 && v.every((x) => isObj(x) && (x.id || x.k));
+  // Three-way merge: what changed on this phone since the last sync wins over what didn't; lists of items merge by id.
+  function merge3(b, m, r) {
+    if (same(m, b)) return r;
+    if (same(r, b) || same(m, r)) return m;
+    if ((isObj(m) || m === undefined) && (isObj(r) || r === undefined) && (isObj(m) || isObj(r))) {
+      const out = {}, bb = isObj(b) ? b : {};
+      for (const k of new Set([...Object.keys(m || {}), ...Object.keys(r || {}), ...Object.keys(bb)])) { const v = merge3(bb[k], (m || {})[k], (r || {})[k]); if (v !== undefined) out[k] = v; }
+      return out;
+    }
+    if ((keyed(m) || (Array.isArray(m) && !m.length)) && (keyed(r) || (Array.isArray(r) && !r.length)) && (keyed(b) || !b || (Array.isArray(b) && !b.length))) {
+      const id = (x) => x.id || x.k, map = (a) => Object.fromEntries((a || []).map((x) => [id(x), x]));
+      const o = merge3(map(b), map(m), map(r)), order = [...(r || []).map(id), ...(m || []).map(id)];
+      return [...new Set(order)].filter((k) => k in o).map((k) => o[k]);
+    }
+    return m;
+  }
+  async function rpc(fn, args) {
+    const A = window.tfAccount;
+    if (!A || !A.enabled) throw new Error("sharing isn't available in this copy of the app");
+    if (!navigator.onLine) throw new Error("no signal");
+    await A.load();
+    if (!A.client) throw new Error("couldn't reach the app's database");
+    const { data, error } = await A.client.rpc(fn, args);
+    if (error) throw new Error(/function .* does not exist|Could not find the function/i.test(error.message) ? "shared trips aren't switched on yet" : error.message);
+    return data;
+  }
+  const appBase = () => (location.protocol === "https:" ? location.origin + location.pathname : "https://trailfinderapp.ca/");
+  const tripLink = (t) => `${appBase()}#trip=${t.share.id}.${t.share.key}`;
+  function applyDoc(t, d) { for (const k of SHARED) { if (d[k] === undefined) delete t[k]; else t[k] = d[k]; } }
+  let syncing = null, pushTimer = 0;
+  async function syncTrip(id, quiet) {
+    if (syncing) return syncing.then(() => syncTrip(id, quiet));
+    syncing = (async () => {
+      const t = tripById(id);
+      if (!t || !t.share) return;
+      const sh = t.share, wayBefore = JSON.stringify(t.way || null);
+      let changed = false;
+      try {
+        for (let n = 0; n < 4; n++) {
+          const r = await rpc("trip_get", { p_id: sh.id, p_key: sh.key });
+          if (!r) { sh.err = "the trip was deleted"; break; }
+          const mine = docOf(t), merged = merge3(sh.base || {}, mine, r.data || {});
+          if (!same(merged, mine)) { applyDoc(t, merged); changed = true; }
+          Object.assign(sh, { rev: r.rev, base: r.data, by: r.by || "" });
+          if (same(merged, r.data)) { sh.err = ""; sh.at = Date.now(); break; }
+          const w = await rpc("trip_put", { p_id: sh.id, p_key: sh.key, p_data: merged, p_rev: r.rev, p_by: me().name || "" });
+          if (w && w.ok) { Object.assign(sh, { rev: w.rev, base: merged, err: "", at: Date.now(), by: me().name || "" }); break; }
+        }
+      } catch (e) { sh.err = e.message || "no signal"; if (!quiet) toast(`Couldn't sync the trip: ${sh.err}.`); }
+      putTrip(t, true);
+      if (cur && cur.id === t.id) {
+        if (cur !== t) Object.assign(cur, t);
+        if (!changed) renderOrg("tpGroup", groupHtml, true);   // only the "last synced" line
+        else if (typing()) needRender = true;   // never redraw under someone's fingers: once they leave the box
+        else { render(); renderPhotos(); }
+        if (changed) { drawWay(); if (JSON.stringify(cur.way || null) !== wayBefore) loadDays(cur); }
+      }
+    })().finally(() => { syncing = null; });
+    return syncing;
+  }
+  const pushSoon = (t) => { if (!t.share) return; clearTimeout(pushTimer); const id = t.id; pushTimer = setTimeout(() => syncTrip(id, true), 1200); };
+  async function shareTrip(t) {
+    if (!t.share) {
+      const key = crypto.randomUUID ? crypto.randomUUID() : uid("k"), doc = docOf(t);
+      try {
+        const id = await rpc("trip_new", { p_key: key, p_data: doc, p_by: me().name || "" });
+        t.share = { id, key, rev: 1, base: doc, at: Date.now(), by: me().name || "", err: "" };
+        putTrip(t, true);
+        if (cur === t) render();
+      } catch (e) { toast(`Couldn't share the trip: ${e.message || e}.`); return; }
+    }
+    const text = `${hutName(t)} cabin trip, ${dayWord(t.date)}, ${t.nights} night${t.nights > 1 ? "s" : ""}. Open it in Trail Finder to see the lines and add to the packing list, meals and costs:`;
+    try {
+      if (navigator.share) await navigator.share({ title: `${hutName(t)} cabin trip`, text, url: tripLink(t) });
+      else { await navigator.clipboard.writeText(`${text}\n${tripLink(t)}`); toast("Link copied: paste it in your group's chat."); }
+    } catch (e) { if (!e || e.name !== "AbortError") { try { prompt("Copy this link for your group:", tripLink(t)); } catch {} } }
+  }
+  // Opening a group's link (#trip=id.key, from ski-points.js): the trip on this phone, kept in sync from then on.
+  async function join(id, key) {
+    const have = trips().find((x) => x.share && x.share.id === id);
+    if (have) { start(have); syncTrip(have.id, true); return; }
+    try {
+      const r = await rpc("trip_get", { p_id: id, p_key: key });
+      if (!r || !r.data || !r.data.hut) { toast("This shared trip doesn't exist any more."); return; }
+      const t = { id: uid(""), at: Date.now(), ...r.data, share: { id, key, rev: r.rev, base: r.data, at: Date.now(), by: r.by || "", err: "" } };
+      putTrip(t, true);
+      start(t);
+      toast(`You joined the ${hutName(t)} cabin trip.`);
+    } catch (e) { toast(`Couldn't open the shared trip: ${e.message || e}.`); }
+  }
+  setInterval(() => { if (cur && cur.share && !card.hidden && document.visibilityState === "visible") syncTrip(cur.id, true); }, 30000);
+  document.addEventListener("visibilitychange", () => { if (cur && cur.share && document.visibilityState === "visible") syncTrip(cur.id, true); });
+  window.addEventListener("online", () => { if (cur && cur.share) syncTrip(cur.id, true); });
+
+  // ---------- the organizer's inputs and buttons ----------
+  const setPath = (t, path, v) => { const [a, b] = path.split("."); if (b) { t[a] = { ...(t[a] || {}) }; if (v === "" || v === false) delete t[a][b]; else t[a][b] = v; } else t[a] = v; };
+  card.addEventListener("change", (e) => {
+    const el = e.target, t = cur;
+    if (!t) return;
+    if (el.dataset.set) {
+      setPath(t, el.dataset.set, el.type === "checkbox" ? (el.checked ? 1 : false) : el.type === "number" ? (el.value === "" ? "" : Math.max(0, +el.value)) : el.value.trim());
+      putTrip(t); if (el.dataset.set === "book.done") renderOrg("tpBook", bookHtml); return;
+    }
+    if (el.dataset.meal || el.dataset.mealwho) {
+      const k = el.dataset.meal || el.dataset.mealwho, f = el.dataset.meal ? "what" : "who", m = { ...(t.meals || {}) }, x = { ...(m[k] || {}) };
+      if (el.value.trim()) x[f] = el.value.trim(); else delete x[f];
+      if (Object.keys(x).length) m[k] = x; else delete m[k];
+      t.meals = m; putTrip(t); return;
+    }
+    if (el.dataset.gear) {
+      t.gear = { ...(t.gear || {}) };
+      if (el.value) t.gear[el.dataset.gear] = el.value; else delete t.gear[el.dataset.gear];
+      putTrip(t); return;
+    }
+    if (el.dataset.me) { store.set("tripMe", { ...me(), [el.dataset.me]: el.value.trim().slice(0, 30) }); return; }
+    if (el.dataset.photo && el.files && el.files.length) {
+      const files = [...el.files]; el.value = "";
+      (async () => { for (const f of files) { const blob = await shrink(f); await ptx("readwrite", (s) => s.put({ id: uid("p"), trip: tripKey(t), at: Date.now(), blob })).catch(() => toast("Couldn't keep the photo: the phone may be full.")); } renderPhotos(); })();
+    }
+  });
+  card.addEventListener("submit", (e) => {
+    const f = e.target, t = cur;
+    if (!t || !(f.dataset.gadd || f.dataset.cadd || f.dataset.nadd)) return;
+    e.preventDefault();
+    if (f.dataset.gadd) {
+      const n = f.querySelector("input").value.trim().replace(/\s+/g, " ").slice(0, 30);
+      if (!n) return;
+      if (names(t).some((x) => x.toLowerCase() === n.toLowerCase())) { toast("That name is in the group already."); return; }
+      t.group = [...(t.group || []), { k: uid("g"), n }];
+      if (t.group.length > t.people) t.people = t.group.length;
+      putTrip(t); render(); const i = card.querySelector("[data-gadd] input"); if (i) i.focus(); return;
+    }
+    if (f.dataset.cadd) {
+      const [w, a] = f.querySelectorAll("input"), by = f.querySelector("select").value, amt = parseFloat(a.value);
+      if (!w.value.trim() || !(amt > 0)) { toast("Add what it was for and how much."); return; }
+      t.costs = [...(t.costs || []), { id: uid("c"), what: w.value.trim().slice(0, 40), amt: Math.round(amt * 100) / 100, by }];
+      putTrip(t); renderOrg("tpCost", costHtml); return;
+    }
+    const text = f.querySelector("textarea").value.trim().slice(0, 1000);
+    if (!text) return;
+    t.notes = [...(t.notes || []), { id: uid("n"), at: Date.now(), by: me().name || "", text }];
+    putTrip(t); renderOrg("tpJour", journalHtml); renderPhotos();
+  });
+  card.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-grm], [data-crm], [data-nrm], [data-prm]"), t = cur;
+    if (!b || !t) return;
+    if (b.dataset.grm) { t.group = (t.group || []).filter((x) => x.k !== b.dataset.grm); putTrip(t); render(); }
+    else if (b.dataset.crm) { t.costs = (t.costs || []).filter((x) => x.id !== b.dataset.crm); putTrip(t); renderOrg("tpCost", costHtml); }
+    else if (b.dataset.nrm) { if (!confirm("Delete this note?")) return; t.notes = (t.notes || []).filter((x) => x.id !== b.dataset.nrm); putTrip(t); renderOrg("tpJour", journalHtml); renderPhotos(); }
+    else if (b.dataset.prm) { if (!confirm("Delete this photo?")) return; ptx("readwrite", (s) => s.delete(b.dataset.prm)).then(renderPhotos, renderPhotos); }
+  });
+  card.addEventListener("toggle", (e) => {
+    if (!cur) return;
+    const c = e.target.classList, f = c.contains("tp-grp") ? "grpOpen" : c.contains("tp-book") ? "bookOpen" : c.contains("tp-meals") ? "mealOpen" : c.contains("tp-cost") ? "costOpen" : c.contains("tp-jour") ? "jourOpen" : "";
+    if (f) cur[f] = e.target.open;
+    if (f === "jourOpen" && e.target.open) renderPhotos();
+  }, true);
+  function renderOrg(id, f, notTyping) { const el = $(id); if (el && cur && !(notTyping && el.contains(document.activeElement))) el.innerHTML = f(cur); }
+  let needRender = false;
+  const typing = () => { const a = document.activeElement; return !!(a && card.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
+  card.addEventListener("focusout", () => setTimeout(() => { if (needRender && cur && !typing()) { needRender = false; render(); renderPhotos(); } }, 150));
 
   // ---------- drawing the card ----------
   function factsHtml(t) {
@@ -510,13 +1022,19 @@
         <label>Nights<span class="tp-step"><button type="button" data-tp="n-" aria-label="One night less">−</button><b>${t.nights}</b><button type="button" data-tp="n+" aria-label="One night more">+</button></span></label>
         <label>People<span class="tp-step"><button type="button" data-tp="p-" aria-label="One person less">−</button><b>${t.people}</b><button type="button" data-tp="p+" aria-label="One person more">+</button></span></label>
       </div>
-      <p class="sk-note">${esc(dayWord(t.date))} to ${esc(dayWord(addDays(t.date, t.nights)))}</p>
+      <p class="sk-note">${esc(dayWord(t.date))} to ${esc(dayWord(addDays(t.date, t.nights)))}${countdown(t)}</p>
       ${factsHtml(t)}
+      <div class="sk-sec" id="tpGroup">${groupHtml(t)}</div>
       <div class="sk-sec tp-way" id="tpWay"><h4>The way in</h4>${wayHtml(t)}</div>
       <div class="sk-sec" id="tpDays"><h4>Each day</h4>${daysHtml()}</div>
+      <div class="sk-sec tp-lines" id="tpLines"><h4>Your lines for this trip</h4>${linesHtml(t)}</div>
       <div class="sk-sec" id="tpTours"><h4>Day tours from the cabin</h4>${toursHtml(t)}</div>
       <div class="sk-sec" id="tpPack">${packHtml(t)}</div>
+      <div class="sk-sec" id="tpMeals">${mealsHtml(t)}</div>
+      <div class="sk-sec" id="tpBook">${bookHtml(t)}</div>
+      <div class="sk-sec" id="tpCost">${costHtml(t)}</div>
       <div class="sk-sec" id="tpPlan">${planHtml(t)}</div>
+      <div class="sk-sec" id="tpJour">${journalHtml(t)}</div>
       <div class="sk-sec"><div class="tp-btns"><button type="button" data-tp="off" ${t.way ? "" : "disabled"}>⤓ Save the trip offline</button><button type="button" data-tp="hut">Cabin details</button><button type="button" data-tp="del">🗑 Delete</button></div>
         <p class="sk-note" id="tpOff">${offHtml(t)}</p></div>`;
   }
@@ -534,8 +1052,9 @@
     return `Saves ${what}, and keeps this forecast, for no signal. The trip stays on this phone.`;
   }
   window.addEventListener("tf:offline", (e) => { const el = $("tpOff"); if (el && cur && e.detail && e.detail.name === offName(cur)) el.innerHTML = offHtml(cur); });
-  const renderWay = () => { const el = $("tpWay"); if (el && cur) el.innerHTML = `<h4>The way in</h4>${wayHtml(cur)}`; };
+  const renderWay = () => { const el = $("tpWay"); if (el && cur) el.innerHTML = `<h4>The way in</h4>${wayHtml(cur)}`; renderLines(); };
   const renderDays = () => { const el = $("tpDays"); if (el && cur) el.innerHTML = `<h4>Each day</h4>${daysHtml()}`; renderPack(); };
+  const renderLines = () => { const el = $("tpLines"); if (el && cur) el.innerHTML = `<h4>Your lines for this trip</h4>${linesHtml(cur)}`; };
   const renderTours = () => { const el = $("tpTours"); if (el && cur) el.innerHTML = `<h4>Day tours from the cabin</h4>${toursHtml(cur)}`; };
   const renderPack = () => { const el = $("tpPack"); if (el && cur) el.innerHTML = packHtml(cur); };
   const renderPlan = () => { const el = $("tpPlan"); if (el && cur) el.innerHTML = planHtml(cur); };
@@ -545,6 +1064,32 @@
     else if (e.target.classList.contains("tp-plan")) cur.planOpen = e.target.open;
   }, true);
 
+  card.addEventListener("click", (e) => {   // ✕ on a packing list item (✎ Edit the list)
+    const b = e.target.closest("[data-pkrm]");
+    if (!b || !cur) return;
+    const t = cur, k = b.dataset.pkrm;
+    if (k.startsWith("my_")) {
+      const x = (t.own || []).find((y) => y.k === k), lab = x ? x.label.toLowerCase() : "";
+      t.own = (t.own || []).filter((y) => y.k !== k);
+      tplSet((v) => ({ ...v, own: v.own.filter((y) => y.label.toLowerCase() !== lab) }));
+    } else {
+      t.hide = [...new Set([...(t.hide || []), k])];
+      tplSet((v) => ({ ...v, hide: [...new Set([...v.hide, k])] }));
+    }
+    putTrip(t); renderPack();
+  });
+  card.addEventListener("submit", (e) => {   // + Add an item: on this trip and the next ones
+    if (!e.target.dataset.pkadd || !cur) return;
+    e.preventDefault();
+    const t = cur, label = e.target.querySelector("input").value.trim().replace(/\s+/g, " ").slice(0, 80), lab = label.toLowerCase();
+    if (!label) return;
+    if ((t.own || []).some((y) => y.label.toLowerCase() === lab)) { toast("It's on the list already."); return; }
+    const x = { k: "my_" + Date.now().toString(36), label };
+    t.own = [...(t.own || []), x];
+    tplSet((v) => ({ ...v, own: v.own.some((y) => y.label.toLowerCase() === lab) ? v.own : [...v.own, x] }));
+    putTrip(t); renderPack();
+    const i = card.querySelector("[data-pkadd] input"); if (i) i.focus();   // ready for the next one
+  });
   card.addEventListener("change", (e) => {
     if (!cur) return;
     const el = e.target;
@@ -573,9 +1118,28 @@
     else if (k === "p-" || k === "p+") { t.people = Math.max(1, Math.min(40, t.people + (k === "p+" ? 1 : -1))); putTrip(t); render(); }
     else if (k === "again") { t.wayFail = ""; findWay(t); }
     else if (k === "packshare") {
-      const done = packDone(t), left = packItems(t).map(([h, items]) => [h, items.filter((x) => !done[x[0]] && !/^(offline|plan)$/.test(x[0]))]).filter((x) => x[1].length);
-      shareText(`Packing for ${hutName(t)}`, `Packing for ${hutName(t)}, ${dayWord(t.date)}, ${t.nights} night${t.nights > 1 ? "s" : ""}:\n` + left.map(([h, items]) => `\n${h}\n${items.map((x) => `- ${x[1]}`).join("\n")}`).join("\n"));
+      const done = packDone(t), left = packList(t).map(([h, items]) => [h, items.filter((x) => !done[x[0]] && !/^(offline|plan)$/.test(x[0]))]).filter((x) => x[1].length);
+      const gr = t.gear || {};
+      shareText(`Packing for ${hutName(t)}`, `Packing for ${hutName(t)}, ${dayWord(t.date)}, ${t.nights} night${t.nights > 1 ? "s" : ""}:\n` + left.map(([h, items]) => `\n${h}\n${items.map((x) => `- ${x[1]}${gr[x[0]] ? ` (${gr[x[0]]})` : ""}`).join("\n")}`).join("\n"));
     } else if (k === "packclear") { t.packed = {}; putTrip(t); renderPack(); }
+    else if (k === "share" || k === "sharelink") shareTrip(t);
+    else if (k === "syncnow") syncTrip(t.id);
+    else if (k === "gpx") shareFile(tripGpx(t), `${hutName(t).replace(/[^\w]+/g, "-").toLowerCase()}-trip.gpx`, "application/gpx+xml", `Saved the GPX of your ${hutName(t)} trip.`);
+    else if (k === "bookics") shareFile(bookIcs(t), `book-${hutName(t).replace(/[^\w]+/g, "-").toLowerCase()}.ics`, "text/calendar", `Saved the reminder: open it to add it to your calendar.`);
+    else if (k === "mealshare") {
+      const m = t.meals || {}, rows = tripDates(t).map((d) => [d, MEALS.map(([mk, lab]) => [lab, m[`${d}:${mk}`]]).filter((x) => x[1] && (x[1].what || x[1].who))]).filter((x) => x[1].length);
+      if (!rows.length) { toast("No meals typed in yet."); return; }
+      shareText(`Meals for ${hutName(t)}`, `Meals for ${hutName(t)}:\n` + rows.map(([d, l]) => `\n${dayWord(d)}\n${l.map(([lab, x]) => `- ${lab}: ${x.what || "?"}${x.who ? ` (${x.who})` : ""}`).join("\n")}`).join("\n"));
+    }
+    else if (k === "packedit") { packEdit = !packEdit; t.packOpen = true; renderPack(); }
+    else if (k === "packback") { t.hide = []; tplSet((v) => ({ ...v, hide: [] })); putTrip(t); renderPack(); }
+    else if (k === "fitall") { const b = tripBounds(t); if (b) map.fitBounds(b, { padding: [30, 30], maxZoom: 15 }); if (window.tfSnapTo) window.tfSnapTo("peek"); }
+    else if (k === "drawline") {
+      if (S.planPts().length > 1 && !confirm("Start a new tour from the cabin? The tour on the map now stays in Saved tours.")) return;
+      drawingLine = t;
+      S.plan([[t.hut.lat, t.hut.lon]]);
+      toast("Tap the map along your tour from the cabin, then ✓ Done. It goes in this trip.");
+    }
     else if (k === "plansend" || k === "planics") {
       const pl = planOf(t);
       if (new Date(pl.help) <= new Date(pl.out)) { if (window.tfToast) window.tfToast("Call for help at must be after your out time."); return; }
@@ -600,12 +1164,12 @@
     } else if (k === "hut") {
       S.loadSki().then((ski) => { const h = (ski?.huts || []).find((x) => x.id === t.hut.id) || t.hut; S.selectHut(h); setTimeout(() => window.tfPanelScrollTo && window.tfPanelScrollTo($("skDetail")), 80); });
     } else if (k === "del") {
-      if (!confirm(`Delete your trip to ${hutName(t)}?`)) return;
+      if (!confirm(t.share ? `Take the ${hutName(t)} trip off your phone? The rest of the group keeps it.` : `Delete your trip to ${hutName(t)}?`)) return;
       if (window.tfAccount && window.tfAccount.gone) window.tfAccount.gone("skiTrips", t.id);   // so the account doesn't bring it back
       store.set("skiTrips", trips().filter((x) => x.id !== t.id)); close();
     } else if (k === "off" && t.way) {
       if (!window.tfOffline || !window.tfOffline.saveBox) { if (window.tfToast) window.tfToast("Offline maps aren't available in this browser."); return; }
-      const ll = [...t.way.line, [t.hut.lat, t.hut.lon]];
+      const ll = [...t.way.line, [t.hut.lat, t.hut.lon], ...linesOf(t).flatMap((x) => x.ls.flat())];
       const box = [Math.min(...ll.map((p) => p[0])), Math.min(...ll.map((p) => p[1])), Math.max(...ll.map((p) => p[0])), Math.max(...ll.map((p) => p[1]))];
       t.offAt = Date.now(); putTrip(t); render();
       window.tfOffline.saveBox(box, offName(t));
@@ -618,7 +1182,7 @@
     card.hidden = false; btn.setAttribute("aria-pressed", "true");
     const mine = trips();
     card.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>🏕 Cabin trips</h3></div>
-      ${mine.length ? `<ul class="tp-list">${mine.map((t) => `<li><button type="button" data-trip="${esc(t.id)}"><span>${esc(t.hut.name || "Cabin")}</span><small>${late(t) ? `<b class="tp-late-tag">Overdue</b> ` : ""}${esc(dayWord(t.date))} · ${t.nights} night${t.nights > 1 ? "s" : ""}</small></button></li>`).join("")}</ul>` : ""}
+      ${mine.length ? `<ul class="tp-list">${mine.map((t) => `<li><button type="button" data-trip="${esc(t.id)}"><span>${esc(t.hut.name || "Cabin")}${t.share ? " 👥" : ""}</span><small>${late(t) ? `<b class="tp-late-tag">Overdue</b> ` : ""}${esc(dayWord(t.date))} · ${t.nights} night${t.nights > 1 ? "s" : ""}${(t.lines || []).length ? ` · ${t.lines.length} line${t.lines.length > 1 ? "s" : ""}` : ""}</small></button></li>`).join("")}</ul>` : ""}
       <p class="sk-note">Tap a cabin (the brown dots) on the map, then <b>🏕 Plan a cabin trip here</b>, or pick one near you:</p>
       <ul class="tp-list" id="tpNear"><li><p class="tp-wait">Finding cabins…</p></li></ul>`;
     if (!quiet) scrollTo();
@@ -634,8 +1198,10 @@
     if (!a || !cur) return;
     const t = cur, id = a.dataset.tour || a.dataset.star, x = (t.tours || []).find((y) => y.id === id);
     if (a.dataset.star) {
-      const p = new Set(t.pick || []); if (p.has(id)) p.delete(id); else p.add(id);
-      t.pick = [...p]; putTrip(t); renderTours(); return;
+      if (linesOf(t).some((y) => y.rid === id)) { dropLine(t, id); return; }
+      if (!x) return;
+      routeLines(t, id).then((ls) => { if (ls) addLine(t, { rid: id, name: x.name, label: x.label, ls, c: x.c }); else if (window.tfToast) window.tfToast("Couldn't load that tour's line. Try again with signal."); });
+      return;
     }
     if (x && window.tfSki.show) window.tfSki.show(x.id, x.c).then(() => setTimeout(() => window.tfPanelScrollTo && $("skDetail") && window.tfPanelScrollTo($("skDetail")), 80));
   });
@@ -668,5 +1234,5 @@
     if (!t) close();
     else if ((t.ed || 0) > (cur.ed || 0)) { cur = t; view = null; render(); drawWay(); loadDays(t); }
   });
-  window.tfCabinTrip = { open, list: showList, close };
+  window.tfCabinTrip = { open, list: showList, close, count: () => trips().length, join: (id, key) => join(id, key), addPlan: (el) => offerAdd(el, planItem) };
 })();
