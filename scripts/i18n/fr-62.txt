@@ -1,0 +1,1 @@
+3D: tilting now swings around the spot in the middle of the view, which keeps the same size, so tilting no longer zooms in or out. The camera stops before it would dip into the ground. ||| 3D : incliner la vue tourne maintenant autour de l'endroit au milieu de la vue, qui garde la même taille, donc incliner ne fait plus de zoom. La caméra s'arrête avant de plonger dans le sol.

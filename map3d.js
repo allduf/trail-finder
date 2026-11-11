@@ -2117,31 +2117,30 @@
       const c = M.fromLngLat(tr.center);
       tr.setCenter(new M(c.x + piv.g.x - a.x, c.y + piv.g.y - a.y).toLngLat());
     }
-    // Tilting keeps the camera at the same height (alex 2026-11-10, desktop recording: "i dont like how it zoom out or
-    // in when you move up and down"). MapLibre tilts by swinging the camera around the spot it looks at, at the same
-    // distance: tilting up from 45° to 84° dropped it from ~6 km to a few hundred metres, right down to the snow (and
-    // into the ridges), and tilting back down lifted it up again, like a zoom. Now the camera stays at the height it had
-    // when the tilt started and only the angle changes: up looks out to the horizon from there, down looks at the
-    // ground below, and the spot under the mouse or fingers stays put as before. A zoom (wheel, pinch) still changes it.
-    function keepHeight(tr, alt) {
-      const e = tr.elevation || 0, now = tr.getCameraAltitude();
-      // (the camera's height over the middle of the view goes as 1 / 2^zoom at the same tilt)
-      if (!isFinite(now) || now - e < 1 || alt - e < 20) return;
-      const z = Math.max(gl.getMinZoom(), Math.min(gl.getMaxZoom(), tr.zoom + Math.log2((now - e) / (alt - e))));
-      if (isFinite(z) && Math.abs(z - tr.zoom) > 1e-4) tr.setZoom(z);
+    // Tilting swings the camera around the middle of the view at the same distance, so the spot in the middle keeps its
+    // size (alex 2026-11-11, third recording: "it still does it the tilt thing"; asked, alex picked the middle spot staying
+    // the same). History: MapLibre already swings around the middle, but #710 swung around the spot under the mouse,
+    // often far up the screen (big swings), and #720 then held the camera's height instead, so tilting down dived in
+    // close over the ground below (Parkhurst in the recording) and tilting up flew back out: a zoom both ways. Turning
+    // still goes around the spot under the mouse or fingers. The camera never tilts down into the ground: once it's less
+    // than FLOOR metres over the ground below it, tilting further up stops there.
+    const FLOOR = 150;
+    function aboveGround(tr) {
+      if (!gl.terrain) return Infinity;
+      const ll = tr.getCameraLngLat(), g = gl.terrain.getElevationForLngLatZoom(ll, tr.tileZoom);
+      return tr.getCameraAltitude() - (isFinite(g) ? g : 0);
     }
-    let hold = null;   // the camera's height (metres) when this tilt started
+    // A frame of a mouse drag is a tilt when it moves the view more up-down than around (MapLibre: ~0.5° of tilt and
+    // ~0.8° of turn per pixel).
+    const tiltFrame = (d) => !!d && !!d.pitchDelta && Math.abs(d.pitchDelta) * 1.6 >= Math.abs(d.bearingDelta || 0);
     const orig = hm._handleMapControls;
     hm._handleMapControls = function (args) {
-      const pitching = live("mousePitch") || live("touchPitch");
       const mouse = live("mouseRotate") || live("mousePitch"), tilt = live("touchPitch"), twist = live("touchRotate");
-      if (!pitching) hold = null;
-      else if (hold === null && typeof args.tr.getCameraAltitude === "function") {
-        hold = args.tr.getCameraAltitude();
-        if (!isFinite(hold)) hold = null;
-        else if (gl.terrain) { this._terrainMovement = true; gl._elevationFreeze = true; }   // the middle's height stays put while tilting
-      }
-      if (piv === null && (mouse || tilt || twist) && typeof args.tr.screenPointToMercatorCoordinateAtZ === "function") {
+      const d = args.deltasForHelper, tilting = (tilt || mouse) && tiltFrame(d);
+      // The middle's height stays put while tilting (else each frame re-reads the ground there and the camera bobs).
+      if (tilting && gl.terrain) { this._terrainMovement = true; gl._elevationFreeze = true; }
+      if (tilting) piv = null;   // a tilt goes around the middle; the next turn picks the spot under the mouse again
+      else if (piv === null && !tilt && (mouse || twist) && typeof args.tr.screenPointToMercatorCoordinateAtZ === "function") {
         // The ground under the point as it was drawn before this move (the fingers' point has already slid by panDelta).
         const p = mouse ? down : fingers === 2 && mid ? (args.panDelta ? mid.sub(args.panDelta) : mid) : null;
         const g = p && ground(p, args.tr);
@@ -2162,11 +2161,11 @@
           }
         } catch {}
       }
+      const before = tilting && d.pitchDelta > 0 ? args.tr.pitch : null;
       const r = orig.apply(this, arguments);
-      // A pinch while tilting zooms as usual: the height to keep moves with it.
-      if (hold !== null && args.deltasForHelper && args.deltasForHelper.zoomDelta) hold = null;
-      if (hold !== null && args.deltasForHelper && args.deltasForHelper.pitchDelta) { try { keepHeight(args.tr, hold); } catch {} }
-      if (piv) { try { place(args.tr, piv.follow ? mid : piv.p); } catch {} }
+      // Tilting up lowers the camera: not into the ground below it.
+      if (before !== null) { try { if (aboveGround(args.tr) < FLOOR) args.tr.setPitch(Math.max(before, args.tr.pitch - d.pitchDelta)); } catch {} }
+      if (piv && !tilting) { try { place(args.tr, piv.follow ? mid : piv.p); } catch {} }
       return r;
     };
   }
