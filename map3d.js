@@ -1596,6 +1596,50 @@
   // data/sharp-canada.json and built by .github/workflows/sharp-canada.yml onto 48 sites, k = (x * 31 + y) % 48 of the
   // zoom-11 square. A square that came out empty (all cloud) just 404s: the plain Winter photo shows there.
   const sharpCaSite = (x11, y11) => `https://trailfinder-sharpca-${(x11 * 31 + y11) % 48}.pages.dev/trail-finder-winter2/`;
+  // ---------- Winter photos for all of Canada, far view ----------
+  // alex 2026-11-11 (3D zoomed out over BC and the Yukon: "can we add winter map there", then "should we do the same
+  // for the rest of Canada?"): the Winter photos above are only built in squares around ski spots, so zoomed out they
+  // were one block in southern BC and specks near Whitehorse, Smithers or Jasper. Under them now: last winter's
+  // Sentinel-2 photos over all of Canada south of 70 N (scripts/winter-photos/wide.py, zooms 3-10, about 80 m a pixel
+  // at 55 N), on three Cloudflare Pages sites split by zoom-7 tile (zooms under 7 and wide.json, the list of zoom-7
+  // tiles, on -0). Zooms 11-13 enlarge zoom 10; closer than that, outside the ski squares, today's snow shows as before.
+  const WIDE_BOUNDS = [-141.1, 41.6, -52, 70], WIDE_TOP = 13;
+  const wideSite = (z, x, y) => `https://trailfinder-wide-${z < 7 ? 0 : ((x >> (z - 7)) * 31 + (y >> (z - 7))) % 3}.pages.dev/trail-finder-wide/`;
+  let wideList = null;
+  const loadWide = () => wideList || (wideList = fetch(wideSite(0, 0, 0) + "wide.json").then((r) => r.json()).then((a) => {
+    const s = new Set();
+    for (const [x, y] of a) for (let z = 3; z <= 7; z++) s.add(`${z}/${x >> (7 - z)}/${y >> (7 - z)}`);
+    return s;
+  }).catch(() => { wideList = null; return new Set(); }));   // asked again next time
+  const hasWide = (s, z, x, y) => z >= 3 && z <= WIDE_TOP && s.has(z <= 7 ? `${z}/${x}/${y}` : `7/${x >> (z - 7)}/${y >> (z - 7)}`);
+  // Tile z/x/y's far-view winter photo (zooms 3-10), as bytes, or null (none there, or it couldn't come).
+  const wideBytes = async (z, x, y, signal) => {
+    if (z > 10 || !hasWide(await loadWide(), z, x, y)) return null;
+    const r = await fetch(`${wideSite(z, x, y)}${z}/${x}/${y}.webp`, { signal }).catch((e) => { if (signal && signal.aborted) throw e; return null; });
+    return r && r.ok ? r.arrayBuffer() : null;
+  };
+  // As a picture, zooms 3-13 (11-13 cut from the zoom-10 one and enlarged), for the flat map.
+  const widePicture = async (z, x, y, signal) => {
+    const d = Math.min(z, 10), k = z - d, b = await wideBytes(d, x >> k, y >> k, signal);
+    if (!b) return null;
+    const big = await createImageBitmap(new Blob([b]));
+    if (!k) return big;
+    const n = 1 << k, size = big.width / n, cv = new OffscreenCanvas(256, 256), cx = cv.getContext("2d");
+    cx.imageSmoothingQuality = "high";
+    cx.drawImage(big, (x % n) * size, (y % n) * size, size, size, 0, 0, 256, 256);
+    big.close();
+    return createImageBitmap(cv);
+  };
+  let wideProtocol = false;
+  function addWideProtocol() {
+    if (wideProtocol) return;
+    wideProtocol = true;
+    photoProtocol("tfwinterwide", async (params, abort) => {
+      const [z, x, y] = params.url.replace("tfwinterwide://", "").split("/").map(Number);
+      const b = await wideBytes(z, x, y, abort.signal);
+      return b ? { data: b } : noTile();
+    });
+  }
   // ---------- late-summer mountains on the Summer map ----------
   // alex 2026-11-09 ("use some image around september for the summer map"): Esri's sharp summer photo is from early
   // July in many alpine places (Brandywine and Metal Dome: July 5, 2017), so the meadows and ridges showed melting
@@ -1886,7 +1930,18 @@
   // styles; the same winter photos as the 3D map now draw there too: zooms 6-14 last winter's photos with their cloudy
   // holes filled (winter-fill.js), 15-16 with the finer detail added (winter-hd.js). null where there are none (the
   // summer photo under it shows). The flat map is light on memory, so phones get the close-ups too.
+  // Since 2026-11-11 the far-view photos of all of Canada (wideBytes) are under them up to zoom 13, as on the 3D map.
   window.tfWinterTile = async (z, x, y, signal) => {
+    const own = await winterOwnTile(z, x, y, signal);
+    if (z > WIDE_TOP || (own && z >= 11)) return own;   // zoom 11 and up, a square's tile covers all of it
+    const wide = await widePicture(z, x, y, signal).catch((e) => { if (signal && signal.aborted) throw e; return null; });
+    if (!wide || !own) return own || wide;
+    const cv = new OffscreenCanvas(256, 256), cx = cv.getContext("2d");
+    cx.drawImage(wide, 0, 0, 256, 256); cx.drawImage(own, 0, 0, 256, 256);
+    drop(wide); drop(own);
+    return createImageBitmap(cv);
+  };
+  const winterOwnTile = async (z, x, y, signal) => {
     if (z < 6) return null;
     const have = await loadWinterBlocks();
     if (!anyWinter(have, z, x, y)) return null;
@@ -2449,6 +2504,7 @@
     addDemProtocol();
     addWinterProtocol();
     addWinterPhotoProtocol();
+    addWideProtocol();
     addSatProtocol();
     addWinterHdProtocol();
     addWinterSharpProtocol();
@@ -2485,6 +2541,9 @@
           // 1-3 s (alex's recording, 2026-10-29); these few big tiles are there long before, so it's a blurry winter
           // photo for that moment instead, sharpening when Winter's tile comes.
           winterlo: { type: "raster", tileSize: 256, minzoom: 6, maxzoom: 9, bounds: WINTER_BOUNDS, tiles: ["tfwinterphoto://{z}/{x}/{y}"] },
+          // Under both: last winter's far-view photos of all of Canada (WIDE above), so zoomed out it's winter everywhere.
+          winwide: { type: "raster", tileSize: 256, minzoom: 3, maxzoom: 10, bounds: WIDE_BOUNDS, tiles: ["tfwinterwide://{z}/{x}/{y}"],
+            attribution: "Winter: Copernicus Sentinel-2 data 2025-2026 (ESA)" },
           // Sea to Sky + Revelstoke to Golden, from zoom 15: the AI-sharpened Winter photos (SHARP above), over Winter and under the close-ups.
           // Same tile size as the close-ups, so on a computer they come in from the same zoom (~14) and show as soon as
           // they're downloaded, while the close-ups are still being drawn (alex 2026-11-03: "way longer to load").
@@ -2532,6 +2591,7 @@
           { id: "sumhi", type: "raster", source: "sumhi", paint: { "raster-fade-duration": 0 } },
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
           { id: "fill", type: "raster", source: "fill", layout: { visibility: "none" } },
+          { id: "winwide", type: "raster", source: "winwide", maxzoom: WIDE_TOP + 1, layout: { visibility: "none" }, paint: { "raster-fade-duration": 0 } },
           { id: "winterlo", type: "raster", source: "winterlo", layout: { visibility: "none" }, paint: { "raster-fade-duration": 0 } },
           { id: "winter", type: "raster", source: "winter", layout: { visibility: "none" } },
           { id: "winsharp", type: "raster", source: "winsharp", layout: { visibility: "none" }, paint: { "raster-fade-duration": 0 } },
@@ -2746,7 +2806,7 @@
       for (const id of ["satlo", "sat", "sumhi"]) gl.setLayoutProperty(id, "visibility", photos === "sharp" ? "visible" : "none");
       gl.setLayoutProperty("fill", "visibility", photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
       gl.setLayoutProperty("ground", "visibility", photos === "winter" ? "visible" : "none");
-      for (const id of ["winterlo", "winter", "winsharp", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
+      for (const id of ["winwide", "winterlo", "winter", "winsharp", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
       gl.setLayoutProperty("live", "visibility", photos === "live" ? "visible" : "none");
       sumBtn.title = "Sharp photos, taken in summer where Esri has one";
       winBtn.title = "Real satellite photos from February and March 2026 (Sentinel-2, 10 m, so softer)";
@@ -2786,7 +2846,9 @@
       if (photos !== "winter") { noWinter.style.display = "none"; return; }
       const have = await loadWinterBlocks(), c = gl.getCenter(), n = 2048;
       const x = Math.floor((c.lng + 180) / 360 * n), y = Math.floor((1 - Math.asinh(Math.tan(c.lat * Math.PI / 180)) / Math.PI) / 2 * n);
-      noWinter.style.display = photos === "winter" && have && !have.has(x + "/" + y) ? "" : "none";
+      // Not said where the far-view photos of all of Canada cover the ground (up to zoom 13).
+      const wide = gl.getZoom() < WIDE_TOP + 1 && hasWide(await loadWide(), 7, Math.floor(x / 16), Math.floor(y / 16));
+      noWinter.style.display = photos === "winter" && have && !have.has(x + "/" + y) && !wide ? "" : "none";
     };
     gl.on("moveend", winterHere);
     gl.on("movestart", () => { liveTiles = liveSnowy = 0; });
@@ -2798,7 +2860,7 @@
     const tileTries = new Map();
     gl.on("idle", () => {
       if (!navigator.onLine) return;
-      for (const id of ["satlo", "sat", "fill", "winterlo", "winter", "live"]) {
+      for (const id of ["satlo", "sat", "fill", "winwide", "winterlo", "winter", "live"]) {
         const m = gl.style?.tileManagers?.[id], tiles = m?._inViewTiles;
         if (!tiles || typeof m._reloadTile !== "function") continue;
         for (const t of tiles.getAllIds()) {
