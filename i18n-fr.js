@@ -2082,6 +2082,7 @@
     "Fewer accidents happen in this mix of danger and terrain. It doesn't mean the slope is safe: use your training and watch the conditions.":"Moins d'accidents arrivent avec ce mélange de danger et de terrain. Ça ne veut pas dire que la pente est sécuritaire : utilisez votre formation et surveillez les conditions.",
     "no slopes of 30° or more seen on or above the route on the terrain map (it can miss small slopes)":"aucune pente de 30° ou plus vue sur ou au-dessus de l'itinéraire sur la carte du relief (elle peut manquer de petites pentes)",
     "The spot card's avalanche lines are now worded as what the terrain map shows, never a promise that a slope is safe: for example \"no steep slopes above\" now says it's an estimate within 350 m uphill that can miss small slopes, cornices and long avalanche paths.":"Les lignes d'avalanche de la fiche « Cet endroit » disent maintenant ce que montre la carte du relief, jamais une promesse qu'une pente est sécuritaire : par exemple « aucune pente raide au-dessus » dit maintenant que c'est une estimation à moins de 350 m en amont, qui peut manquer de petites pentes, des corniches et de longs couloirs d'avalanche.",
+    "Skiing: the Shredder line in Ruby Bowl at Whistler is gone from the map, since it doesn't exist anymore.":"Ski : la ligne Shredder dans Ruby Bowl à Whistler n'est plus sur la carte, puisqu'elle n'existe plus.",
     "Safest way here":"Trajet le plus sûr jusqu'ici",
     "Find the safest way":"Trouver le trajet le plus sûr",
     "Safest way: on":"Trajet le plus sûr : activé",
