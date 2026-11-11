@@ -394,6 +394,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 .lm-ski .sk-sw:focus-visible, .lm-ski .sk-slot button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #skiPane .sk-sw { width: 18px; height: 4px; border-radius: 2px; flex: none; display: inline-block; }
 #skiPane .sk-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #0003; flex: none; display: inline-block; }
+#skiPane .sk-listwrap[hidden] { display: none; }
 #skiPane .sk-listwrap { display: flex; flex-direction: column; gap: 8px; }
 #skiPane .sk-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--chip); padding: 4px; border-radius: 12px; }
 #skiPane .sk-tabs[hidden] { display: none; }
@@ -423,6 +424,9 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 #skiPane .sk-diff { color: var(--c); font-weight: 700; }
 #skiPane .sk-diff i { font-style: normal; font-size: .7em; margin-right: 3px; vertical-align: 1px; }
 #skiPane .sk-empty { color: var(--muted); font-size: .85rem; padding: 10px 4px; }
+#skiPane .sk-showmore { display: flex; align-items: center; gap: 10px; padding: 8px 0 4px; color: var(--muted); font-size: .8rem; }
+#skiPane li.sk-showmore .sk-more-btn { min-height: 44px; padding: 8px 16px; }
+#skiPane p.sk-fine { color: var(--muted); font-size: .8rem; line-height: 1.45; margin: 12px 2px 0; }
 #skiPane .sk-card { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; }
 #skiPane .sk-card h3 { margin: 0; font-size: 1rem; }
 #skiPane .sk-card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: .82rem; }
@@ -673,12 +677,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     <div class="sk-card" id="skDetail" hidden></div>
     <div class="av-card sk-card" id="avCard" hidden></div>
     <details class="sk-card" id="sbCard" hidden><summary id="sbSum">Snowmobile clubs and grooming</summary><div id="sbBody"></div></details>
-    <div class="sk-listwrap">
+    <div class="sk-listwrap" hidden>
       <div class="sk-tabs" id="skTabs" role="tablist" aria-label="List"><button type="button" role="tab" data-tab="routes">Routes</button><button type="button" role="tab" data-tab="huts">Huts</button></div>
       <div class="sk-countrow"><p class="sk-count" id="skCount">Routes in view</p><button type="button" class="sk-sort" id="skSort" hidden></button></div>
       <ul class="sk-list" id="skList"></ul>
     </div>
-    <p class="sk-safe">Open maps can be wrong and no route is avalanche-safe. Trail Finder helps you plan; it doesn't replace avalanche training (<a href="https://avysavvy.avalanche.ca/" target="_blank" rel="noopener">free online course</a>, then an AST 1), a beacon, probe and shovel, <a href="https://avalanche.ca/map" target="_blank" rel="noopener">Avalanche Canada's forecast</a> or what you see on the day. Where you go is your decision and your risk.</p>`;
+    <p class="sk-fine">Open maps can be wrong and no route is avalanche-safe. Trail Finder helps you plan; it doesn't replace avalanche training (<a href="https://avysavvy.avalanche.ca/" target="_blank" rel="noopener">free online course</a>, then an AST 1), a beacon, probe and shovel, <a href="https://avalanche.ca/map" target="_blank" rel="noopener">Avalanche Canada's forecast</a> or what you see on the day. Where you go is your decision and your risk.</p>`;
   const head = document.querySelector(".panel-head");
   const modes = head && head.querySelector(".modes");
   if (modes) modes.after(pane); else if (head) head.append(pane);
@@ -1339,15 +1343,28 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   let sortSafe = store.get("skiSort", "near") === "safe";
   const riskRank = (x) => (!x.k ? 5 : x.k.l >= 0 ? x.k.l : x.k.c - 1);
   $("skSort").addEventListener("click", () => { sortSafe = !sortSafe; store.set("skiSort", sortSafe ? "safe" : "near"); renderList(); });
+  // The list opens short (alex 2026-11-11 "list too long": 100 rows to scroll past at Whistler). 10 at first,
+  // "Show more" adds 20; back to 10 when the map moves, the tab, the sort or the search changes.
+  const LIST_FIRST = 10, LIST_STEP = 20;
+  let listLimit = LIST_FIRST, listKey = "";
   function renderList() {
     const list = $("skList");
     if (!ski) { $("skCount").textContent = ""; list.innerHTML = `<li class="sk-empty">${skiErr ? "The ski route list isn't on the site yet (it's collected every night). Try again later." : "Loading ski routes…"}</li>`; return; }
     const b = map.getBounds(), c = map.getCenter(), q = findText.trim().toLowerCase();
+    // No routes list in the panel (alex 2026-11-11: "show no route there, users will find it on the map"): it shows
+    // only while a name is typed in the search box.
+    const wrap = list.closest(".sk-listwrap");
+    if (wrap) wrap.hidden = !q;
+    if (!q) { list.innerHTML = ""; return; }
     const has = (n) => (n || "").toLowerCase().includes(q);
     const inView = (r) => b.intersects(r.bounds);
     // Pieces with the same name and type are one entry.
     const groups = new Map();
+    // Resort runs stay on the map but out of the list (alex 2026-11-11 "take the ski route out of there": 100 Whistler
+    // runs pushed the touring routes away). Only when Resorts is the one thing on, or a search names a run, are they listed.
+    const runsOnly = ![...shown].some((t) => TYPES[t] && t !== "resort" && t !== "offpiste");
     for (const r of ski.routes || []) {
+      if (!q && !runsOnly && (r.type === "resort" || r.type === "offpiste")) continue;
       if (!shown.has(r.type) || (q ? !has(nameOf(r)) && !has(r.tags && r.tags["hand:aka"]) : !inView(r))) continue;
       const key = r.name ? r.type + "|" + r.name.toLowerCase() : r.id;
       if (!groups.has(key)) groups.set(key, []);
@@ -1373,7 +1390,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       t.setAttribute("aria-selected", String(t.dataset.tab === listTab));
       t.innerHTML = `${t.dataset.tab === "huts" ? "Huts" : "Routes"} <b>${n}</b>`;
     });
-    const rows = listTab === "huts" ? hutRows : routes, MAX = 100;
+    const rows = listTab === "huts" ? hutRows : routes;
+    const key = [listTab, q, sortSafe, map.getZoom().toFixed(1), c.lat.toFixed(3), c.lng.toFixed(3)].join("|");
+    if (key !== listKey) { listKey = key; listLimit = LIST_FIRST; }
+    const selAt = rows.findIndex((x) => (x.g ? x.g.includes(selected) : selected && selected === x.h));
+    const MAX = Math.min(rows.length, Math.max(listLimit, selAt + 1));
     const what = listTab === "huts" ? "hut" : "route";
     const rated = listTab === "routes" && routes.some((x) => x.k), safe = sortSafe && rated;
     $("skSort").hidden = !rated;
@@ -1408,8 +1429,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       }
       return `<li><button type="button" data-i="${i}"${cur ? ' aria-current="true"' : ""}>${ic}<span class="sk-tx"><span class="nm">${nm}</span><span class="sub">${sub}</span></span>${away(x.d)}</button></li>`;
     }).join("")
-      + (rows.length > MAX ? `<li class="sk-empty">${rows.length - MAX} more: ${q ? "type more of the name" : "zoom in"} to see them.</li>` : "")
+      + (rows.length > MAX ? `<li class="sk-showmore"><button type="button" class="sk-more-btn" id="skListMore">Show ${Math.min(LIST_STEP, rows.length - MAX)} more</button><span>${rows.length - MAX} more in view</span></li>` : "")
       + (!rows.length ? `<li class="sk-empty">${q ? `Nothing named “${esc(findText.trim())}” in what's shown.` : listTab === "huts" ? "No huts in view. Zoom out or move the map." : shown.has("heat") ? "No mapped ski routes in view. The heatmap shows where people have toured here." : `<span>No mapped ski routes in view. Zoom out, or turn on the ski heatmap: it shows where people tour even where no route is mapped.</span> <button type="button" class="linkish" id="skHeatOn">Show the ski heatmap</button>`}</li>` : "");
+    const moreBtn = $("skListMore");
+    if (moreBtn) moreBtn.addEventListener("click", () => { listLimit = MAX + LIST_STEP; renderList(); });
     const heatBtn = $("skHeatOn");
     if (heatBtn) heatBtn.addEventListener("click", () => { shown.add("heat"); const off = oneGround("heat"); applySwitches(); if (off.includes("avy")) refreshAvy(); });
     list.querySelectorAll("button[data-i]").forEach((bt) => bt.addEventListener("click", () => { const x = rows[+bt.dataset.i]; select(x.g || x.h, true); }));
@@ -1565,19 +1588,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (window.tfSlack) window.tfSlack.load().then(() => window.tfSlack.open(p.slack.id)).catch(() => {});
       return;
     }
-    $("skPlaceMsg").textContent = `Near ${p.name}: nearest the middle of the map first.`;
+    $("skPlaceMsg").textContent = "";
     window.tfPlaceSearch.go(p);
     if (p.helicat && window.tfHeliCat) window.tfHeliCat.open(p.helicat);
     if (p.access && window.tfLifts) window.tfLifts.open(p.access);
     renderList();
-    // The list of what's near the place under the box (again once the avalanche card above has filled in).
-    const top = () => {
-      if (!window.tfPanelScrollTo || sport !== "ski") return;
-      const el = $("skTabs").hidden ? $("skList") : $("skTabs"), sc = window.tfPanelScroller && window.tfPanelScroller(el);
-      window.tfPanelScrollTo(el);
-      if (sc) sc.scrollTop = Math.max(0, sc.scrollTop - 16);   // clear of the sheet's handle
-    };
-    setTimeout(top, 400); setTimeout(top, 1800);
   });
   // ---------- route details: heights, slopes, avalanche forecast and reports, weather ----------
   // A short name for each kind of route, for unnamed routes: "Ski touring near Ipsoot Mountain" (data/ski.json "near"
@@ -3948,7 +3963,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         ${status}
         ${c.pass ? `<span>Trail pass: ${esc(c.pass)}</span>` : ""}
         <div class="sb-links">${link(r.url, r.label || "Grooming report")}${(c.maps || []).map((m) => link(m.url, m.label || "Trail map")).join("")}${link(c.web, "Website")}</div></div>`;
-    }).join("") + (clubLinks.length ? `<div class="sb-club"><b>For the whole region</b><div class="sb-links">${clubLinks.map((l) => link(l.url, l.label)).join("")}</div></div>` : "") + `<p class="sk-safe">Pins are the staging areas, placed roughly. Reports are the clubs' own posts.</p>`;
+    }).join("") + (clubLinks.length ? `<div class="sb-club"><b>For the whole region</b><div class="sb-links">${clubLinks.map((l) => link(l.url, l.label)).join("")}</div></div>` : "") + `<p class="sk-fine">Pins are the staging areas, placed roughly. Reports are the clubs' own posts.</p>`;
     $("sbBody").querySelectorAll(".sb-area").forEach((el) => el.addEventListener("click", (e) => {
       e.preventDefault();
       if (el.dataset.lat !== "undefined") map.setView([+el.dataset.lat, +el.dataset.lon], Math.max(map.getZoom(), 11));
