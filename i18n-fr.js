@@ -2259,6 +2259,7 @@
     "Skiing Plan a tour: tap Add to tour on a line's card (a freeride line or any route) and your tour skis that exact line from its top to its bottom.":"Ski, Planifier une sortie : touchez Ajouter à la sortie sur la fiche d'une ligne (ligne freeride ou tout itinéraire) et votre sortie descend exactement cette ligne, de son sommet à son bas.",
     "Add to tour":"Ajouter à la sortie",
     "Skiing: the panel no longer has a long list of routes. Find routes on the map, or type a name in the search box.":"Ski : le panneau n'a plus de longue liste d'itinéraires. Trouvez-les sur la carte, ou tapez un nom dans la recherche.",
+    "Avalanche: problems Avalanche Canada lists for below treeline now show on the card and in the darker slope shading. Before, the app read them as treeline and dropped them.":"Avalanche : les problèmes qu'Avalanche Canada indique sous la limite des arbres s'affichent maintenant sur la carte et dans l'ombrage plus foncé des pentes. Avant, l'app les lisait comme limite des arbres et les perdait.",
     "Saved on this phone only":"Enregistré sur ce téléphone seulement",
     "Keep your alerts":"Gardez vos alertes",
     "Sign in so your alerts follow you to a new phone. Free, and the app works the same without it.":"Connectez-vous pour que vos alertes vous suivent sur un nouveau téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",

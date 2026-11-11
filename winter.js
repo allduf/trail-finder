@@ -4041,7 +4041,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     for (const [k, v] of Object.entries(AC_LEVELS)) if (s.includes(k)) return v;
     return 0;
   }
-  const acBand = (s) => { s = acVal(s).toLowerCase(); return /alp/.test(s) ? "alp" : /tln|treeline|tl/.test(s) ? "tln" : /btl|below/.test(s) ? "btl" : ""; };
+  // Below treeline first: "btl" also holds "tl", which used to read it as treeline, so below-treeline problems were dropped.
+  const acBand = (s) => { s = acVal(s).toLowerCase(); return /btl|below/.test(s) ? "btl" : /alp/.test(s) ? "alp" : /tln|treeline|tl/.test(s) ? "tln" : ""; };
   const acAspect = (s) => { s = acVal(s).toLowerCase().replace(/[^a-z]/g, ""); const x = { north: "n", northeast: "ne", east: "e", southeast: "se", south: "s", southwest: "sw", west: "w", northwest: "nw" }[s] || s; return ASPECTS.includes(x) ? x : ""; };
   function acForecast(p, old) {
     const r = p.report || p;
@@ -4053,7 +4054,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const d = pr.data || pr;
       const size = d.expectedSize ? [d.expectedSize.min, d.expectedSize.max].filter((x) => x != null).join("-") : "";
       return { type: acText(pr.type) || acText(pr.name), aspects: [...new Set((d.aspects || []).map(acAspect).filter(Boolean))],
-        elevations: [...new Set((d.elevations || []).map(acBand).filter(Boolean))], likelihood: acText(d.likelihood), size, comment: acText(pr.comment).slice(0, 1200) };
+        elevations: ((s) => ["alp", "tln", "btl"].filter((b) => s.has(b)))(new Set((d.elevations || []).map(acBand))), likelihood: acText(d.likelihood), size, comment: acText(pr.comment).slice(0, 1200) };
     });
     const summaries = Object.fromEntries((r.summaries || []).map((x) => [acVal(x.type).toLowerCase(), acText(x.content).slice(0, 1500)]));
     return { ...(old || {}), id: p.id || r.id || "", url: p.url || (p.slug ? `https://avalanche.ca/forecasts/${p.slug}` : (old && old.url) || "https://avalanche.ca/map"),
