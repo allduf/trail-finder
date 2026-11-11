@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-11", "text": "Packing list: Who? is beside every shared item and your own items, even before you add the group's names (Add a name… adds one), and Who brings what at the top lists each person's items."},
     {"date": "2026-11-11", "text": "Cabin trips: a trip with no cabin keeps its list of cabins nearby after you add a name or change the dates, Booked no longer shows crossed out, and the way in isn't listed again under Day tours."},
     {"date": "2026-11-11", "text": "Shared cabin trips: the first time you open one, Who are you? asks you to pick your name from the group (or add yourself). Lines, packing items and costs then show who added them, and notes carry your name."},
     {"date": "2026-11-11", "text": "Cabin trips: Save the trip offline opens a square on the map around the trip, to move and resize before saving (it shows the size). It works for a trip with no cabin yet, and from the day before the trip the weather, avalanche danger and offline copy update by themselves each time you open the app, with the time they were checked. ⏰ Remind me the day before adds a calendar alert to open it."},
