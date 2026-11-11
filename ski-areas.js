@@ -72,14 +72,17 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
   btn.textContent = "⛰ Ski areas";
   const listBtn = document.createElement("button");
   listBtn.type = "button"; listBtn.className = "sa-open";
-  listBtn.textContent = "⛰ Backcountry areas across Canada";
+  listBtn.textContent = "⛰ Backcountry areas";
   // In Japan the list is Japan's areas (alex 2026-10-30: it said "across Canada" on the map at Hakuba).
-  const listLabel = () => { listBtn.textContent = inJapanNow() ? "⛰ Backcountry areas in Japan" : "⛰ Backcountry areas across Canada"; };
+  // A small button in Skiing's Explore row (alex 2026-11-11, keep it simple): "Backcountry areas", the list says where.
+  listBtn.title = "Backcountry ski areas across Canada";
+  const listLabel = () => { listBtn.textContent = inJapanNow() ? "⛰ Backcountry areas in Japan" : "⛰ Backcountry areas"; };
   map.on("moveend", listLabel); listLabel();
   function place() {
     if (!btn.isConnected && window.tfSkiSlot) window.tfSkiSlot("places", btn, { label: "Ski areas", sym: "⛰", bg: "#5f3dc4" });
     const acts = document.querySelector("#skiPane .sk-acts");
-    if (!listBtn.isConnected && acts) acts.after(listBtn);
+    const ex = document.getElementById("skExplore");
+    if (!listBtn.isConnected && ex) ex.append(listBtn); else if (!listBtn.isConnected && acts) acts.after(listBtn);
   }
   function setBtn() { btn.setAttribute("aria-pressed", String(on)); btn.classList.toggle("on", on); }
   btn.addEventListener("click", () => {
