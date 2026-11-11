@@ -1,0 +1,8 @@
+Who are you? ||| Qui êtes-vous?
+Pick your name so the group sees what you add. ||| Choisissez votre nom pour que le groupe voie ce que vous ajoutez.
+Not on the list? Your name ||| Pas dans la liste? Votre nom
+Add me ||| M'ajouter
+You are ||| Vous êtes
+Pick your name ||| Choisissez votre nom
+Who you are in this group ||| Qui vous êtes dans ce groupe
+Shared cabin trips: the first time you open one, Who are you? asks you to pick your name from the group (or add yourself). Lines, packing items and costs then show who added them, and notes carry your name. ||| Séjours en refuge partagés : la première fois que vous en ouvrez un, Qui êtes-vous? vous demande de choisir votre nom dans le groupe (ou de vous ajouter). Les lignes, les articles à emporter et les dépenses montrent ensuite qui les a ajoutés, et les notes portent votre nom.
