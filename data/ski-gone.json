@@ -1,0 +1,6 @@
+{
+ "about": "Ski routes OpenStreetMap still has but that are gone on the ground. scripts/build-winter.mjs leaves these out of data/ski.json on every rebuild (by OpenStreetMap id, or by name inside the box when an id is missing), so they don't come back with the next data run. Hand-kept: add one entry with who said it and when.",
+ "routes": [
+  {"id": "w1167852435", "name": "Shredder", "where": "Whistler Blackcomb, Ruby Bowl below Midway Rock", "why": "doesn't exist anymore", "said": "alex 2026-11-11"}
+ ]
+}

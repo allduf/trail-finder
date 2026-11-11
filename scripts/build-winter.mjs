@@ -1133,7 +1133,9 @@ if (runs("ski")) {
   try { bc = await buildBc(); } catch (e) { failed++; log(`  DataBC failed: ${e.message}; keeping the last data`); }
   try { c2c = await buildC2c(); } catch (e) { failed++; log(`  camptocamp failed: ${e.message}; keeping the last data`); }
   const oldOf = (src) => (old.routes || []).filter((r) => r.src === src);
-  const routes = [...(osm ? osm.routes : oldOf("osm")), ...(bc || oldOf("bc")), ...(c2c ? c2c.routes : oldOf("c2c"))];
+  // Routes gone on the ground that OpenStreetMap still has (data/ski-gone.json, hand-kept): never written back.
+  const goneIds = new Set(((readJson("ski-gone.json") || {}).routes || []).map((g) => g.id));
+  const routes = [...(osm ? osm.routes : oldOf("osm")), ...(bc || oldOf("bc")), ...(c2c ? c2c.routes : oldOf("c2c"))].filter((r) => !goneIds.has(r.id));
   const starts = c2c ? c2c.starts : old.starts || [];
   const huts = osm ? osm.huts : old.huts || [];
   const parking = osm ? osm.parking : old.parking || [];
