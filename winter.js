@@ -2903,9 +2903,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // Kept by itself (alex 2026-11-07: "a lot of step to organize a plan for ski tour"): a tour is saved when it's made
     // (✓ Done, or Ask's Make this tour) under the lines it skis, and follows its edits; Rename is there if wanted.
     return `<div class="sk-tourrow">${same ? `<p class="sk-tour-ok"><span>${esc("✓ Saved as " + t.n)}</span> <button type="button" class="linkish" data-tour="rename">Rename</button></p>` : ""}
-      ${same ? "" : `<div class="sk-row"><button type="button" class="btn primary" data-tour="save">${t ? "★ Save changes" : "★ Save this tour"}</button></div>`}</div>`;
+      ${same ? "" : `<div class="sk-row"><button type="button" class="btn primary" data-tour="save">${t ? "★ Save changes" : "★ Save this tour"}</button></div>`}${same ? `<span id="skTripAdd" hidden></span>` : ""}</div>`;
   }
   function tourWire(card) {
+    const ta = card.querySelector("#skTripAdd");   // 🏕 Add to cabin trip (cabin-trip.js), once you have a trip
+    if (ta && window.tfCabinTrip && window.tfCabinTrip.addPlan) window.tfCabinTrip.addPlan(ta);
     const f = card.querySelector("#skTourForm");
     if (f) {
       const i = f.querySelector("input");
@@ -5381,6 +5383,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // Draw your own way in with Plan a tour, from pts (the hut's end of it, or what was there).
     plan: (pts) => { if (pts) { plan.pts = pts.map((p) => [+p[0].toFixed(6), +p[1].toFixed(6)]); setTour(null); planChanged(); } setPlanning(true); },
     planPts: () => plan.pts.slice(),
+    // A cabin trip's lines (cabin-trip.js): the planned tour as drawn (the less exposed way when it's on), its saved name and id.
+    planLine: () => { const r = planRoute(); if (!r) return null; const t = tourOf(); return { line: r.lines[0].map((p) => [p[0], p[1]]), name: t ? t.n : tourName(), tour: t ? t.id : "" }; },
     planning: () => plan.on,
     planOffer: (o) => planOffer(o),
     planRouteLine: (r) => planRouteLine(r),
