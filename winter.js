@@ -537,6 +537,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 #skiPane ul.sk-signs li { border-left: 4px solid #f2b705; padding: 1px 0 1px 8px; }
 #skiPane ul.sk-signs li.hi { border-left-color: #e03131; }
 #skiPane ul.sk-signs li.ok { border-left-color: #2f9e44; }
+#skiPane ul.sk-signs li.info { border-left-color: #adb5bd; }   /* terrain facts: grey, never a green "all clear" */
 #skiPane .sk-spot h4 { margin: 6px 0 2px; font-size: .92rem; }
 #skiPane .sk-spot h5 { margin: 4px 0 0; font-size: .82rem; }
 #skiPane .sk-spot .sk-stats .sk-spotslope { background: color-mix(in srgb, var(--c) 45%, var(--panel)); box-shadow: inset 0 -4px 0 var(--c); }
@@ -1809,16 +1810,16 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (windy >= 3 && (snow72 >= 5 || next24 >= 5)) {
       const from = Math.round((((Math.atan2(wx, wy) * 180) / Math.PI + 360) % 360) / 45) % 8;
       lee = [(from + 3) % 8, (from + 4) % 8, (from + 5) % 8];
-      signs.push([maxW >= 50 ? "hi" : "", `💨 Wind loading: ${COMPASS[from]} wind up to ${Math.round(maxW)} km/h with snow to move. Slopes facing ${lee.map((x) => COMPASS[x]).join(", ")} (and below ridges) get wind slabs.`]);
+      signs.push([maxW >= 50 ? "hi" : "", `💨 Wind loading: ${COMPASS[from]} wind up to ${Math.round(maxW)} km/h with snow to move. Slopes facing ${lee.map((x) => COMPASS[x]).join(", ")} (and below ridges) can get wind slabs.`]);
     }
-    if (rain >= 2 && fzMax > ele) signs.push(["hi", `🌧 Rain on snow: about ${Math.round(rain)} mm of rain at ${at}. Wet slides, and a crust after.`]);
-    if (warm >= 3) signs.push([warm >= 6 ? "hi" : "", `☀ Warming: up to ${Math.round(warm)}°C at ${at} in the next day. Wet avalanches and falling cornices: off sunny and steep slopes early.`]);
+    if (rain >= 2 && fzMax > ele) signs.push(["hi", `🌧 Rain on snow: about ${Math.round(rain)} mm of rain at ${at}. Wet slides get more likely, and a crust can form after.`]);
+    if (warm >= 3) signs.push([warm >= 6 ? "hi" : "", `☀ Warming: up to ${Math.round(warm)}°C at ${at} in the next day. Wet avalanches and falling cornices get more likely, most on sunny steep slopes as the day warms.`]);
     return { signs, fzNow, fzMax, snow24, snow72, next24, lee, maxW, rain, warm };
   }
   function signsHtml(a, ele) {
     if (!a) return "";
     return `<ul class="sk-signs">${a.signs.length ? a.signs.map(([c, t]) => `<li class="${c}">${esc(t)}</li>`).join("")
-      : `<li class="ok">No warning signs in the weather at ${fmtM(ele)} (check the forecast anyway).</li>`}</ul>
+      : `<li class="info">The weather model shows no warning signs at ${fmtM(ele)}. It can miss what's happening on the slope: check the avalanche forecast too.</li>`}</ul>
       <p class="sk-note">Freezing level now about ${fmtM(a.fzNow)}, up to ${fmtM(a.fzMax)} in the next day.</p>`;
   }
   function wxHtml(w, ele) {
@@ -3591,14 +3592,16 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   function spotTerrain(g) {
     const s = g.slope, why = [];
     const c = s >= 35 || (g.above && g.trap) ? 3 : s >= 30 || g.max >= 30 || g.above || g.trap ? 2 : 1;
-    if (s < 5) why.push(["ok", "Flat ground: no avalanche can start here."]);
-    else if (s < 25) why.push(["ok", `${Math.round(s)}°: too gentle for most slab avalanches to start.`]);
+    if (s < 5) why.push(["info", "Flat on the terrain map: avalanches rarely start on ground this gentle, but one from steeper ground can still reach it."]);
+    else if (s < 25) why.push(["info", `${Math.round(s)}°: gentle. Most slab avalanches start on slopes of 30° or more, but one from steeper ground can still reach it.`]);
     else if (s < 30) why.push(["", `${Math.round(s)}°: low-angle avalanche terrain. It can slide when the snow is unstable.`]);
     else if (s <= 45) why.push(["hi", `${Math.round(s)}°: prime avalanche angle (30° to 45°, where most slab avalanches start).`]);
     else why.push(["hi", `${Math.round(s)}°: very steep. Sluffs run often and a fall here is serious.`]);
     if (g.max >= 30 && g.max - s >= 4) why.push([g.max >= 35 ? "hi" : "", `Steeper ground close by: up to ${Math.round(g.max)}° within ${SPOT_RING} m.`]);
     if (g.above) why.push(["hi", "Steep slopes above: ground of 30° or more within 350 m uphill could slide down onto this spot."]);
-    else if (g.above === false && s < 30) why.push(["ok", "No steep slopes above that could slide onto this spot."]);
+    // Never a promise that nothing can reach the spot (alex 2026-11-11, liability): only what the terrain map shows, and
+    // what it can't see (it looks 350 m uphill on ~15 m terrain tiles).
+    else if (g.above === false && s < 30) why.push(["info", "The terrain map shows no slopes of 30° or more within 350 m uphill. It's an estimate: it can miss small slopes, cornices and avalanche paths that start farther up."]);
     if (g.trap) why.push(["hi", "Terrain trap: a gully or creek bed. Even a small slide piles up deep here."]);
     return { c, ...T.CLASSES[c], why };
   }
@@ -3660,7 +3663,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <p class="sk-snowlbl">❄ Fell in the last</p><div class="sk-stats sk-stats3">${past.map((v, k) => box(v, LBL[k])).join("")}</div>
       <p class="sk-snowlbl">🌨 Forecast, next</p><div class="sk-stats sk-stats3">${next.map((v, k) => box(v, LBL[k])).join("")}</div>
       <p class="sk-note" id="skSpotLayer"></p>`;
-    if (aw.lee && g.slope >= 20 && aw.lee.includes(g.asp)) html += `<div class="sk-warn"><b>⚠ Wind loaded:</b> this slope faces ${ASPECT_NAME[g.asp]}, downwind of the ${Math.round(aw.maxW)} km/h wind with snow to move. Expect wind slabs.</div>`;
+    if (aw.lee && g.slope >= 20 && aw.lee.includes(g.asp)) html += `<div class="sk-warn"><b>⚠ Wind loaded:</b> this slope faces ${ASPECT_NAME[g.asp]}, downwind of the ${Math.round(aw.maxW)} km/h wind with snow to move. Wind slabs may have formed (weather model estimate).</div>`;
     // Day by day: snow, rain, high / low and wind, the 7 days before today and today plus the 6 after.
     let t0 = dd.time.indexOf(new Date().toLocaleDateString("en-CA", { timeZone: w.timezone }));
     if (t0 < 0) t0 = 7;
@@ -3779,7 +3782,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         <div><b>${flat ? "flat" : ASPECTS[g.asp].toUpperCase()}</b><span>faces</span></div><div><b>${fmtM(g.e)}</b><span>height</span></div>
         <div class="sk-spotates" style="--c:${cls.color}"><b>${cls.label}</b><span>terrain</span></div></div>
       <ul class="sk-signs">${cls.why.map(([c, t]) => `<li class="${c}">${esc(t)}</li>`).join("")}</ul>
-      <p class="sk-note">${esc(cls.what)} Terrain class is an estimate from the terrain map (ATES-style), not an official rating.</p>`);
+      <p class="sk-note">${esc(cls.what)} <span>Terrain class is an estimate from the terrain map (ATES-style), not an official rating. The map can miss forest, cornices, glaciers and small slopes.</span></p>`);
     fillSpotAvy();
     const near = () => { if (!live()) return; fill("skSpotNear", spotNearHtml(lat, lon)); bindSpotNear(); };
     near();

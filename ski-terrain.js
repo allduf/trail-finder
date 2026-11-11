@@ -171,7 +171,7 @@
   //  - Challenging: any real stretch (0.1 km) on 30°+, under steep slopes above, or in a terrain trap.
   //  - Simple: none of that.
   const CLASSES = [null,
-    { key: "simple", label: "Simple", color: "#2f9e44", what: "Gentle ground or open slopes with little avalanche terrain above or under the route." },
+    { key: "simple", label: "Simple", color: "#2f9e44", what: "Mostly gentle ground or open slopes, with little avalanche terrain seen above or below." },
     { key: "challenging", label: "Challenging", color: "#1971c2", what: "Some avalanche paths or steep slopes to cross or pass under: choose the way carefully." },
     { key: "complex", label: "Complex", color: "#1a1a1a", what: "Long stretches on or under steep slopes, with few ways to avoid them." }];
   function terrainClass(i) {
@@ -183,13 +183,13 @@
     if (traps >= 0.05) why.push(`${traps.toFixed(1)} km in gullies or creek beds (terrain traps)`);
     const c = i.km35 >= 0.25 || i.km30 >= 1 || above >= 1 || (above >= 0.3 && traps >= 0.2) ? 3
       : i.km30 >= 0.1 || above >= 0.1 || traps >= 0.1 ? 2 : 1;
-    if (!why.length) why.push("no slopes of 30° or more on or above the route");
+    if (!why.length) why.push("no slopes of 30° or more seen on or above the route on the terrain map (it can miss small slopes)");
     return { c, ...CLASSES[c], why };
   }
   // Avaluator trip planner chart: rows = danger rating 1 Low to 5 Extreme, columns = Simple, Challenging, Complex.
   const CHART = [null, [0, 0, 1], [0, 0, 1], [0, 1, 2], [1, 2, 2], [2, 2, 2]];
   const LIGHTS = [
-    { key: "go", label: "Normal caution", color: "#2f9e44", what: "Accidents are rare in this mix of danger and terrain. Still use your training and watch the conditions." },
+    { key: "go", label: "Normal caution", color: "#2f9e44", what: "Fewer accidents happen in this mix of danger and terrain. It doesn't mean the slope is safe: use your training and watch the conditions." },
     { key: "care", label: "Extra caution", color: "#f2b705", what: "Most accidents happen here. Go only with avalanche skills and be ready to turn back." },
     { key: "no", label: "Not recommended", color: "#e03131", what: "On Avalanche Canada's Avaluator chart, this terrain at this danger rating is not recommended. Pick simpler terrain or another day." }];
   const light = (danger, cls) => (danger >= 1 && danger <= 5 && cls >= 1 && cls <= 3 ? CHART[danger][cls - 1] : -1);
