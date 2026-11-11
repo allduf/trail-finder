@@ -1936,6 +1936,8 @@
     "where the road comes closest (no snow on the roads in the forecast)":"là où la route passe le plus près (pas de neige sur les routes dans les prévisions)",
     "Turn Google's AI back on":"Réactiver l'IA de Google",
     "Ask: when Google's AI is turned off, the note in Ask now has a Turn Google's AI back on button, so a No tapped by accident is quick to undo.":"Demander : quand l'IA de Google est désactivée, la note dans Demander a maintenant un bouton Réactiver l'IA de Google, pour annuler vite un Non touché par erreur.",
+    "the paved road":"la route pavée",
+    "Skiing: a tour Ask plans from the closest road now counts paved public roads too, not only forest roads (Microwave Ridge now starts on Pemberton Portage Road, about 3 km from the top).":"Ski : une sortie que Demander planifie depuis la route la plus proche compte maintenant aussi les routes publiques pavées, pas seulement les chemins forestiers (Microwave Ridge part maintenant de Pemberton Portage Road, à environ 3 km du sommet).",
     "Backcountry access gondola · not a ski resort":"Télécabine d'accès à l'arrière-pays · pas une station de ski",
     "Backcountry access gondola":"Télécabine d'accès à l'arrière-pays",
     "Open today":"Ouvert aujourd'hui",

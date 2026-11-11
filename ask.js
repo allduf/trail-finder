@@ -636,8 +636,15 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     const nav = window.tfNav;
     if (!nav || !nav.roadsAlong) return null;
     const R = Math.max(6, far + 3);
-    const [zs, line] = await Promise.all([nav.roadsAlong([L.latLng(th[0], th[1]).toBounds(R * 2000 + 4000)]), snowLine(th, date).catch(() => undefined)]);
+    // The forest roads, and the paved public roads (alex 2026-11-11: the Microwave Ridge tour started on a forest road
+    // 4.4 km away; Pemberton Portage Road, the paved road up the valley, passes about 3 km from the top).
+    const T = window.tfSki && window.tfSki.trip;
+    if (!window.tfFishRoute && T && T.loadJs) await T.loadJs("fish-route").catch(() => {});
+    const FR = window.tfFishRoute;
+    const [zs, line, pub] = await Promise.all([nav.roadsAlong([L.latLng(th[0], th[1]).toBounds(R * 2000 + 4000)]), snowLine(th, date).catch(() => undefined),
+      FR && FR.publicRoads ? FR.publicRoads(th[0], th[1], Math.min(R, 10)).catch(() => []) : []]);
     const pts = [];
+    if (pub.length) zs.push({ list: pub.map((r) => ({ ...r, pub: true })) });
     for (const z of zs) for (const r of z.list || []) {
       if (/^(closed|impass)$/.test(r.st || "") || !r.geom || r.geom.length < 2) continue;
       if (!r.geom.some((p) => kmTo(p, th) < R)) continue;
@@ -655,7 +662,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     const pick = ok || near[near.length - 1];
     // A government road code ("R08938 251") isn't a name people know: a named road near it, else "the forest road".
     const named = (r) => r && r.name && !/^[A-Z]{0,2}\d[\w-]*(?:\s+\d+)?$/.test(r.name.trim()) ? r.name : "";
-    const nm = named(pick.r) || named((pts.find((x) => named(x.r) && kmTo(x.p, pick.p) < 0.3) || {}).r) || "the forest road";
+    const nm = named(pick.r) || named((pts.find((x) => named(x.r) && !x.r.pub === !pick.r.pub && kmTo(x.p, pick.p) < 0.3) || {}).r) || (pick.r.pub ? "the paved road" : "the forest road");
     const at = line == null ? "" : ok === near[0] ? ` (under the snow line, about ${line.toLocaleString("en-CA")} m)` : ` at the snow line, about ${line.toLocaleString("en-CA")} m`;
     return { p: [+pick.p[0].toFixed(6), +pick.p[1].toFixed(6)], name: nm, what: line === undefined ? "where the road comes closest (the snow line couldn't be read: drag it to where the car stops)" : line == null ? "where the road comes closest (no snow on the roads in the forecast)" : `where you leave the car${at}: drag it if the road is open higher` };
   }
