@@ -43,7 +43,8 @@
     doc: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h7"/>',
     warn: '<path d="M12 3 2 21h20z"/><path d="M12 10v5M12 18v.5"/>',
     gondola: '<path d="M2 5l20-3M12 3.5V8"/><rect x="6" y="8" width="12" height="11" rx="2"/><path d="M6 13h12"/>',
-    tent: '<path d="M12 4 2 20h20z"/><path d="M12 4v16M9 20l3-6 3 6"/>',
+    // A tent, not a warning sign (alex 2026-11-11 saw ⚠ on "Cabin trip"): poles crossed at the top, a door, the ground.
+    tent: '<path d="M3.5 20 12 6l8.5 14"/><path d="M2 20h20M12 6l-2-3M12 6l2-3M12 13l-3 7M12 13l3 7"/>',
     pin: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
     truck: '<path d="M2 16V8h11v8M13 11h5l3 3v2h-8"/><circle cx="6.5" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>',
     compass: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',
@@ -59,6 +60,22 @@
     heart: '<path d="M12 20s-8-4.8-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9c0 6.2-8 11-8 11z"/>',
     cam: '<rect x="3" y="7" width="13" height="10" rx="2"/><path d="m16 11 5-3v8l-5-3"/>',
     paw: '<circle cx="7" cy="9" r="1.8"/><circle cx="12" cy="6.5" r="1.8"/><circle cx="17" cy="9" r="1.8"/><path d="M12 12c-3 0-5 3.5-5 5.5 0 1.5 1.3 2.2 2.5 2L12 19l2.5.5c1.2.2 2.5-.5 2.5-2 0-2-2-5.5-5-5.5z"/>',
+    // The cabin trip's sections and buttons (alex 2026-11-11: "i dont really like the emoji", wanted icons like the
+    // Touring / Nordic / Snowmobile / Resorts buttons).
+    pack: '<path d="M9 6V4.5a3 3 0 0 1 6 0V6"/><rect x="5" y="6" width="14" height="15" rx="3"/><path d="M9 13h6v4H9zM5 11h14"/>',
+    pot: '<path d="M4 10h16v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M2 10h2M20 10h2M9.5 6.5c0-1 1-1.2 1-2.5M13.5 6.5c0-1 1-1.2 1-2.5"/>',
+    cash: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9.5v.01M18 14.5v.01"/>',
+    buoy: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="m5.6 5.6 3.6 3.6M14.8 14.8l3.6 3.6M18.4 5.6l-3.6 3.6M9.2 14.8l-3.6 3.6"/>',
+    book: '<path d="M5 5a2 2 0 0 1 2-2h11v15H7a2 2 0 0 0-2 2z"/><path d="M5 20a2 2 0 0 0 2 2h11v-4M9 7.5h5"/>',
+    share: '<path d="M12 15V3.5M7.5 8 12 3.5 16.5 8"/><path d="M5 12v8.5h14V12"/>',
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    trash: '<path d="M4 7h16M10 7V4h4v3M6 7l1 13h10l1-13M10 11v5.5M14 11v5.5"/>',
+    alarm: '<circle cx="12" cy="13" r="7.5"/><path d="M12 9v4l2.5 2M3 5.5 5.5 3M21 5.5 18.5 3"/>',
+    check: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
+    car: '<path d="M3 17v-5l2.2-5h13.6L21 12v5z"/><path d="M3 12h18M5 17v2.5M19 17v2.5"/><circle cx="7.5" cy="14.5" r=".6"/><circle cx="16.5" cy="14.5" r=".6"/>',
+    bed: '<path d="M3 5v15M3 16h18v4M21 16v-3.5a3 3 0 0 0-3-3h-7.5V16"/><circle cx="6.8" cy="12.3" r="1.8"/>',
+    fire: '<path d="M12 21c-3.9 0-7-2.6-7-6.4 0-3.4 2.8-5.4 4-9.6 2 1.5 3 3.4 3 5.4.9-.8 1.5-2 1.6-3.2C16 9.2 19 12 19 14.6c0 3.8-3.1 6.4-7 6.4z"/>',
+    timer: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l3 2M9 2.5h6"/>',
   };
   // Emoji (and the few text symbols used as icons) -> drawing. The tab bar and map buttons draw the sports the same way.
   const E = {
@@ -68,6 +85,9 @@
     "🔔": "bell", "⤢": "expand", "👤": "user", "🤝": "people", "✉": "mail", "🔒": "lock", "📜": "doc", "⚠": "warn",
     "🚡": "gondola", "🏕": "tent", "📍": "pin", "🛻": "truck", "🧭": "compass", "➚": "route", "⛽": "fuel", "💧": "drop",
     "🗺": "map", "📅": "calendar", "❄": "snow", "🎫": "ticket", "➕": "plus", "▶": "play", "📹": "cam", "🐾": "paw",
+    "🎒": "pack", "🍲": "pot", "💵": "cash", "💲": "cash", "🛟": "buoy", "📓": "book", "📤": "share", "🔗": "link", "🗑": "trash",
+    "⏰": "alarm", "✅": "check", "✏": "pencil", "⬇": "download", "👥": "people", "🚗": "car", "🛏": "bed", "🔥": "fire", "⏱": "timer",
+    "🎉": "sparkle",
   };
   const draw = (k, size) => `<svg class="tf-line" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[k]}</svg>`;
   const keyOf = (s) => {
