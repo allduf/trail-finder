@@ -93,12 +93,13 @@ dialog.hc-dlg .hc-near button { font: inherit; font-size: .84rem; font-weight: 7
   btn.textContent = "🚁 Heli and cat skiing";
   const listBtn = document.createElement("button");
   listBtn.type = "button"; listBtn.className = "hc-open";
-  listBtn.textContent = "🚁 Heli and cat skiing across Canada";
+  listBtn.textContent = "🚁 Heli and cat skiing";
+  listBtn.title = "Heli and cat skiing across Canada";
   function place() {
     if (!btn.isConnected && window.tfSkiSlot) window.tfSkiSlot("resort", btn, { label: "Heli and cat skiing", sym: "🚁", bg: `linear-gradient(135deg, ${C.heli} 50%, ${C.cat} 50%)` });
     if (!listBtn.isConnected) {
-      const after = document.querySelector("#skiPane .sa-open") || document.querySelector("#skiPane .sk-acts");
-      if (after) after.after(listBtn);
+      const ex = document.getElementById("skExplore"), after = document.querySelector("#skiPane .sa-open") || document.querySelector("#skiPane .sk-acts");
+      if (ex) ex.append(listBtn); else if (after) after.after(listBtn);
     }
   }
   // Canada's operators only: hidden while the map is in Japan (alex 2026-10-30).
