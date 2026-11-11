@@ -1,0 +1,1 @@
+Skiing: the panel no longer has a long list of routes. Find routes on the map, or type a name in the search box. ||| Ski : le panneau n'a plus de longue liste d'itinéraires. Trouvez-les sur la carte, ou tapez un nom dans la recherche.

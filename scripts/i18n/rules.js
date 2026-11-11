@@ -79,6 +79,8 @@
     [/^Winter route · ([\d.,]+) km long$/, "Itinéraire d'hiver · $1 km de long"],
     [/^within ([\d.,]+ k?m)$/, "à moins de $1"],
     [/^(\d+) more$/, "$1 de plus"],
+    [/^Show (\d+) more$/, "En afficher $1 de plus"],
+    [/^(\d+) more in view$/, "$1 de plus à l'écran"],
     [/^and (\d+) more \(🚧 layer\)$/, "et $1 de plus (couche 🚧)"],
     [/^(\d+) closures or warnings$/, "$1 fermetures ou avertissements"],
     [/^(\d+) open now$/, "$1 ouvertes maintenant"],
