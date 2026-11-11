@@ -21,6 +21,8 @@
     [/^No tour mapped on (.+): finding the closest road to it…$/, "Aucune sortie tracée sur $1 : recherche de la route la plus proche…"],
     [/^No ski tour is mapped on (.+) in the app yet, so this one starts from the closest road to it\.$/, "Aucune sortie de ski n'est encore tracée sur $1 dans l'appli : celle-ci part donc de la route la plus proche."],
     [/^A tour to (.+)$/, "Une sortie vers $1"],
+    [/^No ski tour is mapped on (.+) in the app yet\. Pick how to go$/, "Aucune sortie de ski n'est encore tracée sur $1 dans l'appli. Choisissez comment y aller"],
+    [/^From the closest road, (.+)$/, "Depuis la route la plus proche, $1"],
     [/^(.+) from the top in a straight line$/, function (m, d) { return (d === "under 1 km" ? "moins de 1 km" : d) + " du sommet à vol d'oiseau"; }],
     [/^at the top of (.+)$/, "au sommet de $1"],
     [/^about ([\d,\s]+) m high$/, function (m, h) { return "environ " + h.replace(/,/g, " ") + " m d'altitude"; }],
