@@ -823,6 +823,34 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return off;
   }
   if (oneGround(null).length) store.set("skiLayers2", [...shown]);
+  // While a ground colour is on, every other Skiing layer is off too (alex 2026-11-11: "when you activate one of those
+  // layer turn off all the other layer until you close it. so the app wont lag as much"): the lines, pins and other
+  // files' switches (Webcams, Lift status...) that were on are kept in quiet.was and come back when the last ground
+  // colour goes off. One turned on by hand meanwhile stays on. Plan a tour's own Slope angle doesn't do this (its route
+  // lines are needed), nor does a list saved before.
+  const quiet = { was: store.get("skiQuietWas", null) };
+  const groundOn = () => GROUND.some((x) => (x === "avy" ? avyOn : shown.has(x)));
+  if (quiet.was && !groundOn()) { quiet.was = null; store.set("skiQuietWas", null); }
+  // Other files' switches that are on, in the Skiing Layers menu (not Avalanche risk, a ground colour, nor the Japan
+  // topo map, a base map).
+  const slotsOn = () => [...document.querySelectorAll('.lm-ski .sk-slot button[aria-pressed="true"]')].filter((b) => b.id && b.id !== "avyBtn" && b.id !== "jpTopoBtn");
+  function quietOthers() {
+    if (quiet.was || !groundOn()) return;   // already quiet: one ground colour for another keeps the first list
+    const keys = [...shown].filter((x) => !GROUND.includes(x)), btns = slotsOn();
+    if (!keys.length && !btns.length) return;
+    quiet.was = { keys, btns: btns.map((b) => b.id) };
+    store.set("skiQuietWas", quiet.was);
+    keys.forEach((x) => shown.delete(x));
+    btns.forEach((b) => b.click());
+  }
+  function bringBack() {
+    if (!quiet.was || groundOn()) return;
+    const w = quiet.was;
+    quiet.was = null; store.set("skiQuietWas", null);
+    w.keys.forEach((x) => shown.add(x));
+    w.btns.forEach((id) => { const b = $(id); if (b && b.getAttribute("aria-pressed") !== "true") b.click(); });
+    if (w.keys.includes("club")) loadClubs();
+  }
   let selected = null;   // route or hut object
   // A tour being planned: the points tapped on the map (kept on this device), drawn as an orange line.
   const plan = { on: false, pts: store.get("skiPlan", []), layer: L.layerGroup(), slopeWas: false, groundWas: [], timer: 0,
@@ -1319,6 +1347,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const k = b.dataset.k;
     if (b.checked) shown.add(k); else shown.delete(k);
     const off = b.checked ? oneGround(k) : [];
+    if (GROUND.includes(k)) (b.checked ? quietOthers : bringBack)();
     if (k === "club" && b.checked) loadClubs();
     applySwitches();
     if (off.includes("avy")) refreshAvy();
@@ -4821,6 +4850,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // as snow"): where less than 1 cm of snow comes, the rain (mm) is coloured instead, so the valleys aren't left bare.
   const RAIN_MM = [[1, "#d3f9d8"], [5, "#8ce99a"], [10, "#51cf66"], [25, "#2f9e44"], [50, "#1b6e30"]];
   const RAIN_RGB = RAIN_MM.map(([v, c]) => [v, ...rgb(c)]);
+  const MIX = "#ffe066", MIX_RGB = rgb(MIX);   // snow and rain mixed, each under its first step (paintSnowBy)
   // Tiles stop at zoom 10 (maxNative): the grid is 7-11 km between points, so closer tiles only drew the same colours
   // with 4x as many pieces, and every piece arriving repaints the 3D ground under it (half the 3D map's lag with Snow
   // forecast on, measured over Whistler).
@@ -5025,7 +5055,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         if (!(e >= 0)) e = 0;
         let sn = 0, rn = 0;
         for (let m = 0; m < 4; m++) { const [a, b] = atHeight(vals[q[m]], e); sn += a * ws[m]; rn += b * ws[m]; }
-        const col = snowColor(sn) || snowColor(rn, RAIN_RGB);
+        // Under 1 cm of snow and under 1 mm of rain, but 1 mm of water or more as both: the band where snow turns to
+        // rain. It was left bare, a dark hole in the tint (alex 2026-11-11, by Pemberton); it gets its own colour, "mix".
+        const col = snowColor(sn) || snowColor(rn, RAIN_RGB) || (sn > 0.05 && rn > 0.05 && sn / CM_PER_MM + rn >= 1 ? MIX_RGB : null);
         if (!col) continue;
         const k = (py * 256 + px) * 4;
         o[k] = col[0]; o[k + 1] = col[1]; o[k + 2] = col[2]; o[k + 3] = 150;
@@ -5077,7 +5109,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (shown.has("flats")) out.push(bar(map.getZoom() < 11 ? "Flats: zoom in" : "Flats", [[`rgba(${FLAT_RGB.join(",")},.6)`, `under ${FLAT_DEG}°`]]));
       if (shown.has("elev")) out.push(bar("Elevation bands", ELEV.map((e) => [e[2], e[1].replace("Below treeline", "Below TL")])));
       const cm = SNOW_CM.slice(0, 6).map(([v, c], i) => [c, i === 5 ? `${v}+` : String(v)]);
-      const mm = RAIN_MM.map(([v, c], i) => [c, i === RAIN_MM.length - 1 ? `${v}+` : String(v)]);
+      const mm = [[MIX, "mix"], ...RAIN_MM.map(([v, c], i) => [c, i === RAIN_MM.length - 1 ? `${v}+` : String(v)])];
       if (shown.has("fresh")) out.push(bar("New snow, last 24 h (cm)", cm), bar("Rain instead, last 24 h (mm)", mm));
       if (shown.has("snowfc1")) out.push(bar("Snow coming, next 24 h (cm)", cm), bar("Rain instead, next 24 h (mm)", mm));
       if (shown.has("snowfc2")) out.push(bar("Snow coming, next 2 days (cm)", cm), bar("Rain instead, next 2 days (mm)", mm));
@@ -5165,7 +5197,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   avyBtn.title = "Shade the slopes by the avalanche forecast (Avalanche Canada)";
   avyBtn.addEventListener("click", () => {
     avyOn = !avyOn; store.set("avy", avyOn);
-    if (avyOn && oneGround("avy").length) applySwitches();
+    const was = !!quiet.was;
+    avyOn ? quietOthers() : bringBack();
+    if ((avyOn && oneGround("avy").length) || was !== !!quiet.was) applySwitches();
     if (avyOn && map.getZoom() < 9) map.setZoom(10);
     refreshAvy();
   });
