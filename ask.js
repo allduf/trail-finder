@@ -661,7 +661,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     const ok = line == null ? near[0] : near.find((x, i) => es[i] != null && es[i] <= line);
     const pick = ok || near[near.length - 1];
     // A government road code ("R08938 251") isn't a name people know: a named road near it, else "the forest road".
-    const named = (r) => r && r.name && !/^[A-Z]{0,2}\d[\w-]*(?:\s+\d+)?$/.test(r.name.trim()) ? r.name : "";
+    const named = (r) => r && r.name && !/^[A-Z]{0,2}\d[\w-]*(?:\s+(?:\d+|[A-Z0-9][A-Z0-9-]*))?$/.test(r.name.trim()) ? r.name : "";
     const nm = named(pick.r) || named((pts.find((x) => named(x.r) && !x.r.pub === !pick.r.pub && kmTo(x.p, pick.p) < 0.3) || {}).r) || (pick.r.pub ? "the paved road" : "the forest road");
     const at = line == null ? "" : ok === near[0] ? ` (under the snow line, about ${line.toLocaleString("en-CA")} m)` : ` at the snow line, about ${line.toLocaleString("en-CA")} m`;
     return { p: [+pick.p[0].toFixed(6), +pick.p[1].toFixed(6)], name: nm, what: line === undefined ? "where the road comes closest (the snow line couldn't be read: drag it to where the car stops)" : line == null ? "where the road comes closest (no snow on the roads in the forecast)" : `where you leave the car${at}: drag it if the road is open higher` };
@@ -840,12 +840,24 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     if (ch) ch.innerHTML = `<li>🗺 Plan a tour</li><li>📍 ${esc(at.name)}</li>${later ? `<li>📅 ${esc(dayName(later))}</li>` : ""}`;
     const ht = top.e != null ? `about ${Math.round(top.e).toLocaleString("en-CA")} m high` : "";
     const far = st ? kmTo(st.p, top.p) : 0;
-    out.innerHTML = `<p class="ask-note">No ski tour is mapped on ${esc(at.name)} in the app yet, so this one starts from the closest road to it.</p>
-      ${st ? `<h3>Your tour</h3><ol class="ask-plan"><li><b>Start</b> at ${esc(st.name)} <small>${esc(st.what)}</small> <small>${fmtKm(far)} from the top in a straight line</small></li>
-        <li><b>Finish</b> <span>at the top of ${esc(at.name)}</span>${ht ? ` <small>${ht}</small>` : ""}</li></ol>${planBtns(true, later)}`
-      : `<p class="ask-note ask-warn">No drivable road is mapped within 15 km of ${esc(at.name)}. The map is there now: tap it where you start, then ✎ Edit my tour adds the rest.</p>`}
+    // Two ways (alex 2026-11-11: "you can give 2 option a shorter way and the longer"): from the closest road, and
+    // the less exposed way in from the plowed road that gives it (ski-route.js fromRoad, the This spot card's Safest
+    // way here: it picks the road too, within 9 km). Which is shorter is only known once both are worked out (Microwave
+    // Ridge: 19.7 km from Pemberton Portage Road, 15.8 km from the road picked), so neither is named shorter here.
+    const both = !!(S.safeTo && top.e != null);
+    out.innerHTML = `<p class="ask-note">No ski tour is mapped on ${esc(at.name)} in the app yet. Pick how to go:</p>
+      ${st ? `<ol class="ask-plan"><li><b>Start</b> at ${esc(st.name)} <small>${esc(st.what)}</small> <small>${fmtKm(far)} from the top in a straight line</small></li>
+        <li><b>Finish</b> <span>at the top of ${esc(at.name)}</span>${ht ? ` <small>${ht}</small>` : ""}</li></ol>
+        <button type="button" class="ask-act" data-plan-safe>🗺 From the closest road, ${esc(st.name)}</button>
+        <p class="ask-note">The less exposed way from this road to the top. It goes around steep ground, so it can be much longer than the straight line.</p>` : ""}
+      ${both ? `<button type="button" class="ask-act${st ? " ask-act2" : ""}" data-from-road>🛡 From the road the app picks</button>
+        <p class="ask-note">The least exposed way to the top from any plowed road or parking lot within 9 km. The start can be farther away.</p>` : ""}
+      ${st || both ? `<p class="ask-note">Both weigh today's avalanche danger, slope angle, which way slopes face and what's above you. Your tour is kept in Saved. No route is avalanche-safe: check the forecast and decide in the field.</p>`
+        : `<p class="ask-note ask-warn">No drivable road is mapped within 15 km of ${esc(at.name)}. The map is there now: tap it where you start, then ✎ Edit my tour adds the rest.</p>`}
       ${others ? `<button type="button" class="ask-more" data-others>Show the ${others} ski tours nearby instead</button>` : ""}`;
     wirePlan(out, pts, later);
+    const fr = out.querySelector("[data-from-road]");
+    if (fr) fr.addEventListener("click", () => { logUse("pick", "Ask spot from road"); close(); S.safeTo(top.p[0], top.p[1]); });
     return true;
   }
 

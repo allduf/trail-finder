@@ -5307,6 +5307,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (window.tfPanelScrollTo) setTimeout(() => window.tfPanelScrollTo($("skPlan")), 50);
     },
     loadJs: (n) => loadJs(n),
+    // Ask (ask.js): the less exposed way in to a spot from the plowed road that gives it (as This spot's Safest way here).
+    safeTo: (lat, lon) => { if (sport !== "ski") setSport("ski"); if (plan.on) setPlanning(false); safeTo(lat, lon); },
     KIND, HUT_ABOUT, DANGER, BANDS, WICON, COMPASS,
   };
   window.tfSkiOffline = (box) => {
