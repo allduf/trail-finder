@@ -2071,6 +2071,7 @@
     "Find the least exposed way in":"Trouver le chemin le moins exposé",
     "Skiing: when Ask plans a tour to a mountain or ridge with no tour on it, Show both ways on the map draws two less exposed ways, each with its length and time: tap the one you want, on the map or in the list.":"Ski : quand Demander planifie une sortie vers une montagne ou une crête sans sortie tracée, Voir les deux chemins sur la carte trace deux chemins moins exposés, chacun avec sa longueur et sa durée : touchez celui que vous voulez, sur la carte ou dans la liste.",
     "3D: tilting now swings around the spot in the middle of the view, which keeps the same size, so tilting no longer zooms in or out. The camera stops before it would dip into the ground.":"3D : incliner la vue tourne maintenant autour de l'endroit au milieu de la vue, qui garde la même taille, donc incliner ne fait plus de zoom. La caméra s'arrête avant de plonger dans le sol.",
+    "Tom's Hut is off the map, the cabin trip planner, Ask and search.":"Tom's Hut a été retiré de la carte, du planificateur de séjour en refuge, de Demander et de la recherche.",
     "Safest way here":"Trajet le plus sûr jusqu'ici",
     "Find the safest way":"Trouver le trajet le plus sûr",
     "Safest way: on":"Trajet le plus sûr : activé",

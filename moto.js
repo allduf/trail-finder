@@ -710,6 +710,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const room = [], GAP = 24;
     const put = (k, p) => {
       if (!b.contains([p[0], p[1]])) return;
+      if (k === "camp" && window.tfHiddenPlace && window.tfHiddenPlace({ n: p[2], lat: p[0], lon: p[1] })) return;   // hidden-places.js (Tom's Hut)
       pts3d.push({ k, p });   // the 3D map leaves out its own crowded ones (pts3dData), from its own view
       const q = map.latLngToContainerPoint([p[0], p[1]]);
       if (room.some((o) => Math.abs(o.x - q.x) < GAP && Math.abs(o.y - q.y) < GAP)) return;

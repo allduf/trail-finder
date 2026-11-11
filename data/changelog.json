@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-11", "text": "Tom's Hut is off the map, the cabin trip planner, Ask and search."},
     {"date": "2026-11-11", "text": "3D: tilting now swings around the spot in the middle of the view, which keeps the same size, so tilting no longer zooms in or out. The camera stops before it would dip into the ground."},
     {"date": "2026-11-11", "text": "3D: scrolling with a mouse wheel or trackpad zooms steadily now. With the view tilted up and the mouse near the horizon, it no longer jumps the camera far off toward that spot and down close to the snow."},
     {"date": "2026-11-11", "text": "Skiing: when Ask plans a tour to a mountain or ridge with no tour on it, Show both ways on the map draws two less exposed ways, each with its length and time: tap the one you want, on the map or in the list."},

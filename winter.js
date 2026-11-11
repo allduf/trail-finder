@@ -871,9 +871,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // The home file (first) adds the entries no map hut matched; the Canada squares loaded later leave out a hut
   // already added that way (its map tags join the added one).
   function hutFacts(list, first) {
-    if (!hutInfo) return list;
+    const gone = window.tfHiddenPlace || (() => false);   // hidden-places.js: huts taken off by hand (Tom's Hut)
+    if (!hutInfo) return list.filter((h) => !gone(h));
     const out = [];
     for (const h of list) {
+      if (gone(h)) continue;
       const e = hutEntry(h);
       if (e && e.added) {
         const a = e.added;
@@ -884,7 +886,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       out.push(withFacts(h, e));
     }
     if (first) hutInfo.huts.forEach((e, i) => {
-      if (e.found || e.added || e.lat == null) return;
+      if (e.found || e.added || e.lat == null || gone(e)) return;
       e.added = withFacts({ id: "club" + i, src: "club", name: e.name, kind: e.kind || "alpine_hut", lat: e.lat, lon: e.lon, tags: {} }, e);
       out.push(e.added);
     });
