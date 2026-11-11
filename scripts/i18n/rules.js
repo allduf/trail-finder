@@ -21,6 +21,8 @@
     [/^(paid by (.+)|who paid\?)(?: · split with (.+))?$/, function (m, a, by, w) { return (by ? "payé par " + by : "qui a payé?") + (w ? " · partagé avec " + (w === "everyone" ? "tout le monde" : w) : ""); }],
     [/^added by (.+)$/, function (m, n) { return "ajouté par " + n; }],
     [/^Got it: what you add shows "added by (.+)"\.$/, function (m, n) { return "C'est noté : ce que vous ajoutez affiche « ajouté par " + n + " »."; }],
+    [/^(\d+) shared items? (?:has|have) no one yet: tap Who\? beside it\.$/, function (m, n) { return n + (n === "1" ? " article commun n'a" : " articles communs n'ont") + " personne pour l'instant : touchez Qui ? à côté."; }],
+    [/^(.+) brings it\.$/, function (m, n) { return n + " l'apporte."; }],
     [/^Added you to the group as (.+)\.$/, function (m, n) { return "Vous êtes ajouté au groupe : " + n + "."; }],
     [/^Open Trail Finder: update your (.+) trip$/, function (m, h) { return "Ouvrez Trail Finder : mettez à jour votre séjour " + h; }],
     // liability-safe wording (2026-11-11)

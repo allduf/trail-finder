@@ -135,6 +135,13 @@
 #skiPane .tp-pkrow .tf-grip { width: 30px; margin-right: -6px; }
 #skiPane .tp-pkrow .tp-who { flex: none; width: 104px; font-size: 13px; padding: 5px 4px; color: var(--muted); }
 #skiPane .tp-pkrow .tp-who.set { color: var(--fg); font-weight: 700; border-color: ${COL}; background: color-mix(in srgb, ${COL} 8%, var(--bg)); }
+#skiPane .tp-whos { margin: 4px 0 6px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); }
+#skiPane .tp-whos h5 { margin: 0 0 4px; }
+#skiPane .tp-whos ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: .86rem; }
+#skiPane .tp-whos li { display: flex; gap: 8px; }
+#skiPane .tp-whos li b { flex: none; min-width: 52px; }
+#skiPane .tp-whos li i { font-style: normal; }
+#skiPane .tp-whos .sk-note { margin: 4px 0 0; }
 #skiPane .tp-bar { height: 10px; border-radius: 999px; background: var(--chip); overflow: hidden; margin: 4px 0 6px; border: 1px solid var(--line); }
 #skiPane .tp-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, ${COL}, #20c997); transition: width .4s ease; }
 #skiPane .tp-ready { margin: 4px 0; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #20c997 16%, var(--panel)); font-weight: 800; font-size: .9rem; animation: tppop .5s ease; }
@@ -649,15 +656,29 @@
     if ((pk.order || []).length) { const at = new Map(pk.order.map((k, i) => [k, i])), o = (x) => (at.has(x[0]) ? at.get(x[0]) : 1e9); G.forEach((g) => g[1].sort((a, b) => o(a) - o(b))); }
     return G.filter((x) => x[1].length);
   }
+  // Who brings a shared item (alex 2026-11-11: "how do you assign who brings some item? maybe in a share item list"):
+  // Who? on every shared item and your own items, there even before the group has names ("Add a name…" adds one and
+  // puts it on that item), and Who brings what at the top: each person's items, and how many shared items have no one.
+  const gearSel = (t, k) => { const v = (t.gear || {})[k];
+    return `<select data-gear="${esc(k)}" class="tp-who${v ? " set" : ""}" aria-label="Who brings it">${[`<option value="">Who?</option>`, ...names(t).map((n) => `<option ${n === v ? "selected" : ""}>${esc(n)}</option>`), ...(v && !names(t).includes(v) ? [`<option selected>${esc(v)}</option>`] : []), `<option value="+add">Add a name…</option>`].join("")}</select>`; };
+  function whoHtml(t, G) {
+    const items = G.flatMap((g) => g[1]).filter((x) => isGroupGear(x[0])), gear = t.gear || {}, by = new Map();
+    for (const x of items) { const w = gear[x[0]]; if (w) { if (!by.has(w)) by.set(w, []); by.get(w).push(x[1].replace(/:.*$/, "")); } }
+    const open = items.filter((x) => !gear[x[0]]).length;
+    if (!by.size) return `<p class="sk-note">Tap Who? beside a shared item (stove, first aid, your own items) to say who brings it, so nobody brings two.</p>`;
+    const order = [...names(t).filter((n) => by.has(n)), ...[...by.keys()].filter((n) => !names(t).includes(n))];
+    return `<div class="tp-whos"><h5>Who brings what</h5><ul>${order.map((n) => `<li><b>${esc(n)}</b><span>${by.get(n).map((x) => `<i>${esc(x)}</i>`).join(", ")}</span></li>`).join("")}</ul>${open ? `<p class="sk-note">${open} shared item${open > 1 ? "s have" : " has"} no one yet: tap Who? beside it.</p>` : ""}</div>`;
+  }
+  let gearFor = "";   // the item waiting for a name typed in Your group (Who? › Add a name…)
   function packHtml(t) {
     const G = packList(t), done = packDone(t), auto = { offline: !!t.offAt, plan: !!(t.plan && t.plan.sent) }, all = G.flatMap((x) => x[1]), n = all.filter((x) => done[x[0]]).length;
     // Every row: tick it, ✕ to take it off, hold ☰ and drag it up or down, or into another section (alex 2026-11-11).
-    const body = G.map(([h, items]) => `<h5 data-h="${esc(h)}">${esc(h)}</h5>${items.map(([k, label, home]) => `<div class="tp-pkrow" data-k="${esc(k)}" data-home="${esc(home)}" data-sec="${esc(h)}"><label class="tp-check"><input type="checkbox" data-pk="${k}" ${done[k] ? "checked" : ""} ${auto[k] ? "disabled" : ""}> <span>${esc(label)}${home === "Your own items" ? byHtml(t, (t.own || []).find((y) => y.k === k)) : ""}</span></label>${isGroupGear(k) && names(t).length ? whoSel(t, `data-gear="${k}" class="tp-who${(t.gear || {})[k] ? " set" : ""}"`, (t.gear || {})[k], "Who?") : ""}<button type="button" class="tp-pkx" data-pkrm="${esc(k)}" aria-label="Take ${esc(label)} off the list">✕</button>${window.tfGrip || ""}</div>`).join("")}`).join("");
+    const body = G.map(([h, items]) => `<h5 data-h="${esc(h)}">${esc(h)}</h5>${items.map(([k, label, home]) => `<div class="tp-pkrow" data-k="${esc(k)}" data-home="${esc(home)}" data-sec="${esc(h)}"><label class="tp-check"><input type="checkbox" data-pk="${k}" ${done[k] ? "checked" : ""} ${auto[k] ? "disabled" : ""}> <span>${esc(label)}${home === "Your own items" ? byHtml(t, (t.own || []).find((y) => y.k === k)) : ""}</span></label>${isGroupGear(k) ? gearSel(t, k) : ""}<button type="button" class="tp-pkx" data-pkrm="${esc(k)}" aria-label="Take ${esc(label)} off the list">✕</button>${window.tfGrip || ""}</div>`).join("")}`).join("");
     const pct = all.length ? Math.round((n / all.length) * 100) : 0;
     return `<details class="tp-pack" ${t.packOpen ? "open" : ""}><summary>🎒 Packing list <small>${n} of ${all.length} packed</small></summary>
       <div class="tp-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Packed"><i style="width:${pct}%"></i></div>
       ${n && n === all.length ? `<p class="tp-ready">🎉 Your bag is ready. Have a great trip!</p>` : ""}
-      ${names(t).length ? "" : `<p class="sk-note">Add your group's names (👥 Your group) to put a name on shared gear like the stove, so nobody brings two.</p>`}
+      ${whoHtml(t, G)}
       ${body}
       <form class="tp-addf" data-pkadd="1"><input type="text" maxlength="80" placeholder="Add an item" autocomplete="off" enterkeyhint="done" aria-label="Add an item to the packing list"><button type="submit">Add</button></form>
       <p class="sk-note">Hold ☰ to drag an item up or down. What you take off (✕) or add stays that way for your next trips too.</p>
@@ -1015,10 +1036,18 @@
       if (Object.keys(x).length) m[k] = x; else delete m[k];
       t.meals = m; putTrip(t); return;
     }
+    if (el.dataset.gear && el.value === "+add") {   // a new name for this item: Your group opens with its box ready
+      gearFor = el.dataset.gear; el.value = (t.gear || {})[gearFor] || "";
+      t.grpOpen = true; const d = card.querySelector("#tpGroup details"); if (d) d.open = true;
+      const i = card.querySelector("[data-gadd] input");
+      if (i) { if (window.tfPanelScrollTo) window.tfPanelScrollTo($("tpGroup")); setTimeout(() => i.focus(), 120); }
+      toast("Type their name and tap Add: it goes on that item.");
+      return;
+    }
     if (el.dataset.gear) {
       t.gear = { ...(t.gear || {}) };
       if (el.value) t.gear[el.dataset.gear] = el.value; else delete t.gear[el.dataset.gear];
-      putTrip(t); return;
+      putTrip(t); renderPack(); return;   // Who brings what follows
     }
     if (el.dataset.me) { store.set("tripMe", { ...me(), [el.dataset.me]: el.value.trim().slice(0, 30) }); return; }
     if (el.dataset.photo && el.files && el.files.length) {
@@ -1036,6 +1065,10 @@
       if (names(t).some((x) => x.toLowerCase() === n.toLowerCase())) { toast("That name is in the group already."); return; }
       t.group = [...(t.group || []), { k: uid("g"), n }];
       if (t.group.length > t.people) t.people = t.group.length;
+      if (gearFor) {   // Who? › Add a name…: the new name goes on that item, and you're back at it
+        const k = gearFor; gearFor = ""; t.gear = { ...(t.gear || {}), [k]: n }; putTrip(t); render(); toast(`${n} brings it.`);
+        const r = card.querySelector(`.tp-pkrow[data-k="${CSS.escape(k)}"]`); if (r && window.tfPanelScrollTo) setTimeout(() => window.tfPanelScrollTo(r), 80); return;
+      }
       putTrip(t); render(); const i = card.querySelector("[data-gadd] input"); if (i) i.focus(); return;
     }
     if (f.dataset.cadd) {

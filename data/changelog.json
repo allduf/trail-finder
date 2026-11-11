@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-11", "text": "Packing list: Who? is beside every shared item and your own items, even before you add the group's names (Add a name… adds one), and Who brings what at the top lists each person's items."},
     {"date": "2026-11-11", "text": "New: Tutorials, short videos that show how to use each feature. Open them from More › Tutorials, from the top of How it works, or from the Watch how button in a feature. The first one shows how to plan a cabin trip. A video only downloads when you tap it."},
     {"date": "2026-11-11", "text": "Skiing, Winter map: last winter's satellite photos (Sentinel-2) now cover all of Canada when zoomed out, under the more detailed photos around ski spots."},
     {"date": "2026-11-11", "text": "Cabin trips: a trip with no cabin keeps its list of cabins nearby after you add a name or change the dates, Booked no longer shows crossed out, and the way in isn't listed again under Day tours."},
