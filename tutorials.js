@@ -11,10 +11,11 @@
   "use strict";
   if (window.tfTutorials) return;
   // sport: the line icon and heading it's listed under (mtb, ski, hunt, fish, moto, hike, or all for the whole app).
-  // Empty until alex picks the videos (2026-11-11: "dont put any video in until i tell you which one to put"). While it's
-  // empty, nothing shows: no More › Tutorials, no button in How it works, no Watch how in a feature. A line looks like:
-  //   { id: "cabin-trip", sport: "ski", title: "Plan a cabin trip", sub: "Pick a hut, the way in, your group, packing, meals and costs, then share the trip", src: "videos/cabin-trip.mp4", poster: "videos/cabin-trip.jpg", secs: 92 },
+  // Only videos alex picked (2026-11-11: "dont put any video in until i tell you which one to put"). While it's
+  // empty, nothing shows: no More › Tutorials, no button in How it works, no Watch how in a feature.
+  // cabin-trip: alex 2026-11-11 ("you can add that in the tutorial video for skiing mode").
   const LIST = [
+    { id: "cabin-trip", sport: "ski", title: "Plan a cabin trip", sub: "Pick a hut, the way in, your crew, ski lines, packing, meals and costs, then share the trip", src: "videos/cabin-trip.mp4", poster: "videos/cabin-trip.jpg", secs: 94 },
   ];
   const SPORTS = { all: ["The whole app", "✨"], mtb: ["MTB", "🚵"], ski: ["Skiing", "⛷"], hunt: ["Hunting", "🦌"], fish: ["Fishing", "🎣"], moto: ["Adventure moto", "🏍"], hike: ["Hiking", "🥾"] };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
