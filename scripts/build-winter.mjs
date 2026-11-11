@@ -844,7 +844,8 @@ function level(r) {
   for (const [k, v] of Object.entries(LEVELS)) if (s.includes(k)) return v;
   return 0;
 }
-const BAND = (s) => { s = val(s).toLowerCase(); return /alp/.test(s) ? "alp" : /tln|treeline|tl/.test(s) ? "tln" : /btl|below/.test(s) ? "btl" : ""; };
+// Below treeline first: "btl" also holds "tl", which used to read it as treeline (below-treeline problems were dropped).
+const BAND = (s) => { s = val(s).toLowerCase(); return /btl|below/.test(s) ? "btl" : /alp/.test(s) ? "alp" : /tln|treeline|tl/.test(s) ? "tln" : ""; };
 const ASPECTS = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
 const ASPECT = (s) => { s = val(s).toLowerCase().replace(/[^a-z]/g, ""); const short = { north: "n", northeast: "ne", east: "e", southeast: "se", south: "s", southwest: "sw", west: "w", northwest: "nw" }[s] || s; return ASPECTS.includes(short) ? short : ""; };
 
@@ -865,7 +866,7 @@ function normalizeForecast(p) {
     const size = d.expectedSize ? [d.expectedSize.min, d.expectedSize.max].filter((x) => x != null).join("-") : "";
     return {
       type: text(pr.type) || text(pr.name), aspects: [...new Set((d.aspects || []).map(ASPECT).filter(Boolean))],
-      elevations: [...new Set((d.elevations || []).map(BAND).filter(Boolean))], likelihood: text(d.likelihood), size,
+      elevations: ((s) => ["alp", "tln", "btl"].filter((b) => s.has(b)))(new Set((d.elevations || []).map(BAND))), likelihood: text(d.likelihood), size,
       comment: text(pr.comment).slice(0, 1200),
     };
   });

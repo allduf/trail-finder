@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-11", "text": "Avalanche: problems Avalanche Canada lists for below treeline now show on the card and in the darker slope shading. Before, the app read them as treeline and dropped them."},
     {"date": "2026-11-11", "text": "Cabin trips: while you draw a tour for a trip, tap any ski line to add it all. Your points are listed on the tour card to move up or down or delete, and ✎ on a drawn tour in the trip opens its points again."},
     {"date": "2026-11-11", "text": "Cabin trips: start a new trip without picking a cabin first (Cabin trip, then ＋ Start a new trip). Add the cabin when you know it, from the list or a cabin on the map."},
     {"date": "2026-11-11", "text": "3D: turning the view with the mouse is smooth again. It no longer stutters while you turn."},
