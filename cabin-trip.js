@@ -193,10 +193,21 @@
 
   // ---------- trips ----------
   const hutOf = (h) => ({ id: h.id, name: h.name || "", kind: h.kind || "", lat: h.lat, lon: h.lon, tags: h.tags || {} });
+  // A trip doesn't need a cabin to start (alex 2026-11-11: "I don't want to be obligated to select a cabin before starting
+  // organising the rest"): ＋ Start a new trip opens one with no cabin (t.hut null, named by you), and the cabin comes
+  // later, from the card's list or a cabin's 🏕 Use this cabin for… on the map.
+  const newTrip = () => ({ id: Date.now().toString(36), hut: null, name: "", date: addDays(localDate(new Date()), 1), nights: 2, people: 4, way: null, at: Date.now(), lines: [], ...packTpl() });
+  function setHut(t, h) {
+    t.hut = hutOf(h); t.way = null; t.wayFail = ""; t.tours = null; t.snap = null;
+    putTrip(t);
+    start(t);
+    toast(`${hutName(t)} is the cabin for this trip.`);
+  }
   function open(h) {
     if (!h) return;
-    const old = trips().find((x) => x.hut.id === h.id);
-    const t = old || { id: Date.now().toString(36), hut: hutOf(h), date: addDays(localDate(new Date()), 1), nights: 2, people: 4, way: null, at: Date.now(), lines: [], ...packTpl() };
+    if (cur && !cur.hut && !card.hidden) { setHut(cur, h); return; }   // the open trip had no cabin yet
+    const old = trips().find((x) => x.hut && x.hut.id === h.id);
+    const t = old || { ...newTrip(), hut: hutOf(h) };
     t.hut = { ...t.hut, ...hutOf(h), tags: { ...(t.hut.tags || {}), ...(h.tags || {}) } };   // newer facts about the cabin win
     start(t);
   }
@@ -209,6 +220,7 @@
     render();
     drawWay();
     scrollTo();
+    if (!t.hut) { nearCabins(); return; }
     if (t.way && t.way.src === "auto" && t.way.v !== WAY_V) { t.way = null; t.wayFail = ""; }
     if (!t.way && !/^(noroad|water)$/.test(t.wayFail || "")) findWay(t);
     loadDays(t);
@@ -219,7 +231,7 @@
     const d = Math.round((new Date(t.date + "T12:00") - new Date(localDate(new Date()) + "T12:00")) / 864e5);
     return d > 1 ? ` · <b>${d} days to go</b>` : d === 1 ? " · <b>tomorrow!</b>" : d === 0 ? " · <b>today!</b>" : -d <= t.nights ? " · <b>you're there</b>" : "";
   };
-  const hutName = (t) => t.hut.name || (S.KIND[t.hut.kind] || "Cabin");
+  const hutName = (t) => (t.hut ? t.name || t.hut.name || S.KIND[t.hut.kind] || "Cabin" : t.name || "My trip");
 
   // ---------- the way in ----------
   // The search from fish-route.js, back from the cabin to the best place to leave the car within 2, 5 or 9 km, with
@@ -286,7 +298,7 @@
     layer.clearLayers();
     const t = cur;
     if (!t || !isSki()) return;
-    L.circleMarker([t.hut.lat, t.hut.lon], { pane: "ski", radius: 9, color: "#fff", weight: 3, fillColor: COL, fillOpacity: 1, interactive: false }).addTo(layer);
+    if (t.hut) L.circleMarker([t.hut.lat, t.hut.lon], { pane: "ski", radius: 9, color: "#fff", weight: 3, fillColor: COL, fillOpacity: 1, interactive: false }).addTo(layer);
     for (const x of linesOf(t)) for (const l of x.ls) {
       L.polyline(l, { pane: "ski", color: "#fff", weight: 7, opacity: 0.9, interactive: false }).addTo(layer);
       L.polyline(l, { pane: "ski", color: LCOL, weight: 4, opacity: 1, interactive: false }).addTo(layer);
@@ -297,7 +309,8 @@
       L.marker(t.way.line[0], { pane: "ski", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html: `<span class="sk-pin park" style="background:#1f5fe0">P</span>`, iconSize: [22, 22], iconAnchor: [11, 11] }) }).addTo(layer);
     }
     if (!map.hasLayer(layer)) layer.addTo(map);
-    const b = tripBounds(t) || L.latLng(t.hut.lat, t.hut.lon).toBounds(3000);
+    const b = tripBounds(t) || (t.hut ? L.latLng(t.hut.lat, t.hut.lon).toBounds(3000) : null);
+    if (!b) return;
     if (!map.getBounds().contains(b)) map.fitBounds(b, { padding: [30, 30], maxZoom: 14 });
   }
   // Your own way in, drawn with Plan a tour: points from where you park to the cabin.
@@ -317,6 +330,7 @@
   // the cabin's height ± 300 m before there is one). Kept with the trip (t.snap) for when there's no signal.
   const tripDates = (t) => Array.from({ length: t.nights + 1 }, (_, i) => addDays(t.date, i));
   async function loadDays(t) {
+    if (!t.hut) return;
     const my = ++seq;
     const ele = t.way ? t.way.hut : parseFloat(t.hut.tags.ele) || null;
     let w = null, err = "";
@@ -350,7 +364,7 @@
   // The mapped tours and snowshoe routes that pass within 1.5 km of the cabin, for the full days you're there. A ★ puts
   // one in the trip plan you leave with a friend. Kept with the trip (t.tours) so the list shows with no signal.
   async function loadTours(t) {
-    if (!window.tfSki || !window.tfSki.near) return;
+    if (!t.hut || !window.tfSki || !window.tfSki.near) return;
     try {
       const r = await window.tfSki.near([t.hut.lat, t.hut.lon], 3, ["tour", "snowshoe", "other"]);
       t.tours = r.routes.filter((x) => x.d <= 1500).slice(0, 8).map((x) => ({ id: x.id, name: x.name, label: x.label, km: +x.km.toFixed(1), d: Math.round(x.d), pill: x.pill, c: x.c }));
@@ -379,7 +393,7 @@
   const thin = (l) => { const out = []; l.forEach((p, i) => { const q = r5(p); if (!out.length || i === l.length - 1 || map.distance(out.at(-1), q) >= 12) out.push(q); }); return out; };
   const lineKm = (ls) => ls.reduce((s, l) => s + l.reduce((a, p, i) => (i ? a + map.distance(l[i - 1], p) : 0), 0), 0) / 1000;
   function tripBounds(t) {
-    const pts = [[t.hut.lat, t.hut.lon], ...(t.way ? t.way.line : []), ...linesOf(t).flatMap((x) => x.ls.flat())];
+    const pts = [...(t.hut ? [[t.hut.lat, t.hut.lon]] : []), ...(t.way ? t.way.line : []), ...linesOf(t).flatMap((x) => x.ls.flat())];
     return pts.length > 1 ? L.latLngBounds(pts) : null;
   }
   const sameLine = (a, b) => (a.rid ? a.rid === b.rid : a.tour ? a.tour === b.tour : !b.rid && !b.tour && a.name === b.name);
@@ -424,8 +438,8 @@
     const way = w ? `<li><button type="button" data-tl="way"><span><i class="tp-sw way"></i>The way in <small>${w.km.toFixed(1)} km · ↑ ${fmtM(w.up)}</small></span></button></li>` : "";
     const rows = l.map((x) => `<li><button type="button" data-tl="${esc(x.id)}"><span><i class="tp-sw"></i>${esc(x.name)} <small>${[x.label, x.km.toFixed(1) + " km"].filter(Boolean).map(esc).join(" · ")}</small></span></button><button type="button" class="tp-rm" data-tlrm="${esc(x.id)}" aria-label="Take ${esc(x.name)} off this trip">✕</button></li>`).join("");
     return `${way || rows ? `<ul class="tp-list tp-tours">${way}${rows}</ul>` : ""}
-      ${l.length ? "" : `<p class="sk-note">No lines yet. Tap any ski line on the map and then <b>🏕 Add to cabin trip</b>, ★ a tour near the cabin below, or draw your own.</p>`}
-      <div class="tp-btns"><button type="button" data-tp="drawline">✏️ Draw a tour from the cabin</button>${l.length ? `<button type="button" data-tp="fitall">🗺 See them all</button>` : ""}${l.length || w ? `<button type="button" data-tp="gpx">⬇ GPX of the whole trip</button>` : ""}</div>`;
+      ${l.length ? "" : `<p class="sk-note">No lines yet. Tap any ski line on the map and then <b>🏕 Add to cabin trip</b>, ${t.hut ? "★ a tour near the cabin below, " : ""}or draw your own.</p>`}
+      <div class="tp-btns"><button type="button" data-tp="drawline">✏️ ${t.hut ? "Draw a tour from the cabin" : "Draw a tour"}</button>${l.length ? `<button type="button" data-tp="fitall">🗺 See them all</button>` : ""}${l.length || w ? `<button type="button" data-tp="gpx">⬇ GPX of the whole trip</button>` : ""}</div>`;
   }
   // A saved planned tour as a line (winter.js planLine: the less exposed way when it's on, its saved name and id).
   const planItem = () => { const p = S.planLine && S.planLine(); return p && p.line.length > 1 ? { tour: p.tour, name: p.name, ls: [p.line] } : null; };
@@ -496,7 +510,7 @@
   // Built from the trip: how many nights and people, what the cabin has (heat, water, outhouse, booking, fee), the way
   // in's slopes and the coldest night in the forecast. Ticks stay with the trip (t.packed).
   function packItems(t) {
-    const g = t.hut.tags || {}, w = t.way, n = t.nights, p = t.people;
+    const g = (t.hut && t.hut.tags) || {}, w = t.way, n = t.nights, p = t.people;
     const rows = view && view.rows ? view.rows.filter((r) => r.code != null) : [];
     const cold = rows.length ? Math.min(...rows.map((r) => r.lo)) : null;
     const noWater = g.drinking_water !== "yes", noHeat = !g.heating || g.heating === "none";
@@ -583,7 +597,7 @@
     const hasSat = (t.packed || {}).sat;
     return [`TRIP PLAN: ${hutName(t)} (backcountry ski trip)`,
       `Who: ${pl.who || "me"}${t.people > 1 ? ` (${t.people} people)` : ""}`,
-      `Cabin: ${hutName(t)}, ${ll(t.hut.lat, t.hut.lon)} https://www.google.com/maps?q=${t.hut.lat.toFixed(5)},${t.hut.lon.toFixed(5)}`,
+      ...(t.hut ? [`Cabin: ${t.hut.name || hutName(t)}, ${ll(t.hut.lat, t.hut.lon)} https://www.google.com/maps?q=${t.hut.lat.toFixed(5)},${t.hut.lon.toFixed(5)}`] : []),
       `Going in: ${dayWord(t.date)}${w ? `, ${w.from.replace(/^Park /, "parking ")} (${ll(w.line[0][0], w.line[0][1])}), ${w.km.toFixed(1)} km and ${fmtM(w.up)} up, about ${fmtH(w.hIn)}` : ""}`,
       ...(w && w.names && w.names.length ? [`Way in: via ${w.names.join(", ")}`] : []),
       `Nights: ${t.nights}. Back at the car by ${when(pl.out)}`,
@@ -591,7 +605,7 @@
       ...(pl.car ? [`Car: ${pl.car}${w ? " at the parking above" : ""}`] : []),
       `Gear: avalanche beacons, shovels, probes, first aid${hasSat ? ", satellite messenger" : ""}, ${t.nights + 1} days of food + a spare day`,
       ``, `If you haven't heard from us by ${when(pl.help)}: call 911 (or the RCMP) and say we're overdue on a backcountry ski trip. They call Search and Rescue. Read them this plan.`,
-      ...(t.hut.tags.operator ? [`The cabin is run by ${t.hut.tags.operator}${t.hut.tags.website ? ` (${t.hut.tags.website})` : ""}.`] : []),
+      ...(t.hut && t.hut.tags.operator ? [`The cabin is run by ${t.hut.tags.operator}${t.hut.tags.website ? ` (${t.hut.tags.website})` : ""}.`] : []),
     ].join("\n");
   }
   const icsEsc = (s) => String(s).replace(/[\\;,]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
@@ -600,13 +614,13 @@
     const pl = planOf(t), at = new Date(pl.help), who = pl.who || "your friend";
     return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Trail Finder//Cabin trip//EN", "CALSCALE:GREGORIAN",
       "BEGIN:VEVENT", `UID:tf-trip-${t.id}@trail-finder`, `DTSTAMP:${stamp(new Date())}`, `DTSTART:${stamp(at)}`, `DTEND:${stamp(new Date(at.getTime() + 30 * 60000))}`,
-      `SUMMARY:${icsEsc(`Heard from ${who}? (${hutName(t)} trip)`)}`, `GEO:${t.hut.lat.toFixed(5)};${t.hut.lon.toFixed(5)}`,
+      `SUMMARY:${icsEsc(`Heard from ${who}? (${hutName(t)} trip)`)}`, ...(t.hut ? [`GEO:${t.hut.lat.toFixed(5)};${t.hut.lon.toFixed(5)}`] : []),
       `DESCRIPTION:${icsEsc(`Not heard from ${who} yet? If they haven't told you they're out safe, call 911 and say they're overdue on a backcountry ski trip.\n\n${planText(t)}`)}`,
       "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${icsEsc(`Not heard from ${who}? Call 911`)}`, "TRIGGER:PT0M", "END:VALARM",
       "END:VEVENT", "END:VCALENDAR"].map((l) => (l.match(/.{1,60}/gu) || [""]).join("\r\n ")).join("\r\n");   // folded: 75 bytes a line at most
   }
   function bookIcs(t) {
-    const d = (t.book && t.book.remind) || localDate(new Date()), at = new Date(d + "T09:00"), g = t.hut.tags || {}, site = g["reservation:website"] || g.website || "";
+    const d = (t.book && t.book.remind) || localDate(new Date()), at = new Date(d + "T09:00"), g = (t.hut && t.hut.tags) || {}, site = g["reservation:website"] || g.website || "";
     return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Trail Finder//Cabin trip//EN", "CALSCALE:GREGORIAN",
       "BEGIN:VEVENT", `UID:tf-book-${t.id}@trail-finder`, `DTSTAMP:${stamp(new Date())}`, `DTSTART:${stamp(at)}`, `DTEND:${stamp(new Date(at.getTime() + 15 * 60000))}`,
       `SUMMARY:${icsEsc(`Book ${hutName(t)} (${dayWord(t.date)}, ${t.nights} night${t.nights > 1 ? "s" : ""})`)}`,
@@ -680,7 +694,7 @@
   }
 
   function bookHtml(t) {
-    const b = t.book || {}, g = t.hut.tags || {}, site = g["reservation:website"] || (/^(required|only|yes)$/.test(g.reservation || "") ? g.website : "");
+    const b = t.book || {}, g = (t.hut && t.hut.tags) || {}, site = g["reservation:website"] || (/^(required|only|yes)$/.test(g.reservation || "") ? g.website : "");
     return `<details class="tp-pack tp-book" ${t.bookOpen ? "open" : ""}><summary>📅 Booking <small>${b.done ? "booked ✓" : /^(required|only)$/.test(g.reservation || "") ? "needs booking" : ""}</small></summary>
       ${g.reservation ? `<p class="sk-note">${g.reservation === "no" ? "This cabin isn't booked: first come, first served." : /^(required|only)$/.test(g.reservation) ? "This cabin must be booked ahead." : "This cabin can be booked."}${g.charge ? ` Fee: ${esc(g.charge)}.` : ""}</p>` : ""}
       ${site ? `<div class="tp-btns"><a href="${esc(site)}" target="_blank" rel="noopener">🔗 Book on their site</a></div>` : ""}
@@ -716,7 +730,7 @@
     return { total, each, n, pay, noPayer: l.filter((x) => !x.by || !who.includes(x.by)).length };
   }
   function costHtml(t) {
-    const l = t.costs || [], s = settle(t), g = t.hut.tags || {};
+    const l = t.costs || [], s = settle(t), g = (t.hut && t.hut.tags) || {};
     return `<details class="tp-pack tp-cost" ${t.costOpen ? "open" : ""}><summary>💵 Costs <small>${l.length ? `${money(s.total)} · ${money(s.each)} each` : ""}</small></summary>
       ${l.length ? `<ul class="tp-costs">${l.map((x) => `<li><span>${esc(x.what)}<small>${x.by ? `paid by ${esc(x.by)}` : "who paid?"}</small></span><b>${money(+x.amt || 0)}</b><button type="button" data-crm="${esc(x.id)}" aria-label="Delete ${esc(x.what)}">✕</button></li>`).join("")}</ul>` : `<p class="sk-note">Add the cabin fee, gas, food and anything else the group shares.${g.charge ? ` The cabin's fee: ${esc(g.charge)}.` : ""}</p>`}
       <form class="tp-costadd" data-cadd="1"><input type="text" maxlength="40" placeholder="What (gas, food…)" autocomplete="off" aria-label="What it was for"><input type="number" inputmode="decimal" min="0" step="any" placeholder="$" aria-label="Amount">${whoSel(t, "", "", "Paid by")}<button type="submit">Add</button></form>
@@ -764,7 +778,7 @@
     const x = (s) => String(s).replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&apos;" }[c]));
     const trk = (name, ls) => `<trk><name>${x(name)}</name>${ls.map((l) => `<trkseg>${l.map((p) => `<trkpt lat="${p[0]}" lon="${p[1]}"/>`).join("")}</trkseg>`).join("")}</trk>`;
     return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Trail Finder" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>${x(hutName(t))} cabin trip</name></metadata>`
-      + `<wpt lat="${t.hut.lat}" lon="${t.hut.lon}"><name>${x(hutName(t))}</name></wpt>`
+      + (t.hut ? `<wpt lat="${t.hut.lat}" lon="${t.hut.lon}"><name>${x(t.hut.name || hutName(t))}</name></wpt>` : "")
       + (t.way ? trk(`Way in to ${hutName(t)}`, [t.way.line]) : "") + linesOf(t).map((l) => trk(l.name, l.ls)).join("") + `</gpx>`;
   }
 
@@ -774,7 +788,7 @@
   // phone keeps its copy (works with no signal) and the copy it last synced (share.base): a sync merges the group's
   // changes with yours item by item (an added line or item, a deleted one, a meal typed), so two people editing at once
   // both keep their changes. Ticks, the trip plan for a friend, offline saves and photos stay on each phone.
-  const SHARED = ["hut", "date", "nights", "people", "way", "lines", "own", "hide", "gear", "meals", "book", "costs", "notes", "group"];
+  const SHARED = ["hut", "name", "date", "nights", "people", "way", "lines", "own", "hide", "gear", "meals", "book", "costs", "notes", "group"];
   const docOf = (t) => JSON.parse(JSON.stringify(Object.fromEntries(SHARED.filter((k) => t[k] !== undefined).map((k) => [k, t[k]]))));
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
@@ -862,7 +876,7 @@
     if (have) { start(have); syncTrip(have.id, true); return; }
     try {
       const r = await rpc("trip_get", { p_id: id, p_key: key });
-      if (!r || !r.data || !r.data.hut) { toast("This shared trip doesn't exist any more."); return; }
+      if (!r || !r.data || !r.data.date) { toast("This shared trip doesn't exist any more."); return; }
       const t = { id: uid(""), at: Date.now(), ...r.data, share: { id, key, rev: r.rev, base: r.data, at: Date.now(), by: r.by || "", err: "" } };
       putTrip(t, true);
       start(t);
@@ -880,7 +894,7 @@
     if (!t) return;
     if (el.dataset.set) {
       setPath(t, el.dataset.set, el.type === "checkbox" ? (el.checked ? 1 : false) : el.type === "number" ? (el.value === "" ? "" : Math.max(0, +el.value)) : el.value.trim());
-      putTrip(t); if (el.dataset.set === "book.done") renderOrg("tpBook", bookHtml); return;
+      putTrip(t); if (el.dataset.set === "book.done") renderOrg("tpBook", bookHtml); if (el.dataset.set === "name") { render(); if (!t.hut) nearCabins(); } return;
     }
     if (el.dataset.meal || el.dataset.mealwho) {
       const k = el.dataset.meal || el.dataset.mealwho, f = el.dataset.meal ? "what" : "who", m = { ...(t.meals || {}) }, x = { ...(m[k] || {}) };
@@ -1020,30 +1034,31 @@
     const t = cur;
     if (!t) return;
     card.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>🏕 ${esc(hutName(t))} <small>cabin trip</small></h3></div>
+      <label class="tp-mine">Trip name<input type="text" data-set="name" maxlength="40" value="${esc(t.name || "")}" placeholder="${esc(t.hut ? t.hut.name || "Cabin trip" : "Like: Spearhead hut trip")}" autocomplete="off"></label>
       <div class="tp-form">
         <label>Go in<input type="date" data-tp="date" value="${esc(t.date)}"></label>
         <label>Nights<span class="tp-step"><button type="button" data-tp="n-" aria-label="One night less">−</button><b>${t.nights}</b><button type="button" data-tp="n+" aria-label="One night more">+</button></span></label>
         <label>People<span class="tp-step"><button type="button" data-tp="p-" aria-label="One person less">−</button><b>${t.people}</b><button type="button" data-tp="p+" aria-label="One person more">+</button></span></label>
       </div>
       <p class="sk-note">${esc(dayWord(t.date))} to ${esc(dayWord(addDays(t.date, t.nights)))}${countdown(t)}</p>
-      ${factsHtml(t)}
+      ${t.hut ? factsHtml(t) : `<div class="sk-sec tp-nohut" id="tpCabin"><h4>The cabin</h4><p class="sk-note">No cabin yet: everything else works without one. Tap a cabin (the brown dots) on the map and then <b>🏕 Use this cabin for ${esc(hutName(t))}</b>, or pick one near the middle of the map:</p><ul class="tp-list" id="tpNear"><li><p class="tp-wait">Finding cabins…</p></li></ul></div>`}
       <div class="sk-sec" id="tpGroup">${groupHtml(t)}</div>
-      <div class="sk-sec tp-way" id="tpWay"><h4>The way in</h4>${wayHtml(t)}</div>
-      <div class="sk-sec" id="tpDays"><h4>Each day</h4>${daysHtml()}</div>
+      ${t.hut ? `<div class="sk-sec tp-way" id="tpWay"><h4>The way in</h4>${wayHtml(t)}</div>
+      <div class="sk-sec" id="tpDays"><h4>Each day</h4>${daysHtml()}</div>` : ""}
       <div class="sk-sec tp-lines" id="tpLines"><h4>Your lines for this trip</h4>${linesHtml(t)}</div>
-      <div class="sk-sec" id="tpTours"><h4>Day tours from the cabin</h4>${toursHtml(t)}</div>
+      ${t.hut ? `<div class="sk-sec" id="tpTours"><h4>Day tours from the cabin</h4>${toursHtml(t)}</div>` : ""}
       <div class="sk-sec" id="tpPack">${packHtml(t)}</div>
       <div class="sk-sec" id="tpMeals">${mealsHtml(t)}</div>
       <div class="sk-sec" id="tpBook">${bookHtml(t)}</div>
       <div class="sk-sec" id="tpCost">${costHtml(t)}</div>
       <div class="sk-sec" id="tpPlan">${planHtml(t)}</div>
       <div class="sk-sec" id="tpJour">${journalHtml(t)}</div>
-      <div class="sk-sec"><div class="tp-btns"><button type="button" data-tp="off" ${t.way ? "" : "disabled"}>⤓ Save the trip offline</button><button type="button" data-tp="hut">Cabin details</button><button type="button" data-tp="del">🗑 Delete</button></div>
+      <div class="sk-sec"><div class="tp-btns"><button type="button" data-tp="off" ${t.way ? "" : "disabled"}>⤓ Save the trip offline</button>${t.hut ? `<button type="button" data-tp="hut">Cabin details</button>` : ""}<button type="button" data-tp="del">🗑 Delete</button></div>
         <p class="sk-note" id="tpOff">${offHtml(t)}</p></div>`;
   }
   // Where the trip's offline save is, from Offline maps itself (offline.js status, PR #544): saving, saved, or not
   // finished with files missing (alex saw "Saved offline" with 2 files missing). Missing files retry on their own.
-  const offName = (t) => `Cabin trip: ${hutName(t)}`;
+  const offName = (t) => `Cabin trip: ${(t.hut && t.hut.name) || hutName(t)}`;   // the cabin's name: renaming the trip keeps its offline save
   const day = (ms) => esc(new Date(ms).toLocaleDateString("en-CA", { month: "short", day: "numeric" }));
   function offHtml(t) {
     const st = window.tfOffline && window.tfOffline.status ? window.tfOffline.status(offName(t)) : null;
@@ -1140,8 +1155,8 @@
     else if (k === "drawline") {
       if (S.planPts().length > 1 && !confirm("Start a new tour from the cabin? The tour on the map now stays in Saved tours.")) return;
       drawingLine = t;
-      S.plan([[t.hut.lat, t.hut.lon]]);
-      toast("Tap the map along your tour from the cabin, then ✓ Done. It goes in this trip.");
+      S.plan(t.hut ? [[t.hut.lat, t.hut.lon]] : []);
+      toast(t.hut ? "Tap the map along your tour from the cabin, then ✓ Done. It goes in this trip." : "Tap the map along your tour, then ✓ Done. It goes in this trip.");
     }
     else if (k === "plansend" || k === "planics") {
       const pl = planOf(t);
@@ -1185,10 +1200,15 @@
     card.hidden = false; btn.setAttribute("aria-pressed", "true");
     const mine = trips();
     card.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>🏕 Cabin trips</h3></div>
-      ${mine.length ? `<ul class="tp-list">${mine.map((t) => `<li><button type="button" data-trip="${esc(t.id)}"><span>${esc(t.hut.name || "Cabin")}${t.share ? " 👥" : ""}</span><small>${late(t) ? `<b class="tp-late-tag">Overdue</b> ` : ""}${esc(dayWord(t.date))} · ${t.nights} night${t.nights > 1 ? "s" : ""}${(t.lines || []).length ? ` · ${t.lines.length} line${t.lines.length > 1 ? "s" : ""}` : ""}</small></button></li>`).join("")}</ul>` : ""}
-      <p class="sk-note">Tap a cabin (the brown dots) on the map, then <b>🏕 Plan a cabin trip here</b>, or pick one near you:</p>
+      <button type="button" class="sk-tripgo" data-newtrip="1">＋ Start a new trip</button>
+      ${mine.length ? `<ul class="tp-list">${mine.map((t) => `<li><button type="button" data-trip="${esc(t.id)}"><span>${esc(hutName(t))}${t.share ? " 👥" : ""}</span><small>${late(t) ? `<b class="tp-late-tag">Overdue</b> ` : ""}${esc(dayWord(t.date))} · ${t.nights} night${t.nights > 1 ? "s" : ""}${(t.lines || []).length ? ` · ${t.lines.length} line${t.lines.length > 1 ? "s" : ""}` : ""}</small></button></li>`).join("")}</ul>` : ""}
+      <p class="sk-note">Or start from a cabin: tap one (the brown dots) on the map, then <b>🏕 Plan a cabin trip here</b>, or pick one near you:</p>
       <ul class="tp-list" id="tpNear"><li><p class="tp-wait">Finding cabins…</p></li></ul>`;
     if (!quiet) scrollTo();
+    nearCabins();
+  }
+  // The named cabins nearest the middle of the map (the trips list, and a trip with no cabin yet).
+  async function nearCabins() {
     const c = map.getCenter(), ski = await S.loadSki();
     const near = (ski?.huts || []).filter((h) => h.kind !== "shelter" && h.name).map((h) => ({ h, d: map.distance(c, [h.lat, h.lon]) })).sort((a, b) => a.d - b.d).slice(0, 6);
     const el = $("tpNear");
@@ -1209,6 +1229,8 @@
     if (x && window.tfSki.show) window.tfSki.show(x.id, x.c).then(() => setTimeout(() => window.tfPanelScrollTo && $("skDetail") && window.tfPanelScrollTo($("skDetail")), 80));
   });
   card.addEventListener("click", (e) => {
+    const n = e.target.closest("[data-newtrip]");
+    if (n) { const t = newTrip(); start(t); setTimeout(() => { const i = card.querySelector('[data-set="name"]'); if (i) i.focus(); }, 300); return; }
     const a = e.target.closest("[data-trip], [data-hut]");
     if (!a) return;
     if (a.dataset.trip) { const t = trips().find((x) => x.id === a.dataset.trip); if (t) start(t); return; }
@@ -1222,8 +1244,9 @@
     const h = e.detail && e.detail.item, d = $("skDetail");
     if (!h || !d || h.lat == null || h.src === "c2c" || /^(parking|trailhead|shelter)$/.test(h.kind || "")) return;
     const row = document.createElement("button");
-    row.type = "button"; row.className = "sk-tripgo"; row.textContent = "🏕 Plan a cabin trip here";
-    row.addEventListener("click", () => open(h));
+    const pick = cur && !cur.hut && !card.hidden;   // a trip with no cabin yet is open: this cabin goes in it
+    row.type = "button"; row.className = "sk-tripgo"; row.textContent = pick ? `🏕 Use this cabin for ${hutName(cur)}` : "🏕 Plan a cabin trip here";
+    row.addEventListener("click", () => { if (pick && cur && !cur.hut) setHut(cur, h); else open(h); });
     const head = d.firstElementChild;
     if (head) head.after(row); else d.prepend(row);
   });

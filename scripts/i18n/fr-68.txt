@@ -1,0 +1,8 @@
+Start a new trip ||| Commencer un nouveau séjour
+Trip name ||| Nom du séjour
+My trip ||| Mon séjour
+Like: Spearhead hut trip ||| Ex. : séjour au refuge Spearhead
+The cabin ||| Le refuge
+Draw a tour ||| Tracer une sortie
+Tap the map along your tour, then ✓ Done. It goes in this trip. ||| Touchez la carte le long de votre sortie, puis ✓ Terminé. Elle s'ajoute à ce séjour.
+Cabin trips: start a new trip without picking a cabin first (Cabin trip, then ＋ Start a new trip). Add the cabin when you know it, from the list or a cabin on the map. ||| Séjours en refuge : commencez un nouveau séjour sans choisir de refuge d'abord (Séjour en refuge, puis ＋ Commencer un nouveau séjour). Ajoutez le refuge quand vous le savez, depuis la liste ou un refuge sur la carte.
