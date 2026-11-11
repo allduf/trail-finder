@@ -93,7 +93,7 @@
 #skiPane .tp-pack h5 { margin: 8px 0 2px; font-size: .74rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 #skiPane .tp-check { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; font-size: .86rem; line-height: 1.3; cursor: pointer; }
 #skiPane .tp-check input { width: 20px; height: 20px; margin: 0; flex: none; accent-color: ${COL}; }
-#skiPane .tp-check input:checked + span { color: var(--muted); text-decoration: line-through; }
+#skiPane .tp-pkrow .tp-check input:checked + span { color: var(--muted); text-decoration: line-through; }   /* packed, not "Booked" */
 #skiPane .tp-pack .tp-btns, #skiPane .tp-plan .tp-btns { margin-top: 8px; }
 #skiPane .tp-plan > p, #skiPane .tp-plan-form { margin: 6px 0; }
 #skiPane .tp-plan-form { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -436,7 +436,8 @@
     if (!t.hut || !window.tfSki || !window.tfSki.near) return;
     try {
       const r = await window.tfSki.near([t.hut.lat, t.hut.lon], 3, ["tour", "snowshoe", "other"]);
-      t.tours = r.routes.filter((x) => x.d <= 1500).slice(0, 8).map((x) => ({ id: x.id, name: x.name, label: x.label, km: +x.km.toFixed(1), d: Math.round(x.d), pill: x.pill, c: x.c }));
+      const wayR = new Set(((t.way && t.way.winter) || []).map((n) => n.toLowerCase()));   // the way in is already in the lines
+      t.tours = r.routes.filter((x) => x.d <= 1500 && !wayR.has((x.name || "").toLowerCase())).slice(0, 8).map((x) => ({ id: x.id, name: x.name, label: x.label, km: +x.km.toFixed(1), d: Math.round(x.d), pill: x.pill, c: x.c }));
       putTrip(t, true);   // a fresh list isn't an edit
     } catch { if (!t.tours) t.tours = []; }
     if (cur === t) renderTours();
@@ -651,7 +652,7 @@
   function packHtml(t) {
     const G = packList(t), done = packDone(t), auto = { offline: !!t.offAt, plan: !!(t.plan && t.plan.sent) }, all = G.flatMap((x) => x[1]), n = all.filter((x) => done[x[0]]).length;
     // Every row: tick it, ✕ to take it off, hold ☰ and drag it up or down, or into another section (alex 2026-11-11).
-    const body = G.map(([h, items]) => `<h5 data-h="${esc(h)}">${esc(h)}</h5>${items.map(([k, label, home]) => `<div class="tp-pkrow" data-k="${esc(k)}" data-home="${esc(home)}" data-sec="${esc(h)}"><label class="tp-check"><input type="checkbox" data-pk="${k}" ${done[k] ? "checked" : ""} ${auto[k] ? "disabled" : ""}> <span>${esc(label)}${home === "Your own items" ? byHtml(t, (t.own || []).find((y) => y.k === k)) : ""}</span></label>${isGroupGear(k) && names(t).length ? whoSel(t, `data-gear="${k}" class="tp-who${(t.gear || {})[k] ? " set" : ""}"`, (t.gear || {})[k], "Who brings?") : ""}<button type="button" class="tp-pkx" data-pkrm="${esc(k)}" aria-label="Take ${esc(label)} off the list">✕</button>${window.tfGrip || ""}</div>`).join("")}`).join("");
+    const body = G.map(([h, items]) => `<h5 data-h="${esc(h)}">${esc(h)}</h5>${items.map(([k, label, home]) => `<div class="tp-pkrow" data-k="${esc(k)}" data-home="${esc(home)}" data-sec="${esc(h)}"><label class="tp-check"><input type="checkbox" data-pk="${k}" ${done[k] ? "checked" : ""} ${auto[k] ? "disabled" : ""}> <span>${esc(label)}${home === "Your own items" ? byHtml(t, (t.own || []).find((y) => y.k === k)) : ""}</span></label>${isGroupGear(k) && names(t).length ? whoSel(t, `data-gear="${k}" class="tp-who${(t.gear || {})[k] ? " set" : ""}"`, (t.gear || {})[k], "Who?") : ""}<button type="button" class="tp-pkx" data-pkrm="${esc(k)}" aria-label="Take ${esc(label)} off the list">✕</button>${window.tfGrip || ""}</div>`).join("")}`).join("");
     const pct = all.length ? Math.round((n / all.length) * 100) : 0;
     return `<details class="tp-pack" ${t.packOpen ? "open" : ""}><summary>🎒 Packing list <small>${n} of ${all.length} packed</small></summary>
       <div class="tp-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Packed"><i style="width:${pct}%"></i></div>
@@ -1162,9 +1163,9 @@
     }).join("");
     const b = v.before;
     const far = v.rows.some((r) => r.code == null && r.date > v.end);
-    return `${b ? `<p class="sk-note">Before you go in (${b.n} days): ${b.snow >= 0.5 ? `<b>${Math.round(b.snow)} cm of new snow</b>` : "no new snow"}, wind up to ${Math.round(b.wind)} km/h.${b.snow >= 30 || b.wind >= 40 ? " Fresh slabs likely on the way in." : ""}</p>` : ""}
+    return `${b ? `<p class="sk-note">Before you go in (${b.n} days): ${b.snow >= 0.5 ? `<b>${Math.round(b.snow)} cm of new snow</b>` : "no new snow"}, wind up to ${Math.round(b.wind)} km/h.</p>` : ""}
       <ul class="tp-days">${rows}</ul>
-      <p class="sk-note">${v.old ? `<b>Saved forecast from ${esc(when(v.at))}</b> (no signal now). ` : v.at ? `Checked ${esc(when(v.at))}${t.autoAt && Math.abs(t.autoAt - v.at) < 60000 ? " (updated by itself)" : ""}. ` : ""}Weather at the cabin (${fmtM(v.ele)}), Open-Meteo${far ? `, about a week ahead: come back from ${esc(dayWord(addDays(t.date, -7)))} for the first day` : ""}. Avalanche danger on the way in, from Avalanche Canada${v.example ? " (example forecast)" : ""}${t.way ? ", with the Avaluator light for its terrain" : ""}. Check avalanche.ca the morning you go.</p>`;
+      <p class="sk-note">${v.old ? `<b>Saved forecast from ${esc(when(v.at))}</b> (no signal now). ` : v.at ? `Checked ${esc(when(v.at))}${t.autoAt && Math.abs(t.autoAt - v.at) < 60000 ? " (updated by itself)" : ""}`.replace(/\.$/, "") + ". " : ""}Weather at the cabin (${fmtM(v.ele)}), Open-Meteo${far ? `, about a week ahead: come back from ${esc(dayWord(addDays(t.date, -7)))} for the first day` : ""}. Avalanche danger on the way in, from Avalanche Canada${v.example ? " (example forecast)" : ""}${t.way ? ", with the Avaluator light for its terrain" : ""}. Check avalanche.ca the morning you go.</p>`;
   }
   function render() {
     const t = cur;
@@ -1193,6 +1194,7 @@
       <div class="sk-sec"><div class="tp-btns"><button type="button" data-tp="off" ${offPts(t).length ? "" : "disabled"}>⤓ ${offSaved(t) ? "Change the saved area" : "Save the trip offline"}</button>${t.hut ? `<button type="button" data-tp="hut">Cabin details</button>` : ""}<button type="button" data-tp="del">🗑 Delete</button></div>
         <p class="sk-note" id="tpOff">${offHtml(t)}</p>
         ${t.hut && localDate(new Date()) < t.date ? `<div class="tp-btns"><button type="button" data-tp="beforeics">⏰ Remind me the day before</button></div><p class="sk-note">From the day before the trip, each time you open the app with signal, the trip's weather, avalanche danger and offline copy update by themselves. The app can't do it while it's closed: the reminder is a calendar alert the evening before that tells you to open it.</p>` : ""}</div>`;
+    if (!t.hut) nearCabins();   // every redraw (a name added, a night more...) brings the cabins list back, not a spinner
   }
   // Where the trip's offline save is, from Offline maps itself (offline.js status, PR #544): saving, saved, or not
   // finished with files missing (alex saw "Saved offline" with 2 files missing). Missing files retry on their own.
@@ -1228,7 +1230,7 @@
   const renderPlan = () => { const el = $("tpPlan"); if (el && cur) el.innerHTML = planHtml(cur); };
   card.addEventListener("toggle", (e) => {   // keep the packing list / trip plan open across redraws
     if (!cur) return;
-    if (e.target.classList.contains("tp-pack")) cur.packOpen = e.target.open;
+    if (e.target.closest("#tpPack")) cur.packOpen = e.target.open;   // the other sections share .tp-pack for its look
     else if (e.target.classList.contains("tp-plan")) cur.planOpen = e.target.open;
   }, true);
 
