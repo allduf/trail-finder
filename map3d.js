@@ -848,8 +848,13 @@
   // After a long jump the camera can keep aiming at the height of the place it came from (alex 2026-11-03: searching
   // Bromont, 300 m high, from Whistler aimed at 2,200 m): tilted 70°, it then looks kilometres past the place and the
   // place sits at the bottom of the screen. Once the ground's heights there are in, aim at the ground itself.
+  // Never after the person's own move (pan, tilt, turn, zoom): MapLibre has already put the middle back on the ground
+  // there, keeping the camera where it was, and this moved the camera itself, up or down by the difference: after a
+  // tilt up to the horizon, whose middle is far off, it dropped ~4.6 km at the next stop (alex 2026-11-10: "zoom out
+  // or in when you move up and down").
+  let byHand = false;
   function groundCenter() {
-    if (!gl || !gl.setCenterElevation || gl.isMoving() || Date.now() - handAt < 3000) return;
+    if (!gl || !gl.setCenterElevation || byHand || gl.isMoving() || Date.now() - handAt < 3000) return;
     const e = gl.queryTerrainElevation(gl.getCenter());
     if (e != null && Math.abs(e - gl.getCenterElevation()) > 30) gl.setCenterElevation(e);
   }
@@ -2112,9 +2117,30 @@
       const c = M.fromLngLat(tr.center);
       tr.setCenter(new M(c.x + piv.g.x - a.x, c.y + piv.g.y - a.y).toLngLat());
     }
+    // Tilting keeps the camera at the same height (alex 2026-11-10, desktop recording: "i dont like how it zoom out or
+    // in when you move up and down"). MapLibre tilts by swinging the camera around the spot it looks at, at the same
+    // distance: tilting up from 45° to 84° dropped it from ~6 km to a few hundred metres, right down to the snow (and
+    // into the ridges), and tilting back down lifted it up again, like a zoom. Now the camera stays at the height it had
+    // when the tilt started and only the angle changes: up looks out to the horizon from there, down looks at the
+    // ground below, and the spot under the mouse or fingers stays put as before. A zoom (wheel, pinch) still changes it.
+    function keepHeight(tr, alt) {
+      const e = tr.elevation || 0, now = tr.getCameraAltitude();
+      // (the camera's height over the middle of the view goes as 1 / 2^zoom at the same tilt)
+      if (!isFinite(now) || now - e < 1 || alt - e < 20) return;
+      const z = Math.max(gl.getMinZoom(), Math.min(gl.getMaxZoom(), tr.zoom + Math.log2((now - e) / (alt - e))));
+      if (isFinite(z) && Math.abs(z - tr.zoom) > 1e-4) tr.setZoom(z);
+    }
+    let hold = null;   // the camera's height (metres) when this tilt started
     const orig = hm._handleMapControls;
     hm._handleMapControls = function (args) {
+      const pitching = live("mousePitch") || live("touchPitch");
       const mouse = live("mouseRotate") || live("mousePitch"), tilt = live("touchPitch"), twist = live("touchRotate");
+      if (!pitching) hold = null;
+      else if (hold === null && typeof args.tr.getCameraAltitude === "function") {
+        hold = args.tr.getCameraAltitude();
+        if (!isFinite(hold)) hold = null;
+        else if (gl.terrain) { this._terrainMovement = true; gl._elevationFreeze = true; }   // the middle's height stays put while tilting
+      }
       if (piv === null && (mouse || tilt || twist) && typeof args.tr.screenPointToMercatorCoordinateAtZ === "function") {
         // The ground under the point as it was drawn before this move (the fingers' point has already slid by panDelta).
         const p = mouse ? down : fingers === 2 && mid ? (args.panDelta ? mid.sub(args.panDelta) : mid) : null;
@@ -2123,6 +2149,9 @@
         if (g && gl.terrain) { this._terrainMovement = true; gl._elevationFreeze = true; }
       }
       const r = orig.apply(this, arguments);
+      // A pinch while tilting zooms as usual: the height to keep moves with it.
+      if (hold !== null && args.deltasForHelper && args.deltasForHelper.zoomDelta) hold = null;
+      if (hold !== null && args.deltasForHelper && args.deltasForHelper.pitchDelta) { try { keepHeight(args.tr, hold); } catch {} }
       if (piv) { try { place(args.tr, piv.follow ? mid : piv.p); } catch {} }
       return r;
     };
@@ -2152,10 +2181,14 @@
     // and over the Sea to Sky the sharpened photos waited behind them ("way longer to load").
     try { maplibregl.setMaxParallelImageRequests(PHONE ? 32 : 64); } catch {}
     const c = map.getCenter();
+    // Tilted at most 84°: past 84.3° MapLibre gives up finding the ground in the middle of the view when a move ends, puts
+    // that middle 10 km out in the air at the camera's height, and then the next picture drops it (and the camera with it)
+    // onto the ground there: tilted to the horizon, the camera fell ~5 km a moment after letting go (headless test,
+    // 2026-11-10). One degree less looks the same.
     gl = new maplibregl.Map({
       container: box, antialias: !PHONE, pixelRatio: PHONE ? Math.min(devicePixelRatio || 1, 2) : undefined,
       maxTileCacheSize: PHONE ? 12 : null,   // tiles kept per source after they leave the view (24 before 2026-10-26)
-      center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 0, bearing: bearing2d(), maxPitch: 85,
+      center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 0, bearing: bearing2d(), maxPitch: 84,
       attributionControl: { compact: true },
       style: {
         version: 8,
@@ -2396,7 +2429,7 @@
     gl.on("render", demFix);
     gl.on("moveend", keepView);
     gl.on("idle", groundCenter);   // also after opening and tilting up: aim at the ground once its heights are in (a camera under the mountains drew nothing)
-    gl.on("movestart", (e) => { if (e.originalEvent) { handAt = Date.now(); searchTilt = false; } });   // the person's own moves win
+    gl.on("movestart", (e) => { byHand = !!e.originalEvent; if (byHand) { handAt = Date.now(); searchTilt = false; } });   // the person's own moves win
     gl.on("moveend", placeNames);
     // A ski tour on the map (winter.js routeFocus): the other names smaller and fainter, so the route reads first.
     const namesFocus = (e) => { try {
