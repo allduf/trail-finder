@@ -1,0 +1,1 @@
+3D: turning the view with the mouse is smooth again. It no longer stutters while you turn. ||| 3D : tourner la vue avec la souris est de nouveau fluide, sans à-coups pendant la rotation.

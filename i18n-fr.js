@@ -2186,6 +2186,7 @@
     "terrain estimate":"terrain estimé",
     "Estimated from the terrain map (ATES-style), not an official rating":"Estimé selon la carte du relief (style ATES), pas une cote officielle",
     "Wording across every sport now says what the map, forecast or source shows instead of promising anything: no \"safe\" ice, \"clean air\" or \"good today\", hunting seasons say \"in season\", moto grades say \"usually\", plowed roads say \"usually plowed\". The Skiing spot card's long terrain class note is gone: the badge says \"terrain estimate\".":"Dans tous les sports, les textes disent maintenant ce que montrent la carte, la prévision ou la source au lieu de promettre quoi que ce soit : plus de glace « sûre », d'« air propre » ni de « bien aujourd'hui »; les saisons de chasse disent « en saison », les cotes de moto disent « habituellement », les routes déneigées disent « habituellement déneigées ». La longue note sur la classe de terrain de la fiche d'un endroit en ski est retirée : le badge dit « terrain estimé ».",
+    "3D: turning the view with the mouse is smooth again. It no longer stutters while you turn.":"3D : tourner la vue avec la souris est de nouveau fluide, sans à-coups pendant la rotation.",
     "Safest way here":"Trajet le plus sûr jusqu'ici",
     "Find the safest way":"Trouver le trajet le plus sûr",
     "Safest way: on":"Trajet le plus sûr : activé",
