@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-11", "text": "Wording across every sport now says what the map, forecast or source shows instead of promising anything: no \"safe\" ice, \"clean air\" or \"good today\", hunting seasons say \"in season\", moto grades say \"usually\", plowed roads say \"usually plowed\". The Skiing spot card's long terrain class note is gone: the badge says \"terrain estimate\"."},
     {"date": "2026-11-11", "text": "Cabin trip organizer: each cabin trip is now a folder. Add any ski line or your own tour to it, add your own items to the packing list, put a name on shared gear, plan the meals, keep the booking and split the costs, write a trip journal and get a GPX of the whole trip. Share it with your group: everyone can add and delete things."},
     {"date": "2026-11-11", "text": "Search: typing a name in the search box (MTB and Skiing) keeps up with your fingers now. The list updates once you pause instead of after every letter."},
     {"date": "2026-11-11", "text": "Tom's Hut is off the map, the cabin trip planner, Ask and search."},
