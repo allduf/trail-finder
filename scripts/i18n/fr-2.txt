@@ -119,7 +119,6 @@ Friday ||| Vendredi
 Saturday ||| Samedi
 Sunday ||| Dimanche
 Tomorrow ||| Demain
-Clean air for riding here: very little wildfire smoke in the forecast. ||| Air propre pour rouler ici : très peu de fumée de feux dans la prévision.
 Wildfire smoke near the ground, every 3 hours, for the map centre. Tap the chart to see that hour on the map. Forecast: Environment Canada FireWork (10 km; smoke from fires only, not city haze). ||| Fumée des feux près du sol, aux 3 heures, pour le centre de la carte. Touchez le graphique pour voir cette heure sur la carte. Prévision : FireWork d'Environnement Canada (10 km; fumée des feux seulement, pas le smog urbain).
 Couldn't read the loam right now. Try again in a few minutes. ||| Impossible de lire le loam en ce moment. Réessayez dans quelques minutes.
 Loam not available ||| Loam non disponible
@@ -385,7 +384,6 @@ Every lake and pond in green, all over Canada ||| Tous les lacs et étangs en ve
 Small creeks in light blue, dashed when they dry up in summer ||| Petits ruisseaux en bleu pâle, en tirets quand ils s'assèchent l'été
 Salt water in blue, where you need a tidal licence ||| L'eau salée en bleu, où il faut un permis de pêche en eau à marée
 Over 8,000 surveyed lakes in Ontario, Quebec and Manitoba, a few in BC, soundings in New Brunswick: zoom in on a lake. BC: tap a lake for its depth map ||| Plus de 8 000 lacs relevés en Ontario, au Québec et au Manitoba, quelques-uns en C.-B., des sondages au Nouveau-Brunswick : zoomez sur un lac. C.-B. : touchez un lac pour sa carte bathymétrique
-Public land you can walk to the water on: green; private: yellow (BC, AB, ON, QC, NB, NS, SK, NL; zoom in) ||| Terre publique où marcher jusqu'à l'eau : vert; privée : jaune (C.-B., Alb., Ont., Qc, N.-B., N.-É., Sask., T.-N.-L.; zoomez)
 Your catches and what works for you ||| Vos prises et ce qui fonctionne pour vous
 Fishing tools ||| Outils de pêche
 Go to a lake, river, town or region ||| Aller à un lac, une rivière, une ville ou une région

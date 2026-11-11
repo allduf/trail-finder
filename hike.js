@@ -1729,8 +1729,8 @@ out center tags qt;`;
     const d = wx && wx.days[0];
     $("hkToday").innerHTML = head
       + (d ? `<p class="hk-note">Here today: ${Math.round(d.min)} to ${Math.round(d.max)}°C${d.pop != null ? `, rain ${d.pop}%` : ""}${d.line != null ? `, ${esc(lineWord(d.line))}` : ""}${d.sunset ? `, sunset ${hm(d.sunset)}` : ""}</p>` : "")
-      + sec("good", "Good today: no snow up top, nothing closed", "#2f9e44", "")
-      + sec("snow", "Snow up high", "#1c7ed6", "Microspikes and poles, or wait for the melt. Snow from a weather model, not a trail report.")
+      + sec("good", "No snow or closures found today", "#495057", "Snow from a weather model; closures, warnings and fires from the feeds the app reads. Not a trail report.")
+      + sec("snow", "Snow up high", "#1c7ed6", "Snow from a weather model, not a trail report.")
       + sec("check", "Check first", "#c92a2a", "A closure, warning or wildfire is reported near these: tap one for the details.")
       + `<p class="hk-note">Nearest ${list.length} hikes within 25 km of the middle of the map. Move the map and tap Today again for another area.</p>`;
   }
